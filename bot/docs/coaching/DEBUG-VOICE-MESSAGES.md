@@ -28,10 +28,10 @@ When the bot starts, you'll see:
 
 ## Step 3: Test Voice Messages
 
-1. **Send a text message** to +XX XXX XXXXXXX
+1. **Send a text message** to +[YOUR BOT PHONE NUMBER]
    - Confirm it still works
 
-2. **Send a voice note** to +XX XXX XXXXXXX
+2. **Send a voice note** to +[YOUR BOT PHONE NUMBER]
    - Record a short message in Urdu
 
 ---
