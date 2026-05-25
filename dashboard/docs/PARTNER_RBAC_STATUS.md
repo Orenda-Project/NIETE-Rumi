@@ -145,9 +145,9 @@
 - ✅ Database Verified: RLS enabled on all tables
 - ✅ Database Verified: Super admin bypass logic
 - ✅ Database Verified: Country code normalization (+94 → 94)
-- ✅ Database Verified: 134 Sri Lankan users, 130 Pakistani users
+- ✅ Database Verified: country-scoped user counts resolve correctly
 - ⏸️ **Manual Test**: Create partner admin, verify scoped access
-- ⏸️ **Manual Test**: Test +94 country scope shows 134 users
+- ⏸️ **Manual Test**: Test a country scope (e.g. +94) shows the expected user count
 - ⏸️ **Manual Test**: Verify partner can't access out-of-scope data
 - ⏸️ **Manual Test**: Try direct URL to out-of-scope conversation
 
@@ -182,7 +182,7 @@
 ## Known Issues
 
 ### Resolved
-- ✅ Test accounts cleaned up (10 dummy partners deleted)
+- ✅ Test accounts cleaned up
 - ✅ Database permissions fixed (conversations table)
 - ✅ Migration 020 idempotency fixed (DROP TRIGGER IF EXISTS)
 - ✅ API endpoints returning HTML instead of JSON (commit 324f33c)
@@ -229,12 +229,12 @@
 ### ✅ Completed Today (Jan 13, 2026)
 1. Code review of all 36 tests → 21 passed via code review
 2. Database verification (RLS, permissions, audit logging)
-3. Country code normalization fix verified (+94 → 134 users)
+3. Country code normalization fix verified (+94 scope resolves correctly)
 4. Created comprehensive test execution report (PHASE_4_TEST_EXECUTION.md)
 
 ### 🔄 In Progress (Manual Testing)
 1. **Critical Priority**:
-   - [ ] Test +94 country code preview (verify shows 134 Sri Lankan users)
+   - [ ] Test a +country-code preview (verify it shows the expected user count)
    - [ ] Create test partner admin via invitation
    - [ ] Log in as partner admin, verify RLS enforcement
 
