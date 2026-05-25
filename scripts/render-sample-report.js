@@ -1,104 +1,104 @@
 #!/usr/bin/env node
 /**
- * render-sample-report.js — render a sample coaching report through the REAL pipeline.
+ * render-sample-report.js — regenerate the sample coaching report in docs/samples/.
  *
- * Produces docs/samples/coaching-report-sample.pdf so prospective adopters can see what a
- * Rumi classroom-observation report actually looks like, without deploying anything.
+ * Renders the MEWAKA "hero" celebration report (the current shipped design) from
+ * HAND-AUTHORED, representative data — IN-MEMORY, no DB, no LLM, no PII. The hero report
+ * is a single tall card delivered in production as an inline image; here we render it to
+ * docs/samples/coaching-report-sample.pdf so adopters can see a real report.
  *
- * Design notes:
- *  - Renders IN-MEMORY via PDFReportService.generateClassroomObservationReport (pdfkit, pure JS —
- *    no Chromium, no DB, no network). It does NOT touch the database, object storage, or WhatsApp.
- *  - The data below is HAND-AUTHORED and representative. We deliberately do NOT pull a real
- *    coaching session: production analysis contains transcript-derived `evidence` quotes with
- *    teacher/student/place names that cannot be reliably anonymised for a public repo. Authored
- *    data gives an authentic-looking sample with zero PII risk.
- *  - Re-run any time: `node scripts/render-sample-report.js`
+ * Pipeline: authored view-model → buildHeroReportHtml() → HTML → (headless browser
+ * screenshot) → trim → single-page PDF. The HTML step is pure Node; the image step needs a
+ * browser, so:
+ *   - `node scripts/render-sample-report.js`            → writes the HTML to a temp file + prints the render recipe
+ *   - `CHROME_BIN=/path/to/chrome node scripts/render-sample-report.js`  → renders the PDF end-to-end
+ *
+ * Why authored data, not a real session: a coaching report renders free-text quotes drawn
+ * from the lesson transcript, which carry teacher/student names — unanonymisable for a public
+ * repo. Authored data gives authentic pipeline output with zero PII risk.
  */
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
-const PDFReportService = require('../bot/shared/services/pdf-report.service');
+const { execFileSync } = require('child_process');
+const { buildHeroReportHtml } = require('../bot/shared/services/coaching/report-v2/hero-report.template');
 
-// A representative OECD-framework report. Scores are illustrative; evidence strings are generic
-// classroom observations with no real names, schools, or locations.
-const reportData = {
-  teacherName: 'Ms. Ayesha Khan',
-  observationDate: 'March 12, 2026',
-  subject: 'Science',
-  topic: 'Photosynthesis',
-  observerName: 'Rumi Digital Coach',
-  hasLessonPlan: false,
-  totalScore: 71,
-  maxScore: 103,
-  feedback:
-    'A warm, well-paced lesson with strong student participation. The teacher opened with a clear ' +
-    'objective and used a real-world hook that landed well. The biggest opportunity is to push for ' +
-    'higher-order questioning — most questions were recall; a few "why" and "what if" prompts would ' +
-    'lift cognitive rigor. Checking for understanding before moving on would catch the misconception ' +
-    'about where plants get their mass.',
-  goals: [
-    {
-      title: 'Goal 1: Formative Assessment and Feedback',
-      score: 15,
-      maxScore: 22,
-      criteria: [
-        { name: 'SMART Objectives', score: 4, max: 4, evidence: 'Lesson opened by stating the objective on the board and reading it aloud; objective was specific and measurable.', timestamp: '00:01:20' },
-        { name: "Teacher's Role", score: 3, max: 4, evidence: 'Teacher circulated during group work and prompted thinking, though a few groups were left unattended for several minutes.', timestamp: '00:14:05' },
-        { name: 'Assessment', score: 8, max: 9, evidence: 'Frequent thumbs-up/down checks and one exit-ticket question; could add a quick mid-lesson check before the practice task.', timestamp: '00:22:40' },
-      ],
-    },
-    {
-      title: 'Goal 2: Student Engagement',
-      score: 16,
-      maxScore: 22,
-      criteria: [
-        { name: 'Cognitive Rigor', score: 5, max: 9, evidence: 'Most questions were recall ("what is chlorophyll?"). Few prompts asked students to reason or predict.', timestamp: '00:09:10' },
-        { name: 'Real World Connections', score: 4, max: 4, evidence: 'Strong hook linking photosynthesis to why leaves are green and to food on the table.', timestamp: '00:02:30' },
-        { name: 'Multimodality', score: 4, max: 5, evidence: 'Used a labelled diagram and a short demonstration; no hands-on student activity.', timestamp: '00:11:00' },
-        { name: 'Addressing Misconceptions', score: 3, max: 4, evidence: 'Surfaced the "plants eat soil" misconception but moved on before fully resolving it.', timestamp: '00:18:15' },
-      ],
-    },
-    {
-      title: 'Goal 3: Quality Subject Content',
-      score: 22,
-      maxScore: 30,
-      criteria: [
-        { name: 'Prior Knowledge', score: 7, max: 10, evidence: 'Activated prior knowledge of plant parts before introducing the process.', timestamp: '00:03:45' },
-        { name: 'Content Accuracy', score: 9, max: 10, evidence: 'Explanation of the light-dependent stage was accurate and clearly sequenced.', timestamp: '00:12:20' },
-        { name: 'Coherence', score: 6, max: 10, evidence: 'Logical flow overall; the transition from the demo to independent practice was abrupt.', timestamp: '00:20:05' },
-      ],
-    },
-    {
-      title: 'Goal 4: Classroom Management',
-      score: 10,
-      maxScore: 14,
-      criteria: [
-        { name: 'Routines', score: 6, max: 7, evidence: 'Clear handout and grouping routines; transitions were quick and orderly.', timestamp: '00:05:00' },
-        { name: 'Time on Task', score: 4, max: 7, evidence: 'Strong start; the last ten minutes lost some momentum during clean-up.', timestamp: '00:33:10' },
-      ],
-    },
-    {
-      title: 'Goal 5: Supportive Learning Environment',
-      score: 8,
-      maxScore: 15,
-      criteria: [
-        { name: 'Respect & Rapport', score: 5, max: 8, evidence: 'Warm tone; praised effort by name and invited quieter students to contribute.', timestamp: '00:07:30' },
-        { name: 'Equitable Participation', score: 3, max: 7, evidence: 'A small group of students answered most questions; consider a cold-call or think-pair-share to widen participation.', timestamp: '00:16:50' },
-      ],
-    },
+// A representative MEWAKA report (6 domains / 75 marks). Fake teacher, generic lesson,
+// authored narrative — nothing drawn from a real transcript.
+const vm = {
+  language: 'en',
+  teacherName: 'Mwalimu Amina',
+  topic: 'Fractions · Grade 5',
+  date: '29 April 2026',
+  score: { overall: 76, marks: 57, max: 75 },
+  groups: [
+    { name: 'Introduction',         score: 5,  max: 6,  pct: 83 },
+    { name: 'Content Delivery',     score: 19, max: 24, pct: 79 },
+    { name: 'Teaching Methods',     score: 14, max: 21, pct: 67 },
+    { name: 'Learner Involvement',  score: 7,  max: 9,  pct: 78 },
+    { name: 'Classroom Management', score: 8,  max: 9,  pct: 89 },
+    { name: 'Conclusion',           score: 4,  max: 6,  pct: 67 },
   ],
-  priorFeedback: null,
-  debriefReflection: null,
-  fidelitySection: null,
-  isPartialReport: false,
-  partialReportNote: null,
+  narrative: {
+    affirmation: 'You turned a fractions lesson into a room full of thinkers.',
+    identity: 'Your classroom runs on curiosity — you ask, you wait, and you let students reach the idea themselves.',
+    moments: [{
+      quote: 'Who can show us another way to split this into equal parts?',
+      why: 'You opened the floor instead of handing over the answer — and several students jumped in. That is the moment the lesson became theirs.',
+    }],
+    strength_name: 'Questions that make students think',
+    strength_note: 'Your open questions pushed the class past recall into real reasoning — the heart of strong teaching.',
+    horizon_title: 'Reach every corner of the room',
+    horizon_note: 'A few quieter students stayed on the edges. A quick think-pair-share would draw them in next time.',
+    journey_note: 'Four lessons in, your scores keep climbing — especially in how you involve your learners.',
+  },
+  trend: [
+    { date: '2026-03-04', pct: 61 },
+    { date: '2026-03-18', pct: 68 },
+    { date: '2026-04-08', pct: 72 },
+    { date: '2026-04-29', pct: 76 },
+  ],
+  tryNext: 'Next class, try a 30-second think-pair-share before you take answers — it gives every student a way in.',
 };
 
+const OUT = path.resolve(__dirname, '..', 'docs', 'samples', 'coaching-report-sample.pdf');
+const htmlPath = path.join(os.tmpdir(), 'rumi-hero-sample.html');
+
+let html = buildHeroReportHtml(vm);
+html = html.replace('</style>', 'body{background:#fff!important}</style>'); // white page for the still
+fs.writeFileSync(htmlPath, html);
+console.log(`HTML written: ${htmlPath} (${Math.round(html.length / 1024)} KB)`);
+
+// Find a Chromium-family browser (env first, then common locations).
+const candidates = [
+  process.env.CHROME_BIN,
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser',
+].filter(Boolean);
+const browser = candidates.find((p) => { try { return fs.existsSync(p); } catch { return false; } });
+
+if (!browser) {
+  console.log('\nNo browser found. To finish the render, set CHROME_BIN and re-run, e.g.:');
+  console.log('  CHROME_BIN="/path/to/chrome" node scripts/render-sample-report.js');
+  process.exit(0);
+}
+
+const shot = path.join(os.tmpdir(), 'rumi-hero-shot.png');
+execFileSync(browser, ['--headless', '--disable-gpu', '--hide-scrollbars',
+  '--force-device-scale-factor=2', '--window-size=794,2400', `--screenshot=${shot}`, htmlPath], { stdio: 'pipe' });
+
 (async () => {
-  const buf = await PDFReportService.generateClassroomObservationReport(reportData);
-  const outDir = path.resolve(__dirname, '..', 'docs', 'samples');
-  fs.mkdirSync(outDir, { recursive: true });
-  const out = path.join(outDir, 'coaching-report-sample.pdf');
-  fs.writeFileSync(out, buf);
-  console.log(`Wrote ${out} (${Math.round(buf.length / 1024)} KB)`);
+  // sharp + pdfkit are bot dependencies — resolve them from bot/node_modules.
+  const botModules = path.resolve(__dirname, '..', 'bot', 'node_modules');
+  const sharp = require(path.join(botModules, 'sharp'));
+  const PDFDocument = require(path.join(botModules, 'pdfkit'));
+  const trimmed = await sharp(shot).trim({ background: '#ffffff', threshold: 6 }).toBuffer();
+  const m = await sharp(trimmed).metadata();
+  const ptW = (m.width / 2) * 0.75, ptH = (m.height / 2) * 0.75; // 2x device px → CSS px → 72dpi pt
+  const doc = new PDFDocument({ size: [ptW, ptH], margin: 0 });
+  doc.pipe(fs.createWriteStream(OUT));
+  doc.image(trimmed, 0, 0, { width: ptW, height: ptH });
+  doc.end();
+  console.log(`Wrote ${OUT} (${Math.round(ptW)}×${Math.round(ptH)} pt)`);
 })().catch((e) => { console.error(e); process.exit(1); });
