@@ -299,17 +299,14 @@ async function handleReadingAssessmentFlow(message, phoneNumber, userId) {
       assessmentId: assessment.id
     });
 
-    // Update conversation state
+    // Update conversation state. Comprehension/assessment context lives in Redis
+    // (see redis-comprehension.service), not a conversations column — writing a
+    // non-existent context_data column here previously failed the whole update,
+    // so current_state never persisted.
     const { error: updateError } = await supabase
       .from('conversations')
       .update({
-        current_state: 'AWAITING_READING_AUDIO',
-        context_data: {
-          assessment_id: assessment.id,
-          student_name: studentName,
-          is_auto_mode: isAutoMode,
-          test_comprehension: comprehensionRequired
-        }
+        current_state: 'AWAITING_READING_AUDIO'
       })
       .eq('user_id', userId)
       .order('created_at', { ascending: false })

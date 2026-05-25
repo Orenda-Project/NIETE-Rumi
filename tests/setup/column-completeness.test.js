@@ -33,10 +33,10 @@ const ALLOWLIST = {
   // _saveGrade writes a per-STUDENT summary shape — this mismatch exists in prod too
   // and is out of scope for OSS schema parity (the schema correctly mirrors prod).
   exam_grades: ['grade', 'graded_at', 'marks_obtained', 'percentage', 'question_breakdown', 'roll_number', 'session_id', 'student_name', 'total_marks'],
-  // BUG#33: context_data was moved to Redis (see voice-message.handler); flow-response.handler
-  // still writes it — a CODE inconsistency to fix, not a column to add. conversation_state is a
-  // coaching_sessions column mis-attributed here by chain proximity.
-  conversations: ['context_data', 'conversation_state'],
+  // conversation_state is a coaching_sessions column mis-attributed to conversations
+  // by chain proximity (parser artifact). (The stale context_data write was removed —
+  // comprehension state lives in Redis, see redis-comprehension.service.)
+  conversations: ['conversation_state'],
   // camelCase key from a nested non-DB object (parser artifact).
   coaching_sessions: ['excerptlength'],
   // Mis-attributed by chain proximity; no quiz_sessions write references updated_at.
