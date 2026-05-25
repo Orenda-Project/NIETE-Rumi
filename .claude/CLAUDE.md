@@ -25,11 +25,14 @@ folder with a `SKILL.md` (+ optional reference files).
 | [whatsapp-flows](skills/whatsapp-flows/SKILL.md) | Building & publishing WhatsApp Flows (endpoint data exchange, the publish lifecycle) |
 | [cross-agent-safety](skills/cross-agent-safety/SKILL.md) | Safety checklist before editing shared services/workers |
 | [pre-merge-checklist](skills/pre-merge-checklist/SKILL.md) | Defensive pre-flight checks for recurring bug classes |
+| [database-analysis](skills/database-analysis/SKILL.md) | Read-only analyst guide: connection, query patterns, anti-sprawl |
+| [qa-testing](skills/qa-testing/SKILL.md) | Test runner, conformance guards, the route-contract pattern |
+| [video-generation](skills/video-generation/SKILL.md) | The educational-video pipeline, presigned-URL gotcha, checkpoint/resume |
+| [ab-testing](skills/ab-testing/SKILL.md) | Thompson-sampling multi-armed bandit (ab_tests tables) |
 
 > **More skills are being ported from the production bot in batches** (operational core still pending:
-> qa-testing, video-generation, feature-tracer, database-analysis, logging, ab-testing). Each is
-> hand-reviewed and stripped of any internal/credential content before it lands — CI (gitleaks + the
-> source-hygiene guard) enforces that no secrets or internal references ship.
+> feature-tracer, logging). Each is hand-reviewed and stripped of any internal/credential content before it
+> lands — CI (gitleaks + the source-hygiene guard) enforces that no secrets or internal references ship.
 
 ## Rules for adding/editing skills here
 
