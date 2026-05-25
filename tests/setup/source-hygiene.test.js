@@ -19,6 +19,45 @@ const ROOT = path.resolve(__dirname, '../..');
 
 const REF_RE = /\b(?:bd-\d+|BUG-\d+|PROJ-\d+|FEAT-\d+|TASK-\d+|[Bb][Uu][Gg]\s*#\d+)\b/;
 
+// Internal context that must never appear in public agent-native docs (org/partner names,
+// tester names, deployment phone numbers). Env-var names like SUPABASE_SERVICE_ROLE_KEY are
+// legitimate and intentionally NOT listed here.
+const INTERNAL_RE = /\b(?:Taleemabad|TaleemHub|Rawalpindi|Silverleaf|Junaid|Aloyce|Shams|Attar)\b|\+92\d|\+255\d|\b0?329[\s-]?5012345\b|\b5012345\b/i;
+
+// Agent-native markdown: progressive-disclosure routers + skill docs (all public).
+function collectAgentDocs() {
+  const docs = [];
+  for (const top of ['CLAUDE.md', 'AGENTS.md']) {
+    const p = path.join(ROOT, top);
+    if (fs.existsSync(p)) docs.push(p);
+  }
+  const walk = (d) => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) {
+        if (['node_modules', '.git', 'dist', 'build', 'coverage'].includes(e.name)) continue;
+        walk(p);
+      } else if (e.name === 'CLAUDE.md') {
+        docs.push(p);
+      }
+    }
+  };
+  walk(ROOT);
+  // every .md under .claude/ (skill docs)
+  const claudeDir = path.join(ROOT, '.claude');
+  if (fs.existsSync(claudeDir)) {
+    const walkMd = (d) => {
+      for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+        const p = path.join(d, e.name);
+        if (e.isDirectory()) { if (e.name !== 'node_modules') walkMd(p); }
+        else if (e.name.endsWith('.md')) docs.push(p);
+      }
+    };
+    walkMd(claudeDir);
+  }
+  return [...new Set(docs)];
+}
+
 function collect(dir, exts) {
   const out = [];
   const abs = path.join(ROOT, dir);
@@ -51,6 +90,19 @@ describe('Source Hygiene', () => {
         const lines = fs.readFileSync(f, 'utf-8').split('\n');
         lines.forEach((line, i) => {
           if (REF_RE.test(line)) offenders.push(`${path.relative(ROOT, f)}:${i + 1}`);
+        });
+      }
+      expect(offenders).toEqual([]);
+    });
+  });
+
+  describe('agent-native docs carry no internal refs or context', () => {
+    it('CLAUDE.md routers + AGENTS.md + .claude/**/*.md are free of ticket refs and internal context', () => {
+      const offenders = [];
+      for (const f of collectAgentDocs()) {
+        const lines = fs.readFileSync(f, 'utf-8').split('\n');
+        lines.forEach((line, i) => {
+          if (REF_RE.test(line) || INTERNAL_RE.test(line)) offenders.push(`${path.relative(ROOT, f)}:${i + 1}`);
         });
       }
       expect(offenders).toEqual([]);
