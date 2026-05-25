@@ -112,7 +112,7 @@ If conflicts appear in these files, keep your version (`--ours`):
 
 - `.env`
 - `bot/shared/config/branding.js`
-- `bot/shared/config/feature-tiers.js`
+- `bot/shared/config/feature-availability.js`
 - `bot/shared/config/capabilities.config.js`
 
 ### Accept Upstream Version

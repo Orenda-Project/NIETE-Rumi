@@ -13,7 +13,7 @@ Run **`npm run doctor`** at any time to see which features are live for your cur
 | 📋 [Lesson Plans](lesson-plans.md) | Topic + grade → full lesson-plan PDF | `GAMMA_API_KEY` |
 | 📸 [Pic-to-LP](pic-to-lp.md) | Photo of a textbook page → illustrated 2-page LP | `KIE_API_KEY` |
 | 📚 [Homework](homework.md) | Pick class + chapters → curriculum homework bundle PDF | `HOMEWORK_FLOW_ID` |
-| 🧠 [Quiz](quiz.md) | Topic → interactive multiple-choice quiz in chat | _core — powered by `OPENROUTER_API_KEY`_ |
+| 🧠 [Quiz](quiz.md) | Teacher sends a topic quiz to a class → students answer, teacher gets results | _core — powered by `OPENROUTER_API_KEY`_ |
 | 🗣️ [Voice Messages](voice.md) | Full spoken interaction in many languages | `SONIOX_API_KEY` + `ELEVENLABS_API_KEY` |
 | 🎬 [Video Generation](video.md) | Topic → short narrated educational video | `VIDEO_GENERATION_ENABLED` + `KIE_API_KEY` |
 | ✅ [Attendance](attendance.md) | Tap-based attendance via WhatsApp Flows | _core — always on_ |

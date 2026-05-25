@@ -149,7 +149,7 @@ railway variables --service bot --set KEY1=value1 --set KEY2=value2
 | `WHATSAPP_TOKEN` | Token rotated by admin |
 | `OPENROUTER_API_KEY` | Key expired or changed |
 | `SONIOX_API_KEY` | New Soniox account |
-| `RUMI_TIER` | Upgrading tier |
+| a feature's key (e.g. `KIE_API_KEY`, `GAMMA_API_KEY`) | Turning that feature on — gating is presence-based, there are no tiers |
 
 After changing variables, the bot restarts automatically.
 

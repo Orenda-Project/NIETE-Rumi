@@ -35,7 +35,7 @@ cd bot && npm install && cd ..
 1. **Create account** at [supabase.com](https://supabase.com) (free tier is sufficient)
 2. **Create a new project** — choose a region closest to your users
 3. **Run the schema** in SQL Editor (Settings > SQL Editor):
-   - Copy and paste the contents of `infrastructure/supabase/00_complete-schema.sql` — this creates all 60 tables, 38 functions, 27 triggers, and 186+ indexes
+   - Copy and paste the contents of `infrastructure/supabase/00_complete-schema.sql` — this creates all 73 tables, 40 functions, 29 triggers, and 200+ indexes (or just run `npm run bootstrap:db`, which applies all three SQL files in order)
    - Then run `infrastructure/supabase/01_rls-policies.sql` — enables Row Level Security on all tables
    - Then run `infrastructure/supabase/02_seed-data.sql` — adds reading assessment benchmarks
 4. **Verify** by running `infrastructure/supabase/verify-schema.sql` — all checks should show PASS
@@ -149,7 +149,6 @@ Fill in the required values:
 # Core
 NODE_ENV=production
 PORT=3000
-RUMI_TIER=minimal
 
 # Database (from Step 2)
 SUPABASE_URL=https://your-project.supabase.co
@@ -275,19 +274,21 @@ node bot/workers/stale-session.worker.js
 
 ---
 
-## Upgrading Tiers
+## Adding Features
 
-### Minimal to Recommended
+There are **no tiers** — each feature turns on the moment its key(s) are present in your environment, and
+`npm run doctor` shows you which are live. To add one, set its key(s) and redeploy. For example:
+
+### Add voice transcription (coaching, reading, voice notes)
 
 1. Get a Soniox API key at [soniox.com](https://soniox.com)
 2. Add to your environment: `SONIOX_API_KEY=your-key`
-3. Update: `RUMI_TIER=recommended`
-4. Set up the stale session cron job (Step 11)
-5. Redeploy
+3. Set up the stale session cron job (Step 11)
+4. Redeploy
 
-### Recommended to Full (Regional Language Support)
+### Add regional-language speech-to-text (optional)
 
-The full tier adds speech-to-text for regional Pakistani languages (Balochi, Sindhi, Pashto) using Meta's MMS-ASR model deployed on [Modal.com](https://modal.com).
+Speech-to-text for regional Pakistani languages (Balochi, Sindhi, Pashto) uses Meta's MMS-ASR model deployed on [Modal.com](https://modal.com).
 
 **Prerequisites:** Python 3.10+, a Modal.com account
 
@@ -302,7 +303,6 @@ Set environment variables:
 ```env
 MMS_SERVICE_URL=https://your-workspace--mms-asr-service-web-app.modal.run
 MMS_API_KEY=your-secret-key-here
-RUMI_TIER=full
 ```
 
 ---
