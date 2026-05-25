@@ -3,7 +3,6 @@
 **Last Updated**: January 18, 2026
 **Domain Registrar**: GoDaddy
 **Hosting**: Railway
-**Bead**: plt-run01
 
 ---
 
@@ -129,4 +128,4 @@ If something goes wrong:
 
 | Date | Change | Who |
 |------|--------|-----|
-| Jan 18, 2026 | Created runbook (plt-run01) | Claude |
+| Jan 18, 2026 | Created runbook | Claude |

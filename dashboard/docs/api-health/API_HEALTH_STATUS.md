@@ -14,14 +14,14 @@ This document shows which services can display real usage/cost data and which se
 - **Status**: ✅ Should work after deployment
 - **API**: GraphQL API with billing data
 - **Fix Applied**: Changed to use `RAILWAY_ACCOUNT_TOKEN` instead of project token
-- **Env Vars**: `RAILWAY_ACCOUNT_TOKEN=12b2e85b-c734-481d-bcc1-480c1e4c1f5a` (already in Railway)
+- **Env Vars**: `RAILWAY_ACCOUNT_TOKEN=<your-railway-account-token>` (set it in your host's env)
 - **Shows**: Monthly cost, usage percentage, billing cycle dates
 
 ### 2. **WhatsApp Cloud API** - FIXED ✅
 - **Status**: ✅ Should work after deployment
 - **API**: Graph API for phone number info
 - **Fix Applied**: Now accepts both `PHONE_NUMBER_ID` and `WABA_ID`
-- **Env Vars**: `WABA_ID=886544661200478` (already in Railway)
+- **Env Vars**: `WABA_ID=<your-whatsapp-business-account-id>` (set it in your host's env)
 - **Shows**: Messaging tier limits, quality rating, rate limits
 - **Note**: Doesn't show actual message count (WhatsApp doesn't expose via API)
 
