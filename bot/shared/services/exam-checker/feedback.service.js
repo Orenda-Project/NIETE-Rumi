@@ -3,7 +3,6 @@
  * Generates structured pedagogical feedback using Hattie's Feed Up/Back/Forward framework
  *
  * Created: 2026-01-25
- * Bead: bd-176
  *
  * Framework:
  * - Feed Up: What was the learning goal?

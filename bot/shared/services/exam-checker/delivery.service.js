@@ -3,7 +3,7 @@
  * Sends graded results to users via WhatsApp
  *
  * Created: 2026-01-24
- * Bead: bd-085 (annotation dependency)
+ * Bead: (annotation dependency)
  */
 
 const whatsappService = require('../whatsapp.service');

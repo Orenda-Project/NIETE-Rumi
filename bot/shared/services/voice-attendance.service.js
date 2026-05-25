@@ -3,7 +3,6 @@
  * Processes voice messages for attendance marking using Soniox V3 + GPT-4o-mini
  *
  * Created: January 24, 2026
- * Bead: bd-061
  *
  * Flow:
  * 1. Teacher records voice message naming absent students

@@ -88,7 +88,7 @@ class PDFReportService {
       yPos = this._drawHeader(doc, reportData, percentage, performance, yPos);
       yPos = this._drawTeacherInfo(doc, reportData, yPos);
 
-      // Bug #9: Partial report note (if applicable)
+      // Partial report note (if applicable)
       if (reportData.isPartialReport && reportData.partialReportNote) {
         yPos = this._drawPartialReportNote(doc, reportData.partialReportNote, yPos);
       }
@@ -368,7 +368,7 @@ class PDFReportService {
   }
 
   /**
-   * Bug #9: Draw partial report note banner
+   * Draw partial report note banner
    * @param {PDFDocument} doc - PDF document
    * @param {string} noteText - Partial report note text
    * @param {number} yPos - Current Y position

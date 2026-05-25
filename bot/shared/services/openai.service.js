@@ -619,7 +619,7 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
       ];
 
       // Get response from OpenAI
-      // Bug #11: Reduce max_tokens for voice to enforce 60-second limit
+      // Reduce max_tokens for voice to enforce 60-second limit
       // RTL languages (Arabic script) use more tokens per word, so allow 400 tokens
       const RTL_LANGUAGES = ['ur', 'ar', 'bal-PK', 'sd-PK', 'ps-PK', 'pa-PK'];
       const isRTL = RTL_LANGUAGES.includes(language);

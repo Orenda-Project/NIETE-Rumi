@@ -1,6 +1,6 @@
 /**
  * Alphabet Grid Generator
- * Bug #24 Fix: Generate structured 3x4+2 alphabet grid using Canvas
+ * Generate structured 3x4+2 alphabet grid using Canvas
  *
  * Purpose: Create consistent, professional alphabet assessment images
  * without GPT-4 Vision's prompt injection risk
@@ -20,10 +20,10 @@ const CANVAS_WIDTH = 1200;
 const CANVAS_HEIGHT = 800;
 const BACKGROUND_COLOR = '#FFFFFF';
 const TEXT_COLOR = '#1A1A1A';
-const FONT_SIZE = 80; // Bug #26: Increased from 72 for better visibility
+const FONT_SIZE = 80; // Increased from 72 for better visibility
 const CELL_WIDTH = 200; // Bug #XX: Reduced from 300 to fix excessive white space (was 66% wasted)
 const CELL_HEIGHT = 200;
-const START_Y = 50; // Bug #26: Reduced from 100 to prevent top row clipping
+const START_Y = 50; // Reduced from 100 to prevent top row clipping
 
 /**
  * Generate alphabet grid image for reading assessment
@@ -43,7 +43,7 @@ async function generateAlphabetGrid(letters, language, fontFamily) {
   }
 
   try {
-    // Bug #5 Fix: Determine if RTL language (Urdu, Arabic read right-to-left)
+    // Determine if RTL language (Urdu, Arabic read right-to-left)
     const isRTL = ['ur', 'ar'].includes(language);
 
     logToFile('📊 Generating alphabet grid', {
@@ -61,7 +61,7 @@ async function generateAlphabetGrid(letters, language, fontFamily) {
     // Get canvas module
     const { createCanvas } = getCanvas();
 
-    // Bug #5 Fix: For RTL languages, reverse letter order so position 0 is on the RIGHT
+    // For RTL languages, reverse letter order so position 0 is on the RIGHT
     // This allows natural right-to-left reading while maintaining position-based scoring
     const displayLetters = isRTL ? [...letters].reverse() : letters;
 
@@ -92,7 +92,7 @@ async function generateAlphabetGrid(letters, language, fontFamily) {
       const rowWidth = lettersInRow * CELL_WIDTH;
       const rowStartX = (CANVAS_WIDTH - rowWidth) / 2;
 
-      // Bug #5 Fix: Add row number with direction arrow
+      // Add row number with direction arrow
       const rowNumberX = isRTL ? rowStartX + rowWidth + 40 : rowStartX - 40;
       const directionArrow = isRTL ? '←' : '→';
       ctx.fillStyle = '#999999'; // Light gray for row indicators

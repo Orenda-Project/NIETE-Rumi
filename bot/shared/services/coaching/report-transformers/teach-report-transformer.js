@@ -7,7 +7,7 @@
  * 3 areas + Time on Task → 4 goals, elements → criteria, holistic 1-5,
  * behavior L/M/H ratings in evidence text. No debrief, no LP bonus.
  *
- * Bead: bd-606 (Phase 1C-A2)
+ * Bead: (Phase 1C-A2)
  */
 
 const { formatDate, extractFidelity, buildPartialNote } = require('./_shared');

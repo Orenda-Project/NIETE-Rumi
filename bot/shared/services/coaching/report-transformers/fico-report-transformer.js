@@ -8,7 +8,7 @@
  * Photo-aware indicators (3.2 Routines & Transitions, 4.4 Use of Materials)
  * include photo evidence in the evidence text when available.
  *
- * Bead: bd-607 (Phase 1C-A2)
+ * Bead: (Phase 1C-A2)
  */
 
 const { formatDate, extractFidelity, buildPartialNote } = require('./_shared');

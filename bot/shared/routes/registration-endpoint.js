@@ -1,10 +1,10 @@
 /**
  * Registration Flow Endpoint Handler
  *
- * Handles endpoint-based WhatsApp Flow for user registration (PROJ-010).
+ * Handles endpoint-based WhatsApp Flow for user registration.
  * Uses data_api_version 3.0 with encrypted data exchange.
  *
- * Flow screens (bd-391, bd-395: split-screen + conditional org):
+ * Flow screens (split-screen + conditional org):
  *   PERSONAL_INFO → REGION_INFO (if PK) → PROFESSIONAL_INFO → SUCCESS (if org != "other")
  *   PERSONAL_INFO → REGION_INFO (if PK) → PROFESSIONAL_INFO → ORG_DETAILS → SUCCESS (if org == "other")
  *   PERSONAL_INFO → PROFESSIONAL_INFO (if not PK) → SUCCESS
@@ -29,7 +29,6 @@
  * - handlePing returns {data: {status: 'active'}}
  * - Log full JSON responses for debugging
  *
- * Bead: bd-384, bd-391, bd-395
  * Updated: February 16, 2026
  */
 
@@ -48,7 +47,7 @@ const REDIS_TTL = 3600; // 1 hour
 
 /**
  * Handle INIT action - return PERSONAL_INFO screen with country dropdown only
- * bd-391: Region is now on a separate screen, not included in INIT
+ * Region is now on a separate screen, not included in INIT
  */
 async function handleRegistrationInit(userId) {
   logToFile('📝 Registration flow INIT', { userId });
@@ -94,7 +93,7 @@ async function handleRegistrationDataExchange(userId, screen, screenData, flowTo
 
 /**
  * Handle PERSONAL_INFO screen submission
- * bd-391: Split-screen routing - PK goes to REGION_INFO, others skip to PROFESSIONAL_INFO
+ * Split-screen routing - PK goes to REGION_INFO, others skip to PROFESSIONAL_INFO
  */
 async function handlePersonalInfoSubmit(userId, screenData, flowToken) {
   const fullName = (screenData.full_name || '').trim();
@@ -116,7 +115,7 @@ async function handlePersonalInfoSubmit(userId, screenData, flowToken) {
   };
   await storeRegData(flowToken, regData);
 
-  // bd-391: Route based on country
+  // Route based on country
   if (country === 'PK') {
     // Pakistan users → REGION_INFO screen
     const response = {
@@ -151,7 +150,7 @@ async function handlePersonalInfoSubmit(userId, screenData, flowToken) {
 }
 
 /**
- * Handle REGION_INFO screen submission (bd-391: new screen for PK users)
+ * Handle REGION_INFO screen submission (new screen for PK users)
  * Updates Redis with selected region, navigates to PROFESSIONAL_INFO
  */
 async function handleRegionInfoSubmit(userId, screenData, flowToken) {
@@ -180,13 +179,13 @@ async function handleRegionInfoSubmit(userId, screenData, flowToken) {
 
 /**
  * Handle PROFESSIONAL_INFO screen submission
- * bd-395: Organization is mandatory. If org is "other", navigate to ORG_DETAILS.
+ * Organization is mandatory. If org is "other", navigate to ORG_DETAILS.
  * Otherwise, go directly to SUCCESS.
  */
 async function handleProfessionalInfoSubmit(userId, screenData, flowToken) {
   const organization = screenData.organization || '';
 
-  // bd-395: Organization is mandatory
+  // Organization is mandatory
   if (!organization) {
     return createErrorResponse('Organization is required');
   }
@@ -201,7 +200,7 @@ async function handleProfessionalInfoSubmit(userId, screenData, flowToken) {
     subjects: screenData.subjects || []
   };
 
-  // bd-395: If org is "other", navigate to ORG_DETAILS for custom org name
+  // If org is "other", navigate to ORG_DETAILS for custom org name
   if (organization === 'other') {
     await storeRegData(flowToken, allData);
 
@@ -249,14 +248,14 @@ async function handleProfessionalInfoSubmit(userId, screenData, flowToken) {
 }
 
 /**
- * Handle ORG_DETAILS screen submission (bd-395)
+ * Handle ORG_DETAILS screen submission
  * Collects custom organization name when user selected "Other".
  * Combines with stored data from Redis and returns SUCCESS.
  */
 async function handleOrgDetailsSubmit(userId, screenData, flowToken) {
   const organizationOther = (screenData.organization_other || '').trim();
 
-  // bd-395: Custom org name is mandatory when "Other" is selected
+  // Custom org name is mandatory when "Other" is selected
   if (!organizationOther) {
     return createErrorResponse('Please enter your organization name');
   }
@@ -294,13 +293,13 @@ async function handleOrgDetailsSubmit(userId, screenData, flowToken) {
 
 /**
  * Handle BACK navigation between screens
- * bd-391: Updated for split-screen routing
- * bd-395: Added ORG_DETAILS → PROFESSIONAL_INFO
+ * Updated for split-screen routing
+ * Added ORG_DETAILS → PROFESSIONAL_INFO
  */
 async function handleRegistrationBack(userId, screen, flowToken) {
   logToFile('📝 Registration flow BACK', { userId, screen });
 
-  // bd-395: BACK from ORG_DETAILS → PROFESSIONAL_INFO
+  // BACK from ORG_DETAILS → PROFESSIONAL_INFO
   if (screen === 'ORG_DETAILS') {
     return {
       screen: 'PROFESSIONAL_INFO',

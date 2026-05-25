@@ -876,7 +876,7 @@ logToFile('🚀 Starting SQS Coaching Worker', {
 
 // Recover stale requests before starting worker
 // Issue #38: Added video request recovery alongside lesson plan recovery
-// bd-092: Added exam grading recovery
+// Added exam grading recovery
 Promise.all([
   recoverStaleLessonPlanRequests(),
   recoverStaleVideoRequests(),

@@ -30,7 +30,7 @@ const openai = getClient();
 // Import REAL language detection utilities for command detection
 const { detectLanguageOverride } = require('../utils/language-detector');
 const { getUserLanguage, setUserLanguage } = require('../utils/language-cache');
-// Bug #10: Import language detection for content generation
+// Import language detection for content generation
 const { detectRequestedLanguage, parseSubjectAndGrade } = require('../utils/language-detection');
 const path = require('path');
 const {
@@ -249,7 +249,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
-  // ICE BREAKER DETECTION: Handle tapped ice breakers (BUG-001 fix)
+  // ICE BREAKER DETECTION: Handle tapped ice breakers (fix)
   // ============================================================
   const trimmedMessage = messageBody.trim().toLowerCase();
 
@@ -317,7 +317,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
-  // EXAM CHECKER DETECTION (bd-086): Check for exam check trigger
+  // EXAM CHECKER DETECTION: Check for exam check trigger
   // ============================================================
   if (user) {
     try {
@@ -662,7 +662,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
-  // BUG #18: COMPREHENSION TEXT ANSWER HANDLING
+  // COMPREHENSION TEXT ANSWER HANDLING
   // CRITICAL: Must check BEFORE normal conversation to route comprehension answers
   // ============================================================
   if (user) {
@@ -679,7 +679,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       });
 
       if (activeFlow) {
-        logToFile('📝 Comprehension TEXT answer detected (Bug #18)', {
+        logToFile('📝 Comprehension TEXT answer detected', {
           assessmentId: activeFlow.assessment_id,
           currentQuestion: activeFlow.current_question_index,
           answerText: messageBody.substring(0, 50) + '...'
@@ -705,7 +705,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
           .single();
         const language = assessment?.language || 'en';
 
-        // Bug #18: Evaluate TEXT answer directly (no transcription needed)
+        // Evaluate TEXT answer directly (no transcription needed)
         const answerEvaluation = await ComprehensionService.evaluateTextAnswer(
           questionData,
           messageBody,
@@ -746,7 +746,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
             hasImage: !!nextQuestion.imageUrl
           });
 
-          // Bug #7: Handle image questions (word-level comprehension)
+          // Handle image questions (word-level comprehension)
           if (nextQuestion.imageUrl && nextQuestion.buttons) {
             await WhatsAppService.sendImageWithButtons(
               from,
@@ -1126,11 +1126,11 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       return;
     }
 
-    // BUG-002 FIX: Check if user has features but missed registration (recovery path)
+    // Check if user has features but missed registration (recovery path)
     // This handles users who used features but never got asked for name
     if (user?.id) {
       const featureCount = await FeatureRegistrationService.countUserFeatures(user.id);
-      logToFile('📝 BUG-002: Checking feature count for recovery registration', {
+      logToFile('📝 Checking feature count for recovery registration', {
         userId: user.id,
         featureCount,
         phoneNumber: from
@@ -1138,7 +1138,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
 
       if (featureCount > 0) {
         // User has features but never got registered - trigger recovery registration
-        logToFile('📝 BUG-002: Triggering recovery registration for user with features', {
+        logToFile('📝 Triggering recovery registration for user with features', {
           userId: user.id,
           featureCount,
           phoneNumber: from
@@ -1361,7 +1361,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
-  // ATTENDANCE SYSTEM INTEGRATION (bd-060)
+  // ATTENDANCE SYSTEM INTEGRATION
   // ============================================================
   // Check if user is in an active attendance session
   if (user?.id) {
@@ -1418,12 +1418,12 @@ async function handleTextMessage(message, from, messageBody, user = null) {
             break;
 
           case AttendanceConversationService.STATES.AWAITING_DATE_SELECTION:
-            // User selecting date for attendance (bd-065)
+            // User selecting date for attendance
             result = await AttendanceConversationService.handleDateSelection(user.id, messageBody);
             break;
 
           case AttendanceConversationService.STATES.AWAITING_SESSION_TYPE:
-            // User selecting AM/PM session type (bd-066)
+            // User selecting AM/PM session type
             result = await AttendanceConversationService.handleSessionTypeSelection(user.id, messageBody);
             break;
 
@@ -1436,7 +1436,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
             break;
 
           case AttendanceConversationService.STATES.PROCESSING:
-            // Check if processing has timed out (bd-190)
+            // Check if processing has timed out
             if (AttendanceConversationService.isProcessingTimedOut(sessionState)) {
               logToFile('⚠️ Processing timeout detected, clearing stuck state', { userId: user.id, processingStartedAt: sessionState.processingStartedAt });
               await AttendanceConversationService.clearSessionState(user.id);
@@ -1471,16 +1471,16 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         } else if (result.action === 'AWAIT_VOICE_INPUT' || result.action === 'PROMPT_VOICE') {
           await WhatsAppService.sendMessage(from, result.message);
         } else if (result.action === 'SEND_MARKING_FLOW') {
-          // Send the WhatsApp Flow for marking attendance (bd-186: encryption endpoint implemented)
+          // Send the WhatsApp Flow for marking attendance (encryption endpoint implemented)
           if (ATTENDANCE_MARKING_FLOW_ID) {
             const sessionState = await AttendanceConversationService.getSessionState(user.id);
             const today = new Date().toISOString().split('T')[0];
-            // Flow token format: userId:classId:date:sessionType:className - all data for response handling (bd-193)
+            // Flow token format: userId:classId:date:sessionType:className - all data for response handling
             const sessionType = sessionState?.selectedSession || 'morning';
             const className = result.selectedClass?.class_name || 'Class';
             const section = result.selectedClass?.section || '';
             const flowToken = `${user.id}:${sessionState?.selectedListId}:${today}:${sessionType}:${encodeURIComponent(className)}`;
-            // bd-198: Dynamic header with class + section (e.g., "5A Attendance")
+            // Dynamic header with class + section (e.g., "5A Attendance")
             const displayName = section ? `${className}${section}` : className;
 
             await WhatsAppService.sendFlow(from, {
@@ -1489,7 +1489,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
               body: result.message,
               buttonText: 'Mark Attendance',
               // Note: Don't specify screen for data_api_version 3.0+ flows with endpoint
-              // The endpoint determines first screen via INIT response (bd-191)
+              // The endpoint determines first screen via INIT response
               flowToken: flowToken
             });
             logToFile('📋 Sent attendance marking flow', {
@@ -1508,7 +1508,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
           // Send initial "generating" message
           await WhatsAppService.sendMessage(from, result.message);
 
-          // Generate, upload, and deliver Excel (bd-063)
+          // Generate, upload, and deliver Excel
           try {
             const sessionState = await AttendanceConversationService.getSessionState(user.id);
             const deliveryResult = await AttendanceDeliveryService.processAndDeliver(
@@ -1525,17 +1525,17 @@ async function handleTextMessage(message, from, messageBody, user = null) {
             );
 
             if (!deliveryResult.success) {
-              // bd-190: Clear state on delivery failure to prevent stuck PROCESSING
+              // Clear state on delivery failure to prevent stuck PROCESSING
               await AttendanceConversationService.clearSessionState(user.id);
               logToFile('📋 Cleared session state after delivery failure', { userId: user.id, error: deliveryResult.error });
               await WhatsAppService.sendMessage(from, `Sorry, there was an error generating your attendance file: ${deliveryResult.error}\n\nSay "attendance" to try again.`);
             } else {
-              // bd-190: Clear state on successful completion
+              // Clear state on successful completion
               await AttendanceConversationService.clearSessionState(user.id);
               logToFile('📋 Cleared session state after successful delivery', { userId: user.id });
             }
           } catch (deliveryError) {
-            // bd-190: Clear state on exception to prevent stuck PROCESSING
+            // Clear state on exception to prevent stuck PROCESSING
             await AttendanceConversationService.clearSessionState(user.id);
             logToFile('Attendance delivery error - state cleared', { error: deliveryError.message, userId: user.id });
             await WhatsAppService.sendMessage(from, 'Sorry, something went wrong delivering your attendance file. Say "attendance" to try again.');
@@ -1564,7 +1564,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
-  // ADD CLASS DETECTION (bd-205)
+  // ADD CLASS DETECTION
   // Check BEFORE attendance - triggers setup flow even with existing classes
   // ============================================================
   const addClassDetection = AttendanceDetectorService.detectAddClassIntent(messageBody);
@@ -1648,13 +1648,13 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       return;
     }
 
-    // BUG-002 FIX: Check if user has features but missed registration (recovery path)
+    // Check if user has features but missed registration (recovery path)
     if (user?.id) {
       const featureCount = await FeatureRegistrationService.countUserFeatures(user.id);
 
       if (featureCount > 0) {
         // User has features but never got registered - trigger recovery registration
-        logToFile('📝 BUG-002: Recovery registration for user with features', {
+        logToFile('📝 Recovery registration for user with features', {
           userId: user.id,
           featureCount,
           phoneNumber: from
@@ -2023,7 +2023,7 @@ async function handleLessonPlanRequest(from, messageBody, user, sessionId, respo
     const topic = await OpenAIService.extractTopic(messageBody);
     logToFile('Topic extracted', { topic });
 
-    // Bug #10: Detect explicitly requested language (defaults to 'en')
+    // Detect explicitly requested language (defaults to 'en')
     const contentLanguage = detectRequestedLanguage(messageBody);
     logToFile('Content language detected', { contentLanguage, messageBody: messageBody.substring(0, 100) });
 
@@ -2141,7 +2141,7 @@ async function handlePresentationRequest(from, messageBody, user, sessionId, res
     const topic = await OpenAIService.extractTopic(messageBody);
     logToFile('Topic extracted', { topic });
 
-    // Bug #10: Detect explicitly requested language (defaults to 'en')
+    // Detect explicitly requested language (defaults to 'en')
     const contentLanguage = detectRequestedLanguage(messageBody);
     logToFile('Content language detected for presentation', { contentLanguage });
 

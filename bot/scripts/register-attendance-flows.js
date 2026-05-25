@@ -7,7 +7,6 @@
  *   node scripts/register-attendance-flows.js [--production]
  *
  * Created: January 24, 2026
- * Bead: bd-056
  *
  * API Reference:
  * - Create Flow: POST https://graph.facebook.com/{VERSION}/{WABA_ID}/flows
@@ -35,7 +34,7 @@ const STAGING_TOKEN = process.env.WHATSAPP_TOKEN;
 const WABA_ID = isProduction ? process.env.WABA_ID : STAGING_WABA_ID;
 const ACCESS_TOKEN = isProduction ? process.env.WHATSAPP_TOKEN : STAGING_TOKEN;
 
-// Base URL for flow endpoints (bd-215)
+// Base URL for flow endpoints
 // Railway domains follow pattern: {service-name}-production.up.railway.app
 const ENDPOINT_BASE_URL = process.env.APP_URL || (isProduction
   ? 'https://your-app-production.up.railway.app'
@@ -257,7 +256,7 @@ async function main() {
       file: 'attendance-setup-flow.json',
       categories: ['OTHER'],
       envVar: 'ATTENDANCE_SETUP_FLOW_ID',
-      endpointPath: '/api/flows/attendance-setup'  // bd-215
+      endpointPath: '/api/flows/attendance-setup'
     },
     {
       name: 'Attendance Marking',

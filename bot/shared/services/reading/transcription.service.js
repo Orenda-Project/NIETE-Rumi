@@ -45,7 +45,7 @@ class TranscriptionService {
       tempAudioPath = await this.downloadAudio(audioUrl, assessmentId);
 
       // Step 2: Transcribe with Soniox (speaker diarization enabled)
-      // Bug #29 Fix: Pass expected language to force correct transcription language
+      // Pass expected language to force correct transcription language
       logToFile('Calling Soniox with speaker diarization and language hint enabled...', {
         expectedLanguage
       });
@@ -219,7 +219,7 @@ class TranscriptionService {
       // Calculate word-level timestamps for fluency analysis
       const wordTimestamps = this.extractWordTimestamps(primarySpeakerTokens);
 
-      // Bug #29 Fix: Calculate audio duration from tokens (more reliable than WhatsApp metadata)
+      // Calculate audio duration from tokens (more reliable than WhatsApp metadata)
       // Use the last token's end_ms from primary speaker tokens, or fall back to all tokens
       let audioDurationSeconds = 0;
       const tokensForDuration = primarySpeakerTokens.length > 0 ? primarySpeakerTokens : tokens;
@@ -264,7 +264,7 @@ class TranscriptionService {
         confidence: confidence,
         qualityScore: qualityScore,
 
-        // Audio duration (Bug #29 fix)
+        // Audio duration (fix)
         audioDurationSeconds: audioDurationSeconds,
 
         // Raw data for debugging

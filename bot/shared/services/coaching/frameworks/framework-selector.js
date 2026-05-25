@@ -9,7 +9,7 @@
  *   2. Region default (Punjab/Sindh → HOTS, others → OECD)
  *   3. Global default → OECD
  *
- * Bead: bd-596 (Phase 1C)
+ * Bead: (Phase 1C)
  */
 
 const supabase = require('../../../config/supabase');

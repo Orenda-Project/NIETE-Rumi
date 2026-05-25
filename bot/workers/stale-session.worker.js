@@ -1,6 +1,6 @@
 /**
  * Stale Session Worker
- * Bug #9: Coaching Stuck Sessions - Railway Cron Service
+ * Coaching Stuck Sessions - Railway Cron Service
  *
  * Runs every 15 minutes via Railway Cron
  *

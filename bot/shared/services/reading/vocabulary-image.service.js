@@ -1,6 +1,6 @@
 /**
  * Vocabulary Image Service
- * Bug #7: Generates 3-picture composite images for word-level comprehension using Gemini 2.5 Flash
+ * Generates 3-picture composite images for word-level comprehension using Gemini 2.5 Flash
  *
  * Purpose: Create visual vocabulary assessments for L2/L3 learners
  * - Receptive vocabulary testing (picture-word matching)
@@ -54,7 +54,7 @@ class VocabularyImageService {
       });
 
       // Generate image via Gemini
-      // Bug #16 Fix: More explicit prompt to prevent wrong labels like "SKIP"
+      // More explicit prompt to prevent wrong labels like "SKIP"
       const prompt = `Create an educational image showing exactly 3 objects side by side:
 
 LEFT POSITION: A ${orderedWords[0].toUpperCase()} (cartoon style, colorful)

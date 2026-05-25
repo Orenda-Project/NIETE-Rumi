@@ -5,7 +5,7 @@
  * to link to a coaching session. Falls back to Yes/No buttons
  * when the teacher has no recent LPs.
  *
- * Bead: bd-619 (Phase 1C-D)
+ * Bead: (Phase 1C-D)
  */
 
 const { logToFile } = require('../../../utils/logger');

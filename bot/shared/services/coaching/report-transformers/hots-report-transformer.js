@@ -6,7 +6,7 @@
  *
  * 5 areas → 5 goals, indicators → criteria, scale 1-3, no debrief, no LP bonus.
  *
- * Bead: bd-605 (Phase 1C-A2)
+ * Bead: (Phase 1C-A2)
  */
 
 const { formatDate, extractFidelity, buildPartialNote } = require('./_shared');

@@ -42,7 +42,7 @@ class ReadingReportService {
   };
 
   /**
-   * Bug #22 Fix: Check if text contains non-Latin characters (Arabic/Urdu/etc.)
+   * Check if text contains non-Latin characters (Arabic/Urdu/etc.)
    * PDFKit cannot render these with standard Helvetica font
    * @param {string} text - Text to check
    * @returns {boolean} True if contains non-Latin characters
@@ -55,7 +55,7 @@ class ReadingReportService {
   }
 
   /**
-   * Bug #22 Fix: Translate non-Latin text to English for PDF display
+   * Translate non-Latin text to English for PDF display
    * @param {string} text - Non-Latin text to translate
    * @returns {Promise<string>} Translated English text
    */
@@ -175,7 +175,7 @@ class ReadingReportService {
         yPos = this._drawErrorAnalysis(doc, reportData, yPos);
       }
 
-      // Bug #19 Fix: Add mispronunciation details section (English only)
+      // Add mispronunciation details section (English only)
       if (reportData.pronunciation && reportData.language === 'en') {
         yPos = this._drawMispronunciationDetails(doc, reportData, yPos);
         yPos = this._drawPronunciationAssessment(doc, reportData, yPos);
@@ -286,7 +286,7 @@ class ReadingReportService {
        .font('Helvetica')
        .text('Student Reading Fluency Evaluation powered by Rumi', 145, yPos + 35);
 
-    // Bug #6 Fix: Dynamic metric name based on passage type
+    // Dynamic metric name based on passage type
     const metricInfo = this._getMetricInfo(reportData.passageType);
 
     // Fluency score badge (top right) - uses dynamic metric name
@@ -395,12 +395,12 @@ class ReadingReportService {
 
     const passageText = data.passageText || 'N/A';
 
-    // Bug #28 Fix: Detect words-type passages and render in 2-column layout
+    // Detect words-type passages and render in 2-column layout
     if (data.passageType === 'words') {
       // Words type: 2-column layout (matches WhatsApp image)
       let words = passageText.split('\n').filter(w => w.trim().length > 0);
 
-      // Bug #2a Fix: passageText is now stored in HORIZONTAL reading order
+      // a Fix: passageText is now stored in HORIZONTAL reading order
       // (w0, w7, w1, w8, w2, w9, ...) but PDF needs COLUMN order for visual display
       // Convert back: horizontal → column order
       if (words.length === 14) {
@@ -419,7 +419,7 @@ class ReadingReportService {
 
       const boxHeight = 200; // Fixed height for 7 words per column
 
-      // Bug #19 Fix: Removed incorrect "words can be read in any order" note
+      // Removed incorrect "words can be read in any order" note
       // Words should be read left-to-right, row by row
 
       doc.roundedRect(50, yPos, 495, boxHeight, 8)
@@ -461,7 +461,7 @@ class ReadingReportService {
 
     } else {
       // Non-words type: Single-column layout (original behavior)
-      // BUG #3 FIX: Calculate height with CORRECT font (Urdu font is taller than Helvetica)
+      // Calculate height with CORRECT font (Urdu font is taller than Helvetica)
       const isUrdu = data.language === 'ur' && fs.existsSync(path.join(__dirname, '../../../fonts/NotoSansArabic.ttf'));
       const fontName = isUrdu ? 'UrduFont' : 'Helvetica';
 
@@ -523,7 +523,7 @@ class ReadingReportService {
     doc.roundedRect(50, yPos, 495, 110, 8)
        .fillAndStroke(this.COLORS.background, this.COLORS.border);
 
-    // Bug #6 Fix: Dynamic metric name (LCPM for letters, WCPM for connected text)
+    // Dynamic metric name (LCPM for letters, WCPM for connected text)
     const metricInfo = this._getMetricInfo(data.passageType);
 
     // Fluency metric (WCPM or LCPM)
@@ -563,7 +563,7 @@ class ReadingReportService {
     this._drawRoundedProgressBar(doc, 60, yPos + 60, 435, 12, data.accuracy, accuracyColor);
 
     // Words/Letters breakdown
-    // Bug #3b/3c Fix: Use dynamic label based on passage type
+    // b/3c Fix: Use dynamic label based on passage type
     const unit = data.passageType === 'letters' ? 'letters' : 'words';
     doc.fontSize(8)
        .fillColor(this.COLORS.secondary)
@@ -594,7 +594,7 @@ class ReadingReportService {
     doc.roundedRect(50, yPos, 495, 90, 8)
        .fillAndStroke(this.COLORS.background, this.COLORS.border);
 
-    // Bug #6 Fix: Dynamic metric name in benchmark
+    // Dynamic metric name in benchmark
     const metricInfo = this._getMetricInfo(data.passageType);
 
     // Benchmark range
@@ -712,7 +712,7 @@ class ReadingReportService {
          .font('Helvetica')
          .text('ERROR EXAMPLES', 60, yPos + 55);
 
-      // BUG #2 FIX: Use UrduFont for Urdu assessments to render Urdu characters correctly
+      // Use UrduFont for Urdu assessments to render Urdu characters correctly
       // Previously used Helvetica which cannot render Arabic/Urdu script
       const isUrdu = data.language === 'ur';
       const errorFont = isUrdu && fs.existsSync(path.join(__dirname, '../../../fonts/NotoSansArabic.ttf'))
@@ -735,7 +735,7 @@ class ReadingReportService {
   }
 
   /**
-   * Draw mispronunciation details section (Bug #19 fix)
+   * Draw mispronunciation details section (fix)
    * Shows which specific words were mispronounced with accuracy scores
    * @private
    */
@@ -761,7 +761,7 @@ class ReadingReportService {
 
     yPos += 25;
 
-    // Bug #30: Show top 5 errors with phonetic guidance (was 8 without details)
+    // Show top 5 errors with phonetic guidance (was 8 without details)
     const topErrors = mispronunciations.slice(0, 5);
 
     // Calculate dynamic box height based on errors (more space for phoneme breakdowns)
@@ -786,7 +786,7 @@ class ReadingReportService {
        .font('Helvetica')
        .text('TOP PRONUNCIATION ERRORS (with phoneme breakdowns)', 60, yPos + 55);
 
-    // Bug #30 Fix: Show detailed phoneme breakdowns for each error
+    // Show detailed phoneme breakdowns for each error
     let exampleY = yPos + 70;
     for (const error of topErrors) {
       // Word and accuracy score
@@ -1006,7 +1006,7 @@ class ReadingReportService {
          .text(`${Math.round(pron.prosodyScore)}%`, 60, yPos + 70);
     }
 
-    // REMOVED (Bug #7): Source indicator is debug text, not needed in teacher-facing reports
+    // REMOVED: Source indicator is debug text, not needed in teacher-facing reports
     // doc.fontSize(7)
     //    .fillColor(this.COLORS.secondary)
     //    .font('Helvetica-Oblique')
@@ -1017,7 +1017,7 @@ class ReadingReportService {
 
   /**
    * Sprint 1.8: Draw comprehension assessment section
-   * Bug #22 Fix: Made async to support non-Latin text translation
+   * Made async to support non-Latin text translation
    * @private
    */
   static async _drawComprehensionAssessment(doc, data, yPos) {
@@ -1087,7 +1087,7 @@ class ReadingReportService {
 
     let questionY = yPos + 110;
     if (comp.answers && comp.answers.length > 0) {
-      // Bug #22 Fix: Use for...of loop to support async translation of non-Latin text
+      // Use for...of loop to support async translation of non-Latin text
       for (let index = 0; index < Math.min(comp.answers.length, 5); index++) {
         const answer = comp.answers[index];
         const icon = answer.correct ? '✅' : '❌';
@@ -1102,7 +1102,7 @@ class ReadingReportService {
         questionY += 12;
 
         // Student's answer with visual indicators for wrong answers
-        // Bug #22 Fix: Translate non-Latin text (Urdu/Arabic) to English for PDF display
+        // Translate non-Latin text (Urdu/Arabic) to English for PDF display
         let studentAnswer = answer.studentAnswer || 'No answer';
         let translationNote = '';
 
@@ -1222,7 +1222,7 @@ class ReadingReportService {
   }
 
   /**
-   * Bug #6 Fix: Get metric info based on passage type
+   * Get metric info based on passage type
    * @param {string} passageType - Passage type (letters, words, sentences, etc.)
    * @returns {Object} Metric info with shortName and displayName
    * @private
@@ -1266,7 +1266,7 @@ class ReadingReportService {
     // Handle null/undefined
     if (!percentileRank) return 'Unknown';
 
-    // Bug #18 Fix: Parse to number if string (database stores as VARCHAR)
+    // Parse to number if string (database stores as VARCHAR)
     // percentileRank can be: '75' (string), 75 (number), or 'above'/'at'/'below' (legacy)
     const rank = typeof percentileRank === 'string'
       ? parseInt(percentileRank, 10)

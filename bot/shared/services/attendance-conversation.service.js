@@ -3,7 +3,6 @@
  * State machine for managing attendance marking workflow
  *
  * Created: January 24, 2026
- * Bead: bd-059
  *
  * States:
  * - IDLE: Not in an attendance session
@@ -23,8 +22,8 @@ const { logToFile } = require('../utils/logger');
 const STATES = {
   IDLE: 'IDLE',
   AWAITING_CLASS_SELECTION: 'AWAITING_CLASS_SELECTION',
-  AWAITING_DATE_SELECTION: 'AWAITING_DATE_SELECTION',      // bd-065
-  AWAITING_SESSION_TYPE: 'AWAITING_SESSION_TYPE',          // bd-066 (AM/PM)
+  AWAITING_DATE_SELECTION: 'AWAITING_DATE_SELECTION',
+  AWAITING_SESSION_TYPE: 'AWAITING_SESSION_TYPE', // (AM/PM)
   AWAITING_MARKING_METHOD: 'AWAITING_MARKING_METHOD',
   AWAITING_VOICE_INPUT: 'AWAITING_VOICE_INPUT',
   AWAITING_VERIFICATION: 'AWAITING_VERIFICATION',
@@ -35,10 +34,10 @@ const STATES = {
 // Session TTL in seconds (1 hour)
 const SESSION_TTL = 3600;
 
-// Processing timeout in seconds (2 minutes) - bd-190
+// Processing timeout in seconds (2 minutes) -
 const PROCESSING_TIMEOUT = 120;
 
-// Rate limiting constants (bd-069)
+// Rate limiting constants
 const RATE_LIMIT_WINDOW = 300; // 5 minutes
 const RATE_LIMIT_MAX_SESSIONS = 5; // Max 5 sessions per 5 minutes
 
@@ -46,7 +45,7 @@ const RATE_LIMIT_MAX_SESSIONS = 5; // Max 5 sessions per 5 minutes
 const VOICE_KEYWORDS = ['voice', 'آواز', 'awaz', 'bolo', 'بولو', '1', 'roll call'];
 const TAP_KEYWORDS = ['tap', 'type', 'ٹیپ', '2', 'mark', 'select'];
 
-// Session type keywords (bd-066)
+// Session type keywords
 const MORNING_KEYWORDS = ['morning', 'am', 'صبح', 'subah', '1'];
 const AFTERNOON_KEYWORDS = ['afternoon', 'pm', 'دوپہر', 'dopahar', '2'];
 
@@ -112,7 +111,7 @@ class AttendanceConversationService {
   }
 
   /**
-   * Check if PROCESSING state has timed out (bd-190)
+   * Check if PROCESSING state has timed out
    * @param {Object} sessionState - Current session state
    * @returns {boolean} True if processing has timed out
    */
@@ -135,7 +134,7 @@ class AttendanceConversationService {
   }
 
   /**
-   * Check rate limit for user (bd-069)
+   * Check rate limit for user
    * @returns {Object} { allowed: boolean, remainingTime?: number }
    */
   static async checkRateLimit(userId) {
@@ -169,7 +168,7 @@ class AttendanceConversationService {
   }
 
   /**
-   * Increment rate limit counter (bd-069)
+   * Increment rate limit counter
    */
   static async incrementRateLimit(userId) {
     try {
@@ -198,7 +197,7 @@ class AttendanceConversationService {
   }
 
   /**
-   * Handle existing session recovery (bd-068)
+   * Handle existing session recovery
    * @returns {Object} { hasExisting: boolean, sessionState?: Object, action?: string }
    */
   static async handleSessionRecovery(userId) {
@@ -237,7 +236,7 @@ class AttendanceConversationService {
   }
 
   /**
-   * Generate date selection message (bd-065)
+   * Generate date selection message
    */
   static generateDateSelectionMessage() {
     const today = new Date();
@@ -270,7 +269,7 @@ class AttendanceConversationService {
   }
 
   /**
-   * Generate session type message (bd-066 - AM/PM)
+   * Generate session type message (- AM/PM)
    */
   static generateSessionTypeMessage() {
     return [
@@ -334,7 +333,7 @@ class AttendanceConversationService {
 
   /**
    * Start a new attendance session
-   * Now includes rate limiting (bd-069), concurrent prevention (bd-067), and session recovery (bd-068)
+   * Now includes rate limiting, concurrent prevention, and session recovery
    *
    * @param {string} userId - User ID
    * @param {Object} options - Optional settings
@@ -344,7 +343,7 @@ class AttendanceConversationService {
    */
   static async startAttendanceSession(userId, options = {}) {
     try {
-      // bd-069: Check rate limit
+      // Check rate limit
       const rateLimitCheck = await this.checkRateLimit(userId);
       if (!rateLimitCheck.allowed) {
         return {
@@ -359,7 +358,7 @@ class AttendanceConversationService {
         };
       }
 
-      // bd-067 & bd-068: Check for existing session (concurrent prevention + recovery)
+      // & Check for existing session (concurrent prevention + recovery)
       if (!options.forceNew) {
         const recoveryResult = await this.handleSessionRecovery(userId);
         if (recoveryResult.hasExisting) {
@@ -498,7 +497,7 @@ class AttendanceConversationService {
   }
 
   /**
-   * Handle date selection response (bd-065)
+   * Handle date selection response
    */
   static async handleDateSelection(userId, input) {
     try {
@@ -564,7 +563,7 @@ class AttendanceConversationService {
   }
 
   /**
-   * Handle session type selection (bd-066 - AM/PM)
+   * Handle session type selection (- AM/PM)
    */
   static async handleSessionTypeSelection(userId, input) {
     try {
@@ -794,7 +793,7 @@ class AttendanceConversationService {
         confidence: 1.0
       }));
 
-      // Update state to processing with timestamp (bd-190)
+      // Update state to processing with timestamp
       await this.saveSessionState(userId, {
         ...sessionState,
         state: STATES.PROCESSING,
@@ -818,7 +817,7 @@ class AttendanceConversationService {
   }
 
   /**
-   * Handle voice input for attendance roll call (bd-062)
+   * Handle voice input for attendance roll call
    * Called when teacher sends a voice message with roll call
    *
    * @param {string} userId - User ID
@@ -976,7 +975,7 @@ class AttendanceConversationService {
 
       // Check for confirmation
       if (['yes', 'confirm', 'correct', 'ok', 'ہاں', 'جی', 'ٹھیک'].some(kw => normalizedResponse.includes(kw))) {
-        // Update state to processing with timestamp (bd-190)
+        // Update state to processing with timestamp
         await this.saveSessionState(userId, {
           ...sessionState,
           state: STATES.PROCESSING,
@@ -1044,7 +1043,7 @@ class AttendanceConversationService {
       return false;
     }
 
-    // Include processing timestamp (bd-190)
+    // Include processing timestamp
     await this.saveSessionState(userId, {
       ...sessionState,
       state: STATES.PROCESSING,

@@ -1,7 +1,7 @@
 /**
  * Database Context Middleware - FIXED VERSION
  *
- * Fixes applied (bd-039):
+ * Fixes applied:
  * - Uses res.on('finish') for reliable cleanup (works with ALL response types)
  * - No method overriding (res.send/json) - avoids race conditions
  * - Single release point with 'released' flag (no double release)
@@ -17,7 +17,7 @@
  * 5. Attach client to req.dbClient for use in route handlers
  * 6. Ensure RESET ROLE and release happen after response via res.on('finish')
  *
- * Bead: bd-039 - Fix portal database connection pool leak
+ * Bead: - Fix portal database connection pool leak
  */
 
 const pool = require('../../config/database');

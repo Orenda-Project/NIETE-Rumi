@@ -5,7 +5,7 @@
  * UPDATED: January 12, 2026 - RLS enforcement via req.dbClient
  * All functions now accept dbClient as first parameter
  *
- * UPDATED: January 23, 2026 - Materialized views optimization (bd-044)
+ * UPDATED: January 23, 2026 - Materialized views optimization
  * Added getDashboardStatsOptimized, getAllUsersOptimized with MV fallback
  */
 
@@ -482,7 +482,7 @@ async function getDashboardStats(dbClient) {
 }
 
 // ============================================================================
-// OPTIMIZED FUNCTIONS WITH MATERIALIZED VIEW FALLBACK (bd-044)
+// OPTIMIZED FUNCTIONS WITH MATERIALIZED VIEW FALLBACK
 // ============================================================================
 
 /**
@@ -1972,7 +1972,7 @@ module.exports = {
   getRecentActivity,
   getDashboardStats,
   getDashboardStatsForPeriod,
-  // Optimized functions with MV fallback (bd-044)
+  // Optimized functions with MV fallback
   getDashboardStatsOptimized,
   getAllUsersOptimized,
   getTotalUserCountOptimized,

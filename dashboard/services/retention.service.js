@@ -7,7 +7,7 @@
  * - Activation: Did user use features on Day 0? (separate metric)
  * - Cohorts: Weekly groups of users by registration date
  *
- * Performance: Uses materialized views when available (bd-044)
+ * Performance: Uses materialized views when available
  */
 
 const materializedViews = require('./materialized-views.service');
@@ -29,7 +29,7 @@ async function getRetentionData(
   endDate = null
 ) {
   try {
-    // Try materialized view first for 'overall' without date filters (bd-044)
+    // Try materialized view first for 'overall' without date filters
     // MV is ~527x faster (0.6ms vs 317ms)
     const mvStart = Date.now();
     console.log(`[Retention] Checking MV: featureType=${featureType}, startDate=${startDate}, endDate=${endDate}`);
@@ -40,7 +40,7 @@ async function getRetentionData(
       console.log(`[Retention] MV query returned ${mvData ? mvData.length : 'null'} rows in ${Date.now() - mvStart}ms`);
 
       if (mvData && mvData.length > 0) {
-        console.log('[Retention] Using materialized view (bd-044)');
+        console.log('[Retention] Using materialized view');
         // Transform MV data to match expected format
         const cohorts = mvData.map(cohort => ({
           cohortWeek: cohort.cohort_week,
@@ -167,15 +167,15 @@ function calculateSummaryStats(cohorts) {
  * @param {string} featureType - 'overall', 'coaching', 'lesson_plans', 'reading'
  * @param {Array} cohortWeeks - Specific cohorts to include (optional, max 5 for readability)
  * @param {number} weeksBack - How many weeks of cohorts (default 12)
- * @param {Array} precomputedCohorts - Optional pre-computed cohorts to avoid re-fetching (bd-044)
+ * @param {Array} precomputedCohorts - Optional pre-computed cohorts to avoid re-fetching
  * @returns {Promise<Object>} Chart.js compatible dataset
  */
 async function getRetentionCurve(dbClient, featureType = 'overall', cohortWeeks = null, weeksBack = 12, precomputedCohorts = null) {
   try {
-    // Use pre-computed cohorts if provided (bd-044 optimization)
+    // Use pre-computed cohorts if provided (optimization)
     let cohorts;
     if (precomputedCohorts) {
-      console.log('[Retention] getRetentionCurve using pre-computed cohorts (bd-044)');
+      console.log('[Retention] getRetentionCurve using pre-computed cohorts');
       cohorts = precomputedCohorts;
     } else {
       // Get full retention data
@@ -348,15 +348,15 @@ async function compareCohorts(cohort1Week, cohort2Week, featureType = 'overall')
  * Get overall retention summary for dashboard cards
  * @param {Object} dbClient - Database client with RLS context (from req.dbClient)
  * @param {number} weeksBack - How many weeks to analyze (default 12)
- * @param {Object} precomputedData - Optional pre-computed { cohorts, summary } to avoid re-fetching (bd-044)
+ * @param {Object} precomputedData - Optional pre-computed { cohorts, summary } to avoid re-fetching
  * @returns {Promise<Object>} Summary statistics
  */
 async function getRetentionSummary(dbClient, weeksBack = 12, precomputedData = null) {
   try {
-    // Use pre-computed data if provided (bd-044 optimization)
+    // Use pre-computed data if provided (optimization)
     let cohorts, summary;
     if (precomputedData) {
-      console.log('[Retention] getRetentionSummary using pre-computed data (bd-044)');
+      console.log('[Retention] getRetentionSummary using pre-computed data');
       cohorts = precomputedData.cohorts;
       summary = precomputedData.summary;
     } else {

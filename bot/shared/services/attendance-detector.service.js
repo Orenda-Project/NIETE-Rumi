@@ -3,7 +3,6 @@
  * Detects attendance-related keywords in user messages
  *
  * Created: January 24, 2026
- * Bead: bd-050
  *
  * Keywords:
  * - High confidence: Direct triggers that should immediately start attendance flow
@@ -48,7 +47,7 @@ const ATTENDANCE_KEYWORDS = {
 };
 
 /**
- * Keywords for adding a new class (bd-205)
+ * Keywords for adding a new class
  * These trigger the setup flow even if user already has classes
  */
 const ADD_CLASS_KEYWORDS = [
@@ -161,7 +160,7 @@ class AttendanceDetectorService {
   }
 
   /**
-   * Detect "add class" intent in a user message (bd-205)
+   * Detect "add class" intent in a user message
    * This triggers the setup flow even if user already has classes
    *
    * @param {string} message - User's message

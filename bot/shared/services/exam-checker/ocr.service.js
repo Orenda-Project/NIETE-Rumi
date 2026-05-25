@@ -1,11 +1,11 @@
 /**
  * OCR Service for Exam Checker
  * Extracts text from exam images using Mistral (primary) → Chandra (fallback)
- * Enhanced with Surya bounding boxes for annotation positioning (bd-173)
+ * Enhanced with Surya bounding boxes for annotation positioning
  *
  * Created: 2026-01-24
  * Updated: 2026-01-25 (Surya integration)
- * Beads: bd-083 (OCR), bd-173 (Surya integration)
+ * Beads: (OCR), (Surya integration)
  */
 
 const axios = require('axios');
@@ -102,7 +102,7 @@ class OCRService {
 
   /**
    * Extract text from a single image
-   * Enhanced with Surya bounding boxes for annotation positioning (bd-173)
+   * Enhanced with Surya bounding boxes for annotation positioning
    * @param {string} imageUrl - URL of the image
    * @param {boolean} includeBoundingBoxes - Whether to fetch Surya bounding boxes
    * @returns {object} OCR result with optional bounding boxes

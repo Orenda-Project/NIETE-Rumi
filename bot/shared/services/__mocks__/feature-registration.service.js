@@ -11,7 +11,7 @@ const FeatureRegistrationService = {
   isRegistrationComplete: jest.fn().mockResolvedValue(true),
   getRegistrationStatus: jest.fn().mockResolvedValue({ status: 'complete' }),
 
-  // Feature count for recovery registration (BUG-002)
+  // Feature count for recovery registration
   countUserFeatures: jest.fn().mockResolvedValue(0),
 
   // Start feature-based registration flow

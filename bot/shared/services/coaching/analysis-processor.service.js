@@ -96,7 +96,7 @@ class AnalysisProcessorService {
 
       logToFile('Analysis metadata', metadata);
 
-      // Resolve pedagogical framework for this user (bd-609)
+      // Resolve pedagogical framework for this user
       const framework = await selectFramework(session.user_id);
       logToFile('Framework resolved', { userId: session.user_id, framework: framework.name });
 

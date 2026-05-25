@@ -3,7 +3,7 @@
  * Manages exam checking sessions in Supabase + Redis
  *
  * Created: 2026-01-24
- * Bead: bd-081 (orchestrator dependency)
+ * Bead: (orchestrator dependency)
  */
 
 const supabase = require('../../config/supabase');

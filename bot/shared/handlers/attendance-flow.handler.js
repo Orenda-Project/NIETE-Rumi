@@ -3,8 +3,7 @@
  * Handles WhatsApp Flow responses for attendance setup and marking
  *
  * Created: January 24, 2026
- * Bead: bd-057
- * Updated: January 26, 2026 (bd-214: Auto-compute academic year)
+ * Updated: January 26, 2026 (Auto-compute academic year)
  */
 
 const supabase = require('../config/supabase');
@@ -13,7 +12,7 @@ const AttendanceGeneratorService = require('../services/attendance-generator.ser
 const { logToFile } = require('../utils/logger');
 
 /**
- * Get current academic year based on Pakistan school calendar (bd-214)
+ * Get current academic year based on Pakistan school calendar
  * Academic year runs April to March:
  * - January-March 2026 → 2025-2026
  * - April-December 2026 → 2026-2027
@@ -52,7 +51,7 @@ class AttendanceFlowHandler {
     try {
       const className = responseJson.class_name?.trim();
       const section = responseJson.section?.trim() || null;
-      // bd-214: Auto-compute academic year instead of expecting from flow
+      // Auto-compute academic year instead of expecting from flow
       const academicYear = getCurrentAcademicYear();
       const attendanceFrequency = responseJson.attendance_frequency;
       const studentList = responseJson.student_list?.trim();
@@ -63,7 +62,7 @@ class AttendanceFlowHandler {
         return null;
       }
 
-      logToFile('📅 Academic year auto-computed (bd-214)', { academicYear });
+      logToFile('📅 Academic year auto-computed', { academicYear });
 
       return {
         className,
@@ -220,7 +219,7 @@ class AttendanceFlowHandler {
       // Parse and add students
       const parsedStudents = StudentListService.parseStudentText(data.studentList);
 
-      // bd-212: Check if parsing returned any students
+      // Check if parsing returned any students
       if (!parsedStudents || parsedStudents.length === 0) {
         logToFile('❌ No students parsed from input', {
           studentListInput: data.studentList,

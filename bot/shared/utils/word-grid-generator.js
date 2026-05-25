@@ -1,6 +1,6 @@
 /**
  * Word Grid Generator
- * Bug #27 Fix: Generate structured 2-column word grid using Canvas
+ * Generate structured 2-column word grid using Canvas
  *
  * Purpose: Create consistent, professional word assessment images
  * with GPT-4 age-appropriate words + guaranteed word count
@@ -26,10 +26,10 @@ const openai = getClient();
 // Grid configuration
 const CANVAS_WIDTH = 1080;
 const CANVAS_PADDING = 60;
-const ROW_INDICATOR_WIDTH = 60; // Bug #17: Space for row indicators
+const ROW_INDICATOR_WIDTH = 60; // Space for row indicators
 const BACKGROUND_COLOR = '#FFFFFF';
 const TEXT_COLOR = '#1A1A1A';
-const ROW_INDICATOR_COLOR = '#999999'; // Bug #17: Light gray for row indicators
+const ROW_INDICATOR_COLOR = '#999999'; // Light gray for row indicators
 const FONT_SIZE = 80; // Match passage-generation.service.js words font size
 const LINE_HEIGHT_MULTIPLIER = 1.8; // Consistent with word rendering
 
@@ -42,7 +42,7 @@ const LINE_HEIGHT_MULTIPLIER = 1.8; // Consistent with word rendering
  */
 async function generateRandomWords(wordCount, gradeLevel, language) {
   if (wordCount !== 14) {
-    throw new Error(`Bug #27 requires exactly 14 words, got ${wordCount}`);
+    throw new Error(`requires exactly 14 words, got ${wordCount}`);
   }
 
   try {
@@ -114,7 +114,7 @@ Example output format: word1, word2, word3, ...`;
       firstFewWords: words.slice(0, 5).join(', ')
     });
 
-    // Bug #27 Fix: Truncate to exactly 14 words (guarantees count compliance)
+    // Truncate to exactly 14 words (guarantees count compliance)
     const selectedWords = words.slice(0, 14);
 
     if (selectedWords.length < 14) {
@@ -208,7 +208,7 @@ async function generateWordGrid(words, language, fontFamily) {
       for (let i = 0; i < leftColumn.length; i++) {
         const word = leftColumn[i];
 
-        // Bug #17: Draw row indicator on the right (←1, ←2, etc. for RTL)
+        // Draw row indicator on the right (←1, ←2, etc. for RTL)
         ctx.fillStyle = ROW_INDICATOR_COLOR;
         ctx.font = `${FONT_SIZE * 0.4}px "${fontFamily}"`;
         ctx.textAlign = 'left';
@@ -240,7 +240,7 @@ async function generateWordGrid(words, language, fontFamily) {
       for (let i = 0; i < leftColumn.length; i++) {
         const word = leftColumn[i];
 
-        // Bug #17: Draw row indicator (1→, 2→, etc.)
+        // Draw row indicator (1→, 2→, etc.)
         ctx.fillStyle = ROW_INDICATOR_COLOR;
         ctx.font = `${FONT_SIZE * 0.4}px "${fontFamily}"`;
         ctx.textAlign = 'right';

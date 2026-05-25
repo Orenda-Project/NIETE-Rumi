@@ -294,7 +294,7 @@ async function uploadReportPDF(pdfBuffer, userId, sessionId) {
 
 /**
  * Upload image buffer to R2 (for Gemini-generated vocabulary images)
- * Bug #7: Word-level comprehension assessment
+ * Word-level comprehension assessment
  * @param {Buffer} imageBuffer - Image buffer (PNG from Gemini)
  * @param {string} key - R2 object key (e.g., "vocab_images/tree_1234567890.png")
  * @returns {Promise<string>} R2 key
@@ -727,7 +727,7 @@ module.exports = {
   uploadLessonPlanBuffer,
   uploadVoiceDebrief,
   uploadReportPDF,
-  uploadImageBuffer,  // Bug #7: Word-level comprehension vocabulary images
+  uploadImageBuffer, // Word-level comprehension vocabulary images
   uploadImageWithRetry, // Multimodal vision: upload with retry
   uploadFeatureVideo, // Feature introduction videos for onboarding
   downloadFromR2,
@@ -738,5 +738,5 @@ module.exports = {
   isPermanentR2Url,
   getPresignedUrl,  // SECURE: Generate temporary presigned URLs for external access
   toPublicUrl,  // Alias for getPresignedUrl (backward compat, async!)
-  uploadBuffer, // bd-063: Generic buffer upload for attendance Excel
+  uploadBuffer, // Generic buffer upload for attendance Excel
 };

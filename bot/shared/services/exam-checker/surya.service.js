@@ -3,7 +3,7 @@
  * Detects text line positions using Datalab's Surya API
  *
  * Created: 2026-01-25
- * Beads: bd-166 (position detection), bd-173 (OCR integration)
+ * Beads: (position detection), (OCR integration)
  *
  * API: https://api.datalab.to/v1/detection
  * Docs: https://github.com/datalab-to/surya

@@ -234,7 +234,7 @@ class WhatsAppService {
    */
   static async sendDocument(to, filePath, filename, caption) {
     try {
-      // Determine MIME type based on file extension (bd-196)
+      // Determine MIME type based on file extension
       const ext = filename.toLowerCase().split('.').pop();
       const mimeTypes = {
         'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -776,8 +776,8 @@ class WhatsAppService {
 
   /**
    * Send image with interactive reply buttons (for vocabulary questions)
-   * Bug #7: Word-level comprehension assessment
-   * Bug #14: Fixed R2 private URL issue - now downloads from R2 first, uploads to WhatsApp
+   * Word-level comprehension assessment
+   * Fixed R2 private URL issue - now downloads from R2 first, uploads to WhatsApp
    * @param {string} to - Recipient phone number
    * @param {string} imageUrl - URL of image (R2 or public URL)
    * @param {string} bodyText - Question text (e.g., "Which picture shows 'tree'?")
@@ -804,7 +804,7 @@ class WhatsAppService {
         }
       }));
 
-      // Bug #14 Fix: Check if this is an R2 URL (private endpoint)
+      // Check if this is an R2 URL (private endpoint)
       // R2 URLs contain "r2.cloudflarestorage.com" - WhatsApp can't download from these
       // We need to download first, then upload to WhatsApp to get a media_id
       const isR2Url = imageUrl.includes('r2.cloudflarestorage.com');
@@ -1012,7 +1012,7 @@ class WhatsAppService {
         return false;
       }
 
-      // Determine flow action mode (bd-191):
+      // Determine flow action mode:
       // - If screen is specified: use 'navigate' with flow_action_payload.screen (static flows)
       // - If no screen but flowToken exists: use 'data_exchange' (endpoint-based flows with data_api_version 3.0+)
       const useDataExchange = !screen && flowToken;

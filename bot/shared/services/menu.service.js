@@ -104,7 +104,7 @@ class MenuService {
           break;
 
         case 'menu_reading':
-          // BUG-008/009 FIX: Use WhatsApp Flow (same as /reading test command)
+          // /009 FIX: Use WhatsApp Flow (same as /reading test command)
           // Old ReadingAssessmentService.initiateAssessment() didn't ask for student name
           // WhatsApp Flow collects all info in proper multi-screen form
           const FeatureIntroService = require('./feature-intro.service');

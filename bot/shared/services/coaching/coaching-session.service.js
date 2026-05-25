@@ -34,7 +34,7 @@ class CoachingSessionService {
         audioDuration
       });
 
-      // Get user details (registration no longer required upfront - BUG-017 fix)
+      // Get user details (registration no longer required upfront - fix)
       // Feature-based registration happens after first feature completion
       const { data: user, error: userError} = await supabase
         .from('users')

@@ -21,7 +21,7 @@ const GPT_HEAVY_ROUTES = [
   '/observability/api/ama',
   '/api/portal/coaching-session/',
   '/api/portal/coaching-analytics',
-  '/observability/retention' // bd-044: MV fallback can be slow during optimization
+  '/observability/retention' // MV fallback can be slow during optimization
 ];
 
 // Static file patterns

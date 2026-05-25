@@ -73,7 +73,7 @@ const AMAService = require('./services/ama.service');
 // Access Scope Service (for partner admin RBAC)
 const accessScopeService = require('./services/access-scope.service');
 
-// Materialized Views Service (bd-045: Partner scope filtering)
+// Materialized Views Service (Partner scope filtering)
 const materializedViews = require('./services/materialized-views.service');
 
 // Invitation Service (for partner admin invitations)
@@ -695,7 +695,7 @@ app.post('/observability/reset-password', loginLimiter, async (req, res) => {
 
 // Dashboard home (stats)
 // RBAC: Partner admin or super admin can access dashboard
-// bd-045: Uses partner-scoped MVs for data isolation
+// Uses partner-scoped MVs for data isolation
 app.get('/observability/dashboard',
   requireAuth,
   requirePartnerAdmin,
@@ -707,7 +707,7 @@ app.get('/observability/dashboard',
     let stats;
     let statsSource = 'unknown';
 
-    // bd-045: Route to appropriate MV based on user role and scope
+    // Route to appropriate MV based on user role and scope
     if (userRole === 'super_admin') {
       // Super admin: Use global MV (fastest path)
       stats = await getDashboardStatsOptimized(req.dbClient);
@@ -816,7 +816,7 @@ app.get('/observability/api/dashboard/stats', requireAuth, async (req, res) => {
 
 // Users list (page view)
 // RBAC: Partner admin or super admin can access users list
-// bd-045: Uses partner-scoped MVs for data isolation
+// Uses partner-scoped MVs for data isolation
 app.get('/observability/users',
   requireAuth,
   requirePartnerAdmin,
@@ -830,7 +830,7 @@ app.get('/observability/users',
     const accessScope = req.session.accessScope;
     let users;
 
-    // bd-045: Route to appropriate MV based on user role and scope
+    // Route to appropriate MV based on user role and scope
     if (userRole === 'super_admin' || !accessScope || accessScope.scope_type === 'all') {
       // Super admin or "all" scope: Use global MV
       users = await getAllUsersOptimized(req.dbClient, limit, offset);
@@ -868,7 +868,7 @@ app.get('/observability/users',
 
 // API endpoint for users list (for infinite scroll)
 // RBAC: Partner admin or super admin can access
-// bd-045: Uses partner-scoped MVs for data isolation
+// Uses partner-scoped MVs for data isolation
 app.get('/observability/api/users',
   requireAuth,
   requirePartnerAdmin,
@@ -883,7 +883,7 @@ app.get('/observability/api/users',
     let users;
     let totalCount;
 
-    // bd-045: Route to appropriate MV based on user role and scope
+    // Route to appropriate MV based on user role and scope
     if (userRole === 'super_admin' || !accessScope || accessScope.scope_type === 'all') {
       // Super admin or "all" scope: Use RLS-enforced direct query
       const result = await req.dbClient.query(`
@@ -988,7 +988,7 @@ app.get('/observability/sessions',
   requireFeatureAccess('sessions'),
   async (req, res) => {
   try {
-    // RLS ENFORCED: Using optimized materialized view (bd-044)
+    // RLS ENFORCED: Using optimized materialized view
     const analytics = await getSessionAnalytics(req.dbClient);
     const stats = await getDashboardStatsOptimized(req.dbClient);
 
@@ -1242,7 +1242,7 @@ app.get('/observability/schema',
   requirePartnerAdmin,
   async (req, res) => {
   try {
-    // Get current stats for table record counts - using optimized MV (bd-044)
+    // Get current stats for table record counts - using optimized MV
     const stats = await getDashboardStatsOptimized(req.dbClient);
 
     res.render('schema', {
@@ -1466,7 +1466,7 @@ app.get('/observability/retention',
     const endDate = req.query.dateTo || null;
 
     // RLS ENFORCED: All retention service functions now use req.dbClient (Batch 7 ✅)
-    // bd-044: Fetch data ONCE, then reuse for curve and summary (3x → 1x queries)
+    // Fetch data ONCE, then reuse for curve and summary (3x → 1x queries)
     const retentionResult = await getRetentionData(req.dbClient, featureType, weeksBack, startDate, endDate);
     const { cohorts, summary: baseSummary } = retentionResult;
 
@@ -3651,7 +3651,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   (Default password_hash: admin123 - change via ADMIN_PASSWORD_HASH env var)`);
   console.log(`${'='.repeat(70)}\n`);
 
-  // Start materialized view refresh scheduler (bd-044)
+  // Start materialized view refresh scheduler
   const mvScheduler = require('./services/mv-refresh-scheduler.service');
   mvScheduler.start({
     connectionString: process.env.DATABASE_URL,

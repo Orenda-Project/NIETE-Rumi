@@ -13,7 +13,6 @@
  * 6. Deliver results via WhatsApp
  *
  * Created: 2026-01-24
- * Bead: bd-092
  */
 
 const {

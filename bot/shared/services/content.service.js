@@ -10,7 +10,7 @@ const { getLanguageConfig } = require('../config/gamma-languages.config');
 class ContentService {
   /**
    * Generate content using Gamma API (presentations and lesson plans)
-   * Bug #10: Added language parameter for RTL support
+   * Added language parameter for RTL support
    * @param {string} topic - Content topic
    * @param {string} fullUserMessage - Full user message for context
    * @param {string} format - 'presentation' or 'document'
@@ -21,12 +21,12 @@ class ContentService {
    */
   static async _generateGammaContent(topic, fullUserMessage, format, contentType, language = 'en') {
     try {
-      // Bug #10: Get language configuration for RTL support
+      // Get language configuration for RTL support
       const langConfig = getLanguageConfig(language);
       logToFile(`Generating ${contentType} with Gamma API`, { topic, format, language: langConfig.code });
 
       // Use the full user message to preserve all details
-      // Bug #10: Use language-specific intro and prompt suffix
+      // Use language-specific intro and prompt suffix
       const inputText = format === 'presentation'
         ? `${langConfig.presentationIntro} based on this request: "${fullUserMessage}"
 
@@ -121,7 +121,7 @@ Make this practical, detailed, and immediately usable by teachers with varying e
           ? undefined
           : 'Maintain the exact structure and formatting provided in the prompt. Include all 9 sections with clear headings. Preserve all bullet points, time allocations, and instructional details. Do not summarize or condense the content.',
         textOptions: {
-          language: langConfig.code,  // Bug #10: Use detected language instead of hardcoded 'en'
+          language: langConfig.code, // Use detected language instead of hardcoded 'en'
           audience: format === 'presentation' ? 'teachers and students' : 'teachers',
           tone: 'educational and engaging',
           amount: format === 'presentation' ? undefined : 'extensive' // Keep all details for lesson plans
@@ -198,7 +198,7 @@ Make this practical, detailed, and immediately usable by teachers with varying e
 
   /**
    * Generate a lesson plan using Gamma API
-   * Bug #10: Added language parameter for RTL support
+   * Added language parameter for RTL support
    * @param {string} topic - Lesson topic
    * @param {string} fullUserMessage - Full user message for context
    * @param {string} language - Language code ('en', 'ur', 'ar', 'es') - defaults to 'en'
@@ -219,7 +219,7 @@ Make this practical, detailed, and immediately usable by teachers with varying e
 
   /**
    * Generate a presentation using Gamma API
-   * Bug #10: Added language parameter for RTL support
+   * Added language parameter for RTL support
    * @param {string} topic - Presentation topic
    * @param {string} fullUserMessage - Full user message for context
    * @param {string} language - Language code ('en', 'ur', 'ar', 'es') - defaults to 'en'

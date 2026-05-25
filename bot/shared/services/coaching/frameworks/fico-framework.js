@@ -8,7 +8,7 @@
  * Scale: 1=Not Observed / 2=Emerging / 3=Effective / 4=Highly Effective
  * Photo-aware indicators: 3.2 (Routines & Transitions), 4.4 (Use of Materials)
  *
- * Bead: bd-595 (Phase 1C-A4)
+ * Bead: (Phase 1C-A4)
  */
 
 // ─── Domain definitions ──────────────────────────────────────────────

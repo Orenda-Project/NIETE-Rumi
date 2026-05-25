@@ -479,7 +479,7 @@ class CoachingService {
 
       logToFile('Analysis metadata', metadata);
 
-      // Resolve pedagogical framework for this user (bd-609)
+      // Resolve pedagogical framework for this user
       const framework = await selectFramework(session.user_id);
       logToFile('Framework resolved', { userId: session.user_id, framework: framework.name });
 
@@ -768,7 +768,7 @@ class CoachingService {
     try {
       logToFile('🔄 Starting report generation', { coachingSessionId });
 
-      // Get complete session data (Bug #10: Include response_language for report generation)
+      // Get complete session data (Include response_language for report generation)
       const { data: session, error: sessionError } = await supabase
         .from('coaching_sessions')
         .select('*, users!inner(phone_number, first_name, last_name, response_language)')
@@ -811,7 +811,7 @@ class CoachingService {
       logToFile('Analysis enhanced and saved', { coachingSessionId, hasDomain4: !!enhancedAnalysis.domain4_professional_responsibilities });
 
       // Generate report using Gamma API (replaces PDFKit and chart generation)
-      // Bug #10: Pass user's response_language for RTL support
+      // Pass user's response_language for RTL support
       const reportLanguage = session.users.response_language || 'en';
       logToFile('Generating report with Gamma API', { coachingSessionId, reportLanguage });
       const { gammaUrl, pdfUrl } = await ContentService.generateClassroomObservationReport({
@@ -823,7 +823,7 @@ class CoachingService {
         analysis: enhancedAnalysis,  // Use enhanced analysis with Q&A
         scores: enhancedAnalysis.scores,
         conversationState: session.conversation_state,  // Include reflective Q&A
-        language: reportLanguage  // Bug #10: Pass language for RTL support
+        language: reportLanguage // Pass language for RTL support
       });
 
       logToFile('Gamma report generated', { coachingSessionId, gammaUrl, pdfUrl });

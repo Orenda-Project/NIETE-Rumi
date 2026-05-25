@@ -1,13 +1,13 @@
 /**
  * PostgreSQL Connection Pool - FIXED VERSION
  *
- * Fixes applied (bd-039):
+ * Fixes applied:
  * - Correct event tracking (acquire/release instead of connect/release)
  * - Pool health monitoring with periodic logging
  * - Automatic alerting when pool is stressed (>80% capacity)
  * - Detection of impossible negative counter (debugging aid)
  *
- * Bead: bd-039 - Fix portal database connection pool leak
+ * Bead: - Fix portal database connection pool leak
  */
 
 require('dotenv').config();

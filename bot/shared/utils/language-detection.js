@@ -1,6 +1,6 @@
 /**
  * Language Detection Utility
- * Bug #10: Language Parameter Passthrough
+ * Language Parameter Passthrough
  *
  * Design Decision:
  * - Default: English (en)

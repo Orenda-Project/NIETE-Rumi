@@ -5,7 +5,7 @@
  * prompts. When a teacher generates a new lesson plan, the framework
  * they use for coaching informs the LP structure.
  *
- * Bead: bd-621 (Phase 1C-D)
+ * Bead: (Phase 1C-D)
  */
 
 const FRAMEWORK_LP_INSTRUCTIONS = {

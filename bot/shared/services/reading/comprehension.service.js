@@ -8,7 +8,7 @@
  * - EGRA-based benchmarking (3/5 = adequate comprehension)
  * - Teacher guidance generation
  *
- * Bug #7: Word-Level Comprehension Redesign
+ * Word-Level Comprehension Redesign
  * - Letters: No comprehension (blocked)
  * - Words: 3-question vocabulary assessment (semantic, receptive with images, productive)
  * - Sentences/Paragraphs: 5-question standard comprehension
@@ -25,7 +25,7 @@ const openai = getClient();
 class ComprehensionService {
   /**
    * Generate comprehension questions for a passage
-   * Bug #7: Passage-type-specific question generation
+   * Passage-type-specific question generation
    * @param {string} passageText - The passage students read
    * @param {string} language - 'en' or 'ur'
    * @param {number} gradeLevel - Grade level (0-5)
@@ -41,7 +41,7 @@ class ComprehensionService {
         passageLength: passageText.length
       });
 
-      // Bug #7: Dispatch based on passage type
+      // Dispatch based on passage type
       // Letters: No comprehension (no semantic content)
       if (passageType === 'letters') {
         logToFile('⏭️ Skipping comprehension for letters passage (no semantic content)');
@@ -134,7 +134,7 @@ ${passageText}
       const prompt = prompts[language] || prompts.en;
 
       const response = await openai.chat.completions.create({
-        model: 'gpt-4o', // Bug #31 Fix: gpt-4 deprecated, use gpt-4o for JSON mode support
+        model: 'gpt-4o', // gpt-4 deprecated, use gpt-4o for JSON mode support
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
         response_format: { type: 'json_object' }
@@ -158,7 +158,7 @@ ${passageText}
   }
 
   /**
-   * Bug #18: Evaluate student's TEXT answer to a comprehension question
+   * Evaluate student's TEXT answer to a comprehension question
    * @param {object} questionData - Question object with expected answer
    * @param {string} textAnswer - Student's text answer directly
    * @param {string} language - 'en' or 'ur'
@@ -166,7 +166,7 @@ ${passageText}
    */
   static async evaluateTextAnswer(questionData, textAnswer, language) {
     try {
-      logToFile('📝 Evaluating comprehension TEXT answer (Bug #18)', {
+      logToFile('📝 Evaluating comprehension TEXT answer', {
         questionId: questionData.id,
         questionType: questionData.type,
         language,
@@ -296,7 +296,7 @@ Respond in JSON:
 }`;
 
       const response = await openai.chat.completions.create({
-        model: 'gpt-4o', // Bug #31 Fix: gpt-4 deprecated, use gpt-4o for JSON mode support
+        model: 'gpt-4o', // gpt-4 deprecated, use gpt-4o for JSON mode support
         messages: [{ role: 'user', content: evaluationPrompt }],
         temperature: 0.1,  // Low temp for consistent evaluation
         response_format: { type: 'json_object' }
@@ -463,7 +463,7 @@ ${comprehensionAnalysis.answers.map(a =>
       const prompt = prompts[language] || prompts.en;
 
       const response = await openai.chat.completions.create({
-        model: 'gpt-4o', // Bug #31 Fix: gpt-4 deprecated, use gpt-4o for consistency
+        model: 'gpt-4o', // gpt-4 deprecated, use gpt-4o for consistency
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.5,
         max_tokens: 300
@@ -544,7 +544,7 @@ ${comprehensionAnalysis.answers.map(a =>
   }
 
   /**
-   * Generate word-level comprehension questions (Bug #7)
+   * Generate word-level comprehension questions
    * 3-question vocabulary assessment for word-level passages
    *
    * Question Types:

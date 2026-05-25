@@ -4,7 +4,7 @@
  * Shared helper functions used by whatsapp-bot.js button handlers
  * to orchestrate the Phase 3 coaching flow transitions.
  *
- * Phase 3: bd-631 (LP selection), bd-630 (photo handlers)
+ * Phase 3: (LP selection), (photo handlers)
  */
 
 const supabase = require('../../config/supabase');

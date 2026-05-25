@@ -22,7 +22,7 @@ const {
 } = require('../database/bot-helpers');
 const { uploadAudio } = require('../storage/r2');
 const supabase = require('../config/supabase');
-// Bug #10: Import language detection for content generation
+// Import language detection for content generation
 const { detectRequestedLanguage } = require('../utils/language-detection');
 // Language cache for ASR routing based on user preference
 const { getUserLanguage, setUserLanguage } = require('../utils/language-cache');
@@ -115,7 +115,7 @@ async function handleVoiceMessage(message, from, user = null) {
     }
 
     // ============================================================
-    // ATTENDANCE VOICE INPUT CHECK (bd-060, bd-062)
+    // ATTENDANCE VOICE INPUT CHECK
     // Check if user is awaiting voice input for attendance roll call
     // ============================================================
     if (user) {
@@ -179,7 +179,7 @@ async function handleVoiceMessage(message, from, user = null) {
 
     // PRIORITY 1: CHECK FOR COMPREHENSION QUESTION ANSWER (Sprint 1.8)
     // CRITICAL: Must check BEFORE reading assessment to avoid routing comprehension answers as new readings
-    // BUG #33 FIX: Query Redis instead of conversations table (context_data column doesn't exist)
+    // Query Redis instead of conversations table (context_data column doesn't exist)
     if (user) {
       try {
         const RedisComprehensionService = require('../services/redis-comprehension.service');
@@ -214,7 +214,7 @@ async function handleVoiceMessage(message, from, user = null) {
           // Import ComprehensionService
           const ComprehensionService = require('../services/reading/comprehension.service');
 
-          // BUG #33 FIX: Get question data from Redis flow state
+          // Get question data from Redis flow state
           const questions = activeFlow.questions;
           const currentQuestionIndex = activeFlow.current_question_index;
           const questionData = questions[currentQuestionIndex];
@@ -244,7 +244,7 @@ async function handleVoiceMessage(message, from, user = null) {
             confidence: answerEvaluation.confidence
           });
 
-          // BUG #33 FIX: Record answer in Redis and get updated state
+          // Record answer in Redis and get updated state
           const updatedFlow = await RedisComprehensionService.recordAnswer(
             assessmentId,
             answerEvaluation
@@ -273,7 +273,7 @@ async function handleVoiceMessage(message, from, user = null) {
               questionText: nextQuestion.question.substring(0, 50) + '...'
             });
 
-            // Bug #7: Handle image questions (word-level comprehension)
+            // Handle image questions (word-level comprehension)
             if (nextQuestion.imageUrl && nextQuestion.buttons) {
               await WhatsAppService.sendImageWithButtons(
                 from,
@@ -288,7 +288,7 @@ async function handleVoiceMessage(message, from, user = null) {
               );
             }
 
-            // BUG #33 FIX: State already updated in Redis by recordAnswer()
+            // State already updated in Redis by recordAnswer
             logToFile('✅ Next comprehension question sent, state updated in Redis', {
               questionIndex: nextQuestionIndex,
               totalQuestions: questions.length,
@@ -319,7 +319,7 @@ async function handleVoiceMessage(message, from, user = null) {
               language
             );
 
-            // BUG #33 FIX: Save to reading_assessments table (proper persistence)
+            // Save to reading_assessments table (proper persistence)
             await supabase
               .from('reading_assessments')
               .update({
@@ -331,7 +331,7 @@ async function handleVoiceMessage(message, from, user = null) {
               })
               .eq('id', assessmentId);
 
-            // BUG #33 FIX: Clear Redis state (no conversations table cleanup needed)
+            // Clear Redis state (no conversations table cleanup needed)
             await RedisComprehensionService.clearFlow(assessmentId);
 
             // Import AnalysisService to generate combined report
@@ -401,7 +401,7 @@ async function handleVoiceMessage(message, from, user = null) {
     // Comes after comprehension check to avoid interference
     if (user) {
       try {
-        // BUG #33 FIX: Abandon any stale comprehension flows before processing new reading
+        // Abandon any stale comprehension flows before processing new reading
         const RedisComprehensionService = require('../services/redis-comprehension.service');
         await RedisComprehensionService.abandonUserFlows(user.id);
 
@@ -419,7 +419,7 @@ async function handleVoiceMessage(message, from, user = null) {
           .single();
 
         if (activeAssessment) {
-          // FIX 2 (Bug #34): Validate assessment state to detect stale reads and invalid states
+          // FIX 2: Validate assessment state to detect stale reads and invalid states
           const validationErrors = [];
 
           // Validation 1: Check assessment age (reject if >30 minutes old)
@@ -479,7 +479,7 @@ async function handleVoiceMessage(message, from, user = null) {
             assessmentAge: Math.round(assessmentAge / 60000) + ' minutes'
           });
 
-          // FIX 5 (Bug #34): Enhanced error logging for reading assessment processing
+          // FIX 5: Enhanced error logging for reading assessment processing
           logToFile('📥 Starting reading assessment audio processing', {
             assessmentId: activeAssessment.id,
             userId: user.id,
@@ -1148,7 +1148,7 @@ async function handleVoiceLessonPlanRequest(from, transcription, user, sessionId
     const topic = await OpenAIService.extractTopic(transcription);
     logToFile('Topic extracted', { topic });
 
-    // Bug #10: Detect explicitly requested language from transcription (defaults to 'en')
+    // Detect explicitly requested language from transcription (defaults to 'en')
     const contentLanguage = detectRequestedLanguage(transcription);
     logToFile('Content language detected for voice lesson plan', { contentLanguage });
 
@@ -1208,7 +1208,7 @@ async function handleVoicePresentationRequest(from, transcription, user, session
     const topic = await OpenAIService.extractTopic(transcription);
     logToFile('Topic extracted', { topic });
 
-    // Bug #10: Detect explicitly requested language from transcription (defaults to 'en')
+    // Detect explicitly requested language from transcription (defaults to 'en')
     const contentLanguage = detectRequestedLanguage(transcription);
     logToFile('Content language detected for voice presentation', { contentLanguage });
 

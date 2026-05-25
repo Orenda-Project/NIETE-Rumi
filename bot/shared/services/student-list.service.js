@@ -3,7 +3,6 @@
  * CRUD operations for student lists and individual students
  *
  * Created: January 24, 2026
- * Bead: bd-051
  */
 
 const { logToFile } = require('../utils/logger');
@@ -304,7 +303,7 @@ class StudentListService {
    */
   static async addStudentsToList(listId, parsedStudents) {
     try {
-      // bd-212: Check for empty array before inserting
+      // Check for empty array before inserting
       if (!parsedStudents || parsedStudents.length === 0) {
         logToFile('❌ No students to add - empty array', { listId });
         return { data: null, error: new Error('No students to add - student list is empty') };

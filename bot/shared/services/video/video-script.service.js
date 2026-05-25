@@ -138,7 +138,7 @@ class VideoScriptService {
    * @returns {Object} { slides, funFacts }
    */
   static async generateSlideContent(topic, language, slideCount, customization = null) {
-    // BUG-014 FIX: Use comprehensive language instructions from language-prompts.js
+    // Use comprehensive language instructions from language-prompts.js
     // Simple languageNames causes GPT to generate Urdu instead of Punjabi
     const languageNames = {
       en: 'English',

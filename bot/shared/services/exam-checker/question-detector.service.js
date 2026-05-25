@@ -3,7 +3,7 @@
  * Analyzes OCR results to detect students and question types
  *
  * Created: 2026-01-24
- * Bead: bd-083 (OCR dependency)
+ * Bead: (OCR dependency)
  */
 
 const { logToFile } = require('../../utils/logger');

@@ -3,7 +3,6 @@
  * Excel generation for attendance records matching Pakistani register format
  *
  * Created: January 24, 2026
- * Bead: bd-053
  */
 
 const ExcelJS = require('exceljs');
@@ -366,7 +365,7 @@ class AttendanceGeneratorService {
   }
 
   // =========================================================================
-  // MONTHLY CUMULATIVE REGISTER METHODS (bd-199)
+  // MONTHLY CUMULATIVE REGISTER METHODS
   // =========================================================================
 
   /**

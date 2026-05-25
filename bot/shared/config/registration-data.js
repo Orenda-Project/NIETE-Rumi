@@ -8,7 +8,6 @@
  *   PERSONAL_INFO: ${data.countries}, ${data.regions}
  *   PROFESSIONAL_INFO: ${data.organizations}, ${data.grades}, ${data.subjects}
  *
- * Bead: bd-384, bd-391
  * Updated: February 13, 2026
  */
 

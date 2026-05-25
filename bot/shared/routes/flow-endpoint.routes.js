@@ -5,12 +5,11 @@
  *
  * Endpoints:
  * - POST /api/flows/attendance-marking - Handle attendance marking flow data requests
- * - POST /api/flows/attendance-setup - Handle attendance setup flow with student entry loops (bd-215)
- * - POST /api/flows/registration - Handle registration flow data requests (bd-384: PROJ-010)
+ * - POST /api/flows/attendance-setup - Handle attendance setup flow with student entry loops
+ * - POST /api/flows/registration - Handle registration flow data requests
  *
- * Bead: bd-186, bd-384
  * Created: January 25, 2026
- * Updated: February 17, 2026 (bd-396: Registration Flow v3 added)
+ * Updated: February 17, 2026 (Registration Flow v3 added)
  */
 
 const express = require('express');
@@ -154,7 +153,7 @@ async function handleAttendanceMarkingRequest(data) {
  */
 async function handleInit(flowToken, screenData) {
   try {
-    // Parse flow token to get user ID and class info (bd-193)
+    // Parse flow token to get user ID and class info
     // Flow token format: "userId:classId:date:sessionType:encodedClassName"
     const tokenParts = (flowToken || '').split(':');
     const [userId, classId, dateStr, sessionType, encodedClassName] = tokenParts;
@@ -164,7 +163,7 @@ async function handleInit(flowToken, screenData) {
       return FlowEncryptionService.createErrorResponse('Invalid flow token');
     }
 
-    // Get student list for the class (bd-192: fixed method name)
+    // Get student list for the class (fixed method name)
     const { data: students, error: studentsError } = await StudentListService.getStudentsByList(classId);
 
     if (studentsError || !students || students.length === 0) {
@@ -176,7 +175,7 @@ async function handleInit(flowToken, screenData) {
     const classInfo = await StudentListService.getStudentListById(classId);
     const className = encodedClassName ? decodeURIComponent(encodedClassName) : (classInfo?.class_name || 'Class');
 
-    // Format session type for display - include "Session:" prefix (bd-194)
+    // Format session type for display - include "Session:" prefix
     // The Flow's "Session: ${data.session_type}" concatenation has binding issues
     // So we include the prefix in the value and update Flow to use just ${data.session_type}
     const sessionTypeDisplay = sessionType === 'morning' ? 'Session: Morning' :
@@ -193,7 +192,7 @@ async function handleInit(flowToken, screenData) {
     });
 
     // Format students for CheckboxGroup (id, title format)
-    // Note: field is student_name not name (bd-192)
+    // Note: field is student_name not name
     const formattedStudents = students.map((student, index) => ({
       id: student.id,
       title: `${index + 1}. ${student.student_name}`,
@@ -256,7 +255,7 @@ async function handleDataExchange(flowToken, screen, screenData) {
 }
 
 /**
- * Handle attendance setup flow data requests (bd-215)
+ * Handle attendance setup flow data requests
  *
  * Actions:
  * - ping: Health check
@@ -346,7 +345,7 @@ async function handleAttendanceSetupRequest(data) {
   if (action === 'BACK') {
     if (screen === 'ADD_STUDENT') {
       // Can't go back from ADD_STUDENT (class already created)
-      // Fetch current class data to populate screen (bd-215 fix)
+      // Fetch current class data to populate screen (fix)
       try {
         // Get the most recent active class for this user
         const { data: recentClass } = await supabase
@@ -374,7 +373,7 @@ async function handleAttendanceSetupRequest(data) {
           const studentCount = students?.length || 0;
           const studentsSummary = getStudentListSummary(students || []);
 
-          // bd-388: Include pre-composed strings for pure dynamic references
+          // Include pre-composed strings for pure dynamic references
           const classInfo = `Class: ${classDisplay} | Students: ${studentCount}`;
           const heading = `Add Student #${studentCount + 1}`;
           const studentsList = formatStudentsListString(studentsSummary);
@@ -390,7 +389,7 @@ async function handleAttendanceSetupRequest(data) {
               class_info: classInfo,
               heading: heading,
               students_list: studentsList,
-              // bd-389: Form-level init-values to clear TextInput fields
+              // Form-level init-values to clear TextInput fields
               form_init_values: { first_name: '', last_name: '' }
             }
           };
@@ -413,7 +412,7 @@ async function handleAttendanceSetupRequest(data) {
           class_info: 'Class: Unknown | Students: 0',
           heading: 'Add Student #1',
           students_list: '',
-          // bd-389: Form-level init-values to clear TextInput fields
+          // Form-level init-values to clear TextInput fields
           form_init_values: { first_name: '', last_name: '' }
         }
       };
@@ -434,7 +433,7 @@ async function handleAttendanceSetupRequest(data) {
 }
 
 /**
- * Handle registration flow data requests (bd-384: PROJ-010)
+ * Handle registration flow data requests
  *
  * Actions:
  * - ping: Health check
