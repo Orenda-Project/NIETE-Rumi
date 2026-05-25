@@ -16,13 +16,17 @@ folder with a `SKILL.md` (+ optional reference files).
 
 | Skill | Use for |
 |-------|---------|
-| `setup` | Guided clone setup — env, DB bootstrap, flow registration, preflight (`/setup`) |
+| [setup](skills/setup/skill.md) | Guided clone setup — env, DB bootstrap, flow registration, preflight (`/setup`) |
+| [digital-coach](skills/digital-coach/SKILL.md) | **Start here** — architecture map of the whole bot; routes to everything else |
+| [coaching](skills/coaching/SKILL.md) | Classroom-observation coaching: frameworks, the queue worker, LP integration |
+| [debugging](skills/debugging/SKILL.md) | Investigation discipline + correlation-id tracing |
+| [registration](skills/registration/SKILL.md) | New-user name capture + the WhatsApp Registration Flow |
 
-> **More skills are being ported from the production bot in batches** (operational core: coaching,
-> reading-assessment, registration, whatsapp-flows, debugging, cross-agent-safety, qa-testing,
-> video-generation, feature-tracer, pre-merge-checklist, database-analysis, logging, ab-testing,
-> digital-coach). Each is hand-reviewed and stripped of any internal/credential content before it lands —
-> CI (gitleaks + the source-hygiene guard) enforces that no secrets or internal references ship.
+> **More skills are being ported from the production bot in batches** (operational core still pending:
+> reading-assessment, whatsapp-flows, cross-agent-safety, qa-testing, video-generation, feature-tracer,
+> pre-merge-checklist, database-analysis, logging, ab-testing). Each is hand-reviewed and stripped of any
+> internal/credential content before it lands — CI (gitleaks + the source-hygiene guard) enforces that no
+> secrets or internal references ship.
 
 ## Rules for adding/editing skills here
 
