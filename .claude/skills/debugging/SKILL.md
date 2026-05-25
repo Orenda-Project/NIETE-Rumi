@@ -5,7 +5,7 @@ description: Investigation discipline and correlation-id tracing for the bot —
 
 # Debugging Skill
 
-> **Up:** [.claude/CLAUDE.md](../../CLAUDE.md) (config & skills router) · **See also:** [coaching](../coaching/SKILL.md), [digital-coach](../digital-coach/SKILL.md), [registration](../registration/SKILL.md)
+> **Up:** [.claude/CLAUDE.md](../../CLAUDE.md) (config & skills router) · **See also:** [coaching](../coaching/SKILL.md), [digital-coach](../digital-coach/SKILL.md), [reading-assessment](../reading-assessment/SKILL.md), [registration](../registration/SKILL.md)
 
 This bot emits structured logs tagged with a **correlation id** that threads a single user request across
 the webhook, the queue, and the workers. Debugging is the practice of following that thread to **one
@@ -127,4 +127,5 @@ idempotency gap.
 
 - [coaching](../coaching/SKILL.md) — debugging a failed or stuck coaching session.
 - [digital-coach](../digital-coach/SKILL.md) — the architecture map that tells you which worker to trace.
+- [reading-assessment](../reading-assessment/SKILL.md) — debugging a stuck or mis-scored assessment.
 - [registration](../registration/SKILL.md) — debugging the registration state machine.
