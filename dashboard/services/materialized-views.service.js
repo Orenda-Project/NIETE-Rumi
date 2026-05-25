@@ -17,7 +17,7 @@
  * - Staleness indicator when data is older than threshold
  *
  * @module materialized-views.service
- * @bead bd-044
+ * @bead
  *
  * References:
  * - https://sngeth.com/rails/performance/postgresql/2025/10/03/materialized-views-performance-case-study/
@@ -29,7 +29,7 @@ const VIEW_NAMES = [
   'mv_dashboard_stats',
   'mv_users_activity',
   'mv_retention_cohorts',
-  'mv_dashboard_stats_by_country'  // bd-045: Pre-aggregated country stats for partners
+  'mv_dashboard_stats_by_country' // Pre-aggregated country stats for partners
 ];
 
 /**
@@ -330,7 +330,7 @@ async function getTotalUserCountFromView(dbClient) {
 }
 
 // ============================================
-// PARTNER SCOPE FUNCTIONS (bd-045)
+// PARTNER SCOPE FUNCTIONS
 // ============================================
 
 /**
@@ -456,7 +456,7 @@ function buildScopeWhereClause(scope, startParamIndex = 3) {
  * @param {number} offset - Pagination offset (default 0)
  * @returns {Array} Scoped users
  * @throws {Error} If scope is null/invalid
- * @bead bd-045
+ * @bead
  */
 async function getUsersWithScopeFromView(dbClient, scope, limit = 100, offset = 0) {
   const startTime = Date.now();
@@ -526,7 +526,7 @@ async function getUsersWithScopeFromView(dbClient, scope, limit = 100, offset = 
  * @param {Object} scope - Partner scope { type, value }
  * @returns {Object} Dashboard stats for scope
  * @throws {Error} If scope is null/invalid
- * @bead bd-045
+ * @bead
  */
 async function getDashboardStatsForScope(dbClient, scope) {
   const startTime = Date.now();
@@ -602,7 +602,7 @@ async function getDashboardStatsForScope(dbClient, scope) {
  * @param {Object} dbClient - Database client
  * @param {Object} scope - Partner scope { type, value }
  * @returns {number} Total user count within scope
- * @bead bd-045
+ * @bead
  */
 async function getTotalUserCountForScope(dbClient, scope) {
   try {
@@ -660,7 +660,7 @@ module.exports = {
   viewsExist,
   getTotalUserCountFromView,
 
-  // Partner scope functions (bd-045)
+  // Partner scope functions
   getUsersWithScopeFromView,
   getDashboardStatsForScope,
   getTotalUserCountForScope,

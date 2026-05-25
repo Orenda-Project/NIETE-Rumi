@@ -53,7 +53,7 @@ class FluencyService {
       const transcribedText = transcriptionResult.text || '';
       const wordTimestamps = transcriptionResult.wordTimestamps || [];
 
-      // CRITICAL FIX (Bug #6): Clean transcript artifacts before word alignment
+      // CRITICAL FIX: Clean transcript artifacts before word alignment
       // Soniox diarization adds timestamps [00:01], speaker labels "Teacher (EN):", etc.
       // These artifacts cause false errors like "Inserted: 0001", "Inserted: teacher"
       const cleanedTranscript = this.cleanTranscriptForAlignment(transcribedText);
@@ -67,7 +67,7 @@ class FluencyService {
         transcribedWords: transcribedWords.length
       });
 
-      // Bug #1 Fix: For letter-type assessments, use letter name mapping instead of word alignment
+      // For letter-type assessments, use letter name mapping instead of word alignment
       // Children say "alif" but passage stores "ا" - standard Levenshtein fails
       const passageType = assessment.passage_type || 'sentences';
       let alignment;
@@ -111,7 +111,7 @@ class FluencyService {
       });
 
       // Step 5: Calculate fluency metric (WCPM or LCPM based on passage type)
-      // Bug #6 Fix: Use LCPM for letters, WCPM for connected text
+      // Use LCPM for letters, WCPM for connected text
       // Note: passageType already defined above for letter matching
       const timeMinutes = timeElapsed / 60;
       const rawScore = timeMinutes > 0 ? alignment.correctWords / timeMinutes : 0;
@@ -168,7 +168,7 @@ class FluencyService {
         pronunciationAccuracy: pronunciationAccuracy ? Math.round(pronunciationAccuracy * 10) / 10 : null, // Azure pronunciation (English only)
         timeElapsed: Math.round(timeElapsed),
 
-        // Bug #6 Fix: Passage-type-specific metric info
+        // Passage-type-specific metric info
         metricType: metricType, // 'LCPM' for letters, 'WCPM' for connected text
         metricDisplayName: metricDisplayName, // Human-readable metric name
         fluencyScore: Math.round(rawScore * 10) / 10, // The actual score (same as wcpm but with generic name)
@@ -209,7 +209,7 @@ class FluencyService {
   }
 
   /**
-   * Clean transcript artifacts before word alignment (FIX for Bug #6)
+   * Clean transcript artifacts before word alignment (FIX for )
    * Removes Soniox diarization markers that cause false errors
    * @param {string} transcript - Raw transcript with diarization
    * @returns {string} Cleaned transcript without artifacts
@@ -455,7 +455,7 @@ class FluencyService {
   }
 
   // ============================================================================
-  // Bug #1 Fix: Letter Name Mapping with GPT-4o Fallback
+  // Letter Name Mapping with GPT-4o Fallback
   // Option A: Fast letter name lookup + Option C: GPT-4o for ambiguous cases
   // ============================================================================
 

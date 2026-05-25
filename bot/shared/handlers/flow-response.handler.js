@@ -33,11 +33,11 @@ const { logToFile } = require('../utils/logger');
 // Flow IDs - configure via environment variables
 const READING_ASSESSMENT_FLOW_ID = process.env.READING_ASSESSMENT_FLOW_ID || '';
 
-// Attendance Flow IDs (bd-058)
+// Attendance Flow IDs
 const ATTENDANCE_SETUP_FLOW_ID = process.env.ATTENDANCE_SETUP_FLOW_ID || '';
 const ATTENDANCE_MARKING_FLOW_ID = process.env.ATTENDANCE_MARKING_FLOW_ID || '';
 
-// Registration Flow ID (bd-384: PROJ-010)
+// Registration Flow ID
 const REGISTRATION_FLOW_ID = process.env.REGISTRATION_FLOW_ID || '';
 
 /**
@@ -65,7 +65,7 @@ async function handleFlowResponse(message, phoneNumber, userId) {
       return await handleReadingAssessmentFlow(message, phoneNumber, userId);
     }
 
-    // Attendance flows (bd-058)
+    // Attendance flows
     if (flowId === ATTENDANCE_SETUP_FLOW_ID && ATTENDANCE_SETUP_FLOW_ID) {
       return await handleAttendanceSetupFlow(message, phoneNumber, userId);
     }
@@ -409,7 +409,7 @@ function mapLevelToPassageType(level) {
 }
 
 /**
- * Handle Attendance Setup Flow submission (bd-058)
+ * Handle Attendance Setup Flow submission
  * Creates a new class with students
  *
  * @param {object} message - Flow response message
@@ -467,7 +467,7 @@ async function handleAttendanceSetupFlow(message, phoneNumber, userId) {
 }
 
 /**
- * Handle Attendance Marking Flow submission (bd-058)
+ * Handle Attendance Marking Flow submission
  * Records attendance for a class
  *
  * @param {object} message - Flow response message
@@ -479,7 +479,7 @@ async function handleAttendanceMarkingFlow(message, phoneNumber, userId) {
   try {
     logToFile('📋 Processing attendance marking flow', { phoneNumber, userId });
 
-    // Parse flow response to get flow_token and absent_students (bd-193)
+    // Parse flow response to get flow_token and absent_students
     // Flow token format: "userId:classId:date:sessionType:encodedClassName"
     let responseJson = {};
     try {
@@ -538,22 +538,22 @@ async function handleAttendanceMarkingFlow(message, phoneNumber, userId) {
 
     await WhatsAppService.sendMessage(phoneNumber, confirmMessage);
 
-    // Generate and send Excel file (bd-195)
-    // Note: "Your Excel file is being generated..." is already in confirmMessage (bd-198)
+    // Generate and send Excel file
+    // Note: "Your Excel file is being generated..." is already in confirmMessage
     try {
-      // Transform stats to match generateCaption expected format (bd-197)
+      // Transform stats to match generateCaption expected format
       const summary = {
         present: result.stats.present,
         absent: result.stats.absent,
         attendancePercentage: parseFloat(result.stats.attendanceRate) || 0
       };
 
-      // Fetch class info from DB to get proper section (bd-206)
-      // Also validates that listId exists in database (bd-209)
+      // Fetch class info from DB to get proper section
+      // Also validates that listId exists in database
       const StudentListService = require('../services/student-list.service');
       const { data: classInfo, error: classError } = await StudentListService.getStudentListById(listId);
 
-      // Validate listId exists before proceeding (bd-209)
+      // Validate listId exists before proceeding
       if (classError || !classInfo) {
         logToFile('❌ Invalid listId - class not found in database', {
           userId,
@@ -578,14 +578,14 @@ async function handleAttendanceMarkingFlow(message, phoneNumber, userId) {
           },
           selectedListId: listId,
           records: result.records,
-          markingMethod: 'tap',  // bd-210: DB constraint only allows 'voice', 'tap', 'everyone_present'
+          markingMethod: 'tap', // DB constraint only allows 'voice', 'tap', 'everyone_present'
           summary: summary,
-          sessionDate: sessionDate  // Pass the actual date (bd-207)
+          sessionDate: sessionDate // Pass the actual date
         }
       );
 
       if (!deliveryResult.success) {
-        // bd-216: Handle duplicate attendance gracefully
+        // Handle duplicate attendance gracefully
         if (deliveryResult.isDuplicate) {
           logToFile('⚠️ Duplicate attendance detected - showing friendly message', {
             userId,
@@ -646,7 +646,7 @@ async function handleAttendanceMarkingFlow(message, phoneNumber, userId) {
 }
 
 /**
- * Handle Registration Flow submission (bd-381: PROJ-010)
+ * Handle Registration Flow submission
  * Extracts form data and updates user record with full registration info
  *
  * @param {object} message - Flow response message

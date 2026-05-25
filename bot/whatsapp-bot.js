@@ -29,14 +29,14 @@ const { setUserLanguage, setLanguageLock } = require('./shared/utils/language-ca
 const { getOrCreateUser, trackChatStart } = require('./shared/database/bot-helpers');
 const supabase = require('./shared/config/supabase');
 
-// Import Routes (bd-186: Flow encryption endpoints)
+// Import Routes (Flow encryption endpoints)
 const flowEndpointRoutes = require('./shared/routes/flow-endpoint.routes');
 
 // Create Express app
 const app = express();
 app.use(express.json());
 
-// Mount routes (bd-186: Flow encryption endpoints)
+// Mount routes (Flow encryption endpoints)
 app.use('/api/flows', flowEndpointRoutes);
 
 // Create temp directory if it doesn't exist
@@ -56,7 +56,7 @@ async function handleBroadcastStatusWebhook(statuses) {
       const newStatus = status.status; // 'sent', 'delivered', 'read', 'failed'
       const timestamp = status.timestamp ? new Date(parseInt(status.timestamp) * 1000).toISOString() : new Date().toISOString();
 
-      // BUG-001 FIX: Log failed message statuses with error details
+      // Log failed message statuses with error details
       // Error 131042 (payment issue), 131049 (frequency cap), etc. come here
       if (newStatus === 'failed') {
         const errorCode = status.errors?.[0]?.code || 'unknown';
@@ -407,7 +407,7 @@ app.post('/webhook', async (req, res) => {
         const sessionId = buttonId.replace('lessonplan_no_', '');
         await CoachingService.handleLessonPlanResponse(sessionId, from, false);
       }
-      // Bug #9: Stale session reminder buttons - Continue coaching
+      // Stale session reminder buttons - Continue coaching
       else if (buttonId.startsWith('coaching_continue_')) {
         const sessionId = buttonId.replace('coaching_continue_', '');
         logToFile('🔄 User clicked Continue on stale session reminder', { sessionId, from });
@@ -455,7 +455,7 @@ app.post('/webhook', async (req, res) => {
           await WhatsAppService.sendMessage(from, 'Sorry, I could not find that coaching session.');
         }
       }
-      // Bug #9: Stale session reminder buttons - Finish and get partial report
+      // Stale session reminder buttons - Finish and get partial report
       else if (buttonId.startsWith('coaching_finish_')) {
         const sessionId = buttonId.replace('coaching_finish_', '');
         logToFile('📊 User clicked Finish on stale session reminder', { sessionId, from });
@@ -501,18 +501,18 @@ app.post('/webhook', async (req, res) => {
           await WhatsAppService.sendMessage(from, 'Sorry, I could not find that coaching session.');
         }
       }
-      // Bug #7: Vocabulary comprehension button answers
+      // Vocabulary comprehension button answers
       else if (buttonId.startsWith('vocab_answer_')) {
         const selectedOption = buttonId.replace('vocab_answer_', '');  // "1", "2", or "3"
         logToFile('📖 Vocabulary answer button clicked', { buttonId, selectedOption, from });
 
         // Check if user is in comprehension flow
         const RedisComprehensionService = require('./shared/services/redis-comprehension.service');
-        // Bug #15 Fix: Correct function name (was getFlowByUserId, should be findActiveFlowByUser)
+        // Correct function name (was getFlowByUserId, should be findActiveFlowByUser)
         const flowData = await RedisComprehensionService.findActiveFlowByUser(user.id);
 
         if (flowData) {
-          const assessmentId = flowData.assessment_id;  // Bug #15 Fix: Use correct property name
+          const assessmentId = flowData.assessment_id; // Use correct property name
           const questions = flowData.questions;
           const currentQuestionIndex = flowData.current_question_index;
           const currentQuestion = questions[currentQuestionIndex];
@@ -530,7 +530,7 @@ app.post('/webhook', async (req, res) => {
             explanation: isCorrect ? 'Correct button selection' : 'Incorrect button selection'
           };
 
-          // Bug #15 Fix: recordAnswer only takes 2 params (assessmentId, answerResult)
+          // recordAnswer only takes 2 params (assessmentId, answerResult)
           const updatedFlow = await RedisComprehensionService.recordAnswer(
             assessmentId,
             answerResult
@@ -683,7 +683,7 @@ app.post('/webhook', async (req, res) => {
           logToFile('⚠️ No user found for style button', { buttonId, from });
         }
       }
-      // bd-086: Exam Checker buttons
+      // Exam Checker buttons
       else if (ExamCheckerHandler.isExamCheckerButton(buttonId)) {
         if (user) {
           await ExamCheckerHandler.handleExamButton(buttonId, from, user);
@@ -797,6 +797,7 @@ app.post('/webhook', async (req, res) => {
         } catch (err) {
           logToFile('❌ quiz intent button routing failed', { buttonId, error: err.message });
         }
+      }
       // Student Video Library post-delivery survey (👍 Yes / 👎 Not really).
       else if (buttonId.startsWith('student_video_feedback_yes_') || buttonId.startsWith('student_video_feedback_no_')) {
         const StudentVideoFeedbackService = require('./shared/services/student-video-feedback.service');
@@ -922,7 +923,7 @@ app.post('/webhook', async (req, res) => {
         logToFile('❌ Failed to parse flow response_json', { from, error: error.message });
       }
 
-      // Use centralized flow type detection (bd-387: fixes registration→attendance misrouting)
+      // Use centralized flow type detection (fixes registration→attendance misrouting)
       const { detectFlowType } = require('./shared/utils/flow-type-detector');
       const flowType = detectFlowType(responseJson);
 
@@ -959,7 +960,7 @@ app.post('/webhook', async (req, res) => {
           });
         }
       } else if (flowType === 'registration') {
-        // Registration Flow (bd-387: PROJ-010)
+        // Registration Flow
         logToFile('📝 Detected registration flow submission', {
           from,
           responseFields: Object.keys(responseJson)
@@ -1411,9 +1412,9 @@ async function handleDocumentMessage(message, from, user) {
           return; // Exit early - coaching flow will handle everything
         }
 
-        // BUG-005 FIX: Route short audio documents to voice handler for transcription
+        // Route short audio documents to voice handler for transcription
         // Instead of showing confusing "send classroom audio first" message
-        logToFile('🎤 BUG-005: Audio document < 15 min, routing to voice handler for transcription', {
+        logToFile('🎤 Audio document < 15 min, routing to voice handler for transcription', {
           duration: audioDuration,
           durationMinutes: Math.round(audioDuration / 60),
           documentId,

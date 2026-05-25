@@ -9,7 +9,7 @@
  * 1. focusArea — the ONE focus indicator + try-this + lever question.
  * Operator-locked 2026-05-20 as the lead element of every coaching report.
  * 2. strengths — 3 entries surfaced at the TOP LEVEL, not buried in goal
- * criteria. Fix for the PROJ-025 finding that the analyser emits these
+ * criteria. Fix for the finding that the analyser emits these
  * and the transformer was dropping them before they hit the PDF.
  * 3. growthOpportunities — 2 entries, also previously dropped.
  *

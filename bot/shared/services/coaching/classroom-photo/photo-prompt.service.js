@@ -4,7 +4,7 @@
  * Builds the WhatsApp interactive buttons config for asking
  * the teacher if they want to share a classroom photo.
  *
- * Bead: bd-612 (Phase 1C-B)
+ * Bead: (Phase 1C-B)
  */
 
 /**

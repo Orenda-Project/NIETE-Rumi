@@ -76,7 +76,7 @@ const MMS_TIMEOUT_MS = parseInt(process.env.MMS_TIMEOUT_MS) || 60000; // 60 seco
 const MMS_API_KEY = process.env.MMS_API_KEY || ''; // API key for authentication
 
 // Voice Configuration (Phase 3: Multi-language support)
-// bd-332: Voice IDs are env-var overridable for clone deployments
+// Voice IDs are env-var overridable for clone deployments
 const UPLIFT_VOICE_ID = process.env.UPLIFT_VOICE_ID_UR || 'v_8eelc901'; // Info/Education voice - Fast and easy to understand (Urdu)
 const UPLIFT_SINDHI_VOICE_ID = process.env.UPLIFT_VOICE_ID_SD || 'v_sd0kl3m9'; // Sindhi voice
 const UPLIFT_BALOCHI_VOICE_ID = process.env.UPLIFT_VOICE_ID_BAL || 'v_bl1de2f7'; // Balochi voice
@@ -109,7 +109,7 @@ const PROCESSED_MESSAGES_LIMIT = 1000;
 const PROCESSED_MESSAGES_CLEANUP = 100;
 const CONVERSATION_HISTORY_LIMIT = 11; // System message + 10 messages
 
-// Rate Limiting (bd-338: env-configurable for clone deployments)
+// Rate Limiting (env-configurable for clone deployments)
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX, 10) || 30; // Max messages per window
 const RATE_LIMIT_WINDOW_SECONDS = parseInt(process.env.RATE_LIMIT_WINDOW_SECONDS, 10) || 60; // Window in seconds
 

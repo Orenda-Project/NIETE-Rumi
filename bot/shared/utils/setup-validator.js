@@ -67,7 +67,7 @@ function validateBootRequirements() {
   }
 
   // -----------------------------------------------------------------------
-  // 3. Check INTERNAL_API_KEY — warn if not set (bd-331)
+  // 3. Check INTERNAL_API_KEY — warn if not set
   // -----------------------------------------------------------------------
   if (!process.env.INTERNAL_API_KEY) {
     const msg = `${PREFIX} INTERNAL_API_KEY not set — internal admin API routes will be inaccessible. Set a random key in .env`;
@@ -76,7 +76,7 @@ function validateBootRequirements() {
   }
 
   // -----------------------------------------------------------------------
-  // 4. Check MMS_SERVICE_URL in production — warn if localhost (bd-336)
+  // 4. Check MMS_SERVICE_URL in production — warn if localhost
   // -----------------------------------------------------------------------
   if (process.env.NODE_ENV === 'production') {
     const mmsUrl = process.env.MMS_SERVICE_URL || '';

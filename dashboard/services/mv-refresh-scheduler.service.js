@@ -13,7 +13,7 @@
  * Recommended for production: pg_cron for reliability
  *
  * @module mv-refresh-scheduler.service
- * @bead bd-044
+ * @bead
  */
 
 const { Pool } = require('pg');

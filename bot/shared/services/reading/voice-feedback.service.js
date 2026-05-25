@@ -40,7 +40,7 @@ class VoiceFeedbackService {
    */
   static async generateVoiceFeedback(assessment, teacherName, userLanguage = 'en') {
     try {
-      // Bug #17 Fix: Extract student name from assessment
+      // Extract student name from assessment
       const studentName = assessment.student_identifier || 'the student';
 
       logToFile('📢 Starting voice feedback generation', {
@@ -141,8 +141,8 @@ class VoiceFeedbackService {
       let totalErrorCount;
 
       if (assessment.pronunciation_data?.source === 'azure' && assessment.pronunciation_data.words) {
-        // Bug #17 Fix: Expand to top 3-4 errors (from 2)
-        // Bug #32 Fix: Pass transcript and passage text for word-level comparison
+        // Expand to top 3-4 errors (from 2)
+        // Pass transcript and passage text for word-level comparison
         const azureErrors = this._extractAzureErrors(
           assessment.pronunciation_data.words,
           assessment.transcript_text,
@@ -451,8 +451,8 @@ ${hasComprehension ? '- ¡Equilibra errores de pronunciación y orientación de 
 
   /**
    * Extract and prioritize pronunciation errors from Azure data
-   * Bug #17 Enhancement: Extract actual vs expected pronunciation
-   * Bug #32 Fix: Use transcript/passage word-level comparison for actual pronunciation
+   * Enhancement: Extract actual vs expected pronunciation
+   * Use transcript/passage word-level comparison for actual pronunciation
    * @param {Array} words - Words array from Azure pronunciation assessment
    * @param {string} transcriptText - Actual transcribed text from Soniox (optional, for context)
    * @param {string} passageText - Reference passage text (optional, for context)
@@ -477,8 +477,8 @@ ${hasComprehension ? '- ¡Equilibra errores de pronunciación y orientación de 
     let passageWords = [];
     if (transcriptText && passageText) {
       // CRITICAL FIX: Clean transcript to remove timestamps and speaker labels
-      // This fixes Bug #35 where "[00:09] Teacher (EN):" was breaking word alignment
-      // Bug #24 Fix: Use correct method name - cleanTranscriptForAlignment, not cleanTranscript
+      // This fixes where "[00:09] Teacher (EN):" was breaking word alignment
+      // Use correct method name - cleanTranscriptForAlignment, not cleanTranscript
       const cleanedTranscript = FluencyService.cleanTranscriptForAlignment(transcriptText);
       transcriptWords = cleanedTranscript.toLowerCase().split(/\s+/).filter(w => w.length > 0);
       passageWords = passageText.toLowerCase().split(/\s+/).filter(w => w.length > 0);
@@ -488,7 +488,7 @@ ${hasComprehension ? '- ¡Equilibra errores de pronunciación y orientación de 
     const errors = words
       .filter(w => w.errorType && w.errorType !== 'None')
       .map((w, index) => {
-        // Bug #32 Fix: Find actual vs expected using word position
+        // Find actual vs expected using word position
         let actualPronunciation = null;
         let expectedPronunciation = w.word; // Expected is always the reference word
 
@@ -517,7 +517,7 @@ ${hasComprehension ? '- ¡Equilibra errores de pronunciación y orientación de 
           accuracyScore: Math.round(w.accuracyScore || 0),
           phonemes: w.phonemes || [],
           syllables: w.syllables || [],
-          // Bug #32: Use word-level comparison instead of phoneme extraction
+          // Use word-level comparison instead of phoneme extraction
           actualPronunciation: actualPronunciation,
           expectedPronunciation: expectedPronunciation
         };
@@ -711,7 +711,7 @@ ${hasComprehension ? '- ¡Equilibra errores de pronunciación y orientación de 
 
   /**
    * Format error for GPT-4 prompt
-   * Bug #17 Enhancement: Include actual vs expected pronunciation
+   * Enhancement: Include actual vs expected pronunciation
    * @param {object} error - Error object
    * @param {string} errorSource - Source of error data ('azure' or 'word_alignment')
    * @returns {string} Formatted error description
@@ -721,7 +721,7 @@ ${hasComprehension ? '- ¡Equilibra errores de pronunciación y orientación de 
     // Azure pronunciation errors have different structure
     if (errorSource === 'azure') {
       if (error.errorType === 'Mispronunciation') {
-        // Bug #17: Include actual vs expected pronunciation if available
+        // Include actual vs expected pronunciation if available
         let description = `- Mispronounced: "${error.word}" (accuracy: ${error.accuracyScore}%)`;
         if (error.actualPronunciation && error.expectedPronunciation) {
           description += ` - Student said: "${error.actualPronunciation}", Expected: "${error.expectedPronunciation}"`;

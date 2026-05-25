@@ -11,7 +11,6 @@
  * 5. Encrypt response using flipped IV + AES key
  * 6. Return Base64 encoded response
  *
- * Bead: bd-186
  * Created: January 25, 2026
  *
  * References:

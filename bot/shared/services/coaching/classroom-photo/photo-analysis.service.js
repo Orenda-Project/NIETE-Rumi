@@ -4,7 +4,7 @@
  * Analyzes classroom photos using the existing vision.service.js
  * (GPT-4.1-mini) with framework-specific prompts.
  *
- * Bead: bd-613 (Phase 1C-B)
+ * Bead: (Phase 1C-B)
  */
 
 const { logToFile } = require('../../../utils/logger');

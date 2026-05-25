@@ -3,7 +3,6 @@
  * GPT-4o-mini powered extraction of student names and attendance status from transcripts
  *
  * Created: January 24, 2026
- * Bead: bd-052
  */
 
 const { logToFile } = require('../utils/logger');

@@ -199,7 +199,7 @@ class TranscriptionProcessorService {
       );
       await WhatsAppService.sendMessage(from, encouragingMessage);
 
-      // Phase 3 (bd-636): Agency follow-up — remind teacher of prior commitment
+      // Phase 3: Agency follow-up — remind teacher of prior commitment
       try {
         const { data: priorSessions } = await supabase
           .from('coaching_sessions')
@@ -219,7 +219,7 @@ class TranscriptionProcessorService {
         logToFile('⚠️ Agency follow-up check failed (non-critical)', { error: agencyError.message });
       }
 
-      // Phase 3 (bd-629): Ask about classroom photo FIRST, before LP question
+      // Phase 3: Ask about classroom photo FIRST, before LP question
       const { buildPhotoPrompt } = require('./classroom-photo/photo-prompt.service');
       const userLanguage = await getUserLanguage(session.user_id) || 'en';
       const photoPrompt = buildPhotoPrompt(coachingSessionId, userLanguage);

@@ -10,7 +10,6 @@
  * Usage:
  *   node scripts/setup-flow-encryption.js [--production]
  *
- * Bead: bd-186
  * Created: January 25, 2026
  */
 

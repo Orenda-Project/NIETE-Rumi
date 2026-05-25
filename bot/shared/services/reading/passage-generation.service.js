@@ -58,7 +58,7 @@ if (CANVAS_AVAILABLE) {
   } catch (fontError) {
     console.warn('[passage-generation] Font registration failed:', fontError.message);
   }
-  // Bug #20 Fix: Register Lexend font for English passages (improves reading proficiency)
+  // Register Lexend font for English passages (improves reading proficiency)
   try {
     const { registerFont } = getCanvas();
     registerFont(path.join(__dirname, '../../fonts/Lexend-Regular.ttf'), {
@@ -102,24 +102,24 @@ const BACKGROUND_COLOR = '#FFFFFF';
 const TEXT_COLOR = '#1A1A1A';
 
 // Font sizes based on passage type
-// Bug #21 Fix: Increased word font size from 56 to 80 for better readability
+// Increased word font size from 56 to 80 for better readability
 const FONT_SIZES = {
   letters: 72,    // Very large for letter recognition
-  words: 80,      // Very large for word reading (Bug #21: increased from 56)
+  words: 80, // Very large for word reading (increased from 56)
   sentences: 48,  // Medium-large for sentence reading
   paragraph: 42,  // Standard for paragraph reading
   story: 38       // Slightly smaller for longer stories
 };
 
 // Line height multipliers
-// Bug #22 Fix: Urdu needs 2.0x spacing for proper script readability
+// Urdu needs 2.0x spacing for proper script readability
 const LINE_HEIGHT_MULTIPLIER = {
   en: 1.6,  // English: Standard spacing
   ur: 2.0   // Urdu: Double spacing for Nastaliq script
 };
 
 // ============================================================================
-// Bug #8 Fix: Sentence Diversity System
+// Sentence Diversity System
 // Prevents thematic repetition (Sara/Ali, dogs, parks, mangoes)
 // ============================================================================
 
@@ -294,17 +294,17 @@ class PassageGenerationService {
       });
 
       // Step 1: Generate passage text
-      // Bug #27 Fix: For word-type passages, use manual word generation (bypass GPT-4)
+      // For word-type passages, use manual word generation (bypass GPT-4)
       // For other types, use GPT-4 generation
       let passageText;
       let passageTitle = null;
 
       if (passageConfig.type === 'words') {
-        // Bug #27 Fix: GPT-4 hybrid approach (age-appropriate words + guaranteed count)
+        // GPT-4 hybrid approach (age-appropriate words + guaranteed count)
         // ALWAYS generate exactly 14 words for 2-column grid (7 per column), ignore passageConfig.wordCount
         const words = await generateRandomWords(14, passageConfig.grade, language);
 
-        // Bug #2a Fix: Store words in HORIZONTAL reading order for fluency comparison
+        // a Fix: Store words in HORIZONTAL reading order for fluency comparison
         // Grid displays in 2 columns (7 rows):
         //   words[0]   words[7]   (row 0)
         //   words[1]   words[8]   (row 1)
@@ -361,7 +361,7 @@ class PassageGenerationService {
       // Step 3: Create passage image using Canvas (only passage text, no title)
       let imageBuffer;
       if (passageConfig.type === 'words' && passageConfig._columnOrderWords) {
-        // Bug #2a Fix: For words, use column-order array for grid image
+        // a Fix: For words, use column-order array for grid image
         // (passageText is already in horizontal order for fluency scoring)
         const fontFamily = language === 'ur' ? 'Noto Nastaliq Urdu' : 'Lexend';
         imageBuffer = await generateWordGrid(passageConfig._columnOrderWords, language, fontFamily);
@@ -386,12 +386,12 @@ class PassageGenerationService {
         assessmentId
       );
 
-      // Step 5: Update assessment record (Bug #16 fix: store title separately)
+      // Step 5: Update assessment record (store title separately)
       await supabase
         .from('reading_assessments')
         .update({
           passage_text: passageText,
-          passage_title: passageTitle, // Bug #16: Store title separately (null for letters/words/sentences)
+          passage_title: passageTitle, // Store title separately (null for letters/words/sentences)
           passage_image_url: imageUrl,
           passage_generated_at: new Date().toISOString(),
           passage_word_count: passageConfig.wordCount,
@@ -421,7 +421,7 @@ class PassageGenerationService {
       }
 
       // Step 7: Send instructions in user's language
-      // Bug #5 Fix: Add language-specific reading direction for letters type
+      // Add language-specific reading direction for letters type
       const isRTL = ['ur', 'ar'].includes(language);
       const readingDirection = isRTL ? 'RIGHT TO LEFT' : 'LEFT TO RIGHT';
       const readingDirectionUrdu = 'دائیں سے بائیں';  // Right to left in Urdu
@@ -430,7 +430,7 @@ class PassageGenerationService {
       let instructionsPrompt;
 
       if (passageConfig.type === 'letters') {
-        // Bug #5 Fix: Special instructions for alphabet reading with explicit direction
+        // Special instructions for alphabet reading with explicit direction
         const directionText = userLanguage === 'ur' ? readingDirectionUrdu :
                               userLanguage === 'ar' ? readingDirectionArabic :
                               readingDirection;
@@ -535,7 +535,7 @@ Generate EXACTLY ${wordCount} random letters for letter recognition practice. NO
 - NO sentences or words, just individual letters
 - Example format (for 14 letters): "A b C d E f G h I j K l M n"
 
-Bug #24 Fix: MUST generate exactly ${wordCount} letters for 3x4+2 grid layout (3 rows of 4 + 1 row of 2)
+MUST generate exactly ${wordCount} letters for 3x4+2 grid layout (3 rows of 4 + 1 row of 2)
 
 IMPORTANT: Start your response DIRECTLY with the first letter. Do NOT include phrases like "Here's a sequence" or "Certainly!" or any other text. JUST THE LETTERS.`,
 
@@ -550,7 +550,7 @@ Generate EXACTLY ${wordCount} random Urdu letters for letter recognition practic
 - NO words or sentences, just individual letters
 - Example format (for 14 letters): ا ب پ ت ٹ ث ج چ ح خ د ڈ ذ ر
 
-Bug #24 Fix: MUST generate exactly ${wordCount} letters for 3x4+2 grid layout (3 rows of 4 + 1 row of 2)
+MUST generate exactly ${wordCount} letters for 3x4+2 grid layout (3 rows of 4 + 1 row of 2)
 
 IMPORTANT: Start your response DIRECTLY with the first Urdu letter. Do NOT include phrases like "یہاں ہے" or "Certainly!" or "Here's a sequence" or any other text in any language. JUST THE URDU LETTERS.`
       },
@@ -579,7 +579,7 @@ bed
 cup
 pen
 
-Bug #21 Fix: MUST generate exactly ${wordCount} words for 2-column layout (7 words per column)`,
+MUST generate exactly ${wordCount} words for 2-column layout (7 words per column)`,
 
         ur: `CRITICAL: Generate EXACTLY ${wordCount} simple, grade ${grade}-appropriate Urdu words for reading practice. NO MORE, NO LESS.
 - Use common, everyday Urdu vocabulary
@@ -606,7 +606,7 @@ Bug #21 Fix: MUST generate exactly ${wordCount} words for 2-column layout (7 wor
 شیر
 ہاتھی
 
-Bug #21 Fix: MUST generate exactly ${wordCount} words for 2-column layout (7 words per column)`
+MUST generate exactly ${wordCount} words for 2-column layout (7 words per column)`
       },
 
       sentences: {
@@ -618,7 +618,7 @@ REQUIREMENTS:
 - 8-12 words per sentence
 - Clear punctuation
 
-🚨 CRITICAL - DIVERSITY RULES (Bug #8 Fix):
+🚨 CRITICAL - DIVERSITY RULES (Fix):
 - Use DIFFERENT names in each sentence (NOT just Sara/Ali!)
 - Names to use: ${getRandomNames(5, 'en').join(', ')}
 - Each sentence must have a DIFFERENT topic/theme
@@ -645,7 +645,7 @@ REQUIREMENTS:
 - CRITICAL: PURE URDU ONLY - NO English words or transliterated English (e.g., use مدرسہ NOT سکول, use گاڑی NOT بس/کار)
 - Use Pakistani Urdu (not literary Urdu)
 
-🚨 CRITICAL - DIVERSITY RULES (Bug #8 Fix):
+🚨 CRITICAL - DIVERSITY RULES (Fix):
 - Use DIFFERENT names in each sentence (NOT just سارہ/علی!)
 - Names to use: ${getRandomNames(5, 'ur').join('، ')}
 - Each sentence must have a DIFFERENT topic/theme
@@ -758,7 +758,7 @@ IMPORTANT: Return ONLY valid JSON in this exact format (no markdown, no code blo
     let passageText = response.choices[0].message.content.trim();
     let passageTitle = null;
 
-    // CRITICAL FIX (Bug #16): For paragraph and story types, extract title separately
+    // CRITICAL FIX: For paragraph and story types, extract title separately
     // JSON format: { "title": "...", "passage": "..." }
     // Title stored in passage_title column, only passage text used for word alignment
     if (type === 'paragraph' || type === 'story') {
@@ -793,7 +793,7 @@ IMPORTANT: Return ONLY valid JSON in this exact format (no markdown, no code blo
       }
     }
 
-    // CRITICAL FIX (Bug #3): Remove ordinal numbers added by GPT
+    // CRITICAL FIX: Remove ordinal numbers added by GPT
     // GPT-4o often adds "1. 2. 3." before sentences even though not requested
     // This causes word alignment to fail catastrophically (90+ false errors)
     // Regex removes patterns like "1. ", "2. ", "99. " at start of lines
@@ -801,9 +801,9 @@ IMPORTANT: Return ONLY valid JSON in this exact format (no markdown, no code blo
       .replace(/^\d+\.\s+/gm, '')  // Remove "1. ", "2. ", etc. at start of lines (multiline mode)
       .trim();
 
-    // CRITICAL FIX (Bug #25): Enforce exact word count for word-type passages
+    // CRITICAL FIX: Enforce exact word count for word-type passages
     // GPT-4 often ignores "EXACTLY X words" constraints and generates more
-    // Similar to Bug #24 (letter count validation), truncate to exact count
+    // Similar to (letter count validation), truncate to exact count
     if (type === 'words') {
       const words = cleanedPassageText
         .split('\n')
@@ -861,7 +861,7 @@ IMPORTANT: Return ONLY valid JSON in this exact format (no markdown, no code blo
 
   /**
    * Create passage image using Canvas
-   * Bug #21 Fix: 2-column layout for word type passages
+   * 2-column layout for word type passages
    * @param {string} text - Passage text
    * @param {string} language - 'en' or 'ur'
    * @param {string} type - Passage type for font size selection
@@ -872,15 +872,15 @@ IMPORTANT: Return ONLY valid JSON in this exact format (no markdown, no code blo
       logToFile('Creating passage image', { language, type });
 
       const fontSize = FONT_SIZES[type] || 42;
-      // Bug #22 Fix: Use language-specific line height (Urdu 2.0x, English 1.6x)
+      // Use language-specific line height (Urdu 2.0x, English 1.6x)
       const lineHeight = fontSize * (LINE_HEIGHT_MULTIPLIER[language] || LINE_HEIGHT_MULTIPLIER.en);
 
       // Set font based on language
-      // Bug #20 Fix: Use Lexend for English (improves reading proficiency)
+      // Use Lexend for English (improves reading proficiency)
       // CRITICAL: Use Noto Nastaliq Urdu for proper contextual letter shaping in Urdu
       const fontFamily = language === 'ur' ? 'Noto Nastaliq Urdu' : 'Lexend';
 
-      // Bug #24 Fix: Use alphabet grid generator for letter type passages
+      // Use alphabet grid generator for letter type passages
       if (type === 'letters') {
         // Split letters by spaces and take first 14
         const letters = text.split(/\s+/).filter(l => l.length > 0).slice(0, 14);
@@ -893,7 +893,7 @@ IMPORTANT: Return ONLY valid JSON in this exact format (no markdown, no code blo
         });
       }
 
-      // Bug #21 Fix: 2-column layout for word type passages
+      // 2-column layout for word type passages
       if (type === 'words') {
         return this.createTwoColumnWordImage(text, language, fontSize, fontFamily);
       }
@@ -982,7 +982,7 @@ IMPORTANT: Return ONLY valid JSON in this exact format (no markdown, no code blo
   }
 
   /**
-   * Bug #21: Create 2-column layout image for word type passages
+   * Create 2-column layout image for word type passages
    * @param {string} text - Word list (one word per line)
    * @param {string} language - 'en' or 'ur'
    * @param {number} fontSize - Font size

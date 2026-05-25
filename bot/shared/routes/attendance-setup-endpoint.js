@@ -1,7 +1,7 @@
 /**
  * Attendance Setup Endpoint Handler
  *
- * Handles endpoint-based navigation for student entry with loops (bd-215)
+ * Handles endpoint-based navigation for student entry with loops
  *
  * Flow:
  * 1. INIT → CLASS_INFO screen (grade, section, frequency)
@@ -10,14 +10,13 @@
  * 4. ADD_STUDENT "Done" → Validate 1+ students → SUCCESS screen
  *
  * Created: January 26, 2026
- * Bead: bd-215, bd-389
  */
 
 const supabase = require('../config/supabase');
 const StudentListService = require('../services/student-list.service');
 const { logToFile } = require('../utils/logger');
 
-// Import academic year helper from attendance-flow.handler (bd-214)
+// Import academic year helper from attendance-flow.handler
 function getCurrentAcademicYear() {
   const now = new Date();
   const month = now.getMonth() + 1;
@@ -100,12 +99,12 @@ async function handleClassInfoSubmit(userId, screenData) {
   }
 
   try {
-    // Create student list in database (bd-214: academic year auto-computed)
+    // Create student list in database (academic year auto-computed)
     const academicYear = getCurrentAcademicYear();
     const trimmedClassName = class_name.trim();
     const trimmedSection = section?.trim() || null;
 
-    // Check if class already exists for this user - check ALL classes including soft-deleted (bd-215)
+    // Check if class already exists for this user - check ALL classes including soft-deleted
     const { data: existingLists } = await supabase
       .from('student_lists')
       .select('id, class_name, section, is_active')
@@ -161,7 +160,7 @@ async function handleClassInfoSubmit(userId, screenData) {
       ? `${trimmedClassName} - ${trimmedSection}`
       : trimmedClassName;
 
-    // Get existing students if reusing a class (bd-215)
+    // Get existing students if reusing a class
     let studentCount = 0;
     let studentsSummary = [];
 
@@ -179,7 +178,7 @@ async function handleClassInfoSubmit(userId, screenData) {
       }
     }
 
-    // bd-388: Use pre-composed strings for pure dynamic references
+    // Use pre-composed strings for pure dynamic references
     // WhatsApp Flows mixed static+dynamic text interpolation is unreliable
     const classInfo = `Class: ${classDisplay} | Students: ${studentCount}`;
     const heading = `Add Student #${studentCount + 1}`;
@@ -193,11 +192,11 @@ async function handleClassInfoSubmit(userId, screenData) {
         student_count: studentCount,
         students_added: studentsSummary,
         student_number: studentCount + 1,
-        // bd-388: Pre-composed strings for pure dynamic references
+        // Pre-composed strings for pure dynamic references
         class_info: classInfo,
         heading: heading,
         students_list: studentsList,
-        // bd-389: Form-level init-values to clear TextInput fields on loop
+        // Form-level init-values to clear TextInput fields on loop
         form_init_values: { first_name: '', last_name: '' }
       }
     };
@@ -237,7 +236,7 @@ async function handleAddStudentAction(listId, studentData, classDisplay) {
         class_info: `Class: ${classDisplay}`,
         heading: 'Add Student',
         students_list: '',
-        // bd-389: Form-level init-values to clear TextInput fields on loop
+        // Form-level init-values to clear TextInput fields on loop
         form_init_values: { first_name: '', last_name: '' },
         error: { message: 'Student name is required' }
       }
@@ -300,7 +299,7 @@ async function handleAddStudentAction(listId, studentData, classDisplay) {
     const studentsSummary = getStudentListSummary(allStudents || []);
     const totalStudents = allStudents?.length || 0;
 
-    // bd-388: Pre-composed strings for pure dynamic references
+    // Pre-composed strings for pure dynamic references
     const classInfo = `Class: ${classDisplay} | Students: ${totalStudents}`;
     const heading = `Add Student #${totalStudents + 1}`;
     const studentsList = formatStudentsListString(studentsSummary);
@@ -313,11 +312,11 @@ async function handleAddStudentAction(listId, studentData, classDisplay) {
         student_count: totalStudents,
         students_added: studentsSummary,
         student_number: totalStudents + 1,
-        // bd-388: Pre-composed strings for pure dynamic references
+        // Pre-composed strings for pure dynamic references
         class_info: classInfo,
         heading: heading,
         students_list: studentsList,
-        // bd-389: Form-level init-values to clear TextInput fields on loop
+        // Form-level init-values to clear TextInput fields on loop
         form_init_values: { first_name: '', last_name: '' }
       }
     };
@@ -334,7 +333,7 @@ async function handleAddStudentAction(listId, studentData, classDisplay) {
 
   } catch (error) {
     logToFile('❌ Exception adding student', { error: error.message });
-    // bd-388: No version field in response (Meta expects {screen, data} only)
+    // No version field in response (Meta expects {screen, data} only)
     return {
       screen: 'ADD_STUDENT',
       data: {
@@ -343,7 +342,7 @@ async function handleAddStudentAction(listId, studentData, classDisplay) {
         class_info: `Class: ${classDisplay}`,
         heading: 'Add Student',
         students_list: '',
-        // bd-389: Form-level init-values to clear TextInput fields on loop
+        // Form-level init-values to clear TextInput fields on loop
         form_init_values: { first_name: '', last_name: '' },
         error: { message: 'Failed to add student. Please try again.' }
       }
@@ -385,14 +384,14 @@ async function handleDoneAction(listId, classDisplay) {
           class_info: `Class: ${classDisplay} | Students: 0`,
           heading: 'Add Student #1',
           students_list: '',
-          // bd-389: Form-level init-values to clear TextInput fields on loop
+          // Form-level init-values to clear TextInput fields on loop
           form_init_values: { first_name: '', last_name: '' },
           error: { message: 'Please add at least one student before finishing.' }
         }
       };
     }
 
-    // bd-388: Pre-composed success_message for pure dynamic reference
+    // Pre-composed success_message for pure dynamic reference
     const successMessage = `Your class ${classDisplay} has been created with ${students.length} student${students.length === 1 ? '' : 's'}.`;
 
     const responseData = {
@@ -441,7 +440,7 @@ function getStudentListSummary(students) {
 }
 
 /**
- * Format students list as a display string for pure dynamic reference (bd-388)
+ * Format students list as a display string for pure dynamic reference
  * @param {Array} studentsSummary - Array of {name: "1. Zara Abdul"} objects
  * @returns {string} - Formatted string or empty if no students
  */

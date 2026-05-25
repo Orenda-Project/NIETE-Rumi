@@ -3,7 +3,6 @@
  * Board-specific grade conversion (FBISE, Cambridge, Punjab Matric)
  *
  * Created: 2026-01-25
- * Bead: bd-177
  *
  * Supports:
  * - FBISE (Federal Board of Intermediate and Secondary Education)

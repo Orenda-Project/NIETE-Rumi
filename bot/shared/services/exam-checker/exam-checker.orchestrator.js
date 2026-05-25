@@ -8,7 +8,6 @@
  * - Each method is <20 lines (mostly delegation)
  *
  * Created: 2026-01-24
- * Bead: bd-081
  */
 
 const { runWithCorrelation, getCurrentCorrelationId } = require('../../utils/structured-logger');

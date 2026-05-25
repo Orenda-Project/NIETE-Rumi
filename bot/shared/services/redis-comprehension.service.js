@@ -1,7 +1,7 @@
 /**
  * Database-Based Comprehension Flow State Management
  *
- * Bug #17 Fix: Replaced Redis with database for reliable state persistence
+ * Replaced Redis with database for reliable state persistence
  *
  * Purpose: Track active comprehension question flows using Supabase
  * Pattern: Database is single source of truth - no Redis state to lose
@@ -9,8 +9,8 @@
  * Key insight: current_question_index = comprehension_answers.length
  *
  * History:
- * - Original: Redis-based (Bug #33 fix for context_data)
- * - Updated: Database-based (Bug #17 fix for Redis state loss)
+ * - Original: Redis-based (fix for context_data)
+ * - Updated: Database-based (fix for Redis state loss)
  */
 
 const { createClient } = require('@supabase/supabase-js');
@@ -24,7 +24,7 @@ const supabase = createClient(
 class RedisComprehensionService {
   /**
    * Start a new comprehension flow
-   * Bug #17 Fix: Now stores in database instead of Redis
+   * Now stores in database instead of Redis
    * @param {string} assessmentId - Reading assessment UUID
    * @param {Array} questions - Array of 5 comprehension questions
    * @param {string} userId - User UUID for ownership tracking
@@ -55,7 +55,7 @@ class RedisComprehensionService {
         started_at: Date.now()
       };
 
-      logToFile('Started comprehension flow in DATABASE (Bug #17 fix)', {
+      logToFile('Started comprehension flow in DATABASE (fix)', {
         assessmentId,
         questionCount: questions.length,
         userId
@@ -74,7 +74,7 @@ class RedisComprehensionService {
 
   /**
    * Get active comprehension flow by assessment ID
-   * Bug #17 Fix: Reads from database instead of Redis
+   * Reads from database instead of Redis
    * @param {string} assessmentId - Reading assessment UUID
    * @returns {Object|null} Flow state or null if not found
    */
@@ -117,7 +117,7 @@ class RedisComprehensionService {
 
   /**
    * Find active comprehension flow by user ID
-   * Bug #17 Fix: Queries database instead of scanning Redis keys
+   * Queries database instead of scanning Redis keys
    * Used when voice/text message arrives without assessment context
    * @param {string} userId - User UUID
    * @returns {Object|null} Flow state or null if not found
@@ -170,7 +170,7 @@ class RedisComprehensionService {
 
   /**
    * Record a comprehension answer and advance to next question
-   * Bug #17 Fix: Writes directly to database instead of Redis
+   * Writes directly to database instead of Redis
    * @param {string} assessmentId - Reading assessment UUID
    * @param {Object} answerResult - Answer data with transcript, analysis, correctness
    * @returns {Object} Updated flow state
@@ -239,7 +239,7 @@ class RedisComprehensionService {
 
   /**
    * Clear comprehension flow (mark as completed or failed)
-   * Bug #17 Fix: No Redis to clear - just for API compatibility
+   * No Redis to clear - just for API compatibility
    * Actual status update happens in handler when saving final results
    * @param {string} assessmentId - Reading assessment UUID
    */

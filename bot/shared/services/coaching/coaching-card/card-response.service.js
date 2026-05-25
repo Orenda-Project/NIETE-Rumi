@@ -4,7 +4,7 @@
  * Handles teacher button responses to the coaching card.
  * Stores response in coaching_sessions.prioritized_action.
  *
- * Bead: bd-617 (Phase 1C-C)
+ * Bead: (Phase 1C-C)
  */
 
 const supabase = require('../../../config/supabase');

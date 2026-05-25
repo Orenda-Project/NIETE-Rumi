@@ -4,7 +4,7 @@
  * Single source of truth for all observation framework modules.
  * Lazy-loads framework modules on first access and caches them.
  *
- * Bead: bd-596 (Phase 1C)
+ * Bead: (Phase 1C)
  */
 
 const { logToFile } = require('../../../utils/logger');

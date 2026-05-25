@@ -49,7 +49,7 @@ async function handleCurriculumLessonPlan({ userId, topic, grade, subject, curri
     }
 
     // OSS sendDocument reads a file path (createReadStream), so write the R2
-    // buffer to a temp file first, then clean it up (guards the bd-1349 trap
+    // buffer to a temp file first, then clean it up (guards the trap
     // where passing a Buffer to a path-expecting sender silently fails).
     let tmpPath;
     try {

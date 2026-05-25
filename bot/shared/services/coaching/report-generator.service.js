@@ -44,7 +44,7 @@ class ReportGeneratorService {
    */
   static async generateReport(coachingSessionId, payload = {}) {
     try {
-      // Bug #9: Check for partial report flags
+      // Check for partial report flags
       const isPartialReport = payload.partial || false;
       const isAutoCompleted = payload.autoCompleted || false;
       const isUserRequestedEarly = payload.userRequestedEarly || false;
@@ -179,7 +179,7 @@ class ReportGeneratorService {
         await this.generateAndSendVoiceDebrief(session, from, coachingSessionId, enhancedAnalysis);
       }
 
-      // Phase 3 (bd-634): Coaching Card — prioritized action + image + response buttons
+      // Phase 3: Coaching Card — prioritized action + image + response buttons
       try {
         const { generatePrioritizedAction } = require('./coaching-card/prioritized-action.service');
         const { generateCardImage } = require('./coaching-card/card-image.service');
@@ -255,7 +255,7 @@ class ReportGeneratorService {
 
       logToFile('✅ Report generation complete', { coachingSessionId });
 
-      // bd-551 Trigger 3: Offer quiz to teacher's students after coaching report
+      // Trigger 3: Offer quiz to teacher's students after coaching report
       try {
         const language = session.users?.preferred_language || session.transcript_language || 'en';
         const quizTopic = enhancedAnalysis?.topic;
@@ -527,7 +527,7 @@ class ReportGeneratorService {
   static async generatePDFReport(session, teacherName, enhancedAnalysis) {
     logToFile('Generating PDF report', { coachingSessionId: session.id });
 
-    // Resolve framework and dispatch to correct transformer (bd-611)
+    // Resolve framework and dispatch to correct transformer
     // Prefer framework from enhanced payload, then persisted analysis_data, then OECD fallback.
     const frameworkKey = enhancedAnalysis.framework || session.analysis_data?.framework || 'oecd';
     const transformer = getReportTransformer(frameworkKey);
@@ -546,7 +546,7 @@ class ReportGeneratorService {
       logToFile('⚠️  Error checking prior sessions for report', { error: e.message });
     }
 
-    // bd-723/BUG-053: For HOTS, enhanceAnalysisWithReflections reshapes analysis
+    // /For HOTS, enhanceAnalysisWithReflections reshapes analysis
     // into OECD-style goal keys (goal1_..., goal2_...) which destroys the HOTS
     // "areas" structure. Use the raw analysis_data (which has areas) for the
     // HOTS transformer, merging in subject/topic from enhanced analysis.
@@ -915,7 +915,7 @@ class ReportGeneratorService {
 
     this._applyLessonPlanEvidenceToCriteria(goals, session.lesson_plan_structured, teacherName);
 
-    // Bug #9: Build partial report note if applicable
+    // Build partial report note if applicable
     let partialReportNote = null;
     if (session._isPartialReport) {
       const questionsCompleted = session._questionsAtCompletion || 0;
@@ -952,7 +952,7 @@ class ReportGeneratorService {
       debriefReflection,
       fidelitySection,
       feedback: enhancedAnalysis.executive_summary || enhancedAnalysis.summary || 'Analysis complete.',
-      // Bug #9: Partial report metadata
+      // Partial report metadata
       isPartialReport: session._isPartialReport || false,
       partialReportNote
     };
@@ -1342,7 +1342,7 @@ class ReportGeneratorService {
   }
 
   /**
-   * bd-551 Trigger 3: Offer quiz after coaching report PDF is sent.
+   * Trigger 3: Offer quiz after coaching report PDF is sent.
    * Sends interactive buttons if teacher has a class with student phone numbers.
    * Called from generateReport after PDF delivery.
    *

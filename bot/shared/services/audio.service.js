@@ -97,7 +97,7 @@ class AudioService {
       });
 
       // Build request body based on model version
-      // Bug #29 Fix: Use specific language hint if provided (reading assessment)
+      // Use specific language hint if provided (reading assessment)
       // Otherwise use all supported languages (coaching multi-language audio)
       // Note: Only include languages Soniox supports (pa, ta are supported; sd, bal, ps are NOT)
       // IMPORTANT: Soniox expects ISO 639-1 codes (e.g., 'pa'), NOT locale codes (e.g., 'pa-PK')

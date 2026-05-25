@@ -6,7 +6,7 @@
  * Element scoring: holistic 1-5 (not mathematical average)
  * Max: 50 (9 elements + 1 time_on_task × 5)
  *
- * Bead: bd-594 (Phase 1C-A3)
+ * Bead: (Phase 1C-A3)
  */
 
 // ─── Area definitions ────────────────────────────────────────────────

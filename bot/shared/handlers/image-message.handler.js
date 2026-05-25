@@ -52,7 +52,7 @@ async function handleImageMessage(message, from, user = null) {
 
     // Start typing indicator
     const typingController = WhatsAppService.startContinuousTypingIndicator(from, message.id);
-    let idempotencyAcquired = false; // Track if we own the lock (bd-691)
+    let idempotencyAcquired = false; // Track if we own the lock
 
     try {
       // Extract image info
@@ -85,7 +85,7 @@ async function handleImageMessage(message, from, user = null) {
       }
 
       // ============================================================
-      // Phase 3 (bd-630): Classroom photo collection for coaching
+      // Phase 3: Classroom photo collection for coaching
       // ============================================================
       try {
         const coachingSupabase = require('../config/supabase');
@@ -191,7 +191,7 @@ async function handleImageMessage(message, from, user = null) {
       }
 
       // ============================================================
-      // EXAM CHECKER DETECTION (bd-086): Check for active exam session
+      // EXAM CHECKER DETECTION: Check for active exam session
       // ============================================================
       try {
         const ExamCheckerHandler = require('./exam-checker.handler');
@@ -264,7 +264,7 @@ async function handleImageMessage(message, from, user = null) {
 
       typingController.stop();
 
-      // Only send error message if we acquired the idempotency lock (bd-691)
+      // Only send error message if we acquired the idempotency lock
       // Without this guard, every concurrent failed handler sends an error message
       if (idempotencyAcquired) {
         const userLanguage = user?.preferred_language || 'en';
@@ -300,7 +300,7 @@ async function runImageAnalysis({ user, from, imageId, mimeType, caption, typing
   // Get or create session for conversation history
   const sessionId = await getOrCreateSession(user.id);
 
-  // Atomic idempotency check — SET NX ensures only one handler proceeds (bd-690)
+  // Atomic idempotency check — SET NX ensures only one handler proceeds
   const idempotencyKey = `image:${user.id}:${imageId}`;
   const idempotencyAcquired = await redisService.setNX(
     idempotencyKey,

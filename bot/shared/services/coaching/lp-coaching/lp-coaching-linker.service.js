@@ -5,7 +5,7 @@
  * Links selected LP to coaching session, fetches LP content
  * for analysis, or triggers upload flow.
  *
- * Bead: bd-620 (Phase 1C-D)
+ * Bead: (Phase 1C-D)
  */
 
 const supabase = require('../../../config/supabase');

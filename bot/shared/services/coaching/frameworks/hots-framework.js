@@ -7,7 +7,7 @@
  * 5 Areas, 16 Indicators, Scale 1-3 (Emerging/Developing/Proficient)
  * Max: 48 marks (16 × 3)
  *
- * Bead: bd-593 (Phase 1C-A2)
+ * Bead: (Phase 1C-A2)
  * Fix: NOTION-327d-a9 — aligned to official PESRP/PECTAA spec (Google Sheet from Muqadas Saleem)
  */
 

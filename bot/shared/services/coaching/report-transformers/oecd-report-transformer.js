@@ -5,7 +5,7 @@
  * Transforms OECD framework analysis into the generic reportData shape
  * consumed by pdf-report.service.js.
  *
- * Bead: bd-604 (Phase 1C-A2)
+ * Bead: (Phase 1C-A2)
  */
 
 const { logToFile } = require('../../../utils/logger');
@@ -327,7 +327,7 @@ function transformOECDToReportData(session, teacherName, enhancedAnalysis, hasPr
   // LP evidence injection (OECD-specific)
   _applyLessonPlanEvidenceToCriteria(goals, session.lesson_plan_structured, teacherName);
 
-  // Bug #9: Build partial report note if applicable
+  // Build partial report note if applicable
   let partialReportNote = null;
   if (session._isPartialReport) {
     const questionsCompleted = session._questionsAtCompletion || 0;

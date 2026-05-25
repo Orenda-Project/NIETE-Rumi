@@ -18,7 +18,6 @@
  * 4. Attendance marking
  * 5. Unknown
  *
- * Bead: bd-387
  * Created: February 11, 2026
  */
 
@@ -55,7 +54,7 @@ function detectFlowType(responseJson) {
 
   // 3. Attendance Setup (class creation)
   // Navigate-based format: class_name + student_list/students_text
-  // Endpoint-based format (bd-390): list_id + class_display (from extension_message_response.params)
+  // Endpoint-based format: list_id + class_display (from extension_message_response.params)
   const hasNavigateSetupFields = responseJson.class_name &&
                                  (responseJson.student_list || responseJson.students_text);
   const hasEndpointSetupFields = responseJson.list_id && responseJson.class_display;

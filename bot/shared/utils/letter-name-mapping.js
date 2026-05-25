@@ -1,6 +1,6 @@
 /**
  * Letter Name Mapping Utility
- * Bug #1 Fix: Maps letter symbols to their spoken names for accurate assessment
+ * Maps letter symbols to their spoken names for accurate assessment
  *
  * Problem: Children say "alif" but passage stores "ا" - Levenshtein comparison fails
  * Solution: Map letter symbols to all possible spoken name variations

@@ -3,10 +3,10 @@
  * Generates annotated exam images with grades and feedback
  *
  * REWRITTEN: 2026-01-25
- * Original Bead: bd-085
- * Fix Beads: bd-165 (larger marks), bd-167 (Caveat font), bd-168 (margin feedback),
- *            bd-169 (score circle), bd-170 (tick/cross), bd-174 (Canvas migration),
- *            bd-175 (Noto Nastaliq for Urdu)
+ * Original Bead:
+ * Fix Beads: (larger marks), (Caveat font), (margin feedback),
+ * (score circle), (tick/cross), (Canvas migration),
+ * (Noto Nastaliq for Urdu)
  *
  * CHANGES FROM ORIGINAL:
  * - Migrated from Sharp+SVG to Canvas+registerFont
@@ -166,7 +166,7 @@ class AnnotationService {
     const { width, height } = image;
     const { studentName, grade, percentage, questionResults, isFirstPage, language, totalMarks, marksAwarded } = annotations;
 
-    // Draw score circle on first page (top-right corner) - bd-169
+    // Draw score circle on first page (top-right corner) -
     if (isFirstPage) {
       this._drawScoreCircle(ctx, marksAwarded || 0, totalMarks || 0, width - 90, 90);
 
@@ -178,7 +178,7 @@ class AnnotationService {
       }
     }
 
-    // Draw question marks and feedback - bd-165, bd-170
+    // Draw question marks and feedback -
     for (let i = 0; i < (questionResults || []).length; i++) {
       const qr = questionResults[i];
       const { marksAwarded: qMarks, maxMarks, feedback, bbox } = qr;
@@ -212,7 +212,7 @@ class AnnotationService {
       ctx.textAlign = 'left';
       ctx.fillText(`${qMarks}/${maxMarks}`, x - 70, y + 50);
 
-      // Draw margin feedback - bd-168
+      // Draw margin feedback -
       if (feedback) {
         this._drawMarginFeedback(ctx, feedback, x - 200, y + 20, language);
       }
@@ -235,7 +235,7 @@ class AnnotationService {
   }
 
   /**
-   * Draw a hand-drawn style tick mark (bd-170)
+   * Draw a hand-drawn style tick mark
    */
   static _drawTick(ctx, x, y, size = 50) {
     ctx.strokeStyle = COLORS.correct;
@@ -250,7 +250,7 @@ class AnnotationService {
   }
 
   /**
-   * Draw a hand-drawn style cross mark (bd-170)
+   * Draw a hand-drawn style cross mark
    */
   static _drawCross(ctx, x, y, size = 40) {
     ctx.strokeStyle = COLORS.incorrect;
@@ -267,7 +267,7 @@ class AnnotationService {
   }
 
   /**
-   * Draw a partial credit wavy mark (bd-170)
+   * Draw a partial credit wavy mark
    */
   static _drawPartialMark(ctx, x, y, size = 50) {
     ctx.strokeStyle = COLORS.partial;
@@ -281,7 +281,7 @@ class AnnotationService {
   }
 
   /**
-   * Draw hand-drawn score circle (bd-169)
+   * Draw hand-drawn score circle
    */
   static _drawScoreCircle(ctx, score, max, x, y, radius = 65) {
     // Draw circle
@@ -309,7 +309,7 @@ class AnnotationService {
   }
 
   /**
-   * Draw margin feedback text (bd-168)
+   * Draw margin feedback text
    */
   static _drawMarginFeedback(ctx, feedback, x, y, language = 'en') {
     if (!feedback) return;
@@ -366,7 +366,7 @@ class AnnotationService {
   }
 
   /**
-   * Generate a summary PDF with all grades (bd-171)
+   * Generate a summary PDF with all grades
    * @param {object} session - Exam session
    * @param {Array} gradingResults - All grading results
    * @returns {string} PDF URL

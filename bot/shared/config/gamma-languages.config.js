@@ -1,6 +1,6 @@
 /**
  * Gamma API Language Configuration
- * Bug #10: Language Parameter Passthrough
+ * Language Parameter Passthrough
  *
  * Supports:
  * - English (default)

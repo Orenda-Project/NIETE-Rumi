@@ -112,7 +112,7 @@ class AnalysisService {
           word_timestamps: transcriptionResult.wordTimestamps,
           num_speakers_detected: transcriptionResult.numSpeakers,
           detected_language: transcriptionResult.language,
-          audio_duration_seconds: transcriptionResult.audioDurationSeconds, // Bug #29 fix: Store calculated duration
+          audio_duration_seconds: transcriptionResult.audioDurationSeconds, // Store calculated duration
           last_successful_step: 'transcription'
         })
         .eq('id', assessmentId);
@@ -162,8 +162,8 @@ class AnalysisService {
           words_read: fluencyMetrics.wordsRead,
           words_correct: fluencyMetrics.wordsCorrect,
           wcpm: fluencyMetrics.wcpm,
-          accuracy_percentage: fluencyMetrics.wordAccuracy, // Bug #15 fix: word alignment accuracy
-          pronunciation_accuracy: fluencyMetrics.pronunciationAccuracy, // Bug #15 fix: Azure pronunciation accuracy
+          accuracy_percentage: fluencyMetrics.wordAccuracy, // word alignment accuracy
+          pronunciation_accuracy: fluencyMetrics.pronunciationAccuracy, // Azure pronunciation accuracy
           time_elapsed_seconds: fluencyMetrics.timeElapsed,
           errors: fluencyMetrics.errors,
           self_corrections_count: fluencyMetrics.selfCorrectionsCount, // Fixed: use count (integer), not array
@@ -204,7 +204,7 @@ class AnalysisService {
       });
 
       // STEP 4: Compare to benchmarks
-      // Bug #3e Fix: Pass passage_type to use correct benchmark function (LCPM for letters, WCPM for others)
+      // e Fix: Pass passage_type to use correct benchmark function (LCPM for letters, WCPM for others)
       logToFile('Step 4/7: Comparing to grade-level benchmarks...');
       const benchmarkResult = await this.compareToBenchmarks(
         fluencyMetrics.wcpm,
@@ -278,7 +278,7 @@ class AnalysisService {
 
       // Sprint 1.8: Check if comprehension testing is requested
       // CRITICAL FIX: Check BEFORE generating report to avoid duplicate reports
-      // Bug #3 Fix: Block comprehension for 'letters' type (pedagogically invalid - random letters have no meaning)
+      // Block comprehension for 'letters' type (pedagogically invalid - random letters have no meaning)
       const comprehensionAllowed = assessment.comprehension_requested && assessment.passage_type !== 'letters';
 
       if (assessment.comprehension_requested && assessment.passage_type === 'letters') {
@@ -403,7 +403,7 @@ class AnalysisService {
       try {
         const voiceFeedbackUrl = await this.generateVoiceFeedback(assessment, userLanguage);
 
-        // Bug #1 Fix: Add defensive logging to understand voice feedback delivery failures
+        // Add defensive logging to understand voice feedback delivery failures
         logToFile('🔍 Voice feedback generation result', {
           assessmentId: assessment.id,
           voiceFeedbackUrl: voiceFeedbackUrl || 'NULL/UNDEFINED',
@@ -430,7 +430,7 @@ class AnalysisService {
           await WhatsAppService.sendAudioFromUrl(phoneNumber, voiceFeedbackUrl);
           logToFile('✅ Voice feedback sent to teacher', { assessmentId: assessment.id });
         } else {
-          // Bug #1 Fix: Log when voiceFeedbackUrl is null/falsy
+          // Log when voiceFeedbackUrl is null/falsy
           logToFile('⚠️ Voice feedback URL is null/falsy - skipping delivery', {
             assessmentId: assessment.id,
             voiceFeedbackUrl
@@ -516,7 +516,7 @@ class AnalysisService {
         speakerStats: transcriptionResult.speakerStats,
         languageMismatch: transcriptionResult.languageMismatch,
         fullText: transcriptionResult.fullText,
-        audioDurationSeconds: transcriptionResult.audioDurationSeconds // Bug #29 fix
+        audioDurationSeconds: transcriptionResult.audioDurationSeconds // fix
       };
 
     } catch (error) {
@@ -624,7 +624,7 @@ class AnalysisService {
   static async compareToBenchmarks(wcpm, gradeLevel, language, isSecondLanguage, passageType = 'sentences') {
     let data, error;
 
-    // Bug #3e Fix: Use LCPM benchmarks for letters, WCPM benchmarks for everything else
+    // e Fix: Use LCPM benchmarks for letters, WCPM benchmarks for everything else
     if (passageType === 'letters') {
       // Letters use LCPM (Letters Correct Per Minute) benchmarks
       const result = await supabase.rpc('check_lcpm_benchmark_status', {
@@ -758,7 +758,7 @@ Generate a 3-4 sentence summary that:
         diagnosticSummary: assessment.diagnostic_summary || 'Analysis in progress...'
       };
 
-      // BUG #34 FIX: Add comprehension data if available
+      // Add comprehension data if available
       if (assessment.comprehension_answers && assessment.comprehension_score !== null) {
         const answers = assessment.comprehension_answers;
         const correctAnswers = answers.filter(a => a.correct).length;
@@ -912,7 +912,7 @@ Output the complete enhanced summary (not just the new parts).`;
 
       const BUCKET_NAME = process.env.R2_BUCKET_NAME;
 
-      // BUG #33 FIX: Use format "Reading Assessment_Student Name_DDMMYYYY.pdf"
+      // Use format "Reading Assessment_Student Name_DDMMYYYY.pdf"
       const date = new Date();
       const day = String(date.getDate()).padStart(2, '0');
       const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -989,7 +989,7 @@ Output the complete enhanced summary (not just the new parts).`;
 
       const teacherName = teacher.first_name || 'Teacher';
 
-      // BUG #1 FIX: Use assessment's language field for voice feedback
+      // Use assessment's language field for voice feedback
       // assessment.language is the actual language of the passage (e.g., 'ur' for Urdu)
       // userLanguage is the user's preferred language (could be 'en' even for Urdu tests)
       const feedbackLanguage = freshAssessment.language || userLanguage;
@@ -1000,7 +1000,7 @@ Output the complete enhanced summary (not just the new parts).`;
         assessmentLanguage: freshAssessment.language,
         userPreferredLanguage: userLanguage,
         feedbackLanguage: feedbackLanguage,
-        bugFix: 'Bug #1 - Using assessment language instead of user preference'
+        bugFix: '- Using assessment language instead of user preference'
       });
 
       // Generate voice feedback audio using assessment language
@@ -1046,7 +1046,7 @@ Output the complete enhanced summary (not just the new parts).`;
    */
   static async sendResults(assessment, reportUrl, phoneNumber, userLanguage) {
     try {
-      // Bug #2 Fix: Fetch teacher's name to address them properly (prevents [Recipient's Name] placeholder)
+      // Fetch teacher's name to address them properly (prevents [Recipient's Name] placeholder)
       const { data: teacher } = await supabase
         .from('users')
         .select('first_name')
@@ -1056,7 +1056,7 @@ Output the complete enhanced summary (not just the new parts).`;
       const teacherName = teacher?.first_name || 'Teacher';
 
       // Send completion message
-      // Bug #2 Fix: Include teacher name in prompt so GPT addresses them properly
+      // Include teacher name in prompt so GPT addresses them properly
       const completionPrompt = `Generate a brief message in language code "${userLanguage}" addressing ${teacherName} and saying:
 1. The reading assessment for ${assessment.student_identifier} is complete
 2. Results show WCPM: ${assessment.wcpm}, Accuracy: ${assessment.accuracy_percentage}%
@@ -1119,15 +1119,15 @@ Output the complete enhanced summary (not just the new parts).`;
       // Import ComprehensionService
       const ComprehensionService = require('./comprehension.service');
 
-      // Bug #7: Generate questions based on passage type
+      // Generate questions based on passage type
       const questionData = await ComprehensionService.generateQuestions(
         assessment.passage_text,
         assessment.language,
         assessment.grade_level,
-        assessment.passage_type || 'sentences'  // Bug #7: Pass passage type for dispatch
+        assessment.passage_type || 'sentences' // Pass passage type for dispatch
       );
 
-      // Bug #7: Handle null return (letters passages have no comprehension)
+      // Handle null return (letters passages have no comprehension)
       if (!questionData) {
         logToFile('⏭️ No comprehension for this passage type', {
           assessmentId: assessment.id,
@@ -1176,7 +1176,7 @@ Output the complete enhanced summary (not just the new parts).`;
       const introMessage = introResponse.choices[0].message.content.trim();
       await WhatsAppService.sendMessage(phoneNumber, introMessage);
 
-      // BUG #38 FIX: Set comprehension status BEFORE sending first question
+      // Set comprehension status BEFORE sending first question
       // Race condition: User could respond with voice before status was set, causing
       // findActiveFlowByUser() to return null and routing answer to general conversation
       // Confirmed case: Waqas (923005233742) had 3 failed assessments on Jan 20, 2026
@@ -1187,7 +1187,7 @@ Output the complete enhanced summary (not just the new parts).`;
         assessment.user_id
       );
 
-      logToFile('Comprehension flow started in DATABASE (Bug #38 fix - status set before question)', {
+      logToFile('Comprehension flow started in DATABASE (fix - status set before question)', {
         assessmentId: assessment.id,
         questionCount: questions.length
       });
@@ -1201,7 +1201,7 @@ Output the complete enhanced summary (not just the new parts).`;
         questions.length
       );
 
-      logToFile('First comprehension question sent (Bug #38 fix - safe for immediate response)', {
+      logToFile('First comprehension question sent (fix - safe for immediate response)', {
         assessmentId: assessment.id,
         questionType: firstQuestion.type
       });
@@ -1217,7 +1217,7 @@ Output the complete enhanced summary (not just the new parts).`;
   }
 
   /**
-   * Bug #7: Send comprehension question with appropriate format
+   * Send comprehension question with appropriate format
    * Handles both text-only questions and image+button questions (word-level)
    * @param {string} phoneNumber - WhatsApp phone number
    * @param {object} question - Question object with type, question text, optional imageUrl/buttons
@@ -1326,11 +1326,11 @@ Output the complete enhanced summary (not just the new parts).`;
         benchmark: {
           benchmarkMin: assessment.grade_benchmark_min,
           benchmarkMax: assessment.grade_benchmark_max,
-          onTrack: assessment.on_track,  // Bug #21 Fix: Use correct column name
+          onTrack: assessment.on_track, // Use correct column name
           percentileRank: assessment.percentile_rank
         },
         errors: assessment.error_breakdown || assessment.errors || [],
-        // Bug #23 Fix: Use pronunciation_data (which exists) instead of pronunciation_score (which doesn't exist)
+        // Use pronunciation_data (which exists) instead of pronunciation_score (which doesn't exist)
         pronunciation: assessment.pronunciation_data ? {
           pronunciationData: assessment.pronunciation_data,
           // Include words array for mispronunciation extraction
@@ -1426,7 +1426,7 @@ Output the complete enhanced summary (not just the new parts).`;
       const reportBuffer = await ReportService.generateReadingAssessmentReport(reportData);
 
       // Upload to R2
-      // BUG #33 FIX: Use format "Reading Assessment_Student Name_DDMMYYYY.pdf"
+      // Use format "Reading Assessment_Student Name_DDMMYYYY.pdf"
       const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 
       const r2Client = new S3Client({
@@ -1485,7 +1485,7 @@ Output the complete enhanced summary (not just the new parts).`;
       try {
         const voiceFeedbackUrl = await this.generateVoiceFeedback(assessment, userLanguage);
 
-        // Bug #1 Fix: Add defensive logging for comprehension flow voice feedback
+        // Add defensive logging for comprehension flow voice feedback
         logToFile('🔍 Combined voice feedback generation result', {
           assessmentId,
           voiceFeedbackUrl: voiceFeedbackUrl || 'NULL/UNDEFINED',

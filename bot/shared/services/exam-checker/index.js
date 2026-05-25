@@ -3,7 +3,6 @@
  *
  * Created: 2026-01-24
  * Updated: 2026-01-25 (Added Surya, GradingScale, Feedback services)
- * Beads: bd-081, bd-166, bd-173, bd-176, bd-177
  */
 
 const { ExamCheckerOrchestrator, SESSION_STATES } = require('./exam-checker.orchestrator');

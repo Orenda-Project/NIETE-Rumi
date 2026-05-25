@@ -5,7 +5,6 @@
  * Handles text commands, image uploads, button responses, and WhatsApp Flows.
  *
  * Created: 2026-01-24
- * Beads: bd-086, bd-087
  */
 
 const { ExamCheckerOrchestrator, ExamSessionService } = require('../services/exam-checker');

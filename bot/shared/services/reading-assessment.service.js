@@ -392,8 +392,8 @@ If this is a concurrent session (student number > 1), mention this is for "${stu
       const studentIdentifier = state.studentIdentifier;
 
       // Map grade level to passage type
-      // Bug #21 Fix: Changed words from 30 to 14 for 2-column layout
-      // Bug #24 Fix: Changed letters from 20 to 14 for 3x4+2 grid layout
+      // Changed words from 30 to 14 for 2-column layout
+      // Changed letters from 20 to 14 for 3x4+2 grid layout
       const gradeMap = {
         0: { type: 'letters', wordCount: 14, grade: 0 },
         1: { type: 'words', wordCount: 14, grade: 1 },
@@ -522,7 +522,7 @@ If this is a concurrent session (student number > 1), mention this is for "${stu
     try {
       logToFile('🎤 Audio received for reading assessment', { userId });
 
-      // FIX 3 (Bug #34): Find active assessment with row-level locking
+      // FIX 3: Find active assessment with row-level locking
       // First, get the assessment ID without locking (only assessments from last 30 minutes)
       const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
 

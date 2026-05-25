@@ -1,7 +1,7 @@
 /**
  * Shared utilities for report data transformers.
  *
- * Bead: bd-604 (Phase 1C-A2)
+ * Bead: (Phase 1C-A2)
  */
 
 const { logToFile } = require('../../../utils/logger');

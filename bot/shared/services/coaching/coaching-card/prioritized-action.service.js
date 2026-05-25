@@ -4,7 +4,7 @@
  * Generates a single, actionable teaching improvement tip based on
  * the coaching analysis and framework context.
  *
- * Bead: bd-615 (Phase 1C-C)
+ * Bead: (Phase 1C-C)
  */
 
 const { logToFile } = require('../../../utils/logger');

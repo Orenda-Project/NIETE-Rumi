@@ -4,7 +4,7 @@
  * Generates a 600×400 PNG coaching card using the Canvas library
  * (same library used by passage-generation.service.js and annotation.service.js).
  *
- * Bead: bd-616 (Phase 1C-C)
+ * Bead: (Phase 1C-C)
  */
 
 const { createCanvas } = require('canvas');

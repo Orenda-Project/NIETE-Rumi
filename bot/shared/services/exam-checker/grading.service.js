@@ -1,11 +1,10 @@
 /**
  * Grading Service for Exam Checker
  * Uses GPT-4o to grade student answers against marking scheme
- * Enhanced with board-specific scales (bd-177) and structured feedback (bd-176)
+ * Enhanced with board-specific scales and structured feedback
  *
  * Created: 2026-01-24
  * Updated: 2026-01-25 (Board scales + Feed Up/Back/Forward)
- * Beads: bd-084, bd-176, bd-177
  */
 
 const { getClient } = require('../llm-client');
@@ -134,7 +133,7 @@ class GradingService {
 
       const result = await this.gradeQuestion(question, studentAnswer);
 
-      // Generate structured feedback for this question (bd-176)
+      // Generate structured feedback for this question
       const feedback = FeedbackService.generate({
         question: question.text || question.id,
         learningObjective: question.learningObjective,
@@ -157,7 +156,7 @@ class GradingService {
 
     const percentage = totalMarks > 0 ? Math.round((marksAwarded / totalMarks) * 100) : 0;
 
-    // Get board-specific grade (bd-177)
+    // Get board-specific grade
     const gradeReport = GradingScaleService.getFullReport(percentage, board);
 
     // Generate overall structured feedback
@@ -327,7 +326,7 @@ Maximum Marks: ${question.marks || 1}`
 
   /**
    * Calculate letter grade from marks
-   * Now uses GradingScaleService for board-specific grades (bd-177)
+   * Now uses GradingScaleService for board-specific grades
    * @param {number} marks - Marks awarded
    * @param {number} total - Total marks
    * @param {string} board - Board name (optional)

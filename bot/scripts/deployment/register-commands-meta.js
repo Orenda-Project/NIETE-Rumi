@@ -48,7 +48,7 @@ const COMMANDS = [
   }
 ];
 
-// BUG-001 FIX: Ice breakers for Android users (slash menu doesn't work on all Android devices)
+// Ice breakers for Android users (slash menu doesn't work on all Android devices)
 // Max 4 ice breakers, max 80 chars each, NO emojis
 const ICE_BREAKERS = [
   "Show Menu - See all features I can help with",
@@ -117,7 +117,7 @@ async function registerCommands() {
       {
         enable_welcome_message: true,
         commands: COMMANDS,
-        prompts: ICE_BREAKERS  // BUG-001: Add ice breakers for Android
+        prompts: ICE_BREAKERS // Add ice breakers for Android
       },
       {
         headers: {

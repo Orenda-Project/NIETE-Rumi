@@ -7,7 +7,7 @@
  * 5 Goals, 19 classroom criteria + 4 debrief criteria = 23 total
  * Max: 103 classroom + 14 LP bonus + 15 debrief = 132 max
  *
- * Bead: bd-592 (Phase 1C-A1)
+ * Bead: (Phase 1C-A1)
  */
 
 const {

@@ -3,8 +3,7 @@
  * Orchestrates Excel generation, R2 upload, database save, and WhatsApp delivery
  *
  * Created: January 24, 2026
- * Bead: bd-063
- * Updated: January 25, 2026 (bd-199: Monthly cumulative register)
+ * Updated: January 25, 2026 (Monthly cumulative register)
  *
  * Flow:
  * 1. Save attendance session and records to database FIRST
@@ -28,7 +27,7 @@ const { TEMP_DIR } = require('../utils/constants');
 class AttendanceDeliveryService {
   /**
    * Process and deliver attendance for a completed session
-   * Generates a MONTHLY CUMULATIVE register (bd-199)
+   * Generates a MONTHLY CUMULATIVE register
    *
    * @param {string} userId - User UUID
    * @param {string} phoneNumber - User's WhatsApp phone number
@@ -51,7 +50,7 @@ class AttendanceDeliveryService {
         recordCount: sessionData.records?.length
       });
 
-      // Extract metadata - use sessionDate if provided, otherwise current date (bd-207)
+      // Extract metadata - use sessionDate if provided, otherwise current date
       const sessionDate = sessionData.sessionDate ? new Date(sessionData.sessionDate) : new Date();
       const metadata = {
         userId,
@@ -69,7 +68,7 @@ class AttendanceDeliveryService {
         metadata
       );
 
-      // bd-216: Handle duplicate session gracefully
+      // Handle duplicate session gracefully
       if (dbResult.isDuplicate) {
         logToFile('⚠️ Returning duplicate session info to user', {
           existingSessionId: dbResult.existingSession.id,
@@ -87,7 +86,7 @@ class AttendanceDeliveryService {
         };
       }
 
-      // Step 2: Fetch all attendance data for the month (bd-199)
+      // Step 2: Fetch all attendance data for the month
       const month = sessionDate.getMonth() + 1; // 1-12
       const year = sessionDate.getFullYear();
 
@@ -100,7 +99,7 @@ class AttendanceDeliveryService {
         sessionCount: sessions.length
       });
 
-      // Step 3: Generate MONTHLY register Excel buffer (bd-199)
+      // Step 3: Generate MONTHLY register Excel buffer
       logToFile('Generating monthly register Excel...', { className, month, year });
 
       const excelBuffer = await AttendanceGeneratorService.createMonthlyRegisterBufferFromData(
@@ -196,7 +195,7 @@ class AttendanceDeliveryService {
   }
 
   /**
-   * Get all attendance data for a class in a given month (bd-199)
+   * Get all attendance data for a class in a given month
    *
    * @param {string} listId - Student list ID
    * @param {number} month - Month (1-12)
@@ -274,7 +273,7 @@ class AttendanceDeliveryService {
    * @param {number} month - Month (1-12)
    * @param {number} year - Year
    * @param {Object} todaySummary - Today's attendance summary
-   * @param {Date} sessionDate - The specific date attendance was marked (bd-207)
+   * @param {Date} sessionDate - The specific date attendance was marked
    */
   static generateMonthlyCaptionSimple(className, section, month, year, todaySummary, sessionDate) {
     const monthNames = [
@@ -284,7 +283,7 @@ class AttendanceDeliveryService {
 
     const displayName = section ? `${className} - ${section}` : className;
 
-    // Format the specific date (bd-207)
+    // Format the specific date
     const date = sessionDate || new Date();
     const day = date.getDate();
     const dateDisplay = `${monthNames[date.getMonth()]} ${day}, ${date.getFullYear()}`;
@@ -305,7 +304,7 @@ class AttendanceDeliveryService {
   }
 
   /**
-   * Check if attendance already exists for this class/date/session (bd-216)
+   * Check if attendance already exists for this class/date/session
    */
   static async checkExistingSession(listId, sessionDate, sessionType) {
     try {
@@ -347,12 +346,12 @@ class AttendanceDeliveryService {
       const absentCount = records.filter(r => r.status === 'absent').length;
 
       // Create attendance session
-      // Use metadata.date for session_date (bd-207)
+      // Use metadata.date for session_date
       const sessionDateStr = metadata.date instanceof Date
         ? metadata.date.toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0];
 
-      // bd-216: Check for duplicate session BEFORE insert
+      // Check for duplicate session BEFORE insert
       const existingSession = await this.checkExistingSession(
         listId,
         sessionDateStr,
@@ -407,7 +406,7 @@ class AttendanceDeliveryService {
         .single();
 
       if (sessionError) {
-        // bd-209: Fail loudly instead of silently continuing with empty Excel
+        // Fail loudly instead of silently continuing with empty Excel
         logToFile('❌ Database session insert failed - aborting', {
           error: sessionError.message,
           listId,
@@ -432,7 +431,7 @@ class AttendanceDeliveryService {
       logToFile('📊 Inserting attendance records', {
         sessionId,
         recordCount: recordInserts.length,
-        sampleRecords: recordInserts.slice(0, 3) // Log first 3 for debugging (bd-208)
+        sampleRecords: recordInserts.slice(0, 3) // Log first 3 for debugging
       });
 
       const { data: insertedRecords, error: recordsError } = await supabase
@@ -461,7 +460,7 @@ class AttendanceDeliveryService {
       return { sessionId };
 
     } catch (error) {
-      // bd-209: Re-throw to fail loudly instead of continuing with empty Excel
+      // Re-throw to fail loudly instead of continuing with empty Excel
       logToFile('❌ Database save error - aborting', { error: error.message });
       throw error;
     }
