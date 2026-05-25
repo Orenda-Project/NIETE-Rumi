@@ -1,5 +1,7 @@
 # 📸 Pic-to-LP (Photo → Illustrated Lesson Plan)
 
+![Pic-to-LP](../images/features/pic-to-lp.jpg)
+
 > Snap a photo of a textbook page and get back a colourful, ready-to-teach 2-page lesson plan built around it.
 
 ## What it is

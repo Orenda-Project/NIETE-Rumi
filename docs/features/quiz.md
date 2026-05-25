@@ -1,5 +1,7 @@
 # 🧠 Quiz
 
+![Quiz](../images/features/quiz.jpg)
+
 > Turn any topic into a short, interactive quiz the teacher (or their students) can take right in the chat — with instant scoring and a follow-up report.
 
 ## What it is

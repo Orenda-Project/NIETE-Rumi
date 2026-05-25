@@ -1,5 +1,7 @@
 # 📚 Homework
 
+![Homework](../images/features/homework.jpg)
+
 > Generate a ready-to-assign homework bundle for a class straight from the curriculum — no typing out exercises by hand.
 
 ## What it is
