@@ -2,6 +2,8 @@
 
 > Universal agent configuration for AI coding assistants.
 > See [agents.md](https://agents.md) for the specification.
+> **Claude Code agents:** [CLAUDE.md](CLAUDE.md) is the canonical, progressively-disclosed agent guide
+> (root → folder routers → skills). This file is the universal-spec summary of the same facts.
 
 ## Project Overview
 
@@ -10,8 +12,8 @@ Open-source AI teaching companion on WhatsApp. Teachers get 24/7 coaching, readi
 ## Tech Stack
 
 - **Runtime**: Node.js 18+ (Express.js)
-- **Database**: Supabase (PostgreSQL, 52+ tables, Row Level Security)
-- **Queue**: BullMQ (Redis) — 7 async job types
+- **Database**: Supabase (PostgreSQL, 73 tables, Row Level Security)
+- **Queue**: pluggable via `QUEUE_DRIVER` — AWS SQS (default) or BullMQ/Redis (no AWS)
 - **AI**: OpenRouter (500+ models via single API)
 - **Messaging**: WhatsApp Business Cloud API
 
@@ -21,7 +23,7 @@ Open-source AI teaching companion on WhatsApp. Teachers get 24/7 coaching, readi
 rumi-platform/
 ├── bot/                    # WhatsApp Bot (main application)
 │   ├── whatsapp-bot.js     # Entry point (webhook, message routing)
-│   ├── shared/config/      # Branding, feature tiers, capabilities
+│   ├── shared/config/      # Branding, presence-based feature gating, region config
 │   ├── shared/services/    # 39+ service modules
 │   ├── shared/handlers/    # Message handlers (text, voice, image, flow)
 │   ├── workers/            # 8 background workers
@@ -29,7 +31,7 @@ rumi-platform/
 ├── infrastructure/
 │   ├── supabase/           # SQL schema, RLS policies, seed data
 │   └── railway/            # Deployment configs
-├── tests/                  # 158 tests across 11 suites
+├── tests/                  # Jest suites (82 suites / 1075 tests)
 ├── docs/                   # Architecture, customization, monitoring
 └── .claude/                # Claude Code config + /setup skill
 ```
@@ -39,7 +41,7 @@ rumi-platform/
 ```bash
 npm install               # Install root dependencies
 cd bot && npm install     # Install bot dependencies
-npm test                  # Run all 158 tests
+npm test                  # Run all tests (Jest via tests/run.js)
 npm run test:security     # Security scan (no hardcoded secrets)
 npm run test:sprint1      # Core feature tests
 npm run test:schema       # Database schema validation
@@ -52,8 +54,9 @@ npm run simulate          # CLI simulator (test without WhatsApp)
 1. **No credentials in code** — use `.env` (copy from `.env.template`)
 2. **Branding via config** — edit `bot/shared/config/branding.js`, not hardcoded values
 3. **LLM calls via service** — all AI calls go through `bot/shared/services/llm-client.js`
-4. **Background jobs use BullMQ** (Redis), not SQS
-5. **Feature tiers** — set `RUMI_TIER` to `minimal`, `recommended`, or `full`
+4. **Background jobs go through the pluggable queue** — `QUEUE_DRIVER` selects SQS (default) or BullMQ/Redis
+5. **Feature gating is presence-based** — a feature is on iff its env keys are present
+   (`bot/shared/config/feature-availability.js`); there is no `RUMI_TIER`
 
 ## Key Configuration Files
 
@@ -61,7 +64,7 @@ npm run simulate          # CLI simulator (test without WhatsApp)
 |------|---------|
 | `.env.template` | Copy to `.env` and fill in values |
 | `bot/shared/config/branding.js` | Bot name, org, languages |
-| `bot/shared/config/feature-tiers.js` | Feature tier definitions |
+| `bot/shared/config/feature-availability.js` | Presence-based feature gating (feature → env key) |
 | `bot/shared/services/llm-client.js` | LLM provider (OpenRouter/OpenAI) |
 
 ## Testing

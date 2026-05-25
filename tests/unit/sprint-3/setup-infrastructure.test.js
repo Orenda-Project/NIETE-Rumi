@@ -73,11 +73,19 @@ describe('Setup Infrastructure', () => {
       expect(fs.existsSync(path.join(ROOT, '.claude/CLAUDE.md'))).toBe(true);
     });
 
-    test('CLAUDE.md mentions key project sections', () => {
+    test('.claude/CLAUDE.md is a progressive-disclosure router (skills + parent link, no stale tiers)', () => {
       const content = fs.readFileSync(path.join(ROOT, '.claude/CLAUDE.md'), 'utf8');
-      expect(content).toContain('bot/');
-      expect(content).toContain('Feature Tiers');
-      expect(content).toContain('branding.js');
+      expect(content).toContain('skills');            // describes the on-demand skill system
+      expect(content).toContain('settings.json');     // MCP/config router
+      expect(content).toContain('../CLAUDE.md');       // links to the L0 parent (progressive disclosure)
+      expect(content).not.toContain('RUMI_TIER');      // tiers were removed (presence-based gating)
+    });
+
+    test('root CLAUDE.md (L0) exists and routes to folder guides', () => {
+      const root = fs.readFileSync(path.join(ROOT, 'CLAUDE.md'), 'utf8');
+      expect(root).toContain('bot/CLAUDE.md');
+      expect(root).toContain('infrastructure/CLAUDE.md');
+      expect(root).toContain('presence');             // documents presence-based gating
     });
 
     test('.claude/settings.json exists with MCP config', () => {
