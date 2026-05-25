@@ -3601,3 +3601,50 @@ CREATE TABLE IF NOT EXISTS quiz_answers (
 );
 
 CREATE INDEX IF NOT EXISTS idx_quiz_answers_session_id ON quiz_answers(session_id);
+
+-- =============================================================================
+-- Column reconcile (Phase 5) — columns the bot code writes/reads that the base
+-- table definitions above predate. Idempotent (ADD COLUMN IF NOT EXISTS) so a
+-- fresh install applies them right after table creation and re-runs are no-ops.
+-- Types are prod-authoritative. A clone without these hits "column does not
+-- exist" at runtime (pic-to-LP insert, quiz-nudge scheduler, settings flow,
+-- coaching card/photo writes, reading-assessment abandon path).
+-- =============================================================================
+
+-- lesson_plans: status/quiz_id/quiz_nudge_sent (quiz-nudge scheduler) +
+-- pic-to-LP delivery metadata (pic-lp-kieai.worker insert).
+ALTER TABLE lesson_plans ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'completed';
+ALTER TABLE lesson_plans ADD COLUMN IF NOT EXISTS quiz_id UUID;
+ALTER TABLE lesson_plans ADD COLUMN IF NOT EXISTS quiz_nudge_sent BOOLEAN DEFAULT FALSE;
+ALTER TABLE lesson_plans ADD COLUMN IF NOT EXISTS lp_variant TEXT;
+ALTER TABLE lesson_plans ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'gamma_standard';
+ALTER TABLE lesson_plans ADD COLUMN IF NOT EXISTS delivery_time_ms INTEGER;
+ALTER TABLE lesson_plans ADD COLUMN IF NOT EXISTS cost_usd NUMERIC(8,4);
+ALTER TABLE lesson_plans ADD COLUMN IF NOT EXISTS pic_lp_session_id UUID;
+ALTER TABLE lesson_plans ADD COLUMN IF NOT EXISTS textbook_metadata JSONB;
+
+-- coaching_sessions: coaching-card action, classroom photos, LP linkage, error trace.
+ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS prioritized_action JSONB;
+ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS classroom_photos JSONB DEFAULT '[]';
+ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS linked_lesson_plan_id UUID;
+ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS lesson_plan_link_method VARCHAR(20);
+ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS error_stack TEXT;
+
+-- users: settings flow stores language + observation framework in a preferences JSONB.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{}';
+
+-- quiz_sessions: idle-reminder cron flag.
+ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS idle_reminder_sent BOOLEAN DEFAULT FALSE;
+
+-- reading_assessments: abandon-path timestamp.
+ALTER TABLE reading_assessments ADD COLUMN IF NOT EXISTS failed_at TIMESTAMPTZ;
+
+-- quiz_answers: answer timestamp (selected/ordered by quiz-session.service).
+ALTER TABLE quiz_answers ADD COLUMN IF NOT EXISTS answered_at TIMESTAMPTZ DEFAULT now();
+
+-- conversations: last-touch timestamp (prod parity).
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT now();
+
+-- Reload PostgREST's schema cache last, so the reconciled columns above are
+-- immediately visible to the REST API (the earlier NOTIFY predates these DDLs).
+NOTIFY pgrst, 'reload schema';
