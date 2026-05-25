@@ -103,6 +103,27 @@ const IGNORED_REFERENCES = new Set([
   'sessions', // alias / ambiguous — not a standalone table
 ]);
 
+// RPC names referenced only from test code (never production) — clones don't need them.
+const IGNORED_RPCS = new Set([
+  'get_column_info', // test-only introspection helper (bot/tests/video/style-selection.test.js)
+]);
+
+/**
+ * Extract all CREATE [OR REPLACE] FUNCTION names from the schema SQL,
+ * tolerating an optional `public.` schema qualifier.
+ */
+function extractCreateFunctions(sqlContent) {
+  const fns = new Set();
+  const re = /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:public\.)?([a-z_][a-z0-9_]*)/gi;
+  let match;
+  while ((match = re.exec(sqlContent)) !== null) {
+    fns.add(match[1].toLowerCase());
+  }
+  return fns;
+}
+
+const isTestFile = (p) => /(^|\/)(tests?|__tests__)\//.test(p) || /\.test\.js$/.test(p);
+
 // Known required tables that MUST exist in the schema.
 // These are critical for async job processing and core bot functionality.
 const KNOWN_REQUIRED_TABLES = [
@@ -124,15 +145,19 @@ const KNOWN_REQUIRED_TABLES = [
 describe('Schema Completeness', () => {
   let schemaSQL;
   let schemaTables;
+  let schemaFunctions;
   let codeTableRefs;
+  let codeRpcRefs;
 
   beforeAll(() => {
     // Read schema SQL
     schemaSQL = fs.readFileSync(SCHEMA_PATH, 'utf-8');
     schemaTables = extractCreateTables(schemaSQL);
+    schemaFunctions = extractCreateFunctions(schemaSQL);
 
-    // Scan all bot JS files for table references
+    // Scan all bot JS files for table references; RPCs from production files only.
     codeTableRefs = new Set();
+    codeRpcRefs = new Set();
     const jsFiles = findJsFiles(BOT_DIR);
 
     for (const filePath of jsFiles) {
@@ -141,6 +166,11 @@ describe('Schema Completeness', () => {
       for (const ref of refs) {
         if (!IGNORED_REFERENCES.has(ref)) {
           codeTableRefs.add(ref);
+        }
+      }
+      if (!isTestFile(filePath)) {
+        for (const rpc of extractRpcReferences(content)) {
+          if (!IGNORED_RPCS.has(rpc)) codeRpcRefs.add(rpc);
         }
       }
     }
@@ -168,6 +198,21 @@ describe('Schema Completeness', () => {
           ].join('\n')
         : '';
 
+      expect(missing).toEqual([]);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Every production .rpc() has a CREATE FUNCTION
+  // -------------------------------------------------------------------------
+  describe('all code-referenced RPCs exist in schema', () => {
+    it('should have a CREATE [OR REPLACE] FUNCTION for every .rpc() in production bot code', () => {
+      const missing = [];
+      for (const rpc of codeRpcRefs) {
+        if (!schemaFunctions.has(rpc)) missing.push(rpc);
+      }
+      missing.sort();
+      // (message intentionally mirrors the table assertion's guidance)
       expect(missing).toEqual([]);
     });
   });
