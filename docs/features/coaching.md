@@ -4,6 +4,8 @@
 
 > The best time to coach a teacher is right after they teach. Rumi turns a class **audio recording** into a scored, framework-based coaching report — and a spoken reflective conversation — within minutes.
 
+📄 **See a sample report:** [coaching-report-sample.pdf](../samples/coaching-report-sample.pdf) — a representative OECD-framework report rendered by the actual pipeline (`node scripts/render-sample-report.js`).
+
 ## What it is
 
 A teacher records part of a lesson as **audio** on their phone and sends the voice note to Rumi on WhatsApp. Rumi transcribes it, scores it against a research-backed classroom-observation framework, talks the teacher through a short reflection, and returns a professional PDF report with concrete next steps. No coach, no scheduled visit, no travel — just the phone in their pocket.
