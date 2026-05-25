@@ -169,6 +169,8 @@ describe('Security Scan', () => {
             if (file.includes('ama.service.js') && line.includes('exec_sql RPC function')) continue;
             // Allow migration runner which legitimately uses exec_sql RPC
             if (file.includes('migrate.js')) continue;
+            // Allow the DB bootstrapper which applies the canonical schema via exec_sql RPC
+            if (file.includes('bootstrap-db.js')) continue;
             throw new Error(`Active exec_sql reference found at ${file}:${i + 1}: ${line.trim()}`);
           }
         }
