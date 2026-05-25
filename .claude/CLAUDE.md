@@ -21,12 +21,15 @@ folder with a `SKILL.md` (+ optional reference files).
 | [coaching](skills/coaching/SKILL.md) | Classroom-observation coaching: frameworks, the queue worker, LP integration |
 | [debugging](skills/debugging/SKILL.md) | Investigation discipline + correlation-id tracing |
 | [registration](skills/registration/SKILL.md) | New-user name capture + the WhatsApp Registration Flow |
+| [reading-assessment](skills/reading-assessment/SKILL.md) | Oral-reading-fluency pipeline, WCPM benchmarks, multilingual rules |
+| [whatsapp-flows](skills/whatsapp-flows/SKILL.md) | Building & publishing WhatsApp Flows (endpoint data exchange, the publish lifecycle) |
+| [cross-agent-safety](skills/cross-agent-safety/SKILL.md) | Safety checklist before editing shared services/workers |
+| [pre-merge-checklist](skills/pre-merge-checklist/SKILL.md) | Defensive pre-flight checks for recurring bug classes |
 
 > **More skills are being ported from the production bot in batches** (operational core still pending:
-> reading-assessment, whatsapp-flows, cross-agent-safety, qa-testing, video-generation, feature-tracer,
-> pre-merge-checklist, database-analysis, logging, ab-testing). Each is hand-reviewed and stripped of any
-> internal/credential content before it lands — CI (gitleaks + the source-hygiene guard) enforces that no
-> secrets or internal references ship.
+> qa-testing, video-generation, feature-tracer, database-analysis, logging, ab-testing). Each is
+> hand-reviewed and stripped of any internal/credential content before it lands — CI (gitleaks + the
+> source-hygiene guard) enforces that no secrets or internal references ship.
 
 ## Rules for adding/editing skills here
 
