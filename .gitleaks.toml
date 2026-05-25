@@ -39,21 +39,41 @@ id = "openai-key"
 description = "OpenAI API key"
 regex = '''sk-[A-Za-z0-9]{20}T3BlbkFJ[A-Za-z0-9]{20}'''
 
-# --- Allowlist: placeholders, tests, docs, this config ----------------------
+[[rules]]
+id = "credential-assignment-uuid"
+description = "UUID assigned to a credential variable (e.g. RAILWAY_ACCOUNT_TOKEN=<uuid>)"
+# Bare UUIDs aren't in gitleaks' default ruleset, so a token-shaped UUID would
+# otherwise sail through — this is exactly what leaked in dashboard/docs.
+regex = '''(?i)(?:token|secret|password|api[_-]?key|access[_-]?token|account[_-]?token|service[_-]?role[_-]?key)["']?\s*[:=]\s*["']?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'''
+
+[[rules]]
+id = "credential-assignment-longtoken"
+description = "Long contiguous high-entropy value assigned to a credential variable"
+regex = '''(?i)(?:token|secret|password|api[_-]?key|access[_-]?token|account[_-]?token|service[_-]?role[_-]?key)["']?\s*[:=]\s*["']?[A-Za-z0-9]{32,}'''
+
+# --- Allowlist: placeholders, tests, this config ----------------------------
+# NOTE: docs/ is intentionally NOT path-allowlisted — docs MUST be scanned for real
+# secrets (a live token leaked into dashboard/docs once). Placeholders in docs are
+# covered by the regex allowlist below instead.
 
 [allowlist]
-description = "Template placeholders, test fixtures, docs, and this config are not leaks"
+description = "Template placeholders, test fixtures, and this config are not leaks"
 paths = [
   '''\.env\.template$''',
   '''\.env\.example$''',
   '''(^|/)tests/''',
+  '''(^|/)__tests__/''',
+  '''\.test\.js$''',
   '''\.gitleaks\.toml$''',
-  '''(^|/)docs/''',
+  '''(^|/)bot/fonts/''',
 ]
 regexes = [
   '''your-[a-z-]*-?(key|token|id|secret)''',
+  '''<[a-z][a-z0-9 _-]*>''',
   '''sk-or-v1-\.\.\.''',
   '''(?i)CHANGEME''',
+  '''(?i)need-to-get''',
   '''example\.com''',
   '''your-project\.supabase\.co''',
+  '''YOUR_[A-Z_]+''',
 ]

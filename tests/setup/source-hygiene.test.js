@@ -24,6 +24,17 @@ const REF_RE = /\b(?:bd-\d+|BUG-\d+|PROJ-\d+|FEAT-\d+|TASK-\d+|[Bb][Uu][Gg]\s*#\
 // legitimate and intentionally NOT listed here.
 const INTERNAL_RE = /\b(?:Taleemabad|TaleemHub|Rawalpindi|Silverleaf|Junaid|Aloyce|Shams|Attar)\b|\+92\d|\+255\d|\b0?329[\s-]?5012345\b|\b5012345\b/i;
 
+// A real secret assigned to a credential variable — a UUID or a long contiguous
+// high-entropy value (a live RAILWAY_ACCOUNT_TOKEN UUID once leaked into a doc and
+// gitleaks didn't flag it, because docs were path-allowlisted and a bare UUID isn't
+// a default rule). This runs in the unit suite as a second layer under gitleaks.
+const SECRET_ASSIGN_RE = /(?:token|secret|password|api[_-]?key|access[_-]?token|account[_-]?token|service[_-]?role[_-]?key)["']?\s*[:=]\s*["']?(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[A-Za-z0-9]{32,})/i;
+// The actual deployment phone numbers (prod PK / TZ) — precise, so synthetic example
+// numbers like +92300… in schema docs don't false-positive.
+const DEPLOY_PHONE_RE = /\b0?329[\s-]?5012345\b|\b5012345\b|255[\s-]?677[\s-]?095/;
+// Placeholders that look secret-ish but are intentional doc examples.
+const PLACEHOLDER_RE = /your-[a-z-]*|YOUR_[A-Z_]+|<[a-z][a-z0-9 _-]*>|CHANGEME|need-to-get|example/i;
+
 // Agent-native markdown: progressive-disclosure routers + skill docs (all public).
 function collectAgentDocs() {
   const docs = [];
@@ -56,6 +67,25 @@ function collectAgentDocs() {
     walkMd(claudeDir);
   }
   return [...new Set(docs)];
+}
+
+// Every markdown file in the repo (excluding deps, vendored fonts, build output).
+function collectAllMarkdown() {
+  const out = [];
+  const walk = (d) => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) {
+        if (['node_modules', '.git', 'dist', 'build', 'coverage'].includes(e.name)) continue;
+        if (p.includes(`${path.sep}bot${path.sep}fonts${path.sep}`) || e.name === 'fonts') continue;
+        walk(p);
+      } else if (e.name.endsWith('.md')) {
+        out.push(p);
+      }
+    }
+  };
+  walk(ROOT);
+  return out;
 }
 
 function collect(dir, exts) {
@@ -103,6 +133,33 @@ describe('Source Hygiene', () => {
         const lines = fs.readFileSync(f, 'utf-8').split('\n');
         lines.forEach((line, i) => {
           if (REF_RE.test(line) || INTERNAL_RE.test(line)) offenders.push(`${path.relative(ROOT, f)}:${i + 1}`);
+        });
+      }
+      expect(offenders).toEqual([]);
+    });
+  });
+
+  describe('no hardcoded secrets or deployment PII in ANY markdown', () => {
+    // Broader than the agent-docs guard above: scans EVERY .md (README, docs/,
+    // bot/**, dashboard/**, portal/**) for real credential values and the actual
+    // deployment phone numbers — the class that leaked via dashboard/docs and that
+    // gitleaks' docs-path allowlist had been skipping.
+    it('every .md is free of credential-assignment secrets and real deployment numbers', () => {
+      const offenders = [];
+      for (const f of collectAllMarkdown()) {
+        const lines = fs.readFileSync(f, 'utf-8').split('\n');
+        lines.forEach((line, i) => {
+          if (PLACEHOLDER_RE.test(line)) {
+            // strip the placeholder token, then re-test the remainder
+            const stripped = line.replace(new RegExp(PLACEHOLDER_RE.source, 'ig'), '');
+            if (SECRET_ASSIGN_RE.test(stripped) || DEPLOY_PHONE_RE.test(stripped)) {
+              offenders.push(`${path.relative(ROOT, f)}:${i + 1}`);
+            }
+            return;
+          }
+          if (SECRET_ASSIGN_RE.test(line) || DEPLOY_PHONE_RE.test(line)) {
+            offenders.push(`${path.relative(ROOT, f)}:${i + 1}`);
+          }
         });
       }
       expect(offenders).toEqual([]);
