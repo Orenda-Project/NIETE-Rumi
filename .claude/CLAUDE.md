@@ -29,10 +29,13 @@ folder with a `SKILL.md` (+ optional reference files).
 | [qa-testing](skills/qa-testing/SKILL.md) | Test runner, conformance guards, the route-contract pattern |
 | [video-generation](skills/video-generation/SKILL.md) | The educational-video pipeline, presigned-URL gotcha, checkpoint/resume |
 | [ab-testing](skills/ab-testing/SKILL.md) | Thompson-sampling multi-armed bandit (ab_tests tables) |
+| [logging](skills/logging/SKILL.md) | Structured console logs, correlation IDs, semantic events, optional external backend |
+| [feature-tracer](skills/feature-tracer/SKILL.md) | Trace any feature end to end — the map of handler/service/worker/table per feature |
 
-> **More skills are being ported from the production bot in batches** (operational core still pending:
-> feature-tracer, logging). Each is hand-reviewed and stripped of any internal/credential content before it
-> lands — CI (gitleaks + the source-hygiene guard) enforces that no secrets or internal references ship.
+> Skills are loaded **on demand** — an agent reads the one whose description matches the task. The set above
+> is the operational core (run / extend / debug the open bot); internal-ops skills from the production bot
+> are intentionally not ported. CI (gitleaks + the source-hygiene guard) enforces that no secrets or internal
+> references ever ship in a skill.
 
 ## Rules for adding/editing skills here
 
