@@ -105,10 +105,17 @@ describe('Setup Infrastructure', () => {
     test('skill.md describes the setup flow', () => {
       const content = fs.readFileSync(path.join(ROOT, '.claude/skills/setup/skill.md'), 'utf8');
       expect(content).toContain('/setup');
-      expect(content).toContain('Tier');
       expect(content).toContain('Supabase');
       expect(content).toContain('Railway');
       expect(content).toContain('OpenRouter');
+    });
+
+    test('skill.md uses presence-based gating, not tiers, and links into the doc web', () => {
+      const content = fs.readFileSync(path.join(ROOT, '.claude/skills/setup/skill.md'), 'utf8');
+      expect(content).not.toContain('RUMI_TIER');          // tiers removed — gating is presence-based
+      expect(content).toMatch(/presence/i);                // documents the presence model
+      expect(content).toContain('../../CLAUDE.md');         // up-links to the config router (progressive disclosure)
+      expect(content).toContain('npm run doctor');          // wires in the real preflight tooling
     });
 
     test('skill.md mentions resume capability', () => {

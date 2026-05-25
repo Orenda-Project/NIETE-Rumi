@@ -1,11 +1,15 @@
-# /setup - Rumi Platform Setup
+# /setup - Platform Setup
 
-Automated setup guide for deploying the Rumi AI Teaching Assistant. This skill walks through the complete setup interactively.
+> **Up:** [.claude/CLAUDE.md](../../CLAUDE.md) (config & skills router) · **Architecture overview:** [digital-coach](../digital-coach/SKILL.md)
+
+Automated setup guide for deploying the AI teaching-assistant bot. This skill walks through the complete
+setup interactively. Once the bot is running, the [digital-coach](../digital-coach/SKILL.md) skill is the
+map to everything else.
 
 ## What This Does
 
-1. **Pre-flight checks**: Verifies Node.js 18+, git, npm
-2. **Tier selection**: Asks which feature tier (minimal/recommended/full)
+1. **Pre-flight checks**: Verifies Node.js 18+, git, npm (`npm run doctor`)
+2. **Feature selection (presence-based)**: there are **no tiers** — a feature turns on when the env vars it needs are present. Set the keys for the features you want; leave the rest unset and the bot degrades gracefully.
 3. **Infrastructure setup**: Creates Supabase project + Railway project + Redis manually
 4. **WhatsApp config**: Set webhook URL, verify handshake
 5. **Register flows**: WhatsApp Flows for interactive forms
@@ -26,15 +30,23 @@ The agent will guide you through each step interactively.
 - Supabase account (free tier works)
 - Railway account (free tier works)
 
-## Tier Options
+## Feature selection (presence-based, no tiers)
 
-When asked "Which tier?":
+Gating is by **presence of keys**, not a tier flag. Start with the required core; add each feature's keys
+when you want it on. `.env.template` documents every feature's keys under an `ENABLES:` heading, and
+`npm run validate:env` reports which features are currently switched on.
 
-| Tier | Features | Required Services |
-|------|----------|------------------|
-| **Minimal** | AI Chat + Registration | Supabase, Railway, Redis, OpenRouter |
-| **Recommended** | + Coaching + Reading Assessment | + Soniox STT |
-| **Full** | All features (voice, video, lesson plans, attendance) | + ElevenLabs TTS, Azure Speech |
+| To run… | Set these (on top of the core) |
+|---------|-------------------------------|
+| **Core** (AI chat + registration) | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `REDIS_URL`, `OPENROUTER_API_KEY`, WhatsApp creds |
+| Voice transcription | `SONIOX_API_KEY` |
+| Spoken replies (TTS) | `ELEVENLABS_API_KEY` (+ `UPLIFT_API_KEY` for Urdu/regional) |
+| Reading pronunciation scoring | `AZURE_SPEECH_KEY` |
+| Lesson-plan generation | `GAMMA_API_KEY` |
+| Educational video | `KIE_API_KEY` + the `R2_*` storage keys |
+
+The single source of truth for what each key enables is
+[bot/shared/config/feature-availability.js](../../../bot/shared/config/feature-availability.js).
 
 ## Setup Steps (Detailed)
 
@@ -48,20 +60,29 @@ git --version
 
 ### Step 2: Create Infrastructure
 
-Follow [SETUP.md](../../SETUP.md) to manually create:
+Follow [SETUP.md](../../../SETUP.md) to manually create:
 - Supabase project (copy URL + service role key)
 - Railway project + Redis plugin
 - OpenRouter API key
 
 Copy the credentials into `.env` based on `.env.template`.
 
-### Step 3: Run Database Schema
+### Step 3: Bootstrap the Database
+
+One command applies the schema, RLS policies, and seed data in order:
 
 ```bash
-# Apply schema to your Supabase project
-psql $DATABASE_URL -f infrastructure/supabase/00_complete-schema.sql
-psql $DATABASE_URL -f infrastructure/supabase/01_rls-policies.sql
-psql $DATABASE_URL -f infrastructure/supabase/02_seed-data.sql
+npm run bootstrap:db
+```
+
+(Equivalent manual apply: `psql $DATABASE_URL -f infrastructure/supabase/00_complete-schema.sql`, then
+`01_rls-policies.sql`, then `02_seed-data.sql`.)
+
+Then confirm your environment is wired correctly before deploying:
+
+```bash
+npm run validate:env   # which features are switched on (by key presence)
+npm run doctor         # connection + config preflight
 ```
 
 ### Step 4: Add WhatsApp Credentials
@@ -136,13 +157,13 @@ Once running, see these docs for customization:
 
 | Want to... | Read |
 |-----------|------|
-| Swap coaching framework (OECD to Teach) | [docs/agent-customization.md](../../docs/agent-customization.md) section 1 |
-| Change reading assessment method | [docs/agent-customization.md](../../docs/agent-customization.md) section 2 |
-| Add new languages | [docs/agent-customization.md](../../docs/agent-customization.md) section 4 |
-| Set up monitoring | [docs/monitoring.md](../../docs/monitoring.md) |
-| Change branding | [docs/customization.md](../../docs/customization.md) |
-| Add new features | [docs/agent-customization.md](../../docs/agent-customization.md) section 7 |
+| Swap coaching framework (OECD to Teach) | [docs/agent-customization.md](../../../docs/agent-customization.md) section 1 |
+| Change reading assessment method | [docs/agent-customization.md](../../../docs/agent-customization.md) section 2 |
+| Add new languages | [docs/agent-customization.md](../../../docs/agent-customization.md) section 4 |
+| Set up monitoring | [docs/monitoring.md](../../../docs/monitoring.md) |
+| Change branding | [docs/customization.md](../../../docs/customization.md) |
+| Add new features | [docs/agent-customization.md](../../../docs/agent-customization.md) section 7 |
 
 ## Full Manual Setup
 
-For detailed step-by-step instructions, follow [SETUP.md](../../SETUP.md).
+For detailed step-by-step instructions, follow [SETUP.md](../../../SETUP.md).
