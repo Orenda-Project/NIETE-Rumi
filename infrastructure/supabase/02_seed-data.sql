@@ -71,7 +71,7 @@ ON CONFLICT DO NOTHING;
 
 -- Schema version record
 INSERT INTO schema_versions (version, description)
-VALUES ('2.0.0', 'Rumi Platform production-parity schema (60 tables, 38 functions)')
+VALUES ('2.0.0', 'Rumi Platform production-parity schema (73 tables, 40 functions)')
 ON CONFLICT (version) DO NOTHING;
 
 -- ============================================================================
