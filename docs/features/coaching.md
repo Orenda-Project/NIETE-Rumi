@@ -20,7 +20,7 @@ A teacher records part of a lesson as **audio** on their phone and sends the voi
    - **TEACH** — the World Bank's TEACH observation tool
    - **FICO** — a domain-based observation framework
 
-   (These four ship with the OSS bot. MEWAKA and other production-only frameworks are not included here.)
+   (These four are the selectable scoring frameworks, registered in `framework-registry.js`.) The OSS bot also includes a **MEWAKA** report path (a Tanzania teacher-CPD format) — when a session's framework is `mewaka`, the report is rendered by a dedicated transformer + template (`pdf-report.service.js`, `framework === 'mewaka'`).
 4. **Optional classroom photo analysis** — if the teacher also sends a photo, Rumi uses vision AI to score things only a picture can show (seating, materials, board use).
 5. **Reflective conversation** — Rumi asks a few voice-delivered questions that prompt the teacher to think about specific moments in their own lesson.
 6. **PDF report** — scores per goal, evidence quoted from the transcript, growth areas, prioritised recommendations, and charts. It ends with a coaching card naming the single highest-leverage next action.

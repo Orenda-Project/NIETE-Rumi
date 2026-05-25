@@ -41,6 +41,11 @@ uses. The default `oecd` framework scores 5 goals across 19 classroom criteria +
 criteria (23 total). To add a region's own rubric, drop a new `*-framework.js` module and register its key
 — no orchestrator changes needed.
 
+Beyond the four registry frameworks, the bot also ships a **MEWAKA** report path (a Tanzania teacher-CPD
+format): when a session's framework is `mewaka`, the report is rendered by a dedicated transformer +
+template rather than the standard renderer — see the `framework === 'mewaka'` branch in
+[bot/shared/services/pdf-report.service.js](../../../bot/shared/services/pdf-report.service.js).
+
 > The framework used for a given session is recorded inside `coaching_sessions.analysis_data.framework`
 > (there is no dedicated column). Each framework writes a different `analysis_data` shape, so always read
 > the `framework` field first before parsing scores.

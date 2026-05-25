@@ -20,20 +20,19 @@ const supportedLanguages = [
 ];
 ```
 
-## Feature Tiers
+## Feature Availability (presence-based)
 
-Control which features are enabled via `RUMI_TIER` environment variable:
+There is **no tier system**. A feature turns on when the env key(s) it needs are present — set them and it
+works, leave them blank and it stays off cleanly. The single source of truth is the `FEATURES` map in
+`bot/shared/config/feature-availability.js` (each feature → the env key that switches it on). Run
+`npm run doctor` to see which features are live for your current `.env`.
 
-- `minimal` - AI Chat + Registration
-- `recommended` - + Coaching + Reading Assessment
-- `full` - All features
-
-Check features in code:
+Check availability in code:
 
 ```javascript
-const { isFeatureEnabled } = require('./config/feature-tiers');
-if (isFeatureEnabled('coaching')) {
-  // Enable coaching flow
+const { isFeatureAvailable } = require('./config/feature-availability');
+if (isFeatureAvailable('Voice notes (speech-to-text, Soniox)')) {
+  // ... transcription path
 }
 ```
 
@@ -57,8 +56,8 @@ LLM_MODEL=anthropic/claude-sonnet-4
 ## Adding New Features
 
 1. Add capability to `bot/shared/config/capabilities.config.js`
-2. Add feature flag to `bot/shared/config/feature-tiers.js`
-3. Gate with `isFeatureEnabled('your_feature')` in handlers
+2. If the feature needs its own API key, add it to the `FEATURES` map in `bot/shared/config/feature-availability.js`
+3. Gate with `isFeatureAvailable(...)` in handlers (or just let a missing key degrade gracefully)
 4. Add job type to `bot/workers/sqs-worker.js` if async
 
 ## File Zones
@@ -71,9 +70,9 @@ These files are yours. Upstream updates rarely touch them, so merge conflicts ar
 
 | File | Purpose |
 |------|---------|
-| `.env` | Your credentials and config |
+| `.env` | Your credentials and config — **this is where you switch features on** (presence of keys) |
 | `bot/shared/config/branding.js` | Bot name, org name, languages |
-| `bot/shared/config/feature-tiers.js` | Which features are enabled |
+| `bot/shared/config/feature-availability.js` | The feature → env-key map (rarely edited) |
 | `bot/shared/config/capabilities.config.js` | Feature capabilities |
 | `bot/shared/config/system-messages.js` | Custom system prompts |
 | `bot/shared/services/llm-client.js` | LLM provider config |

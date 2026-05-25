@@ -80,7 +80,7 @@ CONVERSATIONAL FRAMEWORK: [YOUR CONVERSATION APPROACH]
 }
 ```
 
-**Key constraint**: The LLM expects the response in a specific JSON structure. Find `_buildAnalysisPrompt()` in the same file (~line 680) and update the JSON schema to match your framework's domains.
+**Key constraint**: The LLM expects the response in a specific JSON structure. Find `_buildAnalysisPrompt()` in the same file (~line 636) and update the JSON schema to match your framework's domains.
 
 #### Step 2: Update Scoring Constants
 
@@ -386,24 +386,25 @@ Every feature in the bot follows this pattern:
 }
 ```
 
-#### Step 2: Add Feature Flag
+#### Step 2: Register its key (only if it needs one)
+
+Gating is **presence-based** — there are no tiers. If your feature needs its own API key, add it to the
+`FEATURES` map so `doctor` and the runtime gate know about it:
 
 ```javascript
-// bot/shared/config/feature-tiers.js
-// Add to each tier's features object:
-features: {
-  // ... existing
-  homeworkChecker: true,  // or false for lower tiers
-}
+// bot/shared/config/feature-availability.js — add to the FEATURES array:
+{ name: 'Homework checker (Acme OCR)', keys: ['ACME_OCR_API_KEY'] },
 ```
+
+If your feature only uses already-required services (e.g. the LLM), skip this step.
 
 #### Step 3: Gate in Handler
 
 ```javascript
 // bot/shared/handlers/text-message.handler.js (or image handler)
-const { isFeatureEnabled } = require('../config/feature-tiers');
+const { isFeatureAvailable } = require('../config/feature-availability');
 
-if (isFeatureEnabled('homeworkChecker') && isHomeworkRequest(messageBody)) {
+if (isFeatureAvailable('Homework checker (Acme OCR)') && isHomeworkRequest(messageBody)) {
   await handleHomeworkCheck(userId, messageBody);
   return;
 }
@@ -523,7 +524,7 @@ This changes: welcome messages, system prompts, error messages, and all user-fac
 |------|---------------|
 | `bot/workers/sqs-worker.js` | Add `case` for your new job type |
 | `bot/shared/services/queue/sqs-queue.service.js` | Queue job submission |
-| `bot/shared/config/feature-tiers.js` | Gate behind feature flag |
+| `bot/shared/config/feature-availability.js` | Register the feature's API key (presence-based gating) |
 
 ### Pattern
 
@@ -563,7 +564,7 @@ WhatsApp Webhook
 | Want to change... | Edit this file |
 |-------------------|---------------|
 | Bot name/branding | `bot/shared/config/branding.js` |
-| Which features are on/off | `bot/shared/config/feature-tiers.js` |
+| Which features are on/off | `.env` (presence of each feature's keys); the map is `bot/shared/config/feature-availability.js` |
 | Feature descriptions (help text) | `bot/shared/config/capabilities.config.js` |
 | System messages (all languages) | `bot/shared/config/system-messages.js` |
 | Language list | `bot/shared/config/branding.js` + `language-config.js` |
@@ -571,7 +572,7 @@ WhatsApp Webhook
 | TTS voices | `bot/shared/config/tts-voices.js` |
 | Coaching framework | `bot/shared/services/gpt5-mini.service.js` → `getCachedFrameworkPrompt()` |
 | Scoring rubric | `bot/shared/constants/scoring.constants.js` |
-| Reading benchmarks | `bot/shared/services/reading/fluency.service.js` |
+| Reading benchmarks | `bot/shared/services/reading/analysis.service.js` (`compareToBenchmarks` → `check_benchmark_status` RPC) |
 | Database schema | `infrastructure/supabase/00_complete-schema.sql` |
 
 ### Database Tables by Feature
@@ -580,12 +581,15 @@ WhatsApp Webhook
 |---------|--------------|----------------|
 | Registration | `users` | - |
 | AI Chat | `conversations` | `chat_sessions` |
-| Coaching | `coaching_sessions` | `coaching_jobs` |
-| Reading | `reading_sessions` | `reading_results`, `reading_passages` |
-| Lesson Plans | `lesson_plan_requests` | - |
-| Video | `video_requests` | `video_sessions` |
-| Attendance | `attendance_classes` | `attendance_records`, `attendance_setup` |
-| Exam Checker | `exam_sessions` | `exam_papers`, `exam_grades` |
+| Coaching | `coaching_sessions` | `coaching_jobs`, `coaching_quality_metrics` |
+| Reading | `reading_assessments` | `wcpm_percentiles` (benchmarks) |
+| Lesson Plans | `lesson_plan_requests` | `lesson_plans`, `pre_generated_lps`, `textbook_toc` |
+| Pic-to-LP | `pic_lp_sessions` | `lesson_plans` |
+| Quiz | `quiz_sessions` | `quizzes`, `quiz_questions`, `quiz_answers` |
+| Homework | `homework_chapters` | `student_lists` |
+| Video | `video_requests` | `video_tasks` |
+| Attendance | `attendance_sessions` | `attendance_records`, `student_lists` |
+| Exam Checker | `exam_check_sessions` | `exam_grades`, `image_analysis_requests` |
 
 ---
 
@@ -595,5 +599,5 @@ WhatsApp Webhook
 2. **Read before editing** - Always have the AI read the target file first to understand the current implementation
 3. **Test after each change** - Run `npm test` after every file change
 4. **Use the simulator** - `cd bot && npm run simulate` lets you test without WhatsApp
-5. **Check feature tiers** - Make sure your feature is enabled in the right tier
-6. **Follow the pattern** - Every feature follows: capability config → feature tier → handler gate → service → worker (if async)
+5. **Check feature availability** - Make sure your feature's API key is set (gating is presence-based; `npm run doctor` shows what's live)
+6. **Follow the pattern** - Every feature follows: capability config → (optional) key in feature-availability → handler gate → service → worker (if async)

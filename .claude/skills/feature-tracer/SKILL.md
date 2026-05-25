@@ -44,7 +44,7 @@ table)? The hop where the trace goes quiet is the failure point.
 | Lesson plans | `lesson-plan-v2.handler.js`, `image-message.handler.js` | `lesson-planning` / router services | `lesson-plan-generation.worker.js`, `lesson-plan-extraction.worker.js`, `pic-lp-kieai.worker.js` | `lesson_plans`, `lesson_plan_requests` | — (see [debugging](../debugging/SKILL.md)) |
 | Registration | `text-message.handler.js`, `flow-response.handler.js` | `feature-registration.service.js` | — | `users` | [registration](../registration/SKILL.md) |
 | Video | (video orchestrator) | `video/video-orchestrator.service.js` | `video-generation.worker.js` | `video_requests`, `video_tasks` | [video-generation](../video-generation/SKILL.md) |
-| Quiz | `text-message.handler.js` (`/quiz`) | `quiz/*` services | `quiz-job-handler.js` | `quizzes`, `quiz_sessions`, `quiz_answers` | — |
+| Quiz (teacher → class; students answer) | `text-message.handler.js` (`/quiz`) | `quiz/*` services | `quiz-job-handler.js` | `quizzes`, `quiz_questions`, `quiz_sessions`, `quiz_answers` | — |
 | Exam checker | `exam-checker.handler.js` | exam services | `exam-grading.worker.js` | `exam_grades` | — |
 | Homework | `homework-trigger.js` | `homework-lookup` service | `homework-bundle.worker.js` | `homework_chapters` | — |
 | Text chat | `text-message.handler.js` | chat / context services | — | `conversations` | — |

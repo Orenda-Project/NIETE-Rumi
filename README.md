@@ -61,7 +61,7 @@ Every feature lives on WhatsApp. Click any feature for its own page — what it 
 | 📋 **[Lesson Plans](docs/features/lesson-plans.md)** | A topic + grade → a full lesson-plan PDF | `GAMMA_API_KEY` |
 | 📸 **[Pic-to-LP](docs/features/pic-to-lp.md)** | A photo of a textbook page → an illustrated 2-page lesson plan | `KIE_API_KEY` |
 | 📚 **[Homework](docs/features/homework.md)** | Pick a class + chapters → a curriculum homework bundle PDF | `HOMEWORK_FLOW_ID` |
-| 🧠 **[Quiz](docs/features/quiz.md)** | A topic → an interactive multiple-choice quiz, scored in the chat | _core (uses `OPENROUTER_API_KEY`)_ |
+| 🧠 **[Quiz](docs/features/quiz.md)** | Teacher sends a topic quiz to a class; students answer on their parents' WhatsApp, teacher gets a results report | _core (uses `OPENROUTER_API_KEY`)_ |
 | 🗣️ **[Voice Messages](docs/features/voice.md)** | Full spoken interaction in many languages | `SONIOX_API_KEY` + `ELEVENLABS_API_KEY` |
 | 🎬 **[Video Generation](docs/features/video.md)** | A topic → a short narrated educational video | `VIDEO_GENERATION_ENABLED` + `KIE_API_KEY` |
 | ✅ **[Attendance](docs/features/attendance.md)** | Voice- or tap-based attendance via WhatsApp Flows | _always on (core)_ |

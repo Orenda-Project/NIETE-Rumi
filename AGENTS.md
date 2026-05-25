@@ -24,14 +24,14 @@ rumi-platform/
 ├── bot/                    # WhatsApp Bot (main application)
 │   ├── whatsapp-bot.js     # Entry point (webhook, message routing)
 │   ├── shared/config/      # Branding, presence-based feature gating, region config
-│   ├── shared/services/    # 39+ service modules
+│   ├── shared/services/    # 49 service modules
 │   ├── shared/handlers/    # Message handlers (text, voice, image, flow)
-│   ├── workers/            # 8 background workers
+│   ├── workers/            # 10 background workers / job processors
 │   └── scripts/            # CLI simulator, validators
 ├── infrastructure/
 │   ├── supabase/           # SQL schema, RLS policies, seed data
 │   └── railway/            # Deployment configs
-├── tests/                  # Jest suites (82 suites / 1075 tests)
+├── tests/                  # Jest suites (83 suites / 1080 tests)
 ├── docs/                   # Architecture, customization, monitoring
 └── .claude/                # Claude Code config + /setup skill
 ```

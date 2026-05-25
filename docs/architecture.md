@@ -45,10 +45,10 @@ Meta WhatsApp API
 | Service | File | Purpose |
 |---------|------|---------|
 | LLM Client | `bot/shared/services/llm-client.js` | AI chat via OpenRouter |
-| Queue | `bot/shared/services/queue/sqs-queue.service.js` | Job queue for async tasks |
+| Queue | `bot/shared/services/queue/` (`index.js` selects the driver) | Pluggable job queue — `QUEUE_DRIVER=sqs` (default) or `bullmq` |
 | Worker | `bot/workers/sqs-worker.js` | Background job processing |
 | Branding | `bot/shared/config/branding.js` | Customizable bot identity |
-| Feature Tiers | `bot/shared/config/feature-tiers.js` | Feature gating by tier |
+| Feature gating | `bot/shared/config/feature-availability.js` | Presence-based feature availability (no tiers) |
 
 ## Message Flow
 
@@ -68,7 +68,7 @@ Meta WhatsApp API
 
 ## Job Queue
 
-- **BullMQ** (Redis-based) replaces AWS SQS
-- 7 job types: transcription, analysis, report, lesson plan extraction, lesson plan generation, video generation, exam grading
-- Configurable concurrency (default: 3)
+- **Pluggable driver** via `QUEUE_DRIVER`: AWS SQS (default) or BullMQ/Redis — both expose the same surface (`bot/shared/services/queue/index.js` selects it)
+- ~15 job types dispatched by the worker, including: transcription, analysis, report generation, lesson-plan extraction, lesson-plan generation, pic-to-LP rendering, video generation, exam grading, homework-bundle generation, and the quiz jobs (quiz, quiz_report, quiz_nudge, quiz_reminder, quiz_expire)
+- Configurable concurrency
 - Automatic retry with exponential backoff
