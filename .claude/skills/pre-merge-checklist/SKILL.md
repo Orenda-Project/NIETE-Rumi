@@ -177,10 +177,11 @@ send was rejected; fall back to English with a warning when the user's language 
 
 ## When something goes wrong post-deploy: investigate, don't guess
 
-Pull the logs for the exact reported time window and read the real error — see [debugging](../debugging/SKILL.md).
-The bot's own log line is often generic, but the underlying `err`/`error.message` field usually carries the
-real Postgres/Meta error (`violates check constraint "…"`, `duplicate key value violates unique constraint
-"…"`) that points straight at the fix. Don't speculate a root cause the logs can settle.
+Pull the logs for the exact reported time window and read the real error — see [debugging](../debugging/SKILL.md)
+(and [logging](../logging/SKILL.md) for how the correlation id threads the trace). The bot's own log line is
+often generic, but the underlying `err`/`error.message` field usually carries the real Postgres/Meta error
+(`violates check constraint "…"`, `duplicate key value violates unique constraint "…"`) that points
+straight at the fix. Don't speculate a root cause the logs can settle.
 
 ## Reference Files
 
@@ -193,3 +194,4 @@ real Postgres/Meta error (`violates check constraint "…"`, `duplicate key valu
 
 - [whatsapp-flows](../whatsapp-flows/SKILL.md) — the full Flow rules behind Class B.
 - [registration](../registration/SKILL.md) · [coaching](../coaching/SKILL.md) · [digital-coach](../digital-coach/SKILL.md) — common emitters of new IDs / DB writes.
+- [logging](../logging/SKILL.md) — reading the `err` field that carries the real cause.
