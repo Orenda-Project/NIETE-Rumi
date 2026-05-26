@@ -11,6 +11,10 @@
 | OpenRouter API key | [openrouter.ai/keys](https://openrouter.ai/keys) (for LLM access) |
 | WhatsApp Business credentials | [Meta Business Manager](https://business.facebook.com) |
 
+> **New to any of these?** Two step-by-step guides walk you through the slow parts:
+> - **[docs/onboarding/whatsapp.md](docs/onboarding/whatsapp.md)** — get a working WhatsApp connection in ~10 minutes (free test number), then go to production.
+> - **[docs/onboarding/api-keys.md](docs/onboarding/api-keys.md)** — how to get every API key, what each unlocks, and which 8 you actually need to start.
+
 ## Step 1: Fork, Clone, and Install
 
 **First, fork the repo** on GitHub — click the **Fork** button at [github.com/Orenda-Project/rumi-platform](https://github.com/Orenda-Project/rumi-platform). This creates your own independent copy.
