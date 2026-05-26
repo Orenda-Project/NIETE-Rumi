@@ -45,6 +45,8 @@ const KIE_API_KEY_PIC_LP = process.env.KIE_API_KEY_PIC_LP || process.env.KIE_API
 const RUMI_LOGO_R2_KEY = process.env.RUMI_LOGO_R2_KEY || 'brand/rumi-white-smile-v1.png';
 // WhatsApp Flow ID for the pic-to-LP confirmation form (empty → text fallback).
 const PIC_LP_FLOW_ID = process.env.PIC_LP_FLOW_ID || '';
+// WhatsApp Flow ID for the Quiz Manager form (empty → text fallback / direct path).
+const QUIZ_FLOW_ID = process.env.QUIZ_FLOW_ID || '';
 // Teacher-facing WhatsApp number shown in the lesson-plan Coaching Corner
 // (empty → the contact line is omitted from the rendered LP).
 const COACHING_WHATSAPP_NUMBER = process.env.COACHING_WHATSAPP_NUMBER || '';
@@ -145,6 +147,7 @@ module.exports = {
   KIE_API_KEY_PIC_LP,
   RUMI_LOGO_R2_KEY,
   PIC_LP_FLOW_ID,
+  QUIZ_FLOW_ID,
   COACHING_WHATSAPP_NUMBER,
 
   // Directory Paths

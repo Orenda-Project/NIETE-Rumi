@@ -145,6 +145,30 @@ class FeatureRegistrationService {
    * @param {string} format - 'text' | 'voice'
    */
   static async sendNameQuestion(userId, phoneNumber, language = 'en', format = 'text') {
+    // Presence-gated: if a registration Flow is configured, open the polished
+    // form instead of the conversational name question. Unset (default) → the
+    // conversational path below. The Flow completes via
+    // FlowResponseHandler.handleRegistrationFlow (it does not set
+    // registration_pending_name, which is the text-name path's flag).
+    const REGISTRATION_FLOW_ID = process.env.REGISTRATION_FLOW_ID || '';
+    if (REGISTRATION_FLOW_ID) {
+      try {
+        await WhatsAppService.sendFlow(phoneNumber, {
+          flowId: REGISTRATION_FLOW_ID,
+          flowToken: userId,
+          header: 'Welcome',
+          body: 'Quick setup — tell us a little about you.',
+          footer: 'Powered by Rumi',
+          buttonText: 'Get started',
+        });
+        logToFile('Registration flow sent (presence-gated)', { userId, phoneNumber });
+        return;
+      } catch (error) {
+        logToFile('Registration flow send failed; falling back to name question', { userId, error: error.message });
+        // fall through to the conversational path
+      }
+    }
+
     const messages = {
       en: "By the way, what should I call you?",
       ur: "ویسے، میں آپ کو کیا نام سے بلاؤں؟",

@@ -22,14 +22,16 @@ const ROUTES_FILE = path.join(BOT_DIR, 'shared/routes/flow-endpoint.routes.js');
 // Flow JSON that ships but is intentionally NOT registered yet (no env consumer
 // / not wired). Keep this list short and justified.
 const ORPHAN_JSON_ALLOWLIST = new Set([
-  'quiz-flow.json', // present as an asset; no QUIZ_FLOW_ID consumer wired yet.
+  // (empty) — quiz-flow.json is now wired: QUIZ_FLOW_ID constant + /api/flows/quiz
+  // endpoint + flow-configs entry.
 ]);
 
 // *_FLOW_ID env vars the bot reads but for which NO Flow JSON ships yet, so they
 // can't be registered. Tracked here so the gap is visible, not silently re-broken.
 const CONSUMER_WITHOUT_ASSET = new Set([
+  // exam-checker reads this but ships no Flow JSON and is intentionally unset on
+  // prod (hardcoded fallback IDs) — optional, documented, not registerable here.
   'EXAM_CHECKER_STUDENTS_FLOW_ID',
-  'REGISTRATION_FLOW_ID',
 ]);
 
 function walk(dir, acc = []) {

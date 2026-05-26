@@ -59,6 +59,11 @@ const {
   handleEditClassDataExchange,
   handleEditClassBack
 } = require('./edit-class-endpoint');
+const {
+  handleQuizFlowInit,
+  handleQuizFlowDataExchange,
+  handleQuizFlowBack
+} = require('./quiz-flow-endpoint');
 
 /**
  * Handle attendance marking flow data requests
@@ -695,6 +700,46 @@ async function handleStatusFlowRequest(data) {
   if (action === 'BACK')                      return await handleStatusFlowBack(userId, screen, flow_token);
 
   logToFile('Unknown status flow action', { action });
+  return FlowEncryptionService.createErrorResponse('Unknown action');
+}
+
+// ============================================================
+// QUIZ FLOW (Quiz Manager — view/cancel active quizzes, send a new one)
+// ============================================================
+
+router.post('/quiz', async (req, res) => {
+  try {
+    if (!FlowEncryptionService.isConfigured()) {
+      logToFile('Flow encryption not configured', { endpoint: 'quiz' });
+      return res.status(500).json({ error: 'Flow encryption not configured' });
+    }
+    const encryptedResponse = await FlowEncryptionService.processEncryptedRequest(
+      req.body,
+      async (decryptedData) => await handleQuizFlowRequest(decryptedData)
+    );
+    res.set('Content-Type', 'text/plain');
+    res.send(encryptedResponse);
+  } catch (error) {
+    logToFile('Flow endpoint error', { endpoint: 'quiz', error: error.message, stack: error.stack });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+async function handleQuizFlowRequest(data) {
+  const { action, flow_token, screen, data: screenData } = data;
+  logToFile('Handling quiz flow request', {
+    action, screen, hasFlowToken: !!flow_token,
+    screenDataKeys: screenData ? Object.keys(screenData) : []
+  });
+
+  if (action === 'ping') return FlowEncryptionService.handlePing();
+  const userId = (flow_token || '').split(':')[0];
+
+  if (action === 'INIT' || action === 'init') return await handleQuizFlowInit(userId, flow_token);
+  if (action === 'data_exchange')             return await handleQuizFlowDataExchange(userId, screen, screenData, flow_token);
+  if (action === 'BACK')                      return await handleQuizFlowBack(userId, screen, flow_token);
+
+  logToFile('Unknown quiz flow action', { action });
   return FlowEncryptionService.createErrorResponse('Unknown action');
 }
 
