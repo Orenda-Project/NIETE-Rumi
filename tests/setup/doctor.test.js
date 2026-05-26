@@ -8,7 +8,9 @@
  *   - "key present" is not treated as "service works" (probe still runs)
  */
 
-const { analyzeEnv, runDoctor, REQUIRED_VARS } = require('../../bot/scripts/setup/doctor');
+const {
+  analyzeEnv, runDoctor, formatReport, keySource, REQUIRED_VARS,
+} = require('../../bot/scripts/setup/doctor');
 
 const FULL_ENV = {
   SUPABASE_URL: 'https://x.supabase.co',
@@ -105,5 +107,34 @@ describe('runDoctor', () => {
     expect(off.featureResults.find((f) => f.name.includes('Exam')).status).toBe('off');
     const on = await runDoctor({ env: { ...FULL_ENV, MISTRAL_API_KEY: 'k' }, probes: allPassProbes });
     expect(on.featureResults.find((f) => f.name.includes('Exam')).status).toBe('on');
+  });
+});
+
+describe('key sourcing ("get it here" guidance)', () => {
+  it('returns a source hint for a known env var and empty string for unknown', () => {
+    expect(keySource('OPENROUTER_API_KEY')).toMatch(/openrouter/i);
+    expect(keySource('NOT_A_REAL_VAR')).toBe('');
+  });
+
+  it('every REQUIRED var has a documented "get it here" source', () => {
+    const undocumented = REQUIRED_VARS.filter((v) => !keySource(v));
+    expect(undocumented).toEqual([]);
+  });
+
+  it('formatReport shows the source next to a missing required var + points at the guides', async () => {
+    const env = { ...FULL_ENV };
+    delete env.OPENROUTER_API_KEY;
+    const result = await runDoctor({ env, probes: allPassProbes });
+    const report = formatReport(result);
+    expect(report).toMatch(/OPENROUTER_API_KEY.*get it: .*openrouter/i);
+    expect(report).toContain('docs/onboarding/api-keys.md');
+    expect(report).toContain('docs/onboarding/whatsapp.md');
+  });
+
+  it('formatReport shows where to get the key for an OFF optional feature', async () => {
+    const result = await runDoctor({ env: FULL_ENV, probes: allPassProbes });
+    const report = formatReport(result);
+    // Soniox is off in FULL_ENV (no SONIOX_API_KEY) → hint should appear.
+    expect(report).toMatch(/get it: .*soniox/i);
   });
 });
