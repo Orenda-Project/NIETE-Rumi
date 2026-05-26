@@ -2,13 +2,18 @@
 /**
  * Rumi Full Setup Orchestrator
  *
- * Runs all WhatsApp Flow & Template registration steps in order:
+ * Runs all WhatsApp Flow & Template registration steps in order, idempotently
+ * (already-registered flows/templates are skipped):
  *   1. Setup encryption (RSA keypair + Meta registration)
- *   2. Register all 3 flows (Reading Assessment, Attendance Setup, Attendance Marking)
- *   3. Register all 2 templates (Video Style Selection, Feature Menu Carousel)
+ *   2. Register every Flow in flow-configs.js (see FLOW_CONFIGS — the single
+ *      source of truth; endpoint flows need --endpoint-base)
+ *   3. Register the message templates
  *   4. Validate setup (verify flows are PUBLISHED, templates submitted)
  *
- * Usage:
+ * Usage (either form):
+ *   npm run setup:flows -- --waba-id=YOUR_WABA_ID --token=YOUR_TOKEN \
+ *     --phone-number-id=YOUR_PHONE_NUMBER_ID --endpoint-base=https://your-app.up.railway.app
+ *
  *   node bot/scripts/setup/run-full-setup.js \
  *     --waba-id=YOUR_WABA_ID \
  *     --token=YOUR_TOKEN \

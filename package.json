@@ -15,6 +15,7 @@
     "validate:connections": "node infrastructure/scripts/test-connections.js",
     "bootstrap:db": "node infrastructure/scripts/bootstrap-db.js",
     "doctor": "node bot/scripts/setup/doctor.js",
+    "setup:flows": "node bot/scripts/setup/run-full-setup.js",
     "simulate": "node bot/scripts/simulate.js",
     "setup": "echo 'Use /setup in Claude Code or follow SETUP.md for manual instructions'"
   },
