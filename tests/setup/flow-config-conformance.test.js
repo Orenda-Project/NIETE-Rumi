@@ -29,8 +29,9 @@ const ORPHAN_JSON_ALLOWLIST = new Set([
 // *_FLOW_ID env vars the bot reads but for which NO Flow JSON ships yet, so they
 // can't be registered. Tracked here so the gap is visible, not silently re-broken.
 const CONSUMER_WITHOUT_ASSET = new Set([
+  // exam-checker reads this but ships no Flow JSON and is intentionally unset on
+  // prod (hardcoded fallback IDs) — optional, documented, not registerable here.
   'EXAM_CHECKER_STUDENTS_FLOW_ID',
-  'REGISTRATION_FLOW_ID',
 ]);
 
 function walk(dir, acc = []) {

@@ -80,6 +80,10 @@ function buildCompleteState(overrides = {}) {
         flowId: 'flow_qz_10', status: 'PUBLISHED', envVar: 'QUIZ_FLOW_ID',
         type: 'endpoint', endpointPath: '/api/flows/quiz', registeredAt: now,
       },
+      'Registration': {
+        flowId: 'flow_reg_11', status: 'PUBLISHED', envVar: 'REGISTRATION_FLOW_ID',
+        type: 'endpoint', endpointPath: '/api/flows/registration', registeredAt: now,
+      },
     },
     templates: {
       welcome_message: { templateId: 'tpl_1', status: 'APPROVED', registeredAt: now },
@@ -180,7 +184,7 @@ describe('validateSetup', () => {
         statePath,
       });
 
-      expect(mockGetFlowDetails).toHaveBeenCalledTimes(10);
+      expect(mockGetFlowDetails).toHaveBeenCalledTimes(11);
       expect(mockGetFlowDetails).toHaveBeenCalledWith('flow_ra_1');
       expect(mockGetFlowDetails).toHaveBeenCalledWith('flow_as_2');
       expect(mockGetFlowDetails).toHaveBeenCalledWith('flow_am_3');

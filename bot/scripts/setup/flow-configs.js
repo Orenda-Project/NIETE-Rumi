@@ -107,6 +107,18 @@ const FLOW_CONFIGS = [
     envVar: 'QUIZ_FLOW_ID',
     categories: ['OTHER'],
   },
+  {
+    // Optional polished registration form. OSS registration also works
+    // conversationally (name capture); this Flow is sent instead only when
+    // REGISTRATION_FLOW_ID is set. The /registration endpoint already handles
+    // its screens (PERSONAL_INFO / REGION_INFO / PROFESSIONAL_INFO / ORG_DETAILS).
+    name: 'Registration',
+    jsonPath: path.join(FLOWS_DIR, 'registration-flow-v3.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/registration',
+    envVar: 'REGISTRATION_FLOW_ID',
+    categories: ['OTHER'],
+  },
 ];
 
 /** The flow names that a complete setup must have registered. */
