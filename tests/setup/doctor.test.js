@@ -9,7 +9,7 @@
  */
 
 const {
-  analyzeEnv, runDoctor, formatReport, keySource, REQUIRED_VARS,
+  analyzeEnv, analyzeFlows, runDoctor, formatReport, keySource, REQUIRED_VARS,
 } = require('../../bot/scripts/setup/doctor');
 
 const FULL_ENV = {
@@ -136,5 +136,33 @@ describe('key sourcing ("get it here" guidance)', () => {
     const report = formatReport(result);
     // Soniox is off in FULL_ENV (no SONIOX_API_KEY) → hint should appear.
     expect(report).toMatch(/get it: .*soniox/i);
+  });
+});
+
+describe('flow registration state (analyzeFlows + doctor reporting)', () => {
+  it('reports every configured flow as not-registered when there is no setup state', () => {
+    const flows = analyzeFlows(null);
+    expect(flows.length).toBeGreaterThan(0);
+    expect(flows.every((f) => f.registered === false)).toBe(true);
+    expect(flows.every((f) => f.status === 'not registered')).toBe(true);
+  });
+
+  it('reflects recorded status for registered flows', () => {
+    const state = { flows: { 'Settings': { flowId: 'f', status: 'PUBLISHED', envVar: 'SETTINGS_FLOW_ID' } } };
+    const flows = analyzeFlows(state);
+    const settings = flows.find((f) => f.envVar === 'SETTINGS_FLOW_ID');
+    expect(settings.registered).toBe(true);
+    expect(settings.status).toBe('PUBLISHED');
+  });
+
+  it('flow state is informational — unregistered flows do NOT make doctor not-ok', async () => {
+    const r = await runDoctor({ env: FULL_ENV, probes: allPassProbes, setupState: null });
+    expect(r.ok).toBe(true); // required present + probes pass; flows don't gate readiness
+    expect(r.flowResults.every((f) => !f.registered)).toBe(true);
+  });
+
+  it('formatReport tells the user to run setup:flows when no flows are registered', async () => {
+    const r = await runDoctor({ env: FULL_ENV, probes: allPassProbes, setupState: null });
+    expect(formatReport(r)).toMatch(/npm run setup:flows/);
   });
 });

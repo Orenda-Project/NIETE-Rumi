@@ -22,7 +22,10 @@
 
 // ── The presence-based contract ─────────────────────────────────────────────
 // Single source of truth: bot/shared/config/feature-availability.js
+const fs = require('fs');
+const path = require('path');
 const { REQUIRED_VARS, FEATURES, isSet } = require('../../shared/config/feature-availability');
+const { FLOW_CONFIGS } = require('./flow-configs');
 
 // ── "Where do I get this?" hints ─────────────────────────────────────────────
 // Maps an env var to a short source so a stuck operator (or setup agent) sees
@@ -53,6 +56,24 @@ const KEY_SOURCES = {
 /** Short "get it here" hint for an env var, or '' if none documented. */
 function keySource(varName) {
   return KEY_SOURCES[varName] || '';
+}
+
+// ── Flow registration state (offline — reads .setup-state.json) ──────────────
+// What `npm run setup:flows` recorded. Informational only: not having flows
+// registered does NOT make the bot un-ready (a minimal deploy may use none, and
+// you can't register them until you have WhatsApp credentials). Run
+// `npm run validate:flows`-style checks against Meta for the live PUBLISHED state.
+function analyzeFlows(state) {
+  const flows = (state && state.flows) || {};
+  return FLOW_CONFIGS.map((c) => {
+    const rec = flows[c.name];
+    return {
+      name: c.name,
+      envVar: c.envVar,
+      registered: !!rec,
+      status: rec ? (rec.status || 'UNKNOWN') : 'not registered',
+    };
+  });
 }
 
 // ── Static analysis (pure, no network) ──────────────────────────────────────
@@ -129,8 +150,20 @@ const REQUIRED_PROBES = [
  * @param {object}   opts.probes  map name->async(env)=>{ok,detail} (default real probes)
  * @returns {Promise<{ ok, missingRequired, probeResults, featureResults }>}
  */
-async function runDoctor({ env = process.env, probes = defaultProbes } = {}) {
+async function runDoctor({
+  env = process.env,
+  probes = defaultProbes,
+  setupState, // inject a parsed .setup-state.json (or null) in tests; otherwise read from disk
+  statePath = path.resolve(process.cwd(), '.setup-state.json'),
+} = {}) {
   const analysis = analyzeEnv(env);
+
+  // Flow registration state (offline). undefined = read from disk; null/object = use as given.
+  let state = setupState;
+  if (state === undefined) {
+    try { state = JSON.parse(fs.readFileSync(statePath, 'utf-8')); } catch { state = null; }
+  }
+  const flowResults = analyzeFlows(state);
 
   // Run REQUIRED probes only for services whose vars are present.
   const probeResults = [];
@@ -173,7 +206,7 @@ async function runDoctor({ env = process.env, probes = defaultProbes } = {}) {
   const probesPassed = probeResults.every((p) => p.status !== 'fail');
   const ok = analysis.missingRequired.length === 0 && probesPassed;
 
-  return { ok, missingRequired: analysis.missingRequired, probeResults, featureResults };
+  return { ok, missingRequired: analysis.missingRequired, probeResults, featureResults, flowResults };
 }
 
 // ── Pretty printer ────────────────────────────────────────────────────────────
@@ -205,6 +238,19 @@ function formatReport(result) {
     }
     lines.push(`  ${mark(f.status)} ${f.name} — ${f.detail}${hint}`);
   }
+  if (result.flowResults && result.flowResults.length) {
+    lines.push('');
+    const anyRegistered = result.flowResults.some((f) => f.registered);
+    lines.push('WhatsApp Flows (registered against your WABA):');
+    if (!anyRegistered) {
+      lines.push('  ➖ none registered yet — run `npm run setup:flows` (after WhatsApp is set up)');
+    } else {
+      for (const f of result.flowResults) {
+        const ok = f.registered && /PUBLISHED|EXISTS/i.test(f.status);
+        lines.push(`  ${ok ? '✅' : '➖'} ${f.name} — ${f.status}`);
+      }
+    }
+  }
   lines.push('');
   lines.push(result.ok ? '✅ All required services are configured and reachable.' :
     '❌ Not ready — fix the items marked ❌ above, then re-run `npm run doctor`.');
@@ -224,4 +270,4 @@ async function main() {
 
 if (require.main === module) main();
 
-module.exports = { analyzeEnv, runDoctor, formatReport, keySource, KEY_SOURCES, REQUIRED_VARS, FEATURES };
+module.exports = { analyzeEnv, analyzeFlows, runDoctor, formatReport, keySource, KEY_SOURCES, REQUIRED_VARS, FEATURES };
