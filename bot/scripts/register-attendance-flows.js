@@ -246,7 +246,7 @@ async function setFlowEndpoint(flowId, endpointUri) {
  * Main registration function
  */
 async function main() {
-  const flowsDir = path.join(__dirname, '../docs/flows');
+  const flowsDir = path.join(__dirname, '../../docs/flows');
 
   // Define flows to register
   // endpointPath is required for flows using data_api_version 3.0+

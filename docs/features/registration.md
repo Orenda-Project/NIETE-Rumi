@@ -25,4 +25,4 @@ _Always on_ — core. To use the richer form-based onboarding, register the regi
 
 ## Customize
 
-Change the fields, pre-fill from your own roster, or adjust the welcome — see the [registration flow JSON](../../bot/docs/flows/) and the [Agent Customization Guide](../agent-customization.md).
+Change the fields, pre-fill from your own roster, or adjust the welcome — see the [registration flow JSON](../flows/) and the [Agent Customization Guide](../agent-customization.md).

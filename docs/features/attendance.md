@@ -25,4 +25,4 @@ _Always on_ — core. The attendance setup and marking Flows are registered to y
 
 ## Customize
 
-Adjust the roster fields or marking flow — see the [attendance flow JSON](../../bot/docs/flows/) and the [Agent Customization Guide](../agent-customization.md).
+Adjust the roster fields or marking flow — see the [attendance flow JSON](../flows/) and the [Agent Customization Guide](../agent-customization.md).
