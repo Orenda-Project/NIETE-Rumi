@@ -41,7 +41,7 @@ function buildCompleteState(overrides = {}) {
         status: 'PUBLISHED',
         envVar: 'ATTENDANCE_SETUP_FLOW_ID',
         type: 'endpoint',
-        endpointPath: '/flow/attendance-setup',
+        endpointPath: '/api/flows/attendance-setup',
         registeredAt: now,
       },
       'Attendance Marking': {
@@ -49,8 +49,32 @@ function buildCompleteState(overrides = {}) {
         status: 'PUBLISHED',
         envVar: 'ATTENDANCE_MARKING_FLOW_ID',
         type: 'endpoint',
-        endpointPath: '/flow/attendance-marking',
+        endpointPath: '/api/flows/attendance-marking',
         registeredAt: now,
+      },
+      'Settings': {
+        flowId: 'flow_set_4', status: 'PUBLISHED', envVar: 'SETTINGS_FLOW_ID',
+        type: 'endpoint', endpointPath: '/api/flows/settings', registeredAt: now,
+      },
+      'Status': {
+        flowId: 'flow_sta_5', status: 'PUBLISHED', envVar: 'STATUS_FLOW_ID',
+        type: 'endpoint', endpointPath: '/api/flows/status', registeredAt: now,
+      },
+      'Homework Request': {
+        flowId: 'flow_hw_6', status: 'PUBLISHED', envVar: 'HOMEWORK_FLOW_ID',
+        type: 'endpoint', endpointPath: '/api/flows/homework-request', registeredAt: now,
+      },
+      'Edit Class': {
+        flowId: 'flow_ec_7', status: 'PUBLISHED', envVar: 'EDIT_CLASS_FLOW_ID',
+        type: 'endpoint', endpointPath: '/api/flows/edit-class', registeredAt: now,
+      },
+      'Student Videos': {
+        flowId: 'flow_sv_8', status: 'PUBLISHED', envVar: 'STUDENT_VIDEOS_FLOW_ID',
+        type: 'endpoint', endpointPath: '/api/flows/student-videos', registeredAt: now,
+      },
+      'Pic-to-LP Confirm': {
+        flowId: 'flow_pl_9', status: 'PUBLISHED', envVar: 'PIC_LP_FLOW_ID',
+        type: 'endpoint', endpointPath: '/api/flows/pic-lp', registeredAt: now,
       },
     },
     templates: {
@@ -152,7 +176,7 @@ describe('validateSetup', () => {
         statePath,
       });
 
-      expect(mockGetFlowDetails).toHaveBeenCalledTimes(3);
+      expect(mockGetFlowDetails).toHaveBeenCalledTimes(9);
       expect(mockGetFlowDetails).toHaveBeenCalledWith('flow_ra_1');
       expect(mockGetFlowDetails).toHaveBeenCalledWith('flow_as_2');
       expect(mockGetFlowDetails).toHaveBeenCalledWith('flow_am_3');
@@ -275,7 +299,7 @@ describe('validateSetup', () => {
       mockGetFlowDetails
         .mockResolvedValueOnce({ success: true, data: { status: 'PUBLISHED' } })
         .mockResolvedValueOnce({ success: true, data: { status: 'DRAFT' } })
-        .mockResolvedValueOnce({ success: true, data: { status: 'PUBLISHED' } });
+        .mockResolvedValue({ success: true, data: { status: 'PUBLISHED' } });
 
       const result = await validateSetup({
         wabaId: 'waba_123',
@@ -301,7 +325,7 @@ describe('validateSetup', () => {
           success: false,
           error: { status: 404, message: 'Not found' },
         })
-        .mockResolvedValueOnce({ success: true, data: { status: 'PUBLISHED' } });
+        .mockResolvedValue({ success: true, data: { status: 'PUBLISHED' } });
 
       const result = await validateSetup({
         wabaId: 'waba_123',
