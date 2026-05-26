@@ -76,6 +76,10 @@ function buildCompleteState(overrides = {}) {
         flowId: 'flow_pl_9', status: 'PUBLISHED', envVar: 'PIC_LP_FLOW_ID',
         type: 'endpoint', endpointPath: '/api/flows/pic-lp', registeredAt: now,
       },
+      'Quiz Manager': {
+        flowId: 'flow_qz_10', status: 'PUBLISHED', envVar: 'QUIZ_FLOW_ID',
+        type: 'endpoint', endpointPath: '/api/flows/quiz', registeredAt: now,
+      },
     },
     templates: {
       welcome_message: { templateId: 'tpl_1', status: 'APPROVED', registeredAt: now },
@@ -176,7 +180,7 @@ describe('validateSetup', () => {
         statePath,
       });
 
-      expect(mockGetFlowDetails).toHaveBeenCalledTimes(9);
+      expect(mockGetFlowDetails).toHaveBeenCalledTimes(10);
       expect(mockGetFlowDetails).toHaveBeenCalledWith('flow_ra_1');
       expect(mockGetFlowDetails).toHaveBeenCalledWith('flow_as_2');
       expect(mockGetFlowDetails).toHaveBeenCalledWith('flow_am_3');

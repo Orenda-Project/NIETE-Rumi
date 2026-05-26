@@ -99,6 +99,14 @@ const FLOW_CONFIGS = [
     envVar: 'PIC_LP_FLOW_ID',
     categories: ['OTHER'],
   },
+  {
+    name: 'Quiz Manager',
+    jsonPath: path.join(FLOWS_DIR, 'quiz-flow.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/quiz',
+    envVar: 'QUIZ_FLOW_ID',
+    categories: ['OTHER'],
+  },
 ];
 
 /** The flow names that a complete setup must have registered. */
