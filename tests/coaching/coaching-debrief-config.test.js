@@ -15,9 +15,10 @@
 const fs = require('fs');
 const path = require('path');
 
-// jsonrepair is a bot-only dependency; CI runs the root test pass before `cd bot && npm ci`,
-// so virtual-mock it for the runtime test that loads the real gpt5-mini.service.
+// jsonrepair + dotenv are bot-only dependencies; CI runs the root test pass before
+// `cd bot && npm ci`, so virtual-mock them for the runtime test that loads the real gpt5-mini.service.
 jest.mock('jsonrepair', () => ({ jsonrepair: (s) => s }), { virtual: true });
+jest.mock('dotenv', () => ({ config: () => ({}) }), { virtual: true });
 
 const REPO_ROOT = path.resolve(__dirname, '../..');
 const config = require('../../bot/shared/config/coaching-debrief.config');
@@ -108,6 +109,8 @@ describe('few-shot example arm count derives from NUM_REFLECTIVE_QUESTIONS', () 
       };
     });
     jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
+    // Avoid loading @supabase/supabase-js (bot-only) at the root test stage.
+    jest.doMock('../../bot/shared/config/supabase', () => ({ from: jest.fn() }));
 
     const GPT5MiniService = require('../../bot/shared/services/gpt5-mini.service');
     const { NUM_REFLECTIVE_QUESTIONS } = config;

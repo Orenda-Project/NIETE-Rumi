@@ -13,9 +13,10 @@
 // Avoid the supabase env throw at require-time.
 jest.mock('../../bot/shared/config/supabase', () => ({ from: jest.fn() }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
-// jsonrepair is a bot-only dependency; CI runs the root test pass before `cd bot && npm ci`,
-// so virtual-mock it (the canned JSON below parses cleanly and never needs repair).
+// jsonrepair + dotenv are bot-only dependencies; CI runs the root test pass before
+// `cd bot && npm ci`, so virtual-mock them (the canned JSON parses cleanly and never needs repair).
 jest.mock('jsonrepair', () => ({ jsonrepair: (s) => s }), { virtual: true });
+jest.mock('dotenv', () => ({ config: () => ({}) }), { virtual: true });
 
 const GPT5MiniService = require('../../bot/shared/services/gpt5-mini.service');
 
