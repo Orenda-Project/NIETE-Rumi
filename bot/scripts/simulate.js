@@ -111,16 +111,26 @@ function createSimulator(options = {}) {
 ╰─────────────────────────────────────────────╯
 `);
       const port = options.port || process.env.PORT || 3000;
-      console.log(`(routing to the bot at http://localhost:${port}/webhook — start it first with \`node bot/whatsapp-bot.js\`)\n`);
+      console.log(`(routing to the bot at http://localhost:${port}/webhook — start it first with \`node bot/whatsapp-bot.js\`)`);
+      // The webhook only accepts messages whose phone_number_id matches the bot's PHONE_NUMBER_ID.
+      // Without it set, the bot's cross-account guard silently drops the simulated message — warn upfront.
+      if (!process.env.PHONE_NUMBER_ID) {
+        console.log(`⚠️  PHONE_NUMBER_ID is not set, so the bot will skip the simulated message`
+          + ` (it can't match the account). Set PHONE_NUMBER_ID in .env to see a real round-trip.`);
+      }
+      console.log('');
+
+      let closed = false;
+      rl.on('close', () => { closed = true; });
+      const promptIfOpen = () => { if (!closed) rl.prompt(); };
+
       rl.prompt();
       rl.on('line', async (line) => {
         const text = line.trim();
-        if (!text) {
-          rl.prompt();
-          return;
-        }
+        if (!text) { promptIfOpen(); return; }
         if (isQuitCommand(text)) {
           console.log('\nGoodbye!');
+          closed = true;
           rl.close();
           return;
         }
@@ -135,7 +145,7 @@ function createSimulator(options = {}) {
         } else {
           console.log(`✗ /webhook returned HTTP ${result.status}.\n`);
         }
-        rl.prompt();
+        promptIfOpen();
       });
     },
   };

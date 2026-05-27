@@ -1,5 +1,5 @@
 /**
- * Coaching Debrief Config Conformance Tests (bd-1839)
+ * Coaching Debrief Config Conformance Tests
  *
  * Guards the single-source-of-truth seam: the number of reflective
  * questions (NUM_REFLECTIVE_QUESTIONS) drives ALL of —
@@ -14,6 +14,10 @@
 
 const fs = require('fs');
 const path = require('path');
+
+// jsonrepair is a bot-only dependency; CI runs the root test pass before `cd bot && npm ci`,
+// so virtual-mock it for the runtime test that loads the real gpt5-mini.service.
+jest.mock('jsonrepair', () => ({ jsonrepair: (s) => s }), { virtual: true });
 
 const REPO_ROOT = path.resolve(__dirname, '../..');
 const config = require('../../bot/shared/config/coaching-debrief.config');
