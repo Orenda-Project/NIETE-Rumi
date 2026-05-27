@@ -31,7 +31,7 @@ rumi-platform/
 ├── infrastructure/
 │   ├── supabase/           # SQL schema, RLS policies, seed data
 │   └── railway/            # Deployment configs
-├── tests/                  # Jest suites (83 suites / 1080 tests)
+├── tests/                  # Jest suites (93 suites / 1161 tests)
 ├── docs/                   # Architecture, customization, monitoring
 └── .claude/                # Claude Code config + /setup skill
 ```

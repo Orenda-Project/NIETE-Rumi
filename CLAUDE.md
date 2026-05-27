@@ -48,5 +48,5 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
 ## Repo map
 
 `bot/` WhatsApp bot (Node/Express; entry `bot/whatsapp-bot.js`; 10 handlers, 49 services, 10 workers) ·
-`infrastructure/` Supabase schema (73 tables) + deploy configs · `tests/` Jest suites (83 suites / 1080
+`infrastructure/` Supabase schema (73 tables) + deploy configs · `tests/` Jest suites (93 suites / 1161
 tests) · `docs/` architecture & customization · `dashboard/` + `portal/` observability/teacher UIs.
