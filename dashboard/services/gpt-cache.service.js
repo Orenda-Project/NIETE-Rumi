@@ -1,6 +1,5 @@
 /**
  * GPT Response Cache Service
- * Bead: plt-cch01
  *
  * Provides Redis caching for GPT-4o-mini responses to reduce
  * redundant API calls and improve response times.

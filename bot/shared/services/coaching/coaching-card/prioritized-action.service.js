@@ -10,21 +10,23 @@
 const { logToFile } = require('../../../utils/logger');
 
 /**
- * Find the weakest indicator from the analysis to target for improvement.
+ * Extract every candidate indicator from the analysis, normalized to a
+ * common shape. This is the per-framework SHAPE step — it does NOT decide
+ * which indicator to target; selection is delegated to a swappable policy
+ * (see selectFocusIndicator).
+ *
  * @param {object} analysis - Framework analysis data
- * @returns {{ name: string, score: number, maxScore: number, areaName: string }|null}
+ * @returns {Array<{ name: string, score: number, maxScore: number, areaName: string, id: string }>}
  */
-function findWeakestIndicator(analysis) {
-  let weakest = null;
+function extractIndicators(analysis) {
+  const indicators = [];
 
   // HOTS: areas → indicators (score 1-3)
   if (analysis.areas) {
     for (const [areaKey, area] of Object.entries(analysis.areas)) {
       if (!area?.indicators) continue;
       for (const ind of area.indicators) {
-        if (!weakest || ind.score < weakest.score) {
-          weakest = { name: ind.name, score: ind.score, maxScore: 3, areaName: areaKey, id: ind.id };
-        }
+        indicators.push({ name: ind.name, score: ind.score, maxScore: 3, areaName: areaKey, id: ind.id });
       }
     }
   }
@@ -34,9 +36,7 @@ function findWeakestIndicator(analysis) {
     for (const [areaKey, area] of Object.entries(analysis.areas)) {
       if (!area?.elements) continue;
       for (const el of area.elements) {
-        if (!weakest || (el.holistic_score / 5) < (weakest.score / weakest.maxScore)) {
-          weakest = { name: el.name, score: el.holistic_score, maxScore: 5, areaName: areaKey, id: `E${el.id}` };
-        }
+        indicators.push({ name: el.name, score: el.holistic_score, maxScore: 5, areaName: areaKey, id: `E${el.id}` });
       }
     }
   }
@@ -46,9 +46,7 @@ function findWeakestIndicator(analysis) {
     for (const [domainKey, domain] of Object.entries(analysis.domains)) {
       if (!domain?.indicators) continue;
       for (const ind of domain.indicators) {
-        if (!weakest || (ind.score / 4) < (weakest.score / weakest.maxScore)) {
-          weakest = { name: ind.name, score: ind.score, maxScore: 4, areaName: domainKey, id: ind.id };
-        }
+        indicators.push({ name: ind.name, score: ind.score, maxScore: 4, areaName: domainKey, id: ind.id });
       }
     }
   }
@@ -58,14 +56,67 @@ function findWeakestIndicator(analysis) {
     if (!key.startsWith('goal') || !goal || typeof goal !== 'object') continue;
     for (const [critKey, crit] of Object.entries(goal)) {
       if (!crit?.computed_marks && crit?.computed_marks !== 0) continue;
-      const ratio = (crit.computed_marks || 0) / (crit.max_marks || 1);
-      if (!weakest || ratio < (weakest.score / weakest.maxScore)) {
-        weakest = { name: critKey.replace(/_/g, ' '), score: crit.computed_marks, maxScore: crit.max_marks, areaName: key, id: critKey };
-      }
+      indicators.push({ name: critKey.replace(/_/g, ' '), score: crit.computed_marks, maxScore: crit.max_marks, areaName: key, id: critKey });
     }
   }
 
-  return weakest;
+  return indicators;
+}
+
+/**
+ * Selection policies decide which indicator a coaching card targets.
+ * Each policy is a pure function (indicators[]) → indicator|null. Adding a
+ * new strategy (e.g. 'strongest', 'most-impactful') means adding a named
+ * entry here — the call site stays the same.
+ *
+ * 'weakest' preserves the historical behavior: pick the lowest score/maxScore
+ * ratio, with the first-seen indicator winning ties (matches the original
+ * strict-less-than scan order over HOTS → Teach → FICO → OECD).
+ */
+const SELECTION_POLICIES = {
+  weakest(indicators) {
+    let weakest = null;
+    for (const ind of indicators) {
+      if (!weakest || (ind.score / ind.maxScore) < (weakest.score / weakest.maxScore)) {
+        weakest = ind;
+      }
+    }
+    return weakest;
+  },
+};
+
+const DEFAULT_SELECTION_POLICY = 'weakest';
+
+/**
+ * Select the focus indicator from a list of candidates using a named,
+ * swappable policy. This is the SELECTION seam — distinct from the
+ * per-framework shape extraction in extractIndicators.
+ *
+ * @param {Array} indicators - Normalized indicators from extractIndicators
+ * @param {string|function} [policy='weakest'] - Policy name or a custom
+ *   (indicators[]) → indicator|null function
+ * @returns {object|null} The selected indicator, or null
+ */
+function selectFocusIndicator(indicators, policy = DEFAULT_SELECTION_POLICY) {
+  if (!Array.isArray(indicators) || indicators.length === 0) return null;
+  const selector = typeof policy === 'function' ? policy : SELECTION_POLICIES[policy];
+  if (!selector) {
+    logToFile('Unknown focus-indicator policy, falling back to default', { policy });
+    return SELECTION_POLICIES[DEFAULT_SELECTION_POLICY](indicators);
+  }
+  return selector(indicators);
+}
+
+/**
+ * Find the weakest indicator from the analysis to target for improvement.
+ * Thin wrapper preserved for backward compatibility — composes the
+ * extract + select seams with the default 'weakest' policy.
+ *
+ * @param {object} analysis - Framework analysis data
+ * @returns {{ name: string, score: number, maxScore: number, areaName: string }|null}
+ */
+function findWeakestIndicator(analysis) {
+  return selectFocusIndicator(extractIndicators(analysis), 'weakest');
 }
 
 /**
@@ -149,4 +200,10 @@ function generateExample(indicator, teacherName) {
   return `${teacherName}, try dedicating 5 minutes of your next class specifically to improving "${indicator.name}".`;
 }
 
-module.exports = { generatePrioritizedAction, findWeakestIndicator };
+module.exports = {
+  generatePrioritizedAction,
+  findWeakestIndicator,
+  extractIndicators,
+  selectFocusIndicator,
+  SELECTION_POLICIES,
+};

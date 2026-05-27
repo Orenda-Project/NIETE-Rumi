@@ -1,5 +1,5 @@
 -- Migration 007: Add passage_title column to reading_assessments
--- Bug #16 Fix: Store passage title separately from passage text
+--  Fix: Store passage title separately from passage text
 -- Date: 2025-11-17
 -- Purpose: Prevent word alignment errors caused by titles that students don't read
 

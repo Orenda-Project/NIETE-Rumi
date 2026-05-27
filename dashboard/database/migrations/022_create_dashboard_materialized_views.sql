@@ -12,7 +12,6 @@
 --
 -- Author: Claude Code
 -- Date: January 23, 2026
--- Bead: bd-044
 
 -- ============================================================================
 -- VIEW 1: mv_dashboard_stats

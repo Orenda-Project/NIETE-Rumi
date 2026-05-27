@@ -68,6 +68,29 @@ function isQuitCommand(text) {
 }
 
 /**
+ * POST a simulated payload to the locally-running bot's /webhook, so the message
+ * actually flows through the real handler (instead of being printed and discarded).
+ * The bot must be running (`node bot/whatsapp-bot.js`); its reply is sent via the
+ * configured WhatsApp/dev sink and shows in the bot's console logs.
+ * @returns {Promise<{ok:boolean, status?:number, error?:string}>}
+ */
+async function postToWebhook(payload, options = {}) {
+  const port = options.port || process.env.PORT || 3000;
+  const baseUrl = options.baseUrl || `http://localhost:${port}`;
+  const fetchFn = options.fetch || globalThis.fetch;
+  try {
+    const res = await fetchFn(`${baseUrl}/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return { ok: res.ok, status: res.status };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+/**
  * Create an interactive simulator (for CLI use).
  */
 function createSimulator(options = {}) {
@@ -87,8 +110,10 @@ function createSimulator(options = {}) {
 │  Type /quit to exit                         │
 ╰─────────────────────────────────────────────╯
 `);
+      const port = options.port || process.env.PORT || 3000;
+      console.log(`(routing to the bot at http://localhost:${port}/webhook — start it first with \`node bot/whatsapp-bot.js\`)\n`);
       rl.prompt();
-      rl.on('line', (line) => {
+      rl.on('line', async (line) => {
         const text = line.trim();
         if (!text) {
           rl.prompt();
@@ -100,9 +125,16 @@ function createSimulator(options = {}) {
           return;
         }
         const payload = simulateMessage(text);
-        // In production, this would be POSTed to the webhook handler
-        console.log(`[Simulated payload for: "${text}"]`);
-        console.log(`Bot: [Connect to message handler to get response]\n`);
+        const result = await postToWebhook(payload, { port });
+        if (result.ok) {
+          console.log(`→ delivered to /webhook (HTTP ${result.status}). The bot's reply is sent`
+            + ` via your configured WhatsApp/dev sink and appears in the bot's console logs.\n`);
+        } else if (result.error) {
+          console.log(`✗ could not reach the bot (${result.error}).`
+            + ` Start it in another terminal: \`node bot/whatsapp-bot.js\`\n`);
+        } else {
+          console.log(`✗ /webhook returned HTTP ${result.status}.\n`);
+        }
         rl.prompt();
       });
     },
@@ -118,5 +150,6 @@ if (require.main === module) {
 module.exports = {
   simulateMessage,
   isQuitCommand,
+  postToWebhook,
   createSimulator,
 };

@@ -1,5 +1,5 @@
 -- Migration 007: Add reminder tracking to coaching_sessions
--- Bug #9: Coaching Stuck Sessions - Stale Session Cleanup Mechanism
+-- : Coaching Stuck Sessions - Stale Session Cleanup Mechanism
 -- Created: November 30, 2025
 
 -- Add reminder_sent_at column to track when reminder was sent
@@ -13,4 +13,4 @@ ON coaching_sessions (status, created_at)
 WHERE status = 'conducting_conversation';
 
 -- Comment for documentation
-COMMENT ON COLUMN coaching_sessions.reminder_sent_at IS 'Timestamp when stale session reminder was sent. Used by Bug #9 cleanup worker to prevent duplicate reminders.';
+COMMENT ON COLUMN coaching_sessions.reminder_sent_at IS 'Timestamp when stale session reminder was sent. Used by cleanup worker to prevent duplicate reminders.';

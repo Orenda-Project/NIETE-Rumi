@@ -8,7 +8,6 @@
 --
 -- Author: Claude Code
 -- Date: January 23, 2026
--- Bead: bd-046
 
 -- Grant SELECT on all materialized views to PUBLIC
 GRANT SELECT ON mv_dashboard_stats TO PUBLIC;

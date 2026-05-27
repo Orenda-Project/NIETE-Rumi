@@ -64,6 +64,32 @@ describe('CLI Simulator', () => {
     });
   });
 
+  describe('postToWebhook() — real routing (not a stub)', () => {
+    test('exports postToWebhook', () => {
+      expect(typeof simulator.postToWebhook).toBe('function');
+    });
+
+    test('POSTs the payload to the local /webhook and reports success', async () => {
+      const calls = [];
+      const fakeFetch = async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200 }; };
+      const payload = simulator.simulateMessage('Hello');
+      const res = await simulator.postToWebhook(payload, { port: 3000, fetch: fakeFetch });
+
+      expect(res).toEqual({ ok: true, status: 200 });
+      expect(calls).toHaveLength(1);
+      expect(calls[0].url).toBe('http://localhost:3000/webhook');
+      expect(calls[0].opts.method).toBe('POST');
+      expect(JSON.parse(calls[0].opts.body).entry[0].changes[0].value.messages[0].text.body).toBe('Hello');
+    });
+
+    test('returns a friendly error when the bot is not running', async () => {
+      const fakeFetch = async () => { throw new Error('ECONNREFUSED'); };
+      const res = await simulator.postToWebhook(simulator.simulateMessage('hi'), { fetch: fakeFetch });
+      expect(res.ok).toBe(false);
+      expect(res.error).toMatch(/ECONNREFUSED/);
+    });
+  });
+
   describe('isQuitCommand()', () => {
     test('returns true for /quit', () => {
       expect(simulator.isQuitCommand('/quit')).toBe(true);

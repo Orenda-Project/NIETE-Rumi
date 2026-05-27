@@ -11,18 +11,29 @@
     "8. SUCCESS: Confirmation; quiz generation runs async after flow closes",
     "9. CRITICAL: data_exchange MUST respond < 10s; quiz generation is kicked off async post-flow"
   ],
-  "_changelog": [
-    "v1.0: Initial Quiz Manager flow"
-  ],
-
   "version": "6.3",
   "data_api_version": "3.0",
   "routing_model": {
-    "MAIN": ["CONFIRM_CANCEL", "NEW_QUIZ_CLASS", "SUCCESS"],
-    "CONFIRM_CANCEL": ["SUCCESS"],
-    "NEW_QUIZ_CLASS": ["NEW_QUIZ_LP", "NEW_QUIZ_TOPIC", "SUCCESS"],
-    "NEW_QUIZ_LP": ["NEW_QUIZ_TOPIC", "SUCCESS"],
-    "NEW_QUIZ_TOPIC": ["SUCCESS"],
+    "MAIN": [
+      "CONFIRM_CANCEL",
+      "NEW_QUIZ_CLASS",
+      "SUCCESS"
+    ],
+    "CONFIRM_CANCEL": [
+      "SUCCESS"
+    ],
+    "NEW_QUIZ_CLASS": [
+      "NEW_QUIZ_LP",
+      "NEW_QUIZ_TOPIC",
+      "SUCCESS"
+    ],
+    "NEW_QUIZ_LP": [
+      "NEW_QUIZ_TOPIC",
+      "SUCCESS"
+    ],
+    "NEW_QUIZ_TOPIC": [
+      "SUCCESS"
+    ],
     "SUCCESS": []
   },
   "screens": [
@@ -30,7 +41,10 @@
       "id": "MAIN",
       "title": "Quiz",
       "data": {
-        "summary_heading": { "type": "string", "__example__": "You have 2 active quizzes." },
+        "summary_heading": {
+          "type": "string",
+          "__example__": "You have 2 active quizzes."
+        },
         "summary_body": {
           "type": "string",
           "__example__": "• Photosynthesis (5-A) — Sent 1 · Done 0 · Pending 1\n• Fractions (9-A) — Sent 12 · Done 5 · Pending 7"
@@ -40,14 +54,27 @@
           "items": {
             "type": "object",
             "properties": {
-              "id": { "type": "string" },
-              "title": { "type": "string" }
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
             }
           },
           "__example__": [
-            { "id": "new", "title": "Send a new quiz" },
-            { "id": "cancel", "title": "Cancel a quiz" },
-            { "id": "done", "title": "Done" }
+            {
+              "id": "new",
+              "title": "Send a new quiz"
+            },
+            {
+              "id": "cancel",
+              "title": "Cancel a quiz"
+            },
+            {
+              "id": "done",
+              "title": "Done"
+            }
           ]
         }
       },
@@ -97,13 +124,23 @@
           "items": {
             "type": "object",
             "properties": {
-              "id": { "type": "string" },
-              "title": { "type": "string" }
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
             }
           },
           "__example__": [
-            { "id": "quiz-uuid-1", "title": "Photosynthesis · 5-A · Sent 1" },
-            { "id": "quiz-uuid-2", "title": "Fractions · 9-A · Sent 12" }
+            {
+              "id": "quiz-uuid-1",
+              "title": "Photosynthesis · 5-A · Sent 1"
+            },
+            {
+              "id": "quiz-uuid-2",
+              "title": "Fractions · 9-A · Sent 12"
+            }
           ]
         }
       },
@@ -153,13 +190,23 @@
           "items": {
             "type": "object",
             "properties": {
-              "id": { "type": "string" },
-              "title": { "type": "string" }
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
             }
           },
           "__example__": [
-            { "id": "list-uuid-1", "title": "5 - A" },
-            { "id": "list-uuid-2", "title": "9 - A" }
+            {
+              "id": "list-uuid-1",
+              "title": "5 - A"
+            },
+            {
+              "id": "list-uuid-2",
+              "title": "9 - A"
+            }
           ]
         }
       },
@@ -200,20 +247,36 @@
       "id": "NEW_QUIZ_LP",
       "title": "Pick a Topic",
       "data": {
-        "class_id": { "type": "string", "__example__": "list-uuid-1" },
+        "class_id": {
+          "type": "string",
+          "__example__": "list-uuid-1"
+        },
         "lp_options": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "id": { "type": "string" },
-              "title": { "type": "string" }
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
             }
           },
           "__example__": [
-            { "id": "lp_uuid-1", "title": "Photosynthesis (Today)" },
-            { "id": "lp_uuid-2", "title": "Cells (Yesterday)" },
-            { "id": "new", "title": "New topic (not from a lesson plan)" }
+            {
+              "id": "lp_uuid-1",
+              "title": "Photosynthesis (Today)"
+            },
+            {
+              "id": "lp_uuid-2",
+              "title": "Cells (Yesterday)"
+            },
+            {
+              "id": "new",
+              "title": "New topic (not from a lesson plan)"
+            }
           ]
         }
       },
@@ -255,7 +318,10 @@
       "id": "NEW_QUIZ_TOPIC",
       "title": "Quiz Topic",
       "data": {
-        "class_id": { "type": "string", "__example__": "list-uuid-1" }
+        "class_id": {
+          "type": "string",
+          "__example__": "list-uuid-1"
+        }
       },
       "layout": {
         "type": "SingleColumnLayout",
@@ -297,7 +363,10 @@
       "title": "Done",
       "terminal": true,
       "data": {
-        "success_message": { "type": "string", "__example__": "Quiz cancelled. Parents have been notified." }
+        "success_message": {
+          "type": "string",
+          "__example__": "Quiz cancelled. Parents have been notified."
+        }
       },
       "layout": {
         "type": "SingleColumnLayout",

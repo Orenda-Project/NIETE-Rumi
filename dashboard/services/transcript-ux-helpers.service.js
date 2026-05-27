@@ -1,6 +1,5 @@
 /**
  * Transcript UX Helper Functions
- * Bead: etv-ux01 (Phase 7)
  *
  * Helper functions for displaying SLO Mastery and Classroom Climate
  * data in a user-friendly format with traffic light indicators.

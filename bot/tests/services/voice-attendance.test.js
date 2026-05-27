@@ -1,9 +1,8 @@
 /**
  * Voice Attendance Service Tests
- * TDD for bd-061
+ * TDD for 
  *
  * Created: January 24, 2026
- * Bead: bd-061
  */
 
 // Mock dependencies before requiring the module

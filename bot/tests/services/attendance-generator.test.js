@@ -1,9 +1,8 @@
 /**
  * Attendance Generator Service Tests
- * TDD for bd-053
+ * TDD for 
  *
  * Created: January 24, 2026
- * Bead: bd-053
  */
 
 const AttendanceGeneratorService = require('../../shared/services/attendance-generator.service');
@@ -229,7 +228,7 @@ describe('AttendanceGeneratorService', () => {
 });
 
   // =========================================================================
-  // MONTHLY REGISTER TESTS (bd-199, bd-204)
+ // MONTHLY REGISTER TESTS 
   // =========================================================================
 
   describe('getWeekendDays', () => {

@@ -1,9 +1,8 @@
 /**
  * Attendance Conversation Service Tests
- * TDD for bd-059
+ * TDD for 
  *
  * Created: January 24, 2026
- * Bead: bd-059
  */
 
 // Mock dependencies

@@ -2,6 +2,7 @@ const axios = require('axios');
 const { GAMMA_API_KEY, GAMMA_MAX_ATTEMPTS, GAMMA_POLL_INTERVAL } = require('../utils/constants');
 const { logToFile } = require('../utils/logger');
 const { getLanguageConfig } = require('../config/gamma-languages.config');
+const { buildLessonPlanPrompt } = require('./lesson-plan-template.service');
 
 /**
  * Content Service
@@ -25,6 +26,12 @@ class ContentService {
       const langConfig = getLanguageConfig(language);
       logToFile(`Generating ${contentType} with Gamma API`, { topic, format, language: langConfig.code });
 
+      // The lesson-plan framework (9-section / 5E structure), the numCards
+      // hint, and the reinforcement instruction all come from ONE source:
+      // lesson-plan-template.service.js. (Reserved grade/subject pass-through
+      // for future per-grade framework tuning; inert today.)
+      const lpTemplate = buildLessonPlanPrompt({ language: langConfig.code });
+
       // Use the full user message to preserve all details
       // Use language-specific intro and prompt suffix
       const inputText = format === 'presentation'
@@ -40,86 +47,18 @@ Make it visually appealing and suitable for teachers to use in Pakistani classro
 
 ${langConfig.promptSuffix}
 
-This lesson plan should follow evidence-based pedagogical frameworks and be suitable for teachers in Pakistani classrooms (mixed-ability, limited resources). Structure the plan with these sections:
-
-## 1. LEARNING OBJECTIVES & SUCCESS CRITERIA
-- 2-3 clear, measurable learning objectives aligned with curriculum standards
-- Student-friendly success criteria ("I can..." statements)
-- Connection to prior knowledge and real-world applications
-
-## 2. LESSON OVERVIEW
-- Grade level and subject
-- Duration (typically 40-60 minutes)
-- Key concepts and vocabulary
-- Prerequisites
-
-## 3. MATERIALS & PREPARATION
-- Required materials (emphasize low-cost, locally available resources)
-- Teacher preparation steps
-- Student handouts or worksheets needed
-- Technology/digital resources (if applicable)
-
-## 4. INTRODUCTION (ENGAGE) [8-10 minutes]
-- Hook/attention-grabber to activate prior knowledge
-- Essential question for the lesson
-- Learning objectives shared with students
-- Connection to students' lives and experiences
-
-## 5. EXPLORATION/INVESTIGATION [15-20 minutes]
-- Hands-on activity or investigation for students to explore the concept
-- Guiding questions for teachers to ask
-- What students should observe/discover
-- Group work or pair work structures
-- Common misconceptions to address
-
-## 6. EXPLANATION/DIRECT INSTRUCTION [10-15 minutes]
-- Clear, step-by-step explanation of key concepts
-- Visual aids, diagrams, or models to use
-- Examples and non-examples
-- Vocabulary definitions with context
-- Teacher modeling and think-aloud strategies
-
-## 7. ELABORATION/GUIDED PRACTICE [10-15 minutes]
-- Structured practice activities progressing from simple to complex
-- Scaffolding strategies for struggling learners
-- Extension challenges for advanced students
-- Real-world application tasks
-- Collaborative learning opportunities
-
-## 8. EVALUATION/FORMATIVE ASSESSMENT [5-10 minutes]
-- Formative assessment strategy (exit ticket, quick quiz, demonstration, etc.)
-- Questions to check for understanding throughout the lesson
-- Success criteria checklist
-- Homework assignment (if applicable)
-- Preview of next lesson
-
-## 9. DIFFERENTIATION STRATEGIES
-- Support for struggling learners (scaffolds, sentence frames, visual aids)
-- Extensions for advanced students (depth, complexity, independent research)
-- Language support for multilingual learners
-- Modifications for students with special needs
-- Alternative assessment options
-
-Throughout the lesson plan, include:
-- Specific dialogue examples for teachers
-- Transition phrases between activities
-- Time allocations for each section
-- Questioning strategies (open-ended, probing, wait time)
-- Classroom management tips for large/mixed-ability classes
-- Formative assessment checkpoints
-
-Make this practical, detailed, and immediately usable by teachers with varying experience levels.`;
+${lpTemplate.inputText}`;
 
       // Step 1: Create generation
       const requestBody = {
         inputText,
         format,
         textMode: format === 'presentation' ? 'generate' : 'preserve', // Preserve structure for lesson plans
-        numCards: format === 'presentation' ? 5 : 7, // 7 cards for comprehensive lesson plan structure
+        numCards: format === 'presentation' ? 5 : lpTemplate.numCards, // Gamma card-layout hint (see lesson-plan-template.service.js)
         exportAs: 'pdf',
         additionalInstructions: format === 'presentation'
           ? undefined
-          : 'Maintain the exact structure and formatting provided in the prompt. Include all 9 sections with clear headings. Preserve all bullet points, time allocations, and instructional details. Do not summarize or condense the content.',
+          : lpTemplate.additionalInstructions,
         textOptions: {
           language: langConfig.code, // Use detected language instead of hardcoded 'en'
           audience: format === 'presentation' ? 'teachers and students' : 'teachers',

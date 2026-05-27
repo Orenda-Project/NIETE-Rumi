@@ -320,24 +320,37 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
    * @param {string|null} lessonPlanText - Optional lesson plan text
    * @returns {Promise<object>} Structured analysis
    */
-  static async analyzePedagogy(transcript, metadata = {}, lessonPlanStructured = null) {
+  static async analyzePedagogy(transcript, metadata = {}, lessonPlanStructured = null, framework = null) {
     try {
       const hasLessonPlanData = !!lessonPlanStructured;
+
+      // Framework dispatch — the customization foothold. OECD (the default) and the no-framework
+      // case use the canonical inline prompt + scoring, byte-identical to before (zero regression for
+      // existing deployments). A non-OECD framework module (hots/teach/fico/…) routes through its own
+      // getSystemPrompt()/buildAnalysisPrompt()/computeScores(), so selecting that framework actually
+      // takes effect instead of being silently dropped. See .claude/skills/coaching + CUSTOMIZATION.md.
+      const useFrameworkModule = !!(framework && framework.name && framework.name !== 'oecd'
+        && typeof framework.getSystemPrompt === 'function'
+        && typeof framework.buildAnalysisPrompt === 'function'
+        && typeof framework.computeScores === 'function');
 
       logToFile('Starting GPT-5 mini pedagogical analysis', {
         transcriptLength: transcript.length,
         hasLessonPlan: hasLessonPlanData,
+        framework: (framework && framework.name) || 'oecd',
         metadata
       });
 
       const messages = [
         {
           role: 'system',
-          content: this.getCachedFrameworkPrompt()
+          content: useFrameworkModule ? framework.getSystemPrompt() : this.getCachedFrameworkPrompt()
         },
         {
           role: 'user',
-          content: this._buildAnalysisPrompt(transcript, metadata, lessonPlanStructured)
+          content: useFrameworkModule
+            ? framework.buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, null)
+            : this._buildAnalysisPrompt(transcript, metadata, lessonPlanStructured)
         }
       ];
 
@@ -377,8 +390,13 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
         throw new Error(`JSON parsing failed: ${parseError.message}. Response may be truncated.`);
       }
 
-      // Compute actual marks from competency scores
-      const analysisWithMarks = this._computeMarksFromScores(result, hasLessonPlanData);
+      // Compute actual marks from competency scores (framework module if one is active, else inline OECD)
+      const analysisWithMarks = useFrameworkModule
+        ? framework.computeScores(result, hasLessonPlanData)
+        : this._computeMarksFromScores(result, hasLessonPlanData);
+      // Stamp the active framework so the report side dispatches the right transformer/renderer
+      // instead of silently defaulting to OECD.
+      analysisWithMarks.framework = (framework && framework.name) || 'oecd';
       analysisWithMarks.has_lesson_plan = hasLessonPlanData;
       if (analysisWithMarks.scores) {
         analysisWithMarks.scores.has_lesson_plan = hasLessonPlanData;
@@ -1205,9 +1223,37 @@ GUIDELINES:
       const langConfig = getLanguageConfig(language);
       const questionConfig = langConfig.reflectiveQuestions;
 
+      // Import coaching-debrief config (coaching model, rules, avoid list,
+      // and the single source for the number of reflective questions).
+      const {
+        NUM_REFLECTIVE_QUESTIONS,
+        rules,
+        avoid,
+      } = require('../config/coaching-debrief.config');
+
       // Get question-specific focus and example
       const questionKey = `question${questionNumber}`;
       const questionExample = questionConfig.examples[questionKey] || questionConfig.examples.question1;
+
+      // Render the coaching model rules as a numbered list, and the avoid
+      // list as a dashed list, sourced from config.
+      const rulesBlock = rules.map((r, i) => `${i + 1}. ${r}`).join('\n');
+      const avoidBlock = avoid.map((a) => `- ${a}`).join('\n');
+
+      // Render the few-shot example arms. One arm per reflective question,
+      // each surfacing its language example only on its own turn — derived
+      // from NUM_REFLECTIVE_QUESTIONS so arm count stays in lockstep.
+      const additionalExamples = Array.from(
+        { length: NUM_REFLECTIVE_QUESTIONS },
+        (_, idx) => {
+          const n = idx + 1;
+          if (questionNumber !== n) return '';
+          const ex = n === 1
+            ? questionExample
+            : questionConfig.examples[`question${n}`];
+          return ex ? ex.example : '';
+        }
+      ).join('\n');
 
       // Build language-aware prompt
       const prompt = `${questionConfig.systemPrompt}
@@ -1226,14 +1272,10 @@ ${JSON.stringify(analysis, null, 2)}
 CONVERSATION HISTORY:
 ${conversationHistory.length > 0 ? JSON.stringify(conversationHistory, null, 2) : 'No previous questions yet.'}
 
-This is question ${questionNumber} of 3.
+This is question ${questionNumber} of ${NUM_REFLECTIVE_QUESTIONS}.
 
 CRITICAL REQUIREMENTS FOR SPECIFICITY:
-1. YOU MUST quote actual dialogue from the transcript (e.g., "I noticed you asked students 'What time is Fajr prayer?'")
-2. YOU MUST reference specific moments or patterns in the classroom (e.g., "At the 15-minute mark..." or "When you were explaining AM/PM...")
-3. DO NOT use generic phrases like "Reflecting on your lesson" - be conversational and specific
-4. Make it feel like you actually watched the entire class and observed specific moments
-5. Use S.T.I.C.K.S. framework (Specific, Timely, Inquiry-based, Collaborative, Kind, Strength-based)
+${rulesBlock}
 
 QUESTION FOCUS:
 ${questionExample.focus}
@@ -1242,15 +1284,10 @@ EXAMPLE IN ${langConfig.name.toUpperCase()}:
 ${questionExample.example}
 
 ADDITIONAL EXAMPLES OF GOOD QUESTIONS IN ${langConfig.name.toUpperCase()}:
-${questionNumber === 1 ? questionExample.example : ''}
-${questionNumber === 2 && questionConfig.examples.question2 ? questionConfig.examples.question2.example : ''}
-${questionNumber === 3 && questionConfig.examples.question3 ? questionConfig.examples.question3.example : ''}
+${additionalExamples}
 
 AVOID:
-- Starting with "Reflecting on your lesson..."
-- Being vague or generic
-- Questions that could apply to any lesson
-- Questions not rooted in actual transcript evidence
+${avoidBlock}
 
 Return ONLY the question text (no preamble, formatting, or explanation).`;
 

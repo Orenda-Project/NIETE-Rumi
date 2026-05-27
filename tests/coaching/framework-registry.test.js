@@ -83,23 +83,38 @@ describe('Framework Selector (bd-596)', () => {
     jest.clearAllMocks();
   });
 
-  test('SCENARIO: Punjab user with no preference → HOTS framework', async () => {
-    mockSingle.mockResolvedValueOnce({
-      data: { region: 'punjab', district: null, preferences: {} }
-    });
-
-    const fw = await selectFramework('user-punjab');
-    expect(fw.name).toBe('hots');
-    expect(mockSelect).toHaveBeenCalledWith('region, preferences');
+  // Region→framework routing is env-driven (REGION_FRAMEWORK_MAP) — region-config owns it,
+  // the selector holds no hardcoded region names. With a map configured, a region resolves
+  // to its mapped framework; without one it falls back to the deployment default (oecd).
+  test('SCENARIO: mapped region (punjab→hots) with no preference → HOTS framework', async () => {
+    const ORIG = { ...process.env };
+    try {
+      mockSingle.mockResolvedValueOnce({ data: { region: 'punjab', district: null, preferences: {} } });
+      process.env.REGION_FRAMEWORK_MAP = JSON.stringify({ punjab: 'hots', sindh: 'hots' });
+      jest.resetModules();
+      const { selectFramework: select } = require('../../bot/shared/services/coaching/frameworks/framework-selector');
+      const fw = await select('user-punjab');
+      expect(fw.name).toBe('hots');
+      expect(mockSelect).toHaveBeenCalledWith('region, preferences');
+    } finally {
+      process.env = { ...ORIG };
+      jest.resetModules();
+    }
   });
 
-  test('SCENARIO: Sindh user with no preference → HOTS framework', async () => {
-    mockSingle.mockResolvedValueOnce({
-      data: { region: 'sindh', district: null, preferences: {} }
-    });
-
-    const fw = await selectFramework('user-sindh');
-    expect(fw.name).toBe('hots');
+  test('SCENARIO: mapped region (sindh→hots) with no preference → HOTS framework', async () => {
+    const ORIG = { ...process.env };
+    try {
+      mockSingle.mockResolvedValueOnce({ data: { region: 'sindh', district: null, preferences: {} } });
+      process.env.REGION_FRAMEWORK_MAP = JSON.stringify({ punjab: 'hots', sindh: 'hots' });
+      jest.resetModules();
+      const { selectFramework: select } = require('../../bot/shared/services/coaching/frameworks/framework-selector');
+      const fw = await select('user-sindh');
+      expect(fw.name).toBe('hots');
+    } finally {
+      process.env = { ...ORIG };
+      jest.resetModules();
+    }
   });
 
   test('SCENARIO: KPK user with no preference → OECD framework', async () => {

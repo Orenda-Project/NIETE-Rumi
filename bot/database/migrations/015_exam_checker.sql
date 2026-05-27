@@ -1,7 +1,6 @@
 -- migrations/015_exam_checker.sql
 -- Exam Checker Feature Tables
 -- Created: 2026-01-24
--- Bead: bd-080
 -- Note: Uses existing students table from Attendance feature
 
 BEGIN;

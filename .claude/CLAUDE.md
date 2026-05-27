@@ -16,7 +16,8 @@ folder with a `SKILL.md` (+ optional reference files).
 
 | Skill | Use for |
 |-------|---------|
-| [setup](skills/setup/skill.md) | Guided clone setup — env, DB bootstrap, flow registration, preflight (`/setup`) |
+| [setup](skills/setup/SKILL.md) | Guided clone setup — env, DB bootstrap, flow registration, preflight (`/setup`) |
+| [customizing](skills/customizing/SKILL.md) | Re-shaping a feature — the seam map for swapping frameworks, report design, LP structure, reading rubric, branding |
 | [digital-coach](skills/digital-coach/SKILL.md) | **Start here** — architecture map of the whole bot; routes to everything else |
 | [coaching](skills/coaching/SKILL.md) | Classroom-observation coaching: frameworks, the queue worker, LP integration |
 | [debugging](skills/debugging/SKILL.md) | Investigation discipline + correlation-id tracing |
@@ -42,5 +43,5 @@ folder with a `SKILL.md` (+ optional reference files).
 1. **No secrets, no internal references.** Skill markdown is public. Use env-var names and placeholders, never
    real keys, phone numbers, org names, or internal ticket IDs. The `tests/setup/source-hygiene.test.js` guard
    scans `.claude/**/*.md` and fails the build on a violation.
-2. **Generic, not deployment-specific.** Describe how the open platform works, not how one operator runs it.
+2. **Generic, not deployment-specific.** Describe how the open platform works, not how one deployment runs it.
 3. **Point, don't duplicate.** A skill should reference code by path, not paste large code blocks that go stale.

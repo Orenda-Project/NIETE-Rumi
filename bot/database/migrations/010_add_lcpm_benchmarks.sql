@@ -1,7 +1,7 @@
 -- Migration: Add LCPM Benchmarks for Letter Naming Fluency
 -- Version: v2.8.5
 -- Date: November 30, 2025
--- Bug Fix: Bug #6 - WCPM Metric Inappropriateness for Alphabet Recognition
+-- Bug Fix: - WCPM Metric Inappropriateness for Alphabet Recognition
 -- Description: WCPM is designed for connected text reading fluency, not isolated letter identification.
 --              This migration adds LCPM (Letters Correct Per Minute) benchmarks using DIBELS norms.
 
@@ -173,7 +173,7 @@ CREATE INDEX idx_lcpm_benchmarks_lookup ON lcpm_benchmarks(grade_level, language
 -- =============================================================================
 
 INSERT INTO schema_versions (version, description)
-VALUES ('v2.8.5', 'Add LCPM benchmarks for letter naming fluency (Bug #6 fix)');
+VALUES ('v2.8.5', 'Add LCPM benchmarks for letter naming fluency (fix)');
 
 -- =============================================================================
 -- MIGRATION NOTES
@@ -184,7 +184,7 @@ VALUES ('v2.8.5', 'Add LCPM benchmarks for letter naming fluency (Bug #6 fix)');
 -- 2. check_lcpm_benchmark_status() function for benchmark lookup
 -- 3. Support for both English and Urdu alphabet assessment
 --
--- Bug #6 Context:
+--  Context:
 -- WCPM (Words Correct Per Minute) was being used for alphabet recognition assessments,
 -- which is pedagogically inappropriate because:
 -- - Letter identification measures visual discrimination + phonological retrieval

@@ -9,6 +9,7 @@
 
 const { createCanvas } = require('canvas');
 const { logToFile } = require('../../../utils/logger');
+const { getCoachingCardCopy } = require('../../../config/coaching-card.config');
 
 const CARD_WIDTH = 600;
 const CARD_HEIGHT = 400;
@@ -58,12 +59,14 @@ function wrapText(ctx, text, maxWidth) {
  *
  * @param {{ action: string, example: string, indicator: string }|null} actionData
  * @param {string} frameworkKey - Framework key (oecd, hots, teach, fico)
+ * @param {string} language - Language code for card copy (en, ur, ar, es)
  * @returns {Buffer|null} PNG buffer or null if no action
  */
-function generateCardImage(actionData, frameworkKey = 'oecd') {
+function generateCardImage(actionData, frameworkKey = 'oecd', language = 'en') {
   if (!actionData) return null;
 
   try {
+    const copy = getCoachingCardCopy(language);
     const canvas = createCanvas(CARD_WIDTH, CARD_HEIGHT);
     const ctx = canvas.getContext('2d');
 
@@ -82,7 +85,7 @@ function generateCardImage(actionData, frameworkKey = 'oecd') {
 
     ctx.fillStyle = '#FFFFFF';
     ctx.font = 'bold 20px sans-serif';
-    ctx.fillText('🎯 Try This Next Class', padding, 36);
+    ctx.fillText(copy.cardHeader, padding, 36);
 
     // ── Action text ──
     let y = 80;
@@ -116,7 +119,7 @@ function generateCardImage(actionData, frameworkKey = 'oecd') {
     ctx.fillRect(0, CARD_HEIGHT - 32, CARD_WIDTH, 32);
     ctx.fillStyle = '#9CA3AF';
     ctx.font = '11px sans-serif';
-    const footerText = 'Rumi Digital Coach';
+    const footerText = copy.cardFooter;
     const footerMetrics = ctx.measureText(footerText);
     ctx.fillText(footerText, (CARD_WIDTH - footerMetrics.width) / 2, CARD_HEIGHT - 12);
 

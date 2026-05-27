@@ -1506,7 +1506,7 @@ app.get('/stats', (req, res) => {
 app.get('/health', (req, res) => {
   const path = require('path');
   const versionFile = path.join(__dirname, 'VERSION');
-  let version = '2.1.0'; // Default fallback
+  let version = require('./package.json').version; // single source: package.json, overridden by VERSION file below
 
   try {
     if (fs.existsSync(versionFile)) {
@@ -1651,7 +1651,7 @@ app.listen(constants.PORT, () => {
   // Read version from VERSION file
   const path = require('path');
   const versionFile = path.join(__dirname, 'VERSION');
-  let version = '2.1.0'; // Default fallback
+  let version = require('./package.json').version; // single source: package.json, overridden by VERSION file below
 
   try {
     if (fs.existsSync(versionFile)) {
@@ -1679,7 +1679,8 @@ ${'='.repeat(70)}
 
    Run this command in a new terminal:
 
-   npx ngrok http ${constants.PORT} --authtoken 34qBnAEGwRHyHrUTvfPV7uJ2gf9_44iab5yW8EXtPAmxeZN2z
+   npx ngrok http ${constants.PORT}${process.env.NGROK_AUTHTOKEN ? ` --authtoken ${process.env.NGROK_AUTHTOKEN}` : ''}
+   ${process.env.NGROK_AUTHTOKEN ? '' : '(first time? add your own token from https://dashboard.ngrok.com → set NGROK_AUTHTOKEN in .env)'}
 
 ${'='.repeat(70)}
 

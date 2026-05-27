@@ -17,7 +17,10 @@ const { execFileSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '../..');
 
-const REF_RE = /\b(?:bd-\d+|BUG-\d+|PROJ-\d+|FEAT-\d+|TASK-\d+|[Bb][Uu][Gg]\s*#\d+)\b/;
+// Internal ticket namespaces. Includes the dashboard's own `plt-*` / `etv-*` bead
+// prefixes (they leaked through `Bead:` comment headers + SQL migration headers because
+// the original guard only knew bd-/BUG-/PROJ-/FEAT-/TASK- and never scanned .sql).
+const REF_RE = /\b(?:bd-\d+|BUG-\d+|PROJ-\d+|FEAT-\d+|TASK-\d+|plt-[a-z0-9]+|etv-[a-z0-9]+|[Bb][Uu][Gg]\s*#\d+)\b/;
 
 // Internal context that must never appear in public agent-native docs (org/partner names,
 // tester names, deployment phone numbers). Env-var names like SUPABASE_SERVICE_ROLE_KEY are
@@ -109,11 +112,11 @@ function collect(dir, exts) {
 
 describe('Source Hygiene', () => {
   describe('no internal ticket references in shipped source', () => {
-    it('bot/dashboard/infrastructure source is free of bd-/BUG-/PROJ-/FEAT-/TASK-/Bug # refs', () => {
+    it('bot/dashboard/infrastructure source is free of bd-/BUG-/PROJ-/FEAT-/TASK-/plt-/etv-/Bug # refs', () => {
       const files = [
-        ...collect('bot', ['.js']),
-        ...collect('dashboard', ['.js', '.ts', '.tsx']),
-        ...collect('infrastructure', ['.js']),
+        ...collect('bot', ['.js', '.sql']),
+        ...collect('dashboard', ['.js', '.ts', '.tsx', '.sql']),
+        ...collect('infrastructure', ['.js', '.sql']),
       ];
       const offenders = [];
       for (const f of files) {
@@ -121,6 +124,19 @@ describe('Source Hygiene', () => {
         lines.forEach((line, i) => {
           if (REF_RE.test(line)) offenders.push(`${path.relative(ROOT, f)}:${i + 1}`);
         });
+      }
+      expect(offenders).toEqual([]);
+    });
+
+    it('docs/flows/*.json carry no internal ticket refs or authoring metadata (_bead/_changelog)', () => {
+      const flowsDir = path.join(ROOT, 'docs', 'flows');
+      const offenders = [];
+      if (fs.existsSync(flowsDir)) {
+        for (const name of fs.readdirSync(flowsDir).filter((n) => n.endsWith('.json'))) {
+          const raw = fs.readFileSync(path.join(flowsDir, name), 'utf-8');
+          if (REF_RE.test(raw)) offenders.push(`${name}: ticket ref`);
+          if (/"_bead"|"_changelog"/.test(raw)) offenders.push(`${name}: _bead/_changelog metadata`);
+        }
       }
       expect(offenders).toEqual([]);
     });

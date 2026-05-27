@@ -1,10 +1,10 @@
 -- Migration: Add Row-Level Locking for Reading Assessments
--- Version: Bug #34 Fix
+-- Version: Fix
 -- Date: November 18, 2025
 -- Description: Prevent concurrent processing of reading assessments through row-level locks
 
 -- =============================================================================
--- BACKGROUND: BUG #34 - DATA MIXUP ISSUE
+-- BACKGROUND: - DATA MIXUP ISSUE
 -- =============================================================================
 
 -- PROBLEM:
@@ -103,7 +103,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION acquire_assessment_lock IS 'Acquires row-level lock on reading assessment, validates state, returns assessment data. Returns locked=false if already locked by another worker. Part of Bug #34 fix.';
+COMMENT ON FUNCTION acquire_assessment_lock IS 'Acquires row-level lock on reading assessment, validates state, returns assessment data. Returns locked=false if already locked by another worker. Part of fix.';
 
 -- =============================================================================
 -- STEP 2: CREATE INDEX FOR LOCK QUERIES
@@ -114,7 +114,7 @@ CREATE INDEX IF NOT EXISTS idx_reading_assessments_lock_query
 ON reading_assessments(id, status)
 WHERE status IN ('passage_generated', 'audio_received', 'processing');
 
-COMMENT ON INDEX idx_reading_assessments_lock_query IS 'Optimizes row-level lock acquisition queries (Bug #34 fix)';
+COMMENT ON INDEX idx_reading_assessments_lock_query IS 'Optimizes row-level lock acquisition queries (fix)';
 
 -- =============================================================================
 -- STEP 3: ADD FUNCTION TO SAFELY UPDATE STATUS WITH TIMESTAMP
@@ -150,7 +150,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION update_assessment_status IS 'Safely updates assessment status with appropriate timestamps. Part of Bug #34 fix.';
+COMMENT ON FUNCTION update_assessment_status IS 'Safely updates assessment status with appropriate timestamps. Part of fix.';
 
 -- =============================================================================
 -- USAGE EXAMPLES

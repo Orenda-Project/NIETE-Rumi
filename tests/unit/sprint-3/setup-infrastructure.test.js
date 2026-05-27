@@ -99,11 +99,11 @@ describe('Setup Infrastructure', () => {
 
   describe('/setup Skill', () => {
     test('setup skill.md exists', () => {
-      expect(fs.existsSync(path.join(ROOT, '.claude/skills/setup/skill.md'))).toBe(true);
+      expect(fs.existsSync(path.join(ROOT, '.claude/skills/setup/SKILL.md'))).toBe(true);
     });
 
     test('skill.md describes the setup flow', () => {
-      const content = fs.readFileSync(path.join(ROOT, '.claude/skills/setup/skill.md'), 'utf8');
+      const content = fs.readFileSync(path.join(ROOT, '.claude/skills/setup/SKILL.md'), 'utf8');
       expect(content).toContain('/setup');
       expect(content).toContain('Supabase');
       expect(content).toContain('Railway');
@@ -111,7 +111,7 @@ describe('Setup Infrastructure', () => {
     });
 
     test('skill.md uses presence-based gating, not tiers, and links into the doc web', () => {
-      const content = fs.readFileSync(path.join(ROOT, '.claude/skills/setup/skill.md'), 'utf8');
+      const content = fs.readFileSync(path.join(ROOT, '.claude/skills/setup/SKILL.md'), 'utf8');
       expect(content).not.toContain('RUMI_TIER');          // tiers removed — gating is presence-based
       expect(content).toMatch(/presence/i);                // documents the presence model
       expect(content).toContain('../../CLAUDE.md');         // up-links to the config router (progressive disclosure)
@@ -119,7 +119,7 @@ describe('Setup Infrastructure', () => {
     });
 
     test('skill.md mentions resume capability', () => {
-      const content = fs.readFileSync(path.join(ROOT, '.claude/skills/setup/skill.md'), 'utf8');
+      const content = fs.readFileSync(path.join(ROOT, '.claude/skills/setup/SKILL.md'), 'utf8');
       expect(content).toContain('.setup-state.json');
     });
   });

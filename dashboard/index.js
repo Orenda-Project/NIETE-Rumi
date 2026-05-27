@@ -49,10 +49,10 @@ const {
 // Coaching Observability Service
 const { getCoachingSessions, getStatusStats } = require('./services/coaching-observability.service');
 
-// Transcript UX Helpers (Phase 7 - etv-ux01)
+// Transcript UX Helpers 
 const transcriptUxHelpers = require('./services/transcript-ux-helpers.service');
 
-// GPT Response Cache (plt-cch01)
+// GPT Response Cache 
 const { setRedisClient: setGptCacheRedisClient } = require('./services/gpt-cache.service');
 
 // Video Observability Service
@@ -90,7 +90,7 @@ const { downloadFromR2, streamFromR2, extractKeyFromUrl, getContentTypeFromKey, 
 const { processTranscript, fallbackParse } = require('./services/transcript-processor.service');
 
 // Portal SQS Service (for async transcript processing via SQS worker)
-// plt-sqs01: Offloads GPT-4o-mini processing to reduce Portal latency
+// : Offloads GPT-4o-mini processing to reduce Portal latency
 const PortalSQSService = require('./services/queue/portal-sqs.service');
 
 // In-memory store for transcript processing status (for loading screen polling)
@@ -155,15 +155,15 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Latency logging middleware (plt-mon01)
+// Latency logging middleware 
 // Tracks request duration and alerts on slow requests
 app.use(latencyLogger);
 
-// Request timeout middleware (plt-tout01)
+// Request timeout middleware 
 // Prevents hung requests from blocking workers indefinitely
 app.use(timeoutMiddleware);
 
-// Redis client for session store with fallback (plt-sfb01)
+// Redis client for session store with fallback 
 // Falls back to MemoryStore if Redis is unavailable or fails
 let sessionStore;
 let redisClient = null;
@@ -182,7 +182,7 @@ if (process.env.REDIS_URL) {
     redisClient.on('connect', () => {
       console.log('✅ Redis connected for session store');
       redisConnected = true;
-      // Initialize GPT cache with Redis client (plt-cch01)
+ // Initialize GPT cache with Redis client 
       setGptCacheRedisClient(redisClient);
     });
 
@@ -193,7 +193,7 @@ if (process.env.REDIS_URL) {
     redisClient.on('end', () => {
       console.warn('⚠️  Redis connection closed');
       redisConnected = false;
-      // Disable GPT cache when Redis disconnects (plt-cch01)
+ // Disable GPT cache when Redis disconnects 
       setGptCacheRedisClient(null);
     });
 
@@ -1702,7 +1702,7 @@ app.get('/observability/proxy/transcript/:sessionId',
 
     // Extract Phase 5/6 data from analysis_data
     const analysisData = session.analysis_data || {};
-    // etv-slo01: SLO and climate data are inside processed_transcript (from GPT output)
+ // : SLO and climate data are inside processed_transcript (from GPT output)
     const processedTranscript = analysisData.processed_transcript || {};
     const sloMastery = processedTranscript.slo_mastery || analysisData.slo_mastery || null;
     const classroomClimate = processedTranscript.classroom_climate || analysisData.classroom_climate || null;
@@ -1711,7 +1711,7 @@ app.get('/observability/proxy/transcript/:sessionId',
     // Check for PERSISTENT cached processed transcript in database (added Jan 17, 2026)
     if (analysisData.processed_transcript) {
       console.log(`[Transcript] Using cached processed data from database for session ${sessionId}`);
-      // etv-aud01: Use proxy route for audio (direct R2 URLs don't work in browser)
+ // : Use proxy route for audio (direct R2 URLs don't work in browser)
       const audioProxyUrl = session.audio_url ? `/observability/proxy/classroom-audio/${sessionId}` : null;
       return res.render('transcript-enhanced', {
         teacherName,
@@ -1729,7 +1729,7 @@ app.get('/observability/proxy/transcript/:sessionId',
         sloMastery,
         classroomClimate,
         namedStudents,
-        // Phase 7: UX Helpers (etv-ux01)
+ // : UX Helpers 
         uxHelpers: transcriptUxHelpers
       });
     }
@@ -1738,7 +1738,7 @@ app.get('/observability/proxy/transcript/:sessionId',
     const cachedStatus = transcriptProcessingStatus.get(sessionId);
     if (processed === 'true' && cachedStatus && cachedStatus.status === 'completed' && cachedStatus.processedData) {
       // Use cached processed data
-      // etv-aud01: Use proxy route for audio (direct R2 URLs don't work in browser)
+ // : Use proxy route for audio (direct R2 URLs don't work in browser)
       const audioProxyUrl2 = session.audio_url ? `/observability/proxy/classroom-audio/${sessionId}` : null;
       return res.render('transcript-enhanced', {
         teacherName,
@@ -1756,7 +1756,7 @@ app.get('/observability/proxy/transcript/:sessionId',
         sloMastery,
         classroomClimate,
         namedStudents,
-        // Phase 7: UX Helpers (etv-ux01)
+ // : UX Helpers 
         uxHelpers: transcriptUxHelpers
       });
     }
@@ -1780,7 +1780,7 @@ app.get('/observability/proxy/transcript/:sessionId',
       startedAt: Date.now()
     });
 
-    // plt-sqs01: Try SQS first for async processing (offloads GPT work to worker)
+ // : Try SQS first for async processing (offloads GPT work to worker)
     // Falls back to in-memory processing if SQS not configured
     const useSQS = PortalSQSService.isConfigured();
 

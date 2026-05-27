@@ -35,7 +35,11 @@ const FEATURES = [
   { name: 'Observability (Axiom)', keys: ['AXIOM_DATASET', 'AXIOM_TOKEN'] },
 ];
 
-const isSet = (v) => typeof v === 'string' && v.trim() !== '' && !/^CHANGEME/i.test(v.trim());
+// A var counts as "set" only if it holds a real value — not a template placeholder.
+// Placeholders the template ships: CHANGEME-*, your-project / your_ / YOUR_, and <…> angle stubs.
+// (REDIS_URL=redis://localhost:6379 is a legitimate local default and is intentionally NOT a placeholder.)
+const PLACEHOLDER_RE = /^CHANGEME|your-project|your_|^YOUR_|^<.*>$/i;
+const isSet = (v) => typeof v === 'string' && v.trim() !== '' && !PLACEHOLDER_RE.test(v.trim());
 
 /** Required vars that are NOT set (empty array = ready to boot). */
 function missingRequired(env = process.env) {

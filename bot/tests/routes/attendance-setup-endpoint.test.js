@@ -1,9 +1,8 @@
 /**
  * Attendance Setup Endpoint Tests
- * TDD for bd-215: Student entry redesign with endpoint-based navigation loops
+ * TDD for : Student entry redesign with endpoint-based navigation loops
  *
  * Created: January 26, 2026
- * Bead: bd-215
  */
 
 // Create chainable mock that tracks calls

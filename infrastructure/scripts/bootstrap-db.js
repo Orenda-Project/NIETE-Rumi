@@ -50,6 +50,19 @@ class DatabaseBootstrapper {
     });
     if (!response.ok) {
       const errorText = await response.text();
+      // Chicken-and-egg: a fresh Supabase project has no `exec_sql` RPC, so the very first
+      // call 404s with "Could not find the function". Surface the exact one-time fix instead
+      // of an opaque 404 (SETUP.md Step 2 documents this too).
+      const missingExecSql = response.status === 404
+        || /could not find the function|exec_sql/i.test(errorText);
+      if (missingExecSql) {
+        throw new Error(
+          `${label}: the one-time \`exec_sql\` helper is missing in this database.\n`
+          + `Run this ONCE in the Supabase SQL Editor, then re-run \`npm run bootstrap:db\`:\n\n`
+          + `  CREATE OR REPLACE FUNCTION exec_sql(query TEXT)\n`
+          + `  RETURNS VOID AS $$ BEGIN EXECUTE query; END; $$ LANGUAGE plpgsql;\n`
+        );
+      }
       throw new Error(`${label}: ${response.status} - ${errorText}`);
     }
   }

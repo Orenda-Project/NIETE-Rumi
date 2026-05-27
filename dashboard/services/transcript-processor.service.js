@@ -604,7 +604,7 @@ REMEMBER:
 
     // Use cache wrapper for GPT call (1 hour TTL)
     // Cache key based on transcript content hash (first 200 chars + length as identifier)
-    // etv-len01: Added inputLineCount to cache key to invalidate old truncated caches
+ // : Added inputLineCount to cache key to invalidate old truncated caches
     const cacheContent = {
       transcriptHash: rawTranscript.substring(0, 200),
       transcriptLength: rawTranscript.length,
@@ -790,13 +790,13 @@ REMEMBER:
     const totalLines = processed.sections.reduce((acc, s) => acc + s.lines.length, 0);
     console.log(`[TranscriptProcessor] Processed: ${processed.sections.length} sections, ${totalLines} lines`);
 
-    // etv-len01: Warn if significant line loss (>20%)
+ // : Warn if significant line loss (>20%)
     const lineLossPercent = ((inputLineCount - totalLines) / inputLineCount) * 100;
     if (lineLossPercent > 20) {
       console.warn(`[TranscriptProcessor] ⚠️ LINE LOSS WARNING: Input had ${inputLineCount} lines, output has ${totalLines} lines (${lineLossPercent.toFixed(1)}% loss)`);
     }
 
-    // etv-slo01: Warn if missing slo_mastery or classroom_climate
+ // : Warn if missing slo_mastery or classroom_climate
     if (!processed.slo_mastery) {
       console.warn('[TranscriptProcessor] ⚠️ Missing slo_mastery in GPT response');
     }

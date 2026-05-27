@@ -50,6 +50,82 @@ function colorFor(subject) {
   return SUBJECT_COLOR[subject] || '#059669';
 }
 
+// ---------------------------------------------------------------------------
+// THEME — single rebranding surface
+// ---------------------------------------------------------------------------
+// Visual style (palette hexes, fonts, paper format, per-script font rules) was
+// previously hardcoded inline inside styleBlock(). It now lives in ONE object
+// so a deployment can rebrand the illustrated LP by editing THEME alone.
+//
+// IMPORTANT: styleBlock() composes these values into the SAME prompt string it
+// emitted before — the emitted style text is byte-identical. Changing any value
+// here changes the generated image, so treat it as a visual contract.
+const THEME = {
+  palette: {
+    headerNavy: '#1e293b', // dark-navy header bar / chalkboard box
+    amber:      '#fbbf24', // highlight accent
+  },
+  fonts: {
+    latin: 'Nunito or Inter', // clean sans-serif for LTR (en/sw) body + English labels
+    // Per-script font rules. Each is the exact clause styleBlock appends for
+    // that script branch — kept verbatim so output cannot drift.
+    latinLine:   'Clean sans-serif font (Nunito or Inter). LTR layout.',
+    arabicLine:  'Noto Naskh Arabic font for ALL Arabic text, right-to-left. Clean sans-serif (Nunito/Inter) for English labels. RTL layout for Arabic sections.',
+    sindhiLine:  'Noto Naskh Sindhi or Lateef font for ALL Sindhi text, right-to-left. Sindhi-specific letters (ڄ ڃ ڳ ڱ ڙ ڪ) must render correctly. No diacritics. NOT Devanagari, NOT Hindi, NOT Urdu Nastaliq style. Clean sans-serif (Nunito/Inter) for English labels. RTL layout for Sindhi sections.',
+    nastaliqLine:'Noto Nastaliq Urdu font for ALL Urdu text, right-to-left. No diacritics (no zer, zabar, pesh). Clean sans-serif (Nunito/Inter) for English labels. RTL layout for Urdu sections.',
+  },
+  paper: 'Print-ready A4 portrait 3:4 format.',
+  // Reference-image role lines (IMAGE 1 brand mark, IMAGE 2 textbook page).
+  referenceImages: {
+    image1: '  IMAGE 1 = the EXACT Rumi brand mark — a clean white smile-only mark (curved line + two small cheek dots). Render this image pixel-for-pixel at small size (about 8% of page width, vertically centered in the dark-navy header bar, anchored 3% from the left edge). DO NOT redesign. DO NOT add a circle around it. DO NOT change its color.',
+    image2: "  IMAGE 2 = the teacher's textbook page — for visual style reference only. Do NOT copy any text from this image. Use only for visual style cues.",
+  },
+};
+
+// ---------------------------------------------------------------------------
+// SECTION REGISTRY — single source of truth for LP section order/structure
+// ---------------------------------------------------------------------------
+// The illustrated-LP layout (section order, I-Do/We-Do/You-Do pedagogy, Big
+// Idea, Board Work) was previously documented only implicitly across four
+// hand-aligned inline template literals. This ordered registry documents the
+// canonical structure in ONE place: each descriptor names the page it lives on,
+// the structuralLabelsFor() key whose label heads it, and its pedagogical role.
+//
+// The builder (and the section-registry conformance test) consult this so the
+// section list + labels are data, not four parallel copies. `labelKey` maps to
+// a key on the object returned by structuralLabelsFor(language) — that is the
+// ONE label source both the English-body and Urdu-body templates now read from,
+// which is what eliminates the previous Urdu-body hardcoded-English-label drift.
+const SECTION_REGISTRY = [
+  // Page 1
+  { id: 'warmUp',        page: 1, labelKey: 'warmUp',       role: 'review' },
+  { id: 'hook',          page: 1, labelKey: 'hook',         role: 'hook' },
+  { id: 'bigIdea',       page: 1, labelKey: 'bigIdea',      role: 'pedagogical-heart' },
+  { id: 'todaysGoal',    page: 1, labelKey: 'todaysGoal',   role: 'objective' },
+  { id: 'keyWords',      page: 1, labelKey: 'keyWords',     role: 'vocabulary' },
+  { id: 'iDo',           page: 1, labelKey: 'iDo',          role: 'gradual-release-i-do' },
+  { id: 'writeOnBoard',  page: 1, labelKey: 'writeOnBoard', role: 'board-work' },
+  // Page 2
+  { id: 'weDo',          page: 2, labelKey: 'weDo',         role: 'gradual-release-we-do' },
+  { id: 'youDo',         page: 2, labelKey: 'youDo',        role: 'gradual-release-you-do' },
+  { id: 'needHelp',      page: 2, labelKey: 'needHelp',     role: 'differentiation-support' },
+  { id: 'challenge',     page: 2, labelKey: 'challengeBang',role: 'differentiation-stretch' },
+  { id: 'exitTicket',    page: 2, labelKey: 'exitTicket',   role: 'assessment' },
+  { id: 'coachingCorner',page: 2, labelKey: 'coachingCorner',role: 'coaching' },
+];
+
+// Return the ordered section descriptors for a given page (1 or 2).
+function sectionsForPage(page) {
+  return SECTION_REGISTRY.filter((s) => s.page === page);
+}
+
+// Resolve a registry descriptor to its in-language label string, reading the
+// ONE label table (structuralLabelsFor). Both body templates use this so the
+// label source can never drift between the English-body and Urdu-body paths.
+function sectionLabel(labelKey, language) {
+  return structuralLabelsFor(language)[labelKey];
+}
+
 function isLatinScript(language) {
   // 'sw' (Kiswahili) uses Latin script too — treat as English-like for layout
   // purposes. Arabic ('ar') is RTL like Urdu but uses NASKH natively (not
@@ -216,43 +292,39 @@ function styleBlock({ subject, language, grade }) {
   const isLatin = isLatinScript(language);
   const region = classroomContextFor(language);
 
+  // All literal style values are sourced from THEME so a rebrand is one object.
+  // The composed string is byte-identical to the previous inline version.
   const baseLines = [
     'Clean flat vector illustration, educational infographic style.',
     `${region} Grade ${grade} classroom. White background. Minimal clutter.`,
     'Bold simple shapes. High contrast colors.',
-    'Dark navy #1e293b header bar. Amber #fbbf24 highlights.',
+    `Dark navy ${THEME.palette.headerNavy} header bar. Amber ${THEME.palette.amber} highlights.`,
     `Subject color: ${color}.`,
   ];
 
   if (isLatin) {
-    baseLines.push('Clean sans-serif font (Nunito or Inter). LTR layout.');
+    baseLines.push(THEME.fonts.latinLine);
   } else if (isArabicScript(language)) {
     // Arabic uses Naskh natively — that's the right script. NO "NOT Devanagari
     // NOT Hindi" rule (those anti-rules are Urdu-specific). Font: Noto Naskh Arabic.
-    baseLines.push(
-      'Noto Naskh Arabic font for ALL Arabic text, right-to-left. Clean sans-serif (Nunito/Inter) for English labels. RTL layout for Arabic sections.'
-    );
+    baseLines.push(THEME.fonts.arabicLine);
   } else if (language === 'sd') {
     // Sindhi (Pakistan) uses Perso-Arabic / Naskh Sindhi script, NOT Urdu
     // Nastaliq. Lateef + Noto Naskh Sindhi are the standard fonts in Pakistani
     // Sindhi school textbooks. The "NOT Devanagari" rule still applies (Sindhi
     // has Indian-Devanagari variants we want to exclude).
-    baseLines.push(
-      'Noto Naskh Sindhi or Lateef font for ALL Sindhi text, right-to-left. Sindhi-specific letters (ڄ ڃ ڳ ڱ ڙ ڪ) must render correctly. No diacritics. NOT Devanagari, NOT Hindi, NOT Urdu Nastaliq style. Clean sans-serif (Nunito/Inter) for English labels. RTL layout for Sindhi sections.'
-    );
+    baseLines.push(THEME.fonts.sindhiLine);
   } else {
     // Urdu / Punjabi (Shahmukhi) — hardcore Nastaliq rule. Punjabi-Shahmukhi
     // shares Urdu's Nastaliq tradition.
-    baseLines.push(
-      'Noto Nastaliq Urdu font for ALL Urdu text, right-to-left. No diacritics (no zer, zabar, pesh). Clean sans-serif (Nunito/Inter) for English labels. RTL layout for Urdu sections.'
-    );
+    baseLines.push(THEME.fonts.nastaliqLine);
   }
 
-  baseLines.push('No photography. Crisp digital illustration. Print-ready A4 portrait 3:4 format.');
+  baseLines.push(`No photography. Crisp digital illustration. ${THEME.paper}`);
   baseLines.push('');
   baseLines.push('REFERENCE IMAGES (in order):');
-  baseLines.push('  IMAGE 1 = the EXACT Rumi brand mark — a clean white smile-only mark (curved line + two small cheek dots). Render this image pixel-for-pixel at small size (about 8% of page width, vertically centered in the dark-navy header bar, anchored 3% from the left edge). DO NOT redesign. DO NOT add a circle around it. DO NOT change its color.');
-  baseLines.push("  IMAGE 2 = the teacher's textbook page — for visual style reference only. Do NOT copy any text from this image. Use only for visual style cues.");
+  baseLines.push(THEME.referenceImages.image1);
+  baseLines.push(THEME.referenceImages.image2);
 
   return baseLines.join('\n');
 }
@@ -379,35 +451,35 @@ HEADER BAR (dark navy #1e293b, full width):
   Right: small ${color} pill containing "Grade ${grade} · 35 min" in white.
 
 WARM-UP REVIEW (light gray #f3f4f6 background, full width strip):
-  Label "WARM-UP · 4 min" in dark navy bold.
+  Label "${L.warmUp} · 4 min" in dark navy bold.
   Body in Nastaliq: "استاد بورڈ پر لکھیں — کل کے سبق کا ایک مختصر دہراؤ۔ پھر آج کا موضوع متعارف کرائیں — ${topic}۔"
-  CFU pill on right (teal #059669): "CFU · Thumbs up if you remember!"
+  CFU pill on right (teal #059669): "${L.cfu} · Thumbs up if you remember!"
 
 HOOK (white background, with bordered amber #fbbf24 frame):
-  Heading "HOOK · 4 min" in amber bold.
+  Heading "${L.hook} · 4 min" in amber bold.
   Two Pakistani Grade ${grade} students illustrated facing each other.
   Character "احمد" (طالب علم، لڑکا) positioned بائیں: speech bubble in Nastaliq — ایک تجسس بھرا سوال ${topic} کے بارے میں۔
   Character "زینب" (طالبہ، لڑکی) positioned دائیں: speech bubble in Nastaliq — صحیح جواب جو ${topic} کا بنیادی تصور بیان کرے۔
   Each character has a distinct speech bubble in clean Nastaliq.
 
 BIG IDEA (prominent white card with thick ${color} border, lightbulb icon, ~22% page height):
-  Heading "The Big Idea · بنیادی تصور" in ${color} bold.
+  Heading "${L.bigIdea} · بنیادی تصور" in ${color} bold.
   Three short Nastaliq paragraphs:
     ۱۔ ${topic} کا بنیادی تصور — وہ فرق جو کتاب میں واضح نہیں ہے۔
     ۲۔ بچوں کی عام غلطی — وہ کیا غلط سمجھتے ہیں اور کیوں۔
     ۳۔ Quick demo: ایک فوری board move جو استاد آج کلاس میں استعمال کر سکتی ہے۔
 
 TODAY'S GOAL + KEY WORDS (two boxes side by side):
-  Left box (${color} background, white text): heading "Today's Goal", body in Nastaliq: ${topic} کا ایک واضح learning objective۔
-  Right box (amber #fbbf24, navy text): heading "Key Words", body: 4 vertical key terms from ${topic} (Nastaliq with English in brackets where useful).
+  Left box (${color} background, white text): heading "${L.todaysGoal}", body in Nastaliq: ${topic} کا ایک واضح learning objective۔
+  Right box (amber #fbbf24, navy text): heading "${L.keyWords}", body: 4 vertical key terms from ${topic} (Nastaliq with English in brackets where useful).
 
 I DO · HOW IT WORKS (white background, blue #2563eb section header):
-  Heading "I Do · How It Works · 6 min" in blue bold.
+  Heading "${L.iDo} · ${L.howItWorks} · 6 min" in blue bold.
   Generate EXACTLY 3 numbered step panels stacked vertically. Do not add additional panels.
   Each step in Nastaliq with embedded English content words (numbers, formulas, English vocabulary).
 
 BOARD WORK (dark navy #1e293b chalkboard-style box at bottom, full width, white chalk-style text):
-  Header in amber: "Write on the Board"
+  Header in amber: "${L.writeOnBoard}"
   3 examples in Nastaliq with FULL answer keys (never "leave blank for students"). Use Hindu-Arabic numerals (0-9) for math.
 
 CRITICAL: This page MUST be about ${topic} (Class ${grade} ${subject}). Do not render content about any other topic.
@@ -490,25 +562,25 @@ HEADER BAR (dark navy #1e293b, full width):
   Right: small amber pill containing "Grade ${grade} · 35 min".
 
 WE DO · GUIDED PRACTICE (top section, light tinted ${color} card with ${color} header bar):
-  Heading "We Do · Practice Together · 10 min" in white on ${color}.
+  Heading "${L.weDo} · ${L.practiceTogether} · 10 min" in white on ${color}.
   A worked example in Nastaliq with full step-by-step solution. The teacher gets the answer key on hand.
   Below the example, instruction strip in dark navy Nastaliq about how to call a student to the board.
 
 YOU DO · YOUR TURN (middle section, white background, amber #fbbf24 header bar):
-  Heading "You Do · Your Turn · 12 min" in dark navy bold.
+  Heading "${L.youDo} · ${L.yourTurn} · 12 min" in dark navy bold.
   Instruction in Nastaliq: "اپنی copy میں ${topic} کے بارے میں ۳ مشقیں حل کریں۔"
   Three problems numbered ۱، ۲، ۳ in Nastaliq, with model answers in light gray italic.
 
 DIFFERENTIATION (two boxes side by side):
-  LEFT (amber #fef3c7 fill, "Need Help?" label in amber bold, body in Nastaliq): scaffolding move for struggling students.
-  RIGHT (purple #7c3aed fill, "Challenge!" label in white bold, body in Nastaliq): stretch task for advanced students.
+  LEFT (amber #fef3c7 fill, "${L.needHelp}" label in amber bold, body in Nastaliq): scaffolding move for struggling students.
+  RIGHT (purple #7c3aed fill, "${L.challengeBang}" label in white bold, body in Nastaliq): stretch task for advanced students.
 
 EXIT TICKET (light blue #dbeafe card, full width):
-  Heading "Before You Go · Exit Ticket · 4 min" in dark navy bold.
+  Heading "${L.beforeYouGo} · ${L.exitTicket} · 4 min" in dark navy bold.
   Single MCQ in Nastaliq about ${topic} with 4 answer chips. Correct chip highlighted green #059669 with white check.
 
 COACHING CORNER (light amber #fef3c7 strip at bottom, full width):
-  Heading "Coaching Corner" in dark navy bold.
+  Heading "${L.coachingCorner}" in dark navy bold.
   Body in Nastaliq: lesson-specific reflection tied to ${topic} — what to watch for, common mistake, 2-min reteach move.
   Right side: small green WhatsApp icon next to text in Nastaliq: "آج کا lesson record کر کے Rumi کو بھیجیں — personalised feedback ملے گا۔${coachingContactSuffixUr(resolvedCoachingNumber)}"
 
@@ -517,4 +589,15 @@ CRITICAL: This page MUST be about ${topic}. Do not render content about any othe
 IMPORTANT: Render IMAGE 1 pixel-for-pixel as brand mark in top-left header. Bottom 4% must be empty. Hindu-Arabic numerals (0-9) for math. Title Case for English headings.${ocrText ? `\n\nTextbook page content (for grounding):\n${ocrText.slice(0, 1500)}` : ''}`;
 }
 
-module.exports = { buildPage1Prompt, buildPage2Prompt, colorFor, structuralLabelsFor, coachingNumberFor };
+module.exports = {
+  buildPage1Prompt,
+  buildPage2Prompt,
+  colorFor,
+  structuralLabelsFor,
+  coachingNumberFor,
+  // Customization footholds: single-source section structure + theme.
+  SECTION_REGISTRY,
+  sectionsForPage,
+  sectionLabel,
+  THEME,
+};
