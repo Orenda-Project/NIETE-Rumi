@@ -1,18 +1,10 @@
 [
   {
     "cycle": [
-      "bot/shared/services/coaching/frameworks/oecd-framework.js",
-      "bot/shared/services/coaching/frameworks/framework-registry.js",
-      "bot/shared/constants/scoring.constants.js"
-    ],
-    "reason": "Pre-existing constants↔framework cycle. scoring.constants.js requires the framework registry to look up the active framework at runtime; the registry lazy-requires each framework module via a factory function. Works because the lazy require defers until call time. A true fix would lift the constants out of the framework path; out of scope here."
-  },
-  {
-    "cycle": [
       "bot/shared/services/coaching/report-renderers/renderer-registry.js",
       "bot/shared/services/pdf-report.service.js"
     ],
-    "reason": "Introduced by bd-1843 (the hero report). pdf-report.service.js eager-requires the renderer-registry to dispatch; the registry lazy-requires pdf-report.service.js inside pdfkitRenderer.render() and htmlRenderer.render(). Works because the lazy require defers until render time."
+    "reason": "renderer-registry.js eager-requires pdf-report.service.js to dispatch; pdf-report.service.js lazy-requires renderer-registry.js inside pdfkitRenderer.render() and htmlRenderer.render(). Works because the lazy require defers until render time."
   },
   {
     "cycle": [
