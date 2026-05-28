@@ -572,8 +572,25 @@ class ReportGeneratorService {
     logToFile('Report transformer dispatched', { frameworkKey, hasPriorSessions });
     const reportData = transformer(session, teacherName, analysisForTransformer, hasPriorSessions);
 
-    // Generate PDF using our new service
-    const pdfBuffer = await PDFReportService.generateClassroomObservationReport(reportData);
+    // Attach the inputs the hero renderer needs so it can reach them off
+    // reportData (the PDFKit / HTML renderers ignore these). Kept as
+    // underscored fields to make the side-channel intent explicit.
+    reportData._heroInput = {
+      session,
+      analysis: analysisForTransformer,
+      opts: {
+        teacherName,
+        language: enhancedAnalysis.language || session.transcript_language || 'en',
+        commitmentAction: '', // commitment-card action is sent separately; the hero
+                              // template tolerates an empty tryNext gracefully.
+      },
+    };
+
+    // Generate report through the renderer registry. The hero renderer returns
+    // { png, caption } (image+caption delivery via WhatsAppService); the PDFKit
+    // and HTML renderers return Buffer. The caller normalises both shapes.
+    const rendered = await PDFReportService.generateClassroomObservationReport(reportData);
+    const pdfBuffer = Buffer.isBuffer(rendered) ? rendered : (rendered && rendered.png);
 
     logToFile('PDF report generated', {
       coachingSessionId: session.id,
