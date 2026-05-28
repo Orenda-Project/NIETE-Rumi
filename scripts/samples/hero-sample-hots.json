@@ -1,0 +1,49 @@
+{
+  "session": {
+    "user_id": "00000000-0000-0000-0000-000000000002",
+    "created_at": "2026-05-16T10:00:00Z",
+    "transcript_language": "en",
+    "transcript_text": "Teacher: Today we're reading the passage \"The Wise Old Owl\" together. After we read, I want you to think about why the owl said what she said. Let's start. (Reads passage.) Now, who can tell me what the owl wanted the other birds to learn? Student: To be quiet and listen more. Teacher: Good. But why? What was the owl really trying to teach them? Student: Maybe because they were too loud. Teacher: Interesting. Anyone else? Student: I think she wanted them to think before they speak. Teacher: Why do you say that? Student: Because in the story, the owl listens for a long time before saying anything. Teacher: Wonderful observation! Now I want you to work in pairs and write down ONE thing you would tell a younger brother or sister from this story. (Pairs work for 4 minutes.) Teacher: Let's hear some. Student: I would tell my brother that listening is more important than talking. Teacher: And how did you reach that conclusion? Student: Because the owl was wise and she listened. So if you want to be wise, listen. Teacher: That's a strong argument. Anyone disagree? Student: I think talking is also important, but maybe choosing the right time. Teacher: Tell me more about that. Student: Like the owl waited until the others stopped fighting. So she chose her moment. Teacher: So your point is that wisdom is not just listening, it's choosing when to speak. Student: Yes. Teacher: That's a deep idea. Let's all think about it for a moment. (Pause.)"
+  },
+  "analysis": {
+    "framework": "hots",
+    "language": "en",
+    "topic": "The Wise Old Owl",
+    "scores": {
+      "overall_percentage": 78,
+      "overall_marks": 38,
+      "overall_max_marks": 48
+    },
+    "areas": {
+      "classroom_environment":   { "area_score": 8, "area_max": 9 },
+      "lesson_planning":         { "area_score": 7, "area_max": 9 },
+      "instructional_strategies":{ "area_score": 10, "area_max": 12 },
+      "student_engagement":      { "area_score": 7, "area_max": 9 },
+      "assessment_feedback":     { "area_score": 6, "area_max": 9 }
+    },
+    "strengths": [
+      { "title": "Open-ended questioning that invited multiple readings of the text" },
+      { "title": "Genuine pause to let a student's argument breathe" }
+    ],
+    "growth_opportunities": [
+      {
+        "area": "Inviting peer-to-peer engagement with disagreement",
+        "rationale": "When one student offered a counter-argument, the teacher engaged but could have invited another peer to weigh in before resolving."
+      }
+    ],
+    "reflective_corpus": {
+      "lesson_throughline_en": "Asha's questioning pulled students beyond the surface meaning of the story into genuine higher-order reasoning — a child's argument about choosing-when-to-speak was the lesson's peak.",
+      "significant_moments": [
+        { "what_happened": "Student moved from \"listening is important\" to \"choosing when to speak is wisdom\" — a genuine synthesis.", "significance_reason_en": "Higher-order thinking surfaced organically; teacher's \"tell me more\" was the catalyst." },
+        { "what_happened": "Teacher asked \"how did you reach that conclusion?\" instead of \"that's right\".", "significance_reason_en": "Reasoning was being explicitly modelled as the goal, not the answer." },
+        { "what_happened": "Pair-work prompt asked students to apply the lesson to a younger sibling — anchoring abstract idea in their own life.", "significance_reason_en": "Strong transfer prompt; built personal stakes into the analysis." }
+      ]
+    },
+    "executive_summary": "A strong Class 5 reading comprehension lesson. The teacher's questioning consistently pushed for reasoning, not just recall — and one student produced a genuine synthesis (wisdom is choosing when to speak). The next horizon: when a student offers a counter-view, invite a peer rebuttal before the teacher responds."
+  },
+  "opts": {
+    "teacherName": "Asha",
+    "commitmentAction": "Next class, when one student offers a counter-view to another's reading, ask the room \"who agrees, who disagrees, why?\" before stepping in.",
+    "language": "en"
+  }
+}

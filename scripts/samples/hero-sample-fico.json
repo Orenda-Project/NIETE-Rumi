@@ -1,0 +1,49 @@
+{
+  "session": {
+    "user_id": "00000000-0000-0000-0000-000000000004",
+    "created_at": "2026-05-18T10:00:00Z",
+    "transcript_language": "en",
+    "transcript_text": "Teacher: Class, please take out your fractions notebook. Today's goal is to understand equivalent fractions. By the end of class, you should be able to find an equivalent fraction for any fraction I give you. Let's start with a warm-up. What is one-half? Student: 1 over 2. Teacher: Right. Now, what if I cut the same pizza into four pieces? How many pieces would equal half? Student: Two pieces. Teacher: Excellent! So one-half equals two-fourths. Let me write that on the board: 1/2 = 2/4. Both represent the same amount. Now I have a question for the whole class. If we cut the pizza into eight pieces, how many pieces would equal half? Take 30 seconds to think with your partner. (Pair-talk for 30 seconds.) Teacher: Hands up. Student: Four pieces! Teacher: How did you figure that out? Student: We doubled. From four to eight, we doubled, so we doubled the two to four. Teacher: Brilliant reasoning. Let me write that on the board. So 1/2 = 2/4 = 4/8. Now, who can give me another equivalent fraction for one-half? Student: 5/10. Teacher: Yes! How did you get that? Student: I multiplied 1 by 5 and 2 by 5. Teacher: Great. This is the key idea. To find an equivalent fraction, you multiply both the top and the bottom by the same number. Now let's practice. Open your notebook and write three equivalent fractions for two-thirds. (Students work independently for 3 minutes; teacher walks around checking work, sits with one student who is stuck.) Teacher: Ravi, what did you write? Student: 4/6, 6/9, and 8/12. Teacher: Beautiful. Now, Aisha, can you tell me why these are equivalent?"
+  },
+  "analysis": {
+    "framework": "fico",
+    "language": "en",
+    "topic": "Equivalent Fractions",
+    "scores": {
+      "overall_percentage": 75,
+      "overall_marks": 63,
+      "overall_max_marks": 84
+    },
+    "domains": {
+      "lesson_structure":     { "domain_score": 14, "domain_max": 16 },
+      "instructional_quality":{ "domain_score": 16, "domain_max": 20 },
+      "classroom_climate":    { "domain_score": 13, "domain_max": 16 },
+      "student_engagement":   { "domain_score": 11, "domain_max": 16 },
+      "assessment_feedback":  { "domain_score": 9,  "domain_max": 16 }
+    },
+    "strengths": [
+      { "title": "Crystal-clear lesson goal stated up front" },
+      { "title": "Excellent use of \"how did you figure that out?\" to surface reasoning" }
+    ],
+    "growth_opportunities": [
+      {
+        "area": "Formative checks for the silent half of the class",
+        "rationale": "Pair-talk surfaced one strong reasoner; consider cold-calling a non-volunteer to widen the formative check."
+      }
+    ],
+    "reflective_corpus": {
+      "lesson_throughline_en": "Asha consistently asked \"how did you figure that out?\" — making reasoning, not the answer, the lesson's currency. Students reciprocated.",
+      "significant_moments": [
+        { "what_happened": "Student explained \"we doubled, so we doubled\" — a generalisation of the equivalent-fraction rule.", "significance_reason_en": "A student's own articulation of the underlying rule, before the teacher named it." },
+        { "what_happened": "Teacher sat with a stuck student during independent work.", "significance_reason_en": "Differentiated support delivered quietly, without pulling class attention." },
+        { "what_happened": "Aisha was asked to explain the WHY behind Ravi's answer.", "significance_reason_en": "Asking one student to justify another's work; powerful peer-engagement move." }
+      ]
+    },
+    "executive_summary": "A high-quality Class 6 maths lesson on equivalent fractions. The teacher used the \"how did you figure that out?\" prompt consistently, turning every right answer into a reasoning moment. The lesson would deepen further by cold-calling the silent half of the class during pair-talk shares."
+  },
+  "opts": {
+    "teacherName": "Asha",
+    "commitmentAction": "Next class, after every pair-talk, cold-call one non-volunteer before taking hands so the silent half of the room gets a turn at reasoning out loud.",
+    "language": "en"
+  }
+}

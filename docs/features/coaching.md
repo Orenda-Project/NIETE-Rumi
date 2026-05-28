@@ -4,7 +4,21 @@
 
 > The best time to coach a teacher is right after they teach. Rumi turns a class **audio recording** into a scored, framework-based coaching report — and a spoken reflective conversation — within minutes.
 
-📄 **See a sample report:** [coaching-report-sample.pdf](../samples/coaching-report-sample.pdf) — the MEWAKA "hero" celebration report (the current shipped design), rendered by the actual pipeline (`node scripts/render-sample-report.js`).
+📄 **See sample reports:** [hero-report-oecd.png](../samples/hero-report-oecd.png) · [hots](../samples/hero-report-hots.png) · [teach](../samples/hero-report-teach.png) · [fico](../samples/hero-report-fico.png) · [mewaka](../samples/hero-report-mewaka.png) — one per shipped framework, all rendered by the live pipeline:
+
+```bash
+# Default — offline; stubs the narrative LLM with a canned celebration payload so
+# you can regenerate without any API keys. The Playwright + sharp pipeline runs
+# for real.
+node scripts/render-sample-hero-report.js oecd
+node scripts/render-sample-hero-report.js mewaka
+
+# Live — calls the configured narrative LLM (needs OPENROUTER_API_KEY or
+# OPENAI_API_KEY). Useful to verify your live setup.
+node scripts/render-sample-hero-report.js oecd --live
+```
+
+The sample data is hand-authored under [`scripts/samples/`](../../scripts/samples/) — never pulled from a real DB — so no teacher PII is involved. There's also a legacy [coaching-report-sample.pdf](../samples/coaching-report-sample.pdf) (PDFKit fallback design, rendered via `node scripts/render-sample-report.js`).
 
 ## What it is
 

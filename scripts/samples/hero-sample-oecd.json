@@ -1,0 +1,47 @@
+{
+  "session": {
+    "user_id": "00000000-0000-0000-0000-000000000001",
+    "created_at": "2026-05-15T10:00:00Z",
+    "transcript_language": "en",
+    "transcript_text": "Teacher: Good morning class! Today we're going to learn about place value. Can anyone tell me what place value means? Student: It's the value of a digit. Teacher: Great answer! What about the number 32? What's the value of the 3? Student: Thirty. Teacher: Excellent! And what about 23? Student: Twenty-three. Teacher: Yes! Now let's try a harder one. What's the value of the 5 in 458? Student: Five hundred. Teacher: Hmm, let me explain again. The 5 is in the tens place, so it's worth fifty. Let's all say that together: fifty. Class: Fifty. Teacher: Now, who can tell me the value of the 4 in 458? Student: Four hundred. Teacher: Right! And the 8? Class: Eight. Teacher: Let's try some practice. Write down the value of the 7 in 374. Student: Seventy. Teacher: Good. What about the 2 in 207? Student: Twenty. Teacher: Actually, the 2 is in the hundreds place. So it's two hundred. Let me draw a place value chart on the board. Hundreds, tens, ones. Now, looking at 207, the 2 is under hundreds, the 0 is under tens, and the 7 is under ones. Does that make sense? Class: Yes, teacher. Teacher: Let's try another. What's the value of the 6 in 462?"
+  },
+  "analysis": {
+    "framework": "oecd",
+    "language": "en",
+    "topic": "Place Value",
+    "scores": {
+      "overall_percentage": 64,
+      "overall_marks": 86,
+      "overall_max_marks": 132,
+      "goal1_total": 18,
+      "goal2_total": 16,
+      "goal3_total": 28,
+      "goal4_total": 4,
+      "goal5_total": 20
+    },
+    "strengths": [
+      { "title": "Warm, encouraging tone with the class" },
+      { "title": "Patient re-explanation when students miss the concept" }
+    ],
+    "growth_opportunities": [
+      {
+        "area": "Wait time before responding to incorrect answers",
+        "rationale": "Several students answered before others had a chance to think; rephrasing immediately after a wrong answer may have closed the door on peer reasoning."
+      }
+    ],
+    "reflective_corpus": {
+      "lesson_throughline_en": "Children give confident but incorrect place-value answers and the teacher quickly re-explains the rule rather than surfacing the misconception.",
+      "significant_moments": [
+        { "what_happened": "Student said the value of 5 in 458 was five hundred; teacher immediately corrected to fifty.", "significance_reason_en": "A clear place-value reversal misconception surfaced; quick correction missed the chance to explore why the child thought that." },
+        { "what_happened": "Student answered \"twenty\" for the 2 in 207; teacher gently corrected to two hundred and drew the place-value chart.", "significance_reason_en": "Same reversal pattern — the chart was a strong scaffold but came after the wrong answer was given." },
+        { "what_happened": "Whole class chorused \"fifty\" together when the teacher modelled it.", "significance_reason_en": "Choral response confirmed compliance but not individual understanding." }
+      ]
+    },
+    "executive_summary": "A warm, structured Year-3 maths lesson on place value. Asha brought clear scaffolding (the on-the-board place-value chart) and patient re-explanation. Several students showed a consistent reversal misconception (reading the digit-value as if it were the digit times ten, not its place-value); the lesson would gain depth from a brief pause after each wrong answer to ask what the student was thinking."
+  },
+  "opts": {
+    "teacherName": "Asha",
+    "commitmentAction": "Next class, after any wrong place-value answer, pause for three silent beats and ask \"what made you say that?\" before correcting.",
+    "language": "en"
+  }
+}
