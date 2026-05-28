@@ -1,0 +1,50 @@
+{
+  "session": {
+    "user_id": "00000000-0000-0000-0000-000000000005",
+    "created_at": "2026-05-19T10:00:00Z",
+    "transcript_language": "sw",
+    "transcript_text": "Mwalimu: Habari za asubuhi wanafunzi! Leo tutajifunza kuhusu wanyama wa porini. Lengo letu leo ni kutambua aina mbalimbali za wanyama wanaopatikana Tanzania. Je, mtu yeyote anaweza kunipa mfano wa mnyama wa porini? Mwanafunzi: Simba! Mwalimu: Vizuri. Simba anapatikana wapi? Mwanafunzi: Serengeti. Mwalimu: Hongera. Simba ni mnyama wa porini ambaye anapatikana katika hifadhi za Taifa za Tanzania kama Serengeti. Mwanafunzi mwingine, taja mnyama mwingine. Mwanafunzi: Tembo. Mwalimu: Tembo ni mnyama mkubwa sana. Anaishi wapi? Mwanafunzi: Katika msitu. Mwalimu: Ndio, na pia katika hifadhi. Sasa, hebu tufanye kazi katika makundi ya watatu. Kila kundi litapata kadi. Kwenye kadi kuna picha ya mnyama. Kazi yenu ni kuchora mnyama huyo kwenye karatasi yenu na kuandika maneno mawili kuhusu mnyama huyo. (Wanafunzi wanafanya kazi kwa dakika tano.) Mwalimu: Kundi la kwanza, mlikuwa na mnyama gani? Mwanafunzi: Twiga. Mwalimu: Tafadhali, onyesheni picha yenu na mtuambie kuhusu twiga. Mwanafunzi: Twiga ana shingo ndefu. Anakula majani ya miti mirefu. Mwalimu: Vizuri sana! Sasa, swali kwa darasa zima — kwa nini twiga ana shingo ndefu? Mwanafunzi: Kwa sababu anataka kufikia majani ya juu. Mwalimu: Hongera! Hii ni adaptation — kukabiliana na mazingira."
+  },
+  "analysis": {
+    "framework": "mewaka",
+    "language": "sw",
+    "topic": "Wanyama wa Porini",
+    "scores": {
+      "overall_percentage": 71,
+      "overall_marks": 53,
+      "overall_max_marks": 75
+    },
+    "domains": {
+      "introduction":         { "domain_score": 5,  "domain_max": 6 },
+      "content_delivery":     { "domain_score": 18, "domain_max": 24 },
+      "teaching_methods":     { "domain_score": 15, "domain_max": 21 },
+      "learner_involvement":  { "domain_score": 7,  "domain_max": 9 },
+      "classroom_management": { "domain_score": 6,  "domain_max": 9 },
+      "conclusion":           { "domain_score": 2,  "domain_max": 6 }
+    },
+    "strengths": [
+      { "title_sw": "Lengo la somo lilikuwa wazi kwa wanafunzi tangu mwanzo" },
+      { "title_sw": "Kazi za vikundi zilibaki sahihi na zenye mwelekeo" }
+    ],
+    "growth_opportunities": [
+      {
+        "area_sw": "Hitimisho la somo lilikuwa fupi mno",
+        "rationale_sw": "Somo lilipoisha bila kufanya muhtasari wa pamoja, wanafunzi hawakupata fursa ya kuonesha walichojifunza."
+      }
+    ],
+    "reflective_corpus": {
+      "lesson_throughline_en": "Asha taught Tanzanian wildlife through a strong introduction + group-work pattern; the lesson's wrap-up was the weakest part — class ended without a synthesis.",
+      "significant_moments": [
+        { "what_happened": "Student articulated WHY a giraffe has a long neck — to reach high leaves.", "significance_reason_en": "Genuine adaptive-reasoning surfaced; the teacher named it as \"adaptation\"." },
+        { "what_happened": "Each group both drew and verbally explained their assigned animal.", "significance_reason_en": "Multi-modal expression: visual + oral." },
+        { "what_happened": "Lesson ended without a recap or exit question.", "significance_reason_en": "Conclusion domain (F) was the gap; the lesson stopped, didn't land." }
+      ]
+    },
+    "executive_summary_sw": "Somo zuri la sayansi (Darasa la 4) lenye lengo wazi na kazi za vikundi zilizofanikiwa. Wanafunzi walifika hadi kueleza dhana ya \"adaptation\" — mafanikio makubwa. Eneo la kuboresha: hitimisho — somo lilihitaji muhtasari mfupi wa pamoja ili kuthibitisha walichojifunza."
+  },
+  "opts": {
+    "teacherName": "Asha",
+    "commitmentAction": "Darasa lijalo, dakika tano kabla ya mwisho, uliza kila kundi liseme jambo MOJA walilojifunza — hitimisho hili linalinda yale yote uliyofundisha leo.",
+    "language": "sw"
+  }
+}

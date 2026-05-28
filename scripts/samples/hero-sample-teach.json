@@ -1,0 +1,48 @@
+{
+  "session": {
+    "user_id": "00000000-0000-0000-0000-000000000003",
+    "created_at": "2026-05-17T10:00:00Z",
+    "transcript_language": "en",
+    "transcript_text": "Teacher: Good morning everyone! Today we're going to learn about the water cycle. Has anyone seen rain recently? Class: Yes, teacher! Teacher: Where does rain come from? Student: From the clouds. Teacher: Right! And how do clouds form? Student: From water. Teacher: From water that does what? (Pause, students think.) Student: From water that goes up? Teacher: Yes, exactly! It's called evaporation. Let's all say it: evaporation. Class: Evaporation. Teacher: Now, who can tell me what makes water go up from the ground? Student: The sun! Teacher: Excellent. The sun heats the water and it rises as vapor. Let me draw this on the board. (Draws.) So we have sun heating the lake, water rising as vapor, then forming clouds, and then falling as rain. This is the water cycle. Now I want you to work in groups of three. Each group will get a card. On the card is one stage of the cycle. Your job is to draw it and explain it to the class. (Groups work for 5 minutes.) Teacher: Group one, what stage did you have? Student: Evaporation. Teacher: Show us your drawing and explain it. Student: This is the lake, and the arrows show water going up because the sun is hot. Teacher: Brilliant! Class, what questions do you have for group one? Student: What if the sun is not there? Teacher: Group one, can you answer that? Student: If the sun is not there, the water stays in the lake. Teacher: Beautiful answer. Let's move on to group two."
+  },
+  "analysis": {
+    "framework": "teach",
+    "language": "en",
+    "topic": "The Water Cycle",
+    "scores": {
+      "overall_percentage": 72,
+      "overall_marks": 36,
+      "overall_max_marks": 50
+    },
+    "areas": {
+      "classroom_culture": { "area_score": 8, "area_max": 10 },
+      "instruction":       { "area_score": 14, "area_max": 20 },
+      "socioemotional":    { "area_score": 10, "area_max": 15 }
+    },
+    "time_on_task": { "score": 4 },
+    "strengths": [
+      { "title": "Strong group-work structure with student-to-student question time" },
+      { "title": "Multiple representations: oral explanation + board diagram + group drawings" }
+    ],
+    "growth_opportunities": [
+      {
+        "area": "Differentiation for slower-finishing groups",
+        "rationale": "Two groups finished early and waited; a stretch question or peer-tutor role would have used that time."
+      }
+    ],
+    "reflective_corpus": {
+      "lesson_throughline_en": "Asha turned a recall-style topic (water cycle) into a peer-explanation lesson — every group both drew and defended their stage to the class.",
+      "significant_moments": [
+        { "what_happened": "Student asked \"what if the sun is not there?\" — a genuine probing question.", "significance_reason_en": "Peer questioning shows the room felt safe enough for curiosity." },
+        { "what_happened": "Group one's explanation \"the arrows show water going up because the sun is hot\" captured the causal mechanism.", "significance_reason_en": "Students were doing the explaining, not just receiving it." },
+        { "what_happened": "Two groups finished early and waited quietly.", "significance_reason_en": "Off-task downtime; a differentiation opportunity missed." }
+      ]
+    },
+    "executive_summary": "A well-structured Class 4 science lesson. The group-work format made students into teachers of their stage of the water cycle, and peer questioning surfaced genuine curiosity. The growth edge is differentiation: faster groups need stretch tasks or peer-tutor roles."
+  },
+  "opts": {
+    "teacherName": "Asha",
+    "commitmentAction": "Next class, before group work starts, name a \"stretch task\" on the board that faster groups should tackle when they finish their main task.",
+    "language": "en"
+  }
+}
