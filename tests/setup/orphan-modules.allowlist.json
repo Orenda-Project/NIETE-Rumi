@@ -1,54 +1,10 @@
 [
   {
     "file": "bot/shared/services/bandit.service.js",
-    "reason": "Thompson-sampling multi-armed bandit. Documented in .claude/skills/ab-testing as an opt-in customization pattern; no live caller in OSS. A cloner enabling A/B testing wires it themselves. KEEP."
-  },
-  {
-    "file": "bot/shared/services/chart.service.js",
-    "reason": "PENDING DELETION in Wave 3 PR β — confirmed-dead chart generation utility, no live caller."
-  },
-  {
-    "file": "bot/shared/services/coaching/coaching-flow-helpers.service.js",
-    "reason": "PENDING DELETION in Wave 3 PR β — confirmed-dead coaching helper, superseded by inline helpers in coaching-orchestrator."
-  },
-  {
-    "file": "bot/shared/services/password-reset.service.js",
-    "reason": "PENDING DELETION in Wave 3 PR β (after a second dashboard/EJS grep) — portal-only feature with no live caller in the bot or dashboard entry points."
-  },
-  {
-    "file": "bot/shared/services/pdf-report-pdfmake.service.js",
-    "reason": "PENDING DELETION in Wave 3 PR β — confirmed-dead alternative-PDF utility (pdfmake-based), superseded by the PDFKit + Playwright paths."
-  },
-  {
-    "file": "bot/shared/services/pdf.service.js",
-    "reason": "PENDING DELETION in Wave 3 PR β — confirmed-dead PDF utility, no live caller."
-  },
-  {
-    "file": "bot/shared/utils/language-validator.js",
-    "reason": "PENDING DELETION in Wave 3 PR β — confirmed-dead language-validation utility."
-  },
-  {
-    "file": "bot/shared/utils/punjabi-tone.js",
-    "reason": "PENDING DELETION in Wave 3 PR β — confirmed-dead Punjabi-tone utility."
-  },
-  {
-    "file": "bot/shared/utils/roman-urdu.js",
-    "reason": "PENDING DELETION in Wave 3 PR β — confirmed-dead Roman-Urdu utility."
-  },
-  {
-    "file": "bot/shared/utils/sticker-converter.js",
-    "reason": "PENDING DELETION in Wave 3 PR β — confirmed-dead sticker-conversion utility."
-  },
-  {
-    "file": "bot/shared/utils/style-policy.js",
-    "reason": "PENDING DELETION in Wave 3 PR β — confirmed-dead style-policy utility."
-  },
-  {
-    "file": "bot/shared/utils/voice-script.js",
-    "reason": "PENDING DELETION in Wave 3 PR β — confirmed-dead voice-script utility."
+    "reason": "Thompson-sampling multi-armed bandit. Documented in .claude/skills/ab-testing as an opt-in customization pattern; no live caller in OSS. A cloner enabling A/B testing wires it themselves."
   },
   {
     "file": "bot/shared/config/system-messages.js",
-    "reason": "PENDING DELETION in Wave 3 PR β (after a second grep) — config file with no live caller."
+    "reason": "Customization seam — referenced in docs/agent-customization.md as the file an adopter translates to add a new language. No live caller until the adopter wires it; kept as the documented opt-in extension point."
   }
 ]
