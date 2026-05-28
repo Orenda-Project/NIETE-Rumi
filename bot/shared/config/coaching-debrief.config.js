@@ -5,17 +5,23 @@
  * COACHING MODEL, the meta-prompt rules/avoid lists, and the number of
  * reflective questions asked in a debrief.
  *
- * Lifted out of gpt5-mini.service.js (was hardcoded inline in the
- * reflective-question meta-prompt) so the coaching model can be swapped
- * or localized without touching service logic. The persona/examples
- * continue to live in language-config.js (reflectiveQuestions).
- *
  * NUM_REFLECTIVE_QUESTIONS is the single source for:
  *  - the "< N" loop bound in reflective-conversation.service.js
  *  - the "question X of N" string in the meta-prompt
  *  - the number of few-shot example arms wired into the meta-prompt
  * Changing it here MUST keep all three in lockstep (enforced by
  * tests/coaching/coaching-debrief-config.test.js).
+ *
+ * NOTE — `coachingModel`, `rules`, and `avoid` below feed the LEGACY
+ * one-shot reflective-question prompt in `gpt5-mini.service.js`
+ * (`generateReflectiveQuestion`). The v12 reflective chain
+ * (`extractReflectiveCorpus` + `_generateReflectiveQuestionV12`)
+ * does NOT consume these — its prompts live in
+ * `coaching/reflective-questions/`. Both paths currently coexist; the
+ * legacy fields stay because `reflective-conversation.service.js` still
+ * dispatches to `generateReflectiveQuestion` and the existing test
+ * `coaching-debrief-config.test.js` asserts their shape. The consumer
+ * flip to the v12 chain is a follow-up PR.
  */
 
 // Number of reflective questions in a debrief conversation.
