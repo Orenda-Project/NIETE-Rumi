@@ -19,8 +19,26 @@ const { logToFile } = require('../utils/logger');
  * Includes OpenAI TTS fallback for all languages
  */
 class ElevenLabsService {
-  // Initialize OpenAI client as a static property for use in static methods
-  static openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+  // OpenAI client is lazy-initialized. Constructing it at module-load time
+  // threw `OpenAIError: Missing credentials` whenever OPENAI_API_KEY was
+  // unset, which crashed the bot at cold-boot even though OPENAI_API_KEY is
+  // documented as an optional key (used here only as a TTS fallback when
+  // ElevenLabs is unreachable). With lazy init, the bot boots cleanly without
+  // it; the only call site that needs the key (the OpenAI TTS fallback below)
+  // throws a clear error if invoked without a key set.
+  static _openai = null;
+  static get openai() {
+    if (!ElevenLabsService._openai) {
+      if (!OPENAI_API_KEY) {
+        throw new Error(
+          'OPENAI_API_KEY is required for the ElevenLabs OpenAI-TTS fallback. ' +
+          'Set OPENAI_API_KEY in .env or avoid calling the fallback path.'
+        );
+      }
+      ElevenLabsService._openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+    }
+    return ElevenLabsService._openai;
+  }
 
   /**
    * Generate speech from text using ElevenLabs (Jessica voice with emotion support)
