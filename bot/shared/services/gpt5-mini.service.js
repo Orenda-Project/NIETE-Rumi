@@ -1303,7 +1303,14 @@ GUIDELINES:
   }
 
   /**
-   * Generate context-aware reflective question
+   * @deprecated Use `_generateReflectiveQuestionV12` instead. The live coaching
+   * flow (both `coaching.service.js` and `reflective-conversation.service.js`)
+   * was flipped to the v12 chain in Wave 3 PR δ. This legacy single-shot
+   * generator is kept ONLY so the existing `coaching-debrief-config.test.js`
+   * suite stays green; no live code path calls it. Will be removed in a
+   * follow-up PR once the v12 path has soaked in production.
+   *
+   * Generate context-aware reflective question (legacy one-shot path).
    * @param {object} analysis - Pedagogical analysis object
    * @param {array} conversationHistory - Previous Q&A in this session
    * @param {number} questionNumber - Which question (1-3)
