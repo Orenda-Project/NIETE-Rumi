@@ -8,7 +8,6 @@
  * Separate from Main Bot's SQS worker to avoid interference.
  * Designed to run as standalone service or integrated into Portal.
  *
- * Bead: plt-sqs01, plt-sqs02
  */
 
 const http = require('http');

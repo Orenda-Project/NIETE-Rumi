@@ -1,9 +1,8 @@
 /**
  * Attendance Delivery Service Tests
- * TDD for bd-063
+ * TDD for 
  *
  * Created: January 24, 2026
- * Bead: bd-063
  */
 
 // Mock dependencies before requiring the module

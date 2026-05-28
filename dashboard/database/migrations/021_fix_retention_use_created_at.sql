@@ -3,7 +3,6 @@
 -- This includes ALL users (1,120) instead of only registered users (217)
 -- Author: Claude Code
 -- Date: January 23, 2026
--- Bead: bd-043
 
 -- Drop existing function
 DROP FUNCTION IF EXISTS calculate_retention(TEXT, DATE, DATE);

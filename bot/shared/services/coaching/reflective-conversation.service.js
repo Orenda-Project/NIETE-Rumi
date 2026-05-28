@@ -20,6 +20,7 @@ const CoachingSessionService = require('./coaching-session.service');
 const ElevenLabsService = require('../elevenlabs.service');
 const { getUserLanguage, setUserLanguage } = require('../../utils/language-cache');
 const { TEMP_DIR } = require('../../utils/constants');
+const { NUM_REFLECTIVE_QUESTIONS } = require('../../config/coaching-debrief.config');
 const path = require('path');
 
 class ReflectiveConversationService {
@@ -269,7 +270,7 @@ class ReflectiveConversationService {
       });
 
       // Check if we need more questions
-      if (questionsAnswered < 3) {
+      if (questionsAnswered < NUM_REFLECTIVE_QUESTIONS) {
         // Generate next question
         await this.conductReflectiveConversation(coachingSessionId, from, questionsAnswered + 1);
       } else {

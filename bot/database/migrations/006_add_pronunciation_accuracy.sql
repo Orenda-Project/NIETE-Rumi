@@ -1,5 +1,5 @@
 -- Migration 006: Add pronunciation_accuracy column to reading_assessments
--- Bug #15 Fix: Separate pronunciation accuracy (Azure phoneme-level) from word accuracy (word alignment)
+--  Fix: Separate pronunciation accuracy (Azure phoneme-level) from word accuracy (word alignment)
 -- Date: 2025-11-17
 -- Purpose: Store both accuracy metrics separately for clarity
 

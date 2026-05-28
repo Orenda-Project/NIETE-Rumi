@@ -43,9 +43,9 @@ The coaching pipeline has 5 stages. The framework is injected at stage 3 (analys
 | `bot/shared/constants/scoring.constants.js` | Defines max marks: `CLASSROOM_MARKS_BASE=103`, `DEBRIEF_MARKS=15` | Update totals to match your new rubric |
 | `bot/shared/services/coaching/analysis-processor.service.js` | Orchestrates the analysis pipeline | Usually no changes needed |
 | `bot/shared/services/coaching/reflective-conversation.service.js` | Generates reflective questions based on analysis | May need prompt adjustments if your framework uses different terminology |
-| `bot/shared/services/coaching/report-generator.service.js` | Generates PDF reports from analysis data | Update section headers, chart labels |
-| `bot/shared/services/pdf-report.service.js` | PDF layout and formatting | Update report structure if your rubric has different goals |
-| `bot/shared/services/pdf-report-pdfmake.service.js` | Alternative PDF generator | Same as above |
+| `bot/shared/services/coaching/report-generator.service.js` | Orchestrates report generation from analysis data | Update section headers, chart labels |
+| `bot/shared/services/coaching/report-renderers/renderer-registry.js` | Maps framework → report renderer (the seam) | Register a renderer for a new framework |
+| `bot/shared/services/pdf-report.service.js` | Default PDFKit layout (OECD/HOTS/TEACH/FICO) | Update report structure if your rubric has different goals |
 
 ### Step-by-Step
 
@@ -156,18 +156,25 @@ Replace each OECD goal with the corresponding Teach domain, update the rubric le
 | File | What It Does | What to Change |
 |------|-------------|----------------|
 | `bot/shared/services/reading/passage-generation.service.js` | Generates grade-appropriate reading passages using GPT-4 | Change passage difficulty criteria, word counts, language level |
-| `bot/shared/services/reading/analysis.service.js` | Orchestrates the full analysis pipeline | Update the pipeline steps |
-| `bot/shared/services/reading/fluency.service.js` | Calculates WCPM (Words Correct Per Minute), accuracy | Change metrics (e.g., ASER uses word/paragraph/story levels instead of WCPM) |
+| `bot/shared/services/reading/analysis.service.js` | Orchestrates the full analysis pipeline; `compareToBenchmarks` reads benchmark status from the JS service below | Update the pipeline steps |
+| `bot/shared/config/reading-benchmarks.js` | **Single source of truth for benchmark THRESHOLD NUMBERS** (WCPM percentiles + LCPM benchmarks, by grade × language × season) | **Change the threshold numbers here** — no SQL migration needed |
+| `bot/shared/services/reading/benchmark.service.js` | `getBenchmarkStatus(...)` — config-driven benchmark comparison; mirrors the SQL RPC shape | Usually leave as-is; it just reads the config |
+| `bot/shared/services/reading/fluency.service.js` | Calculates the raw WCPM/accuracy numbers from the transcript (it holds **no** benchmark thresholds) | Change how the metric is *computed*, not the benchmark targets |
 | `bot/shared/services/reading/pronunciation.service.js` | Phoneme-level pronunciation scoring | Adjust scoring criteria |
 | `bot/shared/services/reading/comprehension.service.js` | Comprehension question generation and scoring | Update question types |
 | `bot/shared/services/reading/auto-level-orchestrator.service.js` | Auto-leveling algorithm (adjusts difficulty) | Update leveling logic for your methodology |
 | `bot/shared/services/reading/report.service.js` | Generates reading assessment reports | Update report format and metrics displayed |
 
-### Step-by-Step (ASER Example)
+### Two depths of change: NUMBERS vs SHAPE
+
+- **Threshold NUMBERS** (e.g. "Grade 2 on-track is 80 WCPM, not 68") — this is now a **config edit**. Open `bot/shared/config/reading-benchmarks.js`, change the number, done. `benchmark.service.js` reads the config and `analysis.service.js` `compareToBenchmarks` uses it as the source of truth. The SQL RPCs (`check_benchmark_status` / `check_lcpm_benchmark_status`) and their seed tables (`wcpm_percentiles`, `lcpm_benchmarks`) stay in the DB for integrity and remain available as a documented fallback (set `READING_BENCHMARKS_USE_RPC=1` to route through them) — but the JS config is authoritative for the in-app comparison.
+- **The metric SHAPE** (e.g. WCPM/LCPM → ASER's 5 reading levels) — this is still a **deeper, schema-bound change**. The metric type, the report surface, and the RPC return shape all assume a per-minute fluency number. Moving to ASER levels means changing the computed metric in `fluency.service.js`, the report in `report.service.js`, and the benchmark return shape — not just a config number.
+
+### Step-by-Step (ASER Example — a SHAPE change)
 
 #### Step 1: Change the Assessment Levels
 
-ASER uses 5 levels: Nothing → Letter → Word → Paragraph → Story. In `fluency.service.js`, replace WCPM-based benchmarks with level-based categorization:
+ASER uses 5 levels: Nothing → Letter → Word → Paragraph → Story. In `fluency.service.js` (where the raw metric is computed), replace WCPM-based scoring with level-based categorization:
 
 ```javascript
 // Replace WCPM benchmarks with ASER levels
@@ -196,42 +203,87 @@ cd bot && npm run simulate
 # Then type: /reading test
 ```
 
+#### Step 4: Customize the Pic-to-LP Illustrated Template
+
+The pic-to-LP feature renders a 2-page **illustrated** lesson plan via an image
+model. Its layout and visual style live entirely in
+`bot/shared/services/pic-to-lp/kieai-prompt-builder.service.js`. Three single
+sources of truth control it:
+
+| Surface | Where | What it controls |
+|---------|-------|------------------|
+| **Section structure** | `SECTION_REGISTRY` | The ordered list of LP sections (`Warm-Up → Hook → Big Idea → Today's Goal → Key Words → I Do → Board Work` on page 1; `We Do → You Do → Differentiation → Exit Ticket → Coaching Corner` on page 2), each tagged with its page, label key, and pedagogical `role`. This documents the canonical I-Do/We-Do/You-Do gradual-release order in **one** place. |
+| **Section labels** | `structuralLabelsFor(language)` | The per-language heading text for each section. Both the English-body and Urdu-body prompt templates read labels from here via `sectionLabel(labelKey, language)`, so the two paths cannot drift. Add a language by adding a case (sw/ar already translate every label; en/sd/pa/ur use the English set). |
+| **Visual style** | `THEME` | Palette hexes (`headerNavy`, `amber`), fonts (`latin` + per-script font-rule lines), paper format, and the reference-image role lines. **Rebranding the illustrated LP is editing this one object.** |
+
+To rebrand colors/fonts: edit `THEME`. To rename or reorder sections: edit the
+`SECTION_REGISTRY` order and the matching `structuralLabelsFor` label.
+
+> **Output-contract warning.** The strings emitted by this builder are the
+> literal image-model prompt — changing any value in `THEME`,
+> `structuralLabelsFor`, or the inline template bodies **changes the rendered
+> image**. The structure was deliberately refactored so section order/labels and
+> style are *data* (registry + theme) rather than four hand-aligned copies, but
+> some layout prose still lives inline in the four template literals
+> (`buildPage1Prompt` / `buildPage2Prompt`, English-body + Urdu-body). After any
+> edit, run the conformance guards:
+>
+> ```bash
+> node tests/run.js tests/pic-to-lp/section-registry.test.js
+> node tests/run.js tests/pic-to-lp/flow-options-sync.test.js
+> ```
+>
+> The dropdown options the teacher confirms (grade / subject / language) live in
+> `flow-options.js` and are mirrored into `docs/flows/pic-lp-confirm-flow.json`;
+> the sync test keeps the two in lockstep.
+
 ---
 
 ## 3. Modify Lesson Plan Templates
 
 **Example prompt**: "I want lesson plans to follow our school's 5E model instead of the 9-section structure"
 
+There are **two independent** lesson-plan template surfaces: the **text LP** (the PDF/Gamma "9-section" document — customized by Steps 1-3 here) and the **pic-to-LP** illustrated 2-page plan (customized in [Step 4](#step-4-customize-the-pic-to-lp-illustrated-template) below). They do not share a template.
+
 ### File Map
 
 | File | What It Does |
 |------|-------------|
-| `bot/shared/services/content.service.js` | Contains the lesson plan generation prompt |
-| `bot/shared/services/gpt5-mini.service.js` | Contains `_formatLessonPlanNarrative()` for structured lesson plan parsing |
-| `bot/workers/lesson-plan-generation.worker.js` | Background job that generates lesson plans via Gamma API |
-| `bot/shared/config/capabilities.config.js` | User-facing description of the lesson plan feature |
+| `bot/shared/services/lesson-plan-template.service.js` | **Primary**. The single source of truth for the LP framework: `buildLessonPlanPrompt({ language, grade, subject })` returns `{ inputText, numCards, additionalInstructions, sectionCount }`. The section list, the Gamma card-count hint, and the reinforcement instruction all live here. |
+| `bot/shared/services/content.service.js` | Calls `buildLessonPlanPrompt(...)` from `_generateGammaContent` and wraps it with the language-specific intro/suffix before sending to Gamma. |
+| `bot/workers/lesson-plan-generation.worker.js` | Background job that calls `ContentService.generateLessonPlan(...)` to run the Gamma API. |
+| `bot/shared/config/capabilities.config.js` | User-facing description of the lesson plan feature. |
+
+> **Note on visual layout**: The text path produces a structured Markdown prompt; the **visual layout of the PDF (cards, fonts, images) is owned by Gamma**, not by any in-repo template. There is no local HTML/CSS/PDF template to edit for the text path. `numCards` is a soft Gamma hint for how many slide-cards to lay the document across — it is intentionally distinct from the section count. To control visual appearance, adjust `numCards`, `textOptions`, and `imageOptions` in `content.service.js`, or switch the path to a different renderer.
 
 ### Step-by-Step
 
-#### Step 1: Update the Generation Prompt
+#### Step 1: Edit the framework (one file)
 
-In `content.service.js`, find the lesson plan system prompt. Replace the 9-section structure with your model:
+Open `bot/shared/services/lesson-plan-template.service.js`. Replace the `SECTIONS_BLOCK` literal with your model — e.g. a pure 5E structure:
 
 ```javascript
-// Example: 5E Model
-const LESSON_PLAN_PROMPT = `Generate a lesson plan using the 5E instructional model:
-1. Engage - Hook activity to capture interest
-2. Explore - Hands-on investigation
-3. Explain - Direct instruction and concept clarification
-4. Elaborate - Extension activities
-5. Evaluate - Assessment of learning
+const SECTIONS_BLOCK = `## 1. ENGAGE
+- Hook activity to capture interest
 
-Format as a structured document with clear timing for each phase.`;
+## 2. EXPLORE
+- Hands-on investigation
+
+## 3. EXPLAIN
+- Direct instruction and concept clarification
+
+## 4. ELABORATE
+- Extension activities
+
+## 5. EVALUATE
+- Assessment of learning`;
 ```
 
-#### Step 2: Update the Structured Parser
+`SECTION_COUNT` is **derived** from the headings (it counts `## N.` lines), and `additionalInstructions` quotes that same count — so changing the section list automatically keeps the "include all N sections" instruction in sync. There is no second place to update.
 
-In `gpt5-mini.service.js`, update `_formatLessonPlanNarrative()` to handle your new structure's JSON keys.
+#### Step 2: (Optional) Adjust the Gamma layout hint
+
+If your new structure wants a different number of slide-cards, change `NUM_CARDS` in the same file. Leave it as-is to preserve current behavior.
 
 #### Step 3: Update Capability Description
 
@@ -243,6 +295,8 @@ description: {
   // ... other languages
 }
 ```
+
+> Path selection (which LP a text request gets) is handled by a synchronous intercept in `text-message.handler.js`, documented in [LP_PATHS.md](LP_PATHS.md) — there is no separate router service.
 
 ---
 
@@ -429,13 +483,16 @@ case 'HOMEWORK_CHECK':
 
 | File | What to Change |
 |------|---------------|
-| `bot/shared/services/reading/fluency.service.js` | WCPM benchmark tables |
+| `bot/shared/config/reading-benchmarks.js` | **The WCPM percentile + LCPM benchmark NUMBERS** (by grade × language × season). This is the single source of truth. |
+| `bot/shared/services/reading/benchmark.service.js` | The comparison logic (percentile banding, on-track rule). Usually leave as-is. |
 | `bot/shared/services/reading/auto-level-orchestrator.service.js` | Level progression thresholds |
 | `bot/shared/services/reading/report.service.js` | Benchmark display in reports |
 
 ### What to Change
 
-Find the benchmark constants (WCPM targets by grade level) in `fluency.service.js` and replace with your regional norms. The auto-level orchestrator uses these benchmarks to decide when to level up/down a student.
+Open `bot/shared/config/reading-benchmarks.js` and replace the threshold numbers (`WCPM_PERCENTILES`, `LCPM_BENCHMARKS`, `WCPM_FALLBACK`) with your regional norms. No SQL migration is required — `analysis.service.js`'s `compareToBenchmarks` reads these via `benchmark.service.js`. The SQL RPCs/tables remain as a documented fallback (`READING_BENCHMARKS_USE_RPC=1`).
+
+> Note: the file `fluency.service.js` does **not** hold benchmark tables — it computes the raw WCPM/accuracy from the transcript. Editing it will not change your benchmark targets.
 
 ---
 
@@ -472,10 +529,42 @@ Find the benchmark constants (WCPM targets by grade level) in `fluency.service.j
 
 | File | What It Does |
 |------|-------------|
-| `bot/shared/services/pdf-report.service.js` | Main PDF generator (uses pdfkit) |
-| `bot/shared/services/pdf-report-pdfmake.service.js` | Alternative PDF generator (uses pdfmake) |
-| `bot/shared/services/coaching/report-generator.service.js` | Orchestrates report generation, calls Gamma for visual reports |
+| `bot/shared/services/coaching/report-renderers/renderer-registry.js` | **The seam.** Maps framework key → report renderer (`getReportRenderer()`). Object map + lazy require. |
+| `bot/shared/services/pdf-report.service.js` | Default (PDFKit) renderer — the shared OECD/HOTS/TEACH/FICO PDF layout |
+| `bot/shared/services/coaching/templates/mewaka-report.template.js` | MEWAKA's HTML template, rendered to PDF via Playwright (`shared/utils/html-to-pdf.js`) |
+| `bot/shared/services/coaching/report-generator.service.js` | Orchestrates report generation (transform analysis → `reportData`, call the renderer, upload + send the PDF) |
 | `bot/shared/services/chart.service.js` | Chart.js chart generation (bar charts, radar charts) |
+
+### How report design is pluggable
+
+Report design is **per-framework via a renderer registry**, not a hardcoded
+`if (framework === '…')`. `pdf-report.service.js` calls
+`getReportRenderer(reportData.framework)` and renders through whatever that
+returns. Each renderer is `{ render(reportData) -> Promise<Buffer> }`:
+
+- **PDFKit renderer** (default) — the shared OECD/HOTS/TEACH/FICO layout in `pdf-report.service.js`.
+- **HTML renderer** — MEWAKA's Playwright HTML→PDF path (`mewaka-report.template.js`).
+- Unknown frameworks fall back to the default PDFKit renderer.
+
+To give a new framework its own report design, write a renderer and **register one line** in `renderer-registry.js`:
+
+```javascript
+// renderer-registry.js
+const myRenderer = {
+  key: 'my-html',
+  render(reportData) {
+    const { renderMyReportHtml } = require('../templates/my-report.template');
+    const { htmlToPdf } = require('../../../utils/html-to-pdf');
+    return htmlToPdf(renderMyReportHtml(reportData), { format: 'A4' });
+  },
+};
+
+const renderers = {
+  oecd: pdfkitRenderer,
+  // ...
+  myframework: myRenderer,   // ← register here, no `if` to edit
+};
+```
 
 ### Adding a Radar Chart
 

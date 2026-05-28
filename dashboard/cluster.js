@@ -5,7 +5,6 @@
  * This prevents a single slow request (like GPT processing) from blocking
  * other requests (like serving static files for Teachers' Portal).
  *
- * Bead: plt-clus01
  * Issue: Concurrent GPT processing blocking other requests
  * Solution: Multiple workers handle requests independently
  */

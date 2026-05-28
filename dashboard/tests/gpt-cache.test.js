@@ -1,6 +1,5 @@
 /**
  * GPT Response Caching Tests
- * Bead: plt-cch01
  *
  * Tests for Redis caching of GPT-4o-mini responses
  * to reduce redundant API calls and improve response time.

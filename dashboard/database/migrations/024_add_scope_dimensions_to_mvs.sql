@@ -4,7 +4,6 @@
 -- Strategy: Add country_code, school_name_lower, is_test_user as indexed columns
 -- Performance target: 500ms (RLS) → 5-30ms (filtered MV)
 --
--- @bead bd-045
 -- @author Claude Code
 -- @date January 24, 2026
 --

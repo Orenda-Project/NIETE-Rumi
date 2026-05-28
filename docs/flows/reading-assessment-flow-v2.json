@@ -7,12 +7,6 @@
     "4. Screen 1 (BASIC_INFO): Collects name, language, assessment mode",
     "5. Screen 2 (OPTIONS): Shows level/scope options, completes flow"
   ],
-  "_changelog": [
-    "v3.0 (Dec 25, 2025): Multi-screen flow with navigate action for data passing",
-    "v2.1 (Dec 25, 2025): Fixed empty payload bug - form data now included",
-    "v2.0 (Dec 25, 2025): Initial version with Auto-Level Mode"
-  ],
-
   "version": "6.2",
   "screens": [
     {
@@ -39,8 +33,14 @@
                 "label": "Assessment Language",
                 "required": true,
                 "data-source": [
-                  { "id": "0_English", "title": "English" },
-                  { "id": "1_Urdu", "title": "Urdu / اردو" }
+                  {
+                    "id": "0_English",
+                    "title": "English"
+                  },
+                  {
+                    "id": "1_Urdu",
+                    "title": "Urdu / اردو"
+                  }
                 ]
               },
               {
@@ -49,8 +49,14 @@
                 "label": "Assessment Type",
                 "required": true,
                 "data-source": [
-                  { "id": "0_Auto", "title": "Auto-Level (finds level)" },
-                  { "id": "1_Manual", "title": "Manual (select level)" }
+                  {
+                    "id": "0_Auto",
+                    "title": "Auto-Level (finds level)"
+                  },
+                  {
+                    "id": "1_Manual",
+                    "title": "Manual (select level)"
+                  }
                 ]
               },
               {
@@ -79,9 +85,18 @@
       "title": "Assessment Options",
       "terminal": true,
       "data": {
-        "Student_Full_Name": { "type": "string", "__example__": "Test" },
-        "Language": { "type": "string", "__example__": "0_English" },
-        "Assessment_Mode": { "type": "string", "__example__": "1_Manual" }
+        "Student_Full_Name": {
+          "type": "string",
+          "__example__": "Test"
+        },
+        "Language": {
+          "type": "string",
+          "__example__": "0_English"
+        },
+        "Assessment_Mode": {
+          "type": "string",
+          "__example__": "1_Manual"
+        }
       },
       "layout": {
         "type": "SingleColumnLayout",
@@ -96,10 +111,22 @@
                 "label": "Reading Level",
                 "required": false,
                 "data-source": [
-                  { "id": "0_Letters_(KG)", "title": "Letters (KG)" },
-                  { "id": "1_Words_(Grade_1)", "title": "Words (Grade 1)" },
-                  { "id": "2_Sentences_(Grade_1-2)", "title": "Sentences (1-2)" },
-                  { "id": "3_Paragraph_(Grade_3-5)", "title": "Paragraph (3-5)" }
+                  {
+                    "id": "0_Letters_(KG)",
+                    "title": "Letters (KG)"
+                  },
+                  {
+                    "id": "1_Words_(Grade_1)",
+                    "title": "Words (Grade 1)"
+                  },
+                  {
+                    "id": "2_Sentences_(Grade_1-2)",
+                    "title": "Sentences (1-2)"
+                  },
+                  {
+                    "id": "3_Paragraph_(Grade_3-5)",
+                    "title": "Paragraph (3-5)"
+                  }
                 ]
               },
               {
@@ -108,8 +135,14 @@
                 "label": "Assessment Scope",
                 "required": false,
                 "data-source": [
-                  { "id": "0_Fluency_Only", "title": "Fluency Only" },
-                  { "id": "1_Fluency_+_Comprehension", "title": "Fluency + Comprehension" }
+                  {
+                    "id": "0_Fluency_Only",
+                    "title": "Fluency Only"
+                  },
+                  {
+                    "id": "1_Fluency_+_Comprehension",
+                    "title": "Fluency + Comprehension"
+                  }
                 ]
               },
               {

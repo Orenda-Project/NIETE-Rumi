@@ -1,7 +1,7 @@
-# Partner RBAC Implementation Status
+# Partner RBAC — Feature Overview
 
-**Last Updated**: January 13, 2026
-**Current Phase**: Phase 3 Complete → Moving to Phase 4 Testing
+Role-based access control for the observability dashboard: database foundation,
+invitation system, and admin user management, with testing notes below.
 
 ---
 

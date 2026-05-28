@@ -8,7 +8,6 @@
  * Separate from Main Bot's SQS queue to avoid interference.
  * Uses dedicated SQS_PORTAL_QUEUE_URL environment variable.
  *
- * Bead: plt-sqs01, plt-sqs02
  * Issue: Transcript/AMA processing blocks main thread for 30-45s
  * Solution: Queue jobs to SQS, process in separate worker
  */

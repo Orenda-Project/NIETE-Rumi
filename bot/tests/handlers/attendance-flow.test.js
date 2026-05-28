@@ -1,9 +1,8 @@
 /**
  * Attendance Flow Handler Tests
- * TDD for bd-057
+ * TDD for 
  *
  * Created: January 24, 2026
- * Bead: bd-057
  */
 
 // Mock dependencies

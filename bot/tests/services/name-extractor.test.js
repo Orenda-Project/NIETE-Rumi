@@ -1,9 +1,8 @@
 /**
  * Name Extractor Service Tests
- * TDD for bd-052
+ * TDD for 
  *
  * Created: January 24, 2026
- * Bead: bd-052
  */
 
 const NameExtractorService = require('../../shared/services/name-extractor.service');

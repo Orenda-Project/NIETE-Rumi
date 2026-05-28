@@ -45,15 +45,25 @@ class PDFReportService {
    * @returns {Promise<Buffer>} PDF buffer
    */
   static async generateClassroomObservationReport(reportData) {
-    const startTime = Date.now();
+    // Report design is pluggable per framework via the renderer registry.
+    // The default renderer is the PDFKit layout (OECD/HOTS/TEACH/FICO);
+    // MEWAKA (Tanzania CPD) maps to a Playwright HTML→PDF renderer because
+    // its report shape (hero focus area + 6-domain Swahili scorecard +
+    // inline SVG sparkline) doesn't fit the PDFKit layout. Adding a new
+    // framework's report design is "register one line" in the registry,
+    // not editing a hardcoded branch here.
+    const { getReportRenderer } = require('./coaching/report-renderers/renderer-registry');
+    const renderer = getReportRenderer(reportData.framework);
+    return renderer.render(reportData);
+  }
 
-    // Framework-level branching. MEWAKA (Tanzania CPD) uses a Playwright
-    // HTML→PDF renderer because its report shape (hero focus area + 6-domain
-    // Swahili scorecard + inline SVG sparkline) doesn't fit the pdfkit-based
-    // OECD/HOTS/TEACH/FICO layout. Those frameworks are unchanged below.
-    if (reportData.framework === 'mewaka') {
-      return PDFReportService._generateMEWAKAReport(reportData, startTime);
-    }
+  /**
+   * Default (PDFKit) report renderer — the shared OECD/HOTS/TEACH/FICO
+   * layout. Behaviour is byte-identical to the pre-registry path.
+   * @private
+   */
+  static async _generatePDFKitReport(reportData) {
+    const startTime = Date.now();
 
     try {
       logToFile('Starting PDF report generation with perfected design', {

@@ -38,10 +38,19 @@ cd bot && npm install && cd ..
 
 1. **Create account** at [supabase.com](https://supabase.com) (free tier is sufficient)
 2. **Create a new project** — choose a region closest to your users
-3. **Run the schema** in SQL Editor (Settings > SQL Editor):
-   - Copy and paste the contents of `infrastructure/supabase/00_complete-schema.sql` — this creates all 73 tables, 40 functions, 29 triggers, and 200+ indexes (or just run `npm run bootstrap:db`, which applies all three SQL files in order)
-   - Then run `infrastructure/supabase/01_rls-policies.sql` — enables Row Level Security on all tables
-   - Then run `infrastructure/supabase/02_seed-data.sql` — adds reading assessment benchmarks
+3. **Run the schema.** Two ways:
+
+   **Option A — one command (recommended):** First create the tiny `exec_sql` helper that `npm run bootstrap:db` uses to apply SQL. A brand-new Supabase project does not have it, so paste this **once** in the SQL Editor (Settings > SQL Editor):
+   ```sql
+   CREATE OR REPLACE FUNCTION exec_sql(query TEXT)
+   RETURNS VOID AS $$ BEGIN EXECUTE query; END; $$ LANGUAGE plpgsql;
+   ```
+   Then run `npm run bootstrap:db` — it applies all three SQL files in order. (If you skip the helper, the command stops with the exact SQL above.)
+
+   **Option B — manual paste:** In the SQL Editor, run these three files in order:
+   - `infrastructure/supabase/00_complete-schema.sql` — all 73 tables, 40 functions, 29 triggers, 200+ indexes
+   - `infrastructure/supabase/01_rls-policies.sql` — enables Row Level Security on all tables
+   - `infrastructure/supabase/02_seed-data.sql` — adds reading assessment benchmarks
 4. **Verify** by running `infrastructure/supabase/verify-schema.sql` — all checks should show PASS
 5. **Copy credentials** from Settings > API:
    - `SUPABASE_URL` — your project URL (e.g., `https://abcdefgh.supabase.co`)

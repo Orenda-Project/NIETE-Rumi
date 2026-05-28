@@ -2,7 +2,6 @@
 -- Version: v2.10.0
 -- Date: January 24, 2026
 -- Description: Add voice-based attendance tracking with Excel generation for Pakistani teachers
--- Bead: bd-049
 
 -- =============================================================================
 -- STEP 1: CREATE STUDENT_LISTS TABLE (Class Rosters)

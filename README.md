@@ -77,10 +77,10 @@ Utility flows round it out — **settings** (language + framework), **status** (
 
 ## 🤖 Built to be run by an AI agent
 
-Rumi is **agent-native**: the repository is structured so a coding agent (Claude Code, Cursor, Codex, …) can read it, set it up, debug it, and customize it with you. This is what makes "clone and run it yourself" realistic for a non-technical operator.
+Rumi is **agent-native**: the repository is structured so a coding agent (Claude Code, Cursor, Codex, …) can read it, set it up, debug it, and customize it with you. This is what makes "clone and run it yourself" realistic for a small, non-specialist team.
 
-- **Progressive-disclosure context.** A root [`CLAUDE.md`](CLAUDE.md) (and [`AGENTS.md`](AGENTS.md)) orients the agent, then routes it down to folder guides ([`bot/CLAUDE.md`](bot/CLAUDE.md), [`infrastructure/CLAUDE.md`](infrastructure/CLAUDE.md)) and, on demand, to **14 operational skills** under [`.claude/skills/`](.claude/skills/) — coaching, reading-assessment, registration, lesson-plan routing, whatsapp-flows, debugging, logging, database analysis, QA, the pre-merge checklist, and more. The agent loads only what the task needs.
-- **Just ask.** Open the repo in your agent and say *"set me up"* — it reads the guides, walks the [`/setup`](.claude/skills/setup/skill.md) flow, runs `npm run doctor` and `npm run bootstrap:db`, and registers your WhatsApp Flows. Or say *"swap the coaching framework to TEACH"* and it follows the [customization guide](docs/agent-customization.md) to the exact files.
+- **Progressive-disclosure context.** A root [`CLAUDE.md`](CLAUDE.md) (and [`AGENTS.md`](AGENTS.md)) orients the agent, then routes it down to folder guides ([`bot/CLAUDE.md`](bot/CLAUDE.md), [`infrastructure/CLAUDE.md`](infrastructure/CLAUDE.md)) and, on demand, to **16 operational skills** under [`.claude/skills/`](.claude/skills/) — coaching, reading-assessment, registration, lesson-plan routing, whatsapp-flows, debugging, logging, database analysis, QA, the pre-merge checklist, and more. The agent loads only what the task needs.
+- **Just ask.** Open the repo in your agent and say *"set me up"* — it reads the guides, walks the [`/setup`](.claude/skills/setup/SKILL.md) flow, runs `npm run doctor` and `npm run bootstrap:db`, and registers your WhatsApp Flows. Or say *"swap the coaching framework to TEACH"* and it follows the [customization guide](docs/agent-customization.md) to the exact files.
 - **Guard-railed for safety.** CI runs a secret scan (gitleaks) plus conformance guards that keep the schema, the docs, and the agent skills honest — so an agent's changes can't silently break a clone or leak a credential.
 
 Start at [`CLAUDE.md`](CLAUDE.md) → it points the way.
@@ -97,7 +97,9 @@ cd rumi-platform
 # 2. Install dependencies
 npm install && cd bot && npm install && cd ..
 
-# 3. Configure environment — copy the template and fill the 8 REQUIRED values
+# 3. Configure environment — copy the template and fill the REQUIRED values
+#    (8 required services: 7 ship as placeholders you must set; REDIS_URL defaults to a local instance.
+#     `npm run doctor` lists exactly what's still missing.)
 cp .env.template .env
 #    SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENROUTER_API_KEY, REDIS_URL,
 #    WHATSAPP_TOKEN, PHONE_NUMBER_ID, WABA_ID, WEBHOOK_VERIFY_TOKEN
@@ -149,7 +151,7 @@ rumi-platform/
 ├── infrastructure/
 │   └── supabase/           # SQL schema, RLS policies, seed data + bootstrap script
 ├── docs/                   # Architecture, features, customization, cost, samples
-└── .claude/                # Agent-native config — CLAUDE.md routers + 14 operational skills
+└── .claude/                # Agent-native config — CLAUDE.md routers + 16 operational skills
 ```
 
 ### How a message flows
@@ -238,7 +240,7 @@ Every push and PR is gated by CI: an automated **secret scan** (gitleaks) plus c
 | [docs/features/](docs/features/) | Per-feature deep dives (what / how / enable) — one page each |
 | [docs/LP_PATHS.md](docs/LP_PATHS.md) | How a lesson-plan request is routed (pre-generated vs Gamma vs photo) |
 | [docs/architecture.md](docs/architecture.md) | System architecture & message flow |
-| [CLAUDE.md](CLAUDE.md) + [.claude/](.claude/) | **Agent-native** context: the progressive-disclosure routers + the 14 operational skills |
+| [CLAUDE.md](CLAUDE.md) + [.claude/](.claude/) | **Agent-native** context: the progressive-disclosure routers + the 16 operational skills |
 | [docs/agent-customization.md](docs/agent-customization.md) | Agent-first deep customization (frameworks, languages, branding) |
 | [docs/cost-guide.md](docs/cost-guide.md) | Monthly cost estimates — core baseline + per-feature add-ons |
 | [docs/monitoring.md](docs/monitoring.md) | Observability & debugging |

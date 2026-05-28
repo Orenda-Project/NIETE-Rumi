@@ -6,18 +6,33 @@
  *
  * Priority:
  *   1. Explicit user preference (preferences.observation_framework)
- *   2. Region default (Punjab/Sindh → HOTS, others → OECD)
- *   3. Global default → OECD
+ *   2. Region default — resolved by region-config (REGION_FRAMEWORK_MAP)
+ *   3. Deployment default — DEFAULT_OBSERVATION_FRAMEWORK env (else oecd)
  *
- * Bead: (Phase 1C)
+ * The deployment default + per-region overrides are the customization foothold:
+ * a deployer sets DEFAULT_OBSERVATION_FRAMEWORK=teach (and optionally
+ * REGION_FRAMEWORK_MAP={"punjab":"hots"}) in .env to change which framework
+ * coaching uses, with no code change. This selector deliberately holds NO
+ * hardcoded region→framework routing — region-config owns that single source.
  */
 
 const supabase = require('../../../config/supabase');
 const { logToFile } = require('../../../utils/logger');
-const { getFramework } = require('./framework-registry');
+const { getFramework, listFrameworks } = require('./framework-registry');
+const { defaultFrameworkForRegion } = require('../../../config/region-config');
 
-const HOTS_DEFAULT_REGIONS = ['punjab', 'sindh'];
-const DEFAULT_FRAMEWORK = 'oecd';
+/** Resolve a framework key to a module, falling back to oecd if unregistered. */
+function resolveFramework(key, why) {
+  if (key && listFrameworks().includes(key)) {
+    logToFile(`[framework-selector] ${why} → ${key}`);
+    return getFramework(key);
+  }
+  if (key) {
+    logToFile(`[framework-selector] ${why} resolved "${key}" which is not registered `
+      + `(${listFrameworks().join(', ')}); falling back to oecd`);
+  }
+  return getFramework('oecd');
+}
 
 /**
  * Select the appropriate framework module for a user.
@@ -33,31 +48,22 @@ async function selectFramework(userId) {
       .single();
 
     if (!data) {
-      logToFile(`[framework-selector] No user found for ${userId}, using default: ${DEFAULT_FRAMEWORK}`);
-      return getFramework(DEFAULT_FRAMEWORK);
+      return resolveFramework(defaultFrameworkForRegion(null), `No user ${userId}, deployment default`);
     }
 
-    // 1. Explicit preference takes priority
+    // 1. Explicit per-user preference wins.
     const explicit = data.preferences?.observation_framework;
     if (explicit) {
-      logToFile(`[framework-selector] User ${userId} has explicit preference: ${explicit}`);
-      return getFramework(explicit);
+      return resolveFramework(explicit, `User ${userId} explicit preference`);
     }
 
-    // 2. Region-based default
-    const region = (data.region || '').toLowerCase();
-    if (HOTS_DEFAULT_REGIONS.includes(region)) {
-      logToFile(`[framework-selector] User ${userId} region ${region} → hots`);
-      return getFramework('hots');
-    }
-
-    // 3. Global default
-    logToFile(`[framework-selector] User ${userId} region ${region} → default: ${DEFAULT_FRAMEWORK}`);
-    return getFramework(DEFAULT_FRAMEWORK);
+    // 2 + 3. Region override (REGION_FRAMEWORK_MAP) else deployment default — region-config owns both.
+    const region = data.region || '';
+    return resolveFramework(defaultFrameworkForRegion(region), `User ${userId} region "${region}"`);
 
   } catch (err) {
-    logToFile(`[framework-selector] Error selecting framework for ${userId}: ${err.message}, using default`);
-    return getFramework(DEFAULT_FRAMEWORK);
+    logToFile(`[framework-selector] Error selecting framework for ${userId}: ${err.message}, using oecd`);
+    return getFramework('oecd');
   }
 }
 

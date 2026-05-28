@@ -4,7 +4,6 @@
  * Prevents hung requests from blocking workers indefinitely.
  * Different timeouts for different route types.
  *
- * Bead: plt-tout01
  * Issue: No explicit request timeouts causing hung requests
  * Solution: Configurable timeouts based on route patterns
  */

@@ -71,10 +71,37 @@ describe('Framework Wiring (bd-609)', () => {
     });
   });
 
-  test('SCENARIO: selectFramework resolves correctly for Punjab user → HOTS', async () => {
-    const framework = await selectFramework('user-punjab-001');
-    expect(framework.name).toBe('hots');
-    expect(framework.displayName).toBe('HOTS Framework');
+  test('SCENARIO: region→framework is env-driven (REGION_FRAMEWORK_MAP), not hardcoded', async () => {
+    // The selector now delegates region routing to region-config (no hardcoded region names).
+    // A deployment maps a region to a framework via REGION_FRAMEWORK_MAP. With the map set,
+    // a Punjab user (supabase mock returns region:'punjab') resolves to HOTS.
+    const ORIG = { ...process.env };
+    try {
+      jest.resetModules();
+      process.env.REGION_FRAMEWORK_MAP = JSON.stringify({ punjab: 'hots' });
+      const { selectFramework: select } = require('../../bot/shared/services/coaching/frameworks/framework-selector');
+      const framework = await select('user-punjab-001');
+      expect(framework.name).toBe('hots');
+      expect(framework.displayName).toBe('HOTS Framework');
+    } finally {
+      process.env = { ...ORIG };
+      jest.resetModules();
+    }
+  });
+
+  test('SCENARIO: with no region map, a region falls back to the deployment default (oecd)', async () => {
+    const ORIG = { ...process.env };
+    try {
+      jest.resetModules();
+      delete process.env.REGION_FRAMEWORK_MAP;
+      delete process.env.DEFAULT_OBSERVATION_FRAMEWORK;
+      const { selectFramework: select } = require('../../bot/shared/services/coaching/frameworks/framework-selector');
+      const framework = await select('user-punjab-001');
+      expect(framework.name).toBe('oecd');
+    } finally {
+      process.env = { ...ORIG };
+      jest.resetModules();
+    }
   });
 
   test('SCENARIO: getFramework("oecd") returns OECD as fallback', () => {
@@ -102,8 +129,12 @@ describe('Framework Wiring (bd-609)', () => {
   });
 
   test('SCENARIO: Framework wiring pattern: select → pass → analyze', async () => {
-    // Simulate the wiring pattern from analysis-processor
-    const framework = await selectFramework('user-punjab-001');
+    // Simulate the wiring pattern from analysis-processor, with a region→framework map configured.
+    const ORIG = { ...process.env };
+    process.env.REGION_FRAMEWORK_MAP = JSON.stringify({ punjab: 'hots' });
+    jest.resetModules();
+    const { selectFramework: select } = require('../../bot/shared/services/coaching/frameworks/framework-selector');
+    const framework = await select('user-punjab-001');
     const GPT5MiniService = require('../../bot/shared/services/gpt5-mini.service');
 
     const result = await GPT5MiniService.analyzePedagogy(
@@ -112,6 +143,7 @@ describe('Framework Wiring (bd-609)', () => {
       null,
       framework
     );
+    process.env = { ...ORIG };
 
     expect(result.analysis.framework).toBe('hots');
     expect(mockAnalyzePedagogy).toHaveBeenCalledWith(

@@ -5,7 +5,6 @@
  * This ensures partners ONLY see data within their assigned scopes.
  * Scope types: all, country, school, phone_list, combined
  *
- * @bead bd-045
  * @author Claude Code
  * @date January 24, 2026
  */

@@ -72,7 +72,8 @@
             { "id": "en", "title": "English" },
             { "id": "ur", "title": "Urdu" },
             { "id": "sd", "title": "Sindhi" },
-            { "id": "sw", "title": "Kiswahili" }
+            { "id": "sw", "title": "Kiswahili" },
+            { "id": "ar", "title": "Arabic" }
           ]
         },
         "lesson_plan_formats": {

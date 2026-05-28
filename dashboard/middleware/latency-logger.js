@@ -4,7 +4,6 @@
  * Tracks request duration and logs to console/Axiom.
  * Alerts on slow requests exceeding threshold.
  *
- * Bead: plt-mon01
  * Issue: No visibility into request latency patterns
  * Solution: Log all request durations, alert on slow requests
  */

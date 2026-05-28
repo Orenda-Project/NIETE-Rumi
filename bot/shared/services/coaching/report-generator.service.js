@@ -183,7 +183,12 @@ class ReportGeneratorService {
       try {
         const { generatePrioritizedAction } = require('./coaching-card/prioritized-action.service');
         const { generateCardImage } = require('./coaching-card/card-image.service');
+        const { getCoachingCardCopy } = require('../../config/coaching-card.config');
         const { uploadImageWithRetry } = require('../../storage/r2');
+
+        // Language for card copy (same resolution used for the quiz offer below)
+        const cardLanguage = session.users?.preferred_language || session.transcript_language || 'en';
+        const cardCopy = getCoachingCardCopy(cardLanguage);
 
         // Check for prior action from previous session
         const { data: priorSessions } = await supabase
@@ -204,7 +209,7 @@ class ReportGeneratorService {
 
         if (actionData) {
           // Generate card image
-          const cardBuffer = generateCardImage(actionData, enhancedAnalysis.framework || 'oecd');
+          const cardBuffer = generateCardImage(actionData, enhancedAnalysis.framework || 'oecd', cardLanguage);
 
           if (cardBuffer) {
             // Upload card image to R2
@@ -221,14 +226,16 @@ class ReportGeneratorService {
 
           // Send coaching card text + response buttons
           await WhatsAppService.sendMessage(from,
-            `🎯 *Your Focus Area*\n\n${actionData.action}\n\n💡 _${actionData.example}_`
+            cardCopy.focusAreaMessage
+              .replace('{action}', actionData.action)
+              .replace('{example}', actionData.example)
           );
           await WhatsAppService.sendInteractiveButtons(from, {
-            body: 'Will you commit to trying this in your next class?',
+            body: cardCopy.commitPrompt,
             buttons: [
-              { id: `card_yes_${coachingSessionId}`, title: "Yes, I'll try!" },
-              { id: `card_later_${coachingSessionId}`, title: 'Maybe later' },
-              { id: `card_no_${coachingSessionId}`, title: 'Not for me' }
+              { id: `card_yes_${coachingSessionId}`, title: cardCopy.commitButtons.yes },
+              { id: `card_later_${coachingSessionId}`, title: cardCopy.commitButtons.later },
+              { id: `card_no_${coachingSessionId}`, title: cardCopy.commitButtons.no }
             ]
           });
 

@@ -21,6 +21,7 @@
  */
 
 const supabase = require('../../config/supabase');
+const BenchmarkService = require('./benchmark.service');
 const WhatsAppService = require('../whatsapp.service');
 const FeatureLinkerService = require('../feature-linker.service');
 const FeatureRegistrationService = require('../feature-registration.service');
@@ -622,11 +623,45 @@ class AnalysisService {
    * @returns {Promise<object>} Benchmark comparison
    */
   static async compareToBenchmarks(wcpm, gradeLevel, language, isSecondLanguage, passageType = 'sentences') {
+    // Letters use LCPM (Letters Correct Per Minute) benchmarks; everything else WCPM.
+    const metric = passageType === 'letters' ? 'lcpm' : 'wcpm';
+
+    // SOURCE OF TRUTH: the JS config-driven benchmark service. Threshold NUMBERS
+    // live in bot/shared/config/reading-benchmarks.js — change them there, no SQL
+    // migration needed. The SQL RPCs (check_benchmark_status /
+    // check_lcpm_benchmark_status) remain in the DB for integrity and are kept as
+    // a documented fallback, gated behind READING_BENCHMARKS_USE_RPC=1.
+    const useRpcFallback = process.env.READING_BENCHMARKS_USE_RPC === '1';
+
+    if (!useRpcFallback) {
+      const result = BenchmarkService.getBenchmarkStatus({
+        metric,
+        grade: gradeLevel,
+        language,
+        value: wcpm,
+        isSecondLanguage
+      });
+
+      if (metric === 'lcpm') {
+        logToFile('📊 Using LCPM benchmarks for letters assessment (JS config)', {
+          lcpm: wcpm,
+          gradeLevel,
+          language
+        });
+      }
+
+      return {
+        benchmarkMin: result.benchmark_min,
+        benchmarkMax: result.benchmark_max,
+        onTrack: result.on_track,
+        percentileRank: result.percentile_rank
+      };
+    }
+
+    // --- Documented fallback: original SQL RPC path -------------------------
     let data, error;
 
-    // e Fix: Use LCPM benchmarks for letters, WCPM benchmarks for everything else
-    if (passageType === 'letters') {
-      // Letters use LCPM (Letters Correct Per Minute) benchmarks
+    if (metric === 'lcpm') {
       const result = await supabase.rpc('check_lcpm_benchmark_status', {
         p_lcpm: wcpm,
         p_grade: gradeLevel,
@@ -635,13 +670,12 @@ class AnalysisService {
       data = result.data;
       error = result.error;
 
-      logToFile('📊 Using LCPM benchmarks for letters assessment', {
+      logToFile('📊 Using LCPM benchmarks for letters assessment (RPC fallback)', {
         lcpm: wcpm,
         gradeLevel,
         language
       });
     } else {
-      // Words/Sentences/Paragraphs use WCPM (Words Correct Per Minute) benchmarks
       const result = await supabase.rpc('check_benchmark_status', {
         p_wcpm: wcpm,
         p_grade: gradeLevel,
@@ -1560,103 +1594,12 @@ Output the complete enhanced summary (not just the new parts).`;
       throw error;
     }
   }
-  /**
-   * Calculate composite score with research-based weighting (60/40 split)
-   * Based on DIBELS & EGRA methodology showing ORF correlation r=0.91
-   * @param {number} fluencyScore - WCPM or fluency percentage
-   * @param {number|null} comprehensionScore - Comprehension percentage (null for fluency-only)
-   * @returns {number} Weighted composite score
-   */
-  static calculateCompositeScore(fluencyScore, comprehensionScore = null) {
-    if (comprehensionScore === null || comprehensionScore === undefined) {
-      // Fluency-only assessment
-      return Math.round(fluencyScore);
-    }
-
-    // Research-based weights (60% fluency, 40% comprehension)
-    const FLUENCY_WEIGHT = 0.60;
-    const COMPREHENSION_WEIGHT = 0.40;
-
-    const composite = Math.round(
-      (fluencyScore * FLUENCY_WEIGHT) +
-      (comprehensionScore * COMPREHENSION_WEIGHT)
-    );
-
-    logToFile('📊 Composite score calculated', {
-      fluencyScore,
-      comprehensionScore,
-      composite,
-      formula: `${fluencyScore}*0.6 + ${comprehensionScore}*0.4 = ${composite}`
-    });
-
-    return composite;
-  }
-
-  /**
-   * Get overall risk level based on composite score
-   * @param {number} compositeScore - Weighted composite score
-   * @returns {object} Risk level with color and action
-   */
-  static getOverallRiskLevel(compositeScore) {
-    if (compositeScore >= 80) {
-      return {
-        level: 'At/Above Benchmark',
-        color: '#10B981',
-        action: 'Continue regular instruction',
-        description: 'Student is meeting or exceeding grade-level expectations'
-      };
-    }
-    if (compositeScore >= 60) {
-      return {
-        level: 'Strategic Support',
-        color: '#F59E0B',
-        action: 'Provide targeted intervention',
-        description: 'Student needs some additional support to reach grade level'
-      };
-    }
-    return {
-      level: 'Intensive Support',
-      color: '#EF4444',
-      action: 'Immediate intensive intervention needed',
-      description: 'Student requires significant support in both fluency and comprehension'
-    };
-  }
-
-  /**
-   * Calculate fluency percentage from WCPM and benchmark
-   * @param {number} wcpm - Words correct per minute
-   * @param {string} gradeLevel - Grade level
-   * @param {string} language - Language code
-   * @returns {number} Fluency percentage (0-100)
-   */
-  static calculateFluencyPercentage(wcpm, gradeLevel, language) {
-    // Get benchmark for grade and language
-    const benchmarks = {
-      'en': {
-        '1': { min: 30, target: 60, stretch: 90 },
-        '2': { min: 50, target: 90, stretch: 120 },
-        '3': { min: 70, target: 110, stretch: 140 },
-        '4': { min: 90, target: 130, stretch: 160 },
-        '5': { min: 100, target: 140, stretch: 180 }
-      },
-      'ur': {
-        // L2-adjusted benchmarks (25-30% lower)
-        '1': { min: 21, target: 42, stretch: 63 },
-        '2': { min: 35, target: 63, stretch: 84 },
-        '3': { min: 49, target: 77, stretch: 98 },
-        '4': { min: 63, target: 91, stretch: 112 },
-        '5': { min: 70, target: 98, stretch: 126 }
-      }
-    };
-
-    const langBenchmarks = benchmarks[language] || benchmarks['en'];
-    const gradeBenchmark = langBenchmarks[gradeLevel] || langBenchmarks['3'];
-
-    // Calculate percentage (0-100 scale, capped at 100)
-    const percentage = Math.min(100, Math.round((wcpm / gradeBenchmark.target) * 100));
-
-    return percentage;
-  }
+  // NOTE: Three former benchmark helpers (calculateCompositeScore,
+  // getOverallRiskLevel, calculateFluencyPercentage) were removed — they were
+  // DEAD (zero callers) and held a third, stale copy of benchmark numbers that
+  // misled anyone trying to "change the benchmarks." The single source of truth
+  // for benchmark thresholds is now bot/shared/config/reading-benchmarks.js
+  // (consumed via benchmark.service.js → compareToBenchmarks above).
 }
 
 module.exports = AnalysisService;

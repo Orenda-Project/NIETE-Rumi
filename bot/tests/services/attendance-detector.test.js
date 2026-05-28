@@ -1,6 +1,6 @@
 /**
  * Attendance Detector Service Tests
- * TDD: Tests written first for bd-050
+ * TDD: Tests written first for 
  *
  * Test Coverage Target: 90%+
  */

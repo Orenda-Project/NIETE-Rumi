@@ -8,7 +8,6 @@
  *
  * Reference: https://sngeth.com/rails/performance/postgresql/2025/10/03/materialized-views-performance-case-study/
  *
- * @bead bd-044
  */
 
 const materializedViews = require('../services/materialized-views.service');

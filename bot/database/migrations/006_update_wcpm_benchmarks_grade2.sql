@@ -13,7 +13,7 @@
  * and adapted for international English language education.
  *
  * Created: November 18, 2025
- * Related Issue: Bug #35 - Godwin Austin assessment investigation
+ * Related Issue: - Godwin Austin assessment investigation
  */
 
 -- Update Grade 2 English Fall benchmarks to research-based values

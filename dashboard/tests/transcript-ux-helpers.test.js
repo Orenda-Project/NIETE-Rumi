@@ -1,6 +1,5 @@
 /**
  * Transcript UX Helpers Tests
- * Bead: etv-ux01 (Phase 7)
  *
  * TDD tests for SLO Mastery and Classroom Climate UX helper functions.
  * These functions convert raw data into user-friendly status indicators.
