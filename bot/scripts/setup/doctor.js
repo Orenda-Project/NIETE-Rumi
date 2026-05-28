@@ -90,7 +90,7 @@ function analyzeEnv(env) {
     // A feature with no env keys (e.g. Chromium) is keyed off its probe, not env.
     const missingKeys = f.keys.filter((k) => !isSet(env[k]));
     const available = f.keys.length > 0 ? missingKeys.length === 0 : null; // null = "ask the probe"
-    return { name: f.name, requiredKeys: f.keys, missingKeys, available, probe: f.probe || null };
+    return { name: f.name, requiredKeys: f.keys, missingKeys, available, probe: f.probe || null, notes: f.notes || null };
   });
 
   return { requiredPresent, missingRequired, features };
@@ -185,7 +185,7 @@ async function runDoctor({
   // Feature availability (presence + chromium probe).
   const featureResults = [];
   for (const f of analysis.features) {
-    const keyMeta = { requiredKeys: f.requiredKeys, missingKeys: f.missingKeys };
+    const keyMeta = { requiredKeys: f.requiredKeys, missingKeys: f.missingKeys, notes: f.notes };
     if (f.probe && probes[f.probe]) {
       try {
         const { ok, detail } = await probes[f.probe](env);
@@ -217,7 +217,7 @@ function formatReport(result) {
   lines.push('Rumi doctor — deployment preflight');
   lines.push('');
   if (result.missingRequired.length) {
-    lines.push('❌ MISSING REQUIRED variables (the bot will not start):');
+    lines.push('❌ MISSING REQUIRED variables — the bot will boot but features needing these will be OFF until you set them:');
     for (const v of result.missingRequired) {
       const src = keySource(v);
       lines.push(`   - ${v}${src ? `  → get it: ${src}` : ''}`);
@@ -237,6 +237,7 @@ function formatReport(result) {
       if (srcs.length) hint = `  → get it: ${srcs[0]}`;
     }
     lines.push(`  ${mark(f.status)} ${f.name} — ${f.detail}${hint}`);
+    if (f.notes) lines.push(`        note: ${f.notes}`);
   }
   if (result.flowResults && result.flowResults.length) {
     lines.push('');

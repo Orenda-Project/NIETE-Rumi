@@ -30,7 +30,13 @@ const FEATURES = [
   { name: 'Urdu / regional voices (Uplift)', keys: ['UPLIFT_API_KEY'] },
   { name: 'Lesson-plan generation (Gamma)', keys: ['GAMMA_API_KEY'] },
   { name: 'Reading pronunciation scoring (Azure)', keys: ['AZURE_SPEECH_KEY', 'AZURE_SPEECH_REGION'] },
-  { name: 'Video generation (Kie.ai)', keys: ['KIE_API_KEY'] },
+  // Video generation has TWO gates: KIE_API_KEY (creds, presence-checked here)
+  // AND VIDEO_GENERATION_ENABLED=true at the orchestrator (a master kill-switch
+  // checked in bot/shared/services/video/video-orchestrator.service.js). The
+  // flag intentionally stays out of `keys` because `keys` drives the presence
+  // gate — adding it would mark the feature OFF whenever the env var is unset,
+  // which is the wrong semantics (you can set the key and gate it independently).
+  { name: 'Video generation (Kie.ai)', keys: ['KIE_API_KEY'], notes: 'Also requires VIDEO_GENERATION_ENABLED=true at runtime.' },
   { name: 'Exam-checker OCR (Mistral vision)', keys: ['MISTRAL_API_KEY'] },
   { name: 'Observability (Axiom)', keys: ['AXIOM_DATASET', 'AXIOM_TOKEN'] },
 ];

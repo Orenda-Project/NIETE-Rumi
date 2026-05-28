@@ -95,7 +95,15 @@ async function runTests() {
 
   console.log('');
   if (allPassed) {
-    console.log('  All connections successful (or skipped).\n');
+    const okCount = results.filter(r => r.status === 'OK').length;
+    const skippedCount = results.filter(r => r.status === 'SKIP').length;
+    if (okCount === 0 && skippedCount === results.length) {
+      console.log('  Nothing was tested - no services configured. Set credentials in .env and re-run.\n');
+    } else if (okCount > 0 && skippedCount > 0) {
+      console.log(`  ${okCount} connection(s) OK; ${skippedCount} skipped (not configured).\n`);
+    } else {
+      console.log(`  All ${okCount} configured connection(s) OK.\n`);
+    }
   } else {
     console.log('  Some connections failed. Check your .env configuration.\n');
   }

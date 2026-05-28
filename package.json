@@ -17,7 +17,7 @@
     "doctor": "node bot/scripts/setup/doctor.js",
     "setup:flows": "node bot/scripts/setup/run-full-setup.js",
     "simulate": "node bot/scripts/simulate.js",
-    "setup": "echo 'Use /setup in Claude Code or follow SETUP.md for manual instructions'"
+    "setup": "node bot/scripts/setup/doctor.js"
   },
   "keywords": [
     "whatsapp",

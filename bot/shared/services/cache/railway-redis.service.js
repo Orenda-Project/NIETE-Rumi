@@ -64,10 +64,17 @@ class RailwayRedisService {
         logToFile('✅ Railway Redis ready');
       });
 
+      // Throttle error logs: ioredis fires 'error' on every reconnect attempt
+      // (every ~0.7s during outages), and error.message can be empty string when
+      // the socket dies. Log at most once per 10s and always include a useful
+      // identifier (code or stringified error) so logs don't fill with blanks.
+      this._lastRedisErrorLoggedAt = 0;
       this.redis.on('error', (error) => {
-        logToFile('❌ Railway Redis error', {
-          error: error.message
-        });
+        const now = Date.now();
+        if (now - this._lastRedisErrorLoggedAt < 10_000) return;
+        this._lastRedisErrorLoggedAt = now;
+        const msg = (error && error.message) || (error && error.code) || String(error) || 'unknown';
+        logToFile('❌ Railway Redis error', { error: msg, code: error && error.code });
       });
 
       this.redis.on('close', () => {
