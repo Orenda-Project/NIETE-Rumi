@@ -130,4 +130,39 @@ function generateCardImage(actionData, frameworkKey = 'oecd', language = 'en') {
   }
 }
 
-module.exports = { generateCardImage };
+/**
+ * Render a commitment card (the v12 design) to a PNG via the Playwright
+ * htmlToImage engine — the same engine the hero report uses. The card content
+ * comes from `commitment-card.service.generateCommitmentCard` and is shaped as
+ * { commitment, action, highlights[], lesson_label, language, _source }.
+ *
+ * @param {object} actionData - card content from generateCommitmentCard
+ * @param {string} language - language code ('en'|'sw'|'ur'|'ar')
+ * @param {string} teacherName - bare first name (no honorific)
+ * @returns {Promise<Buffer|null>} PNG buffer, or null on failure
+ */
+async function renderCommitmentCardImage(actionData, language, teacherName) {
+  if (!actionData) return null;
+  try {
+    const { buildCardHtml } = require('./card-template');
+    const { htmlToImage } = require('../../../utils/html-to-pdf');
+    const card = {
+      language: language || 'en',
+      teacherName,
+      commitment: actionData.commitment,
+      lesson_label: actionData.lesson_label,
+      action: actionData.action,
+      highlights: actionData.highlights || [],
+    };
+    return await htmlToImage(buildCardHtml(card, { language: card.language, teacherName }), {
+      selector: '.card',
+      width: 720,
+      deviceScaleFactor: 2,
+    });
+  } catch (error) {
+    logToFile('Error rendering commitment card image', { error: error.message });
+    return null;
+  }
+}
+
+module.exports = { generateCardImage, renderCommitmentCardImage };

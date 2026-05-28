@@ -179,18 +179,31 @@ class ReportGeneratorService {
         await this.generateAndSendVoiceDebrief(session, from, coachingSessionId, enhancedAnalysis);
       }
 
-      // Phase 3: Coaching Card — prioritized action + image + response buttons
+      // Phase 3: Commitment Card — Q3-derived commitment + lesson-rooted action.
+      //
+      // The commitment-card path replaces (does NOT stack on top of) the legacy
+      // rule-based prioritized-action card. When `actionData._source === 'llm'`
+      // the LLM produced a Q3-anchored commitment + lesson-rooted action and we
+      // render via Playwright (HTML → PNG); when `_source === 'fallback'`
+      // (Q3 absent or LLM failure) the commitment-card service internally maps
+      // a generatePrioritizedAction result into the same { commitment, action }
+      // shape so the visual stays consistent — we still render via the new
+      // Playwright template, so the teacher always sees the same card design.
+      //
+      // Delivery order: report PNG (above) → voice debrief (above) → commitment
+      // card here → response buttons → (optional follow-ups below).
       try {
-        const { generatePrioritizedAction } = require('./coaching-card/prioritized-action.service');
-        const { generateCardImage } = require('./coaching-card/card-image.service');
+        const { generateCommitmentCard } = require('./coaching-card/commitment-card.service');
+        const { renderCommitmentCardImage, generateCardImage } = require('./coaching-card/card-image.service');
         const { getCoachingCardCopy } = require('../../config/coaching-card.config');
         const { uploadImageWithRetry } = require('../../storage/r2');
 
-        // Language for card copy (same resolution used for the quiz offer below)
+        // Language for card copy (same resolution used elsewhere).
         const cardLanguage = session.users?.preferred_language || session.transcript_language || 'en';
         const cardCopy = getCoachingCardCopy(cardLanguage);
 
-        // Check for prior action from previous session
+        // Carry forward last session's stored action so the fallback path can
+        // avoid repeating the same focus area twice.
         const { data: priorSessions } = await supabase
           .from('coaching_sessions')
           .select('prioritized_action')
@@ -200,61 +213,75 @@ class ReportGeneratorService {
           .order('created_at', { ascending: false })
           .limit(1);
         const priorAction = priorSessions?.[0]?.prioritized_action || null;
+        const teacherFirstName = session.users?.first_name || 'Teacher';
 
-        const actionData = await generatePrioritizedAction(
+        const actionData = await generateCommitmentCard(
           enhancedAnalysis,
-          session.users?.first_name || 'Teacher',
-          priorAction
+          session.conversation_state,
+          cardLanguage,
+          { teacherName: teacherFirstName, priorAction }
         );
 
         if (actionData) {
-          // Generate card image
-          const cardBuffer = generateCardImage(actionData, enhancedAnalysis.framework || 'oecd', cardLanguage);
+          // LLM-path content → Playwright/HTML render (the v12 design).
+          // Fallback-path content → keep the legacy canvas card as a safety net
+          // so a clone that hasn't yet wired the v12 chain still gets a card.
+          let cardBuffer = null;
+          if (actionData._source === 'llm') {
+            cardBuffer = await renderCommitmentCardImage(actionData, actionData.language, teacherFirstName);
+          } else {
+            // Fallback shape carries .indicator + framework; legacy canvas path
+            // expects { action, example, indicator } — adapt minimally.
+            const legacy = {
+              action: actionData.commitment,
+              example: actionData.action,
+              indicator: actionData.indicator || '',
+            };
+            cardBuffer = generateCardImage(legacy, enhancedAnalysis.framework || 'oecd', cardLanguage);
+          }
 
           if (cardBuffer) {
-            // Upload card image to R2
             const cardUrl = await uploadImageWithRetry(
               cardBuffer,
               session.user_id,
               `coaching-card-${coachingSessionId}`,
               'image/png'
             );
-
-            // Send coaching card image
+            // The caption is the action text — for the LLM path that's the
+            // single lesson-rooted next step; for the fallback that's the
+            // example sentence.
             await WhatsAppService.sendImageFromUrl(from, cardUrl, actionData.action);
           }
 
-          // Send coaching card text + response buttons
-          await WhatsAppService.sendMessage(from,
-            cardCopy.focusAreaMessage
-              .replace('{action}', actionData.action)
-              .replace('{example}', actionData.example)
-          );
+          // Response buttons follow regardless of which renderer ran.
           await WhatsAppService.sendInteractiveButtons(from, {
             body: cardCopy.commitPrompt,
             buttons: [
               { id: `card_yes_${coachingSessionId}`, title: cardCopy.commitButtons.yes },
               { id: `card_later_${coachingSessionId}`, title: cardCopy.commitButtons.later },
-              { id: `card_no_${coachingSessionId}`, title: cardCopy.commitButtons.no }
-            ]
+              { id: `card_no_${coachingSessionId}`, title: cardCopy.commitButtons.no },
+            ],
           });
 
-          // Store prioritized action in coaching session
           await supabase
             .from('coaching_sessions')
             .update({ prioritized_action: actionData })
             .eq('id', coachingSessionId);
 
-          logToFile('✅ Coaching card sent', { coachingSessionId, indicator: actionData.indicator });
+          logToFile('✅ Commitment card sent', {
+            coachingSessionId,
+            source: actionData._source,
+            language: actionData.language,
+          });
         } else {
-          logToFile('⚠️ No prioritized action generated (scores may be high)', { coachingSessionId });
+          logToFile('⚠️ No commitment card generated (no Q3 + fallback returned null)', { coachingSessionId });
         }
       } catch (cardError) {
-        logToFile('⚠️ Coaching card generation failed (non-critical)', {
+        logToFile('⚠️ Commitment card generation failed (non-critical)', {
           coachingSessionId,
-          error: cardError.message
+          error: cardError.message,
         });
-        // Don't fail the session — card is optional
+        // Don't fail the session — card is optional.
       }
 
       // Mark session as completed
