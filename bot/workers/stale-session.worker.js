@@ -382,5 +382,11 @@ async function autoCompleteSession(session) {
   }
 }
 
-// Run the worker
-main();
+// Gated — requiring this file as a library (e.g. from a test harness) does
+// NOT fire the stale-session sweep. To run the sweep manually, invoke the
+// exported `main` function.
+if (require.main === module) {
+  main();
+}
+
+module.exports = { main };
