@@ -636,11 +636,13 @@ app.get('/ready', (req, res) => {
   });
 });
 
-app.listen(HEALTH_PORT, () => {
-  logToFile(`Health check endpoint listening on port ${HEALTH_PORT}`, {
-    workerId: WORKER_ID
+function startHealthEndpoint() {
+  return app.listen(HEALTH_PORT, () => {
+    logToFile(`Health check endpoint listening on port ${HEALTH_PORT}`, {
+      workerId: WORKER_ID,
+    });
   });
-});
+}
 
 // ============================================================================
 // LESSON PLAN RECOVERY
@@ -874,38 +876,44 @@ logToFile('🚀 Starting SQS Coaching Worker', {
   sqsQueueUrl: process.env.SQS_QUEUE_URL
 });
 
-// Recover stale requests before starting worker
-// Issue #38: Added video request recovery alongside lesson plan recovery
-// Added exam grading recovery
-Promise.all([
-  recoverStaleLessonPlanRequests(),
-  recoverStaleVideoRequests(),
-  ExamGradingWorker.recoverStaleExamSessions()
-]).then(() => {
-  worker.start().catch((error) => {
-    logToFile('❌ Fatal error in worker', {
-      error: error.message,
-      stack: error.stack
+// Recover stale requests before starting worker. Gated behind
+// require.main === module so the file can be required as a library without
+// firing the recovery sweep + worker start.
+function startWorker() {
+  startHealthEndpoint();
+  return Promise.all([
+    recoverStaleLessonPlanRequests(),
+    recoverStaleVideoRequests(),
+    ExamGradingWorker.recoverStaleExamSessions(),
+  ]).then(() => {
+    worker.start().catch((error) => {
+      logToFile('❌ Fatal error in worker', {
+        error: error.message,
+        stack: error.stack,
+      });
+      process.exit(1);
     });
-    process.exit(1);
+
+    // Periodic stale job recovery - runs every 5 minutes
+    const STALE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
+    setInterval(async () => {
+      if (worker.isShuttingDown) return;
+      try {
+        await recoverStaleLessonPlanRequests();
+        await recoverStaleVideoRequests();
+        await ExamGradingWorker.recoverStaleExamSessions();
+      } catch (error) {
+        logToFile('Error in periodic stale check', { error: error.message });
+      }
+    }, STALE_CHECK_INTERVAL_MS);
+
+    logToFile('Periodic stale job recovery enabled (every 5 minutes)');
   });
+}
 
-  // Periodic stale job recovery - runs every 5 minutes
-  // Catches jobs that got stuck after deployment (not caught by startup check)
-  const STALE_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-  setInterval(async () => {
-    if (worker.isShuttingDown) return;
-    try {
-      await recoverStaleLessonPlanRequests();
-      await recoverStaleVideoRequests();
-      await ExamGradingWorker.recoverStaleExamSessions();
-    } catch (error) {
-      logToFile('Error in periodic stale check', { error: error.message });
-    }
-  }, STALE_CHECK_INTERVAL_MS);
-
-  logToFile('Periodic stale job recovery enabled (every 5 minutes)');
-});
+if (require.main === module) {
+  startWorker();
+}
 
 // Export for testing
-module.exports = { SQSCoachingWorker, WORKER_ID };
+module.exports = { SQSCoachingWorker, WORKER_ID, startWorker };

@@ -450,32 +450,38 @@ app.get('/ready', (req, res) => {
   });
 });
 
-app.listen(HEALTH_PORT, () => {
-  logToFile(`Health check endpoint listening on port ${HEALTH_PORT}`, {
-    workerId: WORKER_ID
-  });
-});
-
 // ============================================================================
-// START WORKER
+// START WORKER (gated — requiring this file as a library does NOT start it)
 // ============================================================================
 
-logToFile('🚀 Starting Classroom Coaching Worker', {
-  workerId: WORKER_ID,
-  nodeVersion: process.version,
-  platform: process.platform,
-  concurrency: CONCURRENCY_PER_WORKER,
-  pollInterval: POLL_INTERVAL_MS,
-  environment: process.env.NODE_ENV || 'development'
-});
-
-worker.start().catch((error) => {
-  logToFile('❌ Fatal error in worker', {
-    error: error.message,
-    stack: error.stack
+function startWorker() {
+  app.listen(HEALTH_PORT, () => {
+    logToFile(`Health check endpoint listening on port ${HEALTH_PORT}`, {
+      workerId: WORKER_ID,
+    });
   });
-  process.exit(1);
-});
+
+  logToFile('🚀 Starting Classroom Coaching Worker', {
+    workerId: WORKER_ID,
+    nodeVersion: process.version,
+    platform: process.platform,
+    concurrency: CONCURRENCY_PER_WORKER,
+    pollInterval: POLL_INTERVAL_MS,
+    environment: process.env.NODE_ENV || 'development',
+  });
+
+  return worker.start().catch((error) => {
+    logToFile('❌ Fatal error in worker', {
+      error: error.message,
+      stack: error.stack,
+    });
+    process.exit(1);
+  });
+}
+
+if (require.main === module) {
+  startWorker();
+}
 
 // Export for testing
-module.exports = { CoachingWorker, WORKER_ID };
+module.exports = { CoachingWorker, WORKER_ID, startWorker };

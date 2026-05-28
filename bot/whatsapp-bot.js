@@ -1645,9 +1645,12 @@ Si no solicitaste esto, ignora este mensaje.`
 });
 
 /**
- * Start server
+ * Start server. Gated behind `require.main === module` so requiring this
+ * file as a library (e.g. from a test harness or a downstream that wants the
+ * Express `app` without its listener) does NOT bind to a port.
  */
-app.listen(constants.PORT, () => {
+function startServer() {
+  return app.listen(constants.PORT, () => {
   // Read version from VERSION file
   const path = require('path');
   const versionFile = path.join(__dirname, 'VERSION');
@@ -1717,4 +1720,11 @@ ${'='.repeat(70)}
       // version-check is optional — skip silently if not present
     }
   }, 10000);
-});
+  });
+}
+
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = { app, startServer };
