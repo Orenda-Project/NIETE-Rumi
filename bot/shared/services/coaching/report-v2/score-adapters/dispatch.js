@@ -12,10 +12,11 @@
 const { logToFile } = require('../../../../utils/logger');
 
 const ADAPTERS = {
-  oecd:  () => require('./oecd-adapter').buildOecdGroups,
-  hots:  () => require('./hots-adapter').buildHotsGroups,
-  teach: () => require('./teach-adapter').buildTeachGroups,
-  fico:  () => require('./fico-adapter').buildFicoGroups,
+  oecd:   () => require('./oecd-adapter').buildOecdGroups,
+  hots:   () => require('./hots-adapter').buildHotsGroups,
+  teach:  () => require('./teach-adapter').buildTeachGroups,
+  fico:   () => require('./fico-adapter').buildFicoGroups,
+  mewaka: () => require('./mewaka-adapter').buildMewakaGroups,
 };
 
 /**

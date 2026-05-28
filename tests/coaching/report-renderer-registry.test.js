@@ -4,11 +4,11 @@
  * The coaching report renderer is pluggable per framework via
  * bot/shared/services/coaching/report-renderers/renderer-registry.js.
  *
- * Default: OECD/HOTS/TEACH/FICO render via the unified celebration ("hero")
- * design; MEWAKA renders via the legacy Playwright HTML→PDF path (it does not
- * yet ship a `mewaka-framework.js` module, so the hero score adapter cannot
- * produce groups for it — flipped in a follow-up). Unknown frameworks fall
- * back to PDFKit.
+ * Default: ALL FIVE frameworks (OECD/HOTS/TEACH/FICO/MEWAKA) render via the
+ * unified celebration ("hero") design. Unknown frameworks fall back to
+ * PDFKit. The legacy htmlRenderer stays defined as a documented escape hatch
+ * for cloners that want the older MEWAKA-PDF format; no framework currently
+ * dispatches to it.
  *
  * These tests lock the seam in place: if someone reintroduces a hardcoded
  * framework equality check in pdf-report.service.js, the grep assertion
@@ -38,30 +38,20 @@ describe('Report Renderer Registry — getReportRenderer()', () => {
     expect(typeof renderer.render).toBe('function');
   });
 
-  describe('Hero renderer is the default for OECD/HOTS/TEACH/FICO', () => {
-    for (const framework of ['oecd', 'hots', 'teach', 'fico']) {
+  describe('Hero renderer is the default for ALL five frameworks', () => {
+    for (const framework of ['oecd', 'hots', 'teach', 'fico', 'mewaka']) {
       test(`"${framework}" maps to the hero renderer`, () => {
         const renderer = getReportRenderer(framework);
         expect(renderer.key).toBe('hero');
       });
     }
 
-    test('oecd/hots/teach/fico all share ONE hero renderer instance', () => {
+    test('all five frameworks share ONE hero renderer instance', () => {
       const oecd = getReportRenderer('oecd');
       expect(getReportRenderer('hots')).toBe(oecd);
       expect(getReportRenderer('teach')).toBe(oecd);
       expect(getReportRenderer('fico')).toBe(oecd);
-    });
-  });
-
-  describe('HTML renderer for MEWAKA (legacy — until a mewaka-framework lands)', () => {
-    test('"mewaka" maps to the HTML (Playwright) renderer', () => {
-      const renderer = getReportRenderer('mewaka');
-      expect(renderer.key).toBe('html');
-    });
-
-    test('the MEWAKA renderer is NOT the hero renderer', () => {
-      expect(getReportRenderer('mewaka')).not.toBe(getReportRenderer('oecd'));
+      expect(getReportRenderer('mewaka')).toBe(oecd);
     });
   });
 

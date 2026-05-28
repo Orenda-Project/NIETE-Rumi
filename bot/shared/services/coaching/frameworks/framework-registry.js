@@ -12,10 +12,11 @@ const { logToFile } = require('../../../utils/logger');
 // ─── Lazy loaders ────────────────────────────────────────────────────
 
 const registry = {
-  oecd:  () => require('./oecd-framework'),
-  hots:  () => require('./hots-framework'),
-  teach: () => require('./teach-framework'),
-  fico:  () => require('./fico-framework'),
+  oecd:   () => require('./oecd-framework'),
+  hots:   () => require('./hots-framework'),
+  teach:  () => require('./teach-framework'),
+  fico:   () => require('./fico-framework'),
+  mewaka: () => require('./mewaka-framework'),
 };
 
 // ─── Cache ───────────────────────────────────────────────────────────
@@ -26,7 +27,7 @@ const cache = {};
 
 /**
  * Get a framework module by key. Throws if key is unknown.
- * @param {string} key - Framework key (oecd, hots, teach, fico)
+ * @param {string} key - Framework key (oecd, hots, teach, fico, mewaka)
  * @returns {object} Framework module
  */
 function getFramework(key) {

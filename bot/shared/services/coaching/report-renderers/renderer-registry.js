@@ -13,13 +13,11 @@
  *              unknown frameworks (so a clone that adds a new framework
  *              key still renders something), and as the safety net the
  *              report-generator falls back to if the hero render rejects.
- *   - html   : MEWAKA's Playwright HTML→PDF path (hero focus area +
- *              6-domain Swahili scorecard + inline SVG sparkline). Kept
- *              as the active MEWAKA renderer in OSS — MEWAKA does not yet
- *              ship a `mewaka-framework.js` module, so the hero renderer's
- *              score adapter cannot produce groups for it. Add the
- *              framework module + a `mewaka-adapter.js` to flip mewaka
- *              onto `heroRenderer` in a follow-up.
+ *   - html   : the legacy MEWAKA Playwright HTML→PDF path (hero focus
+ *              area + 6-domain Swahili scorecard + inline SVG sparkline).
+ *              Kept as an escape hatch for cloners who want the older
+ *              MEWAKA-PDF format; no framework currently dispatches to
+ *              it. Wave-4 may remove once we confirm no adopters need it.
  *
  * Adding a new framework's report design is "register one line" here
  * (point a key at a renderer), not "edit an `if` in pdf-report.service.js".
@@ -91,12 +89,11 @@ const htmlRenderer = {
 // ─── Registry: framework key → renderer ──────────────────────────────────
 
 const renderers = {
-  oecd:  heroRenderer,
-  hots:  heroRenderer,
-  teach: heroRenderer,
-  fico:  heroRenderer,
-  mewaka: htmlRenderer, // see file-header note; flip in a follow-up after
-                        // adding `mewaka-framework.js` + a `mewaka-adapter.js`
+  oecd:   heroRenderer,
+  hots:   heroRenderer,
+  teach:  heroRenderer,
+  fico:   heroRenderer,
+  mewaka: heroRenderer,
 };
 
 const DEFAULT_RENDERER = pdfkitRenderer;
