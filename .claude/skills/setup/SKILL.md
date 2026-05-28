@@ -43,7 +43,7 @@ when you want it on. `.env.template` documents every feature's keys under an `EN
 | Spoken replies (TTS) | `ELEVENLABS_API_KEY` (+ `UPLIFT_API_KEY` for Urdu/regional) |
 | Reading pronunciation scoring | `AZURE_SPEECH_KEY` |
 | Lesson-plan generation | `GAMMA_API_KEY` |
-| Educational video | `KIE_API_KEY` + the `R2_*` storage keys |
+| Educational video | `VIDEO_GENERATION_ENABLED=true` + `KIE_API_KEY` |
 
 The single source of truth for what each key enables is
 [bot/shared/config/feature-availability.js](../../../bot/shared/config/feature-availability.js).

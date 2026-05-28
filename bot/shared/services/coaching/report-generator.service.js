@@ -151,7 +151,7 @@ class ReportGeneratorService {
           .eq('id', coachingSessionId);
       }
 
-      // Generate PDF report directly using wkhtmltopdf
+      // Generate PDF report via the per-framework transformer + PDFReportService
       const pdfBuffer = await this.generatePDFReport(session, teacherName, enhancedAnalysis);
 
       // Upload PDF to R2 for portal access
@@ -524,7 +524,7 @@ class ReportGeneratorService {
   }
 
   /**
-   * Generate PDF report using wkhtmltopdf
+   * Generate PDF report via the per-framework transformer + PDFReportService
    * @param {object} session - Session data
    * @param {string} teacherName - Teacher's full name
    * @param {object} enhancedAnalysis - Enhanced analysis data
