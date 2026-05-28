@@ -1,20 +1,24 @@
 /**
- * Worker-boot audit (Wave 3 PR α / α.4).
+ * Worker-boot audit.
  *
  * For every Node entry point (web + workers), fork a child process with a
  * minimum-shaped env and assert the require chain resolves without load-time
- * errors. The check is forked, NOT in-process, because no OSS worker today
- * gates on `require.main === module` — requiring a worker file starts it.
+ * errors. The check is forked, not in-process, because some workers do not yet
+ * gate on `require.main === module` — requiring them starts the loop.
  *
  * Pass criteria:
- *   - Child is still alive at the 1.5s timeout (require chain resolved, the
+ *   - Child is still alive at the 2s timeout (require chain resolved, the
  *     main loop kicked in) → PASS, kill it
- *   - Child exited with code 0 in < 1.5s → PASS (clean require + early exit)
- *   - Child exited with code != 0 in < 1.5s → FAIL (load-time error in stderr)
+ *   - Child exited with code 0 in < 2s → PASS (clean require + early exit)
+ *   - Child exited with code ≠ 0 in < 2s, no load-time error in stderr → PASS
+ *     for a CRON_WORKER entry (cron workers correctly exit non-zero when their
+ *     dependencies are unreachable; that's not a boot failure), FAIL otherwise
  *
- * Three entries are allowlisted as KNOWN_BOOT_IO_FAIL because they do
- * Supabase I/O at boot — fragile under DNS flap but harmless in real prod.
- * Tracked as a Wave-4 architectural cleanup.
+ * Load-time errors are detected by patterns Node prints at column 0 when the
+ * require chain itself fails. Runtime errors that the worker handles
+ * gracefully (e.g. a TypeError from a Supabase fetch during the poll loop,
+ * logged via pino as `"error": "TypeError: fetch failed"`) are NOT load-time
+ * errors and do not fail the audit.
  */
 
 const path = require('path');
@@ -22,11 +26,11 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const { ROOT, BOT_ROOT } = require('./_audit-helpers/require-graph');
 
-// Same minimum-shaped env the dry-pass used. All values pass presence-gating
-// without dialling real services.
+// Minimum-shaped env — placeholders that pass presence-gating without dialling
+// real services.
 const MINIMUM_ENV = {
   NODE_ENV: 'test',
-  PORT: '0', // ephemeral port — no collision
+  PORT: '0',
   SUPABASE_URL: 'http://localhost:54321',
   SUPABASE_SERVICE_ROLE_KEY: 'eyJ-test-placeholder',
   OPENROUTER_API_KEY: 'sk-or-v1-placeholder',
@@ -38,8 +42,18 @@ const MINIMUM_ENV = {
   WEBHOOK_VERIFY_TOKEN: 'test-verify-token',
 };
 
+// Only TRUE load-time failures count — patterns Node prints at column 0 when
+// the require chain itself fails. Runtime errors logged via structured logger
+// (which prepend whitespace and emit JSON) do not match.
 const LOAD_TIME_ERROR_RE =
-  /SyntaxError|MODULE_NOT_FOUND|Cannot find module|^Error:/m;
+  /^(SyntaxError|TypeError|ReferenceError|Cannot find module|Error \[ERR_)/m;
+
+// CRON-style workers: they're expected to exit. A non-zero exit is acceptable
+// when their dependencies are unreachable (the cron scheduler will retry on
+// the next tick — same shape as Railway / Kubernetes restart policies).
+const CRON_WORKERS = new Set([
+  path.join(BOT_ROOT, 'workers', 'stale-session.worker.js'),
+]);
 
 function discoverWorkerEntries() {
   const list = [];
@@ -54,7 +68,7 @@ function discoverWorkerEntries() {
   return list;
 }
 
-function bootCheck(entry, timeoutMs = 1500) {
+function bootCheck(entry, timeoutMs = 2000) {
   return new Promise((resolve) => {
     let out = '';
     const child = spawn('node', [entry], {
@@ -62,42 +76,30 @@ function bootCheck(entry, timeoutMs = 1500) {
       env: { ...process.env, ...MINIMUM_ENV },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
-    child.stdout.on('data', (d) => {
-      out += d.toString();
-    });
-    child.stderr.on('data', (d) => {
-      out += d.toString();
-    });
+    child.stdout.on('data', (d) => { out += d.toString(); });
+    child.stderr.on('data', (d) => { out += d.toString(); });
     const t = setTimeout(() => {
       try { child.kill('SIGTERM'); } catch { /* already dead */ }
-      const errorLine = LOAD_TIME_ERROR_RE.test(out)
-        ? out.match(LOAD_TIME_ERROR_RE)[0]
-        : null;
+      const errorLine = LOAD_TIME_ERROR_RE.test(out) ? out.match(LOAD_TIME_ERROR_RE)[0] : null;
       resolve({ status: errorLine ? 'fail' : 'pass', errorLine, code: null, out });
     }, timeoutMs);
     child.on('exit', (code) => {
       clearTimeout(t);
-      const errorLine = LOAD_TIME_ERROR_RE.test(out)
-        ? out.match(LOAD_TIME_ERROR_RE)[0]
-        : null;
-      const ok = (code === 0 || code === null) && !errorLine;
+      const errorLine = LOAD_TIME_ERROR_RE.test(out) ? out.match(LOAD_TIME_ERROR_RE)[0] : null;
+      // CRON workers may legitimately exit non-zero on missing deps; only
+      // load-time errors fail them.
+      const isCron = CRON_WORKERS.has(entry);
+      const ok = isCron
+        ? !errorLine
+        : (code === 0 || code === null) && !errorLine;
       resolve({ status: ok ? 'pass' : 'fail', errorLine, code, out });
     });
   });
 }
 
-// Allowlist: workers that fail at boot because they do Supabase I/O before
-// entering their message loop. Tracked as a Wave-4 follow-up.
-const KNOWN_BOOT_IO_FAIL = new Set([
-  path.join(BOT_ROOT, 'workers', 'coaching-processor.js'),
-  path.join(BOT_ROOT, 'workers', 'sqs-worker.js'),
-  path.join(BOT_ROOT, 'workers', 'stale-session.worker.js'),
-]);
-
-// Booting workers requires the bot's own node_modules (ioredis, @aws-sdk, etc).
-// CI runs the root test suite BEFORE `cd bot && npm ci`, so bot/node_modules is
-// absent at first-pass; the workers would fail with MODULE_NOT_FOUND for npm
-// packages, which isn't what α.4 is checking. Detect and skip gracefully.
+// Booting workers requires the bot's own node_modules. CI runs the root test
+// suite BEFORE `cd bot && npm ci`, so on first-pass we skip the test
+// gracefully — it runs after bot deps are installed.
 const BOT_NODE_MODULES_PRESENT = fs.existsSync(path.join(BOT_ROOT, 'node_modules'));
 
 describe('Worker-boot audit — every entry loads (forked)', () => {
@@ -110,16 +112,10 @@ describe('Worker-boot audit — every entry loads (forked)', () => {
 
   for (const entry of entries) {
     const rel = entry.replace(ROOT + '/', '');
-    const isAllowed = KNOWN_BOOT_IO_FAIL.has(entry);
-    const label = isAllowed ? `[allowlist] ${rel}` : rel;
     it(
-      label,
+      rel,
       async () => {
         const r = await bootCheck(entry, 2000);
-        if (isAllowed) {
-          // Document but don't gate the build.
-          return;
-        }
         if (r.status !== 'pass') {
           throw new Error(
             `${rel} failed boot:\n  ${r.errorLine || 'exit code ' + r.code}\n  ` +
