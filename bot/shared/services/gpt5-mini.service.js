@@ -614,6 +614,95 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
   }
 
   /**
+   * Extract the reflective-question corpus from a transcript.
+   *
+   * ONE upstream call via the failover router, run at session completion, separate
+   * from analyzePedagogy. Returns { corpus, usage, model_used }; the corpus is then
+   * persisted into coaching_sessions.analysis_data.reflective_corpus (JSONB sub-field,
+   * no schema migration needed).
+   *
+   * The corpus is the input to the v12 chain question builder
+   * (_generateReflectiveQuestionV12): it captures the lesson through-line + significant
+   * moments faithfully, BEFORE the LLM is asked to write reflective questions. Keeping
+   * extraction separate from question generation is what lets Q2/Q3 adapt to the
+   * teacher's actual prior answers.
+   *
+   * @param {string} transcript
+   * @param {string} [languageCode='en']  ISO code (ur|sw|en|ar|…) resolved to a profile.
+   * @returns {Promise<{corpus: object, usage: object, model_used: string}>}
+   */
+  static async extractReflectiveCorpus(transcript, languageCode = 'en') {
+    const { resolveProfile } = require('./coaching/reflective-questions/language-profiles');
+    const { buildCorpusPrompt } = require('./coaching/reflective-questions/corpus-prompt');
+    const { callReflective } = require('./coaching/reflective-questions/llm-router.service');
+    const profile = resolveProfile(languageCode);
+    const sys = buildCorpusPrompt(profile);
+    const { content, usage, model_used } = await callReflective(
+      [{ role: 'system', content: sys },
+        { role: 'user', content: `LESSON TRANSCRIPT:\n${transcript}` }],
+      { maxTokens: 3000 },
+    );
+    const corpus = this._safeJsonParse(content);
+    logToFile('[refl-q] corpus extracted', { model_used, language: profile.language });
+    return { corpus, usage, model_used };
+  }
+
+  /**
+   * v12 reflective-question chain (ONE question at a time).
+   *
+   * Q1 is built from the corpus alone. Q2 and Q3 adapt to the teacher's REAL prior
+   * answers (the chain reads CONVERSATION SO FAR from conversationHistory). After each
+   * generation, the guardrails ladder runs:
+   *
+   *   first generation → guardrails
+   *     clean      → return as-is
+   *     violation  → ONE retry with the "FIX THESE PROBLEMS" appendix
+   *       retry clean      → return
+   *       retry violation  → buildSafeFallback(language)
+   *
+   * @param {object} corpus
+   * @param {Array}  [conversationHistory=[]]  prior {role, content} turns (Q1 answer, Q2 answer)
+   * @param {number} [questionNumber=1]  1 | 2 | 3
+   * @param {string} [languageCode='en']
+   * @param {string} [firstName='']  bare first name (no honorific)
+   * @returns {Promise<string>} the question in the teacher's language
+   */
+  static async _generateReflectiveQuestionV12(corpus, conversationHistory = [], questionNumber = 1, languageCode = 'en', firstName = '') {
+    const { resolveProfile } = require('./coaching/reflective-questions/language-profiles');
+    const { buildQuestionPrompt } = require('./coaching/reflective-questions/question-prompt');
+    const { callReflective } = require('./coaching/reflective-questions/llm-router.service');
+    const { validateQuestion, buildSafeFallback } = require('./coaching/reflective-questions/guardrails');
+    const profile = resolveProfile(languageCode);
+    const baseSys = buildQuestionPrompt(questionNumber, corpus, profile, firstName);
+    const user = questionNumber === 1
+      ? `CORPUS:\n${JSON.stringify(corpus)}`
+      : `CORPUS:\n${JSON.stringify(corpus)}\n\nCONVERSATION SO FAR:\n${JSON.stringify(conversationHistory)}`;
+    const generate = async (sys) => {
+      const { content, model_used } = await callReflective(
+        [{ role: 'system', content: sys }, { role: 'user', content: user }],
+        { maxTokens: 1500 },
+      );
+      const parsed = this._safeJsonParse(content);
+      return { question: (parsed.question || '').trim(), question_en: parsed.question_en, model_used };
+    };
+    let { question, model_used } = await generate(baseSys);
+    let violations = validateQuestion(question, corpus, firstName, profile);
+    if (violations.length) {
+      const fixSys = `${baseSys}\n\n═══ FIX THESE PROBLEMS ═══\nYour previous attempt violated: ${violations.join(', ')}. Rewrite the question: ≤65 words, NO honorifics, NO raw MM:SS times, NO "Q1/Q2" meta, ONLY child names from the corpus, write ENTIRELY in ${profile.script}, spell every number as a word.`;
+      const retry = await generate(fixSys);
+      const retryViolations = validateQuestion(retry.question, corpus, firstName, profile);
+      if (!retryViolations.length) {
+        ({ question, model_used } = retry);
+      } else {
+        question = buildSafeFallback(questionNumber, corpus, profile);
+        model_used = 'safe-fallback';
+      }
+    }
+    logToFile('[refl-q] v12 question generated', { questionNumber, model_used, language: profile.language });
+    return question;
+  }
+
+  /**
    * Compute marks for Debrief & Reflection section
    * @param {object} debriefData - Debrief & reflection competency scores
    * @returns {object} Debrief data with computed marks
@@ -1111,6 +1200,14 @@ GUIDELINES:
       }
       if (analysisData?.has_lesson_plan && enhancedAnalysis.has_lesson_plan === undefined) {
         enhancedAnalysis.has_lesson_plan = analysisData.has_lesson_plan;
+      }
+      // LANDMINE — without this re-attach the reflective_corpus is silently dropped
+      // before the report side ever reads it. The enhance LLM's output schema has no
+      // reflective_corpus key, and the report-generator overwrites analysis_data with
+      // enhancedAnalysis, so the v12 corpus (extracted + persisted during analysis)
+      // must be re-attached here. Regression-tested.
+      if (analysisData?.reflective_corpus && !enhancedAnalysis.reflective_corpus) {
+        enhancedAnalysis.reflective_corpus = analysisData.reflective_corpus;
       }
 
       // Compute marks for Debrief & Reflection section

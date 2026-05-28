@@ -100,32 +100,59 @@ class AnalysisProcessorService {
       const framework = await selectFramework(session.user_id);
       logToFile('Framework resolved', { userId: session.user_id, framework: framework.name });
 
-      const analysisResult = await GPT5MiniService.analyzePedagogy(
-        session.transcript_text,
-        metadata,
-        session.lesson_plan_structured || null,
-        framework
-      );
+      // The pedagogy analysis and the v12 reflective corpus extraction run CONCURRENTLY.
+      // allSettled (NOT all) keeps the corpus extraction NON-BLOCKING — if it rejects, the
+      // critical-path analysis persist still proceeds and the report falls back gracefully
+      // (the rest of the coaching flow doesn't depend on the corpus being present).
+      const langCode = session.transcript_language || metadata.language || 'en';
+      const [analysisSettled, corpusSettled] = await Promise.allSettled([
+        GPT5MiniService.analyzePedagogy(
+          session.transcript_text,
+          metadata,
+          session.lesson_plan_structured || null,
+          framework,
+        ),
+        GPT5MiniService.extractReflectiveCorpus(session.transcript_text, langCode),
+      ]);
+      if (analysisSettled.status === 'rejected') throw analysisSettled.reason;
+      const analysisResult = analysisSettled.value;
+
+      let reflectiveCorpus = null;
+      if (corpusSettled.status === 'fulfilled' && corpusSettled.value) {
+        reflectiveCorpus = corpusSettled.value.corpus;
+        logToFile('[refl-q] corpus persisted to analysis_data', {
+          coachingSessionId,
+          model_used: corpusSettled.value.model_used,
+        });
+      } else if (corpusSettled.status === 'rejected') {
+        logToFile('[refl-q] corpus extraction failed (non-blocking)', {
+          coachingSessionId,
+          error: corpusSettled.reason && corpusSettled.reason.message,
+        });
+      }
 
       logToFile('Analysis completed', {
         coachingSessionId,
         inputTokens: analysisResult.usage.input_tokens,
         outputTokens: analysisResult.usage.output_tokens,
         cachedTokens: analysisResult.usage.cached_tokens,
-        cost: analysisResult.usage.cost
+        cost: analysisResult.usage.cost,
+        hasReflectiveCorpus: !!reflectiveCorpus,
       });
 
-      // Update database
+      // Update database — merge reflective_corpus into analysis_data when present.
       await supabase
         .from('coaching_sessions')
         .update({
-          analysis_data: analysisResult.analysis,
+          analysis_data: reflectiveCorpus
+            ? { ...analysisResult.analysis, reflective_corpus: reflectiveCorpus }
+            : analysisResult.analysis,
           status: 'analysis_complete',
           analysis_completed_at: new Date().toISOString(),
           analysis_cost: analysisResult.usage.cost,
           gpt5_input_tokens: analysisResult.usage.input_tokens,
           gpt5_output_tokens: analysisResult.usage.output_tokens,
-          gpt5_cached_tokens: analysisResult.usage.cached_tokens
+          gpt5_cached_tokens: analysisResult.usage.cached_tokens,
         })
         .eq('id', coachingSessionId);
 
