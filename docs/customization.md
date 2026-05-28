@@ -37,25 +37,82 @@ might want to change, it tells you **where** the seam is, **what kind** of chang
 - **Conformance test:** `tests/coaching/analyze-pedagogy-framework-dispatch.test.js`,
   `tests/coaching/framework-wiring.test.js`
 
-### The coaching report design (layout / visual / PDF vs HTML)
+### The coaching report design (layout / visual)
 - **Type:** `module` + `template`
 - **Seam:** a renderer registry —
   [`bot/shared/services/coaching/report-renderers/renderer-registry.js`](../bot/shared/services/coaching/report-renderers/renderer-registry.js).
-  `getReportRenderer(framework)` picks the renderer; OECD/HOTS/TEACH/FICO use the PDFKit renderer in
-  [`bot/shared/services/pdf-report.service.js`](../bot/shared/services/pdf-report.service.js), MEWAKA uses the
-  HTML template in [`bot/shared/services/coaching/templates/mewaka-report.template.js`](../bot/shared/services/coaching/templates/mewaka-report.template.js).
-  Add a framework's report design by registering one renderer — no `if (framework === …)` to edit.
-- **Conformance test:** `tests/coaching/report-renderer-registry.test.js`
+  `getReportRenderer(framework)` picks the renderer; **all five frameworks** (OECD/HOTS/TEACH/FICO/MEWAKA)
+  use the unified celebration ("hero") renderer that produces an inline PNG + caption. The legacy
+  PDFKit renderer in [`bot/shared/services/pdf-report.service.js`](../bot/shared/services/pdf-report.service.js)
+  is kept as the fallback for unknown frameworks and as the safety net the hero renderer falls back to
+  if its pipeline throws. Add a framework's report design by registering one renderer + adding a score
+  adapter — no `if (framework === …)` to edit.
+- **Conformance test:** `tests/coaching/report-renderer-registry.test.js`, `tests/coaching/hero-render-fallback.test.js`
 
-### The reflective debrief conversation + the coaching card
-- **Type:** `config`
-- **Seam:** the coaching model (questions, persona, rules, how many questions) lives in
-  [`bot/shared/config/coaching-debrief.config.js`](../bot/shared/config/coaching-debrief.config.js);
-  the card copy/buttons (per language) live in
-  [`bot/shared/config/coaching-card.config.js`](../bot/shared/config/coaching-card.config.js).
-  The "what to coach toward" policy is the pluggable `selectFocusIndicator` in
-  [`bot/shared/services/coaching/coaching-card/prioritized-action.service.js`](../bot/shared/services/coaching/coaching-card/prioritized-action.service.js).
-- **Conformance test:** `tests/coaching/coaching-debrief-config.test.js`
+### The hero report visual (colors, layout, fonts)
+- **Type:** `template`
+- **Seam:** [`bot/shared/services/coaching/report-v2/hero-report.template.js`](../bot/shared/services/coaching/report-v2/hero-report.template.js)
+  — the Playwright HTML template that renders to PNG. Variable-height single-page A4 design;
+  language-aware fonts (Lexend for LTR, Nastaliq for Urdu, Naskh for Arabic). Fonts + Rumi mark
+  are base64-embedded so the renderer is offline-safe.
+- **Conformance test:** rendered via `tests/coaching/hero-render-fallback.test.js`
+
+### Adding a new framework's score adapter for the hero report
+- **Type:** `module`
+- **Seam:** [`bot/shared/services/coaching/report-v2/score-adapters/`](../bot/shared/services/coaching/report-v2/score-adapters/)
+  + [`dispatch.js`](../bot/shared/services/coaching/report-v2/score-adapters/dispatch.js).
+  Each per-framework adapter turns `analysis_data` into `{ key, name, score, max, pct }[]` rows
+  for the hero template's scorecard. Add a new adapter file then register it in `dispatch.js`.
+- **Conformance test:** `tests/coaching/score-adapters.test.js`
+
+### The celebration narrative LLM prompt (per-language)
+- **Type:** `template` (prompt)
+- **Seam:** [`bot/shared/services/coaching/report-v2/narrative.service.js`](../bot/shared/services/coaching/report-v2/narrative.service.js)
+  — the `langRules()` function (per-language gender + code-switch rules) + `buildPrompt()` (the
+  celebration prompt body that feeds the hero report's narrative section). Reads from
+  `analysis.reflective_corpus` (lesson throughline + significant moments) when available.
+- **Conformance test:** `tests/coaching/hero-narrative-corpus.test.js`
+
+### The reflective debrief conversation
+- **Type:** `module` + `config`
+- **Seam:** five files under
+  [`bot/shared/services/coaching/reflective-questions/`](../bot/shared/services/coaching/reflective-questions/)
+  drive the v12 reflective chain (corpus + per-turn adaptive Q1/Q2/Q3):
+  [`corpus-prompt.js`](../bot/shared/services/coaching/reflective-questions/corpus-prompt.js) — the
+  one-shot corpus extraction prompt;
+  [`question-prompt.js`](../bot/shared/services/coaching/reflective-questions/question-prompt.js) —
+  per-question system prompts with Q1/Q2/Q3 beats;
+  [`guardrails.js`](../bot/shared/services/coaching/reflective-questions/guardrails.js) —
+  validation + per-language safe fallbacks;
+  [`language-profiles.js`](../bot/shared/services/coaching/reflective-questions/language-profiles.js) —
+  per-language data (script, region, gender rules);
+  [`llm-router.service.js`](../bot/shared/services/coaching/reflective-questions/llm-router.service.js) —
+  DeepSeek V3.2 → GPT-5.4 failover.
+  Number of questions is configurable in
+  [`bot/shared/config/coaching-debrief.config.js`](../bot/shared/config/coaching-debrief.config.js).
+- **Conformance test:** `tests/coaching/reflective-corpus-extraction.test.js`,
+  `tests/coaching/reflective-v12-question-chain.test.js`,
+  `tests/coaching/reflective-conversation-v12-wiring.test.js`
+
+### The commitment card content (Q3 → action prompt + per-language rules)
+- **Type:** `template` (prompt) + `config`
+- **Seam:** [`bot/shared/services/coaching/coaching-card/commitment-card.service.js`](../bot/shared/services/coaching/coaching-card/commitment-card.service.js)
+  — the `buildPrompt()` LLM prompt that turns the teacher's Q3 forward-commitment + the highest-leverage
+  growth area into a single lesson-rooted action. `GENDER_RULE` and `CODESWITCH_RULE` (per-language
+  Urdu/Kiswahili/Arabic/English) live in the same file as named exports; safe to edit
+  in-place. Falls back to the rule-based focus tip in
+  [`prioritized-action.service.js`](../bot/shared/services/coaching/coaching-card/prioritized-action.service.js)
+  when Q3 is missing or the LLM fails.
+- **Conformance test:** `tests/coaching/commitment-card-content.test.js`,
+  `tests/coaching/commitment-card-fallback.test.js`
+
+### The commitment card visual (band colors, RTL/LTR fonts, highlight style)
+- **Type:** `template`
+- **Seam:** [`bot/shared/services/coaching/coaching-card/card-template.js`](../bot/shared/services/coaching/coaching-card/card-template.js)
+  — the Playwright HTML template + `LABELS` (per-language eyebrow / try-label / footer strings)
+  + the colour-only RTL highlight rule. Rumi marks + fonts are base64-embedded so the renderer
+  is offline-safe.
+- **Conformance test:** `tests/coaching/render-commitment-card-image.test.js`
 
 ---
 
