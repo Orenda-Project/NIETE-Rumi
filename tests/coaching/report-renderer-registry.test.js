@@ -3,10 +3,12 @@
  *
  * The coaching report renderer is pluggable per framework via
  * bot/shared/services/coaching/report-renderers/renderer-registry.js.
- * Today: OECD/HOTS/TEACH/FICO render via the shared PDFKit layout and
- * MEWAKA renders via the Playwright HTML→PDF path. Adding a framework's
- * report design should be "register one line" in the registry, NOT editing
- * a hardcoded `if (framework === 'x')` branch in pdf-report.service.js.
+ *
+ * Default: OECD/HOTS/TEACH/FICO render via the unified celebration ("hero")
+ * design; MEWAKA renders via the legacy Playwright HTML→PDF path (it does not
+ * yet ship a `mewaka-framework.js` module, so the hero score adapter cannot
+ * produce groups for it — flipped in a follow-up). Unknown frameworks fall
+ * back to PDFKit.
  *
  * These tests lock the seam in place: if someone reintroduces a hardcoded
  * framework equality check in pdf-report.service.js, the grep assertion
@@ -36,15 +38,15 @@ describe('Report Renderer Registry — getReportRenderer()', () => {
     expect(typeof renderer.render).toBe('function');
   });
 
-  describe('PDFKit renderer for the pdfkit-layout frameworks', () => {
+  describe('Hero renderer is the default for OECD/HOTS/TEACH/FICO', () => {
     for (const framework of ['oecd', 'hots', 'teach', 'fico']) {
-      test(`"${framework}" maps to the PDFKit renderer`, () => {
+      test(`"${framework}" maps to the hero renderer`, () => {
         const renderer = getReportRenderer(framework);
-        expect(renderer.key).toBe('pdfkit');
+        expect(renderer.key).toBe('hero');
       });
     }
 
-    test('oecd/hots/teach/fico all share ONE PDFKit renderer instance', () => {
+    test('oecd/hots/teach/fico all share ONE hero renderer instance', () => {
       const oecd = getReportRenderer('oecd');
       expect(getReportRenderer('hots')).toBe(oecd);
       expect(getReportRenderer('teach')).toBe(oecd);
@@ -52,26 +54,29 @@ describe('Report Renderer Registry — getReportRenderer()', () => {
     });
   });
 
-  describe('HTML renderer for MEWAKA', () => {
+  describe('HTML renderer for MEWAKA (legacy — until a mewaka-framework lands)', () => {
     test('"mewaka" maps to the HTML (Playwright) renderer', () => {
       const renderer = getReportRenderer('mewaka');
       expect(renderer.key).toBe('html');
     });
 
-    test('the MEWAKA renderer is NOT the PDFKit renderer', () => {
+    test('the MEWAKA renderer is NOT the hero renderer', () => {
       expect(getReportRenderer('mewaka')).not.toBe(getReportRenderer('oecd'));
     });
   });
 
-  describe('Unknown frameworks fall back to the default', () => {
+  describe('Unknown frameworks fall back to the PDFKit default', () => {
     test('an unknown framework falls back to the PDFKit (default) renderer', () => {
       const fallback = getReportRenderer('does-not-exist');
       expect(fallback.key).toBe('pdfkit');
-      expect(fallback).toBe(getReportRenderer('oecd'));
     });
 
     test('undefined framework falls back to the PDFKit (default) renderer', () => {
       expect(getReportRenderer(undefined).key).toBe('pdfkit');
+    });
+
+    test('the PDFKit fallback is NOT the hero renderer', () => {
+      expect(getReportRenderer('does-not-exist')).not.toBe(getReportRenderer('oecd'));
     });
   });
 

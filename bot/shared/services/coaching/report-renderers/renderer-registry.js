@@ -2,18 +2,27 @@
  * Report Renderer Registry
  *
  * Routes framework key → the renderer that produces its coaching report.
- * A renderer is `{ render(reportData) -> Promise<Buffer> }`.
+ * A renderer is `{ render(input) -> Promise<Buffer | {png, caption}> }`.
  *
- * Today there are two renderers:
- *   - pdfkit : the hardcoded ~1100-line PDFKit layout shared by
- *              OECD / HOTS / TEACH / FICO (the default).
+ * Three renderers ship:
+ *   - hero   : the unified celebration design (Playwright HTML → PNG +
+ *              caption). DEFAULT for OECD / HOTS / TEACH / FICO; consumes
+ *              an input of shape `{ session, analysis, opts }` and returns
+ *              `{ png, caption }`.
+ *   - pdfkit : the hardcoded PDFKit layout. Kept as the fallback for
+ *              unknown frameworks (so a clone that adds a new framework
+ *              key still renders something), and as the safety net the
+ *              report-generator falls back to if the hero render rejects.
  *   - html   : MEWAKA's Playwright HTML→PDF path (hero focus area +
- *              6-domain Swahili scorecard + inline SVG sparkline), which
- *              doesn't fit the PDFKit layout.
+ *              6-domain Swahili scorecard + inline SVG sparkline). Kept
+ *              as the active MEWAKA renderer in OSS — MEWAKA does not yet
+ *              ship a `mewaka-framework.js` module, so the hero renderer's
+ *              score adapter cannot produce groups for it. Add the
+ *              framework module + a `mewaka-adapter.js` to flip mewaka
+ *              onto `heroRenderer` in a follow-up.
  *
- * Adding a new framework's report design is now "register one line" here
+ * Adding a new framework's report design is "register one line" here
  * (point a key at a renderer), not "edit an `if` in pdf-report.service.js".
- * Unknown frameworks fall back to the default PDFKit renderer.
  *
  * Mirrors the report-transformers/report-transformer-dispatch.js pattern:
  * an object map + lazy require so callers never pull a renderer they don't
@@ -25,8 +34,25 @@ const { logToFile } = require('../../../utils/logger');
 // ─── Renderers (lazy require so unused renderers stay unloaded) ──────────
 
 /**
- * Default renderer: the existing PDFKit layout. Wraps the PDFKit-only entry
- * on PDFReportService so output is byte-identical to the pre-registry path.
+ * Hero renderer: the unified celebration design. Returns { png, caption }.
+ *
+ * Accepts either a hero-shaped input `{ session, analysis, opts }` directly,
+ * OR a legacy `reportData` object with the hero input attached at
+ * `reportData._heroInput` (the side-channel used by report-generator so the
+ * PDFKit / HTML renderers can keep their reportData contract unchanged).
+ */
+const heroRenderer = {
+  key: 'hero',
+  render(input) {
+    const { generateHeroReport } = require('../report-v2/hero-report.service');
+    const hero = (input && input._heroInput) || input;
+    return generateHeroReport(hero.session, hero.analysis, hero.opts || {});
+  },
+};
+
+/**
+ * Default renderer (fallback): the existing PDFKit layout. Wraps the PDFKit-only
+ * entry on PDFReportService so output is byte-identical to the pre-registry path.
  */
 const pdfkitRenderer = {
   key: 'pdfkit',
@@ -51,11 +77,12 @@ const htmlRenderer = {
 // ─── Registry: framework key → renderer ──────────────────────────────────
 
 const renderers = {
-  oecd: pdfkitRenderer,
-  hots: pdfkitRenderer,
-  teach: pdfkitRenderer,
-  fico: pdfkitRenderer,
-  mewaka: htmlRenderer,   // Tanzania CPD — Playwright HTML→PDF report
+  oecd:  heroRenderer,
+  hots:  heroRenderer,
+  teach: heroRenderer,
+  fico:  heroRenderer,
+  mewaka: htmlRenderer, // see file-header note; flip in a follow-up after
+                        // adding `mewaka-framework.js` + a `mewaka-adapter.js`
 };
 
 const DEFAULT_RENDERER = pdfkitRenderer;
@@ -63,7 +90,7 @@ const DEFAULT_RENDERER = pdfkitRenderer;
 /**
  * Get the report renderer for a given framework key.
  * @param {string} frameworkKey - Framework key (oecd, hots, teach, fico, mewaka)
- * @returns {{ render: (reportData: object) => Promise<Buffer> }} Renderer
+ * @returns {{ key:string, render:(input:object) => Promise<Buffer|{png,caption}> }}
  */
 function getReportRenderer(frameworkKey) {
   const renderer = renderers[frameworkKey];
