@@ -28,7 +28,25 @@ A teacher records part of a lesson as **audio** on their phone and sends the voi
 
 ## What the teacher experiences
 
-Send a recording → get a friendly "working on it" message → a few minutes later receive a reflective question or two → then a clear, encouraging report they can keep and act on. The tone is supportive, never punitive.
+Send a recording → get a friendly "working on it" message → a few minutes later have a **short reflective voice conversation** (questions grounded in specific moments of *her own* lesson) → then a **scored celebration report** (image) → and finally a **commitment card** naming the one thing to try in the next class. The tone is supportive, never punitive.
+
+### Walkthrough — what an adopter's teacher actually receives
+
+A real, anonymized session in Kiswahili (teacher renamed **Asha**, students renamed too). Three artefacts arrive in order:
+
+**1. The reflective conversation** — turn-based, in *her* language, grounded in moments from *her* lesson (not a generic prompt). English glosses + callouts explain what makes each turn coaching.
+
+![Reflective conversation — Asha, Kiswahili (3 turns with English glosses + callouts)](../images/walkthroughs/1_reflective_conversation.png)
+
+**2. The hero report** — scored, single-page A4 celebration design, delivered as an inline WhatsApp **image with caption** (not a PDF document). Header score · per-domain bars · "Your strength" + "Your next horizon" · the cross-session journey trend · the one thing to try next class. Caption: `📋 Ripoti yako ya ufundishaji · Maumbo ya namba 1–9 · 2026-05-26`.
+
+![Hero coaching report — Asha, 60% Inakua, six MEWAKA domains, journey trend, next-step](../images/walkthroughs/2_hero_report.png)
+
+**3. The commitment card** — separate image that arrives after the report. Content is **the teacher's own forward-commitment** from her Q3 answer (verbatim) fused with one specific, lesson-rooted action. Highlighted phrases call out what to actually *do*.
+
+![Commitment card — Asha's own Q3 commitment + one specific action for next class](../images/walkthroughs/3_commitment_card.png)
+
+These three artefacts are the live shipped Tanzanian (MEWAKA) experience. Follow-up PRs make this the **default for every framework**, not just MEWAKA — so OECD/HOTS/TEACH/FICO adopters get the same celebration design rendered against their framework's own scorecard.
 
 ## Enable it
 
