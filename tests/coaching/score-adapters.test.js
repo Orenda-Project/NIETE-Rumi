@@ -170,6 +170,54 @@ describe('Score Adapter — buildScoreViewModel() per framework', () => {
     });
   });
 
+  describe('MEWAKA — 6 domains at domain altitude', () => {
+    const a = {
+      framework: 'mewaka',
+      language: 'sw',
+      domains: {
+        introduction:         { domain_score: 4,  domain_max: 6 },
+        content_delivery:     { domain_score: 18, domain_max: 24 },
+        teaching_methods:     { domain_score: 14, domain_max: 21 },
+        learner_involvement:  { domain_score: 6,  domain_max: 9 },
+        classroom_management: { domain_score: 7,  domain_max: 9 },
+        conclusion:           { domain_score: 4,  domain_max: 6 },
+      },
+      scores: { overall_percentage: 70 },
+    };
+
+    it('returns 6 groups A..F in rubric order', () => {
+      const vm = buildScoreViewModel(a);
+      expect(vm.groups).toHaveLength(6);
+      expect(vm.groups.map((g) => g.key)).toEqual(['A', 'B', 'C', 'D', 'E', 'F']);
+    });
+
+    it('language="sw" returns displayName_sw, "en" returns displayName', () => {
+      const sw = buildScoreViewModel({ ...a, language: 'sw' }).groups[0].name;
+      const en = buildScoreViewModel({ ...a, language: 'en' }).groups[0].name;
+      expect(sw).toBe('Utangulizi');
+      expect(en).toBe('Introduction');
+      expect(sw).not.toBe(en);
+    });
+
+    it('A1 = Utangulizi, 4/6, 67%', () => {
+      const vm = buildScoreViewModel(a);
+      expect(vm.groups[0].name).toBe('Utangulizi');
+      expect(vm.groups[0].score).toBe(4);
+      expect(vm.groups[0].max).toBe(6);
+      expect(vm.groups[0].pct).toBe(67);
+    });
+
+    it('falls back to area_score/area_max if a session has the legacy shape', () => {
+      const legacy = {
+        framework: 'mewaka',
+        areas: { introduction: { area_score: 3, area_max: 6 } },
+      };
+      const vm = buildScoreViewModel(legacy);
+      expect(vm.groups[0].score).toBe(3);
+      expect(vm.groups[0].max).toBe(6);
+    });
+  });
+
   describe('Unknown framework — empty groups (safety net)', () => {
     it('framework="unknown" returns groups: []', () => {
       const vm = buildScoreViewModel({ framework: 'unknown' });
