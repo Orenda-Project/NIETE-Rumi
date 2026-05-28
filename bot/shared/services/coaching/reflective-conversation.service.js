@@ -57,15 +57,45 @@ class ReflectiveConversationService {
                          await getUserLanguage(session.user_id);
       }
 
-      // Generate reflective question using GPT-4o with full transcript
-      const conversationHistory = session.conversation_state.questions || [];
-      const question = await GPT5MiniService.generateReflectiveQuestion(
-        session.analysis_data,
-        conversationHistory,
-        questionNumber,
-        session.transcript_text,  // Pass full transcript for specific evidence
-        questionLanguage  // Pass language for generation
-      );
+      // Generate reflective question via the v12 chain (corpus + per-turn
+      // adaptive Q1/Q2/Q3). The corpus was extracted concurrently with the
+      // pedagogy analysis at session-completion and persisted into
+      // analysis_data.reflective_corpus. If for any reason the corpus is
+      // missing (a session that pre-dates the v12 flow or one where the
+      // concurrent corpus extraction failed), fall back to a pre-canned safe
+      // question per language so the teacher still receives a prompt instead
+      // of an outage.
+      const corpus = session.analysis_data && session.analysis_data.reflective_corpus;
+      const teacherFirstName = (session.analysis_data && session.analysis_data.teacherFirstName) || '';
+
+      let question;
+      if (corpus) {
+        // Build chain history from the prior Q/A turns. v12 expects an
+        // OpenAI-style messages-like array of alternating assistant/user turns.
+        const priorTurns = session.conversation_state.questions || [];
+        const conversationHistory = priorTurns
+          .filter((q) => q.answer)
+          .flatMap((q) => [
+            { role: 'assistant', content: q.question || '' },
+            { role: 'user', content: q.answer },
+          ]);
+        question = await GPT5MiniService._generateReflectiveQuestionV12(
+          corpus,
+          conversationHistory,
+          questionNumber,
+          questionLanguage,
+          teacherFirstName,
+        );
+      } else {
+        const { buildSafeFallback } = require('./reflective-questions/guardrails');
+        const { resolveProfile } = require('./reflective-questions/language-profiles');
+        question = buildSafeFallback(questionNumber, {}, resolveProfile(questionLanguage));
+        logToFile('[refl-q] no corpus → safe fallback', {
+          coachingSessionId,
+          questionNumber,
+          language: questionLanguage,
+        });
+      }
 
       logToFile('Reflective question generated', {
         coachingSessionId,
