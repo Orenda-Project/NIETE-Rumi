@@ -34,7 +34,10 @@ const { logToFile } = require('../../../utils/logger');
 // ─── Renderers (lazy require so unused renderers stay unloaded) ──────────
 
 /**
- * Hero renderer: the unified celebration design. Returns { png, caption }.
+ * Hero renderer: the unified celebration design. Returns { png, caption } on
+ * success, OR a PDFKit Buffer if the hero pipeline throws (graceful fallback
+ * so a Chromium crash / narrative-LLM failure / font miss never leaves the
+ * teacher with no report).
  *
  * Accepts either a hero-shaped input `{ session, analysis, opts }` directly,
  * OR a legacy `reportData` object with the hero input attached at
@@ -43,10 +46,21 @@ const { logToFile } = require('../../../utils/logger');
  */
 const heroRenderer = {
   key: 'hero',
-  render(input) {
+  async render(input) {
     const { generateHeroReport } = require('../report-v2/hero-report.service');
     const hero = (input && input._heroInput) || input;
-    return generateHeroReport(hero.session, hero.analysis, hero.opts || {});
+    try {
+      return await generateHeroReport(hero.session, hero.analysis, hero.opts || {});
+    } catch (err) {
+      logToFile('[renderer-registry] hero render failed → PDFKit fallback', {
+        framework: hero.analysis && hero.analysis.framework,
+        error: err && err.message,
+      });
+      // Fall back to the PDFKit layout. report-generator passes the full
+      // PDFKit-shaped reportData as the top-level argument, so the renderer
+      // can route to it directly.
+      return pdfkitRenderer.render(input);
+    }
   },
 };
 

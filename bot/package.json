@@ -69,8 +69,7 @@
     "pino": "^10.1.0",
     "playwright-core": "^1.60.0",
     "sharp": "^0.34.4",
-    "uuid": "^9.0.1",
-    "wkhtmltopdf-selfcontained": "^0.1.6"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "jest": "^30.2.0",
