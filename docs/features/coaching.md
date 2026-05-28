@@ -54,7 +54,7 @@ A real, anonymized Tanzanian session in Kiswahili (teacher renamed **Asha**, stu
 
 ![Commitment card — Asha's own Q3 commitment + one specific action for next class](../images/walkthroughs/5_commitment_card.png)
 
-These five panels are the live shipped Tanzanian (MEWAKA) experience, captured exactly as the bot sends them (verbatim Kiswahili from `coaching-strings.js`, Q1/Q2/Q3 from a real anonymised session). Follow-up PRs make the hero + the post-observation commitment card the **default for every framework**, not just MEWAKA — so OECD/HOTS/TEACH/FICO adopters get the same celebration design rendered against their framework's own scorecard.
+These five panels are the live shipped Tanzanian (MEWAKA) experience, captured exactly as the bot sends them (verbatim Kiswahili from `coaching-strings.js`, Q1/Q2/Q3 from a real anonymised session). The hero report + the post-observation commitment card are the **default for every framework** — OECD/HOTS/TEACH/FICO and MEWAKA — so each adopter's teachers get the same celebration design rendered against their framework's own scorecard. The renderer-registry dispatches all five to the same hero renderer; the score adapter under [`bot/shared/services/coaching/report-v2/score-adapters/`](../../bot/shared/services/coaching/report-v2/score-adapters/) handles the per-framework score shape.
 
 ## Enable it
 
