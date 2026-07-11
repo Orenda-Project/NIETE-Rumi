@@ -18,7 +18,7 @@ Once the migration is done, these docs stop being "plans" and become "history of
 | # | File | Purpose | Status |
 |---|------|---------|--------|
 | — | [README.md](./README.md) | This file — index + status | Living |
-| — | [DEPLOYMENT.md](./DEPLOYMENT.md) | **Phase 1**: fork setup, Supabase + Railway + WhatsApp connection, smoke test | 🔴 Blocked on fork name + Meta app decision |
+| — | [DEPLOYMENT.md](./DEPLOYMENT.md) | **Phase 1**: fork setup, Supabase + Railway + WhatsApp connection, smoke test | 🟢 Bot + portal live, LP feature verified E2E (2026-07-11) |
 | 00 | [00-scope-and-decisions.md](./00-scope-and-decisions.md) | Architecture decisions, out-of-scope items, open questions | 🟡 Draft |
 | 01 | [01-lesson-plans.md](./01-lesson-plans.md) | Serve pre-baked LPs from S3 based on teacher class+grade — includes v1 WhatsApp UX proposal | 🟡 Draft (workshop) |
 | 02 | [02-teacher-training.md](./02-teacher-training.md) | Own content + external partner content, quiz + certificate | 🟡 Draft (Q-7 resolved, UX workshop pending) |
@@ -27,6 +27,7 @@ Once the migration is done, these docs stop being "plans" and become "history of
 | 05 | [05-exam-generator.md](./05-exam-generator.md) | Curriculum-aligned exam paper generation, extending Rumi's quiz feature | 🟡 Draft |
 | 06 | [06-from-main-rumi-bot.md](./06-from-main-rumi-bot.md) | Services to backport from `02_Main Rumi Bot` (stripped from open-source) | 🟡 Draft |
 | 07 | [07-capacitor-mobile.md](./07-capacitor-mobile.md) | Capacitor mobile app wrapping the portal — end of migration | 🟢 Deferred |
+| 08 | [08-launch-checklist.md](./08-launch-checklist.md) | **What's between "deployed" and "usable by real NIETE teachers"** — Meta paperwork, Flow re-registration, feature verifications, infra hardening | 🟢 Living |
 
 ---
 
