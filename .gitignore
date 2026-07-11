@@ -37,6 +37,11 @@ build/
 .next/
 out/
 
+# Exception: dashboard serves the portal SPA from this pre-built dist folder at runtime.
+# Rebuild flow: cd portal && npm ci && npm run build && cp -r dist ../dashboard/portal-frontend/
+!dashboard/portal-frontend/dist/
+!dashboard/portal-frontend/dist/**
+
 # IDE files
 .vscode/
 .idea/
