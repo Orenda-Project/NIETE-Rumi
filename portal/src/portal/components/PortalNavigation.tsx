@@ -1,8 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, BookOpen, MessageSquare, TrendingUp, LogOut, FileText, Video } from 'lucide-react';
+import { Home, BookOpen, MessageSquare, TrendingUp, LogOut } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { cn } from '@/lib/utils';
-import rumiLogo from '@/assets/rumi-logo-header.png';
+import nieteLogo from '@/assets/niete-logo.png';
 
 const PortalNavigation = () => {
   const location = useLocation();
@@ -13,8 +13,6 @@ const PortalNavigation = () => {
     { title: 'Dashboard', path: '/portal/dashboard', icon: Home },
     { title: 'Lesson Plans', path: '/portal/lesson-plans', icon: BookOpen },
     { title: 'Coaching', path: '/portal/coaching', icon: MessageSquare },
-    { title: 'Reading', path: '/portal/reading-assessments', icon: FileText },
-    { title: 'Videos', path: '/portal/videos', icon: Video },
     { title: 'Analytics', path: '/portal/coaching/analytics', icon: TrendingUp },
   ];
 
@@ -27,12 +25,12 @@ const PortalNavigation = () => {
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <img 
-                src={rumiLogo} 
-                alt="Rumi logo" 
-                className="w-8 h-8 object-contain" 
+              <img
+                src={nieteLogo}
+                alt="NIETE logo"
+                className="w-8 h-8 object-contain rounded"
               />
-              <span className="font-semibold text-lg">Rumi</span>
+              <span className="font-semibold text-lg">NIETE</span>
             </div>
 
             <div className="flex items-center gap-1">

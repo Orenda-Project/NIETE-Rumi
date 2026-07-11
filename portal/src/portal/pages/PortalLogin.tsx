@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import rumiLogo from '@/assets/rumi-logo-white.jpg';
+import nieteLogo from '@/assets/niete-logo.png';
 
 const PortalLogin = () => {
   const navigate = useNavigate();
@@ -44,8 +44,8 @@ const PortalLogin = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <img src={rumiLogo} alt="Rumi logo" className="w-10 h-10 object-contain" />
-            <h1 className="text-3xl sm:text-4xl font-light text-primary-foreground">Rumi Teacher Portal</h1>
+            <img src={nieteLogo} alt="NIETE logo" className="w-10 h-10 object-contain" />
+            <h1 className="text-3xl sm:text-4xl font-light text-primary-foreground">NIETE Teacher Portal</h1>
           </div>
           <p className="text-primary-foreground/80">Sign in to access your teaching resources</p>
         </div>

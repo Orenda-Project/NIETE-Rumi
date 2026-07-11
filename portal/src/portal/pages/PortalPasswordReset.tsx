@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { auth } from '../services/api';
-import rumiLogo from '@/assets/rumi-logo-white.jpg';
+import nieteLogo from '@/assets/niete-logo.png';
 import { ArrowLeft } from 'lucide-react';
 
 const PortalPasswordReset = () => {
@@ -51,8 +51,8 @@ const PortalPasswordReset = () => {
         <div className="bg-white rounded-lg shadow-lg p-8">
           <div className="mb-6 text-center">
             <img 
-              src={rumiLogo} 
-              alt="Rumi Logo" 
+              src={nieteLogo} 
+              alt="NIETE logo" 
               className="h-12 mx-auto mb-4"
             />
             <h1 className="text-2xl font-bold text-foreground mb-2">

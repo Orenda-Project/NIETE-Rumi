@@ -17,10 +17,9 @@ import PortalLessonPlans from "./portal/pages/PortalLessonPlans";
 import PortalCoaching from "./portal/pages/PortalCoaching";
 import PortalCoachingAnalytics from "./portal/pages/PortalCoachingAnalytics";
 import PortalCoachingDetail from "./portal/pages/PortalCoachingDetail";
-import PortalReadingAssessments from "./portal/pages/PortalReadingAssessments";
-import PortalReadingAssessmentDetail from "./portal/pages/PortalReadingAssessmentDetail";
-import PortalVideos from "./portal/pages/PortalVideos";
-import PortalVideoDetail from "./portal/pages/PortalVideoDetail";
+/* Reading assessments + video library are not part of NIETE's launch scope. Routes + imports
+ * removed so the URLs 404 rather than expose unfinished screens. Restore by re-adding both
+ * imports and the /portal/reading-* + /portal/video* routes below. */
 
 const queryClient = new QueryClient();
 
@@ -68,10 +67,6 @@ const App = () => {
             <Route path="/portal/coaching" element={<PortalCoaching />} />
             <Route path="/portal/coaching/analytics" element={<PortalCoachingAnalytics />} />
             <Route path="/portal/coaching/session/:sessionId" element={<PortalCoachingDetail />} />
-            <Route path="/portal/reading-assessments" element={<PortalReadingAssessments />} />
-            <Route path="/portal/reading-assessment/:id" element={<PortalReadingAssessmentDetail />} />
-            <Route path="/portal/videos" element={<PortalVideos />} />
-            <Route path="/portal/video/:id" element={<PortalVideoDetail />} />
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

@@ -379,6 +379,27 @@ The token pasted for this app is now unused for our purposes. If it's active els
 
 </details>
 
+## Portal deploy (2026-07-11, phase 2)
+
+Live: **https://portal-production-6a508.up.railway.app** — Railway service `portal` in the NIETE-Rumi project (ID `1b16c811-3436-45f4-930a-fe9442c3bd85`). Serves the React SPA (`portal/`) statically from `dashboard/portal-frontend/dist/` and the `/api/portal/*` JSON API from the same Express server on port 8080. Same-domain = no CORS, no third-party cookies, sessions in Redis via the existing `redis.railway.internal:6379`.
+
+Verified end-to-end via Chrome MCP on the operator account (Mashhood): setup token exchange → password creation → `/portal/dashboard` render fetched the Feature #1 LP from Supabase and rendered it as "Recent Lesson Plans" with a working PDF download link. Proves the portal reads live bot-produced data with zero manual sync.
+
+**Bugs found + fixed during deploy** (~6 iterations; every bot fork will hit these):
+
+| # | Symptom | Root cause | Fix |
+|---|---|---|---|
+| 1 | Runtime `Cannot find module 'dotenv'` | `npm ci` ran at repo root, not in `dashboard/` where the `package.json` with 22 deps lives | Set service `rootDirectory=/dashboard`; keep `startCommand=node entrypoint.js` |
+| 2 | `Missing Resend API key` at module load | `dashboard/services/resend-email.service.js` instantiates `new Resend(...)` eagerly at require-time | Set `RESEND_API_KEY` to a placeholder to unblock; password-reset email flow stays disabled until a real key is provisioned. Upstream fix: lazy-init the Resend client. **Upstream bug #7.** |
+| 3 | `ENOTFOUND tenant/user postgres.<ref>` from Supavisor pooler | Guessed wrong pooler host (`aws-0-us-east-1.pooler.supabase.com`) | Query `GET /v1/projects/{ref}/config/database/pooler` from the Supabase Management API — for `ihzciabopbttygxxgrkm` the correct host is `aws-1-ap-south-1.pooler.supabase.com:6543`. Never guess pooler hostnames. |
+| 4 | Direct DB conn `ENETUNREACH` (IPv6) | `db.<ref>.supabase.co` returns AAAA only; Railway egress is IPv4-only | Use the pooler (fix #3), not the direct connection |
+| 5 | Railway proxy 502 after successful boot | `targetPort` on the service domain was `null` and `PORT` env was unset | Set `PORT=8080` env + `serviceDomainUpdate targetPort=8080` explicitly. Auto-detection is unreliable for services created via the GraphQL API |
+| 6 | React Router 404 on `/portal/setup?token=...` | Route is `/portal/setup/:token` (path param), not `?token=` | The bot's registration flow already emits the correct shape; docs updated |
+
+**Env vars set on the portal service** (19 total): `NODE_ENV`, `PORT`, `DATABASE_URL` (pooler), `REDIS_URL` (internal), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_{HOST,PORT,USER,PASSWORD,NAME}` (pooler-scoped), `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`, `SESSION_SECRET`, `BROADCAST_PASSWORD`, `SESSION_COOKIE_NAME`, `WEBSITE_URL`, `SQS_PORTAL_QUEUE_URL`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `RESEND_API_KEY` (placeholder), `NIXPACKS_NODE_VERSION=22`, `RAILPACK_NODE_VERSION=22`. `PORTAL_URL` propagated to bot + sqs-worker services so registration deep-links point at the portal.
+
+Build strategy chosen: **commit the built SPA** to `dashboard/portal-frontend/dist/` (with a `!` negation rule in root `.gitignore`). Rebuild = `cd portal && npm ci && npm run build && cp -r dist ../dashboard/portal-frontend/`. Simpler than a two-stage Nixpacks build for a fork where the portal changes rarely; can migrate to a two-stage build later if it becomes churn.
+
 ## Notes / gotchas
 
 - Every backport from `02_Main Rumi Bot` (per doc [06](./06-from-main-rumi-bot.md)) must be **sanitised of hardcoded partner references** (phone numbers, `taleemabad.com`, `hyasin270`) before landing in the fork. The source-hygiene test (`tests/setup/source-hygiene.test.js`) catches leaks.
