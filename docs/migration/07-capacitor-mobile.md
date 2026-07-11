@@ -1,7 +1,9 @@
 # 07 — Capacitor Mobile App (Deferred)
 
-**Status**: 🟡 Deferred — do at end of migration
+**Status**: 🟢 Deferred — foundation exists. **Not scheduled.**
 **Depends on**: [00-scope-and-decisions](./00-scope-and-decisions.md) D-001 phase 2
+**Foundation (verified 2026-07-11)**: the web portal is live at [`https://portal-production-6a508.up.railway.app`](https://portal-production-6a508.up.railway.app) — Vite/React SPA served from `dashboard/portal-frontend/dist/` alongside the `/api/portal/*` Express API. That is the artifact Capacitor would eventually wrap. See [DEPLOYMENT.md § Portal deploy](./DEPLOYMENT.md) for the topology.
+**Decision (2026-07-11, operator)**: web-portal-only for now. Capacitor packaging is on the "when someone asks for it" list — not the "scheduled" list. The doc below stays as a plan-of-record for that eventual request.
 
 ---
 

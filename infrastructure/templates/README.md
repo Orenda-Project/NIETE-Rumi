@@ -1,6 +1,6 @@
 # WhatsApp Message Templates — NIETE Fork
 
-**Status**: 🟡 Templates harvested from PK production; publishing to NIETE WABA pending Meta setup.
+**Status**: 🟢 First publish run complete 2026-07-11. **3 of 9 templates accepted; 6 need media re-upload** on NIETE WABA before they can be published — see [Publish attempt log](#publish-attempt-log-2026-07-11) below.
 
 Meta Cloud API templates are **per-WABA** — they don't cross between WhatsApp Business Accounts. To use PK's feature-menu carousel, reading-assessment invite, quiz invitations, etc. on NIETE Rumi, they must be re-submitted (and re-approved by Meta) on the NIETE WABA.
 
@@ -78,3 +78,27 @@ NIETE is Pakistan-based. The English + Urdu variants harvested from PK cover the
 - **Carousel component ordering**: Meta rejects carousels with malformed component sequences. If a submission fails, diff the raw JSON against the PK original.
 - **Variable examples**: MARKETING templates with `{{1}}`, `{{2}}` etc. require `example` values in the JSON. These are already in the harvested JSONs.
 - **Rate limits**: Meta throttles template submission — space them out or accept some initial 429s and retry.
+
+## Publish attempt log (2026-07-11)
+
+Ran `NIETE_WHATSAPP_TOKEN=... NIETE_WABA_ID=1551576156552661 bash publish-templates.sh` against the NIETE WABA (adopted-Mudareb app). Result: **3 accepted, 6 rejected**. Every rejection maps to the same underlying constraint — **rich-media handles + Flow-Navigate references + carousel media samples are WABA-scoped**. When we copy a template JSON from PK, those handles are dangling references on NIETE.
+
+| Template | Result | Root cause | Fix path |
+|---|---|---|---|
+| `quiz_invitation_en` | ✅ PENDING (id `1735733497464759`) | — | Text-only, no media |
+| `quiz_invitation_ur` | ✅ PENDING (id `1494667852463904`) | — | Text-only, no media |
+| `readingtest_v2` | ✅ PENDING (id `1340625634212769`) | — | Text-only, no media |
+| `feature_menu_carousel_v3` | ❌ error_subcode 2388215 "invalid media sample" | Carousel card 0 references PK-scoped image handle | Upload feature-card images to NIETE WABA media library, replace `example.header_handle` in the JSON |
+| `video_style_selection` | ❌ error_subcode 2388215 same | Same — carousel media | Same — re-upload images to NIETE |
+| `message_templates_readingtest_v2_marketing_e4c46` | ❌ error_subcode 2388202 "Navigate screen invalid" | References a Flow that only exists on PK | Create the reading-assessment Flow on NIETE first, then update the template's `navigate_screen` |
+| `registration_v3` | ❌ error_subcode 2388273 "VIDEO header needs sample" | Video header points at PK-scoped video handle | Upload NIETE-branded registration video, replace video handle |
+| `registrationv2_schoolname_included` | ❌ error_subcode 2388273 same | Same — video handle | Same — re-upload video |
+| `rumi_portal_reset_otp` | ❌ error_subcode 2388042 "BODY component has unexpected `text` field" | Meta's AUTHENTICATION schema doesn't accept `text` in BODY component; harvested JSON was over-specified | Trim BODY to just `{"type":"BODY"}` — Meta injects a fixed OTP string. Also worth renaming to `niete_portal_reset_otp` since our Resend flow may replace this anyway |
+
+**Pattern for the next fork:** the publisher should segment templates upfront into "portable" (text-only, no header media, no Flow navigation) vs "media-bound" (carousel, header IMAGE/VIDEO, or Flow-navigate). Auto-publish portable ones; queue media-bound ones behind a media-upload preflight step that re-registers each asset on the target WABA and rewrites handle references. Filed as **upstream `rumi-platform` bug #14**.
+
+**Rejection-catalog priority for NIETE:**
+- The 3 accepted templates cover **quiz + reading assessment intros** — the two features NIETE has scoped for launch. That's the important surface.
+- `feature_menu_carousel_v3` matters for the `/menu` command — worth prioritizing the media re-upload when NIETE brand assets are ready.
+- The 2 `registration_*` templates are lower priority — the bot has a `hello_world` fallback path, and the WhatsApp Flow-based registration (already used in the earlier E2E test) doesn't require a template.
+- `rumi_portal_reset_otp` is deprioritized — we now use Resend for email-based portal password reset (see `dashboard/services/resend-email.service.js`).
