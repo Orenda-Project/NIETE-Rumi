@@ -1,0 +1,23 @@
+{
+  "name": "message_templates_readingtest_v2_marketing_e4c46",
+  "category": "MARKETING",
+  "language": "en",
+  "components": [
+    {
+      "type": "BODY",
+      "text": "Hello world!"
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "FLOW",
+          "text": "View Flow",
+          "flow_id": 1432151735009021,
+          "flow_action": "NAVIGATE",
+          "navigate_screen": "QUESTION_ONE"
+        }
+      ]
+    }
+  ]
+}

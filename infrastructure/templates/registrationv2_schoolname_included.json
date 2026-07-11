@@ -1,0 +1,32 @@
+{
+  "name": "registrationv2_schoolname_included",
+  "category": "MARKETING",
+  "language": "en",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "VIDEO",
+      "example": {
+        "header_handle": [
+          "https://scontent.whatsapp.net/v/t61.29466-34/534423202_1581644066613932_1997971286210686090_n.mp4?ccb=1-7&_nc_sid=8b1bef&_nc_ohc=BS3lxGi3q64Q7kNvwEAWeXG&_nc_oc=AdrWhIsnzOF8EvMSk1uoa1lArP_f-U3J1wRncsIQ5r0YYThHKLKjVMalG47xoCRNxmb6XNe3MNsCTVoHDwr3LLxR&_nc_zt=28&_nc_ht=scontent.whatsapp.net&edm=AH51TzQEAAAA&_nc_gid=mvIVyMyuwTJZX6A7qsq1nQ&_nc_tpa=Q5bMBQFkcyT01ENsab7ypuPXzPhmHOexWlZTEo0V7vi5hOjBVt2Vk5_mbDlVug9qzx5aF4MtJTQrHHG8xA&oh=01_Q5Aa5AHnmsuR6J97Sx7BGf8p2KEyIWT1rx0fEJu6GGoAsSNDcw&oe=6A797CD7"
+        ]
+      }
+    },
+    {
+      "type": "BODY",
+      "text": "Become friends with Rumi! I have a feeling this is the beginning of something special."
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "FLOW",
+          "text": "Complete Registration",
+          "flow_id": 1312289610632294,
+          "flow_action": "NAVIGATE",
+          "navigate_screen": "SIGN_UP"
+        }
+      ]
+    }
+  ]
+}

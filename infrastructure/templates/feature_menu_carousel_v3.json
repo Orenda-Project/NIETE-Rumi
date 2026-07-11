@@ -1,0 +1,120 @@
+{
+  "name": "feature_menu_carousel_v3",
+  "category": "MARKETING",
+  "language": "en",
+  "components": [
+    {
+      "type": "BODY",
+      "text": "Here's what I can help you with! Swipe to explore:"
+    },
+    {
+      "type": "CAROUSEL",
+      "cards": [
+        {
+          "components": [
+            {
+              "type": "HEADER",
+              "format": "VIDEO",
+              "example": {
+                "header_handle": [
+                  "https://scontent.whatsapp.net/v/t61.29466-34/534424347_4463344700604489_5525188970781258392_n.jpg?ccb=1-7&_nc_sid=a80384&_nc_ohc=TDP-YkSSN28Q7kNvwFgebnv&_nc_oc=AdqeAUIK0e9NEdJFoxX8nPgaUl2CPNiEwDWu5T5ywuJ0whfDrpyo-AQnAI4rpWKe1lVKScVnSJysGZ3ZizOZQDQh&_nc_zt=3&_nc_ht=scontent.whatsapp.net&edm=AH51TzQEAAAA&_nc_gid=mvIVyMyuwTJZX6A7qsq1nQ&oh=01_Q5Aa5AHlnkSQc3DA30lUHbil04AqalsG-ceaOISwSUzTgN4xdw&oe=6A797DAE"
+                ]
+              }
+            },
+            {
+              "type": "BODY",
+              "text": "Create lesson plans & presentations. Just tell me your topic and grade!"
+            },
+            {
+              "type": "BUTTONS",
+              "buttons": [
+                {
+                  "type": "QUICK_REPLY",
+                  "text": "Lesson Plans"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "components": [
+            {
+              "type": "HEADER",
+              "format": "VIDEO",
+              "example": {
+                "header_handle": [
+                  "https://scontent.whatsapp.net/v/t61.29466-34/491876159_1855125118704567_7286261042913045087_n.jpg?ccb=1-7&_nc_sid=a80384&_nc_ohc=3MD0bKw8OIoQ7kNvwHmJDkE&_nc_oc=AdpsXaHP2r87RAD98Lpj46QzYcSF0b5m4cCVKThVVJvPb7SSDF6ayORrC2TR9bf800wrUyNMlH9Ud4stdwsc2Ogx&_nc_zt=3&_nc_ht=scontent.whatsapp.net&edm=AH51TzQEAAAA&_nc_gid=mvIVyMyuwTJZX6A7qsq1nQ&oh=01_Q5Aa5AG4ITASzPyN40rRfSGQ5ySHDFJZFlM5FPsGEoBsW7K4FA&oe=6A798B3F"
+                ]
+              }
+            },
+            {
+              "type": "BODY",
+              "text": "Create educational videos on any topic. I generate animated explainers!"
+            },
+            {
+              "type": "BUTTONS",
+              "buttons": [
+                {
+                  "type": "QUICK_REPLY",
+                  "text": "Create Video"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "components": [
+            {
+              "type": "HEADER",
+              "format": "VIDEO",
+              "example": {
+                "header_handle": [
+                  "https://scontent.whatsapp.net/v/t61.29466-34/491876893_737919598875365_5728974107437662933_n.jpg?ccb=1-7&_nc_sid=a80384&_nc_ohc=6P2b1_G64pMQ7kNvwEifiZP&_nc_oc=AdoPCoUJfQD0WrmdCZRKEYH5Q3EicU72xBx4JZ3H72Pjamc6J-TBOoDWQRKMphl0bmWb1bwBc0WB4Q0puxUtkqH5&_nc_zt=3&_nc_ht=scontent.whatsapp.net&edm=AH51TzQEAAAA&_nc_gid=mvIVyMyuwTJZX6A7qsq1nQ&oh=01_Q5Aa5AEXXieKnJyWOQ-cM1iOZ_aO3_WbgyziAlX0WlylDLbNrw&oe=6A798C4E"
+                ]
+              }
+            },
+            {
+              "type": "BODY",
+              "text": "Upload classroom audio and get personalized teaching feedback."
+            },
+            {
+              "type": "BUTTONS",
+              "buttons": [
+                {
+                  "type": "QUICK_REPLY",
+                  "text": "Coaching"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "components": [
+            {
+              "type": "HEADER",
+              "format": "VIDEO",
+              "example": {
+                "header_handle": [
+                  "https://scontent.whatsapp.net/v/t61.29466-34/491876893_847919278135786_8672951837566112853_n.jpg?ccb=1-7&_nc_sid=a80384&_nc_ohc=IGoNELPyLZcQ7kNvwE8fipf&_nc_oc=AdqgiYlfV9f7kfMtL2UFhjyrmbvOcg5eTQnKLZpNRmEIwrslYO4H76z6zluQt7ngKPcNgWzCHOAbw3iuFX4YA3Qp&_nc_zt=3&_nc_ht=scontent.whatsapp.net&edm=AH51TzQEAAAA&_nc_gid=mvIVyMyuwTJZX6A7qsq1nQ&oh=01_Q5Aa5AGMcxRC1zYW5zFRrXdnoaU78IQ6rlx_mVU9cO2ksSoCAQ&oe=6A796838"
+                ]
+              }
+            },
+            {
+              "type": "BODY",
+              "text": "Assess student reading fluency with WCPM scores and feedback."
+            },
+            {
+              "type": "BUTTONS",
+              "buttons": [
+                {
+                  "type": "QUICK_REPLY",
+                  "text": "Reading Test"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

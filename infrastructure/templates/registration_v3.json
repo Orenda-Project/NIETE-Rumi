@@ -1,0 +1,32 @@
+{
+  "name": "registration_v3",
+  "category": "MARKETING",
+  "language": "en",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "VIDEO",
+      "example": {
+        "header_handle": [
+          "https://scontent.whatsapp.net/v/t61.29466-34/534423953_777141725373896_7135679640238322294_n.mp4?ccb=1-7&_nc_sid=8b1bef&_nc_ohc=T1kqccIg7u4Q7kNvwGb609j&_nc_oc=Ado5Khu39G8ljdmGc3-6LZ-sWWw2ntBmDxXpZoXQGAf6PelyrL6qQfSrSdqUndBBZFAEJTiUGrxnAIM6hwPBt7oC&_nc_zt=28&_nc_ht=scontent.whatsapp.net&edm=AH51TzQEAAAA&_nc_gid=mvIVyMyuwTJZX6A7qsq1nQ&_nc_tpa=Q5bMBQEJH8CrQpLIgrw06iTar1RHIk0g3YZ3S1Is0Se6zQaPqjsIqJToQe42udar-i-Upj5TbapMAHjwWQ&oh=01_Q5Aa5AHofry208o5TXhC9u1PGuy3zQVgQUBUPeq14mkCqChJrg&oe=6A797AE1"
+        ]
+      }
+    },
+    {
+      "type": "BODY",
+      "text": "Knowing you helps me serve you better! Please add your details."
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "FLOW",
+          "text": "Complete Registration",
+          "flow_id": 833574086321691,
+          "flow_action": "NAVIGATE",
+          "navigate_screen": "SIGN_UP"
+        }
+      ]
+    }
+  ]
+}

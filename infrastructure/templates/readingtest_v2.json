@@ -1,0 +1,28 @@
+{
+  "name": "readingtest_v2",
+  "category": "MARKETING",
+  "language": "en",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "TEXT",
+      "text": "Welcome to the reading test!"
+    },
+    {
+      "type": "BODY",
+      "text": "For the reading test you've requested, please tell us some additional details so we can customize the experience."
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "FLOW",
+          "text": "Fill Information",
+          "flow_id": 819028084215847,
+          "flow_action": "NAVIGATE",
+          "navigate_screen": "QUESTION_ONE"
+        }
+      ]
+    }
+  ]
+}

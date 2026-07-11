@@ -1,0 +1,41 @@
+{
+  "name": "quiz_invitation_ur",
+  "category": "UTILITY",
+  "language": "ur",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "TEXT",
+      "text": "استاد کی طرف سے کوئز"
+    },
+    {
+      "type": "BODY",
+      "text": "السلام علیکم! {{1}} کے استاد نے \"{{2}}\" پر ایک کوئز بھیجا ہے۔\n\n\"کوئز شروع کریں\" دبائیں اور چند سوالات کے جواب دیں۔ روکنے کے لیے STOP لکھیں۔",
+      "example": {
+        "body_text": [
+          [
+            "احمد",
+            "کسر"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "FOOTER",
+      "text": "Rumi کی طرف سے"
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "QUICK_REPLY",
+          "text": "کوئز شروع کریں"
+        },
+        {
+          "type": "QUICK_REPLY",
+          "text": "ابھی نہیں"
+        }
+      ]
+    }
+  ]
+}

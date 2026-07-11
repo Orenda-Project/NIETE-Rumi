@@ -59,19 +59,95 @@ Modelled on `rumi-platform/SETUP.md` (an 11-step guide) with one extra step (web
 - [ ] `cd bot && npm install`
 - [ ] `npm test` runs clean (baseline test suite passes on fresh checkout)
 
-### Step 3 — Create Supabase project
+### Step 3 — Create Supabase project ✅ (done 2026-07-11)
 
-- [ ] Create free-tier project at [supabase.com](https://supabase.com), region closest to target users
-- [ ] Paste `exec_sql` helper (see SETUP.md Step 2) in SQL Editor once
-- [ ] `npm run bootstrap:db` — applies schema + RLS + seed
-- [ ] `infrastructure/supabase/verify-schema.sql` — all checks show PASS
-- [ ] Capture `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` from Settings → API
+- [x] Created via Supabase Management API using the existing `sbp_` token (`SUPABASE_ACCESS_TOKEN` from prod credentials doc)
+- [x] Project: **`rumi-niete`** (ID `ihzciabopbttygxxgrkm`)
+- [x] Org: **Rumi Deployments** (`jknlaervxxusivtgedtq`) — same org as `rumi-zavia`
+- [x] Region: **`ap-south-1`** (Mumbai) — matches Zavia pattern, closer to PK users
+- [x] Tier: **Free**
+- [x] `SUPABASE_URL` = `https://ihzciabopbttygxxgrkm.supabase.co` — plumbed into local `.env`
+- [x] `SUPABASE_SERVICE_ROLE_KEY` — legacy JWT retrieved via `/v1/projects/{ref}/api-keys`, plumbed into local `.env`
+- [x] DB password — generated strong random 32-char, stored in `.env` as `SUPABASE_DB_PASSWORD`
+- [x] Created `exec_sql` helper with SECURITY DEFINER + service_role EXECUTE grant (Supabase's newer default permissions require this — the raw version in SETUP.md hits "permission denied for schema public")
+- [x] Missing sequences created upfront (see gotcha below)
+- [x] Applied `00_complete-schema.sql` via direct `psql` (Management API silently swallows errors on large SQL; RPC `exec_sql` from `npm run bootstrap:db` also fails with large payloads)
+- [x] Applied `01_rls-policies.sql`
+- [x] Final state: **73 tables, 159 functions, 27 triggers** — matches upstream target
+- [ ] `02_seed-data.sql` NOT APPLIED — upstream bug (see gotcha below); can be skipped for phase 1 (only affects reading-assessment WCPM benchmarks)
 
-### Step 4 — Create Railway project
+**Upstream `rumi-platform` bugs found during this bootstrap (worth reporting)**:
+1. **4 sequences referenced but not created**: `lcpm_benchmarks_id_seq`, `migration_test_id_seq`, `wcpm_percentiles_id_seq`, `qa_test_runs_run_number_seq`. Schema uses `nextval()` without the `CREATE SEQUENCE` earlier in the file.
+2. **Indexes on undefined materialized views**: `mv_dashboard_stats`, `mv_dashboard_stats_by_country`, `mv_retention_cohorts`, `mv_users_activity`, `mv_view_refresh_status` — referenced in `CREATE UNIQUE INDEX` statements at line 3249+, but the MV definitions are missing from `00_complete-schema.sql`.
+3. **Seed data column mismatch**: `02_seed-data.sql` line 35 says `INSERT INTO wcpm_percentiles (grade, ...)` but the schema has `grade_level` (not `grade`).
+4. **`bootstrap:db` script hits payload limits**: The 137 KB schema goes through PostgREST's `exec_sql` RPC, which fails silently or with obscure "helper is missing" messages. Direct `psql` handles it cleanly.
 
-- [ ] Create Railway project (empty)
-- [ ] Add **Redis plugin** — copy `REDIS_URL` from its Variables tab
-- [ ] Leave the bot service unconfigured for now — deploys in Step 10
+For NIETE this is unblocked; upstream should fix these for future fork bootstraps.
+
+### Step 3.5 — Create SQS queues ✅ (done 2026-07-11)
+
+Not part of upstream SETUP.md — this fork uses `QUEUE_DRIVER=sqs` (matching prod).
+
+7 queues created in `us-east-1` under existing IAM user `hyasin270`, following prod naming pattern `rumi-<component>-<queue|dlq>-niete[.fifo]`:
+
+| Queue | Type | Redrive |
+|---|---|---|
+| `rumi-coaching-queue-niete.fifo` | FIFO | → `rumi-coaching-dlq-niete.fifo`, maxReceive=3 |
+| `rumi-coaching-dlq-niete.fifo` | FIFO DLQ | — |
+| `rumi-portal-queue-niete.fifo` | FIFO | → `rumi-portal-dlq-niete.fifo`, maxReceive=3 |
+| `rumi-portal-dlq-niete.fifo` | FIFO DLQ | — |
+| `rumi-video-queue-niete.fifo` | FIFO | none (matches prod — no video DLQ) |
+| `rumi-quiz-queue-niete` | Standard | → `rumi-quiz-dlq-niete`, maxReceive=3 |
+| `rumi-quiz-dlq-niete` | Standard DLQ | — |
+
+All URLs plumbed into local `.env` under `SQS_*_URL` keys.
+
+### Step 4 — Create Railway project ✅ (done 2026-07-11)
+
+Used `RAILWAY_ACCOUNT_TOKEN` from prod credentials doc to drive everything via GraphQL API (no `railway login` needed):
+
+- [x] Project **`NIETE-Rumi`** created (ID `bcc5a6a9-02e6-4d1f-8fff-1fe5eb5626df`)
+- [x] Production environment (`6902ea89-557f-416a-8e00-176dc61fcfad`)
+- [x] Redis service (docker image `redis:7-alpine`, internal DNS `redis.railway.internal:6379`) — pluginCreate is deprecated in current Railway API; used `serviceCreate` with `source.image` instead
+- [x] Bot service (`96a90a3a-d3d6-4866-b533-b3ffb4f9c402`), pointed at `Orenda-Project/NIETE-Rumi` main branch
+- [x] 27 env vars uploaded from local `.env` via `variableCollectionUpsert` GraphQL mutation
+- [x] Public domain generated: `bot-production-2cb6.up.railway.app`
+- [x] Multi-region default: `europe-west4-drams3a` (change to `asia-southeast1` later if NIETE latency matters)
+
+### Deploy iteration log (2026-07-11)
+
+Four upstream `rumi-platform` gotchas surfaced during first-time deploy — all fixed via Railway API without changing repo code (yet — worth upstreaming later):
+
+| Attempt | Failure | Fix applied |
+|---|---|---|
+| Deploy #1 | "No start command detected" (Railpack) | Set `startCommand=node bot/whatsapp-bot.js` + `healthcheckPath=/health` via `serviceInstanceUpdate` |
+| Deploy #2 | `Cannot find module 'pino'` — bot/ deps not installed | Set `buildCommand=npm install && cd bot && npm install` via `serviceInstanceUpdate` |
+| Deploy #3 | `Node.js 18 detected without native WebSocket support` (Supabase realtime-js needs Node 20+) | Set `NIXPACKS_NODE_VERSION=22` + `RAILPACK_NODE_VERSION=22` env vars |
+| Deploy #4 | `OpenAIError: Missing credentials. Please pass an 'apiKey'` — `bot/shared/services/llm-client.js:42` instantiates OpenAI client at module-load, without a key it throws. Container crash-restarted 10× then Railway marked `FAILED`. | Fixed: reused prod `OPENROUTER_API_KEY` from PK "digital coach" Railway service (via `variables` GraphQL query). Set on NIETE bot service + local `.env`. |
+| **Deploy #5** ✅ | — | **SUCCESS** at 2026-07-11 09:45:59 UTC. Healthcheck at `bot-production-2cb6.up.railway.app/health` returns `{"status":"healthy","service":"Rumi WhatsApp Bot","version":"1.1.0"}` in ~600ms. |
+
+### 🎉 Phase 1 status: bot is deployed and healthy
+
+- Public URL: `https://bot-production-2cb6.up.railway.app`
+- Healthcheck: `/health` → 200 OK
+- Root: `/` → "WhatsApp AI Bot is running!"
+- Environment: production
+- Uptime: verified against real HTTP
+
+### What remains blocked
+
+1. **WhatsApp end-to-end** — bot is healthy but has NO WABA attached yet. Once the NIETE Meta app is created (paused per user direction — see [Meta app: NIETE Rumi](#meta-app-niete-rumi-to-be-created) above), we plumb `WHATSAPP_TOKEN`, `PHONE_NUMBER_ID`, `WABA_ID`, `WEBHOOK_VERIFY_TOKEN` and the bot will accept incoming messages.
+
+### Bonus: template harvest (2026-07-11)
+
+While bot was building, harvested 9 core-feature message templates from PK production WABA (`1383233296670749`) — includes the `feature_menu_carousel_v3` "/menu" carousel, the reading-assessment invitations, quiz templates (EN + UR), registration variants, and portal OTP. Staged in [`infrastructure/templates/`](../../infrastructure/templates/) with a `publish-templates.sh` script ready to run against NIETE's WABA once created.
+
+Partner-specific marketing templates (Proj42, TFSL, RWP, Balochistan, Sindh, Storybooks, STEDA, Beaconhouse ELT/CS, seasonal) intentionally NOT harvested — see [templates/README.md](../../infrastructure/templates/README.md) for what was skipped and why.
+
+**Upstream fixes worth PRing to `rumi-platform`**:
+- Move `railway.json` from `infrastructure/railway/` to repo root, OR document that Railway config needs to be re-set per-fork
+- Add `"engines": {"node": ">=20"}` to root `package.json`
+- Add `"scripts": {"postinstall": "cd bot && npm install"}` to root `package.json`
 
 ### Step 5 — Get OpenRouter key
 

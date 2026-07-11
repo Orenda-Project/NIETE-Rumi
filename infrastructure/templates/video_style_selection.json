@@ -1,0 +1,120 @@
+{
+  "name": "video_style_selection",
+  "category": "MARKETING",
+  "language": "en",
+  "components": [
+    {
+      "type": "BODY",
+      "text": "Choose the visual style for your educational video. Each style creates a unique look optimized for different subjects."
+    },
+    {
+      "type": "CAROUSEL",
+      "cards": [
+        {
+          "components": [
+            {
+              "type": "HEADER",
+              "format": "IMAGE",
+              "example": {
+                "header_handle": [
+                  "https://scontent.whatsapp.net/v/t61.29466-34/604468494_1403981467743491_4884075262811461213_n.jpg?ccb=1-7&_nc_sid=a80384&_nc_ohc=7qiE5ufhOcYQ7kNvwHSmlxJ&_nc_oc=Adqz7rIQ_DH278c6_DewDZXzlSS1jUpJjE9gUwJgVUOuE2NrZRUMybB33xkPEW9AccqzNMxozxJOSHfgCWblgyJ1&_nc_zt=3&_nc_ht=scontent.whatsapp.net&edm=AH51TzQEAAAA&_nc_gid=mvIVyMyuwTJZX6A7qsq1nQ&oh=01_Q5Aa5AExgmixJx-ty91tQ-Z1BcEkYNf-bkRsJVyz55kUB_hN9A&oe=6A79825B"
+                ]
+              }
+            },
+            {
+              "type": "BODY",
+              "text": "Ultra-realistic visuals. Best for science demos, biology, and real-world processes."
+            },
+            {
+              "type": "BUTTONS",
+              "buttons": [
+                {
+                  "type": "QUICK_REPLY",
+                  "text": "Photorealistic"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "components": [
+            {
+              "type": "HEADER",
+              "format": "IMAGE",
+              "example": {
+                "header_handle": [
+                  "https://scontent.whatsapp.net/v/t61.29466-34/603972711_1230370445629938_7190304890057829144_n.jpg?ccb=1-7&_nc_sid=a80384&_nc_ohc=siR6WaDVC8YQ7kNvwGUcP8R&_nc_oc=AdoYlf0rV93GPJaMdcr4h_TLDBK7sXQiG1kBw-cV6kAEBmd4N_tpKHB00bhNVChKut15JfAdfXC7i9W3uEDq0Uxk&_nc_zt=3&_nc_ht=scontent.whatsapp.net&edm=AH51TzQEAAAA&_nc_gid=mvIVyMyuwTJZX6A7qsq1nQ&oh=01_Q5Aa5AGFYigN_HggVOurkSUIA9O1o8ur28D0rY_F5_VbgxljMg&oe=6A799E58"
+                ]
+              }
+            },
+            {
+              "type": "BODY",
+              "text": "Bold flat graphics like TED-Ed. Best for math, concepts, and abstract ideas."
+            },
+            {
+              "type": "BUTTONS",
+              "buttons": [
+                {
+                  "type": "QUICK_REPLY",
+                  "text": "Infographic"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "components": [
+            {
+              "type": "HEADER",
+              "format": "IMAGE",
+              "example": {
+                "header_handle": [
+                  "https://scontent.whatsapp.net/v/t61.29466-34/603029389_1391852069389872_3483760142382593362_n.jpg?ccb=1-7&_nc_sid=a80384&_nc_ohc=FKQMeOdP0AkQ7kNvwGYmMOl&_nc_oc=AdowL3XLggz6xSIjRct9aRjpPTzT2huvuBH4ouB6BxWzxgQ-Lo3UnKj4d8QdOT7C6090PbqcIW9aEHzIRWH5q_un&_nc_zt=3&_nc_ht=scontent.whatsapp.net&edm=AH51TzQEAAAA&_nc_gid=mvIVyMyuwTJZX6A7qsq1nQ&oh=01_Q5Aa5AHBk2Ay3XcgdnhW6ip7aS61bkiPkxKevr-NwgNO4_ZKBA&oe=6A796FA5"
+                ]
+              }
+            },
+            {
+              "type": "BODY",
+              "text": "Fun animated style. Best for young kids, stories, and making learning playful."
+            },
+            {
+              "type": "BUTTONS",
+              "buttons": [
+                {
+                  "type": "QUICK_REPLY",
+                  "text": "Cartoon"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "components": [
+            {
+              "type": "HEADER",
+              "format": "IMAGE",
+              "example": {
+                "header_handle": [
+                  "https://scontent.whatsapp.net/v/t61.29466-34/603448056_866294822657540_6587294624174418182_n.jpg?ccb=1-7&_nc_sid=a80384&_nc_ohc=U0I_P04HE1EQ7kNvwHtxUb2&_nc_oc=AdprKwzlo-g4O4d9RHEoyvERCwqZO4rJKTFUSFTSuFst8WmSb--TjGJfqtOg22h2WGy-Y1hsso2etKRd0_EYfnQt&_nc_zt=3&_nc_ht=scontent.whatsapp.net&edm=AH51TzQEAAAA&_nc_gid=mvIVyMyuwTJZX6A7qsq1nQ&oh=01_Q5Aa5AEqTCMP9y-g-dObfhbEHFYh5ZNurlGEh1J6RBEjIdtXJg&oe=6A7968EC"
+                ]
+              }
+            },
+            {
+              "type": "BODY",
+              "text": "Hand-drawn whiteboard style. Best for math steps, procedures, and explanations."
+            },
+            {
+              "type": "BUTTONS",
+              "buttons": [
+                {
+                  "type": "QUICK_REPLY",
+                  "text": "Sketch"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

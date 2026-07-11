@@ -1,0 +1,37 @@
+{
+  "name": "rumi_portal_reset_otp",
+  "category": "AUTHENTICATION",
+  "language": "en",
+  "components": [
+    {
+      "type": "BODY",
+      "text": "*{{1}}* is your verification code. For your security, do not share this code.",
+      "add_security_recommendation": true,
+      "example": {
+        "body_text": [
+          [
+            "123456"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "FOOTER",
+      "text": "Expires in 10 minutes.",
+      "code_expiration_minutes": 10
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "URL",
+          "text": "Copy code",
+          "url": "https://www.whatsapp.com/otp/code/?otp_type=COPY_CODE&code_expiration_minutes=10&code=otp{{1}}",
+          "example": [
+            "https://www.whatsapp.com/otp/code/?otp_type=COPY_CODE&code_expiration_minutes=10&code=otp123456"
+          ]
+        }
+      ]
+    }
+  ]
+}

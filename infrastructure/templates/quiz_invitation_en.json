@@ -1,0 +1,41 @@
+{
+  "name": "quiz_invitation_en",
+  "category": "UTILITY",
+  "language": "en",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "TEXT",
+      "text": "Quiz from your teacher"
+    },
+    {
+      "type": "BODY",
+      "text": "Assalam o Alaikum! {{1}}'s teacher has sent a quiz on \"{{2}}\".\n\nTap \"Start Quiz\" to answer a few short questions. You can stop anytime by typing STOP.",
+      "example": {
+        "body_text": [
+          [
+            "Ahmed",
+            "Fractions"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "FOOTER",
+      "text": "Powered by Rumi"
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "QUICK_REPLY",
+          "text": "Start Quiz"
+        },
+        {
+          "type": "QUICK_REPLY",
+          "text": "Not now"
+        }
+      ]
+    }
+  ]
+}
