@@ -1,3 +1,23 @@
+# 🟢 NIETE-Rumi — LIVE regional deployment
+
+> **You are in the NIETE-Rumi fork** — the region-specific customer-facing deployment for NIETE (National Institute of Education, Pakistan).
+>
+> | Fact | Value |
+> |---|---|
+> | **WhatsApp** | `+92 320 6281951` (Meta App `2052724122329740`, Mudareb-adopted) |
+> | **Env** | `NIETE-Rumi/.env` — has its own `PHONE_NUMBER_ID` + `WHATSAPP_TOKEN` |
+> | **Docs** | `NIETE-Rumi/docs/migration/` (00 through 08) |
+> | **Status** | 🟢 LIVE — Feature #1 (LP via UGLP) proven E2E, other features being ported |
+>
+> **NOT the same as:**
+> - `rumi-platform/` — upstream open-source template, no WhatsApp number
+> - `02_Main Rumi Bot/` — production Rumi PK (+92 329 5012345), different codebase
+> - `taleemabad-core/` — Django source app (read-only migration source)
+>
+> **Sanity check**: `head -1 CLAUDE.md` in this dir should show "NIETE-Rumi". Any WhatsApp E2E from this project uses NIETE's `PHONE_NUMBER_ID`.
+
+---
+
 # Rumi Platform — Agent Guide (L0)
 
 Open-source AI teaching companion on WhatsApp: 24/7 coaching, reading assessments, lesson plans, quizzes,
