@@ -134,6 +134,25 @@ Four upstream `rumi-platform` gotchas surfaced during first-time deploy — all 
 - Environment: production
 - Uptime: verified against real HTTP
 
+### Layer 2 outbound E2E test (2026-07-11) — PASSED
+
+After discovering Mudareb PK app was completely idle (0 conversations in 90 days, 1 subscribed app = itself, only `hello_world` template), decided to adopt it as the NIETE Meta app. Plumbed the existing Mudareb `WHATSAPP_TOKEN` + `PHONE_NUMBER_ID` (`1155653510968291`) + `WABA_ID` (`1551576156552661`) + a fresh random `WEBHOOK_VERIFY_TOKEN` (`09ab189257d6e79d0cede30a23fa3712`) onto NIETE-Rumi's Railway env.
+
+Fired mock webhook: `{"text":{"body":"hi, testing NIETE bot"}}` from `923333232533`.
+
+Timeline (6-second round-trip):
+- 10:19:46 Webhook received → 200 `EVENT_RECEIVED`
+- 10:19:48 User + session retrieved (session `28119cfb-...` resumed from earlier test)
+- 10:19:49 Language detected: English; message stored
+- 10:19:50 Intent detected via LLM
+- 10:19:51 AI response generated via OpenRouter (`gpt-4o`)
+- 10:19:52 **✅ Real WhatsApp message sent via Meta Graph API** — reply text: "Hi there! Your test message came through clearly. How can I assist you today?"
+- 10:19:52 Response stored in DB
+
+**Outbound E2E proven** — bot authenticates to Meta, generates LLM responses, delivers real WhatsApp messages to real numbers. Session persistence and conversation history work.
+
+**Inbound E2E** still requires you to configure the Meta app's webhook URL to point at `https://bot-production-2cb6.up.railway.app/webhook` with verify token `09ab189257d6e79d0cede30a23fa3712`. Browser-only task in Meta Developer Console.
+
 ### Layer 1 E2E test (2026-07-11)
 
 Fired a mock webhook payload at `/webhook` simulating a WhatsApp inbound message from Mashhood (`923333232533`) with text "hello test 2". Verified end-to-end:
