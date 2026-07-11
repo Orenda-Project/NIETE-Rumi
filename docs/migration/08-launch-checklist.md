@@ -53,16 +53,32 @@ Each of these needs a Chrome MCP / whatsapp-web-e2e run on the NIETE bot before 
 | # | Feature | Depends on | Status |
 |---|---|---|---|
 | 1 | LP generation (text request) | — | ✅ verified 2026-07-11 |
-| 2 | Registration Flow (WhatsApp Flow) | Flow re-registered on NIETE WABA (Flow IDs are WABA-scoped) | ❌ Flow ID from PK won't work — needs re-registration |
+| 2 | Registration Flow (WhatsApp Flow) | RSA keypair + Meta pubkey registration + Flow JSON on NIETE WABA | ✅ **verified 2026-07-11** — Flow `1735936197748957` PUBLISHED, WebView opens, encryption handshake proven E2E |
 | 3 | Pic-to-LP (image → LP via Textract + Kie.ai) | LP generation working (✅), image analysis env vars (already set) | 🟡 needs test send |
-| 4 | Coaching (classroom observation) | Coaching Flow re-registered on NIETE WABA | ❌ Flow ID re-registration |
+| 4 | Coaching (classroom observation) | Coaching Flow re-registered on NIETE WABA | ❌ Flow ID re-registration (pattern below) |
 | 5 | Quiz feature | Quiz templates approved (✅), quiz-generator Flow re-registered | 🟡 template ready, Flow needs re-reg |
-| 6 | Attendance (Flow-based) | Attendance Flow re-registered | ❌ Flow ID re-registration |
+| 6 | Attendance (Flow-based) | Attendance Flow re-registered × 2 (setup + marking) | ❌ Flow ID re-registration |
 | 7 | Homework | LP generation (✅), worksheet render (already deployed) | 🟡 needs test send |
 | 8 | `/menu` command | `feature_menu_carousel_v3` approval (PENDING) | 🟡 waiting Meta |
 | 9 | Broadcast to a cohort | Approved templates (✅ for 3 utility ones) | 🟡 needs test broadcast to 1-2 users |
 
-**The Flow-re-registration pattern**: Meta WhatsApp Flows are WABA-scoped just like templates. Every Flow ID we use in bot env vars (`REGISTRATION_FLOW_ID`, `COACHING_FLOW_ID`, etc.) currently references PK's Flow IDs and won't work against NIETE's WABA. Standard fix — use the `whatsapp-flows` skill's `replay-pk-flows.py` pattern to re-register each Flow's JSON on NIETE's WABA, capture the new IDs, update Railway env vars, redeploy.
+**The Flow-re-registration pattern (fully worked example — Registration, 2026-07-11)**. Encryption handshake is the load-bearing part; nail it once and every other Flow uses the same wiring.
+
+1. **Generate RSA 2048 keypair** — `openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out priv.pem && openssl rsa -in priv.pem -pubout -out pub.pem`. Base64-encode the private for env storage: `base64 -i priv.pem | tr -d '\n'`.
+2. **Set `FLOW_PRIVATE_KEY_B64` on the bot Railway service.** The bot's `flow-encryption.service.js` reads this and decrypts every inbound Meta payload.
+3. **Register the public key with Meta** for the phone number: `POST /v20.0/{PHONE_NUMBER_ID}/whatsapp_business_encryption` with body `business_public_key=<pubkey-PEM>`. Verify with `GET .../whatsapp_business_encryption` → `business_public_key_signature_status: VALID`.
+4. **Fetch the source Flow's JSON asset from PK** — `GET /v20.0/{PK_FLOW_ID}/assets?access_token=$PK_TOKEN` returns `download_url`; download to a local file.
+5. **Create the Flow on NIETE's WABA** — `POST /v20.0/{NIETE_WABA_ID}/flows` with `{name, categories, endpoint_uri}` where `endpoint_uri = https://bot-production-2cb6.up.railway.app/api/flows/<flow-name>`. Response gives the new Flow ID.
+6. **Upload the JSON as an asset** — `POST /v20.0/{NEW_FLOW_ID}/assets` multipart with `name=flow.json`, `asset_type=FLOW_JSON`, `file=@<downloaded>.json`. Meta validates + returns `validation_errors: []` (or a list to fix).
+7. **Set the Flow ID as an env var on the bot service** — e.g. `REGISTRATION_FLOW_ID=<new_id>` — and redeploy the bot so the new value is picked up.
+8. **Publish** — `POST /v20.0/{NEW_FLOW_ID}/publish` moves status DRAFT → PUBLISHED. From this point Meta will render the Flow when the bot sends a `flow` interactive message.
+9. **Verify E2E** — trigger the Flow from a WhatsApp phone (e.g. `/register`), click "Get started", confirm the first screen renders in the WebView. Success = encryption handshake works.
+
+**Known cosmetic post-migration:**
+- **Screen copy** (e.g. "Welcome to Rumi!") is hardcoded in the Flow JSON. Rebrand by editing the downloaded JSON, uploading a new asset revision, and re-publishing.
+- **"Managed by <BusinessName>" footer** on the Flow WebView is auto-sourced from the WABA's business display name — flips to "Managed by NIETE" once you rename the WABA in Meta Business Manager (currently on your manual TODO).
+
+**Coaching, Quiz, Attendance, Settings Flows follow the same 9 steps** — the encryption key + Meta pubkey registration are already done (Registration set them up), so each subsequent Flow is a 6-step process (skip steps 1-3).
 
 ---
 
