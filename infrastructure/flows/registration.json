@@ -1,0 +1,430 @@
+{
+  "version": "6.3",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "PERSONAL_INFO": [
+      "REGION_INFO",
+      "PROFESSIONAL_INFO"
+    ],
+    "REGION_INFO": [
+      "PROFESSIONAL_INFO"
+    ],
+    "PROFESSIONAL_INFO": [
+      "ORG_DETAILS",
+      "SUCCESS"
+    ],
+    "ORG_DETAILS": [
+      "SUCCESS"
+    ],
+    "SUCCESS": []
+  },
+  "screens": [
+    {
+      "id": "PERSONAL_INFO",
+      "title": "Registration",
+      "data": {
+        "countries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "PK",
+              "title": "Pakistan"
+            },
+            {
+              "id": "IN",
+              "title": "India"
+            }
+          ]
+        },
+        "init_full_name": {
+          "type": "string",
+          "__example__": "Ayesha Siddiqa"
+        },
+        "init_country": {
+          "type": "string",
+          "__example__": "PK"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "personal_form",
+            "init-values": {
+              "full_name": "${data.init_full_name}",
+              "country": "${data.init_country}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Welcome to NIETE!"
+              },
+              {
+                "type": "TextBody",
+                "text": "Please register to get started with your AI teaching assistant."
+              },
+              {
+                "type": "TextInput",
+                "name": "full_name",
+                "label": "Full Name",
+                "required": true,
+                "input-type": "text",
+                "helper-text": "Your full name"
+              },
+              {
+                "type": "Dropdown",
+                "name": "country",
+                "label": "Country",
+                "required": true,
+                "data-source": "${data.countries}"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "full_name": "${form.full_name}",
+                    "country": "${form.country}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "REGION_INFO",
+      "title": "Region",
+      "data": {
+        "regions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "punjab",
+              "title": "Punjab"
+            },
+            {
+              "id": "sindh",
+              "title": "Sindh"
+            }
+          ]
+        },
+        "init_region": {
+          "type": "string",
+          "__example__": "punjab"
+        },
+        "init_emis_code": {
+          "type": "string",
+          "__example__": "37330614"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "region_form",
+            "init-values": {
+              "region": "${data.init_region}",
+              "emis_code": "${data.init_emis_code}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Select Your Region"
+              },
+              {
+                "type": "TextBody",
+                "text": "Please select your region or province in Pakistan."
+              },
+              {
+                "type": "Dropdown",
+                "name": "region",
+                "label": "Region / Province",
+                "required": false,
+                "data-source": "${data.regions}"
+              },
+              {
+                "type": "TextInput",
+                "name": "emis_code",
+                "label": "School EMIS Code",
+                "required": false,
+                "input-type": "number",
+                "helper-text": "Your school's unique code from the education department"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "region": "${form.region}",
+                    "emis_code": "${form.emis_code}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "PROFESSIONAL_INFO",
+      "title": "Professional Info",
+      "data": {
+        "init_school_name": {
+          "type": "string",
+          "__example__": "GGES Jail Colony"
+        },
+        "init_organization": {
+          "type": "string",
+          "__example__": "sed_punjab"
+        },
+        "organizations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "taleemabad",
+              "title": "Taleemabad"
+            },
+            {
+              "id": "fde",
+              "title": "FDE"
+            }
+          ]
+        },
+        "grades": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "grade_1",
+              "title": "Grade 1"
+            },
+            {
+              "id": "grade_2",
+              "title": "Grade 2"
+            }
+          ]
+        },
+        "subjects": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "maths",
+              "title": "Maths"
+            },
+            {
+              "id": "english",
+              "title": "English"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "professional_form",
+            "init-values": {
+              "school_name": "${data.init_school_name}",
+              "organization": "${data.init_organization}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Professional Details"
+              },
+              {
+                "type": "Dropdown",
+                "name": "organization",
+                "label": "Organization / Partner",
+                "required": true,
+                "data-source": "${data.organizations}"
+              },
+              {
+                "type": "TextInput",
+                "name": "school_name",
+                "label": "School Name",
+                "required": true,
+                "input-type": "text",
+                "helper-text": "Name of your school"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "grade",
+                "label": "Grades You Teach",
+                "required": false,
+                "min-selected-items": 0,
+                "max-selected-items": 12,
+                "data-source": "${data.grades}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "subjects",
+                "label": "Subjects You Teach",
+                "required": false,
+                "min-selected-items": 0,
+                "max-selected-items": 11,
+                "data-source": "${data.subjects}"
+              },
+              {
+                "type": "Footer",
+                "label": "Complete Registration",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "organization": "${form.organization}",
+                    "school_name": "${form.school_name}",
+                    "grade": "${form.grade}",
+                    "subjects": "${form.subjects}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ORG_DETAILS",
+      "title": "Organization Name",
+      "data": {},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "org_details_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Enter Organization Name"
+              },
+              {
+                "type": "TextBody",
+                "text": "Please type your organization or partner name below."
+              },
+              {
+                "type": "TextInput",
+                "name": "organization_other",
+                "label": "Organization Name",
+                "required": true,
+                "input-type": "text",
+                "helper-text": "Enter the name of your organization"
+              },
+              {
+                "type": "Footer",
+                "label": "Complete Registration",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "organization_other": "${form.organization_other}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SUCCESS",
+      "title": "Registration Complete",
+      "terminal": true,
+      "data": {
+        "welcome_message": {
+          "type": "string",
+          "__example__": "Welcome, Teacher! Your registration is complete."
+        },
+        "portal_message": {
+          "type": "string",
+          "__example__": "Your portal is ready at portal.hellorumi.ai"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "Registration Complete!"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.welcome_message}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.portal_message}"
+          },
+          {
+            "type": "Footer",
+            "label": "Done",
+            "on-click-action": {
+              "name": "complete",
+              "payload": {}
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
