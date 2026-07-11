@@ -134,6 +134,26 @@ Four upstream `rumi-platform` gotchas surfaced during first-time deploy — all 
 - Environment: production
 - Uptime: verified against real HTTP
 
+### Feature #1 (Lesson Plan Generation) — FULL E2E PASSED 2026-07-11
+
+Real user-flow test verified via Chrome MCP against WhatsApp Web:
+
+- User request: *"Create a lesson plan on multiplication tables for grade 3 math"* (via mock webhook)
+- **11:36:14** Bot detected keyword "lesson plan" → intent=lesson_plan
+- **11:36:17** Bot extracted topic, created `lesson_plan_requests` row in Supabase, queued to SQS
+- **11:41:08** New `sqs-worker` service (deployed same day) picked up job
+- **11:41:08** Gamma API called (`Gamma generation started API v1.0`)
+- **11:42:xx** Gamma status transitioned pending → completed (~55s)
+- **11:42:xx** PDF downloaded, uploaded to R2, sent via WhatsApp Document API
+- **4:42 PM WhatsApp UI**: 📄 `lesson_plan_Multiplication_Tables_Lesson_Plan_for_Grade_3_Math.pdf` (215 KB) delivered
+- Bot followed up: *"By the way, what should I call you?"* (registration name-collection)
+
+Total wall-time: ~6 min from user message → PDF on phone. Full production-grade Rumi experience proven.
+
+**Critical infra gap caught during this test**: The initial NIETE-Rumi Railway deploy only had the `bot` (web) service. The `sqs-worker` service was missing — meaning any async job (LP generation, coaching, video, quiz reports) would queue but never run. Created the second service (`node bot/workers/sqs-worker.js`), copied 63 env vars from the bot service, and it started consuming immediately. **Every regional Rumi fork will need both services** — the SETUP.md should document this. **Upstream bug #6 for `rumi-platform`**.
+
+Env-key transfer summary: 30 safe external API keys copied from `02_Main Rumi Bot/.env` to NIETE-Rumi Railway (LLM providers, GAMMA, KIE, MISTRAL, SONIOX, ELEVENLABS, R2, Axiom, AWS Textract). WABA-scoped items intentionally skipped (Flow IDs, Media IDs, WhatsApp tokens — those don't cross forks).
+
 ### Layer 2 outbound E2E test (2026-07-11) — PASSED
 
 After discovering Mudareb PK app was completely idle (0 conversations in 90 days, 1 subscribed app = itself, only `hello_world` template), decided to adopt it as the NIETE Meta app. Plumbed the existing Mudareb `WHATSAPP_TOKEN` + `PHONE_NUMBER_ID` (`1155653510968291`) + `WABA_ID` (`1551576156552661`) + a fresh random `WEBHOOK_VERIFY_TOKEN` (`09ab189257d6e79d0cede30a23fa3712`) onto NIETE-Rumi's Railway env.
