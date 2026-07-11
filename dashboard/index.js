@@ -3585,6 +3585,15 @@ app.get('/health', (req, res) => {
 // TEACHER PORTAL FRONTEND SERVING (React SPA)
 // ============================================================================
 
+// NIETE fork override: the open-source rumi-platform portal ships with a
+// marketing landing at "/" (Rumi's own splash). NIETE customers reach us via
+// the portal invite link, not a top-level URL. Anything hitting the marketing
+// paths should land on NIETE's own site instead of a confusing Rumi splash.
+const NIETE_MARKETING_REDIRECT = 'https://niete.edu.pk/';
+for (const p of ['/', '/how-it-works']) {
+  app.get(p, (req, res) => res.redirect(302, NIETE_MARKETING_REDIRECT));
+}
+
 // Serve static frontend files from /portal-frontend/dist folder
 // This includes all compiled React/Vite assets (JS, CSS, images)
 app.use(express.static(path.join(__dirname, 'portal-frontend', 'dist')));

@@ -276,6 +276,7 @@ if (isDev) {
     base: {
       service: process.env.RAILWAY_SERVICE_NAME || process.env.SERVICE_NAME || 'rumi-bot',
       env: process.env.NODE_ENV || 'development',
+      region: process.env.REGION || undefined,
     },
     timestamp: pino.stdTimeFunctions.isoTime,
   });
@@ -289,6 +290,7 @@ if (isDev) {
     base: {
       service: process.env.RAILWAY_SERVICE_NAME || process.env.SERVICE_NAME || 'rumi-bot',
       env: process.env.NODE_ENV || 'development',
+      region: process.env.REGION || undefined,
     },
     timestamp: pino.stdTimeFunctions.isoTime,
   }, createDualOutputStream());
