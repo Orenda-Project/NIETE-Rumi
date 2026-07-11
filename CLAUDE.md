@@ -20,6 +20,7 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
 | Set up a clone from scratch | [SETUP.md](SETUP.md) · `npm run doctor` (preflight) |
 | Customize branding / swap a framework / add a feature | [docs/agent-customization.md](docs/agent-customization.md) |
 | Architecture, cost, monitoring | [docs/architecture.md](docs/architecture.md) · [docs/cost-guide.md](docs/cost-guide.md) · [docs/monitoring.md](docs/monitoring.md) |
+| **Active work: regional fork migration** (Taleemabad → new region) | [docs/migration/README.md](docs/migration/README.md) |
 
 ## Architecture facts that change how you write code
 
