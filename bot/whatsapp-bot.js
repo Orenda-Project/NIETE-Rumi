@@ -28,6 +28,7 @@ const { setUserLanguage, setLanguageLock } = require('./shared/utils/language-ca
 // Import Database helpers
 const { getOrCreateUser, trackChatStart } = require('./shared/database/bot-helpers');
 const supabase = require('./shared/config/supabase');
+const railwayRedis = require('./shared/services/cache/railway-redis.service');
 
 // Import Routes (Flow encryption endpoints)
 const flowEndpointRoutes = require('./shared/routes/flow-endpoint.routes');
@@ -315,6 +316,29 @@ app.post('/webhook', async (req, res) => {
 
     // Check message timestamp (24-hour window)
     if (!validators.isWithin24Hours(messageTimestamp, from)) {
+      res.status(200).send('EVENT_RECEIVED');
+      return;
+    }
+
+    // Per-phone rate limit (Redis sliding window; RATE_LIMIT_MAX / RATE_LIMIT_WINDOW_SECONDS).
+    // Fails open when Redis is down. A misbehaving phone is dropped BEFORE we spend LLM/Gamma dollars on it.
+    // We deliberately do NOT reply on the burst message — that would double the cost. First over-limit send
+    // gets a one-off "slow down" nudge (also rate-limited via the same window at 1/window/user).
+    const rateCheck = await railwayRedis.checkRateLimit(from);
+    if (!rateCheck.allowed) {
+      logToFile('⛔ Rate limit exceeded, dropping message', {
+        from, count: rateCheck.count, limit: constants.RATE_LIMIT_MAX,
+        windowSeconds: constants.RATE_LIMIT_WINDOW_SECONDS, resetAt: rateCheck.resetAt
+      });
+      const nudgeCheck = await railwayRedis.checkRateLimit(`ratenudge:${from}`, 1, constants.RATE_LIMIT_WINDOW_SECONDS);
+      if (nudgeCheck.allowed) {
+        try {
+          const WhatsAppService = require('./shared/services/whatsapp.service');
+          await WhatsAppService.sendMessage(from, `You're sending messages very quickly. Please slow down and try again in a minute.`);
+        } catch (e) {
+          logToFile('nudge send failed', { error: e.message });
+        }
+      }
       res.status(200).send('EVENT_RECEIVED');
       return;
     }
