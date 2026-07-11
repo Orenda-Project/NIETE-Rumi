@@ -134,6 +134,39 @@ Four upstream `rumi-platform` gotchas surfaced during first-time deploy — all 
 - Environment: production
 - Uptime: verified against real HTTP
 
+### Layer 1 E2E test (2026-07-11)
+
+Fired a mock webhook payload at `/webhook` simulating a WhatsApp inbound message from Mashhood (`923333232533`) with text "hello test 2". Verified end-to-end:
+
+- ✅ Webhook accepted (200 `EVENT_RECEIVED`)
+- ✅ New user created in Supabase (`d85abd76-...`)
+- ✅ Session created (`28119cfb-...`)
+- ✅ Language detected: English
+- ✅ Message stored in DB with session + language linkage
+- ✅ Intent detected via LLM
+- ✅ AI response generated via OpenRouter
+- ✅ Bot response stored in DB
+- ❌ WhatsApp send failed (expected — no `WHATSAPP_TOKEN` set)
+
+Every internal subsystem exercised: Supabase RW, Redis, OpenRouter LLM, session state, language detection, message pipeline.
+
+### Bug caught: Supabase service_role missing table grants (2026-07-11)
+
+First mock webhook test hit `permission denied for table users`. Root cause: during schema bootstrap the `DROP SCHEMA public CASCADE` + `CREATE SCHEMA public` cycle wiped table-level grants. Recreated tables inherited default grants only (owner = postgres). `service_role` had schema USAGE but no per-table SELECT/INSERT/UPDATE/DELETE.
+
+**Fix applied**:
+```sql
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO service_role;
+NOTIFY pgrst, 'reload schema';
+```
+
+This is worth adding to `rumi-platform`'s bootstrap script — any fork that hits a schema drop will lose grants, and the error `permission denied for table users` on first user message is a bad first impression. **Upstream bug #5.**
+
 ### What remains blocked
 
 1. **WhatsApp end-to-end** — bot is healthy but has NO WABA attached yet. Once the NIETE Meta app is created (paused per user direction — see [Meta app: NIETE Rumi](#meta-app-niete-rumi-to-be-created) above), we plumb `WHATSAPP_TOKEN`, `PHONE_NUMBER_ID`, `WABA_ID`, `WEBHOOK_VERIFY_TOKEN` and the bot will accept incoming messages.
