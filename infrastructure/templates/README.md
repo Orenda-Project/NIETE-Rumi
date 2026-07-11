@@ -1,6 +1,6 @@
 # WhatsApp Message Templates — NIETE Fork
 
-**Status**: 🟢 First publish run complete 2026-07-11. **3 of 9 templates accepted; 6 need media re-upload** on NIETE WABA before they can be published — see [Publish attempt log](#publish-attempt-log-2026-07-11) below.
+**Status**: 🟢 All 4 launch-scoped templates submitted 2026-07-11: `feature_menu_carousel_v3` (PENDING, 1-24h Meta review), `quiz_invitation_en/ur` + `readingtest_v2` (APPROVED same day). The other 5 harvested templates are deliberately skipped — see [Carousel re-upload](#carousel-re-upload-2026-07-11-session-2) for the scope reasoning.
 
 Meta Cloud API templates are **per-WABA** — they don't cross between WhatsApp Business Accounts. To use PK's feature-menu carousel, reading-assessment invite, quiz invitations, etc. on NIETE Rumi, they must be re-submitted (and re-approved by Meta) on the NIETE WABA.
 
@@ -78,6 +78,29 @@ NIETE is Pakistan-based. The English + Urdu variants harvested from PK cover the
 - **Carousel component ordering**: Meta rejects carousels with malformed component sequences. If a submission fails, diff the raw JSON against the PK original.
 - **Variable examples**: MARKETING templates with `{{1}}`, `{{2}}` etc. require `example` values in the JSON. These are already in the harvested JSONs.
 - **Rate limits**: Meta throttles template submission — space them out or accept some initial 429s and retry.
+
+## Carousel re-upload (2026-07-11, session 2)
+
+After the first-pass publish left `feature_menu_carousel_v3` blocked on "invalid media sample", ran a targeted re-upload against NIETE's App ID (`2052724122329740`) via Meta's resumable upload endpoint:
+
+- Source videos: `06_Logs & Misc/Reports/Production/Onboarding Flow 18 Dec 2025/Feature_Videos/{01_Lesson_Plan,04_Video_Generation,02_Coaching,03_Reading}_Feature/**` (same set that seeded PK's carousel — 1.2 MB, 9.7 MB, 11.7 MB, 9.3 MB)
+- Uploaded via `POST /{APP_ID}/uploads?file_length&file_type=video/mp4` → 4 fresh handles NIETE's WABA recognises
+- Rewrote `feature_menu_carousel_v3.json`'s 4 `example.header_handle` arrays with the new handles
+- Submitted: `id=1035306379358815, status=PENDING` (Meta's carousel review is 1-24h)
+
+Script: `/tmp/reupload-carousel-media.py` (single-purpose; keep here as reference for the next fork).
+
+**Templates deliberately NOT re-uploaded** (out of NIETE's launch scope):
+
+| Template | Reason for skip |
+|---|---|
+| `video_style_selection` | Video generation feature is not launching. |
+| `registration_v3` | Flow-based registration works without a template (proven end-to-end 2026-07-11). |
+| `registrationv2_schoolname_included` | Same as above. |
+| `message_templates_readingtest_v2_marketing_e4c46` | Reading Assessment feature is not launching. |
+| `rumi_portal_reset_otp` | Portal password reset now uses Resend email flow (`dashboard/services/resend-email.service.js`). |
+
+If any of these features move into scope later, follow the same pattern: source media → resumable upload → rewrite handles → resubmit.
 
 ## Publish attempt log (2026-07-11)
 
