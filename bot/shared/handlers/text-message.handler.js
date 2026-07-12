@@ -398,8 +398,14 @@ async function handleTextMessage(message, from, messageBody, user = null) {
 
   // ============================================================
   // EXAM CHECKER DETECTION: Check for exam check trigger
+  //
+  // Skip for slash commands — they're explicit user intent and take
+  // priority over keyword-based detection. Without this guard, `/exam`
+  // (exam GENERATOR — a different feature) is greedily interpreted as
+  // "start exam CHECKER" (OCR answer-sheet grading), and any future
+  // `/exam*` variant would collide too.
   // ============================================================
-  if (user) {
+  if (user && !trimmedMessage.startsWith('/')) {
     try {
       const ExamCheckerHandler = require('./exam-checker.handler');
       const result = await ExamCheckerHandler.handleExamText(message, from, user);
