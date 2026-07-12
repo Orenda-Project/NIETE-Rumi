@@ -68,6 +68,11 @@ function transformFICOToReportData(session, teacherName, analysis) {
   const totalScore = goals.reduce((sum, g) => sum + g.score, 0);
 
   return {
+    // framework key drives the renderer-registry dispatch to the hero PNG path.
+    // Without it, reportData.framework is undefined, getReportRenderer() returns
+    // the default (pdfkit) renderer, and FICO silently ships the legacy 5-page
+    // PDF instead of the celebration hero card.
+    framework: 'fico',
     teacherName,
     observationDate: formatDate(session.created_at),
     subject: session.lesson_plan_structured?.subject || analysis.subject || 'N/A',

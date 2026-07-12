@@ -79,6 +79,26 @@ function normalize(c, language) {
   return c;
 }
 
+// Resolve the domain with the lowest score/max ratio via the framework's score
+// adapter. Framework-agnostic — returns { name, score, max, pct } or null when
+// the analysis lacks domain data (e.g. legacy OECD "goals" shape). The narrative
+// prompt uses this as the primary horizon focus so the "next horizon" naturally
+// names the area with the biggest lift available, rather than growth_opportunities[0]
+// which is prompt-emit-order-dependent (often arbitrary).
+function pickWeakestDomain(analysis) {
+  try {
+    const { getScoreAdapter } = require('./score-adapters/dispatch');
+    const framework = String((analysis && analysis.framework) || 'oecd').toLowerCase();
+    const groups = getScoreAdapter(framework)(analysis || {});
+    const valid = (groups || []).filter((g) => g && (g.max || 0) > 0);
+    if (!valid.length) return null;
+    const sorted = valid.slice().sort((a, b) => (a.pct || 0) - (b.pct || 0));
+    return sorted[0];
+  } catch (_e) {
+    return null;
+  }
+}
+
 function buildPrompt(analysis, { transcript, trend = [], language, teacherName }) {
   const a = analysis || {};
   const fw = (a.framework || 'hots').toUpperCase();
@@ -89,10 +109,13 @@ function buildPrompt(analysis, { transcript, trend = [], language, teacherName }
   const throughline = corpus.lesson_throughline_en || '';
   const corpusMoments = (corpus.significant_moments || []).slice(0, 5)
     .map((m) => `- ${m.what_happened || ''} (${m.significance_reason_en || ''})`).join('\n');
+  const weakest = pickWeakestDomain(a);
 
   return `You are Rumi, a warm, perceptive instructional coach. Below is the FULL TRANSCRIPT of a real lesson by ${teacherName} plus its ${fw} rubric analysis. Write the words for a CELEBRATION report that makes this teacher feel truly SEEN — not graded like a medical report.
 
 Use the TRANSCRIPT as source of truth. Find what is UNIQUELY hers — a signature move, how she talks to children, how she connects ideas — and ground every claim in something she actually did. Tie it to the ${fw} lens (clarity, student involvement, questioning, classroom management) honestly, but lead with humanity. Address her as "you".
+
+NEVER emit rubric IDs, snake_case tokens, or programmatic identifiers as prose. If the analysis mentions an indicator like "step_by_step" or "guided_practice", write it out naturally ("step by step", "guided practice"). If it mentions "1.2 Fidelity to LP Steps", say "lesson-plan fidelity", not "1.2". The teacher never sees the raw rubric shape.
 
 ${langRules(language)}
 
@@ -114,7 +137,9 @@ moments: EXACTLY 3, the best real moments. Do NOT invent quotes — use real lin
 ${throughline ? `THIS LESSON'S THROUGHLINE (from prior analysis): ${throughline}\n` : ''}${corpusMoments ? `MOMENTS ALREADY SURFACED (hints — prefer these, but pull the verbatim quote from the transcript):\n${corpusMoments}\n` : ''}LESSON TOPIC: ${a.topic || ''}
 ${fw} summary: ${(a.executive_summary_sw || a.executive_summary || '').slice(0, 700)}
 Strengths: ${(a.strengths || []).map((s) => s.title_sw || s.title || s).filter(Boolean).join('; ')}
-Growth: ${a.growth_opportunities?.[0]?.area_sw || a.growth_opportunities?.[0]?.area || ''} — ${(a.growth_opportunities?.[0]?.rationale_sw || a.growth_opportunities?.[0]?.rationale || '').slice(0, 250)}
+${weakest
+  ? `MANDATORY horizon focus — the LOWEST-SCORING domain this lesson is "${weakest.name}" at ${weakest.score}/${weakest.max} (${weakest.pct}%). Your "horizon_title" (2-5 words) MUST name a concrete sub-skill inside "${weakest.name}" — nothing from any other domain. The "horizon_note" must reference "${weakest.name}" or one of its indicators. Do not fall back to a generic aspirational phrase.`
+  : `Growth signals from rubric analysis: ${a.growth_opportunities?.[0]?.area_sw || a.growth_opportunities?.[0]?.area || ''} — ${(a.growth_opportunities?.[0]?.rationale_sw || a.growth_opportunities?.[0]?.rationale || '').slice(0, 250)}`}
 TRANSCRIPT:
 ${String(transcript || '').slice(0, 11000)}`;
 }

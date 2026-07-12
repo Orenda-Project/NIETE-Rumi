@@ -85,9 +85,35 @@ Return STRICT JSON only: {"commitment":"...","action":"...","lesson_label":"..."
 async function fallbackCard(analysis, teacherName, priorAction, lang) {
   const pa = await generatePrioritizedAction(analysis, teacherName, priorAction);
   if (!pa) return null;
+
+  // The rule-based path is authored in English. For non-English teachers,
+  // localise the two visible fields via a lightweight LLM pass so the
+  // fallback card doesn't drop them back into English unexpectedly.
+  // Failure = keep the English text (soft fallback of the fallback).
+  let commitment = pa.action;
+  let action = pa.example;
+  if (lang && lang !== 'en') {
+    try {
+      const langName = LANG_NAME[lang] || 'the teacher\'s language';
+      const codeSwitch = CODESWITCH_RULE[lang] || '';
+      const genderRule = GENDER_RULE[lang] || '';
+      const prompt = `Translate the following two teacher-coaching messages into ${langName}, warm and natural. Keep pedagogical/technical terms in ENGLISH (Latin letters) inline (e.g. "open-ended questions", "wait time", "scaffolding"). ${genderRule}\n\n${codeSwitch}\n\nReturn STRICT JSON: {"commitment":"...","action":"..."}.\n\nMESSAGES:\ncommitment: ${pa.action}\naction: ${pa.example}`;
+      const r = await GPT5MiniService.openai.chat.completions.create({
+        model: MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        response_format: { type: 'json_object' },
+      });
+      const parsed = JSON.parse(r.choices[0].message.content);
+      if (parsed.commitment) commitment = String(parsed.commitment).trim();
+      if (parsed.action) action = String(parsed.action).trim();
+    } catch (e) {
+      logToFile('⚠️  Fallback card localisation failed — keeping English text', { error: e.message, lang });
+    }
+  }
+
   return {
-    commitment: pa.action,   // the rule-based focus becomes the headline
-    action: pa.example,      // the concrete example becomes the action box
+    commitment,
+    action,
     highlights: [],
     lesson_label: (analysis.framework || '').toUpperCase(),
     indicator: pa.indicator,

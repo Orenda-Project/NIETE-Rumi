@@ -91,7 +91,12 @@ function buildHeroReportHtml(vm) {
   const bodyFam = RTL ? (lang === 'ar' ? `'NaskhArabic',serif` : `'NastaliqUrdu',serif`) : `'Lexend',sans-serif`;
   const dir = RTL ? 'rtl' : 'ltr';
 
-  const wrapLatin = (html) => !RTL ? html : html.split(/(<[^>]+>)/).map((seg) => seg.startsWith('<') ? seg
+  // Split on tags AND HTML entities so we don't tear an entity apart. Without
+  // preserving entities, esc(s)'s "&amp;" gets tokenised as `& + amp + ;` and
+  // the `amp` inside gets wrapped as an ltr span — leaving `&<span>amp</span>;`
+  // which Chromium then renders as visible literal "&amp;". Preserving entities
+  // as opaque segments keeps them intact through the RTL wrap pass.
+  const wrapLatin = (html) => !RTL ? html : html.split(/(<[^>]+>|&(?:#\d+|#x[0-9a-fA-F]+|[a-zA-Z]+);)/).map((seg) => seg.startsWith('<') || seg.startsWith('&') ? seg
     : seg.replace(/[A-Za-z][A-Za-z'’.\-]*(?:[\s\-][A-Za-z'’.\-]+)*/g, (m) => `<span class="ltr">${m}</span>`)).join('');
   const T = (s) => wrapLatin(esc(s));
 
