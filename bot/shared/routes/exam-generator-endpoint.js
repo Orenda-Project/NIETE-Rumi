@@ -29,9 +29,10 @@ function sessionKey(flowToken) {
 
 async function readSession(flowToken) {
   try {
-    const raw = await redis.get(sessionKey(flowToken));
-    if (!raw) return {};
-    return JSON.parse(raw);
+    // redis.get() (railway-redis.service.js) auto-parses JSON — DON'T double-parse.
+    const parsed = await redis.get(sessionKey(flowToken));
+    if (!parsed || typeof parsed !== 'object') return {};
+    return parsed;
   } catch (e) {
     logToFile('[exam-flow] session read failed', { err: e.message });
     return {};
@@ -40,7 +41,8 @@ async function readSession(flowToken) {
 
 async function writeSession(flowToken, state) {
   try {
-    await redis.set(sessionKey(flowToken), JSON.stringify(state), SESSION_TTL_SECONDS);
+    // redis.set() accepts JS objects directly and JSON.stringify's internally.
+    await redis.set(sessionKey(flowToken), state, SESSION_TTL_SECONDS);
   } catch (e) {
     logToFile('[exam-flow] session write failed', { err: e.message });
   }
