@@ -255,11 +255,33 @@ def step6_questions(cur, quiz_map: dict[int, int], module_map: dict[int, int]) -
                                     AND c.is_active AND tr.is_active));
     """)
 
+    def is_valid_question(opts, answers) -> tuple[bool, str]:
+        """Enforce the shape our runtime relies on: >=2 options, at least one
+        correct answer, all correct indices within range. Returns (ok, reason)."""
+        if not isinstance(opts, list) or len(opts) < 2:
+            return False, f"options_count={len(opts) if isinstance(opts, list) else type(opts).__name__}"
+        if not answers or not isinstance(answers, list) or len(answers) == 0:
+            return False, "no_correct_answers"
+        for a in answers:
+            try:
+                ai = int(a)
+            except (ValueError, TypeError):
+                return False, f"correct_not_int:{a!r}"
+            # DB uses 1-indexed answers; catch off-by-one and out-of-range
+            if ai < 1 or ai > len(opts):
+                return False, f"correct_out_of_range:{ai}/{len(opts)}"
+        return True, ""
+
     payload = []
+    skipped = []
     for r in rows:
         gq_id = quiz_map.get(r["grand_quiz_id"]) if r["grand_quiz_id"] else None
         mod_id = module_map.get(r["training_id"]) if r["training_id"] else None
         if not (gq_id or mod_id):
+            continue
+        ok, reason = is_valid_question(r["options"], r["answers"])
+        if not ok:
+            skipped.append({"source_id": r["id"], "reason": reason})
             continue
         correct = ",".join(str(a) for a in (r["answers"] or []))
         payload.append({
@@ -279,7 +301,12 @@ def step6_questions(cur, quiz_map: dict[int, int], module_map: dict[int, int]) -
     new_rows = [p for p in payload if p["source_question_id"] not in existing]
     for i in range(0, len(new_rows), 200):
         rest_bulk("training_questions", new_rows[i:i+200])
-    print(f"  Step 6: {len(rows)} live questions ({len(new_rows)} new)")
+    print(f"  Step 6: {len(rows)} live questions ({len(new_rows)} new, {len(skipped)} skipped as malformed)")
+    if skipped:
+        from collections import Counter
+        c = Counter(s["reason"].split(":")[0] for s in skipped)
+        print(f"    Skip reasons: {dict(c)}")
+        print(f"    First 5: {skipped[:5]}")
 
 
 # ----------------------------------------------------------------------------
