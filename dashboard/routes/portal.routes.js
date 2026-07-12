@@ -878,6 +878,289 @@ router.get('/lesson-plans', requirePortalAuth, async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════
+// CURRICULUM LP BROWSER — 4-step cascading picker over curriculum_lp_ast
+// ───────────────────────────────────────────────────────────────────────────
+// The 2,415-LP corpus imported from Taleemabad (NBF + Taleemabad publishers)
+// is exposed to teachers as a browsable library. Cascading dropdowns —
+// grade → subject → chapter → LP — each populated by its own endpoint.
+// A separate endpoint returns a presigned R2 URL for a given LP's PDF, or
+// a 202 with an "unavailable" state when the LP hasn't been rendered yet.
+// A POST endpoint queues an async Gamma render for an unavailable LP.
+//
+// All queries run against `curriculum_lp_ast` with `is_enabled = true`.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/portal/curriculum/grades
+ * Returns the list of grades that have at least one enabled LP.
+ */
+router.get('/curriculum/grades', requirePortalAuth, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('curriculum_lp_ast')
+      .select('grade, grade_label')
+      .eq('is_enabled', true);
+    if (error) throw error;
+
+    // Distinct grades with a count, ordered ascending.
+    const byGrade = new Map();
+    for (const r of data || []) {
+      const key = r.grade;
+      if (!byGrade.has(key)) byGrade.set(key, { grade: r.grade, label: r.grade_label, count: 0 });
+      byGrade.get(key).count += 1;
+    }
+    const grades = [...byGrade.values()].sort((a, b) => (a.grade ?? 999) - (b.grade ?? 999));
+    res.json({ success: true, grades });
+  } catch (error) {
+    console.error('curriculum/grades error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load grades' });
+  }
+});
+
+/**
+ * GET /api/portal/curriculum/subjects?grade=1
+ * Returns the list of subjects available for a given grade.
+ */
+router.get('/curriculum/subjects', requirePortalAuth, async (req, res) => {
+  try {
+    const grade = parseInt(req.query.grade, 10);
+    if (!Number.isFinite(grade)) return res.status(400).json({ success: false, error: 'grade required' });
+
+    const { data, error } = await supabase
+      .from('curriculum_lp_ast')
+      .select('subject, subject_label')
+      .eq('is_enabled', true)
+      .eq('grade', grade);
+    if (error) throw error;
+
+    const bySubject = new Map();
+    for (const r of data || []) {
+      const key = r.subject;
+      if (!bySubject.has(key)) bySubject.set(key, { subject: r.subject, label: r.subject_label || r.subject, count: 0 });
+      bySubject.get(key).count += 1;
+    }
+    const subjects = [...bySubject.values()].sort((a, b) => String(a.label).localeCompare(String(b.label)));
+    res.json({ success: true, subjects });
+  } catch (error) {
+    console.error('curriculum/subjects error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load subjects' });
+  }
+});
+
+/**
+ * GET /api/portal/curriculum/chapters?grade=1&subject=maths
+ * Returns the list of chapters for a given grade + subject.
+ */
+router.get('/curriculum/chapters', requirePortalAuth, async (req, res) => {
+  try {
+    const grade = parseInt(req.query.grade, 10);
+    const subject = String(req.query.subject || '').trim();
+    if (!Number.isFinite(grade) || !subject) {
+      return res.status(400).json({ success: false, error: 'grade + subject required' });
+    }
+
+    const { data, error } = await supabase
+      .from('curriculum_lp_ast')
+      .select('chapter_number, chapter_title, publisher')
+      .eq('is_enabled', true)
+      .eq('grade', grade)
+      .eq('subject', subject);
+    if (error) throw error;
+
+    const byChapter = new Map();
+    for (const r of data || []) {
+      const key = `${r.publisher}::${r.chapter_number}::${r.chapter_title}`;
+      if (!byChapter.has(key)) {
+        byChapter.set(key, {
+          publisher: r.publisher,
+          chapter_number: r.chapter_number,
+          chapter_title: r.chapter_title,
+          lp_count: 0,
+        });
+      }
+      byChapter.get(key).lp_count += 1;
+    }
+    const chapters = [...byChapter.values()].sort((a, b) => {
+      const p = String(a.publisher || '').localeCompare(String(b.publisher || ''));
+      if (p !== 0) return p;
+      return (a.chapter_number ?? 999) - (b.chapter_number ?? 999);
+    });
+    res.json({ success: true, chapters });
+  } catch (error) {
+    console.error('curriculum/chapters error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load chapters' });
+  }
+});
+
+/**
+ * GET /api/portal/curriculum/lps?grade=1&subject=maths&chapter_number=1&publisher=Taleemabad
+ * Returns the list of lesson plans for a given chapter.
+ * `publisher` is optional and disambiguates when two publishers share a
+ * chapter_number for the same grade+subject.
+ */
+router.get('/curriculum/lps', requirePortalAuth, async (req, res) => {
+  try {
+    const grade = parseInt(req.query.grade, 10);
+    const subject = String(req.query.subject || '').trim();
+    const chapterNumber = parseInt(req.query.chapter_number, 10);
+    const publisher = req.query.publisher ? String(req.query.publisher) : null;
+
+    if (!Number.isFinite(grade) || !subject || !Number.isFinite(chapterNumber)) {
+      return res.status(400).json({ success: false, error: 'grade + subject + chapter_number required' });
+    }
+
+    let query = supabase
+      .from('curriculum_lp_ast')
+      .select('source_lp_uuid, lp_index, topic, publisher, chapter_title, pdf_r2_key_en, pdf_r2_key_ur, rendered_at')
+      .eq('is_enabled', true)
+      .eq('grade', grade)
+      .eq('subject', subject)
+      .eq('chapter_number', chapterNumber)
+      .order('lp_index', { ascending: true });
+    if (publisher) query = query.eq('publisher', publisher);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const lps = (data || []).map(r => ({
+      source_lp_uuid: r.source_lp_uuid,
+      lp_index: r.lp_index,
+      topic: r.topic,
+      publisher: r.publisher,
+      chapter_title: r.chapter_title,
+      // Language availability flags — the frontend shows [EN]/[UR] badges
+      // for the languages that are cached in R2.
+      available_en: !!r.pdf_r2_key_en,
+      available_ur: !!r.pdf_r2_key_ur,
+      rendered_at: r.rendered_at,
+    }));
+    res.json({ success: true, lps });
+  } catch (error) {
+    console.error('curriculum/lps error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load lesson plans' });
+  }
+});
+
+/**
+ * GET /api/portal/curriculum/lp/:source_lp_uuid/pdf?lang=en
+ * Returns a presigned R2 URL for the LP's cached PDF, or a 202 with
+ * `{ available: false }` if the LP hasn't been rendered yet. The client
+ * can then POST to /render to queue an async Gamma render.
+ */
+router.get('/curriculum/lp/:source_lp_uuid/pdf', requirePortalAuth, async (req, res) => {
+  try {
+    const uuid = req.params.source_lp_uuid;
+    const lang = String(req.query.lang || 'en').toLowerCase() === 'ur' ? 'ur' : 'en';
+
+    const { data: lp, error } = await supabase
+      .from('curriculum_lp_ast')
+      .select('source_lp_uuid, chapter_title, topic, publisher, pdf_r2_key_en, pdf_r2_key_ur')
+      .eq('source_lp_uuid', uuid)
+      .eq('is_enabled', true)
+      .maybeSingle();
+    if (error) throw error;
+    if (!lp) return res.status(404).json({ success: false, error: 'Lesson plan not found' });
+
+    const r2Key = lang === 'ur' ? lp.pdf_r2_key_ur : lp.pdf_r2_key_en;
+    if (!r2Key) {
+      // Not yet rendered — the frontend will offer to queue an async render.
+      return res.status(202).json({
+        success: true, available: false,
+        source_lp_uuid: lp.source_lp_uuid, language: lang,
+        topic: lp.topic, chapter_title: lp.chapter_title, publisher: lp.publisher,
+      });
+    }
+
+    // R2 keys are stored as bare object keys (e.g. "lps/curriculum-ast/{uuid}.en.pdf");
+    // generatePresignedUrl accepts either a bare key or a full https URL.
+    const filename = `${lp.chapter_title} — ${lp.topic} - Lesson Plan.pdf`.replace(/["<>?*|\\/]/g, '');
+    const url = await generatePresignedUrl(r2Key, 3600); // 1h validity
+    res.json({
+      success: true, available: true,
+      url, filename,
+      source_lp_uuid: lp.source_lp_uuid, language: lang,
+      topic: lp.topic, chapter_title: lp.chapter_title, publisher: lp.publisher,
+    });
+  } catch (error) {
+    console.error('curriculum/lp/:uuid/pdf error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load PDF' });
+  }
+});
+
+/**
+ * POST /api/portal/curriculum/lp/:source_lp_uuid/render
+ * Body: { language: 'en' | 'ur' }
+ * Queues an async Gamma-grounded render for the LP. The client can poll
+ * GET /pdf?lang=X until availability flips true (~90-150s later).
+ * Delivery follows the standard bot pipeline — the PDF is also sent to
+ * the teacher's WhatsApp when ready (same asset served both channels).
+ */
+router.post('/curriculum/lp/:source_lp_uuid/render', requirePortalAuth, async (req, res) => {
+  try {
+    const uuid = req.params.source_lp_uuid;
+    const lang = String((req.body && req.body.language) || 'en').toLowerCase() === 'ur' ? 'ur' : 'en';
+    const userDbId = req.session.portalUserId;
+
+    // Hydrate the LP row + resolve the teacher's WhatsApp phone (for parallel WA delivery).
+    const [{ data: lp }, { data: user }] = await Promise.all([
+      supabase.from('curriculum_lp_ast')
+        .select('source_lp_uuid, chapter_title, topic, publisher, pdf_r2_key_en, pdf_r2_key_ur')
+        .eq('source_lp_uuid', uuid).eq('is_enabled', true).maybeSingle(),
+      supabase.from('users').select('id, phone_number').eq('id', userDbId).maybeSingle(),
+    ]);
+
+    if (!lp) return res.status(404).json({ success: false, error: 'Lesson plan not found' });
+    if (!user) return res.status(401).json({ success: false, error: 'Session user not found' });
+
+    // Fast-path: already cached — nothing to do.
+    const langKey = lang === 'ur' ? lp.pdf_r2_key_ur : lp.pdf_r2_key_en;
+    if (langKey) return res.json({ success: true, alreadyAvailable: true, language: lang });
+
+    // Queue via the same service the bot uses. This is the sole coupling
+    // between portal and bot code — everything else in this endpoint is
+    // portal-owned. If the queue service isn't reachable from the dashboard
+    // process (different Railway service), we fall back to a direct
+    // Supabase insert + SQS queue call so the worker still picks it up.
+    let LessonPlanQueueService;
+    try {
+      LessonPlanQueueService = require('../../bot/shared/services/lesson-plan-queue.service');
+    } catch (_) { /* not co-located; use inline path below */ }
+
+    if (LessonPlanQueueService) {
+      const requestId = await LessonPlanQueueService.createAndQueueGrounded({
+        userId: userDbId,
+        phoneNumber: user.phone_number,
+        sourceLpUuid: lp.source_lp_uuid,
+        topic: lp.topic,
+        chapterTitle: lp.chapter_title,
+        language: lang,
+      });
+      return res.status(202).json({ success: true, queued: true, requestId, language: lang });
+    }
+
+    // Fallback: create the tracking row + rely on the worker's periodic
+    // stale-pending scan to pick it up (bot service normally handles this).
+    const { data: request, error: insertError } = await supabase
+      .from('lesson_plan_requests')
+      .insert({
+        user_id: userDbId,
+        phone_number: user.phone_number,
+        topic: lp.topic,
+        full_message: lp.topic,
+        language: lang,
+        content_type: 'lesson_plan',
+        status: 'pending',
+      })
+      .select('id').single();
+    if (insertError) throw insertError;
+    return res.status(202).json({ success: true, queued: true, requestId: request.id, language: lang, fallback: true });
+  } catch (error) {
+    console.error('curriculum/lp/:uuid/render error:', error);
+    res.status(500).json({ success: false, error: 'Failed to queue render' });
+  }
+});
+
 /**
  * GET /api/portal/coaching-sessions
  * Get all coaching sessions for authenticated user

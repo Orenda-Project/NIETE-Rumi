@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, BookOpen, MessageSquare, TrendingUp, LogOut } from 'lucide-react';
+import { Home, BookOpen, Library, MessageSquare, TrendingUp, LogOut } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { cn } from '@/lib/utils';
 import nieteLogo from '@/assets/niete-logo.png';
@@ -11,7 +11,8 @@ const PortalNavigation = () => {
 
   const navItems = [
     { title: 'Dashboard', path: '/portal/dashboard', icon: Home },
-    { title: 'Lesson Plans', path: '/portal/lesson-plans', icon: BookOpen },
+    { title: 'Curriculum', path: '/portal/curriculum', icon: Library },
+    { title: 'My Plans', path: '/portal/lesson-plans', icon: BookOpen },
     { title: 'Coaching', path: '/portal/coaching', icon: MessageSquare },
     { title: 'Analytics', path: '/portal/coaching/analytics', icon: TrendingUp },
   ];
