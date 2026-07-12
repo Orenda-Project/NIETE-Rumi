@@ -141,6 +141,15 @@ async function handleFlowResponse(message, phoneNumber, userId) {
       return result?.handled !== false;
     }
 
+    // Teacher Training — endpoint flow whose NFM_REPLY drives content
+    // delivery. When the teacher selects a course/module in the Flow, the
+    // endpoint routes to a SUCCESS screen carrying trainingAction + courseId
+    // in extension_message_response; here we parse it and deliver content.
+    const TEACHER_TRAINING_FLOW_ID = process.env.TEACHER_TRAINING_FLOW_ID || '';
+    if (flowId && TEACHER_TRAINING_FLOW_ID && flowId === TEACHER_TRAINING_FLOW_ID) {
+      return await handleTeacherTrainingFlow(message, phoneNumber, userId);
+    }
+
     // Endpoint-only flows: the corresponding `/api/flows/<path>` route has
     // ALREADY persisted the teacher's input by the time we see NFM_REPLY.
     // We log completion (useful when debugging "did the teacher actually
@@ -842,12 +851,55 @@ async function handleRegistrationFlow(message, phoneNumber, userId) {
   }
 }
 
+/**
+ * Handle Teacher Training Flow closure — deliver the requested content.
+ *
+ * The Flow endpoint returns a SUCCESS screen with extension_message_response
+ * carrying { trainingAction, courseId | levelOrder } based on what the
+ * teacher tapped. Here we parse it and drive the next step:
+ *   - open_course       → deliver the first pending module of that course
+ *   - start_grand_quiz  → kick off the inline Q-by-Q grand quiz state machine
+ *   - error             → confirm nothing to do (endpoint already showed error text)
+ */
+async function handleTeacherTrainingFlow(message, phoneNumber, userId) {
+  let payload = {};
+  try {
+    payload = JSON.parse(message.interactive?.nfm_reply?.response_json || '{}');
+  } catch (err) {
+    logToFile('⚠️ Training NFM parse failed', { error: err.message });
+  }
+  const trainingAction = payload.trainingAction;
+  const courseId = payload.courseId;
+  const levelOrder = payload.levelOrder;
+
+  logToFile('🎓 Training flow closure', { phoneNumber, userId, trainingAction, courseId, levelOrder });
+
+  if (trainingAction === 'open_course' && courseId) {
+    // Placeholder — real content delivery lives in a follow-up commit.
+    await WhatsAppService.sendMessage(
+      phoneNumber,
+      `You picked a course — delivering the first video shortly. (courseId=${courseId})\n\n(Full training content delivery is being wired up.)`
+    );
+    return true;
+  }
+  if (trainingAction === 'start_grand_quiz') {
+    await WhatsAppService.sendMessage(
+      phoneNumber,
+      `The grand quiz will start here. (levelOrder=${levelOrder ?? '?'})\n\n(Inline quiz state machine is being wired up.)`
+    );
+    return true;
+  }
+  // Default: teacher just closed the flow, or hit an error screen.
+  return true;
+}
+
 module.exports = {
   handleFlowResponse,
   handleReadingAssessmentFlow,
   handleAttendanceSetupFlow,
   handleAttendanceMarkingFlow,
   handleRegistrationFlow,
+  handleTeacherTrainingFlow,
   mapLevelToPassageType,
   READING_ASSESSMENT_FLOW_ID,
   ATTENDANCE_SETUP_FLOW_ID,

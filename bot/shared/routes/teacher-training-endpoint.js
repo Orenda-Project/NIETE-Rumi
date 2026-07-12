@@ -296,7 +296,7 @@ async function loadGrandQuizState(userId, levelId) {
     supabase.from('training_modules').select('id, course_id').eq('is_active', true),
     supabase.from('teacher_training_progress').select('module_id').eq('user_id', userId),
   ]);
-  if (!catalog) return { badge: 'badge_quiz_locked', body: 'No grand quiz for this level', caption: '', cta: '' };
+  if (!catalog) return { badge: 'badge_quiz_locked', body: 'No grand quiz for this level', caption: ' ', cta: '🔒 Locked' };
 
   const passed = (attempts || []).some(a => a.is_passed === true);
   const cooldown = (attempts || []).find(a => a.status === 'failed' && a.cooldown_until && new Date(a.cooldown_until) > new Date());
@@ -305,12 +305,12 @@ async function loadGrandQuizState(userId, levelId) {
   const modulesInLevel = (modules || []).filter(m => courseIds.has(m.course_id));
   const allDone = modulesInLevel.length > 0 && modulesInLevel.every(m => doneIds.has(m.id));
 
-  if (passed) return { badge: 'badge_quiz_passed', body: 'You passed this level exam.', caption: 'Certificate available in your records.', cta: '' };
+  if (passed) return { badge: 'badge_quiz_passed', body: 'You passed this level exam.', caption: 'Certificate available in your records.', cta: '✓ Passed' };
   if (cooldown) {
     const hoursLeft = Math.max(1, Math.round((new Date(cooldown.cooldown_until) - Date.now()) / 3_600_000));
-    return { badge: 'badge_quiz_cooldown', body: 'Exam locked after a recent failed attempt.', caption: `Try again in about ${hoursLeft} hours.`, cta: '' };
+    return { badge: 'badge_quiz_cooldown', body: 'Exam locked after a recent failed attempt.', caption: `Try again in about ${hoursLeft} hours.`, cta: `⏳ Cooldown (${hoursLeft}h)` };
   }
-  if (!allDone) return { badge: 'badge_quiz_locked', body: 'Unlocks when all courses are complete.', caption: '62 questions · 100% required · 24h cooldown on fail', cta: '' };
+  if (!allDone) return { badge: 'badge_quiz_locked', body: 'Unlocks when all courses are complete.', caption: '62 questions · 100% required · 24h cooldown on fail', cta: '🔒 Locked' };
   return { badge: 'badge_quiz_available', body: 'Ready — start your level exam.', caption: '100% required to pass · 24h cooldown on fail', cta: 'Start exam' };
 }
 
