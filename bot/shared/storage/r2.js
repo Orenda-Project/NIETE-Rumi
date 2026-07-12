@@ -415,20 +415,31 @@ async function downloadFromR2(key) {
  * @returns {string} R2 key
  */
 function extractKeyFromUrl(url) {
-  // URL format: https://endpoint/bucket/key (path style) or the same shape
-  // with a presigned query string appended: `.../bucket/key?X-Amz-...`.
+  // Accepts three input shapes and normalizes to a bare R2 key:
+  //   1. Path-style URL:      https://endpoint/bucket/key
+  //   2. Presigned URL:       https://endpoint/bucket/key?X-Amz-Signature=...
+  //   3. Bare key:            exams/uid/examid/file.docx
   //
-  // Strip the query string first — R2 keys never contain a raw "?", so
-  // splitting on it is safe and lets us handle presigned URLs identically
-  // to plain ones. Before this, presigned URLs (returned by getPresignedUrl)
-  // yielded keys like "exams/xxx/file.docx?X-Amz-Signature=..." which R2 then
-  // failed to look up, silently dropping the whole download → the caller
-  // returned false with only a "NoSuchKey" log. Exam .docx delivery hit this
-  // on 2026-07-12.
+  // The "bare key" case matters because getPresignedUrl short-circuits with
+  // "⏭️ Skipping presign (already signed or not R2)" and returns the raw
+  // key when the input already looks like one — so downstream callers of
+  // extractKeyFromUrl can legitimately receive a key instead of a URL.
+  // Bug: 2026-07-12 exam docx delivery threw "Could not extract R2 key from
+  // URL" when the orchestrator passed the getPresignedUrl output straight to
+  // sendDocumentFromUrl. This fix accepts both shapes.
+  //
+  // Query-string handling: R2 keys never contain a raw "?", so splitting on
+  // it is safe and covers the presigned case in one line.
   const bareUrl = url.split('?')[0];
   const bucketIndex = bareUrl.indexOf(`/${BUCKET_NAME}/`);
   if (bucketIndex === -1) {
-    throw new Error(`Could not extract R2 key from URL: ${url}`);
+    // No /bucket/ marker — treat the input as an already-bare key iff it
+    // doesn't look like an HTTP(S) URL. If it starts with http(s):// but
+    // has no /bucket/, the caller passed something we can't safely handle.
+    if (/^https?:\/\//i.test(bareUrl)) {
+      throw new Error(`Could not extract R2 key from URL: ${url}`);
+    }
+    return bareUrl;
   }
   return bareUrl.substring(bucketIndex + `/${BUCKET_NAME}/`.length);
 }
