@@ -95,6 +95,16 @@ async function tryCurriculumLessonPlanServe(from, topic, user, language) {
       return false;
     }
 
+    // Fix C: LP content language follows the MESSAGE, not the user's UI language.
+    // A teacher who prefers Urdu UI but asks in English for a math LP should get
+    // the English-medium LP (or whatever the corpus has cached). If the caller
+    // didn't pass an explicit language, detect it from the message itself.
+    let contentLanguage = language;
+    if (!contentLanguage) {
+      try { contentLanguage = detectRequestedLanguage(topic || '') || 'en'; }
+      catch (_) { contentLanguage = 'en'; }
+    }
+
     const result = await handleCurriculumLessonPlan({
       userId: from,
       userDbId: user?.id, // UUID for lesson_plan_requests.user_id (required by ast_queued path)
@@ -102,7 +112,7 @@ async function tryCurriculumLessonPlanServe(from, topic, user, language) {
       grade,
       subject,
       curriculum: features.curriculum_key,
-      language,
+      language: contentLanguage,
     });
     // Any of these mean "handled — stop the message flow here, don't fall
     // through to freeform Gamma."
@@ -2034,6 +2044,31 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       // Route directly to lesson plan handler (skip intent detection)
       await handleLessonPlanRequest(from, messageBody, user, lessonPlanState.sessionId, lessonPlanState.language, typingController);
       return; // Stop further processing
+    }
+  }
+
+  // ============================================================
+  // CURRICULUM LP EARLY INTERCEPT
+  // If the message parses as a curriculum-LP request (grade + subject + topic
+  // that resolves to an AST row) we serve it BEFORE the intent classifier.
+  // Rationale: the classifier is a semantic-meaning LLM that sometimes tags
+  // "grade 1 math number buddies" (a bare topic string with no verb) as
+  // `general` — bypassing the LP handler and letting the generic AI helper
+  // hallucinate an inline plaintext LP. High-confidence keyword-based
+  // intercept + AST match is much more reliable than the LLM's judgment on
+  // short topic strings. False-positive risk is bounded — tryCurriculumLessonPlanServe
+  // returns false unless grade AND subject AND findByTopic all resolve.
+  // Language: passed as null so the intercept picks up the message's actual
+  // language (via detectRequestedLanguage), not user.preferred_language.
+  // ============================================================
+  if (user) {
+    try {
+      typingController.stop();
+      if (await tryCurriculumLessonPlanServe(from, messageBody, user, null)) {
+        return; // AST-based LP served (or queued); handled.
+      }
+    } catch (interceptErr) {
+      logToFile('Curriculum LP early intercept threw (non-fatal)', { error: interceptErr.message });
     }
   }
 

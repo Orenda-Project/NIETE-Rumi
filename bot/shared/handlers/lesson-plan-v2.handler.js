@@ -148,12 +148,29 @@ async function handleCurriculumLessonPlan({ userId, userDbId, topic, grade, subj
     // filter for NIETE — we serve across NBF + Taleemabad.
     const astLp = await CurriculumLpAstService.findByTopic({ topic, grade, subject });
     if (astLp) {
-      const langCol = language === 'ur' ? 'pdf_r2_key_ur' : 'pdf_r2_key_en';
-      const cachedR2Key = astLp[langCol];
+      // Prefer cache in the requested language; fall back to the OTHER language's
+      // cache if the requested one is empty. Rationale: consistent teacher UX —
+      // an available cached PDF (even in the "wrong" language) is better than
+      // a 2-minute Gamma render for a request that the source content actually
+      // does have (source teacher scripts are usually the same language regardless
+      // of framework language). We only queue a fresh render when NEITHER cache
+      // is populated.
+      const primaryCol = language === 'ur' ? 'pdf_r2_key_ur' : 'pdf_r2_key_en';
+      const fallbackCol = language === 'ur' ? 'pdf_r2_key_en' : 'pdf_r2_key_ur';
+      const primaryKey = astLp[primaryCol];
+      const fallbackKey = astLp[fallbackCol];
+      const cachedR2Key = primaryKey || fallbackKey;
+      const servedFallback = !primaryKey && !!fallbackKey;
       const filename = `${astLp.chapter_title} — ${astLp.topic} - Lesson Plan.pdf`.replace(/["<>?*|\\/]/g, '');
 
       if (cachedR2Key) {
         await serveR2Pdf(userId, cachedR2Key, filename);
+        if (servedFallback) {
+          logToFile('Curriculum LP: language fallback served', {
+            requested: language, served: language === 'ur' ? 'en' : 'ur',
+            source_lp_uuid: astLp.source_lp_uuid,
+          });
+        }
         await _scheduleFeedbackForCacheHit({
           userDbId, phone: userId,
           topic: astLp.topic, grade: astLp.grade, subject: astLp.subject,
@@ -164,7 +181,7 @@ async function handleCurriculumLessonPlan({ userId, userDbId, topic, grade, subj
         return { source: 'ast_cached', promptedForPage: false };
       }
 
-      // Not cached — ack + queue for background render. Requires userDbId.
+      // Neither language cached — ack + queue for background render. Requires userDbId.
       const q = await sendAckAndQueue({ phoneNumber: userId, userDbId, lp: astLp, language });
       if (q.queued) return { source: 'ast_queued', promptedForPage: false };
       // Missing userDbId — fall through to freeform (rare)
