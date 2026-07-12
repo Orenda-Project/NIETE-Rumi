@@ -57,38 +57,45 @@ async function clearSession(flowToken) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Grade options — distinct grades available in the imported bank.
- * Falls back to a fixed list if the bank hasn't been seeded yet.
+ * Grade / subject options — distinct values from the imported bank.
+ *
+ * PostgREST caps `.limit(N)` at max-rows (1000 by default on Supabase),
+ * so a naive `.select('grade').limit(5000)` client-side-dedup returns
+ * only whatever grade dominates the first 1000 rows. `.range(0, 49999)`
+ * bypasses that cap for the read; we then dedup in JS. Fine at NIETE's
+ * ~35k bank size; if the bank grows past 100k, replace with a SQL view.
+ *
+ * Also: grade values in the bank already look like "Grade Five" — don't
+ * double-prefix "Grade " onto them.
  */
 async function loadGradeOptions() {
-
   const { data, error } = await supabase
     .from('exam_question_bank')
     .select('grade')
-    .limit(5000);
+    .range(0, 49999);
   if (error || !data || data.length === 0) {
     return [
-      { id: '1', title: 'Grade 1' }, { id: '2', title: 'Grade 2' },
-      { id: '3', title: 'Grade 3' }, { id: '4', title: 'Grade 4' },
-      { id: '5', title: 'Grade 5' },
+      { id: 'Grade One',   title: 'Grade One' },
+      { id: 'Grade Two',   title: 'Grade Two' },
+      { id: 'Grade Three', title: 'Grade Three' },
+      { id: 'Grade Four',  title: 'Grade Four' },
+      { id: 'Grade Five',  title: 'Grade Five' },
     ];
   }
   const uniq = [...new Set(data.map(r => String(r.grade)))].sort();
-  return uniq.map(g => ({ id: g, title: `Grade ${g}` }));
+  return uniq.map(g => ({ id: g, title: g }));
 }
 
 async function loadSubjectOptions() {
-
   const { data, error } = await supabase
     .from('exam_question_bank')
     .select('subject')
-    .limit(5000);
+    .range(0, 49999);
   if (error || !data || data.length === 0) {
     return [
-      { id: 'Mathematics', title: 'Mathematics' },
+      { id: 'Math',        title: 'Math' },
       { id: 'English',     title: 'English' },
       { id: 'Urdu',        title: 'Urdu' },
-      { id: 'Science',     title: 'Science' },
     ];
   }
   const uniq = [...new Set(data.map(r => r.subject))].sort();
@@ -96,14 +103,14 @@ async function loadSubjectOptions() {
 }
 
 async function loadChapterOptions(grade, subject, language) {
-
   const { data, error } = await supabase
     .from('exam_question_bank')
     .select('chapter_index, chapter_title')
     .eq('grade', grade)
     .eq('subject', subject)
     .eq('language', language)
-    .order('chapter_index', { ascending: true });
+    .order('chapter_index', { ascending: true })
+    .range(0, 49999);
   if (error) {
     logToFile('[exam-flow] chapter load failed', { err: error.message });
     return [];

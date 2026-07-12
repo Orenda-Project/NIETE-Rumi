@@ -47,13 +47,16 @@ function sectionOf(qType) {
  * Pull the bank pool for a given request. One query, indexed.
  */
 async function loadPool({ grade, subject, language, chapters }) {
+  // PostgREST caps default reads at 1000 rows; a Grade Five + Math + all-chapters
+  // filter can return ~2600. Use .range() to bypass the cap.
   const { data, error } = await supabase
     .from('exam_question_bank')
     .select('*')
     .eq('grade', grade)
     .eq('subject', subject)
     .eq('language', language)
-    .in('chapter_index', chapters);
+    .in('chapter_index', chapters)
+    .range(0, 49999);
   if (error) throw new Error(`exam bank pool query failed: ${error.message}`);
   return data || [];
 }
