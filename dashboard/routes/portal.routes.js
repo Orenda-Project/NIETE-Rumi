@@ -1072,10 +1072,15 @@ router.get('/curriculum/lp/:source_lp_uuid/pdf', requirePortalAuth, async (req, 
       });
     }
 
-    // R2 keys are stored as bare object keys (e.g. "lps/curriculum-ast/{uuid}.en.pdf");
-    // generatePresignedUrl accepts either a bare key or a full https URL.
+    // The helper's generatePresignedUrl expects a FULL R2 URL (it validates
+    // via isValidR2Url which checks for .r2.cloudflarestorage.com), but our
+    // pdf_r2_key columns store BARE object keys (e.g. "lps/curriculum-ast/{uuid}.en.pdf").
+    // Prepend the R2 endpoint + bucket so the helper accepts it.
     const filename = `${lp.chapter_title} — ${lp.topic} - Lesson Plan.pdf`.replace(/["<>?*|\\/]/g, '');
-    const url = await generatePresignedUrl(r2Key, 3600); // 1h validity
+    const endpoint = (process.env.R2_ENDPOINT || '').replace(/\/$/, '');
+    const bucket = process.env.R2_BUCKET_NAME;
+    const fullR2Url = `${endpoint}/${bucket}/${r2Key}`;
+    const url = await generatePresignedUrl(fullR2Url, 3600); // 1h validity
     res.json({
       success: true, available: true,
       url, filename,
