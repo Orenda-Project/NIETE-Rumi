@@ -1,5 +1,5 @@
 {
-  "version": "5.0",
+  "version": "5.1",
   "data_api_version": "3.0",
   "routing_model": {
     "TYPE_SELECT":         ["GRADE_SUBJECT"],
@@ -52,10 +52,21 @@
       "id": "GRADE_SUBJECT",
       "title": "Grade & subject",
       "data": {
-        "grade_options":    { "type": "array", "items": { "type": "object" }, "__example__": [{ "id": "5", "title": "Grade 5" }] },
-        "subject_options":  { "type": "array", "items": { "type": "object" }, "__example__": [{ "id": "Mathematics", "title": "Mathematics" }] },
-        "language_options": { "type": "array", "items": { "type": "object" }, "__example__": [{ "id": "en", "title": "English" }, { "id": "ur", "title": "Urdu" }] },
-        "default_language": { "type": "string", "__example__": "en" }
+        "grade_options": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" } } },
+          "__example__": [{ "id": "5", "title": "Grade Five" }]
+        },
+        "subject_options": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" } } },
+          "__example__": [{ "id": "Math", "title": "Math" }]
+        },
+        "language_options": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" } } },
+          "__example__": [{ "id": "en", "title": "English" }, { "id": "ur", "title": "Urdu" }]
+        }
       },
       "layout": {
         "type": "SingleColumnLayout",
@@ -87,7 +98,6 @@
                 "name": "language",
                 "label": "Language",
                 "required": true,
-                "init-value": "${data.default_language}",
                 "data-source": "${data.language_options}"
               },
               {
@@ -112,7 +122,11 @@
       "id": "CHAPTERS",
       "title": "Chapters",
       "data": {
-        "chapter_options": { "type": "array", "items": { "type": "object" }, "__example__": [{ "id": "1", "title": "Ch 1: Numbers" }] }
+        "chapter_options": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" } } },
+          "__example__": [{ "id": "1", "title": "Ch 1: Numbers" }]
+        }
       },
       "layout": {
         "type": "SingleColumnLayout",
