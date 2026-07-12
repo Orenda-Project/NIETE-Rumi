@@ -606,6 +606,49 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
+  // EXAM COMMAND: /exam — open the Exam Generator Flow.
+  // 3 screens: type (WEEKLY|TERM) → grade/subject/language → chapters.
+  // Backend queues an EXAM_GENERATE job that composes + renders + delivers the .docx.
+  // See docs/migration/05-exam-generator.md.
+  // ============================================================
+  if (trimmedMessage === '/exam' || trimmedMessage === '/exams') {
+    logToFile('📝 /exam command detected', { userId: user?.id, phoneNumber: from });
+    if (!user) {
+      typingController.stop();
+      await WhatsAppService.sendMessage(
+        from,
+        'Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔'
+      );
+      return;
+    }
+    const EXAM_GENERATOR_FLOW_ID = process.env.EXAM_GENERATOR_FLOW_ID || '';
+    if (EXAM_GENERATOR_FLOW_ID) {
+      typingController.stop();
+      const flowToken = `${user.id}:exam-generator:${Date.now()}`;
+      const responseLanguage = await getUserLanguage(from) || 'en';
+      await WhatsAppService.sendFlow(from, {
+        flowId: EXAM_GENERATOR_FLOW_ID,
+        header: '📝 New exam',
+        body: ({
+          ur: 'اپنی کلاس کے لیے نیا امتحان بنائیں — گریڈ، مضمون اور چیپٹرز منتخب کریں۔',
+        })[responseLanguage] || 'Create a new exam for your class — pick grade, subject, and chapters.',
+        buttonText: ({
+          ur: 'شروع کریں',
+        })[responseLanguage] || 'Start',
+        flowToken,
+      });
+      logToFile('📝 Sent exam-generator flow (/exam)', { userId: user.id });
+      return;
+    }
+    typingController.stop();
+    await WhatsAppService.sendMessage(
+      from,
+      "The exam generator is being prepared for you. We'll notify you when it's live.\n\nامتحان جنریٹر تیار کیا جا رہا ہے۔"
+    );
+    return;
+  }
+
+  // ============================================================
   // QUIZ COMMAND: /quiz [topic] — generate + send a quiz to the class.
   // Direct path (QuizOrchestrator). A Quiz Manager Flow can be layered later
   // via QUIZ_FLOW_ID, but the direct path needs no Meta-flow registration.

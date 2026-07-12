@@ -345,6 +345,16 @@ class SQSCoachingWorker {
         break;
       }
 
+      case 'exam_generate': {
+        // Compose from imported question bank → build .docx → upload R2 → WhatsApp send.
+        // Bank-only composition is fast (~5s end-to-end); 3-min extension is
+        // generous headroom for network jitter on media fetches during render.
+        await SQSQueueService.extendJobTimeout(receiptHandle, 180);
+        const ExamOrchestrator = require('../shared/services/exam/exam-orchestrator.service');
+        await ExamOrchestrator.generateExam(payload);
+        break;
+      }
+
       // Quiz jobs (v2 envelope with body.groupId). Producers enqueue via
       // SQSQueueService.queueJob(); each handler in quiz-job-handler does a
       // cancel-flag check, an optional cascade re-queue (quiz_report/quiz_expire),

@@ -49,6 +49,8 @@ const PIC_LP_FLOW_ID = process.env.PIC_LP_FLOW_ID || '';
 const QUIZ_FLOW_ID = process.env.QUIZ_FLOW_ID || '';
 // WhatsApp Flow ID for the Teacher Training home + level detail (empty → text fallback).
 const TEACHER_TRAINING_FLOW_ID = process.env.TEACHER_TRAINING_FLOW_ID || '';
+// WhatsApp Flow ID for the Exam Generator (empty → /exam is disabled and replies with a hint).
+const EXAM_GENERATOR_FLOW_ID = process.env.EXAM_GENERATOR_FLOW_ID || '';
 // Teacher-facing WhatsApp number shown in the lesson-plan Coaching Corner
 // (empty → the contact line is omitted from the rendered LP).
 const COACHING_WHATSAPP_NUMBER = process.env.COACHING_WHATSAPP_NUMBER || '';
@@ -156,6 +158,7 @@ module.exports = {
   PIC_LP_FLOW_ID,
   QUIZ_FLOW_ID,
   TEACHER_TRAINING_FLOW_ID,
+  EXAM_GENERATOR_FLOW_ID,
   COACHING_WHATSAPP_NUMBER,
 
   // Directory Paths

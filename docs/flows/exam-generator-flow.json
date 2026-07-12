@@ -1,0 +1,178 @@
+{
+  "version": "5.0",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "TYPE_SELECT":         ["GRADE_SUBJECT"],
+    "GRADE_SUBJECT":       ["CHAPTERS"],
+    "CHAPTERS":            ["SUCCESS"]
+  },
+  "screens": [
+    {
+      "id": "TYPE_SELECT",
+      "title": "New exam",
+      "data": {},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "What kind of exam?"
+          },
+          {
+            "type": "Form",
+            "name": "form",
+            "children": [
+              {
+                "type": "RadioButtonsGroup",
+                "name": "exam_type",
+                "label": "Exam type",
+                "required": true,
+                "data-source": [
+                  { "id": "WEEKLY", "title": "Weekly test",  "description": "1-2 chapters, ~40 min" },
+                  { "id": "TERM",   "title": "Term exam",     "description": "Multiple chapters, ~2 hours" }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "select_type",
+                    "exam_type": "${form.exam_type}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "GRADE_SUBJECT",
+      "title": "Grade & subject",
+      "data": {
+        "grade_options":    { "type": "array", "items": { "type": "object" }, "__example__": [{ "id": "5", "title": "Grade 5" }] },
+        "subject_options":  { "type": "array", "items": { "type": "object" }, "__example__": [{ "id": "Mathematics", "title": "Mathematics" }] },
+        "language_options": { "type": "array", "items": { "type": "object" }, "__example__": [{ "id": "en", "title": "English" }, { "id": "ur", "title": "Urdu" }] },
+        "default_language": { "type": "string", "__example__": "en" }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "Which class?"
+          },
+          {
+            "type": "Form",
+            "name": "form",
+            "children": [
+              {
+                "type": "Dropdown",
+                "name": "grade",
+                "label": "Grade",
+                "required": true,
+                "data-source": "${data.grade_options}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "subject",
+                "label": "Subject",
+                "required": true,
+                "data-source": "${data.subject_options}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "language",
+                "label": "Language",
+                "required": true,
+                "init-value": "${data.default_language}",
+                "data-source": "${data.language_options}"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "select_grade_subject",
+                    "grade":    "${form.grade}",
+                    "subject":  "${form.subject}",
+                    "language": "${form.language}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "CHAPTERS",
+      "title": "Chapters",
+      "data": {
+        "chapter_options": { "type": "array", "items": { "type": "object" }, "__example__": [{ "id": "1", "title": "Ch 1: Numbers" }] }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "Which chapters?"
+          },
+          {
+            "type": "Form",
+            "name": "form",
+            "children": [
+              {
+                "type": "CheckboxGroup",
+                "name": "chapters",
+                "label": "Select 1 or more",
+                "required": true,
+                "data-source": "${data.chapter_options}"
+              },
+              {
+                "type": "Footer",
+                "label": "Generate exam",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "generate",
+                    "chapters": "${form.chapters}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SUCCESS",
+      "terminal": true,
+      "success": true,
+      "title": "On its way",
+      "data": {
+        "message": { "type": "string", "__example__": "Making your exam…" }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "${data.message}"
+          },
+          {
+            "type": "Footer",
+            "label": "Close",
+            "on-click-action": {
+              "name": "complete",
+              "payload": {}
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -74,6 +74,11 @@ const {
   handleTeacherTrainingDataExchange,
   handleTeacherTrainingBack
 } = require('./teacher-training-endpoint');
+const {
+  handleExamGeneratorInit,
+  handleExamGeneratorDataExchange,
+  handleExamGeneratorBack
+} = require('./exam-generator-endpoint');
 
 /**
  * Handle attendance marking flow data requests
@@ -790,6 +795,47 @@ async function handleTeacherTrainingRequest(data) {
   if (action === 'BACK')                      return await handleTeacherTrainingBack(userId, screen, flow_token);
 
   logToFile('Unknown teacher training flow action', { action });
+  return FlowEncryptionService.createErrorResponse('Unknown action');
+}
+
+// ============================================================
+// EXAM GENERATOR FLOW — 3-screen: type → grade/subject/lang → chapters
+// See docs/migration/05-exam-generator.md
+// ============================================================
+
+router.post('/exam-generator', async (req, res) => {
+  try {
+    if (!FlowEncryptionService.isConfigured()) {
+      logToFile('Flow encryption not configured', { endpoint: 'exam-generator' });
+      return res.status(500).json({ error: 'Flow encryption not configured' });
+    }
+    const encryptedResponse = await FlowEncryptionService.processEncryptedRequest(
+      req.body,
+      async (decryptedData) => await handleExamGeneratorRequest(decryptedData)
+    );
+    res.set('Content-Type', 'text/plain');
+    res.send(encryptedResponse);
+  } catch (error) {
+    logToFile('Flow endpoint error', { endpoint: 'exam-generator', error: error.message, stack: error.stack });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+async function handleExamGeneratorRequest(data) {
+  const { action, flow_token, screen, data: screenData } = data;
+  logToFile('Handling exam generator flow request', {
+    action, screen, hasFlowToken: !!flow_token,
+    screenDataKeys: screenData ? Object.keys(screenData) : []
+  });
+
+  if (action === 'ping') return FlowEncryptionService.handlePing();
+  const userId = (flow_token || '').split(':')[0];
+
+  if (action === 'INIT' || action === 'init') return await handleExamGeneratorInit(userId, flow_token);
+  if (action === 'data_exchange')             return await handleExamGeneratorDataExchange(userId, screen, screenData, flow_token);
+  if (action === 'BACK')                      return await handleExamGeneratorBack(userId, screen, flow_token);
+
+  logToFile('Unknown exam generator flow action', { action });
   return FlowEncryptionService.createErrorResponse('Unknown action');
 }
 

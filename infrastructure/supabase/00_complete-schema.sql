@@ -4039,6 +4039,122 @@ CREATE INDEX IF NOT EXISTS idx_lp_feedback_polarity_time
   ON lp_feedback (reason_polarity, created_at DESC)
   WHERE reason_text IS NOT NULL;
 
+-- =============================================================================
+-- EXAM GENERATOR (design: docs/migration/05-exam-generator.md)
+-- Teacher generates a printable Word-doc exam paper via WhatsApp Flow. Question
+-- pool imported from taleemabad-core question_bank_question (D5 filter:
+-- ONPROD only). Composition is bank-selection + Bloom/Skills blueprint (D9,
+-- from taleemabad-core question_bank_assessment). No LLM. v1 delivers paper
+-- only — no answer key (D12; snapshots retained for a v2 answer-key render).
+-- =============================================================================
+
+-- ---------------------------------------------------------------------------
+-- exam_question_groups — passage text + shared metadata for grouped questions
+-- (comprehension passages, match-the-columns, choice blocks). Referenced from
+-- exam_question_bank.group_ref. Small table (~hundreds of rows) so kept
+-- separately rather than denormalising title/media onto every question row.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS exam_question_groups (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  taleemabad_uuid   UUID UNIQUE NOT NULL,
+  title_text        TEXT,                            -- passage text, section instruction, etc.
+  media             JSONB NOT NULL DEFAULT '[]'::jsonb,
+  group_type        TEXT NOT NULL,                   -- 'comprehension' | 'match-the-columns' | 'choice' | 'words-meanings' | ...
+  imported_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ---------------------------------------------------------------------------
+-- exam_question_bank — imported vetted question pool
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS exam_question_bank (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  taleemabad_uuid     UUID UNIQUE NOT NULL,          -- lineage anchor for idempotent re-import
+  grade               TEXT NOT NULL,
+  subject             TEXT NOT NULL,
+  language            TEXT NOT NULL,                 -- 'en' | 'ur'
+  chapter_index       INTEGER NOT NULL,
+  chapter_title       TEXT NOT NULL,
+  question_statement  TEXT NOT NULL,
+  question_media      JSONB NOT NULL DEFAULT '[]'::jsonb, -- [{ url, type }]
+  question_format     TEXT NOT NULL,                 -- 'statement' | 'image' | 'statement-image'
+  type                TEXT NOT NULL,                 -- taleemabad's granular type (MCQs, FTB, ...)
+  sub_type            TEXT,
+  score               REAL NOT NULL CHECK (score >= 1),
+  marking_scheme      TEXT,
+  category            TEXT NOT NULL CHECK (category IN ('SEEN', 'UNSEEN')),
+  answer_options      JSONB NOT NULL DEFAULT '[]'::jsonb, -- MCQ: [{ statement, is_correct, ... }]
+  correct_answer      TEXT,                          -- freeform correct answer / model answer
+  bloom_tags          TEXT[] NOT NULL DEFAULT '{}',  -- ['REMEMBER','UNDERSTAND','APPLY']
+  ncp_slo_ref         TEXT,                          -- flattened NCPSLO
+  book_chapter_slo    JSONB,                         -- keep as-is from source (LP SLO metadata)
+  group_ref           UUID REFERENCES exam_question_groups(id),  -- passage / group metadata
+  group_type          TEXT,                          -- denormalised copy for query convenience
+  index_in_chapter    INTEGER NOT NULL DEFAULT 1,
+  imported_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_exam_bank_grade_subject_lang_chapter
+  ON exam_question_bank (grade, subject, language, chapter_index);
+CREATE INDEX IF NOT EXISTS idx_exam_bank_bloom_tags
+  ON exam_question_bank USING GIN (bloom_tags);
+CREATE INDEX IF NOT EXISTS idx_exam_bank_group_ref
+  ON exam_question_bank (group_ref)
+  WHERE group_ref IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_exam_bank_category
+  ON exam_question_bank (grade, subject, language, chapter_index, category);
+
+-- ---------------------------------------------------------------------------
+-- exams — a teacher-generated exam instance
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS exams (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_by_user_id  UUID NOT NULL REFERENCES users(id),
+  type                TEXT NOT NULL CHECK (type IN ('WEEKLY', 'TERM')),
+  grade               TEXT NOT NULL,
+  subject             TEXT NOT NULL,
+  language            TEXT NOT NULL,
+  chapters            INTEGER[] NOT NULL,            -- chapter_index values, e.g. {1,2}
+  total_questions     INTEGER NOT NULL,
+  total_marks         INTEGER NOT NULL,              -- SUM(picked.score) at compose time
+  duration_minutes    INTEGER NOT NULL,              -- from blueprint
+  status              TEXT NOT NULL DEFAULT 'composing'
+                        CHECK (status IN ('composing', 'ready', 'failed')),
+  paper_docx_url      TEXT,                          -- R2 URL of the rendered .docx
+  error_reason        TEXT,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ready_at            TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_exams_user_time
+  ON exams (created_by_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_exams_status_time
+  ON exams (status, created_at DESC)
+  WHERE status <> 'ready';
+
+-- ---------------------------------------------------------------------------
+-- exam_questions — snapshot of picked questions (immune to future bank edits)
+-- correct_answer_snapshot + marking_scheme_snapshot retained for v2 answer key.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS exam_questions (
+  id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  exam_id                  UUID NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+  order_index              INTEGER NOT NULL,
+  source_bank_id           UUID NOT NULL REFERENCES exam_question_bank(id),
+  section                  TEXT NOT NULL CHECK (section IN ('objective', 'subjective')),
+  question_format          TEXT NOT NULL,
+  statement_snapshot       TEXT NOT NULL,
+  options_snapshot         JSONB NOT NULL DEFAULT '[]'::jsonb,
+  correct_answer_snapshot  TEXT,
+  marking_scheme_snapshot  TEXT,
+  media_snapshot           JSONB NOT NULL DEFAULT '[]'::jsonb,
+  score                    REAL NOT NULL,
+  bloom_tags               TEXT[] NOT NULL DEFAULT '{}',
+  group_ref                UUID,
+  UNIQUE (exam_id, order_index)
+);
+CREATE INDEX IF NOT EXISTS idx_exam_questions_exam
+  ON exam_questions (exam_id);
+CREATE INDEX IF NOT EXISTS idx_exam_questions_source_bank
+  ON exam_questions (source_bank_id);
+
 -- Reload PostgREST's schema cache last, so the reconciled columns + functions
 -- above are immediately visible to the REST API (the earlier NOTIFY predates these DDLs).
 NOTIFY pgrst, 'reload schema';

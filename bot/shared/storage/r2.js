@@ -107,6 +107,24 @@ async function uploadLessonPlanBuffer({ buffer, userId, sessionId, fileType = 'p
   return key;
 }
 
+async function uploadExamBuffer({ buffer, userId, examId, filename }) {
+  const key = `exams/${userId}/${examId}/${filename}`;
+  const command = new PutObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: key,
+    Body: buffer,
+    ContentType: getContentType('.docx'),
+    Metadata: {
+      userId,
+      examId,
+      uploadedAt: new Date().toISOString(),
+    },
+  });
+  await getR2Client().send(command);
+  console.log(`✅ Exam paper uploaded to R2: ${key}`);
+  return key;
+}
+
 /**
  * Delete audio file from R2 (for cleanup)
  * @param {string} url - Full URL of the file
@@ -743,4 +761,5 @@ module.exports = {
   getPresignedUrl,  // SECURE: Generate temporary presigned URLs for external access
   toPublicUrl,  // Alias for getPresignedUrl (backward compat, async!)
   uploadBuffer, // Generic buffer upload for attendance Excel
+  uploadExamBuffer, // Exam paper .docx delivery
 };
