@@ -1166,6 +1166,281 @@ router.post('/curriculum/lp/:source_lp_uuid/render', requirePortalAuth, async (r
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════
+// TEACHER TRAINING BROWSER — 3-step cascading picker: Level → Course → Module
+// ───────────────────────────────────────────────────────────────────────────
+// Mirrors the curriculum browser architecture but over the training tables:
+//   training_levels (4 rows — Aspiring / Emerging / Skilled / Leader)
+//   training_courses (36 rows) — filtered by level_id
+//   training_modules (171 rows) — filtered by course_id
+// Progress ✓/○ badges come from teacher_training_progress (INSERT-only,
+// completed_at populated on completion).
+//
+// Read-only from the portal for MVP — teachers still mark modules done via
+// WhatsApp (existing training flow). Portal is a browsable reference / recap.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/portal/training/levels
+ * Returns the 4 training levels with per-level module counts + completion %
+ * for the authenticated teacher.
+ */
+router.get('/training/levels', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+
+    // Levels
+    const { data: levels, error: le } = await supabase
+      .from('training_levels')
+      .select('id, name, order_index, cpd_level')
+      .eq('is_active', true)
+      .order('order_index', { ascending: true });
+    if (le) throw le;
+
+    // Per-level module counts (via courses join)
+    const { data: courses, error: ce } = await supabase
+      .from('training_courses')
+      .select('id, level_id')
+      .eq('is_active', true);
+    if (ce) throw ce;
+
+    const courseIdsByLevel = new Map();
+    for (const c of courses || []) {
+      if (!courseIdsByLevel.has(c.level_id)) courseIdsByLevel.set(c.level_id, []);
+      courseIdsByLevel.get(c.level_id).push(c.id);
+    }
+    const allCourseIds = (courses || []).map(c => c.id);
+    const { data: modules, error: me } = await supabase
+      .from('training_modules')
+      .select('id, course_id')
+      .eq('is_active', true)
+      .in('course_id', allCourseIds.length ? allCourseIds : ['00000000-0000-0000-0000-000000000000']);
+    if (me) throw me;
+
+    const moduleIdsByCourse = new Map();
+    for (const m of modules || []) {
+      if (!moduleIdsByCourse.has(m.course_id)) moduleIdsByCourse.set(m.course_id, []);
+      moduleIdsByCourse.get(m.course_id).push(m.id);
+    }
+
+    // Teacher's completed modules (single query, all modules)
+    const allModuleIds = (modules || []).map(m => m.id);
+    let completedSet = new Set();
+    if (allModuleIds.length && userId) {
+      const { data: progress, error: pe } = await supabase
+        .from('teacher_training_progress')
+        .select('module_id')
+        .eq('user_id', userId)
+        .in('module_id', allModuleIds)
+        .not('completed_at', 'is', null);
+      if (pe) throw pe;
+      completedSet = new Set((progress || []).map(p => p.module_id));
+    }
+
+    // Roll up: modules per level + completed per level
+    const enriched = (levels || []).map(l => {
+      const courseIds = courseIdsByLevel.get(l.id) || [];
+      let total = 0, done = 0;
+      for (const cid of courseIds) {
+        const mIds = moduleIdsByCourse.get(cid) || [];
+        total += mIds.length;
+        done += mIds.filter(id => completedSet.has(id)).length;
+      }
+      return {
+        id: l.id, name: l.name, order_index: l.order_index, cpd_level: l.cpd_level,
+        module_count: total, completed_count: done,
+      };
+    });
+    res.json({ success: true, levels: enriched });
+  } catch (error) {
+    console.error('training/levels error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load levels' });
+  }
+});
+
+/**
+ * GET /api/portal/training/courses?level_id=1
+ * Returns courses in a level, with per-course completion counts.
+ */
+router.get('/training/courses', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const levelId = parseInt(req.query.level_id, 10);
+    if (!Number.isFinite(levelId)) return res.status(400).json({ success: false, error: 'level_id required' });
+
+    const { data: courses, error: ce } = await supabase
+      .from('training_courses')
+      .select('id, title, course_type, order_index')
+      .eq('is_active', true)
+      .eq('level_id', levelId)
+      .order('order_index', { ascending: true });
+    if (ce) throw ce;
+
+    // Roll up module counts + completion per course
+    const courseIds = (courses || []).map(c => c.id);
+    if (courseIds.length === 0) return res.json({ success: true, courses: [] });
+
+    const { data: modules, error: me } = await supabase
+      .from('training_modules')
+      .select('id, course_id')
+      .eq('is_active', true)
+      .in('course_id', courseIds);
+    if (me) throw me;
+
+    const moduleIdsByCourse = new Map();
+    for (const m of modules || []) {
+      if (!moduleIdsByCourse.has(m.course_id)) moduleIdsByCourse.set(m.course_id, []);
+      moduleIdsByCourse.get(m.course_id).push(m.id);
+    }
+    const allModuleIds = (modules || []).map(m => m.id);
+    let completedSet = new Set();
+    if (allModuleIds.length && userId) {
+      const { data: progress } = await supabase
+        .from('teacher_training_progress')
+        .select('module_id')
+        .eq('user_id', userId)
+        .in('module_id', allModuleIds)
+        .not('completed_at', 'is', null);
+      completedSet = new Set((progress || []).map(p => p.module_id));
+    }
+
+    const enriched = (courses || []).map(c => {
+      const mIds = moduleIdsByCourse.get(c.id) || [];
+      return {
+        id: c.id, title: c.title, course_type: c.course_type, order_index: c.order_index,
+        module_count: mIds.length,
+        completed_count: mIds.filter(id => completedSet.has(id)).length,
+      };
+    });
+    res.json({ success: true, courses: enriched });
+  } catch (error) {
+    console.error('training/courses error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load courses' });
+  }
+});
+
+/**
+ * GET /api/portal/training/modules?course_id=UUID
+ * Returns modules in a course with per-module completion status for the teacher.
+ */
+router.get('/training/modules', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const courseId = String(req.query.course_id || '');
+    if (!courseId) return res.status(400).json({ success: false, error: 'course_id required' });
+
+    const { data: modules, error: me } = await supabase
+      .from('training_modules')
+      .select('id, title, order_index, duration_seconds, video_url, audio_url')
+      .eq('is_active', true)
+      .eq('course_id', courseId)
+      .order('order_index', { ascending: true });
+    if (me) throw me;
+
+    const moduleIds = (modules || []).map(m => m.id);
+    let completedMap = new Map();
+    if (moduleIds.length && userId) {
+      const { data: progress } = await supabase
+        .from('teacher_training_progress')
+        .select('module_id, completed_at')
+        .eq('user_id', userId)
+        .in('module_id', moduleIds)
+        .not('completed_at', 'is', null);
+      for (const p of progress || []) {
+        // Keep the earliest completion timestamp for each module (INSERT-only table)
+        const prev = completedMap.get(p.module_id);
+        if (!prev || new Date(p.completed_at) < new Date(prev)) {
+          completedMap.set(p.module_id, p.completed_at);
+        }
+      }
+    }
+
+    const enriched = (modules || []).map(m => ({
+      id: m.id, title: m.title, order_index: m.order_index,
+      duration_seconds: m.duration_seconds,
+      has_video: !!m.video_url,
+      has_audio: !!m.audio_url,
+      completed_at: completedMap.get(m.id) || null,
+    }));
+    res.json({ success: true, modules: enriched });
+  } catch (error) {
+    console.error('training/modules error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load modules' });
+  }
+});
+
+/**
+ * GET /api/portal/training/module/:id
+ * Returns a single module's full detail (content_html + presigned media URLs).
+ */
+router.get('/training/module/:id', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const moduleId = req.params.id;
+
+    const { data: m, error } = await supabase
+      .from('training_modules')
+      .select('id, title, content_html, video_url, audio_url, duration_seconds, order_index, course_id')
+      .eq('id', moduleId)
+      .eq('is_active', true)
+      .maybeSingle();
+    if (error) throw error;
+    if (!m) return res.status(404).json({ success: false, error: 'Module not found' });
+
+    // Chapter context — look up course + level so the frontend can show a breadcrumb
+    const { data: course } = await supabase
+      .from('training_courses')
+      .select('id, title, level_id')
+      .eq('id', m.course_id).maybeSingle();
+    let level = null;
+    if (course) {
+      const { data: l } = await supabase.from('training_levels')
+        .select('id, name').eq('id', course.level_id).maybeSingle();
+      level = l;
+    }
+
+    // Progress
+    let completedAt = null;
+    if (userId) {
+      const { data: progress } = await supabase
+        .from('teacher_training_progress')
+        .select('completed_at')
+        .eq('user_id', userId)
+        .eq('module_id', moduleId)
+        .not('completed_at', 'is', null)
+        .order('completed_at', { ascending: true })
+        .limit(1);
+      if (progress && progress[0]) completedAt = progress[0].completed_at;
+    }
+
+    // Presign media URLs — video_url and audio_url are full R2 URLs, feeding
+    // directly into generatePresignedUrl which validates via isValidR2Url.
+    const [videoUrl, audioUrl] = await Promise.all([
+      m.video_url ? generatePresignedUrl(m.video_url, 3600) : Promise.resolve(null),
+      m.audio_url ? generatePresignedUrl(m.audio_url, 3600) : Promise.resolve(null),
+    ]);
+
+    res.json({
+      success: true,
+      module: {
+        id: m.id,
+        title: m.title,
+        content_html: m.content_html || '',
+        video_url: videoUrl,
+        audio_url: audioUrl,
+        duration_seconds: m.duration_seconds,
+        order_index: m.order_index,
+        completed_at: completedAt,
+        course: course ? { id: course.id, title: course.title } : null,
+        level: level,
+      },
+    });
+  } catch (error) {
+    console.error('training/module/:id error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load module' });
+  }
+});
+
 /**
  * GET /api/portal/coaching-sessions
  * Get all coaching sessions for authenticated user

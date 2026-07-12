@@ -15,6 +15,7 @@ import PortalPasswordResetVerify from "./portal/pages/PortalPasswordResetVerify"
 import PortalDashboard from "./portal/pages/PortalDashboard";
 import PortalLessonPlans from "./portal/pages/PortalLessonPlans";
 import PortalCurriculum from "./portal/pages/PortalCurriculum";
+import PortalTraining from "./portal/pages/PortalTraining";
 import PortalCoaching from "./portal/pages/PortalCoaching";
 import PortalCoachingAnalytics from "./portal/pages/PortalCoachingAnalytics";
 import PortalCoachingDetail from "./portal/pages/PortalCoachingDetail";
@@ -66,6 +67,7 @@ const App = () => {
           <Route path="/portal/dashboard" element={<PortalDashboard />} />
             <Route path="/portal/lesson-plans" element={<PortalLessonPlans />} />
             <Route path="/portal/curriculum" element={<PortalCurriculum />} />
+            <Route path="/portal/training" element={<PortalTraining />} />
             <Route path="/portal/coaching" element={<PortalCoaching />} />
             <Route path="/portal/coaching/analytics" element={<PortalCoachingAnalytics />} />
             <Route path="/portal/coaching/session/:sessionId" element={<PortalCoachingDetail />} />
