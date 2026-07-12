@@ -2,7 +2,7 @@ const axios = require('axios');
 const { GAMMA_API_KEY, GAMMA_MAX_ATTEMPTS, GAMMA_POLL_INTERVAL } = require('../utils/constants');
 const { logToFile } = require('../utils/logger');
 const { getLanguageConfig } = require('../config/gamma-languages.config');
-const { buildLessonPlanPrompt } = require('./lesson-plan-template.service');
+const { buildLessonPlanPrompt, buildGroundedLessonPlanPrompt } = require('./lesson-plan-template.service');
 
 /**
  * Content Service
@@ -20,17 +20,25 @@ class ContentService {
    * @returns {Promise<Object>} {gammaUrl: string, pdfUrl: string}
    * @private
    */
-  static async _generateGammaContent(topic, fullUserMessage, format, contentType, language = 'en') {
+  static async _generateGammaContent(topic, fullUserMessage, format, contentType, language = 'en', opts = {}) {
     try {
+      const { curriculumLpAst = null } = opts;
+
       // Get language configuration for RTL support
       const langConfig = getLanguageConfig(language);
-      logToFile(`Generating ${contentType} with Gamma API`, { topic, format, language: langConfig.code });
+      logToFile(`Generating ${contentType} with Gamma API`, {
+        topic, format, language: langConfig.code,
+        grounded: !!curriculumLpAst,
+        source_lp_uuid: curriculumLpAst?.source_lp_uuid,
+      });
 
-      // The lesson-plan framework (9-section / 5E structure), the numCards
-      // hint, and the reinforcement instruction all come from ONE source:
-      // lesson-plan-template.service.js. (Reserved grade/subject pass-through
-      // for future per-grade framework tuning; inert today.)
-      const lpTemplate = buildLessonPlanPrompt({ language: langConfig.code });
+      // Two modes:
+      //   - grounded: curriculumLpAst row present → LAY OUT pre-authored content
+      //   - freeform: legacy path, Gamma invents from a topic string
+      // Both routes hand back the same {inputText, numCards, additionalInstructions} shape.
+      const lpTemplate = curriculumLpAst
+        ? buildGroundedLessonPlanPrompt(curriculumLpAst, { language: langConfig.code })
+        : buildLessonPlanPrompt({ language: langConfig.code });
 
       // Use the full user message to preserve all details
       // Use language-specific intro and prompt suffix
@@ -143,10 +151,13 @@ ${lpTemplate.inputText}`;
    * @param {string} language - Language code ('en', 'ur', 'ar', 'es') - defaults to 'en'
    * @returns {Promise<Object>} {gammaUrl: string, pdfUrl: string}
    */
-  static async generateLessonPlan(topic, fullUserMessage, language = 'en') {
+  static async generateLessonPlan(topic, fullUserMessage, language = 'en', opts = {}) {
     try {
-      logToFile('Generating lesson plan with Gamma API', { topic, language });
-      return await this._generateGammaContent(topic, fullUserMessage, 'document', 'lesson plan', language);
+      logToFile('Generating lesson plan with Gamma API', {
+        topic, language, grounded: !!opts.curriculumLpAst,
+        source_lp_uuid: opts.curriculumLpAst?.source_lp_uuid,
+      });
+      return await this._generateGammaContent(topic, fullUserMessage, 'document', 'lesson plan', language, opts);
     } catch (error) {
       logToFile('Error generating lesson plan', {
         error: error.message,

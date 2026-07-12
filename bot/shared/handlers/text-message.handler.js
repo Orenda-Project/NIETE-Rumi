@@ -102,7 +102,11 @@ async function tryCurriculumLessonPlanServe(from, topic, user, language) {
       curriculum: features.curriculum_key,
       language,
     });
-    return !!(result && result.source === 'pre_generated');
+    // Any of these mean "PDF already delivered, stop the message flow here."
+    //   ast_cached    — Taleemabad JSON corpus, PDF was in R2 cache
+    //   ast_generated — Taleemabad JSON corpus, freshly rendered via Gamma-grounded
+    //   pre_generated — legacy Rumi PK Punjab PDF corpus
+    return !!(result && ['pre_generated', 'ast_cached', 'ast_generated'].includes(result.source));
   } catch (e) {
     logToFile('Curriculum LP intercept failed, falling through to Gamma', { error: e.message });
     return false;

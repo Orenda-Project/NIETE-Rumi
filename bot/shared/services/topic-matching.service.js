@@ -1,20 +1,32 @@
 /**
  * Topic Matching Service
  *
- * Matches a teacher's topic request to a textbook chapter
- * using keyword lookup in textbook_toc.topic_keywords.
+ * Matches a teacher's topic request to a textbook chapter using:
+ *  1. Postgres `contains` against textbook_toc.topic_keywords (exact keyword)
+ *  2. Bidirectional substring match against chapter_title, computed in JS
+ *     over the candidates that share (curriculum, grade, subject). Bidirectional
+ *     because either side may be the substring — a short user query ("recall")
+ *     is contained in the chapter title, and a natural sentence ("send me the
+ *     lesson plan for time to recall") contains the chapter title.
  */
 
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
+
+function applyScope(query, { curriculum, grade, subject }) {
+  let q = query.eq('curriculum', curriculum);
+  if (grade !== undefined && grade !== null) q = q.eq('grade', grade);
+  if (subject) q = q.eq('subject', subject);
+  return q;
+}
 
 class TopicMatchingService {
   /**
    * Find a chapter by topic keyword match
    * @param {Object} input
    * @param {string} input.topic - Teacher's topic (e.g. 'fractions', 'kasoor')
-   * @param {number} input.grade
-   * @param {string} input.subject
+   * @param {number} [input.grade]
+   * @param {string} [input.subject]
    * @param {string} input.curriculum
    * @returns {Promise<Object|null>} Matched chapter or null
    */
@@ -23,39 +35,45 @@ class TopicMatchingService {
       const normalizedTopic = topic.toLowerCase().trim();
 
       // Step 1: Exact keyword match via Postgres contains
-      const { data, error } = await supabase
-        .from('textbook_toc')
-        .select('*')
-        .eq('curriculum', curriculum)
-        .contains('topic_keywords', [normalizedTopic])
-        .limit(1);
+      const keywordQuery = applyScope(
+        supabase.from('textbook_toc').select('*'),
+        { curriculum, grade, subject },
+      ).contains('topic_keywords', [normalizedTopic]).limit(1);
 
+      const { data, error } = await keywordQuery;
       if (error) {
         logToFile('Topic matching query error', { error: error.message, topic, curriculum });
         return null;
       }
-
       if (data && data.length > 0) {
         logToFile('Topic matched via keyword', { topic, chapter: data[0].chapter_title });
         return data[0];
       }
 
-      // Step 2: ILIKE fallback — partial match
-      const { data: ilikeData, error: ilikeError } = await supabase
-        .from('textbook_toc')
-        .select('*')
-        .eq('curriculum', curriculum)
-        .ilike('chapter_title', `%${normalizedTopic}%`)
-        .limit(1);
-
-      if (ilikeError) {
-        logToFile('Topic ILIKE query error', { error: ilikeError.message, topic });
+      // Step 2: Bidirectional substring fallback — fetch scoped candidates, filter in JS.
+      // (The prior ILIKE-in-DB filter only matched one direction and never handled natural
+      //  sentences that were longer than the chapter title.)
+      const candidatesQuery = applyScope(
+        supabase.from('textbook_toc').select('*'),
+        { curriculum, grade, subject },
+      );
+      const { data: candidates, error: candErr } = await candidatesQuery;
+      if (candErr) {
+        logToFile('Topic candidate fetch error', { error: candErr.message, topic });
         return null;
       }
 
-      if (ilikeData && ilikeData.length > 0) {
-        logToFile('Topic matched via ILIKE fallback', { topic, chapter: ilikeData[0].chapter_title });
-        return ilikeData[0];
+      const match = (candidates || []).find((row) => {
+        const title = (row.chapter_title || '').toLowerCase().trim();
+        if (!title) return false;
+        return normalizedTopic.includes(title) || title.includes(normalizedTopic);
+      });
+
+      if (match) {
+        logToFile('Topic matched via bidirectional substring', {
+          topic, chapter: match.chapter_title,
+        });
+        return match;
       }
 
       logToFile('No topic match found', { topic, grade, subject, curriculum });

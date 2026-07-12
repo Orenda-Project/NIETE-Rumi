@@ -146,8 +146,132 @@ ${FRAMEWORK_TRAILER}`;
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Grounded mode — Gamma consumes a pre-authored LP from curriculum_lp_ast
+// ─────────────────────────────────────────────────────────────────────────
+//
+// The freeform framework above asks Gamma to INVENT lesson content from a
+// topic string. The grounded mode is different: we already have the finished
+// LP content (imported into curriculum_lp_ast from Taleemabad prod). We hand
+// it to Gamma verbatim and ask it to LAY OUT the given content into the
+// 9-section frame, not invent new content.
+//
+// Map of source columns → 9-section slots:
+//   opening_steps                → 4. INTRODUCTION (ENGAGE)
+//   explain_steps                → 6. EXPLANATION / DIRECT INSTRUCTION
+//   practice_steps               → 5. EXPLORATION + 7. ELABORATION
+//   independent_practice_steps   → 7. ELABORATION
+//   conclusion_steps             → 8. EVALUATION
+//   classroom_setup_instructions → 3. MATERIALS & PREPARATION
+//   homework_instructions        → Trailing homework block within 8
+//   topic + lp_slo               → 1. LEARNING OBJECTIVES
+//   chapter_title/grade/subject/timing → 2. LESSON OVERVIEW
+//
+// The whole point: preserve teacher scripts (`{type: 'Say', statement: '...'}`)
+// as verbatim teacher dialogue in the rendered PDF.
+
+function stepsToText(steps) {
+  if (!Array.isArray(steps) || steps.length === 0) return '(none)';
+  return steps
+    .map((s) => {
+      const idx = s?.index != null ? `${s.index}. ` : '';
+      const type = s?.type ? `[${String(s.type).toUpperCase()}] ` : '';
+      const statement = s?.statement || '';
+      return `${idx}${type}${statement}`.trim();
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
+function totalMinutes(lp) {
+  return (
+    (lp.opening_time || 0) +
+    (lp.explain_time || 0) +
+    (lp.practice_time || 0) +
+    (lp.independent_practice_time || 0) +
+    (lp.conclusion_time || 0)
+  );
+}
+
+/**
+ * Build a grounded lesson-plan prompt for Gamma from a curriculum_lp_ast row.
+ *
+ * @param {Object} lp - a row from curriculum_lp_ast
+ * @param {Object} [opts]
+ * @param {string} [opts.language]  'en' | 'ur' (informational; the caller
+ *   applies the langConfig intro/suffix separately)
+ * @returns {{inputText: string, numCards: number, additionalInstructions: string, sectionCount: number}}
+ *   Same shape as buildLessonPlanPrompt for drop-in compatibility.
+ */
+function buildGroundedLessonPlanPrompt(lp, { language } = {}) {
+  if (!lp) throw new Error('buildGroundedLessonPlanPrompt: lp is required');
+
+  const gradeSubject = `${lp.grade_label || ''} ${lp.subject_label || ''}`.trim();
+  const durationMin = totalMinutes(lp);
+  const durationText = durationMin
+    ? `${durationMin} minutes total (opening ${lp.opening_time || 0}, explain ${lp.explain_time || 0}, practice ${lp.practice_time || 0}, independent ${lp.independent_practice_time || 0}, conclusion ${lp.conclusion_time || 0})`
+    : '40-60 minutes';
+
+  const inputText = `You are LAYING OUT a pre-authored Pakistani primary-school lesson plan into the 9-section framework below. Do NOT invent new content. Do NOT paraphrase teacher scripts — preserve them verbatim. Where the source is silent on a section, keep it brief; do not fabricate.
+
+LESSON PLAN SOURCE (from ${lp.publisher || 'publisher'} for ${gradeSubject}):
+
+Topic: "${lp.topic || ''}"
+Chapter: ${lp.chapter_number || ''}. ${lp.chapter_title || ''}
+Publisher: ${lp.publisher || ''}
+Grade: ${lp.grade_label || lp.grade || ''}
+Subject: ${lp.subject_label || lp.subject || ''}
+Duration: ${durationText}
+Curriculum: ${lp.curriculum_key || ''}
+SLO codes / Learning objectives: ${(lp.lp_slo && lp.lp_slo.length) ? lp.lp_slo.join(', ') : '(derive from topic)'}
+${lp.contains_video ? `Videos: ${(lp.videos || []).join(', ')}` : ''}
+
+CLASSROOM SETUP (verbatim from source):
+${stepsToText(lp.classroom_setup_instructions)}
+
+OPENING STEPS — for Section 4 ENGAGE (verbatim from source):
+${stepsToText(lp.opening_steps)}
+
+EXPLAIN STEPS — for Section 6 DIRECT INSTRUCTION (verbatim from source):
+${stepsToText(lp.explain_steps)}
+
+PRACTICE STEPS — for Sections 5 EXPLORATION + 7 ELABORATION (verbatim from source):
+${stepsToText(lp.practice_steps)}
+
+INDEPENDENT PRACTICE STEPS — for Section 7 ELABORATION continued (verbatim from source):
+${stepsToText(lp.independent_practice_steps)}
+
+CONCLUSION STEPS — for Section 8 EVALUATION (verbatim from source):
+${stepsToText(lp.conclusion_steps)}
+
+HOMEWORK (verbatim from source):
+${stepsToText(lp.homework_instructions)}
+
+Now lay this content out into the 9-section framework below. Preserve step numbering. Preserve teacher scripts (lines starting with [SAY], [ASK], [INSTRUCTION]) verbatim as teacher dialogue. Use section timings from the Duration line above.
+
+${SECTIONS_BLOCK}
+
+${FRAMEWORK_TRAILER}`;
+
+  const additionalInstructions =
+    `The source lesson-plan content above is PRE-AUTHORED and MUST be preserved verbatim. ` +
+    `Lay it out into the ${SECTION_COUNT}-section framework — do NOT invent or add new content. ` +
+    `Where source is silent on a section, keep that section brief (2-3 bullet points based only on info in the source). ` +
+    `Preserve teacher scripts ([SAY]/[ASK]/[INSTRUCTION]) as verbatim teacher dialogue. ` +
+    `Preserve all time allocations from the Duration line. ` +
+    `Do not summarize or condense.`;
+
+  return {
+    inputText,
+    numCards: NUM_CARDS,
+    additionalInstructions,
+    sectionCount: SECTION_COUNT,
+  };
+}
+
 module.exports = {
   buildLessonPlanPrompt,
+  buildGroundedLessonPlanPrompt,
   SECTION_COUNT,
   NUM_CARDS,
 };

@@ -19,13 +19,17 @@ class PreGenLookupService {
    */
   static async findPreGenLP({ chapterNumber, grade, subject, curriculum }) {
     try {
-      const { data, error } = await supabase
+      // subject must be part of the WHERE: two subjects can share a chapter_number
+      // within the same (curriculum, grade). Without it, .single() throws
+      // "multiple rows returned" as soon as the second subject is seeded.
+      let query = supabase
         .from('pre_generated_lps')
         .select('pdf_r2_key_en, pdf_r2_key_ur, gamma_url_en, gamma_url_ur, generation_status')
         .eq('curriculum', curriculum)
         .eq('grade', grade)
-        .eq('chapter_number', chapterNumber)
-        .single();
+        .eq('chapter_number', chapterNumber);
+      if (subject) query = query.eq('subject', subject);
+      const { data, error } = await query.single();
 
       if (error || !data) {
         logToFile('No pre-gen LP found', { chapterNumber, grade, subject, curriculum });

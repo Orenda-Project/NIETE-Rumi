@@ -2,7 +2,7 @@
 
 **Source of truth**: [niete.edu.pk](https://niete.edu.pk/) — the official NIETE website. Assets, colors, and typography below are extracted from the live site (2026-07-11).
 
-**Official name**: **NIETE** — National Institute of Education (Pakistan) — Federal Directorate of Education.
+**Official name**: **NIETE** — National Institute for Excellence in Teacher Education (Islamabad, Pakistan). Federal Directorate of Education.
 **Tagline**: *"Transforming Education at Scale"* (page `<title>`).
 **Longer descriptor**: *"NIETE is revolutionizing education in Pakistan with innovative, cost-effective solutions. Explore our services in teacher training, assessments, policy support, and more."*
 
@@ -14,11 +14,12 @@ Three variants stored in this folder:
 
 | File | Dimensions | Use case |
 |---|---|---|
-| `niete-logo-300.png` | 300 × 300 | **WhatsApp Business profile picture** (WhatsApp requires square, 300px is the minimum for HD delivery). Green + white — the primary brand mark. |
+| `niete-logo-300.png` | 300 × 300 | Primary square mark — green "N" + off-white (`#F0F0F0`) "J" corner element on transparent background. Use on colored / gradient backgrounds. **Do NOT use on white** — the off-white J vanishes. |
+| `niete-logo-300-dark-fill.png` | 300 × 300 | **WhatsApp / white-background variant.** Identical to `niete-logo-300.png` except the off-white `#F0F0F0` pixels are replaced with NIETE charcoal `#32373C` so the J stays visible on WhatsApp's white chrome. This is the file to upload to WhatsApp Business profile. |
 | `niete-logo-dark.png` | 200 × 100 | Wordmark for **dark backgrounds** (used on the site header when dark theme active) |
 | `niete-logo-light.png` | 200 × 100 | Wordmark for **light backgrounds** (default site header) |
 
-**Meta profile picture upload**: Use `niete-logo-300.png` when setting the WhatsApp Business profile picture. Meta requires square PNG or JPG, minimum 192×192, recommended 640×640 or higher. If a higher-res variant is needed, request from `contact@niete.edu.pk`.
+**Meta profile picture upload**: Use `niete-logo-300-dark-fill.png` (NOT the plain `-300.png`) — see the note above about the off-white J. Meta requires square PNG or JPG, minimum 192×192, recommended 640×640 or higher. If a higher-res variant is needed, request from `contact@niete.edu.pk`.
 
 **Source URLs** (in case originals need re-download):
 
@@ -115,8 +116,8 @@ When completing the Meta Business Manager configuration for the NIETE Rumi WABA:
 | **Business display name** (Meta review required) | `NIETE` |
 | **Category** | Education (already set on Mudareb WABA per our earlier check — good match) |
 | **Profile picture** | `niete-logo-300.png` (this folder) |
-| **About** | "Transforming Education at Scale — official teaching support from NIETE (National Institute of Education)." |
-| **Description** | "Your AI teaching assistant from the National Institute of Education (NIETE). Get lesson plans, quizzes, reading assessments, and classroom coaching — all on WhatsApp. Available in Urdu and English." |
+| **About** | "National Institute for Excellence in Teacher Education, Islamabad" (65 chars — within WhatsApp's 139-char cap) |
+| **Description** | "Your AI teaching assistant from NIETE — National Institute for Excellence in Teacher Education (Islamabad). Get lesson plans, quizzes, reading assessments, and classroom coaching — all on WhatsApp. Available in Urdu and English." |
 | **Website** | `https://niete.edu.pk/` |
 | **Email** | (get from NIETE contact page or ask NIETE stakeholder for the right one — do not use a personal address) |
 | **Address** | (get from NIETE — Islamabad HQ per website) |

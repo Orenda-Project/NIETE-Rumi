@@ -1,7 +1,7 @@
 # Taleemabad → Rumi-Platform Fork Migration
 
 **Status**: 🟡 Design in progress (started 2026-07-11)
-**Target**: A separately-maintained fork of `rumi-platform`, deployed for **NIETE** (National Institute of Education, Pakistan), seeded with Taleemabad content and augmented with a human-in-the-loop coach review layer. See [DEPLOYMENT.md](./DEPLOYMENT.md) for phase-1 infrastructure setup.
+**Target**: A separately-maintained fork of `rumi-platform`, deployed for **NIETE** (National Institute for Excellence in Teacher Education, Islamabad, Pakistan), seeded with Taleemabad content and augmented with a human-in-the-loop coach review layer. See [DEPLOYMENT.md](./DEPLOYMENT.md) for phase-1 infrastructure setup.
 
 ---
 

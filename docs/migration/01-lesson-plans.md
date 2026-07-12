@@ -1,6 +1,6 @@
 # 01 — Lesson Plans
 
-**Status**: 🟡 Draft (design in progress)
+**Status**: 🟢 JSON AST corpus imported (2026-07-12); PDF rendering + intercept wiring pending
 **Depends on**: [00-scope-and-decisions](./00-scope-and-decisions.md) D-001
 **Feeds**: [04-data-migration](./04-data-migration.md)
 
@@ -8,9 +8,28 @@
 
 ## Scope
 
-Teacher opens WhatsApp → tells Rumi their class + grade → Rumi looks up the relevant pre-baked lesson plan in a catalog and sends the PDF from S3.
+Teacher opens WhatsApp → tells Rumi their class + grade → Rumi looks up the relevant pre-baked lesson plan and sends it (as PDF or interactive message flow).
 
-**No generation. No SLO mapping. No edit history.** LPs are static content pulled from URLs that already exist in Taleemabad's database.
+**Not**: LP generation. NIETE-Rumi consumes finished LPs from Taleemabad prod.
+
+## Corpus imported (2026-07-12)
+
+The finished-LP content ships as **structured JSON** in `curriculum_lp_ast`, imported from `taleemabad-core.slo_lessonplan` via `bot/scripts/migration/import-tbcore-lps.js`.
+
+- Migration: `bot/database/migrations/016_curriculum_lp_ast.sql`
+- Import script: `bot/scripts/migration/import-tbcore-lps.js` (dry-run + idempotent upsert on `(source_chapter_id, source_lp_uuid)`)
+- Filter: `Book.is_active=true AND Book.status='OnProd' AND publisher IN ('NBF','Taleemabad')` + downstream soft-delete flags
+- **Result: 2,415 rows** — 942 NBF + 1,473 Taleemabad
+- **Content shape**: JSON step arrays (`opening_steps`, `explain_steps`, `practice_steps`, `independent_practice_steps`, `conclusion_steps`, `classroom_setup_instructions`, `homework_instructions`), plus timing / videos / SLO refs
+- **Pre-render framing**: the JSON steps ARE the finished LP. Rendering to PDF or to a WhatsApp message flow is deferred to serve time. Cached PDF r2 keys populate `pdf_r2_key_en` / `pdf_r2_key_ur` after first render.
+
+Round-trip verified: md5(`explain_steps`) matches between source and destination for random spot-checks.
+
+## What's next
+
+1. Renderer: `bot/shared/services/lp-ast-renderer.service.js` — takes a `curriculum_lp_ast` row, produces either a PDF (v7-style template) OR a series of WhatsApp messages
+2. Wire `tryCurriculumLessonPlanServe` (in `text-message.handler.js`) to prefer `curriculum_lp_ast` matches over `pre_generated_lps` when the teacher's `region_features.curriculum_key IN ('nbf_snc','taleemabad')`
+3. R2 caching for rendered PDFs — key format `lps/v8/<source_lp_uuid>.<lang>.pdf`
 
 ## Not doing
 

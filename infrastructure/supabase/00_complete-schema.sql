@@ -3602,6 +3602,207 @@ CREATE TABLE IF NOT EXISTS quiz_answers (
 
 CREATE INDEX IF NOT EXISTS idx_quiz_answers_session_id ON quiz_answers(session_id);
 
+-- ---------------------------------------------------------------------------
+-- Teacher Training (added 2026-07-12 — see docs/adr/0001-training-domain-model-programs.md)
+--
+-- Domain model: generic multi-vendor training platform. Teachers connect to
+-- reusable Programs (curated bundles of Vendor content), not to Vendors
+-- directly. Phase 1 has one Vendor (TALEEMABAD) and one Program (niete_standard);
+-- schema supports arbitrary future Vendors and Programs without migration.
+-- See NIETE-Rumi/CONTEXT.md for the canonical vocabulary.
+-- ---------------------------------------------------------------------------
+
+-- Content authorities. Rules (passing %, cooldown, cert prefix) live here per ADR-0001.
+CREATE TABLE IF NOT EXISTS training_vendors (
+    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    key                  VARCHAR(32) NOT NULL UNIQUE,        -- 'TALEEMABAD', 'BEACONHOUSE', ...
+    name                 VARCHAR(200) NOT NULL,
+    passing_pct          INTEGER NOT NULL,
+    cooldown_hours       INTEGER NOT NULL DEFAULT 24,
+    has_grand_quiz       BOOLEAN NOT NULL DEFAULT TRUE,
+    has_diagnostic       BOOLEAN NOT NULL DEFAULT FALSE,
+    cert_code_prefix     VARCHAR(8) NOT NULL,
+    unlock_logic         VARCHAR(16) NOT NULL DEFAULT 'chain',
+    is_active            BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Curriculum tree
+CREATE TABLE IF NOT EXISTS training_levels (
+    id                   BIGSERIAL PRIMARY KEY,
+    vendor_id            UUID NOT NULL REFERENCES training_vendors(id),
+    source_level_id      BIGINT,                              -- id from source system (Taleemabad) for re-import matching
+    name                 VARCHAR(200) NOT NULL,
+    order_index          INTEGER NOT NULL,
+    cpd_level            INTEGER,                             -- NULL for Aspiring Teacher; 1/2/3 for Emerging/Skilled/Teacher Leader
+    is_active            BOOLEAN NOT NULL DEFAULT TRUE,
+    UNIQUE (vendor_id, order_index)
+);
+
+CREATE TABLE IF NOT EXISTS training_courses (
+    id                   BIGSERIAL PRIMARY KEY,
+    level_id             BIGINT NOT NULL REFERENCES training_levels(id),
+    source_course_id     BIGINT,
+    title                VARCHAR(500) NOT NULL,
+    course_type          VARCHAR(64),                         -- 'CONTENT_EXPERTISE', 'PEDAGOGICAL_PRACTICE', ...
+    order_index          INTEGER NOT NULL,
+    is_active            BOOLEAN NOT NULL DEFAULT TRUE
+);
+CREATE INDEX IF NOT EXISTS idx_training_courses_level ON training_courses(level_id) WHERE is_active;
+
+CREATE TABLE IF NOT EXISTS training_modules (
+    id                   BIGSERIAL PRIMARY KEY,
+    course_id            BIGINT NOT NULL REFERENCES training_courses(id),
+    source_module_id     BIGINT,
+    title                VARCHAR(500) NOT NULL,
+    content_html         TEXT,
+    audio_url            TEXT,                                 -- R2 URL for WhatsApp voice-note delivery
+    video_url            TEXT,                                 -- R2 URL if video module
+    source_media_url     TEXT,                                 -- original Taleemabad URL, retained until re-hosted
+    duration_seconds     INTEGER,
+    order_index          INTEGER NOT NULL,
+    is_active            BOOLEAN NOT NULL DEFAULT TRUE
+);
+CREATE INDEX IF NOT EXISTS idx_training_modules_course ON training_modules(course_id) WHERE is_active;
+
+-- Assessments
+CREATE TABLE IF NOT EXISTS training_grand_quizzes (
+    id                   BIGSERIAL PRIMARY KEY,
+    level_id             BIGINT NOT NULL REFERENCES training_levels(id),
+    source_quiz_id       BIGINT,
+    quiz_type            VARCHAR(32) NOT NULL DEFAULT 'grand_quiz',   -- 'grand_quiz' | 'diagnostic'
+    is_active            BOOLEAN NOT NULL DEFAULT TRUE,
+    UNIQUE (level_id, quiz_type)
+);
+
+CREATE TABLE IF NOT EXISTS training_questions (
+    id                   BIGSERIAL PRIMARY KEY,
+    grand_quiz_id        BIGINT REFERENCES training_grand_quizzes(id),
+    training_module_id   BIGINT REFERENCES training_modules(id),
+    source_question_id   BIGINT,
+    question_text        TEXT NOT NULL,
+    question_urdu        TEXT,
+    options              JSONB NOT NULL,                       -- [{key: '1', text: 'A', urdu: '...'}, ...]
+    correct_option       VARCHAR(16) NOT NULL,
+    bloom_level          VARCHAR(32),
+    order_index          INTEGER NOT NULL,
+    is_active            BOOLEAN NOT NULL DEFAULT TRUE,
+    CHECK ((grand_quiz_id IS NOT NULL) OR (training_module_id IS NOT NULL))
+);
+CREATE INDEX IF NOT EXISTS idx_training_questions_grand_quiz ON training_questions(grand_quiz_id) WHERE grand_quiz_id IS NOT NULL AND is_active;
+CREATE INDEX IF NOT EXISTS idx_training_questions_module ON training_questions(training_module_id) WHERE training_module_id IS NOT NULL AND is_active;
+
+-- Programs: reusable access bundles (ADR-0001)
+CREATE TABLE IF NOT EXISTS training_programs (
+    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    key                  VARCHAR(64) NOT NULL UNIQUE,          -- 'niete_standard', 'bh_ai_v1', ...
+    name                 VARCHAR(200) NOT NULL,
+    description          TEXT,
+    is_active            BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS training_program_scopes (
+    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    program_id           UUID NOT NULL REFERENCES training_programs(id) ON DELETE CASCADE,
+    vendor_id            UUID NOT NULL REFERENCES training_vendors(id),
+    level_ids            BIGINT[],                             -- NULL = all levels of this vendor
+    course_ids           BIGINT[],                             -- NULL = all courses at those levels
+    module_ids           BIGINT[]                              -- NULL = all modules in those courses
+);
+CREATE INDEX IF NOT EXISTS idx_training_program_scopes_program ON training_program_scopes(program_id);
+
+-- Teacher <-> Program assignments (Q2/Q3 explicit assignment)
+CREATE TABLE IF NOT EXISTS teacher_training_assignments (
+    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id              UUID NOT NULL REFERENCES users(id),
+    program_id           UUID NOT NULL REFERENCES training_programs(id),
+    assigned_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    assigned_by          VARCHAR(64) NOT NULL,                 -- 'migration_seed' | 'admin_csv' | 'registration'
+    is_active            BOOLEAN NOT NULL DEFAULT TRUE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_tta_user_program_active
+    ON teacher_training_assignments(user_id, program_id) WHERE is_active;
+
+-- Progress (per-module completion, INSERT-only)
+CREATE TABLE IF NOT EXISTS teacher_training_progress (
+    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id              UUID NOT NULL REFERENCES users(id),
+    module_id            BIGINT NOT NULL REFERENCES training_modules(id),
+    completed_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, module_id)
+);
+
+-- Assessment attempts (Q8: two-table design)
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'training_attempt_status') THEN
+        CREATE TYPE training_attempt_status AS ENUM ('in_progress', 'passed', 'failed', 'abandoned');
+    END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS training_assessment_attempts (
+    id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id                   UUID NOT NULL REFERENCES users(id),
+    program_id                UUID NOT NULL REFERENCES training_programs(id),
+    grand_quiz_id             BIGINT NOT NULL REFERENCES training_grand_quizzes(id),
+    level_id                  BIGINT NOT NULL REFERENCES training_levels(id),
+    started_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_activity_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    current_question_index    INTEGER NOT NULL DEFAULT 0,
+    total_questions           INTEGER NOT NULL,
+    status                    training_attempt_status NOT NULL DEFAULT 'in_progress',
+    score                     INTEGER,
+    total_score               INTEGER NOT NULL,
+    is_passed                 BOOLEAN,
+    completed_at              TIMESTAMPTZ,
+    cooldown_until            TIMESTAMPTZ                       -- set only on 'failed'
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_taa_one_active_per_quiz
+    ON training_assessment_attempts(user_id, grand_quiz_id) WHERE status = 'in_progress';
+CREATE INDEX IF NOT EXISTS idx_taa_abandon_sweep
+    ON training_assessment_attempts(last_activity_at) WHERE status = 'in_progress';
+CREATE INDEX IF NOT EXISTS idx_taa_user ON training_assessment_attempts(user_id);
+
+CREATE TABLE IF NOT EXISTS training_assessment_answers (
+    id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    attempt_id                UUID NOT NULL REFERENCES training_assessment_attempts(id) ON DELETE CASCADE,
+    question_index            INTEGER NOT NULL,
+    question_id               BIGINT NOT NULL REFERENCES training_questions(id),
+    chosen_option             VARCHAR(16) NOT NULL,
+    is_correct                BOOLEAN NOT NULL,
+    answered_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (attempt_id, question_index)
+);
+CREATE INDEX IF NOT EXISTS idx_taans_question ON training_assessment_answers(question_id);
+
+-- Certificates (durable — legacy platform never persisted these)
+CREATE TABLE IF NOT EXISTS training_certificates (
+    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id              UUID NOT NULL REFERENCES users(id),
+    program_id           UUID NOT NULL REFERENCES training_programs(id),
+    level_id             BIGINT NOT NULL REFERENCES training_levels(id),
+    attempt_id           UUID NOT NULL REFERENCES training_assessment_attempts(id),
+    certificate_code     VARCHAR(64) NOT NULL UNIQUE,           -- e.g. 'NIETE-20260712-A3F9E1'
+    teacher_name_snapshot VARCHAR(200) NOT NULL,
+    level_name_snapshot  VARCHAR(200) NOT NULL,
+    issued_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    pdf_r2_key           VARCHAR(500)                            -- 'certs/{user_id}/{cert_code}.pdf'; null until PDF generated
+);
+CREATE INDEX IF NOT EXISTS idx_training_certificates_user ON training_certificates(user_id);
+
+-- Content change audit (Q5: one-shot fork + tracked edits)
+CREATE TABLE IF NOT EXISTS training_content_change_events (
+    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    entity_type          VARCHAR(64) NOT NULL,                   -- 'module' | 'question' | 'course' | 'level' | 'vendor'
+    entity_id            VARCHAR(64) NOT NULL,
+    origin               VARCHAR(32) NOT NULL,                   -- 'vendor_reimport' | 'niete_edit' | 'migration_seed'
+    actor                VARCHAR(200),
+    before_json          JSONB,
+    after_json           JSONB,
+    occurred_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_tcce_entity ON training_content_change_events(entity_type, entity_id);
+
 -- =============================================================================
 -- Column reconcile (Phase 5) — columns the bot code writes/reads that the base
 -- table definitions above predate. Idempotent (ADD COLUMN IF NOT EXISTS) so a
@@ -3733,6 +3934,76 @@ BEGIN
     AND created_at > NOW() - (p_lookback_hours || ' hours')::INTERVAL;
 END;
 $function$;
+
+-- users: teacher-training identity columns imported from Taleemabad (2026-07-12).
+-- users.teacher_uuid is the durable identity ported from users_teacherprofile.uuid.
+-- users.levels is the array ['PRIMARY','MIDDLE','HIGH'] used by future access rules.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS teacher_uuid UUID;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS levels VARCHAR(16)[];
+CREATE UNIQUE INDEX IF NOT EXISTS ux_users_teacher_uuid ON users(teacher_uuid) WHERE teacher_uuid IS NOT NULL;
+
+-- ---------------------------------------------------------------------------
+-- Curriculum LP AST (added 2026-07-12 — see docs/migration/01-lesson-plans.md)
+--
+-- Pre-rendered LP corpus: JSON step arrays imported from taleemabad-core
+-- (NBF + Taleemabad publishers). The Gamma-grounded LP path in
+-- shared/handlers/lesson-plan-v2.handler.js consumes these rows to produce
+-- teacher-facing PDFs, cached back into pdf_r2_key_{en|ur}.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS curriculum_lp_ast (
+  id                            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_lp_uuid                UUID NOT NULL,
+  source_book_id                BIGINT NOT NULL,
+  source_chapter_id             BIGINT NOT NULL,
+  source_join_id                BIGINT NOT NULL,
+  publisher                     TEXT NOT NULL CHECK (publisher IN ('NBF','Taleemabad')),
+  curriculum_key                TEXT NOT NULL,
+  grade                         INT NOT NULL,
+  grade_label                   TEXT NOT NULL,
+  subject                       TEXT NOT NULL,
+  subject_label                 TEXT NOT NULL,
+  chapter_number                INT NOT NULL,
+  chapter_title                 TEXT NOT NULL,
+  lp_index                      INT NOT NULL,
+  topic                         TEXT NOT NULL,
+  lp_type                       TEXT,
+  lp_source                     TEXT,
+  lp_category                   TEXT,
+  opening_steps                 JSONB NOT NULL,
+  practice_steps                JSONB NOT NULL,
+  explain_steps                 JSONB NOT NULL,
+  independent_practice_steps    JSONB,
+  conclusion_steps              JSONB,
+  classroom_setup_instructions  JSONB,
+  homework_instructions         JSONB,
+  videos                        TEXT[] NOT NULL DEFAULT '{}',
+  lp_slo                        TEXT[] NOT NULL DEFAULT '{}',
+  contains_video                BOOLEAN NOT NULL DEFAULT false,
+  opening_time                  INT,
+  explain_time                  INT,
+  practice_time                 INT,
+  independent_practice_time     INT,
+  conclusion_time               INT,
+  pdf_r2_key_en                 TEXT,
+  pdf_r2_key_ur                 TEXT,
+  rendered_at                   TIMESTAMPTZ,
+  is_enabled                    BOOLEAN NOT NULL DEFAULT true,
+  source_hash                   TEXT NOT NULL,
+  imported_at                   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at                    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (source_chapter_id, source_lp_uuid)
+);
+
+CREATE INDEX IF NOT EXISTS idx_curriculum_lp_ast_source_lp_uuid
+  ON curriculum_lp_ast (source_lp_uuid);
+CREATE INDEX IF NOT EXISTS idx_curriculum_lp_ast_lookup
+  ON curriculum_lp_ast (curriculum_key, grade, subject, chapter_number)
+  WHERE is_enabled = true;
+CREATE INDEX IF NOT EXISTS idx_curriculum_lp_ast_topic_fts
+  ON curriculum_lp_ast USING GIN (to_tsvector('english', topic));
+CREATE INDEX IF NOT EXISTS idx_curriculum_lp_ast_publisher
+  ON curriculum_lp_ast (publisher, is_enabled);
 
 -- Reload PostgREST's schema cache last, so the reconciled columns + functions
 -- above are immediately visible to the REST API (the earlier NOTIFY predates these DDLs).

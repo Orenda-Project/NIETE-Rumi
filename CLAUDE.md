@@ -1,9 +1,10 @@
 # 🟢 NIETE-Rumi — LIVE regional deployment
 
-> **You are in the NIETE-Rumi fork** — the region-specific customer-facing deployment for NIETE (National Institute of Education, Pakistan).
+> **You are in the NIETE-Rumi fork** — the region-specific customer-facing deployment for **NIETE — National Institute for Excellence in Teacher Education** (Islamabad, Pakistan). Federal Directorate of Education.
 >
 > | Fact | Value |
 > |---|---|
+> | **Full name** | National Institute for Excellence in Teacher Education (NIETE), Islamabad |
 > | **WhatsApp** | `+92 320 6281951` (Meta App `2052724122329740`, Mudareb-adopted) |
 > | **Env** | `NIETE-Rumi/.env` — has its own `PHONE_NUMBER_ID` + `WHATSAPP_TOKEN` |
 > | **Docs** | `NIETE-Rumi/docs/migration/` (00 through 08) |
