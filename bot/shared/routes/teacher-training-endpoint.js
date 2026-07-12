@@ -112,7 +112,7 @@ async function buildTrainingHome(userId) {
       data[`level_${slot}_title`]     = `Level ${slot}`;
       data[`level_${slot}_progress`]  = 'Not part of your program';
       data[`level_${slot}_state`]     = 'locked';
-      data[`level_${slot}_cta`]       = '';
+      data[`level_${slot}_cta`]       = '🔒 Locked';
       continue;
     }
     if (slot < 4) data[`level_${slot}_badge_url`] = badgeUrl(levelBadgeName(lvl));
@@ -347,7 +347,7 @@ function levelBadgeName(lv) {
 }
 
 function ctaForLevel(lv) {
-  if (lv.state === 'locked') return '';
+  if (lv.state === 'locked') return '🔒 Locked';
   if (lv.state === 'certified') return 'Review';
   if (lv.state === 'ready_for_quiz') return 'Take exam';
   if (lv.state === 'in_progress') return 'Continue';
