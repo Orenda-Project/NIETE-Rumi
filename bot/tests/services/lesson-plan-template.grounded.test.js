@@ -1,12 +1,21 @@
 /**
  * Tests for buildGroundedLessonPlanPrompt — locks the shape + verbatim-content
  * guarantees the Gamma-grounded path relies on.
+ *
+ * Framework: the grounded prompt lays out source content into the 5-step GRR
+ * (Gradual Release of Responsibility) framework — OPENING / I DO / WE DO /
+ * YOU DO / CONCLUSION — which mirrors the source JSON's own step arrays 1:1.
+ * Each source array (opening_steps, explain_steps, practice_steps,
+ * independent_practice_steps, conclusion_steps) maps to exactly ONE GRR
+ * section — no more splitting content across sections like the imported 5E
+ * wrapper did.
  */
 
 const {
   buildLessonPlanPrompt,
   buildGroundedLessonPlanPrompt,
   SECTION_COUNT,
+  GRR_SECTION_COUNT,
   NUM_CARDS,
 } = require('../../shared/services/lesson-plan-template.service');
 
@@ -48,10 +57,11 @@ const SAMPLE_LP = {
 };
 
 describe('buildGroundedLessonPlanPrompt', () => {
-  it('returns the same shape as freeform for drop-in compat', () => {
+  it('returns the expected shape with GRR section count (5)', () => {
     const g = buildGroundedLessonPlanPrompt(SAMPLE_LP);
     expect(g.numCards).toBe(NUM_CARDS);
-    expect(g.sectionCount).toBe(SECTION_COUNT);
+    expect(g.sectionCount).toBe(GRR_SECTION_COUNT);
+    expect(GRR_SECTION_COUNT).toBe(5);
     expect(typeof g.inputText).toBe('string');
     expect(typeof g.additionalInstructions).toBe('string');
   });
@@ -95,20 +105,61 @@ describe('buildGroundedLessonPlanPrompt', () => {
     expect(noneCount).toBeGreaterThanOrEqual(3);
   });
 
-  it('instructions tell Gamma to preserve verbatim + not invent', () => {
+  it('instructions tell Gamma to preserve verbatim + not invent + no splitting', () => {
     const g = buildGroundedLessonPlanPrompt(SAMPLE_LP);
     expect(g.additionalInstructions).toMatch(/preserved verbatim/i);
     expect(g.additionalInstructions).toMatch(/do NOT invent/i);
+    // Explicit 1:1 mapping guardrail — each source array = one section
+    expect(g.additionalInstructions).toMatch(/maps 1:1 to exactly ONE framework section/i);
+    expect(g.additionalInstructions).toMatch(/do NOT split content across sections/i);
     expect(g.inputText).toMatch(/Do NOT invent/i);
   });
 
-  it('freeform path is unchanged (backward-compat sanity)', () => {
+  // ─── GRR framework labels (NOT the old 5E labels) ────────────────────
+  describe('framework sections use GRR labels, not 5E', () => {
+    it('renders the 5 GRR section headings with per-section timings', () => {
+      const g = buildGroundedLessonPlanPrompt(SAMPLE_LP);
+      // OPENING with opening_time
+      expect(g.inputText).toMatch(/## 1\. OPENING \[5 minutes\]/);
+      // I DO — Direct Instruction with explain_time
+      expect(g.inputText).toMatch(/## 2\. I DO — Direct Instruction \[15 minutes\]/);
+      // WE DO — Guided Practice with practice_time
+      expect(g.inputText).toMatch(/## 3\. WE DO — Guided Practice \[5 minutes\]/);
+      // YOU DO — Independent Practice with independent_practice_time
+      expect(g.inputText).toMatch(/## 4\. YOU DO — Independent Practice \[5 minutes\]/);
+      // CONCLUSION with conclusion_time
+      expect(g.inputText).toMatch(/## 5\. CONCLUSION — Wrap-up.+\[3 minutes\]/);
+    });
+
+    it('does NOT use the old 5E labels (ENGAGE / EXPLORATION / etc.)', () => {
+      const g = buildGroundedLessonPlanPrompt(SAMPLE_LP);
+      expect(g.inputText).not.toMatch(/INTRODUCTION \(ENGAGE\)/);
+      expect(g.inputText).not.toMatch(/EXPLORATION\/INVESTIGATION/);
+      expect(g.inputText).not.toMatch(/ELABORATION\/GUIDED PRACTICE/);
+      expect(g.inputText).not.toMatch(/EVALUATION\/FORMATIVE ASSESSMENT/);
+    });
+
+    it('maps source arrays 1:1 to GRR sections (each array is exactly one section)', () => {
+      const g = buildGroundedLessonPlanPrompt(SAMPLE_LP);
+      // Each source array is called out with its target section
+      expect(g.inputText).toMatch(/OPENING STEPS — for Section 1 OPENING/);
+      expect(g.inputText).toMatch(/EXPLAIN STEPS — for Section 2 I DO/);
+      expect(g.inputText).toMatch(/PRACTICE STEPS — for Section 3 WE DO/);
+      expect(g.inputText).toMatch(/INDEPENDENT PRACTICE STEPS — for Section 4 YOU DO/);
+      expect(g.inputText).toMatch(/CONCLUSION STEPS — for Section 5 CONCLUSION/);
+    });
+  });
+
+  it('freeform path is unchanged (still 9-section 5E — backward-compat sanity)', () => {
     const f = buildLessonPlanPrompt();
     expect(f.numCards).toBe(NUM_CARDS);
     expect(f.sectionCount).toBe(SECTION_COUNT);
+    expect(SECTION_COUNT).toBe(9);
     // The freeform prompt does NOT reference source LP content
     expect(f.inputText).not.toContain('Assalam-o-Alaikum');
     expect(f.inputText).not.toContain('LESSON PLAN SOURCE');
+    // Freeform still uses the old 5E labels (out of scope for the GRR swap)
+    expect(f.inputText).toMatch(/INTRODUCTION \(ENGAGE\)/);
   });
 
   it('throws if lp is missing', () => {

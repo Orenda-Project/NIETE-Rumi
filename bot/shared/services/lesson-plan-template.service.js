@@ -150,25 +150,72 @@ ${FRAMEWORK_TRAILER}`;
 // Grounded mode — Gamma consumes a pre-authored LP from curriculum_lp_ast
 // ─────────────────────────────────────────────────────────────────────────
 //
-// The freeform framework above asks Gamma to INVENT lesson content from a
-// topic string. The grounded mode is different: we already have the finished
-// LP content (imported into curriculum_lp_ast from Taleemabad prod). We hand
-// it to Gamma verbatim and ask it to LAY OUT the given content into the
-// 9-section frame, not invent new content.
+// The freeform framework above (5E model, 9 sections) asks Gamma to INVENT
+// lesson content from a topic string. The grounded mode is different: the
+// SOURCE JSON already has a 5-step GRR (Gradual Release of Responsibility)
+// structure that mirrors modern structured pedagogy — one source array per
+// GRR phase. So the grounded framework IS the source's own structure, not a
+// 9-section wrapper. This gives a clean 1:1 mapping (no more splitting
+// practice_steps across Exploration + Elaboration like the 5E wrapper did)
+// and gives teachers the action-oriented "what am I doing right now?"
+// mental model instead of the theory-descriptive 5E labels.
 //
-// Map of source columns → 9-section slots:
-//   opening_steps                → 4. INTRODUCTION (ENGAGE)
-//   explain_steps                → 6. EXPLANATION / DIRECT INSTRUCTION
-//   practice_steps               → 5. EXPLORATION + 7. ELABORATION
-//   independent_practice_steps   → 7. ELABORATION
-//   conclusion_steps             → 8. EVALUATION
-//   classroom_setup_instructions → 3. MATERIALS & PREPARATION
-//   homework_instructions        → Trailing homework block within 8
-//   topic + lp_slo               → 1. LEARNING OBJECTIVES
-//   chapter_title/grade/subject/timing → 2. LESSON OVERVIEW
+// Map of source columns → 5 GRR sections:
+//   opening_steps                → 1. OPENING (hook / activate prior knowledge)
+//   explain_steps                → 2. I DO (teacher models the concept)
+//   practice_steps               → 3. WE DO (guided practice together)
+//   independent_practice_steps   → 4. YOU DO (independent practice)
+//   conclusion_steps             → 5. CONCLUSION (wrap-up + exit ticket)
+//   classroom_setup_instructions → Materials & Preparation header block
+//   homework_instructions        → Homework footer within Section 5
+//   topic + lp_slo               → Learning Objectives header block
+//   chapter_title/grade/subject  → Title bar
+//   Differentiation, misconceptions → Differentiation Strategies footer
 //
-// The whole point: preserve teacher scripts (`{type: 'Say', statement: '...'}`)
-// as verbatim teacher dialogue in the rendered PDF.
+// The core guarantee: preserve teacher scripts (`{type: 'Say', statement: ...}`)
+// as verbatim teacher dialogue in the rendered PDF. The GRR labels come from
+// the framework template; content comes from the source arrays.
+
+// GRR framework template with {section_time} placeholders substituted per LP.
+const GRR_SECTIONS_TEMPLATE = `## 1. OPENING [{opening_time} minutes]
+- Warm greeting + hook that activates prior knowledge
+- Learning-objective preview shared with students
+- Any classroom-management set-up (groups, materials distribution)
+
+## 2. I DO — Direct Instruction [{explain_time} minutes]
+- Teacher models the concept step-by-step
+- Teacher thinks aloud so students hear the reasoning
+- Board work: teacher writes / demonstrates while students observe
+- Common misconceptions the teacher flags before students hit them
+
+## 3. WE DO — Guided Practice [{practice_time} minutes]
+- Teacher + students work through examples together
+- Teacher circulates, asks questions, adjusts pacing
+- Structured practice moving from simple to complex
+- Checkpoints for understanding before releasing to independent work
+
+## 4. YOU DO — Independent Practice [{independent_practice_time} minutes]
+- Students practice on their own or in pairs
+- Teacher observes and supports individual students
+- Extension challenges for advanced students
+- Scaffolds for struggling students (concrete manipulatives, sentence frames)
+
+## 5. CONCLUSION — Wrap-up + Formative Assessment [{conclusion_time} minutes]
+- Exit-ticket question or quick check-for-understanding
+- One-sentence recap of the key takeaway students should walk away with
+- Homework assignment + preview of next lesson
+- Celebration / acknowledgment of student effort`;
+
+const GRR_SECTION_COUNT = 5;
+
+function fillGrrSectionTimes(lp) {
+  return GRR_SECTIONS_TEMPLATE
+    .replace('{opening_time}', lp.opening_time || 5)
+    .replace('{explain_time}', lp.explain_time || 15)
+    .replace('{practice_time}', lp.practice_time || 10)
+    .replace('{independent_practice_time}', lp.independent_practice_time || 8)
+    .replace('{conclusion_time}', lp.conclusion_time || 5);
+}
 
 function stepsToText(steps) {
   if (!Array.isArray(steps) || steps.length === 0) return '(none)';
@@ -234,7 +281,9 @@ KEEP the marker tags themselves in English ([SAY]/[ASK]/[INSTRUCTION]/[ANSWER]/[
 Render section headings and framework prose in English.
 DO NOT translate or paraphrase teacher scripts inside [SAY]/[ASK]/[INSTRUCTION]/[ANSWER]/[DO] markers — the source content may already be in Urdu, English, or bilingual code-switched form; preserve verbatim.`;
 
-  const inputText = `You are LAYING OUT a pre-authored Pakistani primary-school lesson plan into the 9-section framework below. Do NOT invent new content. Do NOT paraphrase teacher scripts — preserve them verbatim. Where the source is silent on a section, keep it brief; do not fabricate.
+  const grrSections = fillGrrSectionTimes(lp);
+
+  const inputText = `You are LAYING OUT a pre-authored Pakistani primary-school lesson plan into the 5-step Gradual Release of Responsibility (GRR) framework below. The framework mirrors the source JSON's own step arrays 1:1 — each source array is exactly ONE GRR section. Do NOT invent new content. Do NOT paraphrase teacher scripts — preserve them verbatim. Where the source is silent on a section, keep it brief; do not fabricate.
 
 ${languageDirective}
 
@@ -250,52 +299,59 @@ Curriculum: ${lp.curriculum_key || ''}
 SLO codes / Learning objectives: ${(lp.lp_slo && lp.lp_slo.length) ? lp.lp_slo.join(', ') : '(derive from topic)'}
 ${lp.contains_video ? `Videos: ${(lp.videos || []).join(', ')}` : ''}
 
-CLASSROOM SETUP (verbatim from source):
+CLASSROOM SETUP (for the "Materials & Preparation" header block — verbatim from source):
 ${stepsToText(lp.classroom_setup_instructions)}
 
-OPENING STEPS — for Section 4 ENGAGE (verbatim from source):
+OPENING STEPS — for Section 1 OPENING (verbatim from source):
 ${stepsToText(lp.opening_steps)}
 
-EXPLAIN STEPS — for Section 6 DIRECT INSTRUCTION (verbatim from source):
+EXPLAIN STEPS — for Section 2 I DO (verbatim from source):
 ${stepsToText(lp.explain_steps)}
 
-PRACTICE STEPS — for Sections 5 EXPLORATION + 7 ELABORATION (verbatim from source):
+PRACTICE STEPS — for Section 3 WE DO (verbatim from source):
 ${stepsToText(lp.practice_steps)}
 
-INDEPENDENT PRACTICE STEPS — for Section 7 ELABORATION continued (verbatim from source):
+INDEPENDENT PRACTICE STEPS — for Section 4 YOU DO (verbatim from source):
 ${stepsToText(lp.independent_practice_steps)}
 
-CONCLUSION STEPS — for Section 8 EVALUATION (verbatim from source):
+CONCLUSION STEPS — for Section 5 CONCLUSION (verbatim from source):
 ${stepsToText(lp.conclusion_steps)}
 
-HOMEWORK (verbatim from source):
+HOMEWORK (renders inside Section 5 — verbatim from source):
 ${stepsToText(lp.homework_instructions)}
 
-Now lay this content out into the 9-section framework below. Preserve step numbering. Preserve teacher scripts (lines starting with [SAY], [ASK], [INSTRUCTION]) verbatim as teacher dialogue. Use section timings from the Duration line above.
+Structure the rendered lesson plan as:
+- A title bar with the topic, grade + subject, and total duration
+- A short "Learning Objectives" header block (from the topic + SLO codes)
+- A short "Materials & Preparation" header block (from the Classroom Setup above)
+- The 5 GRR sections below, each populated with the corresponding source array VERBATIM
+- A closing "Differentiation Strategies" block (support for struggling students, extension for advanced)
 
-${SECTIONS_BLOCK}
+Preserve step numbering. Preserve teacher scripts (lines starting with [SAY], [ASK], [INSTRUCTION], [DO], [ANSWER]) verbatim as teacher dialogue. Use the section timings shown in each heading.
 
-${FRAMEWORK_TRAILER}`;
+${grrSections}`;
 
   const additionalInstructions =
     `The source lesson-plan content above is PRE-AUTHORED and MUST be preserved verbatim. ` +
-    `Lay it out into the ${SECTION_COUNT}-section framework — do NOT invent or add new content. ` +
+    `Lay it out into the ${GRR_SECTION_COUNT}-step GRR framework (OPENING / I DO / WE DO / YOU DO / CONCLUSION) — do NOT invent or add new content. ` +
+    `Each source array (opening_steps / explain_steps / practice_steps / independent_practice_steps / conclusion_steps) maps 1:1 to exactly ONE framework section — do NOT split content across sections. ` +
     `Where source is silent on a section, keep that section brief (2-3 bullet points based only on info in the source). ` +
-    `Preserve teacher scripts ([SAY]/[ASK]/[INSTRUCTION]) as verbatim teacher dialogue. ` +
-    `Preserve all time allocations from the Duration line. ` +
+    `Preserve teacher scripts ([SAY]/[ASK]/[INSTRUCTION]/[DO]/[ANSWER]) as verbatim teacher dialogue. ` +
+    `Preserve all time allocations shown in the section headings. ` +
     `Do not summarize or condense.`;
 
   return {
     inputText,
     numCards: NUM_CARDS,
     additionalInstructions,
-    sectionCount: SECTION_COUNT,
+    sectionCount: GRR_SECTION_COUNT,
   };
 }
 
 module.exports = {
   buildLessonPlanPrompt,
   buildGroundedLessonPlanPrompt,
-  SECTION_COUNT,
+  SECTION_COUNT,           // 9 — freeform (5E) framework
+  GRR_SECTION_COUNT,       // 5 — grounded (GRR) framework
   NUM_CARDS,
 };
