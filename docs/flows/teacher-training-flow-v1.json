@@ -63,6 +63,7 @@
       "data": {
         "level_title":    { "type": "string", "__example__": "📖 Level 2 · Emerging Practitioner" },
         "level_progress": { "type": "string", "__example__": "4/9 courses · 40% complete" },
+        "level_order":    { "type": "string", "__example__": "2" },
         "course_list": {
           "type": "array",
           "items": {
@@ -98,7 +99,7 @@
           { "type": "TextCaption", "text": "${data.grand_quiz_caption}" },
           { "type": "EmbeddedLink",
             "text": "${data.grand_quiz_cta}",
-            "on-click-action": { "name": "data_exchange", "payload": { "_action": "start_grand_quiz" } }
+            "on-click-action": { "name": "data_exchange", "payload": { "_action": "start_grand_quiz", "_level_order": "${data.level_order}" } }
           },
           { "type": "Footer", "label": "Back to home", "on-click-action": { "name": "data_exchange", "payload": { "_action": "back_home" } } }
         ]

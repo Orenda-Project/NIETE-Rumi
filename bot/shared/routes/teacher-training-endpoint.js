@@ -137,6 +137,7 @@ async function buildLevelDetail(userId, levelOrder) {
     data: {
       level_title:    `${levelEmoji(lvl)} Level ${lvl.order_index + 1} · ${lvl.name}`,
       level_progress: `${lvl.courses_completed}/${lvl.courses_total} courses · ${lvl.pct_complete}% complete`,
+      level_order:    String(levelOrder),
       course_list:    courses.map(c => ({
         id:    String(c.id),
         title: `${c.title} — ${courseProgressLabel(c)}`,
@@ -299,8 +300,14 @@ async function loadGrandQuizState(userId, levelId) {
   const cooldown = (attempts || []).find(a => a.status === 'failed' && a.cooldown_until && new Date(a.cooldown_until) > new Date());
   const doneIds = new Set((progressRows || []).map(r => r.module_id));
   const courseIds = new Set((courses || []).map(c => c.id));
-  const modulesInLevel = (modules || []).filter(m => courseIds.has(m.course_id));
-  const allDone = modulesInLevel.length > 0 && modulesInLevel.every(m => doneIds.has(m.id));
+  // Match the "ready_for_quiz" criterion in loadVisibleLevelsWithProgress: a level is
+  // ready when every course has ≥1 module completed (not every module in the level).
+  // Keeping these two checks aligned prevents the "HOME says ready, LEVEL_DETAIL says
+  // locked" mismatch seen with imported historical progress.
+  const startedCourseIds = new Set(
+    (modules || []).filter(m => courseIds.has(m.course_id) && doneIds.has(m.id)).map(m => m.course_id)
+  );
+  const allDone = courseIds.size > 0 && startedCourseIds.size === courseIds.size;
 
   if (passed) return { badge: 'badge_quiz_passed', body: '🏆 Grand Quiz — You passed this level exam.', caption: 'Certificate available in your records.', cta: '✓ Passed' };
   if (cooldown) {
