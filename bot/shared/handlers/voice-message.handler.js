@@ -695,7 +695,7 @@ async function handleVoiceMessage(message, from, user = null) {
     try {
       const audioMetadata = await WhatsAppService.getMediaInfo(audioId);
       const audioDuration = audioMetadata?.audio?.duration || audioMetadata?.voice?.duration || 0;
-      const audioDurationRounded = Math.round(audioDuration); // Round to integer for database
+      let audioDurationRounded = Math.round(audioDuration); // Round to integer for database
       const audioFormat = message.audio ? 'audio' : 'voice'; // 'audio' = document, 'voice' = voice message
 
       logToFile('Audio metadata retrieved', {
@@ -707,6 +707,42 @@ async function handleVoiceMessage(message, from, user = null) {
 
       // Check if audio is 15+ minutes (900 seconds) = classroom audio
       const CLASSROOM_AUDIO_THRESHOLD = 900; // 15 minutes in seconds
+
+      // SAFETY NET: WA's audio.duration is unreliable for raw-uploaded audio
+      // (Audio-attach of a pre-recorded .ogg/.m4a). It sometimes reports the
+      // duration as short-or-zero even when the file is a full classroom
+      // recording. When WA says "short" but the file is large, probe the
+      // actual bytes with ffprobe — the same trick handleDocumentMessage uses
+      // for documents, which lack a WA-provided duration field entirely.
+      // Threshold: 500KB. A genuine voice question is <100KB at typical
+      // opus voice-note bitrates; anything ≥500KB is suspicious.
+      if (audioDurationRounded < CLASSROOM_AUDIO_THRESHOLD) {
+        const waFileSize = audioMetadata?.file_size || 0;
+        if (waFileSize >= 500_000) {
+          try {
+            logToFile('⚠️  WA reports short duration but file is large — probing bytes with ffprobe', {
+              waDuration: audioDurationRounded,
+              waFileSize
+            });
+            const audioBuffer = await WhatsAppService.downloadMedia(audioId);
+            const AudioService = require('../services/audio.service');
+            const probedDuration = Math.round(await AudioService.getAudioDuration(audioBuffer));
+            if (probedDuration > audioDurationRounded) {
+              logToFile('✅ ffprobe corrected WA duration', {
+                waDuration: audioDurationRounded,
+                probedDuration,
+                promoted: probedDuration >= CLASSROOM_AUDIO_THRESHOLD
+              });
+              audioDurationRounded = probedDuration;
+            }
+          } catch (probeErr) {
+            logToFile('⚠️  ffprobe fallback failed — using WA duration as-is', {
+              error: probeErr.message
+            });
+            // Continue with WA's (possibly wrong) duration.
+          }
+        }
+      }
 
       if (audioDurationRounded >= CLASSROOM_AUDIO_THRESHOLD) {
         logToFile('🎓 CLASSROOM AUDIO DETECTED (15+ minutes)', {
