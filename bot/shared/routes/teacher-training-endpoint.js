@@ -114,8 +114,10 @@ async function buildTrainingHome(userId) {
     );
   }
 
-  // We only render 4 level slots (matches the Flow JSON). Pad with locked cards if the
-  // teacher's Program exposes fewer levels — future-proof for shorter Programs.
+  // We render 4 level cards (matches the Flow JSON) as info-only text
+  // + a Dropdown at the bottom listing the openable levels. The dropdown
+  // replaces the old per-level EmbeddedLinks (Meta caps EmbeddedLinks at 2
+  // per screen — the old design couldn't offer L3/L4 as tappable).
   const data = {
     hero_title:    'Teacher Training',
     hero_subtitle: teacherSubtitle(teacher),
@@ -127,15 +129,20 @@ async function buildTrainingHome(userId) {
     if (!lvl) {
       data[`level_${slot}_title`]     = `🔒 Level ${slot}`;
       data[`level_${slot}_progress`]  = 'Not part of your program';
-      data[`level_${slot}_state`]     = 'locked';
-      data[`level_${slot}_cta`]       = '🔒 Locked';
       continue;
     }
     data[`level_${slot}_title`]     = `${levelEmoji(lvl)} Level ${lvl.order_index + 1} · ${lvl.name}`;
     data[`level_${slot}_progress`]  = levelProgressLine(lvl);
-    data[`level_${slot}_state`]     = lvl.state;
-    data[`level_${slot}_cta`]       = ctaForLevel(lvl);
   }
+
+  // Dropdown options — include locked levels too so the teacher sees the full
+  // list, but the endpoint's open_level handler will reject taps on locked
+  // levels with a helpful error. Alternatively we could filter locked out;
+  // showing them is friendlier UX (they know what's coming).
+  data.level_options = catalog.slice(0, 4).map(lvl => ({
+    id:    String(lvl.order_index + 1),
+    title: `Level ${lvl.order_index + 1} · ${lvl.name} — ${ctaForLevel(lvl)}`,
+  }));
 
   return { screen: 'TRAINING_HOME', data };
 }
@@ -157,7 +164,7 @@ async function buildLevelDetail(userId, levelOrder) {
       level_order:    String(levelOrder),
       course_list:    courses.map(c => ({
         id:    String(c.id),
-        title: `${c.title} — ${courseProgressLabel(c)}`,
+        title: `L${lvl.order_index + 1} · ${c.title} — ${courseProgressLabel(c)}`,
       })),
       grand_quiz_body:      grandQuiz.body,
       grand_quiz_caption:   grandQuiz.caption,
