@@ -415,13 +415,22 @@ async function downloadFromR2(key) {
  * @returns {string} R2 key
  */
 function extractKeyFromUrl(url) {
-  // URL format: https://endpoint/bucket/key
-  // We need to extract everything after the bucket name
-  const bucketIndex = url.indexOf(`/${BUCKET_NAME}/`);
+  // URL format: https://endpoint/bucket/key (path style) or the same shape
+  // with a presigned query string appended: `.../bucket/key?X-Amz-...`.
+  //
+  // Strip the query string first — R2 keys never contain a raw "?", so
+  // splitting on it is safe and lets us handle presigned URLs identically
+  // to plain ones. Before this, presigned URLs (returned by getPresignedUrl)
+  // yielded keys like "exams/xxx/file.docx?X-Amz-Signature=..." which R2 then
+  // failed to look up, silently dropping the whole download → the caller
+  // returned false with only a "NoSuchKey" log. Exam .docx delivery hit this
+  // on 2026-07-12.
+  const bareUrl = url.split('?')[0];
+  const bucketIndex = bareUrl.indexOf(`/${BUCKET_NAME}/`);
   if (bucketIndex === -1) {
     throw new Error(`Could not extract R2 key from URL: ${url}`);
   }
-  return url.substring(bucketIndex + `/${BUCKET_NAME}/`.length);
+  return bareUrl.substring(bucketIndex + `/${BUCKET_NAME}/`.length);
 }
 
 /**

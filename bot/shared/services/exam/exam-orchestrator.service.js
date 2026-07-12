@@ -68,12 +68,17 @@ async function sendStartingMessage(phone, exam, lang) {
   const msg = FRIENDLY_MESSAGES[lang].starting(
     exam.grade, exam.subject, exam.type, exam.chapters
   );
-  await WhatsAppService.sendMessage(phone, msg);
+  return await WhatsAppService.sendMessage(phone, msg);
 }
 
 async function sendPaperToTeacher(phone, url, filename, lang) {
-  await WhatsAppService.sendMessage(phone, FRIENDLY_MESSAGES[lang].ready);
-  await WhatsAppService.sendDocumentFromUrl(phone, url, filename, null);
+  // WhatsAppService.sendMessage / sendDocumentFromUrl catch errors internally
+  // and return false — they never throw. Bubble the results back up so the
+  // orchestrator can distinguish "delivered" from "silently dropped" and log
+  // the individual step that failed.
+  const readyOk = await WhatsAppService.sendMessage(phone, FRIENDLY_MESSAGES[lang].ready);
+  const docOk = await WhatsAppService.sendDocumentFromUrl(phone, url, filename, null);
+  return { readyOk, docOk };
 }
 
 async function markFailed(examId, reason) {
@@ -112,33 +117,83 @@ async function generateExam(request) {
     else friendly = M.generic;
     try {
       await WhatsAppService.sendMessage(teacher.phone_number, friendly);
-    } catch (_e) { /* swallow */ }
+    } catch (e) {
+      logToFile('[exam-orchestrator] compose-fail notice send err', {
+        err: e.message, stack: e.stack, phone: teacher.phone_number,
+      });
+    }
     return;
   }
 
-  // Best-effort progress ping.
+  // Best-effort progress ping. Both throws AND falsy returns need to surface
+  // — the 2026-07-12 incident was a silent `sendMessage → false` inside the
+  // WhatsAppService catch block, which the previous swallow-and-move-on wrapper
+  // hid completely. Now we log both failure modes.
   try {
-    await sendStartingMessage(teacher.phone_number, composed.exam, lang);
-  } catch (_e) { /* not fatal — press on */ }
+    const startingOk = await sendStartingMessage(teacher.phone_number, composed.exam, lang);
+    if (!startingOk) {
+      logToFile('[exam-orchestrator] starting msg returned false (WA API failure)', {
+        phone: teacher.phone_number,
+        examId: composed.exam?.id,
+        grade: composed.exam?.grade,
+        subject: composed.exam?.subject,
+        chapters: composed.exam?.chapters,
+      });
+    }
+  } catch (e) {
+    logToFile('[exam-orchestrator] starting msg send err', {
+      err: e.message, stack: e.stack,
+      phone: teacher.phone_number,
+      examId: composed.exam?.id,
+      grade: composed.exam?.grade,
+      subject: composed.exam?.subject,
+      chapters: composed.exam?.chapters,
+    });
+  }
 
   let published;
   try {
     published = await renderAndPublish(composed);
   } catch (err) {
-    logToFile('[exam-orchestrator] render failed', { message: err.message });
+    logToFile('[exam-orchestrator] render failed', { message: err.message, stack: err.stack });
     await markFailed(composed.exam.id, err.message);
     try {
       await WhatsAppService.sendMessage(teacher.phone_number, M.generic);
-    } catch (_e) { /* swallow */ }
+    } catch (e) {
+      logToFile('[exam-orchestrator] render-fail notice send err', {
+        err: e.message, stack: e.stack, phone: teacher.phone_number,
+      });
+    }
     return;
   }
 
   try {
-    await sendPaperToTeacher(
+    const { readyOk, docOk } = await sendPaperToTeacher(
       teacher.phone_number, published.publicUrl, published.filename, lang
     );
+    if (!readyOk || !docOk) {
+      logToFile('[exam-orchestrator] delivery step returned false (WA API failure)', {
+        readyOk, docOk,
+        phone: teacher.phone_number,
+        examId: composed.exam?.id,
+        filename: published?.filename,
+        publicUrlPrefix: published?.publicUrl ? String(published.publicUrl).slice(0, 80) : null,
+      });
+    } else {
+      logToFile('[exam-orchestrator] delivered ok', {
+        phone: teacher.phone_number,
+        examId: composed.exam?.id,
+        filename: published?.filename,
+      });
+    }
   } catch (err) {
-    logToFile('[exam-orchestrator] delivery failed', { message: err.message });
+    logToFile('[exam-orchestrator] delivery threw', {
+      err: err.message, stack: err.stack,
+      phone: teacher.phone_number,
+      examId: composed.exam?.id,
+      filename: published?.filename,
+      publicUrlPrefix: published?.publicUrl ? String(published.publicUrl).slice(0, 80) : null,
+    });
     // Exam is ready in DB — teacher can be re-notified via a retry job.
   }
 

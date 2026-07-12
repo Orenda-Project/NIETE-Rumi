@@ -13,11 +13,17 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 
 /**
- * Descriptive filename: `Grade5_Math_Weekly_2026-07-12.docx`
+ * Descriptive filename: `GradeFive_Math_Weekly_2026-07-12.docx`
  * Chosen per design decision on filename convention.
+ *
+ * exam.grade is stored denormalized as "Grade Five" / "Grade Prep" / etc.
+ * (see 05-exam-generator migration doc). Strip the leading "Grade " token
+ * before the alphanumeric normalizer so we don't end up with "GradeGradeFive_..."
+ * — the raw string already starts with "Grade", and the template re-adds it.
  */
 function buildFilename(exam) {
-  const grade = String(exam.grade).replace(/[^0-9A-Za-z]/g, '');
+  const gradeRaw = String(exam.grade).replace(/^grade\s*/i, '');
+  const grade = gradeRaw.replace(/[^0-9A-Za-z]/g, '');
   const subject = String(exam.subject).replace(/[^A-Za-z]/g, '');
   const type = exam.type === 'WEEKLY' ? 'Weekly' : 'Term';
   const date = new Date(exam.created_at || Date.now()).toISOString().slice(0, 10);

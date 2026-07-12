@@ -1141,6 +1141,16 @@ app.post('/webhook', async (req, res) => {
           });
           await WhatsAppService.sendMessage(from, 'Sorry, there was an error recording attendance. Please try again.');
         }
+      } else if (flowType === 'exam_generator') {
+        // Exam Generator — endpoint flow's terminal ack. The endpoint at
+        // /api/flows/exam-generator already queued the SQS `exam_generate` job
+        // and rendered the "Making your Grade X..." message in the SUCCESS
+        // modal. The SQS worker's orchestrator sends follow-up chat messages
+        // + the .docx. Nothing to do here except log completion.
+        logToFile('📝 Exam Generator flow completion (SQS job already queued by endpoint)', {
+          from,
+          responseFields: Object.keys(responseJson)
+        });
       } else if (flowType === 'teacher_training') {
         // Teacher Training Flow — hand off to FlowResponseHandler which routes
         // by training_action to content delivery or grand quiz start.

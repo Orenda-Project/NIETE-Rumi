@@ -6,6 +6,7 @@
  *
  * Flow types:
  * - reading_assessment: Reading assessment flow (Student_Full_Name, Assessment_Mode)
+ * - exam_generator: Exam generator flow (`:exam-generator:` in flow_token)
  * - attendance_setup: Class setup flow (class_name + student_list/students_text)
  * - attendance_marking: Attendance marking flow (absent_students or attendance flow_token)
  * - registration: User registration flow (full_name + country, or :registration: in flow_token)
@@ -14,9 +15,11 @@
  * Detection priority (order matters):
  * 1. Reading assessment (most specific fields)
  * 2. Registration (check BEFORE attendance to avoid flow_token collision)
- * 3. Attendance setup
- * 4. Attendance marking
- * 5. Unknown
+ * 3. Exam generator (check BEFORE attendance — flow_token contains colons that
+ *    would otherwise match the loose attendance_marking fallback)
+ * 4. Attendance setup
+ * 5. Attendance marking
+ * 6. Unknown
  *
  * Created: February 11, 2026
  */
@@ -57,6 +60,22 @@ function detectFlowType(responseJson) {
 
   if (isRegistrationByToken || hasRegistrationFields) {
     return 'registration';
+  }
+
+  // 2.5. Exam Generator (endpoint flow — terminal ack; the endpoint at
+  // /api/flows/exam-generator has already queued the SQS `exam_generate` job
+  // by the time this NFM_REPLY arrives; the SQS worker sends follow-up chat
+  // messages + the .docx. Nothing to do here except identify the flow so it
+  // isn't misrouted by the loose attendance-marking fallback below.
+  //
+  // Flow token from text-message.handler.js:678 is `${user.id}:exam-generator:${ts}`.
+  // The two colons here would otherwise match the attendance_marking check.
+  //
+  // Bug caught 2026-07-12 during live E2E — teacher saw "Sorry, error recording
+  // attendance: Failed to fetch students" after clicking "Generate exam", because
+  // the exam-generator flow_token matched the loose attendance-marking fallback.
+  if (responseJson.flow_token?.includes(':exam-generator:')) {
+    return 'exam_generator';
   }
 
   // 3. Attendance Setup (class creation)
