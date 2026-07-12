@@ -425,6 +425,23 @@ app.post('/webhook', async (req, res) => {
       const buttonId = message.interactive.button_reply.id;
       logToFile('📱 Interactive button clicked', { buttonId, from });
 
+      // Teacher-training module + quiz buttons
+      if (buttonId.startsWith('training_module_done_')) {
+        const moduleId = buttonId.replace('training_module_done_', '');
+        const ContentDelivery = require('./shared/services/training/content-delivery.service');
+        await ContentDelivery.handleModuleDone(user.id, moduleId, from);
+        return;
+      }
+      if (buttonId === 'training_pause') {
+        await WhatsAppService.sendMessage(from, '⏸ Paused. Send /training when you want to pick up where you left off.');
+        return;
+      }
+      if (buttonId.startsWith('training_quiz_')) {
+        const QuizDelivery = require('./shared/services/training/quiz-delivery.service');
+        await QuizDelivery.handleQuizButton(user.id, buttonId, from);
+        return;
+      }
+
       // Coaching confirmation buttons
       if (buttonId.startsWith('coaching_confirm_')) {
         const sessionId = buttonId.replace('coaching_confirm_', '');
@@ -1079,10 +1096,17 @@ app.post('/webhook', async (req, res) => {
         );
       }
     } else if (messageType === 'interactive' && message.interactive?.type === 'list_reply') {
-      // Handle interactive list responses (Reading Assessment)
+      // Handle interactive list responses (Reading Assessment, Teacher Training quiz, ...)
       const listReply = message.interactive.list_reply;
       const listId = listReply.id;
       logToFile('📋 Interactive list item selected', { listId, from });
+
+      // Teacher-training grand quiz answers — handle before Reading Assessment routing.
+      if (listId && listId.startsWith('training_quiz_')) {
+        const QuizDelivery = require('./shared/services/training/quiz-delivery.service');
+        await QuizDelivery.handleQuizButton(user.id, listId, from);
+        return;
+      }
 
       // CRITICAL: Get the CURRENT session first, then query conversations in THAT session
       const { getOrCreateSession } = require('./shared/database/bot-helpers');

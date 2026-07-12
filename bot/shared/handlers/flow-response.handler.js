@@ -868,26 +868,21 @@ async function handleTeacherTrainingFlow(message, phoneNumber, userId) {
   } catch (err) {
     logToFile('⚠️ Training NFM parse failed', { error: err.message });
   }
-  const trainingAction = payload.trainingAction;
-  const courseId = payload.courseId;
-  const levelOrder = payload.levelOrder;
+  // Meta preserves the exact param names the endpoint sends; buildSuccessScreen
+  // uses snake_case (training_action, course_id, level_order).
+  const trainingAction = payload.training_action;
+  const courseId = payload.course_id;
+  const levelOrder = payload.level_order;
 
   logToFile('🎓 Training flow closure', { phoneNumber, userId, trainingAction, courseId, levelOrder });
 
   if (trainingAction === 'open_course' && courseId) {
-    // Placeholder — real content delivery lives in a follow-up commit.
-    await WhatsAppService.sendMessage(
-      phoneNumber,
-      `You picked a course — delivering the first video shortly. (courseId=${courseId})\n\n(Full training content delivery is being wired up.)`
-    );
-    return true;
+    const ContentDelivery = require('../services/training/content-delivery.service');
+    return await ContentDelivery.deliverNextModule(userId, courseId, phoneNumber);
   }
   if (trainingAction === 'start_grand_quiz') {
-    await WhatsAppService.sendMessage(
-      phoneNumber,
-      `The grand quiz will start here. (levelOrder=${levelOrder ?? '?'})\n\n(Inline quiz state machine is being wired up.)`
-    );
-    return true;
+    const QuizDelivery = require('../services/training/quiz-delivery.service');
+    return await QuizDelivery.startGrandQuiz(userId, levelOrder, phoneNumber);
   }
   // Default: teacher just closed the flow, or hit an error screen.
   return true;
