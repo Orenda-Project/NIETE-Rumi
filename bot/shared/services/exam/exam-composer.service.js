@@ -47,18 +47,28 @@ function sectionOf(qType) {
  * Pull the bank pool for a given request. One query, indexed.
  */
 async function loadPool({ grade, subject, language, chapters }) {
-  // PostgREST caps default reads at 1000 rows; a Grade Five + Math + all-chapters
-  // filter can return ~2600. Use .range() to bypass the cap.
-  const { data, error } = await supabase
-    .from('exam_question_bank')
-    .select('*')
-    .eq('grade', grade)
-    .eq('subject', subject)
-    .eq('language', language)
-    .in('chapter_index', chapters)
-    .range(0, 49999);
-  if (error) throw new Error(`exam bank pool query failed: ${error.message}`);
-  return data || [];
+  // Supabase PostgREST enforces a 1000-row max-rows cap. A Grade Five + Math
+  // + all-chapters filter can return ~2600 rows, so we page manually until
+  // we get a short page (< pageSize) which signals end-of-set.
+  const pageSize = 1000;
+  const all = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase
+      .from('exam_question_bank')
+      .select('*')
+      .eq('grade', grade)
+      .eq('subject', subject)
+      .eq('language', language)
+      .in('chapter_index', chapters)
+      .range(offset, offset + pageSize - 1);
+    if (error) throw new Error(`exam bank pool query failed: ${error.message}`);
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    if (data.length < pageSize) break;
+    // Safety valve: bank has ~35k rows, refuse anything past 20k for one query.
+    if (all.length >= 20000) break;
+  }
+  return all;
 }
 
 /**

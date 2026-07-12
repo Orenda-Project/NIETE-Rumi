@@ -57,22 +57,27 @@ async function clearSession(flowToken) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Grade / subject options — distinct values from the imported bank.
+ * Grade / subject / chapter options — distinct values from the imported bank.
  *
- * PostgREST caps `.limit(N)` at max-rows (1000 by default on Supabase),
- * so a naive `.select('grade').limit(5000)` client-side-dedup returns
- * only whatever grade dominates the first 1000 rows. `.range(0, 49999)`
- * bypasses that cap for the read; we then dedup in JS. Fine at NIETE's
- * ~35k bank size; if the bank grows past 100k, replace with a SQL view.
+ * We can't just `.select('grade').limit(5000)` on `exam_question_bank`:
+ * Supabase's PostgREST config caps every response at 1000 rows regardless
+ * of `.limit()` or `Range:` header (verified 2026-07-12 — content-range
+ * comes back as `0-999/*` even with `Range: 0-49999`). The first 1000 rows
+ * are dominated by whichever grade has the most questions (Grade Five here),
+ * so a naive client-side dedup returned a single-item list.
+ *
+ * Fix: three small SQL views (`v_exam_bank_grades`, `v_exam_bank_subjects`,
+ * `v_exam_bank_chapters`) pre-compute the distinct sets. Each view is well
+ * under the 1000-row cap (6, 10, ~510 rows respectively), so PostgREST
+ * returns them all.
  *
  * Also: grade values in the bank already look like "Grade Five" — don't
  * double-prefix "Grade " onto them.
  */
 async function loadGradeOptions() {
   const { data, error } = await supabase
-    .from('exam_question_bank')
-    .select('grade')
-    .range(0, 49999);
+    .from('v_exam_bank_grades')
+    .select('grade');
   if (error || !data || data.length === 0) {
     return [
       { id: 'Grade One',   title: 'Grade One' },
@@ -82,15 +87,13 @@ async function loadGradeOptions() {
       { id: 'Grade Five',  title: 'Grade Five' },
     ];
   }
-  const uniq = [...new Set(data.map(r => String(r.grade)))].sort();
-  return uniq.map(g => ({ id: g, title: g }));
+  return data.map(r => ({ id: r.grade, title: r.grade }));
 }
 
 async function loadSubjectOptions() {
   const { data, error } = await supabase
-    .from('exam_question_bank')
-    .select('subject')
-    .range(0, 49999);
+    .from('v_exam_bank_subjects')
+    .select('subject');
   if (error || !data || data.length === 0) {
     return [
       { id: 'Math',        title: 'Math' },
@@ -98,19 +101,17 @@ async function loadSubjectOptions() {
       { id: 'Urdu',        title: 'Urdu' },
     ];
   }
-  const uniq = [...new Set(data.map(r => r.subject))].sort();
-  return uniq.map(s => ({ id: s, title: s }));
+  return data.map(r => ({ id: r.subject, title: r.subject }));
 }
 
 async function loadChapterOptions(grade, subject, language) {
   const { data, error } = await supabase
-    .from('exam_question_bank')
+    .from('v_exam_bank_chapters')
     .select('chapter_index, chapter_title')
     .eq('grade', grade)
     .eq('subject', subject)
     .eq('language', language)
-    .order('chapter_index', { ascending: true })
-    .range(0, 49999);
+    .order('chapter_index', { ascending: true });
   if (error) {
     logToFile('[exam-flow] chapter load failed', { err: error.message });
     return [];

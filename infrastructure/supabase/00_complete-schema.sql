@@ -4155,6 +4155,25 @@ CREATE INDEX IF NOT EXISTS idx_exam_questions_exam
 CREATE INDEX IF NOT EXISTS idx_exam_questions_source_bank
   ON exam_questions (source_bank_id);
 
+-- ---------------------------------------------------------------------------
+-- Distinct-values views for the exam-generator Flow dropdowns.
+-- Supabase's PostgREST hard-caps every response at 1000 rows regardless of
+-- `.limit()` / `Range:` header, so a naive client-side DISTINCT dedup on
+-- the raw bank returned only whichever grade dominated the first 1000
+-- rows (Grade Five here). These views pre-compute the distinct sets so
+-- the endpoint gets the full list every time.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE VIEW v_exam_bank_grades AS
+  SELECT DISTINCT grade FROM exam_question_bank ORDER BY grade;
+
+CREATE OR REPLACE VIEW v_exam_bank_subjects AS
+  SELECT DISTINCT subject FROM exam_question_bank ORDER BY subject;
+
+CREATE OR REPLACE VIEW v_exam_bank_chapters AS
+  SELECT DISTINCT grade, subject, language, chapter_index, chapter_title
+  FROM exam_question_bank
+  ORDER BY grade, subject, language, chapter_index;
+
 -- Reload PostgREST's schema cache last, so the reconciled columns + functions
 -- above are immediately visible to the REST API (the earlier NOTIFY predates these DDLs).
 NOTIFY pgrst, 'reload schema';
