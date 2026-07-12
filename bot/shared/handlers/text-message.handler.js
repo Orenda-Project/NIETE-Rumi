@@ -606,6 +606,51 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
+  // CERTIFICATES COMMAND: /certificates — list the teacher's earned
+  // grand-quiz certifications. Text-only (PDF delivery is Layer 2).
+  // ============================================================
+  if (trimmedMessage === '/certificates' || trimmedMessage === '/certificate') {
+    logToFile('🏆 /certificates command detected', { userId: user?.id, phoneNumber: from });
+    if (!user) {
+      typingController.stop();
+      await WhatsAppService.sendMessage(
+        from,
+        'Sorry, I could not find your account. Please send me a message first to register.'
+      );
+      return;
+    }
+    const { data: certs } = await supabase
+      .from('training_certificates')
+      .select('certificate_code, teacher_name_snapshot, level_name_snapshot, issued_at, level_id, training_levels(order_index)')
+      .eq('user_id', user.id)
+      .order('level_id', { ascending: true });
+    typingController.stop();
+    if (!certs || certs.length === 0) {
+      await WhatsAppService.sendMessage(
+        from,
+        "You don't have any NIETE certifications yet.\n\nComplete a level's courses and pass the grand quiz to earn one. Type /training to get started."
+      );
+      return;
+    }
+    const fmtDate = (iso) => {
+      const d = new Date(iso);
+      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    };
+    const lines = certs.map(c => {
+      const lvl = (c.training_levels?.order_index ?? 0) + 1;
+      return `✅ *Level ${lvl} · ${c.level_name_snapshot}*\n   Passed ${fmtDate(c.issued_at)}\n   Cert: \`${c.certificate_code}\``;
+    });
+    const teacherName = certs[0].teacher_name_snapshot || 'Teacher';
+    const body =
+      `🏆 *NIETE Certifications — ${teacherName}*\n\n` +
+      lines.join('\n\n') +
+      `\n\n_Type /training to continue with your next level._`;
+    await WhatsAppService.sendMessage(from, body);
+    logToFile('🏆 Sent certificates list', { userId: user.id, count: certs.length });
+    return;
+  }
+
+  // ============================================================
   // EXAM COMMAND: /exam — open the Exam Generator Flow.
   // 3 screens: type (WEEKLY|TERM) → grade/subject/language → chapters.
   // Backend queues an EXAM_GENERATE job that composes + renders + delivers the .docx.
