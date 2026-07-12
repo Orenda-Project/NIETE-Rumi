@@ -144,6 +144,14 @@ async function buildTrainingHome(userId) {
     title: `Level ${lvl.order_index + 1} · ${lvl.name} — ${ctaForLevel(lvl)}`,
   }));
 
+  logToFile('🎓 TRAINING_HOME response snapshot', {
+    userId,
+    catalog_size: catalog.length,
+    level_options_count: data.level_options.length,
+    level_options: data.level_options,
+    data_keys: Object.keys(data),
+  });
+
   return { screen: 'TRAINING_HOME', data };
 }
 
