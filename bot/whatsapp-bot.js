@@ -465,6 +465,58 @@ app.post('/webhook', async (req, res) => {
         const sessionId = buttonId.replace('lessonplan_no_', '');
         await CoachingService.handleLessonPlanResponse(sessionId, from, false);
       }
+      // Classroom-photo prompt buttons (Phase 1C-B). The photo-prompt.service
+      // emits these IDs but neither was previously routed → sessions got stuck
+      // at status=awaiting_photo with no way for the teacher to advance.
+      // "No" → transition to the LP prompt (same next step as post-photo).
+      // "Yes" → set status=awaiting_classroom_photo and tell the teacher to
+      //         upload the photo now (image-message.handler picks it up).
+      else if (buttonId.startsWith('photo_no_')) {
+        const sessionId = buttonId.replace('photo_no_', '');
+        logToFile('📸 User declined classroom photo — advancing to LP prompt', { sessionId, from });
+
+        // Update conversation state past AWAITING_PHOTO.
+        await supabase
+          .from('coaching_sessions')
+          .update({
+            conversation_state: { current_state: 'AWAITING_LESSON_PLAN' },
+            status: 'awaiting_lesson_plan'
+          })
+          .eq('id', sessionId);
+
+        // Send the same LP prompt the OECD/HOTS pre-photo-prompt flow used.
+        const { buildLPSelectionList } = require('./shared/services/coaching/lp-coaching/lp-selection-list.service');
+        const { data: userRow } = await supabase
+          .from('users')
+          .select('preferred_language')
+          .eq('id', user.id)
+          .maybeSingle();
+        const lang = userRow?.preferred_language || 'en';
+        const lpPrompt = buildLPSelectionList(sessionId, [], lang);
+        await WhatsAppService.sendInteractiveButtons(from, lpPrompt);
+      } else if (buttonId.startsWith('photo_yes_')) {
+        const sessionId = buttonId.replace('photo_yes_', '');
+        logToFile('📸 User will send classroom photo', { sessionId, from });
+
+        await supabase
+          .from('coaching_sessions')
+          .update({
+            conversation_state: { current_state: 'AWAITING_CLASSROOM_PHOTO' },
+            status: 'awaiting_classroom_photo'
+          })
+          .eq('id', sessionId);
+
+        const { data: userRow } = await supabase
+          .from('users')
+          .select('preferred_language')
+          .eq('id', user.id)
+          .maybeSingle();
+        const lang = userRow?.preferred_language || 'en';
+        const msg = lang === 'ur'
+          ? '📸 براہ کرم اپنی کلاس روم کی تصویر بھیجیں۔ میں اس کا تجزیہ کروں گا اور آپ کی رپورٹ میں شامل کروں گا۔'
+          : '📸 Please send your classroom photo now. I\'ll analyze it and include it in your report.';
+        await WhatsAppService.sendMessage(from, msg);
+      }
       // Stale session reminder buttons - Continue coaching
       else if (buttonId.startsWith('coaching_continue_')) {
         const sessionId = buttonId.replace('coaching_continue_', '');
