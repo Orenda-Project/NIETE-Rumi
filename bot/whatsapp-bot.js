@@ -254,9 +254,12 @@ app.post('/webhook', async (req, res) => {
 
     // Issue #58 FIX: Add button payload diagnostic logging
     // Helps debug why some button clicks aren't being processed
-    const webhookValue = req.body.entry?.[0]?.changes?.[0]?.value;
+    const webhookChange = req.body.entry?.[0]?.changes?.[0];
+    const webhookValue = webhookChange?.value;
+    const webhookField = webhookChange?.field;
     logToFile('Webhook diagnostic', {
       correlationId,
+      field: webhookField,
       hasMessages: !!webhookValue?.messages,
       hasStatuses: !!webhookValue?.statuses,
       messageType: webhookValue?.messages?.[0]?.type,
@@ -265,6 +268,13 @@ app.post('/webhook', async (req, res) => {
       interactiveId: webhookValue?.messages?.[0]?.interactive?.list_reply?.id ||
                      webhookValue?.messages?.[0]?.interactive?.button_reply?.id
     });
+    if (webhookField && webhookField !== 'messages') {
+      logToFile('Non-messages webhook payload', {
+        correlationId,
+        field: webhookField,
+        value: JSON.stringify(webhookValue).slice(0, 2000),
+      });
+    }
 
     try {
       // Check for status webhooks first (delivered/read notifications)
