@@ -62,8 +62,12 @@
             "label": "Open a level",
             "name": "level_order",
             "required": true,
-            "data-source": "${data.level_options}",
-            "on-select-action": { "name": "data_exchange", "payload": { "_action": "open_level", "_level_order": "${form.level_order}" } }
+            "data-source": "${data.level_options}"
+          },
+          {
+            "type": "EmbeddedLink",
+            "text": "Open →",
+            "on-click-action": { "name": "data_exchange", "payload": { "_action": "open_level", "_level_order": "${form.level_order}" } }
           },
 
           { "type": "Footer", "label": "Close", "on-click-action": { "name": "navigate", "next": { "type": "screen", "name": "SUCCESS" }, "payload": { "message": "See you soon!" } } }

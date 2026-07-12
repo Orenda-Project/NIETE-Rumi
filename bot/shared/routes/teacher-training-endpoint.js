@@ -129,10 +129,19 @@ async function buildTrainingHome(userId) {
     if (!lvl) {
       data[`level_${slot}_title`]     = `🔒 Level ${slot}`;
       data[`level_${slot}_progress`]  = 'Not part of your program';
+      // Legacy fields for stale client caches — safe no-ops for the new schema
+      data[`level_${slot}_state`]     = 'locked';
+      data[`level_${slot}_cta`]       = '🔒 Locked';
       continue;
     }
     data[`level_${slot}_title`]     = `${levelEmoji(lvl)} Level ${lvl.order_index + 1} · ${lvl.name}`;
     data[`level_${slot}_progress`]  = levelProgressLine(lvl);
+    // Legacy fields for stale client caches — some WhatsApp Flow clients
+    // hold on to the pre-dropdown Flow JSON that referenced these fields.
+    // If they're absent, the client hits `undefined.toString()` and shows
+    // "Something went wrong". Safe to emit — new schema ignores them.
+    data[`level_${slot}_state`]     = lvl.state;
+    data[`level_${slot}_cta`]       = ctaForLevel(lvl);
   }
 
   // Dropdown options — include locked levels too so the teacher sees the full
