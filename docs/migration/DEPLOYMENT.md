@@ -2,7 +2,7 @@
 
 **Status**: 🟡 Meta setup **paused** — user will complete WABA migration + app creation later. Fork name locked in as `NIETE-Rumi` under `Orenda-Project`. Moving to fork creation next.
 
-**Customer**: NIETE — National Institute of Education, Pakistan.
+**Customer**: NIETE — National Institute for Excellence in Teacher Education, Islamabad, Pakistan.
 Same institution whose Android app (`pk.edu.niete`) is in the Taleemabad Capacitor deployment. This fork is Rumi-on-WhatsApp for NIETE teachers.
 **Reference**: [../SETUP.md](../SETUP.md) — this doc is the fork-specific tailoring of that generic guide
 **Related skill (main Rumi bot)**: [`region-rollout`](../../.claude/skills/) — used for adding regions to shared infra; we borrow its checklist discipline but not its shared-project assumptions
@@ -381,7 +381,7 @@ The token pasted for this app is now unused for our purposes. If it's active els
 
 ## Portal deploy (2026-07-11, phase 2)
 
-Live: **https://portal-production-6a508.up.railway.app** — Railway service `portal` in the NIETE-Rumi project (ID `1b16c811-3436-45f4-930a-fe9442c3bd85`). Serves the React SPA (`portal/`) statically from `dashboard/portal-frontend/dist/` and the `/api/portal/*` JSON API from the same Express server on port 8080. Same-domain = no CORS, no third-party cookies, sessions in Redis via the existing `redis.railway.internal:6379`.
+Live: **https://portal-production-6a508.up.railway.app** — Railway service `portal` (service ID `1b16c811-3436-45f4-930a-fe9442c3bd85`) in the NIETE-Rumi project (project ID `bcc5a6a9-02e6-4d1f-8fff-1fe5eb5626df`, environment `production` ID `6902ea89-557f-416a-8e00-176dc61fcfad`). Serves the React SPA (`portal/`) statically from `dashboard/portal-frontend/dist/` and the `/api/portal/*` JSON API from the same Express server on port 8080. Same-domain = no CORS, no third-party cookies, sessions in Redis via the existing `redis.railway.internal:6379`.
 
 Verified end-to-end via Chrome MCP on the operator account (Mashhood): setup token exchange → password creation → `/portal/dashboard` render fetched the Feature #1 LP from Supabase and rendered it as "Recent Lesson Plans" with a working PDF download link. Proves the portal reads live bot-produced data with zero manual sync.
 
