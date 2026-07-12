@@ -15,6 +15,7 @@ const ReadingAssessmentService = require('../services/reading-assessment.service
 const FeatureLinkerService = require('../services/feature-linker.service');
 const FeatureIntroService = require('../services/feature-intro.service');
 const LessonPlanQueueService = require('../services/lesson-plan-queue.service');
+const LpFeedbackService = require('../services/lp-feedback.service');
 const handleCurriculumLessonPlan = require('./lesson-plan-v2.handler');
 const RegionFeaturesService = require('../services/region-features.service');
 const { getUserRegion } = require('../utils/region');
@@ -96,17 +97,20 @@ async function tryCurriculumLessonPlanServe(from, topic, user, language) {
 
     const result = await handleCurriculumLessonPlan({
       userId: from,
+      userDbId: user?.id, // UUID for lesson_plan_requests.user_id (required by ast_queued path)
       topic,
       grade,
       subject,
       curriculum: features.curriculum_key,
       language,
     });
-    // Any of these mean "PDF already delivered, stop the message flow here."
-    //   ast_cached    — Taleemabad JSON corpus, PDF was in R2 cache
-    //   ast_generated — Taleemabad JSON corpus, freshly rendered via Gamma-grounded
-    //   pre_generated — legacy Rumi PK Punjab PDF corpus
-    return !!(result && ['pre_generated', 'ast_cached', 'ast_generated'].includes(result.source));
+    // Any of these mean "handled — stop the message flow here, don't fall
+    // through to freeform Gamma."
+    //   ast_cached    — Taleemabad JSON corpus, PDF was in R2 cache (delivered synchronously)
+    //   ast_queued    — Taleemabad JSON corpus, ack sent + background worker
+    //                   will deliver the freshly rendered PDF in ~2 min
+    //   pre_generated — legacy Rumi PK Punjab PDF corpus (delivered synchronously)
+    return !!(result && ['pre_generated', 'ast_cached', 'ast_queued'].includes(result.source));
   } catch (e) {
     logToFile('Curriculum LP intercept failed, falling through to Gamma', { error: e.message });
     return false;
@@ -204,6 +208,30 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       logToFile('✅ Session retrieved/created', { sessionId });
     } catch (error) {
       logToFile('⚠️ Error with session management', { error: error.message });
+    }
+  }
+
+  // ============================================================
+  // LP FEEDBACK — REASON CAPTURE
+  // If the teacher tapped 👎 on a recent LP within the last 10 minutes,
+  // treat their next free-text message as the reason (Redis flag set by
+  // lp-feedback.service.js handleFeedbackButton). Short-circuit here so
+  // intent detection / AI chat doesn't eat the reason.
+  // ============================================================
+  if (user?.id) {
+    try {
+      const consumed = await LpFeedbackService.consumeReasonIfPending(user.id, from, messageBody);
+      if (consumed) {
+        logToFile('LP Feedback: reason captured, short-circuiting text handler', {
+          userId: user.id, from,
+        });
+        return;
+      }
+    } catch (feedbackErr) {
+      // Non-fatal — if the feedback middleware errors, fall through to normal routing
+      logToFile('LP Feedback: consumeReasonIfPending error (non-fatal)', {
+        error: feedbackErr.message, userId: user.id,
+      });
     }
   }
 

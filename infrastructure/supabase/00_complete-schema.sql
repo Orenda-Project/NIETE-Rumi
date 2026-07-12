@@ -4005,6 +4005,40 @@ CREATE INDEX IF NOT EXISTS idx_curriculum_lp_ast_topic_fts
 CREATE INDEX IF NOT EXISTS idx_curriculum_lp_ast_publisher
   ON curriculum_lp_ast (publisher, is_enabled);
 
+-- ─── lp_feedback (migration 017) ─────────────────────────────────────────
+-- Post-delivery "Was this useful?" survey. One row per (user, lesson_plan)
+-- button tap. reason_text is UPDATEd when the teacher replies to the follow-up
+-- "Tell us why?" prompt within the 10-min Redis window.
+CREATE TABLE IF NOT EXISTS lp_feedback (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  lesson_plan_id UUID REFERENCES lesson_plans(id) ON DELETE SET NULL,
+  useful BOOLEAN NOT NULL,
+  reason_text TEXT,
+  reason_received_at TIMESTAMPTZ,
+  reason_language TEXT,
+  reason_polarity TEXT NOT NULL DEFAULT 'unknown'
+    CHECK (reason_polarity IN ('liked', 'disliked', 'unknown')),
+  lp_variant TEXT,
+  grade INTEGER,
+  subject TEXT,
+  chapter_number INTEGER,
+  segment_number INTEGER,
+  topic TEXT,
+  trigger_mode TEXT CHECK (trigger_mode IN ('after_voice_note', 'after_pdf_only')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_lp_feedback_user_time
+  ON lp_feedback (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_lp_feedback_has_reason
+  ON lp_feedback (created_at DESC)
+  WHERE reason_text IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_lp_feedback_useful_time
+  ON lp_feedback (useful, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_lp_feedback_polarity_time
+  ON lp_feedback (reason_polarity, created_at DESC)
+  WHERE reason_text IS NOT NULL;
+
 -- Reload PostgREST's schema cache last, so the reconciled columns + functions
 -- above are immediately visible to the REST API (the earlier NOTIFY predates these DDLs).
 NOTIFY pgrst, 'reload schema';

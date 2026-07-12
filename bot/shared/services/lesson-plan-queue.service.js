@@ -98,6 +98,78 @@ class LessonPlanQueueService {
   }
 
   /**
+   * Create a GROUNDED lesson plan request (curriculum_lp_ast row) and queue
+   * it for async Gamma rendering. Same DB row shape as createAndQueue, but the
+   * SQS payload carries `sourceLpUuid` — the worker uses that to dispatch to
+   * the grounded render path (fetch AST → Gamma with curriculumLpAst → upload
+   * to R2 → setRenderedPdfKey → send doc).
+   *
+   * Deliberately no schema migration: `lesson_plan_requests` stores just
+   * status/retry tracking; sourceLpUuid rides in the SQS message body.
+   *
+   * @param {Object} params
+   * @param {string} params.userId
+   * @param {string} params.phoneNumber
+   * @param {string} params.sourceLpUuid — curriculum_lp_ast.source_lp_uuid
+   * @param {string} params.topic
+   * @param {string} [params.chapterTitle]
+   * @param {'en'|'ur'} [params.language]
+   * @returns {Promise<string>} Request ID
+   */
+  static async createAndQueueGrounded(params) {
+    const {
+      userId, phoneNumber,
+      sourceLpUuid, topic, chapterTitle,
+      language = 'en',
+    } = params;
+
+    if (!sourceLpUuid) throw new Error('createAndQueueGrounded: sourceLpUuid is required');
+
+    // 1. Create the tracking row (same table as the freeform path)
+    const { data: request, error } = await supabase
+      .from('lesson_plan_requests')
+      .insert({
+        user_id: userId,
+        phone_number: phoneNumber,
+        topic,
+        full_message: topic,
+        language,
+        content_type: 'lesson_plan',
+        status: 'pending',
+      })
+      .select('id')
+      .single();
+    if (error) throw new Error(`Failed to create grounded LP request: ${error.message}`);
+
+    const requestId = request.id;
+    logToFile('Grounded LP request created', { requestId, userId, sourceLpUuid, topic, language });
+
+    // 2. Queue to SQS. Payload carries sourceLpUuid — worker routes on that.
+    try {
+      await SQSQueueService.queueCoachingJob(requestId, 'lesson_plan_generation', {
+        requestId,
+        userId,
+        phoneNumber,
+        topic,
+        fullMessage: topic,
+        language,
+        contentType: 'lesson_plan',
+        sourceLpUuid,
+        chapterTitle: chapterTitle || null,
+      });
+      logToFile('Grounded LP job queued to SQS', { requestId, sourceLpUuid });
+    } catch (sqsError) {
+      await supabase
+        .from('lesson_plan_requests')
+        .update({ status: 'pending', error_message: `SQS queue failed: ${sqsError.message}` })
+        .eq('id', requestId);
+      logToFile('Failed to queue grounded LP to SQS, marked for retry', { requestId, error: sqsError.message });
+    }
+
+    return requestId;
+  }
+
+  /**
    * Update request status to processing
    * @param {string} requestId - Request UUID
    */

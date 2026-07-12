@@ -212,7 +212,31 @@ function buildGroundedLessonPlanPrompt(lp, { language } = {}) {
     ? `${durationMin} minutes total (opening ${lp.opening_time || 0}, explain ${lp.explain_time || 0}, practice ${lp.practice_time || 0}, independent ${lp.independent_practice_time || 0}, conclusion ${lp.conclusion_time || 0})`
     : '40-60 minutes';
 
+  // Language reconciliation directive.
+  // Grounded LPs have TWO independent language axes:
+  //   1. FRAMEWORK LANGUAGE: section headings ("Section 4 · Introduction"),
+  //      framework prose ("Learning Objectives", "Materials"), differentiation
+  //      strategies — these follow the requested `language` param.
+  //   2. SOURCE CONTENT: teacher scripts inside [SAY]/[ASK]/[INSTRUCTION]/
+  //      [ANSWER]/[DO] markers — these come from the source LP and MUST be
+  //      preserved verbatim regardless of `language` (they may themselves be
+  //      Urdu, English, or bilingual code-switched depending on publisher).
+  // ContentService also injects langConfig.promptSuffix ("Generate all content
+  // in Urdu (اردو)…") ahead of this text — the reconciliation directive below
+  // tells Gamma which parts of "all content" are excluded from translation.
+  const isUrdu = language === 'ur';
+  const languageDirective = isUrdu
+    ? `LANGUAGE — FRAMEWORK vs SOURCE (READ CAREFULLY):
+Render section HEADINGS ("Section 4 · Introduction (Engage)" etc.) and framework prose (Learning Objectives, Materials, Differentiation Strategies) in Urdu (اردو).
+DO NOT translate or paraphrase teacher scripts, dialogue, or content inside [SAY], [ASK], [INSTRUCTION], [ANSWER], or [DO] markers — preserve them exactly as written in the source below. The source content may itself be Urdu, English, or mixed — keep it as-is.
+KEEP the marker tags themselves in English ([SAY]/[ASK]/[INSTRUCTION]/[ANSWER]/[DO]) so teachers can visually distinguish action types.`
+    : `LANGUAGE — FRAMEWORK vs SOURCE:
+Render section headings and framework prose in English.
+DO NOT translate or paraphrase teacher scripts inside [SAY]/[ASK]/[INSTRUCTION]/[ANSWER]/[DO] markers — the source content may already be in Urdu, English, or bilingual code-switched form; preserve verbatim.`;
+
   const inputText = `You are LAYING OUT a pre-authored Pakistani primary-school lesson plan into the 9-section framework below. Do NOT invent new content. Do NOT paraphrase teacher scripts — preserve them verbatim. Where the source is silent on a section, keep it brief; do not fabricate.
+
+${languageDirective}
 
 LESSON PLAN SOURCE (from ${lp.publisher || 'publisher'} for ${gradeSubject}):
 

@@ -115,4 +115,32 @@ describe('buildGroundedLessonPlanPrompt', () => {
     expect(() => buildGroundedLessonPlanPrompt(null)).toThrow(/lp is required/);
     expect(() => buildGroundedLessonPlanPrompt(undefined)).toThrow(/lp is required/);
   });
+
+  // ─── Language routing ────────────────────────────────────────────────
+  describe('language routing (Urdu framework, preserved source)', () => {
+    it('English (default) — framework directive says "in English" and does NOT mention Urdu', () => {
+      const g = buildGroundedLessonPlanPrompt(SAMPLE_LP);
+      expect(g.inputText).toMatch(/section headings and framework prose in English/i);
+      expect(g.inputText).not.toContain('اردو');
+    });
+
+    it('Urdu — framework directive REQUIRES Urdu section headings + explicit "do not translate teacher scripts"', () => {
+      const g = buildGroundedLessonPlanPrompt(SAMPLE_LP, { language: 'ur' });
+      // Urdu framework prose
+      expect(g.inputText).toContain('اردو');
+      expect(g.inputText).toMatch(/section HEADINGS.+in Urdu/i);
+      // Source content preservation
+      expect(g.inputText).toMatch(/DO NOT translate or paraphrase teacher scripts/i);
+      // Markers stay English so teachers can visually distinguish
+      expect(g.inputText).toMatch(/KEEP the marker tags themselves in English/i);
+      // Source teacher scripts still preserved verbatim (regardless of language)
+      expect(g.inputText).toContain('Assalam-o-Alaikum class!');
+      expect(g.inputText).toContain('[SAY]');
+    });
+
+    it('Urdu — bilingual/code-switched source scripts flagged as preserve-as-is', () => {
+      const g = buildGroundedLessonPlanPrompt(SAMPLE_LP, { language: 'ur' });
+      expect(g.inputText).toMatch(/may itself be Urdu, English, or mixed/i);
+    });
+  });
 });

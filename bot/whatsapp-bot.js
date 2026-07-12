@@ -442,6 +442,13 @@ app.post('/webhook', async (req, res) => {
         return;
       }
 
+      // LP feedback survey buttons (👍 Yes / 👎 Not really) — 30s after LP delivery
+      if (buttonId.startsWith('lp_feedback_yes_') || buttonId.startsWith('lp_feedback_no_')) {
+        const LpFeedbackService = require('./shared/services/lp-feedback.service');
+        await LpFeedbackService.handleFeedbackButton(buttonId, from);
+        return;
+      }
+
       // Coaching confirmation buttons
       if (buttonId.startsWith('coaching_confirm_')) {
         const sessionId = buttonId.replace('coaching_confirm_', '');
