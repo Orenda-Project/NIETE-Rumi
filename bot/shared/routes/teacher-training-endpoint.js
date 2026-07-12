@@ -108,15 +108,13 @@ async function buildTrainingHome(userId) {
     const slot = i + 1;
     const lvl = catalog[i];
     if (!lvl) {
-      if (slot < 4) data[`level_${slot}_badge_url`] = badgeUrl('badge_level_locked');
-      data[`level_${slot}_title`]     = `Level ${slot}`;
+      data[`level_${slot}_title`]     = `🔒 Level ${slot}`;
       data[`level_${slot}_progress`]  = 'Not part of your program';
       data[`level_${slot}_state`]     = 'locked';
       data[`level_${slot}_cta`]       = '🔒 Locked';
       continue;
     }
-    if (slot < 4) data[`level_${slot}_badge_url`] = badgeUrl(levelBadgeName(lvl));
-    data[`level_${slot}_title`]     = `Level ${lvl.order_index + 1} · ${lvl.name}`;
+    data[`level_${slot}_title`]     = `${levelEmoji(lvl)} Level ${lvl.order_index + 1} · ${lvl.name}`;
     data[`level_${slot}_progress`]  = levelProgressLine(lvl);
     data[`level_${slot}_state`]     = lvl.state;
     data[`level_${slot}_cta`]       = ctaForLevel(lvl);
@@ -137,13 +135,12 @@ async function buildLevelDetail(userId, levelOrder) {
   return {
     screen: 'LEVEL_DETAIL',
     data: {
-      level_title:    `Level ${lvl.order_index + 1} · ${lvl.name}`,
+      level_title:    `${levelEmoji(lvl)} Level ${lvl.order_index + 1} · ${lvl.name}`,
       level_progress: `${lvl.courses_completed}/${lvl.courses_total} courses · ${lvl.pct_complete}% complete`,
       course_list:    courses.map(c => ({
         id:    String(c.id),
         title: `${c.title} — ${courseProgressLabel(c)}`,
       })),
-      grand_quiz_badge_url: badgeUrl(grandQuiz.badge),
       grand_quiz_body:      grandQuiz.body,
       grand_quiz_caption:   grandQuiz.caption,
       grand_quiz_cta:       grandQuiz.cta,
@@ -296,7 +293,7 @@ async function loadGrandQuizState(userId, levelId) {
     supabase.from('training_modules').select('id, course_id').eq('is_active', true),
     supabase.from('teacher_training_progress').select('module_id').eq('user_id', userId),
   ]);
-  if (!catalog) return { badge: 'badge_quiz_locked', body: 'No grand quiz for this level', caption: ' ', cta: '🔒 Locked' };
+  if (!catalog) return { badge: 'badge_quiz_locked', body: '🔒 Grand Quiz — No exam configured for this level', caption: ' ', cta: '🔒 Locked' };
 
   const passed = (attempts || []).some(a => a.is_passed === true);
   const cooldown = (attempts || []).find(a => a.status === 'failed' && a.cooldown_until && new Date(a.cooldown_until) > new Date());
@@ -305,13 +302,13 @@ async function loadGrandQuizState(userId, levelId) {
   const modulesInLevel = (modules || []).filter(m => courseIds.has(m.course_id));
   const allDone = modulesInLevel.length > 0 && modulesInLevel.every(m => doneIds.has(m.id));
 
-  if (passed) return { badge: 'badge_quiz_passed', body: 'You passed this level exam.', caption: 'Certificate available in your records.', cta: '✓ Passed' };
+  if (passed) return { badge: 'badge_quiz_passed', body: '🏆 Grand Quiz — You passed this level exam.', caption: 'Certificate available in your records.', cta: '✓ Passed' };
   if (cooldown) {
     const hoursLeft = Math.max(1, Math.round((new Date(cooldown.cooldown_until) - Date.now()) / 3_600_000));
-    return { badge: 'badge_quiz_cooldown', body: 'Exam locked after a recent failed attempt.', caption: `Try again in about ${hoursLeft} hours.`, cta: `⏳ Cooldown (${hoursLeft}h)` };
+    return { badge: 'badge_quiz_cooldown', body: '⏳ Grand Quiz — Locked after a recent failed attempt.', caption: `Try again in about ${hoursLeft} hours.`, cta: `⏳ Cooldown (${hoursLeft}h)` };
   }
-  if (!allDone) return { badge: 'badge_quiz_locked', body: 'Unlocks when all courses are complete.', caption: '62 questions · 100% required · 24h cooldown on fail', cta: '🔒 Locked' };
-  return { badge: 'badge_quiz_available', body: 'Ready — start your level exam.', caption: '100% required to pass · 24h cooldown on fail', cta: 'Start exam' };
+  if (!allDone) return { badge: 'badge_quiz_locked', body: '🔒 Grand Quiz — Unlocks when all courses are complete.', caption: '62 questions · 100% required · 24h cooldown on fail', cta: '🔒 Locked' };
+  return { badge: 'badge_quiz_available', body: '📝 Grand Quiz — Ready. Start your level exam.', caption: '100% required to pass · 24h cooldown on fail', cta: 'Start exam' };
 }
 
 // ─── Presentation helpers ──────────────────────────────────────────────────
@@ -344,6 +341,14 @@ function levelBadgeName(lv) {
   if (lv.state === 'ready_for_quiz') return 'badge_level_completed';
   if (lv.state === 'in_progress') return 'badge_level_in_progress';
   return 'badge_level_locked'; // 'not_started' also uses a soft-locked look
+}
+
+function levelEmoji(lv) {
+  if (lv.state === 'locked') return '🔒';
+  if (lv.state === 'certified') return '🏆';
+  if (lv.state === 'ready_for_quiz') return '📝';
+  if (lv.state === 'in_progress') return '📖';
+  return '📚'; // not_started
 }
 
 function ctaForLevel(lv) {

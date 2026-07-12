@@ -115,8 +115,12 @@ async function deliverNextModule(userId, courseId, phoneNumber) {
     await WhatsAppService.sendMessage(phoneNumber, caption + `\n\n(No video for this module yet.)`);
   }
 
-  // Then send the "Next video" button as a separate interactive message.
-  // Tapping this both writes the progress row and delivers the next module.
+  // Delay the "Next video" button so it lands AFTER the video finishes
+  // fetching + delivering (link-mode is async — Meta acknowledges our API
+  // call in ~200ms but fetches from R2 asynchronously for another 3-6s).
+  // Without this delay the button appears above the video in the chat.
+  await new Promise(resolve => setTimeout(resolve, 6000));
+
   await WhatsAppService.sendInteractiveButtons(phoneNumber, {
     body: `Finished watching "${m.title}"?`,
     buttons: [
