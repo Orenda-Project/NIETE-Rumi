@@ -116,7 +116,7 @@ async function buildTrainingHome(userId) {
       continue;
     }
     if (slot < 4) data[`level_${slot}_badge_url`] = badgeUrl(levelBadgeName(lvl));
-    data[`level_${slot}_title`]     = `Level ${lvl.order_index} · ${lvl.name}`;
+    data[`level_${slot}_title`]     = `Level ${lvl.order_index + 1} · ${lvl.name}`;
     data[`level_${slot}_progress`]  = levelProgressLine(lvl);
     data[`level_${slot}_state`]     = lvl.state;
     data[`level_${slot}_cta`]       = ctaForLevel(lvl);
@@ -127,7 +127,7 @@ async function buildTrainingHome(userId) {
 
 async function buildLevelDetail(userId, levelOrder) {
   const catalog = await loadVisibleLevelsWithProgress(userId);
-  const lvl = catalog.find(l => l.order_index === levelOrder);
+  const lvl = catalog.find(l => l.order_index === levelOrder - 1);
   if (!lvl) return errorScreen('That level is not part of your program.');
   if (lvl.state === 'locked') return errorScreen(`Pass Level ${levelOrder - 1}'s grand quiz first to unlock this level.`);
 
@@ -137,7 +137,7 @@ async function buildLevelDetail(userId, levelOrder) {
   return {
     screen: 'LEVEL_DETAIL',
     data: {
-      level_title:    `Level ${lvl.order_index} · ${lvl.name}`,
+      level_title:    `Level ${lvl.order_index + 1} · ${lvl.name}`,
       level_progress: `${lvl.courses_completed}/${lvl.courses_total} courses · ${lvl.pct_complete}% complete`,
       course_list:    courses.map(c => ({
         id:    String(c.id),
@@ -331,7 +331,7 @@ function overallProgressLine(levels) {
 }
 
 function levelProgressLine(lv) {
-  if (lv.state === 'locked') return `Unlocks after Level ${lv.order_index - 1} exam`;
+  if (lv.state === 'locked') return `Unlocks after Level ${lv.order_index} exam`;
   if (lv.state === 'certified') return `${lv.courses_completed}/${lv.courses_total} courses ✓ · Exam passed`;
   if (lv.state === 'ready_for_quiz') return `${lv.courses_completed}/${lv.courses_total} courses ✓ · Ready for exam`;
   if (lv.state === 'in_progress') return `${lv.courses_completed}/${lv.courses_total} courses · ${lv.pct_complete}% done`;
