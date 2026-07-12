@@ -13,6 +13,7 @@
  */
 const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
+const { getPresignedUrl } = require('../../storage/r2');
 const { logToFile } = require('../../utils/logger');
 
 /**
@@ -91,12 +92,24 @@ async function deliverNextModule(userId, courseId, phoneNumber) {
 
   logToFile('🎓 Delivering training module', { userId, courseId: courseIdNum, moduleId: m.id, moduleTitle: m.title, videoUrl: m.video_url });
 
-  // Send the video first — sendVideoFromUrl handles R2 download.
+  // Send the video via presigned URL + link mode — Meta fetches the URL
+  // directly from R2 and caches. Falls back to download+reupload if the
+  // link path errors (some Meta accounts don't support external URLs).
   if (m.video_url) {
-    const ok = await WhatsAppService.sendVideoFromUrl(phoneNumber, m.video_url, caption);
+    let ok = false;
+    try {
+      const signed = await getPresignedUrl(m.video_url, 3600); // 1h TTL is plenty
+      logToFile('🎓 Sending training video via link', { moduleId: m.id, urlPrefix: signed.slice(0, 80) });
+      ok = await WhatsAppService.sendVideoByLink(phoneNumber, signed, caption);
+    } catch (err) {
+      logToFile('⚠️ Presign or link-send failed, falling back to download+upload', { moduleId: m.id, error: err.message });
+    }
     if (!ok) {
-      logToFile('❌ Video delivery failed, sending link fallback', { moduleId: m.id });
-      await WhatsAppService.sendMessage(phoneNumber, caption + `\n\n(Video link: ${m.video_url})`);
+      ok = await WhatsAppService.sendVideoFromUrl(phoneNumber, m.video_url, caption);
+    }
+    if (!ok) {
+      logToFile('❌ Both video delivery paths failed', { moduleId: m.id });
+      await WhatsAppService.sendMessage(phoneNumber, caption + `\n\n(Video could not be delivered — please contact NIETE support.)`);
     }
   } else {
     await WhatsAppService.sendMessage(phoneNumber, caption + `\n\n(No video for this module yet.)`);

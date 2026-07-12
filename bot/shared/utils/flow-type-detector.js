@@ -32,6 +32,13 @@ function detectFlowType(responseJson) {
     return 'unknown';
   }
 
+  // 0. Teacher Training (highest priority — unique field, no risk of collision)
+  //    Emitted by teacher-training-endpoint.js buildSuccessScreen() as the
+  //    extension_message_response.params on Flow close.
+  if (responseJson.training_action !== undefined) {
+    return 'teacher_training';
+  }
+
   // 1. Reading Assessment (highest priority - unique fields)
   const hasReadingFields = responseJson.screen_0_Student_Full_Name_0 ||
                            responseJson.screen_0_Select_the_reading_level_2 ||

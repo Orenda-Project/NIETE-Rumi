@@ -1082,6 +1082,21 @@ app.post('/webhook', async (req, res) => {
           });
           await WhatsAppService.sendMessage(from, 'Sorry, there was an error recording attendance. Please try again.');
         }
+      } else if (flowType === 'teacher_training') {
+        // Teacher Training Flow — hand off to FlowResponseHandler which routes
+        // by training_action to content delivery or grand quiz start.
+        logToFile('🎓 Detected teacher training flow submission', {
+          from,
+          responseFields: Object.keys(responseJson)
+        });
+        try {
+          await FlowResponseHandler.handleTeacherTrainingFlow(message, from, user.id);
+        } catch (flowError) {
+          logToFile('❌ Exception in teacher training flow handler', {
+            from, error: flowError.message, stack: flowError.stack
+          });
+          await WhatsAppService.sendMessage(from, 'Sorry, something went wrong loading your training content. Please try /training again.');
+        }
       } else {
         // Unknown flow type
         logToFile('⚠️ Received unknown flow submission', {

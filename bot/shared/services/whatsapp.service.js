@@ -661,6 +661,44 @@ class WhatsAppService {
   }
 
   /**
+   * Send a video to WhatsApp by URL (link mode) — Meta fetches the URL directly
+   * and caches. For R2 private buckets, pass a presigned URL. Roughly 10x
+   * faster than sendVideoFromUrl because we skip the download-then-reupload
+   * roundtrip.
+   *
+   * @param {string} to
+   * @param {string} videoLinkUrl - Publicly reachable HTTPS URL (or presigned R2 URL)
+   * @param {string} caption
+   * @returns {Promise<boolean>}
+   */
+  static async sendVideoByLink(to, videoLinkUrl, caption = '') {
+    try {
+      const messagePayload = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to,
+        type: 'video',
+        video: { link: videoLinkUrl, ...(caption ? { caption } : {}) },
+      };
+      const resp = await axios.post(
+        `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/messages`,
+        messagePayload,
+        { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } }
+      );
+      logToFile('✅ Sent video by link', { to, urlPrefix: videoLinkUrl.slice(0, 80), messageId: resp.data?.messages?.[0]?.id });
+      return true;
+    } catch (error) {
+      logToFile('❌ sendVideoByLink failed', {
+        to,
+        urlPrefix: videoLinkUrl.slice(0, 80),
+        error: error.message,
+        response: error.response?.data,
+      });
+      return false;
+    }
+  }
+
+  /**
    * Send an image via WhatsApp
    * @param {string} to - Recipient phone number
    * @param {string} mediaIdOrPath - Either a WhatsApp media ID or path to image file
