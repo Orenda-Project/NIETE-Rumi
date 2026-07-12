@@ -35,10 +35,20 @@ import re
 import sys
 import urllib.request
 import urllib.error
+import uuid
 from pathlib import Path
 
 import psycopg2
 import psycopg2.extras
+
+# Deterministic UUID namespace for synthetic IDs on tables that only carry an
+# int PK. Any string collapsed through uuid5 with this namespace stays stable
+# across re-runs so the ON CONFLICT (taleemabad_uuid) upserts work.
+NIETE_NS = uuid.uuid5(uuid.NAMESPACE_DNS, 'niete-rumi.exam-generator')
+
+
+def synthetic_uuid(kind: str, pk: int) -> str:
+    return str(uuid.uuid5(NIETE_NS, f'{kind}:{pk}'))
 
 REPO = Path(__file__).resolve().parent.parent
 ENV = REPO / ".env"
@@ -164,44 +174,40 @@ def norm_bloom(tag: str | None) -> str | None:
 
 
 def step1_groups(cur) -> dict[int, str]:
-    """Return {taleemabad_group_id (int): our_uuid_str}."""
+    """Return {taleemabad_group_id (int): our_dest_uuid_str}.
+
+    We set `id = taleemabad_uuid` explicitly at insert time so downstream steps
+    can compute the destination FK by calling `synthetic_uuid('questiongroup', id)`
+    with no re-fetch (avoiding PostgREST's default 1000-row pagination limit).
+    """
     print("→ step1_groups: pulling question_bank_questiongroup")
     rows = q(
         cur,
         """
-        SELECT id, uuid, title_text, media, group_type
+        SELECT id, title_text, media, group_type
         FROM question_bank_questiongroup
-        WHERE is_active IS NOT FALSE
         """,
     )
     print(f"  fetched {len(rows)} groups from source")
 
-    # Fetch existing to preserve UUIDs across re-runs.
-    existing = _fetch_existing_uuid_map("exam_question_groups")
     payload: list[dict] = []
     id_map: dict[int, str] = {}
     for r in rows:
-        source_uuid = str(r["uuid"])
-        our_uuid = existing.get(source_uuid)  # may be None on first run
-        row = {
+        # Table has no uuid column — synthesise a deterministic UUID from the
+        # int PK. We set BOTH `id` and `taleemabad_uuid` to this value so
+        # downstream FKs can be computed without a read-back.
+        source_uuid = synthetic_uuid('questiongroup', r["id"])
+        payload.append({
+            "id": source_uuid,
             "taleemabad_uuid": source_uuid,
             "title_text": r.get("title_text"),
             "media": r.get("media") or [],
             "group_type": r.get("group_type") or "comprehension",
-        }
-        if our_uuid:
-            row["id"] = our_uuid
-        payload.append(row)
-        # our_uuid becomes known after upsert; we'll refresh below.
-        id_map[r["id"]] = source_uuid  # temporarily by source_uuid; resolved next
+        })
+        id_map[r["id"]] = source_uuid
 
     rest_bulk("exam_question_groups", payload, on_conflict="taleemabad_uuid")
-
-    # After insert, fetch the (id, taleemabad_uuid) map so downstream inserts
-    # can point group_ref at the right UUID.
-    fresh = _fetch_existing_uuid_map("exam_question_groups")
-    id_map = {tb_int: fresh[str(tb_uuid)] for tb_int, tb_uuid in id_map.items() if str(tb_uuid) in fresh}
-    print(f"  upserted {len(payload)} groups; mapped {len(id_map)} source→dest ids")
+    print(f"  upserted {len(payload)} groups; direct-mapped {len(id_map)} source→dest ids")
     return id_map
 
 
@@ -250,18 +256,18 @@ def step2_questions(cur, group_id_map: dict[int, str]) -> int:
           q.index             AS index_in_chapter,
           q.group_id,
           gs.grade_id,
-          s.name              AS subject_name,
-          grd.value           AS grade_value,
-          bc.index            AS chapter_index,
+          s.label             AS subject_name,
+          grd.label           AS grade_value,
+          bc.chapter_number   AS chapter_index,
           bc.title            AS chapter_title,
-          slo.tag             AS ncp_slo_tag
+          slo.ncp_slo_id      AS ncp_slo_tag
         FROM question_bank_question q
-        LEFT JOIN book_library_gradesubject gs ON gs.id = q.grade_subject_id
-        LEFT JOIN book_library_subject      s  ON s.id  = gs.subject_id
-        LEFT JOIN book_library_grade        grd ON grd.id = gs.grade_id
+        LEFT JOIN slo_gradesubject          gs ON gs.id = q.grade_subject_id
+        LEFT JOIN slo_subject               s  ON s.id  = gs.subject_id
+        LEFT JOIN slo_grade                 grd ON grd.id = gs.grade_id
         LEFT JOIN book_library_bookchapter  bc ON bc.id = q.book_chapter_id
         LEFT JOIN slo_ncpslo                slo ON slo.id = q.ncp_slo_id
-        WHERE q.question_status = 'onProd'
+        WHERE q.question_status = 'OnProd'
           AND q.is_active = true
           AND bc.id IS NOT NULL          -- must be tied to a chapter to be pickable
         """,
@@ -368,14 +374,14 @@ def step3_blueprints(cur) -> int:
         SELECT
           a.id, a.name, a.total_marks, a.seen_marks, a.unseen_marks,
           a.seen_percentage, a.unseen_percentage, a.criteria,
-          s.name  AS subject_name,
-          grd.value AS grade_value,
+          s.label AS subject_name,
+          grd.label AS grade_value,
           cp.name AS checkpoint_name
         FROM question_bank_assessment a
-        LEFT JOIN book_library_gradesubject gs ON gs.id = a.grade_subject_id
-        LEFT JOIN book_library_subject      s  ON s.id  = gs.subject_id
-        LEFT JOIN book_library_grade        grd ON grd.id = gs.grade_id
-        LEFT JOIN question_bank_checkpoint  cp ON cp.id = a.check_point_id
+        LEFT JOIN slo_gradesubject          gs ON gs.id = a.grade_subject_id
+        LEFT JOIN slo_subject               s  ON s.id  = gs.subject_id
+        LEFT JOIN slo_grade                 grd ON grd.id = gs.grade_id
+        LEFT JOIN student_learning_checkpoint cp ON cp.id = a.check_point_id
         WHERE a.is_active = true
         """,
     )

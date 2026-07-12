@@ -4079,7 +4079,7 @@ CREATE TABLE IF NOT EXISTS exam_question_bank (
   question_format     TEXT NOT NULL,                 -- 'statement' | 'image' | 'statement-image'
   type                TEXT NOT NULL,                 -- taleemabad's granular type (MCQs, FTB, ...)
   sub_type            TEXT,
-  score               REAL NOT NULL CHECK (score >= 1),
+  score               REAL NOT NULL CHECK (score >= 0),  -- 0.5, 0.25 exist for sub-questions in groups
   marking_scheme      TEXT,
   category            TEXT NOT NULL CHECK (category IN ('SEEN', 'UNSEEN')),
   answer_options      JSONB NOT NULL DEFAULT '[]'::jsonb, -- MCQ: [{ statement, is_correct, ... }]
