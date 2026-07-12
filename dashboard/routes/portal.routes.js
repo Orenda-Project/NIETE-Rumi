@@ -1181,15 +1181,103 @@ router.post('/curriculum/lp/:source_lp_uuid/render', requirePortalAuth, async (r
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
+ * Compute per-level state — mirrors the WhatsApp bot's loadVisibleLevelsWithProgress
+ * (bot/shared/routes/teacher-training-endpoint.js:192-282). Same rules keep portal
+ * lockdown consistent with the Flow lockdown teachers see on WhatsApp.
+ *
+ *   locked         previous level's grand quiz NOT passed (unless first level)
+ *   certified      this level's grand quiz IS passed
+ *   ready_for_quiz all courses started + grand quiz not yet passed
+ *   in_progress    at least one course started
+ *   not_started    no progress yet
+ *
+ * @returns Map<level_id, { state, courses_total, courses_completed, module_count,
+ *                          completed_count, passed_at, cooldown_until }>
+ */
+async function _computeLevelStates(userId, levels) {
+  const levelIds = levels.map(l => l.id);
+  const [{ data: courses }, { data: progressRows }, { data: attempts }] = await Promise.all([
+    supabase.from('training_courses').select('id, level_id').eq('is_active', true).in('level_id', levelIds),
+    supabase.from('teacher_training_progress')
+      .select('module_id, training_modules!inner(course_id, is_active)')
+      .eq('user_id', userId)
+      .eq('training_modules.is_active', true),
+    supabase.from('training_assessment_attempts')
+      .select('level_id, status, is_passed, cooldown_until, completed_at')
+      .eq('user_id', userId).in('level_id', levelIds),
+  ]);
+
+  // module → course → level chain, plus overall completed_set for the module-count rollup
+  const progressByCourse = new Map();
+  const completedModuleIds = new Set();
+  for (const p of progressRows || []) {
+    completedModuleIds.add(p.module_id);
+    const cid = p?.training_modules?.course_id;
+    if (cid) progressByCourse.set(cid, (progressByCourse.get(cid) || 0) + 1);
+  }
+
+  // Also need module counts per level for the "X/Y done" copy
+  const allCourseIds = (courses || []).map(c => c.id);
+  const { data: modules } = allCourseIds.length
+    ? await supabase.from('training_modules')
+        .select('id, course_id').eq('is_active', true).in('course_id', allCourseIds)
+    : { data: [] };
+
+  const moduleCountByLevel = new Map();
+  const completedCountByLevel = new Map();
+  for (const m of modules || []) {
+    const course = (courses || []).find(c => c.id === m.course_id);
+    if (!course) continue;
+    moduleCountByLevel.set(course.level_id, (moduleCountByLevel.get(course.level_id) || 0) + 1);
+    if (completedModuleIds.has(m.id)) {
+      completedCountByLevel.set(course.level_id, (completedCountByLevel.get(course.level_id) || 0) + 1);
+    }
+  }
+
+  // Now compute state per level using the WhatsApp bot's rules
+  const byLevelId = new Map();
+  for (const lv of levels) {
+    const lvCourses = (courses || []).filter(c => c.level_id === lv.id);
+    const coursesStarted = lvCourses.filter(c => (progressByCourse.get(c.id) || 0) > 0);
+    const passedAttempt = (attempts || []).find(a => a.level_id === lv.id && a.is_passed === true);
+    const cooldownAttempt = (attempts || []).find(a =>
+      a.level_id === lv.id && a.status === 'failed' && a.cooldown_until && new Date(a.cooldown_until) > new Date()
+    );
+    const prevLevel = levels.find(l => l.order_index === lv.order_index - 1);
+    const prevPassed = !prevLevel || !!(attempts || []).find(a => a.level_id === prevLevel.id && a.is_passed === true);
+    const isFirst = !prevLevel;
+
+    let state;
+    if (!prevPassed && !isFirst) state = 'locked';
+    else if (passedAttempt) state = 'certified';
+    else if (coursesStarted.length === lvCourses.length && lvCourses.length > 0) state = 'ready_for_quiz';
+    else if (coursesStarted.length > 0) state = 'in_progress';
+    else state = 'not_started';
+
+    byLevelId.set(lv.id, {
+      state,
+      courses_total: lvCourses.length,
+      courses_completed: coursesStarted.length,
+      module_count: moduleCountByLevel.get(lv.id) || 0,
+      completed_count: completedCountByLevel.get(lv.id) || 0,
+      passed_at: passedAttempt?.completed_at || null,
+      cooldown_until: cooldownAttempt?.cooldown_until || null,
+      previous_level_order: prevLevel ? prevLevel.order_index : null,
+    });
+  }
+  return byLevelId;
+}
+
+/**
  * GET /api/portal/training/levels
- * Returns the 4 training levels with per-level module counts + completion %
- * for the authenticated teacher.
+ * Returns the 4 training levels with per-level module counts, completion %,
+ * AND lockdown state (mirrors WhatsApp Flow). A level is `locked` until the
+ * teacher passes the previous level's grand quiz.
  */
 router.get('/training/levels', requirePortalAuth, async (req, res) => {
   try {
     const userId = req.session.portalUserId;
 
-    // Levels
     const { data: levels, error: le } = await supabase
       .from('training_levels')
       .select('id, name, order_index, cpd_level')
@@ -1197,58 +1285,20 @@ router.get('/training/levels', requirePortalAuth, async (req, res) => {
       .order('order_index', { ascending: true });
     if (le) throw le;
 
-    // Per-level module counts (via courses join)
-    const { data: courses, error: ce } = await supabase
-      .from('training_courses')
-      .select('id, level_id')
-      .eq('is_active', true);
-    if (ce) throw ce;
+    const stateMap = await _computeLevelStates(userId, levels || []);
 
-    const courseIdsByLevel = new Map();
-    for (const c of courses || []) {
-      if (!courseIdsByLevel.has(c.level_id)) courseIdsByLevel.set(c.level_id, []);
-      courseIdsByLevel.get(c.level_id).push(c.id);
-    }
-    const allCourseIds = (courses || []).map(c => c.id);
-    const { data: modules, error: me } = await supabase
-      .from('training_modules')
-      .select('id, course_id')
-      .eq('is_active', true)
-      .in('course_id', allCourseIds.length ? allCourseIds : ['00000000-0000-0000-0000-000000000000']);
-    if (me) throw me;
-
-    const moduleIdsByCourse = new Map();
-    for (const m of modules || []) {
-      if (!moduleIdsByCourse.has(m.course_id)) moduleIdsByCourse.set(m.course_id, []);
-      moduleIdsByCourse.get(m.course_id).push(m.id);
-    }
-
-    // Teacher's completed modules (single query, all modules)
-    const allModuleIds = (modules || []).map(m => m.id);
-    let completedSet = new Set();
-    if (allModuleIds.length && userId) {
-      const { data: progress, error: pe } = await supabase
-        .from('teacher_training_progress')
-        .select('module_id')
-        .eq('user_id', userId)
-        .in('module_id', allModuleIds)
-        .not('completed_at', 'is', null);
-      if (pe) throw pe;
-      completedSet = new Set((progress || []).map(p => p.module_id));
-    }
-
-    // Roll up: modules per level + completed per level
     const enriched = (levels || []).map(l => {
-      const courseIds = courseIdsByLevel.get(l.id) || [];
-      let total = 0, done = 0;
-      for (const cid of courseIds) {
-        const mIds = moduleIdsByCourse.get(cid) || [];
-        total += mIds.length;
-        done += mIds.filter(id => completedSet.has(id)).length;
-      }
+      const s = stateMap.get(l.id) || {};
       return {
         id: l.id, name: l.name, order_index: l.order_index, cpd_level: l.cpd_level,
-        module_count: total, completed_count: done,
+        state: s.state || 'not_started',
+        module_count: s.module_count || 0,
+        completed_count: s.completed_count || 0,
+        courses_total: s.courses_total || 0,
+        courses_completed: s.courses_completed || 0,
+        passed_at: s.passed_at,
+        cooldown_until: s.cooldown_until,
+        previous_level_order: s.previous_level_order,
       };
     });
     res.json({ success: true, levels: enriched });
@@ -1259,14 +1309,41 @@ router.get('/training/levels', requirePortalAuth, async (req, res) => {
 });
 
 /**
+ * Level-lockdown guard — reject requests for a level the teacher hasn't
+ * unlocked yet. Same rule as the WhatsApp Flow. Returns 403 with the
+ * previous-level number in the payload so the client can render a friendly
+ * "Pass Level N first" message.
+ */
+async function _assertLevelUnlocked(userId, levelId) {
+  const { data: levels } = await supabase
+    .from('training_levels').select('id, name, order_index').eq('is_active', true).order('order_index');
+  const stateMap = await _computeLevelStates(userId, levels || []);
+  const s = stateMap.get(levelId);
+  if (!s) return { ok: false, status: 404, error: 'Level not found' };
+  if (s.state === 'locked') {
+    const prevOrder = s.previous_level_order;
+    return {
+      ok: false, status: 403,
+      error: `This level is locked. Pass Level ${prevOrder + 1}'s grand quiz first.`,
+      previous_level_order: prevOrder,
+    };
+  }
+  return { ok: true };
+}
+
+/**
  * GET /api/portal/training/courses?level_id=1
  * Returns courses in a level, with per-course completion counts.
+ * Rejects with 403 if the level is locked.
  */
 router.get('/training/courses', requirePortalAuth, async (req, res) => {
   try {
     const userId = req.session.portalUserId;
     const levelId = parseInt(req.query.level_id, 10);
     if (!Number.isFinite(levelId)) return res.status(400).json({ success: false, error: 'level_id required' });
+
+    const gate = await _assertLevelUnlocked(userId, levelId);
+    if (!gate.ok) return res.status(gate.status).json({ success: false, error: gate.error, previous_level_order: gate.previous_level_order });
 
     const { data: courses, error: ce } = await supabase
       .from('training_courses')
@@ -1328,6 +1405,13 @@ router.get('/training/modules', requirePortalAuth, async (req, res) => {
     const userId = req.session.portalUserId;
     const courseId = String(req.query.course_id || '');
     if (!courseId) return res.status(400).json({ success: false, error: 'course_id required' });
+
+    // Resolve course → level and gate on lockdown
+    const { data: courseRow } = await supabase
+      .from('training_courses').select('level_id').eq('id', courseId).maybeSingle();
+    if (!courseRow) return res.status(404).json({ success: false, error: 'Course not found' });
+    const gate = await _assertLevelUnlocked(userId, courseRow.level_id);
+    if (!gate.ok) return res.status(gate.status).json({ success: false, error: gate.error, previous_level_order: gate.previous_level_order });
 
     const { data: modules, error: me } = await supabase
       .from('training_modules')
@@ -1397,6 +1481,10 @@ router.get('/training/module/:id', requirePortalAuth, async (req, res) => {
       const { data: l } = await supabase.from('training_levels')
         .select('id, name').eq('id', course.level_id).maybeSingle();
       level = l;
+
+      // Gate on lockdown — same rule as the /courses + /modules endpoints
+      const gate = await _assertLevelUnlocked(userId, course.level_id);
+      if (!gate.ok) return res.status(gate.status).json({ success: false, error: gate.error, previous_level_order: gate.previous_level_order });
     }
 
     // Progress

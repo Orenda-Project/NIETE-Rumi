@@ -2,33 +2,45 @@
  * PortalTraining — 3-step cascading picker for teacher training modules.
  *
  *     Level ▼          Course ▼          Module ▼
- *   (with progress   (with progress   (✓ / ○ per
- *    per level)       per course)     module)
  *
- * Mirrors PortalCurriculum's UX. Read-only: teachers still mark modules
- * done via WhatsApp (existing training flow); the portal is for browsing
- * and recap.
+ * Mirrors PortalCurriculum's UX AND the WhatsApp training Flow's lockdown:
+ *   locked         previous level's grand quiz NOT passed (unless first level)
+ *   certified      this level's grand quiz IS passed
+ *   ready_for_quiz all courses started + grand quiz not yet passed
+ *   in_progress    at least one course started
+ *   not_started    no progress yet
+ *
+ * Locked levels appear in the dropdown with 🔒 and cannot be selected.
+ * If a teacher somehow reaches a locked-level API (via URL manipulation),
+ * the backend returns 403 and the toast surfaces "Pass Level N first".
  *
  * When a module is selected the detail card shows:
  *   - title, duration, completion badge
- *   - ▶ Watch Video button (opens presigned R2 URL in new tab)
- *   - 🎧 Play Audio button (if audio_url present)
- *   - content_html rendered inline (sanitized) when present
+ *   - ▶ Inline HTML5 <video> player (presigned R2 URL as src)
+ *   - 🎧 Inline HTML5 <audio> player (if audio_url present)
+ *   - content_html rendered inline (sanitized via DOMPurify)
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import DOMPurify from 'dompurify';
-import { GraduationCap, Play, Headphones, CheckCircle2, Circle, Loader2 } from 'lucide-react';
+import { GraduationCap, CheckCircle2, Circle, Loader2, Lock, Award, ClipboardCheck } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
-import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
 
-type Level = { id: number; name: string; order_index: number; cpd_level: number | null; module_count: number; completed_count: number };
+type LevelState = 'locked' | 'certified' | 'ready_for_quiz' | 'in_progress' | 'not_started';
+type Level = {
+  id: number; name: string; order_index: number; cpd_level: number | null;
+  state: LevelState;
+  module_count: number; completed_count: number;
+  courses_total: number; courses_completed: number;
+  passed_at: string | null; cooldown_until: string | null;
+  previous_level_order: number | null;
+};
 type Course = { id: string; title: string; course_type: string; order_index: number; module_count: number; completed_count: number };
 type ModuleSummary = { id: string; title: string; order_index: number; duration_seconds: number; has_video: boolean; has_audio: boolean; completed_at: string | null };
 type ModuleDetail = {
@@ -45,6 +57,16 @@ function formatDuration(sec: number): string {
   if (m === 0) return `${s}s`;
   if (s === 0) return `${m} min`;
   return `${m}m ${s}s`;
+}
+
+function levelStateBadge(l: Level) {
+  switch (l.state) {
+    case 'locked':         return { icon: <Lock className="w-3.5 h-3.5" />, label: `🔒 Locked · Pass L${(l.previous_level_order ?? 0) + 1} first`, className: 'text-muted-foreground' };
+    case 'certified':      return { icon: <Award className="w-3.5 h-3.5" />, label: '🏆 Certified', className: 'text-green-700' };
+    case 'ready_for_quiz': return { icon: <ClipboardCheck className="w-3.5 h-3.5" />, label: '📝 Ready for exam', className: 'text-amber-700' };
+    case 'in_progress':    return { icon: <CheckCircle2 className="w-3.5 h-3.5" />, label: `📖 ${l.completed_count}/${l.module_count} done`, className: 'text-primary' };
+    default:               return { icon: <Circle className="w-3.5 h-3.5" />, label: 'Not started', className: 'text-muted-foreground' };
+  }
 }
 
 const PortalTraining = () => {
@@ -76,7 +98,20 @@ const PortalTraining = () => {
     })();
   }, [toast]);
 
-  // Level → courses
+  // Level → courses. Reject selection if the chosen level is locked
+  // (defence-in-depth; the Select item is also greyed out).
+  const handleLevelChange = useCallback((val: string) => {
+    const lvl = levels.find(l => String(l.id) === val);
+    if (lvl && lvl.state === 'locked') {
+      toast({
+        title: 'Level locked',
+        description: `Pass the Level ${(lvl.previous_level_order ?? 0) + 1} grand quiz first.`,
+      });
+      return;
+    }
+    setSelectedLevel(val);
+  }, [levels, toast]);
+
   useEffect(() => {
     setCourses([]); setModules([]); setModuleDetail(null);
     setSelectedCourse(''); setSelectedModule('');
@@ -86,8 +121,9 @@ const PortalTraining = () => {
       try {
         const { data } = await api.get('/training/courses', { params: { level_id: selectedLevel } });
         setCourses(data.courses || []);
-      } catch {
-        toast({ title: 'Could not load courses', variant: 'destructive' });
+      } catch (err: any) {
+        const msg = err?.response?.data?.error || 'Could not load courses';
+        toast({ title: msg, variant: 'destructive' });
       } finally { setLoadingCourses(false); }
     })();
   }, [selectedLevel, toast]);
@@ -123,11 +159,6 @@ const PortalTraining = () => {
     })();
   }, [selectedModule, toast]);
 
-  const openMedia = useCallback((url: string | null) => {
-    if (!url) return;
-    window.open(url, '_blank', 'noopener');
-  }, []);
-
   if (loadingLevels) {
     return <PortalLayout><LoadingState type="full" /></PortalLayout>;
   }
@@ -142,7 +173,7 @@ const PortalTraining = () => {
             <h1 className="text-3xl sm:text-4xl font-light">Teacher Training</h1>
           </div>
           <p className="text-muted-foreground">
-            Browse your training levels, courses, and modules. Mark modules complete via WhatsApp.
+            Browse your training levels, courses, and modules. Levels unlock as you pass each grand quiz on WhatsApp.
           </p>
         </div>
 
@@ -151,17 +182,24 @@ const PortalTraining = () => {
           {/* Level */}
           <div>
             <label className="block text-sm font-semibold mb-2 text-foreground">1. Level</label>
-            <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+            <Select value={selectedLevel} onValueChange={handleLevelChange}>
               <SelectTrigger><SelectValue placeholder="Select level..." /></SelectTrigger>
               <SelectContent>
-                {levels.map(l => (
-                  <SelectItem key={l.id} value={String(l.id)}>
-                    <span className="font-medium">{l.name}</span>
-                    <span className="text-muted-foreground text-xs ml-2">
-                      · {l.completed_count}/{l.module_count} done
-                    </span>
-                  </SelectItem>
-                ))}
+                {levels.map(l => {
+                  const badge = levelStateBadge(l);
+                  const locked = l.state === 'locked';
+                  return (
+                    <SelectItem key={l.id} value={String(l.id)} disabled={locked} className={locked ? 'opacity-60' : ''}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">
+                          {locked && '🔒 '}
+                          Level {l.order_index + 1} · {l.name}
+                        </span>
+                        <span className={`text-xs mt-0.5 ${badge.className}`}>{badge.label}</span>
+                      </div>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -248,19 +286,28 @@ const PortalTraining = () => {
               </div>
             </div>
 
-            {/* Media buttons */}
-            <div className="flex flex-wrap gap-2">
-              {moduleDetail.video_url && (
-                <Button onClick={() => openMedia(moduleDetail.video_url)} className="flex items-center gap-2">
-                  <Play className="w-4 h-4" /> Watch Video
-                </Button>
-              )}
-              {moduleDetail.audio_url && (
-                <Button variant="outline" onClick={() => openMedia(moduleDetail.audio_url)} className="flex items-center gap-2">
-                  <Headphones className="w-4 h-4" /> Play Audio
-                </Button>
-              )}
-            </div>
+            {/* Inline video player */}
+            {moduleDetail.video_url && (
+              <div className="rounded-md overflow-hidden bg-black">
+                <video
+                  controls
+                  className="w-full max-h-[560px] mx-auto"
+                  preload="metadata"
+                  src={moduleDetail.video_url}
+                >
+                  Your browser doesn't support inline video. <a href={moduleDetail.video_url} target="_blank" rel="noopener">Open the video in a new tab</a>.
+                </video>
+              </div>
+            )}
+
+            {/* Inline audio player */}
+            {moduleDetail.audio_url && (
+              <div className="rounded-md bg-muted p-3">
+                <audio controls className="w-full" preload="metadata" src={moduleDetail.audio_url}>
+                  Your browser doesn't support inline audio.
+                </audio>
+              </div>
+            )}
 
             {/* HTML content */}
             {moduleDetail.content_html && moduleDetail.content_html.trim().length > 0 ? (
