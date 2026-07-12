@@ -115,11 +115,12 @@ async function deliverNextModule(userId, courseId, phoneNumber) {
     await WhatsAppService.sendMessage(phoneNumber, caption + `\n\n(No video for this module yet.)`);
   }
 
-  // Then send the "Mark done" button as a separate interactive message.
+  // Then send the "Next video" button as a separate interactive message.
+  // Tapping this both writes the progress row and delivers the next module.
   await WhatsAppService.sendInteractiveButtons(phoneNumber, {
-    body: `Finished "${m.title}"?`,
+    body: `Finished watching "${m.title}"?`,
     buttons: [
-      { id: `training_module_done_${m.id}`, title: '✓ Mark as done' },
+      { id: `training_module_done_${m.id}`, title: '▶ Next video' },
       { id: `training_pause`, title: '⏸ Pause' },
     ],
   });
