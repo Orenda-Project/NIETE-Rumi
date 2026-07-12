@@ -171,11 +171,18 @@ class ReportGeneratorService {
       // per session). If pre-computation fails, hero renders without tryNext
       // (graceful degradation), and Phase 3 will still attempt its own generation.
       //
-      // Language must MATCH the hero card's language (transcript-derived), not the
-      // teacher's preferred_language, otherwise a card rendered in Urdu can carry
-      // an English tryNext callout — jarringly bilingual. The hero uses
-      // enhancedAnalysis.language || session.transcript_language, so we mirror that.
-      const heroLanguage = enhancedAnalysis.language || session.transcript_language || session.users?.preferred_language || 'en';
+      // Language resolution rule for the whole coaching flow:
+      //   1. The teacher's explicit preferred_language wins (they chose it in UI).
+      //   2. If unset, fall back to what the analysis pass emitted.
+      //   3. If still unset, use the transcript's language (auto-detected from audio).
+      //   4. Default to English.
+      // This matches the _resolveSessionLanguage helper used by the progress
+      // ticker and the LP prompt, so a teacher whose UI is English but who
+      // just taught in Urdu gets ALL messages in English (no jarring mix).
+      const heroLanguage = session.users?.preferred_language
+        || enhancedAnalysis.language
+        || session.transcript_language
+        || 'en';
       let precomputedCommitment = null;
       try {
         const { generateCommitmentCard } = require('./coaching-card/commitment-card.service');

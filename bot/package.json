@@ -12,7 +12,8 @@
     "dev": "node whatsapp-bot.js",
     "dev:dashboard": "node dashboard/index.js",
     "dev:worker": "node workers/sqs-worker.js",
-    "simulate": "node scripts/testing/simulate-webhook.js"
+    "simulate": "node scripts/testing/simulate-webhook.js",
+    "postinstall": "node -e \"process.env.SKIP_PLAYWRIGHT_INSTALL==='1' ? process.exit(0) : require('child_process').execSync('npx --yes playwright@' + require('playwright-core/package.json').version + ' install chromium', { stdio: 'inherit' })\""
   },
   "keywords": [
     "whatsapp",

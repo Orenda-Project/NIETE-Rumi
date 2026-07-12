@@ -74,6 +74,16 @@ A teacher can attach a lesson plan before the observation. It is extracted by
 | Session stuck in a non-terminal state (>24h) | [bot/workers/stale-session.worker.js](../../../bot/workers/stale-session.worker.js) sweeps these; check for a job that errored after dequeue. |
 | Scores look wrong / empty | Read `analysis_data.framework`, then parse with *that* framework's shape — a mismatch reads as missing scores. |
 
+### The Playwright / Chromium dependency (learned 2026-07-12)
+
+The coaching **hero-report renderer** at [bot/shared/services/coaching/report-v2/hero-report.template.js](../../../bot/shared/services/coaching/report-v2/hero-report.template.js) is HTML→PNG via **Playwright Chromium** in [bot/shared/utils/html-to-pdf.js](../../../bot/shared/utils/html-to-pdf.js). If Chromium is missing the render fails silently and [renderer-registry.js](../../../bot/shared/services/coaching/report-v2/renderer-registry.js) falls back to a PDFKit path that does NOT understand the FICO `domains[].indicators[]` shape → produces a 2.6 KB PDF showing "0%" and "Emerging" band. Symptoms: `Failed to launch Playwright browser` in worker logs + a tiny report_pdf_url on the session.
+
+**Why this trap is easy to fall into**: `playwright-core` (the npm dep) is the library only — it does NOT bundle a browser. On a fresh Railway container Chromium is nowhere on disk, so the launch throws. Neither the smoke test nor unit tests exercise this path.
+
+**Fix pattern (validated on Main Rumi Bot 2026-07-06, ported to NIETE-Rumi 2026-07-12)**: add a `postinstall` script in `bot/package.json` that runs `npx --yes playwright@<pinned-version> install chromium`. This downloads Playwright's own pinned Chromium into `~/.cache/ms-playwright/`, which `chromium.launch()` finds automatically when no `executablePath` is passed. Do NOT install Debian/Nix Chromium — those SIGTRAP on Railway containers (documented in `02_Main Rumi Bot/nixpacks.toml`).
+
+**Before considering the coaching pipeline "shipped"**: tail worker logs for `Playwright browser launched successfully` on the first coaching session after a deploy. If you see `Failed to launch Playwright browser → PDFKit fallback`, the postinstall didn't run or the cache didn't persist — the build stage of the release is broken, not the code.
+
 ## Example — coaching stats
 
 ```sql

@@ -13,12 +13,17 @@
  *   `document.fonts.ready` before page.pdf() to ensure embedded base64
  *   fonts have been parsed and applied — without this, glyphs render
  *   blank for languages that depend on the embedded fonts (Urdu, etc.).
- * - System Chromium discovery: playwright-core does NOT bundle Chromium.
- *   We look for a system install (set PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH or
- *   PUPPETEER_EXECUTABLE_PATH, or install chromium at /usr/bin/chromium).
- *   When no Chromium is found, page.pdf throws a clear "browser not found"
- *   error — callers (e.g. the reading report) fall back to a PDFKit renderer,
- *   so a deployment without Chromium still produces reports.
+ * - Chromium discovery: `playwright-core` does NOT bundle Chromium. The
+ *   canonical path is a `postinstall` npm script in `package.json` that runs
+ *   `npx --yes playwright@<pinned-version> install chromium`, downloading the
+ *   Playwright-pinned Chromium into `~/.cache/ms-playwright/`. `chromium.launch`
+ *   picks it up automatically when no `executablePath` is passed. We STILL run
+ *   `resolveChromiumPath()` first so an operator can override with
+ *   `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` or a system Chromium at /usr/bin/…,
+ *   but the default (env unset, no system install) falls through to Playwright's
+ *   own bundled binary. Debian/Nix Chromium SIGTRAPs on Railway containers
+ *   (validated on 02_Main Rumi Bot, 2026-07-06) — the Playwright-pinned
+ *   Chromium is the only one that runs reliably.
  * - Process exit cleanup: browser is killed on SIGINT/SIGTERM/exit.
  */
 
@@ -69,12 +74,16 @@ async function getBrowser() {
         ],
       };
 
-      // Use system Chromium when present so we don't pull the bundled
-      // Playwright binary into the build image.
+      // If an operator has pinned a system Chromium via env var (or one
+      // exists at /usr/bin/chromium), honor it. Otherwise fall through — the
+      // postinstall step downloaded Playwright's own Chromium into
+      // ~/.cache/ms-playwright/ and chromium.launch() will find it.
       const execPath = resolveChromiumPath();
       if (execPath) {
         launchOptions.executablePath = execPath;
         logToFile('Playwright using system Chromium', { executablePath: execPath });
+      } else {
+        logToFile('Playwright using bundled Chromium from ~/.cache/ms-playwright');
       }
 
       const browser = await chromium.launch(launchOptions);
