@@ -1,0 +1,133 @@
+{
+  "version": "5.1",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "TRAINING_HOME": ["LEVEL_DETAIL", "SUCCESS"],
+    "LEVEL_DETAIL": ["SUCCESS"]
+  },
+  "screens": [
+    {
+      "id": "TRAINING_HOME",
+      "title": "Teacher Training",
+      "terminal": false,
+      "data": {
+        "hero_title":       { "type": "string", "__example__": "Teacher Training" },
+        "hero_subtitle":    { "type": "string", "__example__": "Aisha Malik · NIETE Support" },
+        "hero_progress":    { "type": "string", "__example__": "25% done" },
+        "level_1_badge_url":{ "type": "string", "__example__": "https://ihzciabopbttygxxgrkm.supabase.co/storage/v1/object/public/training-assets/badges/badge_level_completed.png" },
+        "level_1_title":    { "type": "string", "__example__": "Level 1 · Aspiring Teacher" },
+        "level_1_progress": { "type": "string", "__example__": "9/9 courses ✓ · Grand quiz passed 82%" },
+        "level_1_state":    { "type": "string", "__example__": "certified" },
+        "level_1_cta":      { "type": "string", "__example__": "View progress" },
+        "level_2_badge_url":{ "type": "string", "__example__": "https://ihzciabopbttygxxgrkm.supabase.co/storage/v1/object/public/training-assets/badges/badge_level_in_progress.png" },
+        "level_2_title":    { "type": "string", "__example__": "Level 2 · Emerging Practitioner" },
+        "level_2_progress": { "type": "string", "__example__": "4/9 courses · 26 modules done" },
+        "level_2_state":    { "type": "string", "__example__": "in_progress" },
+        "level_2_cta":      { "type": "string", "__example__": "Continue" },
+        "level_3_badge_url":{ "type": "string", "__example__": "https://ihzciabopbttygxxgrkm.supabase.co/storage/v1/object/public/training-assets/badges/badge_level_locked.png" },
+        "level_3_title":    { "type": "string", "__example__": "Level 3 · Skilled Practitioner" },
+        "level_3_progress": { "type": "string", "__example__": "Unlocks after Level 2 exam" },
+        "level_3_state":    { "type": "string", "__example__": "locked" },
+        "level_3_cta":      { "type": "string", "__example__": "" },
+        "level_4_title":    { "type": "string", "__example__": "Level 4 · Teacher Leader" },
+        "level_4_progress": { "type": "string", "__example__": "Unlocks after Level 3 exam" },
+        "level_4_state":    { "type": "string", "__example__": "locked" },
+        "level_4_cta":      { "type": "string", "__example__": "" }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextHeading",    "text": "${data.hero_title}" },
+          { "type": "TextSubheading", "text": "${data.hero_subtitle}" },
+          { "type": "TextCaption",    "text": "${data.hero_progress}" },
+
+          { "type": "Image", "src": "${data.level_1_badge_url}", "width": 72, "height": 72, "scale-type": "contain", "alt-text": "Level 1 badge" },
+          { "type": "TextHeading", "text": "${data.level_1_title}" },
+          { "type": "TextBody",    "text": "${data.level_1_progress}" },
+          { "type": "EmbeddedLink", "text": "${data.level_1_cta}", "on-click-action": { "name": "data_exchange", "payload": { "_action": "open_level", "_level_order": 1 } } },
+
+          { "type": "Image", "src": "${data.level_2_badge_url}", "width": 72, "height": 72, "scale-type": "contain", "alt-text": "Level 2 badge" },
+          { "type": "TextHeading", "text": "${data.level_2_title}" },
+          { "type": "TextBody",    "text": "${data.level_2_progress}" },
+          { "type": "EmbeddedLink", "text": "${data.level_2_cta}", "on-click-action": { "name": "data_exchange", "payload": { "_action": "open_level", "_level_order": 2 } } },
+
+          { "type": "Image", "src": "${data.level_3_badge_url}", "width": 72, "height": 72, "scale-type": "contain", "alt-text": "Level 3 badge" },
+          { "type": "TextHeading", "text": "${data.level_3_title}" },
+          { "type": "TextBody",    "text": "${data.level_3_progress}" },
+
+          { "type": "TextHeading", "text": "${data.level_4_title}" },
+          { "type": "TextBody",    "text": "${data.level_4_progress}" },
+
+          { "type": "Footer", "label": "Close", "on-click-action": { "name": "navigate", "next": { "type": "screen", "name": "SUCCESS" }, "payload": { "message": "See you soon!" } } }
+        ]
+      }
+    },
+    {
+      "id": "LEVEL_DETAIL",
+      "title": "Level detail",
+      "terminal": false,
+      "data": {
+        "level_title":      { "type": "string", "__example__": "Level 2 · Emerging Practitioner" },
+        "level_progress":   { "type": "string", "__example__": "4/9 courses · 40% complete" },
+        "course_list": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id":    { "type": "string" },
+              "title": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "course_1", "title": "Classroom Management (3/3 ✓)" },
+            { "id": "course_2", "title": "Inclusive Education (4/7)" }
+          ]
+        },
+        "grand_quiz_badge_url": { "type": "string", "__example__": "https://ihzciabopbttygxxgrkm.supabase.co/storage/v1/object/public/training-assets/badges/badge_quiz_locked.png" },
+        "grand_quiz_body":      { "type": "string", "__example__": "Unlocks when all 9 courses are complete" },
+        "grand_quiz_caption":   { "type": "string", "__example__": "62 questions · 100% required · 24h cooldown on fail" },
+        "grand_quiz_cta":       { "type": "string", "__example__": "" }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextHeading",    "text": "${data.level_title}" },
+          { "type": "TextSubheading", "text": "${data.level_progress}" },
+          {
+            "type": "Dropdown",
+            "label": "Pick a course",
+            "name": "course_id",
+            "required": true,
+            "data-source": "${data.course_list}",
+            "on-select-action": { "name": "data_exchange", "payload": { "_action": "open_course", "course_id": "${form.course_id}" } }
+          },
+          { "type": "TextCaption", "text": "Grand Quiz" },
+          { "type": "Image", "src": "${data.grand_quiz_badge_url}", "width": 72, "height": 72, "scale-type": "contain", "alt-text": "Grand quiz badge" },
+          { "type": "TextBody",    "text": "${data.grand_quiz_body}" },
+          { "type": "TextCaption", "text": "${data.grand_quiz_caption}" },
+          { "type": "EmbeddedLink",
+            "text": "${data.grand_quiz_cta}",
+            "on-click-action": { "name": "data_exchange", "payload": { "_action": "start_grand_quiz" } }
+          },
+          { "type": "Footer", "label": "Back to home", "on-click-action": { "name": "data_exchange", "payload": { "_action": "back_home" } } }
+        ]
+      }
+    },
+    {
+      "id": "SUCCESS",
+      "title": "Done",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "message": { "type": "string", "__example__": "See you soon!" }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextHeading", "text": "${data.message}" },
+          { "type": "Footer", "label": "Close", "on-click-action": { "name": "complete", "payload": {} } }
+        ]
+      }
+    }
+  ]
+}

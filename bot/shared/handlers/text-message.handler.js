@@ -43,24 +43,62 @@ const {
 const supabase = require('../config/supabase');
 const fs = require('fs');
 
+// Subject aliases: parseSubjectAndGrade returns coarse buckets like 'math' / 'social_studies',
+// but textbook_toc.subject uses the concrete subject slugs. Map on the way in.
+const PARSED_SUBJECT_TO_TOC = {
+  math: 'maths',
+  english: 'english',
+  urdu: 'urdu',
+  science: 'science',
+  social_studies: 'social_studies',
+  islamiat: 'islamiat',
+};
+
+function normalizeGrade(raw) {
+  if (raw === undefined || raw === null || raw === '') return undefined;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 /**
  * Curriculum pre-gen intercept. If the teacher's region enables curriculum LPs
  * (region_features.curriculum_lp_enabled) and the topic maps to a pre-generated
- * chapter LP, serve it and return true. Returns false (no-op) for regions
- * without curriculum LPs — the caller then falls through to the standard Gamma
- * flow. region_features defaults curriculum_lp_enabled=false, so this is inert
- * for a default deployment.
+ * chapter LP, serve it and return true. Returns false (no-op) if the region
+ * gate is off OR grade/subject cannot be resolved — the caller then falls
+ * through to the standard Gamma flow.
+ *
+ * Grade/subject resolution order:
+ *   1. Extracted from the current message via parseSubjectAndGrade
+ *      ("grade 1 english time to recall" → {grade:1, subject:'english'})
+ *   2. Bridge columns on the users row (`user.grade` / `user.subject`)
+ * TODO(Track-01a): replace the user.grade/user.subject bridge with a join
+ *   against the `user_classes` table when that lands. See
+ *   docs/migration/01a-teacher-class-profile.md.
  */
 async function tryCurriculumLessonPlanServe(from, topic, user, language) {
   try {
     const features = await RegionFeaturesService.getRegionFeatures(getUserRegion(user));
     if (!features.curriculum_lp_enabled || !features.curriculum_key) return false;
-    const grade = parseInt(user && user.grade, 10) || (user && user.grade) || undefined;
+
+    const parsed = parseSubjectAndGrade(topic || '');
+    const grade =
+      normalizeGrade(parsed.grade) ??
+      normalizeGrade(user && user.grade);
+    const parsedSubject = parsed.subject ? (PARSED_SUBJECT_TO_TOC[parsed.subject] || parsed.subject) : null;
+    const subject =
+      parsedSubject ||
+      ((user && user.subject) ? String(user.subject).toLowerCase() : null);
+
+    if (grade === undefined || !subject) {
+      logToFile('Curriculum LP intercept skipped — no grade/subject', { grade, subject, topic });
+      return false;
+    }
+
     const result = await handleCurriculumLessonPlan({
       userId: from,
       topic,
       grade,
-      subject: user && user.subject,
+      subject,
       curriculum: features.curriculum_key,
       language,
     });
@@ -479,6 +517,50 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     } catch (error) {
       logToFile('⚠️ Error checking quiz topic state', { userId: user?.id, error: error.message });
     }
+  }
+
+  // ============================================================
+  // TRAINING COMMAND: /training — open the Teacher Training Flow.
+  // Renders 4 level cards with per-teacher progress + PNG badges (from R2).
+  // Flow ID from env; if empty, we send a plain-text fallback so the command
+  // never disappears (the Flow must be published to Meta separately).
+  // ============================================================
+  if (trimmedMessage === '/training' || trimmedMessage === '/trainings') {
+    logToFile('🎓 /training command detected', { userId: user?.id, phoneNumber: from });
+    if (!user) {
+      typingController.stop();
+      await WhatsAppService.sendMessage(
+        from,
+        'Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔'
+      );
+      return;
+    }
+    const TEACHER_TRAINING_FLOW_ID = process.env.TEACHER_TRAINING_FLOW_ID || '';
+    if (TEACHER_TRAINING_FLOW_ID) {
+      typingController.stop();
+      const flowToken = `${user.id}:teacher-training:${Date.now()}`;
+      const responseLanguage = await getUserLanguage(from) || 'en';
+      await WhatsAppService.sendFlow(from, {
+        flowId: TEACHER_TRAINING_FLOW_ID,
+        header: '🎓 Teacher Training',
+        body: ({
+          ur: 'اپنی تربیت کی پیش رفت دیکھیں اور اگلا سبق شروع کریں۔',
+        })[responseLanguage] || 'View your training progress and start your next level.',
+        buttonText: ({
+          ur: 'کھولیں',
+        })[responseLanguage] || 'Open',
+        flowToken,
+      });
+      logToFile('🎓 Sent teacher-training flow (/training)', { userId: user.id });
+      return;
+    }
+    // Fallback when the Flow has not been published to Meta yet.
+    typingController.stop();
+    await WhatsAppService.sendMessage(
+      from,
+      "Teacher Training is being prepared for you. We'll notify you when it's live.\n\nاستاد کی تربیت آپ کے لیے تیار کی جا رہی ہے۔"
+    );
+    return;
   }
 
   // ============================================================
@@ -2360,4 +2442,5 @@ module.exports = {
   handleTextMessage,
   parseStyleFromButtonId,
   evaluateHomeworkTrigger, // exported for trigger unit tests
+  tryCurriculumLessonPlanServe, // exported for intercept unit tests
 };
