@@ -108,14 +108,14 @@ async function buildTrainingHome(userId) {
     const slot = i + 1;
     const lvl = catalog[i];
     if (!lvl) {
-      data[`level_${slot}_badge_url`] = badgeUrl('badge_level_locked');
+      if (slot < 4) data[`level_${slot}_badge_url`] = badgeUrl('badge_level_locked');
       data[`level_${slot}_title`]     = `Level ${slot}`;
       data[`level_${slot}_progress`]  = 'Not part of your program';
       data[`level_${slot}_state`]     = 'locked';
       data[`level_${slot}_cta`]       = '';
       continue;
     }
-    data[`level_${slot}_badge_url`] = badgeUrl(levelBadgeName(lvl));
+    if (slot < 4) data[`level_${slot}_badge_url`] = badgeUrl(levelBadgeName(lvl));
     data[`level_${slot}_title`]     = `Level ${lvl.order_index} · ${lvl.name}`;
     data[`level_${slot}_progress`]  = levelProgressLine(lvl);
     data[`level_${slot}_state`]     = lvl.state;
@@ -140,10 +140,8 @@ async function buildLevelDetail(userId, levelOrder) {
       level_title:    `Level ${lvl.order_index} · ${lvl.name}`,
       level_progress: `${lvl.courses_completed}/${lvl.courses_total} courses · ${lvl.pct_complete}% complete`,
       course_list:    courses.map(c => ({
-        id:        String(c.id),
-        title:     c.title,
-        progress:  courseProgressLabel(c),
-        badge_url: badgeUrl(courseBadgeName(c)),
+        id:    String(c.id),
+        title: `${c.title} — ${courseProgressLabel(c)}`,
       })),
       grand_quiz_badge_url: badgeUrl(grandQuiz.badge),
       grand_quiz_body:      grandQuiz.body,
