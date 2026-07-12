@@ -79,7 +79,13 @@ class ReportGeneratorService {
       }
 
       const from = payload.from || session.users.phone_number;
-      const teacherName = `${session.users.first_name} ${session.users.last_name}`.trim();
+      // Filter Boolean protects against a null last_name concatenating literally
+      // as "First null" and against both names being null (renders as empty
+      // string that hero-report.service.js maps to 'Teacher' fallback).
+      const teacherName = [session.users.first_name, session.users.last_name]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
       const isRetry = payload.attempt && payload.attempt > 1;
 
       // Guardrail: report generation should never run before analysis is available.
@@ -158,8 +164,47 @@ class ReportGeneratorService {
           .eq('id', coachingSessionId);
       }
 
+      // Pre-compute the commitment-card content BEFORE the hero PNG renders,
+      // so the hero's "one thing to try next class" callout can display the
+      // SAME lesson-rooted action the standalone commitment card will show.
+      // Phase 3 below reuses this result (never generates twice — one LLM call
+      // per session). If pre-computation fails, hero renders without tryNext
+      // (graceful degradation), and Phase 3 will still attempt its own generation.
+      //
+      // Language must MATCH the hero card's language (transcript-derived), not the
+      // teacher's preferred_language, otherwise a card rendered in Urdu can carry
+      // an English tryNext callout — jarringly bilingual. The hero uses
+      // enhancedAnalysis.language || session.transcript_language, so we mirror that.
+      const heroLanguage = enhancedAnalysis.language || session.transcript_language || session.users?.preferred_language || 'en';
+      let precomputedCommitment = null;
+      try {
+        const { generateCommitmentCard } = require('./coaching-card/commitment-card.service');
+        const cardLanguage = heroLanguage;
+        const { data: priorSessionsForCard } = await supabase
+          .from('coaching_sessions')
+          .select('prioritized_action')
+          .eq('user_id', session.user_id)
+          .not('prioritized_action', 'is', null)
+          .neq('id', coachingSessionId)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        const priorActionForCard = priorSessionsForCard?.[0]?.prioritized_action || null;
+        const teacherFirstNameForCard = session.users?.first_name || 'Teacher';
+        precomputedCommitment = await generateCommitmentCard(
+          enhancedAnalysis,
+          session.conversation_state,
+          cardLanguage,
+          { teacherName: teacherFirstNameForCard, priorAction: priorActionForCard }
+        );
+      } catch (e) {
+        logToFile('⚠️  Pre-compute commitment card failed (non-fatal; hero renders without tryNext)', {
+          error: e.message,
+          coachingSessionId,
+        });
+      }
+
       // Generate PDF report via the per-framework transformer + PDFReportService
-      const pdfBuffer = await this.generatePDFReport(session, teacherName, enhancedAnalysis);
+      const pdfBuffer = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment);
 
       // Upload PDF to R2 for portal access
       let reportPdfUrl = null;
@@ -209,25 +254,29 @@ class ReportGeneratorService {
         const cardLanguage = session.users?.preferred_language || session.transcript_language || 'en';
         const cardCopy = getCoachingCardCopy(cardLanguage);
 
-        // Carry forward last session's stored action so the fallback path can
-        // avoid repeating the same focus area twice.
-        const { data: priorSessions } = await supabase
-          .from('coaching_sessions')
-          .select('prioritized_action')
-          .eq('user_id', session.user_id)
-          .not('prioritized_action', 'is', null)
-          .neq('id', coachingSessionId)
-          .order('created_at', { ascending: false })
-          .limit(1);
-        const priorAction = priorSessions?.[0]?.prioritized_action || null;
         const teacherFirstName = session.users?.first_name || 'Teacher';
 
-        const actionData = await generateCommitmentCard(
-          enhancedAnalysis,
-          session.conversation_state,
-          cardLanguage,
-          { teacherName: teacherFirstName, priorAction }
-        );
+        // Reuse the commitment-card content already computed for the hero PNG.
+        // If pre-computation failed (precomputedCommitment is null), do a fresh
+        // generation here so the standalone card message still ships.
+        let actionData = precomputedCommitment;
+        if (!actionData) {
+          const { data: priorSessions } = await supabase
+            .from('coaching_sessions')
+            .select('prioritized_action')
+            .eq('user_id', session.user_id)
+            .not('prioritized_action', 'is', null)
+            .neq('id', coachingSessionId)
+            .order('created_at', { ascending: false })
+            .limit(1);
+          const priorAction = priorSessions?.[0]?.prioritized_action || null;
+          actionData = await generateCommitmentCard(
+            enhancedAnalysis,
+            session.conversation_state,
+            cardLanguage,
+            { teacherName: teacherFirstName, priorAction }
+          );
+        }
 
         if (actionData) {
           // LLM-path content → Playwright/HTML render (the v12 design).
@@ -565,7 +614,7 @@ class ReportGeneratorService {
    * @returns {Promise<Buffer>} PDF buffer
    * @private
    */
-  static async generatePDFReport(session, teacherName, enhancedAnalysis) {
+  static async generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment = null) {
     logToFile('Generating PDF report', { coachingSessionId: session.id });
 
     // Resolve framework and dispatch to correct transformer
@@ -615,8 +664,10 @@ class ReportGeneratorService {
       opts: {
         teacherName,
         language: enhancedAnalysis.language || session.transcript_language || 'en',
-        commitmentAction: '', // commitment-card action is sent separately; the hero
-                              // template tolerates an empty tryNext gracefully.
+        // Passed in from the caller: the pre-computed commitment-card action
+        // (single source of next-step truth). Empty string → hero omits the
+        // tryNext callout gracefully (template guards on truthiness).
+        commitmentAction: (precomputedCommitment && precomputedCommitment.action) || '',
       },
     };
 

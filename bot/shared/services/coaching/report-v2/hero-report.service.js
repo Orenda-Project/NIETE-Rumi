@@ -31,10 +31,11 @@ async function generateHeroReport(session, analysis, opts = {}) {
 
   // Cross-framework journey trend. Non-fatal if it fails: a freshly-cloned bot
   // with no coaching_sessions yet will return [] and the template renders the
-  // hero without the sparkline.
+  // hero without the sparkline. Exclude the current session so if it's already
+  // marked completed by the time this runs, we don't double-count today.
   let trend = [];
   try {
-    const raw = await loadTrendData(session.user_id, { limit: 12, locale: 'en' });
+    const raw = await loadTrendData(session.user_id, { limit: 12, locale: 'en', excludeSessionId: session.id });
     trend = raw
       .map((t) => ({ date: String(t.date || '').slice(0, 10), pct: Math.round(parseFloat(t.pct || 0)) }))
       .filter((t) => t.pct > 0);
