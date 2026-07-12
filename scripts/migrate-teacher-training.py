@@ -272,7 +272,15 @@ def step6_questions(cur, quiz_map: dict[int, int], module_map: dict[int, int]) -
                 return False, f"correct_out_of_range:{ai}/{len(opts)}"
         return True, ""
 
-    payload = []
+    # Group valid questions by target grand_quiz_id first so we can synthesize a
+    # unique order_index within each quiz. Source data has `index=1` on every row
+    # (Taleemabad never sequenced questions per-quiz) — importing that verbatim
+    # gave every question in a quiz the same order_index and made `.order(order_index)
+    # .range(N,N)` return the same tied row over and over during quiz delivery.
+    # Fix: synthesize 1..N per grand_quiz_id, sorted by source id (stable, matches
+    # creation order).
+    valid_by_quiz: dict[int, list[dict]] = {}
+    valid_module_only = []
     skipped = []
     for r in rows:
         gq_id = quiz_map.get(r["grand_quiz_id"]) if r["grand_quiz_id"] else None
@@ -284,7 +292,7 @@ def step6_questions(cur, quiz_map: dict[int, int], module_map: dict[int, int]) -
             skipped.append({"source_id": r["id"], "reason": reason})
             continue
         correct = ",".join(str(a) for a in (r["answers"] or []))
-        payload.append({
+        record = {
             "grand_quiz_id": gq_id,
             "training_module_id": mod_id,
             "source_question_id": r["id"],
@@ -292,9 +300,21 @@ def step6_questions(cur, quiz_map: dict[int, int], module_map: dict[int, int]) -
             "options": r["options"],
             "correct_option": correct,
             "bloom_level": r["bloom_level"],
-            "order_index": r["index"],
             "is_active": True,
-        })
+        }
+        if gq_id:
+            valid_by_quiz.setdefault(gq_id, []).append(record)
+        else:
+            record["order_index"] = r["index"] or 1  # module-only questions keep source order
+            valid_module_only.append(record)
+
+    payload = []
+    for gq_id, items in valid_by_quiz.items():
+        items.sort(key=lambda x: x["source_question_id"])
+        for idx, rec in enumerate(items, start=1):
+            rec["order_index"] = idx
+            payload.append(rec)
+    payload.extend(valid_module_only)
 
     existing = {r["source_question_id"] for r in rest_get("training_questions?select=source_question_id&limit=100000")
                 if r["source_question_id"]}

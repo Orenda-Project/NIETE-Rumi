@@ -168,7 +168,8 @@ async function sendQuestion(attemptId, phoneNumber) {
     return await gradeAttempt(attemptId, phoneNumber);
   }
 
-  // Load the question at this index (order_index is 1-based per DB inspection)
+  // Load the question at this index (order_index is synthesised 1..N per grand quiz
+  // during migration — see scripts/migrate-teacher-training.py step 6).
   const { data: questions } = await supabase
     .from('training_questions')
     .select('id, question_text, options, correct_option, order_index')
