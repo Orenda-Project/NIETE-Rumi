@@ -23,6 +23,28 @@
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 
+// Extract significant tokens from a chapter title — words of length ≥3,
+// lowercased, alphanumeric only, excluding pure-numeric tokens (so "0-9"
+// range markers don't demand a "0" or "9" in the teacher's topic).
+//
+// "Number Buddies 0-9"          → ["number", "buddies"]
+// "Numbers upto 9 (Concrete)"   → ["numbers", "upto", "concrete"]
+// "Extended Hour: Number Sense" → ["extended", "hour", "number", "sense"]
+function chapterTokens(chapterTitle) {
+  return String(chapterTitle || '')
+    .toLowerCase()
+    .replace(/[-]/g, ' ')
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3 && !/^\d+$/.test(w));
+}
+
+// True iff every token appears as a case-insensitive substring in the topic.
+// Handles LP-request wrappers ("lesson plan for X", "give me X", "X please").
+function topicHasAllTokens(normalizedTopic, tokens) {
+  if (!tokens.length) return false;
+  return tokens.every((tok) => normalizedTopic.includes(tok));
+}
+
 class CurriculumLpAstService {
   /**
    * Find LPs for a given chapter.
@@ -85,66 +107,64 @@ class CurriculumLpAstService {
     if (!topic) return null;
     const normalizedTopic = String(topic).toLowerCase().trim();
 
-    let baseQuery = supabase.from('curriculum_lp_ast').select('*').eq('is_enabled', true);
-    if (grade !== undefined && grade !== null) baseQuery = baseQuery.eq('grade', grade);
-    if (subject) baseQuery = baseQuery.eq('subject', subject);
-    if (curriculum_key) baseQuery = baseQuery.eq('curriculum_key', curriculum_key);
-
-    // Step 1: fast ILIKE hit on chapter_title. Stable order — chapter first,
-    // then lp_index — so the same topic string always resolves to the same LP
-    // row across calls (essential for R2 caching to hit).
-    const { data: exactHits, error: exactError } = await baseQuery
-      .ilike('chapter_title', `%${normalizedTopic}%`)
+    // Fetch candidates at (grade, subject) scope. ~12 LPs per chapter ×
+    // ~5 chapters per grade+subject ≈ 60 rows — trivial to filter in JS.
+    // Stable order — chapter first, then lp_index — so the same topic
+    // resolves to the same LP row (essential for R2 caching to hit).
+    let q = supabase
+      .from('curriculum_lp_ast')
+      .select('*')
+      .eq('is_enabled', true)
       .order('chapter_number', { ascending: true })
-      .order('lp_index', { ascending: true })
-      .limit(20);
-    if (exactError) {
-      logToFile('CurriculumLpAstService.findByTopic step1 error', { error: exactError.message });
+      .order('lp_index', { ascending: true });
+    if (grade !== undefined && grade !== null) q = q.eq('grade', grade);
+    if (subject) q = q.eq('subject', subject);
+    if (curriculum_key) q = q.eq('curriculum_key', curriculum_key);
+
+    const { data: candidates, error } = await q;
+    if (error) {
+      logToFile('CurriculumLpAstService.findByTopic error', { error: error.message });
       return null;
     }
-    if (exactHits && exactHits.length > 0) {
-      // Bucket by chapter, prefer non-orientation LP within each chapter, then
-      // return the LP for the lowest chapter_number — deterministic.
-      const byChapter = new Map();
-      for (const row of exactHits) {
-        const key = row.chapter_number;
-        const existing = byChapter.get(key);
-        if (!existing) { byChapter.set(key, row); continue; }
-        const isOrientation = (lp) => /^types of|introductory lp/i.test(lp.topic || '');
-        if (isOrientation(existing) && !isOrientation(row)) byChapter.set(key, row);
-      }
-      const sortedChapters = [...byChapter.keys()].sort((a, b) => (a || 999) - (b || 999));
-      return byChapter.get(sortedChapters[0]);
-    }
-
-    // Step 2: fetch candidates + JS bidirectional match on chapter_title
-    let candidatesQuery = supabase.from('curriculum_lp_ast').select('*').eq('is_enabled', true);
-    if (grade !== undefined && grade !== null) candidatesQuery = candidatesQuery.eq('grade', grade);
-    if (subject) candidatesQuery = candidatesQuery.eq('subject', subject);
-    if (curriculum_key) candidatesQuery = candidatesQuery.eq('curriculum_key', curriculum_key);
-    const { data: candidates, error: candError } = await candidatesQuery;
-    if (candError) {
-      logToFile('CurriculumLpAstService.findByTopic step2 error', { error: candError.message });
+    if (!candidates || candidates.length === 0) {
+      logToFile('CurriculumLpAstService.findByTopic no candidates', { grade, subject, curriculum_key });
       return null;
     }
 
-    // Deduplicate by (chapter_number) — pick the best LP per chapter
+    // Significant-word intersection: chapter_title's meaningful tokens must
+    // ALL appear (case-insensitive substring) in the topic. Handles
+    // natural-language LP-request wrappers like "lesson plan for X",
+    // "give me a lesson plan on X", "X lesson plan please".
+    const isOrientation = (lp) => /^types of|introductory lp/i.test(lp.topic || '');
     const chapterMatches = new Map();
-    for (const row of candidates || []) {
-      const title = (row.chapter_title || '').toLowerCase().trim();
-      if (!title) continue;
-      if (!normalizedTopic.includes(title) && !title.includes(normalizedTopic)) continue;
+    for (const row of candidates) {
+      const tokens = chapterTokens(row.chapter_title);
+      if (!topicHasAllTokens(normalizedTopic, tokens)) continue;
       const existing = chapterMatches.get(row.chapter_number);
       if (!existing) { chapterMatches.set(row.chapter_number, row); continue; }
-      // Prefer non-orientation LP over orientation LP within the same chapter
-      const isOrientation = (lp) => /^types of|introductory lp/i.test(lp.topic || '');
+      // Prefer non-orientation LP within the same chapter
       if (isOrientation(existing) && !isOrientation(row)) chapterMatches.set(row.chapter_number, row);
     }
-    const results = [...chapterMatches.values()];
-    if (results.length === 0) return null;
-    // If topic-matched multiple chapters, prefer lowest chapter_number
-    results.sort((a, b) => (a.chapter_number || 999) - (b.chapter_number || 999));
-    return results[0];
+
+    if (chapterMatches.size === 0) {
+      logToFile('CurriculumLpAstService.findByTopic no chapter match', {
+        topic: normalizedTopic,
+        grade, subject, curriculum_key,
+        candidate_count: candidates.length,
+      });
+      return null;
+    }
+
+    // If multiple chapters matched, prefer lowest chapter_number (deterministic).
+    const sortedChapters = [...chapterMatches.keys()].sort((a, b) => (a || 999) - (b || 999));
+    const winner = chapterMatches.get(sortedChapters[0]);
+    logToFile('CurriculumLpAstService.findByTopic matched', {
+      chapter_number: winner.chapter_number,
+      chapter_title: winner.chapter_title,
+      lp_index: winner.lp_index,
+      source_lp_uuid: winner.source_lp_uuid,
+    });
+    return winner;
   }
 
   static async findByUuid(source_lp_uuid) {
