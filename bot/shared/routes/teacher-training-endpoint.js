@@ -61,9 +61,26 @@ async function handleTeacherTrainingDataExchange(userId, screen, screenData /*, 
       });
     }
     if (action === 'start_grand_quiz') {
+      // WhatsApp Flow's on-click-action.payload doesn't interpolate ${data.*} —
+      // only literals and ${form.*} — so LEVEL_DETAIL can't pass level_order back
+      // through the button. Infer it from server state instead: only ONE level
+      // can be in 'ready_for_quiz' at a time (the gate logic ensures higher levels
+      // stay 'locked' until the previous one is passed), so lookup is unambiguous.
+      let levelOrder = screenData._level_order;
+      if (!levelOrder) {
+        const catalog = await loadVisibleLevelsWithProgress(userId);
+        const readyLevels = (catalog || []).filter(l => l.state === 'ready_for_quiz');
+        if (readyLevels.length === 1) {
+          levelOrder = readyLevels[0].order_index + 1;
+          logToFile('🎓 Inferred levelOrder from ready state', { userId, levelOrder });
+        } else {
+          logToFile('❌ Cannot infer levelOrder for start_grand_quiz', { userId, readyCount: readyLevels.length });
+          return errorScreen('Please open the level again and tap Take exam.');
+        }
+      }
       return buildSuccessScreen('Starting your exam…', {
         trainingAction: 'start_grand_quiz',
-        levelOrder: screenData._level_order,
+        levelOrder,
       });
     }
     if (action === 'back_home') return buildTrainingHome(userId);
