@@ -177,6 +177,7 @@ ${FRAMEWORK_TRAILER}`;
 // the framework template; content comes from the source arrays.
 
 // GRR framework template with {section_time} placeholders substituted per LP.
+// (Deployed 2026-07-12 as part of the 5E→GRR framework migration.)
 const GRR_SECTIONS_TEMPLATE = `## 1. OPENING [{opening_time} minutes]
 - Warm greeting + hook that activates prior knowledge
 - Learning-objective preview shared with students
