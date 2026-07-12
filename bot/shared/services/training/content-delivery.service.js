@@ -73,22 +73,39 @@ async function deliverNextModule(userId, courseId, phoneNumber) {
     await WhatsAppService.sendMessage(phoneNumber, `${courseTitle} has no active modules yet — please check back soon.`);
     return true;
   }
+
+  // "Review mode": if every module in this course is already done (which is
+  // the case for any course inside a certified level after the pass-based
+  // progress backfill), deliver the FIRST module of the course as a
+  // re-watch instead of the "you're done" text — that's what teachers
+  // actually want when they open a completed course.
+  let m;
+  let reviewMode = false;
+  let positionLabel;
   if (!state.module) {
-    // All modules complete
-    logToFile('🎓 Course complete', { userId, courseId: courseIdNum, courseTitle });
-    await WhatsAppService.sendMessage(
-      phoneNumber,
-      `🎉 You've completed *${courseTitle}* — all ${state.totalCount} modules done.\n\n` +
-      `Send /training to pick your next course or check your progress.`
-    );
-    return true;
+    const { data: firstMod } = await supabase
+      .from('training_modules')
+      .select('id, course_id, title, video_url, audio_url, order_index')
+      .eq('course_id', courseIdNum)
+      .eq('is_active', true)
+      .order('order_index', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (!firstMod) {
+      await WhatsAppService.sendMessage(phoneNumber, `${courseTitle} has no active modules yet — please check back soon.`);
+      return true;
+    }
+    m = firstMod;
+    reviewMode = true;
+    positionLabel = `Review · 1 of ${state.totalCount}`;
+  } else {
+    m = state.module;
+    positionLabel = state.positionLabel;
   }
 
-  const m = state.module;
-  const caption =
-    `📘 *${courseTitle}* — Module ${state.positionLabel}\n\n` +
-    `*${m.title}*\n\n` +
-    `Watch the video, then tap ✓ Done to mark it complete and get the next module.`;
+  const caption = reviewMode
+    ? `📘 *${courseTitle}* — ${positionLabel}\n\n*${m.title}*\n\nYou've already completed this course. Watch again to review, then tap ▶ Next video for the next module.`
+    : `📘 *${courseTitle}* — Module ${positionLabel}\n\n*${m.title}*\n\nWatch the video, then tap ✓ Done to mark it complete and get the next module.`;
 
   logToFile('🎓 Delivering training module', { userId, courseId: courseIdNum, moduleId: m.id, moduleTitle: m.title, videoUrl: m.video_url });
 
@@ -141,7 +158,7 @@ async function handleModuleDone(userId, moduleId, phoneNumber) {
 
   const { data: mod } = await supabase
     .from('training_modules')
-    .select('id, course_id, title')
+    .select('id, course_id, title, order_index')
     .eq('id', moduleIdNum)
     .single();
   if (!mod) {
@@ -162,9 +179,82 @@ async function handleModuleDone(userId, moduleId, phoneNumber) {
   }
 
   logToFile('🎓 Module marked done', { userId, moduleId: moduleIdNum, courseId: mod.course_id, title: mod.title });
-  await WhatsAppService.sendMessage(phoneNumber, `✅ *${mod.title}* — marked done. Loading next module…`);
 
+  // If the teacher is REVIEWING an already-fully-complete course (all modules
+  // had progress rows before this tap), advance to the next module by
+  // order_index instead of falling back to `deliverNextModule` which would
+  // loop back to the first module. When we hit the end, tell them politely.
+  const { data: allMods } = await supabase
+    .from('training_modules')
+    .select('id, order_index')
+    .eq('course_id', mod.course_id)
+    .eq('is_active', true)
+    .order('order_index', { ascending: true });
+  const { data: progressRows } = await supabase
+    .from('teacher_training_progress')
+    .select('module_id')
+    .eq('user_id', userId)
+    .in('module_id', (allMods || []).map(m => m.id));
+  const doneIds = new Set((progressRows || []).map(p => p.module_id));
+  const allDone = (allMods || []).every(m => doneIds.has(m.id));
+
+  if (allDone) {
+    // Review mode: pick the module with order_index strictly greater than
+    // the one we just watched. If none, we've reached the end.
+    const next = (allMods || []).find(m => m.order_index > mod.order_index);
+    if (!next) {
+      await WhatsAppService.sendMessage(
+        phoneNumber,
+        `📘 You've reviewed the whole course. Send /training to pick a different course or check your next level.`
+      );
+      return true;
+    }
+    // Deliver the next module (bypass "find uncompleted" logic — just send it).
+    return await deliverModuleById(next.id, phoneNumber, { reviewMode: true, courseId: mod.course_id });
+  }
+
+  // Normal path — advance through uncompleted modules.
+  await WhatsAppService.sendMessage(phoneNumber, `✅ *${mod.title}* — marked done. Loading next module…`);
   return await deliverNextModule(userId, mod.course_id, phoneNumber);
+}
+
+/**
+ * Send a specific module by id (used by review mode to advance without
+ * re-triggering the "find next uncompleted" heuristic).
+ */
+async function deliverModuleById(moduleId, phoneNumber, { reviewMode, courseId }) {
+  const { data: m } = await supabase
+    .from('training_modules')
+    .select('id, course_id, title, video_url, order_index')
+    .eq('id', moduleId)
+    .single();
+  if (!m) return false;
+  const { data: course } = await supabase.from('training_courses').select('title').eq('id', courseId).maybeSingle();
+  const { count: totalCount } = await supabase.from('training_modules').select('id', { count: 'exact', head: true }).eq('course_id', courseId).eq('is_active', true);
+  const courseTitle = course?.title || `Course #${courseId}`;
+  const label = reviewMode ? `Review · ${m.order_index + 1} of ${totalCount}` : `${m.order_index + 1} of ${totalCount}`;
+  const caption = `📘 *${courseTitle}* — ${label}\n\n*${m.title}*\n\n` +
+    (reviewMode ? 'Watch and tap ▶ Next video to continue reviewing.' : 'Watch and tap ✓ Done for the next module.');
+  if (m.video_url) {
+    try {
+      const signed = await getPresignedUrl(m.video_url, 3600);
+      const ok = await WhatsAppService.sendVideoByLink(phoneNumber, signed, caption);
+      if (!ok) await WhatsAppService.sendVideoFromUrl(phoneNumber, m.video_url, caption);
+    } catch (err) {
+      logToFile('⚠️ deliverModuleById video send failed', { moduleId, error: err.message });
+    }
+  } else {
+    await WhatsAppService.sendMessage(phoneNumber, caption + `\n\n(No video for this module yet.)`);
+  }
+  await new Promise(resolve => setTimeout(resolve, 6000));
+  await WhatsAppService.sendInteractiveButtons(phoneNumber, {
+    body: `Finished watching "${m.title}"?`,
+    buttons: [
+      { id: `training_module_done_${m.id}`, title: '▶ Next video' },
+      { id: `training_pause`, title: '⏸ Pause' },
+    ],
+  });
+  return true;
 }
 
 module.exports = { deliverNextModule, handleModuleDone };
