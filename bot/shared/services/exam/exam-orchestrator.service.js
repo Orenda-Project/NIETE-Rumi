@@ -19,10 +19,18 @@ const WhatsAppService = require('../whatsapp.service');
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 
+// exam.grade is stored as the pre-formatted "Grade Five" / "Grade Prep" string,
+// so any user-facing message that adds its own "Grade " / "گریڈ " prefix produces
+// the double-prefix bug seen on 2026-07-12 ("Grade Grade Five ..."). Strip the
+// leading token here so both the filename builder and these chat messages behave.
+function stripGradePrefix(grade) {
+  return String(grade || '').replace(/^grade\s*/i, '').replace(/^گریڈ\s*/, '');
+}
+
 const FRIENDLY_MESSAGES = {
   en: {
     starting: (grade, subject, type, chapters) =>
-      `Making your Grade ${grade} ${subject} ${type.toLowerCase()} test on ` +
+      `Making your Grade ${stripGradePrefix(grade)} ${subject} ${type.toLowerCase()} test on ` +
       `${chapters.length === 1 ? `Chapter ${chapters[0]}` : `Chapters ${chapters.join(', ')}`}. ~30 sec…`,
     ready: 'Your exam is ready 👇',
     insufficient: (bucket) =>
@@ -35,7 +43,7 @@ const FRIENDLY_MESSAGES = {
   },
   ur: {
     starting: (grade, subject, type, chapters) =>
-      `آپ کا گریڈ ${grade} ${subject} ${type === 'WEEKLY' ? 'ہفتہ وار' : 'ٹرم'} امتحان تیار ہو رہا ہے ` +
+      `آپ کا گریڈ ${stripGradePrefix(grade)} ${subject} ${type === 'WEEKLY' ? 'ہفتہ وار' : 'ٹرم'} امتحان تیار ہو رہا ہے ` +
       `(${chapters.length === 1 ? `چیپٹر ${chapters[0]}` : `چیپٹرز ${chapters.join('، ')}`}). ~30 سیکنڈ…`,
     ready: 'آپ کا امتحان تیار ہے 👇',
     insufficient: (bucket) =>
