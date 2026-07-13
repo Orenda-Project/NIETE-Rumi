@@ -109,23 +109,23 @@ async function deliverNextModule(userId, courseId, phoneNumber) {
 
   logToFile('🎓 Delivering training module', { userId, courseId: courseIdNum, moduleId: m.id, moduleTitle: m.title, videoUrl: m.video_url });
 
-  // Send the video via presigned URL + link mode — Meta fetches the URL
-  // directly from R2 and caches. Falls back to download+reupload if the
-  // link path errors (some Meta accounts don't support external URLs).
+  // Send the video via presigned URL — as a DOCUMENT (mp4). WhatsApp's video
+  // media type caps at 16 MB (async 131053 "Media downloaded from the provided
+  // url exceeds maximum allowed size" if larger), and most training videos
+  // exceed that. Documents allow 100 MB via link mode and render as inline
+  // tappable file cards on iOS/Android — teachers play in-chat.
   if (m.video_url) {
     let ok = false;
     try {
       const signed = await getPresignedUrl(m.video_url, 3600); // 1h TTL is plenty
-      logToFile('🎓 Sending training video via link', { moduleId: m.id, urlPrefix: signed.slice(0, 80) });
-      ok = await WhatsAppService.sendVideoByLink(phoneNumber, signed, caption);
+      const filename = `${m.title.replace(/[^\w\s\-؀-ۿ]/g, '').slice(0, 60)}.mp4`;
+      logToFile('🎓 Sending training video as document', { moduleId: m.id, filename, urlPrefix: signed.slice(0, 80) });
+      ok = await WhatsAppService.sendDocumentByLink(phoneNumber, signed, filename, caption);
     } catch (err) {
-      logToFile('⚠️ Presign or link-send failed, falling back to download+upload', { moduleId: m.id, error: err.message });
+      logToFile('⚠️ Presign or document-send failed', { moduleId: m.id, error: err.message });
     }
     if (!ok) {
-      ok = await WhatsAppService.sendVideoFromUrl(phoneNumber, m.video_url, caption);
-    }
-    if (!ok) {
-      logToFile('❌ Both video delivery paths failed', { moduleId: m.id });
+      logToFile('❌ Document delivery failed', { moduleId: m.id });
       await WhatsAppService.sendMessage(phoneNumber, caption + `\n\n(Video could not be delivered — please contact NIETE support.)`);
     }
   } else {
@@ -263,10 +263,16 @@ async function deliverModuleById(moduleId, phoneNumber, opts = {}) {
   if (m.video_url) {
     try {
       const signed = await getPresignedUrl(m.video_url, 3600);
-      const ok = await WhatsAppService.sendVideoByLink(phoneNumber, signed, caption);
-      if (!ok) await WhatsAppService.sendVideoFromUrl(phoneNumber, m.video_url, caption);
+      // See deliverNextModule for why we send as document, not video
+      const filename = `${m.title.replace(/[^\w\s\-؀-ۿ]/g, '').slice(0, 60)}.mp4`;
+      logToFile('🎓 deliverModuleById sending as document', { moduleId, filename });
+      const ok = await WhatsAppService.sendDocumentByLink(phoneNumber, signed, filename, caption);
+      if (!ok) {
+        logToFile('❌ deliverModuleById document delivery failed', { moduleId });
+        await WhatsAppService.sendMessage(phoneNumber, caption + `\n\n(Video could not be delivered — please contact NIETE support.)`);
+      }
     } catch (err) {
-      logToFile('⚠️ deliverModuleById video send failed', { moduleId, error: err.message });
+      logToFile('⚠️ deliverModuleById presign/send failed', { moduleId, error: err.message });
     }
   } else {
     logToFile('⚠️ Module has no video_url — sending "no video available" text (deliverModuleById)', { moduleId: m.id, courseId });

@@ -446,6 +446,62 @@ class WhatsAppService {
   }
 
   /**
+   * Send an OGG-Opus voicenote so WhatsApp renders it as a **voice message**
+   * (inline waveform + play button), not a generic audio file card. Requires
+   * OGG-Opus specifically; MP3 uploaded via sendAudio renders as "audio.mp3"
+   * with a file badge instead of the voicenote bubble.
+   *
+   * Accepts either a full R2 URL or a bare R2 key — extractKeyFromUrl
+   * normalises both. See `voicenote_ogg_r2_key` on curriculum_lp_ast.
+   *
+   * @param {string} to     - Recipient phone number
+   * @param {string} r2KeyOrUrl - Bare R2 key or full R2 URL for the .ogg
+   * @returns {Promise<boolean>}
+   */
+  static async sendVoicenoteFromR2Key(to, r2KeyOrUrl) {
+    const path = require('path');
+    const tempDir = path.join(__dirname, '../../temp');
+
+    try {
+      const key = extractKeyFromUrl(r2KeyOrUrl);
+      const oggBuffer = await downloadFromR2(key);
+
+      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+      const voicePath = path.join(tempDir, `voice_${Date.now()}.ogg`);
+      fs.writeFileSync(voicePath, oggBuffer);
+
+      const formData = new FormData();
+      formData.append('file', fs.createReadStream(voicePath), {
+        contentType: 'audio/ogg', filename: 'voice.ogg',
+      });
+      formData.append('messaging_product', 'whatsapp');
+
+      const uploadResponse = await axios.post(
+        `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/media`,
+        formData,
+        { headers: { 'Authorization': `Bearer ${WHATSAPP_TOKEN}`, ...formData.getHeaders() } }
+      );
+      const mediaId = uploadResponse.data.id;
+
+      await axios.post(
+        `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/messages`,
+        { messaging_product: 'whatsapp', to, type: 'audio', audio: { id: mediaId } },
+        { headers: { 'Authorization': `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } }
+      );
+
+      try { fs.unlinkSync(voicePath); } catch (_) { /* best-effort */ }
+      logToFile('Voicenote (OGG) sent successfully', { key, size: oggBuffer.length });
+      return true;
+    } catch (error) {
+      logToFile('❌ Error sending voicenote from R2 key', {
+        error: error.message, r2KeyOrUrl,
+        errorDetails: error.response?.data,
+      });
+      return false;
+    }
+  }
+
+  /**
    * Send an image from a (typically R2) URL via WhatsApp.
    * R2 URLs are private — WhatsApp can't fetch them directly (see the R2 note
    * in sendImageWithButtons) — so we download the bytes and hand the temp file
@@ -691,6 +747,46 @@ class WhatsAppService {
       logToFile('❌ sendVideoByLink failed', {
         to,
         urlPrefix: videoLinkUrl.slice(0, 80),
+        error: error.message,
+        response: error.response?.data,
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Send a file as a WhatsApp DOCUMENT by URL (link mode). Use this when the
+   * asset is larger than WhatsApp's per-media-type inline limits (video 16 MB,
+   * image 5 MB, audio 16 MB). Documents allow up to 100 MB via link mode.
+   *
+   * On mobile clients (iOS/Android), mp4 documents render as tappable file
+   * cards with inline preview — teachers can play directly in-chat.
+   */
+  static async sendDocumentByLink(to, documentLinkUrl, filename, caption = '') {
+    try {
+      const messagePayload = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to,
+        type: 'document',
+        document: {
+          link: documentLinkUrl,
+          filename: filename || 'file',
+          ...(caption ? { caption } : {}),
+        },
+      };
+      const resp = await axios.post(
+        `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/messages`,
+        messagePayload,
+        { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } }
+      );
+      logToFile('✅ Sent document by link', { to, filename, urlPrefix: documentLinkUrl.slice(0, 80), messageId: resp.data?.messages?.[0]?.id });
+      return true;
+    } catch (error) {
+      logToFile('❌ sendDocumentByLink failed', {
+        to,
+        filename,
+        urlPrefix: documentLinkUrl.slice(0, 80),
         error: error.message,
         response: error.response?.data,
       });
