@@ -47,18 +47,21 @@ function transformFICOToReportData(session, teacherName, analysis) {
       score: domain.domain_score || 0,
       maxScore: domain.domain_max || 0,
       criteria: (domain.indicators || []).map(ind => {
-        let evidence = ind.evidence || 'No evidence provided';
-
-        // Append photo evidence for photo-aware indicators
-        if (hasPhotoAnalysis && PHOTO_AWARE_INDICATORS.includes(ind.id)) {
-          evidence = `${evidence} | Photo evidence: ${analysis.photo_analysis}`;
-        }
+        // Photo evidence for photo-aware indicators travels as a distinct
+        // field so the renderer can style it as its own callout, not smash
+        // it inline with the transcript evidence.
+        const photoEvidence = (hasPhotoAnalysis && PHOTO_AWARE_INDICATORS.includes(ind.id))
+          ? analysis.photo_analysis
+          : null;
 
         return {
-          name: ind.name,
+          // Prepend the FICO indicator ID so trainers can cross-reference
+          // the printed rubric ("1.1 Lesson Goal Clarity", "3.2 Routines…").
+          name: ind.id ? `${ind.id} ${ind.name}` : ind.name,
           score: ind.score || 0,
           max: SCALE_MAX,
-          evidence,
+          evidence: ind.evidence || 'No evidence provided',
+          photoEvidence,
           timestamp: ind.timestamp || null,
         };
       }),
@@ -89,6 +92,40 @@ function transformFICOToReportData(session, teacherName, analysis) {
     feedback: analysis.executive_summary || 'Analysis complete.',
     isPartialReport: session._isPartialReport || false,
     partialReportNote: buildPartialNote(session),
+
+    // Renderer config — the framework-specific chrome that used to live in
+    // pdf-report.service.js branches (the conformance guard forbids that).
+    // Any framework wanting FICO-style institutional presentation just adds
+    // its own analogues; the PDFKit renderer reads whatever's provided and
+    // falls back to generic defaults otherwise.
+    headerLabels: {
+      eyebrow: 'A CELEBRATION OF YOUR TEACHING',
+      title:   'FICO Unified Observation Tool',
+      sub:     'Powered by Rumi · for NIETE',
+    },
+    scaleLegend: {
+      title: 'FICO SCALE',
+      stops: [
+        { n: '1', label: 'Not Observed',     color: 'emerging' },
+        { n: '2', label: 'Emerging',         color: 'developing' },
+        { n: '3', label: 'Effective',        color: 'proficient' },
+        { n: '4', label: 'Highly Effective', color: 'excellent' },
+      ],
+    },
+    // Colour bins are (min-inclusive threshold, colour) pairs, ordered high→low.
+    colorBins: [
+      { threshold: 88, color: 'excellent' },   // 3.5+/4 avg
+      { threshold: 63, color: 'proficient' },  // 2.5+/4 avg
+      { threshold: 38, color: 'developing' },  // 1.5+/4 avg
+      { threshold: 0,  color: 'emerging' },
+    ],
+    // Performance level word for the top-right header badge, same shape.
+    performanceLevels: [
+      { threshold: 88, label: 'Highly Effective', color: 'excellent' },
+      { threshold: 63, label: 'Effective',        color: 'proficient' },
+      { threshold: 38, label: 'Emerging',         color: 'developing' },
+      { threshold: 0,  label: 'Not Observed',     color: 'emerging' },
+    ],
   };
 }
 

@@ -105,14 +105,17 @@ describe('FICO Report Transformer (bd-607)', () => {
     });
   });
 
-  test('SCENARIO: Criteria have name, score, max, evidence, timestamp', () => {
+  test('SCENARIO: Criteria have name (id-prefixed), score, max, evidence, timestamp', () => {
     const reportData = transformFICOToReportData(mockSession, 'Hassan', mockFICOAnalysis);
     const c = reportData.goals[0].criteria[0];
-    expect(c.name).toBe('Lesson Goal Clarity');
+    // The renderer surfaces the FICO indicator ID next to the name so trainers
+    // can cross-reference the printed rubric — the transformer prepends it.
+    expect(c.name).toBe('1.1 Lesson Goal Clarity');
     expect(c.score).toBe(3);
     expect(c.max).toBe(4);
     expect(c.evidence).toBe('Clear goals stated');
     expect(c.timestamp).toBe('0:30');
+    expect(c.photoEvidence).toBeNull();
   });
 
   test('SCENARIO: maxScore is 84 (21 indicators x 4)', () => {
@@ -120,7 +123,7 @@ describe('FICO Report Transformer (bd-607)', () => {
     expect(reportData.maxScore).toBe(84);
   });
 
-  test('SCENARIO: Photo-aware indicator evidence includes photo notes when present', () => {
+  test('SCENARIO: Photo-aware indicator populates photoEvidence when photo_analysis is present', () => {
     const analysisWithPhoto = {
       ...mockFICOAnalysis,
       photo_analysis: 'Classroom well-organized with charts visible on walls',
@@ -128,18 +131,25 @@ describe('FICO Report Transformer (bd-607)', () => {
     const reportData = transformFICOToReportData(mockSession, 'Hassan', analysisWithPhoto);
     // Indicator 3.2 (Routines & Transitions) — photo-aware
     const domain3 = reportData.goals[2];
-    const ind32 = domain3.criteria.find(c => c.name === 'Routines & Transitions');
-    expect(ind32.evidence).toContain('Photo');
+    const ind32 = domain3.criteria.find(c => c.name === '3.2 Routines & Transitions');
+    // Photo evidence travels as a distinct field, not concatenated into
+    // `evidence` — the renderer styles it as its own callout.
+    expect(ind32.photoEvidence).toBe('Classroom well-organized with charts visible on walls');
+    expect(ind32.evidence).not.toContain('Photo');
     // Indicator 4.4 (Use of Materials) — photo-aware
     const domain4 = reportData.goals[3];
-    const ind44 = domain4.criteria.find(c => c.name === 'Use of Materials');
-    expect(ind44.evidence).toContain('Photo');
+    const ind44 = domain4.criteria.find(c => c.name === '4.4 Use of Materials');
+    expect(ind44.photoEvidence).toBe('Classroom well-organized with charts visible on walls');
+    // Non-photo-aware indicator (3.1) leaves photoEvidence null.
+    const ind31 = domain3.criteria.find(c => c.name === '3.1 Behavioral Climate');
+    expect(ind31.photoEvidence).toBeNull();
   });
 
-  test('SCENARIO: Without photo_analysis, no photo note in evidence', () => {
+  test('SCENARIO: Without photo_analysis, photoEvidence is null on all criteria', () => {
     const reportData = transformFICOToReportData(mockSession, 'Hassan', mockFICOAnalysis);
     const domain3 = reportData.goals[2];
-    const ind32 = domain3.criteria.find(c => c.name === 'Routines & Transitions');
+    const ind32 = domain3.criteria.find(c => c.name === '3.2 Routines & Transitions');
+    expect(ind32.photoEvidence).toBeNull();
     expect(ind32.evidence).not.toContain('Photo');
   });
 

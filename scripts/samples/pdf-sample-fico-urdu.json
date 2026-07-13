@@ -1,0 +1,67 @@
+{
+  "session": {
+    "id": "sample-fico-ur",
+    "user_id": "00000000-0000-0000-0000-000000000005",
+    "created_at": "2026-05-22T10:00:00Z",
+    "lesson_plan_structured": { "subject": "Mathematics", "topic": "ہٹا کر جمع (Carrying)" }
+  },
+  "teacherName": "Naseem Bibi",
+  "language": "ur",
+  "commitmentAction": "اگلی کلاس میں، ہر پیئر ٹاک کے بعد ایک ایسے طالبعلم سے پوچھیں جس نے ہاتھ نہیں اٹھایا — تاکہ خاموش نصف کلاس کو بھی سوچنے کا موقع ملے۔",
+  "analysis": {
+    "framework": "fico",
+    "language": "ur",
+    "topic": "ہٹا کر جمع",
+    "subject": "Mathematics",
+    "photo_analysis": "کلاس کی تصویر میں طلباء چار قطاروں میں بیٹھے ہیں، بلیک بورڈ پر آج کا مقصد لکھا ہے، اور ہر ڈیسک پر ایک copybook کھلا ہوا ہے۔",
+    "domains": {
+      "lesson_structure": {
+        "domain_score": 13, "domain_max": 16,
+        "indicators": [
+          { "id": "1.1", "name": "Lesson Goal Clarity", "score": 3, "evidence": "استاد نے شروع میں کہا: 'آج ہم carrying سیکھیں گے — دو ہندسی جمع جس میں 10 سے اوپر جانا ہو'۔ مقصد واضح تھا۔", "timestamp": "00:20" },
+          { "id": "1.2", "name": "Fidelity to LP Steps", "score": 3, "evidence": "connect → explain → model → guided کا سلسلہ درست تھا؛ ایک لمحہ دیر ہوئی کیونکہ طلباء کی توجہ ہٹی۔", "timestamp": "07:10" },
+          { "id": "1.3", "name": "Materials Use", "score": 4, "evidence": "abstract concept کو tinkle-bundle (تنکے کا بنڈل) کے ذریعے واضح کیا — ہر بنڈل 10 کا۔ practical demonstration بہت مؤثر تھی۔", "timestamp": "05:30" },
+          { "id": "1.4", "name": "Time Management", "score": 3, "evidence": "پیسنگ مناسب تھی؛ آخری 3 منٹ میں independent work سکڑ گیا۔" }
+        ]
+      },
+      "instructional_quality": {
+        "domain_score": 13, "domain_max": 20,
+        "indicators": [
+          { "id": "2.1", "name": "Explanation & Modeling", "score": 4, "evidence": "استاد نے 27 + 15 کو board پر step-by-step لکھا اور tinkle-bundle سے دکھایا کہ 7+5 = 12 ہے، تو 10 کا نیا بنڈل بنے گا۔" },
+          { "id": "2.2", "name": "Questioning Technique", "score": 3, "evidence": "recall-style سوالات زیادہ تھے۔ ایک 'کیوں carry کرتے ہیں؟' پوچھا گیا جو conceptual تھا۔", "timestamp": "10:40" },
+          { "id": "2.3", "name": "Guided Practice", "score": 2, "evidence": "guided میں صرف 2 مسائل کیے گئے؛ زیادہ رہنمائی کی ضرورت تھی۔" },
+          { "id": "2.4", "name": "Differentiation", "score": 2, "evidence": "کوئی planned support یا extension نہیں تھا؛ سب کو ایک ہی worksheet دیا گیا۔" },
+          { "id": "2.5", "name": "Monitoring Understanding", "score": 2, "evidence": "استاد نے چند desks پر نظر ڈالی مگر aggregate check (thumbs, board) نہیں کیا گیا۔" }
+        ]
+      },
+      "classroom_climate": {
+        "domain_score": 13, "domain_max": 16,
+        "indicators": [
+          { "id": "3.1", "name": "Behavioral Climate", "score": 3, "evidence": "کلاس منظم تھی؛ استاد نے شفقت بھری redirection کی جب دو طلباء بات کرنے لگے۔" },
+          { "id": "3.2", "name": "Routines & Transitions", "score": 3, "evidence": "transitions ہموار تھیں؛ material handout کے دوران مختصر شور تھا مگر جلد قابو میں آ گیا۔" },
+          { "id": "3.3", "name": "Respectful Interactions", "score": 4, "evidence": "بار بار 'شاباش'، 'بہت خوب' جیسے مخصوص تعریفی الفاظ استعمال کیے۔ ہر جواب پر مسکراہٹ۔", "timestamp": "12:30" },
+          { "id": "3.4", "name": "Safety & Inclusiveness", "score": 3, "evidence": "زیادہ تر طلباء کو موقع دیا؛ ایک بہت خاموش بچی مکمل session میں بولی نہیں۔" }
+        ]
+      },
+      "student_engagement": {
+        "domain_score": 9, "domain_max": 16,
+        "indicators": [
+          { "id": "4.1", "name": "Cognitive Engagement", "score": 2, "evidence": "زیادہ تر recall-based tasks؛ ایک لمحہ conceptual تھا جب ایک بچے نے کہا 'یہ ہم نے پہلے دس کے group میں کیا تھا'۔" },
+          { "id": "4.2", "name": "Participation", "score": 3, "evidence": "تقریباً 55% طلباء نے کم از کم ایک verbal turn لیا۔" },
+          { "id": "4.3", "name": "Collaboration", "score": 2, "evidence": "peer collaboration کا کوئی structured موقع نہیں تھا؛ سب individually کام کرتے رہے۔" },
+          { "id": "4.4", "name": "Use of Materials", "score": 2, "evidence": "صرف demonstration کے وقت material استعمال ہوا؛ طلباء نے خود بنڈل نہیں بنائے۔" }
+        ]
+      },
+      "assessment_feedback": {
+        "domain_score": 7, "domain_max": 16,
+        "indicators": [
+          { "id": "5.1", "name": "Formative Checks", "score": 2, "evidence": "کوئی open-ended 'why do we…' یا slate-show نہیں ہوا۔" },
+          { "id": "5.2", "name": "Quality of Feedback", "score": 2, "evidence": "feedback زیادہ تر 'صحیح' یا 'غلط' تھا؛ process-oriented feedback کم تھا۔" },
+          { "id": "5.3", "name": "Accuracy of Marking", "score": 2, "evidence": "چند notebooks دیکھے گئے مگر ایک common misconception (carry-1 بھول جانا) کو address نہیں کیا گیا۔" },
+          { "id": "5.4", "name": "Responsive Instruction", "score": 1, "evidence": "کوئی mid-lesson adjustment نہیں تھا۔ سبق پہلے سے طے شدہ راستے پر چلتا رہا۔" }
+        ]
+      }
+    },
+    "executive_summary": "ایک واضح، منظم Grade 3 ریاضی کا سبق جس میں tinkle-bundle کا استعمال abstract concept کو ٹھوس بنا گیا۔ اگلا قدم: formative checks اور peer collaboration کا اضافہ — تاکہ ہر بچہ سوچنے میں شامل ہو۔"
+  }
+}

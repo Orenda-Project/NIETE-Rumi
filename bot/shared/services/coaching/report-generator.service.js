@@ -665,18 +665,27 @@ class ReportGeneratorService {
     // Attach the inputs the hero renderer needs so it can reach them off
     // reportData (the PDFKit / HTML renderers ignore these). Kept as
     // underscored fields to make the side-channel intent explicit.
+    const language = enhancedAnalysis.language || session.transcript_language || 'en';
+    const commitmentAction = (precomputedCommitment && precomputedCommitment.action) || '';
+
     reportData._heroInput = {
       session,
       analysis: analysisForTransformer,
       opts: {
         teacherName,
-        language: enhancedAnalysis.language || session.transcript_language || 'en',
+        language,
         // Passed in from the caller: the pre-computed commitment-card action
         // (single source of next-step truth). Empty string → hero omits the
         // tryNext callout gracefully (template guards on truthiness).
-        commitmentAction: (precomputedCommitment && precomputedCommitment.action) || '',
+        commitmentAction,
       },
     };
+
+    // The PDFKit fallback path needs the same signals so the "one thing to
+    // try next" block renders in production too — not just via the sample
+    // script. Same source of truth as the hero renderer above.
+    reportData.language = language;
+    reportData.commitmentAction = commitmentAction;
 
     // Generate report through the renderer registry. The hero renderer returns
     // { png, caption } (image+caption delivery via WhatsAppService); the PDFKit
