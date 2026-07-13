@@ -1691,12 +1691,12 @@ app.post('/api/internal/send-password-reset', async (req, res) => {
       });
     }
 
-    const { phoneNumber, code, firstName, language } = req.body;
+    const { phoneNumber, code, language } = req.body;
 
-    if (!phoneNumber || !code || !firstName) {
+    if (!phoneNumber || !code) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: phoneNumber, code, firstName'
+        error: 'Missing required fields: phoneNumber, code'
       });
     }
 
@@ -1706,54 +1706,22 @@ app.post('/api/internal/send-password-reset', async (req, res) => {
       caller: 'portal-backend'
     });
 
-    // Multilingual reset code messages
-    const messages = {
-      en: `Hi ${firstName}! 👋
-
-Your Rumi portal password reset code is:
-
-*${code}*
-
-This code expires in 10 minutes.
-
-If you didn't request this, please ignore this message.`,
-
-      ur: `ہیلو ${firstName}! 👋
-
-آپ کا Rumi پورٹل پاسورڈ ری سیٹ کوڈ ہے:
-
-*${code}*
-
-یہ کوڈ 10 منٹ میں ختم ہو جائے گا۔
-
-اگر آپ نے یہ درخواست نہیں کی تو براہ کرم اس پیغام کو نظر انداز کریں۔`,
-
-      ar: `مرحباً ${firstName}! 👋
-
-رمز إعادة تعيين كلمة مرور بوابة Rumi الخاص بك هو:
-
-*${code}*
-
-تنتهي صلاحية هذا الرمز خلال 10 دقائق.
-
-إذا لم تطلب ذلك، يرجى تجاهل هذه الرسالة.`,
-
-      es: `¡Hola ${firstName}! 👋
-
-Tu código de restablecimiento de contraseña del portal Rumi es:
-
-*${code}*
-
-Este código expira en 10 minutos.
-
-Si no solicitaste esto, ignora este mensaje.`
-    };
-
-    // Get localized message (fallback to English)
-    const message = messages[language] || messages.en;
-
-    // Send WhatsApp message using main bot's WhatsApp service
-    const sent = await WhatsAppService.sendMessage(phoneNumber, message);
+    // Send via approved AUTHENTICATION template so delivery works
+    // regardless of the 24-hour customer-service window. Body/footer are
+    // Meta-generated ("*{{1}}* is your verification code." / "This code
+    // expires in 10 minutes."); we only supply the code, twice (once as
+    // the BODY variable, once as the OTP button payload so the tap-to-copy
+    // button copies the same value).
+    const templateLang = language === 'ur' ? 'ur' : 'en';
+    const sent = await WhatsAppService.sendTemplate(
+      phoneNumber,
+      'portal_password_reset_niete',
+      templateLang,
+      [
+        { type: 'body', parameters: [{ type: 'text', text: code }] },
+        { type: 'button', sub_type: 'url', index: 0, parameters: [{ type: 'text', text: code }] },
+      ]
+    );
 
     if (sent) {
       logToFile('✅ Password reset code sent via WhatsApp', {
