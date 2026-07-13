@@ -865,11 +865,17 @@ async function handleTeacherTrainingFlow(message, phoneNumber, userId) {
   // uses snake_case (training_action, course_id, level_order).
   const trainingAction = payload.training_action;
   const courseId = payload.course_id;
+  const moduleId = payload.module_id;
   const levelOrder = payload.level_order;
 
-  logToFile('🎓 Training flow closure', { phoneNumber, userId, trainingAction, courseId, levelOrder });
+  logToFile('🎓 Training flow closure', { phoneNumber, userId, trainingAction, courseId, moduleId, levelOrder });
 
+  if (trainingAction === 'open_module' && moduleId) {
+    const ContentDelivery = require('../services/training/content-delivery.service');
+    return await ContentDelivery.deliverModuleById(moduleId, phoneNumber, { userId });
+  }
   if (trainingAction === 'open_course' && courseId) {
+    // Legacy — kept in case a stale client cache still emits course_id
     const ContentDelivery = require('../services/training/content-delivery.service');
     return await ContentDelivery.deliverNextModule(userId, courseId, phoneNumber);
   }

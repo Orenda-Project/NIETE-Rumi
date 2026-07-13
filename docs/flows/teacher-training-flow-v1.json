@@ -91,20 +91,22 @@
       "terminal": false,
       "data": {
         "level_title":    { "type": "string", "__example__": "📖 Level 2 · Emerging Practitioner" },
-        "level_progress": { "type": "string", "__example__": "4/9 courses · 40% complete" },
+        "level_progress": { "type": "string", "__example__": "26/46 modules done · 57%" },
         "level_order":    { "type": "string", "__example__": "2" },
-        "course_list": {
+        "module_list": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "id":    { "type": "string" },
-              "title": { "type": "string" }
+              "id":          { "type": "string" },
+              "title":       { "type": "string" },
+              "description": { "type": "string" }
             }
           },
           "__example__": [
-            { "id": "course_1", "title": "Classroom Management — 3/3 ✓" },
-            { "id": "course_2", "title": "Inclusive Education — 4/7" }
+            { "id": "54", "title": "Misconceptions in basic operations", "description": "Numeracy · Not started" },
+            { "id": "55", "title": "Fractions",                          "description": "Numeracy · ✓ Watched" },
+            { "id": "60", "title": "Patterns",                           "description": "Numeracy · Not started" }
           ]
         },
         "grand_quiz_body":    { "type": "string", "__example__": "🔒 Grand Quiz — Unlocks when all courses are complete" },
@@ -118,11 +120,11 @@
           { "type": "TextSubheading", "text": "${data.level_progress}" },
           {
             "type": "Dropdown",
-            "label": "Pick a course",
-            "name": "course_id",
+            "label": "Pick a module to watch",
+            "name": "module_id",
             "required": false,
-            "data-source": "${data.course_list}",
-            "on-select-action": { "name": "data_exchange", "payload": { "_action": "open_course", "course_id": "${form.course_id}" } }
+            "data-source": "${data.module_list}",
+            "on-select-action": { "name": "data_exchange", "payload": { "_action": "open_module", "module_id": "${form.module_id}" } }
           },
           { "type": "TextBody",    "text": "${data.grand_quiz_body}" },
           { "type": "TextCaption", "text": "${data.grand_quiz_caption}" },

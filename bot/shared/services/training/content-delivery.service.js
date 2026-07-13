@@ -223,16 +223,37 @@ async function handleModuleDone(userId, moduleId, phoneNumber) {
 }
 
 /**
- * Send a specific module by id (used by review mode to advance without
- * re-triggering the "find next uncompleted" heuristic).
+ * Send a specific module by id. Two call paths:
+ *   1. Flow module-picker → module_id straight from the dropdown (no reviewMode/courseId prehint)
+ *   2. Review-mode advancement from handleModuleDone (passes reviewMode + courseId)
+ * If reviewMode is not supplied, we infer it from whether the user already
+ * has a progress row for this module — "already watched" is review mode.
  */
-async function deliverModuleById(moduleId, phoneNumber, { reviewMode, courseId }) {
+async function deliverModuleById(moduleId, phoneNumber, opts = {}) {
+  let { reviewMode, courseId, userId } = opts;
   const { data: m } = await supabase
     .from('training_modules')
     .select('id, course_id, title, video_url, order_index')
     .eq('id', moduleId)
     .single();
-  if (!m) return false;
+  if (!m) {
+    logToFile('⚠️ deliverModuleById: module not found', { moduleId });
+    await WhatsAppService.sendMessage(phoneNumber, 'That module could not be found. Send /training to start over.');
+    return false;
+  }
+  if (!courseId) courseId = m.course_id;
+
+  // Infer review mode from progress if not supplied
+  if (reviewMode === undefined && userId) {
+    const { data: p } = await supabase
+      .from('teacher_training_progress')
+      .select('module_id')
+      .eq('user_id', userId)
+      .eq('module_id', m.id)
+      .maybeSingle();
+    reviewMode = !!p;
+  }
+
   const { data: course } = await supabase.from('training_courses').select('title').eq('id', courseId).maybeSingle();
   const { count: totalCount } = await supabase.from('training_modules').select('id', { count: 'exact', head: true }).eq('course_id', courseId).eq('is_active', true);
   const courseTitle = course?.title || `Course #${courseId}`;
@@ -265,4 +286,4 @@ async function deliverModuleById(moduleId, phoneNumber, { reviewMode, courseId }
   return true;
 }
 
-module.exports = { deliverNextModule, handleModuleDone };
+module.exports = { deliverNextModule, handleModuleDone, deliverModuleById };

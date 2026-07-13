@@ -54,7 +54,14 @@ async function handleTeacherTrainingDataExchange(userId, screen, screenData /*, 
 
   if (screen === 'LEVEL_DETAIL') {
     const action = screenData._action;
+    if (action === 'open_module') {
+      return buildSuccessScreen('Opening module…', {
+        trainingAction: 'open_module',
+        moduleId: screenData.module_id,
+      });
+    }
     if (action === 'open_course') {
+      // Legacy — kept for compatibility with older client caches
       return buildSuccessScreen('Opening course…', {
         trainingAction: 'open_course',
         courseId: screenData.course_id,
@@ -161,24 +168,58 @@ async function buildLevelDetail(userId, levelOrder) {
   if (!lvl) return errorScreen('That level is not part of your program.');
   if (lvl.state === 'locked') return errorScreen(`Pass Level ${levelOrder - 1}'s grand quiz first to unlock this level.`);
 
-  const courses = await loadCoursesWithProgress(userId, lvl.id);
+  const modules = await loadModulesWithProgress(userId, lvl.id);
   const grandQuiz = await loadGrandQuizState(userId, lvl.id);
+
+  const totalModules = modules.length;
+  const doneModules = modules.filter(m => m.done).length;
+  const pct = totalModules === 0 ? 0 : Math.round((doneModules / totalModules) * 100);
 
   return {
     screen: 'LEVEL_DETAIL',
     data: {
       level_title:    `${levelEmoji(lvl)} Level ${lvl.order_index + 1} · ${lvl.name}`,
-      level_progress: `${lvl.courses_completed}/${lvl.courses_total} courses · ${lvl.pct_complete}% complete`,
+      level_progress: `${doneModules}/${totalModules} modules done · ${pct}%`,
       level_order:    String(levelOrder),
-      course_list:    courses.map(c => ({
-        id:    String(c.id),
-        title: `L${lvl.order_index + 1} · ${c.title} — ${courseProgressLabel(c)}`,
+      module_list:    modules.map(m => ({
+        id:          String(m.id),
+        title:       m.title.length > 40 ? `${m.title.slice(0, 37)}…` : m.title,
+        description: `${m.course_title} · ${m.done ? '✓ Watched' : 'Not started'}`,
       })),
       grand_quiz_body:      grandQuiz.body,
       grand_quiz_caption:   grandQuiz.caption,
       grand_quiz_cta:       grandQuiz.cta,
     },
   };
+}
+
+/**
+ * Return every active module under a level, joined to its course, with a
+ * per-teacher "done" flag from teacher_training_progress. Sorted by course
+ * order then module order — so a teacher scrolling the dropdown sees a
+ * natural progression through the level's topics.
+ */
+async function loadModulesWithProgress(userId, levelId) {
+  const [{ data: courses }, { data: modules }, { data: progressRows }] = await Promise.all([
+    supabase.from('training_courses').select('id, title, order_index').eq('level_id', levelId).eq('is_active', true).order('order_index'),
+    supabase.from('training_modules').select('id, course_id, title, order_index').eq('is_active', true),
+    supabase.from('teacher_training_progress').select('module_id').eq('user_id', userId),
+  ]);
+  const doneIds = new Set((progressRows || []).map(r => r.module_id));
+  const courseById = new Map((courses || []).map(c => [c.id, c]));
+  const levelModules = (modules || []).filter(m => courseById.has(m.course_id));
+  levelModules.sort((a, b) => {
+    const ca = courseById.get(a.course_id).order_index;
+    const cb = courseById.get(b.course_id).order_index;
+    if (ca !== cb) return ca - cb;
+    return (a.order_index || 0) - (b.order_index || 0);
+  });
+  return levelModules.map(m => ({
+    id: m.id,
+    title: m.title,
+    course_title: courseById.get(m.course_id).title,
+    done: doneIds.has(m.id),
+  }));
 }
 
 // ─── Data loaders ──────────────────────────────────────────────────────────
@@ -422,6 +463,7 @@ function buildSuccessScreen(message, extras = {}) {
         params: {
           training_action: extras.trainingAction || 'close',
           ...(extras.courseId ? { course_id: String(extras.courseId) } : {}),
+          ...(extras.moduleId ? { module_id: String(extras.moduleId) } : {}),
           ...(extras.levelOrder ? { level_order: String(extras.levelOrder) } : {}),
         },
       },
