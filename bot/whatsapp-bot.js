@@ -1129,7 +1129,7 @@ app.post('/webhook', async (req, res) => {
 
           if (!success) {
             logToFile('❌ Attendance marking flow processing failed', { from, responseJson });
-            await WhatsAppService.sendMessage(from, 'Sorry, there was an error recording attendance. Please try again.');
+            // User-visible error suppressed 2026-07-13 pending investigation
           } else {
             logToFile('✅ Attendance marking flow processed successfully', { from });
           }
@@ -1139,7 +1139,7 @@ app.post('/webhook', async (req, res) => {
             error: flowError.message,
             stack: flowError.stack
           });
-          await WhatsAppService.sendMessage(from, 'Sorry, there was an error recording attendance. Please try again.');
+          // User-visible error suppressed 2026-07-13 pending investigation
         }
       } else if (flowType === 'exam_generator') {
         // Exam Generator — endpoint flow's terminal ack. The endpoint at

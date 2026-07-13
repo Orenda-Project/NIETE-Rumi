@@ -15,21 +15,29 @@
         "hero_subtitle":    { "type": "string", "__example__": "Aisha Malik · NIETE Support" },
         "hero_progress":    { "type": "string", "__example__": "25% done · 9/36 courses" },
         "level_1_title":    { "type": "string", "__example__": "🏆 Level 1 · Aspiring Teacher" },
-        "level_1_progress": { "type": "string", "__example__": "9/9 courses ✓ · Grand quiz passed 82%" },
-        "level_1_state":    { "type": "string", "__example__": "certified" },
-        "level_1_cta":      { "type": "string", "__example__": "Review" },
+        "level_1_progress": { "type": "string", "__example__": "9/9 courses ✓ · Grand quiz passed" },
         "level_2_title":    { "type": "string", "__example__": "📖 Level 2 · Emerging Practitioner" },
-        "level_2_progress": { "type": "string", "__example__": "4/9 courses · 26 modules done" },
-        "level_2_state":    { "type": "string", "__example__": "in_progress" },
-        "level_2_cta":      { "type": "string", "__example__": "Continue" },
+        "level_2_progress": { "type": "string", "__example__": "4/9 courses · 40% done" },
         "level_3_title":    { "type": "string", "__example__": "🔒 Level 3 · Skilled Practitioner" },
         "level_3_progress": { "type": "string", "__example__": "Unlocks after Level 2 exam" },
-        "level_3_state":    { "type": "string", "__example__": "locked" },
-        "level_3_cta":      { "type": "string", "__example__": "🔒 Locked" },
         "level_4_title":    { "type": "string", "__example__": "🔒 Level 4 · Teacher Leader" },
         "level_4_progress": { "type": "string", "__example__": "Unlocks after Level 3 exam" },
-        "level_4_state":    { "type": "string", "__example__": "locked" },
-        "level_4_cta":      { "type": "string", "__example__": "🔒 Locked" }
+        "level_options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id":    { "type": "string" },
+              "title": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "1", "title": "Level 1 · Aspiring Teacher — Review" },
+            { "id": "2", "title": "Level 2 · Emerging Practitioner — Continue" },
+            { "id": "3", "title": "Level 3 · Skilled Practitioner — 🔒 Locked" },
+            { "id": "4", "title": "Level 4 · Teacher Leader — 🔒 Locked" }
+          ]
+        }
       },
       "layout": {
         "type": "SingleColumnLayout",
@@ -40,11 +48,9 @@
 
           { "type": "TextHeading", "text": "${data.level_1_title}" },
           { "type": "TextBody",    "text": "${data.level_1_progress}" },
-          { "type": "EmbeddedLink", "text": "${data.level_1_cta}", "on-click-action": { "name": "data_exchange", "payload": { "_action": "open_level", "_level_order": 1 } } },
 
           { "type": "TextHeading", "text": "${data.level_2_title}" },
           { "type": "TextBody",    "text": "${data.level_2_progress}" },
-          { "type": "EmbeddedLink", "text": "${data.level_2_cta}", "on-click-action": { "name": "data_exchange", "payload": { "_action": "open_level", "_level_order": 2 } } },
 
           { "type": "TextHeading", "text": "${data.level_3_title}" },
           { "type": "TextBody",    "text": "${data.level_3_progress}" },
@@ -52,7 +58,30 @@
           { "type": "TextHeading", "text": "${data.level_4_title}" },
           { "type": "TextBody",    "text": "${data.level_4_progress}" },
 
-          { "type": "Footer", "label": "Close", "on-click-action": { "name": "navigate", "next": { "type": "screen", "name": "SUCCESS" }, "payload": { "message": "See you soon!" } } }
+          {
+            "type": "Form",
+            "name": "form",
+            "children": [
+              {
+                "type": "RadioButtonsGroup",
+                "name": "level_choice",
+                "label": "Open a level",
+                "required": true,
+                "data-source": "${data.level_options}"
+              },
+              {
+                "type": "Footer",
+                "label": "Open level",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "open_level",
+                    "_level_order": "${form.level_choice}"
+                  }
+                }
+              }
+            ]
+          }
         ]
       }
     },

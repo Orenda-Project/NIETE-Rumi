@@ -619,10 +619,7 @@ async function handleAttendanceMarkingFlow(message, phoneNumber, userId) {
     );
 
     if (!result.success) {
-      await WhatsAppService.sendMessage(
-        phoneNumber,
-        `Sorry, there was an error recording attendance: ${result.error}`
-      );
+      logToFile('❌ Attendance marking submission failed (user-visible error suppressed)', { phoneNumber, error: result.error });
       return false;
     }
 
@@ -732,11 +729,7 @@ async function handleAttendanceMarkingFlow(message, phoneNumber, userId) {
       stack: error.stack
     });
 
-    await WhatsAppService.sendMessage(
-      phoneNumber,
-      'Sorry, something went wrong recording attendance. Please try again.'
-    );
-
+    // User-visible error suppressed 2026-07-13 pending investigation
     return false;
   }
 }
