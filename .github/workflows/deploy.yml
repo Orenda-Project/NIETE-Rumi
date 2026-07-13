@@ -73,8 +73,12 @@ jobs:
         run: |
           cd bot
           echo "Deploying to Railway..."
-          railway up --service bot --ci
-          echo "Deployment complete!"
+          # --detach = fire the upload and return; do not wait for build/health.
+          # Without it, `railway up --ci` can spuriously fail when Railway's build
+          # queue backs up or a prior in-flight deploy's health-check window overlaps.
+          # Railway's own UI / webhook is the source of truth for deploy outcomes.
+          railway up --service bot --ci --detach
+          echo "Upload complete — Railway will build and deploy asynchronously."
 
       - name: Verify deployment
         if: steps.gate.outputs.should_deploy == 'true'
