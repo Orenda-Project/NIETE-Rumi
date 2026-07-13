@@ -125,8 +125,16 @@ function validatePassword(password) {
 }
 
 function sanitizePhoneNumber(phone) {
-  // Remove spaces and ensure format
-  return phone.replace(/\s+/g, '');
+  // NIETE is PK-only: canonicalize to E.164 without the leading '+'
+  // so DB lookups (which store `923XXXXXXXXX`) always match user input.
+  // Accepted inputs: '03361234567', '3361234567', '+92 336 1234567',
+  //                  '0092 336 1234567', '923361234567', with any spaces/dashes.
+  if (!phone || typeof phone !== 'string') return phone;
+  let digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('00')) digits = digits.slice(2);
+  if (digits.startsWith('0') && digits.length === 11) return '92' + digits.slice(1);
+  if (digits.startsWith('3') && digits.length === 10) return '92' + digits;
+  return digits;
 }
 
 /**
@@ -429,40 +437,34 @@ router.post('/login', publicAuthLimiter, async (req, res) => {
       });
     }
 
-    // Sanitize and validate phone number
     phoneNumber = sanitizePhoneNumber(phoneNumber);
     if (!validatePhoneNumber(phoneNumber)) {
-      // SECURITY: Generic error - don't reveal phone format issue
-      return res.status(401).json({
+      return res.status(400).json({
         success: false,
-        error: 'Invalid credentials. Please try again.'
+        error: 'Please enter a valid phone number.'
       });
     }
 
-    // Get user by phone number
     const { data: user, error } = await supabase
       .from('users')
       .select('id, first_name, portal_password_hash, portal_activated')
       .eq('phone_number', phoneNumber)
       .eq('portal_activated', true)
-      .single();
+      .maybeSingle();
 
-    // SECURITY: Generic error - don't reveal if user exists
     if (error || !user) {
-      return res.status(401).json({
+      return res.status(404).json({
         success: false,
-        error: 'Invalid credentials. Please try again.'
+        error: 'No portal account found for this phone number.'
       });
     }
 
-    // Verify password
     const validPassword = await bcrypt.compare(password, user.portal_password_hash);
 
     if (!validPassword) {
-      // SECURITY: Same generic error
       return res.status(401).json({
         success: false,
-        error: 'Invalid credentials. Please try again.'
+        error: 'Incorrect password. Please try again.'
       });
     }
 
@@ -543,38 +545,36 @@ router.post('/request-reset', publicAuthLimiter, async (req, res) => {
       });
     }
 
-    // Sanitize and validate phone number
     phoneNumber = sanitizePhoneNumber(phoneNumber);
     if (!validatePhoneNumber(phoneNumber)) {
-      // SECURITY: Generic response - don't reveal invalid phone format
-      return res.status(200).json({
-        success: true,
-        message: 'If this phone number is registered, you will receive a reset code shortly.'
+      return res.status(400).json({
+        success: false,
+        error: 'Please enter a valid phone number.'
       });
     }
 
-    // Import password reset service (standalone portal version)
     const PasswordResetService = require('../services/password-reset.service');
 
-    // Check rate limit
     const rateLimitCheck = await PasswordResetService.checkRateLimit(phoneNumber);
-
     if (!rateLimitCheck.allowed) {
-      // SECURITY: Generic response - don't reveal rate limit status
-      return res.status(200).json({
-        success: true,
-        message: 'If this phone number is registered, you will receive a reset code shortly.'
+      return res.status(429).json({
+        success: false,
+        error: rateLimitCheck.error || 'Too many attempts. Please wait a moment and try again.'
       });
     }
 
-    // Send reset code
     const result = await PasswordResetService.sendResetCode(phoneNumber);
 
-    // SECURITY: Always return success, even if user not found
-    // This prevents phone number enumeration attacks
+    if (!result.success) {
+      return res.status(404).json({
+        success: false,
+        error: result.error || 'No portal account found for this phone number.'
+      });
+    }
+
     res.json({
       success: true,
-      message: 'If this phone number is registered, you will receive a reset code shortly.'
+      message: 'A reset code has been sent to your WhatsApp.'
     });
   } catch (error) {
     console.error('Request reset error:', error);
@@ -1012,7 +1012,7 @@ router.get('/curriculum/lps', requirePortalAuth, async (req, res) => {
 
     let query = supabase
       .from('curriculum_lp_ast')
-      .select('source_lp_uuid, lp_index, topic, publisher, chapter_title, pdf_r2_key_en, pdf_r2_key_ur, rendered_at')
+      .select('source_lp_uuid, lp_index, topic, publisher, chapter_title, pdf_r2_key_en, pdf_r2_key_ur, voicenote_mp3_r2_key, demo_video_r2_key, review_status, rendered_at')
       .eq('is_enabled', true)
       .eq('grade', grade)
       .eq('subject', subject)
@@ -1033,6 +1033,10 @@ router.get('/curriculum/lps', requirePortalAuth, async (req, res) => {
       // for the languages that are cached in R2.
       available_en: !!r.pdf_r2_key_en,
       available_ur: !!r.pdf_r2_key_ur,
+      // FEAT-059 media badges: 🎧 voicenote / 🎥 demo video
+      has_voicenote: !!r.voicenote_mp3_r2_key,
+      has_video: !!r.demo_video_r2_key,
+      review_status: r.review_status || 'unreviewed',
       rendered_at: r.rendered_at,
     }));
     res.json({ success: true, lps });
@@ -1055,37 +1059,55 @@ router.get('/curriculum/lp/:source_lp_uuid/pdf', requirePortalAuth, async (req, 
 
     const { data: lp, error } = await supabase
       .from('curriculum_lp_ast')
-      .select('source_lp_uuid, chapter_title, topic, publisher, pdf_r2_key_en, pdf_r2_key_ur')
+      .select('source_lp_uuid, chapter_title, topic, publisher, pdf_r2_key_en, pdf_r2_key_ur, voicenote_mp3_r2_key, demo_video_r2_key, review_status, review_notes')
       .eq('source_lp_uuid', uuid)
       .eq('is_enabled', true)
       .maybeSingle();
     if (error) throw error;
     if (!lp) return res.status(404).json({ success: false, error: 'Lesson plan not found' });
 
+    // The helper's generatePresignedUrl expects a FULL R2 URL (it validates
+    // via isValidR2Url which checks for .r2.cloudflarestorage.com), but our
+    // *_r2_key columns store BARE object keys (e.g. "lps/curriculum-ast/{uuid}.en.pdf").
+    // Prepend the R2 endpoint + bucket so the helper accepts it.
+    const endpoint = (process.env.R2_ENDPOINT || '').replace(/\/$/, '');
+    const bucket = process.env.R2_BUCKET_NAME;
+    const signKey = (k) => k
+      ? generatePresignedUrl(`${endpoint}/${bucket}/${k}`, 3600)
+      : Promise.resolve(null);
+
+    // FEAT-059: sign voicenote + demo video URLs alongside the PDF so the
+    // portal can render inline media players in one round-trip.
+    const [voicenoteUrl, videoUrl] = await Promise.all([
+      signKey(lp.voicenote_mp3_r2_key),
+      signKey(lp.demo_video_r2_key),
+    ]);
+
     const r2Key = lang === 'ur' ? lp.pdf_r2_key_ur : lp.pdf_r2_key_en;
+    const filename = `${lp.chapter_title} — ${lp.topic} - Lesson Plan.pdf`.replace(/["<>?*|\\/]/g, '');
+
     if (!r2Key) {
-      // Not yet rendered — the frontend will offer to queue an async render.
+      // PDF not yet rendered — the frontend will offer to queue an async render.
+      // Still return voicenote + video URLs when available; they're independent assets.
       return res.status(202).json({
         success: true, available: false,
         source_lp_uuid: lp.source_lp_uuid, language: lang,
         topic: lp.topic, chapter_title: lp.chapter_title, publisher: lp.publisher,
+        voicenote_url: voicenoteUrl, video_url: videoUrl,
+        review_status: lp.review_status || 'unreviewed',
+        review_notes: lp.review_notes || null,
       });
     }
 
-    // The helper's generatePresignedUrl expects a FULL R2 URL (it validates
-    // via isValidR2Url which checks for .r2.cloudflarestorage.com), but our
-    // pdf_r2_key columns store BARE object keys (e.g. "lps/curriculum-ast/{uuid}.en.pdf").
-    // Prepend the R2 endpoint + bucket so the helper accepts it.
-    const filename = `${lp.chapter_title} — ${lp.topic} - Lesson Plan.pdf`.replace(/["<>?*|\\/]/g, '');
-    const endpoint = (process.env.R2_ENDPOINT || '').replace(/\/$/, '');
-    const bucket = process.env.R2_BUCKET_NAME;
-    const fullR2Url = `${endpoint}/${bucket}/${r2Key}`;
-    const url = await generatePresignedUrl(fullR2Url, 3600); // 1h validity
+    const url = await signKey(r2Key); // 1h validity
     res.json({
       success: true, available: true,
       url, filename,
       source_lp_uuid: lp.source_lp_uuid, language: lang,
       topic: lp.topic, chapter_title: lp.chapter_title, publisher: lp.publisher,
+      voicenote_url: voicenoteUrl, video_url: videoUrl,
+      review_status: lp.review_status || 'unreviewed',
+      review_notes: lp.review_notes || null,
     });
   } catch (error) {
     console.error('curriculum/lp/:uuid/pdf error:', error);
