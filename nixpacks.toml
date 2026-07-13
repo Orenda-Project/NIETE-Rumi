@@ -1,0 +1,8 @@
+# Override Nixpacks default `npm ci` with `npm install` so builds succeed
+# even when the lockfile has drift from platform-specific optional deps
+# (e.g. @img/sharp-wasm32 → @emnapi/*, only resolved on Linux). Trades
+# strict reproducibility for build resilience — acceptable while we
+# don't have a Linux-matching lockfile-regen workflow.
+
+[phases.install]
+cmds = ["npm install && cd bot && npm install"]
