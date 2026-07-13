@@ -1210,6 +1210,53 @@ GUIDELINES:
         enhancedAnalysis.reflective_corpus = analysisData.reflective_corpus;
       }
 
+      // FICO/HOTS/TEACH: the enhance prompt above is OECD-shaped, so the LLM
+      // emits `goal1_formative_assessment`/…/`domain4_professional_responsibilities`
+      // and drops the framework-native structure (FICO: `domains.*.indicators[]`,
+      // HOTS: `areas[]`). Without this re-attach the framework transformer sees
+      // no data, produces empty goals, the hero renderer receives an
+      // ill-formed viewModel, throws, and the teacher gets a broken PDF fallback
+      // with "0% Not Observed" instead of the FICO celebration card.
+      // Cost: 1 GPT call still runs OECD-style enrichment on top of a FICO body.
+      // Root fix (framework-aware enhance prompt) is a follow-up — this preserves
+      // the analysis end-to-end today.
+      const originalFramework = analysisData?.framework;
+      if (originalFramework && originalFramework !== 'oecd') {
+        enhancedAnalysis.framework = originalFramework;
+        if (analysisData.domains && !enhancedAnalysis.domains) {
+          enhancedAnalysis.domains = analysisData.domains;
+        }
+        if (analysisData.scores && !enhancedAnalysis.scores) {
+          enhancedAnalysis.scores = analysisData.scores;
+        }
+        // Preserve framework-native optional fields the enhance prompt doesn't know about.
+        for (const key of ['areas', 'photo_analysis', 'subject', 'topic']) {
+          if (analysisData[key] !== undefined && enhancedAnalysis[key] === undefined) {
+            enhancedAnalysis[key] = analysisData[key];
+          }
+        }
+        // Drop the OECD-shape junk the LLM emitted — it has null competency_scores
+        // that would confuse the OECD-fallback transformer if framework dispatch
+        // ever drifted back to OECD.
+        for (const k of [
+          'goal1_formative_assessment',
+          'goal2_student_engagement',
+          'goal3_quality_content',
+          'goal4_classroom_interaction',
+          'goal5_classroom_management',
+          'domain4_professional_responsibilities',
+        ]) {
+          delete enhancedAnalysis[k];
+        }
+        logToFile('[enhance] non-OECD framework — preserved framework/domains/scores and stripped OECD junk', {
+          framework: originalFramework,
+          domainsCount: enhancedAnalysis.domains ? Object.keys(enhancedAnalysis.domains).length : 0,
+        });
+      } else if (analysisData?.framework === 'oecd' && !enhancedAnalysis.framework) {
+        // Keep OECD stamped so the report-side dispatch doesn't re-fall-through to oecd via null.
+        enhancedAnalysis.framework = 'oecd';
+      }
+
       // Compute marks for Debrief & Reflection section
       if (enhancedAnalysis.debrief_reflection) {
         enhancedAnalysis.debrief_reflection = this._computeDebriefMarks(enhancedAnalysis.debrief_reflection);
