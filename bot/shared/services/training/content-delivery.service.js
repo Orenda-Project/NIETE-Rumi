@@ -129,7 +129,11 @@ async function deliverNextModule(userId, courseId, phoneNumber) {
       await WhatsAppService.sendMessage(phoneNumber, caption + `\n\n(Video could not be delivered — please contact NIETE support.)`);
     }
   } else {
-    await WhatsAppService.sendMessage(phoneNumber, caption + `\n\n(No video for this module yet.)`);
+    logToFile('⚠️ Module has no video_url — sending "no video available" text', { moduleId: m.id, courseId: courseIdNum });
+    await WhatsAppService.sendMessage(
+      phoneNumber,
+      `📘 *${courseTitle}* — ${positionLabel}\n\n*${m.title}*\n\nNo video is available for this module yet. Tap ▶ Next video to continue.`
+    );
   }
 
   // Delay the "Next video" button so it lands AFTER the video finishes
@@ -244,7 +248,11 @@ async function deliverModuleById(moduleId, phoneNumber, { reviewMode, courseId }
       logToFile('⚠️ deliverModuleById video send failed', { moduleId, error: err.message });
     }
   } else {
-    await WhatsAppService.sendMessage(phoneNumber, caption + `\n\n(No video for this module yet.)`);
+    logToFile('⚠️ Module has no video_url — sending "no video available" text (deliverModuleById)', { moduleId: m.id, courseId });
+    await WhatsAppService.sendMessage(
+      phoneNumber,
+      `📘 *${courseTitle}* — ${label}\n\n*${m.title}*\n\nNo video is available for this module yet. Tap ▶ Next video to continue.`
+    );
   }
   await new Promise(resolve => setTimeout(resolve, 6000));
   await WhatsAppService.sendInteractiveButtons(phoneNumber, {

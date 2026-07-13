@@ -120,7 +120,7 @@
             "type": "Dropdown",
             "label": "Pick a course",
             "name": "course_id",
-            "required": true,
+            "required": false,
             "data-source": "${data.course_list}",
             "on-select-action": { "name": "data_exchange", "payload": { "_action": "open_course", "course_id": "${form.course_id}" } }
           },
