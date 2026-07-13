@@ -121,16 +121,16 @@ async function buildTrainingHome(userId) {
     );
   }
 
-  // We render 4 level cards (matches the Flow JSON) as info-only text
-  // + a Dropdown at the bottom listing the openable levels. The dropdown
-  // replaces the old per-level EmbeddedLinks (Meta caps EmbeddedLinks at 2
-  // per screen — the old design couldn't offer L3/L4 as tappable).
+  // We render 5 level cards (matches the Flow JSON — L1-L4 Taleemabad + L5
+  // Oxbridge Game-Based Teaching) as info-only text, plus a Dropdown at the
+  // bottom listing the openable levels. The dropdown replaces the old
+  // per-level EmbeddedLinks (Meta caps EmbeddedLinks at 2 per screen).
   const data = {
     hero_title:    'Teacher Training',
     hero_subtitle: teacherSubtitle(teacher),
     hero_progress: overallProgressLine(catalog),
   };
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     const slot = i + 1;
     const lvl = catalog[i];
     if (!lvl) {
@@ -138,7 +138,7 @@ async function buildTrainingHome(userId) {
       data[`level_${slot}_progress`]  = 'Not part of your program';
       continue;
     }
-    data[`level_${slot}_title`]     = `${levelEmoji(lvl)} Level ${lvl.order_index + 1} · ${lvl.name}`;
+    data[`level_${slot}_title`]     = `${levelEmoji(lvl)} Level ${lvl.order_index + 1} · ${shortLevelName(lvl)}`;
     data[`level_${slot}_progress`]  = levelProgressLine(lvl);
   }
 
@@ -146,9 +146,9 @@ async function buildTrainingHome(userId) {
   // list, but the endpoint's open_level handler will reject taps on locked
   // levels with a helpful error. Alternatively we could filter locked out;
   // showing them is friendlier UX (they know what's coming).
-  data.level_options = catalog.slice(0, 4).map(lvl => ({
+  data.level_options = catalog.slice(0, 5).map(lvl => ({
     id:    String(lvl.order_index + 1),
-    title: `Level ${lvl.order_index + 1} · ${lvl.name} — ${ctaForLevel(lvl)}`,
+    title: `Level ${lvl.order_index + 1} · ${shortLevelName(lvl)} — ${ctaForLevel(lvl)}`,
   }));
 
   logToFile('🎓 TRAINING_HOME response snapshot', {
@@ -178,7 +178,7 @@ async function buildLevelDetail(userId, levelOrder) {
   return {
     screen: 'LEVEL_DETAIL',
     data: {
-      level_title:    `${levelEmoji(lvl)} Level ${lvl.order_index + 1} · ${lvl.name}`,
+      level_title:    `${levelEmoji(lvl)} Level ${lvl.order_index + 1} · ${shortLevelName(lvl)}`,
       level_progress: `${doneModules}/${totalModules} modules done · ${pct}%`,
       level_order:    String(levelOrder),
       module_list:    modules.map(m => ({
@@ -263,15 +263,21 @@ async function loadVisibleLevelsWithProgress(userId) {
     .in('program_id', programIds);
   if (sErr || !scopes || scopes.length === 0) return [];
 
-  // 3. Levels — filter by vendor + (optional) level_ids per scope
+  // 3. Levels — filter by vendor + (optional) level_ids per scope. We also
+  // read each vendor's unlock_logic so open-access vendors (Oxbridge) can
+  // bypass the chain-lock that gates Level N behind Level N-1's exam.
   const vendorIds = [...new Set(scopes.map(s => s.vendor_id))];
-  const { data: allLevels, error: lErr } = await supabase
-    .from('training_levels')
-    .select('id, vendor_id, name, order_index, cpd_level, is_active')
-    .in('vendor_id', vendorIds)
-    .eq('is_active', true)
-    .order('order_index', { ascending: true });
+  const [{ data: allLevels, error: lErr }, { data: vendorRows }] = await Promise.all([
+    supabase
+      .from('training_levels')
+      .select('id, vendor_id, name, order_index, cpd_level, is_active')
+      .in('vendor_id', vendorIds)
+      .eq('is_active', true)
+      .order('order_index', { ascending: true }),
+    supabase.from('training_vendors').select('id, key, unlock_logic, has_grand_quiz').in('id', vendorIds),
+  ]);
   if (lErr || !allLevels) return [];
+  const vendorById = new Map((vendorRows || []).map(v => [v.id, v]));
 
   // Per-vendor level_ids allow-list (NULL in a scope = all levels of that vendor)
   const allowedByVendor = new Map();
@@ -312,13 +318,17 @@ async function loadVisibleLevelsWithProgress(userId) {
     // uses "started" as a proxy until the module-completion path is wired.
     const passedAttempt = (attempts || []).find(a => a.level_id === lv.id && a.is_passed === true);
     const cooldownAttempt = (attempts || []).find(a => a.level_id === lv.id && a.status === 'failed' && a.cooldown_until && new Date(a.cooldown_until) > new Date());
-    const prevLevel = visibleLevels.find(l => l.order_index === lv.order_index - 1);
+    const vendor = vendorById.get(lv.vendor_id);
+    const chainLocked = vendor?.unlock_logic === 'chain';
+    const prevLevel = visibleLevels
+      .filter(l => l.vendor_id === lv.vendor_id)
+      .find(l => l.order_index === lv.order_index - 1);
     const prevPassed = !prevLevel || !!(attempts || []).find(a => a.level_id === prevLevel.id && a.is_passed === true);
     const isFirst = !prevLevel;
     const grand = (quizzes || []).find(q => q.level_id === lv.id) || null;
 
     let state;
-    if (!prevPassed && !isFirst) state = 'locked';
+    if (chainLocked && !prevPassed && !isFirst) state = 'locked';
     else if (passedAttempt) state = 'certified';
     else if (coursesStarted.length === lvCourses.length && lvCourses.length > 0) state = 'ready_for_quiz';
     else if (coursesStarted.length > 0) state = 'in_progress';
@@ -367,7 +377,7 @@ async function loadGrandQuizState(userId, levelId) {
     supabase.from('training_modules').select('id, course_id').eq('is_active', true),
     supabase.from('teacher_training_progress').select('module_id').eq('user_id', userId),
   ]);
-  if (!catalog) return { badge: 'badge_quiz_locked', body: '🔒 Grand Quiz — No exam configured for this level', caption: ' ', cta: '🔒 Locked' };
+  if (!catalog) return { badge: 'badge_quiz_available', body: '🎓 No level exam — finish all sessions to complete this level.', caption: ' ', cta: ' ' };
 
   const passed = (attempts || []).some(a => a.is_passed === true);
   const cooldown = (attempts || []).find(a => a.status === 'failed' && a.cooldown_until && new Date(a.cooldown_until) > new Date());
@@ -405,6 +415,17 @@ function overallProgressLine(levels) {
   if (totalC === 0) return '';
   const pct = Math.round((doneC / totalC) * 100);
   return `${pct}% done · ${doneC}/${totalC} courses`;
+}
+
+// Shorter display name for dropdown/heading rendering. The Oxbridge level's
+// canonical name is 68 chars ("Professional Training in Game-Based Teaching,
+// Learning & Assessment") — that overflows in RadioButtonsGroup items. Map
+// known long names to a friendlier shortform; everything else passes through.
+function shortLevelName(lv) {
+  if (typeof lv.name === 'string' && lv.name.startsWith('Professional Training in Game-Based Teaching')) {
+    return 'Game-Based Teaching (Oxbridge)';
+  }
+  return lv.name;
 }
 
 function levelProgressLine(lv) {

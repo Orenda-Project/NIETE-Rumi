@@ -22,6 +22,8 @@
         "level_3_progress": { "type": "string", "__example__": "Unlocks after Level 2 exam" },
         "level_4_title":    { "type": "string", "__example__": "🔒 Level 4 · Teacher Leader" },
         "level_4_progress": { "type": "string", "__example__": "Unlocks after Level 3 exam" },
+        "level_5_title":    { "type": "string", "__example__": "🎓 Level 5 · Game-Based Teaching (Oxbridge)" },
+        "level_5_progress": { "type": "string", "__example__": "7 sessions · Open-access" },
         "level_options": {
           "type": "array",
           "items": {
@@ -35,7 +37,8 @@
             { "id": "1", "title": "Level 1 · Aspiring Teacher — Review" },
             { "id": "2", "title": "Level 2 · Emerging Practitioner — Continue" },
             { "id": "3", "title": "Level 3 · Skilled Practitioner — 🔒 Locked" },
-            { "id": "4", "title": "Level 4 · Teacher Leader — 🔒 Locked" }
+            { "id": "4", "title": "Level 4 · Teacher Leader — 🔒 Locked" },
+            { "id": "5", "title": "Level 5 · Game-Based Teaching (Oxbridge)" }
           ]
         }
       },
@@ -57,6 +60,9 @@
 
           { "type": "TextHeading", "text": "${data.level_4_title}" },
           { "type": "TextBody",    "text": "${data.level_4_progress}" },
+
+          { "type": "TextHeading", "text": "${data.level_5_title}" },
+          { "type": "TextBody",    "text": "${data.level_5_progress}" },
 
           {
             "type": "Form",
