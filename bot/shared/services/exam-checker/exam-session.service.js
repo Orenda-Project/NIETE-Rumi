@@ -277,10 +277,9 @@ class ExamSessionService {
 
   static async _getFromRedis(userId) {
     try {
-      const redis = await redisService.getClient();
       const key = `${REDIS_PREFIX}${userId}`;
-      const data = await redis.get(key);
-      return data ? JSON.parse(data) : null;
+      // railway-redis.get() auto-parses JSON — returns object|string|null.
+      return await redisService.get(key);
     } catch (error) {
       logToFile('⚠️ Redis get failed', { userId, error: error.message });
       return null;
@@ -289,9 +288,9 @@ class ExamSessionService {
 
   static async _saveToRedis(userId, session) {
     try {
-      const redis = await redisService.getClient();
       const key = `${REDIS_PREFIX}${userId}`;
-      await redis.setEx(key, REDIS_TTL, JSON.stringify(session));
+      // railway-redis.set() auto-serializes non-string values; pass the object.
+      await redisService.set(key, session, REDIS_TTL);
     } catch (error) {
       logToFile('⚠️ Redis save failed', { userId, error: error.message });
     }
@@ -299,9 +298,8 @@ class ExamSessionService {
 
   static async _clearFromRedis(userId) {
     try {
-      const redis = await redisService.getClient();
       const key = `${REDIS_PREFIX}${userId}`;
-      await redis.del(key);
+      await redisService.delete(key);
     } catch (error) {
       logToFile('⚠️ Redis clear failed', { userId, error: error.message });
     }

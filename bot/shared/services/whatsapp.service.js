@@ -707,11 +707,20 @@ class WhatsAppService {
       // Use existing sendVideo method
       return await this.sendVideo(to, videoBuffer, tempDir, caption);
     } catch (error) {
-      logToFile('❌ Error sending video from URL', {
-        error: error.message,
-        videoUrl,
-        stack: error.stack
-      });
+      // A missing R2 asset (e.g. an intro video that wasn't uploaded in this
+      // region) is a graceful skip, not an error — downgrade the log so it
+      // doesn't fire ERRO in dashboards. Callers already handle `false`.
+      const isMissingAsset = error?.name === 'NoSuchKey'
+        || /NoSuchKey|specified key does not exist/i.test(error?.message || '');
+      if (isMissingAsset) {
+        logToFile('⚠️ Video asset missing, skipping send', { videoUrl });
+      } else {
+        logToFile('❌ Error sending video from URL', {
+          error: error.message,
+          videoUrl,
+          stack: error.stack
+        });
+      }
       return false;
     }
   }
