@@ -1,7 +1,11 @@
 /**
  * Exam Composer — turns a Flow-submitted request
- *   { user_id, type: 'WEEKLY'|'TERM', grade, subject, language, chapters: [1,2] }
+ *   { user_id, type: 'WEEKLY'|'TERM', grade, subject, language, chapters: [1,2],
+ *     question_types?: ['mcq', 'short_answer', ...] }
  * into a specific set of question picks.
+ *
+ * question_types is optional: absent / empty → all types included (back-compat
+ * for old client caches that predate the picker screen).
  *
  * Reads: exam_question_bank (filtered), exam_question_groups.
  * Writes: exams + exam_questions rows (as snapshots).
@@ -29,6 +33,40 @@ const SKILL_TYPE_MAP = {
   listening: ['Listening'],
   speaking: ['Speaking'],
 };
+
+// User-facing question-type IDs (from the QUESTION_TYPES flow screen) mapped to
+// the granular `type` values that live in exam_question_bank.type. Any bank
+// row whose `type` is not covered here is effectively "extra" and only reachable
+// when the caller omits question_types (back-compat path).
+const QUESTION_TYPE_MAP = {
+  mcq:           ['MCQs', 'MSQs', 'Circle the Correct Answer'],
+  short_answer:  ['Brief Answers', 'Short Answer'],
+  long_answer:   ['Long Answer', 'Essay Writing', 'Letter Writing',
+                  'Paragraph Writing', 'Story Writing', 'Picture Description',
+                  'Application Writing', 'Simple Writing', 'Story Completion',
+                  'Rewriting', 'Writing'],
+  fill_blanks:   ['Fill in the Blanks', 'Missing Letters'],
+  true_false:    ['True/False'],
+  match_columns: ['Match the Column'],
+  comprehension: ['Comprehension Passage', 'Reading', 'Listening', 'Speaking'],
+};
+
+/**
+ * Given a list of user-facing question_type IDs, return the set of bank `type`
+ * values that should be kept in the pool. Returns null when no filter should
+ * apply (caller passed nothing, or an empty/unknown list) — the caller then
+ * skips the filter step for back-compat.
+ */
+function bankTypesForQuestionTypes(questionTypes) {
+  if (!Array.isArray(questionTypes) || questionTypes.length === 0) return null;
+  const set = new Set();
+  for (const id of questionTypes) {
+    const mapped = QUESTION_TYPE_MAP[id];
+    if (!mapped) continue;
+    for (const t of mapped) set.add(t);
+  }
+  return set.size > 0 ? set : null;
+}
 
 /**
  * Section classifier — objective vs subjective, matching Taleemabad's convention
@@ -204,16 +242,30 @@ function sampleBucket(bucketPool, targetCount, seenPct, unseenPct) {
  * Main entry point: compose a full exam from a Flow-submitted request.
  * Throws { code: 'INSUFFICIENT_POOL', bucket, needed, got } on pool shortage.
  */
-async function composeExam({ userId, type, grade, subject, language, chapters }) {
+async function composeExam({ userId, type, grade, subject, language, chapters, question_types }) {
   const blueprint = getBlueprint(grade, subject, type);
   logToFile('[exam-composer] blueprint resolved', {
     userId, type, grade, subject, language, chapters,
+    questionTypes: Array.isArray(question_types) ? question_types : null,
     duration: blueprint.duration_minutes,
     criteriaType: blueprint.criteria.type,
   });
 
-  const pool = await loadPool({ grade, subject, language, chapters });
+  let pool = await loadPool({ grade, subject, language, chapters });
   logToFile('[exam-composer] pool loaded', { total: pool.length });
+
+  // Filter by user-picked question types (if any). Empty/unknown = no filter,
+  // which is the back-compat behaviour for old client caches that submit a
+  // request without the question_types field.
+  const bankTypeFilter = bankTypesForQuestionTypes(question_types);
+  if (bankTypeFilter) {
+    const before = pool.length;
+    pool = pool.filter(q => bankTypeFilter.has(q.type));
+    logToFile('[exam-composer] pool filtered by question_types', {
+      before, after: pool.length,
+      types: [...bankTypeFilter],
+    });
+  }
 
   // If the pool is bone empty, fail fast with a specific error.
   if (pool.length === 0) {
@@ -318,4 +370,9 @@ async function composeExam({ userId, type, grade, subject, language, chapters })
   return { exam: examRow, questions: renderable, groupMeta };
 }
 
-module.exports = { composeExam, sectionOf };
+module.exports = {
+  composeExam,
+  sectionOf,
+  QUESTION_TYPE_MAP,
+  bankTypesForQuestionTypes,
+};

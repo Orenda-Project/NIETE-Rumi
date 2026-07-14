@@ -4,7 +4,8 @@
   "routing_model": {
     "TYPE_SELECT":         ["GRADE_SUBJECT"],
     "GRADE_SUBJECT":       ["CHAPTERS"],
-    "CHAPTERS":            ["SUCCESS"]
+    "CHAPTERS":            ["QUESTION_TYPES"],
+    "QUESTION_TYPES":      ["SUCCESS"]
   },
   "screens": [
     {
@@ -148,12 +149,81 @@
               },
               {
                 "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "select_chapters",
+                    "chapters": "${form.chapters}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_TYPES",
+      "title": "Question types",
+      "data": {
+        "question_type_options": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" } } },
+          "__example__": [
+            { "id": "mcq",           "title": "MCQ" },
+            { "id": "short_answer",  "title": "Short Answer" },
+            { "id": "long_answer",   "title": "Long Answer" },
+            { "id": "fill_blanks",   "title": "Fill in the Blanks" },
+            { "id": "true_false",    "title": "True/False" },
+            { "id": "match_columns", "title": "Match the Columns" },
+            { "id": "comprehension", "title": "Comprehension" }
+          ]
+        },
+        "question_type_defaults": {
+          "type": "array",
+          "items": { "type": "string" },
+          "__example__": [
+            "mcq", "short_answer", "long_answer", "fill_blanks",
+            "true_false", "match_columns", "comprehension"
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "Which question types?"
+          },
+          {
+            "type": "TextBody",
+            "text": "All 7 are included by default. Uncheck any you don't want."
+          },
+          {
+            "type": "Form",
+            "name": "form",
+            "init-values": {
+              "question_types": "${data.question_type_defaults}"
+            },
+            "children": [
+              {
+                "type": "CheckboxGroup",
+                "name": "question_types",
+                "label": "Question types",
+                "required": true,
+                "min-selected-items": 1,
+                "max-selected-items": 7,
+                "data-source": "${data.question_type_options}"
+              },
+              {
+                "type": "Footer",
                 "label": "Generate exam",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
                     "_action": "generate",
-                    "chapters": "${form.chapters}"
+                    "question_types": "${form.question_types}"
                   }
                 }
               }

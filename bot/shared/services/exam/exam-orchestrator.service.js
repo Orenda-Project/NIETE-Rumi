@@ -100,7 +100,7 @@ async function markFailed(examId, reason) {
  * Main entry — called by the SQS worker's EXAM_GENERATE case.
  */
 async function generateExam(request) {
-  const { userId, type, grade, subject, language, chapters } = request;
+  const { userId, type, grade, subject, language, chapters, question_types } = request;
   const lang = pickLang(language);
   const M = FRIENDLY_MESSAGES[lang];
 
@@ -114,7 +114,7 @@ async function generateExam(request) {
 
   let composed;
   try {
-    composed = await composeExam({ userId, type, grade, subject, language, chapters });
+    composed = await composeExam({ userId, type, grade, subject, language, chapters, question_types });
   } catch (err) {
     logToFile('[exam-orchestrator] compose failed', {
       code: err.code, bucket: err.bucket, message: err.message,

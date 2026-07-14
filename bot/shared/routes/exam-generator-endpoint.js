@@ -2,10 +2,11 @@
 /**
  * Exam Generator Flow endpoint handler.
  *
- * Three screens (see docs/flows/exam-generator-flow.json):
+ * Screens (see docs/flows/exam-generator-flow.json):
  *   TYPE_SELECT     → user picks WEEKLY | TERM
  *   GRADE_SUBJECT   → user picks grade / subject / language
- *   CHAPTERS        → user picks 1+ chapters and taps "Generate exam"
+ *   CHAPTERS        → user picks 1+ chapters and taps "Next"
+ *   QUESTION_TYPES  → user picks 1+ question types (all 7 pre-checked) and taps "Generate exam"
  *   SUCCESS         → terminal, hands control back to the bot
  *
  * State between screens is stored in Redis keyed by flow_token
@@ -190,6 +191,33 @@ async function chaptersScreen(grade, subject, language) {
   return { screen: 'CHAPTERS', data: { chapter_options: chapters } };
 }
 
+// The 7 user-facing question types. IDs travel through the Flow and land in the
+// composer, which maps them to the bank's granular `type` values (see
+// exam-composer.service.js QUESTION_TYPE_MAP).
+const QUESTION_TYPE_OPTIONS = [
+  { id: 'mcq',           title: 'MCQ' },
+  { id: 'short_answer',  title: 'Short Answer' },
+  { id: 'long_answer',   title: 'Long Answer' },
+  { id: 'fill_blanks',   title: 'Fill in the Blanks' },
+  { id: 'true_false',    title: 'True/False' },
+  { id: 'match_columns', title: 'Match the Columns' },
+  { id: 'comprehension', title: 'Comprehension' },
+];
+
+const QUESTION_TYPE_IDS = QUESTION_TYPE_OPTIONS.map(o => o.id);
+
+function questionTypesScreen() {
+  // All 7 pre-checked by default — same behaviour as pre-picker for anyone who
+  // taps through without touching the boxes.
+  return {
+    screen: 'QUESTION_TYPES',
+    data: {
+      question_type_options: QUESTION_TYPE_OPTIONS,
+      question_type_defaults: QUESTION_TYPE_IDS,
+    },
+  };
+}
+
 function successScreen(message, flowToken) {
   return {
     screen: 'SUCCESS',
@@ -233,7 +261,7 @@ async function handleExamGeneratorDataExchange(userId, screen, screenData, flowT
   }
 
   if (screen === 'CHAPTERS') {
-    if (screenData._action !== 'generate') {
+    if (screenData._action !== 'select_chapters') {
       return await chaptersScreen(state.grade, state.subject, state.language);
     }
     // Parse chapter selection — flow may send array or comma-separated string.
@@ -251,6 +279,30 @@ async function handleExamGeneratorDataExchange(userId, screen, screenData, flowT
         chapter_options: [{ id: '0', title: 'Please pick at least one chapter' }],
       }};
     }
+    state.chapters = chapterInts;
+    await writeSession(flowToken, state);
+    return questionTypesScreen();
+  }
+
+  if (screen === 'QUESTION_TYPES') {
+    if (screenData._action !== 'generate') return questionTypesScreen();
+
+    // Parse question_types selection — like chapters, may be array or CSV.
+    let picked = screenData.question_types;
+    if (typeof picked === 'string') {
+      picked = picked.split(',').map(s => s.trim());
+    }
+    if (!Array.isArray(picked)) picked = [];
+    // Guard: only keep known IDs; empty falls back to all-types (v1 back-compat
+    // for any old client cache that submits without the new field).
+    const validIds = picked.filter(id => QUESTION_TYPE_IDS.includes(id));
+    const questionTypes = validIds.length > 0 ? validIds : QUESTION_TYPE_IDS.slice();
+
+    const chapterInts = Array.isArray(state.chapters) ? state.chapters : [];
+    if (chapterInts.length === 0 || !state.exam_type || !state.grade || !state.subject) {
+      // Session dropped — send back to start.
+      return typeSelectScreen();
+    }
 
     // Queue the actual work off the webhook thread. groupId = userId per the
     // SQSQueueService convention (see homework-request-endpoint for reference).
@@ -265,6 +317,7 @@ async function handleExamGeneratorDataExchange(userId, screen, screenData, flowT
           subject: state.subject,
           language: state.language,
           chapters: chapterInts,
+          question_types: questionTypes,
         }
       );
     } catch (err) {
@@ -299,4 +352,6 @@ module.exports = {
   handleExamGeneratorInit,
   handleExamGeneratorDataExchange,
   handleExamGeneratorBack,
+  QUESTION_TYPE_OPTIONS,
+  QUESTION_TYPE_IDS,
 };
