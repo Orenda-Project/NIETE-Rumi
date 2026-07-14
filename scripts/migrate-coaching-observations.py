@@ -127,21 +127,21 @@ PLANS = [
         name="templates",
         src_table="coaching_observationtemplate",
         tgt_table="nietemigrated_observation_templates",
-        src_cols=["id", "uuid", "name", "created", "modified"],
+        src_cols=["id", "uuid", "name", "created", "modified", "is_active", "deleted_at"],
     ),
     dict(
         name="sections",
         src_table="coaching_observationsection",
         tgt_table="nietemigrated_observation_sections",
-        src_cols=["id", "uuid", "template_id", "title", '"order"', "is_scored", "section_type", "created", "modified"],
-        tgt_cols=["id", "uuid", "template_id", "title", "order", "is_scored", "section_type", "created", "modified"],
+        src_cols=["id", "uuid", "template_id", "title", '"order"', "is_scored", "section_type", "created", "modified", "is_active", "deleted_at"],
+        tgt_cols=["id", "uuid", "template_id", "title", "order", "is_scored", "section_type", "created", "modified", "is_active", "deleted_at"],
     ),
     dict(
         name="question_groups",
         src_table="coaching_observationquestiongroup",
         tgt_table="nietemigrated_observation_question_groups",
-        src_cols=["id", "uuid", "section_id", "title", '"order"', "created", "modified"],
-        tgt_cols=["id", "uuid", "section_id", "title", "order", "created", "modified"],
+        src_cols=["id", "uuid", "section_id", "title", '"order"', "created", "modified", "is_active", "deleted_at"],
+        tgt_cols=["id", "uuid", "section_id", "title", "order", "created", "modified", "is_active", "deleted_at"],
     ),
     dict(
         name="questions",
@@ -150,12 +150,12 @@ PLANS = [
         src_cols=[
             "id", "uuid", "prompt", "type", "required", '"order"', "is_scored", "is_lp_followed",
             "purpose", "source", "tier", "section_id", "group_id", "lesson_plan_id",
-            "core_lesson_plan_id", "subject_id", "created", "modified",
+            "core_lesson_plan_id", "subject_id", "created", "modified", "is_active", "deleted_at",
         ],
         tgt_cols=[
             "id", "uuid", "prompt", "type", "required", "order", "is_scored", "is_lp_followed",
             "purpose", "source", "tier", "section_id", "group_id", "lesson_plan_id",
-            "core_lesson_plan_id", "subject_id", "created", "modified",
+            "core_lesson_plan_id", "subject_id", "created", "modified", "is_active", "deleted_at",
         ],
     ),
     dict(
@@ -164,11 +164,11 @@ PLANS = [
         tgt_table="nietemigrated_question_options",
         src_cols=[
             "id", "uuid", "question_id", "label", "value", '"order"', "score_type",
-            "is_correct", "created", "modified",
+            "is_correct", "created", "modified", "is_active", "deleted_at",
         ],
         tgt_cols=[
             "id", "uuid", "question_id", "label", "value", "order", "score_type",
-            "is_correct", "created", "modified",
+            "is_correct", "created", "modified", "is_active", "deleted_at",
         ],
         batch=1000,
     ),
@@ -178,7 +178,7 @@ PLANS = [
         tgt_table="nietemigrated_visit_plans",
         src_cols=[
             "id", "uuid", "name", "from_date", "to_date", "regional_manager_id",
-            "user_profile_content_type_id", "user_profile_object_id", "created", "modified",
+            "user_profile_content_type_id", "user_profile_object_id", "created", "modified", "is_active", "deleted_at",
         ],
     ),
     dict(
@@ -187,7 +187,7 @@ PLANS = [
         tgt_table="nietemigrated_school_visits",
         src_cols=[
             "id", "uuid", "scheduled_date", "visit_date", "comments", "status", "type",
-            "school_id", "visit_plan_id", "created", "modified",
+            "school_id", "visit_plan_id", "created", "modified", "is_active", "deleted_at",
         ],
     ),
     dict(
@@ -198,7 +198,7 @@ PLANS = [
             "id", "uuid", "scheduled_date", "visit_date", "comments", "status", "visit_purpose",
             "school_visit_id", "teacher_id", "coach_id", "grade_subject_id", "school_id",
             "section", "user_profile_content_type_id", "user_profile_object_id",
-            "created", "modified",
+            "created", "modified", "is_active", "deleted_at",
         ],
     ),
     dict(
@@ -210,7 +210,7 @@ PLANS = [
             "total_duration", "feedback", "teacher_response", "agreed_with_feedback", "status",
             "audio_url", "template_id", "visit_id", "coach_id", "lesson_plan_id",
             "core_lesson_plan_id", "school_class_subject_id", "book_chapter_id",
-            "user_profile_content_type_id", "user_profile_object_id", "created", "modified",
+            "user_profile_content_type_id", "user_profile_object_id", "created", "modified", "is_active", "deleted_at",
         ],
     ),
     dict(
@@ -220,7 +220,7 @@ PLANS = [
         src_cols=[
             "id", "uuid", "observation_id", "question_id", "answer_text",
             "single_choice_option_id", "student_number", "is_lp_followed", "student_scores",
-            "created", "modified",
+            "created", "modified", "is_active", "deleted_at",
         ],
         batch=1000,
     ),
@@ -244,22 +244,17 @@ def run(only: set[str] | None, dry_run: bool):
         tgt_cols = plan.get("tgt_cols", src_cols)
         batch = plan.get("batch", 500)
 
-        # Count first
-        cur.execute(
-            f"SELECT COUNT(*) FROM {src} "
-            f"WHERE (deleted_at IS NULL) AND (COALESCE(is_active, TRUE) = TRUE)"
-        )
+        # Count first — migrate ALL rows (including soft-deleted/inactive) so FK
+        # integrity is preserved. Consumers filter is_active/deleted_at at query
+        # time. Learned the hard way: filtering ancestors here orphans child FKs.
+        cur.execute(f"SELECT COUNT(*) FROM {src}")
         n_source = cur.fetchone()[0]
-        print(f"\n=== {name}: {src} → {tgt}  ({n_source} active rows to pull) ===")
+        print(f"\n=== {name}: {src} → {tgt}  ({n_source} total rows to pull) ===")
         if dry_run:
             total_read += n_source
             continue
 
-        sql = (
-            f"SELECT {', '.join(src_cols)} FROM {src} "
-            f"WHERE (deleted_at IS NULL) AND (COALESCE(is_active, TRUE) = TRUE) "
-            f"ORDER BY id"
-        )
+        sql = f"SELECT {', '.join(src_cols)} FROM {src} ORDER BY id"
         seen = written = errors = 0
         t0 = time.time()
         for chunk in stream_rows(cur, sql, tgt_cols, batch=batch):
