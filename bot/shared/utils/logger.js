@@ -19,8 +19,12 @@ if (!fs.existsSync(LOGS_DIR)) {
  *
  * @param {string} message - The log message
  * @param {Object|null} data - Optional data to log (will be included as structured fields)
+ * @param {'info'|'warn'|'error'} [level='info'] - Severity. `'error'` routes to
+ *   console.error (level=error in Axiom); `'warn'` to console.warn. Reserve
+ *   `'error'` for conditions an on-caller would want to see; use `'warn'` for
+ *   recoverable degradations (missing optional asset, cache miss, retry).
  */
-function logToFile(message, data = null) {
+function logToFile(message, data = null, level = 'info') {
   const correlationId = getCurrentCorrelationId();
   const timestamp = new Date().toISOString();
   const logFile = path.join(LOGS_DIR, `bot-${new Date().toISOString().split('T')[0]}.log`);
@@ -49,12 +53,16 @@ function logToFile(message, data = null) {
     // Ignore file write errors in production (Railway has no persistent storage)
   }
 
-  // For console: output structured (single-line JSON via structured-logger)
-  // The structured-logger will intercept this and format it properly
+  // For console: route to the level-appropriate method. structured-logger
+  // intercepts console.log/warn/error and emits pino events with the matching
+  // `level` field — that's what shows up in Axiom.
+  const emit = level === 'error' ? console.error
+    : level === 'warn' ? console.warn
+    : console.log;
   if (enrichedData) {
-    console.log(message, enrichedData);
+    emit(message, enrichedData);
   } else {
-    console.log(message);
+    emit(message);
   }
 }
 
