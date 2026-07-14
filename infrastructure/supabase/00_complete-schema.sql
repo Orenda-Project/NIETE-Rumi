@@ -3880,6 +3880,38 @@ ALTER TABLE dashboard_users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20);
 -- column. Populated on every inbound by bot-helpers.getOrCreateUser.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_message_at TIMESTAMPTZ;
 
+-- training_assessment_attempts: extend to support per-module (training) quizzes
+-- in addition to per-level grand quizzes. Grand quizzes are blocking + 100%
+-- pass + 24h cooldown; training-module quizzes are non-blocking, feedback-only,
+-- no cooldown, and fire after every module that has questions.
+--   * quiz_kind        — 'grand' (default) or 'training_module'
+--   * training_module_id — populated only for kind='training_module'
+--   * grand_quiz_id      — NOT NULL relaxed so training-module attempts can
+--                          leave it null (the CHECK constraint below enforces
+--                          exactly one discriminator is set)
+ALTER TABLE training_assessment_attempts ADD COLUMN IF NOT EXISTS quiz_kind VARCHAR(32) NOT NULL DEFAULT 'grand';
+ALTER TABLE training_assessment_attempts ADD COLUMN IF NOT EXISTS training_module_id BIGINT REFERENCES training_modules(id);
+ALTER TABLE training_assessment_attempts ALTER COLUMN grand_quiz_id DROP NOT NULL;
+ALTER TABLE training_assessment_attempts ALTER COLUMN level_id DROP NOT NULL;
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'training_assessment_attempts_kind_target_ck'
+    ) THEN
+        ALTER TABLE training_assessment_attempts
+            ADD CONSTRAINT training_assessment_attempts_kind_target_ck
+            CHECK (
+                (quiz_kind = 'grand' AND grand_quiz_id IS NOT NULL AND training_module_id IS NULL)
+                OR
+                (quiz_kind = 'training_module' AND training_module_id IS NOT NULL)
+            );
+    END IF;
+END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_taa_one_active_per_module
+    ON training_assessment_attempts(user_id, training_module_id)
+    WHERE status = 'in_progress' AND quiz_kind = 'training_module';
+CREATE INDEX IF NOT EXISTS idx_taa_kind ON training_assessment_attempts(quiz_kind);
+
 -- =============================================================================
 -- Function reconcile (Phase 5) — RPCs the bot invokes via supabase.rpc() that the
 -- consolidated schema predated. CREATE OR REPLACE keeps it idempotent. (get_column_info

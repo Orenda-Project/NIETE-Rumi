@@ -15,6 +15,7 @@ const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
 const { getPresignedUrl } = require('../../storage/r2');
 const { logToFile } = require('../../utils/logger');
+const { logEvent } = require('../../utils/structured-logger');
 
 /**
  * Find the next uncompleted module for a teacher in a course.
@@ -178,6 +179,47 @@ async function handleModuleDone(userId, moduleId, phoneNumber) {
   }
 
   logToFile('🎓 Module marked done', { userId, moduleId: moduleIdNum, courseId: mod.course_id, title: mod.title });
+
+  // Per-module training quiz (non-blocking).
+  //
+  // If this module has any active questions on training_questions
+  // (training_module_id = mod.id AND is_active), fire the quiz WITHOUT
+  // gating the next module — the teacher sees a short "quick check"
+  // sequence AND the next video keeps flowing. We deliberately don't
+  // await the quiz completion; the button handler will finalize it.
+  //
+  // Decision (non-blocking / parallel):
+  //   - Fire startTrainingQuiz first so Q1 arrives before the next video
+  //     header (WhatsApp preserves send order).
+  //   - Do NOT await it inside the same chain — kick it off with the
+  //     Promise and let it resolve independently. That way an error in
+  //     the quiz never blocks the next module.
+  //   - Only fire when questions actually exist; otherwise skip silently.
+  //
+  // Trade-off: a teacher racing through modules could see Q1 of module N
+  // interleaved with the header of module N+1. In practice the quiz Q1
+  // fires ~200ms before the next-module video URL, and the button reply
+  // model on WhatsApp handles out-of-order taps fine.
+  const { count: quizQCount } = await supabase
+    .from('training_questions')
+    .select('id', { count: 'exact', head: true })
+    .eq('training_module_id', moduleIdNum)
+    .eq('is_active', true);
+  const eligPayload = {
+    user_uuid: userId,
+    module_row_id: moduleIdNum,
+    questions_found: quizQCount || 0,
+    source: 'module_done',
+  };
+  logEvent('training_quiz_eligibility_checked', eligPayload);
+  if (quizQCount && quizQCount > 0) {
+    const QuizDelivery = require('./quiz-delivery.service');
+    // Fire-and-forget — kicks Q1 out ahead of the next module video.
+    // Any failure inside the quiz path is logged there; we never block
+    // the teacher's forward progress on it.
+    Promise.resolve(QuizDelivery.startTrainingQuiz(userId, moduleIdNum, phoneNumber))
+      .catch((err) => logToFile('⚠️ Non-blocking training quiz failed', { moduleId: moduleIdNum, error: err?.message }));
+  }
 
   // If the teacher is REVIEWING an already-fully-complete course (all modules
   // had progress rows before this tap), advance to the next module by
