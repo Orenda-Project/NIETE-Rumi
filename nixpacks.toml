@@ -1,0 +1,15 @@
+# Explicit nixpacks install phase. Restores the pattern that was working prior
+# to commit 3171ff2 (which dropped this file in favour of NIXPACKS_INSTALL_CMD).
+# The env-var-only approach ended up running a cached "npm install && cd bot &&
+# npm install" command that failed when `bot/` wasn't at the expected relative
+# path — 5 consecutive builds broke on `cd: bot: No such file or directory`.
+#
+# The defensive `[ -d bot ]` guard makes the install work whether Railway's
+# service root is the repo root (with `bot/` as a subdirectory) or `bot/`
+# itself (in which case we're already inside it).
+
+[phases.install]
+cmds = [
+  "npm install",
+  "[ -d bot ] && (cd bot && npm install) || echo 'bot/ subdir absent — already inside it, skipping second install'"
+]
