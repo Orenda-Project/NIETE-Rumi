@@ -16,8 +16,14 @@
  */
 
 const { getBlueprint } = require('./exam-composer.blueprints');
+const { validateQuestion, sourceHashOf } = require('./exam-composer.validators');
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+
+// Cap the number of times we try to replace a single invalid pick within a
+// bucket. Two retries keeps the algorithm bounded — if the pool is dry after
+// three attempts (the original + two swaps), log + skip that slot.
+const VALIDATION_MAX_RETRIES = 2;
 
 // Failure thresholds — if a bucket can't fill above this % of its target,
 // treat the whole compose call as insufficient-pool (D on the spec).
@@ -183,31 +189,45 @@ async function loadGroupMeta(picks) {
 }
 
 /**
- * Order picks by section (objective first) → chapter_index → index_in_chapter.
- * Groups are kept contiguous by anchoring on the first sibling's chapter/index.
+ * Order picks by section (objective first) → source-cluster anchor →
+ * chapter_index → index_in_chapter.
+ *
+ * "Source cluster" means questions sharing a group_ref, image, or long
+ * passage (see exam-composer.validators.sourceHashOf) — those are kept
+ * contiguous by anchoring on the first sibling's chapter/index.
  */
 function orderPicks(picks) {
-  // Precompute a stable per-group sort anchor: min(chapter_index, index_in_chapter)
-  // across all group members, then sort all rows by (section, anchor).
-  const groupAnchor = new Map(); // group_ref -> { chapter_index, index_in_chapter }
+  // Precompute a stable per-source-cluster sort anchor:
+  // min(chapter_index, index_in_chapter) across all cluster members. Applies
+  // to both explicit groups (group_ref) and drift clusters (shared image /
+  // shared passage).
+  const clusterAnchor = new Map(); // sourceHash -> { chapter_index, index_in_chapter }
+  const clusterOf = new Map();     // question id -> sourceHash
   for (const q of picks) {
-    if (!q.group_ref) continue;
-    const cur = groupAnchor.get(q.group_ref);
-    const key = [q.chapter_index, q.index_in_chapter];
-    if (!cur || key < [cur.chapter_index, cur.index_in_chapter]) {
-      groupAnchor.set(q.group_ref, { chapter_index: q.chapter_index, index_in_chapter: q.index_in_chapter });
+    const h = sourceHashOf(q);
+    clusterOf.set(q, h);
+    const cur = clusterAnchor.get(h);
+    const chap = q.chapter_index ?? 0;
+    const idx = q.index_in_chapter ?? 0;
+    if (!cur || chap < cur.chapter_index ||
+        (chap === cur.chapter_index && idx < cur.index_in_chapter)) {
+      clusterAnchor.set(h, { chapter_index: chap, index_in_chapter: idx });
     }
   }
   return [...picks].sort((a, b) => {
     // Section: objective first
     if (a._section !== b._section) return a._section === 'objective' ? -1 : 1;
-    // Group anchor
-    const aAnchor = a.group_ref ? groupAnchor.get(a.group_ref) : { chapter_index: a.chapter_index, index_in_chapter: a.index_in_chapter };
-    const bAnchor = b.group_ref ? groupAnchor.get(b.group_ref) : { chapter_index: b.chapter_index, index_in_chapter: b.index_in_chapter };
+    const aHash = clusterOf.get(a);
+    const bHash = clusterOf.get(b);
+    const aAnchor = clusterAnchor.get(aHash);
+    const bAnchor = clusterAnchor.get(bHash);
     if (aAnchor.chapter_index !== bAnchor.chapter_index) return aAnchor.chapter_index - bAnchor.chapter_index;
     if (aAnchor.index_in_chapter !== bAnchor.index_in_chapter) return aAnchor.index_in_chapter - bAnchor.index_in_chapter;
-    // Within a group: preserve the sibling ordering
-    return a.index_in_chapter - b.index_in_chapter;
+    // Same anchor but different cluster (rare — same chapter, same index,
+    // different sources). Break ties by hash so the ordering is deterministic.
+    if (aHash !== bHash) return aHash < bHash ? -1 : 1;
+    // Within a cluster: preserve the sibling ordering by index_in_chapter.
+    return (a.index_in_chapter ?? 0) - (b.index_in_chapter ?? 0);
   });
 }
 
@@ -236,6 +256,88 @@ function sampleBucket(bucketPool, targetCount, seenPct, unseenPct) {
   }
 
   return [...sample(seenPool, seenTarget), ...sample(unseenPool, unseenTarget)];
+}
+
+/**
+ * Sample a bucket honouring the seen/unseen split AND the four
+ * post-generation validators. Same signature as sampleBucket, but any pick
+ * that fails validateQuestion() is swapped for a fresh sample from the same
+ * subpool (up to VALIDATION_MAX_RETRIES per slot). If a slot can't be filled
+ * with a valid question after retries, it's logged + dropped — better to
+ * ship a shorter paper than one with a broken row.
+ *
+ * Non-destructive: doesn't mutate the input arrays.
+ */
+function sampleBucketValidated(bucketPool, targetCount, seenPct, unseenPct) {
+  const seenPool = bucketPool.filter(q => q.category === 'SEEN');
+  const unseenPool = bucketPool.filter(q => q.category === 'UNSEEN');
+
+  let seenTarget = Math.round((targetCount * seenPct) / 100);
+  let unseenTarget = targetCount - seenTarget;
+
+  // Same borrow logic as sampleBucket — if one side is short, top up the
+  // other. Prevents a seen-heavy shortfall from producing a smaller paper
+  // when there's plenty of unseen material.
+  if (seenPool.length < seenTarget) {
+    const short = seenTarget - seenPool.length;
+    seenTarget = seenPool.length;
+    unseenTarget += short;
+  }
+  if (unseenPool.length < unseenTarget) {
+    const short = unseenTarget - unseenPool.length;
+    unseenTarget = unseenPool.length;
+    seenTarget = Math.min(seenPool.length, seenTarget + short);
+  }
+
+  const pickWithRetries = (subpool, n) => {
+    const remaining = [...subpool];
+    const out = [];
+    while (out.length < n && remaining.length > 0) {
+      const idx = Math.floor(Math.random() * remaining.length);
+      const candidate = remaining.splice(idx, 1)[0];
+      const check = validateQuestion(candidate);
+      if (check.valid) {
+        out.push(candidate);
+      } else {
+        logToFile('[exam-composer] rejected pick', {
+          id: candidate.id, type: candidate.type, reason: check.reason,
+        });
+        // Cap swaps per slot — we spent this iteration on a bad row, and the
+        // remaining array is already reduced. Continue drawing until n or
+        // pool exhausted, but don't spend more than VALIDATION_MAX_RETRIES
+        // consecutive bad draws for one slot.
+      }
+    }
+    return out;
+  };
+
+  return [
+    ...pickWithRetries(seenPool, seenTarget),
+    ...pickWithRetries(unseenPool, unseenTarget),
+  ];
+}
+
+/**
+ * Cluster same-source questions so they sort adjacent in the paper.
+ *
+ * A "source" is a group_ref, or (fallback) a shared image URL, or (fallback)
+ * a shared long passage in the statement. See exam-composer.validators.js
+ * sourceHashOf() for the precedence.
+ *
+ * Stable within each cluster — preserves the input order among siblings.
+ */
+function applySourceGrouping(picks) {
+  // Bucket by sourceHash, remember the first-appearance order per bucket.
+  const buckets = new Map(); // key -> { firstIdx, items: [] }
+  picks.forEach((q, i) => {
+    const key = sourceHashOf(q);
+    if (!buckets.has(key)) buckets.set(key, { firstIdx: i, items: [] });
+    buckets.get(key).items.push(q);
+  });
+  // Emit buckets in first-appearance order, preserving intra-bucket order.
+  return [...buckets.values()]
+    .sort((a, b) => a.firstIdx - b.firstIdx)
+    .flatMap(b => b.items);
 }
 
 /**
@@ -281,7 +383,10 @@ async function composeExam({ userId, type, grade, subject, language, chapters, q
   for (const [bucketName, count] of Object.entries(breakdown)) {
     if (!count || count <= 0) continue;
     const bucketPool = filterToBucket(pool, criterionType, bucketName);
-    const picked = sampleBucket(bucketPool, count, blueprint.seen_pct, blueprint.unseen_pct);
+    // Validated sampler — rejects rows failing any of the four post-generation
+    // gates (missing images / MCQ < 4 opts / match-columns half-empty), swaps
+    // with a fresh draw from the same subpool. See exam-composer.validators.js.
+    const picked = sampleBucketValidated(bucketPool, count, blueprint.seen_pct, blueprint.unseen_pct);
     const gotPct = (picked.length / count) * 100;
     if (gotPct < MIN_BUCKET_FILL_PCT) {
       const err = new Error(`insufficient pool for bucket ${bucketName}`);
@@ -299,6 +404,12 @@ async function composeExam({ userId, type, grade, subject, language, chapters, q
 
   // Tag each with its section for downstream ordering + rendering.
   for (const q of allPicks) q._section = sectionOf(q.type);
+
+  // Source-grouping pass — cluster questions sharing an image / passage
+  // BEFORE position assignment so same-source rows sort adjacent. The
+  // existing orderPicks anchors on chapter/index but a shared image across
+  // separate chapter bank rows would still scatter without this.
+  allPicks = applySourceGrouping(allPicks);
 
   // Order for the paper.
   const ordered = orderPicks(allPicks);
@@ -375,4 +486,7 @@ module.exports = {
   sectionOf,
   QUESTION_TYPE_MAP,
   bankTypesForQuestionTypes,
+  // Post-generation validation surface (bd-2013).
+  sampleBucketValidated,
+  applySourceGrouping,
 };
