@@ -93,55 +93,25 @@ class MenuService {
 
       logToFile('Handling menu button response', { userId: user.id, buttonId, sessionId: state.sessionId });
 
-      // Route to appropriate handler based on button ID
+      // NIETE routing — each carousel button routes to the same code path as
+      // the equivalent slash command, so /training and menu_teacher_training
+      // deliver an identical experience. LP has no slash command (natural-
+      // language triggers it), so the button sends a guided prompt.
       switch (buttonId) {
         case 'menu_lesson_plan':
-          await this._handleLessonPlanningChoice(user.id, state.sessionId, from, language);
+          await this._sendLessonPlanPrompt(from, language);
+          break;
+
+        case 'menu_teacher_training':
+          await this._sendTeacherTrainingFlow(from, user, language);
           break;
 
         case 'menu_coaching':
-          await this._handleClassroomCoachingChoice(user.id, state.sessionId, from, language);
+          await this._sendCoachingPrompt(from, language);
           break;
 
-        case 'menu_reading':
-          // /009 FIX: Use WhatsApp Flow (same as /reading test command)
-          // Old ReadingAssessmentService.initiateAssessment() didn't ask for student name
-          // WhatsApp Flow collects all info in proper multi-screen form
-          const FeatureIntroService = require('./feature-intro.service');
-
-          // Send intro video if first use
-          await FeatureIntroService.sendFirstUseIntroIfNeeded(
-            user.id,
-            from,
-            'reading',
-            language
-          );
-
-          // Send WhatsApp Flow for reading assessment setup
-          const flowSent = await WhatsAppService.sendFlow(from, {
-            flowId: process.env.READING_ASSESSMENT_FLOW_ID,
-            header: '📚 Reading Assessment',
-            body: 'Let\'s set up a reading assessment for your student. This will help measure their reading fluency and comprehension.',
-            footer: 'Takes about 5-10 minutes',
-            buttonText: 'Start Assessment',
-            screen: 'BASIC_INFO'  // Multi-screen flow v3: first screen
-          });
-
-          if (flowSent) {
-            logToFile('✅ Reading assessment flow sent from menu', { userId: user.id });
-            await FeatureIntroService.markFeatureUsed(user.id, 'reading');
-          } else {
-            throw new Error('Failed to send WhatsApp Flow from menu');
-          }
-          break;
-
-        case 'menu_video':
-          // Trigger video generation flow
-          await this._handleMediaLibraryChoice(user.id, state.sessionId, from, language);
-          break;
-
-        case 'menu_other':
-          await this._handleOtherChoice(user.id, state.sessionId, from, language);
+        case 'menu_assessment_generator':
+          await this._sendExamGeneratorFlow(from, user, language);
           break;
 
         default:
@@ -420,6 +390,95 @@ class MenuService {
       });
       // Don't throw - this is non-critical
     }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // FEAT-059 / carousel button handlers
+  //
+  // Each of the 4 carousel buttons routes to the same code path as the
+  // equivalent slash command in text-message.handler.js — /training and
+  // /exams open Meta Flows; LP + Coaching send a guiding prompt because
+  // they have no slash-command entry point (LP triggers on natural
+  // language, coaching triggers on voice upload).
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /**
+   * LP has no slash command — a teacher just describes what they want.
+   * Send an explicit prompt so tapping "Lesson Plans" isn't a dead end.
+   */
+  static async _sendLessonPlanPrompt(from, language) {
+    const msg = ({
+      ur: 'زبردست! مجھے گریڈ، مضمون اور موضوع بتائیں۔\n\nمثال:\n• گریڈ 1 میتھ Number Buddies\n• گریڈ 2 انگلش Get to Know Me',
+    })[language] || (
+      "Great! Tell me the grade, subject, and topic you need a lesson plan for.\n\n" +
+      "For example:\n• Grade 1 Math Number Buddies\n• Grade 2 English Get to Know Me\n• Grade 1 Reading Hour English phonics"
+    );
+    await WhatsAppService.sendMessage(from, msg);
+  }
+
+  /**
+   * Teacher Training — mirrors the /training slash command
+   * (text-message.handler.js:590). Opens TEACHER_TRAINING_FLOW_ID.
+   */
+  static async _sendTeacherTrainingFlow(from, user, language) {
+    const flowId = process.env.TEACHER_TRAINING_FLOW_ID || '';
+    if (!flowId) {
+      await WhatsAppService.sendMessage(
+        from,
+        "Teacher Training is being prepared for you. We'll notify you when it's live.\n\nاستاد کی تربیت آپ کے لیے تیار کی جا رہی ہے۔"
+      );
+      return;
+    }
+    const flowToken = `${user.id}:teacher-training:${Date.now()}`;
+    await WhatsAppService.sendFlow(from, {
+      flowId,
+      header: '🎓 Teacher Training',
+      body: ({
+        ur: 'اپنی تربیت کی پیش رفت دیکھیں اور اگلا سبق شروع کریں۔',
+      })[language] || 'View your training progress and start your next level.',
+      buttonText: ({ ur: 'کھولیں' })[language] || 'Open',
+      flowToken,
+    });
+    logToFile('🎓 Sent teacher-training flow (from menu)', { userId: user.id });
+  }
+
+  /**
+   * Coaching is voice-first — send an instruction prompt.
+   */
+  static async _sendCoachingPrompt(from, language) {
+    const msg = ({
+      ur: 'کوچنگ کے لیے، اپنے کلاس روم کی 5-30 منٹ کی وائس ریکارڈنگ بھیجیں۔ میں اس کا تجزیہ کروں گی اور آپ کو ذاتی فیڈبیک دوں گی۔',
+    })[language] || (
+      "For coaching, record a short voice note of your classroom (5-30 min) " +
+      "and send it here. I'll analyse it and share personalised teaching feedback."
+    );
+    await WhatsAppService.sendMessage(from, msg);
+  }
+
+  /**
+   * Assessment Generator — mirrors the /exams slash command
+   * (text-message.handler.js:679). Opens EXAM_GENERATOR_FLOW_ID.
+   */
+  static async _sendExamGeneratorFlow(from, user, language) {
+    const flowId = process.env.EXAM_GENERATOR_FLOW_ID || '';
+    if (!flowId) {
+      await WhatsAppService.sendMessage(
+        from,
+        "The exam generator is being prepared for you. We'll notify you when it's live.\n\nامتحان جنریٹر تیار کیا جا رہا ہے۔"
+      );
+      return;
+    }
+    const flowToken = `${user.id}:exam-generator:${Date.now()}`;
+    await WhatsAppService.sendFlow(from, {
+      flowId,
+      header: '📝 New exam',
+      body: ({
+        ur: 'اپنی کلاس کے لیے نیا امتحان بنائیں — گریڈ، مضمون اور چیپٹرز منتخب کریں۔',
+      })[language] || 'Create a new exam for your class — pick grade, subject, and chapters.',
+      buttonText: ({ ur: 'شروع کریں' })[language] || 'Start',
+      flowToken,
+    });
+    logToFile('📝 Sent exam-generator flow (from menu)', { userId: user.id });
   }
 }
 

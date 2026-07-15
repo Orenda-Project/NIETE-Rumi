@@ -24,17 +24,26 @@ const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 
 // Extract significant tokens from a chapter title — words of length ≥3,
-// lowercased, alphanumeric only, excluding pure-numeric tokens (so "0-9"
-// range markers don't demand a "0" or "9" in the teacher's topic).
+// lowercased, alphanumeric OR Urdu-script only, excluding pure-numeric tokens
+// (so "0-9" range markers don't demand a "0" or "9" in the teacher's topic).
+//
+// The Urdu Unicode range (U+0600-U+06FF, "Arabic" block) covers the Urdu
+// alphabet + shared Arabic script letters. Without preserving it, NBF Urdu
+// chapter titles like "توحید کا تعارف" produce EMPTY token arrays and can
+// never match — locking half the FEAT-059 corpus out of natural-language
+// lookup. Urdu stopwords ("کا", "کی", "کے", "کو", "سے") are all 2 chars, so
+// the length≥3 filter drops them the same way it drops English "of"/"the".
 //
 // "Number Buddies 0-9"          → ["number", "buddies"]
 // "Numbers upto 9 (Concrete)"   → ["numbers", "upto", "concrete"]
 // "Extended Hour: Number Sense" → ["extended", "hour", "number", "sense"]
+// "توحید کا تعارف"              → ["توحید", "تعارف"]
+// "آسمانی کتب اور فرشتے"        → ["آسمانی", "کتب", "اور", "فرشتے"]
 function chapterTokens(chapterTitle) {
   return String(chapterTitle || '')
     .toLowerCase()
     .replace(/[-]/g, ' ')
-    .split(/[^a-z0-9]+/)
+    .split(/[^a-z0-9؀-ۿ]+/)
     .filter((w) => w.length >= 3 && !/^\d+$/.test(w));
 }
 
@@ -135,15 +144,37 @@ class CurriculumLpAstService {
     // ALL appear (case-insensitive substring) in the topic. Handles
     // natural-language LP-request wrappers like "lesson plan for X",
     // "give me a lesson plan on X", "X lesson plan please".
+    //
+    // Priority within a chapter (highest to lowest):
+    //   1. Has voicenote (FEAT-059 enrichment — voicenote + optional video)
+    //   2. Has R2 PDF cache (pdf_r2_key_en OR pdf_r2_key_ur)
+    //   3. Non-orientation LP (topic isn't "Types of X" / "Introductory LP")
+    //   4. Lowest lp_index (comes first in the stable order)
+    //
+    // FEAT-059 broke a subtle assumption: previously the matcher preferred
+    // non-orientation LPs because orientation LPs are teacher-facing "meta"
+    // content less useful for classroom delivery. But FEAT-059 enriched
+    // precisely those orientation LPs with voicenote + video assets. A row
+    // with voicenote is by definition "demoable content" — that beats every
+    // other tiebreaker. A row with only pdf cache still beats an unenriched
+    // row, preserving the previous cache-warming benefit for the other 2,395
+    // corpus LPs.
     const isOrientation = (lp) => /^types of|introductory lp/i.test(lp.topic || '');
+    const hasVoicenote = (lp) => !!lp.voicenote_ogg_r2_key;
+    const isCached = (lp) => !!(lp.pdf_r2_key_en || lp.pdf_r2_key_ur);
     const chapterMatches = new Map();
     for (const row of candidates) {
       const tokens = chapterTokens(row.chapter_title);
       if (!topicHasAllTokens(normalizedTopic, tokens)) continue;
       const existing = chapterMatches.get(row.chapter_number);
       if (!existing) { chapterMatches.set(row.chapter_number, row); continue; }
-      // Prefer non-orientation LP within the same chapter
-      if (isOrientation(existing) && !isOrientation(row)) chapterMatches.set(row.chapter_number, row);
+      if (hasVoicenote(row) !== hasVoicenote(existing)) {
+        if (hasVoicenote(row)) chapterMatches.set(row.chapter_number, row);
+      } else if (isCached(row) !== isCached(existing)) {
+        if (isCached(row)) chapterMatches.set(row.chapter_number, row);
+      } else if (isOrientation(existing) && !isOrientation(row)) {
+        chapterMatches.set(row.chapter_number, row);
+      }
     }
 
     if (chapterMatches.size === 0) {

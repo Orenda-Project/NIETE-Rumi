@@ -14,8 +14,11 @@
 > - `rumi-platform/` — upstream open-source template, no WhatsApp number
 > - `02_Main Rumi Bot/` — production Rumi PK (+92 329 5012345), different codebase
 > - `taleemabad-core/` — Django source app (read-only migration source)
+> - **TaleemHub** — Taleemabad's separate product (mentoring/COT/ASER data). **NIETE has no relationship with TaleemHub.** Do NOT point NIETE partners at TaleemHub as a data source — their teachers are not in it, and cross-DB access has no legal/organisational basis. If NIETE wants human-coach / mentoring / COT data, it must be captured freshly on the NIETE side (new schema + capture flow) or imported from a NIETE-owned source (their internal MoE trackers, if any). Documented after 2026-07-14 mis-answer on FEAT-061 + Slack #region-islamabad.
 >
 > **Sanity check**: `head -1 CLAUDE.md` in this dir should show "NIETE-Rumi". Any WhatsApp E2E from this project uses NIETE's `PHONE_NUMBER_ID`.
+>
+> **Upstream NIETE data (READ-ONLY source for migrations)**: the `TALEEMABAD_DB_*` env vars — despite the naming — point to the shared **FDE production Postgres** (`taleemabad_core` DB, `fde_production` schema). That schema holds NIETE / Federal Directorate of Education data including `coaching_observation` (9,944 rows), `coaching_teachervisit` (8,973 rows), `teacher_training_course` / `teacher_training_training`, `book_library_book`, etc. When a NIETE partner says "we already have X" — check this connection + schema first, not just NIETE-Rumi's own Supabase. `public` schema in the same DB is empty template; real data is in `fde_production` (django-tenants pattern).
 
 ---
 

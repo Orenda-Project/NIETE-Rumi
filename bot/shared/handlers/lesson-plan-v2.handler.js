@@ -26,6 +26,7 @@ const path = require('path');
 const TopicMatchingService = require('../services/topic-matching.service');
 const PreGenLookupService = require('../services/pregen-lookup.service');
 const CurriculumLpAstService = require('../services/curriculum-lp-ast.service');
+const GroundedLpRenderService = require('../services/grounded-lp-render.service');
 const LessonPlanQueueService = require('../services/lesson-plan-queue.service');
 const LpFeedbackService = require('../services/lp-feedback.service');
 const { storeLessonPlan } = require('../database/bot-helpers');
@@ -171,6 +172,12 @@ async function handleCurriculumLessonPlan({ userId, userDbId, topic, grade, subj
             source_lp_uuid: astLp.source_lp_uuid,
           });
         }
+        // FEAT-059: send voicenote + demo video (if enriched) after the PDF.
+        // Awaited so cross-message pacing is respected; feedback prompt is
+        // scheduled after so its 30s timer starts from the LAST media send,
+        // not the PDF — the teacher has just been handed voicenote + video
+        // and needs a moment before "was this useful?" makes sense.
+        await GroundedLpRenderService.sendEnrichmentMedia({ userId, lp: astLp });
         await _scheduleFeedbackForCacheHit({
           userDbId, phone: userId,
           topic: astLp.topic, grade: astLp.grade, subject: astLp.subject,

@@ -96,7 +96,7 @@ function parseSubjectAndGrade(userMessage) {
     { pattern: /primary|elementary/i, value: '1-5' },
     { pattern: /middle\s*school/i, value: '6-8' },
     { pattern: /high\s*school/i, value: '9-12' },
-    { pattern: /pre-?school|pre-?k/i, value: 'PK' },
+    { pattern: /\bprep\b|pre-?school|pre-?k|kindergarten/i, value: 'PK' },
     { pattern: /early\s*years/i, value: 'EY' }
   ];
 
@@ -123,7 +123,21 @@ function parseSubjectAndGrade(userMessage) {
   }
 
   // ========== SUBJECT DETECTION ==========
+  // Ordering matters — Object.entries preserves insertion order and the first
+  // bucket whose keyword matches wins. Compound-phrase buckets ('reading_hour_urdu',
+  // 'reading_hour_english') come BEFORE their base-language buckets so requests
+  // like "reading hour urdu phonics" resolve to the compound subject slug (which
+  // is what curriculum_lp_ast actually stores) rather than falling through to
+  // the plain 'english'/'urdu' bucket. Urdu compound is listed FIRST so that a
+  // mixed message like "urdu reading hour" doesn't get captured by the English
+  // compound's 'reading hour' fallback keyword.
   const subjectKeywords = {
+    'reading_hour_urdu': ['reading hour urdu', 'urdu reading hour', 'urdu phonics', 'phonics urdu', 'صوتیات', 'حروف'],
+    'reading_hour_english': ['reading hour english', 'english reading hour', 'english phonics', 'phonics english'],
+    // 'numeracy' is Taleemabad's Extended-Hour numeracy strand, distinct from
+    // 'maths' (regular Math). Keep the keywords specific — "number sense" alone
+    // would false-positive on any Math LP that mentions numbers.
+    'numeracy': ['numeracy', 'extended hour numeracy', 'extended hour number sense', 'number sense extended'],
     'math': ['math', 'mathematics', 'algebra', 'geometry', 'calculus', 'arithmetic', 'numbers', 'addition', 'subtraction', 'multiplication', 'division', 'fractions'],
     'science': ['science', 'biology', 'chemistry', 'physics', 'ecology', 'astronomy', 'experiment', 'scientific method', 'nature', 'plants', 'animals'],
     'english': ['english', 'language arts', 'reading', 'writing', 'grammar', 'vocabulary', 'literature', 'poetry', 'comprehension'],

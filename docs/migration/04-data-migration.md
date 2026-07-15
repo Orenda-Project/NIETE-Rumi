@@ -1,6 +1,6 @@
 # 04 — Data Migration (Taleemabad → Rumi Fork)
 
-**Status**: 🔴 Blocked on database access
+**Status**: 🟢 Unblocked — direct Postgres access landed (2026-07 or earlier). `TALEEMABAD_DB_*` env vars in the `.env` connect to `fde_production` on the production Postgres directly. Bastion / BigQuery routes below are no longer required; the BQ blockers (Q-3) and bastion blockers (Q-4) are historical. See `scripts/migrate-teacher-training.py` and `scripts/migrate-lesson-plans.py` for working migrations.
 **Feeds**: [01](./01-lesson-plans.md), [02](./02-teacher-training.md), [03](./03-digital-coach.md)
 
 ---

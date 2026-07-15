@@ -1,29 +1,29 @@
 #!/usr/bin/env python3
 """
-NIETE-Rumi Lesson-Plan Catalog migration — one-shot import of Oxbridge LPs
-from Taleemabad's legacy Postgres (`fde_production.lesson_plan_externallessonplan`).
+NIETE-Rumi Lesson-Plan Catalog migration — import LPs from Taleemabad's legacy
+Postgres (`fde_production.lesson_plan_externallessonplan`) by vendor source.
 
 What it does:
-  1. SELECT every Oxbridge LP row where `is_active IS NULL OR is_active = TRUE`
-     (filter mirrors the source app's own liveness check).
+  1. SELECT every LP row for `--vendor <source>` where
+     `is_active IS NULL OR is_active = TRUE` (mirrors source app's liveness check).
   2. Resolve grade + subject via `slo_gradesubject` → `slo_grade` + `slo_subject`.
   3. Resolve chapter title via `book_library_bookchapter` (nullable).
   4. UPSERT into NIETE-Rumi's `lesson_plan_catalog` keyed on
-     `(source, source_row_id) = ('oxbridge', lp.id)` — idempotent re-runs.
+     `(source, source_row_id) = (<vendor>, lp.id)` — idempotent re-runs.
   5. Report per-grade + per-subject counts.
 
-Deliberately NOT filtered by grade (6–10) — the source is universally Oxbridge
-and importing all 70 rows keeps the catalog aligned with reality; the
-consuming feature can filter downstream if needed.
+Deliberately NOT filtered by grade — importing every active vendor row keeps
+the catalog aligned with reality; the consuming feature can filter downstream.
 
 Reads: Taleemabad prod Postgres (TALEEMABAD_DB_* in .env — read-only role)
 Writes: NIETE-Rumi Supabase via PostgREST (Prefer=merge-duplicates on the
         unique (source, source_row_id) index).
 
-Run: python3 scripts/migrate-lesson-plans.py
+Run: python3 scripts/migrate-lesson-plans.py --vendor oxbridge
+     python3 scripts/migrate-lesson-plans.py --vendor beaconhouse
 """
 from __future__ import annotations
-import json, sys, urllib.request, urllib.error
+import argparse, json, sys, urllib.request, urllib.error
 from collections import Counter
 from pathlib import Path
 
@@ -42,7 +42,6 @@ def env(k: str) -> str:
 
 SUPABASE_URL = env("SUPABASE_URL")
 SUPABASE_KEY = env("SUPABASE_SERVICE_ROLE_KEY")
-SOURCE_KEY = "oxbridge"
 
 
 def rest_bulk(table: str, rows: list[dict], on_conflict: str) -> None:
@@ -108,17 +107,17 @@ SOURCE_SQL = """
 """
 
 
-def fetch_source_rows(cur) -> list[dict]:
-    cur.execute(SOURCE_SQL, (SOURCE_KEY,))
+def fetch_source_rows(cur, source_key: str) -> list[dict]:
+    cur.execute(SOURCE_SQL, (source_key,))
     cols = [d.name for d in cur.description]
     return [dict(zip(cols, row)) for row in cur.fetchall()]
 
 
-def to_payload(rows: list[dict]) -> list[dict]:
+def to_payload(rows: list[dict], source_key: str) -> list[dict]:
     payload = []
     for r in rows:
         payload.append({
-            "source": SOURCE_KEY,
+            "source": source_key,
             "source_row_id": r["id"],
             "source_uuid": str(r["uuid"]) if r["uuid"] else None,
             "grade": r["grade"],
@@ -144,10 +143,10 @@ def report_breakdown(rows: list[dict], label: str) -> None:
         print(f"    {k:20s} {v:>3}")
 
 
-def verify_target() -> None:
+def verify_target(source_key: str) -> None:
     """Re-fetch the target table and print per-grade + per-subject counts + total."""
-    rows = rest_get(f"lesson_plan_catalog?select=grade,subject&source=eq.{SOURCE_KEY}&limit=10000")
-    print(f"\n  Target `lesson_plan_catalog` (source={SOURCE_KEY}): {len(rows)} rows")
+    rows = rest_get(f"lesson_plan_catalog?select=grade,subject&source=eq.{source_key}&limit=10000")
+    print(f"\n  Target `lesson_plan_catalog` (source={source_key}): {len(rows)} rows")
     grades = Counter(r["grade"] or "(unknown)" for r in rows)
     subjects = Counter(r["subject"] or "(unknown)" for r in rows)
     print("  Target — per grade:")
@@ -159,23 +158,28 @@ def verify_target() -> None:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Migrate a vendor's lesson plans from Taleemabad → NIETE-Rumi catalog.")
+    parser.add_argument("--vendor", required=True, help="Vendor source key (e.g. oxbridge, beaconhouse). Lowercase, as stored in fde_production.")
+    args = parser.parse_args()
+    source_key = args.vendor.strip().lower()
+
     print("=" * 70)
     print(f"NIETE-Rumi Lesson-Plan Catalog migration → {SUPABASE_URL}")
-    print(f"Source filter: source='{SOURCE_KEY}' AND (is_active IS NULL OR is_active=TRUE)")
+    print(f"Source filter: source='{source_key}' AND (is_active IS NULL OR is_active=TRUE)")
     print("=" * 70)
 
     with source_conn() as sconn, sconn.cursor() as cur:
-        rows = fetch_source_rows(cur)
+        rows = fetch_source_rows(cur, source_key)
     print(f"  Source rows fetched: {len(rows)}")
     report_breakdown(rows, "Source")
 
-    payload = to_payload(rows)
-    # Batch upsert (well under REST body limits at 70 rows; batching for safety on re-runs / future volume)
+    payload = to_payload(rows, source_key)
+    # Batch upsert (well under REST body limits; batching for safety on re-runs / future volume)
     for i in range(0, len(payload), 200):
         rest_bulk("lesson_plan_catalog", payload[i:i+200], on_conflict="source,source_row_id")
     print(f"\n  Upserted {len(payload)} rows into lesson_plan_catalog.")
 
-    verify_target()
+    verify_target(source_key)
     print("=" * 70)
     print("Migration complete.")
     return 0

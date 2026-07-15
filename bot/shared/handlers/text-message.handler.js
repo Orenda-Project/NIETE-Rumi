@@ -46,10 +46,18 @@ const fs = require('fs');
 
 // Subject aliases: parseSubjectAndGrade returns coarse buckets like 'math' / 'social_studies',
 // but textbook_toc.subject uses the concrete subject slugs. Map on the way in.
+//
+// FEAT-059: 'reading_hour_english' / 'reading_hour_urdu' are Taleemabad's distinct
+// Extended-Hour phonics-progression subjects (curriculum_lp_ast.subject values).
+// They are not aliases of 'english' / 'urdu' — the curriculum treats them as
+// separate strands with their own chapter progression.
 const PARSED_SUBJECT_TO_TOC = {
   math: 'maths',
   english: 'english',
   urdu: 'urdu',
+  reading_hour_english: 'reading_hour_english',
+  reading_hour_urdu: 'reading_hour_urdu',
+  numeracy: 'numeracy',
   science: 'science',
   social_studies: 'social_studies',
   islamiat: 'islamiat',
@@ -57,7 +65,13 @@ const PARSED_SUBJECT_TO_TOC = {
 
 function normalizeGrade(raw) {
   if (raw === undefined || raw === null || raw === '') return undefined;
-  const n = parseInt(raw, 10);
+  const s = String(raw).trim().toUpperCase();
+  // Prep / Kindergarten / Early-Years all map to grade 0 (curriculum_lp_ast
+  // stores grade=0 with grade_label="Prep"). Without this normalization
+  // parseInt('PK') → NaN → undefined → intercept skips → NBF Prep LPs
+  // become unreachable via natural language.
+  if (['PK', 'K', 'KG', 'EY', 'PREP'].includes(s)) return 0;
+  const n = parseInt(s, 10);
   return Number.isFinite(n) ? n : undefined;
 }
 
@@ -2194,6 +2208,27 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     const topic = await VideoOrchestrator.extractTopicFromMessage(messageBody, responseLanguage);
     await VideoOrchestrator.initiateVideoRequest(user, from, sessionId, responseLanguage, topic);
   } else {
+    // Carousel auto-trigger for first-ever message.
+    //
+    // We fire the discovery carousel whenever a user's opening message doesn't
+    // match a feature intent — regardless of whether they're a brand-new
+    // WhatsApp contact OR a pre-registered user (portal-invited, sales-onboarded)
+    // who is messaging Rumi for the first time. `first_message_at` is null in
+    // both cases at this point in the request lifecycle: it's persisted to the
+    // DB by trackChatStart in whatsapp-bot.js BEFORE the handler runs, but
+    // updateUser doesn't mutate the in-memory user object, so we still see the
+    // pre-update value. The DB write means the flag is only null once per user
+    // in the very-first-message window — every subsequent message hits the
+    // free-form AI path as expected.
+    const isFirstMessageEver = user && !user.first_message_at;
+    if (isFirstMessageEver) {
+      typingController.stop();
+      logToFile('🎁 First-message carousel triggered', {
+        userId: user.id, from, registered: !!user.registration_completed, firstName: user.first_name || null,
+      });
+      await MenuService.sendMenu(from, user.id, sessionId, responseLanguage);
+      return;
+    }
     await handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController);
   }
   } finally {

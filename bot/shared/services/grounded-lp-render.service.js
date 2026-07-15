@@ -79,6 +79,21 @@ async function renderAndServeGrounded({ userId, lp, language = 'en' }) {
     fs.writeFileSync(tmpPath, pdfBuffer);
     await WhatsAppService.sendDocument(userId, tmpPath, filename);
 
+    // 6. FEAT-059 enrichment media (voicenote + demo video) if the AST row has them.
+    // The `lp` passed in from the worker's requeue path may not have the new
+    // columns hydrated — refetch to be safe.
+    let enrichedLp = lp;
+    if (!('voicenote_ogg_r2_key' in lp) && !('demo_video_r2_key' in lp)) {
+      const supabase = require('../config/supabase');
+      const { data } = await supabase
+        .from('curriculum_lp_ast')
+        .select('source_lp_uuid, voicenote_ogg_r2_key, demo_video_r2_key')
+        .eq('source_lp_uuid', lp.source_lp_uuid)
+        .maybeSingle();
+      if (data) enrichedLp = { ...lp, ...data };
+    }
+    await sendEnrichmentMedia({ userId, lp: enrichedLp });
+
     return { ok: true, r2Key };
   } catch (error) {
     logToFile('Grounded LP: render failed', {
@@ -90,8 +105,72 @@ async function renderAndServeGrounded({ userId, lp, language = 'en' }) {
   }
 }
 
+/**
+ * FEAT-059 enrichment media send.
+ *
+ * After the LP PDF has been delivered, send the accompanying voicenote and
+ * demo video (if present on the AST row) with pacing:
+ *
+ *   PDF (already sent by caller)
+ *      ↓ 5s
+ *   Voicenote (OGG-Opus, renders as WhatsApp voice-message bubble)
+ *      ↓ 8s
+ *   Demo video (MP4, teacher-executes-lesson clip; only for the 3 flagship LPs)
+ *
+ * The pacing prevents the teacher's WhatsApp from receiving three heavy media
+ * blobs in one flood, which reads as chaotic. Errors are swallowed inside each
+ * send — a voicenote failure never blocks the video, and neither blocks the
+ * PDF (which is already delivered by the time this runs).
+ *
+ * @param {object} input
+ * @param {string} input.userId - Recipient phone number
+ * @param {object} input.lp     - curriculum_lp_ast row (must have voicenote_ogg_r2_key + demo_video_r2_key nullable)
+ * @returns {Promise<void>}
+ */
+async function sendEnrichmentMedia({ userId, lp }) {
+  const hasVoicenote = !!lp.voicenote_ogg_r2_key;
+  const hasVideo = !!lp.demo_video_r2_key;
+  if (!hasVoicenote && !hasVideo) return;
+
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  const started = Date.now();
+  logToFile('LP enrichment: media sequence starting', {
+    source_lp_uuid: lp.source_lp_uuid, hasVoicenote, hasVideo,
+  });
+
+  if (hasVoicenote) {
+    try {
+      await sleep(5000);
+      await WhatsAppService.sendVoicenoteFromR2Key(userId, lp.voicenote_ogg_r2_key);
+    } catch (e) {
+      logToFile('LP enrichment: voicenote send failed (non-fatal)', {
+        source_lp_uuid: lp.source_lp_uuid, error: e.message,
+      });
+    }
+  }
+
+  if (hasVideo) {
+    try {
+      await sleep(8000);
+      const endpoint = (process.env.R2_ENDPOINT || '').replace(/\/$/, '');
+      const bucket = process.env.R2_BUCKET_NAME;
+      const fullVideoUrl = `${endpoint}/${bucket}/${lp.demo_video_r2_key}`;
+      await WhatsAppService.sendVideoFromUrl(userId, fullVideoUrl);
+    } catch (e) {
+      logToFile('LP enrichment: demo video send failed (non-fatal)', {
+        source_lp_uuid: lp.source_lp_uuid, error: e.message,
+      });
+    }
+  }
+
+  logToFile('LP enrichment: media sequence complete', {
+    source_lp_uuid: lp.source_lp_uuid, elapsedMs: Date.now() - started,
+  });
+}
+
 module.exports = {
   renderAndServeGrounded,
+  sendEnrichmentMedia,
   astR2Key,
   astFilename,
 };

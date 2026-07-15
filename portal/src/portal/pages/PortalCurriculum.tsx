@@ -19,7 +19,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { BookOpen, ExternalLink, Loader2, Sparkles } from 'lucide-react';
+import { BookOpen, ExternalLink, Loader2, Sparkles, Headphones, Video, CheckCircle2 } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
 import { Button } from '@/components/ui/button';
@@ -40,7 +40,19 @@ type LessonPlan = {
   chapter_title: string;
   available_en: boolean;
   available_ur: boolean;
+  // FEAT-059 enrichment flags — the LP has an accompanying voicenote / demo video
+  has_voicenote: boolean;
+  has_video: boolean;
+  review_status: 'unreviewed' | 'approved' | 'rejected' | 'needs_changes';
   rendered_at: string | null;
+};
+
+// The extended /pdf endpoint returns these fields alongside the PDF metadata.
+type LpMedia = {
+  voicenote_url: string | null;
+  video_url: string | null;
+  review_status: 'unreviewed' | 'approved' | 'rejected' | 'needs_changes';
+  review_notes: string | null;
 };
 
 const PortalCurriculum = () => {
@@ -65,6 +77,11 @@ const PortalCurriculum = () => {
 
   const [opening, setOpening] = useState(false);
   const [rendering, setRendering] = useState(false);
+
+  // FEAT-059 enrichment media — voicenote + demo video URLs for the chosen LP.
+  // Eagerly fetched on LP selection so the players appear alongside the PDF button.
+  const [lpMedia, setLpMedia] = useState<LpMedia | null>(null);
+  const [loadingMedia, setLoadingMedia] = useState(false);
 
   // ─── Fetch grades on mount ────────────────────────────────────────────
   useEffect(() => {
@@ -137,6 +154,34 @@ const PortalCurriculum = () => {
   }, [selectedGrade, selectedSubject, selectedChapter, toast]);
 
   const chosenLp: LessonPlan | undefined = lps.find(lp => lp.source_lp_uuid === selectedLp);
+
+  // ─── Eager media fetch when an LP is selected ──────────────────────────
+  // The extended /pdf endpoint returns voicenote_url + video_url alongside
+  // the PDF metadata. Calling once on selection lets the audio/video players
+  // render immediately, no click required. lang is arbitrary here — media
+  // URLs are language-neutral (single-source-language per LP).
+  useEffect(() => {
+    setLpMedia(null);
+    if (!chosenLp) return;
+    if (!chosenLp.has_voicenote && !chosenLp.has_video) return;  // skip round-trip for unenriched LPs
+    (async () => {
+      setLoadingMedia(true);
+      try {
+        const langForCall = chosenLp.available_en ? 'en' : chosenLp.available_ur ? 'ur' : 'en';
+        const { data } = await api.get(`/curriculum/lp/${chosenLp.source_lp_uuid}/pdf`, { params: { lang: langForCall } });
+        setLpMedia({
+          voicenote_url: data.voicenote_url || null,
+          video_url: data.video_url || null,
+          review_status: data.review_status || 'unreviewed',
+          review_notes: data.review_notes || null,
+        });
+      } catch {
+        // Silent — the buttons/players just don't render. Not a blocking failure.
+      } finally {
+        setLoadingMedia(false);
+      }
+    })();
+  }, [chosenLp]);
 
   // ─── Open the cached PDF in a new tab (presigned R2 URL) ───────────────
   const openPdf = useCallback(async (lang: 'en' | 'ur') => {
@@ -278,7 +323,9 @@ const PortalCurriculum = () => {
                     <span>{lp.topic}</span>
                     <span className="text-xs ml-2">
                       {lp.available_en && <span className="text-green-600 mr-1">[EN]</span>}
-                      {lp.available_ur && <span className="text-green-600">[UR]</span>}
+                      {lp.available_ur && <span className="text-green-600 mr-1">[UR]</span>}
+                      {lp.has_voicenote && <span title="Voicenote available" className="mr-1">🎧</span>}
+                      {lp.has_video && <span title="Demo video available">🎥</span>}
                     </span>
                   </SelectItem>
                 ))}
@@ -297,6 +344,13 @@ const PortalCurriculum = () => {
                 </div>
                 <h2 className="text-xl font-medium">{chosenLp.topic}</h2>
               </div>
+              {/* Reviewed-and-approved badge — earned via the FEAT-059 review sheet */}
+              {lpMedia?.review_status === 'approved' && (
+                <div className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-200 shrink-0">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Reviewed
+                </div>
+              )}
             </div>
 
             {/* Available languages — cached PDFs */}
@@ -338,6 +392,43 @@ const PortalCurriculum = () => {
                   {rendering ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                   Prepare this lesson plan
                 </Button>
+              </div>
+            )}
+
+            {/* FEAT-059 enrichment: voicenote + demo video inline players.
+                Rendered only when the LP has been enriched (imported assets).
+                Media URLs are eagerly fetched via lpMedia state — no click required. */}
+            {(chosenLp.has_voicenote || chosenLp.has_video) && (
+              <div className="mt-6 pt-6 border-t space-y-4">
+                {loadingMedia && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Loading audio & video...
+                  </div>
+                )}
+                {lpMedia?.voicenote_url && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2 text-sm font-medium text-foreground">
+                      <Headphones className="w-4 h-4 text-primary" />
+                      Voicenote — walkthrough narration
+                    </div>
+                    <audio controls preload="metadata" src={lpMedia.voicenote_url} className="w-full" />
+                  </div>
+                )}
+                {lpMedia?.video_url && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2 text-sm font-medium text-foreground">
+                      <Video className="w-4 h-4 text-primary" />
+                      Demo — teacher performing the lesson
+                    </div>
+                    <video
+                      controls
+                      preload="metadata"
+                      src={lpMedia.video_url}
+                      className="w-full rounded-md bg-black"
+                      style={{ maxHeight: 480 }}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>
