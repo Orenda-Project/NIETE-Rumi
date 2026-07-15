@@ -449,6 +449,53 @@ app.post('/webhook', async (req, res) => {
         return;
       }
 
+      // FEAT-080 (bd-2016) — Oxbridge Grade 6-12 LP picker buttons.
+      // `oxbridge_lp_pick_<catalogRowId>` → deliver the verbatim Oxbridge LP.
+      // `oxbridge_lp_rumi`                → re-run the standard LLM LP path.
+      if (buttonId.startsWith('oxbridge_lp_pick_') || buttonId === 'oxbridge_lp_rumi') {
+        const OxbridgeLpService = require('./shared/services/oxbridge-lp.service');
+        const pending = await OxbridgeLpService.getPendingPicker(from);
+        try {
+          if (buttonId.startsWith('oxbridge_lp_pick_')) {
+            const rowId = parseInt(buttonId.replace('oxbridge_lp_pick_', ''), 10);
+            const row = await OxbridgeLpService.getById(rowId);
+            const language = (pending && pending.language) || 'en';
+            if (row) {
+              await OxbridgeLpService.deliverOxbridgeLp(from, row, language);
+            } else {
+              await WhatsAppService.sendMessage(
+                from,
+                language === 'ur'
+                  ? 'معذرت — Oxbridge لیسن پلان دستیاب نہیں ہو سکا۔'
+                  : "Sorry — that Oxbridge lesson plan wasn't available."
+              );
+            }
+          } else {
+            // "Generate Rumi LP" — re-invoke the normal LLM LP path using the
+            // topic we cached at picker-send time.
+            const topic = (pending && pending.topic) || '';
+            const language = (pending && pending.language) || null;
+            if (topic && user) {
+              const { handleLessonPlanRequest } = require('./shared/handlers/text-message.handler');
+              const typingController = WhatsAppService.startContinuousTypingIndicator(from, message.id);
+              try {
+                await handleLessonPlanRequest(from, topic, user, null, language, typingController);
+              } finally {
+                try { typingController.stop(); } catch (_) { /* best-effort */ }
+              }
+            } else {
+              await WhatsAppService.sendMessage(
+                from,
+                'OK — please tell me the topic again and I\'ll generate a fresh lesson plan.'
+              );
+            }
+          }
+        } finally {
+          await OxbridgeLpService.clearPendingPicker(from);
+        }
+        return;
+      }
+
       // Coaching confirmation buttons
       if (buttonId.startsWith('coaching_confirm_')) {
         const sessionId = buttonId.replace('coaching_confirm_', '');

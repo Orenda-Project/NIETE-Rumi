@@ -116,11 +116,13 @@ async function tryCurriculumLessonPlanServe(from, topic, user, language) {
     });
     // Any of these mean "handled — stop the message flow here, don't fall
     // through to freeform Gamma."
-    //   ast_cached    — Taleemabad JSON corpus, PDF was in R2 cache (delivered synchronously)
-    //   ast_queued    — Taleemabad JSON corpus, ack sent + background worker
-    //                   will deliver the freshly rendered PDF in ~2 min
-    //   pre_generated — legacy Rumi PK Punjab PDF corpus (delivered synchronously)
-    return !!(result && ['pre_generated', 'ast_cached', 'ast_queued'].includes(result.source));
+    //   ast_cached      — Taleemabad JSON corpus, PDF was in R2 cache (delivered synchronously)
+    //   ast_queued      — Taleemabad JSON corpus, ack sent + background worker
+    //                     will deliver the freshly rendered PDF in ~2 min
+    //   pre_generated   — legacy Rumi PK Punjab PDF corpus (delivered synchronously)
+    //   oxbridge_picker — FEAT-080 grade 6-12 Oxbridge match, picker sent;
+    //                     the button reply resolves the pick.
+    return !!(result && ['pre_generated', 'ast_cached', 'ast_queued', 'oxbridge_picker'].includes(result.source));
   } catch (e) {
     logToFile('Curriculum LP intercept failed, falling through to Gamma', { error: e.message });
     return false;
@@ -2604,4 +2606,5 @@ module.exports = {
   parseStyleFromButtonId,
   evaluateHomeworkTrigger, // exported for trigger unit tests
   tryCurriculumLessonPlanServe, // exported for intercept unit tests
+  handleLessonPlanRequest, // exported for the Oxbridge-picker "Generate Rumi LP" tap
 };

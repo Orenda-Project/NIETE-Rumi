@@ -28,6 +28,7 @@ const PreGenLookupService = require('../services/pregen-lookup.service');
 const CurriculumLpAstService = require('../services/curriculum-lp-ast.service');
 const LessonPlanQueueService = require('../services/lesson-plan-queue.service');
 const LpFeedbackService = require('../services/lp-feedback.service');
+const OxbridgeLpService = require('../services/oxbridge-lp.service');
 const { storeLessonPlan } = require('../database/bot-helpers');
 const { downloadFromR2 } = require('../storage/r2');
 const WhatsAppService = require('../services/whatsapp.service');
@@ -136,11 +137,31 @@ async function sendAckAndQueue({ phoneNumber, userDbId, lp, language }) {
  * @param {string} [input.subject]
  * @param {string} input.curriculum
  * @param {string} [input.language]
- * @returns {Promise<{ source: 'pre_generated'|'ast_cached'|'ast_queued'|'page_prompt', promptedForPage: boolean }>}
+ * @returns {Promise<{ source: 'pre_generated'|'ast_cached'|'ast_queued'|'oxbridge_picker'|'page_prompt', promptedForPage: boolean }>}
  */
 async function handleCurriculumLessonPlan({ userId, userDbId, topic, grade, subject, curriculum, language }) {
   try {
     if (!topic || !curriculum) return { source: 'page_prompt', promptedForPage: true };
+
+    // Path 0 — Oxbridge Grade 6-12 picker (FEAT-080 / bd-2016). Runs BEFORE
+    // the AST + pre-gen paths because for grade 6-12 there is no NBF/Taleemabad
+    // pre-gen coverage; Oxbridge is the only curated corpus at this level. If
+    // 1+ Oxbridge rows match on grade + topic, send a 2-button picker
+    // ([Oxbridge LP] [Generate Rumi LP]) and pause the flow — the button
+    // reply (routed in whatsapp-bot.js) resolves the pick.
+    if (OxbridgeLpService.isEligibleGrade(grade)) {
+      const matches = await OxbridgeLpService.findMatches({ grade, topic, subject });
+      if (matches && matches.length > 0) {
+        const sent = await OxbridgeLpService.sendPicker(userId, matches, {
+          topic, grade, subject, language,
+        });
+        if (sent) {
+          return { source: 'oxbridge_picker', promptedForPage: false };
+        }
+        // Picker send failed — fall through to legacy paths.
+        logToFile('Oxbridge LP: picker send failed, falling through', { userId, topic, grade });
+      }
+    }
 
     // Path A — curriculum_lp_ast (Taleemabad NBF / Taleemabad JSON corpus).
     // Try this FIRST because textbook_toc doesn't yet include NBF/Taleemabad
