@@ -29,6 +29,19 @@ jest.mock('../../shared/services/pregen-lookup.service', () => ({
   findPreGenLP: jest.fn(),
 }));
 
+// Oxbridge picker (FEAT-080 / bd-2016). Defaults to disabled — most existing
+// tests are for grade 1..5 which return isEligibleGrade=false and therefore
+// bypass the picker entirely. Tests that exercise the picker override
+// findMatches to return a non-empty array.
+const mockOxbridgeIsEligible = jest.fn((g) => g >= 6 && g <= 12);
+const mockOxbridgeFindMatches = jest.fn(() => Promise.resolve([]));
+const mockOxbridgeSendPicker = jest.fn(() => Promise.resolve(true));
+jest.mock('../../shared/services/oxbridge-lp.service', () => ({
+  isEligibleGrade: (...a) => mockOxbridgeIsEligible(...a),
+  findMatches: (...a) => mockOxbridgeFindMatches(...a),
+  sendPicker: (...a) => mockOxbridgeSendPicker(...a),
+}));
+
 const mockCreateAndQueueGrounded = jest.fn();
 jest.mock('../../shared/services/lesson-plan-queue.service', () => ({
   createAndQueueGrounded: mockCreateAndQueueGrounded,
@@ -269,6 +282,56 @@ describe('handleCurriculumLessonPlan — full-handler integration', () => {
       topic: 'number buddies', grade: 1, subject: 'maths', language: 'en',
     });
     expect(result).toEqual({ source: 'page_prompt', promptedForPage: true });
+  });
+
+  // ─── Path 0: Oxbridge picker (FEAT-080 / bd-2016) ──────────────────────
+  it('oxbridge_picker — Grade 7 topic with catalog match sends picker and short-circuits', async () => {
+    mockOxbridgeFindMatches.mockResolvedValueOnce([{
+      id: 13, chapter_title: 'Waves and Energy', content_html: '<p>x</p>',
+    }]);
+
+    const result = await handleCurriculumLessonPlan({
+      userId: PHONE, userDbId: USER_UUID,
+      topic: 'Dispersion of Light', grade: 7, subject: 'physics',
+      curriculum: 'nbf', language: 'en',
+    });
+
+    expect(result).toEqual({ source: 'oxbridge_picker', promptedForPage: false });
+    expect(mockOxbridgeSendPicker).toHaveBeenCalledTimes(1);
+    // AST path was NOT reached
+    expect(CurriculumLpAstService.findByTopic).not.toHaveBeenCalled();
+    // No document sent (that happens on button reply)
+    expect(mockSendDocument).not.toHaveBeenCalled();
+  });
+
+  it('oxbridge_picker not triggered for grade 5 (below 6-12 window)', async () => {
+    CurriculumLpAstService.findByTopic.mockResolvedValue(null);
+    // findMatches would return [] because isEligibleGrade(5)=false, but the
+    // handler should short-circuit before even calling it.
+    const result = await handleCurriculumLessonPlan({
+      userId: PHONE, userDbId: USER_UUID,
+      topic: 'anything', grade: 5, subject: 'science',
+      curriculum: 'nbf', language: 'en',
+    });
+    expect(mockOxbridgeFindMatches).not.toHaveBeenCalled();
+    expect(result.source).toBe('page_prompt');
+  });
+
+  it('oxbridge_picker not triggered when no catalog match — falls through to AST path', async () => {
+    mockOxbridgeFindMatches.mockResolvedValueOnce([]);
+    CurriculumLpAstService.findByTopic.mockResolvedValue(null);
+
+    const result = await handleCurriculumLessonPlan({
+      userId: PHONE, userDbId: USER_UUID,
+      topic: 'esoteric xyz', grade: 7, subject: 'physics',
+      curriculum: 'nbf', language: 'en',
+    });
+
+    // findMatches was called (grade is eligible), returned empty, so AST path ran
+    expect(mockOxbridgeFindMatches).toHaveBeenCalledTimes(1);
+    expect(CurriculumLpAstService.findByTopic).toHaveBeenCalled();
+    expect(mockOxbridgeSendPicker).not.toHaveBeenCalled();
+    expect(result.source).toBe('page_prompt');
   });
 
   it('unexpected AST service error falls through to freeform (no crash)', async () => {
