@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teacher Attendance — NIETE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f7f9;
+      color: #1a1f2e;
+      line-height: 1.5;
+    }
+    .topnav {
+      background: #0f172a;
+      color: white;
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .topnav h1 { font-size: 16px; font-weight: 600; }
+    .topnav .user-chip { font-size: 13px; color: #cbd5e1; }
+    .container { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+    .header-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .header-card h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; color: #0f172a; }
+    .header-card .meta { font-size: 14px; color: #64748b; display: flex; gap: 16px; flex-wrap: wrap; }
+    .header-card .meta span strong { color: #1a1f2e; }
+    .teacher-list {
+      background: white;
+      border-radius: 12px;
+      padding: 8px 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .teacher-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      border-bottom: 1px solid #f1f5f9;
+      flex-wrap: wrap;
+    }
+    .teacher-row:last-child { border-bottom: none; }
+    .teacher-info { flex: 1; min-width: 200px; }
+    .teacher-info .name { font-weight: 600; font-size: 15px; color: #0f172a; }
+    .teacher-info .phone { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+    .status-group { display: flex; gap: 6px; flex-wrap: wrap; }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1.5px solid #e2e8f0;
+      background: white;
+      color: #475569;
+      transition: all 0.15s ease;
+    }
+    .status-pill:hover { border-color: #cbd5e1; background: #f8fafc; }
+    .status-pill input { display: none; }
+    .status-pill.selected-present { background: #dcfce7; color: #166534; border-color: #86efac; }
+    .status-pill.selected-absent  { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+    .status-pill.selected-leave   { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+    .leave-type-select {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      font-size: 13px;
+      font-family: inherit;
+      background: white;
+    }
+    .leave-type-select:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+    .footer {
+      position: sticky;
+      bottom: 0;
+      background: white;
+      border-top: 1px solid #e2e8f0;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 24px;
+      box-shadow: 0 -2px 6px rgba(0,0,0,0.03);
+    }
+    .save-btn {
+      background: #16a34a;
+      color: white;
+      border: none;
+      padding: 11px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .save-btn:hover { background: #15803d; }
+    .save-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+    .save-summary { font-size: 13px; color: #64748b; }
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      max-width: 380px;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .toast.success { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    .toast.error { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+    .login-box {
+      max-width: 380px;
+      margin: 60px auto;
+      background: white;
+      padding: 32px 28px;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .login-box h2 { font-size: 18px; margin-bottom: 16px; color: #0f172a; }
+    .login-box label { display: block; font-size: 12px; font-weight: 600; color: #475569; margin: 12px 0 6px; }
+    .login-box input {
+      width: 100%; padding: 10px 12px;
+      border: 1px solid #cbd5e1; border-radius: 8px;
+      font-size: 14px; font-family: inherit;
+    }
+    .login-box button {
+      width: 100%; margin-top: 20px; padding: 11px;
+      background: #16a34a; color: white; border: none; border-radius: 8px;
+      font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+    }
+    .empty-state { padding: 40px 20px; text-align: center; color: #94a3b8; font-size: 14px; }
+    .badge {
+      display: inline-block;
+      background: #e0f2fe;
+      color: #0369a1;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 999px;
+      margin-left: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="topnav">
+    <h1>Teacher Attendance</h1>
+    <div class="user-chip" id="user-chip">—</div>
+  </div>
+
+  <div id="app">
+    <!-- Login view -->
+    <div id="login-view" class="login-box" style="display:none;">
+      <h2>Sign in</h2>
+      <p style="font-size: 13px; color: #64748b; margin-bottom: 8px;">
+        Sign in with your registered mobile number and portal password.
+      </p>
+      <label>Mobile number</label>
+      <input id="login-phone" type="tel" placeholder="923001234567" autocomplete="username" />
+      <label>Password</label>
+      <input id="login-password" type="password" autocomplete="current-password" />
+      <button id="login-btn">Sign in</button>
+    </div>
+
+    <!-- Mark view -->
+    <div id="mark-view" style="display:none;">
+      <div class="container">
+        <div class="header-card">
+          <h2 id="school-name">—</h2>
+          <div class="meta">
+            <span>Date: <strong id="mark-date">—</strong></span>
+            <span>Region: <strong id="school-region">—</strong></span>
+            <span>Teachers: <strong id="teacher-count">—</strong></span>
+          </div>
+        </div>
+        <div class="teacher-list" id="teacher-list">
+          <div class="empty-state">Loading teachers…</div>
+        </div>
+      </div>
+      <div class="footer">
+        <div class="save-summary" id="save-summary">Nothing to save.</div>
+        <button class="save-btn" id="save-btn" disabled>Save marks</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ─── State ─────────────────────────────────────────────────────────────
+    const state = {
+      user: null,
+      school: null,
+      date: null,
+      teachers: [],
+      marks: new Map(), // teacher_id -> {status, leave_type}
+    };
+
+    // ─── API ───────────────────────────────────────────────────────────────
+    async function api(method, path, body) {
+      const res = await fetch(path, {
+        method,
+        credentials: 'include',
+        headers: body ? { 'Content-Type': 'application/json' } : {},
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const json = await res.json().catch(() => ({}));
+      return { ok: res.ok, status: res.status, body: json };
+    }
+
+    // ─── Rendering ─────────────────────────────────────────────────────────
+    function showToast(msg, kind = 'success') {
+      const el = document.createElement('div');
+      el.className = `toast ${kind}`;
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 3500);
+    }
+
+    function render() {
+      document.getElementById('school-name').textContent = state.school?.name || '—';
+      document.getElementById('school-region').textContent = state.school?.region || '—';
+      document.getElementById('mark-date').textContent = state.date || '—';
+      document.getElementById('teacher-count').textContent = state.teachers.length;
+      document.getElementById('user-chip').textContent =
+        state.user ? `${state.user.first_name || 'Principal'} · ${state.user.role}` : '—';
+
+      const list = document.getElementById('teacher-list');
+      if (state.teachers.length === 0) {
+        list.innerHTML = '<div class="empty-state">No teachers linked to this school yet.</div>';
+      } else {
+        list.innerHTML = state.teachers.map((t) => {
+          const mark = state.marks.get(t.id) || {};
+          const status = mark.status;
+          const leaveType = mark.leave_type;
+          const todayBadge = t.today && !mark._dirty
+            ? `<span class="badge">Already marked · ${t.today.status}${t.today.leave_type ? '/' + t.today.leave_type : ''}</span>`
+            : '';
+          const pill = (val, label) => {
+            const cls = status === val ? `status-pill selected-${val}` : 'status-pill';
+            return `<label class="${cls}" data-teacher="${t.id}" data-status="${val}">
+              <input type="radio" name="s-${t.id}" value="${val}" ${status === val ? 'checked' : ''} />
+              ${label}
+            </label>`;
+          };
+          const leaveSel = `
+            <select class="leave-type-select" data-teacher="${t.id}" ${status === 'leave' ? '' : 'disabled'}>
+              <option value="">Leave type…</option>
+              <option value="casual"   ${leaveType === 'casual' ? 'selected' : ''}>Casual</option>
+              <option value="sick"     ${leaveType === 'sick' ? 'selected' : ''}>Sick</option>
+              <option value="official" ${leaveType === 'official' ? 'selected' : ''}>Official</option>
+            </select>`;
+          return `
+            <div class="teacher-row">
+              <div class="teacher-info">
+                <div class="name">${(t.first_name || '') + ' ' + (t.last_name || '')} ${todayBadge}</div>
+                <div class="phone">${t.phone_number || ''}</div>
+              </div>
+              <div class="status-group">
+                ${pill('present', 'Present')}
+                ${pill('absent', 'Absent')}
+                ${pill('leave', 'Leave')}
+              </div>
+              ${leaveSel}
+            </div>`;
+        }).join('');
+      }
+
+      const dirty = [...state.marks.values()].filter((m) => m._dirty).length;
+      document.getElementById('save-summary').textContent =
+        dirty === 0 ? 'Nothing to save.' : `${dirty} mark${dirty === 1 ? '' : 's'} ready to save.`;
+      document.getElementById('save-btn').disabled = dirty === 0;
+    }
+
+    // ─── Interactions ──────────────────────────────────────────────────────
+    document.addEventListener('click', (e) => {
+      const pill = e.target.closest('.status-pill');
+      if (!pill) return;
+      const teacher_id = pill.dataset.teacher;
+      const status = pill.dataset.status;
+      const prev = state.marks.get(teacher_id) || {};
+      const next = { ...prev, status, _dirty: true };
+      if (status !== 'leave') next.leave_type = null;
+      state.marks.set(teacher_id, next);
+      render();
+    });
+    document.addEventListener('change', (e) => {
+      if (!e.target.classList.contains('leave-type-select')) return;
+      const teacher_id = e.target.dataset.teacher;
+      const prev = state.marks.get(teacher_id) || {};
+      state.marks.set(teacher_id, { ...prev, leave_type: e.target.value || null, _dirty: true });
+      render();
+    });
+
+    document.getElementById('save-btn').addEventListener('click', async () => {
+      const btn = document.getElementById('save-btn');
+      btn.disabled = true;
+      let ok = 0, fail = 0;
+      const errs = [];
+      for (const [teacher_id, mark] of state.marks.entries()) {
+        if (!mark._dirty || !mark.status) continue;
+        if (mark.status === 'leave' && !mark.leave_type) {
+          errs.push('Leave type required for one teacher.');
+          fail += 1;
+          continue;
+        }
+        const { ok: rok, body } = await api('POST', '/api/portal/attendance/mark', {
+          teacher_id,
+          date: state.date,
+          status: mark.status,
+          leave_type: mark.leave_type || null,
+        });
+        if (rok) {
+          ok += 1;
+          mark._dirty = false;
+        } else {
+          fail += 1;
+          errs.push(body.error || 'unknown');
+        }
+      }
+      if (fail === 0) showToast(`Saved ${ok} mark${ok === 1 ? '' : 's'}.`, 'success');
+      else showToast(`Saved ${ok}, ${fail} failed: ${errs.slice(0, 2).join('; ')}`, 'error');
+      // Refresh to pick up today's marks server-side.
+      await loadSchool();
+    });
+
+    document.getElementById('login-btn').addEventListener('click', async () => {
+      const phone_number = document.getElementById('login-phone').value.trim();
+      const password = document.getElementById('login-password').value;
+      if (!phone_number || !password) return showToast('Mobile and password required.', 'error');
+      const { ok, body } = await api('POST', '/api/portal/login', { phone_number, password });
+      if (!ok) return showToast(body.error || 'Login failed.', 'error');
+      showToast('Signed in.', 'success');
+      await loadSchool();
+    });
+
+    // ─── Bootstrap ─────────────────────────────────────────────────────────
+    async function loadSchool() {
+      const { ok, status, body } = await api('GET', '/api/portal/attendance/school');
+      if (status === 401) {
+        document.getElementById('login-view').style.display = 'block';
+        document.getElementById('mark-view').style.display = 'none';
+        return;
+      }
+      if (!ok) {
+        showToast(body.error || `Failed to load (${status}).`, 'error');
+        return;
+      }
+      state.school = body.school;
+      state.date = body.date;
+      state.teachers = body.teachers || [];
+      // Reset dirty marks; pre-populate marks map from today's existing records.
+      state.marks = new Map();
+      for (const t of state.teachers) {
+        if (t.today) {
+          state.marks.set(t.id, { status: t.today.status, leave_type: t.today.leave_type, _dirty: false });
+        }
+      }
+      // Load user
+      const meRes = await api('GET', '/api/portal/attendance/me');
+      if (meRes.ok) {
+        state.user = { first_name: null, role: 'principal' }; // /me doesn't return name — cheap placeholder
+      }
+      document.getElementById('login-view').style.display = 'none';
+      document.getElementById('mark-view').style.display = 'block';
+      render();
+    }
+
+    loadSchool();
+  </script>
+</body>
+</html>

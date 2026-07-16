@@ -70,6 +70,8 @@ CREATE TABLE IF NOT EXISTS users (
     country VARCHAR(100),
     region VARCHAR(100),
     organization VARCHAR(200),
+    school_id UUID,              -- V1.0.7 — FK to schools(id), added below via ALTER
+    role VARCHAR(32),            -- V1.0.7 — 'teacher' | 'principal' for NIETE org hierarchy
     PRIMARY KEY (id)
 );
 
@@ -4260,6 +4262,81 @@ CREATE INDEX IF NOT EXISTS idx_hcp_feedback_deliveries_teacher
     ON hcp_feedback_deliveries(teacher_id, generated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_hcp_feedback_deliveries_session
     ON hcp_feedback_deliveries(coaching_session_id) WHERE coaching_session_id IS NOT NULL;
+
+-- ---------------------------------------------------------------------------
+-- V1.0.7 — Teacher Attendance (NIETE STEPS-P: Teacher Presence)
+-- Mirror of migrations/V1.0.7__teacher_attendance.sql. See that file for
+-- the design notes + anti-sprawl justification. Kept in sync so fresh
+-- installs from 00_complete-schema.sql get the same shape as a migrated DB.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS schools (
+    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name                 VARCHAR(255) NOT NULL,
+    region               VARCHAR(64),
+    principal_user_id    UUID REFERENCES users(id),
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (name, region)
+);
+CREATE INDEX IF NOT EXISTS idx_schools_region ON schools(region);
+CREATE INDEX IF NOT EXISTS idx_schools_principal ON schools(principal_user_id)
+    WHERE principal_user_id IS NOT NULL;
+
+-- Backfill the FK on users now that schools exists.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'users_school_id_fkey' AND table_name = 'users'
+    ) THEN
+        ALTER TABLE users ADD CONSTRAINT users_school_id_fkey
+            FOREIGN KEY (school_id) REFERENCES schools(id);
+    END IF;
+END$$;
+CREATE INDEX IF NOT EXISTS idx_users_school_id ON users(school_id) WHERE school_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_role      ON users(role)      WHERE role IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS teacher_attendance_records (
+    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    teacher_id           UUID NOT NULL REFERENCES users(id),
+    school_id            UUID NOT NULL REFERENCES schools(id),
+    date                 DATE NOT NULL,
+    status               VARCHAR(16) NOT NULL,
+    leave_type           VARCHAR(16),
+    marked_by_user_id    UUID NOT NULL REFERENCES users(id),
+    marked_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (teacher_id, date),
+    CONSTRAINT teacher_attendance_status_valid
+        CHECK (status IN ('present', 'absent', 'leave')),
+    CONSTRAINT teacher_attendance_leave_type_valid
+        CHECK (
+            (status = 'leave'  AND leave_type IN ('casual', 'sick', 'official'))
+            OR
+            (status <> 'leave' AND leave_type IS NULL)
+        )
+);
+CREATE INDEX IF NOT EXISTS idx_teacher_attendance_school_date
+    ON teacher_attendance_records(school_id, date);
+CREATE INDEX IF NOT EXISTS idx_teacher_attendance_teacher_date
+    ON teacher_attendance_records(teacher_id, date DESC);
+
+ALTER TABLE schools ENABLE ROW LEVEL SECURITY;
+ALTER TABLE teacher_attendance_records ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS schools_read_all ON schools;
+CREATE POLICY schools_read_all ON schools FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS teacher_attendance_read_own ON teacher_attendance_records;
+CREATE POLICY teacher_attendance_read_own ON teacher_attendance_records
+    FOR SELECT USING (
+        teacher_id = auth.uid()
+        OR
+        school_id IN (
+            SELECT id FROM schools WHERE principal_user_id = auth.uid()
+        )
+    );
 
 -- Reload PostgREST's schema cache last, so the reconciled columns + functions
 -- above are immediately visible to the REST API (the earlier NOTIFY predates these DDLs).

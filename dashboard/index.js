@@ -131,6 +131,7 @@ const wordCloudRoutes = require('./routes/wordcloud');
 // Teacher Portal Routes
 const portalRoutes = require('./routes/portal.routes');
 const hcpRoutes = require('./routes/hcp.routes');
+const attendanceRoutes = require('./routes/attendance.routes');
 
 // BYOF Routes (Build Your Own Feature) - Conversational AI for bug/feature planning
 const byofRoutes = require('./routes/byof.routes');
@@ -2767,6 +2768,11 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 // share the same CORS / rate-limit / session stack.
 app.use('/api/portal/hcp', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, hcpRoutes);
 
+// Teacher Attendance (NIETE STEPS-P). Principal marks daily attendance for
+// teachers in their school; teachers view own record; STEPS reads /presence.
+// Same CORS / rate-limit / session stack as the portal routes.
+app.use('/api/portal/attendance', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, attendanceRoutes);
+
 // HCP endpoint tester — an HTML page for internal QA to hit the 10 /api/portal/hcp/*
 // endpoints without curl. Served under /observability/* so it's excluded from the
 // SPA catch-all. Self-contained: handles portal login + endpoint dispatch client-side.
@@ -2774,6 +2780,13 @@ app.use('/api/portal/hcp', cors(portalCorsOptions), portalAuthLimiter, portalDat
 // and every endpoint it calls is already guarded by requirePortalAuth.
 app.get('/observability/hcp-test-viewer', (req, res) => {
   res.render('hcp-test-viewer');
+});
+
+// NIETE Teacher Attendance — principal-facing daily mark screen. Same
+// "inert without a valid portal session" pattern as hcp-test-viewer; the page
+// calls /api/portal/attendance/* which is gated by requirePortalAuth.
+app.get('/observability/attendance-mark', (req, res) => {
+  res.render('attendance-mark');
 });
 
 // Redirect /dashboard to Teacher Portal frontend (for cases where backend URL is accessed directly)
