@@ -35,7 +35,7 @@ const {
   RealAttendanceRepository,
   MockAttendanceRepository,
   computePresence,
-} = require('../../bot/shared/services/attendance-repository.service');
+} = require('../services/attendance-repository.service');
 
 // ---------------------------------------------------------------------------
 // Repository resolution

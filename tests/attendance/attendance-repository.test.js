@@ -12,7 +12,7 @@ const {
   MockAttendanceRepository,
   computePresence,
   validateStatusAndLeaveType,
-} = require('../../bot/shared/services/attendance-repository.service');
+} = require('../../dashboard/services/attendance-repository.service');
 
 describe('computePresence', () => {
   test('returns zeros for empty input', () => {
