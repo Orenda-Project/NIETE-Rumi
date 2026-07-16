@@ -575,7 +575,13 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // Flow ID from env; if empty, we send a plain-text fallback so the command
   // never disappears (the Flow must be published to Meta separately).
   // ============================================================
-  if (trimmedMessage === '/training' || trimmedMessage === '/trainings') {
+  const lowerTrimmed = trimmedMessage.toLowerCase();
+  if (
+    trimmedMessage === '/training' ||
+    trimmedMessage === '/trainings' ||
+    lowerTrimmed === 'training' ||
+    lowerTrimmed === 'trainings'
+  ) {
     logToFile('🎓 /training command detected', { userId: user?.id, phoneNumber: from });
     if (!user) {
       typingController.stop();
