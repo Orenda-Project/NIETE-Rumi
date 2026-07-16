@@ -32,6 +32,8 @@ const railwayRedis = require('./shared/services/cache/railway-redis.service');
 
 // Import Routes (Flow encryption endpoints)
 const flowEndpointRoutes = require('./shared/routes/flow-endpoint.routes');
+// Assessment Generator callback receiver — POST /webhooks/assessment-generator
+const assessmentGenCallbackRoutes = require('./shared/routes/assessment-gen-callback.routes');
 
 // Create Express app
 const app = express();
@@ -39,6 +41,8 @@ app.use(express.json());
 
 // Mount routes (Flow encryption endpoints)
 app.use('/api/flows', flowEndpointRoutes);
+// Async result callbacks from external services (UG_EG assessment generator, …)
+app.use('/webhooks', assessmentGenCallbackRoutes);
 
 // Create temp directory if it doesn't exist
 if (!fs.existsSync(constants.TEMP_DIR)) {
@@ -1195,6 +1199,17 @@ app.post('/webhook', async (req, res) => {
         // modal. The SQS worker's orchestrator sends follow-up chat messages
         // + the .docx. Nothing to do here except log completion.
         logToFile('📝 Exam Generator flow completion (SQS job already queued by endpoint)', {
+          from,
+          responseFields: Object.keys(responseJson)
+        });
+      } else if (flowType === 'assessment_generator') {
+        // Assessment Generator — endpoint flow's terminal ack. The
+        // endpoint at /api/flows/assessment-gen has already submitted the job
+        // to the external UG_EG service and rendered the "Making your Grade X …"
+        // message in the SUCCESS modal. The result comes back via POST
+        // /webhooks/assessment-generator and is delivered from there. Nothing
+        // to do here except log completion.
+        logToFile('📝 Assessment Generator flow completion (UG_EG job submitted by endpoint)', {
           from,
           responseFields: Object.keys(responseJson)
         });

@@ -79,6 +79,11 @@ const {
   handleExamGeneratorDataExchange,
   handleExamGeneratorBack
 } = require('./exam-generator-endpoint');
+const {
+  handleAssessmentGenInit,
+  handleAssessmentGenDataExchange,
+  handleAssessmentGenBack
+} = require('./assessment-gen-endpoint');
 
 /**
  * Handle attendance marking flow data requests
@@ -836,6 +841,48 @@ async function handleExamGeneratorRequest(data) {
   if (action === 'BACK')                      return await handleExamGeneratorBack(userId, screen, flow_token);
 
   logToFile('Unknown exam generator flow action', { action });
+  return FlowEncryptionService.createErrorResponse('Unknown action');
+}
+
+// ============================================================
+// ASSESSMENT GENERATOR FLOW — 2-screen: spec → questions.
+// Backend submits to external UG_EG service (assessment-gen-client.service);
+// result lands on POST /webhooks/assessment-generator.
+// ============================================================
+
+router.post('/assessment-gen', async (req, res) => {
+  try {
+    if (!FlowEncryptionService.isConfigured()) {
+      logToFile('Flow encryption not configured', { endpoint: 'assessment-gen' });
+      return res.status(500).json({ error: 'Flow encryption not configured' });
+    }
+    const encryptedResponse = await FlowEncryptionService.processEncryptedRequest(
+      req.body,
+      async (decryptedData) => await handleAssessmentGenRequest(decryptedData)
+    );
+    res.set('Content-Type', 'text/plain');
+    res.send(encryptedResponse);
+  } catch (error) {
+    logToFile('Flow endpoint error', { endpoint: 'assessment-gen', error: error.message, stack: error.stack });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+async function handleAssessmentGenRequest(data) {
+  const { action, flow_token, screen, data: screenData } = data;
+  logToFile('Handling assessment-gen flow request', {
+    action, screen, hasFlowToken: !!flow_token,
+    screenDataKeys: screenData ? Object.keys(screenData) : []
+  });
+
+  if (action === 'ping') return FlowEncryptionService.handlePing();
+  const userId = (flow_token || '').split(':')[0];
+
+  if (action === 'INIT' || action === 'init') return await handleAssessmentGenInit(userId, flow_token);
+  if (action === 'data_exchange')             return await handleAssessmentGenDataExchange(userId, screen, screenData, flow_token);
+  if (action === 'BACK')                      return await handleAssessmentGenBack(userId, flow_token);
+
+  logToFile('Unknown assessment-gen flow action', { action });
   return FlowEncryptionService.createErrorResponse('Unknown action');
 }
 
