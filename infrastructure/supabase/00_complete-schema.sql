@@ -4206,6 +4206,61 @@ CREATE OR REPLACE VIEW v_exam_bank_chapters AS
   FROM exam_question_bank
   ORDER BY grade, subject, language, chapter_index;
 
+-- ---------------------------------------------------------------------------
+-- Human Coach Platform (HCP) — visit schedules, coaching actions, feedback
+-- deliveries. Backs /api/portal/hcp/* endpoints. See migration V1.0.6.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS hcp_visit_schedules (
+    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    coach_id             UUID NOT NULL REFERENCES dashboard_users(id),
+    teacher_id           UUID NOT NULL REFERENCES users(id),
+    scheduled_at         TIMESTAMPTZ NOT NULL,
+    observation_tool     VARCHAR(32) NOT NULL,
+    notes                TEXT,
+    status               VARCHAR(32) NOT NULL DEFAULT 'upcoming',
+    confirmed_at         TIMESTAMPTZ,
+    teacher_wa_msg_id    VARCHAR(255),
+    principal_wa_msg_id  VARCHAR(255),
+    rm_wa_msg_id         VARCHAR(255),
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_hcp_visit_schedules_teacher ON hcp_visit_schedules(teacher_id);
+CREATE INDEX IF NOT EXISTS idx_hcp_visit_schedules_coach   ON hcp_visit_schedules(coach_id);
+CREATE INDEX IF NOT EXISTS idx_hcp_visit_schedules_status_time
+    ON hcp_visit_schedules(status, scheduled_at);
+
+CREATE TABLE IF NOT EXISTS hcp_coaching_actions (
+    id                   BIGSERIAL PRIMARY KEY,
+    indicator_code       VARCHAR(32) NOT NULL,
+    action_text          TEXT NOT NULL,
+    priority_order       INTEGER NOT NULL DEFAULT 0,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (indicator_code, priority_order)
+);
+CREATE INDEX IF NOT EXISTS idx_hcp_coaching_actions_indicator
+    ON hcp_coaching_actions(indicator_code);
+
+CREATE TABLE IF NOT EXISTS hcp_feedback_deliveries (
+    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    coaching_session_id  UUID REFERENCES coaching_sessions(id),
+    teacher_id           UUID NOT NULL REFERENCES users(id),
+    coach_id             UUID REFERENCES dashboard_users(id),
+    language             VARCHAR(16) NOT NULL DEFAULT 'english',
+    feedback_json        JSONB NOT NULL,
+    feedback_audio_url   TEXT,
+    wa_text_msg_id       VARCHAR(255),
+    wa_audio_msg_id      VARCHAR(255),
+    version              INTEGER NOT NULL DEFAULT 1,
+    prompt_used          TEXT,
+    generated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    delivered_at         TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_hcp_feedback_deliveries_teacher
+    ON hcp_feedback_deliveries(teacher_id, generated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_hcp_feedback_deliveries_session
+    ON hcp_feedback_deliveries(coaching_session_id) WHERE coaching_session_id IS NOT NULL;
+
 -- Reload PostgREST's schema cache last, so the reconciled columns + functions
 -- above are immediately visible to the REST API (the earlier NOTIFY predates these DDLs).
 NOTIFY pgrst, 'reload schema';
