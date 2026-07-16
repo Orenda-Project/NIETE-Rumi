@@ -56,7 +56,17 @@ function authHeaders() {
  *   subject        : 'Eng' | 'Maths' | 'Urdu' | 'Islamiat' | 'Science' | 'GenK' | 'SST'
  *   pageRanges     : e.g. '10-15' or '10-15, 20'
  *   contentSource  : 'seen' | 'unseen'
- *   questionTypes  : Array of {id, count} where id ∈ {'MCQs','Fill in the Blanks','Brief Answers'}
+ *   questionTypes  : Array of { id, count, category? } — see UG_EG's
+ *                    docs/question-types-ict.md for the full catalogue.
+ *                    `category` ('objective' | 'subjective') is REQUIRED when
+ *                    the id can be either depending on subject (e.g. "Brief
+ *                    Answers" is OBJECTIVE for Eng/Urdu but SUBJECTIVE for
+ *                    Science; "Comprehension Passage" is only Eng/Urdu
+ *                    subjective). Callers coming from the assessment-gen Flow
+ *                    endpoint already know the category from the OBJ_SUBJ
+ *                    screen — they pass it through per-item. If `category` is
+ *                    omitted, we fall back to a static best-guess map (below)
+ *                    for backward-compat with older callers / seen-fast-path.
  *   curriculum     : default 'ICT'
  *   callbackUrl    : where UG_EG posts the async result
  *
@@ -67,11 +77,44 @@ function authHeaders() {
  *   `unseen_objective_types` / `unseen_subjective_types` +
  *   `unseen_objective_counts` / `unseen_subjective_counts` (mirrored on the
  *   `seen_*` variants).
- * - Locked scope: MCQs + Fill-in-the-Blanks are OBJECTIVE; Brief Answers is
- *   SUBJECTIVE. That mapping lives here (single source of truth).
  */
+
+// Static fallback map for callers that don't supply category per-item (e.g. the
+// SEEN fast-path or older code paths). For ids that are unambiguous across all
+// subjects (MCQs, MSQs, T/F, Fill in the Blanks, Match the Column, Missing
+// Letters, Mental Math, Sequences → objective; every writing/short/long/mind-
+// map/graph/word-problem/label/logical-reasoning → subjective) we hard-map here.
+// For ids that depend on subject (Brief Answers, Comprehension Passage), the
+// fallback picks the majority-case in UG_EG's doc; the Flow endpoint should
+// always pass an explicit `category` to avoid the ambiguity.
+const OBJECTIVE_FALLBACK = new Set([
+  'MCQs', 'MSQs', 'Fill in the Blanks', 'Missing Letters', 'True/False',
+  'Match the Column', 'Circle the Correct Answer', 'Rewrite Sentences',
+  'Listening', 'Speaking', 'Reading', 'Mental Math (Viva)', 'Sequences',
+  'Brief Answers', // Eng/Urdu majority-case; Science overrides via explicit category
+]);
+const SUBJECTIVE_FALLBACK = new Set([
+  'Word Meanings', 'Word Sentences', 'Comprehension Passage', 'Rewriting',
+  'Story Completion', 'Simple Writing', 'Letter Writing', 'Application Writing',
+  'Story Writing', 'Essay Writing', 'Paragraph Writing', 'Picture Description',
+  'Short Questions', 'Restricted Response Question', 'Word Problems',
+  'Graphs & Geometric Problems', 'Long Question', 'Mind Map', 'Flow Chart',
+  'Label the Diagram', 'Logical Reasoning',
+]);
+
+// Legacy aliases retained for external callers/tests that assert the older
+// narrow scope (MCQs + Fill in the Blanks objective; Brief Answers subjective).
 const OBJECTIVE_TYPES = new Set(['MCQs', 'Fill in the Blanks']);
 const SUBJECTIVE_TYPES = new Set(['Brief Answers']);
+
+function _resolveCategory(qt) {
+  const explicit = String(qt.category || '').toLowerCase();
+  if (explicit === 'objective' || explicit === 'subjective') return explicit;
+  const id = String(qt.id || '').trim();
+  if (OBJECTIVE_FALLBACK.has(id)) return 'objective';
+  if (SUBJECTIVE_FALLBACK.has(id)) return 'subjective';
+  return null;
+}
 
 function buildRequestBody(spec) {
   const {
@@ -80,7 +123,7 @@ function buildRequestBody(spec) {
     subject,
     pageRanges,
     contentSource,           // 'seen' | 'unseen'
-    questionTypes = [],      // [{ id, count }]
+    questionTypes = [],      // [{ id, count, category? }]
     curriculum = 'ICT',
     callbackUrl,
   } = spec;
@@ -95,7 +138,11 @@ function buildRequestBody(spec) {
     throw new Error('assessment-gen: at least one question type is required');
   }
 
-  // Partition question types into objective / subjective + counts maps.
+  // Partition question types into objective / subjective + counts maps. We
+  // resolve category per-item (explicit `category` on the item wins; otherwise
+  // fall back to the static map above). This lets the endpoint tell us
+  // "Brief Answers is SUBJECTIVE for this Science request" without having to
+  // hardcode subject-dependent categorization here.
   const objectiveTypes = [];
   const subjectiveTypes = [];
   const objectiveCounts = {};
@@ -104,10 +151,11 @@ function buildRequestBody(spec) {
     const id = String(qt.id || '').trim();
     const count = Math.max(1, parseInt(qt.count, 10) || 0);
     if (!id || count === 0) continue;
-    if (OBJECTIVE_TYPES.has(id)) {
+    const cat = _resolveCategory(qt);
+    if (cat === 'objective') {
       objectiveTypes.push(id);
       objectiveCounts[id] = count;
-    } else if (SUBJECTIVE_TYPES.has(id)) {
+    } else if (cat === 'subjective') {
       subjectiveTypes.push(id);
       subjectiveCounts[id] = count;
     } else {
