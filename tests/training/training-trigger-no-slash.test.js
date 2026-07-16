@@ -87,6 +87,11 @@ describe('/training trigger — whole-word case-insensitive extension (OPS-108)'
     ['TRAININGS'],
     ['/training'],   // regression: existing slash form still works
     ['/trainings'],  // regression: existing plural slash form still works
+    // Phrase-match extension — whole-message exact phrases teachers naturally type.
+    ['show me training'],
+    ['Show Me Trainings'],
+    ['open training'],
+    ['OPEN TRAININGS'],
   ])('fires on %p', (input) => {
     expect(fires(input)).toBe(true);
   });
@@ -102,6 +107,9 @@ describe('/training trigger — whole-word case-insensitive extension (OPS-108)'
     ['some/training'],
     [''],
     ['hi'],
+    // Substring-safety for the new phrases — must still fall through.
+    ['I want to show me training later'],
+    ["let's open the training modules"],
   ])('does NOT fire on %p', (input) => {
     expect(fires(input)).toBe(false);
   });
