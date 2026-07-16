@@ -136,37 +136,36 @@ describe('Score Adapter — buildScoreViewModel() per framework', () => {
     });
   });
 
-  describe('FICO — 5 domains', () => {
+  describe('FICO — 4 sections (ICT canonical rubric)', () => {
     const a = {
       framework: 'fico',
       domains: {
-        lesson_structure: { domain_score: 12, domain_max: 16 },
-        instructional_quality: { domain_score: 14, domain_max: 20 },
-        classroom_climate: { domain_score: 13, domain_max: 16 },
-        student_engagement: { domain_score: 11, domain_max: 16 },
-        assessment_feedback: { domain_score: 10, domain_max: 16 },
+        lesson_plan_fidelity:      { domain_score: 20, domain_max: 28 },
+        high_leverage_practices:   { domain_score: 12, domain_max: 16 },
+        student_engagement:        { domain_score: 15, domain_max: 20 },
+        teacher_subject_knowledge: { domain_score: 25, domain_max: 40 },
       },
-      scores: { overall_percentage: 71 },
+      scores: { overall_percentage: 69 },
     };
 
-    it('returns 5 groups D1..D5 from domain_score/domain_max', () => {
+    it('returns 4 groups keyed B/C/D/F from domain_score/domain_max', () => {
       const vm = buildScoreViewModel(a);
-      expect(vm.groups).toHaveLength(5);
-      expect(vm.groups.map((g) => g.key)).toEqual(['D1', 'D2', 'D3', 'D4', 'D5']);
-      expect(vm.groups[0].name).toBe('Lesson Structure');
-      expect(vm.groups[0].score).toBe(12);
-      expect(vm.groups[0].max).toBe(16);
-      expect(vm.groups[0].pct).toBe(75);
+      expect(vm.groups).toHaveLength(4);
+      expect(vm.groups.map((g) => g.key)).toEqual(['B', 'C', 'D', 'F']);
+      expect(vm.groups[0].name).toBe('Lesson Plan Fidelity');
+      expect(vm.groups[0].score).toBe(20);
+      expect(vm.groups[0].max).toBe(28);
+      expect(vm.groups[0].pct).toBe(71);
     });
 
     it('falls back to area_score/area_max when domain_* missing', () => {
       const a2 = {
         framework: 'fico',
-        areas: { lesson_structure: { area_score: 9, area_max: 16 } },
+        areas: { lesson_plan_fidelity: { area_score: 21, area_max: 28 } },
       };
       const vm = buildScoreViewModel(a2);
-      expect(vm.groups[0].score).toBe(9);
-      expect(vm.groups[0].max).toBe(16);
+      expect(vm.groups[0].score).toBe(21);
+      expect(vm.groups[0].max).toBe(28);
     });
   });
 

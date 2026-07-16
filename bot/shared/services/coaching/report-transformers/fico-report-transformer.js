@@ -1,31 +1,29 @@
 /**
- * FICO Report Data Transformer
+ * FICO Report Data Transformer — ICT Canonical Rubric
  *
- * Transforms FICO Unified Observation Tool analysis into the generic
- * reportData shape consumed by pdf-report.service.js.
+ * Transforms FICO analysis into the generic reportData shape consumed by
+ * pdf-report.service.js and the hero renderer.
  *
- * 5 domains → 5 goals, indicators → criteria, scale 1-4, no debrief, no LP bonus.
- * Photo-aware indicators (3.2 Routines & Transitions, 4.4 Use of Materials)
- * include photo evidence in the evidence text when available.
+ * 4 scored sections (B, C, D, F) → 4 goals, indicators → criteria,
+ * scale 1-4, max 104, no debrief, no LP bonus.
  *
- * Bead: (Phase 1C-A2)
+ * Sheet: 1UZaHrXARlJ2cWiZAGFEuc-_o1zOiC5LNXaz11_XVkFU
  */
 
+const ficoFramework = require('../frameworks/fico-framework');
 const { formatDate, extractFidelity, buildPartialNote } = require('./_shared');
 
-const DOMAIN_CONFIG = [
-  { key: 'lesson_structure', title: 'Domain 1: Lesson Structure' },
-  { key: 'instructional_quality', title: 'Domain 2: Instructional Quality' },
-  { key: 'classroom_climate', title: 'Domain 3: Classroom Climate' },
-  { key: 'student_engagement', title: 'Domain 4: Student Engagement' },
-  { key: 'assessment_feedback', title: 'Domain 5: Assessment & Feedback' },
-];
-
 const SCALE_MAX = 4;
-const MAX_MARKS = 84;
+const MAX_MARKS = 104;
 
-// Indicators that should reference photo evidence when available
-const PHOTO_AWARE_INDICATORS = ['3.2', '4.4'];
+// Section title map (rendered above each block in the report). The Latin-letter
+// section key (B/C/D/F) is preserved so trainers can cross-reference the sheet.
+const SECTION_TITLES = {
+  lesson_plan_fidelity:      'Section B: Lesson Plan Fidelity',
+  high_leverage_practices:   'Section C: High-Leverage Practices',
+  student_engagement:        'Section D: Student Engagement',
+  teacher_subject_knowledge: 'Section F: Teacher Subject Knowledge',
+};
 
 /**
  * Transform FICO analysis into generic report data.
@@ -35,36 +33,29 @@ const PHOTO_AWARE_INDICATORS = ['3.2', '4.4'];
  * @returns {object} Report data in the generic shape for PDF rendering
  */
 function transformFICOToReportData(session, teacherName, analysis) {
+  const DOMAINS = ficoFramework.getScoringConstants().domains;
   const goals = [];
-  const hasPhotoAnalysis = !!analysis.photo_analysis;
 
-  for (const { key, title } of DOMAIN_CONFIG) {
-    const domain = analysis.domains?.[key];
-    if (!domain) continue;
+  for (const [sectionKey, sectionDef] of Object.entries(DOMAINS)) {
+    const section = analysis.domains?.[sectionKey];
+    if (!section) continue;
 
     goals.push({
-      title,
-      score: domain.domain_score || 0,
-      maxScore: domain.domain_max || 0,
-      criteria: (domain.indicators || []).map(ind => {
-        // Photo evidence for photo-aware indicators travels as a distinct
-        // field so the renderer can style it as its own callout, not smash
-        // it inline with the transcript evidence.
-        const photoEvidence = (hasPhotoAnalysis && PHOTO_AWARE_INDICATORS.includes(ind.id))
-          ? analysis.photo_analysis
-          : null;
-
-        return {
-          // Prepend the FICO indicator ID so trainers can cross-reference
-          // the printed rubric ("1.1 Lesson Goal Clarity", "3.2 Routines…").
-          name: ind.id ? `${ind.id} ${ind.name}` : ind.name,
-          score: ind.score || 0,
-          max: SCALE_MAX,
-          evidence: ind.evidence || 'No evidence provided',
-          photoEvidence,
-          timestamp: ind.timestamp || null,
-        };
-      }),
+      title: SECTION_TITLES[sectionKey] || sectionDef.displayName,
+      score: section.domain_score || 0,
+      maxScore: section.domain_max || (sectionDef.indicatorCount * SCALE_MAX),
+      criteria: (section.indicators || []).map(ind => ({
+        // Prepend the FICO indicator code (B1, C2, D3, F8…) so trainers can
+        // cross-reference the printed rubric.
+        name: ind.id ? `${ind.id} ${ind.name}` : ind.name,
+        score: ind.score || 0,
+        max: SCALE_MAX,
+        evidence: ind.evidence || 'No evidence provided',
+        // FICO ICT rubric is audio-scoreable by design; no photo-aware
+        // indicators. Field retained (null) for renderer contract stability.
+        photoEvidence: null,
+        timestamp: ind.timestamp || null,
+      })),
     });
   }
 
@@ -72,9 +63,6 @@ function transformFICOToReportData(session, teacherName, analysis) {
 
   return {
     // framework key drives the renderer-registry dispatch to the hero PNG path.
-    // Without it, reportData.framework is undefined, getReportRenderer() returns
-    // the default (pdfkit) renderer, and FICO silently ships the legacy 5-page
-    // PDF instead of the celebration hero card.
     framework: 'fico',
     teacherName,
     observationDate: formatDate(session.created_at),
@@ -93,38 +81,33 @@ function transformFICOToReportData(session, teacherName, analysis) {
     isPartialReport: session._isPartialReport || false,
     partialReportNote: buildPartialNote(session),
 
-    // Renderer config — the framework-specific chrome that used to live in
-    // pdf-report.service.js branches (the conformance guard forbids that).
-    // Any framework wanting FICO-style institutional presentation just adds
-    // its own analogues; the PDFKit renderer reads whatever's provided and
-    // falls back to generic defaults otherwise.
+    // Renderer config — same shape as before; the FICO chrome stays.
     headerLabels: {
       eyebrow: 'A CELEBRATION OF YOUR TEACHING',
-      title:   'FICO Unified Observation Tool',
+      title:   'FICO — Fidelity & Impact Classroom Observation',
       sub:     'Powered by Rumi · for NIETE',
     },
     scaleLegend: {
       title: 'FICO SCALE',
       stops: [
         { n: '1', label: 'Not Observed',     color: 'emerging' },
-        { n: '2', label: 'Emerging',         color: 'developing' },
+        { n: '2', label: 'Developing',       color: 'developing' },
         { n: '3', label: 'Effective',        color: 'proficient' },
         { n: '4', label: 'Highly Effective', color: 'excellent' },
       ],
     },
-    // Colour bins are (min-inclusive threshold, colour) pairs, ordered high→low.
+    // Colour bins mirror the sheet's Interpretation Guide (85 / 70 / 50 / <50).
     colorBins: [
-      { threshold: 88, color: 'excellent' },   // 3.5+/4 avg
-      { threshold: 63, color: 'proficient' },  // 2.5+/4 avg
-      { threshold: 38, color: 'developing' },  // 1.5+/4 avg
+      { threshold: 85, color: 'excellent' },
+      { threshold: 70, color: 'proficient' },
+      { threshold: 50, color: 'developing' },
       { threshold: 0,  color: 'emerging' },
     ],
-    // Performance level word for the top-right header badge, same shape.
     performanceLevels: [
-      { threshold: 88, label: 'Highly Effective', color: 'excellent' },
-      { threshold: 63, label: 'Effective',        color: 'proficient' },
-      { threshold: 38, label: 'Emerging',         color: 'developing' },
-      { threshold: 0,  label: 'Not Observed',     color: 'emerging' },
+      { threshold: 85, label: 'Highly Effective', color: 'excellent' },
+      { threshold: 70, label: 'Effective',        color: 'proficient' },
+      { threshold: 50, label: 'Developing',       color: 'developing' },
+      { threshold: 0,  label: 'Needs Support',    color: 'emerging' },
     ],
   };
 }

@@ -1,16 +1,15 @@
 /**
- * FICO Framework Module Tests (TDD)
+ * FICO Framework Module Tests (module-interface contract)
  *
- * Validates bd-595: Create fico-framework.js
- *
- * FICO Unified Observation Tool.
- * 5 Domains, 17 Indicators, Scale 1-4, Max 68 marks.
- * Photo-aware indicators: 3.2 (Routines & Transitions), 4.4 (Use of Materials).
+ * The FICO framework now carries the canonical ICT rubric (Sections B/C/D/F,
+ * 26 indicators, max 104). Detailed shape assertions live in
+ * `fico-framework-ict.test.js`. This file locks the generic framework-module
+ * interface contract that every framework in the registry must satisfy.
  */
 
 const ficoFramework = require('../../bot/shared/services/coaching/frameworks/fico-framework');
 
-describe('FICO Framework Module (bd-595)', () => {
+describe('FICO Framework Module', () => {
 
   // ─── Module interface compliance ──────────────────────────────────
 
@@ -32,8 +31,7 @@ describe('FICO Framework Module (bd-595)', () => {
     });
 
     test('SCENARIO: FICO max marks matches indicator count × scale', () => {
-      // Plan header says 17 × 4 = 68, but the detailed FICO table
-      // shows 21 indicators (4+5+4+4+4). Using full table: 21 × 4 = 84.
+      // ICT canonical rubric: 26 × 4 = 104.
       expect(ficoFramework.maxMarks).toBe(ficoFramework.getScoringConstants().totalIndicators * 4);
     });
 
@@ -50,29 +48,17 @@ describe('FICO Framework Module (bd-595)', () => {
 
   describe('getSystemPrompt()', () => {
 
-    test('SCENARIO: System prompt contains FICO rubric for all 5 domains', () => {
-      const prompt = ficoFramework.getSystemPrompt();
+    test('SCENARIO: System prompt is cacheable', () => {
+      expect(ficoFramework.getSystemPrompt()).toBe(ficoFramework.getSystemPrompt());
+    });
 
-      expect(prompt).toContain('FICO');
-      expect(prompt).toContain('LESSON STRUCTURE');
-      expect(prompt).toContain('INSTRUCTIONAL QUALITY');
-      expect(prompt).toContain('CLASSROOM CLIMATE');
-      expect(prompt).toContain('STUDENT ENGAGEMENT');
-      expect(prompt).toContain('ASSESSMENT');
+    test('SCENARIO: System prompt mentions FICO', () => {
+      expect(ficoFramework.getSystemPrompt()).toContain('FICO');
     });
 
     test('SCENARIO: System prompt mentions 1-4 scale', () => {
       const prompt = ficoFramework.getSystemPrompt();
-      expect(prompt).toContain('1-4');
-    });
-
-    test('SCENARIO: System prompt mentions photo-aware indicators', () => {
-      const prompt = ficoFramework.getSystemPrompt();
-      expect(prompt).toMatch(/photo|visual/i);
-    });
-
-    test('SCENARIO: System prompt is cacheable', () => {
-      expect(ficoFramework.getSystemPrompt()).toBe(ficoFramework.getSystemPrompt());
+      expect(prompt).toMatch(/1[\s-]*4/);
     });
   });
 
@@ -86,23 +72,8 @@ describe('FICO Framework Module (bd-595)', () => {
         { grade: '4', subject: 'Science', teacherFirstName: 'Nadia' },
         null
       );
-
       expect(prompt).toContain('Nadia');
       expect(prompt).toContain('Grade: 4');
-    });
-
-    test('SCENARIO: Prompt requests JSON with 5 domains', () => {
-      const prompt = ficoFramework.buildAnalysisPrompt(
-        'Transcript',
-        { teacherFirstName: 'Hassan' },
-        null
-      );
-
-      expect(prompt).toContain('lesson_structure');
-      expect(prompt).toContain('instructional_quality');
-      expect(prompt).toContain('classroom_climate');
-      expect(prompt).toContain('student_engagement');
-      expect(prompt).toContain('assessment_feedback');
     });
 
     test('SCENARIO: LP fidelity instruction included when LP provided', () => {
@@ -111,8 +82,7 @@ describe('FICO Framework Module (bd-595)', () => {
         { teacherFirstName: 'Ayesha' },
         { title: 'Fractions', objectives: ['Learn fractions'] }
       );
-
-      expect(prompt).toContain('Fidelity');
+      expect(prompt).toMatch(/Fidelity/i);
     });
   });
 
@@ -120,120 +90,14 @@ describe('FICO Framework Module (bd-595)', () => {
 
   describe('computeScores()', () => {
 
-    const mockAnalysis = {
-      domains: {
-        lesson_structure: {
-          indicators: [
-            { id: '1.1', name: 'Lesson Goal Clarity', score: 3 },
-            { id: '1.2', name: 'Fidelity to LP Steps', score: 2 },
-            { id: '1.3', name: 'Materials Use', score: 3 },
-            { id: '1.4', name: 'Time Management', score: 3 }
-          ]
-        },
-        instructional_quality: {
-          indicators: [
-            { id: '2.1', name: 'Explanation & Modeling', score: 3 },
-            { id: '2.2', name: 'Questioning Technique', score: 2 },
-            { id: '2.3', name: 'Guided Practice', score: 3 },
-            { id: '2.4', name: 'Differentiation', score: 2 },
-            { id: '2.5', name: 'Monitoring Understanding', score: 3 }
-          ]
-        },
-        classroom_climate: {
-          indicators: [
-            { id: '3.1', name: 'Behavioral Climate', score: 3 },
-            { id: '3.2', name: 'Routines & Transitions', score: 3 },
-            { id: '3.3', name: 'Respectful Interactions', score: 4 },
-            { id: '3.4', name: 'Safety & Inclusiveness', score: 3 }
-          ]
-        },
-        student_engagement: {
-          indicators: [
-            { id: '4.1', name: 'Cognitive Engagement', score: 2 },
-            { id: '4.2', name: 'Participation', score: 3 },
-            { id: '4.3', name: 'Collaboration', score: 2 },
-            { id: '4.4', name: 'Use of Materials', score: 3 }
-          ]
-        },
-        assessment_feedback: {
-          indicators: [
-            // Note: FICO has 4 assessment indicators, not the 2 from plan header
-            // The plan table (lines 346-349) shows 5.1, 5.2, 5.3, 5.4
-            // but the 17-indicator count implies the full set is used
-          ]
-        }
-      }
-    };
-
-    test('SCENARIO: Computes domain scores and overall marks', () => {
-      // Only testing with domains that have data
-      const partial = {
-        domains: {
-          lesson_structure: {
-            indicators: [
-              { id: '1.1', score: 3 },
-              { id: '1.2', score: 2 },
-              { id: '1.3', score: 3 },
-              { id: '1.4', score: 3 }
-            ]
-          },
-          instructional_quality: {
-            indicators: [
-              { id: '2.1', score: 3 },
-              { id: '2.2', score: 2 },
-              { id: '2.3', score: 3 },
-              { id: '2.4', score: 2 },
-              { id: '2.5', score: 3 }
-            ]
-          }
-        }
-      };
-
-      const scored = ficoFramework.computeScores(partial);
-      expect(scored.scores).toBeDefined();
-      // lesson_structure: 3+2+3+3=11, instructional_quality: 3+2+3+2+3=13
-      expect(scored.scores.overall_marks).toBe(24);
-      expect(scored.scores.overall_max_marks).toBe(84);
-    });
-
-    test('SCENARIO: FICO formula is simple sum of indicator scores', () => {
-      const simple = {
-        domains: {
-          lesson_structure: {
-            indicators: [
-              { id: '1.1', score: 4 },
-              { id: '1.2', score: 4 }
-            ]
-          }
-        }
-      };
-
-      const scored = ficoFramework.computeScores(simple);
-      expect(scored.scores.overall_marks).toBe(8);
-    });
-
-    test('SCENARIO: Each domain gets domain_score and domain_max', () => {
-      const data = {
-        domains: {
-          lesson_structure: {
-            indicators: [
-              { id: '1.1', score: 3 },
-              { id: '1.2', score: 2 },
-              { id: '1.3', score: 3 },
-              { id: '1.4', score: 3 }
-            ]
-          }
-        }
-      };
-
-      const scored = ficoFramework.computeScores(data);
-      expect(scored.domains.lesson_structure.domain_score).toBe(11);
-      expect(scored.domains.lesson_structure.domain_max).toBe(16); // 4 indicators × 4
-    });
-
-    test('SCENARIO: Missing domains do not crash', () => {
+    test('SCENARIO: Missing sections do not crash', () => {
       const scored = ficoFramework.computeScores({ domains: {} });
       expect(scored.scores.overall_marks).toBe(0);
+    });
+
+    test('SCENARIO: overall_max_marks equals framework maxMarks', () => {
+      const scored = ficoFramework.computeScores({ domains: {} });
+      expect(scored.scores.overall_max_marks).toBe(ficoFramework.maxMarks);
     });
   });
 
@@ -245,14 +109,6 @@ describe('FICO Framework Module (bd-595)', () => {
       expect(ficoFramework.getPerformanceBand(25)).toBe('emerging');
     });
 
-    test('SCENARIO: Mid score maps to developing', () => {
-      expect(ficoFramework.getPerformanceBand(50)).toBe('developing');
-    });
-
-    test('SCENARIO: Good score maps to proficient', () => {
-      expect(ficoFramework.getPerformanceBand(70)).toBe('proficient');
-    });
-
     test('SCENARIO: High score maps to excellent', () => {
       expect(ficoFramework.getPerformanceBand(90)).toBe('excellent');
     });
@@ -262,28 +118,19 @@ describe('FICO Framework Module (bd-595)', () => {
 
   describe('getScoringConstants()', () => {
 
-    test('SCENARIO: Returns 5 domains', () => {
-      const constants = ficoFramework.getScoringConstants();
-      expect(Object.keys(constants.domains)).toHaveLength(5);
+    test('SCENARIO: Constants include domains, totalIndicators, maxMarks, scaleMax', () => {
+      const c = ficoFramework.getScoringConstants();
+      expect(c.domains).toBeDefined();
+      expect(typeof c.totalIndicators).toBe('number');
+      expect(typeof c.maxMarks).toBe('number');
+      expect(c.scaleMax).toBe(4);
     });
 
-    test('SCENARIO: Total indicators across all domains is 21', () => {
-      // Full FICO table: 4+5+4+4+4 = 21 indicators
-      const constants = ficoFramework.getScoringConstants();
-
-      let totalIndicators = 0;
-      for (const domain of Object.values(constants.domains)) {
-        totalIndicators += domain.indicatorCount;
-      }
-      expect(totalIndicators).toBe(21);
-    });
-
-    test('SCENARIO: Max marks is 84 (21 × 4)', () => {
-      expect(ficoFramework.getScoringConstants().maxMarks).toBe(84);
-    });
-
-    test('SCENARIO: Scale max is 4', () => {
-      expect(ficoFramework.getScoringConstants().scaleMax).toBe(4);
+    test('SCENARIO: total indicators across sections matches totalIndicators constant', () => {
+      const c = ficoFramework.getScoringConstants();
+      let sum = 0;
+      for (const section of Object.values(c.domains)) sum += section.indicatorCount;
+      expect(sum).toBe(c.totalIndicators);
     });
   });
 });

@@ -183,53 +183,53 @@ const mockTeachAnalysis = {
 const mockFICOAnalysis = {
   executive_summary: 'Hassan demonstrated developing practices.',
   framework: 'fico',
-  framework_version: '1.0',
-  scores: { overall_marks: 57, overall_max_marks: 84, overall_percentage: 67.9 },
+  framework_version: '2.0',
+  scores: { overall_marks: 72, overall_max_marks: 104, overall_percentage: 69.2 },
   domains: {
-    lesson_structure: {
-      domain_score: 11, domain_max: 16,
+    lesson_plan_fidelity: {
+      domain_score: 20, domain_max: 28,
       indicators: [
-        { id: '1.1', name: 'Lesson Goal Clarity', score: 3, evidence: 'Clear', timestamp: '0:30' },
-        { id: '1.2', name: 'Fidelity to LP Steps', score: 2, evidence: 'Partial', timestamp: '3:00' },
-        { id: '1.3', name: 'Materials Use', score: 3, evidence: 'Good', timestamp: '5:00' },
-        { id: '1.4', name: 'Time Management', score: 3, evidence: 'Well-paced', timestamp: '10:00' },
+        { id: 'B1', name: 'Instructional Clarity & Learning Objectives', score: 3, evidence: 'Clear goal', timestamp: '0:30' },
+        { id: 'B2', name: 'Lesson Structure & Sequence', score: 3, evidence: 'Clear phases', timestamp: '2:00' },
+        { id: 'B3', name: 'Activities & Tasks Alignment', score: 3, evidence: 'Aligned', timestamp: '4:00' },
+        { id: 'B4', name: 'Activation of Prior Knowledge', score: 3, evidence: 'Recalled', timestamp: '1:00' },
+        { id: 'B5', name: 'Meaningful & Real-World Connections', score: 2, evidence: 'One mention', timestamp: '6:00' },
+        { id: 'B6', name: 'Differentiation', score: 3, evidence: 'Two groups', timestamp: '10:00' },
+        { id: 'B7', name: 'Lesson Closure', score: 3, evidence: 'Recap done', timestamp: '25:00' },
       ],
     },
-    instructional_quality: {
-      domain_score: 13, domain_max: 20,
+    high_leverage_practices: {
+      domain_score: 12, domain_max: 16,
       indicators: [
-        { id: '2.1', name: 'Explanation', score: 3, evidence: 'Clear', timestamp: '2:00' },
-        { id: '2.2', name: 'Questioning', score: 2, evidence: 'Basic', timestamp: '6:00' },
-        { id: '2.3', name: 'Guided Practice', score: 3, evidence: 'Good', timestamp: '8:00' },
-        { id: '2.4', name: 'Differentiation', score: 2, evidence: 'Some', timestamp: '12:00' },
-        { id: '2.5', name: 'Monitoring', score: 3, evidence: 'Checked', timestamp: '14:00' },
-      ],
-    },
-    classroom_climate: {
-      domain_score: 13, domain_max: 16,
-      indicators: [
-        { id: '3.1', name: 'Behavioral Climate', score: 4, evidence: 'Calm', timestamp: '0:15' },
-        { id: '3.2', name: 'Routines', score: 3, evidence: 'Smooth', timestamp: '4:00' },
-        { id: '3.3', name: 'Respectful Interactions', score: 3, evidence: 'Warm', timestamp: '7:00' },
-        { id: '3.4', name: 'Safety', score: 3, evidence: 'All included', timestamp: '9:00' },
+        { id: 'C1', name: 'Quality Questioning', score: 3, evidence: 'Mix', timestamp: '5:00' },
+        { id: 'C2', name: 'Responsive Re-explanation', score: 3, evidence: 'Adapted', timestamp: '9:00' },
+        { id: 'C3', name: 'Effective Feedback', score: 3, evidence: 'Specific', timestamp: '11:00' },
+        { id: 'C4', name: 'Student Agency & Voice', score: 3, evidence: 'Some choice', timestamp: '15:00' },
       ],
     },
     student_engagement: {
-      domain_score: 10, domain_max: 16,
+      domain_score: 15, domain_max: 20,
       indicators: [
-        { id: '4.1', name: 'Cognitive Engagement', score: 3, evidence: 'Thinking', timestamp: '5:00' },
-        { id: '4.2', name: 'Participation', score: 3, evidence: 'Most', timestamp: '8:00' },
-        { id: '4.3', name: 'Collaboration', score: 2, evidence: 'Some', timestamp: '11:00' },
-        { id: '4.4', name: 'Use of Materials', score: 2, evidence: 'Basic', timestamp: '13:00' },
+        { id: 'D1', name: 'Diversity of Conceptual Expression', score: 3, evidence: 'Two phrasings', timestamp: '7:00' },
+        { id: 'D2', name: 'Student Reasoning', score: 3, evidence: 'Reasoning heard', timestamp: '8:00' },
+        { id: 'D3', name: 'Student-Initiated Questions', score: 3, evidence: 'One clarification', timestamp: '12:00' },
+        { id: 'D4', name: 'Spontaneous Transfer', score: 3, evidence: 'Prompted', timestamp: '14:00' },
+        { id: 'D5', name: 'Visible Learning Progression', score: 3, evidence: 'Progression', timestamp: '25:00' },
       ],
     },
-    assessment_feedback: {
-      domain_score: 10, domain_max: 16,
+    teacher_subject_knowledge: {
+      domain_score: 25, domain_max: 40,
       indicators: [
-        { id: '5.1', name: 'Formative Checks', score: 3, evidence: 'Regular', timestamp: '6:00' },
-        { id: '5.2', name: 'Quality of Feedback', score: 2, evidence: 'General', timestamp: '10:00' },
-        { id: '5.3', name: 'Accuracy', score: 3, evidence: 'Mostly', timestamp: '12:00' },
-        { id: '5.4', name: 'Responsive', score: 2, evidence: 'Some', timestamp: '14:00' },
+        { id: 'F1', name: 'Content Accuracy', score: 3, evidence: 'Accurate', timestamp: '3:00' },
+        { id: 'F2', name: 'Use of Academic Language', score: 3, evidence: 'Terms used', timestamp: '4:00' },
+        { id: 'F3', name: 'Anticipation of Misconceptions', score: 3, evidence: 'Anticipated', timestamp: '13:00' },
+        { id: 'F4', name: 'Mathematical Discourse', score: 1, evidence: 'Not applicable — Science', timestamp: null },
+        { id: 'F5', name: 'Problem-Solving', score: 1, evidence: 'Not applicable — Science', timestamp: null },
+        { id: 'F6', name: 'Inquiry-Based Approach', score: 3, evidence: 'Inquiry opening', timestamp: '2:00' },
+        { id: 'F7', name: 'Science Talk', score: 3, evidence: 'Own words', timestamp: '10:00' },
+        { id: 'F8', name: 'Explicit Phonics', score: 1, evidence: 'Not applicable — Science', timestamp: null },
+        { id: 'F9', name: 'Comprehension Strategy', score: 1, evidence: 'Not applicable — Science', timestamp: null },
+        { id: 'F10', name: 'Reading-Writing Connections', score: 1, evidence: 'Not applicable — Science', timestamp: null },
       ],
     },
   },
@@ -266,12 +266,12 @@ describe('Multi-Framework Report Integration (bd-610)', () => {
     expect(reportData.frameworkDisplayName).toBe('Teach Framework');
   });
 
-  test('SCENARIO: FICO analysis → 5 goals, no debrief, max 84', () => {
+  test('SCENARIO: FICO analysis → 4 goals (B/C/D/F), no debrief, max 104', () => {
     const transformer = getReportTransformer('fico');
     const reportData = transformer(mockSession, 'Hassan', mockFICOAnalysis);
-    expect(reportData.goals).toHaveLength(5);
+    expect(reportData.goals).toHaveLength(4);
     expect(reportData.debriefReflection).toBeNull();
-    expect(reportData.maxScore).toBe(84);
+    expect(reportData.maxScore).toBe(104);
     expect(reportData.frameworkDisplayName).toBe('FICO Framework');
   });
 
