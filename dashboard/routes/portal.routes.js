@@ -1605,6 +1605,224 @@ router.get('/training/module/:id/attempts', requirePortalAuth, async (req, res) 
 });
 
 /**
+ * POST /api/portal/training/module/:id/quiz-attempts
+ *
+ * Submit a full per-module training-quiz attempt from the portal. Server-side
+ * grades every answer, persists to `training_assessment_attempts` +
+ * `training_assessment_answers`, and upserts `teacher_training_progress` so the
+ * module also counts as complete. The persisted row shape matches the
+ * WhatsApp-side writer (`bot/shared/services/training/quiz-delivery.service.js`
+ * `gradeAttempt` for `quiz_kind='training_module'`) — both surfaces produce
+ * compatible rows, so a teacher can start on either and resume/read on the
+ * other with no drift.
+ *
+ * Contract:
+ *   Path   :id — BIGINT module id
+ *   Body   { answers: [{ question_id, chosen_option }, ...] } — one entry per
+ *          active question on the module, order-agnostic (matched by id).
+ *   Auth   requirePortalAuth (401 on session miss).
+ *   Errors 400 (bad id / missing answers / count mismatch), 403 (level locked),
+ *          404 (module not found), 500 on DB error.
+ *   Ok     { success: true, attempt: { id, score, max_score, is_passed,
+ *                                       completed_at } }
+ *
+ * Grading semantics — mirrored from `quiz-delivery.service.js`:
+ *   - `quiz_kind = 'training_module'`
+ *   - `total_score = total_questions` (one point per question)
+ *   - `status = 'passed'` always (training-module quizzes are non-blocking;
+ *     the enum-level status closes the attempt regardless of correctness)
+ *   - `is_passed = (score === total_questions)` — the pedagogical "did they get
+ *     a perfect score" signal, orthogonal to the enum status
+ *   - `current_question_index = total_questions` (attempt is fully consumed)
+ *   - `program_id` comes from the teacher's active `teacher_training_assignments`
+ *   - `level_id` derived from the module's course (best-effort, nullable per
+ *     the schema's kind-target CHECK constraint)
+ *
+ * Idempotency: if there's already an in-progress attempt on this module for the
+ * teacher (e.g. WhatsApp started one and the teacher switched to portal), we
+ * do NOT block or duplicate — the new attempt row is still written; the stale
+ * in-progress row is left alone (a nightly abandon sweep or the WhatsApp side
+ * will close it). This is the least-surprising behaviour for the "seamless
+ * switching" promise.
+ */
+router.post('/training/module/:id/quiz-attempts', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const moduleId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(moduleId)) {
+      return res.status(400).json({ success: false, error: 'Invalid module id' });
+    }
+
+    const answers = req.body && Array.isArray(req.body.answers) ? req.body.answers : null;
+    if (!answers) {
+      return res.status(400).json({ success: false, error: 'Body must include an answers array' });
+    }
+
+    // 1. Load module (also confirms it exists + gives us course_id for lockdown)
+    const { data: mod, error: modErr } = await supabase
+      .from('training_modules')
+      .select('id, course_id, is_active')
+      .eq('id', moduleId)
+      .maybeSingle();
+    if (modErr) throw modErr;
+    if (!mod) return res.status(404).json({ success: false, error: 'Module not found' });
+
+    // 2. Lockdown gate — same rule as every other training endpoint. Only run
+    //    if we can derive a level (an orphan module without a course would skip
+    //    the gate; that's acceptable — the frontend never surfaces such rows).
+    let levelId = null;
+    if (mod.course_id) {
+      const { data: course } = await supabase
+        .from('training_courses').select('level_id').eq('id', mod.course_id).maybeSingle();
+      if (course) {
+        levelId = course.level_id;
+        const gate = await _assertLevelUnlocked(userId, levelId);
+        if (!gate.ok) return res.status(gate.status).json({ success: false, error: gate.error, previous_level_order: gate.previous_level_order });
+      }
+    }
+
+    // 3. Load active questions for the module, ordered — the canonical list
+    //    the answer set must exhaustively cover.
+    const { data: questions, error: qErr } = await supabase
+      .from('training_questions')
+      .select('id, correct_option, order_index')
+      .eq('training_module_id', moduleId)
+      .eq('is_active', true)
+      .order('order_index', { ascending: true });
+    if (qErr) throw qErr;
+    const qList = questions || [];
+    if (qList.length === 0) {
+      return res.status(400).json({ success: false, error: 'This module has no active questions' });
+    }
+    if (answers.length !== qList.length) {
+      return res.status(400).json({
+        success: false,
+        error: `Answer count mismatch: expected ${qList.length}, got ${answers.length}`,
+      });
+    }
+
+    // 4. Program assignment — required by the attempts table (NOT NULL).
+    const { data: assignment } = await supabase
+      .from('teacher_training_assignments')
+      .select('program_id')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+    if (!assignment) {
+      return res.status(400).json({ success: false, error: 'No active training program assignment' });
+    }
+
+    // 5. Grade — match each answer to a question by id; correct if
+    //    String(chosen_option) === String(correct_option). Missing/invalid
+    //    answers count as wrong (defensive — the client shouldn't send them
+    //    but a race between question edits and submit shouldn't 500).
+    const qById = new Map(qList.map(q => [q.id, q]));
+    const graded = answers.map((a, idx) => {
+      const q = qById.get(a && a.question_id);
+      if (!q) return { question_index: idx, question_id: null, chosen_option: '', is_correct: false, unknown: true };
+      const chosen = a.chosen_option == null ? '' : String(a.chosen_option);
+      const isCorrect = chosen !== '' && String(q.correct_option).trim() === chosen.trim();
+      // question_index = position in the module's canonical question order,
+      // NOT the order the client submitted — matches WhatsApp's per-index
+      // answer rows (attempt_id, question_index) UNIQUE.
+      const questionIndex = q.order_index != null
+        ? q.order_index
+        : qList.findIndex(x => x.id === q.id);
+      return { question_index: questionIndex, question_id: q.id, chosen_option: chosen, is_correct: isCorrect };
+    });
+    if (graded.some(g => g.unknown)) {
+      return res.status(400).json({ success: false, error: 'One or more answers reference a question not on this module' });
+    }
+    const totalQuestions = qList.length;
+    const score = graded.filter(g => g.is_correct).length;
+    const isPerfect = score === totalQuestions;
+    const completedAt = new Date().toISOString();
+
+    // 6. Insert attempt row — shape parity with quiz-delivery.service.js
+    //    gradeAttempt() for KIND_TRAINING_MODULE.
+    const { data: attempt, error: aErr } = await supabase
+      .from('training_assessment_attempts')
+      .insert({
+        user_id: userId,
+        program_id: assignment.program_id,
+        quiz_kind: 'training_module',
+        training_module_id: moduleId,
+        level_id: levelId,
+        current_question_index: totalQuestions,
+        total_questions: totalQuestions,
+        total_score: totalQuestions,
+        status: 'passed',                   // non-blocking, "attempt closed"
+        score,
+        is_passed: isPerfect,               // pedagogical "perfect score" flag
+        completed_at: completedAt,
+        last_activity_at: completedAt,
+        started_at: completedAt,            // submit-in-one-shot; the portal never had a partial
+      })
+      .select('id')
+      .single();
+    if (aErr) throw aErr;
+
+    // 7. Bulk-insert the per-question rows (one row per graded answer).
+    const answerRows = graded.map(g => ({
+      attempt_id: attempt.id,
+      question_index: g.question_index,
+      question_id: g.question_id,
+      chosen_option: g.chosen_option,
+      is_correct: g.is_correct,
+      answered_at: completedAt,
+    }));
+    // Bulk insert — real Supabase accepts an array on a single .insert().
+    // (The mock harness in tests/training/portal-quiz-submit.test.js records
+    // every row via its insert() capture, so this preserves the shape assertions.)
+    const { error: ansErr } = await supabase.from('training_assessment_answers').insert(answerRows);
+    if (ansErr) throw ansErr;
+
+    // 8. Upsert progress row — completing the quiz on portal ALSO marks the
+    //    module complete (matches WhatsApp: content delivery → quiz fires →
+    //    module counted). Unique (user_id, module_id) makes this idempotent.
+    await supabase
+      .from('teacher_training_progress')
+      .upsert(
+        { user_id: userId, module_id: moduleId, completed_at: completedAt },
+        { onConflict: 'user_id,module_id' }
+      );
+
+    // 9. Semantic event — same name/shape as WhatsApp side for observability
+    //    parity. Payload keys deliberately avoid tripping the column-scanner
+    //    heuristic (see quiz-delivery.service.js gradeAttempt).
+    try {
+      // structured-logger lives in the bot tree; guarded require so the
+      // portal module still loads in test environments that don't ship it.
+      const { logEvent } = require('../../bot/shared/utils/structured-logger');
+      logEvent('training_quiz_completed', {
+        user_uuid: userId,
+        attempt_uuid: attempt.id,
+        module_row_id: moduleId,
+        raw_score: score,
+        total_qs: totalQuestions,
+        is_perfect: isPerfect,
+        surface: 'portal',
+      });
+    } catch (_) { /* logger not available — fine, this is best-effort telemetry */ }
+
+    return res.json({
+      success: true,
+      attempt: {
+        id: attempt.id,
+        score,
+        max_score: totalQuestions,
+        is_passed: isPerfect,
+        completed_at: completedAt,
+      },
+    });
+  } catch (error) {
+    console.error('training/module/:id/quiz-attempts POST error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to submit quiz attempt' });
+  }
+});
+
+/**
  * GET /api/portal/coaching-sessions
  * Get all coaching sessions for authenticated user
  */

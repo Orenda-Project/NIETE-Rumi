@@ -70,6 +70,16 @@ const ALLOWLIST = {
   // `videoswithpresignedurls` is a result var; `limit`/`page` are pagination vars
   // (portal.routes.js video listing) — parser artifacts, not columns.
   video_requests: ['limit', 'page', 'videoswithpresignedurls'],
+  // Chain-proximity artifact from portal.routes.js POST /training/module/:id/quiz-attempts:
+  //   supabase.from('training_assessment_answers').insert(answerRows)
+  //   supabase.from('teacher_training_progress').upsert({ user_id, module_id, completed_at }, ...)
+  // The scanner sees `.insert(<var>)`, walks forward for the first `{`, and lands
+  // on the following teacher_training_progress upsert literal — mis-attributing
+  // its columns. Same class as exam_grades.onconflict above. The real
+  // training_assessment_answers row is built from a mapped `answerRows` variable
+  // and only touches (attempt_id, question_index, question_id, chosen_option,
+  // is_correct, answered_at) — all defined in the schema.
+  training_assessment_answers: ['user_id', 'module_id', 'completed_at'],
 };
 
 // ── Parser ───────────────────────────────────────────────────────────────────
