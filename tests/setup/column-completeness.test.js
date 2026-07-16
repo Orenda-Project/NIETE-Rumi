@@ -80,6 +80,17 @@ const ALLOWLIST = {
   // and only touches (attempt_id, question_index, question_id, chosen_option,
   // is_correct, answered_at) — all defined in the schema.
   training_assessment_answers: ['user_id', 'module_id', 'completed_at'],
+  // ── hcp.routes.js parser artifacts ────────────────────────────────────────
+  // The 6-box feedback + schedule endpoints follow the pattern:
+  //   .from('hcp_visit_schedules').insert(insertRow).select('...').single()
+  //   ...
+  //   return res.status(201).json({ success: true, schedule: data });
+  // The scanner walks forward from `.insert(<var>)` and lands on the next object
+  // literal — the res.json() payload — mis-attributing `success` + `schedule` /
+  // `delivery_id` as columns. The real insert rows are built from named `insertRow`
+  // / `insertBody` variables with fields all defined in the schema.
+  hcp_visit_schedules: ['success', 'schedule'],
+  hcp_feedback_deliveries: ['success', 'delivery_id'],
 };
 
 // ── Parser ───────────────────────────────────────────────────────────────────
