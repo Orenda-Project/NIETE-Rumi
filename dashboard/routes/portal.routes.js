@@ -1552,6 +1552,59 @@ router.get('/training/module/:id', requirePortalAuth, async (req, res) => {
 });
 
 /**
+ * GET /api/portal/training/module/:id/attempts
+ * Returns the authenticated teacher's per-module training-quiz attempts for a
+ * single module. Attempts are written by the WhatsApp side after every
+ * training-module quiz (training_assessment_attempts rows with
+ * quiz_kind='training_module', training_module_id=<the module>).
+ *
+ * The portal shows these as a "Quiz Score" surface on the Module list so
+ * teachers can see how they did on completed modules. Grand-quiz (level-exam)
+ * attempts are intentionally excluded — those have their own certification
+ * surface at the level cascade.
+ *
+ * Access control: scoped to the caller only. requirePortalAuth resolves
+ * req.session.portalUserId; the query filters by that user_id.
+ *
+ * Response shape:
+ *   { success: true, attempts: [
+ *       { id, completed_at, score, max_score, quiz_kind }, ...
+ *     ] }
+ * Chronological (ascending completed_at). Empty array when the teacher has
+ * no attempts on the module yet.
+ */
+router.get('/training/module/:id/attempts', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const moduleId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(moduleId)) {
+      return res.status(400).json({ success: false, error: 'Invalid module id' });
+    }
+
+    const { data: attempts, error } = await supabase
+      .from('training_assessment_attempts')
+      .select('id, completed_at, score, total_score, quiz_kind')
+      .eq('user_id', userId)
+      .eq('training_module_id', moduleId)
+      .eq('quiz_kind', 'training_module')
+      .order('completed_at', { ascending: true });
+    if (error) throw error;
+
+    const rows = (attempts || []).map(a => ({
+      id: a.id,
+      completed_at: a.completed_at,
+      score: a.score,
+      max_score: a.total_score,
+      quiz_kind: a.quiz_kind,
+    }));
+    res.json({ success: true, attempts: rows });
+  } catch (error) {
+    console.error('training/module/:id/attempts error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load module attempts' });
+  }
+});
+
+/**
  * GET /api/portal/coaching-sessions
  * Get all coaching sessions for authenticated user
  */
