@@ -305,9 +305,12 @@ async function deliverOxbridgeLp(phone, row, language) {
     });
     return true;
   } catch (err) {
+    // Customer-visible failure — must page Axiom (level='error'), not hide
+    // in info-level noise. A silent PDF-render failure means the teacher
+    // gets a text-only fallback that strips <img> tags from the LP body.
     logToFile('Oxbridge LP: PDF render/send failed', {
       error: err.message, rowId: row.id, phone,
-    });
+    }, 'error');
     return false;
   } finally {
     if (tmpPath) { try { fs.unlinkSync(tmpPath); } catch (_) { /* best-effort */ } }

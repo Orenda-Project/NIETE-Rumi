@@ -9,10 +9,15 @@
  * - Lazy-initialized browser singleton: launches are expensive (1-2s),
  *   so we reuse a single browser instance across calls. A launch lock
  *   prevents concurrent first-time launches from spawning two browsers.
- * - waitUntil: 'domcontentloaded' is the fast path. We then await
- *   `document.fonts.ready` before page.pdf() to ensure embedded base64
- *   fonts have been parsed and applied — without this, glyphs render
- *   blank for languages that depend on the embedded fonts (Urdu, etc.).
+ * - waitUntil: 'networkidle' — pages routinely embed remote <img> tags
+ *   (e.g. S3-hosted lesson-plan diagrams). `domcontentloaded` returns
+ *   before those image fetches settle, so page.pdf() would snapshot
+ *   the DOM with unloaded <img> nodes and the images would never render.
+ *   `networkidle` waits for all in-flight requests to quiesce.
+ *   We then await `document.fonts.ready` before page.pdf() to ensure
+ *   embedded base64 fonts have been parsed and applied — without this,
+ *   glyphs render blank for languages that depend on the embedded fonts
+ *   (Urdu, etc.).
  * - Chromium discovery: `playwright-core` does NOT bundle Chromium. The
  *   canonical path is a `postinstall` npm script in `package.json` that runs
  *   `npx --yes playwright@<pinned-version> install chromium`, downloading the
@@ -128,7 +133,7 @@ async function htmlToPdf(html, options = {}) {
   const page = await ctx.newPage();
   try {
     await page.setContent(html, {
-      waitUntil: 'domcontentloaded',
+      waitUntil: 'networkidle',
       timeout: options.timeout || 30000,
     });
     // Critical for embedded base64 fonts: glyphs render blank otherwise.
