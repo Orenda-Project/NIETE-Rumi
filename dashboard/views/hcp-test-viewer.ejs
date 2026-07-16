@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HCP Endpoint Tester</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f7fa;
+      color: #1a202c;
+      line-height: 1.5;
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    .subtitle { color: #64748b; font-size: 13px; margin-bottom: 24px; }
+    .card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .card h2 { margin: 0 0 12px; font-size: 15px; color: #334155; }
+    label { display: block; font-size: 12px; font-weight: 600; color: #475569; margin: 12px 0 4px; }
+    input, select, textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    textarea { font-family: 'SF Mono', Monaco, Menlo, monospace; font-size: 12px; min-height: 120px; }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 9px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+    button:hover { background: #1d4ed8; }
+    button:disabled { background: #94a3b8; cursor: not-allowed; }
+    button.secondary { background: #64748b; }
+    button.secondary:hover { background: #475569; }
+    .hint {
+      background: #eff6ff;
+      color: #1e40af;
+      font-size: 12px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-top: 8px;
+      border-left: 3px solid #2563eb;
+    }
+    .status-line {
+      display: flex;
+      gap: 12px;
+      font-size: 12px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      font-family: 'SF Mono', Monaco, Menlo, monospace;
+    }
+    .status-ok { background: #dcfce7; color: #166534; }
+    .status-err { background: #fee2e2; color: #991b1b; }
+    .status-pending { background: #fef3c7; color: #92400e; }
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 16px;
+      border-radius: 6px;
+      overflow: auto;
+      font-size: 12px;
+      max-height: 500px;
+      margin: 0;
+    }
+    .row { display: flex; gap: 12px; align-items: flex-end; }
+    .row > * { flex: 1; }
+    .auth-status {
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 12px;
+      display: inline-block;
+    }
+    .auth-in { background: #dcfce7; color: #166534; }
+    .auth-out { background: #fee2e2; color: #991b1b; }
+    .hidden { display: none; }
+    .endpoint-tag {
+      display: inline-block;
+      font-family: monospace;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: #e0e7ff;
+      color: #3730a3;
+      margin-right: 6px;
+    }
+    .method-GET { background: #dcfce7; color: #166534; }
+    .method-POST { background: #dbeafe; color: #1e40af; }
+    .method-PATCH { background: #fef3c7; color: #92400e; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>HCP Endpoint Tester</h1>
+    <div class="subtitle">Test the 10 Human Coach Platform endpoints. No curl needed.</div>
+
+    <div class="card">
+      <h2>1. Log in</h2>
+      <div style="margin-bottom: 12px;">
+        Session status: <span id="authStatus" class="auth-status auth-out">Not logged in</span>
+      </div>
+      <div class="row">
+        <div>
+          <label>Phone number (with country code, digits only)</label>
+          <input type="text" id="phoneNumber" placeholder="923..." />
+        </div>
+        <div>
+          <label>Password</label>
+          <input type="password" id="password" />
+        </div>
+      </div>
+      <button id="loginBtn">Log in</button>
+      <button id="logoutBtn" class="secondary">Log out</button>
+      <div id="loginMsg" class="hint hidden"></div>
+    </div>
+
+    <div class="card">
+      <h2>2. Pick an endpoint</h2>
+      <select id="endpointSelect">
+        <option value="">-- select an endpoint --</option>
+        <option value="list_teachers">GET /teachers — list all teachers (with DC rollups)</option>
+        <option value="teacher_detail">GET /teachers/:id — teacher detail + DC summary + latest schedule</option>
+        <option value="teacher_dc">GET /teachers/:id/dc — teacher's full DC observation history</option>
+        <option value="teacher_training">GET /teachers/:id/training — training modules matched to weak indicators</option>
+        <option value="teacher_plan">GET /teachers/:id/coaching-plan — per-indicator action plan</option>
+        <option value="training_modules">GET /training-modules — all active training modules</option>
+        <option value="list_schedules">GET /schedules — your own visit schedules (optional filters)</option>
+        <option value="create_schedule">POST /schedules — create a new visit schedule</option>
+        <option value="update_schedule">PATCH /schedules/:id — update schedule status/notes</option>
+        <option value="generate_feedback">POST /generate-feedback — 6-box AI coaching feedback</option>
+      </select>
+      <div id="endpointHint" class="hint hidden"></div>
+
+      <div id="formArea"></div>
+
+      <button id="sendBtn" disabled>Send request</button>
+    </div>
+
+    <div class="card" id="responseCard" style="display: none;">
+      <h2>3. Response</h2>
+      <div id="statusLine" class="status-line"></div>
+      <pre id="responseBody">(no response yet)</pre>
+    </div>
+  </div>
+
+  <script>
+    // ------------------------------------------------------------------
+    // Endpoint definitions — the ONLY place the 10 endpoints are described.
+    // Adding a new endpoint = adding one entry to this array.
+    // ------------------------------------------------------------------
+    const ENDPOINTS = {
+      list_teachers: {
+        method: 'GET',
+        pathTemplate: '/api/portal/hcp/teachers',
+        hint: 'Returns all registered teachers with their DC rollup metrics (avg score, weak-indicator count, flagged flag). Optionally filter by region.',
+        fields: [
+          { name: 'region', label: 'Region (optional query param)', type: 'text', placeholder: 'e.g. islamabad', location: 'query' }
+        ]
+      },
+      teacher_detail: {
+        method: 'GET',
+        pathTemplate: '/api/portal/hcp/teachers/:id',
+        hint: 'Full teacher profile + DC summary + the latest visit schedule for this teacher.',
+        fields: [
+          { name: 'id', label: 'Teacher UUID', type: 'text', placeholder: 'e.g. 272544b6-dfbb-47ee-a1c3-702e70f9ca3e', location: 'path', required: true }
+        ]
+      },
+      teacher_dc: {
+        method: 'GET',
+        pathTemplate: '/api/portal/hcp/teachers/:id/dc',
+        hint: 'Chronological DC observation history — every session, per-indicator RED/GREEN split, trend line.',
+        fields: [
+          { name: 'id', label: 'Teacher UUID', type: 'text', placeholder: 'teacher UUID', location: 'path', required: true }
+        ]
+      },
+      teacher_training: {
+        method: 'GET',
+        pathTemplate: '/api/portal/hcp/teachers/:id/training',
+        hint: 'Training-module recommendations. Matches modules whose title/content mentions this teacher\'s weak indicator codes.',
+        fields: [
+          { name: 'id', label: 'Teacher UUID', type: 'text', placeholder: 'teacher UUID', location: 'path', required: true }
+        ]
+      },
+      teacher_plan: {
+        method: 'GET',
+        pathTemplate: '/api/portal/hcp/teachers/:id/coaching-plan',
+        hint: 'Per-weak-indicator coaching actions, priority-ordered.',
+        fields: [
+          { name: 'id', label: 'Teacher UUID', type: 'text', placeholder: 'teacher UUID', location: 'path', required: true }
+        ]
+      },
+      training_modules: {
+        method: 'GET',
+        pathTemplate: '/api/portal/hcp/training-modules',
+        hint: 'All active training modules, ordered by order_index. No parameters required.',
+        fields: []
+      },
+      list_schedules: {
+        method: 'GET',
+        pathTemplate: '/api/portal/hcp/schedules',
+        hint: 'Your own (logged-in coach) visit schedules. Optional filters: status, teacher_id.',
+        fields: [
+          { name: 'status', label: 'Status (optional)', type: 'select', location: 'query',
+            options: ['', 'upcoming', 'confirmed', 'reschedule_requested', 'medical_leave', 'completed', 'cancelled'] },
+          { name: 'teacher_id', label: 'Teacher UUID (optional)', type: 'text', placeholder: 'filter to one teacher', location: 'query' }
+        ]
+      },
+      create_schedule: {
+        method: 'POST',
+        pathTemplate: '/api/portal/hcp/schedules',
+        hint: 'Create a new visit schedule. observation_tool must be FICO, HOTs, or COTs.',
+        fields: [
+          { name: 'body', label: 'JSON body', type: 'textarea', location: 'body',
+            defaultValue: JSON.stringify({
+              teacher_id: 'PASTE_TEACHER_UUID',
+              scheduled_at: '2026-07-20T10:00:00Z',
+              observation_tool: 'FICO',
+              notes: 'Trial visit'
+            }, null, 2) }
+        ]
+      },
+      update_schedule: {
+        method: 'PATCH',
+        pathTemplate: '/api/portal/hcp/schedules/:id',
+        hint: 'Update a schedule\'s status or notes. Invalid state transitions return HTTP 409.',
+        fields: [
+          { name: 'id', label: 'Schedule ID', type: 'text', location: 'path', required: true },
+          { name: 'body', label: 'JSON body', type: 'textarea', location: 'body',
+            defaultValue: JSON.stringify({ status: 'confirmed', notes: 'Teacher agreed' }, null, 2) }
+        ]
+      },
+      generate_feedback: {
+        method: 'POST',
+        pathTemplate: '/api/portal/hcp/generate-feedback',
+        hint: '6-box AI coaching feedback. language must be english, urdu, or roman_urdu. observation_data is an open object the LLM reads.',
+        fields: [
+          { name: 'body', label: 'JSON body', type: 'textarea', location: 'body',
+            defaultValue: JSON.stringify({
+              teacher_id: 'PASTE_TEACHER_UUID',
+              language: 'english',
+              observation_data: {
+                teacher_name: 'Example Teacher',
+                subject: 'Mathematics',
+                school_name: 'Example School',
+                class: 'Grade 3',
+                coach_name: 'Rifat',
+                region: 'islamabad',
+                observation_tool: 'FICO',
+                indicators: []
+              }
+            }, null, 2) }
+        ]
+      }
+    };
+
+    // ------------------------------------------------------------------
+    // DOM refs
+    // ------------------------------------------------------------------
+    const $ = (id) => document.getElementById(id);
+    const endpointSelect = $('endpointSelect');
+    const endpointHint = $('endpointHint');
+    const formArea = $('formArea');
+    const sendBtn = $('sendBtn');
+    const responseCard = $('responseCard');
+    const statusLine = $('statusLine');
+    const responseBody = $('responseBody');
+    const authStatus = $('authStatus');
+    const loginBtn = $('loginBtn');
+    const logoutBtn = $('logoutBtn');
+    const loginMsg = $('loginMsg');
+
+    // ------------------------------------------------------------------
+    // Auth
+    // ------------------------------------------------------------------
+    async function refreshAuthStatus() {
+      try {
+        const res = await fetch('/api/portal/auth/verify', { credentials: 'same-origin' });
+        const data = await res.json();
+        if (data && data.authenticated) {
+          authStatus.textContent = 'Logged in';
+          authStatus.className = 'auth-status auth-in';
+        } else {
+          authStatus.textContent = 'Not logged in';
+          authStatus.className = 'auth-status auth-out';
+        }
+      } catch (e) {
+        authStatus.textContent = 'Unknown';
+      }
+    }
+
+    loginBtn.addEventListener('click', async () => {
+      const phoneNumber = $('phoneNumber').value.trim();
+      const password = $('password').value;
+      loginMsg.className = 'hint';
+      loginMsg.textContent = 'Logging in...';
+      try {
+        const res = await fetch('/api/portal/login', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber, password })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          loginMsg.textContent = 'Logged in as ' + (data.user?.firstName || 'coach') + '. You can now hit endpoints below.';
+        } else {
+          loginMsg.textContent = 'Login failed: ' + (data.error || 'unknown error');
+        }
+      } catch (e) {
+        loginMsg.textContent = 'Login request failed: ' + e.message;
+      }
+      await refreshAuthStatus();
+    });
+
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        await fetch('/api/portal/logout', { method: 'POST', credentials: 'same-origin' });
+      } catch (e) {}
+      loginMsg.className = 'hint';
+      loginMsg.textContent = 'Logged out.';
+      await refreshAuthStatus();
+    });
+
+    // ------------------------------------------------------------------
+    // Endpoint form builder
+    // ------------------------------------------------------------------
+    endpointSelect.addEventListener('change', () => {
+      const key = endpointSelect.value;
+      formArea.innerHTML = '';
+      if (!key) {
+        endpointHint.classList.add('hidden');
+        sendBtn.disabled = true;
+        return;
+      }
+      const def = ENDPOINTS[key];
+      endpointHint.classList.remove('hidden');
+      endpointHint.innerHTML =
+        '<span class="endpoint-tag method-' + def.method + '">' + def.method + '</span>' +
+        '<span class="endpoint-tag">' + def.pathTemplate + '</span><br/>' +
+        def.hint;
+
+      for (const f of def.fields) {
+        const wrap = document.createElement('div');
+        const lbl = document.createElement('label');
+        lbl.textContent = f.label + (f.required ? ' *' : '');
+        wrap.appendChild(lbl);
+
+        let input;
+        if (f.type === 'textarea') {
+          input = document.createElement('textarea');
+          if (f.defaultValue) input.value = f.defaultValue;
+        } else if (f.type === 'select') {
+          input = document.createElement('select');
+          for (const opt of f.options) {
+            const o = document.createElement('option');
+            o.value = opt;
+            o.textContent = opt || '(any)';
+            input.appendChild(o);
+          }
+        } else {
+          input = document.createElement('input');
+          input.type = 'text';
+          if (f.placeholder) input.placeholder = f.placeholder;
+        }
+        input.dataset.name = f.name;
+        input.dataset.location = f.location;
+        wrap.appendChild(input);
+        formArea.appendChild(wrap);
+      }
+      sendBtn.disabled = false;
+    });
+
+    // ------------------------------------------------------------------
+    // Send request
+    // ------------------------------------------------------------------
+    sendBtn.addEventListener('click', async () => {
+      const key = endpointSelect.value;
+      const def = ENDPOINTS[key];
+      if (!def) return;
+
+      let path = def.pathTemplate;
+      const query = new URLSearchParams();
+      let bodyRaw = null;
+
+      for (const el of formArea.querySelectorAll('[data-name]')) {
+        const name = el.dataset.name;
+        const loc = el.dataset.location;
+        const val = el.value;
+        if (loc === 'path') {
+          if (!val) {
+            alert('Missing path parameter: ' + name);
+            return;
+          }
+          path = path.replace(':' + name, encodeURIComponent(val));
+        } else if (loc === 'query') {
+          if (val) query.set(name, val);
+        } else if (loc === 'body') {
+          bodyRaw = val;
+        }
+      }
+
+      const qs = query.toString();
+      const fullPath = path + (qs ? '?' + qs : '');
+
+      const fetchOpts = {
+        method: def.method,
+        credentials: 'same-origin',
+        headers: {}
+      };
+      if (bodyRaw != null) {
+        fetchOpts.headers['Content-Type'] = 'application/json';
+        try {
+          // Validate + reformat
+          JSON.parse(bodyRaw);
+          fetchOpts.body = bodyRaw;
+        } catch (e) {
+          alert('Body is not valid JSON: ' + e.message);
+          return;
+        }
+      }
+
+      responseCard.style.display = 'block';
+      statusLine.className = 'status-line status-pending';
+      statusLine.textContent = 'Sending ' + def.method + ' ' + fullPath + ' ...';
+      responseBody.textContent = '';
+
+      const t0 = performance.now();
+      let res, text;
+      try {
+        res = await fetch(fullPath, fetchOpts);
+        text = await res.text();
+      } catch (e) {
+        statusLine.className = 'status-line status-err';
+        statusLine.textContent = 'Network error: ' + e.message;
+        return;
+      }
+      const t1 = performance.now();
+      const ms = Math.round(t1 - t0);
+
+      const ok = res.status >= 200 && res.status < 300;
+      statusLine.className = 'status-line ' + (ok ? 'status-ok' : 'status-err');
+      statusLine.textContent = 'HTTP ' + res.status + ' ' + res.statusText + '  ·  ' + ms + ' ms  ·  ' + def.method + ' ' + fullPath;
+
+      // Pretty-print JSON if it parses; otherwise show raw
+      try {
+        responseBody.textContent = JSON.stringify(JSON.parse(text), null, 2);
+      } catch (e) {
+        responseBody.textContent = text;
+      }
+    });
+
+    // Initial auth check
+    refreshAuthStatus();
+  </script>
+</body>
+</html>

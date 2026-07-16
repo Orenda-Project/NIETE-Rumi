@@ -2767,6 +2767,15 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 // share the same CORS / rate-limit / session stack.
 app.use('/api/portal/hcp', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, hcpRoutes);
 
+// HCP endpoint tester — an HTML page for internal QA to hit the 10 /api/portal/hcp/*
+// endpoints without curl. Served under /observability/* so it's excluded from the
+// SPA catch-all. Self-contained: handles portal login + endpoint dispatch client-side.
+// No server-side auth gate — the page itself is inert without a valid portal session,
+// and every endpoint it calls is already guarded by requirePortalAuth.
+app.get('/observability/hcp-test-viewer', (req, res) => {
+  res.render('hcp-test-viewer');
+});
+
 // Redirect /dashboard to Teacher Portal frontend (for cases where backend URL is accessed directly)
 app.get('/dashboard', (req, res) => {
   // If this is the Teacher Portal backend being accessed, redirect to frontend
