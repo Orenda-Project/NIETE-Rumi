@@ -28,6 +28,7 @@ const {
 const supabase = require('../config/supabase');
 const WhatsAppService = require('../services/whatsapp.service');
 const { htmlToPdf } = require('../utils/html-to-pdf');
+const { htmlToDocx } = require('../utils/html-to-docx');
 const r2 = require('../storage/r2');
 
 const router = express.Router();
@@ -114,15 +115,28 @@ async function _deliver(parsed) {
     return;
   }
 
-  // Render HTML → PDF.
-  let pdfBuffer;
+  // Format toggle (Alishba ask 3). Legacy PDF path is the default; DOCX runs
+  // the same HTML through the html-to-docx converter and ships a Word file.
+  const outputFormat = link.outputFormat === 'docx' ? 'docx' : 'pdf';
+  const ext = outputFormat === 'docx' ? 'docx' : 'pdf';
+
+  // Render HTML → PDF or DOCX.
+  let fileBuffer;
   try {
-    pdfBuffer = await htmlToPdf(examHtml, { timeout: 45000 });
+    if (outputFormat === 'docx') {
+      fileBuffer = await htmlToDocx(examHtml, {
+        title: `Grade ${link.grade} ${link.subject} — ${link.generationType === 'class_assessment' ? 'Practice' : 'Exam'}`,
+      });
+    } else {
+      fileBuffer = await htmlToPdf(examHtml, { timeout: 45000 });
+    }
   } catch (err) {
-    logToFile('[assessment-gen-cb] htmlToPdf failed', { jobId: parsed.jobId, err: err.message });
+    logToFile('[assessment-gen-cb] render failed', {
+      jobId: parsed.jobId, outputFormat, err: err.message,
+    });
     await WhatsAppService.sendMessage(
       phone,
-      "Sorry — we couldn't render your assessment PDF. Please try again.",
+      `Sorry — we couldn't render your assessment ${outputFormat.toUpperCase()}. Please try again.`,
     );
     return;
   }
@@ -130,9 +144,9 @@ async function _deliver(parsed) {
   // Upload to R2. Reuse the exam buffer helper (buckets exams by userId).
   let key;
   try {
-    const filename = `assessment-${link.jobId}.pdf`;
+    const filename = `assessment-${link.jobId}.${ext}`;
     key = await r2.uploadExamBuffer({
-      buffer: pdfBuffer,
+      buffer: fileBuffer,
       userId: link.userId,
       examId: parsed.jobId,
       filename,
@@ -151,7 +165,7 @@ async function _deliver(parsed) {
 
   const grade = link.grade;
   const subject = link.subject;
-  const filename = `Grade${grade}_${_subjectFileTag(subject)}_${link.generationType === 'class_assessment' ? 'Practice' : 'Exam'}.pdf`;
+  const filename = `Grade${grade}_${_subjectFileTag(subject)}_${link.generationType === 'class_assessment' ? 'Practice' : 'Exam'}.${ext}`;
   const caption = `Grade ${grade} ${subject} — ${link.generationType === 'class_assessment' ? 'classroom practice' : 'exam'} · Pages ${link.pageRanges}`;
 
   try {

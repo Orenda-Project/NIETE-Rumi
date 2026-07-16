@@ -33,8 +33,22 @@ jest.mock('../../bot/shared/services/assessment-generator-client.service', () =>
   isConfigured: jest.fn(() => true),
 }));
 
+jest.mock('../../bot/shared/services/whatsapp.service', () => ({
+  sendMessage: jest.fn(async () => true),
+}));
+
+jest.mock('../../bot/shared/config/supabase', () => {
+  const single = jest.fn(async () => ({ data: { phone_number: '923001234567' }, error: null }));
+  const eq = jest.fn(() => ({ single }));
+  const select = jest.fn(() => ({ eq }));
+  const from = jest.fn(() => ({ select }));
+  return { from, __mock: { from, select, eq, single } };
+});
+
 const redis = require('../../bot/shared/services/cache/railway-redis.service');
 const AssessmentGenClient = require('../../bot/shared/services/assessment-generator-client.service');
+const WhatsAppService = require('../../bot/shared/services/whatsapp.service');
+const supabase = require('../../bot/shared/config/supabase');
 const endpoint = require('../../bot/shared/routes/assessment-gen-endpoint');
 
 const USER_ID = 'user-1';
@@ -51,9 +65,21 @@ async function seedSpec(overrides = {}) {
   await redis.set(`assessment_gen_flow:${FLOW_TOKEN}`, { ...base, ...overrides });
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  // Drain any setImmediate ack callbacks scheduled by a prior test's submit
+  // BEFORE we clear the WhatsApp mock — otherwise they leak into this test's
+  // call count. Two flushes cover the ack's await-then-send pattern.
+  await new Promise((r) => setImmediate(r));
+  await new Promise((r) => setImmediate(r));
   redis._reset();
   AssessmentGenClient.submitJob.mockReset();
+  WhatsAppService.sendMessage.mockClear();
+  supabase.__mock.from.mockClear();
+  supabase.__mock.eq.mockClear();
+  supabase.__mock.single.mockImplementation(async () => ({
+    data: { phone_number: '923001234567' },
+    error: null,
+  }));
 });
 
 describe('handleAssessmentGenInit', () => {
@@ -425,5 +451,140 @@ describe('QUESTION_TYPES → SUCCESS', () => {
     );
     expect(out.screen).toBe('SUCCESS');
     expect(out.data.message).toMatch(/wrong queueing/);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Alishba ask 3 — output_format (pdf | docx) picked on SPEC screen
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('SPEC → output_format (Ask 3)', () => {
+  test('SPEC exposes output_format_options in the screen data', async () => {
+    const out = await endpoint.handleAssessmentGenInit(USER_ID, FLOW_TOKEN);
+    expect(out.data.output_format_options.map((o) => o.id).sort()).toEqual(['docx', 'pdf']);
+  });
+
+  test('SPEC submit with output_format=docx persists to state and rides through to job link', async () => {
+    AssessmentGenClient.submitJob.mockResolvedValue({ jobId: 'job-docx' });
+    // Push through SPEC → SEEN (fast-path lands on SUCCESS + submits).
+    await endpoint.handleAssessmentGenDataExchange(
+      USER_ID,
+      'SPEC',
+      {
+        _action: 'spec_submit',
+        generation_type: 'exam',
+        grade: '4',
+        subject: 'Eng',
+        page_ranges: '10-15',
+        output_format: 'docx',
+      },
+      FLOW_TOKEN,
+    );
+    const out = await endpoint.handleAssessmentGenDataExchange(
+      USER_ID,
+      'SEEN_UNSEEN',
+      { _action: 'pick_source', content_source: 'seen' },
+      FLOW_TOKEN,
+    );
+    expect(out.screen).toBe('SUCCESS');
+    expect(out.data.message).toMatch(/Word file/);
+    const link = await redis.get('assessment_gen_job:job-docx');
+    expect(link.outputFormat).toBe('docx');
+  });
+
+  test('SPEC submit without output_format defaults to pdf', async () => {
+    AssessmentGenClient.submitJob.mockResolvedValue({ jobId: 'job-nofmt' });
+    await endpoint.handleAssessmentGenDataExchange(
+      USER_ID,
+      'SPEC',
+      {
+        _action: 'spec_submit',
+        generation_type: 'exam',
+        grade: '4',
+        subject: 'Eng',
+        page_ranges: '10-15',
+      },
+      FLOW_TOKEN,
+    );
+    const out = await endpoint.handleAssessmentGenDataExchange(
+      USER_ID,
+      'SEEN_UNSEEN',
+      { _action: 'pick_source', content_source: 'seen' },
+      FLOW_TOKEN,
+    );
+    expect(out.data.message).toMatch(/PDF/);
+    const link = await redis.get('assessment_gen_job:job-nofmt');
+    expect(link.outputFormat).toBe('pdf');
+  });
+
+  test('bogus output_format value falls back to pdf', async () => {
+    AssessmentGenClient.submitJob.mockResolvedValue({ jobId: 'job-bogus' });
+    await endpoint.handleAssessmentGenDataExchange(
+      USER_ID,
+      'SPEC',
+      {
+        _action: 'spec_submit',
+        generation_type: 'exam',
+        grade: '4',
+        subject: 'Eng',
+        page_ranges: '10-15',
+        output_format: 'rtf',
+      },
+      FLOW_TOKEN,
+    );
+    await endpoint.handleAssessmentGenDataExchange(
+      USER_ID,
+      'SEEN_UNSEEN',
+      { _action: 'pick_source', content_source: 'seen' },
+      FLOW_TOKEN,
+    );
+    const link = await redis.get('assessment_gen_job:job-bogus');
+    expect(link.outputFormat).toBe('pdf');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Alishba ask 4 — immediate "generation started" WhatsApp ack
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('_sendGenerationStartedAck (Ask 4)', () => {
+  test('sends the expected ack text to the teacher looked up by userId', async () => {
+    await endpoint._sendGenerationStartedAck(USER_ID);
+    expect(supabase.__mock.from).toHaveBeenCalledWith('users');
+    expect(supabase.__mock.eq).toHaveBeenCalledWith('id', USER_ID);
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
+    const [to, msg] = WhatsAppService.sendMessage.mock.calls[0];
+    expect(to).toBe('923001234567');
+    expect(msg).toMatch(/being generated/i);
+  });
+
+  test('silently no-ops if userId is falsy', async () => {
+    await endpoint._sendGenerationStartedAck(null);
+    expect(supabase.__mock.from).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
+  });
+
+  test('silently no-ops if user lookup returns no phone', async () => {
+    supabase.__mock.single.mockImplementationOnce(async () => ({ data: null, error: null }));
+    await endpoint._sendGenerationStartedAck(USER_ID);
+    expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
+  });
+
+  test('after a successful submit the ack fires (setImmediate) with the correct message', async () => {
+    AssessmentGenClient.submitJob.mockResolvedValue({ jobId: 'job-ack' });
+    await seedSpec();
+    await endpoint.handleAssessmentGenDataExchange(
+      USER_ID,
+      'SEEN_UNSEEN',
+      { _action: 'pick_source', content_source: 'seen' },
+      FLOW_TOKEN,
+    );
+    // Yield to let setImmediate drain.
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
+    const [, msg] = WhatsAppService.sendMessage.mock.calls[0];
+    expect(msg).toMatch(/being generated/i);
+    expect(msg).toMatch(/moments/i);
   });
 });

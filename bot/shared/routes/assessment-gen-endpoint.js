@@ -27,8 +27,16 @@ const { logToFile } = require('../utils/logger');
 const redis = require('../services/cache/railway-redis.service');
 const AssessmentGenClient = require('../services/assessment-generator-client.service');
 const QuestionConfig = require('../services/assessment-question-config.service');
+const WhatsAppService = require('../services/whatsapp.service');
+const supabase = require('../config/supabase');
 
 const SESSION_TTL_SECONDS = 15 * 60;
+
+// Output formats the teacher can pick on the SPEC screen. PDF is the legacy
+// default (what the callback renders via Chromium); DOCX routes the same
+// HTML through the html-to-docx converter and ships a Word-editable file.
+const VALID_OUTPUT_FORMATS = ['pdf', 'docx'];
+const DEFAULT_OUTPUT_FORMAT = 'pdf';
 
 // Default question-type coverage for the SEEN fast-path (Umama's spec:
 // "if Seen, show the Generate Exam option directly" — no type picker).
@@ -93,6 +101,10 @@ function specScreen() {
         { id: 'Islamiat', title: 'Islamiat' },
         { id: 'SST', title: 'Social Studies' },
         { id: 'GenK', title: 'General Knowledge' },
+      ],
+      output_format_options: [
+        { id: 'pdf',  title: 'PDF',  description: 'Print-ready. Best for printing straight to a class set.' },
+        { id: 'docx', title: 'Word', description: 'Editable. Tweak questions or scoring before printing.' },
       ],
     },
   };
@@ -167,6 +179,11 @@ async function _submitAndBuildSuccess({ state, userId, flowToken, contentSource,
     );
   }
 
+  // Format picked on SPEC (Alishba ask 3). Default preserves legacy PDF path.
+  const outputFormat = VALID_OUTPUT_FORMATS.includes(state.output_format)
+    ? state.output_format
+    : DEFAULT_OUTPUT_FORMAT;
+
   try {
     await _persistJobLink({
       jobId,
@@ -177,19 +194,57 @@ async function _submitAndBuildSuccess({ state, userId, flowToken, contentSource,
       pageRanges: state.page_ranges,
       contentSource,
       questionTypes,
+      outputFormat,
     });
   } catch (err) {
     logToFile('[assessment-gen-flow] persist job link failed', { err: err.message });
   }
+
+  // Immediate WhatsApp ack (Alishba ask 4). Fire-and-forget so the Flow
+  // SUCCESS screen returns without waiting on network. We don't fail the
+  // flow if the ack can't be sent — the SUCCESS screen already tells the
+  // teacher we've queued the paper, and the callback will deliver either
+  // way.
+  setImmediate(() => {
+    _sendGenerationStartedAck(userId).catch((err) => {
+      logToFile('[assessment-gen-flow] ack send failed', { err: err.message, userId });
+    });
+  });
 
   await clearSession(flowToken);
 
   const typeLabel = state.generation_type === 'class_assessment'
     ? 'classroom practice'
     : 'exam';
+  const fileLabel = outputFormat === 'docx' ? 'Word file' : 'PDF';
   return successScreen(
-    `Making your Grade ${state.grade} ${_subjectLabel(state.subject)} ${typeLabel} on pages ${state.page_ranges}. We'll send the PDF when it's ready.`,
+    `Making your Grade ${state.grade} ${_subjectLabel(state.subject)} ${typeLabel} on pages ${state.page_ranges}. We'll send the ${fileLabel} when it's ready.`,
     flowToken,
+  );
+}
+
+/**
+ * Send the "generation started" text to the teacher (Alishba ask 4). Kept as
+ * a separate function so the Flow SUCCESS return doesn't wait on it and so
+ * tests can spy on it. Looks up the teacher's phone from Supabase using the
+ * userId that Meta passes into the Flow endpoint.
+ */
+async function _sendGenerationStartedAck(userId) {
+  if (!userId) return;
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('phone_number')
+    .eq('id', userId)
+    .single();
+  if (error || !user || !user.phone_number) {
+    logToFile('[assessment-gen-flow] ack: user lookup failed', {
+      userId, err: error?.message,
+    });
+    return;
+  }
+  await WhatsAppService.sendMessage(
+    user.phone_number,
+    "Your exam is being generated. This may take a few moments. We'll send it here as soon as it's ready.",
   );
 }
 
@@ -219,6 +274,13 @@ async function handleAssessmentGenDataExchange(userId, screen, screenData, flowT
     state.subject = String(screenData.subject || '').trim();
     state.chapter = String(screenData.chapter || '').trim();
     state.page_ranges = String(screenData.page_ranges || '').trim();
+
+    // Output format (Alishba ask 3). Default 'pdf' preserves legacy behaviour
+    // for any client that doesn't send the field (old Flow JSON, tests, curl).
+    const rawFormat = String(screenData.output_format || '').trim().toLowerCase();
+    state.output_format = VALID_OUTPUT_FORMATS.includes(rawFormat)
+      ? rawFormat
+      : DEFAULT_OUTPUT_FORMAT;
 
     if (!state.grade || !state.subject || !state.page_ranges) {
       return specScreen();
@@ -415,4 +477,5 @@ module.exports = {
   _subjectLabel,
   _parseCount,
   _slugForCountKey,
+  _sendGenerationStartedAck,
 };

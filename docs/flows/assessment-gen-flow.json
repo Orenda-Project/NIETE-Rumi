@@ -35,6 +35,14 @@
             { "id": "SST", "title": "Social Studies" },
             { "id": "GenK", "title": "General Knowledge" }
           ]
+        },
+        "output_format_options": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "description": { "type": "string" } } },
+          "__example__": [
+            { "id": "pdf",  "title": "PDF",  "description": "Print-ready. Best for printing straight to a class set." },
+            { "id": "docx", "title": "Word", "description": "Editable. Tweak questions or scoring before printing." }
+          ]
         }
       },
       "layout": {
@@ -86,6 +94,13 @@
                 "input-type": "text"
               },
               {
+                "type": "RadioButtonsGroup",
+                "name": "output_format",
+                "label": "File format",
+                "required": true,
+                "data-source": "${data.output_format_options}"
+              },
+              {
                 "type": "Footer",
                 "label": "Next",
                 "on-click-action": {
@@ -96,7 +111,8 @@
                     "grade": "${form.grade}",
                     "subject": "${form.subject}",
                     "chapter": "${form.chapter}",
-                    "page_ranges": "${form.page_ranges}"
+                    "page_ranges": "${form.page_ranges}",
+                    "output_format": "${form.output_format}"
                   }
                 }
               }
@@ -297,6 +313,70 @@
                 "input-type": "number"
               },
               {
+                "type": "TextInput",
+                "name": "count_short_questions",
+                "label": "How many Short Questions?",
+                "required": false,
+                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_long_question",
+                "label": "How many Long Questions?",
+                "required": false,
+                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_missing_letters",
+                "label": "How many Missing Letters?",
+                "required": false,
+                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_mind_map",
+                "label": "How many Mind Maps?",
+                "required": false,
+                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_word_meanings",
+                "label": "How many Word Meanings?",
+                "required": false,
+                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_story_writing",
+                "label": "How many Story Writing prompts?",
+                "required": false,
+                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_essay_writing",
+                "label": "How many Essays?",
+                "required": false,
+                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_paragraph_writing",
+                "label": "How many Paragraphs?",
+                "required": false,
+                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "input-type": "number"
+              },
+              {
                 "type": "Footer",
                 "label": "Generate exam",
                 "on-click-action": {
@@ -311,7 +391,15 @@
                     "count_true_false": "${form.count_true_false}",
                     "count_match_the_column": "${form.count_match_the_column}",
                     "count_word_problems": "${form.count_word_problems}",
-                    "count_comprehension_passage": "${form.count_comprehension_passage}"
+                    "count_comprehension_passage": "${form.count_comprehension_passage}",
+                    "count_short_questions": "${form.count_short_questions}",
+                    "count_long_question": "${form.count_long_question}",
+                    "count_missing_letters": "${form.count_missing_letters}",
+                    "count_mind_map": "${form.count_mind_map}",
+                    "count_word_meanings": "${form.count_word_meanings}",
+                    "count_story_writing": "${form.count_story_writing}",
+                    "count_essay_writing": "${form.count_essay_writing}",
+                    "count_paragraph_writing": "${form.count_paragraph_writing}"
                   }
                 }
               }
