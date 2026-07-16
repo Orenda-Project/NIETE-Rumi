@@ -21,9 +21,9 @@
  *   - content_html rendered inline (sanitized via DOMPurify)
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import DOMPurify from 'dompurify';
-import { GraduationCap, CheckCircle2, Circle, Loader2, Lock, Award, ClipboardCheck } from 'lucide-react';
+import { GraduationCap, CheckCircle2, Circle, Loader2, Lock, Award, ClipboardCheck, Building2 } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
 import {
@@ -32,9 +32,22 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
 
+// Per-vendor aggregate from GET /api/portal/training/vendors — one card
+// per vendor in the "Content Provider" row at the top of the page.
+type Vendor = {
+  vendor_key: string;
+  vendor_name: string;
+  level_count: number;
+  course_count: number;
+  module_count: number;
+  completed_module_count: number;
+  avg_score_pct: number | null;
+};
+
 type LevelState = 'locked' | 'certified' | 'ready_for_quiz' | 'in_progress' | 'not_started';
 type Level = {
   id: number; name: string; order_index: number; cpd_level: number | null;
+  vendor_key?: string | null;
   state: LevelState;
   module_count: number; completed_count: number;
   courses_total: number; courses_completed: number;
@@ -132,8 +145,95 @@ function levelStateBadge(l: Level) {
   }
 }
 
+// Reusable "avg quiz score" pill for the vendor cards. Same colour ladder
+// (green ≥80, amber ≥50, red <50) as the per-module QuizScoreBadge above so
+// the visual language is consistent across the page.
+function VendorAvgScorePill({ pct }: { pct: number | null }) {
+  if (pct == null) {
+    return (
+      <span
+        className="text-xs text-muted-foreground"
+        data-testid="vendor-avg-score-none"
+      >
+        Quiz avg: —
+      </span>
+    );
+  }
+  const tone =
+    pct >= 80 ? 'text-green-700 bg-green-50 border-green-200'
+    : pct >= 50 ? 'text-amber-700 bg-amber-50 border-amber-200'
+    : 'text-red-700 bg-red-50 border-red-200';
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-medium ${tone}`}
+      data-testid="vendor-avg-score-badge"
+    >
+      Quiz avg: {pct}%
+    </span>
+  );
+}
+
+// Vendor-grouping strip at the top of the page. Click a card to filter the
+// Level → Course → Module cascade below to only that vendor's content. The
+// currently-selected card is highlighted with a ring; clicking it again
+// clears the filter.
+function VendorGrouping({
+  vendors,
+  selectedVendor,
+  onSelect,
+}: {
+  vendors: Vendor[];
+  selectedVendor: string | null;
+  onSelect: (key: string | null) => void;
+}) {
+  if (vendors.length === 0) return null;
+  return (
+    <div className="mb-6" data-testid="vendor-grouping">
+      <div className="flex items-center gap-2 mb-3">
+        <Building2 className="w-4 h-4 text-muted-foreground" />
+        <span className="text-sm font-semibold text-foreground">Content Provider</span>
+        {selectedVendor && (
+          <button
+            type="button"
+            onClick={() => onSelect(null)}
+            className="text-xs text-muted-foreground underline ml-2"
+            data-testid="vendor-clear-filter"
+          >
+            Show all
+          </button>
+        )}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {vendors.map((v) => {
+          const active = selectedVendor === v.vendor_key;
+          return (
+            <button
+              key={v.vendor_key}
+              type="button"
+              onClick={() => onSelect(active ? null : v.vendor_key)}
+              data-testid={`vendor-card-${v.vendor_key}`}
+              className={`text-left rounded-lg border p-4 shadow-sm transition-colors hover:bg-muted/40 ${
+                active ? 'ring-2 ring-primary border-primary bg-muted/30' : 'bg-card'
+              }`}
+            >
+              <div className="font-medium text-sm mb-1">{v.vendor_name}</div>
+              <div className="text-xs text-muted-foreground mb-2">
+                {v.module_count} modules · {v.completed_module_count}/{v.module_count} done
+              </div>
+              <VendorAvgScorePill pct={v.avg_score_pct} />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 const PortalTraining = () => {
   const { toast } = useToast();
+
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [selectedVendor, setSelectedVendor] = useState<string | null>(null);
 
   const [levels, setLevels] = useState<Level[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -144,6 +244,7 @@ const PortalTraining = () => {
   const [selectedCourse, setSelectedCourse] = useState<string>('');
   const [selectedModule, setSelectedModule] = useState<string>('');
 
+  const [loadingVendors, setLoadingVendors] = useState(true);
   const [loadingLevels, setLoadingLevels] = useState(true);
   const [loadingCourses, setLoadingCourses] = useState(false);
   const [loadingModules, setLoadingModules] = useState(false);
@@ -155,8 +256,18 @@ const PortalTraining = () => {
   // caller server-side (session's user_id), so no client-side filtering needed.
   const [attemptsByModule, setAttemptsByModule] = useState<Record<string, QuizAttempt[] | null>>({});
 
-  // Fetch levels on mount
+  // Fetch vendors + levels on mount, in parallel — both are read-only
+  // roll-ups scoped to the caller server-side.
   useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await api.get('/training/vendors');
+        setVendors(data.vendors || []);
+      } catch {
+        // Silent — the vendor strip is an enhancement; if it can't load the
+        // page still works with the full unfiltered cascade below.
+      } finally { setLoadingVendors(false); }
+    })();
     (async () => {
       try {
         const { data } = await api.get('/training/levels');
@@ -166,6 +277,30 @@ const PortalTraining = () => {
       } finally { setLoadingLevels(false); }
     })();
   }, [toast]);
+
+  // Levels filtered by the selected vendor card. When no vendor is picked, all
+  // levels show (matches the pre-bd-2031 behaviour exactly). We derive this
+  // via useMemo so switching vendors is instant and doesn't reset the cascade
+  // if the level being shown still belongs to the newly-selected vendor.
+  const visibleLevels = useMemo(() => {
+    if (!selectedVendor) return levels;
+    return levels.filter(l => l.vendor_key === selectedVendor);
+  }, [levels, selectedVendor]);
+
+  // Clearing/changing the vendor may hide the currently-picked level; reset
+  // the downstream cascade in that case so the UI doesn't leave stale
+  // course/module state visible.
+  useEffect(() => {
+    if (!selectedLevel) return;
+    if (!visibleLevels.some(l => String(l.id) === selectedLevel)) {
+      setSelectedLevel('');
+      setSelectedCourse('');
+      setSelectedModule('');
+      setCourses([]);
+      setModules([]);
+      setModuleDetail(null);
+    }
+  }, [visibleLevels, selectedLevel]);
 
   // Level → courses. Reject selection if the chosen level is locked
   // (defence-in-depth; the Select item is also greyed out).
@@ -249,7 +384,7 @@ const PortalTraining = () => {
     })();
   }, [selectedModule, toast]);
 
-  if (loadingLevels) {
+  if (loadingLevels || loadingVendors) {
     return <PortalLayout><LoadingState type="full" /></PortalLayout>;
   }
 
@@ -267,6 +402,13 @@ const PortalTraining = () => {
           </p>
         </div>
 
+        {/* Vendor grouping — click a card to filter the cascade below */}
+        <VendorGrouping
+          vendors={vendors}
+          selectedVendor={selectedVendor}
+          onSelect={setSelectedVendor}
+        />
+
         {/* Cascading picker */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           {/* Level */}
@@ -275,7 +417,7 @@ const PortalTraining = () => {
             <Select value={selectedLevel} onValueChange={handleLevelChange}>
               <SelectTrigger><SelectValue placeholder="Select level..." /></SelectTrigger>
               <SelectContent>
-                {levels.map(l => {
+                {visibleLevels.map(l => {
                   const badge = levelStateBadge(l);
                   const locked = l.state === 'locked';
                   return (
