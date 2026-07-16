@@ -1291,6 +1291,206 @@ async function _computeLevelStates(userId, levels) {
 }
 
 /**
+ * GET /api/portal/training/vendors
+ *
+ * Returns the vendors (Taleemabad / Beacon House / Oxbridge / …) whose
+ * training content the authenticated teacher can access through her assigned
+ * training programs, plus per-vendor rollups the portal renders as cards at
+ * the top of the Training page:
+ *
+ *   { vendor_key, vendor_name, level_count, course_count, module_count,
+ *     completed_module_count, avg_score_pct }
+ *
+ * Access chain:
+ *   teacher_training_assignments (active) → program_ids
+ *     → training_program_scopes → vendor_ids
+ *       → training_vendors / training_levels / training_courses / training_modules
+ *
+ * A scope row with NULL level_ids/course_ids/module_ids covers the vendor's
+ * entire active tree. This endpoint operates at vendor granularity, so any
+ * scope row pulls the vendor in.
+ *
+ * `avg_score_pct` is computed from the teacher's training_assessment_attempts
+ * rows with quiz_kind='training_module' whose training_module_id belongs to
+ * this vendor. Grand-quiz attempts are intentionally excluded — those have
+ * their own certification surface at the level cascade below. Returns null
+ * when the teacher has no per-module attempts on the vendor yet (the frontend
+ * renders "—" in that case, distinct from a red 0%).
+ *
+ * Empty vendors array when the teacher has no active assignments. Vendors
+ * sorted alphabetically by name so the cards render in a predictable order.
+ */
+router.get('/training/vendors', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+
+    // 1. Active program assignments → program_ids
+    const { data: assignments, error: aErr } = await supabase
+      .from('teacher_training_assignments')
+      .select('program_id')
+      .eq('user_id', userId)
+      .eq('is_active', true);
+    if (aErr) throw aErr;
+
+    const programIds = Array.from(new Set((assignments || []).map(a => a.program_id).filter(Boolean)));
+    if (programIds.length === 0) {
+      return res.json({ success: true, vendors: [] });
+    }
+
+    // 2. Program scopes → vendor_ids (dedup — a single program can list a
+    //    vendor multiple times via multiple scope rows)
+    const { data: scopes, error: sErr } = await supabase
+      .from('training_program_scopes')
+      .select('vendor_id')
+      .in('program_id', programIds);
+    if (sErr) throw sErr;
+
+    const vendorIds = Array.from(new Set((scopes || []).map(s => s.vendor_id).filter(Boolean)));
+    if (vendorIds.length === 0) {
+      return res.json({ success: true, vendors: [] });
+    }
+
+    // 3. Vendor metadata
+    const { data: vendors, error: vErr } = await supabase
+      .from('training_vendors')
+      .select('id, key, name')
+      .in('id', vendorIds)
+      .eq('is_active', true);
+    if (vErr) throw vErr;
+
+    if (!vendors || vendors.length === 0) {
+      return res.json({ success: true, vendors: [] });
+    }
+    const activeVendorIds = vendors.map(v => v.id);
+
+    // 4. Active levels for those vendors
+    const { data: levels, error: lErr } = await supabase
+      .from('training_levels')
+      .select('id, vendor_id')
+      .in('vendor_id', activeVendorIds)
+      .eq('is_active', true);
+    if (lErr) throw lErr;
+
+    const levelIds = (levels || []).map(l => l.id);
+    const levelToVendor = new Map((levels || []).map(l => [l.id, l.vendor_id]));
+
+    // 5. Active courses under those levels
+    const { data: courses, error: cErr } = levelIds.length
+      ? await supabase
+          .from('training_courses')
+          .select('id, level_id')
+          .in('level_id', levelIds)
+          .eq('is_active', true)
+      : { data: [], error: null };
+    if (cErr) throw cErr;
+
+    const courseIds = (courses || []).map(c => c.id);
+    const courseToVendor = new Map(
+      (courses || []).map(c => [c.id, levelToVendor.get(c.level_id)])
+    );
+
+    // 6. Active modules under those courses
+    const { data: modules, error: mErr } = courseIds.length
+      ? await supabase
+          .from('training_modules')
+          .select('id, course_id')
+          .in('course_id', courseIds)
+          .eq('is_active', true)
+      : { data: [], error: null };
+    if (mErr) throw mErr;
+
+    const moduleIds = (modules || []).map(m => m.id);
+    const moduleToVendor = new Map(
+      (modules || []).map(m => [m.id, courseToVendor.get(m.course_id)])
+    );
+
+    // 7. Teacher's per-module completion rows scoped to this vendor set
+    const { data: progressRows, error: pErr } = moduleIds.length
+      ? await supabase
+          .from('teacher_training_progress')
+          .select('module_id')
+          .eq('user_id', userId)
+          .in('module_id', moduleIds)
+      : { data: [], error: null };
+    if (pErr) throw pErr;
+
+    // 8. Teacher's per-module quiz attempts (kind='training_module') scoped to
+    //    this vendor set. We fetch and aggregate in Node — the row count is
+    //    bounded by the teacher's module attempts (~hundreds max).
+    const { data: attempts, error: attErr } = moduleIds.length
+      ? await supabase
+          .from('training_assessment_attempts')
+          .select('training_module_id, score, total_score, quiz_kind')
+          .eq('user_id', userId)
+          .eq('quiz_kind', 'training_module')
+          .in('training_module_id', moduleIds)
+      : { data: [], error: null };
+    if (attErr) throw attErr;
+
+    // 9. Roll up per vendor
+    const perVendor = new Map();
+    for (const v of vendors) {
+      perVendor.set(v.id, {
+        vendor_key: v.key,
+        vendor_name: v.name,
+        level_count: 0,
+        course_count: 0,
+        module_count: 0,
+        completed_module_count: 0,
+        _pctSum: 0,
+        _pctN: 0,
+      });
+    }
+
+    for (const l of levels || []) {
+      const agg = perVendor.get(l.vendor_id);
+      if (agg) agg.level_count += 1;
+    }
+    for (const c of courses || []) {
+      const vid = levelToVendor.get(c.level_id);
+      const agg = perVendor.get(vid);
+      if (agg) agg.course_count += 1;
+    }
+    for (const m of modules || []) {
+      const vid = courseToVendor.get(m.course_id);
+      const agg = perVendor.get(vid);
+      if (agg) agg.module_count += 1;
+    }
+    for (const p of progressRows || []) {
+      const vid = moduleToVendor.get(p.module_id);
+      const agg = perVendor.get(vid);
+      if (agg) agg.completed_module_count += 1;
+    }
+    for (const a of attempts || []) {
+      const vid = moduleToVendor.get(a.training_module_id);
+      const agg = perVendor.get(vid);
+      if (!agg) continue;
+      if (a.total_score && a.total_score > 0 && a.score != null) {
+        agg._pctSum += (a.score / a.total_score) * 100;
+        agg._pctN += 1;
+      }
+    }
+
+    const out = Array.from(perVendor.values()).map(agg => ({
+      vendor_key: agg.vendor_key,
+      vendor_name: agg.vendor_name,
+      level_count: agg.level_count,
+      course_count: agg.course_count,
+      module_count: agg.module_count,
+      completed_module_count: agg.completed_module_count,
+      avg_score_pct: agg._pctN > 0 ? Math.round(agg._pctSum / agg._pctN) : null,
+    }));
+
+    out.sort((a, b) => a.vendor_name.localeCompare(b.vendor_name));
+
+    res.json({ success: true, vendors: out });
+  } catch (error) {
+    console.error('training/vendors error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load training vendors' });
+  }
+});
+
+/**
  * GET /api/portal/training/levels
  * Returns the 4 training levels with per-level module counts, completion %,
  * AND lockdown state (mirrors WhatsApp Flow). A level is `locked` until the
@@ -1300,9 +1500,13 @@ router.get('/training/levels', requirePortalAuth, async (req, res) => {
   try {
     const userId = req.session.portalUserId;
 
+    // vendor_id is joined so the frontend's Vendor filter (bd-2031 vendor
+    // grouping) can hide levels that don't belong to the selected vendor
+    // without a second round-trip. training_vendors.key is the stable
+    // identifier — the ID column is a UUID and is not useful to the client.
     const { data: levels, error: le } = await supabase
       .from('training_levels')
-      .select('id, name, order_index, cpd_level')
+      .select('id, name, order_index, cpd_level, vendor_id, training_vendors!inner(key)')
       .eq('is_active', true)
       .order('order_index', { ascending: true });
     if (le) throw le;
@@ -1313,6 +1517,7 @@ router.get('/training/levels', requirePortalAuth, async (req, res) => {
       const s = stateMap.get(l.id) || {};
       return {
         id: l.id, name: l.name, order_index: l.order_index, cpd_level: l.cpd_level,
+        vendor_key: l.training_vendors ? l.training_vendors.key : null,
         state: s.state || 'not_started',
         module_count: s.module_count || 0,
         completed_count: s.completed_count || 0,
