@@ -18,13 +18,92 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 
 /**
+ * A module is delivered as a PDF (not a video) when it has no video_url but
+ * does have a source_media_url pointing at a `.pdf`. This is the shape the
+ * Beacon House migration produces for the 155 PDF training modules — see
+ * scripts/migrate-beacon-house.py: video assets populate both video_url and
+ * source_media_url; PDF assets populate source_media_url only.
+ */
+function isPdfModule(m) {
+  if (!m) return false;
+  if (m.video_url) return false;
+  if (!m.source_media_url) return false;
+  return /\.pdf(\?|$)/i.test(m.source_media_url);
+}
+
+/**
+ * Deliver a PDF training module to a teacher as a WhatsApp document.
+ * Uses sendDocumentByLink (link mode) — the S3 URL is publicly readable,
+ * so we don't need to download + reupload via Meta's media API. WhatsApp's
+ * client renders the PDF as a tappable document card and opens it natively.
+ *
+ * @param {string} phoneNumber - Teacher's WhatsApp number
+ * @param {object} module - training_modules row (needs id, title, source_media_url)
+ * @param {object} [opts] - { userId, vendorKey } for the semantic event
+ * @returns {Promise<boolean>}
+ */
+async function deliverPdfModule(phoneNumber, module, opts = {}) {
+  const { userId, vendorKey } = opts;
+  if (!module || !module.source_media_url) {
+    logToFile('⚠️ deliverPdfModule: no source_media_url — sending "PDF not available yet"', {
+      moduleId: module?.id,
+      userId,
+    });
+    try {
+      await WhatsAppService.sendMessage(
+        phoneNumber,
+        `📄 *${module?.title || 'This module'}*\n\nPDF not available yet — please check back soon.`
+      );
+    } catch (err) {
+      logToFile('⚠️ deliverPdfModule fallback sendMessage failed', { moduleId: module?.id, error: err?.message });
+    }
+    return false;
+  }
+
+  const filename = `${module.title}.pdf`;
+  logToFile('🎓 Delivering PDF training module', {
+    userId,
+    moduleId: module.id,
+    moduleTitle: module.title,
+    urlPrefix: String(module.source_media_url).slice(0, 80),
+  });
+
+  let ok = false;
+  try {
+    ok = await WhatsAppService.sendDocumentByLink(phoneNumber, module.source_media_url, filename, module.title);
+  } catch (err) {
+    logToFile('❌ deliverPdfModule: sendDocumentByLink threw', {
+      moduleId: module.id,
+      userId,
+      error: err?.message,
+    });
+    return false;
+  }
+
+  if (!ok) {
+    logToFile('❌ deliverPdfModule: sendDocumentByLink returned false', {
+      moduleId: module.id,
+      userId,
+    });
+    return false;
+  }
+
+  logEvent('training_pdf_module_delivered', {
+    module_id: module.id,
+    user_id: userId || null,
+    vendor_key: vendorKey || null,
+  });
+  return true;
+}
+
+/**
  * Find the next uncompleted module for a teacher in a course.
  * Returns null if the course is fully done.
  */
 async function findNextModule(userId, courseId) {
   const { data: modules, error: mErr } = await supabase
     .from('training_modules')
-    .select('id, course_id, title, video_url, audio_url, order_index')
+    .select('id, course_id, title, video_url, audio_url, source_media_url, order_index')
     .eq('course_id', courseId)
     .eq('is_active', true)
     .order('order_index', { ascending: true });
@@ -86,7 +165,7 @@ async function deliverNextModule(userId, courseId, phoneNumber) {
   if (!state.module) {
     const { data: firstMod } = await supabase
       .from('training_modules')
-      .select('id, course_id, title, video_url, audio_url, order_index')
+      .select('id, course_id, title, video_url, audio_url, source_media_url, order_index')
       .eq('course_id', courseIdNum)
       .eq('is_active', true)
       .order('order_index', { ascending: true })
@@ -108,14 +187,22 @@ async function deliverNextModule(userId, courseId, phoneNumber) {
     ? `📘 *${courseTitle}* — ${positionLabel}\n\n*${m.title}*\n\nYou've already completed this course. Watch again to review, then tap ▶ Next video for the next module.`
     : `📘 *${courseTitle}* — Module ${positionLabel}\n\n*${m.title}*\n\nWatch the video, then tap ✓ Done to mark it complete and get the next module.`;
 
-  logToFile('🎓 Delivering training module', { userId, courseId: courseIdNum, moduleId: m.id, moduleTitle: m.title, videoUrl: m.video_url });
+  logToFile('🎓 Delivering training module', { userId, courseId: courseIdNum, moduleId: m.id, moduleTitle: m.title, videoUrl: m.video_url, sourceMediaUrl: m.source_media_url });
 
+  // PDF modules — Beacon House corpus (155 modules) has PDF assets on
+  // asset-manager-approved.s3.ap-south-1.amazonaws.com (publicly readable,
+  // ~100-500KB each). Route to sendDocumentByLink so WhatsApp renders a
+  // tappable document card that opens in the native PDF viewer.
+  if (isPdfModule(m)) {
+    // Header caption first (title + progress), then the PDF as a document.
+    await WhatsAppService.sendMessage(phoneNumber, caption);
+    await deliverPdfModule(phoneNumber, m, { userId });
+  } else if (m.video_url) {
   // Send the video as a plain-text presigned link. The training corpus has
   // files up to 611 MB (median 100 MB); both video-type (16 MB) and document-
   // type (100 MB) WhatsApp media caps reject them with async error 131053.
   // A text-mode URL bypasses the API media pipeline — WhatsApp's client
   // renders its own link preview and opens the file in the in-app viewer.
-  if (m.video_url) {
     try {
       const signed = await getPresignedUrl(m.video_url, 3600); // 1h TTL is plenty
       logToFile('🎓 Sending training video as link', { moduleId: m.id, urlPrefix: signed.slice(0, 80) });
@@ -270,7 +357,7 @@ async function deliverModuleById(moduleId, phoneNumber, opts = {}) {
   let { reviewMode, courseId, userId } = opts;
   const { data: m } = await supabase
     .from('training_modules')
-    .select('id, course_id, title, video_url, order_index')
+    .select('id, course_id, title, video_url, source_media_url, order_index')
     .eq('id', moduleId)
     .single();
   if (!m) {
@@ -297,7 +384,12 @@ async function deliverModuleById(moduleId, phoneNumber, opts = {}) {
   const label = reviewMode ? `Review · ${m.order_index} of ${totalCount}` : `${m.order_index} of ${totalCount}`;
   const caption = `📘 *${courseTitle}* — ${label}\n\n*${m.title}*\n\n` +
     (reviewMode ? 'Watch and tap ▶ Next video to continue reviewing.' : 'Watch and tap ✓ Done for the next module.');
-  if (m.video_url) {
+  if (isPdfModule(m)) {
+    // PDF module — send the header caption, then the PDF as a document.
+    // See deliverPdfModule for the delivery mechanics.
+    await WhatsAppService.sendMessage(phoneNumber, caption);
+    await deliverPdfModule(phoneNumber, m, { userId });
+  } else if (m.video_url) {
     try {
       const signed = await getPresignedUrl(m.video_url, 3600);
       // See deliverNextModule for why we send as a text link, not video/document
@@ -325,4 +417,4 @@ async function deliverModuleById(moduleId, phoneNumber, opts = {}) {
   return true;
 }
 
-module.exports = { deliverNextModule, handleModuleDone, deliverModuleById };
+module.exports = { deliverNextModule, handleModuleDone, deliverModuleById, deliverPdfModule, isPdfModule };
