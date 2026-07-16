@@ -130,6 +130,7 @@ const wordCloudRoutes = require('./routes/wordcloud');
 
 // Teacher Portal Routes
 const portalRoutes = require('./routes/portal.routes');
+const hcpRoutes = require('./routes/hcp.routes');
 
 // BYOF Routes (Build Your Own Feature) - Conversational AI for bug/feature planning
 const byofRoutes = require('./routes/byof.routes');
@@ -2760,6 +2761,11 @@ app.use('/api/track', cors(trackingCorsOptions), trackingLimiter, funnelTracking
 
 // Teacher Portal API routes (with CORS, rate limiting, NO auth middleware - routes handle auth internally)
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, portalRoutes);
+
+// Human Coach Platform (HCP) portal routes — coach-facing DC dashboards + visit
+// scheduling + observation feedback. Mounted alongside portalRoutes so both
+// share the same CORS / rate-limit / session stack.
+app.use('/api/portal/hcp', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, hcpRoutes);
 
 // Redirect /dashboard to Teacher Portal frontend (for cases where backend URL is accessed directly)
 app.get('/dashboard', (req, res) => {
