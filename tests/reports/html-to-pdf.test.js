@@ -62,6 +62,18 @@ describe('htmlToPdf', () => {
     await expect(htmlToPdf('<html></html>')).rejects.toThrow('boom');
     expect(context.close).toHaveBeenCalled();
   });
+
+  // Regression guard: remote <img> tags in the HTML (e.g. S3-hosted lesson-plan
+  // diagrams) must be embedded in the resulting PDF. `waitUntil: 'domcontentloaded'`
+  // returns before the browser has fetched the images, so page.pdf() snapshots
+  // the DOM with unloaded <img> nodes and they never render. `'networkidle'`
+  // waits for all in-flight requests to settle, so images are drawn.
+  it("waits for network idle so remote <img> tags load before snapshotting", async () => {
+    const { htmlToPdf } = load();
+    await htmlToPdf('<html><body><img src="https://example.com/x.png"></body></html>');
+    const opts = page.setContent.mock.calls[0][1];
+    expect(opts.waitUntil).toBe('networkidle');
+  });
 });
 
 describe('htmlToImage', () => {
