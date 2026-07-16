@@ -2,8 +2,10 @@
   "version": "5.1",
   "data_api_version": "3.0",
   "routing_model": {
-    "SPEC": ["QUESTIONS"],
-    "QUESTIONS": ["SUCCESS"]
+    "SPEC": ["SEEN_UNSEEN"],
+    "SEEN_UNSEEN": ["OBJ_SUBJ", "SUCCESS"],
+    "OBJ_SUBJ": ["QUESTION_TYPES"],
+    "QUESTION_TYPES": ["SUCCESS"]
   },
   "screens": [
     {
@@ -38,14 +40,8 @@
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          {
-            "type": "TextHeading",
-            "text": "Assessment builder"
-          },
-          {
-            "type": "TextSubheading",
-            "text": "Pick what to test. We'll build the paper and send you a PDF."
-          },
+          { "type": "TextHeading", "text": "Assessment builder" },
+          { "type": "TextSubheading", "text": "Pick what to test. We'll build the paper and send you a PDF." },
           {
             "type": "Form",
             "name": "form",
@@ -110,25 +106,19 @@
       }
     },
     {
-      "id": "QUESTIONS",
-      "title": "Questions",
+      "id": "SEEN_UNSEEN",
+      "title": "Content source",
       "data": {
         "spec_summary": {
           "type": "string",
-          "__example__": "Grade 4 English · Pages 10-15"
+          "__example__": "Grade 4 · English · Pages 10-15"
         }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          {
-            "type": "TextHeading",
-            "text": "What kind of questions?"
-          },
-          {
-            "type": "TextBody",
-            "text": "${data.spec_summary}"
-          },
+          { "type": "TextHeading", "text": "Seen, unseen, or both?" },
+          { "type": "TextBody", "text": "${data.spec_summary}" },
           {
             "type": "Form",
             "name": "form",
@@ -136,61 +126,147 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "content_source",
-                "label": "From the textbook (seen) or new (unseen)?",
+                "label": "Where do the questions come from?",
                 "required": true,
                 "data-source": [
-                  { "id": "seen", "title": "Seen", "description": "Questions from the textbook" },
-                  { "id": "unseen", "title": "Unseen", "description": "New questions on the same content" }
+                  { "id": "seen",   "title": "Seen",   "description": "Straight from the textbook" },
+                  { "id": "unseen", "title": "Unseen", "description": "New questions on the same content" },
+                  { "id": "both",   "title": "Both",   "description": "Mix seen and unseen" }
                 ]
               },
               {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "pick_source",
+                    "content_source": "${form.content_source}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "OBJ_SUBJ",
+      "title": "Question category",
+      "data": {
+        "spec_summary": {
+          "type": "string",
+          "__example__": "Grade 4 · English · Pages 10-15"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextHeading", "text": "Objective or subjective?" },
+          { "type": "TextBody", "text": "${data.spec_summary}" },
+          {
+            "type": "Form",
+            "name": "form",
+            "children": [
+              {
+                "type": "RadioButtonsGroup",
+                "name": "category",
+                "label": "Category",
+                "required": true,
+                "data-source": [
+                  { "id": "objective",  "title": "Objective",  "description": "MCQs, Fill-in-the-Blanks, T/F" },
+                  { "id": "subjective", "title": "Subjective", "description": "Brief Answers, Word Problems" }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "pick_category",
+                    "category": "${form.category}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_TYPES",
+      "title": "Question types",
+      "data": {
+        "spec_summary": {
+          "type": "string",
+          "__example__": "Grade 4 · English · Pages 10-15"
+        },
+        "type_options": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" } } },
+          "__example__": [
+            { "id": "MCQs", "title": "MCQs" },
+            { "id": "Fill in the Blanks", "title": "Fill in the Blanks" }
+          ]
+        },
+        "default_count": {
+          "type": "string",
+          "__example__": "3"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextHeading", "text": "Pick question types" },
+          { "type": "TextBody", "text": "${data.spec_summary}" },
+          {
+            "type": "Form",
+            "name": "form",
+            "children": [
+              {
                 "type": "CheckboxGroup",
                 "name": "question_types",
-                "label": "Question types",
+                "label": "Types",
                 "required": true,
                 "min-selected-items": 1,
-                "data-source": [
-                  { "id": "MCQs", "title": "MCQs" },
-                  { "id": "Fill in the Blanks", "title": "Fill in the Blanks" },
-                  { "id": "Brief Answers", "title": "Brief Answers" }
-                ]
+                "data-source": "${data.type_options}"
               },
               {
                 "type": "TextInput",
                 "name": "count_mcqs",
                 "label": "How many MCQs?",
                 "required": false,
-                "helper-text": "0 to skip",
+                "helper-text": "Default 3, max 20. Leave blank to skip.",
                 "input-type": "number"
               },
               {
                 "type": "TextInput",
-                "name": "count_fill",
+                "name": "count_fill_in_the_blanks",
                 "label": "How many Fill in the Blanks?",
                 "required": false,
-                "helper-text": "0 to skip",
+                "helper-text": "Default 3, max 20. Leave blank to skip.",
                 "input-type": "number"
               },
               {
                 "type": "TextInput",
-                "name": "count_brief",
+                "name": "count_brief_answers",
                 "label": "How many Brief Answers?",
                 "required": false,
-                "helper-text": "0 to skip",
+                "helper-text": "Default 3, max 20. Leave blank to skip.",
                 "input-type": "number"
               },
               {
                 "type": "Footer",
-                "label": "Generate",
+                "label": "Generate exam",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
                     "_action": "generate",
-                    "content_source": "${form.content_source}",
                     "question_types": "${form.question_types}",
                     "count_mcqs": "${form.count_mcqs}",
-                    "count_fill": "${form.count_fill}",
-                    "count_brief": "${form.count_brief}"
+                    "count_fill_in_the_blanks": "${form.count_fill_in_the_blanks}",
+                    "count_brief_answers": "${form.count_brief_answers}"
                   }
                 }
               }
@@ -213,14 +289,8 @@
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          {
-            "type": "TextHeading",
-            "text": "On the way"
-          },
-          {
-            "type": "TextBody",
-            "text": "${data.message}"
-          },
+          { "type": "TextHeading", "text": "On the way" },
+          { "type": "TextBody", "text": "${data.message}" },
           {
             "type": "Footer",
             "label": "Done",

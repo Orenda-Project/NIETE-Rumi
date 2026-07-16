@@ -7,20 +7,37 @@
  * via assessment-generator-client.service. Result comes back on the callback
  * endpoint (POST /webhooks/assessment-generator) and is rendered + delivered.
  *
- * Screens (see docs/flows/assessment-gen-flow.json):
- *   SPEC        → generation_type, grade, subject, chapter (optional), page_ranges
- *   QUESTIONS   → content_source (seen|unseen), question_types multi, per-type counts
- *   SUCCESS     → terminal
+ * Screens (see docs/flows/assessment-gen-flow.json) — dynamic state machine:
  *
- * State between screens is stored in Redis keyed by flow_token so the second
- * screen can carry forward the first screen's picks + we can echo a summary.
+ *   SPEC              → generation_type, grade, subject, chapter (opt), page_ranges
+ *   SEEN_UNSEEN       → radio: Seen / Unseen / Both
+ *      ├─ Seen        → submit straight to UG_EG with full default type coverage,
+ *      │                land on SUCCESS
+ *      └─ Unseen/Both → OBJ_SUBJ radio: Objective / Subjective
+ *                        └─ QUESTION_TYPES (dynamic list per {subject, obj/subj})
+ *                            with per-type counts
+ *                            → submit, land on SUCCESS
+ *
+ * State between screens is stored in Redis keyed by flow_token.
+ * The next-screen decision is made server-side in this endpoint — Meta's
+ * `data_exchange` action lets us return `{ screen, data }` dynamically.
  */
 
 const { logToFile } = require('../utils/logger');
 const redis = require('../services/cache/railway-redis.service');
 const AssessmentGenClient = require('../services/assessment-generator-client.service');
+const QuestionConfig = require('../services/assessment-question-config.service');
 
 const SESSION_TTL_SECONDS = 15 * 60;
+
+// Default question-type coverage for the SEEN fast-path (Umama's spec:
+// "if Seen, show the Generate Exam option directly" — no type picker).
+// We default to all UG_EG-supported types with the config default count.
+const SEEN_FAST_PATH_DEFAULT_TYPES = () => ([
+  { id: 'MCQs',                 count: QuestionConfig.DEFAULT_COUNT_PER_TYPE },
+  { id: 'Fill in the Blanks',   count: QuestionConfig.DEFAULT_COUNT_PER_TYPE },
+  { id: 'Brief Answers',        count: QuestionConfig.DEFAULT_COUNT_PER_TYPE },
+]);
 
 function sessionKey(flowToken) {
   return `assessment_gen_flow:${flowToken || 'no-token'}`;
@@ -79,11 +96,31 @@ function specScreen() {
   };
 }
 
-function questionsScreen(specSummary) {
+function seenUnseenScreen(specSummary) {
   return {
-    screen: 'QUESTIONS',
+    screen: 'SEEN_UNSEEN',
     data: {
       spec_summary: specSummary || '',
+    },
+  };
+}
+
+function objSubjScreen(specSummary) {
+  return {
+    screen: 'OBJ_SUBJ',
+    data: {
+      spec_summary: specSummary || '',
+    },
+  };
+}
+
+function questionTypesScreen(specSummary, typeOptions) {
+  return {
+    screen: 'QUESTION_TYPES',
+    data: {
+      spec_summary: specSummary || '',
+      type_options: typeOptions || [],
+      default_count: String(QuestionConfig.DEFAULT_COUNT_PER_TYPE),
     },
   };
 }
@@ -98,6 +135,60 @@ function successScreen(message, flowToken) {
       message,
     },
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Submit helper (shared by SEEN fast-path and QUESTION_TYPES full path)
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function _submitAndBuildSuccess({ state, userId, flowToken, contentSource, questionTypes }) {
+  let jobId = null;
+  try {
+    const submit = await AssessmentGenClient.submitJob({
+      generationType: state.generation_type,
+      grade: state.grade,
+      subject: state.subject,
+      pageRanges: state.page_ranges,
+      contentSource,
+      questionTypes,
+      curriculum: 'ICT',
+    });
+    jobId = submit.jobId;
+    logToFile('[assessment-gen-flow] job submitted', {
+      userId, jobId, generationType: state.generation_type, contentSource,
+    });
+  } catch (err) {
+    logToFile('[assessment-gen-flow] submitJob failed', { err: err.message });
+    return successScreen(
+      "Something went wrong queueing your assessment. Please try again in a minute.",
+      flowToken,
+    );
+  }
+
+  try {
+    await _persistJobLink({
+      jobId,
+      userId,
+      generationType: state.generation_type,
+      grade: state.grade,
+      subject: state.subject,
+      pageRanges: state.page_ranges,
+      contentSource,
+      questionTypes,
+    });
+  } catch (err) {
+    logToFile('[assessment-gen-flow] persist job link failed', { err: err.message });
+  }
+
+  await clearSession(flowToken);
+
+  const typeLabel = state.generation_type === 'class_assessment'
+    ? 'classroom practice'
+    : 'exam';
+  return successScreen(
+    `Making your Grade ${state.grade} ${_subjectLabel(state.subject)} ${typeLabel} on pages ${state.page_ranges}. We'll send the PDF when it's ready.`,
+    flowToken,
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -116,6 +207,7 @@ async function handleAssessmentGenDataExchange(userId, screen, screenData, flowT
   });
   const state = await readSession(flowToken);
 
+  // ───────────────────────── SPEC → SEEN_UNSEEN ─────────────────────────
   if (screen === 'SPEC') {
     if (screenData._action !== 'spec_submit') return specScreen();
     state.generation_type = screenData.generation_type === 'class_assessment'
@@ -127,29 +219,83 @@ async function handleAssessmentGenDataExchange(userId, screen, screenData, flowT
     state.page_ranges = String(screenData.page_ranges || '').trim();
 
     if (!state.grade || !state.subject || !state.page_ranges) {
-      // Any missing → send them back to SPEC. The Flow marks required so
-      // this branch is defensive.
       return specScreen();
     }
 
     await writeSession(flowToken, state);
-
-    const summary = [
-      `Grade ${state.grade}`,
-      _subjectLabel(state.subject),
-      state.chapter ? state.chapter : null,
-      `Pages ${state.page_ranges}`,
-    ].filter(Boolean).join(' · ');
-
-    return questionsScreen(summary);
+    return seenUnseenScreen(_summaryFromState(state));
   }
 
-  if (screen === 'QUESTIONS') {
-    if (screenData._action !== 'generate') {
-      return questionsScreen(_summaryFromState(state));
+  // ─────────────── SEEN_UNSEEN → (SUCCESS | OBJ_SUBJ) ───────────────
+  if (screen === 'SEEN_UNSEEN') {
+    if (screenData._action !== 'pick_source') return seenUnseenScreen(_summaryFromState(state));
+
+    // Guard: if state missing (session expired) — reset to SPEC.
+    if (!state.grade || !state.subject || !state.page_ranges) return specScreen();
+
+    const rawChoice = String(screenData.content_source || '').trim();
+    const contentSource = ['seen', 'unseen', 'both'].includes(rawChoice) ? rawChoice : 'unseen';
+    state.content_source = contentSource;
+    await writeSession(flowToken, state);
+
+    if (contentSource === 'seen') {
+      // Fast-path per Umama's spec: go straight to submit with default type coverage.
+      return _submitAndBuildSuccess({
+        state,
+        userId,
+        flowToken,
+        contentSource: 'seen',
+        questionTypes: SEEN_FAST_PATH_DEFAULT_TYPES(),
+      });
     }
 
-    const contentSource = screenData.content_source === 'seen' ? 'seen' : 'unseen';
+    // 'unseen' or 'both' → collect objective/subjective next.
+    // For 'both': UG_EG's client currently only accepts one contentSource per
+    // job (`['seen']` OR `['unseen']`), so we treat 'both' as 'unseen' at
+    // submit time and let the teacher pick from the full type list.
+    return objSubjScreen(_summaryFromState(state));
+  }
+
+  // ─────────────── OBJ_SUBJ → QUESTION_TYPES (dynamic) ───────────────
+  if (screen === 'OBJ_SUBJ') {
+    if (screenData._action !== 'pick_category') return objSubjScreen(_summaryFromState(state));
+    if (!state.grade || !state.subject) return specScreen();
+
+    const rawCat = String(screenData.category || '').trim();
+    const category = rawCat === 'subjective' ? 'subjective' : 'objective';
+    state.category = category;
+    await writeSession(flowToken, state);
+
+    const typeOptions = QuestionConfig.getQuestionTypes({
+      subject: state.subject,
+      grade: state.grade,
+      category,
+    });
+    if (typeOptions.length === 0) {
+      // Config-level failure — surface a friendly error rather than crash.
+      logToFile('[assessment-gen-flow] no question types for combo', {
+        subject: state.subject, grade: state.grade, category,
+      });
+      return successScreen(
+        "We couldn't find any question types for that combination right now. Please try a different subject.",
+        flowToken,
+      );
+    }
+    return questionTypesScreen(_summaryFromState(state), typeOptions);
+  }
+
+  // ─────────────── QUESTION_TYPES → SUCCESS (submit) ───────────────
+  if (screen === 'QUESTION_TYPES') {
+    if (screenData._action !== 'generate') {
+      // Non-submit ping — re-render.
+      const typeOptions = QuestionConfig.getQuestionTypes({
+        subject: state.subject,
+        grade: state.grade,
+        category: state.category || 'objective',
+      });
+      return questionTypesScreen(_summaryFromState(state), typeOptions);
+    }
+    if (!state.grade || !state.subject || !state.page_ranges) return specScreen();
 
     // Parse question_types — may arrive as array OR comma-separated string.
     let picked = screenData.question_types;
@@ -158,76 +304,39 @@ async function handleAssessmentGenDataExchange(userId, screen, screenData, flowT
     }
     if (!Array.isArray(picked)) picked = [];
 
-    // Per-type counts — inputs default to '' when the teacher skips the field.
-    const perTypeCounts = {
-      'MCQs':                 _parseCount(screenData.count_mcqs),
-      'Fill in the Blanks':   _parseCount(screenData.count_fill),
-      'Brief Answers':        _parseCount(screenData.count_brief),
-    };
-
-    // Only submit types the teacher (a) checked AND (b) gave a count > 0 for.
-    // Where a type is checked but no count given, default to 5.
+    // Per-type counts. Payload uses `count_<slug>` keys where <slug> is the
+    // type id lowercased with non-alphanum → underscore.
     const questionTypes = picked
-      .map((id) => ({ id, count: perTypeCounts[id] > 0 ? perTypeCounts[id] : 5 }))
+      .filter((id) => QuestionConfig.isSupported(id))
+      .map((id) => {
+        const slug = _slugForCountKey(id);
+        const raw = screenData[`count_${slug}`];
+        const parsed = _parseCount(raw);
+        const capped = Math.min(parsed || QuestionConfig.DEFAULT_COUNT_PER_TYPE, QuestionConfig.MAX_COUNT_PER_TYPE);
+        return { id, count: capped };
+      })
       .filter((qt) => qt.count > 0);
 
-    if (questionTypes.length === 0
-        || !state.grade || !state.subject || !state.page_ranges) {
-      return questionsScreen(_summaryFromState(state) + '  ·  Please pick a question type.');
-    }
-
-    // Submit to UG_EG asynchronously. On failure surface a friendly message
-    // via the SUCCESS screen (the completion NFM lands in flow-response.handler,
-    // but the message here also shows in-Flow).
-    let jobId = null;
-    try {
-      const submit = await AssessmentGenClient.submitJob({
-        generationType: state.generation_type,
-        grade: state.grade,
+    if (questionTypes.length === 0) {
+      const typeOptions = QuestionConfig.getQuestionTypes({
         subject: state.subject,
-        pageRanges: state.page_ranges,
-        contentSource,
-        questionTypes,
-        curriculum: 'ICT',
-      });
-      jobId = submit.jobId;
-      logToFile('[assessment-gen-flow] job submitted', {
-        userId, jobId, generationType: state.generation_type,
-      });
-    } catch (err) {
-      logToFile('[assessment-gen-flow] submitJob failed', { err: err.message });
-      return successScreen(
-        "Something went wrong queueing your assessment. Please try again in a minute.",
-        flowToken,
-      );
-    }
-
-    // Persist the job-id ↔ userId link so the callback endpoint knows who to
-    // deliver to. Best-effort — if the write fails we still show success.
-    try {
-      await _persistJobLink({
-        jobId,
-        userId,
-        generationType: state.generation_type,
         grade: state.grade,
-        subject: state.subject,
-        pageRanges: state.page_ranges,
-        contentSource,
-        questionTypes,
+        category: state.category || 'objective',
       });
-    } catch (err) {
-      logToFile('[assessment-gen-flow] persist job link failed', { err: err.message });
+      const out = questionTypesScreen(_summaryFromState(state) + '  ·  Please pick a question type.', typeOptions);
+      return out;
     }
 
-    await clearSession(flowToken);
+    // 'both' → send as 'unseen' at UG_EG (single-source constraint).
+    const contentSource = state.content_source === 'seen' ? 'seen' : 'unseen';
 
-    const typeLabel = state.generation_type === 'class_assessment'
-      ? 'classroom practice'
-      : 'exam';
-    return successScreen(
-      `Making your Grade ${state.grade} ${_subjectLabel(state.subject)} ${typeLabel} on pages ${state.page_ranges}. We'll send the PDF when it's ready.`,
+    return _submitAndBuildSuccess({
+      state,
+      userId,
       flowToken,
-    );
+      contentSource,
+      questionTypes,
+    });
   }
 
   logToFile('⚠️ Unknown screen in assessment-gen flow', { screen });
@@ -247,6 +356,15 @@ function _parseCount(v) {
   if (v === null || v === undefined || v === '') return 0;
   const n = parseInt(String(v).trim(), 10);
   return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/**
+ * Turn a type id (e.g. 'Fill in the Blanks') into the count field slug
+ * used in the Flow payload: 'fill_in_the_blanks'.
+ * Kept in sync with the Flow JSON `on-click-action.payload` keys.
+ */
+function _slugForCountKey(id) {
+  return String(id).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
 const SUBJECT_LABELS = {
@@ -276,7 +394,7 @@ function _summaryFromState(state) {
  * teacher. Uses Redis (same TTL as the UG_EG 24h job TTL).
  */
 async function _persistJobLink(link) {
-  const ttlSeconds = 24 * 60 * 60; // 24h, matches UG_EG job TTL
+  const ttlSeconds = 24 * 60 * 60;
   await redis.set(`assessment_gen_job:${link.jobId}`, link, ttlSeconds);
 }
 
@@ -290,4 +408,5 @@ module.exports = {
   // exported for tests
   _subjectLabel,
   _parseCount,
+  _slugForCountKey,
 };
