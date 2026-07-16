@@ -669,52 +669,20 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
-  // EXAM COMMAND: /exam — open the Exam Generator Flow.
-  // 3 screens: type (WEEKLY|TERM) → grade/subject/language → chapters.
-  // Backend queues an EXAM_GENERATE job that composes + renders + delivers the .docx.
-  // See docs/migration/05-exam-generator.md.
+  // NOTE — /exam trigger removed (Umama's spec 2026-07-16, bd-2033):
+  // the legacy Exam Generator (WEEKLY/TERM composed from `exam_question_bank`)
+  // is superseded by the Assessment Generator Flow below (UG_EG-backed).
+  // `/assessment` is the single entry point for exam + practice creation.
+  // The old exam-generator Flow + endpoint remain wired for now — they can
+  // still be published under a different trigger if we ever need the fallback.
   // ============================================================
-  if (trimmedMessage === '/exam' || trimmedMessage === '/exams') {
-    logToFile('📝 /exam command detected', { userId: user?.id, phoneNumber: from });
-    if (!user) {
-      typingController.stop();
-      await WhatsAppService.sendMessage(
-        from,
-        'Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔'
-      );
-      return;
-    }
-    const EXAM_GENERATOR_FLOW_ID = process.env.EXAM_GENERATOR_FLOW_ID || '';
-    if (EXAM_GENERATOR_FLOW_ID) {
-      typingController.stop();
-      const flowToken = `${user.id}:exam-generator:${Date.now()}`;
-      const responseLanguage = await getUserLanguage(from) || 'en';
-      await WhatsAppService.sendFlow(from, {
-        flowId: EXAM_GENERATOR_FLOW_ID,
-        header: '📝 New exam',
-        body: ({
-          ur: 'اپنی کلاس کے لیے نیا امتحان بنائیں — گریڈ، مضمون اور چیپٹرز منتخب کریں۔',
-        })[responseLanguage] || 'Create a new exam for your class — pick grade, subject, and chapters.',
-        buttonText: ({
-          ur: 'شروع کریں',
-        })[responseLanguage] || 'Start',
-        flowToken,
-      });
-      logToFile('📝 Sent exam-generator flow (/exam)', { userId: user.id });
-      return;
-    }
-    typingController.stop();
-    await WhatsAppService.sendMessage(
-      from,
-      "The exam generator is being prepared for you. We'll notify you when it's live.\n\nامتحان جنریٹر تیار کیا جا رہا ہے۔"
-    );
-    return;
-  }
 
   // ============================================================
   // ASSESSMENT COMMAND: /assessment — open the Assessment Generator Flow.
-  // 2-screen: spec → questions. Backend submits to external UG_EG service;
-  // result lands on /webhooks/assessment-generator.
+  // Dynamic multi-screen state machine: SPEC → SEEN_UNSEEN → (fast-path SUCCESS
+  // if 'Seen') → OBJ_SUBJ → QUESTION_TYPES (dynamic per subject+category) →
+  // SUCCESS. Backend submits to external UG_EG service; result lands on
+  // /webhooks/assessment-generator. See routes/assessment-gen-endpoint.js.
   // ============================================================
   if (trimmedMessage === '/assessment' || trimmedMessage === '/practice') {
     logToFile('📝 /assessment command detected', { userId: user?.id, phoneNumber: from });
