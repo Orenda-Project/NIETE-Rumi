@@ -78,6 +78,16 @@ function detectFlowType(responseJson) {
     return 'exam_generator';
   }
 
+  // 2.6. Assessment Generator — external UG_EG-backed flow.
+  // Flow token from text-message.handler.js is `${user.id}:assessment-gen:${ts}`.
+  // The flow endpoint has already submitted the job to UG_EG; the callback at
+  // /webhooks/assessment-generator will deliver the PDF asynchronously.
+  // Nothing to do on the NFM_REPLY except identify it (same reason as
+  // exam-generator above — avoid the loose attendance-marking fallback).
+  if (responseJson.flow_token?.includes(':assessment-gen:')) {
+    return 'assessment_generator';
+  }
+
   // 3. Attendance Setup (class creation)
   // Navigate-based format: class_name + student_list/students_text
   // Endpoint-based format: list_id + class_display (from extension_message_response.params)

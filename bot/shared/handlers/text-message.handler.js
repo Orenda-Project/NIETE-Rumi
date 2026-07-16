@@ -702,6 +702,48 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
+  // ASSESSMENT COMMAND: /assessment — open the Assessment Generator Flow.
+  // 2-screen: spec → questions. Backend submits to external UG_EG service;
+  // result lands on /webhooks/assessment-generator.
+  // ============================================================
+  if (trimmedMessage === '/assessment' || trimmedMessage === '/practice') {
+    logToFile('📝 /assessment command detected', { userId: user?.id, phoneNumber: from });
+    if (!user) {
+      typingController.stop();
+      await WhatsAppService.sendMessage(
+        from,
+        'Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔'
+      );
+      return;
+    }
+    const ASSESSMENT_GEN_FLOW_ID = process.env.ASSESSMENT_GEN_FLOW_ID || '';
+    if (ASSESSMENT_GEN_FLOW_ID) {
+      typingController.stop();
+      const flowToken = `${user.id}:assessment-gen:${Date.now()}`;
+      const responseLanguage = await getUserLanguage(from) || 'en';
+      await WhatsAppService.sendFlow(from, {
+        flowId: ASSESSMENT_GEN_FLOW_ID,
+        header: '📝 New assessment',
+        body: ({
+          ur: 'اپنی کلاس کے لیے امتحان یا مشق تیار کریں — گریڈ، مضمون، صفحات اور سوالات منتخب کریں۔',
+        })[responseLanguage] || 'Build an exam or classroom practice — pick grade, subject, pages, and question types.',
+        buttonText: ({
+          ur: 'شروع کریں',
+        })[responseLanguage] || 'Start',
+        flowToken,
+      });
+      logToFile('📝 Sent assessment-gen flow (/assessment)', { userId: user.id });
+      return;
+    }
+    typingController.stop();
+    await WhatsAppService.sendMessage(
+      from,
+      "The assessment generator is being prepared for you. We'll notify you when it's live."
+    );
+    return;
+  }
+
+  // ============================================================
   // QUIZ COMMAND: /quiz [topic] — generate + send a quiz to the class.
   // Direct path (QuizOrchestrator). A Quiz Manager Flow can be layered later
   // via QUIZ_FLOW_ID, but the direct path needs no Meta-flow registration.
