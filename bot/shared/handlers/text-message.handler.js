@@ -580,7 +580,11 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     trimmedMessage === '/training' ||
     trimmedMessage === '/trainings' ||
     lowerTrimmed === 'training' ||
-    lowerTrimmed === 'trainings'
+    lowerTrimmed === 'trainings' ||
+    lowerTrimmed === 'show me training' ||
+    lowerTrimmed === 'show me trainings' ||
+    lowerTrimmed === 'open training' ||
+    lowerTrimmed === 'open trainings'
   ) {
     logToFile('🎓 /training command detected', { userId: user?.id, phoneNumber: from });
     if (!user) {
