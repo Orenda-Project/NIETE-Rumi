@@ -174,8 +174,8 @@
                 "label": "Category",
                 "required": true,
                 "data-source": [
-                  { "id": "objective",  "title": "Objective",  "description": "MCQs, Fill-in-the-Blanks, T/F" },
-                  { "id": "subjective", "title": "Subjective", "description": "Brief Answers, Word Problems" }
+                  { "id": "objective",  "title": "Objective",  "description": "MCQs, MSQs, Fill in the Blanks, T/F, Match the Column, …" },
+                  { "id": "subjective", "title": "Subjective", "description": "Brief Answers, Word Problems, Comprehension, …" }
                 ]
               },
               {
@@ -257,6 +257,46 @@
                 "input-type": "number"
               },
               {
+                "type": "TextInput",
+                "name": "count_msqs",
+                "label": "How many MSQs?",
+                "required": false,
+                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_true_false",
+                "label": "How many True / False?",
+                "required": false,
+                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_match_the_column",
+                "label": "How many Match the Column?",
+                "required": false,
+                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_word_problems",
+                "label": "How many Word Problems?",
+                "required": false,
+                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_comprehension_passage",
+                "label": "How many Comprehension Passages?",
+                "required": false,
+                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "input-type": "number"
+              },
+              {
                 "type": "Footer",
                 "label": "Generate exam",
                 "on-click-action": {
@@ -266,7 +306,12 @@
                     "question_types": "${form.question_types}",
                     "count_mcqs": "${form.count_mcqs}",
                     "count_fill_in_the_blanks": "${form.count_fill_in_the_blanks}",
-                    "count_brief_answers": "${form.count_brief_answers}"
+                    "count_brief_answers": "${form.count_brief_answers}",
+                    "count_msqs": "${form.count_msqs}",
+                    "count_true_false": "${form.count_true_false}",
+                    "count_match_the_column": "${form.count_match_the_column}",
+                    "count_word_problems": "${form.count_word_problems}",
+                    "count_comprehension_passage": "${form.count_comprehension_passage}"
                   }
                 }
               }

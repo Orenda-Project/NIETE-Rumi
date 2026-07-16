@@ -14,16 +14,16 @@ const axios = require('axios');
 const AssessmentGenClient = require('../../bot/shared/services/assessment-generator-client.service');
 
 describe('AssessmentGenClient.buildRequestBody', () => {
-  test('maps unseen + MCQs objective + Brief Answers subjective', () => {
+  test('maps unseen + MCQs objective + Word Problems subjective (Maths shape)', () => {
     const body = AssessmentGenClient.buildRequestBody({
       generationType: 'exam',
       grade: 4,
-      subject: 'Eng',
+      subject: 'Maths',
       pageRanges: '10-15',
       contentSource: 'unseen',
       questionTypes: [
-        { id: 'MCQs', count: 5 },
-        { id: 'Brief Answers', count: 2 },
+        { id: 'MCQs', count: 5, category: 'objective' },
+        { id: 'Word Problems', count: 2, category: 'subjective' },
       ],
     });
 
@@ -31,19 +31,38 @@ describe('AssessmentGenClient.buildRequestBody', () => {
       generation_type: 'exam',
       curriculum: 'ICT',
       grade: 4,
-      subject: 'Eng',
+      subject: 'Maths',
       page_ranges: '10-15',
       question_types: ['unseen'],
       unseen_categories: ['objective', 'subjective'],
       unseen_objective_types: ['MCQs'],
       unseen_objective_counts: { MCQs: 5 },
-      unseen_subjective_types: ['Brief Answers'],
-      unseen_subjective_counts: { 'Brief Answers': 2 },
+      unseen_subjective_types: ['Word Problems'],
+      unseen_subjective_counts: { 'Word Problems': 2 },
       image_generation_enabled: false,
       include_answer_key: false,
       enable_review: false,
       generate_bilingual: false,
     });
+  });
+
+  test('explicit category on each item overrides the static fallback (Brief Answers as SUBJECTIVE for Science)', () => {
+    const body = AssessmentGenClient.buildRequestBody({
+      generationType: 'exam',
+      grade: 5,
+      subject: 'Science',
+      pageRanges: '1-10',
+      contentSource: 'unseen',
+      questionTypes: [
+        // Brief Answers is objective for Eng/Urdu but SUBJECTIVE for Science
+        // per UG_EG's doc. The endpoint stamps `category` from the OBJ_SUBJ
+        // pick so the client doesn't have to guess.
+        { id: 'Brief Answers', count: 3, category: 'subjective' },
+      ],
+    });
+    expect(body.unseen_subjective_types).toEqual(['Brief Answers']);
+    expect(body.unseen_subjective_counts).toEqual({ 'Brief Answers': 3 });
+    expect(body.unseen_objective_types).toBeUndefined();
   });
 
   test('maps seen + Fill in the Blanks only', () => {

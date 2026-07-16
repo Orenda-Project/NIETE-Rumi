@@ -169,7 +169,7 @@ describe('SEEN_UNSEEN → (SUCCESS | OBJ_SUBJ)', () => {
 describe('OBJ_SUBJ → QUESTION_TYPES (dynamic)', () => {
   beforeEach(async () => { await seedSpec({ content_source: 'unseen' }); });
 
-  test("'objective' populates QUESTION_TYPES with objective supported types for English", async () => {
+  test("'objective' populates QUESTION_TYPES with the full UG_EG English objective list", async () => {
     const out = await endpoint.handleAssessmentGenDataExchange(
       USER_ID,
       'OBJ_SUBJ',
@@ -179,12 +179,20 @@ describe('OBJ_SUBJ → QUESTION_TYPES (dynamic)', () => {
     expect(out.screen).toBe('QUESTION_TYPES');
     expect(out.data.type_options.length).toBeGreaterThan(0);
     const ids = out.data.type_options.map((o) => o.id);
-    // English + objective + UG_EG-supported = MCQs + Fill in the Blanks
-    expect(ids).toEqual(expect.arrayContaining(['MCQs', 'Fill in the Blanks']));
-    expect(ids).not.toContain('Brief Answers'); // subjective
+    // Per docs/question-types-ict.md, Eng Objective = MCQs, MSQs,
+    // Fill in the Blanks, Missing Letters, True/False, Match the Column,
+    // Circle the Correct Answer, Rewrite Sentences, Brief Answers,
+    // Listening, Speaking, Reading. Brief Answers is OBJECTIVE for Eng/Urdu
+    // (SUBJECTIVE only for Science).
+    expect(ids).toEqual(expect.arrayContaining([
+      'MCQs', 'MSQs', 'Fill in the Blanks', 'True/False',
+      'Match the Column', 'Brief Answers',
+    ]));
+    // Comprehension Passage is Eng/Urdu SUBJECTIVE, not objective
+    expect(ids).not.toContain('Comprehension Passage');
   });
 
-  test("'subjective' populates QUESTION_TYPES with subjective types", async () => {
+  test("'subjective' populates QUESTION_TYPES with the English subjective list (grade band 3-5)", async () => {
     const out = await endpoint.handleAssessmentGenDataExchange(
       USER_ID,
       'OBJ_SUBJ',
@@ -193,8 +201,17 @@ describe('OBJ_SUBJ → QUESTION_TYPES (dynamic)', () => {
     );
     expect(out.screen).toBe('QUESTION_TYPES');
     const ids = out.data.type_options.map((o) => o.id);
-    expect(ids).toEqual(expect.arrayContaining(['Brief Answers']));
+    // Grade 4 English Subjective per UG_EG doc (Grades 3-5 band): Word
+    // Meanings, Word Sentences, Comprehension Passage, Letter Writing,
+    // Application Writing, Story Writing, Essay Writing, Paragraph Writing,
+    // Picture Description.
+    expect(ids).toEqual(expect.arrayContaining([
+      'Comprehension Passage', 'Word Meanings', 'Letter Writing',
+      'Story Writing', 'Paragraph Writing',
+    ]));
+    // Objective-only types don't leak
     expect(ids).not.toContain('MCQs');
+    expect(ids).not.toContain('Brief Answers'); // objective for Eng
   });
 
   test('config with no matching types returns friendly SUCCESS', async () => {
@@ -251,8 +268,8 @@ describe('QUESTION_TYPES → SUCCESS', () => {
       pageRanges: '10-15',
       contentSource: 'unseen',
       questionTypes: expect.arrayContaining([
-        { id: 'MCQs', count: 5 },
-        { id: 'Fill in the Blanks', count: 3 },
+        { id: 'MCQs', count: 5, category: 'objective' },
+        { id: 'Fill in the Blanks', count: 3, category: 'objective' },
       ]),
     });
     const link = await redis.get('assessment_gen_job:job-abc');
@@ -274,7 +291,10 @@ describe('QUESTION_TYPES → SUCCESS', () => {
     );
     expect(out.screen).toBe('SUCCESS');
     const spec = AssessmentGenClient.submitJob.mock.calls[0][0];
-    expect(spec.questionTypes).toEqual([{ id: 'Brief Answers', count: 2 }]);
+    // Brief Answers is subjective for Science; here the seeded state uses
+    // Eng + subjective (from seedSpec override two lines up), so category comes
+    // straight from state.category = 'subjective'.
+    expect(spec.questionTypes).toEqual([{ id: 'Brief Answers', count: 2, category: 'subjective' }]);
   });
 
   test('empty count on a checked type defaults to config default (3)', async () => {
@@ -290,7 +310,7 @@ describe('QUESTION_TYPES → SUCCESS', () => {
       FLOW_TOKEN,
     );
     const spec = AssessmentGenClient.submitJob.mock.calls[0][0];
-    expect(spec.questionTypes).toEqual([{ id: 'MCQs', count: 3 }]);
+    expect(spec.questionTypes).toEqual([{ id: 'MCQs', count: 3, category: 'objective' }]);
   });
 
   test('count is capped at MAX_COUNT_PER_TYPE (20)', async () => {
@@ -306,7 +326,7 @@ describe('QUESTION_TYPES → SUCCESS', () => {
       FLOW_TOKEN,
     );
     const spec = AssessmentGenClient.submitJob.mock.calls[0][0];
-    expect(spec.questionTypes).toEqual([{ id: 'MCQs', count: 20 }]);
+    expect(spec.questionTypes).toEqual([{ id: 'MCQs', count: 20, category: 'objective' }]);
   });
 
   test('unsupported type IDs are dropped', async () => {
@@ -316,13 +336,58 @@ describe('QUESTION_TYPES → SUCCESS', () => {
       'QUESTION_TYPES',
       {
         _action: 'generate',
-        question_types: ['MCQs', 'MSQs', 'True/False'],
+        // 'Not A Real Type' and '__bogus__' are not in UG_EG's catalogue.
+        // MCQs + True/False are both valid and should survive.
+        question_types: ['MCQs', 'True/False', 'Not A Real Type', '__bogus__'],
         count_mcqs: '2',
+        count_true_false: '4',
       },
       FLOW_TOKEN,
     );
     const spec = AssessmentGenClient.submitJob.mock.calls[0][0];
-    expect(spec.questionTypes.map((q) => q.id)).toEqual(['MCQs']);
+    expect(spec.questionTypes.map((q) => q.id).sort()).toEqual(['MCQs', 'True/False']);
+  });
+
+  test('newly-enabled UG_EG types survive and are stamped with the picked category', async () => {
+    AssessmentGenClient.submitJob.mockResolvedValue({ jobId: 'job-newtypes' });
+    await endpoint.handleAssessmentGenDataExchange(
+      USER_ID,
+      'QUESTION_TYPES',
+      {
+        _action: 'generate',
+        question_types: ['MSQs', 'True/False', 'Match the Column'],
+        count_msqs: '4',
+        count_true_false: '5',
+        count_match_the_column: '2',
+      },
+      FLOW_TOKEN,
+    );
+    const spec = AssessmentGenClient.submitJob.mock.calls[0][0];
+    expect(spec.questionTypes).toEqual(expect.arrayContaining([
+      { id: 'MSQs',             count: 4, category: 'objective' },
+      { id: 'True/False',       count: 5, category: 'objective' },
+      { id: 'Match the Column', count: 2, category: 'objective' },
+    ]));
+  });
+
+  test('subjective picks (Word Problems, Comprehension Passage) survive and carry category', async () => {
+    AssessmentGenClient.submitJob.mockResolvedValue({ jobId: 'job-subj' });
+    // Word Problems is Maths-only. Seed a Maths + subjective session.
+    await seedSpec({ subject: 'Maths', content_source: 'unseen', category: 'subjective' });
+    await endpoint.handleAssessmentGenDataExchange(
+      USER_ID,
+      'QUESTION_TYPES',
+      {
+        _action: 'generate',
+        question_types: ['Word Problems'],
+        count_word_problems: '6',
+      },
+      FLOW_TOKEN,
+    );
+    const spec = AssessmentGenClient.submitJob.mock.calls[0][0];
+    expect(spec.questionTypes).toEqual([
+      { id: 'Word Problems', count: 6, category: 'subjective' },
+    ]);
   });
 
   test("'both' at content_source submits as 'unseen' upstream", async () => {

@@ -32,11 +32,13 @@ const SESSION_TTL_SECONDS = 15 * 60;
 
 // Default question-type coverage for the SEEN fast-path (Umama's spec:
 // "if Seen, show the Generate Exam option directly" — no type picker).
-// We default to all UG_EG-supported types with the config default count.
+// We default to a small, universally-safe subset (each type is available for
+// every subject in UG_EG's doc). Categories are stamped explicitly so the
+// client doesn't have to guess.
 const SEEN_FAST_PATH_DEFAULT_TYPES = () => ([
-  { id: 'MCQs',                 count: QuestionConfig.DEFAULT_COUNT_PER_TYPE },
-  { id: 'Fill in the Blanks',   count: QuestionConfig.DEFAULT_COUNT_PER_TYPE },
-  { id: 'Brief Answers',        count: QuestionConfig.DEFAULT_COUNT_PER_TYPE },
+  { id: 'MCQs',                 count: QuestionConfig.DEFAULT_COUNT_PER_TYPE, category: 'objective' },
+  { id: 'Fill in the Blanks',   count: QuestionConfig.DEFAULT_COUNT_PER_TYPE, category: 'objective' },
+  { id: 'True/False',           count: QuestionConfig.DEFAULT_COUNT_PER_TYPE, category: 'objective' },
 ]);
 
 function sessionKey(flowToken) {
@@ -306,6 +308,10 @@ async function handleAssessmentGenDataExchange(userId, screen, screenData, flowT
 
     // Per-type counts. Payload uses `count_<slug>` keys where <slug> is the
     // type id lowercased with non-alphanum → underscore.
+    // We also stamp `category` per-item from the OBJ_SUBJ pick so the client
+    // can partition unambiguously (needed for ids that are OBJ in one subject
+    // and SUBJ in another, e.g. Brief Answers).
+    const pickedCategory = state.category === 'subjective' ? 'subjective' : 'objective';
     const questionTypes = picked
       .filter((id) => QuestionConfig.isSupported(id))
       .map((id) => {
@@ -313,7 +319,7 @@ async function handleAssessmentGenDataExchange(userId, screen, screenData, flowT
         const raw = screenData[`count_${slug}`];
         const parsed = _parseCount(raw);
         const capped = Math.min(parsed || QuestionConfig.DEFAULT_COUNT_PER_TYPE, QuestionConfig.MAX_COUNT_PER_TYPE);
-        return { id, count: capped };
+        return { id, count: capped, category: pickedCategory };
       })
       .filter((qt) => qt.count > 0);
 

@@ -3,49 +3,113 @@
  * Assessment Question-Type Config.
  *
  * Returns the list of question types applicable for a given
- * {subject, grade, objectiveOrSubjective} triple.
+ * {subject, grade, category} triple.
  *
- * DEVIATION NOTE (2026-07-16, bd-2033):
- * Umama's spec listed a fuller catalogue — MCQs, MSQs, Fill-in-Blanks, T/F,
- * Match-the-Column, Brief, Word Problems, Comprehension Passage. The upstream
- * UG_EG microservice (`assessment-generator-client.service.js`) currently only
- * accepts three type IDs: `MCQs`, `Fill in the Blanks`, `Brief Answers`.
+ * Source of truth: `docs/question-types-ict.md` in Orenda-Project/UG_EG.
+ * Every type below appears there; category (objective vs subjective) is
+ * per-subject (e.g. "Brief Answers" is OBJECTIVE for Eng/Urdu but SUBJECTIVE
+ * for Science). Grade gating mirrors the doc's per-subject grade bands.
  *
- * Rather than expose types in the Flow that the upstream would then reject,
- * we (a) offer the *supported* subset today, (b) still partition per subject
- * so the list stays relevant (e.g. Maths hides `Comprehension Passage`),
- * (c) keep the full catalogue in `FULL_CATALOGUE` so we can turn types on
- * as UG_EG accepts them without touching this file's shape.
- *
- * When UG_EG adds a new type, also update:
- *   - `OBJECTIVE_TYPES` / `SUBJECTIVE_TYPES` in `assessment-generator-client.service.js`
- *   - remove the type from `NOT_YET_SUPPORTED_BY_UPSTREAM` below
+ * When UG_EG adds a new type, add it here AND to the client service's
+ * `OBJECTIVE_TYPES` / `SUBJECTIVE_TYPES` sets in
+ * `assessment-generator-client.service.js` (otherwise the client silently
+ * drops it when partitioning by category).
  */
 
-// The full catalogue Umama asked for. `supported: false` types are hidden
-// today but flip to `true` when UG_EG accepts them.
-const FULL_CATALOGUE = {
-  MCQs:                     { title: 'MCQs',                     category: 'objective',  supported: true  },
-  'Fill in the Blanks':     { title: 'Fill in the Blanks',       category: 'objective',  supported: true  },
-  MSQs:                     { title: 'MSQs',                     category: 'objective',  supported: false },
-  'True/False':             { title: 'True / False',             category: 'objective',  supported: false },
-  'Match the Column':       { title: 'Match the Column',         category: 'objective',  supported: false },
-  'Brief Answers':          { title: 'Brief Answers',            category: 'subjective', supported: true  },
-  'Word Problems':          { title: 'Word Problems',            category: 'subjective', supported: false },
-  'Comprehension Passage':  { title: 'Comprehension Passage',    category: 'subjective', supported: false },
+// Per-subject { objective: [...ids], subjective: [...ids] } lifted directly
+// from docs/question-types-ict.md. When a subject splits subjective types by
+// grade band (Eng/Urdu do), we use `subjectiveByGrade: { '1-2': [...], '3-5': [...] }`.
+const SUBJECT_CONFIG = {
+  Eng: {
+    objective: [
+      'MCQs', 'MSQs', 'Fill in the Blanks', 'Missing Letters', 'True/False',
+      'Match the Column', 'Circle the Correct Answer', 'Rewrite Sentences',
+      'Brief Answers', 'Listening', 'Speaking', 'Reading',
+    ],
+    subjectiveByGrade: {
+      '1-2': ['Word Meanings', 'Word Sentences', 'Comprehension Passage', 'Rewriting', 'Story Completion', 'Simple Writing'],
+      '3-5': ['Word Meanings', 'Word Sentences', 'Comprehension Passage', 'Letter Writing', 'Application Writing', 'Story Writing', 'Essay Writing', 'Paragraph Writing', 'Picture Description'],
+    },
+    grades: [1, 2, 3, 4, 5],
+  },
+  Urdu: {
+    objective: [
+      'MCQs', 'MSQs', 'Fill in the Blanks', 'Missing Letters', 'True/False',
+      'Match the Column', 'Circle the Correct Answer', 'Rewrite Sentences',
+      'Brief Answers', 'Listening', 'Speaking', 'Reading',
+    ],
+    subjectiveByGrade: {
+      '1-2': ['Word Meanings', 'Word Sentences', 'Comprehension Passage', 'Rewriting', 'Story Completion', 'Simple Writing'],
+      '3-5': ['Word Meanings', 'Word Sentences', 'Comprehension Passage', 'Letter Writing', 'Application Writing', 'Story Writing', 'Essay Writing', 'Paragraph Writing', 'Picture Description'],
+    },
+    grades: [1, 2, 3, 4, 5],
+  },
+  Maths: {
+    objective: ['MCQs', 'Fill in the Blanks', 'True/False', 'Match the Column', 'Mental Math (Viva)', 'Sequences'],
+    subjective: ['Short Questions', 'Restricted Response Question', 'Word Problems', 'Graphs & Geometric Problems'],
+    grades: [1, 2, 3, 4, 5],
+  },
+  SST: {
+    objective: ['MCQs', 'Fill in the Blanks', 'True/False', 'Match the Column'],
+    subjective: ['Short Questions', 'Long Question', 'Mind Map', 'Flow Chart'],
+    grades: [4, 5], // SST is grades 4-5 only per UG_EG doc
+  },
+  Islamiat: {
+    objective: ['MCQs', 'MSQs', 'Fill in the Blanks', 'True/False', 'Match the Column', 'Listening', 'Reading'],
+    subjective: ['Short Questions', 'Long Question'],
+    grades: [1, 2, 3, 4, 5],
+  },
+  Science: {
+    objective: ['MCQs', 'MSQs', 'Fill in the Blanks', 'True/False'],
+    subjective: ['Brief Answers', 'Mind Map', 'Flow Chart', 'Label the Diagram', 'Logical Reasoning'],
+    grades: [4, 5], // Science is grades 4-5 only per UG_EG doc
+  },
+  GenK: {
+    objective: ['MCQs', 'MSQs', 'Fill in the Blanks', 'True/False', 'Match the Column'],
+    subjective: ['Short Questions', 'Long Question', 'Mind Map'],
+    grades: [1, 2, 3], // GenK is grades 1-3 only per UG_EG doc
+  },
 };
 
-// Which types are relevant for each subject. Absence = universal.
-// Grades 1-5 use the same catalogue today (Umama's brief did not gate by
-// grade, only by subject + objective/subjective).
-const SUBJECT_RELEVANCE = {
-  Eng:      ['MCQs', 'Fill in the Blanks', 'True/False', 'Match the Column', 'Brief Answers', 'Comprehension Passage'],
-  Urdu:     ['MCQs', 'Fill in the Blanks', 'True/False', 'Match the Column', 'Brief Answers', 'Comprehension Passage'],
-  Maths:    ['MCQs', 'MSQs', 'Fill in the Blanks', 'True/False', 'Brief Answers', 'Word Problems'],
-  Science:  ['MCQs', 'MSQs', 'Fill in the Blanks', 'True/False', 'Match the Column', 'Brief Answers'],
-  Islamiat: ['MCQs', 'Fill in the Blanks', 'True/False', 'Match the Column', 'Brief Answers'],
-  SST:      ['MCQs', 'Fill in the Blanks', 'True/False', 'Match the Column', 'Brief Answers'],
-  GenK:     ['MCQs', 'Fill in the Blanks', 'True/False', 'Match the Column', 'Brief Answers'],
+// Flat catalogue of every unique type id → display title. Used for `isSupported`
+// membership checks and title lookup. Titles use a lightly polished form
+// (spaces around slashes) for the WhatsApp Flow UI.
+const TYPE_TITLES = {
+  'MCQs':                          'MCQs',
+  'MSQs':                          'MSQs',
+  'Fill in the Blanks':            'Fill in the Blanks',
+  'Missing Letters':               'Missing Letters',
+  'True/False':                    'True / False',
+  'Match the Column':              'Match the Column',
+  'Circle the Correct Answer':     'Circle the Correct Answer',
+  'Rewrite Sentences':             'Rewrite Sentences',
+  'Brief Answers':                 'Brief Answers',
+  'Listening':                     'Listening',
+  'Speaking':                      'Speaking',
+  'Reading':                       'Reading',
+  'Word Meanings':                 'Word Meanings',
+  'Word Sentences':                'Word Sentences',
+  'Comprehension Passage':         'Comprehension Passage',
+  'Rewriting':                     'Rewriting',
+  'Story Completion':              'Story Completion',
+  'Simple Writing':                'Simple Writing',
+  'Letter Writing':                'Letter Writing',
+  'Application Writing':           'Application Writing',
+  'Story Writing':                 'Story Writing',
+  'Essay Writing':                 'Essay Writing',
+  'Paragraph Writing':             'Paragraph Writing',
+  'Picture Description':           'Picture Description',
+  'Mental Math (Viva)':            'Mental Math (Viva)',
+  'Sequences':                     'Sequences',
+  'Short Questions':               'Short Questions',
+  'Restricted Response Question':  'Restricted Response Question',
+  'Word Problems':                 'Word Problems',
+  'Graphs & Geometric Problems':   'Graphs & Geometric Problems',
+  'Long Question':                 'Long Question',
+  'Mind Map':                      'Mind Map',
+  'Flow Chart':                    'Flow Chart',
+  'Label the Diagram':             'Label the Diagram',
+  'Logical Reasoning':             'Logical Reasoning',
 };
 
 const DEFAULT_COUNT_PER_TYPE = 3;
@@ -53,32 +117,51 @@ const MAX_COUNT_PER_TYPE = 20;
 
 /**
  * Return the list of `{ id, title }` for the checkbox group,
- * partitioned by {subject, category}. Only `supported: true` types
- * are returned today.
+ * partitioned by {subject, grade, category}.
+ *
+ * Enforces the grade-band gating from `docs/question-types-ict.md` (e.g. SST
+ * is grades 4-5 only, GenK is grades 1-3 only, Eng/Urdu subjective diverges
+ * between grades 1-2 and 3-5).
  *
  * @param {object} args
  * @param {string} args.subject           e.g. 'Eng', 'Maths'
- * @param {string|number} args.grade      1..5 (currently unused for gating)
+ * @param {string|number} args.grade      1..5
  * @param {'objective'|'subjective'} args.category
  * @returns {Array<{id: string, title: string}>}
  */
 function getQuestionTypes({ subject, grade, category }) {
   if (!['objective', 'subjective'].includes(category)) return [];
-  const relevantIds = SUBJECT_RELEVANCE[subject] || Object.keys(FULL_CATALOGUE);
-  const out = [];
-  for (const id of relevantIds) {
-    const meta = FULL_CATALOGUE[id];
-    if (!meta) continue;
-    if (meta.category !== category) continue;
-    if (!meta.supported) continue;
-    out.push({ id, title: meta.title });
+  const cfg = SUBJECT_CONFIG[subject];
+  if (!cfg) return [];
+
+  const gradeNum = parseInt(String(grade), 10);
+  if (!Number.isFinite(gradeNum)) return [];
+  if (Array.isArray(cfg.grades) && !cfg.grades.includes(gradeNum)) return [];
+
+  let ids = [];
+  if (category === 'objective') {
+    ids = cfg.objective || [];
+  } else {
+    if (cfg.subjectiveByGrade) {
+      const band = gradeNum <= 2 ? '1-2' : '3-5';
+      ids = cfg.subjectiveByGrade[band] || [];
+    } else {
+      ids = cfg.subjective || [];
+    }
   }
-  return out;
+
+  return ids
+    .filter((id) => TYPE_TITLES[id])
+    .map((id) => ({ id, title: TYPE_TITLES[id] }));
 }
 
+/**
+ * Any type id that appears anywhere in SUBJECT_CONFIG is supported (i.e. UG_EG
+ * accepts it per `docs/question-types-ict.md`). The endpoint uses this to gate
+ * user-picked type ids before submitting.
+ */
 function isSupported(id) {
-  const meta = FULL_CATALOGUE[id];
-  return Boolean(meta && meta.supported);
+  return Object.prototype.hasOwnProperty.call(TYPE_TITLES, id);
 }
 
 module.exports = {
@@ -87,5 +170,5 @@ module.exports = {
   DEFAULT_COUNT_PER_TYPE,
   MAX_COUNT_PER_TYPE,
   // exposed for tests / diagnostics
-  _internal: { FULL_CATALOGUE, SUBJECT_RELEVANCE },
+  _internal: { SUBJECT_CONFIG, TYPE_TITLES },
 };
