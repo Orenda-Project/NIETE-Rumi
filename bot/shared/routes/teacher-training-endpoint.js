@@ -45,7 +45,11 @@ async function handleTeacherTrainingDataExchange(userId, screen, screenData /*, 
   if (screen === 'TRAINING_HOME') {
     const action = screenData._action;
     if (action === 'open_level') {
-      const levelOrder = Number(screenData._level_order);
+      // parseInt tolerates the composite "N_i" ids emitted by buildTrainingHome
+      // to keep dropdown option ids unique when multiple training programs
+      // share the same order_index (e.g. Beacon House + Taleemabad both start
+      // at level 1). Legacy plain-numeric ids still parse as themselves.
+      const levelOrder = parseInt(String(screenData._level_order), 10);
       return buildLevelDetail(userId, levelOrder);
     }
     if (action === 'close') return buildSuccessScreen('See you soon!');
@@ -146,8 +150,15 @@ async function buildTrainingHome(userId) {
   // list, but the endpoint's open_level handler will reject taps on locked
   // levels with a helpful error. Alternatively we could filter locked out;
   // showing them is friendlier UX (they know what's coming).
-  data.level_options = catalog.slice(0, 5).map(lvl => ({
-    id:    String(lvl.order_index + 1),
+  //
+  // The id is a composite of order_index+1 and the array position ("2_1", "3_4")
+  // so options stay unique even when a teacher is enrolled in multiple training
+  // programs that share order_index values (e.g. Beacon House + Taleemabad
+  // both starting at level 1). WhatsApp Flow rejects duplicate Dropdown ids
+  // with a silent "Something went wrong" client-side render error. The
+  // open_level handler uses parseInt to recover the semantic order.
+  data.level_options = catalog.slice(0, 5).map((lvl, i) => ({
+    id:    `${lvl.order_index + 1}_${i}`,
     title: `Level ${lvl.order_index + 1} · ${shortLevelName(lvl)} — ${ctaForLevel(lvl)}`,
   }));
 
