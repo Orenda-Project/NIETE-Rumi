@@ -337,10 +337,10 @@
     });
 
     document.getElementById('login-btn').addEventListener('click', async () => {
-      const phone_number = document.getElementById('login-phone').value.trim();
+      const phoneNumber = document.getElementById('login-phone').value.trim();
       const password = document.getElementById('login-password').value;
-      if (!phone_number || !password) return showToast('Mobile and password required.', 'error');
-      const { ok, body } = await api('POST', '/api/portal/login', { phone_number, password });
+      if (!phoneNumber || !password) return showToast('Mobile and password required.', 'error');
+      const { ok, body } = await api('POST', '/api/portal/login', { phoneNumber, password });
       if (!ok) return showToast(body.error || 'Login failed.', 'error');
       showToast('Signed in.', 'success');
       await loadSchool();
