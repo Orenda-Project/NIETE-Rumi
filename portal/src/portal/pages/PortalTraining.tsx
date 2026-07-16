@@ -50,6 +50,13 @@ type ModuleDetail = {
   course: { id: string; title: string } | null;
   level: { id: number; name: string } | null;
 };
+type QuizAttempt = {
+  id: string;
+  completed_at: string | null;
+  score: number | null;
+  max_score: number | null;
+  quiz_kind: string;
+};
 
 function formatDuration(sec: number): string {
   if (!sec || sec <= 0) return '';
@@ -57,6 +64,62 @@ function formatDuration(sec: number): string {
   if (m === 0) return `${s}s`;
   if (s === 0) return `${m} min`;
   return `${m}m ${s}s`;
+}
+
+// Given the list of quiz attempts for a module, return the teacher's best
+// attempt. Attempts arrive chronological (ascending completed_at); "best" =
+// highest score. Ties break to the most recent (last one wins in the reduce).
+function bestAttempt(attempts: QuizAttempt[]): QuizAttempt | null {
+  if (!attempts || attempts.length === 0) return null;
+  return attempts.reduce((best, a) => {
+    if (!best) return a;
+    const bs = best.score ?? -1;
+    const as = a.score ?? -1;
+    return as >= bs ? a : best;
+  }, null as QuizAttempt | null);
+}
+
+// The tiny inline badge next to the completion tick. Handles three shapes:
+//   - no attempts yet (module not attempted): "—"
+//   - completed with attempts: "3 / 3" with attempt-count subline if >1
+//   - completed but zero attempts (edge case — module without questions or
+//     the WhatsApp attempt never persisted): "Not attempted"
+function QuizScoreBadge({
+  attempts,
+  moduleCompleted,
+  loading,
+}: {
+  attempts: QuizAttempt[] | null;
+  moduleCompleted: boolean;
+  loading: boolean;
+}) {
+  if (loading) {
+    return <span className="text-xs text-muted-foreground" data-testid="quiz-score-loading">…</span>;
+  }
+  if (!attempts || attempts.length === 0) {
+    if (moduleCompleted) {
+      return <span className="text-xs text-muted-foreground" data-testid="quiz-score-not-attempted">Not attempted</span>;
+    }
+    return <span className="text-xs text-muted-foreground" data-testid="quiz-score-none">—</span>;
+  }
+  const best = bestAttempt(attempts);
+  if (!best || best.score == null || best.max_score == null) {
+    return <span className="text-xs text-muted-foreground" data-testid="quiz-score-none">—</span>;
+  }
+  const pct = best.max_score > 0 ? Math.round((best.score / best.max_score) * 100) : 0;
+  const tone =
+    pct >= 80 ? 'text-green-700 bg-green-50 border-green-200'
+    : pct >= 50 ? 'text-amber-700 bg-amber-50 border-amber-200'
+    : 'text-red-700 bg-red-50 border-red-200';
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-medium ${tone}`}
+      data-testid="quiz-score-badge"
+      title={attempts.length > 1 ? `Best of ${attempts.length} attempts` : 'Quiz score'}
+    >
+      Quiz: {best.score} / {best.max_score}
+    </span>
+  );
 }
 
 function levelStateBadge(l: Level) {
@@ -85,6 +148,12 @@ const PortalTraining = () => {
   const [loadingCourses, setLoadingCourses] = useState(false);
   const [loadingModules, setLoadingModules] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
+
+  // Per-module quiz attempts, keyed by module id. Fetched once the module list
+  // arrives; a single request per module. Null while in-flight, [] when the
+  // teacher has none, populated array otherwise. The endpoint scopes to the
+  // caller server-side (session's user_id), so no client-side filtering needed.
+  const [attemptsByModule, setAttemptsByModule] = useState<Record<string, QuizAttempt[] | null>>({});
 
   // Fetch levels on mount
   useEffect(() => {
@@ -132,12 +201,33 @@ const PortalTraining = () => {
   useEffect(() => {
     setModules([]); setModuleDetail(null);
     setSelectedModule('');
+    setAttemptsByModule({});
     if (!selectedCourse) return;
     (async () => {
       setLoadingModules(true);
       try {
         const { data } = await api.get('/training/modules', { params: { course_id: selectedCourse } });
-        setModules(data.modules || []);
+        const list: ModuleSummary[] = data.modules || [];
+        setModules(list);
+        // Fire-and-forget per-module attempt lookups so each row's Quiz
+        // Score badge fills in as it arrives. Mark each as "loading" (null
+        // in the map — the badge component treats missing key as "not yet
+        // fetched" and shows nothing until we set it).
+        const nextMap: Record<string, QuizAttempt[] | null> = {};
+        for (const m of list) nextMap[m.id] = null;
+        setAttemptsByModule(nextMap);
+        for (const m of list) {
+          // Each request is independent; no need to await sequentially.
+          api.get(`/training/module/${m.id}/attempts`)
+            .then(({ data }) => {
+              setAttemptsByModule(prev => ({ ...prev, [m.id]: data.attempts || [] }));
+            })
+            .catch(() => {
+              // Silent — the badge falls back to "—" when the fetch fails.
+              // We don't toast per-module to avoid noise on transient errors.
+              setAttemptsByModule(prev => ({ ...prev, [m.id]: [] }));
+            });
+        }
       } catch {
         toast({ title: 'Could not load modules', variant: 'destructive' });
       } finally { setLoadingModules(false); }
@@ -240,15 +330,27 @@ const PortalTraining = () => {
                 } />
               </SelectTrigger>
               <SelectContent>
-                {modules.map(m => (
-                  <SelectItem key={m.id} value={m.id}>
-                    <span className="mr-1">{m.completed_at ? '✓' : '○'}</span>
-                    <span className="font-medium">{m.title}</span>
-                    {m.duration_seconds > 0 && (
-                      <span className="text-muted-foreground text-xs ml-2">· {formatDuration(m.duration_seconds)}</span>
-                    )}
-                  </SelectItem>
-                ))}
+                {modules.map(m => {
+                  const attempts = attemptsByModule[m.id];
+                  // Loading = key exists but value is null (in-flight).
+                  const loading = m.id in attemptsByModule && attempts === null;
+                  return (
+                    <SelectItem key={m.id} value={m.id}>
+                      <span className="mr-1">{m.completed_at ? '✓' : '○'}</span>
+                      <span className="font-medium">{m.title}</span>
+                      {m.duration_seconds > 0 && (
+                        <span className="text-muted-foreground text-xs ml-2">· {formatDuration(m.duration_seconds)}</span>
+                      )}
+                      <span className="ml-2">
+                        <QuizScoreBadge
+                          attempts={attempts ?? null}
+                          moduleCompleted={!!m.completed_at}
+                          loading={loading}
+                        />
+                      </span>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -282,6 +384,11 @@ const PortalTraining = () => {
                       <Circle className="w-4 h-4" /> Not yet
                     </span>
                   )}
+                  <QuizScoreBadge
+                    attempts={attemptsByModule[moduleDetail.id] ?? null}
+                    moduleCompleted={!!moduleDetail.completed_at}
+                    loading={moduleDetail.id in attemptsByModule && attemptsByModule[moduleDetail.id] === null}
+                  />
                 </div>
               </div>
             </div>
