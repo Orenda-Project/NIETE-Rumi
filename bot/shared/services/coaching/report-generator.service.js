@@ -210,28 +210,51 @@ class ReportGeneratorService {
         });
       }
 
-      // Generate PDF report via the per-framework transformer + PDFReportService
-      const pdfBuffer = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment);
+      // Generate report via the per-framework transformer + PDFReportService.
+      // Return shape is EITHER a Buffer (PDFKit/HTML renderers) OR
+      // `{ png, caption }` (hero renderer — currently FICO on NIETE, plus
+      // OECD/HOTS/TEACH/MEWAKA once they're wired). Delivery path branches
+      // on the shape (FEAT-098).
+      const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment);
+      const isHeroImage = !Buffer.isBuffer(reportResult) && reportResult && reportResult.png;
 
-      // Upload PDF to R2 for portal access
+      // Upload report to R2 for portal access.
+      // NOTE: uploadReportPDF hardcodes ContentType: 'application/pdf' and the
+      // R2 key ends in `_report.pdf`. For hero PNGs this is technically wrong,
+      // but the portal doesn't currently link to this URL as a PDF viewer —
+      // R2 serves the raw bytes and callers download them. A future task
+      // (bd-TBD) can add a `report_png_url` column + image/png ContentType.
       let reportPdfUrl = null;
       try {
-        reportPdfUrl = await uploadReportPDF(pdfBuffer, session.user_id, coachingSessionId);
-        logToFile('✅ Report PDF uploaded to R2', { reportPdfUrl });
+        const bufferToUpload = isHeroImage ? reportResult.png : reportResult;
+        reportPdfUrl = await uploadReportPDF(bufferToUpload, session.user_id, coachingSessionId);
+        logToFile('✅ Report uploaded to R2', { reportPdfUrl, isHeroImage });
 
-        // Store PDF URL in database
+        // Store URL in database
         await supabase
           .from('coaching_sessions')
           .update({ report_pdf_url: reportPdfUrl })
           .eq('id', coachingSessionId);
-        logToFile('✅ Report PDF URL stored in database');
+        logToFile('✅ Report URL stored in database');
       } catch (error) {
-        logToFile('⚠️ Failed to upload report PDF to R2', { error: error.message });
+        logToFile('⚠️ Failed to upload report to R2', { error: error.message });
         // Don't fail entire process if R2 upload fails
       }
 
-      // Send PDF immediately with proper filename
-      await this.sendPDFReport(from, coachingSessionId, pdfBuffer, session.users.first_name, session.created_at);
+      // Deliver to WhatsApp — image+caption path (hero renderer) or document
+      // path (PDFKit/HTML renderers). See FEAT-098 for why this branch exists.
+      if (isHeroImage) {
+        await this.sendHeroImageReport(
+          from,
+          coachingSessionId,
+          reportResult.png,
+          reportResult.caption || '',
+          session.users.first_name,
+          session.created_at
+        );
+      } else {
+        await this.sendPDFReport(from, coachingSessionId, reportResult, session.users.first_name, session.created_at);
+      }
 
       // Generate and send voice debrief (optional, won't fail entire process)
       if (!isRetry) {
@@ -689,22 +712,39 @@ class ReportGeneratorService {
 
     // Generate report through the renderer registry. The hero renderer returns
     // { png, caption } (image+caption delivery via WhatsAppService); the PDFKit
-    // and HTML renderers return Buffer. The caller normalises both shapes.
+    // and HTML renderers return a Buffer. The caller (generateReport) detects
+    // the shape and dispatches to sendImage vs sendDocument accordingly.
+    //
+    // FEAT-098 (2026-07-17): previously this method flattened the hero return
+    // into a bare buffer named `pdfBuffer` and the caller sent it as
+    // application/pdf — WhatsApp delivered a PDF that WAS actually PNG bytes,
+    // so every PDF reader rejected it as corrupt. Fix: preserve the shape and
+    // let the caller branch on it.
     const rendered = await PDFReportService.generateClassroomObservationReport(reportData);
-    const pdfBuffer = Buffer.isBuffer(rendered) ? rendered : (rendered && rendered.png);
+    const isHeroImage = !Buffer.isBuffer(rendered) && rendered && rendered.png;
 
-    logToFile('PDF report generated', {
-      coachingSessionId: session.id,
-      pdfSizeKB: Math.round(pdfBuffer.length / 1024)
-    });
-
-    // Update database with generation timestamp
+    // Update database with generation timestamp (same regardless of shape).
     await supabase
       .from('coaching_sessions')
       .update({
         report_generated_at: new Date().toISOString()
       })
       .eq('id', session.id);
+
+    if (isHeroImage) {
+      logToFile('Hero report generated (PNG)', {
+        coachingSessionId: session.id,
+        pngSizeKB: Math.round(rendered.png.length / 1024),
+        hasCaption: !!rendered.caption,
+      });
+      return rendered; // { png, caption } — caller detects this shape
+    }
+
+    const pdfBuffer = rendered;
+    logToFile('PDF report generated', {
+      coachingSessionId: session.id,
+      pdfSizeKB: Math.round(pdfBuffer.length / 1024)
+    });
 
     return pdfBuffer;
   }
@@ -1264,6 +1304,70 @@ class ReportGeneratorService {
    * @returns {Promise<void>}
    * @private
    */
+  /**
+   * FEAT-098: Send the hero renderer's PNG output as a WhatsApp image with
+   * caption. Companion to sendPDFReport() for the image-return renderer path.
+   *
+   * The hero renderer builds a single tall PNG (the visual report) plus a
+   * short caption. WhatsApp's image API takes a media upload + a caption in
+   * one message, which is the correct delivery for this shape — sending it
+   * as a document with a `.pdf` filename produces a corrupted-file experience
+   * (the original FEAT-098 bug).
+   *
+   * @param {string} phoneNumber - Recipient phone (E.164, digits only)
+   * @param {string} coachingSessionId - Coaching session UUID (for logging)
+   * @param {Buffer} pngBuffer - PNG bytes from the hero renderer
+   * @param {string} caption - Caption text (from the hero renderer)
+   * @param {string} teacherFirstName - Teacher's first name (for temp filename)
+   * @param {string} observationDate - Observation date (for temp filename)
+   * @returns {Promise<void>}
+   * @private
+   */
+  static async sendHeroImageReport(phoneNumber, coachingSessionId, pngBuffer, caption, teacherFirstName = 'Teacher', observationDate = null) {
+    let tempImagePath = null;
+    try {
+      // Ensure temp directory exists
+      if (!fs.existsSync(TEMP_DIR)) {
+        fs.mkdirSync(TEMP_DIR, { recursive: true });
+      }
+
+      // Write PNG buffer to temp file (WhatsAppService.sendImage takes a
+      // file path — the file extension drives its Content-Type detection,
+      // so .png is required to upload as image/png, not image/jpeg).
+      tempImagePath = path.join(TEMP_DIR, `report_${coachingSessionId}_${Date.now()}.png`);
+      fs.writeFileSync(tempImagePath, pngBuffer);
+
+      logToFile('Hero image saved to temp file, sending to user', {
+        coachingSessionId,
+        pngSize: pngBuffer.length,
+        captionLength: caption ? caption.length : 0,
+        teacherFirstName,
+        observationDate,
+      });
+
+      // sendImage handles the Meta media upload + the messages send.
+      const ok = await WhatsAppService.sendImage(phoneNumber, tempImagePath, caption);
+      if (!ok) {
+        // sendImage returns false on failure and swallows the error internally;
+        // treat that as a hard failure here — report delivery IS critical.
+        throw new Error('WhatsAppService.sendImage returned false');
+      }
+
+      logToFile('✅ Hero image report sent', { coachingSessionId, phoneNumber });
+    } catch (error) {
+      logToFile('❌ Failed to send hero image report', {
+        coachingSessionId,
+        error: error.message,
+      });
+      throw error;
+    } finally {
+      // Clean up temp file even on error
+      if (tempImagePath && fs.existsSync(tempImagePath)) {
+        try { fs.unlinkSync(tempImagePath); } catch (_) { /* best effort */ }
+      }
+    }
+  }
+
   static async sendPDFReport(phoneNumber, coachingSessionId, pdfBuffer, teacherFirstName = 'Teacher', observationDate = null, languageCode = 'en') {
     try {
       await WhatsAppService.sendMessage(phoneNumber, getCoachingMessage('reportReady', languageCode));
