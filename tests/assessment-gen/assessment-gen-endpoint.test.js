@@ -588,3 +588,159 @@ describe('_sendGenerationStartedAck (Ask 4)', () => {
     expect(msg).toMatch(/moments/i);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FEAT-092 rev3 — Alishba ask 1 + 2: OBJ_SUBJ is a CheckboxGroup, teachers can
+// pick objective, subjective, or both. QUESTION_TYPES shows the union and
+// each picked type carries its correct category downstream.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('OBJ_SUBJ (rev3 CheckboxGroup) — accepts new + legacy shapes', () => {
+  beforeEach(async () => { await seedSpec({ content_source: 'unseen' }); });
+
+  test("new shape: categories=['objective','subjective'] populates union of types", async () => {
+    const out = await endpoint.handleAssessmentGenDataExchange(
+      USER_ID,
+      'OBJ_SUBJ',
+      { _action: 'pick_category', categories: ['objective', 'subjective'] },
+      FLOW_TOKEN,
+    );
+    expect(out.screen).toBe('QUESTION_TYPES');
+    const ids = out.data.type_options.map((o) => o.id);
+    // Objective side (Eng grade 4)
+    expect(ids).toEqual(expect.arrayContaining(['MCQs', 'MSQs', 'Fill in the Blanks', 'Brief Answers']));
+    // Subjective side (Eng grade 4 → 3-5 band)
+    expect(ids).toEqual(expect.arrayContaining(['Comprehension Passage', 'Word Meanings', 'Letter Writing', 'Essay Writing']));
+    // Session persists both categories
+    const state = await redis.get(`assessment_gen_flow:${FLOW_TOKEN}`);
+    expect(state.categories.sort()).toEqual(['objective', 'subjective']);
+    expect(state._id_to_category['MCQs']).toBe('objective');
+    expect(state._id_to_category['Essay Writing']).toBe('subjective');
+  });
+
+  test("new shape as CSV string: categories='objective,subjective' works the same way", async () => {
+    const out = await endpoint.handleAssessmentGenDataExchange(
+      USER_ID,
+      'OBJ_SUBJ',
+      { _action: 'pick_category', categories: 'objective,subjective' },
+      FLOW_TOKEN,
+    );
+    expect(out.screen).toBe('QUESTION_TYPES');
+    const state = await redis.get(`assessment_gen_flow:${FLOW_TOKEN}`);
+    expect(state.categories.sort()).toEqual(['objective', 'subjective']);
+  });
+
+  test("legacy shape: category='objective' still populates just objective list", async () => {
+    const out = await endpoint.handleAssessmentGenDataExchange(
+      USER_ID,
+      'OBJ_SUBJ',
+      { _action: 'pick_category', category: 'objective' },
+      FLOW_TOKEN,
+    );
+    expect(out.screen).toBe('QUESTION_TYPES');
+    const ids = out.data.type_options.map((o) => o.id);
+    expect(ids).toEqual(expect.arrayContaining(['MCQs']));
+    expect(ids).not.toContain('Essay Writing'); // subjective only
+    const state = await redis.get(`assessment_gen_flow:${FLOW_TOKEN}`);
+    expect(state.categories).toEqual(['objective']);
+    expect(state.category).toBe('objective');
+  });
+
+  test("categories=['objective','subjective'] submit stamps EACH picked type with its correct category (mixed paper)", async () => {
+    AssessmentGenClient.submitJob.mockResolvedValue({ jobId: 'job-mixed' });
+    // Land on QUESTION_TYPES with both categories picked.
+    await endpoint.handleAssessmentGenDataExchange(
+      USER_ID,
+      'OBJ_SUBJ',
+      { _action: 'pick_category', categories: ['objective', 'subjective'] },
+      FLOW_TOKEN,
+    );
+    // Now submit a mix: one objective + one subjective type.
+    const out = await endpoint.handleAssessmentGenDataExchange(
+      USER_ID,
+      'QUESTION_TYPES',
+      {
+        _action: 'generate',
+        question_types: ['MCQs', 'Essay Writing'],
+        count_mcqs: '5',
+        count_essay_writing: '2',
+      },
+      FLOW_TOKEN,
+    );
+    expect(out.screen).toBe('SUCCESS');
+    const spec = AssessmentGenClient.submitJob.mock.calls[0][0];
+    expect(spec.questionTypes).toEqual(expect.arrayContaining([
+      { id: 'MCQs', count: 5, category: 'objective' },
+      { id: 'Essay Writing', count: 2, category: 'subjective' },
+    ]));
+  });
+
+  test("Science 'Brief Answers' picked under both-categories is stamped SUBJECTIVE (not objective) per the ICT doc", async () => {
+    AssessmentGenClient.submitJob.mockResolvedValue({ jobId: 'job-brief-science' });
+    // Seed a Science + unseen session.
+    await seedSpec({ subject: 'Science', content_source: 'unseen' });
+    // Both categories picked.
+    await endpoint.handleAssessmentGenDataExchange(
+      USER_ID,
+      'OBJ_SUBJ',
+      { _action: 'pick_category', categories: ['objective', 'subjective'] },
+      FLOW_TOKEN,
+    );
+    await endpoint.handleAssessmentGenDataExchange(
+      USER_ID,
+      'QUESTION_TYPES',
+      {
+        _action: 'generate',
+        question_types: ['MCQs', 'Brief Answers'],
+        count_mcqs: '3',
+        count_brief_answers: '2',
+      },
+      FLOW_TOKEN,
+    );
+    const spec = AssessmentGenClient.submitJob.mock.calls[0][0];
+    // Science: MCQs = objective, Brief Answers = subjective per docs/question-types-ict.md.
+    // Note: for Science the subject seeded above is 'Science' so Brief Answers
+    // should resolve to 'subjective' via the union map.
+    const briefAnswers = spec.questionTypes.find((q) => q.id === 'Brief Answers');
+    expect(briefAnswers).toBeDefined();
+    expect(briefAnswers.category).toBe('subjective');
+    const mcqs = spec.questionTypes.find((q) => q.id === 'MCQs');
+    expect(mcqs.category).toBe('objective');
+  });
+
+  test('empty / bogus categories input defaults to objective (safe fallback, no crash)', async () => {
+    const out = await endpoint.handleAssessmentGenDataExchange(
+      USER_ID,
+      'OBJ_SUBJ',
+      { _action: 'pick_category', categories: [] },
+      FLOW_TOKEN,
+    );
+    expect(out.screen).toBe('QUESTION_TYPES');
+    const state = await redis.get(`assessment_gen_flow:${FLOW_TOKEN}`);
+    expect(state.categories).toEqual(['objective']);
+  });
+});
+
+describe('_parseCategories unit', () => {
+  test('accepts new categories array', () => {
+    expect(endpoint._parseCategories({ categories: ['objective', 'subjective'] }))
+      .toEqual(['objective', 'subjective']);
+  });
+  test('accepts CSV string', () => {
+    expect(endpoint._parseCategories({ categories: 'objective,subjective' }))
+      .toEqual(['objective', 'subjective']);
+  });
+  test('accepts legacy scalar', () => {
+    expect(endpoint._parseCategories({ category: 'subjective' })).toEqual(['subjective']);
+  });
+  test('de-dupes', () => {
+    expect(endpoint._parseCategories({ categories: ['objective', 'objective'] }))
+      .toEqual(['objective']);
+  });
+  test('drops unknowns; defaults to [objective] if nothing valid', () => {
+    expect(endpoint._parseCategories({ categories: ['bogus', 'objective'] }))
+      .toEqual(['objective']);
+    expect(endpoint._parseCategories({ categories: ['nope'] })).toEqual(['objective']);
+    expect(endpoint._parseCategories({})).toEqual(['objective']);
+  });
+});

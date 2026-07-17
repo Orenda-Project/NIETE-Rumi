@@ -178,20 +178,23 @@
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextHeading", "text": "Objective or subjective?" },
+          { "type": "TextHeading", "text": "Objective, Subjective, or both?" },
           { "type": "TextBody", "text": "${data.spec_summary}" },
+          { "type": "TextCaption", "text": "Tick one, or tick both to mix them in the same paper." },
           {
             "type": "Form",
             "name": "form",
             "children": [
               {
-                "type": "RadioButtonsGroup",
-                "name": "category",
-                "label": "Category",
+                "type": "CheckboxGroup",
+                "name": "categories",
+                "label": "Categories",
                 "required": true,
+                "min-selected-items": 1,
+                "max-selected-items": 2,
                 "data-source": [
                   { "id": "objective",  "title": "Objective",  "description": "MCQs, MSQs, Fill in the Blanks, T/F, Match the Column, …" },
-                  { "id": "subjective", "title": "Subjective", "description": "Brief Answers, Word Problems, Comprehension, …" }
+                  { "id": "subjective", "title": "Subjective", "description": "Brief Answers, Word Problems, Comprehension, Essay Writing, …" }
                 ]
               },
               {
@@ -201,7 +204,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "_action": "pick_category",
-                    "category": "${form.category}"
+                    "categories": "${form.categories}"
                   }
                 }
               }
@@ -236,6 +239,7 @@
         "children": [
           { "type": "TextHeading", "text": "Pick question types" },
           { "type": "TextBody", "text": "${data.spec_summary}" },
+          { "type": "TextCaption", "text": "Tick each type you want. The number beside it says how many of THAT type to include. Leave blank to use the default of 3." },
           {
             "type": "Form",
             "name": "form",
@@ -248,132 +252,285 @@
                 "min-selected-items": 1,
                 "data-source": "${data.type_options}"
               },
+              { "type": "TextCaption", "text": "How many of each type? (Only counts for the types you ticked above.)" },
               {
                 "type": "TextInput",
                 "name": "count_mcqs",
-                "label": "How many MCQs?",
+                "label": "MCQs — how many?",
                 "required": false,
-                "helper-text": "Default 3, max 20. Leave blank to skip.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_fill_in_the_blanks",
-                "label": "How many Fill in the Blanks?",
-                "required": false,
-                "helper-text": "Default 3, max 20. Leave blank to skip.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_brief_answers",
-                "label": "How many Brief Answers?",
-                "required": false,
-                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "helper-text": "Default 3, max 20.",
                 "input-type": "number"
               },
               {
                 "type": "TextInput",
                 "name": "count_msqs",
-                "label": "How many MSQs?",
+                "label": "MSQs — how many?",
                 "required": false,
-                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "helper-text": "Default 3, max 20.",
                 "input-type": "number"
               },
               {
                 "type": "TextInput",
-                "name": "count_true_false",
-                "label": "How many True / False?",
+                "name": "count_fill_in_the_blanks",
+                "label": "Fill in the Blanks — how many?",
                 "required": false,
-                "helper-text": "Default 3, max 20. Leave blank to skip.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_match_the_column",
-                "label": "How many Match the Column?",
-                "required": false,
-                "helper-text": "Default 3, max 20. Leave blank to skip.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_word_problems",
-                "label": "How many Word Problems?",
-                "required": false,
-                "helper-text": "Default 3, max 20. Leave blank to skip.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_comprehension_passage",
-                "label": "How many Comprehension Passages?",
-                "required": false,
-                "helper-text": "Default 3, max 20. Leave blank to skip.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_short_questions",
-                "label": "How many Short Questions?",
-                "required": false,
-                "helper-text": "Default 3, max 20. Leave blank to skip.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_long_question",
-                "label": "How many Long Questions?",
-                "required": false,
-                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "helper-text": "Default 3, max 20.",
                 "input-type": "number"
               },
               {
                 "type": "TextInput",
                 "name": "count_missing_letters",
-                "label": "How many Missing Letters?",
+                "label": "Missing Letters — how many?",
                 "required": false,
-                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "helper-text": "Default 3, max 20.",
                 "input-type": "number"
               },
               {
                 "type": "TextInput",
-                "name": "count_mind_map",
-                "label": "How many Mind Maps?",
+                "name": "count_true_false",
+                "label": "True / False — how many?",
                 "required": false,
-                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_match_the_column",
+                "label": "Match the Column — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_circle_the_correct_answer",
+                "label": "Circle the Correct Answer — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_rewrite_sentences",
+                "label": "Rewrite Sentences — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_brief_answers",
+                "label": "Brief Answers — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_listening",
+                "label": "Listening — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_speaking",
+                "label": "Speaking — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_reading",
+                "label": "Reading — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
                 "input-type": "number"
               },
               {
                 "type": "TextInput",
                 "name": "count_word_meanings",
-                "label": "How many Word Meanings?",
+                "label": "Word Meanings — how many?",
                 "required": false,
-                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_word_sentences",
+                "label": "Word Sentences — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_comprehension_passage",
+                "label": "Comprehension Passages — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_rewriting",
+                "label": "Rewriting — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_story_completion",
+                "label": "Story Completion — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_simple_writing",
+                "label": "Simple Writing — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_letter_writing",
+                "label": "Letter Writing — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_application_writing",
+                "label": "Application Writing — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
                 "input-type": "number"
               },
               {
                 "type": "TextInput",
                 "name": "count_story_writing",
-                "label": "How many Story Writing prompts?",
+                "label": "Story Writing — how many?",
                 "required": false,
-                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "helper-text": "Default 3, max 20.",
                 "input-type": "number"
               },
               {
                 "type": "TextInput",
                 "name": "count_essay_writing",
-                "label": "How many Essays?",
+                "label": "Essays — how many?",
                 "required": false,
-                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "helper-text": "Default 3, max 20.",
                 "input-type": "number"
               },
               {
                 "type": "TextInput",
                 "name": "count_paragraph_writing",
-                "label": "How many Paragraphs?",
+                "label": "Paragraphs — how many?",
                 "required": false,
-                "helper-text": "Default 3, max 20. Leave blank to skip.",
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_picture_description",
+                "label": "Picture Description — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_mental_math_viva",
+                "label": "Mental Math (Viva) — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_sequences",
+                "label": "Sequences — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_short_questions",
+                "label": "Short Questions — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_restricted_response_question",
+                "label": "Restricted Response — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_word_problems",
+                "label": "Word Problems — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_graphs_geometric_problems",
+                "label": "Graphs & Geometric Problems — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_long_question",
+                "label": "Long Questions — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_mind_map",
+                "label": "Mind Maps — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_flow_chart",
+                "label": "Flow Charts — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_label_the_diagram",
+                "label": "Label the Diagram — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
+                "input-type": "number"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_logical_reasoning",
+                "label": "Logical Reasoning — how many?",
+                "required": false,
+                "helper-text": "Default 3, max 20.",
                 "input-type": "number"
               },
               {
@@ -385,21 +542,40 @@
                     "_action": "generate",
                     "question_types": "${form.question_types}",
                     "count_mcqs": "${form.count_mcqs}",
-                    "count_fill_in_the_blanks": "${form.count_fill_in_the_blanks}",
-                    "count_brief_answers": "${form.count_brief_answers}",
                     "count_msqs": "${form.count_msqs}",
+                    "count_fill_in_the_blanks": "${form.count_fill_in_the_blanks}",
+                    "count_missing_letters": "${form.count_missing_letters}",
                     "count_true_false": "${form.count_true_false}",
                     "count_match_the_column": "${form.count_match_the_column}",
-                    "count_word_problems": "${form.count_word_problems}",
-                    "count_comprehension_passage": "${form.count_comprehension_passage}",
-                    "count_short_questions": "${form.count_short_questions}",
-                    "count_long_question": "${form.count_long_question}",
-                    "count_missing_letters": "${form.count_missing_letters}",
-                    "count_mind_map": "${form.count_mind_map}",
+                    "count_circle_the_correct_answer": "${form.count_circle_the_correct_answer}",
+                    "count_rewrite_sentences": "${form.count_rewrite_sentences}",
+                    "count_brief_answers": "${form.count_brief_answers}",
+                    "count_listening": "${form.count_listening}",
+                    "count_speaking": "${form.count_speaking}",
+                    "count_reading": "${form.count_reading}",
                     "count_word_meanings": "${form.count_word_meanings}",
+                    "count_word_sentences": "${form.count_word_sentences}",
+                    "count_comprehension_passage": "${form.count_comprehension_passage}",
+                    "count_rewriting": "${form.count_rewriting}",
+                    "count_story_completion": "${form.count_story_completion}",
+                    "count_simple_writing": "${form.count_simple_writing}",
+                    "count_letter_writing": "${form.count_letter_writing}",
+                    "count_application_writing": "${form.count_application_writing}",
                     "count_story_writing": "${form.count_story_writing}",
                     "count_essay_writing": "${form.count_essay_writing}",
-                    "count_paragraph_writing": "${form.count_paragraph_writing}"
+                    "count_paragraph_writing": "${form.count_paragraph_writing}",
+                    "count_picture_description": "${form.count_picture_description}",
+                    "count_mental_math_viva": "${form.count_mental_math_viva}",
+                    "count_sequences": "${form.count_sequences}",
+                    "count_short_questions": "${form.count_short_questions}",
+                    "count_restricted_response_question": "${form.count_restricted_response_question}",
+                    "count_word_problems": "${form.count_word_problems}",
+                    "count_graphs_geometric_problems": "${form.count_graphs_geometric_problems}",
+                    "count_long_question": "${form.count_long_question}",
+                    "count_mind_map": "${form.count_mind_map}",
+                    "count_flow_chart": "${form.count_flow_chart}",
+                    "count_label_the_diagram": "${form.count_label_the_diagram}",
+                    "count_logical_reasoning": "${form.count_logical_reasoning}"
                   }
                 }
               }
