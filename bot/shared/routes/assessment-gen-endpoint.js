@@ -13,9 +13,12 @@
  *   SEEN_UNSEEN       → radio: Seen / Unseen / Both
  *      ├─ Seen        → submit straight to UG_EG with full default type coverage,
  *      │                land on SUCCESS
- *      └─ Unseen/Both → OBJ_SUBJ radio: Objective / Subjective
- *                        └─ QUESTION_TYPES (dynamic list per {subject, obj/subj})
- *                            with per-type counts
+ *      └─ Unseen/Both → OBJ_SUBJ CheckboxGroup: Objective and/or Subjective
+ *                        (FEAT-092 rev3: was a mutually-exclusive Radio; Alishba
+ *                        asked for both to be independently selectable so a
+ *                        single paper can mix objective + subjective types.)
+ *                        └─ QUESTION_TYPES (union of types for the picked
+ *                            categories) with per-type counts
  *                            → submit, land on SUCCESS
  *
  * State between screens is stored in Redis keyed by flow_token.
@@ -321,41 +324,71 @@ async function handleAssessmentGenDataExchange(userId, screen, screenData, flowT
   }
 
   // ─────────────── OBJ_SUBJ → QUESTION_TYPES (dynamic) ───────────────
+  //
+  // FEAT-092 rev3 (Alishba fix #1 + #2): OBJ_SUBJ is now a CheckboxGroup so
+  // Objective and Subjective can be picked independently OR together. The
+  // Flow submits `categories` as an array (WhatsApp Flows sends it as either
+  // ['objective','subjective'] or the comma-separated string form). We also
+  // accept the legacy scalar `category` field for backward-compat with the
+  // currently-published Flow (radio version) during rollout.
   if (screen === 'OBJ_SUBJ') {
     if (screenData._action !== 'pick_category') return objSubjScreen(_summaryFromState(state));
     if (!state.grade || !state.subject) return specScreen();
 
-    const rawCat = String(screenData.category || '').trim();
-    const category = rawCat === 'subjective' ? 'subjective' : 'objective';
-    state.category = category;
+    const categories = _parseCategories(screenData);
+    state.categories = categories;
+    // Legacy mirror: keep `state.category` for old code paths / tests that
+    // read it. When only one category is picked it's that one; when both,
+    // default to 'objective' so any pre-rev3 QUESTION_TYPES handler still
+    // sees a sensible scalar.
+    state.category = categories.length === 1 ? categories[0] : 'objective';
     await writeSession(flowToken, state);
 
-    const typeOptions = QuestionConfig.getQuestionTypes({
+    const typeOptions = _unionTypeOptions({
       subject: state.subject,
       grade: state.grade,
-      category,
+      categories,
     });
     if (typeOptions.length === 0) {
       // Config-level failure — surface a friendly error rather than crash.
       logToFile('[assessment-gen-flow] no question types for combo', {
-        subject: state.subject, grade: state.grade, category,
+        subject: state.subject, grade: state.grade, categories,
       });
       return successScreen(
         "We couldn't find any question types for that combination right now. Please try a different subject.",
         flowToken,
       );
     }
+    // Also stash the per-id → category map on session so the QUESTION_TYPES
+    // handler can stamp the right category on each picked type at submit
+    // time (needed for ids like 'Brief Answers' that are OBJECTIVE for
+    // Eng/Urdu but SUBJECTIVE for Science, when both categories are picked).
+    state._id_to_category = _idCategoryMap({
+      subject: state.subject,
+      grade: state.grade,
+      categories,
+    });
+    await writeSession(flowToken, state);
     return questionTypesScreen(_summaryFromState(state), typeOptions);
   }
 
   // ─────────────── QUESTION_TYPES → SUCCESS (submit) ───────────────
   if (screen === 'QUESTION_TYPES') {
+    const categories = _categoriesFromState(state);
+    const idCatMap = state._id_to_category && typeof state._id_to_category === 'object'
+      ? state._id_to_category
+      : _idCategoryMap({
+          subject: state.subject,
+          grade: state.grade,
+          categories,
+        });
+
     if (screenData._action !== 'generate') {
       // Non-submit ping — re-render.
-      const typeOptions = QuestionConfig.getQuestionTypes({
+      const typeOptions = _unionTypeOptions({
         subject: state.subject,
         grade: state.grade,
-        category: state.category || 'objective',
+        categories,
       });
       return questionTypesScreen(_summaryFromState(state), typeOptions);
     }
@@ -370,10 +403,12 @@ async function handleAssessmentGenDataExchange(userId, screen, screenData, flowT
 
     // Per-type counts. Payload uses `count_<slug>` keys where <slug> is the
     // type id lowercased with non-alphanum → underscore.
-    // We also stamp `category` per-item from the OBJ_SUBJ pick so the client
-    // can partition unambiguously (needed for ids that are OBJ in one subject
-    // and SUBJ in another, e.g. Brief Answers).
-    const pickedCategory = state.category === 'subjective' ? 'subjective' : 'objective';
+    //
+    // Category stamping (FEAT-092 rev3): when both categories were picked at
+    // OBJ_SUBJ, each id gets its correct category from the union map. When
+    // only one category was picked (or we're on the legacy Flow that sends
+    // scalar `category`), fall back to that.
+    const legacyCategory = state.category === 'subjective' ? 'subjective' : 'objective';
     const questionTypes = picked
       .filter((id) => QuestionConfig.isSupported(id))
       .map((id) => {
@@ -381,15 +416,16 @@ async function handleAssessmentGenDataExchange(userId, screen, screenData, flowT
         const raw = screenData[`count_${slug}`];
         const parsed = _parseCount(raw);
         const capped = Math.min(parsed || QuestionConfig.DEFAULT_COUNT_PER_TYPE, QuestionConfig.MAX_COUNT_PER_TYPE);
-        return { id, count: capped, category: pickedCategory };
+        const category = idCatMap[id] || legacyCategory;
+        return { id, count: capped, category };
       })
       .filter((qt) => qt.count > 0);
 
     if (questionTypes.length === 0) {
-      const typeOptions = QuestionConfig.getQuestionTypes({
+      const typeOptions = _unionTypeOptions({
         subject: state.subject,
         grade: state.grade,
-        category: state.category || 'objective',
+        categories,
       });
       const out = questionTypesScreen(_summaryFromState(state) + '  ·  Please pick a question type.', typeOptions);
       return out;
@@ -424,6 +460,97 @@ function _parseCount(v) {
   if (v === null || v === undefined || v === '') return 0;
   const n = parseInt(String(v).trim(), 10);
   return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/**
+ * Parse the OBJ_SUBJ screen submission's category selection.
+ *
+ * The FEAT-092 rev3 Flow sends `categories` (array or CSV string) because the
+ * screen is now a CheckboxGroup allowing objective, subjective, or both.
+ * The rev2 Flow sent `category` (scalar) from a RadioButtonsGroup — we still
+ * accept that shape so the endpoint works against either published version
+ * during rollout.
+ *
+ * Returns a de-duped array of at least one of ['objective', 'subjective'].
+ * Defaults to ['objective'] on anything unparseable rather than throwing.
+ */
+function _parseCategories(screenData) {
+  let raw = screenData && (screenData.categories !== undefined ? screenData.categories : screenData.category);
+  if (raw === undefined || raw === null) return ['objective'];
+  if (typeof raw === 'string') {
+    raw = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+  if (!Array.isArray(raw)) raw = [raw];
+  const valid = raw
+    .map((v) => String(v || '').trim().toLowerCase())
+    .filter((v) => v === 'objective' || v === 'subjective');
+  const uniq = [...new Set(valid)];
+  return uniq.length > 0 ? uniq : ['objective'];
+}
+
+/**
+ * Session-shape accessor. Prefers the new `categories` array; falls back to
+ * the legacy scalar `category`. Always returns a non-empty array.
+ */
+function _categoriesFromState(state) {
+  if (Array.isArray(state && state.categories) && state.categories.length > 0) {
+    return state.categories;
+  }
+  const legacy = state && state.category === 'subjective' ? 'subjective' : 'objective';
+  return [legacy];
+}
+
+/**
+ * Build the ordered union of `{id, title}` question-type options across all
+ * picked categories. Preserves category ordering (Objective first, then
+ * Subjective) so the WhatsApp checkbox list reads objective-then-subjective.
+ * De-dupes by id (an id can only appear once in a CheckboxGroup); when a type
+ * exists in both categories for the {subject, grade} the objective category
+ * wins the display slot — the per-id → category map recorded separately
+ * still lets us round-trip the *correct* category at submit time.
+ */
+function _unionTypeOptions({ subject, grade, categories }) {
+  const cats = Array.isArray(categories) && categories.length > 0
+    ? categories
+    : ['objective'];
+  const seen = new Set();
+  const out = [];
+  const ordered = ['objective', 'subjective'].filter((c) => cats.includes(c));
+  for (const cat of ordered) {
+    const opts = QuestionConfig.getQuestionTypes({ subject, grade, category: cat });
+    for (const o of opts) {
+      if (seen.has(o.id)) continue;
+      seen.add(o.id);
+      out.push(o);
+    }
+  }
+  return out;
+}
+
+/**
+ * Map every type id in the union → the category we should stamp on it when it
+ * survives the QUESTION_TYPES submit. For any id that exists in only one of
+ * the picked categories, use that. For an id that exists in both, prefer the
+ * one the teacher expects for that subject — mirrors UG_EG's
+ * question-types-ict.md placement (e.g. 'Brief Answers' → OBJECTIVE for
+ * Eng/Urdu/Islamiat, SUBJECTIVE for Science).
+ */
+function _idCategoryMap({ subject, grade, categories }) {
+  const cats = Array.isArray(categories) && categories.length > 0
+    ? categories
+    : ['objective'];
+  const map = {};
+  // Fill objective first, then subjective — later writes only happen for ids
+  // that aren't already tagged, so first-write-wins matches the display order
+  // in _unionTypeOptions.
+  const ordered = ['objective', 'subjective'].filter((c) => cats.includes(c));
+  for (const cat of ordered) {
+    const opts = QuestionConfig.getQuestionTypes({ subject, grade, category: cat });
+    for (const o of opts) {
+      if (!map[o.id]) map[o.id] = cat;
+    }
+  }
+  return map;
 }
 
 /**
@@ -476,6 +603,10 @@ module.exports = {
   // exported for tests
   _subjectLabel,
   _parseCount,
+  _parseCategories,
+  _categoriesFromState,
+  _unionTypeOptions,
+  _idCategoryMap,
   _slugForCountKey,
   _sendGenerationStartedAck,
 };
