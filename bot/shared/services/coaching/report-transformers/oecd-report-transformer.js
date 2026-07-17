@@ -13,6 +13,7 @@ const {
   CLASSROOM_MARKS_BASE,
   CLASSROOM_MARKS_WITH_LP,
 } = require('../../../constants/scoring.constants');
+const { coachRoleLabelForRegion } = require('../../../config/region-config');
 
 /**
  * Transform OECD analysis into generic report data.
@@ -354,7 +355,10 @@ function transformOECDToReportData(session, teacherName, enhancedAnalysis, hasPr
     observationDate,
     subject: session.lesson_plan_structured?.subject || enhancedAnalysis.subject || 'N/A',
     topic: session.lesson_plan_structured?.topic || enhancedAnalysis.topic || 'N/A',
-    observerName: 'Rumi Digital Coach',
+    // observerName is the coach-role label — region-routed via
+    // coachRoleLabelForRegion (see region-config.js). ICT / NIETE →
+    // "Human Coach"; unset / other regions → "Rumi Digital Coach".
+    observerName: coachRoleLabelForRegion(session.users?.region),
     frameworkDisplayName: 'OECD Framework',
     hasLessonPlan: hasLessonPlanData,
     totalScore,

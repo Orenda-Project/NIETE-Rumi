@@ -11,6 +11,7 @@
  */
 
 const { formatDate, extractFidelity, buildPartialNote } = require('./_shared');
+const { coachRoleLabelForRegion } = require('../../../config/region-config');
 
 const AREA_CONFIG = [
   { key: 'classroom_culture', title: 'Area 1: Classroom Culture' },
@@ -91,7 +92,8 @@ function transformTeachToReportData(session, teacherName, analysis) {
     observationDate: formatDate(session.created_at),
     subject: session.lesson_plan_structured?.subject || analysis.subject || 'N/A',
     topic: session.lesson_plan_structured?.topic || analysis.topic || 'N/A',
-    observerName: 'Rumi Digital Coach',
+    // observerName is region-routed via coachRoleLabelForRegion (region-config).
+    observerName: coachRoleLabelForRegion(session.users?.region),
     frameworkDisplayName: 'Teach Framework',
     hasLessonPlan: !!(session.lesson_plan_structured || analysis.has_lesson_plan),
     totalScore,

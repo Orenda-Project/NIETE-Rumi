@@ -539,11 +539,13 @@ app.post('/webhook', async (req, res) => {
         const { buildLPSelectionList } = require('./shared/services/coaching/lp-coaching/lp-selection-list.service');
         const { data: userRow } = await supabase
           .from('users')
-          .select('preferred_language')
+          .select('preferred_language, region')
           .eq('id', user.id)
           .maybeSingle();
         const lang = userRow?.preferred_language || 'en';
-        const lpPrompt = buildLPSelectionList(sessionId, [], lang);
+        // Region drives the coach-role footer label (e.g. "Human Coach" for
+        // ICT / NIETE, "Rumi Digital Coach" as default).
+        const lpPrompt = buildLPSelectionList(sessionId, [], lang, userRow?.region);
         await WhatsAppService.sendInteractiveButtons(from, lpPrompt);
       } else if (buttonId.startsWith('photo_yes_')) {
         const sessionId = buttonId.replace('photo_yes_', '');

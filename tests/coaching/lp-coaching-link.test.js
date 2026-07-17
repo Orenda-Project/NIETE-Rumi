@@ -94,6 +94,35 @@ describe('LP Selection List Builder (bd-619)', () => {
     const result = buildLPSelectionList('session-abc', recentLPs, 'ur');
     expect(result.listData.body.text || result.listData.body).toMatch(/سبق|درس|لیسن/);
   });
+
+  test('SCENARIO: Footer defaults to "Rumi Digital Coach" when no region is passed', () => {
+    const recentLPs = [
+      { id: 'lp-1', topic: 'Photosynthesis', grade: '5', created_at: '2026-03-01' },
+    ];
+    const result = buildLPSelectionList('session-abc', recentLPs, 'en');
+    expect(result.listData.footer.text).toBe('Rumi Digital Coach');
+  });
+
+  test('SCENARIO: Region routing swaps the footer to "Human Coach" for ICT / NIETE', () => {
+    const savedDefault = process.env.DEFAULT_COACH_ROLE_LABEL;
+    const savedMap = process.env.REGION_COACH_ROLE_LABEL_MAP;
+    process.env.REGION_COACH_ROLE_LABEL_MAP = '{"niete":"Human Coach"}';
+    jest.resetModules();
+    try {
+      const fresh = require('../../bot/shared/services/coaching/lp-coaching/lp-selection-list.service').buildLPSelectionList;
+      const recentLPs = [
+        { id: 'lp-1', topic: 'Photosynthesis', grade: '5', created_at: '2026-03-01' },
+      ];
+      const result = fresh('session-abc', recentLPs, 'en', 'niete');
+      expect(result.listData.footer.text).toBe('Human Coach');
+    } finally {
+      if (savedDefault === undefined) delete process.env.DEFAULT_COACH_ROLE_LABEL;
+      else process.env.DEFAULT_COACH_ROLE_LABEL = savedDefault;
+      if (savedMap === undefined) delete process.env.REGION_COACH_ROLE_LABEL_MAP;
+      else process.env.REGION_COACH_ROLE_LABEL_MAP = savedMap;
+      jest.resetModules();
+    }
+  });
 });
 
 // ─── Tests for bd-620: LP Linking ───────────────────────────────────────

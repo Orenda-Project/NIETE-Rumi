@@ -12,6 +12,7 @@
 
 const ficoFramework = require('../frameworks/fico-framework');
 const { formatDate, extractFidelity, buildPartialNote } = require('./_shared');
+const { coachRoleLabelForRegion } = require('../../../config/region-config');
 
 const SCALE_MAX = 4;
 const MAX_MARKS = 104;
@@ -68,7 +69,10 @@ function transformFICOToReportData(session, teacherName, analysis) {
     observationDate: formatDate(session.created_at),
     subject: session.lesson_plan_structured?.subject || analysis.subject || 'N/A',
     topic: session.lesson_plan_structured?.topic || analysis.topic || 'N/A',
-    observerName: 'Rumi Digital Coach',
+    // observerName is the coach-role label surfaced in the report chrome —
+    // region-routed so ICT / NIETE renders "Human Coach" while other
+    // deployments (or unset regions) keep the default "Rumi Digital Coach".
+    observerName: coachRoleLabelForRegion(session.users?.region),
     frameworkDisplayName: 'FICO Framework',
     hasLessonPlan: !!(session.lesson_plan_structured || analysis.has_lesson_plan),
     totalScore,
