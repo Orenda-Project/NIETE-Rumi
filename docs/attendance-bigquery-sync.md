@@ -59,8 +59,26 @@ Add these to `.env` (see `.env.template` for the copy-pasteable block):
 | `BIGQUERY_STEPS_PROJECT_ID` | yes | — | Target GCP project (the STEPS warehouse). |
 | `BIGQUERY_STEPS_DATASET` | no | `steps` | Target dataset. |
 | `BIGQUERY_STEPS_TABLE` | no | `attendance` | Target table. |
+| `BIGQUERY_STEPS_AUTO_CREATE_TABLE` | no | *(enabled if unset)* | Gates the `CREATE TABLE IF NOT EXISTS` backstop in `ensureTable()`. See "Table creation modes" below. |
 
 The GCP service account needs **BigQuery Data Editor** + **BigQuery Job User** on the target project.
+
+## Table creation modes (`BIGQUERY_STEPS_AUTO_CREATE_TABLE`)
+
+Two modes, one flag. The service uses `BIGQUERY_STEPS_AUTO_CREATE_TABLE` to decide whether `ensureTable()` actually issues the DDL on first run:
+
+| Flag value | `ensureTable()` behaviour | Use in |
+|-----------|---------------------------|--------|
+| unset, `true`, `1`, `yes` (case-insensitive) | Runs `CREATE TABLE IF NOT EXISTS` — the harmless backstop. | dev, staging, local — convenient one-shot bootstrap on a fresh warehouse. |
+| `false`, `0`, `no` (case-insensitive) | Short-circuits with a `skip, table expected to pre-exist` log line, no DDL issued. | **prod** — set this explicitly. |
+
+**Prod convention (TASK-133 review, Hasnat):**
+
+1. Set `BIGQUERY_STEPS_AUTO_CREATE_TABLE=false` in the prod env.
+2. Run `scripts/bigquery-steps-attendance-ddl.sql` by hand against the target project after eye-balling it in the PR — the authoritative table creation is the manual step, not the app.
+3. `ensureTable()` still runs from the worker but short-circuits — the DDL string stays in code as a harmless backstop for any non-prod environment that first-boots without a pre-created table.
+
+**Verifying the flag is doing what you think it is.** Grep for the log line the service emits on the skip path — it prints `BIGQUERY_STEPS_AUTO_CREATE_TABLE=false — skipping CREATE TABLE IF NOT EXISTS for {project}.{dataset}.{table}` when disabled, and `running CREATE TABLE IF NOT EXISTS backstop for …` when enabled. If neither appears in the worker log, `ensureTable()` didn't run at all.
 
 ## Contract (BigQuery schema)
 

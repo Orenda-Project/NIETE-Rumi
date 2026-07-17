@@ -18,6 +18,8 @@ const {
   qualifiedTable,
   toBigQueryRow,
   upsertRows,
+  ensureTable,
+  isAutoCreateTableEnabled,
 } = require('../../bot/shared/services/attendance/bigquery-sync.service');
 
 describe('getBigQueryConfig', () => {
@@ -183,5 +185,68 @@ describe('upsertRows', () => {
     expect(mc.inserts).toHaveLength(1);
     expect(mc.inserts[0].rows).toEqual(rows);
     expect(mc.inserts[0].insertOpts).toEqual({ skipInvalidRows: false, ignoreUnknownValues: false });
+  });
+});
+
+describe('BIGQUERY_STEPS_AUTO_CREATE_TABLE flag', () => {
+  const OLD = { ...process.env };
+  const cfg = { projectId: 'p', dataset: 'ds', table: 't', keyFilename: '/tmp/sa.json' };
+  let logSpy;
+  beforeEach(() => {
+    process.env = { ...OLD };
+    logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  });
+  afterEach(() => { logSpy.mockRestore(); });
+  afterAll(() => { process.env = OLD; });
+
+  test('isAutoCreateTableEnabled: unset → true (backward compat)', () => {
+    delete process.env.BIGQUERY_STEPS_AUTO_CREATE_TABLE;
+    expect(isAutoCreateTableEnabled()).toBe(true);
+  });
+
+  test('isAutoCreateTableEnabled: "true"/"1"/"yes" → true', () => {
+    process.env.BIGQUERY_STEPS_AUTO_CREATE_TABLE = 'true';
+    expect(isAutoCreateTableEnabled()).toBe(true);
+    process.env.BIGQUERY_STEPS_AUTO_CREATE_TABLE = '1';
+    expect(isAutoCreateTableEnabled()).toBe(true);
+    process.env.BIGQUERY_STEPS_AUTO_CREATE_TABLE = 'YES';
+    expect(isAutoCreateTableEnabled()).toBe(true);
+  });
+
+  test('isAutoCreateTableEnabled: "false"/"0"/"no" → false (case-insensitive)', () => {
+    process.env.BIGQUERY_STEPS_AUTO_CREATE_TABLE = 'false';
+    expect(isAutoCreateTableEnabled()).toBe(false);
+    process.env.BIGQUERY_STEPS_AUTO_CREATE_TABLE = '0';
+    expect(isAutoCreateTableEnabled()).toBe(false);
+    process.env.BIGQUERY_STEPS_AUTO_CREATE_TABLE = 'No';
+    expect(isAutoCreateTableEnabled()).toBe(false);
+  });
+
+  test('ensureTable: flag=false → short-circuits, no query issued, logs skip line', async () => {
+    process.env.BIGQUERY_STEPS_AUTO_CREATE_TABLE = 'false';
+    const client = { query: jest.fn(async () => [{}]) };
+    await ensureTable(client, cfg);
+    expect(client.query).not.toHaveBeenCalled();
+    const logs = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(logs).toMatch(/BIGQUERY_STEPS_AUTO_CREATE_TABLE=false/);
+    expect(logs).toMatch(/skipping CREATE TABLE IF NOT EXISTS/);
+    expect(logs).toMatch(/p\.ds\.t/);
+  });
+
+  test('ensureTable: flag unset → runs the DDL (backward compat)', async () => {
+    delete process.env.BIGQUERY_STEPS_AUTO_CREATE_TABLE;
+    const client = { query: jest.fn(async () => [{}]) };
+    await ensureTable(client, cfg);
+    expect(client.query).toHaveBeenCalledTimes(1);
+    const call = client.query.mock.calls[0][0];
+    expect(call.query).toMatch(/CREATE TABLE IF NOT EXISTS `p\.ds\.t`/);
+    expect(call.location).toBe('US');
+  });
+
+  test('ensureTable: flag="true" → runs the DDL', async () => {
+    process.env.BIGQUERY_STEPS_AUTO_CREATE_TABLE = 'true';
+    const client = { query: jest.fn(async () => [{}]) };
+    await ensureTable(client, cfg);
+    expect(client.query).toHaveBeenCalledTimes(1);
   });
 });

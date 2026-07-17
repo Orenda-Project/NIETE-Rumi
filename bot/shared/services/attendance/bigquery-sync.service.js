@@ -114,6 +114,28 @@ function createBigQueryClient(cfg = getBigQueryConfig()) {
 // ─── Table ensure (CREATE IF NOT EXISTS) ──────────────────────────────────────
 
 /**
+ * Read the BIGQUERY_STEPS_AUTO_CREATE_TABLE flag. Governs whether ensureTable()
+ * actually runs the CREATE TABLE IF NOT EXISTS DDL.
+ *
+ * Semantics:
+ *   * unset OR any truthy value ("true", "1", "yes") → auto-create is ENABLED
+ *     (backward-compat default, keeps dev/staging one-shot bootstrapping).
+ *   * "false", "0", "no" (case-insensitive) → auto-create is DISABLED, and
+ *     ensureTable() short-circuits. The prod convention is to set this to
+ *     `false` explicitly and run scripts/bigquery-steps-attendance-ddl.sql by
+ *     hand so table creation is a human-reviewed step.
+ *
+ * @returns {boolean}
+ */
+function isAutoCreateTableEnabled() {
+  const raw = process.env.BIGQUERY_STEPS_AUTO_CREATE_TABLE;
+  if (raw === undefined || raw === null || raw === '') return true;
+  const v = String(raw).trim().toLowerCase();
+  if (v === 'false' || v === '0' || v === 'no') return false;
+  return true;
+}
+
+/**
  * Ensure the target table exists. Idempotent — creates it with the schema from
  * scripts/bigquery-steps-attendance-ddl.sql on first run, no-op afterwards.
  *
@@ -121,11 +143,24 @@ function createBigQueryClient(cfg = getBigQueryConfig()) {
  * carries partition/clustering/column-description options that are cleaner to
  * express in SQL.
  *
+ * Gated by BIGQUERY_STEPS_AUTO_CREATE_TABLE (default: enabled). In prod we set
+ * this to `false` — the authoritative table creation is a manual run of
+ * scripts/bigquery-steps-attendance-ddl.sql (per Hasnat's review on TASK-133).
+ * The CREATE TABLE IF NOT EXISTS DDL stays as a harmless backstop for
+ * dev/staging first-boot.
+ *
  * @param {ReturnType<typeof createBigQueryClient>} client
  * @param {ReturnType<typeof getBigQueryConfig>} cfg
  */
 async function ensureTable(client, cfg = getBigQueryConfig()) {
   const fq = qualifiedTable(cfg);
+  if (!isAutoCreateTableEnabled()) {
+    console.log(
+      `ensureTable: BIGQUERY_STEPS_AUTO_CREATE_TABLE=false — skipping CREATE TABLE IF NOT EXISTS for ${fq} (table expected to pre-exist).`
+    );
+    return;
+  }
+  console.log(`ensureTable: running CREATE TABLE IF NOT EXISTS backstop for ${fq}.`);
   const ddl = `
     CREATE TABLE IF NOT EXISTS \`${fq}\` (
       teacher_phone_e164   STRING     NOT NULL,
@@ -206,6 +241,7 @@ module.exports = {
   qualifiedTable,
   toBigQueryRow,
   createBigQueryClient,
+  isAutoCreateTableEnabled,
   ensureTable,
   upsertRows,
 };
