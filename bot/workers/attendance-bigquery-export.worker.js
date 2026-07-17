@@ -77,13 +77,58 @@ function yesterdayInKarachi(now = new Date()) {
   return d.toISOString().slice(0, 10);
 }
 
+// ─── Sector normalization + approved-sector filter ────────────────────────────
+
+/**
+ * Six sectors approved by Hasnat (STEPS owner) for TASK-133. Anything else —
+ * NULL, unrecognized value, or a typo — is dropped from the export and logged
+ * via the "dropped N: NULL/unrecognized region" line so the count is never
+ * a silent filter.
+ *
+ * Source of truth for sector = users.region (NOT schools.region — only 4/8813
+ * users have a non-NULL school_id and the schools table has 1 row; the
+ * effective sector lives directly on the user record).
+ */
+const APPROVED_SECTORS = new Set([
+  'Urban-I',
+  'Urban-II',
+  'Sihala',
+  'Nilore',
+  'Tarnol',
+  'Barakahu',
+]);
+
+/**
+ * TEMP: B.K → Barakahu until source-of-truth team fixes upstream
+ * migration. A subset of user records were seeded with the shorthand "B.K"
+ * instead of the full sector name. We accept it here and rewrite at export
+ * time so STEPS only ever sees the approved value.
+ *
+ * @param {string|null|undefined} raw — users.region as read from the DB
+ * @returns {string|null} — normalized sector, or null if the input is empty
+ */
+function normalizeSector(raw) {
+  if (raw === null || raw === undefined) return null;
+  const s = String(raw).trim();
+  if (s === '') return null;
+  if (s === 'B.K') return 'Barakahu';
+  return s;
+}
+
 // ─── Supabase pull ────────────────────────────────────────────────────────────
 
 /**
  * Fetch all teacher_attendance_records for the target date, joined to the
- * teacher's canonical phone + school + sector via nested selects. Supabase's
- * PostgREST-style embedding handles the JOIN across the two FKs on
- * teacher_attendance_records (teacher_id → users, school_id → schools).
+ * teacher's canonical phone + region via a nested select. Supabase's
+ * PostgREST-style embedding handles the JOIN on
+ * teacher_attendance_records.teacher_id → users.
+ *
+ * NOTE: sector is now read from `users.region` DIRECTLY. The earlier design
+ * (users.school_id → schools.region) was wrong for this dataset: only 4/8813
+ * users have a non-NULL school_id and the schools table has 1 row. We keep
+ * school_id on the row for downstream identification but do NOT embed the
+ * schools table — sector comes from users.region + normalizeSector() + the
+ * APPROVED_SECTORS filter.
  *
  * We DO NOT filter by school here — the export covers every teacher who has a
  * row for the target date across every ICT sector.
@@ -97,10 +142,7 @@ async function fetchAttendanceForDate(client, targetDate) {
     .select(`
       id, teacher_id, school_id, date, status, leave_type,
       teacher:users!teacher_attendance_records_teacher_id_fkey (
-        id, phone_number, school_id
-      ),
-      school:schools!teacher_attendance_records_school_id_fkey (
-        id, region
+        id, phone_number, school_id, region
       )
     `)
     .eq('date', targetDate);
@@ -117,13 +159,23 @@ async function fetchAttendanceForDate(client, targetDate) {
  * working_days, presence_pct). Uses the same computePresence() helper the
  * portal already ships so the numbers match everywhere.
  *
+ * Sector rules (per Hasnat's TASK-133 review):
+ *   1. Read sector from users.region DIRECTLY (not schools.region).
+ *   2. Normalize B.K → Barakahu (TEMP; upstream source-of-truth team should fix).
+ *   3. Drop any teacher whose normalized sector is NULL or not in APPROVED_SECTORS.
+ *      The dropped count is returned to the caller so the worker can log
+ *      "dropped N: NULL/unrecognized region" — never a silent filter.
+ *
  * For a single-day window (nightly cron) each teacher will have at most one
  * record per date, so present_days ∈ {0,1} per row. The math still applies
  * unchanged — we do NOT special-case the single-day path.
  *
  * @param {object[]} rawRows — from fetchAttendanceForDate
  * @param {string} targetDate — YYYY-MM-DD, used for period_start + period_end
- * @returns {object[]} presence rows
+ * @returns {{ rows: object[], droppedCount: number, droppedTeacherIds: string[] }}
+ *   `rows` are the presence rows for teachers with an approved sector;
+ *   `droppedCount` is how many teachers were filtered out (NULL / unrecognized);
+ *   `droppedTeacherIds` is a bounded sample (first 20) for debugging.
  */
 function aggregatePresence(rawRows, targetDate) {
   const byTeacher = new Map();
@@ -132,32 +184,40 @@ function aggregatePresence(rawRows, targetDate) {
     if (!byTeacher.has(r.teacher_id)) {
       byTeacher.set(r.teacher_id, {
         teacher: r.teacher || null,
-        school: r.school || null,
         records: [],
       });
     }
     const bucket = byTeacher.get(r.teacher_id);
     bucket.records.push({ date: r.date, status: r.status });
-    // A given teacher's teacher/school snapshot may be missing on some rows if
-    // the FK embed failed — keep the first non-null value we see.
+    // A given teacher's teacher snapshot may be missing on some rows if the FK
+    // embed failed — keep the first non-null value we see.
     if (!bucket.teacher && r.teacher) bucket.teacher = r.teacher;
-    if (!bucket.school && r.school) bucket.school = r.school;
   }
 
-  const out = [];
+  const rows = [];
+  const droppedTeacherIds = [];
+  let droppedCount = 0;
   for (const [teacherId, bucket] of byTeacher.entries()) {
+    // Sector = users.region (normalized), then filtered against APPROVED_SECTORS.
+    const rawRegion = bucket.teacher ? bucket.teacher.region : null;
+    const sector = normalizeSector(rawRegion);
+    if (!sector || !APPROVED_SECTORS.has(sector)) {
+      droppedCount += 1;
+      if (droppedTeacherIds.length < 20) droppedTeacherIds.push(teacherId);
+      continue;
+    }
     const roll = computePresence(bucket.records);
-    out.push({
+    rows.push({
       teacher_id: teacherId,
       mobile: bucket.teacher ? bucket.teacher.phone_number : null,
-      school_id: bucket.school ? bucket.school.id : (bucket.teacher ? bucket.teacher.school_id : null),
-      sector: bucket.school ? bucket.school.region : null,
+      school_id: bucket.teacher ? bucket.teacher.school_id : null,
+      sector,
       period_start: targetDate,
       period_end: targetDate,
       ...roll,
     });
   }
-  return out;
+  return { rows, droppedCount, droppedTeacherIds };
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
@@ -178,9 +238,20 @@ async function main(argv = process.argv.slice(2)) {
     const rawRows = await fetchAttendanceForDate(supabase, targetDate);
     console.log(`Supabase: fetched ${rawRows.length} teacher_attendance_records for ${targetDate}`);
 
-    // 2) Aggregate into Presence contract rows (one per teacher).
-    const presenceRows = aggregatePresence(rawRows, targetDate);
+    // 2) Aggregate into Presence contract rows (one per teacher), filter to
+    //    the 6 approved sectors, and surface the drop count so it's never a
+    //    silent filter (per Hasnat's TASK-133 review).
+    const { rows: presenceRows, droppedCount, droppedTeacherIds } = aggregatePresence(rawRows, targetDate);
     console.log(`Aggregation: rolled up to ${presenceRows.length} teacher-presence rows`);
+    if (droppedCount > 0) {
+      console.warn(`dropped ${droppedCount}: NULL/unrecognized region`);
+      logToFile('attendance-bigquery-export dropped rows', {
+        droppedCount,
+        droppedTeacherIdsSample: droppedTeacherIds,
+        approvedSectors: Array.from(APPROVED_SECTORS),
+        targetDate,
+      }, 'warn');
+    }
 
     // 3) Shape into BigQuery rows + drop any missing identity.
     const syncedAt = new Date().toISOString();
@@ -247,4 +318,6 @@ module.exports = {
   yesterdayInKarachi,
   fetchAttendanceForDate,
   aggregatePresence,
+  normalizeSector,
+  APPROVED_SECTORS,
 };
