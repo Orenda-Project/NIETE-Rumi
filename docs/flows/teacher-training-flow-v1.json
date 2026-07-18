@@ -2,9 +2,17 @@
   "version": "5.1",
   "data_api_version": "3.0",
   "routing_model": {
-    "VENDOR_PICKER": ["TRAINING_HOME", "SUCCESS"],
-    "TRAINING_HOME": ["VENDOR_PICKER", "LEVEL_DETAIL", "SUCCESS"],
-    "LEVEL_DETAIL": ["TRAINING_HOME", "SUCCESS"]
+    "VENDOR_PICKER": [
+      "TRAINING_HOME",
+      "SUCCESS"
+    ],
+    "TRAINING_HOME": [
+      "LEVEL_DETAIL",
+      "SUCCESS"
+    ],
+    "LEVEL_DETAIL": [
+      "SUCCESS"
+    ]
   },
   "screens": [
     {
@@ -12,32 +20,68 @@
       "title": "Choose a program",
       "terminal": false,
       "data": {
-        "hero_title":    { "type": "string", "__example__": "Choose a program" },
-        "hero_subtitle": { "type": "string", "__example__": "Aisha Malik · NIETE Support" },
-        "hero_caption":  { "type": "string", "__example__": "You are enrolled in 3 training programs. Pick one to open its levels." },
+        "hero_title": {
+          "type": "string",
+          "__example__": "Choose a program"
+        },
+        "hero_subtitle": {
+          "type": "string",
+          "__example__": "Aisha Malik \u00b7 NIETE Support"
+        },
+        "hero_caption": {
+          "type": "string",
+          "__example__": "You are enrolled in 3 training programs. Pick one to open its levels."
+        },
         "vendor_options": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "id":          { "type": "string" },
-              "title":       { "type": "string" },
-              "description": { "type": "string" }
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
             }
           },
           "__example__": [
-            { "id": "TALEEMABAD",  "title": "Taleemabad",   "description": "4 levels · 1 certified · 25% · 9/36 courses" },
-            { "id": "OXBRIDGE",    "title": "Oxbridge",     "description": "1 level · 7 sessions · Open-access" },
-            { "id": "BEACONHOUSE", "title": "Beacon House", "description": "4 levels · 0% · 0/24 courses" }
+            {
+              "id": "TALEEMABAD",
+              "title": "Taleemabad",
+              "description": "4 levels \u00b7 1 certified \u00b7 25% \u00b7 9/36 courses"
+            },
+            {
+              "id": "OXBRIDGE",
+              "title": "Oxbridge",
+              "description": "1 level \u00b7 7 sessions \u00b7 Open-access"
+            },
+            {
+              "id": "BEACONHOUSE",
+              "title": "Beacon House",
+              "description": "4 levels \u00b7 0% \u00b7 0/24 courses"
+            }
           ]
         }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextHeading",    "text": "${data.hero_title}" },
-          { "type": "TextSubheading", "text": "${data.hero_subtitle}" },
-          { "type": "TextCaption",    "text": "${data.hero_caption}" },
+          {
+            "type": "TextHeading",
+            "text": "${data.hero_title}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "${data.hero_subtitle}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "${data.hero_caption}"
+          },
           {
             "type": "Form",
             "name": "form",
@@ -70,60 +114,154 @@
       "title": "Teacher Training",
       "terminal": false,
       "data": {
-        "hero_title":       { "type": "string", "__example__": "Taleemabad" },
-        "hero_subtitle":    { "type": "string", "__example__": "Aisha Malik · NIETE Support" },
-        "hero_progress":    { "type": "string", "__example__": "4 levels · 1 certified · 25% · 9/36 courses" },
-        "hero_vendor_key":  { "type": "string", "__example__": "TALEEMABAD" },
-        "switch_program_visible": { "type": "boolean", "__example__": true },
-        "level_1_title":    { "type": "string", "__example__": "🏆 Level 1 · Aspiring Teacher" },
-        "level_1_progress": { "type": "string", "__example__": "9/9 courses ✓ · Grand quiz passed" },
-        "level_2_title":    { "type": "string", "__example__": "📖 Level 2 · Emerging Practitioner" },
-        "level_2_progress": { "type": "string", "__example__": "4/9 courses · 40% done" },
-        "level_3_title":    { "type": "string", "__example__": "🔒 Level 3 · Skilled Practitioner" },
-        "level_3_progress": { "type": "string", "__example__": "Unlocks after Level 2 exam" },
-        "level_4_title":    { "type": "string", "__example__": "🔒 Level 4 · Teacher Leader" },
-        "level_4_progress": { "type": "string", "__example__": "Unlocks after Level 3 exam" },
-        "level_5_title":    { "type": "string", "__example__": "🔒 Level 5" },
-        "level_5_progress": { "type": "string", "__example__": "Not part of this program" },
+        "hero_title": {
+          "type": "string",
+          "__example__": "Taleemabad"
+        },
+        "hero_subtitle": {
+          "type": "string",
+          "__example__": "Aisha Malik \u00b7 NIETE Support"
+        },
+        "hero_progress": {
+          "type": "string",
+          "__example__": "4 levels \u00b7 1 certified \u00b7 25% \u00b7 9/36 courses"
+        },
+        "hero_vendor_key": {
+          "type": "string",
+          "__example__": "TALEEMABAD"
+        },
+        "switch_program_visible": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "level_1_title": {
+          "type": "string",
+          "__example__": "\ud83c\udfc6 Level 1 \u00b7 Aspiring Teacher"
+        },
+        "level_1_progress": {
+          "type": "string",
+          "__example__": "9/9 courses \u2713 \u00b7 Grand quiz passed"
+        },
+        "level_2_title": {
+          "type": "string",
+          "__example__": "\ud83d\udcd6 Level 2 \u00b7 Emerging Practitioner"
+        },
+        "level_2_progress": {
+          "type": "string",
+          "__example__": "4/9 courses \u00b7 40% done"
+        },
+        "level_3_title": {
+          "type": "string",
+          "__example__": "\ud83d\udd12 Level 3 \u00b7 Skilled Practitioner"
+        },
+        "level_3_progress": {
+          "type": "string",
+          "__example__": "Unlocks after Level 2 exam"
+        },
+        "level_4_title": {
+          "type": "string",
+          "__example__": "\ud83d\udd12 Level 4 \u00b7 Teacher Leader"
+        },
+        "level_4_progress": {
+          "type": "string",
+          "__example__": "Unlocks after Level 3 exam"
+        },
+        "level_5_title": {
+          "type": "string",
+          "__example__": "\ud83d\udd12 Level 5"
+        },
+        "level_5_progress": {
+          "type": "string",
+          "__example__": "Not part of this program"
+        },
         "level_options": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "id":    { "type": "string" },
-              "title": { "type": "string" }
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
             }
           },
           "__example__": [
-            { "id": "1_0", "title": "Level 1 · Aspiring Teacher — Review" },
-            { "id": "2_1", "title": "Level 2 · Emerging Practitioner — Continue" },
-            { "id": "3_2", "title": "Level 3 · Skilled Practitioner — 🔒 Locked" },
-            { "id": "4_3", "title": "Level 4 · Teacher Leader — 🔒 Locked" }
+            {
+              "id": "1_0",
+              "title": "Level 1 \u00b7 Aspiring Teacher \u2014 Review"
+            },
+            {
+              "id": "2_1",
+              "title": "Level 2 \u00b7 Emerging Practitioner \u2014 Continue"
+            },
+            {
+              "id": "3_2",
+              "title": "Level 3 \u00b7 Skilled Practitioner \u2014 \ud83d\udd12 Locked"
+            },
+            {
+              "id": "4_3",
+              "title": "Level 4 \u00b7 Teacher Leader \u2014 \ud83d\udd12 Locked"
+            }
           ]
         }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextHeading",    "text": "${data.hero_title}" },
-          { "type": "TextSubheading", "text": "${data.hero_subtitle}" },
-          { "type": "TextCaption",    "text": "${data.hero_progress}" },
-
-          { "type": "TextHeading", "text": "${data.level_1_title}" },
-          { "type": "TextBody",    "text": "${data.level_1_progress}" },
-
-          { "type": "TextHeading", "text": "${data.level_2_title}" },
-          { "type": "TextBody",    "text": "${data.level_2_progress}" },
-
-          { "type": "TextHeading", "text": "${data.level_3_title}" },
-          { "type": "TextBody",    "text": "${data.level_3_progress}" },
-
-          { "type": "TextHeading", "text": "${data.level_4_title}" },
-          { "type": "TextBody",    "text": "${data.level_4_progress}" },
-
-          { "type": "TextHeading", "text": "${data.level_5_title}" },
-          { "type": "TextBody",    "text": "${data.level_5_progress}" },
-
+          {
+            "type": "TextHeading",
+            "text": "${data.hero_title}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "${data.hero_subtitle}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "${data.hero_progress}"
+          },
+          {
+            "type": "TextHeading",
+            "text": "${data.level_1_title}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.level_1_progress}"
+          },
+          {
+            "type": "TextHeading",
+            "text": "${data.level_2_title}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.level_2_progress}"
+          },
+          {
+            "type": "TextHeading",
+            "text": "${data.level_3_title}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.level_3_progress}"
+          },
+          {
+            "type": "TextHeading",
+            "text": "${data.level_4_title}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.level_4_progress}"
+          },
+          {
+            "type": "TextHeading",
+            "text": "${data.level_5_title}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.level_5_progress}"
+          },
           {
             "type": "Form",
             "name": "form",
@@ -168,50 +306,126 @@
       "title": "Level detail",
       "terminal": false,
       "data": {
-        "level_title":    { "type": "string", "__example__": "📖 Level 2 · Emerging Practitioner" },
-        "level_progress": { "type": "string", "__example__": "26/46 modules done · 57%" },
-        "level_order":    { "type": "string", "__example__": "2" },
-        "vendor_key":     { "type": "string", "__example__": "TALEEMABAD" },
+        "level_title": {
+          "type": "string",
+          "__example__": "\ud83d\udcd6 Level 2 \u00b7 Emerging Practitioner"
+        },
+        "level_progress": {
+          "type": "string",
+          "__example__": "26/46 modules done \u00b7 57%"
+        },
+        "level_order": {
+          "type": "string",
+          "__example__": "2"
+        },
+        "vendor_key": {
+          "type": "string",
+          "__example__": "TALEEMABAD"
+        },
         "module_list": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "id":          { "type": "string" },
-              "title":       { "type": "string" },
-              "description": { "type": "string" }
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
             }
           },
           "__example__": [
-            { "id": "54", "title": "Misconceptions in basic operations", "description": "Numeracy · Not started" },
-            { "id": "55", "title": "Fractions",                          "description": "Numeracy · ✓ Watched" },
-            { "id": "60", "title": "Patterns",                           "description": "Numeracy · Not started" }
+            {
+              "id": "54",
+              "title": "Misconceptions in basic operations",
+              "description": "Numeracy \u00b7 Not started"
+            },
+            {
+              "id": "55",
+              "title": "Fractions",
+              "description": "Numeracy \u00b7 \u2713 Watched"
+            },
+            {
+              "id": "60",
+              "title": "Patterns",
+              "description": "Numeracy \u00b7 Not started"
+            }
           ]
         },
-        "grand_quiz_body":    { "type": "string", "__example__": "🔒 Grand Quiz — Unlocks when all courses are complete" },
-        "grand_quiz_caption": { "type": "string", "__example__": "62 questions · 100% required · 24h cooldown on fail" },
-        "grand_quiz_cta":     { "type": "string", "__example__": "🔒 Locked" }
+        "grand_quiz_body": {
+          "type": "string",
+          "__example__": "\ud83d\udd12 Grand Quiz \u2014 Unlocks when all courses are complete"
+        },
+        "grand_quiz_caption": {
+          "type": "string",
+          "__example__": "62 questions \u00b7 100% required \u00b7 24h cooldown on fail"
+        },
+        "grand_quiz_cta": {
+          "type": "string",
+          "__example__": "\ud83d\udd12 Locked"
+        }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextHeading",    "text": "${data.level_title}" },
-          { "type": "TextSubheading", "text": "${data.level_progress}" },
+          {
+            "type": "TextHeading",
+            "text": "${data.level_title}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "${data.level_progress}"
+          },
           {
             "type": "Dropdown",
             "label": "Pick a module to watch",
             "name": "module_id",
             "required": false,
             "data-source": "${data.module_list}",
-            "on-select-action": { "name": "data_exchange", "payload": { "_action": "open_module", "module_id": "${form.module_id}", "_vendor_key": "${data.vendor_key}" } }
+            "on-select-action": {
+              "name": "data_exchange",
+              "payload": {
+                "_action": "open_module",
+                "module_id": "${form.module_id}",
+                "_vendor_key": "${data.vendor_key}"
+              }
+            }
           },
-          { "type": "TextBody",    "text": "${data.grand_quiz_body}" },
-          { "type": "TextCaption", "text": "${data.grand_quiz_caption}" },
-          { "type": "EmbeddedLink",
+          {
+            "type": "TextBody",
+            "text": "${data.grand_quiz_body}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "${data.grand_quiz_caption}"
+          },
+          {
+            "type": "EmbeddedLink",
             "text": "${data.grand_quiz_cta}",
-            "on-click-action": { "name": "data_exchange", "payload": { "_action": "start_grand_quiz", "_level_order": "${data.level_order}", "_vendor_key": "${data.vendor_key}" } }
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "_action": "start_grand_quiz",
+                "_level_order": "${data.level_order}",
+                "_vendor_key": "${data.vendor_key}"
+              }
+            }
           },
-          { "type": "Footer", "label": "Back to home", "on-click-action": { "name": "data_exchange", "payload": { "_action": "back_home", "_vendor_key": "${data.vendor_key}" } } }
+          {
+            "type": "Footer",
+            "label": "Back to home",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "_action": "back_home",
+                "_vendor_key": "${data.vendor_key}"
+              }
+            }
+          }
         ]
       }
     },
@@ -221,13 +435,26 @@
       "terminal": true,
       "success": true,
       "data": {
-        "message": { "type": "string", "__example__": "See you soon!" }
+        "message": {
+          "type": "string",
+          "__example__": "See you soon!"
+        }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextHeading", "text": "${data.message}" },
-          { "type": "Footer", "label": "Close", "on-click-action": { "name": "complete", "payload": {} } }
+          {
+            "type": "TextHeading",
+            "text": "${data.message}"
+          },
+          {
+            "type": "Footer",
+            "label": "Close",
+            "on-click-action": {
+              "name": "complete",
+              "payload": {}
+            }
+          }
         ]
       }
     }
