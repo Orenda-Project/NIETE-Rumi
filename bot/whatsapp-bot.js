@@ -1559,18 +1559,36 @@ async function handleDocumentMessage(message, from, user) {
   try {
     const documentId = message.document.id;
     const mimeType = message.document.mime_type || '';
+    const fileSize = message.document.file_size || 0;
 
-    logToFile('Document details', { documentId, mimeType, filename: message.document.filename });
+    logToFile('Document details', { documentId, mimeType, filename: message.document.filename, fileSize });
 
-    // CLASSROOM COACHING DETECTION: Check if document is an audio file (15+ minutes)
-    const isAudioDocument = mimeType.includes('audio') ||
-                           mimeType.includes('m4a') ||
-                           mimeType.includes('mp3') ||
-                           mimeType.includes('mpeg') ||
-                           mimeType.includes('wav');
+    // CLASSROOM COACHING DETECTION: Check if document is an audio file.
+    // Rifat's ask (Coach Platform card): teachers can now upload classroom
+    // recordings as WhatsApp documents (up to 100MB Meta limit) instead of
+    // voice messages (16MB Meta limit). Below we (a) detect audio MIME,
+    // (b) reject > 25MB before download (Whisper cap), (c) fall through to
+    // the existing ffprobe + duration-based routing for anything smaller.
+    const {
+      classifyAudioDocument,
+      buildTooLargeMessage,
+    } = require('./shared/handlers/audio-document-router');
+    const audioClassification = classifyAudioDocument({ mimeType, fileSize });
 
-    if (isAudioDocument) {
-      logToFile('🎵 Audio document detected, checking duration...');
+    if (audioClassification.decision === 'reject_too_large') {
+      logToFile('🚫 Audio document exceeds Whisper 25MB cap — rejecting before download', {
+        documentId,
+        mimeType,
+        fileSizeMB: audioClassification.sizeMB
+      });
+      await WhatsAppService.sendMessage(from, buildTooLargeMessage(audioClassification.sizeMB));
+      return;
+    }
+
+    if (audioClassification.decision === 'route_to_audio_pipeline') {
+      logToFile('🎵 Audio document detected, checking duration...', {
+        fileSizeMB: audioClassification.sizeMB
+      });
 
       try {
         // Download audio to check duration with ffprobe
