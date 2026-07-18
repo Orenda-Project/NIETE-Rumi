@@ -3832,6 +3832,12 @@ ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS classroom_photos JSONB DE
 ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS linked_lesson_plan_id UUID;
 ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS lesson_plan_link_method VARCHAR(20);
 ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS error_stack TEXT;
+-- Framework provenance (FEAT-060 / V1.0.8) — which framework key scored this
+-- session AND why the selector chose it. Nullable — pre-migration rows stay
+-- NULL. See V1.0.8__coaching_framework_provenance.sql for full documentation
+-- of the reason values.
+ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS framework TEXT;
+ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS framework_selection_reason TEXT;
 
 -- users: settings flow stores language + observation framework in a preferences JSONB.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{}';
