@@ -146,6 +146,19 @@ const FLOW_CONFIGS = [
     envVar: 'ASSESSMENT_GEN_FLOW_ID',
     categories: ['OTHER'],
   },
+  {
+    // Pakistan LP picker (FEAT-059). Grade → Subject → Chapter dropdown
+    // over pre_generated_lps where curriculum='pakistan'. Populated by
+    // bot/scripts/seed-feat059-feat080-pakistan-lps.js. The `lp`/`lesson
+    // plan` keyword in text-message.handler.js sends this Flow when
+    // PAKISTAN_LP_FLOW_ID is set.
+    name: 'Pakistan LP',
+    jsonPath: path.join(FLOWS_DIR, 'pakistan-lp-flow-v1.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/pakistan-lp',
+    envVar: 'PAKISTAN_LP_FLOW_ID',
+    categories: ['OTHER'],
+  },
 ];
 
 /** The flow names that a complete setup must have registered. */

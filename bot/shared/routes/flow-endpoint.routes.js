@@ -84,6 +84,11 @@ const {
   handleAssessmentGenDataExchange,
   handleAssessmentGenBack
 } = require('./assessment-gen-endpoint');
+const {
+  handlePakistanLpInit,
+  handlePakistanLpDataExchange,
+  handlePakistanLpBack
+} = require('./pakistan-lp-endpoint');
 
 /**
  * Handle attendance marking flow data requests
@@ -1025,6 +1030,44 @@ async function handleExamConfirmRequest(data) {
   if (action === 'data_exchange')             return await handleExamConfirmDataExchange(flow_token, screen, screenData);
   if (action === 'BACK')                      return await handleExamConfirmBack(flow_token);
   logToFile('Unknown exam-confirm flow action', { action });
+  return FlowEncryptionService.createErrorResponse('Unknown action');
+}
+
+// ============================================================
+// PAKISTAN LP FLOW ENDPOINT (FEAT-059) — pick a pre-generated LP by
+// Grade → Subject → Chapter and deliver the PDF to chat.
+// ============================================================
+
+router.post('/pakistan-lp', async (req, res) => {
+  try {
+    if (!FlowEncryptionService.isConfigured()) {
+      logToFile('Flow encryption not configured', { endpoint: 'pakistan-lp' });
+      return res.status(500).json({ error: 'Flow encryption not configured' });
+    }
+    const encryptedResponse = await FlowEncryptionService.processEncryptedRequest(
+      req.body,
+      async (decryptedData) => handlePakistanLpFlow(decryptedData)
+    );
+    res.set('Content-Type', 'text/plain');
+    res.send(encryptedResponse);
+  } catch (error) {
+    logToFile('Pakistan LP flow endpoint error', {
+      endpoint: 'pakistan-lp',
+      error: error.message,
+      stack: error.stack,
+    });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+async function handlePakistanLpFlow(data) {
+  const { action, flow_token, screen, data: screenData } = data;
+  logToFile('Handling Pakistan LP flow', { action, screen, hasFlowToken: !!flow_token });
+  if (action === 'ping') return FlowEncryptionService.handlePing();
+  if (action === 'INIT' || action === 'init') return await handlePakistanLpInit(flow_token);
+  if (action === 'data_exchange')             return await handlePakistanLpDataExchange(flow_token, screen, screenData);
+  if (action === 'BACK')                      return await handlePakistanLpBack(flow_token, screen);
+  logToFile('Unknown pakistan-lp flow action', { action });
   return FlowEncryptionService.createErrorResponse('Unknown action');
 }
 
