@@ -32,7 +32,9 @@ const ENDPOINT_PATH = path.resolve(
 
 function loadLevelOptionsMapper() {
   const source = fs.readFileSync(ENDPOINT_PATH, 'utf8');
-  const anchor = source.indexOf('data.level_options = catalog.slice');
+  // bd-2102 — the source now partitions by vendor first (partitionByVendor)
+  // and the option-id mapper runs on the per-vendor slice `vendorLevels`.
+  const anchor = source.indexOf('data.level_options = vendorLevels.slice');
   if (anchor < 0) throw new Error('level_options mapper not found in endpoint source');
   const idMatch = source.slice(anchor, anchor + 400).match(/id:\s+`([^`]+)`/);
   if (!idMatch) throw new Error('Composite id template not found — has the fix regressed to a plain String?');
@@ -62,9 +64,17 @@ describe('training home dropdown option ids', () => {
   const buildOptions = loadLevelOptionsMapper();
   const parseOpenLevel = loadOpenLevelParser();
 
-  test('ids are unique when two programs collide on order_index (Anam bug)', () => {
-    // Anam's actual production catalog snapshot from the log at 2026-07-16T15:26:36Z:
-    // both Taleemabad L2 and Beacon House English L2 have order_index=1, etc.
+  test('ids are unique when two programs collide on order_index (Anam bug — defence-in-depth)', () => {
+    // bd-2102 partitioning normally prevents this collision by scoping the
+    // TRAINING_HOME dropdown to a single vendor before the mapper runs, so
+    // within one vendor's slice order_index values should already be unique.
+    // The composite (order_index+1, arrayPosition) id kept as defence-in-depth
+    // against the rare same-vendor collision (data-entry error, migration
+    // edge, etc.). This test still enforces the invariant.
+    //
+    // Anam's actual production catalog snapshot from the log at
+    // 2026-07-16T15:26:36Z (pre-partition state): both Taleemabad L2 and
+    // Beacon House English L2 have order_index=1, etc.
     const catalog = [
       { order_index: 0, name: 'Aspiring Teacher' },
       { order_index: 1, name: 'English' },
