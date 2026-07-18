@@ -60,13 +60,15 @@ function wrapText(ctx, text, maxWidth) {
  * @param {{ action: string, example: string, indicator: string }|null} actionData
  * @param {string} frameworkKey - Framework key (oecd, hots, teach, fico)
  * @param {string} language - Language code for card copy (en, ur, ar, es)
+ * @param {string} [region] - Region name (drives the coach-role footer label:
+ *   e.g. "Human Coach" for ICT / NIETE, "Rumi Digital Coach" as default).
  * @returns {Buffer|null} PNG buffer or null if no action
  */
-function generateCardImage(actionData, frameworkKey = 'oecd', language = 'en') {
+function generateCardImage(actionData, frameworkKey = 'oecd', language = 'en', region) {
   if (!actionData) return null;
 
   try {
-    const copy = getCoachingCardCopy(language);
+    const copy = getCoachingCardCopy(language, region);
     const canvas = createCanvas(CARD_WIDTH, CARD_HEIGHT);
     const ctx = canvas.getContext('2d');
 

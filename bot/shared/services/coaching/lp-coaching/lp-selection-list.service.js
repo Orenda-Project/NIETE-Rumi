@@ -9,6 +9,7 @@
  */
 
 const { logToFile } = require('../../../utils/logger');
+const { coachRoleLabelForRegion } = require('../../../config/region-config');
 
 /**
  * Truncate a string to maxLen, appending '...' if truncated.
@@ -26,10 +27,17 @@ function truncate(str, maxLen) {
  * @param {string} coachingSessionId - Session UUID
  * @param {Array<{id: string, topic: string, grade: string, created_at: string}>} recentLPs
  * @param {string} language - User's language (en, ur, etc.)
+ * @param {string} [region] - User's region (drives the coach-role footer
+ *   label: "Human Coach" for ICT / NIETE, "Rumi Digital Coach" as default).
  * @returns {{ type: 'list'|'buttons', listData?: object, body?: string, buttons?: Array }}
  */
-function buildLPSelectionList(coachingSessionId, recentLPs, language = 'en') {
+function buildLPSelectionList(coachingSessionId, recentLPs, language = 'en', region) {
   const isUrdu = language === 'ur';
+  // Coach-role label for the list footer. English label used verbatim in the
+  // en path; the ur path keeps its localised default when no region override
+  // is supplied, and swaps to the region-scoped label when one is set.
+  const roleLabel = coachRoleLabelForRegion(region);
+  const isDefaultEnRole = roleLabel === 'Rumi Digital Coach';
 
   // Fallback: no recent LPs → simple Yes/No buttons
   if (!recentLPs || recentLPs.length === 0) {
@@ -76,7 +84,14 @@ function buildLPSelectionList(coachingSessionId, recentLPs, language = 'en') {
         ? 'کیا آپ اپنا حالیہ سبق کا منصوبہ منسلک کرنا چاہیں گے؟ درس کے تجزیے کو بہتر بنائے گا۔'
         : 'Would you like to link a recent lesson plan? It improves the analysis.',
     },
-    footer: { text: isUrdu ? 'رومی ڈیجیٹل کوچ' : 'Rumi Digital Coach' },
+    footer: {
+      // Preserve the historical Urdu footer text when the region resolves to
+      // the default English label (no override configured); otherwise use the
+      // region-scoped label (in Latin script) for both — a "Human Coach"
+      // deployment renders that in both languages until a localised override
+      // is supplied via the same env map (future work).
+      text: isUrdu && isDefaultEnRole ? 'رومی ڈیجیٹل کوچ' : roleLabel,
+    },
     action: {
       button: isUrdu ? 'منتخب کریں' : 'Select',
       sections: [

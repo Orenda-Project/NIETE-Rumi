@@ -30,6 +30,7 @@ const FeatureLinkerService = require('../feature-linker.service');
 const { uploadVoiceDebrief, uploadReportPDF } = require('../../storage/r2');
 const { TEMP_DIR } = require('../../utils/constants');
 const { getCoachingMessage } = require('../../config/coaching-messages');
+const { coachRoleLabelForRegion } = require('../../config/region-config');
 
 /**
  * Resolve language directly from a session row already in memory. The
@@ -282,7 +283,12 @@ class ReportGeneratorService {
 
         // Language for card copy (same resolution used elsewhere).
         const cardLanguage = session.users?.preferred_language || session.transcript_language || 'en';
-        const cardCopy = getCoachingCardCopy(cardLanguage);
+        // Region drives the coach-role footer label (e.g. "Human Coach" on
+        // ICT / NIETE, "Rumi Digital Coach" as the default). Fed through
+        // getCoachingCardCopy so the returned cardCopy.cardFooter and any
+        // downstream canvas render (generateCardImage below) both honour it.
+        const cardRegion = session.users?.region || '';
+        const cardCopy = getCoachingCardCopy(cardLanguage, cardRegion);
 
         const teacherFirstName = session.users?.first_name || 'Teacher';
 
@@ -323,7 +329,7 @@ class ReportGeneratorService {
               example: actionData.action,
               indicator: actionData.indicator || '',
             };
-            cardBuffer = generateCardImage(legacy, enhancedAnalysis.framework || 'oecd', cardLanguage);
+            cardBuffer = generateCardImage(legacy, enhancedAnalysis.framework || 'oecd', cardLanguage, cardRegion);
           }
 
           if (cardBuffer) {
@@ -1108,7 +1114,9 @@ class ReportGeneratorService {
       observationDate,
       subject: session.lesson_plan_structured?.subject || enhancedAnalysis.subject || 'N/A',
       topic: session.lesson_plan_structured?.topic || enhancedAnalysis.topic || 'N/A',
-      observerName: 'Rumi Digital Coach',
+      // Region-routed observer label (see region-config.js). ICT / NIETE
+      // renders "Human Coach"; other regions fall back to the default.
+      observerName: coachRoleLabelForRegion(session.users?.region),
       hasLessonPlan: hasLessonPlanData,
       totalScore,
       maxScore: maxPossibleMarks,

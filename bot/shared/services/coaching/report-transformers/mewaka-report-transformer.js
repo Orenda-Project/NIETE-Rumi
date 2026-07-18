@@ -20,6 +20,7 @@
  */
 
 const { formatDate } = require('./_shared');
+const { coachRoleLabelForRegion } = require('../../../config/region-config');
 
 // Domain order + Swahili display names, matched to MEWAKA framework module
 const DOMAIN_CONFIG = [
@@ -103,7 +104,11 @@ function transformMEWAKAToReportData(session, teacherName, analysis) {
  observationDate: formatDate(session.created_at),
  subject: session.lesson_plan_structured?.subject || analysis.subject || 'N/A',
  topic: session.lesson_plan_structured?.topic || analysis.topic || 'N/A',
- observerName: 'Rumi',
+ // observerName is region-routed via coachRoleLabelForRegion. MEWAKA
+ // historically shipped the bare 'Rumi' label to Tanzania; that stays the
+ // Tanzania default via env (or the DEFAULT_COACH_ROLE_LABEL fallback),
+ // but the value is now consistent with the other transformers.
+ observerName: coachRoleLabelForRegion(session.users?.region),
  frameworkDisplayName: 'MEWAKA — Mafunzo Endelevu ya Walimu Kazini',
  totalScore,
  maxScore: MAX_MARKS,
