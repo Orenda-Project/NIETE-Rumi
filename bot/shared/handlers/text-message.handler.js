@@ -754,6 +754,46 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
+  // PAKISTAN LP KEYWORD (FEAT-059): `lp`, `lesson plan`, `لیسن پلان`.
+  // Presence-gated on PAKISTAN_LP_FLOW_ID — when empty, we let the message
+  // fall through to the existing curriculum-LP topic intercept (topic-guess
+  // path). The Flow is the preferred UX when it's provisioned because it
+  // gives teachers a deterministic Grade→Subject→Chapter picker instead of
+  // relying on NLU guessing.
+  // ============================================================
+  {
+    const PAKISTAN_LP_FLOW_ID = process.env.PAKISTAN_LP_FLOW_ID || '';
+    const lpKeyword = /^(lp|lesson\s*plan|لیسن\s*پلان|lesson-plan|\/lp)$/i.test(trimmedMessage);
+    if (PAKISTAN_LP_FLOW_ID && lpKeyword) {
+      logToFile('📘 LP keyword detected → opening Pakistan LP flow', { userId: user?.id, phoneNumber: from, message: trimmedMessage });
+      if (!user) {
+        typingController.stop();
+        await WhatsAppService.sendMessage(
+          from,
+          'Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔'
+        );
+        return;
+      }
+      typingController.stop();
+      const responseLanguage = await getUserLanguage(from) || 'en';
+      const flowToken = `${user.id}:pakistan-lp:${Date.now()}`;
+      await WhatsAppService.sendFlow(from, {
+        flowId: PAKISTAN_LP_FLOW_ID,
+        header: '📘 Lesson Plans',
+        body: ({
+          ur: 'اپنی کلاس، مضمون اور باب چنیں — میں لیسن پلان آپ کی چیٹ میں بھیج دوں گا۔',
+        })[responseLanguage] || 'Pick your class, subject, and chapter — I will send the lesson plan to your chat.',
+        buttonText: ({
+          ur: 'شروع کریں',
+        })[responseLanguage] || 'Browse',
+        flowToken,
+      });
+      logToFile('📘 Sent Pakistan LP flow', { userId: user.id });
+      return;
+    }
+  }
+
+  // ============================================================
   // VIDEO GENERATION COMMAND: Check for /video command
   // ============================================================
   if (trimmedMessage === '/video' || trimmedMessage.startsWith('/video ')) {

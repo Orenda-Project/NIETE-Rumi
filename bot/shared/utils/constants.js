@@ -54,6 +54,9 @@ const EXAM_GENERATOR_FLOW_ID = process.env.EXAM_GENERATOR_FLOW_ID || '';
 // WhatsApp Flow ID for the Assessment Generator Service (Orenda-Project/UG_EG).
 // Empty → /assessment is disabled and replies with a hint.
 const ASSESSMENT_GEN_FLOW_ID = process.env.ASSESSMENT_GEN_FLOW_ID || '';
+// WhatsApp Flow ID for the Pakistan LP picker (FEAT-059). Empty → the `lp`
+// keyword falls through to the text-intercept path (topic → grade+subject).
+const PAKISTAN_LP_FLOW_ID = process.env.PAKISTAN_LP_FLOW_ID || '';
 // Teacher-facing WhatsApp number shown in the lesson-plan Coaching Corner
 // (empty → the contact line is omitted from the rendered LP).
 const COACHING_WHATSAPP_NUMBER = process.env.COACHING_WHATSAPP_NUMBER || '';
@@ -163,6 +166,7 @@ module.exports = {
   TEACHER_TRAINING_FLOW_ID,
   EXAM_GENERATOR_FLOW_ID,
   ASSESSMENT_GEN_FLOW_ID,
+  PAKISTAN_LP_FLOW_ID,
   COACHING_WHATSAPP_NUMBER,
 
   // Directory Paths

@@ -1,0 +1,135 @@
+{
+  "version": "6.3",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "SPEC": ["SELECT_GRADE"],
+    "SELECT_GRADE": ["SELECT_SUBJECT"],
+    "SELECT_SUBJECT": ["SELECT_TOPIC"],
+    "SELECT_TOPIC": ["SUCCESS"],
+    "SUCCESS": []
+  },
+  "screens": [
+    {
+      "id": "SPEC",
+      "title": "Lesson Plans",
+      "data": {
+        "welcome_title": { "type": "string", "__example__": "Ready-Made Lesson Plans" },
+        "welcome_body": { "type": "string", "__example__": "Pick your class, subject, and chapter. I will send the lesson plan PDF to your chat." }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "spec_form",
+            "children": [
+              { "type": "TextHeading", "text": "${data.welcome_title}" },
+              { "type": "TextBody", "text": "${data.welcome_body}" },
+              { "type": "Footer", "label": "Continue", "on-click-action": { "name": "data_exchange", "payload": {} } }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SELECT_GRADE",
+      "title": "Select Class",
+      "data": {
+        "grades": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" } } },
+          "__example__": [ { "id": "1", "title": "Grade 1" }, { "id": "2", "title": "Grade 2" }, { "id": "3", "title": "Grade 3" } ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "grade_form",
+            "children": [
+              { "type": "TextHeading", "text": "Which class?" },
+              { "type": "TextBody", "text": "Pick the grade you teach." },
+              { "type": "Dropdown", "name": "grade", "label": "Class / Grade", "required": true, "data-source": "${data.grades}" },
+              { "type": "Footer", "label": "Next", "on-click-action": { "name": "data_exchange", "payload": { "grade": "${form.grade}" } } }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SELECT_SUBJECT",
+      "title": "Select Subject",
+      "data": {
+        "subjects": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" } } },
+          "__example__": [ { "id": "English", "title": "English" }, { "id": "Math", "title": "Math" } ]
+        },
+        "grade_value": { "type": "string", "__example__": "1" },
+        "grade_display": { "type": "string", "__example__": "Grade 1" }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "subject_form",
+            "children": [
+              { "type": "TextHeading", "text": "${data.grade_display}" },
+              { "type": "TextBody", "text": "Choose a subject." },
+              { "type": "Dropdown", "name": "subject", "label": "Subject", "required": true, "data-source": "${data.subjects}" },
+              { "type": "Footer", "label": "Next", "on-click-action": { "name": "data_exchange", "payload": { "grade": "${data.grade_value}", "subject": "${form.subject}" } } }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SELECT_TOPIC",
+      "title": "Pick a Chapter",
+      "data": {
+        "topics": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" } } },
+          "__example__": [ { "id": "row-uuid-1", "title": "Ch 1: Hello World" } ]
+        },
+        "grade_value": { "type": "string", "__example__": "1" },
+        "subject_value": { "type": "string", "__example__": "English" },
+        "header_text": { "type": "string", "__example__": "Grade 1 — English" }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "topic_form",
+            "children": [
+              { "type": "TextHeading", "text": "${data.header_text}" },
+              { "type": "TextBody", "text": "Pick a chapter — the lesson plan will land in your chat shortly." },
+              { "type": "Dropdown", "name": "topic", "label": "Chapter", "required": true, "data-source": "${data.topics}" },
+              { "type": "Footer", "label": "Send Lesson Plan", "on-click-action": { "name": "data_exchange", "payload": { "grade": "${data.grade_value}", "subject": "${data.subject_value}", "topic": "${form.topic}" } } }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SUCCESS",
+      "title": "Lesson Plan On The Way",
+      "terminal": true,
+      "data": {
+        "message": { "type": "string", "__example__": "Your lesson plan \"Hello World\" (Grade 1 English) is on its way!" }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextHeading", "text": "Sent!" },
+          { "type": "TextBody", "text": "${data.message}" },
+          { "type": "TextBody", "text": "Check your chat — the PDF will arrive in a few seconds. You can close this form now." },
+          { "type": "Footer", "label": "Done", "on-click-action": { "name": "complete", "payload": {} } }
+        ]
+      }
+    }
+  ]
+}
