@@ -88,6 +88,7 @@ const REGIONS_DROPDOWN = [
 
 const ORGANIZATIONS_DROPDOWN = [
   { id: 'fde', title: 'FDE' },
+  { id: 'niete', title: 'NIETE' },
   { id: 'aga_khan', title: 'Aga Khan Foundation' },
   { id: 'tcf', title: 'TCF' },
   { id: 'care', title: 'CARE Foundation' },

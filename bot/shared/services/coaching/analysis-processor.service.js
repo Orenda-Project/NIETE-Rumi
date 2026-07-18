@@ -18,7 +18,7 @@ const GPT5MiniService = require('../gpt5-mini.service');
 const WhatsAppService = require('../whatsapp.service');
 const CoachingSessionService = require('./coaching-session.service');
 const { PEDAGOGICAL_ANALYSIS_MEDIA_ID } = require('../../utils/constants');
-const { selectFramework } = require('./frameworks/framework-selector');
+const { selectFrameworkWithReason } = require('./frameworks/framework-selector');
 const { getCoachingMessage } = require('../../config/coaching-messages');
 
 /**
@@ -115,9 +115,19 @@ class AnalysisProcessorService {
 
       logToFile('Analysis metadata', metadata);
 
-      // Resolve pedagogical framework for this user
-      const framework = await selectFramework(session.user_id);
-      logToFile('Framework resolved', { userId: session.user_id, framework: framework.name });
+      // Resolve pedagogical framework for this user, capturing the selection
+      // path so it can be persisted for later audit / dashboards.
+      const {
+        framework,
+        frameworkKey,
+        reason: frameworkSelectionReason,
+      } = await selectFrameworkWithReason(session.user_id);
+      logToFile('Framework resolved', {
+        userId: session.user_id,
+        framework: framework.name,
+        frameworkKey,
+        reason: frameworkSelectionReason,
+      });
 
       // The pedagogy analysis and the v12 reflective corpus extraction run CONCURRENTLY.
       // allSettled (NOT all) keeps the corpus extraction NON-BLOCKING — if it rejects, the
@@ -160,6 +170,8 @@ class AnalysisProcessorService {
       });
 
       // Update database — merge reflective_corpus into analysis_data when present.
+      // Also persist the framework provenance (which key + why it was chosen)
+      // so downstream analytics can audit selection paths without re-computing.
       await supabase
         .from('coaching_sessions')
         .update({
@@ -172,6 +184,8 @@ class AnalysisProcessorService {
           gpt5_input_tokens: analysisResult.usage.input_tokens,
           gpt5_output_tokens: analysisResult.usage.output_tokens,
           gpt5_cached_tokens: analysisResult.usage.cached_tokens,
+          framework: frameworkKey,
+          framework_selection_reason: frameworkSelectionReason,
         })
         .eq('id', coachingSessionId);
 
