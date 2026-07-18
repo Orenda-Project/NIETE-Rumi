@@ -2,20 +2,29 @@
 /**
  * Teacher Training Flow endpoint handler.
  *
- * Two-screen Flow (see docs/flows/teacher-training-flow-v1.json):
- *   TRAINING_HOME → 4 level cards with per-teacher progress + badges
- *   LEVEL_DETAIL  → 9 course cards for the picked level + grand-quiz status
+ * Three-screen Flow (see docs/flows/teacher-training-flow-v1.json):
+ *   VENDOR_PICKER → one row per Vendor (Taleemabad / Oxbridge / Beacon House)
+ *                   the teacher is enrolled in; auto-skipped when only one.
+ *   TRAINING_HOME → up to 5 level cards for the picked Vendor
+ *   LEVEL_DETAIL  → module cards for the picked level + grand-quiz status
  *   SUCCESS       → terminal
  *
- * When the Flow closes (Footer:Close, or grand-quiz start), the extension_message_response
- * hands control back to the bot which either:
- *   - open_course:      sends module list as inline WhatsApp messages
+ * When the Flow closes (Footer:Close, or grand-quiz start), the
+ * extension_message_response hands control back to the bot which either:
+ *   - open_module:      sends the module video/audio as inline messages
  *   - start_grand_quiz: kicks off the inline Q-by-Q assessment
  *   - close:            no-op
  *
  * Data source: NIETE-Rumi Supabase (training_* tables). Access is Program-gated:
  * a Teacher only sees Vendors they're Assigned to via teacher_training_assignments.
  * See CONTEXT.md + docs/adr/0001-training-domain-model-programs.md.
+ *
+ * bd-2102 (Anam Masood 2026-07-17): a multi-vendor teacher was seeing all
+ * vendors' levels mixed into a single dropdown — "Level 1 English" from
+ * Beacon House next to "Level 1 Aspiring Teacher" from Taleemabad. The
+ * VENDOR_PICKER screen restores program-level distinctness so the teacher
+ * chooses which program to open before seeing that program's levels.
+ * Single-vendor teachers still see TRAINING_HOME directly — no extra tap.
  */
 
 const { logToFile } = require('../utils/logger');
@@ -29,28 +38,67 @@ function badgeUrl(name) {
 }
 
 /**
- * INIT — render Training Home from live DB state.
+ * INIT — render either the vendor picker (multi-vendor teacher) or the
+ * training home scoped to the sole vendor (single-vendor teacher).
  */
 async function handleTeacherTrainingInit(userId /*, flowToken */) {
   logToFile('🎓 Training Flow INIT', { userId });
-  return buildTrainingHome(userId);
+  const catalog = await loadVisibleLevelsWithProgress(userId);
+  const teacher = await loadTeacher(userId);
+  if (!teacher) return errorScreen('We could not find your training profile. Please contact NIETE support.');
+  if (catalog.length === 0) {
+    return errorScreen(
+      `No training assigned yet, ${teacher.first_name || 'teacher'}. ` +
+      'Please contact your NIETE program lead to enrol you.'
+    );
+  }
+
+  const vendors = partitionByVendor(catalog);
+  if (vendors.length > 1) {
+    return buildVendorPicker(userId, teacher, vendors);
+  }
+  // Single-vendor teacher — skip picker, go straight to home for that vendor.
+  return buildTrainingHome(userId, { vendorKey: vendors[0].vendor_key, teacher, catalog });
 }
 
 /**
- * data_exchange — user tapped something in TRAINING_HOME or LEVEL_DETAIL.
+ * data_exchange — user tapped something in VENDOR_PICKER / TRAINING_HOME /
+ * LEVEL_DETAIL.
  */
 async function handleTeacherTrainingDataExchange(userId, screen, screenData /*, flowToken */) {
   logToFile('🎓 Training Flow data_exchange', { userId, screen, screenData });
+
+  if (screen === 'VENDOR_PICKER') {
+    const action = screenData._action;
+    if (action === 'open_vendor') {
+      const vendorKey = String(screenData._vendor_key || '').trim();
+      if (!vendorKey) return createErrorResponse('Missing vendor');
+      return buildTrainingHome(userId, { vendorKey });
+    }
+    if (action === 'close') return buildSuccessScreen('See you soon!');
+    return createErrorResponse('Unknown action on vendor picker');
+  }
 
   if (screen === 'TRAINING_HOME') {
     const action = screenData._action;
     if (action === 'open_level') {
       // parseInt tolerates the composite "N_i" ids emitted by buildTrainingHome
-      // to keep dropdown option ids unique when multiple training programs
-      // share the same order_index (e.g. Beacon House + Taleemabad both start
-      // at level 1). Legacy plain-numeric ids still parse as themselves.
+      // to keep dropdown option ids unique when multiple levels of the current
+      // vendor share the same order_index (extremely rare after partitioning
+      // by vendor, but kept as defence-in-depth). Legacy plain-numeric ids
+      // still parse as themselves.
       const levelOrder = parseInt(String(screenData._level_order), 10);
-      return buildLevelDetail(userId, levelOrder);
+      const vendorKey = String(screenData._vendor_key || '').trim() || null;
+      return buildLevelDetail(userId, levelOrder, { vendorKey });
+    }
+    if (action === 'back_to_vendors') {
+      // Multi-vendor teacher tapped "Switch program" — send them back.
+      const catalog = await loadVisibleLevelsWithProgress(userId);
+      const teacher = await loadTeacher(userId);
+      const vendors = partitionByVendor(catalog);
+      if (vendors.length > 1 && teacher) return buildVendorPicker(userId, teacher, vendors);
+      // Only one vendor — nothing to switch to; refresh home instead.
+      return buildTrainingHome(userId, { vendorKey: vendors[0]?.vendor_key });
     }
     if (action === 'close') return buildSuccessScreen('See you soon!');
     return createErrorResponse('Unknown action on training home');
@@ -58,6 +106,7 @@ async function handleTeacherTrainingDataExchange(userId, screen, screenData /*, 
 
   if (screen === 'LEVEL_DETAIL') {
     const action = screenData._action;
+    const vendorKey = String(screenData._vendor_key || '').trim() || null;
     if (action === 'open_module') {
       return buildSuccessScreen('Opening module…', {
         trainingAction: 'open_module',
@@ -74,18 +123,24 @@ async function handleTeacherTrainingDataExchange(userId, screen, screenData /*, 
     if (action === 'start_grand_quiz') {
       // WhatsApp Flow's on-click-action.payload doesn't interpolate ${data.*} —
       // only literals and ${form.*} — so LEVEL_DETAIL can't pass level_order back
-      // through the button. Infer it from server state instead: only ONE level
-      // can be in 'ready_for_quiz' at a time (the gate logic ensures higher levels
-      // stay 'locked' until the previous one is passed), so lookup is unambiguous.
+      // through the button. Infer it from server state (scoped to the current
+      // vendor when we know it) instead: only ONE level can be in
+      // 'ready_for_quiz' at a time within a chain-locked vendor, so lookup is
+      // unambiguous.
       let levelOrder = screenData._level_order;
       if (!levelOrder) {
         const catalog = await loadVisibleLevelsWithProgress(userId);
-        const readyLevels = (catalog || []).filter(l => l.state === 'ready_for_quiz');
+        const scoped = vendorKey
+          ? (catalog || []).filter(l => l.vendor_key === vendorKey)
+          : (catalog || []);
+        const readyLevels = scoped.filter(l => l.state === 'ready_for_quiz');
         if (readyLevels.length === 1) {
           levelOrder = readyLevels[0].order_index + 1;
-          logToFile('🎓 Inferred levelOrder from ready state', { userId, levelOrder });
+          logToFile('🎓 Inferred levelOrder from ready state', { userId, vendorKey, levelOrder });
         } else {
-          logToFile('❌ Cannot infer levelOrder for start_grand_quiz', { userId, readyCount: readyLevels.length });
+          logToFile('❌ Cannot infer levelOrder for start_grand_quiz', {
+            userId, vendorKey, readyCount: readyLevels.length,
+          });
           return errorScreen('Please open the level again and tap Take exam.');
         }
       }
@@ -94,7 +149,7 @@ async function handleTeacherTrainingDataExchange(userId, screen, screenData /*, 
         levelOrder,
       });
     }
-    if (action === 'back_home') return buildTrainingHome(userId);
+    if (action === 'back_home') return buildTrainingHome(userId, { vendorKey });
     return createErrorResponse('Unknown action on level detail');
   }
 
@@ -103,79 +158,166 @@ async function handleTeacherTrainingDataExchange(userId, screen, screenData /*, 
 }
 
 /**
- * BACK — always refresh Training Home.
+ * BACK — return to the previous logical screen. From LEVEL_DETAIL / TRAINING_HOME
+ * we always want the training home. Multi-vendor teachers can use the
+ * "Switch program" tap to get back to the picker.
  */
-async function handleTeacherTrainingBack(userId /*, screen, flowToken */) {
-  logToFile('🎓 Training Flow BACK', { userId });
-  return buildTrainingHome(userId);
+async function handleTeacherTrainingBack(userId, screen /*, flowToken */) {
+  logToFile('🎓 Training Flow BACK', { userId, screen });
+  // No vendor key is carried through the raw BACK gesture — recompute from state.
+  const catalog = await loadVisibleLevelsWithProgress(userId);
+  const teacher = await loadTeacher(userId);
+  if (!teacher) return errorScreen('We could not find your training profile. Please contact NIETE support.');
+  const vendors = partitionByVendor(catalog);
+  if (vendors.length > 1) return buildVendorPicker(userId, teacher, vendors);
+  return buildTrainingHome(userId, { vendorKey: vendors[0]?.vendor_key, teacher, catalog });
 }
 
 // ─── Builders ──────────────────────────────────────────────────────────────
 
-async function buildTrainingHome(userId) {
-  const [teacher, catalog] = await Promise.all([
-    loadTeacher(userId),
-    loadVisibleLevelsWithProgress(userId),
-  ]);
+/**
+ * bd-2102 — group a flat catalog of levels (as returned by
+ * loadVisibleLevelsWithProgress) by vendor. Preserves each vendor's internal
+ * level order. Returns a stable-ordered array of {vendor_key, vendor_name,
+ * unlock_logic, levels[], summary} — vendor order derived from the first
+ * appearance of each vendor in the catalog. Pure — no DB access; safe to
+ * unit-test with fixture data.
+ */
+function partitionByVendor(catalog) {
+  const groups = new Map();  // vendor_key → group
+  for (const lvl of catalog || []) {
+    const key = lvl.vendor_key;
+    if (!key) continue;  // guard: skip rows without a vendor tag
+    if (!groups.has(key)) {
+      groups.set(key, {
+        vendor_key:   key,
+        vendor_name:  lvl.vendor_name || key,
+        unlock_logic: lvl.unlock_logic || 'chain',
+        levels:       [],
+      });
+    }
+    groups.get(key).levels.push(lvl);
+  }
+  // Sort each vendor's levels by order_index.
+  for (const g of groups.values()) {
+    g.levels.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+    const totalC = g.levels.reduce((s, l) => s + (l.courses_total || 0), 0);
+    const doneC  = g.levels.reduce((s, l) => s + (l.courses_completed || 0), 0);
+    g.summary = {
+      levels_total:     g.levels.length,
+      levels_certified: g.levels.filter(l => l.state === 'certified').length,
+      courses_total:    totalC,
+      courses_done:     doneC,
+      pct_complete:     totalC === 0 ? 0 : Math.round((doneC / totalC) * 100),
+    };
+  }
+  return Array.from(groups.values());
+}
+
+/**
+ * Build the VENDOR_PICKER screen. One row per vendor, showing progress summary.
+ * The dropdown value is the vendor_key (e.g. TALEEMABAD / OXBRIDGE / BEACONHOUSE)
+ * which the data_exchange handler uses to scope buildTrainingHome.
+ */
+function buildVendorPicker(userId, teacher, vendors) {
+  const data = {
+    hero_title:    'Choose a program',
+    hero_subtitle: teacherSubtitle(teacher),
+    hero_caption:  `You are enrolled in ${vendors.length} training programs. Pick one to open its levels.`,
+    vendor_options: vendors.map(v => ({
+      id:    v.vendor_key,
+      title: v.vendor_name,
+      description: vendorSummaryLine(v),
+    })),
+  };
+  logToFile('🎓 VENDOR_PICKER response snapshot', {
+    userId,
+    vendor_count: vendors.length,
+    vendor_keys: vendors.map(v => v.vendor_key),
+  });
+  return { screen: 'VENDOR_PICKER', data };
+}
+
+/**
+ * Build the TRAINING_HOME screen scoped to a single vendor. If vendorKey is
+ * absent, we default to the first vendor in the catalog — which is the correct
+ * behaviour for single-vendor teachers.
+ *
+ * The prefetched teacher + catalog args let the INIT handler avoid a duplicate
+ * DB round-trip. Falls back to loading when omitted (e.g. data_exchange path).
+ */
+async function buildTrainingHome(userId, opts = {}) {
+  let { vendorKey, teacher, catalog } = opts;
+  if (!teacher || !catalog) {
+    const [t, c] = await Promise.all([
+      teacher ? Promise.resolve(teacher) : loadTeacher(userId),
+      catalog ? Promise.resolve(catalog) : loadVisibleLevelsWithProgress(userId),
+    ]);
+    teacher = t;
+    catalog = c;
+  }
   if (!teacher) return errorScreen('We could not find your training profile. Please contact NIETE support.');
-  if (catalog.length === 0) {
+  if (!catalog || catalog.length === 0) {
     return errorScreen(
       `No training assigned yet, ${teacher.first_name || 'teacher'}. ` +
       'Please contact your NIETE program lead to enrol you.'
     );
   }
 
-  // We render 5 level cards (matches the Flow JSON — L1-L4 Taleemabad + L5
-  // Oxbridge Game-Based Teaching) as info-only text, plus a Dropdown at the
-  // bottom listing the openable levels. The dropdown replaces the old
-  // per-level EmbeddedLinks (Meta caps EmbeddedLinks at 2 per screen).
+  const vendors = partitionByVendor(catalog);
+  const isMultiVendor = vendors.length > 1;
+  // Scope to the chosen vendor; fall back to the first (single-vendor case).
+  const chosen = vendorKey
+    ? vendors.find(v => v.vendor_key === vendorKey) || vendors[0]
+    : vendors[0];
+  if (!chosen) return errorScreen('That program is not part of your enrolment.');
+  const vendorLevels = chosen.levels;
+
   const data = {
-    hero_title:    'Teacher Training',
-    hero_subtitle: teacherSubtitle(teacher),
-    hero_progress: overallProgressLine(catalog),
+    hero_title:      chosen.vendor_name,
+    hero_subtitle:   teacherSubtitle(teacher),
+    hero_progress:   vendorSummaryLine(chosen),
+    hero_vendor_key: chosen.vendor_key,  // echoed back through form actions
+    switch_program_visible: isMultiVendor,
   };
   for (let i = 0; i < 5; i++) {
     const slot = i + 1;
-    const lvl = catalog[i];
+    const lvl = vendorLevels[i];
     if (!lvl) {
       data[`level_${slot}_title`]     = `🔒 Level ${slot}`;
-      data[`level_${slot}_progress`]  = 'Not part of your program';
+      data[`level_${slot}_progress`]  = 'Not part of this program';
       continue;
     }
     data[`level_${slot}_title`]     = `${levelEmoji(lvl)} Level ${lvl.order_index + 1} · ${shortLevelName(lvl)}`;
     data[`level_${slot}_progress`]  = levelProgressLine(lvl);
   }
 
-  // Dropdown options — include locked levels too so the teacher sees the full
-  // list, but the endpoint's open_level handler will reject taps on locked
-  // levels with a helpful error. Alternatively we could filter locked out;
-  // showing them is friendlier UX (they know what's coming).
-  //
-  // The id is a composite of order_index+1 and the array position ("2_1", "3_4")
-  // so options stay unique even when a teacher is enrolled in multiple training
-  // programs that share order_index values (e.g. Beacon House + Taleemabad
-  // both starting at level 1). WhatsApp Flow rejects duplicate Dropdown ids
-  // with a silent "Something went wrong" client-side render error. The
-  // open_level handler uses parseInt to recover the semantic order.
-  data.level_options = catalog.slice(0, 5).map((lvl, i) => ({
+  // Dropdown options for the chosen vendor. Composite id kept as a defence-
+  // in-depth against the extremely rare same-vendor order_index collision;
+  // after partitioning, within a single vendor's list they will almost always
+  // be unique already.
+  data.level_options = vendorLevels.slice(0, 5).map((lvl, i) => ({
     id:    `${lvl.order_index + 1}_${i}`,
     title: `Level ${lvl.order_index + 1} · ${shortLevelName(lvl)} — ${ctaForLevel(lvl)}`,
   }));
 
   logToFile('🎓 TRAINING_HOME response snapshot', {
     userId,
-    catalog_size: catalog.length,
+    vendor_key: chosen.vendor_key,
+    vendor_level_count: vendorLevels.length,
     level_options_count: data.level_options.length,
     level_options: data.level_options,
-    data_keys: Object.keys(data),
+    is_multi_vendor: isMultiVendor,
   });
 
   return { screen: 'TRAINING_HOME', data };
 }
 
-async function buildLevelDetail(userId, levelOrder) {
+async function buildLevelDetail(userId, levelOrder, opts = {}) {
+  const { vendorKey } = opts;
   const catalog = await loadVisibleLevelsWithProgress(userId);
-  const lvl = catalog.find(l => l.order_index === levelOrder - 1);
+  const scoped = vendorKey ? catalog.filter(l => l.vendor_key === vendorKey) : catalog;
+  const lvl = scoped.find(l => l.order_index === levelOrder - 1);
   if (!lvl) return errorScreen('That level is not part of your program.');
   if (lvl.state === 'locked') return errorScreen(`Pass Level ${levelOrder - 1}'s grand quiz first to unlock this level.`);
 
@@ -192,6 +334,10 @@ async function buildLevelDetail(userId, levelOrder) {
       level_title:    `${levelEmoji(lvl)} Level ${lvl.order_index + 1} · ${shortLevelName(lvl)}`,
       level_progress: `${doneModules}/${totalModules} modules done · ${pct}%`,
       level_order:    String(levelOrder),
+      // bd-2102 — echoed back through payload interpolation so downstream
+      // data_exchange keeps the vendor scope. Falls back to '' for single-
+      // vendor teachers whose level rows don't carry a resolved key.
+      vendor_key:     String(lvl.vendor_key || ''),
       module_list:    modules.map(m => ({
         id:          String(m.id),
         title:       m.title.length > 40 ? `${m.title.slice(0, 37)}…` : m.title,
@@ -285,7 +431,7 @@ async function loadVisibleLevelsWithProgress(userId) {
       .in('vendor_id', vendorIds)
       .eq('is_active', true)
       .order('order_index', { ascending: true }),
-    supabase.from('training_vendors').select('id, key, unlock_logic, has_grand_quiz').in('id', vendorIds),
+    supabase.from('training_vendors').select('id, key, name, unlock_logic, has_grand_quiz').in('id', vendorIds),
   ]);
   if (lErr || !allLevels) return [];
   const vendorById = new Map((vendorRows || []).map(v => [v.id, v]));
@@ -350,6 +496,11 @@ async function loadVisibleLevelsWithProgress(userId) {
       order_index: lv.order_index,
       name: lv.name,
       cpd_level: lv.cpd_level,
+      // bd-2102 — vendor tags let partitionByVendor group and label per-program.
+      vendor_id:    lv.vendor_id,
+      vendor_key:   vendor?.key || null,
+      vendor_name:  vendor?.name || vendor?.key || null,
+      unlock_logic: vendor?.unlock_logic || 'chain',
       state,
       courses_total: lvCourses.length,
       courses_completed: coursesStarted.length,
@@ -418,6 +569,20 @@ function teacherSubtitle(t) {
   const name = t.name || `${t.first_name || ''} ${t.last_name || ''}`.trim() || t.phone_number;
   const school = t.school_name ? ` · ${t.school_name}` : '';
   return `${name}${school}`;
+}
+
+function vendorSummaryLine(vendor) {
+  const s = vendor.summary || {};
+  const pct = s.pct_complete ?? 0;
+  const doneC = s.courses_done ?? 0;
+  const totalC = s.courses_total ?? 0;
+  const cert = s.levels_certified ?? 0;
+  const tot = s.levels_total ?? vendor.levels.length;
+  const parts = [];
+  parts.push(`${tot} levels`);
+  if (cert > 0) parts.push(`${cert} certified`);
+  if (totalC > 0) parts.push(`${pct}% · ${doneC}/${totalC} courses`);
+  return parts.join(' · ');
 }
 
 function overallProgressLine(levels) {
@@ -518,4 +683,7 @@ module.exports = {
   handleTeacherTrainingInit,
   handleTeacherTrainingDataExchange,
   handleTeacherTrainingBack,
+  // Pure helpers exported for unit tests (bd-2102).
+  partitionByVendor,
+  vendorSummaryLine,
 };
