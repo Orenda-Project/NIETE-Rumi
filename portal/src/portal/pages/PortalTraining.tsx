@@ -27,6 +27,7 @@ import { GraduationCap, CheckCircle2, Circle, Loader2, Lock, Award, ClipboardChe
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
 import ModuleQuizPanel, { type SubmittedAttempt } from '../components/ModuleQuizPanel';
+import LevelExamCard from '../components/LevelExamCard';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -279,6 +280,22 @@ const PortalTraining = () => {
       } finally { setLoadingLevels(false); }
     })();
   }, [toast]);
+
+  // The full Level object for the current selection — drives the LevelExamCard
+  // (grand quiz / level exam) below the cascade.
+  const selectedLevelObj = useMemo(
+    () => levels.find(l => String(l.id) === selectedLevel) ?? null,
+    [levels, selectedLevel]
+  );
+
+  // Re-pull levels after a certification so the picker flips this level to
+  // "Certified" and unlocks the next one without a page reload.
+  const refreshLevels = useCallback(async () => {
+    try {
+      const { data } = await api.get('/training/levels');
+      setLevels(data.levels || []);
+    } catch { /* silent — the next mount refetches anyway */ }
+  }, []);
 
   // Levels filtered by the selected vendor card. When no vendor is picked, all
   // levels show (matches the pre-bd-2031 behaviour exactly). We derive this
@@ -545,6 +562,19 @@ const PortalTraining = () => {
             </Select>
           </div>
         </div>
+
+        {/* Level exam (grand quiz) — entry point, exam form, and result */}
+        {selectedLevelObj && selectedLevelObj.state !== 'locked' && (
+          <div className="mb-6">
+            <LevelExamCard
+              key={selectedLevelObj.id}
+              levelId={selectedLevelObj.id}
+              levelName={selectedLevelObj.name}
+              levelOrderIndex={selectedLevelObj.order_index}
+              onCertified={refreshLevels}
+            />
+          </div>
+        )}
 
         {/* Detail card */}
         {loadingDetail && (

@@ -41,6 +41,7 @@ const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
+const { issueCertificate } = require('./certificate.service');
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 const MAX_OPTIONS = 10;         // WhatsApp interactive list row cap
@@ -515,26 +516,19 @@ async function gradeAttempt(attemptId, phoneNumber) {
   await supabase.from('training_assessment_attempts').update(update).eq('id', attemptId);
 
   if (isPassed) {
-    // Create a lightweight certificate row (PDF rendering is separate)
-    const { data: user } = await supabase.from('users').select('name, first_name, last_name').eq('id', attempt.user_id).maybeSingle();
-    const { data: level } = await supabase.from('training_levels').select('name').eq('id', attempt.level_id).maybeSingle();
-    const teacherName = user?.name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 'Teacher';
-    const levelName = level?.name || 'Level';
-    const code = `NIETE-${new Date().toISOString().slice(0,10).replaceAll('-','')}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-    await supabase.from('training_certificates').insert({
-      user_id: attempt.user_id,
-      program_id: attempt.program_id,
-      level_id: attempt.level_id,
-      attempt_id: attempt.id,
-      certificate_code: code,
-      teacher_name_snapshot: teacherName,
-      level_name_snapshot: levelName,
+    // Certificate row via the shared issuance service (PDF rendering is
+    // separate) — same path the teacher portal's level-exam submit uses.
+    const cert = await issueCertificate(supabase, {
+      userId: attempt.user_id,
+      programId: attempt.program_id,
+      levelId: attempt.level_id,
+      attemptId: attempt.id,
     });
     await WhatsAppService.sendMessage(
       phoneNumber,
-      `🏆 *Congratulations, ${teacherName}!*\n\n` +
-      `You passed the ${levelName} grand quiz with *${score}/${attempt.total_questions}* — a perfect score.\n\n` +
-      `Certificate code: \`${code}\`\n\nSend /training to continue to the next level.`
+      `🏆 *Congratulations, ${cert.teacher_name}!*\n\n` +
+      `You passed the ${cert.level_name} grand quiz with *${score}/${attempt.total_questions}* — a perfect score.\n\n` +
+      `Certificate code: \`${cert.certificate_code}\`\n\nSend /training to continue to the next level.`
     );
   } else {
     await WhatsAppService.sendMessage(
