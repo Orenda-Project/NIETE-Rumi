@@ -44,4 +44,4 @@ This differs semantically from Taleemabad's grand quizzes (auto-graded MCQ banks
 
 ## PR
 
-Branch `bh-quiz-migration` — see PR (link in PR section of the migration thread). **Not merged.**
+https://github.com/Orenda-Project/NIETE-Rumi/pull/30 — branch `bh-quiz-migration`. **Not merged.**
