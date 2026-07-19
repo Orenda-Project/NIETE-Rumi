@@ -18,7 +18,7 @@ const GPT5MiniService = require('../gpt5-mini.service');
 const WhatsAppService = require('../whatsapp.service');
 const CoachingSessionService = require('./coaching-session.service');
 const ElevenLabsService = require('../elevenlabs.service');
-const { getUserLanguage, setUserLanguage } = require('../../utils/language-cache');
+const { getUserLanguage } = require('../../utils/language-cache');
 const { TEMP_DIR } = require('../../utils/constants');
 const { NUM_REFLECTIVE_QUESTIONS } = require('../../config/coaching-debrief.config');
 const { getCoachingMessage } = require('../../config/coaching-messages');
@@ -265,22 +265,16 @@ class ReflectiveConversationService {
           questionNumber
         });
 
-        // Update conversation language immediately
+        // Update conversation language immediately (SESSION-SCOPED only —
+        // lives in coaching_sessions.conversation_state, resets next session).
         newConversationLanguage = language;
 
-        // Also update user's global preference for consistency
-        try {
-          await setUserLanguage(session.user_id, language);
-          logToFile('✅ Updated user language preference', {
-            userId: session.user_id,
-            newLanguage: language
-          });
-        } catch (error) {
-          logToFile('⚠️ Failed to update user language preference', {
-            error: error.message,
-            userId: session.user_id
-          });
-        }
+        // We deliberately do NOT persist this to the user's GLOBAL
+        // preferred_language. A teacher answering one reflective question in
+        // English — or code-switching mid-answer (very common in PK classrooms)
+        // — must not silently flip her saved language for ALL future coaching
+        // questions and reports. Global language changes only on an explicit
+        // /settings action. (Mirrors the main-bot fix bd-1745.)
       }
 
       // Update conversation state with new language if changed
