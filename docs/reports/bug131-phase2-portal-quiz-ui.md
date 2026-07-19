@@ -98,4 +98,4 @@ tokens (`text-primary`, `bg-muted`, etc.).
 
 ## PR
 
-(URL added after `gh pr create` — see PR description.)
+https://github.com/Orenda-Project/NIETE-Rumi/pull/31
