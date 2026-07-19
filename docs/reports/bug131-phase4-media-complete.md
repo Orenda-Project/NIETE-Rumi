@@ -71,4 +71,4 @@ Results:
 
 ## 5. PR
 
-(PR URL added after creation — see PR titled "feat(portal): media rendering audit/fixes + mark-complete for quiz-less modules (BUG-131 Phase 4)")
+https://github.com/Orenda-Project/NIETE-Rumi/pull/32 (do not merge yet — coordinate with the Phase 2/3 sibling PRs on the same page)
