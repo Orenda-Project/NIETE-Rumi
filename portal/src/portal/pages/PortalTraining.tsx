@@ -26,6 +26,7 @@ import DOMPurify from 'dompurify';
 import { GraduationCap, CheckCircle2, Circle, Loader2, Lock, Award, ClipboardCheck, Building2 } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
+import ModuleQuizPanel, { type SubmittedAttempt } from '../components/ModuleQuizPanel';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -369,6 +370,31 @@ const PortalTraining = () => {
     })();
   }, [selectedCourse, toast]);
 
+  // After a portal quiz submit: refresh the module's attempt list (so the
+  // score badge updates) and mark the module complete locally (the backend
+  // upserts teacher_training_progress as part of the submit).
+  const handleQuizSubmitted = useCallback((attempt: SubmittedAttempt) => {
+    const moduleId = selectedModule;
+    if (!moduleId) return;
+    api.get(`/training/module/${moduleId}/attempts`)
+      .then(({ data }) => {
+        setAttemptsByModule(prev => ({ ...prev, [moduleId]: data.attempts || [] }));
+      })
+      .catch(() => {
+        // Fall back to appending the attempt we just got so the badge still updates.
+        setAttemptsByModule(prev => ({
+          ...prev,
+          [moduleId]: [
+            ...(prev[moduleId] || []),
+            { id: attempt.id, completed_at: attempt.completed_at, score: attempt.score, max_score: attempt.max_score, quiz_kind: 'training_module' },
+          ],
+        }));
+      });
+    const completedAt = attempt.completed_at || new Date().toISOString();
+    setModules(prev => prev.map(m => (m.id === moduleId && !m.completed_at ? { ...m, completed_at: completedAt } : m)));
+    setModuleDetail(prev => (prev && prev.id === moduleId && !prev.completed_at ? { ...prev, completed_at: completedAt } : prev));
+  }, [selectedModule]);
+
   // Module → detail
   useEffect(() => {
     setModuleDetail(null);
@@ -572,6 +598,14 @@ const PortalTraining = () => {
                 </p>
               )
             )}
+
+            {/* Quiz-taking panel — renders nothing when the module has no active questions */}
+            <ModuleQuizPanel
+              key={moduleDetail.id}
+              moduleId={moduleDetail.id}
+              hasAttempts={(attemptsByModule[moduleDetail.id] ?? []).length > 0}
+              onSubmitted={handleQuizSubmitted}
+            />
           </div>
         )}
       </div>
