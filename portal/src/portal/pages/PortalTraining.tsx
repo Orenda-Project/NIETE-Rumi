@@ -23,7 +23,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import DOMPurify from 'dompurify';
-import { GraduationCap, CheckCircle2, Circle, Loader2, Lock, Award, ClipboardCheck, Building2 } from 'lucide-react';
+import { GraduationCap, CheckCircle2, Circle, Loader2, Lock, Award, ClipboardCheck, Building2, FileText } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
 import ModuleQuizPanel, { type SubmittedAttempt } from '../components/ModuleQuizPanel';
@@ -56,10 +56,11 @@ type Level = {
   previous_level_order: number | null;
 };
 type Course = { id: string; title: string; course_type: string; order_index: number; module_count: number; completed_count: number };
-type ModuleSummary = { id: string; title: string; order_index: number; duration_seconds: number; has_video: boolean; has_audio: boolean; completed_at: string | null };
+type ModuleSummary = { id: string; title: string; order_index: number; duration_seconds: number; has_video: boolean; has_audio: boolean; has_pdf: boolean; completed_at: string | null };
 type ModuleDetail = {
   id: string; title: string; content_html: string;
   video_url: string | null; audio_url: string | null;
+  pdf_url: string | null; has_questions: boolean;
   duration_seconds: number; order_index: number; completed_at: string | null;
   course: { id: string; title: string } | null;
   level: { id: number; name: string } | null;
@@ -410,6 +411,27 @@ const PortalTraining = () => {
     })();
   }, [selectedModule, toast]);
 
+  // "Mark complete" for quiz-less modules — modules WITH questions complete
+  // through quiz submission instead, so this only fires when has_questions
+  // is false. On success the detail card and the module dropdown both flip
+  // to the completed state without a refetch.
+  const [markingComplete, setMarkingComplete] = useState(false);
+  const handleMarkComplete = useCallback(async () => {
+    if (!moduleDetail || markingComplete) return;
+    setMarkingComplete(true);
+    try {
+      const { data } = await api.post(`/training/module/${moduleDetail.id}/complete`);
+      const completedAt: string = data.completed_at;
+      setModuleDetail(prev => (prev ? { ...prev, completed_at: completedAt } : prev));
+      setModules(prev => prev.map(m => (m.id === moduleDetail.id ? { ...m, completed_at: completedAt } : m)));
+      toast({ title: 'Module marked complete' });
+    } catch (err) {
+      const resp = (err as { response?: { data?: { error?: string } } })?.response;
+      const msg = resp?.data?.error || 'Could not mark module complete';
+      toast({ title: msg, variant: 'destructive' });
+    } finally { setMarkingComplete(false); }
+  }, [moduleDetail, markingComplete, toast]);
+
   if (loadingLevels || loadingVendors) {
     return <PortalLayout><LoadingState type="full" /></PortalLayout>;
   }
@@ -584,6 +606,30 @@ const PortalTraining = () => {
               </div>
             )}
 
+            {/* PDF document — modules whose content is a document (no video/audio).
+                Rendered as an open control rather than an inline embed: the files
+                are large and mobile browsers handle a new-tab PDF far better. */}
+            {moduleDetail.pdf_url && (
+              <div className="rounded-md border bg-muted/40 p-4 flex items-center justify-between gap-4" data-testid="module-pdf-block">
+                <div className="flex items-center gap-3 min-w-0">
+                  <FileText className="w-8 h-8 text-primary shrink-0" />
+                  <div className="min-w-0">
+                    <div className="font-medium text-sm truncate">{moduleDetail.title}</div>
+                    <div className="text-xs text-muted-foreground">PDF document — opens in a new tab</div>
+                  </div>
+                </div>
+                <a
+                  href={moduleDetail.pdf_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 inline-flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90"
+                  data-testid="module-pdf-open"
+                >
+                  Open PDF
+                </a>
+              </div>
+            )}
+
             {/* HTML content */}
             {moduleDetail.content_html && moduleDetail.content_html.trim().length > 0 ? (
               <div
@@ -592,7 +638,7 @@ const PortalTraining = () => {
                 dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(moduleDetail.content_html) }}
               />
             ) : (
-              !moduleDetail.video_url && !moduleDetail.audio_url && (
+              !moduleDetail.video_url && !moduleDetail.audio_url && !moduleDetail.pdf_url && (
                 <p className="text-sm text-muted-foreground border-t pt-4">
                   This module has no readable content yet. It's likely a checkpoint or reflection module.
                 </p>
@@ -606,6 +652,28 @@ const PortalTraining = () => {
               hasAttempts={(attemptsByModule[moduleDetail.id] ?? []).length > 0}
               onSubmitted={handleQuizSubmitted}
             />
+
+            {/* Mark complete — ONLY for quiz-less modules. Modules with an
+                active quiz record completion through quiz submission. */}
+            {!moduleDetail.has_questions && !moduleDetail.completed_at && (
+              <div className="border-t pt-4">
+                <button
+                  type="button"
+                  onClick={handleMarkComplete}
+                  disabled={markingComplete}
+                  className="inline-flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-60"
+                  data-testid="module-mark-complete"
+                >
+                  {markingComplete
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <CheckCircle2 className="w-4 h-4" />}
+                  Mark as complete
+                </button>
+                <p className="text-xs text-muted-foreground mt-2">
+                  This module has no quiz — mark it complete once you have watched or read the content.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
