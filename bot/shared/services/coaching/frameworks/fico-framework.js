@@ -412,6 +412,24 @@ SPECIAL INSTRUCTIONS:
   return _cachedSystemPrompt;
 }
 
+// ─── Focus-area language directive ───────────────────────────────────
+
+// FICO teachers are English/Urdu (NIETE / ICT). MEWAKA emits its focus_area
+// hardcoded in Swahili because its entire prompt is Swahili; FICO's prompt is
+// English, so the focus_area strings must be steered into the teacher's
+// REGISTERED language explicitly. This mirrors the report-v2 narrative
+// service's langRules(): Urdu → Nastaliq, gender-neutral, code-switch
+// pedagogical terms in English, RTL. Never hardcode a language.
+const LANG_NAME = { en: 'English', ur: 'Urdu' };
+
+function focusAreaLangDirective(language) {
+  if (language === 'ur') {
+    return `FOCUS-AREA LANGUAGE — write the four focus_area strings (title, rationale, try_this_tomorrow, lever_question) in URDU (Nastaliq), warm and natural. Text is right-to-left. Use gender-neutral phrasing (verbal nouns / impersonal constructions), never gendered second-person verb forms. Keep pedagogical/technical terms in ENGLISH (Latin letters) inline (e.g. open-ended questions, scaffolding, phonics, Bloom's). Keep "domain" and "indicator" as the EXACT English keys/ids listed above — do NOT translate them.`;
+  }
+  const name = LANG_NAME[language] || 'English';
+  return `FOCUS-AREA LANGUAGE — write the four focus_area strings (title, rationale, try_this_tomorrow, lever_question) in ${name}. Keep "domain" and "indicator" as the EXACT English keys/ids listed above — do NOT translate them.`;
+}
+
 // ─── Analysis prompt builder ─────────────────────────────────────────
 
 function buildIndicatorJsonRow(ind) {
@@ -474,8 +492,19 @@ ${sectionJsonBlocks}
   "growth_opportunities": [
     { "area": "Area", "observation": "What was observed", "strategies": ["Strategy 1", "Strategy 2"] }
   ],
+  "focus_area": {
+    "domain": "<ONE of: lesson_plan_fidelity | high_leverage_practices | student_engagement | teacher_subject_knowledge>",
+    "indicator": "<the single indicator id to focus on next, e.g. C1>",
+    "title": "<short headline, 3-6 words>",
+    "rationale": "<1-2 sentences: why this ONE indicator is the highest-leverage next focus for this teacher>",
+    "try_this_tomorrow": "<one concrete classroom move the teacher can try in their very next lesson>",
+    "lever_question": "<one reflective question that helps the teacher self-coach on this focus>"
+  },
   "recommendations": ["Actionable recommendation 1", "Actionable recommendation 2", "Actionable recommendation 3"]
 }
+
+FOCUS AREA — pick the SINGLE most useful growth area (one domain + one indicator) as the teacher's lead next-step. Prefer the domain the lesson's actual evidence points to; do not default to "questioning". Its "domain" MUST be one of the four section keys above and "indicator" MUST be one of that section's indicator ids.
+${focusAreaLangDirective(language)}
 
 EVIDENCE RULES:
 - For EACH indicator, describe what the teacher DID (not what they didn't do)

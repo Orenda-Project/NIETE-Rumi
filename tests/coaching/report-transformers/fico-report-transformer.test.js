@@ -170,4 +170,55 @@ describe('FICO Report Transformer (ICT canonical rubric)', () => {
     const reportData = transformFICOToReportData(mockSession, 'Hassan', mockFICOAnalysis);
     expect(reportData.framework).toBe('fico');
   });
+
+  // ─── focusArea (mirrors mewaka-report-transformer.js) ──────────────
+
+  describe('focusArea (mirrors MEWAKA lead element)', () => {
+
+    const focusAnalysis = {
+      ...mockFICOAnalysis,
+      focus_area: {
+        domain: 'high_leverage_practices',
+        indicator: 'C1',
+        title: 'Deepen questioning',
+        rationale: 'Most questions were recall-level; one analysis question shifted thinking.',
+        try_this_tomorrow: 'Plan two "why/how" questions and give 5 seconds of wait time.',
+        lever_question: 'Where in today\'s lesson could one more "why" have opened up thinking?',
+      },
+    };
+
+    test('SCENARIO: focus_area is camel-cased onto reportData.focusArea (same fields as MEWAKA)', () => {
+      const reportData = transformFICOToReportData(mockSession, 'Hassan', focusAnalysis);
+      expect(reportData.focusArea).toEqual({
+        domain: 'high_leverage_practices',
+        indicator: 'C1',
+        title: 'Deepen questioning',
+        rationale: 'Most questions were recall-level; one analysis question shifted thinking.',
+        tryThisTomorrow: 'Plan two "why/how" questions and give 5 seconds of wait time.',
+        leverQuestion: 'Where in today\'s lesson could one more "why" have opened up thinking?',
+      });
+    });
+
+    test('SCENARIO: focusArea is null when the analyser omits focus_area (template guards on truthiness)', () => {
+      const reportData = transformFICOToReportData(mockSession, 'Hassan', mockFICOAnalysis);
+      expect(reportData.focusArea).toBeNull();
+    });
+
+    test('SCENARIO: focusArea preserves the teacher-language strings verbatim (Urdu passes through un-translated)', () => {
+      const urduFocus = {
+        ...mockFICOAnalysis,
+        focus_area: {
+          domain: 'student_engagement',
+          indicator: 'D2',
+          title: 'طلبہ سے وجہ پوچھیں',
+          rationale: 'زیادہ تر جوابات مختصر تھے۔',
+          try_this_tomorrow: 'ہر جواب کے بعد "کیوں؟" پوچھیں۔',
+          lever_question: 'آج کہاں ایک اور "کیوں" مددگار ہوتا؟',
+        },
+      };
+      const reportData = transformFICOToReportData(mockSession, 'Ayesha', urduFocus);
+      expect(reportData.focusArea.title).toBe('طلبہ سے وجہ پوچھیں');
+      expect(reportData.focusArea.indicator).toBe('D2');
+    });
+  });
 });

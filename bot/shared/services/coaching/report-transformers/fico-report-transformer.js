@@ -7,6 +7,18 @@
  * 4 scored sections (B, C, D, F) → 4 goals, indicators → criteria,
  * scale 1-4, max 104, no debrief, no LP bonus.
  *
+ * focusArea — the ONE focus indicator + try-this + lever question, mirrored
+ * from mewaka-report-transformer.js so "FICO = the MEWAKA flow with only the
+ * framework swapped". The analyser (fico-framework.buildAnalysisPrompt) emits
+ * a focus_area object in the teacher's registered language (en/ur); this
+ * transformer camel-cases it onto reportData.focusArea. IMPORTANT — like
+ * MEWAKA, this field does NOT surface in the hero PNG (the default
+ * teacher-facing render): the hero renderer reads _heroInput and never
+ * touches reportData.focusArea. It is consumed only by the legacy Playwright
+ * HTML→PDF template path (templates/mewaka-report.template.js, behind the
+ * `html` renderer that no framework currently dispatches to). We replicate
+ * MEWAKA's actual behaviour rather than inventing a new FICO surface.
+ *
  * Sheet: 1UZaHrXARlJ2cWiZAGFEuc-_o1zOiC5LNXaz11_XVkFU
  */
 
@@ -62,6 +74,22 @@ function transformFICOToReportData(session, teacherName, analysis) {
 
   const totalScore = goals.reduce((sum, g) => sum + g.score, 0);
 
+  // Focus area — the ONE focus indicator + try-this + lever question. Mirrors
+  // mewaka-report-transformer.js: the analyser emits a focus_area object and
+  // the transformer camel-cases it onto reportData.focusArea so the report
+  // templates can read JS-idiomatic names. FICO teachers are English/Urdu, so
+  // (unlike MEWAKA's Swahili-suffixed fields) the strings are un-suffixed and
+  // already come back in the teacher's registered language from the prompt.
+  const focusAreaSrc = analysis.focus_area || null;
+  const focusArea = focusAreaSrc ? {
+    domain: focusAreaSrc.domain,
+    indicator: focusAreaSrc.indicator,
+    title: focusAreaSrc.title,
+    rationale: focusAreaSrc.rationale,
+    tryThisTomorrow: focusAreaSrc.try_this_tomorrow,
+    leverQuestion: focusAreaSrc.lever_question,
+  } : null;
+
   return {
     // framework key drives the renderer-registry dispatch to the hero PNG path.
     framework: 'fico',
@@ -79,6 +107,10 @@ function transformFICOToReportData(session, teacherName, analysis) {
     maxScore: MAX_MARKS,
     priorFeedback: null,
     goals,
+    // Lead element mirrored from MEWAKA. Null when the analyser omitted it, so
+    // report templates guard on truthiness. Consumed by the same surface as
+    // MEWAKA's focusArea — see the module note above on where that renders.
+    focusArea,
     debriefReflection: null,
     fidelitySection: extractFidelity(analysis),
     feedback: analysis.executive_summary || 'Analysis complete.',
