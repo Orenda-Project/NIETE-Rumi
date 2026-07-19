@@ -1036,6 +1036,45 @@ class WhatsAppService {
   }
 
   /**
+   * FEAT-102 — send an image directly from an in-memory Buffer (no R2 round-trip).
+   * Used by the /observe coach-card + FICO hero-report delivery (observe-send /
+   * observe-coach-card / observe-teacher-report). Uploads the bytes to the Media
+   * API, then sends by media id. Ported from the main bot.
+   * @param {string} to
+   * @param {Buffer} imageBuffer
+   * @param {string} [caption]
+   * @param {string} [mimeType]
+   * @returns {Promise<boolean|object>}
+   */
+  static async sendImageFromBuffer(to, imageBuffer, caption = '', mimeType = 'image/png') {
+    try {
+      if (!imageBuffer || !imageBuffer.length) {
+        logToFile('❌ sendImageFromBuffer: empty buffer', { to });
+        return false;
+      }
+      const ext = mimeType.includes('jpeg') || mimeType.includes('jpg') ? 'jpg' : 'png';
+      const formData = new FormData();
+      formData.append('file', imageBuffer, { contentType: mimeType, filename: `image.${ext}` });
+      formData.append('messaging_product', 'whatsapp');
+
+      const uploadResp = await axios.post(
+        `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/media`,
+        formData,
+        { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, ...formData.getHeaders() }, timeout: 30000 },
+      );
+      const mediaId = uploadResp.data.id;
+      logToFile('Image buffer uploaded to WhatsApp', { mediaId, bytes: imageBuffer.length });
+      return await WhatsAppService.sendImage(to, mediaId, caption);
+    } catch (error) {
+      logToFile('❌ Error in sendImageFromBuffer', {
+        error: error.message,
+        errorDetails: error.response?.data,
+      });
+      return false;
+    }
+  }
+
+  /**
    * Send image with interactive reply buttons (for vocabulary questions)
    * Word-level comprehension assessment
    * Fixed R2 private URL issue - now downloads from R2 first, uploads to WhatsApp

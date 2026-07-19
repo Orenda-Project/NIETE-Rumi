@@ -42,6 +42,15 @@ function detectFlowType(responseJson) {
     return 'teacher_training';
   }
 
+  // 0.1 Observe (FEAT-102) — the editable FICO observation form submission.
+  //     The endpoint returns extension_message_response.params.observe_action.
+  //     Unique field; MUST be detected before the loose attendance_marking
+  //     flow_token fallback — the observe token 'observerId:sessionId' has a
+  //     colon and would otherwise misroute to attendance.
+  if (responseJson.observe_action !== undefined) {
+    return 'observe';
+  }
+
   // 1. Reading Assessment (highest priority - unique fields)
   const hasReadingFields = responseJson.screen_0_Student_Full_Name_0 ||
                            responseJson.screen_0_Select_the_reading_level_2 ||
