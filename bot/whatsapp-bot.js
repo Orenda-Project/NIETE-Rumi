@@ -508,6 +508,34 @@ app.post('/webhook', async (req, res) => {
         const sessionId = buttonId.replace('coaching_cancel_', '');
         await CoachingService.handleConfirmation(sessionId, from, false);
       }
+      // FEAT-102 /observe buttons — teacher-manage / send-to-teacher / debrief
+      else if (buttonId.startsWith('observe_tmg_')) {
+        const ObserveSend = require('./shared/services/observe/observe-send.service');
+        if (user) await ObserveSend.handleTeacherManageButton(user, from, buttonId);
+        else logToFile('⚠️ observe teacher-manage button without user', { buttonId });
+      }
+      else if (buttonId.startsWith('observe_send_')) {
+        const ObserveSend = require('./shared/services/observe/observe-send.service');
+        const parsed = ObserveSend.parseSendButtonId(buttonId);
+        if (parsed && user) {
+          if (parsed.action === 'start') await ObserveSend.startSendFlow(parsed.sessionId, from, user);
+          else if (parsed.action === 'later') await ObserveSend.handleSendLater(parsed.sessionId, from, user);
+          else if (parsed.action === 'confirm') await ObserveSend.handleSendConfirm(parsed.sessionId, from, user);
+          else if (parsed.action === 'cancel') await ObserveSend.handleSendCancel(parsed.sessionId, from, user);
+        } else {
+          logToFile('⚠️ observe send button without user/parse', { buttonId, hasUser: !!user });
+        }
+      }
+      else if (buttonId.startsWith('observe_debrief_now_') || buttonId.startsWith('observe_debrief_later_')) {
+        const ObserveDebrief = require('./shared/services/observe/observe-debrief.service');
+        const parsed = ObserveDebrief.parseDebriefButtonId(buttonId);
+        if (parsed && user) {
+          if (parsed.action === 'now') await ObserveDebrief.startDebrief(parsed.sessionId, from, user);
+          else await ObserveDebrief.handleDebriefLater(parsed.sessionId, from, user);
+        } else {
+          logToFile('⚠️ observe debrief button without user/parse', { buttonId, hasUser: !!user });
+        }
+      }
       // Lesson plan buttons
       else if (buttonId.startsWith('lessonplan_yes_')) {
         const sessionId = buttonId.replace('lessonplan_yes_', '');
@@ -1229,6 +1257,30 @@ app.post('/webhook', async (req, res) => {
             from, error: flowError.message, stack: flowError.stack
           });
           await WhatsAppService.sendMessage(from, 'Sorry, something went wrong loading your training content. Please try /training again.');
+        }
+      } else if (flowType === 'observe') {
+        // FEAT-102: the editable FICO observation form was submitted. The
+        // endpoint already applied the observer's v2 edits; ack + offer the
+        // debrief (Now / Later). Failure here never un-persists the submission.
+        try {
+          const { observeStrings } = require('./shared/services/observe/observe-strings');
+          const ObserveDebrief = require('./shared/services/observe/observe-debrief.service');
+          const tokenParts = (responseJson.flow_token || '').split(':');
+          const observerId = tokenParts[0];
+          const observeSessionId = tokenParts[1];
+          const { data: obsRow } = await supabase
+            .from('users').select('preferred_language').eq('id', observerId).maybeSingle();
+          const obsLang = obsRow?.preferred_language === 'ur' ? 'ur' : 'en';
+          const S = observeStrings(obsLang);
+          await WhatsAppService.sendMessage(from, S.submitted_ack);
+          if (observerId) await ObserveDebrief.clearStateAfterSubmit(observerId, observeSessionId);
+          if (observeSessionId) {
+            await WhatsAppService.sendInteractiveButtons(
+              from, ObserveDebrief.buildDebriefChoiceButtons(observeSessionId, S));
+          }
+          logToFile('🔭 Observe FICO submission acknowledged', { from, sessionId: observeSessionId });
+        } catch (observeAckErr) {
+          logToFile('⚠️ observe ack failed (submission itself already persisted)', { error: observeAckErr.message });
         }
       } else {
         // Unknown flow type

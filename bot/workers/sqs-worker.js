@@ -288,6 +288,24 @@ class SQSCoachingWorker {
         await CoachingService.processAnalysis(sessionId, payload);
         break;
 
+      case 'observe_debrief':
+        // FEAT-102: observer debrief recording — transcription can run 10-30 min.
+        if (typeof SQSQueueService.extendJobTimeout === 'function') {
+          await SQSQueueService.extendJobTimeout(receiptHandle, 1200);
+        }
+        await require('../shared/services/observe/observe-debrief.service')
+          .processDebriefRecording(sessionId, payload);
+        break;
+
+      case 'observe_teacher_report':
+        // FEAT-102: combined FICO report render (Playwright + LLM) / delivery.
+        if (typeof SQSQueueService.extendJobTimeout === 'function') {
+          await SQSQueueService.extendJobTimeout(receiptHandle, 600);
+        }
+        await require('../shared/services/observe/observe-send.service')
+          .processTeacherReport(sessionId, payload);
+        break;
+
       case 'lesson_plan_extraction':
         await LessonPlanExtractionWorker.process({
           coachingSessionId: sessionId,
@@ -425,6 +443,14 @@ class SQSCoachingWorker {
       // Skip DB update for lesson_plan_generation - it handles its own error state
       if (jobType === 'lesson_plan_generation') {
         logToFile('Lesson plan generation failure handled by worker', { sessionId });
+        return;
+      }
+
+      // FEAT-102: an observe job failure must NOT corrupt the completed
+      // observation row — a debrief/report-send failure never marks the
+      // coaching session 'failed' (the observation itself already succeeded).
+      if (jobType === 'observe_debrief' || jobType === 'observe_teacher_report') {
+        logToFile('Observe job failure — session status untouched', { sessionId, jobType });
         return;
       }
 

@@ -16,6 +16,7 @@ const express = require('express');
 const router = express.Router();
 const FlowEncryptionService = require('../services/flow-encryption.service');
 const StudentListService = require('../services/student-list.service');
+const { handleObserveMewakaRequest } = require('./observe-mewaka-endpoint'); // FEAT-102 — /observe editable FICO form
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 const {
@@ -471,6 +472,30 @@ async function handleAttendanceSetupRequest(data) {
  * - data_exchange: Handle screen submissions (PERSONAL_INFO → PROFESSIONAL_INFO → SUCCESS)
  * - BACK: Navigate to previous screen
  */
+/**
+ * FEAT-102 — /observe editable FICO observation form (endpoint-based data_exchange).
+ * The handler is pack-driven (getObservePack → FICO), so this ONE route serves
+ * the FICO 5-screen form. Publish the Flow with endpoint_uri .../api/flows/observe-mewaka
+ * (the env var OBSERVE_MEWAKA_FLOW_ID is legacy-named; the path is generic).
+ */
+router.post('/observe-mewaka', async (req, res) => {
+  try {
+    if (!FlowEncryptionService.isConfigured()) {
+      logToFile('Flow encryption not configured', { endpoint: 'observe-mewaka' });
+      return res.status(500).json({ error: 'Flow encryption not configured' });
+    }
+    const encryptedResponse = await FlowEncryptionService.processEncryptedRequest(
+      req.body,
+      async (decryptedData) => handleObserveMewakaRequest(decryptedData)
+    );
+    res.set('Content-Type', 'text/plain');
+    res.send(encryptedResponse);
+  } catch (error) {
+    logToFile('Flow endpoint error', { endpoint: 'observe-mewaka', error: error.message });
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post('/registration', async (req, res) => {
   try {
     if (!FlowEncryptionService.isConfigured()) {

@@ -24,6 +24,24 @@ class CoachingJobQueueService {
     return await this.queueJob(coachingSessionId, 'transcription', metadata);
   }
 
+  // FEAT-102 — /observe debrief-recording analysis. Every recording is its own
+  // job: dedupNonce is keyed on the audioId (sha1, 16 chars — SQS dedup id caps
+  // at 128) so a re-recording isn't swallowed as a duplicate.
+  static async queueObserveDebrief(coachingSessionId, metadata) {
+    const payload = { ...metadata };
+    if (payload.audioId) {
+      const crypto = require('crypto');
+      payload.dedupNonce = crypto.createHash('sha1').update(String(payload.audioId)).digest('hex').slice(0, 16);
+    }
+    return await this.queueJob(coachingSessionId, 'observe_debrief', payload);
+  }
+
+  // FEAT-102 — combined FICO report render/delivery to the teacher.
+  // metadata.phase: 'preview' | 'deliver' | 'teacher_tap' (folded into the dedup key upstream).
+  static async queueObserveTeacherReport(coachingSessionId, metadata) {
+    return await this.queueJob(coachingSessionId, 'observe_teacher_report', metadata);
+  }
+
   /**
    * Queue analysis job
    * @param {string} coachingSessionId - Coaching session UUID
