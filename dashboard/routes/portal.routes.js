@@ -1541,6 +1541,30 @@ router.get('/training/levels', requirePortalAuth, async (req, res) => {
  * previous-level number in the payload so the client can render a friendly
  * "Pass Level N first" message.
  */
+/**
+ * Resolve a training media URL into something the browser can actually load.
+ *
+ * Two hosting shapes exist in training_modules:
+ *   - R2-hosted assets (private bucket) → need a presigned URL
+ *   - externally-hosted public assets (e.g. the source content vendor's
+ *     public object store) → pass through unchanged; presigning them against
+ *     our R2 bucket fails validation and would return null, which is exactly
+ *     the bug this helper fixes (non-R2 video/audio silently rendered nothing).
+ *
+ * Returns null for empty/non-http values (e.g. a local path row).
+ */
+async function _resolveMediaUrl(url, expiresIn = 3600) {
+  if (!url) return null;
+  if (isValidR2Url(url)) return generatePresignedUrl(url, expiresIn);
+  if (/^https?:\/\//i.test(url)) return url;
+  return null;
+}
+
+/** True when a module's source_media_url points at a PDF document. */
+function _isPdfSourceUrl(url) {
+  return !!url && /\.pdf(\?|$)/i.test(url);
+}
+
 async function _assertLevelUnlocked(userId, levelId) {
   const { data: levels } = await supabase
     .from('training_levels').select('id, name, order_index').eq('is_active', true).order('order_index');
@@ -1642,7 +1666,7 @@ router.get('/training/modules', requirePortalAuth, async (req, res) => {
 
     const { data: modules, error: me } = await supabase
       .from('training_modules')
-      .select('id, title, order_index, duration_seconds, video_url, audio_url')
+      .select('id, title, order_index, duration_seconds, video_url, audio_url, source_media_url')
       .eq('is_active', true)
       .eq('course_id', courseId)
       .order('order_index', { ascending: true });
@@ -1671,6 +1695,7 @@ router.get('/training/modules', requirePortalAuth, async (req, res) => {
       duration_seconds: m.duration_seconds,
       has_video: !!m.video_url,
       has_audio: !!m.audio_url,
+      has_pdf: _isPdfSourceUrl(m.source_media_url),
       completed_at: completedMap.get(m.id) || null,
     }));
     res.json({ success: true, modules: enriched });
@@ -1691,7 +1716,7 @@ router.get('/training/module/:id', requirePortalAuth, async (req, res) => {
 
     const { data: m, error } = await supabase
       .from('training_modules')
-      .select('id, title, content_html, video_url, audio_url, duration_seconds, order_index, course_id')
+      .select('id, title, content_html, video_url, audio_url, source_media_url, duration_seconds, order_index, course_id')
       .eq('id', moduleId)
       .eq('is_active', true)
       .maybeSingle();
@@ -1728,12 +1753,29 @@ router.get('/training/module/:id', requirePortalAuth, async (req, res) => {
       if (progress && progress[0]) completedAt = progress[0].completed_at;
     }
 
-    // Presign media URLs — video_url and audio_url are full R2 URLs, feeding
-    // directly into generatePresignedUrl which validates via isValidR2Url.
-    const [videoUrl, audioUrl] = await Promise.all([
-      m.video_url ? generatePresignedUrl(m.video_url, 3600) : Promise.resolve(null),
-      m.audio_url ? generatePresignedUrl(m.audio_url, 3600) : Promise.resolve(null),
+    // Resolve media URLs. video_url/audio_url are R2-hosted for some vendors
+    // and public external URLs for others — _resolveMediaUrl presigns the
+    // former and passes the latter through. PDF modules carry their document
+    // in source_media_url (video_url/audio_url NULL) — surface it as pdf_url
+    // so the portal can render an open/download control (the WhatsApp side
+    // delivers the same URL as a document).
+    const pdfSource = _isPdfSourceUrl(m.source_media_url) ? m.source_media_url : null;
+    const [videoUrl, audioUrl, pdfUrl] = await Promise.all([
+      _resolveMediaUrl(m.video_url, 3600),
+      _resolveMediaUrl(m.audio_url, 3600),
+      _resolveMediaUrl(pdfSource, 3600),
     ]);
+
+    // Whether this module has an active quiz — the frontend uses this to
+    // decide between "complete via quiz" (quiz submit marks progress) and
+    // the explicit "Mark complete" control for quiz-less modules. Existence
+    // probe (limit 1) rather than a count — we only need the boolean.
+    const { data: activeQuestions } = await supabase
+      .from('training_questions')
+      .select('id')
+      .eq('training_module_id', moduleId)
+      .eq('is_active', true)
+      .limit(1);
 
     res.json({
       success: true,
@@ -1743,6 +1785,8 @@ router.get('/training/module/:id', requirePortalAuth, async (req, res) => {
         content_html: m.content_html || '',
         video_url: videoUrl,
         audio_url: audioUrl,
+        pdf_url: pdfUrl,
+        has_questions: (activeQuestions || []).length > 0,
         duration_seconds: m.duration_seconds,
         order_index: m.order_index,
         completed_at: completedAt,
@@ -2102,6 +2146,118 @@ router.post('/training/module/:id/quiz-attempts', requirePortalAuth, async (req,
   } catch (error) {
     console.error('training/module/:id/quiz-attempts POST error:', error);
     return res.status(500).json({ success: false, error: 'Failed to submit quiz attempt' });
+  }
+});
+
+/**
+ * POST /api/portal/training/module/:id/complete
+ *
+ * Mark a QUIZ-LESS training module complete from the portal. Modules with an
+ * active quiz get their completion from quiz submission (POST
+ * /training/module/:id/quiz-attempts upserts progress) — this endpoint exists
+ * only for the modules that have zero active training_questions and therefore
+ * had no completion path on the portal at all. Writes the same
+ * teacher_training_progress row shape the WhatsApp side and the quiz-submit
+ * endpoint write: { user_id, module_id, completed_at }.
+ *
+ * Contract:
+ *   Path   :id — BIGINT module id
+ *   Auth   requirePortalAuth (401 on session miss).
+ *   Errors 400 (bad id), 403 (level locked), 404 (module not found),
+ *          409 (module HAS an active quiz — complete it via the quiz instead),
+ *          500 on DB error.
+ *   Ok     { success: true, completed_at, already_completed }
+ *
+ * Idempotent: if a progress row already exists for (user_id, module_id) the
+ * endpoint returns the EXISTING completed_at (earliest completion wins,
+ * matching the read-side rule in GET /training/modules) and writes nothing.
+ * The write itself upserts on the (user_id, module_id) unique constraint so a
+ * concurrent double-click cannot 500 on a duplicate either.
+ */
+router.post('/training/module/:id/complete', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const moduleId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(moduleId)) {
+      return res.status(400).json({ success: false, error: 'Invalid module id' });
+    }
+
+    // 1. Load module (existence + course_id for the lockdown gate)
+    const { data: mod, error: modErr } = await supabase
+      .from('training_modules')
+      .select('id, course_id, is_active')
+      .eq('id', moduleId)
+      .eq('is_active', true)
+      .maybeSingle();
+    if (modErr) throw modErr;
+    if (!mod) return res.status(404).json({ success: false, error: 'Module not found' });
+
+    // 2. Lockdown gate — same rule as every other training endpoint.
+    if (mod.course_id) {
+      const { data: course } = await supabase
+        .from('training_courses').select('level_id').eq('id', mod.course_id).maybeSingle();
+      if (course) {
+        const gate = await _assertLevelUnlocked(userId, course.level_id);
+        if (!gate.ok) return res.status(gate.status).json({ success: false, error: gate.error, previous_level_order: gate.previous_level_order });
+      }
+    }
+
+    // 3. Quiz-less check — modules WITH active questions must complete via
+    //    quiz submission, never via this shortcut. Existence probe (limit 1).
+    const { data: activeQuestions, error: qErr } = await supabase
+      .from('training_questions')
+      .select('id')
+      .eq('training_module_id', moduleId)
+      .eq('is_active', true)
+      .limit(1);
+    if (qErr) throw qErr;
+    if ((activeQuestions || []).length > 0) {
+      return res.status(409).json({
+        success: false,
+        error: 'This module has a quiz — completion is recorded when you submit it.',
+      });
+    }
+
+    // 4. Idempotency — if the teacher already completed this module (on either
+    //    surface), return the existing timestamp untouched. Earliest wins.
+    const { data: existing } = await supabase
+      .from('teacher_training_progress')
+      .select('completed_at')
+      .eq('user_id', userId)
+      .eq('module_id', moduleId)
+      .not('completed_at', 'is', null)
+      .order('completed_at', { ascending: true })
+      .limit(1);
+    if (existing && existing[0]) {
+      return res.json({ success: true, completed_at: existing[0].completed_at, already_completed: true });
+    }
+
+    // 5. Write the progress row — same shape as the quiz-submit endpoint and
+    //    the WhatsApp content-delivery writer. Upsert on the (user_id,
+    //    module_id) unique constraint keeps a concurrent double-submit safe.
+    const completedAt = new Date().toISOString();
+    const { error: upErr } = await supabase
+      .from('teacher_training_progress')
+      .upsert(
+        { user_id: userId, module_id: moduleId, completed_at: completedAt },
+        { onConflict: 'user_id,module_id' }
+      );
+    if (upErr) throw upErr;
+
+    // 6. Semantic event — best-effort telemetry, mirrors the quiz-submit style.
+    try {
+      const { logEvent } = require('../../bot/shared/utils/structured-logger');
+      logEvent('training_module_marked_complete', {
+        user_uuid: userId,
+        module_row_id: moduleId,
+        surface: 'portal',
+      });
+    } catch (_) { /* logger not available — fine */ }
+
+    return res.json({ success: true, completed_at: completedAt, already_completed: false });
+  } catch (error) {
+    console.error('training/module/:id/complete POST error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to mark module complete' });
   }
 });
 
