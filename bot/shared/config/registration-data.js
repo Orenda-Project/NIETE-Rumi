@@ -137,6 +137,16 @@ const SUBJECTS_DROPDOWN = [
   { id: 'other', title: 'Other' }
 ];
 
+// FEAT-102 bd-2132 — self-onboarding role picker. Coach/Principal/AEO are the
+// ICT leader family the /observe gate accepts (observe-gate.js LEADER_ROLES);
+// Teacher is the default. Ids map 1:1 to users.role.
+const ROLES_DROPDOWN = [
+  { id: 'teacher', title: 'Teacher' },
+  { id: 'coach', title: 'Coach' },
+  { id: 'principal', title: 'Principal / Head Teacher' },
+  { id: 'aeo', title: 'AEO / Cluster Coordinator' }
+];
+
 module.exports = {
   COUNTRY_CODES,
   COUNTRY_NAMES,
@@ -144,5 +154,6 @@ module.exports = {
   REGIONS_DROPDOWN,
   ORGANIZATIONS_DROPDOWN,
   GRADES_DROPDOWN,
-  SUBJECTS_DROPDOWN
+  SUBJECTS_DROPDOWN,
+  ROLES_DROPDOWN
 };

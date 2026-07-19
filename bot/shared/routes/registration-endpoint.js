@@ -39,7 +39,8 @@ const {
   REGIONS_DROPDOWN,
   ORGANIZATIONS_DROPDOWN,
   GRADES_DROPDOWN,
-  SUBJECTS_DROPDOWN
+  SUBJECTS_DROPDOWN,
+  ROLES_DROPDOWN
 } = require('../config/registration-data');
 
 const REDIS_PREFIX = 'reg_flow:';
@@ -152,7 +153,8 @@ async function handlePersonalInfoSubmit(userId, screenData, flowToken) {
     data: {
       organizations: ORGANIZATIONS_DROPDOWN,
       grades: GRADES_DROPDOWN,
-      subjects: SUBJECTS_DROPDOWN
+      subjects: SUBJECTS_DROPDOWN,
+      roles: ROLES_DROPDOWN
     }
   };
 
@@ -180,7 +182,8 @@ async function handleRegionInfoSubmit(userId, screenData, flowToken) {
     data: {
       organizations: ORGANIZATIONS_DROPDOWN,
       grades: GRADES_DROPDOWN,
-      subjects: SUBJECTS_DROPDOWN
+      subjects: SUBJECTS_DROPDOWN,
+      roles: ROLES_DROPDOWN
     }
   };
 
@@ -320,7 +323,8 @@ async function handleRegistrationBack(userId, screen, flowToken) {
       data: {
         organizations: ORGANIZATIONS_DROPDOWN,
         grades: GRADES_DROPDOWN,
-        subjects: SUBJECTS_DROPDOWN
+        subjects: SUBJECTS_DROPDOWN,
+      roles: ROLES_DROPDOWN
       }
     };
   }

@@ -59,6 +59,19 @@ async function handleVoiceMessage(message, from, user = null) {
       }
     }
 
+    // FEAT-102 bd-2131: a school leader's voice note routes to /observe FIRST —
+    // a coach may share a classroom recording OR their debrief as a voice note,
+    // and it must NEVER fall into teacher coaching. Shared with the audio-
+    // document path (whatsapp-bot.js). Dark-safe: inert unless observe is on.
+    if (user) {
+      const { routeLeaderAudio } = require('../services/observe/observe-audio-router');
+      const voiceDur = message.voice?.duration || message.audio?.duration || 0;
+      const observeHandled = await routeLeaderAudio({
+        user, from, audioId, sessionId, isLongAudio: voiceDur >= 900,
+      });
+      if (observeHandled) return;
+    }
+
     // ============================================================
     // FEATURE-BASED REGISTRATION: Check if waiting for name (voice)
     // ============================================================

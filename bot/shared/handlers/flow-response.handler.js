@@ -761,6 +761,13 @@ async function handleRegistrationFlow(message, phoneNumber, userId) {
     const grade = responseJson.grade || '';
     const subjects = responseJson.subjects || [];
 
+    // FEAT-102 bd-2132: self-onboarding role. Only WRITE when a valid role is
+    // picked (Teacher/Coach/Principal/AEO) — never downgrade an existing leader
+    // to teacher on a re-registration that omitted the field.
+    const submittedRole = ['teacher', 'coach', 'principal', 'aeo']
+      .includes(String(responseJson.role || '').toLowerCase())
+      ? String(responseJson.role).toLowerCase() : null;
+
     // Resolve organization: if "other", use organization_other
     const resolvedOrg = organization === 'other' ? organizationOther : organization;
 
@@ -782,6 +789,7 @@ async function handleRegistrationFlow(message, phoneNumber, userId) {
         country: country,
         region: region,
         organization: resolvedOrg,
+        ...(submittedRole ? { role: submittedRole } : {}), // FEAT-102 bd-2132
         school_name: schoolName,
         grades_taught: grade,
         subjects_taught: Array.isArray(subjects) ? subjects : [subjects],
