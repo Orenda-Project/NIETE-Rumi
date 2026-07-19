@@ -2149,6 +2149,456 @@ router.post('/training/module/:id/quiz-attempts', requirePortalAuth, async (req,
   }
 });
 
+// ────────────────────────────────────────────────────────────────────────────
+// Grand quiz (level exam) + certificate — portal quiz-parity phase 3.
+// The WhatsApp reference implementation is
+// bot/shared/services/training/quiz-delivery.service.js (grading, cooldown,
+// certificate) and bot/shared/routes/teacher-training-endpoint.js
+// loadGrandQuizState (eligibility). The portal MUST keep identical semantics:
+//   - eligibility: every active course in the level has ≥1 completed module
+//   - pass bar: 100% (score === total_questions)
+//   - fail: status='failed' + 24h cooldown_until; no cooldown on pass
+//   - certificate: issued via the bot's shared certificate service on pass
+// ────────────────────────────────────────────────────────────────────────────
+
+// Parity constant — mirrors COOLDOWN_HOURS in quiz-delivery.service.js.
+const GRAND_QUIZ_COOLDOWN_HOURS = 24;
+
+/**
+ * Load the teacher's grand-quiz gate for a level. Query-for-query mirror of
+ * the WhatsApp Flow's loadGrandQuizState() with one deliberate tightening:
+ * passed/cooldown checks filter attempts to quiz_kind='grand'. (The Flow
+ * scans ALL attempts on the level; per-module attempts also carry level_id
+ * and is_passed=true on a perfect score, which would wrongly report the
+ * LEVEL as passed and block the real exam. Filtering by kind is strictly
+ * more correct on both surfaces — flagged for backport to the Flow.)
+ *
+ * Returns { quiz, passed, passedAttempt, cooldownUntil, allCoursesStarted,
+ *           coursesTotal, coursesStarted, questionCount }.
+ */
+async function _loadGrandQuizGate(userId, levelId) {
+  const [{ data: quiz }, { data: attempts }, { data: courses }, { data: modules }, { data: progressRows }] = await Promise.all([
+    supabase.from('training_grand_quizzes')
+      .select('id, level_id')
+      .eq('level_id', levelId).eq('quiz_type', 'grand_quiz').eq('is_active', true)
+      .maybeSingle(),
+    supabase.from('training_assessment_attempts')
+      .select('id, status, is_passed, cooldown_until, completed_at')
+      .eq('user_id', userId).eq('level_id', levelId).eq('quiz_kind', 'grand'),
+    supabase.from('training_courses').select('id').eq('level_id', levelId).eq('is_active', true),
+    supabase.from('training_modules').select('id, course_id').eq('is_active', true),
+    supabase.from('teacher_training_progress').select('module_id').eq('user_id', userId),
+  ]);
+
+  const passedAttempt = (attempts || []).find(a => a.is_passed === true) || null;
+  const cooldownAttempt = (attempts || []).find(a =>
+    a.status === 'failed' && a.cooldown_until && new Date(a.cooldown_until) > new Date()
+  ) || null;
+
+  // Eligibility — EXACT WhatsApp criterion: every active course in the level
+  // has ≥1 module in teacher_training_progress ("started" proxy, matching
+  // loadGrandQuizState + the level-state 'ready_for_quiz' computation).
+  const doneIds = new Set((progressRows || []).map(r => r.module_id));
+  const courseIds = new Set((courses || []).map(c => c.id));
+  const startedCourseIds = new Set(
+    (modules || []).filter(m => courseIds.has(m.course_id) && doneIds.has(m.id)).map(m => m.course_id)
+  );
+  const allCoursesStarted = courseIds.size > 0 && startedCourseIds.size === courseIds.size;
+
+  let questionCount = 0;
+  if (quiz) {
+    const { data: qs } = await supabase
+      .from('training_questions')
+      .select('id')
+      .eq('grand_quiz_id', quiz.id)
+      .eq('is_active', true);
+    questionCount = (qs || []).length;
+  }
+
+  return {
+    quiz: quiz || null,
+    passed: !!passedAttempt,
+    passedAttempt,
+    cooldownUntil: cooldownAttempt ? cooldownAttempt.cooldown_until : null,
+    allCoursesStarted,
+    coursesTotal: courseIds.size,
+    coursesStarted: startedCourseIds.size,
+    questionCount,
+  };
+}
+
+/** Reduce a gate to the single state string the frontend renders on. */
+function _grandQuizState(gate) {
+  if (!gate.quiz || gate.questionCount === 0) return 'no_quiz';
+  if (gate.passed) return 'passed';
+  if (gate.cooldownUntil) return 'cooldown';
+  if (!gate.allCoursesStarted) return 'courses_incomplete';
+  return 'ready';
+}
+
+/**
+ * GET /api/portal/training/level/:id/grand-quiz
+ *
+ * Grand-quiz (level exam) status for the authenticated teacher on one level.
+ * Drives the "Take Level Exam" entry point on the Training page.
+ *
+ * Response:
+ *   { success: true, grand_quiz: {
+ *       state: 'no_quiz'|'passed'|'cooldown'|'courses_incomplete'|'ready',
+ *       question_count, pass_mark_pct: 100,
+ *       cooldown_hours: 24, cooldown_until: ISO|null,
+ *       courses_total, courses_started,
+ *       passed_at: ISO|null,
+ *       certificate: { certificate_code, teacher_name, level_name, issued_at } | null
+ *   } }
+ *
+ * 403 (with previous_level_order) when the level itself is chain-locked —
+ * same _assertLevelUnlocked gate as every other training endpoint.
+ */
+router.get('/training/level/:id/grand-quiz', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const levelId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(levelId)) {
+      return res.status(400).json({ success: false, error: 'Invalid level id' });
+    }
+
+    const lock = await _assertLevelUnlocked(userId, levelId);
+    if (!lock.ok) return res.status(lock.status).json({ success: false, error: lock.error, previous_level_order: lock.previous_level_order });
+
+    const gate = await _loadGrandQuizGate(userId, levelId);
+    const state = _grandQuizState(gate);
+
+    // Attach the certificate when passed (newest first if re-issues ever exist).
+    let certificate = null;
+    if (state === 'passed') {
+      const { data: certs } = await supabase
+        .from('training_certificates')
+        .select('certificate_code, teacher_name_snapshot, level_name_snapshot, issued_at')
+        .eq('user_id', userId)
+        .eq('level_id', levelId)
+        .order('issued_at', { ascending: false })
+        .limit(1);
+      const c = (certs || [])[0];
+      if (c) {
+        certificate = {
+          certificate_code: c.certificate_code,
+          teacher_name: c.teacher_name_snapshot,
+          level_name: c.level_name_snapshot,
+          issued_at: c.issued_at,
+        };
+      }
+    }
+
+    return res.json({
+      success: true,
+      grand_quiz: {
+        state,
+        question_count: gate.questionCount,
+        pass_mark_pct: 100,
+        cooldown_hours: GRAND_QUIZ_COOLDOWN_HOURS,
+        cooldown_until: gate.cooldownUntil,
+        courses_total: gate.coursesTotal,
+        courses_started: gate.coursesStarted,
+        passed_at: gate.passedAttempt ? gate.passedAttempt.completed_at : null,
+        certificate,
+      },
+    });
+  } catch (error) {
+    console.error('training/level/:id/grand-quiz error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to load grand quiz status' });
+  }
+});
+
+/**
+ * GET /api/portal/training/level/:id/grand-quiz/questions
+ *
+ * The exam paper — active questions for the level's grand quiz, in the same
+ * canonical order the WhatsApp side asks them (order_index ascending).
+ * `correct_option` is NEVER returned; grading is server-side only.
+ *
+ * 403 unless the teacher is currently eligible to sit the exam (state 'ready'
+ * — the same gate the submit endpoint enforces, so the UI can't fetch a paper
+ * it can't submit).
+ */
+router.get('/training/level/:id/grand-quiz/questions', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const levelId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(levelId)) {
+      return res.status(400).json({ success: false, error: 'Invalid level id' });
+    }
+
+    const lock = await _assertLevelUnlocked(userId, levelId);
+    if (!lock.ok) return res.status(lock.status).json({ success: false, error: lock.error, previous_level_order: lock.previous_level_order });
+
+    const gate = await _loadGrandQuizGate(userId, levelId);
+    const state = _grandQuizState(gate);
+    if (state !== 'ready') {
+      return res.status(state === 'no_quiz' ? 404 : 403).json({
+        success: false,
+        code: state,
+        error: state === 'no_quiz' ? 'No grand quiz configured for this level'
+          : state === 'passed' ? 'You already passed this level exam'
+          : state === 'cooldown' ? 'Exam locked after a recent failed attempt'
+          : 'Complete all courses in this level to unlock the exam',
+        cooldown_until: gate.cooldownUntil,
+      });
+    }
+
+    const { data: questions, error: qErr } = await supabase
+      .from('training_questions')
+      .select('id, question_text, question_urdu, options, order_index')
+      .eq('grand_quiz_id', gate.quiz.id)
+      .eq('is_active', true)
+      .order('order_index', { ascending: true });
+    if (qErr) throw qErr;
+
+    return res.json({
+      success: true,
+      questions: (questions || []).map(q => ({
+        id: q.id,
+        question_text: q.question_text,
+        question_urdu: q.question_urdu || null,
+        options: Array.isArray(q.options) ? q.options : [],
+        order_index: q.order_index,
+      })),
+      question_count: (questions || []).length,
+    });
+  } catch (error) {
+    console.error('training/level/:id/grand-quiz/questions error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to load exam questions' });
+  }
+});
+
+/**
+ * POST /api/portal/training/level/:id/grand-quiz/attempts
+ *
+ * Submit a full grand-quiz (level exam) attempt from the portal. Server-side
+ * grades every answer and persists to the SAME tables with the SAME semantics
+ * as the WhatsApp writer (quiz-delivery.service.js, quiz_kind='grand'):
+ *
+ *   - `quiz_kind='grand'`, `grand_quiz_id`, `level_id`, `program_id`
+ *   - `total_score = total_questions` (one point per question)
+ *   - pass bar: 100% — `is_passed = (score === total_questions)`
+ *   - pass  → `status='passed'`,  `cooldown_until = null`, certificate issued
+ *   - fail  → `status='failed'`,  `cooldown_until = now + 24h`
+ *   - answers: one row per question with the canonical 0-based
+ *     `question_index` (position in order_index-sorted list — matches the
+ *     WhatsApp Q-by-Q writer)
+ *   - abandonment never triggers cooldown: the portal submits one-shot, so an
+ *     abandoned portal form simply never writes an attempt. (On WhatsApp an
+ *     abandoned attempt stays 'in_progress' and is resumed on the next
+ *     start — the 'abandoned' enum state exists in the schema but no sweep
+ *     writes it yet. Neither surface ever sets cooldown without a graded
+ *     fail.)
+ *
+ * Gate order: 400 bad input → 403/404 level locked → 404 no quiz →
+ * 409 already passed → 403 cooldown (code:'cooldown') →
+ * 403 courses incomplete (code:'courses_incomplete') → 400 answer mismatch.
+ *
+ * Body:  { answers: [{ question_id, chosen_option }, ...] } — one entry per
+ *        active question; `chosen_option` is the 1-based option index as a
+ *        string ('1'..'10'), identical to the WhatsApp button payload.
+ * Ok:    { success: true, attempt: { id, score, max_score, is_passed, status,
+ *          cooldown_until, completed_at }, certificate: {...}|null }
+ */
+router.post('/training/level/:id/grand-quiz/attempts', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const levelId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(levelId)) {
+      return res.status(400).json({ success: false, error: 'Invalid level id' });
+    }
+
+    const answers = req.body && Array.isArray(req.body.answers) ? req.body.answers : null;
+    if (!answers) {
+      return res.status(400).json({ success: false, error: 'Body must include an answers array' });
+    }
+
+    // 1. Level chain-lock gate — same rule as every other training endpoint.
+    const lock = await _assertLevelUnlocked(userId, levelId);
+    if (!lock.ok) return res.status(lock.status).json({ success: false, error: lock.error, previous_level_order: lock.previous_level_order });
+
+    // 2. Grand-quiz gate — quiz exists, not passed, no cooldown, all courses
+    //    started (the WhatsApp eligibility rule, checked server-side so a
+    //    hand-crafted request can't skip the level's coursework).
+    const gate = await _loadGrandQuizGate(userId, levelId);
+    if (!gate.quiz) {
+      return res.status(404).json({ success: false, code: 'no_quiz', error: 'No grand quiz configured for this level' });
+    }
+    if (gate.passed) {
+      return res.status(409).json({ success: false, code: 'already_passed', error: 'You already passed this level exam' });
+    }
+    if (gate.cooldownUntil) {
+      return res.status(403).json({
+        success: false,
+        code: 'cooldown',
+        error: 'Exam locked after a recent failed attempt',
+        cooldown_until: gate.cooldownUntil,
+      });
+    }
+    if (!gate.allCoursesStarted) {
+      return res.status(403).json({
+        success: false,
+        code: 'courses_incomplete',
+        error: 'Complete all courses in this level to unlock the exam',
+        courses_total: gate.coursesTotal,
+        courses_started: gate.coursesStarted,
+      });
+    }
+
+    // 3. Canonical question list (same order the WhatsApp side asks).
+    const { data: questions, error: qErr } = await supabase
+      .from('training_questions')
+      .select('id, correct_option, order_index')
+      .eq('grand_quiz_id', gate.quiz.id)
+      .eq('is_active', true)
+      .order('order_index', { ascending: true });
+    if (qErr) throw qErr;
+    const qList = questions || [];
+    if (qList.length === 0) {
+      return res.status(404).json({ success: false, code: 'no_quiz', error: 'This level has no active exam questions' });
+    }
+    if (answers.length !== qList.length) {
+      return res.status(400).json({
+        success: false,
+        error: `Answer count mismatch: expected ${qList.length}, got ${answers.length}`,
+      });
+    }
+
+    // 4. Program assignment — NOT NULL on the attempts table (matches the
+    //    WhatsApp enrollment requirement in startGrandQuiz).
+    const { data: assignment } = await supabase
+      .from('teacher_training_assignments')
+      .select('program_id')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+    if (!assignment) {
+      return res.status(400).json({ success: false, error: 'No active training program assignment' });
+    }
+
+    // 5. Grade — identical comparator to the WhatsApp writer:
+    //    String(correct_option).trim() === String(chosen).trim().
+    //    question_index = 0-based position in the canonical order (the value
+    //    the WhatsApp Q-by-Q loop writes), independent of submit order.
+    const qById = new Map(qList.map((q, pos) => [q.id, { ...q, pos }]));
+    const graded = answers.map(a => {
+      const q = qById.get(a && a.question_id);
+      if (!q) return { unknown: true };
+      const chosen = a.chosen_option == null ? '' : String(a.chosen_option);
+      const isCorrect = chosen !== '' && String(q.correct_option).trim() === chosen.trim();
+      return { question_index: q.pos, question_id: q.id, chosen_option: chosen, is_correct: isCorrect };
+    });
+    if (graded.some(g => g.unknown)) {
+      return res.status(400).json({ success: false, error: 'One or more answers reference a question not on this exam' });
+    }
+    if (new Set(graded.map(g => g.question_id)).size !== qList.length) {
+      return res.status(400).json({ success: false, error: 'Duplicate answers for the same question' });
+    }
+
+    const totalQuestions = qList.length;
+    const score = graded.filter(g => g.is_correct).length;
+    const isPassed = score === totalQuestions;   // 100% required — grand-quiz pass bar
+    const completedAt = new Date().toISOString();
+    const cooldownUntil = isPassed
+      ? null
+      : new Date(Date.now() + GRAND_QUIZ_COOLDOWN_HOURS * 3_600_000).toISOString();
+
+    // 6. Insert the attempt row — shape parity with quiz-delivery.service.js
+    //    (startGrandQuiz insert + gradeAttempt grand-branch update, collapsed
+    //    into the one-shot row the portal writes).
+    const { data: attempt, error: aErr } = await supabase
+      .from('training_assessment_attempts')
+      .insert({
+        user_id: userId,
+        program_id: assignment.program_id,
+        quiz_kind: 'grand',
+        grand_quiz_id: gate.quiz.id,
+        level_id: levelId,
+        current_question_index: totalQuestions,
+        total_questions: totalQuestions,
+        total_score: totalQuestions,
+        status: isPassed ? 'passed' : 'failed',
+        score,
+        is_passed: isPassed,
+        completed_at: completedAt,
+        last_activity_at: completedAt,
+        started_at: completedAt,            // one-shot submit; no partial state on portal
+        cooldown_until: cooldownUntil,
+      })
+      .select('id')
+      .single();
+    if (aErr) throw aErr;
+
+    // 7. Per-question answer rows.
+    const answerRows = graded.map(g => ({
+      attempt_id: attempt.id,
+      question_index: g.question_index,
+      question_id: g.question_id,
+      chosen_option: g.chosen_option,
+      is_correct: g.is_correct,
+      answered_at: completedAt,
+    }));
+    const { error: ansErr } = await supabase.from('training_assessment_answers').insert(answerRows);
+    if (ansErr) throw ansErr;
+
+    // 8. Certificate on pass — the bot's shared issuance service (idempotent
+    //    per attempt; PDF rendering stays a separate concern). Lazy require:
+    //    the service lives in the bot tree and must not load at router mount.
+    let certificate = null;
+    if (isPassed) {
+      const { issueCertificate } = require('../../bot/shared/services/training/certificate.service');
+      const cert = await issueCertificate(supabase, {
+        userId,
+        programId: assignment.program_id,
+        levelId,
+        attemptId: attempt.id,
+      });
+      certificate = {
+        certificate_code: cert.certificate_code,
+        teacher_name: cert.teacher_name,
+        level_name: cert.level_name,
+        issued_at: cert.issued_at,
+      };
+    }
+
+    // 9. Semantic event — observability parity with the module-quiz endpoint.
+    try {
+      const { logEvent } = require('../../bot/shared/utils/structured-logger');
+      const grandCompletedPayload = {
+        user_uuid: userId,
+        attempt_uuid: attempt.id,
+        level_row_id: levelId,
+        raw_score: score,
+        total_qs: totalQuestions,
+        did_pass: isPassed,
+        surface: 'portal',
+      };
+      logEvent('grand_quiz_completed', grandCompletedPayload);
+    } catch (_) { /* logger not available — best-effort telemetry */ }
+
+    return res.json({
+      success: true,
+      attempt: {
+        id: attempt.id,
+        score,
+        max_score: totalQuestions,
+        is_passed: isPassed,
+        status: isPassed ? 'passed' : 'failed',
+        cooldown_until: cooldownUntil,
+        completed_at: completedAt,
+      },
+      certificate,
+    });
+  } catch (error) {
+    console.error('training/level/:id/grand-quiz/attempts POST error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to submit exam attempt' });
+  }
+});
+
 /**
  * POST /api/portal/training/module/:id/complete
  *
