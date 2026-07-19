@@ -1,6 +1,6 @@
 # Portal Grand Quiz (Level Exam) + Certificate — Phase 3 Report
 
-Branch: `portal-grand-quiz` · PR: (URL added below after creation)
+Branch: `portal-grand-quiz` · PR: https://github.com/Orenda-Project/NIETE-Rumi/pull/33
 
 Phase 3 of the portal quiz-parity build: the grand quiz (level exam) and
 certificate path on the teacher portal, writing the **same tables with the
