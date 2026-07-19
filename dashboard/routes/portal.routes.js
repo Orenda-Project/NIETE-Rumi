@@ -1810,6 +1810,84 @@ router.get('/training/module/:id/attempts', requirePortalAuth, async (req, res) 
 });
 
 /**
+ * GET /api/portal/training/module/:id/questions
+ *
+ * Returns the active quiz questions for a module so the portal can render the
+ * quiz-taking form. Mirrors the WhatsApp-side question fetch
+ * (bot/shared/services/training/quiz-delivery.service.js — same table, same
+ * is_active filter, same order_index ascending ordering) so both surfaces show
+ * the identical question set in the identical order.
+ *
+ * SECURITY: `correct_option` is deliberately NOT selected — grading happens
+ * exclusively server-side in the POST /quiz-attempts sibling endpoint. The
+ * client must never receive the answer key.
+ *
+ * Options normalisation: the `options` JSONB column holds either an array of
+ * strings or an array of `{ text }` objects (both shapes exist in seeded
+ * data). We normalise to plain strings here so the client renders one shape.
+ *
+ * Contract:
+ *   Path   :id — BIGINT module id
+ *   Auth   requirePortalAuth (401 on session miss)
+ *   Errors 400 (bad id), 403 (level locked), 404 (module not found), 500 on DB error
+ *   Ok     { success: true, questions: [{ id, question_text, options: [string], order_index }] }
+ *          `questions: []` when the module has no active questions — the
+ *          frontend uses that to hide the "Take Quiz" button entirely.
+ */
+router.get('/training/module/:id/questions', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const moduleId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(moduleId)) {
+      return res.status(400).json({ success: false, error: 'Invalid module id' });
+    }
+
+    // 1. Module must exist and be active (same rule as GET /training/module/:id)
+    const { data: mod, error: modErr } = await supabase
+      .from('training_modules')
+      .select('id, course_id, is_active')
+      .eq('id', moduleId)
+      .eq('is_active', true)
+      .maybeSingle();
+    if (modErr) throw modErr;
+    if (!mod) return res.status(404).json({ success: false, error: 'Module not found' });
+
+    // 2. Lockdown gate — same rule as every other training endpoint.
+    if (mod.course_id) {
+      const { data: course } = await supabase
+        .from('training_courses').select('level_id').eq('id', mod.course_id).maybeSingle();
+      if (course) {
+        const gate = await _assertLevelUnlocked(userId, course.level_id);
+        if (!gate.ok) return res.status(gate.status).json({ success: false, error: gate.error, previous_level_order: gate.previous_level_order });
+      }
+    }
+
+    // 3. Active questions, canonical order — the exact set the POST endpoint
+    //    will grade against (answer count must match this list's length).
+    const { data: questions, error: qErr } = await supabase
+      .from('training_questions')
+      .select('id, question_text, options, order_index')
+      .eq('training_module_id', moduleId)
+      .eq('is_active', true)
+      .order('order_index', { ascending: true });
+    if (qErr) throw qErr;
+
+    const rows = (questions || []).map(q => ({
+      id: q.id,
+      question_text: q.question_text || '',
+      options: (Array.isArray(q.options) ? q.options : []).map(o =>
+        typeof o === 'string' ? o : (o && typeof o === 'object' && typeof o.text === 'string' ? o.text : String(o ?? ''))
+      ),
+      order_index: q.order_index,
+    }));
+    res.json({ success: true, questions: rows });
+  } catch (error) {
+    console.error('training/module/:id/questions error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load module questions' });
+  }
+});
+
+/**
  * POST /api/portal/training/module/:id/quiz-attempts
  *
  * Submit a full per-module training-quiz attempt from the portal. Server-side
