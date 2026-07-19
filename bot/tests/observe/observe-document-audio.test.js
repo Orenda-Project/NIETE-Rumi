@@ -7,6 +7,9 @@
  * gate in exactly one of them).
  */
 
+// FEAT-102: routeLeaderAudio is dark-safe (inert without OBSERVE_MEWAKA_FLOW_ID).
+process.env.OBSERVE_MEWAKA_FLOW_ID = process.env.OBSERVE_MEWAKA_FLOW_ID || 'test-observe-flow-id';
+
 const fs = require('fs');
 const path = require('path');
 

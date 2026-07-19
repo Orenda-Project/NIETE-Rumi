@@ -1624,6 +1624,18 @@ async function handleDocumentMessage(message, from, user) {
 
           logToFile('✅ Session created for classroom coaching', { sessionId });
 
+          // FEAT-102 bd-29: a school leader's classroom recording arrives HERE
+          // (phone recorders share a 40-min lesson as a FILE). Route it to the
+          // /observe HITL flow, NEVER into teacher coaching. Dark-safe: inert
+          // unless OBSERVE_MEWAKA_FLOW_ID is set (see observe-audio-router).
+          {
+            const { routeLeaderAudio } = require('./shared/services/observe/observe-audio-router');
+            const observeHandled = await routeLeaderAudio({
+              user, from, audioId: documentId, sessionId, isLongAudio: true,
+            });
+            if (observeHandled) return;
+          }
+
           // Route to classroom coaching flow
           await CoachingService.initiateCoachingSession(
             user.id,

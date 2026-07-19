@@ -32,6 +32,12 @@ const { logToFile } = require('../../utils/logger');
  * @returns {Promise<boolean>} handled? (true → caller returns immediately)
  */
 async function routeLeaderAudio({ user, from, audioId, sessionId, isLongAudio = false }) {
+  // FEAT-102 dark-safe gate: when the market has NOT published its observe Flow
+  // (no OBSERVE_MEWAKA_FLOW_ID), the whole /observe capability is off — leaders'
+  // audio flows through normal coaching exactly as before. Mirrors the same
+  // capability gate the /observe command uses (observe-gate.js). This makes the
+  // code safe to deploy DARK before the env is set.
+  if (!process.env.OBSERVE_MEWAKA_FLOW_ID) return false;
   if (!isSchoolLeader(user)) return false;   // teachers untouched (family check — bd-46)
 
   const lang = observeLang(user);

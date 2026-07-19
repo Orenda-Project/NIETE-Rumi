@@ -464,6 +464,41 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
+  // OBSERVE COMMAND (FEAT-102): /observe — ICT/NIETE school-leader (Coach /
+  // Principal / AEO) classroom-observation capture on FICO. All gating
+  // (capability via OBSERVE_MEWAKA_FLOW_ID, leader-role family, one-time
+  // onboarding) lives in observe-gate.js + observe-command.handler.js. When
+  // observe is OFF the handler returns false and the message falls through to
+  // normal processing — teacher behaviour provably unchanged.
+  // ============================================================
+  if (/^\/observe\b/i.test(trimmedMessage)) {
+    const { handleObserveCommand } = require('./observe-command.handler');
+    const observeHandled = await handleObserveCommand(user, from, trimmedMessage);
+    if (observeHandled) return;
+  }
+
+  // FEAT-102: a school leader mid send-flow — the next text is the observed
+  // teacher's name + phone (state-gated; teachers and normal chat untouched).
+  {
+    const { isSchoolLeader: _isLeader } = require('../services/observe/observe-gate');
+    if (_isLeader(user)) {
+      try {
+        const ObserveState = require('../services/observe/observe-state.service');
+        const sendState = await ObserveState.getState(user.id);
+        if (sendState && sendState.state === 'awaiting_teacher_details') {
+          const ObserveSend = require('../services/observe/observe-send.service');
+          const consumed = await ObserveSend.handleTeacherDetailsText(user, from, trimmedMessage, sendState);
+          if (consumed) return;
+        }
+      } catch (sendErr) {
+        logToFile('⚠️ observe send-state check failed (falling through to chat)', {
+          userId: user && user.id, error: sendErr.message,
+        });
+      }
+    }
+  }
+
+  // ============================================================
   // READING TEST COMMAND DETECTION: Check for /reading test command
   // ============================================================
   if (trimmedMessage === '/reading test' || trimmedMessage === '/readingtest') {

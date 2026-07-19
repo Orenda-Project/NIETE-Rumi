@@ -26,6 +26,11 @@ jest.mock('../../shared/services/observe/observe-debrief.service', () => ({
   startDebriefFromAudio: jest.fn().mockResolvedValue(true),
 }));
 
+// FEAT-102: routeLeaderAudio is dark-safe — inert unless the market has an
+// observe Flow published (OBSERVE_MEWAKA_FLOW_ID). These tests exercise the
+// "observe enabled" path, so set it.
+process.env.OBSERVE_MEWAKA_FLOW_ID = process.env.OBSERVE_MEWAKA_FLOW_ID || 'test-observe-flow-id';
+
 const WhatsAppService = require('../../shared/services/whatsapp.service');
 const ObserveState = require('../../shared/services/observe/observe-state.service');
 const ObserveCapture = require('../../shared/services/observe/observe-capture.service');
