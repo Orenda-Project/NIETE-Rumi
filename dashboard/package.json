@@ -44,7 +44,9 @@
     "pdfkit": "^0.15.2",
     "pg": "^8.16.3",
     "resend": "^6.4.2",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "redis": "^5.12.1",
+    "ioredis": "^5.4.1"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.16",
