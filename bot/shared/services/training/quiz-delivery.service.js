@@ -51,6 +51,41 @@ const COOLDOWN_HOURS = 24;
 const KIND_GRAND = 'grand';
 const KIND_TRAINING_MODULE = 'training_module';
 
+// bd-2138 — multi-answer ("msq") questions. A question is multi iff its
+// correct_option holds a comma-joined set ('1,3,5' — restored from the
+// legacy `answers` array). Selection accumulates on the answers row across
+// taps and is graded by SET EQUALITY when the teacher taps Done.
+function isMultiKey(correctOption) {
+  return String(correctOption || '').includes(',');
+}
+
+function parseSet(str) {
+  return new Set(String(str || '').split(',').map(s => s.trim()).filter(Boolean));
+}
+
+function normalizeSet(set) {
+  return [...set].map(Number).sort((a, b) => a - b).join(',');
+}
+
+function setsEqual(a, b) {
+  return a.size === b.size && [...a].every(x => b.has(x));
+}
+
+function selectedLetters(set) {
+  return [...set].map(Number).sort((a, b) => a - b)
+    .map(n => OPTION_LETTERS[n - 1] || String(n)).join(', ');
+}
+
+async function loadPartialAnswer(attemptId, questionIndex) {
+  const { data } = await supabase
+    .from('training_assessment_answers')
+    .select('chosen_option')
+    .eq('attempt_id', attemptId)
+    .eq('question_index', questionIndex)
+    .maybeSingle();
+  return parseSet(data?.chosen_option);
+}
+
 /**
  * Start a fresh grand quiz attempt for the given level.
  */
@@ -340,8 +375,10 @@ async function sendQuestion(attemptId, phoneNumber) {
     return await gradeAttempt(attemptId, phoneNumber);
   }
 
-  // WhatsApp interactive list — one row per option (A, B, C, ...).
-  const options = Array.isArray(q.options) ? q.options.slice(0, MAX_OPTIONS) : [];
+  // WhatsApp interactive list — one row per option (A, B, C, ...). Multi
+  // questions reserve one row for the Done submit action (10-row list cap).
+  const optionCap = isMultiKey(q.correct_option) ? MAX_OPTIONS - 1 : MAX_OPTIONS;
+  const options = Array.isArray(q.options) ? q.options.slice(0, optionCap) : [];
   if (options.length === 0) {
     // Bad question data — skip it (count as wrong, advance).
     logToFile('⚠️ Question has no options, skipping', { questionId: q.id });
@@ -359,13 +396,26 @@ async function sendQuestion(attemptId, phoneNumber) {
     description: (text || '').toString().slice(0, OPTION_DESC_MAX),
   }));
 
-  const footer = attempt.quiz_kind === KIND_TRAINING_MODULE
+  const multi = isMultiKey(q.correct_option);
+  let bodyText = q.question_text || '(missing question text)';
+  let footer = attempt.quiz_kind === KIND_TRAINING_MODULE
     ? 'Self-check · tap an option'
     : '100% required to pass · tap an option';
 
+  if (multi) {
+    rows.push({
+      id: `training_quiz_${attempt.id}_done`,
+      title: '✅ Done',
+      description: 'Submit your selected answers',
+    });
+    const selected = await loadPartialAnswer(attempt.id, attempt.current_question_index);
+    if (selected.size > 0) bodyText += `\n\nSelected: ${selectedLetters(selected)}`;
+    footer = 'Select all that apply, then tap Done';
+  }
+
   await WhatsAppService.sendInteractiveMessage(phoneNumber, {
     header: { type: 'text', text: `Q${attempt.current_question_index + 1}/${attempt.total_questions}` },
-    body: { text: q.question_text || '(missing question text)' },
+    body: { text: bodyText },
     footer: { text: footer },
     action: {
       button: 'Answer',
@@ -380,13 +430,13 @@ async function sendQuestion(attemptId, phoneNumber) {
  * ID format: training_quiz_<attemptId>_<optionIndex1based>
  */
 async function handleQuizButton(userId, replyId, phoneNumber) {
-  const m = /^training_quiz_([a-f0-9-]{36})_(\d+)$/.exec(replyId || '');
+  const m = /^training_quiz_([a-f0-9-]{36})_(\d+|done)$/.exec(replyId || '');
   if (!m) {
     logToFile('⚠️ Unrecognized training quiz reply id', { replyId });
     return false;
   }
   const attemptId = m[1];
-  const chosen = m[2]; // "1", "2", "3", ...
+  const chosen = m[2]; // "1", "2", "3", ... or "done" (multi-select submit)
 
   const { data: attempt } = await supabase
     .from('training_assessment_attempts')
@@ -421,6 +471,39 @@ async function handleQuizButton(userId, replyId, phoneNumber) {
   const q = questions?.[0];
   if (!q) {
     logToFile('⚠️ Question missing when recording answer', { attemptId, idx: attempt.current_question_index });
+    return false;
+  }
+
+  // bd-2138 — multi-answer branch. Option taps toggle the stored selection
+  // and re-render the question; the "done" row grades set equality.
+  if (isMultiKey(q.correct_option)) {
+    const selected = await loadPartialAnswer(attempt.id, attempt.current_question_index);
+
+    if (chosen === 'done') {
+      if (selected.size === 0) {
+        // Nothing picked yet — re-prompt, no grade, no advance.
+        return await sendQuestion(attempt.id, phoneNumber);
+      }
+      const isCorrect = setsEqual(selected, parseSet(q.correct_option));
+      await recordAnswer(attempt.id, attempt.current_question_index, q.id, normalizeSet(selected), isCorrect);
+      await supabase.from('training_assessment_attempts').update({
+        current_question_index: attempt.current_question_index + 1,
+        last_activity_at: new Date().toISOString(),
+      }).eq('id', attempt.id);
+      return await sendQuestion(attempt.id, phoneNumber);
+    }
+
+    // Toggle the tapped option in the selection set.
+    if (selected.has(chosen)) selected.delete(chosen);
+    else selected.add(chosen);
+    await recordAnswer(attempt.id, attempt.current_question_index, q.id, normalizeSet(selected), false);
+    return await sendQuestion(attempt.id, phoneNumber);
+  }
+
+  if (chosen === 'done') {
+    // "done" on a single-answer question — stale tap from a re-rendered
+    // multi question that has since advanced; ignore.
+    logToFile('⚠️ done tap on single-answer question', { attemptId, idx: attempt.current_question_index });
     return false;
   }
 

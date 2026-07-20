@@ -213,12 +213,14 @@ describe('GET /api/portal/training/module/:id/questions', () => {
     expect(payload.questions[1].options).toEqual(['c', 'd']);
     expect(payload.questions[2].options).toEqual(['x', 'y']);
 
-    // Full row shape for the first question
+    // Full row shape for the first question (multi added by bd-2138 —
+    // single-answer questions carry multi: false)
     expect(payload.questions[0]).toEqual({
       id: 101,
       question_text: 'Q1',
       options: ['a', 'b'],
       order_index: 0,
+      multi: false,
     });
   });
 
