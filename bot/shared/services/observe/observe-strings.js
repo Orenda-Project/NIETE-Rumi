@@ -234,18 +234,18 @@ const STRINGS = {
     onboard_functional:
       'Welcome to /observe! Here is how it works:\n\n' +
       '1️⃣ Go to the classroom and record the lesson (audio)\n' +
-      '2️⃣ I will send you a pre-filled MEWAKA form — review and edit it\n' +
+      '2️⃣ I will send you a pre-filled FICO form — review and edit it\n' +
       '3️⃣ Later: a guided debrief with the teacher, and a summary for them',
     capture_prompt:
       '🎙 Ready! In the classroom, press record on WhatsApp and record the lesson (or part of it — 10 to 40 minutes).\n\n' +
-      "When you're done, send me the recording here. I'll listen and send you a MEWAKA form pre-filled for every indicator — you review and change anything you disagree with.",
+      "When you're done, send me the recording here. I'll listen and send you a FICO form pre-filled for every indicator — you review and change anything you disagree with.",
     audio_received:
-      "🎧 Got the recording — thank you! I'm listening now and filling in the MEWAKA form. It will arrive here in 2–5 minutes.",
-    flow_header: 'MEWAKA — draft',
-    flow_body: "I've pre-filled the MEWAKA form from your recording — every indicator has a rating, evidence, and an improvement note. Open it, review, change anything you disagree with, then submit.",
+      "🎧 Got the recording — thank you! I'm listening now and filling in the FICO form. It will arrive here in 2–5 minutes.",
+    flow_header: 'FICO — draft',
+    flow_body: "I've pre-filled the FICO form from your recording — every indicator has a rating, evidence, and an improvement note. Open it, review, change anything you disagree with, then submit.",
     flow_button: 'Open the form',
     flow_fallback: 'Analysis complete ✅ — but the editable form is not yet enabled on this deployment. Please contact the Rumi team.',
-    submitted_ack: '✅ Thank you! Your MEWAKA observation is saved, with your edits.',
+    submitted_ack: '✅ Thank you! Your FICO observation is saved, with your edits.',
     // ── bd-21: debrief entry points ──────────────────────────────────
     debrief_choice_body:
       'Next step: the debrief — a growth conversation with the teacher. 🌱\n\n' +
@@ -311,7 +311,7 @@ const STRINGS = {
       "I'm not writing this to judge you. Every coach gets this wrong sometimes, and the best ones are the ones who can hear it and change. We start again tomorrow. 🌱",
     // ── bd-24/25/32: combined report to the teacher ──────────────────
     send_choice_body:
-      "Last step: sending the teacher their report — the official MEWAKA report plus notes from your conversation. You'll see it first before anything is sent. Shall we?",
+      "Last step: sending the teacher their report — the official FICO report plus notes from your conversation. You'll see it first before anything is sent. Shall we?",
     btn_send_report: 'Send report',
     btn_send_later: 'Later',
     send_later_ack:
@@ -323,7 +323,7 @@ const STRINGS = {
     send_preview_coming:
       "Got it — {name} ({phone}). I'm preparing the report now; you'll see it FIRST before anything is sent. 1–2 minutes. ⏳",
     send_confirm_body:
-      'Above is the exact report the teacher will receive — the official MEWAKA report plus your debrief notes. Send it now?',
+      'Above is the exact report the teacher will receive — the official FICO report plus your debrief notes. Send it now?',
     btn_send_now: 'Send now',
     btn_send_cancel: 'Cancel',
     send_delivering: '📨 Sending the report to the teacher now. I\'ll confirm once it lands.',
