@@ -1207,7 +1207,10 @@ router.post('/curriculum/lp/:source_lp_uuid/render', requirePortalAuth, async (r
  * (bot/shared/routes/teacher-training-endpoint.js:192-282). Same rules keep portal
  * lockdown consistent with the Flow lockdown teachers see on WhatsApp.
  *
- *   locked         previous level's grand quiz NOT passed (unless first level)
+ *   locked         chain-unlock vendor only: previous level's grand quiz NOT
+ *                  passed (unless first level). Vendors with
+ *                  unlock_logic='all_modules' (Beacon House, Oxbridge) never
+ *                  lock — their "levels" are subjects, not a ladder.
  *   certified      this level's grand quiz IS passed
  *   ready_for_quiz all courses started + grand quiz not yet passed
  *   in_progress    at least one course started
@@ -1218,7 +1221,8 @@ router.post('/curriculum/lp/:source_lp_uuid/render', requirePortalAuth, async (r
  */
 async function _computeLevelStates(userId, levels) {
   const levelIds = levels.map(l => l.id);
-  const [{ data: courses }, { data: progressRows }, { data: attempts }] = await Promise.all([
+  const vendorIds = [...new Set(levels.map(l => l.vendor_id).filter(Boolean))];
+  const [{ data: courses }, { data: progressRows }, { data: attempts }, { data: vendorRows }] = await Promise.all([
     supabase.from('training_courses').select('id, level_id').eq('is_active', true).in('level_id', levelIds),
     supabase.from('teacher_training_progress')
       .select('module_id, training_modules!inner(course_id, is_active)')
@@ -1227,7 +1231,11 @@ async function _computeLevelStates(userId, levels) {
     supabase.from('training_assessment_attempts')
       .select('level_id, status, is_passed, cooldown_until, completed_at')
       .eq('user_id', userId).in('level_id', levelIds),
+    vendorIds.length
+      ? supabase.from('training_vendors').select('id, unlock_logic').in('id', vendorIds)
+      : Promise.resolve({ data: [] }),
   ]);
+  const vendorById = new Map((vendorRows || []).map(v => [v.id, v]));
 
   // module → course → level chain, plus overall completed_set for the module-count rollup
   const progressByCourse = new Map();
@@ -1265,12 +1273,21 @@ async function _computeLevelStates(userId, levels) {
     const cooldownAttempt = (attempts || []).find(a =>
       a.level_id === lv.id && a.status === 'failed' && a.cooldown_until && new Date(a.cooldown_until) > new Date()
     );
-    const prevLevel = levels.find(l => l.order_index === lv.order_index - 1);
+    // Chain-lock applies only to vendors whose unlock_logic says so — mirror
+    // the WhatsApp endpoint's rule exactly. Missing vendor row defaults to
+    // 'chain' (the legacy Taleemabad behaviour). Previous-level lookup is
+    // scoped WITHIN the vendor: with multiple vendors on the board, a global
+    // order_index-1 lookup crosses vendor boundaries and locks the wrong rows.
+    const vendor = vendorById.get(lv.vendor_id);
+    const chainLocked = (vendor?.unlock_logic || 'chain') === 'chain';
+    const prevLevel = levels
+      .filter(l => l.vendor_id === lv.vendor_id)
+      .find(l => l.order_index === lv.order_index - 1);
     const prevPassed = !prevLevel || !!(attempts || []).find(a => a.level_id === prevLevel.id && a.is_passed === true);
     const isFirst = !prevLevel;
 
     let state;
-    if (!prevPassed && !isFirst) state = 'locked';
+    if (chainLocked && !prevPassed && !isFirst) state = 'locked';
     else if (passedAttempt) state = 'certified';
     else if (coursesStarted.length === lvCourses.length && lvCourses.length > 0) state = 'ready_for_quiz';
     else if (coursesStarted.length > 0) state = 'in_progress';
@@ -1566,8 +1583,10 @@ function _isPdfSourceUrl(url) {
 }
 
 async function _assertLevelUnlocked(userId, levelId) {
+  // vendor_id is required by _computeLevelStates for the per-vendor
+  // unlock_logic + within-vendor previous-level rule.
   const { data: levels } = await supabase
-    .from('training_levels').select('id, name, order_index').eq('is_active', true).order('order_index');
+    .from('training_levels').select('id, name, order_index, vendor_id').eq('is_active', true).order('order_index');
   const stateMap = await _computeLevelStates(userId, levels || []);
   const s = stateMap.get(levelId);
   if (!s) return { ok: false, status: 404, error: 'Level not found' };
