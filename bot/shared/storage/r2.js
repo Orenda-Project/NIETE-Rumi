@@ -315,6 +315,47 @@ async function uploadReportPDF(pdfBuffer, userId, sessionId) {
 }
 
 /**
+ * Upload a coaching report IMAGE (hero renderer PNG) to R2.
+ *
+ * The hero renderer returns a PNG, not a PDF. Storing it under a `.pdf` key
+ * with ContentType `application/pdf` (as uploadReportPDF does) produced a file
+ * that every PDF reader rejects as corrupt — reported from ICT 2026-07-20.
+ * Store PNGs honestly: `_report.png` + `image/png`.
+ *
+ * @param {Buffer} pngBuffer - PNG buffer from the hero renderer
+ * @param {string} userId - User id
+ * @param {string} sessionId - Coaching session id
+ * @returns {Promise<string>} Public URL of uploaded file
+ */
+async function uploadReportImage(pngBuffer, userId, sessionId) {
+  try {
+    const key = `reports/${userId}/${sessionId}_report.png`;
+
+    const command = new PutObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      Body: pngBuffer,
+      ContentType: 'image/png',
+      Metadata: {
+        userId: userId,
+        sessionId: sessionId,
+        generatedAt: new Date().toISOString()
+      }
+    });
+
+    await getR2Client().send(command);
+
+    const publicUrl = `${process.env.R2_ENDPOINT}/${BUCKET_NAME}/${key}`;
+
+    console.log(`✅ Report image uploaded to R2: ${key}`);
+    return publicUrl;
+  } catch (error) {
+    console.error('❌ Error uploading report image to R2:', error);
+    throw error;
+  }
+}
+
+/**
  * Upload image buffer to R2 (for Gemini-generated vocabulary images)
  * Word-level comprehension assessment
  * @param {Buffer} imageBuffer - Image buffer (PNG from Gemini)
@@ -769,6 +810,7 @@ module.exports = {
   uploadLessonPlanBuffer,
   uploadVoiceDebrief,
   uploadReportPDF,
+  uploadReportImage, // Coaching hero-report PNG (correct extension + content-type)
   uploadImageBuffer, // Word-level comprehension vocabulary images
   uploadImageWithRetry, // Multimodal vision: upload with retry
   uploadFeatureVideo, // Feature introduction videos for onboarding

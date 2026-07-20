@@ -1908,10 +1908,14 @@ app.get('/observability/proxy/report/:sessionId',
     // Download file from R2
     const fileBuffer = await downloadFromR2(r2Key);
 
-    // Set appropriate headers
-    res.setHeader('Content-Type', 'application/pdf');
+    // Serve with the REAL content type. Coaching hero reports are PNGs; the
+    // previous hardcoded application/pdf made the browser's PDF viewer reject
+    // them as corrupt (reported from ICT 2026-07-20).
+    const isPng = /\.png$/i.test(r2Key);
+    const ext = isPng ? 'png' : 'pdf';
+    res.setHeader('Content-Type', isPng ? 'image/png' : 'application/pdf');
     res.setHeader('Content-Length', fileBuffer.length);
-    res.setHeader('Content-Disposition', `inline; filename="coaching_report_${sessionId}.pdf"`);
+    res.setHeader('Content-Disposition', `inline; filename="coaching_report_${sessionId}.${ext}"`);
     res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
     res.send(fileBuffer);
   } catch (error) {
