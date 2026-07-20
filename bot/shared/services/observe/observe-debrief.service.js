@@ -21,6 +21,7 @@ const { observeStrings, observeLang } = require('./observe-strings');
 const { logToFile } = require('../../utils/logger');
 const ObserveState = require('./observe-state.service');
 const GPT5MiniService = require('../gpt5-mini.service');
+const { detectRegion } = require('../../utils/region');
 const {
   buildGuidePrompt,
   validateGuide,
@@ -118,12 +119,32 @@ async function listUnsentReports(observerUserId) {
   });
 }
 
-// "12 Jul, 09:46" in East Africa Time — recognisable, fits the 24-char title cap.
+// bd-2216: the deployment's own timezone, not a hardcoded one. This row is how
+// a coach identifies WHICH observation to pick, so a wrong clock time makes the
+// list ambiguous — ICT coaches were seeing East Africa Time, two hours behind
+// their own. Config-driven per this codebase's region philosophy: an explicit
+// DISPLAY_TIMEZONE wins, else the deployment region's zone, else UTC.
+const REGION_TIMEZONES = {
+  niete: 'Asia/Karachi',
+  punjab: 'Asia/Karachi',
+  pakistan: 'Asia/Karachi',
+  tanzania: 'Africa/Dar_es_Salaam',
+  kenya: 'Africa/Nairobi',
+  yemen: 'Asia/Aden',
+  palestine: 'Asia/Hebron',
+};
+
+function _displayTimeZone() {
+  if (process.env.DISPLAY_TIMEZONE) return process.env.DISPLAY_TIMEZONE;
+  return REGION_TIMEZONES[detectRegion()] || 'UTC';
+}
+
+// "12 Jul, 09:46" in the deployment's timezone — fits the 24-char title cap.
 function _rowTitle(createdAt) {
   try {
     return new Intl.DateTimeFormat('en-GB', {
       day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-      timeZone: 'Africa/Dar_es_Salaam',
+      timeZone: _displayTimeZone(),
     }).format(new Date(createdAt));
   } catch (_) {
     return String(createdAt).slice(0, 16);
