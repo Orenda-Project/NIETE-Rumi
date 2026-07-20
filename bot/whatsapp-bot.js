@@ -1568,6 +1568,55 @@ app.post('/webhook', async (req, res) => {
           await WhatsAppService.sendMessage(from, 'Sorry, there was an error processing your language selection. Please try /video again.');
         }
       }
+      // FEAT-102 bd-2215 — the /observe interactive-list rows. Ported from the
+      // main bot; NIETE had the button handlers but NOT these list branches, so
+      // every row in the pending list dead-ended at "Unknown list item ID".
+      // Riffat hit it (2026-07-20): after finishing one observation, tapping
+      // "🎙 New observation" did nothing, so a second observation was impossible.
+      //
+      // Manage-list rows (observe_tmg_<idx>).
+      else if (listId.startsWith('observe_tmg_')) {
+        const ObserveSend = require('./shared/services/observe/observe-send.service');
+        if (user) await ObserveSend.handleTeacherManage(user, from, listId);
+        else logToFile('⚠️ observe teacher-manage tap without user', { listId });
+      }
+      // Teacher-pick rows (observe_pickt_<idx> | observe_pickt_new).
+      // MUST stay ahead of observe_send_ — both are observe list prefixes.
+      else if (listId.startsWith('observe_pickt_')) {
+        const ObserveSend = require('./shared/services/observe/observe-send.service');
+        if (user) await ObserveSend.handleTeacherPick(user, from, listId);
+        else logToFile('⚠️ observe teacher-pick tap without user', { listId });
+      }
+      // Unsent-report rows (observe_send_<sessionId>).
+      else if (listId.startsWith('observe_send_')) {
+        const ObserveSend = require('./shared/services/observe/observe-send.service');
+        if (user) await ObserveSend.startSendFlow(listId.replace('observe_send_', ''), from, user);
+        else logToFile('⚠️ observe send list tap without user', { listId });
+      }
+      // Pending-debrief rows (observe_debrief_<sessionId>) + the
+      // "new observation" sentinel (observe_new).
+      else if (listId.startsWith('observe_debrief_') || listId === 'observe_new') {
+        const ObserveDebrief = require('./shared/services/observe/observe-debrief.service');
+        const parsed = ObserveDebrief.parseDebriefListReplyId(listId);
+        logToFile('🔭 Observe debrief-list row tapped', { listId, from });
+        if (parsed && user) {
+          if (parsed.action === 'debrief') {
+            await ObserveDebrief.startDebrief(parsed.sessionId, from, user);
+          } else {
+            // "new observation" — same arm as /observe's capture path.
+            // observeLang (NOT the main bot's sw/en test) — NIETE serves ur/en,
+            // and Riffat's list rendered in Urdu, so the sw test would have
+            // replied in English to an Urdu user.
+            const { observeStrings, observeLang } = require('./shared/services/observe/observe-strings');
+            const ObserveState = require('./shared/services/observe/observe-state.service');
+            const { getObserveArm } = require('./shared/services/observe/observe-gate');
+            await WhatsAppService.sendMessage(from, observeStrings(observeLang(user)).capture_prompt);
+            await ObserveState.setState(user.id, 'awaiting_audio', { arm: getObserveArm(user) });
+          }
+        } else {
+          logToFile('⚠️ observe debrief list tap without user/parse', { listId, hasUser: !!user });
+        }
+      }
       else {
         logToFile('⚠️ Unknown list item ID', { listId });
       }
