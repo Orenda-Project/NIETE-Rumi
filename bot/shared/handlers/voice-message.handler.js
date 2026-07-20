@@ -68,6 +68,7 @@ async function handleVoiceMessage(message, from, user = null) {
       const voiceDur = message.voice?.duration || message.audio?.duration || 0;
       const observeHandled = await routeLeaderAudio({
         user, from, audioId, sessionId, isLongAudio: voiceDur >= 900,
+        durationSeconds: voiceDur || null,
       });
       if (observeHandled) return;
     }

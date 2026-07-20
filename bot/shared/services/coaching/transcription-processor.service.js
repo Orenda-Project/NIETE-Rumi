@@ -164,6 +164,32 @@ class TranscriptionProcessorService {
         await WhatsAppService.sendMessage(from, getCoachingMessage('longLessonDetected', currentLanguage || 'en'));
       }
 
+      // bd-2139 — backfill the true duration when the webhook never gave us one.
+      // WhatsApp reports a duration for voice notes but NOT for documents, and a
+      // recording sent as a file (.m4a/.mp4) is the normal case for a 40-minute
+      // lesson. A null duration surfaced to Riffat as "your 0-minute recording"
+      // and also reached analyzePedagogy as metadata.duration. We already have the
+      // audio downloaded here, so probe it. Non-fatal: a probe failure must never
+      // cost us a transcript we just paid for.
+      let backfilledDuration = null;
+      if (!session.audio_duration_seconds) {
+        try {
+          const probed = await AudioService.getAudioDuration(audioData);
+          if (probed > 0) {
+            backfilledDuration = Math.round(probed);
+            logToFile('⏱️  Audio duration backfilled via ffprobe', {
+              coachingSessionId,
+              durationSeconds: backfilledDuration,
+            });
+          }
+        } catch (err) {
+          logToFile('⚠️  Duration probe failed (non-fatal)', {
+            coachingSessionId,
+            error: err && err.message,
+          });
+        }
+      }
+
       // Update database with transcription data and tokens for enhanced viewer
       const updateData = {
         audio_url: r2Url,
@@ -177,6 +203,11 @@ class TranscriptionProcessorService {
         transcription_completed_at: new Date().toISOString(),
         transcription_cost: transcriptionResult.cost || 0
       };
+
+      if (backfilledDuration) {
+        updateData.audio_duration_seconds = backfilledDuration;
+        session.audio_duration_seconds = backfilledDuration; // downstream reads this row object
+      }
 
       // Add tokens and silences for enhanced transcript viewer (Phase 1)
       // These columns may not exist yet - migration required

@@ -31,7 +31,7 @@ const { logToFile } = require('../../utils/logger');
  *                                    this audio into classroom coaching
  * @returns {Promise<boolean>} handled? (true → caller returns immediately)
  */
-async function routeLeaderAudio({ user, from, audioId, sessionId, isLongAudio = false }) {
+async function routeLeaderAudio({ user, from, audioId, sessionId, isLongAudio = false, durationSeconds = null }) {
   // FEAT-102 dark-safe gate: when the market has NOT published its observe Flow
   // (no OBSERVE_MEWAKA_FLOW_ID), the whole /observe capability is off — leaders'
   // audio flows through normal coaching exactly as before. Mirrors the same
@@ -62,7 +62,11 @@ async function routeLeaderAudio({ user, from, audioId, sessionId, isLongAudio = 
   try {
     if (state && state.state === 'awaiting_audio') {
       const ObserveCapture = require('./observe-capture.service');
-      await ObserveCapture.startFromAudio(user, from, audioId, sessionId);
+      // bd-2139: pass the webhook-reported duration through. Dropping it stored
+      // audio_duration_seconds = NULL, which surfaced to Riffat as "your 0-minute
+      // recording". Documents carry no duration at all — the transcription step
+      // backfills those from ffprobe.
+      await ObserveCapture.startFromAudio(user, from, audioId, sessionId, durationSeconds);
       logToFile('🔭 observe: classroom recording captured', { userId: user.id, audioId });
       return true;
     }
