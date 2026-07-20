@@ -284,12 +284,15 @@ async function buildTrainingHome(userId, opts = {}) {
     const slot = i + 1;
     const lvl = vendorLevels[i];
     if (!lvl) {
-      data[`level_${slot}_title`]     = `🔒 Level ${slot}`;
-      data[`level_${slot}_progress`]  = 'Not part of this program';
+      const ghost = ghostSlotData(slot);
+      data[`level_${slot}_title`]     = ghost.title;
+      data[`level_${slot}_progress`]  = ghost.progress;
+      data[`level_${slot}_visible`]   = ghost.visible;
       continue;
     }
-    data[`level_${slot}_title`]     = `${levelEmoji(lvl)} Level ${lvl.order_index + 1} · ${shortLevelName(lvl)}`;
+    data[`level_${slot}_title`]     = levelDisplayTitle(lvl);
     data[`level_${slot}_progress`]  = levelProgressLine(lvl);
+    data[`level_${slot}_visible`]   = true;
   }
 
   // Dropdown options for the chosen vendor. Composite id kept as a defence-
@@ -298,7 +301,7 @@ async function buildTrainingHome(userId, opts = {}) {
   // be unique already.
   data.level_options = vendorLevels.slice(0, 5).map((lvl, i) => ({
     id:    `${lvl.order_index + 1}_${i}`,
-    title: `Level ${lvl.order_index + 1} · ${shortLevelName(lvl)} — ${ctaForLevel(lvl)}`,
+    title: levelOptionTitle(lvl),
   }));
 
   logToFile('🎓 TRAINING_HOME response snapshot', {
@@ -331,7 +334,7 @@ async function buildLevelDetail(userId, levelOrder, opts = {}) {
   return {
     screen: 'LEVEL_DETAIL',
     data: {
-      level_title:    `${levelEmoji(lvl)} Level ${lvl.order_index + 1} · ${shortLevelName(lvl)}`,
+      level_title:    levelDisplayTitle(lvl),
       level_progress: `${doneModules}/${totalModules} modules done · ${pct}%`,
       level_order:    String(levelOrder),
       // bd-2102 — echoed back through payload interpolation so downstream
@@ -620,6 +623,39 @@ function levelBadgeName(lv) {
   return 'badge_level_locked'; // 'not_started' also uses a soft-locked look
 }
 
+// bd-2137 — vendor-aware display labels. Chain vendors (Taleemabad/NIETE)
+// have a real ladder, so "Level N · Name" is meaningful. all_modules vendors'
+// "levels" are SUBJECTS (Beacon House: English/Maths/…; Oxbridge: one
+// program) — the ladder label reads as clutter and the order numbers leak
+// global order_index values ("Level 2.English"). Missing unlock_logic
+// defaults to chain, matching the lock-rule default everywhere else.
+function isLadderVendor(lv) {
+  return (lv.unlock_logic || 'chain') === 'chain';
+}
+
+function levelDisplayTitle(lv) {
+  const base = isLadderVendor(lv)
+    ? `Level ${lv.order_index + 1} · ${shortLevelName(lv)}`
+    : shortLevelName(lv);
+  return `${levelEmoji(lv)} ${base}`;
+}
+
+function levelOptionTitle(lv) {
+  const base = isLadderVendor(lv)
+    ? `Level ${lv.order_index + 1} · ${shortLevelName(lv)}`
+    : shortLevelName(lv);
+  return `${base} — ${ctaForLevel(lv)}`;
+}
+
+// Unused TRAINING_HOME slots. The published Flow renders 5 fixed
+// heading/body pairs; the server marks ghosts invisible (the Flow's
+// `visible` bindings hide them once the asset update ships) and keeps a
+// neutral title so clients on the OLD flow version see a single dash line
+// instead of the phantom "🔒 Level N — Not part of this program" category.
+function ghostSlotData(slot) {
+  return { title: '·', progress: '', visible: false };
+}
+
 function levelEmoji(lv) {
   if (lv.state === 'locked') return '🔒';
   if (lv.state === 'certified') return '🏆';
@@ -683,7 +719,10 @@ module.exports = {
   handleTeacherTrainingInit,
   handleTeacherTrainingDataExchange,
   handleTeacherTrainingBack,
-  // Pure helpers exported for unit tests (bd-2102).
+  // Pure helpers exported for unit tests (bd-2102, bd-2137).
   partitionByVendor,
   vendorSummaryLine,
+  levelDisplayTitle,
+  levelOptionTitle,
+  ghostSlotData,
 };
