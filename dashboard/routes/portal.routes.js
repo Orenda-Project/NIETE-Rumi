@@ -1897,6 +1897,23 @@ router.get('/training/module/:id/attempts', requirePortalAuth, async (req, res) 
  *          `questions: []` when the module has no active questions — the
  *          frontend uses that to hide the "Take Quiz" button entirely.
  */
+/**
+ * bd-2138 — multi-answer ("msq") questions. A question is multi iff its
+ * correct_option holds a comma-joined set ('1,3,5', restored from the legacy
+ * `answers` array). Grading normalises both sides to a sorted numeric set so
+ * '3,1', '1,3' and [1, 3] all grade identically; single answers ('2') pass
+ * through unchanged. Mirrors bot/shared/services/training/quiz-delivery.
+ */
+function _isMultiAnswerKey(correctOption) {
+  return String(correctOption || '').includes(',');
+}
+
+function _normalizeAnswerSet(value) {
+  const parts = Array.isArray(value) ? value : String(value == null ? '' : value).split(',');
+  const nums = [...new Set(parts.map(p => String(p).trim()).filter(Boolean))];
+  return nums.map(Number).sort((a, b) => a - b).join(',');
+}
+
 router.get('/training/module/:id/questions', requirePortalAuth, async (req, res) => {
   try {
     const userId = req.session.portalUserId;
@@ -1927,9 +1944,11 @@ router.get('/training/module/:id/questions', requirePortalAuth, async (req, res)
 
     // 3. Active questions, canonical order — the exact set the POST endpoint
     //    will grade against (answer count must match this list's length).
+    //    correct_option is fetched ONLY to compute the multi flag server-side
+    //    and is never included in the response.
     const { data: questions, error: qErr } = await supabase
       .from('training_questions')
-      .select('id, question_text, options, order_index')
+      .select('id, question_text, options, order_index, correct_option')
       .eq('training_module_id', moduleId)
       .eq('is_active', true)
       .order('order_index', { ascending: true });
@@ -1942,6 +1961,9 @@ router.get('/training/module/:id/questions', requirePortalAuth, async (req, res)
         typeof o === 'string' ? o : (o && typeof o === 'object' && typeof o.text === 'string' ? o.text : String(o ?? ''))
       ),
       order_index: q.order_index,
+      // bd-2138 — msq questions carry a comma-joined answer set; the client
+      // renders checkboxes instead of radios and submits the selected set.
+      multi: _isMultiAnswerKey(q.correct_option),
     }));
     res.json({ success: true, questions: rows });
   } catch (error) {
@@ -2059,16 +2081,23 @@ router.post('/training/module/:id/quiz-attempts', requirePortalAuth, async (req,
       return res.status(400).json({ success: false, error: 'No active training program assignment' });
     }
 
-    // 5. Grade — match each answer to a question by id; correct if
-    //    String(chosen_option) === String(correct_option). Missing/invalid
-    //    answers count as wrong (defensive — the client shouldn't send them
-    //    but a race between question edits and submit shouldn't 500).
+    // 5. Grade — match each answer to a question by id. Single answers grade
+    //    by string equality as before; multi (msq) answers grade by SET
+    //    EQUALITY after normalisation (bd-2138) — '3,1', '1,3' and [1,3] are
+    //    the same submission. Missing/invalid answers count as wrong
+    //    (defensive — the client shouldn't send them but a race between
+    //    question edits and submit shouldn't 500).
     const qById = new Map(qList.map(q => [q.id, q]));
     const graded = answers.map((a, idx) => {
       const q = qById.get(a && a.question_id);
       if (!q) return { question_index: idx, question_id: null, chosen_option: '', is_correct: false, unknown: true };
-      const chosen = a.chosen_option == null ? '' : String(a.chosen_option);
-      const isCorrect = chosen !== '' && String(q.correct_option).trim() === chosen.trim();
+      const chosen = _isMultiAnswerKey(q.correct_option)
+        ? _normalizeAnswerSet(a.chosen_option)
+        : (a.chosen_option == null ? '' : String(a.chosen_option));
+      const correctKey = _isMultiAnswerKey(q.correct_option)
+        ? _normalizeAnswerSet(q.correct_option)
+        : String(q.correct_option).trim();
+      const isCorrect = chosen !== '' && correctKey === chosen.trim();
       // question_index = position in the module's canonical question order,
       // NOT the order the client submitted — matches WhatsApp's per-index
       // answer rows (attempt_id, question_index) UNIQUE.
@@ -2499,7 +2528,8 @@ router.post('/training/level/:id/grand-quiz/attempts', requirePortalAuth, async 
       return res.status(400).json({ success: false, error: 'No active training program assignment' });
     }
 
-    // 5. Grade — identical comparator to the WhatsApp writer:
+    // 5. Grade — identical comparator to the WhatsApp writer, msq-aware
+    //    (bd-2138): multi keys grade by normalised set equality, single by
     //    String(correct_option).trim() === String(chosen).trim().
     //    question_index = 0-based position in the canonical order (the value
     //    the WhatsApp Q-by-Q loop writes), independent of submit order.
@@ -2507,8 +2537,13 @@ router.post('/training/level/:id/grand-quiz/attempts', requirePortalAuth, async 
     const graded = answers.map(a => {
       const q = qById.get(a && a.question_id);
       if (!q) return { unknown: true };
-      const chosen = a.chosen_option == null ? '' : String(a.chosen_option);
-      const isCorrect = chosen !== '' && String(q.correct_option).trim() === chosen.trim();
+      const chosen = _isMultiAnswerKey(q.correct_option)
+        ? _normalizeAnswerSet(a.chosen_option)
+        : (a.chosen_option == null ? '' : String(a.chosen_option));
+      const correctKey = _isMultiAnswerKey(q.correct_option)
+        ? _normalizeAnswerSet(q.correct_option)
+        : String(q.correct_option).trim();
+      const isCorrect = chosen !== '' && correctKey === chosen.trim();
       return { question_index: q.pos, question_id: q.id, chosen_option: chosen, is_correct: isCorrect };
     });
     if (graded.some(g => g.unknown)) {

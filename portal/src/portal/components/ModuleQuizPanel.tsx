@@ -29,6 +29,7 @@ import { ClipboardCheck, Loader2, CheckCircle2, XCircle, RotateCcw } from 'lucid
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
 
@@ -39,7 +40,20 @@ export type QuizQuestion = {
   question_text: string;
   options: string[];
   order_index: number;
+  /** bd-2138 — msq question: multiple answers are correct; renders checkboxes
+   *  and submits the selected set as a comma-joined string ('1,3'). */
+  multi?: boolean;
 };
+
+// Toggle an option in a comma-joined selection set ('1,3'), keeping it
+// numerically sorted so the server's set-equality normalisation is trivially
+// satisfied.
+function toggleInSet(current: string, optValue: string): string {
+  const set = new Set(current ? current.split(',') : []);
+  if (set.has(optValue)) set.delete(optValue);
+  else set.add(optValue);
+  return [...set].map(Number).sort((a, b) => a - b).join(',');
+}
 
 export type SubmittedAttempt = {
   id: string;
@@ -192,26 +206,57 @@ const ModuleQuizPanel = ({
           <li key={q.id} className="rounded-lg border bg-muted/20 p-4" data-testid={`quiz-question-${q.id}`}>
             <p className="text-sm font-medium mb-3">
               {qi + 1}. {q.question_text}
+              {q.multi && (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  (select all that apply)
+                </span>
+              )}
             </p>
-            <RadioGroup
-              value={answers[q.id] || ''}
-              onValueChange={(val) => setAnswers(prev => ({ ...prev, [q.id]: val }))}
-              disabled={submitting}
-            >
-              {q.options.map((opt, oi) => {
-                const optValue = String(oi + 1); // 1-indexed, matches DB correct_option
-                const inputId = `quiz-q${q.id}-opt${optValue}`;
-                return (
-                  <div key={optValue} className="flex items-center gap-2">
-                    <RadioGroupItem value={optValue} id={inputId} />
-                    <label htmlFor={inputId} className="text-sm cursor-pointer">
-                      <span className="font-medium mr-1">{OPTION_LETTERS[oi] || oi + 1}.</span>
-                      {opt}
-                    </label>
-                  </div>
-                );
-              })}
-            </RadioGroup>
+            {q.multi ? (
+              <div className="space-y-2" data-testid={`quiz-multi-${q.id}`}>
+                {q.options.map((opt, oi) => {
+                  const optValue = String(oi + 1); // 1-indexed, matches DB correct_option
+                  const inputId = `quiz-q${q.id}-opt${optValue}`;
+                  const selected = (answers[q.id] || '').split(',').includes(optValue);
+                  return (
+                    <div key={optValue} className="flex items-center gap-2">
+                      <Checkbox
+                        id={inputId}
+                        checked={selected}
+                        disabled={submitting}
+                        onCheckedChange={() =>
+                          setAnswers(prev => ({ ...prev, [q.id]: toggleInSet(prev[q.id] || '', optValue) }))
+                        }
+                      />
+                      <label htmlFor={inputId} className="text-sm cursor-pointer">
+                        <span className="font-medium mr-1">{OPTION_LETTERS[oi] || oi + 1}.</span>
+                        {opt}
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <RadioGroup
+                value={answers[q.id] || ''}
+                onValueChange={(val) => setAnswers(prev => ({ ...prev, [q.id]: val }))}
+                disabled={submitting}
+              >
+                {q.options.map((opt, oi) => {
+                  const optValue = String(oi + 1); // 1-indexed, matches DB correct_option
+                  const inputId = `quiz-q${q.id}-opt${optValue}`;
+                  return (
+                    <div key={optValue} className="flex items-center gap-2">
+                      <RadioGroupItem value={optValue} id={inputId} />
+                      <label htmlFor={inputId} className="text-sm cursor-pointer">
+                        <span className="font-medium mr-1">{OPTION_LETTERS[oi] || oi + 1}.</span>
+                        {opt}
+                      </label>
+                    </div>
+                  );
+                })}
+              </RadioGroup>
+            )}
           </li>
         ))}
       </ol>
