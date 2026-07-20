@@ -38,8 +38,13 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
     .single();
 
   if (error || !session) {
-    logToFile('❌ observe: failed to create observation session', { userId: user.id, error: error && error.message });
-    await WhatsAppService.sendMessage(from, S.no_account);
+    // bd-2136: this is a DB write failure, NOT a missing account. Reporting it
+    // as no_account ("I couldn't find your account") hid a missing-column error
+    // and sent testers chasing registration for hours. Say what actually failed.
+    logToFile('❌ observe: failed to create observation session', {
+      userId: user.id, sessionId, audioId, error: error && error.message,
+    });
+    await WhatsAppService.sendMessage(from, S.capture_failed || S.no_account);
     return null;
   }
 

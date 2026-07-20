@@ -11,6 +11,7 @@
 const STRINGS = {
   sw: {
     no_account: 'Samahani, sikupata akaunti yako. Tafadhali nitumie ujumbe wowote kwanza, kisha jaribu /observe tena.',
+    capture_failed: 'Samahani — kumetokea hitilafu upande wangu wakati wa kuhifadhi uchunguzi huu. Rekodi yako haijapotea. Tafadhali andika /observe na uitume tena.',
     role_denied:
       'Samahani — huduma ya /observe ni ya viongozi wa shule (maafisa uwandani) kwa sasa. 💛\n\n' +
       'Kama wewe ni mwalimu, niko hapa kukusaidia: andika "menu" kuona ninachoweza kukufanyia.',
@@ -137,6 +138,7 @@ const STRINGS = {
   // Same trust rules: never a score to the teacher, warm and direct, second person.
   ur: {
     no_account: 'معاف کیجیے، آپ کا اکاؤنٹ نہیں ملا۔ براہ کرم پہلے رجسٹر کریں۔',
+    capture_failed: 'معاف کیجیے — یہ مشاہدہ محفوظ کرتے وقت میری طرف سے مسئلہ ہوا۔ آپ کی ریکارڈنگ ضائع نہیں ہوئی۔ براہ کرم دوبارہ /observe لکھ کر بھیجیں۔',
     role_denied: 'یہ سہولت اسکول لیڈرز، سپروائزرز، کوچز اور پرنسپلز کے لیے ہے۔ اگر آپ کو یہ کردار ملنا چاہیے تو اپنی ٹیم سے رابطہ کریں۔',
     onboard_why:
       'کوچنگ کے کام میں خوش آمدید۔ 🌱\n\nشروع کرنے سے پہلے دل کی ایک بات: آپ کا کام معائنہ نہیں — پرورش ہے۔ جس استاد کے پاس آپ جاتے ہیں وہ نگرانی کے لیے نہیں، مدد کے لیے ہے۔ آپ اُن کے رازدار ہیں: جن پر وہ بھروسہ کریں، جو سنیں، جو دکھائیں کہ کیا اچھا ہوا — اور پھر بہتری کا صرف ایک چھوٹا قدم دکھائیں۔\n\nیہ کیوں اہم ہے؟ جب استاد آپ پر بھروسہ کرتے ہیں تو وہ کھلتے ہیں۔ جب وہ کھلتے ہیں تو سیکھتے ہیں۔ اور جب وہ سیکھتے ہیں تو کلاس بدلتی ہے۔\n\n🎙 تیار ہوں تو کلاس میں WhatsApp پر ریکارڈ دبائیں اور سبق ریکارڈ کریں (10 سے 40 منٹ)۔ مکمل ہونے پر ریکارڈنگ مجھے بھیج دیں۔',
@@ -219,6 +221,7 @@ const STRINGS = {
   },
   en: {
     no_account: "Sorry, I couldn't find your account. Please send me any message first, then try /observe again.",
+    capture_failed: "Sorry — something went wrong on my side while saving that observation. Your recording isn't lost. Please type /observe and send it again; if it keeps happening, tell the team.",
     role_denied:
       '/observe is for school leaders (field officers) for now. 💛\n\n' +
       "If you're a teacher, I'm here for you — type \"menu\" to see what I can do.",
