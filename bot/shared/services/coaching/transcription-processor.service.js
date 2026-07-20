@@ -115,7 +115,20 @@ class TranscriptionProcessorService {
         currentLanguage
       );
 
-      if (languageAnalysis.shouldUpdate && languageAnalysis.newLanguage) {
+      // FEAT-102 bd-2138 (ported from main-bot FEAT-053 bd-31): NEVER re-language a
+      // school leader from the classroom they walked into. On a leader observation
+      // the audio is SOMEONE ELSE'S lesson — the observer's own interface language
+      // is their preference, not a function of the teacher they happened to observe.
+      const isLeaderObservation = session.observation_type === 'leader_observation';
+      if (isLeaderObservation && languageAnalysis.shouldUpdate) {
+        logToFile('🔭 observe: language auto-switch SKIPPED for observer', {
+          userId: session.user_id,
+          keptLanguage: currentLanguage,
+          lessonLanguage: languageAnalysis.newLanguage,
+        });
+      }
+
+      if (!isLeaderObservation && languageAnalysis.shouldUpdate && languageAnalysis.newLanguage) {
         const updateSuccess = await setUserLanguage(session.user_id, languageAnalysis.newLanguage);
 
         if (updateSuccess) {
@@ -186,6 +199,21 @@ class TranscriptionProcessorService {
         .from('coaching_sessions')
         .update(updateData)
         .eq('id', coachingSessionId);
+
+      // FEAT-102 bd-2138 (ported from main-bot FEAT-053 bd-16): leader observations
+      // skip every teacher interstitial (encouraging message, agency reminder, photo
+      // ask, LP gate) and go straight to analysis. Observe-ness derives from the
+      // session ROW — never the queue payload. Status stays 'transcription_complete',
+      // which the analysis claim CAS accepts.
+      if (session.observation_type === 'leader_observation') {
+        const CoachingJobQueueService = require('./coaching-job-queue.service');
+        await CoachingJobQueueService.queueAnalysis(coachingSessionId, { from });
+        if (fs.existsSync(tempAudioPath)) {
+          fs.unlinkSync(tempAudioPath);
+        }
+        logToFile('✅ Transcription complete (observe path — analysis queued directly)', { coachingSessionId });
+        return;
+      }
 
       // Send encouraging message
       const CoachingHelpersService = require('./coaching-helpers.service');

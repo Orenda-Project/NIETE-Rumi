@@ -189,6 +189,18 @@ class AnalysisProcessorService {
         })
         .eq('id', coachingSessionId);
 
+      // FEAT-102 bd-2138 (ported from main-bot FEAT-053 bd-16/bd-19) — leader
+      // observations NEVER auto-flow to the reflective conversation or the teacher
+      // report. Instead: freeze v1 (autofill_analysis_data) and send the observer
+      // the editable pre-filled FICO Flow. The report renders later, from the
+      // observer-edited v2, at send-to-teacher time. Row-derived, not payload-derived.
+      if (session.observation_type === 'leader_observation') {
+        const ObserveDraft = require('../observe/observe-draft.service');
+        await ObserveDraft.onAnalysisReady(coachingSessionId, from);
+        logToFile('✅ Analysis processing complete (observe path — draft flow sent)', { coachingSessionId });
+        return;
+      }
+
       // Send progress update - Step 3
       const lang3 = await _resolveSessionLanguage(coachingSessionId);
       await WhatsAppService.sendMessage(from, getCoachingMessage('step3_reflecting', lang3));
