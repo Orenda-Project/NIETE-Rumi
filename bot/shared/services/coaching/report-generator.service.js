@@ -27,7 +27,7 @@ const CoachingSessionService = require('./coaching-session.service');
 const CoachingHelpersService = require('./coaching-helpers.service');
 const PDFReportService = require('../pdf-report.service');
 const FeatureLinkerService = require('../feature-linker.service');
-const { uploadVoiceDebrief, uploadReportPDF } = require('../../storage/r2');
+const { uploadVoiceDebrief, uploadReportPDF, uploadReportImage } = require('../../storage/r2');
 const { TEMP_DIR } = require('../../utils/constants');
 const { getCoachingMessage } = require('../../config/coaching-messages');
 const { coachRoleLabelForRegion } = require('../../config/region-config');
@@ -220,15 +220,15 @@ class ReportGeneratorService {
       const isHeroImage = !Buffer.isBuffer(reportResult) && reportResult && reportResult.png;
 
       // Upload report to R2 for portal access.
-      // NOTE: uploadReportPDF hardcodes ContentType: 'application/pdf' and the
-      // R2 key ends in `_report.pdf`. For hero PNGs this is technically wrong,
-      // but the portal doesn't currently link to this URL as a PDF viewer —
-      // R2 serves the raw bytes and callers download them. A future task
-      // (bd-TBD) can add a `report_png_url` column + image/png ContentType.
+      // Hero renderer returns a PNG → store it as `_report.png` with
+      // ContentType image/png. Storing PNG bytes under a `.pdf` key made every
+      // PDF reader reject the file as corrupt (reported from ICT 2026-07-20).
+      // PDFKit/HTML renderers still return a real PDF → uploadReportPDF.
       let reportPdfUrl = null;
       try {
-        const bufferToUpload = isHeroImage ? reportResult.png : reportResult;
-        reportPdfUrl = await uploadReportPDF(bufferToUpload, session.user_id, coachingSessionId);
+        reportPdfUrl = isHeroImage
+          ? await uploadReportImage(reportResult.png, session.user_id, coachingSessionId)
+          : await uploadReportPDF(reportResult, session.user_id, coachingSessionId);
         logToFile('✅ Report uploaded to R2', { reportPdfUrl, isHeroImage });
 
         // Store URL in database
