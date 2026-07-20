@@ -628,6 +628,46 @@ class RailwayRedisService {
     }
   }
 
+  /**
+   * bd-2135: Set a key with TTL, enforcing a 24-hour ceiling.
+   *
+   * Ported from the main bot (bd-1263). Feature-state services call THIS rather
+   * than setex so a stuck state key can never outlive its usefulness and block
+   * the feature behind it.
+   *
+   * Why it matters here: this method was MISSING from the NIETE client while
+   * observe-state, the observe Flow endpoint, and every quiz state service call
+   * it — so setState() threw "setexWithCeiling is not a function" and /observe
+   * capture state was silently never written. The coach got the record prompt
+   * (sent before the state write) and then "no observation waiting for you
+   * right now" when they sent the recording. Riffat, 2026-07-20.
+   *
+   * Throws (rather than returning false) on a bad TTL — a caller asking for an
+   * out-of-contract TTL is a bug that should surface, not silently no-op.
+   */
+  async setexWithCeiling(key, ttlSeconds, value) {
+    const MAX_FEATURE_STATE_TTL = 86400; // 24h
+
+    if (ttlSeconds == null || typeof ttlSeconds !== 'number' || isNaN(ttlSeconds)) {
+      throw new Error(`setexWithCeiling: TTL must be a positive number, got ${ttlSeconds} for key ${key}`);
+    }
+    if (ttlSeconds <= 0) {
+      throw new Error(`setexWithCeiling: TTL must be positive, got ${ttlSeconds} for key ${key}`);
+    }
+    if (ttlSeconds > MAX_FEATURE_STATE_TTL) {
+      throw new Error(
+        `setexWithCeiling: TTL ${ttlSeconds}s exceeds 24h ceiling (${MAX_FEATURE_STATE_TTL}s) for key ${key}. ` +
+        `Either lower the TTL or move state to Postgres.`
+      );
+    }
+
+    if (!this.isAvailable()) {
+      return false;
+    }
+
+    return this.redis.setex(key, ttlSeconds, value);
+  }
+
   // ============================================================================
   // MONITORING & ADMIN
   // ============================================================================
