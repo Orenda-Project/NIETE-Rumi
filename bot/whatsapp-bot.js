@@ -1625,7 +1625,7 @@ async function handleDocumentMessage(message, from, user) {
       classifyAudioDocument,
       buildTooLargeMessage,
     } = require('./shared/handlers/audio-document-router');
-    const audioClassification = classifyAudioDocument({ mimeType, fileSize });
+    const audioClassification = classifyAudioDocument({ mimeType, fileSize, filename: message.document.filename });
 
     if (audioClassification.decision === 'reject_too_large') {
       logToFile('🚫 Audio document exceeds Whisper 25MB cap — rejecting before download', {
