@@ -170,9 +170,16 @@ async function applyObserverEdits(sessionId, edits) {
       for (const [prefix, field] of [['ev_', 'evidence_sw'], ['imp_', 'improvement_sw']]) {
         const val = edits[`${prefix}${f}`];
         if (typeof val === 'string') {
-          const origText = String(orig[field] || '').slice(0, PREFILL_TEXT_CAP);
-          if (val !== origText && val !== String(orig[field] || '')) textChanged += 1;
-          if (val !== origText) ind[field] = val;
+          const full = String(orig[field] || '');
+          const shown = full.slice(0, PREFILL_TEXT_CAP);
+          // bd-2218: the leader only ever saw `shown`. Anything past the cap
+          // never reached the screen, so writing their edit verbatim deletes
+          // text they had no chance to review — and nothing in the Flow hints
+          // there was more, so neither they nor the teacher can catch it. An
+          // edit may shorten what was reviewed; it must not touch what wasn't.
+          const unseen = full.slice(PREFILL_TEXT_CAP);
+          if (val !== shown && val !== full) textChanged += 1;
+          if (val !== shown) ind[field] = unseen ? `${val}${unseen}` : val;
         }
       }
     });
