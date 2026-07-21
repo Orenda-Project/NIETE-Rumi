@@ -445,6 +445,12 @@ app.post('/webhook', async (req, res) => {
         await QuizDelivery.handleQuizButton(user.id, buttonId, from);
         return;
       }
+      // BH open-ended capstone start (bd-2233)
+      if (buttonId.startsWith('capstone_start_')) {
+        const CapstoneDelivery = require('./shared/services/training/capstone-delivery.service');
+        await CapstoneDelivery.handleCapstoneButton(user.id, buttonId, from);
+        return;
+      }
 
       // LP feedback survey buttons (👍 Yes / 👎 Not really) — 30s after LP delivery
       if (buttonId.startsWith('lp_feedback_yes_') || buttonId.startsWith('lp_feedback_no_')) {

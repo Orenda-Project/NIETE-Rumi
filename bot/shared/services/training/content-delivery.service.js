@@ -308,6 +308,16 @@ async function handleModuleDone(userId, moduleId, phoneNumber) {
       .catch((err) => logToFile('⚠️ Non-blocking training quiz failed', { moduleId: moduleIdNum, error: err?.message }));
   }
 
+  // BH open-ended capstone offer (bd-2233) — when this module completes the
+  // level for an all_modules vendor, offer the level's Grand Quiz. Fire-and-
+  // forget; never blocks forward progress. The service itself checks vendor
+  // type, capstone existence, full completion, and prior passes.
+  {
+    const CapstoneDelivery = require('./capstone-delivery.service');
+    Promise.resolve(CapstoneDelivery.maybeOfferCapstone(userId, moduleIdNum, phoneNumber))
+      .catch((err) => logToFile('⚠️ Non-blocking capstone offer failed', { moduleId: moduleIdNum, error: err?.message }));
+  }
+
   // If the teacher is REVIEWING an already-fully-complete course (all modules
   // had progress rows before this tap), advance to the next module by
   // order_index instead of falling back to `deliverNextModule` which would
