@@ -191,6 +191,50 @@ async function handleImageMessage(message, from, user = null) {
       }
 
       // ============================================================
+      // bd-2221: lesson plan sent as a PHOTO during coaching.
+      //
+      // The prompt we send is "send your lesson plan as a document (PDF, Word,
+      // or image)" — but only the DOCUMENT path was wired. A teacher who
+      // photographed her plan (the normal thing to do) fell through to the
+      // generic pic-to-LP flow and was asked "do you want to MAKE a lesson
+      // plan?", then lost her coaching session entirely (Sana Nawaz, ICT,
+      // 2026-07-21). We promised images; we now accept them.
+      // ============================================================
+      try {
+        const lpSupabase = require('../config/supabase');
+        const { data: lpSession } = await lpSupabase
+          .from('coaching_sessions')
+          .select('id, conversation_state')
+          .eq('user_id', user.id)
+          .eq('status', 'awaiting_lesson_plan')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (lpSession) {
+          const imageId = message.image?.id;
+          logToFile('📄 Lesson plan received as image for coaching session', {
+            coachingSessionId: lpSession.id, userId: user.id, imageId,
+          });
+          const LessonPlanProcessor = require('../services/coaching/lesson-plan-processor.service');
+          const CoachingJobQueueService = require('../services/coaching/coaching-job-queue.service');
+          // detectFileType already sniffs jpg/png, so the document path handles
+          // an image media id unchanged.
+          await LessonPlanProcessor.handleLessonPlanUpload(lpSession.id, from, imageId);
+          await CoachingJobQueueService.queueAnalysis(lpSession.id, { from, lpUploaded: true });
+          typingController.stop();
+          return;
+        }
+      } catch (lpCheckError) {
+        // Non-fatal: fall through to normal image handling rather than dead-end
+        // the teacher. Her session stays at awaiting_lesson_plan and the analysis
+        // can still be driven by the "skip lesson plan" path.
+        logToFile('⚠️ Lesson-plan-as-image check failed (non-critical)', {
+          error: lpCheckError.message,
+        });
+      }
+
+      // ============================================================
       // EXAM CHECKER DETECTION: Check for active exam session
       // ============================================================
       try {
