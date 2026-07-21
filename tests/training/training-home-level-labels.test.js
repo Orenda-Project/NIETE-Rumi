@@ -24,6 +24,7 @@
 let levelDisplayTitle;
 let levelOptionTitle;
 let ghostSlotData;
+let levelProgressLine;
 
 beforeAll(() => {
   jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
@@ -38,6 +39,7 @@ beforeAll(() => {
     levelDisplayTitle,
     levelOptionTitle,
     ghostSlotData,
+    levelProgressLine,
   } = require('../../bot/shared/routes/teacher-training-endpoint'));
 });
 
@@ -67,8 +69,8 @@ const oxbridgeLevel = {
 
 describe('bd-2137 — vendor-aware level labels', () => {
   test('chain vendor keeps the ladder label', () => {
-    expect(levelDisplayTitle(chainLevel)).toBe('📚 Level 2 · Emerging Practitioner');
-    expect(levelOptionTitle(chainLevel)).toBe('Level 2 · Emerging Practitioner — Start');
+    expect(levelDisplayTitle(chainLevel)).toBe('📚 Level 1 · Emerging Practitioner'); // 0-based, app parity (bd-2235)
+    expect(levelOptionTitle(chainLevel)).toBe('Level 1 · Emerging Practitioner — Start');
   });
 
   test('all_modules vendor renders the plain subject name — no "Level N ·" prefix', () => {
@@ -84,7 +86,13 @@ describe('bd-2137 — vendor-aware level labels', () => {
 
   test('missing unlock_logic defaults to the chain (legacy) label', () => {
     const legacy = { ...chainLevel, unlock_logic: undefined };
-    expect(levelDisplayTitle(legacy)).toBe('📚 Level 2 · Emerging Practitioner');
+    expect(levelDisplayTitle(legacy)).toBe('📚 Level 1 · Emerging Practitioner');
+  });
+
+  test('locked chain level names its 0-based prerequisite (app parity, bd-2235)', () => {
+    // order_index 2 = app "Level 2"; unlocks after app "Level 1"'s exam.
+    const locked = { ...chainLevel, order_index: 2, state: 'locked' };
+    expect(levelProgressLine(locked)).toBe('Unlocks after Level 1 exam');
   });
 
   test('ghost slots are marked hidden for the Flow', () => {
@@ -95,6 +103,6 @@ describe('bd-2137 — vendor-aware level labels', () => {
 
   test('state emoji still tracks progress state for both vendor kinds', () => {
     expect(levelDisplayTitle({ ...subjectLevel, state: 'certified' })).toBe('🏆 English');
-    expect(levelDisplayTitle({ ...chainLevel, state: 'locked' })).toBe('🔒 Level 2 · Emerging Practitioner');
+    expect(levelDisplayTitle({ ...chainLevel, state: 'locked' })).toBe('🔒 Level 1 · Emerging Practitioner');
   });
 });

@@ -390,10 +390,17 @@ async function sendQuestion(attemptId, phoneNumber) {
     return await sendQuestion(attempt.id, phoneNumber);
   }
 
+  // bd-2230 — WhatsApp list rows truncate descriptions at OPTION_DESC_MAX
+  // (72). When any option would be cut, render the FULL options as lettered
+  // lines inside the body (4,096-char cap) and reduce the rows to bare
+  // letters so nothing the teacher must read is lost.
+  const optionsInBody = options.some(o => String(o || '').length > OPTION_DESC_MAX);
+
   const rows = options.map((text, i) => ({
     id: `training_quiz_${attempt.id}_${i + 1}`,   // chosen_option is 1-indexed to match DB
     title: OPTION_LETTERS[i],
-    description: (text || '').toString().slice(0, OPTION_DESC_MAX),
+    // Full text lives in the body when it would truncate here (bd-2230).
+    description: optionsInBody ? '' : (text || '').toString().slice(0, OPTION_DESC_MAX),
   }));
 
   const multi = isMultiKey(q.correct_option);
@@ -401,6 +408,12 @@ async function sendQuestion(attemptId, phoneNumber) {
   let footer = attempt.quiz_kind === KIND_TRAINING_MODULE
     ? 'Self-check · tap an option'
     : '100% required to pass · tap an option';
+
+  if (optionsInBody) {
+    bodyText += '\n\n' + options
+      .map((o, i) => `${OPTION_LETTERS[i]}. ${String(o || '')}`)
+      .join('\n');
+  }
 
   if (multi) {
     rows.push({
@@ -415,7 +428,7 @@ async function sendQuestion(attemptId, phoneNumber) {
 
   await WhatsAppService.sendInteractiveMessage(phoneNumber, {
     header: { type: 'text', text: `Q${attempt.current_question_index + 1}/${attempt.total_questions}` },
-    body: { text: bodyText },
+    body: { text: bodyText.slice(0, 4096) },   // WhatsApp interactive body hard cap
     footer: { text: footer },
     action: {
       button: 'Answer',

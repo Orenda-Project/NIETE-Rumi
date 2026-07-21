@@ -322,7 +322,7 @@ async function buildLevelDetail(userId, levelOrder, opts = {}) {
   const scoped = vendorKey ? catalog.filter(l => l.vendor_key === vendorKey) : catalog;
   const lvl = scoped.find(l => l.order_index === levelOrder - 1);
   if (!lvl) return errorScreen('That level is not part of your program.');
-  if (lvl.state === 'locked') return errorScreen(`Pass Level ${levelOrder - 1}'s grand quiz first to unlock this level.`);
+  if (lvl.state === 'locked') return errorScreen(`Pass Level ${levelOrder - 2}'s grand quiz first to unlock this level.`);
 
   const modules = await loadModulesWithProgress(userId, lvl.id);
   const grandQuiz = await loadGrandQuizState(userId, lvl.id);
@@ -608,7 +608,7 @@ function shortLevelName(lv) {
 }
 
 function levelProgressLine(lv) {
-  if (lv.state === 'locked') return `Unlocks after Level ${lv.order_index} exam`;
+  if (lv.state === 'locked') return `Unlocks after Level ${lv.order_index - 1} exam`;
   if (lv.state === 'certified') return `${lv.courses_completed}/${lv.courses_total} courses ✓ · Exam passed`;
   if (lv.state === 'ready_for_quiz') return `${lv.courses_completed}/${lv.courses_total} courses ✓ · Ready for exam`;
   if (lv.state === 'in_progress') return `${lv.courses_completed}/${lv.courses_total} courses · ${lv.pct_complete}% done`;
@@ -633,16 +633,19 @@ function isLadderVendor(lv) {
   return (lv.unlock_logic || 'chain') === 'chain';
 }
 
+// Display numbers are 0-BASED for ladder vendors — the NIETE app counts
+// Level 0..3 and teachers cross-reference it constantly (bd-2235). Internal
+// _level_order ids stay 1-based; only display strings changed.
 function levelDisplayTitle(lv) {
   const base = isLadderVendor(lv)
-    ? `Level ${lv.order_index + 1} · ${shortLevelName(lv)}`
+    ? `Level ${lv.order_index} · ${shortLevelName(lv)}`
     : shortLevelName(lv);
   return `${levelEmoji(lv)} ${base}`;
 }
 
 function levelOptionTitle(lv) {
   const base = isLadderVendor(lv)
-    ? `Level ${lv.order_index + 1} · ${shortLevelName(lv)}`
+    ? `Level ${lv.order_index} · ${shortLevelName(lv)}`
     : shortLevelName(lv);
   return `${base} — ${ctaForLevel(lv)}`;
 }
@@ -725,4 +728,5 @@ module.exports = {
   levelDisplayTitle,
   levelOptionTitle,
   ghostSlotData,
+  levelProgressLine,
 };
