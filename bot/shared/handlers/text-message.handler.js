@@ -171,6 +171,15 @@ async function handleTextMessage(message, from, messageBody, user = null) {
           return;
         }
 
+        // BH open-ended capstone (bd-2233) — an in-progress capstone attempt
+        // claims the teacher's next text messages as answers. Slash commands
+        // pass through (the service refuses them), so /training etc. still work.
+        const CapstoneDelivery = require('../services/training/capstone-delivery.service');
+        if (await CapstoneDelivery.routeTextAnswer(from, messageBody)) {
+          typingController.stop();
+          return;
+        }
+
         const quizState = await QuizSessionService.getActiveState(from);
         if (quizState) {
           const trimmedQ = messageBody.trim();

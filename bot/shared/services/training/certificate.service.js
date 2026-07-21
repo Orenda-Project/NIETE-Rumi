@@ -113,4 +113,90 @@ async function issueCertificate(supabase, { userId, programId, levelId, attemptI
   };
 }
 
-module.exports = { issueCertificate, generateCertificateCode, certCodePrefix };
+/**
+ * bd-2234 — quiz-score certificate for all_modules vendors WITHOUT a
+ * capstone (Oxbridge). NIETE team rule (21 Jul): complete every module of
+ * the level with a best module-quiz score of >= 70% each → certificate.
+ * Beacon House levels certify through the capstone path instead
+ * (capstone-delivery.service), so levels WITH an active capstone quiz are
+ * excluded here.
+ *
+ * Fires after a module quiz is graded; cheap early-outs, never throws.
+ * @returns {Promise<{issued: boolean, certificate_code?: string, level_name?: string, teacher_name?: string}>}
+ */
+const QUIZ_CERT_PASS_PCT = 0.7;
+
+async function maybeIssueQuizScoreCertificate(supabase, { userId, moduleId, attemptId, programId }) {
+  try {
+    const { data: mod } = await supabase
+      .from('training_modules').select('id, course_id').eq('id', moduleId).maybeSingle();
+    if (!mod || !mod.course_id) return { issued: false };
+    const { data: course } = await supabase
+      .from('training_courses').select('id, level_id').eq('id', mod.course_id).maybeSingle();
+    if (!course) return { issued: false };
+    const { data: level } = await supabase
+      .from('training_levels').select('id, name, vendor_id').eq('id', course.level_id).maybeSingle();
+    if (!level) return { issued: false };
+    const { data: vendor } = await supabase
+      .from('training_vendors').select('id, unlock_logic').eq('id', level.vendor_id).maybeSingle();
+    if ((vendor?.unlock_logic || 'chain') === 'chain') return { issued: false };
+
+    // Capstone levels certify via the capstone pass.
+    const { data: capstone } = await supabase
+      .from('training_grand_quizzes')
+      .select('id')
+      .eq('level_id', level.id)
+      .eq('quiz_type', 'capstone')
+      .eq('is_active', true)
+      .maybeSingle();
+    if (capstone) return { issued: false };
+
+    // One certificate per (user, level).
+    const { data: existing } = await supabase
+      .from('training_certificates')
+      .select('certificate_code')
+      .eq('user_id', userId)
+      .eq('level_id', level.id)
+      .maybeSingle();
+    if (existing) return { issued: false };
+
+    // Every active module of the level complete?
+    const { data: courses } = await supabase
+      .from('training_courses').select('id').eq('level_id', level.id).eq('is_active', true);
+    const courseIds = (courses || []).map(c => c.id);
+    const { data: modules } = await supabase
+      .from('training_modules').select('id').eq('is_active', true).in('course_id', courseIds);
+    const moduleIds = (modules || []).map(m => m.id);
+    if (moduleIds.length === 0) return { issued: false };
+    const { data: progress } = await supabase
+      .from('teacher_training_progress').select('module_id').eq('user_id', userId).in('module_id', moduleIds);
+    const done = new Set((progress || []).map(p => p.module_id));
+    if (!moduleIds.every(id => done.has(id))) return { issued: false };
+
+    // Best quiz score per module must clear the bar.
+    const { data: attempts } = await supabase
+      .from('training_assessment_attempts')
+      .select('training_module_id, score, total_questions')
+      .eq('user_id', userId)
+      .eq('quiz_kind', 'training_module')
+      .in('training_module_id', moduleIds);
+    const bestPct = new Map();
+    for (const a of attempts || []) {
+      const pct = (a.score || 0) / Math.max(1, a.total_questions || 0);
+      const cur = bestPct.get(a.training_module_id) || 0;
+      if (pct > cur) bestPct.set(a.training_module_id, pct);
+    }
+    const allClear = moduleIds.every(id => (bestPct.get(id) || 0) >= QUIZ_CERT_PASS_PCT);
+    if (!allClear) return { issued: false };
+
+    const cert = await issueCertificate(supabase, {
+      userId, programId, levelId: level.id, attemptId,
+    });
+    return { issued: true, certificate_code: cert.certificate_code, level_name: cert.level_name, teacher_name: cert.teacher_name };
+  } catch (err) {
+    logToFile('❌ maybeIssueQuizScoreCertificate failed', { userId, moduleId, error: err.message });
+    return { issued: false };
+  }
+}
+
+module.exports = { issueCertificate, generateCertificateCode, certCodePrefix, maybeIssueQuizScoreCertificate };

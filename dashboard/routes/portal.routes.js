@@ -1219,6 +1219,41 @@ router.post('/curriculum/lp/:source_lp_uuid/render', requirePortalAuth, async (r
  * @returns Map<level_id, { state, courses_total, courses_completed, module_count,
  *                          completed_count, passed_at, cooldown_until }>
  */
+/**
+ * bd-2237 — resolve the union of the teacher's active program scopes and
+ * filter a level list through it. Mirrors the WhatsApp endpoint's
+ * allowedByVendor logic: a NULL/empty level_ids scope covers the entire
+ * vendor; otherwise only the listed level ids are visible. No active
+ * assignment → empty list.
+ */
+async function _filterLevelsByScopes(userId, levels) {
+  const { data: assignments } = await supabase
+    .from('teacher_training_assignments')
+    .select('program_id')
+    .eq('user_id', userId)
+    .eq('is_active', true);
+  const programIds = [...new Set((assignments || []).map(a => a.program_id))];
+  if (programIds.length === 0) return [];
+
+  const { data: scopes } = await supabase
+    .from('training_program_scopes')
+    .select('vendor_id, level_ids')
+    .in('program_id', programIds);
+  if (!scopes || scopes.length === 0) return [];
+
+  const allowedByVendor = new Map();
+  for (const s of scopes) {
+    const cur = allowedByVendor.get(s.vendor_id);
+    if (cur === 'all') continue;
+    if (!s.level_ids || s.level_ids.length === 0) allowedByVendor.set(s.vendor_id, 'all');
+    else allowedByVendor.set(s.vendor_id, [...(cur || []), ...s.level_ids]);
+  }
+  return levels.filter(l => {
+    const allow = allowedByVendor.get(l.vendor_id);
+    return allow === 'all' || (Array.isArray(allow) && allow.includes(l.id));
+  });
+}
+
 async function _computeLevelStates(userId, levels) {
   const levelIds = levels.map(l => l.id);
   const vendorIds = [...new Set(levels.map(l => l.vendor_id).filter(Boolean))];
@@ -1528,9 +1563,14 @@ router.get('/training/levels', requirePortalAuth, async (req, res) => {
       .order('order_index', { ascending: true });
     if (le) throw le;
 
-    const stateMap = await _computeLevelStates(userId, levels || []);
+    // bd-2237 — honour the teacher's program scopes (WA parity). A NULL
+    // level_ids scope covers the whole vendor; a level is visible only when
+    // some active assignment's scope allows it. No assignment → nothing.
+    const visibleLevels = await _filterLevelsByScopes(userId, levels || []);
 
-    const enriched = (levels || []).map(l => {
+    const stateMap = await _computeLevelStates(userId, visibleLevels);
+
+    const enriched = visibleLevels.map(l => {
       const s = stateMap.get(l.id) || {};
       return {
         id: l.id, name: l.name, order_index: l.order_index, cpd_level: l.cpd_level,
@@ -1552,6 +1592,67 @@ router.get('/training/levels', requirePortalAuth, async (req, res) => {
   } catch (error) {
     console.error('training/levels error:', error);
     res.status(500).json({ success: false, error: 'Failed to load levels' });
+  }
+});
+
+/**
+ * GET /api/portal/training/level/:id/capstone — bd-2233
+ *
+ * The teacher's most recent Beacon House capstone ("Grand Quiz") attempt for
+ * the level, with each answer's text, LLM score (0-5) and feedback line.
+ * 200 with { attempt: null } when the teacher hasn't attempted it — the SPA
+ * hides the panel on that. Grading internals (prompts, pass math) stay
+ * server-side; only display fields are returned.
+ */
+router.get('/training/level/:id/capstone', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const levelId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(levelId)) return res.status(400).json({ success: false, error: 'Invalid level id' });
+
+    const { data: attempts } = await supabase
+      .from('training_assessment_attempts')
+      .select('id, status, is_passed, score, total_score, completed_at')
+      .eq('user_id', userId)
+      .eq('level_id', levelId)
+      .eq('quiz_kind', 'capstone')
+      .order('completed_at', { ascending: false });
+    const attempt = (attempts || []).find(a => a.status !== 'abandoned') || null;
+    if (!attempt) return res.json({ success: true, attempt: null, answers: [] });
+
+    const { data: answers } = await supabase
+      .from('training_assessment_answers')
+      .select('question_index, question_id, answer_text, answer_score, feedback_text')
+      .eq('attempt_id', attempt.id)
+      .order('question_index', { ascending: true });
+    const qIds = (answers || []).map(a => a.question_id).filter(Boolean);
+    let qText = new Map();
+    if (qIds.length) {
+      const { data: qs } = await supabase
+        .from('training_questions').select('id, question_text').in('id', qIds);
+      qText = new Map((qs || []).map(q => [q.id, q.question_text]));
+    }
+    return res.json({
+      success: true,
+      attempt: {
+        id: attempt.id,
+        status: attempt.status,
+        is_passed: attempt.is_passed,
+        score: attempt.score,
+        total_score: attempt.total_score,
+        completed_at: attempt.completed_at,
+      },
+      answers: (answers || []).map(a => ({
+        question_index: a.question_index,
+        question_text: qText.get(a.question_id) || '',
+        answer_text: a.answer_text || '',
+        answer_score: a.answer_score,
+        feedback_text: a.feedback_text || '',
+      })),
+    });
+  } catch (error) {
+    console.error('training/level/:id/capstone error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to load capstone' });
   }
 });
 

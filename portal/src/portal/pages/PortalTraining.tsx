@@ -28,6 +28,7 @@ import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
 import ModuleQuizPanel, { type SubmittedAttempt } from '../components/ModuleQuizPanel';
 import LevelExamCard from '../components/LevelExamCard';
+import CapstoneResultCard from '../components/CapstoneResultCard';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -563,6 +564,15 @@ const PortalTraining = () => {
             </Select>
           </div>
         </div>
+
+        {/* BH written capstone record (taken on WhatsApp) — bd-2233 */}
+        {selectedLevelObj && (selectedLevelObj.unlock_logic || 'chain') !== 'chain' && (
+          <CapstoneResultCard
+            key={`cap-${selectedLevelObj.id}`}
+            levelId={selectedLevelObj.id}
+            levelName={selectedLevelObj.name}
+          />
+        )}
 
         {/* Level exam (grand quiz) — entry point, exam form, and result */}
         {selectedLevelObj && selectedLevelObj.state !== 'locked' && (

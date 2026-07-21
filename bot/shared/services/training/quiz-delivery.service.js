@@ -596,6 +596,25 @@ async function gradeAttempt(attemptId, phoneNumber) {
       ? `Nice — *${score}/${attempt.total_questions}* correct. Perfect score! ✨`
       : `You got *${score}/${attempt.total_questions}* (${pct}%). That's just for your own tracking — the next module is on its way.`;
     await WhatsAppService.sendMessage(phoneNumber, `📝 *Quick check — done.*\n\n${line}`);
+
+    // bd-2234 — Oxbridge-style levels certify on quiz scores (all modules
+    // complete, best score >= 70% each). Cheap early-outs inside; capstone
+    // levels (BH) and chain vendors are excluded there.
+    const { maybeIssueQuizScoreCertificate } = require('./certificate.service');
+    const certRes = await maybeIssueQuizScoreCertificate(supabase, {
+      userId: attempt.user_id,
+      moduleId: attempt.training_module_id,
+      attemptId: attempt.id,
+      programId: attempt.program_id,
+    });
+    if (certRes.issued) {
+      await WhatsAppService.sendMessage(
+        phoneNumber,
+        `🏆 *Congratulations, ${certRes.teacher_name}!*\n\n` +
+        `You completed every ${certRes.level_name} training with 70%+ on each quiz.\n\n` +
+        `Certificate code: \`${certRes.certificate_code}\`\nYou can also download it from your portal.`
+      );
+    }
     return true;
   }
 

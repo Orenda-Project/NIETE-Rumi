@@ -149,6 +149,15 @@ function seedLevels({ attempts = [] } = {}) {
       { id: 13, name: 'BH-Science', order_index: 3, vendor_id: V_OPEN, is_active: true, training_vendors: { key: 'BEACONHOUSE', unlock_logic: 'all_modules' } },
     ],
   };
+  // bd-2237 — the levels endpoint now filters by program scopes; give the
+  // test user an all-access assignment so the unlock-logic behaviour under
+  // test stays isolated from scoping.
+  tableStates.teacher_training_assignments = { rows: [{ user_id: 'user-1', program_id: 'prog-all', is_active: true }] };
+  tableStates.training_program_scopes = { rows: [
+    { program_id: 'prog-all', vendor_id: V_CHAIN, level_ids: null },
+    { program_id: 'prog-all', vendor_id: V_OPEN, level_ids: null },
+    { program_id: 'prog-all', vendor_id: 'vendor-unknown', level_ids: null },
+  ] };
   tableStates.training_courses = { rows: [] };
   tableStates.training_modules = { rows: [] };
   tableStates.teacher_training_progress = { rows: [] };
