@@ -339,10 +339,15 @@ class ReportGeneratorService {
               `coaching-card-${coachingSessionId}`,
               'image/png'
             );
-            // The caption is the action text — for the LLM path that's the
-            // single lesson-rooted next step; for the fallback that's the
-            // example sentence.
-            await WhatsAppService.sendImageFromUrl(from, cardUrl, actionData.action);
+            // bd-2219: send the card with NO caption. The action text is already
+            // drawn INSIDE the card (card-template renders `action`), so passing
+            // it again as the caption printed the same sentence twice — once in
+            // the image, once as text underneath. Qurat (ICT, 2026-07-21):
+            // "the Commitment Card is being displayed in both text and PNG
+            // formats. It should be displayed in only one format, not both."
+            // The commit prompt + buttons follow immediately, so the card is
+            // never left hanging without context.
+            await WhatsAppService.sendImageFromUrl(from, cardUrl);
           }
 
           // Response buttons follow regardless of which renderer ran.
