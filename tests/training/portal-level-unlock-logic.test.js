@@ -141,12 +141,12 @@ function seedLevels({ attempts = [] } = {}) {
   };
   tableStates.training_levels = {
     rows: [
-      { id: 1, name: 'T-L1', order_index: 0, vendor_id: V_CHAIN, is_active: true, training_vendors: { key: 'TALEEMABAD' } },
-      { id: 2, name: 'T-L2', order_index: 1, vendor_id: V_CHAIN, is_active: true, training_vendors: { key: 'TALEEMABAD' } },
-      { id: 3, name: 'T-L3', order_index: 2, vendor_id: V_CHAIN, is_active: true, training_vendors: { key: 'TALEEMABAD' } },
-      { id: 11, name: 'BH-English', order_index: 1, vendor_id: V_OPEN, is_active: true, training_vendors: { key: 'BEACONHOUSE' } },
-      { id: 12, name: 'BH-Maths', order_index: 2, vendor_id: V_OPEN, is_active: true, training_vendors: { key: 'BEACONHOUSE' } },
-      { id: 13, name: 'BH-Science', order_index: 3, vendor_id: V_OPEN, is_active: true, training_vendors: { key: 'BEACONHOUSE' } },
+      { id: 1, name: 'T-L1', order_index: 0, vendor_id: V_CHAIN, is_active: true, training_vendors: { key: 'TALEEMABAD', unlock_logic: 'chain' } },
+      { id: 2, name: 'T-L2', order_index: 1, vendor_id: V_CHAIN, is_active: true, training_vendors: { key: 'TALEEMABAD', unlock_logic: 'chain' } },
+      { id: 3, name: 'T-L3', order_index: 2, vendor_id: V_CHAIN, is_active: true, training_vendors: { key: 'TALEEMABAD', unlock_logic: 'chain' } },
+      { id: 11, name: 'BH-English', order_index: 1, vendor_id: V_OPEN, is_active: true, training_vendors: { key: 'BEACONHOUSE', unlock_logic: 'all_modules' } },
+      { id: 12, name: 'BH-Maths', order_index: 2, vendor_id: V_OPEN, is_active: true, training_vendors: { key: 'BEACONHOUSE', unlock_logic: 'all_modules' } },
+      { id: 13, name: 'BH-Science', order_index: 3, vendor_id: V_OPEN, is_active: true, training_vendors: { key: 'BEACONHOUSE', unlock_logic: 'all_modules' } },
     ],
   };
   tableStates.training_courses = { rows: [] };
@@ -182,6 +182,13 @@ beforeEach(() => {
 afterEach(() => jest.resetModules());
 
 describe('GET /training/levels — unlock_logic-aware lockdown', () => {
+  it('exposes unlock_logic per level so the client can label vendors correctly (bd-2235)', async () => {
+    seedLevels();
+    const { payload } = await invoke('/training/levels', { userId: 'user-1' });
+    expect(payload.levels.find(l => l.id === 1).unlock_logic).toBe('chain');
+    expect(payload.levels.find(l => l.id === 11).unlock_logic).toBe('all_modules');
+  });
+
   it('never locks an all_modules vendor, even with zero attempts', async () => {
     seedLevels();
     const { statusCode, payload } = await invoke('/training/levels', { userId: 'user-1' });

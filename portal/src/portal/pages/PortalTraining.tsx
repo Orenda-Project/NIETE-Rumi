@@ -50,6 +50,7 @@ type LevelState = 'locked' | 'certified' | 'ready_for_quiz' | 'in_progress' | 'n
 type Level = {
   id: number; name: string; order_index: number; cpd_level: number | null;
   vendor_key?: string | null;
+  unlock_logic?: string;
   state: LevelState;
   module_count: number; completed_count: number;
   courses_total: number; courses_completed: number;
@@ -328,7 +329,7 @@ const PortalTraining = () => {
     if (lvl && lvl.state === 'locked') {
       toast({
         title: 'Level locked',
-        description: `Pass the Level ${(lvl.previous_level_order ?? 0) + 1} grand quiz first.`,
+        description: `Pass the Level ${lvl.previous_level_order ?? 0} grand quiz first.`,
       });
       return;
     }
@@ -490,7 +491,7 @@ const PortalTraining = () => {
                       <div className="flex flex-col">
                         <span className="font-medium">
                           {locked && '🔒 '}
-                          Level {l.order_index + 1} · {l.name}
+                          {(l.unlock_logic || 'chain') === 'chain' ? `Level ${l.order_index} · ${l.name}` : l.name}
                         </span>
                         <span className={`text-xs mt-0.5 ${badge.className}`}>{badge.label}</span>
                       </div>

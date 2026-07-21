@@ -1523,7 +1523,7 @@ router.get('/training/levels', requirePortalAuth, async (req, res) => {
     // identifier — the ID column is a UUID and is not useful to the client.
     const { data: levels, error: le } = await supabase
       .from('training_levels')
-      .select('id, name, order_index, cpd_level, vendor_id, training_vendors!inner(key)')
+      .select('id, name, order_index, cpd_level, vendor_id, training_vendors!inner(key, unlock_logic)')
       .eq('is_active', true)
       .order('order_index', { ascending: true });
     if (le) throw le;
@@ -1535,6 +1535,9 @@ router.get('/training/levels', requirePortalAuth, async (req, res) => {
       return {
         id: l.id, name: l.name, order_index: l.order_index, cpd_level: l.cpd_level,
         vendor_key: l.training_vendors ? l.training_vendors.key : null,
+        // bd-2235 — the client labels chain vendors "Level N · name" (0-based,
+        // app parity) and all_modules vendors by plain name.
+        unlock_logic: (l.training_vendors && l.training_vendors.unlock_logic) || 'chain',
         state: s.state || 'not_started',
         module_count: s.module_count || 0,
         completed_count: s.completed_count || 0,
@@ -1594,7 +1597,7 @@ async function _assertLevelUnlocked(userId, levelId) {
     const prevOrder = s.previous_level_order;
     return {
       ok: false, status: 403,
-      error: `This level is locked. Pass Level ${prevOrder + 1}'s grand quiz first.`,
+      error: `This level is locked. Pass Level ${prevOrder}'s grand quiz first.`,  // 0-based display (bd-2235)
       previous_level_order: prevOrder,
     };
   }
