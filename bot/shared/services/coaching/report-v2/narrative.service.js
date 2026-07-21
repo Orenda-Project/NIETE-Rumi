@@ -27,6 +27,22 @@ const { KISWAHILI_STYLE } = require('../kiswahili-style');
 const LANG_NAME = { en: 'English', ur: 'Urdu', ar: 'Arabic', sw: 'Kiswahili' };
 const RTL_LANGS = new Set(['ur', 'ar']);
 
+// bd-2220 — we do NOT store a teacher's gender, so any third-person pronoun is
+// the model guessing from a name or a voice. It guessed differently in different
+// sentences, and teachers saw themselves called "he" in one line and "she" in the
+// next (Qurat + Mubashar, ICT, 2026-07-21). The fix is not to guess better: the
+// report is written TO the teacher, so second person is both correct and
+// inherently genderless. Applies to every language — English had no pronoun
+// guidance at all, which is where the alternation was most visible.
+const PRONOUN_RULE = `
+ADDRESS THE TEACHER DIRECTLY — NEVER IN THIRD PERSON (mandatory):
+- Write TO her, as "you". Never refer to the teacher as "he", "she", "him", "her",
+  "the teacher", or by name in the third person. We do not know her gender and
+  must never guess it.
+- WRONG: "The teacher asked good questions. She then moved on."
+- RIGHT: "You asked good questions, then moved on."
+- Third-person pronouns are fine for STUDENTS and for people quoted in the lesson.`;
+
 function langRules(language) {
   if (language === 'ur') {
     return `WRITE every string value in URDU (Nastaliq), warm and natural — EXCEPT keep her real quotes verbatim in the language actually spoken, and EXCEPT the code-switched English terms below.
@@ -36,10 +52,12 @@ GENDER-NEUTRAL (teachers are men AND women — mandatory):
 - NEVER feminine present-habitual stems ("کرتی ہیں / دیتی ہیں").
 - Instructions use the RESPECTFUL آپ-imperative (کریں، دیں، پوچھیں) — never the intimate تم (کرو، دو).
 
-CODE-SWITCH: keep pedagogical/technical/subject terms in ENGLISH (Latin letters) inline — never transliterate into Nastaliq (write "open-ended questions" not "کھلے سوال"; "scaffolding" not "اسکفولڈنگ"; "phonics", "context", "model" stay English).`;
+CODE-SWITCH: keep pedagogical/technical/subject terms in ENGLISH (Latin letters) inline — never transliterate into Nastaliq (write "open-ended questions" not "کھلے سوال"; "scaffolding" not "اسکفولڈنگ"; "phonics", "context", "model" stay English).
+${PRONOUN_RULE}`;
   }
   if (language === 'ar') {
-    return `WRITE every string value in MODERN STANDARD ARABIC, warm and natural — EXCEPT keep her real quotes verbatim in the language actually spoken, and keep pedagogical/technical terms in ENGLISH (Latin letters) inline (open-ended questions, scaffolding, phonics). Use gender-neutral phrasing (verbal nouns / impersonal constructions) rather than gendered second-person verb forms.`;
+    return `WRITE every string value in MODERN STANDARD ARABIC, warm and natural — EXCEPT keep her real quotes verbatim in the language actually spoken, and keep pedagogical/technical terms in ENGLISH (Latin letters) inline (open-ended questions, scaffolding, phonics). Use gender-neutral phrasing (verbal nouns / impersonal constructions) rather than gendered second-person verb forms.
+${PRONOUN_RULE}`;
   }
   if (language === 'sw') {
     return `WRITE every string value in warm, natural KISWAHILI — EXCEPT keep her real quotes VERBATIM in the language actually spoken (Kiswahili stays Kiswahili, English stays English; never translate a quote).
@@ -48,9 +66,10 @@ Kiswahili is naturally gender-neutral — address her as "wewe"/"u-". Keep it wa
 
 CODE-SWITCH like a real Tanzanian teacher: keep pedagogical/technical terms in ENGLISH (Latin letters) inline rather than inventing Swahili calques — "formative assessment", "open-ended questions", "scaffolding", "think-pair-share", "group work", "gallery walk", "feedback". The connecting Kiswahili words stay Kiswahili.
 
-${KISWAHILI_STYLE}`;
+${KISWAHILI_STYLE}
+${PRONOUN_RULE}`;
   }
-  return 'Write every string value in warm, specific English.';
+  return `Write every string value in warm, specific English.\n${PRONOUN_RULE}`;
 }
 
 // Deterministic code-switch safety net for RTL (LLMs are ~90% consistent). Maps known
