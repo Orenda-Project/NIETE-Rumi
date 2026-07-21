@@ -85,26 +85,75 @@ async function clearSession(flowToken) {
 // Screen builders
 // ─────────────────────────────────────────────────────────────────────────────
 
-function specScreen() {
+const GRADE_OPTIONS = [
+  { id: '1', title: 'Grade 1' },
+  { id: '2', title: 'Grade 2' },
+  { id: '3', title: 'Grade 3' },
+  { id: '4', title: 'Grade 4' },
+  { id: '5', title: 'Grade 5' },
+];
+
+// bd-2246 (Umama, 2026-07-20): the subject list is per-grade, not global. The
+// primary grades and the middle grades teach different subject sets, and the
+// SAME subject is named differently across them ("Maths" in 1-3 vs
+// "Mathematics" in 4-5; "Science" vs "General Science"), so the titles are part
+// of the spec — not cosmetic. Ids stay stable so downstream generation and any
+// stored request is unaffected by the relabelling.
+const SUBJECTS_BY_GRADE = {
+  1: [
+    { id: 'Eng', title: 'English' },
+    { id: 'Urdu', title: 'Urdu' },
+    { id: 'Maths', title: 'Maths' },
+    { id: 'Islamiat', title: 'Islamiyat' },
+    { id: 'GenK', title: 'General Knowledge (Waqfiyat-e-Aama)' },
+  ],
+  4: [
+    { id: 'Eng', title: 'English' },
+    { id: 'Maths', title: 'Mathematics' },
+    { id: 'Urdu', title: 'Urdu' },
+    { id: 'Islamiat', title: 'Islamiyat' },
+    { id: 'SST', title: 'Social Studies' },
+    { id: 'Science', title: 'General Science' },
+  ],
+};
+SUBJECTS_BY_GRADE[2] = SUBJECTS_BY_GRADE[1];
+SUBJECTS_BY_GRADE[3] = SUBJECTS_BY_GRADE[1];
+SUBJECTS_BY_GRADE[5] = SUBJECTS_BY_GRADE[4];
+
+/**
+ * Subjects offered for a grade. Unknown/blank grade → the union, so the very
+ * first render (before a grade is picked) still shows a usable list rather than
+ * an empty dropdown.
+ */
+function subjectsForGrade(grade) {
+  const g = parseInt(String(grade || '').trim(), 10);
+  if (SUBJECTS_BY_GRADE[g]) return SUBJECTS_BY_GRADE[g];
+  const seen = new Set();
+  const union = [];
+  for (const list of [SUBJECTS_BY_GRADE[1], SUBJECTS_BY_GRADE[4]]) {
+    for (const s of list) {
+      if (!seen.has(s.id)) { seen.add(s.id); union.push(s); }
+    }
+  }
+  return union;
+}
+
+/** bd-2246: server-side gate. The Flow filters the dropdown, but a replayed or
+ *  hand-crafted payload must not be able to generate a paper for a subject the
+ *  grade doesn't teach — the team asked for this explicitly, not frontend-only. */
+function isSubjectValidForGrade(subject, grade) {
+  const g = parseInt(String(grade || '').trim(), 10);
+  const list = SUBJECTS_BY_GRADE[g];
+  if (!list) return true; // unknown grade — don't block; upstream validates grade
+  return list.some((s) => s.id === String(subject || '').trim());
+}
+
+function specScreen(grade) {
   return {
     screen: 'SPEC',
     data: {
-      grade_options: [
-        { id: '1', title: 'Grade 1' },
-        { id: '2', title: 'Grade 2' },
-        { id: '3', title: 'Grade 3' },
-        { id: '4', title: 'Grade 4' },
-        { id: '5', title: 'Grade 5' },
-      ],
-      subject_options: [
-        { id: 'Eng', title: 'English' },
-        { id: 'Maths', title: 'Maths' },
-        { id: 'Urdu', title: 'Urdu' },
-        { id: 'Science', title: 'Science' },
-        { id: 'Islamiat', title: 'Islamiat' },
-        { id: 'SST', title: 'Social Studies' },
-        { id: 'GenK', title: 'General Knowledge' },
-      ],
+      grade_options: GRADE_OPTIONS,
+      subject_options: subjectsForGrade(grade),
       output_format_options: [
         { id: 'pdf',  title: 'PDF',  description: 'Print-ready. Best for printing straight to a class set.' },
         { id: 'docx', title: 'Word', description: 'Editable. Tweak questions or scoring before printing.' },
@@ -131,15 +180,48 @@ function objSubjScreen(specSummary) {
   };
 }
 
-function questionTypesScreen(specSummary, typeOptions) {
+// bd-2247 — the QUESTION_TYPES screen used to carry the checkbox list AND a
+// static stack of ~34 count inputs, one per possible type. Ticking 3 types left
+// the 3 fields you needed buried among 30 you didn't. Umama asked four times for
+// the split we ourselves proposed: pick the types, THEN name counts for only
+// those types, in the order picked.
+//
+// WhatsApp Flows have no in-screen reactivity, so "only those types" is done
+// with a fixed bank of slots whose label + visibility are data-bound and
+// resolved server-side. Same technique already in production on the
+// teacher-training Flow at this schema version.
+const MAX_TYPE_SLOTS = 10;
+
+function pickTypesScreen(specSummary, typeOptions) {
   return {
-    screen: 'QUESTION_TYPES',
+    screen: 'PICK_TYPES',
     data: {
       spec_summary: specSummary || '',
       type_options: typeOptions || [],
-      default_count: String(QuestionConfig.DEFAULT_COUNT_PER_TYPE),
     },
   };
+}
+
+/**
+ * Count fields for exactly the picked types, in pick order.
+ * Slots beyond the pick count are hidden (`show_N: false`) and carry an empty
+ * label so a hidden field can never render a stale name from a prior pass.
+ */
+function setCountsScreen(specSummary, pickedTypes) {
+  const picked = (pickedTypes || []).slice(0, MAX_TYPE_SLOTS);
+  const data = {
+    spec_summary: specSummary || '',
+    default_count: String(QuestionConfig.DEFAULT_COUNT_PER_TYPE),
+    picked_summary: picked.length
+      ? `${picked.length} type${picked.length === 1 ? '' : 's'}: ${picked.join(', ')}`
+      : '',
+  };
+  for (let i = 1; i <= MAX_TYPE_SLOTS; i += 1) {
+    const title = picked[i - 1];
+    data[`show_${i}`] = !!title;
+    data[`label_${i}`] = title ? `${title} — how many?` : '';
+  }
+  return { screen: 'SET_COUNTS', data };
 }
 
 function successScreen(message, flowToken) {
@@ -269,7 +351,14 @@ async function handleAssessmentGenDataExchange(userId, screen, screenData, flowT
 
   // ───────────────────────── SPEC → SEEN_UNSEEN ─────────────────────────
   if (screen === 'SPEC') {
-    if (screenData._action !== 'spec_submit') return specScreen();
+    // bd-2246: the grade Dropdown fires data_exchange on select, so the subject
+    // list can be re-rendered for that grade. WhatsApp Flows have no in-screen
+    // reactivity — a screen re-render from the server is the only way to make
+    // one field depend on another.
+    if (screenData._action === 'grade_changed') {
+      return specScreen(screenData.grade);
+    }
+    if (screenData._action !== 'spec_submit') return specScreen(screenData?.grade);
     state.generation_type = screenData.generation_type === 'class_assessment'
       ? 'class_assessment'
       : 'exam';
@@ -286,7 +375,17 @@ async function handleAssessmentGenDataExchange(userId, screen, screenData, flowT
       : DEFAULT_OUTPUT_FORMAT;
 
     if (!state.grade || !state.subject || !state.page_ranges) {
-      return specScreen();
+      return specScreen(state.grade);
+    }
+
+    // bd-2246: server-side gate (acceptance criterion — "do not rely solely on
+    // frontend validation"). Re-render the SPEC screen with the correct list
+    // rather than generating a paper for a subject this grade doesn't teach.
+    if (!isSubjectValidForGrade(state.subject, state.grade)) {
+      logToFile('[assessment-gen-flow] subject not offered for grade — re-rendering SPEC', {
+        userId, grade: state.grade, subject: state.subject,
+      });
+      return specScreen(state.grade);
     }
 
     await writeSession(flowToken, state);
@@ -369,11 +468,38 @@ async function handleAssessmentGenDataExchange(userId, screen, screenData, flowT
       categories,
     });
     await writeSession(flowToken, state);
-    return questionTypesScreen(_summaryFromState(state), typeOptions);
+    return pickTypesScreen(_summaryFromState(state), typeOptions);
   }
 
-  // ─────────────── QUESTION_TYPES → SUCCESS (submit) ───────────────
-  if (screen === 'QUESTION_TYPES') {
+  // ─────────────── PICK_TYPES → SET_COUNTS ───────────────
+  // bd-2247: the picker no longer submits. It records the picks (ORDER MATTERS —
+  // the counts screen labels its slots in the order the teacher ticked) and
+  // hands over to SET_COUNTS.
+  if (screen === 'PICK_TYPES') {
+    const categories = _categoriesFromState(state);
+    const reRender = () => pickTypesScreen(
+      _summaryFromState(state),
+      _unionTypeOptions({ subject: state.subject, grade: state.grade, categories }),
+    );
+    if (screenData._action !== 'pick_types') return reRender();
+    if (!state.grade || !state.subject || !state.page_ranges) return specScreen(state.grade);
+
+    let picked = screenData.question_types;
+    if (typeof picked === 'string') picked = picked.split(',').map((s) => s.trim()).filter(Boolean);
+    if (!Array.isArray(picked)) picked = [];
+    picked = picked.filter((id) => QuestionConfig.isSupported(id)).slice(0, MAX_TYPE_SLOTS);
+
+    if (picked.length === 0) return reRender();
+
+    state.picked_types = picked;
+    await writeSession(flowToken, state);
+    return setCountsScreen(_summaryFromState(state), picked);
+  }
+
+  // ─────────────── SET_COUNTS → SUCCESS (submit) ───────────────
+  // QUESTION_TYPES is accepted as an alias so a Flow client still on the
+  // pre-split published version keeps working through the republish window.
+  if (screen === 'SET_COUNTS' || screen === 'QUESTION_TYPES') {
     const categories = _categoriesFromState(state);
     const idCatMap = state._id_to_category && typeof state._id_to_category === 'object'
       ? state._id_to_category
@@ -384,18 +510,24 @@ async function handleAssessmentGenDataExchange(userId, screen, screenData, flowT
         });
 
     if (screenData._action !== 'generate') {
-      // Non-submit ping — re-render.
+      // Non-submit ping — re-render whichever screen the client is on.
+      if (screen === 'SET_COUNTS') {
+        return setCountsScreen(_summaryFromState(state), state.picked_types || []);
+      }
       const typeOptions = _unionTypeOptions({
         subject: state.subject,
         grade: state.grade,
         categories,
       });
-      return questionTypesScreen(_summaryFromState(state), typeOptions);
+      return pickTypesScreen(_summaryFromState(state), typeOptions);
     }
-    if (!state.grade || !state.subject || !state.page_ranges) return specScreen();
+    if (!state.grade || !state.subject || !state.page_ranges) return specScreen(state.grade);
 
-    // Parse question_types — may arrive as array OR comma-separated string.
-    let picked = screenData.question_types;
+    // Picks come from the session on the split path (SET_COUNTS carries only
+    // counts). The legacy path still submits question_types on the payload.
+    let picked = Array.isArray(state.picked_types) && state.picked_types.length
+      ? state.picked_types
+      : screenData.question_types;
     if (typeof picked === 'string') {
       picked = picked.split(',').map((s) => s.trim()).filter(Boolean);
     }
@@ -411,9 +543,14 @@ async function handleAssessmentGenDataExchange(userId, screen, screenData, flowT
     const legacyCategory = state.category === 'subjective' ? 'subjective' : 'objective';
     const questionTypes = picked
       .filter((id) => QuestionConfig.isSupported(id))
-      .map((id) => {
+      .map((id, idx) => {
+        // bd-2247: SET_COUNTS submits positional slots (count_1..count_N) in the
+        // order the types were picked. Fall back to the legacy per-slug key so a
+        // client still on the pre-split Flow submits correctly.
         const slug = _slugForCountKey(id);
-        const raw = screenData[`count_${slug}`];
+        const raw = screenData[`count_${idx + 1}`] !== undefined
+          ? screenData[`count_${idx + 1}`]
+          : screenData[`count_${slug}`];
         const parsed = _parseCount(raw);
         const capped = Math.min(parsed || QuestionConfig.DEFAULT_COUNT_PER_TYPE, QuestionConfig.MAX_COUNT_PER_TYPE);
         const category = idCatMap[id] || legacyCategory;
@@ -427,7 +564,7 @@ async function handleAssessmentGenDataExchange(userId, screen, screenData, flowT
         grade: state.grade,
         categories,
       });
-      const out = questionTypesScreen(_summaryFromState(state) + '  ·  Please pick a question type.', typeOptions);
+      const out = pickTypesScreen(_summaryFromState(state) + '  ·  Please pick a question type.', typeOptions);
       return out;
     }
 

@@ -2,10 +2,22 @@
   "version": "5.1",
   "data_api_version": "3.0",
   "routing_model": {
-    "SPEC": ["SEEN_UNSEEN"],
-    "SEEN_UNSEEN": ["OBJ_SUBJ", "SUCCESS"],
-    "OBJ_SUBJ": ["QUESTION_TYPES"],
-    "QUESTION_TYPES": ["SUCCESS"]
+    "SPEC": [
+      "SEEN_UNSEEN"
+    ],
+    "SEEN_UNSEEN": [
+      "OBJ_SUBJ",
+      "SUCCESS"
+    ],
+    "OBJ_SUBJ": [
+      "PICK_TYPES"
+    ],
+    "PICK_TYPES": [
+      "SET_COUNTS"
+    ],
+    "SET_COUNTS": [
+      "SUCCESS"
+    ]
   },
   "screens": [
     {
@@ -14,42 +26,125 @@
       "data": {
         "grade_options": {
           "type": "array",
-          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" } } },
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
           "__example__": [
-            { "id": "1", "title": "Grade 1" },
-            { "id": "2", "title": "Grade 2" },
-            { "id": "3", "title": "Grade 3" },
-            { "id": "4", "title": "Grade 4" },
-            { "id": "5", "title": "Grade 5" }
+            {
+              "id": "1",
+              "title": "Grade 1"
+            },
+            {
+              "id": "2",
+              "title": "Grade 2"
+            },
+            {
+              "id": "3",
+              "title": "Grade 3"
+            },
+            {
+              "id": "4",
+              "title": "Grade 4"
+            },
+            {
+              "id": "5",
+              "title": "Grade 5"
+            }
           ]
         },
         "subject_options": {
           "type": "array",
-          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" } } },
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
           "__example__": [
-            { "id": "Eng", "title": "English" },
-            { "id": "Maths", "title": "Maths" },
-            { "id": "Urdu", "title": "Urdu" },
-            { "id": "Science", "title": "Science" },
-            { "id": "Islamiat", "title": "Islamiat" },
-            { "id": "SST", "title": "Social Studies" },
-            { "id": "GenK", "title": "General Knowledge" }
+            {
+              "id": "Eng",
+              "title": "English"
+            },
+            {
+              "id": "Maths",
+              "title": "Maths"
+            },
+            {
+              "id": "Urdu",
+              "title": "Urdu"
+            },
+            {
+              "id": "Science",
+              "title": "Science"
+            },
+            {
+              "id": "Islamiat",
+              "title": "Islamiat"
+            },
+            {
+              "id": "SST",
+              "title": "Social Studies"
+            },
+            {
+              "id": "GenK",
+              "title": "General Knowledge"
+            }
           ]
         },
         "output_format_options": {
           "type": "array",
-          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "description": { "type": "string" } } },
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
           "__example__": [
-            { "id": "pdf",  "title": "PDF",  "description": "Print-ready. Best for printing straight to a class set." },
-            { "id": "docx", "title": "Word", "description": "Editable. Tweak questions or scoring before printing." }
+            {
+              "id": "pdf",
+              "title": "PDF",
+              "description": "Print-ready. Best for printing straight to a class set."
+            },
+            {
+              "id": "docx",
+              "title": "Word",
+              "description": "Editable. Tweak questions or scoring before printing."
+            }
           ]
         }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextHeading", "text": "Assessment builder" },
-          { "type": "TextSubheading", "text": "Pick what to test. We'll build the paper and send you a PDF." },
+          {
+            "type": "TextHeading",
+            "text": "Assessment builder"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "Pick what to test. We'll build the paper and send you a PDF."
+          },
           {
             "type": "Form",
             "name": "form",
@@ -60,8 +155,16 @@
                 "label": "Type",
                 "required": true,
                 "data-source": [
-                  { "id": "exam", "title": "Exam", "description": "A full graded paper" },
-                  { "id": "class_assessment", "title": "Classroom practice", "description": "Quick in-class practice" }
+                  {
+                    "id": "exam",
+                    "title": "Exam",
+                    "description": "A full graded paper"
+                  },
+                  {
+                    "id": "class_assessment",
+                    "title": "Classroom practice",
+                    "description": "Quick in-class practice"
+                  }
                 ]
               },
               {
@@ -69,7 +172,14 @@
                 "name": "grade",
                 "label": "Grade",
                 "required": true,
-                "data-source": "${data.grade_options}"
+                "data-source": "${data.grade_options}",
+                "on-select-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "grade_changed",
+                    "grade": "${form.grade}"
+                  }
+                }
               },
               {
                 "type": "Dropdown",
@@ -133,8 +243,14 @@
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextHeading", "text": "Seen, unseen, or both?" },
-          { "type": "TextBody", "text": "${data.spec_summary}" },
+          {
+            "type": "TextHeading",
+            "text": "Seen, unseen, or both?"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.spec_summary}"
+          },
           {
             "type": "Form",
             "name": "form",
@@ -145,9 +261,21 @@
                 "label": "Where do the questions come from?",
                 "required": true,
                 "data-source": [
-                  { "id": "seen",   "title": "Seen",   "description": "Straight from the textbook" },
-                  { "id": "unseen", "title": "Unseen", "description": "New questions on the same content" },
-                  { "id": "both",   "title": "Both",   "description": "Mix seen and unseen" }
+                  {
+                    "id": "seen",
+                    "title": "Seen",
+                    "description": "Straight from the textbook"
+                  },
+                  {
+                    "id": "unseen",
+                    "title": "Unseen",
+                    "description": "New questions on the same content"
+                  },
+                  {
+                    "id": "both",
+                    "title": "Both",
+                    "description": "Mix seen and unseen"
+                  }
                 ]
               },
               {
@@ -178,9 +306,18 @@
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextHeading", "text": "Objective, Subjective, or both?" },
-          { "type": "TextBody", "text": "${data.spec_summary}" },
-          { "type": "TextCaption", "text": "Tick one, or tick both to mix them in the same paper." },
+          {
+            "type": "TextHeading",
+            "text": "Objective, Subjective, or both?"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.spec_summary}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "Tick one, or tick both to mix them in the same paper."
+          },
           {
             "type": "Form",
             "name": "form",
@@ -193,8 +330,16 @@
                 "min-selected-items": 1,
                 "max-selected-items": 2,
                 "data-source": [
-                  { "id": "objective",  "title": "Objective",  "description": "MCQs, MSQs, Fill in the Blanks, T/F, Match the Column, …" },
-                  { "id": "subjective", "title": "Subjective", "description": "Brief Answers, Word Problems, Comprehension, Essay Writing, …" }
+                  {
+                    "id": "objective",
+                    "title": "Objective",
+                    "description": "MCQs, MSQs, Fill in the Blanks, T/F, Match the Column, …"
+                  },
+                  {
+                    "id": "subjective",
+                    "title": "Subjective",
+                    "description": "Brief Answers, Word Problems, Comprehension, Essay Writing, …"
+                  }
                 ]
               },
               {
@@ -214,7 +359,7 @@
       }
     },
     {
-      "id": "QUESTION_TYPES",
+      "id": "PICK_TYPES",
       "title": "Question types",
       "data": {
         "spec_summary": {
@@ -223,23 +368,44 @@
         },
         "type_options": {
           "type": "array",
-          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" } } },
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
           "__example__": [
-            { "id": "MCQs", "title": "MCQs" },
-            { "id": "Fill in the Blanks", "title": "Fill in the Blanks" }
+            {
+              "id": "MCQs",
+              "title": "MCQs"
+            },
+            {
+              "id": "Fill in the Blanks",
+              "title": "Fill in the Blanks"
+            }
           ]
-        },
-        "default_count": {
-          "type": "string",
-          "__example__": "3"
         }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextHeading", "text": "Pick question types" },
-          { "type": "TextBody", "text": "${data.spec_summary}" },
-          { "type": "TextCaption", "text": "Tick each type you want. The number beside it says how many of THAT type to include. Leave blank to use the default of 3." },
+          {
+            "type": "TextHeading",
+            "text": "Pick question types"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.spec_summary}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "Tick the types you want. You'll set how many of each on the next screen."
+          },
           {
             "type": "Form",
             "name": "form",
@@ -250,332 +416,248 @@
                 "label": "Types",
                 "required": true,
                 "min-selected-items": 1,
-                "data-source": "${data.type_options}"
-              },
-              { "type": "TextCaption", "text": "How many of each type? (Only counts for the types you ticked above.)" },
-              {
-                "type": "TextInput",
-                "name": "count_mcqs",
-                "label": "MCQs — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_msqs",
-                "label": "MSQs — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_fill_in_the_blanks",
-                "label": "Fill in the Blanks — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_missing_letters",
-                "label": "Missing Letters — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_true_false",
-                "label": "True / False — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_match_the_column",
-                "label": "Match the Column — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_circle_the_correct_answer",
-                "label": "Circle the Correct Answer — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_rewrite_sentences",
-                "label": "Rewrite Sentences — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_brief_answers",
-                "label": "Brief Answers — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_listening",
-                "label": "Listening — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_speaking",
-                "label": "Speaking — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_reading",
-                "label": "Reading — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_word_meanings",
-                "label": "Word Meanings — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_word_sentences",
-                "label": "Word Sentences — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_comprehension_passage",
-                "label": "Comprehension Passages — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_rewriting",
-                "label": "Rewriting — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_story_completion",
-                "label": "Story Completion — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_simple_writing",
-                "label": "Simple Writing — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_letter_writing",
-                "label": "Letter Writing — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_application_writing",
-                "label": "Application Writing — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_story_writing",
-                "label": "Story Writing — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_essay_writing",
-                "label": "Essays — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_paragraph_writing",
-                "label": "Paragraphs — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_picture_description",
-                "label": "Picture Description — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_mental_math_viva",
-                "label": "Mental Math (Viva) — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_sequences",
-                "label": "Sequences — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_short_questions",
-                "label": "Short Questions — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_restricted_response_question",
-                "label": "Restricted Response — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_word_problems",
-                "label": "Word Problems — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_graphs_geometric_problems",
-                "label": "Graphs & Geometric Problems — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_long_question",
-                "label": "Long Questions — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_mind_map",
-                "label": "Mind Maps — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_flow_chart",
-                "label": "Flow Charts — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_label_the_diagram",
-                "label": "Label the Diagram — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
-              },
-              {
-                "type": "TextInput",
-                "name": "count_logical_reasoning",
-                "label": "Logical Reasoning — how many?",
-                "required": false,
-                "helper-text": "Default 3, max 20.",
-                "input-type": "number"
+                "data-source": "${data.type_options}",
+                "max-selected-items": 10
               },
               {
                 "type": "Footer",
-                "label": "Generate exam",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "pick_types",
+                    "question_types": "${form.question_types}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SET_COUNTS",
+      "title": "How many?",
+      "data": {
+        "spec_summary": {
+          "type": "string",
+          "__example__": "Grade 4 · English · Pages 10-15"
+        },
+        "picked_summary": {
+          "type": "string",
+          "__example__": "2 types: MCQs, True / False"
+        },
+        "default_count": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "label_1": {
+          "type": "string",
+          "__example__": "MCQs — how many?"
+        },
+        "show_1": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "label_2": {
+          "type": "string",
+          "__example__": ""
+        },
+        "show_2": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "label_3": {
+          "type": "string",
+          "__example__": ""
+        },
+        "show_3": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "label_4": {
+          "type": "string",
+          "__example__": ""
+        },
+        "show_4": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "label_5": {
+          "type": "string",
+          "__example__": ""
+        },
+        "show_5": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "label_6": {
+          "type": "string",
+          "__example__": ""
+        },
+        "show_6": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "label_7": {
+          "type": "string",
+          "__example__": ""
+        },
+        "show_7": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "label_8": {
+          "type": "string",
+          "__example__": ""
+        },
+        "show_8": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "label_9": {
+          "type": "string",
+          "__example__": ""
+        },
+        "show_9": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "label_10": {
+          "type": "string",
+          "__example__": ""
+        },
+        "show_10": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "How many of each?"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.picked_summary}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "Leave blank to use the default of ${data.default_count}."
+          },
+          {
+            "type": "Form",
+            "name": "form",
+            "children": [
+              {
+                "type": "TextInput",
+                "name": "count_1",
+                "label": "${data.label_1}",
+                "required": false,
+                "input-type": "number",
+                "visible": "${data.show_1}",
+                "helper-text": "Max 20."
+              },
+              {
+                "type": "TextInput",
+                "name": "count_2",
+                "label": "${data.label_2}",
+                "required": false,
+                "input-type": "number",
+                "visible": "${data.show_2}",
+                "helper-text": "Max 20."
+              },
+              {
+                "type": "TextInput",
+                "name": "count_3",
+                "label": "${data.label_3}",
+                "required": false,
+                "input-type": "number",
+                "visible": "${data.show_3}",
+                "helper-text": "Max 20."
+              },
+              {
+                "type": "TextInput",
+                "name": "count_4",
+                "label": "${data.label_4}",
+                "required": false,
+                "input-type": "number",
+                "visible": "${data.show_4}",
+                "helper-text": "Max 20."
+              },
+              {
+                "type": "TextInput",
+                "name": "count_5",
+                "label": "${data.label_5}",
+                "required": false,
+                "input-type": "number",
+                "visible": "${data.show_5}",
+                "helper-text": "Max 20."
+              },
+              {
+                "type": "TextInput",
+                "name": "count_6",
+                "label": "${data.label_6}",
+                "required": false,
+                "input-type": "number",
+                "visible": "${data.show_6}",
+                "helper-text": "Max 20."
+              },
+              {
+                "type": "TextInput",
+                "name": "count_7",
+                "label": "${data.label_7}",
+                "required": false,
+                "input-type": "number",
+                "visible": "${data.show_7}",
+                "helper-text": "Max 20."
+              },
+              {
+                "type": "TextInput",
+                "name": "count_8",
+                "label": "${data.label_8}",
+                "required": false,
+                "input-type": "number",
+                "visible": "${data.show_8}",
+                "helper-text": "Max 20."
+              },
+              {
+                "type": "TextInput",
+                "name": "count_9",
+                "label": "${data.label_9}",
+                "required": false,
+                "input-type": "number",
+                "visible": "${data.show_9}",
+                "helper-text": "Max 20."
+              },
+              {
+                "type": "TextInput",
+                "name": "count_10",
+                "label": "${data.label_10}",
+                "required": false,
+                "input-type": "number",
+                "visible": "${data.show_10}",
+                "helper-text": "Max 20."
+              },
+              {
+                "type": "Footer",
+                "label": "Generate paper",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
                     "_action": "generate",
-                    "question_types": "${form.question_types}",
-                    "count_mcqs": "${form.count_mcqs}",
-                    "count_msqs": "${form.count_msqs}",
-                    "count_fill_in_the_blanks": "${form.count_fill_in_the_blanks}",
-                    "count_missing_letters": "${form.count_missing_letters}",
-                    "count_true_false": "${form.count_true_false}",
-                    "count_match_the_column": "${form.count_match_the_column}",
-                    "count_circle_the_correct_answer": "${form.count_circle_the_correct_answer}",
-                    "count_rewrite_sentences": "${form.count_rewrite_sentences}",
-                    "count_brief_answers": "${form.count_brief_answers}",
-                    "count_listening": "${form.count_listening}",
-                    "count_speaking": "${form.count_speaking}",
-                    "count_reading": "${form.count_reading}",
-                    "count_word_meanings": "${form.count_word_meanings}",
-                    "count_word_sentences": "${form.count_word_sentences}",
-                    "count_comprehension_passage": "${form.count_comprehension_passage}",
-                    "count_rewriting": "${form.count_rewriting}",
-                    "count_story_completion": "${form.count_story_completion}",
-                    "count_simple_writing": "${form.count_simple_writing}",
-                    "count_letter_writing": "${form.count_letter_writing}",
-                    "count_application_writing": "${form.count_application_writing}",
-                    "count_story_writing": "${form.count_story_writing}",
-                    "count_essay_writing": "${form.count_essay_writing}",
-                    "count_paragraph_writing": "${form.count_paragraph_writing}",
-                    "count_picture_description": "${form.count_picture_description}",
-                    "count_mental_math_viva": "${form.count_mental_math_viva}",
-                    "count_sequences": "${form.count_sequences}",
-                    "count_short_questions": "${form.count_short_questions}",
-                    "count_restricted_response_question": "${form.count_restricted_response_question}",
-                    "count_word_problems": "${form.count_word_problems}",
-                    "count_graphs_geometric_problems": "${form.count_graphs_geometric_problems}",
-                    "count_long_question": "${form.count_long_question}",
-                    "count_mind_map": "${form.count_mind_map}",
-                    "count_flow_chart": "${form.count_flow_chart}",
-                    "count_label_the_diagram": "${form.count_label_the_diagram}",
-                    "count_logical_reasoning": "${form.count_logical_reasoning}"
+                    "count_1": "${form.count_1}",
+                    "count_2": "${form.count_2}",
+                    "count_3": "${form.count_3}",
+                    "count_4": "${form.count_4}",
+                    "count_5": "${form.count_5}",
+                    "count_6": "${form.count_6}",
+                    "count_7": "${form.count_7}",
+                    "count_8": "${form.count_8}",
+                    "count_9": "${form.count_9}",
+                    "count_10": "${form.count_10}"
                   }
                 }
               }
@@ -598,8 +680,14 @@
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextHeading", "text": "On the way" },
-          { "type": "TextBody", "text": "${data.message}" },
+          {
+            "type": "TextHeading",
+            "text": "On the way"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.message}"
+          },
           {
             "type": "Footer",
             "label": "Done",

@@ -202,7 +202,7 @@ describe('OBJ_SUBJ → QUESTION_TYPES (dynamic)', () => {
       { _action: 'pick_category', category: 'objective' },
       FLOW_TOKEN,
     );
-    expect(out.screen).toBe('QUESTION_TYPES');
+    expect(out.screen).toBe('PICK_TYPES');
     expect(out.data.type_options.length).toBeGreaterThan(0);
     const ids = out.data.type_options.map((o) => o.id);
     // Per docs/question-types-ict.md, Eng Objective = MCQs, MSQs,
@@ -225,7 +225,7 @@ describe('OBJ_SUBJ → QUESTION_TYPES (dynamic)', () => {
       { _action: 'pick_category', category: 'subjective' },
       FLOW_TOKEN,
     );
-    expect(out.screen).toBe('QUESTION_TYPES');
+    expect(out.screen).toBe('PICK_TYPES');
     const ids = out.data.type_options.map((o) => o.id);
     // Grade 4 English Subjective per UG_EG doc (Grades 3-5 band): Word
     // Meanings, Word Sentences, Comprehension Passage, Letter Writing,
@@ -436,7 +436,7 @@ describe('QUESTION_TYPES → SUCCESS', () => {
       { _action: 'generate', question_types: [] },
       FLOW_TOKEN,
     );
-    expect(out.screen).toBe('QUESTION_TYPES');
+    expect(out.screen).toBe('PICK_TYPES');
     expect(out.data.spec_summary).toMatch(/Please pick a question type/);
     expect(AssessmentGenClient.submitJob).not.toHaveBeenCalled();
   });
@@ -605,7 +605,7 @@ describe('OBJ_SUBJ (rev3 CheckboxGroup) — accepts new + legacy shapes', () => 
       { _action: 'pick_category', categories: ['objective', 'subjective'] },
       FLOW_TOKEN,
     );
-    expect(out.screen).toBe('QUESTION_TYPES');
+    expect(out.screen).toBe('PICK_TYPES');
     const ids = out.data.type_options.map((o) => o.id);
     // Objective side (Eng grade 4)
     expect(ids).toEqual(expect.arrayContaining(['MCQs', 'MSQs', 'Fill in the Blanks', 'Brief Answers']));
@@ -625,7 +625,7 @@ describe('OBJ_SUBJ (rev3 CheckboxGroup) — accepts new + legacy shapes', () => 
       { _action: 'pick_category', categories: 'objective,subjective' },
       FLOW_TOKEN,
     );
-    expect(out.screen).toBe('QUESTION_TYPES');
+    expect(out.screen).toBe('PICK_TYPES');
     const state = await redis.get(`assessment_gen_flow:${FLOW_TOKEN}`);
     expect(state.categories.sort()).toEqual(['objective', 'subjective']);
   });
@@ -637,7 +637,7 @@ describe('OBJ_SUBJ (rev3 CheckboxGroup) — accepts new + legacy shapes', () => 
       { _action: 'pick_category', category: 'objective' },
       FLOW_TOKEN,
     );
-    expect(out.screen).toBe('QUESTION_TYPES');
+    expect(out.screen).toBe('PICK_TYPES');
     const ids = out.data.type_options.map((o) => o.id);
     expect(ids).toEqual(expect.arrayContaining(['MCQs']));
     expect(ids).not.toContain('Essay Writing'); // subjective only
@@ -715,7 +715,7 @@ describe('OBJ_SUBJ (rev3 CheckboxGroup) — accepts new + legacy shapes', () => 
       { _action: 'pick_category', categories: [] },
       FLOW_TOKEN,
     );
-    expect(out.screen).toBe('QUESTION_TYPES');
+    expect(out.screen).toBe('PICK_TYPES');
     const state = await redis.get(`assessment_gen_flow:${FLOW_TOKEN}`);
     expect(state.categories).toEqual(['objective']);
   });
