@@ -127,32 +127,60 @@ class SQSCoachingWorker {
   }
 
   /**
+   * bd-2240 (ported from main-bot bd-1372): resolve which queues this replica
+   * should poll. Reads WORKER_QUEUES on every call (cheap; no caching) so tests
+   * can flip env without resetModules between assertions.
+   *
+   * Empty / unset → all queues, which is exactly the behaviour NIETE had before
+   * this change. So deploying this alone changes nothing; the split only starts
+   * when WORKER_QUEUES is set on a service.
+   */
+  static _enabledQueues() {
+    const raw = (process.env.WORKER_QUEUES || '').trim();
+    if (!raw) return new Set(['main', 'video', 'quiz']);
+    const parsed = raw.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+    return parsed.length ? new Set(parsed) : new Set(['main', 'video', 'quiz']);
+  }
+
+  /**
    * Process a batch of jobs from SQS
    * Uses long polling for efficiency
-   * Polls both main queue and dedicated video queue (if configured)
+   * Polls only the queues this replica is configured to handle (WORKER_QUEUES).
    */
   async processNextBatch(maxMessages) {
     try {
-      // Poll main + (optional) video + (optional) quiz queues in parallel.
+      // bd-2240: WORKER_QUEUES lets each service poll a subset of queues, so a
+      // 10-12 minute video job can be isolated onto its own worker instead of
+      // occupying a slot that coaching jobs are queued behind. Default polls
+      // everything — preserves prior NIETE behaviour.
+      const enabled = SQSCoachingWorker._enabledQueues();
       const hasVideoQueue = !!process.env.SQS_VIDEO_QUEUE_URL;
       const hasQuizQueue = !!process.env.SQS_QUIZ_QUEUE_URL;
+      const pollsMain = enabled.has('main');
+      const pollsVideo = enabled.has('video') && hasVideoQueue;
+      const pollsQuiz = enabled.has('quiz') && hasQuizQueue;
 
-      // Reserve 1 slot for each dedicated queue that's configured.
-      const dedicated = (hasVideoQueue ? 1 : 0) + (hasQuizQueue ? 1 : 0);
-      const mainQueueSlots = dedicated ? Math.max(1, maxMessages - dedicated) : maxMessages;
+      // Slot allocation. If main is enabled it gets the bulk; dedicated queues
+      // get 1 slot each. If main is NOT enabled (e.g. a video-only worker), the
+      // whole slot budget goes to the queue(s) that are.
+      const dedicated = (pollsVideo ? 1 : 0) + (pollsQuiz ? 1 : 0);
+      const mainQueueSlots = pollsMain ? Math.max(1, maxMessages - dedicated) : 0;
+      const videoSlots = pollsVideo ? (pollsMain || pollsQuiz ? 1 : maxMessages) : 0;
+      const quizSlots = pollsQuiz ? (pollsMain || pollsVideo ? 1 : maxMessages) : 0;
 
       // Poll queues in parallel
-      const pollPromises = [
-        SQSQueueService.receiveJobs(mainQueueSlots)
-      ];
-      if (hasVideoQueue) pollPromises.push(SQSQueueService.receiveVideoJobs(1));
-      if (hasQuizQueue) pollPromises.push(SQSQueueService.receiveQuizJobs(1));
+      const pollPromises = [];
+      if (pollsMain) pollPromises.push(SQSQueueService.receiveJobs(mainQueueSlots));
+      if (pollsVideo) pollPromises.push(SQSQueueService.receiveVideoJobs(videoSlots));
+      if (pollsQuiz) pollPromises.push(SQSQueueService.receiveQuizJobs(quizSlots));
+
+      if (pollPromises.length === 0) return; // misconfigured — skip this tick
 
       const results = await Promise.all(pollPromises);
-      const mainJobs = results[0] || [];
-      let idx = 1;
-      const videoJobs = hasVideoQueue ? (results[idx++] || []) : [];
-      const quizJobs = hasQuizQueue ? (results[idx++] || []) : [];
+      let idx = 0;
+      const mainJobs = pollsMain ? (results[idx++] || []) : [];
+      const videoJobs = pollsVideo ? (results[idx++] || []) : [];
+      const quizJobs = pollsQuiz ? (results[idx++] || []) : [];
 
       // Mark jobs with their source queue for proper completion
       mainJobs.forEach(job => { job.sourceQueue = 'main'; });
@@ -171,8 +199,14 @@ class SQSCoachingWorker {
         batchSize: allJobs.length,
         mainQueueJobs: mainJobs.length,
         videoQueueJobs: videoJobs.length,
+        quizQueueJobs: quizJobs.length,
         jobTypes: allJobs.map(j => j.body.jobType),
-        usingDedicatedVideoQueue: hasVideoQueue
+        // bd-2240: enabledQueues is the field that makes a PARTIAL rollout
+        // visible — if replicas disagree here, the env change only reached some
+        // of them. Summarise by this value before trusting a split is in effect.
+        enabledQueues: [...enabled],
+        usingDedicatedVideoQueue: pollsVideo,
+        usingDedicatedQuizQueue: pollsQuiz
       });
 
       // Process each job concurrently
