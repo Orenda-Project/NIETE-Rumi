@@ -19,7 +19,14 @@ const { observeStrings, observeLang } = require('./observe-strings');
 const { getObservePack } = require('./observe-framework');   // FEAT-093 bd-52 — market rubric by config
 const { logToFile } = require('../../utils/logger');
 
-const PREFILL_TEXT_CAP = 300; // D15 — full text stays in analysis_data regardless
+// D15 — full text stays in analysis_data regardless of what the form shows.
+// bd-2217: was 300, which visibly cut every Evidence note mid-sentence (Warda +
+// Mubashar, ICT, 2026-07-21). The Flow's TextArea declares no max-chars, so
+// Meta's 600 default applies — 300 was throwing away half the allowance and,
+// worse, the evidence is the whole point of the review step: a leader can't
+// judge a score from a truncated quote. Prefill is served per SCREEN (one
+// domain, max 10 indicators), so 26 × 2 × 600 is never in a single payload.
+const PREFILL_TEXT_CAP = 600;
 
 // bd-60: the published Flow binds its score options to ${data.scale} at
 // runtime, so these labels MUST follow the pack — the sw hardcode was
