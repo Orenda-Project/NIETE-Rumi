@@ -3980,11 +3980,12 @@ router.get('/video/:id', requirePortalAuth, async (req, res) => {
 // (job → { userId, spec, filename }) lives in Redis (~30 min TTL) so the status
 // endpoint can (a) authorize the caller and (b) name the rendered file.
 //
-// Poll path: submitJob is called WITHOUT a per-call callbackUrl, and the browser
-// polls GET /assessment/status/:jobId. (If ASSESSMENT_GEN_CALLBACK_URL is set in
-// the env, UG_EG may also POST the bot's webhook — that handler looks the job up
-// under a DIFFERENT Redis key namespace [`assessment_gen_job:`] which the portal
-// never writes, so it harmlessly drops. No double delivery to a teacher.)
+// Poll path: the browser polls GET /assessment/status/:jobId for the result.
+// UG_EG nonetheless REQUIRES a callback_url on every submit (omitting it 400s
+// with "callback_url: Field required"), so submitJob is called WITH a per-call
+// callbackUrl pointing at this portal's OWN no-op ack route
+// (POST /assessment/callback) — never the bot webhook. The callback is a
+// deliberate 200-only ack; delivery to the teacher happens purely via polling.
 //
 // The bot deps are require()d LAZILY inside the handlers (not at module top):
 // html-to-pdf pulls in Playwright and html-to-docx pulls in @turbodocx — neither
@@ -4054,6 +4055,21 @@ function _normalizeAssessmentSpec(body) {
 }
 
 /**
+ * Build the portal-owned callback URL UG_EG requires on every submit. We do NOT
+ * consume the result via the callback (the browser polls the status endpoint) —
+ * this must point at THIS portal's own no-op ack route so a stray env pointing
+ * at the bot webhook can never hijack delivery. Derived from the request host
+ * (Railway sets Host / x-forwarded-host to the public domain) so no hardcoded
+ * URL and no extra env var is needed.
+ */
+function _assessmentCallbackUrl(req) {
+  const h = (req && req.headers) || {};
+  const proto = String(h['x-forwarded-proto'] || 'https').split(',')[0].trim() || 'https';
+  const host = h['x-forwarded-host'] || h.host || (req && req.get && req.get('host')) || 'localhost';
+  return `${proto}://${host}/api/portal/assessment/callback`;
+}
+
+/**
  * POST /api/portal/assessment/generate
  * Body: { generationType, grade, subject, pageRanges, contentSource,
  *         questionTypes: [{ id, count, category? }], format? }
@@ -4072,8 +4088,12 @@ router.post('/assessment/generate', requirePortalAuth, async (req, res) => {
     const AssessmentGenClient = require('../../bot/shared/services/assessment-generator-client.service');
     const redis = require('../../bot/shared/services/cache/railway-redis.service');
 
-    // Poll path — no per-call callbackUrl (see header note on the env fallback).
-    const { jobId } = await AssessmentGenClient.submitJob(spec);
+    // UG_EG's /api/v2/generate-exam REQUIRES callback_url even though we retrieve
+    // by polling — omitting it 400s ("callback_url: Field required"). Point it at
+    // THIS portal's own no-op ack endpoint (never the bot webhook), derived from
+    // the incoming request host so it is correct in any deployment.
+    const callbackUrl = _assessmentCallbackUrl(req);
+    const { jobId } = await AssessmentGenClient.submitJob(spec, { callbackUrl });
     if (!jobId) {
       return res.status(502).json({ success: false, error: 'Assessment service did not return a job id' });
     }
@@ -4150,6 +4170,18 @@ router.get('/assessment/status/:jobId', requirePortalAuth, async (req, res) => {
     console.error('assessment/status error:', err);
     return res.status(500).json({ success: false, error: 'Failed to check assessment status' });
   }
+});
+
+/**
+ * POST /api/portal/assessment/callback
+ * UG_EG POSTs the finished exam here because callback_url is a required field on
+ * every submit. The portal retrieves results by POLLING the status endpoint, so
+ * this is a deliberate no-op acknowledgement — we just 200 so UG_EG does not
+ * retry. No auth: UG_EG cannot authenticate, and this endpoint reads/exposes
+ * nothing and changes no state.
+ */
+router.post('/assessment/callback', (req, res) => {
+  return res.status(200).json({ received: true });
 });
 
 module.exports = router;

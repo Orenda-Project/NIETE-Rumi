@@ -33,11 +33,14 @@ function findRoute(router, method, routePath) {
 }
 
 // Invoke a handler stack (auth middleware → route handler) with a fake req/res.
-async function invoke({ method, routePath, userId, params = {}, query = {}, body = {} }) {
+async function invoke({ method, routePath, userId, params = {}, query = {}, body = {}, headers = {} }) {
   const routes = require('../../dashboard/routes/portal.routes');
   const stack = findRoute(routes, method, routePath);
   if (!stack) throw new Error(`Route ${method.toUpperCase()} ${routePath} not found on router`);
 
+  const lowerHeaders = Object.fromEntries(
+    Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v]),
+  );
   const req = {
     session: userId ? { portalUserId: userId, id: 'sess-1' } : null,
     params,
@@ -46,8 +49,8 @@ async function invoke({ method, routePath, userId, params = {}, query = {}, body
     method: method.toUpperCase(),
     path: routePath,
     ip: '127.0.0.1',
-    headers: {},
-    get: () => undefined,
+    headers: lowerHeaders,
+    get: (name) => lowerHeaders[String(name).toLowerCase()],
   };
 
   let statusCode = 200;
@@ -148,7 +151,7 @@ describe('POST /api/portal/assessment/generate', () => {
     expect(statusCode).toBe(401);
   });
 
-  it('submits the job (no callback / poll path) and returns { jobId }', async () => {
+  it('submits the job and returns { jobId }', async () => {
     const { statusCode, payload } = await invoke({
       method: 'post', routePath: '/assessment/generate', userId: 'user-1', body: VALID_BODY,
     });
@@ -163,6 +166,31 @@ describe('POST /api/portal/assessment/generate', () => {
       contentSource: 'unseen', curriculum: 'ICT',
     });
     expect(spec.questionTypes[0]).toMatchObject({ id: 'MCQs', count: 5, category: 'objective' });
+  });
+
+  // UG_EG's /api/v2/generate-exam REQUIRES callback_url even when we retrieve by
+  // polling — a submit without it 400s ("callback_url: Field required"), which was
+  // the live "Failed to queue assessment" error. The portal must always pass a
+  // callback that points at ITS OWN host (never the bot webhook).
+  it('always passes a portal-owned callback_url derived from the request host', async () => {
+    const { statusCode } = await invoke({
+      method: 'post', routePath: '/assessment/generate', userId: 'user-1', body: VALID_BODY,
+      headers: { 'x-forwarded-proto': 'https', host: 'portal.example.railway.app' },
+    });
+    expect(statusCode).toBe(200);
+    const opts = submitJobMock.mock.calls[0][1] || {};
+    expect(opts.callbackUrl).toBe(
+      'https://portal.example.railway.app/api/portal/assessment/callback',
+    );
+  });
+
+  it('falls back to https + x-forwarded-host when host header is absent', async () => {
+    await invoke({
+      method: 'post', routePath: '/assessment/generate', userId: 'user-1', body: VALID_BODY,
+      headers: { 'x-forwarded-host': 'example.up.railway.app' },
+    });
+    const opts = submitJobMock.mock.calls[0][1] || {};
+    expect(opts.callbackUrl).toBe('https://example.up.railway.app/api/portal/assessment/callback');
   });
 
   it('stores the Redis job link keyed by jobId with userId + spec + filename', async () => {
@@ -198,6 +226,20 @@ describe('POST /api/portal/assessment/generate', () => {
       body: { ...VALID_BODY, questionTypes: [] },
     });
     expect(statusCode).toBe(400);
+  });
+});
+
+describe('POST /api/portal/assessment/callback', () => {
+  // UG_EG POSTs the finished exam here because callback_url is required. The
+  // portal retrieves results by polling, so this is a deliberate no-op ack that
+  // just 200s (so UG_EG doesn't retry). No auth — UG_EG can't authenticate.
+  it('acknowledges any POST with 200 and requires no auth', async () => {
+    const { statusCode, payload } = await invoke({
+      method: 'post', routePath: '/assessment/callback', userId: null,
+      body: { job_id: 'J1', status: 'completed' },
+    });
+    expect(statusCode).toBe(200);
+    expect(payload).toMatchObject({ received: true });
   });
 });
 
