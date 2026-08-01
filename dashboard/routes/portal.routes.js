@@ -1981,7 +1981,21 @@ async function _assertLevelUnlocked(userId, levelId) {
   // unlock_logic + within-vendor previous-level rule.
   const { data: levels } = await supabase
     .from('training_levels').select('id, name, order_index, vendor_id').eq('is_active', true).order('order_index');
-  const stateMap = await _computeLevelStates(userId, levels || []);
+
+  // bd-2468 — scope FIRST, exactly as GET /training/levels does.
+  //
+  // _computeLevelStates derives each level's predecessor from the array it is
+  // handed. Given every active level it found Level 2 behind Level 3 and
+  // locked a Middle & High teacher out of the first level in their own
+  // programme — citing a level their list doesn't even show. Given the scoped
+  // array it finds no predecessor, sets isFirst, and unlocks. That is what the
+  // bot does, and why the bot was never wrong.
+  //
+  // It also closes an authorisation gap: an out-of-scope level used to get a
+  // real state here and could pass the gate. Now it isn't in the map at all,
+  // so it 404s below.
+  const scopedLevels = await _filterLevelsByScopes(userId, levels || []);
+  const stateMap = await _computeLevelStates(userId, scopedLevels);
   const s = stateMap.get(levelId);
   if (!s) return { ok: false, status: 404, error: 'Level not found' };
   if (s.state === 'locked') {
