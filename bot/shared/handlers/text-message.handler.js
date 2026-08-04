@@ -1335,16 +1335,35 @@ async function handleTextMessage(message, from, messageBody, user = null) {
               activeCoaching.id,
               `switched_to:${pendingSwitch.command}`
             );
-            logToFile('🎓 Teacher confirmed the switch — session paused, replaying command', {
+            logToFile('🎓 Teacher confirmed the switch — session paused', {
               coachingSessionId: activeCoaching.id,
               command: pendingSwitch.command,
+              menuSelector: pendingSwitch.menuSelector || null,
             });
-            // Re-enter with the ORIGINAL text so arguments survive
-            // (e.g. "/lessonplan grade 4 maths"). trimmedMessage is a const AND
-            // lowercased, so mutating it is impossible and would corrupt args
-            // anyway — recursion is the honest way to replay. The session is now
-            // `paused`, so the activeCoaching lookup above cannot re-match and
-            // this cannot loop.
+
+            // A MENU pick has no re-runnable text (it was a button or a bare
+            // digit), so dispatch the selector straight to MenuService. The
+            // session is already `paused`, so its own guard cannot re-fire.
+            if (pendingSwitch.menuSelector) {
+              const MenuSvc = require('../services/menu.service');
+              const sel = pendingSwitch.menuSelector;
+              if (typeof sel === 'number' || /^[1-4]$/.test(String(sel))) {
+                await MenuSvc.handleMenuChoice(
+                  String(sel), user.id, sessionId, from, 'text', responseLanguage
+                );
+              } else {
+                // Signature is (user, from, buttonId, language) — verified 2026-08-04.
+                await MenuSvc.handleMenuButtonResponse(user, from, sel, responseLanguage);
+              }
+              return;
+            }
+
+            // A SLASH COMMAND re-enters with the ORIGINAL text so arguments
+            // survive (e.g. "/lessonplan grade 4 maths"). trimmedMessage is a
+            // const AND lowercased, so mutating it is impossible and would
+            // corrupt args anyway — recursion is the honest replay. The session
+            // is now `paused`, so the activeCoaching lookup above cannot
+            // re-match and this cannot loop.
             return handleTextMessage(message, from, pendingSwitch.fullMessage, user);
           }
 

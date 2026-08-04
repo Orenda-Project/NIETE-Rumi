@@ -54,6 +54,30 @@ const SERVICE_LABELS = {
 /** Commands that must NEVER be gated — the escape hatch. */
 const ALWAYS_ALLOWED = new Set(['/menu', '/help']);
 
+/**
+ * Menu selections that START a service and therefore need the same confirmation
+ * a slash command gets. Keyed by BOTH surfaces the menu is answered on: the
+ * interactive button ids (`menu_*`) and the legacy typed digits ("1".."4").
+ *
+ * `menu_other` / "4" is deliberately ABSENT: it opens general AI chat, starts no
+ * service, and nagging a teacher who just wants to ask a question would be noise.
+ * The reflection is left running for it, exactly like /help.
+ *
+ * `menu_coaching` / "1" IS included even though it is coaching: it asks for a NEW
+ * lesson recording, so the reflection she is in the middle of must be paused (and
+ * nudged this evening) rather than silently orphaned.
+ */
+const MENU_SERVICE_LABELS = {
+  menu_coaching: 'a new coaching session',
+  menu_lesson_plan: 'a lesson plan',
+  menu_video: 'a video',
+  menu_reading: 'a reading assessment',
+  menu_training: 'training',
+  1: 'a new coaching session',
+  2: 'a lesson plan',
+  3: 'a video',
+};
+
 // Deliberately EXCLUDES bare digits. During coaching a "1" is either a menu
 // choice or a real answer — never a yes/no to this prompt. Treating it as YES
 // would silently pause a session the teacher meant to keep.
@@ -109,10 +133,15 @@ function answeredCount(session) {
 /**
  * Ask the teacher to confirm before we suspend her reflection.
  * Names the service she asked for and how far through she is.
+ *
+ * @param {Object} [opts]
+ * @param {string} [opts.label] override the label (menu path supplies its own)
+ * @param {string} [opts.menuSelector] button id / digit to dispatch on YES,
+ *        instead of replaying a text command
  */
-async function askToConfirmSwitch(from, userId, session, command, fullMessage) {
+async function askToConfirmSwitch(from, userId, session, command, fullMessage, opts = {}) {
   const answered = answeredCount(session);
-  const label = labelFor(command);
+  const label = opts.label || labelFor(command);
   // Ask in HER language. Best-effort: a cache miss must not block the prompt,
   // because failing to ask means silently destroying the reflection again.
   let languageCode = 'en';
@@ -122,12 +151,20 @@ async function askToConfirmSwitch(from, userId, session, command, fullMessage) {
     logToFile('⚠️ Language lookup failed for switch prompt, using English', { userId });
   }
 
-  // Stash the original message so YES replays the real command, not just the verb
-  // (e.g. "/lessonplan grade 4 maths" must keep its arguments).
+  // Stash what YES should do. For a slash command that is the ORIGINAL message
+  // text, so arguments survive ("/lessonplan grade 4 maths"). For a menu pick
+  // there is no re-runnable text, so the selector is stashed and dispatched
+  // directly instead.
   await redis.setex(
     CONFIRM_KEY(userId),
     CONFIRM_TTL_SECONDS,
-    JSON.stringify({ sessionId: session.id, command, fullMessage, label })
+    JSON.stringify({
+      sessionId: session.id,
+      command,
+      fullMessage,
+      label,
+      menuSelector: opts.menuSelector || null,
+    })
   );
 
   // Every teacher-facing string comes from coaching-messages.js so a fork can ship
@@ -158,6 +195,49 @@ async function askToConfirmSwitch(from, userId, session, command, fullMessage) {
     command,
     answered,
   });
+}
+
+/**
+ * Menu-path guard. Returns true when the caller must STOP because a confirmation
+ * was sent instead of the service starting.
+ *
+ * Why this exists separately from the handler path: a slash command is visible to
+ * the coaching interceptor, which asks before the command ever runs. A menu pick
+ * arrives as a bare digit that the interceptor deliberately DEFERS (that deferral
+ * is what makes /menu usable at all), so by the time MenuService runs the
+ * ask-first opportunity has already passed. This puts the gate back, at the
+ * menu's own two entry points (buttons and typed digits).
+ *
+ * `selector` is a button id (`menu_video`) or a typed digit ("3"). Anything absent
+ * from MENU_SERVICE_LABELS — notably `menu_other` / "4" — passes straight through
+ * with the reflection left running, since it starts no service.
+ *
+ * @returns {Promise<boolean>} true = confirmation sent, caller must return early
+ */
+async function guardMenuSelection(selector, userId, from) {
+  const label = MENU_SERVICE_LABELS[selector];
+  if (!label) return false; // not a service-starting pick (e.g. general chat)
+
+  const { data: active } = await supabase
+    .from('coaching_sessions')
+    .select('id, conversation_state')
+    .eq('user_id', userId)
+    .eq('status', 'conducting_conversation')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!active) return false; // no reflection in flight, nothing to protect
+
+  logToFile('🎓 Menu pick during coaching — asking before pausing', {
+    coachingSessionId: active.id,
+    selector,
+  });
+  await askToConfirmSwitch(from, userId, active, selector, null, {
+    label,
+    menuSelector: selector,
+  });
+  return true;
 }
 
 /**
@@ -250,7 +330,9 @@ async function resumeSession(sessionId, from) {
 
 module.exports = {
   SERVICE_LABELS,
+  MENU_SERVICE_LABELS,
   ALWAYS_ALLOWED,
+  guardMenuSelection,
   NUM_REFLECTIVE_QUESTIONS,
   CONFIRM_KEY,
   CONFIRM_TTL_SECONDS,

@@ -195,6 +195,81 @@ describe('bd-2508 follow-up: confirm before ending a coaching conversation', () 
     });
   });
 
+  describe('menu path — the gate the interceptor cannot apply', () => {
+    // A menu pick arrives as a button/digit the coaching interceptor deliberately
+    // DEFERS, so MenuService is the only place left to ask.
+    const withActiveSession = () => {
+      const maybeSingle = jest.fn().mockResolvedValue({
+        data: { id: 's-9', conversation_state: { questions_answered: 0 } },
+      });
+      supabase.from.mockReturnValue({
+        select: () => ({
+          eq: () => ({
+            eq: () => ({ order: () => ({ limit: () => ({ maybeSingle }) }) }),
+          }),
+        }),
+      });
+    };
+    const withNoSession = () => {
+      const maybeSingle = jest.fn().mockResolvedValue({ data: null });
+      supabase.from.mockReturnValue({
+        select: () => ({
+          eq: () => ({
+            eq: () => ({ order: () => ({ limit: () => ({ maybeSingle }) }) }),
+          }),
+        }),
+      });
+    };
+
+    it('gates every service-starting pick, on both surfaces', async () => {
+      for (const sel of ['menu_lesson_plan', 'menu_video', 'menu_reading', 2, 3]) {
+        withActiveSession();
+        jest.clearAllMocks();
+        withActiveSession();
+        expect(await CoachingPauseService.guardMenuSelection(sel, 'u-1', '92300000000')).toBe(true);
+      }
+    });
+
+    it('gates "new coaching session" too — the old reflection must not be orphaned', async () => {
+      withActiveSession();
+      expect(await CoachingPauseService.guardMenuSelection('menu_coaching', 'u-1', '92300000000')).toBe(true);
+      expect(WhatsAppService.sendMessage.mock.calls[0][1]).toContain('a new coaching session');
+    });
+
+    it('does NOT gate general chat — it starts no service', async () => {
+      withActiveSession();
+      expect(await CoachingPauseService.guardMenuSelection('menu_other', 'u-1', '92300000000')).toBe(false);
+      expect(await CoachingPauseService.guardMenuSelection(4, 'u-1', '92300000000')).toBe(false);
+      expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('does not gate when no reflection is in flight', async () => {
+      withNoSession();
+      expect(await CoachingPauseService.guardMenuSelection('menu_video', 'u-1', '92300000000')).toBe(false);
+      expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('stashes the selector so YES can dispatch it — a pick has no replayable text', async () => {
+      withActiveSession();
+      await CoachingPauseService.guardMenuSelection('menu_video', 'u-1', '92300000000');
+      const payload = JSON.parse(redis.setex.mock.calls[0][2]);
+      expect(payload.menuSelector).toBe('menu_video');
+      expect(payload.fullMessage).toBeNull();
+    });
+
+    it('the button path asks BEFORE clearing the menu state', () => {
+      // Clearing first would make the YES replay hit "selection has expired".
+      const src = fs.readFileSync(
+        require.resolve('../../bot/shared/services/menu.service'), 'utf8'
+      );
+      const guard = src.indexOf('guardMenuSelection');
+      const clear = src.indexOf('redisService.delete(stateKey)');
+      expect(guard).toBeGreaterThan(-1);
+      expect(clear).toBeGreaterThan(-1);
+      expect(guard).toBeLessThan(clear);
+    });
+  });
+
   describe('redis interface — real method names, no double-parse', () => {
     it('clears via delete(), not del() — RailwayRedisService has no del', async () => {
       await CoachingPauseService.clearPendingConfirmation('user-1');
