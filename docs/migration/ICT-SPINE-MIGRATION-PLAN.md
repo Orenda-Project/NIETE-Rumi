@@ -72,7 +72,9 @@ Sector dimension, live 2026-08-04 — `schools_schoolregion` ⨝ `schools_school
 | *(null)* | 32 |
 | Durbeen | 1 |
 
-**432 schools total; 32 carry no region** and will be unfilterable by sector — surfaced, not hidden.
+**462 schools live (`deleted_at IS NULL`); 32 carry no region** and are unfilterable by sector —
+surfaced, not hidden. (An earlier draft said 432; that count omitted the `deleted_at` filter.
+Corrected 2026-08-04: 462 live rows, 459 distinct EMIS, 3 with a NULL EMIS.)
 
 Teacher spine, live 2026-08-04, from base tables (`users_user` ⨝ `users_teacherprofile`,
 org 1, active, non-test, not soft-deleted): **4,259 distinct teachers / 4,310 profile rows /
@@ -118,264 +120,38 @@ is 4,259.
 
 ---
 
-## 4. Code to touch — as ACTUAL DIFFS
+## 4. Code to touch
 
-### NEW FILE — the migration script
+**The two implementation files are WRITTEN AND COMMITTED — read them, do not re-derive
+them from a diff.** They were validated against a real PostgreSQL 16 instance on
+2026-08-04 (see §11 "Proven locally"), so the code below is the tested artifact, not a
+sketch:
 
-```diff
-# NEW FILE — scripts/migrate-ict-spine.py  (locate: ls scripts/migrate-*.py)
-+++ b/scripts/migrate-ict-spine.py
-+#!/usr/bin/env python3
-+"""
-+NIETE-Rumi ICT dimension-spine migration — one-time pull from
-+`fde_production` (NIETE / FDE production Postgres, via TALEEMABAD_DB_* creds)
-+into NIETE-Rumi's Supabase `nietemigrated_*` tables.
-+
-+Companion to `migrate-coaching-observations.py`, which already moved the FACTS
-+(observations, answers, visits). This script moves the LOOKUPS those facts point
-+at but which were never migrated, so an observation can finally be attributed to
-+a coach, a school, and a sector.
-+
-+Order (FK-safe, ancestors first):
-+  1. school_regions    (7)
-+  2. schools           (432)
-+  3. coach_profiles    (117 rows; 63 have observations)
-+  4. teacher_profiles  (4,310 rows / 4,259 distinct teachers)
-+  5. fico_kpis         (5,180)
-+
-+Filters at source (per governed rules v0.22.5):
-+  * users_user.organization_id = 1        (ICT)
-+  * users_user.is_active AND profile.is_active
-+  * users_user.is_testing_account = FALSE
-+  * deleted_at IS NULL on both user and profile
-+
-+Idempotent: `Prefer: resolution=merge-duplicates` on the PK, so re-runs
-+overwrite matching rows without dupes. Source IDs are preserved as PKs so the
-+already-migrated fact rows resolve directly.
-+
-+Reads:  `fde_production` via TALEEMABAD_DB_* (read-only role).
-+Writes: NIETE-Rumi Supabase via PostgREST bulk POST.
-+
-+Usage:
-+  python3 scripts/migrate-ict-spine.py --dry-run            # counts only, no writes
-+  python3 scripts/migrate-ict-spine.py --commit             # write everything
-+  python3 scripts/migrate-ict-spine.py --commit --tables schools,coach_profiles
-+"""
-+from __future__ import annotations
-+import argparse, json, sys, urllib.request, urllib.error
-+from datetime import date, datetime, time as dtime
-+from decimal import Decimal
-+from pathlib import Path
-+from uuid import UUID
-+
-+import psycopg2
-+
-+REPO = Path(__file__).resolve().parent.parent
-+ENV = REPO / ".env"
-+
-+
-+def env(k: str) -> str:
-+    for line in ENV.read_text().splitlines():
-+        if line.startswith(k + "="):
-+            return line.split("=", 1)[1].strip().strip('"').strip("'")
-+    raise KeyError(k)
-+
-+
-+SUPABASE_URL = env("SUPABASE_URL")
-+SUPABASE_KEY = env("SUPABASE_SERVICE_ROLE_KEY")
-+SRC_DSN = dict(
-+    host=env("TALEEMABAD_DB_HOST"),
-+    port=env("TALEEMABAD_DB_PORT"),
-+    dbname=env("TALEEMABAD_DB_NAME"),
-+    user=env("TALEEMABAD_DB_USER"),
-+    password=env("TALEEMABAD_DB_PASSWORD"),
-+)
-+BATCH = 1000
-+
-+# ---------------------------------------------------------------- table specs
-+# Each spec: source SELECT (governed filters baked in) -> target table + PK.
-+TABLES = {
-+    "school_regions": dict(
-+        target="nietemigrated_school_regions",
-+        pk="id",
-+        expect=7,
-+        sql="""
-+            SELECT id, name, created, modified
-+            FROM schools_schoolregion
-+            WHERE deleted_at IS NULL
-+        """,
-+    ),
-+    "schools": dict(
-+        target="nietemigrated_schools",
-+        pk="id",
-+        expect=432,
-+        sql="""
-+            SELECT s.id, s.uuid, s.name, s.emis, s.region_id,
-+                   r.name AS region_name, s.created, s.modified
-+            FROM schools_school s
-+            LEFT JOIN schools_schoolregion r ON r.id = s.region_id
-+            WHERE s.deleted_at IS NULL
-+        """,
-+    ),
-+    "coach_profiles": dict(
-+        target="nietemigrated_coach_profiles",
-+        pk="id",
-+        expect=117,
-+        sql="""
-+            SELECT cp.id, cp.user_id, u.name AS coach_name,
-+                   u.username AS phone_number, cp.is_active,
-+                   cp.created, cp.modified
-+            FROM users_coachprofile cp
-+            JOIN users_user u ON u.id = cp.user_id
-+            WHERE u.organization_id = 1
-+              AND u.is_testing_account = FALSE
-+              AND u.deleted_at IS NULL
-+              AND cp.deleted_at IS NULL
-+        """,
-+    ),
-+    "teacher_profiles": dict(
-+        target="nietemigrated_teacher_profiles",
-+        pk="id",
-+        expect=4310,
-+        sql="""
-+            SELECT tp.id, tp.user_id, u.name AS teacher_name,
-+                   u.username AS phone_number, tp.school_id, tp.levels,
-+                   tp.is_active, tp.created, tp.modified
-+            FROM users_teacherprofile tp
-+            JOIN users_user u ON u.id = tp.user_id
-+            WHERE u.organization_id = 1
-+              AND u.is_active AND tp.is_active
-+              AND u.is_testing_account = FALSE
-+              AND u.deleted_at IS NULL
-+              AND tp.deleted_at IS NULL
-+        """,
-+    ),
-+    # Source has 28 columns (verified live 2026-08-04); we take 13 — the observation
-+    # grain + the scores + emis as join tie-breaker. The 9 HR columns and the
-+    # repeated placement columns are deliberately NOT selected: HR data is not a
-+    # dashboard metric, and name/school/sector live on teacher_profiles. Not
-+    # migrating PII beats migrating it and guarding it.
-+    # No id at source: PK is the observation grain. Observation_date is STRING -> cast.
-+    "fico_kpis": dict(
-+        target="nietemigrated_fico_kpis",
-+        pk="user_id,observation_date,grade,subject",
-+        expect=5180,
-+        sql="""
-+            SELECT
-+                user_id,
-+                NULLIF("Observation_date", '')::date      AS observation_date,
-+                COALESCE(grade, '')                       AS grade,
-+                COALESCE(subject, '')                     AS subject,
-+                "EMIS"                                    AS emis,
-+                "Planning_and_Preparation"                AS planning_and_preparation,
-+                "Subject_Knowledge"                       AS subject_knowledge,
-+                "Classroom_Management"                     AS classroom_management,
-+                "Communication_Skills"                     AS communication_skills,
-+                "Professional_Development"                 AS professional_development,
-+                "Use_of_Technology"                        AS use_of_technology,
-+                total_score_out_of_60,
-+                overall_percentage
-+            FROM fico_kpis
-+            WHERE user_id IS NOT NULL
-+              AND NULLIF("Observation_date", '') IS NOT NULL
-+        """,
-+    ),
-+}
-+
-+
-+def jsonable(v):
-+    if isinstance(v, (datetime, date, dtime)):
-+        return v.isoformat()
-+    if isinstance(v, Decimal):
-+        return float(v)
-+    if isinstance(v, UUID):
-+        return str(v)
-+    return v
-+
-+
-+def push(target: str, pk: str, rows: list[dict]) -> None:
-+    """Bulk POST one batch with merge-duplicates (idempotent on pk)."""
-+    req = urllib.request.Request(
-+        f"{SUPABASE_URL}/rest/v1/{target}?on_conflict={pk}",
-+        data=json.dumps(rows).encode(),
-+        headers={
-+            "apikey": SUPABASE_KEY,
-+            "Authorization": f"Bearer {SUPABASE_KEY}",
-+            "Content-Type": "application/json",
-+            "Prefer": "resolution=merge-duplicates,return=minimal",
-+        },
-+        method="POST",
-+    )
-+    try:
-+        urllib.request.urlopen(req).read()
-+    except urllib.error.HTTPError as e:
-+        sys.exit(f"FAIL {target}: {e.code} {e.read().decode()[:400]}")
-+
-+
-+def main() -> None:
-+    ap = argparse.ArgumentParser()
-+    ap.add_argument("--commit", action="store_true", help="write (default: dry-run)")
-+    ap.add_argument("--dry-run", action="store_true")
-+    ap.add_argument("--tables", default="", help="comma-separated subset")
-+    a = ap.parse_args()
-+    wanted = [t.strip() for t in a.tables.split(",") if t.strip()] or list(TABLES)
-+
-+    conn = psycopg2.connect(**SRC_DSN)
-+    conn.set_session(readonly=True)
-+    failures = []
-+
-+    for name in wanted:  # dict order == FK-safe order
-+        spec = TABLES[name]
-+        with conn.cursor() as cur:
-+            cur.execute(spec["sql"])
-+            cols = [d[0] for d in cur.description]
-+            rows = [dict(zip(cols, r)) for r in cur.fetchall()]
-+        n, expect = len(rows), spec["expect"]
-+        drift = "" if n == expect else f"  <-- DRIFT (expected ~{expect})"
-+        print(f"{name:18} {n:>7} rows -> {spec['target']}{drift}")
-+        if n != expect:
-+            failures.append(f"{name}: got {n}, expected ~{expect}")
-+        if not a.commit:
-+            continue
-+        payload = [{k: jsonable(v) for k, v in r.items()} for r in rows]
-+        for i in range(0, len(payload), BATCH):
-+            push(spec["target"], spec["pk"], payload[i : i + BATCH])
-+        print(f"{'':18} {'':>7} committed")
-+
-+    conn.close()
-+    if failures:
-+        print("\nROW-COUNT DRIFT (source changed since 2026-08-04 — reconcile before trusting):")
-+        for f in failures:
-+            print(f"  WARN {f}")
-+    print("\nDONE" if a.commit else "\nDRY-RUN — no writes. Re-run with --commit.")
-+
-+
-+if __name__ == "__main__":
-+    main()
+| File | Role |
+|---|---|
+| `bot/database/migrations/025_ict_dimension_spine.sql` | 5 tables + 1 view + RLS + 3 guarded FK back-fills, with a commented DOWN block |
+| `scripts/migrate-ict-spine.py` | The loader — governed SELECTs, `--dry-run` / `--commit` / `--tables` / `--verify` |
+
+Locate them with:
+
+```
+ls -l bot/database/migrations/025_ict_dimension_spine.sql
+ls -l scripts/migrate-ict-spine.py
+grep -n "TABLES: dict" scripts/migrate-ict-spine.py      # the 5 table specs
+grep -n "fico_with_teacher" bot/database/migrations/025_ict_dimension_spine.sql
 ```
 
-### NEW FILE — the schema migration
+### Still to write — the ORM-style access layer
 
-Full DDL in §9. Path:
+Schema is SQL (above) because the repo has **no ORM**: verified 2026-08-04, no Prisma /
+Sequelize / TypeORM / Knex / Drizzle in any `package.json`, and `supabase-js` is a
+PostgREST query builder that cannot create tables — which is why all 24 existing
+migrations are raw `.sql`. Adding an ORM would create a second source of schema truth.
+So *access* gets the ORM ergonomics instead: named model functions and declarative
+relation traversal, no hand-written joins at call sites.
 
-```diff
-# NEW FILE — bot/database/migrations/025_ict_dimension_spine.sql
-+++ b/bot/database/migrations/025_ict_dimension_spine.sql
-+-- see §9 of docs/migration/ICT-SPINE-MIGRATION-PLAN.md for the full statement list
-```
-
-### NEW FILE — the ORM-style data-access layer
-
-**Why a service, not an ORM.** The repo has no ORM (verified 2026-08-04: no Prisma /
-Sequelize / TypeORM / Knex / Drizzle in any `package.json`). The single DB path is
-`@supabase/supabase-js`, a PostgREST query builder that **cannot create tables** — which is
-why all 24 existing migrations are raw `.sql`. Adding an ORM would create a second source of
-schema truth alongside those 24 files. So schema stays SQL (above) and *access* gets the
-ORM-style ergonomics: named model functions, declarative relation traversal via PostgREST's
-embedded-resource syntax, and no hand-written joins at call sites.
-
-The FK constraints in §9 are what make the embedded syntax work — PostgREST derives
-relationships from the foreign keys, so `select('*, school:...')` resolves only because the
+The FK constraints in the migration are what make this work — PostgREST derives
+relationships from foreign keys, so `select('*, school:...')` resolves only because the
 FK exists. The FKs are load-bearing, not decorative.
 
 ```diff
@@ -385,23 +161,16 @@ FK exists. The FKs are load-bearing, not decorative.
 + * ICT Dimension Spine — read models over the migrated ICT lookup tables.
 + *
 + * The facts (observations, answers, visits) were migrated earlier by
-+ * `scripts/migrate-coaching-observations.py` but their FKs dangled: nothing in
-+ * Supabase could say which coach, which school, or which sector an observation
-+ * belonged to. Migration 025 lands the five lookup tables; this service is the
-+ * only place that knows how they join.
-+ *
-+ * ORM-style by convention, not by dependency: the repo has no ORM (supabase-js
-+ * is a PostgREST query builder, and it cannot create tables — hence the .sql
-+ * migration). Relations below use PostgREST embedded resources, which resolve
-+ * off the FK constraints declared in 025. No FK, no embed.
++ * `scripts/migrate-coaching-observations.py` but their FKs dangled. Migration 025
++ * lands the five lookups; this service is the only place that knows how they join.
 + *
 + * NO PII HERE, BY CONSTRUCTION. `nietemigrated_fico_kpis` holds only the
 + * observation grain + the six scores + emis. The 9 HR columns at source (cnic,
 + * date_of_birth, gender, joining_date, last_promotion_date, qualifications,
 + * professional_trainings, service_designation, basic_pay_scale) are never
-+ * migrated, so `select('*')` is safe from any tier and no read-side column
-+ * allow-list is needed. If a future requirement needs gender or designation,
-+ * add it as a deliberate migration — do not widen this table casually.
++ * migrated, so `select('*')` is safe from any tier and no read-side allow-list is
++ * needed. If gender or designation is later required, add it as a deliberate,
++ * narrow migration — do not widen this table casually.
 + */
 +
 +const supabase = require('../../config/supabase');
@@ -428,10 +197,10 @@ FK exists. The FKs are load-bearing, not decorative.
 +  return data;
 +}
 +
-+/** Schools, optionally one sector. Region embedded via schools.region_id FK. */
++/** Schools, optionally one sector. Region embedded via the schools.region_id FK. */
 +async function listSchools({ sector = null } = {}) {
 +  let q = supabase.from(T.schools)
-+    .select(`id, name, emis, region:${T.regions}!region_id ( id, name )`)
++    .select(`id, name, emis, region_name, region:${T.regions}!region_id ( id, name )`)
 +    .order('name');
 +  if (sector) q = q.eq('region_name', sector);
 +  const { data, error } = await q;
@@ -440,9 +209,9 @@ FK exists. The FKs are load-bearing, not decorative.
 +}
 +
 +/**
-+ * Teachers with their school and sector, one hop each.
-+ * Headline count is DISTINCT user_id — a transferred teacher holds one profile
-+ * row per school assignment, so row count (4,310) exceeds people (4,259).
++ * Teachers with school and sector, one hop each.
++ * Headline is DISTINCT user_id — a transferred teacher holds one profile row per
++ * school assignment (4,310 rows / 4,259 people; 51 teachers hold 2).
 + */
 +async function listTeachers({ sector = null, level = null } = {}) {
 +  let q = supabase.from(T.teachers).select(`
@@ -452,7 +221,7 @@ FK exists. The FKs are load-bearing, not decorative.
 +      region:${T.regions}!region_id ( id, name )
 +    )
 +  `);
-+  if (level) q = q.ilike('levels', `%${level}%`);
++  if (level) q = q.ilike('levels', `%${level}%`);   // no 'SECONDARY' in the data
 +  const { data, error } = await q;
 +  if (error) throw error;
 +  const rows = sector ? data.filter((r) => r.school?.region_name === sector) : data;
@@ -460,10 +229,8 @@ FK exists. The FKs are load-bearing, not decorative.
 +}
 +
 +/**
-+ * The question this whole migration exists to answer:
-+ * which coach observed which teacher, at which school, in which sector.
-+ * Chain: observations -> coach_profiles, and -> teacher_visits -> teacher_profiles
-+ *        -> schools -> school_regions.
++ * The question this whole migration exists to answer: which coach observed which
++ * teacher, at which school, in which sector.
 + */
 +async function observationsWithAttribution({ sector = null, coachId = null, limit = 500 } = {}) {
 +  let q = supabase.from('nietemigrated_observations').select(`
@@ -487,11 +254,10 @@ FK exists. The FKs are load-bearing, not decorative.
 +
 +/**
 + * FICO scores with teacher/school/sector resolved.
-+ * Reads the `nietemigrated_fico_with_teacher` VIEW, not the base table — the view
-+ * encodes the profile tie-break (prefer the profile whose school EMIS matches the
-+ * observation, else most recent) exactly once. Never re-derive that join here.
-+ * The view LEFT JOINs, so the ~9 FICO users with no active profile keep their
-+ * scores with a null teacher_name rather than vanishing.
++ * Reads the VIEW, not the base table — the view encodes the profile tie-break
++ * (prefer the profile whose school EMIS matches the observation, else most recent)
++ * exactly once. Never re-derive that join here. It LEFT JOINs, so the ~9 FICO users
++ * with no active profile keep their scores with a null teacher_name.
 + */
 +async function ficoScores({ sector = null, userId = null } = {}) {
 +  let q = supabase.from(T.ficoView).select('*')
@@ -516,32 +282,15 @@ FK exists. The FKs are load-bearing, not decorative.
 +}
 +
 +module.exports = {
-+  TABLES: T,
-+  KPIS,
-+  listSectors,
-+  listSchools,
-+  listTeachers,
-+  observationsWithAttribution,
-+  ficoScores,
-+  kpiAverages,
++  TABLES: T, KPIS,
++  listSectors, listSchools, listTeachers,
++  observationsWithAttribution, ficoScores, kpiAverages,
 +};
 ```
 
-**No existing file is edited or deleted** — all three blocks above are new files. Verified by
-grep: nothing in the repo references `nietemigrated_school_regions`, `nietemigrated_schools`,
-`nietemigrated_coach_profiles`, `nietemigrated_teacher_profiles`, or `nietemigrated_fico_kpis`
-today, so there is no live consumer to break. The only touch to existing *schema* is the three
-guarded `NOT VALID` FK additions in §9 (see §3 for why they are necessary and why they are safe).
-
-**Rollback for the FKs** (in addition to the five DROP TABLEs in §0):
-
-```sql
-ALTER TABLE nietemigrated_observations   DROP CONSTRAINT IF EXISTS fk_nm_obs_coach;
-ALTER TABLE nietemigrated_teacher_visits DROP CONSTRAINT IF EXISTS fk_nm_tv_teacher;
-ALTER TABLE nietemigrated_school_visits  DROP CONSTRAINT IF EXISTS fk_nm_sv_school;
-```
-
----
+**No existing file is edited or deleted.** Verified by grep: nothing in the repo referenced
+any `nietemigrated_*` dimension table before this work, so there is no live consumer to break.
+The only touch to existing *schema* is the three guarded `NOT VALID` FK additions (§3, §9).
 
 ## 5. Tests — written FIRST, red before green
 
@@ -671,7 +420,7 @@ exist` (PostgREST 404), because the tables don't exist. **GREEN after T1.3.1.**
   - Gate: reviewer 👍 · mirrors `migrate-coaching-observations.py` conventions (env reader,
     `SRC_DSN`, `jsonable`, merge-duplicates, `--tables`)
   - Done when: `python3 scripts/migrate-ict-spine.py --dry-run` prints counts matching §1
-    (7 / 432 / 117 / 4310 / 5180) with no DRIFT warnings
+    (7 / 462 / 117 / 4310 / 5180) with no DRIFT warnings
 
 - [ ] **T1.2.2 Confirm the read-only source role reaches all 5 source tables**
   - Files: none
@@ -697,7 +446,7 @@ exist` (PostgREST 404), because the tables don't exist. **GREEN after T1.3.1.**
 ### Phase 2 — school-list reconciliation (ships: one defensible "total schools")
 
 Three source lists disagree and the plan must not pick one silently:
-`schools_school` **432** · `FDE_Schools` **341** · `Middle_High_Schools_Updated` **228**
+`schools_school` **462** · `FDE_Schools` **341** · `Middle_High_Schools_Updated` **228**
 (all live 2026-08-04).
 
 - [ ] **T2.1.1 Produce the three-way EMIS reconciliation**
@@ -749,7 +498,7 @@ Source side, via the governed MCP (`rule_version` v0.22.5) against `tbproddb` �
 mirror of `fde_production`, used here because it is the governed read path; the script reads the
 Postgres original:
 
-- `schools_schoolregion` ⨝ `schools_school` → **7 regions, 432 schools**, 32 with `region_id IS NULL`
+- `schools_schoolregion` ⨝ `schools_school` → **7 regions, 462 live schools**, 32 with `region_id IS NULL`
   (sector table in §1).
 - `users_user` ⨝ `users_teacherprofile` (org 1, active, non-test, not deleted) → **4,259 distinct
   teachers / 4,310 profile rows / 409 schools**; levels PRIMARY 3,374 · MIDDLE 974 · HIGH 1,035 ·
@@ -789,7 +538,7 @@ Five new tables. Justification for each, against reusing something existing:
 | `nietemigrated_fico_kpis` | 5,180 scored KPI rows; no equivalent table exists. |
 
 `region_name` is denormalized onto `nietemigrated_schools` deliberately — it makes the common
-sector rollup a single-table read, and 432 rows never drift enough to matter.
+sector rollup a single-table read, and 462 rows never drift enough to matter.
 
 ### Migration — up and down, per statement
 
@@ -1078,7 +827,7 @@ environment. No container restart is involved because no service code changed.
    spine gives **4,259** with zero missing levels. This plan uses 4,259 and the base tables;
    the ~99-teacher delta against the marts is a Phase 2 reconciliation note.
 5. **Assumed `FDE_Schools` (341) was the school list.** It is one of three disagreeing lists;
-   `schools_school` (432) is the one with the region FK, hence the spine. Phase 2 settles which
+   `schools_school` (462 live) is the one with the region FK, hence the spine. Phase 2 settles which
    is authoritative for reporting.
 6. **Planned `fico_kpis` at 27 columns including HR/PII, guarded at the read layer.** Reversed
    2026-08-04: the table now migrates **13** columns — the observation grain, the six scores,
