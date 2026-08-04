@@ -91,6 +91,46 @@ const COACHING_MESSAGES = {
   // {{action}} is substituted at the call site (kept distinct from
   // ${} JS interpolation so this string can be translated 1:1).
   priorActionReminder: en('💡 *Quick reminder:* Last time, you committed to:\n\n_"{{action}}"_\n\nLet\'s see how it went in this session!'),
+
+  // ---------------------------------------------------------------------------
+  // bd-2508 follow-up — pause instead of abandoning a reflection.
+  //
+  // A slash command mid-reflection used to set the session to `abandoned` with no
+  // warning. These four strings are the confirm / decline / nudge path that
+  // replaces that silence. {{service}} and {{count}} are substituted at the call
+  // site (NOT ${} interpolation) so each string stays translatable 1:1.
+  // ---------------------------------------------------------------------------
+
+  // The confirmation prompt. Two variants because NUM_REFLECTIVE_QUESTIONS is
+  // currently 1 — "0 of 1 questions" reads badly, so a single outstanding
+  // question gets its own phrasing.
+  switchConfirmSingle: {
+    ...en("⚠️ Hold on — you're in the middle of your coaching reflection.\n\nIf you start {{service}} now, the coaching conversation pauses here. {{kept}}\n\n*YES* — start {{service}}\n*NO* — answer the question"),
+    ur: '⚠️ ایک منٹ — آپ ابھی اپنی کوچنگ ریفلیکشن کے درمیان ہیں۔\n\nاگر آپ ابھی {{service}} شروع کریں گی تو کوچنگ گفتگو یہیں رُک جائے گی۔ {{kept}}\n\n*YES* — {{service}} شروع کریں\n*NO* — سوال کا جواب دیں',
+  },
+  switchConfirmMulti: {
+    ...en("⚠️ Hold on — we're {{answered}} of {{total}} questions into your coaching reflection.\n\nIf you start {{service}} now, the coaching conversation pauses here. {{kept}}\n\n*YES* — start {{service}}\n*NO* — finish the questions"),
+    ur: '⚠️ ایک منٹ — آپ کی کوچنگ ریفلیکشن کے {{total}} میں سے {{answered}} سوال ہو چکے ہیں۔\n\nاگر آپ ابھی {{service}} شروع کریں گی تو کوچنگ گفتگو یہیں رُک جائے گی۔ {{kept}}\n\n*YES* — {{service}} شروع کریں\n*NO* — سوال مکمل کریں',
+  },
+  // Reassurance fragment spliced into {{kept}} above.
+  switchKeptWithAnswers: {
+    ...en("Your {{count}} answer{{plural}} so far {{isare}} kept, and I'll remind you this evening so you can finish."),
+    ur: 'آپ کے اب تک کے {{count}} جواب محفوظ ہیں، اور میں آج شام آپ کو یاد دلاؤں گی تاکہ آپ مکمل کر سکیں۔',
+  },
+  switchKeptNoAnswers: {
+    ...en("I'll remind you this evening so you can pick it up."),
+    ur: 'میں آج شام آپ کو یاد دلاؤں گی تاکہ آپ دوبارہ شروع کر سکیں۔',
+  },
+  // Teacher said NO — stay with the reflection.
+  switchDeclined: {
+    ...en("👍 Staying with your coaching reflection. Here's the question again:"),
+    ur: '👍 ہم کوچنگ ریفلیکشن جاری رکھتے ہیں۔ سوال دوبارہ یہ ہے:',
+  },
+  // Evening nudge for a paused session (20:00-22:00 Asia/Karachi).
+  pausedEveningReminder: {
+    ...en('🌙 Good evening{{name}}! Earlier today we paused your coaching reflection{{progress}}.\n\nReply *RESUME* to finish it now — it only takes a couple of minutes, and your report will be richer for it.'),
+    ur: '🌙 سلام{{name}}! آج آپ کی کوچنگ ریفلیکشن رُک گئی تھی{{progress}}۔\n\nابھی مکمل کرنے کے لیے *RESUME* لکھیں — صرف دو منٹ لگیں گے، اور آپ کی رپورٹ بہتر ہوگی۔',
+  },
 };
 
 /**
