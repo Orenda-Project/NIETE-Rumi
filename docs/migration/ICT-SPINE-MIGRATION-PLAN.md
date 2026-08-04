@@ -250,10 +250,12 @@ is 4,259.
 +              AND tp.deleted_at IS NULL
 +        """,
 +    ),
-+    # 28 columns, verified live 2026-08-04. No id at source: PK is the observation
-+    # grain. Dates are STRING at source -> cast here. Includes HR/PII columns
-+    # (cnic, dob, pay scale, promotion date, qualifications) by explicit request;
-+    # restrict them at the READ layer, not here.
++    # Source has 28 columns (verified live 2026-08-04); we take 13 — the observation
++    # grain + the scores + emis as join tie-breaker. The 9 HR columns and the
++    # repeated placement columns are deliberately NOT selected: HR data is not a
++    # dashboard metric, and name/school/sector live on teacher_profiles. Not
++    # migrating PII beats migrating it and guarding it.
++    # No id at source: PK is the observation grain. Observation_date is STRING -> cast.
 +    "fico_kpis": dict(
 +        target="nietemigrated_fico_kpis",
 +        pk="user_id,observation_date,grade,subject",
@@ -264,27 +266,13 @@ is 4,259.
 +                NULLIF("Observation_date", '')::date      AS observation_date,
 +                COALESCE(grade, '')                       AS grade,
 +                COALESCE(subject, '')                     AS subject,
-+                teacher_name,
 +                "EMIS"                                    AS emis,
-+                "School"                                  AS school,
-+                "Sector"                                  AS sector,
-+                contact_number,
-+                levels,
-+                cnic,
-+                NULLIF(date_of_birth, '')::date           AS date_of_birth,
-+                gender,
-+                NULLIF(joining_date, '')::date            AS joining_date,
-+                NULLIF(last_promotion_date, '')::date     AS last_promotion_date,
-+                qualifications,
-+                professional_trainings,
-+                service_designation,
-+                basic_pay_scale,
 +                "Planning_and_Preparation"                AS planning_and_preparation,
 +                "Subject_Knowledge"                       AS subject_knowledge,
-+                "Classroom_Management"                    AS classroom_management,
-+                "Communication_Skills"                    AS communication_skills,
-+                "Professional_Development"                AS professional_development,
-+                "Use_of_Technology"                       AS use_of_technology,
++                "Classroom_Management"                     AS classroom_management,
++                "Communication_Skills"                     AS communication_skills,
++                "Professional_Development"                 AS professional_development,
++                "Use_of_Technology"                        AS use_of_technology,
 +                total_score_out_of_60,
 +                overall_percentage
 +            FROM fico_kpis
@@ -407,13 +395,13 @@ FK exists. The FKs are load-bearing, not decorative.
 + * migration). Relations below use PostgREST embedded resources, which resolve
 + * off the FK constraints declared in 025. No FK, no embed.
 + *
-+ * PII BOUNDARY — read this before adding a caller.
-+ *   `nietemigrated_fico_kpis` carries cnic, date_of_birth, basic_pay_scale,
-+ *   last_promotion_date, qualifications. Per the dashboard tier split, the
-+ *   aggregate tier (FDE / AEO / Principal) must NEVER receive those columns.
-+ *   Use `ficoScoresForSector()` (safe projection) for aggregate callers and
-+ *   `ficoRecordForTeacher()` (full row) only for the detailed/operational tier.
-+ *   Never `select('*')` on that table from an aggregate code path.
++ * NO PII HERE, BY CONSTRUCTION. `nietemigrated_fico_kpis` holds only the
++ * observation grain + the six scores + emis. The 9 HR columns at source (cnic,
++ * date_of_birth, gender, joining_date, last_promotion_date, qualifications,
++ * professional_trainings, service_designation, basic_pay_scale) are never
++ * migrated, so `select('*')` is safe from any tier and no read-side column
++ * allow-list is needed. If a future requirement needs gender or designation,
++ * add it as a deliberate migration — do not widen this table casually.
 + */
 +
 +const supabase = require('../../config/supabase');
@@ -424,16 +412,14 @@ FK exists. The FKs are load-bearing, not decorative.
 +  coaches:  'nietemigrated_coach_profiles',
 +  teachers: 'nietemigrated_teacher_profiles',
 +  fico:     'nietemigrated_fico_kpis',
++  ficoView: 'nietemigrated_fico_with_teacher',   // scores + resolved teacher/school
 +};
 +
-+// Columns safe for the aggregate tier: scores + placement, no HR/PII.
-+const FICO_SAFE = [
-+  'user_id', 'observation_date', 'grade', 'subject',
-+  'teacher_name', 'emis', 'school', 'sector', 'levels',
++// The six scored KPIs, in report order. Total/percentage are stored, not derived.
++const KPIS = [
 +  'planning_and_preparation', 'subject_knowledge', 'classroom_management',
 +  'communication_skills', 'professional_development', 'use_of_technology',
-+  'total_score_out_of_60', 'overall_percentage',
-+].join(',');
++];
 +
 +/** All sectors, ordered. 7 rows. */
 +async function listSectors() {
@@ -499,30 +485,45 @@ FK exists. The FKs are load-bearing, not decorative.
 +    : data;
 +}
 +
-+/** AGGREGATE TIER — scores only, PII columns never selected. */
-+async function ficoScoresForSector(sector) {
-+  const { data, error } = await supabase.from(T.fico).select(FICO_SAFE).eq('sector', sector);
++/**
++ * FICO scores with teacher/school/sector resolved.
++ * Reads the `nietemigrated_fico_with_teacher` VIEW, not the base table — the view
++ * encodes the profile tie-break (prefer the profile whose school EMIS matches the
++ * observation, else most recent) exactly once. Never re-derive that join here.
++ * The view LEFT JOINs, so the ~9 FICO users with no active profile keep their
++ * scores with a null teacher_name rather than vanishing.
++ */
++async function ficoScores({ sector = null, userId = null } = {}) {
++  let q = supabase.from(T.ficoView).select('*')
++    .order('observation_date', { ascending: false });
++  if (sector) q = q.eq('sector', sector);
++  if (userId) q = q.eq('user_id', userId);
++  const { data, error } = await q;
 +  if (error) throw error;
 +  return data;
 +}
 +
-+/** DETAILED TIER ONLY — full row incl. HR/PII. Never call from an aggregate view. */
-+async function ficoRecordForTeacher(userId) {
-+  const { data, error } = await supabase.from(T.fico).select('*')
-+    .eq('user_id', userId).order('observation_date', { ascending: false });
-+  if (error) throw error;
-+  return data;
++/** Mean of each KPI across a set of score rows — the high/low indicator view. */
++function kpiAverages(rows) {
++  return KPIS.map((k) => {
++    const vals = rows.map((r) => r[k]).filter((v) => v !== null && v !== undefined);
++    return {
++      kpi: k,
++      average: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null,
++      n: vals.length,
++    };
++  }).sort((a, b) => (b.average ?? -1) - (a.average ?? -1));
 +}
 +
 +module.exports = {
 +  TABLES: T,
-+  FICO_SAFE,
++  KPIS,
 +  listSectors,
 +  listSchools,
 +  listTeachers,
 +  observationsWithAttribution,
-+  ficoScoresForSector,
-+  ficoRecordForTeacher,
++  ficoScores,
++  kpiAverages,
 +};
 ```
 
@@ -598,6 +599,27 @@ describe('ICT dimension spine', () => {
     );
     expect(distinct).toBeGreaterThanOrEqual(4200);
     expect(levelSum).toBeGreaterThan(distinct); // proves overlap; sum is NOT the headline
+  });
+
+  it('FICO carries no HR/PII columns at all', async () => {
+    const { data } = await db.from('nietemigrated_fico_kpis').select('*').limit(1);
+    const banned = ['cnic', 'date_of_birth', 'basic_pay_scale', 'last_promotion_date',
+                    'qualifications', 'professional_trainings', 'service_designation',
+                    'gender', 'joining_date'];
+    for (const col of banned) expect(Object.keys(data[0])).not.toContain(col);
+  });
+
+  it('the FICO view resolves teacher and sector, and keeps profile-less scores', async () => {
+    const { data, error } = await db
+      .from('nietemigrated_fico_with_teacher')
+      .select('user_id, observation_date, grade, subject, total_score_out_of_60, teacher_name, sector');
+    expect(error).toBeNull();
+    // one row per FULL observation grain — the tie-break must not fan out.
+    // grade+subject are part of the key: same teacher, same day, two subjects = two rows.
+    const keys = data.map(r => `${r.user_id}|${r.observation_date}|${r.grade}|${r.subject}`);
+    expect(new Set(keys).size).toBe(keys.length);
+    // ~9 users have no active profile; their scores survive with a null name
+    expect(data.some(r => r.teacher_name === null)).toBe(true);
   });
 
   it('carries no test accounts', async () => {
@@ -824,32 +846,24 @@ CREATE TABLE IF NOT EXISTS nietemigrated_teacher_profiles (
 CREATE INDEX IF NOT EXISTS idx_nm_teacher_school ON nietemigrated_teacher_profiles(school_id);
 CREATE INDEX IF NOT EXISTS idx_nm_teacher_user   ON nietemigrated_teacher_profiles(user_id);
 
--- Column list verified live 2026-08-04 via get_table_schema (28 columns).
--- NOTE: fico_kpis has NO id column at source — the PK is the observation grain
--- (user_id + Observation_date + grade + subject). Dates are STRING at source and
--- are cast on load; every score is FLOAT.
+-- Source has 28 columns (verified live 2026-08-04 via get_table_schema). This table
+-- keeps 13: the observation grain + the scores. Everything else is dropped:
+--   * 9 HR columns (cnic, date_of_birth, gender, joining_date, last_promotion_date,
+--     qualifications, professional_trainings, service_designation, basic_pay_scale)
+--     — HR records, not dashboard metrics, and cnic/dob/pay are PII this table has
+--     no reason to hold. Never migrated, so never need protecting.
+--   * teacher_name / school / sector / levels / contact_number — these repeat
+--     identically on every observation of the same teacher. Read them from
+--     nietemigrated_teacher_profiles instead (see the join note below).
+-- `emis` is the ONE placement column kept, as the join tie-breaker.
+-- NOTE: no id column at source — PK is the observation grain. Observation_date is
+-- STRING at source and is cast on load; every score is already FLOAT.
 CREATE TABLE IF NOT EXISTS nietemigrated_fico_kpis (
   user_id                  integer NOT NULL,
   observation_date         date    NOT NULL,
   grade                    text    NOT NULL DEFAULT '',
   subject                  text    NOT NULL DEFAULT '',
-  -- identity / placement
-  teacher_name             text,
-  emis                     integer,
-  school                   text,
-  sector                   text,
-  contact_number           text,
-  levels                   text,
-  -- HR detail (PII — restrict to the detailed/operational tier; see §7 RLS note)
-  cnic                     text,
-  date_of_birth            date,
-  gender                   text,
-  joining_date             date,
-  last_promotion_date      date,
-  qualifications           text,
-  professional_trainings   text,
-  service_designation      text,
-  basic_pay_scale          text,
+  emis                     integer,        -- tie-breaker when a user has 2 profiles
   -- the six KPIs, each scored 0-10
   planning_and_preparation float,
   subject_knowledge        float,
@@ -857,7 +871,7 @@ CREATE TABLE IF NOT EXISTS nietemigrated_fico_kpis (
   communication_skills     float,
   professional_development float,
   use_of_technology        float,
-  total_score_out_of_60    float,
+  total_score_out_of_60    float,          -- = sum of the six
   overall_percentage       float,
   PRIMARY KEY (user_id, observation_date, grade, subject)
 );
@@ -869,6 +883,29 @@ CREATE INDEX IF NOT EXISTS idx_nm_fico_sector ON nietemigrated_fico_kpis(sector)
 -- teacher_profiles.id (a teacher with two school assignments has two profile
 -- rows for one user_id). Left as a soft link on user_id; the service resolves it
 -- explicitly rather than via an embed.
+--
+-- TIE-BREAK RULE (measured live 2026-08-04 — the exposure is tiny):
+--   4,259 teachers, 51 with >1 active profile. FICO covers 2,257 teachers, of which
+--   only 9 have >1 profile. A further 9 FICO user_ids have NO profile in the spine
+--   at all (inactive/transferred out) and must be LEFT JOINed so their scores are
+--   not silently dropped.
+--   Rule: match on user_id AND prefer the profile whose school EMIS equals the
+--   FICO row's emis; if none matches, take the most recently modified profile.
+--   Encoded once in ict-spine.service.js — never re-derived at a call site.
+CREATE OR REPLACE VIEW nietemigrated_fico_with_teacher AS
+SELECT DISTINCT ON (f.user_id, f.observation_date, f.grade, f.subject)
+       f.*,
+       tp.id          AS teacher_profile_id,
+       tp.teacher_name,
+       tp.levels,
+       s.name         AS school_name,
+       s.region_name  AS sector
+FROM nietemigrated_fico_kpis f
+LEFT JOIN nietemigrated_teacher_profiles tp ON tp.user_id = f.user_id
+LEFT JOIN nietemigrated_schools          s  ON s.id = tp.school_id
+ORDER BY f.user_id, f.observation_date, f.grade, f.subject,
+         (s.emis = f.emis) DESC NULLS LAST,   -- prefer the school the obs happened at
+         tp.modified DESC NULLS LAST;          -- else most recent assignment
 
 -- Back-fill the FKs the ALREADY-MIGRATED fact tables need, so PostgREST can
 -- embed coach/teacher/school. Guarded: each only fires if the fact table exists
@@ -923,26 +960,33 @@ ALTER TABLE nietemigrated_fico_kpis         ENABLE ROW LEVEL SECURITY;
 -- DROP TABLE IF EXISTS nietemigrated_school_regions;
 ```
 
-**`fico_kpis` — resolved 2026-08-04.** All 28 columns enumerated live via `get_table_schema` and
-typed explicitly above; the earlier `jsonb` placeholder is gone. Three facts an executor needs:
+**`fico_kpis` — resolved 2026-08-04.** All 28 source columns enumerated live via
+`get_table_schema`; the table migrates **13 of them**. Four facts an executor needs:
 
 1. **No `id` column at source.** The PK is the observation grain
    `(user_id, observation_date, grade, subject)`, which is also the `on_conflict` target that makes
    the load idempotent. Rows with a null `user_id` or empty `Observation_date` cannot satisfy that
    key and are excluded by the WHERE clause — report the excluded count in the dry-run.
-2. **Every date is STRING at source** (`Observation_date`, `date_of_birth`, `joining_date`,
-   `last_promotion_date`). Cast with `NULLIF(col,'')::date` so blanks become NULL instead of
-   erroring. All six KPI scores are already FLOAT.
-3. **Mixed-case source columns are quoted** (`"EMIS"`, `"School"`, `"Sector"`,
-   `"Planning_and_Preparation"`, …) and aliased to snake_case; unquoted they would fold to
-   lowercase and fail.
+2. **`Observation_date` is STRING at source.** Cast with `NULLIF(col,'')::date` so blanks become
+   NULL instead of erroring. All six KPI scores are already FLOAT.
+3. **Mixed-case source columns are quoted** (`"EMIS"`, `"Planning_and_Preparation"`, …) and
+   aliased to snake_case; unquoted they would fold to lowercase and fail.
+4. **15 source columns are deliberately dropped** — see the DDL comment. The 9 HR columns are HR
+   records, not dashboard metrics; `teacher_name` / `school` / `sector` / `levels` /
+   `contact_number` repeat on every observation of the same teacher and are read from
+   `nietemigrated_teacher_profiles` through the view instead.
 
-**PII carried deliberately.** `cnic`, `date_of_birth`, `basic_pay_scale`, `last_promotion_date`,
-and `qualifications` are included at the operator's explicit request (2026-08-04). They are
-personal identifiers and pay data. The migration is not the control point — the **read** layer is.
-Any consumer serving the aggregate tier (FDE / AEO / Principal, per the dashboard's §2 tier split)
-must exclude these five columns; only the detailed/operational tier may select them. Until a reader
-exists, RLS keeps the table service-role-only (see the RLS block above).
+**No PII, by construction.** Not migrating `cnic`, `date_of_birth`, and `basic_pay_scale` is
+stronger than migrating them behind a read-side allow-list: there is no column to leak, no tier
+rule to enforce, and `select('*')` is safe from any caller. This reverses the 2026-08-04 decision
+to carry them — the operator dropped the HR fields once the table-width cost was clear. If gender
+or service designation is later needed for reporting, add it as an explicit, narrow migration.
+
+**Join exposure, measured live 2026-08-04** — the numbers that justify the tie-break rule rather
+than a heavier identity model: 4,259 teachers, of which **51** hold more than one active profile.
+FICO covers **2,257** teachers, of which only **9** are multi-profile. A separate **9** FICO
+`user_id`s have no active profile in the spine at all (transferred out or deactivated) — the view
+LEFT JOINs so their scores survive with a null teacher name instead of disappearing.
 
 ---
 
@@ -1036,3 +1080,10 @@ environment. No container restart is involved because no service code changed.
 5. **Assumed `FDE_Schools` (341) was the school list.** It is one of three disagreeing lists;
    `schools_school` (432) is the one with the region FK, hence the spine. Phase 2 settles which
    is authoritative for reporting.
+6. **Planned `fico_kpis` at 27 columns including HR/PII, guarded at the read layer.** Reversed
+   2026-08-04: the table now migrates **13** columns — the observation grain, the six scores,
+   total, percentage, and `emis` as join tie-breaker. The 9 HR columns are simply never migrated,
+   which removes the PII surface entirely instead of policing it; `teacher_name` / `school` /
+   `sector` / `levels` / `contact_number` came out because they repeat per observation and belong
+   on `teacher_profiles`. Consequence: a `nietemigrated_fico_with_teacher` view now owns the
+   profile tie-break, measured at 9 affected teachers out of 2,257.
