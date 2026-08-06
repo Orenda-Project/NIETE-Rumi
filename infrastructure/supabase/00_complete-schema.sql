@@ -3852,6 +3852,19 @@ ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS error_stack TEXT;
 ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS framework TEXT;
 ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS framework_selection_reason TEXT;
 
+-- coaching_sessions: pause / resume instead of abandoning a reflection when the
+-- teacher switches to another service (bd-2508 follow-up). status gains the value
+-- 'paused' (no CHECK constraint exists, so no DDL for the column itself).
+-- evening_reminder_sent_at is SEPARATE from reminder_sent_at on purpose: that one
+-- is owned by the 2h stale reminder, and sharing a column would make either ping
+-- suppress the other. See V1.0.12__coaching_pause.sql.
+ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS paused_at TIMESTAMPTZ;
+ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS pause_reason TEXT;
+ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS evening_reminder_sent_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_coaching_sessions_paused_pending
+    ON coaching_sessions (paused_at)
+    WHERE status = 'paused' AND evening_reminder_sent_at IS NULL;
+
 -- users: settings flow stores language + observation framework in a preferences JSONB.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{}';
 
