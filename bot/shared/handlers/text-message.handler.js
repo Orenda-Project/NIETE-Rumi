@@ -428,6 +428,35 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
+  // EXAM CHECKER — ESCAPE PATH (bd-2484): a waiting state must never trap
+  // normal chat. Checked BEFORE the trigger/capture block below.
+  //   • an explicit stop/cancel word ENDS the session and confirms it, then
+  //     returns (the message is fully handled);
+  //   • a slash command ENDS the session SILENTLY and falls through so the
+  //     command still runs — mirrors the coaching fix (bd-2508): bypassing the
+  //     checker without ending the session lets the next plain text get
+  //     recaptured, so the teacher escapes and is immediately caught again.
+  // Both are cheap no-ops (a single Redis-first lookup) when no exam session
+  // is active, and only run for slash commands or literal exit words.
+  // ============================================================
+  if (user) {
+    try {
+      const ExamCheckerHandler = require('./exam-checker.handler');
+      const isSlash = trimmedMessage.startsWith('/');
+      if (isSlash || ExamCheckerHandler.isExamExitText(trimmedMessage)) {
+        const ended = await ExamCheckerHandler.endActiveExamSession(from, user, { notify: !isSlash });
+        if (ended && !isSlash) {
+          logToFile('🚪 Exam checker exited by stop/cancel word', { userId: user.id });
+          typingController.stop();
+          return;
+        }
+      }
+    } catch (error) {
+      logToFile('⚠️ Exam checker escape-path check failed (non-fatal)', { error: error.message });
+    }
+  }
+
+  // ============================================================
   // EXAM CHECKER DETECTION: Check for exam check trigger
   //
   // Skip for slash commands — they're explicit user intent and take
