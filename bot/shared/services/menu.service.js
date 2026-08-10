@@ -3,7 +3,8 @@ const { logToFile } = require('../utils/logger');
 const WhatsAppService = require('./whatsapp.service');
 const { getClient } = require('./llm-client');
 const { OPENAI_API_KEY } = require('../utils/constants');
-const { storeConversation } = require('../database/bot-helpers');
+const { storeConversation, getOrCreateSession } = require('../database/bot-helpers');
+const ConversationState = require('./conversation-state.service');
 const redisService = require('./cache/railway-redis.service');
 // CoachingService not used in this file - removed legacy import
 // MediaLibraryService removed - Issue #28: AI Video Generation replaces Media Library
@@ -79,23 +80,40 @@ class MenuService {
    */
   static async handleMenuButtonResponse(user, from, buttonId, language = 'en') {
     try {
-      // Check if user was awaiting menu selection
+      // the tap IS the intent. `menu_lesson_plan` says exactly what she
+      // wants, so this method must never refuse to act for want of stored state.
+      //
+      // It used to: a 5-minute Redis key held {sessionId, from, language, askedAt}
+      // — every field recomputable — and when it had expired the handler replied
+      // "That menu selection has expired. Type /menu to see options again." and
+      // returned, discarding the intent to enforce a gate that guarded nothing.
+      // Production, 14 days: 1,146 taps dead-ended that way across 745 teachers,
+      // 20% of all 5,677 menu taps.
+      //
+      // State is now CONTEXT, never PERMISSION. The only thing it carried that the
+      // handler genuinely needs is a session id, and that is derivable.
       const stateKey = `user:${user.id}:awaiting_menu_selection`;
       const state = await redisService.get(stateKey);
 
-      if (!state) {
-        logToFile('Menu button clicked but no state found (expired)', { userId: user.id, buttonId });
-        await WhatsAppService.sendMessage(from, "That menu selection has expired. Type /menu to see options again.");
-        return;
+      if (state) {
+        await redisService.delete(stateKey); // consume it; a tap is answered once
       }
 
-      await redisService.delete(stateKey); // Clear state after handling
+      // Recompute rather than refuse. getOrCreateSession returns the teacher's
+      // current session, creating one if the old one has rotated — which is the
+      // normal case for a teacher returning after a break.
+      const sessionId = state?.sessionId || (await getOrCreateSession(user.id));
 
-      logToFile('Handling menu button response', { userId: user.id, buttonId, sessionId: state.sessionId });
+      logToFile('Handling menu button response', {
+        userId: user.id,
+        buttonId,
+        sessionId,
+        hadStoredState: Boolean(state), // watch this ratio; it is the old dead-end rate
+      });
 
       // Route to appropriate handler based on button ID
       switch (buttonId) {
-        // bd-2504 — the training menu entry. Delegates to the same Flow the
+        // the training menu entry. Delegates to the same Flow the
         // /training command opens, so there is one entry point, not two.
         case 'menu_training': {
           const TrainingEntry = require('./training/training-entry.service');
@@ -104,11 +122,11 @@ class MenuService {
         }
 
         case 'menu_lesson_plan':
-          await this._handleLessonPlanningChoice(user.id, state.sessionId, from, language);
+          await this._handleLessonPlanningChoice(user.id, sessionId, from, language);
           break;
 
         case 'menu_coaching':
-          await this._handleClassroomCoachingChoice(user.id, state.sessionId, from, language);
+          await this._handleClassroomCoachingChoice(user.id, sessionId, from, language);
           break;
 
         case 'menu_reading':
@@ -145,11 +163,11 @@ class MenuService {
 
         case 'menu_video':
           // Trigger video generation flow
-          await this._handleMediaLibraryChoice(user.id, state.sessionId, from, language);
+          await this._handleMediaLibraryChoice(user.id, sessionId, from, language);
           break;
 
         case 'menu_other':
-          await this._handleOtherChoice(user.id, state.sessionId, from, language);
+          await this._handleOtherChoice(user.id, sessionId, from, language);
           break;
 
         default:
@@ -401,48 +419,65 @@ class MenuService {
   }
 
   /**
-   * Update conversation state in database
-   * Issue #41/#42 FIX: Write to correct column with correct data type
-   * Column is `current_state` (VARCHAR), not `conversation_state` (JSONB)
+   * Record what the teacher is now waiting on.
+   *
+   * this used to stamp `current_state` onto the newest row of the
+   * `conversations` MESSAGE LOG. Two things were wrong with that. The state's
+   * lifetime became "until the next row is appended" — a window nobody chose. And
+   * the read side looked up the newest row *after* the incoming message had already
+   * been inserted, so it always read that message's null instead. 5,128 writes and
+   * 10,127 reads in 30 days of production, and not one match.
+   *
+   * Now it writes the one store, keyed on the teacher, with a deadline chosen per
+   * step rather than a single blanket TTL.
+   *
+   * @param {string} userId
+   * @param {string} sessionId  kept for call-site compatibility; state is NOT scoped
+   *                            to a session — chat_sessions rotate after 30 min idle,
+   *                            which is one of the ways state was being lost.
+   * @param {{current_state: string|null}} stateUpdates
    * @private
    */
   static async _updateConversationState(userId, sessionId, stateUpdates) {
+    // Which flow each waiting step belongs to, and how long it is reasonable to keep
+    // waiting. These are deliberately not all the same number: a teacher choosing
+    // from a menu and a teacher going away to record a lesson are different waits.
+    const STEP_CONTRACT = {
+      AWAITING_MENU_CHOICE:     { flow: 'menu',     ttlSeconds: 3600 },  // 1h — the old 5 min was the bug
+      AWAITING_CLASSROOM_AUDIO: { flow: 'coaching', ttlSeconds: 21600 }, // 6h — she has to teach the lesson first
+      AWAITING_VIDEO_TOPIC:     { flow: 'video',    ttlSeconds: 3600 },
+      AWAITING_LESSON_PLAN:     { flow: 'coaching', ttlSeconds: 21600 },
+    };
+
     try {
-      // Issue #41 FIX: Extract just the state string (VARCHAR column, not JSONB)
-      // Support null to clear state (used when transitioning to Redis-based video flow)
-      const stateString = stateUpdates.current_state === null
-        ? null
-        : (stateUpdates.current_state || 'UNKNOWN');
+      const step = stateUpdates.current_state;
 
-      // Find the most recent conversation for this user/session
-      const { data: existingConversation } = await supabase
-        .from('conversations')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('session_id', sessionId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (existingConversation) {
-        // Update existing conversation
-        const { error } = await supabase
-          .from('conversations')
-          .update({ current_state: stateString })
-          .eq('id', existingConversation.id);
-
-        if (error) {
-          logToFile('⚠️  Warning: Could not update conversation state', { error: error.message });
-        }
-      } else {
-        // No existing conversation - state will be set on next message
-        logToFile('⚠️  No existing conversation to update state', { userId, sessionId, stateString });
+      // null clears. GENERAL_CONVERSATION is not a wait — it means nothing is
+      // pending — so it clears too rather than parking a meaningless state.
+      if (step === null || step === 'GENERAL_CONVERSATION') {
+        await ConversationState.clearState(userId);
+        return;
       }
-    } catch (error) {
-      logToFile('⚠️  Warning: Error updating conversation state', {
-        error: error.message
+
+      const contract = STEP_CONTRACT[step];
+      if (!contract) {
+        // Loud on purpose: an unmapped step means a new wait was added without
+        // deciding how long it may last, which is how blanket TTLs crept in before.
+        logToFile('⚠️ menu: unmapped conversation step, not storing', { userId, step }, 'warn');
+        return;
+      }
+
+      await ConversationState.setState(userId, {
+        flow: contract.flow,
+        step,
+        payload: { sessionId },
+        ttlSeconds: contract.ttlSeconds,
       });
-      // Don't throw - this is non-critical
+      logToFile('Conversation state updated', { userId, flow: contract.flow, step });
+    } catch (error) {
+      // Non-fatal: a failed state write must not stop the teacher's request. The
+      // read side treats missing state as "no wait pending" and still routes.
+      logToFile('⚠️  Warning: Could not update conversation state', { error: error.message });
     }
   }
 }

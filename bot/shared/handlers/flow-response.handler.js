@@ -47,6 +47,7 @@
  */
 
 const supabase = require('../config/supabase');
+const ConversationState = require('../services/conversation-state.service');
 const PassageGenerationService = require('../services/reading/passage-generation.service');
 const AutoLevelOrchestratorService = require('../services/reading/auto-level-orchestrator.service');
 const WhatsAppService = require('../services/whatsapp.service');
@@ -390,24 +391,22 @@ async function handleReadingAssessmentFlow(message, phoneNumber, userId) {
       assessmentId: assessment.id
     });
 
-    // Update conversation state. Comprehension/assessment context lives in Redis
-    // (see redis-comprehension.service), not a conversations column — writing a
-    // non-existent context_data column here previously failed the whole update,
-    // so current_state never persisted.
-    const { error: updateError } = await supabase
-      .from('conversations')
-      .update({
-        current_state: 'AWAITING_READING_AUDIO'
-      })
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    if (updateError) {
-      logToFile('⚠️ Warning: Could not update conversation state', {
-        error: updateError.message
-      });
-    }
+    // the teacher now owes us a recording of her student reading.
+    //
+    // This used to stamp `current_state` onto her newest `conversations` row, which
+    // put the state on a message-log entry with a lifetime of "until the next
+    // message". It also used `.update().eq().order().limit()`, which PostgREST does
+    // not support as a bounded update — the order/limit are ignored, so this was
+    // rewriting EVERY conversation row for the user.
+    //
+    // 6 hours: she has to get to the child and record them, which may be the next
+    // lesson or after school.
+    await ConversationState.setState(userId, {
+      flow: 'reading',
+      step: 'AWAITING_READING_AUDIO',
+      payload: { assessmentId: assessment.id },
+      ttlSeconds: 21600,
+    });
 
     return true;
 
@@ -679,7 +678,7 @@ async function handleTeacherTrainingFlow(message, phoneNumber, userId) {
     const QuizDelivery = require('../services/training/quiz-delivery.service');
     return await QuizDelivery.startGrandQuiz(userId, levelOrder, phoneNumber);
   }
-  // bd-2451 — a refusal used to land here and fall through to `return true`,
+  // a refusal used to land here and fall through to `return true`,
   // so the bot said nothing at all. The Flow's SUCCESS screen is terminal, so
   // from the teacher's side the Flow just closed and the chat stayed silent —
   // reported as "I tapped the locked one and it never replied to me". The

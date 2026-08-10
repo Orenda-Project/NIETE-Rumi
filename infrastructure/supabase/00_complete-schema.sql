@@ -3770,7 +3770,7 @@ CREATE TABLE IF NOT EXISTS training_assessment_answers (
     attempt_id                UUID NOT NULL REFERENCES training_assessment_attempts(id) ON DELETE CASCADE,
     question_index            INTEGER NOT NULL,
     question_id               BIGINT NOT NULL REFERENCES training_questions(id),
-    -- bd-2478 — chosen_option/is_correct are MCQ-specific and NULLABLE. A
+    -- chosen_option/is_correct are MCQ-specific and NULLABLE. A
     -- capstone answer is free text graded 0-5, with no chosen option and no
     -- binary correctness. They were NOT NULL until 2026-08-02, which rejected
     -- every capstone answer row ever written: the first real attempt scored
@@ -3915,7 +3915,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS last_message_at TIMESTAMPTZ;
 --                            attempt. NULL = no cap. Imported exams run to 72.
 --   * shuffle_options      — permute MCQ option order per (attempt, question),
 --                            so a re-sit does not present identical lettering.
---                            Display only: chosen_option stays canonical.
+-- Display only: chosen_option stays canonical.
 ALTER TABLE training_vendors ADD COLUMN IF NOT EXISTS module_quiz_strategy VARCHAR(32) NOT NULL DEFAULT 'all';
 ALTER TABLE training_vendors ADD COLUMN IF NOT EXISTS exam_question_cap INTEGER;
 ALTER TABLE training_vendors ADD COLUMN IF NOT EXISTS shuffle_options BOOLEAN NOT NULL DEFAULT FALSE;
@@ -3963,7 +3963,7 @@ DO $$ BEGIN
                 OR
                 (quiz_kind = 'training_module' AND training_module_id IS NOT NULL)
                 OR
-                -- bd-2477 — the Beacon House capstone. Its questions hang off a
+                -- the Beacon House capstone. Its questions hang off a
                 -- training_grand_quizzes row (quiz_type='capstone'), so it carries
                 -- a grand_quiz_id and no module, exactly like a grand quiz.
                 -- Omitting this made EVERY capstone insert fail: zero attempts
@@ -4038,6 +4038,17 @@ $function$;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS teacher_uuid UUID;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS levels VARCHAR(16)[];
 CREATE UNIQUE INDEX IF NOT EXISTS ux_users_teacher_uuid ON users(teacher_uuid) WHERE teacher_uuid IS NOT NULL;
+
+-- V1.1.1 — the ONE home for active conversational state, keyed on the teacher.
+-- Replaces conversations.current_state (a message-log row), the never-existing
+-- conversations.conversation_state, and the no-op clear on chat_sessions.
+-- Mirrors the registration_state / registration_state_updated_at pair above it;
+-- see migrations/V1.1.1__conversation_state.sql for the Rule-15 reasoning.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS conversation_state JSONB;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS conversation_state_expires_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_users_conversation_state_expiry
+  ON users (conversation_state_expires_at)
+  WHERE conversation_state IS NOT NULL;
 
 -- ---------------------------------------------------------------------------
 -- Curriculum LP AST (added 2026-07-12 — see docs/migration/01-lesson-plans.md)

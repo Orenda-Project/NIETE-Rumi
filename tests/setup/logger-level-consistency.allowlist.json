@@ -661,17 +661,17 @@
   },
   {
     "file": "bot/shared/services/menu.service.js",
-    "line": 63,
+    "line": 64,
     "snippet": "logToFile('❌ Error sending menu', {"
   },
   {
     "file": "bot/shared/services/menu.service.js",
-    "line": 122,
+    "line": 178,
     "snippet": "logToFile('❌ Error handling menu button response', {"
   },
   {
     "file": "bot/shared/services/menu.service.js",
-    "line": 211,
+    "line": 267,
     "snippet": "logToFile('❌ Error handling menu choice', {"
   },
   {
@@ -976,57 +976,32 @@
   },
   {
     "file": "bot/shared/services/reading-assessment.service.js",
-    "line": 134,
-    "snippet": "logToFile('❌ Error querying existing conversation', {"
-  },
-  {
-    "file": "bot/shared/services/reading-assessment.service.js",
-    "line": 153,
-    "snippet": "logToFile('❌ Error updating conversation state', {"
-  },
-  {
-    "file": "bot/shared/services/reading-assessment.service.js",
-    "line": 190,
-    "snippet": "logToFile('❌ CRITICAL: Conversation INSERT failed', {"
-  },
-  {
-    "file": "bot/shared/services/reading-assessment.service.js",
-    "line": 217,
+    "line": 145,
     "snippet": "logToFile('❌ Error initiating reading assessment', {"
   },
   {
     "file": "bot/shared/services/reading-assessment.service.js",
-    "line": 336,
-    "snippet": "logToFile('❌ Failed to update conversation state to AWAITING_READING_GRADE', {"
-  },
-  {
-    "file": "bot/shared/services/reading-assessment.service.js",
-    "line": 365,
+    "line": 270,
     "snippet": "logToFile('❌ Error handling language selection', {"
   },
   {
     "file": "bot/shared/services/reading-assessment.service.js",
-    "line": 480,
-    "snippet": "logToFile('❌ Failed to update conversation state to AWAITING_READING_AUDIO', {"
-  },
-  {
-    "file": "bot/shared/services/reading-assessment.service.js",
-    "line": 508,
+    "line": 390,
     "snippet": "logToFile('❌ Error handling grade selection', {"
   },
   {
     "file": "bot/shared/services/reading-assessment.service.js",
-    "line": 539,
+    "line": 421,
     "snippet": "logToFile('❌ No active assessment found for user', { userId, error: findError?.message });"
   },
   {
     "file": "bot/shared/services/reading-assessment.service.js",
-    "line": 555,
+    "line": 437,
     "snippet": "logToFile('❌ Error calling acquire_assessment_lock function', {"
   },
   {
     "file": "bot/shared/services/reading-assessment.service.js",
-    "line": 648,
+    "line": 530,
     "snippet": "logToFile('❌ Error handling audio receipt', {"
   },
   {
