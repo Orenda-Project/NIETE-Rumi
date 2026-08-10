@@ -46,10 +46,52 @@ const rawMigration = fs.existsSync(MIGRATION) ? fs.readFileSync(MIGRATION, 'utf8
  * on an empty string rather than on the code.
  */
 function pyCode(text) {
-  return text
-    .replace(/^[ \t]*"""[\s\S]*?"""/gm, '')
-    .replace(/^[ \t]*'''[\s\S]*?'''/gm, '')
-    .replace(/^\s*#.*$/gm, '');
+  // Toggle on EVERY triple-quote occurrence, tracking whether we are inside a
+  // quoted block, and keep a block only if it is NOT a docstring.
+  //
+  // Two earlier attempts got this wrong and are worth naming, because both
+  // failed in the direction that makes tests silently vacuous:
+  //   1. A whole-file `"""[\s\S]*?"""` also removed the embedded SQL, so
+  //      assertions ran against an empty string.
+  //   2. Treating any line-leading `"""` as an opener misread the CLOSING quote
+  //      of an indented SQL f-string (`        """,`) as a new opener, and then
+  //      swallowed the real `def` lines that followed.
+  //
+  // A docstring is the first thing in a module or directly after a `def`/`class`
+  // line, so that is the only test that reliably separates the two.
+  const lines = text.split('\n');
+  const out = [];
+  let inBlock = false;
+  let isDoc = false;
+  let prevMeaningful = '';
+
+  for (const line of lines) {
+    if (!inBlock) {
+      const opens = line.match(/"""|'''/g);
+      if (opens) {
+        // Single-line triple-quoted string: opens and closes on this line.
+        if (opens.length >= 2) {
+          if (!/^\s*(def |class )/.test(prevMeaningful) && prevMeaningful !== '') out.push(line);
+          prevMeaningful = line.trim() ? line : prevMeaningful;
+          continue;
+        }
+        inBlock = true;
+        isDoc = prevMeaningful === '' || /^\s*(def |class )/.test(prevMeaningful);
+        if (!isDoc) out.push(line);
+        continue;
+      }
+      if (/^\s*#/.test(line)) continue;
+      out.push(line);
+      if (line.trim()) prevMeaningful = line;
+    } else {
+      if (!isDoc) out.push(line);
+      if (/"""|'''/.test(line)) {
+        inBlock = false;
+        prevMeaningful = isDoc ? prevMeaningful : line;
+      }
+    }
+  }
+  return out.join('\n');
 }
 function sqlCode(text) {
   return text.replace(/--.*$/gm, '');
@@ -174,5 +216,91 @@ describe('bd-2528 — every run is recorded, including the failures', () => {
 
   it('records the post-cutoff count that decides retirement', () => {
     expect(code).toMatch(/source_rows_after_cutoff/);
+  });
+});
+
+/**
+ * bd-2528 (attempts stage) — the merge policy, and why it is one-directional.
+ *
+ * Progress rows are a binary "done" flag, so a teacher who completed a module in
+ * BOTH apps is harmless: conflict-ignore keeps the existing row and the duplicate
+ * is dropped. Attempts are not like that. They carry score, is_passed,
+ * attempt_number and cooldown_until, so the same level can hold two contradictory
+ * records. Sumbal Pervaiz has exactly that, on the same day (2026-08-04): the
+ * legacy DB says Skilled Practitioner PASSED 86/200 at 07:49, this DB says
+ * in_progress on question 4 of 5 at 03:17.
+ *
+ * The rule, chosen because it cannot take away something a teacher earned:
+ *   - a pass is NEVER overwritten by a non-pass
+ *   - on two passes, the higher score wins
+ *   - the EARLIEST passing date is kept, so a certificate dates from when the
+ *     teacher actually earned it rather than when we happened to sync
+ *   - cooldown_until and attempt_number are NOT merged — with the legacy app
+ *     retired they are meaningless, and merging them could lock someone out
+ *
+ * Why attempts are in scope at all: 1,364 teachers passed a grand quiz in the
+ * legacy app after the migration and hold no certificate here. Syncing progress
+ * alone would fill in their modules and leave them uncertified — the visible half
+ * of the reported bug would survive the fix.
+ *
+ * Idempotency here canNOT lean on a DB constraint. The original one-shot import
+ * (scripts/migrate-training-attempts.py) inserts with no ON CONFLICT clause and
+ * there is no unique index on the natural key, so this stage must read the
+ * existing attempts and diff in memory before writing.
+ */
+describe('bd-2528 — attempts merge: a pass can never be downgraded', () => {
+  it('syncs attempts, not just module progress', () => {
+    expect(code).toMatch(/training_assessment_attempts/);
+  });
+
+  // The whole reason attempts are in scope.
+  it('is wired to the certificate gap it exists to close', () => {
+    expect(rawSync).toMatch(/certificate/i);
+  });
+
+  it('never lets a non-pass overwrite a pass', () => {
+    // The guard must be on is_passed specifically — comparing scores alone would
+    // let a higher-scoring FAIL replace a lower-scoring PASS.
+    expect(code).toMatch(/is_passed/);
+    expect(code).toMatch(/def\s+merge_attempt|def\s+pick_attempt|def\s+better_attempt/);
+  });
+
+  it('keeps the higher score when both sides passed', () => {
+    expect(code).toMatch(/score/);
+  });
+
+  it('keeps the EARLIEST passing date, so certificates date from the real pass', () => {
+    expect(code).toMatch(/earliest|min\(|<\s*best/i);
+  });
+
+  it('does not merge cooldown or attempt_number', () => {
+    // Merging a cooldown from a retired app could lock a teacher out of a retry
+    // for a quiz they are entitled to sit now.
+    expect(code).not.toMatch(/merge_cooldown|cooldown_until\s*=\s*max/);
+  });
+
+  // There is no unique index on attempts and the original importer used a bare
+  // INSERT, so a naive re-run would duplicate every attempt it already wrote.
+  it('dedupes attempts in memory — it cannot rely on a DB conflict clause', () => {
+    expect(code).toMatch(/existing_attempts|attempts_by_key|existing_by_key/);
+  });
+
+  it('keys an attempt by (user, quiz), not by row id', () => {
+    // Legacy ids and Supabase uuids share no namespace; the natural key is the
+    // only thing that survives the crossing.
+    expect(code).toMatch(/grand_quiz_id/);
+  });
+
+  it('maps the legacy quiz id through source_quiz_id', () => {
+    expect(code).toMatch(/source_quiz_id/);
+  });
+
+  it('records the attempts stage in the ledger under its own entity', () => {
+    expect(code).toMatch(/ledger_open\(\s*["']attempts["']/);
+  });
+
+  it('a dry run writes no attempts either', () => {
+    const applyAt = code.search(/def\s+write_attempts|def\s+upsert_attempts/);
+    expect(applyAt).toBeGreaterThan(-1);
   });
 });

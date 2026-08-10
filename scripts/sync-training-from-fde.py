@@ -24,18 +24,36 @@ which is what makes the job RETIREABLE: when that count stays 0 for a sustained
 window, the old app is no longer being written to and this can be switched off
 with evidence rather than a guess (`--retirement-report` prints exactly that).
 
-WHAT IT DOES *NOT* DO
----------------------
-This is ONE-WAY (legacy → new) and insert-only. It does not resolve conflicts.
-If a teacher works in BOTH apps on the same level, the two records diverge and
-this sync will not reconcile them — it only fills absences. That is a real
-limitation, not an oversight: the actual fix is to stop the old app being
-writable. Sumbal is already in that state (a live in_progress attempt here, a
-passed grand quiz there, same level, same day).
+TWO STAGES
+----------
+1. progress  — completed modules. A binary "done" flag, so a teacher who did the
+               same module in both apps is harmless: conflict-ignore keeps the
+               existing row.
+2. attempts  — quiz verdicts. NOT harmless, because these carry score/is_passed,
+               so the same level can hold two contradictory records. Sumbal has
+               exactly that on 2026-08-04: PASSED 86/200 in the legacy app at
+               07:49, in_progress here at 03:17. See `better_attempt()` for the
+               merge rule; the short version is that a pass is never overwritten
+               by a non-pass.
 
-Certificates are deliberately out of scope. `backfill-training-certificates.py`
+Attempts are in scope because 1,364 teachers passed a grand quiz in the legacy
+app after the migration and hold no certificate here. Progress alone would fill
+in their modules and leave them uncertified — the visible half of the reported
+bug would survive the fix.
+
+Certificates themselves stay out of scope: `backfill-training-certificates.py`
 already derives them from passed attempts and is idempotent, so the clean split
-is: this script lands attempts + progress, then that script re-runs for certs.
+is to land attempts here and re-run that script afterwards.
+
+SCOPE LIMIT, STATED PLAINLY
+---------------------------
+This is ONE-WAY (legacy → new). It reconciles verdicts but does not merge
+cooldowns or attempt counts, and it cannot fix the underlying situation: two
+writable apps. As of 2026-08-10 the legacy app is effectively retired — weekly
+active teachers there fell from 841 (w/c 27 Jul) to 4 (w/c 10 Aug) as the app
+update rolled out — so this is a CATCH-UP job over a finite backlog plus a thin
+trickle, not permanent infrastructure. `--retirement-report` is how you decide
+it is done.
 
 IDEMPOTENCY — READ BEFORE EDITING
 ---------------------------------
@@ -311,6 +329,241 @@ def batch_upsert(rows, batch_size=500):
     return sent
 
 
+# ---------------------------------------------------------------- attempts
+
+def fetch_legacy_attempts(cur, quiz_source_ids, window_start):
+    """Grand-quiz + diagnostic attempts from the legacy app.
+
+    Unlike progress rows, these carry a verdict — so the same level can hold two
+    contradictory records across the two apps. Sumbal Pervaiz has exactly that on
+    2026-08-04: PASSED 86/200 in the legacy app at 07:49, in_progress here at 03:17.
+    """
+    where_window = ""
+    params = [list(quiz_source_ids)]
+    if window_start:
+        where_window = "AND GREATEST(a.created, a.modified) >= %s"
+        params.append(window_start)
+
+    cur.execute(
+        f"""
+        SELECT tp.id           AS profile_id,
+               u.uuid::text    AS teacher_uuid,
+               u.username      AS phone_raw,
+               a.grand_quiz_id AS source_quiz_id,
+               a.score, a.total_score, a.is_passed,
+               a.created       AS started_at,
+               a.completed_at,
+               MAX(GREATEST(a.created, a.modified)) OVER (PARTITION BY a.id) AS source_touched_at
+        FROM fde_production.teacher_training_assessment a
+        JOIN fde_production.users_teacherprofile tp ON tp.id = a.profile_id
+        JOIN fde_production.users_user u ON u.id = tp.user_id
+        WHERE a.is_active
+          AND a.deleted_at IS NULL
+          AND a.grand_quiz_id = ANY(%s)
+          {where_window}
+        """,
+        params,
+    )
+    for row in cur:
+        yield row
+
+
+def better_attempt(incoming, existing):
+    """The merge rule. Returns True if `incoming` should replace `existing`.
+
+    Chosen so it can never take away something a teacher earned:
+
+      1. A PASS is never overwritten by a non-pass. This is checked on is_passed
+         and not on score, because comparing scores alone would let a
+         higher-scoring FAIL replace a lower-scoring PASS — the exact outcome
+         that would un-certify someone.
+      2. Between two passes, the higher score wins.
+      3. On equal standing, the EARLIEST completion wins, so a certificate dates
+         from when the teacher actually passed rather than when we synced.
+
+    cooldown_until and attempt_number are deliberately NOT merged. With the
+    legacy app retired they carry no meaning here, and importing a stale cooldown
+    could block a teacher from a retry they are entitled to sit today.
+    """
+    if existing is None:
+        return True
+
+    inc_pass = bool(incoming.get("is_passed"))
+    exi_pass = bool(existing.get("is_passed"))
+    if inc_pass != exi_pass:
+        return inc_pass  # rule 1 — only a pass may displace a non-pass
+
+    inc_score = incoming.get("score") or 0
+    exi_score = existing.get("score") or 0
+    if inc_score != exi_score:
+        return inc_score > exi_score  # rule 2
+
+    inc_at, exi_at = incoming.get("completed_at"), existing.get("completed_at")
+    if inc_at and exi_at:
+        return inc_at < exi_at  # rule 3 — earliest genuine pass
+    return False
+
+
+def load_existing_attempts():
+    """Index the attempts already here, keyed by (user_id, grand_quiz_id).
+
+    This stage CANNOT lean on a database conflict clause the way the progress
+    stage does: there is no unique index on the attempts natural key, and the
+    original one-shot importer (scripts/migrate-training-attempts.py) inserts
+    with no ON CONFLICT. A naive re-run would therefore duplicate every attempt
+    it had already written. So we read, diff in memory, and write only the
+    genuine changes.
+    """
+    existing_by_key = {}
+    for a in sb_fetch_all(
+        "training_assessment_attempts?select=id,user_id,grand_quiz_id,score,is_passed,"
+        "status,completed_at"
+    ):
+        k = (a["user_id"], a["grand_quiz_id"])
+        cur_best = existing_by_key.get(k)
+        if better_attempt(a, cur_best):
+            existing_by_key[k] = a
+    return existing_by_key
+
+
+def write_attempts(to_insert, to_update, batch_size=200):
+    """Insert genuinely-new attempts; PATCH the ones the merge rule upgraded."""
+    inserted = 0
+    for i in range(0, len(to_insert), batch_size):
+        chunk = to_insert[i:i + batch_size]
+        r = requests.post(
+            f"{SB_URL}/rest/v1/training_assessment_attempts",
+            headers={**SB_H, "Content-Type": "application/json", "Prefer": "return=minimal"},
+            json=chunk, timeout=180,
+        )
+        if r.status_code >= 300:
+            print(f"  ! attempt insert {i} FAILED: {r.status_code} {r.text[:300]}", file=sys.stderr)
+            continue
+        inserted += len(chunk)
+
+    updated = 0
+    for row in to_update:
+        r = requests.patch(
+            f"{SB_URL}/rest/v1/training_assessment_attempts?id=eq.{row['_id']}",
+            headers={**SB_H, "Content-Type": "application/json", "Prefer": "return=minimal"},
+            json={k: v for k, v in row.items() if not k.startswith("_")}, timeout=60,
+        )
+        if r.status_code >= 300:
+            print(f"  ! attempt update {row['_id']} FAILED: {r.status_code} {r.text[:200]}",
+                  file=sys.stderr)
+            continue
+        updated += 1
+    return inserted, updated
+
+
+def sync_attempts(conn, by_uuid, by_phone, window_start, window_end, dry_run):
+    """Stage 2 — carry legacy quiz verdicts across.
+
+    In scope because 1,364 teachers passed a grand quiz in the legacy app after
+    the migration and hold no certificate here. Syncing progress alone would fill
+    in their modules and leave them uncertified — the visible half of the bug
+    would survive the fix. Once these land, backfill-training-certificates.py
+    re-runs and issues the certificates from the synced passes.
+    """
+    print("\n──────── STAGE 2: attempts ────────", file=sys.stderr)
+    quizzes = sb_fetch_all("training_grand_quizzes?select=id,source_quiz_id,level_id&is_active=eq.true")
+    quiz_map = {q["source_quiz_id"]: q for q in quizzes if q["source_quiz_id"] is not None}
+    print(f"  quizzes mapped (source_quiz_id → id): {len(quiz_map)}", file=sys.stderr)
+    if not quiz_map:
+        print("  no mapped quizzes — skipping attempts stage.", file=sys.stderr)
+        return
+
+    program_id = None
+    progs = sb_fetch_all("training_programs?select=id,key&key=eq.niete_standard")
+    if progs:
+        program_id = progs[0]["id"]
+
+    run_id = ledger_open("attempts", window_start, window_end, dry_run)
+    stats = defaultdict(int)
+    notes = {}
+
+    try:
+        existing_by_key = load_existing_attempts()
+        print(f"  existing attempts indexed: {len(existing_by_key):,}", file=sys.stderr)
+
+        cutoff_dt = datetime.fromisoformat(MIGRATION_CUTOFF).replace(tzinfo=timezone.utc)
+        scur = conn.cursor(cursor_factory=RealDictCursor, name="fde_attempts_cursor")
+        scur.itersize = 5000
+
+        # Collapse the legacy side first: one best attempt per (user, quiz).
+        best_incoming = {}
+        for src in fetch_legacy_attempts(scur, list(quiz_map.keys()), window_start):
+            stats["source_rows_scanned"] += 1
+            if src["source_touched_at"] and src["source_touched_at"] >= cutoff_dt:
+                stats["source_rows_after_cutoff"] += 1
+
+            user_id, _ = resolve_user(src, by_uuid, by_phone)
+            if user_id is None:
+                stats["rows_unmatched_teacher"] += 1
+                continue
+            q = quiz_map.get(src["source_quiz_id"])
+            if q is None:
+                stats["rows_unmatched_module"] += 1
+                continue
+
+            cand = {
+                "user_id": user_id,
+                "program_id": program_id,
+                "grand_quiz_id": q["id"],
+                "level_id": q["level_id"],
+                "score": src["score"],
+                "total_score": src["total_score"],
+                "is_passed": src["is_passed"],
+                "status": "passed" if src["is_passed"] else "failed",
+                "quiz_kind": "grand",
+                "started_at": src["started_at"].isoformat() if src["started_at"] else None,
+                "completed_at": (src["completed_at"] or src["started_at"]).isoformat()
+                                if (src["completed_at"] or src["started_at"]) else None,
+            }
+            k = (user_id, q["id"])
+            if better_attempt(cand, best_incoming.get(k)):
+                best_incoming[k] = cand
+        scur.close()
+
+        to_insert, to_update = [], []
+        for k, cand in best_incoming.items():
+            cur_row = existing_by_key.get(k)
+            if cur_row is None:
+                to_insert.append(cand)
+            elif better_attempt(cand, cur_row):
+                # An upgrade — the legacy app holds a better verdict than we do.
+                upd = {kk: vv for kk, vv in cand.items()
+                       if kk in ("score", "total_score", "is_passed", "status", "completed_at")}
+                upd["_id"] = cur_row["id"]
+                to_update.append(upd)
+            else:
+                stats["rows_skipped_duplicate"] += 1
+
+        stats["teachers_touched"] = len({k[0] for k in best_incoming})
+        notes["to_insert"] = len(to_insert)
+        notes["to_update"] = len(to_update)
+
+        print(f"  new attempts:      {len(to_insert):,}")
+        print(f"  upgraded verdicts: {len(to_update):,}")
+        print(f"  already current:   {stats['rows_skipped_duplicate']:,}")
+
+        if dry_run:
+            print("  DRY RUN — no attempt writes performed.")
+            ledger_close(run_id, "dry_run", stats, notes)
+            return
+
+        ins, upd = write_attempts(to_insert, to_update)
+        stats["rows_written"] = ins + upd
+        notes["inserted"], notes["updated"] = ins, upd
+        print(f"  wrote {ins:,} new + {upd:,} upgraded.")
+        ledger_close(run_id, "success", stats, notes)
+
+    except Exception as e:  # noqa: BLE001 — the ledger must record the failure
+        notes["error"] = f"{type(e).__name__}: {e}"
+        ledger_close(run_id, "failed", stats, notes)
+        raise
+
+
 # ---------------------------------------------------------------- reporting
 
 def retirement_report():
@@ -357,6 +610,8 @@ def main():
     g.add_argument("--retirement-report", action="store_true", help="Can we switch this off yet?")
     ap.add_argument("--full", action="store_true",
                     help="Ignore the last-run window and scan all history.")
+    ap.add_argument("--skip-attempts", action="store_true",
+                    help="Progress only — skip the quiz-verdict stage.")
     ap.add_argument("--limit", type=int, default=0, help="Cap rows (smoke tests).")
     args = ap.parse_args()
 
@@ -467,12 +722,22 @@ def main():
             notes["would_write"] = len(new_rows)
             print("\n=== DRY RUN — no writes performed ===")
             ledger_close(run_id, "dry_run", stats, notes)
+            # A dry run must still REPORT on attempts — that stage is where the
+            # 1,364 missing certificates come from, and hiding it behind --apply
+            # would mean nobody sees its diff before agreeing to the write.
+            if not args.skip_attempts:
+                sync_attempts(conn, by_uuid, by_phone, window_start, window_end, dry_run)
             return
 
         written = batch_upsert(new_rows) if new_rows else 0
         stats["rows_written"] = written
         print(f"\nWrote {written:,} rows.")
         ledger_close(run_id, "success", stats, notes)
+
+        if not args.skip_attempts:
+            sync_attempts(conn, by_uuid, by_phone, window_start, window_end, dry_run)
+            print("\nNOTE: run scripts/backfill-training-certificates.py next — it issues "
+                  "certificates from passed attempts and is idempotent.")
 
     except SystemExit:
         raise
