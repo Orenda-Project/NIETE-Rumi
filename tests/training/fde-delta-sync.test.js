@@ -372,7 +372,7 @@ describe('bd-2528 — an attempt row satisfies the NOT NULL columns', () => {
  * who had earned it. CSVs of both the certificates and the attempts were
  * written to the investigation folder first.
  */
-describe('bd-2528 — only a grand quiz certifies a level', () => {
+describe('bd-2528 — a diagnostic never certifies, a capstone does', () => {
   const BACKFILL = path.join(ROOT, 'scripts/backfill-training-certificates.py');
   const backfill = fs.existsSync(BACKFILL) ? pyCode(fs.readFileSync(BACKFILL, 'utf8')) : '';
 
@@ -380,14 +380,23 @@ describe('bd-2528 — only a grand quiz certifies a level', () => {
     expect(backfill).not.toBe('');
   });
 
-  it('filters on quiz_type = grand_quiz', () => {
-    expect(backfill).toMatch(/quiz_type\s*=\s*'grand_quiz'/);
+  // EXCLUDE diagnostics — do not ALLOW-LIST grand_quiz. The allow-list version
+  // of this filter silently dropped every Beaconhouse capstone certificate.
+  it('excludes diagnostics rather than allow-listing grand_quiz', () => {
+    expect(backfill).toMatch(/quiz_type\s*<>\s*'diagnostic'/);
+    expect(backfill).not.toMatch(/quiz_type\s*=\s*'grand_quiz'/);
   });
 
   it('joins the quiz definition rather than trusting quiz_kind', () => {
     // quiz_kind is constrained to grand/training_module/capstone and cannot
     // represent 'diagnostic', so it can never make this distinction.
     expect(backfill).toMatch(/JOIN\s+training_grand_quizzes/i);
+  });
+
+  it('names the capstone case, so the filter is not "corrected" back', () => {
+    // Levels 18-21 (Beaconhouse subjects) certify via a capstone. Anyone
+    // tightening this filter needs to know that before they touch it.
+    expect(backfill).toMatch(/capstone/i);
   });
 
   it('still requires the attempt to be passed', () => {

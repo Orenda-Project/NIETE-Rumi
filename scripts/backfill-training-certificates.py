@@ -87,22 +87,27 @@ def main():
       FROM training_assessment_attempts a
       JOIN training_levels lv ON lv.id = a.level_id
       JOIN users u ON u.id = a.user_id
-      -- ONLY a grand quiz certifies a level.
+      -- A DIAGNOSTIC does not certify a level; a grand quiz or a capstone does.
       --
       -- Without this join the query certified any passed attempt, including
-      -- DIAGNOSTICS — the test that gates ENTRY to a level, not completion of
-      -- it. On 2026-08-10 that issued 9,475 certificates to 4,094 teachers who
-      -- had passed only a diagnostic, and 2,756 of those were the teacher's
-      -- ONLY certificate for that level: certified without earning it. That is
-      -- precisely the bug reported from the field (a teacher showing
-      -- "Certified" with no completion behind it).
+      -- diagnostics — the test that gates ENTRY to a level, not completion of
+      -- it. On 2026-08-10 that issued 8,213 diagnostic certificates, 2,756 of
+      -- them the teacher's ONLY certificate for that level: certified without
+      -- earning it, which is the exact field report this bead started from.
+      --
+      -- The filter must EXCLUDE diagnostics rather than allow only grand
+      -- quizzes. Levels 18-21 (the Beaconhouse subject levels — English,
+      -- Mathematics, General Science, Computer Science) certify via a CAPSTONE,
+      -- which is their terminal assessment. A grand_quiz-only filter silently
+      -- dropped 1,262 legitimate capstone certificates across 1,262 teachers
+      -- before this was caught.
       --
       -- quiz_kind cannot express this: its check constraint allows only
-      -- grand / training_module / capstone, so diagnostics legitimately ride
+      -- grand / training_module / capstone, so a diagnostic legitimately rides
       -- under 'grand'. The quiz's own quiz_type is the only source of truth.
       JOIN training_grand_quizzes gq ON gq.id = a.grand_quiz_id
       WHERE a.is_passed = TRUE
-        AND gq.quiz_type = 'grand_quiz'
+        AND gq.quiz_type <> 'diagnostic'
         AND NOT EXISTS (
           SELECT 1 FROM training_certificates c WHERE c.attempt_id = a.id
         );
