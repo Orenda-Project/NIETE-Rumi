@@ -28,6 +28,10 @@
 // extractFirstName is a pure static, but requiring the service pulls in the bot's
 // Supabase/WhatsApp/uuid deps, which the ROOT test run does not install. Mock them
 // virtually — the same pattern the repo's other root-level bot tests use.
+// dotenv is mocked inline rather than via moduleNameMapper: that mapping exists on
+// develop but NOT on main, and this test must pass on either base (it is
+// cherry-picked to main directly, since develop carries unreleased work).
+jest.mock('dotenv', () => ({ config: () => ({ parsed: {} }) }), { virtual: true });
 jest.mock('uuid', () => ({ v4: () => 'test-uuid' }), { virtual: true });
 jest.mock('@supabase/supabase-js', () => ({ createClient: () => ({ from: () => ({}) }) }), { virtual: true });
 jest.mock('../../bot/shared/config/supabase', () => ({ from: () => ({}) }));
