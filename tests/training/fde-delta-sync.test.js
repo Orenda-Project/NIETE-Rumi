@@ -304,3 +304,48 @@ describe('bd-2528 — attempts merge: a pass can never be downgraded', () => {
     expect(applyAt).toBeGreaterThan(-1);
   });
 });
+
+/**
+ * bd-2528 (post-mortem) — an attempt row must satisfy the table's NOT NULL set.
+ *
+ * The 2026-08-10 production run wrote all 60,009 progress rows and all 60
+ * verdict upgrades, then failed EVERY ONE of its 12,749 attempt inserts with
+ * Postgres 23502 (not-null violation): `total_questions` is NOT NULL with no
+ * default, and the builder never set it. The legacy source has no such column —
+ * it carries score/total_score only — so the value has to be derived, exactly as
+ * the original importer does, by counting training_questions per quiz.
+ *
+ * Nothing was corrupted (a failed batch writes nothing), but the certificate
+ * half of the fix silently did not happen — which is the outcome the whole
+ * attempts stage exists to produce.
+ *
+ * The lesson these assertions encode: the earlier tests checked the merge POLICY
+ * and never checked the row SHAPE. A source-level test cannot run SQL, but it
+ * can insist the builder populates every NOT NULL column that has no default —
+ * which is what would have caught this before a production run.
+ */
+describe('bd-2528 — an attempt row satisfies the NOT NULL columns', () => {
+  // Verified against information_schema on 2026-08-10: NOT NULL, no default.
+  // (started_at / last_activity_at / current_question_index / status / quiz_kind
+  // are NOT NULL but DO carry defaults, so the builder need not supply them.)
+  const REQUIRED_NO_DEFAULT = ['user_id', 'program_id', 'total_questions', 'total_score'];
+
+  for (const col of REQUIRED_NO_DEFAULT) {
+    it(`sets ${col} — NOT NULL with no database default`, () => {
+      // Must be a key the builder writes, not merely a word in the file.
+      expect(code).toMatch(new RegExp(`["']${col}["']\\s*:`));
+    });
+  }
+
+  it('derives total_questions by counting the quiz\'s questions', () => {
+    // The legacy assessment table has no question count; the only truthful
+    // source is training_questions, the same one the original importer used.
+    expect(code).toMatch(/training_questions/);
+  });
+
+  it('marks a finished attempt as being at the last question', () => {
+    // current_question_index defaults to 0, which would render a completed
+    // attempt as "not started" in the portal despite it carrying a verdict.
+    expect(code).toMatch(/current_question_index/);
+  });
+});

@@ -427,8 +427,32 @@ def load_existing_attempts():
 
 
 def write_attempts(to_insert, to_update, batch_size=200):
-    """Insert genuinely-new attempts; PATCH the ones the merge rule upgraded."""
-    inserted = 0
+    """Insert genuinely-new attempts; PATCH the ones the merge rule upgraded.
+
+    Starts with a ONE-ROW canary. On 2026-08-10 a missing NOT NULL column
+    (`total_questions`) failed all 64 batches — 12,749 rows — one identical
+    error at a time, and the run still reported "success" for its other stage.
+    Proving the row shape against the live table before the loop turns that into
+    a single failed row and an early, honest abort.
+    """
+    if to_insert:
+        probe = requests.post(
+            f"{SB_URL}/rest/v1/training_assessment_attempts",
+            headers={**SB_H, "Content-Type": "application/json", "Prefer": "return=minimal"},
+            json=[to_insert[0]], timeout=60,
+        )
+        if probe.status_code >= 300:
+            raise RuntimeError(
+                f"attempt row shape rejected by the database ({probe.status_code}): "
+                f"{probe.text[:400]} — aborting before the batch loop rather than "
+                f"failing {len(to_insert):,} rows one batch at a time."
+            )
+        to_insert = to_insert[1:]
+        inserted_probe = 1
+    else:
+        inserted_probe = 0
+
+    inserted = inserted_probe
     for i in range(0, len(to_insert), batch_size):
         chunk = to_insert[i:i + batch_size]
         r = requests.post(
@@ -478,6 +502,17 @@ def sync_attempts(conn, by_uuid, by_phone, window_start, window_end, dry_run):
     if progs:
         program_id = progs[0]["id"]
 
+    # total_questions is NOT NULL with NO default, and the legacy assessment
+    # table has no such column — it carries score/total_score only. Omitting it
+    # is what made every attempt insert fail with 23502 on the 2026-08-10 run.
+    # Derive it the same way the original importer does: count the quiz's
+    # active questions.
+    total_qs_by_quiz = defaultdict(int)
+    for q in sb_fetch_all("training_questions?select=grand_quiz_id&is_active=eq.true"):
+        if q.get("grand_quiz_id") is not None:
+            total_qs_by_quiz[q["grand_quiz_id"]] += 1
+    print(f"  question counts loaded for {len(total_qs_by_quiz)} quizzes", file=sys.stderr)
+
     run_id = ledger_open("attempts", window_start, window_end, dry_run)
     stats = defaultdict(int)
     notes = {}
@@ -506,17 +541,28 @@ def sync_attempts(conn, by_uuid, by_phone, window_start, window_end, dry_run):
                 stats["rows_unmatched_module"] += 1
                 continue
 
+            # These attempts are all finished, so the cursor sits at the end.
+            # current_question_index defaults to 0, which would render a
+            # completed attempt as "not started" in the portal despite it
+            # carrying a verdict.
+            total_qs = total_qs_by_quiz.get(q["id"], 0)
+
             cand = {
                 "user_id": user_id,
                 "program_id": program_id,
                 "grand_quiz_id": q["id"],
                 "level_id": q["level_id"],
                 "score": src["score"],
-                "total_score": src["total_score"],
+                # NOT NULL. The legacy row can carry null here, so coalesce
+                # rather than let one bad row fail its whole 200-row batch.
+                "total_score": src["total_score"] if src["total_score"] is not None else 0,
+                "total_questions": total_qs,
+                "current_question_index": total_qs,
                 "is_passed": src["is_passed"],
                 "status": "passed" if src["is_passed"] else "failed",
                 "quiz_kind": "grand",
                 "started_at": src["started_at"].isoformat() if src["started_at"] else None,
+                "last_activity_at": src["started_at"].isoformat() if src["started_at"] else None,
                 "completed_at": (src["completed_at"] or src["started_at"]).isoformat()
                                 if (src["completed_at"] or src["started_at"]) else None,
             }
