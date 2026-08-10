@@ -349,3 +349,58 @@ describe('bd-2528 — an attempt row satisfies the NOT NULL columns', () => {
     expect(code).toMatch(/current_question_index/);
   });
 });
+
+/**
+ * bd-2528 (second post-mortem) — only a GRAND QUIZ certifies a level.
+ *
+ * `backfill-training-certificates.py` selected every passed attempt with no
+ * filter on the quiz's type, so it also certified DIAGNOSTICS — the test that
+ * gates ENTRY to a level, not completion of it. Latent until the sync imported
+ * 10,767 diagnostic attempts, at which point it issued 9,475 certificates to
+ * 4,094 teachers; 2,756 of those were the teacher's ONLY certificate for that
+ * level, i.e. certified without earning it. That is precisely the field report
+ * this whole bead started from ("shows Certified with nothing behind it"), so
+ * the fix had briefly reproduced the bug at scale.
+ *
+ * quiz_kind cannot express the distinction: its check constraint allows only
+ * grand / training_module / capstone, so a diagnostic legitimately rides under
+ * 'grand'. The quiz's own quiz_type is the single source of truth, and the
+ * backfill must join to it.
+ *
+ * Cleanup: the 9,475 were deleted after verifying that ZERO affected teachers
+ * held an uncertified real grand-quiz pass — so nothing was taken from anyone
+ * who had earned it. CSVs of both the certificates and the attempts were
+ * written to the investigation folder first.
+ */
+describe('bd-2528 — only a grand quiz certifies a level', () => {
+  const BACKFILL = path.join(ROOT, 'scripts/backfill-training-certificates.py');
+  const backfill = fs.existsSync(BACKFILL) ? pyCode(fs.readFileSync(BACKFILL, 'utf8')) : '';
+
+  it('the backfill script exists', () => {
+    expect(backfill).not.toBe('');
+  });
+
+  it('filters on quiz_type = grand_quiz', () => {
+    expect(backfill).toMatch(/quiz_type\s*=\s*'grand_quiz'/);
+  });
+
+  it('joins the quiz definition rather than trusting quiz_kind', () => {
+    // quiz_kind is constrained to grand/training_module/capstone and cannot
+    // represent 'diagnostic', so it can never make this distinction.
+    expect(backfill).toMatch(/JOIN\s+training_grand_quizzes/i);
+  });
+
+  it('still requires the attempt to be passed', () => {
+    expect(backfill).toMatch(/is_passed\s*=\s*TRUE/i);
+  });
+
+  it('remains idempotent — no certificate for an attempt that already has one', () => {
+    expect(backfill).toMatch(/NOT EXISTS[\s\S]{0,160}training_certificates/i);
+  });
+
+  // The direct host is IPv6-only and unreachable from IPv4 hosts (this dev box,
+  // most CI runners), so the script could not be run at all.
+  it('connects via the dual-stack pooler, not the IPv6-only direct host', () => {
+    expect(backfill).toMatch(/pooler\.supabase\.com/);
+  });
+});
