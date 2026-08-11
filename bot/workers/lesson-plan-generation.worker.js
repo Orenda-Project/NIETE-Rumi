@@ -72,206 +72,37 @@ class LessonPlanGenerationWorker {
       return this.processGrounded(jobData);
     }
 
-    const { requestId, userId, phoneNumber, topic, fullMessage, language = 'en', contentType = 'lesson_plan' } = jobData;
-
-    const messages = MESSAGES[language] || MESSAGES.en;
-
-    try {
-      // IDEMPOTENCY CHECK: Prevent duplicate processing
-      const existingRequest = await LessonPlanQueueService.getRequest(requestId);
-
-      if (existingRequest?.status === 'completed') {
-        logToFile('⏭️ Request already completed, skipping duplicate processing', {
+    // bd-2540 (Option A partial Gamma strip): all freeform LP + presentation
+    // enqueue call sites (LessonPlanQueueService.createAndQueue) were deleted.
+    // Any job that reaches this branch is either (a) a stale SQS message from
+    // before the strip, or (b) a bug re-introducing the freeform path. Log and
+    // drop with a benign apology so the SQS message is consumed rather than
+    // retried indefinitely.
+    const { requestId, phoneNumber, topic, contentType } = jobData || {};
+    logToFile('⚠️ Non-grounded LP job received after Gamma strip — dropping', {
+      requestId, contentType, topic,
+    });
+    if (requestId) {
+      try {
+        await LessonPlanQueueService.markFailed(
           requestId,
-          completedAt: existingRequest.completed_at,
-          gammaUrl: existingRequest.gamma_url
-        });
-        return; // Exit without processing
+          'freeform LP generation is retired (bd-2540); only grounded AST jobs are processed',
+        );
+      } catch (markErr) {
+        logToFile('markFailed after freeform-drop errored (non-fatal)', { error: markErr.message });
       }
-
-      // Also skip if already failed with max retries (prevents infinite loop)
-      if (existingRequest?.status === 'failed' && existingRequest?.retry_count >= MAX_RETRIES) {
-        logToFile('⏭️ Request already failed with max retries, skipping', {
-          requestId,
-          retryCount: existingRequest.retry_count,
-          errorMessage: existingRequest.error_message
-        });
-        return; // Exit without processing - job was already finalized
-      }
-
-      if (existingRequest?.status === 'processing') {
-        const processingAge = Date.now() - new Date(existingRequest.processing_started_at).getTime();
-        const TWO_MINUTES = 2 * 60 * 1000;
-
-        if (processingAge < TWO_MINUTES) {
-          logToFile('⏭️ Request being processed by another worker, skipping', {
-            requestId,
-            processingStartedAt: existingRequest.processing_started_at,
-            ageMs: processingAge
-          });
-          return; // Exit - another worker is handling it
-        }
-        // If > 2 min, proceed (stale job recovery)
-        logToFile('🔄 Recovering stale processing request', {
-          requestId,
-          processingStartedAt: existingRequest.processing_started_at,
-          ageMinutes: (processingAge / 60000).toFixed(1)
-        });
-      }
-
-      logToFile('Starting lesson plan generation', {
-        requestId,
-        userId,
-        topic,
-        contentType
-      });
-
-      // 1. Mark as processing
-      await LessonPlanQueueService.markProcessing(requestId);
-
-      // 2. Generate with Gamma API
-      let result;
-      if (contentType === 'presentation') {
-        result = await ContentService.generatePresentation(topic, fullMessage, language);
-      } else {
-        result = await ContentService.generateLessonPlan(topic, fullMessage, language);
-      }
-
-      logToFile('Gamma generation complete', {
-        requestId,
-        gammaUrl: result.gammaUrl,
-        hasPdf: !!result.pdfUrl
-      });
-
-      // 3. Download and send PDF if available
-      if (result.pdfUrl) {
-        const safeTopic = topic.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_').substring(0, 50);
-        const pdfFilename = `${contentType}_${safeTopic}.pdf`;
-        const pdfPath = path.join(TEMP_DIR, pdfFilename);
-
-        try {
-          await ContentService.downloadPDF(result.pdfUrl, pdfFilename, TEMP_DIR);
-
-          await WhatsAppService.sendDocument(
-            phoneNumber,
-            pdfPath,
-            pdfFilename,
-            messages.successWithPdf(topic)
-          );
-
-          // Clean up temp file
-          if (fs.existsSync(pdfPath)) {
-            fs.unlinkSync(pdfPath);
-          }
-        } catch (pdfError) {
-          logToFile('PDF download/send failed, falling back to URL', {
-            requestId,
-            error: pdfError.message
-          });
-
-          // Fallback to URL only
-          await WhatsAppService.sendMessage(
-            phoneNumber,
-            messages.successWithoutPdf(topic, result.gammaUrl)
-          );
-        }
-      } else {
-        // No PDF, send Gamma URL
+    }
+    if (phoneNumber) {
+      try {
         await WhatsAppService.sendMessage(
           phoneNumber,
-          messages.successWithoutPdf(topic, result.gammaUrl)
+          "We don't have that lesson plan in the catalog yet. Send \"menu\" to see what's available.",
         );
+      } catch (sendErr) {
+        logToFile('post-drop apology send errored (non-fatal)', { error: sendErr.message });
       }
-
-      // 4. Store in lesson_plans + schedule feedback prompt (both non-fatal)
-      try {
-        const content = {
-          lp_variant: 'gamma_freeform',
-          language,
-          trigger_mode: 'after_pdf_only',
-        };
-        const lpRow = await storeLessonPlan(
-          userId, topic, contentType, result.gammaUrl, result.pdfUrl, content,
-        );
-        logToFile('Lesson plan stored in database', { requestId, userId });
-        // Freeform LPs (contentType==='lesson_plan') get the feedback prompt too.
-        // Presentations skip — we're not soliciting feedback on those yet.
-        if (lpRow?.id && contentType === 'lesson_plan') {
-          LpFeedbackService.scheduleFeedbackPrompt({
-            lessonPlanId: lpRow.id,
-            userId,
-            phone: phoneNumber,
-            context: { topic, language, lpVariant: 'gamma_freeform' },
-          });
-        }
-      } catch (storeError) {
-        logToFile('Warning: Failed to store lesson plan / schedule feedback', {
-          requestId,
-          error: storeError.message
-        });
-      }
-
-      // 5. Mark request as completed
-      await LessonPlanQueueService.markCompleted(requestId, result);
-
-      // 6. Feature linker suggestion (non-blocking)
-      try {
-        await FeatureLinkerService.suggestNext(
-          contentType === 'presentation' ? 'presentation' : 'lesson_plan',
-          userId,
-          phoneNumber,
-          language,
-          { topic }
-        );
-      } catch (linkerError) {
-        logToFile('Feature linker error (non-fatal)', { error: linkerError.message });
-      }
-
-      // 7. Check and trigger registration if needed (non-blocking)
-      try {
-        await FeatureRegistrationService.checkAndTriggerRegistration(
-          userId,
-          contentType === 'presentation' ? 'presentation' : 'lesson_plan',
-          phoneNumber,
-          language,
-          'text' // Lesson plans are requested via text
-        );
-      } catch (regError) {
-        logToFile('Registration trigger error (non-fatal)', { error: regError.message });
-      }
-
-      logToFile('Lesson plan generation completed successfully', { requestId });
-
-    } catch (error) {
-      logToFile('Lesson plan generation failed', {
-        requestId,
-        error: error.message,
-        stack: error.stack
-      });
-
-      // Get current retry count
-      const request = await LessonPlanQueueService.getRequest(requestId);
-      const retryCount = (request?.retry_count || 0) + 1;
-
-      // Mark as failed (increments retry_count)
-      await LessonPlanQueueService.markFailed(requestId, error.message);
-
-      // If max retries exceeded, send apology and STOP (don't re-throw)
-      if (retryCount >= MAX_RETRIES) {
-        try {
-          await WhatsAppService.sendMessage(phoneNumber, messages.apology);
-          logToFile('Apology message sent after max retries - job complete', { requestId, retryCount });
-        } catch (msgError) {
-          logToFile('Failed to send apology message', { error: msgError.message });
-        }
-        // DON'T re-throw - let job complete and be removed from SQS
-        // This prevents infinite retry loop
-        return;
-      }
-
-      // Only re-throw if retries remain (let SQS handle retry)
-      throw error;
     }
+    return;
   }
 
   /**

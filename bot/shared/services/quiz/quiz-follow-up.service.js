@@ -7,15 +7,13 @@
 //   2. text-message.handler.js intercepts the next text from this teacher,
 //      checks for awaiting_next_topic state, and calls handleNextTopicReply
 //      with the topic.
-//   3. handleNextTopicReply enqueues an LP via LessonPlanQueueService with
-//      a `followUpContext` block describing what the previous lesson did
-//      (FK-linked via quizzes.lesson_plan_id), the named misconception
-// (from's distractor cluster), and the stragglers' names.
+//   3. handleNextTopicReply acknowledges the intent and clears the awaiting
+//      state. It USED to enqueue a freeform Gamma-rendered follow-up LP; that
+//      feature was retired with bd-2540 (Option A partial Gamma strip).
 
 const supabase = require('../../config/supabase');
 const redisService = require('../cache/railway-redis.service');
 const WhatsAppService = require('../whatsapp.service');
-const LessonPlanQueueService = require('../lesson-plan-queue.service');
 const QuizInsightService = require('./quiz-insight.service');
 const { logToFile } = require('../../utils/logger');
 
@@ -193,22 +191,16 @@ async function handleNextTopicReply(userId, from, language, replyText) {
         ? `${state.priorTopic}`
         : `${nextTopic} that opens with a 5-min revision of ${state.priorTopic}`;
 
+  // bd-2540 (Option A partial Gamma strip): the follow-up "revision LP"
+  // feature enqueued a freeform Gamma render. Freeform LP generation is
+  // retired; instead, we acknowledge the intent, log it (so we can measure
+  // demand for a catalog-based follow-up later), and clear the awaiting state.
   await WhatsAppService.sendMessage(from,
-    `Got it. I'll build ${verbForBand} ${target}. ~30 sec…`);
+    `Thanks for telling me about "${nextTopic}" — the ${verbForBand.replace(/^a(n)? /, '')} on ${target} isn't in the catalog yet. Send "menu" to see what is available.`);
 
-  // Queue the LP. The worker (lesson-plan-generation.worker.js → content.service)
-  // reads followUpContext and prepends a revision-phase preamble when present.
-  await LessonPlanQueueService.createAndQueue({
-    userId,
-    phoneNumber: from,
-    topic: state.kind === 'revision_only' ? state.priorTopic : nextTopic,
-    fullMessage: `[follow-up:${state.kind}] ${nextTopic}`,
-    language: language || 'en',
-    contentType: 'lesson_plan',
-    source: 'gamma_standard',
-    grade: state.priorGrade,
-    subject: state.priorSubject,
-    followUpContext: state
+  logToFile('quiz.follow_up.retired_freeform_lp (bd-2540)', {
+    userId, from, kind: state.kind, priorTopic: state.priorTopic, nextTopic,
+    priorGrade: state.priorGrade, priorSubject: state.priorSubject,
   });
 
   // Clear awaiting state so the next text isn't misinterpreted

@@ -1211,54 +1211,14 @@ async function handleVoiceMessage(message, from, user = null) {
  * @returns {Promise<void>}
  */
 async function handleVoiceLessonPlanRequest(from, transcription, user, sessionId, detectedLanguage) {
-  logToFile('Queueing lesson plan from voice request...');
-  try {
-    // Extract topic
-    const topic = await OpenAIService.extractTopic(transcription);
-    logToFile('Topic extracted', { topic });
-
-    // Detect explicitly requested language from transcription (defaults to 'en')
-    const contentLanguage = detectRequestedLanguage(transcription);
-    logToFile('Content language detected for voice lesson plan', { contentLanguage });
-
-    // Queue lesson plan for async processing (survives server restarts)
-    if (user) {
-      const requestId = await LessonPlanQueueService.createAndQueue({
-        userId: user.id,
-        phoneNumber: from,
-        topic,
-        fullMessage: transcription,
-        language: contentLanguage,
-        contentType: 'lesson_plan'
-      });
-
-      logToFile('✅ Voice lesson plan queued for async processing', {
-        requestId,
-        userId: user.id,
-        topic
-      });
-
-      // Store acknowledgment in conversations
-      try {
-        const ackMessage = 'میں آپ کے لیے ایک تفصیلی پانچ مرحلہ سبق کا منصوبہ تیار کر رہی ہوں۔ براہ کرم تھوڑا انتظار کریں...';
-        await storeConversation(user.id, 'assistant', ackMessage, 'text', sessionId);
-      } catch (error) {
-        logToFile('⚠️ Failed to store acknowledgment', { error: error.message });
-      }
-    } else {
-      logToFile('⚠️ Cannot queue voice lesson plan - no user account', { from });
-      await WhatsAppService.sendMessage(from, 'معذرت، سبق کا منصوبہ بناتے وقت خرابی آ گئی۔ براہ کرم دوبارہ کوشش کریں۔');
-    }
-  } catch (error) {
-    logToFile('❌ Error queueing lesson plan from voice request', {
-      error: error.message,
-      stack: error.stack
-    });
-    await WhatsAppService.sendMessage(
-      from,
-      'معذرت، سبق کا منصوبہ بناتے وقت خرابی آ گئی۔ براہ کرم دوبارہ کوشش کریں۔'
-    );
-  }
+  // bd-2540: freeform LP generation is retired.
+  const notInCatalog = detectedLanguage === 'ur'
+    ? '\u06CC\u06C1 \u0633\u0628\u0642 \u0627\u0628\u06BE\u06CC \u06C1\u0645\u0627\u0631\u06D2 \u0646\u0635\u0627\u0628\u06CC \u0645\u062C\u0645\u0648\u0639\u06D2 \u0645\u06CC\u06BA \u062F\u0633\u062A\u06CC\u0627\u0628 \u0646\u06C1\u06CC\u06BA\u06D4 \u062F\u0633\u062A\u06CC\u0627\u0628 \u0633\u0628\u0642 \u062F\u06CC\u06A9\u06BE\u0646\u06D2 \u06A9\u06D2 \u0644\u06CC\u06D2 "menu" \u0644\u06A9\u06BE\u06CC\u06BA\u06D4'
+    : "We don't have that lesson plan in the catalog yet. Send \"menu\" to see what's available.";
+  await WhatsAppService.sendMessage(from, notInCatalog);
+  logToFile('\ud83c\udf99\ufe0f Voice freeform LP \u2192 replied not-in-catalog (bd-2540)', {
+    from, userId: user?.id, transcriptionPreview: (transcription || '').substring(0, 60),
+  });
 }
 
 /**
@@ -1271,54 +1231,14 @@ async function handleVoiceLessonPlanRequest(from, transcription, user, sessionId
  * @returns {Promise<void>}
  */
 async function handleVoicePresentationRequest(from, transcription, user, sessionId, detectedLanguage) {
-  logToFile('Queueing presentation from voice request...');
-  try {
-    // Extract topic
-    const topic = await OpenAIService.extractTopic(transcription);
-    logToFile('Topic extracted', { topic });
-
-    // Detect explicitly requested language from transcription (defaults to 'en')
-    const contentLanguage = detectRequestedLanguage(transcription);
-    logToFile('Content language detected for voice presentation', { contentLanguage });
-
-    // Queue presentation for async processing (survives server restarts)
-    if (user) {
-      const requestId = await LessonPlanQueueService.createAndQueue({
-        userId: user.id,
-        phoneNumber: from,
-        topic,
-        fullMessage: transcription,
-        language: contentLanguage,
-        contentType: 'presentation'
-      });
-
-      logToFile('✅ Voice presentation queued for async processing', {
-        requestId,
-        userId: user.id,
-        topic
-      });
-
-      // Store acknowledgment in conversations
-      try {
-        const ackMessage = 'میں آپ کے لیے ایک تعلیمی پریزنٹیشن تیار کر رہی ہوں۔ براہ کرم تھوڑا انتظار کریں...';
-        await storeConversation(user.id, 'assistant', ackMessage, 'text', sessionId);
-      } catch (error) {
-        logToFile('⚠️ Failed to store acknowledgment', { error: error.message });
-      }
-    } else {
-      logToFile('⚠️ Cannot queue voice presentation - no user account', { from });
-      await WhatsAppService.sendMessage(from, 'معذرت، پریزنٹیشن بناتے وقت خرابی آ گئی۔ براہ کرم دوبارہ کوشش کریں۔');
-    }
-  } catch (error) {
-    logToFile('❌ Error queueing presentation from voice request', {
-      error: error.message,
-      stack: error.stack
-    });
-    await WhatsAppService.sendMessage(
-      from,
-      'معذرت، پریزنٹیشن بناتے وقت خرابی آ گئی۔ براہ کرم دوبارہ کوشش کریں۔'
-    );
-  }
+  // bd-2540: freeform presentation via Gamma is retired.
+  const notSupported = detectedLanguage === 'ur'
+    ? '\u067E\u0631\u06CC\u0632\u0646\u0679\u06CC\u0634\u0646 \u0641\u06CC \u0627\u0644\u062D\u0627\u0644 \u062F\u0633\u062A\u06CC\u0627\u0628 \u0646\u06C1\u06CC\u06BA \u06C1\u06CC\u06BA\u06D4 \u0633\u0628\u0642 \u062F\u06CC\u06A9\u06BE\u0646\u06D2 \u06A9\u06D2 \u0644\u06CC\u06D2 "menu" \u0644\u06A9\u06BE\u06CC\u06BA\u06D4'
+    : 'Presentation generation is currently unavailable. For lesson plans, send "menu".';
+  await WhatsAppService.sendMessage(from, notSupported);
+  logToFile('\ud83c\udf99\ufe0f Voice freeform presentation \u2192 replied not-supported (bd-2540)', {
+    from, userId: user?.id,
+  });
 }
 
 // checkAndTriggerRegistration() REMOVED - Feature-based registration replaces turn-based

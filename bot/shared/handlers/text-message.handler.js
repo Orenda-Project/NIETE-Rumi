@@ -2306,111 +2306,30 @@ async function handleTextMessage(message, from, messageBody, user = null) {
  * @returns {Promise<void>}
  */
 async function handleLessonPlanRequest(from, messageBody, user, sessionId, responseLanguage, typingController) {
-  try {
-    // Multi-language message maps
-    const lessonPlanMessages = {
-      en: {
-        preparing: "I'm preparing a detailed five-step lesson plan for you. Please wait a moment...",
-        successWithPdf: (topic) => `✅ Your lesson plan is ready!\n\nTopic: ${topic}\n\nThis five-step lesson plan is ready for use in your classroom.`,
-        successWithoutPdf: (topic, url) => `✅ Your lesson plan is ready!\n\n📊 Topic: ${topic}\n\n🔗 Link: ${url}\n\nNote: PDF is not available. Please view from the Gamma link.`,
-        error: "Sorry, there was an error creating the lesson plan. Please try again."
-      },
-      ur: {
-        preparing: 'میں آپ کے لیے ایک تفصیلی پانچ مرحلہ سبق کا منصوبہ تیار کر رہی ہوں۔ براہ کرم تھوڑا انتظار کریں...',
-        successWithPdf: (topic) => `✅ آپ کا سبق کا منصوبہ تیار ہے!\n\nموضوع: ${topic}\n\nیہ پانچ مرحلہ سبق کا منصوبہ آپ کی کلاس میں استعمال کے لیے تیار ہے۔`,
-        successWithoutPdf: (topic, url) => `✅ آپ کا سبق کا منصوبہ تیار ہے!\n\n📊 موضوع: ${topic}\n\n🔗 لنک: ${url}\n\nنوٹ: PDF دستیاب نہیں ہے۔ براہ کرم Gamma لنک سے دیکھیں۔`,
-        error: 'معذرت، سبق کا منصوبہ بناتے وقت خرابی آ گئی۔ براہ کرم دوبارہ کوشش کریں۔'
-      },
-      ar: {
-        preparing: "أقوم بإعداد خطة درس مفصلة من خمس خطوات لك. يرجى الانتظار لحظة...",
-        successWithPdf: (topic) => `✅ خطة الدرس جاهزة!\n\nالموضوع: ${topic}\n\nخطة الدرس هذه من خمس خطوات جاهزة للاستخدام في فصلك.`,
-        successWithoutPdf: (topic, url) => `✅ خطة الدرس جاهزة!\n\n📊 الموضوع: ${topic}\n\n🔗 الرابط: ${url}\n\nملاحظة: ملف PDF غير متوفر. يرجى العرض من رابط Gamma.`,
-        error: "عذرًا، حدث خطأ في إنشاء خطة الدرس. يرجى المحاولة مرة أخرى."
-      },
-      es: {
-        preparing: "Estoy preparando un plan de lección detallado de cinco pasos para ti. Por favor espera un momento...",
-        successWithPdf: (topic) => `✅ ¡Tu plan de lección está listo!\n\nTema: ${topic}\n\nEste plan de lección de cinco pasos está listo para usar en tu clase.`,
-        successWithoutPdf: (topic, url) => `✅ ¡Tu plan de lección está listo!\n\n📊 Tema: ${topic}\n\n🔗 Enlace: ${url}\n\nNota: PDF no disponible. Por favor ver desde el enlace de Gamma.`,
-        error: "Lo siento, hubo un error al crear el plan de lección. Por favor intenta de nuevo."
-      }
-    };
-
-    // Get messages for user's language, fallback to English
-    const messages = lessonPlanMessages[responseLanguage] || lessonPlanMessages.en;
-
-    // Send loading sticker (stop typing indicator first)
+  // bd-2540 (Option A partial Gamma strip): freeform LP generation is retired.
+  // A teacher who reaches this handler either (a) typed an LP request that did
+  // not match any AST catalog row, or (b) came via the Oxbridge-picker "Generate
+  // NIETE LP" tap for a chapter the picker did not resolve to a catalog row.
+  // Both cases now reply "not in catalog" instead of enqueuing a Gamma render.
+  typingController.stop();
+  const notInCatalogMessages = {
+    en: "We don't have that lesson plan in the catalog yet. Send \"menu\" to see what's available.",
+    ur: '\u06CC\u06C1 \u0633\u0628\u0642 \u0627\u0628\u06BE\u06CC \u06C1\u0645\u0627\u0631\u06D2 \u0646\u0635\u0627\u0628\u06CC \u0645\u062C\u0645\u0648\u0639\u06D2 \u0645\u06CC\u06BA \u062F\u0633\u062A\u06CC\u0627\u0628 \u0646\u06C1\u06CC\u06BA\u06D4 \u062F\u0633\u062A\u06CC\u0627\u0628 \u0633\u0628\u0642 \u062F\u06CC\u06A9\u06BE\u0646\u06D2 \u06A9\u06D2 \u0644\u06CC\u06D2 "menu" \u0644\u06A9\u06BE\u06CC\u06BA\u06D4',
+    ar: "\u0644\u064A\u0633 \u0644\u062F\u064A\u0646\u0627 \u0647\u0630\u0647 \u0627\u0644\u062E\u0637\u0629 \u0641\u064A \u0627\u0644\u0641\u0647\u0631\u0633 \u0628\u0639\u062F. \u0623\u0631\u0633\u0644 \"menu\" \u0644\u0631\u0624\u064A\u0629 \u0645\u0627 \u0647\u0648 \u0645\u062A\u0627\u062D.",
+    es: 'No tenemos ese plan de lecci\u00F3n en el cat\u00E1logo todav\u00EDa. Env\u00EDa "menu" para ver lo que est\u00E1 disponible.',
+  };
+  const msg = notInCatalogMessages[responseLanguage] || notInCatalogMessages.en;
+  await WhatsAppService.sendMessage(from, msg);
+  if (user) {
     try {
-      typingController.stop();
-      if (LOADING_STICKER_MEDIA_ID) {
-        // Use cached media ID for instant sending
-        await WhatsAppService.sendSticker(from, LOADING_STICKER_MEDIA_ID);
-      } else {
-        // Fallback: Upload sticker file
-        await WhatsAppService.sendSticker(from, LOADING_STICKER_PATH);
-      }
+      await storeConversation(user.id, 'assistant', msg, 'text', sessionId);
     } catch (error) {
-      logToFile('⚠️ Failed to send loading sticker', { error: error.message });
+      logToFile('\u26A0\uFE0F Failed to store not-in-catalog reply', { error: error.message });
     }
-
-    // Send acknowledgment in user's language
-    await WhatsAppService.sendMessage(from, messages.preparing);
-
-    // Extract topic
-    const topic = await OpenAIService.extractTopic(messageBody);
-    logToFile('Topic extracted', { topic });
-
-    // Detect explicitly requested language (defaults to 'en')
-    const contentLanguage = detectRequestedLanguage(messageBody);
-    logToFile('Content language detected', { contentLanguage, messageBody: messageBody.substring(0, 100) });
-
-    // Queue lesson plan for async processing (survives server restarts)
-    if (user) {
-      const requestId = await LessonPlanQueueService.createAndQueue({
-        userId: user.id,
-        phoneNumber: from,
-        topic,
-        fullMessage: messageBody,
-        language: contentLanguage,
-        contentType: 'lesson_plan'
-      });
-
-      logToFile('✅ Lesson plan queued for async processing', {
-        requestId,
-        userId: user.id,
-        topic
-      });
-
-      // Store acknowledgment in conversations
-      try {
-        await storeConversation(user.id, 'assistant', messages.preparing, 'text', sessionId);
-      } catch (error) {
-        logToFile('⚠️ Failed to store acknowledgment', { error: error.message });
-      }
-    } else {
-      // Fallback for users without account (shouldn't happen normally)
-      logToFile('⚠️ Cannot queue lesson plan - no user account', { from });
-      await WhatsAppService.sendMessage(from, messages.error);
-    }
-  } catch (error) {
-    logToFile('❌ Error processing lesson plan request', {
-      error: error.message,
-      stack: error.stack
-    });
-    typingController.stop(); // Stop typing indicator before sending error message
-
-    // Get error message in user's language
-    const errorMessages = {
-      en: "Sorry, there was an error creating the lesson plan. Please try again.",
-      ur: 'معذرت، سبق کا منصوبہ بناتے وقت خرابی آ گئی۔ براہ کرم دوبارہ کوشش کریں۔',
-      ar: "عذرًا، حدث خطأ في إنشاء خطة الدرس. يرجى المحاولة مرة أخرى.",
-      es: "Lo siento, hubo un error al crear el plan de lección. Por favor intenta de nuevo."
-    };
-
-    await WhatsAppService.sendMessage(
-      from,
-      errorMessages[responseLanguage] || errorMessages.en
-    );
   }
+  logToFile('\ud83d\udcd6 Freeform LP request \u2192 replied not-in-catalog (bd-2540)', {
+    from, userId: user?.id, topicHint: (messageBody || '').substring(0, 60),
+  });
 }
 
 /**
@@ -2424,111 +2343,26 @@ async function handleLessonPlanRequest(from, messageBody, user, sessionId, respo
  * @returns {Promise<void>}
  */
 async function handlePresentationRequest(from, messageBody, user, sessionId, responseLanguage, typingController) {
-  try {
-    // Multi-language message maps
-    const presentationMessages = {
-      en: {
-        preparing: "I'm preparing an educational presentation for you. Please wait a moment...",
-        successWithPdf: (topic) => `✅ Your presentation is ready!\n\n📊 Topic: ${topic}\n\nThis presentation is ready for use in your classroom.`,
-        successWithoutPdf: (topic, url) => `✅ Your presentation is ready!\n\n📊 Topic: ${topic}\n\n🔗 Link: ${url}\n\nNote: PDF is not available. Please view from the Gamma link.`,
-        error: "Sorry, there was an error creating the presentation. Please try again."
-      },
-      ur: {
-        preparing: 'میں آپ کے لیے ایک تعلیمی پریزنٹیشن تیار کر رہی ہوں۔ براہ کرم تھوڑا انتظار کریں...',
-        successWithPdf: (topic) => `✅ آپ کی پریزنٹیشن تیار ہے!\n\n📊 موضوع: ${topic}\n\nیہ پریزنٹیشن آپ کی کلاس میں استعمال کے لیے تیار ہے۔`,
-        successWithoutPdf: (topic, url) => `✅ آپ کی پریزنٹیشن تیار ہے!\n\n📊 موضوع: ${topic}\n\n🔗 لنک: ${url}\n\nنوٹ: PDF دستیاب نہیں ہے۔ براہ کرم Gamma لنک سے دیکھیں۔`,
-        error: 'معذرت، پریزنٹیشن بناتے وقت خرابی آ گئی۔ براہ کرم دوبارہ کوشش کریں۔'
-      },
-      ar: {
-        preparing: "أقوم بإعداد عرض تقديمي تعليمي لك. يرجى الانتظار لحظة...",
-        successWithPdf: (topic) => `✅ العرض التقديمي جاهز!\n\n📊 الموضوع: ${topic}\n\nهذا العرض التقديمي جاهز للاستخدام في فصلك.`,
-        successWithoutPdf: (topic, url) => `✅ العرض التقديمي جاهز!\n\n📊 الموضوع: ${topic}\n\n🔗 الرابط: ${url}\n\nملاحظة: ملف PDF غير متوفر. يرجى العرض من رابط Gamma.`,
-        error: "عذرًا، حدث خطأ في إنشاء العرض التقديمي. يرجى المحاولة مرة أخرى."
-      },
-      es: {
-        preparing: "Estoy preparando una presentación educativa para ti. Por favor espera un momento...",
-        successWithPdf: (topic) => `✅ ¡Tu presentación está lista!\n\n📊 Tema: ${topic}\n\nEsta presentación está lista para usar en tu clase.`,
-        successWithoutPdf: (topic, url) => `✅ ¡Tu presentación está lista!\n\n📊 Tema: ${topic}\n\n🔗 Enlace: ${url}\n\nNota: PDF no disponible. Por favor ver desde el enlace de Gamma.`,
-        error: "Lo siento, hubo un error al crear la presentación. Por favor intenta de nuevo."
-      }
-    };
-
-    // Get messages for user's language, fallback to English
-    const messages = presentationMessages[responseLanguage] || presentationMessages.en;
-
-    // Send loading sticker (stop typing indicator first)
+  // bd-2540: freeform presentation generation via Gamma is retired.
+  typingController.stop();
+  const notSupportedMessages = {
+    en: 'Presentation generation is currently unavailable. For lesson plans, send "menu" to see what\'s in the catalog.',
+    ur: '\u067E\u0631\u06CC\u0632\u0646\u0679\u06CC\u0634\u0646 \u0641\u06CC \u0627\u0644\u062D\u0627\u0644 \u062F\u0633\u062A\u06CC\u0627\u0628 \u0646\u06C1\u06CC\u06BA \u06C1\u06CC\u06BA\u06D4 \u0633\u0628\u0642 \u062F\u06CC\u06A9\u06BE\u0646\u06D2 \u06A9\u06D2 \u0644\u06CC\u06D2 "menu" \u0644\u06A9\u06BE\u06CC\u06BA\u06D4',
+    ar: '\u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0639\u0631\u0648\u0636 \u0627\u0644\u062A\u0642\u062F\u064A\u0645\u064A\u0629 \u063A\u064A\u0631 \u0645\u062A\u0627\u062D \u062D\u0627\u0644\u064A\u064B\u0627. \u0623\u0631\u0633\u0644 \"menu\" \u0644\u0644\u062E\u0637\u0637.',
+    es: 'La generaci\u00F3n de presentaciones no est\u00E1 disponible por ahora. Para planes de lecci\u00F3n, env\u00EDa "menu".',
+  };
+  const msg = notSupportedMessages[responseLanguage] || notSupportedMessages.en;
+  await WhatsAppService.sendMessage(from, msg);
+  if (user) {
     try {
-      typingController.stop();
-      if (LOADING_STICKER_MEDIA_ID) {
-        // Use cached media ID for instant sending
-        await WhatsAppService.sendSticker(from, LOADING_STICKER_MEDIA_ID);
-      } else {
-        // Fallback: Upload sticker file
-        await WhatsAppService.sendSticker(from, LOADING_STICKER_PATH);
-      }
+      await storeConversation(user.id, 'assistant', msg, 'text', sessionId);
     } catch (error) {
-      logToFile('⚠️ Failed to send loading sticker', { error: error.message });
+      logToFile('\u26A0\uFE0F Failed to store not-supported reply', { error: error.message });
     }
-
-    // Send acknowledgment in user's language
-    await WhatsAppService.sendMessage(from, messages.preparing);
-
-    // Extract topic
-    const topic = await OpenAIService.extractTopic(messageBody);
-    logToFile('Topic extracted', { topic });
-
-    // Detect explicitly requested language (defaults to 'en')
-    const contentLanguage = detectRequestedLanguage(messageBody);
-    logToFile('Content language detected for presentation', { contentLanguage });
-
-    // Queue presentation for async processing (survives server restarts)
-    if (user) {
-      const requestId = await LessonPlanQueueService.createAndQueue({
-        userId: user.id,
-        phoneNumber: from,
-        topic,
-        fullMessage: messageBody,
-        language: contentLanguage,
-        contentType: 'presentation'
-      });
-
-      logToFile('✅ Presentation queued for async processing', {
-        requestId,
-        userId: user.id,
-        topic
-      });
-
-      // Store acknowledgment in conversations
-      try {
-        await storeConversation(user.id, 'assistant', messages.preparing, 'text', sessionId);
-      } catch (error) {
-        logToFile('⚠️ Failed to store acknowledgment', { error: error.message });
-      }
-    } else {
-      // Fallback for users without account (shouldn't happen normally)
-      logToFile('⚠️ Cannot queue presentation - no user account', { from });
-      await WhatsAppService.sendMessage(from, messages.error);
-    }
-  } catch (error) {
-    logToFile('❌ Error processing presentation request', {
-      error: error.message,
-      stack: error.stack
-    });
-    typingController.stop(); // Stop typing indicator before sending error message
-
-    // Get error message in user's language
-    const errorMessages = {
-      en: "Sorry, there was an error creating the presentation. Please try again.",
-      ur: 'معذرت، پریزنٹیشن بناتے وقت خرابی آ گئی۔ براہ کرم دوبارہ کوشش کریں۔',
-      ar: "عذرًا، حدث خطأ في إنشاء العرض التقديمي. يرجى المحاولة مرة أخرى.",
-      es: "Lo siento, hubo un error al crear la presentación. Por favor intenta de nuevo."
-    };
-
-    await WhatsAppService.sendMessage(
-      from,
-      errorMessages[responseLanguage] || errorMessages.en
-    );
   }
+  logToFile('\ud83d\udcca Freeform presentation request \u2192 replied not-supported (bd-2540)', {
+    from, userId: user?.id,
+  });
 }
 
 /**
