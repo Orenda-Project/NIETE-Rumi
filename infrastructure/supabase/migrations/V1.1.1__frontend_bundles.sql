@@ -1,7 +1,7 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 -- V1.1.1 — frontend_bundles: the OTA (live-update) bundle ledger
 --
--- bd-2542. The Android portal app is Capacitor, so its UI is a web bundle
+-- The Android portal app is Capacitor, so its UI is a web bundle
 -- wrapped in a native shell. That bundle can be replaced over the air without
 -- a Play release. This table is the record of which bundle is available to
 -- whom.
@@ -100,7 +100,7 @@ COMMENT ON TABLE frontend_bundles IS
   'OTA live-update bundles for the Capacitor portal app. One row per uploaded '
   'web bundle. Replaces the retired Django FrontendBundle model, whose version '
   'was an autoincrement PK and which had no compatibility, rollout, or '
-  'integrity fields. bd-2542.';
+  'integrity fields.';
 
 COMMENT ON COLUMN frontend_bundles.min_native_version IS
   'Minimum native versionCode that can run this bundle. The contract between '
@@ -131,7 +131,7 @@ NOTIFY pgrst, 'reload schema';
 -- measurable and auto-halt possible. It is a separate concern with a different
 -- write pattern (high-volume, append-only, per-device) from this ledger
 -- (low-volume, one row per release), so it lands in its own migration with
--- bd-2546 rather than being bolted on here.
+-- rather than being bolted on here.
 --
 -- DOWN (manual):
 --   DROP TABLE IF EXISTS frontend_bundles;

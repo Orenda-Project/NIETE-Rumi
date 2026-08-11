@@ -1,5 +1,5 @@
 /**
- * bd-2542 — which OTA bundle (if any) a given device is allowed to install.
+ * — which OTA bundle (if any) a given device is allowed to install.
  *
  * This is the whole compatibility contract between the two release trains:
  *
