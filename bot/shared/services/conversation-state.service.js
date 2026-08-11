@@ -29,6 +29,16 @@
  * Storage is users.conversation_state (JSONB) + users.conversation_state_expires_at.
  * See migrations/V1.1.1__conversation_state.sql for why two columns on `users` beat
  * a 77th table.
+ *
+ * KNOWN LIMITATION — no optimistic locking, deliberately deferred.
+ * `version` below is a SHAPE version (for future migrations of the JSON), not a
+ * lock. setState/pushState read the row to preserve `stack` and then write it back,
+ * so two messages from the same teacher arriving close enough together can lose one
+ * update to the other. The blast radius is bounded: the CURRENT flow always reflects
+ * the later message (which is what the teacher is actually doing), and only a
+ * resumable interruption can be dropped from the stack — no teacher content is at
+ * risk. Fixing it properly needs a conditional update, which is scoped with the
+ * resume work rather than smuggled in here.
  */
 
 const supabase = require('../config/supabase');
@@ -156,8 +166,15 @@ async function setState(userId, next = {}) {
     updated_at: new Date(nowMs()).toISOString(),
   };
 
-  await writeRow(userId, state, isoIn(ttlSeconds));
-  return hydrate(state);
+  // Report what actually happened. Returning the state object regardless of the
+  // write would be the same silent failure this service exists to remove: the
+  // caller would believe the teacher's step was recorded when it was not. A null
+  // is safe to ignore — a missing state means "no wait pending" and every gate is
+  // intent-first — but a caller must never be TOLD it succeeded when it did not.
+  // (For popState a null therefore means "nothing was resumed", which is the
+  // correct thing to act on whether the stack was empty or the write failed.)
+  const ok = await writeRow(userId, state, isoIn(ttlSeconds));
+  return ok ? hydrate(state) : null;
 }
 
 /**
@@ -212,8 +229,15 @@ async function pushState(userId, next = {}) {
     updated_at: new Date(nowMs()).toISOString(),
   };
 
-  await writeRow(userId, state, isoIn(ttlSeconds));
-  return hydrate(state);
+  // Report what actually happened. Returning the state object regardless of the
+  // write would be the same silent failure this service exists to remove: the
+  // caller would believe the teacher's step was recorded when it was not. A null
+  // is safe to ignore — a missing state means "no wait pending" and every gate is
+  // intent-first — but a caller must never be TOLD it succeeded when it did not.
+  // (For popState a null therefore means "nothing was resumed", which is the
+  // correct thing to act on whether the stack was empty or the write failed.)
+  const ok = await writeRow(userId, state, isoIn(ttlSeconds));
+  return ok ? hydrate(state) : null;
 }
 
 /**
@@ -241,8 +265,15 @@ async function popState(userId, { ttlSeconds = 3600 } = {}) {
     updated_at: new Date(nowMs()).toISOString(),
   };
 
-  await writeRow(userId, state, isoIn(ttlSeconds));
-  return hydrate(state);
+  // Report what actually happened. Returning the state object regardless of the
+  // write would be the same silent failure this service exists to remove: the
+  // caller would believe the teacher's step was recorded when it was not. A null
+  // is safe to ignore — a missing state means "no wait pending" and every gate is
+  // intent-first — but a caller must never be TOLD it succeeded when it did not.
+  // (For popState a null therefore means "nothing was resumed", which is the
+  // correct thing to act on whether the stack was empty or the write failed.)
+  const ok = await writeRow(userId, state, isoIn(ttlSeconds));
+  return ok ? hydrate(state) : null;
 }
 
 /**

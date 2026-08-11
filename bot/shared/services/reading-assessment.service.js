@@ -1,6 +1,5 @@
 const WhatsAppService = require('./whatsapp.service');
 const { resolveUx } = require('../config/ux-strings');
-const supabase = require('../config/supabase');
 const ConversationState = require('./conversation-state.service');
 const redisService = require('./cache/railway-redis.service');
 const { logToFile } = require('../utils/logger');

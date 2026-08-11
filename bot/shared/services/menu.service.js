@@ -1,4 +1,3 @@
-const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 const WhatsAppService = require('./whatsapp.service');
 const { getClient } = require('./llm-client');
@@ -442,11 +441,13 @@ class MenuService {
     // Which flow each waiting step belongs to, and how long it is reasonable to keep
     // waiting. These are deliberately not all the same number: a teacher choosing
     // from a menu and a teacher going away to record a lesson are different waits.
+    // Only the steps this service actually writes. AWAITING_VIDEO_TOPIC and
+    // AWAITING_LESSON_PLAN are deliberately ABSENT: video state lives in Redis
+    // under `user:<id>:awaiting_video_*` (owned by VideoOrchestrator), and listing
+    // them here would claim coverage this store does not have.
     const STEP_CONTRACT = {
       AWAITING_MENU_CHOICE:     { flow: 'menu',     ttlSeconds: 3600 },  // 1h — the old 5 min was the bug
       AWAITING_CLASSROOM_AUDIO: { flow: 'coaching', ttlSeconds: 21600 }, // 6h — she has to teach the lesson first
-      AWAITING_VIDEO_TOPIC:     { flow: 'video',    ttlSeconds: 3600 },
-      AWAITING_LESSON_PLAN:     { flow: 'coaching', ttlSeconds: 21600 },
     };
 
     try {
@@ -454,8 +455,14 @@ class MenuService {
 
       // null clears. GENERAL_CONVERSATION is not a wait — it means nothing is
       // pending — so it clears too rather than parking a meaningless state.
+      //
+      // Flow-scoped to 'menu', NOT an unconditional wipe. Both call sites reach
+      // here from a menu selection, so the only wait being finished is the menu's.
+      // An unconditional clear would let "teacher picked Other from the menu" wipe
+      // a coaching session she is midway through — exactly the cross-feature
+      // clobber clearState() is flow-scoped to prevent.
       if (step === null || step === 'GENERAL_CONVERSATION') {
-        await ConversationState.clearState(userId);
+        await ConversationState.clearState(userId, { flow: 'menu' });
         return;
       }
 

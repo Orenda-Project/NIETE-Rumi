@@ -133,6 +133,21 @@ describe('conversation-state store', () => {
     expect(await svc.getState(USER)).toBeNull();
   });
 
+  it('reports a failed write instead of claiming the step was recorded', async () => {
+    // Found in self-review before merge: setState returned the state object even
+    // when the UPDATE errored, so a caller believed the teacher's step was stored
+    // when it was not — the same silent-failure class this service exists to end.
+    // A null is fine to ignore (missing state means "no wait pending", and every
+    // gate is intent-first); being told it worked is not.
+    mockSupabase.from.mockImplementation(() => ({
+      select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: { id: USER }, error: null }) }) }),
+      update: () => ({ eq: () => Promise.resolve({ data: null, error: { message: 'connection reset' } }) }),
+    }));
+
+    const result = await svc.setState(USER, { flow: 'reading', step: 'AWAITING_READING_AUDIO', ttlSeconds: 600 });
+    expect(result).toBeNull();
+  });
+
   it('surfaces expired rows for the sweeper to offer back', async () => {
     harness({
       conversation_state: { flow: 'lesson_plan', step: 'awaiting_topic', payload: {}, stack: [] },
