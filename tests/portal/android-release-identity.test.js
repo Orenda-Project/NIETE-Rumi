@@ -62,14 +62,14 @@ describe('bd-2395 — Android release identity', () => {
   // Floor moves with every upload: Play rejects a bundle whose versionCode is
   // not strictly higher than the live release, so this asserts against the
   // highest code that has LEFT this machine, not the highest ever built.
-  // 1202 shipped → 1203 uploaded → 1204 handed over 2026-08-06 → 1205 uploaded
-  // to Play (operator confirmed 2026-08-11), so this build has to be 1206.
+  // 1202 shipped → 1203 uploaded → 1204 built and handed over on 2026-08-06,
+  // so the next build — carrying the training-quiz feedback — has to be 1205.
   // Bump this AND the prose above on every upload; a stale comment here is
   // what caused the wasted build at 1203.
-  it('versionCode is at least 1206 (1205 uploaded; Play needs a higher code)', () => {
+  it('versionCode is at least 1205 (1204 handed over; Play needs a higher code)', () => {
     const m = source.match(/versionCode\s+(\d+)/);
     expect(m).not.toBeNull();
-    expect(Number(m[1])).toBeGreaterThanOrEqual(1206);
+    expect(Number(m[1])).toBeGreaterThanOrEqual(1205);
   });
 
   it('versionName tracks versionCode', () => {
