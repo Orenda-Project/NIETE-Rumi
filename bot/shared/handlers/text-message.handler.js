@@ -736,10 +736,10 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // ============================================================
   if (user?.id) {
     try {
-      const awaitingQuizTopic = await redis.get(`quiz:awaiting_topic:${user.id}`);
-      if (awaitingQuizTopic) {
-        const state = JSON.parse(awaitingQuizTopic);
-        await redis.del(`quiz:awaiting_topic:${user.id}`);
+      const active = await ConversationState.getState(user.id);
+      if (active && active.flow === 'quiz' && active.step === 'awaiting_topic') {
+        const state = active.payload || {};
+        await ConversationState.clearState(user.id, { flow: 'quiz' });
         typingController.stop();
         const QuizOrchestrator = require('../services/quiz/quiz-orchestrator.service');
         await QuizOrchestrator.handleTopicReply(user, from, messageBody.trim(), state);

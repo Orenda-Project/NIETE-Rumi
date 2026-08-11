@@ -21,7 +21,7 @@ function chainResolving(result) {
 
 // ── teacher-state.service ─────────────────────────────────────────────────────
 describe('teacher-state.service', () => {
-  function load({ tableResults = {}, redisAvailable = true, redisStore = {}, cancelQuiz } = {}) {
+  function load({ tableResults = {}, redisAvailable = true, redisStore = {}, cancelQuiz, activeState = null } = {}) {
     jest.resetModules();
     jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 
@@ -44,11 +44,20 @@ describe('teacher-state.service', () => {
       },
     }));
 
+    // /status now asks the conversation store "what is she mid-way through?" instead
+    // of probing a list of cache keys. `activeState` lets a test put her mid-flow.
+    const clearStateSpy = jest.fn().mockResolvedValue(true);
+    jest.doMock('../../bot/shared/services/conversation-state.service', () => ({
+      getState: jest.fn().mockResolvedValue(activeState),
+      setState: jest.fn().mockResolvedValue(activeState),
+      clearState: clearStateSpy,
+    }));
+
     const cancelQuizSpy = cancelQuiz || jest.fn().mockResolvedValue(true);
     jest.doMock('../../bot/shared/services/quiz/quiz-orchestrator.service', () => ({ cancelQuiz: cancelQuizSpy }));
 
     const svc = require('../../bot/shared/services/teacher-state.service');
-    return { svc, supabaseFrom, updateSpy, delSpy, cancelQuizSpy };
+    return { svc, supabaseFrom, updateSpy, delSpy, cancelQuizSpy, clearStateSpy };
   }
 
   describe('parseResourceId', () => {
@@ -77,11 +86,20 @@ describe('teacher-state.service', () => {
           coaching_sessions: { data: [{ id: 'c1', status: 'analyzing', created_at: new Date().toISOString() }] },
           lesson_plan_requests: { data: [{ id: 'lp1', topic: 'Atoms', status: 'processing', created_at: new Date().toISOString() }] },
         },
-        redisStore: { 'user:u1:awaiting_video_topic': '1', 'reading:user:u1:current_assessment': '1' },
+        // Video moved off its four cache keys onto the store, so being mid-video is
+        // now `activeState`, not a Redis probe.
+        activeState: { flow: 'video', step: 'awaiting_topic', payload: {}, stack: [] },
+        redisStore: { 'reading:user:u1:current_assessment': '1' },
       });
       const items = await svc.listActiveResources('u1');
       const kinds = items.map(i => i.kind);
-      expect(kinds).toEqual(expect.arrayContaining(['quiz', 'coaching', 'lesson_plan', 'video', 'reading']));
+      expect(kinds).toEqual(expect.arrayContaining(['quiz', 'coaching', 'lesson_plan', 'flow_resume', 'flow_cancel', 'reading']));
+
+      // The point of the change: the surface that knows what she left open can now
+      // hand it back, not only throw it away.
+      const resume = items.find(i => i.kind === 'flow_resume');
+      expect(resume.id).toBe('resume_flow_video');
+      expect(resume.refId).toBe('video');
       const quiz = items.find(i => i.kind === 'quiz');
       expect(quiz.id).toBe('cancel_quiz_q1');
       expect(quiz.title).toContain('5-A');
@@ -116,12 +134,32 @@ describe('teacher-state.service', () => {
       expect(updateSpy).toHaveBeenCalledWith({ status: 'cancelled' });
     });
 
-    it('cancels redis-backed flows via del', async () => {
+    it('cancels the cache-backed flows via del', async () => {
       const { svc, delSpy } = load();
       expect((await svc.cancelResource({ kind: 'video' }, 'u1')).ok).toBe(true);
       expect((await svc.cancelResource({ kind: 'reading' }, 'u1')).ok).toBe(true);
-      expect((await svc.cancelResource({ kind: 'attendance' }, 'u1')).ok).toBe(true);
       expect(delSpy).toHaveBeenCalled();
+    });
+
+    it('stops a flow by clearing the store, scoped to that flow', async () => {
+      const { svc, clearStateSpy } = load();
+      const res = await svc.cancelResource({ kind: 'flow_cancel', refId: 'video' }, 'u1');
+      expect(res.ok).toBe(true);
+      expect(clearStateSpy).toHaveBeenCalledWith('u1', { flow: 'video' });
+    });
+
+    it('resuming leaves the state alone and reports which flow to re-enter', async () => {
+      // /status decides WHICH flow; it must not try to re-enter it, and it must not
+      // clear the very state the teacher is asking to keep.
+      const { svc, clearStateSpy } = load();
+      const res = await svc.cancelResource({ kind: 'flow_resume', refId: 'lesson_plan' }, 'u1');
+      expect(res).toEqual({ ok: true, resume: 'lesson_plan' });
+      expect(clearStateSpy).not.toHaveBeenCalled();
+    });
+
+    it('no longer pretends it can cancel the torn-out feature', async () => {
+      const { svc } = load();
+      expect((await svc.cancelResource({ kind: 'attendance' }, 'u1')).ok).toBe(false);
     });
 
     it('rejects an invalid resource', async () => {

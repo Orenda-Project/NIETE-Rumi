@@ -326,12 +326,18 @@ class MenuService {
       ? 'بہترین! آپ کس موضوع پر لیسن پلان یا پریزنٹیشن چاہتے ہیں؟\n\nمثال کے طور پر: "گریڈ 5 کے لیے فوٹو سنتھیسس"'
       : "What topic would you like a lesson plan or presentation on?\n\nFor example: 'Photosynthesis for Grade 5'";
     await WhatsAppService.sendMessage(from, message);
-    const stateKey = `user:${userId}:awaiting_lesson_plan_topic`;
-    const stateData = JSON.stringify({
-      sessionId, language, from, askedAt: new Date().toISOString(),
+    // One hour, not the five minutes this used to hold. Five minutes was the same
+    // number the menu carried, and for the same bad reason: it was a cache default,
+    // not a judgement about how long a teacher takes to think of a topic. If she
+    // drifts past the hour the resume sweeper offers the lesson plan back, which is
+    // what replaces silently forgetting she was asked.
+    await ConversationState.setState(userId, {
+      flow: 'lesson_plan',
+      step: 'awaiting_topic',
+      payload: { sessionId, language, from, askedAt: new Date().toISOString() },
+      ttlSeconds: 3600,
     });
-    await redis.setex(stateKey, 300, stateData);
-    logToFile('Stored awaiting_lesson_plan_topic state (fallback)', { userId, sessionId, language });
+    logToFile('Lesson-plan flow step stored', { userId, sessionId, language, step: 'awaiting_topic' });
   }
 
   /**
@@ -341,14 +347,9 @@ class MenuService {
    * @returns {Object|null} State data or null
    */
   static async checkAwaitingLessonPlanTopic(userId) {
-    const redis = redisService.redis;
-    const stateKey = `user:${userId}:awaiting_lesson_plan_topic`;
-    const stateData = await redis.get(stateKey);
-
-    if (stateData) {
-      return JSON.parse(stateData);
-    }
-    return null;
+    const active = await ConversationState.getState(userId);
+    if (!active || active.flow !== 'lesson_plan' || active.step !== 'awaiting_topic') return null;
+    return active.payload || {};
   }
 
   /**
@@ -357,10 +358,8 @@ class MenuService {
    * @param {string} userId - User ID
    */
   static async clearAwaitingLessonPlanTopic(userId) {
-    const redis = redisService.redis;
-    const stateKey = `user:${userId}:awaiting_lesson_plan_topic`;
-    await redis.del(stateKey);
-    logToFile('Cleared awaiting_lesson_plan_topic state', { userId });
+    await ConversationState.clearState(userId, { flow: 'lesson_plan' });
+    logToFile('Lesson-plan flow cleared', { userId, step: 'awaiting_topic' });
   }
 
   /**
