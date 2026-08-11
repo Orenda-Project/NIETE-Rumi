@@ -1045,6 +1045,30 @@ function startWorker() {
     }, STALE_RECOVERY_INTERVAL_MS);
 
     logToFile('Periodic stale-session recovery enabled (every 15 minutes)');
+
+    // Offer interrupted tasks back. Rides the same always-on worker as the sweeps
+    // above (this deployment has no cron), on a deliberately slower interval: the
+    // window we are detecting is measured in hours, and a teacher whose step timed
+    // out ten minutes ago has not been waiting long enough to be worth a message.
+    //
+    // sweepAndOffer never throws by contract — it tallies per-teacher failures and
+    // keeps going — but it is wrapped anyway so a surprise cannot take the worker
+    // down with it.
+    const ConversationResume = require('../shared/services/conversation-resume.service');
+    const RESUME_OFFER_INTERVAL_MS = 30 * 60 * 1000;
+    setInterval(async () => {
+      if (worker.isShuttingDown) return;
+      try {
+        const res = await ConversationResume.sweepAndOffer();
+        if (res.offered || res.expired || res.failed) {
+          logToFile('🔄 Interrupted-task resume sweep', res);
+        }
+      } catch (error) {
+        logToFile('Error in resume sweep (non-fatal)', { error: error.message });
+      }
+    }, RESUME_OFFER_INTERVAL_MS);
+
+    logToFile('Interrupted-task resume offers enabled (every 30 minutes)');
   });
 }
 

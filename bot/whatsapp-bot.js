@@ -514,6 +514,16 @@ app.post('/webhook', async (req, res) => {
       const buttonId = message.interactive.button_reply.id;
       logToFile('📱 Interactive button clicked', { buttonId, from });
 
+      // "Pick up where you left off" / "Start fresh" — the answer to an interrupted
+      // task the sweeper offered back. Routed FIRST because it is a decision about a
+      // task that is already paused: any other branch that matched would start
+      // something new on top of it. The handler returns false for ids it does not
+      // own, so nothing else is shadowed.
+      if (user) {
+        const ConversationResume = require('./shared/services/conversation-resume.service');
+        if (await ConversationResume.handleResumeButton(user, from, buttonId)) return;
+      }
+
       // Teacher-training module + quiz buttons
       if (buttonId.startsWith('training_module_done_')) {
         const moduleId = buttonId.replace('training_module_done_', '');

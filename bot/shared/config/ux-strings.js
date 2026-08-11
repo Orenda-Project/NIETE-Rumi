@@ -155,6 +155,55 @@ const UX_STRINGS = {
     en: 'That language is not available. Please choose from the list.',
     ur: 'یہ زبان دستیاب نہیں ہے۔ براہ کرم فہرست میں سے منتخب کریں۔',
   },
+
+  /**
+   * Picking a task back up.
+   *
+   * Every feature's previous answer to "she stopped halfway" was to tell her to
+   * start over — the same instruction repeated across the menu, reading, training,
+   * quizzes and exam marking. This is the copy that replaces it: we say what she
+   * left, and offer to carry on.
+   *
+   * `{task}` is a teacher-facing task name, never an internal flow id — a teacher
+   * should read "lesson plan", not "lesson_plan".
+   */
+  resumeOfferBody: {
+    en: 'Earlier you started a {task} but we did not finish. Shall we pick up where you left off?',
+    ur: 'آپ نے پہلے {task} شروع کیا تھا مگر ہم مکمل نہیں کر سکے۔ کیا وہیں سے جاری رکھیں؟',
+  },
+
+  /**
+   * Button labels. HARD 20-CHARACTER CAP, counted in code points — Urdu counts
+   * differently than `.length` suggests, and the sender silently truncates rather
+   * than failing, so an over-long label ships as a mangled word instead of an
+   * error. Guarded in tests/conversation-state/resume-offer.test.js.
+   */
+  resumeYesLabel: {
+    en: 'Pick up',
+    ur: 'جاری رکھیں',
+  },
+
+  resumeNoLabel: {
+    en: 'Start fresh',
+    ur: 'نیا شروع کریں',
+  },
+
+  resumeRestored: {
+    en: 'Good — carrying on with your {task}.',
+    ur: 'بہت خوب — آپ کا {task} جاری ہے۔',
+  },
+
+  resumeDiscarded: {
+    en: 'No problem, that one is closed. Send /menu whenever you want something else.',
+    ur: 'کوئی مسئلہ نہیں، وہ بند کر دیا۔ کچھ اور چاہیں تو /menu بھیجیں۔',
+  },
+
+  // The offer arrived, she tapped, but the task had already been cleared in the
+  // meantime. Says so plainly rather than pretending to resume nothing.
+  resumeGone: {
+    en: 'That one has already been closed. Send /menu to start something new.',
+    ur: 'وہ پہلے ہی بند ہو چکا ہے۔ نیا کام شروع کرنے کے لیے /menu بھیجیں۔',
+  },
 };
 
 const PLACEHOLDER = /\{(\w+)\}/g;
