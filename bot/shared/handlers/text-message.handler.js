@@ -1379,34 +1379,116 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         .single();
 
       if (activeCoaching) {
-        // bd-2508 — a slash command ENDS the conversation and falls through.
+        // bd-2508 follow-up — THREE outcomes, not one.
         //
-        // conducting_conversation was the only waiting state with no way out.
-        // The bot's own escape-path map tells teachers to "type /menu" to leave
-        // AWAITING_MENU_CHOICE / VIDEO_TOPIC / LESSON_PLAN / CLASSROOM_AUDIO —
-        // but CONDUCTING_CONVERSATION was never added to it, and this block
-        // swallowed the very command that map recommends. One teacher was held
-        // for 269 hours.
+        // HISTORY. conducting_conversation was the only waiting state with no way
+        // out. The bot's own escape-path map tells teachers to "type /menu" to
+        // leave AWAITING_MENU_CHOICE / VIDEO_TOPIC / LESSON_PLAN /
+        // CLASSROOM_AUDIO — but CONDUCTING_CONVERSATION was never added to it,
+        // and this block swallowed the very command that map recommends. One
+        // teacher was held for 269 hours. The first fix ended the session on any
+        // "/" message, which closed the trap but DESTROYED the reflection with no
+        // warning: escaping and losing your questions became the same action.
         //
-        // Exempting the command is NOT enough on its own: the session would
-        // stay open and recapture the next free-text message, so the teacher
-        // escapes and is immediately caught again. The session has to end.
+        // NOW:
+        //  1. /menu, /help  -> fall through, session LEFT RUNNING. These are the
+        //     documented escape hatch and must work first try, so they get no
+        //     confirmation gate. /menu then sets AWAITING_MENU_CHOICE and waits
+        //     on a bare "1".."4" — the digit exemption further down stops this
+        //     block eating that reply, which is what made merely exempting the
+        //     command insufficient before.
+        //  2. YES / NO answering a pending confirmation -> handled here.
+        //  3. any other "/" command -> ASK FIRST; on YES pause, never abandon.
         //
-        // Answers already given are preserved — they live in
-        // conversation_state.questions and are written as each one arrives, so
-        // ending the session discards nothing the teacher said.
-        if (trimmedMessage.startsWith('/')) {
-          logToFile('🎓 Slash command during coaching — ending the session and continuing', {
+        // Answers already given were always safe (conversation_state.questions is
+        // written per turn). What was lost was every REMAINING question — now
+        // preserved by `paused` plus the evening nudge in stale-session.worker.js.
+        const CoachingPauseService = require('../services/coaching/coaching-pause.service');
+        const command = trimmedMessage.split(/\s+/)[0];
+
+        // (2) A confirmation is outstanding — this message answers it.
+        const pendingSwitch = await CoachingPauseService.getPendingConfirmation(user.id);
+        if (pendingSwitch && pendingSwitch.sessionId === activeCoaching.id) {
+          if (CoachingPauseService.isYes(trimmedMessage)) {
+            await CoachingPauseService.clearPendingConfirmation(user.id);
+            await CoachingPauseService.pauseSession(
+              activeCoaching.id,
+              `switched_to:${pendingSwitch.command}`
+            );
+            logToFile('🎓 Teacher confirmed the switch — session paused', {
+              coachingSessionId: activeCoaching.id,
+              command: pendingSwitch.command,
+              menuSelector: pendingSwitch.menuSelector || null,
+            });
+
+            // A MENU pick has no re-runnable text (it was a button or a bare
+            // digit), so dispatch the selector straight to MenuService. The
+            // session is already `paused`, so its own guard cannot re-fire.
+            if (pendingSwitch.menuSelector) {
+              const MenuSvc = require('../services/menu.service');
+              const sel = pendingSwitch.menuSelector;
+              if (typeof sel === 'number' || /^[1-4]$/.test(String(sel))) {
+                await MenuSvc.handleMenuChoice(
+                  String(sel), user.id, sessionId, from, 'text', responseLanguage
+                );
+              } else {
+                // Signature is (user, from, buttonId, language) — verified 2026-08-04.
+                await MenuSvc.handleMenuButtonResponse(user, from, sel, responseLanguage);
+              }
+              return;
+            }
+
+            // A SLASH COMMAND re-enters with the ORIGINAL text so arguments
+            // survive (e.g. "/lessonplan grade 4 maths"). trimmedMessage is a
+            // const AND lowercased, so mutating it is impossible and would
+            // corrupt args anyway — recursion is the honest replay. The session
+            // is now `paused`, so the activeCoaching lookup above cannot
+            // re-match and this cannot loop.
+            return handleTextMessage(message, from, pendingSwitch.fullMessage, user);
+          }
+
+          if (CoachingPauseService.isNo(trimmedMessage)) {
+            await CoachingPauseService.clearPendingConfirmation(user.id);
+            typingController.stop();
+            // Catalog, not a literal — coaching strings must be translatable
+            // (tests/setup/no-hardcoded-coaching-strings.test.js).
+            const { getCoachingMessage } = require('../config/coaching-messages');
+            await WhatsAppService.sendMessage(
+              from,
+              getCoachingMessage('switchDeclined', responseLanguage || 'en')
+            );
+            const RCS = require('../services/coaching/reflective-conversation.service');
+            await RCS.conductReflectiveConversation(
+              activeCoaching.id,
+              from,
+              CoachingPauseService.answeredCount(activeCoaching) + 1
+            );
+            return;
+          }
+
+          // Neither yes nor no — she has moved on and this is a real answer.
+          // Drop the gate and let the normal reflective path handle it.
+          await CoachingPauseService.clearPendingConfirmation(user.id);
+        }
+
+        // (1) Escape hatch: never gate, never touch status.
+        if (CoachingPauseService.isAlwaysAllowed(command)) {
+          logToFile('🎓 Escape-hatch command during coaching — session left running', {
             coachingSessionId: activeCoaching.id,
-            command: trimmedMessage.split(/\s+/)[0],
+            command,
           });
-          await supabase
-            .from('coaching_sessions')
-            .update({ status: 'abandoned', updated_at: new Date().toISOString() })
-            .eq('id', activeCoaching.id);
-          // Deliberately no extra chat message: the command's own reply lands
-          // immediately after this and a preamble in front of it is noise.
-          // Fall through — do NOT return — so the command runs normally.
+          // Fall through — do NOT return, do NOT change status.
+        // (3) Any other slash command: confirm before pausing.
+        } else if (trimmedMessage.startsWith('/')) {
+          typingController.stop();
+          await CoachingPauseService.askToConfirmSwitch(
+            from,
+            user.id,
+            activeCoaching,
+            command,
+            messageBody
+          );
+          return; // wait for YES / NO
         } else {
 
         // Check if session is stuck (no update in last hour)
@@ -1435,23 +1517,63 @@ async function handleTextMessage(message, from, messageBody, user = null) {
           return;
         }
 
-        logToFile('🎓 Active coaching session detected - routing as reflective response', {
-          coachingSessionId: activeCoaching.id
-        });
+        // bd-2508 follow-up — THE MENU-DIGIT EXEMPTION.
+        //
+        // /menu now leaves the coaching session RUNNING (see above), sets
+        // AWAITING_MENU_CHOICE, and waits for a bare "1".."4". But this block runs
+        // ~1000 lines BEFORE the AWAITING_MENU_CHOICE handler, so without this
+        // exemption it swallows that digit as a reflective answer — the teacher
+        // escapes and is instantly re-caught. That is exactly the failure the
+        // original bd-2508 comment predicted when it said exempting the command
+        // alone was not enough.
+        //
+        // Deliberately NARROW: exactly "1".."4", and only while a menu is actually
+        // pending. Measured on live data 2026-08-04 — 5 of 7,644 reflective
+        // answers (0.065%) are a bare 1-4, so this costs ~1 answer in 1,500 and
+        // only for a teacher who opened a menu mid-reflection. A looser rule (any
+        // digit, any short message) would eat real answers: 365 of 7,644 answers
+        // are <= 2 characters.
+        let deferToMenuHandler = false;
+        if (CoachingPauseService.isMenuDigit(trimmedMessage)) {
+          const { data: menuConvo } = await supabase
+            .from('conversations')
+            .select('current_state')
+            .eq('user_id', user.id)
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .single();
 
-        // Stop typing indicator
-        typingController.stop();
+          if (menuConvo?.current_state === 'AWAITING_MENU_CHOICE') {
+            deferToMenuHandler = true;
+            logToFile('🎓 Menu digit during coaching — deferring to the menu handler', {
+              coachingSessionId: activeCoaching.id,
+              digit: trimmedMessage,
+            });
+          }
+        }
 
-        // Route to coaching service
-        await CoachingService.handleReflectiveResponse(
-          activeCoaching.id,
-          from,
-          messageBody,
-          'text',
-          responseLanguage
-        );
+        if (!deferToMenuHandler) {
+          logToFile('🎓 Active coaching session detected - routing as reflective response', {
+            coachingSessionId: activeCoaching.id
+          });
 
-        return; // Exit early - coaching flow handled
+          // Stop typing indicator
+          typingController.stop();
+
+          // Route to coaching service
+          await CoachingService.handleReflectiveResponse(
+            activeCoaching.id,
+            from,
+            messageBody,
+            'text',
+            responseLanguage
+          );
+
+          return; // Exit early - coaching flow handled
+        }
+        // else: fall through to the AWAITING_MENU_CHOICE handler (~line 2380).
+        // Status stays `conducting_conversation`; if she picks a service there,
+        // that path is responsible for pausing via CoachingPauseService.
         }
       }
     } catch (error) {
@@ -1616,6 +1738,34 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // ============================================================
   // MENU SYSTEM INTEGRATION
   // ============================================================
+
+  // bd-2508 follow-up — RESUME picks a paused reflection back up.
+  //
+  // Sent in reply to the evening nudge from stale-session.worker.js. Placed here,
+  // before the command block, so it can never be shadowed by a command match; and
+  // AFTER the active-coaching block above, so a teacher mid-reflection who types
+  // "resume" has it treated as an ordinary answer rather than a keyword.
+  if (user && /^resume$/i.test(trimmedMessage)) {
+    const CoachingPauseService = require('../services/coaching/coaching-pause.service');
+    const { data: pausedSession } = await supabase
+      .from('coaching_sessions')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('status', 'paused')
+      .order('paused_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (pausedSession) {
+      logToFile('▶️ RESUME received — restarting paused reflection', {
+        coachingSessionId: pausedSession.id,
+      });
+      typingController.stop();
+      await CoachingPauseService.resumeSession(pausedSession.id, from);
+      return;
+    }
+    // No paused session — fall through so "resume" is treated as ordinary text.
+  }
 
   // Check for /menu command
   if (messageBody === '/menu' || messageBody.toLowerCase() === '/menu') {

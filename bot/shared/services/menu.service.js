@@ -89,6 +89,26 @@ class MenuService {
         return;
       }
 
+      // bd-2508 follow-up — ask before a menu pick interrupts a live reflection.
+      //
+      // The slash-command path is gated by the coaching interceptor in
+      // text-message.handler, but a menu pick arrives as a button/digit the
+      // interceptor deliberately DEFERS (that deferral is what makes /menu usable
+      // mid-reflection at all). So the gate has to be re-applied here, or picking
+      // "Lesson plan" from the menu silently orphans the reflection.
+      //
+      // Returns true when a confirmation was sent — stop, and let the YES/NO reply
+      // dispatch the service. `menu_other` starts nothing and is never gated.
+      //
+      // ORDER MATTERS: this runs BEFORE the awaiting_menu_selection state is
+      // cleared. Clearing first would make the YES replay land on "that menu
+      // selection has expired" — the state must survive until she has actually
+      // chosen.
+      const CoachingPauseService = require('./coaching/coaching-pause.service');
+      if (await CoachingPauseService.guardMenuSelection(buttonId, user.id, from)) {
+        return;
+      }
+
       await redisService.delete(stateKey); // Clear state after handling
 
       logToFile('Handling menu button response', { userId: user.id, buttonId, sessionId: state.sessionId });
@@ -219,6 +239,15 @@ class MenuService {
 
       if (![1, 2, 3, 4].includes(choiceNum)) {
         await WhatsAppService.sendMessage(from, "Please choose a valid option (1-4).");
+        return;
+      }
+
+      // bd-2508 follow-up — same gate as the button path above. The typed-digit
+      // surface reaches here after the coaching interceptor defers the digit, so
+      // this is the only place left to ask. Choice 4 (general chat) starts no
+      // service and is never gated.
+      const CoachingPauseService = require('./coaching/coaching-pause.service');
+      if (await CoachingPauseService.guardMenuSelection(choiceNum, userId, from)) {
         return;
       }
 

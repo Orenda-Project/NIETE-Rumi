@@ -55,6 +55,11 @@ async function main() {
     const stuckInitiatedResults = await processStuckInitiatedSessions();
     console.log('🔓 Stuck-initiated recovery:', stuckInitiatedResults);
 
+    // bd-2508 follow-up: nudge teachers who paused a reflection to switch to
+    // another service. Only fires inside the 20:00-22:00 Asia/Karachi window.
+    const pausedResults = await processPausedCoachingReminders();
+    console.log('🌙 Paused-session reminders:', pausedResults);
+
     // bd-2378: purge old Soniox transcriptions + files so the account never
     // fills up (~2000) and starts failing every transcription. Best-effort —
     // never fails the cron.
@@ -100,6 +105,11 @@ async function processStaleCoachingSessions() {
       users!inner(first_name, phone_number)
     `)
     .eq('status', 'conducting_conversation')
+    // bd-2508 follow-up: `paused` is deliberately NOT included here. A paused
+    // session is intentionally idle (the teacher switched to another service), so
+    // the 12h auto-complete below would turn it into a partial report — the exact
+    // data loss the pause exists to prevent. Paused sessions are handled by
+    // processPausedCoachingReminders() instead.
     .order('created_at', { ascending: true });
 
   if (error) {
@@ -144,6 +154,101 @@ async function processStaleCoachingSessions() {
   }
 
   return { total: staleSessions?.length || 0, reminders, autoCompleted, skipped };
+}
+
+/**
+ * bd-2508 follow-up — evening nudge for PAUSED coaching sessions.
+ *
+ * A teacher who runs /video mid-reflection now gets asked first, and on YES the
+ * session goes to `paused` instead of `abandoned`. This is the other half of that
+ * promise: one nudge in the evening so the reflection actually gets finished.
+ *
+ * Window and window-checking live in coaching-pause.service.js so the handler,
+ * this worker, and the tests all agree on one definition (20:00-21:59
+ * Asia/Karachi). `evening_reminder_sent_at` guarantees exactly one ping per pause
+ * — it is a SEPARATE column from `reminder_sent_at`, which the 2h stale reminder
+ * above owns; sharing one would make either ping suppress the other.
+ *
+ * @returns {Promise<Object>} Counts, or a skip marker when outside the window
+ */
+async function processPausedCoachingReminders() {
+  const CoachingPauseService = require('../shared/services/coaching/coaching-pause.service');
+  const hour = CoachingPauseService.currentHourInTz();
+
+  if (!CoachingPauseService.isEveningWindow(hour)) {
+    return { skipped: 'outside evening window', hour };
+  }
+
+  const { data: paused, error } = await supabase
+    .from('coaching_sessions')
+    .select(`
+      id, user_id, conversation_state, paused_at, pause_reason,
+      users!inner(first_name, phone_number)
+    `)
+    .eq('status', 'paused')
+    .is('evening_reminder_sent_at', null);
+
+  if (error) {
+    throw new Error(`Failed to query paused sessions: ${error.message}`);
+  }
+
+  console.log(`🌙 Found ${paused?.length || 0} paused session(s) awaiting an evening nudge`);
+
+  let sent = 0;
+  let skipped = 0;
+
+  for (const session of paused || []) {
+    // Never interrupt a teacher who is mid-conversation right now.
+    if (await checkUserActivity(session.user_id)) {
+      console.log(`    ⏳ User active, skipping ${session.id.substring(0, 8)}...`);
+      skipped++;
+      continue;
+    }
+
+    const answered = CoachingPauseService.answeredCount(session);
+    const name = session.users?.first_name ? ` ${session.users.first_name}` : '';
+
+    try {
+      // Catalog string, substituted here — keeps the nudge translatable 1:1
+      // (tests/setup/no-hardcoded-coaching-strings.test.js).
+      const { getCoachingMessage } = require('../shared/config/coaching-messages');
+      const { getUserLanguage } = require('../shared/utils/language-cache');
+      let languageCode = 'en';
+      try {
+        languageCode = (await getUserLanguage(session.user_id)) || 'en';
+      } catch {
+        // Best-effort: an English nudge beats no nudge.
+      }
+
+      await WhatsAppService.sendMessage(
+        session.users.phone_number,
+        getCoachingMessage('pausedEveningReminder', languageCode)
+          .replace('{{name}}', name)
+          .replace(
+            '{{progress}}',
+            answered > 0 ? ` after ${answered} question${answered === 1 ? '' : 's'}` : ''
+          )
+      );
+
+      // Critical write kept on its own, per the cross-agent-safety rule about not
+      // bundling critical and best-effort columns in one update.
+      await supabase
+        .from('coaching_sessions')
+        .update({ evening_reminder_sent_at: new Date().toISOString() })
+        .eq('id', session.id);
+
+      sent++;
+      console.log(`    📨 Evening nudge sent for ${session.id.substring(0, 8)}...`);
+    } catch (err) {
+      // Best-effort: one teacher's failed nudge must never fail the cron.
+      logToFile('⚠️ Evening reminder failed (non-fatal)', {
+        coachingSessionId: session.id,
+        error: err.message,
+      });
+    }
+  }
+
+  return { total: paused?.length || 0, sent, skipped, hour };
 }
 
 /**
