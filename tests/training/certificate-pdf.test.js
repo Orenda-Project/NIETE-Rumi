@@ -99,8 +99,10 @@ function makeSupabase(certRows = []) {
 // A supabase whose level→vendor lookups resolve, so the vendor line has a value.
 function makeLookupSupabase() {
   const tables = {
-    training_levels: [{ id: 3, name: 'Aspiring Teacher', vendor_id: 'vend-1' }],
-    training_vendors: [{ id: 'vend-1', name: 'Institute of Teacher Education' }],
+    // Shaped like the real rows: training_levels carries cpd_level and
+    // training_vendors carries the `key` that selects the certificate template.
+    training_levels: [{ id: 3, name: 'Aspiring Teacher', vendor_id: 'vend-1', cpd_level: null }],
+    training_vendors: [{ id: 'vend-1', key: 'TALEEMABAD', name: 'Institute of Teacher Education' }],
     training_certificates: [],
   };
   return {
@@ -180,7 +182,7 @@ describe('certificatePdfKey — the shape the schema already documents', () => {
 });
 
 describe('renderCertificatePdf', () => {
-  it('returns a Buffer and puts name, level, vendor, code and date on the page', async () => {
+  it('returns a Buffer and puts name, level, issuer, code and date on the page', async () => {
     const buf = await svc.renderCertificatePdf({
       ...CERT,
       vendorName: 'Institute of Teacher Education',
@@ -190,9 +192,13 @@ describe('renderCertificatePdf', () => {
     const all = textCalls.join('\n');
     expect(all).toContain('Amina Khan');
     expect(all).toContain('Aspiring Teacher');
-    expect(all).toContain('Institute of Teacher Education');
     expect(all).toContain('PFX-20260802-A1B2C3');
     expect(all).toMatch(/2026/);
+    // The issuing organisation is named in the body sentence, matching the
+    // certificate this fork inherited. There is no generic "Content provider"
+    // line: each vendor's template names its own issuer, and which template
+    // runs is asserted in certificate-vendor-templates.test.js.
+    expect(all).toMatch(/National Institute of Excellence in Teacher Education/i);
   });
 
   it('renders a non-Latin teacher name in the registered Arabic-script font', async () => {
@@ -227,9 +233,14 @@ describe('generateAndStoreCertificatePdf', () => {
     expect(certUpdate.filters).toEqual({ certificate_code: 'PFX-20260802-A1B2C3' });
   });
 
-  it('puts the vendor name on the certificate by resolving level → vendor', async () => {
+  it('resolves level → vendor so the right vendor TEMPLATE is chosen', async () => {
+    // The lookup exists to pick a template, not to print a line: a vendor key
+    // resolved wrongly prints one party's accreditation on another's
+    // certificate. TALEEMABAD → the NIETE template.
     await svc.generateAndStoreCertificatePdf(makeLookupSupabase(), CERT);
-    expect(textCalls.join('\n')).toContain('Institute of Teacher Education');
+    const all = textCalls.join('\n');
+    expect(all).toMatch(/Aga Khan University/i);
+    expect(all).toContain('Sabeena Abbasi');
   });
 
   it('returns null (never throws, never persists) when rendering explodes', async () => {
