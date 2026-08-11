@@ -92,14 +92,6 @@ const FLOW_CONFIGS = [
     categories: ['OTHER'],
   },
   {
-    name: 'Pic-to-LP Confirm',
-    jsonPath: path.join(FLOWS_DIR, 'pic-lp-confirm-flow.json'),
-    type: 'endpoint',
-    endpointPath: '/api/flows/pic-lp',
-    envVar: 'PIC_LP_FLOW_ID',
-    categories: ['OTHER'],
-  },
-  {
     name: 'Quiz Manager',
     jsonPath: path.join(FLOWS_DIR, 'quiz-flow.json'),
     type: 'endpoint',

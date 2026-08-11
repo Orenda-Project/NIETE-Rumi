@@ -44,7 +44,6 @@ const FEM_3P_TEACHER = /وہ[^۔\n'"`]{0,50}?(چاہتی ہیں|کرتی ہیں|
 // instead, since their آپ is the assistant persona, not the teacher.)
 const TEACHER_FACING_FILES = [
   'handlers/image-message.handler.js',
-  'services/pic-to-lp/page-collector.service.js',
   'services/observe/observe-support-moves.js',
   'services/observe/observe-strings.js',
   'services/coaching/reflective-questions/guardrails.js',

@@ -126,14 +126,6 @@ might want to change, it tells you **where** the seam is, **what kind** of chang
   (Visual page layout is Gamma-owned — there is no in-repo template for the Gamma LP.)
 - **Conformance test:** `tests/textbook-lp-v2/lesson-plan-template.test.js`
 
-### The pic-to-LP illustrated lesson-plan design (layout, sections, typography, branding)
-- **Type:** `module` + `template`
-- **Seam:** [`bot/shared/services/pic-to-lp/kieai-prompt-builder.service.js`](../bot/shared/services/pic-to-lp/kieai-prompt-builder.service.js)
-  — the `SECTION_REGISTRY` (canonical section order), `structuralLabelsFor` (per-language labels), and the
-  `THEME` object (palette/fonts) are the three single sources of truth. Model routing is in
-  [`bot/shared/services/pic-to-lp/kieai-client.service.js`](../bot/shared/services/pic-to-lp/kieai-client.service.js).
-- **Conformance test:** `tests/pic-to-lp/section-registry.test.js`, `tests/pic-to-lp/flow-options-sync.test.js`
-
 ### Which LP path a request takes
 - **Type:** `config` (DB `region_features`)
 - **Seam:** [`docs/LP_PATHS.md`](LP_PATHS.md) documents the real routing; gating is the

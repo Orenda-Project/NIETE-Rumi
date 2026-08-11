@@ -38,7 +38,6 @@ const ENDPOINT_FLOWS = {
   HOMEWORK_FLOW_ID: { id: '333333', name: 'Homework Request', endpoint: '/api/flows/homework-request' },
   EDIT_CLASS_FLOW_ID: { id: '444444', name: 'Edit Class', endpoint: '/api/flows/edit-class' },
   STUDENT_VIDEOS_FLOW_ID: { id: '555555', name: 'Student Videos', endpoint: '/api/flows/student-videos' },
-  PIC_LP_FLOW_ID: { id: '666666', name: 'Pic-to-LP Confirm', endpoint: '/api/flows/pic-lp' },
   QUIZ_FLOW_ID: { id: '777777', name: 'Quiz Manager', endpoint: '/api/flows/quiz' },
   REGISTRATION_FLOW_ID: { id: '888888', name: 'Registration', endpoint: '/api/flows/registration' },
 };

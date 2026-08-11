@@ -79,7 +79,6 @@ const ENDPOINT_ONLY_FLOWS = [
   { name: 'Homework Request',  envVar: 'HOMEWORK_FLOW_ID',          endpoint: '/api/flows/homework-request' },
   { name: 'Edit Class',        envVar: 'EDIT_CLASS_FLOW_ID',        endpoint: '/api/flows/edit-class' },
   { name: 'Student Videos',    envVar: 'STUDENT_VIDEOS_FLOW_ID',    endpoint: '/api/flows/student-videos' },
-  { name: 'Pic-to-LP Confirm', envVar: 'PIC_LP_FLOW_ID',            endpoint: '/api/flows/pic-lp' },
   { name: 'Quiz Manager',      envVar: 'QUIZ_FLOW_ID',              endpoint: '/api/flows/quiz' },
   // Training multi-answer question. Listed here so a submission that reaches
   // handleFlowResponse (rather than the flowType switch in whatsapp-bot.js,

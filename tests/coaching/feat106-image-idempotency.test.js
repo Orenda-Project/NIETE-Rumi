@@ -78,12 +78,6 @@ function load() {
   jest.doMock('../../bot/shared/services/coaching/coaching-job-queue.service', () => mocks.jobQueue);
   jest.doMock('../../bot/shared/services/coaching/coaching-session.service', () => mocks.sessionSvc);
   jest.doMock('../../bot/shared/handlers/exam-checker.handler', () => mocks.examChecker);
-  // pic-to-LP deps (only reached if the lp-branch does NOT return early — the
-  // fix must ensure a redelivery returns before here):
-  jest.doMock('../../bot/shared/services/pic-to-lp/pic-lp-session.service', () => ({ getActiveSession: jest.fn().mockResolvedValue(null) }));
-  jest.doMock('../../bot/shared/services/pic-to-lp/page-collector.service', () => ({}));
-  jest.doMock('../../bot/shared/services/pic-to-lp/image-batch-coalescer.service', () => ({ enqueue: jest.fn() }));
-  jest.doMock('../../bot/shared/services/pic-to-lp/classifier.service', () => ({}));
 
   return require('../../bot/shared/handlers/image-message.handler');
 }

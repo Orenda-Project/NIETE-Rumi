@@ -380,15 +380,6 @@ class SQSCoachingWorker {
         await ExamGradingWorker.process(payload);
         break;
 
-      case 'pic_lp_kieai_generation': {
-        // Pic-to-LP via Kie.ai. English ~80s typical; Urdu/Sindhi/Punjabi
-        // ~4 min typical, up to 7 min at peak. 12-min extension covers both.
-        await SQSQueueService.extendJobTimeout(receiptHandle, 720); // 12 min
-        const PicLpKieaiWorker = require('./pic-lp-kieai.worker');
-        await PicLpKieaiWorker.process(payload);
-        break;
-      }
-
       case 'homework_bundle_generation': {
         // One job = one (grade × subject) group: R2 fetch + pdf-lib merge +
         // WhatsApp document send. 5-min extension covers a 12-chapter bundle.
