@@ -126,40 +126,21 @@ async function _openQuizManagerFlow(user, from, topic) {
   logToFile('✅ Quiz Manager Flow opened (post-confirmation)', { userId: user.id, topic });
 }
 
+// Class setup + roster editing were served by the attendance Flow endpoints,
+// which were torn out on 2026-08-10 for a ground-up rebuild (FEAT-110).
+// The Flow IDs are still published on the WABA, so sendFlow would still OPEN a
+// screen whose data-exchange endpoint no longer exists — the teacher would tap
+// into a dead form. Fail closed and say so until the rebuilt Flows land.
 async function _openAddClassFlow(user, from) {
-  const { ATTENDANCE_SETUP_FLOW_ID } = require('../../utils/constants');
-  if (!ATTENDANCE_SETUP_FLOW_ID) {
-    await WhatsAppService.sendMessage(from, "Sorry, class setup isn't available right now.");
-    return;
-  }
-  await WhatsAppService.sendFlow(from, {
-    flowId: ATTENDANCE_SETUP_FLOW_ID,
-    header: '📋 Add New Class',
-    body: "Let's set up your class so we can send the quiz to parents.",
-    buttonText: 'Add Class',
-    screen: 'CLASS_INFO',
-    flowToken: user.id
-  });
+  await WhatsAppService.sendMessage(from,
+    "I can't set up a class just yet — we're rebuilding that part and it'll be back shortly. "
+    + 'Your quiz is saved; ask me for it again once class setup is live.');
 }
 
 async function _openEditClassFlow(user, from, cls, focus) {
-  const { EDIT_CLASS_FLOW_ID } = require('../../utils/constants');
-  if (!EDIT_CLASS_FLOW_ID) {
-    await WhatsAppService.sendMessage(from, "Sorry, class editing isn't available right now.");
-    return;
-  }
-  const display = cls.section ? `${cls.class_name} - ${cls.section}` : cls.class_name;
-  await WhatsAppService.sendFlow(from, {
-    flowId: EDIT_CLASS_FLOW_ID,
-    header: '📋 Edit Class',
-    body: `Edit roster for ${display}`,
-    buttonText: 'Edit Class',
-    flowToken: `${user.id}:${cls.id}`
-  });
-  // Note: Edit Class flow opens on its own intro screen — the focus
-  // hint is recorded in the resume key for downstream visibility but
-  // doesn't change the flow itself today.
-  logToFile('📋 Edit Class flow opened (readiness gate)', { userId: user.id, classId: cls.id, focus });
+  await WhatsAppService.sendMessage(from,
+    "I can't edit that class list just yet — we're rebuilding that part and it'll be back shortly. "
+    + 'Your quiz is saved; ask me for it again once class editing is live.');
 }
 
 /**
@@ -345,5 +326,8 @@ module.exports = {
   _PENDING_INTENT_KEY: PENDING_INTENT_KEY,
   _PENDING_RESUME_KEY: PENDING_RESUME_KEY,
   _RESUME_TTL_SEC: RESUME_TTL_SEC,
-  _COPY: COPY
+  _COPY: COPY,
+  // Exposed so the teardown guard can assert these never open a torn-out Flow.
+  __testOpenAddClassFlow: _openAddClassFlow,
+  __testOpenEditClassFlow: _openEditClassFlow
 };

@@ -52,6 +52,14 @@ const FLOW_CONFIGS = [
     categories: ['OTHER'],
   },
   {
+    name: 'Edit Class',
+    jsonPath: path.join(FLOWS_DIR, 'edit-class-flow.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/edit-class',
+    envVar: 'EDIT_CLASS_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
     name: 'Settings',
     jsonPath: path.join(FLOWS_DIR, 'settings-flow.json'),
     type: 'endpoint',
@@ -73,14 +81,6 @@ const FLOW_CONFIGS = [
     type: 'endpoint',
     endpointPath: '/api/flows/homework-request',
     envVar: 'HOMEWORK_FLOW_ID',
-    categories: ['OTHER'],
-  },
-  {
-    name: 'Edit Class',
-    jsonPath: path.join(FLOWS_DIR, 'edit-class-flow.json'),
-    type: 'endpoint',
-    endpointPath: '/api/flows/edit-class',
-    envVar: 'EDIT_CLASS_FLOW_ID',
     categories: ['OTHER'],
   },
   {

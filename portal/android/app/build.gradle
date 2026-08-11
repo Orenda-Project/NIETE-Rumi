@@ -23,8 +23,8 @@ android {
         applicationId "pk.edu.niete"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1203
-        versionName "1203"
+        versionCode 1205
+        versionName "1205"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         // Default launcher label; the debug build type overrides it.
         manifestPlaceholders = [appLabel: "NIETE"]
@@ -83,9 +83,16 @@ android {
 // across a bump: versionCode 1203 produces `niete-rumi-v1203.aab`.
 //
 // `archivesName` (not the Gradle-9-removed `archivesBaseName`) sets the base;
-// the bundle task appends its build type, so the copy below lands the exact
-// name without a `-release` tail. The original app-release.aab is left in place
-// because tooling and CI conventionally look for it.
+// the bundle task then appends its build type, so Gradle's own output is
+// `niete-rumi-v<code>-release.aab`. The rename below drops that `-release`
+// tail to land the exact name.
+//
+// bd-2520: the rename MOVES rather than copies, so exactly ONE .aab survives.
+// It used to copy, leaving Gradle's `-release` name beside the versioned one —
+// two byte-identical files for a single artifact (verified at 1204: both
+// 6255617 bytes, same md5). Nothing in CI or any script looks for the
+// `-release` name, and keeping it was a foot-gun: `-release` denotes the build
+// TYPE, but reads as "the real one", so it invites uploading the wrong file.
 base {
     archivesName = "niete-rumi-v${android.defaultConfig.versionCode}"
 }
@@ -96,7 +103,7 @@ tasks.whenTaskAdded { task ->
             def outDir = file("${layout.buildDirectory.get()}/outputs/bundle/release")
             def versioned = new File(outDir, "niete-rumi-v${android.defaultConfig.versionCode}.aab")
             outDir.listFiles()?.findAll { it.name.endsWith('.aab') && it.name != versioned.name }?.each {
-                java.nio.file.Files.copy(
+                java.nio.file.Files.move(
                     it.toPath(), versioned.toPath(),
                     java.nio.file.StandardCopyOption.REPLACE_EXISTING
                 )

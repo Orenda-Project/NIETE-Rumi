@@ -24,6 +24,13 @@ module.exports = {
     // bot-only optional/native packages — use lightweight mocks for OSS test suite
     '^pino$': '<rootDir>/tests/__mocks__/pino.js',
     '^canvas$': '<rootDir>/tests/__mocks__/canvas.js',
+    // Same case, same fix: dotenv lives in bot/node_modules and pg in
+    // dashboard/node_modules, so every root suite that loads bot config or
+    // dashboard source died on an unresolved require rather than on anything
+    // it was actually asserting. Stubbing them also stops a developer's local
+    // .env from leaking into test expectations.
+    '^dotenv$': '<rootDir>/tests/__mocks__/dotenv.js',
+    '^pg$': '<rootDir>/tests/__mocks__/pg.js',
   },
   setupFiles: ['<rootDir>/tests/setup.js'],
   testEnvironment: 'node',

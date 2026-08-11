@@ -315,12 +315,75 @@ class FeatureRegistrationService {
     // If there are multiple words, take just the first one (first name)
     const words = name.split(/\s+/);
     if (words.length > 0 && words[0].length > 0) {
+      const candidate = words[0];
+
+      // A teacher who sends a command or a greeting while the name prompt is
+      // pending has NOT told us her name. Storing it anyway is how 15 users ended
+      // up called '/menu', '/training', 'Ok', 'Hi' and 'What' — verified against
+      // the legacy database, which holds their real names. Reject instead: the
+      // caller reports failure and re-prompts, leaving the existing name intact.
+      if (!FeatureRegistrationService.isPlausibleName(candidate, name)) {
+        return null;
+      }
+
       // Capitalize first letter
-      const firstName = words[0].charAt(0).toUpperCase() + words[0].slice(1).toLowerCase();
+      const firstName = candidate.charAt(0).toUpperCase() + candidate.slice(1).toLowerCase();
       return firstName;
     }
 
     return null;
+  }
+
+  /**
+   * Is this plausibly a person's name rather than a chat message?
+   *
+   * Deliberately conservative — a rejected real name costs one re-prompt, but an
+   * accepted command permanently overwrites the teacher's identity and swallows
+   * the command she meant to run. Whole-token matching only, so 'Noor', 'Yasmeen'
+   * and 'Oktai' are never caught by the 'no'/'ys'/'ok' entries.
+   *
+   * @param {string} candidate  the first token, as typed
+   * @param {string} full       the whole cleaned response (for multi-word phrases)
+   */
+  static isPlausibleName(candidate, full = '') {
+    if (!candidate) return false;
+
+    const token = candidate.toLowerCase();
+    const phrase = (full || '').trim().toLowerCase();
+
+    // A slash command is never a name.
+    if (candidate.startsWith('/')) return false;
+
+    // A URL or an @handle is never a name.
+    if (/^(https?:|www\.|@)/i.test(candidate)) return false;
+
+    // Must contain at least one letter — in ANY script, so Urdu/Arabic/Sindhi
+    // names pass while '123', '?' and '@#$' do not.
+    if (!/\p{L}/u.test(candidate)) return false;
+
+    // A single character is not a usable name.
+    if (candidate.replace(/[^\p{L}\p{N}]/gu, '').length < 2) return false;
+
+    // Greetings, acknowledgements and bot-menu words seen corrupting real rows.
+    const NOT_NAMES = new Set([
+      'ok', 'oky', 'okay', 'okey', 'k', 'yes', 'yeah', 'yep', 'no', 'nope', 'ys', 'nah',
+      'hi', 'hii', 'hello', 'helo', 'hey', 'salam', 'assalam', 'assalamualaikum', 'aoa',
+      'what', 'why', 'how', 'who', 'when', 'where', 'can', 'cant', 'cannot', 'dont', "don't",
+      'menu', 'help', 'start', 'stop', 'test', 'testing', 'done', 'thanks', 'thankyou', 'thx',
+      'sorry', 'whatever', 'give', 'make', 'send', 'please', 'plz', 'good', 'fine', 'sure',
+      'inflographic', 'madam', 'sir', 'teacher',
+    ]);
+    if (NOT_NAMES.has(token)) return false;
+
+    // Multi-word greetings ('thank you', 'assalam o alaikum') — the first token
+    // alone can look name-ish, so check the whole phrase too.
+    const NOT_NAME_PHRASES = new Set([
+      'thank you', 'thanks a lot', 'assalam o alaikum', 'assalam u alaikum',
+      'walaikum salam', 'how are you', 'what is this', 'madam,ms',
+    ]);
+    if (NOT_NAME_PHRASES.has(phrase.replace(/\s+/g, ' '))) return false;
+
+    return true;
   }
 
   /**

@@ -26,8 +26,6 @@ jest.mock('../../bot/shared/services/whatsapp.service', () => ({
 }));
 jest.mock('../../bot/shared/services/reading/passage-generation.service', () => ({}));
 jest.mock('../../bot/shared/services/reading/auto-level-orchestrator.service', () => ({}));
-jest.mock('../../bot/shared/handlers/attendance-flow.handler', () => ({}));
-jest.mock('../../bot/shared/services/attendance-delivery.service', () => ({}));
 
 const mockLogSpy = jest.fn();
 jest.mock('../../bot/shared/utils/logger', () => ({

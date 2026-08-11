@@ -16,6 +16,7 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { OPENAI_API_KEY } = require('../../utils/constants');
 const { getUserLanguage } = require('../../utils/language-cache');
+const { clampLanguage } = require('../../config/ux-strings');
 
 class CoachingHelpersService {
   /**
@@ -77,25 +78,35 @@ class CoachingHelpersService {
     try {
       const preferred = await getUserLanguage(userId);
       if (preferred) return CoachingHelpersService.clampCoachingLanguage(preferred);
-      // No stored preference — fall back to the transcript language, then Urdu.
-      return CoachingHelpersService.clampCoachingLanguage(transcriptLanguage || 'ur');
+      // Kept for the signature's sake, but note getUserLanguage never returns a
+      // falsy value — it answers with the emergency floor on every failure path —
+      // so this line is effectively unreachable in production and only the tests
+      // (which stub the reader to null) exercise it. It is clamped anyway: an
+      // unclamped transcript language is exactly how an off-market code used to
+      // reach a report.
+      return CoachingHelpersService.clampCoachingLanguage(transcriptLanguage);
     } catch (error) {
-      logToFile('Warning: Could not determine output language, defaulting to Urdu', {
+      logToFile('Warning: Could not determine output language, using the floor', {
         error: error.message,
+        floor: clampLanguage(null),
       });
-      return 'ur';
+      return clampLanguage(null);
     }
   }
 
   /**
-   * Clamp a language code to one the coaching report + TTS can render. Anything
-   * outside this set (e.g. a regional PK code, or a language the teacher wrote in
-   * once) collapses to Urdu — the deliberate floor for this market.
+   * Clamp a language code to one the coaching report + TTS can render.
+   *
+   * Was its own four-language set (`en, ur, sw, ar`) with an Urdu floor — a
+   * private list, and a second disagreeing floor. Both are now the deployment's:
+   * only what ICT serves, and the same English floor as every other surface.
+   *
+   * Kiswahili and Arabic were never renderable here in any case — no coaching
+   * copy, TTS voice or report font exists for either in this deployment, so the
+   * set was advertising capability it did not have.
    */
   static clampCoachingLanguage(lang) {
-    const SUPPORTED = new Set(['en', 'ur', 'sw', 'ar']);
-    const code = String(lang || '').trim();
-    return SUPPORTED.has(code) ? code : 'ur';
+    return clampLanguage(lang);
   }
 
   /**

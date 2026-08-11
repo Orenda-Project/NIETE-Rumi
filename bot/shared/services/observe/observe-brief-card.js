@@ -22,10 +22,12 @@
  *  - all copy catalog-routed (en/ur/sw/ar).
  */
 
-// NIETE adaptation (bd-2430): no ux-strings catalog exists in this repo. The
-// market is ur/en (Rule 20/bd-2405 — never Kiswahili on a NIETE surface), so
-// language resolution clamps locally. The sw/ar strings below are kept verbatim
-// from upstream for diff-parity but are unreachable.
+const { clampLanguage } = require('../../config/ux-strings');
+
+// NIETE adaptation (bd-2430): the market is ur/en (Rule 20/bd-2405 — never
+// Kiswahili on a NIETE surface). This used to clamp locally because no catalog
+// existed; it now uses the shared clamp. The sw/ar strings below are kept
+// verbatim from upstream for diff-parity but are unreachable.
 
 // The 3-tier HOTS band (official PESRP/PECTAA scale — Emerging/Developing/
 // Proficient; there is NO "Excellent"). Authored in all four catalog languages.
@@ -108,7 +110,7 @@ const BRIEF_STRINGS = {
 
 function resolveLang(teacher) {
   const lang = (teacher && teacher.preferred_language) || 'en';
-  return lang === 'ur' ? 'ur' : 'en'; // NIETE market clamp (ur/en, English floor)
+  return clampLanguage(lang); // NIETE market clamp (ur/en, English floor)
 }
 
 function s(key, lang) {

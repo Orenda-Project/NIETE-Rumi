@@ -5,9 +5,11 @@
 > | Fact | Value |
 > |---|---|
 > | **Full name** | National Institute for Excellence in Teacher Education (NIETE), Islamabad |
-> | **WhatsApp** | `+92 320 6281951` (Meta App `2052724122329740`, Mudareb-adopted) |
-> | **Env** | `NIETE-Rumi/.env` — has its own `PHONE_NUMBER_ID` + `WHATSAPP_TOKEN` |
+> | **WhatsApp (prod)** | `+92 320 6281951` (Meta App `2052724122329740`, Mudareb-adopted) |
+> | **WhatsApp (staging)** | `+92 322 2482222` (Meta App `4509630046027431`, added 2026-08-03) |
+> | **Env** | `NIETE-Rumi/.env` for prod; staging creds in project-root `01_Digital Coach Docs/03_ACCESS_CREDENTIALS.md` |
 > | **Docs** | `NIETE-Rumi/docs/migration/` (00 through 08) |
+> | **Branches (Gitflow)** | `main` → prod · `develop` → staging · feature branches → PR into `develop`. **No cherry-picking** — staging must promote to prod via `develop → main` PR only. |
 > | **Status** | 🟢 LIVE — Feature #1 (LP via UGLP) proven E2E, other features being ported |
 >
 > **NOT the same as:**

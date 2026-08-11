@@ -43,7 +43,7 @@ const App = () => {
     document.documentElement.setAttribute('lang', currentLang);
 
     // Set direction for RTL languages
-    if (currentLang === 'ar' || currentLang === 'ur') {
+    if (currentLang === 'ur') {
       document.documentElement.setAttribute('dir', 'rtl');
     } else {
       document.documentElement.setAttribute('dir', 'ltr');

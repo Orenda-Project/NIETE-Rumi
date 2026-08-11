@@ -1,41 +1,135 @@
 {
-  "_comment": "WhatsApp Flow for Attendance Marking - Tap to Mark Absent Students",
+  "_comment": "WhatsApp Flow — mark attendance by exception. Serves BOTH actors: a teacher marking students and a principal marking teachers. Same screens, same interaction; only the subject differs, supplied by the endpoint.",
   "_instructions": [
-    "1. Copy this JSON to Meta Business Manager > WhatsApp Manager > Flows",
-    "2. Flow ID (staging): [TO BE ASSIGNED]",
-    "3. Flow ID (production): [TO BE ASSIGNED]",
-    "4. IMPORTANT: Update the flow in Meta Business Manager - this file is just reference",
-    "5. Screen 1 (MARK_ABSENT): CheckboxGroup to select absent students",
-    "6. The student list is populated dynamically by the data_api_version endpoint"
+    "1. Registered automatically by `npm run setup:flows` (flow-configs.js → 'Attendance Marking').",
+    "2. The resulting Flow ID is written to ATTENDANCE_MARKING_FLOW_ID in your .env.",
+    "3. Endpoint (data_api_version 3.0, encrypted): POST /api/flows/attendance-marking.",
+    "4. The roster is populated dynamically by the endpoint's INIT. Modelled on the proven dynamic-list data_exchange pattern also used by exam-checker-confirm-students-flow.json."
   ],
   "_notes": [
-    "WhatsApp CheckboxGroup can display 40+ items",
-    "Students marked as absent - unmarked students are present",
-    "Uses init_data for dynamic student list from bot"
+    "MARK BY EXCEPTION. The teacher taps only who is AWAY; everyone untapped is present. A 30-student class is two taps, and the screen says so rather than leaving it to be discovered.",
+    "A CheckboxGroup is required here, not an interactive list: WhatsApp caps list messages at 10 rows (whatsapp.service.js) and a real class is 30-225 students.",
+    "Absent and on-leave are SEPARATE CheckboxGroups rather than a per-student picker — two taps for the common case, and it keeps 'leave' a first-class status instead of collapsing it into absent.",
+    "leave_type is asked on its own screen, and ONLY when at least one person is on leave, so the common path never sees it.",
+    "CONFIRM names the people being marked before the write. The previous principal channel took typed coordinates like '2,5,6L' and never named anyone back — one typo silently marked the wrong colleague absent."
   ],
-  "version": "6.2",
+  "version": "6.3",
   "data_api_version": "3.0",
-  "routing_model": {},
+  "routing_model": {
+    "MARK": [
+      "LEAVE_TYPE",
+      "CONFIRM"
+    ],
+    "LEAVE_TYPE": [
+      "CONFIRM"
+    ],
+    "CONFIRM": [
+      "SAVED"
+    ],
+    "SAVED": []
+  },
   "screens": [
     {
-      "id": "MARK_ABSENT",
-      "title": "Mark Attendance",
-      "terminal": true,
-      "refresh_on_back": true,
+      "id": "MARK",
+      "title": "Mark attendance",
       "data": {
-        "class_name": {
+        "heading": {
           "type": "string",
-          "__example__": "Grade 4 - B"
+          "__example__": "Grade 5 - A · Mon 10 Aug"
         },
-        "date_display": {
+        "subject_note": {
           "type": "string",
-          "__example__": "Friday, 24 January 2026"
+          "__example__": "Tap only the students who are away. Everyone else is marked present."
         },
-        "session_type": {
+        "roster": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "s1",
+              "title": "Ahmed Raza",
+              "description": "Roll 4"
+            },
+            {
+              "id": "s2",
+              "title": "Ayesha Bibi",
+              "description": "Roll 7"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "mark_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.subject_note}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "absent",
+                "label": "Absent",
+                "required": false,
+                "data-source": "${data.roster}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "on_leave",
+                "label": "On leave",
+                "required": false,
+                "data-source": "${data.roster}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "MARK",
+                    "absent": "${form.absent}",
+                    "on_leave": "${form.on_leave}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "LEAVE_TYPE",
+      "title": "Type of leave",
+      "data": {
+        "heading": {
           "type": "string",
-          "__example__": "Session: Morning"
+          "__example__": "1 person on leave"
         },
-        "students": {
+        "names": {
+          "type": "string",
+          "__example__": "Hamza Ali"
+        },
+        "leave_types": {
           "type": "array",
           "items": {
             "type": "object",
@@ -50,16 +144,16 @@
           },
           "__example__": [
             {
-              "id": "uuid-1",
-              "title": "1. Zara Abdul Ghaffar"
+              "id": "casual",
+              "title": "Casual"
             },
             {
-              "id": "uuid-2",
-              "title": "2. Ahmed Hassan"
+              "id": "sick",
+              "title": "Sick"
             },
             {
-              "id": "uuid-3",
-              "title": "3. Fatima Ali"
+              "id": "official",
+              "title": "Official duty"
             }
           ]
         }
@@ -69,48 +163,135 @@
         "children": [
           {
             "type": "Form",
-            "name": "marking_form",
+            "name": "leave_form",
             "children": [
               {
                 "type": "TextHeading",
-                "text": "${data.class_name}"
+                "text": "${data.heading}"
               },
               {
                 "type": "TextBody",
-                "text": "${data.date_display}"
+                "text": "${data.names}"
               },
               {
-                "type": "TextBody",
-                "text": "${data.session_type}"
-              },
-              {
-                "type": "TextSubheading",
-                "text": "Select ABSENT students:"
-              },
-              {
-                "type": "TextBody",
-                "text": "Students not selected will be marked PRESENT"
-              },
-              {
-                "type": "CheckboxGroup",
-                "name": "absent_students",
-                "label": "Absent Students",
-                "required": false,
-                "data-source": "${data.students}",
-                "min-selected-items": 0,
-                "max-selected-items": 50
+                "type": "RadioButtonsGroup",
+                "name": "leave_type",
+                "label": "Type of leave",
+                "required": true,
+                "data-source": "${data.leave_types}"
               },
               {
                 "type": "Footer",
-                "label": "Submit Attendance",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "LEAVE_TYPE",
+                    "leave_type": "${form.leave_type}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "CONFIRM",
+      "title": "Confirm",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "25 present · 2 absent · 1 on leave"
+        },
+        "detail": {
+          "type": "string",
+          "__example__": "Absent: Ahmed Raza, Bilal Hussain\nOn leave (casual): Hamza Ali"
+        },
+        "overwrite_note": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "confirm_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.detail}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.overwrite_note}"
+              },
+              {
+                "type": "Footer",
+                "label": "Save attendance",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "CONFIRM",
+                    "confirm": "save"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SAVED",
+      "title": "Saved",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Saved · 25 present · 2 absent · 1 on leave"
+        },
+        "detail": {
+          "type": "string",
+          "__example__": "Thank you — that is today done."
+        },
+        "overwrite_note": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "saved_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.detail}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.overwrite_note}"
+              },
+              {
+                "type": "Footer",
+                "label": "Done",
                 "on-click-action": {
                   "name": "complete",
-                  "payload": {
-                    "absent_students": "${form.absent_students}",
-                    "class_name": "${data.class_name}",
-                    "date_display": "${data.date_display}",
-                    "session_type": "${data.session_type}"
-                  }
+                  "payload": {}
                 }
               }
             ]

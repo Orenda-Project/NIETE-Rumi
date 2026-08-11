@@ -24,6 +24,7 @@ const { orderTeachers, classify } = require('./prioritise');
 const { loadTrendData } = require('../../coaching/coaching-trend.service');
 const { buildMoves, openingTips, KNOWN_AREAS } = require('../observe-support-moves');
 const { logToFile } = require('../../../utils/logger');
+const { clampLanguage } = require('../../../config/ux-strings');
 
 // Leader-facing area labels (FIX 2 — the brief is read by the LEADER, so
 // strength/growth labels resolve in the LEADER'S language, not the teacher's).
@@ -45,7 +46,7 @@ const AREA_LABEL = {
 };
 
 function areaLabel(key, lang) {
-  const l = lang === 'ur' ? 'ur' : 'en'; // NIETE market clamp
+  const l = clampLanguage(lang); // NIETE market clamp
   const e = AREA_LABEL[key];
   return e ? (e[l] || e.en) : null;
 }

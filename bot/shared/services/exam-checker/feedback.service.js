@@ -15,6 +15,7 @@
  */
 
 const { logToFile } = require('../../utils/logger');
+const { clampLanguage } = require('../../config/ux-strings');
 
 class FeedbackService {
   // Feedback templates by performance tier and language
@@ -149,7 +150,7 @@ class FeedbackService {
 
     const percentage = maxMarks > 0 ? (awarded / maxMarks) * 100 : 0;
     const tier = this._getTier(percentage);
-    const lang = language === 'ur' ? 'ur' : 'en';
+    const lang = clampLanguage(language);
 
     // Feed Up: What was the learning goal?
     const feedUp = this._generateFeedUp(question, learningObjective, lang);
@@ -181,7 +182,7 @@ class FeedbackService {
       };
     }
 
-    const lang = language === 'ur' ? 'ur' : 'en';
+    const lang = clampLanguage(language);
 
     const totalAwarded = questionResults.reduce((sum, r) => sum + (r.marksAwarded || r.awarded || 0), 0);
     const totalMax = questionResults.reduce((sum, r) => sum + (r.maxMarks || r.max || 0), 0);

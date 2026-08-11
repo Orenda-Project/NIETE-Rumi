@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { isValidPkMobile, PK_MOBILE_HINT } from '../lib/phone';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,7 +10,11 @@ import nieteLogo from '@/assets/niete-logo.png';
 import { ArrowLeft } from 'lucide-react';
 
 const PortalPasswordReset = () => {
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const location = useLocation();
+  // bd-2512: seeded from the login screen when the user came via "Forgot
+  // password?". Editable — a pre-fill is a default, not a lock — and empty
+  // when this page is opened directly.
+  const [phoneNumber, setPhoneNumber] = useState(location.state?.phoneNumber ?? '');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -21,6 +26,17 @@ const PortalPasswordReset = () => {
       toast({
         title: "Phone Number Required",
         description: "Please enter your phone number",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // bd-2511: catch a dropped digit here rather than letting the lookup miss
+    // and report the account as non-existent.
+    if (!isValidPkMobile(phoneNumber)) {
+      toast({
+        title: "Check the phone number",
+        description: PK_MOBILE_HINT,
         variant: "destructive"
       });
       return;
@@ -69,14 +85,14 @@ const PortalPasswordReset = () => {
               <Input
                 id="phoneNumber"
                 type="tel"
-                placeholder="923001234567"
+                placeholder="03XX XXXXXXX"
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
                 disabled={loading}
                 className="mt-1"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Include country code (e.g., 92 for Pakistan)
+                e.g. 0336 1234567
               </p>
             </div>
 

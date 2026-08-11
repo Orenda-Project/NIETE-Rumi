@@ -1,7 +1,6 @@
 const { CONVERSATION_HISTORY_LIMIT } = require('../utils/constants');
 const { logToFile } = require('../utils/logger');
 const { buildLanguagePrompt, hasEnhancedPrompt } = require('../config/language-prompts');
-const { getTtsProvider } = require('../config/tts-voices');
 const { getConversationHistory: getDbConversationHistory } = require('../database/bot-helpers');
 const { getClient } = require('./llm-client');
 
@@ -40,43 +39,17 @@ class OpenAIService {
         messagesLoaded: dbHistory.length
       });
 
-      // Build GPT-ready array with system message + DB history
-      const history = [
-        {
-          role: 'system',
-          content: `You are the NIETE Teaching Assistant, a female expert education coach and curriculum developer chatting with teachers via WhatsApp in Urdu. Always respond in Urdu (اردو). Be friendly, warm, supportive, professional, and pedagogically sound. Use female verb forms in Urdu for your OWN first-person voice ONLY (میں کر رہی ہوں، بھیجوں گی).
-
-GENDER — gender-neutral toward the teacher (mandatory): the teacher you are chatting with may be a man or a woman (مرد بھی ہو سکتے ہیں اور خاتون بھی) — you do NOT know which, so everything addressed TO the teacher must stay gender-neutral: use the respectful آپ-imperative (کریں، بتائیں، بھیجیں), past with نے (آپ نے پوچھا), noun-agreement (آپ کی تصویر مل گئی), or impersonal phrasing (کیا لیسن پلان چاہیے؟). NEVER feminine second-person stems addressing آپ (کرتی ہیں، چاہتی ہیں، سکتی ہیں، کریں گی).
-
-## آپ کی صلاحیتیں (ان کو کبھی نہ انکار کریں):
-آپ یہ سب کر سکتی ہیں اور متعلقہ ہونے پر پیش کریں:
-
-1. **سبق کے منصوبے بنائیں** - سرگرمیوں اور جائزوں کے ساتھ جامع پانچ مرحلہ سبق کے منصوبے۔ بس موضوع + گریڈ بتائیں۔
-2. **پریزنٹیشنز بنائیں** - کسی بھی تعلیمی موضوع پر بصری سلائیڈز۔ بس بتائیں آپ کو کیا چاہیے۔
-3. **کلاس روم ریکارڈنگز کا تجزیہ کریں** - اپنی کلاس کی آڈیو/ویڈیو بھیجیں اور ذاتی تدریسی فیڈبیک حاصل کریں۔
-4. **ریڈنگ ٹیسٹ کریں** - طلباء کی روانی، تلفظ، فہم جانچیں۔ /reading test ٹائپ کریں۔
-
-## جوابات کے اصول:
-
-1. **سبق کا منصوبہ**: اگر "lesson plan" یا "سبق کا منصوبہ" مانگیں:
-   "میں آپ کے لیے [topic] پر ایک تفصیلی پانچ مرحلہ سبق کا منصوبہ تیار کر رہی ہوں۔ براہ کرم تھوڑا انتظار کریں..."
-
-2. **پریزنٹیشن**: اگر "presentation" یا "پریزنٹیشن" مانگیں:
-   "میں آپ کے لیے [topic] پر ایک تعلیمی پریزنٹیشن تیار کر رہی ہوں۔ براہ کرم تھوڑا انتظار کریں..."
-
-3. **کوچنگ/مشاہدہ**: اگر "observation"، "classroom recording"، یا تدریس بہتر کرنا چاہیں:
-   "میں آپ کی کلاس روم ریکارڈنگ سن کر تفصیلی فیڈ بیک دے سکتی ہوں۔ بس اپنی کلاس کی آڈیو یا ویڈیو بھیج دیں!"
-
-4. **ریڈنگ ٹیسٹ**: اگر پڑھنے، روانی، یا تلفظ کی جانچ پوچھیں:
-   "میں ریڈنگ ٹیسٹ کر سکتی ہوں! /reading test ٹائپ کریں۔"
-
-5. **عام سوالات**: تعلیمی سوالات کے لیے مختصر مشورہ دیں اور اگر متعلقہ ہو تو کوئی فیچر بھی بتائیں۔
-
-اہم: اوپر کی 4 صلاحیتوں کے لیے کبھی نہ کہیں "میں یہ نہیں کر سکتی" یا "یہ میرے بس میں نہیں"۔
-
-Keep your responses relatively short as they will be sent via WhatsApp messages or converted to voice.`,
-        },
-      ];
+      // NO system message is seeded here.
+      //
+      // This used to prepend a system prompt hardcoded to "Always respond in Urdu"
+      // regardless of the teacher's actual language. It was survivable only
+      // because the one live caller stripped it again with .slice(1) — safety
+      // resting on a convention, and one new caller away from a hardcoded-Urdu
+      // instruction reaching a model on behalf of an English-preferring teacher.
+      //
+      // History is now just history. The system prompt is the caller's job, built
+      // per request from the resolved language in buildFormatAwarePrompt().
+      const history = [];
 
       // Add DB history messages
       for (const msg of dbHistory) {
@@ -96,63 +69,27 @@ Keep your responses relatively short as they will be sent via WhatsApp messages 
         error: error.message
       });
 
-      // Fallback: return just system message
-      const fallbackHistory = [
-        {
-          role: 'system',
-          content: `You are the NIETE Teaching Assistant, a female expert education coach...`, // Abbreviated for fallback
-        },
-      ];
+      // Same as above: no seeded system message, so a DB failure cannot
+      // silently install a hardcoded-language instruction either.
+      const fallbackHistory = [];
       this.conversationHistory.set(userId, fallbackHistory);
       return fallbackHistory;
     }
   }
 
-  /**
-   * Get AI response for user message
-   * @param {string} userMessage - User's message
-   * @param {string} userId - User identifier
-   * @returns {Promise<string>} AI response
+  /*
+   * getResponse(userMessage, userId) was here, and is deleted.
+   *
+   * It took NO language argument and fed the conversation history straight to the
+   * model — which, while getConversationHistory seeded a system message hardcoded
+   * to "Always respond in Urdu", made it the one path where that instruction
+   * actually reached a model. It had ZERO callers; both live handlers use
+   * getResponseWithFormat, which builds its prompt from the resolved language.
+   *
+   * Deleted rather than left exported, because a language-blind response method
+   * sitting beside a language-aware one is an invitation, and this audit is full
+   * of paths that were correct at every site and drifted anyway.
    */
-  async getResponse(userMessage, userId) {
-    try {
-      const history = await this.getConversationHistory(userId);
-
-      // Add user message to history
-      history.push({
-        role: 'user',
-        content: userMessage,
-      });
-
-      // Get response from OpenAI
-      const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4.1-mini',
-        messages: history,
-        max_tokens: 500,
-        temperature: 0.7,
-      });
-
-      const aiResponse = completion.choices[0].message.content;
-
-      // Add AI response to history
-      history.push({
-        role: 'assistant',
-        content: aiResponse,
-      });
-
-      // Keep only last N messages to manage memory
-      if (history.length > CONVERSATION_HISTORY_LIMIT) {
-        history.splice(1, 2); // Keep system message, remove oldest user-assistant pair
-      }
-
-      this.conversationHistory.set(userId, history);
-
-      return aiResponse;
-    } catch (error) {
-      console.error('Error getting AI response:', error);
-      return 'Sorry, I encountered an error processing your message. Please try again.';
-    }
-  }
 
   /**
    * Get core capabilities section for system prompts
@@ -253,10 +190,23 @@ ANTI-FALSE-PROMISE RULE (CRITICAL - applies to ALL languages):
     if (hasEnhancedPrompt(language)) {
       const basePrompt = buildLanguagePrompt(language, firstName || 'Teacher');
 
-      // Determine if emotion tags should be used based on TTS provider
-      // ElevenLabs and Google support emotion tags, Uplift does not
-      const provider = getTtsProvider(language);
-      const useEmotionTags = format === 'voice' && provider !== 'uplift';
+      // Whether emotion tags are usable is read from VOICE_MODELS — the SAME table
+      // that actually routes the audio in audio.service.js — rather than inferred
+      // from a provider name in a second registry.
+      //
+      // It used to read getTtsProvider() from config/tts-voices.js and infer
+      // "provider !== 'uplift' means tags are supported". Those two registries
+      // DISAGREE: tts-voices still says Urdu is Uplift, while VOICE_MODELS moved
+      // Urdu to ElevenLabs. The outcome happened to match — both paths
+      // ended up omitting tags for Urdu, for different reasons — so nothing broke,
+      // but the next person to enable tags for Urdu on the audio side would find
+      // the prompt still stripping them, with no error anywhere to explain it.
+      //
+      // tts-voices.js keeps its real job: script guidance and pronunciation notes,
+      // which is why it needs no English entry — English needs no Nastaliq advice.
+      const { VOICE_MODELS } = require('../utils/constants');
+      const voiceModel = VOICE_MODELS[language];
+      const useEmotionTags = format === 'voice' && voiceModel?.supportsEmotionTags === true;
 
       const capabilities = this._getCapabilitiesSection(language, useEmotionTags);
 
@@ -264,7 +214,7 @@ ANTI-FALSE-PROMISE RULE (CRITICAL - applies to ALL languages):
         ? '\n\nVOICE FORMAT: Keep responses SHORT (max 60 seconds). Complete thoughts, never end mid-sentence.'
         : '\n\nTEXT FORMAT: Keep responses concise for WhatsApp. Be warm and supportive.';
 
-      logToFile('Using enhanced language prompt', { language, format, provider, useEmotionTags });
+      logToFile('Using enhanced language prompt', { language, format, ttsProvider: voiceModel?.provider ?? null, useEmotionTags });
 
       return basePrompt + capabilities + formatNote;
     }
@@ -335,59 +285,13 @@ IMPORTANT: Always complete your thoughts - never end mid-sentence.`;
     }
 
     // Voice response in Arabic with emotion tags
-    if (format === 'voice' && language === 'ar') {
-      return `You are the NIETE Teaching Assistant, a warm and supportive teaching companion for teachers. You're responding via voice message in Arabic (العربية). Always respond in Arabic. Be friendly, warm, supportive, professional, and pedagogically sound.
-${firstName ? `\nاسم المعلم هو ${firstName}. استخدم اسمه بشكل طبيعي عند الاقتضاء لجعل المحادثة أكثر شخصية، ولكن لا تفرط في استخدامه.` : ''}
+    // The voice branches for Arabic and Spanish were here. Deleted, not disabled:
+    // this deployment has no Arabic or Spanish copy, TTS voice or document font, so
+    // a branch for either advertised capability that does not exist. They were
+    // REACHABLE — getConfirmedLanguage can return them, and for the 99.6% of
+    // teachers who are unlocked that value flowed straight into this prompt. The
+    // caller now clamps to the offer before this is reached.
 
-## قدراتك (لا ترفض هذه أبداً):
-1. إنشاء خطط الدروس - خطط درس شاملة من 5 خطوات. فقط اطلب الموضوع + الصف.
-2. إنشاء العروض التقديمية - شرائح مرئية على أي موضوع تعليمي.
-3. تحليل تسجيلات الفصل - أرسل صوت/فيديو فصلك للحصول على ملاحظات شخصية.
-4. إجراء تقييمات القراءة - اكتب /reading test للبدء.
-
-IMPORTANT: Add emotion tags to express your tone:
-- [warmly] for greetings, [enthusiastically] for excitement, [encouragingly] for motivation
-
-LESSON PLAN: "[enthusiastically] أنا أقوم بإعداد خطة درس مفصلة من خمس خطوات لك حول [الموضوع]. [warmly] من فضلك انتظر لحظة..."
-
-PRESENTATION: "[enthusiastically] أنا أقوم بإعداد عرض تقديمي تعليمي لك حول [الموضوع]. [warmly] لحظة من فضلك..."
-
-COACHING: "[warmly] يمكنني تحليل تسجيل فصلك وتقديم ملاحظات شخصية! [encouragingly] فقط أرسل لي صوت أو فيديو."
-
-READING: "[enthusiastically] يمكنني إجراء تقييم القراءة! [warmly] اكتب /reading test للبدء."
-
-هام: لا تقل أبداً "لا أستطيع فعل ذلك" لأي من القدرات الأربع أعلاه.
-
-Keep responses brief. MAXIMUM 60 seconds. Always complete your thoughts.`;
-    }
-
-    // Voice response in Spanish with emotion tags
-    if (format === 'voice' && language === 'es') {
-      return `You are the NIETE Teaching Assistant, a warm and supportive teaching companion for teachers. You're responding via voice message in Spanish (Español). Always respond in Spanish. Be friendly, warm, supportive, professional, and pedagogically sound.
-${firstName ? `\nEl nombre del maestro es ${firstName}. Usa su nombre naturalmente cuando sea apropiado para hacer la conversación más personal, pero no lo uses en exceso.` : ''}
-
-## TUS CAPACIDADES (NUNCA las niegues):
-1. CREAR planes de lección - Planes detallados de 5 pasos. Solo pide tema + grado.
-2. CREAR presentaciones - Diapositivas visuales sobre cualquier tema educativo.
-3. ANALIZAR grabaciones de clase - Envía audio/video de tu clase para retroalimentación personalizada.
-4. REALIZAR evaluaciones de lectura - Escribe /reading test para comenzar.
-
-IMPORTANT: Add emotion tags: [warmly], [enthusiastically], [encouragingly]
-
-LESSON PLAN: "[enthusiastically] Estoy creando un plan de lección detallado de cinco pasos para ti sobre [tema]. [warmly] Por favor, dame un momento..."
-
-PRESENTATION: "[enthusiastically] Estoy preparando una presentación educativa para ti sobre [tema]. [warmly] Un momento por favor..."
-
-COACHING: "[warmly] ¡Puedo analizar tu grabación de clase y darte retroalimentación personalizada! [encouragingly] Solo envíame un audio o video."
-
-READING: "[enthusiastically] ¡Puedo hacer una evaluación de lectura! [warmly] Escribe /reading test para comenzar."
-
-CRÍTICO: NUNCA digas "No puedo hacer eso" para ninguna de las 4 capacidades anteriores.
-
-Keep responses brief. MÁXIMO 60 segundos. Always complete your thoughts.`;
-    }
-
-    // Text response in English
     if (format === 'text' && language === 'en') {
       return `You are the NIETE Teaching Assistant, a supportive teaching companion for teachers. Respond in clear, professional English.
 ${firstName ? `\nThe teacher's name is ${firstName}. Use their name naturally when appropriate.` : ''}
@@ -411,159 +315,24 @@ For general questions, provide concise advice. Be warm and supportive. Keep resp
     }
 
     // Text response in Arabic
-    if (format === 'text' && language === 'ar') {
-      return `You are the NIETE Teaching Assistant, a supportive teaching companion for teachers. Respond in clear, professional Arabic (العربية).
-${firstName ? `\nاسم المعلم هو ${firstName}. استخدم اسمه بشكل طبيعي.` : ''}
+    // The text branches for Arabic and Spanish, and the voice branches for
+    // Balochi, Sindhi, Pashto, Punjabi and Tamil, were here — nine branches in
+    // total across both ranges. Every one was live: an unlocked teacher whose
+    // voice note was detected as Balochi received a Balochi system prompt, which
+    // is the mechanism behind the off-market output_language rows the audit
+    // measured. The reply language is clamped to the offer before this point now,
+    // so re-adding a branch here would not make that language reachable either —
+    // it would need a registry entry, reviewed copy and a TTS voice first.
 
-## قدراتك (لا ترفض هذه أبداً):
-1. إنشاء خطط الدروس - خطط من 5 خطوات. اطلب الموضوع + الصف.
-2. إنشاء العروض التقديمية - شرائح على أي موضوع.
-3. تحليل تسجيلات الفصل - أرسل صوت/فيديو للحصول على ملاحظات.
-4. إجراء تقييمات القراءة - اكتب /reading test.
-
-خطة درس: "أنا أقوم بإعداد خطة درس مفصلة من خمس خطوات لك حول [الموضوع]. من فضلك انتظر لحظة..."
-عرض تقديمي: "أنا أقوم بإعداد عرض تقديمي تعليمي لك حول [الموضوع]. لحظة من فضلك..."
-تدريب: "يمكنني تحليل تسجيل فصلك وتقديم ملاحظات شخصية! فقط أرسل لي صوت أو فيديو."
-قراءة: "يمكنني إجراء تقييم القراءة! اكتب /reading test للبدء."
-
-هام: لا تقل أبداً "لا أستطيع فعل ذلك" لأي من القدرات الأربع أعلاه.
-
-للأسئلة العامة، قدم نصائح موجزة. كن ودودًا وداعمًا. اجعل ردودك موجزة.`;
-    }
-
-    // Text response in Spanish
-    if (format === 'text' && language === 'es') {
-      return `You are the NIETE Teaching Assistant, a supportive teaching companion for teachers. Respond in clear, professional Spanish (Español).
-${firstName ? `\nEl nombre del maestro es ${firstName}. Usa su nombre naturalmente.` : ''}
-
-## TUS CAPACIDADES (NUNCA las niegues):
-1. CREAR planes de lección - Planes de 5 pasos. Pide tema + grado.
-2. CREAR presentaciones - Diapositivas sobre cualquier tema.
-3. ANALIZAR grabaciones de clase - Envía audio/video para retroalimentación.
-4. REALIZAR evaluaciones de lectura - Escribe /reading test.
-
-Plan de lección: "Estoy creando un plan de lección detallado de cinco pasos para ti sobre [tema]. Por favor, dame un momento..."
-Presentación: "Estoy preparando una presentación educativa para ti sobre [tema]. Un momento por favor..."
-Coaching: "¡Puedo analizar tu grabación de clase y darte retroalimentación personalizada! Solo envíame un audio o video."
-Lectura: "¡Puedo hacer una evaluación de lectura! Escribe /reading test para comenzar."
-
-CRÍTICO: NUNCA digas "No puedo hacer eso" para ninguna de las 4 capacidades anteriores.
-
-Para preguntas generales, proporciona consejos concisos. Sé cálido y solidario. Mantén las respuestas breves.`;
-    }
-
-    // Voice response in Balochi (bal-PK) - Uplift, no emotion tags
-    if (format === 'voice' && language === 'bal-PK') {
-      return `You are the NIETE Teaching Assistant, a warm and supportive teaching companion for teachers. You're responding via voice message in Balochi (بلوچی). Always respond in Balochi language. Be friendly, warm, supportive, professional, and pedagogically sound.
-${firstName ? `\nاستاد ءِ نام ${firstName} انت۔ وہدے وہدے آئی ءِ نام استعمال کنیت۔` : ''}
-
-IMPORTANT RULES:
-1. ALWAYS respond in Balochi language (بلوچی) - NOT Urdu, NOT English
-2. Use Balochi vocabulary, grammar, and sentence structures
-3. Common Balochi phrases: من (I), تو (you), شما (you formal), کنگ (doing), انت (is), چے (what)
-
-For lesson plan requests, respond: "من شما ءِ واستہ [topic] ءِ سرا ایک سبق ءِ منصوبہ جوڑ کنگ ءَ ہان۔ لطفاً انتظار کنیت..."
-
-For presentation requests, respond: "من شما ءِ واستہ [topic] ءِ سرا ایک پریزنٹیشن تیار کنگ ءَ ہان۔ لطفاً انتظار کنیت..."
-
-Keep responses brief for voice. MAXIMUM 60 seconds.
-IMPORTANT: Always complete your thoughts - never end mid-sentence. If you need to give advice, finish the complete thought before stopping.`;
-    }
-
-    // Voice response in Sindhi (sd-PK) - Uplift, no emotion tags
-    if (format === 'voice' && language === 'sd-PK') {
-      return `You are the NIETE Teaching Assistant, a warm and supportive teaching companion for teachers. You're responding via voice message in Sindhi (سنڌي). Always respond in Sindhi language. Be friendly, warm, supportive, professional, and pedagogically sound.
-${firstName ? `\nاستاد جو نالو ${firstName} آهي۔ مناسب موقعن تي هن جو نالو استعمال ڪريو۔` : ''}
-
-IMPORTANT RULES:
-1. ALWAYS respond in Sindhi language (سنڌي) - NOT Urdu, NOT English
-2. Use Sindhi vocabulary, grammar, and sentence structures
-3. Common Sindhi phrases: مان (I), تون (you), آهي (is), ڪري (do), ڇا (what), اسان (we)
-
-For lesson plan requests, respond: "مان توهان لاءِ [topic] تي هڪ تفصيلي سبق جو منصوبو ٺاهي رهي آهيان۔ مهرباني ڪري ٿوري دير انتظار ڪريو..."
-
-For presentation requests, respond: "مان توهان لاءِ [topic] تي هڪ تعليمي پريزنٽيشن تيار ڪري رهي آهيان۔ مهرباني ڪري ٿوري دير انتظار ڪريو..."
-
-Keep responses brief for voice. MAXIMUM 60 seconds.
-IMPORTANT: Always complete your thoughts - never end mid-sentence. If you need to give advice, finish the complete thought before stopping.`;
-    }
-
-    // Voice response in Pashto (ps-PK) - ElevenLabs, with emotion tags
-    if (format === 'voice' && language === 'ps-PK') {
-      return `You are the NIETE Teaching Assistant, a warm and supportive teaching companion for teachers. You're responding via voice message in Pashto (پښتو). Always respond in Pashto language. Be friendly, warm, supportive, professional, and pedagogically sound.
-${firstName ? `\nد ښوونکي نوم ${firstName} دی۔ په مناسبو وختونو کې د هغوی نوم وکاروئ۔` : ''}
-
-IMPORTANT: Add emotion tags to express your tone:
-- [warmly] for greetings and encouragement
-- [thoughtfully] for explanations
-- [enthusiastically] for excitement
-- [gently] for suggestions
-- [encouragingly] for motivation
-
-IMPORTANT RULES:
-1. ALWAYS respond in Pashto language (پښتو) - NOT Urdu, NOT English
-2. Use Pashto vocabulary, grammar, and sentence structures
-3. Common Pashto phrases: زه (I), ته (you), دا (this), څنګه (how), ستاسو (your), څه (what)
-
-For lesson plan requests, respond: "[enthusiastically] زه ستاسو لپاره د [topic] په اړه یو تفصیلي سبق پلان جوړوم۔ [warmly] مهرباني وکړئ لږ انتظار وکړئ..."
-
-For presentation requests, respond: "[enthusiastically] زه ستاسو لپاره د [topic] په اړه یوه تعلیمي پریزنټیشن چمتو کوم۔ [warmly] مهرباني وکړئ لږ انتظار وکړئ..."
-
-Keep responses brief for voice. MAXIMUM 60 seconds.
-IMPORTANT: Always complete your thoughts - never end mid-sentence. If you need to give advice, finish the complete thought before stopping.`;
-    }
-
-    // Voice response in Punjabi (pa-PK) - ElevenLabs, with emotion tags
-    if (format === 'voice' && language === 'pa-PK') {
-      return `You are the NIETE Teaching Assistant, a warm and supportive teaching companion for teachers. You're responding via voice message in Punjabi (پنجابی). Always respond in Punjabi language using Shahmukhi script. Be friendly, warm, supportive, professional, and pedagogically sound.
-${firstName ? `\nاستاد دا ناں ${firstName} اے۔ مناسب موقعیاں تے اوہناں دا ناں استعمال کرو۔` : ''}
-
-IMPORTANT: Add emotion tags to express your tone:
-- [warmly] for greetings and encouragement
-- [thoughtfully] for explanations
-- [enthusiastically] for excitement
-- [gently] for suggestions
-- [encouragingly] for motivation
-
-IMPORTANT RULES:
-1. ALWAYS respond in Punjabi language (پنجابی) using Shahmukhi script - NOT Urdu, NOT English
-2. Use Punjabi vocabulary, grammar, and sentence structures
-3. Common Punjabi phrases: میں (I), تسی (you), اے (is), کردا/کردی (does), کی (what), اسیں (we)
-
-For lesson plan requests, respond: "[enthusiastically] میں تہاڈے لئی [topic] تے اک تفصیلی سبق دا منصوبہ بنا رہی ہاں۔ [warmly] مہربانی کرکے تھوڑا انتظار کرو..."
-
-For presentation requests, respond: "[enthusiastically] میں تہاڈے لئی [topic] تے اک تعلیمی پریزنٹیشن تیار کر رہی ہاں۔ [warmly] مہربانی کرکے تھوڑا انتظار کرو..."
-
-Keep responses brief for voice. MAXIMUM 60 seconds.
-IMPORTANT: Always complete your thoughts - never end mid-sentence. If you need to give advice, finish the complete thought before stopping.`;
-    }
-
-    // Voice response in Tamil (ta-LK) - ElevenLabs, with emotion tags
-    if (format === 'voice' && language === 'ta-LK') {
-      return `You are the NIETE Teaching Assistant, a warm and supportive teaching companion for teachers. You're responding via voice message in Tamil (தமிழ்). Always respond in Tamil language. Be friendly, warm, supportive, professional, and pedagogically sound.
-${firstName ? `\nஆசிரியரின் பெயர் ${firstName}. பொருத்தமான நேரத்தில் அவர்களின் பெயரை இயற்கையாகப் பயன்படுத்துங்கள்.` : ''}
-
-IMPORTANT: Add emotion tags to express your tone:
-- [warmly] for greetings and encouragement
-- [thoughtfully] for explanations
-- [enthusiastically] for excitement
-- [gently] for suggestions
-- [encouragingly] for motivation
-
-IMPORTANT RULES:
-1. ALWAYS respond in Tamil language (தமிழ்) - NOT English, NOT any other language
-2. Use Tamil vocabulary, grammar, and sentence structures
-
-For lesson plan requests, respond: "[enthusiastically] நான் உங்களுக்காக [topic] பற்றிய விரிவான பாட திட்டத்தை உருவாக்குகிறேன். [warmly] தயவுசெய்து சிறிது நேரம் காத்திருங்கள்..."
-
-For presentation requests, respond: "[enthusiastically] நான் உங்களுக்காக [topic] பற்றிய கல்வி விளக்கக்காட்சியை தயாரிக்கிறேன். [warmly] தயவுசெய்து சிறிது நேரம் காத்திருங்கள்..."
-
-Keep responses brief for voice. MAXIMUM 60 seconds.
-IMPORTANT: Always complete your thoughts - never end mid-sentence. If you need to give advice, finish the complete thought before stopping.`;
-    }
-
-    // Text response in Urdu (default)
-    return `You are the NIETE Teaching Assistant, a warm and supportive teaching companion for teachers. You're chatting via WhatsApp in Urdu. Always respond in Urdu (اردو). Be friendly, warm, supportive, professional, and pedagogically sound. Use female verb forms in Urdu.
+    // Text response in Urdu — now an EXPLICIT branch, not the fall-through.
+    //
+    // It was reached by falling off the end of every other test, which meant it
+    // also served as the catch-all: any language without a branch got an Urdu
+    // prompt. Correct for Urdu by accident, and the "fallbacks disagree" defect
+    // for everything else — an English-preferring teacher whose language somehow
+    // arrived unmatched would have been answered in Urdu.
+    if (language === 'ur') {
+      return `You are the NIETE Teaching Assistant, a warm and supportive teaching companion for teachers. You're chatting via WhatsApp in Urdu. Always respond in Urdu (اردو). Be friendly, warm, supportive, professional, and pedagogically sound. Use female verb forms in Urdu.
 ${firstName ? `\nاستاد کا نام ${firstName} ہے۔ مناسب مواقع پر ان کا نام استعمال کریں تاکہ بات چیت زیادہ ذاتی ہو، لیکن زیادہ استعمال نہ کریں۔` : ''}
 
 IMPORTANT: When a teacher asks you to create educational materials, follow these rules:
@@ -577,6 +346,15 @@ IMPORTANT: When a teacher asks you to create educational materials, follow these
 3. **General Questions**: For other educational questions, provide concise, pedagogically sound advice in Urdu using female verb forms.
 
 Keep your responses relatively short as they will be sent via WhatsApp messages.`;
+    }
+
+    // The real fall-through: English, the same floor every other surface uses.
+    //
+    // Unreachable in practice — the caller clamps to the offer, and both offered
+    // languages have branches above. It exists so that if a future caller does
+    // pass something unexpected, the answer is the deployment's floor rather than
+    // whichever branch happened to be written last.
+    return this._getFormatAwareSystemPrompt('text', 'en', firstName);
   }
 
   /**
@@ -611,7 +389,11 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
       }
 
       // Get existing conversation history (without system message)
-      const existingHistory = (await this.getConversationHistory(userId)).slice(1); // Remove old system message
+      // No .slice(1): getConversationHistory no longer seeds a system message, so
+      // there is nothing to strip. The slice was the load-bearing half of that
+      // convention — remove the seed and the slice must go with it, or the first
+      // real history message would be silently dropped.
+      const existingHistory = await this.getConversationHistory(userId);
 
       // Build new history with format-specific system prompt
       const messages = [

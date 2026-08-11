@@ -14,7 +14,7 @@ const PortalInviteService = require('./shared/services/portal-invite.service');
 const ReadingAssessmentService = require('./shared/services/reading-assessment.service');
 
 // Import Handlers
-const { handleTextMessage } = require('./shared/handlers/text-message.handler');
+const { handleTextMessage, isSelectVideoButton } = require('./shared/handlers/text-message.handler');
 const { handleVoiceMessage } = require('./shared/handlers/voice-message.handler');
 const { handleImageMessage } = require('./shared/handlers/image-message.handler');
 const ExamCheckerHandler = require('./shared/handlers/exam-checker.handler');
@@ -23,7 +23,7 @@ const ExamCheckerHandler = require('./shared/handlers/exam-checker.handler');
 const { logToFile, LOGS_DIR } = require('./shared/utils/logger');
 const validators = require('./shared/utils/validators');
 const constants = require('./shared/utils/constants');
-const { setUserLanguage, setLanguageLock } = require('./shared/utils/language-cache');
+const { setUserLanguage } = require('./shared/utils/language-cache');
 
 // Import Database helpers
 const { getOrCreateUser, trackChatStart } = require('./shared/database/bot-helpers');
@@ -47,6 +47,7 @@ app.use('/webhooks', assessmentGenCallbackRoutes);
 // inside the router. Mounted before the inline /api/internal/send-password-reset
 // route below; Express falls through when no route in the router matches.
 const internalApiRoutes = require('./shared/routes/internal-api.routes');
+const { clampLanguage } = require('./shared/config/ux-strings');
 app.use('/api/internal', internalApiRoutes);
 
 // Create temp directory if it doesn't exist
@@ -160,6 +161,84 @@ async function handleBroadcastStatusWebhook(statuses) {
       });
     }
   }
+}
+
+/**
+ * bd-2482 (NIETE port of PK bd-1598): video-library broadcast "Select Video"
+ * CTA tap. Opens the Student Videos Flow directly, bypassing any per-user
+ * gate in text-message.handler.js. On any sendFlow error, falls back to the
+ * keyword path (handleTextMessage 'video') so the tap never dead-ends.
+ */
+/**
+ * Attendance taps — the class picker and the teachers/students choice.
+ *
+ * Registered for BOTH button_reply and list_reply: a 4+ class picker is sent as a
+ * list, and a list selection arrives in a different branch than a button. Emitting
+ * an id with a consumer in only one branch is how a tap silently does nothing.
+ */
+async function handleAttendanceTap(interactiveId, from, user) {
+  const AttendanceRouter = require('./shared/services/attendance-router.service');
+  const constants = require('./shared/utils/constants');
+
+  let decision;
+  if (interactiveId.startsWith('att_subject_')) {
+    decision = await AttendanceRouter.resolveSubjectChoice(user.id, interactiveId);
+  } else if (interactiveId.startsWith('att_class_')) {
+    decision = AttendanceRouter.resolveClassChoice(user.id, interactiveId);
+  } else {
+    return false;
+  }
+
+  if (decision.action === 'MARK_TEACHERS' || decision.action === 'MARK_STUDENTS') {
+    if (!constants.ATTENDANCE_MARKING_FLOW_ID) {
+      await WhatsAppService.sendMessage(from, 'Attendance is not available on this number yet.');
+      return true;
+    }
+    await WhatsAppService.sendFlow(from, {
+      flowId: constants.ATTENDANCE_MARKING_FLOW_ID,
+      header: '📋 Attendance',
+      body: decision.action === 'MARK_TEACHERS'
+        ? "Mark your school's teachers for today."
+        : 'Mark your class for today.',
+      buttonText: 'Mark attendance',
+      flowToken: decision.flowToken,
+    });
+    return true;
+  }
+
+  if (decision.action === 'SEND_SETUP' && constants.ATTENDANCE_SETUP_FLOW_ID) {
+    await WhatsAppService.sendFlow(from, {
+      flowId: constants.ATTENDANCE_SETUP_FLOW_ID,
+      header: '📋 Set up a class',
+      body: decision.message,
+      buttonText: 'Set up class',
+      flowToken: user.id,
+    });
+    return true;
+  }
+
+  await WhatsAppService.sendMessage(from, decision.message || 'Sorry, something went wrong.');
+  return true;
+}
+
+async function openStudentVideosFlowFromCta(message, from, user) {
+  const { STUDENT_VIDEOS_FLOW_ID } = require('./shared/utils/constants');
+  logToFile('🎬 Student Videos: Select Video CTA tapped', { from, userId: user?.id });
+  if (STUDENT_VIDEOS_FLOW_ID) {
+    try {
+      await WhatsAppService.sendFlow(from, {
+        flowId: STUDENT_VIDEOS_FLOW_ID,
+        header: '🎬 Student Videos',
+        body: 'Choose your class, subject and topic — I will send the video to your chat.',
+        buttonText: 'Browse',
+        flowToken: `${user?.id || from}:student-videos:${Date.now()}`,
+      });
+      return;
+    } catch (flowErr) {
+      logToFile('Student Videos CTA: sendFlow failed, falling back to keyword path', { error: flowErr.message });
+    }
+  }
+  await handleTextMessage(message, from, 'video', user);
 }
 
 /**
@@ -456,7 +535,9 @@ app.post('/webhook', async (req, res) => {
       }
       if (buttonId.startsWith('training_quiz_')) {
         const QuizDelivery = require('./shared/services/training/quiz-delivery.service');
-        await QuizDelivery.handleQuizButton(user.id, buttonId, from);
+        // bd-2525: pass the inbound wamid so the answer tap itself gets the
+        // ✅/❌ reaction.
+        await QuizDelivery.handleQuizButton(user.id, buttonId, from, message.id);
         return;
       }
       // BH open-ended capstone start (bd-2233)
@@ -524,7 +605,10 @@ app.post('/webhook', async (req, res) => {
       if (buttonId.startsWith('coaching_confirm_')) {
         const sessionId = buttonId.replace('coaching_confirm_', '');
         await CoachingService.handleConfirmation(sessionId, from, true);
-      } else if (buttonId.startsWith('coaching_cancel_')) {
+      } else if (buttonId.startsWith('att_subject_') || buttonId.startsWith('att_class_')) {
+        if (user?.id) { await handleAttendanceTap(buttonId, from, user); }
+        else { await WhatsAppService.sendMessage(from, 'Please say "register" first.'); }
+} else if (buttonId.startsWith('coaching_cancel_')) {
         const sessionId = buttonId.replace('coaching_cancel_', '');
         await CoachingService.handleConfirmation(sessionId, from, false);
       }
@@ -1014,6 +1098,29 @@ app.post('/webhook', async (req, res) => {
         const StudentVideoFeedbackService = require('./shared/services/student-video-feedback.service');
         await StudentVideoFeedbackService.handleFeedbackButton(buttonId, from);
       }
+      // bd-2482 (NIETE port of PK bd-2308/2313): Video quizzes — the offer
+      // after a video, an answer tap, the share-with-class offer, the
+      // invite-a-friend offer. All use the `vq_` prefix so they can never
+      // collide with the parent-quiz `quiz_` ids handled elsewhere.
+      // handleAnswer stays LAST: it treats anything left as an answer id, so
+      // a new offer button placed after it would be swallowed as a wrong answer.
+      else if (buttonId.startsWith('vq_')) {
+        const VideoQuizService = require('./shared/services/quiz/video-quiz.service');
+        const VideoQuizShare = require('./shared/services/quiz/video-quiz-share.service');
+        const VideoQuizInvite = require('./shared/services/quiz/video-quiz-invite.service');
+        // bd-2475 (ported from PK) — the watch-more/binge offer, chained
+        // after a declined invite. Same LAST-before-handleAnswer placement,
+        // same reason.
+        const VideoQuizBinge = require('./shared/services/quiz/video-quiz-binge.service');
+        const handled = await VideoQuizService.handleOfferButton(buttonId, from)
+          || await VideoQuizShare.handleShareButton(buttonId, from)
+          || await VideoQuizInvite.handleInviteButton(buttonId, from)
+          || await VideoQuizBinge.handleMoreButton(buttonId, from)
+          || await VideoQuizService.handleAnswer(from, buttonId);
+        if (!handled) {
+          logToFile('⚠️ unrouted vq_ button', { buttonId, from });
+        }
+      }
       // Edit-class multi-class picker: open the edit-class flow for the chosen class.
       else if (buttonId.startsWith('edit_class_')) {
         const listId = buttonId.replace('edit_class_', '');
@@ -1043,7 +1150,13 @@ app.post('/webhook', async (req, res) => {
             });
           }
         }
-      } else {
+      }
+      // bd-2482 (NIETE port of PK bd-1598): video-library broadcast
+      // "Select Video" CTA arriving as an interactive button_reply.
+      else if (buttonId === 'select_video' || isSelectVideoButton({ buttonId })) {
+        await openStudentVideosFlowFromCta(message, from, user);
+      }
+      else {
         logToFile('⚠️ Unknown button ID', { buttonId });
       }
     } else if (messageType === 'button' && message.button) {
@@ -1119,7 +1232,15 @@ app.post('/webhook', async (req, res) => {
         } else {
           logToFile('⚠️ No user found for menu button', { buttonPayload, from });
         }
-      } else {
+      }
+      // bd-2482 (NIETE port of PK bd-1598): video-library broadcast
+      // "Select Video" QUICK_REPLY. Templates deliver QUICK_REPLY as
+      // messageType:'button'; match payload OR button text (EN/UR) since
+      // Meta strips the payload on some registrations.
+      else if (isSelectVideoButton({ buttonPayload, buttonText })) {
+        await openStudentVideosFlowFromCta(message, from, user);
+      }
+      else {
         logToFile('⚠️ Unknown carousel button payload', { buttonPayload, buttonText });
       }
     } else if (messageType === 'interactive' && message.interactive?.type === 'nfm_reply') {
@@ -1132,6 +1253,41 @@ app.post('/webhook', async (req, res) => {
         responseJson = JSON.parse(message.interactive?.nfm_reply?.response_json || '{}');
       } catch (error) {
         logToFile('❌ Failed to parse flow response_json', { from, error: error.message });
+      }
+
+      // bd-2482 (NIETE port of PK bd-2309/2338): video-quiz Flow submissions
+      // are routed on the FLOW TOKEN (`vq:<sessionId>:<questionId>` for a
+      // picture-answer, `vqjoin:...` for a new student's name+class) — not on
+      // response shape, since a generic {screen_0_..: "2"} payload would have
+      // to be guessed at. The token is ours by construction.
+      const vqToken = responseJson.flow_token || message.interactive?.nfm_reply?.flow_token || '';
+
+      if (typeof vqToken === 'string' && vqToken.startsWith('vqjoin:')) {
+        try {
+          const VideoQuizShare = require('./shared/services/quiz/video-quiz-share.service');
+          const handled = await VideoQuizShare.handleJoinFlowReply(from, vqToken, responseJson);
+          if (handled) return;
+        } catch (joinErr) {
+          logToFile('❌ student join Flow reply routing failed', { error: joinErr.message });
+        }
+      }
+
+      if (typeof vqToken === 'string' && vqToken.startsWith('vq:')) {
+        try {
+          const [, , questionId] = vqToken.split(':');
+          const picked = Object.entries(responseJson)
+            .filter(([k]) => k !== 'flow_token')
+            .map(([, v]) => v)
+            .find((v) => /^\d+$/.test(String(v)));
+          if (questionId && picked !== undefined) {
+            const VideoQuizService = require('./shared/services/quiz/video-quiz.service');
+            await VideoQuizService.handleAnswer(from, `vq_${questionId}_${picked}`);
+            return;
+          }
+          logToFile('⚠️ video-quiz Flow reply had no option index', { vqToken, responseJson });
+        } catch (vqFlowErr) {
+          logToFile('❌ video-quiz Flow reply routing failed', { error: vqFlowErr.message });
+        }
       }
 
       // Use centralized flow type detection (fixes registration→attendance misrouting)
@@ -1312,7 +1468,7 @@ app.post('/webhook', async (req, res) => {
           const observeSessionId = tokenParts[1];
           const { data: obsRow } = await supabase
             .from('users').select('preferred_language').eq('id', observerId).maybeSingle();
-          const obsLang = obsRow?.preferred_language === 'ur' ? 'ur' : 'en';
+          const obsLang = clampLanguage(obsRow?.preferred_language);
           const S = observeStrings(obsLang);
           await WhatsAppService.sendMessage(from, S.submitted_ack);
           if (observerId) await ObserveDebrief.clearStateAfterSubmit(observerId, observeSessionId);
@@ -1354,10 +1510,26 @@ app.post('/webhook', async (req, res) => {
       const listId = listReply.id;
       logToFile('📋 Interactive list item selected', { listId, from });
 
+      // bd-2482 (NIETE port of PK bd-2309): video-quiz answers arrive as
+      // list_reply whenever the question has 4 options or a title too long
+      // for a 20-char button. Same `vq_` ids as the button path — routed
+      // here too, or a four-option question would accept no answer at all.
+      if (listId.startsWith('att_class_') || listId.startsWith('att_subject_')) {
+        if (user?.id && await handleAttendanceTap(listId, from, user)) return;
+      }
+
+      if (listId.startsWith('vq_')) {
+        const VideoQuizService = require('./shared/services/quiz/video-quiz.service');
+        if (await VideoQuizService.handleAnswer(from, listId)) return;
+      }
+
       // Teacher-training grand quiz answers — handle before Reading Assessment routing.
       if (listId && listId.startsWith('training_quiz_')) {
         const QuizDelivery = require('./shared/services/training/quiz-delivery.service');
-        await QuizDelivery.handleQuizButton(user.id, listId, from);
+        // bd-2525: the LIST path is the one teachers actually take — quiz
+        // options are delivered as an interactive list — so the wamid matters
+        // most here. Same reaction as the button path above.
+        await QuizDelivery.handleQuizButton(user.id, listId, from, message.id);
         return;
       }
 
@@ -1467,56 +1639,39 @@ app.post('/webhook', async (req, res) => {
       }
       // Language preference selection (from /language command)
       else if (listId.startsWith('lang_')) {
-        const languageCode = listId.replace('lang_', ''); // 'auto', 'en', 'ur', 'pa-PK', etc.
+        const languageCode = listId.replace('lang_', ''); // 'ur' or 'en'
 
         logToFile('🌐 Language preference selection', { listId, languageCode, userId: user?.id });
 
         try {
-          if (languageCode === 'auto') {
-            // Auto-detect mode: unlock language (uses consolidated language-cache function)
-            const success = await setLanguageLock(user.id, false);
+          // There is deliberately no 'auto' branch any more. "Auto-detect" was a
+          // user-facing switch that UNLOCKED the preference, which is the one
+          // thing protecting a teacher's choice from being overwritten by the
+          // language of a classroom recording. In a two-language market with a
+          // working picker its upside was saving a tap; its downside was the
+          // wrong-language class this workstream exists to remove.
+          //
+          // An unknown code cannot reach here from our own list, but a stale
+          // client could replay an old row id — so the writer validates against
+          // the offer and returns false rather than storing it.
+          const success = await setUserLanguage(user.id, languageCode, true);
 
-            if (!success) {
-              logToFile('❌ Failed to update language preference', { userId: user.id });
-              await WhatsAppService.sendMessage(from, 'Sorry, there was an error updating your language preference. Please try again.');
-              return;
-            }
-
-            // Send confirmation in user's current language
-            const confirmMessage = user.preferred_language === 'ur'
-              ? '✅ آٹو ڈیٹیکٹ فعال ہو گیا۔ اب میں خودکار طور پر آپ کی زبان پہچانوں گا۔'
-              : '✅ Auto-detect enabled. I will now automatically detect your language.';
-
-            await WhatsAppService.sendMessage(from, confirmMessage);
-            logToFile('✅ Language set to auto-detect', { userId: user.id });
-          } else {
-            // Specific language selected: set language and lock it (uses consolidated language-cache function)
-            const success = await setUserLanguage(user.id, languageCode, true);
-
-            if (!success) {
-              logToFile('❌ Failed to update language preference', { userId: user.id, languageCode });
-              await WhatsAppService.sendMessage(from, 'Sorry, there was an error updating your language preference. Please try again.');
-              return;
-            }
-
-            // Send confirmation in the newly selected language
-            // IMPORTANT: Pakistani languages use Perso-Arabic/Shahmukhi scripts, NOT Gurmukhi/Devanagari
-            const confirmMessages = {
-              'en': '✅ Language set to English. I will now respond in English.',
-              'ur': '✅ زبان اردو میں تبدیل ہو گئی۔ اب میں اردو میں جواب دوں گا۔',
-              'ar': '✅ تم تغيير اللغة إلى العربية. سأرد الآن بالعربية.',
-              'es': '✅ Idioma cambiado a español. Ahora responderé en español.',
-              'pa-PK': '✅ زبان پنجابی تے سیٹ ہو گئی۔ ہن میں پنجابی وچ جواب دیاں گا۔',  // Shahmukhi script
-              'sd-PK': '✅ ٻولي سنڌي تي سيٽ ٿي وئي۔ هاڻي مان سنڌي ۾ جواب ڏيندس۔',  // Arabic-Sindhi script
-              'ps-PK': '✅ ژبه پښتو ته ټاکل شوه۔ اوس به زه په پښتو ځواب ورکوم۔',  // Pashto script
-              'bal-PK': '✅ زبان بلوچی ءَ سیٹ بوت۔ انچو من بلوچی ءَ جواب دیان۔',  // Balochi script
-              'ta-LK': '✅ மொழி தமிழ் என்று அமைக்கப்பட்டது. இனி நான் தமிழில் பதிலளிப்பேன்.'  // Tamil script
-            };
-
-            const confirmMessage = confirmMessages[languageCode] || `✅ Language set to ${languageCode}.`;
-            await WhatsAppService.sendMessage(from, confirmMessage);
-            logToFile('✅ Language preference updated', { userId: user.id, languageCode, locked: true });
+          if (!success) {
+            logToFile('❌ Failed to update language preference', { userId: user.id, languageCode });
+            await WhatsAppService.sendMessage(from, 'Sorry, there was an error updating your language preference. Please try again.');
+            return;
           }
+
+          // Confirm in the language she just chose — the first message after a
+          // switch contradicting the switch is its own bug.
+          const confirmMessages = {
+            'ur': '✅ زبان اردو میں تبدیل ہو گئی۔ اب میں اردو میں جواب دوں گی۔',
+            'en': '✅ Language set to English. I will now respond in English.',
+          };
+
+          const confirmMessage = confirmMessages[languageCode] || confirmMessages.en;
+          await WhatsAppService.sendMessage(from, confirmMessage);
+          logToFile('✅ Language preference updated', { userId: user.id, languageCode, locked: true });
         } catch (error) {
           logToFile('❌ Error processing language selection', {
             userId: user?.id,
@@ -2003,7 +2158,7 @@ app.post('/api/internal/send-password-reset', async (req, res) => {
     // expires in 10 minutes."); we only supply the code, twice (once as
     // the BODY variable, once as the OTP button payload so the tap-to-copy
     // button copies the same value).
-    const templateLang = language === 'ur' ? 'ur' : 'en';
+    const templateLang = clampLanguage(language);
     const sent = await WhatsAppService.sendTemplate(
       phoneNumber,
       'portal_password_reset_niete',

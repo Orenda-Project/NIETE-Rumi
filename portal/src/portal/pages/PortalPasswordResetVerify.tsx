@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { isLeader } from '../lib/leaderRole';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -68,16 +69,19 @@ const PortalPasswordResetVerify = () => {
     try {
       // First verify the code
       await auth.verifyResetCode(phoneNumber, code);
-      
-      // Then reset the password
-      await auth.resetPassword(newPassword);
-      
+
+      // Then reset the password. bd-2513: the server opens the session itself
+      // (from the resetUserId it verified in the step above), so there is no
+      // second login to perform here — we just land the teacher inside.
+      const result = await auth.resetPassword(newPassword);
+
       toast({
         title: "Password Reset Successful",
-        description: "You can now login with your new password"
+        description: "You're signed in."
       });
-      
-      navigate('/portal/login');
+
+      // bd-2434: leaders go to My Patch, everyone else to the dashboard.
+      navigate(isLeader(result?.user) ? '/portal/leader' : '/portal/dashboard');
     } catch (error: any) {
       toast({
         title: "Error",
@@ -113,7 +117,7 @@ const PortalPasswordResetVerify = () => {
               <Input
                 id="code"
                 type="text"
-                placeholder="123456"
+                placeholder="Enter 6-digit code"
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 disabled={loading}

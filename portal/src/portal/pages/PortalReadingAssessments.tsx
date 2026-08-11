@@ -111,8 +111,6 @@ const PortalReadingAssessments = () => {
               <option value="">All Languages</option>
               <option value="en">English</option>
               <option value="ur">Urdu</option>
-              <option value="ar">Arabic</option>
-              <option value="es">Spanish</option>
             </select>
             <select value={filters.gradeLevel} onChange={(e) => setFilters({...filters, gradeLevel: e.target.value})} className="px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring">
               <option value="">All Grades</option>

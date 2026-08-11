@@ -1,30 +1,65 @@
 {
-  "_comment": "WhatsApp Flow for Attendance Class Setup - Endpoint-based with Student Entry Loops",
+  "_comment": "WhatsApp Flow — set up a class for attendance. Rebuilt from scratch; the previous version made a teacher add ONE student per screen round-trip, so a 40-student class was 40 submissions to Meta and nobody ever finished one.",
   "_instructions": [
-    "1. Copy this JSON to Meta Business Manager > WhatsApp Manager > Flows",
-    "2. Flow ID (staging): [TO BE ASSIGNED]",
-    "3. Flow ID (production): [TO BE ASSIGNED]",
-    "4. IMPORTANT: Update the flow in Meta Business Manager - this file is just reference",
-    "5. Screen 1 (CLASS_INFO): Collects grade, section, frequency (academic year auto-computed)",
-    "6. Screen 2 (ADD_STUDENT): First name + last name with loop via endpoint",
-    "7. Screen 3 (SUCCESS): Shows completion message"
+    "1. Registered automatically by `npm run setup:flows` (flow-configs.js → 'Attendance Setup').",
+    "2. The resulting Flow ID is written to ATTENDANCE_SETUP_FLOW_ID in your .env.",
+    "3. Endpoint (data_api_version 3.0, encrypted): POST /api/flows/attendance-setup.",
+    "4. The grade list is populated dynamically by the endpoint's INIT from GRADES_DROPDOWN (shared/config/registration-data.js), pre-filtered to the grades this teacher recorded at registration."
+  ],
+  "_notes": [
+    "CLASS screen: grade is a Dropdown, never free text — 'Grade 5' / '5th' / 'V' typed freely used to create three different classes.",
+    "Section is optional and its label does NOT say so: WhatsApp appends its own '(Optional)' marker, and saying it twice is what shipped before.",
+    "ROSTER screen: ONE TextArea for the whole class list, one name per line. The endpoint splits, trims, strips leading numbering/bullets, drops blanks and de-dupes. This is the whole point of the rebuild.",
+    "REVIEW screen shows the parsed count back before anything is written, because a paste is easy to get wrong and a silent 63-student class is worse than a visible one."
   ],
   "version": "6.3",
   "data_api_version": "3.0",
   "routing_model": {
-    "CLASS_INFO": [
-      "ADD_STUDENT"
+    "CLASS": [
+      "ROSTER"
     ],
-    "ADD_STUDENT": [
+    "ROSTER": [
+      "REVIEW"
+    ],
+    "REVIEW": [
       "SUCCESS"
     ],
     "SUCCESS": []
   },
   "screens": [
     {
-      "id": "CLASS_INFO",
-      "title": "Class Setup",
-      "data": {},
+      "id": "CLASS",
+      "title": "Set up a class",
+      "data": {
+        "grades": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "grade_3",
+              "title": "Grade 3"
+            },
+            {
+              "id": "grade_5",
+              "title": "Grade 5"
+            }
+          ]
+        },
+        "grade_hint": {
+          "type": "string",
+          "__example__": "You told us you teach Grade 3 and Grade 5."
+        }
+      },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
@@ -34,53 +69,36 @@
             "children": [
               {
                 "type": "TextHeading",
-                "text": "Set up your class for attendance"
+                "text": "Which class is this?"
               },
               {
-                "type": "TextInput",
-                "name": "class_name",
-                "label": "Grade",
+                "type": "TextBody",
+                "text": "${data.grade_hint}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "grade",
+                "label": "Class",
                 "required": true,
-                "input-type": "text",
-                "helper-text": "e.g., 4, 5, KG-II, Nursery"
+                "data-source": "${data.grades}"
               },
               {
                 "type": "TextInput",
                 "name": "section",
-                "label": "Section (optional)",
+                "label": "Section",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "e.g., A, B, Blue, Morning"
-              },
-              {
-                "type": "TextCaption",
-                "text": "How often do you take attendance?"
-              },
-              {
-                "type": "Dropdown",
-                "name": "attendance_frequency",
-                "label": "Frequency",
-                "required": true,
-                "data-source": [
-                  {
-                    "id": "once",
-                    "title": "Once per day"
-                  },
-                  {
-                    "id": "twice",
-                    "title": "Twice (morning & afternoon)"
-                  }
-                ]
+                "helper-text": "Only if your school splits this class into sections"
               },
               {
                 "type": "Footer",
-                "label": "Next: Add Students",
+                "label": "Next — add students",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "class_name": "${form.class_name}",
-                    "section": "${form.section}",
-                    "attendance_frequency": "${form.attendance_frequency}"
+                    "screen": "CLASS",
+                    "grade": "${form.grade}",
+                    "section": "${form.section}"
                   }
                 }
               }
@@ -90,44 +108,17 @@
       }
     },
     {
-      "id": "ADD_STUDENT",
-      "title": "Add Students",
+      "id": "ROSTER",
+      "title": "Add students",
       "refresh_on_back": true,
       "data": {
-        "list_id": {
-          "type": "string",
-          "__example__": "uuid-123"
-        },
         "class_display": {
           "type": "string",
-          "__example__": "5 - A"
+          "__example__": "Grade 5 - A"
         },
-        "student_count": {
-          "type": "number",
-          "__example__": 2
-        },
-        "student_number": {
-          "type": "number",
-          "__example__": 3
-        },
-        "students_added": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              }
-            }
-          },
-          "__example__": [
-            {
-              "name": "1. Zara Abdul"
-            },
-            {
-              "name": "2. Ahmed Khan"
-            }
-          ]
+        "existing_note": {
+          "type": "string",
+          "__example__": "Paste or type the whole list — one name per line."
         }
       },
       "layout": {
@@ -135,59 +126,87 @@
         "children": [
           {
             "type": "Form",
-            "name": "student_form",
+            "name": "roster_form",
             "children": [
               {
                 "type": "TextHeading",
-                "text": "Add Student"
+                "text": "Add your students"
               },
               {
                 "type": "TextBody",
-                "text": "Class: ${data.class_display} | Students: ${data.student_count}"
+                "text": "${data.class_display}"
               },
               {
-                "type": "TextInput",
-                "name": "first_name",
-                "label": "First Name",
-                "required": false,
-                "input-type": "text",
-                "helper-text": "Student's first name (leave empty to finish)"
+                "type": "TextCaption",
+                "text": "${data.existing_note}"
               },
               {
-                "type": "TextInput",
-                "name": "last_name",
-                "label": "Last Name / Father's Name",
-                "required": false,
-                "input-type": "text",
-                "helper-text": "Optional: Family or father's name"
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "action",
-                "label": "What would you like to do?",
+                "type": "TextArea",
+                "name": "roster",
+                "label": "Student names",
                 "required": true,
-                "data-source": [
-                  {
-                    "id": "add",
-                    "title": "Add this student & continue"
-                  },
-                  {
-                    "id": "done",
-                    "title": "Finish setup (no more students)"
-                  }
-                ]
+                "helper-text": "One name per line. Numbers and bullets are cleaned up for you."
               },
               {
                 "type": "Footer",
-                "label": "Continue",
+                "label": "Check the list",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "first_name": "${form.first_name}",
-                    "last_name": "${form.last_name}",
-                    "_action": "${form.action}",
-                    "_list_id": "${data.list_id}",
-                    "_class_display": "${data.class_display}"
+                    "screen": "ROSTER",
+                    "roster": "${form.roster}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "REVIEW",
+      "title": "Check the list",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "28 students in Grade 5 - A"
+        },
+        "preview": {
+          "type": "string",
+          "__example__": "1. Ayesha Bibi\n2. Ahmed Raza\n3. Fatima Noor"
+        },
+        "warning": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "review_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.preview}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.warning}"
+              },
+              {
+                "type": "Footer",
+                "label": "Save this class",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "REVIEW",
+                    "confirm": "save"
                   }
                 }
               }
@@ -198,40 +217,51 @@
     },
     {
       "id": "SUCCESS",
-      "title": "Setup Complete",
+      "title": "Class saved",
       "terminal": true,
+      "success": true,
       "data": {
-        "class_display": {
+        "heading": {
           "type": "string",
-          "__example__": "5 - A"
+          "__example__": "Grade 5 - A is ready"
         },
-        "student_count": {
-          "type": "number",
-          "__example__": 25
+        "preview": {
+          "type": "string",
+          "__example__": "28 students saved. Say \"attendance\" whenever you want to mark them."
+        },
+        "warning": {
+          "type": "string",
+          "__example__": ""
         }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
           {
-            "type": "TextHeading",
-            "text": "✅ Class Setup Complete!"
-          },
-          {
-            "type": "TextBody",
-            "text": "Your class ${data.class_display} has been created with ${data.student_count} students."
-          },
-          {
-            "type": "TextBody",
-            "text": "You can now start taking attendance by saying 'attendance' or 'حاضری'."
-          },
-          {
-            "type": "Footer",
-            "label": "Done",
-            "on-click-action": {
-              "name": "complete",
-              "payload": {}
-            }
+            "type": "Form",
+            "name": "done_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.preview}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.warning}"
+              },
+              {
+                "type": "Footer",
+                "label": "Done",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {}
+                }
+              }
+            ]
           }
         ]
       }

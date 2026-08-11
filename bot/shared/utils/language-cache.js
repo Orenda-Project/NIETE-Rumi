@@ -17,11 +17,31 @@
 const redisService = require('../services/cache/railway-redis.service');
 const supabase = require('../config/supabase');
 const { logToFile } = require('./logger');
+const { CANONICAL } = require('./language-canon');
+const { isOffered, LANGUAGE_OFFER } = require('../config/languages');
 
-// Supported language codes
-// Tier 1: en, ur (full support including reading assessment)
-// Tier 2: es, ar, pa-PK, ps-PK, sd-PK, bal-PK, ta-LK (coaching only)
-const VALID_LANGUAGES = ['en', 'es', 'ur', 'ar', 'pa-PK', 'ps-PK', 'sd-PK', 'bal-PK', 'ta-LK'];
+/**
+ * Language codes we can RECOGNISE — deliberately broader than what we OFFER.
+ *
+ * Two different questions, two different lists:
+ *   - "can I make sense of this code?"  -> CANONICAL (here). Broad, because
+ *     telemetry must be able to record that we detected or emitted something
+ *     off-market. That is how the current leak was found.
+ *   - "may this be STORED as a teacher's preference?" -> isOffered() from the
+ *     registry. Narrow: exactly the two languages this deployment serves.
+ *
+ * Conflating them either lets an off-market language be stored, or blinds the
+ * detector and the telemetry to anything outside the offer.
+ */
+const VALID_LANGUAGES = [...CANONICAL];
+
+/**
+ * The emergency floor when no language can be determined.
+ *
+ * English by resolved decision, and NOT the same thing as the registry's
+ * offerDefaultLanguage() (Urdu — what a teacher is offered first). An Urdu floor
+ * would be the same silent-wrong-language error in the other direction.
+ */
 const DEFAULT_LANGUAGE = 'en';
 const CACHE_TTL = 86400; // 24 hours
 
@@ -110,12 +130,20 @@ async function setUserLanguage(userId, languageCode, lockLanguage = true) {
     return false;
   }
 
-  // Validate language code
-  if (!VALID_LANGUAGES.includes(languageCode)) {
-    logToFile('❌ Invalid language code', {
+  // THE enforcement point. Nothing may be stored as a teacher's preference
+  // unless this deployment actually serves it.
+  //
+  // This lives inside the writer rather than at each caller for a reason: the
+  // clamp already existed as isMarketLanguage() but only guarded two of the
+  // paths that wrote language, so the coaching-audio path could persist pa-PK or
+  // ar onto an ICT teacher. Every read surface would then fold her back to
+  // English and her Urdu was gone with no visible cause. Enforcement a caller
+  // can forget is not enforcement.
+  if (!isOffered(languageCode)) {
+    logToFile('❌ Rejected language write — not in this deployment\'s offer', {
       userId,
       languageCode,
-      validLanguages: VALID_LANGUAGES
+      offer: LANGUAGE_OFFER
     });
     return false;
   }
@@ -168,52 +196,74 @@ async function setUserLanguage(userId, languageCode, lockLanguage = true) {
   }
 }
 
-/**
- * Set language lock status only (without changing preferred_language)
- * Used when user selects "Auto-detect" option
+/*
+ * setLanguageLock() was here, and is deliberately gone.
  *
- * @param {string} userId - User ID from users table
- * @param {boolean} locked - Whether language is locked
- * @returns {Promise<boolean>} Success status
+ * Its only purpose was to set language_locked WITHOUT changing the language —
+ * and its only caller was the "Auto-detect" picker row, whose effect was to
+ * UNLOCK a teacher's preference. Unlocking is the precise mechanism that let a
+ * classroom recording overwrite a choice she had made, which is the defect this
+ * workstream exists to remove. Auto-detect was deleted in Phase 1; this left a
+ * function whose entire job is to re-open that door, exported and callable.
+ *
+ * A deletion rather than a deprecation comment, because "don't call this" is not
+ * enforcement — the audit is full of clamps that were correct at every site and
+ * still drifted. Locking now happens only as part of setUserLanguage(), where it
+ * is set as a consequence of an actual, explicit choice.
+ *
+ * If a future feature genuinely needs to unlock (e.g. an explicit "let Rumi
+ * decide" setting), it should be reintroduced with a caller, a test, and a
+ * decision recorded — not resurrected from a dead export.
  */
-async function setLanguageLock(userId, locked) {
-  if (!userId) {
-    logToFile('⚠️  setLanguageLock: No userId provided', { level: 'warn' });
-    return false;
-  }
 
+/**
+ * Has this teacher explicitly chosen her language?
+ *
+ * The lock column existed and the writer set it, but nothing ever READ it — so
+ * an explicit choice made in /settings or /language carried no weight, and the
+ * coaching-audio path could overwrite it. This is that missing reader.
+ *
+ * On any failure it reports LOCKED. That is the conservative direction: a caller
+ * asking this question is deciding whether it may overwrite her preference, and
+ * "I could not tell" must never become "go ahead".
+ *
+ * @param {string} userId
+ * @returns {Promise<boolean>}
+ */
+async function isUserLanguageLocked(userId) {
+  if (!userId) return true;
+
+  const lockCacheKey = `user:language_locked:${userId}`;
   try {
-    const { error } = await supabase
-      .from('users')
-      .update({
-        language_locked: locked,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', userId);
+    const cached = await redisService.get(lockCacheKey);
+    if (cached === 'true') return true;
+    if (cached === 'false') return false;
 
-    if (error) {
-      logToFile('❌ Failed to update language lock in DB', {
+    const { data, error } = await supabase
+      .from('users')
+      .select('language_locked')
+      .eq('id', userId)
+      .single();
+
+    // No row is just as much "cannot tell" as an error is — an absent user
+    // cannot have consented to an overwrite.
+    if (error || !data) {
+      logToFile('⚠️  Could not read language lock — treating as locked', {
         userId,
-        locked,
-        error: error.message
+        error: error?.message || 'no row'
       });
-      return false;
+      return true;
     }
 
-    // Update Redis cache
-    const lockCacheKey = `user:language_locked:${userId}`;
+    const locked = data.language_locked === true;
     await redisService.set(lockCacheKey, locked.toString(), CACHE_TTL);
-
-    logToFile('✅ Language lock updated', { userId, locked });
-    return true;
-
+    return locked;
   } catch (error) {
-    logToFile('❌ Error in setLanguageLock', {
+    logToFile('⚠️  Error reading language lock — treating as locked', {
       userId,
-      locked,
       error: error.message
     });
-    return false;
+    return true;
   }
 }
 
@@ -355,7 +405,7 @@ async function getLanguageStats() {
 module.exports = {
   getUserLanguage,
   setUserLanguage,
-  setLanguageLock,
+  isUserLanguageLocked,
   clearUserLanguageCache,
   prefetchLanguages,
   getLanguageStats,

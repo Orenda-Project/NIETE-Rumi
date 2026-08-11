@@ -50,9 +50,10 @@ const supabase = require('../config/supabase');
 const PassageGenerationService = require('../services/reading/passage-generation.service');
 const AutoLevelOrchestratorService = require('../services/reading/auto-level-orchestrator.service');
 const WhatsAppService = require('../services/whatsapp.service');
-const AttendanceFlowHandler = require('./attendance-flow.handler');
-const AttendanceDeliveryService = require('../services/attendance-delivery.service');
 const { logToFile } = require('../utils/logger');
+const { setUserLanguage } = require('../utils/language-cache');
+const { offerDefaultLanguage } = require('../config/languages');
+const { clampLanguage } = require('../config/ux-strings');
 
 // Flow IDs - configure via environment variables. Canonical list lives in
 // `bot/scripts/setup/flow-configs.js`; this file only reads the IDs that
@@ -65,8 +66,6 @@ const READING_ASSESSMENT_FLOW_ID = process.env.READING_ASSESSMENT_FLOW_ID || '';
 // Endpoint flows whose NFM_REPLY drives downstream side effects (ack message,
 // roster delivery). The endpoint route persists the data; this handler
 // continues from there.
-const ATTENDANCE_SETUP_FLOW_ID = process.env.ATTENDANCE_SETUP_FLOW_ID || '';
-const ATTENDANCE_MARKING_FLOW_ID = process.env.ATTENDANCE_MARKING_FLOW_ID || '';
 
 // Endpoint flows whose NFM_REPLY is purely a delivery acknowledgement —
 // data is already persisted by the corresponding `/api/flows/<path>` route.
@@ -117,15 +116,6 @@ async function handleFlowResponse(message, phoneNumber, userId) {
     // NFM_REPLY; we extract + persist here.
     if (flowId && flowId === READING_ASSESSMENT_FLOW_ID) {
       return await handleReadingAssessmentFlow(message, phoneNumber, userId);
-    }
-
-    // Attendance flows are endpoint flows whose NFM_REPLY ALSO triggers
-    // downstream side effects (success ack message + roster delivery).
-    if (flowId && flowId === ATTENDANCE_SETUP_FLOW_ID) {
-      return await handleAttendanceSetupFlow(message, phoneNumber, userId);
-    }
-    if (flowId && flowId === ATTENDANCE_MARKING_FLOW_ID) {
-      return await handleAttendanceMarkingFlow(message, phoneNumber, userId);
     }
 
     // Exam-checker "confirm students" — an endpoint flow whose NFM completion
@@ -510,236 +500,6 @@ function mapLevelToPassageType(level) {
 }
 
 /**
- * Handle Attendance Setup Flow submission
- * Creates a new class with students
- *
- * @param {object} message - Flow response message
- * @param {string} phoneNumber - User's phone number
- * @param {string} userId - User's database ID
- * @returns {Promise<boolean>} Success status
- */
-async function handleAttendanceSetupFlow(message, phoneNumber, userId) {
-  try {
-    logToFile('📋 Processing attendance setup flow', { phoneNumber, userId });
-
-    const result = await AttendanceFlowHandler.handleSetupFlowSubmission(message, phoneNumber, userId);
-
-    if (!result.success) {
-      await WhatsAppService.sendMessage(
-        phoneNumber,
-        `Sorry, there was an error setting up your class: ${result.error}\n\nPlease try again.`
-      );
-      return false;
-    }
-
-    // Send success message
-    const classDisplay = result.section
-      ? `${result.className} - ${result.section}`
-      : result.className;
-
-    await WhatsAppService.sendMessage(
-      phoneNumber,
-      `✅ *Class Created!*\n\n` +
-      `Class: ${classDisplay}\n` +
-      `Students: ${result.studentCount}\n\n` +
-      `You can now take attendance by saying "attendance" or "حاضری".`
-    );
-
-    logToFile('✅ Attendance setup completed', {
-      userId,
-      listId: result.listId,
-      studentCount: result.studentCount
-    });
-
-    return true;
-  } catch (error) {
-    logToFile('❌ Error handling attendance setup flow', {
-      error: error.message,
-      stack: error.stack
-    });
-
-    await WhatsAppService.sendMessage(
-      phoneNumber,
-      'Sorry, something went wrong. Please try again later.'
-    );
-
-    return false;
-  }
-}
-
-/**
- * Handle Attendance Marking Flow submission
- * Records attendance for a class
- *
- * @param {object} message - Flow response message
- * @param {string} phoneNumber - User's phone number
- * @param {string} userId - User's database ID
- * @returns {Promise<boolean>} Success status
- */
-async function handleAttendanceMarkingFlow(message, phoneNumber, userId) {
-  try {
-    logToFile('📋 Processing attendance marking flow', { phoneNumber, userId });
-
-    // Parse flow response to get flow_token and absent_students
-    // Flow token format: "userId:classId:date:sessionType:encodedClassName"
-    let responseJson = {};
-    try {
-      responseJson = JSON.parse(message.interactive?.nfm_reply?.response_json || '{}');
-    } catch (parseError) {
-      logToFile('❌ Failed to parse flow response', { error: parseError.message });
-    }
-
-    const flowToken = responseJson.flow_token || '';
-    const tokenParts = flowToken.split(':');
-    const [tokenUserId, listId, dateStr, sessionType, encodedClassName] = tokenParts;
-
-    if (!listId) {
-      logToFile('❌ No list ID in flow token', { userId, flowToken, responseJson });
-      await WhatsAppService.sendMessage(
-        phoneNumber,
-        'Sorry, something went wrong. Please start the attendance process again.'
-      );
-      return false;
-    }
-
-    const sessionDate = dateStr || new Date().toISOString().split('T')[0];
-    const className = encodedClassName ? decodeURIComponent(encodedClassName) : 'Class';
-
-    logToFile('📋 Parsed flow token', {
-      userId,
-      listId,
-      sessionDate,
-      sessionType,
-      className,
-      absentCount: responseJson.absent_students?.length || 0
-    });
-
-    const result = await AttendanceFlowHandler.handleMarkingFlowSubmission(
-      message,
-      phoneNumber,
-      userId,
-      listId,
-      new Date(sessionDate),
-      sessionType || 'full_day'
-    );
-
-    if (!result.success) {
-      logToFile('❌ Attendance marking submission failed (user-visible error suppressed)', { phoneNumber, error: result.error });
-      return false;
-    }
-
-    // Send confirmation
-    const confirmMessage = AttendanceFlowHandler.generateConfirmationMessage(
-      className,
-      result.stats
-    );
-
-    await WhatsAppService.sendMessage(phoneNumber, confirmMessage);
-
-    // Generate and send Excel file
-    // Note: "Your Excel file is being generated..." is already in confirmMessage
-    try {
-      // Transform stats to match generateCaption expected format
-      const summary = {
-        present: result.stats.present,
-        absent: result.stats.absent,
-        attendancePercentage: parseFloat(result.stats.attendanceRate) || 0
-      };
-
-      // Fetch class info from DB to get proper section
-      // Also validates that listId exists in database
-      const StudentListService = require('../services/student-list.service');
-      const { data: classInfo, error: classError } = await StudentListService.getStudentListById(listId);
-
-      // Validate listId exists before proceeding
-      if (classError || !classInfo) {
-        logToFile('❌ Invalid listId - class not found in database', {
-          userId,
-          listId,
-          error: classError?.message
-        });
-        await WhatsAppService.sendMessage(
-          phoneNumber,
-          `⚠️ The class you selected no longer exists. Please say "attendance" or "حاضری" to start again.`
-        );
-        return false;
-      }
-
-      const deliveryResult = await AttendanceDeliveryService.processAndDeliver(
-        userId,
-        phoneNumber,
-        {
-          selectedClass: {
-            class_name: classInfo?.class_name || className,
-            section: classInfo?.section || null,
-            id: listId
-          },
-          selectedListId: listId,
-          records: result.records,
-          markingMethod: 'tap', // DB constraint only allows 'voice', 'tap', 'everyone_present'
-          summary: summary,
-          sessionDate: sessionDate // Pass the actual date
-        }
-      );
-
-      if (!deliveryResult.success) {
-        // Handle duplicate attendance gracefully
-        if (deliveryResult.isDuplicate) {
-          logToFile('⚠️ Duplicate attendance detected - showing friendly message', {
-            userId,
-            existingSessionId: deliveryResult.existingSession?.id
-          });
-
-          const sessionTypeLabel = deliveryResult.sessionType === 'morning' ? 'morning'
-            : deliveryResult.sessionType === 'afternoon' ? 'afternoon'
-            : "today's";
-
-          const classLabel = deliveryResult.section
-            ? `${deliveryResult.className} - ${deliveryResult.section}`
-            : deliveryResult.className;
-
-          const duplicateMessage = [
-            `📋 *Attendance Already Recorded*`,
-            ``,
-            `You already marked ${sessionTypeLabel} attendance for ${classLabel}!`,
-            ``,
-            `Present: ${deliveryResult.summary.present} | Absent: ${deliveryResult.summary.absent} | Rate: ${deliveryResult.summary.attendanceRate}`,
-            ``,
-            `To view your Excel file again, just say "attendance" and select "View Register".`
-          ].join('\n');
-
-          await WhatsAppService.sendMessage(phoneNumber, duplicateMessage);
-        } else {
-          logToFile('❌ Excel delivery failed', { userId, error: deliveryResult.error });
-          await WhatsAppService.sendMessage(phoneNumber, `Sorry, there was an error generating your Excel file: ${deliveryResult.error}`);
-        }
-      } else {
-        logToFile('✅ Excel delivered successfully', { userId, fileUrl: deliveryResult.fileUrl });
-      }
-    } catch (deliveryError) {
-      logToFile('❌ Excel delivery exception', { userId, error: deliveryError.message });
-      await WhatsAppService.sendMessage(phoneNumber, 'Sorry, something went wrong generating your Excel file.');
-    }
-
-    logToFile('✅ Attendance marking completed', {
-      userId,
-      listId,
-      stats: result.stats
-    });
-
-    return true;
-  } catch (error) {
-    logToFile('❌ Error handling attendance marking flow', {
-      error: error.message,
-      stack: error.stack
-    });
-
-    // User-visible error suppressed 2026-07-13 pending investigation
-    return false;
-  }
-}
-
-/**
  * Handle Registration Flow submission
  * Extracts form data and updates user record with full registration info
  *
@@ -816,7 +576,30 @@ async function handleRegistrationFlow(message, phoneNumber, userId) {
     // a broken placeholder. See bot/shared/config/branding.js.
     const portalBase = require('../config/branding').portalUrl();
     const portalUrl = portalBase ? `${portalBase}/portal/setup/${portalToken}` : null;
-    const userLang = country === 'PK' ? 'ur' : 'en';
+
+    // Greet her in the language SHE chose on the first screen.
+    //
+    // This used to read `country === 'PK' ? 'ur' : 'en'`. The country dropdown
+    // supplies ISO codes and every ICT teacher picks PK, so the greeting was
+    // always Urdu — while registration never wrote preferred_language, leaving
+    // her on the schema default of English. She was greeted in Urdu and then
+    // silently answered in English forever. The main bot logged the same pattern
+    // as BUG-071; the fix here is to stop inferring from country at all.
+    const registrationLanguage = clampLanguage(
+      responseJson.language || offerDefaultLanguage()
+    );
+    const userLang = registrationLanguage;
+
+    // Persist it through the ONE writer, LOCKED — she chose this explicitly, and
+    // the lock is what stops a later classroom recording overwriting it. This is
+    // the step that grows the genuinely-chosen population beyond today's 38.
+    const languageStored = await setUserLanguage(userId, registrationLanguage, true);
+    logToFile(
+      languageStored
+        ? '✅ registration: language chosen and locked'
+        : '⚠️ registration: language write rejected — greeting still uses the choice',
+      { userId, language: registrationLanguage, rule: 'registration-asked' }
+    );
 
     const confirmMessagesWithPortal = {
       en: `Thank you for registering, ${firstName}! You're all set to use NIETE.\n\n🔗 *Set up your NIETE Portal:*\n${portalUrl}\n\nThis link expires in 7 days. What would you like to work on?`,
@@ -987,14 +770,10 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
 module.exports = {
   handleFlowResponse,
   handleReadingAssessmentFlow,
-  handleAttendanceSetupFlow,
-  handleAttendanceMarkingFlow,
   handleRegistrationFlow,
   handleTeacherTrainingFlow,
   handleObserveVisitFlow,
   mapLevelToPassageType,
   READING_ASSESSMENT_FLOW_ID,
-  ATTENDANCE_SETUP_FLOW_ID,
-  ATTENDANCE_MARKING_FLOW_ID,
   REGISTRATION_FLOW_ID
 };

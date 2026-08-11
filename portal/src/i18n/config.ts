@@ -3,9 +3,7 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
 import en from './locales/en.json';
-import es from './locales/es.json';
 import ur from './locales/ur.json';
-import ar from './locales/ar.json';
 
 i18n
   .use(LanguageDetector)
@@ -13,12 +11,14 @@ i18n
   .init({
     resources: {
       en: { translation: en },
-      es: { translation: es },
       ur: { translation: ur },
-      ar: { translation: ar },
     },
     fallbackLng: 'en',
-    supportedLngs: ['en', 'es', 'ur', 'ar'],
+    // Urdu first, matching the bot's offer order (bot/shared/config/languages.js).
+    // The portal used to carry four locales and its own supported list, so a
+    // teacher could read this in Spanish while every message from Rumi arrived
+    // in Urdu.
+    supportedLngs: ['ur', 'en'],
     detection: {
       order: ['localStorage', 'navigator', 'htmlTag'],
       caches: ['localStorage'],
@@ -36,13 +36,11 @@ const applyLanguageStyle = (lng: string) => {
   htmlElement.lang = lng;
   
   // Set direction
-  htmlElement.dir = lng === 'ar' || lng === 'ur' ? 'rtl' : 'ltr';
+  htmlElement.dir = lng === 'ur' ? 'rtl' : 'ltr';
   
   // Apply language-specific font with !important to override all styles
   if (lng === 'ur') {
     htmlElement.style.cssText = 'font-family: "Noto Nastaliq Urdu", serif !important;';
-  } else if (lng === 'ar') {
-    htmlElement.style.cssText = 'font-family: "Noto Sans Arabic", sans-serif !important;';
   } else {
     htmlElement.style.cssText = 'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;';
   }

@@ -35,6 +35,7 @@ const supabase = require('../config/supabase');
 const redisService = require('./cache/railway-redis.service');
 const WhatsAppService = require('./whatsapp.service');
 const { logToFile } = require('../utils/logger');
+const { clampLanguage } = require('../config/ux-strings');
 
 // 30s post-delivery. Longer than that and the teacher may be onto the next task.
 const FEEDBACK_DELAY_MS = 30 * 1000;
@@ -98,7 +99,7 @@ async function _resolveLanguage(userId, contextLanguage) {
     if (userRow?.preferred_language) lang = userRow.preferred_language;
   } catch (_) { /* fall through to context / default */ }
   // Normalize — anything not 'ur' is treated as English for our 2-language set.
-  return lang === 'ur' ? 'ur' : 'en';
+  return clampLanguage(lang);
 }
 
 // ─── 1. Scheduler ─────────────────────────────────────────────────────────

@@ -28,9 +28,6 @@ jest.mock('../../shared/services/region-features.service', () => ({
 }));
 jest.mock('../../shared/utils/region', () => ({ getUserRegion: jest.fn(() => 'niete') }));
 jest.mock('../../shared/services/video/video-orchestrator.service', () => ({}));
-jest.mock('../../shared/services/attendance-detector.service', () => ({}));
-jest.mock('../../shared/services/attendance-conversation.service', () => ({}));
-jest.mock('../../shared/services/attendance-delivery.service', () => ({}));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../shared/utils/constants', () => ({
   TEMP_DIR: '/tmp', LOADING_STICKER_PATH: '', LOADING_STICKER_MEDIA_ID: '',
@@ -47,7 +44,6 @@ jest.mock('../../shared/database/bot-helpers', () => ({
 }));
 jest.mock('../../shared/config/supabase', () => ({ from: jest.fn() }));
 jest.mock('../../shared/handlers/homework-trigger', () => ({ evaluateHomeworkTrigger: jest.fn() }));
-jest.mock('../../shared/handlers/edit-class-trigger', () => ({ detectEditClassIntent: jest.fn() }));
 
 const mockHandleCurriculumLessonPlan = jest.fn();
 jest.mock('../../shared/handlers/lesson-plan-v2.handler', () => mockHandleCurriculumLessonPlan);

@@ -1,5 +1,5 @@
 /**
- * Shared test helpers for attendance-router tests. Mirrors tests/hcp/_shared.js
+ * Shared test helpers for the dashboard attendance routes. Mirrors tests/hcp/_shared.js
  * with the invokeRoute target pointing at attendance.routes instead.
  */
 

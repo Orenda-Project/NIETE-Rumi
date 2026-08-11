@@ -2,6 +2,8 @@ const path = require('path');
 const fs = require('fs');
 const WhatsAppService = require('../services/whatsapp.service');
 const OpenAIService = require('../services/openai.service');
+const { clampLanguage } = require('../config/ux-strings');
+const { verifyOutputLanguage } = require('../utils/output-language-check');
 const AudioService = require('../services/audio.service');
 const ContentService = require('../services/content.service');
 const FeatureRegistrationService = require('../services/feature-registration.service');
@@ -9,7 +11,6 @@ const CoachingService = require('../services/coaching-orchestrator.service');
 const MenuService = require('../services/menu.service');
 const VideoOrchestrator = require('../services/video/video-orchestrator.service');
 const LessonPlanQueueService = require('../services/lesson-plan-queue.service');
-const AttendanceConversationService = require('../services/attendance-conversation.service');
 const { logToFile } = require('../utils/logger');
 const { TEMP_DIR, LOADING_STICKER_PATH, LOADING_STICKER_MEDIA_ID } = require('../utils/constants');
 const {
@@ -129,67 +130,9 @@ async function handleVoiceMessage(message, from, user = null) {
       }
     }
 
-    // ============================================================
-    // ATTENDANCE VOICE INPUT CHECK
-    // Check if user is awaiting voice input for attendance roll call
-    // ============================================================
-    if (user) {
-      try {
-        const attendanceState = await AttendanceConversationService.getSessionState(user.id);
-
-        if (attendanceState?.state === AttendanceConversationService.STATES.AWAITING_VOICE_INPUT) {
-          logToFile('📋 Attendance voice input detected', { userId: user.id, sessionState: attendanceState.state });
-
-          // Download the audio
-          const audioBuffer = await WhatsAppService.downloadMedia(audioId);
-
-          // Save to temp file for processing
-          const tempAudioPath = path.join(TEMP_DIR, `attendance_${user.id}_${Date.now()}.ogg`);
-          fs.writeFileSync(tempAudioPath, audioBuffer);
-
-          // Convert to WAV for Soniox (16kHz mono)
-          const wavPath = path.join(TEMP_DIR, `attendance_${user.id}_${Date.now()}.wav`);
-          await AudioService.convertToWav(audioBuffer, wavPath);
-
-          logToFile('Attendance audio saved', { tempAudioPath, wavPath });
-
-          // Process voice attendance using the conversation service
-          const result = await AttendanceConversationService.handleVoiceInput(user.id, wavPath);
-
-          // Cleanup temp files
-          try {
-            if (fs.existsSync(tempAudioPath)) fs.unlinkSync(tempAudioPath);
-            if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath);
-          } catch (cleanupError) {
-            logToFile('⚠️ Temp file cleanup failed', { error: cleanupError.message });
-          }
-
-          // Stop typing indicator
-          typingController.stop();
-
-          // Handle the result
-          if (result.action === 'VERIFY_ATTENDANCE') {
-            // Send verification message
-            await WhatsAppService.sendMessage(from, result.message);
-            logToFile('✅ Attendance verification sent', {
-              present: result.summary.present,
-              absent: result.summary.absent
-            });
-          } else if (result.action === 'ERROR') {
-            // Send error message
-            await WhatsAppService.sendMessage(from, result.message);
-          } else {
-            // Unexpected action
-            await WhatsAppService.sendMessage(from, result.message || 'Please try again.');
-          }
-
-          return; // Exit early - handled by attendance system
-        }
-      } catch (error) {
-        logToFile('⚠️ Error checking attendance voice state', { error: error.message, stack: error.stack, userId: user?.id });
-        // Continue with normal flow if attendance check fails
-      }
-    }
+    // ATTENDANCE voice roll call — removed 2026-08-10, rebuilding from scratch.
+    // Voice marking never reached a single teacher on this deployment
+    // (attendance_sessions: 0 rows, ever).
 
     // PRIORITY 1: CHECK FOR COMPREHENSION QUESTION ANSWER (Sprint 1.8)
     // CRITICAL: Must check BEFORE reading assessment to avoid routing comprehension answers as new readings
@@ -933,6 +876,36 @@ async function handleVoiceMessage(message, from, user = null) {
       });
     }
 
+    // Clamp ONCE, here, after both branches.
+    //
+    // getConfirmedLanguage is a RECOGNITION function and deliberately broader than
+    // what this deployment serves — Soniox writes Sindhi, Balochi and Pashto in
+    // Urdu script, so the detector must be able to name them to tell them apart.
+    // The locked branch above replaces its answer with her stored preference, but
+    // 99.6% of teachers are UNLOCKED, so for almost everyone the raw detection
+    // flowed onward untouched: into the AI system prompt, so Rumi answered in
+    // Balochi, and into the TTS router, so the voice followed. That is the
+    // mechanism behind the 19 Punjabi and 2 Arabic output_language rows the audit
+    // measured and could not explain.
+    //
+    // It has to happen HERE rather than inside the AI service because this one
+    // value feeds the prompt, the speech synthesis and the logs. Clamping one
+    // consumer and not the other would mean Urdu text read aloud in a Punjabi
+    // voice — worse than either alone.
+    const heardLanguage = detectedLanguage;
+    detectedLanguage = clampLanguage(detectedLanguage);
+    if (heardLanguage !== detectedLanguage) {
+      // Still recorded: what she actually spoke is real information about her,
+      // even though we cannot answer in it. This is the signal that would justify
+      // adding a language to the offer one day.
+      logToFile('🈳 Reply language clamped to the offer', {
+        heard: heardLanguage,
+        replyingIn: detectedLanguage,
+        userId: user?.id,
+        rule: 'reply-language-clamped'
+      });
+    }
+
     // Check if user said a language switch command. bd-2413 (row 11): only a
     // MARKET language (en/ur) may flip the conversation; an off-market request
     // (e.g. Punjabi) is ignored so Rumi stays on en/ur.
@@ -1126,6 +1099,20 @@ async function handleVoiceMessage(message, from, user = null) {
       firstName,
       hasEmotionTags: /\[[\w]+\]/.test(aiResponse)
     });
+
+    // Same check as the text path, before the reply is spoken. A wrong-language
+    // voice note is worse than a wrong-language text — it cannot be skimmed.
+    const voiceLangCheck = verifyOutputLanguage(aiResponse, detectedLanguage);
+    if (!voiceLangCheck.ok) {
+      logToFile('🈯 language_drift: voice reply', {
+        surface: 'chat_voice',
+        expected: voiceLangCheck.expected,
+        detected: voiceLangCheck.detected,
+        reason: voiceLangCheck.reason,
+        userId: user?.id,
+        level: 'error'
+      });
+    }
 
     // Step 7: Generate speech using appropriate TTS service based on language
     logToFile('Step 7: Generating speech for language:', { language: detectedLanguage });

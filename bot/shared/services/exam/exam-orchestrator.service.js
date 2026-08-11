@@ -18,6 +18,7 @@ const { renderAndPublish } = require('./exam-render.service');
 const WhatsAppService = require('../whatsapp.service');
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const { clampLanguage } = require('../../config/ux-strings');
 
 // exam.grade is stored as the pre-formatted "Grade Five" / "Grade Prep" string,
 // so any user-facing message that adds its own "Grade " / "گریڈ " prefix produces
@@ -56,7 +57,7 @@ const FRIENDLY_MESSAGES = {
 };
 
 function pickLang(language) {
-  return language === 'ur' ? 'ur' : 'en';
+  return clampLanguage(language);
 }
 
 /**

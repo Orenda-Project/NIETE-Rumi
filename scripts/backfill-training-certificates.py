@@ -37,12 +37,25 @@ load_dotenv(".env")
 
 
 def sb_conn():
+    """Connect to Supabase Postgres, preferring the pooler.
+
+    `db.<ref>.supabase.co` resolves to an IPv6 address ONLY. On an IPv4-only
+    host — which includes this dev box and most CI runners — it fails outright
+    with "Network is unreachable", so the script could not be run at all.
+    The session pooler is dual-stack, so it works in both places.
+
+    SUPABASE_DB_HOST / SUPABASE_DB_USER override both, for a project in a
+    different region (the pooler hostname carries the region, and the old
+    `aws-0-*` names have been retired in favour of `aws-1-*`).
+    """
     proj_ref = os.environ["SUPABASE_URL"].split("//")[1].split(".")[0]
+    host = os.environ.get("SUPABASE_DB_HOST", "aws-1-ap-south-1.pooler.supabase.com")
+    user = os.environ.get("SUPABASE_DB_USER", f"postgres.{proj_ref}")
     return psycopg2.connect(
-        host=f"db.{proj_ref}.supabase.co",
-        port=5432,
+        host=host,
+        port=int(os.environ.get("SUPABASE_DB_PORT", "5432")),
         dbname="postgres",
-        user="postgres",
+        user=user,
         password=os.environ["SUPABASE_DB_PASSWORD"],
         sslmode="require",
         connect_timeout=15,
@@ -74,7 +87,27 @@ def main():
       FROM training_assessment_attempts a
       JOIN training_levels lv ON lv.id = a.level_id
       JOIN users u ON u.id = a.user_id
+      -- A DIAGNOSTIC does not certify a level; a grand quiz or a capstone does.
+      --
+      -- Without this join the query certified any passed attempt, including
+      -- diagnostics — the test that gates ENTRY to a level, not completion of
+      -- it. On 2026-08-10 that issued 8,213 diagnostic certificates, 2,756 of
+      -- them the teacher's ONLY certificate for that level: certified without
+      -- earning it, which is the exact field report this bead started from.
+      --
+      -- The filter must EXCLUDE diagnostics rather than allow only grand
+      -- quizzes. Levels 18-21 (the Beaconhouse subject levels — English,
+      -- Mathematics, General Science, Computer Science) certify via a CAPSTONE,
+      -- which is their terminal assessment. A grand_quiz-only filter silently
+      -- dropped 1,262 legitimate capstone certificates across 1,262 teachers
+      -- before this was caught.
+      --
+      -- quiz_kind cannot express this: its check constraint allows only
+      -- grand / training_module / capstone, so a diagnostic legitimately rides
+      -- under 'grand'. The quiz's own quiz_type is the only source of truth.
+      JOIN training_grand_quizzes gq ON gq.id = a.grand_quiz_id
       WHERE a.is_passed = TRUE
+        AND gq.quiz_type <> 'diagnostic'
         AND NOT EXISTS (
           SELECT 1 FROM training_certificates c WHERE c.attempt_id = a.id
         );

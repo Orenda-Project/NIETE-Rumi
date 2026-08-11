@@ -40,6 +40,14 @@ const MINIMUM_ENV = {
   PHONE_NUMBER_ID: '0000000000',
   WABA_ID: '1111111111',
   WEBHOOK_VERIFY_TOKEN: 'test-verify-token',
+  // This audit only asks "does the require chain load?" — it has no business
+  // touching a real queue. Blanked here rather than in an npm script so the
+  // guard travels with the only test that boots workers and cannot be bypassed
+  // by running jest directly. The queue service disables itself when unset.
+  SQS_QUEUE_URL: '',
+  SQS_DLQ_URL: '',
+  SQS_VIDEO_QUEUE_URL: '',
+  SQS_QUIZ_QUEUE_URL: '',
 };
 
 // Only TRUE load-time failures count — patterns Node prints at column 0 when
@@ -68,6 +76,45 @@ function discoverWorkerEntries() {
   return list;
 }
 
+/**
+ * Terminate a booted child and WAIT for it to actually die.
+ *
+ * SIGTERM is not enough. The lesson-plan and video workers pull in a dependency
+ * that installs its own SIGTERM handler and never exits, so a plain
+ * `child.kill('SIGTERM')` left the process running: orphaned to init, still
+ * polling with whatever queue config the test run happened to carry, and
+ * holding its stdio pipes open — which also stopped Jest from exiting, so this
+ * file hung instead of finishing.
+ *
+ * So: ask nicely, then insist. Resolve only once the process is gone.
+ */
+function reap(child, graceMs = 1500) {
+  return new Promise((resolve) => {
+    if (child.exitCode !== null || child.signalCode !== null) return resolve();
+
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      // Drop our end of the pipes so no handle keeps the runner alive.
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+      resolve();
+    };
+
+    child.once('exit', finish);
+    try { child.kill('SIGTERM'); } catch { return finish(); }
+
+    setTimeout(() => {
+      if (settled) return;
+      try { child.kill('SIGKILL'); } catch { /* already gone */ }
+      // SIGKILL cannot be trapped; give the OS a moment to reap, then move on
+      // rather than hanging the suite if the exit event is somehow missed.
+      setTimeout(finish, 300);
+    }, graceMs);
+  });
+}
+
 function bootCheck(entry, timeoutMs = 2000) {
   return new Promise((resolve) => {
     let out = '';
@@ -78,10 +125,10 @@ function bootCheck(entry, timeoutMs = 2000) {
     });
     child.stdout.on('data', (d) => { out += d.toString(); });
     child.stderr.on('data', (d) => { out += d.toString(); });
-    const t = setTimeout(() => {
-      try { child.kill('SIGTERM'); } catch { /* already dead */ }
+    const t = setTimeout(async () => {
+      await reap(child);
       const errorLine = LOAD_TIME_ERROR_RE.test(out) ? out.match(LOAD_TIME_ERROR_RE)[0] : null;
-      resolve({ status: errorLine ? 'fail' : 'pass', errorLine, code: null, out });
+      resolve({ status: errorLine ? 'fail' : 'pass', errorLine, code: null, out, pid: child.pid });
     }, timeoutMs);
     child.on('exit', (code) => {
       clearTimeout(t);
@@ -92,9 +139,14 @@ function bootCheck(entry, timeoutMs = 2000) {
       const ok = isCron
         ? !errorLine
         : (code === 0 || code === null) && !errorLine;
-      resolve({ status: ok ? 'pass' : 'fail', errorLine, code, out });
+      resolve({ status: ok ? 'pass' : 'fail', errorLine, code, out, pid: child.pid });
     });
   });
+}
+
+function isAlive(pid) {
+  if (!pid) return false;
+  try { process.kill(pid, 0); return true; } catch { return false; }
 }
 
 // Booting workers requires the bot's own node_modules. CI runs the root test
@@ -124,6 +176,46 @@ describe('Worker-boot audit — every entry loads (forked)', () => {
         }
       },
       5000
+    );
+  }
+});
+
+/**
+ * Process-leak guard.
+ *
+ * The audit above boots each entry as a real child process, so it is also
+ * responsible for reaping them. SIGTERM alone is not sufficient: the
+ * lesson-plan and video workers pull in a dependency that installs its own
+ * SIGTERM handler and does not exit, so the child outlived the run, was
+ * orphaned to init, and kept polling with whatever queue config the run had.
+ *
+ * That went unnoticed because CI runs the root suite BEFORE `cd bot && npm ci`,
+ * which skips this whole file — the leak only reproduced on a developer machine
+ * with bot deps installed.
+ */
+describe('Worker-boot audit — leaves no orphaned child (process-leak guard)', () => {
+  if (!BOT_NODE_MODULES_PRESENT) {
+    it.skip('SKIPPED — bot/node_modules absent (CI first-pass)', () => {});
+    return;
+  }
+
+  // The two entries that ignore SIGTERM. Guarding these covers the mechanism;
+  // any future entry that behaves the same way is caught by the same escalation.
+  const STUBBORN = [
+    path.join(BOT_ROOT, 'workers', 'lesson-plan-generation.worker.js'),
+    path.join(BOT_ROOT, 'workers', 'video-generation.worker.js'),
+  ].filter((p) => fs.existsSync(p));
+
+  for (const entry of STUBBORN) {
+    const rel = entry.replace(ROOT + '/', '');
+    it(
+      `reaps ${rel} even though it ignores SIGTERM`,
+      async () => {
+        const r = await bootCheck(entry, 2000);
+        expect(typeof r.pid).toBe('number');
+        expect(isAlive(r.pid)).toBe(false);
+      },
+      15000
     );
   }
 });

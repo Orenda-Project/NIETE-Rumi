@@ -77,14 +77,6 @@ jest.mock('../../shared/services/video/video-orchestrator.service', () => ({
   checkAwaitingTopic: jest.fn().mockResolvedValue(null),
   checkAwaitingCustomization: jest.fn().mockResolvedValue(null),
 }));
-jest.mock('../../shared/services/attendance-detector.service', () => ({
-  detectAddClassIntent: jest.fn(() => ({ detected: false })),
-  detectAttendanceIntent: jest.fn(() => ({ detected: false })),
-}));
-jest.mock('../../shared/services/attendance-conversation.service', () => ({
-  isInAttendanceSession: jest.fn().mockResolvedValue(false),
-}));
-jest.mock('../../shared/services/attendance-delivery.service', () => ({}));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../shared/utils/constants', () => ({
   TEMP_DIR: '/tmp', LOADING_STICKER_PATH: '', LOADING_STICKER_MEDIA_ID: '',
@@ -121,9 +113,6 @@ jest.mock('../../shared/config/supabase', () => {
 });
 jest.mock('../../shared/handlers/homework-trigger', () => ({
   evaluateHomeworkTrigger: jest.fn(() => ({ match: false })),
-}));
-jest.mock('../../shared/handlers/edit-class-trigger', () => ({
-  detectEditClassIntent: jest.fn(() => ({ detected: false })),
 }));
 
 // --- inline-required (lazy) modules on the text path — all fall-through ---

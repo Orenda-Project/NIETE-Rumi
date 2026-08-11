@@ -28,9 +28,10 @@ const CurriculumLpAstService = require('./curriculum-lp-ast.service');
 const WhatsAppService = require('./whatsapp.service');
 const { uploadBuffer } = require('../storage/r2');
 const { logToFile } = require('../utils/logger');
+const { clampLanguage } = require('../config/ux-strings');
 
 function astR2Key(lp, language) {
-  const lang = language === 'ur' ? 'ur' : 'en';
+  const lang = clampLanguage(language);
   return `lps/curriculum-ast/${lp.source_lp_uuid}.${lang}.pdf`;
 }
 
@@ -58,7 +59,7 @@ async function renderAndServeGrounded({ userId, lp, language = 'en' }) {
     const { pdfUrl } = await ContentService.generateLessonPlan(
       lp.topic || lp.chapter_title,
       lp.topic || lp.chapter_title,
-      language === 'ur' ? 'ur' : 'en',
+      clampLanguage(language),
       { curriculumLpAst: lp },
     );
     if (!pdfUrl) throw new Error('Gamma returned no pdfUrl');
@@ -71,7 +72,7 @@ async function renderAndServeGrounded({ userId, lp, language = 'en' }) {
     const r2Key = astR2Key(lp, language);
     await uploadBuffer(pdfBuffer, r2Key, 'application/pdf');
     // 4. Update AST row so future hits skip Gamma
-    await CurriculumLpAstService.setRenderedPdfKey(lp.source_lp_uuid, r2Key, language === 'ur' ? 'ur' : 'en');
+    await CurriculumLpAstService.setRenderedPdfKey(lp.source_lp_uuid, r2Key, clampLanguage(language));
     logToFile('Grounded LP: cached in R2', { source_lp_uuid: lp.source_lp_uuid, r2Key });
 
     // 5. Send the freshly rendered PDF

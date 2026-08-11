@@ -59,10 +59,17 @@ describe('bd-2395 — Android release identity', () => {
     expect(debug).toMatch(/applicationIdSuffix\s+["']\.debug["']/);
   });
 
-  it('versionCode is at least 1203 (1202 shipped; Play needs a higher code)', () => {
+  // Floor moves with every upload: Play rejects a bundle whose versionCode is
+  // not strictly higher than the live release, so this asserts against the
+  // highest code that has LEFT this machine, not the highest ever built.
+  // 1202 shipped → 1203 uploaded → 1204 built and handed over on 2026-08-06,
+  // so the next build — carrying the training-quiz feedback — has to be 1205.
+  // Bump this AND the prose above on every upload; a stale comment here is
+  // what caused the wasted build at 1203.
+  it('versionCode is at least 1205 (1204 handed over; Play needs a higher code)', () => {
     const m = source.match(/versionCode\s+(\d+)/);
     expect(m).not.toBeNull();
-    expect(Number(m[1])).toBeGreaterThanOrEqual(1203);
+    expect(Number(m[1])).toBeGreaterThanOrEqual(1205);
   });
 
   it('versionName tracks versionCode', () => {
@@ -75,15 +82,48 @@ describe('bd-2395 — Android release identity', () => {
   // two AABs from different versions are indistinguishable once they leave the
   // build directory — and the file that matters is the one being uploaded to
   // Play. Naming the artifact after the versionCode makes it self-identifying.
+  //
+  // bd-2520 then made it exactly ONE file: the doLast block moves Gradle's
+  // `niete-rumi-v<code>-release.aab` onto the versioned name instead of
+  // copying it. Nothing in CI or any script reads the `-release` name.
   describe('the release artifact is self-identifying (bd-2396)', () => {
     it('names the archive niete-rumi-v<versionCode>', () => {
       const gradle = stripComments(source);
       expect(gradle).toMatch(/archivesName\s*=\s*["']niete-rumi-v\$\{[^}]*versionCode\}["']/);
     });
 
-    it('copies the bundle to the exact niete-rumi-v<versionCode>.aab name', () => {
+    it('renames the bundle to the exact niete-rumi-v<versionCode>.aab name', () => {
       const gradle = stripComments(source);
       expect(gradle).toMatch(/niete-rumi-v\$\{[^}]*versionCode\}\.aab/);
+    });
+
+    // bd-2520: the rename used to be a COPY, which left Gradle's own
+    // `niete-rumi-v<code>-release.aab` (archivesName + build-type suffix)
+    // sitting beside the versioned name — two byte-identical files, one
+    // artifact. Verified 2026-08-06 at versionCode 1204: both 6255617 bytes,
+    // both md5 6bbb76145b2b17c2564dc3653ebbd14a. Two names for one artifact is
+    // a foot-gun: `-release` reads as "the real one" when it only means the
+    // build TYPE, and the wrong file gets uploaded to Play.
+    //
+    // The fix is to MOVE rather than copy, so exactly one .aab survives. This
+    // asserts on the source because the failure is invisible until someone
+    // stares at the output directory and has to guess which file is canonical.
+    it('MOVES rather than copies, so no un-versioned .aab is left behind', () => {
+      const gradle = stripComments(source);
+      // The task must relocate the Gradle-named bundle, not duplicate it:
+      // either Files.move, or a copy whose source is explicitly deleted.
+      const moves = /Files\s*\.\s*move\s*\(/.test(gradle);
+      const copiesThenDeletes =
+        /Files\s*\.\s*copy\s*\(/.test(gradle) && /\.delete\s*\(\s*\)|Files\s*\.\s*delete/.test(gradle);
+      expect(moves || copiesThenDeletes).toBe(true);
+    });
+
+    it('leaves a bare Files.copy nowhere in the bundle task', () => {
+      const gradle = stripComments(source);
+      // A copy with no accompanying delete is exactly the two-file bug.
+      if (/Files\s*\.\s*copy\s*\(/.test(gradle)) {
+        expect(gradle).toMatch(/\.delete\s*\(\s*\)|Files\s*\.\s*delete/);
+      }
     });
 
     it('derives the name from versionCode rather than hardcoding a number', () => {

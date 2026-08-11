@@ -802,8 +802,16 @@ async function sendQuestion(attemptId, phoneNumber) {
 /**
  * Handle a list-reply from the teacher for a quiz question.
  * ID format: training_quiz_<attemptId>_<optionIndex1based>
+ *
+ * @param {string} userId
+ * @param {string} replyId
+ * @param {string} phoneNumber
+ * @param {string} [messageId] the inbound wamid of the teacher's tap. Optional
+ *        — bd-2525 reacts ✅/❌ on it when present, and simply skips the
+ *        reaction when a caller does not have one (the text feedback still
+ *        goes out either way, so no path loses its verdict).
  */
-async function handleQuizButton(userId, replyId, phoneNumber) {
+async function handleQuizButton(userId, replyId, phoneNumber, messageId = null) {
   const m = /^training_quiz_([a-f0-9-]{36})_(\d+|done)$/.exec(replyId || '');
   if (!m) {
     logToFile('⚠️ Unrecognized training quiz reply id', { replyId });
@@ -879,6 +887,62 @@ async function handleQuizButton(userId, replyId, phoneNumber) {
 
   const isCorrect = String(q.correct_option).trim() === String(chosen).trim();
   await recordAnswer(attempt.id, attempt.current_question_index, q.id, chosen, isCorrect);
+
+  // bd-2523 — say so, immediately. The grade above was already computed and
+  // stored, then discarded: the teacher answered four questions and only found
+  // out at the end that two were wrong, with no way to tell which. A NIETE
+  // reviewer flagged it as P1 ("difficult to track progress").
+  //
+  // Sent BEFORE the next question so it reads as a verdict on the one just
+  // answered, and wrapped because it is a courtesy — if this single message
+  // fails to deliver, the quiz must still advance rather than strand the
+  // attempt mid-flight.
+  //
+  // Deliberately does NOT reveal the correct option. Module quizzes have no
+  // cooldown and NIETE's bar is 100%, so a teacher retries immediately;
+  // showing the answer would train recall of the letter rather than the idea.
+  // bd-2524 will add the WHY here — the source question bank has per-option
+  // explanations for ~43% of questions that were never migrated — which
+  // extends this message rather than replacing it. That is also when the
+  // wrong-answer line earns a 💡: there will finally be an insight after it.
+  //
+  // bd-2525, two parts:
+  //
+  //  1. React on the teacher's OWN tap. A reaction is the right shape for a
+  //     one-glyph verdict — it lands on their reply at the bottom of the
+  //     thread, where their eye already is, and costs no extra bubble. It has
+  //     to be their message: sendInteractiveMessage returns a bare boolean, so
+  //     the question we sent has no id we could react to.
+  //
+  //  2. Copy. "❌ Not quite" pulled in two directions — ❌ is the loudest mark
+  //     in the set while "not quite" hedges, implying a near miss that often
+  //     was not one. An adult professional needs the fact stated plainly. The
+  //     thin ✗ carries "wrong" without the red-block shout and matches the ✓
+  //     family; the heavy ❌ stays where it works, on the reaction.
+  if (messageId) {
+    try {
+      await WhatsAppService.sendReaction(phoneNumber, messageId, isCorrect ? '✅' : '❌');
+    } catch (error) {
+      logToFile('⚠️ Could not react to quiz answer', {
+        attemptId: attempt.id,
+        index: attempt.current_question_index,
+        error: error.message,
+      });
+    }
+  }
+
+  try {
+    await WhatsAppService.sendMessage(
+      phoneNumber,
+      isCorrect ? '✅ *Correct*' : '✗ *Not correct.*'
+    );
+  } catch (error) {
+    logToFile('⚠️ Could not send per-question feedback', {
+      attemptId: attempt.id,
+      index: attempt.current_question_index,
+      error: error.message,
+    });
+  }
 
   const nextIdx = attempt.current_question_index + 1;
   await supabase.from('training_assessment_attempts').update({

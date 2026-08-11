@@ -1,10 +1,11 @@
 /**
  * Settings flow — region-config (region-agnostic default framework),
- * settings-config (env-overridable language dropdown), and the
- * settings-endpoint INIT / data_exchange / BACK handlers.
+ * settings-config (language dropdown, now derived from the language registry
+ * rather than an environment variable), and the settings-endpoint
+ * INIT / data_exchange / BACK handlers.
  *
- * All bot-only deps (supabase, logger) are mocked so the suite runs at the
- * repo root before `bot/` deps are installed (CI test-ordering trap).
+ * All bot-only deps (supabase, logger, language-cache) are mocked so the suite
+ * runs at the repo root before `bot/` deps are installed (CI test-ordering trap).
  */
 
 const fs = require('fs');
@@ -74,39 +75,58 @@ describe('settings-config', () => {
   const ORIG = { ...process.env };
   afterEach(() => { process.env = { ...ORIG }; jest.resetModules(); });
 
-  it('exposes a default language dropdown of {id,title} objects', () => {
+  // These three expectations changed deliberately. They encoded the defect:
+  // the dropdown was env-driven with a five-language fallback, the variable was
+  // not set on this deployment, so ICT teachers were offered Kiswahili, Arabic
+  // and Spanish — and a MALFORMED value produced that same list, so a typo could
+  // not be detected by reading the config. The list now derives from the language
+  // registry, which is the single source of truth for what we serve.
+
+  it('exposes the registry offer as {id,title} objects, Urdu first', () => {
     jest.resetModules();
-    delete process.env.SETTINGS_LANGUAGES;
     const { LANGUAGES_DROPDOWN, FRAMEWORKS_DROPDOWN } = require('../../bot/shared/config/settings-config');
-    expect(LANGUAGES_DROPDOWN.length).toBeGreaterThan(0);
-    expect(LANGUAGES_DROPDOWN[0]).toEqual({ id: 'en', title: 'English' });
+    // Urdu leads because ICT government-school teaching is predominantly
+    // Urdu-medium; the first entry is also the default for a teacher who has
+    // not chosen. This used to expect English first.
+    expect(LANGUAGES_DROPDOWN.map(l => l.id)).toEqual(['ur', 'en']);
     LANGUAGES_DROPDOWN.forEach(l => { expect(l).toHaveProperty('id'); expect(l).toHaveProperty('title'); });
     // frameworks derived from region-config labels
     expect(FRAMEWORKS_DROPDOWN.map(f => f.id).sort()).toEqual(['fico', 'hots', 'oecd', 'teach']);
   });
 
-  it('honours SETTINGS_LANGUAGES override', () => {
+  it('IGNORES SETTINGS_LANGUAGES — the offer is code, not configuration', () => {
     jest.resetModules();
     process.env.SETTINGS_LANGUAGES = JSON.stringify([{ id: 'sw', title: 'Kiswahili' }]);
     const { LANGUAGES_DROPDOWN } = require('../../bot/shared/config/settings-config');
-    expect(LANGUAGES_DROPDOWN).toEqual([{ id: 'sw', title: 'Kiswahili' }]);
+    // An environment variable must not be able to offer a language the
+    // deployment cannot serve. Previously this override was honoured.
+    expect(LANGUAGES_DROPDOWN.map(l => l.id)).toEqual(['ur', 'en']);
   });
 
-  it('falls back to the default list when SETTINGS_LANGUAGES is malformed or empty', () => {
+  it('cannot be broken by a malformed or empty SETTINGS_LANGUAGES', () => {
+    for (const value of ['[]', 'broken', '', undefined]) {
+      jest.resetModules();
+      if (value === undefined) delete process.env.SETTINGS_LANGUAGES;
+      else process.env.SETTINGS_LANGUAGES = value;
+      const cfg = require('../../bot/shared/config/settings-config');
+      expect(cfg.LANGUAGES_DROPDOWN.map(l => l.id)).toEqual(['ur', 'en']);
+    }
+  });
+
+  it('offers no language this deployment does not serve', () => {
     jest.resetModules();
-    process.env.SETTINGS_LANGUAGES = '[]';
-    let cfg = require('../../bot/shared/config/settings-config');
-    expect(cfg.LANGUAGES_DROPDOWN[0].id).toBe('en');
-    jest.resetModules();
-    process.env.SETTINGS_LANGUAGES = 'broken';
-    cfg = require('../../bot/shared/config/settings-config');
-    expect(cfg.LANGUAGES_DROPDOWN[0].id).toBe('en');
+    const { LANGUAGES_DROPDOWN } = require('../../bot/shared/config/settings-config');
+    const ids = LANGUAGES_DROPDOWN.map(l => l.id);
+    for (const off of ['sw', 'ar', 'es', 'pa-PK', 'sd-PK', 'ps-PK', 'bal-PK', 'ta-LK']) {
+      expect(ids).not.toContain(off);
+    }
   });
 });
 
 // ── settings-endpoint ────────────────────────────────────────────────────────
 describe('settings-endpoint', () => {
   let endpoint;
+  let setUserLanguageSpy;
   let supabaseFrom;
   let updateSpy;
 
@@ -124,6 +144,12 @@ describe('settings-endpoint', () => {
     }
     supabaseFrom = jest.fn(() => chainFor({ data: userRow, error: null }));
     jest.doMock('../../bot/shared/config/supabase', () => ({ from: supabaseFrom }));
+    // Language now goes through the one writer. Mocked here both to assert the
+    // call and because the real module pulls in the Redis client.
+    setUserLanguageSpy = jest.fn().mockResolvedValue(true);
+    jest.doMock('../../bot/shared/utils/language-cache', () => ({
+      setUserLanguage: setUserLanguageSpy,
+    }));
     endpoint = require('../../bot/shared/routes/settings-endpoint');
   }
 
@@ -151,22 +177,35 @@ describe('settings-endpoint', () => {
     delete process.env.REGION_FRAMEWORK_MAP;
   });
 
-  it('data_exchange on SETTINGS_MAIN persists prefs and returns SUCCESS', async () => {
-    loadEndpoint({ preferences: { curriculum: 'national' } });
+  // Rewritten deliberately. This previously submitted 'sw' and asserted that
+  // Kiswahili was written to BOTH preferred_language and preferences.language.
+  // All three parts of that are now wrong by design: Kiswahili is not offered,
+  // the column is written only by the writer, and language no longer lives in
+  // the preferences blob (the dual store is what let the screen and the bot
+  // disagree permanently).
+  it('data_exchange on SETTINGS_MAIN persists the framework and delegates language to the writer', async () => {
+    loadEndpoint({ preferences: { curriculum: 'national' }, preferred_language: 'ur' });
     const res = await endpoint.handleSettingsDataExchange(
       'user-3', 'SETTINGS_MAIN',
-      { language: 'sw', observation_framework: 'teach' },
+      { language: 'en', observation_framework: 'teach' },
       'user-3:settings:123'
     );
     expect(res.screen).toBe('SUCCESS');
-    expect(res.data.details_message).toContain('Kiswahili');
+    expect(res.data.details_message).toContain('English');
     expect(res.data.details_message).toContain('Teach');
     expect(res.data.extension_message_response.params.flow_token).toBe('user-3:settings:123');
-    // merged prefs preserve existing keys + write preferred_language
-    expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({
-      preferred_language: 'sw',
-      preferences: expect.objectContaining({ curriculum: 'national', language: 'sw', observation_framework: 'teach' }),
-    }));
+
+    // Language: through the writer, locked, and never written to the column here.
+    expect(setUserLanguageSpy).toHaveBeenCalledWith('user-3', 'en', true);
+    expect(updateSpy).not.toHaveBeenCalledWith(
+      expect.objectContaining({ preferred_language: expect.anything() })
+    );
+
+    // Framework: still merged into the blob, existing keys preserved, and the
+    // blob carries no language key.
+    const prefsWrite = updateSpy.mock.calls.map(c => c[0]).find(p => p && p.preferences);
+    expect(prefsWrite.preferences).toMatchObject({ curriculum: 'national', observation_framework: 'teach' });
+    expect(prefsWrite.preferences).not.toHaveProperty('language');
   });
 
   it('data_exchange rejects an unsupported framework', async () => {

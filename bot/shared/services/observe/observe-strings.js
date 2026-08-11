@@ -1,3 +1,4 @@
+const { clampLanguage } = require('../../config/ux-strings');
 /**
  * FEAT-053 bd-12/bd-14 — /observe user-facing strings, en/sw.
  * Follows the coaching-strings.js pattern (bd-1755): one function returning
@@ -401,7 +402,7 @@ const VISIT_CAPTURE_TEMPLATES = {
  * @param {{teacherName?:string, framework?:string}} [opts]
  */
 function buildVisitCapturePrompt(lang, opts = {}) {
-  const l = lang === 'ur' ? 'ur' : 'en';
+  const l = clampLanguage(lang);
   const fw = String(opts.framework || 'FICO').toUpperCase();
   const t = VISIT_CAPTURE_TEMPLATES[l];
   const template = opts.teacherName ? t.withName : t.noName;
@@ -429,7 +430,7 @@ function _ackDate(ymd) {
  * @param {{teacherName?:string, date?:string, slot?:string}} [opts] date = YYYY-MM-DD
  */
 function buildScheduleDoneAck(lang, opts = {}) {
-  const l = lang === 'ur' ? 'ur' : 'en';
+  const l = clampLanguage(lang);
   return SCHEDULE_DONE_TEMPLATES[l]
     .replace('{name}', opts.teacherName || '')
     .replace('{date}', _ackDate(opts.date))

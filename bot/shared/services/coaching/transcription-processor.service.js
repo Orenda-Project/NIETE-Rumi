@@ -104,8 +104,28 @@ class TranscriptionProcessorService {
         silenceCount: transcriptionResult.silences?.length || 0
       });
 
-      // === PHASE 2: Language Detection & Update ===
-      // Analyze language from transcription and update user preference if needed
+      // === PHASE 2: Language detection — OBSERVE ONLY ===
+      //
+      // Classroom audio no longer changes a teacher's stored language.
+      //
+      // This path was the mechanism behind every measured mismatch: 168 teachers
+      // had been answered in a language that was not their stored preference,
+      // because the language of a LESSON was being written to the teacher's
+      // PROFILE. A recording is evidence about a classroom, not a request to
+      // change an interface — and with only two languages and a working picker,
+      // the upside of guessing was saving one tap.
+      //
+      // The explicit verbal override ("reply to me in Urdu") still works and
+      // still writes; it is handled in the text and voice handlers, is already
+      // clamped to the offer, and is a real statement of intent.
+      //
+      // Gated rather than deleted outright so rollback is a flag flip during the
+      // soak. The flag defaults to OFF, so the safe behaviour is the default and
+      // a missing or malformed value degrades to correct. Once the soak is clean,
+      // this branch and the flag go, along with the now-unused write path in
+      // language-detector.
+      const AUDIO_MAY_WRITE_LANGUAGE = process.env.LANGUAGE_AUDIO_AUTOFLIP === 'true';
+
       const currentLanguage = await getUserLanguage(session.user_id);
       const languageAnalysis = analyzeLanguage(
         {
@@ -119,16 +139,28 @@ class TranscriptionProcessorService {
       // school leader from the classroom they walked into. On a leader observation
       // the audio is SOMEONE ELSE'S lesson — the observer's own interface language
       // is their preference, not a function of the teacher they happened to observe.
+      // Retained beneath the global gate: if the flag is ever turned back on, this
+      // protection must not have quietly disappeared underneath it.
       const isLeaderObservation = session.observation_type === 'leader_observation';
-      if (isLeaderObservation && languageAnalysis.shouldUpdate) {
+
+      if (!AUDIO_MAY_WRITE_LANGUAGE) {
+        // The normal path. Record what we heard so the telemetry can still show
+        // lesson-vs-interface language divergence, then write nothing.
+        logToFile('🈳 language_decision: audio-never-writes', {
+          userId: session.user_id,
+          keptLanguage: currentLanguage,
+          detectedLessonLanguage: languageAnalysis.newLanguage || null,
+          wouldHaveSwitched: !!languageAnalysis.shouldUpdate,
+          reason: languageAnalysis.reason,
+          rule: 'audio-never-writes'
+        });
+      } else if (isLeaderObservation && languageAnalysis.shouldUpdate) {
         logToFile('🔭 observe: language auto-switch SKIPPED for observer', {
           userId: session.user_id,
           keptLanguage: currentLanguage,
           lessonLanguage: languageAnalysis.newLanguage,
         });
-      }
-
-      if (!isLeaderObservation && languageAnalysis.shouldUpdate && languageAnalysis.newLanguage) {
+      } else if (languageAnalysis.shouldUpdate && languageAnalysis.newLanguage) {
         const updateSuccess = await setUserLanguage(session.user_id, languageAnalysis.newLanguage);
 
         if (updateSuccess) {
@@ -137,7 +169,8 @@ class TranscriptionProcessorService {
             previousLanguage: currentLanguage,
             newLanguage: languageAnalysis.newLanguage,
             reason: languageAnalysis.reason,
-            confidence: languageAnalysis.details.confidence
+            confidence: languageAnalysis.details.confidence,
+            rule: 'audio-autoflip-legacy'
           });
         }
       } else {

@@ -1,4 +1,5 @@
 const WhatsAppService = require('./whatsapp.service');
+const { resolveUx } = require('../config/ux-strings');
 const supabase = require('../config/supabase');
 const redisService = require('./cache/railway-redis.service');
 const { logToFile } = require('../utils/logger');
@@ -57,24 +58,22 @@ class ReadingAssessmentService {
         })
       );
 
-      // Generate welcome message in user's language
-      const welcomePrompt = `Generate a brief, friendly message in language code "${userLanguage}" that:
-1. Welcomes the teacher to reading assessment
-2. Explains this will test a student's reading fluency (takes 3-5 minutes)
-3. Asks them to select the language for the reading passage
-4. Uses 2-3 sentences max
-5. NO markdown, NO meta-commentary
-
-If this is a concurrent session (student number > 1), mention this is for "${studentIdentifier}".`;
-
-      const welcomeResponse = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'user', content: welcomePrompt }],
-        temperature: 0.3,
-        max_tokens: 150
-      });
-
-      const welcomeMessage = welcomeResponse.choices[0].message.content.trim();
+      // Reviewed copy, not a model call.
+      //
+      // This used to build a prompt — "write a friendly message in language code
+      // X" — and send it to gpt-4o-mini at temperature 0.3, per teacher, per
+      // session. Interface text that was non-deterministic, that no reviewer had
+      // ever seen, that cost money on every assessment, and that was only
+      // hopefully in the requested language because nothing checked.
+      //
+      // The named variant handles concurrent sessions, where the old prompt could
+      // only ASK the model to mention which student it was for.
+      const welcomeMessage = studentNum > 1 && studentIdentifier
+        ? resolveUx('readingWelcomeNamed', {
+            language: userLanguage,
+            params: { student: studentIdentifier },
+          })
+        : resolveUx('readingWelcome', { language: userLanguage });
 
       // Send welcome + language selection list
       await WhatsAppService.sendMessage(phoneNumber, welcomeMessage);
@@ -84,15 +83,15 @@ If this is a concurrent session (student number > 1), mention this is for "${stu
         type: 'list',
         header: {
           type: 'text',
-          text: userLanguage === 'ur' ? 'زبان منتخب کریں' : 'Select Language'
+          text: resolveUx('readingPickerHeader', { language: userLanguage })
         },
         body: {
-          text: userLanguage === 'ur'
-            ? 'قرائت کا اقتباس کس زبان میں ہونا چاہیے؟'
-            : 'What language should the reading passage be in?'
+          text: resolveUx('readingPickerBody', { language: userLanguage })
         },
         footer: {
-          text: 'NIETE Reading Assessment'
+          // Was English-only, like the /language footer before it was fixed. Both
+          // are on WhatsApp's 60-character cap; the limits guard covers them.
+          text: resolveUx('readingPickerFooter', { language: userLanguage })
         },
         action: {
           button: userLanguage === 'ur' ? 'زبانیں' : 'Languages',

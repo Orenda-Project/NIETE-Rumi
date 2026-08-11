@@ -75,6 +75,24 @@ export const auth = {
 };
 
 // Data endpoints
+// The teacher's ONE language setting, shared with the bot.
+//
+// The portal used to decide its own language from the browser and write nothing
+// back, so it could disagree with every WhatsApp message she received. These two
+// calls make the portal a reader and a writer of the same setting.
+export const language = {
+  get: async (): Promise<{ language: string; locked: boolean }> => {
+    const response = await api.get('/me/language');
+    return { language: response.data.language, locked: response.data.locked };
+  },
+
+  set: async (language: string): Promise<void> => {
+    // Throws on rejection so the caller does NOT re-render into a language the
+    // bot never accepted.
+    await api.put('/me/language', { language });
+  },
+};
+
 export const portal = {
   getDashboard: async (): Promise<{
     user: User;

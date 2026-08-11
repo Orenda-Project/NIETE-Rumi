@@ -19,6 +19,7 @@ const { observeStrings, observeLang } = require('../services/observe/observe-str
 const { detectRegion } = require('../utils/region');
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
+const { clampLanguage } = require('../config/ux-strings');
 
 // bd-2432 (port of main-bot FEAT-116) — the visit-picker feature flag. Cached at
 // import (restart after setting). Unset ⇒ the whole picker is dormant and
@@ -53,7 +54,7 @@ async function leaderHasAssignment(user) {
 }
 
 async function sendObserveVisitFlow(user, from) {
-  const lang = observeLang(user) === 'ur' ? 'ur' : 'en';
+  const lang = clampLanguage(observeLang(user));
   await WhatsAppService.sendFlow(from, {
     flowId: OBSERVE_VISIT_FLOW_ID,
     body: VISIT_FLOW_BODY[lang],

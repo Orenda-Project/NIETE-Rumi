@@ -1,4 +1,5 @@
 const WhatsAppService = require('../services/whatsapp.service');
+const { verifyOutputLanguage } = require('../utils/output-language-check');
 const OpenAIService = require('../services/openai.service');
 const ContentService = require('../services/content.service');
 const LanguageDetectorService = require('../services/language-detector.service');
@@ -20,11 +21,15 @@ const handleCurriculumLessonPlan = require('./lesson-plan-v2.handler');
 const RegionFeaturesService = require('../services/region-features.service');
 const { getUserRegion } = require('../utils/region');
 const VideoOrchestrator = require('../services/video/video-orchestrator.service');
-const AttendanceDetectorService = require('../services/attendance-detector.service');
-const AttendanceConversationService = require('../services/attendance-conversation.service');
-const AttendanceDeliveryService = require('../services/attendance-delivery.service');
+const ChildFlowToken = require('../services/quiz/child-flow-token'); // bd-2475 (ported from PK)
+// bd-2475 — tryChildVideoMenu reads the module-level constant (matches PK's
+// pattern); the existing /video block below still keeps its own local
+// process.env read (pre-existing NIETE code, untouched by this port).
+const { STUDENT_VIDEOS_FLOW_ID } = require('../utils/constants');
 const { logToFile } = require('../utils/logger');
-const { TEMP_DIR, LOADING_STICKER_PATH, LOADING_STICKER_MEDIA_ID, OPENAI_API_KEY, ATTENDANCE_SETUP_FLOW_ID, ATTENDANCE_MARKING_FLOW_ID } = require('../utils/constants');
+const { TEMP_DIR, LOADING_STICKER_PATH, LOADING_STICKER_MEDIA_ID, OPENAI_API_KEY,
+  ATTENDANCE_SETUP_FLOW_ID, ATTENDANCE_MARKING_FLOW_ID, EDIT_CLASS_FLOW_ID } = require('../utils/constants');
+const AttendanceRouter = require('../services/attendance-router.service');
 const { getClient } = require('../services/llm-client');
 
 const openai = getClient();
@@ -139,11 +144,78 @@ async function tryCurriculumLessonPlanServe(from, topic, user, language) {
  */
 
 const { evaluateHomeworkTrigger } = require('./homework-trigger');
-const { detectEditClassIntent } = require('./edit-class-trigger');
 const {
   parseCertificateCommand,
   deliverCertificateByCode,
 } = require('../services/training/certificate-pdf.service');
+
+// bd-2482 (NIETE port of PK bd-1598): the "Select Video" QUICK_REPLY tap on
+// the video-library broadcast template. Matches the template button title,
+// an explicit `select_video` payload, or the Urdu equivalent — pure /
+// side-effect-free so it's unit-testable.
+const SELECT_VIDEO_BUTTON_RX = /^(select[_\s]?video|ویڈیو\s*منتخب\s*کریں)$/i;
+function isSelectVideoButton({ buttonId, buttonPayload, buttonText } = {}) {
+  return [buttonId, buttonPayload, buttonText].some(
+    (v) => v && SELECT_VIDEO_BUTTON_RX.test(String(v).trim())
+  );
+}
+
+// bd-2486 (ported from PK) — the /video command, extended to match a bare
+// "video" (no slash). A trimmed message equal to just "video" used to fall
+// all the way through to intent detection, which routes intent.type===
+// 'video' to the legacy AI VideoOrchestrator with the literal word "Video"
+// as a nonsense topic — confirmed via a real Axiom trace (2026-08-04, PK).
+// Exact-match only (never startsWith/contains), so "make me a video on
+// photosynthesis" still falls through to AI video generation as intended.
+// Pure / side-effect-free so it is unit-testable.
+function isVideoCommand(trimmedMessage) {
+  const t = String(trimmedMessage || '').trim();
+  return t === '/video' || t.startsWith('/video ') || t.toLowerCase() === 'video';
+}
+
+/**
+ * bd-2475 (ported from PK) — /video's promise to a binge-declining child
+ * ("send /video anytime") only holds if it actually works with no `users`
+ * row. Named by a SINGLE match on the phone (StudentIdentity.findByPhone —
+ * siblings on one handset are ambiguous, so they fall through unchanged)
+ * with at least one prior share_link quiz session (so we have a
+ * shareCodeId to attribute the next round to). Returns false — never
+ * throws — on any miss, so the caller can fall straight into the existing
+ * noAccount message.
+ */
+async function tryChildVideoMenu(from, language) {
+  try {
+    const StudentIdentity = require('../services/quiz/student-identity.service');
+    const known = await StudentIdentity.findByPhone(from);
+    if (known.length !== 1) return false;
+
+    const { data: lastSession } = await supabase
+      .from('quiz_sessions')
+      .select('share_code_id')
+      .eq('student_id', known[0].id)
+      .not('share_code_id', 'is', null)
+      .order('completed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!lastSession?.share_code_id || !STUDENT_VIDEOS_FLOW_ID) return false;
+
+    const flowToken = ChildFlowToken.build({
+      phone: from, shareCodeId: lastSession.share_code_id,
+      studentId: known[0].id, language: language || 'en',
+    });
+    await WhatsAppService.sendFlow(from, {
+      flowId: STUDENT_VIDEOS_FLOW_ID,
+      header: '🎬 More Videos',
+      body: 'Pick a class, subject and topic — I will send the video to your chat.',
+      buttonText: 'Browse',
+      flowToken,
+    });
+    return true;
+  } catch (err) {
+    logToFile('⚠️ /video: child fallback failed', { error: err.message });
+    return false;
+  }
+}
 
 async function handleTextMessage(message, from, messageBody, user = null) {
   logToFile(`Processing TEXT message: ${messageBody}`);
@@ -204,6 +276,37 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         }
       } catch (qErr) {
         logToFile('⚠️ Quiz state intercept error (non-fatal)', { error: qErr.message });
+      }
+    }
+
+    // ============================================================
+    // bd-2482 (NIETE port of PK bd-2314/2315): Video-quiz share links.
+    //
+    // Deliberately BEFORE user lookup: a child arriving from a forwarded
+    // wa.me link may have no users row at all, and their first message is
+    // the auto-filled "QUIZ-ABC123". Routing that through normal onboarding
+    // would answer a code with a menu.
+    //
+    // Two steps, both short-circuiting:
+    //   1. the code itself -> greet, naming the teacher and the topic
+    //   2. the next two texts -> their name, then their class
+    // ============================================================
+    if (messageBody) {
+      try {
+        const VideoQuizShare = require('../services/quiz/video-quiz-share.service');
+        const code = VideoQuizShare.parseShareCode(messageBody);
+        if (code) {
+          await VideoQuizShare.beginFromCode(from, code);
+          typingController.stop();
+          return;
+        }
+        if (await VideoQuizShare.consumeJoinReply(from, messageBody)) {
+          logToFile('Text consumed as video-quiz join detail — short-circuit', { from });
+          typingController.stop();
+          return;
+        }
+      } catch (vqErr) {
+        logToFile('Video Quiz share: routing error', { error: vqErr.message });
       }
     }
 
@@ -533,6 +636,19 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     const { handleObserveCommand } = require('./observe-command.handler');
     const observeHandled = await handleObserveCommand(user, from, trimmedMessage);
     if (observeHandled) return;
+  }
+
+  // ============================================================
+  // REMARK COMMAND (bd-2531): /remark — STEPS "S" Supervisor Remark, the
+  // principal's quarterly evaluation of each teacher in her school. All gating
+  // (capability `remark.author` via feature_permissions, plus an OPEN
+  // evaluation cycle) lives in remark-gate.js + remark-command.handler.js.
+  // Returns false on a non-match so normal chat is untouched.
+  // ============================================================
+  if (/^\/remark\b/i.test(trimmedMessage)) {
+    const { handleRemarkCommand } = require('./remark-command.handler');
+    const remarkHandled = await handleRemarkCommand(user, from, trimmedMessage);
+    if (remarkHandled) return;
   }
 
   // FEAT-102: a school leader mid send-flow — the next text is the observed
@@ -905,11 +1021,21 @@ async function handleTextMessage(message, from, messageBody, user = null) {
 
   // ============================================================
   // VIDEO GENERATION COMMAND: Check for /video command
+  // bd-2482/bd-2486 (ported from PK): a bare "video" (no slash) also opens
+  // the library — teachers type the plain word more often than the slash
+  // form. Exact-match only (not startsWith/substring) so a real sentence
+  // like "make me a video on photosynthesis" still falls through to AI
+  // video generation below. isVideoCommand() is shared with PK's identical
+  // fix, extracted into a named/testable matcher (mirrors isSelectVideoButton).
   // ============================================================
-  if (trimmedMessage === '/video' || trimmedMessage.startsWith('/video ')) {
+  if (isVideoCommand(trimmedMessage)) {
     logToFile('🎬 /video command detected', { userId: user?.id, phoneNumber: from });
 
     if (!user) {
+      // bd-2475 (ported from PK) — a binge-declining child was told
+      // "/video always works". Honour that before falling to the
+      // teacher-only noAccount message.
+      if (await tryChildVideoMenu(from, user?.preferred_language)) return;
       await WhatsAppService.sendMessage(
         from,
         'Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔'
@@ -1758,323 +1884,78 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
-  // EDIT CLASS detection — "edit class" / "edit roster" / "remove student".
-  // Checked BEFORE attendance so roster edits don't get captured by an
-  // attendance session. Presence-gated on EDIT_CLASS_FLOW_ID.
+  // ATTENDANCE — one keyword, routed by role.
+  //
+  // A principal marks teachers, a teacher marks students, and a principal who
+  // also runs a class is ASKED. Everything the teacher sees is a Flow screen;
+  // there is no typed-number step anywhere in this path.
   // ============================================================
-  if (user?.id && detectEditClassIntent(messageBody).detected) {
-    logToFile('📋 Edit class keyword detected', { userId: user.id });
+  if (user?.id && AttendanceRouter.detect(messageBody).detected) {
     typingController.stop();
-
-    const EDIT_CLASS_FLOW_ID = process.env.EDIT_CLASS_FLOW_ID || '';
-    if (!EDIT_CLASS_FLOW_ID) {
-      await WhatsAppService.sendMessage(from, 'Sorry, class editing is not available yet. Please try again later.');
-      return;
-    }
-
-    const { data: classes } = await supabase
-      .from('student_lists')
-      .select('id, class_name, section')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .order('created_at', { ascending: false });
-
-    if (!classes || classes.length === 0) {
-      await WhatsAppService.sendMessage(from, "You don't have any classes yet. Say \"add class\" to create one first!");
-      return;
-    }
-
-    if (classes.length === 1) {
-      const cls = classes[0];
-      const flowToken = `${user.id}:${cls.id}`;
-      await WhatsAppService.sendFlow(from, {
-        flowId: EDIT_CLASS_FLOW_ID,
-        header: '📋 Edit Class',
-        body: `Edit roster for ${cls.section ? `${cls.class_name} - ${cls.section}` : cls.class_name}`,
-        buttonText: 'Edit Class',
-        flowToken
-      });
-    } else {
-      // Multiple classes → interactive buttons (max 3); each tap routes via
-      // the edit_class_<id> handler in whatsapp-bot.js.
-      const buttons = classes.slice(0, 3).map(cls => ({
-        id: `edit_class_${cls.id}`,
-        title: cls.section ? `${cls.class_name}-${cls.section}` : cls.class_name
-      }));
-      await WhatsAppService.sendInteractiveButtons(from, {
-        body: 'Which class would you like to edit?',
-        buttons
-      });
-    }
-    return;
-  }
-
-  // ============================================================
-  // ATTENDANCE SYSTEM INTEGRATION
-  // ============================================================
-  // Check if user is in an active attendance session
-  if (user?.id) {
     try {
-      const isInAttendanceSession = await AttendanceConversationService.isInAttendanceSession(user.id);
+      const decision = await AttendanceRouter.route(user.id);
+      logToFile('📋 Attendance routed', { userId: user.id, action: decision.action });
 
-      if (isInAttendanceSession) {
-        logToFile('📋 User in active attendance session, routing message', { userId: user.id });
-
-        // Get current session state
-        const sessionState = await AttendanceConversationService.getSessionState(user.id);
-
-        // Handle cancel command
-        if (messageBody.toLowerCase() === 'cancel' || messageBody.toLowerCase() === 'منسوخ') {
-          typingController.stop();
-          const result = await AttendanceConversationService.cancelSession(user.id);
-          await WhatsAppService.sendMessage(from, result.message);
-          return;
-        }
-
-        let result;
-
-        // Route based on current state
-        switch (sessionState.state) {
-          case AttendanceConversationService.STATES.AWAITING_CLASS_SELECTION:
-            result = await AttendanceConversationService.handleClassSelection(user.id, messageBody);
+      switch (decision.action) {
+        case 'MARK_TEACHERS':
+        case 'MARK_STUDENTS':
+          if (!ATTENDANCE_MARKING_FLOW_ID) {
+            await WhatsAppService.sendMessage(from, 'Attendance is not available on this number yet. Please try again later.');
             break;
-
-          case AttendanceConversationService.STATES.AWAITING_MARKING_METHOD:
-            // Check for "everyone present" shortcut
-            const everyonePresentKeywords = ['everyone present', 'all present', 'سب حاضر', 'سب موجود', '3'];
-            if (everyonePresentKeywords.some(kw => messageBody.toLowerCase().includes(kw))) {
-              result = await AttendanceConversationService.handleEveryonePresent(user.id);
-            } else {
-              result = await AttendanceConversationService.handleMarkingMethodSelection(user.id, messageBody);
-            }
-            break;
-
-          case AttendanceConversationService.STATES.AWAITING_VOICE_INPUT:
-            // User sent text when expecting voice - prompt them
-            result = {
-              action: 'PROMPT_VOICE',
-              message: 'Please send a *voice message* with your roll call.\n\nOr reply "2" to switch to Tap to Mark.'
-            };
-            // Allow switching to tap method
-            if (messageBody === '2' || messageBody.toLowerCase().includes('tap')) {
-              result = await AttendanceConversationService.handleMarkingMethodSelection(user.id, '2');
-            }
-            break;
-
-          case AttendanceConversationService.STATES.AWAITING_VERIFICATION:
-            // User is verifying attendance results (yes/edit/cancel)
-            result = await AttendanceConversationService.handleVerificationResponse(user.id, messageBody);
-            break;
-
-          case AttendanceConversationService.STATES.AWAITING_DATE_SELECTION:
-            // User selecting date for attendance
-            result = await AttendanceConversationService.handleDateSelection(user.id, messageBody);
-            break;
-
-          case AttendanceConversationService.STATES.AWAITING_SESSION_TYPE:
-            // User selecting AM/PM session type
-            result = await AttendanceConversationService.handleSessionTypeSelection(user.id, messageBody);
-            break;
-
-          case AttendanceConversationService.STATES.IDLE:
-          case AttendanceConversationService.STATES.COMPLETED:
-            // Session is idle or completed - restart fresh
-            logToFile('📋 Attendance session idle/completed, restarting', { userId: user.id, state: sessionState.state });
-            await AttendanceConversationService.clearSessionState(user.id);
-            result = await AttendanceConversationService.startAttendanceSession(user.id);
-            break;
-
-          case AttendanceConversationService.STATES.PROCESSING:
-            // Check if processing has timed out
-            if (AttendanceConversationService.isProcessingTimedOut(sessionState)) {
-              logToFile('⚠️ Processing timeout detected, clearing stuck state', { userId: user.id, processingStartedAt: sessionState.processingStartedAt });
-              await AttendanceConversationService.clearSessionState(user.id);
-              result = {
-                action: 'ERROR',
-                message: 'Your previous attendance session timed out. Say "attendance" to start a new one.'
-              };
-            } else {
-              // Still processing - ask user to wait
-              result = {
-                action: 'PROCESSING',
-                message: 'Your attendance is being processed. Please wait a moment...'
-              };
-            }
-            break;
-
-          default:
-            // Unknown state - log and restart
-            logToFile('⚠️ Unknown attendance state, clearing session', { userId: user.id, state: sessionState?.state });
-            await AttendanceConversationService.clearSessionState(user.id);
-            result = {
-              action: 'ERROR',
-              message: 'Something went wrong with attendance. Say "attendance" to start again.'
-            };
-        }
-
-        typingController.stop();
-
-        // Handle the result
-        if (result.action === 'ASK_MARKING_METHOD' || result.action === 'ASK_CLASS_SELECTION') {
-          await WhatsAppService.sendMessage(from, result.message);
-        } else if (result.action === 'AWAIT_VOICE_INPUT' || result.action === 'PROMPT_VOICE') {
-          await WhatsAppService.sendMessage(from, result.message);
-        } else if (result.action === 'SEND_MARKING_FLOW') {
-          // Send the WhatsApp Flow for marking attendance (encryption endpoint implemented)
-          if (ATTENDANCE_MARKING_FLOW_ID) {
-            const sessionState = await AttendanceConversationService.getSessionState(user.id);
-            const today = new Date().toISOString().split('T')[0];
-            // Flow token format: userId:classId:date:sessionType:className - all data for response handling
-            const sessionType = sessionState?.selectedSession || 'morning';
-            const className = result.selectedClass?.class_name || 'Class';
-            const section = result.selectedClass?.section || '';
-            const flowToken = `${user.id}:${sessionState?.selectedListId}:${today}:${sessionType}:${encodeURIComponent(className)}`;
-            // Dynamic header with class + section (e.g., "5A Attendance")
-            const displayName = section ? `${className}${section}` : className;
-
-            await WhatsAppService.sendFlow(from, {
-              flowId: ATTENDANCE_MARKING_FLOW_ID,
-              header: `📋 ${displayName} Attendance`,
-              body: result.message,
-              buttonText: 'Mark Attendance',
-              // Note: Don't specify screen for data_api_version 3.0+ flows with endpoint
-              // The endpoint determines first screen via INIT response
-              flowToken: flowToken
-            });
-            logToFile('📋 Sent attendance marking flow', {
-              userId: user.id,
-              flowId: ATTENDANCE_MARKING_FLOW_ID,
-              classId: sessionState?.selectedListId,
-              studentCount: result.students?.length,
-              className: className
-            });
-          } else {
-            // Fallback if flow not configured
-            await WhatsAppService.sendMessage(from, 'The marking form is not configured. Please use voice marking instead.\n\nSay something like: "Everyone is here except Ali and Sara"');
-            logToFile('⚠️ ATTENDANCE_MARKING_FLOW_ID not configured', { userId: user.id });
           }
-        } else if (result.action === 'GENERATE_ATTENDANCE') {
-          // Send initial "generating" message
-          await WhatsAppService.sendMessage(from, result.message);
+          await WhatsAppService.sendFlow(from, {
+            flowId: ATTENDANCE_MARKING_FLOW_ID,
+            header: '📋 Attendance',
+            body: decision.action === 'MARK_TEACHERS'
+              ? "Mark your school's teachers for today."
+              : 'Mark your class for today.',
+            buttonText: 'Mark attendance',
+            flowToken: decision.flowToken,
+          });
+          break;
 
-          // Generate, upload, and deliver Excel
-          try {
-            const sessionState = await AttendanceConversationService.getSessionState(user.id);
-            const deliveryResult = await AttendanceDeliveryService.processAndDeliver(
-              user.id,
-              from,
-              {
-                selectedClass: result.selectedClass,
-                selectedListId: sessionState?.selectedListId,
-                records: result.records,
-                summary: sessionState?.summary,
-                transcript: sessionState?.transcript,
-                markingMethod: sessionState?.markingMethod || 'voice'
-              }
-            );
-
-            if (!deliveryResult.success) {
-              // Clear state on delivery failure to prevent stuck PROCESSING
-              await AttendanceConversationService.clearSessionState(user.id);
-              logToFile('📋 Cleared session state after delivery failure', { userId: user.id, error: deliveryResult.error });
-              await WhatsAppService.sendMessage(from, `Sorry, there was an error generating your attendance file: ${deliveryResult.error}\n\nSay "attendance" to try again.`);
-            } else {
-              // Clear state on successful completion
-              await AttendanceConversationService.clearSessionState(user.id);
-              logToFile('📋 Cleared session state after successful delivery', { userId: user.id });
-            }
-          } catch (deliveryError) {
-            // Clear state on exception to prevent stuck PROCESSING
-            await AttendanceConversationService.clearSessionState(user.id);
-            logToFile('Attendance delivery error - state cleared', { error: deliveryError.message, userId: user.id });
-            await WhatsAppService.sendMessage(from, 'Sorry, something went wrong delivering your attendance file. Say "attendance" to try again.');
+        case 'SEND_SETUP':
+          if (!ATTENDANCE_SETUP_FLOW_ID) {
+            await WhatsAppService.sendMessage(from, 'Class setup is not available on this number yet. Please try again later.');
+            break;
           }
-        } else if (result.action === 'VERIFY_ATTENDANCE') {
-          // Verification message already sent by handleVoiceInput
-          await WhatsAppService.sendMessage(from, result.message);
-        } else if (result.action === 'SESSION_CANCELLED') {
-          await WhatsAppService.sendMessage(from, result.message);
-        } else if (result.action === 'INVALID_SELECTION' || result.action === 'INVALID_STATE') {
-          await WhatsAppService.sendMessage(from, result.message);
-        } else if (result.action === 'PROCESSING') {
-          await WhatsAppService.sendMessage(from, result.message);
-        } else if (result.action === 'SESSION_COMPLETED') {
-          await WhatsAppService.sendMessage(from, result.message);
-        } else if (result.action === 'ERROR') {
-          await WhatsAppService.sendMessage(from, result.message);
-        }
-
-        return; // Exit early - handled by attendance system
-      }
-    } catch (error) {
-      logToFile('Error checking attendance session', { error: error.message, userId: user?.id });
-      // Continue with normal flow if attendance check fails
-    }
-  }
-
-  // ============================================================
-  // ADD CLASS DETECTION
-  // Check BEFORE attendance - triggers setup flow even with existing classes
-  // ============================================================
-  const addClassDetection = AttendanceDetectorService.detectAddClassIntent(messageBody);
-  if (user?.id && addClassDetection.detected) {
-    logToFile('📋 Add class keyword detected', { userId: user.id, keyword: addClassDetection.keyword });
-    typingController.stop();
-
-    if (ATTENDANCE_SETUP_FLOW_ID) {
-      await WhatsAppService.sendFlow(from, {
-        flowId: ATTENDANCE_SETUP_FLOW_ID,
-        header: '📋 Add New Class',
-        body: "Let's set up a new class for attendance tracking!",
-        buttonText: 'Add Class',
-        screen: 'CLASS_INFO',
-        flowToken: user.id  // Pass user ID so endpoint can create class for correct user
-      });
-      logToFile('📋 Sent add class flow', { userId: user.id, flowId: ATTENDANCE_SETUP_FLOW_ID });
-    } else {
-      await WhatsAppService.sendMessage(from, 'Sorry, class setup is not available right now. Please try again later.');
-      logToFile('⚠️ ATTENDANCE_SETUP_FLOW_ID not configured', { userId: user.id });
-    }
-    return;
-  }
-
-  // Check for attendance keyword trigger
-  const attendanceDetection = AttendanceDetectorService.detectAttendanceIntent(messageBody);
-  if (user?.id && attendanceDetection.detected) {
-    logToFile('📋 Attendance keyword detected, starting session', { userId: user.id, message: messageBody, confidence: attendanceDetection.confidence });
-    typingController.stop();
-
-    try {
-      const result = await AttendanceConversationService.startAttendanceSession(user.id);
-
-      if (result.action === 'SEND_SETUP_FLOW') {
-        // User has no classes - send setup flow
-        if (ATTENDANCE_SETUP_FLOW_ID) {
-          // Send the WhatsApp Flow for class setup
           await WhatsAppService.sendFlow(from, {
             flowId: ATTENDANCE_SETUP_FLOW_ID,
-            header: '📋 Class Setup',
-            body: result.message,
-            buttonText: 'Set Up Class',
-            screen: 'CLASS_INFO',
-            flowToken: user.id  // Pass user ID so endpoint can create class for correct user
+            header: '📋 Set up a class',
+            body: decision.message,
+            buttonText: 'Set up class',
+            flowToken: user.id,
           });
-          logToFile('📋 Sent attendance setup flow', { userId: user.id, flowId: ATTENDANCE_SETUP_FLOW_ID });
-        } else {
-          // Fallback if flow not configured - just send the message
-          await WhatsAppService.sendMessage(from, result.message);
-          logToFile('⚠️ ATTENDANCE_SETUP_FLOW_ID not configured, sent text message instead', { userId: user.id });
-        }
-      } else if (result.action === 'ASK_CLASS_SELECTION' || result.action === 'ASK_MARKING_METHOD') {
-        await WhatsAppService.sendMessage(from, result.message);
-      } else if (result.action === 'ERROR') {
-        await WhatsAppService.sendMessage(from, result.message);
-      }
+          break;
 
-      return; // Exit early - handled by attendance system
+        case 'ASK_SUBJECT':
+        case 'ASK_CLASS_BUTTONS':
+          await WhatsAppService.sendInteractiveButtons(from, {
+            body: decision.message,
+            buttons: decision.buttons,
+          });
+          break;
+
+        case 'ASK_CLASS_LIST':
+          await WhatsAppService.sendInteractiveMessage(from, {
+            body: { text: decision.message },
+            action: { button: 'Choose class', sections: [{ title: 'Your classes', rows: decision.rows }] },
+          });
+          if (decision.truncated) {
+            await WhatsAppService.sendMessage(from, 'Showing your first 10 classes.');
+          }
+          break;
+
+        case 'NO_SCHOOL':
+        case 'ERROR':
+        default:
+          await WhatsAppService.sendMessage(from, decision.message || 'Sorry, something went wrong.');
+          break;
+      }
+      return;
     } catch (error) {
-      logToFile('Error starting attendance session', { error: error.message, userId: user?.id });
-      await WhatsAppService.sendMessage(from, 'Sorry, something went wrong. Please try again.');
+      logToFile('Error routing attendance', { error: error.message, userId: user?.id });
+      await WhatsAppService.sendMessage(from, 'Sorry, something went wrong with attendance. Please try again.');
       return;
     }
   }
@@ -2707,6 +2588,22 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
   );
   logToFile('AI response generated (format-aware)', { response: aiResponse, language: responseLanguage, firstName });
 
+  // Did the model answer in the language we asked for? Checked BEFORE the send, so
+  // drift is a counted event rather than a teacher's screenshot. Advisory only —
+  // we still deliver, because a checker that suppresses a reply is worse than the
+  // drift it was added to catch.
+  const langCheck = verifyOutputLanguage(aiResponse, responseLanguage);
+  if (!langCheck.ok) {
+    logToFile('🈯 language_drift: chat reply', {
+      surface: 'chat_text',
+      expected: langCheck.expected,
+      detected: langCheck.detected,
+      reason: langCheck.reason,
+      userId: user?.id,
+      level: 'error'
+    });
+  }
+
   // Stop typing indicator before sending reply
   typingController.stop();
 
@@ -2836,4 +2733,7 @@ module.exports = {
   evaluateHomeworkTrigger, // exported for trigger unit tests
   tryCurriculumLessonPlanServe, // exported for intercept unit tests
   handleLessonPlanRequest, // exported for the Oxbridge-picker "Generate NIETE LP" tap
+  isSelectVideoButton, // bd-2482 — video-library broadcast "Select Video" button
+  isVideoCommand, // bd-2486 — exported for unit tests
+  tryChildVideoMenu, // bd-2475 — exported for unit tests
 };

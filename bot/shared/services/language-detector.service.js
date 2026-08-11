@@ -1,5 +1,6 @@
 const { logToFile } = require('../utils/logger');
 const { getClient } = require('./llm-client');
+const { DEFAULT_LANGUAGE } = require('../utils/language-cache');
 
 // Initialize OpenAI client
 const openai = getClient();
@@ -168,12 +169,19 @@ class LanguageDetectorService {
         });
         return gptLanguage;
       } catch (error) {
+        // We know nothing: Soniox returned no language AND the GPT confirmation
+        // threw. This is the emergency floor (English), not the registry's
+        // offered-first language (Urdu) — those answer different questions,
+        // and conflating them means an English-preferring teacher gets
+        // answered in Urdu on a failure. See language-cache.js's
+        // DEFAULT_LANGUAGE doc comment.
+        const fallbackLanguage = normalizedSoniox || DEFAULT_LANGUAGE;
         logToFile('GPT language detection failed, using fallback', {
           error: error.message,
-          fallback: normalizedSoniox || 'ur'
+          fallback: fallbackLanguage,
+          rule: normalizedSoniox ? 'soniox-result' : 'default-language-floor'
         });
-        // Fallback to Soniox result or 'ur' for Arabic script
-        return normalizedSoniox || 'ur';
+        return fallbackLanguage;
       }
     }
 

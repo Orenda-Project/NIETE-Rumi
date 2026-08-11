@@ -10,8 +10,8 @@
  *   PERSONAL_INFO → PROFESSIONAL_INFO (if not PK) → SUCCESS
  *   PERSONAL_INFO → PROFESSIONAL_INFO (if not PK) → ORG_DETAILS → SUCCESS (if org == "other")
  *
- * PERSONAL_INFO: full_name, country
- *   Endpoint provides: countries (dropdown data-source)
+ * PERSONAL_INFO: full_name, country, language
+ *   Endpoint provides: countries + languages (data-sources), init_language
  *
  * REGION_INFO: region (only for Pakistan users)
  *   Endpoint provides: regions (dropdown data-source)
@@ -34,6 +34,8 @@
 
 const { logToFile } = require('../utils/logger');
 const redisService = require('../services/cache/railway-redis.service');
+const { getOfferedLanguages, offerDefaultLanguage } = require('../config/languages');
+const { clampLanguage } = require('../config/ux-strings');
 const {
   COUNTRIES_DROPDOWN,
   REGIONS_DROPDOWN,
@@ -71,6 +73,39 @@ function _buildPortalReadyMessage() {
 }
 
 /**
+ * The PERSONAL_INFO screen's data payload.
+ *
+ * Extracted because FOUR code paths return this screen — INIT plus three BACK
+ * routes — and each previously built the payload itself. Adding the language
+ * question to only the INIT copy would have left the radio group with an empty
+ * data-source on every back-navigation: the exact "the twenty-fourth site will
+ * differ" failure this workstream keeps removing. One builder, four callers.
+ *
+ * @param {string} [currentLanguage] preserve her selection across BACK, so
+ *   stepping back does not silently reset the answer to the default.
+ */
+function personalInfoData(currentLanguage) {
+  return {
+    countries: COUNTRIES_DROPDOWN,
+    // Ask for the language up front, on the first screen she sees. Not asking is
+    // the root cause of the whole language audit: 99.6% of teachers hold a
+    // language nobody ever offered them, because this flow wrote eleven fields to
+    // the users row and preferred_language was not one of them.
+    //
+    // Titles come from the registry, each in its own script, because she has not
+    // told us her language yet — an English-only label is unreadable to exactly
+    // the teachers most likely to want Urdu.
+    languages: getOfferedLanguages().map(({ code, settingsTitle }) => ({
+      id: code,
+      title: settingsTitle,
+    })),
+    // Pre-selected so a teacher who taps straight through still lands on the
+    // language ICT actually teaches in, rather than on the schema's English.
+    init_language: clampLanguage(currentLanguage || offerDefaultLanguage()),
+  };
+}
+
+/**
  * Handle INIT action - return PERSONAL_INFO screen with country dropdown only
  * Region is now on a separate screen, not included in INIT
  */
@@ -79,9 +114,7 @@ async function handleRegistrationInit(userId) {
 
   return {
     screen: 'PERSONAL_INFO',
-    data: {
-      countries: COUNTRIES_DROPDOWN
-    }
+    data: personalInfoData()
   };
 }
 
@@ -132,11 +165,18 @@ async function handlePersonalInfoSubmit(userId, screenData, flowToken) {
     return createErrorResponse('Country is required');
   }
 
+  // Clamped, not trusted. A stale published Flow version submits no language at
+  // all, and a replayed payload could carry a code this deployment does not
+  // serve — either way this must resolve to something offered rather than flow
+  // onward as undefined and reach a write.
+  const language = clampLanguage(screenData.language || offerDefaultLanguage());
+
   // Store partial registration data in Redis (region not collected yet)
   const regData = {
     full_name: fullName,
     country,
-    region: null
+    region: null,
+    language
   };
   await storeRegData(flowToken, regData);
 
@@ -266,7 +306,10 @@ async function handleProfessionalInfoSubmit(userId, screenData, flowToken) {
           school_name: allData.school_name || null,
           grade: allData.grade || '',
           subjects: allData.subjects || [],
-          role: allData.role || null // bd-2404
+          role: allData.role || null, // bd-2404
+          // Her language choice, carried to the terminal payload so the
+          // completion handler can WRITE it and greet her in it.
+          language: clampLanguage(allData.language || offerDefaultLanguage())
         }
       },
       welcome_message: `Welcome, ${allData.full_name || 'Teacher'}! Your registration is complete.`,
@@ -311,7 +354,8 @@ async function handleOrgDetailsSubmit(userId, screenData, flowToken) {
           school_name: stored.school_name || null,
           grade: stored.grade || '',
           subjects: stored.subjects || [],
-          role: stored.role || null // bd-2404
+          role: stored.role || null, // bd-2404
+          language: clampLanguage(stored.language || offerDefaultLanguage())
         }
       },
       welcome_message: `Welcome, ${stored.full_name || 'Teacher'}! Your registration is complete.`,
@@ -348,12 +392,12 @@ async function handleRegistrationBack(userId, screen, flowToken) {
   }
 
   if (screen === 'REGION_INFO') {
-    // REGION_INFO → back to PERSONAL_INFO (countries only, no regions)
+    // REGION_INFO → back to PERSONAL_INFO. Her stored answer is re-read so that
+    // stepping back does not silently reset the language she already picked.
+    const stored = await getRegData(flowToken);
     return {
       screen: 'PERSONAL_INFO',
-      data: {
-        countries: COUNTRIES_DROPDOWN
-      }
+      data: personalInfoData(stored && stored.language)
     };
   }
 
@@ -373,18 +417,14 @@ async function handleRegistrationBack(userId, screen, flowToken) {
     // Non-PK user → back to PERSONAL_INFO
     return {
       screen: 'PERSONAL_INFO',
-      data: {
-        countries: COUNTRIES_DROPDOWN
-      }
+      data: personalInfoData(stored && stored.language)
     };
   }
 
   // Default: go to PERSONAL_INFO
   return {
     screen: 'PERSONAL_INFO',
-    data: {
-      countries: COUNTRIES_DROPDOWN
-    }
+    data: personalInfoData()
   };
 }
 

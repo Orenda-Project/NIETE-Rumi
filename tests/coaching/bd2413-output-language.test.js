@@ -62,15 +62,36 @@ describe('bd-2413 — determineOutputLanguage follows preferred/locked language'
     expect(out).toBe('ur');
   });
 
-  it('clamps an unsupported stored preference to Urdu', async () => {
+  it('clamps an unsupported stored preference to the English floor', async () => {
+    // Renamed and re-pointed. The old name claimed to test a clamp to Urdu, but
+    // it passed only because the TRANSCRIPT it was handed happened to be 'ur' —
+    // with any other transcript it returned that instead, so it never tested the
+    // clamp at all. It now asserts the clamp directly, and on the one floor this
+    // deployment has: English, the same as every other surface.
     const H = load('pa-PK', 'pa');
     const out = await H.determineOutputLanguage('user-1', 'sess-1', 'ur');
-    expect(out).toBe('ur');
+    expect(out).toBe('en');
   });
 
-  it('falls back to transcript language when no preference is available', async () => {
+  it('clamps the transcript fall-through instead of emitting an off-market code', async () => {
+    // Previously asserted `'sw'` — i.e. it PINNED a coaching report being
+    // generated in a language this deployment cannot render: no copy, no TTS
+    // voice, no report font. Deliberate change, required by R1 (only en/ur may
+    // appear anywhere).
+    //
+    // Worth knowing: this path is unreachable in production. getUserLanguage
+    // never returns falsy — it answers with the floor on every failure — so only
+    // this stub reaches the fall-through.
     const H = load(null, 'en');
     const out = await H.determineOutputLanguage('user-1', 'sess-1', 'sw');
-    expect(out).toBe('sw');
+    expect(out).toBe('en');
+  });
+
+  it('still honours a real preference over the transcript', async () => {
+    // The guard that matters most stays: an Urdu-preferring teacher who recorded
+    // an English-language lesson gets an Urdu report.
+    const H = load('ur', 'en');
+    const out = await H.determineOutputLanguage('user-1', 'sess-1', 'en');
+    expect(out).toBe('ur');
   });
 });

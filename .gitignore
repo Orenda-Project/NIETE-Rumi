@@ -11,6 +11,14 @@ bun.lockb
 .env.test.local
 .env.production.local
 .env.staging
+# Catch-all: the list above is exact filenames, so copies and backups
+# (.env.bak-<ts>, .env.old, .env.2) were NOT covered. One such backup —
+# 91 keys including the Supabase service-role key — sat untracked in this
+# repo for four days, one `git add .` from being committed. Keep the glob.
+.env.*
+# ...but the templates are meant to be committed.
+!.env.template
+!.env.example
 
 # Secrets and credentials
 keys/
@@ -103,3 +111,13 @@ portal/.env.app
 portal/.android-env.sh
 *.jks
 *.keystore
+.staging-bootstrap/
+
+# Python build artifacts (the repo has a few scripts/ helpers)
+__pycache__/
+*.pyc
+
+# Flow asset backups written by bot/scripts/setup/republish-flow.js. These are
+# point-in-time dumps of what Meta was serving, kept locally as a rollback
+# artifact — not source, and per-environment, so they must not be committed.
+bot/scripts/setup/assets/backups/

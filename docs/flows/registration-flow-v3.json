@@ -54,6 +54,34 @@
         "init_country": {
           "type": "string",
           "__example__": "PK"
+        },
+        "languages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "ur",
+              "title": "اردو (Urdu)"
+            },
+            {
+              "id": "en",
+              "title": "English"
+            }
+          ]
+        },
+        "init_language": {
+          "type": "string",
+          "__example__": "ur"
         }
       },
       "layout": {
@@ -64,7 +92,8 @@
             "name": "personal_form",
             "init-values": {
               "full_name": "${data.init_full_name}",
-              "country": "${data.init_country}"
+              "country": "${data.init_country}",
+              "language": "${data.init_language}"
             },
             "children": [
               {
@@ -91,13 +120,21 @@
                 "data-source": "${data.countries}"
               },
               {
+                "type": "RadioButtonsGroup",
+                "name": "language",
+                "label": "Language / زبان",
+                "required": true,
+                "data-source": "${data.languages}"
+              },
+              {
                 "type": "Footer",
                 "label": "Next",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
                     "full_name": "${form.full_name}",
-                    "country": "${form.country}"
+                    "country": "${form.country}",
+                    "language": "${form.language}"
                   }
                 }
               }

@@ -7,36 +7,28 @@
  * Flow JSON references:
  *   SETTINGS_MAIN: ${data.languages}, ${data.frameworks}
  *
- * Region-agnostic: the language list defaults to a broad multilingual set, and
- * a deployment can narrow it to the languages it actually supports by setting
- * SETTINGS_LANGUAGES to a JSON array of {id,title} objects. The framework list
- * is derived from region-config FRAMEWORK_LABELS.
+ * The language list is derived from the language registry
+ * (shared/config/languages.js), so /settings and /language cannot offer
+ * different sets. The framework list is derived from region-config
+ * FRAMEWORK_LABELS.
+ *
+ * This used to read a SETTINGS_LANGUAGES environment variable and fall back to a
+ * five-language default. Two problems, both live: the variable was not set on
+ * this deployment, so the dropdown offered Kiswahili, Arabic and Spanish —
+ * languages with no content support — and the parser returned that same default
+ * on a MALFORMED value, so a typo could not be detected by reading the config.
+ * A fail-open path to the wrong answer is worse than no path at all.
  */
 
 const { FRAMEWORK_LABELS } = require('./region-config');
+const { getOfferedLanguages } = require('./languages');
 
-// Default language options. Override via SETTINGS_LANGUAGES (JSON array).
-const DEFAULT_LANGUAGES = [
-  { id: 'en', title: 'English' },
-  { id: 'ur', title: 'اردو (Urdu)' },
-  { id: 'sw', title: 'Kiswahili' },
-  { id: 'ar', title: 'العربية (Arabic)' },
-  { id: 'es', title: 'Español' },
-];
-
-function parseLanguagesEnv() {
-  try {
-    const parsed = JSON.parse(process.env.SETTINGS_LANGUAGES || '[]');
-    if (Array.isArray(parsed) && parsed.length && parsed.every(o => o && o.id && o.title)) {
-      return parsed;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-const LANGUAGES_DROPDOWN = parseLanguagesEnv() || DEFAULT_LANGUAGES;
+// Language options, straight from the registry. Offer order is preserved:
+// the first entry is the default for a teacher who has not chosen.
+const LANGUAGES_DROPDOWN = getOfferedLanguages().map(({ code, settingsTitle }) => ({
+  id: code,
+  title: settingsTitle,
+}));
 
 // Observation framework options — built from region-config labels.
 const FRAMEWORKS_DROPDOWN = Object.entries(FRAMEWORK_LABELS).map(([id, title]) => ({

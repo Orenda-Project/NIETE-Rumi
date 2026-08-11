@@ -25,6 +25,7 @@ const { logToFile } = require('../utils/logger');
 const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
 const WhatsAppService = require('../services/whatsapp.service');
 const OxbridgeLpService = require('../services/oxbridge-lp.service');
+const { clampLanguage } = require('../config/ux-strings');
 
 const CURRICULUM_TAG = 'pakistan';
 const STATIC_GRADES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -302,7 +303,7 @@ async function selectTopicOxbridge(flowToken, rowId) {
         logToFile('Oxbridge LP (Flow): no phone for user', { userId });
         return;
       }
-      const language = user?.preferred_language === 'ur' ? 'ur' : 'en';
+      const language = clampLanguage(user?.preferred_language);
       // Immediate ack
       await WhatsAppService.sendMessage(
         user.phone_number,
@@ -358,7 +359,7 @@ function deliverPakistanLpAsync(flowToken, row) {
         logToFile('Pakistan LP: no phone for user', { userId });
         return;
       }
-      const language = user?.preferred_language === 'ur' ? 'ur' : 'en';
+      const language = clampLanguage(user?.preferred_language);
       const r2Key = (language === 'ur' && row.pdf_r2_key_ur)
         ? row.pdf_r2_key_ur
         : (row.pdf_r2_key_en || row.pdf_r2_key_ur);

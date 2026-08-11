@@ -7,6 +7,7 @@ const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
 const redisService = require('../cache/railway-redis.service');
 const SQSQueueService = require('../queue');  //  Phase 8 producer side
+const { clampLanguage } = require('../../config/ux-strings');
 
 // Redis keys must use the same phone format the webhook delivers.
 // students.parent_phone is stored E.164 with + (e.g. +<country><number>) but Meta webhooks
@@ -314,7 +315,7 @@ class QuizDeliveryService {
           // once the parent taps Start Quiz and the 24h window opens.
           logToFile('📨 Sending quiz invite as template (no 24h window)', { phone: parentPhone.slice(-4) });
           const templateName = language === 'ur' ? 'quiz_invitation_ur' : 'quiz_invitation_en';
-          await WhatsAppService.sendTemplate(parentPhone, templateName, language === 'ur' ? 'ur' : 'en', [
+          await WhatsAppService.sendTemplate(parentPhone, templateName, clampLanguage(language), [
             {
               type: 'body',
               parameters: [

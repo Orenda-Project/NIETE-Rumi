@@ -1,6 +1,6 @@
 ---
 name: pre-merge-checklist
-description: Pre-merge defensive checks for recurring, predictable bug classes — run before merging code that (a) emits new interactive button/list/Flow IDs, (b) edits or sends a Flow, (c) writes new enum/status values, (d) chains Supabase update+filter+select, (e) sends to a dormant user, or (f) tracks files toxic to a fresh clone. Each class has a concrete grep/SQL pre-flight and the failure mode it prevents.
+description: Pre-merge defensive checks for recurring, predictable bug classes — run before merging code that (a) emits new interactive button/list/Flow IDs, (b) edits or sends a Flow, (c) writes new enum/status values, (d) chains Supabase update+filter+select, (e) sends to a dormant user, (f) tracks files toxic to a fresh clone, (g) adds or edits a user-facing string in any offered language, or (h) changes text delivered in a length-capped interactive field. Each class has a concrete grep/SQL pre-flight and the failure mode it prevents.
 ---
 
 # Pre-Merge Checklist
@@ -172,6 +172,83 @@ grep -rn "WhatsAppService\.sendMessage" bot/shared/services/ bot/shared/handlers
 Rules: the template must be **APPROVED** on the WABA (and in the right language) before merge; **always
 check the boolean return** of the send and surface a real error on `false` — never report success when the
 send was rejected; fall back to English with a warning when the user's language has no approved template.
+
+---
+
+## Class H — A user-facing string missing one of the offered languages
+
+Every string a user reads must exist in **every language the deployment offers**. A partial map
+(`{ en: '…' }` where the offer is `en` + something else) does not fail — it silently degrades that
+language to English, for exactly the users who chose not to read English.
+
+**Pre-flight:**
+
+```bash
+# Every catalog entry must have a key for every offered language.
+# LANGUAGE_OFFER is the array of CODES. getOfferedLanguages() returns full row
+# objects — using it here compares an object against a key and reports every
+# entry as missing.
+node -e '
+const S = require("./bot/shared/config/ux-strings").UX_STRINGS;
+const { LANGUAGE_OFFER } = require("./bot/shared/config/languages");
+for (const [k, v] of Object.entries(S)) {
+  const missing = LANGUAGE_OFFER.filter((l) => typeof v[l] !== "string" || !v[l].trim());
+  if (missing.length) console.log(k, "MISSING", missing.join(","));
+}
+console.log("checked", Object.keys(S).length, "keys against", LANGUAGE_OFFER.join(","));
+'
+```
+
+Rules: resolve copy through the catalog, never a hardcoded literal; read the stored preference column,
+never a dead one; never rewrite a stored preference to something outside the offer (grandfather it
+instead); and treat English as the deliberate floor, not the default.
+
+**Lock it in:** a test that iterates `LANGUAGE_OFFER` rather than a hardcoded pair — a hardcoded list
+stops checking the moment a language is added.
+
+---
+
+## Class I — Interactive message fields have hard character caps
+
+A string that overruns its field makes Meta reject the **entire message**, so the feature sends
+*nothing*. This is not a truncation; it is a silent total failure.
+
+```
+(#131009) Parameter value is not valid
+"Footer text length invalid. Min length: 0, Max length: 60"
+```
+
+| Field | Max |
+|---|---|
+| `header.text` | 60 |
+| `body.text` | 1024 |
+| `footer.text` | 60 |
+| button reply title | 20 |
+| list `row.title` | 24 |
+| list `row.description` | 72 |
+| list `section.title` | 24 |
+
+**Measure code points, not UTF-16 units** — `[...s].length`, never `s.length`. They diverge on
+non-Latin scripts and emoji, which is how a string passes locally and fails at the API boundary.
+
+Two habits that turn this from an outage into a caught mistake:
+
+- **A monolingual → bilingual copy change is a length change first.** Adding a second language
+  roughly doubles the string; re-measure before shipping it.
+- **Log a rejected user-facing send at `error`, never `info`.** A send that Meta refused is not
+  informational. This is the difference between minutes and hours of silence.
+
+**Lock it in:** map each catalog key to the field it is delivered in and assert per-language length,
+with headroom (`<= max - 5`) so the next edit does not immediately breach the cap. Working
+implementation: `tests/config/ux-strings-whatsapp-limits.test.js`.
+
+**Why unit tests miss this class:** the catalog is tested for content, the payload builder for
+shape. The limit exists only at the API boundary, which neither crosses.
+
+---
+
+> **Class letters are local to this file.** The upstream checklist uses a different lettering for
+> some of the same classes — cite classes by name when writing across repos.
 
 ---
 

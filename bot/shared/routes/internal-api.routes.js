@@ -31,6 +31,7 @@
  */
 const express = require('express');
 const { logToFile } = require('../utils/logger');
+const { clampLanguage } = require('../config/ux-strings');
 
 const router = express.Router();
 
@@ -70,7 +71,7 @@ function requireInternalKey(req, res, next) {
  */
 router.post('/queue-lesson-plan', requireInternalKey, async (req, res) => {
   const { userId, phoneNumber, sourceLpUuid, topic, chapterTitle } = req.body || {};
-  const language = String((req.body && req.body.language) || 'en').toLowerCase() === 'ur' ? 'ur' : 'en';
+  const language = clampLanguage(String((req.body && req.body.language) || 'en').toLowerCase());
 
   if (!userId || !sourceLpUuid) {
     return res.status(400).json({ success: false, error: 'userId and sourceLpUuid are required' });

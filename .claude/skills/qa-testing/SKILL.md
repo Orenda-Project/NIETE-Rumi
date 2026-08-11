@@ -75,6 +75,72 @@ test('my_feature_start has a button_reply dispatcher', () => {
 Add one of these for every new button / list / Flow id you emit. The full rationale + the four webhook
 shapes is in [pre-merge-checklist](../pre-merge-checklist/SKILL.md).
 
+## Source-level assertions: three ways they pass while testing nothing
+
+The pattern above is cheap and catches real bugs, but `expect(src).toMatch(...)` is assertion-shaped
+rather than assertion-strength. Three failure modes, all observed in this repo:
+
+**1. The match lands on a comment, not the code.**
+
+Good code explains itself, and a guard's own subject is usually named in the comment above it — so
+`expect(src).not.toMatch(/flushAll/)` passes on code that calls `flushAll()` if a comment nearby says
+*"never use flushAll"*. The assertion is satisfied by the prose describing the rule it is meant to
+enforce. **Always strip comments first:**
+
+```js
+const CODE = fs.readFileSync(FILE, 'utf8')
+  .replace(/\/\*[\s\S]*?\*\//g, '')      // block comments
+  .replace(/(^|[^:])\/\/.*$/gm, '$1');   // line comments; [^:] spares https://
+```
+
+**2. Ordering assertions built on `String.search()` are vacuous.**
+
+`search()` returns `-1` when absent, and `-1 < anything` is true — so this passes when the feature is
+missing entirely:
+
+```js
+expect(src.search(/write/)).toBeLessThan(src.search(/render/));   // WRONG
+```
+
+Assert presence on **both** operands first:
+
+```js
+const write = src.search(/persist\(/), render = src.search(/rerender\(/);
+expect(write).toBeGreaterThan(-1);
+expect(render).toBeGreaterThan(-1);
+expect(write).toBeLessThan(render);
+```
+
+**3. The guard was never proven capable of failing.**
+
+A test written after the code always passes on the first run, which tells you nothing. **Mutation-test
+every new guard**: break the thing it protects, run it, watch it go red, then restore. A guard that
+stays green through the deletion of its own subject is decoration.
+
+```bash
+# 1. run the guard — green
+npx jest tests/setup/my-new-guard.test.js
+# 2. delete or invert the line it protects, run again — MUST be red
+# 3. restore, confirm green
+git checkout -- <the file you broke>
+```
+
+### Reading an already-red suite
+
+Several guards here are red for pre-existing reasons (see [tests/BASELINE.md](../../../tests/BASELINE.md)).
+"Did my change break anything?" cannot be answered from a red/green result — a suite that was already
+failing absorbs a *new* violation invisibly. **Diff the offender list, not the suite result:**
+
+```bash
+npx jest tests/setup/source-hygiene.test.js 2>&1 | grep -E '^\s+\+\s+"' | sort > /tmp/now.txt
+git stash push --quiet <your changed files>
+npx jest tests/setup/source-hygiene.test.js 2>&1 | grep -E '^\s+\+\s+"' | sort > /tmp/base.txt
+git stash pop --quiet
+comm -23 /tmp/now.txt /tmp/base.txt     # anything printed here, you introduced
+```
+
+`npm run test:baseline` wraps this for the whole suite.
+
 ## When to run what
 
 | Situation | Run |

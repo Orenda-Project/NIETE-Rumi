@@ -14,6 +14,8 @@
  * brief is read by the observer before walking into the classroom.
  */
 
+const { clampLanguage } = require('../../config/ux-strings');
+
 const FICO_AREAS = [
   'lesson_plan_fidelity',      // FICO section B (10 indicators)
   'high_leverage_practices',   // FICO section C (12 indicators)
@@ -136,10 +138,10 @@ function gapToArea(gap) {
   return m ? SECTION_PREFIX_TO_AREA[m[1]] : null;
 }
 
-// NIETE market languages (Rule 20): ur/en, English floor. No ux-strings catalog
-// exists in this repo — clamp locally.
+// NIETE market languages (Rule 20): ur/en, English floor. Kept as a named
+// wrapper because callers below read better for it; the clamp itself is shared.
 function clampVisitLang(lang) {
-  return lang === 'ur' ? 'ur' : 'en';
+  return clampLanguage(lang);
 }
 
 function moveText(move, lang) {

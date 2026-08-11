@@ -28,9 +28,8 @@
             }
           },
           "__example__": [
-            { "id": "en", "title": "English" },
             { "id": "ur", "title": "اردو (Urdu)" },
-            { "id": "sw", "title": "Kiswahili" }
+            { "id": "en", "title": "English" }
           ]
         },
         "frameworks": {
@@ -49,7 +48,7 @@
         },
         "current_language": {
           "type": "string",
-          "__example__": "en"
+          "__example__": "ur"
         },
         "current_framework": {
           "type": "string",

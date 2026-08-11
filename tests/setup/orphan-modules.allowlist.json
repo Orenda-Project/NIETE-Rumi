@@ -5,6 +5,14 @@
   },
   {
     "file": "bot/shared/config/system-messages.js",
-    "reason": "Customization seam — referenced in docs/agent-customization.md as the file an adopter translates to add a new language. No live caller until the adopter wires it; kept as the documented opt-in extension point."
+    "reason": "Customization seam \u2014 referenced in docs/agent-customization.md as the file an adopter translates to add a new language. No live caller until the adopter wires it; kept as the documented opt-in extension point."
+  },
+  {
+    "file": "bot/shared/config/tts-voices.js",
+    "reason": "Pronunciation and script GUIDANCE, not routing \u2014 provider/voice routing is VOICE_MODELS in utils/constants.js, read by audio.service.js. Became unreferenced when the prompt builder stopped inferring emotion-tag support from its (stale) provider field; the two registries had disagreed about Urdu. Kept because the pronunciation knowledge it holds \u2014 retroflex, implosives, Punjabi tone, Nastaliq script rules \u2014 has no other home, and is worth preserving even for languages this deployment does not serve."
+  },
+  {
+    "file": "bot/shared/utils/phone-validation.js",
+    "reason": "Orphaned 2026-08-10 when the attendance/edit-class endpoints were deleted for the ground-up rebuild (bd-2530). Kept deliberately: the rebuilt roster entry needs parent-phone validation, and this is the tested implementation. Re-linked when the new endpoints land; delete if the rebuild ships without parent phones."
   }
 ]

@@ -5,6 +5,8 @@
   "private": true,
   "scripts": {
     "test": "node tests/run.js",
+    "test:baseline": "node tests/baseline-gate.js",
+    "test:baseline:update": "node tests/baseline-gate.js --update",
     "test:security": "node tests/run.js --testPathPattern=sprint-0",
     "test:sprint1": "node tests/run.js --testPathPattern=sprint-1",
     "test:schema": "node tests/run.js --testPathPattern=sprint-2",

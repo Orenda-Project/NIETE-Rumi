@@ -239,9 +239,41 @@ async function storeConversation(
 
     // Add format/language tracking if provided
     if (inputFormat) insertData.input_format = inputFormat;
-    if (inputLanguage) insertData.input_language = inputLanguage;
     if (outputFormat) insertData.output_format = outputFormat;
-    if (outputLanguage) insertData.output_language = outputLanguage;
+
+    // --- Language telemetry -------------------------------------------------
+    // Both columns already existed, but 78.8% of production rows had a NULL
+    // output_language and ZERO had both — because language is the 7th and 9th
+    // positional parameter here and most of the ~15 call sites pass only the
+    // first five. Rather than thread an argument through every caller (the same
+    // "every site must remember" failure this workstream removes), the writer
+    // resolves what it can itself.
+    //
+    // Lazy-required so this module keeps its single-dependency load profile and
+    // callers that never store a conversation don't pull in redis.
+    const { canonicalizeLanguageCode } = require('../utils/language-canon');
+
+    // Input: only ever what the caller actually detected. Defaulting it to the
+    // stored preference would fabricate the exact signal we are collecting —
+    // "what did she write in" is not "what did she pick".
+    const canonIn = canonicalizeLanguageCode(inputLanguage);
+    if (canonIn) insertData.input_language = canonIn;
+
+    // Output: for an assistant row this IS resolvable without the caller's
+    // help — the reply was rendered in the user's resolved language, so record
+    // that when it wasn't passed explicitly. Best-effort: a lookup failure must
+    // never block storing the message itself.
+    let effectiveOut = outputLanguage;
+    if (!effectiveOut && role === 'assistant' && userId) {
+      try {
+        const { getUserLanguage } = require('../utils/language-cache');
+        effectiveOut = await getUserLanguage(userId);
+      } catch (_) {
+        // leave NULL rather than guess
+      }
+    }
+    const canonOut = canonicalizeLanguageCode(effectiveOut);
+    if (canonOut) insertData.output_language = canonOut;
 
     const { data, error } = await supabase
       .from('conversations')

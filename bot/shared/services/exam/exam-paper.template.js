@@ -24,6 +24,7 @@ const {
 } = require('docx');
 const axios = require('axios');
 const { logToFile } = require('../../utils/logger');
+const { clampLanguage } = require('../../config/ux-strings');
 
 // Font stacks per language. docx names fonts by string — recipient's OS
 // substitutes if the exact face isn't installed.
@@ -325,7 +326,7 @@ async function renderGroupHeader(group, lang) {
  * passage / match-the-columns block.
  */
 async function buildBody(exam, questions, groupMeta) {
-  const lang = exam.language === 'ur' ? 'ur' : 'en';
+  const lang = clampLanguage(exam.language);
   const L = LABELS[lang];
   const out = [];
 
@@ -364,7 +365,7 @@ async function buildBody(exam, questions, groupMeta) {
 }
 
 async function buildExamDocx({ exam, questions, groupMeta }) {
-  const lang = exam.language === 'ur' ? 'ur' : 'en';
+  const lang = clampLanguage(exam.language);
 
   const doc = new Document({
     creator: 'NIETE NIETE',

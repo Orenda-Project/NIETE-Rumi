@@ -3,25 +3,23 @@
  *
  * Centralises every system message the coaching pipeline sends to teachers
  * over WhatsApp, so translations can be added per-locale without hunting
- * across the pipeline's service files. The same multi-language shape used
- * elsewhere in the bot (`config/system-messages.js` and `config/branding.js`)
- * applies: ten supported language codes, English-fallback when a locale's
+ * across the pipeline's service files. English-fallback when a locale's
  * translation is absent.
  *
- * Supported language codes (canonical):
- *   en, ur, ar, es, sw, 'bal-PK', 'sd-PK', 'ps-PK', 'pa-PK', 'ta-LK'
+ * Supported language codes come from the registry (`config/languages.js`) — this
+ * file no longer keeps its own list. For this deployment that is en + ur.
  *
  * Adding a translation:
  *   1. Find the message key below
  *   2. Replace the `// TODO: translate to <lang>` placeholder with the
  *      localised string. Keep the SAME emoji placement and `${var}`
  *      template positions.
- *   3. Run `node tests/run.js tests/setup/coaching-i18n-catalog.test.js`
- *      — the ratchet asserts every message has all 10 language keys.
+ *   3. Run `node tests/run.js tests/setup/no-hardcoded-coaching-strings.test.js`
+ *      — the ratchet asserts every message has a key for every offered language.
  *
  * Adding a new message:
- *   1. Add a new key here with the full 10-language object (the others
- *      can start as English placeholders carrying the same TODO marker).
+ *   1. Add a new key here via `en(...)`, which fills every offered language
+ *      with the TODO marker until a translation lands.
  *   2. Call `getCoachingMessage('<your.key>', languageCode)` at the
  *      emit site. The ratchet test below catches any
  *      `WhatsAppService.sendMessage(..., '<English literal>')` in
@@ -34,7 +32,15 @@
  *   the translation lands.
  */
 
-const SUPPORTED_LANGUAGES = ['en', 'ur', 'ar', 'es', 'sw', 'bal-PK', 'sd-PK', 'ps-PK', 'pa-PK', 'ta-LK'];
+// Derived from the language registry rather than restated. This was a
+// ten-code array — the second-largest of the competing language lists the audit
+// found — and every non-English value in the catalog below is still the TODO
+// sentinel, so all ten codes already fell back to English. Narrowing it to the
+// deployment's offer is therefore structural, not behavioural: nothing a teacher
+// receives changes, and the list can no longer disagree with the pickers.
+const { LANGUAGE_OFFER } = require('./languages');
+
+const SUPPORTED_LANGUAGES = [...LANGUAGE_OFFER];
 
 // Sentinel — every non-`en` value below starts here as a placeholder.
 // Translations replace these in-place; the helper falls back to `en`

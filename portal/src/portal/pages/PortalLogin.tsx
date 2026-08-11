@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { isLeader } from '../lib/leaderRole';
+import { isValidPkMobile, PK_MOBILE_HINT } from '../lib/phone';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +22,14 @@ const PortalLogin = () => {
     
     if (!phoneNumber || !password) {
       toast({ title: "Missing Fields", description: "Please enter both phone number and password.", variant: "destructive" });
+      return;
+    }
+
+    // bd-2511: a wrong-length number otherwise reaches the server, misses the
+    // lookup, and comes back as "No portal account found" — which reads as
+    // "you have no account" when the teacher just dropped a digit.
+    if (!isValidPkMobile(phoneNumber)) {
+      toast({ title: "Check the phone number", description: PK_MOBILE_HINT, variant: "destructive" });
       return;
     }
 
@@ -64,11 +73,11 @@ const PortalLogin = () => {
                 type="tel"
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="923001234567"
+                placeholder="03XX XXXXXXX"
                 className="w-full"
                 required
               />
-              <p className="text-xs text-muted-foreground mt-1">Enter without + or spaces</p>
+              <p className="text-xs text-muted-foreground mt-1">e.g. 0336 1234567</p>
             </div>
 
             <div>
@@ -99,7 +108,9 @@ const PortalLogin = () => {
               <button
                 type="button"
                 className="text-sm text-accent hover:text-accent/80 transition-colors"
-                onClick={() => navigate('/portal/reset-password')}
+                // bd-2512: carry whatever they already typed, so the reset
+                // screen does not ask for the same number a second time.
+                onClick={() => navigate('/portal/reset-password', { state: { phoneNumber } })}
               >
                 Forgot password?
               </button>

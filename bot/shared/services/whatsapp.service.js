@@ -4,6 +4,8 @@ const fs = require('fs');
 const { WHATSAPP_TOKEN, PHONE_NUMBER_ID } = require('../utils/constants');
 const { logToFile } = require('../utils/logger');
 const { downloadFromR2, extractKeyFromUrl } = require('../storage/r2');
+const { getOfferedLanguages } = require('../config/languages');
+const { resolveUx } = require('../config/ux-strings');
 
 // Prefer ASSET_BASE_URL; fall back to legacy ASSETS_BASE_URL. Empty when
 // neither is set — the carousel template builder below guards against that.
@@ -1416,33 +1418,37 @@ class WhatsAppService {
             type: 'interactive',
             interactive: {
               type: 'list',
+              // Chrome comes from the catalog, and stays deliberately BILINGUAL:
+              // this is the screen a teacher reaches when the current language is
+              // the wrong one, so rendering it only in the language she is trying
+              // to leave is how a picker becomes unusable. The footer was
+              // English-only, which is the part that was simply a bug.
               header: {
                 type: 'text',
-                text: 'Select Language / زبان منتخب کریں'
+                text: resolveUx('languagePickerHeader', { language: currentLanguage })
               },
               body: {
-                text: 'Choose your preferred language. I will respond in this language for all conversations.\n\nاپنی پسندیدہ زبان منتخب کریں۔'
+                text: resolveUx('languagePickerBody', { language: currentLanguage })
               },
               footer: {
-                text: 'You can change this anytime by typing /language'
+                text: resolveUx('languagePickerFooter', { language: currentLanguage })
               },
               action: {
                 button: 'Languages',
                 sections: [
                   {
                     title: 'Available Languages',
-                    rows: [
-                      { id: 'lang_auto', title: 'Auto-detect', description: 'Let me detect your language automatically' },
-                      { id: 'lang_en', title: 'English', description: 'English language' },
-                      { id: 'lang_ur', title: 'اردو', description: 'Urdu language' },
-                      { id: 'lang_pa-PK', title: 'پنجابی', description: 'Punjabi (Shahmukhi)' },
-                      { id: 'lang_sd-PK', title: 'سنڌي', description: 'Sindhi' },
-                      { id: 'lang_ps-PK', title: 'پښتو', description: 'Pashto (Pakistani)' },
-                      { id: 'lang_bal-PK', title: 'بلوچی', description: 'Balochi' },
-                      { id: 'lang_ta-LK', title: 'தமிழ்', description: 'Tamil (Sri Lankan)' },
-                      { id: 'lang_ar', title: 'العربية', description: 'Arabic' },
-                      { id: 'lang_es', title: 'Español', description: 'Spanish' }
-                    ]
+                    // Built from the language registry so this list and the
+                    // /settings dropdown cannot drift apart. It used to be ten
+                    // hardcoded rows — eight of them languages ICT does not
+                    // serve, plus an "Auto-detect" row that switched OFF the
+                    // lock protecting the teacher's choice, which is how a
+                    // coaching recording could silently re-language her.
+                    rows: getOfferedLanguages().map((lang) => ({
+                      id: `lang_${lang.code}`,
+                      title: lang.languageTitle,
+                      description: lang.languageDescription,
+                    })),
                   }
                 ]
               }
@@ -1453,7 +1459,11 @@ class WhatsAppService {
 
       const data = await response.json();
       if (!response.ok) {
-        logToFile('❌ Error sending language selection list', { error: data });
+        // level: 'error', not the default info. A rejected send means the teacher
+        // received NOTHING — she typed /language and the bot went silent — and at
+        // info level that never reaches error monitoring. This exact failure ran
+        // seven times on staging before a human noticed by testing by hand.
+        logToFile('❌ Error sending language selection list', { error: data, level: 'error' });
         return false;
       }
 
@@ -1461,7 +1471,8 @@ class WhatsAppService {
       return true;
     } catch (error) {
       logToFile('❌ Error sending language selection list', {
-        error: error.message
+        error: error.message,
+        level: 'error'
       });
       return false;
     }

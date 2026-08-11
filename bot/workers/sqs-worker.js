@@ -439,6 +439,32 @@ class SQSCoachingWorker {
         break;
       }
 
+      // bd-2482 (NIETE port of PK bd-2317/2334): the class report for a
+      // SHARED video quiz. A distinct jobType from 'quiz_report' on purpose —
+      // sharing a dedup key with the parent quiz report would let one
+      // silently swallow the other. Keyed on the share code, not the quiz.
+      // The legacy 'video_quiz_report' name is also consumed so messages
+      // already in flight at deploy time still land.
+      case 'quiz_video_report':
+      case 'video_quiz_report': {
+        const VideoQuizReport = require('../shared/services/quiz/video-quiz-report.service');
+        const jobPayload = (body && body.payload) ? body.payload : (payload || {});
+        const shareCodeId = jobPayload.shareCodeId || body.referenceId || body.groupId;
+        const targetAt = jobPayload.targetAt ? new Date(jobPayload.targetAt) : null;
+        if (targetAt && targetAt > new Date()) {
+          const wait = Math.min(900, Math.max(60,
+            Math.floor((targetAt - Date.now()) / 1000)));
+          await SQSQueueService.queueJob(shareCodeId, 'quiz_video_report',
+            { shareCodeId, targetAt: jobPayload.targetAt }, {
+              delaySeconds: wait,
+              deduplicationId: `${shareCodeId}-quiz_video_report-${Date.now()}`,
+            });
+          break;
+        }
+        await VideoQuizReport.generate(shareCodeId, { reason: 'scheduled' });
+        break;
+      }
+
       default:
         throw new Error(`Unknown job type: ${jobType}`);
     }
@@ -979,6 +1005,21 @@ function startWorker() {
     }, STALE_CHECK_INTERVAL_MS);
 
     logToFile('Periodic stale job recovery enabled (every 5 minutes)');
+
+    // bd-2482 (NIETE port of PK bd-2398): video-quiz offers nobody answered
+    // age out to 'ignored' after 24h, so offer-response rate is a clean
+    // GROUP BY instead of guessing what NULL means. Idempotent update on the
+    // shared DB — concurrent regional workers are safe.
+    const VideoQuizService = require('../shared/services/quiz/video-quiz.service');
+    const runQuizOfferSweep = () => {
+      if (worker.isShuttingDown) return;
+      VideoQuizService.sweepIgnoredOffers({ maxAgeHours: 24 }).catch(() => {
+        // sweepIgnoredOffers never throws by contract; belt-and-braces.
+      });
+    };
+    setTimeout(runQuizOfferSweep, 3 * 60 * 1000);
+    setInterval(runQuizOfferSweep, 24 * 60 * 60 * 1000);
+    logToFile('Video-quiz offer sweep enabled (daily, NULL offers >24h → ignored)');
 
     // bd-2378: NIETE has no Railway Cron for stale-session.worker.js, so the
     // Soniox storage purge is driven from this always-on worker instead. Every

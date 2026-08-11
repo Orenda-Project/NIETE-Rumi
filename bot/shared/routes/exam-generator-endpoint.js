@@ -21,6 +21,7 @@ const { logToFile } = require('../utils/logger');
 const supabase = require('../config/supabase');
 const redis = require('../services/cache/railway-redis.service');
 const SQSQueueService = require('../services/queue');
+const { clampLanguage } = require('../config/ux-strings');
 
 const SESSION_TTL_SECONDS = 15 * 60; // 15 min — teacher won't spend longer
 
@@ -142,7 +143,7 @@ async function loadTeacherPreferredLanguage(userId) {
       .eq('id', userId)
       .single();
     const pref = String(data?.preferred_language || '').toLowerCase();
-    return pref === 'ur' ? 'ur' : 'en';
+    return clampLanguage(pref);
   } catch (_e) {
     return 'en';
   }
@@ -255,7 +256,7 @@ async function handleExamGeneratorDataExchange(userId, screen, screenData, flowT
     if (screenData._action !== 'select_grade_subject') return await gradeSubjectScreen(userId);
     state.grade = String(screenData.grade || '').trim();
     state.subject = String(screenData.subject || '').trim();
-    state.language = screenData.language === 'ur' ? 'ur' : 'en';
+    state.language = clampLanguage(screenData.language);
     await writeSession(flowToken, state);
     return await chaptersScreen(state.grade, state.subject, state.language);
   }
