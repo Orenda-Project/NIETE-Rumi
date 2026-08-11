@@ -34,7 +34,6 @@
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@ffprobe-installer/ffprobe": "^2.1.2",
     "@google-cloud/bigquery": "^7.9.0",
-    "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.78.0",
     "@turbodocx/html-to-docx": "^1.22.0",
     "aws-sdk": "^2.1691.0",
