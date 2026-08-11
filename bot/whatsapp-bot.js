@@ -50,6 +50,13 @@ const internalApiRoutes = require('./shared/routes/internal-api.routes');
 const { clampLanguage } = require('./shared/config/ux-strings');
 app.use('/api/internal', internalApiRoutes);
 
+// OTA live-update bundles for the Capacitor portal app. Two SEPARATE keys live
+// inside the router: CI holds the upload key (publishing a bundle is remote code
+// delivery to every device in the field), devices hold a read-only key. The
+// endpoint this replaces used one key for both.
+const frontendBundleRoutes = require('./shared/routes/frontend-bundle.routes');
+app.use('/api/v1/frontend-bundle', frontendBundleRoutes);
+
 // Create temp directory if it doesn't exist
 if (!fs.existsSync(constants.TEMP_DIR)) {
   fs.mkdirSync(constants.TEMP_DIR, { recursive: true });
