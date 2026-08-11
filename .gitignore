@@ -121,3 +121,8 @@ __pycache__/
 # point-in-time dumps of what Meta was serving, kept locally as a rollback
 # artifact — not source, and per-environment, so they must not be committed.
 bot/scripts/setup/assets/backups/
+
+# Worktree tooling: claude-on-bead.sh symlinks .beads/ to the parent project so a
+# worktree shares the beads ledger. It is a machine-absolute symlink and must never
+# be committed — it breaks every clone.
+.beads

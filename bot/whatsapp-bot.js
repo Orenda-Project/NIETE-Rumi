@@ -27,6 +27,7 @@ const { setUserLanguage } = require('./shared/utils/language-cache');
 
 // Import Database helpers
 const { getOrCreateUser, trackChatStart } = require('./shared/database/bot-helpers');
+const ConversationState = require('./shared/services/conversation-state.service');
 const supabase = require('./shared/config/supabase');
 const railwayRedis = require('./shared/services/cache/railway-redis.service');
 
@@ -43,7 +44,7 @@ app.use(express.json());
 app.use('/api/flows', flowEndpointRoutes);
 // Async result callbacks from external services (UG_EG assessment generator, …)
 app.use('/webhooks', assessmentGenCallbackRoutes);
-// bd-2461 — service-to-service API (portal → bot). Shared-secret auth lives
+// service-to-service API (portal → bot). Shared-secret auth lives
 // inside the router. Mounted before the inline /api/internal/send-password-reset
 // route below; Express falls through when no route in the router matches.
 const internalApiRoutes = require('./shared/routes/internal-api.routes');
@@ -531,7 +532,7 @@ app.post('/webhook', async (req, res) => {
         await WhatsAppService.sendMessage(from, '⏸ Paused. Send /training when you want to pick up where you left off.');
         return;
       }
-      // bd-2390 — immediate retry of a failed module quiz. Must be matched
+      // immediate retry of a failed module quiz. Must be matched
       // BEFORE the generic `training_quiz_` answer handler below, whose id
       // regex expects `training_quiz_<uuid>_<option>` and would reject this.
       if (buttonId.startsWith('training_quiz_retry_')) {
@@ -547,7 +548,7 @@ app.post('/webhook', async (req, res) => {
         await QuizDelivery.handleQuizButton(user.id, buttonId, from, message.id);
         return;
       }
-      // BH open-ended capstone start (bd-2233)
+      // BH open-ended capstone start 
       if (buttonId.startsWith('capstone_start_')) {
         const CapstoneDelivery = require('./shared/services/training/capstone-delivery.service');
         await CapstoneDelivery.handleCapstoneButton(user.id, buttonId, from);
@@ -561,7 +562,7 @@ app.post('/webhook', async (req, res) => {
         return;
       }
 
-      // FEAT-080 (bd-2016) — Oxbridge Grade 6-12 LP picker buttons.
+      // FEAT-080  — Oxbridge Grade 6-12 LP picker buttons.
       // `oxbridge_lp_pick_<catalogRowId>` → deliver the verbatim Oxbridge LP.
       // `oxbridge_lp_rumi`                → re-run the standard LLM LP path.
       if (buttonId.startsWith('oxbridge_lp_pick_') || buttonId === 'oxbridge_lp_rumi') {
@@ -1546,29 +1547,26 @@ app.post('/webhook', async (req, res) => {
 
       logToFile('📋 Current session retrieved', { currentSessionId });
 
-      // Get conversation state for the CURRENT session (not just any recent conversation)
-      // Note: Multiple conversations can exist in same session, so we get the most recent one
-      const { data: conversationsList, error: sessionError } = await supabase
-        .from('conversations')
-        .select('session_id, current_state')
-        .eq('user_id', user?.id)
-        .eq('session_id', currentSessionId)  // CRITICAL: Filter by current session
-        .not('current_state', 'is', null)  // Only get conversations with state set
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      // Get first result (most recent conversation with state)
-      const sessionData = conversationsList?.[0] || null;
-      const sessionId = sessionData?.session_id || currentSessionId;  // Fallback to current session
-      const currentState = sessionData?.current_state;
+      // the SAME reader the text and voice handlers use.
+      //
+      // This was a third, subtly different read of `conversations.current_state`.
+      // Unlike the other two it filtered `.not('current_state','is',null)`, so it
+      // could actually find a value — but it also filtered by `session_id`, and
+      // chat_sessions rotate after 30 minutes idle. A teacher who opened the reading
+      // test, got pulled away for half an hour and came back to tap her language
+      // landed in a NEW session, so her own state was invisible and the tap was
+      // refused. State is now keyed on the teacher, so a break cannot orphan it.
+      const activeState = await ConversationState.getState(user.id);
+      const sessionId = activeState?.payload?.sessionId || currentSessionId;
+      const currentState = activeState?.step || null;
 
       logToFile('📋 Interactive list - session state check', {
         listId,
         currentSessionId,
-        sessionDataFound: !!sessionData,
+        stateFound: Boolean(activeState),
+        flow: activeState?.flow || null,
         sessionId,
         currentState,
-        sessionError: sessionError?.message
       });
 
       // Reading Assessment language selection
@@ -1994,7 +1992,7 @@ async function handleDocumentMessage(message, from, user) {
 
         return; // Exit early - voice handler will process the audio
       } catch (durationError) {
-        // bd-2409 — enrich the log so the NEXT long-audio failure is fully
+        // enrich the log so the NEXT long-audio failure is fully
         // diagnosable (Maria's 29:40 recording died here with no userId/mediaId
         // logged, so the root could not be pinned; the truncation theory was
         // disproven — no session row was ever created).
@@ -2007,7 +2005,7 @@ async function handleDocumentMessage(message, from, user) {
           mimeType,
           fileSizeMB: audioClassification.sizeMB,
         });
-        // bd-2409 — INVARIANT: a school leader's long recording must NEVER fall
+        // INVARIANT: a school leader's long recording must NEVER fall
         // through to the misleading "send a classroom audio first" reply. If the
         // duration probe fails we cannot classify it as long, but a leader who
         // sent an audio DOCUMENT almost certainly sent a classroom recording —
@@ -2057,7 +2055,7 @@ async function handleDocumentMessage(message, from, user) {
       );
     }
   } catch (error) {
-    // bd-2409 — include userId + stack + documentId so a dropped recording is
+    // include userId + stack + documentId so a dropped recording is
     // attributable (Maria's 29:40 recording left NO diagnosable trail because
     // this catch logged only {error, from}).
     logToFile('❌ Error handling document', {

@@ -41,18 +41,24 @@ const ALLOWLIST = {
   // (`.upsert(gradeRows, { onConflict: 'submission_id,question_id' })`) so the
   // first object literal it sees after `.upsert(` is the options object.
   exam_grades: ['onconflict'],
-  // conversation_state is a coaching_sessions column mis-attributed to conversations
-  // by chain proximity (parser artifact). (The stale context_data write was removed —
-  // comprehension state lives in Redis, see redis-comprehension.service.)
-  // Post-bd-1850: text-message.handler.js:1810 + voice-message.handler.js:999 now
-  // write `.from('chat_sessions').update({ conversation_state: null })` (was
-  // `.from('sessions')` — a typo for a table that doesn't exist). The chat-session
-  // `conversation_state` JSONB column tracks the chat-level state-machine flags
-  // (AWAITING_VIDEO_TOPIC etc.) and is added by the ALTER ADD COLUMN reconcile
-  // section below. The parser still chain-attributes one read to `conversations` —
-  // keep the allowlist entry but document the post-rename reality.
+  // `conversations.conversation_state` — a REAL parser artifact, now narrowed to a
+  // single verified source: bot/workers/stale-session.worker.js selects
+  //   .from('coaching_sessions').select('id, user_id, status, conversation_state, …')
+  // and the parser attributes `conversation_state` to `conversations` by chain
+  // proximity. coaching_sessions genuinely has that column, so the code is correct.
+  //
+  // HISTORY, because this entry was previously doing two jobs and hid a live bug:
+  // it also masked voice-message.handler.js really running
+  // `.from('conversations').select('conversation_state')` — a column that has never
+  // existed on that table. In production that answered PostgREST 42703, the handler
+  // swallowed it, and every voice note read a null state (1,232 reads / 0 matches in
+  // 30 days). That read is gone, and the four legacy state stores are now guarded BY
+  // NAME in tests/conversation-state/no-legacy-state-stores.test.js so a genuine
+  // regression can no longer hide behind a blanket "parser artifact" note.
+  //
+  // Before widening this entry again: confirm the offender is a select on ANOTHER
+  // table that merely mentions the column, not a real read of `conversations`.
   conversations: ['conversation_state'],
-  chat_sessions: ['conversation_state'],
   // camelCase key from a nested non-DB object (parser artifact).
   coaching_sessions: ['excerptlength'],
   // Mis-attributed by chain proximity; no quiz_sessions write references updated_at.

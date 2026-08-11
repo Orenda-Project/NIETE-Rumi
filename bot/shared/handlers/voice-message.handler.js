@@ -8,6 +8,7 @@ const AudioService = require('../services/audio.service');
 const ContentService = require('../services/content.service');
 const FeatureRegistrationService = require('../services/feature-registration.service');
 const CoachingService = require('../services/coaching-orchestrator.service');
+const ConversationState = require('../services/conversation-state.service');
 const MenuService = require('../services/menu.service');
 const VideoOrchestrator = require('../services/video/video-orchestrator.service');
 const LessonPlanQueueService = require('../services/lesson-plan-queue.service');
@@ -992,27 +993,26 @@ async function handleVoiceMessage(message, from, user = null) {
       return; // Exit early
     }
 
-    // Get current conversation state to check for menu flows
-    let conversationState = null;
-    if (user && sessionId) {
-      try {
-        const { data: conversation } = await supabase
-          .from('conversations')
-          .select('conversation_state')
-          .eq('user_id', user.id)
-          .eq('session_id', sessionId)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        conversationState = conversation?.conversation_state?.current_state || null;
-        logToFile('Conversation state retrieved (voice)', { state: conversationState });
-      } catch (error) {
-        if (error.code !== 'PGRST116') { // Ignore "no rows found"
-          logToFile('⚠️ Error retrieving conversation state', { error: error.message });
-        }
-      }
+    // the SAME reader the text handler uses. These two had drifted onto
+    // different columns of different shapes, and this side was reading a column that
+    // does not exist: `.from('conversations').select('conversation_state')` answers
+    // PostgREST 42703 ("column conversations.conversation_state does not exist"),
+    // the catch below swallowed it, and conversationState was null on every single
+    // voice note. Production, 30 days: 1,232 voice reads, 0 matches — so a teacher
+    // who answered the menu by voice note was never understood.
+    //
+    // The generic column guard DID flag that column and was overruled by an
+    // allowlist entry calling it "a parser artifact". tests/conversation-state/
+    // no-legacy-state-stores.test.js now guards it by name instead.
+    let activeState = null;
+    if (user) {
+      activeState = await ConversationState.getState(user.id);
+      logToFile('Conversation state retrieved (voice)', {
+        flow: activeState?.flow || null,
+        step: activeState?.step || null,
+      });
     }
+    const conversationState = activeState?.step || null;
 
     // Handle menu choice (1-4 or words like "one", "two", etc.)
     if (conversationState === 'AWAITING_MENU_CHOICE' && user && sessionId) {
@@ -1052,12 +1052,9 @@ async function handleVoiceMessage(message, from, user = null) {
       // Route to AI video generation with user's topic (from voice transcription)
       await VideoOrchestrator.initiateVideoRequest(user, from, sessionId, detectedLanguage, transcription.trim());
 
-      // Clear the awaiting state
-      try {
-        await supabase.from('chat_sessions').update({ conversation_state: null }).eq('id', sessionId);
-      } catch (error) {
-        logToFile('⚠️ Failed to clear conversation state', { error: error.message });
-      }
+      // clear the state we actually read (was a no-op write to a
+      // different table). Flow-scoped so it cannot wipe another feature's state.
+      await ConversationState.clearState(user.id, { flow: 'video' });
 
       return; // Exit early
     }

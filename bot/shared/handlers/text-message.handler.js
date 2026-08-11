@@ -8,6 +8,7 @@ const ContextService = require('../services/context.service'); // Phase 2: Condi
 const redisService = require('../services/cache/railway-redis.service');
 const redis = redisService.redis; // Get Redis instance
 const CoachingService = require('../services/coaching-orchestrator.service');
+const ConversationState = require('../services/conversation-state.service');
 const MenuService = require('../services/menu.service');
 // MediaLibraryService removed - Issue #28: AI Video Generation replaces Media Library
 const HelperAgentService = require('../services/helper-agent.service');
@@ -22,7 +23,7 @@ const RegionFeaturesService = require('../services/region-features.service');
 const { getUserRegion } = require('../utils/region');
 const VideoOrchestrator = require('../services/video/video-orchestrator.service');
 const ChildFlowToken = require('../services/quiz/child-flow-token'); // bd-2475 (ported from PK)
-// bd-2475 — tryChildVideoMenu reads the module-level constant (matches PK's
+// tryChildVideoMenu reads the module-level constant (matches PK's
 // pattern); the existing /video block below still keeps its own local
 // process.env read (pre-existing NIETE code, untouched by this port).
 const { STUDENT_VIDEOS_FLOW_ID } = require('../utils/constants');
@@ -247,7 +248,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
           return;
         }
 
-        // BH open-ended capstone (bd-2233) — an in-progress capstone attempt
+        // BH open-ended capstone  — an in-progress capstone attempt
         // claims the teacher's next text messages as answers. Slash commands
         // pass through (the service refuses them), so /training etc. still work.
         const CapstoneDelivery = require('../services/training/capstone-delivery.service');
@@ -610,7 +611,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
-  // REMARK COMMAND (bd-2531): /remark — STEPS "S" Supervisor Remark, the
+  // REMARK COMMAND : /remark — STEPS "S" Supervisor Remark, the
   // principal's quarterly evaluation of each teacher in her school. All gating
   // (capability `remark.author` via feature_permissions, plus an OPEN
   // evaluation cycle) lives in remark-gate.js + remark-command.handler.js.
@@ -775,7 +776,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       );
       return;
     }
-    // bd-2504 — one entry point, shared with the menu's Training row. A second
+    // one entry point, shared with the menu's Training row. A second
     // copy here is how the two would drift.
     typingController.stop();
     const trainingLanguage = await getUserLanguage(from) || 'en';
@@ -885,7 +886,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       );
       return;
     }
-    // bd-2460 — the Assessment Generator is held OFF until it is ready on BOTH
+    // the Assessment Generator is held OFF until it is ready on BOTH
     // surfaces. The switch is one app_settings row shared with the portal, so
     // neither side can claim the feature is live while the other says it isn't.
     // Fail-closed: an absent row or a failed lookup reads as off.
@@ -1379,7 +1380,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         .single();
 
       if (activeCoaching) {
-        // bd-2508 — a slash command ENDS the conversation and falls through.
+        // a slash command ENDS the conversation and falls through.
         //
         // conducting_conversation was the only waiting state with no way out.
         // The bot's own escape-path map tells teachers to "type /menu" to leave
@@ -1492,7 +1493,12 @@ async function handleTextMessage(message, from, messageBody, user = null) {
             detectedAt: new Date().toISOString()
           });
 
-          await redis.setex(reminderKey, 604800, reminderData); // 7 days TTL
+          // was a raw `setex` at 604800s (7 days), reaching straight past
+          // the 24h ceiling that setexWithCeiling exists to enforce. A reminder that
+          // can outlive the session it describes by a week is a stale-prompt
+          // generator; the reminder itself is only shown if under 24h old anyway
+          // (showStuckSessionReminder), so the extra six days were dead weight.
+          await redisService.setexWithCeiling(reminderKey, 86400, reminderData);
 
           logToFile('📌 Stuck session detected but user not blocked', {
             sessionId: stuckSession.id,
@@ -1623,8 +1629,10 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     typingController.stop();
 
     if (user && sessionId) {
-      // Store user's menu request
-      await storeConversation(user.id, 'user', messageBody, 'text', sessionId);
+      // no second store. The generic path above already stored this
+      // message; storing it again put every `/menu` into history twice. In
+      // production 2,302 of 3,253 consecutive `/menu` pairs landed under 2s apart
+      // (~460ms), which also duplicated the turn in the AI's context window.
       await MenuService.sendMenu(from, user.id, sessionId);
     } else {
       const fallbackMsg = "Please complete registration first. Type /register to get started.";
@@ -2002,9 +2010,10 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         language: responseLanguage
       });
 
-      // Store user's capability inquiry and bot's response
+      // store only the REPLY here. The inbound message was already stored
+      // by the generic path above; storing it again is what put messages into
+      // history (and the AI's context) twice.
       if (user && sessionId) {
-        await storeConversation(user.id, 'user', messageBody, 'text', sessionId);
         await WhatsAppService.sendMessage(from, capabilityCheck.guidanceMessage);
         await storeConversation(user.id, 'assistant', capabilityCheck.guidanceMessage, 'text', sessionId);
       } else {
@@ -2020,28 +2029,28 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     // Continue to normal flow if capability detection fails
   }
 
-  // Get current conversation state to check for menu flows
-  // Issue #41 FIX: Read from correct column (current_state VARCHAR, not conversation_state JSONB)
-  let conversationState = null;
-  if (user && sessionId) {
-    try {
-      const { data: conversation } = await supabase
-        .from('conversations')
-        .select('current_state')  // Issue #41 FIX: Correct column name
-        .eq('user_id', user.id)
-        .eq('session_id', sessionId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      conversationState = conversation?.current_state || null;  // Issue #41 FIX: VARCHAR, not nested JSONB
-      logToFile('Conversation state retrieved', { state: conversationState });
-    } catch (error) {
-      if (error.code !== 'PGRST116') { // Ignore "no rows found"
-        logToFile('⚠️ Error retrieving conversation state', { error: error.message });
-      }
-    }
+  // where is this teacher in a flow? ONE reader, shared with the voice
+  // handler and the interactive-list router, so the three can no longer disagree.
+  //
+  // What this replaces: a read of `conversations.current_state` — the newest row of
+  // the append-only MESSAGE LOG for this session. That read could never work, because
+  // the incoming message is inserted into `conversations` further up this same
+  // function, so "newest row" was always that message, whose current_state is null.
+  // Production over 30 days: this read ran 10,127 times and every branch below it
+  // fired exactly 0 times. It was dead code from the day it was written.
+  //
+  // It was also scoped by session_id, and chat_sessions rotate after 30 minutes
+  // idle — so even with the ordering fixed it would have lost any teacher who
+  // stepped away. The store is keyed on the teacher alone.
+  let activeState = null;
+  if (user) {
+    activeState = await ConversationState.getState(user.id);
+    logToFile('Conversation state retrieved', {
+      flow: activeState?.flow || null,
+      step: activeState?.step || null,
+    });
   }
+  const conversationState = activeState?.step || null;
 
   // Handle menu choice (1-4)
   if (conversationState === 'AWAITING_MENU_CHOICE' && user && sessionId) {
@@ -2106,12 +2115,13 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     // Route to AI video generation with user's topic
     await VideoOrchestrator.initiateVideoRequest(user, from, sessionId, responseLanguage, messageBody.trim());
 
-    // Clear the awaiting state
-    try {
-      await supabase.from('chat_sessions').update({ conversation_state: null }).eq('id', sessionId);
-    } catch (error) {
-      logToFile('⚠️ Failed to clear conversation state', { error: error.message });
-    }
+    // clear the state we actually read.
+    // This used to write `chat_sessions.conversation_state`, while the read above
+    // came from `conversations.current_state` — a different table entirely. The
+    // clear was therefore a no-op, and state was never really cleared: it only
+    // stopped being visible once the next row landed in the message log.
+    // Flow-scoped, so finishing video cannot wipe a coaching session.
+    await ConversationState.clearState(user.id, { flow: 'video' });
 
     return; // Exit early
   }
@@ -2704,7 +2714,7 @@ module.exports = {
   evaluateHomeworkTrigger, // exported for trigger unit tests
   tryCurriculumLessonPlanServe, // exported for intercept unit tests
   handleLessonPlanRequest, // exported for the Oxbridge-picker "Generate NIETE LP" tap
-  isSelectVideoButton, // bd-2482 — video-library broadcast "Select Video" button
-  isVideoCommand, // bd-2486 — exported for unit tests
-  tryChildVideoMenu, // bd-2475 — exported for unit tests
+  isSelectVideoButton, // video-library broadcast "Select Video" button
+  isVideoCommand, // exported for unit tests
+  tryChildVideoMenu, // exported for unit tests
 };
