@@ -60,6 +60,18 @@ async function handleStatusFlowDataExchange(userId, screen, screenData /*, flowT
       );
     }
     const result = await TeacherStateService.cancelResource(matched, userId);
+
+    // "Continue" rather than "Stop". This screen used to offer only cancellation, so
+    // the one surface that knew what a teacher had left open could only help her
+    // throw it away. The state is left exactly as it is — she is already on that
+    // step, so re-entering is simply carrying on, and saying so is the whole action.
+    if (result.ok && result.resume) {
+      return buildSuccessScreen(
+        `Carrying on with your ${matched.title.replace(/^Continue: /, '')}. Reply here to pick up where you left off.`,
+        { statusAction: 'resumed', resourceKind: matched.kind, resourceLabel: matched.title }
+      );
+    }
+
     if (result.ok) {
       return buildSuccessScreen(result.message, {
         statusAction: 'cancelled',
