@@ -68,10 +68,15 @@ describe('bd-2555 — the portal build is a real build', () => {
     // step added there would make the bot build the portal too.
     const contract = JSON.parse(fs.readFileSync(path.join(REPO, 'railpack.portal.json'), 'utf8'));
     expect(contract.buildCommand).toMatch(/build:portal/);
-    // rootDirectory MUST be repo root: with /dashboard the portal source is
-    // not in the build context at all, which is what made the hand-copy
+    // rootDirectory MUST be the repo ROOT: with /dashboard the portal source
+    // is not in the build context at all, which is what made the hand-copy
     // necessary in the first place.
-    expect(contract.rootDirectory).toBeNull();
+    //
+    // Both spellings mean repo root. The bot/worker services store null, but
+    // the Railway API does NOT clear the field when sent null — it silently
+    // left the portal at /dashboard — so "/" is the value that actually takes.
+    // Accept either; reject anything that scopes the build to a subdirectory.
+    expect([null, '/', '']).toContain(contract.rootDirectory);
     expect(contract.startCommand).toMatch(/dashboard\/entrypoint\.js/);
   });
 });
