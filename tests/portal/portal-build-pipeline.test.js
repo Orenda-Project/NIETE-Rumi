@@ -58,6 +58,29 @@ describe('bd-2555 — the portal build is a real build', () => {
     expect(cmd).toMatch(/portal-frontend\/dist/);
   });
 
+  it('build:portal installs the dashboard runtime dependencies', () => {
+    // Moving rootDirectory from /dashboard to the repo root changed which
+    // package.json Railway installs: the ROOT one (3 deps), not dashboard's
+    // (24, including dotenv). The first deploy built fine and then crash-
+    // looped on `Cannot find module 'dotenv'` — the build succeeded, the
+    // healthcheck never came up.
+    //
+    // The bot and worker services already solve this the same way
+    // (`npm install --prefix bot`).
+    const cmd = rootPkg.scripts['build:portal'];
+    expect(cmd).toMatch(/--prefix dashboard/);
+  });
+
+  it('the dashboard declares the deps its server actually requires', () => {
+    // Guards the other half: if dotenv ever stops being a dashboard dep, the
+    // install above cannot save it.
+    const dashPkg = JSON.parse(
+      fs.readFileSync(path.join(REPO, 'dashboard/package.json'), 'utf8')
+    );
+    expect(dashPkg.dependencies).toHaveProperty('dotenv');
+    expect(dashPkg.dependencies).toHaveProperty('express');
+  });
+
   it('the Railway build command is committed, not just typed into a dashboard', () => {
     // Railway service config lives in Railway, not the repo, so it is recorded
     // here to stay reviewable and diffable. A build command that exists ONLY
