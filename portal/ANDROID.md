@@ -138,10 +138,40 @@ That is how 1206 shipped broken.
 
 ### Testing a change on a device
 
-Open a PR touching `portal/**` and the `Android Debug Build` workflow attaches
-a `.debug` APK to the run — download it from the PR's **Checks** tab and
-`adb install -r` it. No JDK or Android SDK needed locally. Debug builds install
-as `pk.edu.niete.debug` alongside the real app and point at **staging**.
+Three builds, three jobs. All three install **side by side** on one handset —
+distinct `applicationId`s — so a tester can hold prod, staging and a PR build
+at once and compare them directly.
+
+| Build | Package | Backend | Signed with | Built when |
+|---|---|---|---|---|
+| **Debug** | `pk.edu.niete.debug` | staging | debug key | every PR touching `portal/**` |
+| **Staging** | `pk.edu.niete.staging` | staging | debug key | every push to `develop` |
+| **Release** | `pk.edu.niete` | production | **NIETE release key** | `android-v*` tag |
+
+**Debug** answers *"is this change sane?"* — download the APK from the PR's
+**Checks** tab and `adb install -r` it. No local JDK or Android SDK needed.
+
+**Staging** answers *"does the release path work?"*, and it is the one that
+catches what debug cannot. A debug APK is compiled with a different build type
+— no minify, no proguard, no resource shrinking — so "worked in debug, broke in
+production" is a real class of bug. The staging build uses `initWith
+buildTypes.release`, so it differs from the Play artifact in exactly **one**
+variable: the backend.
+
+Two structural guarantees stop a staging build ever becoming the Play artifact,
+because both failures would be silent:
+
+- the `.staging` suffix, so it installs *beside* the production app rather than
+  replacing the real NIETE app on a teacher's phone;
+- the **debug** signing key, so Play rejects it on upload. The inherited NIETE
+  release key is never given to a non-production workflow.
+
+Both are asserted against the built APK, not just the gradle source
+(`tests/portal/android-staging-identity.test.js`).
+
+> The staging build type needs `matchingFallbacks = ['release']`: the Capacitor
+> library modules publish only `debug` and `release` variants, so without it
+> Gradle fails with *"No matching variant of project :capacitor-android"*.
 
 ## OTA updates (remote-first WebView)
 
@@ -162,6 +192,26 @@ web deploy, not a signed upload and a downtime notice.
 origin from `VITE_API_BASE_URL` — the same value the app already trusts for its
 data — so the host serving the code can never drift from the host serving the
 data. `capacitor.config.ts` sets `server.url` from it when `NIETE_OTA=1`.
+
+> **⚠️ Do not re-tighten the native API-URL rule (bd-2554).** Under OTA the
+> WebView runs the **web** bundle — served by the portal, so no
+> `VITE_API_BASE_URL` — while Capacitor still injects its global, so
+> `isNativeApp()` is **`true`**. An earlier version demanded an absolute URL
+> whenever `isNative`, which threw at first render and would have white-screened
+> every app the moment OTA was switched on: bd-2551 through a new door, and
+> worse, because a Play rollback cannot fix a bundle served from the web.
+>
+> The rule is **not** "native ⇒ absolute URL". It is "**no usable origin** ⇒
+> absolute URL". A bundled app sits on `https://localhost` where nothing is
+> listening — that case must stay loud. A page *served by* a real https host
+> can use the relative `/api/portal`, because there the page origin **is** the
+> API's origin. `isServedByRealHost()` draws that line and fails closed on
+> anything it doesn't recognise.
+>
+> A useful side effect: under OTA the API becomes **same-origin**, so the CORS
+> allowlist (`https://localhost`, `capacitor://localhost` in
+> `dashboard/index.js`) stops being load-bearing for app traffic. Keep those
+> entries — the bundled fallback still needs them.
 
 **It is opt-in** (`NIETE_OTA=1`; on by default in the release workflow, off for
 debug builds so testers verify the PR's own code). If the origin can't be

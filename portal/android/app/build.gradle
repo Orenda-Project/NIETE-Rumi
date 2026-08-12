@@ -61,6 +61,37 @@ android {
             // redefining it there is a duplicate-resource build failure.
             manifestPlaceholders = [appLabel: "NIETE Debug"]
         }
+        // bd-2554: the staging build — the release build path, pointed at the
+        // staging backend.
+        //
+        // `initWith release` is the whole point: it inherits minify, proguard
+        // and shrinking, so this exercises the code path that actually ships.
+        // A debug APK does not, which is why "worked in debug, broke in
+        // production" is a real class of bug rather than a superstition.
+        //
+        // Two structural guarantees stop it from ever becoming the Play
+        // artifact, because both failures would be silent:
+        //   - `.staging` suffix, so it installs BESIDE the production app
+        //     (pk.edu.niete) and a `.debug` build. Without it, a tester
+        //     installing staging would replace the real NIETE app on their
+        //     phone with one pointed at staging data.
+        //   - the DEBUG signing key, so Play would reject it on upload. The
+        //     inherited NIETE release key stays out of every non-production
+        //     workflow, and no staging CI job is given access to it.
+        staging {
+            initWith buildTypes.release
+            applicationIdSuffix ".staging"
+            manifestPlaceholders = [appLabel: "NIETE Staging"]
+            signingConfig signingConfigs.debug
+            // The library modules (:capacitor-android, :capacitor-cordova-
+            // android-plugins) only publish `debug` and `release` variants, so
+            // a consumer asking for a `staging` variant resolves nothing and
+            // the build dies with "No matching variant of project
+            // :capacitor-android". This tells Gradle to fall back to those
+            // modules' `release` variant — the right one, since staging IS the
+            // release build path with a different backend.
+            matchingFallbacks = ['release']
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'

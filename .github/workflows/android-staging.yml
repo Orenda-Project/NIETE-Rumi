@@ -1,0 +1,147 @@
+# Android STAGING build — the app pointed at the staging portal. (bd-2554)
+#
+# The third build in the set, and the one that closes the gap between "works on
+# my phone" and "shipped to Play":
+#
+#   android-debug.yml    per-PR .debug APK          — is this change sane?
+#   android-staging.yml  THIS — installable staging  — does the release path work?
+#   android-release.yml  signed AAB → Play internal  — ship it
+#
+# Why it exists. A debug APK is built from a PR branch and signed with the
+# generic Android debug key, so it exercises neither the merged code nor the
+# release build type (minify, proguard, resource shrinking). The bugs that
+# survive to production are exactly the ones that only appear in a release
+# build. This runs the RELEASE build type against the STAGING API, so the thing
+# under test differs from the Play artifact in one variable only: the backend.
+#
+# Identity: installs as `pk.edu.niete.staging`, so it coexists with both the
+# production app and a `.debug` build on the same handset — a tester can hold
+# all three and compare. It CANNOT collide with the Play listing.
+#
+# Signing: the debug keystore, deliberately. The release key never enters a
+# non-production workflow, and this artifact must never be uploadable to Play.
+
+name: Android Staging Build
+
+on:
+  push:
+    branches: [develop]        # develop IS the staging branch
+    paths:
+      - 'portal/**'
+      - '.github/workflows/android-staging.yml'
+  workflow_dispatch:
+    inputs:
+      ota:
+        description: 'Remote-first OTA (WebView loads the live staging portal)'
+        required: true
+        default: 'off'
+        type: choice
+        options: [off, on]
+
+concurrency:
+  group: android-staging-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  staging-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'      # Capacitor 8 hardcodes Java 21
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: portal/package-lock.json
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install portal dependencies
+        working-directory: portal
+        run: npm ci
+
+      - name: Run Android guard tests
+        run: |
+          npm ci
+          npm test -- tests/portal/
+
+      # Staging URL comes from a repo VARIABLE, not a secret — it is a public
+      # hostname, and keeping it visible means a wrong target is obvious in the
+      # log rather than masked as ***.
+      - name: Write app build config
+        working-directory: portal
+        env:
+          STAGING_URL: ${{ vars.NIETE_STAGING_API_BASE_URL }}
+        run: |
+          case "$STAGING_URL" in
+            https://*) ;;
+            *) echo "::error::Set the repo variable NIETE_STAGING_API_BASE_URL to the staging portal API (e.g. https://<staging-host>/api/portal). A native build without an absolute https URL white-screens on every launch (bd-2551)."; exit 1 ;;
+          esac
+          printf 'VITE_APP_TARGET=app\nVITE_API_BASE_URL=%s\n' "$STAGING_URL" > .env.app
+          echo "API_HOST=$(printf '%s' "$STAGING_URL" | awk -F[/:] '{print $4}')" >> "$GITHUB_ENV"
+          echo "Staging build targets ${STAGING_URL}"
+
+      # A staging build must never be able to reach production. The production
+      # portal host is the one thing that must NOT appear in this bundle.
+      - name: Refuse to build staging against production
+        working-directory: portal
+        env:
+          PROD_URL: ${{ vars.NIETE_PROD_API_BASE_URL }}
+        run: |
+          if [ -n "$PROD_URL" ]; then
+            prod_host="$(printf '%s' "$PROD_URL" | awk -F[/:] '{print $4}')"
+            if [ "$prod_host" = "$API_HOST" ]; then
+              echo "::error::NIETE_STAGING_API_BASE_URL points at the PRODUCTION host (${prod_host}). A staging build must not carry production data."
+              exit 1
+            fi
+          fi
+
+      - name: Build web assets and sync native project
+        working-directory: portal
+        env:
+          # Default OFF: the point of a staging build is to test THIS commit's
+          # bundle. With OTA on it would load whatever staging currently serves
+          # and the artifact under test would not be the code that built it.
+          NIETE_OTA: ${{ github.event.inputs.ota == 'on' && '1' || '0' }}
+          VITE_API_BASE_URL: ${{ vars.NIETE_STAGING_API_BASE_URL }}
+        run: npm run android:sync
+
+      - name: Verify the bundle is app-mode and targets staging
+        working-directory: portal
+        run: |
+          if ! grep -rqF "$API_HOST" dist/assets/*.js; then
+            echo "::error::Built bundle does not reference ${API_HOST} — this is a WEB-mode build and would white-screen (bd-2551)."
+            exit 1
+          fi
+          echo "Bundle references ${API_HOST} — app-mode staging build confirmed."
+
+      # assembleStaging: the release build type (minify/proguard/shrinking) with
+      # a `.staging` applicationId suffix and the debug signing key.
+      - name: Assemble staging APK
+        working-directory: portal/android
+        run: ./gradlew assembleStaging --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: niete-staging-apk
+          path: portal/android/app/build/outputs/apk/staging/*.apk
+          retention-days: 30
+
+      - name: Summary
+        run: |
+          {
+            echo "### NIETE staging APK"
+            echo ""
+            echo "- Package: \`pk.edu.niete.staging\` (coexists with prod + debug)"
+            echo "- API: \`${API_HOST}\`"
+            echo "- Build type: release (minify + proguard), debug-signed"
+            echo ""
+            echo 'Install: `adb install -r niete-staging.apk`'
+          } >> "$GITHUB_STEP_SUMMARY"

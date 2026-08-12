@@ -38,5 +38,10 @@ export function getApiBaseUrl(): string {
     isNative: isNativeApp(),
     isProd: import.meta.env.PROD,
     apiBaseUrl: import.meta.env.VITE_API_BASE_URL,
+    // bd-2554: under OTA the native shell runs the WEB bundle (no
+    // VITE_API_BASE_URL) but is served by the portal itself. The origin is how
+    // resolveApiBaseUrl tells that case apart from a bundled app sitting on
+    // https://localhost, where a relative path would hit no server.
+    origin: typeof window !== 'undefined' ? window.location.origin : undefined,
   });
 }

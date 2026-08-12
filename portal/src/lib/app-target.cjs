@@ -42,21 +42,34 @@ function resolveIsPortal({ isNative = false, appTarget, hostname = '' } = {}) {
  * @param {boolean} [opts.isNative]
  * @param {boolean} [opts.isProd]
  * @param {string}  [opts.apiBaseUrl] configured absolute URL (VITE_API_BASE_URL)
+ * @param {string}  [opts.origin] window.location.origin — where the page came from
  * @returns {string}
  */
-function resolveApiBaseUrl({ isNative = false, isProd = false, apiBaseUrl } = {}) {
+function resolveApiBaseUrl({ isNative = false, isProd = false, apiBaseUrl, origin } = {}) {
   const configured = typeof apiBaseUrl === 'string' ? apiBaseUrl.trim() : '';
   const isAbsolute = /^https?:\/\//i.test(configured);
 
   if (isNative) {
-    if (!isAbsolute) {
-      throw new Error(
-        'Native builds need an absolute API base URL. Set VITE_API_BASE_URL to the ' +
-          "portal's full origin (e.g. https://portal.example.com/api/portal) — a " +
-          'relative path resolves to the WebView host, where no server is listening.'
-      );
-    }
-    return stripTrailingSlash(configured);
+    if (isAbsolute) return stripTrailingSlash(configured);
+
+    // bd-2554: under remote-first OTA the WebView runs the WEB bundle, served
+    // by the portal itself — so there is no VITE_API_BASE_URL, but there IS a
+    // real origin, and a relative path resolves against the very server that
+    // sent the page. Requiring an absolute URL here would throw at first
+    // render and white-screen the app the moment OTA is switched on, which is
+    // bd-2551 arriving through a different door.
+    //
+    // The original rule was never "native ⇒ absolute"; it was "no usable
+    // origin ⇒ absolute". A bundled app sits on https://localhost (or
+    // capacitor://localhost), where nothing is listening — that case must stay
+    // loud. Being SERVED by a real https host is the evidence that it is safe.
+    if (isServedByRealHost(origin)) return isProd ? '/api/portal' : stripTrailingSlash(origin) + '/api/portal';
+
+    throw new Error(
+      'Native builds need an absolute API base URL. Set VITE_API_BASE_URL to the ' +
+        "portal's full origin (e.g. https://portal.example.com/api/portal) — a " +
+        'relative path resolves to the WebView host, where no server is listening.'
+    );
   }
 
   // An explicit absolute override is honoured on the web too (useful for
@@ -106,6 +119,34 @@ function resolveOtaUrl({ isNative = false, apiBaseUrl } = {}) {
   } catch {
     // Unparseable or relative — fall back to the bundled assets.
     return null;
+  }
+}
+
+/**
+ * Was this page served by a real remote host? (bd-2554)
+ *
+ * Only then is a relative API path safe inside a native shell: the request
+ * resolves against the server that sent the page. The two origins a Capacitor
+ * shell uses for its BUNDLED assets — https://localhost and
+ * capacitor://localhost — have no server behind them, which is the whole
+ * reason resolveApiBaseUrl demands an absolute URL there.
+ *
+ * Deliberately conservative: anything unrecognised returns false and the
+ * caller throws. A wrong "true" is a white screen with no way back, while a
+ * wrong "false" is a loud build-time error — so unknown must fail closed.
+ */
+function isServedByRealHost(origin) {
+  if (typeof origin !== 'string') return false;
+  try {
+    const { protocol, hostname } = new URL(origin);
+    // https only: capacitor:// and file:// are local shells, and a portal
+    // served over plain http is not a host we should trust for the API.
+    if (protocol !== 'https:') return false;
+    // The Capacitor bundled-asset host. Nothing is listening on it.
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]') return false;
+    return true;
+  } catch {
+    return false;
   }
 }
 
