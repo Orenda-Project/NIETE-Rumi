@@ -1,0 +1,105 @@
+# Android debug build — a testable APK for every portal change. (bd-2553)
+#
+# The counterpart to android-release.yml. That one ships to Play; this one
+# produces the `.debug` APK for on-device testing, so a tester can install a
+# build from a PR without anyone having a JDK, an Android SDK, and the right
+# vite flag on their laptop.
+#
+# Debug builds install as `pk.edu.niete.debug` and are signed with the generic
+# Android debug key, so they sit alongside the production app instead of
+# colliding with it (installing over a differently-signed build fails with
+# INSTALL_FAILED_UPDATE_INCOMPATIBLE, and the only way through is uninstalling
+# the real app).
+#
+# No secrets are used here — that is deliberate. This workflow runs on PRs
+# from any branch, and the release keystore must never be reachable from one.
+
+name: Android Debug Build
+
+on:
+  pull_request:
+    paths:
+      - 'portal/**'
+      - '.github/workflows/android-debug.yml'
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: 'Absolute portal API URL to build against'
+        required: false
+        default: ''
+
+jobs:
+  debug-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'      # Capacitor 8 hardcodes Java 21
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: portal/package-lock.json
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install portal dependencies
+        working-directory: portal
+        run: npm ci
+
+      - name: Run Android guard tests
+        run: |
+          npm ci
+          npm test -- tests/portal/
+
+      # A debug build points at staging by default so testers cannot generate
+      # load or side effects against production data by installing a PR build.
+      - name: Write app build config
+        working-directory: portal
+        env:
+          OVERRIDE: ${{ github.event.inputs.api_base_url }}
+          STAGING_URL: ${{ vars.NIETE_STAGING_API_BASE_URL }}
+        run: |
+          API_BASE_URL="${OVERRIDE:-$STAGING_URL}"
+          case "$API_BASE_URL" in
+            https://*) ;;
+            *) echo "::error::No absolute https API URL available. Set the repo variable NIETE_STAGING_API_BASE_URL, or pass api_base_url. A native build without one white-screens on every launch (bd-2551)."; exit 1 ;;
+          esac
+          printf 'VITE_APP_TARGET=app\nVITE_API_BASE_URL=%s\n' "$API_BASE_URL" > .env.app
+          echo "API_HOST=$(printf '%s' "$API_BASE_URL" | awk -F[/:] '{print $4}')" >> "$GITHUB_ENV"
+          echo "Debug build targets ${API_BASE_URL}"
+
+      - name: Build web assets and sync native project
+        working-directory: portal
+        env:
+          # Debug builds load their BUNDLED assets: a tester needs to verify the
+          # code in this PR, not whatever the live server is currently serving.
+          NIETE_OTA: '0'
+        run: npm run android:sync
+
+      - name: Verify the bundle is app-mode
+        working-directory: portal
+        run: |
+          if ! grep -rqF "$API_HOST" dist/assets/*.js; then
+            echo "::error::Built bundle does not reference ${API_HOST} — this is a WEB-mode build and would white-screen (bd-2551)."
+            exit 1
+          fi
+          echo "Bundle references ${API_HOST} — app-mode confirmed."
+
+      - name: Assemble debug APK
+        working-directory: portal/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      # Downloadable from the PR's Checks tab:
+      #   adb install -r app-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: niete-debug-apk
+          path: portal/android/app/build/outputs/apk/debug/*.apk
+          retention-days: 14
