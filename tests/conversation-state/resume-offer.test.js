@@ -33,7 +33,9 @@ const mockState = {
 };
 const mockWhatsApp = { sendMessage: jest.fn(), sendInteractiveButtons: jest.fn() };
 const mockSupabase = { from: jest.fn() };
+const mockRedis = { acquireLock: jest.fn(), releaseLock: jest.fn() };
 
+jest.mock('../../bot/shared/services/cache/railway-redis.service', () => mockRedis);
 jest.mock('../../bot/shared/services/conversation-state.service', () => mockState);
 jest.mock('../../bot/shared/services/whatsapp.service', () => mockWhatsApp);
 jest.mock('../../bot/shared/config/supabase', () => mockSupabase);
@@ -50,6 +52,8 @@ beforeEach(() => {
   mockWhatsApp.sendMessage.mockResolvedValue(true);
   mockState.setState.mockImplementation((u, s) => Promise.resolve({ ...s, stack: [] }));
   mockState.clearState.mockResolvedValue(true);
+  mockRedis.acquireLock.mockResolvedValue(true);
+  mockRedis.releaseLock.mockResolvedValue(true);
   // The teacher lookup the sweeper needs to know where to send.
   mockSupabase.from.mockImplementation(() => ({
     select: () => ({
@@ -126,6 +130,42 @@ describe('the sweeper offers an interrupted task back', () => {
 
     expect(res.failed).toBe(1);
     expect(res.offered).toBe(1);
+  });
+});
+
+describe('only one worker may sweep', () => {
+  // This deployment runs the SAME worker entry point as two Railway services
+  // (`sqs-worker` and `sqs-worker-video` both start bot/workers/sqs-worker.js). Every
+  // interval in that file therefore fires twice, on two machines, thirty minutes
+  // apart from each other's schedule.
+  //
+  // For the existing sweeps that is invisible — they do idempotent database work. This
+  // one SENDS A TEACHER A MESSAGE, so double-running means she is asked "shall we pick
+  // up your reading assessment?" twice. With thousands of live teachers that is the
+  // kind of duplicate nobody reports as a bug and everybody notices.
+  it('does nothing when another worker holds the lock', async () => {
+    mockRedis.acquireLock.mockResolvedValue(false);
+    mockState.sweepExpired.mockResolvedValue([
+      { userId: USER, flow: 'reading', step: 'awaiting_audio', payload: {} },
+    ]);
+
+    const res = await resume.sweepAndOffer();
+
+    expect(mockWhatsApp.sendInteractiveButtons).not.toHaveBeenCalled();
+    expect(mockState.sweepExpired).not.toHaveBeenCalled();
+    expect(res.skippedLocked).toBe(true);
+  });
+
+  it('releases the lock so the next interval is not blocked out', async () => {
+    mockState.sweepExpired.mockResolvedValue([]);
+    await resume.sweepAndOffer();
+    expect(mockRedis.releaseLock).toHaveBeenCalled();
+  });
+
+  it('releases the lock even when the sweep throws', async () => {
+    mockState.sweepExpired.mockRejectedValue(new Error('database gone'));
+    await resume.sweepAndOffer();
+    expect(mockRedis.releaseLock).toHaveBeenCalled();
   });
 });
 

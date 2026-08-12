@@ -466,6 +466,32 @@ class MenuService {
       }
 
       const contract = STEP_CONTRACT[step];
+
+      // NAVIGATION MUST NOT DESTROY WORK.
+      //
+      // Collapsing many stores into one row is what makes a stale earlier step
+      // unreadable — but it also means one write can erase another feature's task.
+      // Before this consolidation the video flow lived in its own cache keys and the
+      // menu's wait lived on a different table, so both survived side by side.
+      //
+      // So a teacher who typed /video, was asked for a topic, tapped /menu to check
+      // something, and then sent her topic would have had it land in general chat.
+      // That is precisely the drift-between-flows failure this workstream removes,
+      // reintroduced by the fix for it.
+      //
+      // Opening the menu is a glance, not a task: it never takes precedence over work
+      // already in progress. The reverse still applies — choosing coaching from the
+      // menu DOES replace a parked menu wait, because that is the teacher deciding.
+      if (contract && contract.flow === 'menu') {
+        const active = await ConversationState.getState(userId);
+        if (active && active.flow !== 'menu') {
+          logToFile('Menu opened mid-task — leaving her work in place', {
+            userId, activeFlow: active.flow, activeStep: active.step,
+          });
+          return;
+        }
+      }
+
       if (!contract) {
         // Loud on purpose: an unmapped step means a new wait was added without
         // deciding how long it may last, which is how blanket TTLs crept in before.

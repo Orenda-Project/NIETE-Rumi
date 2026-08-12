@@ -94,7 +94,17 @@ async function probeTeacherBusy(userId) {
   // list it. One store means one question instead of a list of keys to remember.
   try {
     const active = await ConversationState.getState(userId);
-    if (active && active.step !== ConversationResume.OFFERED) {
+
+    // `menu` is excluded deliberately, and it matters: the menu wait lasts an hour,
+    // and this probe decides whether a scheduled quiz report is delivered or held
+    // back. Counting a glance at the menu as "busy" would push a teacher's report
+    // back by an hour every time she opened it — a silent delivery regression that
+    // nothing would have reported as a bug.
+    //
+    // `offered_resume` is excluded for a different reason: she has been asked and has
+    // not answered, so the wait is on us, not on her.
+    const NOT_BUSY_FLOWS = new Set(['menu']);
+    if (active && active.step !== ConversationResume.OFFERED && !NOT_BUSY_FLOWS.has(active.flow)) {
       return { busy: true, feature: active.flow, etaSeconds: null };
     }
   } catch (err) {
@@ -108,18 +118,23 @@ async function probeTeacherBusy(userId) {
  * listActiveResources(userId)
  *   Returns an ordered array of cancellable items for the /status flow.
  *   Each item: { id, title, kind, refId }
- *     id     → the radio-row id ('cancel_quiz_<uuid>' / 'cancel_lp_<uuid>' / 'cancel_coaching_<uuid>' / 'cancel_video' / 'cancel_reading' / 'cancel_attendance')
+ *     id     → the radio-row id: 'cancel_quiz_<uuid>' / 'cancel_lp_<uuid>' /
+ *              'cancel_coaching_<uuid>' / 'resume_flow_<flow>' / 'cancel_flow_<flow>' /
+ *              'cancel_reading'
  *     title  → human-friendly label shown to the teacher
- *     kind   → one of 'quiz' | 'lesson_plan' | 'coaching' | 'video' | 'reading' | 'attendance'
- *     refId  → UUID where applicable, else null
+ *     kind   → 'quiz' | 'lesson_plan' | 'coaching' | 'flow_resume' | 'flow_cancel' | 'reading'
+ *     refId  → UUID for the DB-backed kinds, the flow id for the flow kinds, else null
  *
- *   Cancel coverage:
- *     ✅ quiz        — QuizOrchestrator.cancelQuiz (orchestrator path)
- *     ⚠ coaching    — DB status flip + Redis state delete (teacher-only)
- *     ⚠ lesson_plan — DB status='cancelled' (background job continues, result discarded)
- *     ⚠ video       — Redis state delete only (running job continues)
- *     ⚠ reading     — Redis flow delete only
- *     ⚠ attendance  — Redis state delete only
+ *   Coverage:
+ *     ✅ quiz         — QuizOrchestrator.cancelQuiz (orchestrator path)
+ *     ✅ flow_resume  — leaves the state alone; she is already on that step
+ *     ✅ flow_cancel  — clears the store, scoped to that flow
+ *     ⚠ coaching     — DB status flip (teacher-only)
+ *     ⚠ lesson_plan  — DB status='cancelled' (background job continues, result discarded)
+ *     ⚠ reading      — cache lock delete only
+ *
+ *   `attendance` is gone: the feature was rebuilt as Flows and keeps no conversational
+ *   state, so no row could ever carry that id.
  */
 async function listActiveResources(userId) {
   if (!userId) return [];

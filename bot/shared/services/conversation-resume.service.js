@@ -28,6 +28,7 @@
  */
 
 const supabase = require('../config/supabase');
+const RedisService = require('./cache/railway-redis.service');
 const ConversationState = require('./conversation-state.service');
 const WhatsAppService = require('./whatsapp.service');
 const { resolveUx } = require('../config/ux-strings');
@@ -41,6 +42,26 @@ const OFFER_TTL_SECONDS = 21600;
 
 /** What a teacher gets back after tapping "Pick up" — enough to actually reply. */
 const RESUMED_TTL_SECONDS = 3600;
+
+/**
+ * Only one worker may sweep at a time.
+ *
+ * This deployment starts the SAME worker entry point as two Railway services, so every
+ * interval in it fires twice, on two machines. The other sweeps there do idempotent
+ * database work and do not care. This one SENDS A TEACHER A MESSAGE — double-running
+ * asks her "shall we pick up your reading assessment?" twice, which is the sort of
+ * duplicate nobody reports and everybody notices.
+ *
+ * The lock TTL is deliberately shorter than the 30-minute interval: long enough that a
+ * slow sweep cannot be lapped by the other worker, short enough that a crashed worker
+ * cannot block sweeping until someone notices.
+ *
+ * acquireLock fails CLOSED when the cache is unreachable — no lock, no sweep. That is
+ * the correct direction: skipping a sweep costs a teacher a delayed offer, whereas
+ * sweeping without a lock costs her a duplicate message.
+ */
+const SWEEP_LOCK = 'conversation-resume-sweep';
+const SWEEP_LOCK_TTL_SECONDS = 600;
 
 /**
  * Flow id → the words a teacher reads. Never show an internal id: "lesson_plan" is
@@ -125,8 +146,25 @@ function parseResumeButton(buttonId) {
  * @returns {Promise<{offered:number, expired:number, skipped:number, failed:number}>}
  */
 async function sweepAndOffer({ limit = 100 } = {}) {
-  const tally = { offered: 0, expired: 0, skipped: 0, failed: 0 };
+  const tally = { offered: 0, expired: 0, skipped: 0, failed: 0, skippedLocked: false };
 
+  const lockId = `${process.pid}-${Date.now()}`;
+  const gotLock = await RedisService.acquireLock(SWEEP_LOCK, lockId, SWEEP_LOCK_TTL_SECONDS);
+  if (!gotLock) {
+    tally.skippedLocked = true;
+    return tally;
+  }
+
+  try {
+    return await runSweep(tally, limit);
+  } finally {
+    // Always, including on a throw: a lock left behind blocks every later sweep until
+    // its TTL lapses, which turns one bad run into ten minutes of silence.
+    await RedisService.releaseLock(SWEEP_LOCK, lockId);
+  }
+}
+
+async function runSweep(tally, limit) {
   let rows = [];
   try {
     rows = await ConversationState.sweepExpired({ limit });
