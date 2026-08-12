@@ -126,3 +126,7 @@ bot/scripts/setup/assets/backups/
 # worktree shares the beads ledger. It is a machine-absolute symlink and must never
 # be committed — it breaks every clone.
 .beads
+
+# bd-2540 working notes (accidentally committed in Phase 1b)
+.plans/
+.baseline-failing-*.txt

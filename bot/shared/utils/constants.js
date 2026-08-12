@@ -38,17 +38,12 @@ const EDIT_CLASS_FLOW_ID = process.env.EDIT_CLASS_FLOW_ID || '';
 
 // Pic-to-LP (photo → illustrated lesson plan)
 const KIE_API_KEY = process.env.KIE_API_KEY;
-// Pic-to-LP uses a dedicated Kie.ai key for rate-limit isolation; falls back
-// to the shared KIE_API_KEY when a feature-specific key isn't set.
-const KIE_API_KEY_PIC_LP = process.env.KIE_API_KEY_PIC_LP || process.env.KIE_API_KEY;
 // R2 object key for the NIETE brand mark used as the header logo in generated LPs.
 // Defaults to the padded NIETE "N" mark (brand/niete-mark-ondark-v1.png, uploaded
 // to this deployment's R2 bucket) so the fork is correct-by-default without a
 // Railway env var; still overridable via RUMI_LOGO_R2_KEY. The padded variant
 // carries ~21% transparent margin so the mark never crops in the LP header bar.
 const RUMI_LOGO_R2_KEY = process.env.RUMI_LOGO_R2_KEY || 'brand/niete-mark-ondark-v1.png';
-// WhatsApp Flow ID for the pic-to-LP confirmation form (empty → text fallback).
-const PIC_LP_FLOW_ID = process.env.PIC_LP_FLOW_ID || '';
 // WhatsApp Flow ID for the Quiz Manager form (empty → text fallback / direct path).
 const QUIZ_FLOW_ID = process.env.QUIZ_FLOW_ID || '';
 // WhatsApp Flow ID for the Teacher Training home + level detail (empty → text fallback).
@@ -177,11 +172,8 @@ module.exports = {
   HOMEWORK_FLOW_ID,
   EDIT_CLASS_FLOW_ID,
 
-  // Pic-to-LP
   KIE_API_KEY,
-  KIE_API_KEY_PIC_LP,
   RUMI_LOGO_R2_KEY,
-  PIC_LP_FLOW_ID,
   QUIZ_FLOW_ID,
   TEACHER_TRAINING_FLOW_ID,
   TRAINING_MSQ_FLOW_ID,

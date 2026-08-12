@@ -20,7 +20,6 @@ const axios = require('axios');
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const GPT5MiniService = require('../gpt5-mini.service');
-const ContentService = require('../content.service');
 const AudioService = require('../audio.service');
 const WhatsAppService = require('../whatsapp.service');
 const CoachingSessionService = require('./coaching-session.service');
