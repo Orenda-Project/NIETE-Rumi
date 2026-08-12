@@ -76,7 +76,25 @@ function resolveApiBaseUrl({ isNative = false, isProd = false, apiBaseUrl, origi
   // pointing a local build at staging).
   if (isAbsolute) return stripTrailingSlash(configured);
 
-  return isProd ? '/api/portal' : 'http://localhost:4000/api/portal';
+  if (isProd) return '/api/portal';
+
+  // bd-2559: `isProd` is Vite's import.meta.env.PROD, baked in at BUILD time
+  // from NODE_ENV. The staging service sets NODE_ENV=staging — not the literal
+  // "production" — so every staging build shipped with isProd false and this
+  // fallback hardcoded a localhost URL into the bundle. The browser then fired
+  // its login preflight at http://localhost:4000, a host that does not exist
+  // for the user, and login failed. Production escaped only because its
+  // service happens to say NODE_ENV=production; that is luck, not design.
+  //
+  // The fallback exists for `vite dev`, where the SPA is served from
+  // localhost:5173 while the API runs separately on :4000. So the real signal
+  // is WHERE THE PAGE CAME FROM, not what NODE_ENV said at build time: a page
+  // served by a real remote host is served by something that also serves the
+  // API, and same-origin is correct. Only a genuinely local origin should
+  // reach for the dev server.
+  if (isServedByRealHost(origin)) return '/api/portal';
+
+  return 'http://localhost:4000/api/portal';
 }
 
 /**
