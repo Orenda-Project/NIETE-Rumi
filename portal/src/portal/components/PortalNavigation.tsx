@@ -83,8 +83,24 @@ const PortalNavigation = () => {
               ))}
             </div>
 
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-white/80">{user?.firstName}</span>
+            <div className="flex items-center gap-2">
+              {/*
+                bd-2558: the name shares the Logout button's vertical metrics
+                (py-2) and the nav's opacity (white/70), so the header carries
+                one type treatment rather than three. No hover state — it is a
+                label, not a control, and giving it one would imply it is
+                clickable. `truncate` + a max-width keep a long name from pushing
+                the logout control sideways, and the fallback keeps the slot
+                from collapsing before the profile resolves — an empty span
+                left Logout floating with no sign of who was logged in.
+              */}
+              <span
+                data-testid="portal-user-name"
+                title={user?.firstName}
+                className="px-2 py-2 text-sm font-medium text-white/70 max-w-[12rem] truncate"
+              >
+                {user?.firstName || "Signed in"}
+              </span>
               <button
                 onClick={logout}
                 className="flex items-center gap-2 px-4 py-2 text-white/70 hover:text-white hover:bg-white/10 rounded-md transition-colors"
