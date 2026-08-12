@@ -45,10 +45,18 @@ build/
 .next/
 out/
 
-# Exception: dashboard serves the portal SPA from this pre-built dist folder at runtime.
-# Rebuild flow: cd portal && npm ci && npm run build && cp -r dist ../dashboard/portal-frontend/
-!dashboard/portal-frontend/dist/
-!dashboard/portal-frontend/dist/**
+# bd-2555: dashboard/portal-frontend/dist is NO LONGER committed.
+#
+# It used to be force-included here (`!dashboard/portal-frontend/dist/**`) so a
+# laptop-built, hand-copied bundle could be served by express.static. That made
+# shipping a portal change depend on a human remembering to rebuild and copy —
+# and when it was forgotten the PR still merged green while production kept
+# serving the old bundle. On 2026-08-12 prod and staging were both 122KB behind
+# the source, leaving the i18n Phase 5.x work half-live.
+#
+# Railway now builds it: `npm run build:portal` (see railpack.portal.json).
+# Do NOT re-add a negation here — a committed build output is a build output
+# that goes stale silently.
 
 # IDE files
 .vscode/
