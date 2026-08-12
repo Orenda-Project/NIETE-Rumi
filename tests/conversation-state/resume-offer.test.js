@@ -62,7 +62,7 @@ beforeEach(() => {
 describe('the sweeper offers an interrupted task back', () => {
   it('offers each expired flow, once, and records that it asked', async () => {
     mockState.sweepExpired.mockResolvedValue([
-      { userId: USER, flow: 'lesson_plan', step: 'awaiting_topic', payload: { grade: 4 } },
+      { userId: USER, flow: 'reading', step: 'awaiting_audio', payload: { grade: 4 } },
     ]);
 
     const res = await resume.sweepAndOffer();
@@ -73,9 +73,9 @@ describe('the sweeper offers an interrupted task back', () => {
     // Recorded as a state transition in the SAME store, not a side-channel flag,
     // so the buttons below resolve against real state.
     expect(mockState.setState).toHaveBeenCalledWith(USER, expect.objectContaining({
-      flow: 'lesson_plan',
+      flow: 'reading',
       step: 'offered_resume',
-      payload: expect.objectContaining({ resumeStep: 'awaiting_topic' }),
+      payload: expect.objectContaining({ resumeStep: 'awaiting_audio' }),
     }));
   });
 
@@ -104,7 +104,7 @@ describe('the sweeper offers an interrupted task back', () => {
   it('survives one teacher failing without abandoning the rest', async () => {
     mockState.sweepExpired.mockResolvedValue([
       { userId: 'u-broken', flow: 'quiz', step: 'awaiting_topic', payload: {} },
-      { userId: USER, flow: 'lesson_plan', step: 'awaiting_topic', payload: {} },
+      { userId: USER, flow: 'reading', step: 'awaiting_audio', payload: {} },
     ]);
     // BOTH teachers must be resolvable, or the first is merely skipped and the test
     // measures the wrong thing — the point is that a genuine SEND failure on one
@@ -132,18 +132,18 @@ describe('the sweeper offers an interrupted task back', () => {
 describe('what she taps', () => {
   it('"pick up" restores the step she was on', async () => {
     mockState.getState.mockResolvedValue({
-      flow: 'lesson_plan', step: 'offered_resume',
-      payload: { resumeStep: 'awaiting_topic', grade: 4 }, stack: [],
+      flow: 'reading', step: 'offered_resume',
+      payload: { resumeStep: 'awaiting_audio', grade: 4 }, stack: [],
     });
 
     const handled = await resume.handleResumeButton(
-      { id: USER, phone_number: PHONE, preferred_language: 'en' }, PHONE, 'resume_yes:lesson_plan'
+      { id: USER, phone_number: PHONE, preferred_language: 'en' }, PHONE, 'resume_yes:reading'
     );
 
     expect(handled).toBe(true);
     expect(mockState.setState).toHaveBeenCalledWith(USER, expect.objectContaining({
-      flow: 'lesson_plan',
-      step: 'awaiting_topic',            // the ORIGINAL step, not offered_resume
+      flow: 'reading',
+      step: 'awaiting_audio',            // the ORIGINAL step, not offered_resume
       payload: expect.objectContaining({ grade: 4 }),  // and its context
     }));
   });
@@ -207,7 +207,30 @@ describe('the copy', () => {
   });
 
   it('names the task she left, so the offer is not a mystery', () => {
-    const body = resolveUx('resumeOfferBody', { language: 'en', params: { task: 'lesson plan' } });
-    expect(body).toMatch(/lesson plan/);
+    const body = resolveUx('resumeOfferBody', { language: 'en', params: { task: 'reading assessment' } });
+    expect(body).toMatch(/reading assessment/);
+  });
+
+  it.each(['coaching', 'reading', 'video', 'quiz'])(
+    'tells her what to send next on %s, in both languages', (flow) => {
+      // Caught in review: restoring the step used to be the whole of "resume", which
+      // left her holding a restored state and no idea what to send. For a step that
+      // wants a voice note rather than text, guessing wrong means nothing matches and
+      // she is stuck exactly where she started.
+      for (const lang of ['en', 'ur']) {
+        const next = resume.nextInstruction(flow, lang);
+        expect(next).toBeTruthy();
+        expect(next.length).toBeGreaterThan(10);
+      }
+    }
+  );
+
+  it('the restored confirmation actually contains the instruction', () => {
+    const msg = resolveUx('resumeRestored', {
+      language: 'en',
+      params: { task: 'reading assessment', next: resume.nextInstruction('reading', 'en') },
+    });
+    expect(msg).toMatch(/reading assessment/);
+    expect(msg).toMatch(/Send the recording/);
   });
 });

@@ -9,9 +9,11 @@
 // Sources of state checked:
 // - Coaching:   Postgres `coaching_sessions` rows, non-terminal, last hour
 // - LP request: Postgres `lesson_plan_requests` rows in pending/processing/extracting
-// - Video:      Redis keys `user:{id}:awaiting_video_*`
-// - Reading:    Redis key `reading:user:{id}:current_assessment`
-// - Any flow mid-step: the conversation store (one row per teacher)
+// - Reading:    Redis key `reading:user:{id}:current_assessment` — a LOCK ("an
+//               assessment is processing"), not a step, which is why it stays here
+// - Any flow mid-step: the conversation store, one row per teacher. This replaced a
+//               four-key video probe and an attendance probe that had outlived its
+//               feature — one question instead of a list of keys to remember.
 //
 // Defaults to "not busy" on any probe error so a Redis/DB blip never blocks
 // reports forever.
@@ -70,26 +72,6 @@ async function probeTeacherBusy(userId) {
     }
   } catch (err) {
     logToFile('⚠️ probeTeacherBusy: LP probe failed (defaulting to not-busy)', { userId, error: err.message });
-  }
-
-  // 3. Video flow open (any of the four awaiting-* states)
-  try {
-    if (redisService.isAvailable && redisService.isAvailable()) {
-      const videoKeys = [
-        `user:${userId}:awaiting_video_topic`,
-        `user:${userId}:awaiting_video_language`,
-        `user:${userId}:awaiting_video_customization`,
-        `user:${userId}:awaiting_video_style`,
-      ];
-      for (const k of videoKeys) {
-        const v = await redisService.redis.get(k);
-        if (v) {
-          return { busy: true, feature: 'video', etaSeconds: 900 }; // 15 min — matches video state TTL
-        }
-      }
-    }
-  } catch (err) {
-    logToFile('⚠️ probeTeacherBusy: video probe failed (defaulting to not-busy)', { userId, error: err.message });
   }
 
   // 4. Reading assessment in flight
@@ -295,13 +277,10 @@ async function cancelResource(item, userId) {
       };
     }
     if (item.kind === 'video') {
-      const keys = [
-        `user:${userId}:awaiting_video_topic`,
-        `user:${userId}:awaiting_video_language`,
-        `user:${userId}:awaiting_video_customization`,
-        `user:${userId}:awaiting_video_style`
-      ];
-      for (const k of keys) await redisService.redis.del(k);
+      // Video moved onto the store, so stopping it is one clear rather than four
+      // key deletes. Kept as its own branch because an older status list may still
+      // be on a teacher's screen carrying the `cancel_video` row id.
+      await ConversationState.clearState(userId, { flow: 'video' });
       return {
         ok: true,
         message: `🛑 Video flow stopped on our end. The background generation may still finish but you won't be notified.`

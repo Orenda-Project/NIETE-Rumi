@@ -188,9 +188,18 @@ const UX_STRINGS = {
     ur: 'نیا شروع کریں',
   },
 
+  /**
+   * Restoring the step is not enough on its own. Caught in review: this used to say
+   * only "carrying on with your reading assessment", which leaves her holding a
+   * restored state and no idea what to send — and for a step that wants a voice note
+   * rather than text, guessing wrong means nothing matches and she is stuck again.
+   *
+   * So the confirmation carries the ask. `{next}` is the per-step instruction, which
+   * makes the message useful rather than merely polite.
+   */
   resumeRestored: {
-    en: 'Good — carrying on with your {task}.',
-    ur: 'بہت خوب — آپ کا {task} جاری ہے۔',
+    en: 'Good — carrying on with your {task}. {next}',
+    ur: 'بہت خوب — آپ کا {task} جاری ہے۔ {next}',
   },
 
   resumeDiscarded: {

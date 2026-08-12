@@ -138,7 +138,7 @@ describe('every migrated flow can be offered back', () => {
   // A flow the resume sweeper cannot NAME is silently dropped rather than offered.
   // So migrating a flow onto the store without giving it a teacher-facing label
   // would quietly opt it out of the one feature this work exists to deliver.
-  it.each(['video', 'quiz', 'lesson_plan', 'coaching', 'reading'])(
+  it.each(['video', 'quiz', 'coaching', 'reading'])(
     '%s has a teacher-facing name in both languages', (flow) => {
       expect(TASK_LABEL[flow]).toBeDefined();
       expect(TASK_LABEL[flow].en).toBeTruthy();
@@ -147,4 +147,16 @@ describe('every migrated flow can be offered back', () => {
       expect(TASK_LABEL[flow].en).not.toMatch(/_/);
     }
   );
+
+  it('lesson_plan is deliberately NOT offerable, because its path now dead-ends', () => {
+    // Caught reviewing this against a change that landed alongside it: freeform
+    // lesson-plan generation was retired, so a typed topic now returns "we don't
+    // have that in the catalog yet". The step is still worth storing — it buys a
+    // specific reply instead of generic chat — but resuming into it would mean
+    // asking "shall we pick up your lesson plan?" and then rejecting her answer.
+    //
+    // An offer is a promise. This test exists so that re-adding the label is a
+    // deliberate act taken together with restoring somewhere for it to go.
+    expect(TASK_LABEL.lesson_plan).toBeUndefined();
+  });
 });

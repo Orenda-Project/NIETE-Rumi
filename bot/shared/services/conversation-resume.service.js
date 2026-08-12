@@ -49,17 +49,59 @@ const RESUMED_TTL_SECONDS = 3600;
  * message, and a mystery message is worse than silence.
  */
 const TASK_LABEL = Object.freeze({
-  lesson_plan: { en: 'lesson plan',       ur: 'لیسن پلان' },
-  coaching:    { en: 'classroom observation', ur: 'کلاس روم مشاہدہ' },
-  reading:     { en: 'reading assessment', ur: 'قرائت کا جائزہ' },
-  video:       { en: 'teaching video',    ur: 'تدریسی ویڈیو' },
-  quiz:        { en: 'class quiz',        ur: 'کلاس کوئز' },
+  coaching: {
+    en: 'classroom observation', ur: 'کلاس روم مشاہدہ',
+    nextEn: 'Send the classroom recording when you are ready.',
+    nextUr: 'تیار ہوں تو کلاس کی ریکارڈنگ بھیجیں۔',
+  },
+  reading: {
+    en: 'reading assessment', ur: 'قرائت کا جائزہ',
+    nextEn: 'Send the recording of your student reading.',
+    nextUr: 'اپنے طالبِ علم کی قرائت کی ریکارڈنگ بھیجیں۔',
+  },
+  video: {
+    en: 'teaching video', ur: 'تدریسی ویڈیو',
+    nextEn: 'Reply with the topic you want the video to cover.',
+    nextUr: 'ویڈیو کا موضوع لکھ کر بھیجیں۔',
+  },
+  quiz: {
+    en: 'class quiz', ur: 'کلاس کوئز',
+    nextEn: 'Reply with the topic the quiz should cover.',
+    nextUr: 'کوئز کا موضوع لکھ کر بھیجیں۔',
+  },
+
+  // `lesson_plan` is DELIBERATELY ABSENT, and this is the interesting entry.
+  //
+  // The only thing that sets a lesson_plan step is the free-text topic prompt,
+  // which now fires solely when the lesson-plan Flow fails to send. And since
+  // freeform generation was retired, whatever topic she types comes back as "we
+  // don't have that in the catalog yet". So the step exists to give a specific
+  // reply instead of generic chat — which is worth keeping — but it leads
+  // nowhere she'd want to be taken back to.
+  //
+  // Offering it would mean asking "shall we pick up your lesson plan?" and then
+  // rejecting her answer. An offer is a promise; do not make one the code cannot
+  // keep. If freeform generation ever returns, add the label back with it.
 });
 
 function taskLabel(flow, language) {
   const entry = TASK_LABEL[flow];
   if (!entry) return null;
   return entry[language] || entry.en;
+}
+
+/**
+ * What she should actually send next.
+ *
+ * Restoring a step silently is not resuming: "carrying on with your reading
+ * assessment" leaves her guessing, and a step that wants a voice note rather than
+ * text punishes the wrong guess with silence. The instruction ships with the
+ * confirmation.
+ */
+function nextInstruction(flow, language) {
+  const entry = TASK_LABEL[flow];
+  if (!entry) return '';
+  return (language === 'ur' ? entry.nextUr : entry.nextEn) || entry.nextEn || '';
 }
 
 /** A flow is offerable only if we can name it to her. */
@@ -208,7 +250,10 @@ async function handleResumeButton(user, from, buttonId) {
     ttlSeconds: RESUMED_TTL_SECONDS,
   });
 
-  await WhatsAppService.sendMessage(from, resolveUx('resumeRestored', { language, params: { task } }));
+  await WhatsAppService.sendMessage(from, resolveUx('resumeRestored', {
+    language,
+    params: { task, next: nextInstruction(flow, language) },
+  }));
   logToFile('✅ Teacher resumed an interrupted task', { userId: user.id, flow, step: resumeStep });
   return true;
 }
@@ -216,6 +261,7 @@ async function handleResumeButton(user, from, buttonId) {
 module.exports = {
   sweepAndOffer,
   handleResumeButton,
+  nextInstruction,
   parseResumeButton,
   shouldOffer,
   TASK_LABEL,
