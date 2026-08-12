@@ -4,6 +4,7 @@
   "description": "Rumi - AI Teaching Assistant for WhatsApp. Open-source platform for deploying AI-powered educational chatbots.",
   "private": true,
   "scripts": {
+    "build:portal": "npm ci --prefix portal && npm run build --prefix portal && rm -rf dashboard/portal-frontend/dist && cp -r portal/dist dashboard/portal-frontend/dist",
     "test": "node tests/run.js",
     "test:baseline": "node tests/baseline-gate.js",
     "test:baseline:update": "node tests/baseline-gate.js --update",
