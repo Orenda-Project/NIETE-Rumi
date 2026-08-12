@@ -1,0 +1,192 @@
+# Android release — build, sign, and ship the NIETE app to Play. (bd-2553)
+#
+# Replaces a hand-run local build. That manual path shipped versionCode 1206
+# to the Play internal track carrying a WEB-mode bundle: no absolute API URL,
+# resolveApiBaseUrl() threw at first render, React never mounted, and every
+# launch was a white screen (bd-2551) — which then needed a WhatsApp downtime
+# notice to 80 coaches (bd-2552). The build that reached users could not be
+# reproduced locally afterwards, because nothing recorded how it was made.
+#
+# So: the artifact that goes to Play is the one CI produced, built through
+# `npm run build:app`, signed from secrets, and traceable to a commit.
+#
+# Secrets this needs (repo → Settings → Secrets and variables → Actions):
+#   NIETE_KEYSTORE_B64        base64 of niete-app.jks  (`base64 -w0 niete-app.jks`)
+#   NIETE_KEYSTORE_PASSWORD   store password
+#   NIETE_KEY_ALIAS           key alias (niete)
+#   NIETE_KEY_PASSWORD        key password
+#   NIETE_API_BASE_URL        absolute portal API URL, e.g. https://<host>/api/portal
+#   PLAY_SERVICE_ACCOUNT_JSON Google Play publisher service-account JSON
+#
+# The keystore is the inherited NIETE identity (CN=NIETE, O=Orenda Pvt Ltd,
+# valid to 2049). Play matches a listing by signing identity, so a build signed
+# with any other key CANNOT update the existing app. The legacy repo kept these
+# passwords in plain text in build.gradle; we inherit the key, not that habit.
+
+name: Android Release
+
+on:
+  push:
+    tags:
+      - 'android-v*'      # e.g. android-v1207
+  workflow_dispatch:
+    inputs:
+      track:
+        description: 'Play track to publish to'
+        required: true
+        default: 'internal'
+        type: choice
+        options: [internal, alpha, beta, production]
+      ota:
+        description: 'Remote-first OTA (WebView loads the live portal)'
+        required: true
+        default: 'on'
+        type: choice
+        options: [on, off]
+      dry_run:
+        description: 'Build and sign only — do not upload to Play'
+        required: true
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+
+# Two releases signing and uploading at once would race on the Play track and
+# can burn a versionCode. Never cancel in-flight: an interrupted upload can
+# leave a half-published release.
+concurrency:
+  group: android-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Capacitor 8's capacitor-android hardcodes Java 21 — JDK 17 fails with
+      # `invalid source release: 21`.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: portal/package-lock.json
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install portal dependencies
+        working-directory: portal
+        run: npm ci
+
+      # Guard rails run BEFORE the build: a red test here is cheaper than a
+      # wasted versionCode, and Play rejects a re-used code outright.
+      - name: Run Android guard tests
+        run: |
+          npm ci
+          npm test -- tests/portal/
+
+      # The absolute API URL is the thing bd-2551 shipped without. It comes
+      # from a secret, and the build fails loudly if it is missing or relative
+      # rather than producing a bundle that white-screens on every launch.
+      - name: Write app build config
+        working-directory: portal
+        env:
+          API_BASE_URL: ${{ secrets.NIETE_API_BASE_URL }}
+        run: |
+          case "$API_BASE_URL" in
+            https://*) ;;
+            *) echo "::error::NIETE_API_BASE_URL must be an absolute https URL (got: '${API_BASE_URL:-<empty>}'). A native build without one white-screens on every launch — see bd-2551."; exit 1 ;;
+          esac
+          printf 'VITE_APP_TARGET=app\nVITE_API_BASE_URL=%s\n' "$API_BASE_URL" > .env.app
+          echo "Wrote .env.app targeting ${API_BASE_URL}"
+
+      - name: Build web assets and sync native project
+        working-directory: portal
+        env:
+          # Opt-in remote-first OTA. Tag builds default to on; workflow_dispatch
+          # honours the input.
+          NIETE_OTA: ${{ github.event.inputs.ota == 'off' && '0' || '1' }}
+          VITE_API_BASE_URL: ${{ secrets.NIETE_API_BASE_URL }}
+        run: npm run android:sync
+
+      # Fail before signing if the bundle is web-mode. This is the bd-2551
+      # assertion made physical: the built JS must contain the absolute API
+      # host, because that is the difference between a working app and a
+      # white screen, and it is invisible in the .aab.
+      - name: Verify the bundle is app-mode
+        working-directory: portal
+        env:
+          API_BASE_URL: ${{ secrets.NIETE_API_BASE_URL }}
+        run: |
+          host="$(printf '%s' "$API_BASE_URL" | awk -F[/:] '{print $4}')"
+          if ! grep -rqF "$host" dist/assets/*.js; then
+            echo "::error::Built bundle does not reference ${host} — this is a WEB-mode build and would white-screen (bd-2551)."
+            exit 1
+          fi
+          echo "Bundle references ${host} — app-mode confirmed."
+
+      - name: Decode signing keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.NIETE_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::NIETE_KEYSTORE_B64 is not set. Without the inherited NIETE key the build cannot update the Play listing."
+            exit 1
+          fi
+          # Outside the repo, so it can never be picked up by a glob or committed.
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/niete-app.jks"
+
+      - name: Assemble signed release bundle
+        working-directory: portal/android
+        env:
+          NIETE_KEYSTORE_PATH: ${{ runner.temp }}/niete-app.jks
+          NIETE_KEYSTORE_PASSWORD: ${{ secrets.NIETE_KEYSTORE_PASSWORD }}
+          NIETE_KEY_ALIAS: ${{ secrets.NIETE_KEY_ALIAS }}
+          NIETE_KEY_PASSWORD: ${{ secrets.NIETE_KEY_PASSWORD }}
+        run: ./gradlew bundleRelease --no-daemon
+
+      # A release build MUST be signed. Gradle's signingConfig is conditional on
+      # the env being present, so a missing secret yields an unsigned bundle
+      # that Play rejects only after upload — catch it here instead.
+      - name: Verify the bundle is signed with the NIETE key
+        run: |
+          AAB="$(find portal/android/app/build/outputs/bundle/release -name '*.aab' | head -1)"
+          echo "AAB=$AAB" >> "$GITHUB_ENV"
+          SHA="$(keytool -printcert -jarfile "$AAB" 2>/dev/null | grep -m1 'SHA256:' | tr -d ' ')"
+          echo "Signing cert: $SHA"
+          # The inherited NIETE upload key. A different fingerprint means the
+          # bundle cannot update the existing listing.
+          EXPECTED="SHA256:DA:A4:A5:FB:CF:D7:20:6F:40:41:DB:1C:EE:BF:D4:1E:E2:8E:91:E6:25:3F:49:26:65:F5:06:C0:44:CA:36:2C"
+          if [ "$SHA" != "$EXPECTED" ]; then
+            echo "::error::Bundle is unsigned or signed with the wrong key. Expected the inherited NIETE identity."
+            exit 1
+          fi
+
+      - name: Clean up keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/niete-app.jks"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: niete-aab
+          path: portal/android/app/build/outputs/bundle/release/*.aab
+          retention-days: 90
+
+      # Upload happens last, so nothing reaches Play unless every check passed.
+      # Default track is `internal` — promotion to production stays a human
+      # decision in the Play Console.
+      - name: Upload to Play
+        if: github.event.inputs.dry_run != 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: pk.edu.niete
+          releaseFiles: ${{ env.AAB }}
+          track: ${{ github.event.inputs.track || 'internal' }}
+          status: completed

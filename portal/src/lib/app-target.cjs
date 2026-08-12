@@ -66,8 +66,51 @@ function resolveApiBaseUrl({ isNative = false, isProd = false, apiBaseUrl } = {}
   return isProd ? '/api/portal' : 'http://localhost:4000/api/portal';
 }
 
+/**
+ * Where should the native shell load its web assets from? (bd-2553)
+ *
+ * The Android app is a pure WebView wrap with no native plugins, so the web
+ * bundle is the entire product. Loading it from the live portal turns every
+ * web deploy into an instant update for all users, and reserves Play releases
+ * for genuinely native changes. Without this, a one-line CSS fix needs a
+ * signed upload and a Play review — which is how bd-2551's white screen stayed
+ * live long enough to need a downtime notice to 80 coaches.
+ *
+ * The origin is DERIVED from the API URL rather than configured separately, so
+ * the host serving the code can never drift from the host serving the data.
+ *
+ * Returns `null` to mean "use the assets bundled in the APK". Every failure
+ * path returns null rather than throwing: this runs at native boot, and a
+ * throw here is precisely the white screen we are eliminating. The bundled
+ * build is a known-good floor — shipping "the version in the APK" always beats
+ * shipping nothing.
+ *
+ * @param {object}  opts
+ * @param {boolean} [opts.isNative]  running inside a Capacitor native shell
+ * @param {string}  [opts.apiBaseUrl] configured absolute URL (VITE_API_BASE_URL)
+ * @returns {string|null} origin to load from, or null for the bundled assets
+ */
+function resolveOtaUrl({ isNative = false, apiBaseUrl } = {}) {
+  // The web build IS the server. Pointing it at itself would loop.
+  if (!isNative) return null;
+  if (typeof apiBaseUrl !== 'string') return null;
+
+  try {
+    const url = new URL(apiBaseUrl.trim());
+    // https only: a WebView loading over http is mixed content, and any other
+    // scheme (file:, ftp:) is not something we should ever boot from.
+    if (url.protocol !== 'https:') return null;
+    // `origin` drops the path, query and fragment — the app loads the SITE,
+    // not the API endpoint — while preserving an explicit non-default port.
+    return url.origin;
+  } catch {
+    // Unparseable or relative — fall back to the bundled assets.
+    return null;
+  }
+}
+
 function stripTrailingSlash(url) {
   return url.replace(/\/+$/, '');
 }
 
-module.exports = { resolveIsPortal, resolveApiBaseUrl };
+module.exports = { resolveIsPortal, resolveApiBaseUrl, resolveOtaUrl };

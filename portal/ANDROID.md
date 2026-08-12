@@ -48,11 +48,25 @@ VITE_API_BASE_URL=https://<portal-host>/api/portal
 ```bash
 cd portal
 source .android-env.sh
-npx vite build --mode app        # web assets with the absolute API URL
-npx cap sync android             # copy into the native project
-cd android && ./gradlew assembleDebug
-# -> app/build/outputs/apk/debug/app-debug.apk
+npm run android:debug
+# -> android/app/build/outputs/apk/debug/app-debug.apk
 ```
+
+`android:debug` chains the three steps that must never be run out of order:
+`build:app` (web assets **with** the absolute API URL) → `cap sync android` →
+`assembleDebug`. Use the script rather than the individual commands.
+
+> **Why this is a script and not three typed commands (bd-2551).** The
+> `--mode app` flag is what loads `.env.app` and supplies `VITE_API_BASE_URL`.
+> It used to be a hand-typed step documented here, and versionCode **1206**
+> shipped to Play without it: `resolveApiBaseUrl()` threw at first render,
+> React never mounted, and every launch was a white screen until a downtime
+> notice went out to 80 coaches. The flag was never the problem — depending on
+> a human to remember it was. `npm run build:app` cannot forget.
+
+For a release bundle, `npm run android:release` runs the same chain into
+`bundleRelease`. In practice you should not need it — **CI builds releases**
+(see *Releasing* below); the script exists for local diagnosis.
 
 The build **fails loudly** if a native build has no absolute `VITE_API_BASE_URL`
 — that's deliberate, so a misconfigured app can't ship silently pointing at a
@@ -99,7 +113,91 @@ with "correct" credentials, check that first — the symptom is a CORS error in
 relative `/api/portal` path and hostname-based portal detection. One codebase,
 two targets — verified by `tests/portal/app-target.test.js`.
 
+## Releasing
+
+**CI builds and signs releases — not your laptop.** Tag a version and the
+`Android Release` workflow builds through `build:app`, signs with the inherited
+NIETE key from secrets, verifies the signature, and uploads to the Play
+**internal** track:
+
+```bash
+git tag android-v1207 && git push origin android-v1207
+```
+
+Or run **Actions → Android Release → Run workflow** to choose the track, toggle
+OTA, or do a `dry_run` (build + sign, no upload). Promotion from internal to
+production stays a human decision in the Play Console.
+
+`versionCode` must be **strictly higher** than the live release or Play rejects
+the upload — bump it in `android/app/build.gradle` (and the floor in
+`tests/portal/android-release-identity.test.js`) as part of the release commit.
+
+Before this pipeline existed the release was a local build plus a manual
+upload, and the artifact that reached users could not be reproduced afterwards.
+That is how 1206 shipped broken.
+
+### Testing a change on a device
+
+Open a PR touching `portal/**` and the `Android Debug Build` workflow attaches
+a `.debug` APK to the run — download it from the PR's **Checks** tab and
+`adb install -r` it. No JDK or Android SDK needed locally. Debug builds install
+as `pk.edu.niete.debug` alongside the real app and point at **staging**.
+
+## OTA updates (remote-first WebView)
+
+The app is a pure WebView wrap with **zero native plugins**, so the web bundle
+*is* the product. With OTA on, the WebView loads the SPA from the live portal
+instead of the copy inside the APK — **a portal web deploy updates every
+installed app on next launch**, no Play release, no review, no rollout.
+
+| Change | How it ships | Reaches users in |
+|---|---|---|
+| Anything in `portal/src` — UI, copy, bug fixes | Deploy the portal | **Next app launch** |
+| Capacitor upgrade, `MainActivity`, manifest, SDK, permissions, app icon | Play release | Days (review + rollout) |
+
+Practically: almost everything is the first row. A bug like bd-2551 becomes a
+web deploy, not a signed upload and a downtime notice.
+
+**How it's wired.** `resolveOtaUrl()` in `src/lib/app-target.cjs` derives the
+origin from `VITE_API_BASE_URL` — the same value the app already trusts for its
+data — so the host serving the code can never drift from the host serving the
+data. `capacitor.config.ts` sets `server.url` from it when `NIETE_OTA=1`.
+
+**It is opt-in** (`NIETE_OTA=1`; on by default in the release workflow, off for
+debug builds so testers verify the PR's own code). If the origin can't be
+derived, `server.url` is left unset and Capacitor uses the bundled assets — a
+known-good floor rather than a blank shell. `resolveOtaUrl` never throws;
+throwing at native boot is the white screen we're eliminating.
+
+**Two things this makes load-bearing:**
+
+1. **The bundled build still has to be correct.** It runs on first launch and
+   whenever the server is unreachable. The CI app-mode check applies to every
+   build for this reason.
+2. **A bad portal deploy now reaches app users too.** The blast radius of the
+   web deploy grew to include Android. Roll back the portal deploy to roll back
+   the app.
+
+Offline is unchanged: the portal is 100% server-data-driven and already
+unusable without connectivity.
+
 ## Release signing
 
 Release builds need the inherited NIETE signing key, supplied via environment
 (see `keystore.properties.template`). Never commit the `.jks` or its passwords.
+
+The identity is fixed: `CN=NIETE, O=Orenda Pvt Ltd`, alias `niete`, valid to
+Feb 2049. **Play matches a listing by signing identity — a build signed with
+any other key cannot update the existing app, ever.** CI asserts the resulting
+bundle carries this exact SHA-256 before uploading.
+
+For CI, the keystore is base64'd into the `NIETE_KEYSTORE_B64` secret
+(`base64 -w0 niete-app.jks`); see the header of
+`.github/workflows/android-release.yml` for the full secret list.
+
+> ⚠️ **Unresolved risk — key escrow.** The `.jks` currently lives in the legacy
+> `taleemabad-core` repo with its passwords in plain text in `build.gradle`.
+> Losing it while not enrolled in Play App Signing means the listing can
+> **never** be updated again. Whether Play App Signing is actually enabled for
+> this listing is **unverified** — `app/build.gradle` asserts it in a comment,
+> but nobody has confirmed it in the Play Console. Worth closing out.
