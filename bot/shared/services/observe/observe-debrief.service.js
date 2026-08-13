@@ -93,7 +93,32 @@ async function listPendingDebriefs(observerUserId) {
     .order('created_at', { ascending: false })
     .limit(MAX_PENDING_ROWS);
   if (error) throw new Error(`listPendingDebriefs failed: ${error.message}`);
-  return data || [];
+  return _withObservedTeacher(data || []);
+}
+
+/**
+ * bd-2669: attach the observed teacher from the linked observation_schedules
+ * row (session_id — stamped by markDone for a scheduled visit, or by
+ * observe-who for one recorded ad-hoc). A failure here only costs the name, so
+ * it degrades to the rows as they were rather than breaking the list.
+ */
+async function _withObservedTeacher(rows) {
+  if (!rows.length) return rows;
+  try {
+    const { data } = await supabase
+      .from('observation_schedules')
+      .select('session_id, teacher_name, school_name')
+      .in('session_id', rows.map((r) => r.id));
+    if (!data || !data.length) return rows;
+    const bySession = new Map();
+    for (const s of data) if (s.session_id && !bySession.has(s.session_id)) bySession.set(s.session_id, s);
+    return rows.map((r) => {
+      const s = bySession.get(r.id);
+      return s ? { ...r, teacher_name: s.teacher_name, school_name: s.school_name } : r;
+    });
+  } catch (_) {
+    return rows;
+  }
 }
 
 /**
@@ -165,11 +190,22 @@ function _rowDescription(analysisData, S) {
  * debrief + the "start a new observation" sentinel. Max 10 rows total.
  */
 function buildPendingListPayload(pendings, S, unsentReports = []) {
-  const debriefRows = pendings.map((p) => ({
-    id: `${LIST_ROW_PREFIX}${p.id}`,
-    title: `📋 ${_rowTitle(p.created_at)}`.slice(0, 24),
-    description: _rowDescription(p.analysis_data, S),
-  }));
+  // bd-2669: lead with WHO, not when. A coach with two pending debriefs could
+  // not tell them apart from a date and a focus-area line (Aleeha R28, Riffat
+  // R29). The name comes from the linked observation_schedules row; legacy
+  // rows that never recorded a teacher keep the old date-led shape.
+  const debriefRows = pendings.map((p) => {
+    const name = p.teacher_name;
+    const when = _rowTitle(p.created_at);
+    const desc = name
+      ? [when, p.school_name].filter(Boolean).join(' · ')
+      : _rowDescription(p.analysis_data, S);
+    return {
+      id: `${LIST_ROW_PREFIX}${p.id}`,
+      title: `📋 ${name || when}`.slice(0, 24),
+      description: String(desc).slice(0, 72),
+    };
+  });
   // bd-24: debrief-done sessions whose report hasn't reached the teacher yet
   const sendRows = unsentReports.map((r) => {
     const d = (r.analysis_data && r.analysis_data.teacher_delivery) || {};

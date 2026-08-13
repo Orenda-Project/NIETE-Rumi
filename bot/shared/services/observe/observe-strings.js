@@ -55,6 +55,15 @@ const STRINGS = {
     list_new_observation: '🎙 Uchunguzi mpya',
     list_new_observation_desc: 'Anza uchunguzi mpya wa darasa',
     list_row_default_desc: 'Bonyeza kuanza debrief',
+    // bd-2668 — who was observed (asked only when the capture was unbound)
+    who_body: 'Umemchunguza mwalimu yupi? Hii husaidia ripoti kufika kwa mtu sahihi.',
+    who_button: 'Chagua mwalimu',
+    who_section: 'Walimu wako',
+    who_other: 'Mtu mwingine',
+    who_other_desc: 'Hayupo kwenye orodha hii',
+    who_ack: 'Asante — nimeandika {name}.',
+    who_other_ack: 'Sawa. Utaweza kuandika jina wakati wa kutuma ripoti.',
+    who_stale: 'Orodha hii imepitwa na wakati. Utaweza kuandika jina wakati wa kutuma ripoti.',
     list_send_desc_prefix: 'Tuma ripoti kwa',
     list_send_default_desc: 'Tuma ripoti kwa mwalimu',
     // ── bd-22: guided debrief ────────────────────────────────────────
@@ -164,6 +173,15 @@ const STRINGS = {
     list_new_observation: '🎙 نیا مشاہدہ',
     list_new_observation_desc: 'کلاس کا نیا مشاہدہ شروع کریں',
     list_row_default_desc: 'ڈی بریف باقی ہے',
+    // bd-2668 — who was observed (asked only when the capture was unbound)
+    who_body: 'آپ نے کس ٹیچر کا مشاہدہ کیا؟ اس سے رپورٹ درست ٹیچر تک پہنچتی ہے۔',
+    who_button: 'ٹیچر منتخب کریں',
+    who_section: 'آپ کے ٹیچرز',
+    who_other: 'کوئی اور',
+    who_other_desc: 'اس فہرست میں موجود نہیں',
+    who_ack: 'شکریہ — {name} محفوظ کر لیا۔',
+    who_other_ack: 'ٹھیک ہے۔ رپورٹ بھیجتے وقت نام لکھ سکتے ہیں۔',
+    who_stale: 'یہ فہرست پرانی ہو چکی ہے۔ رپورٹ بھیجتے وقت نام لکھ سکتے ہیں۔',
     list_send_desc_prefix: 'رپورٹ بھیجنا باقی: ',
     list_send_default_desc: 'استاد کو رپورٹ بھیجیں',
     debrief_record_instruction:
@@ -269,6 +287,15 @@ const STRINGS = {
     list_new_observation: '🎙 New observation',
     list_new_observation_desc: 'Start a new classroom observation',
     list_row_default_desc: 'Tap to start the debrief',
+    // bd-2668 — who was observed (asked only when the capture was unbound)
+    who_body: 'Which teacher did you observe? This keeps the report with the right teacher.',
+    who_button: 'Pick teacher',
+    who_section: 'Your teachers',
+    who_other: 'Someone else',
+    who_other_desc: 'Not in this list',
+    who_ack: 'Thanks — noted {name}.',
+    who_other_ack: 'No problem. You can type the name when you send the report.',
+    who_stale: 'That list has expired. You can type the name when you send the report.',
     list_send_desc_prefix: 'Send report to',
     list_send_default_desc: 'Send the report to the teacher',
     // ── bd-22: guided debrief ────────────────────────────────────────
