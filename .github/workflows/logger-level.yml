@@ -1,0 +1,57 @@
+name: logger-level
+
+# Fast, self-contained gate for the logger-severity ratchet.
+#
+# Why this is a separate workflow rather than a job in `ci.yml`:
+# `ci.yml` runs the whole root suite, which currently has a substantial
+# pre-existing failure backlog and is disabled. Folding this check in there
+# would mean it reports red for reasons unrelated to logging — which is exactly
+# how the previous version of this gate became noise and got ignored. This
+# workflow runs ONLY the logger-level tests, takes seconds, and is green today,
+# so it can stay enabled and actually block a regression.
+#
+# What it blocks: a new `logToFile('❌ …')` callsite that does not opt into
+# level='error' or level='warn'. Such a call lands at Pino level `info` and is
+# invisible to any monitor filtering on `@level:error`.
+#
+# To re-baseline the grandfathered list (only when adopting/repairing the gate,
+# never to silence a new violation):
+#   node tests/setup/gen-logger-allowlist.js --write
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'bot/**'
+      - 'tests/setup/logger-level-*'
+      - '.github/workflows/logger-level.yml'
+  pull_request:
+    paths:
+      - 'bot/**'
+      - 'tests/setup/logger-level-*'
+      - '.github/workflows/logger-level.yml'
+
+jobs:
+  logger-level:
+    name: logToFile severity ratchet
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Root deps only — the scanner reads source as text and loads no bot code,
+      # so `bot/ npm ci` (slow, needs canvas system libs) is not needed here.
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Run logger-level ratchet
+        run: node tests/run.js --testPathPattern="logger-level"
+
+      - name: Show current backlog size
+        if: always()
+        run: node tests/setup/gen-logger-allowlist.js
