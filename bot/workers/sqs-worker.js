@@ -1032,8 +1032,25 @@ function startWorker() {
     // bd-2417: NIETE has no Railway Cron, so drive stale-session recovery from
     // this always-on worker too — auto-complete abandoned reflection sessions
     // (send the report), and unfreeze sessions stuck at the confirmation gate.
-    const { runRecovery } = require('./stale-session.worker');
-    const STALE_RECOVERY_INTERVAL_MS = 15 * 60 * 1000;
+    const { runRecovery, __thresholds: staleThresholds } = require('./stale-session.worker');
+    // bd-2700: the sweep INTERVAL bounds how fast a threshold can be observed —
+    // a 2-minute reminder still waits up to 15 minutes for the next sweep, so the
+    // interval is overridable alongside the thresholds. Defaults to 15 minutes.
+    const STALE_RECOVERY_INTERVAL_MS = (() => {
+      const raw = process.env.STALE_RECOVERY_INTERVAL_MINUTES;
+      const mins = Number(raw);
+      // Floor at 1 minute: a tighter loop hammers the DB for no benefit.
+      if (raw === undefined || !Number.isFinite(mins) || mins < 1) return 15 * 60 * 1000;
+      return mins * 60 * 1000;
+    })();
+    // Log what was actually resolved. A staging override silently reaching prod is
+    // the failure mode here, so make it visible in the deploy logs either way.
+    logToFile('⏱️  Stale-session thresholds resolved', {
+      reminderMinutes: staleThresholds.reminderMs / 60000,
+      autoCompleteMinutes: staleThresholds.autoCompleteMs / 60000,
+      userActiveMinutes: staleThresholds.userActiveMs / 60000,
+      sweepIntervalMinutes: STALE_RECOVERY_INTERVAL_MS / 60000,
+    });
     setInterval(async () => {
       if (worker.isShuttingDown) return;
       try {
@@ -1044,7 +1061,7 @@ function startWorker() {
       }
     }, STALE_RECOVERY_INTERVAL_MS);
 
-    logToFile('Periodic stale-session recovery enabled (every 15 minutes)');
+    logToFile(`Periodic stale-session recovery enabled (every ${STALE_RECOVERY_INTERVAL_MS / 60000} minutes)`);
 
     // Offer interrupted tasks back. Rides the same always-on worker as the sweeps
     // above (this deployment has no cron), on a deliberately slower interval: the

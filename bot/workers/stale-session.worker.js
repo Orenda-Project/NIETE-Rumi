@@ -28,10 +28,36 @@ const CoachingJobQueueService = require('../shared/services/coaching/coaching-jo
 const { runSonioxCleanup } = require('../shared/services/soniox-cleanup.service');
 const { classifyStuckInitiatedSession } = require('../shared/services/coaching/coaching-stale-recovery');
 
-// Coaching thresholds (in milliseconds)
-const COACHING_REMINDER_THRESHOLD_MS = 2 * 60 * 60 * 1000;  // 2 hours
-const COACHING_AUTO_COMPLETE_THRESHOLD_MS = 12 * 60 * 60 * 1000;  // 12 hours
-const USER_ACTIVE_THRESHOLD_MS = 5 * 60 * 1000;  // 5 minutes = user considered active
+// Coaching thresholds (in milliseconds).
+//
+// bd-2700: these were hardcoded, which made the reflection-timeout path
+// untestable — one end-to-end verification cost 12 hours of waiting. They are now
+// env-overridable in MINUTES, defaulting to the production values. Staging sets
+// COACHING_REMINDER_MINUTES=2 / COACHING_AUTO_COMPLETE_MINUTES=5 so the whole
+// reminder → auto-complete → partial-report path can be exercised in one sitting.
+//
+// PRODUCTION MUST NOT SET THESE. A 5-minute auto-complete on prod would cut real
+// teachers off mid-reflection and ship them a partial report while they type.
+const MINUTE_MS = 60 * 1000;
+
+/**
+ * Read a minutes-valued env override, falling back to a default when unset,
+ * non-numeric, or negative. Zero IS honoured — COACHING_USER_ACTIVE_MINUTES=0
+ * deliberately disables the "user is active, skip them" guard, which otherwise
+ * swallows every short-threshold test run (a teacher actively testing is never
+ * idle enough to sweep).
+ */
+function _minutesFromEnv(name, defaultMs) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === null || String(raw).trim() === '') return defaultMs;
+  const mins = Number(raw);
+  if (!Number.isFinite(mins) || mins < 0) return defaultMs;
+  return mins * MINUTE_MS;
+}
+
+const COACHING_REMINDER_THRESHOLD_MS = _minutesFromEnv('COACHING_REMINDER_MINUTES', 2 * 60 * MINUTE_MS);  // default 2 hours
+const COACHING_AUTO_COMPLETE_THRESHOLD_MS = _minutesFromEnv('COACHING_AUTO_COMPLETE_MINUTES', 12 * 60 * MINUTE_MS);  // default 12 hours
+const USER_ACTIVE_THRESHOLD_MS = _minutesFromEnv('COACHING_USER_ACTIVE_MINUTES', 5 * MINUTE_MS);  // default 5 minutes
 
 // Future: Reading assessment thresholds
 // const READING_REMINDER_THRESHOLD_MS = 1 * 60 * 60 * 1000;  // 1 hour
@@ -470,4 +496,17 @@ async function runRecovery() {
   return { coaching, stuckInitiated };
 }
 
-module.exports = { main, runRecovery, processStuckInitiatedSessions, processStaleCoachingSessions };
+module.exports = {
+  main,
+  runRecovery,
+  processStuckInitiatedSessions,
+  processStaleCoachingSessions,
+  // bd-2700: resolved thresholds, exported so tests can assert the env overrides
+  // and so a deploy can log what it actually picked up (a staging value silently
+  // shipping to prod is the failure mode worth catching loudly).
+  __thresholds: {
+    reminderMs: COACHING_REMINDER_THRESHOLD_MS,
+    autoCompleteMs: COACHING_AUTO_COMPLETE_THRESHOLD_MS,
+    userActiveMs: USER_ACTIVE_THRESHOLD_MS,
+  },
+};
