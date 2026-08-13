@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { isLeader } from '../lib/leaderRole';
@@ -10,8 +10,28 @@ import nieteLogo from '@/assets/niete-logo.png';
 
 const PortalLogin = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  // `sessionLoading` is deliberately distinct from the `loading` state below,
+  // which tracks the submit button. One is "is there already a session?", the
+  // other is "is this form mid-submit".
+  const { login, user, loading: sessionLoading } = useAuth();
   const { toast } = useToast();
+
+  // bd-2569: never show a login form to someone who is already signed in.
+  //
+  // The OTA app boots straight to /portal/login — that path is compiled into
+  // the APK — which bypasses "/" (PortalRoot), the route that reads the
+  // session and forwards an authenticated user onward. So a teacher whose
+  // session was perfectly valid got the login form on every cold start and
+  // reasonably concluded the app had logged them out.
+  //
+  // The session cookie is httpOnly, so this page cannot inspect a token
+  // itself; useAuth already asks the server on mount, and this waits for that
+  // answer. Same rule as PortalRoot: leaders go to My Patch, teachers to the
+  // dashboard.
+  useEffect(() => {
+    if (sessionLoading || !user) return;
+    navigate(isLeader(user) ? '/portal/leader' : '/portal/dashboard', { replace: true });
+  }, [user, sessionLoading, navigate]);
   
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
@@ -50,6 +70,11 @@ const PortalLogin = () => {
       setLoading(false);
     }
   };
+
+  // Render nothing until the session is known, then either the redirect above
+  // fires or there is genuinely no session and the form is the right answer.
+  // Flashing the form and yanking it away looks worse than the bug it fixes.
+  if (sessionLoading || user) return null;
 
   return (
     <div className="min-h-screen bg-primary niete-lattice flex items-center justify-center p-6">
