@@ -31,13 +31,30 @@ function makeChain(tableName) {
   };
   chain.select = jest.fn(() => chain);
   chain.eq = jest.fn((col, val) => { record.filters[col] = val; return chain; });
+  // bd-2670 — per-level idempotency reads a sorted, capped LIST, not an object.
+  chain.order = jest.fn((col, opts = {}) => {
+    record.order = { col, ascending: opts.ascending !== false };
+    return chain;
+  });
+  chain.limit = jest.fn((n) => { record.limit = n; return chain; });
   chain.maybeSingle = jest.fn(async () => finalize());
   chain.single = jest.fn(async () => finalize());
   chain.insert = jest.fn(async (row) => {
     inserts.push({ table: tableName, row });
     return { data: null, error: state.insertError || null };
   });
-  chain.then = (res, rej) => Promise.resolve({ data: state.rows || [], error: state.error || null }).then(res, rej);
+  chain.then = (res, rej) => {
+    if (state.error) return Promise.resolve({ data: null, error: state.error }).then(res, rej);
+    const all = typeof state.rows === 'function' ? state.rows(record.filters) : (state.rows || []);
+    let rows = all.filter((r) =>
+      Object.entries(record.filters).every(([col, val]) => r[col] === undefined || r[col] === val));
+    if (record.order) {
+      const { col, ascending } = record.order;
+      rows = [...rows].sort((a, b) => (a[col] < b[col] ? -1 : a[col] > b[col] ? 1 : 0) * (ascending ? 1 : -1));
+    }
+    if (record.limit) rows = rows.slice(0, record.limit);
+    return Promise.resolve({ data: rows, error: null }).then(res, rej);
+  };
   return chain;
 }
 

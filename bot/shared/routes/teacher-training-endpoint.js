@@ -969,7 +969,11 @@ async function loadGrandQuizState(userId, levelId) {
     // bd-2503 — the same signal loadVisibleLevelsWithProgress reads. Both
     // surfaces must agree on what "complete" means, or HOME and LEVEL_DETAIL
     // contradict each other again — which is the bug being fixed.
-    supabase.from('training_certificates').select('id').eq('user_id', userId).eq('level_id', levelId).maybeSingle(),
+    // bd-2670 — a list read capped at 1, never `.maybeSingle()`. A teacher with
+    // duplicate certificates for this level made the single-object read 406,
+    // which surfaced as "no certificate" and rendered the level as uncertified
+    // for the very teachers who had most certainly passed it.
+    supabase.from('training_certificates').select('id').eq('user_id', userId).eq('level_id', levelId).limit(1),
   ]);
   const passed = (attempts || []).some(isGrandPass);
   const cooldown = (attempts || []).find(a => a.status === 'failed' && a.cooldown_until && new Date(a.cooldown_until) > new Date());
@@ -995,7 +999,10 @@ async function loadGrandQuizState(userId, levelId) {
     // finished without being certified — maybeIssueQuizScoreCertificate skips
     // vendors on the chain ladder — and telling a teacher to look for a
     // certificate that was never issued is worse than saying nothing.
-    if (levelCert) {
+    // An ARRAY since bd-2670 (see the query above) — `if (levelCert)` alone
+    // would be truthy for the empty result and promise a certificate to every
+    // teacher who merely finished the sessions.
+    if (Array.isArray(levelCert) && levelCert.length > 0) {
       return { badge: 'badge_quiz_passed', body: '🏆 Level complete — you have finished every session.', caption: 'Certificate available in your records.', cta: '✓ Complete' };
     }
     if (allDone) {

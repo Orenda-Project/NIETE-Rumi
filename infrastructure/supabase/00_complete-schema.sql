@@ -3801,7 +3801,12 @@ CREATE TABLE IF NOT EXISTS training_certificates (
     teacher_name_snapshot VARCHAR(200) NOT NULL,
     level_name_snapshot  VARCHAR(200) NOT NULL,
     issued_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
-    pdf_r2_key           VARCHAR(500)                            -- 'certs/{user_id}/{cert_code}.pdf'; null until PDF generated
+    pdf_r2_key           VARCHAR(500),                           -- 'certs/{user_id}/{cert_code}.pdf'; null until PDF generated
+    -- bd-2670 — ONE certificate per level. Without this the bot minted a new
+    -- certificate on every re-pass of an already-certified level (3,113 surplus
+    -- rows across 830 teachers in production, worst level holding 56). See
+    -- migrations/V1.1.2__one_certificate_per_user_level.sql for the backfill.
+    CONSTRAINT training_certificates_user_level_uniq UNIQUE (user_id, level_id)
 );
 CREATE INDEX IF NOT EXISTS idx_training_certificates_user ON training_certificates(user_id);
 

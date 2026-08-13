@@ -67,14 +67,27 @@ function generateCertificateCode(now = new Date()) {
  * @returns {Promise<{certificate_code: string, teacher_name: string, level_name: string, issued_at: string, already_issued: boolean, pdf_r2_key: string|null}>}
  */
 async function issueCertificate(supabase, { userId, programId, levelId, attemptId }) {
-  // Idempotency: one certificate per passed attempt. A re-issue returns
-  // whatever PDF the existing row already has — it does NOT re-render, so a
-  // repeat call stays as cheap as it has always been.
-  const { data: existing } = await supabase
+  // Idempotency is per (user, level) — NOT per attempt. bd-2670: this used to
+  // filter on attempt_id alone, so every fresh passing attempt at an
+  // already-certified level minted another certificate. Production reached
+  // 3,113 surplus rows across 830 teachers, one level holding 56.
+  //
+  // Deliberately a LIST read capped at 1, not `.maybeSingle()`. PostgREST
+  // answers 406/PGRST116 when a single-object read matches several rows, so on
+  // exactly the data this guard exists to catch, `.maybeSingle()` returns an
+  // error, `existing` is undefined, and the guard fails OPEN — minting one
+  // more and ratcheting the duplication. A list read cannot fail that way.
+  //
+  // Ordered oldest-first: the teacher keeps the certificate they FIRST earned,
+  // which is the same row the backfill keeps, so code and data agree.
+  const { data: existingRows } = await supabase
     .from('training_certificates')
     .select('certificate_code, teacher_name_snapshot, level_name_snapshot, issued_at, pdf_r2_key')
-    .eq('attempt_id', attemptId)
-    .maybeSingle();
+    .eq('user_id', userId)
+    .eq('level_id', levelId)
+    .order('issued_at', { ascending: true })
+    .limit(1);
+  const existing = Array.isArray(existingRows) ? existingRows[0] : null;
   if (existing) {
     return {
       certificate_code: existing.certificate_code,
@@ -183,14 +196,18 @@ async function maybeIssueQuizScoreCertificate(supabase, { userId, moduleId, atte
       .maybeSingle();
     if (capstone) return { issued: false };
 
-    // One certificate per (user, level).
-    const { data: existing } = await supabase
+    // One certificate per (user, level). bd-2670: this was a `.maybeSingle()`,
+    // which 406s once duplicates exist — the throw was swallowed and the guard
+    // failed open, minting more. A capped list read holds even on dirty data.
+    // (`issueCertificate` now enforces the same rule, so this is the cheap
+    // early-out rather than the only line of defence.)
+    const { data: existingRows } = await supabase
       .from('training_certificates')
       .select('certificate_code')
       .eq('user_id', userId)
       .eq('level_id', level.id)
-      .maybeSingle();
-    if (existing) return { issued: false };
+      .limit(1);
+    if (Array.isArray(existingRows) && existingRows.length > 0) return { issued: false };
 
     // Every active module of the level complete?
     const { data: courses } = await supabase
