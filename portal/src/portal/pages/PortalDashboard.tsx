@@ -133,13 +133,28 @@ const PortalDashboard = () => {
     );
   }
 
+  // bd-2567: greet with the teacher's full name. `lastName` is already
+  // returned by the API and carried on the User type, but was never shown.
+  //
+  // Built by filtering-then-joining rather than `${firstName} ${lastName}`,
+  // because a null/empty surname is expected — data migrated from a system
+  // with one combined name field leaves it blank — and interpolation would
+  // render "Ayesha undefined" or leave a space dangling before the "!".
+  // Both look broken to a teacher, and this heading is the first thing they
+  // see. An unresolved user (auth still loading) yields "" rather than
+  // "undefined".
+  const displayName = [user?.firstName, user?.lastName]
+    .map((part) => (typeof part === "string" ? part.trim() : ""))
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <PortalLayout>
       <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 max-w-7xl">
         {/* Welcome Header */}
         <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-light mb-2">
-            Welcome back, {user?.firstName}! 👋
+          <h1 className="text-3xl sm:text-4xl font-light mb-2" data-testid="dashboard-greeting">
+            Welcome back, {displayName}! 👋
           </h1>
           <p className="text-muted-foreground">
             Here's an overview of your teaching journey so far
