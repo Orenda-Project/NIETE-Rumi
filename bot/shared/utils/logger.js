@@ -66,7 +66,39 @@ function logToFile(message, data = null, level = 'info') {
   }
 }
 
+/**
+ * `logToFile` at `'error'` severity — for a genuinely terminal failure: the
+ * operation did not succeed and there is no further fallback (it rethrows, or
+ * returns a failure/null result). Routes to `console.error`, so Railway/Axiom
+ * tag it `level=error` and an error-level log monitor can actually see it.
+ *
+ * Prefer this over `logToFile(msg, data, 'error')` in new code: the severity is
+ * part of the function name, so it cannot be lost by forgetting a third
+ * positional argument — which is how failures end up filed as `info`.
+ *
+ * @param {string} message
+ * @param {Object|null} [data]
+ */
+function logError(message, data = null) {
+  logToFile(message, data, 'error');
+}
+
+/**
+ * `logToFile` at `'warn'` severity — for a degraded-but-recovered outcome: a
+ * fallback tier ran, a retry has attempts left, the user still got a result.
+ * Deliberately NOT visible to the error-level monitor; reach for `logError()`
+ * when someone should be paged.
+ *
+ * @param {string} message
+ * @param {Object|null} [data]
+ */
+function logWarn(message, data = null) {
+  logToFile(message, data, 'warn');
+}
+
 module.exports = {
   logToFile,
+  logError,
+  logWarn,
   LOGS_DIR
 };
