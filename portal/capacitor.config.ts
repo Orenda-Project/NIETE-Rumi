@@ -18,6 +18,40 @@ const otaUrl: string | null = process.env.NIETE_OTA === '1'
   : null;
 
 /**
+ * Hosts the WebView may navigate to WITHOUT handing off to the system browser.
+ *
+ * A bundled app runs on `https://localhost`, so every link to the portal API's
+ * own origin is a CROSS-ORIGIN navigation — and Capacitor's default is to treat
+ * any off-origin navigation as an external site and pass it to Chrome.
+ * Chrome holds none of the WebView's session cookies, so the request arrives
+ * unauthenticated and the portal answers 401 "Not authenticated. Please log
+ * in.". That is not a `target="_blank"` problem: it happens with no target at
+ * all. Observed on a handset (RMX2061, Android 10) opening a certificate.
+ *
+ * Derived from VITE_API_BASE_URL — the same single configured host OTA uses —
+ * so the allowlist can never drift from the host actually being called. A
+ * staging build allows staging; a production build allows production.
+ *
+ * Returns [] when unset or unparseable rather than throwing: this runs at
+ * native build time, and a throw here fails the build for a value that is
+ * legitimately absent in a web build.
+ */
+function allowedNavigationHosts(): string[] {
+  const raw = process.env.VITE_API_BASE_URL;
+  if (typeof raw !== 'string' || !raw.trim()) return [];
+  try {
+    const { hostname, protocol } = new URL(raw.trim());
+    // https only — a WebView navigating over http is mixed content.
+    if (protocol !== 'https:' || !hostname) return [];
+    return [hostname];
+  } catch {
+    return [];
+  }
+}
+
+const navHosts = allowedNavigationHosts();
+
+/**
  * NIETE portal Android app.
  *
  * appId MUST stay `pk.edu.niete` — this build replaces the existing NIETE
@@ -52,6 +86,11 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: 'https',
     hostname: 'localhost',
+    // Keep in-app navigations to the configured API host in the WebView instead
+    // of handing them to Chrome (which has no session cookie → 401). See
+    // allowedNavigationHosts above. Omitted entirely when empty, so a web build
+    // is byte-identical to before.
+    ...(navHosts.length ? { allowNavigation: navHosts } : {}),
     // bd-2553 — remote-first OTA.
     //
     // When NIETE_OTA=1 the WebView loads the SPA from the live portal instead

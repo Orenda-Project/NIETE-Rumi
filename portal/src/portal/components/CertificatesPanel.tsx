@@ -49,7 +49,7 @@
 import { useState, useCallback } from 'react';
 import { Award, Download, Eye, Loader2, AlertCircle } from 'lucide-react';
 import api from '../services/api';
-import { getApiBaseUrl } from '@/lib/runtime';
+import { getApiBaseUrl, isNativeApp } from '@/lib/runtime';
 
 /**
  * Resolve the API's `download_url` for the environment we are actually in.
@@ -117,6 +117,12 @@ export default function CertificatesPanel() {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
   const [certificates, setCertificates] = useState<PortalCertificate[]>([]);
+
+  // Android's WebView has no PDF viewer, so an inline url downloads there
+  // anyway — View and Download become the same action. Verified on a handset.
+  // Show View only where inline actually renders. Read once at render: the
+  // native shell cannot change under a running app.
+  const native = isNativeApp();
 
   const toggle = useCallback(async () => {
     if (open) { setOpen(false); return; }
@@ -200,26 +206,38 @@ export default function CertificatesPanel() {
                   {c.download_url ? (
                     <div className="flex items-center gap-2">
                       {/*
-                        View: NO target="_blank". In the Capacitor WebView that
-                        would hand the url to external Chrome and eject the
-                        teacher from the app — half of bd-2676.
+                        View is WEB-ONLY. In the app it would download exactly
+                        like Download does (no WebView PDF viewer), and two
+                        buttons with one behaviour imply a choice that is not
+                        there. Delete this branch once the app can render a PDF.
+
+                        NO target="_blank": in the WebView that hands the url to
+                        external Chrome, which holds none of the session cookies
+                        and gets a 401.
                       */}
-                      <a
-                        href={resolveDownloadUrl(toViewUrl(c.download_url))}
-                        data-testid="certificate-view"
-                        className="inline-flex items-center gap-1.5 rounded-md border border-green-300 bg-green-50 px-3 py-1.5 text-sm font-medium text-green-900 hover:bg-green-100 transition-colors"
-                      >
-                        <Eye className="w-4 h-4" /> View
-                      </a>
+                      {!native && (
+                        <a
+                          href={resolveDownloadUrl(toViewUrl(c.download_url))}
+                          data-testid="certificate-view"
+                          className="inline-flex items-center gap-1.5 rounded-md border border-green-300 bg-green-50 px-3 py-1.5 text-sm font-medium text-green-900 hover:bg-green-100 transition-colors"
+                        >
+                          <Eye className="w-4 h-4" /> View
+                        </a>
+                      )}
                       {/*
-                        Download keeps _blank: a save is a side-errand, and
-                        navigating the SPA to a url that returns a file strands
-                        the teacher on a blank page.
+                        _blank ON THE WEB ONLY. The url returns a file rather
+                        than a page, so a new tab keeps the teacher's place in
+                        the SPA. In the native shell the same attribute sent the
+                        url to external Chrome, which carries none of the
+                        WebView's cookies — the request arrived with no session
+                        and the portal answered 401 "Not authenticated". That is
+                        the failure a handset showed; the download manager is
+                        already a background errand there, so nothing is lost by
+                        navigating in place.
                       */}
                       <a
                         href={resolveDownloadUrl(c.download_url)}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        {...(native ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
                         data-testid="certificate-download"
                         className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted transition-colors"
                       >
