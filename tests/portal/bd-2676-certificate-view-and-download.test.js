@@ -47,11 +47,62 @@ const ROUTES = 'dashboard/routes/portal.routes.js';
 const CLIENT = 'dashboard/services/certificates.service.js';
 const INTERNAL = 'bot/shared/routes/internal-api.routes.js';
 
-describe('bd-2676 — the certificate row offers View as well as Download', () => {
-  it('renders a View control, not only a Download one', () => {
+describe('bd-2676 — View is hidden in the native app, where nothing can render a PDF', () => {
+  /**
+   * VERIFIED ON A HANDSET (RMX2061, Android 10, debug v1210): with the
+   * cross-origin navigation fixed, View and Download behave IDENTICALLY in the
+   * app — both download. Android's WebView ships no PDF viewer, so
+   * `Content-Disposition: inline` arrives somewhere that cannot render it and
+   * falls back to the download manager.
+   *
+   * Two buttons that do the same thing is worse than one: it implies a choice
+   * that does not exist. So View is shown only where inline actually renders —
+   * the web portal, including a phone browser.
+   *
+   * The predicate is isNativeApp() — the NATIVE SHELL, not screen size. A
+   * mobile browser renders PDFs fine; it is the WebView that cannot. Reusing
+   * the existing helper keeps one definition of "am I in the app".
+   *
+   * When Android gets a real in-app viewer (bundled pdf.js or a Capacitor
+   * plugin), delete the branch and show View everywhere.
+   */
+  it('imports the native-shell predicate from the shared runtime helper', () => {
+    // Not a hand-rolled userAgent sniff, and not screen width.
     const src = read(PANEL);
-    expect(src).toContain('data-testid="certificate-view"');
+    expect(src).toMatch(/import\s*\{[^}]*isNativeApp[^}]*\}\s*from\s*'@\/lib\/runtime'/);
+  });
+
+  it('gates the View control on NOT being in the native app', () => {
+    const src = read(PANEL);
+    const testid = src.indexOf('data-testid="certificate-view"');
+    expect(testid).toBeGreaterThan(-1);
+
+    // The View anchor must sit behind a native check. Look back from the testid
+    // to the guard that wraps it.
+    const before = src.slice(Math.max(0, testid - 1200), testid);
+    expect(before).toMatch(/!\s*(isNative|native)/);
+  });
+
+  it('still renders Download unconditionally — it is the one that works everywhere', () => {
+    const src = read(PANEL);
     expect(src).toContain('data-testid="certificate-download"');
+  });
+
+  it('Download does not carry target="_blank" in the native shell', () => {
+    // The observed 401: _blank in the WebView hands the url to external Chrome,
+    // which holds none of the session cookies. Web keeps _blank (the url returns
+    // a file, so a new tab preserves the teacher's place in the SPA), so the
+    // attribute has to be CONDITIONAL rather than present or absent outright.
+    const src = read(PANEL);
+    const testid = src.indexOf('data-testid="certificate-download"');
+    expect(testid).toBeGreaterThan(-1);
+
+    const tagOpen = src.lastIndexOf('<a', testid);
+    const downloadTag = src.slice(tagOpen, src.indexOf('>', testid));
+
+    // No unconditional target=; if a target is set at all it is behind `native`.
+    expect(downloadTag).not.toMatch(/target="_blank"/);
+    expect(downloadTag).toMatch(/native\s*\?/);
   });
 
   it('the View control does NOT eject the app to an external browser', () => {
