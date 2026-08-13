@@ -30,6 +30,14 @@ beforeEach(() => {
 
   sendDocumentByLink = jest.fn(async () => true);
 
+  // CI runs the root suite BEFORE `bot/ npm ci`, so anything this test pulls
+  // in transitively must be mocked VIRTUALLY — the real package may not be
+  // installed. content-delivery.service requires bot/shared/config/supabase,
+  // which requires @supabase/supabase-js at module load.
+  jest.doMock('@supabase/supabase-js', () => ({
+    createClient: () => ({ from: () => ({}) }),
+  }), { virtual: true });
+
   jest.doMock('../../bot/shared/services/whatsapp.service', () => ({
     sendMessage: jest.fn(async () => true),
     sendDocumentByLink,
