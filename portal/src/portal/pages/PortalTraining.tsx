@@ -466,7 +466,8 @@ const PortalTraining = () => {
             <h1 className="text-3xl sm:text-4xl font-light">Teacher Training</h1>
           </div>
           <p className="text-muted-foreground">
-            Browse your training levels, courses, and modules. Levels unlock as you pass each grand quiz on WhatsApp.
+            Browse your training levels, courses, and modules. Take your quizzes and level exams here or on
+            WhatsApp — your progress is the same either way, and each level unlocks when you pass its exam.
           </p>
         </div>
 
@@ -571,7 +572,9 @@ const PortalTraining = () => {
           </div>
         </div>
 
-        {/* BH written capstone record (taken on WhatsApp) — bd-2233 */}
+        {/* Written-capstone record for a previous attempt — bd-2233. The exam
+            itself is now sat in LevelExamCard below (bd-2673); this card is the
+            read-only history of an attempt already marked, on either surface. */}
         {selectedLevelObj && (selectedLevelObj.unlock_logic || 'chain') !== 'chain' && (
           <CapstoneResultCard
             key={`cap-${selectedLevelObj.id}`}

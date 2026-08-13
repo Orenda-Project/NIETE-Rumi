@@ -165,8 +165,67 @@ async function getGrandQuizState(userId, levelId) {
   return gate('grand-quiz-state', () => ask('grand-quiz-state', { userId, levelId }));
 }
 
+/**
+ * The LEVEL-EXAM verdict, decided by the bot's vendor pass bar. bd-2673.
+ *
+ * THROWS on failure, exactly like getModuleQuizVerdict — see the note there on
+ * why a grading verdict has no safe default in either direction.
+ */
+async function getExamVerdict(levelId, score, totalQuestions) {
+  const data = await ask('exam-verdict', { levelId, score, totalQuestions });
+  return {
+    is_passed: data.is_passed === true,
+    status: data.status,
+    pass_pct: data.pass_pct,
+    achieved_pct: data.achieved_pct,
+  };
+}
+
+/**
+ * Mark a submitted paper. bd-2673.
+ *
+ * The portal used to do this itself, twice — once for module quizzes and once
+ * for level exams — with its own copy of the multi-answer set rule. Both copies
+ * agreed with the bot by coincidence. Now there is one implementation and the
+ * portal is a renderer.
+ *
+ * THROWS on failure, like getModuleQuizVerdict and for the same reason: a
+ * marking result has no safe default in either direction. Handing out an
+ * unmarked pass invents progress; recording an unmarked fail destroys real
+ * work. The caller must abandon the write and let the teacher retry.
+ */
+async function markPaper(questions, answers) {
+  const data = await ask('mark-paper', { questions, answers });
+  return {
+    graded: Array.isArray(data.graded) ? data.graded : [],
+    score: Number(data.score) || 0,
+    total_questions: Number(data.total_questions) || 0,
+    has_unknown_question: data.has_unknown_question === true,
+    has_duplicate_answer: data.has_duplicate_answer === true,
+  };
+}
+
+/**
+ * Which questions this attempt is served, and in which option order.
+ *
+ * THROWS on failure. Serving fewer questions than the bot would, or a different
+ * option order, means the two surfaces are running different exams — and the
+ * caption quotes the served count, so a silent fallback would also misreport
+ * the paper's length to the teacher.
+ */
+async function servePaper(questions, { attemptId, isModuleQuiz, vendor } = {}) {
+  const data = await ask('serve-paper', { questions, attemptId, isModuleQuiz, vendor });
+  return {
+    questions: Array.isArray(data.questions) ? data.questions : [],
+    total_served: Number(data.total_served) || 0,
+  };
+}
+
 module.exports = {
   getLevelStates,
+  markPaper,
+  servePaper,
+  getExamVerdict,
   checkLevelUnlocked,
   checkModuleUnlocked,
   checkExamGate,

@@ -1,35 +1,33 @@
 /**
- * bd-2490 — the portal serves CONTENT; every assessment happens on WhatsApp.
+ * bd-2673 — assessments run in the portal, and eligibility is what gates them.
  *
- * WHY
- * ---
- * The portal's exam UI renders answers as one radio per option. A capstone
- * paper is free text (`options: []`), so a Beacon House teacher saw eight
- * questions, no inputs, a counter stuck at 0/8 and a dead Submit button. The
- * module-quiz surface has its own history of diverging from the bot — its own
- * pass rule (bd-2483), its own progress writes (bd-2450), its own eligibility
- * proxy (bd-2447), each fixed separately after each drifted.
+ * This file was `assessments-are-whatsapp-only.test.js` and asserted the exact
+ * opposite: that all four assessment routes answered 409. That was bd-2490, an
+ * interim measure with two stated reasons, both now addressed —
  *
- * Rather than rebuild free-text support and keep two assessment engines in
- * step forever, the portal stops assessing. It keeps what it is good at —
- * videos, PDFs, progress, past results — and hands every quiz to the bot,
- * which already owns grading, scoring, cooldowns and certificates.
+ *   1. a free-text capstone rendered through the radio-per-option path gave a
+ *      Beacon House teacher eight questions, no inputs and a dead Submit;
+ *   2. every assessment rule the portal owned had drifted from the bot's and
+ *      been fixed separately (pass bar bd-2483, progress write bd-2450,
+ *      eligibility proxy bd-2447).
  *
- * WHAT STAYS WORKING (deliberately, asserted below)
- *   - module content: video / audio / PDF
- *   - completing a module that has NO quiz (nothing to assess)
- *   - the exam status card, so the UI can render the redirect
+ * (1) is fixed by a real written-exam path, and (2) by there no longer being an
+ * assessment rule in the portal to drift — marking, both pass verdicts and the
+ * capstone rubric all come from the bot, with
+ * tests/portal/no-local-grading-in-portal-routes.test.js failing the build if
+ * one reappears.
  *
- * WHAT REFUSES
- *   - handing over a module quiz paper, or accepting answers for one
- *   - handing over a level exam paper, or accepting answers for one
+ * WHAT THIS SUITE NOW DEFENDS
+ * ---------------------------
+ * Opening a gate is the risky half of that change, so the assertions kept the
+ * old file's shape and only flipped the expectation: the routes work, AND the
+ * things that must still refuse still refuse. The rule that survives verbatim
+ * from bd-2490 is the important one:
  *
- * THE GATE IS THE API, NOT THE BUTTON
- * -----------------------------------
- * Hiding the CTA is not enough. #77 shipped precisely this bug in reverse — a
- * '🔒 Locked' label with no server-side check, which started the exam anyway
- * when tapped. A session cookie and curl must hit the same wall the button
- * does, so these tests drive the ROUTES, not the UI.
+ *   THE GATE IS THE API, NOT THE BUTTON. #77 shipped this bug in reverse — a
+ *   '🔒 Locked' label with no server-side check, which started the exam anyway
+ *   when tapped. A session cookie and curl must hit the same wall the UI does,
+ *   so these tests drive the ROUTES, not the UI.
  */
 
 let supabaseFrom;
@@ -176,57 +174,95 @@ const ASSESSMENT_ROUTES = [
   ['post', '/training/level/:id/grand-quiz/attempts', { params: { id: String(LEVEL) }, body: { answers: [{ question_id: 900, chosen_option: '1' }] } }],
 ];
 
-describe('bd-2490 — every assessment route refuses and points at WhatsApp', () => {
-  it.each(ASSESSMENT_ROUTES)('%s %s refuses', async (method, path, opts) => {
-    seed();
-    const { statusCode, payload } = await invoke(method, path, opts);
-    expect(statusCode).toBe(409);
-    expect(payload.code).toBe('whatsapp_only');
-  });
-
-  it.each(ASSESSMENT_ROUTES)('%s %s tells the teacher where to go', async (method, path, opts) => {
-    seed();
-    const { payload } = await invoke(method, path, opts);
-    expect(String(payload.error).toLowerCase()).toContain('whatsapp');
-  });
-
-  it('refuses an MCQ module quiz too — this is not capstone-specific', async () => {
+describe('bd-2673 — no assessment route is blanket-refused any more', () => {
+  it.each(ASSESSMENT_ROUTES)('%s %s is not refused with whatsapp_only', async (method, path, opts) => {
     seed('grand_quiz');
-    const { statusCode, payload } = await invoke('post', '/training/module/:id/quiz-attempts', {
-      params: { id: String(QUIZZED_MODULE) }, body: { answers: [{ question_id: 900, chosen_option: '1' }] },
-    });
-    expect(statusCode).toBe(409);
-    expect(payload.code).toBe('whatsapp_only');
+    // Level complete, so the bot's gate says the exam is sittable.
+    tableStates.teacher_training_progress = { rows: [
+      { user_id: UID, module_id: PLAIN_MODULE }, { user_id: UID, module_id: QUIZZED_MODULE },
+    ] };
+    const { statusCode, payload } = await invoke(method, path, opts);
+    expect(statusCode).not.toBe(409);
+    expect(payload && payload.code).not.toBe('whatsapp_only');
   });
 
-  it('writes NOTHING when it refuses — no attempt, no answers, no progress', async () => {
-    seed();
-    await invoke('post', '/training/module/:id/quiz-attempts', {
-      params: { id: String(QUIZZED_MODULE) }, body: { answers: [{ question_id: 900, chosen_option: '1' }] },
+  it('no longer redirects anyone to WhatsApp to take a quiz', () => {
+    // The interim module and its constant are gone, not merely bypassed. A
+    // lingering copy is what let the portal and the bot drift before.
+    const src = require('fs').readFileSync(require.resolve('../../dashboard/routes/portal.routes'), 'utf8');
+    const code = src
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/(^|[^:])\/\/.*$/gm, '$1');
+    expect(code).not.toContain('PORTAL_ASSESSMENTS_TEST_ENABLE');
+    expect(code).not.toContain('whatsapp_only');
+    expect(require('fs').existsSync(
+      require('path').join(__dirname, '../../portal/src/lib/assessments.ts')
+    )).toBe(false);
+  });
+
+  it('the written exam is served as free text, with the floor the server enforces', async () => {
+    seed('capstone');
+    tableStates.teacher_training_progress = { rows: [
+      { user_id: UID, module_id: PLAIN_MODULE }, { user_id: UID, module_id: QUIZZED_MODULE },
+    ] };
+    const { statusCode, payload } = await invoke('get', '/training/level/:id/capstone/questions', {
+      params: { id: String(LEVEL) },
     });
+    expect(statusCode).toBe(200);
+    expect(payload.questions).toHaveLength(3);
+    // The number the teacher is held to must come from the enforcing side.
+    expect(payload.min_answer_chars).toBeGreaterThan(0);
+    expect(payload.pass_mark_pct).toBeGreaterThan(0);
+  });
+
+  it('refuses a written answer under the floor, and writes nothing', async () => {
+    seed('capstone');
+    tableStates.teacher_training_progress = { rows: [
+      { user_id: UID, module_id: PLAIN_MODULE }, { user_id: UID, module_id: QUIZZED_MODULE },
+    ] };
+    const { statusCode, payload } = await invoke('post', '/training/level/:id/capstone/attempts', {
+      params: { id: String(LEVEL) },
+      body: { answers: [900, 901, 902].map(id => ({ question_id: id, answer_text: 'far too short' })) },
+    });
+    expect(statusCode).toBe(400);
+    expect(payload.code).toBe('answer_too_short');
+    // A rejected paper must leave no attempt or answer rows behind.
     expect(inserted).toHaveLength(0);
     expect(upserted).toHaveLength(0);
   });
+});
 
-  it('never leaks the paper in the refusal body', async () => {
-    seed('grand_quiz');
-    const { payload } = await invoke('get', '/training/level/:id/grand-quiz/questions', { params: { id: String(LEVEL) } });
+describe('bd-2673 — eligibility, not the surface, is the gate', () => {
+  it('refuses the exam paper when the coursework is not done', async () => {
+    seed('grand_quiz');   // no progress at all
+    const { statusCode, payload } = await invoke('get', '/training/level/:id/grand-quiz/questions', {
+      params: { id: String(LEVEL) },
+    });
+    expect(statusCode).toBe(403);
     expect(payload.questions).toBeUndefined();
   });
-});
 
-describe('bd-2490 — the block is the DEFAULT, not an opt-in', () => {
-  it('refuses with no environment variable set at all', () => {
-    // If the default ever flips to open, every teacher gets a quiz form the
-    // portal cannot grade — and the four suites that open the test seam would
-    // still pass, so only this assertion would catch it.
-    expect(process.env.PORTAL_ASSESSMENTS_TEST_ENABLE).toBeUndefined();
-    const src = require('fs').readFileSync(require.resolve('../../dashboard/routes/portal.routes'), 'utf8');
-    expect(src).toContain("process.env.PORTAL_ASSESSMENTS_TEST_ENABLE !== '1'");
+  it('refuses a written exam paper when the coursework is not done', async () => {
+    seed('capstone');
+    const { statusCode, payload } = await invoke('get', '/training/level/:id/capstone/questions', {
+      params: { id: String(LEVEL) },
+    });
+    expect(statusCode).toBe(403);
+    expect(payload.questions).toBeUndefined();
+  });
+
+  it('refuses a written SUBMIT when the coursework is not done, writing nothing', async () => {
+    seed('capstone');
+    const { statusCode } = await invoke('post', '/training/level/:id/capstone/attempts', {
+      params: { id: String(LEVEL) },
+      body: { answers: [{ question_id: 900, answer_text: 'x'.repeat(500) }] },
+    });
+    expect(statusCode).toBe(403);
+    expect(inserted).toHaveLength(0);
   });
 });
 
-describe('bd-2490 — content still works', () => {
+describe('bd-2673 — content and status still work', () => {
   it('serves module content', async () => {
     seed();
     const { statusCode } = await invoke('get', '/training/module/:id', { params: { id: String(PLAIN_MODULE) } });
@@ -239,35 +275,26 @@ describe('bd-2490 — content still works', () => {
     expect(statusCode).toBe(200);
   });
 
-  it('reports whatsapp_only ONLY when the exam is actually sittable', async () => {
+  it('reports ready — not whatsapp_only — once the exam is sittable', async () => {
     seed();
     tableStates.teacher_training_progress = { rows: [
       { user_id: UID, module_id: PLAIN_MODULE }, { user_id: UID, module_id: QUIZZED_MODULE },
     ] };  // level complete -> the bot's gate says ready
     const { statusCode, payload } = await invoke('get', '/training/level/:id/grand-quiz', { params: { id: String(LEVEL) } });
     expect(statusCode).toBe(200);
-    expect(payload.grand_quiz.state).toBe('whatsapp_only');
+    expect(payload.grand_quiz.state).toBe('ready');
   });
 
   /**
-   * Regression: the first cut returned 'whatsapp_only' ahead of every other
-   * state, so a teacher with unfinished coursework was told to go and take the
-   * exam on WhatsApp — where the bot would refuse her. Sending someone to
-   * another surface for nothing is worse than the dead form this replaced.
+   * Kept from bd-2490. The interim state used to be returned ahead of every
+   * other one, which told a teacher with unfinished coursework to go and sit an
+   * exam the bot would refuse her. The states that describe eligibility must
+   * still win over the state that describes which form to draw.
    */
   it('still says courses_incomplete when the coursework is not done', async () => {
     seed();   // no progress at all
     const { payload } = await invoke('get', '/training/level/:id/grand-quiz', { params: { id: String(LEVEL) } });
     expect(payload.grand_quiz.state).toBe('courses_incomplete');
-  });
-
-  it('refuses the paper even in a state that is not whatsapp_only', async () => {
-    // The redirect card is display; the API is the gate, and it does not
-    // consult eligibility before refusing.
-    seed();
-    const { statusCode, payload } = await invoke('get', '/training/level/:id/grand-quiz/questions', { params: { id: String(LEVEL) } });
-    expect(statusCode).toBe(409);
-    expect(payload.code).toBe('whatsapp_only');
   });
 
   it('still completes a module that has NO quiz — there is nothing to assess', async () => {
