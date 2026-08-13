@@ -13,8 +13,43 @@ const { resolveOtaUrl } = require('./src/lib/app-target.cjs');
  * there is one configured host, not two that can disagree. `.env.app` supplies
  * it locally; CI supplies it as a secret.
  */
+/**
+ * The configured API base url, from the environment or `.env.app`.
+ *
+ * ⚠️ THIS FILE IS PLAIN NODE — Vite is not involved, so `.env.app` is NOT
+ * loaded for us. Reading only process.env means a local build silently sees
+ * `undefined` and every value derived from it silently disappears from the
+ * native config: OTA turns off, and allowNavigation vanishes, with a SUCCESSFUL
+ * build either way. That is exactly how a v1212 AAB was produced with
+ * `"android": {}` and no allowlist — the fix was in the source, absent from the
+ * artifact, and nothing failed.
+ *
+ * Env wins over the file, so CI (which sets a real secret) is unaffected.
+ */
+function configuredApiBaseUrl(): string | undefined {
+  const fromEnv = process.env.VITE_API_BASE_URL;
+  if (typeof fromEnv === 'string' && fromEnv.trim()) return fromEnv.trim();
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const path = require('path');
+    const raw = fs.readFileSync(path.join(__dirname, '.env.app'), 'utf8');
+    for (const line of raw.split('\n')) {
+      const m = line.match(/^\s*VITE_API_BASE_URL\s*=\s*(.+?)\s*$/);
+      if (m) return m[1].replace(/^['"]|['"]$/g, '').trim() || undefined;
+    }
+  } catch {
+    // No .env.app (a web build, or CI supplying the value as env) — fine.
+  }
+  return undefined;
+}
+
+const apiBaseUrl = configuredApiBaseUrl();
+
 const otaUrl: string | null = process.env.NIETE_OTA === '1'
-  ? resolveOtaUrl({ isNative: true, apiBaseUrl: process.env.VITE_API_BASE_URL })
+  ? resolveOtaUrl({ isNative: true, apiBaseUrl })
   : null;
 
 /**
@@ -36,8 +71,7 @@ const otaUrl: string | null = process.env.NIETE_OTA === '1'
  * native build time, and a throw here fails the build for a value that is
  * legitimately absent in a web build.
  */
-function allowedNavigationHosts(): string[] {
-  const raw = process.env.VITE_API_BASE_URL;
+function allowedNavigationHosts(raw?: string): string[] {
   if (typeof raw !== 'string' || !raw.trim()) return [];
   try {
     const { hostname, protocol } = new URL(raw.trim());
@@ -49,7 +83,7 @@ function allowedNavigationHosts(): string[] {
   }
 }
 
-const navHosts = allowedNavigationHosts();
+const navHosts = allowedNavigationHosts(apiBaseUrl);
 
 /**
  * NIETE portal Android app.
