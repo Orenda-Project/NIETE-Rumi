@@ -1,10 +1,19 @@
 name: CI
 
+# `develop` is the staging branch every change must pass through before `main`,
+# so it needs the same gate — previously this ran on `main` only, which meant a
+# PR into `develop` had no test check at all (gitleaks was the only one).
+#
+# NOTE: this workflow is currently disabled and its suite has a pre-existing
+# failure backlog. Re-enabling it before that backlog is quarantined would make
+# every PR red, which is how it came to be disabled in the first place. The
+# logger-severity ratchet therefore runs in its own fast workflow
+# (`logger-level.yml`) that is green today and can stay enabled.
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 jobs:
   test:
