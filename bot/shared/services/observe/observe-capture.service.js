@@ -115,6 +115,21 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
   await ObserveState.setState(user.id, 'analyzing', { sessionId: session.id });
   await WhatsAppService.sendMessage(from, S.audio_received);
 
+  // bd-2668: an UNBOUND capture records no teacher, so the pending-debrief list
+  // can only show a date and the portal shows "Unassigned" (66 of 85 live
+  // observations). Ask who was observed — after the state is already 'analyzing'
+  // and the ack is sent, so analysis proceeds regardless and ignoring the
+  // question leaves today's behaviour byte-for-byte. Never let it throw: a
+  // missing name must never cost a coach her recording.
+  if (!boundTeacher) {
+    try {
+      const ObserveWho = require('./observe-who.service');
+      await ObserveWho.maybeAskObservedTeacher(user, from, session.id);
+    } catch (err) {
+      logToFile('⚠️ observe: who-ask failed (non-blocking)', { userId: user.id, error: err.message });
+    }
+  }
+
   logToFile('🔭 observe: observation capture started', {
     coachingSessionId: session.id, observerId: user.id, audioId,
   });
