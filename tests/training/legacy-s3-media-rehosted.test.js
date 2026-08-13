@@ -32,16 +32,27 @@
 
 const { isPdfModule, effectiveMediaUrl, isControlledMediaHost } = require('../../bot/shared/services/training/media-host');
 
-// Mirrors the real corpus shape: R2-hosted rows (already correct) alongside
-// the legacy third-party S3 rows that produce the download prompt.
+// The corpus AFTER the migration: videos live on R2, PDFs deliberately remain
+// on the legacy bucket (they ship as WhatsApp document cards — see the scope
+// note on the invariant test below).
 const MODULES = [
   { id: 1, title: 'R2 video', video_url: 'https://acct.r2.cloudflarestorage.com/digital-coach-audio/training/x/1/a.mp4', source_media_url: null },
-  { id: 2, title: 'legacy S3 video', video_url: 'https://asset-manager-approved.s3.ap-south-1.amazonaws.com/b.mp4', source_media_url: null },
+  { id: 2, title: 're-hosted video', video_url: 'https://acct.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/2/asset.mp4', source_media_url: 'https://asset-manager-approved.s3.ap-south-1.amazonaws.com/b.mp4' },
   { id: 3, title: 'legacy S3 pdf', video_url: null, source_media_url: 'https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c.pdf' },
   { id: 4, title: 'in-review S3 pdf', video_url: null, source_media_url: 'https://asset-manager-in-review.s3.ap-south-1.amazonaws.com/d.pdf' },
   { id: 5, title: 'R2 pdf', video_url: null, source_media_url: 'https://acct.r2.cloudflarestorage.com/digital-coach-audio/training/x/5/e.pdf' },
   { id: 6, title: 'no media', video_url: null, source_media_url: null },
 ];
+
+// A module mid-migration — still pointing at the third-party bucket. Kept as a
+// named fixture so the guard below is provably capable of failing; without it
+// the invariant test would pass on an all-clean fixture and prove nothing.
+const UNMIGRATED_VIDEO = {
+  id: 99,
+  title: 'not yet re-hosted',
+  video_url: 'https://asset-manager-approved.s3.ap-south-1.amazonaws.com/z.mp4',
+  source_media_url: null,
+};
 
 describe('bd-2666 — training media host', () => {
   test('effectiveMediaUrl picks the URL the bot would really send', () => {
@@ -79,13 +90,27 @@ describe('bd-2666 — training media host', () => {
    * preceding 30 days confirm that path works. They are deliberately left on
    * the legacy bucket rather than migrated for a symptom they do not have.
    */
-  test('every VIDEO module must be served from a host we control', () => {
-    const offenders = MODULES
+  const uncontrolledVideos = (modules) =>
+    modules
       .filter((m) => !isPdfModule(m))
       .filter((m) => effectiveMediaUrl(m))
       .filter((m) => !isControlledMediaHost(effectiveMediaUrl(m)))
       .map((m) => `${m.id}:${m.title}`);
 
-    expect(offenders).toEqual([]);
+  test('every VIDEO module must be served from a host we control', () => {
+    expect(uncontrolledVideos(MODULES)).toEqual([]);
+  });
+
+  test('the guard actually catches a video left on the legacy bucket', () => {
+    // Proves the assertion above is load-bearing rather than vacuously true.
+    expect(uncontrolledVideos([...MODULES, UNMIGRATED_VIDEO])).toEqual(['99:not yet re-hosted']);
+  });
+
+  test('a re-hosted module keeps its original URL as provenance', () => {
+    // The migration repoints the DELIVERED column only; source_media_url stays
+    // put so the origin of a re-hosted asset is never lost.
+    const rehosted = MODULES.find((m) => m.id === 2);
+    expect(isControlledMediaHost(effectiveMediaUrl(rehosted))).toBe(true);
+    expect(rehosted.source_media_url).toContain('asset-manager-approved');
   });
 });
