@@ -408,18 +408,6 @@
     "occurrence": 0
   },
   {
-    "file": "bot/shared/services/coaching/analysis-processor.service.js",
-    "line": 259,
-    "snippet": "logToFile('❌ Error in processAnalysis', {",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/services/coaching/analysis-processor.service.js",
-    "line": 289,
-    "snippet": "logToFile('❌ Error in handleAnalysisError', {",
-    "occurrence": 0
-  },
-  {
     "file": "bot/shared/services/coaching/coaching-job-queue.service.js",
     "line": 95,
     "snippet": "logToFile('❌ Error queuing job to SQS', {",
