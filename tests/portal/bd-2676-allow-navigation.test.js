@@ -43,18 +43,20 @@ function loadAllowNavigation(env) {
   const fs = require('fs');
   const src = fs.readFileSync(CONFIG, 'utf8');
 
-  // Pull out the helper and re-evaluate it against a supplied env. Keeps the
+  // Pull out the helper and re-evaluate it against a supplied value. Keeps the
   // test honest about the REAL source rather than a copy of the logic.
-  const fnMatch = src.match(/function allowedNavigationHosts\(\)[\s\S]*?\n\}/);
+  const fnMatch = src.match(/function allowedNavigationHosts\([\s\S]*?\n\}/);
   if (!fnMatch) throw new Error('allowedNavigationHosts() not found in capacitor.config.ts');
 
-  // Strip the TS return annotation (`): string[] {` → `) {`) — new Function
-  // parses plain JS, and the annotation is the only TS syntax in the helper.
-  const js = fnMatch[0].replace(/\)\s*:\s*string\[\]\s*\{/, ') {');
+  // Strip TS annotations (`raw?: string): string[] {`) — new Function parses
+  // plain JS, and these are the only TS syntax in the helper.
+  const js = fnMatch[0]
+    .replace(/\(\s*raw\?\s*:\s*string\s*\)/, '(raw)')
+    .replace(/\)\s*:\s*string\[\]\s*\{/, ') {');
 
   // eslint-disable-next-line no-new-func
-  const factory = new Function('process', `${js}; return allowedNavigationHosts();`);
-  return factory({ env });
+  const factory = new Function('raw', `${js}; return allowedNavigationHosts(raw);`);
+  return factory(env.VITE_API_BASE_URL);
 }
 
 describe('bd-2676 — allowNavigation is derived from the configured API host', () => {
@@ -95,6 +97,44 @@ describe('bd-2676 — allowNavigation is derived from the configured API host', 
     // is legitimately absent or malformed in a web build.
     expect(loadAllowNavigation({ VITE_API_BASE_URL: 'not-a-url' })).toEqual([]);
     expect(loadAllowNavigation({ VITE_API_BASE_URL: '   ' })).toEqual([]);
+  });
+});
+
+describe('bd-2676 — the config reads .env.app, because Vite does not run here', () => {
+  const fs = require('fs');
+  const src = () => fs.readFileSync(CONFIG, 'utf8');
+
+  /**
+   * THE FAILURE THIS PINS — a v1212 AAB built green with `"android": {}` and no
+   * allowlist at all. capacitor.config.ts is plain Node: Vite loads `.env.app`,
+   * this file does not. Reading only process.env meant VITE_API_BASE_URL was
+   * undefined at `cap sync` time, so allowNavigation silently vanished from the
+   * artifact while the source looked correct and the build reported SUCCESS.
+   *
+   * The same class as the documented ".env.app gap" that shipped an APK with no
+   * server.url. Both are invisible without inspecting the generated config.
+   */
+  it('falls back to parsing .env.app when the env var is unset', () => {
+    expect(src()).toMatch(/\.env\.app/);
+    expect(src()).toMatch(/readFileSync/);
+  });
+
+  it('prefers the environment over the file, so CI secrets still win', () => {
+    const fnMatch = src().match(/function configuredApiBaseUrl\([\s\S]*?\n\}/);
+    expect(fnMatch).toBeTruthy();
+    // process.env is consulted before any file read.
+    const body = fnMatch[0];
+    expect(body.indexOf('process.env.VITE_API_BASE_URL'))
+      .toBeLessThan(body.indexOf('readFileSync'));
+  });
+
+  it('derives BOTH the OTA url and the allowlist from one resolved value', () => {
+    // Two independent reads could disagree — one host serving the code, another
+    // allowed to be navigated to.
+    const s = src();
+    expect(s).toMatch(/const apiBaseUrl = configuredApiBaseUrl\(\)/);
+    expect(s).toMatch(/resolveOtaUrl\(\{\s*isNative:\s*true,\s*apiBaseUrl\s*\}\)/);
+    expect(s).toMatch(/allowedNavigationHosts\(apiBaseUrl\)/);
   });
 });
 
