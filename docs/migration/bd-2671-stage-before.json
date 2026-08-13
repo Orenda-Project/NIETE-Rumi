@@ -1,0 +1,295 @@
+{
+ "env": "stage",
+ "ref": "rpqkekcfvumypldbejhp",
+ "captured_at": "2026-08-13T09:14:22.007Z",
+ "rows": [
+  {
+   "id": 166,
+   "title": "Flipped Classroom",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/166/9ddf1e32-be9c-4d7c-baf3-db5feef05506.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 82,
+   "title": "Child Psychology in the Classroom: A Practical Guide for Pakistani Teachers",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/82/a1adb8b4-3f44-436c-8667-76641660297f.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 83,
+   "title": "بلینڈڈ لرننگ",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/83/311071af-83d5-44f1-9b33-92155abff697.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 89,
+   "title": "SMART Goals: A Teacher’s Secret to Growth",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/89/5f254118-42a6-4c87-90e4-d91959d9e925.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 92,
+   "title": "آن لائن کمیونٹی سے سیکھنے کا سفر",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/92/eb9ceff2-a803-45a7-904a-f88f5b94ef4a.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 115,
+   "title": "Assessments that Matter: Measuring Real Learning",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/115/29158b6c-cbce-4413-bbd3-f3a7d9ee62aa.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 118,
+   "title": "Portfolios: Tracking the Journey of Learning",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/118/248a9ed1-0956-4b4c-81f1-8ff7518e9c86.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 120,
+   "title": "Using Rubrics : A Simple Way to Check Students’ Work Fairly",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/120/928f47f6-829f-4769-b31f-1707f4051b21.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 123,
+   "title": "Child Psychology and Holistic Development: A Practical Guide for Pakistani Teachers",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/123/34983f41-1106-49bc-b2a3-4cbeabccf59a.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 126,
+   "title": "Interactive Digital Resources in the Classroom",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/126/7f253fc8-40e3-4a32-a11d-ac9c91b61850.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 130,
+   "title": "Expectations and Goals",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/130/44d6c942-18fc-47a3-9948-067483c45d37.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 169,
+   "title": "Creating a Comprehensive Feedback System for School Improvement",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/169/c3f55b89-1ac2-4d4d-9677-8e6982f1ce6b.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 171,
+   "title": "Leading with Integrity — Building an Ethical School Culture",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/171/1ac68c70-d12e-45eb-a206-0f997fa1f30e.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 149,
+   "title": "The Art of Assessment: Designing and Implementing Effective Rubrics(Reading Resource)",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/149/4797209a-03dc-464e-964e-f856fc64f628.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 151,
+   "title": "Reflective Post-Observation Conversation(Reading Resource)",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/151/e6eefb9b-86c8-4ee0-a8c7-866695822fcd.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 155,
+   "title": "سیکھنے کا نیا انداز",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/155/2f965974-38d2-44cc-a4cd-a07811cbdd00.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 161,
+   "title": "Designing and Leading Peer Mentoring Programs for Positive Behavior and Self-Regulation",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/161/f47fa4d8-a51a-4bb4-b96e-d5547314cc1b.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 52,
+   "title": "ہر سبق میں تنقیدی سوچ اور تخلیقی صلاحیتیں: پاکستانی اساتذہ کے لیے ایک عملی رہنما",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/52/94f1d9f4-c147-4556-9900-f6d36f3767a2.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 81,
+   "title": "Universal Design for Learning: Teaching for Every Child",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/81/9f5ba091-217a-40c7-a076-0a541f05844c.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 84,
+   "title": "How to make Google Forms",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/84/e2d640dc-884f-4447-8d0f-cd731f4f93ed.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 85,
+   "title": "How to make digital checklist",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/85/086fb817-881a-4c81-bbe1-cf6cb38328a3.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 90,
+   "title": "Case Study Story: Miss Ayesha’s One Step at a Time",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/90/c00fec88-f329-4044-b1ce-626820a3a80a.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 91,
+   "title": "Action Plans: A Teacher’s Road to Improvement",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/91/7acfa949-bade-4c99-8a1a-f16e8f5f758a.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 117,
+   "title": "طلباء کو خود جائزہ کے ذریعے غور و فکر اور بہتری میں مدد دینا",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/117/533d431e-8dbc-4aa8-94d1-73d17af563f1.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 119,
+   "title": "Peer Assessment: Learning from Each Other",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/119/27811de7-99b3-4068-98a1-be31c61eeb62.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 131,
+   "title": "اساتذہ کو PLC کی ضرورت کیوں ہے؟",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/131/9bbc73bd-4f64-43e9-a293-caa6fd71befc.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 134,
+   "title": "Project Based Learning (Reading Resource)",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/134/08d5e56d-f747-4320-a210-a34da6a7f7cd.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 136,
+   "title": "School-Based PBL",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/136/3b35975a-8437-467b-a650-5bfbd3204f66.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 147,
+   "title": "Designing and Implementing School-Wide Assessments",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/147/91210148-9c30-41d0-b6bc-88834df00700.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 153,
+   "title": "Creating Personalized Learning Journeys for Students",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/153/67329dc0-c025-41e1-b99a-fd401df6ea1f.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 154,
+   "title": "Developing Individualized Education Plans (IEPs) for Students with Specific Needs",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/154/3a2d6bc0-4540-4a3f-b321-33577bd94951.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 158,
+   "title": "Framework for Continuous Professional Development for teachers",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/158/256b82ea-898a-4762-b18f-c7edaf2a4e30.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 160,
+   "title": "The “Hole in the Wall” Experiment — A Journey Toward Self-Paced Learning",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/160/98a5067b-93f9-4c10-887d-78beb4946a7b.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 167,
+   "title": "Leading Workshops on the Benefits of Using Simple Digital Tools for Planning and Assessments",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/167/f5aba88e-3e6c-4852-9242-43bee2a23f14.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 168,
+   "title": "اسکول اور کمیونٹی کے درمیان تعلق مضبوط بنانا",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/168/e18ae086-cc5b-4006-9664-907b4766a59e.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 170,
+   "title": "Creating a Shared Vision for Professional Development",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/170/d54be694-59bb-4b0d-9ca3-b9824f986b2c.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  }
+ ]
+}
