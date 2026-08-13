@@ -443,13 +443,17 @@ router.post('/training/certificates', requireInternalKey, async (req, res) => {
 
 /**
  * POST /api/internal/training/certificate-pdf
- * Body { userId, certificateCode }
+ * Body { userId, certificateCode, disposition? }
  *   → 200 { success, certificate_code, level_name, teacher_name, issued_at,
  *           pdf_r2_key, download_url, minted }
- *   → 400 missing userId/certificateCode
+ *   → 400 missing userId/certificateCode, or an unknown disposition
  *   → 401 bad key
  *   → 404 no such certificate FOR THIS USER
  *   → 502 render/upload/presign failed
+ *
+ * `disposition` (bd-2676) is 'attachment' (default, saves the file) or 'inline'
+ * (renders it). The portal asks for inline behind its View button and attachment
+ * behind Download; omitting it preserves the original save-the-file behaviour.
  *
  * Fetch-or-mint. `minted` tells the caller whether this request paid for a
  * render, which is worth having in the logs while the legacy backlog drains.
@@ -461,13 +465,19 @@ router.post('/training/certificates', requireInternalKey, async (req, res) => {
  * the portal turns a failure here into a certificate that still lists.
  */
 router.post('/training/certificate-pdf', requireInternalKey, async (req, res) => {
-  const { userId, certificateCode } = req.body || {};
+  const { userId, certificateCode, disposition } = req.body || {};
   if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
   if (!certificateCode) return res.status(400).json({ success: false, error: 'certificateCode is required' });
 
   try {
     const supabase = require('../config/supabase');
-    const result = await certificateService().fetchOrMintCertificatePdf(supabase, { userId, certificateCode });
+    const result = await certificateService().fetchOrMintCertificatePdf(supabase, {
+      userId,
+      certificateCode,
+      // Omitted → the service's 'attachment' default. Passing undefined through
+      // rather than defaulting here keeps ONE definition of the default.
+      ...(disposition ? { disposition } : {}),
+    });
     if (result.minted) {
       logToFile('🏆 Certificate PDF minted via internal API', { userId, certificateCode });
     }

@@ -85,14 +85,23 @@ async function listCertificates(userId) {
  *
  * @param {string} userId - from the session
  * @param {string} certificateCode
+ * @param {'attachment'|'inline'} [disposition] - bd-2676. 'inline' returns a url
+ *   the browser RENDERS; 'attachment' (the bot's default when omitted) returns
+ *   one it SAVES. The portal's View button asks for inline, Download for
+ *   attachment. Kept as a parameter rather than a second function because the
+ *   only difference is one signed response header.
  * @returns {Promise<{download_url: string, minted: boolean}|{notFound: true}|null>}
  *   null when the file could not be produced; `{ notFound: true }` when this
  *   teacher has no such certificate — the caller needs to tell those apart to
  *   answer 404 vs 502.
  */
-async function getCertificatePdf(userId, certificateCode) {
+async function getCertificatePdf(userId, certificateCode, disposition) {
   try {
-    return await ask('certificate-pdf', { userId, certificateCode });
+    return await ask('certificate-pdf', {
+      userId,
+      certificateCode,
+      ...(disposition ? { disposition } : {}),
+    });
   } catch (error) {
     if (error?.response?.status === 404) return { notFound: true };
     console.error('❌ Certificate PDF could not be fetched or minted', {

@@ -1961,7 +1961,7 @@ router.get('/training/certificates', requirePortalAuth, async (req, res) => {
 });
 
 /**
- * GET /api/portal/training/certificates/:code/download
+ * GET /api/portal/training/certificates/:code/download[?view=1]
  *
  * Fetch-or-mint one certificate, then 302 to a short-lived signed R2 URL.
  *
@@ -1973,16 +1973,27 @@ router.get('/training/certificates', requirePortalAuth, async (req, res) => {
  * The bot distinguishes "no such certificate for this user" (404) from "we
  * could not produce the file" (502), and so does this route — collapsing both
  * into one status would hide a rendering outage behind a not-found.
+ *
+ * `?view=1` (bd-2676) asks for an INLINE url — the PDF renders instead of
+ * downloading. ONE route with a flag rather than two routes: the auth check,
+ * the ownership filter, the mint and the 404/502 split are identical, and
+ * duplicating them is how two paths drift into disagreeing about who may read
+ * a file. Absent the flag the behaviour is unchanged (attachment), so every
+ * existing link keeps saving the file.
  */
 router.get('/training/certificates/:code/download', requirePortalAuth, async (req, res) => {
   const code = req.params && req.params.code;
   if (!code) return res.status(400).json({ success: false, error: 'certificate code is required' });
 
+  // Any truthy `view` means inline. Deliberately not parsing '0'/'false' —
+  // nothing generates those, and the only producer is our own View button.
+  const disposition = (req.query && req.query.view) ? 'inline' : 'attachment';
+
   try {
     const userId = req.session.portalUserId;
     const certificatesClient = require('../services/certificates.service');
 
-    const result = await certificatesClient.getCertificatePdf(userId, code);
+    const result = await certificatesClient.getCertificatePdf(userId, code, disposition);
 
     if (result && result.notFound) {
       return res.status(404).json({ success: false, error: 'Certificate not found' });
