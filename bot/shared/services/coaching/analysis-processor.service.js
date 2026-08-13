@@ -260,7 +260,7 @@ class AnalysisProcessorService {
         error: error.message,
         stack: error.stack,
         coachingSessionId
-      });
+      }, 'error');
 
       // Get user phone number if not provided
       let from = phoneNumber;
@@ -289,7 +289,7 @@ class AnalysisProcessorService {
       logToFile('❌ Error in handleAnalysisError', {
         error: handlerError.message,
         coachingSessionId
-      });
+      }, 'error');
     }
   }
 }
