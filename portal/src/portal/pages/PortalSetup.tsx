@@ -4,6 +4,7 @@ import { auth } from '../services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { Eye, EyeOff } from 'lucide-react';
 import nieteLogo from '@/assets/niete-logo.png';
 
 const PortalSetup = () => {
@@ -14,6 +15,10 @@ const PortalSetup = () => {
   const [userInfo, setUserInfo] = useState<{ firstName: string; lastName: string; phoneNumber: string } | null>(null);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  // bd-2668: ONE toggle for both fields — the whole point on this screen is to
+  // compare the two entries when "Passwords do not match" fires, which a
+  // per-field toggle would make harder.
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [validating, setValidating] = useState(true);
 
@@ -124,24 +129,36 @@ const PortalSetup = () => {
               <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
                 Password
               </label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Create password"
-                className="w-full"
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Create password"
+                  className="w-full pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground mb-2">
                 Confirm Password
               </label>
+              {/* Follows the toggle above — no second button, so there is one
+                  control for one decision ("let me see what I typed"). */}
               <Input
                 id="confirmPassword"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Confirm password"
