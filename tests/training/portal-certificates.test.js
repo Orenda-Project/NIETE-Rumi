@@ -174,7 +174,25 @@ describe('GET /api/portal/training/certificates/:code/download — fetch or mint
 
   it('asks the bot with the SESSION user id and the code from the path', async () => {
     await invoke(DL_PATH, { userId: USER, params: { code: CODE } });
-    expect(getCertificatePdf).toHaveBeenCalledWith(USER, CODE);
+    // bd-2676 added the third argument. Plain (no ?view) stays 'attachment', so
+    // every link that existed before this change still SAVES the file.
+    expect(getCertificatePdf).toHaveBeenCalledWith(USER, CODE, 'attachment');
+  });
+
+  it('asks for an INLINE url when ?view=1 is present (bd-2676)', async () => {
+    // The View button. Reported from the app: the certificate downloaded in the
+    // background instead of being readable.
+    await invoke(DL_PATH, { userId: USER, params: { code: CODE }, query: { view: '1' } });
+    expect(getCertificatePdf).toHaveBeenCalledWith(USER, CODE, 'inline');
+  });
+
+  it('still enforces the session on the view variant', async () => {
+    // A viewable url is the same bearer token as a downloadable one.
+    const { statusCode } = await invoke(DL_PATH, {
+      userId: null, params: { code: CODE }, query: { view: '1' },
+    });
+    expect(statusCode).toBe(401);
+    expect(getCertificatePdf).not.toHaveBeenCalled();
   });
 
   it('redirects to the signed R2 url', async () => {

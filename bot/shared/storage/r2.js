@@ -623,7 +623,7 @@ function isPermanentR2Url(url) {
  * purpose: an unknown extension gets no override at all, so the object's own
  * stored metadata wins — no worse than before, and never a mislabelled file.
  */
-const ATTACHMENT_CONTENT_TYPES = {
+const PRESIGN_CONTENT_TYPES = {
   pdf: 'application/pdf',
   png: 'image/png',
   jpg: 'image/jpeg',
@@ -642,26 +642,47 @@ const ATTACHMENT_CONTENT_TYPES = {
  * GetObjectCommand before getSignedUrl runs — appending them to an
  * already-signed URL yields 403 SignatureDoesNotMatch.
  *
- * Only `attachment` is supported: it is an explicit "save this as a file"
- * intent. Everything else returns {} and leaves the object's metadata alone.
+ * TWO modes, and anything else returns {} so the object's own stored metadata
+ * wins (no worse than before, and never a mislabelled file):
+ *
+ *   attachment  "save this as a file" — carries a sanitised filename.
+ *   inline      "render this in place". NO filename: it is meaningless on
+ *               inline and some browsers read it as a save hint, which is the
+ *               exact behaviour inline exists to avoid.
+ *
+ * ⚠️ INLINE MUST ASSERT A CONTENT-TYPE TO DO ANYTHING. `inline` with
+ * application/octet-stream downloads anyway — the browser has nothing to
+ * render — so an unrecognised extension deliberately gets NO disposition
+ * override at all rather than an inline header that silently still downloads.
+ * (The dashboard presigner learned this first; same rule here.)
  *
  * @param {string} key - R2 object key
- * @param {{disposition?: string, filename?: string}} [options]
+ * @param {{disposition?: 'attachment'|'inline', filename?: string}} [options]
  * @returns {object} partial GetObjectCommand input, {} when nothing to override
  */
 function buildPresignOverrides(key, options) {
   const opts = options || {};
-  if (opts.disposition !== 'attachment') return {};
+  const mode = opts.disposition;
+  if (mode !== 'attachment' && mode !== 'inline') return {};
 
   const base = String(key || '').split(/[?#]/)[0].split('/').pop() || 'download';
+  const ext = base.includes('.') ? base.split('.').pop().toLowerCase() : '';
+  const contentType = PRESIGN_CONTENT_TYPES[ext];
+
+  if (mode === 'inline') {
+    // Without a known type, inline cannot render — say nothing instead of
+    // asserting a header that looks like a fix and is not one.
+    if (!contentType) return {};
+    return { ResponseContentDisposition: 'inline', ResponseContentType: contentType };
+  }
+
   const raw = String(opts.filename || base);
   // A DB-sourced name must never be able to inject header syntax: strip CR/LF
   // and quotes down to a conservative ASCII set.
   const ascii = raw.replace(/[^A-Za-z0-9 ._\-()[\]]/g, '_') || 'download';
 
   const overrides = { ResponseContentDisposition: `attachment; filename="${ascii}"` };
-  const ext = base.includes('.') ? base.split('.').pop().toLowerCase() : '';
-  if (ATTACHMENT_CONTENT_TYPES[ext]) overrides.ResponseContentType = ATTACHMENT_CONTENT_TYPES[ext];
+  if (contentType) overrides.ResponseContentType = contentType;
   return overrides;
 }
 
@@ -674,9 +695,11 @@ function buildPresignOverrides(key, options) {
  *
  * @param {string} r2Url - R2 URL (private S3 API format)
  * @param {number} expiresIn - Expiration time in seconds (default: 3600 = 1 hour)
- * @param {{disposition?: 'attachment', filename?: string}} [options] - optional
- *        signed response-header overrides. Omitted by every pre-existing
- *        caller, whose behaviour is unchanged (a bare { Bucket, Key } signing).
+ * @param {{disposition?: 'attachment'|'inline', filename?: string}} [options] -
+ *        optional signed response-header overrides. Omitted by every
+ *        pre-existing caller, whose behaviour is unchanged (a bare
+ *        { Bucket, Key } signing). `inline` exists so an artefact like a
+ *        certificate can be VIEWED as well as saved.
  * @returns {Promise<string>} Presigned URL with temporary access
  */
 async function getPresignedUrl(r2Url, expiresIn = 3600, options = undefined) {
