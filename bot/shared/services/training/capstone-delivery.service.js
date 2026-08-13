@@ -481,10 +481,76 @@ async function finalizeAttempt(attempt, user, phoneNumber, { lastScore } = {}) {
   return true;
 }
 
+/* ------------------------------------------------------------------------- *
+ * bd-2673 — the pure, surface-agnostic half of the capstone.
+ *
+ * The portal can now run a capstone (it is the reason assessments were
+ * WhatsApp-only: a free-text paper rendered as radio buttons gave a Beacon
+ * House teacher eight questions, no inputs and a dead Submit). It must reach
+ * the SAME rubric and the SAME pass rule as WhatsApp, but it cannot call
+ * finalizeAttempt: that function interleaves scoring with WhatsApp sends and
+ * takes a phone number.
+ *
+ * So the rules come out here as pure functions, and finalizeAttempt keeps the
+ * delivery. Same split as decideModuleQuizPass / decideExamPass.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * The minimum answer length, in characters.
+ *
+ * This module's own header has always described the capstone as "min ~400 chars
+ * each in-app" — but nothing enforced it, because on WhatsApp the answer is just
+ * the teacher's next text message and there is no field to validate. The portal
+ * has a textarea and a Submit button, so the floor becomes real there: it is
+ * stated to the teacher, counted live, and checked again server-side.
+ */
+const MIN_ANSWER_CHARS = 400;
+
+/** Does this answer clear the length floor? Pure; no I/O. */
+function meetsAnswerFloor(answerText) {
+  return String(answerText || '').trim().length >= MIN_ANSWER_CHARS;
+}
+
+/**
+ * The capstone verdict, given the per-answer scores that were persisted.
+ *
+ * Carries the bd-2478 refusal: if fewer answer rows came back than the attempt
+ * expects, the paper is NOT scored. That bug told a teacher who answered eight
+ * questions well that they had scored 2/40, because the rows had not persisted
+ * and the sum ran anyway. A missing row is a fault, not a low score.
+ *
+ * @param {{answerScores: number[], totalQuestions: number, totalScore: number}} input
+ * @returns {{ok: boolean, reason?: string, score?: number, pass_bar?: number,
+ *            is_passed?: boolean, pass_pct?: number}}
+ */
+function decideCapstonePass({ answerScores, totalQuestions, totalScore } = {}) {
+  const scores = Array.isArray(answerScores) ? answerScores : [];
+  const expected = Number(totalQuestions) || 0;
+  if (scores.length < expected) {
+    return { ok: false, reason: 'answers_missing' };
+  }
+  const total = Number(totalScore) || 0;
+  const score = scores.reduce((s, v) => s + (Number(v) || 0), 0);
+  const passBar = Math.ceil(total * PASS_PCT);
+  return {
+    ok: true,
+    score,
+    pass_bar: passBar,
+    is_passed: score >= passBar,
+    pass_pct: Math.round(PASS_PCT * 100),
+  };
+}
+
 module.exports = {
   maybeOfferCapstone,
   handleCapstoneButton,
   routeTextAnswer,
+  // bd-2673 — the portal's capstone path. Pure: no WhatsApp, no phone number.
+  scoreAnswer,
+  decideCapstonePass,
+  meetsAnswerFloor,
+  MIN_ANSWER_CHARS,
+  POINTS_PER_QUESTION,
   // exported for the certificate trigger tests
   levelFullyComplete,
   BUTTON_PREFIX,

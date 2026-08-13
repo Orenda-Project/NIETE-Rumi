@@ -32,7 +32,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
-import { ASSESSMENTS_ON_WHATSAPP_ONLY, WHATSAPP_TRAINING_URL } from '@/lib/assessments';
+
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
@@ -83,8 +83,9 @@ const ModuleQuizPanel = ({
   moduleId: string;
   /** Whether the teacher already has recorded attempts on this module (drives the button label). */
   hasAttempts: boolean;
-  /** bd-2490 — known by the parent already, so the WhatsApp card can render
-   *  without fetching a paper the API now refuses to hand over. */
+  /** Whether the module has an active quiz at all. Known by the parent from the
+   *  module detail, so a quiz-less module skips the questions fetch entirely
+   *  rather than round-tripping for a list it knows will be empty. */
   hasQuestions: boolean;
   /** Called after a successful submit so the parent can refresh the score badge + completion state. */
   onSubmitted?: (attempt: SubmittedAttempt) => void;
@@ -107,8 +108,10 @@ const ModuleQuizPanel = ({
     setAnswers({});
     setResult(null);
     (async () => {
+      // A module with no active quiz has nothing to fetch — the parent already
+      // knows from the module detail, so skip the round trip.
+      if (!hasQuestions) { setQuestions([]); return; }
       try {
-        if (ASSESSMENTS_ON_WHATSAPP_ONLY) return;   // bd-2490 — nothing to fetch
         const { data } = await api.get(`/training/module/${moduleId}/questions`);
         if (!cancelled) setQuestions(data.questions || []);
       } catch {
@@ -116,7 +119,7 @@ const ModuleQuizPanel = ({
       }
     })();
     return () => { cancelled = true; };
-  }, [moduleId]);
+  }, [moduleId, hasQuestions]);
 
   const answeredCount = useMemo(
     () => (questions || []).filter(q => !!answers[q.id]).length,
@@ -151,36 +154,6 @@ const ModuleQuizPanel = ({
       setPhase('taking');
     }
   }, [questions, allAnswered, answers, moduleId, onSubmitted, toast]);
-
-  // bd-2490 — INTERIM: quizzes are taken on WhatsApp.
-  //
-  // Returned before the questions state is consulted, because the API refuses
-  // the paper and `questions` would stay null forever — the panel would simply
-  // vanish, which reads as a broken page rather than a deliberate redirect.
-  // `hasQuestions` comes from the parent, so a module with no quiz still shows
-  // nothing here instead of inviting a quiz that does not exist.
-  if (ASSESSMENTS_ON_WHATSAPP_ONLY) {
-    if (!hasQuestions) return null;
-    return (
-      <div className="border-t pt-4" data-testid="quiz-panel-whatsapp-only">
-        <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
-          <div className="flex items-center gap-2 font-medium">
-            <ClipboardCheck className="w-4 h-4 text-primary" /> Quiz on WhatsApp
-          </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            Quizzes are taken with NIETE on WhatsApp. Open the chat and send{' '}
-            <code className="px-1 py-0.5 rounded bg-muted font-mono text-xs">/training</code>{' '}
-            to pick up where you left off — your progress here is already saved.
-          </p>
-          <Button asChild className="mt-3" data-testid="quiz-whatsapp-button">
-            <a href={WHATSAPP_TRAINING_URL} target="_blank" rel="noopener noreferrer">
-              Take the quiz on WhatsApp
-            </a>
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   // No quiz on this module (or still fetching) → render nothing.
   if (!questions || questions.length === 0) return null;

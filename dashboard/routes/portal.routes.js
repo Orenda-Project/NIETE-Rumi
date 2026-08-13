@@ -36,6 +36,15 @@ const { fetchAllPaged } = require('../lib/fetch-all-paged');
 // bd-2469 — the portal's single source of training decisions. Asks the bot;
 // holds no rules of its own. See dashboard/services/training-rules.service.js.
 const TrainingRules = require('../services/training-rules.service');
+// bd-2673 — the multi-answer predicate, from the bot's marking module.
+//
+// Required directly rather than over HTTP, unlike the decisions above, and that
+// is deliberate: paper-marking.service.js has ZERO requires of its own, so it
+// cannot drag in the queue driver / aws-sdk mismatch that made bd-2461 forbid
+// requiring bot code here. Same precedent as CAPSTONE_PASS_PCT and
+// issueCertificate, already required from this file. Anything in it that needs a
+// DB read or the vendor's bar stays behind the internal API.
+const { isMultiKey } = require('../../bot/shared/services/training/paper-marking.service');
 // bd-2460 — Assessment Generator availability. Fail-closed, shared with the
 // bot via one app_settings row (see dashboard/lib/feature-flags.js).
 const {
@@ -2119,6 +2128,295 @@ router.get('/training/level/:id/capstone', requirePortalAuth, async (req, res) =
 });
 
 /**
+ * GET /api/portal/training/level/:id/capstone/questions
+ * → { success, questions: [{ id, question_text, order_index }], min_answer_chars,
+ *     points_per_question, pass_mark_pct }
+ *
+ * bd-2673 — the capstone PAPER, for taking in the portal.
+ *
+ * A capstone question has no options: the answer is free text scored 0-5 by an
+ * LLM against the same rubric WhatsApp uses. Rendering one through the MCQ path
+ * is what produced bd-2490's dead Submit button, so this is a separate endpoint
+ * from /grand-quiz/questions rather than a flag on it.
+ *
+ * `min_answer_chars` is sent rather than hardcoded in the SPA for the same
+ * reason `pass_mark_pct` is (bd-2489): a number duplicated in the client is
+ * correct by coincidence until the day it isn't.
+ */
+router.get('/training/level/:id/capstone/questions', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const levelId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(levelId)) return res.status(400).json({ success: false, error: 'Invalid level id' });
+
+    // The bot owns eligibility — locked level, already passed, cooldown,
+    // incomplete modules. Fails closed.
+    const gate = await TrainingRules.checkExamGateByLevel(userId, levelId);
+    if (!gate.ok) {
+      return res.status(gate.status === 503 ? 503 : 403).json({
+        success: false,
+        code: gate.reason || 'not_eligible',
+        error: gate.message || 'This exam is not available yet.',
+      });
+    }
+
+    const { data: quiz } = await supabase
+      .from('training_grand_quizzes')
+      .select('id')
+      .eq('level_id', levelId)
+      .eq('quiz_type', 'capstone')
+      .maybeSingle();
+    if (!quiz) return res.status(404).json({ success: false, error: 'This level has no written exam' });
+
+    const { data: questions, error: qErr } = await supabase
+      .from('training_questions')
+      .select('id, question_text, order_index')
+      .eq('grand_quiz_id', quiz.id)
+      .eq('is_active', true)
+      .order('order_index', { ascending: true });
+    if (qErr) throw qErr;
+
+    const {
+      CAPSTONE_PASS_PCT, MIN_ANSWER_CHARS, POINTS_PER_QUESTION,
+    } = require('../../bot/shared/services/training/capstone-delivery.service');
+
+    return res.json({
+      success: true,
+      questions: (questions || []).map(q => ({
+        id: q.id,
+        question_text: q.question_text || '',
+        order_index: q.order_index,
+      })),
+      min_answer_chars: MIN_ANSWER_CHARS,
+      points_per_question: POINTS_PER_QUESTION,
+      pass_mark_pct: Math.round(CAPSTONE_PASS_PCT * 100),
+    });
+  } catch (error) {
+    console.error('training/level/:id/capstone/questions error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to load the written exam' });
+  }
+});
+
+/**
+ * POST /api/portal/training/level/:id/capstone/attempts
+ * Body { answers: [{ question_id, answer_text }] }
+ * → { success, attempt, certificate }
+ *
+ * bd-2673 — submit a written capstone from the portal.
+ *
+ * Every rule here belongs to the bot: eligibility (checkExamGateByLevel), the
+ * per-answer rubric (scoreAnswer — the same LLM prompt WhatsApp grades with),
+ * and the pass decision including bd-2478's refusal to score a short answer set
+ * (decideCapstonePass). This route sequences them and writes rows.
+ *
+ * The length floor is enforced HERE as well as in the textarea, because a
+ * client-side counter is advice and this is the rule.
+ */
+router.post('/training/level/:id/capstone/attempts', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const levelId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(levelId)) return res.status(400).json({ success: false, error: 'Invalid level id' });
+
+    const answers = (req.body || {}).answers;
+    if (!Array.isArray(answers) || answers.length === 0) {
+      return res.status(400).json({ success: false, error: 'answers[] is required' });
+    }
+
+    const gate = await TrainingRules.checkExamGateByLevel(userId, levelId);
+    if (!gate.ok) {
+      return res.status(gate.status === 503 ? 503 : 403).json({
+        success: false,
+        code: gate.reason || 'not_eligible',
+        error: gate.message || 'This exam is not available yet.',
+      });
+    }
+
+    const { data: quiz } = await supabase
+      .from('training_grand_quizzes')
+      .select('id')
+      .eq('level_id', levelId)
+      .eq('quiz_type', 'capstone')
+      .maybeSingle();
+    if (!quiz) return res.status(404).json({ success: false, error: 'This level has no written exam' });
+
+    const { data: questions, error: qErr } = await supabase
+      .from('training_questions')
+      .select('id, question_text, order_index')
+      .eq('grand_quiz_id', quiz.id)
+      .eq('is_active', true)
+      .order('order_index', { ascending: true });
+    if (qErr) throw qErr;
+    const qList = questions || [];
+    if (qList.length === 0) return res.status(404).json({ success: false, error: 'This exam has no questions' });
+
+    if (answers.length !== qList.length) {
+      return res.status(400).json({
+        success: false,
+        error: `This exam has ${qList.length} questions — please answer all of them.`,
+      });
+    }
+
+    const Capstone = require('../../bot/shared/services/training/capstone-delivery.service');
+
+    // Map submitted answers onto the canonical paper. question_index follows the
+    // canonical position, matching what the WhatsApp writer records.
+    const byId = new Map(qList.map((q, pos) => [q.id, { q, pos }]));
+    const pending = [];
+    for (const a of answers) {
+      const hit = byId.get(a && a.question_id);
+      if (!hit) {
+        return res.status(400).json({ success: false, error: 'One or more answers reference a question not on this exam' });
+      }
+      if (pending.some(p => p.questionId === hit.q.id)) {
+        return res.status(400).json({ success: false, error: 'Duplicate answers for the same question' });
+      }
+      const text = String((a && a.answer_text) || '').trim();
+      if (!Capstone.meetsAnswerFloor(text)) {
+        return res.status(400).json({
+          success: false,
+          code: 'answer_too_short',
+          error: `Each answer needs at least ${Capstone.MIN_ANSWER_CHARS} characters. Question ${hit.pos + 1} is shorter than that.`,
+          question_id: hit.q.id,
+          min_answer_chars: Capstone.MIN_ANSWER_CHARS,
+        });
+      }
+      pending.push({ questionId: hit.q.id, questionIndex: hit.pos, question: hit.q, answerText: text });
+    }
+    pending.sort((x, y) => x.questionIndex - y.questionIndex);
+
+    const { data: assignment } = await supabase
+      .from('teacher_training_assignments')
+      .select('program_id')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+    if (!assignment) {
+      return res.status(400).json({ success: false, error: 'No active training program assignment' });
+    }
+
+    // Score each answer with the bot's rubric. Sequential rather than parallel:
+    // these are LLM calls and a written paper is ~8 of them, so a burst risks a
+    // provider rate-limit mid-paper — which would look to the teacher like a
+    // partial failure of work they cannot resubmit.
+    const scored = [];
+    for (const p of pending) {
+      const { score, feedback } = await Capstone.scoreAnswer(p.question, p.answerText);
+      scored.push({ ...p, score, feedback });
+    }
+
+    const totalScore = qList.length * Capstone.POINTS_PER_QUESTION;
+    const verdict = Capstone.decideCapstonePass({
+      answerScores: scored.map(s => s.score),
+      totalQuestions: qList.length,
+      totalScore,
+    });
+    if (!verdict.ok) {
+      // bd-2478 — cannot score fairly, so nothing is recorded as a result.
+      console.error('capstone submit — refusing to score', { levelId, reason: verdict.reason });
+      return res.status(503).json({
+        success: false,
+        error: 'We could not score this exam fairly. Nothing has been recorded — please try again.',
+      });
+    }
+
+    const completedAt = new Date().toISOString();
+    const { data: attempt, error: aErr } = await supabase
+      .from('training_assessment_attempts')
+      .insert({
+        user_id: userId,
+        program_id: assignment.program_id,
+        quiz_kind: 'capstone',
+        grand_quiz_id: quiz.id,
+        level_id: levelId,
+        current_question_index: qList.length,
+        total_questions: qList.length,
+        total_score: totalScore,
+        status: verdict.is_passed ? 'passed' : 'failed',
+        score: verdict.score,
+        is_passed: verdict.is_passed,
+        completed_at: completedAt,
+        last_activity_at: completedAt,
+        started_at: completedAt,
+      })
+      .select('id')
+      .single();
+    if (aErr) throw aErr;
+
+    const { error: ansErr } = await supabase.from('training_assessment_answers').insert(
+      scored.map(s => ({
+        attempt_id: attempt.id,
+        question_index: s.questionIndex,
+        question_id: s.questionId,
+        answer_text: s.answerText,
+        answer_score: s.score,
+        feedback_text: s.feedback,
+        answered_at: completedAt,
+      }))
+    );
+    if (ansErr) throw ansErr;
+
+    // Certificate on pass — same shared, idempotent service the grand quiz and
+    // WhatsApp both use.
+    let certificate = null;
+    if (verdict.is_passed) {
+      const { issueCertificate } = require('../../bot/shared/services/training/certificate.service');
+      const cert = await issueCertificate(supabase, {
+        userId,
+        programId: assignment.program_id,
+        levelId,
+        attemptId: attempt.id,
+      });
+      certificate = {
+        certificate_code: cert.certificate_code,
+        teacher_name: cert.teacher_name,
+        level_name: cert.level_name,
+        issued_at: cert.issued_at,
+      };
+    }
+
+    try {
+      const { logEvent } = require('../../bot/shared/utils/structured-logger');
+      logEvent('training_capstone_completed', {
+        user_uuid: userId,
+        level_row_id: levelId,
+        attempt_uuid: attempt.id,
+        raw_score: verdict.score,
+        total_score: totalScore,
+        is_passed: verdict.is_passed,
+        surface: 'portal',
+      });
+    } catch (_) { /* observability must never fail a submit */ }
+
+    return res.json({
+      success: true,
+      attempt: {
+        id: attempt.id,
+        status: verdict.is_passed ? 'passed' : 'failed',
+        score: verdict.score,
+        total_score: totalScore,
+        pass_bar: verdict.pass_bar,
+        pass_mark_pct: verdict.pass_pct,
+        is_passed: verdict.is_passed,
+        completed_at: completedAt,
+      },
+      answers: scored.map(s => ({
+        question_index: s.questionIndex,
+        question_text: s.question.question_text || '',
+        answer_text: s.answerText,
+        answer_score: s.score,
+        feedback_text: s.feedback,
+      })),
+      certificate,
+    });
+  } catch (error) {
+    console.error('training/level/:id/capstone/attempts error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to submit the written exam' });
+  }
+});
+
+/**
  * Level-lockdown guard — reject requests for a level the teacher hasn't
  * unlocked yet. Same rule as the WhatsApp Flow. Returns 403 with the
  * previous-level number in the payload so the client can render a friendly
@@ -2496,70 +2794,55 @@ router.get('/training/module/:id/attempts', requirePortalAuth, async (req, res) 
  *          frontend uses that to hide the "Take Quiz" button entirely.
  */
 /* ------------------------------------------------------------------------- *
- * bd-2490 — assessments happen on WhatsApp, not here. INTERIM.
+ * bd-2673 — assessments now run HERE as well as on WhatsApp.
  *
- * The portal renders quiz answers as one radio per option. A capstone paper is
- * free text and carries none, so a Beacon House teacher got eight questions,
- * no inputs and a dead Submit button. Beyond that, every assessment rule this
- * surface owned has drifted from the bot at some point and been fixed
- * separately: the pass bar (bd-2483), the progress write (bd-2450), the
- * eligibility proxy (bd-2447).
+ * WHAT USED TO BE HERE
+ * --------------------
+ * `ASSESSMENTS_ON_WHATSAPP_ONLY` and `_whatsappOnly(res)`, which answered 409
+ * on the four question/submit routes. bd-2490 put them there for two reasons,
+ * and both are now addressed:
  *
- * So the portal stops assessing. It keeps content — videos, PDFs, progress,
- * past results — and the bot keeps grading, cooldowns and certificates. One
- * engine instead of two that must be kept in step.
+ *   1. A capstone paper is free text and the portal rendered every question as
+ *      radios, so a Beacon House teacher got eight questions, no inputs and a
+ *      dead Submit. → The portal now has a real written-exam path:
+ *      GET/POST /training/level/:id/capstone/{questions,attempts}, with the
+ *      length floor enforced server-side and the rubric taken from the bot.
  *
- * THE API IS THE GATE, NOT THE BUTTON. #77 shipped the mirror image of this: a
- * "Locked" label with no server-side check, which started the exam anyway when
- * tapped. A session cookie and curl must hit the same wall the UI does.
+ *   2. Every assessment rule this surface owned had drifted from the bot's and
+ *      been fixed separately — the pass bar (bd-2483), the progress write
+ *      (bd-2450), the eligibility proxy (bd-2447). → There is no longer an
+ *      assessment rule in this file to drift. Marking, both pass verdicts, the
+ *      capstone rubric and every gate come from the bot;
+ *      tests/portal/no-local-grading-in-portal-routes.test.js fails the build if
+ *      one reappears here.
  *
- * Checked FIRST in each route, ahead of eligibility, so the answer never
- * depends on lock state and no paper or progress detail leaks in the refusal.
+ * That block's own removal note said to delete it "once the portal can
+ * genuinely run both quiz kinds (bd-2488)" — this is that change.
  *
- * To undo for real: delete this block and its call sites, once the portal can
- * genuinely run both quiz kinds (bd-2488). This is deliberately NOT an ops
- * toggle — re-enabling needs UI work, and a runtime switch would imply the
- * form is ready when it is not.
- *
- * PORTAL_ASSESSMENTS_TEST_ENABLE is a TEST SEAM, not a feature flag. The
- * grading, cooldown and certificate logic behind these routes is retained
- * because we intend to restore this surface, and deleting its suites would
- * leave that code unexercised until then. The four portal quiz suites set it;
- * nothing else may. Production must never set it, and a test below pins the
- * default to blocked so an accidental removal of that default fails the build.
+ * WHAT STILL HOLDS
+ * ----------------
+ * THE API IS THE GATE, NOT THE BUTTON. #77 shipped the mirror image: a "Locked"
+ * label with no server-side check, which started the exam anyway when tapped. A
+ * session cookie and curl must hit the same wall the UI does — so each of these
+ * routes still calls the bot's gate FIRST, before touching a paper, and a
+ * gate that cannot reach the bot denies.
  * ------------------------------------------------------------------------- */
-const ASSESSMENTS_ON_WHATSAPP_ONLY = process.env.PORTAL_ASSESSMENTS_TEST_ENABLE !== '1';
 
-function _whatsappOnly(res) {
-  if (!ASSESSMENTS_ON_WHATSAPP_ONLY) return false;
-  res.status(409).json({
-    success: false,
-    code: 'whatsapp_only',
-    error: 'Quizzes and exams are taken on WhatsApp. Open a chat with NIETE and send /training to pick up where you left off.',
-    whatsapp_command: '/training',
-  });
-  return true;
-}
-
-/**
- * bd-2138 — multi-answer ("msq") questions. A question is multi iff its
- * correct_option holds a comma-joined set ('1,3,5', restored from the legacy
- * `answers` array). Grading normalises both sides to a sorted numeric set so
- * '3,1', '1,3' and [1, 3] all grade identically; single answers ('2') pass
- * through unchanged. Mirrors bot/shared/services/training/quiz-delivery.
+/*
+ * bd-2673 — the multi-answer helpers that used to live here are gone.
+ *
+ * They were `_isMultiAnswerKey` and `_normalizeAnswerSet`, and their docblock
+ * claimed they "mirror bot/shared/services/training/quiz-delivery". They did,
+ * right up until they wouldn't have. The rule now lives in exactly one place
+ * (bot/shared/services/training/paper-marking.service.js): `isMultiKey` is
+ * imported at the top of this file for the radios-vs-checkboxes flag, and the
+ * marking itself goes over the internal API via TrainingRules.markPaper.
+ *
+ * tests/portal/no-local-grading-in-portal-routes.test.js fails the build if a
+ * marking or pass-bar rule reappears in this file.
  */
-function _isMultiAnswerKey(correctOption) {
-  return String(correctOption || '').includes(',');
-}
-
-function _normalizeAnswerSet(value) {
-  const parts = Array.isArray(value) ? value : String(value == null ? '' : value).split(',');
-  const nums = [...new Set(parts.map(p => String(p).trim()).filter(Boolean))];
-  return nums.map(Number).sort((a, b) => a - b).join(',');
-}
 
 router.get('/training/module/:id/questions', requirePortalAuth, async (req, res) => {
-  if (_whatsappOnly(res)) return;
   try {
     const userId = req.session.portalUserId;
     const moduleId = parseInt(req.params.id, 10);
@@ -2614,7 +2897,13 @@ router.get('/training/module/:id/questions', requirePortalAuth, async (req, res)
       order_index: q.order_index,
       // bd-2138 — msq questions carry a comma-joined answer set; the client
       // renders checkboxes instead of radios and submits the selected set.
-      multi: _isMultiAnswerKey(q.correct_option),
+      //
+      // bd-2673 — sourced from the bot's paper-marking module rather than a
+      // local copy. This looks like presentation, but it is the SAME rule that
+      // decides grading: if the two ever disagree, a multi question renders as
+      // radios and the teacher cannot submit an answer that could be marked
+      // correct. One definition, both uses.
+      multi: isMultiKey(q.correct_option),
     }));
     res.json({ success: true, questions: rows });
   } catch (error) {
@@ -2665,7 +2954,6 @@ router.get('/training/module/:id/questions', requirePortalAuth, async (req, res)
  * switching" promise.
  */
 router.post('/training/module/:id/quiz-attempts', requirePortalAuth, async (req, res) => {
-  if (_whatsappOnly(res)) return;
   try {
     const userId = req.session.portalUserId;
     const moduleId = parseInt(req.params.id, 10);
@@ -2739,36 +3027,36 @@ router.post('/training/module/:id/quiz-attempts', requirePortalAuth, async (req,
       return res.status(400).json({ success: false, error: 'No active training program assignment' });
     }
 
-    // 5. Grade — match each answer to a question by id. Single answers grade
-    //    by string equality as before; multi (msq) answers grade by SET
-    //    EQUALITY after normalisation (bd-2138) — '3,1', '1,3' and [1,3] are
-    //    the same submission. Missing/invalid answers count as wrong
-    //    (defensive — the client shouldn't send them but a race between
-    //    question edits and submit shouldn't 500).
-    const qById = new Map(qList.map(q => [q.id, q]));
-    const graded = answers.map((a, idx) => {
-      const q = qById.get(a && a.question_id);
-      if (!q) return { question_index: idx, question_id: null, chosen_option: '', is_correct: false, unknown: true };
-      const chosen = _isMultiAnswerKey(q.correct_option)
-        ? _normalizeAnswerSet(a.chosen_option)
-        : (a.chosen_option == null ? '' : String(a.chosen_option));
-      const correctKey = _isMultiAnswerKey(q.correct_option)
-        ? _normalizeAnswerSet(q.correct_option)
-        : String(q.correct_option).trim();
-      const isCorrect = chosen !== '' && correctKey === chosen.trim();
-      // question_index = position in the module's canonical question order,
-      // NOT the order the client submitted — matches WhatsApp's per-index
-      // answer rows (attempt_id, question_index) UNIQUE.
-      const questionIndex = q.order_index != null
-        ? q.order_index
-        : qList.findIndex(x => x.id === q.id);
-      return { question_index: questionIndex, question_id: q.id, chosen_option: chosen, is_correct: isCorrect };
-    });
-    if (graded.some(g => g.unknown)) {
+    // 5. Mark the paper — the BOT decides which answers are correct.
+    //
+    //    bd-2673 — this used to be a local copy of the comparator (single by
+    //    trimmed string equality, multi by normalised set equality per bd-2138),
+    //    with a sibling copy in the grand-quiz route below. Both agreed with
+    //    quiz-delivery.service.js by coincidence, and the comment here claimed
+    //    "identical comparator to the WhatsApp writer" — the same claim the four
+    //    rules in training-rules.service.js's header were making as they drifted.
+    //
+    //    Throws rather than defaulting if the bot cannot be reached: a marking
+    //    result has no safe default in either direction, so the write is
+    //    abandoned and the teacher retries with nothing recorded.
+    let marked;
+    try {
+      marked = await TrainingRules.markPaper(qList, answers);
+    } catch (markErr) {
+      console.error('training/module/:id/quiz-attempts — marking unavailable, nothing written', {
+        moduleId, error: markErr?.message,
+      });
+      return res.status(503).json({
+        success: false,
+        error: 'We could not mark this quiz just now. Please try again in a moment.',
+      });
+    }
+    if (marked.has_unknown_question) {
       return res.status(400).json({ success: false, error: 'One or more answers reference a question not on this module' });
     }
-    const totalQuestions = qList.length;
-    const score = graded.filter(g => g.is_correct).length;
+    const graded = marked.graded;
+    const totalQuestions = marked.total_questions;
+    const score = marked.score;
     // bd-2483 — the PASS decision belongs to the bot. This was
     // `score === totalQuestions`, which is only correct for vendors whose
     // module bar happens to be 100 (NIETE). Beacon House and Oxbridge pass at
@@ -2994,18 +3282,13 @@ function _grandQuizState(gate) {
   // resolves the exam ROW; an active row with zero active questions is a
   // content fault, and 'no_quiz' is what the UI already renders for it.
   if (!gate.quiz || gate.questionCount === 0) return 'no_quiz';
-  // bd-2490 — INTERIM. Assessments are taken on WhatsApp, not here.
+  // bd-2673 — an eligible teacher can now sit the exam here, so this reports
+  // 'ready' again. The interim 'whatsapp_only' state (bd-2490) is gone along
+  // with the route-level refusal it described.
   //
-  // This replaces 'ready' and ONLY 'ready'. An earlier version returned it
-  // ahead of every other state, which told a teacher to go take an exam on
-  // WhatsApp that she is not yet eligible to sit — the bot would refuse her
-  // there, having sent her for nothing. Locked, incomplete, cooling down and
-  // already-passed all still report themselves, because those are true
-  // regardless of which surface the exam is taken on.
-  //
-  // Display only. The routes refuse unconditionally and before any eligibility
-  // check, so the gate does not depend on this line being right.
-  if (gate.ok) return ASSESSMENTS_ON_WHATSAPP_ONLY ? 'whatsapp_only' : 'ready';
+  // Still display only: each route re-asks the bot's gate before handing over a
+  // paper, so eligibility never depends on this line being right.
+  if (gate.ok) return 'ready';
   // Could not reach the bot. Never render 'ready' off a failure — the caller
   // surfaces gate.message, and 'courses_incomplete' is the safe closed state
   // the UI already knows how to show.
@@ -3109,7 +3392,6 @@ router.get('/training/level/:id/grand-quiz', requirePortalAuth, async (req, res)
  * it can't submit).
  */
 router.get('/training/level/:id/grand-quiz/questions', requirePortalAuth, async (req, res) => {
-  if (_whatsappOnly(res)) return;
   try {
     const userId = req.session.portalUserId;
     const levelId = parseInt(req.params.id, 10);
@@ -3195,7 +3477,6 @@ router.get('/training/level/:id/grand-quiz/questions', requirePortalAuth, async 
  *          cooldown_until, completed_at }, certificate: {...}|null }
  */
 router.post('/training/level/:id/grand-quiz/attempts', requirePortalAuth, async (req, res) => {
-  if (_whatsappOnly(res)) return;
   try {
     const userId = req.session.portalUserId;
     const levelId = parseInt(req.params.id, 10);
@@ -3298,50 +3579,55 @@ router.post('/training/level/:id/grand-quiz/attempts', requirePortalAuth, async 
       return res.status(400).json({ success: false, error: 'No active training program assignment' });
     }
 
-    // 5. Grade — identical comparator to the WhatsApp writer, msq-aware
-    //    (bd-2138): multi keys grade by normalised set equality, single by
-    //    String(correct_option).trim() === String(chosen).trim().
-    //    question_index = 0-based position in the canonical order (the value
-    //    the WhatsApp Q-by-Q loop writes), independent of submit order.
-    const qById = new Map(qList.map((q, pos) => [q.id, { ...q, pos }]));
-    const graded = answers.map(a => {
-      const q = qById.get(a && a.question_id);
-      if (!q) return { unknown: true };
-      const chosen = _isMultiAnswerKey(q.correct_option)
-        ? _normalizeAnswerSet(a.chosen_option)
-        : (a.chosen_option == null ? '' : String(a.chosen_option));
-      const correctKey = _isMultiAnswerKey(q.correct_option)
-        ? _normalizeAnswerSet(q.correct_option)
-        : String(q.correct_option).trim();
-      const isCorrect = chosen !== '' && correctKey === chosen.trim();
-      return { question_index: q.pos, question_id: q.id, chosen_option: chosen, is_correct: isCorrect };
-    });
-    if (graded.some(g => g.unknown)) {
+    // 5. Mark the paper — the BOT decides which answers are correct.
+    //    bd-2673 — see the module-quiz route above; this was the second copy.
+    let marked;
+    try {
+      marked = await TrainingRules.markPaper(qList, answers);
+    } catch (markErr) {
+      console.error('training/level/:id/grand-quiz/attempts — marking unavailable, nothing written', {
+        levelId, error: markErr?.message,
+      });
+      return res.status(503).json({
+        success: false,
+        error: 'We could not mark this exam just now. Please try again in a moment.',
+      });
+    }
+    if (marked.has_unknown_question) {
       return res.status(400).json({ success: false, error: 'One or more answers reference a question not on this exam' });
     }
-    if (new Set(graded.map(g => g.question_id)).size !== qList.length) {
+    if (marked.has_duplicate_answer || marked.graded.length !== qList.length) {
       return res.status(400).json({ success: false, error: 'Duplicate answers for the same question' });
     }
 
-    const totalQuestions = qList.length;
-    const score = graded.filter(g => g.is_correct).length;
-    // bd-2393 — the pass bar comes from the vendor (NIETE 80%, Beacon House
-    // 70%), matching quiz-delivery.service.js gradeAttempt. This graded at
-    // score === totalQuestions (100%), which failed teachers who had passed.
-    // Fallback 100 is the strictest bar, so a lookup failure never hands out
-    // an easier pass than intended.
-    let examPassPct = 100;
-    {
-      const { data: lvRow } = await supabase
-        .from('training_levels').select('vendor_id').eq('id', levelId).maybeSingle();
-      if (lvRow?.vendor_id) {
-        const { data: vendor } = await supabase
-          .from('training_vendors').select('passing_pct').eq('id', lvRow.vendor_id).maybeSingle();
-        const p = Number(vendor?.passing_pct);
-        if (Number.isFinite(p) && p > 0 && p <= 100) examPassPct = p;
-      }
+    const graded = marked.graded;
+    const totalQuestions = marked.total_questions;
+    const score = marked.score;
+
+    // 5b. The PASS decision — also the bot's.
+    //
+    //     bd-2673 — this used to read training_vendors.passing_pct here and do
+    //     the percentage arithmetic locally, with a hardcoded 100 fallback. That
+    //     is a second implementation of the pass rule: bd-2393 had already been
+    //     fixed once on this exact line, and bd-2483 fixed the module-quiz twin.
+    //     The vendor bar now comes back with the verdict, so there is nothing
+    //     left here to drift.
+    //
+    //     Throws rather than defaulting, for the same reason as marking above.
+    let examVerdict;
+    try {
+      examVerdict = await TrainingRules.getExamVerdict(levelId, score, totalQuestions);
+    } catch (gradeErr) {
+      console.error('training/level/:id/grand-quiz/attempts — grading unavailable, nothing written', {
+        levelId, error: gradeErr?.message,
+      });
+      return res.status(503).json({
+        success: false,
+        error: 'We could not mark this exam just now. Please try again in a moment.',
+      });
     }
-    const isPassed = totalQuestions > 0 && (score / totalQuestions) * 100 >= examPassPct;
+    const examPassPct = examVerdict.pass_pct;
+    const isPassed = examVerdict.is_passed;
     const completedAt = new Date().toISOString();
     const cooldownUntil = isPassed
       ? null

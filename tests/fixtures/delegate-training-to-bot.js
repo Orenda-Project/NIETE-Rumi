@@ -59,6 +59,24 @@ function installTrainingDelegation(getSupabaseFrom) {
     sendInteractiveMessage: jest.fn().mockResolvedValue(true),
   }));
 
+  // bd-2673 — the capstone grader is an LLM call. Without this mock a suite that
+  // exercises the written-exam submit reaches OpenRouter for real: it hangs
+  // until the request times out, which reads as "the test is broken" rather than
+  // "the test is dialling the internet". Deterministic score so a suite can
+  // assert a total.
+  jest.doMock('../../bot/shared/services/llm-client', () => ({
+    getClient: () => ({
+      chat: {
+        completions: {
+          create: jest.fn().mockResolvedValue({
+            choices: [{ message: { content: '{"score": 4, "feedback": "Clear and specific."}' } }],
+          }),
+        },
+      },
+    }),
+    getDefaultModel: () => 'test-model',
+  }));
+
   // Bot-tree deps. Root `npm test` runs before `bot/ npm ci`, so these must be
   // virtual (see CLAUDE.md).
   jest.doMock('dotenv', () => ({ config: () => ({ parsed: {} }) }), { virtual: true });
@@ -85,6 +103,38 @@ function installTrainingDelegation(getSupabaseFrom) {
       getModuleQuizVerdict: (moduleId, score, total) =>
         require('../../bot/shared/services/training/quiz-delivery.service')
           .decideModuleQuizPass(moduleId, score, total),
+      // bd-2673 — marking and the exam verdict moved to the bot too. Wired to
+      // the real functions for the same reason as the rest of this fixture:
+      // stubbing them would throw away the msq set-equality and vendor-pass-bar
+      // assertions the portal suites exist to make.
+      getExamVerdict: (levelId, score, total) =>
+        require('../../bot/shared/services/training/quiz-delivery.service')
+          .decideExamPass(levelId, score, total),
+      markPaper: async (questions, answers) =>
+        require('../../bot/shared/services/training/paper-marking.service')
+          .markPaper({ questions, answers }),
+      servePaper: async (questions, opts) => {
+        const Serving = require('../../bot/shared/services/training/quiz-serving.service');
+        const config = Serving.normalizeServingConfig((opts && opts.vendor) || null);
+        const served = Serving.selectServedQuestions(questions, {
+          attemptId: opts && opts.attemptId,
+          isModuleQuiz: !!(opts && opts.isModuleQuiz),
+          config,
+        });
+        return {
+          questions: served.map((q) => ({
+            id: q.id,
+            display_order: Serving.buildOptionDisplayOrder({
+              optionCount: Array.isArray(q.options) ? q.options.length : 0,
+              correctOption: q.correct_option,
+              attemptId: opts && opts.attemptId,
+              questionId: q.id,
+              shuffle: config.shuffle_options,
+            }),
+          })),
+          total_served: served.length,
+        };
+      },
     };
   });
 }

@@ -62,6 +62,13 @@ const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { issueCertificate } = require('./certificate.service');
+// bd-2673 — the marking rule lives in ONE module, shared with the portal over
+// the internal API. Do not re-implement isMultiKey/normalizeSet here: a second
+// copy is the bug this extraction removed.
+const {
+  isMultiKey,
+  normalizeAnswerKey,
+} = require('./paper-marking.service');
 const {
   DEFAULT_SERVING_CONFIG,
   normalizeServingConfig,
@@ -140,16 +147,20 @@ async function deliverCertificatePdf(phoneNumber, cert) {
 // correct_option holds a comma-joined set ('1,3,5' — restored from the
 // legacy `answers` array). Selection accumulates on the answers row across
 // taps and is graded by SET EQUALITY when the teacher taps Done.
-function isMultiKey(correctOption) {
-  return String(correctOption || '').includes(',');
-}
+//
+// bd-2673 — `isMultiKey` now comes from paper-marking.service (imported above)
+// so the portal and WhatsApp cannot disagree about what counts as multi.
+// The Set-based helpers below stay local on purpose: they serve WhatsApp's
+// INCREMENTAL tap accumulation (a selection built up across several taps),
+// which the portal has no equivalent of — it submits a complete paper in one
+// request. normalizeSet(set) is normalizeAnswerKey([...set]) by construction.
 
 function parseSet(str) {
   return new Set(String(str || '').split(',').map(s => s.trim()).filter(Boolean));
 }
 
 function normalizeSet(set) {
-  return [...set].map(Number).sort((a, b) => a - b).join(',');
+  return normalizeAnswerKey([...set]);
 }
 
 function setsEqual(a, b) {
@@ -1462,6 +1473,34 @@ async function decideModuleQuizPass(moduleId, score, totalQuestions) {
   };
 }
 
+/**
+ * bd-2673 — the LEVEL-EXAM pass decision, the sibling of the above.
+ *
+ * The portal was doing this arithmetic itself: reading training_vendors
+ * .passing_pct inline and comparing `(score / total) * 100 >= bar`, with a
+ * hardcoded fallback of 100. bd-2393 had already fixed that same line once (it
+ * used to require 100% and failed teachers who had passed on WhatsApp), which
+ * is the tell that a second copy invites the same bug twice.
+ *
+ * Same shape and same guards as decideModuleQuizPass, differing only in which
+ * vendor column supplies the bar — `passing_pct` here (NIETE 80, Beacon House
+ * 70) rather than `module_passing_pct`.
+ *
+ * @returns {Promise<{is_passed: boolean, status: string, pass_pct: number, achieved_pct: number}>}
+ */
+async function decideExamPass(levelId, score, totalQuestions) {
+  const passingPct = await getVendorPassingPctByLevel(levelId, 'exam');
+  const total = Number(totalQuestions) || 0;
+  const pct = total > 0 ? (Number(score) / total) * 100 : 0;
+  const isPassed = total > 0 && pct >= passingPct;
+  return {
+    is_passed: isPassed,
+    status: isPassed ? 'passed' : 'failed',
+    pass_pct: passingPct,
+    achieved_pct: Math.round(pct),
+  };
+}
+
 module.exports = {
   startGrandQuiz,
   startTrainingQuiz,
@@ -1469,6 +1508,7 @@ module.exports = {
   handleQuizButton,
   gradeAttempt,
   decideModuleQuizPass,
+  decideExamPass,
   getVendorPassingPctByLevel,
   // Multi-answer Flow surface
   buildMsqFlowScreenData,
