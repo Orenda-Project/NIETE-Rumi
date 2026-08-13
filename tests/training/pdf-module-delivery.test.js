@@ -108,7 +108,14 @@ beforeEach(() => {
   }));
 
   jest.doMock('../../bot/shared/storage/r2', () => ({
-    getPresignedUrl: jest.fn().mockResolvedValue('https://r2.example.com/signed'),
+    // Mirrors the real contract: R2 URLs get signed, everything else passes
+    // through unchanged. The PDF path now presigns too (a private R2 object
+    // answers 400 to Meta's server-side fetch), so a mock that signed every
+    // URL would wrongly rewrite the public legacy-bucket links these tests
+    // assert on.
+    getPresignedUrl: jest.fn(async (url) =>
+      String(url).includes('r2.cloudflarestorage.com') ? 'https://r2.example.com/signed' : url
+    ),
   }));
 
   ContentDelivery = require('../../bot/shared/services/training/content-delivery.service');

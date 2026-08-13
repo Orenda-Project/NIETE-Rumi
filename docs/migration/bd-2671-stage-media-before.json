@@ -1,0 +1,411 @@
+{
+ "captured_at": "2026-08-13T09:15:24.606Z",
+ "changes": [
+  {
+   "id": 172,
+   "title": "SESSION#1",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/09893a86-27fc-44db-99f5-7a0975f7e268.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/172/asset.mp4"
+  },
+  {
+   "id": 173,
+   "title": "SESSION#2",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0b67bb58-f84e-486d-a120-5ed99e0ee858.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/173/asset.mp4"
+  },
+  {
+   "id": 174,
+   "title": "SESSION#3",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c3cc68ea-6809-4bb1-a500-4ab7cfa45fae.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/174/asset.mp4"
+  },
+  {
+   "id": 175,
+   "title": "SESSION#4",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0df7c430-9109-43be-b419-f076702d7ab1.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/175/asset.mp4"
+  },
+  {
+   "id": 176,
+   "title": "SESSION#5",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c50580e4-bbae-40f7-ba4e-7faa5aa008a8.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/176/asset.mp4"
+  },
+  {
+   "id": 177,
+   "title": "SESSION#6",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/ec533642-9c19-4a1e-b128-cd664a4eda91.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/177/asset.mp4"
+  },
+  {
+   "id": 178,
+   "title": "SESSION#7",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/01086966-a27b-4fdc-9146-5e4601d49d01.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/178/asset.mp4"
+  },
+  {
+   "id": 179,
+   "title": "AI Is a Teaching Assistant",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e23e0460-fc5b-40d5-be0b-1a0c701a62c5.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/179/asset.mp4"
+  },
+  {
+   "id": 186,
+   "title": "AI for Lesson Planning",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f04b3291-a6de-4a2d-bc4e-9e6ff08c7e3c.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/186/asset.mp4"
+  },
+  {
+   "id": 189,
+   "title": "Planning with Purpose",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/189e9b2a-024c-4245-a3d1-23ec3ac8c665.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/189/asset.mp4"
+  },
+  {
+   "id": 192,
+   "title": "AI helps save planning time",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/2758a214-402a-4449-b326-90c7d2453a7e.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/192/asset.mp4"
+  },
+  {
+   "id": 196,
+   "title": "Communicative Language Teaching (CLT)",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/5f1730ea-991d-4c95-a8db-ed1aedb74d33.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/196/asset.mp4"
+  },
+  {
+   "id": 200,
+   "title": "Aligning Lessons with SLOs",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/9afb957b-ea41-4890-b2d8-a08b5d623619.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/200/asset.mp4"
+  },
+  {
+   "id": 202,
+   "title": "AI-Generated Reading & Vocabulary Lesson",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/74e84b90-298c-4dcb-846b-a38fb80bbbf2.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/202/asset.mp4"
+  },
+  {
+   "id": 305,
+   "title": "AI Helps Save Planning Time",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/2758a214-402a-4449-b326-90c7d2453a7e.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/305/asset.mp4"
+  },
+  {
+   "id": 306,
+   "title": "AI Is a Teaching Assistant",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e23e0460-fc5b-40d5-be0b-1a0c701a62c5.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/306/asset.mp4"
+  },
+  {
+   "id": 207,
+   "title": "Planning Better Questions with AI",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c59bcef3-fc1b-47e1-bd49-f1bd8f4be81b.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/207/asset.mp4"
+  },
+  {
+   "id": 220,
+   "title": "Using AI to Differentiate for Mixed-Ability Classrooms",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e0a81be0-5b4d-4e7f-b3cd-cbedb432a28e.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/220/asset.mp4"
+  },
+  {
+   "id": 224,
+   "title": "Formative Assessment & Exit Tickets",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/5a0cf0a8-b75f-45ae-89d0-c4ed3d13396b.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/224/asset.mp4"
+  },
+  {
+   "id": 227,
+   "title": "One Lesson, Three Learners",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0de03da3-397b-4f83-bc16-6d84ed712e7b.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/227/asset.mp4"
+  },
+  {
+   "id": 232,
+   "title": "AI-Generated Teacher Reflection & Lesson Improvement",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/d6be7060-4830-4975-a247-6a58fb3ddbfc.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/232/asset.mp4"
+  },
+  {
+   "id": 234,
+   "title": "AI is a Teaching Assistant",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e23e0460-fc5b-40d5-be0b-1a0c701a62c5.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/234/asset.mp4"
+  },
+  {
+   "id": 241,
+   "title": "AI for Lesson Planning",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f04b3291-a6de-4a2d-bc4e-9e6ff08c7e3c.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/241/asset.mp4"
+  },
+  {
+   "id": 244,
+   "title": "Planning with Purpose",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/189e9b2a-024c-4245-a3d1-23ec3ac8c665.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/244/asset.mp4"
+  },
+  {
+   "id": 247,
+   "title": "AI Helps Save Planning Time",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/2758a214-402a-4449-b326-90c7d2453a7e.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/247/asset.mp4"
+  },
+  {
+   "id": 248,
+   "title": "From Answers to Thinking",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/4cc4b1ca-ac5d-4685-ac53-2a5413848530.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/248/asset.mp4"
+  },
+  {
+   "id": 251,
+   "title": "Planning Better Questions with AI",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c59bcef3-fc1b-47e1-bd49-f1bd8f4be81b.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/251/asset.mp4"
+  },
+  {
+   "id": 257,
+   "title": "AI-Generated Real-Life Math Word Problems",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/ed90f35b-308c-4110-b0ba-4c76e15c82c9.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/257/asset.mp4"
+  },
+  {
+   "id": 260,
+   "title": "Aligning Lessons with SLOs",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/9afb957b-ea41-4890-b2d8-a08b5d623619.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/260/asset.mp4"
+  },
+  {
+   "id": 267,
+   "title": "AI-Generated Teacher Reflection & Lesson Improvement",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/d6be7060-4830-4975-a247-6a58fb3ddbfc.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/267/asset.mp4"
+  },
+  {
+   "id": 268,
+   "title": "Building Mathematical Reasoning in Math Classrooms",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f83cbf04-2f17-4592-af30-e1f36a4977e2.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/268/asset.mp4"
+  },
+  {
+   "id": 277,
+   "title": "Formative Assessment & Exit Tickets",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/5a0cf0a8-b75f-45ae-89d0-c4ed3d13396b.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/277/asset.mp4"
+  },
+  {
+   "id": 280,
+   "title": "One Lesson, Three Learners",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0de03da3-397b-4f83-bc16-6d84ed712e7b.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/280/asset.mp4"
+  },
+  {
+   "id": 282,
+   "title": "Using AI to Differentiate for Mixed-Ability Classrooms",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e0a81be0-5b4d-4e7f-b3cd-cbedb432a28e.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/282/asset.mp4"
+  },
+  {
+   "id": 285,
+   "title": "From Guessing to Evidence",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/34e80088-b59e-4559-a6f0-050a1a551978.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/285/asset.mp4"
+  },
+  {
+   "id": 288,
+   "title": "AI-Generated 5E Science Lesson Plan",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/50d4f213-72dd-42a9-8e2f-89c0653d2e2e.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/288/asset.mp4"
+  },
+  {
+   "id": 290,
+   "title": "Inquiry-Based Learning in Science",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0bebd833-799d-4f7c-b4b5-6a2dd222c8a6.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/290/asset.mp4"
+  },
+  {
+   "id": 293,
+   "title": "AI for Lesson Planning",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f04b3291-a6de-4a2d-bc4e-9e6ff08c7e3c.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/293/asset.mp4"
+  },
+  {
+   "id": 302,
+   "title": "Planning with Purpose",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/189e9b2a-024c-4245-a3d1-23ec3ac8c665.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/302/asset.mp4"
+  },
+  {
+   "id": 311,
+   "title": "AI-Generated Teacher Reflection & Lesson Improvement",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/d6be7060-4830-4975-a247-6a58fb3ddbfc.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/311/asset.mp4"
+  },
+  {
+   "id": 315,
+   "title": "One Lesson, Three Learners",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0de03da3-397b-4f83-bc16-6d84ed712e7b.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/315/asset.mp4"
+  },
+  {
+   "id": 317,
+   "title": "Using AI to Differentiate for Mixed-Ability Classrooms",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e0a81be0-5b4d-4e7f-b3cd-cbedb432a28e.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/317/asset.mp4"
+  },
+  {
+   "id": 323,
+   "title": "Formative Assessment & Exit Tickets",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/5a0cf0a8-b75f-45ae-89d0-c4ed3d13396b.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/323/asset.mp4"
+  },
+  {
+   "id": 326,
+   "title": "Aligning Lessons with SLOs",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/9afb957b-ea41-4890-b2d8-a08b5d623619.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/326/asset.mp4"
+  },
+  {
+   "id": 328,
+   "title": "Planning Better Questions with AI",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c59bcef3-fc1b-47e1-bd49-f1bd8f4be81b.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/328/asset.mp4"
+  },
+  {
+   "id": 332,
+   "title": "AI Helps Save Planning Time",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/2758a214-402a-4449-b326-90c7d2453a7e.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/332/asset.mp4"
+  },
+  {
+   "id": 333,
+   "title": "AI for Lesson Planning",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f04b3291-a6de-4a2d-bc4e-9e6ff08c7e3c.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/333/asset.mp4"
+  },
+  {
+   "id": 339,
+   "title": "AI Helps Save Planning Time",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/2758a214-402a-4449-b326-90c7d2453a7e.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/339/asset.mp4"
+  },
+  {
+   "id": 344,
+   "title": "AI Is a Teaching Assistant",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e23e0460-fc5b-40d5-be0b-1a0c701a62c5.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/344/asset.mp4"
+  },
+  {
+   "id": 346,
+   "title": "Planning with Purpose",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/189e9b2a-024c-4245-a3d1-23ec3ac8c665.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/346/asset.mp4"
+  },
+  {
+   "id": 347,
+   "title": "AI-Generated Teacher Reflection & Lesson Improvement",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/d6be7060-4830-4975-a247-6a58fb3ddbfc.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/347/asset.mp4"
+  },
+  {
+   "id": 351,
+   "title": "Planning Better Questions with AI",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c59bcef3-fc1b-47e1-bd49-f1bd8f4be81b.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/351/asset.mp4"
+  },
+  {
+   "id": 353,
+   "title": "Aligning Lessons with SLOs",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/9afb957b-ea41-4890-b2d8-a08b5d623619.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/353/asset.mp4"
+  },
+  {
+   "id": 359,
+   "title": "Teaching Computational Problem-Solving in CS",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/1660f9cd-16eb-4f48-bada-9e19f9a26023.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/359/asset.mp4"
+  },
+  {
+   "id": 364,
+   "title": "AI-Generated Unplugged CS Activity Plan",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/80ebb54e-f755-4189-8ee4-2da1a484dacd.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/364/asset.mp4"
+  },
+  {
+   "id": 368,
+   "title": "One Lesson, Three Learners",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0de03da3-397b-4f83-bc16-6d84ed712e7b.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/368/asset.mp4"
+  },
+  {
+   "id": 374,
+   "title": "Using AI to Differentiate for Mixed-Ability Classrooms",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e0a81be0-5b4d-4e7f-b3cd-cbedb432a28e.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/374/asset.mp4"
+  },
+  {
+   "id": 378,
+   "title": "Formative Assessment & Exit Tickets – VIDEO",
+   "col": "video_url",
+   "from": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/5a0cf0a8-b75f-45ae-89d0-c4ed3d13396b.mp4",
+   "to": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/rehosted/378/asset.mp4"
+  }
+ ]
+}

@@ -116,16 +116,36 @@ async function deliverPdfModule(phoneNumber, module, opts = {}) {
   }
 
   const filename = `${module.title}.pdf`;
+
+  // Meta fetches this link SERVER-SIDE, so it must be reachable without our
+  // credentials. A legacy asset on the open third-party bucket is already
+  // public; an asset on our own R2 bucket is NOT, and answers 400 unless the
+  // URL carries a signature. getPresignedUrl passes non-R2 URLs through
+  // untouched, so this is a no-op for the legacy corpus.
+  //
+  // Getting this wrong fails SILENTLY: sendDocumentByLink still returns true
+  // (our API call to Meta succeeded) and the teacher sees the caption and the
+  // buttons with no document between them.
+  let documentUrl = module.source_media_url;
+  try {
+    documentUrl = await getPresignedUrl(module.source_media_url, 3600);
+  } catch (err) {
+    logToFile('⚠️ deliverPdfModule: presign failed, falling back to the stored URL', {
+      moduleId: module.id,
+      error: err?.message,
+    });
+  }
+
   logToFile('🎓 Delivering PDF training module', {
     userId,
     moduleId: module.id,
     moduleTitle: module.title,
-    urlPrefix: String(module.source_media_url).slice(0, 80),
+    urlPrefix: String(documentUrl).slice(0, 80),
   });
 
   let ok = false;
   try {
-    ok = await WhatsAppService.sendDocumentByLink(phoneNumber, module.source_media_url, filename, module.title);
+    ok = await WhatsAppService.sendDocumentByLink(phoneNumber, documentUrl, filename, module.title);
   } catch (err) {
     logToFile('❌ deliverPdfModule: sendDocumentByLink threw', {
       moduleId: module.id,
