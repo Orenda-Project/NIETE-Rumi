@@ -87,6 +87,10 @@ async function handleTeacherTrainingDataExchange(userId, screen, screenData /*, 
       if (vendorKey === 'none') return buildSuccessScreen('No training assigned yet.');
       return buildTrainingHome(userId, { vendorKey });
     }
+    // bd-2665 — the certificate route. VENDOR_PICKER is the Flow's only entry
+    // point (BUG-144), so this is the one link every teacher is guaranteed to
+    // pass through.
+    if (action === 'open_certificates') return buildMyCertificates(userId, await loadTeacher(userId));
     if (action === 'close') return buildSuccessScreen('See you soon!');
     return createErrorResponse('Unknown action on vendor picker');
   }
@@ -112,8 +116,75 @@ async function handleTeacherTrainingDataExchange(userId, screen, screenData /*, 
       // Only one vendor — nothing to switch to; refresh home instead.
       return buildTrainingHome(userId, { vendorKey: vendors[0]?.vendor_key });
     }
+    // bd-2665 — reachable from here too, so a teacher deep in a program does
+    // not have to back out to the picker to get a certificate.
+    if (action === 'open_certificates') return buildMyCertificates(userId, await loadTeacher(userId));
     if (action === 'close') return buildSuccessScreen('See you soon!');
     return createErrorResponse('Unknown action on training home');
+  }
+
+  // bd-2665 (sheet row R7) — the certificate screen.
+  if (screen === 'MY_CERTIFICATES') {
+    const action = screenData._action;
+    if (action === 'send_certificate') {
+      const code = String(screenData._certificate_code || '').trim();
+      if (!code) return createErrorResponse('Missing certificate');
+
+      const teacher = await loadTeacher(userId);
+      const phoneNumber = teacher && teacher.phone_number;
+      if (!phoneNumber) return errorScreen('I could not find your WhatsApp number on your profile.');
+
+      // Delivery is the SAME fetch-or-mint path the typed command and the
+      // portal use, so a certificate tapped here is byte-identical to one
+      // downloaded in the browser — and a legacy certificate with no stored
+      // PDF renders on first request rather than failing.
+      //
+      // It runs via setImmediate AFTER we return, because data_exchange has a
+      // ~10s budget and the mint path is render → R2 upload → WhatsApp media
+      // upload → send. Almost every certificate in production still needs that
+      // mint, so the slow path is the COMMON path here, not the edge case.
+      // Blocking on it would time the Flow out on exactly the certificates R7
+      // exists to make reachable.
+      setImmediate(async () => {
+        // Hoisted above the try: the catch below also sends, and a binding
+        // declared inside the try is not in scope there.
+        const WhatsAppService = require('../services/whatsapp.service');
+        try {
+          const { deliverCertificateByCode } = require('../services/training/certificate-pdf.service');
+          const result = await deliverCertificateByCode(supabase, {
+            userId, phoneNumber, certificateCode: code,
+          });
+          if (result && result.ok) return;
+          logToFile('❌ Certificate send from Flow failed', {
+            userId, code, reason: result && result.reason,
+          });
+          // The Flow has already closed, so the only way to tell the teacher
+          // is in the chat itself. Silence here is what reads as "it did
+          // nothing" — the failure mode R7 is meant to end.
+          await WhatsAppService.sendMessage(
+            phoneNumber,
+            result && result.reason === 'not_found'
+              ? 'I could not find that certificate in your records.'
+              : 'I could not prepare that certificate just now — please try again in a moment. It is safe in your records either way.'
+          );
+        } catch (err) {
+          logToFile('❌ Certificate send from Flow threw', { userId, code, error: err.message });
+          try {
+            await WhatsAppService.sendMessage(
+              phoneNumber,
+              'Something went wrong preparing your certificate. Please try again in a moment.'
+            );
+          } catch (_) { /* the teacher is unreachable; the log above is the record */ }
+        }
+      });
+
+      return buildSuccessScreen('On its way! Your certificate will arrive in this chat in a moment.');
+    }
+    // No route back to TRAINING_HOME: routing_model is forward-only, and
+    // MY_CERTIFICATES sits after it. Closing cleanly is the sanctioned exit —
+    // /training re-opens the Flow at the picker.
+    if (action === 'close') return buildSuccessScreen('See you soon!');
+    return createErrorResponse('Unknown action on certificates');
   }
 
   if (screen === 'LEVEL_DETAIL') {
@@ -257,6 +328,9 @@ function buildVendorPicker(userId, teacher, vendors) {
       title: v.vendor_name,
       description: vendorSummaryLine(v),
     })),
+    // bd-2665 — see buildTrainingHome. Derived from the vendor groups already
+    // partitioned here, so no extra query.
+    certificates_visible: vendors.some(v => (v.summary && v.summary.levels_certified > 0)),
   };
   logToFile('🎓 VENDOR_PICKER response snapshot', {
     userId,
@@ -307,6 +381,12 @@ async function buildTrainingHome(userId, opts = {}) {
     hero_progress:   vendorSummaryLine(chosen),
     hero_vendor_key: chosen.vendor_key,  // echoed back through form actions
     switch_program_visible: isMultiVendor,
+    // bd-2665 — offer the certificate link only when there is something behind
+    // it. Derived from the catalog already in hand (state === 'certified'),
+    // across ALL vendors rather than the chosen one: a teacher certified with
+    // one partner should still reach it while browsing another. Costs no
+    // extra query.
+    certificates_visible: catalog.some(l => l.state === 'certified'),
   };
   for (let i = 0; i < 5; i++) {
     const slot = i + 1;
@@ -1100,6 +1180,87 @@ function courseBadgeName(c) {
   return 'badge_course_not_started';
 }
 
+// ─── Certificates (bd-2665 / sheet row R7) ────────────────────────────────
+
+/**
+ * The label a teacher reads on a certificate row.
+ *
+ * Falls back to the certificate code when the level name snapshot is missing —
+ * legacy imports do not all carry one, and "Level undefined · undefined" is
+ * worse than a bare code the teacher can at least match against their records.
+ */
+function certificateOptionTitle(cert) {
+  if (!cert) return '';
+  const name = cert.level_name_snapshot;
+  if (!name) return cert.certificate_code || '';
+  const order = cert.training_levels && typeof cert.training_levels.order_index === 'number'
+    ? cert.training_levels.order_index
+    : null;
+  return order === null ? name : `Level ${order + 1} · ${name}`;
+}
+
+/** Issue date + the code, on ONE line — Flow row descriptions do not wrap. */
+function certificateOptionDescription(cert) {
+  if (!cert) return '';
+  const parts = [];
+  if (cert.issued_at) {
+    const d = new Date(cert.issued_at);
+    if (!Number.isNaN(d.getTime())) {
+      parts.push(`Passed ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`);
+    }
+  }
+  if (cert.certificate_code) parts.push(cert.certificate_code);
+  return parts.join(' · ').replace(/\s*\n\s*/g, ' ');
+}
+
+/**
+ * Load every certificate this teacher has earned, newest level last.
+ *
+ * Deliberately does NOT filter on pdf_r2_key: the overwhelming majority of
+ * production certificates have no stored PDF, and the whole point of R7 is
+ * that those are reachable by tapping. Minting happens after the tap, on the
+ * same fetch-or-mint path the portal uses.
+ */
+async function loadCertificates(userId) {
+  const { data } = await supabase
+    .from('training_certificates')
+    .select('certificate_code, teacher_name_snapshot, level_name_snapshot, issued_at, level_id, pdf_r2_key, training_levels(order_index)')
+    .eq('user_id', userId)
+    .order('level_id', { ascending: true });
+  return data || [];
+}
+
+/**
+ * Build MY_CERTIFICATES. Returns an error screen when the teacher has none —
+ * a RadioButtonsGroup is `required: true`, and an empty data-source is itself
+ * a payload-validation failure (the same trap entryErrorScreen documents).
+ */
+async function buildMyCertificates(userId, teacher) {
+  const certs = await loadCertificates(userId);
+  if (certs.length === 0) {
+    return errorScreen(
+      "You haven't earned a certificate yet. Finish a level's courses and pass its exam, and I'll send you one here."
+    );
+  }
+  const name = (certs[0] && certs[0].teacher_name_snapshot)
+    || (teacher && teacher.first_name)
+    || 'Teacher';
+  logToFile('🏆 MY_CERTIFICATES response snapshot', { userId, count: certs.length });
+  return {
+    screen: 'MY_CERTIFICATES',
+    data: {
+      hero_title:    'Your certificates',
+      hero_subtitle: name,
+      hero_caption:  'Pick one and I will send you the PDF here in chat.',
+      certificate_options: certs.map(c => ({
+        id:          c.certificate_code,
+        title:       certificateOptionTitle(c),
+        description: certificateOptionDescription(c),
+      })),
+    },
+  };
+}
+
 // ─── Response shapes (match quiz-flow-endpoint conventions) ────────────────
 
 function buildSuccessScreen(message, extras = {}) {
@@ -1160,6 +1321,10 @@ function entryErrorScreen(message) {
       hero_subtitle: ' ',
       hero_caption:  message,
       vendor_options: [{ id: 'none', title: 'No programs available', description: message }],
+      // bd-2665 — this screen renders when we could not load the catalog at
+      // all, so we cannot know whether certificates exist. Hide the link
+      // rather than offer a second dead end on top of the first.
+      certificates_visible: false,
     },
   };
 }
@@ -1196,4 +1361,8 @@ module.exports = {
   assertCanStartGrandQuiz,
   // bd-2483 — the same gate, addressed by level id (what the portal has).
   assertCanStartExamForLevel,
+  // bd-2665 — certificate row formatting, exported so the tappable-route
+  // contract can be asserted without a DB fixture.
+  certificateOptionTitle,
+  certificateOptionDescription,
 };

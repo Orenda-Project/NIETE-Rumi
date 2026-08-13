@@ -3,14 +3,19 @@
   "data_api_version": "3.0",
   "routing_model": {
     "VENDOR_PICKER": [
+      "MY_CERTIFICATES",
       "TRAINING_HOME",
       "SUCCESS"
     ],
     "TRAINING_HOME": [
+      "MY_CERTIFICATES",
       "LEVEL_DETAIL",
       "SUCCESS"
     ],
     "LEVEL_DETAIL": [
+      "SUCCESS"
+    ],
+    "MY_CERTIFICATES": [
       "SUCCESS"
     ]
   },
@@ -26,7 +31,7 @@
         },
         "hero_subtitle": {
           "type": "string",
-          "__example__": "Aisha Malik \u00b7 NIETE Support"
+          "__example__": "Aisha Malik · NIETE Support"
         },
         "hero_caption": {
           "type": "string",
@@ -52,19 +57,23 @@
             {
               "id": "TALEEMABAD",
               "title": "Taleemabad",
-              "description": "4 levels \u00b7 1 certified \u00b7 25% \u00b7 9/36 courses"
+              "description": "4 levels · 1 certified · 25% · 9/36 courses"
             },
             {
               "id": "OXBRIDGE",
               "title": "Oxbridge",
-              "description": "1 level \u00b7 7 sessions \u00b7 Open-access"
+              "description": "1 level · 7 sessions · Open-access"
             },
             {
               "id": "BEACONHOUSE",
               "title": "Beacon House",
-              "description": "4 levels \u00b7 0% \u00b7 0/24 courses"
+              "description": "4 levels · 0% · 0/24 courses"
             }
           ]
+        },
+        "certificates_visible": {
+          "type": "boolean",
+          "__example__": true
         }
       },
       "layout": {
@@ -103,6 +112,17 @@
                     "_vendor_key": "${form.vendor_choice}"
                   }
                 }
+              },
+              {
+                "type": "EmbeddedLink",
+                "text": "My certificates",
+                "visible": "${data.certificates_visible}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "open_certificates"
+                  }
+                }
               }
             ]
           }
@@ -120,11 +140,11 @@
         },
         "hero_subtitle": {
           "type": "string",
-          "__example__": "Aisha Malik \u00b7 NIETE Support"
+          "__example__": "Aisha Malik · NIETE Support"
         },
         "hero_progress": {
           "type": "string",
-          "__example__": "4 levels \u00b7 1 certified \u00b7 25% \u00b7 9/36 courses"
+          "__example__": "4 levels · 1 certified · 25% · 9/36 courses"
         },
         "hero_vendor_key": {
           "type": "string",
@@ -136,23 +156,23 @@
         },
         "level_1_title": {
           "type": "string",
-          "__example__": "\ud83c\udfc6 Level 1 \u00b7 Aspiring Teacher"
+          "__example__": "🏆 Level 1 · Aspiring Teacher"
         },
         "level_1_progress": {
           "type": "string",
-          "__example__": "9/9 courses \u2713 \u00b7 Grand quiz passed"
+          "__example__": "9/9 courses ✓ · Grand quiz passed"
         },
         "level_2_title": {
           "type": "string",
-          "__example__": "\ud83d\udcd6 Level 2 \u00b7 Emerging Practitioner"
+          "__example__": "📖 Level 2 · Emerging Practitioner"
         },
         "level_2_progress": {
           "type": "string",
-          "__example__": "4/9 courses \u00b7 40% done"
+          "__example__": "4/9 courses · 40% done"
         },
         "level_3_title": {
           "type": "string",
-          "__example__": "\ud83d\udd12 Level 3 \u00b7 Skilled Practitioner"
+          "__example__": "🔒 Level 3 · Skilled Practitioner"
         },
         "level_3_progress": {
           "type": "string",
@@ -160,7 +180,7 @@
         },
         "level_4_title": {
           "type": "string",
-          "__example__": "\ud83d\udd12 Level 4 \u00b7 Teacher Leader"
+          "__example__": "🔒 Level 4 · Teacher Leader"
         },
         "level_4_progress": {
           "type": "string",
@@ -168,7 +188,7 @@
         },
         "level_5_title": {
           "type": "string",
-          "__example__": "\ud83d\udd12 Level 5"
+          "__example__": "🔒 Level 5"
         },
         "level_5_progress": {
           "type": "string",
@@ -190,21 +210,25 @@
           "__example__": [
             {
               "id": "1_0",
-              "title": "Level 1 \u00b7 Aspiring Teacher \u2014 Review"
+              "title": "Level 1 · Aspiring Teacher — Review"
             },
             {
               "id": "2_1",
-              "title": "Level 2 \u00b7 Emerging Practitioner \u2014 Continue"
+              "title": "Level 2 · Emerging Practitioner — Continue"
             },
             {
               "id": "3_2",
-              "title": "Level 3 \u00b7 Skilled Practitioner \u2014 \ud83d\udd12 Locked"
+              "title": "Level 3 · Skilled Practitioner — 🔒 Locked"
             },
             {
               "id": "4_3",
-              "title": "Level 4 \u00b7 Teacher Leader \u2014 \ud83d\udd12 Locked"
+              "title": "Level 4 · Teacher Leader — 🔒 Locked"
             }
           ]
+        },
+        "certificates_visible": {
+          "type": "boolean",
+          "__example__": true
         }
       },
       "layout": {
@@ -295,6 +319,17 @@
                     "_action": "back_to_vendors"
                   }
                 }
+              },
+              {
+                "type": "EmbeddedLink",
+                "text": "My certificates",
+                "visible": "${data.certificates_visible}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "open_certificates"
+                  }
+                }
               }
             ]
           }
@@ -308,11 +343,11 @@
       "data": {
         "level_title": {
           "type": "string",
-          "__example__": "\ud83d\udcd6 Level 2 \u00b7 Emerging Practitioner"
+          "__example__": "📖 Level 2 · Emerging Practitioner"
         },
         "level_progress": {
           "type": "string",
-          "__example__": "26/46 modules done \u00b7 57%"
+          "__example__": "26/46 modules done · 57%"
         },
         "level_order": {
           "type": "string",
@@ -342,31 +377,31 @@
             {
               "id": "54",
               "title": "Misconceptions in basic operations",
-              "description": "Numeracy \u00b7 Not started"
+              "description": "Numeracy · Not started"
             },
             {
               "id": "55",
               "title": "Fractions",
-              "description": "Numeracy \u00b7 \u2713 Watched"
+              "description": "Numeracy · ✓ Watched"
             },
             {
               "id": "60",
               "title": "Patterns",
-              "description": "Numeracy \u00b7 Not started"
+              "description": "Numeracy · Not started"
             }
           ]
         },
         "grand_quiz_body": {
           "type": "string",
-          "__example__": "\ud83d\udd12 Grand Quiz \u2014 Unlocks when all courses are complete"
+          "__example__": "🔒 Grand Quiz — Unlocks when all courses are complete"
         },
         "grand_quiz_caption": {
           "type": "string",
-          "__example__": "62 questions \u00b7 100% required \u00b7 24h cooldown on fail"
+          "__example__": "62 questions · 100% required · 24h cooldown on fail"
         },
         "grand_quiz_cta": {
           "type": "string",
-          "__example__": "\ud83d\udd12 Locked"
+          "__example__": "🔒 Locked"
         }
       },
       "layout": {
@@ -425,6 +460,105 @@
                 "_vendor_key": "${data.vendor_key}"
               }
             }
+          }
+        ]
+      }
+    },
+    {
+      "id": "MY_CERTIFICATES",
+      "title": "My certificates",
+      "terminal": false,
+      "data": {
+        "hero_title": {
+          "type": "string",
+          "__example__": "Your certificates"
+        },
+        "hero_subtitle": {
+          "type": "string",
+          "__example__": "Aisha Malik"
+        },
+        "hero_caption": {
+          "type": "string",
+          "__example__": "Pick one and I will send you the PDF here in chat."
+        },
+        "certificate_options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "NIETE-20260712-697CAA",
+              "title": "Level 1 · Aspiring Teacher",
+              "description": "Passed 12 Jul 2026 · NIETE-20260712-697CAA"
+            },
+            {
+              "id": "OXB-L3-20260430-1B2C3D",
+              "title": "Level 3 · Game-Based Teaching",
+              "description": "Passed 30 Apr 2026 · OXB-L3-20260430-1B2C3D"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "${data.hero_title}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "${data.hero_subtitle}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "${data.hero_caption}"
+          },
+          {
+            "type": "Form",
+            "name": "form",
+            "children": [
+              {
+                "type": "RadioButtonsGroup",
+                "name": "certificate_choice",
+                "label": "Certificates",
+                "required": true,
+                "data-source": "${data.certificate_options}"
+              },
+              {
+                "type": "Footer",
+                "label": "Send me the PDF",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "send_certificate",
+                    "_certificate_code": "${form.certificate_choice}"
+                  }
+                }
+              },
+              {
+                "type": "EmbeddedLink",
+                "text": "Done",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "close"
+                  }
+                }
+              }
+            ]
           }
         ]
       }
