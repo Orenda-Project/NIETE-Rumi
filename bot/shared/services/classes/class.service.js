@@ -782,6 +782,177 @@ async function deactivateClass({ classId, teacherUserId } = {}) {
   return { deactivated: true };
 }
 
+// ---------------------------------------------------------------------------
+// The roster
+//
+// Students belong to the CLASS, so every teacher assigned to it sees the same
+// children. That is the payoff of enrollment-as-a-row, and the reason a removal
+// must be SOFT: a hard delete would remove the child for every teacher at once and
+// orphan the attendance records that reference her. `left_on` and `outcome` exist
+// for exactly this.
+//
+// ONE KNOWN LIMIT, deliberate. The legacy mirror is per-teacher and
+// `students.list_id` is a single FK, so a shared roster cannot be mirrored into
+// every teacher's legacy list. A new child is attached to the list of the teacher
+// who added her, which preserves exactly today's attendance behaviour for that
+// teacher. Colleagues see the child in the class roster but not yet in their own
+// legacy attendance — that closes when attendance moves onto class_id.
+// ---------------------------------------------------------------------------
+
+/**
+ * The children currently enrolled in a class.
+ *
+ * Returns [] for a teacher who is not assigned to the class — a roster is not
+ * public, and an empty list is a state the caller can render, unlike an error.
+ */
+async function listStudents({ classId, teacherUserId } = {}) {
+  if (!classId || !teacherUserId) return [];
+  if (!(await findAssignment(classId, teacherUserId))) return [];
+
+  const { data: enrollments, error } = await supabase
+    .from('class_enrollments')
+    .select('id, student_id, roll_number, enrolled_on, is_active')
+    .eq('class_id', classId)
+    .eq('is_active', true);
+
+  if (error || !enrollments || !enrollments.length) {
+    if (error) logToFile('⚠️ ClassService.listStudents: lookup failed', { error: error.message }, 'error');
+    return [];
+  }
+
+  const { data: kids, error: kidErr } = await supabase
+    .from('students')
+    .select('id, student_name, father_name, roll_number, is_active')
+    .in('id', enrollments.map((e) => e.student_id));
+
+  if (kidErr || !kids) {
+    logToFile('⚠️ ClassService.listStudents: student read failed', { error: kidErr && kidErr.message }, 'error');
+    return [];
+  }
+
+  const byId = new Map(kids.map((k) => [k.id, k]));
+  return enrollments
+    .filter((e) => byId.has(e.student_id))
+    .map((e) => {
+      const kid = byId.get(e.student_id);
+      return {
+        studentId: kid.id,
+        studentName: kid.student_name,
+        fatherName: kid.father_name || null,
+        rollNumber: e.roll_number != null ? e.roll_number : (kid.roll_number != null ? kid.roll_number : null),
+        enrolledOn: e.enrolled_on || null,
+      };
+    })
+    .sort((a, b) => {
+      if (a.rollNumber != null && b.rollNumber != null) return a.rollNumber - b.rollNumber;
+      if (a.rollNumber != null) return -1;
+      if (b.rollNumber != null) return 1;
+      return String(a.studentName).localeCompare(String(b.studentName));
+    });
+}
+
+/**
+ * Add a child to a class: one `students` row, one enrollment, and an attachment to
+ * the adding teacher's legacy list (see the limit noted above).
+ *
+ * @returns {Promise<{student?, enrollment?, error?}>}
+ */
+async function addStudent({
+  classId, teacherUserId, studentName, fatherName = null, rollNumber = null,
+} = {}) {
+  if (!classId) return { error: 'missing_class' };
+  if (!teacherUserId) return { error: 'missing_teacher' };
+
+  const name = typeof studentName === 'string' ? studentName.trim() : '';
+  if (!name) return { error: 'missing_name' };
+
+  if (!(await findAssignment(classId, teacherUserId))) return { error: 'not_assigned' };
+
+  // Her legacy list for this class, so attendance keeps working for her.
+  const { data: mirrors } = await supabase
+    .from('student_lists')
+    .select('id, user_id, class_id, is_active')
+    .eq('class_id', classId)
+    .eq('user_id', teacherUserId)
+    .eq('is_active', true);
+  const listId = (mirrors || [])[0] ? mirrors[0].id : null;
+
+  const { data: student, error: insErr } = await supabase
+    .from('students')
+    .insert({
+      student_name: name,
+      father_name: fatherName || null,
+      roll_number: rollNumber,
+      list_id: listId,
+      is_active: true,
+    })
+    .select()
+    .single();
+
+  if (insErr || !student) {
+    logToFile('⚠️ ClassService.addStudent: insert failed', { error: insErr && insErr.message }, 'error');
+    return { error: 'insert_failed' };
+  }
+
+  const enrolled = await enrollStudent({
+    classId,
+    studentId: student.id,
+    rollNumber,
+    enrolledOn: new Date().toISOString().slice(0, 10),
+  });
+
+  if (enrolled.error) {
+    logToFile('⚠️ ClassService.addStudent: enrolled failed after the student row was written', {
+      studentId: student.id, error: enrolled.error,
+    }, 'error');
+    return { error: enrolled.error, student };
+  }
+
+  return { student, enrollment: enrolled.enrollment };
+}
+
+/**
+ * Take a child off a class roster — SOFTLY.
+ *
+ * Closes the enrollment (`left_on`, `outcome`) and leaves both the child and the
+ * history intact. Any teacher on the class may do it, because the roster is the
+ * class's, not hers.
+ *
+ * @returns {Promise<{removed: boolean, error?: string}>}
+ */
+async function removeStudent({
+  classId, teacherUserId, studentId, outcome = 'left',
+} = {}) {
+  if (!classId) return { error: 'missing_class' };
+  if (!teacherUserId) return { error: 'missing_teacher' };
+  if (!studentId) return { error: 'missing_student' };
+
+  if (!(await findAssignment(classId, teacherUserId))) return { error: 'not_assigned' };
+
+  const { data: rows, error: readErr } = await supabase
+    .from('class_enrollments')
+    .select('id, class_id, student_id, is_active')
+    .eq('class_id', classId)
+    .eq('student_id', studentId)
+    .eq('is_active', true);
+
+  if (readErr) return { error: 'lookup_failed' };
+  if (!rows || !rows.length) return { removed: false };
+
+  const { error: updErr } = await supabase
+    .from('class_enrollments')
+    .update({
+      is_active: false,
+      left_on: new Date().toISOString().slice(0, 10),
+      outcome,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', rows[0].id);
+
+  if (updErr) return { error: 'update_failed' };
+  return { removed: true };
+}
+
 module.exports = {
   createClass,
   assignTeacher,
@@ -790,6 +961,9 @@ module.exports = {
   deactivateClass,
   listClassesForTeacher,
   enrollStudent,
+  listStudents,
+  addStudent,
+  removeStudent,
   // Exported for tests and for the cutover PR that removes the mirror.
   normalizeSection,
   mirrorLabel,

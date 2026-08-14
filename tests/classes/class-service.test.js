@@ -829,3 +829,114 @@ describe('deleting a class', () => {
     expect(mockDb._tables.student_lists.every((r) => r.is_active === false)).toBe(true);
   });
 });
+
+describe('the class roster', () => {
+  async function aClassOf(teacher = TEACHER) {
+    const { class: cls } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: teacher,
+    });
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: teacher, subjectCodes: ['maths'] });
+    return cls;
+  }
+
+  it('adds a student to the CLASS, not to a teacher', async () => {
+    const cls = await aClassOf();
+    const res = await svc.addStudent({
+      classId: cls.id, teacherUserId: TEACHER, studentName: 'Ayesha Bibi', rollNumber: 1,
+    });
+
+    expect(res.error).toBeUndefined();
+    expect(mockDb._tables.students).toHaveLength(1);
+    expect(mockDb._tables.class_enrollments).toHaveLength(1);
+    expect(mockDb._tables.class_enrollments[0]).toMatchObject({
+      class_id: cls.id, student_id: res.student.id, roll_number: 1, is_active: true,
+    });
+  });
+
+  it('shows the SAME roster to every teacher on the class', async () => {
+    // The point of the model: the roster belongs to the class. A colleague who
+    // joins sees the children already there.
+    const cls = await aClassOf();
+    await svc.addStudent({ classId: cls.id, teacherUserId: TEACHER, studentName: 'Ayesha Bibi' });
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: OTHER_TEACHER, subjectCodes: ['urdu'] });
+
+    const seen = await svc.listStudents({ classId: cls.id, teacherUserId: OTHER_TEACHER });
+    expect(seen.map((s) => s.studentName)).toEqual(['Ayesha Bibi']);
+  });
+
+  it('refuses to read or write a roster she is not assigned to', async () => {
+    const cls = await aClassOf();
+    await expect(svc.listStudents({ classId: cls.id, teacherUserId: 'stranger' }))
+      .resolves.toEqual([]);
+    const res = await svc.addStudent({
+      classId: cls.id, teacherUserId: 'stranger', studentName: 'Nobody',
+    });
+    expect(res).toMatchObject({ error: 'not_assigned' });
+  });
+
+  it('requires a name', async () => {
+    const cls = await aClassOf();
+    const res = await svc.addStudent({ classId: cls.id, teacherUserId: TEACHER, studentName: '  ' });
+    expect(res).toMatchObject({ error: 'missing_name' });
+    expect(mockDb._tables.students).toHaveLength(0);
+  });
+
+  it('does not enroll the same child twice', async () => {
+    const cls = await aClassOf();
+    const first = await svc.addStudent({ classId: cls.id, teacherUserId: TEACHER, studentName: 'Ayesha Bibi' });
+    const again = await svc.enrollStudent({ classId: cls.id, studentId: first.student.id });
+    expect(again.created).toBe(false);
+    expect(mockDb._tables.class_enrollments).toHaveLength(1);
+  });
+
+  it('removes a student SOFTLY, closing her enrollment', async () => {
+    // Shared roster: a hard delete would remove her for every teacher AND orphan
+    // the attendance records that reference her. left_on/outcome exist for this.
+    const cls = await aClassOf();
+    const { student } = await svc.addStudent({ classId: cls.id, teacherUserId: TEACHER, studentName: 'Ayesha Bibi' });
+
+    const res = await svc.removeStudent({ classId: cls.id, teacherUserId: TEACHER, studentId: student.id });
+    expect(res.error).toBeUndefined();
+
+    const row = mockDb._tables.class_enrollments[0];
+    expect(row.is_active).toBe(false);
+    expect(row.left_on).toBeTruthy();
+    expect(row.outcome).toBe('left');
+    // The child herself survives — she may be enrolled elsewhere, and history
+    // points at her.
+    expect(mockDb._tables.students).toHaveLength(1);
+  });
+
+  it('drops her from the roster every teacher sees', async () => {
+    const cls = await aClassOf();
+    const { student } = await svc.addStudent({ classId: cls.id, teacherUserId: TEACHER, studentName: 'Ayesha Bibi' });
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: OTHER_TEACHER });
+    await svc.removeStudent({ classId: cls.id, teacherUserId: OTHER_TEACHER, studentId: student.id });
+
+    await expect(svc.listStudents({ classId: cls.id, teacherUserId: TEACHER })).resolves.toEqual([]);
+  });
+
+  it('lets a removed child be re-enrolled, as a new enrollment', async () => {
+    const cls = await aClassOf();
+    const { student } = await svc.addStudent({ classId: cls.id, teacherUserId: TEACHER, studentName: 'Ayesha Bibi' });
+    await svc.removeStudent({ classId: cls.id, teacherUserId: TEACHER, studentId: student.id });
+    const back = await svc.enrollStudent({ classId: cls.id, studentId: student.id });
+
+    expect(back.created).toBe(true);
+    // Two enrollments, one closed and one open — which IS the history.
+    expect(mockDb._tables.class_enrollments).toHaveLength(2);
+  });
+
+  it('attaches the child to the adding teacher\'s legacy roster so her attendance still works', async () => {
+    // The mirror is PER TEACHER and students.list_id is a single FK, so a shared
+    // roster cannot be mirrored to every teacher. Attaching to the adder preserves
+    // exactly today's behaviour for her; full sharing arrives with the attendance
+    // migration. Stated in a test so the limit is deliberate, not discovered.
+    const cls = await aClassOf();
+    const { student } = await svc.addStudent({ classId: cls.id, teacherUserId: TEACHER, studentName: 'Ayesha Bibi' });
+
+    const mirror = mockDb._tables.student_lists.find((r) => r.class_id === cls.id && r.user_id === TEACHER);
+    expect(mockDb._tables.students.find((s) => s.id === student.id).list_id).toBe(mirror.id);
+  });
+});
