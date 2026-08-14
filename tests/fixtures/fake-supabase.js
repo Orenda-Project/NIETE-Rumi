@@ -83,6 +83,14 @@ function createFakeSupabase(seed = {}, opts = {}) {
         return { data: inserted, error: null };
       }
 
+      if (mode === 'delete') {
+        const hit = table(name).filter((r) => matches(r, filters));
+        const keep = table(name).filter((r) => !matches(r, filters));
+        tables[name] = keep;
+        writes.push({ table: name, op: 'delete', count: hit.length });
+        return { data: hit, error: null };
+      }
+
       if (mode === 'update') {
         const hit = table(name).filter((r) => matches(r, filters));
         for (const row of hit) Object.assign(row, payload);
@@ -113,7 +121,7 @@ function createFakeSupabase(seed = {}, opts = {}) {
       insert(p) { mode = 'insert'; payload = p; return api; },
       upsert(p) { mode = 'upsert'; payload = p; return api; },
       update(p) { mode = 'update'; payload = p; return api; },
-      delete() { mode = 'delete'; return api; },
+      delete() { mode = 'delete'; return api; },  // removes matching rows, see resolveRows
       eq(col, val) { filters.push(['eq', col, val]); return api; },
       in(col, vals) { filters.push(['in', col, vals]); return api; },
       is(col) { filters.push(['isNull', col, null]); return api; },

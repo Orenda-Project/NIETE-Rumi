@@ -29,10 +29,16 @@ vi.mock("../components/PortalLayout", () => ({
 
 const list = vi.fn();
 const create = vi.fn();
+const students = vi.fn();
+const addStudents = vi.fn();
+const removeStudent = vi.fn();
 vi.mock("../services/api", () => ({
   classes: {
     list: (...args: any[]) => list(...args),
     create: (...args: any[]) => create(...args),
+    students: (...args: any[]) => students(...args),
+    addStudents: (...args: any[]) => addStudents(...args),
+    removeStudent: (...args: any[]) => removeStudent(...args),
   },
 }));
 
@@ -241,5 +247,87 @@ describe("PortalClasses", () => {
     await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({
       description: "That class already has a class teacher. The class was saved without that role.",
     })));
+  });
+});
+
+describe("the class roster", () => {
+  const ONE_CLASS = [{
+    classId: "c1", gradeCode: "grade_4", gradeLabel: "Grade 4", section: "A",
+    shiftCode: "morning", sessionCode: "2026-2027", isClassTeacher: true,
+    display: "Grade 4 - A", subjects: [{ code: "maths", label: "Mathematics" }],
+  }];
+
+  async function openRoster(rows: any[] = []) {
+    students.mockResolvedValue({ success: true, students: rows });
+    await renderPage({ classes: ONE_CLASS });
+    await userEvent.click(await screen.findByRole("button", { name: /students/i }));
+    await waitFor(() => expect(students).toHaveBeenCalledWith("c1"));
+  }
+
+  it("lists the children with roll number and father's name", async () => {
+    await openRoster([
+      { studentId: "s1", studentName: "Ayesha Bibi", fatherName: "Muhammad Aslam", rollNumber: 1, enrolledOn: null },
+    ]);
+    expect(await screen.findByText(/Ayesha Bibi/)).toBeInTheDocument();
+    expect(screen.getByText(/Muhammad Aslam/)).toBeInTheDocument();
+  });
+
+  it("invites a paste when the roster is empty, rather than showing an error", async () => {
+    await openRoster([]);
+    expect(await screen.findByText(/Paste the register below/i)).toBeInTheDocument();
+  });
+
+  it("sends the pasted block as one request", async () => {
+    // One paste, not one child per round-trip — the lesson the attendance flow
+    // recorded in its own source.
+    addStudents.mockResolvedValue({ success: true, added: 2, duplicates: 0, dropped: 0 });
+    await openRoster([]);
+    await userEvent.type(screen.getByLabelText("Add students"), "Ayesha Bibi{enter}Bilal Ahmed");
+    await userEvent.click(screen.getByRole("button", { name: /add to class/i }));
+
+    await waitFor(() => expect(addStudents).toHaveBeenCalledWith("c1", "Ayesha Bibi\nBilal Ahmed"));
+  });
+
+  it("reports duplicates and a hit cap without calling them failures", async () => {
+    addStudents.mockResolvedValue({ success: true, added: 300, duplicates: 2, dropped: 20 });
+    await openRoster([]);
+    await userEvent.type(screen.getByLabelText("Add students"), "Ayesha Bibi");
+    await userEvent.click(screen.getByRole("button", { name: /add to class/i }));
+
+    await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({
+      title: "300 students added",
+      description: expect.stringMatching(/already on the roster.*were not added/),
+    })));
+  });
+
+  it("refuses an empty paste", async () => {
+    await openRoster([]);
+    await userEvent.click(screen.getByRole("button", { name: /add to class/i }));
+    expect(addStudents).not.toHaveBeenCalled();
+  });
+
+  it("warns that removing a child affects every teacher, and obeys a cancel", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    await openRoster([
+      { studentId: "s1", studentName: "Ayesha Bibi", fatherName: null, rollNumber: 1, enrolledOn: null },
+    ]);
+    await userEvent.click(await screen.findByRole("button", { name: /Remove Ayesha Bibi/i }));
+
+    expect(confirmSpy).toHaveBeenCalledWith(expect.stringMatching(/Every teacher on the class/i));
+    expect(removeStudent).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it("removes the child when confirmed", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    removeStudent.mockResolvedValue({ success: true, removed: true });
+    await openRoster([
+      { studentId: "s1", studentName: "Ayesha Bibi", fatherName: null, rollNumber: 1, enrolledOn: null },
+    ]);
+    await userEvent.click(await screen.findByRole("button", { name: /Remove Ayesha Bibi/i }));
+
+    await waitFor(() => expect(removeStudent).toHaveBeenCalledWith("c1", "s1"));
+    await waitFor(() => expect(screen.queryByText(/Ayesha Bibi/)).not.toBeInTheDocument());
+    confirmSpy.mockRestore();
   });
 });

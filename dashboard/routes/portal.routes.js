@@ -2112,6 +2112,100 @@ router.post('/classes', requirePortalAuth, async (req, res) => {
   }
 });
 
+
+/**
+ * GET  /api/portal/classes/:classId/students   — the roster
+ * POST /api/portal/classes/:classId/students   — add a pasted register
+ * DELETE /api/portal/classes/:classId/students/:studentId — take a child off it
+ *
+ * The roster belongs to the CLASS, so every teacher assigned to it sees and edits
+ * the same children. The teacher id comes from the SESSION, never the URL, and the
+ * bot re-checks that she is assigned — a class id in a path is not authorisation.
+ */
+router.get('/classes/:classId/students', requirePortalAuth, async (req, res) => {
+  const userId = req.session.portalUserId;
+  try {
+    const botRes = await callBotInternal('/api/internal/classes/students/list', {
+      userId, classId: req.params.classId,
+    });
+    if (!botRes.data || !botRes.data.success) {
+      return res.status(502).json({ success: false, error: 'Could not load the students.' });
+    }
+    return res.json({ success: true, students: botRes.data.students || [] });
+  } catch (error) {
+    if (error.code === 'not_configured') {
+      return res.status(503).json({ success: false, error: 'Classes are temporarily unavailable.' });
+    }
+    console.error('portal/classes/:id/students error:', error.message);
+    return res.status(502).json({ success: false, error: 'Could not load the students.' });
+  }
+});
+
+router.post('/classes/:classId/students', requirePortalAuth, async (req, res) => {
+  const userId = req.session.portalUserId;
+  const { rawText } = req.body || {};
+
+  try {
+    const botRes = await callBotInternal('/api/internal/classes/students/add', {
+      userId, classId: req.params.classId, rawText,
+    });
+    const data = botRes.data || {};
+
+    if (botRes.status === 201 && data.success) {
+      return res.status(201).json({
+        success: true,
+        added: data.added,
+        duplicates: data.duplicates,
+        dropped: data.dropped,
+      });
+    }
+    if (data.error === 'no_names') {
+      return res.status(400).json({ success: false, error: 'Add at least one name, one per line.' });
+    }
+    if (data.error === 'not_assigned') {
+      return res.status(403).json({ success: false, error: 'You are not assigned to this class.' });
+    }
+    // A part-way failure names what landed, so she re-pastes the rest rather than
+    // the whole register.
+    if (typeof data.added === 'number' && data.added > 0) {
+      return res.status(502).json({
+        success: false,
+        error: `Only ${data.added} could be added. Please check the rest and try again.`,
+        added: data.added,
+      });
+    }
+    console.error('portal/classes/:id/students add failed', { status: botRes.status, data });
+    return res.status(502).json({ success: false, error: 'Could not add the students. Please try again.' });
+  } catch (error) {
+    if (error.code === 'not_configured') {
+      return res.status(503).json({ success: false, error: 'Classes are temporarily unavailable.' });
+    }
+    console.error('portal/classes/:id/students add error:', error.message);
+    return res.status(502).json({ success: false, error: 'Could not add the students. Please try again.' });
+  }
+});
+
+router.delete('/classes/:classId/students/:studentId', requirePortalAuth, async (req, res) => {
+  const userId = req.session.portalUserId;
+  try {
+    const botRes = await callBotInternal('/api/internal/classes/students/remove', {
+      userId, classId: req.params.classId, studentId: req.params.studentId,
+    });
+    const data = botRes.data || {};
+    if (data.success) return res.json({ success: true, removed: Boolean(data.removed) });
+    if (data.error === 'not_assigned') {
+      return res.status(403).json({ success: false, error: 'You are not assigned to this class.' });
+    }
+    return res.status(502).json({ success: false, error: 'Could not remove the student. Please try again.' });
+  } catch (error) {
+    if (error.code === 'not_configured') {
+      return res.status(503).json({ success: false, error: 'Classes are temporarily unavailable.' });
+    }
+    console.error('portal/classes/:id/students remove error:', error.message);
+    return res.status(502).json({ success: false, error: 'Could not remove the student. Please try again.' });
+  }
+});
+
 router.get('/training/certificates', requirePortalAuth, async (req, res) => {
   try {
     const userId = req.session.portalUserId;

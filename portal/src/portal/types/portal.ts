@@ -291,3 +291,23 @@ export interface CreateClassResponse {
   subjectsTaken?: string[];
   error?: string;
 }
+
+
+export interface RosterStudent {
+  studentId: string;
+  studentName: string;
+  fatherName: string | null;
+  rollNumber: number | null;
+  enrolledOn: string | null;
+}
+
+export interface AddStudentsResponse {
+  success: boolean;
+  /** How many children were actually enrolled. */
+  added?: number;
+  /** Already on the roster, or repeated within the paste — not an error. */
+  duplicates?: number;
+  /** Cut by the paste cap. Surfaced so nobody wonders where their students went. */
+  dropped?: number;
+  error?: string;
+}

@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getApiBaseUrl } from '@/lib/runtime';
 import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, CoachingAnalytics, Pagination, VideoRequest, VideoDetail, LeaderOverview, LeaderPatchTeacher, LeaderTeacherDetail, LeaderObservationsData } from '../types/portal';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
-import type { ClassesResponse, CreateClassPayload, CreateClassResponse } from '../types/portal';
+import type { ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse } from '../types/portal';
 
 // On the web, frontend and backend share a domain, so a relative URL avoids
 // CORS and third-party cookies entirely. In the Capacitor app there is no
@@ -291,6 +291,23 @@ export const classes = {
 
   create: async (payload: CreateClassPayload): Promise<CreateClassResponse> => {
     const response = await api.post('/classes', payload);
+    return response.data;
+  },
+
+  // The roster belongs to the CLASS — every teacher assigned to it sees and edits
+  // the same children.
+  students: async (classId: string): Promise<{ success: boolean; students: RosterStudent[] }> => {
+    const response = await api.get(`/classes/${classId}/students`);
+    return response.data;
+  },
+
+  addStudents: async (classId: string, rawText: string): Promise<AddStudentsResponse> => {
+    const response = await api.post(`/classes/${classId}/students`, { rawText });
+    return response.data;
+  },
+
+  removeStudent: async (classId: string, studentId: string): Promise<{ success: boolean }> => {
+    const response = await api.delete(`/classes/${classId}/students/${studentId}`);
     return response.data;
   },
 };

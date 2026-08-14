@@ -623,3 +623,447 @@ describe('one teacher per subject per class', () => {
     expect(mockDb._tables.class_teacher_subjects[0].class_id).toBe(cls.id);
   });
 });
+
+describe('editing your relationship to a class', () => {
+  async function myClass(subjects = ['maths'], role = true) {
+    const { class: cls } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    await svc.assignTeacher({
+      classId: cls.id, teacherUserId: TEACHER, isClassTeacher: role, subjectCodes: subjects,
+    });
+    return cls;
+  }
+
+  it('adds a subject', async () => {
+    const cls = await myClass(['maths']);
+    const res = await svc.updateAssignment({
+      classId: cls.id, teacherUserId: TEACHER, subjectCodes: ['maths', 'urdu'],
+    });
+    expect(res.error).toBeUndefined();
+    expect(mockDb._tables.class_teacher_subjects.map((r) => r.subject_code).sort())
+      .toEqual(['maths', 'urdu']);
+  });
+
+  it('REMOVES a subject she no longer teaches, and frees it for a colleague', async () => {
+    // The documented consequence of (class, subject) uniqueness: if removal did not
+    // delete the row, the subject would stay locked to a teacher who dropped it.
+    const cls = await myClass(['maths', 'urdu']);
+    await svc.updateAssignment({ classId: cls.id, teacherUserId: TEACHER, subjectCodes: ['urdu'] });
+
+    expect(mockDb._tables.class_teacher_subjects.map((r) => r.subject_code)).toEqual(['urdu']);
+
+    const colleague = await svc.assignTeacher({
+      classId: cls.id, teacherUserId: OTHER_TEACHER, subjectCodes: ['maths'],
+    });
+    expect(colleague.subjectsTaken).toEqual([]);
+  });
+
+  it('releases the class-teacher role, so a colleague can claim it', async () => {
+    const cls = await myClass(['maths'], true);
+    await svc.updateAssignment({ classId: cls.id, teacherUserId: TEACHER, isClassTeacher: false });
+
+    const colleague = await svc.assignTeacher({
+      classId: cls.id, teacherUserId: OTHER_TEACHER, isClassTeacher: true,
+    });
+    expect(colleague.classTeacherTaken).toBeFalsy();
+    expect(colleague.assignment.is_class_teacher).toBe(true);
+  });
+
+  it('will not let her take a subject a colleague already teaches', async () => {
+    const cls = await myClass(['urdu']);
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: OTHER_TEACHER, subjectCodes: ['maths'] });
+
+    const res = await svc.updateAssignment({
+      classId: cls.id, teacherUserId: TEACHER, subjectCodes: ['urdu', 'maths'],
+    });
+    expect(res.subjectsTaken.map((s) => s.code)).toEqual(['maths']);
+    // Her own subject survives the rejected one.
+    const mine = mockDb._tables.class_teachers.find((r) => r.teacher_user_id === TEACHER);
+    expect(mockDb._tables.class_teacher_subjects
+      .filter((r) => r.class_teacher_id === mine.id).map((r) => r.subject_code)).toEqual(['urdu']);
+  });
+
+  it('refuses to edit a class she is not on', async () => {
+    const cls = await myClass();
+    const res = await svc.updateAssignment({
+      classId: cls.id, teacherUserId: 'stranger', subjectCodes: ['urdu'],
+    });
+    expect(res).toMatchObject({ error: 'not_assigned' });
+  });
+
+  it('never lets identity be edited through this path', async () => {
+    // Grade, section, shift and session are identity. Changing them is a different
+    // class, not an edit — and would either collide with the identity index or
+    // rename a class other teachers and rosters point at.
+    const cls = await myClass();
+    await svc.updateAssignment({
+      classId: cls.id, teacherUserId: TEACHER,
+      gradeCode: 'grade_5', section: 'B', shiftCode: 'evening', sessionCode: '2027-2028',
+    });
+    const after = mockDb._tables.classes.find((c) => c.id === cls.id);
+    expect(after).toMatchObject({
+      grade_code: 'grade_4', section: 'A', shift_code: 'morning', session_code: '2026-2027',
+    });
+  });
+});
+
+describe('leaving a class', () => {
+  async function sharedClass() {
+    const { class: cls } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: TEACHER, isClassTeacher: true, subjectCodes: ['maths'] });
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: OTHER_TEACHER, subjectCodes: ['urdu'] });
+    return cls;
+  }
+
+  it('drops her assignment but leaves the class standing for everyone else', async () => {
+    const cls = await sharedClass();
+    const res = await svc.leaveClass({ classId: cls.id, teacherUserId: TEACHER });
+
+    expect(res.error).toBeUndefined();
+    expect(res.left).toBe(true);
+    const active = mockDb._tables.class_teachers.filter((r) => r.is_active);
+    expect(active.map((r) => r.teacher_user_id)).toEqual([OTHER_TEACHER]);
+    expect(mockDb._tables.classes.find((c) => c.id === cls.id).is_active).toBe(true);
+  });
+
+  it('frees the subjects she was teaching', async () => {
+    const cls = await sharedClass();
+    await svc.leaveClass({ classId: cls.id, teacherUserId: TEACHER });
+
+    expect(mockDb._tables.class_teacher_subjects.map((r) => r.subject_code)).toEqual(['urdu']);
+    const back = await svc.assignTeacher({
+      classId: cls.id, teacherUserId: OTHER_TEACHER, subjectCodes: ['maths'],
+    });
+    expect(back.subjectsTaken).toEqual([]);
+  });
+
+  it('hides it from her attendance by deactivating her mirror row', async () => {
+    const cls = await sharedClass();
+    await svc.leaveClass({ classId: cls.id, teacherUserId: TEACHER });
+    const mine = mockDb._tables.student_lists.filter((r) => r.user_id === TEACHER);
+    expect(mine.every((r) => r.is_active === false)).toBe(true);
+  });
+
+  it('drops it from her class list', async () => {
+    const cls = await sharedClass();
+    await svc.leaveClass({ classId: cls.id, teacherUserId: TEACHER });
+    await expect(svc.listClassesForTeacher(TEACHER)).resolves.toEqual([]);
+  });
+
+  it('is idempotent', async () => {
+    const cls = await sharedClass();
+    await svc.leaveClass({ classId: cls.id, teacherUserId: TEACHER });
+    const again = await svc.leaveClass({ classId: cls.id, teacherUserId: TEACHER });
+    expect(again.error).toBeUndefined();
+    expect(again.left).toBe(false);
+  });
+});
+
+describe('deleting a class', () => {
+  async function soloEmptyClass() {
+    const { class: cls } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: TEACHER, isClassTeacher: true, subjectCodes: ['maths'] });
+    return cls;
+  }
+
+  it('soft-deletes a class that is hers alone and has no students', async () => {
+    const cls = await soloEmptyClass();
+    const res = await svc.deactivateClass({ classId: cls.id, teacherUserId: TEACHER });
+
+    expect(res.error).toBeUndefined();
+    expect(mockDb._tables.classes.find((c) => c.id === cls.id).is_active).toBe(false);
+    // Soft, never hard: a hard delete cascades enrollments away and strands the
+    // mirror with a null link, leaving a ghost roster visible in attendance.
+    expect(mockDb._tables.classes).toHaveLength(1);
+  });
+
+  it('frees the identity, so the same class can be created again', async () => {
+    // The identity index is partial on is_active, which is what makes this work.
+    const cls = await soloEmptyClass();
+    await svc.deactivateClass({ classId: cls.id, teacherUserId: TEACHER });
+
+    const again = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    expect(again.created).toBe(true);
+    expect(again.class.id).not.toBe(cls.id);
+  });
+
+  it('REFUSES when another teacher is still on the class', async () => {
+    const cls = await soloEmptyClass();
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: OTHER_TEACHER, subjectCodes: ['urdu'] });
+
+    const res = await svc.deactivateClass({ classId: cls.id, teacherUserId: TEACHER });
+    expect(res).toMatchObject({ error: 'other_teachers' });
+    expect(mockDb._tables.classes.find((c) => c.id === cls.id).is_active).toBe(true);
+  });
+
+  it('REFUSES when students are enrolled', async () => {
+    const cls = await soloEmptyClass();
+    mockDb._tables.students.push({ id: 'kid-1', student_name: 'Ayesha', is_active: true });
+    await svc.enrollStudent({ classId: cls.id, studentId: 'kid-1' });
+
+    const res = await svc.deactivateClass({ classId: cls.id, teacherUserId: TEACHER });
+    expect(res).toMatchObject({ error: 'has_students' });
+    expect(mockDb._tables.classes.find((c) => c.id === cls.id).is_active).toBe(true);
+  });
+
+  it('refuses for someone who is not on the class', async () => {
+    const cls = await soloEmptyClass();
+    const res = await svc.deactivateClass({ classId: cls.id, teacherUserId: 'stranger' });
+    expect(res).toMatchObject({ error: 'not_assigned' });
+  });
+
+  it('deactivates her mirror row too, so attendance stops offering it', async () => {
+    const cls = await soloEmptyClass();
+    await svc.deactivateClass({ classId: cls.id, teacherUserId: TEACHER });
+    expect(mockDb._tables.student_lists.every((r) => r.is_active === false)).toBe(true);
+  });
+});
+
+describe('the class roster', () => {
+  async function aClassOf(teacher = TEACHER) {
+    const { class: cls } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: teacher,
+    });
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: teacher, subjectCodes: ['maths'] });
+    return cls;
+  }
+
+  it('adds a student to the CLASS, not to a teacher', async () => {
+    const cls = await aClassOf();
+    const res = await svc.addStudent({
+      classId: cls.id, teacherUserId: TEACHER, studentName: 'Ayesha Bibi', rollNumber: 1,
+    });
+
+    expect(res.error).toBeUndefined();
+    expect(mockDb._tables.students).toHaveLength(1);
+    expect(mockDb._tables.class_enrollments).toHaveLength(1);
+    expect(mockDb._tables.class_enrollments[0]).toMatchObject({
+      class_id: cls.id, student_id: res.student.id, roll_number: 1, is_active: true,
+    });
+  });
+
+  it('shows the SAME roster to every teacher on the class', async () => {
+    // The point of the model: the roster belongs to the class. A colleague who
+    // joins sees the children already there.
+    const cls = await aClassOf();
+    await svc.addStudent({ classId: cls.id, teacherUserId: TEACHER, studentName: 'Ayesha Bibi' });
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: OTHER_TEACHER, subjectCodes: ['urdu'] });
+
+    const seen = await svc.listStudents({ classId: cls.id, teacherUserId: OTHER_TEACHER });
+    expect(seen.map((s) => s.studentName)).toEqual(['Ayesha Bibi']);
+  });
+
+  it('refuses to read or write a roster she is not assigned to', async () => {
+    const cls = await aClassOf();
+    await expect(svc.listStudents({ classId: cls.id, teacherUserId: 'stranger' }))
+      .resolves.toEqual([]);
+    const res = await svc.addStudent({
+      classId: cls.id, teacherUserId: 'stranger', studentName: 'Nobody',
+    });
+    expect(res).toMatchObject({ error: 'not_assigned' });
+  });
+
+  it('requires a name', async () => {
+    const cls = await aClassOf();
+    const res = await svc.addStudent({ classId: cls.id, teacherUserId: TEACHER, studentName: '  ' });
+    expect(res).toMatchObject({ error: 'missing_name' });
+    expect(mockDb._tables.students).toHaveLength(0);
+  });
+
+  it('does not enroll the same child twice', async () => {
+    const cls = await aClassOf();
+    const first = await svc.addStudent({ classId: cls.id, teacherUserId: TEACHER, studentName: 'Ayesha Bibi' });
+    const again = await svc.enrollStudent({ classId: cls.id, studentId: first.student.id });
+    expect(again.created).toBe(false);
+    expect(mockDb._tables.class_enrollments).toHaveLength(1);
+  });
+
+  it('removes a student SOFTLY, closing her enrollment', async () => {
+    // Shared roster: a hard delete would remove her for every teacher AND orphan
+    // the attendance records that reference her. left_on/outcome exist for this.
+    const cls = await aClassOf();
+    const { student } = await svc.addStudent({ classId: cls.id, teacherUserId: TEACHER, studentName: 'Ayesha Bibi' });
+
+    const res = await svc.removeStudent({ classId: cls.id, teacherUserId: TEACHER, studentId: student.id });
+    expect(res.error).toBeUndefined();
+
+    const row = mockDb._tables.class_enrollments[0];
+    expect(row.is_active).toBe(false);
+    expect(row.left_on).toBeTruthy();
+    expect(row.outcome).toBe('left');
+    // The child herself survives — she may be enrolled elsewhere, and history
+    // points at her.
+    expect(mockDb._tables.students).toHaveLength(1);
+  });
+
+  it('drops her from the roster every teacher sees', async () => {
+    const cls = await aClassOf();
+    const { student } = await svc.addStudent({ classId: cls.id, teacherUserId: TEACHER, studentName: 'Ayesha Bibi' });
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: OTHER_TEACHER });
+    await svc.removeStudent({ classId: cls.id, teacherUserId: OTHER_TEACHER, studentId: student.id });
+
+    await expect(svc.listStudents({ classId: cls.id, teacherUserId: TEACHER })).resolves.toEqual([]);
+  });
+
+  it('lets a removed child be re-enrolled, as a new enrollment', async () => {
+    const cls = await aClassOf();
+    const { student } = await svc.addStudent({ classId: cls.id, teacherUserId: TEACHER, studentName: 'Ayesha Bibi' });
+    await svc.removeStudent({ classId: cls.id, teacherUserId: TEACHER, studentId: student.id });
+    const back = await svc.enrollStudent({ classId: cls.id, studentId: student.id });
+
+    expect(back.created).toBe(true);
+    // Two enrollments, one closed and one open — which IS the history.
+    expect(mockDb._tables.class_enrollments).toHaveLength(2);
+  });
+
+  it('attaches the child to the adding teacher\'s legacy roster so her attendance still works', async () => {
+    // The mirror is PER TEACHER and students.list_id is a single FK, so a shared
+    // roster cannot be mirrored to every teacher. Attaching to the adder preserves
+    // exactly today's behaviour for her; full sharing arrives with the attendance
+    // migration. Stated in a test so the limit is deliberate, not discovered.
+    const cls = await aClassOf();
+    const { student } = await svc.addStudent({ classId: cls.id, teacherUserId: TEACHER, studentName: 'Ayesha Bibi' });
+
+    const mirror = mockDb._tables.student_lists.find((r) => r.class_id === cls.id && r.user_id === TEACHER);
+    expect(mockDb._tables.students.find((s) => s.id === student.id).list_id).toBe(mirror.id);
+  });
+});
+
+describe('adding a whole class at once', () => {
+  // The attendance flow carries this lesson in its own source: the version it
+  // replaced added one student per screen round-trip, "which is why no class was
+  // ever finished on this deployment". A roster is pasted, not typed one at a time.
+  async function aClass() {
+    const { class: cls } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: TEACHER, subjectCodes: ['maths'] });
+    return cls;
+  }
+
+  it('adds every line of a pasted register', async () => {
+    const cls = await aClass();
+    const res = await svc.addStudents({
+      classId: cls.id, teacherUserId: TEACHER,
+      rawText: 'Ayesha Bibi\nBilal Ahmed\nFatima Noor',
+    });
+
+    expect(res.error).toBeUndefined();
+    expect(res.added).toBe(3);
+    expect(mockDb._tables.class_enrollments.filter((e) => e.is_active)).toHaveLength(3);
+  });
+
+  it('captures father names in both forms teachers write', async () => {
+    const cls = await aClass();
+    await svc.addStudents({
+      classId: cls.id, teacherUserId: TEACHER,
+      rawText: 'Ayesha Bibi, Muhammad Aslam\nBilal Ahmed s/o Tariq Mahmood',
+    });
+
+    const kids = mockDb._tables.students;
+    expect(kids.find((k) => k.student_name === 'Ayesha Bibi').father_name).toBe('Muhammad Aslam');
+    expect(kids.find((k) => k.student_name === 'Bilal Ahmed').father_name).toBe('Tariq Mahmood');
+  });
+
+  it('strips the list markers teachers paste from a register', async () => {
+    const cls = await aClass();
+    await svc.addStudents({
+      classId: cls.id, teacherUserId: TEACHER,
+      rawText: '1. Ayesha Bibi\n2) Bilal Ahmed\n- Fatima Noor\n\n',
+    });
+    expect(mockDb._tables.students.map((k) => k.student_name).sort())
+      .toEqual(['Ayesha Bibi', 'Bilal Ahmed', 'Fatima Noor']);
+  });
+
+  it('numbers them sequentially, continuing from the roster that is already there', async () => {
+    const cls = await aClass();
+    await svc.addStudents({ classId: cls.id, teacherUserId: TEACHER, rawText: 'Ayesha Bibi\nBilal Ahmed' });
+    await svc.addStudents({ classId: cls.id, teacherUserId: TEACHER, rawText: 'Fatima Noor' });
+
+    const roll = (await svc.listStudents({ classId: cls.id, teacherUserId: TEACHER }))
+      .map((s) => [s.studentName, s.rollNumber]);
+    expect(roll).toEqual([['Ayesha Bibi', 1], ['Bilal Ahmed', 2], ['Fatima Noor', 3]]);
+  });
+
+  it('does not add the same child twice from one paste', async () => {
+    const cls = await aClass();
+    const res = await svc.addStudents({
+      classId: cls.id, teacherUserId: TEACHER,
+      rawText: 'Ayesha Bibi\nayesha bibi\nBilal Ahmed',
+    });
+    expect(res.added).toBe(2);
+    expect(res.duplicates).toBe(1);
+  });
+
+  it('does not re-add a child already on the roster', async () => {
+    const cls = await aClass();
+    await svc.addStudents({ classId: cls.id, teacherUserId: TEACHER, rawText: 'Ayesha Bibi' });
+    const res = await svc.addStudents({ classId: cls.id, teacherUserId: TEACHER, rawText: 'Ayesha Bibi\nBilal Ahmed' });
+
+    expect(res.added).toBe(1);
+    expect(res.duplicates).toBe(1);
+    expect(mockDb._tables.class_enrollments.filter((e) => e.is_active)).toHaveLength(2);
+  });
+
+  it('caps a runaway paste and SAYS how many it dropped', async () => {
+    // One mis-paste — a whole school, a spreadsheet column — must not write
+    // thousands of rows, and the teacher has to be told rather than left guessing.
+    const cls = await aClass();
+    const names = Array.from({ length: 320 }, (_, i) => `Child ${i + 1}`).join('\n');
+    const res = await svc.addStudents({ classId: cls.id, teacherUserId: TEACHER, rawText: names });
+
+    expect(res.added).toBe(300);
+    expect(res.dropped).toBe(20);
+  });
+
+  it('rejects an empty paste', async () => {
+    const cls = await aClass();
+    const res = await svc.addStudents({ classId: cls.id, teacherUserId: TEACHER, rawText: '   \n\n' });
+    expect(res).toMatchObject({ error: 'no_names' });
+    expect(mockDb._tables.students).toHaveLength(0);
+  });
+
+  it('refuses a teacher who is not on the class', async () => {
+    const cls = await aClass();
+    const res = await svc.addStudents({ classId: cls.id, teacherUserId: 'stranger', rawText: 'Ayesha Bibi' });
+    expect(res).toMatchObject({ error: 'not_assigned' });
+    expect(mockDb._tables.students).toHaveLength(0);
+  });
+});
+
+describe('the shared roster parser handles the markers teachers actually paste', () => {
+  // Only one production consumer (addStudents), and it had a real gap: the closing
+  // paren form was not stripped, so "2) Bilal Ahmed" was stored with the marker in
+  // the child's name. Asserted here because the root suite is what CI runs first.
+  const StudentListService = require('../../bot/shared/services/student-list.service');
+
+  it.each([
+    ['1. Ayesha Bibi', 'Ayesha Bibi'],
+    ['2) Bilal Ahmed', 'Bilal Ahmed'],
+    ['3 - Fatima Noor', 'Fatima Noor'],
+    ['04. Hamza Ali', 'Hamza Ali'],
+    ['- Zainab Khan', 'Zainab Khan'],
+    ['• Usman Tariq', 'Usman Tariq'],
+    ['* Hira Shah', 'Hira Shah'],
+  ])('strips %s', (line, expected) => {
+    expect(StudentListService.parseStudentText(line)[0].studentName).toBe(expected);
+  });
+
+  it('leaves a name that merely begins with digits alone', () => {
+    // The separator requirement is the whole reason this is safe.
+    expect(StudentListService.parseStudentText('7up Khan')[0].studentName).toBe('7up Khan');
+  });
+});
