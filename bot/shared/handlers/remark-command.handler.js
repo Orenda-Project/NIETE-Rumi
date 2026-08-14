@@ -20,7 +20,7 @@
  * anything else; there is no partial map.
  */
 
-const { logToFile } = require('../utils/logger');
+const { logToFile, logError } = require('../utils/logger');
 const { REMARK_TRIGGER_RX } = require('../services/remark/remark-gate');
 const { CAPABILITIES } = require('../services/authz/capability');
 
@@ -87,7 +87,14 @@ async function handleRemarkCommand(user, from, messageBody, deps = {}) {
     getActiveCycle = require('../services/remark/remark-cycle.repository').getActiveCycle,
     listSchoolTeachers = require('../services/remark/remark-cycle.repository').listSchoolTeachers,
     getProgress = require('../services/remark/remark-cycle.repository').getProgress,
-    sendMessage = require('../services/whatsapp.service').sendMessage,
+    // bd-2711 — MUST stay a method call. `WhatsAppService.sendMessage` is a
+    // STATIC method whose first line is `this._removeEmotionTags(message)`, so
+    // destructuring it (`.sendMessage` into a bare reference) drops `this` and
+    // every send throws TypeError before reaching the Graph API. That shipped:
+    // /remark was silent on staging AND prod from the first commit, while still
+    // logging "roster sent". Wrapped rather than bound at module load so the
+    // require stays lazy — whatsapp.service pulls in r2.js → @aws-sdk.
+    sendMessage = (to, text) => require('../services/whatsapp.service').sendMessage(to, text),
   } = deps;
 
   const S = strings(user);
@@ -125,10 +132,21 @@ async function handleRemarkCommand(user, from, messageBody, deps = {}) {
       return true;
     }
     const progress = await getProgress(user.id, cycle.id);
-    await sendMessage(from, buildRoster(teachers, progress || {}, S, cycle.name));
-    logToFile('📝 /remark roster sent', {
-      userId: user.id, cycleId: cycle.id, teachers: teachers.length,
-    });
+    // bd-2711 — sendMessage RETURNS false on failure (it catches its own
+    // exceptions), so an unconditional success log reports a delivery that
+    // never happened. That is how a totally silent /remark read as healthy in
+    // Axiom for four days. Trust the return value, and log the failure at
+    // ERROR so it reaches the error-level monitor.
+    const delivered = await sendMessage(from, buildRoster(teachers, progress || {}, S, cycle.name));
+    if (delivered === false) {
+      logError('❌ /remark: roster send FAILED — principal got nothing', {
+        userId: user.id, cycleId: cycle.id, teachers: teachers.length,
+      });
+    } else {
+      logToFile('📝 /remark roster sent', {
+        userId: user.id, cycleId: cycle.id, teachers: teachers.length,
+      });
+    }
   } catch (err) {
     // Degrade to a message; never drop silently. A principal who gets no reply
     // assumes the feature is broken and stops trying.
