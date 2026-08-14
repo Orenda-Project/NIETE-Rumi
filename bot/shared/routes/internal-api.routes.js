@@ -750,4 +750,115 @@ router.post('/classes/create', requireInternalKey, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/internal/classes/students/list
+ *
+ * The children on a class roster. Gated on the caller being assigned to the class —
+ * a roster is not public. Answers an empty list rather than 403 for anyone else,
+ * because the portal renders a list either way.
+ *
+ * Body   { userId, classId }
+ * Ok     200 { success: true, students: [...] }
+ */
+router.post('/classes/students/list', requireInternalKey, async (req, res) => {
+  const { userId, classId } = req.body || {};
+  if (!userId || !classId) {
+    return res.status(400).json({ success: false, error: 'userId and classId are required' });
+  }
+  try {
+    const ClassService = require('../services/classes/class.service');
+    const students = await ClassService.listStudents({ classId, teacherUserId: userId });
+    return res.json({ success: true, students });
+  } catch (error) {
+    logToFile('❌ Internal classes/students/list failed', { userId, classId, error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Failed to load the roster' });
+  }
+});
+
+/**
+ * POST /api/internal/classes/students/add
+ *
+ * Add a whole register from one pasted block. Reports duplicates and anything the
+ * paste cap dropped, so the caller can tell the teacher rather than leave her
+ * wondering where her students went.
+ *
+ * Body   { userId, classId, rawText }
+ * Errors 400 (missing input / no_names), 403 (not_assigned)
+ * Ok     201 { success: true, added, duplicates, dropped }
+ */
+router.post('/classes/students/add', requireInternalKey, async (req, res) => {
+  const { userId, classId, rawText } = req.body || {};
+  if (!userId || !classId) {
+    return res.status(400).json({ success: false, error: 'userId and classId are required' });
+  }
+  try {
+    const ClassService = require('../services/classes/class.service');
+    const result = await ClassService.addStudents({ classId, teacherUserId: userId, rawText });
+
+    if (result.error === 'not_assigned') {
+      return res.status(403).json({ success: false, error: 'not_assigned' });
+    }
+    if (result.error === 'no_names') {
+      return res.status(400).json({ success: false, error: 'no_names' });
+    }
+    if (result.error) {
+      // Part-way failures carry what DID land; saying "failed" would make her
+      // re-paste children who are already on the roster.
+      logToFile('❌ Internal classes/students/add partially failed', {
+        userId, classId, added: result.added, error: result.error,
+      }, 'error');
+      return res.status(502).json({
+        success: false, error: result.error, added: result.added || 0,
+      });
+    }
+
+    logToFile('🏫 Roster updated via internal API', {
+      userId, classId, added: result.added, duplicates: result.duplicates, dropped: result.dropped,
+    });
+    return res.status(201).json({
+      success: true,
+      added: result.added,
+      duplicates: result.duplicates,
+      dropped: result.dropped,
+    });
+  } catch (error) {
+    logToFile('❌ Internal classes/students/add failed', { userId, classId, error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Failed to add students' });
+  }
+});
+
+/**
+ * POST /api/internal/classes/students/remove
+ *
+ * Take a child off the roster. SOFT — the enrollment is closed, the child and the
+ * attendance history that references her both survive. Any teacher on the class may
+ * do it, because the roster is the class's rather than hers.
+ *
+ * Body   { userId, classId, studentId }
+ * Errors 400, 403 (not_assigned)
+ * Ok     200 { success: true, removed }
+ */
+router.post('/classes/students/remove', requireInternalKey, async (req, res) => {
+  const { userId, classId, studentId } = req.body || {};
+  if (!userId || !classId || !studentId) {
+    return res.status(400).json({ success: false, error: 'userId, classId and studentId are required' });
+  }
+  try {
+    const ClassService = require('../services/classes/class.service');
+    const result = await ClassService.removeStudent({ classId, teacherUserId: userId, studentId });
+
+    if (result.error === 'not_assigned') {
+      return res.status(403).json({ success: false, error: 'not_assigned' });
+    }
+    if (result.error) {
+      logToFile('❌ Internal classes/students/remove failed', { userId, classId, error: result.error }, 'error');
+      return res.status(502).json({ success: false, error: result.error });
+    }
+    return res.json({ success: true, removed: Boolean(result.removed) });
+  } catch (error) {
+    logToFile('❌ Internal classes/students/remove failed', { userId, classId, error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Failed to remove the student' });
+  }
+});
+
 module.exports = router;
