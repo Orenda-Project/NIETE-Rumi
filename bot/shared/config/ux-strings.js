@@ -336,6 +336,108 @@ const UX_STRINGS = {
 };
 
 /**
+ * Class-manager Flow copy.
+ *
+ * Every teacher-facing string in that Flow is supplied by the endpoint as screen
+ * DATA (`${data.heading}` and friends) rather than hardcoded into the Flow JSON.
+ * The existing Flows in this repo hardcode English, which is fine for a
+ * single-language deployment and wrong for this one — a Flow asset is per-WABA and
+ * cannot be re-rendered per teacher, so the only way an Urdu-preferring teacher
+ * sees Urdu is if the endpoint sends it.
+ *
+ * Caps that apply here: a Flow Footer label is 35 code points, a screen heading is
+ * generous, and a TextBody is 1024. The tightest of these is the footer, so all
+ * button-ish keys below stay well inside it.
+ */
+const CLASS_FLOW_STRINGS = {
+  classesHeading: {
+    en: 'Your classes',
+    ur: 'آپ کی جماعتیں',
+  },
+  classesEmpty: {
+    en: 'You have not added a class yet.',
+    ur: 'آپ نے ابھی کوئی جماعت شامل نہیں کی۔',
+  },
+  classesAdd: {
+    en: 'Add a class',
+    ur: 'نئی جماعت شامل کریں',
+  },
+  classAddHeading: {
+    en: 'Which class is this?',
+    ur: 'یہ کون سی جماعت ہے؟',
+  },
+  classGradeLabel: {
+    en: 'Class',
+    ur: 'جماعت',
+  },
+  classSectionLabel: {
+    en: 'Section',
+    ur: 'سیکشن',
+  },
+  classSectionHelper: {
+    en: 'Only if your school splits this class',
+    ur: 'صرف اگر آپ کے اسکول میں سیکشن ہیں',
+  },
+  classNext: {
+    en: 'Next',
+    ur: 'آگے',
+  },
+  classSubjectsHeading: {
+    en: 'What do you teach in {class}?',
+    ur: '{class} میں آپ کیا پڑھاتے ہیں؟',
+  },
+  classSubjectsLabel: {
+    en: 'Subjects',
+    ur: 'مضامین',
+  },
+  classTeacherOptIn: {
+    en: 'I am the class teacher',
+    ur: 'میں اس جماعت کا انچارج ہوں',
+  },
+  classSave: {
+    en: 'Save',
+    ur: 'محفوظ کریں',
+  },
+  classSavedHeading: {
+    en: 'Class saved',
+    ur: 'جماعت محفوظ ہو گئی',
+  },
+  classSavedDetail: {
+    en: '{class}, {session}.',
+    ur: '{class}، {session}۔',
+  },
+  classDone: {
+    en: 'Done',
+    ur: 'مکمل',
+  },
+  // The chat message that carries the Flow. Caps here are the tight ones:
+  // header 60, body 1024, and the button 20 — the button is 3–4 Urdu words.
+  classFlowHeader: {
+    en: 'Your classes',
+    ur: 'آپ کی جماعتیں',
+  },
+  classFlowBody: {
+    en: 'See the classes you teach, or add a new one.',
+    ur: 'آپ جو جماعتیں پڑھاتے ہیں وہ دیکھیں، یا نئی شامل کریں۔',
+  },
+  classFlowButton: {
+    en: 'Open classes',
+    ur: 'جماعتیں کھولیں',
+  },
+  // Sent in CHAT, never as a Flow screen. A teacher with no school on file cannot
+  // have a class created (classes.school_id is NOT NULL), and opening a Flow that
+  // cannot succeed is the dead-end pattern that has bitten this deployment before.
+  classNoSchool: {
+    en: 'I do not know which school you are at yet, so I cannot add a class. Ask your coach to link your school, then try again.',
+    ur: 'مجھے ابھی معلوم نہیں کہ آپ کس اسکول میں ہیں، اس لیے میں جماعت شامل نہیں کر سکتا۔ اپنے کوچ سے اسکول منسلک کروائیں، پھر دوبارہ کوشش کریں۔',
+  },
+};
+
+// Folded into the one catalog so resolveUx() is still the single lookup — the
+// block above is kept separate only so this Flow's copy reads as a unit.
+Object.assign(UX_STRINGS, CLASS_FLOW_STRINGS);
+
+/**
  * Grade and subject display labels, keyed by the canonical codes in the
  * `grade_levels` and `subjects` reference tables.
  *

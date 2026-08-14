@@ -1,0 +1,270 @@
+{
+  "version": "6.3",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "CLASSES": ["ADD"],
+    "ADD": ["SUBJECTS"],
+    "SUBJECTS": ["SAVED"],
+    "SAVED": []
+  },
+  "screens": [
+    {
+      "id": "CLASSES",
+      "title": "Your classes",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Your classes"
+        },
+        "summary": {
+          "type": "string",
+          "__example__": "Grade 4 - A · 2026-2027\nGrade 5 · 2026-2027"
+        },
+        "add_label": {
+          "type": "string",
+          "__example__": "Add a class"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "${data.heading}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.summary}"
+          },
+          {
+            "type": "Footer",
+            "label": "${data.add_label}",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "screen": "CLASSES"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ADD",
+      "title": "Add a class",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Which class is this?"
+        },
+        "grade_label": {
+          "type": "string",
+          "__example__": "Class"
+        },
+        "section_label": {
+          "type": "string",
+          "__example__": "Section"
+        },
+        "section_helper": {
+          "type": "string",
+          "__example__": "Only if your school splits this class"
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "grades": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "grade_4",
+              "title": "Grade 4"
+            },
+            {
+              "id": "grade_5",
+              "title": "Grade 5"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "add_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "grade",
+                "label": "${data.grade_label}",
+                "required": true,
+                "data-source": "${data.grades}"
+              },
+              {
+                "type": "TextInput",
+                "name": "section",
+                "label": "${data.section_label}",
+                "required": false,
+                "input-type": "text",
+                "helper-text": "${data.section_helper}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ADD",
+                    "grade": "${form.grade}",
+                    "section": "${form.section}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SUBJECTS",
+      "title": "What do you teach?",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "What do you teach in Grade 4 - A?"
+        },
+        "subjects_label": {
+          "type": "string",
+          "__example__": "Subjects"
+        },
+        "class_teacher_label": {
+          "type": "string",
+          "__example__": "I am the class teacher"
+        },
+        "save_label": {
+          "type": "string",
+          "__example__": "Save"
+        },
+        "subjects": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "maths",
+              "title": "Mathematics"
+            },
+            {
+              "id": "urdu",
+              "title": "Urdu"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "subjects_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "subjects",
+                "label": "${data.subjects_label}",
+                "required": false,
+                "data-source": "${data.subjects}"
+              },
+              {
+                "type": "OptIn",
+                "name": "is_class_teacher",
+                "label": "${data.class_teacher_label}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.save_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "SUBJECTS",
+                    "subjects": "${form.subjects}",
+                    "is_class_teacher": "${form.is_class_teacher}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SAVED",
+      "title": "Class saved",
+      "terminal": true,
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Class saved"
+        },
+        "detail": {
+          "type": "string",
+          "__example__": "Grade 4 - A, 2026-2027. You are the class teacher."
+        },
+        "done_label": {
+          "type": "string",
+          "__example__": "Done"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "${data.heading}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.detail}"
+          },
+          {
+            "type": "Footer",
+            "label": "${data.done_label}",
+            "on-click-action": {
+              "name": "complete",
+              "payload": {}
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
