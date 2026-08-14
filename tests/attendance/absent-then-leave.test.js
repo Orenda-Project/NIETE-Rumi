@@ -33,6 +33,7 @@ const flow = require('../../docs/flows/attendance-marking-flow.json');
 function builder(rows) {
   const p = Promise.resolve({ data: rows, error: null });
   p.eq = () => builder(rows);
+  p.in = () => builder(rows);
   p.order = () => builder(rows);
   p.limit = (n) => builder(rows.slice(0, n));
   p.maybeSingle = () => Promise.resolve({ data: rows[0] || null, error: null });
@@ -72,7 +73,10 @@ function db() {
     if (table === 'students') {
       return { select: () => ({ eq: () => builder(ROSTER), in: () => builder([]) }) };
     }
-    if (table === 'class_enrollments') return { select: () => ({ eq: () => builder([]) }) };
+    if (table === 'class_enrollments') return { select: () => ({ eq: () => builder([]), in: () => builder([]) }) };
+    // CONFIRM checks whether this class+date is already on file (bd-2730).
+    if (table === 'attendance_sessions') return { select: () => builder([]) };
+    if (table === 'teacher_attendance_records') return { select: () => builder([]) };
     return {};
   });
 }
@@ -88,9 +92,14 @@ async function toMark(token = 't1') {
 beforeEach(() => jest.clearAllMocks());
 
 describe('the Flow graph puts LEAVE after MARK', () => {
-  it('routes MARK -> LEAVE, and LEAVE onward', () => {
+  it('routes MARK -> LEAVE -> CONFIRM', () => {
     expect(flow.routing_model.MARK).toEqual(['LEAVE']);
-    expect(flow.routing_model.LEAVE).toEqual(expect.arrayContaining(['LEAVE_TYPE', 'CONFIRM']));
+    // bd-2729: no leave-TYPE step. Present / Absent / Leave, nothing finer.
+    expect(flow.routing_model.LEAVE).toEqual(['CONFIRM']);
+  });
+
+  it('declares no LEAVE_TYPE screen', () => {
+    expect(flow.screens.map((s) => s.id)).not.toContain('LEAVE_TYPE');
   });
 
   it('declares a LEAVE screen', () => {
@@ -139,12 +148,14 @@ describe('LEAVE — the roster minus the absentees', () => {
     expect(res.screen).toBe('CONFIRM');
   });
 
-  it('asks for a leave type when somebody is', async () => {
+  it('goes straight to the confirmation when somebody is, naming them', async () => {
     await toMark();
     await marking.handleMarkingDataExchange('t1', 'MARK', { absent: ['s1'] });
     const res = await marking.handleMarkingDataExchange('t1', 'LEAVE', { on_leave: ['s2'] });
-    expect(res.screen).toBe('LEAVE_TYPE');
-    expect(res.data.names).toContain('Tariq Asim');
+    expect(res.screen).toBe('CONFIRM');
+    expect(res.data.detail).toMatch(/On leave: Tariq Asim/);
+    // No type is asked for or shown.
+    expect(res.data.detail).not.toMatch(/casual|sick|official/i);
   });
 
   it('offers the whole roster when nobody is absent', async () => {
@@ -160,8 +171,7 @@ describe('the two statuses cannot collide', () => {
     await marking.handleMarkingDataExchange('t1', 'MARK', { absent: ['s1'] });
     // Even if a crafted payload names the absentee, LEAVE only governs the subset
     // it offered — the absentee stays absent.
-    await marking.handleMarkingDataExchange('t1', 'LEAVE', { on_leave: ['s1', 's2'] });
-    const confirm = await marking.handleMarkingDataExchange('t1', 'LEAVE_TYPE', { leave_type: 'sick' });
+    const confirm = await marking.handleMarkingDataExchange('t1', 'LEAVE', { on_leave: ['s1', 's2'] });
 
     expect(confirm.screen).toBe('CONFIRM');
     const detail = confirm.data.detail;
@@ -174,8 +184,7 @@ describe('the two statuses cannot collide', () => {
   it('the confirmation tallies add up to the roster', async () => {
     await toMark();
     await marking.handleMarkingDataExchange('t1', 'MARK', { absent: ['s1'] });
-    await marking.handleMarkingDataExchange('t1', 'LEAVE', { on_leave: ['s2'] });
-    const confirm = await marking.handleMarkingDataExchange('t1', 'LEAVE_TYPE', { leave_type: 'casual' });
+    const confirm = await marking.handleMarkingDataExchange('t1', 'LEAVE', { on_leave: ['s2'] });
 
     // 3 students: 1 absent, 1 on leave, 1 present.
     expect(confirm.data.heading).toMatch(/1 present/);

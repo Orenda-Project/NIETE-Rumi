@@ -18,7 +18,7 @@ jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 const svc = require('../../bot/shared/services/attendance-write.service');
 
 /** Minimal chainable Supabase double: records every insert/update/delete. */
-function harness({ existingSession = null } = {}) {
+function harness({ existingSession = null, existingTeacherDay = [] } = {}) {
   const calls = { inserts: {}, updates: {}, deletes: [] };
   mockSupabase.from.mockImplementation((table) => ({
     select: () => ({
@@ -27,6 +27,9 @@ function harness({ existingSession = null } = {}) {
           eq: () => ({ maybeSingle: () => Promise.resolve({ data: existingSession, error: null }) }),
           maybeSingle: () => Promise.resolve({ data: existingSession, error: null }),
           order: () => Promise.resolve({ data: [], error: null }),
+          // markTeachers asks whether the day is already on file before upserting,
+          // so it can report `replaced` — the upsert cannot tell afterwards (bd-2730).
+          limit: () => Promise.resolve({ data: existingTeacherDay, error: null }),
         }),
         order: () => Promise.resolve({ data: [], error: null }),
         maybeSingle: () => Promise.resolve({ data: existingSession, error: null }),
