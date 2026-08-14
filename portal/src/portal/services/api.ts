@@ -2,6 +2,7 @@ import axios from 'axios';
 import { getApiBaseUrl } from '@/lib/runtime';
 import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, CoachingAnalytics, Pagination, VideoRequest, VideoDetail, LeaderOverview, LeaderPatchTeacher, LeaderTeacherDetail, LeaderObservationsData } from '../types/portal';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
+import type { ClassesResponse, CreateClassPayload, CreateClassResponse } from '../types/portal';
 
 // On the web, frontend and backend share a domain, so a relative URL avoids
 // CORS and third-party cookies entirely. In the Capacitor app there is no
@@ -274,6 +275,24 @@ export const leader = {
     const response = await api.get('/leader/observations');
     return response.data;
   }
+};
+
+// Classes — the teacher's own classes (teacher-owned only; a principal's or
+// coach's view of a school's classes is deliberately not here yet).
+//
+// The backend proxies these to the bot, so the grade/subject labels below are
+// already resolved for this teacher's language. The page renders them as given
+// rather than keeping its own copy of the vocabulary.
+export const classes = {
+  list: async (): Promise<ClassesResponse> => {
+    const response = await api.get('/classes');
+    return response.data;
+  },
+
+  create: async (payload: CreateClassPayload): Promise<CreateClassResponse> => {
+    const response = await api.post('/classes', payload);
+    return response.data;
+  },
 };
 
 export default api;

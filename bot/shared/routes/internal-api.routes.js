@@ -499,4 +499,240 @@ router.post('/training/certificate-pdf', requireInternalKey, async (req, res) =>
   }
 });
 
+/* ------------------------------------------------------------------------- *
+ * Classes — the portal's read and write path for the classes model.
+ *
+ * Both go through the bot rather than being reimplemented in the portal process,
+ * for two reasons that have each already cost this deployment:
+ *
+ *   1. ONE WRITER. The portal once reimplemented the bot's training rules in its
+ *      own process and the copies rotted silently while its comments still
+ *      claimed parity. createClass() also writes the legacy student_lists mirror
+ *      and adopts a colliding roster; a second implementation of that would
+ *      diverge on the day someone changed one of them.
+ *   2. ONE COPY CATALOG. Grade and subject labels live in ux-strings, in this
+ *      process. Resolving them here means the portal renders the same words as
+ *      WhatsApp instead of growing a third vocabulary.
+ *
+ * Requiring the bot's ClassService from the dashboard process was the other
+ * option and is the trap: that require throws when a bot module reaches a
+ * bot-only dependency, and the throw gets swallowed.
+ * ------------------------------------------------------------------------- */
+
+/** Shape one class for the portal: codes for logic, labels for display. */
+function presentClass(row, who) {
+  const {
+    gradeLabelFor, subjectLabelFor,
+  } = require('../config/ux-strings');
+
+  const gradeLabel = gradeLabelFor(row.gradeCode, who);
+  return {
+    classId: row.classId,
+    gradeCode: row.gradeCode,
+    gradeLabel: gradeLabel || row.gradeCode,
+    section: row.section,
+    sessionCode: row.sessionCode,
+    isClassTeacher: row.isClassTeacher,
+    display: row.section && gradeLabel ? `${gradeLabel} - ${row.section}` : (gradeLabel || row.gradeCode),
+    subjects: (row.subjectCodes || []).map((code) => ({
+      code,
+      label: subjectLabelFor(code, who) || code,
+    })),
+  };
+}
+
+/** The teacher row the labels and the school check both need. */
+async function loadPortalTeacher(userId) {
+  const supabase = require('../config/supabase');
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, school_id, preferred_language')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) {
+    logToFile('⚠️ internal/classes: user load failed', { userId, error: error.message });
+    return null;
+  }
+  return data || null;
+}
+
+/**
+ * POST /api/internal/classes/list
+ *
+ * The classes a teacher is assigned to, with display labels already resolved for
+ * that teacher's language.
+ *
+ * Body   { userId }
+ * Auth   x-api-key: INTERNAL_API_KEY
+ * Errors 400 (missing userId), 401 (bad key)
+ * Ok     200 { success: true, classes: [...], canAdd, currentSession }
+ */
+router.post('/classes/list', requireInternalKey, async (req, res) => {
+  const { userId } = req.body || {};
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+  try {
+    const ClassService = require('../services/classes/class.service');
+    const { currentSessionCode } = require('./class-manager-endpoint');
+
+    const teacher = await loadPortalTeacher(userId);
+    const rows = await ClassService.listClassesForTeacher(userId);
+    const currentSession = await currentSessionCode();
+
+    return res.json({
+      success: true,
+      classes: rows.map((r) => presentClass(r, teacher || {})),
+      // The portal must know NOT to offer the add form when we cannot satisfy it —
+      // classes.school_id is NOT NULL and roughly one teacher in eight has none.
+      canAdd: Boolean(teacher && teacher.school_id && currentSession),
+      currentSession: currentSession || null,
+    });
+  } catch (error) {
+    logToFile('❌ Internal classes/list failed', { userId, error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Failed to load classes' });
+  }
+});
+
+/**
+ * POST /api/internal/classes/options
+ *
+ * The grade and subject pickers, ordered and labelled for this teacher. Served
+ * from the reference tables so the portal cannot drift from the seeded vocabulary.
+ *
+ * Body   { userId }
+ * Ok     200 { success: true, grades: [{code,label}], subjects: [{code,label}] }
+ */
+router.post('/classes/options', requireInternalKey, async (req, res) => {
+  const { userId } = req.body || {};
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+  try {
+    const supabase = require('../config/supabase');
+    const { gradeLabelFor, subjectLabelFor, SUBJECT_LABELS } = require('../config/ux-strings');
+    const teacher = await loadPortalTeacher(userId);
+    const who = teacher || {};
+
+    const { data: gradeRows, error } = await supabase
+      .from('grade_levels')
+      .select('code, ordinal')
+      .eq('is_active', true);
+
+    if (error || !gradeRows) {
+      logToFile('❌ Internal classes/options: grade_levels load failed', { error: error && error.message }, 'error');
+      return res.status(500).json({ success: false, error: 'Failed to load options' });
+    }
+
+    const grades = [...gradeRows]
+      .sort((a, b) => a.ordinal - b.ordinal)
+      .map((r) => ({ code: r.code, label: gradeLabelFor(r.code, who) }))
+      .filter((g) => Boolean(g.label));
+
+    const subjects = Object.keys(SUBJECT_LABELS)
+      .map((code) => ({ code, label: subjectLabelFor(code, who) }))
+      .filter((s) => Boolean(s.label));
+
+    return res.json({ success: true, grades, subjects });
+  } catch (err) {
+    logToFile('❌ Internal classes/options failed', { userId, error: err?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Failed to load options' });
+  }
+});
+
+/**
+ * POST /api/internal/classes/create
+ *
+ * Create a class and assign the requesting teacher to it. Delegates to the SAME
+ * ClassService the WhatsApp Flow uses, so the legacy mirror and the
+ * at-most-one-class-teacher rule behave identically on both surfaces.
+ *
+ * Body   { userId, gradeCode, section?, subjectCodes?, isClassTeacher? }
+ * Errors 400 (missing/unknown input), 401 (bad key), 409 (class teacher taken),
+ *        422 (no school on file), 503 (no current session)
+ * Ok     201 { success: true, class, created, mirrored }
+ */
+router.post('/classes/create', requireInternalKey, async (req, res) => {
+  const {
+    userId, gradeCode, section, subjectCodes, isClassTeacher,
+  } = req.body || {};
+
+  if (!userId || !gradeCode) {
+    return res.status(400).json({ success: false, error: 'userId and gradeCode are required' });
+  }
+
+  try {
+    const ClassService = require('../services/classes/class.service');
+    const { currentSessionCode } = require('./class-manager-endpoint');
+
+    const teacher = await loadPortalTeacher(userId);
+    if (!teacher || !teacher.school_id) {
+      // 422, not 400: the request is well formed, the account is not ready. The
+      // portal turns this into the same sentence WhatsApp sends.
+      return res.status(422).json({ success: false, error: 'no_school' });
+    }
+
+    const sessionCode = await currentSessionCode();
+    if (!sessionCode) {
+      logToFile('❌ Internal classes/create: no current academic session', { userId }, 'error');
+      return res.status(503).json({ success: false, error: 'no_current_session' });
+    }
+
+    const result = await ClassService.createClass({
+      schoolId: teacher.school_id,
+      gradeCode,
+      section,
+      sessionCode,
+      teacherUserId: userId,
+    });
+
+    if (result.error || !result.class) {
+      const status = result.error === 'unknown_grade' || result.error === 'unknown_session' ? 400 : 500;
+      return res.status(status).json({ success: false, error: result.error || 'create_failed' });
+    }
+
+    const assigned = await ClassService.assignTeacher({
+      classId: result.class.id,
+      teacherUserId: userId,
+      isClassTeacher: Boolean(isClassTeacher),
+      subjectCodes: Array.isArray(subjectCodes) ? subjectCodes : [],
+    });
+
+    if (assigned.error === 'class_teacher_exists') {
+      // The class was created; only the role claim was refused. Say so precisely,
+      // because "failed" would push the teacher to create it again.
+      return res.status(409).json({
+        success: false,
+        error: 'class_teacher_exists',
+        classId: result.class.id,
+        created: result.created,
+      });
+    }
+
+    if (assigned.error) {
+      logToFile('⚠️ Internal classes/create: assignTeacher failed after createClass', {
+        userId, classId: result.class.id, error: assigned.error,
+      });
+    }
+
+    logToFile('🏫 Class created via internal API', {
+      userId, classId: result.class.id, created: result.created, mirrored: result.mirrored,
+    });
+
+    return res.status(201).json({
+      success: true,
+      class: {
+        classId: result.class.id,
+        gradeCode: result.class.grade_code,
+        section: result.class.section,
+        sessionCode: result.class.session_code,
+      },
+      created: result.created,
+      mirrored: result.mirrored,
+      assignmentError: assigned.error || null,
+    });
+  } catch (error) {
+    logToFile('❌ Internal classes/create failed', { userId, error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Failed to create class' });
+  }
+});
+
 module.exports = router;
