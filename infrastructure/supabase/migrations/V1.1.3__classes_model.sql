@@ -101,11 +101,12 @@
 -- NOTHING. Re-running is a no-op.
 --
 -- NO EXPLICIT BEGIN/COMMIT, deliberately, and unlike the six migrations before
--- this one. `npm run migrate` applies these through the `exec_sql` RPC, whose body
--- is `EXECUTE query` — and Postgres cannot EXECUTE a transaction command, so a
--- file containing BEGIN raises 0A000 and the migration never applies. Atomicity is
--- not lost: a plpgsql function body is itself one transaction, so the whole batch
--- still commits or rolls back together.
+-- this one. `npm run migrate` applies a migration by handing the whole file to a
+-- SQL-exec RPC whose body is `EXECUTE query`, and Postgres cannot EXECUTE a
+-- transaction command — so a file containing BEGIN raises
+-- `0A000: EXECUTE of transaction commands is not implemented` and never applies.
+-- Atomicity is not lost: a plpgsql function body is itself one transaction, so the
+-- whole batch still commits or rolls back together.
 --
 -- (Applying this by hand instead — psql, or the Supabase SQL editor — runs in
 -- autocommit, so wrap it yourself there if you want all-or-nothing.)
