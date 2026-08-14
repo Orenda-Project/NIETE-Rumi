@@ -23,6 +23,9 @@ const ATTENDANCE_SETUP_FLOW_ID = process.env.ATTENDANCE_SETUP_FLOW_ID || '';
 const ATTENDANCE_MARKING_FLOW_ID = process.env.ATTENDANCE_MARKING_FLOW_ID || '';
 // WhatsApp Flow ID for the user settings form (empty → /settings is disabled).
 const SETTINGS_FLOW_ID = process.env.SETTINGS_FLOW_ID || '';
+// bd-2712 — STEPS "S" Supervisor Remark Flow. Presence-gated: when unset,
+// /remark falls back to the plain-text roster rather than failing.
+const REMARK_FLOW_ID = process.env.REMARK_FLOW_ID || '';
 // WhatsApp Flow ID for the /status snapshot (empty → /status falls back to a
 // plain-text summary instead of the interactive Flow).
 const STATUS_FLOW_ID = process.env.STATUS_FLOW_ID || '';
@@ -167,6 +170,7 @@ module.exports = {
   ATTENDANCE_SETUP_FLOW_ID,
   ATTENDANCE_MARKING_FLOW_ID,
   SETTINGS_FLOW_ID,
+  REMARK_FLOW_ID,
   STATUS_FLOW_ID,
   STUDENT_VIDEOS_FLOW_ID,
   HOMEWORK_FLOW_ID,

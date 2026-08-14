@@ -43,6 +43,16 @@ function detectFlowType(responseJson) {
     return 'teacher_training';
   }
 
+  // 0b. Supervisor Remark (bd-2712). Tagged, not shape-guessed — and checked
+  //     EARLY because the attendance_marking branch below matches any flow_token
+  //     containing a colon, which is close enough to a catch-all that a new flow
+  //     can be swallowed by it. (This flow's token is a bare user UUID with no
+  //     colon, so it would not match today; ordering keeps that true if the
+  //     token format ever changes.)
+  if (responseJson.remark_action !== undefined) {
+    return 'remark';
+  }
+
   // 0.05 Training multi-answer question — the select-all-that-apply
   //      CheckboxGroup Flow. The screen echoes training_msq_action in its
   //      completion payload; the field is unique to this flow, so the rule

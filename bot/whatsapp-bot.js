@@ -20,7 +20,7 @@ const { handleImageMessage } = require('./shared/handlers/image-message.handler'
 const ExamCheckerHandler = require('./shared/handlers/exam-checker.handler');
 
 // Import Utils
-const { logToFile, LOGS_DIR } = require('./shared/utils/logger');
+const { logToFile, logError, LOGS_DIR } = require('./shared/utils/logger');
 const validators = require('./shared/utils/validators');
 const constants = require('./shared/utils/constants');
 const { setUserLanguage } = require('./shared/utils/language-cache');
@@ -1371,6 +1371,31 @@ app.post('/webhook', async (req, res) => {
           from,
           responseFields: Object.keys(responseJson)
         });
+      } else if (flowType === 'remark') {
+        // Supervisor Remark (bd-2712). The endpoint already did every write
+        // before the Flow closed, so this branch ONLY acknowledges — it must not
+        // re-persist anything. Without it the principal lands on the catch-all
+        // "Thanks for your response! Type /menu…", which reads as the evaluation
+        // having gone nowhere (whatsapp-flows rules 10 + 11).
+        logToFile('📝 Detected supervisor remark flow submission', {
+          from, responseFields: Object.keys(responseJson),
+        });
+        try {
+          const { resolveUx } = require('./shared/config/ux-strings');
+          const left = Number(responseJson.remark_left || 0);
+          const ack = resolveUx('remarkAckSubmitted', {
+            user,
+            params: {
+              teacher: responseJson.remark_teacher || '',
+              left: resolveUx(left > 0 ? 'remarkAckMoreLeft' : 'remarkAckAllDone', { user }),
+            },
+          });
+          await WhatsAppService.sendMessage(from, ack);
+        } catch (ackError) {
+          logError('❌ Exception acking supervisor remark', {
+            from, error: ackError.message, stack: ackError.stack,
+          });
+        }
       } else if (flowType === 'teacher_training') {
         // Teacher Training Flow — hand off to FlowResponseHandler which routes
         // by training_action to content delivery or grand quiz start.
