@@ -1952,24 +1952,22 @@ async function handleTextMessage(message, from, messageBody, user = null) {
           });
           break;
 
-        case 'SEND_SETUP':
-          if (!ATTENDANCE_SETUP_FLOW_ID) {
-            await WhatsAppService.sendMessage(from, 'Class setup is not available on this number yet. Please try again later.');
+        // /class owns class creation now (bd-2724). Same flowToken convention as
+        // the /class command itself: the bare user id.
+        case 'SEND_CLASS_MANAGER':
+          if (!CLASS_MANAGER_FLOW_ID) {
+            await WhatsAppService.sendMessage(from, `${decision.message} Send /class to set one up.`);
             break;
           }
           await WhatsAppService.sendFlow(from, {
-            flowId: ATTENDANCE_SETUP_FLOW_ID,
-            header: '📋 Set up a class',
+            flowId: CLASS_MANAGER_FLOW_ID,
+            header: '🏫 Your classes',
             body: decision.message,
-            buttonText: 'Set up class',
+            buttonText: 'Manage classes',
             flowToken: user.id,
           });
           break;
 
-        // bd-2713: the class exists but nobody is on the roster. Opening the
-        // marking Flow here is the dead end that showed teachers "something went
-        // wrong", so route them to where students get added instead. Must be an
-        // explicit case — the default below sends the message with no way to act.
         case 'EMPTY_CLASS':
           if (!EDIT_CLASS_FLOW_ID) {
             await WhatsAppService.sendMessage(from, decision.message);

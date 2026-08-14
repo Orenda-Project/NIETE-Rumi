@@ -6,9 +6,10 @@
  *  1. A principal marks TEACHERS; a teacher marks STUDENTS. A principal who also
  *     runs a class is ASKED rather than guessed. The invariant that matters: a
  *     principal is never silently dropped into the student flow.
- *  2. A teacher with no class yet is offered SETUP — the old flow said
- *     "You haven't set up any classes yet" and then, because the Flow id was
- *     unset, "class setup is not available right now". A dead end with no exit.
+ *  2. A teacher with no class yet is handed to /class, which OWNS class creation
+ *     since bd-2724. The old flow said "You haven't set up any classes yet" and
+ *     then, because the Flow id was unset, "class setup is not available right
+ *     now" — a dead end with no exit. Attendance no longer creates classes at all.
  *  3. A teacher with several classes picks one. WhatsApp caps reply buttons at 3,
  *     so 4+ classes must become a list, not a silently truncated button row.
  */
@@ -94,12 +95,15 @@ describe('route by role', () => {
   });
 });
 
-describe('a teacher with no classes is offered setup', () => {
-  it('returns SEND_SETUP rather than a dead end', async () => {
-    db({ user: { id: 't2', role: 'teacher' }, classes: [] });
+describe('a teacher with no classes is handed to /class', () => {
+  // bd-2724: /class owns class creation now, so a teacher with no class is handed
+  // to the class manager instead of an attendance-owned setup Flow. A school is
+  // required because classes.school_id is NOT NULL.
+  it('hands a teacher with no class to the class manager, not a dead end', async () => {
+    db({ user: { id: 't2', role: 'teacher', school_id: 'sch1' }, classes: [] });
     const r = await router.route('t2');
-    expect(r.action).toBe('SEND_SETUP');
-    expect(r.message).toMatch(/set up|first class/i);
+    expect(r.action).toBe('SEND_CLASS_MANAGER');
+    expect(r.message).toMatch(/class/i);
   });
 });
 

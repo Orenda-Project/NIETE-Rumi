@@ -226,14 +226,21 @@ async function handleAttendanceTap(interactiveId, from, user) {
     return true;
   }
 
-  if (decision.action === 'SEND_SETUP' && constants.ATTENDANCE_SETUP_FLOW_ID) {
-    await WhatsAppService.sendFlow(from, {
-      flowId: constants.ATTENDANCE_SETUP_FLOW_ID,
-      header: '📋 Set up a class',
-      body: decision.message,
-      buttonText: 'Set up class',
-      flowToken: user.id,
-    });
+  // /class owns class creation now — attendance points at it rather than shipping a
+  // second way to make one. flowToken is the bare user id, the class-manager
+  // endpoint's convention (NOT a composite token). (bd-2724)
+  if (decision.action === 'SEND_CLASS_MANAGER') {
+    if (constants.CLASS_MANAGER_FLOW_ID) {
+      await WhatsAppService.sendFlow(from, {
+        flowId: constants.CLASS_MANAGER_FLOW_ID,
+        header: '🏫 Your classes',
+        body: decision.message,
+        buttonText: 'Manage classes',
+        flowToken: user.id,
+      });
+      return true;
+    }
+    await WhatsAppService.sendMessage(from, `${decision.message} Send /class to set one up.`);
     return true;
   }
 

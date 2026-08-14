@@ -43,7 +43,39 @@ function prettyDate(iso) {
   });
 }
 
-async function loadStudentRoster(listId) {
+/** The roster row, including the bridge to the canonical class. */
+async function loadList(listId) {
+  const { data } = await supabase
+    .from('student_lists')
+    .select('id, class_name, section, class_id')
+    .eq('id', listId)
+    .maybeSingle();
+  return data || null;
+}
+
+/** Membership from the enrollment system: class_enrollments -> students. */
+async function loadEnrolledRoster(classId) {
+  const { data: enrollments } = await supabase
+    .from('class_enrollments')
+    .select('student_id, roll_number')
+    .eq('class_id', classId)
+    .eq('is_active', true);
+
+  if (!enrollments || !enrollments.length) return [];
+
+  const { data: people } = await supabase
+    .from('students')
+    .select('id, student_name')
+    .in('id', enrollments.map((e) => e.student_id));
+
+  const nameById = new Map((people || []).map((p) => [p.id, p.student_name]));
+  return enrollments
+    .map((e) => ({ id: e.student_id, student_name: nameById.get(e.student_id), roll_number: e.roll_number }))
+    .sort((a, b) => (a.roll_number ?? 1e9) - (b.roll_number ?? 1e9));
+}
+
+/** Membership from the legacy denormalised pointer. */
+async function loadLegacyRoster(listId) {
   const { data } = await supabase
     .from('students')
     .select('id, student_name, roll_number')
@@ -53,14 +85,38 @@ async function loadStudentRoster(listId) {
   return data || [];
 }
 
-async function loadClassLabel(listId) {
-  const { data } = await supabase
-    .from('student_lists')
-    .select('class_name, section')
-    .eq('id', listId)
-    .maybeSingle();
-  if (!data) return 'Your class';
-  return data.section ? `${data.class_name} - ${data.section}` : data.class_name;
+/**
+ * Who is in this class — enrollment first, legacy second.
+ *
+ * PREFER-THEN-FALL-BACK rather than a switch. `/class` owns rosters now, so
+ * class_enrollments is the source of truth, but it is not populated yet and the
+ * backfill has not run. A hard switch would read zero for every class, including
+ * the 29 real students on production whose membership exists only as
+ * students.list_id — a full class silently marked present. This ordering is
+ * correct before, during, and after the backfill.
+ *
+ * Remove the fallback once class_enrollments is backfilled AND verified, not
+ * before. (bd-2724)
+ */
+async function loadStudentRoster(listId, list = null) {
+  const row = list || await loadList(listId);
+  if (row && row.class_id) {
+    const enrolled = await loadEnrolledRoster(row.class_id);
+    if (enrolled.length) return enrolled;
+  }
+  return loadLegacyRoster(listId);
+}
+
+/**
+ * A class-backed mirror row already carries section AND shift inside class_name
+ * (ClassService.mirrorLabel), so appending `section` renders "Grade 11 - B - B"
+ * and pushes "Grade 7 - E (evening) - E" past the 24-char row cap (bd-2725).
+ * The mirror owns the label for those rows; legacy rows compose it.
+ */
+function listLabel(row) {
+  if (!row) return 'Your class';
+  if (row.class_id) return row.class_name;
+  return row.section ? `${row.class_name} - ${row.section}` : row.class_name;
 }
 
 async function loadStaffRoster(schoolId, principalUserId) {
@@ -86,11 +142,14 @@ async function handleMarkingInit(flowToken) {
   logToFile('📋 Marking INIT', { userId, subject, targetId });
 
   const isTeacherSubject = subject === 'teacher';
+  // One read of the roster row serves both the membership lookup and the label,
+  // so a class-backed list is not fetched twice.
+  const listRow = isTeacherSubject ? null : await loadList(targetId);
   const people = isTeacherSubject
     ? await loadStaffRoster(targetId, userId)
-    : await loadStudentRoster(targetId);
+    : await loadStudentRoster(targetId, listRow);
 
-  const label = isTeacherSubject ? await loadSchoolLabel(targetId) : await loadClassLabel(targetId);
+  const label = isTeacherSubject ? await loadSchoolLabel(targetId) : listLabel(listRow);
 
   if (!people.length) {
     // Say what is missing and who can fix it — never a blank list.
