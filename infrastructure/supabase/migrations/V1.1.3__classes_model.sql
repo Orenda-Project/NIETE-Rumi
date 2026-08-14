@@ -439,9 +439,11 @@ ON CONFLICT (code) DO NOTHING;
 -- ---------------------------------------------------------------------------
 -- 12. SEED — academic_sessions.
 --
--- Spans follow the Apr–March cycle the bot already computes in
--- attendance-flow.handler.js getCurrentAcademicYear(), so the code and this
--- table agree on which session today falls in. `kind = 'annual'`; a semester
+-- Spans follow the AUGUST–JULY cycle this deployment already computes in
+-- bot/shared/routes/attendance-setup-endpoint.js getCurrentAcademicYear(), which
+-- rolls at getMonth() >= 7. Note this is NOT the main bot's April–March rule; a
+-- test pins the two together so the table and that function cannot disagree on
+-- which session today falls in. `kind = 'annual'`; a semester
 -- deployment seeds its own rows and nothing here assumes a 12-month span.
 --
 -- 2026-2027 is seeded because it is the current session AND the value on the one
@@ -449,9 +451,9 @@ ON CONFLICT (code) DO NOTHING;
 -- ---------------------------------------------------------------------------
 
 INSERT INTO academic_sessions (code, kind, starts_on, ends_on) VALUES
-    ('2025-2026', 'annual', DATE '2025-04-01', DATE '2026-03-31'),
-    ('2026-2027', 'annual', DATE '2026-04-01', DATE '2027-03-31'),
-    ('2027-2028', 'annual', DATE '2027-04-01', DATE '2028-03-31')
+    ('2025-2026', 'annual', DATE '2025-08-01', DATE '2026-07-31'),
+    ('2026-2027', 'annual', DATE '2026-08-01', DATE '2027-07-31'),
+    ('2027-2028', 'annual', DATE '2027-08-01', DATE '2028-07-31')
 ON CONFLICT (code) DO NOTHING;
 
 COMMIT;

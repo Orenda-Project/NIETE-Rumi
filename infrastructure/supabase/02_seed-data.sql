@@ -136,12 +136,13 @@ INSERT INTO subjects (code, sort_order, aliases) VALUES
     ('general_knowledge', 6, ARRAY['general_knowledge','General Knowledge','GK'])
 ON CONFLICT (code) DO NOTHING;
 
--- Spans follow the Apr–March cycle the bot already computes in
--- attendance-flow.handler.js getCurrentAcademicYear(), so code and table agree
--- on which session today falls in. `kind` exists so a semester/term deployment
+-- Spans follow the AUGUST–JULY cycle this deployment already computes in
+-- bot/shared/routes/attendance-setup-endpoint.js getCurrentAcademicYear(), which
+-- rolls at getMonth() >= 7 — NOT the main bot's April–March rule. A test pins the
+-- two together. `kind` exists so a semester/term deployment
 -- seeds its own rows without anything here assuming a 12-month span.
 INSERT INTO academic_sessions (code, kind, starts_on, ends_on) VALUES
-    ('2025-2026', 'annual', DATE '2025-04-01', DATE '2026-03-31'),
-    ('2026-2027', 'annual', DATE '2026-04-01', DATE '2027-03-31'),
-    ('2027-2028', 'annual', DATE '2027-04-01', DATE '2028-03-31')
+    ('2025-2026', 'annual', DATE '2025-08-01', DATE '2026-07-31'),
+    ('2026-2027', 'annual', DATE '2026-08-01', DATE '2027-07-31'),
+    ('2027-2028', 'annual', DATE '2027-08-01', DATE '2028-07-31')
 ON CONFLICT (code) DO NOTHING;
