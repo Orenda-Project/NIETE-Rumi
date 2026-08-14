@@ -47,9 +47,14 @@ function classLabel(cls) {
   // (ClassService.mirrorLabel), so appending section renders "Grade 11 - B - B",
   // and "Grade 7 - E (evening) - E" is 25 code points — over the 24-char row cap,
   // truncating to a dangling "Grade 7 - E (evening) - ". (bd-2725)
-  const base = cls.class_id
-    ? cls.class_name
-    : (cls.section ? `${cls.class_name} - ${cls.section}` : cls.class_name);
+  const name = String(cls.class_name || '').trim();
+  const section = cls.section ? String(cls.section).trim() : '';
+  let base = name;
+  if (section) {
+    const esc = section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const already = new RegExp(`(^|[\\s\\-])${esc}\\s*(\\(|$)`, 'i');
+    base = already.test(name) ? name : `${name} - ${section}`;
+  }
   return String(base || 'Class').slice(0, TITLE_CAP);
 }
 
