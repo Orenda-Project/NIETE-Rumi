@@ -535,9 +535,259 @@ async function enrollStudent({ classId, studentId, rollNumber = null, enrolledOn
   return { enrollment: inserted, created: true };
 }
 
+// ---------------------------------------------------------------------------
+// Editing, leaving, removing
+//
+// A teacher may change HER RELATIONSHIP to a class. She may not change the CLASS.
+// Identity — school, grade, section, shift, session — is all a class is, so
+// "editing the class" means changing what other teachers' assignments, students'
+// enrollments and attendance sessions already point at. That is a school-level
+// action with no surface here, deliberately (operator, 2026-08-14).
+//
+// Nothing below ever hard-deletes a class. Every table referencing classes(id)
+// cascades, so a DELETE would take enrollments with it, and the legacy mirror —
+// which is where attendance history actually hangs today — would survive with a
+// null link as a ghost roster still offered to the teacher. Soft delete also frees
+// the identity slot, because the identity index is partial on is_active.
+// ---------------------------------------------------------------------------
+
+/** Her active assignment on a class, or null. */
+async function findAssignment(classId, teacherUserId) {
+  const { data, error } = await supabase
+    .from('class_teachers')
+    .select('id, class_id, teacher_user_id, is_class_teacher, is_active')
+    .eq('class_id', classId)
+    .eq('teacher_user_id', teacherUserId)
+    .eq('is_active', true);
+  if (error) {
+    logToFile('⚠️ ClassService: assignment lookup failed', { error: error.message }, 'error');
+    return null;
+  }
+  return (data || [])[0] || null;
+}
+
+/** Deactivate the legacy mirror rows for a class — optionally just one teacher's. */
+async function deactivateMirrors(classId, teacherUserId = null) {
+  let q = supabase
+    .from('student_lists')
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq('class_id', classId);
+  if (teacherUserId) q = q.eq('user_id', teacherUserId);
+  const { error } = await q;
+  if (error) {
+    logToFile('⚠️ ClassService: could not deactivate the legacy mirror', { classId, error: error.message }, 'error');
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Change what a teacher teaches on a class, and whether she is its class teacher.
+ *
+ * `subjectCodes`, when given, is the COMPLETE set she teaches — subjects missing
+ * from it are removed, which is what frees them for a colleague. Omit it to leave
+ * her subjects alone. Likewise omit `isClassTeacher` to leave the role alone;
+ * `false` releases it.
+ *
+ * Any identity fields passed in are IGNORED. See the note above.
+ *
+ * @returns {Promise<{assignment?, subjectsTaken?, classTeacherTaken?, error?}>}
+ */
+async function updateAssignment({ classId, teacherUserId, subjectCodes, isClassTeacher } = {}) {
+  if (!classId) return { error: 'missing_class' };
+  if (!teacherUserId) return { error: 'missing_teacher' };
+
+  const assignment = await findAssignment(classId, teacherUserId);
+  if (!assignment) return { error: 'not_assigned' };
+
+  const { data: peers, error: peerErr } = await supabase
+    .from('class_teachers')
+    .select('id, teacher_user_id, is_class_teacher, is_active')
+    .eq('class_id', classId)
+    .eq('is_active', true);
+  if (peerErr) return { error: 'lookup_failed' };
+
+  // ---- the role ----
+  let classTeacherTaken = false;
+  if (isClassTeacher === true && !assignment.is_class_teacher) {
+    const holder = (peers || []).find((p) => p.is_class_teacher && p.teacher_user_id !== teacherUserId);
+    if (holder) {
+      classTeacherTaken = true;
+    } else {
+      const { error } = await supabase
+        .from('class_teachers')
+        .update({ is_class_teacher: true, updated_at: new Date().toISOString() })
+        .eq('id', assignment.id);
+      if (error) return { error: 'update_failed' };
+      assignment.is_class_teacher = true;
+    }
+  } else if (isClassTeacher === false && assignment.is_class_teacher) {
+    const { error } = await supabase
+      .from('class_teachers')
+      .update({ is_class_teacher: false, updated_at: new Date().toISOString() })
+      .eq('id', assignment.id);
+    if (error) return { error: 'update_failed' };
+    assignment.is_class_teacher = false;
+  }
+
+  // ---- the subjects ----
+  const subjectsTaken = [];
+  if (Array.isArray(subjectCodes)) {
+    const resolved = [];
+    for (const code of subjectCodes) {
+      const hit = await vocabulary.resolveSubject(code);
+      if (!hit || hit !== code) return { error: 'unknown_subject', subject: code };
+      resolved.push(hit);
+    }
+
+    const { data: claims, error: claimErr } = await supabase
+      .from('class_teacher_subjects')
+      .select('class_teacher_id, subject_code, class_id')
+      .eq('class_id', classId);
+    if (claimErr) return { error: 'lookup_failed' };
+
+    const byTeacher = new Map((peers || []).map((p) => [p.id, p.teacher_user_id]));
+    const mine = new Set();
+    const others = new Map();
+    for (const c of claims || []) {
+      if (c.class_teacher_id === assignment.id) mine.add(c.subject_code);
+      else others.set(c.subject_code, byTeacher.get(c.class_teacher_id) || null);
+    }
+
+    const want = new Set();
+    for (const code of resolved) {
+      if (others.has(code) && !mine.has(code)) {
+        subjectsTaken.push({ code, heldBy: others.get(code) });
+        continue;
+      }
+      want.add(code);
+    }
+
+    // Removals FIRST: dropping a subject is what unlocks it, and the documented
+    // consequence of (class, subject) uniqueness is that a row left behind keeps
+    // the subject bound to a teacher who no longer teaches it.
+    for (const code of mine) {
+      if (want.has(code)) continue;
+      const { error } = await supabase
+        .from('class_teacher_subjects')
+        .delete()
+        .eq('class_teacher_id', assignment.id)
+        .eq('subject_code', code);
+      if (error) return { error: 'update_failed' };
+    }
+
+    for (const code of want) {
+      if (mine.has(code)) continue;
+      const { error } = await supabase
+        .from('class_teacher_subjects')
+        .insert({ class_teacher_id: assignment.id, subject_code: code, class_id: classId })
+        .select()
+        .single();
+      if (error) return { error: 'update_failed' };
+    }
+  }
+
+  return { assignment, subjectsTaken, classTeacherTaken };
+}
+
+/**
+ * Remove a teacher from a class. The class survives for everyone else.
+ *
+ * Her subject rows are DELETED rather than left inert, so a colleague can pick those
+ * subjects up. Her mirror row is deactivated so attendance stops offering the class.
+ *
+ * @returns {Promise<{left: boolean, error?: string}>} left:false when she was not on it.
+ */
+async function leaveClass({ classId, teacherUserId } = {}) {
+  if (!classId) return { error: 'missing_class' };
+  if (!teacherUserId) return { error: 'missing_teacher' };
+
+  const assignment = await findAssignment(classId, teacherUserId);
+  if (!assignment) return { left: false };
+
+  const { error: subErr } = await supabase
+    .from('class_teacher_subjects')
+    .delete()
+    .eq('class_teacher_id', assignment.id);
+  if (subErr) {
+    logToFile('⚠️ ClassService.leaveClass: could not free her subjects', { error: subErr.message }, 'error');
+    return { error: 'update_failed' };
+  }
+
+  const { error: aErr } = await supabase
+    .from('class_teachers')
+    .update({
+      is_active: false,
+      ended_on: new Date().toISOString().slice(0, 10),
+      is_class_teacher: false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', assignment.id);
+  if (aErr) return { error: 'update_failed' };
+
+  await deactivateMirrors(classId, teacherUserId);
+  return { left: true };
+}
+
+/**
+ * Retire a class — soft, and only when it is hers alone and nobody is enrolled.
+ *
+ * Refuses with a NAMED reason so the caller can offer "leave" instead:
+ *   not_assigned    she is not on this class
+ *   other_teachers  someone else still teaches it; retiring it would remove theirs
+ *   has_students    enrollments exist, and a hard delete would cascade them away
+ *
+ * @returns {Promise<{deactivated?: boolean, error?: string, count?: number}>}
+ */
+async function deactivateClass({ classId, teacherUserId } = {}) {
+  if (!classId) return { error: 'missing_class' };
+  if (!teacherUserId) return { error: 'missing_teacher' };
+
+  const assignment = await findAssignment(classId, teacherUserId);
+  if (!assignment) return { error: 'not_assigned' };
+
+  const { data: peers, error: peerErr } = await supabase
+    .from('class_teachers')
+    .select('id, teacher_user_id, is_active')
+    .eq('class_id', classId)
+    .eq('is_active', true);
+  if (peerErr) return { error: 'lookup_failed' };
+
+  const others = (peers || []).filter((p) => p.teacher_user_id !== teacherUserId);
+  if (others.length) return { error: 'other_teachers', count: others.length };
+
+  const { data: enrolled, error: enrErr } = await supabase
+    .from('class_enrollments')
+    .select('id')
+    .eq('class_id', classId)
+    .eq('is_active', true);
+  if (enrErr) return { error: 'lookup_failed' };
+  if ((enrolled || []).length) return { error: 'has_students', count: enrolled.length };
+
+  const { error: clsErr } = await supabase
+    .from('classes')
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq('id', classId);
+  if (clsErr) return { error: 'update_failed' };
+
+  // Her assignment goes with it, and her subjects are freed — if this class is ever
+  // recreated it starts clean rather than inheriting a stale claim.
+  await supabase.from('class_teacher_subjects').delete().eq('class_id', classId);
+  await supabase
+    .from('class_teachers')
+    .update({ is_active: false, ended_on: new Date().toISOString().slice(0, 10) })
+    .eq('class_id', classId);
+  await deactivateMirrors(classId);
+
+  return { deactivated: true };
+}
+
 module.exports = {
   createClass,
   assignTeacher,
+  updateAssignment,
+  leaveClass,
+  deactivateClass,
   listClassesForTeacher,
   enrollStudent,
   // Exported for tests and for the cutover PR that removes the mirror.

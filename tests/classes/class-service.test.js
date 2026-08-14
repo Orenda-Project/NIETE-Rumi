@@ -623,3 +623,209 @@ describe('one teacher per subject per class', () => {
     expect(mockDb._tables.class_teacher_subjects[0].class_id).toBe(cls.id);
   });
 });
+
+describe('editing your relationship to a class', () => {
+  async function myClass(subjects = ['maths'], role = true) {
+    const { class: cls } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    await svc.assignTeacher({
+      classId: cls.id, teacherUserId: TEACHER, isClassTeacher: role, subjectCodes: subjects,
+    });
+    return cls;
+  }
+
+  it('adds a subject', async () => {
+    const cls = await myClass(['maths']);
+    const res = await svc.updateAssignment({
+      classId: cls.id, teacherUserId: TEACHER, subjectCodes: ['maths', 'urdu'],
+    });
+    expect(res.error).toBeUndefined();
+    expect(mockDb._tables.class_teacher_subjects.map((r) => r.subject_code).sort())
+      .toEqual(['maths', 'urdu']);
+  });
+
+  it('REMOVES a subject she no longer teaches, and frees it for a colleague', async () => {
+    // The documented consequence of (class, subject) uniqueness: if removal did not
+    // delete the row, the subject would stay locked to a teacher who dropped it.
+    const cls = await myClass(['maths', 'urdu']);
+    await svc.updateAssignment({ classId: cls.id, teacherUserId: TEACHER, subjectCodes: ['urdu'] });
+
+    expect(mockDb._tables.class_teacher_subjects.map((r) => r.subject_code)).toEqual(['urdu']);
+
+    const colleague = await svc.assignTeacher({
+      classId: cls.id, teacherUserId: OTHER_TEACHER, subjectCodes: ['maths'],
+    });
+    expect(colleague.subjectsTaken).toEqual([]);
+  });
+
+  it('releases the class-teacher role, so a colleague can claim it', async () => {
+    const cls = await myClass(['maths'], true);
+    await svc.updateAssignment({ classId: cls.id, teacherUserId: TEACHER, isClassTeacher: false });
+
+    const colleague = await svc.assignTeacher({
+      classId: cls.id, teacherUserId: OTHER_TEACHER, isClassTeacher: true,
+    });
+    expect(colleague.classTeacherTaken).toBeFalsy();
+    expect(colleague.assignment.is_class_teacher).toBe(true);
+  });
+
+  it('will not let her take a subject a colleague already teaches', async () => {
+    const cls = await myClass(['urdu']);
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: OTHER_TEACHER, subjectCodes: ['maths'] });
+
+    const res = await svc.updateAssignment({
+      classId: cls.id, teacherUserId: TEACHER, subjectCodes: ['urdu', 'maths'],
+    });
+    expect(res.subjectsTaken.map((s) => s.code)).toEqual(['maths']);
+    // Her own subject survives the rejected one.
+    const mine = mockDb._tables.class_teachers.find((r) => r.teacher_user_id === TEACHER);
+    expect(mockDb._tables.class_teacher_subjects
+      .filter((r) => r.class_teacher_id === mine.id).map((r) => r.subject_code)).toEqual(['urdu']);
+  });
+
+  it('refuses to edit a class she is not on', async () => {
+    const cls = await myClass();
+    const res = await svc.updateAssignment({
+      classId: cls.id, teacherUserId: 'stranger', subjectCodes: ['urdu'],
+    });
+    expect(res).toMatchObject({ error: 'not_assigned' });
+  });
+
+  it('never lets identity be edited through this path', async () => {
+    // Grade, section, shift and session are identity. Changing them is a different
+    // class, not an edit — and would either collide with the identity index or
+    // rename a class other teachers and rosters point at.
+    const cls = await myClass();
+    await svc.updateAssignment({
+      classId: cls.id, teacherUserId: TEACHER,
+      gradeCode: 'grade_5', section: 'B', shiftCode: 'evening', sessionCode: '2027-2028',
+    });
+    const after = mockDb._tables.classes.find((c) => c.id === cls.id);
+    expect(after).toMatchObject({
+      grade_code: 'grade_4', section: 'A', shift_code: 'morning', session_code: '2026-2027',
+    });
+  });
+});
+
+describe('leaving a class', () => {
+  async function sharedClass() {
+    const { class: cls } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: TEACHER, isClassTeacher: true, subjectCodes: ['maths'] });
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: OTHER_TEACHER, subjectCodes: ['urdu'] });
+    return cls;
+  }
+
+  it('drops her assignment but leaves the class standing for everyone else', async () => {
+    const cls = await sharedClass();
+    const res = await svc.leaveClass({ classId: cls.id, teacherUserId: TEACHER });
+
+    expect(res.error).toBeUndefined();
+    expect(res.left).toBe(true);
+    const active = mockDb._tables.class_teachers.filter((r) => r.is_active);
+    expect(active.map((r) => r.teacher_user_id)).toEqual([OTHER_TEACHER]);
+    expect(mockDb._tables.classes.find((c) => c.id === cls.id).is_active).toBe(true);
+  });
+
+  it('frees the subjects she was teaching', async () => {
+    const cls = await sharedClass();
+    await svc.leaveClass({ classId: cls.id, teacherUserId: TEACHER });
+
+    expect(mockDb._tables.class_teacher_subjects.map((r) => r.subject_code)).toEqual(['urdu']);
+    const back = await svc.assignTeacher({
+      classId: cls.id, teacherUserId: OTHER_TEACHER, subjectCodes: ['maths'],
+    });
+    expect(back.subjectsTaken).toEqual([]);
+  });
+
+  it('hides it from her attendance by deactivating her mirror row', async () => {
+    const cls = await sharedClass();
+    await svc.leaveClass({ classId: cls.id, teacherUserId: TEACHER });
+    const mine = mockDb._tables.student_lists.filter((r) => r.user_id === TEACHER);
+    expect(mine.every((r) => r.is_active === false)).toBe(true);
+  });
+
+  it('drops it from her class list', async () => {
+    const cls = await sharedClass();
+    await svc.leaveClass({ classId: cls.id, teacherUserId: TEACHER });
+    await expect(svc.listClassesForTeacher(TEACHER)).resolves.toEqual([]);
+  });
+
+  it('is idempotent', async () => {
+    const cls = await sharedClass();
+    await svc.leaveClass({ classId: cls.id, teacherUserId: TEACHER });
+    const again = await svc.leaveClass({ classId: cls.id, teacherUserId: TEACHER });
+    expect(again.error).toBeUndefined();
+    expect(again.left).toBe(false);
+  });
+});
+
+describe('deleting a class', () => {
+  async function soloEmptyClass() {
+    const { class: cls } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: TEACHER, isClassTeacher: true, subjectCodes: ['maths'] });
+    return cls;
+  }
+
+  it('soft-deletes a class that is hers alone and has no students', async () => {
+    const cls = await soloEmptyClass();
+    const res = await svc.deactivateClass({ classId: cls.id, teacherUserId: TEACHER });
+
+    expect(res.error).toBeUndefined();
+    expect(mockDb._tables.classes.find((c) => c.id === cls.id).is_active).toBe(false);
+    // Soft, never hard: a hard delete cascades enrollments away and strands the
+    // mirror with a null link, leaving a ghost roster visible in attendance.
+    expect(mockDb._tables.classes).toHaveLength(1);
+  });
+
+  it('frees the identity, so the same class can be created again', async () => {
+    // The identity index is partial on is_active, which is what makes this work.
+    const cls = await soloEmptyClass();
+    await svc.deactivateClass({ classId: cls.id, teacherUserId: TEACHER });
+
+    const again = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    expect(again.created).toBe(true);
+    expect(again.class.id).not.toBe(cls.id);
+  });
+
+  it('REFUSES when another teacher is still on the class', async () => {
+    const cls = await soloEmptyClass();
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: OTHER_TEACHER, subjectCodes: ['urdu'] });
+
+    const res = await svc.deactivateClass({ classId: cls.id, teacherUserId: TEACHER });
+    expect(res).toMatchObject({ error: 'other_teachers' });
+    expect(mockDb._tables.classes.find((c) => c.id === cls.id).is_active).toBe(true);
+  });
+
+  it('REFUSES when students are enrolled', async () => {
+    const cls = await soloEmptyClass();
+    mockDb._tables.students.push({ id: 'kid-1', student_name: 'Ayesha', is_active: true });
+    await svc.enrollStudent({ classId: cls.id, studentId: 'kid-1' });
+
+    const res = await svc.deactivateClass({ classId: cls.id, teacherUserId: TEACHER });
+    expect(res).toMatchObject({ error: 'has_students' });
+    expect(mockDb._tables.classes.find((c) => c.id === cls.id).is_active).toBe(true);
+  });
+
+  it('refuses for someone who is not on the class', async () => {
+    const cls = await soloEmptyClass();
+    const res = await svc.deactivateClass({ classId: cls.id, teacherUserId: 'stranger' });
+    expect(res).toMatchObject({ error: 'not_assigned' });
+  });
+
+  it('deactivates her mirror row too, so attendance stops offering it', async () => {
+    const cls = await soloEmptyClass();
+    await svc.deactivateClass({ classId: cls.id, teacherUserId: TEACHER });
+    expect(mockDb._tables.student_lists.every((r) => r.is_active === false)).toBe(true);
+  });
+});
