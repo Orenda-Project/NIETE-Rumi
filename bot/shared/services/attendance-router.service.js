@@ -102,6 +102,35 @@ function emptyClass(listId) {
 }
 
 /**
+ * "Which class?" — buttons while they fit, a list once they do not.
+ *
+ * Extracted so BOTH entry points can offer the picker. resolveSubjectChoice used
+ * to delegate the multi-class case back to route(), which re-enters the principal
+ * fork and asks "teachers or students?" again — an unbreakable loop for any
+ * principal with 2+ classes. A principal with exactly one class was fine, so it
+ * stayed hidden until a second class existed.
+ */
+function pickClass(classes) {
+  if (classes.length <= MAX_BUTTONS) {
+    return {
+      action: 'ASK_CLASS_BUTTONS',
+      message: 'Which class?',
+      classes,
+      buttons: classes.map((c) => ({ id: `att_class_${c.id}`, title: classLabel(c) })),
+    };
+  }
+
+  const shown = classes.slice(0, MAX_ROWS);
+  return {
+    action: 'ASK_CLASS_LIST',
+    message: 'Which class?',
+    classes,
+    rows: shown.map((c) => ({ id: `att_class_${c.id}`, title: classLabel(c) })),
+    truncated: classes.length > MAX_ROWS,
+  };
+}
+
+/**
  * @returns {Promise<{action:string, message?:string, flowToken?:string,
  *                    buttons?:Array, rows?:Array, truncated?:boolean, classes?:Array}>}
  */
@@ -153,23 +182,7 @@ async function route(userId) {
     return { action: 'MARK_STUDENTS', flowToken: `${userId}:student:${classes[0].id}` };
   }
 
-  if (classes.length <= MAX_BUTTONS) {
-    return {
-      action: 'ASK_CLASS_BUTTONS',
-      message: 'Which class?',
-      classes,
-      buttons: classes.map((c) => ({ id: `att_class_${c.id}`, title: classLabel(c) })),
-    };
-  }
-
-  const shown = classes.slice(0, MAX_ROWS);
-  return {
-    action: 'ASK_CLASS_LIST',
-    message: 'Which class?',
-    classes,
-    rows: shown.map((c) => ({ id: `att_class_${c.id}`, title: classLabel(c) })),
-    truncated: classes.length > MAX_ROWS,
-  };
+  return pickClass(classes);
 }
 
 /** Resolve the "my teachers / my students" tap. */
@@ -192,7 +205,9 @@ async function resolveSubjectChoice(userId, buttonId) {
     if (!await hasStudents(classes[0].id)) return emptyClass(classes[0].id);
     return { action: 'MARK_STUDENTS', flowToken: `${userId}:student:${classes[0].id}` };
   }
-  return route(userId);
+  // Offer the picker directly. Delegating to route() here re-asked the subject
+  // question a principal had just answered, forever.
+  return pickClass(classes);
 }
 
 /**
@@ -203,7 +218,14 @@ async function resolveSubjectChoice(userId, buttonId) {
  * that did not.
  */
 async function resolveClassChoice(userId, buttonId) {
-  const listId = String(buttonId || '').replace('att_class_', '');
+  const id = String(buttonId || '');
+  // Require the prefix. A bare `.replace()` treated ANY id as a list id, so a
+  // stray tap became flowToken "<user>:student:att_subject_student" and opened a
+  // register against a class that does not exist.
+  if (!id.startsWith('att_class_')) {
+    return { action: 'ERROR', message: 'I did not catch that class. Say "attendance" again.' };
+  }
+  const listId = id.slice('att_class_'.length);
   if (!listId) return { action: 'ERROR', message: 'I did not catch that class. Say "attendance" again.' };
   if (!await hasStudents(listId)) return emptyClass(listId);
   return { action: 'MARK_STUDENTS', flowToken: `${userId}:student:${listId}` };
