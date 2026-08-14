@@ -216,6 +216,21 @@ describe('bd-2712 follow-ups — the comment label and the "another?" button', (
     expect((buttons[1].match(/id:/g) || []).length).toBe(1);
   });
 
+  test('the ack and the prompt are ONE message, not two', () => {
+    // Shipped wrong first: the ack said "Send /remark again for the next
+    // teacher." AND a button appeared underneath, telling her the same thing
+    // twice — once as prose she must retype, once as a tap. The confirmation is
+    // now the button message's own body.
+    const block = BOT.slice(BOT.indexOf("flowType === 'remark'"));
+    const scoped = block.slice(0, 2200);
+    // Exactly one send on the has-teachers-left path.
+    const inButtons = scoped.slice(scoped.indexOf('if (left > 0)'), scoped.indexOf('} else {'));
+    expect(inButtons).toContain('sendInteractiveButtons');
+    expect(inButtons).not.toContain('sendMessage');
+    // And the retype instruction is gone from the catalog entirely.
+    expect(UX_STRINGS.remarkAckMoreLeft).toBeUndefined();
+  });
+
   test('the button is only offered when a teacher actually remains', () => {
     const block = BOT.slice(BOT.indexOf("flowType === 'remark'"), BOT.indexOf("flowType === 'remark'") + 1800);
     expect(block).toMatch(/if\s*\(\s*left\s*>\s*0\s*\)/);
