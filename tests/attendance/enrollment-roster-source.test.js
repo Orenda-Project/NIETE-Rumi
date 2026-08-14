@@ -18,6 +18,9 @@
  *   enrollments for this class  ->  use them
  *   none                        ->  use students.list_id
  *
+ * Since bd-2726 the register is reached CLASS -> DATE -> METHOD -> MARK, so these
+ * exercise the data_exchange path rather than INIT, which now always answers CLASS.
+ *
  * That ordering is what makes the change safe in any sequence. Enrollment is not
  * populated yet and the backfill has not run, so a hard switch would read zero
  * students for every class — including the 29 real students on production whose
@@ -118,7 +121,9 @@ describe('roster source: prefer enrollments, fall back to legacy', () => {
       legacyStudents: { [LEGACY_LIST]: [{ id: 's1', student_name: 'Aleeha Noor', roll_number: 1 }] },
     });
 
-    const res = await marking.handleMarkingInit(`t1:student:${LEGACY_LIST}`);
+    await marking.handleMarkingDataExchange('t1', 'CLASS', { class_id: `student:${LEGACY_LIST}` });
+    await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
+    const res = await marking.handleMarkingDataExchange('t1', 'METHOD', { method: 'tap' });
 
     expect(res.screen).toBe('MARK');
     expect(res.data.roster.map((r) => r.title)).toEqual(['Aleeha Noor']);
@@ -134,7 +139,9 @@ describe('roster source: prefer enrollments, fall back to legacy', () => {
       classes: [{ id: CLASS_ID, grade_code: 'grade_11', section: 'B', shift_code: 'morning' }],
     });
 
-    const res = await marking.handleMarkingInit(`t1:student:${CLASS_LIST}`);
+    await marking.handleMarkingDataExchange('t1', 'CLASS', { class_id: `student:${CLASS_LIST}` });
+    await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
+    const res = await marking.handleMarkingDataExchange('t1', 'METHOD', { method: 'tap' });
 
     const titles = res.data.roster.map((r) => r.title);
     expect(titles).toEqual(['Amna Rafiq']);
@@ -152,7 +159,9 @@ describe('roster source: prefer enrollments, fall back to legacy', () => {
       classes: [{ id: CLASS_ID, grade_code: 'grade_11', section: 'B', shift_code: 'morning' }],
     });
 
-    const res = await marking.handleMarkingInit(`t1:student:${CLASS_LIST}`);
+    await marking.handleMarkingDataExchange('t1', 'CLASS', { class_id: `student:${CLASS_LIST}` });
+    await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
+    const res = await marking.handleMarkingDataExchange('t1', 'METHOD', { method: 'tap' });
 
     expect(res.data.roster.map((r) => r.title)).toEqual(['Danish Iqbal']);
   });
@@ -164,7 +173,9 @@ describe('roster source: prefer enrollments, fall back to legacy', () => {
       classes: [{ id: CLASS_ID, grade_code: 'grade_5', section: 'C', shift_code: 'morning' }],
     });
 
-    const res = await marking.handleMarkingInit(`t1:student:${CLASS_LIST}`);
+    await marking.handleMarkingDataExchange('t1', 'CLASS', { class_id: `student:${CLASS_LIST}` });
+    await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
+    const res = await marking.handleMarkingDataExchange('t1', 'METHOD', { method: 'tap' });
 
     expect(res.screen).toBe('MARK');           // entry screen, per bd-2713
     expect(res.data.roster).toEqual([]);
@@ -172,28 +183,31 @@ describe('roster source: prefer enrollments, fall back to legacy', () => {
   });
 });
 
-describe('the router agrees with the endpoint about who counts', () => {
-  it('sees a class-backed roster through enrollments', async () => {
+describe('the CLASS screen agrees with the register about who counts', () => {
+  // Since bd-2726 route() no longer counts anybody — it just opens the Flow. The
+  // count a teacher sees is the CLASS screen's per-class description.
+  it('counts a class-backed roster through enrollments', async () => {
     db({
       lists: [{ id: CLASS_LIST, class_name: 'Grade 11 - B', section: 'B', class_id: CLASS_ID }],
       enrollments: { [CLASS_ID]: [{ student_id: 's9', roll_number: 1 }] },
       students: [{ id: 's9', student_name: 'Amna Rafiq' }],
     });
 
-    const r = await router.route('t1');
+    const res = await marking.handleMarkingInit('t1');
 
-    expect(r.action).toBe('MARK_STUDENTS');
+    expect(res.screen).toBe('CLASS');
+    expect(res.data.classes[0].description).toMatch(/1 students/);
   });
 
-  it('offers to add students when a class-backed roster is empty in both places', async () => {
+  it('says "no students yet" when a class-backed roster is empty in both places', async () => {
     db({
       lists: [{ id: CLASS_LIST, class_name: 'Grade 5 - C', section: 'C', class_id: CLASS_ID }],
       enrollments: { [CLASS_ID]: [] },
     });
 
-    const r = await router.route('t1');
+    const res = await marking.handleMarkingInit('t1');
 
-    expect(r.action).toBe('EMPTY_CLASS');
+    expect(res.data.classes[0].description).toMatch(/no students/i);
   });
 });
 
@@ -208,7 +222,9 @@ describe('labels for class-backed rosters (bd-2725)', () => {
       classes: [{ id: CLASS_ID, grade_code: 'grade_11', section: 'B', shift_code: 'morning' }],
     });
 
-    const res = await marking.handleMarkingInit(`t1:student:${CLASS_LIST}`);
+    await marking.handleMarkingDataExchange('t1', 'CLASS', { class_id: `student:${CLASS_LIST}` });
+    await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
+    const res = await marking.handleMarkingDataExchange('t1', 'METHOD', { method: 'tap' });
 
     expect(res.data.heading).not.toMatch(/- B - B/);
     expect(res.data.heading).toMatch(/B/);
@@ -237,16 +253,17 @@ describe('class labels survive every shape the mirror has produced (bd-2725)', (
   it('never doubles the section and never loses it', async () => {
     db({ lists: SHAPES });
 
-    const r = await router.route('t1');
+    const res = await marking.handleMarkingInit('t1');
 
-    expect(r.action).toBe('ASK_CLASS_LIST');
-    const byId = new Map(r.rows.map((row) => [row.id.replace('att_class_', ''), row.title]));
+    const byId = new Map(res.data.classes.map((c) => [c.id.replace('student:', ''), c.title]));
     SHAPES.forEach((s) => expect(byId.get(s.id)).toBe(s.expect));
   });
 
   it('every title stays inside the 24-code-point row cap', async () => {
     db({ lists: SHAPES });
-    const r = await router.route('t1');
-    r.rows.forEach((row) => expect([...row.title].length).toBeLessThanOrEqual(24));
+    const res = await marking.handleMarkingInit('t1');
+    // The Dropdown is not bound by the 24-char list-row cap, but staying inside it
+    // keeps the label readable and survives a fall back to a chat picker.
+    res.data.classes.forEach((c) => expect([...c.title].length).toBeLessThanOrEqual(24));
   });
 });

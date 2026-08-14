@@ -16,6 +16,15 @@
   "version": "6.3",
   "data_api_version": "3.0",
   "routing_model": {
+    "CLASS": [
+      "DATE"
+    ],
+    "DATE": [
+      "METHOD"
+    ],
+    "METHOD": [
+      "MARK"
+    ],
     "MARK": [
       "LEAVE_TYPE",
       "CONFIRM"
@@ -29,6 +38,228 @@
     "SAVED": []
   },
   "screens": [
+    {
+      "id": "CLASS",
+      "title": "Mark attendance",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Which class are we marking?"
+        },
+        "classes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "l1",
+              "title": "Grade 11 - B",
+              "description": "3 students"
+            },
+            {
+              "id": "l2",
+              "title": "Grade 7 - E (evening)",
+              "description": "No students yet"
+            }
+          ]
+        },
+        "class_label": {
+          "type": "string",
+          "__example__": "Class"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "class_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "class_id",
+                "label": "${data.class_label}",
+                "required": true,
+                "data-source": "${data.classes}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "CLASS",
+                    "class_id": "${form.class_id}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "DATE",
+      "title": "Which day?",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Grade 11 - B"
+        },
+        "date_label": {
+          "type": "string",
+          "__example__": "Date"
+        },
+        "max_date": {
+          "type": "string",
+          "__example__": "2026-08-14"
+        },
+        "min_date": {
+          "type": "string",
+          "__example__": "2026-05-14"
+        },
+        "marked_note": {
+          "type": "string",
+          "__example__": "Marked this week: Mon, Tue"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "date_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.marked_note}"
+              },
+              {
+                "type": "CalendarPicker",
+                "name": "register_date",
+                "label": "${data.date_label}",
+                "required": true,
+                "mode": "single",
+                "min-date": "${data.min_date}",
+                "max-date": "${data.max_date}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "DATE",
+                    "register_date": "${form.register_date}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "METHOD",
+      "title": "How would you like to mark?",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Grade 11 - B · Fri 14 Aug"
+        },
+        "method_label": {
+          "type": "string",
+          "__example__": "Method"
+        },
+        "methods": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "tap",
+              "title": "Tap to mark",
+              "description": "Tap whoever is away",
+              "enabled": true
+            },
+            {
+              "id": "voice",
+              "title": "Voice note (coming soon)",
+              "description": "Not available yet",
+              "enabled": false
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "method_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "method",
+                "label": "${data.method_label}",
+                "required": true,
+                "data-source": "${data.methods}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "METHOD",
+                    "method": "${form.method}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
     {
       "id": "MARK",
       "title": "Mark attendance",
