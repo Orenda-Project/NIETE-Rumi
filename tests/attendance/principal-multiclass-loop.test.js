@@ -34,7 +34,14 @@ function db({ user = {}, classes = [], roster = [{ id: 's1', student_name: 'Alee
     if (table === 'student_lists') {
       return {
         select: () => ({
-          eq: () => ({ eq: () => ({ order: () => Promise.resolve({ data: classes, error: null }) }) }),
+          eq: (col, val) => ({
+            // loadClasses: .eq('user_id').eq('is_active').order()
+            eq: () => ({ order: () => Promise.resolve({ data: classes, error: null }) }),
+            // loadList (bd-2724): .eq('id').maybeSingle() — the bridge to class_id
+            maybeSingle: () => Promise.resolve({
+              data: classes.find((c) => c.id === val) || null, error: null,
+            }),
+          }),
         }),
       };
     }

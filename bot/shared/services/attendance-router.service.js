@@ -43,7 +43,18 @@ function detect(message) {
 }
 
 function classLabel(cls) {
-  const base = cls.section ? `${cls.class_name} - ${cls.section}` : cls.class_name;
+  // A class-backed mirror row already carries section AND shift inside class_name
+  // (ClassService.mirrorLabel), so appending section renders "Grade 11 - B - B",
+  // and "Grade 7 - E (evening) - E" is 25 code points — over the 24-char row cap,
+  // truncating to a dangling "Grade 7 - E (evening) - ". (bd-2725)
+  const name = String(cls.class_name || '').trim();
+  const section = cls.section ? String(cls.section).trim() : '';
+  let base = name;
+  if (section) {
+    const esc = section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const already = new RegExp(`(^|[\\s\\-])${esc}\\s*(\\(|$)`, 'i');
+    base = already.test(name) ? name : `${name} - ${section}`;
+  }
   return String(base || 'Class').slice(0, TITLE_CAP);
 }
 
@@ -59,7 +70,7 @@ async function loadUser(userId) {
 async function loadClasses(userId) {
   const { data } = await supabase
     .from('student_lists')
-    .select('id, class_name, section')
+    .select('id, class_name, section, class_id')
     .eq('user_id', userId)
     .eq('is_active', true)
     .order('created_at');
@@ -78,14 +89,40 @@ async function loadClasses(userId) {
  * denormalised count drifts, and a stale count either hides a usable class or
  * opens an empty one.
  */
-async function hasStudents(listId) {
+async function hasStudents(listOrId) {
+  const row = typeof listOrId === 'string' ? await loadList(listOrId) : listOrId;
+  if (!row) return false;
+
+  // Enrollment first — /class owns rosters. Same PREFER-THEN-FALL-BACK order as
+  // the marking endpoint's loadStudentRoster(); if these two ever disagree, the
+  // router opens a Flow the endpoint then refuses to fill. (bd-2724)
+  if (row.class_id) {
+    const { data: enrolled } = await supabase
+      .from('class_enrollments')
+      .select('id')
+      .eq('class_id', row.class_id)
+      .eq('is_active', true)
+      .limit(1);
+    if (enrolled && enrolled.length) return true;
+  }
+
   const { data } = await supabase
     .from('students')
     .select('id')
-    .eq('list_id', listId)
+    .eq('list_id', row.id)
     .eq('is_active', true)
     .limit(1);
   return Boolean(data && data.length);
+}
+
+/** One roster row, with the bridge to the canonical class. */
+async function loadList(listId) {
+  const { data } = await supabase
+    .from('student_lists')
+    .select('id, class_name, section, class_id')
+    .eq('id', listId)
+    .maybeSingle();
+  return data || null;
 }
 
 /**
@@ -98,6 +135,32 @@ function emptyClass(listId) {
     action: 'EMPTY_CLASS',
     listId,
     message: 'This class has no students yet. Add them and you can mark attendance in a couple of taps.',
+  };
+}
+
+/**
+ * No class yet — hand them to /class, which OWNS class creation now.
+ *
+ * attendance-setup used to create classes here, purely because attendance needed a
+ * roster and no class flow existed. Two writers of class membership is what produced
+ * the students.list_id vs class_enrollments divergence, so attendance points instead
+ * of building. (bd-2724)
+ *
+ * The school check mirrors /class's own: classes.school_id is NOT NULL, so opening
+ * the manager for a teacher with no school on file is a Flow that cannot succeed —
+ * the dead-end pattern this deployment has already paid for once.
+ */
+function noClassYet(user) {
+  if (!user || !user.school_id) {
+    return {
+      action: 'NO_SCHOOL',
+      message: 'You do not have any classes yet, and your account is not linked to a school, '
+        + 'so one cannot be created. Your NIETE coordinator can link it.',
+    };
+  }
+  return {
+    action: 'SEND_CLASS_MANAGER',
+    message: 'You do not have any classes yet. Add one and you can mark attendance in a couple of taps.',
   };
 }
 
@@ -170,15 +233,10 @@ async function route(userId) {
     };
   }
 
-  if (!classes.length) {
-    return {
-      action: 'SEND_SETUP',
-      message: "Let's set up your first class — then you can mark attendance in a couple of taps.",
-    };
-  }
+  if (!classes.length) return noClassYet(user);
 
   if (classes.length === 1) {
-    if (!await hasStudents(classes[0].id)) return emptyClass(classes[0].id);
+    if (!await hasStudents(classes[0])) return emptyClass(classes[0].id);
     return { action: 'MARK_STUDENTS', flowToken: `${userId}:student:${classes[0].id}` };
   }
 
@@ -198,11 +256,9 @@ async function resolveSubjectChoice(userId, buttonId) {
   }
 
   const classes = await loadClasses(userId);
-  if (!classes.length) {
-    return { action: 'SEND_SETUP', message: "Let's set up your first class." };
-  }
+  if (!classes.length) return noClassYet(user);
   if (classes.length === 1) {
-    if (!await hasStudents(classes[0].id)) return emptyClass(classes[0].id);
+    if (!await hasStudents(classes[0])) return emptyClass(classes[0].id);
     return { action: 'MARK_STUDENTS', flowToken: `${userId}:student:${classes[0].id}` };
   }
   // Offer the picker directly. Delegating to route() here re-asked the subject
