@@ -519,21 +519,28 @@ router.post('/training/certificate-pdf', requireInternalKey, async (req, res) =>
  * bot-only dependency, and the throw gets swallowed.
  * ------------------------------------------------------------------------- */
 
-/** Shape one class for the portal: codes for logic, labels for display. */
+/**
+ * Shape one class for the portal: codes for logic, labels for display.
+ *
+ * `display` comes from the class-manager endpoint's classDisplay, NOT a second
+ * copy here. The first version of this function built its own string and was
+ * therefore never taught about shifts — so a morning and an evening class of the
+ * same grade and section rendered identically in the portal, indistinguishable.
+ * Two display builders is the same mistake as two writers.
+ */
 function presentClass(row, who) {
-  const {
-    gradeLabelFor, subjectLabelFor,
-  } = require('../config/ux-strings');
+  const { gradeLabelFor, subjectLabelFor } = require('../config/ux-strings');
+  const { classDisplay } = require('./class-manager-endpoint');
 
-  const gradeLabel = gradeLabelFor(row.gradeCode, who);
   return {
     classId: row.classId,
     gradeCode: row.gradeCode,
-    gradeLabel: gradeLabel || row.gradeCode,
+    gradeLabel: gradeLabelFor(row.gradeCode, who) || row.gradeCode,
     section: row.section,
+    shiftCode: row.shiftCode || 'morning',
     sessionCode: row.sessionCode,
     isClassTeacher: row.isClassTeacher,
-    display: row.section && gradeLabel ? `${gradeLabel} - ${row.section}` : (gradeLabel || row.gradeCode),
+    display: classDisplay(row.gradeCode, row.section, who, row.shiftCode),
     subjects: (row.subjectCodes || []).map((code) => ({
       code,
       label: subjectLabelFor(code, who) || code,
