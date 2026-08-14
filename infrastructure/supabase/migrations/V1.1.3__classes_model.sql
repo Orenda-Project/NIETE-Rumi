@@ -332,7 +332,33 @@ CREATE INDEX IF NOT EXISTS idx_class_enrollments_student
     ON class_enrollments (student_id);
 
 -- ---------------------------------------------------------------------------
--- 8. RLS — mirrors the existing roster-table pattern (student_lists/students):
+-- 8. The bridge: student_lists.class_id
+--
+-- The new class CRUD becomes the single teacher-facing surface, and it MIRRORS
+-- each new class into a `student_lists` row so attendance and the 943 existing
+-- quizzes keep working with no change at all. This column is what links the two,
+-- so the later cutover can find each legacy row's replacement instead of
+-- matching on free text.
+--
+-- Deliberately nullable and un-backfilled: the one pre-existing student_lists row
+-- predates any class and stays unlinked until someone claims it. The column, the
+-- mirror write, and this comment all disappear in the cutover PR — it is
+-- scaffolding, and naming it as such is how it avoids becoming permanent.
+-- ---------------------------------------------------------------------------
+
+ALTER TABLE student_lists
+    ADD COLUMN IF NOT EXISTS class_id UUID REFERENCES classes(id) ON DELETE SET NULL;
+
+COMMENT ON COLUMN student_lists.class_id IS
+    'TEMPORARY BRIDGE. Points at the `classes` row this legacy roster mirrors, so '
+    'attendance/quizzes can keep reading student_lists until they are moved onto '
+    'class_id directly. Removed together with the mirror write.';
+
+CREATE INDEX IF NOT EXISTS idx_student_lists_class
+    ON student_lists (class_id) WHERE class_id IS NOT NULL;
+
+-- ---------------------------------------------------------------------------
+-- 9. RLS — mirrors the existing roster-table pattern (student_lists/students):
 --     enable, and grant the service role full access. Portal scoping is done in
 --     application code via dashboard_users / access_scopes, not here.
 --
@@ -374,7 +400,7 @@ BEGIN
 END$$;
 
 -- ---------------------------------------------------------------------------
--- 9. SEED — grade_levels (14).
+-- 10. SEED — grade_levels (14).
 --
 -- Codes match registration's existing GRADES_DROPDOWN ids exactly, because
 -- users.grades_taught is already populated with them; inventing new codes here
@@ -398,7 +424,7 @@ INSERT INTO grade_levels (code, ordinal, band, sort_order, aliases) VALUES
 ON CONFLICT (code) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
--- 10. SEED — subjects (6). LP-corpus-scoped; see the note on the table.
+-- 11. SEED — subjects (6). LP-corpus-scoped; see the note on the table.
 -- ---------------------------------------------------------------------------
 
 INSERT INTO subjects (code, sort_order, aliases) VALUES
@@ -411,7 +437,7 @@ INSERT INTO subjects (code, sort_order, aliases) VALUES
 ON CONFLICT (code) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
--- 11. SEED — academic_sessions.
+-- 12. SEED — academic_sessions.
 --
 -- Spans follow the Apr–March cycle the bot already computes in
 -- attendance-flow.handler.js getCurrentAcademicYear(), so the code and this

@@ -4546,6 +4546,15 @@ CREATE INDEX IF NOT EXISTS idx_class_enrollments_class
 CREATE INDEX IF NOT EXISTS idx_class_enrollments_student
     ON class_enrollments (student_id);
 
+-- TEMPORARY BRIDGE. The new class CRUD mirrors each class into a `student_lists`
+-- row so attendance and the existing quizzes keep working unchanged; this column
+-- links the two so the later cutover can find each legacy row's replacement
+-- instead of matching on free text. Removed together with the mirror write.
+ALTER TABLE student_lists
+    ADD COLUMN IF NOT EXISTS class_id UUID REFERENCES classes(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_student_lists_class
+    ON student_lists (class_id) WHERE class_id IS NOT NULL;
+
 -- Reload PostgREST's schema cache last, so the reconciled columns + functions
 -- above are immediately visible to the REST API (the earlier NOTIFY predates these DDLs).
 NOTIFY pgrst, 'reload schema';
