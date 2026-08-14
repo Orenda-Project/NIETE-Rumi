@@ -435,6 +435,77 @@ const CLASS_FLOW_STRINGS = {
   },
   // The chat message that carries the Flow. Caps here are the tight ones:
   // header 60, body 1024, and the button 20 — the button is 3–4 Urdu words.
+  // The class chooser on the entry screen, and the roster screens behind it.
+  classChooseLabel: {
+    en: 'Which class?',
+    ur: 'کون سی جماعت؟',
+  },
+  classAddNewOption: {
+    en: 'Add a new class',
+    ur: 'نئی جماعت شامل کریں',
+  },
+  classRosterAction: {
+    en: 'What would you like to do?',
+    ur: 'آپ کیا کرنا چاہتے ہیں؟',
+  },
+  classRosterAddOption: {
+    en: 'Add students',
+    ur: 'طلبہ شامل کریں',
+  },
+  classRosterRemoveOption: {
+    en: 'Remove students',
+    ur: 'طلبہ کو نکالیں',
+  },
+  classRosterEmpty: {
+    en: 'No students yet.',
+    ur: 'ابھی کوئی طالب علم نہیں۔',
+  },
+  classAddStudentsHeading: {
+    en: 'Add students to {class}',
+    ur: '{class} میں طلبہ شامل کریں',
+  },
+  classAddStudentsHint: {
+    en: 'One name per line. Father\'s name after a comma or "s/o" if you have it. Numbering is fine.',
+    ur: 'ہر سطر پر ایک نام۔ والد کا نام کوما یا "s/o" کے بعد لکھیں۔ نمبر لگانا ٹھیک ہے۔',
+  },
+  classStudentsField: {
+    en: 'Student names',
+    ur: 'طلبہ کے نام',
+  },
+  classAddToClass: {
+    en: 'Add to class',
+    ur: 'جماعت میں شامل کریں',
+  },
+  classRemoveHeading: {
+    en: 'Who has left {class}?',
+    ur: '{class} سے کون جا چکے ہیں؟',
+  },
+  // Said before the removal, not after: the roster is shared, so this affects
+  // colleagues, and the attendance record is kept either way.
+  classRemoveHint: {
+    en: 'Every teacher on this class stops seeing them. Their attendance record is kept.',
+    ur: 'اس جماعت کے تمام اساتذہ کو یہ نظر آنا بند ہو جائیں گے۔ ان کی حاضری کا ریکارڈ محفوظ رہے گا۔',
+  },
+  classRemoveButton: {
+    en: 'Remove',
+    ur: 'نکالیں',
+  },
+  classStudentsAdded: {
+    en: '{added} added to {class}.',
+    ur: '{class} میں {added} شامل ہو گئے۔',
+  },
+  classStudentsDuplicates: {
+    en: '{duplicates} were already on the roster.',
+    ur: '{duplicates} پہلے سے فہرست میں تھے۔',
+  },
+  classStudentsDropped: {
+    en: '{dropped} over the limit were not added.',
+    ur: 'حد سے زیادہ {dropped} شامل نہیں ہوئے۔',
+  },
+  classStudentsRemoved: {
+    en: '{removed} removed from {class}.',
+    ur: '{class} سے {removed} کو نکال دیا گیا۔',
+  },
   classFlowHeader: {
     en: 'Your classes',
     ur: 'آپ کی جماعتیں',
