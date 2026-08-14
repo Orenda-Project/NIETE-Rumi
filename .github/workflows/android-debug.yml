@@ -1,9 +1,15 @@
-# Android debug build — a testable APK for every portal change. (bd-2553)
+# Android debug build — a testable APK, ON DEMAND. (bd-2553, bd-2723)
 #
 # The counterpart to android-release.yml. That one ships to Play; this one
 # produces the `.debug` APK for on-device testing, so a tester can install a
-# build from a PR without anyone having a JDK, an Android SDK, and the right
-# vite flag on their laptop.
+# build without anyone having a JDK, an Android SDK, and the right vite flag
+# on their laptop.
+#
+# MANUAL ONLY (bd-2723). This used to run on every PR touching `portal/**`,
+# which meant a ~25-minute Android toolchain build on changes that no one was
+# going to install — the APK is wanted when a tester asks for one, not on
+# every push. Run it from Actions → Android Debug Build → Run workflow, and
+# pick the branch you want the APK built from in the ref dropdown.
 #
 # Debug builds install as `pk.edu.niete.debug` and are signed with the generic
 # Android debug key, so they sit alongside the production app instead of
@@ -11,22 +17,24 @@
 # INSTALL_FAILED_UPDATE_INCOMPATIBLE, and the only way through is uninstalling
 # the real app).
 #
-# No secrets are used here — that is deliberate. This workflow runs on PRs
-# from any branch, and the release keystore must never be reachable from one.
+# No secrets are used here — that is deliberate. This can be dispatched
+# against any branch, and the release keystore must never be reachable from
+# one.
 
 name: Android Debug Build
 
 on:
-  pull_request:
-    paths:
-      - 'portal/**'
-      - '.github/workflows/android-debug.yml'
   workflow_dispatch:
     inputs:
       api_base_url:
-        description: 'Absolute portal API URL to build against'
+        description: 'Absolute portal API URL to build against (blank = staging)'
         required: false
         default: ''
+
+# Two dispatches against the same ref would build the same APK twice.
+concurrency:
+  group: android-debug-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   debug-apk:
@@ -96,10 +104,23 @@ jobs:
         working-directory: portal/android
         run: ./gradlew assembleDebug --no-daemon
 
-      # Downloadable from the PR's Checks tab:
+      # Downloadable from this run's Summary page:
       #   adb install -r app-debug.apk
       - uses: actions/upload-artifact@v4
         with:
           name: niete-debug-apk
           path: portal/android/app/build/outputs/apk/debug/*.apk
           retention-days: 14
+
+      - name: Summary
+        run: |
+          {
+            echo "### NIETE debug APK"
+            echo ""
+            echo "- Branch: \`${GITHUB_REF_NAME}\` (\`${GITHUB_SHA:0:7}\`)"
+            echo "- Package: \`pk.edu.niete.debug\` (coexists with prod + staging)"
+            echo "- API: \`${API_HOST}\`"
+            echo "- Build type: debug, debug-signed, bundled assets (OTA off)"
+            echo ""
+            echo 'Install: `adb install -r app-debug.apk` — download it from the Artifacts section above.'
+          } >> "$GITHUB_STEP_SUMMARY"
