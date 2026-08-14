@@ -524,6 +524,17 @@ app.post('/webhook', async (req, res) => {
         if (await ConversationResume.handleResumeButton(user, from, buttonId)) return;
       }
 
+      // bd-2712 — "Grade another teacher?" after a Supervisor Remark submit.
+      // Re-enters through handleRemarkCommand rather than reaching into the flow
+      // sender directly, so BOTH gates (capability + open cycle) are re-checked:
+      // a cycle can close between two teachers, and a principal must not keep a
+      // private door open just because she was mid-session.
+      if (buttonId === 'remark_next') {
+        const { handleRemarkCommand } = require('./shared/handlers/remark-command.handler');
+        await handleRemarkCommand(user, from, '/remark');
+        return;
+      }
+
       // Teacher-training module + quiz buttons
       if (buttonId.startsWith('training_module_done_')) {
         const moduleId = buttonId.replace('training_module_done_', '');
@@ -1391,6 +1402,17 @@ app.post('/webhook', async (req, res) => {
             },
           });
           await WhatsAppService.sendMessage(from, ack);
+
+          // ONE button, only when there is actually a next teacher. Deliberately
+          // not a yes/no pair: finishing is the common case and must not cost a
+          // tap, so "no" is simply not answering. Any other reply falls through
+          // to normal chat, which is why there is no state to clear either.
+          if (left > 0) {
+            await WhatsAppService.sendInteractiveButtons(from, {
+              body: resolveUx('remarkAnotherPrompt', { user }),
+              buttons: [{ id: 'remark_next', title: resolveUx('remarkAnotherButton', { user }) }],
+            });
+          }
         } catch (ackError) {
           logError('❌ Exception acking supervisor remark', {
             from, error: ackError.message, stack: ackError.stack,

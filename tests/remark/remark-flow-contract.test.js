@@ -172,3 +172,67 @@ describe('bd-2712 — anchor options carry the VERBATIM rubric', () => {
     }
   });
 });
+
+describe('bd-2712 follow-ups — the comment label and the "another?" button', () => {
+  const fs2 = require('fs');
+  const BOT = fs2.readFileSync(path.join(__dirname, '../../bot/whatsapp-bot.js'), 'utf8');
+
+  test('the comment label does NOT claim to be optional', () => {
+    // Meta appends its own "(Optional)" to any required:false field, so a label
+    // saying so renders as "Comment (optional) (Optional)" — the same defect
+    // recorded against the old attendance flow (bd-2532).
+    for (const lang of ['en', 'ur']) {
+      expect(UX_STRINGS.remarkCommentLabel[lang].toLowerCase()).not.toContain('optional');
+      expect(UX_STRINGS.remarkCommentLabel[lang]).not.toContain('اختیاری');
+    }
+  });
+
+  test('the comment field is still marked optional in the FLOW, not the label', () => {
+    // The optionality signal has to live somewhere — assert it MOVED rather than
+    // vanished, or the field silently becomes required.
+    //
+    // Walked rather than regex-matched: a `[^}]*` pattern stops dead at the `}`
+    // inside "${data.comment_label}", so the regex version failed against correct
+    // JSON. Structure questions get structural answers.
+    let comment = null;
+    (function walk(node) {
+      if (Array.isArray(node)) node.forEach(walk);
+      else if (node && typeof node === 'object') {
+        if (node.type === 'TextArea' && node.name === 'comment') comment = node;
+        Object.values(node).forEach(walk);
+      }
+    })(screens.RUBRIC.layout);
+
+    expect(comment).not.toBeNull();
+    expect(comment.required).toBe(false);
+  });
+
+  test('exactly ONE follow-up button is offered', () => {
+    // Two buttons would make "I am done" cost a tap. Finishing is the common
+    // case, so it must be the do-nothing path.
+    const block = BOT.slice(BOT.indexOf("flowType === 'remark'"));
+    const buttons = block.slice(0, 1800).match(/buttons:\s*\[([^\]]*)\]/);
+    expect(buttons).not.toBeNull();
+    expect((buttons[1].match(/id:/g) || []).length).toBe(1);
+  });
+
+  test('the button is only offered when a teacher actually remains', () => {
+    const block = BOT.slice(BOT.indexOf("flowType === 'remark'"), BOT.indexOf("flowType === 'remark'") + 1800);
+    expect(block).toMatch(/if\s*\(\s*left\s*>\s*0\s*\)/);
+  });
+
+  test('tapping it re-enters through the GATED command, not the flow sender', () => {
+    // A cycle can close between two teachers. Re-entering via
+    // handleRemarkCommand re-checks capability AND the open cycle; calling
+    // sendFlow directly would skip both.
+    const route = BOT.slice(BOT.indexOf("buttonId === 'remark_next'"));
+    expect(route.slice(0, 400)).toContain('handleRemarkCommand');
+    expect(route.slice(0, 400)).not.toContain('sendFlow');
+  });
+
+  test('the button title fits the 20 code-point cap in both languages', () => {
+    for (const lang of ['en', 'ur']) {
+      expect(cp(UX_STRINGS.remarkAnotherButton[lang])).toBeLessThanOrEqual(20);
+    }
+  });
+});
