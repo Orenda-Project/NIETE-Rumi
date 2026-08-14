@@ -30,6 +30,11 @@ const {
   handleSetupDataExchange
 } = require('./attendance-setup-endpoint');
 const {
+  handleClassesInit,
+  handleClassManagerDataExchange,
+  handleClassManagerBack
+} = require('./class-manager-endpoint');
+const {
   handleRegistrationInit,
   handleRegistrationDataExchange,
   handleRegistrationBack
@@ -360,6 +365,71 @@ router.post('/attendance-setup', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+/**
+ * Class manager — CLASSES -> ADD -> SUBJECTS -> SAVED.
+ * The teacher-facing surface for the classes model.
+ */
+router.post('/class-manager', async (req, res) => {
+  try {
+    if (!FlowEncryptionService.isConfigured()) {
+      logToFile('Flow encryption not configured', { endpoint: 'class-manager' });
+      return res.status(500).json({ error: 'Flow encryption not configured' });
+    }
+
+    const encryptedResponse = await FlowEncryptionService.processEncryptedRequest(
+      req.body,
+      async (decryptedData) => {
+        return await handleClassManagerRequest(decryptedData);
+      }
+    );
+
+    res.set('Content-Type', 'text/plain');
+    res.send(encryptedResponse);
+  } catch (error) {
+    logToFile('Flow endpoint error', {
+      endpoint: 'class-manager',
+      error: error.message,
+      stack: error.stack,
+    });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * flow_token is the user id (set when the Flow is sent).
+ * CLASSES is the only entry screen — Meta refuses to open a Flow on a screen with
+ * incoming routes, so no branch here may answer INIT with anything else.
+ */
+async function handleClassManagerRequest(data) {
+  const { action, flow_token, screen, data: screenData } = data;
+
+  logToFile('Handling class-manager request', {
+    action,
+    screen,
+    hasFlowToken: !!flow_token,
+    screenDataKeys: screenData ? Object.keys(screenData) : [],
+  });
+
+  if (action === 'ping') {
+    return FlowEncryptionService.handlePing();
+  }
+
+  if (action === 'INIT' || action === 'init') {
+    return await handleClassesInit(flow_token);
+  }
+
+  if (action === 'BACK' || action === 'back') {
+    return await handleClassManagerBack(flow_token, screen);
+  }
+
+  if (action === 'data_exchange') {
+    return await handleClassManagerDataExchange(flow_token, screen, screenData);
+  }
+
+  logToFile('⚠️ class-manager: unhandled action', { action });
+  return await handleClassesInit(flow_token);
+}
 
 /**
  * Class setup — CLASS -> ROSTER -> REVIEW -> SUCCESS.

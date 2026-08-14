@@ -29,7 +29,8 @@ const { STUDENT_VIDEOS_FLOW_ID } = require('../utils/constants');
 const { logToFile } = require('../utils/logger');
 const { matchDetail: matchLessonPlanIntent } = require('../utils/lp-intent');
 const { TEMP_DIR, LOADING_STICKER_PATH, LOADING_STICKER_MEDIA_ID, OPENAI_API_KEY,
-  ATTENDANCE_SETUP_FLOW_ID, ATTENDANCE_MARKING_FLOW_ID, EDIT_CLASS_FLOW_ID } = require('../utils/constants');
+  ATTENDANCE_SETUP_FLOW_ID, ATTENDANCE_MARKING_FLOW_ID, EDIT_CLASS_FLOW_ID,
+  CLASS_MANAGER_FLOW_ID } = require('../utils/constants');
 const AttendanceRouter = require('../services/attendance-router.service');
 const { getClient } = require('../services/llm-client');
 
@@ -48,6 +49,8 @@ const {
   storeLessonPlan
 } = require('../database/bot-helpers');
 const supabase = require('../config/supabase');
+// The one copy catalog + the one language clamp (see the language-protocol skill).
+const { resolveUx } = require('../config/ux-strings');
 const fs = require('fs');
 
 // Subject aliases: parseSubjectAndGrade returns coarse buckets like 'math' / 'social_studies',
@@ -1788,6 +1791,59 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       })[responseLanguage] || 'Open Settings',
       flowToken
     });
+    return;
+  }
+
+  // ============================================================
+  // /classes COMMAND: view the classes you teach, and add a new one
+  // ============================================================
+  if (/^\/classes\b/i.test(trimmedMessage)
+      || /^(my classes|add a class|add class)\s*$/i.test(trimmedMessage)) {
+    logToFile('🏫 /classes command detected', { userId: user?.id, phoneNumber: from });
+
+    if (!user) {
+      await WhatsAppService.sendMessage(from,
+        'Sorry, I could not find your account. Please send me a message first.');
+      typingController.stop();
+      return;
+    }
+
+    if (!CLASS_MANAGER_FLOW_ID) {
+      await WhatsAppService.sendMessage(from,
+        'Classes are not available on this number yet. Please try again later.');
+      typingController.stop();
+      return;
+    }
+
+    // A class needs a school (classes.school_id is NOT NULL), and roughly one in
+    // eight teachers has none on file. Opening a Flow that cannot succeed is the
+    // dead-end pattern that has already cost this deployment once — so answer in
+    // chat instead, and say what would fix it.
+    const { data: schoolRow } = await supabase
+      .from('users')
+      .select('school_id')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (!schoolRow || !schoolRow.school_id) {
+      logToFile('🏫 /classes: no school on file — answering in chat, not opening the Flow', {
+        userId: user.id,
+      });
+      await WhatsAppService.sendMessage(from, resolveUx('classNoSchool', { user }));
+      typingController.stop();
+      return;
+    }
+
+    await WhatsAppService.sendFlow(from, {
+      flowId: CLASS_MANAGER_FLOW_ID,
+      header: resolveUx('classFlowHeader', { user }),
+      body: resolveUx('classFlowBody', { user }),
+      buttonText: resolveUx('classFlowButton', { user }),
+      // The endpoint reads flow_token AS the user id — same convention as the
+      // attendance Flows. Do not make this a composite token.
+      flowToken: user.id,
+    });
+    typingController.stop();
     return;
   }
 

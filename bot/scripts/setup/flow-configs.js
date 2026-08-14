@@ -52,6 +52,14 @@ const FLOW_CONFIGS = [
     categories: ['OTHER'],
   },
   {
+    name: 'Class Manager',
+    jsonPath: path.join(FLOWS_DIR, 'class-manager-flow.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/class-manager',
+    envVar: 'CLASS_MANAGER_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
     name: 'Edit Class',
     jsonPath: path.join(FLOWS_DIR, 'edit-class-flow.json'),
     type: 'endpoint',

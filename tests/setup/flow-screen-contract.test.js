@@ -26,6 +26,7 @@ const PAIRS = [
   ['bot/shared/routes/attendance-setup-endpoint.js', 'docs/flows/attendance-setup-flow.json'],
   ['bot/shared/routes/attendance-marking-endpoint.js', 'docs/flows/attendance-marking-flow.json'],
   ['bot/shared/routes/edit-class-endpoint.js', 'docs/flows/edit-class-flow.json'],
+  ['bot/shared/routes/class-manager-endpoint.js', 'docs/flows/class-manager-flow.json'],
 ];
 
 describe('flow screen contract', () => {
