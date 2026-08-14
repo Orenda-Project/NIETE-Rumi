@@ -67,6 +67,41 @@ async function loadClasses(userId) {
 }
 
 /**
+ * Is there anybody on this class roster?
+ *
+ * A class row can exist with zero students — the class is created first and the
+ * roster filled after, and 5th-A on staging sat at student_count 0 for four days.
+ * Opening the marking Flow on that is a dead end (bd-2713), so we ask before we
+ * send rather than letting the endpoint discover it.
+ *
+ * Reads `students` rather than `student_lists.student_count` on purpose: the
+ * denormalised count drifts, and a stale count either hides a usable class or
+ * opens an empty one.
+ */
+async function hasStudents(listId) {
+  const { data } = await supabase
+    .from('students')
+    .select('id')
+    .eq('list_id', listId)
+    .eq('is_active', true)
+    .limit(1);
+  return Boolean(data && data.length);
+}
+
+/**
+ * The empty-class dead end, as the design specifies it: a chat message naming
+ * what is missing plus a way to fix it — "Empty state · button", not a Flow
+ * screen the teacher has to back out of.
+ */
+function emptyClass(listId) {
+  return {
+    action: 'EMPTY_CLASS',
+    listId,
+    message: 'This class has no students yet. Add them and you can mark attendance in a couple of taps.',
+  };
+}
+
+/**
  * @returns {Promise<{action:string, message?:string, flowToken?:string,
  *                    buttons?:Array, rows?:Array, truncated?:boolean, classes?:Array}>}
  */
@@ -114,6 +149,7 @@ async function route(userId) {
   }
 
   if (classes.length === 1) {
+    if (!await hasStudents(classes[0].id)) return emptyClass(classes[0].id);
     return { action: 'MARK_STUDENTS', flowToken: `${userId}:student:${classes[0].id}` };
   }
 
@@ -153,15 +189,23 @@ async function resolveSubjectChoice(userId, buttonId) {
     return { action: 'SEND_SETUP', message: "Let's set up your first class." };
   }
   if (classes.length === 1) {
+    if (!await hasStudents(classes[0].id)) return emptyClass(classes[0].id);
     return { action: 'MARK_STUDENTS', flowToken: `${userId}:student:${classes[0].id}` };
   }
   return route(userId);
 }
 
-/** Resolve an "att_class_<id>" tap into a marking token. */
-function resolveClassChoice(userId, buttonId) {
+/**
+ * Resolve an "att_class_<id>" tap into a marking token.
+ *
+ * Async since bd-2713 — the roster is checked before the Flow is sent, so both
+ * call sites must await. `handleAttendanceTap` in whatsapp-bot.js was the one
+ * that did not.
+ */
+async function resolveClassChoice(userId, buttonId) {
   const listId = String(buttonId || '').replace('att_class_', '');
   if (!listId) return { action: 'ERROR', message: 'I did not catch that class. Say "attendance" again.' };
+  if (!await hasStudents(listId)) return emptyClass(listId);
   return { action: 'MARK_STUDENTS', flowToken: `${userId}:student:${listId}` };
 }
 

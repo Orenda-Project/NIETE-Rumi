@@ -94,14 +94,29 @@ async function handleMarkingInit(flowToken) {
 
   if (!people.length) {
     // Say what is missing and who can fix it — never a blank list.
+    //
+    // MARK, not CONFIRM. WhatsApp refuses to OPEN a flow on a screen that has
+    // incoming edges in routing_model, and CONFIRM has two (MARK->CONFIRM,
+    // LEAVE_TYPE->CONFIRM). Answering CONFIRM here produced
+    //   invalid-screen-transition: The first screen -[CONFIRM] ... already have
+    //   incoming nodes found in the routing model
+    // so the branch written to be graceful was the only one that hard-failed
+    // (bd-2713). MARK is the sole entry screen; the empty roster rides on it,
+    // exactly as BUG-072's fix did in the main bot (68dc641, Apr 2026) where an
+    // empty data-source rendered fine in production for four months.
+    //
+    // The router now stops this case before the Flow is even sent, so reaching
+    // here means the roster emptied between send and open. `pending` is
+    // deliberately NOT set: submitting re-runs INIT and re-shows this message
+    // rather than attempting a write against nobody.
     return {
-      screen: 'CONFIRM',
+      screen: 'MARK',
       data: {
         heading: isTeacherSubject ? 'No teachers listed for your school yet' : 'No students in this class yet',
-        detail: isTeacherSubject
+        subject_note: isTeacherSubject
           ? 'Your NIETE coordinator needs to link staff to your school before you can mark them.'
           : 'Say "edit class" to add students, then mark attendance.',
-        overwrite_note: '',
+        roster: [],
       },
     };
   }
