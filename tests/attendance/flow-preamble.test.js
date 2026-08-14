@@ -55,11 +55,17 @@ function db({ user = {}, lists = [], rosters = {}, staff = [], schools = [] } = 
       return {
         select: () => ({
           eq: (col, val) => builder(col === 'list_id' ? (rosters[val] || []) : []),
-          in: () => builder([]),
+          // Bulk count (bd-2728): .in('list_id', [...]) — one row per student, so the
+          // count is derived rather than queried per class.
+          in: (col, ids) => builder(col === 'list_id'
+            ? ids.flatMap((lid) => (rosters[lid] || []).map((r) => ({ ...r, list_id: lid })))
+            : []),
         }),
       };
     }
-    if (table === 'class_enrollments') return { select: () => ({ eq: () => builder([]) }) };
+    if (table === 'class_enrollments') {
+      return { select: () => ({ eq: () => builder([]), in: () => builder([]) }) };
+    }
     if (table === 'schools') {
       return {
         select: () => ({

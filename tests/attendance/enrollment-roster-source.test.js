@@ -83,6 +83,10 @@ function db({ lists = [], legacyStudents = {}, enrollments = {}, students = [], 
       return {
         select: () => ({
           eq: (col, val) => builder(col === 'class_id' ? (enrollments[val] || []) : []),
+          // Bulk count (bd-2728): .in('class_id', [...]) across every class at once.
+          in: (col, ids) => builder(col === 'class_id'
+            ? ids.flatMap((cid) => (enrollments[cid] || []).map((e) => ({ ...e, class_id: cid })))
+            : []),
         }),
       };
     }
@@ -92,8 +96,11 @@ function db({ lists = [], legacyStudents = {}, enrollments = {}, students = [], 
         select: () => ({
           // legacy path: .eq('list_id', x).eq('is_active', true)[.order()|.limit()]
           eq: (col, val) => builder(col === 'list_id' ? (legacyStudents[val] || []) : []),
-          // enrollment path: .in('id', [...])
-          in: (col, ids) => builder(students.filter((s) => ids.includes(s.id))),
+          // Two bulk shapes: .in('id', ...) joins enrollments to names;
+          // .in('list_id', ...) is the legacy count (bd-2728).
+          in: (col, ids) => builder(col === 'list_id'
+            ? ids.flatMap((lid) => (legacyStudents[lid] || []).map((r) => ({ ...r, list_id: lid })))
+            : students.filter((s) => ids.includes(s.id))),
         }),
       };
     }

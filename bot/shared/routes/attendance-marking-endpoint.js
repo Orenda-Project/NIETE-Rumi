@@ -1,7 +1,7 @@
 /**
  * Attendance — marking Flow endpoint (data_exchange, encrypted).
  *
- * Screens: MARK → LEAVE_TYPE (only when someone is on leave) → CONFIRM
+ * Screens: CLASS → DATE → METHOD → MARK → LEAVE → CONFIRM → SAVED
  * (docs/flows/attendance-marking-flow.json)
  *
  * ONE screen set serves both actors. A teacher marks students, a principal marks
@@ -14,16 +14,10 @@
 
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
-const { markStudents, markTeachers, personName, LEAVE_TYPES } = require('../services/attendance-write.service');
+const { markStudents, markTeachers, personName } = require('../services/attendance-write.service');
 
 // Region timezone for the register date. Config-driven, never hardcoded per country.
 const REGISTER_TIME_ZONE = process.env.REGION_TIME_ZONE || 'Asia/Karachi';
-
-const LEAVE_TYPE_OPTIONS = [
-  { id: 'casual', title: 'Casual' },
-  { id: 'sick', title: 'Sick' },
-  { id: 'official', title: 'Official duty' },
-];
 
 // In-flight marking state, keyed by flow token. The Flow carries the taps between
 // screens; we only need to remember the roster and the parsed selection.
@@ -197,6 +191,7 @@ async function loadMarkables(userId) {
   const options = [];
 
   if (user && user.role === 'principal' && user.school_id) {
+    // Count only — the roster itself is loaded when the register opens.
     const staff = await loadStaffRoster(user.school_id, userId);
     options.push({
       id: `teacher:${user.school_id}`,
@@ -212,16 +207,59 @@ async function loadMarkables(userId) {
     .eq('is_active', true)
     .order('created_at');
 
-  for (const row of lists || []) {
-    const roster = await loadStudentRoster(row.id, row);
+  const counts = await rosterCounts(lists || []);
+  for (const row of (lists || [])) {
+    const n = counts.get(row.id) || 0;
     options.push({
       id: `student:${row.id}`,
       title: listLabel(row),
-      description: roster.length ? `${roster.length} students` : 'No students yet',
+      description: n ? `${n} students` : 'No students yet',
     });
   }
 
   return { user, options };
+}
+
+/**
+ * How many students each list has — in TWO reads, whatever the class count.
+ *
+ * This used to fetch every roster in FULL, one class at a time: 2 + 2N sequential
+ * round trips just to render "3 students" beside each class. Measured on staging with
+ * 3 classes that was 8 queries and ~2s inside Railway; at the 20 classes the Dropdown
+ * exists to support it is 42 serial round trips (bd-2728).
+ *
+ * Same PREFER-THEN-FALL-BACK rule as loadStudentRoster(): enrollment wins, legacy
+ * covers the classes the backfill has not reached. Counted here rather than queried
+ * per class, so the two cannot drift apart.
+ */
+async function rosterCounts(lists) {
+  const out = new Map();
+  if (!lists.length) return out;
+
+  const listIds = lists.map((l) => l.id);
+  const classIds = lists.filter((l) => l.class_id).map((l) => l.class_id);
+
+  const [enrolled, legacy] = await Promise.all([
+    classIds.length
+      ? supabase.from('class_enrollments').select('class_id').in('class_id', classIds).eq('is_active', true)
+      : Promise.resolve({ data: [] }),
+    supabase.from('students').select('list_id').in('list_id', listIds).eq('is_active', true),
+  ]);
+
+  const byClass = new Map();
+  for (const r of (enrolled && enrolled.data) || []) {
+    byClass.set(r.class_id, (byClass.get(r.class_id) || 0) + 1);
+  }
+  const byList = new Map();
+  for (const r of (legacy && legacy.data) || []) {
+    byList.set(r.list_id, (byList.get(r.list_id) || 0) + 1);
+  }
+
+  for (const l of lists) {
+    const viaEnrollment = l.class_id ? (byClass.get(l.class_id) || 0) : 0;
+    out.set(l.id, viaEnrollment || byList.get(l.id) || 0);
+  }
+  return out;
 }
 
 /** CLASS — pick what to mark. The Flow's entry screen. */
@@ -496,29 +534,60 @@ async function handleLeaveSubmit(flowToken, screenData) {
 
   pending.set(flowToken, { ...ctx, leaveIds });
 
-  if (leaveIds.length) {
-    const names = ctx.people.filter((p) => leaveIds.includes(p.id)).map(personName);
-    return {
-      screen: 'LEAVE_TYPE',
-      data: {
-        heading: leaveIds.length === 1 ? '1 person on leave' : `${leaveIds.length} people on leave`,
-        names: names.join(', '),
-        leave_types: LEAVE_TYPE_OPTIONS,
-      },
-    };
-  }
-
-  return renderConfirm(flowToken, { ...ctx, leaveIds, leaveType: null });
+  // No leave TYPE step (bd-2729): the register is Present / Absent / Leave. Asking
+  // casual-vs-sick-vs-official cost a screen on every marking run to record a
+  // distinction nobody asked to report. leave_type/notes are written NULL, which the
+  // write path already does for every non-leave row, so no schema change is needed —
+  // and the service still accepts a type if the portal ever wants to set one.
+  return await renderConfirm(flowToken, { ...ctx, leaveIds, leaveType: null });
 }
 
-/** LEAVE_TYPE submitted. */
-async function handleLeaveTypeSubmit(flowToken, screenData) {
-  const ctx = pending.get(flowToken);
-  if (!ctx) return renderClassScreen(flowToken);
+/**
+ * Is this class+date already on file, and with what?
+ *
+ * The write path always replaced correctly — one session per (class, date), records
+ * deleted and re-inserted, was_manually_edited flipped. What was missing was telling
+ * the teacher, so CONFIRM carried a static "Marked this day already?" caption on
+ * every register whether or not one existed. A hedge shown always is read as
+ * boilerplate and ignored (bd-2730).
+ */
+async function existingRegister(ctx) {
+  if (ctx.subject === 'teacher') {
+    const { data } = await supabase
+      .from('teacher_attendance_records')
+      .select('teacher_id, status, date')
+      .eq('school_id', ctx.targetId)
+      .eq('date', ctx.date);
+    if (!data || !data.length) return null;
+    const tally = { present: 0, absent: 0, leave: 0 };
+    for (const r of data) if (tally[r.status] !== undefined) tally[r.status] += 1;
+    return { ...tally, at: null };
+  }
 
-  const leaveType = LEAVE_TYPES.includes(screenData?.leave_type) ? screenData.leave_type : 'casual';
-  pending.set(flowToken, { ...ctx, leaveType });
-  return renderConfirm(flowToken, { ...ctx, leaveType });
+  const { data } = await supabase
+    .from('attendance_sessions')
+    .select('id, present_count, absent_count, leave_count, created_at')
+    .eq('list_id', ctx.targetId)
+    .eq('session_date', ctx.date)
+    .eq('session_type', ctx.sessionType || 'full_day');
+  const row = (data || [])[0];
+  if (!row) return null;
+  return {
+    present: row.present_count || 0,
+    absent: row.absent_count || 0,
+    leave: row.leave_count || 0,
+    at: row.created_at || null,
+  };
+}
+
+/** "10:27" in the region's timezone, for "saved at ..." copy. */
+function regionTime(iso) {
+  if (!iso) return null;
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      timeZone: REGISTER_TIME_ZONE, hour: '2-digit', minute: '2-digit',
+    }).format(new Date(iso));
+  } catch { return null; }
 }
 
 /**
@@ -526,7 +595,7 @@ async function handleLeaveTypeSubmit(flowToken, screenData) {
  * The old principal channel took typed coordinates and never named anyone back,
  * so one mistyped number silently marked the wrong colleague absent.
  */
-function renderConfirm(flowToken, ctx) {
+async function renderConfirm(flowToken, ctx) {
   const away = new Set([...(ctx.absentIds || []), ...(ctx.leaveIds || [])]);
   const absentNames = ctx.people.filter((p) => (ctx.absentIds || []).includes(p.id)).map(personName);
   const leaveNames = ctx.people
@@ -536,15 +605,27 @@ function renderConfirm(flowToken, ctx) {
 
   const lines = [];
   if (absentNames.length) lines.push(`Absent: ${absentNames.join(', ')}`);
-  if (leaveNames.length) lines.push(`On leave${ctx.leaveType ? ` (${ctx.leaveType})` : ''}: ${leaveNames.join(', ')}`);
+  if (leaveNames.length) lines.push(`On leave: ${leaveNames.join(', ')}`);
   if (!lines.length) lines.push('Everyone is present.');
+
+  // Look before warning. An unconditional caption is boilerplate; a specific one,
+  // naming what is about to be lost, is a decision the teacher can actually make.
+  const prior = await existingRegister(ctx);
+  let overwriteNote = '';
+  if (prior) {
+    const when = regionTime(prior.at);
+    overwriteNote = `⚠️ Already marked for ${prettyDate(ctx.date)}`
+      + (when ? ` at ${when}` : '')
+      + ` — ${prior.present} present · ${prior.absent} absent · ${prior.leave} on leave.`
+      + ' Saving replaces it.';
+  }
 
   return {
     screen: 'CONFIRM',
     data: {
       heading: `${present} present · ${absentNames.length} absent · ${leaveNames.length} on leave`,
       detail: lines.join('\n'),
-      overwrite_note: 'Marked this day already? Saving replaces the earlier record.',
+      overwrite_note: overwriteNote,
     },
   };
 }
@@ -599,7 +680,6 @@ async function handleMarkingDataExchange(flowToken, screen, screenData) {
   if (screen === 'METHOD') return handleMethodSubmit(flowToken, screenData);
   if (screen === 'MARK') return handleMarkSubmit(flowToken, screenData);
   if (screen === 'LEAVE') return handleLeaveSubmit(flowToken, screenData);
-  if (screen === 'LEAVE_TYPE') return handleLeaveTypeSubmit(flowToken, screenData);
   if (screen === 'CONFIRM') return handleConfirmSubmit(flowToken);
   return handleMarkingInit(flowToken);
 }
@@ -611,5 +691,4 @@ module.exports = {
   handleMarkingDataExchange,
   parseToken,
   prettyDate,
-  LEAVE_TYPE_OPTIONS,
 };
