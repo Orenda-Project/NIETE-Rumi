@@ -44,6 +44,20 @@ const {
 // user id). The Flow carries nothing between screens by itself.
 const pending = new Map();
 
+/** The "create one instead" choice on the class picker. */
+const ADD_NEW = '__add__';
+
+/**
+ * Radio and checkbox item titles are a capped field, and a long student name (or a
+ * class with a shift suffix) will exceed it. Measured in CODE POINTS, because the
+ * count that matters at the Graph API diverges from .length on Urdu.
+ */
+const ITEM_CAP = 30;
+function cap(text, limit = ITEM_CAP) {
+  const chars = [...String(text == null ? '' : text)];
+  return chars.length <= limit ? chars.join('') : `${chars.slice(0, limit - 1).join('')}…`;
+}
+
 // A Flow left open indefinitely should not pin memory, and a stale choice is
 // worse than asking again.
 const PENDING_TTL_MS = 30 * 60 * 1000;
@@ -140,12 +154,23 @@ async function handleClassesInit(userId) {
     return parts.join(' · ');
   });
 
+  // Her classes as choices, with "add a new one" last. This is the model in the UI:
+  // pick the class you teach — creating one is the fallback, not the front door.
+  const options = classes.map((c) => ({
+    id: c.classId,
+    title: cap(classDisplay(c.gradeCode, c.section, who, c.shiftCode)),
+  }));
+  options.push({ id: ADD_NEW, title: cap(resolveUx('classAddNewOption', { user: who })) });
+
   return {
     screen: 'CLASSES',
     data: {
       heading: resolveUx('classesHeading', { user: who }),
       summary: lines.length ? lines.join('\n') : resolveUx('classesEmpty', { user: who }),
       add_label: resolveUx('classesAdd', { user: who }),
+      choose_label: resolveUx('classChooseLabel', { user: who }),
+      next_label: resolveUx('classNext', { user: who }),
+      options,
     },
   };
 }
@@ -233,6 +258,80 @@ function buildSubjectsScreen(who, display) {
   };
 }
 
+/** The roster as one numbered block, or a sentence when it is empty. */
+function rosterText(students, who) {
+  if (!students.length) return resolveUx('classRosterEmpty', { user: who });
+  // A Flow TextBody holds 1024 code points; a capped class is 300 children, so a
+  // full roster does not fit. Show the first 40 and say how many more there are.
+  const shown = students.slice(0, 40)
+    .map((st) => `${st.rollNumber != null ? `${st.rollNumber}. ` : ''}${st.studentName}`);
+  if (students.length > shown.length) shown.push(`… +${students.length - shown.length}`);
+  return shown.join('\n');
+}
+
+async function buildRosterScreen(who, classId, display) {
+  const students = await ClassService.listStudents({ classId, teacherUserId: who.id });
+  return {
+    screen: 'ROSTER',
+    data: {
+      heading: display,
+      roster: rosterText(students, who),
+      choose_label: resolveUx('classRosterAction', { user: who }),
+      next_label: resolveUx('classNext', { user: who }),
+      actions: [
+        { id: 'add', title: cap(resolveUx('classRosterAddOption', { user: who })) },
+        { id: 'remove', title: cap(resolveUx('classRosterRemoveOption', { user: who })) },
+      ],
+    },
+  };
+}
+
+function buildAddStudentsScreen(who, display) {
+  return {
+    screen: 'ADD_STUDENTS',
+    data: {
+      heading: resolveUx('classAddStudentsHeading', { user: who, params: { class: display } }),
+      hint: resolveUx('classAddStudentsHint', { user: who }),
+      field_label: resolveUx('classStudentsField', { user: who }),
+      save_label: resolveUx('classAddToClass', { user: who }),
+    },
+  };
+}
+
+async function buildRemoveStudentsScreen(who, classId, display) {
+  const students = await ClassService.listStudents({ classId, teacherUserId: who.id });
+  // Nobody to remove is not an error — send her back to the roster rather than to a
+  // checkbox group with no boxes, which WhatsApp renders as a dead screen.
+  if (!students.length) return await buildRosterScreen(who, classId, display);
+
+  return {
+    screen: 'REMOVE_STUDENTS',
+    data: {
+      heading: resolveUx('classRemoveHeading', { user: who, params: { class: display } }),
+      hint: resolveUx('classRemoveHint', { user: who }),
+      field_label: resolveUx('classStudentsField', { user: who }),
+      remove_label: resolveUx('classRemoveButton', { user: who }),
+      students: students.slice(0, 40).map((st) => ({
+        id: st.studentId,
+        title: cap(`${st.rollNumber != null ? `${st.rollNumber}. ` : ''}${st.studentName}`),
+      })),
+    },
+  };
+}
+
+/** The class she is working on, with its display string, from the remembered choice. */
+async function rosterContext(userId, who) {
+  const choice = recallChoice(userId);
+  if (!choice || !choice.rosterClassId) return null;
+  const mine = await ClassService.listClassesForTeacher(userId);
+  const row = mine.find((c) => c.classId === choice.rosterClassId);
+  if (!row) return null;
+  return {
+    classId: row.classId,
+    display: classDisplay(row.gradeCode, row.section, who, row.shiftCode),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // data_exchange
 // ---------------------------------------------------------------------------
@@ -241,11 +340,100 @@ async function handleClassManagerDataExchange(userId, screen, screenData) {
   const teacher = await loadTeacher(userId);
   const who = teacher || {};
 
-  // CLASSES footer → the add form.
+  // CLASSES → either the add form, or the roster of the class she picked.
   if (screen === 'CLASSES') {
-    const add = await buildAddScreen(who);
-    if (!add) return await handleClassesInit(userId);
-    return add;
+    const target = screenData && screenData.target;
+
+    if (!target || target === ADD_NEW) {
+      const add = await buildAddScreen(who);
+      return add || (await handleClassesInit(userId));
+    }
+
+    const mine = await ClassService.listClassesForTeacher(userId);
+    const row = mine.find((c) => c.classId === target);
+    // A class id she is not assigned to gets no roster — the picker is not
+    // authorisation, and a stale asset could send anything.
+    if (!row) return await handleClassesInit(userId);
+
+    rememberChoice(userId, { rosterClassId: row.classId });
+    return await buildRosterScreen(
+      who, row.classId, classDisplay(row.gradeCode, row.section, who, row.shiftCode),
+    );
+  }
+
+  // ROSTER → add or remove.
+  if (screen === 'ROSTER') {
+    const ctx = await rosterContext(userId, who);
+    if (!ctx) return await handleClassesInit(userId);
+
+    const action = screenData && screenData.action;
+    if (action === 'remove') return await buildRemoveStudentsScreen(who, ctx.classId, ctx.display);
+    return buildAddStudentsScreen(who, ctx.display);
+  }
+
+  // ADD_STUDENTS → paste the register.
+  if (screen === 'ADD_STUDENTS') {
+    const ctx = await rosterContext(userId, who);
+    if (!ctx) return await handleClassesInit(userId);
+
+    const result = await ClassService.addStudents({
+      classId: ctx.classId, teacherUserId: userId, rawText: screenData && screenData.roster,
+    });
+
+    if (result.error === 'no_names') return buildAddStudentsScreen(who, ctx.display);
+    if (result.error && !result.added) {
+      logToFile('⚠️ class-manager: addStudents failed', { userId, error: result.error }, 'error');
+      return await buildRosterScreen(who, ctx.classId, ctx.display);
+    }
+
+    // Duplicates and a hit cap are notes on a success, not failures — the count
+    // otherwise disagrees with what she pasted and she cannot tell why.
+    const parts = [resolveUx('classStudentsAdded', {
+      user: who, params: { added: result.added, class: ctx.display },
+    })];
+    if (result.duplicates) {
+      parts.push(resolveUx('classStudentsDuplicates', { user: who, params: { duplicates: result.duplicates } }));
+    }
+    if (result.dropped) {
+      parts.push(resolveUx('classStudentsDropped', { user: who, params: { dropped: result.dropped } }));
+    }
+    pending.delete(userId);
+    return {
+      screen: 'SAVED',
+      data: {
+        heading: resolveUx('classSavedHeading', { user: who }),
+        detail: parts.join(' '),
+        done_label: resolveUx('classDone', { user: who }),
+      },
+    };
+  }
+
+  // REMOVE_STUDENTS → close those enrollments.
+  if (screen === 'REMOVE_STUDENTS') {
+    const ctx = await rosterContext(userId, who);
+    if (!ctx) return await handleClassesInit(userId);
+
+    const ids = normalizeMultiSelect(screenData && screenData.remove);
+    let removed = 0;
+    for (const studentId of ids) {
+      const res = await ClassService.removeStudent({
+        classId: ctx.classId, teacherUserId: userId, studentId,
+      });
+      if (res.removed) removed += 1;
+      else if (res.error) {
+        logToFile('⚠️ class-manager: removeStudent failed', { userId, studentId, error: res.error }, 'error');
+      }
+    }
+
+    pending.delete(userId);
+    return {
+      screen: 'SAVED',
+      data: {
+        heading: resolveUx('classSavedHeading', { user: who }),
+        detail: resolveUx('classStudentsRemoved', { user: who, params: { removed, class: ctx.display } }),
+        done_label: resolveUx('classDone', { user: who }),
+      },
+    };
   }
 
   // ADD → remember the choice, ask what they teach.
@@ -359,7 +547,7 @@ async function handleClassManagerDataExchange(userId, screen, screenData) {
  * anything not in the catalog so a stale Flow asset cannot inject a code the
  * subjects table has never heard of.
  */
-function normalizeSubjectSelection(raw) {
+function normalizeMultiSelect(raw) {
   let list = raw;
   if (typeof list === 'string') {
     const trimmed = list.trim();
@@ -375,7 +563,14 @@ function normalizeSubjectSelection(raw) {
     }
   }
   if (!Array.isArray(list)) return [];
-  return list.filter((code) => typeof code === 'string' && Object.prototype.hasOwnProperty.call(SUBJECT_LABELS, code));
+  return list.filter((v) => typeof v === 'string' && v.trim()).map((v) => v.trim());
+}
+
+/** @see normalizeMultiSelect — plus a catalog filter, so a stale asset cannot inject
+ *  a subject the table has never heard of. */
+function normalizeSubjectSelection(raw) {
+  return normalizeMultiSelect(raw)
+    .filter((code) => Object.prototype.hasOwnProperty.call(SUBJECT_LABELS, code));
 }
 
 /** OptIn arrives as a boolean, but 'true'/'false' strings have been seen. */
@@ -392,6 +587,10 @@ async function handleClassManagerBack(userId, screen) {
     const add = await buildAddScreen(who);
     if (add) return add;
   }
+  if (screen === 'ADD_STUDENTS' || screen === 'REMOVE_STUDENTS') {
+    const ctx = await rosterContext(userId, who);
+    if (ctx) return await buildRosterScreen(who, ctx.classId, ctx.display);
+  }
   return await handleClassesInit(userId);
 }
 
@@ -401,6 +600,7 @@ module.exports = {
   handleClassManagerBack,
   // Exported for tests.
   normalizeSubjectSelection,
+  normalizeMultiSelect,
   classDisplay,
   currentSessionCode,
 };

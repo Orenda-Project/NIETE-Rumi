@@ -28,6 +28,7 @@ jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 
 const TEACHER = 'teacher-uuid-1';
 const SCHOOL = 'school-uuid-1';
+const OTHER_TEACHER_ID = 'teacher-uuid-9';
 
 const GRADE_ROWS = [
   { code: 'early_years', ordinal: 0, band: 'early_years', aliases: ['early_years'], sort_order: 0, is_active: true },
@@ -373,5 +374,184 @@ describe('SAVED tells the truth when a claim is declined', () => {
     expect(mine).toBeTruthy();
     const hers = mockDb._tables.class_teacher_subjects.filter((r) => r.class_teacher_id === mine.id);
     expect(hers.map((r) => r.subject_code)).toEqual(['urdu']);
+  });
+});
+
+describe('the class picker', () => {
+  const svcOf = () => require('../../bot/shared/services/classes/class.service');
+
+  async function withOneClass() {
+    const svc = svcOf();
+    const { class: cls } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: TEACHER, subjectCodes: ['maths'] });
+    return cls;
+  }
+
+  it('offers her classes, with "add a new one" LAST', async () => {
+    // Pick the class you teach; creating one is the fallback, not the front door.
+    const cls = await withOneClass();
+    const res = await ep.handleClassesInit(TEACHER);
+    const ids = res.data.options.map((o) => o.id);
+    expect(ids[0]).toBe(cls.id);
+    expect(ids[ids.length - 1]).toBe('__add__');
+  });
+
+  it('offers only "add a new one" to a teacher with no classes', async () => {
+    const res = await ep.handleClassesInit(TEACHER);
+    expect(res.data.options.map((o) => o.id)).toEqual(['__add__']);
+  });
+
+  it('caps item titles in CODE POINTS, since radio titles are a capped field', async () => {
+    const res = await ep.handleClassesInit(TEACHER);
+    for (const o of res.data.options) expect([...o.title].length).toBeLessThanOrEqual(30);
+  });
+
+  it('goes to the add form when she picks "add a new one"', async () => {
+    await withOneClass();
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'CLASSES', { target: '__add__' });
+    expect(res.screen).toBe('ADD');
+  });
+
+  it('opens the roster when she picks a class', async () => {
+    const cls = await withOneClass();
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'CLASSES', { target: cls.id });
+    expect(res.screen).toBe('ROSTER');
+    expect(res.data.heading).toBe('Grade 4 - A');
+  });
+
+  it('refuses a class id she is not assigned to — the picker is not authorisation', async () => {
+    const svc = svcOf();
+    // grade_10, because this file's fixture seeds early_years / grade_4 / grade_10.
+    const { class: hers } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_10', section: 'B',
+      sessionCode: '2026-2027', teacherUserId: OTHER_TEACHER_ID,
+    });
+    await svc.assignTeacher({ classId: hers.id, teacherUserId: OTHER_TEACHER_ID });
+
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'CLASSES', { target: hers.id });
+    expect(res.screen).toBe('CLASSES');
+  });
+});
+
+describe('the roster screens', () => {
+  const svcOf = () => require('../../bot/shared/services/classes/class.service');
+
+  async function onRoster(students = []) {
+    const svc = svcOf();
+    const { class: cls } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: TEACHER, subjectCodes: ['maths'] });
+    if (students.length) {
+      await svc.addStudents({ classId: cls.id, teacherUserId: TEACHER, rawText: students.join('\n') });
+    }
+    await ep.handleClassManagerDataExchange(TEACHER, 'CLASSES', { target: cls.id });
+    return cls;
+  }
+
+  it('says so plainly when the roster is empty', async () => {
+    await onRoster();
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'CLASSES', {
+      target: mockDb._tables.classes[0].id,
+    });
+    expect(res.data.roster).toBe('No students yet.');
+  });
+
+  it('lists the children with their roll numbers', async () => {
+    await onRoster(['Ayesha Bibi', 'Bilal Ahmed']);
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'CLASSES', {
+      target: mockDb._tables.classes[0].id,
+    });
+    expect(res.data.roster).toBe('1. Ayesha Bibi\n2. Bilal Ahmed');
+  });
+
+  it('goes to the paste box', async () => {
+    await onRoster();
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { action: 'add' });
+    expect(res.screen).toBe('ADD_STUDENTS');
+    expect(res.data.heading).toBe('Add students to Grade 4 - A');
+  });
+
+  it('adds a pasted register and reports duplicates', async () => {
+    await onRoster(['Ayesha Bibi']);
+    await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { action: 'add' });
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'ADD_STUDENTS', {
+      roster: '1. Ayesha Bibi\n2) Bilal Ahmed\n- Fatima Noor',
+    });
+
+    expect(res.screen).toBe('SAVED');
+    expect(res.data.detail).toContain('2 added to Grade 4 - A.');
+    expect(res.data.detail).toContain('1 were already on the roster.');
+  });
+
+  it('re-asks rather than saving nothing when the paste is empty', async () => {
+    await onRoster();
+    await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { action: 'add' });
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'ADD_STUDENTS', { roster: '   ' });
+    expect(res.screen).toBe('ADD_STUDENTS');
+  });
+
+  it('offers the children to remove, and warns it affects colleagues', async () => {
+    await onRoster(['Ayesha Bibi', 'Bilal Ahmed']);
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { action: 'remove' });
+
+    expect(res.screen).toBe('REMOVE_STUDENTS');
+    expect(res.data.students.map((s) => s.title)).toEqual(['1. Ayesha Bibi', '2. Bilal Ahmed']);
+    expect(res.data.hint).toMatch(/Every teacher on this class/i);
+  });
+
+  it('sends her back to the roster instead of a checkbox group with no boxes', async () => {
+    // WhatsApp renders an empty CheckboxGroup as a dead screen.
+    await onRoster();
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { action: 'remove' });
+    expect(res.screen).toBe('ROSTER');
+  });
+
+  it('closes the enrollments she ticked', async () => {
+    await onRoster(['Ayesha Bibi', 'Bilal Ahmed']);
+    const pick = await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { action: 'remove' });
+    const first = pick.data.students[0].id;
+
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'REMOVE_STUDENTS', { remove: [first] });
+    expect(res.screen).toBe('SAVED');
+    expect(res.data.detail).toContain('1 removed from Grade 4 - A.');
+
+    const closed = mockDb._tables.class_enrollments.find((e) => e.student_id === first);
+    expect(closed.is_active).toBe(false);
+    expect(closed.outcome).toBe('left');
+  });
+
+  it('accepts a checkbox payload sent as a JSON string', async () => {
+    await onRoster(['Ayesha Bibi']);
+    const pick = await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { action: 'remove' });
+    const id = pick.data.students[0].id;
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'REMOVE_STUDENTS', {
+      remove: JSON.stringify([id]),
+    });
+    expect(res.data.detail).toContain('1 removed');
+  });
+
+  it('BACK from the paste box returns to the roster, not to the top', async () => {
+    await onRoster(['Ayesha Bibi']);
+    await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { action: 'add' });
+    const res = await ep.handleClassManagerBack(TEACHER, 'ADD_STUDENTS');
+    expect(res.screen).toBe('ROSTER');
+  });
+
+  it('every roster screen it can return is declared by the Flow JSON', async () => {
+    const declared = new Set(flowJson.screens.map((s) => s.id));
+    await onRoster(['Ayesha Bibi']);
+    const seen = [
+      (await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { action: 'add' })).screen,
+      (await ep.handleClassManagerDataExchange(TEACHER, 'ADD_STUDENTS', { roster: 'Zara Khan' })).screen,
+      (await ep.handleClassManagerDataExchange(TEACHER, 'CLASSES', { target: mockDb._tables.classes[0].id })).screen,
+      (await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { action: 'remove' })).screen,
+      (await ep.handleClassManagerBack(TEACHER, 'REMOVE_STUDENTS')).screen,
+    ];
+    expect(seen.filter((s) => !declared.has(s))).toEqual([]);
   });
 });
