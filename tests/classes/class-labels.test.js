@@ -41,7 +41,10 @@ function seededCodes(table) {
   const start = SEED.indexOf(`INSERT INTO ${table} (`);
   expect(start).toBeGreaterThan(-1);
   const block = SEED.slice(start, SEED.indexOf('ON CONFLICT', start));
-  return [...block.matchAll(/^\s*\('([a-z_0-9]+)'/gm)].map((m) => m[1]);
+  // Not anchored to line-start, and case-sensitive-agnostic: section codes are
+  // upper-case ('A'), and several seeds put more than one tuple on a line. The
+  // `\(` guard is what keeps this off the alias arrays, which use `['...`.
+  return [...block.matchAll(/\('([A-Za-z0-9_-]+)'/g)].map((m) => m[1]);
 }
 
 /** WhatsApp's tightest teacher-facing field. A label short enough for a button
@@ -130,5 +133,41 @@ describe('gradeLabelFor / subjectLabelFor', () => {
     // A picker rendering '' is worse than a caller that can skip the row.
     expect(gradeLabelFor('grade_99', 'en')).toBeNull();
     expect(subjectLabelFor('islamiat', 'en')).toBeNull();
+  });
+});
+
+describe('shift labels', () => {
+  const { SHIFT_LABELS, shiftLabelFor } = require('../../bot/shared/config/ux-strings');
+
+  it('covers every seeded shift code, and no extras', () => {
+    expect(Object.keys(SHIFT_LABELS).sort()).toEqual(seededCodes('shifts').sort());
+  });
+
+  it.each(LANGUAGE_OFFER)('is complete in %s', (lang) => {
+    for (const variants of Object.values(SHIFT_LABELS)) {
+      expect(typeof variants[lang]).toBe('string');
+      expect(variants[lang].trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it('does not fall back to the English string for Urdu', () => {
+    expect(Object.entries(SHIFT_LABELS).filter(([, v]) => v.en === v.ur)).toEqual([]);
+  });
+
+  it.each(Object.entries(SHIFT_LABELS).flatMap(([code, v]) =>
+    LANGUAGE_OFFER.map((l) => [`${code}:${l}`, v[l]])))(
+    '%s fits the 20-code-point button cap', (_k, text) => {
+      expect(cp(text)).toBeLessThanOrEqual(BUTTON_CAP);
+    });
+
+  it('resolves for a teacher', () => {
+    expect(shiftLabelFor('evening', { preferred_language: 'ur' })).toBe(SHIFT_LABELS.evening.ur);
+    expect(shiftLabelFor('nope', 'en')).toBeNull();
+  });
+});
+
+describe('sections need no label map', () => {
+  it('is seeded A-E, rendered as the code itself', () => {
+    expect(seededCodes('sections')).toEqual(['A', 'B', 'C', 'D', 'E']);
   });
 });

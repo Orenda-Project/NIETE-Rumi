@@ -183,3 +183,9 @@ CREATE POLICY "service_role_classes" ON classes FOR ALL USING (auth.role() = 'se
 CREATE POLICY "service_role_class_teachers" ON class_teachers FOR ALL USING (auth.role() = 'service_role');
 CREATE POLICY "service_role_class_teacher_subjects" ON class_teacher_subjects FOR ALL USING (auth.role() = 'service_role');
 CREATE POLICY "service_role_class_enrollments" ON class_enrollments FOR ALL USING (auth.role() = 'service_role');
+
+-- Sections + shifts vocabulary (V1.1.4).
+ALTER TABLE sections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shifts   ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "service_role_sections" ON sections FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "service_role_shifts" ON shifts FOR ALL USING (auth.role() = 'service_role');

@@ -608,7 +608,9 @@ router.post('/classes/options', requireInternalKey, async (req, res) => {
 
   try {
     const supabase = require('../config/supabase');
-    const { gradeLabelFor, subjectLabelFor, SUBJECT_LABELS } = require('../config/ux-strings');
+    const {
+      gradeLabelFor, subjectLabelFor, shiftLabelFor, SUBJECT_LABELS,
+    } = require('../config/ux-strings');
     const teacher = await loadPortalTeacher(userId);
     const who = teacher || {};
 
@@ -631,7 +633,16 @@ router.post('/classes/options', requireInternalKey, async (req, res) => {
       .map((code) => ({ code, label: subjectLabelFor(code, who) }))
       .filter((s) => Boolean(s.label));
 
-    return res.json({ success: true, grades, subjects });
+    // Closed vocabularies, read from their tables so a section support adds shows
+    // up in the portal without a deploy.
+    const readCodes = async (table) => {
+      const { data } = await supabase.from(table).select('code, sort_order').eq('is_active', true);
+      return [...(data || [])].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)).map((r) => r.code);
+    };
+    const sections = (await readCodes('sections')).map((code) => ({ code, label: code }));
+    const shifts = (await readCodes('shifts')).map((code) => ({ code, label: shiftLabelFor(code, who) || code }));
+
+    return res.json({ success: true, grades, subjects, sections, shifts });
   } catch (err) {
     logToFile('❌ Internal classes/options failed', { userId, error: err?.message }, 'error');
     return res.status(500).json({ success: false, error: 'Failed to load options' });
@@ -652,7 +663,7 @@ router.post('/classes/options', requireInternalKey, async (req, res) => {
  */
 router.post('/classes/create', requireInternalKey, async (req, res) => {
   const {
-    userId, gradeCode, section, subjectCodes, isClassTeacher,
+    userId, gradeCode, section, shiftCode, subjectCodes, isClassTeacher,
   } = req.body || {};
 
   if (!userId || !gradeCode) {
@@ -680,12 +691,14 @@ router.post('/classes/create', requireInternalKey, async (req, res) => {
       schoolId: teacher.school_id,
       gradeCode,
       section,
+      shiftCode: shiftCode || 'morning',
       sessionCode,
       teacherUserId: userId,
     });
 
     if (result.error || !result.class) {
-      const status = result.error === 'unknown_grade' || result.error === 'unknown_session' ? 400 : 500;
+      const BAD_INPUT = ['unknown_grade', 'unknown_session', 'unknown_section', 'unknown_shift'];
+      const status = BAD_INPUT.includes(result.error) ? 400 : 500;
       return res.status(status).json({ success: false, error: result.error || 'create_failed' });
     }
 
@@ -695,17 +708,6 @@ router.post('/classes/create', requireInternalKey, async (req, res) => {
       isClassTeacher: Boolean(isClassTeacher),
       subjectCodes: Array.isArray(subjectCodes) ? subjectCodes : [],
     });
-
-    if (assigned.error === 'class_teacher_exists') {
-      // The class was created; only the role claim was refused. Say so precisely,
-      // because "failed" would push the teacher to create it again.
-      return res.status(409).json({
-        success: false,
-        error: 'class_teacher_exists',
-        classId: result.class.id,
-        created: result.created,
-      });
-    }
 
     if (assigned.error) {
       logToFile('⚠️ Internal classes/create: assignTeacher failed after createClass', {
@@ -717,16 +719,22 @@ router.post('/classes/create', requireInternalKey, async (req, res) => {
       userId, classId: result.class.id, created: result.created, mirrored: result.mirrored,
     });
 
+    // A declined claim is NOT a failure: the class exists and she is on it. It used
+    // to 409, which lost the work and read as "nothing happened". Reported additively
+    // so the caller can confirm the save AND name what was declined.
     return res.status(201).json({
       success: true,
       class: {
         classId: result.class.id,
         gradeCode: result.class.grade_code,
         section: result.class.section,
+        shiftCode: result.class.shift_code,
         sessionCode: result.class.session_code,
       },
       created: result.created,
       mirrored: result.mirrored,
+      classTeacherTaken: Boolean(assigned.classTeacherTaken),
+      subjectsTaken: (assigned.subjectsTaken || []).map((t) => t.code),
       assignmentError: assigned.error || null,
     });
   } catch (error) {

@@ -243,6 +243,7 @@ export interface TeacherClass {
   gradeCode: string;
   gradeLabel: string;
   section: string | null;
+  shiftCode: string;
   sessionCode: string;
   isClassTeacher: boolean;
   /** "Grade 4 - A", ready to render. */
@@ -263,11 +264,15 @@ export interface ClassesResponse {
   currentSession: string | null;
   grades: ClassOption[];
   subjects: ClassOption[];
+  /** Closed vocabularies. A section support adds appears here without a deploy. */
+  sections: ClassOption[];
+  shifts: ClassOption[];
 }
 
 export interface CreateClassPayload {
   gradeCode: string;
   section?: string | null;
+  shiftCode?: string;
   subjectCodes?: string[];
   isClassTeacher?: boolean;
 }
@@ -281,5 +286,8 @@ export interface CreateClassResponse {
     sessionCode: string;
   };
   created?: boolean;
+  /** Reported alongside success: the class was saved, these claims were declined. */
+  classTeacherTaken?: boolean;
+  subjectsTaken?: string[];
   error?: string;
 }

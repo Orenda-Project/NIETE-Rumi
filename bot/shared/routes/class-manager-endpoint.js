@@ -34,8 +34,10 @@ const {
   resolveUx,
   gradeLabelFor,
   subjectLabelFor,
+  shiftLabelFor,
   GRADE_LABELS,
   SUBJECT_LABELS,
+  SHIFT_LABELS,
 } = require('../config/ux-strings');
 
 // What ADD chose, while the teacher is on SUBJECTS. Keyed by the Flow token (the
@@ -80,9 +82,15 @@ async function loadTeacher(userId) {
 }
 
 /** "Grade 4 - A" in the teacher's language; the section is appended verbatim. */
-function classDisplay(gradeCode, section, who) {
+function classDisplay(gradeCode, section, who, shiftCode = 'morning') {
   const grade = gradeLabelFor(gradeCode, who) || gradeCode;
-  return section ? `${grade} - ${section}` : grade;
+  const base = section ? `${grade} - ${section}` : grade;
+  // Morning is the unmarked default; naming it on every row would be noise, and
+  // naming neither would make the two classes indistinguishable.
+  if (shiftCode && shiftCode !== 'morning') {
+    return `${base} (${shiftLabelFor(shiftCode, who) || shiftCode})`;
+  }
+  return base;
 }
 
 /**
@@ -120,7 +128,7 @@ async function handleClassesInit(userId) {
   const classes = await ClassService.listClassesForTeacher(userId);
 
   const lines = classes.map((c) => {
-    const display = classDisplay(c.gradeCode, c.section, who);
+    const display = classDisplay(c.gradeCode, c.section, who, c.shiftCode);
     const subjects = c.subjectCodes
       .map((code) => subjectLabelFor(code, who))
       .filter(Boolean)
@@ -164,17 +172,44 @@ async function buildAddScreen(who) {
     .map((r) => ({ id: r.code, title: gradeLabelFor(r.code, who) }))
     .filter((g) => Boolean(g.title));
 
+  // Sections and shifts are closed vocabularies read from their tables, so the
+  // picker cannot drift from what the FKs will accept. A free-text section would
+  // now be REFUSED by the database, which is why this is a dropdown.
+  const sections = await listSeeded('sections');
+  const shifts = await listSeeded('shifts');
+
   return {
     screen: 'ADD',
     data: {
       heading: resolveUx('classAddHeading', { user: who }),
       grade_label: resolveUx('classGradeLabel', { user: who }),
       section_label: resolveUx('classSectionLabel', { user: who }),
-      section_helper: resolveUx('classSectionHelper', { user: who }),
+      section_helper: resolveUx('classSectionHelperClosed', { user: who }),
+      shift_label: resolveUx('classShiftLabel', { user: who }),
       next_label: resolveUx('classNext', { user: who }),
       grades,
+      sections: sections.map((code) => ({ id: code, title: code })),
+      shifts: shifts.map((code) => ({ id: code, title: shiftLabelFor(code, who) || code })),
     },
   };
+}
+
+/**
+ * The codes in a small closed reference table, in their seeded order. Read from the
+ * table rather than hardcoded so a section added by support appears in the picker
+ * without a deploy — which is the whole reason sections are a table.
+ */
+async function listSeeded(table) {
+  const { data, error } = await supabase
+    .from(table)
+    .select('code, sort_order')
+    .eq('is_active', true);
+
+  if (error || !data) {
+    logToFile(`⚠️ class-manager: ${table} load failed`, { error: error && error.message });
+    return [];
+  }
+  return [...data].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)).map((r) => r.code);
 }
 
 // ---------------------------------------------------------------------------
@@ -217,6 +252,8 @@ async function handleClassManagerDataExchange(userId, screen, screenData) {
   if (screen === 'ADD') {
     const gradeCode = screenData && screenData.grade;
     const section = ClassService.normalizeSection(screenData && screenData.section);
+    const rawShift = screenData && screenData.shift;
+    const shiftCode = typeof rawShift === 'string' && SHIFT_LABELS[rawShift] ? rawShift : 'morning';
 
     if (!gradeCode || !GRADE_LABELS[gradeCode]) {
       // Re-ask rather than proceeding with a grade we cannot store.
@@ -224,8 +261,8 @@ async function handleClassManagerDataExchange(userId, screen, screenData) {
       return add || (await handleClassesInit(userId));
     }
 
-    rememberChoice(userId, { gradeCode, section });
-    return buildSubjectsScreen(who, classDisplay(gradeCode, section, who));
+    rememberChoice(userId, { gradeCode, section, shiftCode });
+    return buildSubjectsScreen(who, classDisplay(gradeCode, section, who, shiftCode));
   }
 
   // SUBJECTS → create the class, assign the teacher, land on SAVED.
@@ -251,6 +288,7 @@ async function handleClassManagerDataExchange(userId, screen, screenData) {
       schoolId: teacher && teacher.school_id,
       gradeCode: choice.gradeCode,
       section: choice.section,
+      shiftCode: choice.shiftCode || 'morning',
       sessionCode,
       teacherUserId: userId,
     });
@@ -278,15 +316,34 @@ async function handleClassManagerDataExchange(userId, screen, screenData) {
 
     pending.delete(userId);
 
-    const display = classDisplay(choice.gradeCode, choice.section, who);
+    const display = classDisplay(choice.gradeCode, choice.section, who, choice.shiftCode);
+
+    // A declined claim is ADDITIVE to the confirmation, never a replacement for it:
+    // the class really was saved, and copy that reads as failure sends her back to
+    // create it again. Subjects first — losing a subject is more consequential to
+    // her day than losing the class-teacher badge.
+    let detail = resolveUx('classSavedDetail', {
+      user: who,
+      params: { class: display, session: sessionCode },
+    });
+
+    const taken = (assigned.subjectsTaken || [])
+      .map((t) => subjectLabelFor(t.code, who) || t.code)
+      .filter(Boolean);
+
+    if (taken.length) {
+      detail = `${detail}\n\n${resolveUx('classSavedSubjectsTaken', {
+        user: who, params: { subjects: taken.join(', ') },
+      })}`;
+    } else if (assigned.classTeacherTaken) {
+      detail = `${detail}\n\n${resolveUx('classSavedRoleTaken', { user: who })}`;
+    }
+
     return {
       screen: 'SAVED',
       data: {
         heading: resolveUx('classSavedHeading', { user: who }),
-        detail: resolveUx('classSavedDetail', {
-          user: who,
-          params: { class: display, session: sessionCode },
-        }),
+        detail,
         done_label: resolveUx('classDone', { user: who }),
       },
     };

@@ -146,3 +146,13 @@ INSERT INTO academic_sessions (code, kind, starts_on, ends_on) VALUES
     ('2026-2027', 'annual', DATE '2026-08-01', DATE '2027-07-31'),
     ('2027-2028', 'annual', DATE '2027-08-01', DATE '2028-07-31')
 ON CONFLICT (code) DO NOTHING;
+
+-- Sections A-E and the two shifts (V1.1.4). Closed sets: support adds a row when a
+-- school needs another section, which is why these are tables rather than CHECKs.
+INSERT INTO sections (code, sort_order) VALUES
+    ('A', 1), ('B', 2), ('C', 3), ('D', 4), ('E', 5)
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO shifts (code, sort_order) VALUES
+    ('morning', 1), ('evening', 2)
+ON CONFLICT (code) DO NOTHING;
