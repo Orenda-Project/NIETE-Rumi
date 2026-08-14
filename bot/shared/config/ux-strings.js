@@ -311,11 +311,6 @@ const UX_STRINGS = {
     ur: 'اگلی استاد',
   },
 
-  remarkAckMoreLeft: {
-    en: 'Send /remark again for the next teacher.',
-    ur: 'اگلی استاد کے لیے دوبارہ /remark بھیجیں۔',
-  },
-
   remarkAckAllDone: {
     en: 'That is every teacher in your school for this quarter.',
     ur: 'اس سہ ماہی کے لیے آپ کے اسکول کی تمام اساتذہ مکمل ہو گئیں۔',

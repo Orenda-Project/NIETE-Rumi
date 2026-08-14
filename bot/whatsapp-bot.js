@@ -1398,24 +1398,30 @@ app.post('/webhook', async (req, res) => {
         try {
           const { resolveUx } = require('./shared/config/ux-strings');
           const left = Number(responseJson.remark_left || 0);
-          const ack = resolveUx('remarkAckSubmitted', {
-            user,
-            params: {
-              teacher: responseJson.remark_teacher || '',
-              left: resolveUx(left > 0 ? 'remarkAckMoreLeft' : 'remarkAckAllDone', { user }),
-            },
-          });
-          await WhatsAppService.sendMessage(from, ack);
+          const teacher = responseJson.remark_teacher || '';
 
-          // ONE button, only when there is actually a next teacher. Deliberately
-          // not a yes/no pair: finishing is the common case and must not cost a
-          // tap, so "no" is simply not answering. Any other reply falls through
-          // to normal chat, which is why there is no state to clear either.
+          // ONE message, not two. The confirmation and the next-step prompt are
+          // the same beat, and an earlier version sent the ack ("…Send /remark
+          // again for the next teacher.") AND a button underneath — telling her
+          // the same thing twice, once in prose she must retype and once as a tap.
+          //
+          // The button is single, not a yes/no pair: finishing is the common case
+          // and must not cost a tap, so "no" is simply not answering. Any other
+          // reply falls through to normal chat, which is why there is no state to
+          // clear either.
           if (left > 0) {
             await WhatsAppService.sendInteractiveButtons(from, {
-              body: resolveUx('remarkAnotherPrompt', { user }),
+              body: resolveUx('remarkAckSubmitted', {
+                user,
+                params: { teacher, left: resolveUx('remarkAnotherPrompt', { user }) },
+              }),
               buttons: [{ id: 'remark_next', title: resolveUx('remarkAnotherButton', { user }) }],
             });
+          } else {
+            await WhatsAppService.sendMessage(from, resolveUx('remarkAckSubmitted', {
+              user,
+              params: { teacher, left: resolveUx('remarkAckAllDone', { user }) },
+            }));
           }
         } catch (ackError) {
           logError('❌ Exception acking supervisor remark', {
