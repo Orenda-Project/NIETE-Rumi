@@ -237,6 +237,34 @@ async function handleAttendanceTap(interactiveId, from, user) {
     return true;
   }
 
+  // A question that needs its choices attached. These arrive here because a
+  // principal who also runs classes taps "My students" and must then pick one —
+  // resolveSubjectChoice() hands back the picker rather than re-asking the subject
+  // question, which is the loop bd-2718 fixed.
+  //
+  // Missing these branches is how bd-2718's fix regressed: the decision was
+  // correct, the tap handler had no case, and the generic sendMessage() below
+  // dropped the buttons — "Which class?" arrived as bare text with nothing to tap
+  // (staging 10:50:14Z). The router-action-coverage test now locks this join.
+  if (decision.action === 'ASK_SUBJECT' || decision.action === 'ASK_CLASS_BUTTONS') {
+    await WhatsAppService.sendInteractiveButtons(from, {
+      body: decision.message,
+      buttons: decision.buttons,
+    });
+    return true;
+  }
+
+  if (decision.action === 'ASK_CLASS_LIST') {
+    await WhatsAppService.sendInteractiveMessage(from, {
+      body: { text: decision.message },
+      action: { button: 'Choose class', sections: [{ title: 'Your classes', rows: decision.rows }] },
+    });
+    if (decision.truncated) {
+      await WhatsAppService.sendMessage(from, `Showing your first ${AttendanceRouter.MAX_ROWS} classes.`);
+    }
+    return true;
+  }
+
   await WhatsAppService.sendMessage(from, decision.message || 'Sorry, something went wrong.');
   return true;
 }
