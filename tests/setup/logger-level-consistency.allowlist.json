@@ -2029,30 +2029,6 @@
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 1316,
-    "snippet": "logToFile('❌ Attendance setup flow processing failed', { from, responseJson });",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/whatsapp-bot.js",
-    "line": 1322,
-    "snippet": "logToFile('❌ Exception in attendance setup flow handler', {",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/whatsapp-bot.js",
-    "line": 1340,
-    "snippet": "logToFile('❌ Attendance marking flow processing failed', { from, responseJson });",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/whatsapp-bot.js",
-    "line": 1346,
-    "snippet": "logToFile('❌ Exception in attendance marking flow handler', {",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/whatsapp-bot.js",
     "line": 1384,
     "snippet": "logToFile('❌ Exception in teacher training flow handler', {",
     "occurrence": 0

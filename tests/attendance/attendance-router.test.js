@@ -19,8 +19,16 @@ jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 
 const router = require('../../bot/shared/services/attendance-router.service');
 
-/** Stub: users lookup by id, student_lists by user_id. */
-function db({ user = {}, classes = [] } = {}) {
+/**
+ * Stub: users lookup by id, student_lists by user_id, and since bd-2713 an
+ * existence probe on `students` — the router will not open the marking Flow for
+ * a class with nobody on the roster.
+ *
+ * `roster` defaults to one student so the role-routing cases below keep testing
+ * what they are about. The empty-roster behaviour has its own suite in
+ * empty-roster-dead-end.test.js.
+ */
+function db({ user = {}, classes = [], roster = [{ id: 's1', student_name: 'Aleeha Noor' }] } = {}) {
   mockSupabase.from.mockImplementation((table) => {
     if (table === 'users') {
       return { select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: user, error: null }) }) }) };
@@ -33,6 +41,13 @@ function db({ user = {}, classes = [] } = {}) {
           }),
         }),
       };
+    }
+    if (table === 'students') {
+      const tail = {
+        limit: (n) => Promise.resolve({ data: roster.slice(0, n), error: null }),
+        order: () => Promise.resolve({ data: roster, error: null }),
+      };
+      return { select: () => ({ eq: () => ({ eq: () => tail, ...tail }) }) };
     }
     return {};
   });

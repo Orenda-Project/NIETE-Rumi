@@ -185,7 +185,7 @@ async function handleAttendanceTap(interactiveId, from, user) {
   if (interactiveId.startsWith('att_subject_')) {
     decision = await AttendanceRouter.resolveSubjectChoice(user.id, interactiveId);
   } else if (interactiveId.startsWith('att_class_')) {
-    decision = AttendanceRouter.resolveClassChoice(user.id, interactiveId);
+    decision = await AttendanceRouter.resolveClassChoice(user.id, interactiveId);
   } else {
     return false;
   }
@@ -215,6 +215,25 @@ async function handleAttendanceTap(interactiveId, from, user) {
       buttonText: 'Set up class',
       flowToken: user.id,
     });
+    return true;
+  }
+
+  // bd-2713: a class that exists but has no students. Send them where the
+  // students are added instead of opening a register with nobody on it. Without
+  // this branch EMPTY_CLASS falls through to the generic message below and the
+  // teacher gets told what is wrong with no way to act on it.
+  if (decision.action === 'EMPTY_CLASS') {
+    if (constants.EDIT_CLASS_FLOW_ID) {
+      await WhatsAppService.sendFlow(from, {
+        flowId: constants.EDIT_CLASS_FLOW_ID,
+        header: '📋 Add students',
+        body: decision.message,
+        buttonText: 'Add students',
+        flowToken: `${user.id}:${decision.listId}`,
+      });
+      return true;
+    }
+    await WhatsAppService.sendMessage(from, decision.message);
     return true;
   }
 
@@ -1303,53 +1322,38 @@ app.post('/webhook', async (req, res) => {
           await WhatsAppService.sendMessage(from, 'Sorry, something went wrong with your registration. Please try /register to try again.');
         }
       } else if (flowType === 'attendance_setup') {
-        // Attendance Setup Flow - creating a new class
-        logToFile('📋 Detected attendance setup flow submission', {
+        // Attendance Setup — endpoint flow's terminal ack. The endpoint at
+        // /api/flows/attendance-setup already parsed the roster, created the
+        // class, and rendered the confirmation in its own SUCCESS screen.
+        // Nothing to do here except log completion.
+        //
+        // bd-2714: this used to call FlowResponseHandler.handleAttendanceSetupFlow,
+        // which the 2026-08-10 teardown (696fbd9) deleted while leaving the call
+        // behind — so every completion threw `is not a function` into a catch whose
+        // user-visible error was suppressed on 2026-07-13. Silent, and live on main.
+        logToFile('📋 Attendance setup flow completion (class already created by endpoint)', {
           from,
           responseFields: Object.keys(responseJson)
         });
-
-        try {
-          const success = await FlowResponseHandler.handleAttendanceSetupFlow(message, from, user?.id);
-
-          if (!success) {
-            logToFile('❌ Attendance setup flow processing failed', { from, responseJson });
-            await WhatsAppService.sendMessage(from, 'Sorry, there was an error setting up your class. Please try again.');
-          } else {
-            logToFile('✅ Attendance setup flow processed successfully', { from });
-          }
-        } catch (flowError) {
-          logToFile('❌ Exception in attendance setup flow handler', {
-            from,
-            error: flowError.message,
-            stack: flowError.stack
-          });
-          await WhatsAppService.sendMessage(from, 'Sorry, there was an error setting up your class. Please try again.');
-        }
       } else if (flowType === 'attendance_marking') {
-        // Attendance Marking Flow - marking students absent
-        logToFile('📋 Detected attendance marking flow submission', {
+        // Attendance Marking — endpoint flow's terminal ack. The endpoint at
+        // /api/flows/attendance-marking already wrote the register through
+        // attendance-write.service (one write path for both actors) and rendered
+        // the tallies in its own SAVED screen. Nothing to do here except log.
+        //
+        // bd-2714: this used to call FlowResponseHandler.handleAttendanceMarkingFlow,
+        // deleted by the 2026-08-10 teardown (696fbd9) with the call left behind.
+        // Observed on staging 2026-08-14 08:01:40Z: the write succeeded ("Teacher
+        // attendance saved", 3 present) and then the completion threw
+        // `handleAttendanceMarkingFlow is not a function` — swallowed, so the
+        // principal got no acknowledgement at all. Live on main too.
+        //
+        // This branch is also the seam a future register -> /staff hand-off travels
+        // through, so it needs to stay reachable.
+        logToFile('📋 Attendance marking flow completion (register already written by endpoint)', {
           from,
           responseFields: Object.keys(responseJson)
         });
-
-        try {
-          const success = await FlowResponseHandler.handleAttendanceMarkingFlow(message, from, user?.id);
-
-          if (!success) {
-            logToFile('❌ Attendance marking flow processing failed', { from, responseJson });
-            // User-visible error suppressed 2026-07-13 pending investigation
-          } else {
-            logToFile('✅ Attendance marking flow processed successfully', { from });
-          }
-        } catch (flowError) {
-          logToFile('❌ Exception in attendance marking flow handler', {
-            from,
-            error: flowError.message,
-            stack: flowError.stack
-          });
-          // User-visible error suppressed 2026-07-13 pending investigation
-        }
       } else if (flowType === 'exam_generator') {
         // Exam Generator — endpoint flow's terminal ack. The endpoint at
         // /api/flows/exam-generator already queued the SQS `exam_generate` job

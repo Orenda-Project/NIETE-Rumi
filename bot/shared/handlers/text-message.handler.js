@@ -1907,6 +1907,24 @@ async function handleTextMessage(message, from, messageBody, user = null) {
           });
           break;
 
+        // bd-2713: the class exists but nobody is on the roster. Opening the
+        // marking Flow here is the dead end that showed teachers "something went
+        // wrong", so route them to where students get added instead. Must be an
+        // explicit case — the default below sends the message with no way to act.
+        case 'EMPTY_CLASS':
+          if (!EDIT_CLASS_FLOW_ID) {
+            await WhatsAppService.sendMessage(from, decision.message);
+            break;
+          }
+          await WhatsAppService.sendFlow(from, {
+            flowId: EDIT_CLASS_FLOW_ID,
+            header: '📋 Add students',
+            body: decision.message,
+            buttonText: 'Add students',
+            flowToken: `${user.id}:${decision.listId}`,
+          });
+          break;
+
         case 'ASK_SUBJECT':
         case 'ASK_CLASS_BUTTONS':
           await WhatsAppService.sendInteractiveButtons(from, {
