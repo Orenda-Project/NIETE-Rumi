@@ -115,8 +115,17 @@ async function loadStudentRoster(listId, list = null) {
  */
 function listLabel(row) {
   if (!row) return 'Your class';
-  if (row.class_id) return row.class_name;
-  return row.section ? `${row.class_name} - ${row.section}` : row.class_name;
+  const name = String(row.class_name || '').trim();
+  const section = row.section ? String(row.section).trim() : '';
+  if (!section) return name;
+  // Append the section only if the name does not already end with it. The mirror
+  // has carried BOTH shapes on the same day — "Grade 11 - B" + section "B"
+  // (doubling to "Grade 11 - B - B"), and later "Grade 11" + section "B" (where
+  // dropping the section loses it). Shift-bearing names like
+  // "Grade 7 - E (evening)" must not gain a second "- E" either. Comparing the
+  // tail is stable across all three. (bd-2725)
+  const endsWithSection = new RegExp(`(^|[\\s\\-])${section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*(\\(|$)`, 'i');
+  return endsWithSection.test(name) ? name : `${name} - ${section}`;
 }
 
 async function loadStaffRoster(schoolId, principalUserId) {

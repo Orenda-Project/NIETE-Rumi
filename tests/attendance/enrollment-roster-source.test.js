@@ -214,3 +214,39 @@ describe('labels for class-backed rosters (bd-2725)', () => {
     expect(res.data.heading).toMatch(/B/);
   });
 });
+
+describe('class labels survive every shape the mirror has produced (bd-2725)', () => {
+  /**
+   * The mirror changed shape mid-day, so neither "compose" nor "use as-is" is
+   * safe on its own:
+   *
+   *   class_name "Grade 11 - B" + section "B"  -> composing gives "Grade 11 - B - B"
+   *   class_name "Grade 11"     + section "B"  -> as-is gives "Grade 11", losing B
+   *   class_name "Grade 7 - E (evening)" + "E" -> composing gives a second "- E"
+   *
+   * So the rule is: append the section only when the name does not already carry it.
+   */
+  const SHAPES = [
+    { id: 'a', class_name: 'Grade 11 - B', section: 'B', class_id: 'x1', expect: 'Grade 11 - B' },
+    { id: 'b', class_name: 'Grade 11', section: 'B', class_id: 'x2', expect: 'Grade 11 - B' },
+    { id: 'c', class_name: 'Grade 7 - E (evening)', section: 'E', class_id: 'x3', expect: 'Grade 7 - E (evening)' },
+    { id: 'd', class_name: '4th', section: 'A', class_id: null, expect: '4th - A' },
+    { id: 'e', class_name: '6th', section: null, class_id: null, expect: '6th' },
+  ];
+
+  it('never doubles the section and never loses it', async () => {
+    db({ lists: SHAPES });
+
+    const r = await router.route('t1');
+
+    expect(r.action).toBe('ASK_CLASS_LIST');
+    const byId = new Map(r.rows.map((row) => [row.id.replace('att_class_', ''), row.title]));
+    SHAPES.forEach((s) => expect(byId.get(s.id)).toBe(s.expect));
+  });
+
+  it('every title stays inside the 24-code-point row cap', async () => {
+    db({ lists: SHAPES });
+    const r = await router.route('t1');
+    r.rows.forEach((row) => expect([...row.title].length).toBeLessThanOrEqual(24));
+  });
+});
