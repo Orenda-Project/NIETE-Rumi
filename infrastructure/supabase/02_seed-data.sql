@@ -89,3 +89,59 @@ ON CONFLICT (region) DO NOTHING;
 INSERT INTO region_features (region, curriculum_key, supported_subjects, has_textbooks, curriculum_lp_enabled, default_framework, supported_languages)
 VALUES ('demo_region', 'demo_curriculum', ARRAY['maths','english'], true, true, 'hots', '["en"]'::jsonb)
 ON CONFLICT (region) DO NOTHING;
+
+-- ============================================================================
+-- CLASSES REFERENCE DATA (V1.1.3)
+--
+-- Grade codes match the ids already in registration's GRADES_DROPDOWN, because
+-- users.grades_taught is populated with them — inventing new codes would strand
+-- live rows. grade_11 / grade_12 are the two additions: that dropdown collapses
+-- them into one `higher_secondary` option, which is right for "what a teacher
+-- teaches" and wrong for a class, since a class sits at exactly one grade.
+--
+-- `aliases` is what lets the legacy encodings resolve without migrating their
+-- columns: the 'grade_N' slugs, the 'Grade One'..'Grade Five' words used across
+-- 62,000 lesson_plan_catalog rows, and bare/ordinal digits.
+--
+-- Subjects are scoped to what the LP corpus can actually serve. A subject we
+-- cannot give a teacher a lesson plan for earns no row yet; adding one later is
+-- a one-row INSERT.
+--
+-- No display labels here by design — they live in bot/shared/config/ux-strings.js
+-- keyed by these codes, where the WhatsApp field-cap audit can measure them.
+-- ============================================================================
+
+INSERT INTO grade_levels (code, ordinal, band, sort_order, aliases) VALUES
+    ('early_years', 0,  'early_years',      0,  ARRAY['early_years','Early Years','Early Years (KG)','ECE','Katchi','Kachi','KG','Nursery','Prep','Montessori']),
+    ('grade_1',     1,  'primary',          1,  ARRAY['grade_1','Grade 1','Grade One','1','1st']),
+    ('grade_2',     2,  'primary',          2,  ARRAY['grade_2','Grade 2','Grade Two','2','2nd']),
+    ('grade_3',     3,  'primary',          3,  ARRAY['grade_3','Grade 3','Grade Three','3','3rd']),
+    ('grade_4',     4,  'primary',          4,  ARRAY['grade_4','Grade 4','Grade Four','4','4th']),
+    ('grade_5',     5,  'primary',          5,  ARRAY['grade_5','Grade 5','Grade Five','5','5th']),
+    ('grade_6',     6,  'middle',           6,  ARRAY['grade_6','Grade 6','Grade Six','6','6th']),
+    ('grade_7',     7,  'middle',           7,  ARRAY['grade_7','Grade 7','Grade Seven','7','7th']),
+    ('grade_8',     8,  'middle',           8,  ARRAY['grade_8','Grade 8','Grade Eight','8','8th']),
+    ('grade_9',     9,  'high',             9,  ARRAY['grade_9','Grade 9','Grade Nine','9','9th']),
+    ('grade_10',    10, 'high',             10, ARRAY['grade_10','Grade 10','Grade Ten','10','10th','Matric']),
+    ('grade_11',    11, 'higher_secondary', 11, ARRAY['grade_11','Grade 11','Grade Eleven','11','11th','First Year','FSc I','Inter I']),
+    ('grade_12',    12, 'higher_secondary', 12, ARRAY['grade_12','Grade 12','Grade Twelve','12','12th','Second Year','FSc II','Inter II'])
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO subjects (code, sort_order, aliases) VALUES
+    ('urdu',              1, ARRAY['urdu','Urdu','Reading Hour Urdu']),
+    ('english',           2, ARRAY['english','English','Reading Hour English']),
+    ('maths',             3, ARRAY['maths','Maths','Math','Mathematics','Numeracy']),
+    ('science',           4, ARRAY['science','Science','General Science','general_science','GK-Science']),
+    ('social_studies',    5, ARRAY['social_studies','Social Studies','Social Studies / Pak St.']),
+    ('general_knowledge', 6, ARRAY['general_knowledge','General Knowledge','GK'])
+ON CONFLICT (code) DO NOTHING;
+
+-- Spans follow the Apr–March cycle the bot already computes in
+-- attendance-flow.handler.js getCurrentAcademicYear(), so code and table agree
+-- on which session today falls in. `kind` exists so a semester/term deployment
+-- seeds its own rows without anything here assuming a 12-month span.
+INSERT INTO academic_sessions (code, kind, starts_on, ends_on) VALUES
+    ('2025-2026', 'annual', DATE '2025-04-01', DATE '2026-03-31'),
+    ('2026-2027', 'annual', DATE '2026-04-01', DATE '2027-03-31'),
+    ('2027-2028', 'annual', DATE '2027-04-01', DATE '2028-03-31')
+ON CONFLICT (code) DO NOTHING;

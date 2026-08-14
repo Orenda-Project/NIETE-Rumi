@@ -162,3 +162,24 @@ CREATE POLICY "service_role_release_notes" ON release_notes FOR ALL USING (auth.
 CREATE POLICY "service_role_schema_versions" ON schema_versions FOR ALL USING (auth.role() = 'service_role');
 CREATE POLICY "service_role_website_visits" ON website_visits FOR ALL USING (auth.role() = 'service_role');
 CREATE POLICY "service_role_migration_test" ON migration_test FOR ALL USING (auth.role() = 'service_role');
+
+-- Classes as a first-level entity (V1.1.3).
+-- Mirrors the existing roster-table pattern: enable RLS, grant the service role
+-- full access. Portal scoping is done in application code via dashboard_users /
+-- access_scopes. Deliberately NOT written against schools.principal_user_id —
+-- populated on 0 of 465 rows, and a pending change proposes dropping it.
+ALTER TABLE academic_sessions      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE grade_levels           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subjects               ENABLE ROW LEVEL SECURITY;
+ALTER TABLE classes                ENABLE ROW LEVEL SECURITY;
+ALTER TABLE class_teachers         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE class_teacher_subjects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE class_enrollments      ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "service_role_academic_sessions" ON academic_sessions FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "service_role_grade_levels" ON grade_levels FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "service_role_subjects" ON subjects FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "service_role_classes" ON classes FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "service_role_class_teachers" ON class_teachers FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "service_role_class_teacher_subjects" ON class_teacher_subjects FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "service_role_class_enrollments" ON class_enrollments FOR ALL USING (auth.role() = 'service_role');

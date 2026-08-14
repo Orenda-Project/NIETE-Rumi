@@ -3802,7 +3802,7 @@ CREATE TABLE IF NOT EXISTS training_certificates (
     level_name_snapshot  VARCHAR(200) NOT NULL,
     issued_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
     pdf_r2_key           VARCHAR(500),                           -- 'certs/{user_id}/{cert_code}.pdf'; null until PDF generated
-    -- bd-2670 — ONE certificate per level. Without this the bot minted a new
+    -- an earlier change — ONE certificate per level. Without this the bot minted a new
     -- certificate on every re-pass of an already-certified level (3,113 surplus
     -- rows across 830 teachers in production, worst level holding 56). See
     -- migrations/V1.1.2__one_certificate_per_user_level.sql for the backfill.
@@ -3850,7 +3850,7 @@ ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS classroom_photos JSONB DE
 ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS linked_lesson_plan_id UUID;
 ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS lesson_plan_link_method VARCHAR(20);
 ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS error_stack TEXT;
--- Framework provenance (FEAT-060 / V1.0.8) — which framework key scored this
+-- Framework provenance (an earlier change / V1.0.8) — which framework key scored this
 -- session AND why the selector chose it. Nullable — pre-migration rows stay
 -- NULL. See V1.0.8__coaching_framework_provenance.sql for full documentation
 -- of the reason values.
@@ -4416,6 +4416,135 @@ CREATE POLICY teacher_attendance_read_own ON teacher_attendance_records
             SELECT id FROM schools WHERE principal_user_id = auth.uid()
         )
     );
+
+-- ---------------------------------------------------------------------------
+-- Classes as a first-level entity (V1.1.3)
+--
+-- A class belongs to a SCHOOL, sits for a SESSION, is at one GRADE, and is
+-- taught by one-or-more TEACHERS across one-or-more SUBJECTS — at most one of
+-- whom is the prime-responsible class teacher. Students are ENROLLED into it
+-- rather than being rows inside it, which is what makes session rollover
+-- (promotion / retention) a close+open of an enrollment instead of a duplicated
+-- child.
+--
+-- Supersedes the shape of `student_lists` (a teacher-owned, free-text roster the
+-- attendance feature created for itself). `student_lists` is deliberately left
+-- in place and untouched here — features move across in later, sequenced PRs.
+--
+-- Labels are NOT stored here: grade/subject display copy lives in
+-- bot/shared/config/ux-strings.js keyed by these codes, so the WhatsApp field-cap
+-- audit (which scans source) can measure it. See the language-protocol skill.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS academic_sessions (
+    code        TEXT PRIMARY KEY,
+    kind        TEXT NOT NULL DEFAULT 'annual'
+                CHECK (kind IN ('annual', 'semester', 'term')),
+    starts_on   DATE NOT NULL,
+    ends_on     DATE NOT NULL,
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT academic_sessions_span CHECK (ends_on > starts_on)
+);
+CREATE INDEX IF NOT EXISTS idx_academic_sessions_span
+    ON academic_sessions (starts_on, ends_on) WHERE is_active;
+
+CREATE TABLE IF NOT EXISTS grade_levels (
+    code       TEXT PRIMARY KEY,
+    ordinal    SMALLINT NOT NULL UNIQUE,
+    band       TEXT NOT NULL
+               CHECK (band IN ('early_years', 'primary', 'middle', 'high',
+                               'higher_secondary')),
+    aliases    TEXT[] NOT NULL DEFAULT '{}',
+    sort_order SMALLINT NOT NULL DEFAULT 0,
+    is_active  BOOLEAN NOT NULL DEFAULT TRUE
+);
+CREATE INDEX IF NOT EXISTS idx_grade_levels_band ON grade_levels (band) WHERE is_active;
+CREATE INDEX IF NOT EXISTS idx_grade_levels_aliases ON grade_levels USING GIN (aliases);
+
+CREATE TABLE IF NOT EXISTS subjects (
+    code        TEXT PRIMARY KEY,
+    parent_code TEXT REFERENCES subjects(code),
+    aliases     TEXT[] NOT NULL DEFAULT '{}',
+    sort_order  SMALLINT NOT NULL DEFAULT 0,
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE
+);
+CREATE INDEX IF NOT EXISTS idx_subjects_aliases ON subjects USING GIN (aliases);
+
+CREATE TABLE IF NOT EXISTS classes (
+    id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    school_id          UUID NOT NULL REFERENCES schools(id),
+    grade_code         TEXT NOT NULL REFERENCES grade_levels(code),
+    section            TEXT,
+    session_code       TEXT NOT NULL REFERENCES academic_sessions(code),
+    is_active          BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by_user_id UUID REFERENCES users(id),
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT classes_section_normalized CHECK (
+        section IS NULL
+        OR (section = upper(btrim(section)) AND length(section) > 0)
+    )
+);
+-- COALESCE is load-bearing: a plain UNIQUE would let unlimited "Grade 4, no
+-- section" rows coexist, because NULLs do not conflict.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_classes_identity
+    ON classes (school_id, grade_code, COALESCE(section, ''), session_code)
+    WHERE is_active;
+CREATE INDEX IF NOT EXISTS idx_classes_school  ON classes (school_id) WHERE is_active;
+CREATE INDEX IF NOT EXISTS idx_classes_session ON classes (session_code) WHERE is_active;
+
+CREATE TABLE IF NOT EXISTS class_teachers (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    class_id         UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+    teacher_user_id  UUID NOT NULL REFERENCES users(id),
+    is_class_teacher BOOLEAN NOT NULL DEFAULT FALSE,
+    assigned_on      DATE,
+    ended_on         DATE,
+    is_active        BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_class_teachers_unique
+    ON class_teachers (class_id, teacher_user_id) WHERE is_active;
+-- At most one prime-responsible teacher per class (not "exactly one" — a class
+-- may legitimately have none yet).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_one_class_teacher_per_class
+    ON class_teachers (class_id) WHERE is_class_teacher AND is_active;
+CREATE INDEX IF NOT EXISTS idx_class_teachers_teacher
+    ON class_teachers (teacher_user_id) WHERE is_active;
+
+CREATE TABLE IF NOT EXISTS class_teacher_subjects (
+    class_teacher_id UUID NOT NULL REFERENCES class_teachers(id) ON DELETE CASCADE,
+    subject_code     TEXT NOT NULL REFERENCES subjects(code),
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (class_teacher_id, subject_code)
+);
+CREATE INDEX IF NOT EXISTS idx_class_teacher_subjects_subject
+    ON class_teacher_subjects (subject_code);
+
+CREATE TABLE IF NOT EXISTS class_enrollments (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    class_id     UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+    student_id   UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    roll_number  INTEGER,
+    enrolled_on  DATE,
+    left_on      DATE,
+    outcome      TEXT CHECK (outcome IN ('promoted', 'retained', 'transferred',
+                                         'left', 'completed')),
+    is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT class_enrollments_span CHECK (left_on IS NULL OR enrolled_on IS NULL
+                                             OR left_on >= enrolled_on)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_class_enrollments_unique
+    ON class_enrollments (class_id, student_id) WHERE is_active;
+CREATE INDEX IF NOT EXISTS idx_class_enrollments_class
+    ON class_enrollments (class_id) WHERE is_active;
+CREATE INDEX IF NOT EXISTS idx_class_enrollments_student
+    ON class_enrollments (student_id);
 
 -- Reload PostgREST's schema cache last, so the reconciled columns + functions
 -- above are immediately visible to the REST API (the earlier NOTIFY predates these DDLs).
