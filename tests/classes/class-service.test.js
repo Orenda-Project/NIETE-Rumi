@@ -260,12 +260,17 @@ describe('assignTeacher', () => {
     expect(mockDb._tables.class_teacher_subjects).toHaveLength(0);
   });
 
-  it('refuses a SECOND prime-responsible teacher', async () => {
+  it('declines the ROLE to a second claimant without refusing the assignment', async () => {
+    // The invariant is still "one class teacher per class". What changed is the
+    // consequence: the second claimant keeps her place on the class as a subject
+    // teacher instead of losing the whole assignment.
     const cls = await aClass();
     await svc.assignTeacher({ classId: cls.id, teacherUserId: TEACHER, isClassTeacher: true });
     const res = await svc.assignTeacher({ classId: cls.id, teacherUserId: OTHER_TEACHER, isClassTeacher: true });
 
-    expect(res).toMatchObject({ error: 'class_teacher_exists' });
+    expect(res.error).toBeUndefined();
+    expect(res.classTeacherTaken).toBe(true);
+    expect(mockDb._tables.class_teachers.filter((r) => r.is_class_teacher)).toHaveLength(1);
   });
 
   it('is idempotent for the same teacher, adding subjects rather than duplicating the row', async () => {
@@ -320,5 +325,79 @@ describe('listClassesForTeacher', () => {
 
   it('returns an empty list for a null user rather than throwing', async () => {
     await expect(svc.listClassesForTeacher(null)).resolves.toEqual([]);
+  });
+});
+
+describe('a teacher joining a class someone else already created', () => {
+  // Found on staging by creating the same class as two different teachers. The
+  // second teacher ticked "I am the class teacher", and the role conflict aborted
+  // her WHOLE assignment: no class_teachers row, her subject discarded, the class
+  // absent from her list — while a legacy mirror row was still written for her.
+  // A refused ROLE must not cost her the CLASS.
+  async function classOwnedByFirstTeacher() {
+    const { class: cls } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    await svc.assignTeacher({
+      classId: cls.id, teacherUserId: TEACHER, isClassTeacher: true, subjectCodes: ['maths'],
+    });
+    return cls;
+  }
+
+  it('still assigns the second teacher, as a subject teacher', async () => {
+    const cls = await classOwnedByFirstTeacher();
+    const res = await svc.assignTeacher({
+      classId: cls.id, teacherUserId: OTHER_TEACHER,
+      isClassTeacher: true, subjectCodes: ['urdu'],
+    });
+
+    expect(res.error).toBeUndefined();
+    expect(res.classTeacherTaken).toBe(true);
+    expect(res.assignment.is_class_teacher).toBe(false);
+    expect(mockDb._tables.class_teachers).toHaveLength(2);
+  });
+
+  it('keeps the subjects she chose', async () => {
+    const cls = await classOwnedByFirstTeacher();
+    await svc.assignTeacher({
+      classId: cls.id, teacherUserId: OTHER_TEACHER,
+      isClassTeacher: true, subjectCodes: ['urdu', 'science'],
+    });
+    expect(mockDb._tables.class_teacher_subjects.map((r) => r.subject_code).sort())
+      .toEqual(['maths', 'science', 'urdu']);
+  });
+
+  it('leaves the original class teacher in place', async () => {
+    const cls = await classOwnedByFirstTeacher();
+    await svc.assignTeacher({
+      classId: cls.id, teacherUserId: OTHER_TEACHER, isClassTeacher: true,
+    });
+    const holders = mockDb._tables.class_teachers.filter((r) => r.is_class_teacher);
+    expect(holders).toHaveLength(1);
+    expect(holders[0].teacher_user_id).toBe(TEACHER);
+  });
+
+  it('shows the class in the second teacher\'s list', async () => {
+    const cls = await classOwnedByFirstTeacher();
+    await svc.assignTeacher({
+      classId: cls.id, teacherUserId: OTHER_TEACHER, isClassTeacher: true, subjectCodes: ['urdu'],
+    });
+
+    const list = await svc.listClassesForTeacher(OTHER_TEACHER);
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({
+      classId: cls.id, isClassTeacher: false, subjectCodes: ['urdu'],
+    });
+  });
+
+  it('does not create a duplicate class', async () => {
+    await classOwnedByFirstTeacher();
+    const second = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'a',
+      sessionCode: '2026-2027', teacherUserId: OTHER_TEACHER,
+    });
+    expect(second.created).toBe(false);
+    expect(mockDb._tables.classes).toHaveLength(1);
   });
 });

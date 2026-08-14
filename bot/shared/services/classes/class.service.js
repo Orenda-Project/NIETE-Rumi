@@ -268,11 +268,24 @@ async function assignTeacher({ classId, teacherUserId, isClassTeacher = false, s
 
   // At most one prime-responsible teacher. Caught here so the caller can show a
   // sentence rather than surfacing a 23505 from the partial unique index.
-  if (isClassTeacher) {
+  //
+  // A REFUSED ROLE MUST NOT COST HER THE CLASS. This used to return early, which
+  // meant a teacher joining a colleague's existing class while ticking "I am the
+  // class teacher" got no assignment row at all, lost the subjects she picked, and
+  // could not see the class — found on staging by creating the same class twice as
+  // two teachers. Now the role is simply declined and the rest proceeds, with
+  // `classTeacherTaken` telling the caller what to say.
+  let classTeacherTaken = false;
+  let wantsRole = Boolean(isClassTeacher);
+
+  if (wantsRole) {
     const other = (assignments || []).find(
       (a) => a.is_class_teacher && a.teacher_user_id !== teacherUserId,
     );
-    if (other) return { error: 'class_teacher_exists', heldBy: other.teacher_user_id };
+    if (other) {
+      classTeacherTaken = true;
+      wantsRole = false;
+    }
   }
 
   let assignment = mine;
@@ -284,7 +297,7 @@ async function assignTeacher({ classId, teacherUserId, isClassTeacher = false, s
       .insert({
         class_id: classId,
         teacher_user_id: teacherUserId,
-        is_class_teacher: Boolean(isClassTeacher),
+        is_class_teacher: wantsRole,
         assigned_on: new Date().toISOString().slice(0, 10),
         is_active: true,
       })
@@ -297,7 +310,7 @@ async function assignTeacher({ classId, teacherUserId, isClassTeacher = false, s
     }
     assignment = inserted;
     created = true;
-  } else if (isClassTeacher && !assignment.is_class_teacher) {
+  } else if (wantsRole && !assignment.is_class_teacher) {
     // Promoting an existing subject teacher to prime-responsible.
     const { error: updErr } = await supabase
       .from('class_teachers')
@@ -336,7 +349,7 @@ async function assignTeacher({ classId, teacherUserId, isClassTeacher = false, s
     }
   }
 
-  return { assignment, created };
+  return { assignment, created, classTeacherTaken };
 }
 
 // ---------------------------------------------------------------------------
