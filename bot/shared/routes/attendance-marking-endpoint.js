@@ -456,6 +456,17 @@ async function renderMarkScreen(flowToken) {
     };
   }
 
+  // KNOWN GAP — rosters over 20. WhatsApp caps a CheckboxGroup at 20 options and this
+  // passes the whole roster, here and on the leave screen. Meta does not document what
+  // happens at runtime when an endpoint sends more: a rejection strands the teacher
+  // (bad, but safe), a silent truncation hides students past the 20th and — because
+  // marking is by exception — records them PRESENT unseen (bad, and unsafe). Not yet
+  // observed on a real handset, so neither should be assumed.
+  //
+  // Deliberately NOT capped here: a silent slice would GUARANTEE the unsafe outcome
+  // instead of merely risking it. Pagination with an explicit "not reviewed"
+  // confirmation is the agreed fix, and needs this in-flight state in a shared store
+  // first — the Map above is process-local. See docs/features/attendance.md.
   pending.set(flowToken, { ...ctx, people });
 
   return {
