@@ -213,6 +213,110 @@ const UX_STRINGS = {
     en: 'That one has already been closed. Send /menu to start something new.',
     ur: 'وہ پہلے ہی بند ہو چکا ہے۔ نیا کام شروع کرنے کے لیے /menu بھیجیں۔',
   },
+
+  /**
+   * bd-2712 — the /remark Supervisor Remark FLOW (docs/flows/remark-flow.json).
+   *
+   * These live here rather than beside the rubric because they are Flow CHROME,
+   * not rubric content: the indicator names and the four anchor descriptions stay
+   * in remark-rubric.js, which is the published contract STEPS reads. Splitting it
+   * that way means a rubric revision never touches button copy and vice versa.
+   *
+   * The old remark-screens.js strings could not be reused: they are chat-shaped
+   * ("Reply with 1, 2, 3 or 4", "Reply *submit* to confirm") and instruct the
+   * principal to type at a form she taps.
+   *
+   * Length budgets that apply here (measured in CODE POINTS, not .length):
+   *   remarkLevelLabel / remarkPickerLabel — Dropdown labels, kept ≤ 20
+   *   remarkContinue / remarkSubmit        — Footer labels, kept short
+   * The indicator TextBody lines are body text (1024) and are safe.
+   */
+  remarkPickHeading: {
+    en: 'Which teacher?',
+    ur: 'کون سی استاد؟',
+  },
+
+  remarkPickHint: {
+    en: '{count} still to evaluate this quarter.',
+    ur: 'اس سہ ماہی میں {count} باقی ہیں۔',
+  },
+
+  remarkPickerLabel: {
+    en: 'Teacher',
+    ur: 'استاد',
+  },
+
+  remarkContinue: {
+    en: 'Continue',
+    ur: 'آگے بڑھیں',
+  },
+
+  remarkRubricHeading: {
+    en: 'Rate all five',
+    ur: 'پانچوں شعبے',
+  },
+
+  remarkLevelLabel: {
+    en: 'Level',
+    ur: 'درجہ',
+  },
+
+  // TextArea LABEL — cap 20 code points, and labels clip silently rather than
+  // erroring. "Your comment (optional)" was 23 and would have shipped truncated;
+  // the field is already `required: false`, so "(optional)" earns its place more
+  // than "Your" does.
+  remarkCommentLabel: {
+    en: 'Comment (optional)',
+    ur: 'رائے (اختیاری)',
+  },
+
+  remarkSubmit: {
+    en: 'Submit',
+    ur: 'جمع کریں',
+  },
+
+  // Shown on the Flow's terminal screen. Deliberately does NOT quote a score:
+  // the principal keeps the numbers, the teacher gets a narrative with none, and
+  // this screen is the handover point between the two.
+  remarkFlowSuccess: {
+    en: 'Saved. {teacher} will get her coaching note shortly.',
+    ur: '{teacher} کو ان کا کوچنگ نوٹ جلد مل جائے گا۔ محفوظ ہو گیا۔',
+  },
+
+  // The chat message after the Flow closes (whatsapp-flows rule 11 — never bounce
+  // her to "Type /menu"). {left} is the remaining-teachers nudge.
+  remarkAckSubmitted: {
+    en: 'Saved — {teacher} is done. {left}',
+    ur: 'محفوظ ہو گیا — {teacher} مکمل۔ {left}',
+  },
+
+  remarkAckMoreLeft: {
+    en: 'Send /remark again for the next teacher.',
+    ur: 'اگلی استاد کے لیے دوبارہ /remark بھیجیں۔',
+  },
+
+  remarkAckAllDone: {
+    en: 'That is every teacher in your school for this quarter.',
+    ur: 'اس سہ ماہی کے لیے آپ کے اسکول کی تمام اساتذہ مکمل ہو گئیں۔',
+  },
+
+  // The chat message that CARRIES the Flow CTA. Header 60 / button 20 code
+  // points — the button is the tightest field in WhatsApp and 20 is 3–4 Urdu
+  // words, so it stays a verb phrase, not a sentence.
+  remarkFlowHeader: {
+    en: 'Teacher Evaluation',
+    ur: 'اساتذہ کا جائزہ',
+  },
+
+  remarkFlowBody: {
+    en: '{cycle} is open. Rate each teacher on the five STEPS indicators — it takes a couple of minutes each.',
+    ur: '{cycle} جاری ہے۔ ہر استاد کو پانچ STEPS شعبوں پر پرکھیں — ہر ایک میں دو منٹ لگتے ہیں۔',
+  },
+
+  remarkFlowButton: {
+    en: 'Start',
+    ur: 'شروع کریں',
+  },
 };
 
 const PLACEHOLDER = /\{(\w+)\}/g;

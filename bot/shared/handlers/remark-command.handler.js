@@ -21,6 +21,7 @@
  */
 
 const { logToFile, logError } = require('../utils/logger');
+const { resolveUx } = require('../config/ux-strings');
 const { REMARK_TRIGGER_RX } = require('../services/remark/remark-gate');
 const { CAPABILITIES } = require('../services/authz/capability');
 
@@ -95,6 +96,9 @@ async function handleRemarkCommand(user, from, messageBody, deps = {}) {
     // logging "roster sent". Wrapped rather than bound at module load so the
     // require stays lazy — whatsapp.service pulls in r2.js → @aws-sdk.
     sendMessage = (to, text) => require('../services/whatsapp.service').sendMessage(to, text),
+    // Same static-method binding rule as sendMessage above (bd-2711) — sendFlow
+    // is also a static on WhatsAppService.
+    sendFlow = (to, flowData) => require('../services/whatsapp.service').sendFlow(to, flowData),
   } = deps;
 
   const S = strings(user);
@@ -131,6 +135,37 @@ async function handleRemarkCommand(user, from, messageBody, deps = {}) {
       await sendMessage(from, S.no_teachers);
       return true;
     }
+
+    // bd-2712 — the Flow is the real surface. Presence-gated on REMARK_FLOW_ID
+    // (feature-availability convention): when the Flow has not been published to
+    // this WABA yet, fall through to the plain-text roster below so behaviour is
+    // never WORSE than before this change.
+    //
+    // flowToken is the bare user id — whatsapp-flows rule 3. No `screen`, so
+    // sendFlow chooses data_exchange mode and Meta calls INIT on our endpoint,
+    // which builds the roster server-side.
+    const { REMARK_FLOW_ID } = require('../utils/constants');
+    if (REMARK_FLOW_ID) {
+      const sentFlow = await sendFlow(from, {
+        flowId: REMARK_FLOW_ID,
+        flowToken: user.id,
+        header: resolveUx('remarkFlowHeader', { user }),
+        body: resolveUx('remarkFlowBody', { user, params: { cycle: cycle.name } }),
+        buttonText: resolveUx('remarkFlowButton', { user }),
+      });
+      if (sentFlow !== false) {
+        logToFile('📝 /remark flow sent', {
+          userId: user.id, cycleId: cycle.id, teachers: teachers.length,
+        });
+        return true;
+      }
+      // Send failed — say so loudly and fall back to the text roster rather than
+      // leaving her with silence (the bd-2711 failure mode).
+      logError('❌ /remark: flow send FAILED — falling back to text roster', {
+        userId: user.id, cycleId: cycle.id, flowId: REMARK_FLOW_ID,
+      });
+    }
+
     const progress = await getProgress(user.id, cycle.id);
     // bd-2711 — sendMessage RETURNS false on failure (it catches its own
     // exceptions), so an unconditional success log reports a delivery that

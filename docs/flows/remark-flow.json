@@ -1,0 +1,442 @@
+{
+  "version": "5.1",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "PICK_TEACHER": [
+      "RUBRIC"
+    ],
+    "RUBRIC": [
+      "SUCCESS"
+    ]
+  },
+  "screens": [
+    {
+      "id": "PICK_TEACHER",
+      "title": "Teacher Evaluation",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Which teacher?"
+        },
+        "hint": {
+          "type": "string",
+          "__example__": "3 of 3 still to evaluate this quarter."
+        },
+        "picker_label": {
+          "type": "string",
+          "__example__": "Teacher"
+        },
+        "cta": {
+          "type": "string",
+          "__example__": "Continue"
+        },
+        "teachers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "11111111-1111-1111-1111-111111111111",
+              "title": "Ayesha Bibi",
+              "description": "Not started"
+            },
+            {
+              "id": "22222222-2222-2222-2222-222222222222",
+              "title": "Bilal Ahmed",
+              "description": "Not started"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.hint}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "teacher_id",
+                "label": "${data.picker_label}",
+                "required": true,
+                "data-source": "${data.teachers}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.cta}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "pick_teacher",
+                    "teacher_id": "${form.teacher_id}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "RUBRIC",
+      "title": "Teacher Evaluation",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Rate all five"
+        },
+        "teacher_line": {
+          "type": "string",
+          "__example__": "Ayesha Bibi · Third Quarter 2026"
+        },
+        "teacher_id": {
+          "type": "string",
+          "__example__": "11111111-1111-1111-1111-111111111111"
+        },
+        "level_label": {
+          "type": "string",
+          "__example__": "Level"
+        },
+        "comment_label": {
+          "type": "string",
+          "__example__": "Your comment (optional)"
+        },
+        "cta": {
+          "type": "string",
+          "__example__": "Submit"
+        },
+        "ind1_name": {
+          "type": "string",
+          "__example__": "1. Professional Growth & Feedback Uptake"
+        },
+        "ind2_name": {
+          "type": "string",
+          "__example__": "2. Collaboration & Peer Support"
+        },
+        "ind3_name": {
+          "type": "string",
+          "__example__": "3. Initiative & School Leadership"
+        },
+        "ind4_name": {
+          "type": "string",
+          "__example__": "4. Student-Centered Support"
+        },
+        "ind5_name": {
+          "type": "string",
+          "__example__": "5. Parents & Community Engagement"
+        },
+        "ind1_options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "4",
+              "title": "Exemplary",
+              "description": "Actively seeks learning, applies feedback from observations/trainings, consistently improves."
+            },
+            {
+              "id": "3",
+              "title": "Proficient",
+              "description": "Participates in learning, usually applies feedback."
+            },
+            {
+              "id": "2",
+              "title": "Developing",
+              "description": "Sometimes benefits but not consistent."
+            },
+            {
+              "id": "1",
+              "title": "Needs Improvement",
+              "description": "Little interest in learning/acting on feedback."
+            }
+          ]
+        },
+        "ind2_options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "4",
+              "title": "Exemplary",
+              "description": "Works well with peers, mentors others."
+            },
+            {
+              "id": "1",
+              "title": "Needs Improvement",
+              "description": "Does not collaborate or mentor."
+            }
+          ]
+        },
+        "ind3_options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "4",
+              "title": "Exemplary",
+              "description": "Leads school improvement efforts."
+            },
+            {
+              "id": "1",
+              "title": "Needs Improvement",
+              "description": "Avoids extra responsibility."
+            }
+          ]
+        },
+        "ind4_options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "4",
+              "title": "Exemplary",
+              "description": "Supports every learner's progress."
+            },
+            {
+              "id": "1",
+              "title": "Needs Improvement",
+              "description": "Does not adapt for struggling learners."
+            }
+          ]
+        },
+        "ind5_options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "4",
+              "title": "Exemplary",
+              "description": "Engages parents and community regularly."
+            },
+            {
+              "id": "1",
+              "title": "Needs Improvement",
+              "description": "Rarely engages parents."
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.teacher_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.ind1_name}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "score_1",
+                "label": "${data.level_label}",
+                "required": true,
+                "data-source": "${data.ind1_options}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.ind2_name}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "score_2",
+                "label": "${data.level_label}",
+                "required": true,
+                "data-source": "${data.ind2_options}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.ind3_name}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "score_3",
+                "label": "${data.level_label}",
+                "required": true,
+                "data-source": "${data.ind3_options}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.ind4_name}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "score_4",
+                "label": "${data.level_label}",
+                "required": true,
+                "data-source": "${data.ind4_options}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.ind5_name}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "score_5",
+                "label": "${data.level_label}",
+                "required": true,
+                "data-source": "${data.ind5_options}"
+              },
+              {
+                "type": "TextArea",
+                "name": "comment",
+                "label": "${data.comment_label}",
+                "required": false,
+                "max-length": 600
+              },
+              {
+                "type": "Footer",
+                "label": "${data.cta}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "submit",
+                    "teacher_id": "${data.teacher_id}",
+                    "score_1": "${form.score_1}",
+                    "score_2": "${form.score_2}",
+                    "score_3": "${form.score_3}",
+                    "score_4": "${form.score_4}",
+                    "score_5": "${form.score_5}",
+                    "comment": "${form.comment}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SUCCESS",
+      "title": "Done",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "success_message": {
+          "type": "string",
+          "__example__": "Saved. Ayesha will get her coaching note shortly."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.success_message}"
+              },
+              {
+                "type": "Footer",
+                "label": "Done",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "remark_action": "submitted"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

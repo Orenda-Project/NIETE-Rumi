@@ -40,6 +40,10 @@ const {
   handleSettingsBack
 } = require('./settings-endpoint');
 const {
+  handleRemarkInit,
+  handleRemarkDataExchange,
+} = require('./remark-endpoint');
+const {
   handleStatusFlowInit,
   handleStatusFlowDataExchange,
   handleStatusFlowBack
@@ -410,6 +414,67 @@ async function handleEditClassRequest(data) {
   }
 
   logToFile('Unknown edit-class flow action', { action });
+  return FlowEncryptionService.createErrorResponse('Unknown action');
+}
+
+// ============================================================
+// REMARK FLOW ENDPOINT (bd-2712) — STEPS "S" Supervisor Remark.
+// PICK_TEACHER → RUBRIC → SUCCESS. One atomic write on submit; narrative and
+// teacher delivery are fired after the response (Meta's ~10s budget).
+// ============================================================
+router.post('/remark', async (req, res) => {
+  try {
+    if (!FlowEncryptionService.isConfigured()) {
+      logToFile('Flow encryption not configured', { endpoint: 'remark' });
+      return res.status(500).json({ error: 'Flow encryption not configured' });
+    }
+
+    const encryptedResponse = await FlowEncryptionService.processEncryptedRequest(
+      req.body,
+      async (decryptedData) => handleRemarkRequest(decryptedData),
+    );
+
+    res.set('Content-Type', 'text/plain');
+    res.send(encryptedResponse);
+  } catch (error) {
+    logToFile('Flow endpoint error', {
+      endpoint: 'remark', error: error.message, stack: error.stack,
+    });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Handle a decrypted remark request.
+ *
+ * The flow token IS the user id (whatsapp-flows rule 3) — the principal's, since
+ * she is the one who opened the Flow.
+ */
+async function handleRemarkRequest(data) {
+  const { action, flow_token, screen, data: screenData } = data;
+
+  logToFile('Handling remark request', {
+    action, screen,
+    hasFlowToken: !!flow_token,
+    screenDataKeys: screenData ? Object.keys(screenData) : [],
+  });
+
+  if (action === 'ping') {
+    return FlowEncryptionService.handlePing();
+  }
+
+  const userId = (flow_token || '').split(':')[0];
+
+  if (action === 'INIT' || action === 'init') {
+    return handleRemarkInit(userId);
+  }
+  if (action === 'data_exchange') {
+    return handleRemarkDataExchange(userId, screen, screenData, flow_token);
+  }
+  // No BACK branch: routing_model is forward-only (PICK_TEACHER → RUBRIC →
+  // SUCCESS), so Meta never sends one for this flow.
+
+  logToFile('Unknown remark flow action', { action });
   return FlowEncryptionService.createErrorResponse('Unknown action');
 }
 
