@@ -39,11 +39,14 @@ class StudentListService {
       // Skip empty lines
       if (!cleaned) continue;
 
-      // Remove numbering (1., 2., etc.)
-      cleaned = cleaned.replace(/^\d+\.\s*/, '');
-
-      // Remove bullet points (-, *, •)
-      cleaned = cleaned.replace(/^[-*•]\s*/, '');
+      // Leading list markers — "1." / "2)" / "3 -" / "04." / "-" / "•" / "*".
+      //
+      // One regex, matching the form the attendance roster parser already proved.
+      // The two narrow rules this replaces missed the closing-paren form entirely,
+      // so a child pasted as "2) Bilal Ahmed" was stored WITH the marker in her
+      // name. Requiring a separator after the digits is what keeps a name like
+      // "7up Khan" intact.
+      cleaned = cleaned.replace(/^\s*(?:\d{1,3}\s*[.)\-:]|[-•*])\s*/, '');
 
       // Skip if empty after cleaning
       if (!cleaned) continue;

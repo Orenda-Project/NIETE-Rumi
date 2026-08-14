@@ -940,3 +940,130 @@ describe('the class roster', () => {
     expect(mockDb._tables.students.find((s) => s.id === student.id).list_id).toBe(mirror.id);
   });
 });
+
+describe('adding a whole class at once', () => {
+  // The attendance flow carries this lesson in its own source: the version it
+  // replaced added one student per screen round-trip, "which is why no class was
+  // ever finished on this deployment". A roster is pasted, not typed one at a time.
+  async function aClass() {
+    const { class: cls } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: TEACHER, subjectCodes: ['maths'] });
+    return cls;
+  }
+
+  it('adds every line of a pasted register', async () => {
+    const cls = await aClass();
+    const res = await svc.addStudents({
+      classId: cls.id, teacherUserId: TEACHER,
+      rawText: 'Ayesha Bibi\nBilal Ahmed\nFatima Noor',
+    });
+
+    expect(res.error).toBeUndefined();
+    expect(res.added).toBe(3);
+    expect(mockDb._tables.class_enrollments.filter((e) => e.is_active)).toHaveLength(3);
+  });
+
+  it('captures father names in both forms teachers write', async () => {
+    const cls = await aClass();
+    await svc.addStudents({
+      classId: cls.id, teacherUserId: TEACHER,
+      rawText: 'Ayesha Bibi, Muhammad Aslam\nBilal Ahmed s/o Tariq Mahmood',
+    });
+
+    const kids = mockDb._tables.students;
+    expect(kids.find((k) => k.student_name === 'Ayesha Bibi').father_name).toBe('Muhammad Aslam');
+    expect(kids.find((k) => k.student_name === 'Bilal Ahmed').father_name).toBe('Tariq Mahmood');
+  });
+
+  it('strips the list markers teachers paste from a register', async () => {
+    const cls = await aClass();
+    await svc.addStudents({
+      classId: cls.id, teacherUserId: TEACHER,
+      rawText: '1. Ayesha Bibi\n2) Bilal Ahmed\n- Fatima Noor\n\n',
+    });
+    expect(mockDb._tables.students.map((k) => k.student_name).sort())
+      .toEqual(['Ayesha Bibi', 'Bilal Ahmed', 'Fatima Noor']);
+  });
+
+  it('numbers them sequentially, continuing from the roster that is already there', async () => {
+    const cls = await aClass();
+    await svc.addStudents({ classId: cls.id, teacherUserId: TEACHER, rawText: 'Ayesha Bibi\nBilal Ahmed' });
+    await svc.addStudents({ classId: cls.id, teacherUserId: TEACHER, rawText: 'Fatima Noor' });
+
+    const roll = (await svc.listStudents({ classId: cls.id, teacherUserId: TEACHER }))
+      .map((s) => [s.studentName, s.rollNumber]);
+    expect(roll).toEqual([['Ayesha Bibi', 1], ['Bilal Ahmed', 2], ['Fatima Noor', 3]]);
+  });
+
+  it('does not add the same child twice from one paste', async () => {
+    const cls = await aClass();
+    const res = await svc.addStudents({
+      classId: cls.id, teacherUserId: TEACHER,
+      rawText: 'Ayesha Bibi\nayesha bibi\nBilal Ahmed',
+    });
+    expect(res.added).toBe(2);
+    expect(res.duplicates).toBe(1);
+  });
+
+  it('does not re-add a child already on the roster', async () => {
+    const cls = await aClass();
+    await svc.addStudents({ classId: cls.id, teacherUserId: TEACHER, rawText: 'Ayesha Bibi' });
+    const res = await svc.addStudents({ classId: cls.id, teacherUserId: TEACHER, rawText: 'Ayesha Bibi\nBilal Ahmed' });
+
+    expect(res.added).toBe(1);
+    expect(res.duplicates).toBe(1);
+    expect(mockDb._tables.class_enrollments.filter((e) => e.is_active)).toHaveLength(2);
+  });
+
+  it('caps a runaway paste and SAYS how many it dropped', async () => {
+    // One mis-paste — a whole school, a spreadsheet column — must not write
+    // thousands of rows, and the teacher has to be told rather than left guessing.
+    const cls = await aClass();
+    const names = Array.from({ length: 320 }, (_, i) => `Child ${i + 1}`).join('\n');
+    const res = await svc.addStudents({ classId: cls.id, teacherUserId: TEACHER, rawText: names });
+
+    expect(res.added).toBe(300);
+    expect(res.dropped).toBe(20);
+  });
+
+  it('rejects an empty paste', async () => {
+    const cls = await aClass();
+    const res = await svc.addStudents({ classId: cls.id, teacherUserId: TEACHER, rawText: '   \n\n' });
+    expect(res).toMatchObject({ error: 'no_names' });
+    expect(mockDb._tables.students).toHaveLength(0);
+  });
+
+  it('refuses a teacher who is not on the class', async () => {
+    const cls = await aClass();
+    const res = await svc.addStudents({ classId: cls.id, teacherUserId: 'stranger', rawText: 'Ayesha Bibi' });
+    expect(res).toMatchObject({ error: 'not_assigned' });
+    expect(mockDb._tables.students).toHaveLength(0);
+  });
+});
+
+describe('the shared roster parser handles the markers teachers actually paste', () => {
+  // Only one production consumer (addStudents), and it had a real gap: the closing
+  // paren form was not stripped, so "2) Bilal Ahmed" was stored with the marker in
+  // the child's name. Asserted here because the root suite is what CI runs first.
+  const StudentListService = require('../../bot/shared/services/student-list.service');
+
+  it.each([
+    ['1. Ayesha Bibi', 'Ayesha Bibi'],
+    ['2) Bilal Ahmed', 'Bilal Ahmed'],
+    ['3 - Fatima Noor', 'Fatima Noor'],
+    ['04. Hamza Ali', 'Hamza Ali'],
+    ['- Zainab Khan', 'Zainab Khan'],
+    ['• Usman Tariq', 'Usman Tariq'],
+    ['* Hira Shah', 'Hira Shah'],
+  ])('strips %s', (line, expected) => {
+    expect(StudentListService.parseStudentText(line)[0].studentName).toBe(expected);
+  });
+
+  it('leaves a name that merely begins with digits alone', () => {
+    // The separator requirement is the whole reason this is safe.
+    expect(StudentListService.parseStudentText('7up Khan')[0].studentName).toBe('7up Khan');
+  });
+});

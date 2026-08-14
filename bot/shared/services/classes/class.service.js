@@ -953,6 +953,81 @@ async function removeStudent({
   return { removed: true };
 }
 
+/**
+ * The most a single paste may add. Carried over from the attendance flow, where a
+ * mis-paste — a whole school, a copied spreadsheet column — could otherwise write
+ * thousands of rows. The caller is told what was dropped rather than left guessing.
+ */
+const MAX_PASTE = 300;
+
+/**
+ * Add a whole class from one pasted block.
+ *
+ * The attendance flow's own source records why this shape matters: the version it
+ * replaced added one student per screen round-trip, "which is why no class was ever
+ * finished on this deployment". A register is pasted.
+ *
+ * Parsing is StudentListService.parseStudentText — it already handles what teachers
+ * actually paste ("Name, Father", "Name s/o Father", numbered and bulleted lines) and
+ * returns the two columns we store. It has no dedupe and no cap, so those two guards
+ * are applied here; attendance's parser has them but drops father names. Reusing one
+ * parser and carrying the other's guards beats writing a third.
+ *
+ * @returns {Promise<{added, duplicates, dropped, students?, error?}>}
+ */
+async function addStudents({ classId, teacherUserId, rawText } = {}) {
+  if (!classId) return { error: 'missing_class' };
+  if (!teacherUserId) return { error: 'missing_teacher' };
+  if (!(await findAssignment(classId, teacherUserId))) return { error: 'not_assigned' };
+
+  // Required lazily: student-list.service is a heavier legacy module and this keeps
+  // the classes services loadable without it.
+  const StudentListService = require('../student-list.service');
+  const parsed = StudentListService.parseStudentText(typeof rawText === 'string' ? rawText : '');
+  if (!parsed.length) return { error: 'no_names' };
+
+  // Who is already on the roster, so a re-paste is not a duplicate.
+  const onRoster = await listStudents({ classId, teacherUserId });
+  const seen = new Set(onRoster.map((s) => String(s.studentName).trim().toLowerCase()));
+  let nextRoll = onRoster.reduce((m, s) => Math.max(m, s.rollNumber || 0), 0);
+
+  let duplicates = 0;
+  const wanted = [];
+  for (const row of parsed) {
+    const key = String(row.studentName).trim().toLowerCase();
+    if (!key) continue;
+    if (seen.has(key)) { duplicates += 1; continue; }   // keeps the first spelling
+    seen.add(key);
+    wanted.push(row);
+  }
+
+  const dropped = Math.max(0, wanted.length - MAX_PASTE);
+  const toAdd = wanted.slice(0, MAX_PASTE);
+
+  const students = [];
+  for (const row of toAdd) {
+    nextRoll += 1;
+    const res = await addStudent({
+      classId,
+      teacherUserId,
+      studentName: row.studentName,
+      fatherName: row.fatherName || null,
+      rollNumber: nextRoll,
+    });
+    if (res.error) {
+      logToFile('⚠️ ClassService.addStudents: stopped part-way', {
+        classId, added: students.length, error: res.error,
+      }, 'error');
+      // Report what DID land rather than pretending none of it did — the teacher
+      // needs to know what to re-paste.
+      return { error: res.error, added: students.length, duplicates, dropped, students };
+    }
+    students.push(res.student);
+  }
+
+  return { added: students.length, duplicates, dropped, students };
+}
+
 module.exports = {
   createClass,
   assignTeacher,
@@ -963,7 +1038,9 @@ module.exports = {
   enrollStudent,
   listStudents,
   addStudent,
+  addStudents,
   removeStudent,
+  MAX_PASTE,
   // Exported for tests and for the cutover PR that removes the mirror.
   normalizeSection,
   mirrorLabel,
