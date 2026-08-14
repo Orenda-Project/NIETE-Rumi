@@ -53,6 +53,47 @@ describe('flow screen contract', () => {
         // Terminal screens legitimately have no outgoing routes, but must be named.
         [...declared].forEach((s) => expect(inModel.has(s)).toBe(true));
       });
+
+      /**
+       * bd-2713: the rule this file was missing.
+       *
+       * Declaring a screen is not enough — WhatsApp also refuses to OPEN a flow on
+       * a screen that has incoming edges, with:
+       *
+       *   invalid-screen-transition: The first screen -[X] that was provided with
+       *   response already have incoming nodes found in the routing model
+       *
+       * So the INIT handler may only ever answer with an ENTRY screen. The
+       * attendance marking endpoint returned CONFIRM for an empty roster, which is
+       * declared, terminal-reachable, and routable — every assertion above passed —
+       * and still stranded every teacher whose class had no students.
+       *
+       * The INIT body is sliced by function name, the same technique
+       * attendance-tap-routing.test.js uses to scope a static assertion to one
+       * function.
+       */
+      it('the INIT handler returns only entry screens (no incoming edges)', () => {
+        const incoming = new Set(Object.values(flow.routing_model).flat());
+        const entry = [...declared].filter((s) => !incoming.has(s));
+
+        // A flow with no entry screen cannot be opened at all.
+        expect(entry.length).toBeGreaterThan(0);
+
+        const initFn = src.match(/async function (handle\w*Init)\s*\(/);
+        expect(initFn).not.toBeNull();
+
+        // Slice from the INIT declaration to the next top-level function.
+        const from = src.indexOf(initFn[0]);
+        const rest = src.slice(from + initFn[0].length);
+        const nextFn = rest.search(/\n(?:async )?function \w+\s*\(/);
+        const body = nextFn === -1 ? rest : rest.slice(0, nextFn);
+
+        const returned = [...new Set([...body.matchAll(/screen:\s*'([A-Z_]+)'/g)].map((m) => m[1]))];
+        expect(returned.length).toBeGreaterThan(0);
+
+        const illegal = returned.filter((s) => !entry.includes(s));
+        expect(illegal).toEqual([]);
+      });
     });
   });
 });
