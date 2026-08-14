@@ -2019,6 +2019,8 @@ router.get('/classes', requirePortalAuth, async (req, res) => {
       currentSession: listRes.data.currentSession || null,
       grades: (optionsRes.data && optionsRes.data.grades) || [],
       subjects: (optionsRes.data && optionsRes.data.subjects) || [],
+      sections: (optionsRes.data && optionsRes.data.sections) || [],
+      shifts: (optionsRes.data && optionsRes.data.shifts) || [],
     });
   } catch (error) {
     if (error.code === 'not_configured') {
@@ -2040,7 +2042,7 @@ router.get('/classes', requirePortalAuth, async (req, res) => {
  */
 router.post('/classes', requirePortalAuth, async (req, res) => {
   const userId = req.session.portalUserId;
-  const { gradeCode, section, subjectCodes, isClassTeacher } = req.body || {};
+  const { gradeCode, section, shiftCode, subjectCodes, isClassTeacher } = req.body || {};
 
   if (!gradeCode) {
     return res.status(400).json({ success: false, error: 'Please choose a class.' });
@@ -2051,6 +2053,7 @@ router.post('/classes', requirePortalAuth, async (req, res) => {
       userId,
       gradeCode,
       section: typeof section === 'string' ? section : null,
+      shiftCode: typeof shiftCode === 'string' && shiftCode ? shiftCode : 'morning',
       subjectCodes: Array.isArray(subjectCodes) ? subjectCodes : [],
       isClassTeacher: Boolean(isClassTeacher),
     });
@@ -2058,10 +2061,15 @@ router.post('/classes', requirePortalAuth, async (req, res) => {
     const data = botRes.data || {};
 
     if (botRes.status === 201 && data.success) {
+      // A declined class-teacher role or a subject a colleague already teaches is
+      // reported ALONGSIDE the success — the class was saved either way, and a 409
+      // here used to lose the work and read as "nothing happened".
       return res.status(201).json({
         success: true,
         class: data.class,
         created: data.created,
+        classTeacherTaken: Boolean(data.classTeacherTaken),
+        subjectsTaken: data.subjectsTaken || [],
       });
     }
 
@@ -2073,12 +2081,6 @@ router.post('/classes', requirePortalAuth, async (req, res) => {
         error: 'We do not know which school you are at yet. Ask your coach to link your school, then try again.',
       });
     }
-    if (data.error === 'class_teacher_exists') {
-      return res.status(409).json({
-        success: false,
-        error: 'That class already has a class teacher. The class was saved without that role.',
-      });
-    }
     if (data.error === 'no_current_session') {
       return res.status(503).json({
         success: false,
@@ -2087,6 +2089,15 @@ router.post('/classes', requirePortalAuth, async (req, res) => {
     }
     if (data.error === 'unknown_grade') {
       return res.status(400).json({ success: false, error: 'That class is not one we recognise.' });
+    }
+    if (data.error === 'unknown_section') {
+      return res.status(400).json({
+        success: false,
+        error: 'That section is not one we support yet. Ask NIETE support to add it.',
+      });
+    }
+    if (data.error === 'unknown_shift') {
+      return res.status(400).json({ success: false, error: 'Please choose a shift.' });
     }
 
     console.error('portal/classes create: bot returned failure', { status: botRes.status, data });

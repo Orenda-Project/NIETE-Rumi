@@ -47,6 +47,14 @@ const OPTIONS = {
     { code: "maths", label: "Mathematics" },
     { code: "urdu", label: "Urdu" },
   ],
+  sections: [
+    { code: "A", label: "A" },
+    { code: "B", label: "B" },
+  ],
+  shifts: [
+    { code: "morning", label: "Morning" },
+    { code: "evening", label: "Evening" },
+  ],
 };
 
 function response(over: any = {}) {
@@ -122,23 +130,80 @@ describe("PortalClasses", () => {
     expect(screen.getByRole("button", { name: "ریاضی" })).toBeInTheDocument();
   });
 
-  it("submits the chosen grade, section, subjects and role", async () => {
+  it("submits the chosen grade, section, shift, subjects and role", async () => {
     create.mockResolvedValue({ success: true, created: true });
     await renderPage();
 
     await userEvent.click(await screen.findByRole("button", { name: /add a class/i }));
     await userEvent.selectOptions(screen.getByLabelText("Class"), "grade_4");
-    await userEvent.type(screen.getByLabelText("Section"), "b");
+    // A dropdown now, not a text box: sections are a closed set, so free text here
+    // would be refused by the database.
+    await userEvent.selectOptions(screen.getByLabelText("Section"), "B");
+    await userEvent.selectOptions(screen.getByLabelText("Shift"), "evening");
     await userEvent.click(screen.getByRole("button", { name: "Mathematics" }));
     await userEvent.click(screen.getByLabelText(/I am the class teacher/i));
     await userEvent.click(screen.getByRole("button", { name: /save class/i }));
 
     await waitFor(() => expect(create).toHaveBeenCalledWith({
       gradeCode: "grade_4",
-      section: "b",
+      section: "B",
+      shiftCode: "evening",
       subjectCodes: ["maths"],
       isClassTeacher: true,
     }));
+  });
+
+  it("offers only the seeded sections, plus 'no section'", async () => {
+    await renderPage();
+    await userEvent.click(await screen.findByRole("button", { name: /add a class/i }));
+    const opts = Array.from(screen.getByLabelText("Section").querySelectorAll("option"))
+      .map((o) => (o as HTMLOptionElement).value);
+    expect(opts).toEqual(["", "A", "B"]);
+  });
+
+  it("names the support route when a section is missing", async () => {
+    await renderPage();
+    await userEvent.click(await screen.findByRole("button", { name: /add a class/i }));
+    expect(screen.getByText(/Ask NIETE support to add it/i)).toBeInTheDocument();
+  });
+
+  it("defaults the shift to morning", async () => {
+    create.mockResolvedValue({ success: true, created: true });
+    await renderPage();
+    await userEvent.click(await screen.findByRole("button", { name: /add a class/i }));
+    await userEvent.selectOptions(screen.getByLabelText("Class"), "grade_4");
+    await userEvent.click(screen.getByRole("button", { name: /save class/i }));
+
+    await waitFor(() => expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ shiftCode: "morning" }),
+    ));
+  });
+
+  it("confirms the save AND names a declined subject", async () => {
+    // The class was saved; only the subject claim was declined. Leading with a
+    // failure would send her back to create the class a second time.
+    create.mockResolvedValue({ success: true, created: true, subjectsTaken: ["maths"] });
+    await renderPage();
+    await userEvent.click(await screen.findByRole("button", { name: /add a class/i }));
+    await userEvent.selectOptions(screen.getByLabelText("Class"), "grade_4");
+    await userEvent.click(screen.getByRole("button", { name: /save class/i }));
+
+    await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({
+      title: "Class saved",
+      description: expect.stringMatching(/already teaches Mathematics/),
+    })));
+  });
+
+  it("confirms the save AND names a declined class-teacher role", async () => {
+    create.mockResolvedValue({ success: true, created: true, classTeacherTaken: true });
+    await renderPage();
+    await userEvent.click(await screen.findByRole("button", { name: /add a class/i }));
+    await userEvent.selectOptions(screen.getByLabelText("Class"), "grade_4");
+    await userEvent.click(screen.getByRole("button", { name: /save class/i }));
+
+    await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({
+      description: expect.stringMatching(/already the class teacher/i),
+    })));
   });
 
   it("refuses to submit without a grade", async () => {

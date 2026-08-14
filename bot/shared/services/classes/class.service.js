@@ -53,9 +53,32 @@ function normalizeSection(raw) {
  * teacher-facing copy (that lives in ux-strings keyed by grade code); it exists
  * because student_lists.class_name is NOT NULL and attendance renders it today.
  */
-function mirrorLabel(gradeOrdinal) {
-  if (gradeOrdinal === 0) return 'Early Years';
-  return `Grade ${gradeOrdinal}`;
+function mirrorLabel(gradeOrdinal, section = null, shiftCode = 'morning') {
+  const base = gradeOrdinal === 0 ? 'Early Years' : `Grade ${gradeOrdinal}`;
+  const withSection = section ? `${base} - ${section}` : base;
+  // student_lists is unique on (user_id, LOWER(class_name), academic_year). The
+  // name used to be the GRADE alone, so one teacher's 4-A and 4-B collided and the
+  // second class silently ADOPTED the first's roster. Shift would have made it
+  // worse. Both axes are in the name now, so distinct classes stay distinct.
+  return shiftCode === 'morning' ? withSection : `${withSection} (${shiftCode})`;
+}
+
+/**
+ * Is this a seeded value in a small reference table? Sections and shifts are closed
+ * vocabularies with no aliases, so a plain membership check is the whole job — the
+ * alias machinery in class-vocabulary is for the legacy grade/subject spellings.
+ */
+async function isSeeded(table, code) {
+  if (typeof code !== 'string' || !code.trim()) return false;
+  const { data, error } = await supabase
+    .from(table)
+    .select('code')
+    .eq('is_active', true);
+  if (error || !data) {
+    logToFile(`⚠️ ClassService: ${table} load failed`, { error: error && error.message }, 'error');
+    return false;
+  }
+  return data.some((r) => r.code === code.trim());
 }
 
 async function findSession(sessionCode) {
@@ -86,7 +109,9 @@ async function findSession(sessionCode) {
  * @param {string} p.teacherUserId  the teacher creating it — owns the mirror row
  * @returns {Promise<{class?: object, created?: boolean, mirrored?: boolean, error?: string}>}
  */
-async function createClass({ schoolId, gradeCode, section, sessionCode, teacherUserId } = {}) {
+async function createClass({
+  schoolId, gradeCode, section, shiftCode = 'morning', sessionCode, teacherUserId,
+} = {}) {
   if (!schoolId) return { error: 'missing_school' };
   if (!teacherUserId) return { error: 'missing_teacher' };
 
@@ -98,14 +123,25 @@ async function createClass({ schoolId, gradeCode, section, sessionCode, teacherU
 
   const normalizedSection = normalizeSection(section);
 
+  // Sections are a CLOSED set (A-E as seeded). A teacher wanting another asks
+  // support, who adds a row — storing free text here would recreate exactly the
+  // problem this model exists to remove.
+  if (normalizedSection && !(await isSeeded('sections', normalizedSection))) {
+    return { error: 'unknown_section', section: normalizedSection };
+  }
+
+  const shift = typeof shiftCode === 'string' && shiftCode.trim() ? shiftCode.trim() : 'morning';
+  if (!(await isSeeded('shifts', shift))) return { error: 'unknown_shift', shift };
+
   // Idempotent by class identity. Re-adding is a teacher repeating herself, not
   // an error to show her.
   const existingQuery = supabase
     .from('classes')
-    .select('id, school_id, grade_code, section, session_code, is_active')
+    .select('id, school_id, grade_code, section, shift_code, session_code, is_active')
     .eq('school_id', schoolId)
     .eq('grade_code', grade.code)
     .eq('session_code', session.code)
+    .eq('shift_code', shift)
     .eq('is_active', true);
 
   const { data: candidates, error: findErr } = await existingQuery;
@@ -128,6 +164,7 @@ async function createClass({ schoolId, gradeCode, section, sessionCode, teacherU
         school_id: schoolId,
         grade_code: grade.code,
         section: normalizedSection,
+        shift_code: shift,
         session_code: session.code,
         created_by_user_id: teacherUserId,
         is_active: true,
@@ -148,6 +185,7 @@ async function createClass({ schoolId, gradeCode, section, sessionCode, teacherU
     teacherUserId,
     gradeOrdinal: grade.ordinal,
     section: normalizedSection,
+    shiftCode: shift,
     sessionCode: session.code,
   });
 
@@ -159,8 +197,8 @@ async function createClass({ schoolId, gradeCode, section, sessionCode, teacherU
  * @returns {Promise<boolean>} false when the mirror could not be written — the
  *          class still stands.
  */
-async function mirrorToRoster({ classRow, teacherUserId, gradeOrdinal, section, sessionCode }) {
-  const className = mirrorLabel(gradeOrdinal);
+async function mirrorToRoster({ classRow, teacherUserId, gradeOrdinal, section, shiftCode, sessionCode }) {
+  const className = mirrorLabel(gradeOrdinal, section, shiftCode);
 
   try {
     const { data: rosters, error: readErr } = await supabase
@@ -268,11 +306,24 @@ async function assignTeacher({ classId, teacherUserId, isClassTeacher = false, s
 
   // At most one prime-responsible teacher. Caught here so the caller can show a
   // sentence rather than surfacing a 23505 from the partial unique index.
-  if (isClassTeacher) {
+  //
+  // A REFUSED ROLE MUST NOT COST HER THE CLASS. This used to return early, which
+  // meant a teacher joining a colleague's existing class while ticking "I am the
+  // class teacher" got no assignment row at all, lost the subjects she picked, and
+  // could not see the class — found on staging by creating the same class twice as
+  // two teachers. Now the role is simply declined and the rest proceeds, with
+  // `classTeacherTaken` telling the caller what to say.
+  let classTeacherTaken = false;
+  let wantsRole = Boolean(isClassTeacher);
+
+  if (wantsRole) {
     const other = (assignments || []).find(
       (a) => a.is_class_teacher && a.teacher_user_id !== teacherUserId,
     );
-    if (other) return { error: 'class_teacher_exists', heldBy: other.teacher_user_id };
+    if (other) {
+      classTeacherTaken = true;
+      wantsRole = false;
+    }
   }
 
   let assignment = mine;
@@ -284,7 +335,7 @@ async function assignTeacher({ classId, teacherUserId, isClassTeacher = false, s
       .insert({
         class_id: classId,
         teacher_user_id: teacherUserId,
-        is_class_teacher: Boolean(isClassTeacher),
+        is_class_teacher: wantsRole,
         assigned_on: new Date().toISOString().slice(0, 10),
         is_active: true,
       })
@@ -297,7 +348,7 @@ async function assignTeacher({ classId, teacherUserId, isClassTeacher = false, s
     }
     assignment = inserted;
     created = true;
-  } else if (isClassTeacher && !assignment.is_class_teacher) {
+  } else if (wantsRole && !assignment.is_class_teacher) {
     // Promoting an existing subject teacher to prime-responsible.
     const { error: updErr } = await supabase
       .from('class_teachers')
@@ -307,24 +358,53 @@ async function assignTeacher({ classId, teacherUserId, isClassTeacher = false, s
     assignment.is_class_teacher = true;
   }
 
+  // ONE TEACHER PER SUBJECT PER CLASS. Read every subject claim on this class, not
+  // just this teacher's, so a subject a COLLEAGUE already teaches is declined.
+  //
+  // Declined, not fatal — the same reasoning as the class-teacher role above: a
+  // conflict on one subject must not discard the rest of her request. Note this
+  // differs deliberately from `unknown_subject`, which IS all-or-nothing: that is a
+  // caller bug, whereas this is a legitimate real-world clash between colleagues.
+  const subjectsTaken = [];
+
   if (resolved.length) {
-    const { data: had, error: subReadErr } = await supabase
+    const { data: claims, error: subReadErr } = await supabase
       .from('class_teacher_subjects')
-      .select('class_teacher_id, subject_code')
-      .eq('class_teacher_id', assignment.id);
+      .select('class_teacher_id, subject_code, class_id')
+      .eq('class_id', classId);
 
     if (subReadErr) {
       logToFile('⚠️ ClassService.assignTeacher: subject lookup failed', { error: subReadErr.message });
       return { error: 'lookup_failed' };
     }
 
-    const have = new Set((had || []).map((r) => r.subject_code));
-    const toAdd = resolved.filter((code) => !have.has(code));
+    const byTeacher = new Map((assignments || []).map((a) => [a.id, a.teacher_user_id]));
+    const mineAlready = new Set();
+    const heldByOthers = new Map();
+
+    for (const claim of claims || []) {
+      if (claim.class_teacher_id === assignment.id) {
+        mineAlready.add(claim.subject_code);
+      } else {
+        heldByOthers.set(claim.subject_code, byTeacher.get(claim.class_teacher_id) || null);
+      }
+    }
+
+    const toAdd = [];
+    for (const code of resolved) {
+      if (heldByOthers.has(code)) {
+        subjectsTaken.push({ code, heldBy: heldByOthers.get(code) });
+        continue;
+      }
+      if (!mineAlready.has(code)) toAdd.push(code);
+    }
 
     for (const code of toAdd) {
       const { error: subInsErr } = await supabase
         .from('class_teacher_subjects')
-        .insert({ class_teacher_id: assignment.id, subject_code: code })
+        // class_id is what the unique index spans, so it must be stamped here and
+        // not left to the backfill.
+        .insert({ class_teacher_id: assignment.id, subject_code: code, class_id: classId })
         .select()
         .single();
       if (subInsErr) {
@@ -336,7 +416,7 @@ async function assignTeacher({ classId, teacherUserId, isClassTeacher = false, s
     }
   }
 
-  return { assignment, created };
+  return { assignment, created, classTeacherTaken, subjectsTaken };
 }
 
 // ---------------------------------------------------------------------------
@@ -372,7 +452,7 @@ async function listClassesForTeacher(teacherUserId) {
 
   const { data: classes, error: cErr } = await supabase
     .from('classes')
-    .select('id, school_id, grade_code, section, session_code, is_active')
+    .select('id, school_id, grade_code, section, shift_code, session_code, is_active')
     .in('id', classIds)
     .eq('is_active', true);
 
@@ -404,6 +484,7 @@ async function listClassesForTeacher(teacherUserId) {
         schoolId: cls.school_id,
         gradeCode: cls.grade_code,
         section: cls.section || null,
+        shiftCode: cls.shift_code || 'morning',
         sessionCode: cls.session_code,
         isClassTeacher: Boolean(a.is_class_teacher),
         subjectCodes: (subjectsByAssignment.get(a.id) || []).sort(),

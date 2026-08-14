@@ -51,6 +51,7 @@ const {
 const supabase = require('../config/supabase');
 // The one copy catalog + the one language clamp (see the language-protocol skill).
 const { resolveUx } = require('../config/ux-strings');
+const { isClassesCommand } = require('../services/classes/class-command');
 const fs = require('fs');
 
 // Subject aliases: parseSubjectAndGrade returns coarse buckets like 'math' / 'social_studies',
@@ -1794,8 +1795,10 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // ============================================================
   // /classes COMMAND: view the classes you teach, and add a new one
   // ============================================================
-  if (/^\/classes\b/i.test(trimmedMessage)
-      || /^(my classes|add a class|add class)\s*$/i.test(trimmedMessage)) {
+  // The rule and its near misses live in class-command.js, with tests. Reported
+  // from staging: `/classes` opened it and `/class` did not, which is the kind of
+  // gap an inline regex accretes one alternative at a time.
+  if (isClassesCommand(trimmedMessage)) {
     logToFile('🏫 /classes command detected', { userId: user?.id, phoneNumber: from });
 
     if (!user) {

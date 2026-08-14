@@ -32,6 +32,17 @@ const SUBJECT_ROWS = [
   { code: 'science', parent_code: null, aliases: ['science', 'General Science'], is_active: true },
   { code: 'urdu', parent_code: null, aliases: ['urdu'], is_active: true },
 ];
+const SECTION_ROWS = [
+  { code: 'A', sort_order: 1, is_active: true },
+  { code: 'B', sort_order: 2, is_active: true },
+  { code: 'C', sort_order: 3, is_active: true },
+  { code: 'D', sort_order: 4, is_active: true },
+  { code: 'E', sort_order: 5, is_active: true },
+];
+const SHIFT_ROWS = [
+  { code: 'morning', sort_order: 1, is_active: true },
+  { code: 'evening', sort_order: 2, is_active: true },
+];
 const SESSION_ROWS = [
   { code: '2026-2027', kind: 'annual', starts_on: '2026-04-01', ends_on: '2027-03-31', is_active: true },
   { code: '2027-2028', kind: 'annual', starts_on: '2027-04-01', ends_on: '2028-03-31', is_active: true },
@@ -44,6 +55,8 @@ function boot(seed = {}) {
     grade_levels: GRADE_ROWS,
     subjects: SUBJECT_ROWS,
     academic_sessions: SESSION_ROWS,
+    sections: SECTION_ROWS,
+    shifts: SHIFT_ROWS,
     student_lists: [],
     classes: [],
     class_teachers: [],
@@ -142,7 +155,9 @@ describe('createClass — the legacy student_lists mirror', () => {
     expect(mirrors).toHaveLength(1);
     expect(mirrors[0]).toMatchObject({
       user_id: TEACHER,
-      class_name: 'Grade 4',
+      // Carries the section now: the name used to be the grade alone, which made
+      // one teacher's 4-A and 4-B collide on student_lists' unique index.
+      class_name: 'Grade 4 - A',
       section: 'A',
       academic_year: '2026-2027',
       class_id: res.class.id,
@@ -157,13 +172,13 @@ describe('createClass — the legacy student_lists mirror', () => {
     expect(mockDb._tables.student_lists[0].class_name).toBe('Early Years');
   });
 
-  it('reuses a teacher\'s existing roster row instead of tripping its unique index', async () => {
+  it('adopts the row it previously mirrored, students and all', async () => {
     // student_lists is unique on (user_id, LOWER(class_name), academic_year) where
-    // active. A teacher who already added "Grade 4" the old way must not get a
-    // duplicate-key failure when the class is created the new way.
+    // active, so re-running createClass for the same class must ADOPT that row
+    // rather than hit a duplicate-key error — and must not orphan its students.
     boot({
       student_lists: [{
-        id: 'legacy-list-1', user_id: TEACHER, class_name: 'Grade 4', section: 'A',
+        id: 'legacy-list-1', user_id: TEACHER, class_name: 'Grade 4 - A', section: 'A',
         academic_year: '2026-2027', is_active: true, class_id: null, student_count: 8,
       }],
     });
@@ -176,8 +191,31 @@ describe('createClass — the legacy student_lists mirror', () => {
     expect(mockDb._tables.student_lists).toHaveLength(1);
     expect(mockDb._tables.student_lists[0].id).toBe('legacy-list-1');
     expect(mockDb._tables.student_lists[0].class_id).toBe(res.class.id);
-    // The adopted roster keeps its students.
     expect(mockDb._tables.student_lists[0].student_count).toBe(8);
+  });
+
+  it('leaves an unrelated hand-made roster alone rather than claiming it', async () => {
+    // A roster the teacher named herself ("4th grade morning") is NOT this class.
+    // Adopting it on a fuzzy match would silently move someone else's students; the
+    // honest outcome is a separate mirror and an untouched legacy row.
+    boot({
+      student_lists: [{
+        id: 'hand-made', user_id: TEACHER, class_name: '4th grade morning', section: null,
+        academic_year: '2026-2027', is_active: true, class_id: null, student_count: 31,
+      }],
+    });
+
+    const res = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+
+    expect(res.error).toBeUndefined();
+    expect(res.mirrored).toBe(true);
+    const untouched = mockDb._tables.student_lists.find((r) => r.id === 'hand-made');
+    expect(untouched.class_id).toBeNull();
+    expect(untouched.student_count).toBe(31);
+    expect(mockDb._tables.student_lists).toHaveLength(2);
   });
 
   it('does not mirror onto another teacher\'s identically-named roster', async () => {
@@ -260,12 +298,17 @@ describe('assignTeacher', () => {
     expect(mockDb._tables.class_teacher_subjects).toHaveLength(0);
   });
 
-  it('refuses a SECOND prime-responsible teacher', async () => {
+  it('declines the ROLE to a second claimant without refusing the assignment', async () => {
+    // The invariant is still "one class teacher per class". What changed is the
+    // consequence: the second claimant keeps her place on the class as a subject
+    // teacher instead of losing the whole assignment.
     const cls = await aClass();
     await svc.assignTeacher({ classId: cls.id, teacherUserId: TEACHER, isClassTeacher: true });
     const res = await svc.assignTeacher({ classId: cls.id, teacherUserId: OTHER_TEACHER, isClassTeacher: true });
 
-    expect(res).toMatchObject({ error: 'class_teacher_exists' });
+    expect(res.error).toBeUndefined();
+    expect(res.classTeacherTaken).toBe(true);
+    expect(mockDb._tables.class_teachers.filter((r) => r.is_class_teacher)).toHaveLength(1);
   });
 
   it('is idempotent for the same teacher, adding subjects rather than duplicating the row', async () => {
@@ -320,5 +363,263 @@ describe('listClassesForTeacher', () => {
 
   it('returns an empty list for a null user rather than throwing', async () => {
     await expect(svc.listClassesForTeacher(null)).resolves.toEqual([]);
+  });
+});
+
+describe('a teacher joining a class someone else already created', () => {
+  // Found on staging by creating the same class as two different teachers. The
+  // second teacher ticked "I am the class teacher", and the role conflict aborted
+  // her WHOLE assignment: no class_teachers row, her subject discarded, the class
+  // absent from her list — while a legacy mirror row was still written for her.
+  // A refused ROLE must not cost her the CLASS.
+  async function classOwnedByFirstTeacher() {
+    const { class: cls } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    await svc.assignTeacher({
+      classId: cls.id, teacherUserId: TEACHER, isClassTeacher: true, subjectCodes: ['maths'],
+    });
+    return cls;
+  }
+
+  it('still assigns the second teacher, as a subject teacher', async () => {
+    const cls = await classOwnedByFirstTeacher();
+    const res = await svc.assignTeacher({
+      classId: cls.id, teacherUserId: OTHER_TEACHER,
+      isClassTeacher: true, subjectCodes: ['urdu'],
+    });
+
+    expect(res.error).toBeUndefined();
+    expect(res.classTeacherTaken).toBe(true);
+    expect(res.assignment.is_class_teacher).toBe(false);
+    expect(mockDb._tables.class_teachers).toHaveLength(2);
+  });
+
+  it('keeps the subjects she chose', async () => {
+    const cls = await classOwnedByFirstTeacher();
+    await svc.assignTeacher({
+      classId: cls.id, teacherUserId: OTHER_TEACHER,
+      isClassTeacher: true, subjectCodes: ['urdu', 'science'],
+    });
+    expect(mockDb._tables.class_teacher_subjects.map((r) => r.subject_code).sort())
+      .toEqual(['maths', 'science', 'urdu']);
+  });
+
+  it('leaves the original class teacher in place', async () => {
+    const cls = await classOwnedByFirstTeacher();
+    await svc.assignTeacher({
+      classId: cls.id, teacherUserId: OTHER_TEACHER, isClassTeacher: true,
+    });
+    const holders = mockDb._tables.class_teachers.filter((r) => r.is_class_teacher);
+    expect(holders).toHaveLength(1);
+    expect(holders[0].teacher_user_id).toBe(TEACHER);
+  });
+
+  it('shows the class in the second teacher\'s list', async () => {
+    const cls = await classOwnedByFirstTeacher();
+    await svc.assignTeacher({
+      classId: cls.id, teacherUserId: OTHER_TEACHER, isClassTeacher: true, subjectCodes: ['urdu'],
+    });
+
+    const list = await svc.listClassesForTeacher(OTHER_TEACHER);
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({
+      classId: cls.id, isClassTeacher: false, subjectCodes: ['urdu'],
+    });
+  });
+
+  it('does not create a duplicate class', async () => {
+    await classOwnedByFirstTeacher();
+    const second = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'a',
+      sessionCode: '2026-2027', teacherUserId: OTHER_TEACHER,
+    });
+    expect(second.created).toBe(false);
+    expect(mockDb._tables.classes).toHaveLength(1);
+  });
+});
+
+describe('sections are a closed vocabulary', () => {
+  it('accepts a seeded section, normalizing case', async () => {
+    const res = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'c',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    expect(res.class.section).toBe('C');
+  });
+
+  it('refuses a section outside the vocabulary rather than storing it', async () => {
+    // A teacher wanting F asks support, who adds a row. Storing it would recreate
+    // exactly the free-text problem this model exists to remove.
+    const res = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'F',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    expect(res).toMatchObject({ error: 'unknown_section' });
+    expect(mockDb._tables.classes).toHaveLength(0);
+  });
+
+  it('refuses free text that used to pass the old normalization check', async () => {
+    for (const bad of ['ALPHA', 'A-SECTION', 'RED', '1']) {
+      const res = await svc.createClass({
+        schoolId: SCHOOL, gradeCode: 'grade_5', section: bad,
+        sessionCode: '2026-2027', teacherUserId: TEACHER,
+      });
+      expect(res.error).toBe('unknown_section');
+    }
+  });
+
+  it('still allows a class with no section', async () => {
+    const res = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: '  ',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    expect(res.class.section).toBeNull();
+  });
+});
+
+describe('shift is part of the class identity', () => {
+  it('defaults to morning', async () => {
+    const res = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    expect(res.class.shift_code).toBe('morning');
+  });
+
+  it('records an evening class', async () => {
+    const res = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A', shiftCode: 'evening',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    expect(res.class.shift_code).toBe('evening');
+  });
+
+  it('treats morning and evening as DIFFERENT classes', async () => {
+    // Different students, different teachers, everything.
+    const am = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A', shiftCode: 'morning',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    const pm = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A', shiftCode: 'evening',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+
+    expect(pm.created).toBe(true);
+    expect(pm.class.id).not.toBe(am.class.id);
+    expect(mockDb._tables.classes).toHaveLength(2);
+  });
+
+  it('is still idempotent within one shift', async () => {
+    await svc.createClass({ schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A', shiftCode: 'evening', sessionCode: '2026-2027', teacherUserId: TEACHER });
+    const again = await svc.createClass({ schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A', shiftCode: 'evening', sessionCode: '2026-2027', teacherUserId: TEACHER });
+    expect(again.created).toBe(false);
+    expect(mockDb._tables.classes).toHaveLength(1);
+  });
+
+  it('refuses an unknown shift', async () => {
+    const res = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', shiftCode: 'night',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    expect(res).toMatchObject({ error: 'unknown_shift' });
+  });
+
+  it('reports the shift in the class list', async () => {
+    const { class: cls } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A', shiftCode: 'evening',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: TEACHER });
+    const list = await svc.listClassesForTeacher(TEACHER);
+    expect(list[0].shiftCode).toBe('evening');
+  });
+});
+
+describe('the legacy mirror must not merge distinct classes', () => {
+  // student_lists is unique on (user_id, LOWER(class_name), academic_year). The
+  // mirror name was derived from the GRADE alone, so one teacher's 4-A and 4-B
+  // collided and the second silently ADOPTED the first's roster. Shift would have
+  // made it worse.
+  it('gives two sections of the same grade DIFFERENT mirror rows', async () => {
+    await svc.createClass({ schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A', sessionCode: '2026-2027', teacherUserId: TEACHER });
+    await svc.createClass({ schoolId: SCHOOL, gradeCode: 'grade_4', section: 'B', sessionCode: '2026-2027', teacherUserId: TEACHER });
+
+    const names = mockDb._tables.student_lists.map((r) => r.class_name);
+    expect(mockDb._tables.student_lists).toHaveLength(2);
+    expect(new Set(names).size).toBe(2);
+  });
+
+  it('gives the morning and evening class DIFFERENT mirror rows', async () => {
+    await svc.createClass({ schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A', shiftCode: 'morning', sessionCode: '2026-2027', teacherUserId: TEACHER });
+    await svc.createClass({ schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A', shiftCode: 'evening', sessionCode: '2026-2027', teacherUserId: TEACHER });
+
+    expect(mockDb._tables.student_lists).toHaveLength(2);
+    expect(new Set(mockDb._tables.student_lists.map((r) => r.class_name)).size).toBe(2);
+  });
+});
+
+describe('one teacher per subject per class', () => {
+  async function classWithMathsTakenByFirstTeacher() {
+    const { class: cls } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: TEACHER, subjectCodes: ['maths'] });
+    return cls;
+  }
+
+  it('refuses a subject another teacher already teaches to that class', async () => {
+    const cls = await classWithMathsTakenByFirstTeacher();
+    const res = await svc.assignTeacher({
+      classId: cls.id, teacherUserId: OTHER_TEACHER, subjectCodes: ['maths'],
+    });
+
+    expect(res.subjectsTaken).toEqual([{ code: 'maths', heldBy: TEACHER }]);
+    expect(mockDb._tables.class_teacher_subjects.filter((r) => r.subject_code === 'maths')).toHaveLength(1);
+  });
+
+  it('still assigns the subjects that are free', async () => {
+    // Same principle as the declined class-teacher role: a conflict on one thing
+    // must not discard the rest of her request.
+    const cls = await classWithMathsTakenByFirstTeacher();
+    const res = await svc.assignTeacher({
+      classId: cls.id, teacherUserId: OTHER_TEACHER, subjectCodes: ['maths', 'urdu'],
+    });
+
+    expect(res.error).toBeUndefined();
+    expect(res.subjectsTaken.map((s) => s.code)).toEqual(['maths']);
+    const mine = mockDb._tables.class_teachers.find((r) => r.teacher_user_id === OTHER_TEACHER);
+    const hers = mockDb._tables.class_teacher_subjects.filter((r) => r.class_teacher_id === mine.id);
+    expect(hers.map((r) => r.subject_code)).toEqual(['urdu']);
+  });
+
+  it('lets the same teacher re-submit her own subject without complaint', async () => {
+    const cls = await classWithMathsTakenByFirstTeacher();
+    const res = await svc.assignTeacher({
+      classId: cls.id, teacherUserId: TEACHER, subjectCodes: ['maths', 'science'],
+    });
+    expect(res.subjectsTaken).toEqual([]);
+    expect(mockDb._tables.class_teacher_subjects.map((r) => r.subject_code).sort())
+      .toEqual(['maths', 'science']);
+  });
+
+  it('allows the same subject in a DIFFERENT class', async () => {
+    await classWithMathsTakenByFirstTeacher();
+    const { class: other } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_5', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: OTHER_TEACHER,
+    });
+    const res = await svc.assignTeacher({
+      classId: other.id, teacherUserId: OTHER_TEACHER, subjectCodes: ['maths'],
+    });
+    expect(res.subjectsTaken).toEqual([]);
+  });
+
+  it('stamps class_id on the subject row, which is what the unique index spans', async () => {
+    const cls = await classWithMathsTakenByFirstTeacher();
+    expect(mockDb._tables.class_teacher_subjects[0].class_id).toBe(cls.id);
   });
 });

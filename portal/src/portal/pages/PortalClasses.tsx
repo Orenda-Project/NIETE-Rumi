@@ -31,12 +31,15 @@ const PortalClasses = () => {
   const [items, setItems] = useState<TeacherClass[]>([]);
   const [grades, setGrades] = useState<ClassOption[]>([]);
   const [subjectOptions, setSubjectOptions] = useState<ClassOption[]>([]);
+  const [sectionOptions, setSectionOptions] = useState<ClassOption[]>([]);
+  const [shiftOptions, setShiftOptions] = useState<ClassOption[]>([]);
   const [canAdd, setCanAdd] = useState(false);
   const [currentSession, setCurrentSession] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
   const [gradeCode, setGradeCode] = useState('');
   const [section, setSection] = useState('');
+  const [shiftCode, setShiftCode] = useState('morning');
   const [chosenSubjects, setChosenSubjects] = useState<string[]>([]);
   const [isClassTeacher, setIsClassTeacher] = useState(false);
 
@@ -47,6 +50,8 @@ const PortalClasses = () => {
       setItems(data.classes || []);
       setGrades(data.grades || []);
       setSubjectOptions(data.subjects || []);
+      setSectionOptions(data.sections || []);
+      setShiftOptions(data.shifts || []);
       setCanAdd(Boolean(data.canAdd));
       setCurrentSession(data.currentSession || null);
     } catch (error) {
@@ -69,6 +74,7 @@ const PortalClasses = () => {
   const resetForm = () => {
     setGradeCode('');
     setSection('');
+    setShiftCode('morning');
     setChosenSubjects([]);
     setIsClassTeacher(false);
     setShowForm(false);
@@ -90,16 +96,29 @@ const PortalClasses = () => {
     try {
       const res = await classesApi.create({
         gradeCode,
-        section: section.trim() ? section.trim() : null,
+        section: section || null,
+        shiftCode,
         subjectCodes: chosenSubjects,
         isClassTeacher,
       });
 
       if (res.success) {
-        // `created: false` means the class already existed — say so rather than
-        // implying a duplicate was made.
+        // The class was saved even when a claim was declined, so lead with that and
+        // name the declined part underneath. Reading it as a failure is what sends
+        // teachers back to create the class a second time.
+        const declined: string[] = [];
+        if (res.subjectsTaken?.length) {
+          const names = res.subjectsTaken
+            .map((c) => subjectOptions.find((s) => s.code === c)?.label || c)
+            .join(', ');
+          declined.push(`Another teacher already teaches ${names} to this class.`);
+        }
+        if (res.classTeacherTaken) {
+          declined.push('Someone else is already the class teacher.');
+        }
         toast({
           title: res.created === false ? 'That class was already there' : 'Class saved',
+          description: declined.length ? declined.join(' ') : undefined,
         });
         resetForm();
         await load();
@@ -169,15 +188,38 @@ const PortalClasses = () => {
 
             <div>
               <label className="block text-sm font-medium mb-1" htmlFor="class-section">Section</label>
-              <input
+              <select
                 id="class-section"
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={section}
                 onChange={(e) => setSection(e.target.value)}
-                placeholder="A"
-              />
+              >
+                <option value="">No section</option>
+                {sectionOptions.map((s) => (
+                  <option key={s.code} value={s.code}>{s.label}</option>
+                ))}
+              </select>
+              {/* A closed set, so the escape hatch has to be named — otherwise a
+                  teacher whose section is missing has nowhere to go. */}
               <p className="text-xs text-muted-foreground mt-1">
-                Only if your school splits this class into sections.
+                Only if your school splits this class into sections. Not listed? Ask NIETE support to add it.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1" htmlFor="class-shift">Shift</label>
+              <select
+                id="class-shift"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={shiftCode}
+                onChange={(e) => setShiftCode(e.target.value)}
+              >
+                {shiftOptions.map((s) => (
+                  <option key={s.code} value={s.code}>{s.label}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Morning and evening are different classes, with their own students and teachers.
               </p>
             </div>
 
