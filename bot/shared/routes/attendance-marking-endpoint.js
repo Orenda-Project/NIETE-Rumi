@@ -425,8 +425,8 @@ async function renderMarkScreen(flowToken) {
     data: {
       heading: `${label} · ${prettyDate(ctx.date)}`,
       subject_note: isTeacherSubject
-        ? 'Tap only the teachers who are away. Everyone else is marked present.'
-        : 'Tap only the students who are away. Everyone else is marked present.',
+        ? 'Tap the teachers who are absent. Leave is asked next.'
+        : 'Tap the students who are absent. Leave is asked next.',
       roster: people.map((p) => ({
         id: p.id,
         title: personName(p),
@@ -436,15 +436,65 @@ async function renderMarkScreen(flowToken) {
   };
 }
 
-/** MARK submitted — ask for a leave type only if anyone is on leave. */
+/**
+ * MARK submitted — absentees recorded, then ask about leave SEPARATELY.
+ *
+ * Absent and leave used to be two CheckboxGroups over the same roster on this one
+ * screen, so both listed every student and the same child could be ticked in both;
+ * resolveStatuses() then arbitrated it at write time. Now the leave page is offered
+ * the roster MINUS the absentees, so the overlap cannot be expressed (bd-2727).
+ *
+ * Nothing is written here. markStudents() derives every tally from the whole roster
+ * in one call, so a partial write would store wrong counts — and a teacher who
+ * abandoned the leave page would leave them wrong for good.
+ */
 async function handleMarkSubmit(flowToken, screenData) {
   const ctx = pending.get(flowToken);
   if (!ctx) return renderClassScreen(flowToken);
 
   const absentIds = screenData?.absent || [];
-  const leaveIds = (screenData?.on_leave || []).filter((id) => true);
+  pending.set(flowToken, { ...ctx, absentIds });
+  return renderLeaveScreen(flowToken);
+}
 
-  pending.set(flowToken, { ...ctx, absentIds, leaveIds });
+/** LEAVE — only the students who were NOT marked absent. */
+async function renderLeaveScreen(flowToken) {
+  const ctx = pending.get(flowToken);
+  if (!ctx) return renderClassScreen(flowToken);
+
+  const absent = new Set(ctx.absentIds || []);
+  const remaining = (ctx.people || []).filter((p) => !absent.has(p.id));
+  const absentCount = absent.size;
+
+  return {
+    screen: 'LEAVE',
+    data: {
+      heading: absentCount
+        ? `${absentCount} marked absent`
+        : 'Nobody marked absent',
+      // Say what has already been decided, so the teacher is not re-deciding it.
+      subject_note: `Everyone else is marked present. Tap anyone on approved leave instead — ${remaining.length} left to consider.`,
+      roster: remaining.map((p) => ({
+        id: p.id,
+        title: personName(p),
+        description: p.roll_number ? `Roll ${p.roll_number}` : '',
+      })),
+    },
+  };
+}
+
+/** LEAVE submitted — a leave type only if anyone actually is. */
+async function handleLeaveSubmit(flowToken, screenData) {
+  const ctx = pending.get(flowToken);
+  if (!ctx) return renderClassScreen(flowToken);
+
+  // Intersect with what this page actually offered. A payload naming an absentee
+  // cannot promote them onto the leave list.
+  const absent = new Set(ctx.absentIds || []);
+  const offered = new Set((ctx.people || []).filter((p) => !absent.has(p.id)).map((p) => p.id));
+  const leaveIds = (screenData?.on_leave || []).filter((id) => offered.has(id));
+
+  pending.set(flowToken, { ...ctx, leaveIds });
 
   if (leaveIds.length) {
     const names = ctx.people.filter((p) => leaveIds.includes(p.id)).map(personName);
@@ -458,7 +508,7 @@ async function handleMarkSubmit(flowToken, screenData) {
     };
   }
 
-  return renderConfirm(flowToken, { ...ctx, absentIds, leaveIds, leaveType: null });
+  return renderConfirm(flowToken, { ...ctx, leaveIds, leaveType: null });
 }
 
 /** LEAVE_TYPE submitted. */
@@ -548,6 +598,7 @@ async function handleMarkingDataExchange(flowToken, screen, screenData) {
   if (screen === 'DATE') return handleDateSubmit(flowToken, screenData);
   if (screen === 'METHOD') return handleMethodSubmit(flowToken, screenData);
   if (screen === 'MARK') return handleMarkSubmit(flowToken, screenData);
+  if (screen === 'LEAVE') return handleLeaveSubmit(flowToken, screenData);
   if (screen === 'LEAVE_TYPE') return handleLeaveTypeSubmit(flowToken, screenData);
   if (screen === 'CONFIRM') return handleConfirmSubmit(flowToken);
   return handleMarkingInit(flowToken);
