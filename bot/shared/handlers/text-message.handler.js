@@ -1935,6 +1935,9 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       logToFile('📋 Attendance routed', { userId: user.id, action: decision.action });
 
       switch (decision.action) {
+        // bd-2726: one Flow, opened with the bare user id; it picks class, date
+        // and method. MARK_* remain for taps on buttons already delivered.
+        case 'OPEN_REGISTER':
         case 'MARK_TEACHERS':
         case 'MARK_STUDENTS':
           if (!ATTENDANCE_MARKING_FLOW_ID) {

@@ -111,9 +111,12 @@ describe('a principal who runs several classes', () => {
       classes: [{ id: 'c1', class_name: '5th' }, { id: 'c2', class_name: '6th' }],
     });
 
+    // bd-2726: the question moved onto the CLASS screen, where "My teachers" is the
+    // first Dropdown option. The invariant survives the move — a principal is never
+    // dropped straight into the student register — it is just enforced one layer in.
     const r = await router.route('p1');
 
-    expect(r.action).toBe('ASK_SUBJECT');
+    expect(r.action).toBe('OPEN_REGISTER');
     expect(r.action).not.toBe('MARK_STUDENTS');
   });
 

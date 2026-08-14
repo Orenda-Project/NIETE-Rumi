@@ -205,42 +205,29 @@ async function route(userId) {
 
   const classes = await loadClasses(userId);
   const isPrincipal = user.role === 'principal';
+  const canMarkStaff = isPrincipal && Boolean(user.school_id);
 
-  if (isPrincipal) {
-    if (!user.school_id) {
+  // Nothing to mark at all — /class owns creating it (bd-2724).
+  if (!classes.length && !canMarkStaff) {
+    if (isPrincipal) {
       return {
         action: 'NO_SCHOOL',
         message: 'Your account is set up as a principal but is not linked to a school yet, '
           + 'so there is no staff list to mark. Your NIETE coordinator can link it.',
       };
     }
-    if (classes.length) {
-      // Runs a class too — ask rather than assume.
-      return {
-        action: 'ASK_SUBJECT',
-        // Name both options in the text as well as the buttons: on some clients
-        // the buttons render below the fold, and a bare "whose?" is unanswerable.
-        message: 'Whose attendance are you marking — your teachers, or your students?',
-        buttons: [
-          { id: 'att_subject_teacher', title: 'My teachers' },
-          { id: 'att_subject_student', title: 'My students' },
-        ],
-      };
-    }
-    return {
-      action: 'MARK_TEACHERS',
-      flowToken: `${userId}:teacher:${user.school_id}`,
-    };
+    return noClassYet(user);
   }
 
-  if (!classes.length) return noClassYet(user);
-
-  if (classes.length === 1) {
-    if (!await hasStudents(classes[0])) return emptyClass(classes[0].id);
-    return { action: 'MARK_STUDENTS', flowToken: `${userId}:student:${classes[0].id}` };
-  }
-
-  return pickClass(classes);
+  // One Flow, one open. The picker moved onto the Flow's CLASS screen (bd-2726),
+  // because chat could only ever offer 3 reply buttons or 10 list rows in total —
+  // a teacher with 20 class-sections had ten of them unreachable — while a Flow
+  // Dropdown holds 200. The principal's "teachers or students?" question is the
+  // first option on that same screen, since CLASS is the Flow's only legal entry
+  // point and a separate staff entry is not expressible.
+  //
+  // flow_token is the BARE user id: there is nothing to pre-select.
+  return { action: 'OPEN_REGISTER', flowToken: userId };
 }
 
 /** Resolve the "my teachers / my students" tap. */

@@ -634,6 +634,7 @@ CREATE TABLE IF NOT EXISTS attendance_sessions (
     total_students INTEGER,
     present_count INTEGER,
     absent_count INTEGER,
+    leave_count INTEGER DEFAULT 0,
     was_manually_edited BOOLEAN DEFAULT false,
     marking_method VARCHAR(20),
     created_at TIMESTAMPTZ DEFAULT now(),
