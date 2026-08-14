@@ -3,12 +3,23 @@
   "data_api_version": "3.0",
   "routing_model": {
     "CLASSES": [
-      "ADD"
+      "ADD",
+      "ROSTER"
     ],
     "ADD": [
       "SUBJECTS"
     ],
     "SUBJECTS": [
+      "SAVED"
+    ],
+    "ROSTER": [
+      "ADD_STUDENTS",
+      "REMOVE_STUDENTS"
+    ],
+    "ADD_STUDENTS": [
+      "SAVED"
+    ],
+    "REMOVE_STUDENTS": [
       "SAVED"
     ],
     "SAVED": []
@@ -29,28 +40,74 @@
         "add_label": {
           "type": "string",
           "__example__": "Add a class"
+        },
+        "choose_label": {
+          "type": "string",
+          "__example__": "Which class?"
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "uuid-1",
+              "title": "Grade 4 - A"
+            },
+            {
+              "id": "__add__",
+              "title": "Add a new class"
+            }
+          ]
         }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
           {
-            "type": "TextHeading",
-            "text": "${data.heading}"
-          },
-          {
-            "type": "TextBody",
-            "text": "${data.summary}"
-          },
-          {
-            "type": "Footer",
-            "label": "${data.add_label}",
-            "on-click-action": {
-              "name": "data_exchange",
-              "payload": {
-                "screen": "CLASSES"
+            "type": "Form",
+            "name": "classes_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.summary}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "target",
+                "label": "${data.choose_label}",
+                "required": true,
+                "data-source": "${data.options}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "CLASSES",
+                    "target": "${form.target}"
+                  }
+                }
               }
-            }
+            ]
           }
         ]
       }
@@ -283,6 +340,226 @@
                     "screen": "SUBJECTS",
                     "subjects": "${form.subjects}",
                     "is_class_teacher": "${form.is_class_teacher}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ROSTER",
+      "title": "Students",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Grade 4 - A"
+        },
+        "roster": {
+          "type": "string",
+          "__example__": "1. Ayesha Bibi\n2. Bilal Ahmed"
+        },
+        "choose_label": {
+          "type": "string",
+          "__example__": "What would you like to do?"
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "add",
+              "title": "Add students"
+            },
+            {
+              "id": "remove",
+              "title": "Remove students"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "roster_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.roster}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "action",
+                "label": "${data.choose_label}",
+                "required": true,
+                "data-source": "${data.actions}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ROSTER",
+                    "action": "${form.action}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ADD_STUDENTS",
+      "title": "Add students",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Add students to Grade 4 - A"
+        },
+        "hint": {
+          "type": "string",
+          "__example__": "One per line. Numbering is fine."
+        },
+        "field_label": {
+          "type": "string",
+          "__example__": "Student names"
+        },
+        "save_label": {
+          "type": "string",
+          "__example__": "Add to class"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "add_students_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.hint}"
+              },
+              {
+                "type": "TextArea",
+                "name": "roster",
+                "label": "${data.field_label}",
+                "required": true
+              },
+              {
+                "type": "Footer",
+                "label": "${data.save_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ADD_STUDENTS",
+                    "roster": "${form.roster}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "REMOVE_STUDENTS",
+      "title": "Remove students",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Who has left Grade 4 - A?"
+        },
+        "hint": {
+          "type": "string",
+          "__example__": "Every teacher on this class stops seeing them."
+        },
+        "field_label": {
+          "type": "string",
+          "__example__": "Students"
+        },
+        "remove_label": {
+          "type": "string",
+          "__example__": "Remove"
+        },
+        "students": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "uuid-a",
+              "title": "1. Ayesha Bibi"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "remove_students_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.hint}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "remove",
+                "label": "${data.field_label}",
+                "required": true,
+                "data-source": "${data.students}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.remove_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "REMOVE_STUDENTS",
+                    "remove": "${form.remove}"
                   }
                 }
               }
