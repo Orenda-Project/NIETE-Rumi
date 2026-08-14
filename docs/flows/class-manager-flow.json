@@ -2,9 +2,15 @@
   "version": "6.3",
   "data_api_version": "3.0",
   "routing_model": {
-    "CLASSES": ["ADD"],
-    "ADD": ["SUBJECTS"],
-    "SUBJECTS": ["SAVED"],
+    "CLASSES": [
+      "ADD"
+    ],
+    "ADD": [
+      "SUBJECTS"
+    ],
+    "SUBJECTS": [
+      "SAVED"
+    ],
     "SAVED": []
   },
   "screens": [
@@ -18,7 +24,7 @@
         },
         "summary": {
           "type": "string",
-          "__example__": "Grade 4 - A · 2026-2027\nGrade 5 · 2026-2027"
+          "__example__": "Grade 4 - A \u00b7 2026-2027\nGrade 5 \u00b7 2026-2027"
         },
         "add_label": {
           "type": "string",
@@ -96,6 +102,58 @@
               "title": "Grade 5"
             }
           ]
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "A",
+              "title": "A"
+            },
+            {
+              "id": "B",
+              "title": "B"
+            }
+          ]
+        },
+        "shifts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "morning",
+              "title": "Morning"
+            },
+            {
+              "id": "evening",
+              "title": "Evening"
+            }
+          ]
+        },
+        "shift_label": {
+          "type": "string",
+          "__example__": "Shift"
         }
       },
       "layout": {
@@ -117,12 +175,18 @@
                 "data-source": "${data.grades}"
               },
               {
-                "type": "TextInput",
+                "type": "Dropdown",
                 "name": "section",
                 "label": "${data.section_label}",
                 "required": false,
-                "input-type": "text",
-                "helper-text": "${data.section_helper}"
+                "data-source": "${data.sections}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "shift",
+                "label": "${data.shift_label}",
+                "required": true,
+                "data-source": "${data.shifts}"
               },
               {
                 "type": "Footer",
@@ -132,7 +196,8 @@
                   "payload": {
                     "screen": "ADD",
                     "grade": "${form.grade}",
-                    "section": "${form.section}"
+                    "section": "${form.section}",
+                    "shift": "${form.shift}"
                   }
                 }
               }

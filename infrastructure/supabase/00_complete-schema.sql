@@ -4516,6 +4516,43 @@ CREATE INDEX IF NOT EXISTS idx_lp_downloads_tick
 
 CREATE INDEX IF NOT EXISTS idx_lp_downloads_user_time
   ON niete_lp_downloads (user_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS sections (
+    code       TEXT PRIMARY KEY,
+    sort_order SMALLINT NOT NULL DEFAULT 0,
+    is_active  BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS shifts (
+    code       TEXT PRIMARY KEY,
+    sort_order SMALLINT NOT NULL DEFAULT 0,
+    is_active  BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS classes (
+    id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    school_id          UUID NOT NULL REFERENCES schools(id),
+    grade_code         TEXT NOT NULL REFERENCES grade_levels(code),
+    -- Closed vocabulary (A-E as seeded); support adds a row for a school that
+    -- needs another, which a CHECK would have turned into a deploy.
+    section            TEXT REFERENCES sections(code),
+    -- Morning and evening are DIFFERENT classes with different students and
+    -- teachers, so this is part of the identity below. NOT NULL because a
+    -- nullable shift is an "unspecified" third value that merges with neither.
+    shift_code         TEXT NOT NULL DEFAULT 'morning' REFERENCES shifts(code),
+    session_code       TEXT NOT NULL REFERENCES academic_sessions(code),
+    is_active          BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by_user_id UUID REFERENCES users(id),
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- COALESCE is load-bearing: a plain UNIQUE would let unlimited "Grade 4, no
+-- section" rows coexist, because NULLs do not conflict.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_classes_identity
+    ON classes (school_id, grade_code, COALESCE(section, ''), shift_code, session_code)
+    WHERE is_active;
+CREATE INDEX IF NOT EXISTS idx_classes_shift ON classes (shift_code) WHERE is_active;
+CREATE INDEX IF NOT EXISTS idx_classes_school  ON classes (school_id) WHERE is_active;
+CREATE INDEX IF NOT EXISTS idx_classes_session ON classes (session_code) WHERE is_active;
 
 CREATE INDEX IF NOT EXISTS idx_lp_downloads_lesson_time
   ON niete_lp_downloads (lesson_id, created_at DESC);
@@ -4523,6 +4560,22 @@ CREATE INDEX IF NOT EXISTS idx_lp_downloads_lesson_time
 COMMENT ON TABLE niete_lp_downloads IS
   'One row per LP delivery ATTEMPT (sent or failed). Drives the ✓/○ resume tick '
   'on the LP Flow lesson screen and records which asset version each teacher got.';
+CREATE TABLE IF NOT EXISTS class_teacher_subjects (
+    class_teacher_id UUID NOT NULL REFERENCES class_teachers(id) ON DELETE CASCADE,
+    subject_code     TEXT NOT NULL REFERENCES subjects(code),
+    -- Denormalised from class_teachers so the unique index below can span
+    -- (class, subject): one teacher per subject per class. CONSEQUENCE: ending an
+    -- assignment must DELETE its subject rows, or the subject stays locked to a
+    -- teacher who no longer teaches the class.
+    class_id         UUID REFERENCES classes(id) ON DELETE CASCADE,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (class_teacher_id, subject_code)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_one_teacher_per_class_subject
+    ON class_teacher_subjects (class_id, subject_code)
+    WHERE class_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_class_teacher_subjects_subject
+    ON class_teacher_subjects (subject_code);
 
 -- ── lp_feedback: reserve the voicenote follow-up column ─────────────────────
 -- Voicenotes are NOT live for NIETE, so the post-LP quiz asks about the lesson

@@ -38,6 +38,14 @@ const SUBJECT_ROWS = [
   { code: 'maths', parent_code: null, aliases: ['maths'], is_active: true },
   { code: 'urdu', parent_code: null, aliases: ['urdu'], is_active: true },
 ];
+const SECTION_ROWS = [
+  { code: 'A', sort_order: 1, is_active: true },
+  { code: 'B', sort_order: 2, is_active: true },
+];
+const SHIFT_ROWS = [
+  { code: 'morning', sort_order: 1, is_active: true },
+  { code: 'evening', sort_order: 2, is_active: true },
+];
 const SESSION_ROWS = [
   { code: '2025-2026', kind: 'annual', starts_on: '2025-08-01', ends_on: '2026-07-31', is_active: true },
   { code: '2026-2027', kind: 'annual', starts_on: '2026-08-01', ends_on: '2027-07-31', is_active: true },
@@ -51,6 +59,8 @@ function boot({ language = 'en', schoolId = SCHOOL, extra = {} } = {}) {
     grade_levels: GRADE_ROWS,
     subjects: SUBJECT_ROWS,
     academic_sessions: SESSION_ROWS,
+    sections: SECTION_ROWS,
+    shifts: SHIFT_ROWS,
     classes: [],
     class_teachers: [],
     class_teacher_subjects: [],
@@ -184,7 +194,7 @@ describe('SUBJECTS → SAVED', () => {
 
     expect(mockDb._tables.student_lists).toHaveLength(1);
     expect(mockDb._tables.student_lists[0]).toMatchObject({
-      user_id: TEACHER, class_name: 'Grade 4', academic_year: '2026-2027',
+      user_id: TEACHER, class_name: 'Grade 4 - A', academic_year: '2026-2027',
       class_id: mockDb._tables.classes[0].id,
     });
   });
@@ -255,5 +265,113 @@ describe('every screen this endpoint returns is declared by the Flow', () => {
       (await ep.handleClassManagerDataExchange(TEACHER, 'NONSENSE', {})).screen,
     ];
     expect(returned.filter((s) => !declared.has(s))).toEqual([]);
+  });
+});
+
+describe('the ADD screen offers closed vocabularies, not free text', () => {
+  it('offers the seeded sections as a picker', async () => {
+    // A typed section would now be REFUSED by the database, so the picker is not a
+    // nicety — free text here would be an error loop.
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'CLASSES', {});
+    expect(res.data.sections.map((s) => s.id)).toEqual(['A', 'B']);
+  });
+
+  it('tells her what to do when her section is not listed', async () => {
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'CLASSES', {});
+    expect(res.data.section_helper).toMatch(/support/i);
+  });
+
+  it('offers both shifts, labelled', async () => {
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'CLASSES', {});
+    expect(res.data.shifts).toEqual([
+      { id: 'morning', title: 'Morning' },
+      { id: 'evening', title: 'Evening' },
+    ]);
+  });
+
+  it('labels the shifts in Urdu for an Urdu teacher', async () => {
+    boot({ language: 'ur' });
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'CLASSES', {});
+    expect(res.data.shifts.find((s) => s.id === 'evening').title).toBe('شام');
+  });
+});
+
+describe('shift reaches the class', () => {
+  it('names the evening shift on the subjects heading', async () => {
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'ADD', {
+      grade: 'grade_4', section: 'A', shift: 'evening',
+    });
+    expect(res.data.heading).toBe('What do you teach in Grade 4 - A (Evening)?');
+  });
+
+  it('leaves morning unmarked, since it is the default', async () => {
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'ADD', {
+      grade: 'grade_4', section: 'A', shift: 'morning',
+    });
+    expect(res.data.heading).toBe('What do you teach in Grade 4 - A?');
+  });
+
+  it('stores the evening shift on the class', async () => {
+    await ep.handleClassManagerDataExchange(TEACHER, 'ADD', { grade: 'grade_4', section: 'A', shift: 'evening' });
+    await ep.handleClassManagerDataExchange(TEACHER, 'SUBJECTS', { subjects: [] });
+    expect(mockDb._tables.classes[0].shift_code).toBe('evening');
+  });
+
+  it('falls back to morning when the Flow sends a shift we do not know', async () => {
+    // A stale published asset could offer a shift the table has since lost.
+    await ep.handleClassManagerDataExchange(TEACHER, 'ADD', { grade: 'grade_4', shift: 'night' });
+    await ep.handleClassManagerDataExchange(TEACHER, 'SUBJECTS', { subjects: [] });
+    expect(mockDb._tables.classes[0].shift_code).toBe('morning');
+  });
+});
+
+describe('SAVED tells the truth when a claim is declined', () => {
+  const OTHER = 'teacher-uuid-2';
+
+  async function colleagueAlreadyTeachesMaths() {
+    const svc = require('../../bot/shared/services/classes/class.service');
+    const { class: cls } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: OTHER,
+    });
+    await svc.assignTeacher({
+      classId: cls.id, teacherUserId: OTHER, isClassTeacher: true, subjectCodes: ['maths'],
+    });
+    return cls;
+  }
+
+  it('says the class was saved AND that the subject is taken', async () => {
+    await colleagueAlreadyTeachesMaths();
+    await ep.handleClassManagerDataExchange(TEACHER, 'ADD', { grade: 'grade_4', section: 'A' });
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'SUBJECTS', { subjects: ['maths'] });
+
+    expect(res.screen).toBe('SAVED');
+    // Additive, not a replacement: the class WAS saved, and copy that reads as
+    // failure would send her back to create it again.
+    expect(res.data.detail).toContain('Grade 4 - A, 2026-2027.');
+    expect(res.data.detail).toMatch(/already teaches Mathematics/);
+  });
+
+  it('says the class was saved AND that the class-teacher role is taken', async () => {
+    await colleagueAlreadyTeachesMaths();
+    await ep.handleClassManagerDataExchange(TEACHER, 'ADD', { grade: 'grade_4', section: 'A' });
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'SUBJECTS', {
+      subjects: ['urdu'], is_class_teacher: true,
+    });
+
+    expect(res.data.detail).toContain('Grade 4 - A, 2026-2027.');
+    expect(res.data.detail).toMatch(/already the class teacher/);
+  });
+
+  it('still joins her to the class, with the subject that was free', async () => {
+    const cls = await colleagueAlreadyTeachesMaths();
+    await ep.handleClassManagerDataExchange(TEACHER, 'ADD', { grade: 'grade_4', section: 'A' });
+    await ep.handleClassManagerDataExchange(TEACHER, 'SUBJECTS', { subjects: ['maths', 'urdu'] });
+
+    expect(mockDb._tables.classes).toHaveLength(1);
+    const mine = mockDb._tables.class_teachers.find((r) => r.teacher_user_id === TEACHER);
+    expect(mine).toBeTruthy();
+    const hers = mockDb._tables.class_teacher_subjects.filter((r) => r.class_teacher_id === mine.id);
+    expect(hers.map((r) => r.subject_code)).toEqual(['urdu']);
   });
 });

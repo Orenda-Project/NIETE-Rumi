@@ -230,3 +230,72 @@ export interface LeaderTeacherDetail {
     maxPoints: number | null;
   }>;
 }
+
+
+// ---------------------------------------------------------------------------
+// Classes
+//
+// `gradeLabel` / `subjects[].label` arrive already localised for this teacher —
+// the labels live in ONE catalog in the bot process, so the portal never keeps a
+// second copy of the grade or subject vocabulary. `gradeCode` / `subjects[].code`
+// are the canonical reference-table codes and are what any logic should key on.
+// ---------------------------------------------------------------------------
+
+export interface ClassSubject {
+  code: string;
+  label: string;
+}
+
+export interface TeacherClass {
+  classId: string;
+  gradeCode: string;
+  gradeLabel: string;
+  section: string | null;
+  shiftCode: string;
+  sessionCode: string;
+  isClassTeacher: boolean;
+  /** "Grade 4 - A", ready to render. */
+  display: string;
+  subjects: ClassSubject[];
+}
+
+export interface ClassOption {
+  code: string;
+  label: string;
+}
+
+export interface ClassesResponse {
+  success: boolean;
+  classes: TeacherClass[];
+  /** False when the account cannot yet have a class created (no school on file). */
+  canAdd: boolean;
+  currentSession: string | null;
+  grades: ClassOption[];
+  subjects: ClassOption[];
+  /** Closed vocabularies. A section support adds appears here without a deploy. */
+  sections: ClassOption[];
+  shifts: ClassOption[];
+}
+
+export interface CreateClassPayload {
+  gradeCode: string;
+  section?: string | null;
+  shiftCode?: string;
+  subjectCodes?: string[];
+  isClassTeacher?: boolean;
+}
+
+export interface CreateClassResponse {
+  success: boolean;
+  class?: {
+    classId: string;
+    gradeCode: string;
+    section: string | null;
+    sessionCode: string;
+  };
+  created?: boolean;
+  /** Reported alongside success: the class was saved, these claims were declined. */
+  classTeacherTaken?: boolean;
+  subjectsTaken?: string[];
+  error?: string;
+}

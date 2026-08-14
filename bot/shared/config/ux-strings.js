@@ -384,6 +384,27 @@ const CLASS_FLOW_STRINGS = {
     en: 'Next',
     ur: 'آگے',
   },
+  classShiftLabel: {
+    en: 'Shift',
+    ur: 'شفٹ',
+  },
+  // Sections are a closed set (A-E). The helper text is where a teacher learns
+  // what to do when hers is not listed, so it names the route rather than leaving
+  // her to guess.
+  classSectionHelperClosed: {
+    en: 'Not listed? Ask NIETE support to add it.',
+    ur: 'آپ کا سیکشن موجود نہیں؟ نیٹ سپورٹ سے شامل کروائیں۔',
+  },
+  // Said on the SAVED screen when the class was saved but a claim was declined.
+  // Both are additive: the class IS saved, so the copy must not read as a failure.
+  classSavedRoleTaken: {
+    en: 'Saved. Someone else is already the class teacher for this class.',
+    ur: 'محفوظ ہو گیا۔ اس جماعت کے کلاس ٹیچر پہلے سے کوئی اور ہیں۔',
+  },
+  classSavedSubjectsTaken: {
+    en: 'Saved. Another teacher already teaches {subjects} to this class.',
+    ur: 'محفوظ ہو گیا۔ {subjects} اس جماعت کو پہلے سے کوئی اور پڑھاتے ہیں۔',
+  },
   classSubjectsHeading: {
     en: 'What do you teach in {class}?',
     ur: '{class} میں آپ کیا پڑھاتے ہیں؟',
@@ -481,6 +502,17 @@ const GRADE_LABELS = {
   grade_12:    { en: 'Grade 12', ur: 'جماعت دوازدہم' },
 };
 
+const SHIFT_LABELS = {
+  morning: { en: 'Morning', ur: 'صبح' },
+  evening: { en: 'Evening', ur: 'شام' },
+};
+
+/**
+ * Sections render as their own code — "A" is "A" in both languages, so a label map
+ * would be two identical strings and a drift risk for no gain. Deliberate absence,
+ * not an omission.
+ */
+
 const SUBJECT_LABELS = {
   urdu:              { en: 'Urdu',              ur: 'اردو' },
   english:           { en: 'English',           ur: 'انگریزی' },
@@ -514,6 +546,11 @@ function gradeLabelFor(code, who) {
 /** @see labelFrom */
 function subjectLabelFor(code, who) {
   return labelFrom(SUBJECT_LABELS, code, who);
+}
+
+/** @see labelFrom */
+function shiftLabelFor(code, who) {
+  return labelFrom(SHIFT_LABELS, code, who);
 }
 
 const PLACEHOLDER = /\{(\w+)\}/g;
@@ -563,5 +600,11 @@ module.exports = {
   resolveUx,
   clampLanguage,
   languageLabelFor,
+  GRADE_LABELS,
+  SUBJECT_LABELS,
+  SHIFT_LABELS,
+  gradeLabelFor,
+  subjectLabelFor,
+  shiftLabelFor,
   FLOOR,
 };
