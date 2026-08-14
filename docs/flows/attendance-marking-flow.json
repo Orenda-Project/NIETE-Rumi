@@ -29,10 +29,6 @@
       "LEAVE"
     ],
     "LEAVE": [
-      "LEAVE_TYPE",
-      "CONFIRM"
-    ],
-    "LEAVE_TYPE": [
       "CONFIRM"
     ],
     "CONFIRM": [
@@ -410,85 +406,6 @@
                   "payload": {
                     "screen": "LEAVE",
                     "on_leave": "${form.on_leave}"
-                  }
-                }
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "id": "LEAVE_TYPE",
-      "title": "Type of leave",
-      "data": {
-        "heading": {
-          "type": "string",
-          "__example__": "1 person on leave"
-        },
-        "names": {
-          "type": "string",
-          "__example__": "Hamza Ali"
-        },
-        "leave_types": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "title": {
-                "type": "string"
-              }
-            }
-          },
-          "__example__": [
-            {
-              "id": "casual",
-              "title": "Casual"
-            },
-            {
-              "id": "sick",
-              "title": "Sick"
-            },
-            {
-              "id": "official",
-              "title": "Official duty"
-            }
-          ]
-        }
-      },
-      "layout": {
-        "type": "SingleColumnLayout",
-        "children": [
-          {
-            "type": "Form",
-            "name": "leave_form",
-            "children": [
-              {
-                "type": "TextHeading",
-                "text": "${data.heading}"
-              },
-              {
-                "type": "TextBody",
-                "text": "${data.names}"
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "leave_type",
-                "label": "Type of leave",
-                "required": true,
-                "data-source": "${data.leave_types}"
-              },
-              {
-                "type": "Footer",
-                "label": "Continue",
-                "on-click-action": {
-                  "name": "data_exchange",
-                  "payload": {
-                    "screen": "LEAVE_TYPE",
-                    "leave_type": "${form.leave_type}"
                   }
                 }
               }

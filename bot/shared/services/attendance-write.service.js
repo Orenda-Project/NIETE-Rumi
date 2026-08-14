@@ -195,6 +195,17 @@ async function markTeachers({
     marked_by_user_id: principalUserId,
   }));
 
+  // Was this day already on file? The upsert below cannot tell us afterwards, so ask
+  // first. Students got `replaced` from the start; the principal path overwrote
+  // silently, so a re-mark looked identical to a first mark (bd-2730).
+  const { data: prior } = await supabase
+    .from('teacher_attendance_records')
+    .select('teacher_id')
+    .eq('school_id', schoolId)
+    .eq('date', date)
+    .limit(1);
+  const replaced = Boolean(prior && prior.length);
+
   // One row per teacher per day — re-marking overwrites rather than duplicating.
   const { error } = await supabase
     .from('teacher_attendance_records')
@@ -205,9 +216,10 @@ async function markTeachers({
     throw new Error('Could not save attendance.');
   }
 
-  logToFile('✅ Teacher attendance saved', { principalUserId, schoolId, date, ...counts });
+  logToFile('✅ Teacher attendance saved', { principalUserId, schoolId, date, ...counts, replaced });
 
   return {
+    replaced,
     summary: counts,
     leaveType: resolvedLeaveType,
     absentNames: resolved.filter((r) => r.status === 'absent').map((r) => personName(r.person)),
