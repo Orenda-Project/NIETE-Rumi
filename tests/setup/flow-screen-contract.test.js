@@ -83,13 +83,31 @@ describe('flow screen contract', () => {
         const initFn = src.match(/async function (handle\w*Init)\s*\(/);
         expect(initFn).not.toBeNull();
 
-        // Slice from the INIT declaration to the next top-level function.
-        const from = src.indexOf(initFn[0]);
-        const rest = src.slice(from + initFn[0].length);
-        const nextFn = rest.search(/\n(?:async )?function \w+\s*\(/);
-        const body = nextFn === -1 ? rest : rest.slice(0, nextFn);
+        /** Body of a named function, up to the next top-level declaration. */
+        const bodyOf = (name) => {
+          const decl = src.match(new RegExp(`(?:async )?function ${name}\\s*\\(`));
+          if (!decl) return '';
+          const from = src.indexOf(decl[0]) + decl[0].length;
+          const rest = src.slice(from);
+          const next = rest.search(/\n(?:async )?function \w+\s*\(/);
+          return next === -1 ? rest : rest.slice(0, next);
+        };
 
-        const returned = [...new Set([...body.matchAll(/screen:\s*'([A-Z_]+)'/g)].map((m) => m[1]))];
+        // INIT may DELEGATE rather than answer inline — since bd-2726 the marking
+        // endpoint's INIT is `return renderClassScreen(...)`. Follow one level of
+        // `return someFn(...)` so the guard sees the screens actually produced.
+        // Without this the body has no `screen:` literal and the check silently
+        // asserts nothing.
+        const screensIn = (body) => [...body.matchAll(/screen:\s*'([A-Z_]+)'/g)].map((m) => m[1]);
+        const initBody = bodyOf(initFn[1]);
+        const delegates = [...initBody.matchAll(/return\s+(\w+)\s*\(/g)]
+          .map((m) => m[1])
+          .filter((n) => /^(render|handle)/.test(n) && n !== initFn[1]);
+
+        const returned = [...new Set([
+          ...screensIn(initBody),
+          ...delegates.flatMap((n) => screensIn(bodyOf(n))),
+        ])];
         expect(returned.length).toBeGreaterThan(0);
 
         const illegal = returned.filter((s) => !entry.includes(s));

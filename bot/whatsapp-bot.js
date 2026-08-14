@@ -190,7 +190,9 @@ async function handleAttendanceTap(interactiveId, from, user) {
     return false;
   }
 
-  if (decision.action === 'MARK_TEACHERS' || decision.action === 'MARK_STUDENTS') {
+  // bd-2726: one Flow, opened with the bare user id; it picks class, date and method.
+  if (decision.action === 'OPEN_REGISTER'
+      || decision.action === 'MARK_TEACHERS' || decision.action === 'MARK_STUDENTS') {
     if (!constants.ATTENDANCE_MARKING_FLOW_ID) {
       await WhatsAppService.sendMessage(from, 'Attendance is not available on this number yet.');
       return true;

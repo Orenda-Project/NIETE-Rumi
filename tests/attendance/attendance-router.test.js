@@ -7,7 +7,9 @@
  *     runs a class is ASKED rather than guessed. The invariant that matters: a
  *     principal is never silently dropped into the student flow.
  *  2. A teacher with no class yet is handed to /class, which OWNS class creation
- *     since bd-2724. The old flow said "You haven't set up any classes yet" and
+ *     since bd-2724. And since bd-2726 route() no longer picks a class at all —
+ *     the Flow's CLASS screen does, so route() only decides whether there is
+ *     anything markable. The old flow said "You haven't set up any classes yet" and
  *     then, because the Flow id was unset, "class setup is not available right
  *     now" — a dead end with no exit. Attendance no longer creates classes at all.
  *  3. A teacher with several classes picks one. WhatsApp caps reply buttons at 3,
@@ -37,8 +39,13 @@ function db({ user = {}, classes = [], roster = [{ id: 's1', student_name: 'Alee
     if (table === 'student_lists') {
       return {
         select: () => ({
-          eq: () => ({
+          eq: (col, val) => ({
+            // loadClasses: .eq('user_id').eq('is_active').order()
             eq: () => ({ order: () => Promise.resolve({ data: classes, error: null }) }),
+            // loadList: .eq('id').maybeSingle() — carries class_id, the bridge
+            maybeSingle: () => Promise.resolve({
+              data: classes.find((c) => c.id === val) || null, error: null,
+            }),
           }),
         }),
       };
@@ -56,50 +63,52 @@ function db({ user = {}, classes = [], roster = [{ id: 's1', student_name: 'Alee
 
 beforeEach(() => jest.clearAllMocks());
 
-describe('route by role', () => {
-  it('a principal with a school marks teachers', async () => {
-    db({ user: { id: 'p1', role: 'principal', school_id: 'sch1' }, classes: [] });
-    const r = await router.route('p1');
-    expect(r.action).toBe('MARK_TEACHERS');
-    expect(r.flowToken).toBe('p1:teacher:sch1');
-  });
-
-  it('a plain teacher with one class marks students', async () => {
+describe('route — one Flow, opened directly', () => {
+  // bd-2726: the picker moved onto the Flow's CLASS screen, because chat allows 3
+  // reply buttons or 10 list rows TOTAL and a teacher with 20 class-sections had ten
+  // unreachable. route()'s only job now is deciding whether there is anything to
+  // mark at all. What the picker SHOWS is covered by flow-preamble.test.js.
+  it('opens the register for a teacher with classes, with a bare user id token', async () => {
     db({ user: { id: 't1', role: 'teacher' }, classes: [{ id: 'c1', class_name: 'Grade 5', section: 'A' }] });
     const r = await router.route('t1');
-    expect(r.action).toBe('MARK_STUDENTS');
-    expect(r.flowToken).toBe('t1:student:c1');
+    expect(r.action).toBe('OPEN_REGISTER');
+    expect(r.flowToken).toBe('t1');
   });
 
-  it('a principal who also runs a class is ASKED, never guessed', async () => {
+  it('opens the register for a principal with a school, even with no classes', async () => {
+    db({ user: { id: 'p1', role: 'principal', school_id: 'sch1' }, classes: [] });
+    const r = await router.route('p1');
+    expect(r.action).toBe('OPEN_REGISTER');
+    expect(r.flowToken).toBe('p1');
+  });
+
+  it('does not ask "teachers or students?" in chat any more — that is the first Dropdown option', async () => {
     db({ user: { id: 'p2', role: 'principal', school_id: 'sch1' }, classes: [{ id: 'c9', class_name: 'Grade 4' }] });
     const r = await router.route('p2');
-    expect(r.action).toBe('ASK_SUBJECT');
-    expect(r.message).toMatch(/teacher/i);
-    expect(r.message).toMatch(/student/i);
+    expect(r.action).toBe('OPEN_REGISTER');
+    expect(r.action).not.toBe('ASK_SUBJECT');
   });
 
-  it('a principal is NEVER routed into the student flow silently', async () => {
-    for (const classes of [[], [{ id: 'c1', class_name: 'Grade 1' }], [{ id: 'c1' }, { id: 'c2' }]]) {
-      db({ user: { id: 'p3', role: 'principal', school_id: 'sch1' }, classes });
-      const r = await router.route('p3');
-      expect(r.action).not.toBe('MARK_STUDENTS');
+  it('never emits a chat class picker, at any class count', async () => {
+    for (const n of [1, 3, 4, 14, 20]) {
+      db({
+        user: { id: 't9', role: 'teacher' },
+        classes: Array.from({ length: n }, (_, i) => ({ id: `c${i}`, class_name: `Grade ${i}` })),
+      });
+      const r = await router.route('t9');
+      expect(['ASK_CLASS_BUTTONS', 'ASK_CLASS_LIST']).not.toContain(r.action);
+      expect(r.action).toBe('OPEN_REGISTER');
     }
   });
 
-  it('a principal with no school is told what is missing, not shown a blank list', async () => {
+  it('a principal with no school and no classes is told what is missing', async () => {
     db({ user: { id: 'p4', role: 'principal', school_id: null }, classes: [] });
     const r = await router.route('p4');
     expect(r.action).toBe('NO_SCHOOL');
     expect(r.message).toMatch(/coordinator|not linked/i);
   });
-});
 
-describe('a teacher with no classes is handed to /class', () => {
-  // bd-2724: /class owns class creation now, so a teacher with no class is handed
-  // to the class manager instead of an attendance-owned setup Flow. A school is
-  // required because classes.school_id is NOT NULL.
-  it('hands a teacher with no class to the class manager, not a dead end', async () => {
+  it('hands a teacher with no class to the class manager', async () => {
     db({ user: { id: 't2', role: 'teacher', school_id: 'sch1' }, classes: [] });
     const r = await router.route('t2');
     expect(r.action).toBe('SEND_CLASS_MANAGER');
@@ -107,46 +116,31 @@ describe('a teacher with no classes is handed to /class', () => {
   });
 });
 
-describe('a teacher with several classes picks one', () => {
-  const three = [
-    { id: 'c1', class_name: 'Grade 3', section: 'A' },
-    { id: 'c2', class_name: 'Grade 4', section: null },
-    { id: 'c3', class_name: 'Grade 5', section: 'B' },
-  ];
-
-  it('offers buttons for up to 3', async () => {
-    db({ user: { id: 't3', role: 'teacher' }, classes: three });
-    const r = await router.route('t3');
-    expect(r.action).toBe('ASK_CLASS_BUTTONS');
-    expect(r.buttons).toHaveLength(3);
-    expect(r.buttons[0].id).toBe('att_class_c1');
+describe('the legacy tap paths still work for buttons already on a handset', () => {
+  // A picker message delivered before bd-2726 is still tappable. These paths are no
+  // longer produced, but must not throw when an old button comes back.
+  it('resolves a class tap into a marking token', async () => {
+    db({ user: { id: 't3', role: 'teacher' }, classes: [{ id: 'c1', class_name: 'Grade 3', section: 'A' }] });
+    const r = await router.resolveClassChoice('t3', 'att_class_c1');
+    expect(r.action).toBe('MARK_STUDENTS');
+    expect(r.flowToken).toBe('t3:student:c1');
   });
 
-  it('switches to a LIST at 4+ so the 4th class is reachable', async () => {
-    db({ user: { id: 't4', role: 'teacher' }, classes: [...three, { id: 'c4', class_name: 'Grade 6' }] });
-    const r = await router.route('t4');
-    expect(r.action).toBe('ASK_CLASS_LIST');
-    expect(r.rows).toHaveLength(4);
-    expect(r.rows.map((x) => x.id)).toContain('att_class_c4');
+  it('rejects a tap that is not a class id', async () => {
+    db({ user: { id: 't3', role: 'teacher' }, classes: [] });
+    const r = await router.resolveClassChoice('t3', 'att_subject_student');
+    expect(r.action).toBe('ERROR');
   });
 
-  it('never emits more list rows than WhatsApp allows', async () => {
-    const many = Array.from({ length: 14 }, (_, i) => ({ id: `c${i}`, class_name: `Grade ${i}` }));
-    db({ user: { id: 't5', role: 'teacher' }, classes: many });
-    const r = await router.route('t5');
-    expect(r.rows.length).toBeLessThanOrEqual(10);
-    expect(r.truncated).toBe(true);
-  });
-
-  it('keeps every row title inside the 24-char cap', async () => {
+  it('keeps legacy picker titles inside the 24-char cap', async () => {
     db({
-      user: { id: 't6', role: 'teacher' },
+      user: { id: 'p5', role: 'principal', school_id: 'sch1' },
       classes: Array.from({ length: 4 }, (_, i) => ({
         id: `c${i}`, class_name: 'Higher Secondary (11-12)', section: 'Section Blue',
       })),
     });
-    const r = await router.route('t6');
-    r.rows.forEach((row) => expect(row.title.length).toBeLessThanOrEqual(24));
+    const r = await router.resolveSubjectChoice('p5', 'att_subject_student');
+    r.rows.forEach((row) => expect([...row.title].length).toBeLessThanOrEqual(24));
   });
 });
 

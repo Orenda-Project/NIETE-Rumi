@@ -16,6 +16,9 @@ const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 const { markStudents, markTeachers, personName, LEAVE_TYPES } = require('../services/attendance-write.service');
 
+// Region timezone for the register date. Config-driven, never hardcoded per country.
+const REGISTER_TIME_ZONE = process.env.REGION_TIME_ZONE || 'Asia/Karachi';
+
 const LEAVE_TYPE_OPTIONS = [
   { id: 'casual', title: 'Casual' },
   { id: 'sick', title: 'Sick' },
@@ -26,20 +29,49 @@ const LEAVE_TYPE_OPTIONS = [
 // screens; we only need to remember the roster and the parsed selection.
 const pending = new Map();
 
-/** "<userId>:<subject>:<targetId>" → its parts. */
+/**
+ * "<userId>" | "<userId>:<subject>:<targetId>" → its parts.
+ *
+ * The target is OPTIONAL since bd-2726: the Flow's CLASS screen picks what to mark,
+ * so the bot opens with the bare user id. The composite form still parses, because
+ * a Flow message already delivered to a handset carries the old token and must not
+ * break mid-conversation.
+ */
 function parseToken(flowToken) {
   const [userId, subject, targetId] = String(flowToken || '').split(':');
-  return { userId, subject: subject === 'teacher' ? 'teacher' : 'student', targetId };
+  return {
+    userId,
+    subject: subject === 'teacher' ? 'teacher' : 'student',
+    targetId: targetId || null,
+    picked: Boolean(targetId),
+  };
+}
+
+/**
+ * The register date in the REGION's timezone, not UTC.
+ *
+ * `new Date().toISOString()` is UTC, so for Pakistan (UTC+5) every register marked
+ * before 05:00 local was being dated to the previous day — and prettyDate() then
+ * formatted it in UTC too, so the screen agreed with the wrong date and nothing
+ * looked amiss. Resolved from config rather than hardcoded, because region
+ * behaviour is config-driven here and Tanzania/Yemen sit in different offsets.
+ */
+function regionToday(timeZone = REGISTER_TIME_ZONE) {
+  // en-CA renders as YYYY-MM-DD, which is already the storage format.
+  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' })
+    .format(new Date());
 }
 
 function todayISO() {
-  return new Date().toISOString().split('T')[0];
+  return regionToday();
 }
 
 function prettyDate(iso) {
   const d = new Date(`${iso}T00:00:00Z`);
   return d.toLocaleDateString('en-GB', {
     weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC',
+    // The ISO date is already region-local (regionToday), so it is formatted as a
+    // bare calendar date. Re-applying a zone here would shift it a second time.
   });
 }
 
@@ -144,57 +176,254 @@ async function loadSchoolLabel(schoolId) {
   return data?.name || 'Your school';
 }
 
-/** INIT — load the right roster and render the tap screen. */
+/**
+ * Everything this user can mark, as Dropdown options.
+ *
+ * This is the screen that replaced the chat picker. Chat could offer 3 reply buttons
+ * or 10 list rows TOTAL (whatsapp.service.js refuses more), so a teacher with 20
+ * class-sections had 10 of them permanently unreachable. A Flow Dropdown takes 200.
+ *
+ * The principal's "teachers or students?" question lives here too, as the first
+ * option, because CLASS is the Flow's only entry screen — DATE has an incoming edge
+ * and WhatsApp refuses to OPEN a flow on a screen with incoming nodes (bd-2713), so
+ * a separate staff entry point is not expressible.
+ *
+ * Option ids carry the subject: "teacher:<schoolId>" | "student:<listId>".
+ */
+async function loadMarkables(userId) {
+  const { data: user } = await supabase
+    .from('users').select('id, role, school_id').eq('id', userId).maybeSingle();
+
+  const options = [];
+
+  if (user && user.role === 'principal' && user.school_id) {
+    const staff = await loadStaffRoster(user.school_id, userId);
+    options.push({
+      id: `teacher:${user.school_id}`,
+      title: 'My teachers',
+      description: staff.length ? `${staff.length} on staff` : 'No staff listed yet',
+    });
+  }
+
+  const { data: lists } = await supabase
+    .from('student_lists')
+    .select('id, class_name, section, class_id')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .order('created_at');
+
+  for (const row of lists || []) {
+    const roster = await loadStudentRoster(row.id, row);
+    options.push({
+      id: `student:${row.id}`,
+      title: listLabel(row),
+      description: roster.length ? `${roster.length} students` : 'No students yet',
+    });
+  }
+
+  return { user, options };
+}
+
+/** CLASS — pick what to mark. The Flow's entry screen. */
+async function renderClassScreen(flowToken) {
+  const { userId } = parseToken(flowToken);
+  const { options } = await loadMarkables(userId);
+
+  if (!options.length) {
+    // Nothing to mark at all. Say so on the entry screen rather than opening a
+    // register against nobody; the router normally intercepts this first.
+    return {
+      screen: 'CLASS',
+      data: {
+        heading: 'You do not have any classes yet',
+        class_label: 'Class',
+        classes: [],
+      },
+    };
+  }
+
+  return {
+    screen: 'CLASS',
+    data: {
+      heading: 'Which class are we marking?',
+      class_label: 'Class',
+      classes: options,
+    },
+  };
+}
+
+/** CLASS submitted — remember the choice, then ask for the date. */
+async function handleClassSubmit(flowToken, screenData) {
+  const choice = String((screenData && screenData.class_id) || '');
+  const [subject, targetId] = choice.split(':');
+  if (!targetId) return renderClassScreen(flowToken);
+
+  const { userId } = parseToken(flowToken);
+  const resolved = subject === 'teacher' ? 'teacher' : 'student';
+  pending.set(flowToken, { userId, subject: resolved, targetId });
+
+  return renderDateScreen(flowToken);
+}
+
+/** DATE — any day up to today in the region's timezone. */
+async function renderDateScreen(flowToken) {
+  const ctx = pending.get(flowToken);
+  if (!ctx) return renderClassScreen(flowToken);
+
+  const label = ctx.subject === 'teacher'
+    ? await loadSchoolLabel(ctx.targetId)
+    : listLabel(await loadList(ctx.targetId));
+
+  const today = regionToday();
+  // A term's worth of back-marking is enough; an unbounded past invites typos
+  // that land a register in the wrong academic year.
+  const min = new Date(`${today}T00:00:00Z`);
+  min.setUTCDate(min.getUTCDate() - 90);
+
+  return {
+    screen: 'DATE',
+    data: {
+      heading: label,
+      date_label: 'Date',
+      min_date: min.toISOString().split('T')[0],
+      max_date: today,
+      marked_note: 'Pick today, or any earlier day you missed.',
+    },
+  };
+}
+
+/** DATE submitted — then how they want to mark. */
+async function handleDateSubmit(flowToken, screenData) {
+  const ctx = pending.get(flowToken);
+  if (!ctx) return renderClassScreen(flowToken);
+
+  const raw = (screenData && screenData.register_date) || '';
+  // CalendarPicker returns epoch millis as a string in some clients and
+  // YYYY-MM-DD in others. Accept both; never trust it to be one shape.
+  let date = regionToday();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    date = raw;
+  } else if (/^\d+$/.test(raw)) {
+    date = new Intl.DateTimeFormat('en-CA', {
+      timeZone: REGISTER_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date(Number(raw)));
+  }
+  if (date > regionToday()) date = regionToday();   // never accept a future register
+
+  pending.set(flowToken, { ...ctx, date });
+  return renderMethodScreen(flowToken);
+}
+
+/** METHOD — tap now; voice is not built. */
+async function renderMethodScreen(flowToken) {
+  const ctx = pending.get(flowToken);
+  if (!ctx) return renderClassScreen(flowToken);
+
+  const label = ctx.subject === 'teacher'
+    ? await loadSchoolLabel(ctx.targetId)
+    : listLabel(await loadList(ctx.targetId));
+
+  return {
+    screen: 'METHOD',
+    data: {
+      heading: `${label} · ${prettyDate(ctx.date)}`,
+      method_label: 'How would you like to mark?',
+      // Voice roll-call was deleted on 2026-08-10 (voice-message.handler.js:134).
+      // Offered but disabled, so the option is honest about existing rather than
+      // silently missing — transcription infrastructure is live, the attendance
+      // name-matching layer is not.
+      methods: [
+        { id: 'tap', title: 'Tap to mark', description: 'Tap whoever is away', enabled: true },
+        { id: 'voice', title: 'Voice note (coming soon)', description: 'Not available yet', enabled: false },
+      ],
+    },
+  };
+}
+
+/** METHOD submitted — tap goes to the register; voice says so and stays put. */
+async function handleMethodSubmit(flowToken, screenData) {
+  const ctx = pending.get(flowToken);
+  if (!ctx) return renderClassScreen(flowToken);
+
+  if (((screenData && screenData.method) || 'tap') === 'voice') {
+    const screen = await renderMethodScreen(flowToken);
+    screen.data.method_label = 'Voice marking is not ready yet — choose Tap to mark';
+    return screen;
+  }
+
+  return renderMarkScreen(flowToken);
+}
+
+/**
+ * INIT — the Flow's entry point.
+ *
+ * CLASS is the only screen with no incoming edges, so it is the only screen a Flow
+ * may be OPENED on (bd-2713). A bare "<userId>" token therefore lands on the picker.
+ * A composite "<userId>:<subject>:<targetId>" token still resolves straight to the
+ * register, so Flow messages already sitting on a handset keep working.
+ */
 async function handleMarkingInit(flowToken) {
-  const { userId, subject, targetId } = parseToken(flowToken);
-  const date = todayISO();
-  logToFile('📋 Marking INIT', { userId, subject, targetId });
+  const { userId, subject, targetId, picked } = parseToken(flowToken);
+  logToFile('📋 Marking INIT', { userId, subject, targetId, picked });
 
-  const isTeacherSubject = subject === 'teacher';
-  // One read of the roster row serves both the membership lookup and the label,
-  // so a class-backed list is not fetched twice.
-  const listRow = isTeacherSubject ? null : await loadList(targetId);
+  // ALWAYS the picker. A composite token used to short-circuit straight to the
+  // register, which reintroduced bd-2713 exactly: MARK now has an incoming edge
+  // (METHOD->MARK), so answering it at INIT would earn
+  //   invalid-screen-transition: The first screen -[MARK] ... already have
+  //   incoming nodes found in the routing model
+  // and strand the teacher. flow-screen-contract caught this before it shipped.
+  //
+  // CLASS is the only entry screen, so an already-delivered Flow message costs one
+  // extra tap rather than failing. The token's target is deliberately not used to
+  // skip ahead — there is no legal screen to skip to.
+  if (picked) logToFile('📋 Legacy composite token — entering at the picker', { userId, subject, targetId });
+  return renderClassScreen(flowToken);
+}
+
+/** The register itself — roster loaded for whatever was picked. */
+async function renderMarkScreen(flowToken) {
+  const ctx = pending.get(flowToken);
+  if (!ctx) return renderClassScreen(flowToken);
+
+  const isTeacherSubject = ctx.subject === 'teacher';
+  const listRow = isTeacherSubject ? null : await loadList(ctx.targetId);
   const people = isTeacherSubject
-    ? await loadStaffRoster(targetId, userId)
-    : await loadStudentRoster(targetId, listRow);
+    ? await loadStaffRoster(ctx.targetId, ctx.userId)
+    : await loadStudentRoster(ctx.targetId, listRow);
 
-  const label = isTeacherSubject ? await loadSchoolLabel(targetId) : listLabel(listRow);
+  const label = isTeacherSubject ? await loadSchoolLabel(ctx.targetId) : listLabel(listRow);
 
   if (!people.length) {
     // Say what is missing and who can fix it — never a blank list.
     //
-    // MARK, not CONFIRM. WhatsApp refuses to OPEN a flow on a screen that has
-    // incoming edges in routing_model, and CONFIRM has two (MARK->CONFIRM,
-    // LEAVE_TYPE->CONFIRM). Answering CONFIRM here produced
+    // MARK, not CONFIRM: CONFIRM has incoming edges (MARK->CONFIRM,
+    // LEAVE_TYPE->CONFIRM) and answering it at INIT produced
     //   invalid-screen-transition: The first screen -[CONFIRM] ... already have
     //   incoming nodes found in the routing model
     // so the branch written to be graceful was the only one that hard-failed
-    // (bd-2713). MARK is the sole entry screen; the empty roster rides on it,
-    // exactly as BUG-072's fix did in the main bot (68dc641, Apr 2026) where an
-    // empty data-source rendered fine in production for four months.
+    // (bd-2713). Reaching MARK by navigation is legal, which is why this is safe
+    // here even though CLASS is now the entry screen.
     //
-    // The router now stops this case before the Flow is even sent, so reaching
-    // here means the roster emptied between send and open. `pending` is
-    // deliberately NOT set: submitting re-runs INIT and re-shows this message
-    // rather than attempting a write against nobody.
+    // `pending` keeps the context but no roster, so submitting re-renders this
+    // rather than writing a register against nobody.
     return {
       screen: 'MARK',
       data: {
         heading: isTeacherSubject ? 'No teachers listed for your school yet' : 'No students in this class yet',
         subject_note: isTeacherSubject
           ? 'Your NIETE coordinator needs to link staff to your school before you can mark them.'
-          : 'Say "edit class" to add students, then mark attendance.',
+          : 'Add students from /class, then mark attendance.',
         roster: [],
       },
     };
   }
 
-  pending.set(flowToken, { userId, subject, targetId, date, people });
+  pending.set(flowToken, { ...ctx, people });
 
   return {
     screen: 'MARK',
     data: {
-      heading: `${label} · ${prettyDate(date)}`,
+      heading: `${label} · ${prettyDate(ctx.date)}`,
       subject_note: isTeacherSubject
         ? 'Tap only the teachers who are away. Everyone else is marked present.'
         : 'Tap only the students who are away. Everyone else is marked present.',
@@ -210,7 +439,7 @@ async function handleMarkingInit(flowToken) {
 /** MARK submitted — ask for a leave type only if anyone is on leave. */
 async function handleMarkSubmit(flowToken, screenData) {
   const ctx = pending.get(flowToken);
-  if (!ctx) return handleMarkingInit(flowToken);
+  if (!ctx) return renderClassScreen(flowToken);
 
   const absentIds = screenData?.absent || [];
   const leaveIds = (screenData?.on_leave || []).filter((id) => true);
@@ -235,7 +464,7 @@ async function handleMarkSubmit(flowToken, screenData) {
 /** LEAVE_TYPE submitted. */
 async function handleLeaveTypeSubmit(flowToken, screenData) {
   const ctx = pending.get(flowToken);
-  if (!ctx) return handleMarkingInit(flowToken);
+  if (!ctx) return renderClassScreen(flowToken);
 
   const leaveType = LEAVE_TYPES.includes(screenData?.leave_type) ? screenData.leave_type : 'casual';
   pending.set(flowToken, { ...ctx, leaveType });
@@ -315,6 +544,9 @@ async function handleConfirmSubmit(flowToken) {
 
 async function handleMarkingDataExchange(flowToken, screen, screenData) {
   logToFile('📋 Marking data_exchange', { screen });
+  if (screen === 'CLASS') return handleClassSubmit(flowToken, screenData);
+  if (screen === 'DATE') return handleDateSubmit(flowToken, screenData);
+  if (screen === 'METHOD') return handleMethodSubmit(flowToken, screenData);
   if (screen === 'MARK') return handleMarkSubmit(flowToken, screenData);
   if (screen === 'LEAVE_TYPE') return handleLeaveTypeSubmit(flowToken, screenData);
   if (screen === 'CONFIRM') return handleConfirmSubmit(flowToken);
@@ -323,6 +555,8 @@ async function handleMarkingDataExchange(flowToken, screen, screenData) {
 
 module.exports = {
   handleMarkingInit,
+  renderClassScreen,
+  regionToday,
   handleMarkingDataExchange,
   parseToken,
   prettyDate,
