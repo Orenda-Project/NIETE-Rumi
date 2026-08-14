@@ -120,6 +120,27 @@ are annual and the ambiguity is unreachable.
 
 ---
 
+## 3a. Applying the migration
+
+`V1.1.3` carries **no explicit `BEGIN`/`COMMIT`**, unlike the six migrations before
+it. `npm run migrate` applies migrations through the `exec_sql` RPC, whose body is
+`EXECUTE query` — and Postgres cannot `EXECUTE` a transaction command, so a file
+containing `BEGIN` raises `0A000: EXECUTE of transaction commands is not
+implemented` and never applies.
+
+Atomicity is not lost: a plpgsql function body is itself one transaction, so the
+whole batch still commits or rolls back together. Applying by hand instead (psql,
+or the Supabase SQL editor) runs in autocommit, so wrap it yourself there if you
+want all-or-nothing.
+
+**This affects the other six too.** `V1.0.8`, `V1.0.9`, `V1.0.10`, `V1.1.0`,
+`V1.1.1` and `V1.1.2` all contain `BEGIN;`, so none of them can go through the
+runner as written — which is the likely reason `schema_versions` lags well behind
+the migration files on disk and those changes were applied by hand. Worth fixing
+the same way, but not from this change.
+
+---
+
 ## 4. Promotion and rollover — NOT BUILT
 
 A class ends with its session. Students are then promoted to the next grade, or

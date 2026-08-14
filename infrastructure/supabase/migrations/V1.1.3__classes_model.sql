@@ -99,8 +99,17 @@
 --
 -- Idempotent: every object is IF NOT EXISTS; every seed is ON CONFLICT DO
 -- NOTHING. Re-running is a no-op.
+--
+-- NO EXPLICIT BEGIN/COMMIT, deliberately, and unlike the six migrations before
+-- this one. `npm run migrate` applies these through the `exec_sql` RPC, whose body
+-- is `EXECUTE query` — and Postgres cannot EXECUTE a transaction command, so a
+-- file containing BEGIN raises 0A000 and the migration never applies. Atomicity is
+-- not lost: a plpgsql function body is itself one transaction, so the whole batch
+-- still commits or rolls back together.
+--
+-- (Applying this by hand instead — psql, or the Supabase SQL editor — runs in
+-- autocommit, so wrap it yourself there if you want all-or-nothing.)
 
-BEGIN;
 
 -- ---------------------------------------------------------------------------
 -- 1. academic_sessions — the period a class sits for.
@@ -456,6 +465,5 @@ INSERT INTO academic_sessions (code, kind, starts_on, ends_on) VALUES
     ('2027-2028', 'annual', DATE '2027-08-01', DATE '2028-07-31')
 ON CONFLICT (code) DO NOTHING;
 
-COMMIT;
 
 NOTIFY pgrst, 'reload schema';
