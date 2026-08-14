@@ -144,7 +144,7 @@ CREATE INDEX IF NOT EXISTS idx_academic_sessions_span
 -- already use, so a band-only legacy value resolves to a SET of grades rather
 -- than being silently coerced to one.
 --
--- 14 rows, not the 12 in registration's GRADES_DROPDOWN: that dropdown collapses
+-- 13 rows, not the 12 in registration's GRADES_DROPDOWN: that dropdown collapses
 -- 11 and 12 into a single `higher_secondary` option, which is fine for "what a
 -- teacher teaches" but wrong for a class — a class sits at ONE grade. So 11 and
 -- 12 are real rows here and `higher_secondary` is their shared band.
@@ -400,7 +400,7 @@ BEGIN
 END$$;
 
 -- ---------------------------------------------------------------------------
--- 10. SEED — grade_levels (14).
+-- 10. SEED — grade_levels (13).
 --
 -- Codes match registration's existing GRADES_DROPDOWN ids exactly, because
 -- users.grades_taught is already populated with them; inventing new codes here

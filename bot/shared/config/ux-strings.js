@@ -335,6 +335,83 @@ const UX_STRINGS = {
   },
 };
 
+/**
+ * Grade and subject display labels, keyed by the canonical codes in the
+ * `grade_levels` and `subjects` reference tables.
+ *
+ * WHY THESE LIVE HERE AND NOT IN THE DATABASE. The tables hold identity and
+ * structure — code, ordinal, band, aliases — and no copy. Two reasons, both
+ * learned the hard way:
+ *
+ *   1. Field caps are an outage class, and the cap audit measures SOURCE. A label
+ *      stored in a database column is invisible to it, so nothing would have
+ *      caught an over-cap grade name before Meta rejected the message.
+ *   2. Choosing `name_ur` over `name_en` at render time is a second clamp
+ *      implementation, which is the exact structural defect the catalog exists to
+ *      remove.
+ *
+ * Same pattern as languageLabelFor below: derived copy stays next to the one
+ * clamp. A conformance test asserts these key sets equal the seeded codes, so a
+ * subject added to the seed and not here fails the build rather than rendering a
+ * blank picker row.
+ *
+ * Urdu grade names use the standard جماعت + ordinal form (اول، دوم، سوم …) rather
+ * than transliterated digits, which is how the grades are named in Pakistani
+ * classrooms. Every label is inside the 20-code-point button cap, the tightest
+ * teacher-facing field, so these are safe in buttons, list rows and dropdowns
+ * alike.
+ */
+const GRADE_LABELS = {
+  early_years: { en: 'Early Years (KG)', ur: 'ابتدائی سال' },
+  grade_1:     { en: 'Grade 1',  ur: 'جماعت اول' },
+  grade_2:     { en: 'Grade 2',  ur: 'جماعت دوم' },
+  grade_3:     { en: 'Grade 3',  ur: 'جماعت سوم' },
+  grade_4:     { en: 'Grade 4',  ur: 'جماعت چہارم' },
+  grade_5:     { en: 'Grade 5',  ur: 'جماعت پنجم' },
+  grade_6:     { en: 'Grade 6',  ur: 'جماعت ششم' },
+  grade_7:     { en: 'Grade 7',  ur: 'جماعت ہفتم' },
+  grade_8:     { en: 'Grade 8',  ur: 'جماعت ہشتم' },
+  grade_9:     { en: 'Grade 9',  ur: 'جماعت نہم' },
+  grade_10:    { en: 'Grade 10', ur: 'جماعت دہم' },
+  grade_11:    { en: 'Grade 11', ur: 'جماعت یازدہم' },
+  grade_12:    { en: 'Grade 12', ur: 'جماعت دوازدہم' },
+};
+
+const SUBJECT_LABELS = {
+  urdu:              { en: 'Urdu',              ur: 'اردو' },
+  english:           { en: 'English',           ur: 'انگریزی' },
+  maths:             { en: 'Mathematics',       ur: 'ریاضی' },
+  science:           { en: 'General Science',   ur: 'سائنس' },
+  social_studies:    { en: 'Social Studies',    ur: 'معاشرتی علوم' },
+  general_knowledge: { en: 'General Knowledge', ur: 'عمومی معلومات' },
+};
+
+/**
+ * Look up a label from one of the maps above.
+ *
+ * @param {object} map
+ * @param {string} code canonical reference-table code
+ * @param {object|string} [who] a users row, or a bare language code
+ * @returns {string|null} null for an unknown code — a caller that can skip the
+ *          row is better than a picker rendering an empty one.
+ */
+function labelFrom(map, code, who) {
+  const variants = map[code];
+  if (!variants) return null;
+  const lang = clampLanguage(typeof who === 'string' ? who : who?.preferred_language);
+  return variants[lang] ?? variants[FLOOR];
+}
+
+/** @see labelFrom */
+function gradeLabelFor(code, who) {
+  return labelFrom(GRADE_LABELS, code, who);
+}
+
+/** @see labelFrom */
+function subjectLabelFor(code, who) {
+  return labelFrom(SUBJECT_LABELS, code, who);
+}
+
 const PLACEHOLDER = /\{(\w+)\}/g;
 
 /**
@@ -382,5 +459,9 @@ module.exports = {
   resolveUx,
   clampLanguage,
   languageLabelFor,
+  GRADE_LABELS,
+  SUBJECT_LABELS,
+  gradeLabelFor,
+  subjectLabelFor,
   FLOOR,
 };
