@@ -93,9 +93,23 @@ describe('register-all-flows', () => {
   // FLOW_CONFIGS
   // -----------------------------------------------------------------------
   describe('FLOW_CONFIGS', () => {
-    it('exports an array of all 13 registerable flow configurations', () => {
+    // The count is a deliberate tripwire: adding a Flow should force a conscious
+    // update here. It had drifted to 13 against an actual 14 before the class
+    // manager landed, which is the failure mode of a tripwire nobody re-arms.
+    it('exports an array of all 15 registerable flow configurations', () => {
       expect(Array.isArray(FLOW_CONFIGS)).toBe(true);
-      expect(FLOW_CONFIGS).toHaveLength(13);
+      expect(FLOW_CONFIGS).toHaveLength(15);
+    });
+
+    it('gives every flow a unique name, envVar and endpointPath', () => {
+      // Cheap structural guard that does not go stale: a copy-pasted entry that
+      // reuses an envVar would silently overwrite another Flow's registered id.
+      const names = FLOW_CONFIGS.map((f) => f.name);
+      const envVars = FLOW_CONFIGS.map((f) => f.envVar);
+      const paths = FLOW_CONFIGS.filter((f) => f.endpointPath).map((f) => f.endpointPath);
+      expect(new Set(names).size).toBe(names.length);
+      expect(new Set(envVars).size).toBe(envVars.length);
+      expect(new Set(paths).size).toBe(paths.length);
     });
 
     it('includes Reading Assessment as a navigate type with no endpointPath', () => {
