@@ -261,13 +261,20 @@ const UX_STRINGS = {
     ur: 'درجہ',
   },
 
-  // TextArea LABEL — cap 20 code points, and labels clip silently rather than
-  // erroring. "Your comment (optional)" was 23 and would have shipped truncated;
-  // the field is already `required: false`, so "(optional)" earns its place more
-  // than "Your" does.
+  /**
+   * TextArea LABEL — cap 20 code points, and labels clip silently rather than
+   * erroring.
+   *
+   * Says NOTHING about being optional: Meta appends its own "(Optional)" to any
+   * field with `required: false`, so "Comment (optional)" renders to the
+   * principal as "Comment (optional) (Optional)". Exactly the defect recorded
+   * against the old attendance flow ("Section (optional) (Optional)", bd-2532).
+   * The Flow JSON is the single source of the optionality signal; the label is
+   * just the noun.
+   */
   remarkCommentLabel: {
-    en: 'Comment (optional)',
-    ur: 'رائے (اختیاری)',
+    en: 'Comment',
+    ur: 'رائے',
   },
 
   remarkSubmit: {
@@ -288,6 +295,20 @@ const UX_STRINGS = {
   remarkAckSubmitted: {
     en: 'Saved — {teacher} is done. {left}',
     ur: 'محفوظ ہو گیا — {teacher} مکمل۔ {left}',
+  },
+
+  // The post-submit follow-up. ONE button, not two: the principal is done unless
+  // she says otherwise, so "move on" must not require a tap. Anything that is not
+  // this button — a reply, another command, silence — simply falls through to
+  // normal chat. Button title cap is 20 CODE POINTS, the tightest field there is.
+  remarkAnotherPrompt: {
+    en: 'Grade another teacher?',
+    ur: 'کسی اور استاد کا جائزہ لیں؟',
+  },
+
+  remarkAnotherButton: {
+    en: 'Grade another',
+    ur: 'اگلی استاد',
   },
 
   remarkAckMoreLeft: {
