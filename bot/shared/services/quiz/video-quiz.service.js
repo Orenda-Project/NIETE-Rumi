@@ -25,6 +25,15 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const render = require('./video-quiz-render.service');
 const sender = require('./video-quiz-sender.service');
+// bd-2681 — sender.sendPhase() already throttles every message it sends, but
+// this file makes two DIRECT WhatsAppService calls of its own (the "Here we
+// go" opener below and "Question N of M" in sendNextQuestion) that bypassed
+// the throttle entirely. Meta's per-recipient rate limit counts every send
+// regardless of which code path made it, so those two "side door" sends
+// still spent the recipient's real budget while the throttle's own window
+// never learned about them — a real production incident (phone ending 6989,
+// 2026-08-13, 80 minutes after bd-2666 shipped) hit exactly this gap.
+const rateLimiter = require('./video-quiz-rate-limiter.service');
 
 const QUESTIONS_PER_SESSION = 15;
 const OFFER_DELAY_MS = 3000;          // operator spec: 3 s after the video
@@ -400,6 +409,7 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
     await sendLessonFirst(phone, videoId, language);
   }
 
+  await rateLimiter.throttle(phone);
   await WhatsAppService.sendMessage(phone,
     `Here we go — ${chosen.length} questions. Take your time!`);
   await sendNextQuestion(phone, state);
@@ -426,6 +436,7 @@ async function sendNextQuestion(phone, state) {
   const msgs = render.build(q);
   const ctx = { questionId: q.id, sessionId: state.sessionId };
 
+  await rateLimiter.throttle(phone);
   await WhatsAppService.sendMessage(phone,
     `*Question ${state.index + 1} of ${state.questionIds.length}*`);
   await sender.sendPhase(phone, msgs, 'question', ctx);

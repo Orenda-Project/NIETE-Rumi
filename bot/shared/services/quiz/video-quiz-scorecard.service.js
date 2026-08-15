@@ -15,6 +15,11 @@
 
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
+// bd-2681 — this send never went through bd-2666's throttle at all (it isn't
+// routed through video-quiz-sender.service.js's sendPhase()). It's the last
+// message a completing quiz sends to the phone, so it can land right on top
+// of an already-near-full window from the questions that preceded it.
+const rateLimiter = require('./video-quiz-rate-limiter.service');
 
 const TIER_LINE = {
   mastered: 'Brilliant work!',
@@ -59,6 +64,7 @@ async function sendScorecard(phone, { topic, correct, total, pct, grade, subject
   if (!png) return false;
 
   try {
+    await rateLimiter.throttle(phone);
     const ok = await WhatsAppService.sendImageFromBuffer(phone, png, caption);
     return Boolean(ok);
   } catch (err) {
