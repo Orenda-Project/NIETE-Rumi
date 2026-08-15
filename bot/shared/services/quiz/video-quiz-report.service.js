@@ -23,6 +23,7 @@ const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
+const { stripEmphasis, classLabel } = require('../../utils/text-format');
 
 /**
  * bd-2334 — the prefix is load-bearing, not cosmetic.
@@ -42,6 +43,14 @@ const JOB_TYPE = 'quiz_video_report';
 /** The name this job shipped under before bd-2334. Still consumed so any
  *  message already sitting in the queue is not dropped on deploy. */
 const LEGACY_JOB_TYPE = 'video_quiz_report';
+
+/**
+ * RTL (Perso-Arabic-script) quiz languages this report localises for.
+ * NIETE is flat en/ur (root CLAUDE.md language-protocol) — no pa-PK/sd-PK
+ * concept here, unlike the main bot's 5-market region-keyed offer. Ported
+ * from the main bot's bd-2664/bd-2679. See the PlayWriteReports skill.
+ */
+const RTL_LANGS = new Set(['ur']);
 
 const PKT_OFFSET_MIN = 5 * 60;
 
@@ -220,17 +229,41 @@ async function generate(shareCodeId, { reason = 'scheduled' } = {}) {
   const hardest = await hardestQuestions(shareCodeId);
   const unfinished = all.filter((s) => s.status !== 'completed');
 
+  // bd-2664 — the WhatsApp text fallback (only used when the PDF render
+  // fails) previously stayed English even for an Urdu quiz. TX is the same
+  // small chrome-string lookup the PDF template uses (see PlayWriteReports
+  // skill), scoped down to what this plain-text path needs.
+  const TX = RTL_LANGS.has(sc.language) ? {
+    results: (t) => `📊 *کوئز کے نتائج — ${t || 'آپ کا ویڈیو کوئز'}*`,
+    finished: (d, a) => `${a} میں سے ${d} طلبہ نے مکمل کیا۔`,
+    average: (n) => `کلاس اوسط: *${n}%*`,
+    howEach: 'ہر طالب علم کی کارکردگی',
+    reteach: 'دوبارہ پڑھانے کے قابل — سب سے زیادہ غلط:',
+    gotWrong: (n, t) => `${t} میں سے ${n} نے غلط جواب دیا`,
+    notFinished: (names) => `ابھی مکمل نہیں کیا: ${names}`,
+    forTomorrow: '💡 *کل کے لیے*',
+  } : {
+    results: (t) => `📊 *Quiz results — ${t || 'your video quiz'}*`,
+    finished: (d, a) => `${d} of ${a} students finished.`,
+    average: (n) => `Class average: *${n}%*`,
+    howEach: 'How each student did',
+    reteach: '*Worth reteaching* — most missed:',
+    gotWrong: (n, t) => `${n} of ${t} got this wrong`,
+    notFinished: (names) => `*Not finished yet:* ${names}`,
+    forTomorrow: '💡 *For tomorrow*',
+  };
+
   const lines = [
-    `📊 *Quiz results — ${sc.topic || 'your video quiz'}*`,
+    TX.results(sc.topic),
     '',
-    `${done.length} of ${all.length} students finished.`,
-    done.length ? `Class average: *${avg}%*` : '',
+    TX.finished(done.length, all.length),
+    done.length ? TX.average(avg) : '',
     '',
   ];
 
   if (done.length) {
     const sorted = [...done].sort((a, b) => (b.mastery_percentage || 0) - (a.mastery_percentage || 0));
-    lines.push('*How each student did*');
+    lines.push(`*${TX.howEach}*`);
     sorted.forEach((s) => {
       lines.push(`• ${s.student_name || 'Unnamed'}${s.student_class ? ` (${s.student_class})` : ''}`
         + ` — ${s.correct_answers}/${s.total_questions_answered} (${s.mastery_percentage || 0}%)`);
@@ -240,25 +273,26 @@ async function generate(shareCodeId, { reason = 'scheduled' } = {}) {
 
   if (hardest.length) {
     // The part that actually changes tomorrow's lesson.
-    lines.push('*Worth reteaching* — most missed:');
+    lines.push(TX.reteach);
     hardest.forEach((h) => {
       lines.push(`• ${h.question_text}`);
-      lines.push(`   ${h.wrong} of ${h.total} got this wrong`);
+      lines.push(`   ${TX.gotWrong(h.wrong, h.total)}`);
     });
     lines.push('');
   }
 
   if (unfinished.length) {
-    lines.push(`*Not finished yet:* ${unfinished
-      .map((s) => s.student_name || 'Unnamed').join(', ')}`);
+    lines.push(TX.notFinished(unfinished.map((s) => s.student_name || 'Unnamed').join(', ')));
   }
 
   // bd-2335 — the coaching paragraph, grounded in what this class actually got
   // wrong. Generated once and used in both the PDF and the chat message.
+  // bd-2664: language threaded through so a teacher who ran an Urdu quiz
+  // gets Urdu guidance, not an English paragraph glued onto a Urdu report.
   const guidance = done.length
     ? await generateGuidance({
       topic: sc.topic, grade: sc.grade, average: avg,
-      finished: done.length, started: all.length, hardest,
+      finished: done.length, started: all.length, hardest, language: sc.language,
     })
     : null;
 
@@ -271,6 +305,7 @@ async function generate(shareCodeId, { reason = 'scheduled' } = {}) {
     phone: teacher.phone_number, shareCode: sc, students: done, hardest,
     guidance, started: all.length, finished: done.length, average: avg,
     unfinished: unfinished.map((s) => s.student_name || 'Unnamed'),
+    language: sc.language,
   });
 
   if (!sentAsPdf) {
@@ -280,7 +315,7 @@ async function generate(shareCodeId, { reason = 'scheduled' } = {}) {
     await WhatsAppService.sendMessage(teacher.phone_number, summary);
     if (guidance) {
       await WhatsAppService.sendMessage(teacher.phone_number,
-        `💡 *For tomorrow*\n\n${guidance}`);
+        `${TX.forTomorrow}\n\n${guidance}`);
     }
   }
 
@@ -299,7 +334,7 @@ async function generate(shareCodeId, { reason = 'scheduled' } = {}) {
  * caller falls back to the text summary rather than the teacher getting nothing.
  */
 async function sendAsPdf({ phone, shareCode, students, hardest, guidance,
-                           started, finished, average, unfinished }) {
+                           started, finished, average, unfinished, language }) {
   const fs = require('fs');
   const os = require('os');
   const path = require('path');
@@ -312,7 +347,7 @@ async function sendAsPdf({ phone, shareCode, students, hardest, guidance,
       topic: shareCode.topic || 'Video quiz',
       teacherName: shareCode.teacher_name,
       started, finished, average,
-      students, hardest, guidance, unfinished,
+      students, hardest, guidance, unfinished, language,
       generatedAt: new Date().toLocaleDateString('en-GB', {
         day: 'numeric', month: 'short', year: 'numeric',
       }),
@@ -380,7 +415,11 @@ async function generateGuidance(context) {
       // see — the call just rejects and the teacher silently loses the tip.
       max_completion_tokens: 260,
     });
-    const body = res.choices?.[0]?.message?.content?.trim();
+    // bd-2611 — strip markdown here, at the single point guidance is created,
+    // so BOTH surfaces are covered: the PDF and the WhatsApp text fallback.
+    // (In the fallback "**the**" is not even bold — WhatsApp bold is one
+    // asterisk — so the teacher just saw the asterisks.)
+    const body = stripEmphasis(res.choices?.[0]?.message?.content?.trim());
     return body || null;
   } catch (err) {
     logToFile('⚠️ video-quiz: guidance generation failed (report still sends)', {
@@ -550,8 +589,14 @@ async function hardestQuestions(shareCodeId, limit = 3) {
  * Returns null when nothing was missed: there is no honest guidance to give a
  * class that got everything right, and inventing some would train her to skip
  * this section.
+ *
+ * `language` picks the prompt AND the requested output language. The
+ * evidence itself needs no translation — question_text/top_wrong_text/
+ * correct_text/misconception already come from `quiz_questions`, authored in
+ * whatever script the quiz was written in (Urdu quizzes carry Urdu evidence).
+ * Only the instructions-to-the-model and the requested prose language change.
  */
-function buildGuidancePrompt({ topic, grade, average, finished, started, hardest }) {
+function buildGuidancePrompt({ topic, grade, average, finished, started, hardest, language = 'en' }) {
   if (!hardest || !hardest.length) return null;
 
   const evidence = hardest.map((h, i) => {
@@ -568,6 +613,37 @@ function buildGuidancePrompt({ topic, grade, average, finished, started, hardest
     }
     return lines.join('\n');
   }).join('\n\n');
+
+  if (RTL_LANGS.has(language)) {
+    // Gender-neutral throughout (root CLAUDE.md's Urdu broadcast rule) — the
+    // teacher's gender is unknown, so this never uses a 2nd/3rd-person
+    // gendered verb about the teacher. Children are referred to as "بچے",
+    // a gender-neutral plural. Same 3-sentence structure + banned-opener
+    // list as the English prompt, translated in spirit, not word-for-word.
+    return `آپ ایک پاکستانی گریڈ ${grade || 'ابتدائی'} استاد کی کل کے دس منٹ کی `
+      + `منصوبہ بندی میں مدد کر رہے ہیں۔ ان کی کلاس نے ابھی "${topic}" پر ایک کوئز دیا ہے۔\n\n`
+      + `یہاں وہ چیزیں ہیں جو انہوں نے غلط کیں، اور جس غلط جواب پر اکثریت نے اتفاق کیا:\n\n`
+      + `${evidence}\n\n`
+      + `بالکل تین جملے لکھیں، تاکہ استاد انہیں دس سیکنڈ میں پڑھ سکیں۔\n\n`
+      + `پہلا جملہ — وہ ایک چیز بتائیں جس میں زیادہ تر بچے الجھے ہوئے ہیں، ایک سادہ `
+      + `بیان کے طور پر کہ وہ کیا سمجھتے ہیں: "بچے سمجھتے ہیں X، Y ہے۔" سب سے بڑی `
+      + `الجھن چنیں، فہرست نہ بنائیں۔ الفاظ "غلط فہمی"، "طلبہ"، "تصور" یا "سمجھ" `
+      + `استعمال نہ کریں۔\n`
+      + `دوسرا جملہ — ایک سرگرمی جو بورڈ پر دس منٹ میں صرف چاک کے ساتھ کروائی جا `
+      + `سکے۔ اوپر دیے گئے سوالوں میں موجود حقیقی روزمرہ چیزیں استعمال کریں — وہی `
+      + `مخصوص الفاظ، اشیاء یا آوازیں۔ کبھی "مختلف مثالیں" نہ لکھیں؛ خود وہ چیز نام لیں۔\n`
+      + `تیسرا جملہ — وہ ایک سوال جو آخر میں پوچھا جائے تاکہ معلوم ہو کہ بات سمجھ `
+      + `آئی۔ یہ اوپر کے کسی کوئز سوال کی نقل نہیں ہونی چاہیے؛ بچے وہ پہلے دیکھ چکے `
+      + `ہیں۔ وہی خیال دوسرے انداز میں پوچھیں۔\n\n`
+      + `"کل کے سبق میں"، "اس کو حل کرنے کے لیے"، "پر توجہ دیں" یا "شروع کریں" سے `
+      + `شروع نہ کریں۔ بچوں سے شروع کریں۔ کوئی سکور یا گنتی دوبارہ نہ بتائیں — وہ `
+      + `ابھی پڑھ چکے ہیں۔ تعریف نہ کریں۔ اس انداز میں لکھیں جیسے ایک ساتھی وقفے میں `
+      + `جھک کر بات کرتا ہے، نہ کہ جیسے کوئی نصابی کتاب سمجھاتی ہے۔\n`
+      + `مکمل طور پر اردو رسم الخط میں لکھیں، رومن اردو میں ہرگز نہیں۔ صرف وہ انگریزی `
+      + `الفاظ لاطینی رسم الخط میں رہنے دیں جن کا کوئی فطری اردو متبادل نہ ہو (جیسے `
+      + `مضمون کے مخصوص نام)۔ صرف سادہ متن لکھیں۔ کوئی مارک ڈاؤن، ستارے یا انڈر لائن `
+      + `استعمال نہ کریں — یہ PDF اور WhatsApp پیغام دونوں میں سادہ نثر کے طور پر پڑھا جاتا ہے۔`;
+  }
 
   return `You are helping a Grade ${grade || 'primary'} teacher in Pakistan plan `
     + `tomorrow's ten minutes. Her class just took a quiz on "${topic}".\n\n`
@@ -589,12 +665,15 @@ function buildGuidancePrompt({ topic, grade, average, finished, started, hardest
     + `Never begin with "In tomorrow's lesson", "To address this", "Focus on" or `
     + `"Start by". Begin with the children. Do not repeat any score or count back `
     + `to her — she has just read them. Do not praise her or the class. Write the `
-    + `way a colleague leans over at break, not the way a textbook explains.`;
+    + `way a colleague leans over at break, not the way a textbook explains.\n`
+    + `Write PLAIN TEXT only. No markdown, no asterisks, no underscores, no `
+    + `bold — she reads this as plain prose in a PDF and in a WhatsApp message, `
+    + `where **stars** show up as literal stars.`;
 }
 
 module.exports = {
   JOB_TYPE, LEGACY_JOB_TYPE, scheduleForShareCode, maybeSendEarly, generate,
   hardestQuestions, reportTargetUtc, shouldSendEarly, teacherFacing,
-  buildGuidancePrompt, generateGuidance,
+  buildGuidancePrompt, generateGuidance, stripEmphasis, classLabel,
   CLUSTER_THRESHOLD,
 };
