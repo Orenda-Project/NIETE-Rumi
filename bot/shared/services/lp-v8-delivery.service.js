@@ -189,6 +189,20 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
       subject: book.subject_key,
       type: 'lesson_plan',
       content: {
+        // TOP LEVEL: exactly the keys lp-feedback.service.handleFeedbackButton
+        // snapshots onto the lp_feedback row. Nesting these only under `v8`
+        // would land every v8 feedback row with NULL context — the service
+        // being "ported" says nothing about the two agreeing on a shape.
+        chapter_number: chapter.number,
+        segment_number: lesson.segment_index,
+        lp_variant: LP_VARIANT,
+        grade: book.grade,
+        subject: book.subject_key,
+        // Voicenotes are NOT live for NIETE, so the quiz covers the lesson plan
+        // only; lp_feedback.useful_component (migration 018) is reserved for
+        // when they are.
+        trigger_mode: 'after_pdf_only',
+        // Provenance detail, v8-specific.
         v8: {
           lesson_id: lessonId,
           version_stamp: asset.version_stamp,

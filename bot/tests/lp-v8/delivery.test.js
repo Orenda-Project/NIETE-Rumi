@@ -253,3 +253,38 @@ describe('availability + tick lookups', () => {
     expect([...(await Delivery.downloadedLessonIds('nobody'))]).toEqual([]);
   });
 });
+
+describe('feedback round-trip — the lesson_plans.content contract (bd-zc9k7)', () => {
+  // lp-feedback.service.handleFeedbackButton snapshots context off
+  // lesson_plans.content at the TOP level (meta.chapter_number, meta.grade,
+  // meta.lp_variant, …). If the v8 delivery only nests them under content.v8,
+  // every v8 feedback row lands with NULLs — a wiring gap that no amount of
+  // "the service is ported" would have caught.
+  const TOP_LEVEL_KEYS = ['chapter_number', 'segment_number', 'lp_variant', 'grade', 'subject'];
+
+  test('content carries the keys the feedback reader actually reads', async () => {
+    await Delivery.deliverV8Lesson({ userId: 'user-1', lessonId: 'grade_1_english_ch1_seg3' });
+    const { content } = mockInserts.lesson_plans[0];
+    for (const k of TOP_LEVEL_KEYS) {
+      expect(content).toHaveProperty(k);
+      expect(content[k]).not.toBeNull();
+    }
+    expect(content.chapter_number).toBe(1);
+    expect(content.segment_number).toBe(3);
+    expect(content.lp_variant).toBe('niete_v8_segment');
+    expect(content.grade).toBe(1);
+    expect(content.subject).toBe('english');
+  });
+
+  test('the v8 detail block is still there for provenance', async () => {
+    await Delivery.deliverV8Lesson({ userId: 'user-1', lessonId: 'grade_1_english_ch1_seg3' });
+    const { content } = mockInserts.lesson_plans[0];
+    expect(content.v8.lesson_id).toBe('grade_1_english_ch1_seg3');
+    expect(content.v8.content_hash).toBe('aabbccddeeff');
+  });
+
+  test('trigger_mode is after_pdf_only — voicenotes are not live for NIETE', async () => {
+    await Delivery.deliverV8Lesson({ userId: 'user-1', lessonId: 'grade_1_english_ch1_seg3' });
+    expect(mockInserts.lesson_plans[0].content.trigger_mode).toBe('after_pdf_only');
+  });
+});
