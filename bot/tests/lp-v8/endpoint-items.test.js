@@ -97,7 +97,7 @@ describe('grade + subject screens', () => {
     expect(items[0]['on-click-action'].payload).toEqual({ step: 'grade', grade: '1' });
     for (const i of items) expect(cps(i['main-content'].title)).toBeLessThanOrEqual(TITLE_CAP);
     // The metadata is how a teacher can tell the two corpora apart at a glance.
-    expect(items[2]['main-content'].metadata).toMatch(/Taleemabad/i);
+    expect(items[2]['main-content'].metadata).toMatch(/Primary curriculum/i);
     expect(items[7]['main-content'].metadata).toMatch(/Oxbridge/i);
   });
 
