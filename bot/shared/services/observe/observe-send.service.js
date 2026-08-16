@@ -26,6 +26,8 @@ const BTN = {
   later: 'observe_send_later_',
   confirm: 'observe_send_confirm_',
   cancel: 'observe_send_cancel_',
+  // bd-2673 — flip the report between the market's two languages
+  lang: 'observe_send_lang_',
 };
 const TEMPLATE_PAYLOAD_PREFIX = 'observe_report_';
 
@@ -56,8 +58,24 @@ function clampToMarket(lang) {
  * @param {string} coachLang
  * @returns {Promise<'ur'|'en'|'sw'>}
  */
+function otherLang(lang) {
+  const { offer } = marketLangConfig();
+  const i = offer.indexOf(lang);
+  if (i === -1) return offer[0];
+  return offer[(i + 1) % offer.length];
+}
+
 async function resolveTeacherLang(delivery, coachLang) {
   const { fallback } = marketLangConfig();
+  // bd-2673 (Riffat R36): the coach's explicit pick wins for THIS report. She
+  // knows the teacher in the room; a teacher who never set a preference would
+  // otherwise inherit the COACH's language. Clamped like everything else, so a
+  // stale 'sw' from a Tanzania-era row can never leak onto NIETE. This is a
+  // per-report override — the teacher's own stored preference is never rewritten.
+  if (delivery && delivery.lang_override) {
+    const forced = clampToMarket(delivery.lang_override);
+    if (forced) return forced;
+  }
   if (delivery && delivery.teacher_phone) {
     try {
       const { data } = await supabase
@@ -102,16 +120,32 @@ function normalizePkPhone(raw) {
   const d = raw.replace(/\D/g, '');
   if (/^923\d{9}$/.test(d)) return d;
   if (/^03\d{9}$/.test(d)) return `92${d.slice(1)}`;
+  // bd-2675: a bare mobile with no leading zero ("3001234567") is a common way
+  // to type it, and used to be rejected in silence. A landline (051…) still
+  // fails every branch, which is the behaviour we want to keep.
+  if (/^3\d{9}$/.test(d)) return `92${d}`;
   return null;
 }
 
 function parseTeacherDetails(text) {
   if (!text || typeof text !== 'string') return null;
-  const m = text.match(/(\+?\s*255[\d\s\-]{9,}|\+?\s*92[\d\s\-]{10,}|0[\d\s\-]{9,}|[67][\d\s\-]{8,})/);
-  if (!m) return null;
-  const phone = normalizeTzPhone(m[1]) || normalizePkPhone(m[1]);
+  // bd-2675: scan for any span that CONTAINS enough digits, then normalise —
+  // rather than trying to enumerate every way a person writes a number. The old
+  // character-class regex rejected "(0300) 123-4567" and a bare "3001234567"
+  // silently, and a silent re-ask reads to the coach as "Rumi refused her
+  // number". Validity is still decided by the normalisers, so a landline is
+  // still refused.
+  const re = /[+(\d][\d\s\-().]{7,}\d/g;
+  let m;
+  let span = null;
+  while ((m = re.exec(text)) !== null) {
+    if (m[0].replace(/\D/g, '').length >= 9) { span = m[0]; break; }
+  }
+  if (!span) return null;
+  const phone = normalizeTzPhone(span) || normalizePkPhone(span);
   if (!phone) return null;
-  const name = text.replace(m[1], ' ').replace(/[,\n;]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  const name = text.replace(span, ' ').replace(/[,\n;]+/g, ' ').replace(/[()]/g, ' ')
+    .replace(/\s{2,}/g, ' ').trim();
   if (!name || name.length < 2 || /^\d+$/.test(name)) return null;
   return { name, phone };
 }
@@ -134,14 +168,20 @@ function buildSendChoiceButtons(sessionId, S) {
   };
 }
 
-function buildSendConfirmButtons(sessionId, S) {
-  return {
-    body: S.send_confirm_body,
-    buttons: [
-      { id: `${BTN.confirm}${sessionId}`, title: S.btn_send_now },
-      { id: `${BTN.cancel}${sessionId}`, title: S.btn_send_cancel },
-    ],
-  };
+function buildSendConfirmButtons(sessionId, S, currentLang) {
+  const buttons = [
+    { id: `${BTN.confirm}${sessionId}`, title: S.btn_send_now },
+  ];
+  // bd-2673: offer the language she is NOT currently getting. WhatsApp allows
+  // 3 buttons and 20 CODE POINTS per title (Rule 20 — Urdu is not measured in
+  // bytes), so this fits alongside send + cancel exactly.
+  if (currentLang) {
+    const target = otherLang(currentLang);
+    const title = target === 'ur' ? S.btn_send_in_ur : S.btn_send_in_en;
+    if (title) buttons.push({ id: `${BTN.lang}${sessionId}`, title });
+  }
+  buttons.push({ id: `${BTN.cancel}${sessionId}`, title: S.btn_send_cancel });
+  return { body: S.send_confirm_body, buttons };
 }
 
 // ── DB helper (read-merge-write, D26 pattern) ──────────────────────────
@@ -318,6 +358,93 @@ async function handleTeacherPick(user, from, listId) {
     await WhatsAppService.sendMessage(from, S.debrief_load_error);
   }
   return true;
+}
+
+/**
+ * bd-2673 — flip the report's language and re-render the preview. Re-rendering
+ * is deliberate: the report PNG itself is language-bound, so showing the coach
+ * a confirm button over a preview in the other language would be a lie. The
+ * override lives on the delivery record, so it survives to the deliver phase.
+ */
+async function handleSendLangToggle(sessionId, from, user) {
+  const lang = clampToMarket(observeLang(user)) || marketLangConfig().fallback;
+  const S = observeStrings(lang);
+  try {
+    const session = await _loadSession(sessionId);
+    const delivery = (session.analysis_data && session.analysis_data.teacher_delivery) || {};
+    const current = await resolveTeacherLang(delivery, lang);
+    const next = otherLang(current);
+    await mergeTeacherDelivery(sessionId, { lang_override: next, status: 'previewing' });
+    await WhatsAppService.sendMessage(from, S.send_lang_switching);
+    const CoachingJobQueueService = require('../coaching/coaching-job-queue.service');
+    await CoachingJobQueueService.queueObserveTeacherReport(sessionId, { from, phase: 'preview' });
+    logToFile('🌐 observe send: report language switched', { sessionId, from: current, to: next });
+  } catch (err) {
+    logToFile('❌ observe send: language toggle failed', { sessionId, error: err.message });
+    await WhatsAppService.sendMessage(from, S.debrief_load_error);
+  }
+}
+
+
+/**
+ * The approved UTILITY template that opens a cold teacher's window. Extracted
+ * (bd-2675) so the nudge sends exactly what the first attempt sent — a nudge
+ * that drifted from the original would be a second bug wearing the first one's
+ * clothes.
+ */
+async function _sendReportTemplate(delivery, foName, sessionId) {
+  const tpl = reportTemplateConfig();
+  return WhatsAppService.sendTemplate(delivery.teacher_phone, tpl.name, tpl.lang, [
+    { type: 'body',
+      parameters: [
+        { type: 'text', text: delivery.teacher_name },
+        { type: 'text', text: foName },
+      ] },
+    { type: 'button', sub_type: 'quick_reply', index: '0',
+      parameters: [{ type: 'payload', payload: `${TEMPLATE_PAYLOAD_PREFIX}${sessionId}` }] },
+  ]);
+}
+
+/**
+ * bd-2675 — act on ONE report that is still waiting for the teacher's tap.
+ * The planner decides; this executes and, either way, tells the coach. Called
+ * by the recovery sweep (NIETE has no cron).
+ */
+async function processUntappedDelivery(sessionId, nowMs = Date.now()) {
+  const { classifyUntappedDelivery } = require('./observe-untapped.service');
+  const session = await _loadSession(sessionId);
+  const delivery = (session.analysis_data && session.analysis_data.teacher_delivery) || {};
+  const decision = classifyUntappedDelivery(delivery, nowMs);
+  if (decision.action === 'skip') return decision;
+
+  const foPhone = session.users && session.users.phone_number;
+  const foName = (session.users && session.users.first_name) || '';
+  const lang = clampToMarket(observeLang(session.users)) || marketLangConfig().fallback;
+  const S = observeStrings(lang);
+  const name = delivery.teacher_name || '';
+  const iso = new Date(nowMs).toISOString();
+
+  if (decision.action === 'nudge') {
+    await _sendReportTemplate(delivery, foName, sessionId);
+    await mergeTeacherDelivery(sessionId, {
+      nudged_at: iso, nudge_count: Number(delivery.nudge_count || 0) + 1,
+    });
+    if (foPhone) {
+      await WhatsAppService.sendMessage(foPhone, (S.send_nudged_fo || '').replace('{name}', name))
+        .catch(() => {});
+    }
+    logToFile('🔔 observe send: nudged untapped teacher', { sessionId, teacher: name });
+    return decision;
+  }
+
+  // give_up — stop chasing the teacher and hand the coach a clear next step.
+  await mergeTeacherDelivery(sessionId, { gave_up_at: iso });
+  if (foPhone) {
+    await WhatsAppService.sendMessage(foPhone, (S.send_gave_up_fo || '').replace('{name}', name))
+      .catch(() => {});
+  }
+  logToFile('🛑 observe send: gave up chasing an untapped report', { sessionId, teacher: name });
+  return decision;
 }
 
 /** "Baadaye" — the session resurfaces as an unsent-report row in /observe. */
@@ -599,7 +726,10 @@ async function processTeacherReport(sessionId, payload = {}) {
     // The FO sees EXACTLY what the teacher would receive (D33)…
     await _sendPackage(foPhone, png, teacherCaption, companionText);
     // …then decides.
-    await WhatsAppService.sendInteractiveButtons(foPhone, buildSendConfirmButtons(sessionId, S));
+    // bd-2673: the toggle is labelled with the language she is NOT getting, so
+    // the coach can flip THIS report without touching the teacher's account.
+    await WhatsAppService.sendInteractiveButtons(
+      foPhone, buildSendConfirmButtons(sessionId, S, teacherLang));
     logToFile('🔎 observe send: preview delivered to FO', { sessionId });
     return;
   }
@@ -648,20 +778,17 @@ async function processTeacherReport(sessionId, payload = {}) {
       // session-scoped payload so the tap routes back to THIS report.
       const tpl = reportTemplateConfig();   // FEAT-093 bd-54 — per-market template
       try {
-        await WhatsAppService.sendTemplate(delivery.teacher_phone, tpl.name, tpl.lang, [
-          { type: 'body',
-            parameters: [
-              { type: 'text', text: delivery.teacher_name },
-              { type: 'text', text: foName },
-            ] },
-          { type: 'button', sub_type: 'quick_reply', index: '0',
-            parameters: [{ type: 'payload', payload: `${TEMPLATE_PAYLOAD_PREFIX}${sessionId}` }] },
-        ]);
+        await _sendReportTemplate(delivery, foName, sessionId);
       } catch (sendErr) {
         await _handleDeliverFailure(sessionId, foPhone, S, 'template', sendErr, { tpl });
         return;
       }
-      await mergeTeacherDelivery(sessionId, { status: 'awaiting_teacher_tap' });
+      // bd-2675: stamp WHEN — the untapped planner refuses to act without it,
+      // and the coach's follow-up depends on it.
+      await mergeTeacherDelivery(sessionId, {
+        status: 'awaiting_teacher_tap',
+        template_sent_at: new Date().toISOString(),
+      });
       await WhatsAppService.sendMessage(foPhone, S.send_template_queued_fo);
       logToFile('📨 observe send: template sent (window closed)', { sessionId });
       return;
@@ -674,8 +801,20 @@ async function processTeacherReport(sessionId, payload = {}) {
       await _handleDeliverFailure(sessionId, foPhone, S, 'direct', sendErr);
       return;
     }
-    await mergeTeacherDelivery(sessionId, { status: 'sent', sent_at: new Date().toISOString() });
-    await WhatsAppService.sendMessage(foPhone, S.send_done_fo);
+    // bd-2675: the tap is the event that closes the loop — it stops every
+    // further nudge, and the coach is told the report actually landed rather
+    // than being left with a "sent" she can't trust.
+    const nowIso = new Date().toISOString();
+    await mergeTeacherDelivery(sessionId, {
+      status: 'sent',
+      sent_at: nowIso,
+      ...(phase === 'teacher_tap' ? { tapped_at: nowIso } : {}),
+    });
+    await WhatsAppService.sendMessage(
+      foPhone,
+      phase === 'teacher_tap'
+        ? (S.send_tapped_fo || S.send_done_fo).replace('{name}', delivery.teacher_name || '')
+        : S.send_done_fo);
     logToFile('✅ observe send: combined report delivered to teacher', { sessionId });
     return;
   }
@@ -705,5 +844,8 @@ module.exports = {
   handleSendCancel,
   processTeacherReport,
   resolveTeacherLang,
+  otherLang,
+  handleSendLangToggle,
+  processUntappedDelivery,
   clampToMarket,
 };

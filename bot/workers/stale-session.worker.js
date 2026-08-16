@@ -485,6 +485,51 @@ async function processStuckInitiatedSessions() {
   return { total: (stuck || []).length, confirmed, abandoned, skipped };
 }
 
+
+/**
+ * bd-2675 — reports still waiting on a teacher's tap.
+ *
+ * A cold teacher gets a template she must tap before the report itself can be
+ * sent. Until now nothing ever revisited those, so a report could sit unopened
+ * forever with the coach believing it was delivered. The planner
+ * (observe-untapped.service) decides; observe-send executes. It is deliberately
+ * bounded — one nudge, then we stop and tell the coach — per the operator's
+ * instruction not to trap anyone in an endless chase.
+ *
+ * The row count here is tiny (tens), so filtering in JS beats a JSON-path
+ * query that would silently return nothing if the operator syntax drifted.
+ */
+async function processUntappedReports() {
+  const ObserveSend = require('../shared/services/observe/observe-send.service');
+  const { classifyUntappedDelivery } = require('../shared/services/observe/observe-untapped.service');
+  let nudged = 0; let gaveUp = 0; let skipped = 0;
+  const { data: rows, error } = await supabase
+    .from('coaching_sessions')
+    .select('id, analysis_data')
+    .eq('observation_type', 'leader_observation')
+    .limit(500);
+  if (error) {
+    logToFile('⚠️ untapped sweep: query failed', { error: error.message });
+    return { total: 0, nudged, gaveUp, skipped };
+  }
+  const candidates = (rows || []).filter((r) => {
+    const d = (r.analysis_data && r.analysis_data.teacher_delivery) || {};
+    return classifyUntappedDelivery(d).action !== 'skip';
+  });
+  for (const row of candidates) {
+    try {
+      const decision = await ObserveSend.processUntappedDelivery(row.id);
+      if (decision.action === 'nudge') nudged += 1;
+      else if (decision.action === 'give_up') gaveUp += 1;
+      else skipped += 1;
+    } catch (err) {
+      logToFile('⚠️ untapped sweep: failed on one report', { sessionId: row.id, error: err.message });
+    }
+  }
+  if (candidates.length) logToFile('🔔 untapped sweep done', { candidates: candidates.length, nudged, gaveUp });
+  return { total: candidates.length, nudged, gaveUp, skipped };
+}
+
 /**
  * Run every recovery sweep WITHOUT process.exit — for the always-on sqs-worker
  * to call on its interval (NIETE has no Railway Cron, so the standalone main()
@@ -493,7 +538,14 @@ async function processStuckInitiatedSessions() {
 async function runRecovery() {
   const coaching = await processStaleCoachingSessions();
   const stuckInitiated = await processStuckInitiatedSessions();
-  return { coaching, stuckInitiated };
+  // bd-2675 — never let one sweep's failure hide the others.
+  let untapped = { total: 0 };
+  try {
+    untapped = await processUntappedReports();
+  } catch (err) {
+    logToFile('⚠️ untapped sweep threw (non-blocking)', { error: err.message });
+  }
+  return { coaching, stuckInitiated, untapped };
 }
 
 module.exports = {
@@ -501,6 +553,7 @@ module.exports = {
   runRecovery,
   processStuckInitiatedSessions,
   processStaleCoachingSessions,
+  processUntappedReports,
   // bd-2700: resolved thresholds, exported so tests can assert the env overrides
   // and so a deploy can log what it actually picked up (a staging value silently
   // shipping to prod is the failure mode worth catching loudly).
