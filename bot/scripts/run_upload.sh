@@ -11,7 +11,7 @@
 # Why a wrapper and not just the node script: the uploader needs SUPABASE_* and
 # R2_* in its environment, and the only copies of those live under NIETE_*
 # names in the workspace .env. Mapping them by hand is how you end up pointing a
-# writing script at the WRONG production database (bd-2536) — NIETE and the main
+# writing script at the WRONG production database — NIETE and the main
 # Rumi bot share one Cloudflare account AND one R2 bucket (digital-coach-audio;
 # identical access key, verified 2026-08-16), so a stray key would land on top of
 # PK's live assets. Every assertion below exists because of that.
@@ -88,7 +88,7 @@ done
 REF="$(printf '%s' "$SUPABASE_URL" | sed -n 's#https://\([a-z0-9]*\)\.supabase\.co.*#\1#p')"
 [[ "$REF" == "$EXPECT_REF" ]] || {
   echo "✗ ABORT: Supabase ref '$REF' is not the NIETE project ('$EXPECT_REF')." >&2
-  echo "         $ENV_FILE is pointing somewhere else — see bd-2536." >&2; exit 3; }
+  echo "         $ENV_FILE is pointing at a different deployment." >&2; exit 3; }
 [[ "$R2_BUCKET_NAME" == "$EXPECT_BUCKET" ]] || {
   echo "✗ ABORT: R2 bucket '$R2_BUCKET_NAME' is not '$EXPECT_BUCKET'." >&2; exit 3; }
 

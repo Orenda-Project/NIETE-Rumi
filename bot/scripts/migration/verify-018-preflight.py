@@ -32,7 +32,7 @@ import psycopg2.extras
 
 # The NIETE Supabase project. Asserted BEFORE any connection is opened: a
 # worktree seeded with the main-bot .env points SUPABASE_URL at a DIFFERENT
-# production database (bd-2536).
+# production database.
 NIETE_PROJECT_REF = "ihzciabopbttygxxgrkm"
 POOLER_HOST = "aws-1-ap-south-1.pooler.supabase.com"
 POOLER_PORT = 6543
@@ -131,7 +131,7 @@ def resolve_creds():
     if ref != NIETE_PROJECT_REF:
         raise SystemExit(
             f"ABORT: ref '{ref}' is not the NIETE project ('{NIETE_PROJECT_REF}'). "
-            "Refusing to introspect another production database (bd-2536)."
+            "Refusing to introspect another production database."
         )
     return ref, pwd
 

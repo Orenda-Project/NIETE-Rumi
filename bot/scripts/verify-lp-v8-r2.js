@@ -12,8 +12,9 @@
  *   HTTP 200 · %PDF magic · byte length == bytes · sha1(bytes)[0:12] == content_hash
  *
  * The presign step is the point. buildR2PublicUrl alone returns the S3-endpoint
- * URL, which anonymous GETs reject with HTTP 400 — that is bd-2054, and it is
- * exactly the failure this script would catch before a teacher does.
+ * URL, which anonymous GETs reject with HTTP 400 — a failure this deployment
+ * has already paid for once, and exactly what this script catches before a
+ * teacher does.
  *
  *   node scripts/verify-lp-v8-r2.js                 # 5 random current assets
  *   node scripts/verify-lp-v8-r2.js --sample 25
