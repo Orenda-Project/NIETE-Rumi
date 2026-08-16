@@ -1,6 +1,6 @@
 'use strict';
 /**
- * FEAT-059 / bd-hvhhu — does this message ask for a lesson plan?
+ * Does this message ask for a lesson plan?
  *
  * Replaces an exact-match-only intercept
  *   /^(lp|lesson\s*plan|لیسن\s*پلان|lesson-plan|\/lp)$/i

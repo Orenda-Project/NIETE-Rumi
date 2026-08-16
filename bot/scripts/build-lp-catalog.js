@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /**
- * FEAT-059 / bd-82qs3 — build bot/data/lp_catalog.json.
+ * Build bot/data/lp_catalog.json.
  *
  * Reads the Taleemabad K-5 ingestion tree (segmentation JSONs + page-truth TOCs)
  * and emits ONE file that the LP Flow endpoint reads at runtime. The bot has no

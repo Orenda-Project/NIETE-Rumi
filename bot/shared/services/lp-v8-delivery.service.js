@@ -1,15 +1,15 @@
 'use strict';
 /**
- * FEAT-059 / bd-fg3p4 + bd-zc9k7 — deliver one v8 lesson plan.
+ * Deliver one v8 lesson plan.
  *
  * Mirrors 02_Main Rumi Bot's storybook-delivery.service.js: send, record the
  * attempt (sent OR failed), emit, then schedule the survey only on success.
  *
  * Two failure modes this deployment has already paid for, both guarded:
- *   - bd-2054: buildR2PublicUrl returns the S3-endpoint URL, which anonymous
+ *  1. buildR2PublicUrl returns the S3-endpoint URL, which anonymous
  *     GETs reject with HTTP 400 — Meta gets a 400 and the send fails silently.
  *     It MUST be wrapped in getPresignedUrl.
- *   - bd-2407: a delivery that fails and leaves no row is invisible. Every
+ *  2. a delivery that fails and leaves no row is invisible. Every
  *     attempt is recorded, and the teacher is always told something.
  */
 
@@ -144,7 +144,7 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
   let ok = false;
   let errorText = null;
   try {
-    // bd-2054: presign, always. The raw public URL 400s for Meta.
+    // Presign, always. The raw public URL 400s for Meta.
     const presigned = await getPresignedUrl(buildR2PublicUrl(asset.r2_key));
     const resp = await WhatsAppService.sendDocumentByLink(phone, presigned, filename, caption);
     ok = !!resp;
@@ -166,7 +166,7 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
   });
 
   if (!ok) {
-    // bd-2407: never leave the teacher in silence after a failed delivery.
+    // Never leave the teacher in silence after a failed delivery.
     try {
       await WhatsAppService.sendMessage(
         phone,

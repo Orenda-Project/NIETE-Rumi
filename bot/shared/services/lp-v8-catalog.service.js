@@ -1,6 +1,6 @@
 'use strict';
 /**
- * FEAT-059 / bd-fg3p4 — the v8 catalog, and the NavigationList rows built from it.
+ * The v8 catalog, and the NavigationList rows built from it.
  *
  * The catalog (data/lp_catalog.json) is STATIC and COMPLETE: all 2,038 K-5
  * lessons, with their row strings already normalised and cap-verified at build
@@ -26,7 +26,7 @@ const MORE_ROW_ID = '__more__';
 const DONE_TICK = '✓';
 const TODO_TICK = '○';
 
-const V8_MAX_GRADE = 5;            // 1-5 = Taleemabad K-5 v8; 6+ = Oxbridge
+const V8_MAX_GRADE = 5;            // 1-5 = the K-5 v8 corpus; 6+ = the Oxbridge catalog
 
 const cps = (s) => [...String(s == null ? '' : s)].length;
 
@@ -113,8 +113,12 @@ function buildGradeItems(grades) {
     'main-content': {
       title: clip(`Grade ${g}`, TITLE_CAP),
       description: 'Tap to open',
+      // Brand-neutral by requirement: this is a public OSS fork, and the
+      // partner-name strip test fails the build on any partner name under
+      // bot/shared. The teacher still gets the distinction she needs — which
+      // corpus a grade draws from.
       metadata: clip(
-        Number(g) <= V8_MAX_GRADE ? 'Taleemabad K-5 lesson plans' : 'Oxbridge lesson plans',
+        Number(g) <= V8_MAX_GRADE ? 'Primary curriculum lesson plans' : 'Oxbridge lesson plans',
         META_CAP,
       ),
     },

@@ -7,7 +7,7 @@
  *
  * Grade routing (FEAT-109 iter 3):
  *   - Grades 1–5  → pre_generated_lps rows where curriculum='pakistan'
- *                    (Taleemabad NIETE corpus). Delivery: R2 presigned URL
+ *                    (the primary-curriculum corpus). Delivery: R2 presigned URL
  *                    + sendDocumentByLink (Palestine pattern, bd-2054).
  *   - Grades 6–10 → lesson_plan_catalog rows where source='oxbridge'.
  *                    Delivery: OxbridgeLpService.deliverOxbridgeLp — plain
@@ -172,17 +172,21 @@ async function selectGrade(screenData) {
   if (!gradeStr) return { data: { error: { message: 'Please select a class.' } } };
   const grade = parseInt(gradeStr, 10);
 
-  // ── v8 corpus (grades 1-5) ────────────────────────────────────────────
+  // ── v8 corpus (grades 1-5), with the LEGACY corpus as the fallback ────
+  // Grades 1-5 are served by pre_generated_lps TODAY. Until the v8 uploader has
+  // run there are zero niete_lp_assets rows, so replacing this path outright
+  // would take the LP menu away from every K-5 teacher on deploy. v8 wins where
+  // it has content; where it does not, the legacy path answers exactly as before.
   if (isV8Grade(grade)) {
     const available = await V8Delivery.availableLessonIds();
     const items = V8Catalog.buildSubjectItems(grade, available);
-    if (!items.length) {
-      return { data: { error: { message: `${gradeTitle(grade)} lesson plans are being prepared — try another class or check back soon.` } } };
+    if (items.length) {
+      return {
+        screen: 'SELECT_SUBJECT',
+        data: { items, grade_value: String(grade), grade_display: gradeTitle(grade) },
+      };
     }
-    return {
-      screen: 'SELECT_SUBJECT',
-      data: { items, grade_value: String(grade), grade_display: gradeTitle(grade) },
-    };
+    logToFile('Pakistan LP: no v8 assets for grade — falling back to pre_generated_lps', { grade });
   }
 
   let subjects = [];
@@ -217,22 +221,22 @@ async function selectSubject(screenData) {
   if (!gradeStr || !subject) return { data: { error: { message: 'Please select a subject.' } } };
   const grade = parseInt(gradeStr, 10);
 
-  // ── v8 corpus (grades 1-5) ────────────────────────────────────────────
+  // ── v8 corpus (grades 1-5), legacy fallback — see selectGrade ─────────
   if (isV8Grade(grade)) {
     const available = await V8Delivery.availableLessonIds();
     const items = V8Catalog.buildChapterItems(grade, subject, available);
-    if (!items.length) {
-      return { data: { error: { message: `No ${subject} lesson plans for ${gradeTitle(grade)} yet.` } } };
+    if (items.length) {
+      return {
+        screen: 'SELECT_CHAPTER',
+        data: {
+          items,
+          grade_value: String(grade),
+          subject_value: subject,
+          header_text: `${gradeTitle(grade)} — ${subject}`,
+        },
+      };
     }
-    return {
-      screen: 'SELECT_CHAPTER',
-      data: {
-        items,
-        grade_value: String(grade),
-        subject_value: subject,
-        header_text: `${gradeTitle(grade)} — ${subject}`,
-      },
-    };
+    logToFile('Pakistan LP: no v8 chapters — falling back to pre_generated_lps', { grade, subject });
   }
 
   let chapters = [];
@@ -284,8 +288,12 @@ async function selectChapter(flowToken, screenData) {
   }
   const grade = parseInt(gradeStr, 10);
 
-  // ── v8 corpus (grades 1-5) ────────────────────────────────────────────
-  if (isV8Grade(grade)) return v8LessonScreen(flowToken, grade, subject, chapter, 1, 'SELECT_LESSON');
+  // ── v8 corpus (grades 1-5), legacy fallback — see selectGrade ─────────
+  if (isV8Grade(grade)) {
+    const v8 = await v8LessonScreen(flowToken, grade, subject, chapter, 1, 'SELECT_LESSON');
+    if (v8 && v8.screen) return v8;
+    logToFile('Pakistan LP: no v8 lessons — falling back to pre_generated_lps', { grade, subject, chapter });
+  }
 
   let topics = [];
   let chapterHeader = chapter;

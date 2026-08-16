@@ -1,4 +1,4 @@
--- Migration 018: K-5 v8 lesson-plan asset versioning + download tracking (FEAT-059, bd-t56hp)
+-- Migration 018: K-5 v8 lesson-plan asset versioning + download tracking
 --
 -- Two new tables and one additive column. Nothing existing is dropped, retyped
 -- or rewritten, and every statement is IF NOT EXISTS — safe to re-run, and safe
@@ -75,7 +75,7 @@ CREATE INDEX IF NOT EXISTS idx_lp_assets_current_lookup
   WHERE is_current;
 
 COMMENT ON TABLE niete_lp_assets IS
-  'Version controller for the K-5 v8 lesson-plan corpus (FEAT-059). One row per '
+  'Version controller for the K-5 v8 lesson-plan corpus. One row per '
   '(lesson_id, asset_kind, content_hash); is_current marks the served version. '
   'Superseded rows are RETAINED so previously delivered links keep resolving.';
 
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS niete_lp_downloads (
 
   phone          TEXT,
   -- EVERY attempt is recorded, not just the wins. A silent failure that leaves
-  -- no row is the bug class that ate a NIETE field test (bd-2407).
+  -- no row is the bug class that ate a NIETE field test.
   status         TEXT        NOT NULL CHECK (status IN ('sent', 'failed')),
   error_text     TEXT,
 
@@ -133,5 +133,5 @@ ALTER TABLE lp_feedback
   CHECK (useful_component IN ('lp_only', 'voicenote_only', 'both'));
 
 COMMENT ON COLUMN lp_feedback.useful_component IS
-  'Reserved (FEAT-059): which half the teacher found more useful once voicenotes '
+  'Reserved: which half the teacher found more useful once voicenotes '
   'ship alongside the PDF. NULL for every after_pdf_only row.';

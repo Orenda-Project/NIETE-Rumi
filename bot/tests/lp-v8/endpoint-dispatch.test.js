@@ -42,8 +42,10 @@ function mockBuilder(rows) {
   };
   return b;
 }
+const mockPreGenRows = [];
 jest.mock('../../shared/config/supabase', () => ({
   from: jest.fn((table) => {
+    if (table === 'pre_generated_lps') return mockBuilder(mockPreGenRows);
     if (table === 'lesson_plan_catalog') return mockBuilder(mockOxRows);
     if (table === 'users') return mockBuilder([{ id: 'user-1', phone_number: '923001234567', preferred_language: 'en' }]);
     return mockBuilder([]);
@@ -84,6 +86,7 @@ beforeEach(() => {
   mockV8Downloaded.clear();
   mockDelivered.length = 0;
   mockOxRows.length = 0;
+  mockPreGenRows.length = 0;
 });
 
 const TOKEN = 'user-1:pakistan-lp:123';
@@ -194,6 +197,66 @@ describe('back-compat with the still-published v2 Flow', () => {
 
   test('an unknown screen with no step is an error, not a crash', async () => {
     const res = await EP.handlePakistanLpDataExchange(TOKEN, 'MYSTERY', {});
+    expect(res.data.error).toBeDefined();
+  });
+});
+
+
+describe('legacy pre_generated_lps fallback for grades 1-5 — deploy-day guard', () => {
+  // Grades 1-5 are served by pre_generated_lps TODAY. On the day this ships the
+  // v8 uploader has not run, so niete_lp_assets is EMPTY. If the v8 path simply
+  // replaced the legacy one, every K-5 teacher would open the menu and be told
+  // her lesson plans are "being prepared" — losing a working feature. v8 wins
+  // where it has content; otherwise the legacy corpus answers as before.
+  const PREGEN = {
+    id: 'uuid-1',
+    curriculum: 'pakistan',
+    grade: 1,
+    subject: 'English',
+    chapter_number: 1,
+    chapter_title: 'Hello World!',
+    pdf_r2_key_en: 'lessons/g1-en-ch1.pdf',
+    generation_status: 'completed',
+    is_current: true,
+  };
+
+  test('with NO v8 assets, grade 1 still lists its legacy subjects', async () => {
+    mockV8Available.clear();
+    mockPreGenRows.push(PREGEN);
+    const res = await EP.handlePakistanLpDataExchange(TOKEN, 'SELECT_GRADE', { step: 'grade', grade: '1' });
+    expect(res.data.error).toBeUndefined();
+    expect(res.screen).toBe('SELECT_SUBJECT');
+    expect(res.data.items.map((i) => i.id)).toEqual(['English']);
+  });
+
+  test('with NO v8 assets, grade 1 still lists its legacy chapters', async () => {
+    mockV8Available.clear();
+    mockPreGenRows.push(PREGEN);
+    const res = await EP.handlePakistanLpDataExchange(TOKEN, 'SELECT_SUBJECT', { step: 'subject', grade: '1', subject: 'English' });
+    expect(res.screen).toBe('SELECT_CHAPTER');
+    expect(res.data.items).toHaveLength(1);
+  });
+
+  test('with NO v8 assets, a legacy chapter still yields a PK- lesson row', async () => {
+    mockV8Available.clear();
+    mockPreGenRows.push(PREGEN);
+    const res = await EP.handlePakistanLpDataExchange(TOKEN, 'SELECT_CHAPTER', {
+      step: 'chapter', grade: '1', subject: 'English', chapter: '1',
+    });
+    expect(res.screen).toBe('SELECT_LESSON');
+    expect(res.data.items[0].id).toMatch(/^PK-/);
+    expect(mockDelivered).toEqual([]);
+  });
+
+  test('once v8 HAS content it wins — the legacy corpus is not consulted', async () => {
+    mockPreGenRows.push(PREGEN);
+    const res = await EP.handlePakistanLpDataExchange(TOKEN, 'SELECT_GRADE', { step: 'grade', grade: '1' });
+    expect(res.data.items.map((i) => i.id)).toEqual(['english']);   // v8 subject_key, not 'English'
+  });
+
+  test('neither corpus has anything → a friendly message, never an empty screen', async () => {
+    mockV8Available.clear();
+    const res = await EP.handlePakistanLpDataExchange(TOKEN, 'SELECT_GRADE', { step: 'grade', grade: '1' });
     expect(res.data.error).toBeDefined();
   });
 });

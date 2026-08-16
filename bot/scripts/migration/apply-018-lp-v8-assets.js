@@ -1,5 +1,5 @@
 // Apply migration 018 (niete_lp_assets + niete_lp_downloads + lp_feedback.useful_component)
-// to NIETE Supabase. FEAT-059 / bd-t56hp.
+// to NIETE Supabase.
 //
 // Mirrors apply-017-lp-feedback.js: try the Supabase pooler directly, verify by
 // round-tripping a select, and fall back to printing paste-into-the-SQL-editor
@@ -99,7 +99,7 @@ async function fullyApplied() {
 }
 
 (async () => {
-  console.log('=== Migration 018: niete_lp_assets + niete_lp_downloads (FEAT-059) ===\n');
+  console.log('=== Migration 018: niete_lp_assets + niete_lp_downloads ===\n');
 
   console.log('1. Checking current state...');
   console.log(`   niete_lp_assets            : ${(await tableExists('niete_lp_assets')) ? 'present' : 'MISSING'}`);

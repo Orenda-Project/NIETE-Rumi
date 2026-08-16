@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /**
- * FEAT-059 / bd-9s1ie + bd-9dmq2 — take out/v8 to servable.
+ * Take out/v8 to servable.
  *
  * Reads the render MANIFEST, compresses each PDF, uploads it to R2 under a
  * content-addressed key, and records it in niete_lp_assets. Re-runnable at any

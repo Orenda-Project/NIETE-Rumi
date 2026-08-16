@@ -3,16 +3,18 @@
  *
  * Modelled on 02_Main Rumi Bot's tests/storybook/flow-json.test.js, which is the
  * only place the NavigationList limits are actually enforced anywhere in either
- * codebase. Enforcing them here matters more than usual: the v2 Flow JSON was
- * NEVER COMMITTED to this repo (scripts/setup/flow-configs.js points at a file
- * that does not exist), so the live Flow's shape has had no test and no review
- * since it was published. v3 closes that.
+ * codebase. v2's JSON does ship (docs/flows/pakistan-lp-flow-v2.json) but had no
+ * structural test, so nothing enforced Meta's item/character caps or the
+ * forward-only routing rule on the Flow teachers were actually being served.
+ * v3 closes that.
  */
 
 const fs = require('fs');
 const path = require('path');
 
-const FLOW_PATH = path.join(__dirname, '..', '..', 'docs', 'flows', 'pakistan-lp-flow-v3.json');
+// Flow JSON lives at the REPO ROOT docs/flows, not bot/docs/flows — that is
+// where scripts/setup/flow-configs.js resolves FLOWS_DIR to.
+const FLOW_PATH = path.join(__dirname, '..', '..', '..', 'docs', 'flows', 'pakistan-lp-flow-v3.json');
 
 const SELECTION_SCREENS = ['SELECT_GRADE', 'SELECT_SUBJECT', 'SELECT_CHAPTER', 'SELECT_LESSON', 'SELECT_LESSON_MORE'];
 const cps = (s) => [...String(s)].length;
@@ -126,10 +128,10 @@ describe('pakistan-lp-flow-v3.json', () => {
     expect(flow.routing_model.SELECT_LESSON).toContain('SELECT_LESSON_MORE');
   });
 
-  test('flow-configs.js points at a file that EXISTS (the v2 gap this closes)', () => {
+  test('flow-configs.js points at a file that EXISTS, in the dir FLOWS_DIR resolves to', () => {
     const cfg = fs.readFileSync(path.join(__dirname, '..', '..', 'scripts', 'setup', 'flow-configs.js'), 'utf8');
     const m = /jsonPath:\s*path\.join\(FLOWS_DIR,\s*'([^']*pakistan-lp[^']*)'\)/.exec(cfg);
     expect(m).not.toBeNull();
-    expect(fs.existsSync(path.join(__dirname, '..', '..', 'docs', 'flows', m[1]))).toBe(true);
+    expect(fs.existsSync(path.join(__dirname, '..', '..', '..', 'docs', 'flows', m[1]))).toBe(true);
   });
 });

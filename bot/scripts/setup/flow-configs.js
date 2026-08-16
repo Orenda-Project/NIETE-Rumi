@@ -160,10 +160,10 @@ const FLOW_CONFIGS = [
     categories: ['OTHER'],
   },
   {
-    // Pakistan LP picker (FEAT-109 v2). Grade → Subject → Chapter → Topic
-    // dropdown over pre_generated_lps where curriculum='pakistan'. Populated
-    // by bot/scripts/seed-feat059-feat080-pakistan-lps.js + the FEAT-109
-    // chapter-load pipeline. The `menu_lesson_plan` button in menu.service.js
+    // Pakistan LP picker. Grade → Subject → Chapter → Topic over
+    // pre_generated_lps where curriculum='pakistan', populated by the
+    // seed + chapter-load scripts in bot/scripts/. The `menu_lesson_plan`
+    // button in menu.service.js
     // sends this Flow when PAKISTAN_LP_FLOW_ID is set (bypassing the Gamma
     // topic-prompt path).
     //
@@ -172,7 +172,7 @@ const FLOW_CONFIGS = [
     // and TOPIC, so the picker is now 4 selections (Grade → Subject →
     // Chapter → Topic) instead of 3.
     //
-    // v2 → v3 diff (FEAT-059, bd-m3gre): Dropdowns → NavigationLists, and a
+    // v2 → v3 diff: Dropdowns → NavigationLists, and a
     // SELECT_LESSON screen under the chapter so a teacher picks the actual
     // day's lesson (section · topic · pages) with a ✓/○ resume tick, plus a
     // SELECT_LESSON_MORE overflow screen for the one chapter with >20 lessons.
@@ -182,12 +182,13 @@ const FLOW_CONFIGS = [
     //      been since the current Graph API — a published Flow's JSON can be
     //      replaced in place (upload FLOW_JSON asset → re-publish, back to
     //      back). Verified on this very repo's "Observe FICO v1" Flow on
-    //      2026-07-29 (bd-2369, 26→37 fields, same Flow id). So v3 keeps the
+    //      2026-07-29 (26→37 fields, same Flow id). So v3 keeps the
     //      SAME PAKISTAN_LP_FLOW_ID; minting a new id would force a gated prod
     //      env change on every service that sends it, for nothing.
-    //   2. jsonPath pointed at pakistan-lp-flow-v2.json, which was NEVER
-    //      COMMITTED — the live Flow's shape had no test and no review in this
-    //      repo. v3 is committed and covered by tests/lp-v8/flow-json.test.js.
+    //   2. v2's JSON ships at docs/flows/pakistan-lp-flow-v2.json but had NO
+    //      structural test, so nothing enforced Meta's NavigationList limits or
+    //      the forward-only routing rule on it. v3 is covered by
+    //      bot/tests/lp-v8/flow-json.test.js.
     name: 'Pakistan LP v3',
     jsonPath: path.join(FLOWS_DIR, 'pakistan-lp-flow-v3.json'),
     type: 'endpoint',
