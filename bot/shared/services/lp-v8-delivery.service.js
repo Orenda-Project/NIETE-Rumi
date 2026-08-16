@@ -33,23 +33,64 @@ function buildFilename({ book, chapter, lesson }) {
   return `${base.length > room ? base.slice(0, room).trim() : base}.pdf`;
 }
 
+// lesson_plans.topic is VARCHAR(200) NOT NULL on the live NIETE database
+// (verified 2026-08-16). topic_short is bounded by the 80-cp metadata budget,
+// but the `|| lesson.topic` fallback is not: raw corpus topics reach 211 code
+// points. Over-long would throw INSIDE the "non-fatal" try, so the teacher
+// would get her PDF and silently never get the survey.
+const TOPIC_MAX = 200;
+
+function lessonPlanTopic(lesson, lessonId) {
+  const raw = String(lesson.topic_short || lesson.topic || lesson.section || lessonId || 'Lesson plan');
+  return raw.length <= TOPIC_MAX ? raw : `${raw.slice(0, TOPIC_MAX - 1).trim()}…`;
+}
+
 function buildCaption({ book, chapter, lesson }) {
   return `📘 ${lesson.day_label} · ${lesson.row.title}\n${lesson.topic} (${lesson.pages_label})\n`
     + `Grade ${book.grade} ${book.subject} — Ch${chapter.number}: ${chapter.title}`;
 }
 
+// PostgREST caps every response at db-max-rows regardless of the .limit() asked
+// for, and returns NO error when it truncates. Measured on this project
+// (2026-08-16): limit=5000 on a 118k-row table returns exactly 1000 rows,
+// Content-Range 0-999/*. The corpus is 2,038 lessons, so a single .limit(5000)
+// would silently serve half of it and hide the rest of the menu.
+const PAGE = 1000;
+const MAX_PAGES = 20;   // 20,000 ids — an order of magnitude above the corpus
+
+/**
+ * Read a whole id column by paging with .range(), stopping on the first short
+ * page. Never truncates silently: a set that somehow exceeds MAX_PAGES is
+ * logged loudly rather than quietly cut off.
+ */
+async function pagedIdSet(label, buildQuery, column = 'lesson_id') {
+  const ids = new Set();
+  for (let page = 0; page < MAX_PAGES; page += 1) {
+    const from = page * PAGE;
+    // eslint-disable-next-line no-await-in-loop
+    const { data, error } = await buildQuery().range(from, from + PAGE - 1);
+    if (error) { logToFile(`LP v8: ${label} error`, { error: error.message, page }); return ids; }
+    const rows = data || [];
+    for (const r of rows) ids.add(r[column]);
+    if (rows.length < PAGE) return ids;
+    if (page === MAX_PAGES - 1) {
+      logToFile(`LP v8: ${label} hit the page ceiling — the set may be incomplete`, {
+        pages: MAX_PAGES, collected: ids.size,
+      });
+    }
+  }
+  return ids;
+}
+
 /** Every lesson_id with a current asset — this is what "servable" means. */
 async function availableLessonIds(catalogVersion = 'v8') {
   try {
-    const { data, error } = await supabase
+    return await pagedIdSet('availableLessonIds', () => supabase
       .from('niete_lp_assets')
       .select('lesson_id')
       .eq('catalog_version', catalogVersion)
       .eq('asset_kind', 'lesson')
-      .eq('is_current', true)
-      .limit(5000);
-    if (error) { logToFile('LP v8: availableLessonIds error', { error: error.message }); return new Set(); }
-    return new Set((data || []).map((r) => r.lesson_id));
+      .eq('is_current', true));
   } catch (err) {
     logToFile('LP v8: availableLessonIds threw', { error: err.message });
     return new Set();
@@ -60,14 +101,11 @@ async function availableLessonIds(catalogVersion = 'v8') {
 async function downloadedLessonIds(userId) {
   if (!userId) return new Set();
   try {
-    const { data, error } = await supabase
+    return await pagedIdSet('downloadedLessonIds', () => supabase
       .from('niete_lp_downloads')
       .select('lesson_id')
       .eq('user_id', userId)
-      .eq('status', 'sent')
-      .limit(5000);
-    if (error) { logToFile('LP v8: downloadedLessonIds error', { error: error.message }); return new Set(); }
-    return new Set((data || []).map((r) => r.lesson_id));
+      .eq('status', 'sent'));
   } catch (err) {
     logToFile('LP v8: downloadedLessonIds threw', { error: err.message });
     return new Set();
@@ -177,14 +215,15 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
   }
 
   // A lesson_plans row is what the feedback survey hangs off (lp_feedback
-  // FK-references it). Base-schema columns ONLY — the live schema could not be
-  // read from the build environment, so nothing here may depend on a column
-  // migration 018 does not itself create. The v8 detail rides in `content`.
+  // FK-references it). Base-schema columns ONLY — nothing here may depend on a
+  // column migration 018 does not itself create, so this insert works on the
+  // 10-column schema a fresh clone gets as well as on NIETE's drifted 19-column
+  // live table. The v8 detail rides in `content`.
   let lessonPlanId = null;
   try {
     const { data } = await supabase.from('lesson_plans').insert({
       user_id: userId,
-      topic: lesson.topic_short || lesson.topic,
+      topic: lessonPlanTopic(lesson, lessonId),
       grade: String(book.grade),
       subject: book.subject_key,
       type: 'lesson_plan',

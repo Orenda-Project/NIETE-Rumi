@@ -36,6 +36,7 @@ function mockBuilder(rows) {
     eq: (col, val) => { out = out.filter((r) => String(r[col]) === String(val)); return b; },
     order: () => b,
     limit: () => Promise.resolve({ data: out, error: null }),
+    range: (from, to) => Promise.resolve({ data: out.slice(from, to + 1), error: null }),
     single: () => Promise.resolve({ data: out[0] || null, error: null }),
     maybeSingle: () => Promise.resolve({ data: out[0] || null, error: null }),
     then: (f, r) => Promise.resolve({ data: out, error: null }).then(f, r),

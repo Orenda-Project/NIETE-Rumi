@@ -20,6 +20,10 @@ function mockBuilderFor(table) {
     in: (col, vals) => { rows = rows.filter((r) => vals.map(String).includes(String(r[col]))); return b; },
     order: () => b,
     limit: () => Promise.resolve({ data: rows, error: null }),
+    // The id-set readers page with .range() because PostgREST caps responses at
+    // db-max-rows (1000 live) and truncates without an error — see
+    // tests/lp-v8/live-schema-limits.test.js.
+    range: (from, to) => Promise.resolve({ data: rows.slice(from, to + 1), error: null }),
     single: () => Promise.resolve({ data: rows[0] || null, error: rows[0] ? null : { message: 'no rows' } }),
     maybeSingle: () => Promise.resolve({ data: rows[0] || null, error: null }),
     insert: (payload) => {
