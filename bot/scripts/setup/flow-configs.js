@@ -170,10 +170,26 @@ const FLOW_CONFIGS = [
     // v1 → v2 diff (2026-07-31): removed the SPEC welcome screen so INIT
     // lands on SELECT_GRADE directly; added SELECT_CHAPTER between SUBJECT
     // and TOPIC, so the picker is now 4 selections (Grade → Subject →
-    // Chapter → Topic) instead of 3. New Flow name so Meta creates a fresh
-    // Flow (published Flows are immutable per Meta).
-    name: 'Pakistan LP v2',
-    jsonPath: path.join(FLOWS_DIR, 'pakistan-lp-flow-v2.json'),
+    // Chapter → Topic) instead of 3.
+    //
+    // v2 → v3 diff (FEAT-059, bd-m3gre): Dropdowns → NavigationLists, and a
+    // SELECT_LESSON screen under the chapter so a teacher picks the actual
+    // day's lesson (section · topic · pages) with a ✓/○ resume tick, plus a
+    // SELECT_LESSON_MORE overflow screen for the one chapter with >20 lessons.
+    //
+    // TWO CORRECTIONS TO THE v2 NOTE THAT WAS HERE:
+    //   1. "published Flows are immutable per Meta" is NOT true and has not
+    //      been since the current Graph API — a published Flow's JSON can be
+    //      replaced in place (upload FLOW_JSON asset → re-publish, back to
+    //      back). Verified on this very repo's "Observe FICO v1" Flow on
+    //      2026-07-29 (bd-2369, 26→37 fields, same Flow id). So v3 keeps the
+    //      SAME PAKISTAN_LP_FLOW_ID; minting a new id would force a gated prod
+    //      env change on every service that sends it, for nothing.
+    //   2. jsonPath pointed at pakistan-lp-flow-v2.json, which was NEVER
+    //      COMMITTED — the live Flow's shape had no test and no review in this
+    //      repo. v3 is committed and covered by tests/lp-v8/flow-json.test.js.
+    name: 'Pakistan LP v3',
+    jsonPath: path.join(FLOWS_DIR, 'pakistan-lp-flow-v3.json'),
     type: 'endpoint',
     endpointPath: '/api/flows/pakistan-lp',
     envVar: 'PAKISTAN_LP_FLOW_ID',
