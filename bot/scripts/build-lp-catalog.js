@@ -84,11 +84,10 @@ function dedupeTopic(topic, section) {
 }
 
 /**
- * A <=28 cp row title from a raw section string.
- * Order is deliberate: a gloss is always noise, so it goes first; a compound is
- * only collapsed when the full label genuinely will not fit.
+ * The section with its noise stripped but NOT capped — what the teacher should
+ * be able to read somewhere on the row even when the 28-cp title cannot hold it.
  */
-function shortSection(section) {
+function cleanSection(section) {
   let s = String(section || '').trim();
   if (!s) return '';
 
@@ -97,6 +96,18 @@ function shortSection(section) {
 
   // Trailing gloss: "پورا سبق (whole chapter)", "جائزہ (student-facing worksheet)"
   s = s.replace(/\s*\([^)]*\)\s*$/, '').trim();
+
+  return s;
+}
+
+/**
+ * A <=28 cp row title from a raw section string.
+ * Order is deliberate: a gloss is always noise, so it goes first; a compound is
+ * only collapsed when the full label genuinely will not fit.
+ */
+function shortSection(section) {
+  const s = cleanSection(section);
+  if (!s) return '';
 
   if (cps(s) <= SECTION_CAP) return s;
 
@@ -167,6 +178,20 @@ function stripBoilerplate(topic) {
 }
 
 /**
+ * The same boilerplate class ANYWHERE in the string, not just trailing — a
+ * compound section like "تخلیقی لکھائی (طالب علم کا اظہار) + سرگرمی" carries it
+ * mid-string, and once the full section joined the metadata line (staging
+ * feedback round 1) the anchored strip stopped being enough. Caught by the
+ * committed-artifact boilerplate test on grade_1_urdu_ch9_seg5.
+ */
+function stripBoilerplateAnywhere(s) {
+  return String(s || '')
+    .replace(/\s*\([^)]*(?:student|طالبِ?\s*علم)[^)]*\)/giu, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+/**
  * Cut a topic at its first multi-clause separator.
  *
  * A separator only counts when the text before it has balanced brackets —
@@ -208,6 +233,7 @@ function clipBalanced(s, n) {
 function buildRow(lesson, opts = {}) {
   const rtl = !!opts.rtl;
   const type = lpTypeFor(lesson.segment_index);
+  const sectionFull = cleanSection(lesson.section);
   const title = shortSection(lesson.section);
   const description = dayLabelFor(lesson.segment_index, type);
 
@@ -218,9 +244,19 @@ function buildRow(lesson, opts = {}) {
 
   const deduped = stripBoilerplate(dedupeTopic(lesson.topic, lesson.section));
   let topicShort = firstClause(deduped);
-  if (cps(topicShort) > budget) topicShort = clipBalanced(topicShort, budget);
 
-  return { title, description, metadata: `${topicShort}${suffix}` };
+  // Staging feedback round 1 (): when the 28-cp title cap costs the
+  // teacher part of the section name, the FULL section leads the metadata line
+  // — the row then reads "section — topic · pages" and nothing is lost, only
+  // moved. A section that fits stays out of metadata (it would just repeat the
+  // title one line up).
+  const sectionForMeta = stripBoilerplateAnywhere(sectionFull);
+  let lead = title === sectionFull
+    ? topicShort
+    : (topicShort ? `${sectionForMeta} — ${topicShort}` : sectionForMeta);
+  if (cps(lead) > budget) lead = clipBalanced(lead, budget);
+
+  return { title, description, metadata: `${lead}${suffix}` };
 }
 
 // ── Sources ─────────────────────────────────────────────────────────────────
@@ -278,6 +314,12 @@ function buildCatalog({ segmentationDir, tocDir, builtAt }) {
 
     const chapters = [...byChapter.keys()].sort((a, b) => a - b).map((num) => {
       const rawTitle = cleanChapterTitle(tocMap[num] || `Chapter ${num}`);
+      // The chapter's full page span, revision/worksheet pages included — the
+      // chapter row shows where the chapter LIVES in the book, not where its
+      // first lesson starts (staging feedback round 1).
+      const chapterPages = pagesLabel(
+        byChapter.get(num).flatMap((s) => (s.pages_printed || []).map(Number).filter(Number.isFinite)),
+      );
       const lessons = byChapter.get(num)
         .slice()
         .sort((a, b) => Number(a.segment_index) - Number(b.segment_index))
@@ -309,6 +351,7 @@ function buildCatalog({ segmentationDir, tocDir, builtAt }) {
         number: num,
         title: rawTitle,
         title_short: clip(rawTitle, TITLE_CAP),
+        pages_label: chapterPages,
         lessons,
       };
     });
@@ -390,6 +433,7 @@ module.exports = {
   serialise,
   buildRow,
   dedupeTopic,
+  cleanSection,
   shortSection,
   pagesLabel,
   lpTypeFor,

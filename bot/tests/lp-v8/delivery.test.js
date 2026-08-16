@@ -292,3 +292,31 @@ describe('feedback round-trip — the lesson_plans.content contract (bd-zc9k7)',
     expect(mockInserts.lesson_plans[0].content.trigger_mode).toBe('after_pdf_only');
   });
 });
+
+// ─── Staging feedback round 1 (bd-fel74) — the "preparing" ack ──────────────
+// Presign + Meta's fetch take several seconds after the Flow has already
+// closed; that silence read as a failed request on the operator's device test.
+describe('deliverV8Lesson — preparing ack', () => {
+  test('sends a quick preparing text BEFORE the document', async () => {
+    await Delivery.deliverV8Lesson({ userId: 'user-1', lessonId: 'grade_1_english_ch1_seg3' });
+    expect(mockSends.messages.length).toBeGreaterThanOrEqual(1);
+    expect(mockSends.messages[0].phone).toBe('923001234567');
+    expect(mockSends.messages[0].body).toMatch(/lesson plan/i);
+    const WA = require('../../shared/services/whatsapp.service');
+    expect(WA.sendMessage.mock.invocationCallOrder[0])
+      .toBeLessThan(WA.sendDocumentByLink.mock.invocationCallOrder[0]);
+  });
+
+  test('the ack follows the teacher preferred language (ur)', async () => {
+    mockTables.users = [{ ...USER, preferred_language: 'ur' }];
+    await Delivery.deliverV8Lesson({ userId: 'user-1', lessonId: 'grade_1_english_ch1_seg3' });
+    expect(mockSends.messages[0].body).toMatch(/[؀-ۿ]/);
+  });
+
+  test('the still-being-prepared miss-path is localized too', async () => {
+    mockTables.users = [{ ...USER, preferred_language: 'ur' }];
+    mockTables.niete_lp_assets = [];
+    await Delivery.deliverV8Lesson({ userId: 'user-1', lessonId: 'grade_1_english_ch1_seg3' });
+    expect(mockSends.messages.some((m) => /[؀-ۿ]/.test(m.body))).toBe(true);
+  });
+});
