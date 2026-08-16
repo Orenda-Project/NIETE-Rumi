@@ -6,7 +6,16 @@ import { MemoryRouter } from "react-router-dom";
 // observations (overdue-flagged), pending debriefs, completed observations.
 
 vi.mock("../hooks/useAuth", () => ({ useAuth: vi.fn() }));
-vi.mock("../services/api", () => ({ leader: { getObservations: vi.fn() } }));
+// bd-2676: the page now also loads the coach's teachers for the scheduling
+// form, so the mock must provide it — an undefined mock throws on render.
+vi.mock("../services/api", () => ({
+  leader: {
+    getObservations: vi.fn(),
+    getTeachers: vi.fn(),
+    createSchedule: vi.fn(),
+    cancelSchedule: vi.fn(),
+  },
+}));
 
 import { useAuth } from "../hooks/useAuth";
 import { leader } from "../services/api";
@@ -32,6 +41,7 @@ const OBSERVATIONS = {
 function renderPage(payload = OBSERVATIONS) {
   (useAuth as any).mockReturnValue({ user: { firstName: "Noor", role: "coach" }, loading: false, logout: vi.fn() });
   (leader.getObservations as any).mockResolvedValue(payload);
+  (leader.getTeachers as any).mockResolvedValue({ success: true, total: 0, onRumi: 0, teachers: [] });
   render(
     <MemoryRouter>
       <LeaderObservations />

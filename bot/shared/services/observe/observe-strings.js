@@ -56,6 +56,14 @@ const STRINGS = {
     list_new_observation_desc: 'Anza uchunguzi mpya wa darasa',
     list_row_default_desc: 'Bonyeza kuanza debrief',
     // bd-2668 — who was observed (asked only when the capture was unbound)
+    // bd-2673 — flip the teacher report's language (button titles: <=20 code points)
+    // bd-2675 — the tap event, the single nudge, and the honest stop
+    send_tapped_fo: '✅ {name} amefungua ripoti yake.',
+    send_nudged_fo: '🔔 {name} bado hajafungua ripoti — nimemkumbusha mara moja.',
+    send_gave_up_fo: '{name} hajafungua ripoti. Sitamsumbua tena — mwambie akufungulie, kisha tuma tena kutoka /observe.',
+    btn_send_in_ur: 'Tuma kwa Kiurdu',
+    btn_send_in_en: 'Tuma kwa Kiingereza',
+    send_lang_switching: 'Sawa — naandaa upya ripoti kwa lugha nyingine…',
     who_body: 'Umemchunguza mwalimu yupi? Hii husaidia ripoti kufika kwa mtu sahihi.',
     who_button: 'Chagua mwalimu',
     who_section: 'Walimu wako',
@@ -174,6 +182,14 @@ const STRINGS = {
     list_new_observation_desc: 'کلاس کا نیا مشاہدہ شروع کریں',
     list_row_default_desc: 'ڈی بریف باقی ہے',
     // bd-2668 — who was observed (asked only when the capture was unbound)
+    // bd-2673 — flip the teacher report's language (button titles: <=20 code points)
+    // bd-2675 — the tap event, the single nudge, and the honest stop
+    send_tapped_fo: '✅ {name} نے اپنی رپورٹ کھول لی ہے۔',
+    send_nudged_fo: '🔔 {name} نے ابھی تک رپورٹ نہیں کھولی — ایک بار یاد دہانی بھیج دی ہے۔',
+    send_gave_up_fo: '{name} نے رپورٹ نہیں کھولی۔ اب مزید یاد دہانی نہیں بھیجوں گی — انہیں بتا دیں، پھر /observe سے دوبارہ بھیج دیں۔',
+    btn_send_in_ur: 'اردو میں بھیجیں',
+    btn_send_in_en: 'انگریزی میں بھیجیں',
+    send_lang_switching: 'ٹھیک ہے — رپورٹ دوسری زبان میں تیار کر رہا ہوں…',
     who_body: 'آپ نے کس ٹیچر کا مشاہدہ کیا؟ اس سے رپورٹ درست ٹیچر تک پہنچتی ہے۔',
     who_button: 'ٹیچر منتخب کریں',
     who_section: 'آپ کے ٹیچرز',
@@ -288,6 +304,14 @@ const STRINGS = {
     list_new_observation_desc: 'Start a new classroom observation',
     list_row_default_desc: 'Tap to start the debrief',
     // bd-2668 — who was observed (asked only when the capture was unbound)
+    // bd-2673 — flip the teacher report's language (button titles: <=20 code points)
+    // bd-2675 — the tap event, the single nudge, and the honest stop
+    send_tapped_fo: '✅ {name} has opened the report.',
+    send_nudged_fo: '🔔 {name} has not opened the report yet — I have sent one reminder.',
+    send_gave_up_fo: '{name} has not opened the report. I will not send more reminders — have a word, then send it again from /observe.',
+    btn_send_in_ur: 'Send in Urdu',
+    btn_send_in_en: 'Send in English',
+    send_lang_switching: 'Sure — rebuilding the report in the other language…',
     who_body: 'Which teacher did you observe? This keeps the report with the right teacher.',
     who_button: 'Pick teacher',
     who_section: 'Your teachers',

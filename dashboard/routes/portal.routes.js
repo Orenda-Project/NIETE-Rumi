@@ -66,6 +66,8 @@ const { getPatchTeacherDetail } = require('../services/leader-teacher-detail.ser
 // The coach's /observe world (upcoming schedules + pending debriefs + past
 // observations) — bd-2455.
 const { getLeaderObservations } = require('../services/leader-observations.service');
+// bd-2676 — the portal's WRITE side for scheduled visits (create + cancel).
+const { createSchedule, cancelSchedule } = require('../services/leader-schedule-write.service');
 
 // Configure R2 S3 client for private PDF access. Lazy — resolved on first
 // use, not at module load, so mounting these routes never depends on R2 env
@@ -1002,6 +1004,48 @@ router.get('/leader/observations', requirePortalAuth, requireLeaderRole, async (
   } catch (error) {
     console.error('leader/observations error:', error);
     res.status(500).json({ success: false, error: 'Failed to load your observations.' });
+  }
+});
+
+
+/**
+ * POST /api/portal/leader/schedules — book a visit from the portal (bd-2676).
+ *
+ * Riffat R33: a coach who clears WhatsApp storage lost her schedule. The leader
+ * id comes from the SESSION, never the body, and the service re-checks that the
+ * teacher is in this coach's patch — so a hand-posted teacher id cannot book
+ * against someone else's teacher, and the stored names come from the patch
+ * rather than the request.
+ */
+router.post('/leader/schedules', requirePortalAuth, requireLeaderRole, async (req, res) => {
+  try {
+    const { teacherExtId, date, slot } = req.body || {};
+    const result = await createSchedule(
+      (sql, params) => pool.query(sql, params),
+      req.session.portalUserId,
+      { teacherExtId, date, slot }
+    );
+    res.json({ success: true, ...result });
+  } catch (error) {
+    // These are user-facing validation messages ("that date is in the past"),
+    // so they are returned as 400s with the reason rather than a blank 500.
+    console.error('leader/schedules create error:', error.message);
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+/** POST /api/portal/leader/schedules/:id/cancel — cancel one upcoming visit. */
+router.post('/leader/schedules/:id/cancel', requirePortalAuth, requireLeaderRole, async (req, res) => {
+  try {
+    const result = await cancelSchedule(
+      (sql, params) => pool.query(sql, params),
+      req.session.portalUserId,
+      req.params.id
+    );
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('leader/schedules cancel error:', error.message);
+    res.status(400).json({ success: false, error: error.message });
   }
 });
 
