@@ -306,11 +306,18 @@ class MenuService {
     const PAKISTAN_LP_FLOW_ID = process.env.PAKISTAN_LP_FLOW_ID || '';
 
     if (PAKISTAN_LP_FLOW_ID) {
+      // FEAT-059 (bd-72dth): bilingual copy. NIETE is a flat en/ur deployment,
+      // and a teacher-facing string on it must exist in both — plus fit its
+      // WhatsApp field cap measured in CODE POINTS (header 60, button 20).
+      // Covered by tests/lp-v8/menu-entry.test.js.
+      const isUrdu = String(language || '').toLowerCase().startsWith('ur');
       const flowSent = await WhatsAppService.sendFlow(from, {
         flowId: PAKISTAN_LP_FLOW_ID,
-        header: '📘 Lesson Plans',
-        body: 'Pick your class, subject, chapter and topic — the lesson plan lands in your chat.',
-        buttonText: 'Pick Class',
+        header: isUrdu ? '📘 سبق کے منصوبے' : '📘 Lesson Plans',
+        body: isUrdu
+          ? 'اپنی جماعت، مضمون اور باب چنیں، پھر اُس دن کا سبق — منصوبہ آپ کی چیٹ میں آ جائے گا۔'
+          : "Pick your class, subject and chapter, then the day's lesson — the plan lands in your chat.",
+        buttonText: isUrdu ? 'جماعت چنیں' : 'Pick Class',
         flowToken: `${userId}:pakistan-lp:${Date.now()}`,
       });
       if (flowSent) {
