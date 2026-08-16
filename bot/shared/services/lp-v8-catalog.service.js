@@ -108,19 +108,14 @@ function parseLessonId(id) {
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 function buildGradeItems(grades) {
+  // Just the grade name and the tap hint. A corpus subheading used to repeat on
+  // every row ("Primary curriculum lesson plans" × 5, "Oxbridge…" × 5) and read
+  // as noise on the operator's device test (staging feedback round 1).
   return grades.map((g) => ({
     id: String(g),
     'main-content': {
       title: clip(`Grade ${g}`, TITLE_CAP),
       description: 'Tap to open',
-      // Brand-neutral by requirement: this is a public OSS fork, and the
-      // partner-name strip test fails the build on any partner name under
-      // bot/shared. The teacher still gets the distinction she needs — which
-      // corpus a grade draws from.
-      metadata: clip(
-        Number(g) <= V8_MAX_GRADE ? 'Primary curriculum lesson plans' : 'Oxbridge lesson plans',
-        META_CAP,
-      ),
     },
     'on-click-action': { name: 'data_exchange', payload: { step: 'grade', grade: String(g) } },
   }));
@@ -162,16 +157,37 @@ function buildSubjectItems(grade, available) {
 function buildChapterItems(grade, subjectKey, available) {
   const book = bookFor(grade, subjectKey);
   if (!book) return [];
+  // Keeps the Latin "p.4-33" from bidi-scrambling at the end of an Urdu line —
+  // same mark the catalog builder plants inside lesson metadata.
+  const mark = book.rtl ? '‎' : '';
   const items = [];
   for (const chapter of book.chapters) {
     const lessons = availableIn(chapter, available);
     if (!lessons.length) continue;
+
+    // Metadata carries the chapter's FULL page span — it used to echo the first
+    // lesson's topic + pages, which read as "the chapter starts at p.N" on the
+    // operator's device test (staging feedback round 1). When the
+    // 30-cp cap clips the title, the full chapter title leads the line so
+    // nothing is lost, only moved.
+    const full = `Ch ${chapter.number}: ${chapter.title}`;
+    const range = chapter.pages_label || '';
+    let metadata;
+    if (cps(full) > TITLE_CAP && range) {
+      const suffix = `${mark} · ${range}`;
+      metadata = clip(chapter.title, META_CAP - cps(suffix)) + suffix;
+    } else if (cps(full) > TITLE_CAP) {
+      metadata = clip(chapter.title, META_CAP);
+    } else {
+      metadata = range || clip(lessons[0].row.metadata, META_CAP);
+    }
+
     items.push({
       id: String(chapter.number),
       'main-content': {
-        title: clip(`Ch ${chapter.number}: ${chapter.title}`, TITLE_CAP),
+        title: clip(full, TITLE_CAP),
         description: clip(plural(lessons.length, 'lesson'), DESC_CAP),
-        metadata: clip(lessons[0].row.metadata, META_CAP),
+        metadata,
       },
       'on-click-action': {
         name: 'data_exchange',

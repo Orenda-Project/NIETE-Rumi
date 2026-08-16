@@ -18,6 +18,7 @@ const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
 const WhatsAppService = require('./whatsapp.service');
 const LpFeedback = require('./lp-feedback.service');
 const V8Catalog = require('./lp-v8-catalog.service');
+const { resolveUx } = require('../config/ux-strings');
 const { logToFile } = require('../utils/logger');
 
 const LP_VARIANT = 'niete_v8_segment';
@@ -172,9 +173,17 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
   if (!asset || !asset.r2_key) {
     logToFile('LP v8: no current asset', { userId, lessonId });
     await recordDownload({ ...context, user_id: userId, phone, status: 'failed', error_text: 'no current asset' });
-    await WhatsAppService.sendMessage(phone, 'That lesson plan is still being prepared — try again shortly.');
+    await WhatsAppService.sendMessage(phone, resolveUx('lpV8StillPreparing', { user }));
     return { ok: false, reason: 'no current asset' };
   }
+
+  // Staging feedback round 1: presign + Meta's document fetch take several
+  // seconds after the Flow has already closed — tell her it is coming before
+  // the silence reads as a failed request. Best-effort: the PDF is the
+  // deliverable, so an ack failure must never abort the send.
+  try {
+    await WhatsAppService.sendMessage(phone, resolveUx('lpV8Preparing', { user }));
+  } catch (_) { /* best effort */ }
 
   const filename = buildFilename({ book, chapter, lesson });
   const caption = buildCaption({ book, chapter, lesson });
@@ -206,10 +215,7 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
   if (!ok) {
     // Never leave the teacher in silence after a failed delivery.
     try {
-      await WhatsAppService.sendMessage(
-        phone,
-        "I couldn't send that lesson plan just now — please try again in a minute.",
-      );
+      await WhatsAppService.sendMessage(phone, resolveUx('lpV8SendFailed', { user }));
     } catch (_) { /* best effort */ }
     return { ok: false, reason: errorText || 'send failed' };
   }

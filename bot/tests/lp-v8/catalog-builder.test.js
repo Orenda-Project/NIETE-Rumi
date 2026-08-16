@@ -422,3 +422,44 @@ describe('lp-catalog: the committed artifact (bot/data/lp_catalog.json)', () => 
     expect(eng.rtl).toBe(false);
   });
 });
+
+// ─── Staging feedback round 1 (bd-fel74) ────────────────────────────────────
+describe('staging feedback: chapter page span + full section in metadata', () => {
+  test('buildRow: a section past the title cap lands IN FULL in metadata, range terminal', () => {
+    const longSection = 'ہم آہنگ آوازوں والے الفاظ کی شناخت اور استعمال';
+    expect(cps(longSection)).toBeGreaterThan(SECTION_CAP);
+    const row = B.buildRow(
+      { segment_index: 2, section: longSection, topic: 'کہانی سنیں اور سمجھیں', pages: [7, 8] },
+      { rtl: true },
+    );
+    expect(cps(row.title)).toBeLessThanOrEqual(SECTION_CAP);
+    expect(row.metadata).toContain(longSection);
+    expect(row.metadata).toMatch(/p\.7-8$/);
+    expect(cps(row.metadata)).toBeLessThanOrEqual(META_CAP);
+  });
+
+  test('buildRow: a section that FITS the title stays out of metadata (no duplication)', () => {
+    const row = B.buildRow(
+      { segment_index: 1, section: 'Memory Lane', topic: 'Counting to five', pages: [3] },
+      { rtl: false },
+    );
+    expect(row.title).toBe('Memory Lane');
+    expect(row.metadata).not.toContain('Memory Lane');
+  });
+
+  test('committed catalog: every chapter carries pages_label spanning ALL its lessons', () => {
+    const cat = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
+    let checked = 0;
+    for (const book of cat.books) {
+      for (const ch of book.chapters) {
+        const pages = ch.lessons.flatMap((l) => l.pages || []).filter(Number.isFinite);
+        if (!pages.length) continue;
+        const lo = Math.min(...pages);
+        const hi = Math.max(...pages);
+        expect(ch.pages_label).toBe(lo === hi ? `p.${lo}` : `p.${lo}-${hi}`);
+        checked += 1;
+      }
+    }
+    expect(checked).toBeGreaterThan(100);
+  });
+});

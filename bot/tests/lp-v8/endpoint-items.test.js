@@ -29,6 +29,7 @@ const CATALOG = {
         number: 1,
         title: 'Counting Capers',
         title_short: 'Counting Capers',
+        pages_label: 'p.1-3',
         lessons: [1, 2, 3].map((i) => ({
           lesson_id: `grade_1_maths_ch1_seg${i}`,
           segment_index: i,
@@ -46,6 +47,7 @@ const CATALOG = {
         number: 3,
         title: 'Sum and Difference Detectives',
         title_short: 'Sum and Difference Detect…',
+        pages_label: 'p.1-24',
         lessons: Array.from({ length: 24 }, (_, k) => ({
           lesson_id: `grade_1_maths_ch3_seg${k + 1}`,
           segment_index: k + 1,
@@ -60,9 +62,30 @@ const CATALOG = {
         })),
       },
       {
+        // A title past the 30-cp NavigationList cap ("Ch 4: " + 38 = 44), so the
+        // full title must resurface in metadata ahead of the page range.
+        number: 4,
+        title: 'Wonderful Measurement Adventures Galore',
+        title_short: 'Wonderful Measurement Adve…',
+        pages_label: 'p.50-61',
+        lessons: [{
+          lesson_id: 'grade_1_maths_ch4_seg1',
+          segment_index: 1,
+          lp_type: 'content',
+          day_label: 'Day 1',
+          section: 'Measure Up',
+          section_short: 'Measure Up',
+          topic: 'Length and height',
+          pages: [50],
+          pages_label: 'p.50',
+          row: { title: 'Measure Up', description: 'Day 1', metadata: 'Length and height · p.50' },
+        }],
+      },
+      {
         number: 9,
         title: 'Not Rendered Yet',
         title_short: 'Not Rendered Yet',
+        pages_label: 'p.90',
         lessons: [{
           lesson_id: 'grade_1_maths_ch9_seg1',
           segment_index: 1,
@@ -96,9 +119,13 @@ describe('grade + subject screens', () => {
     expect(items[0]['main-content'].title).toBe('Grade 1');
     expect(items[0]['on-click-action'].payload).toEqual({ step: 'grade', grade: '1' });
     for (const i of items) expect(cps(i['main-content'].title)).toBeLessThanOrEqual(TITLE_CAP);
-    // The metadata is how a teacher can tell the two corpora apart at a glance.
-    expect(items[2]['main-content'].metadata).toMatch(/Primary curriculum/i);
-    expect(items[7]['main-content'].metadata).toMatch(/Oxbridge/i);
+    // INVERTED (staging feedback round 1, bd-fel74): the corpus subheading
+    // repeated on every row read as noise on the phone — the grade screen now
+    // carries the grade name and the tap hint, nothing else.
+    for (const i of items) {
+      expect(i['main-content'].description).toBe('Tap to open');
+      expect(i['main-content'].metadata).toBeUndefined();
+    }
   });
 
   test('a subject with no available chapter is hidden, not shown then dead-ended', () => {
@@ -259,5 +286,32 @@ describe('catalog lookups', () => {
   test('gradesWithContent reports only grades that have an available lesson', () => {
     expect(V8.gradesWithContent(AVAILABLE)).toEqual([1]);
     expect(V8.gradesWithContent(new Set())).toEqual([]);
+  });
+});
+
+// ─── Staging feedback round 1 (bd-fel74) — chapter rows ─────────────────────
+// The operator's device test read the old chapter metadata (first lesson's
+// topic + its pages) as "the chapter's starting page". The row now carries the
+// chapter's FULL page span, and — when the 30-cp cap clips the title — the full
+// chapter title ahead of it.
+describe('chapter rows: full page range + unclipped title in metadata', () => {
+  test('metadata is the chapter page span, not the first lesson topic', () => {
+    const items = V8.buildChapterItems(1, 'math', AVAILABLE);
+    const ch1 = items.find((i) => i.id === '1');
+    expect(ch1['main-content'].metadata).toBe('p.1-3');
+    // ch3's title ("Ch 3: Sum and Difference Detectives", 34 cp) is past the
+    // title cap, so its metadata correctly leads with the full title.
+    const ch3 = items.find((i) => i.id === '3');
+    expect(ch3['main-content'].metadata).toBe('Sum and Difference Detectives · p.1-24');
+  });
+
+  test('a clipped chapter title reappears IN FULL in metadata, range still terminal', () => {
+    const avail = new Set(['grade_1_maths_ch4_seg1']);
+    const [ch4] = V8.buildChapterItems(1, 'math', avail);
+    expect(cps(`Ch 4: Wonderful Measurement Adventures Galore`)).toBeGreaterThan(TITLE_CAP);
+    expect(ch4['main-content'].title.endsWith('…')).toBe(true);
+    expect(ch4['main-content'].metadata).toContain('Wonderful Measurement Adventures Galore');
+    expect(ch4['main-content'].metadata).toMatch(/p\.50-61$/);
+    expect(cps(ch4['main-content'].metadata)).toBeLessThanOrEqual(META_CAP);
   });
 });
