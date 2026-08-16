@@ -5,7 +5,7 @@ import { leader } from "../services/api";
 import PortalLayout from "../components/PortalLayout";
 import LoadingState from "../components/LoadingState";
 import ScoreIndicator from "../components/ScoreIndicator";
-import type { LeaderObservationsData } from "../types/portal";
+import type { LeaderObservationsData, LeaderPatchTeacher } from "../types/portal";
 
 /**
  * Leader Portal — "Observations" (bd-2455).
@@ -23,9 +23,16 @@ function formatDay(iso: string | null): string {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
+const SLOTS = ["09:00", "11:30", "14:00"];
+
 const LeaderObservations = () => {
   const [data, setData] = useState<LeaderObservationsData | null>(null);
   const [loading, setLoading] = useState(true);
+  // bd-2676 — scheduling from the portal
+  const [teachers, setTeachers] = useState<LeaderPatchTeacher[]>([]);
+  const [form, setForm] = useState({ teacherExtId: "", date: "", slot: SLOTS[0] });
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -34,8 +41,47 @@ const LeaderObservations = () => {
       .then((d) => { if (alive) setData(d.observations); })
       .catch(() => { if (alive) setData(null); })
       .finally(() => { if (alive) setLoading(false); });
+    // bd-2676 — the teachers this coach may book. Failure here only costs the
+    // scheduling form; the rest of the page still renders.
+    leader.getTeachers()
+      .then((d) => { if (alive) setTeachers(d.teachers || []); })
+      .catch(() => { if (alive) setTeachers([]); });
     return () => { alive = false; };
   }, []);
+
+  const reload = () =>
+    leader.getObservations().then((d) => setData(d.observations)).catch(() => {});
+
+  const submitSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setScheduleError(null);
+    if (!form.teacherExtId || !form.date) {
+      setScheduleError("Pick a teacher and a date.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await leader.createSchedule(form);
+      setForm({ teacherExtId: "", date: "", slot: SLOTS[0] });
+      await reload();
+    } catch (err: any) {
+      // Surface the server's own reason ("that date is in the past") rather
+      // than a generic failure — the reason is the useful part.
+      setScheduleError(err?.response?.data?.error || "Could not schedule that visit.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const cancelVisit = async (id: string) => {
+    setScheduleError(null);
+    try {
+      await leader.cancelSchedule(id);
+      await reload();
+    } catch (err: any) {
+      setScheduleError(err?.response?.data?.error || "Could not cancel that visit.");
+    }
+  };
 
   return (
     <PortalLayout>
@@ -55,6 +101,54 @@ const LeaderObservations = () => {
           </section>
         ) : (
           <div className="space-y-8">
+            {/* bd-2676 — book a visit here, so the record survives clearing WhatsApp */}
+            <section className="bg-white rounded-lg shadow-sm border border-border overflow-hidden">
+              <div className="p-6 pb-3 flex items-center gap-2">
+                <CalendarDays className="w-5 h-5 text-accent" />
+                <h2 className="text-lg font-medium">Schedule a visit</h2>
+              </div>
+              <form className="px-6 pb-6 flex flex-wrap items-end gap-4" onSubmit={submitSchedule}>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="sched-teacher" className="text-sm text-muted-foreground">Teacher</label>
+                  <select
+                    id="sched-teacher" className="border border-border rounded-md px-3 py-2 min-w-56"
+                    value={form.teacherExtId}
+                    onChange={(e) => setForm({ ...form, teacherExtId: e.target.value })}
+                  >
+                    <option value="">Choose a teacher</option>
+                    {teachers.map((t) => (
+                      <option key={t.teacherExtId || ""} value={t.teacherExtId || ""}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="sched-date" className="text-sm text-muted-foreground">Date</label>
+                  <input
+                    id="sched-date" type="date" className="border border-border rounded-md px-3 py-2"
+                    value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="sched-slot" className="text-sm text-muted-foreground">Time</label>
+                  <select
+                    id="sched-slot" className="border border-border rounded-md px-3 py-2"
+                    value={form.slot} onChange={(e) => setForm({ ...form, slot: e.target.value })}
+                  >
+                    {SLOTS.map((sl) => <option key={sl} value={sl}>{sl}</option>)}
+                  </select>
+                </div>
+                <button
+                  type="submit" disabled={saving}
+                  className="bg-accent text-white rounded-md px-4 py-2 disabled:opacity-60"
+                >
+                  {saving ? "Scheduling…" : "Schedule visit"}
+                </button>
+                {scheduleError && <p className="text-destructive text-sm w-full">{scheduleError}</p>}
+              </form>
+            </section>
+
             {/* Upcoming schedule */}
             <section className="bg-white rounded-lg shadow-sm border border-border overflow-hidden">
               <div className="p-6 pb-3 flex items-center gap-2">
@@ -83,6 +177,13 @@ const LeaderObservations = () => {
                             <AlertCircle className="w-3.5 h-3.5" /> Overdue
                           </p>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => cancelVisit(s.id)}
+                          className="text-sm text-muted-foreground underline mt-1"
+                        >
+                          Cancel
+                        </button>
                       </div>
                     </li>
                   ))}
