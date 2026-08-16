@@ -13,6 +13,11 @@ Usage:
   python3 scripts/publish-pakistan-lp-flow.py              # DRAFT
   python3 scripts/publish-pakistan-lp-flow.py --publish    # publish immediately
   python3 scripts/publish-pakistan-lp-flow.py --flow-id <id>  # update existing draft
+  python3 scripts/publish-pakistan-lp-flow.py --json docs/flows/<other>.json
+
+Replacing the JSON on an EXISTING published Flow (--flow-id) reverts it to
+DRAFT until the publish call lands, so upload and publish go back to back —
+never as two separate sittings.
 """
 from __future__ import annotations
 import argparse, json, sys, urllib.request, urllib.error, uuid
@@ -20,7 +25,11 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 ENV = REPO / ".env"
-FLOW_JSON = REPO / "docs" / "flows" / "pakistan-lp-flow-v1.json"
+# The JSON the endpoint is built against. Pinned by
+# bot/tests/lp-v8/publish-script.test.js so this cannot drift behind the code
+# again: publishing an older JSON onto the live Flow id is worse than not
+# publishing at all, and the step is not reversible.
+DEFAULT_FLOW_JSON = REPO / "docs" / "flows" / "pakistan-lp-flow-v3.json"
 
 
 def env(k: str, required: bool = True):
@@ -67,13 +76,22 @@ def main() -> int:
     ap.add_argument("--publish", action="store_true", help="Publish the Flow immediately (default: DRAFT)")
     ap.add_argument("--flow-id", help="Update an existing draft Flow instead of creating a new one")
     ap.add_argument("--name", default="pakistan_lp_v1", help="Flow name (default: pakistan_lp_v1)")
+    ap.add_argument("--json", default=str(DEFAULT_FLOW_JSON),
+                    help=f"Flow JSON to upload (default: {DEFAULT_FLOW_JSON.name}). "
+                         "Point at the previous version to roll back.")
     ap.add_argument("--endpoint-uri", default="https://bot-production-2cb6.up.railway.app/api/flows/pakistan-lp",
                     help="Public URL Meta calls for data_exchange (default: NIETE prod)")
     args = ap.parse_args()
 
     waba_id = env("WABA_ID")
-    flow_json = FLOW_JSON.read_text()
-    print(f"Flow JSON: {len(flow_json):,} bytes")
+    json_path = Path(args.json)
+    if not json_path.is_absolute():
+        json_path = REPO / json_path
+    if not json_path.exists():
+        print(f"ERROR: {json_path} does not exist.", file=sys.stderr)
+        return 2
+    flow_json = json_path.read_text()
+    print(f"Flow JSON: {json_path.name}, {len(flow_json):,} bytes")
 
     if args.flow_id:
         flow_id = args.flow_id
