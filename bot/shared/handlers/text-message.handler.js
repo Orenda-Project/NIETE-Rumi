@@ -28,6 +28,7 @@ const ChildFlowToken = require('../services/quiz/child-flow-token'); // bd-2475 
 // process.env read (pre-existing NIETE code, untouched by this port).
 const { STUDENT_VIDEOS_FLOW_ID } = require('../utils/constants');
 const { logToFile } = require('../utils/logger');
+const { matchDetail: matchLessonPlanIntent } = require('../utils/lp-intent');
 const { TEMP_DIR, LOADING_STICKER_PATH, LOADING_STICKER_MEDIA_ID, OPENAI_API_KEY,
   ATTENDANCE_SETUP_FLOW_ID, ATTENDANCE_MARKING_FLOW_ID, EDIT_CLASS_FLOW_ID,
   CLASS_MANAGER_FLOW_ID } = require('../utils/constants');
@@ -956,18 +957,28 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
-  // PAKISTAN LP KEYWORD (FEAT-059): `lp`, `lesson plan`, `لیسن پلان`.
-  // Presence-gated on PAKISTAN_LP_FLOW_ID — when empty, we let the message
-  // fall through to the existing curriculum-LP topic intercept (topic-guess
-  // path). The Flow is the preferred UX when it's provisioned because it
-  // gives teachers a deterministic Grade→Subject→Chapter picker instead of
-  // relying on NLU guessing.
+  // PAKISTAN LP INTERCEPT (FEAT-059 / bd-hvhhu): ANY mention of a lesson plan
+  // opens the LP menu — English, Urdu script, or Roman Urdu.
+  //
+  // This used to be exact-match only
+  //   /^(lp|lesson\s*plan|لیسن\s*پلان|lesson-plan|\/lp)$/i
+  // so "can you send me the lesson plan for tomorrow" fell through to the LLM
+  // intent path and often produced a GENERATED plan instead of the ready-made
+  // corpus a teacher was asking for. isLessonPlanRequest() is tiered (strong /
+  // weak-needs-a-companion / blocked) so a generous trigger list does not cost
+  // false positives — see shared/utils/lp-intent.js and its tests.
+  //
+  // Presence-gated on PAKISTAN_LP_FLOW_ID — when empty, the message falls
+  // through to the existing curriculum-LP topic intercept.
   // ============================================================
   {
     const PAKISTAN_LP_FLOW_ID = process.env.PAKISTAN_LP_FLOW_ID || '';
-    const lpKeyword = /^(lp|lesson\s*plan|لیسن\s*پلان|lesson-plan|\/lp)$/i.test(trimmedMessage);
-    if (PAKISTAN_LP_FLOW_ID && lpKeyword) {
-      logToFile('📘 LP keyword detected → opening Pakistan LP flow', { userId: user?.id, phoneNumber: from, message: trimmedMessage });
+    const lpMatch = matchLessonPlanIntent(trimmedMessage);
+    if (PAKISTAN_LP_FLOW_ID && lpMatch.matched) {
+      logToFile('📘 LP intent detected → opening Pakistan LP flow', {
+        userId: user?.id, phoneNumber: from, message: trimmedMessage,
+        tier: lpMatch.tier, token: lpMatch.token,
+      });
       if (!user) {
         typingController.stop();
         await WhatsAppService.sendMessage(
@@ -983,8 +994,8 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         flowId: PAKISTAN_LP_FLOW_ID,
         header: '📘 Lesson Plans',
         body: ({
-          ur: 'اپنی کلاس، مضمون اور باب چنیں — میں لیسن پلان آپ کی چیٹ میں بھیج دوں گا۔',
-        })[responseLanguage] || 'Pick your class, subject, and chapter — I will send the lesson plan to your chat.',
+          ur: 'اپنی جماعت، مضمون اور باب چنیں، پھر اُس دن کا سبق — منصوبہ آپ کی چیٹ میں آ جائے گا۔',
+        })[responseLanguage] || "Pick your class, subject and chapter, then the day's lesson — the plan lands in your chat.",
         buttonText: ({
           ur: 'شروع کریں',
         })[responseLanguage] || 'Browse',

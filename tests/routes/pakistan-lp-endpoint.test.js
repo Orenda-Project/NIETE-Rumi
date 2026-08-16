@@ -146,7 +146,10 @@ describe('pakistan-lp-endpoint (v2 iter 3 — FEAT-109)', () => {
   it('SELECT_CHAPTER (Pakistan) → topic IDs are PK-prefixed', async () => {
     load();
     const res = await ep.handlePakistanLpDataExchange('u1', 'SELECT_CHAPTER', { grade: '1', subject: 'English', chapter: '1' });
-    expect(res.screen).toBe('SELECT_TOPIC');
+    // FEAT-059 v3: the topic screen is now SELECT_LESSON — the v3 routing
+    // model has no SELECT_TOPIC. Item ids keep their PK-/OX- prefixes, so the
+    // delivery pipelines below are unchanged.
+    expect(res.screen).toBe('SELECT_LESSON');
     expect(res.data.topics).toHaveLength(1);
     expect(res.data.topics[0].id).toBe('PK-r-g1-en-ch1');
     expect(res.data.topics[0].title).toBe('Full Chapter Lesson Plan');
@@ -155,7 +158,10 @@ describe('pakistan-lp-endpoint (v2 iter 3 — FEAT-109)', () => {
   it('SELECT_CHAPTER (Oxbridge) → topic IDs are OX-prefixed with extracted topic titles', async () => {
     load();
     const res = await ep.handlePakistanLpDataExchange('u1', 'SELECT_CHAPTER', { grade: '6', subject: 'Computer Science', chapter: 'Digital skills' });
-    expect(res.screen).toBe('SELECT_TOPIC');
+    // FEAT-059 v3: the topic screen is now SELECT_LESSON — the v3 routing
+    // model has no SELECT_TOPIC. Item ids keep their PK-/OX- prefixes, so the
+    // delivery pipelines below are unchanged.
+    expect(res.screen).toBe('SELECT_LESSON');
     expect(res.data.topics).toHaveLength(1);
     expect(res.data.topics[0].id).toBe('OX-1');
     expect(res.data.topics[0].title).toBe('Digital Skills'); // extracted from description

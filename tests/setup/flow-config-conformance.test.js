@@ -24,6 +24,14 @@ const ROUTES_FILE = path.join(BOT_DIR, 'shared/routes/flow-endpoint.routes.js');
 const ORPHAN_JSON_ALLOWLIST = new Set([
   // (empty) — quiz-flow.json is now wired: QUIZ_FLOW_ID constant + /api/flows/quiz
   // endpoint + flow-configs entry.
+  //
+  // FEAT-059: v1 and v2 of the Pakistan LP Flow are SUPERSEDED by
+  // pakistan-lp-flow-v3.json, which the config now points at. They are kept on
+  // disk as the record of what was published before — a published Flow cannot be
+  // rolled back via the API, so the previous JSON is the only way to reconstruct
+  // what teachers were being served.
+  'pakistan-lp-flow-v1.json',
+  'pakistan-lp-flow-v2.json',
 ]);
 
 // *_FLOW_ID env vars the bot reads but for which NO Flow JSON ships yet, so they
