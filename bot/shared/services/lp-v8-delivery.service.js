@@ -1,0 +1,245 @@
+'use strict';
+/**
+ * FEAT-059 / bd-fg3p4 + bd-zc9k7 — deliver one v8 lesson plan.
+ *
+ * Mirrors 02_Main Rumi Bot's storybook-delivery.service.js: send, record the
+ * attempt (sent OR failed), emit, then schedule the survey only on success.
+ *
+ * Two failure modes this deployment has already paid for, both guarded:
+ *   - bd-2054: buildR2PublicUrl returns the S3-endpoint URL, which anonymous
+ *     GETs reject with HTTP 400 — Meta gets a 400 and the send fails silently.
+ *     It MUST be wrapped in getPresignedUrl.
+ *   - bd-2407: a delivery that fails and leaves no row is invisible. Every
+ *     attempt is recorded, and the teacher is always told something.
+ */
+
+const supabase = require('../config/supabase');
+const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
+const WhatsAppService = require('./whatsapp.service');
+const LpFeedback = require('./lp-feedback.service');
+const V8Catalog = require('./lp-v8-catalog.service');
+const { logToFile } = require('../utils/logger');
+
+const LP_VARIANT = 'niete_v8_segment';
+const FILENAME_MAX = 64;
+
+/** WhatsApp-safe filename that names the lesson a teacher just asked for. */
+function buildFilename({ book, chapter, lesson }) {
+  const base = `Grade ${book.grade} ${book.subject} — Ch${chapter.number} ${lesson.day_label} — ${lesson.topic_short || lesson.topic}`
+    .replace(/[<>:"/\\|?*]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const room = FILENAME_MAX - 4;                       // ".pdf"
+  return `${base.length > room ? base.slice(0, room).trim() : base}.pdf`;
+}
+
+function buildCaption({ book, chapter, lesson }) {
+  return `📘 ${lesson.day_label} · ${lesson.row.title}\n${lesson.topic} (${lesson.pages_label})\n`
+    + `Grade ${book.grade} ${book.subject} — Ch${chapter.number}: ${chapter.title}`;
+}
+
+/** Every lesson_id with a current asset — this is what "servable" means. */
+async function availableLessonIds(catalogVersion = 'v8') {
+  try {
+    const { data, error } = await supabase
+      .from('niete_lp_assets')
+      .select('lesson_id')
+      .eq('catalog_version', catalogVersion)
+      .eq('asset_kind', 'lesson')
+      .eq('is_current', true)
+      .limit(5000);
+    if (error) { logToFile('LP v8: availableLessonIds error', { error: error.message }); return new Set(); }
+    return new Set((data || []).map((r) => r.lesson_id));
+  } catch (err) {
+    logToFile('LP v8: availableLessonIds threw', { error: err.message });
+    return new Set();
+  }
+}
+
+/** Lessons this teacher has already received, in ANY version — the ✓ tick. */
+async function downloadedLessonIds(userId) {
+  if (!userId) return new Set();
+  try {
+    const { data, error } = await supabase
+      .from('niete_lp_downloads')
+      .select('lesson_id')
+      .eq('user_id', userId)
+      .eq('status', 'sent')
+      .limit(5000);
+    if (error) { logToFile('LP v8: downloadedLessonIds error', { error: error.message }); return new Set(); }
+    return new Set((data || []).map((r) => r.lesson_id));
+  } catch (err) {
+    logToFile('LP v8: downloadedLessonIds threw', { error: err.message });
+    return new Set();
+  }
+}
+
+async function currentAssetFor(lessonId, assetKind = 'lesson') {
+  const { data } = await supabase
+    .from('niete_lp_assets')
+    .select('id, lesson_id, asset_kind, r2_key, content_hash, version_stamp, is_current')
+    .eq('lesson_id', lessonId)
+    .eq('asset_kind', assetKind)
+    .eq('is_current', true)
+    .maybeSingle();
+  return data || null;
+}
+
+async function getUser(userId) {
+  if (!userId) return null;
+  const { data } = await supabase
+    .from('users').select('id, phone_number, preferred_language').eq('id', userId).maybeSingle();
+  return data || null;
+}
+
+async function recordDownload(fields) {
+  try {
+    await supabase.from('niete_lp_downloads').insert(fields);
+  } catch (err) {
+    logToFile('LP v8: download insert failed', { lessonId: fields.lesson_id, error: err.message });
+  }
+}
+
+/**
+ * Deliver one v8 lesson to one teacher.
+ * Never throws — the Flow has already returned SUCCESS by the time this runs.
+ * @returns {Promise<{ok: boolean, reason?: string}>}
+ */
+async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
+  const hit = V8Catalog.lessonById(lessonId);
+  if (!hit) {
+    logToFile('LP v8: unknown lesson requested', { userId, lessonId });
+    return { ok: false, reason: 'unknown lesson' };
+  }
+  const { lesson, chapter, book } = hit;
+
+  const context = {
+    lesson_id: lessonId,
+    grade: book.grade,
+    subject: book.subject_key,
+    chapter_number: chapter.number,
+    segment_index: lesson.segment_index,
+    correlation_id: correlationId,
+  };
+
+  const user = await getUser(userId);
+  const phone = user && user.phone_number;
+  if (!phone) {
+    logToFile('LP v8: no phone for user', { userId, lessonId });
+    await recordDownload({ ...context, user_id: userId || null, phone: null, status: 'failed', error_text: 'no phone for user' });
+    return { ok: false, reason: 'no phone' };
+  }
+
+  const asset = await currentAssetFor(lessonId);
+  if (!asset || !asset.r2_key) {
+    logToFile('LP v8: no current asset', { userId, lessonId });
+    await recordDownload({ ...context, user_id: userId, phone, status: 'failed', error_text: 'no current asset' });
+    await WhatsAppService.sendMessage(phone, 'That lesson plan is still being prepared — try again shortly.');
+    return { ok: false, reason: 'no current asset' };
+  }
+
+  const filename = buildFilename({ book, chapter, lesson });
+  const caption = buildCaption({ book, chapter, lesson });
+
+  let ok = false;
+  let errorText = null;
+  try {
+    // bd-2054: presign, always. The raw public URL 400s for Meta.
+    const presigned = await getPresignedUrl(buildR2PublicUrl(asset.r2_key));
+    const resp = await WhatsAppService.sendDocumentByLink(phone, presigned, filename, caption);
+    ok = !!resp;
+    if (!ok) errorText = 'sendDocumentByLink returned falsy';
+  } catch (err) {
+    errorText = err.message;
+    logToFile('LP v8: send threw', { userId, lessonId, error: err.message });
+  }
+
+  await recordDownload({
+    ...context,
+    user_id: userId,
+    asset_id: asset.id,
+    version_stamp: asset.version_stamp,
+    content_hash: asset.content_hash,
+    phone,
+    status: ok ? 'sent' : 'failed',
+    error_text: errorText,
+  });
+
+  if (!ok) {
+    // bd-2407: never leave the teacher in silence after a failed delivery.
+    try {
+      await WhatsAppService.sendMessage(
+        phone,
+        "I couldn't send that lesson plan just now — please try again in a minute.",
+      );
+    } catch (_) { /* best effort */ }
+    return { ok: false, reason: errorText || 'send failed' };
+  }
+
+  // A lesson_plans row is what the feedback survey hangs off (lp_feedback
+  // FK-references it). Base-schema columns ONLY — the live schema could not be
+  // read from the build environment, so nothing here may depend on a column
+  // migration 018 does not itself create. The v8 detail rides in `content`.
+  let lessonPlanId = null;
+  try {
+    const { data } = await supabase.from('lesson_plans').insert({
+      user_id: userId,
+      topic: lesson.topic_short || lesson.topic,
+      grade: String(book.grade),
+      subject: book.subject_key,
+      type: 'lesson_plan',
+      content: {
+        v8: {
+          lesson_id: lessonId,
+          version_stamp: asset.version_stamp,
+          content_hash: asset.content_hash,
+          r2_key: asset.r2_key,
+          chapter_number: chapter.number,
+          segment_index: lesson.segment_index,
+          section: lesson.section,
+          pages: lesson.pages,
+          lp_variant: LP_VARIANT,
+        },
+      },
+    }).select('id').single();
+    lessonPlanId = data && data.id;
+  } catch (err) {
+    logToFile('LP v8: lesson_plans insert failed (non-fatal)', { userId, lessonId, error: err.message });
+  }
+
+  if (lessonPlanId) {
+    try {
+      LpFeedback.scheduleFeedbackPrompt({
+        lessonPlanId,
+        userId,
+        phone,
+        context: {
+          grade: book.grade,
+          subject: book.subject_key,
+          chapterNumber: chapter.number,
+          segmentNumber: lesson.segment_index,
+          topic: lesson.topic_short || lesson.topic,
+          lpVariant: LP_VARIANT,
+          // Voicenotes are NOT live for NIETE — the quiz covers the lesson plan
+          // only. lp_feedback.useful_component is reserved for when they are.
+          triggerMode: 'after_pdf_only',
+          language: (user && user.preferred_language) || 'en',
+        },
+      });
+    } catch (err) {
+      logToFile('LP v8: scheduleFeedbackPrompt threw (non-fatal)', { lessonPlanId, error: err.message });
+    }
+  }
+
+  return { ok: true };
+}
+
+module.exports = {
+  deliverV8Lesson,
+  availableLessonIds,
+  downloadedLessonIds,
+  currentAssetFor,
+  buildFilename,
+  buildCaption,
+  LP_VARIANT,
+};
