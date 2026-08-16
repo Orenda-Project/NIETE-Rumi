@@ -128,10 +128,20 @@ parseManifest.lastUnknown = [];
  *                     distinct category; --reconcile-disk picks these up using
  *                     the row for provenance and the conventional path.
  */
-function surveyDisk(manifestText, knownLessonIds, onDiskIds) {
+/**
+ * The PDFs live beside their own manifest. Hardcoding out/v8 meant a v8u run
+ * surveyed the v8 directory and reported all 466 English PDFs as "missing from
+ * the Urdu manifest".
+ */
+function pdfDirForManifest(manifestPath) {
+  return path.dirname(path.resolve(String(manifestPath || '')));
+}
+
+function surveyDisk(manifestText, knownLessonIds, onDiskIds, opts = {}) {
   const lagging = [];
   const blocked = [];
   const seen = new Set();
+  const pdfDir = opts.pdfDir || null;
 
   for (const line of String(manifestText || '').split('\n')) {
     const trimmed = line.trim();
@@ -150,7 +160,7 @@ function surveyDisk(manifestText, knownLessonIds, onDiskIds) {
     lagging.push({
       lesson_id: row.id,
       asset_kind: 'lesson',
-      pdf_path: `out/v8/${row.id}.pdf`,
+      pdf_path: pdfDir ? path.join(pdfDir, `${row.id}.pdf`) : `out/v8/${row.id}.pdf`,
       version_stamp: row.version_stamp || null,
       source_sha1: row.pdf_sha1 || null,
       source_bytes: row.pdf_bytes || null,
@@ -186,7 +196,14 @@ function pdfPageCount(buffer, tmpDir, gsBin = 'gs') {
   }
 }
 
-function gsCompress(buffer, tmpDir, gsBin = 'gs') {
+// pdfwrite stamps a CreationDate/ModDate and a random /ID into every output, so
+// compressing the SAME pdf twice normally gives two different sha1s (measured on
+// gs 10.07.0: cd0ad810… vs 309334bd…). That would make every re-run look like a
+// re-render: new key, new row, old asset superseded, whole corpus re-uploaded.
+// These three flags make the output byte-identical (and marginally smaller).
+const GS_DETERMINISTIC_FLAGS = ['-dOmitInfoDate=true', '-dOmitID=true', '-dOmitXMP=true'];
+
+function gsCompress(buffer, tmpDir, gsBin = 'gs', extraFlags = []) {
   const id = crypto.randomBytes(6).toString('hex');
   const inPath = path.join(tmpDir, `in_${id}.pdf`);
   const outPath = path.join(tmpDir, `out_${id}.pdf`);
@@ -194,7 +211,7 @@ function gsCompress(buffer, tmpDir, gsBin = 'gs') {
   try {
     execFileSync(gsBin, [
       '-sDEVICE=pdfwrite', '-dCompatibilityLevel=1.5', `-dPDFSETTINGS=${GS_SETTING}`,
-      '-dNOPAUSE', '-dQUIET', '-dBATCH', `-sOutputFile=${outPath}`, inPath,
+      '-dNOPAUSE', '-dQUIET', '-dBATCH', ...extraFlags, `-sOutputFile=${outPath}`, inPath,
     ], { stdio: ['ignore', 'ignore', 'pipe'] });
     return fs.readFileSync(outPath);
   } finally {
@@ -204,35 +221,60 @@ function gsCompress(buffer, tmpDir, gsBin = 'gs') {
 
 /**
  * Compress, or explain why we are shipping the original.
- * @returns {{buffer: Buffer, compressed: boolean, reason?: string, pages: number|null}}
+ *
+ * Tries the deterministic flags first and falls back to a plain invocation if
+ * this ghostscript does not know them — an older gs loses reproducibility but
+ * keeps the 88% saving, and planFor's source-sha1 check keeps the run idempotent
+ * either way.
+ *
+ * @returns {{buffer: Buffer, compressed: boolean, deterministic: boolean, reason?: string, pages: number|null}}
  */
 function compressPdf(source, opts = {}) {
   const tmpDir = opts.tmpDir || os.tmpdir();
   const gsBin = opts.gsBin || 'gs';
-  const doCompress = opts._compressImpl || ((b) => gsCompress(b, tmpDir, gsBin));
+  const doCompress = opts._compressImpl
+    || ((b, flags) => gsCompress(b, tmpDir, gsBin, flags));
   const countPages = opts._pageCountImpl || ((b) => pdfPageCount(b, tmpDir, gsBin));
 
   const before = countPages(source);
 
   let out;
+  let deterministic = true;
+  let firstError = null;
   try {
-    out = doCompress(source);
+    out = doCompress(source, GS_DETERMINISTIC_FLAGS);
   } catch (err) {
-    return { buffer: source, compressed: false, reason: `gs failed: ${err.message.split('\n')[0]}`, pages: before };
+    firstError = err;
+    deterministic = false;
+    try {
+      out = doCompress(source, []);
+    } catch (err2) {
+      return {
+        buffer: source, compressed: false, deterministic: false, pages: before,
+        reason: `gs failed: ${(err2.message || String(err2)).split('\n')[0]}`,
+      };
+    }
   }
+  void firstError;
   if (!out || !out.length) {
-    return { buffer: source, compressed: false, reason: 'gs produced nothing', pages: before };
+    return { buffer: source, compressed: false, deterministic: false, reason: 'gs produced nothing', pages: before };
   }
   if (out.length >= source.length) {
-    return { buffer: source, compressed: false, reason: 'compressed output is larger — not smaller', pages: before };
+    return {
+      buffer: source, compressed: false, deterministic,
+      reason: 'compressed output is larger — not smaller', pages: before,
+    };
   }
 
   const after = countPages(out);
   if (before != null && after != null && before !== after) {
-    return { buffer: source, compressed: false, reason: `page count changed ${before} → ${after}`, pages: before };
+    return {
+      buffer: source, compressed: false, deterministic,
+      reason: `page count changed ${before} → ${after}`, pages: before,
+    };
   }
 
-  return { buffer: out, compressed: true, pages: after != null ? after : before };
+  return { buffer: out, compressed: true, deterministic, pages: after != null ? after : before };
 }
 
 // ── planning ────────────────────────────────────────────────────────────────
@@ -252,6 +294,20 @@ function planFor(item, hash, existingRows) {
 
   if (current && current.content_hash === hash) {
     return { action: 'skip', upload: false, supersede: [], r2_key: key };
+  }
+  // Second identity check, on the RENDER rather than the compressed bytes.
+  // Compression is only byte-stable when this ghostscript understands the
+  // deterministic flags; across gs versions or machines the same render can
+  // compress to different bytes. The manifest's pdf_sha1 does not move, so it
+  // is what stops a re-run re-uploading a corpus it already shipped.
+  if (current && item.source_sha1 && current.source_sha1 === item.source_sha1) {
+    return {
+      action: 'skip',
+      upload: false,
+      supersede: [],
+      r2_key: r2KeyFor(item.lesson_id, current.content_hash, kind),
+      reason: 'same source render already current (source_sha1 match)',
+    };
   }
   if (sameHash) {
     // These bytes were served before and the object is still in R2 — flip flags.
@@ -274,13 +330,113 @@ function planFor(item, hash, existingRows) {
   };
 }
 
+// ── prepared SQL (for --r2-only, before migration 018 is applied) ───────────
+
+function sqlLiteral(v) {
+  if (v === null || v === undefined || v === '') return 'NULL';
+  if (typeof v === 'number') return String(v);
+  return `'${String(v).replace(/'/g, "''")}'`;
+}
+
+/**
+ * The niete_lp_assets rows for objects already in R2, as SQL that is safe to
+ * apply late and twice.
+ *
+ * supersede-then-insert, not plain insert: idx_lp_assets_one_current is a
+ * PARTIAL unique index on (lesson_id, asset_kind) WHERE is_current, so a second
+ * current row for a lesson is a constraint violation rather than a duplicate.
+ * ON CONFLICT on the identity index makes a re-apply a no-op, and the whole file
+ * is one transaction so a half-applied file cannot leave two current rows.
+ */
+function buildInsertSql(rows) {
+  const list = (rows || []).filter((r) => r && r.lesson_id && r.content_hash && r.r2_key);
+  if (!list.length) return '';
+
+  const out = ['BEGIN;', ''];
+  for (const r of list) {
+    const kind = r.asset_kind || 'lesson';
+    out.push(
+      'UPDATE niete_lp_assets SET is_current = false, superseded_at = NOW()',
+      `  WHERE lesson_id = ${sqlLiteral(r.lesson_id)}`,
+      `    AND asset_kind = ${sqlLiteral(kind)}`,
+      '    AND is_current',
+      `    AND content_hash <> ${sqlLiteral(r.content_hash)};`,
+      'INSERT INTO niete_lp_assets',
+      '  (lesson_id, catalog_version, version_stamp, content_hash, r2_key, bytes,',
+      '   source_bytes, source_sha1, prompt_layer_sha, rendered_at, asset_kind, is_current)',
+      `VALUES (${sqlLiteral(r.lesson_id)}, ${sqlLiteral(CATALOG_VERSION)}, `
+        + `${sqlLiteral(r.version_stamp || CATALOG_VERSION)}, ${sqlLiteral(r.content_hash)}, `
+        + `${sqlLiteral(r.r2_key)}, ${sqlLiteral(r.bytes)},`,
+      `        ${sqlLiteral(r.source_bytes)}, ${sqlLiteral(r.source_sha1)}, `
+        + `${sqlLiteral(r.prompt_layer_sha)}, ${sqlLiteral(r.rendered_at)}, ${sqlLiteral(kind)}, true)`,
+      'ON CONFLICT (lesson_id, asset_kind, content_hash) DO NOTHING;',
+      '',
+    );
+  }
+  out.push('COMMIT;');
+  return `${out.join('\n')}\n`;
+}
+
+// ── run report ──────────────────────────────────────────────────────────────
+
+/**
+ * One machine-readable record per run, written next to the corpus. The point is
+ * the negative space: what was NOT uploaded and why. A run that says "290
+ * uploaded" and nothing else reads as "the corpus is live" when 193 lessons are
+ * sitting behind a gate.
+ */
+function buildRunReport({ manifest, commit, items, survey, startedAt, finishedAt }) {
+  const counts = {};
+  const failures = [];
+  let source = 0;
+  let delivered = 0;
+
+  for (const it of items || []) {
+    counts[it.action] = (counts[it.action] || 0) + 1;
+    if (it.action === 'failed') failures.push({ lesson_id: it.lesson_id, reason: it.reason || null });
+    source += Number(it.source_bytes || 0);
+    delivered += Number(it.bytes || 0);
+  }
+
+  return {
+    manifest,
+    mode: commit ? 'commit' : 'dry-run',
+    started_at: startedAt || null,
+    finished_at: finishedAt || null,
+    counts,
+    bytes: { source, delivered },
+    failures,
+    blocked: (survey && survey.blocked) || [],
+    unmanifested: (survey && survey.unmanifested) || [],
+    lagging: ((survey && survey.lagging) || []).map((l) => l.lesson_id),
+    items: (items || []).map((it) => ({
+      lesson_id: it.lesson_id,
+      asset_kind: it.asset_kind || 'lesson',
+      action: it.action,
+      r2_key: it.r2_key || null,
+      content_hash: it.content_hash || null,
+      bytes: it.bytes || null,
+      source_bytes: it.source_bytes || null,
+      compressed: it.compressed !== undefined ? it.compressed : null,
+      deterministic: it.deterministic !== undefined ? it.deterministic : null,
+      reason: it.reason || null,
+    })),
+  };
+}
+
 // ── CLI ─────────────────────────────────────────────────────────────────────
 
 function parseArgs(argv) {
-  const args = { commit: false, reconcileDisk: false, only: null, limit: null, kind: null, manifest: null, root: null };
+  const args = {
+    commit: false, r2Only: false, reconcileDisk: false,
+    only: null, limit: null, kind: null, manifest: null, root: null,
+  };
   for (let i = 0; i < (argv || []).length; i += 1) {
     const a = argv[i];
     if (a === '--commit') { args.commit = true; continue; }
+    // Upload the bytes, prepare the rows as SQL. For the window where 018 has
+    // not been applied yet — the objects are inert until a row points at them.
+    if (a === '--r2-only') { args.r2Only = true; continue; }
     if (a === '--dry-run') { args.commit = false; continue; }
     if (a === '--reconcile-disk') { args.reconcileDisk = true; continue; }
     if (a === '--only') { args.only = argv[i + 1]; i += 1; continue; }
@@ -321,7 +477,8 @@ async function main() {
 
   // The render is live while this runs, so the manifest lags the disk. Always
   // measure the gap; only close it when asked. Never cap silently.
-  const pdfDir = path.join(args.root, 'out', 'v8');
+  // The PDFs sit beside their own manifest — v8 and v8u are separate trees.
+  const pdfDir = pdfDirForManifest(args.manifest);
   const onDiskIds = new Set(
     fs.existsSync(pdfDir)
       ? fs.readdirSync(pdfDir)
@@ -329,7 +486,7 @@ async function main() {
         .map((f) => f.replace(/\.pdf$/, ''))
       : [],
   );
-  const survey = surveyDisk(manifestText, ids, onDiskIds);
+  const survey = surveyDisk(manifestText, ids, onDiskIds, { pdfDir });
   console.log(`disk survey: ${onDiskIds.size} lesson PDFs on disk, ${items.length} offered by the manifest`);
   if (survey.blocked.length) {
     const reasons = {};
@@ -349,7 +506,8 @@ async function main() {
   if (args.only) items = items.filter((i) => i.lesson_id.includes(args.only));
   if (args.limit) items = items.slice(0, args.limit);
 
-  console.log(`=== LP v8 upload — ${args.commit ? 'COMMIT' : 'DRY RUN'} ===`);
+  const mode = args.commit ? 'COMMIT' : (args.r2Only ? 'R2-ONLY (rows prepared as SQL, not written)' : 'DRY RUN');
+  console.log(`=== LP v8 upload — ${mode} ===`);
   console.log(`manifest items: ${items.length}${unknown.length ? `  (${unknown.length} unknown ids skipped)` : ''}`);
   if (unknown.length) console.log(`  unknown: ${[...new Set(unknown)].slice(0, 10).join(', ')}`);
 
@@ -358,15 +516,43 @@ async function main() {
   if (args.commit) {
     supabase = require('../shared/config/supabase');
     r2 = require('../shared/storage/r2');
+  } else if (args.r2Only) {
+    r2 = require('../shared/storage/r2');   // no DB client — nothing here writes a row
   }
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lpv8-upload-'));
   const summary = { skipped: 0, first: 0, new_version: 0, reinstate: 0, missing: 0, failed: 0, srcBytes: 0, outBytes: 0, uncompressed: 0 };
+  const outcomes = [];
+  const startedAt = new Date().toISOString();
 
   try {
     for (const item of items) {
       const abs = path.isAbsolute(item.pdf_path) ? item.pdf_path : path.join(args.root, item.pdf_path);
-      if (!fs.existsSync(abs)) { summary.missing += 1; continue; }
+      if (!fs.existsSync(abs)) {
+        summary.missing += 1;
+        outcomes.push({ ...item, action: 'missing', reason: `not on disk: ${abs}` });
+        continue;
+      }
+
+      let existing = [];
+      if (args.commit) {
+        const { data } = await supabase
+          .from('niete_lp_assets')
+          .select('id, lesson_id, asset_kind, content_hash, source_sha1, is_current')
+          .eq('lesson_id', item.lesson_id);
+        existing = data || [];
+      }
+
+      // Resume fast: if the render this row came from is already the current
+      // asset, there is nothing to do — and no reason to spend half a second of
+      // ghostscript proving it. This is what makes re-running the full corpus
+      // cheap rather than a fresh 4 GB pass.
+      const preSkip = planFor(item, '__unknown__', existing);
+      if (args.commit && preSkip.action === 'skip' && preSkip.reason) {
+        summary.skipped += 1;
+        outcomes.push({ ...item, action: 'skip', reason: preSkip.reason, r2_key: preSkip.r2_key });
+        continue;
+      }
 
       const source = fs.readFileSync(abs);
       const comp = compressPdf(source, { tmpDir });
@@ -376,20 +562,37 @@ async function main() {
       const key = r2KeyFor(item.lesson_id, hash, item.asset_kind);
       assertNewPrefix(key);
 
-      let existing = [];
-      if (args.commit) {
-        const { data } = await supabase
-          .from('niete_lp_assets')
-          .select('id, lesson_id, asset_kind, content_hash, is_current')
-          .eq('lesson_id', item.lesson_id);
-        existing = data || [];
-      }
-
       const plan = planFor(item, hash, existing);
       summary.srcBytes += source.length;
       summary.outBytes += comp.buffer.length;
       summary[plan.action] = (summary[plan.action] || 0) + 1;
+      const outcome = {
+        ...item,
+        action: plan.action,
+        r2_key: plan.r2_key,
+        content_hash: hash,
+        bytes: comp.buffer.length,
+        source_bytes: source.length,
+        compressed: comp.compressed,
+        deterministic: comp.deterministic,
+        reason: plan.reason || comp.reason || null,
+      };
+      outcomes.push(outcome);
 
+      if (args.r2Only) {
+        // The object goes up; the row is prepared, not written. Uploading the
+        // same key twice is a no-op by construction — the key IS the content.
+        try {
+          await r2.uploadBuffer(comp.buffer, key, 'application/pdf');
+          console.log(`  ↑ ${item.lesson_id.padEnd(34)} ${(comp.buffer.length / 1048576).toFixed(2)}MB → ${key}`);
+        } catch (err) {
+          summary.failed += 1;
+          outcome.action = 'failed';
+          outcome.reason = err.message;
+          console.log(`  ✗ ${item.lesson_id}: ${err.message}`);
+        }
+        continue;
+      }
       if (!args.commit) {
         console.log(`  ${plan.action.padEnd(12)} ${item.lesson_id} ${(source.length / 1048576).toFixed(1)}MB→${(comp.buffer.length / 1048576).toFixed(2)}MB  ${plan.r2_key}`);
         continue;
@@ -429,6 +632,8 @@ async function main() {
         console.log(`  ✓ ${plan.action.padEnd(12)} ${item.lesson_id} → ${key}`);
       } catch (err) {
         summary.failed += 1;
+        outcome.action = 'failed';
+        outcome.reason = err.message;
         console.log(`  ✗ ${item.lesson_id}: ${err.message}`);
       }
     }
@@ -436,13 +641,51 @@ async function main() {
     try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (_) { /* best effort */ }
   }
 
+  const skipTotal = (summary.skipped || 0) + (summary.skip || 0);
   console.log('\n--- summary ---');
-  console.log(`  first=${summary.first} new_version=${summary.new_version} reinstate=${summary.reinstate} skip=${summary.skipped || summary.skip || 0}`);
+  console.log(`  first=${summary.first} new_version=${summary.new_version} reinstate=${summary.reinstate} skip=${skipTotal}`);
   console.log(`  missing-on-disk=${summary.missing} failed=${summary.failed} shipped-uncompressed=${summary.uncompressed}`);
   if (summary.srcBytes) {
     console.log(`  ${(summary.srcBytes / 1048576).toFixed(0)} MB → ${(summary.outBytes / 1048576).toFixed(0)} MB (${(100 * summary.outBytes / summary.srcBytes).toFixed(1)}%)`);
   }
+
+  // A run report, written whether the run succeeded or limped. Its job is the
+  // negative space: which lessons did NOT go, and why.
+  const report = buildRunReport({
+    manifest: args.manifest,
+    commit: args.commit,
+    items: outcomes,
+    survey,
+    startedAt,
+    finishedAt: new Date().toISOString(),
+  });
+  const reportDir = process.env.LP_V8_LOG_DIR || path.join(args.root, 'out', '_upload_runs');
+  try {
+    fs.mkdirSync(reportDir, { recursive: true });
+    const stem = path.basename(pdfDirForManifest(args.manifest));
+    const reportPath = path.join(
+      reportDir,
+      `${startedAt.replace(/[-:]/g, '').replace(/\..*/, 'Z')}_${stem}_`
+        + `${args.commit ? 'commit' : (args.r2Only ? 'r2only' : 'dryrun')}.json`,
+    );
+    fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
+    console.log(`  run report → ${reportPath}`);
+
+    if (args.r2Only) {
+      // The rows the objects are waiting for. Apply AFTER migration 018,
+      // or just re-run with --commit, which redoes the same work end to end.
+      const uploaded = outcomes.filter((o) => o.action !== 'failed' && o.action !== 'missing' && o.content_hash);
+      const sqlPath = reportPath.replace(/\.json$/, '.sql');
+      fs.writeFileSync(sqlPath, buildInsertSql(uploaded));
+      console.log(`  prepared rows (${uploaded.length}) → ${sqlPath}`);
+      console.log('  NOT applied. Apply after migration 018, or re-run with --commit.');
+    }
+  } catch (err) {
+    console.log(`  ⚠ could not write the run report: ${err.message}`);
+  }
+
   if (!args.commit) console.log('\n  DRY RUN — nothing written. Re-run with --commit.');
+  if (summary.failed) process.exitCode = 1;
 }
 
 if (require.main === module) {
@@ -455,10 +698,14 @@ module.exports = {
   assertNewPrefix,
   parseManifest,
   surveyDisk,
+  pdfDirForManifest,
   compressPdf,
   pdfPageCount,
   planFor,
   parseArgs,
+  buildRunReport,
+  buildInsertSql,
   KEY_PREFIX,
   GS_SETTING,
+  GS_DETERMINISTIC_FLAGS,
 };
