@@ -274,6 +274,19 @@ export const leader = {
   getObservations: async (): Promise<{ success: boolean; observations: LeaderObservationsData }> => {
     const response = await api.get('/leader/observations');
     return response.data;
+  },
+
+  // bd-2676 — book a visit from the portal (Riffat R33: clearing WhatsApp
+  // storage used to lose the schedule). Create + cancel only, no edit.
+  createSchedule: async (input: { teacherExtId: string; date: string; slot?: string }):
+    Promise<{ success: boolean; id?: string; updated?: boolean }> => {
+    const response = await api.post('/leader/schedules', input);
+    return response.data;
+  },
+
+  cancelSchedule: async (id: string): Promise<{ success: boolean; cancelled?: boolean }> => {
+    const response = await api.post(`/leader/schedules/${id}/cancel`);
+    return response.data;
   }
 };
 
