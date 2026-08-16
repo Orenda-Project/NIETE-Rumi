@@ -209,12 +209,16 @@ const STRINGS = {
     debrief_too_short: 'ریکارڈنگ بہت مختصر لگی۔ پوری گفتگو ریکارڈ کر کے دوبارہ بھیجیں۔',
     debrief_feedback_failed: 'معاف کیجیے، رائے تیار نہیں ہو سکی۔ ریکارڈنگ محفوظ ہے — تھوڑی دیر بعد دوبارہ کوشش ہو گی۔',
     long_audio_no_state: 'لمبی ریکارڈنگ ملی — لیکن ابھی کوئی مشاہدہ زیرِ عمل نہیں۔ پہلے /observe لکھیں، پھر ریکارڈنگ بھیجیں۔',
-    coach_card_title: 'دو اچھی باتیں · ایک آزمانے کی',
+    coach_card_title: 'خوبیاں · بہتری · عملی منصوبہ',
     coach_card_eyebrow: 'کوچنگ کی رائے',
     coach_card_value_eyebrow: 'آج آپ نے جو قدر جی',
     coach_card_subtitle: 'استاد سے آپ کی گفتگو سے — صرف میرے اور آپ کے درمیان۔',
-    coach_card_wins_label: 'آپ نے کیا اچھا کیا',
-    coach_card_try_label: 'اگلی بار یہ آزمائیں',
+    // bd-y7jr8 — the 3+1 headings, matching the debrief guide the coach reads
+    coach_card_wins_label: 'خوبیاں',
+    coach_card_action_label: 'عملی منصوبہ',
+    coach_card_reflect_label: 'اگلی بار سے پہلے خود سے پوچھیں',
+    guide_reflect_label: 'یہ سوال آخر میں پوچھیں',
+    coach_card_try_label: 'بہتری کا شعبہ',
     coach_card_closing: 'فیصلہ آپ کا ہے — کوچ آپ ہیں۔ 🌱',
     coach_concern_opener: 'آپ کی ڈی بریف سن لی۔ ایک بات کھل کر کہنی ہے — کیونکہ آپ کا بڑھنا اسی میں ہے۔',
     coach_concern_title: 'کھل کر کہنے کی بات',
@@ -338,11 +342,15 @@ const STRINGS = {
       "I received your recording but couldn't analyze it just now. Type /observe, pick that observation from the list, and record again — I'll listen fresh.",
     long_audio_no_state:
       "🎧 I received a long recording — but there's no observation waiting for you right now. If this was a lesson or debrief recording, type /observe first (and pick the right observation), then send it again.",
-    coach_card_title: 'Two wins · one to try next time',
+    coach_card_title: 'Strengths · growth · action plan',
     coach_card_eyebrow: 'Coaching Feedback',
     coach_card_value_eyebrow: 'The value you lived today',
     coach_card_subtitle: 'From your conversation with the teacher — between you and me only.',
-    coach_card_wins_label: 'What you did well',
+    // bd-y7jr8 — the 3+1 headings, matching the debrief guide the coach reads
+    coach_card_wins_label: 'Strengths',
+    coach_card_action_label: 'Action plan',
+    coach_card_reflect_label: 'Ask yourself before next time',
+    guide_reflect_label: 'Ask this last',
     pick_teacher_body:
       'Who should receive the report? Pick a teacher from your list, or add a new one.',
     pick_teacher_button: 'Pick a teacher',
@@ -360,7 +368,7 @@ const STRINGS = {
     manage_remove_btn: 'Remove from list',
     manage_back_btn: 'Back',
     manage_removed_ack: '✅ {name} removed from your list.',
-    coach_card_try_label: 'Try this next time',
+    coach_card_try_label: 'Areas for growth',
     coach_card_closing: 'The choice is yours — you are the coach. 🌱',
     // bd-30 — the harm gate: the officer disparaged the teacher. Honest, not congratulatory.
     coach_concern_opener:
