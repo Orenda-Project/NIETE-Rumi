@@ -380,7 +380,7 @@ async function handleSendLangToggle(sessionId, from, user) {
     await CoachingJobQueueService.queueObserveTeacherReport(sessionId, { from, phase: 'preview' });
     logToFile('🌐 observe send: report language switched', { sessionId, from: current, to: next });
   } catch (err) {
-    logToFile('❌ observe send: language toggle failed', { sessionId, error: err.message });
+    logToFile('❌ observe send: language toggle failed', { sessionId, error: err.message }, 'error');
     await WhatsAppService.sendMessage(from, S.debrief_load_error);
   }
 }
