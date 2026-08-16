@@ -86,14 +86,18 @@ function buildGuidePrompt(v2Analysis, options = {}) {
     const prevBlock = previousFocus
       ? `\nPREVIOUS VISIT (cross-session closure): last time the focus was "${previousFocus.title_sw || previousFocus.title || ''}" — the try was "${previousFocus.try_this_tomorrow_sw || previousFocus.try_this_tomorrow || ''}". Step 2 MUST open by returning to that commitment ("Last time you said you would try…") before any new praise — the teacher should see their journey.\n`
       : '';
-    return `You are the NIETE Teaching Assistant, preparing a school officer for their debrief conversation with a teacher they just observed. Build a SHORT 6-step conversation guide from the observation data below (scores have been deliberately removed — the guide must NEVER contain or imply a number, score or percentage).
+    return `You are the NIETE Teaching Assistant, preparing a school officer for their debrief conversation with a teacher they just observed. Build a SHORT conversation guide from the observation data below (scores have been deliberately removed — the guide must NEVER contain or imply a number, score or percentage).
 
-The 6 steps, in order: (1) open with intent, (2) praise ONE real moment with its evidence — quote the teacher's own words where possible, (3) ask ONE reflective question then STAY SILENT 30–60 seconds, (4) offer exactly ONE improvement framed as a teaching MOVE (never about the person), (5) invite the teacher to say an if-then commitment in their OWN words, (6) agree a return day.
+THE SHAPE — three sections the officer can read straight out, then ONE question to close (coaches asked for exactly this: they were re-sorting a question-shaped script into their own headings while standing in a school):
+  1. "strengths"  — ONE real moment that went well, with its evidence; quote the teacher's own words where possible.
+  2. "growth"     — exactly ONE thing to improve, framed as a teaching MOVE, never about the person. Not a list.
+  3. "action"     — what to try, concretely, and agreeing when you will look at it together again.
+  4. "reflection_question" — ONE open question the officer asks LAST, so the teacher states the commitment in HER OWN WORDS. This is what makes the action plan hers rather than yours: never a yes/no question, never leading, never "could you have done better".
 ${prevBlock}
 Rules: warm, specific, anchored ONLY to real moments in the data — if the data doesn't clearly support a step, keep it generic rather than inventing a moment. Write ALL text in ${langName}. Keep it SHORT: the whole guide, rendered, must stay under ${guideBudget(language)} characters — tight lines, no filler.
 GENDER (mandatory): the officer AND the teacher may each be a man or a woman (مرد بھی ہو سکتے ہیں اور خاتون بھی) — never assume. Every "say_this" line is spoken TO the teacher, so it must be gender-neutral: in Urdu use the respectful آپ-imperative (بتائیں، کریں), past with نے (آپ نے کروایا), or the respectful plural (آپ کرتے ہیں) — NEVER feminine singular stems (کرتی ہیں، کریں گی، سکتی ہیں). The same applies to instructions about the teacher (استاد چاہتے ہیں، not چاہتی ہیں).
 
-Return JSON EXACTLY: { "intro": "<one opening line to the officer>", "steps": [ { "n": 1, "title": "<short title>", "body": "<short instruction to the officer>", "say_this": "<word-for-word example to say>" }, ... 6 steps ... ], "outro": "<closing line: no number to hand over — one true praise and one try>" }
+Return JSON EXACTLY: { "intro": "<one opening line to the officer>", "sections": { "strengths": { "title": "<short heading>", "body": "<short instruction to the officer>", "say_this": "<word-for-word example to say>" }, "growth": { "title": "...", "body": "...", "say_this": "..." }, "action": { "title": "...", "body": "...", "say_this": "..." } }, "reflection_question": "<the one open question to end on, word-for-word>", "outro": "<closing line: no number to hand over — one true strength and one move>" }
 
 OBSERVATION DATA (scores removed):
 ${JSON.stringify(data)}
@@ -158,19 +162,45 @@ const SCORE_PATTERNS = [
 ];
 
 function _allGuideText(guide) {
-  const parts = [guide.intro || '', guide.outro || ''];
+  const parts = [guide.intro || '', guide.outro || '', guide.reflection_question || ''];
   for (const s of guide.steps || []) {
     parts.push(s.title || '', s.body || '', s.say_this || '');
+  }
+  // bd-y7jr8: the score gate must see the new shape too, or a leaked number
+  // would sail straight through the sections.
+  const sec = guide.sections || {};
+  for (const key of Object.keys(sec)) {
+    const v = sec[key] || {};
+    parts.push(v.title || '', v.body || '', v.say_this || '');
   }
   return parts.join('\n');
 }
 
+const GUIDE_SECTIONS = ['strengths', 'growth', 'action'];
+
 function validateGuide(guide, S, language = 'sw') {
-  if (!guide || !Array.isArray(guide.steps) || guide.steps.length !== 6) {
-    throw new Error('guide must have exactly 6 steps');
-  }
-  for (const s of guide.steps) {
-    if (!s.title || !s.say_this) throw new Error('guide steps need title + say_this');
+  // bd-y7jr8: ur/en markets use the 3+1 shape coaches asked for. sw (Tanzania)
+  // keeps the original 6-step script byte-for-byte — changing a live market's
+  // guide is not in scope here.
+  if (language === 'ur' || language === 'en') {
+    const sec = (guide && guide.sections) || null;
+    if (!sec) throw new Error('guide must have sections (strengths, growth, action)');
+    for (const key of GUIDE_SECTIONS) {
+      if (!sec[key]) throw new Error(`guide is missing the ${key} section`);
+      if (!sec[key].title || !sec[key].say_this) {
+        throw new Error(`guide section ${key} needs title + say_this`);
+      }
+    }
+    if (!guide.reflection_question || !String(guide.reflection_question).trim()) {
+      throw new Error('guide needs one reflection question to close on');
+    }
+  } else {
+    if (!guide || !Array.isArray(guide.steps) || guide.steps.length !== 6) {
+      throw new Error('guide must have exactly 6 steps');
+    }
+    for (const s of guide.steps) {
+      if (!s.title || !s.say_this) throw new Error('guide steps need title + say_this');
+    }
   }
   const text = _allGuideText(guide);
   for (const rx of SCORE_PATTERNS) {
@@ -186,14 +216,36 @@ function validateGuide(guide, S, language = 'sw') {
 
 // ── Render ─────────────────────────────────────────────────────────────
 
+const SECTION_EMOJI = { strengths: '💪', growth: '🌱', action: '📋' };
+
 function renderGuideMessage(guide, S) {
   const lines = [`🌱 ${guide.intro || ''}`.trim(), ''];
-  guide.steps.forEach((s, i) => {
-    lines.push(`${STEP_EMOJI[i]} *${s.title}*`);
-    if (s.body) lines.push(s.body);
-    if (s.say_this) lines.push(`_"${s.say_this}"_`);
-    lines.push('');
-  });
+
+  // bd-y7jr8 — the 3+1 shape. Three headings she reads out, then the question
+  // she ends on, so the teacher says the commitment in her own words.
+  if (guide.sections) {
+    for (const key of GUIDE_SECTIONS) {
+      const sec = guide.sections[key];
+      if (!sec) continue;
+      lines.push(`${SECTION_EMOJI[key]} *${sec.title}*`);
+      if (sec.body) lines.push(sec.body);
+      if (sec.say_this) lines.push(`_"${sec.say_this}"_`);
+      lines.push('');
+    }
+    if (guide.reflection_question) {
+      lines.push(`❓ *${(S && S.guide_reflect_label) || 'Ask this last'}*`);
+      lines.push(`_"${guide.reflection_question}"_`);
+      lines.push('');
+    }
+  } else {
+    guide.steps.forEach((s, i) => {
+      lines.push(`${STEP_EMOJI[i]} *${s.title}*`);
+      if (s.body) lines.push(s.body);
+      if (s.say_this) lines.push(`_"${s.say_this}"_`);
+      lines.push('');
+    });
+  }
+
   lines.push(`🔒 ${guide.outro || ''}`.trim());
   return lines.join('\n').trim();
 }
@@ -260,34 +312,55 @@ function buildFallbackGuide(v2Analysis, options = {}) {
   // are in the officer's locked language (PK officers debrief in Urdu/English).
   if (language === 'ur') {
     return {
-      intro: 'استاد سے گفتگو کا خاکہ — تقریباً 15 منٹ۔ پہلے تعریف، بہتری کی صرف ایک بات۔',
-      steps: [
-        { n: 1, title: 'نیت سے آغاز', body: 'کلاس میں خوش آمدید کہنے پر شکریہ ادا کریں۔', say_this: 'شکریہ کہ آپ نے مجھے کلاس میں آنے دیا — میرا مقصد ہے کہ ہم بچوں کے لیے مل کر کام کریں۔' },
-        { n: 2, title: 'ثبوت کے ساتھ تعریف', body: 'سبق کا ایک حقیقی لمحہ نام لے کر سراہیں۔', say_this: `مجھے یہ بہت اچھا لگا: ${strengthEvidence}` },
-        { n: 3, title: 'سوال، پھر خاموشی', body: 'ایک کھلا سوال پوچھیں، پھر 30–60 سیکنڈ خاموش رہیں۔', say_this: lever },
-        { n: 4, title: 'صرف ایک بات', body: `صرف ایک شعبہ: ${focusTitle}۔ دعوت کے انداز میں پیش کریں۔`, say_this: `کیسا رہے اگر کل آپ یہ آزمائیں: ${tryThis}` },
-        { n: 5, title: 'اگر–تو عزم', body: 'استاد اپنا منصوبہ اپنے الفاظ میں کہیں۔', say_this: 'کل، بالکل کس وقت یہ آزمائیں گے؟ اپنے الفاظ میں بتائیں۔' },
-        { n: 6, title: 'واپسی طے کریں', body: 'مل کر طے کریں کہ دوبارہ کب دیکھیں گے۔', say_this: 'اسی ہفتے پھر ملتے ہیں، ساتھ دیکھیں گے — کون سا دن مناسب رہے گا؟' },
-      ],
+      intro: 'استاد سے گفتگو کا خاکہ — تقریباً 15 منٹ۔ پہلے خوبیاں، بہتری کی صرف ایک بات۔',
+      sections: {
+        strengths: {
+          title: 'خوبیاں',
+          body: 'سبق کا ایک حقیقی لمحہ نام لے کر سراہیں۔',
+          say_this: `شکریہ کہ آپ نے مجھے کلاس میں آنے دیا۔ مجھے یہ بہت اچھا لگا: ${strengthEvidence}`,
+        },
+        growth: {
+          title: 'بہتری کا شعبہ',
+          body: `صرف ایک شعبہ: ${focusTitle}۔ دعوت کے انداز میں پیش کریں، شخصیت پر بات نہ کریں۔`,
+          say_this: `کیسا رہے اگر کل آپ یہ آزمائیں: ${tryThis}`,
+        },
+        action: {
+          title: 'عملی منصوبہ',
+          body: 'طے کریں کہ کیا آزمانا ہے، اور دوبارہ کب ساتھ دیکھیں گے۔',
+          say_this: 'اسی ہفتے پھر ملتے ہیں، ساتھ دیکھیں گے — کون سا دن مناسب رہے گا؟',
+        },
+      },
+      reflection_question: lever,
       outro: 'استاد کو کوئی نمبر نہیں دینا — بس ایک سچی تعریف اور آزمانے کی ایک بات۔ 💛',
     };
   }
 
   return {
     intro: 'Your conversation guide — about 15 minutes. Strengths first, ONE move.',
-    steps: [
-      { n: 1, title: 'Open with intent', body: 'Thank the teacher for welcoming you into the classroom.', say_this: 'Thank you for having me — my goal is that we help each other, for the children.' },
-      { n: 2, title: 'Praise with evidence', body: 'Name one real thing you saw.', say_this: `I loved this moment: ${strengthEvidence}` },
-      { n: 3, title: 'Ask, then wait', body: 'Ask one open question, then hold the silence 30–60 seconds.', say_this: lever },
-      { n: 4, title: 'ONE thing', body: `Just one area: ${focusTitle}. Offer it as an invitation.`, say_this: `How about trying this tomorrow: ${tryThis}` },
-      { n: 5, title: 'If-then commitment', body: 'Let the teacher say the plan in their own words.', say_this: 'Tomorrow, exactly when will you try this? Say it in your own words.' },
-      { n: 6, title: 'Agree the return', body: 'Agree together when you will look at it again.', say_this: 'Let\'s meet again this week and look together — which day suits you?' },
-    ],
+    sections: {
+      strengths: {
+        title: 'Strengths',
+        body: 'Name one real thing you saw.',
+        say_this: `Thank you for having me in your classroom. I loved this moment: ${strengthEvidence}`,
+      },
+      growth: {
+        title: 'Areas for growth',
+        body: `Just one area: ${focusTitle}. Offer it as an invitation — the move, never the person.`,
+        say_this: `How about trying this tomorrow: ${tryThis}`,
+      },
+      action: {
+        title: 'Action plan',
+        body: 'Agree what to try, and when you will look at it together again.',
+        say_this: 'Let\'s meet again this week and look together — which day suits you?',
+      },
+    },
+    reflection_question: lever,
     outro: 'No number to hand over — one true strength and one move to try together. 💛',
   };
 }
 
 module.exports = {
+  GUIDE_SECTIONS,
   GUIDE_CHAR_BUDGET,
   SUBJECT_FLAG_MIN_CONFIDENCE,
   buildGuidePrompt,

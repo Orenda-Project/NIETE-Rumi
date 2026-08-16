@@ -31,7 +31,10 @@ describe('bd-62 — fallback guide localization', () => {
     const text = JSON.stringify(g);
     for (const marker of KISWAHILI_MARKERS) expect(text).not.toContain(marker);
     expect(text).toMatch(/شکریہ|خوش آمدید|کلاس/);     // natively Urdu scaffold
-    expect(g.steps).toHaveLength(6);
+    // bd-y7jr8: ur/en now use the 3+1 shape (Strengths / Growth / Action +
+    // one closing question). sw keeps its 6 steps — asserted below.
+    expect(Object.keys(g.sections)).toEqual(['strengths', 'growth', 'action']);
+    expect(g.reflection_question).toBeTruthy();
     expect(validateGuide(g, observeStrings('ur'), 'ur')).toBe(true);
   });
 
@@ -50,20 +53,33 @@ describe('bd-62 — fallback guide localization', () => {
 });
 
 describe('bd-62 — length budget', () => {
-  const bigGuide = () => ({
+  // The rule under test is the BUDGET (ur/en 2200, sw 1600), not the shape.
+  // bd-y7jr8 gave ur/en the 3+1 shape, so each language is sized in its own.
+  const bigSteps = () => ({
     intro: 'x'.repeat(100),
     steps: [1, 2, 3, 4, 5, 6].map((n) => ({ n, title: 't'.repeat(20), body: 'b'.repeat(120), say_this: 's'.repeat(140) })),
     outro: 'o'.repeat(80),
   });
+  const bigSections = () => ({
+    intro: 'x'.repeat(100),
+    sections: {
+      strengths: { title: 't'.repeat(20), body: 'b'.repeat(200), say_this: 's'.repeat(250) },
+      growth: { title: 't'.repeat(20), body: 'b'.repeat(200), say_this: 's'.repeat(250) },
+      action: { title: 't'.repeat(20), body: 'b'.repeat(200), say_this: 's'.repeat(250) },
+    },
+    reflection_question: 'q'.repeat(150),
+    outro: 'o'.repeat(80),
+  });
 
   test('a ~1800-char guide passes for ur (Urdu runs long) but still fails for sw', () => {
-    const g = bigGuide();
+    const g = bigSections();
     const rendered = renderGuideMessage(g, observeStrings('ur'));
     expect(rendered.length).toBeGreaterThan(1600);
     expect(rendered.length).toBeLessThan(2200);
     expect(validateGuide(g, observeStrings('ur'), 'ur')).toBe(true);
-    expect(() => validateGuide(g, observeStrings('sw'), 'sw')).toThrow(/over budget/);
-    expect(() => validateGuide(g, observeStrings('sw'))).toThrow(/over budget/);   // default stays sw-strict
+    const sw = bigSteps();
+    expect(() => validateGuide(sw, observeStrings('sw'), 'sw')).toThrow(/over budget/);
+    expect(() => validateGuide(sw, observeStrings('sw'))).toThrow(/over budget/);   // default stays sw-strict
   });
 
   test('the ur/en prompt instructs the LLM about total length (the sw prompt already does)', () => {

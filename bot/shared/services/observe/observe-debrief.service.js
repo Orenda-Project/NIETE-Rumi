@@ -475,7 +475,7 @@ async function startDebriefFromAudio(user, from, audioId, observeState) {
 // and flipping 'done' after a silent failure would lose the feedback forever
 // (review fix). A throw here keeps status 'pending' and lets SQS retry;
 // the feedback is already persisted, so the retry is deliver-only.
-async function _deliverCoachFeedback(sessionId, from, feedback, S, framework) {
+async function _deliverCoachFeedback(sessionId, from, feedback, S, framework, lang = 'en') {
   const { renderCoachFeedbackMessages } = require('./observe-coach-feedback');
   const [praiseMsg, cardMsg] = renderCoachFeedbackMessages(feedback, S);
   const sentPraise = await WhatsAppService.sendMessage(from, praiseMsg);
@@ -489,8 +489,10 @@ async function _deliverCoachFeedback(sessionId, from, feedback, S, framework) {
   let sentCard = false;
   const { renderCoachCard } = require('./observe-coach-card');
   const { heroBrandFor } = require('../coaching/report-renderers/renderer-registry');
-  const lang = S && S.coach_card_wins_label === 'Ulichofanya vizuri' ? 'sw'
-    : (S && S.coach_card_wins_label === 'آپ نے کیا اچھا کیا' ? 'ur' : 'en');
+  // bd-y7jr8: the language is PASSED now. It used to be reverse-engineered by
+  // string-matching S.coach_card_wins_label against a hardcoded Urdu literal —
+  // so re-labelling the card silently flipped Urdu coaches to the English one.
+  // Same failure shape as bd-2644 (tofu boxes), one layer up.
   const png = await renderCoachCard(feedback, { lang, brand: heroBrandFor(framework) });
   if (png) {
     sentCard = await WhatsAppService.sendImageFromBuffer(from, png, S.coach_card_closing);
@@ -552,7 +554,10 @@ async function processDebriefRecording(sessionId, payload = {}) {
   }
 
   const from = payload.from || (session.users && session.users.phone_number);
-  const lang = (session.users && session.users.preferred_language) === 'sw' ? 'sw' : 'en';
+  // bd-y7jr8: this used to be `preferred_language === 'sw' ? 'sw' : 'en'`, which
+  // collapsed URDU into English — an Urdu coach got the English strings pack
+  // while the model wrote Urdu prose. That is why her card had English headings.
+  const lang = observeLang(session.users);
   const S = observeStrings(lang);
   const observerDebrief = (session.analysis_data && session.analysis_data.observer_debrief) || {};
 
@@ -564,7 +569,7 @@ async function processDebriefRecording(sessionId, payload = {}) {
   if (observerDebrief.feedback) {
     logToFile('🔭 observe debrief: feedback stored — deliver-only redelivery', { sessionId });
     await _deliverCoachFeedback(sessionId, from, observerDebrief.feedback, S,
-      session.analysis_data && session.analysis_data.framework);
+      session.analysis_data && session.analysis_data.framework, lang);
     return;
   }
 
@@ -609,9 +614,9 @@ async function processDebriefRecording(sessionId, payload = {}) {
     }
 
     let feedback;
+    const _fbLang = observeLang(session.users);
     try {
       const { buildCoachFeedbackPromptI18n } = require('./observe-coach-feedback');
-      const _fbLang = observeLang(session.users);
       const prompt = _fbLang !== 'sw' ? buildCoachFeedbackPromptI18n(transcript, {
         foName: session.users && session.users.first_name,
       }, _fbLang) : buildCoachFeedbackPrompt(transcript, {
@@ -636,7 +641,7 @@ async function processDebriefRecording(sessionId, payload = {}) {
       feedback, completed_at: new Date().toISOString(),
     });
     await _deliverCoachFeedback(sessionId, from, feedback, S,
-      session.analysis_data && session.analysis_data.framework);
+      session.analysis_data && session.analysis_data.framework, _fbLang);
   } finally {
     try { if (fs.existsSync(tempAudioPath)) fs.unlinkSync(tempAudioPath); } catch (_) { /* temp cleanup */ }
   }

@@ -93,8 +93,10 @@ THE HARD RULES (breaking any of these harms a real teacher):
 4. If nothing clearly matches a field, use null/[] honestly — NEVER invent (a fabricated quote destroys the trust this tool runs on).
 5. "value": the ONE value the officer's coaching most embodied — "imani" | "heshima" | "usikivu" | "ukuaji" | "ushirikiano" — or null if none is clearly visible. NEVER force one.
 
+8. "reflection_question": ONE short, open question for the officer to sit with before their next debrief — about how they coached, never about the teacher's lesson. It closes the card, the same way the officer's own guide ends on a question to the teacher. Never yes/no, never leading, never a disguised instruction.
+
 Return JSON with EXACTLY this structure:
-{ "praise_line": "..." (or null if harmful), "wins": [ { "behaviour": "...", "evidence": "..." } ] (or [] if harmful), "concern": { "what_happened": "...", "why_it_matters": "...", "instead": "..." } (or null if not harmful), "try": { "move": "...", "evidence": "...", "instead": "..." }, "value": "imani"|"heshima"|"usikivu"|"ukuaji"|"ushirikiano"|null, "rubric": { ${RUBRIC_KEYS.map((k) => `"${k}": true/false`).join(', ')} } }
+{ "praise_line": "..." (or null if harmful), "wins": [ { "behaviour": "...", "evidence": "..." } ] (or [] if harmful), "concern": { "what_happened": "...", "why_it_matters": "...", "instead": "..." } (or null if not harmful), "try": { "move": "...", "evidence": "...", "instead": "..." }, "reflection_question": "...", "value": "imani"|"heshima"|"usikivu"|"ukuaji"|"ushirikiano"|null, "rubric": { ${RUBRIC_KEYS.map((k) => `"${k}": true/false`).join(', ')} } }
 
 TRANSCRIPT OF THE OFFICER'S DEBRIEF:
 ${transcript}`;
@@ -180,7 +182,7 @@ const SCORE_PATTERNS = [
 ];
 
 function _allFeedbackText(fb) {
-  const parts = [fb.praise_line || ''];
+  const parts = [fb.praise_line || '', fb.reflection_question || ''];
   for (const w of fb.wins || []) parts.push(w.behaviour || '', w.evidence || '');
   if (fb.concern) {
     parts.push(fb.concern.what_happened || '', fb.concern.why_it_matters || '', fb.concern.instead || '');
@@ -274,14 +276,27 @@ function renderCoachFeedbackMessages(fb, S) {
     .map((w) => `✓ *${w.behaviour}*\n_"${w.evidence}"_`)
     .join('\n\n');
 
+  // bd-y7jr8 — the same three headings the coach just used with her teacher,
+  // now about her own coaching, then ONE question to sit with. The Action and
+  // Ask-yourself blocks are label-gated so the Swahili card stays exactly as
+  // it was (Tanzania has no 3+1 labels and is out of scope here).
+  const actionBlock = S.coach_card_action_label && fb.try.instead
+    ? ['', `📋 *${S.coach_card_action_label}*`, fb.try.instead]
+    : [fb.try.instead || ''];
+  const reflectBlock = S.coach_card_reflect_label && fb.reflection_question
+    ? ['', `❓ *${S.coach_card_reflect_label}*`, `_"${fb.reflection_question}"_`]
+    : [];
+
   let card = [
     `🌟 *${S.coach_card_title}*`,
     '',
+    `💪 *${S.coach_card_wins_label}*`,
     winLines,
     '',
-    `🎯 *${S.coach_card_try_label}: ${fb.try.move}*`,
+    `🌱 *${S.coach_card_try_label}: ${fb.try.move}*`,
     fb.try.evidence,
-    fb.try.instead || '',
+    ...actionBlock,
+    ...reflectBlock,
     '',
     S.coach_card_closing,
   ].filter((line, i, arr) => !(line === '' && arr[i - 1] === '')).join('\n').trim();

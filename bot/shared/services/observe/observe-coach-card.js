@@ -142,7 +142,13 @@ function buildCoachCardHtml(fb, { lang = 'sw', brand } = {}) {
 .win .tick{flex:none;width:28px;height:28px;border-radius:50%;background:#e7f3ec;color:#1d7a46;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:15px;margin-top:4px}
 .win .wt{font-size:${rtl ? '16.5px' : '17.5px'};font-weight:700;color:${P.winTitle};line-height:${rtl ? '2.2' : '1.9'}}
 .win .wq{font-size:${rtl ? '15px' : '15.5px'};color:${P.winQuote};margin-top:6px;line-height:${rtl ? '2.4' : '2'};background:#fafbfd;border-radius:8px;padding:10px 14px}
-.try{background:#eef7f0;border-radius:14px;padding:20px 22px;margin:8px 0 24px}
+.try{background:#eef7f0;border-radius:14px;padding:20px 22px;margin:8px 0 16px}
+/* bd-y7jr8 — the action plan and the one question, so the image says exactly
+   what the text card says (a coach should never meet two different shapes). */
+.act{background:#f6f8fb;border-radius:14px;padding:16px 22px;margin:6px 0 16px}
+.act p{font-size:${rtl ? '15px' : '15.5px'};color:#2a3b4d;line-height:${rtl ? '2.4' : '2'}}
+.ask{border-left:4px solid #F5B301;padding:10px 0 10px 16px;margin:6px 0 20px}
+.ask p{font-size:${rtl ? '15px' : '15.5px'};color:#4a4436;font-style:italic;line-height:${rtl ? '2.4' : '2'}}
 .try .tl{font-size:13px;color:#1d7a46;font-weight:700;letter-spacing:${rtl ? '0' : '.14em'};${rtl ? '' : 'text-transform:uppercase;'}}
 .try h2{font-size:${rtl ? '19px' : '22px'};color:#14532d;font-weight:700;margin:8px 0 6px;line-height:${rtl ? '2.3' : '1.9'}}
 .try p{font-size:${rtl ? '15px' : '15.5px'};color:#2f4a3a;line-height:${rtl ? '2.4' : '2'};margin-top:6px}
@@ -168,8 +174,12 @@ function buildCoachCardHtml(fb, { lang = 'sw', brand } = {}) {
       <div class="tl">${esc(S.coach_card_try_label)}</div>
       <h2>${esc(t.move || '')}</h2>
       <p>${esc(t.evidence || '')}</p>
-      <p><b>${esc(t.instead || '')}</b></p>
+      ${S.coach_card_action_label ? '' : `<p><b>${esc(t.instead || '')}</b></p>`}
     </div>
+    ${S.coach_card_action_label && t.instead ? `<div class="sec">${esc(S.coach_card_action_label)}</div>
+    <div class="act"><p>${esc(t.instead)}</p></div>` : ''}
+    ${S.coach_card_reflect_label && fb.reflection_question ? `<div class="sec">${esc(S.coach_card_reflect_label)}</div>
+    <div class="ask"><p>${esc(fb.reflection_question)}</p></div>` : ''}
   </div>
   <div class="ft">
     <div class="brand"><img src="data:image/png;base64,${A.logoNavy}" alt=""/><span>NIETE</span></div>
