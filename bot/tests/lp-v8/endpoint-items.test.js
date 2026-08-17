@@ -214,7 +214,12 @@ describe('lesson screen — pagination (the 24-lesson chapter)', () => {
     expect(hasMore).toBe(true);
     expect(items).toHaveLength(20);
     expect(items[19].id).toBe('__more__');
-    expect(items[19]['on-click-action'].payload).toEqual({ step: 'lesson_page', page: '2' });
+    // bd-hd2wy: this assertion used to be {step, page} and it froze the prod bug in
+    // place. A data_exchange request carries the payload and NOTHING else, so the
+    // row has to name its own chapter or the endpoint cannot resolve the page.
+    expect(items[19]['on-click-action'].payload).toEqual({
+      step: 'lesson_page', page: '2', grade: '1', subject: 'math', chapter: '3',
+    });
     expect(items[19]['main-content'].title).toBe('More lessons →');
     expect(items[19]['main-content'].metadata).toContain('5');   // 24 - 19
   });
