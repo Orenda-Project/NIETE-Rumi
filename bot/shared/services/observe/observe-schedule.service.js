@@ -132,4 +132,45 @@ async function markDone(leaderUserId, teacherExtId, schoolExtId, sessionId) {
   }
 }
 
-module.exports = { saveSchedule, listUpcoming, countUpcoming, markDone, SLOTS };
+
+/**
+ * bd-88krt — cancel an upcoming visit from WhatsApp (HITL R39). Scoped to the
+ * coach and to status='upcoming': a 'done' row is the record of who was
+ * observed (bd-2668), so it must never be cancelled out from under a report.
+ */
+async function cancelById(leaderUserId, scheduleId) {
+  const { data, error } = await supabase
+    .from('observation_schedules')
+    .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+    .eq('id', scheduleId)
+    .eq('leader_user_id', leaderUserId)
+    .eq('status', 'upcoming')
+    .select('id');
+  if (error) {
+    logToFile('observe-schedule: cancelById failed', { leaderUserId, scheduleId, error: error.message });
+    return false;
+  }
+  return Array.isArray(data) && data.length > 0;
+}
+
+/** bd-88krt — move an upcoming visit to a new date/slot. Same guards as cancel. */
+async function rescheduleById(leaderUserId, scheduleId, date, slot) {
+  if (!_validDate(date)) throw new Error(`observe-schedule: invalid date "${date}"`);
+  const { data, error } = await supabase
+    .from('observation_schedules')
+    .update({ scheduled_for: date, scheduled_slot: slot || null, updated_at: new Date().toISOString() })
+    .eq('id', scheduleId)
+    .eq('leader_user_id', leaderUserId)
+    .eq('status', 'upcoming')
+    .select('id');
+  if (error) {
+    logToFile('observe-schedule: rescheduleById failed', { leaderUserId, scheduleId, error: error.message });
+    return false;
+  }
+  return Array.isArray(data) && data.length > 0;
+}
+
+module.exports = {
+  saveSchedule, listUpcoming, countUpcoming, markDone, SLOTS,
+  cancelById, rescheduleById,
+};
