@@ -102,17 +102,55 @@ function removedSchoolAck(lang, opts = {}) {
 
 const _db = () => require('../../config/supabase');
 
-/** Universe search — every active school, filtered in JS by name/EMIS. */
+/**
+ * Universe search — every school we know of, filtered in JS by name/EMIS.
+ *
+ * Built from TWO sources on purpose. The `schools` master carries emis on
+ * production but NOT on staging (staging's table is id/name/region only — a
+ * real schema difference, found by querying both), so selecting emis there
+ * fails with 42703 and would silently return nothing. `leader_schools` always
+ * carries school_ext_id + emis, so it is both the fallback and, for any school
+ * already assigned to someone, the authoritative naming. Deduped by ext id.
+ */
+async function _universeRows() {
+  const supabase = _db();
+  const out = new Map();
+  // Whatever `schools` can give us, without assuming its columns.
+  try {
+    const { data, error } = await supabase.from('schools').select('*').limit(1000);
+    if (!error) {
+      for (const s of data || []) {
+        if (s.is_active === false) continue;
+        if (s.emis == null) continue;                  // staging has no emis column
+        out.set(`niete:${s.emis}`, {
+          school_ext_id: `niete:${s.emis}`, school_name: s.name, emis: String(s.emis),
+        });
+      }
+    }
+  } catch (_) { /* fall through to leader_schools */ }
+  // Always union the assigned schools — the only source present in both DBs.
+  try {
+    const { data } = await supabase
+      .from('leader_schools').select('school_ext_id, school_name, emis').limit(2000);
+    for (const s of data || []) {
+      if (!s.school_ext_id || out.has(s.school_ext_id)) continue;
+      out.set(s.school_ext_id, {
+        school_ext_id: s.school_ext_id,
+        school_name: s.school_name,
+        emis: String(s.emis == null ? String(s.school_ext_id).split(':').pop() : s.emis),
+      });
+    }
+  } catch (_) { /* nothing more to try */ }
+  return [...out.values()];
+}
+
 async function searchUniverse(leaderUserId, term, cap = RESULT_CAP) {
   const supabase = _db();
-  const { data: all } = await supabase
-    .from('schools').select('emis, name, is_active').limit(1000);
+  const all = await _universeRows();
   const { data: mine } = await supabase
     .from('leader_schools').select('school_ext_id').eq('leader_user_id', leaderUserId);
   const has = new Set((mine || []).map((r) => r.school_ext_id));
-  return (all || [])
-    .filter((s) => s.is_active !== false)
-    .map((s) => ({ school_ext_id: `niete:${s.emis}`, school_name: s.name, emis: String(s.emis) }))
+  return all
     .filter((s) => matchSchool(s, term))
     .map((s) => ({ ...s, alreadyMine: has.has(s.school_ext_id) }))
     .slice(0, cap);
@@ -135,9 +173,19 @@ async function listMySchools(leaderUserId) {
 async function addSchoolForCoach(leaderUserId, schoolExtId) {
   const supabase = _db();
   const emis = String(schoolExtId || '').split(':').pop();
-  const { data: master } = await supabase
-    .from('schools').select('emis, name').eq('emis', emis).limit(1);
-  const school = master && master[0];
+  // Same schema caveat as _universeRows: `schools.emis` exists on prod, not on
+  // staging. Resolve the name from whichever source actually has the school.
+  let school = null;
+  try {
+    const { data, error } = await supabase.from('schools').select('*').eq('emis', emis).limit(1);
+    if (!error && data && data[0]) school = { emis, name: data[0].name };
+  } catch (_) { /* fall back below */ }
+  if (!school) {
+    const { data } = await supabase
+      .from('leader_schools').select('school_name, emis')
+      .eq('school_ext_id', schoolExtId).limit(1);
+    if (data && data[0]) school = { emis: data[0].emis || emis, name: data[0].school_name };
+  }
   if (!school) return { ok: false, reason: 'not_found' };
 
   const { data: mine } = await supabase
