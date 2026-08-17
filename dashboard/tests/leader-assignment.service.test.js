@@ -177,6 +177,14 @@ describe('addSchool', () => {
     expect(q.writes.filter((w) => /insert .* leader_schools/is.test(w.sql))).toHaveLength(0);
   });
 
+  it('writes a source the live CHECK constraint accepts (23514 guard)', async () => {
+    // Both tables carry CHECK (source = 'niete_ict'). A 'coach_self_assign'
+    // value fails EVERY insert with a CHECK violation — and no injected-query
+    // test can see that, so assert the literal the schema actually permits.
+    const { INSERT_SQL_SOURCE } = require('../services/leader-assignment.service');
+    expect(INSERT_SQL_SOURCE).toBe('niete_ict');
+  });
+
   it('refuses a school that is not in the master list', async () => {
     const q = makeQuery({ 'select .* from schools': [] });
     await expect(addSchool(q, LEADER, 'niete:99999')).rejects.toThrow(/not found/i);

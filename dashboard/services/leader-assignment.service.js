@@ -26,6 +26,13 @@
  */
 
 const SLOTS = ['09:00', '11:30', '14:00'];
+
+// Both tables carry CHECK (source = 'niete_ict') — verified against the live
+// schema, and the reason a 'coach_self_assign' value fails with a 23514 CHECK
+// violation on every insert. Unit tests inject `query`, so they cannot catch
+// this; only a real write does. Widening the constraint to record provenance
+// (who mapped this row) needs a migration and is proposed separately.
+const ROW_SOURCE = 'niete_ict';
 const TEACHER_SEARCH_CAP = 20;   // RadioButtonsGroup ceiling (Meta Flow JSON)
 const MIN_TERM = 2;
 
@@ -93,14 +100,14 @@ const ROSTER_SQL = `
 
 const INSERT_SCHOOL_SQL = `
   INSERT INTO leader_schools (leader_user_id, school_ext_id, school_name, emis, source)
-  VALUES ($1, $2, $3, $4, 'coach_self_assign')
+  VALUES ($1, $2, $3, $4, '${ROW_SOURCE}')
   RETURNING id
 `;
 
 const INSERT_TEACHER_SQL = `
   INSERT INTO leader_teachers
     (leader_user_id, school_ext_id, teacher_ext_id, teacher_name, teacher_phone_e164, level, source)
-  VALUES ($1, $2, $3, $4, $5, $6, 'coach_self_assign')
+  VALUES ($1, $2, $3, $4, $5, $6, '${ROW_SOURCE}')
   RETURNING id
 `;
 
@@ -259,5 +266,5 @@ async function searchTeachers(query, leaderUserId, term) {
 
 module.exports = {
   editSchedule, searchSchools, addSchool, removeSchool, searchTeachers,
-  SLOTS, TEACHER_SEARCH_CAP, validDate,
+  SLOTS, TEACHER_SEARCH_CAP, validDate, INSERT_SQL_SOURCE: ROW_SOURCE,
 };
