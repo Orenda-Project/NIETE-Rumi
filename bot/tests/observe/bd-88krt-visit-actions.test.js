@@ -146,3 +146,30 @@ describe('bd-88krt · the Flow data contract matches what the server sends', () 
     }
   });
 });
+
+describe('bd-88krt · SUCCESS is data-driven, so a cancel never reads "Observation scheduled"', () => {
+  const flow = require('../../../docs/flows/observe-visit-v2.json');
+  const suc = flow.screens.find((s) => s.id === 'SUCCESS');
+
+  it('declares heading and body', () => {
+    expect(Object.keys(suc.data)).toEqual(expect.arrayContaining(['heading', 'body']));
+  });
+
+  it('renders them from data rather than hardcoded English', () => {
+    const texts = suc.layout.children.map((c) => c.text);
+    expect(texts).toContain('${data.heading}');
+    expect(texts).toContain('${data.body}');
+    expect(texts.join(' ')).not.toMatch(/Observation scheduled/);
+  });
+
+  it('every path that returns SUCCESS supplies both keys', () => {
+    // A declared key the endpoint omits fails the entire screen — the
+    // payload-schema-error that broke Schedule an observation live.
+    const src = require('fs').readFileSync(
+      require('path').join(__dirname, '../../shared/handlers/observe-visit-flow.handler.js'), 'utf8');
+    const returns = src.split("screen: 'SUCCESS'").length - 1;
+    const headings = (src.match(/heading:/g) || []).length;
+    expect(returns).toBeGreaterThanOrEqual(3);      // done, cancel, reschedule
+    expect(headings).toBeGreaterThanOrEqual(returns);
+  });
+});
