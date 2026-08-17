@@ -66,6 +66,10 @@ const STRINGS = {
     send_lang_switching: 'Sawa — naandaa upya ripoti kwa lugha nyingine…',
     // bd-88krt — Flow terminal-screen text (data-driven so a cancel never reads
     // "Observation scheduled")
+    search_no_match: 'Hakuna kilicholingana — jaribu tena',
+    school_already_mine: 'Tayari kwenye orodha yako',
+    school_added_heading: 'Shule imeongezwa',
+    school_removed_heading: 'Shule imeondolewa',
     flow_scheduled_heading: 'Uchunguzi umepangwa',
     flow_scheduled_body: 'Bonyeza /observe wakati wowote kuona ratiba yako.',
     flow_cancelled_heading: 'Ziara imeghairiwa',
@@ -201,6 +205,10 @@ const STRINGS = {
     btn_send_in_en: 'انگریزی میں بھیجیں',
     send_lang_switching: 'ٹھیک ہے — رپورٹ دوسری زبان میں تیار کر رہا ہوں…',
     // bd-88krt — Flow terminal-screen text (per-language, never hardcoded)
+    search_no_match: 'کچھ نہیں ملا — دوبارہ کوشش کریں',
+    school_already_mine: 'پہلے سے آپ کی فہرست میں',
+    school_added_heading: 'اسکول شامل ہو گیا',
+    school_removed_heading: 'اسکول ہٹا دیا گیا',
     flow_scheduled_heading: 'مشاہدہ شیڈول ہو گیا',
     flow_scheduled_body: 'اپنا شیڈول دیکھنے کے لیے کبھی بھی /observe لکھیں۔',
     flow_cancelled_heading: 'ملاقات منسوخ ہو گئی',
@@ -336,6 +344,10 @@ const STRINGS = {
     btn_send_in_en: 'Send in English',
     send_lang_switching: 'Sure — rebuilding the report in the other language…',
     // bd-88krt — Flow terminal-screen text (per-language, never hardcoded)
+    search_no_match: 'No matches — try again',
+    school_already_mine: 'Already in your list',
+    school_added_heading: 'School added',
+    school_removed_heading: 'School removed',
     flow_scheduled_heading: 'Observation scheduled',
     flow_scheduled_body: 'Tap /observe anytime to see your schedule.',
     flow_cancelled_heading: 'Visit cancelled',

@@ -119,15 +119,24 @@ describe('bd-88krt · the Flow data contract matches what the server sends', () 
     expect(Object.keys(byId.SELECT_SCHOOL.data || {})).toEqual(['options']);
   });
 
-  it('SEARCH_TEACHER declares nothing, because it needs nothing', () => {
-    expect(Object.keys(byId.SEARCH_TEACHER.data || {})).toEqual([]);
+  // Operator moved teacher search onto the TEACHERS screen (17 Aug), so it is
+  // now scoped to the chosen school and legitimately declares school_ext_id.
+  // The school screen's link now opens SCHOOL search instead.
+  it('SEARCH_TEACHER declares exactly the school it is scoped to', () => {
+    expect(Object.keys(byId.SEARCH_TEACHER.data || {})).toEqual(['school_ext_id']);
   });
 
-  it('the search link carries an empty payload — there is no school chosen yet', () => {
+  it('the school screen links to SCHOOL search, with no payload to lose', () => {
     const link = byId.SELECT_SCHOOL.layout.children.find((c) => c.type === 'EmbeddedLink');
     expect(link).toBeTruthy();
     expect(link['on-click-action'].payload).toEqual({});
+    expect(link['on-click-action'].next.name).toBe('SEARCH_SCHOOL');
+  });
+
+  it('the teacher screen passes the school into teacher search', () => {
+    const link = byId.SELECT_TEACHER.layout.children.find((c) => c.type === 'EmbeddedLink');
     expect(link['on-click-action'].next.name).toBe('SEARCH_TEACHER');
+    expect(link['on-click-action'].payload).toEqual({ school_ext_id: '${data.school_ext_id}' });
   });
 
   it('every screen the routing model names actually exists', () => {

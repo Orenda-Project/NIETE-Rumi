@@ -5,7 +5,9 @@
   "MENU": [
    "DEBRIEFS",
    "SCHEDULE",
-   "SELECT_SCHOOL"
+   "SELECT_SCHOOL",
+   "MANAGE_SCHOOLS",
+   "ADD_SEARCH"
   ],
   "DEBRIEFS": [],
   "SCHEDULE": [
@@ -14,10 +16,11 @@
   ],
   "SELECT_SCHOOL": [
    "SELECT_TEACHER",
-   "SEARCH_TEACHER"
+   "SEARCH_SCHOOL"
   ],
   "SELECT_TEACHER": [
-   "BRIEF_SCHEDULE"
+   "BRIEF_SCHEDULE",
+   "SEARCH_TEACHER"
   ],
   "BRIEF_SCHEDULE": [
    "SCHEDULE_PICKER"
@@ -32,7 +35,7 @@
   "BRIEF": [],
   "SUCCESS": [],
   "SEARCH_TEACHER": [
-   "SELECT_TEACHER"
+   "TEACHER_RESULTS"
   ],
   "VISIT_ACTION": [
    "BRIEF",
@@ -41,7 +44,26 @@
   ],
   "SCHEDULE_EDIT": [
    "SUCCESS"
-  ]
+  ],
+  "SEARCH_SCHOOL": [
+   "SCHOOL_RESULTS"
+  ],
+  "SCHOOL_RESULTS": [
+   "SELECT_TEACHER"
+  ],
+  "TEACHER_RESULTS": [
+   "BRIEF_SCHEDULE"
+  ],
+  "MANAGE_SCHOOLS": [
+   "ACTION_DONE"
+  ],
+  "ADD_SEARCH": [
+   "ADD_RESULTS"
+  ],
+  "ADD_RESULTS": [
+   "ACTION_DONE"
+  ],
+  "ACTION_DONE": []
  },
  "screens": [
   {
@@ -333,12 +355,12 @@
      },
      {
       "type": "EmbeddedLink",
-      "text": "Search all my teachers by name",
+      "text": "Search schools by name or EMIS",
       "on-click-action": {
        "name": "navigate",
        "next": {
         "type": "screen",
-        "name": "SEARCH_TEACHER"
+        "name": "SEARCH_SCHOOL"
        },
        "payload": {}
       }
@@ -411,6 +433,20 @@
         }
        }
       ]
+     },
+     {
+      "type": "EmbeddedLink",
+      "text": "Search teachers by name or phone",
+      "on-click-action": {
+       "name": "navigate",
+       "next": {
+        "type": "screen",
+        "name": "SEARCH_TEACHER"
+       },
+       "payload": {
+        "school_ext_id": "${data.school_ext_id}"
+       }
+      }
      }
     ]
    }
@@ -712,13 +748,18 @@
    "id": "SEARCH_TEACHER",
    "title": "Find a teacher",
    "refresh_on_back": true,
-   "data": {},
+   "data": {
+    "school_ext_id": {
+     "type": "string",
+     "__example__": "niete:401"
+    }
+   },
    "layout": {
     "type": "SingleColumnLayout",
     "children": [
      {
       "type": "TextBody",
-      "text": "Type part of the teacher's name — from any of your schools."
+      "text": "Type part of the teacher's name, or her phone number."
      },
      {
       "type": "Form",
@@ -727,9 +768,8 @@
        {
         "type": "TextInput",
         "name": "term",
-        "label": "Teacher name",
-        "required": false,
-        "helper-text": "For example: Tahira"
+        "label": "Name or phone number",
+        "required": false
        },
        {
         "type": "Footer",
@@ -738,7 +778,8 @@
          "name": "data_exchange",
          "payload": {
           "step": "teacher_search",
-          "term": "${form.term}"
+          "term": "${form.term}",
+          "school_ext_id": "${data.school_ext_id}"
          }
         }
        }
@@ -952,6 +993,393 @@
         }
        }
       ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "SEARCH_SCHOOL",
+   "title": "Find a school",
+   "refresh_on_back": true,
+   "data": {},
+   "layout": {
+    "type": "SingleColumnLayout",
+    "children": [
+     {
+      "type": "TextBody",
+      "text": "Type part of the school's name, or its EMIS code."
+     },
+     {
+      "type": "Form",
+      "name": "search_school_form",
+      "children": [
+       {
+        "type": "TextInput",
+        "name": "term",
+        "label": "Name or EMIS code",
+        "required": false
+       },
+       {
+        "type": "Footer",
+        "label": "Search",
+        "on-click-action": {
+         "name": "data_exchange",
+         "payload": {
+          "step": "school_search",
+          "term": "${form.term}"
+         }
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCHOOL_RESULTS",
+   "title": "Matching schools",
+   "refresh_on_back": true,
+   "data": {
+    "options": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string"
+       },
+       "title": {
+        "type": "string"
+       },
+       "description": {
+        "type": "string"
+       },
+       "metadata": {
+        "type": "string"
+       }
+      }
+     },
+     "__example__": [
+      {
+       "id": "x",
+       "title": "Example",
+       "description": "",
+       "metadata": ""
+      }
+     ]
+    }
+   },
+   "layout": {
+    "type": "SingleColumnLayout",
+    "children": [
+     {
+      "type": "Form",
+      "name": "school_results_form",
+      "children": [
+       {
+        "type": "Dropdown",
+        "name": "pick",
+        "label": "School",
+        "required": true,
+        "data-source": "${data.options}"
+       },
+       {
+        "type": "Footer",
+        "label": "Continue",
+        "on-click-action": {
+         "name": "data_exchange",
+         "payload": {
+          "step": "school",
+          "picked": "${form.pick}"
+         }
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "TEACHER_RESULTS",
+   "title": "Matching teachers",
+   "refresh_on_back": true,
+   "data": {
+    "options": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string"
+       },
+       "title": {
+        "type": "string"
+       },
+       "description": {
+        "type": "string"
+       },
+       "metadata": {
+        "type": "string"
+       }
+      }
+     },
+     "__example__": [
+      {
+       "id": "x",
+       "title": "Example",
+       "description": "",
+       "metadata": ""
+      }
+     ]
+    },
+    "school_ext_id": {
+     "type": "string",
+     "__example__": "niete:401"
+    }
+   },
+   "layout": {
+    "type": "SingleColumnLayout",
+    "children": [
+     {
+      "type": "Form",
+      "name": "teacher_results_form",
+      "children": [
+       {
+        "type": "Dropdown",
+        "name": "pick",
+        "label": "Teacher",
+        "required": true,
+        "data-source": "${data.options}"
+       },
+       {
+        "type": "Footer",
+        "label": "Continue",
+        "on-click-action": {
+         "name": "data_exchange",
+         "payload": {
+          "step": "teacher",
+          "picked": "${form.pick}",
+          "school_ext_id": "${data.school_ext_id}"
+         }
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "ADD_SEARCH",
+   "title": "Add a school",
+   "refresh_on_back": true,
+   "data": {},
+   "layout": {
+    "type": "SingleColumnLayout",
+    "children": [
+     {
+      "type": "TextBody",
+      "text": "Search every school by name or EMIS code. Adding one brings its teachers with it."
+     },
+     {
+      "type": "Form",
+      "name": "add_search_form",
+      "children": [
+       {
+        "type": "TextInput",
+        "name": "term",
+        "label": "Name or EMIS code",
+        "required": false
+       },
+       {
+        "type": "Footer",
+        "label": "Search",
+        "on-click-action": {
+         "name": "data_exchange",
+         "payload": {
+          "step": "add_search",
+          "term": "${form.term}"
+         }
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "ADD_RESULTS",
+   "title": "Schools found",
+   "refresh_on_back": true,
+   "data": {
+    "options": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string"
+       },
+       "title": {
+        "type": "string"
+       },
+       "description": {
+        "type": "string"
+       },
+       "metadata": {
+        "type": "string"
+       }
+      }
+     },
+     "__example__": [
+      {
+       "id": "x",
+       "title": "Example",
+       "description": "",
+       "metadata": ""
+      }
+     ]
+    }
+   },
+   "layout": {
+    "type": "SingleColumnLayout",
+    "children": [
+     {
+      "type": "TextBody",
+      "text": "Pick a school to add to your list."
+     },
+     {
+      "type": "Form",
+      "name": "add_results_form",
+      "children": [
+       {
+        "type": "Dropdown",
+        "name": "pick",
+        "label": "School to add",
+        "required": true,
+        "data-source": "${data.options}"
+       },
+       {
+        "type": "Footer",
+        "label": "Continue",
+        "on-click-action": {
+         "name": "data_exchange",
+         "payload": {
+          "step": "add_school",
+          "picked": "${form.pick}"
+         }
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "MANAGE_SCHOOLS",
+   "title": "My schools",
+   "refresh_on_back": true,
+   "data": {
+    "options": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string"
+       },
+       "title": {
+        "type": "string"
+       },
+       "description": {
+        "type": "string"
+       },
+       "metadata": {
+        "type": "string"
+       }
+      }
+     },
+     "__example__": [
+      {
+       "id": "x",
+       "title": "Example",
+       "description": "",
+       "metadata": ""
+      }
+     ]
+    }
+   },
+   "layout": {
+    "type": "SingleColumnLayout",
+    "children": [
+     {
+      "type": "TextBody",
+      "text": "These are your schools. Pick one to remove it, or use Add a school from the menu."
+     },
+     {
+      "type": "Form",
+      "name": "manage_schools_form",
+      "children": [
+       {
+        "type": "Dropdown",
+        "name": "pick",
+        "label": "School to remove",
+        "required": true,
+        "data-source": "${data.options}"
+       },
+       {
+        "type": "Footer",
+        "label": "Continue",
+        "on-click-action": {
+         "name": "data_exchange",
+         "payload": {
+          "step": "remove_school",
+          "picked": "${form.pick}"
+         }
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "ACTION_DONE",
+   "title": "Done",
+   "terminal": true,
+   "success": true,
+   "data": {
+    "heading": {
+     "type": "string",
+     "__example__": "Added"
+    },
+    "body": {
+     "type": "string",
+     "__example__": "55 teachers now in your list."
+    },
+    "extension_message_response": {
+     "type": "object",
+     "properties": {
+      "params": {
+       "type": "object"
+      }
+     },
+     "__example__": {
+      "params": {
+       "observe_visit_action": "roster"
+      }
+     }
+    }
+   },
+   "layout": {
+    "type": "SingleColumnLayout",
+    "children": [
+     {
+      "type": "TextHeading",
+      "text": "${data.heading}"
+     },
+     {
+      "type": "TextBody",
+      "text": "${data.body}"
      }
     ]
    }

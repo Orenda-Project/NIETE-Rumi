@@ -216,6 +216,16 @@ async function schoolOfTeacher(userId, teacherExtId) {
 }
 
 
+
+// bd-88krt — shorthands so the Flow steps stay readable. Screen copy is always
+// per-language DATA (language protocol), never a literal at the call site.
+const S_ = (lang) => observeStrings(lang);
+const _done = (heading, body, action = 'roster') => ({
+  heading: heading || '',
+  body: body || '',
+  extension_message_response: { params: { observe_visit_action: action } },
+});
+
 // ── scheduling-UI builders (v2 Flow — bd-2443) ───────────────────────────────
 
 // Lazy requires — observe-debrief pulls whatsapp.service; keep cycles out.
@@ -262,6 +272,15 @@ async function menuScreen(userId) {
         metadata: 'Pick a school and teacher',
       },
       'on-click-action': { name: 'data_exchange', payload: { step: 'schools' } },
+    },
+    {
+      // bd-88krt — occasional roster admin sits BELOW the daily actions.
+      id: 'manage',
+      'main-content': {
+        title: 'Add or remove a school',
+        metadata: 'Search every school by name or EMIS',
+      },
+      'on-click-action': { name: 'data_exchange', payload: { step: 'add_search_open' } },
     },
   ];
   return { screen: 'MENU', data: { items } };
@@ -579,6 +598,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
 
   if (action === 'data_exchange') {
     // v2-only steps (the v1 Flow never sends them, so they are inert dark)
+    if (step === 'add_search_open') return { screen: 'ADD_SEARCH', data: {} };
     if (step === 'debriefs') return debriefsScreen(userId);
     if (step === 'schedule') return scheduleScreen(userId);
     if (step === 'schools') return schoolsScreenV2(userId);
@@ -664,6 +684,81 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       // is what she actually wants (median 123 teachers across her schools).
       return teachersScreenV2(userId, null, screenData && screenData.term);
     }
+
+    // ── bd-88krt · search, and owning your school list ───────────────────
+    const _admin = () => require('../services/observe/observe-school-admin.service');
+    const _opt = (id, title, description, metadata) => ({
+      id: String(id), title: clip(title || '', 30),
+      description: clip(description || '', 30), metadata: clip(metadata || '', 80),
+    });
+
+    // Schools I already have, by name or EMIS.
+    if (step === 'school_search') {
+      const A = _admin();
+      const mine = await A.listMySchools(userId).catch(() => []);
+      const hits = mine.filter((x) => A.matchSchool(x, screenData && screenData.term)).slice(0, A.RESULT_CAP);
+      const options = hits.length
+        ? hits.map((x) => _opt(x.school_ext_id, x.school_name, `EMIS ${x.emis || ''}`, ''))
+        : [_opt('none', S_(_flowLang).search_no_match, '', '')];
+      return { screen: 'SCHOOL_RESULTS', data: { options } };
+    }
+
+    // My teachers at a school, by name or phone.
+    if (step === 'teacher_search') {
+      const A = _admin();
+      const schoolExtId = (screenData && screenData.school_ext_id) || null;
+      const all = await LeaderSource.listTeachers(userId, schoolExtId).catch(() => []);
+      const hits = all.filter((t) => A.matchTeacher(t, screenData && screenData.term)).slice(0, A.RESULT_CAP);
+      const options = hits.length
+        ? hits.map((t) => _opt(t.teacher_ext_id, t.teacher_name, t.level || '', t.phone_e164 || ''))
+        : [_opt('none', S_(_flowLang).search_no_match, '', '')];
+      return { screen: 'TEACHER_RESULTS', data: { options, school_ext_id: String(schoolExtId || '') } };
+    }
+
+    // The whole universe of schools — what she can ADD.
+    if (step === 'add_search') {
+      const A = _admin();
+      const hits = await A.searchUniverse(userId, screenData && screenData.term).catch(() => []);
+      const options = hits.length
+        ? hits.map((x) => _opt(x.school_ext_id, x.school_name,
+            `EMIS ${x.emis}`, x.alreadyMine ? S_(_flowLang).school_already_mine : ''))
+        : [_opt('none', S_(_flowLang).search_no_match, '', '')];
+      return { screen: 'ADD_RESULTS', data: { options } };
+    }
+
+    if (step === 'add_school') {
+      const A = _admin();
+      const picked = screenData && screenData.picked;
+      const S = S_(_flowLang);
+      if (!picked || picked === 'none') return { screen: 'ACTION_DONE', data: _done(S.search_no_match, '') };
+      const res = await A.addSchoolForCoach(userId, picked).catch(() => ({ ok: false }));
+      if (!res.ok) return { screen: 'ACTION_DONE', data: _done(S.flow_action_failed_heading, S.flow_action_failed_body) };
+      return { screen: 'ACTION_DONE', data: _done(
+        S.school_added_heading,
+        A.addedSchoolAck(_flowLang, { schoolName: res.schoolName, teachersMapped: res.teachersMapped }),
+        'roster') };
+    }
+
+    if (step === 'manage') {
+      const A = _admin();
+      const mine = await A.listMySchools(userId).catch(() => []);
+      const options = mine.length
+        ? mine.map((x) => _opt(x.school_ext_id, x.school_name, `EMIS ${x.emis || ''}`, ''))
+        : [_opt('none', S_(_flowLang).search_no_match, '', '')];
+      return { screen: 'MANAGE_SCHOOLS', data: { options } };
+    }
+
+    if (step === 'remove_school') {
+      const A = _admin();
+      const picked = screenData && screenData.picked;
+      const S = S_(_flowLang);
+      if (!picked || picked === 'none') return { screen: 'ACTION_DONE', data: _done(S.search_no_match, '') };
+      const res = await A.removeSchoolForCoach(userId, picked).catch(() => ({ ok: false }));
+      return { screen: 'ACTION_DONE', data: res.ok
+        ? _done(S.school_removed_heading, A.removedSchoolAck(_flowLang, { schoolName: res.schoolName }), 'roster')
+        : _done(S.flow_action_failed_heading, S.flow_action_failed_body) };
+    }
+
     if (step === 'to_picker') return pickerScreen(userId, screenData);
     if (step === 'save_schedule') return saveScheduleStep(userId, screenData);
     if (step === 'done') return successDone(flowToken || userId, screenData, _flowLang);
