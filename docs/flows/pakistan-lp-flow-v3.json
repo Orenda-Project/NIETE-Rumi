@@ -341,7 +341,10 @@
                 "name": "data_exchange",
                 "payload": {
                   "step": "lesson_page",
-                  "page": "2"
+                  "page": "2",
+                  "grade": "1",
+                  "subject": "english",
+                  "chapter": "1"
                 }
               }
             }

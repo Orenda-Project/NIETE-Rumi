@@ -150,6 +150,43 @@ describe('v8 path (grades 1-5)', () => {
     expect(Array.isArray(res.data.items)).toBe(true);
   });
 
+  // bd-hd2wy — "More lessons →" errored for every teacher on production.
+  //
+  // The test above passes a payload we WROTE. The Flow never sends that one: in a
+  // data_exchange the request `data` IS the row's on-click-action payload, and
+  // buildLessonItems was emitting {step, page} alone. The screen-level
+  // grade_value/subject_value/chapter_value do not ride along. So the guard in
+  // selectLessonPage tripped on NaN every single time.
+  //
+  // The fix is not "loosen the guard" — it is to stop testing the two halves in
+  // isolation. Drive the dispatcher with the row the previous screen actually
+  // produced, so the producer and the consumer are checked against each other.
+  test('tapping the REAL "More lessons" row pages forward (not an error)', async () => {
+    const first = await EP.handlePakistanLpDataExchange(TOKEN, 'SELECT_CHAPTER', {
+      step: 'chapter', grade: '1', subject: 'english', chapter: '1',
+    });
+    const more = first.data.items[first.data.items.length - 1];
+    expect(more.id).toBe(V8Catalog.MORE_ROW_ID);
+
+    const res = await EP.handlePakistanLpDataExchange(
+      TOKEN, 'SELECT_LESSON', more['on-click-action'].payload,
+    );
+
+    expect(res.data.error).toBeUndefined();
+    expect(res.screen).toBe('SELECT_LESSON_MORE');
+    // 24 lessons: page 1 shows 19 + the More row, so page 2 holds the last 5.
+    expect(res.data.items).toHaveLength(5);
+    expect(res.data.items[0]['main-content'].metadata).toContain('Topic 20');
+  });
+
+  test('the More row carries the chapter it belongs to', () => {
+    const { items } = V8Catalog.buildLessonItems(1, 'english', 1, mockV8Available, new Set(), 1);
+    const more = items[items.length - 1];
+    expect(more['on-click-action'].payload).toMatchObject({
+      step: 'lesson_page', page: '2', grade: '1', subject: 'english', chapter: '1',
+    });
+  });
+
   test('an unknown v8 lesson id is refused, and nothing is delivered', async () => {
     const res = await EP.handlePakistanLpDataExchange(TOKEN, 'SELECT_LESSON', { step: 'lesson', lesson: 'V8-nope' });
     expect(res.data.error).toBeDefined();

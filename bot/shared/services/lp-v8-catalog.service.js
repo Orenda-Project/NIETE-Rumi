@@ -247,7 +247,19 @@ function buildLessonItems(grade, subjectKey, chapterNumber, available, downloade
         description: clip(`Page ${pageNum + 1}`, DESC_CAP),
         metadata: clip(`${remaining} more in this chapter`, META_CAP),
       },
-      'on-click-action': { name: 'data_exchange', payload: { step: 'lesson_page', page: String(pageNum + 1) } },
+      // The payload IS the whole request body the endpoint will see — screen data
+      // (grade_value/subject_value/chapter_value) does NOT ride along with a tap.
+      // Ship the chapter with the row or selectLessonPage has nothing to page. (bd-hd2wy)
+      'on-click-action': {
+        name: 'data_exchange',
+        payload: {
+          step: 'lesson_page',
+          page: String(pageNum + 1),
+          grade: String(grade),
+          subject: String(subjectKey),
+          chapter: String(chapterNumber),
+        },
+      },
     });
   }
 
