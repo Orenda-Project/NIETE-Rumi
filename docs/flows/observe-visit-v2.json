@@ -302,10 +302,6 @@
        "description": "15 teachers - 6 due for a visit"
       }
      ]
-    },
-    "school_ext_id": {
-     "type": "string",
-     "__example__": ""
     }
    },
    "layout": {
@@ -337,16 +333,14 @@
      },
      {
       "type": "EmbeddedLink",
-      "text": "Search by teacher name instead",
+      "text": "Search all my teachers by name",
       "on-click-action": {
        "name": "navigate",
        "next": {
         "type": "screen",
         "name": "SEARCH_TEACHER"
        },
-       "payload": {
-        "school_ext_id": "${data.school_ext_id}"
-       }
+       "payload": {}
       }
      }
     ]
@@ -718,18 +712,13 @@
    "id": "SEARCH_TEACHER",
    "title": "Find a teacher",
    "refresh_on_back": true,
-   "data": {
-    "school_ext_id": {
-     "type": "string",
-     "__example__": "niete:401"
-    }
-   },
+   "data": {},
    "layout": {
     "type": "SingleColumnLayout",
     "children": [
      {
       "type": "TextBody",
-      "text": "Type part of the teacher's name. Leave it blank to see everyone at this school."
+      "text": "Type part of the teacher's name — from any of your schools."
      },
      {
       "type": "Form",
@@ -749,7 +738,6 @@
          "name": "data_exchange",
          "payload": {
           "step": "teacher_search",
-          "school_ext_id": "${data.school_ext_id}",
           "term": "${form.term}"
          }
         }

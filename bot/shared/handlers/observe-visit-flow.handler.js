@@ -197,6 +197,22 @@ function visitSummary(row) {
   return clip(bits.join(' · '), 80);
 }
 
+
+/**
+ * bd-88krt — which school a teacher belongs to. A cross-school name search
+ * returns no school, and the brief needs one; asking the roster is cheaper and
+ * more honest than threading an empty string through the Flow.
+ */
+async function schoolOfTeacher(userId, teacherExtId) {
+  try {
+    const all = await LeaderSource.listTeachers(userId);
+    const hit = (all || []).find((t) => String(t.teacher_ext_id) === String(teacherExtId));
+    return (hit && hit.school_ext_id) || '';
+  } catch (_) {
+    return '';
+  }
+}
+
 // ── scheduling-UI builders (v2 Flow — bd-2443) ───────────────────────────────
 
 // Lazy requires — observe-debrief pulls whatsapp.service; keep cycles out.
@@ -611,9 +627,10 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
     // bd-88krt — the TextInput search. Meta gives no built-in Dropdown search,
     // so the term comes back here and the options are filtered server-side.
     if (step === 'teacher_search') {
-      const schoolExtId = screenData && screenData.school_ext_id;
-      const term = screenData && screenData.term;
-      return teachersScreenV2(userId, schoolExtId, term);
+      // The search link sits on SELECT_SCHOOL, BEFORE a school is chosen, so
+      // there is no school to scope by — and searching the coach's whole patch
+      // is what she actually wants (median 123 teachers across her schools).
+      return teachersScreenV2(userId, null, screenData && screenData.term);
     }
     if (step === 'to_picker') return pickerScreen(userId, screenData);
     if (step === 'save_schedule') return saveScheduleStep(userId, screenData);
@@ -628,7 +645,11 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
     }
     if (step === 'teacher') {
       if (screenData && screenData.picked != null) {
-        return briefScreen(userId, { teacher_ext_id: screenData.picked, school_ext_id: screenData.school_ext_id }, 'BRIEF_SCHEDULE');
+        // A cross-school search returns no school_ext_id, so resolve it from the
+        // teacher herself rather than sending the brief an empty school.
+        let schoolExtId = screenData.school_ext_id;
+        if (!schoolExtId) schoolExtId = await schoolOfTeacher(userId, screenData.picked);
+        return briefScreen(userId, { teacher_ext_id: screenData.picked, school_ext_id: schoolExtId }, 'BRIEF_SCHEDULE');
       }
       return briefScreen(userId, screenData, 'BRIEF');
     }
@@ -648,6 +669,7 @@ module.exports = {
   handle,
   // bd-88krt — pure decisions, unit-tested
   filterTeachersByTerm,
+  schoolOfTeacher,
   visitActionTarget,
   visitSummary,
   TEACHER_MATCH_CAP,
