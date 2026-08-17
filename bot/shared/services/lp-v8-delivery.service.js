@@ -51,6 +51,24 @@ function buildCaption({ book, chapter, lesson }) {
     + `Grade ${book.grade} ${book.subject} — Ch${chapter.number}: ${chapter.title}`;
 }
 
+/**
+ * The marking scheme travels as its OWN document, and it must never be mistaken
+ * for the pupil paper — it carries every answer. Name and caption both say so.
+ */
+function buildAnswerKeyFilename({ book, chapter }) {
+  const base = `Grade ${book.grade} ${book.subject} — Ch${chapter.number} Answer Key (Teacher)`
+    .replace(/[<>:"/\\|?*]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const room = FILENAME_MAX - 4;
+  return `${base.length > room ? base.slice(0, room).trim() : base}.pdf`;
+}
+function buildAnswerKeyCaption({ book, chapter }) {
+  return '🔑 Answer key & marking scheme — for you, not for the pupils.\n'
+    + `Marks per question and the mistakes to watch for.\n`
+    + `Grade ${book.grade} ${book.subject} — Ch${chapter.number}: ${chapter.title}`;
+}
+
 // PostgREST caps every response at db-max-rows regardless of the .limit() asked
 // for, and returns NO error when it truncates. Measured on this project
 // (2026-08-16): limit=5000 on a 118k-row table returns exactly 1000 rows,
@@ -144,6 +162,41 @@ async function recordDownload(fields) {
  * Never throws — the Flow has already returned SUCCESS by the time this runs.
  * @returns {Promise<{ok: boolean, reason?: string}>}
  */
+/**
+ * Send the answer key for an assessment, if one has been rendered and uploaded.
+ * Never throws: the worksheet has already gone out by the time this runs, and a
+ * missing or failing key must not turn a successful delivery into a failed one.
+ */
+async function sendAnswerKeyIfAny({ userId, lessonId, phone, book, chapter, context }) {
+  try {
+    const key = await currentAssetFor(lessonId, 'answer_key');
+    if (!key || !key.r2_key) {
+      // Not rendered yet for this chapter. Silent by design — see caller.
+      logToFile('LP v8: no answer key for assessment', { lessonId });
+      return;
+    }
+    const presigned = await getPresignedUrl(buildR2PublicUrl(key.r2_key));
+    const resp = await WhatsAppService.sendDocumentByLink(
+      phone,
+      presigned,
+      buildAnswerKeyFilename({ book, chapter }),
+      buildAnswerKeyCaption({ book, chapter }),
+    );
+    await recordDownload({
+      ...context,
+      user_id: userId,
+      asset_id: key.id,
+      version_stamp: key.version_stamp,
+      content_hash: key.content_hash,
+      phone,
+      status: resp ? 'sent' : 'failed',
+      error_text: resp ? null : 'answer key send returned falsy',
+    });
+  } catch (err) {
+    logToFile('LP v8: answer key send failed (non-fatal)', { userId, lessonId, error: err.message });
+  }
+}
+
 async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
   const hit = V8Catalog.lessonById(lessonId);
   if (!hit) {
@@ -218,6 +271,22 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
       await WhatsAppService.sendMessage(phone, resolveUx('lpV8SendFailed', { user }));
     } catch (_) { /* best effort */ }
     return { ok: false, reason: errorText || 'send failed' };
+  }
+
+  // ── The marking scheme (bd-52f1x) ─────────────────────────────────────────
+  //
+  // An assessment worksheet on its own is half a deliverable: the answer key is
+  // what carries the mark allocation and the named misconceptions ("Watch for:
+  // writes eid with a small letter"). It lives under a DIFFERENT asset_kind, and
+  // until this fix nothing ever asked for one — 18 uploaded keys sat on R2 with
+  // no code path able to reach them.
+  //
+  // Deliberately best-effort and deliberately silent when absent: keys exist for
+  // only some chapters while the rest are regenerated, and a teacher who gets no
+  // key should simply get the worksheet, not an apology for a thing she never
+  // knew was coming. It is sent AFTER the worksheet and can never gate it.
+  if (lesson.lp_type === 'assessment') {
+    await sendAnswerKeyIfAny({ userId, lessonId, phone, book, chapter, lesson, context });
   }
 
   // A lesson_plans row is what the feedback survey hangs off (lp_feedback

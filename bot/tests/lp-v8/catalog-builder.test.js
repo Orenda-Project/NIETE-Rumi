@@ -447,6 +447,53 @@ describe('staging feedback: chapter page span + full section in metadata', () =>
     expect(row.metadata).not.toContain('Memory Lane');
   });
 
+  // bd-6oai1 — the chapter tail order is PEDAGOGICAL, not numeric.
+  //
+  // The curriculum matrix's Day# column is authoritative: Day 7 = seg 995 (the
+  // assessment worksheet), Day 8 = seg 990 (the revision LP). The Skill Taxonomy
+  // tab states it outright: "Locked order per chapter: lessons 1..N → 995 → 990".
+  //
+  // The reason is the whole point of the revision lesson: it is a teaching-at-the-
+  // right-level plan that splits the class into three groups, and the teacher groups
+  // them by what the ASSESSMENT just revealed. Run the revision first and there is
+  // nothing to group on.
+  //
+  // A plain numeric sort on segment_index puts 990 before 995 and teaches the exact
+  // reverse — which is what shipped, in 233 of 233 chapters.
+  test('committed catalog: the assessment worksheet comes BEFORE the revision LP', () => {
+    const cat = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
+    const wrong = [];
+    let checked = 0;
+    for (const book of cat.books) {
+      for (const ch of book.chapters) {
+        const a = ch.lessons.findIndex((l) => l.lp_type === 'assessment');
+        const r = ch.lessons.findIndex((l) => l.lp_type === 'revision');
+        if (a === -1 || r === -1) continue;
+        checked += 1;
+        if (a > r) wrong.push(`${book.stem} ch${ch.number}`);
+      }
+    }
+    expect(checked).toBeGreaterThan(200);
+    expect(wrong).toEqual([]);
+  });
+
+  test('committed catalog: the tail is the LAST thing in every chapter', () => {
+    const cat = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
+    for (const book of cat.books) {
+      for (const ch of book.chapters) {
+        const tail = ch.lessons
+          .map((l, i) => ({ i, t: l.lp_type }))
+          .filter((x) => x.t !== 'content')
+          .map((x) => x.i);
+        if (!tail.length) continue;
+        // every non-content lesson sits after every content lesson
+        const firstTail = Math.min(...tail);
+        const contentAfter = ch.lessons.slice(firstTail).filter((l) => l.lp_type === 'content');
+        expect(contentAfter).toEqual([]);
+      }
+    }
+  });
+
   test('committed catalog: every chapter carries pages_label spanning ALL its lessons', () => {
     const cat = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
     let checked = 0;
