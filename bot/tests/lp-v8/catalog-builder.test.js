@@ -145,8 +145,8 @@ describe('lp-catalog: pure normalisation', () => {
     test('title is the short section, description the day label, metadata topic + pages', () => {
       const row = B.buildRow(lesson, { rtl: false });
       expect(row.title).toBe('Diving Deeper');
-      expect(row.description).toBe('Day 3');
-      expect(row.metadata).toBe('Introducing Myself · p.4-6');
+      expect(row.description).toBe('Day 3 · p.4-6')  // v4 (§12.3): pages ride the description;
+      expect(row.metadata).toBe('Introducing Myself');  // v4: pages live in the description now
     });
 
     test('metadata is clipped to 80 cp on the worst real lesson in the corpus', () => {
@@ -222,9 +222,10 @@ describe('lp-catalog: pure normalisation', () => {
       expect(row.metadata).toContain('جائزہ ورک شیٹ');
     });
 
-    test('RTL rows carry an LTR mark before the page reference', () => {
+    test('RTL rows keep pages in the DESCRIPTION as Urdu furniture (v4, §12.4)', () => {
       const row = B.buildRow({ segment_index: 2, section: 'متن کا سفر', topic: 'نظم کی بلند خوانی', pages: [5, 6, 7, 8] }, { rtl: true });
-      expect(row.metadata).toContain('‎ · p.');
+      expect(row.description).toBe('دن ۲ · ص ۵-۸');
+      expect(row.metadata).toBe('نظم کی بلند خوانی');   // pure Urdu — no Latin suffix to scramble
     });
 
     test('LTR rows carry no LTR mark', () => {
@@ -434,7 +435,7 @@ describe('staging feedback: chapter page span + full section in metadata', () =>
     );
     expect(cps(row.title)).toBeLessThanOrEqual(SECTION_CAP);
     expect(row.metadata).toContain(longSection);
-    expect(row.metadata).toMatch(/p\.7-8$/);
+    expect(row.description).toBe('دن ۲ · ص ۷-۸');  // v4: pages moved to description
     expect(cps(row.metadata)).toBeLessThanOrEqual(META_CAP);
   });
 
@@ -508,5 +509,64 @@ describe('staging feedback: chapter page span + full section in metadata', () =>
       }
     }
     expect(checked).toBeGreaterThan(100);
+  });
+});
+
+// ─── §12.3/12.4 v4 rows: day+pages in description, RTL furniture (red-first) ──
+describe('v4 rows: pages join the description; Urdu rows are RTL-first', () => {
+  test('EN lesson description = "Day N · p.range"; metadata drops the pages suffix', () => {
+    const row = B.buildRow(
+      { segment_index: 4, section: 'Share and Sparkle', topic: 'Stress in Speech', pages: [94, 95, 96] },
+      { rtl: false },
+    );
+    expect(row.description).toBe('Day 4 · p.94-96');
+    expect(cps(row.description)).toBeLessThanOrEqual(20);
+    expect(row.metadata).not.toMatch(/p\.94/);
+  });
+
+  test('a description past 20 cp falls back to the label; pages return to metadata', () => {
+    const row = B.buildRow(
+      { segment_index: 995, section: 'Assessment', topic: 'Chapter 4 Assessment', pages: [100, 101, 102, 103] },
+      { rtl: false },
+    );
+    expect(row.description).toBe('Worksheet');       // 'Worksheet · p.100-103' = 21 cp
+    expect(row.metadata).toMatch(/p\.100-103$/);
+  });
+
+  test('RTL lesson description is Urdu-first with Urdu digits', () => {
+    const row = B.buildRow(
+      { segment_index: 4, section: 'میرے قائد', topic: 'قائد اعظم کا پیغام', pages: [20, 21] },
+      { rtl: true },
+    );
+    expect(row.description).toBe('دن ۴ · ص ۲۰-۲۱');
+    expect(row.description).toMatch(/^[؀-ۿ]/);
+    expect(row.metadata).toMatch(/^[؀-ۿ‏]/);
+  });
+
+  test('RTL revision/worksheet furniture: اعادہ / ورک شیٹ', () => {
+    expect(B.buildRow({ segment_index: 990, section: 'اعادہ', topic: 'باب کا اعادہ', pages: [28, 37] }, { rtl: true }).description)
+      .toBe('اعادہ · ص ۲۸-۳۷');
+    expect(B.buildRow({ segment_index: 995, section: 'جائزہ', topic: 'ورک شیٹ مشق', pages: [28, 37] }, { rtl: true }).description)
+      .toBe('ورک شیٹ · ص ۲۸-۳۷');
+  });
+
+  test('committed artifact: every rtl-book row string renders RTL-first', () => {
+    const cat = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
+    let checked = 0;
+    for (const book of cat.books.filter((b) => b.rtl)) {
+      for (const ch of book.chapters) {
+        for (const l of ch.lessons) {
+          for (const s of [l.row.title, l.row.description, l.row.metadata]) {
+            if (!s) continue;
+            const strong = [...String(s)].find((c) => /[A-Za-z؀-ۿ]/.test(c));
+            if (!strong) continue;
+            const ok = /[؀-ۿ]/.test(strong) || String(s).startsWith('‏');
+            expect(ok).toBe(true);
+            checked += 1;
+          }
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(1000);
   });
 });
