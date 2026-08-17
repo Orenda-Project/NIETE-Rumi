@@ -68,6 +68,10 @@ const { getPatchTeacherDetail } = require('../services/leader-teacher-detail.ser
 const { getLeaderObservations } = require('../services/leader-observations.service');
 // bd-2676 — the portal's WRITE side for scheduled visits (create + cancel).
 const { createSchedule, cancelSchedule } = require('../services/leader-schedule-write.service');
+// bd-88krt — coach self-service: edit a visit, own the school list, search by name.
+const {
+  editSchedule, searchSchools, addSchool, removeSchool, searchTeachers,
+} = require('../services/leader-assignment.service');
 
 // Configure R2 S3 client for private PDF access. Lazy — resolved on first
 // use, not at module load, so mounting these routes never depends on R2 env
@@ -1045,6 +1049,69 @@ router.post('/leader/schedules/:id/cancel', requirePortalAuth, requireLeaderRole
     res.json({ success: true, ...result });
   } catch (error) {
     console.error('leader/schedules cancel error:', error.message);
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+
+/**
+ * bd-88krt — coach self-service (HITL R38/R39/R41).
+ *
+ * Every one of these takes the leader id from the SESSION, never the body, and
+ * the service re-checks ownership. R41's root cause was a two-table write done
+ * by hand; POST /leader/schools performs both halves in one call so the pair
+ * cannot drift apart again.
+ */
+router.post('/leader/schedules/:id/edit', requirePortalAuth, requireLeaderRole, async (req, res) => {
+  try {
+    const { date, slot } = req.body || {};
+    const result = await editSchedule(
+      (sql, params) => pool.query(sql, params), req.session.portalUserId, req.params.id, { date, slot });
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('leader/schedules edit error:', error.message);
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/leader/schools/search', requirePortalAuth, requireLeaderRole, async (req, res) => {
+  try {
+    const results = await searchSchools(
+      (sql, params) => pool.query(sql, params), req.session.portalUserId, req.query.q);
+    res.json({ success: true, results });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+router.post('/leader/schools', requirePortalAuth, requireLeaderRole, async (req, res) => {
+  try {
+    const result = await addSchool(
+      (sql, params) => pool.query(sql, params), req.session.portalUserId, (req.body || {}).schoolExtId);
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('leader/schools add error:', error.message);
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+router.post('/leader/schools/remove', requirePortalAuth, requireLeaderRole, async (req, res) => {
+  try {
+    const result = await removeSchool(
+      (sql, params) => pool.query(sql, params), req.session.portalUserId, (req.body || {}).schoolExtId);
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('leader/schools remove error:', error.message);
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/leader/teachers/search', requirePortalAuth, requireLeaderRole, async (req, res) => {
+  try {
+    const results = await searchTeachers(
+      (sql, params) => pool.query(sql, params), req.session.portalUserId, req.query.q);
+    res.json({ success: true, results });
+  } catch (error) {
     res.status(400).json({ success: false, error: error.message });
   }
 });
