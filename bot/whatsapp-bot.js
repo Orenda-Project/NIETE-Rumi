@@ -715,6 +715,59 @@ app.post('/webhook', async (req, res) => {
           : '📸 Please send your classroom photo now. I\'ll analyze it and include it in your report.';
         await WhatsAppService.sendMessage(from, msg);
       }
+      // bd-u35ex: the classroom-photo collection (image-message.handler.js Phase 3)
+      // sends "Add another / Done" buttons (photo_more_ / photo_done_) after each
+      // photo — but NEITHER had a handler, so tapping "Done" was a DEAD END: the
+      // session stayed at awaiting_classroom_photo, analysis was never queued, and
+      // no report was produced (only the early generic voice ack). This is the
+      // "photo wiring off / lessons drop in the middle" cluster (R26/49/52/53 and
+      // the downstream no-report reports). Both buttons are now wired.
+      else if (buttonId.startsWith('photo_done_')) {
+        const sessionId = buttonId.replace('photo_done_', '');
+        logToFile('📸 User done adding classroom photos — advancing to LP prompt', { sessionId, from });
+
+        // Advance to the SAME lesson-plan step the skip-photo path uses (photo_no),
+        // which is the flow that works (R49). PRESERVE the existing conversation_state
+        // (it holds the uploaded classroom_photos) — only move current_state forward.
+        const { data: doneSession } = await supabase
+          .from('coaching_sessions')
+          .select('conversation_state')
+          .eq('id', sessionId)
+          .maybeSingle();
+        await supabase
+          .from('coaching_sessions')
+          .update({
+            conversation_state: { ...(doneSession?.conversation_state || {}), current_state: 'AWAITING_LESSON_PLAN' },
+            status: 'awaiting_lesson_plan'
+          })
+          .eq('id', sessionId);
+
+        const { buildLPSelectionList } = require('./shared/services/coaching/lp-coaching/lp-selection-list.service');
+        const { data: userRow } = await supabase
+          .from('users')
+          .select('preferred_language, region')
+          .eq('id', user.id)
+          .maybeSingle();
+        const lang = userRow?.preferred_language || 'en';
+        const lpPrompt = buildLPSelectionList(sessionId, [], lang, userRow?.region);
+        await WhatsAppService.sendInteractiveButtons(from, lpPrompt);
+      }
+      // bd-u35ex: "Add another" — keep collecting; the image handler (Phase 3) picks
+      // up the next photo. Session stays at awaiting_classroom_photo.
+      else if (buttonId.startsWith('photo_more_')) {
+        const sessionId = buttonId.replace('photo_more_', '');
+        logToFile('📸 User wants to add another classroom photo', { sessionId, from });
+        const { data: userRow } = await supabase
+          .from('users')
+          .select('preferred_language')
+          .eq('id', user.id)
+          .maybeSingle();
+        const lang = userRow?.preferred_language || 'en';
+        const msg = lang === 'ur'
+          ? '📸 اگلی تصویر بھیجیں۔'
+          : '📸 Please send the next photo.';
+        await WhatsAppService.sendMessage(from, msg);
+      }
       // Stale session reminder buttons - Continue coaching
       else if (buttonId.startsWith('coaching_continue_')) {
         const sessionId = buttonId.replace('coaching_continue_', '');
