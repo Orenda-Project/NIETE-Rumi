@@ -1306,8 +1306,24 @@ app.post('/webhook', async (req, res) => {
       else if (isSelectVideoButton({ buttonPayload, buttonText })) {
         await openStudentVideosFlowFromCta(message, from, user);
       }
+      // FALLTHROUGH (bd-kggts). A QUICK_REPLY is the teacher saying that phrase —
+      // so route its text through the normal text path instead of dead-ending.
+      //
+      // Before this, anything that was not style_* or the bd-2482 video CTA was
+      // logged and dropped. The K-5 lesson-plan broadcast button
+      // ("Lesson Plans & Assessment") matches the LP intent matcher at STRONG tier,
+      // but the text never reached the matcher, so tapping it did nothing.
+      //
+      // Text first, payload second: Meta strips the payload on some registrations
+      // (already learned on bd-2482), so the visible label is the reliable signal.
       else {
-        logToFile('⚠️ Unknown carousel button payload', { buttonPayload, buttonText });
+        const asText = String(buttonText || buttonPayload || '').trim();
+        if (asText) {
+          logToFile('↩️ Template button → text handler', { asText, buttonPayload, from });
+          await handleTextMessage(message, from, asText, user);
+        } else {
+          logToFile('⚠️ Template button with no text or payload', { buttonPayload, buttonText });
+        }
       }
     } else if (messageType === 'interactive' && message.interactive?.type === 'nfm_reply') {
       // Handle WhatsApp Flow submissions (registration, reading assessment, etc.)
