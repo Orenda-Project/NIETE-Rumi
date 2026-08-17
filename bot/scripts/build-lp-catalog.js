@@ -36,6 +36,38 @@ const TICK_HEADROOM = 2;                    // "✓ " is prefixed at serve time
 const SECTION_CAP = TITLE_CAP - TICK_HEADROOM;
 const META_CAP = 80;
 const LTR = '‎';                       // keeps "p.5-7" LTR inside an RTL row
+const RLM = '\u200F';                 // makes a Latin-leading string render RTL
+const DESC_CAP = 20;                   // NavigationList description cap (code points)
+
+/** Urdu (Extended Arabic-Indic, U+06F0 block) digits — NOT the Arabic U+0660 set. */
+const urDigits = (s) => String(s).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]);
+
+/** "p.5-7" (EN) / "ص ۵-۷" (RTL) — the page span as row furniture. */
+function pagesDisplay(pages, rtl) {
+  const pl = pagesLabel(pages);
+  if (!pl) return '';
+  return rtl ? 'ص ' + urDigits(pl.slice(2)) : pl;
+}
+
+/**
+ * §12.4: the day/revision/worksheet label in the reader's own script. Urdu rows
+ * that START with Latin furniture ("Day 4") render LTR by Unicode first-strong
+ * rules — left-aligned, ellipsis on the wrong side. Urdu-first furniture makes
+ * the whole row genuinely RTL. day_label (EN) stays untouched for filenames.
+ */
+function dayLabelDisplay(segmentIndex, type, rtl) {
+  if (!rtl) return dayLabelFor(segmentIndex, type);
+  if (type === 'revision') return 'اعادہ';
+  if (type === 'assessment') return 'ورک شیٹ';
+  return `دن ${urDigits(segmentIndex)}`;
+}
+
+/** RTL rows whose first strong character is Latin get an RLM so bidi picks RTL. */
+function rtlFirst(s) {
+  const strong = [...String(s)].find((c) => /[A-Za-z\u0600-\u06FF]/u.test(c));
+  if (strong && /[A-Za-z]/.test(strong)) return RLM + s;
+  return s;
+}
 
 const CATALOG_VERSION = 'v8';
 
@@ -235,11 +267,18 @@ function buildRow(lesson, opts = {}) {
   const type = lpTypeFor(lesson.segment_index);
   const sectionFull = cleanSection(lesson.section);
   const title = shortSection(lesson.section);
-  const description = dayLabelFor(lesson.segment_index, type);
 
   const pages = pagesLabel(lesson.pages);
-  const mark = rtl ? LTR : '';
-  const suffix = pages ? `${mark} · ${pages}` : '';
+  // §12.3: pages ride in the DESCRIPTION next to the day label ("Day 4 · p.94-96"),
+  // freeing the whole 80-cp metadata line for topic + section. If the composed
+  // description blows the 20-cp cap, the label wins and pages fall back to the
+  // metadata suffix — nothing is ever dropped, only reseated.
+  const label = dayLabelDisplay(lesson.segment_index, type, rtl);
+  const pd = pagesDisplay(lesson.pages, rtl);
+  let description = pd ? `${label} · ${pd}` : label;
+  let pagesInMeta = false;
+  if (cps(description) > DESC_CAP) { description = label; pagesInMeta = true; }
+  const suffix = (pagesInMeta && pages) ? (rtl ? ` · ${pd}` : `${LTR} · ${pages}`) : '';
   const budget = META_CAP - cps(suffix);
 
   const deduped = stripBoilerplate(dedupeTopic(lesson.topic, lesson.section));
@@ -256,7 +295,10 @@ function buildRow(lesson, opts = {}) {
     : (topicShort ? `${sectionForMeta} — ${topicShort}` : sectionForMeta);
   if (cps(lead) > budget) lead = clipBalanced(lead, budget);
 
-  return { title, description, metadata: `${lead}${suffix}` };
+  let metadata = `${lead}${suffix}`;
+  let outTitle = title;
+  if (rtl) { outTitle = rtlFirst(outTitle); description = rtlFirst(description); metadata = rtlFirst(metadata); }
+  return { title: outTitle, description, metadata, lead };
 }
 
 // ── Sources ─────────────────────────────────────────────────────────────────
@@ -339,10 +381,10 @@ function buildCatalog({ segmentationDir, tocDir, builtAt }) {
             section,
             section_short: row.title,
             topic,
-            topic_short: row.metadata.replace(/(‎)? · p\.[\d-]+$/, ''),
+            topic_short: row.lead,
             pages,
             pages_label: pagesLabel(pages),
-            row,
+            row: { title: row.title, description: row.description, metadata: row.metadata },
           };
         });
 
@@ -445,6 +487,11 @@ module.exports = {
   clipBalanced,
   clip,
   cps,
+  urDigits,
+  pagesDisplay,
+  dayLabelDisplay,
+  rtlFirst,
+  DESC_CAP,
   SECTION_CAP,
   META_CAP,
   TITLE_CAP,
