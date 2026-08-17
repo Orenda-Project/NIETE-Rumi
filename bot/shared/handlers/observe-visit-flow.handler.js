@@ -151,6 +151,52 @@ async function teachersScreen(userId, schoolExtId, page = 0) {
   };
 }
 
+
+// ── bd-88krt · search + act-on-a-visit (HITL R37/R39) ────────────────────────
+//
+// Meta's Flow Dropdown holds 200 options and has NO built-in search or filter
+// field, and there is no searchable-list component. The documented way to search
+// is TextInput -> data_exchange -> server-filtered options, which is what
+// SEARCH_TEACHER does. RadioButtonsGroup caps at 20, so that is the ceiling on
+// how many matches a screen can render — and it is why the action bar is a
+// radio group rather than several footer buttons (Meta allows only one Footer).
+
+const TEACHER_MATCH_CAP = 20;   // RadioButtonsGroup ceiling
+
+/**
+ * Filter a roster by part of a name. A BLANK term returns everyone — a coach
+ * with five teachers should never be made to type. Nameless rows can never
+ * match but must never throw.
+ */
+function filterTeachersByTerm(teachers, term, cap = TEACHER_MATCH_CAP) {
+  const list = Array.isArray(teachers) ? teachers : [];
+  const t = String(term == null ? '' : term).trim().toLowerCase();
+  if (!t) return list;
+  return list
+    .filter((x) => String((x && x.teacher_name) || '').toLowerCase().includes(t))
+    .slice(0, cap);
+}
+
+/**
+ * Which screen a choice from the action bar leads to. Anything unexpected (a
+ * stale Flow client, a renamed option) falls back to running the observation —
+ * the coach is standing in a classroom, so a dead end is the worst outcome.
+ */
+function visitActionTarget(choice) {
+  if (choice === 'reschedule') return 'SCHEDULE_EDIT';
+  if (choice === 'cancel') return 'CANCEL';
+  return 'BRIEF';
+}
+
+/** One line naming who, where and when. Unknown parts are omitted, never printed. */
+function visitSummary(row) {
+  const r = row || {};
+  const bits = [r.teacher_name, r.school_name].filter(Boolean).map((x) => clip(String(x), 24));
+  const when = [r.scheduled_for, r.scheduled_slot].filter(Boolean).join(' ');
+  if (when) bits.push(when);
+  return clip(bits.join(' · '), 80);
+}
+
 // ── scheduling-UI builders (v2 Flow — bd-2443) ───────────────────────────────
 
 // Lazy requires — observe-debrief pulls whatsapp.service; keep cycles out.
@@ -267,8 +313,10 @@ async function schoolsScreenV2(userId) {
   return { screen: 'SELECT_SCHOOL', data: { options: _clampOptions(options, 'schools', userId) } };
 }
 
-async function teachersScreenV2(userId, schoolExtId) {
-  const teachers = await LeaderSource.listTeachers(userId, schoolExtId);
+async function teachersScreenV2(userId, schoolExtId, term = null) {
+  const all = await LeaderSource.listTeachers(userId, schoolExtId);
+  // bd-88krt: a term arrives only from SEARCH_TEACHER; blank means "show all".
+  const teachers = filterTeachersByTerm(all, term);
   const options = teachers.map((t) => ({
     id: String(t.teacher_ext_id),
     title: clip(t.teacher_name || 'Teacher', 30),
@@ -506,8 +554,66 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const rows = await _scheduleStore().listUpcoming(userId).catch(() => []);
       const row = rows.find((r) => String(r.id) === String(picked));
       if (!row) return scheduleScreen(userId);
+      // bd-88krt: offer run / reschedule / cancel first (HITL R39). Running the
+      // observation is still one tap away, so the common path costs nothing.
+      return { screen: 'VISIT_ACTION', data: { visit_id: String(row.id), summary: visitSummary(row) } };
+    }
+
+    // bd-88krt — the action bar's choice.
+    if (step === 'visit_action') {
+      const visitId = screenData && screenData.visit_id;
+      const rows = await _scheduleStore().listUpcoming(userId).catch(() => []);
+      const row = rows.find((r) => String(r.id) === String(visitId));
+      if (!row) return scheduleScreen(userId);
+      const target = visitActionTarget(screenData && screenData.choice);
+
+      if (target === 'CANCEL') {
+        const ok = await _scheduleStore().cancelById(userId, row.id).catch(() => false);
+        return {
+          screen: 'SUCCESS',
+          data: { success_message: ok
+            ? `Cancelled: ${visitSummary(row)}`
+            : 'That visit could not be cancelled. Send /observe to see your schedule again.',
+            extension_message_response: { params: { observe_visit_action: 'cancelled' } } },
+        };
+      }
+      if (target === 'SCHEDULE_EDIT') {
+        const today = new Date();
+        const max = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000);
+        return { screen: 'SCHEDULE_EDIT', data: {
+          visit_id: String(row.id),
+          summary: visitSummary(row),
+          min_date: today.toISOString().slice(0, 10),
+          max_date: max.toISOString().slice(0, 10),
+          slots: _scheduleStore().SLOTS.map((x) => ({ id: String(x), title: String(x) })),
+        } };
+      }
       try { await ObserveState.setState(userId, 'awaiting_pick', { schoolExtId: row.school_ext_id, teacherExtId: row.teacher_ext_id, origin: 'schedule' }); } catch (_) {}
       return briefScreen(userId, { teacher_ext_id: row.teacher_ext_id, school_ext_id: row.school_ext_id, origin: 'schedule' }, 'BRIEF');
+    }
+
+    // bd-88krt — save a reschedule.
+    if (step === 'visit_edit') {
+      const visitId = screenData && screenData.visit_id;
+      const date = screenData && screenData.date;
+      const slot = screenData && screenData.slot;
+      let ok = false;
+      try { ok = await _scheduleStore().rescheduleById(userId, visitId, date, slot); } catch (_) { ok = false; }
+      return {
+        screen: 'SUCCESS',
+        data: { success_message: ok
+          ? `Moved to ${date}${slot ? ` at ${slot}` : ''}.`
+          : 'That change could not be saved. Send /observe to try again.',
+          extension_message_response: { params: { observe_visit_action: 'rescheduled' } } },
+      };
+    }
+
+    // bd-88krt — the TextInput search. Meta gives no built-in Dropdown search,
+    // so the term comes back here and the options are filtered server-side.
+    if (step === 'teacher_search') {
+      const schoolExtId = screenData && screenData.school_ext_id;
+      const term = screenData && screenData.term;
+      return teachersScreenV2(userId, schoolExtId, term);
     }
     if (step === 'to_picker') return pickerScreen(userId, screenData);
     if (step === 'save_schedule') return saveScheduleStep(userId, screenData);
@@ -540,6 +646,11 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
 
 module.exports = {
   handle,
+  // bd-88krt — pure decisions, unit-tested
+  filterTeachersByTerm,
+  visitActionTarget,
+  visitSummary,
+  TEACHER_MATCH_CAP,
   // exported for tests / reuse:
   schoolItem,
   teacherItem,
