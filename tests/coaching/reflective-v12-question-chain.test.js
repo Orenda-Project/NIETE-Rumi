@@ -49,14 +49,15 @@ describe('_generateReflectiveQuestionV12 — Q1 (corpus-only)', () => {
     expect(capturedUser).not.toMatch(/CONVERSATION SO FAR/);
   });
 
-  it('Q1 system prompt carries the MARKED NOTICING beat', async () => {
+  it('Q1 system prompt carries the single reflective-question (impasse) beat', async () => {
     let capturedSys = '';
     mockRouter.callReflective.mockImplementation(async (messages) => {
       capturedSys = messages[0].content;
       return mockCall('A clean Q1.');
     });
     await GPT5MiniService._generateReflectiveQuestionV12(CORPUS, [], 1, 'en', 'Asha');
-    expect(capturedSys).toContain('QUESTION 1 — MARKED NOTICING');
+    expect(capturedSys).toContain('ONE REFLECTIVE QUESTION');
+    expect(capturedSys).toContain('IMPASSE');
   });
 
   it('returns the language-side question string (legacy contract preserved)', async () => {
@@ -85,25 +86,25 @@ describe('_generateReflectiveQuestionV12 — Q2/Q3 (chain adaptation)', () => {
     expect(capturedUser).toContain("I felt the class wasn't with me.");
   });
 
-  it('Q2 system prompt carries the LEARNER REASONING beat', async () => {
+  it('every questionNumber renders the single reflective-question beat (NUM_REFLECTIVE_QUESTIONS=1)', async () => {
     let capturedSys = '';
     mockRouter.callReflective.mockImplementation(async (messages) => {
       capturedSys = messages[0].content;
       return mockCall('A clean Q2.');
     });
     await GPT5MiniService._generateReflectiveQuestionV12(CORPUS, [{ role: 'user', content: 'a' }], 2, 'en', 'Asha');
-    expect(capturedSys).toContain('QUESTION 2 — LEARNER REASONING');
+    expect(capturedSys).toContain('ONE REFLECTIVE QUESTION');
   });
 
-  it('Q3 system prompt carries the FORWARD COMMITMENT + chorus-yes anti-default', async () => {
+  it('the single beat carries the light FORWARD if-then close', async () => {
     let capturedSys = '';
     mockRouter.callReflective.mockImplementation(async (messages) => {
       capturedSys = messages[0].content;
       return mockCall('A clean Q3.');
     });
     await GPT5MiniService._generateReflectiveQuestionV12(CORPUS, [{ role: 'user', content: 'a' }], 3, 'en', 'Asha');
-    expect(capturedSys).toContain('QUESTION 3 — FORWARD COMMITMENT');
-    expect(capturedSys).toContain('DO NOT REPEAT THE SAME THING EVERY LESSON');
+    expect(capturedSys).toContain('ONE REFLECTIVE QUESTION');
+    expect(capturedSys).toContain('FORWARD');
   });
 });
 

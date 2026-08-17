@@ -20,6 +20,21 @@ const WORD_LIMIT = 75;
 const RAW_MMSS_RE = /(\[\d{1,2}:\d{2}\]|\b\d{1,2}:\d{2}\b)/;
 const META_LEAK_RE = /\b(Q[123])\b|\bquestion\s+(one|two|three|1|2|3)\b|\bsawal\s+(no|number|nambar)\b/i;
 
+// bd-6fdy3: judgemental / accusatory framing. Rumi must describe a moment neutrally and let the
+// teacher interpret it — never LABEL it (wrong/chaotic/struggling/…). In a collectivist teacher
+// hierarchy a labelled moment reads as criticism, not coaching (the "advice with a question mark"
+// / "bullying" failure the reflection research names). A judgemental word INSIDE a quote of what
+// was actually said is legitimate, so quoted spans are stripped before the test. Fires a RETRY
+// (the model rewords), never the hard safe-fallback on its own.
+const JUDGEMENTAL_RE = /(غلطی|غلط|بے\s?ترتیب|\bwrong\b|\berror\b|\bchaotic\b|\bstruggl\w*|\bfailed\b|\bmisconception\b|\bconfused\b)/i;
+function _stripQuotes(s) {
+  return String(s || '')
+    .replace(/'[^']*'/g, ' ')
+    .replace(/"[^"]*"/g, ' ')
+    .replace(/[‘’][^‘’]*[‘’]/g, ' ')
+    .replace(/[“”][^“”]*[“”]/g, ' ');
+}
+
 /**
  * @param {string} question  the generated question in the teacher's language.
  * @param {object} corpus    reflective_corpus (for the allowed-name set).
@@ -41,6 +56,7 @@ function validateQuestion(question, corpus = {}, firstName = '', profile = {}) {
   // risk: raw MM:SS, a "Q1/Q2" meta-leak, and (non-Latin TTS language) Roman transliteration + digits.
   if (RAW_MMSS_RE.test(q)) v.push('raw_mmss');
   if (META_LEAK_RE.test(q)) v.push('meta_leak');
+  if (JUDGEMENTAL_RE.test(_stripQuotes(q))) v.push('judgemental_language');
 
   // TTS gates for a non-Latin-script language (e.g. Urdu Nastaliq). These questions are
   // read aloud; Roman transliteration and bare inline digits both break the voice.
