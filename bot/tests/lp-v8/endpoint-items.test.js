@@ -331,8 +331,8 @@ describe('chapter rows v4: nothing lost, Urdu rows RTL-first', () => {
     V8.__setCatalogForTests(cat);
     const avail = new Set(['grade_2_urdu_ch1_seg1', 'grade_2_urdu_ch1_seg2']);
     const [ch1] = V8.buildChapterItems(2, 'urdu', avail);
-    expect(ch1['main-content'].title).toBe('باب ۱: میری صبح');
-    expect(ch1['main-content'].description).toMatch(/^ص ۱-۹/);
+    expect(ch1['main-content'].title).toBe('\u200Fباب ۱: میری صبح');
+    expect(ch1['main-content'].description).toMatch(/^\u200Fص ۱-۹/);
     expect(ch1['main-content'].description).toMatch(/اسباق/);
     V8.__setCatalogForTests(CATALOG);
   });

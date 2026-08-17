@@ -224,8 +224,8 @@ describe('lp-catalog: pure normalisation', () => {
 
     test('RTL rows keep pages in the DESCRIPTION as Urdu furniture (v4, §12.4)', () => {
       const row = B.buildRow({ segment_index: 2, section: 'متن کا سفر', topic: 'نظم کی بلند خوانی', pages: [5, 6, 7, 8] }, { rtl: true });
-      expect(row.description).toBe('دن ۲ · ص ۵-۸');
-      expect(row.metadata).toBe('نظم کی بلند خوانی');   // pure Urdu — no Latin suffix to scramble
+      expect(row.description).toBe('\u200Fدن ۲ · ص ۵-۸');
+      expect(row.metadata).toBe('\u200Fنظم کی بلند خوانی');   // pure Urdu — no Latin suffix to scramble
     });
 
     test('LTR rows carry no LTR mark', () => {
@@ -435,7 +435,7 @@ describe('staging feedback: chapter page span + full section in metadata', () =>
     );
     expect(cps(row.title)).toBeLessThanOrEqual(SECTION_CAP);
     expect(row.metadata).toContain(longSection);
-    expect(row.description).toBe('دن ۲ · ص ۷-۸');  // v4: pages moved to description
+    expect(row.description).toBe('\u200Fدن ۲ · ص ۷-۸');  // v4: pages moved to description
     expect(cps(row.metadata)).toBeLessThanOrEqual(META_CAP);
   });
 
@@ -538,16 +538,16 @@ describe('v4 rows: pages join the description; Urdu rows are RTL-first', () => {
       { segment_index: 4, section: 'میرے قائد', topic: 'قائد اعظم کا پیغام', pages: [20, 21] },
       { rtl: true },
     );
-    expect(row.description).toBe('دن ۴ · ص ۲۰-۲۱');
-    expect(row.description).toMatch(/^[؀-ۿ]/);
-    expect(row.metadata).toMatch(/^[؀-ۿ‏]/);
+    expect(row.description).toBe('\u200Fدن ۴ · ص ۲۰-۲۱');
+    expect(row.description.startsWith('\u200F')).toBe(true);
+    expect(row.metadata.startsWith('\u200F')).toBe(true);
   });
 
   test('RTL revision/worksheet furniture: اعادہ / ورک شیٹ', () => {
     expect(B.buildRow({ segment_index: 990, section: 'اعادہ', topic: 'باب کا اعادہ', pages: [28, 37] }, { rtl: true }).description)
-      .toBe('اعادہ · ص ۲۸-۳۷');
+      .toBe('\u200Fاعادہ · ص ۲۸-۳۷');
     expect(B.buildRow({ segment_index: 995, section: 'جائزہ', topic: 'ورک شیٹ مشق', pages: [28, 37] }, { rtl: true }).description)
-      .toBe('ورک شیٹ · ص ۲۸-۳۷');
+      .toBe('\u200Fورک شیٹ · ص ۲۸-۳۷');
   });
 
   test('committed artifact: every rtl-book row string renders RTL-first', () => {

@@ -62,11 +62,17 @@ function dayLabelDisplay(segmentIndex, type, rtl) {
   return `دن ${urDigits(segmentIndex)}`;
 }
 
-/** RTL rows whose first strong character is Latin get an RLM so bidi picks RTL. */
+/**
+ * FINAL RTL lever (device-tested 2026-08-17): first-strong content alone did fix
+ * ordering/ellipsis but the client still LEFT-anchored the rows — so every rtl
+ * row string now leads with an explicit RLM at character 0, for direction
+ * detectors that read char 0 without skipping neutrals. Alignment anchor is
+ * client CSS and unreachable from Flow JSON; this is the last string-level card.
+ */
 function rtlFirst(s) {
-  const strong = [...String(s)].find((c) => /[A-Za-z\u0600-\u06FF]/u.test(c));
-  if (strong && /[A-Za-z]/.test(strong)) return RLM + s;
-  return s;
+  const str = String(s);
+  if (!str || str.startsWith(RLM)) return str;
+  return RLM + str;
 }
 
 const CATALOG_VERSION = 'v8';
@@ -306,9 +312,9 @@ function buildRow(lesson, opts = {}) {
   const pd = pagesDisplay(lesson.pages, rtl);
   let description = pd ? `${label} · ${pd}` : label;
   let pagesInMeta = false;
-  if (cps(description) > DESC_CAP) { description = label; pagesInMeta = true; }
+  if (cps(description) > DESC_CAP - (rtl ? 1 : 0)) { description = label; pagesInMeta = true; }  // rtl reserves 1 cp for the leading RLM
   const suffix = (pagesInMeta && pages) ? (rtl ? ` · ${pd}` : `${LTR} · ${pages}`) : '';
-  const budget = META_CAP - cps(suffix);
+  const budget = META_CAP - cps(suffix) - (rtl ? 1 : 0);  // rtl reserves 1 cp for the leading RLM
 
   const deduped = stripBoilerplate(dedupeTopic(lesson.topic, lesson.section));
   let topicShort = firstClause(deduped);
@@ -326,7 +332,10 @@ function buildRow(lesson, opts = {}) {
 
   let metadata = `${lead}${suffix}`;
   let outTitle = title;
-  if (rtl) { outTitle = rtlFirst(outTitle); description = rtlFirst(description); metadata = rtlFirst(metadata); }
+  if (rtl) {
+    if (cps(outTitle) > SECTION_CAP - 1) outTitle = clip(outTitle, SECTION_CAP - 1);  // room for the RLM
+    outTitle = rtlFirst(outTitle); description = rtlFirst(description); metadata = rtlFirst(metadata);
+  }
   return { title: outTitle, description, metadata, lead };
 }
 
