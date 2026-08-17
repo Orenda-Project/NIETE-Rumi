@@ -102,3 +102,47 @@ describe('bd-88krt · the visit summary line', () => {
     expect(s.length).toBeLessThanOrEqual(80);
   });
 });
+
+/**
+ * Regression for the "Something went wrong" I shipped to staging at 16:35.
+ * Meta reported: payload-schema-error, "Required [key=data.school_ext_id] in
+ * Data model should be present in 3P data" — I had declared school_ext_id on
+ * SELECT_SCHOOL to feed the search link, but the endpoint never sends it. Every
+ * key a screen DECLARES must appear in the endpoint's data, so the contract is
+ * asserted here against the published JSON itself.
+ */
+describe('bd-88krt · the Flow data contract matches what the server sends', () => {
+  const flow = require('../../../docs/flows/observe-visit-v2.json');
+  const byId = Object.fromEntries(flow.screens.map((s) => [s.id, s]));
+
+  it('SELECT_SCHOOL declares only what schoolsScreenV2 returns', () => {
+    expect(Object.keys(byId.SELECT_SCHOOL.data || {})).toEqual(['options']);
+  });
+
+  it('SEARCH_TEACHER declares nothing, because it needs nothing', () => {
+    expect(Object.keys(byId.SEARCH_TEACHER.data || {})).toEqual([]);
+  });
+
+  it('the search link carries an empty payload — there is no school chosen yet', () => {
+    const link = byId.SELECT_SCHOOL.layout.children.find((c) => c.type === 'EmbeddedLink');
+    expect(link).toBeTruthy();
+    expect(link['on-click-action'].payload).toEqual({});
+    expect(link['on-click-action'].next.name).toBe('SEARCH_TEACHER');
+  });
+
+  it('every screen the routing model names actually exists', () => {
+    for (const [from, tos] of Object.entries(flow.routing_model)) {
+      expect(byId[from]).toBeTruthy();
+      for (const to of tos) expect(byId[to]).toBeTruthy();
+    }
+  });
+
+  it('routing is forward-only — a cycle fails publish outright', () => {
+    for (const [from, tos] of Object.entries(flow.routing_model)) {
+      expect(tos).not.toContain(from);                       // no self-route
+      for (const to of tos) {
+        expect(flow.routing_model[to] || []).not.toContain(from);   // no 2-cycle
+      }
+    }
+  });
+});
