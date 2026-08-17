@@ -172,6 +172,35 @@ function lpTypeFor(segmentIndex) {
   return 'content';
 }
 
+/**
+ * Sort key for a segment WITHIN its chapter. (bd-6oai1)
+ *
+ * Ordering here is pedagogical, not numeric. The chapter tail runs
+ * **assessment (995) → revision (990)**, because the revision LP is a
+ * teaching-at-the-right-level plan: the teacher splits the class into three
+ * groups based on what the assessment just revealed. Sorting the tail numerically
+ * puts 990 first and asks her to group the class on nothing — which is what
+ * shipped, in all 233 chapters.
+ *
+ * Authorities: curriculum matrix `English` tab Day# column (Day 7 = 995,
+ * Day 8 = 990) and the `Skill Taxonomy` tab — "Locked order per chapter:
+ * lessons 1..N → 995 → 990".
+ *
+ * Bands: content (1-50) → spiral review (900-949) → chapter tail (990-999).
+ */
+const TAIL_RANK = { 995: 0, 990: 1 };
+function segmentSortKey(segmentIndex) {
+  const n = Number(segmentIndex);
+  if (n >= 990) return [2, TAIL_RANK[n] !== undefined ? TAIL_RANK[n] : 2, n];
+  if (n >= 900) return [1, 0, n];
+  return [0, 0, n];
+}
+function compareSegments(a, b) {
+  const ka = segmentSortKey(a.segment_index);
+  const kb = segmentSortKey(b.segment_index);
+  return (ka[0] - kb[0]) || (ka[1] - kb[1]) || (ka[2] - kb[2]);
+}
+
 /** The <=20 cp description line. */
 function dayLabelFor(segmentIndex, lpType) {
   const type = lpType || lpTypeFor(segmentIndex);
@@ -364,7 +393,7 @@ function buildCatalog({ segmentationDir, tocDir, builtAt }) {
       );
       const lessons = byChapter.get(num)
         .slice()
-        .sort((a, b) => Number(a.segment_index) - Number(b.segment_index))
+        .sort(compareSegments)
         .map((s) => {
           const segIdx = Number(s.segment_index);
           const section = String(s.section || '').trim();
