@@ -1078,6 +1078,14 @@
        "observe_visit_action": "done"
       }
      }
+    },
+    "heading": {
+     "type": "string",
+     "__example__": "Observation scheduled"
+    },
+    "body": {
+     "type": "string",
+     "__example__": "Tap /observe anytime to see your schedule."
     }
    },
    "layout": {
@@ -1085,11 +1093,11 @@
     "children": [
      {
       "type": "TextHeading",
-      "text": "Observation scheduled"
+      "text": "${data.heading}"
      },
      {
       "type": "TextBody",
-      "text": "You can see your schedule anytime by tapping /observe."
+      "text": "${data.body}"
      }
     ]
    }

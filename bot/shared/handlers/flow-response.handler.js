@@ -704,7 +704,7 @@ async function handleTeacherTrainingFlow(message, phoneNumber, userId) {
  * a coach is never dead-ended mid-visit.
  */
 async function handleObserveVisitFlow(message, phoneNumber, userId) {
-  const { buildVisitCapturePrompt, buildScheduleDoneAck, observeLang } = require('../services/observe/observe-strings');
+  const { buildVisitCapturePrompt, buildScheduleDoneAck, observeLang, buildVisitCancelledAck, buildVisitRescheduledAck } = require('../services/observe/observe-strings');
   const { getObservePack } = require('../services/observe/observe-framework');
   const VisitHandler = require('./observe-visit-flow.handler');
   const WhatsAppService = require('../services/whatsapp.service');
@@ -730,6 +730,31 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
     if (visitAction === 'debrief') {
       const ObserveDebrief = require('../services/observe/observe-debrief.service');
       await ObserveDebrief.startDebrief(responseJson.session_id, phoneNumber, user);
+      return true;
+    }
+
+    // bd-88krt — cancel and reschedule MUST return before the fall-through
+    // below, which ends in buildVisitCapturePrompt. The operator cancelled a
+    // visit on staging and was still told to "record and send me the audio",
+    // because only 'debrief' and 'done' were special-cased and everything else
+    // dropped into the capture path.
+    if (visitAction === 'cancelled') {
+      const ObserveState = require('../services/observe/observe-state.service');
+      // Clear any armed capture state too, so a stray voice note can't start an
+      // observation for a visit she just cancelled.
+      try { await ObserveState.clearState(userId); } catch (_) { /* best effort */ }
+      await WhatsAppService.sendMessage(phoneNumber, buildVisitCancelledAck(observeLang(user || {}), {
+        teacherName: responseJson.teacher_name,
+      }));
+      return true;
+    }
+
+    if (visitAction === 'rescheduled') {
+      await WhatsAppService.sendMessage(phoneNumber, buildVisitRescheduledAck(observeLang(user || {}), {
+        teacherName: responseJson.teacher_name,
+        date: responseJson.sched_date || responseJson.date,
+        slot: responseJson.sched_slot || responseJson.slot,
+      }));
       return true;
     }
 
