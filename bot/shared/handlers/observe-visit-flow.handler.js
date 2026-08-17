@@ -735,7 +735,12 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       if (!res.ok) return { screen: 'ACTION_DONE', data: _done(S.flow_action_failed_heading, S.flow_action_failed_body) };
       return { screen: 'ACTION_DONE', data: _done(
         S.school_added_heading,
-        A.addedSchoolAck(_flowLang, { schoolName: res.schoolName, teachersMapped: res.teachersMapped }),
+        // teacherCount (what she HOLDS) as well as teachersMapped (what this
+        // call wrote) — a re-submit maps 0 and must not read as "no teachers".
+        A.addedSchoolAck(_flowLang, {
+          schoolName: res.schoolName, teachersMapped: res.teachersMapped,
+          teacherCount: res.teacherCount, alreadyMine: res.alreadyMine,
+        }),
         'roster') };
     }
 

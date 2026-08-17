@@ -152,7 +152,9 @@ describe('bd-88krt · the Flow wiring for search and roster admin', () => {
   it('every search result feeds a screen that can act on it', () => {
     expect(flow.routing_model.SEARCH_SCHOOL).toEqual(['SCHOOL_RESULTS']);
     expect(flow.routing_model.SEARCH_TEACHER).toEqual(['TEACHER_RESULTS']);
-    expect(flow.routing_model.ADD_SEARCH).toEqual(['ADD_RESULTS']);
+    // ADD_SEARCH now also carries the door to remove (17 Aug), so this is a
+    // containment check rather than an exact list.
+    expect(flow.routing_model.ADD_SEARCH).toContain('ADD_RESULTS');
     expect(flow.routing_model.ADD_RESULTS).toContain('ACTION_DONE');
   });
 
@@ -174,5 +176,89 @@ describe('bd-88krt · the Flow wiring for search and roster admin', () => {
       require('path').join(__dirname, '../../shared/handlers/observe-visit-flow.handler.js'), 'utf8');
     expect(src.indexOf("id: 'manage'")).toBeGreaterThan(src.indexOf("id: 'debriefs'"));
     expect(src.indexOf("id: 'manage'")).toBeGreaterThan(src.indexOf("payload: { step: 'schools' }"));
+  });
+});
+
+/**
+ * Live on staging, 2026-08-17 — three faults the operator hit in one pass:
+ *   1. Added IMCB I-8/3 and was told "It has no teacher list yet, so no teachers
+ *      were added". FALSE: 57 teachers WERE added. A second submission took the
+ *      already-mine path, which returned teachersMapped:0, and the ack renders 0
+ *      as the empty-roster sentence. The most alarming possible wrong message.
+ *   2. The terminal screen had no way out — "Done" is the screen TITLE, not a
+ *      button. A Flow ends via a Footer whose action is `complete`.
+ *   3. No route to MANAGE_SCHOOLS, so removing a school was unreachable.
+ */
+describe('bd-88krt · the add-school ack tells the truth about what happened', () => {
+  const { addedSchoolAck } = require('../../shared/services/observe/observe-school-admin.service');
+
+  it('a school already in the list reports its REAL count, not zero', () => {
+    const msg = addedSchoolAck('en', { schoolName: 'IMCB, I-8/3', teachersMapped: 0, alreadyMine: true, teacherCount: 57 });
+    expect(msg).toMatch(/already/i);
+    expect(msg).toContain('57');
+    expect(msg).not.toMatch(/no teacher list/i);      // the false sentence
+  });
+
+  it('still says "no teacher list" only when the school genuinely has none', () => {
+    const msg = addedSchoolAck('en', { schoolName: 'Empty School', teachersMapped: 0, alreadyMine: false, teacherCount: 0 });
+    expect(msg).toMatch(/no teacher list/i);
+  });
+
+  it('a fresh add reports what it just mapped', () => {
+    const msg = addedSchoolAck('en', { schoolName: 'IMCG, F-10/2', teachersMapped: 101, teacherCount: 101 });
+    expect(msg).toContain('101');
+    expect(msg).not.toMatch(/already/i);
+  });
+
+  it('is per-language for the already-mine case too', () => {
+    const ur = addedSchoolAck('ur', { schoolName: 'X', teachersMapped: 0, alreadyMine: true, teacherCount: 9 });
+    expect(/[؀-ۿ]/.test(ur)).toBe(true);
+    expect(ur).toContain('9');
+  });
+});
+
+describe('bd-88krt · a coach can always finish, and can reach remove', () => {
+  const flow = require('../../../docs/flows/observe-visit-v2.json');
+  const byId = Object.fromEntries(flow.screens.map((s) => [s.id, s]));
+  const footerOf = (id) => {
+    const out = [];
+    (function walk(ch) { for (const c of ch || []) { out.push(c); walk(c.children); } })(byId[id].layout.children);
+    return out.find((c) => c.type === 'Footer');
+  };
+
+  it('every terminal screen has a Footer that COMPLETES the flow', () => {
+    for (const id of ['ACTION_DONE', 'SUCCESS']) {
+      const f = footerOf(id);
+      expect(f).toBeTruthy();                                   // "Done" in the header is a title
+      expect(f['on-click-action'].name).toBe('complete');
+    }
+  });
+
+  it('MANAGE_SCHOOLS is reachable — otherwise remove is dead code', () => {
+    const reachable = new Set(Object.values(flow.routing_model).flat());
+    expect(reachable.has('MANAGE_SCHOOLS')).toBe(true);
+  });
+
+  it('and something actually opens it', () => {
+    // It cannot be a `navigate` link: MANAGE_SCHOOLS declares `options`, which
+    // only the endpoint can supply. So the door is a data_exchange step, and
+    // the contract is link-step -> handler-returns-that-screen.
+    const steps = [];
+    for (const s of flow.screens) {
+      (function walk(ch) {
+        for (const c of ch || []) {
+          const a = c['on-click-action'] || {};
+          if (a.name === 'data_exchange' && (a.payload || {}).step) steps.push(a.payload.step);
+          walk(c.children);
+        }
+      })(s.layout.children);
+    }
+    expect(steps).toContain('manage');
+
+    const src = require('fs').readFileSync(
+      require('path').join(__dirname, '../../shared/handlers/observe-visit-flow.handler.js'), 'utf8');
+    const at = src.indexOf("step === 'manage'");
+    expect(at).toBeGreaterThan(-1);
+    expect(src.slice(at, at + 400)).toMatch(/screen: 'MANAGE_SCHOOLS'/);
   });
 });
