@@ -38,7 +38,7 @@ const { coachRoleLabelForRegion } = require('../../config/region-config');
  * `session.users?.preferred_language`); this just packages the read.
  */
 function _languageFromSession(session) {
-  return session?.users?.preferred_language || session?.transcript_language || 'en';
+  return session?.users?.preferred_language || 'en'; // bd-3b0co: no transcript-language leak
 }
 const {
   CLASSROOM_MARKS_BASE,
@@ -88,6 +88,17 @@ class ReportGeneratorService {
         .join(' ')
         .trim();
       const isRetry = payload.attempt && payload.attempt > 1;
+
+      // bd-3b0co: resolve the teacher-facing output language ONCE, through the SAME
+      // resolver the voice debrief uses (determineOutputLanguage → preferred_language,
+      // floor 'en') — so the written report/card and the voice can never disagree.
+      // Previously the report fell back to the audio-detected transcript_language while
+      // the voice floored to 'en', producing e.g. an English voice + an Urdu report on
+      // the same session (R50/R51/R52). A recording never sets her language; only her
+      // stored preference does.
+      const outputLanguage = await CoachingHelpersService.determineOutputLanguage(
+        session.user_id, coachingSessionId, session.transcript_language
+      );
 
       // Guardrail: report generation should never run before analysis is available.
       // If analysis is missing, re-queue analysis and exit gracefully.
@@ -180,10 +191,7 @@ class ReportGeneratorService {
       // This matches the _resolveSessionLanguage helper used by the progress
       // ticker and the LP prompt, so a teacher whose UI is English but who
       // just taught in Urdu gets ALL messages in English (no jarring mix).
-      const heroLanguage = session.users?.preferred_language
-        || enhancedAnalysis.language
-        || session.transcript_language
-        || 'en';
+      const heroLanguage = outputLanguage; // bd-3b0co: unified resolver (was preferred || analysis || transcript || en)
       let precomputedCommitment = null;
       try {
         const { generateCommitmentCard } = require('./coaching-card/commitment-card.service');
@@ -283,7 +291,7 @@ class ReportGeneratorService {
         // feedback card, so shipping it again as its own image was a duplicate).
 
         // Language for card copy (same resolution used elsewhere).
-        const cardLanguage = session.users?.preferred_language || session.transcript_language || 'en';
+        const cardLanguage = outputLanguage; // bd-3b0co: unified resolver
         // Region drives the coach-role footer label (e.g. "Human Coach" on
         // ICT / NIETE, "Rumi Digital Coach" as the default). Fed through
         // getCoachingCardCopy so the returned cardCopy.cardFooter and any
@@ -362,7 +370,7 @@ class ReportGeneratorService {
 
       // Trigger 3: Offer quiz to teacher's students after coaching report
       try {
-        const language = session.users?.preferred_language || session.transcript_language || 'en';
+        const language = outputLanguage; // bd-3b0co: unified resolver
         const quizTopic = enhancedAnalysis?.topic;
         if (quizTopic) {
           // Find the most recent lesson plan for this teacher to anchor the quiz
@@ -390,7 +398,7 @@ class ReportGeneratorService {
 
       // Suggest next feature after coaching completion
       try {
-        const language = session.users?.preferred_language || session.transcript_language || 'en';
+        const language = outputLanguage; // bd-3b0co: unified resolver
         await FeatureLinkerService.suggestNext(
           'coaching',
           session.user_id,
@@ -673,7 +681,7 @@ class ReportGeneratorService {
     // Attach the inputs the hero renderer needs so it can reach them off
     // reportData (the PDFKit / HTML renderers ignore these). Kept as
     // underscored fields to make the side-channel intent explicit.
-    const language = enhancedAnalysis.language || session.transcript_language || 'en';
+    const language = session?.users?.preferred_language || 'en'; // bd-3b0co: teacher's preference, no transcript-language leak (matches hero path)
     const commitmentAction = (precomputedCommitment && precomputedCommitment.action) || '';
 
     reportData._heroInput = {
