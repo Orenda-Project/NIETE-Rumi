@@ -28,6 +28,8 @@
 
 const LeaderSource = require('../services/observe/assignment/leader-source');
 const ObserveState = require('../services/observe/observe-state.service');
+// bd-88krt — Flow screen text is per-language DATA, never a literal here.
+const { observeStrings, observeLang } = require('../services/observe/observe-strings');
 const { buildBriefViewModel } = require('../services/observe/observe-brief-card');
 const { getObserveArm } = require('../services/observe/observe-gate');
 const { logToFile } = require('../utils/logger');
@@ -213,6 +215,7 @@ async function schoolOfTeacher(userId, teacherExtId) {
   }
 }
 
+
 // ── scheduling-UI builders (v2 Flow — bd-2443) ───────────────────────────────
 
 // Lazy requires — observe-debrief pulls whatsapp.service; keep cycles out.
@@ -243,8 +246,12 @@ async function menuScreen(userId) {
     {
       id: 'schedule',
       'main-content': {
+        // bd-88krt: the row now leads to run / reschedule / cancel, so it should
+        // say so. NavigationList caps title at 30 chars and metadata at 80.
         title: 'My schedule',
-        metadata: upcoming > 0 ? `${upcoming} upcoming` : 'Nothing scheduled yet',
+        metadata: upcoming > 0
+          ? `${upcoming} upcoming · run, reschedule or cancel`
+          : 'Nothing scheduled yet',
       },
       'on-click-action': { name: 'data_exchange', payload: { step: 'schedule' } },
     },
@@ -452,10 +459,16 @@ async function saveScheduleStep(userId, screenData) {
 /** The "I'm done for now" exit — endpoint-driven SUCCESS close. The chat ack
  * (localized, recapping the schedule + the /observe re-entry) is sent by
  * flow-response.handler off these params. */
-function successDone(flowToken, screenData) {
+function successDone(flowToken, screenData, lang = 'en') {
+  // bd-88krt: SUCCESS is now data-driven so a cancel stops reading "Observation
+  // scheduled". EVERY path to it must supply heading+body — a declared key the
+  // endpoint omits fails the whole screen (payload-schema-error, learned live).
+  const S = observeStrings(lang);
   return {
     screen: 'SUCCESS',
     data: {
+      heading: S.flow_scheduled_heading,
+      body: S.flow_scheduled_body,
       extension_message_response: {
         params: {
           observe_visit_action: 'done',
@@ -559,6 +572,11 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
     return bindAndStart(userId, screenData, user);
   }
 
+  // bd-88krt — the coach's language for Flow screen text, taken from the user
+  // object this handler already receives. No query, and nothing that can exit
+  // the process in a test.
+  const _flowLang = observeLang(user || {});
+
   if (action === 'data_exchange') {
     // v2-only steps (the v1 Flow never sends them, so they are inert dark)
     if (step === 'debriefs') return debriefsScreen(userId);
@@ -585,12 +603,17 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
 
       if (target === 'CANCEL') {
         const ok = await _scheduleStore().cancelById(userId, row.id).catch(() => false);
+        const S = observeStrings(_flowLang);
         return {
           screen: 'SUCCESS',
-          data: { success_message: ok
-            ? `Cancelled: ${visitSummary(row)}`
-            : 'That visit could not be cancelled. Send /observe to see your schedule again.',
-            extension_message_response: { params: { observe_visit_action: 'cancelled' } } },
+          data: {
+            heading: ok ? S.flow_cancelled_heading : S.flow_action_failed_heading,
+            body: ok ? S.flow_cancelled_body : S.flow_action_failed_body,
+            extension_message_response: { params: {
+              observe_visit_action: ok ? 'cancelled' : 'noop',
+              teacher_name: row.teacher_name || '',
+            } },
+          },
         };
       }
       if (target === 'SCHEDULE_EDIT') {
@@ -615,12 +638,21 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const slot = screenData && screenData.slot;
       let ok = false;
       try { ok = await _scheduleStore().rescheduleById(userId, visitId, date, slot); } catch (_) { ok = false; }
+      const rows2 = await _scheduleStore().listUpcoming(userId).catch(() => []);
+      const moved = rows2.find((r) => String(r.id) === String(visitId)) || {};
+      const S2 = observeStrings(_flowLang);
       return {
         screen: 'SUCCESS',
-        data: { success_message: ok
-          ? `Moved to ${date}${slot ? ` at ${slot}` : ''}.`
-          : 'That change could not be saved. Send /observe to try again.',
-          extension_message_response: { params: { observe_visit_action: 'rescheduled' } } },
+        data: {
+          heading: ok ? S2.flow_rescheduled_heading : S2.flow_action_failed_heading,
+          body: ok ? S2.flow_rescheduled_body : S2.flow_action_failed_body,
+          extension_message_response: { params: {
+            observe_visit_action: ok ? 'rescheduled' : 'noop',
+            teacher_name: moved.teacher_name || '',
+            sched_date: date || '',
+            sched_slot: slot || '',
+          } },
+        },
       };
     }
 
@@ -634,7 +666,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
     }
     if (step === 'to_picker') return pickerScreen(userId, screenData);
     if (step === 'save_schedule') return saveScheduleStep(userId, screenData);
-    if (step === 'done') return successDone(flowToken || userId, screenData);
+    if (step === 'done') return successDone(flowToken || userId, screenData, _flowLang);
 
     if (step === 'school') {
       // v2 Dropdown Footer sends `picked`; the legacy NavigationList tap (and

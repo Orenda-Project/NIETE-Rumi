@@ -64,6 +64,16 @@ const STRINGS = {
     btn_send_in_ur: 'Tuma kwa Kiurdu',
     btn_send_in_en: 'Tuma kwa Kiingereza',
     send_lang_switching: 'Sawa — naandaa upya ripoti kwa lugha nyingine…',
+    // bd-88krt — Flow terminal-screen text (data-driven so a cancel never reads
+    // "Observation scheduled")
+    flow_scheduled_heading: 'Uchunguzi umepangwa',
+    flow_scheduled_body: 'Bonyeza /observe wakati wowote kuona ratiba yako.',
+    flow_cancelled_heading: 'Ziara imeghairiwa',
+    flow_cancelled_body: 'Hakuna kurekodi. Bonyeza /observe kuona ratiba yako.',
+    flow_rescheduled_heading: 'Ziara imehamishwa',
+    flow_rescheduled_body: 'Bonyeza /observe kuona ratiba yako mpya.',
+    flow_action_failed_heading: 'Haikufanikiwa',
+    flow_action_failed_body: 'Bonyeza /observe ujaribu tena.',
     who_body: 'Umemchunguza mwalimu yupi? Hii husaidia ripoti kufika kwa mtu sahihi.',
     who_button: 'Chagua mwalimu',
     who_section: 'Walimu wako',
@@ -190,6 +200,15 @@ const STRINGS = {
     btn_send_in_ur: 'اردو میں بھیجیں',
     btn_send_in_en: 'انگریزی میں بھیجیں',
     send_lang_switching: 'ٹھیک ہے — رپورٹ دوسری زبان میں تیار کر رہا ہوں…',
+    // bd-88krt — Flow terminal-screen text (per-language, never hardcoded)
+    flow_scheduled_heading: 'مشاہدہ شیڈول ہو گیا',
+    flow_scheduled_body: 'اپنا شیڈول دیکھنے کے لیے کبھی بھی /observe لکھیں۔',
+    flow_cancelled_heading: 'ملاقات منسوخ ہو گئی',
+    flow_cancelled_body: 'اب کچھ ریکارڈ نہیں کرنا۔ شیڈول دیکھنے کے لیے /observe لکھیں۔',
+    flow_rescheduled_heading: 'ملاقات منتقل ہو گئی',
+    flow_rescheduled_body: 'نیا شیڈول دیکھنے کے لیے /observe لکھیں۔',
+    flow_action_failed_heading: 'یہ کام مکمل نہیں ہوا',
+    flow_action_failed_body: 'دوبارہ کوشش کے لیے /observe لکھیں۔',
     who_body: 'آپ نے کس ٹیچر کا مشاہدہ کیا؟ اس سے رپورٹ درست ٹیچر تک پہنچتی ہے۔',
     who_button: 'ٹیچر منتخب کریں',
     who_section: 'آپ کے ٹیچرز',
@@ -316,6 +335,15 @@ const STRINGS = {
     btn_send_in_ur: 'Send in Urdu',
     btn_send_in_en: 'Send in English',
     send_lang_switching: 'Sure — rebuilding the report in the other language…',
+    // bd-88krt — Flow terminal-screen text (per-language, never hardcoded)
+    flow_scheduled_heading: 'Observation scheduled',
+    flow_scheduled_body: 'Tap /observe anytime to see your schedule.',
+    flow_cancelled_heading: 'Visit cancelled',
+    flow_cancelled_body: 'Nothing to record. Tap /observe to see your schedule.',
+    flow_rescheduled_heading: 'Visit moved',
+    flow_rescheduled_body: 'Tap /observe to see your updated schedule.',
+    flow_action_failed_heading: 'That did not go through',
+    flow_action_failed_body: 'Tap /observe to try again.',
     who_body: 'Which teacher did you observe? This keeps the report with the right teacher.',
     who_button: 'Pick teacher',
     who_section: 'Your teachers',
@@ -476,6 +504,23 @@ const SCHEDULE_DONE_TEMPLATES = {
   ur: '✅ *{name}* کا مشاہدہ {date}، {slot} کے لیے شیڈول ہو گیا۔ اپنے تمام شیڈول دیکھنے کے لیے کبھی بھی /observe لکھیں۔',
 };
 
+// bd-88krt — acks for cancelling and rescheduling a visit. Same per-language
+// template shape as SCHEDULE_DONE_TEMPLATES above: the language protocol treats
+// every coach-facing string as DATA, never a literal at the call site. Neither
+// of these may mention recording — the operator cancelled a visit and was still
+// told to "record and send me the audio", which is the bug they close.
+const VISIT_CANCELLED_TEMPLATES = {
+  en: '🗑 Cancelled the visit for *{name}*. Nothing to record. Tap /observe to see what is left on your schedule.',
+  ur: '🗑 *{name}* کا مشاہدہ منسوخ کر دیا۔ اب کچھ ریکارڈ نہیں کرنا۔ باقی شیڈول دیکھنے کے لیے /observe لکھیں۔',
+  sw: '🗑 Umeghairi ziara ya *{name}*. Hakuna kurekodi. Bonyeza /observe kuona ratiba yako.',
+};
+
+const VISIT_RESCHEDULED_TEMPLATES = {
+  en: '📅 Moved *{name}* to {date}{slot}. Tap /observe anytime to see your schedule.',
+  ur: '📅 *{name}* کا مشاہدہ {date}{slot} پر منتقل کر دیا۔ شیڈول دیکھنے کے لیے /observe لکھیں۔',
+  sw: '📅 Nimehamisha *{name}* hadi {date}{slot}. Bonyeza /observe kuona ratiba yako.',
+};
+
 const _ACK_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 function _ackDate(ymd) {
   const ms = Date.parse(`${ymd}T00:00:00Z`);
@@ -496,4 +541,26 @@ function buildScheduleDoneAck(lang, opts = {}) {
     .replace('{slot}', opts.slot || '');
 }
 
-module.exports = { observeStrings, observeLang, buildVisitCapturePrompt, buildScheduleDoneAck };
+
+/** bd-88krt — "cancelled", in the coach's own language. Never mentions recording. */
+function buildVisitCancelledAck(lang, opts = {}) {
+  const l = clampLanguage(lang);
+  const t = VISIT_CANCELLED_TEMPLATES[l] || VISIT_CANCELLED_TEMPLATES.en;
+  return t.replace('{name}', String((opts && opts.teacherName) || '').trim() || 'this teacher');
+}
+
+/** bd-88krt — "moved to …", in the coach's own language. Slot is optional. */
+function buildVisitRescheduledAck(lang, opts = {}) {
+  const l = clampLanguage(lang);
+  const t = VISIT_RESCHEDULED_TEMPLATES[l] || VISIT_RESCHEDULED_TEMPLATES.en;
+  const slot = (opts && opts.slot) ? ` · ${opts.slot}` : '';
+  return t
+    .replace('{name}', String((opts && opts.teacherName) || '').trim() || 'this teacher')
+    .replace('{date}', _ackDate((opts && opts.date) || ''))
+    .replace('{slot}', slot);
+}
+
+module.exports = {
+  observeStrings, observeLang, buildVisitCapturePrompt, buildScheduleDoneAck,
+  buildVisitCancelledAck, buildVisitRescheduledAck,
+};
