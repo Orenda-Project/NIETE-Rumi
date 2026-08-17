@@ -85,6 +85,12 @@ const CATALOG = {
         topic: 'Introducing Myself', topic_short: 'Introducing Myself',
         pages: [4, 5, 6], pages_label: 'p.4-6',
         row: { title: 'Diving Deeper', description: 'Day 3', metadata: 'Introducing Myself · p.4-6' },
+      }, {
+        lesson_id: 'grade_1_english_ch1_seg995', segment_index: 995, lp_type: 'assessment',
+        day_label: 'Worksheet', section: 'Assessment', section_short: 'Assessment',
+        topic: 'Chapter 1 Assessment Worksheet', topic_short: 'Chapter 1 Assessment Worksheet',
+        pages: [1, 2], pages_label: 'p.1-2',
+        row: { title: 'Assessment', description: 'Worksheet', metadata: 'Chapter 1 Assessment Worksheet · p.1-2' },
       }],
     }],
   }],
@@ -318,5 +324,79 @@ describe('deliverV8Lesson — preparing ack', () => {
     mockTables.niete_lp_assets = [];
     await Delivery.deliverV8Lesson({ userId: 'user-1', lessonId: 'grade_1_english_ch1_seg3' });
     expect(mockSends.messages.some((m) => /[؀-ۿ]/.test(m.body))).toBe(true);
+  });
+});
+
+// ─── bd-52f1x — the marking scheme ──────────────────────────────────────────
+//
+// The assessment worksheet is useless to a teacher without the answer key: it is
+// the artefact carrying the mark allocation and the named misconceptions
+// ("Watch for: writes eid with a small letter"). 18 answer keys were uploaded to
+// production and NONE could ever reach a teacher, because deliverV8Lesson only
+// ever resolved asset_kind='lesson'.
+//
+// Coverage is partial by design for now — only some chapters have a key rendered
+// and uploaded — so a missing key must be a silent no-op, never an error and never
+// a blocked worksheet.
+describe('deliverV8Lesson — assessment marking scheme (bd-52f1x)', () => {
+  const WORKSHEET = {
+    id: 'asset-ws', lesson_id: 'grade_1_english_ch1_seg995', asset_kind: 'lesson',
+    catalog_version: 'v8', r2_key: 'lp-cache/v8/grade_1_english_ch1_seg995/ws.pdf',
+    content_hash: 'ws', version_stamp: 'v8-20260816T1650', is_current: true,
+  };
+  const KEY = {
+    id: 'asset-key', lesson_id: 'grade_1_english_ch1_seg995', asset_kind: 'answer_key',
+    catalog_version: 'v8', r2_key: 'lp-cache/v8/grade_1_english_ch1_seg995/key.pdf',
+    content_hash: 'key', version_stamp: 'v8-20260816T1650', is_current: true,
+  };
+
+  test('an assessment WITH an answer key sends both papers', async () => {
+    mockTables.niete_lp_assets = [WORKSHEET, KEY];
+    const res = await Delivery.deliverV8Lesson({ userId: 'user-1', lessonId: 'grade_1_english_ch1_seg995' });
+    expect(res.ok).toBe(true);
+    expect(mockSends.docs).toHaveLength(2);
+    // worksheet first — she needs the paper before the scheme
+    expect(mockSends.docs[0].url).toContain('ws.pdf');
+    expect(mockSends.docs[1].url).toContain('key.pdf');
+    // and the key is presigned like everything else (bd-2054 guard)
+    expect(mockSends.docs[1].url).toContain('X-Amz-Signature');
+  });
+
+  test('the marking scheme is labelled for the TEACHER, never as the pupil paper', async () => {
+    mockTables.niete_lp_assets = [WORKSHEET, KEY];
+    await Delivery.deliverV8Lesson({ userId: 'user-1', lessonId: 'grade_1_english_ch1_seg995' });
+    const key = mockSends.docs[1];
+    expect(`${key.filename} ${key.caption}`.toLowerCase()).toMatch(/answer key|marking scheme/);
+    expect(key.filename).not.toBe(mockSends.docs[0].filename);
+  });
+
+  test('an assessment with NO answer key still delivers the worksheet, silently', async () => {
+    mockTables.niete_lp_assets = [WORKSHEET];
+    const res = await Delivery.deliverV8Lesson({ userId: 'user-1', lessonId: 'grade_1_english_ch1_seg995' });
+    expect(res.ok).toBe(true);
+    expect(mockSends.docs).toHaveLength(1);
+    expect(mockSends.messages.some((m) => /answer|scheme|error|wrong/i.test(m.body || ''))).toBe(false);
+  });
+
+  test('a CONTENT lesson never sends an answer key, even if one somehow exists', async () => {
+    mockTables.niete_lp_assets = [ASSET, { ...KEY, lesson_id: 'grade_1_english_ch1_seg3' }];
+    await Delivery.deliverV8Lesson({ userId: 'user-1', lessonId: 'grade_1_english_ch1_seg3' });
+    expect(mockSends.docs).toHaveLength(1);
+  });
+
+  test('a failing answer-key send never fails the worksheet', async () => {
+    mockTables.niete_lp_assets = [WORKSHEET, KEY];
+    let n = 0;
+    const wa = require('../../shared/services/whatsapp.service');
+    wa.sendDocumentByLink.mockImplementation(async (phone, url, filename, caption) => {
+      n += 1;
+      mockSends.docs.push({ phone, url, filename, caption });
+      if (n === 2) throw new Error('meta 500 on the key');
+      return { messages: [{ id: 'wamid.X' }] };
+    });
+    const res = await Delivery.deliverV8Lesson({ userId: 'user-1', lessonId: 'grade_1_english_ch1_seg995' });
+    expect(res.ok).toBe(true);
+    const sent = mockInserts.niete_lp_downloads.filter((r) => r.status === 'sent');
+    expect(sent.length).toBeGreaterThanOrEqual(1);
   });
 });
