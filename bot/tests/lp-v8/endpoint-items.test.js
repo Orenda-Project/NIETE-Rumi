@@ -155,12 +155,12 @@ describe('chapter screen', () => {
   test('shows the available lesson count, not the catalog count', () => {
     const partial = new Set(['grade_1_maths_ch1_seg1', 'grade_1_maths_ch1_seg2']);
     const [ch1] = V8.buildChapterItems(1, 'math', partial);
-    expect(ch1['main-content'].description).toBe('2 lessons');
+    expect(ch1['main-content'].description).toBe('p.1-3 · 2 LPs');  // v4 (§12.3)
   });
 
   test('singular reads "1 lesson", not "1 lessons"', () => {
     const [ch1] = V8.buildChapterItems(1, 'math', new Set(['grade_1_maths_ch1_seg1']));
-    expect(ch1['main-content'].description).toBe('1 lesson');
+    expect(ch1['main-content'].description).toBe('p.1-3 · 1 LP');  // v4 (§12.3)
   });
 
   test('respects the caps and the 20-row screen limit', () => {
@@ -294,29 +294,46 @@ describe('catalog lookups', () => {
   });
 });
 
-// ─── Staging feedback round 1 (bd-fel74) — chapter rows ─────────────────────
-// The operator's device test read the old chapter metadata (first lesson's
-// topic + its pages) as "the chapter's starting page". The row now carries the
-// chapter's FULL page span, and — when the 30-cp cap clips the title — the full
-// chapter title ahead of it.
-describe('chapter rows: full page range + unclipped title in metadata', () => {
-  test('metadata is the chapter page span, not the first lesson topic', () => {
+// (round-1 chapter-row describe removed — superseded by the v4 layout below)
+
+// ─── §12.3/12.4 chapter rows v4: number-first title, pages+count description ──
+describe('chapter rows v4: nothing lost, Urdu rows RTL-first', () => {
+  test('a chapter name that fits merges into the title; description = pages · LP count', () => {
     const items = V8.buildChapterItems(1, 'math', AVAILABLE);
     const ch1 = items.find((i) => i.id === '1');
-    expect(ch1['main-content'].metadata).toBe('p.1-3');
-    // ch3's title ("Ch 3: Sum and Difference Detectives", 34 cp) is past the
-    // title cap, so its metadata correctly leads with the full title.
-    const ch3 = items.find((i) => i.id === '3');
-    expect(ch3['main-content'].metadata).toBe('Sum and Difference Detectives · p.1-24');
+    expect(ch1['main-content'].title).toBe('Ch 1 — Counting Capers');
+    expect(ch1['main-content'].description).toBe('p.1-3 · 3 LPs');
+    expect(ch1['main-content'].metadata || '').toBe('');
   });
 
-  test('a clipped chapter title reappears IN FULL in metadata, range still terminal', () => {
+  test('a long chapter name → bare Ch N title, FULL name in metadata, nothing lost', () => {
     const avail = new Set(['grade_1_maths_ch4_seg1']);
     const [ch4] = V8.buildChapterItems(1, 'math', avail);
-    expect(cps(`Ch 4: Wonderful Measurement Adventures Galore`)).toBeGreaterThan(TITLE_CAP);
-    expect(ch4['main-content'].title.endsWith('…')).toBe(true);
-    expect(ch4['main-content'].metadata).toContain('Wonderful Measurement Adventures Galore');
-    expect(ch4['main-content'].metadata).toMatch(/p\.50-61$/);
-    expect(cps(ch4['main-content'].metadata)).toBeLessThanOrEqual(META_CAP);
+    expect(ch4['main-content'].title).toBe('Ch 4');
+    expect(ch4['main-content'].metadata).toBe('Wonderful Measurement Adventures Galore');
+    expect(ch4['main-content'].description).toBe('p.50-61 · 1 LP');
+  });
+
+  test('RTL chapter rows use باب with Urdu digits and render RTL-first', () => {
+    const cat = JSON.parse(JSON.stringify(CATALOG));
+    cat.books.push({
+      stem: 'grade_2_urdu', grade: 2, subject: 'Urdu', subject_key: 'urdu', rtl: true,
+      chapters: [{
+        number: 1, title: 'میری صبح', title_short: 'میری صبح', pages_label: 'p.1-9',
+        lessons: [1, 2].map((i) => ({
+          lesson_id: `grade_2_urdu_ch1_seg${i}`, segment_index: i, lp_type: 'content',
+          day_label: `Day ${i}`, section: 'میری صبح', section_short: 'میری صبح',
+          topic: 'صبح کی سیر', pages: [i], pages_label: `p.${i}`,
+          row: { title: 'میری صبح', description: `دن ${i}`, metadata: 'صبح کی سیر' },
+        })),
+      }],
+    });
+    V8.__setCatalogForTests(cat);
+    const avail = new Set(['grade_2_urdu_ch1_seg1', 'grade_2_urdu_ch1_seg2']);
+    const [ch1] = V8.buildChapterItems(2, 'urdu', avail);
+    expect(ch1['main-content'].title).toBe('\u200Fباب ۱: میری صبح');
+    expect(ch1['main-content'].description).toMatch(/^\u200Fص ۱-۹/);
+    expect(ch1['main-content'].description).toMatch(/اسباق/);
+    V8.__setCatalogForTests(CATALOG);
   });
 });

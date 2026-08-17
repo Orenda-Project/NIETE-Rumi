@@ -154,41 +154,41 @@ function buildSubjectItems(grade, available) {
  * yet is HIDDEN rather than shown and dead-ended — the teacher should not be
  * able to tap into an empty screen.
  */
+/** Urdu (Extended Arabic-Indic) digits for RTL row furniture — mirrors the builder. */
+const urD = (s) => String(s).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]);
+
 function buildChapterItems(grade, subjectKey, available) {
   const book = bookFor(grade, subjectKey);
   if (!book) return [];
-  // Keeps the Latin "p.4-33" from bidi-scrambling at the end of an Urdu line —
-  // same mark the catalog builder plants inside lesson metadata.
-  const mark = book.rtl ? '‎' : '';
+  const rtl = !!book.rtl;
   const items = [];
   for (const chapter of book.chapters) {
     const lessons = availableIn(chapter, available);
     if (!lessons.length) continue;
 
-    // Metadata carries the chapter's FULL page span — it used to echo the first
-    // lesson's topic + pages, which read as "the chapter starts at p.N" on the
-    // operator's device test (staging feedback round 1). When the
-    // 30-cp cap clips the title, the full chapter title leads the line so
-    // nothing is lost, only moved.
-    const full = `Ch ${chapter.number}: ${chapter.title}`;
-    const range = chapter.pages_label || '';
-    let metadata;
-    if (cps(full) > TITLE_CAP && range) {
-      const suffix = `${mark} · ${range}`;
-      metadata = clip(chapter.title, META_CAP - cps(suffix)) + suffix;
-    } else if (cps(full) > TITLE_CAP) {
-      metadata = clip(chapter.title, META_CAP);
-    } else {
-      metadata = range || clip(lessons[0].row.metadata, META_CAP);
-    }
+    // §12.3/12.4 layout: the chapter NUMBER leads the title and the name merges
+    // in only when the whole thing fits; a clipped name moves IN FULL to the
+    // 80-cp metadata line — nothing lost, only reseated. Pages + LP count share
+    // the description. Urdu rows get Urdu furniture (باب/ص/اسباق + Urdu digits)
+    // so the first strong character is Arabic and the row renders RTL —
+    // right-aligned, ellipsis on the correct side (operator, 2026-08-17).
+    const numTitle = rtl ? `باب ${urD(chapter.number)}` : `Ch ${chapter.number}`;
+    const merged = rtl ? `${numTitle}: ${chapter.title}` : `${numTitle} — ${chapter.title}`;
+    const fits = cps(merged) <= TITLE_CAP;
+    const title = fits ? merged : numTitle;
+    const metadata = fits ? '' : clip(chapter.title, META_CAP);
 
+    const range = chapter.pages_label ? (rtl ? `ص ${urD(chapter.pages_label.slice(2))}` : chapter.pages_label) : '';
+    const n = lessons.length;
+    const count = rtl ? `${urD(n)} اسباق` : `${n} LP${n === 1 ? '' : 's'}`;
+    let description = range ? `${range} · ${count}` : count;
+    if (cps(description) > DESC_CAP) description = range || count;
+
+    const mc = rtl ? { title: '\u200F' + title, description: '\u200F' + description } : { title, description };
+    if (metadata) mc.metadata = rtl ? '\u200F' + metadata : metadata;
     items.push({
       id: String(chapter.number),
-      'main-content': {
-        title: clip(full, TITLE_CAP),
-        description: clip(plural(lessons.length, 'lesson'), DESC_CAP),
-        metadata,
-      },
+      'main-content': mc,
       'on-click-action': {
         name: 'data_exchange',
         payload: { step: 'chapter', grade: String(grade), subject: subjectKey, chapter: String(chapter.number) },
@@ -231,7 +231,11 @@ function buildLessonItems(grade, subjectKey, chapterNumber, available, downloade
   const items = slice.map((l) => ({
     id: `V8-${l.lesson_id}`,
     'main-content': {
-      title: clip(`${done.has(l.lesson_id) ? DONE_TICK : TODO_TICK} ${l.row.title}`, TITLE_CAP),
+      // An rtl title leads with RLM (char 0 drives direction detection) — the
+      // tick slots in AFTER it so the mark stays first.
+      title: clip(l.row.title.startsWith('\u200F')
+        ? `\u200F${done.has(l.lesson_id) ? DONE_TICK : TODO_TICK} ${l.row.title.slice(1)}`
+        : `${done.has(l.lesson_id) ? DONE_TICK : TODO_TICK} ${l.row.title}`, TITLE_CAP),
       description: clip(l.row.description, DESC_CAP),
       metadata: clip(l.row.metadata, META_CAP),
     },
@@ -240,9 +244,16 @@ function buildLessonItems(grade, subjectKey, chapterNumber, available, downloade
 
   const hasMore = remaining > 0;
   if (hasMore) {
+    // Urdu books get Urdu furniture so the row renders RTL (§12.4); the arrow
+    // points the direction of reading flow.
+    const rtl = !!(bookFor(grade, subjectKey) || {}).rtl;
     items.push({
       id: MORE_ROW_ID,
-      'main-content': {
+      'main-content': rtl ? {
+        title: '\u200Fمزید اسباق ←',
+        description: clip(`صفحہ ${urD(pageNum + 1)}`, DESC_CAP),
+        metadata: clip(`اس باب میں ${urD(remaining)} مزید اسباق`, META_CAP),
+      } : {
         title: 'More lessons →',
         description: clip(`Page ${pageNum + 1}`, DESC_CAP),
         metadata: clip(`${remaining} more in this chapter`, META_CAP),
