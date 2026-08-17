@@ -184,8 +184,8 @@ function buildChapterItems(grade, subjectKey, available) {
     let description = range ? `${range} · ${count}` : count;
     if (cps(description) > DESC_CAP) description = range || count;
 
-    const mc = { title, description };
-    if (metadata) mc.metadata = metadata;
+    const mc = rtl ? { title: '\u200F' + title, description: '\u200F' + description } : { title, description };
+    if (metadata) mc.metadata = rtl ? '\u200F' + metadata : metadata;
     items.push({
       id: String(chapter.number),
       'main-content': mc,
@@ -231,7 +231,11 @@ function buildLessonItems(grade, subjectKey, chapterNumber, available, downloade
   const items = slice.map((l) => ({
     id: `V8-${l.lesson_id}`,
     'main-content': {
-      title: clip(`${done.has(l.lesson_id) ? DONE_TICK : TODO_TICK} ${l.row.title}`, TITLE_CAP),
+      // An rtl title leads with RLM (char 0 drives direction detection) — the
+      // tick slots in AFTER it so the mark stays first.
+      title: clip(l.row.title.startsWith('\u200F')
+        ? `\u200F${done.has(l.lesson_id) ? DONE_TICK : TODO_TICK} ${l.row.title.slice(1)}`
+        : `${done.has(l.lesson_id) ? DONE_TICK : TODO_TICK} ${l.row.title}`, TITLE_CAP),
       description: clip(l.row.description, DESC_CAP),
       metadata: clip(l.row.metadata, META_CAP),
     },
@@ -246,7 +250,7 @@ function buildLessonItems(grade, subjectKey, chapterNumber, available, downloade
     items.push({
       id: MORE_ROW_ID,
       'main-content': rtl ? {
-        title: 'مزید اسباق ←',
+        title: '\u200Fمزید اسباق ←',
         description: clip(`صفحہ ${urD(pageNum + 1)}`, DESC_CAP),
         metadata: clip(`اس باب میں ${urD(remaining)} مزید اسباق`, META_CAP),
       } : {
