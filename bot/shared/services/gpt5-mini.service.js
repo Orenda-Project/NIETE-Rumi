@@ -723,7 +723,7 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
     let { question, model_used } = await generate(baseSys);
     let violations = validateQuestion(question, corpus, firstName, profile);
     if (violations.length) {
-      const fixSys = `${baseSys}\n\n═══ FIX THESE PROBLEMS ═══\nYour previous attempt violated: ${violations.join(', ')}. Rewrite the question: ≤65 words, NO honorifics, NO raw MM:SS times, NO "Q1/Q2" meta, ONLY child names from the corpus, write ENTIRELY in ${profile.script}, spell every number as a word.`;
+      const fixSys = `${baseSys}\n\n═══ FIX THESE PROBLEMS ═══\nYour previous attempt violated: ${violations.join(', ')}. Rewrite the question: ≤65 words, NO honorifics, NO raw MM:SS times, NO "Q1/Q2" meta, ONLY child names from the corpus, write ENTIRELY in ${profile.script}, spell every number as a word. If 'judgemental_language': REMOVE every evaluative label about the class or teacher (غلط/غلطی/بے ترتیب/wrong/error/chaotic/struggling/confused/failed/misconception) — describe ONLY what was observably said or done, in warm neutral language; a word is allowed only inside a direct quote of what someone actually said.`;
       const retry = await generate(fixSys);
       const retryViolations = validateQuestion(retry.question, corpus, firstName, profile);
       if (!retryViolations.length) {
