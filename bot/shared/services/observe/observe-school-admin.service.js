@@ -63,11 +63,14 @@ function matchTeacher(teacher, term) {
 // ── the interstitial ───────────────────────────────────────────────────
 
 const ADDED_TEMPLATES = {
-  en: { some: '✅ Added *{school}*. {count} now in your teacher list.',
+  en: { mine: '✅ *{school}* is already on your list, with {count}. Nothing to change.',
+        some: '✅ Added *{school}*. {count} now in your teacher list.',
         none: '✅ Added *{school}*. It has no teacher list yet, so no teachers were added — tell the team and they will load it.' },
-  ur: { some: '✅ *{school}* شامل کر دیا۔ اب آپ کی فہرست میں {count} ہیں۔',
+  ur: { mine: '✅ *{school}* پہلے ہی آپ کی فہرست میں ہے، {count} کے ساتھ۔ کچھ تبدیل کرنے کی ضرورت نہیں۔',
+        some: '✅ *{school}* شامل کر دیا۔ اب آپ کی فہرست میں {count} ہیں۔',
         none: '✅ *{school}* شامل کر دیا۔ اس کی ٹیچر فہرست ابھی موجود نہیں، اس لیے کوئی ٹیچر شامل نہیں ہوا — ٹیم کو بتائیں، وہ اپ لوڈ کر دیں گے۔' },
-  sw: { some: '✅ Nimeongeza *{school}*. Sasa una {count} kwenye orodha yako.',
+  sw: { mine: '✅ *{school}* tayari ipo kwenye orodha yako, na {count}. Hakuna cha kubadilisha.',
+        some: '✅ Nimeongeza *{school}*. Sasa una {count} kwenye orodha yako.',
         none: '✅ Nimeongeza *{school}*. Bado haina orodha ya walimu, kwa hivyo hakuna aliyeongezwa — waambie timu wapakie.' },
 };
 
@@ -83,13 +86,24 @@ function _count(lang, n) {
   return n === 1 ? '1 teacher' : `${n} teachers`;
 }
 
-/** What the coach reads after adding a school. Honest when the roster is empty. */
+/**
+ * What the coach reads after adding a school.
+ *
+ * Three OUTCOMES, not two — the distinction is the bug fixed on 17 Aug. The
+ * operator added IMCB I-8/3 (57 teachers), a second submission took the
+ * already-mine path, and because that path reported teachersMapped:0 she was
+ * told "It has no teacher list yet, so no teachers were added". All 57 were in
+ * fact on her list. `teachersMapped` counts what THIS call wrote; `teacherCount`
+ * is what she actually holds now, and only the latter can say "none".
+ */
 function addedSchoolAck(lang, opts = {}) {
   const l = clampLanguage(lang);
   const t = ADDED_TEMPLATES[l] || ADDED_TEMPLATES.en;
-  const n = Number(opts.teachersMapped) || 0;
+  const mapped = Number(opts.teachersMapped) || 0;
+  const held = opts.teacherCount == null ? mapped : Number(opts.teacherCount) || 0;
   const school = String(opts.schoolName || '').trim() || 'that school';
-  return (n > 0 ? t.some : t.none).replace('{school}', school).replace('{count}', _count(l, n));
+  const body = held === 0 ? t.none : (opts.alreadyMine ? t.mine : t.some);
+  return body.replace('{school}', school).replace('{count}', _count(l, held));
 }
 
 function removedSchoolAck(lang, opts = {}) {
@@ -196,7 +210,10 @@ async function addSchoolForCoach(leaderUserId, schoolExtId) {
     .eq('school_ext_id', schoolExtId).limit(1);
 
   if (mine && mine[0] && myTeachers && myTeachers[0]) {
-    return { ok: true, alreadyMine: true, schoolName: school.name, teachersMapped: 0 };
+    return {
+      ok: true, alreadyMine: true, schoolName: school.name, teachersMapped: 0,
+      teacherCount: await _myTeacherCount(supabase, leaderUserId, schoolExtId),
+    };
   }
 
   const { data: roster } = await supabase
@@ -225,7 +242,18 @@ async function addSchoolForCoach(leaderUserId, schoolExtId) {
     });
     if (!error) mapped += 1;
   }
-  return { ok: true, alreadyMine: false, schoolName: school.name, teachersMapped: mapped };
+  return {
+    ok: true, alreadyMine: false, schoolName: school.name, teachersMapped: mapped,
+    teacherCount: await _myTeacherCount(supabase, leaderUserId, schoolExtId),
+  };
+}
+
+/** How many teachers this coach actually holds at this school, right now. */
+async function _myTeacherCount(supabase, leaderUserId, schoolExtId) {
+  const { count } = await supabase
+    .from('leader_teachers').select('id', { count: 'exact', head: true })
+    .eq('leader_user_id', leaderUserId).eq('school_ext_id', schoolExtId);
+  return Number(count) || 0;
 }
 
 /** Remove a school and only THIS coach's teacher rows for it. */
