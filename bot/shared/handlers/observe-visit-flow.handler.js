@@ -220,10 +220,37 @@ async function schoolOfTeacher(userId, teacherExtId) {
 // bd-88krt — shorthands so the Flow steps stay readable. Screen copy is always
 // per-language DATA (language protocol), never a literal at the call site.
 const S_ = (lang) => observeStrings(lang);
-const _done = (heading, body, action = 'roster') => ({
+const _done = (heading, body, action = 'roster', schoolName = '') => ({
   heading: heading || '',
   body: body || '',
+  school_name: schoolName || '',
   extension_message_response: { params: { observe_visit_action: action } },
+});
+
+/**
+ * SUCCESS payload. Every key the screen declares is filled here with a safe
+ * default, so no call site can omit one — a declared-but-missing key fails the
+ * entire screen with payload-schema-error, which is exactly how "Schedule an
+ * observation" broke live on 17 Aug.
+ */
+const _success = (heading, body, opts = {}) => ({
+  heading: heading || '',
+  body: body || '',
+  action: opts.action || 'done',
+  teacher_name: opts.teacherName || '',
+  sched_date: opts.date || '',
+  sched_slot: opts.slot || '',
+  extension_message_response: {
+    params: {
+      observe_visit_action: opts.action || 'done',
+      // flow_token rides along on the schedule close — dropping it broke
+      // visit-flow-scheduling when the payload moved into this helper.
+      ...(opts.flowToken ? { flow_token: opts.flowToken } : {}),
+      teacher_name: opts.teacherName || '',
+      sched_date: opts.date || '',
+      sched_slot: opts.slot || '',
+    },
+  },
 });
 
 // ── scheduling-UI builders (v2 Flow — bd-2443) ───────────────────────────────
@@ -485,19 +512,13 @@ function successDone(flowToken, screenData, lang = 'en') {
   const S = observeStrings(lang);
   return {
     screen: 'SUCCESS',
-    data: {
-      heading: S.flow_scheduled_heading,
-      body: S.flow_scheduled_body,
-      extension_message_response: {
-        params: {
-          observe_visit_action: 'done',
-          flow_token: flowToken,
-          teacher_name: (screenData && screenData.teacher_name) || '',
-          sched_date: (screenData && screenData.sched_date) || '',
-          sched_slot: (screenData && screenData.sched_slot) || '',
-        },
-      },
-    },
+    data: _success(S.flow_scheduled_heading, S.flow_scheduled_body, {
+      action: 'done',
+      flowToken,
+      teacherName: (screenData && screenData.teacher_name) || '',
+      date: (screenData && screenData.sched_date) || '',
+      slot: (screenData && screenData.sched_slot) || '',
+    }),
   };
 }
 
@@ -626,14 +647,11 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         const S = observeStrings(_flowLang);
         return {
           screen: 'SUCCESS',
-          data: {
-            heading: ok ? S.flow_cancelled_heading : S.flow_action_failed_heading,
-            body: ok ? S.flow_cancelled_body : S.flow_action_failed_body,
-            extension_message_response: { params: {
-              observe_visit_action: ok ? 'cancelled' : 'noop',
-              teacher_name: row.teacher_name || '',
-            } },
-          },
+          data: _success(
+            ok ? S.flow_cancelled_heading : S.flow_action_failed_heading,
+            ok ? S.flow_cancelled_body : S.flow_action_failed_body,
+            { action: ok ? 'cancelled' : 'noop', teacherName: row.teacher_name || '' },
+          ),
         };
       }
       if (target === 'SCHEDULE_EDIT') {
@@ -663,16 +681,12 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const S2 = observeStrings(_flowLang);
       return {
         screen: 'SUCCESS',
-        data: {
-          heading: ok ? S2.flow_rescheduled_heading : S2.flow_action_failed_heading,
-          body: ok ? S2.flow_rescheduled_body : S2.flow_action_failed_body,
-          extension_message_response: { params: {
-            observe_visit_action: ok ? 'rescheduled' : 'noop',
-            teacher_name: moved.teacher_name || '',
-            sched_date: date || '',
-            sched_slot: slot || '',
-          } },
-        },
+        data: _success(
+          ok ? S2.flow_rescheduled_heading : S2.flow_action_failed_heading,
+          ok ? S2.flow_rescheduled_body : S2.flow_action_failed_body,
+          { action: ok ? 'rescheduled' : 'noop', teacherName: moved.teacher_name || '',
+            date: date || '', slot: slot || '' },
+        ),
       };
     }
 
@@ -741,7 +755,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
           schoolName: res.schoolName, teachersMapped: res.teachersMapped,
           teacherCount: res.teacherCount, alreadyMine: res.alreadyMine,
         }),
-        'roster') };
+        'roster', res.schoolName) };
     }
 
     if (step === 'manage') {

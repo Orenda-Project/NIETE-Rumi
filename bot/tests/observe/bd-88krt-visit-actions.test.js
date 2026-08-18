@@ -171,14 +171,21 @@ describe('bd-88krt · SUCCESS is data-driven, so a cancel never reads "Observati
     expect(texts.join(' ')).not.toMatch(/Observation scheduled/);
   });
 
-  it('every path that returns SUCCESS supplies both keys', () => {
+  it('every path that returns SUCCESS goes through the payload builder', () => {
     // A declared key the endpoint omits fails the entire screen — the
-    // payload-schema-error that broke Schedule an observation live.
+    // payload-schema-error that broke "Schedule an observation" live. Counting
+    // `heading:` strings was only a proxy for that; the real guarantee is that
+    // no call site hand-rolls the payload, so none can forget a key.
     const src = require('fs').readFileSync(
       require('path').join(__dirname, '../../shared/handlers/observe-visit-flow.handler.js'), 'utf8');
     const returns = src.split("screen: 'SUCCESS'").length - 1;
-    const headings = (src.match(/heading:/g) || []).length;
-    expect(returns).toBeGreaterThanOrEqual(3);      // done, cancel, reschedule
-    expect(headings).toBeGreaterThanOrEqual(returns);
+    expect(returns).toBeGreaterThanOrEqual(3);                  // done, cancel, reschedule
+    expect((src.match(/data: _success\(/g) || []).length).toBe(returns);
+
+    // ...and the builder fills every key SUCCESS declares.
+    const flow2 = require('../../../docs/flows/observe-visit-v2.json');
+    const declared = Object.keys(flow2.screens.find((x) => x.id === 'SUCCESS').data);
+    const body = src.slice(src.indexOf('const _success ='), src.indexOf('const _success =') + 900);
+    for (const k of declared) expect(body).toContain(`${k}:`);
   });
 });

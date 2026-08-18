@@ -112,6 +112,30 @@ function removedSchoolAck(lang, opts = {}) {
   return t.replace('{school}', String(opts.schoolName || '').trim() || 'that school');
 }
 
+// ── the loop ───────────────────────────────────────────────────────────
+
+/** The choices the after-add / after-remove screen renders, in order. */
+const ROSTER_NEXT = ['add', 'remove', 'menu', 'done'];
+
+/**
+ * Where a loop choice sends the coach.
+ *
+ * Meta's routing_model is a DAG and a screen may hold ONE Footer, so a real
+ * loop cannot be expressed inside the Flow — verified against Meta, not
+ * assumed: a link cannot `complete`, a second Footer is rejected, and a route
+ * back to MENU is "not allowed in the routing model". So looping means closing
+ * the Flow and reopening it, which is also why 'menu' reopens with NO screen:
+ * MENU declares `items`, and only the endpoint can fill those in.
+ */
+function rosterNextTarget(next) {
+  switch (next) {
+    case 'add': return { reopen: true, screen: 'ADD_SEARCH' };
+    case 'remove': return { reopen: true, screen: 'MANAGE_SCHOOLS' };
+    case 'menu': return { reopen: true, screen: null };
+    default: return { reopen: false, screen: null };   // 'done' and anything stale
+  }
+}
+
 // ── data access (thin) ─────────────────────────────────────────────────
 
 const _db = () => require('../../config/supabase');
@@ -228,23 +252,38 @@ async function addSchoolForCoach(leaderUserId, schoolExtId) {
     });
   }
 
+  // ONE insert for the whole roster. This used to be a per-teacher loop, and
+  // at a measured ~160ms round-trip a 57-teacher school took ~10.1s against
+  // Meta's ~10s data_exchange ceiling — the operator's "Couldn't load content.
+  // Try again later.", which then succeeded on retry because the retry took
+  // the already-mine path. The largest NIETE school (160) could never win.
   const seen = new Set();
-  let mapped = 0;
+  const rows = [];
   for (const t of roster || []) {
     const phone = t.teacher_phone_e164;
     if (!phone || seen.has(phone)) continue;
     seen.add(phone);
-    const { error } = await supabase.from('leader_teachers').insert({
+    rows.push({
       leader_user_id: leaderUserId, school_ext_id: schoolExtId,
       teacher_ext_id: t.teacher_ext_id || phone, teacher_name: t.teacher_name || null,
       teacher_phone_e164: phone, teacher_phone: t.teacher_phone || null,
       level: t.level || null, source: ROW_SOURCE,
     });
-    if (!error) mapped += 1;
   }
+  let mapped = 0;
+  let insertError = null;
+  if (rows.length) {
+    const { error } = await supabase.from('leader_teachers').insert(rows);
+    // A silently-swallowed failure is what let "no teachers were added" be
+    // printed for a school that had 57. Surface it instead.
+    if (error) insertError = error.message || String(error);
+    else mapped = rows.length;
+  }
+
   return {
     ok: true, alreadyMine: false, schoolName: school.name, teachersMapped: mapped,
     teacherCount: await _myTeacherCount(supabase, leaderUserId, schoolExtId),
+    insertError,
   };
 }
 
@@ -274,5 +313,5 @@ module.exports = {
   matchSchool, matchTeacher, normalisePhoneTerm,
   addedSchoolAck, removedSchoolAck,
   searchUniverse, listMySchools, addSchoolForCoach, removeSchoolForCoach,
-  ROW_SOURCE, RESULT_CAP,
+  rosterNextTarget, ROSTER_NEXT, ROW_SOURCE, RESULT_CAP,
 };

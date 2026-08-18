@@ -1361,24 +1361,15 @@
       "data": {
         "heading": {
           "type": "string",
-          "__example__": "Added"
+          "__example__": "School added"
         },
         "body": {
           "type": "string",
-          "__example__": "55 teachers now in your list."
+          "__example__": "Added IMCB, I-8/3."
         },
-        "extension_message_response": {
-          "type": "object",
-          "properties": {
-            "params": {
-              "type": "object"
-            }
-          },
-          "__example__": {
-            "params": {
-              "observe_visit_action": "roster"
-            }
-          }
+        "school_name": {
+          "type": "string",
+          "__example__": "IMCB, I-8/3"
         }
       },
       "layout": {
@@ -1397,11 +1388,39 @@
             "name": "action_done_form",
             "children": [
               {
+                "type": "RadioButtonsGroup",
+                "name": "next",
+                "label": "What next?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "add",
+                    "title": "Add another school"
+                  },
+                  {
+                    "id": "remove",
+                    "title": "Remove a school"
+                  },
+                  {
+                    "id": "menu",
+                    "title": "Main menu"
+                  },
+                  {
+                    "id": "done",
+                    "title": "I'm done"
+                  }
+                ]
+              },
+              {
                 "type": "Footer",
-                "label": "Done",
+                "label": "Continue",
                 "on-click-action": {
                   "name": "complete",
-                  "payload": {}
+                  "payload": {
+                    "observe_visit_action": "roster",
+                    "roster_next": "${form.next}",
+                    "school_name": "${data.school_name}"
+                  }
                 }
               }
             ]
@@ -1539,6 +1558,22 @@
         "body": {
           "type": "string",
           "__example__": "Tap /observe anytime to see your schedule."
+        },
+        "action": {
+          "type": "string",
+          "__example__": "done"
+        },
+        "teacher_name": {
+          "type": "string",
+          "__example__": "Ayesha Khan"
+        },
+        "sched_date": {
+          "type": "string",
+          "__example__": "2026-08-20"
+        },
+        "sched_slot": {
+          "type": "string",
+          "__example__": "09:00"
         }
       },
       "layout": {
@@ -1557,11 +1592,37 @@
             "name": "success_form",
             "children": [
               {
+                "type": "RadioButtonsGroup",
+                "name": "next",
+                "label": "What next?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "schedule",
+                    "title": "Schedule another observation"
+                  },
+                  {
+                    "id": "menu",
+                    "title": "Main menu"
+                  },
+                  {
+                    "id": "done",
+                    "title": "I'm done for now"
+                  }
+                ]
+              },
+              {
                 "type": "Footer",
-                "label": "Done",
+                "label": "Continue",
                 "on-click-action": {
                   "name": "complete",
-                  "payload": {}
+                  "payload": {
+                    "observe_visit_action": "${data.action}",
+                    "visit_next": "${form.next}",
+                    "teacher_name": "${data.teacher_name}",
+                    "sched_date": "${data.sched_date}",
+                    "sched_slot": "${data.sched_slot}"
+                  }
                 }
               }
             ]
