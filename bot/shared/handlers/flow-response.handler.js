@@ -740,6 +740,18 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
     // visit on staging and was still told to "record and send me the audio",
     // because only 'debrief' and 'done' were special-cased and everything else
     // dropped into the capture path.
+    // bd-k3w4l / bd-ve7kd — adding or removing a school ends here. Without
+    // this branch 'roster' fell through to buildVisitCapturePrompt and told the
+    // coach to record a lesson after she'd added a school; and a Flow closed
+    // with no params landed on the generic "Thanks for your response". The
+    // in-Flow screen already confirmed what happened, so the only thing left to
+    // do is continue the loop she picked.
+    if (visitAction === 'roster') {
+      const { rosterNextTarget } = require('../services/observe/observe-school-admin.service');
+      await _continueObserveLoop(rosterNextTarget(responseJson.roster_next), user, phoneNumber, userId);
+      return true;
+    }
+
     if (visitAction === 'cancelled') {
       const ObserveState = require('../services/observe/observe-state.service');
       // Clear any armed capture state too, so a stray voice note can't start an
@@ -748,6 +760,7 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
       await WhatsAppService.sendMessage(phoneNumber, buildVisitCancelledAck(observeLang(user || {}), {
         teacherName: responseJson.teacher_name,
       }));
+      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId);
       return true;
     }
 
@@ -757,6 +770,7 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
         date: responseJson.sched_date || responseJson.date,
         slot: responseJson.sched_slot || responseJson.slot,
       }));
+      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId);
       return true;
     }
 
@@ -766,6 +780,7 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
         date: responseJson.sched_date,
         slot: responseJson.sched_slot,
       }));
+      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId);
       return true;
     }
 
@@ -789,6 +804,42 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
       );
     } catch (_) { /* nothing left to degrade to */ }
     return true;
+  }
+}
+
+/** Where the schedule-side loop choices go. 'schedule' reopens on the coach's
+ *  own upcoming list, which is where she picks the next teacher from. */
+function _visitNextTarget(next) {
+  if (next === 'schedule') return { reopen: true, screen: null };
+  if (next === 'menu') return { reopen: true, screen: null };
+  return { reopen: false, screen: null };
+}
+
+/**
+ * Reopen the picker for the next turn of the loop. Best-effort by design: if
+ * the reopen fails the coach has still had her action confirmed on-screen, and
+ * /observe always gets her back in. Never throws into the caller.
+ */
+async function _continueObserveLoop(target, user, phoneNumber, userId) {
+  if (!target || !target.reopen || !user) return;
+  try {
+    const { reopenObserveVisitFlow } = require('./observe-command.handler');
+    let screenData;
+    if (target.screen === 'MANAGE_SCHOOLS') {
+      // MANAGE_SCHOOLS declares `options`; opening straight onto it in navigate
+      // mode means WE supply them — there is no endpoint round-trip to do it.
+      const admin = require('../services/observe/observe-school-admin.service');
+      const mine = await admin.listMySchools(userId).catch(() => []);
+      if (!mine.length) return reopenObserveVisitFlow(user, phoneNumber, null);
+      screenData = {
+        options: mine.slice(0, admin.RESULT_CAP).map((m) => ({
+          id: m.school_ext_id, title: String(m.school_name || m.school_ext_id).slice(0, 30),
+        })),
+      };
+    }
+    await reopenObserveVisitFlow(user, phoneNumber, target.screen, screenData);
+  } catch (err) {
+    logToFile('observe loop reopen failed — coach can still use /observe', { userId, error: err.message });
   }
 }
 

@@ -64,6 +64,46 @@ async function sendObserveVisitFlow(user, from) {
   await ObserveState.setState(user.id, 'awaiting_pick', { arm: getObserveArm(user) });
 }
 
+// The loop chrome. Per-language objects, never a literal at the call site —
+// the coach loops many times a session and every card she gets is in her own
+// language. (Language protocol: one writer, per-language data.)
+const REOPEN_BODY = {
+  ADD_SEARCH: { en: 'Search for the next school to add.', ur: 'اگلا اسکول تلاش کریں جو آپ شامل کرنا چاہتی ہیں۔' },
+  MANAGE_SCHOOLS: { en: 'Pick a school to remove from your list.', ur: 'اپنی فہرست سے ہٹانے کے لیے اسکول چنیں۔' },
+  MENU: { en: 'What would you like to do next?', ur: 'اب آپ کیا کرنا چاہیں گی؟' },
+};
+const REOPEN_CTA = {
+  ADD_SEARCH: { en: 'Add a school', ur: 'اسکول شامل کریں' },
+  MANAGE_SCHOOLS: { en: 'Remove a school', ur: 'اسکول ہٹائیں' },
+  MENU: { en: 'Open menu', ur: 'مینو کھولیں' },
+};
+
+/**
+ * bd-ve7kd — reopen the picker so a coach can loop.
+ *
+ * Meta's Flows are a DAG with one Footer per screen, so a loop cannot live
+ * inside the Flow (verified against Meta: a link cannot `complete`, a second
+ * Footer is rejected, and a route back to MENU is refused). Closing and
+ * reopening is the loop. `screen === null` reopens in data_exchange mode, which
+ * runs the endpoint's INIT and serves a freshly-built MENU.
+ */
+async function reopenObserveVisitFlow(user, from, screen, screenData) {
+  if (!OBSERVE_VISIT_FLOW_ID) return false;
+  const lang = clampLanguage(observeLang(user));
+  const key = screen || 'MENU';
+  const chrome = REOPEN_BODY[key] || REOPEN_BODY.MENU;
+  const cta = REOPEN_CTA[key] || REOPEN_CTA.MENU;
+  await WhatsAppService.sendFlow(from, {
+    flowId: OBSERVE_VISIT_FLOW_ID,
+    body: chrome[lang] || chrome.en,
+    buttonText: cta[lang] || cta.en,
+    flowToken: user.id,
+    screen: screen || undefined,          // undefined => data_exchange => MENU
+    screenData: screenData || undefined,
+  });
+  return true;
+}
+
 /**
  * bd-2432 — launch the school→teacher→brief picker when the flag is set AND the
  * coach has an assignment. Returns true when the Flow was sent (caller stops);
@@ -178,4 +218,5 @@ async function handleObserveCommand(user, from, messageBody) {
   }
 }
 
-module.exports = { handleObserveCommand, maybeLaunchVisitFlow };
+module.exports = {
+  reopenObserveVisitFlow, handleObserveCommand, maybeLaunchVisitFlow };
