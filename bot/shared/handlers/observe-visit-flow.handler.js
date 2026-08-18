@@ -28,6 +28,8 @@
 
 const LeaderSource = require('../services/observe/assignment/leader-source');
 const ObserveState = require('../services/observe/observe-state.service');
+// bd-88krt — Flow screen text is per-language DATA, never a literal here.
+const { observeStrings, observeLang } = require('../services/observe/observe-strings');
 const { buildBriefViewModel } = require('../services/observe/observe-brief-card');
 const { getObserveArm } = require('../services/observe/observe-gate');
 const { logToFile } = require('../utils/logger');
@@ -151,6 +153,106 @@ async function teachersScreen(userId, schoolExtId, page = 0) {
   };
 }
 
+
+// ── bd-88krt · search + act-on-a-visit (HITL R37/R39) ────────────────────────
+//
+// Meta's Flow Dropdown holds 200 options and has NO built-in search or filter
+// field, and there is no searchable-list component. The documented way to search
+// is TextInput -> data_exchange -> server-filtered options, which is what
+// SEARCH_TEACHER does. RadioButtonsGroup caps at 20, so that is the ceiling on
+// how many matches a screen can render — and it is why the action bar is a
+// radio group rather than several footer buttons (Meta allows only one Footer).
+
+const TEACHER_MATCH_CAP = 20;   // RadioButtonsGroup ceiling
+
+/**
+ * Filter a roster by part of a name. A BLANK term returns everyone — a coach
+ * with five teachers should never be made to type. Nameless rows can never
+ * match but must never throw.
+ */
+function filterTeachersByTerm(teachers, term, cap = TEACHER_MATCH_CAP) {
+  const list = Array.isArray(teachers) ? teachers : [];
+  const t = String(term == null ? '' : term).trim().toLowerCase();
+  if (!t) return list;
+  return list
+    .filter((x) => String((x && x.teacher_name) || '').toLowerCase().includes(t))
+    .slice(0, cap);
+}
+
+/**
+ * Which screen a choice from the action bar leads to. Anything unexpected (a
+ * stale Flow client, a renamed option) falls back to running the observation —
+ * the coach is standing in a classroom, so a dead end is the worst outcome.
+ */
+function visitActionTarget(choice) {
+  if (choice === 'reschedule') return 'SCHEDULE_EDIT';
+  if (choice === 'cancel') return 'CANCEL';
+  return 'BRIEF';
+}
+
+/** One line naming who, where and when. Unknown parts are omitted, never printed. */
+function visitSummary(row) {
+  const r = row || {};
+  const bits = [r.teacher_name, r.school_name].filter(Boolean).map((x) => clip(String(x), 24));
+  const when = [r.scheduled_for, r.scheduled_slot].filter(Boolean).join(' ');
+  if (when) bits.push(when);
+  return clip(bits.join(' · '), 80);
+}
+
+
+/**
+ * bd-88krt — which school a teacher belongs to. A cross-school name search
+ * returns no school, and the brief needs one; asking the roster is cheaper and
+ * more honest than threading an empty string through the Flow.
+ */
+async function schoolOfTeacher(userId, teacherExtId) {
+  try {
+    const all = await LeaderSource.listTeachers(userId);
+    const hit = (all || []).find((t) => String(t.teacher_ext_id) === String(teacherExtId));
+    return (hit && hit.school_ext_id) || '';
+  } catch (_) {
+    return '';
+  }
+}
+
+
+
+// bd-88krt — shorthands so the Flow steps stay readable. Screen copy is always
+// per-language DATA (language protocol), never a literal at the call site.
+const S_ = (lang) => observeStrings(lang);
+const _done = (heading, body, action = 'roster', schoolName = '') => ({
+  heading: heading || '',
+  body: body || '',
+  school_name: schoolName || '',
+  extension_message_response: { params: { observe_visit_action: action } },
+});
+
+/**
+ * SUCCESS payload. Every key the screen declares is filled here with a safe
+ * default, so no call site can omit one — a declared-but-missing key fails the
+ * entire screen with payload-schema-error, which is exactly how "Schedule an
+ * observation" broke live on 17 Aug.
+ */
+const _success = (heading, body, opts = {}) => ({
+  heading: heading || '',
+  body: body || '',
+  action: opts.action || 'done',
+  teacher_name: opts.teacherName || '',
+  sched_date: opts.date || '',
+  sched_slot: opts.slot || '',
+  extension_message_response: {
+    params: {
+      observe_visit_action: opts.action || 'done',
+      // flow_token rides along on the schedule close — dropping it broke
+      // visit-flow-scheduling when the payload moved into this helper.
+      ...(opts.flowToken ? { flow_token: opts.flowToken } : {}),
+      teacher_name: opts.teacherName || '',
+      sched_date: opts.date || '',
+      sched_slot: opts.slot || '',
+    },
+  },
+});
+
 // ── scheduling-UI builders (v2 Flow — bd-2443) ───────────────────────────────
 
 // Lazy requires — observe-debrief pulls whatsapp.service; keep cycles out.
@@ -181,8 +283,12 @@ async function menuScreen(userId) {
     {
       id: 'schedule',
       'main-content': {
+        // bd-88krt: the row now leads to run / reschedule / cancel, so it should
+        // say so. NavigationList caps title at 30 chars and metadata at 80.
         title: 'My schedule',
-        metadata: upcoming > 0 ? `${upcoming} upcoming` : 'Nothing scheduled yet',
+        metadata: upcoming > 0
+          ? `${upcoming} upcoming · run, reschedule or cancel`
+          : 'Nothing scheduled yet',
       },
       'on-click-action': { name: 'data_exchange', payload: { step: 'schedule' } },
     },
@@ -193,6 +299,15 @@ async function menuScreen(userId) {
         metadata: 'Pick a school and teacher',
       },
       'on-click-action': { name: 'data_exchange', payload: { step: 'schools' } },
+    },
+    {
+      // bd-88krt — occasional roster admin sits BELOW the daily actions.
+      id: 'manage',
+      'main-content': {
+        title: 'Add or remove a school',
+        metadata: 'Search every school by name or EMIS',
+      },
+      'on-click-action': { name: 'data_exchange', payload: { step: 'add_search_open' } },
     },
   ];
   return { screen: 'MENU', data: { items } };
@@ -267,8 +382,10 @@ async function schoolsScreenV2(userId) {
   return { screen: 'SELECT_SCHOOL', data: { options: _clampOptions(options, 'schools', userId) } };
 }
 
-async function teachersScreenV2(userId, schoolExtId) {
-  const teachers = await LeaderSource.listTeachers(userId, schoolExtId);
+async function teachersScreenV2(userId, schoolExtId, term = null) {
+  const all = await LeaderSource.listTeachers(userId, schoolExtId);
+  // bd-88krt: a term arrives only from SEARCH_TEACHER; blank means "show all".
+  const teachers = filterTeachersByTerm(all, term);
   const options = teachers.map((t) => ({
     id: String(t.teacher_ext_id),
     title: clip(t.teacher_name || 'Teacher', 30),
@@ -388,20 +505,20 @@ async function saveScheduleStep(userId, screenData) {
 /** The "I'm done for now" exit — endpoint-driven SUCCESS close. The chat ack
  * (localized, recapping the schedule + the /observe re-entry) is sent by
  * flow-response.handler off these params. */
-function successDone(flowToken, screenData) {
+function successDone(flowToken, screenData, lang = 'en') {
+  // bd-88krt: SUCCESS is now data-driven so a cancel stops reading "Observation
+  // scheduled". EVERY path to it must supply heading+body — a declared key the
+  // endpoint omits fails the whole screen (payload-schema-error, learned live).
+  const S = observeStrings(lang);
   return {
     screen: 'SUCCESS',
-    data: {
-      extension_message_response: {
-        params: {
-          observe_visit_action: 'done',
-          flow_token: flowToken,
-          teacher_name: (screenData && screenData.teacher_name) || '',
-          sched_date: (screenData && screenData.sched_date) || '',
-          sched_slot: (screenData && screenData.sched_slot) || '',
-        },
-      },
-    },
+    data: _success(S.flow_scheduled_heading, S.flow_scheduled_body, {
+      action: 'done',
+      flowToken,
+      teacherName: (screenData && screenData.teacher_name) || '',
+      date: (screenData && screenData.sched_date) || '',
+      slot: (screenData && screenData.sched_slot) || '',
+    }),
   };
 }
 
@@ -495,8 +612,14 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
     return bindAndStart(userId, screenData, user);
   }
 
+  // bd-88krt — the coach's language for Flow screen text, taken from the user
+  // object this handler already receives. No query, and nothing that can exit
+  // the process in a test.
+  const _flowLang = observeLang(user || {});
+
   if (action === 'data_exchange') {
     // v2-only steps (the v1 Flow never sends them, so they are inert dark)
+    if (step === 'add_search_open') return { screen: 'ADD_SEARCH', data: {} };
     if (step === 'debriefs') return debriefsScreen(userId);
     if (step === 'schedule') return scheduleScreen(userId);
     if (step === 'schools') return schoolsScreenV2(userId);
@@ -506,12 +629,158 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const rows = await _scheduleStore().listUpcoming(userId).catch(() => []);
       const row = rows.find((r) => String(r.id) === String(picked));
       if (!row) return scheduleScreen(userId);
+      // bd-88krt: offer run / reschedule / cancel first (HITL R39). Running the
+      // observation is still one tap away, so the common path costs nothing.
+      return { screen: 'VISIT_ACTION', data: { visit_id: String(row.id), summary: visitSummary(row) } };
+    }
+
+    // bd-88krt — the action bar's choice.
+    if (step === 'visit_action') {
+      const visitId = screenData && screenData.visit_id;
+      const rows = await _scheduleStore().listUpcoming(userId).catch(() => []);
+      const row = rows.find((r) => String(r.id) === String(visitId));
+      if (!row) return scheduleScreen(userId);
+      const target = visitActionTarget(screenData && screenData.choice);
+
+      if (target === 'CANCEL') {
+        const ok = await _scheduleStore().cancelById(userId, row.id).catch(() => false);
+        const S = observeStrings(_flowLang);
+        return {
+          screen: 'SUCCESS',
+          data: _success(
+            ok ? S.flow_cancelled_heading : S.flow_action_failed_heading,
+            ok ? S.flow_cancelled_body : S.flow_action_failed_body,
+            { action: ok ? 'cancelled' : 'noop', teacherName: row.teacher_name || '' },
+          ),
+        };
+      }
+      if (target === 'SCHEDULE_EDIT') {
+        const today = new Date();
+        const max = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000);
+        return { screen: 'SCHEDULE_EDIT', data: {
+          visit_id: String(row.id),
+          summary: visitSummary(row),
+          min_date: today.toISOString().slice(0, 10),
+          max_date: max.toISOString().slice(0, 10),
+          slots: _scheduleStore().SLOTS.map((x) => ({ id: String(x), title: String(x) })),
+        } };
+      }
       try { await ObserveState.setState(userId, 'awaiting_pick', { schoolExtId: row.school_ext_id, teacherExtId: row.teacher_ext_id, origin: 'schedule' }); } catch (_) {}
       return briefScreen(userId, { teacher_ext_id: row.teacher_ext_id, school_ext_id: row.school_ext_id, origin: 'schedule' }, 'BRIEF');
     }
+
+    // bd-88krt — save a reschedule.
+    if (step === 'visit_edit') {
+      const visitId = screenData && screenData.visit_id;
+      const date = screenData && screenData.date;
+      const slot = screenData && screenData.slot;
+      let ok = false;
+      try { ok = await _scheduleStore().rescheduleById(userId, visitId, date, slot); } catch (_) { ok = false; }
+      const rows2 = await _scheduleStore().listUpcoming(userId).catch(() => []);
+      const moved = rows2.find((r) => String(r.id) === String(visitId)) || {};
+      const S2 = observeStrings(_flowLang);
+      return {
+        screen: 'SUCCESS',
+        data: _success(
+          ok ? S2.flow_rescheduled_heading : S2.flow_action_failed_heading,
+          ok ? S2.flow_rescheduled_body : S2.flow_action_failed_body,
+          { action: ok ? 'rescheduled' : 'noop', teacherName: moved.teacher_name || '',
+            date: date || '', slot: slot || '' },
+        ),
+      };
+    }
+
+    // bd-88krt — the TextInput search. Meta gives no built-in Dropdown search,
+    // so the term comes back here and the options are filtered server-side.
+    if (step === 'teacher_search') {
+      // The search link sits on SELECT_SCHOOL, BEFORE a school is chosen, so
+      // there is no school to scope by — and searching the coach's whole patch
+      // is what she actually wants (median 123 teachers across her schools).
+      return teachersScreenV2(userId, null, screenData && screenData.term);
+    }
+
+    // ── bd-88krt · search, and owning your school list ───────────────────
+    const _admin = () => require('../services/observe/observe-school-admin.service');
+    const _opt = (id, title, description, metadata) => ({
+      id: String(id), title: clip(title || '', 30),
+      description: clip(description || '', 30), metadata: clip(metadata || '', 80),
+    });
+
+    // Schools I already have, by name or EMIS.
+    if (step === 'school_search') {
+      const A = _admin();
+      const mine = await A.listMySchools(userId).catch(() => []);
+      const hits = mine.filter((x) => A.matchSchool(x, screenData && screenData.term)).slice(0, A.RESULT_CAP);
+      const options = hits.length
+        ? hits.map((x) => _opt(x.school_ext_id, x.school_name, `EMIS ${x.emis || ''}`, ''))
+        : [_opt('none', S_(_flowLang).search_no_match, '', '')];
+      return { screen: 'SCHOOL_RESULTS', data: { options } };
+    }
+
+    // My teachers at a school, by name or phone.
+    if (step === 'teacher_search') {
+      const A = _admin();
+      const schoolExtId = (screenData && screenData.school_ext_id) || null;
+      const all = await LeaderSource.listTeachers(userId, schoolExtId).catch(() => []);
+      const hits = all.filter((t) => A.matchTeacher(t, screenData && screenData.term)).slice(0, A.RESULT_CAP);
+      const options = hits.length
+        ? hits.map((t) => _opt(t.teacher_ext_id, t.teacher_name, t.level || '', t.phone_e164 || ''))
+        : [_opt('none', S_(_flowLang).search_no_match, '', '')];
+      return { screen: 'TEACHER_RESULTS', data: { options, school_ext_id: String(schoolExtId || '') } };
+    }
+
+    // The whole universe of schools — what she can ADD.
+    if (step === 'add_search') {
+      const A = _admin();
+      const hits = await A.searchUniverse(userId, screenData && screenData.term).catch(() => []);
+      const options = hits.length
+        ? hits.map((x) => _opt(x.school_ext_id, x.school_name,
+            `EMIS ${x.emis}`, x.alreadyMine ? S_(_flowLang).school_already_mine : ''))
+        : [_opt('none', S_(_flowLang).search_no_match, '', '')];
+      return { screen: 'ADD_RESULTS', data: { options } };
+    }
+
+    if (step === 'add_school') {
+      const A = _admin();
+      const picked = screenData && screenData.picked;
+      const S = S_(_flowLang);
+      if (!picked || picked === 'none') return { screen: 'ACTION_DONE', data: _done(S.search_no_match, '') };
+      const res = await A.addSchoolForCoach(userId, picked).catch(() => ({ ok: false }));
+      if (!res.ok) return { screen: 'ACTION_DONE', data: _done(S.flow_action_failed_heading, S.flow_action_failed_body) };
+      return { screen: 'ACTION_DONE', data: _done(
+        S.school_added_heading,
+        // teacherCount (what she HOLDS) as well as teachersMapped (what this
+        // call wrote) — a re-submit maps 0 and must not read as "no teachers".
+        A.addedSchoolAck(_flowLang, {
+          schoolName: res.schoolName, teachersMapped: res.teachersMapped,
+          teacherCount: res.teacherCount, alreadyMine: res.alreadyMine,
+        }),
+        'roster', res.schoolName) };
+    }
+
+    if (step === 'manage') {
+      const A = _admin();
+      const mine = await A.listMySchools(userId).catch(() => []);
+      const options = mine.length
+        ? mine.map((x) => _opt(x.school_ext_id, x.school_name, `EMIS ${x.emis || ''}`, ''))
+        : [_opt('none', S_(_flowLang).search_no_match, '', '')];
+      return { screen: 'MANAGE_SCHOOLS', data: { options } };
+    }
+
+    if (step === 'remove_school') {
+      const A = _admin();
+      const picked = screenData && screenData.picked;
+      const S = S_(_flowLang);
+      if (!picked || picked === 'none') return { screen: 'ACTION_DONE', data: _done(S.search_no_match, '') };
+      const res = await A.removeSchoolForCoach(userId, picked).catch(() => ({ ok: false }));
+      return { screen: 'ACTION_DONE', data: res.ok
+        ? _done(S.school_removed_heading, A.removedSchoolAck(_flowLang, { schoolName: res.schoolName }), 'roster')
+        : _done(S.flow_action_failed_heading, S.flow_action_failed_body) };
+    }
+
     if (step === 'to_picker') return pickerScreen(userId, screenData);
     if (step === 'save_schedule') return saveScheduleStep(userId, screenData);
-    if (step === 'done') return successDone(flowToken || userId, screenData);
+    if (step === 'done') return successDone(flowToken || userId, screenData, _flowLang);
 
     if (step === 'school') {
       // v2 Dropdown Footer sends `picked`; the legacy NavigationList tap (and
@@ -522,7 +791,11 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
     }
     if (step === 'teacher') {
       if (screenData && screenData.picked != null) {
-        return briefScreen(userId, { teacher_ext_id: screenData.picked, school_ext_id: screenData.school_ext_id }, 'BRIEF_SCHEDULE');
+        // A cross-school search returns no school_ext_id, so resolve it from the
+        // teacher herself rather than sending the brief an empty school.
+        let schoolExtId = screenData.school_ext_id;
+        if (!schoolExtId) schoolExtId = await schoolOfTeacher(userId, screenData.picked);
+        return briefScreen(userId, { teacher_ext_id: screenData.picked, school_ext_id: schoolExtId }, 'BRIEF_SCHEDULE');
       }
       return briefScreen(userId, screenData, 'BRIEF');
     }
@@ -540,6 +813,12 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
 
 module.exports = {
   handle,
+  // bd-88krt — pure decisions, unit-tested
+  filterTeachersByTerm,
+  schoolOfTeacher,
+  visitActionTarget,
+  visitSummary,
+  TEACHER_MATCH_CAP,
   // exported for tests / reuse:
   schoolItem,
   teacherItem,

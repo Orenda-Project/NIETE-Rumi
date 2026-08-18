@@ -1307,7 +1307,7 @@ class WhatsAppService {
    */
   static async sendFlow(to, flowData) {
     try {
-      const { flowId, header, body, footer, buttonText = 'Start', screen, flowToken } = flowData;
+      const { flowId, header, body, footer, buttonText = 'Start', screen, flowToken, screenData } = flowData;
 
       if (!flowId) {
         logToFile('❌ Flow ID is required', { flowData });
@@ -1333,6 +1333,11 @@ class WhatsAppService {
         parameters.flow_action_payload = {
           screen: screen || 'READING_ASSESSMENT' // Default for backward compatibility
         };
+        // A screen that DECLARES data needs it supplied when we open straight
+        // onto it — navigate mode has no endpoint round-trip to fill it in.
+        if (screenData && Object.keys(screenData).length) {
+          parameters.flow_action_payload.data = screenData;
+        }
       }
 
       const payload = {

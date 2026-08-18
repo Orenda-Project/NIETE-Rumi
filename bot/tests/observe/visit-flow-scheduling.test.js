@@ -135,14 +135,37 @@ describe('SCHEDULE screen', () => {
     expect(again.screen).toBe('SCHEDULE');
   });
 
-  test('picking a schedule row → BRIEF (observe path) with origin remembered', async () => {
+  // bd-88krt changed this contract: picking a row now opens the action bar
+  // (run / reschedule / cancel) instead of jumping straight to the brief.
+  // Running the observation is still one tap away, and BACK still returns to
+  // SCHEDULE — both asserted below, so the original guarantee survives.
+  test('picking a schedule row → VISIT_ACTION, then "run" → BRIEF with origin remembered', async () => {
     mockSchedules.push({ id: 'os-1', teacher_name: 'Abid Ullah', school_name: 'IMCB', school_ext_id: 'niete:401', teacher_ext_id: '923331234567', scheduled_for: '2026-08-06', scheduled_slot: '08:30', overdue: false });
-    const res = await handler.handle('coach-1', 'data_exchange', 'SCHEDULE', { step: 'sched_teacher', picked: 'os-1' }, 'coach-1');
+    const bar = await handler.handle('coach-1', 'data_exchange', 'SCHEDULE', { step: 'sched_teacher', picked: 'os-1' }, 'coach-1');
+    expect(bar.screen).toBe('VISIT_ACTION');
+    expect(bar.data.visit_id).toBe('os-1');
+    expect(bar.data.summary).toContain('Abid Ullah');
+
+    const res = await handler.handle('coach-1', 'data_exchange', 'VISIT_ACTION', { step: 'visit_action', visit_id: 'os-1', choice: 'run' }, 'coach-1');
     expect(res.screen).toBe('BRIEF');
     expect(res.data.teacher_ext_id).toBe('923331234567');
     // BACK from BRIEF (schedule origin) returns to SCHEDULE, not the teacher list
     const back = await handler.handle('coach-1', 'BACK', 'BRIEF', {}, 'coach-1');
     expect(back.screen).toBe('SCHEDULE');
+  });
+
+  test('choosing "reschedule" opens the edit screen with a date window and slots', async () => {
+    mockSchedules.push({ id: 'os-2', teacher_name: 'Abid Ullah', school_name: 'IMCB', school_ext_id: 'niete:401', teacher_ext_id: '923331234567', scheduled_for: '2026-08-06', scheduled_slot: '08:30', overdue: false });
+    const res = await handler.handle('coach-1', 'data_exchange', 'VISIT_ACTION', { step: 'visit_action', visit_id: 'os-2', choice: 'reschedule' }, 'coach-1');
+    expect(res.screen).toBe('SCHEDULE_EDIT');
+    expect(res.data.visit_id).toBe('os-2');
+    expect(res.data.min_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(Array.isArray(res.data.slots)).toBe(true);
+  });
+
+  test('an unknown visit id falls back to the schedule rather than dead-ending', async () => {
+    const res = await handler.handle('coach-1', 'data_exchange', 'VISIT_ACTION', { step: 'visit_action', visit_id: 'nope', choice: 'cancel' }, 'coach-1');
+    expect(res.screen).toBe('SCHEDULE');
   });
 });
 
