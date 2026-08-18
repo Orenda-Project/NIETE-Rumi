@@ -27,9 +27,13 @@ const MIDFLIGHT_STATUSES = new Set([
   'analysis_started',
   'analysis_complete',
   'generating_report',
-  'awaiting_photo',
-  'awaiting_classroom_photo', // bd-2636 — the photo_yes-button naming
-  'awaiting_lesson_plan',
+  // bd-o29gk: the "awaiting_*" states (awaiting_photo, awaiting_classroom_photo,
+  // awaiting_lesson_plan) are DELIBERATELY NOT here. They are WAITING-FOR-THE-TEACHER
+  // states, not processing — the system is idle, waiting for her to send a photo or a
+  // lesson plan. Treating them as mid-flight told a teacher stuck at the photo/LP gate
+  // "I'm still analysing your previous recording. Hang tight." on every new recording,
+  // so she could never recover, and onboarding stalled (R60/R61/R62, ~40 stuck teachers
+  // 2026-08-18). A NEW recording while waiting-for-teacher must start a fresh session.
 ]);
 
 // After this long, a mid-flight session is treated as stuck — a new recording
