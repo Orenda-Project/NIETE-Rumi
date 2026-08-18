@@ -129,6 +129,12 @@ class ReportGeneratorService {
       session._isPartialReport = isPartialReport;
       session._isAutoCompleted = isAutoCompleted;
       session._isUserRequestedEarly = isUserRequestedEarly;
+      // bd-1sddt: recovery reports (skipReflection path) are "partial" only in the
+      // technical sense that no reflection was collected — but the teacher never saw a
+      // reflective conversation to leave incomplete, so the "N/3 responses / auto-completed"
+      // note would be confusing. Suppress the banner on this path; the report is otherwise
+      // whole (FICO from the audio).
+      session._suppressPartialBanner = payload.suppressPartialBanner || false;
       session._questionsAtCompletion = session.conversation_state?.questions_at_completion ||
         session.conversation_state?.questions_answered || 0;
 
@@ -1075,7 +1081,7 @@ class ReportGeneratorService {
 
     // Build partial report note if applicable
     let partialReportNote = null;
-    if (session._isPartialReport) {
+    if (session._isPartialReport && !session._suppressPartialBanner) {
       const questionsCompleted = session._questionsAtCompletion || 0;
       if (session._isAutoCompleted) {
         partialReportNote = questionsCompleted > 0

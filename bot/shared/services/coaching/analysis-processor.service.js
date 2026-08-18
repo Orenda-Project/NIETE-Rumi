@@ -201,6 +201,22 @@ class AnalysisProcessorService {
         return;
       }
 
+      // bd-1sddt: report-only recovery. When the analysis job is enqueued with
+      // skipReflection (recovering a session stranded at the photo/LP gate — bd-flx1r),
+      // generate the report DIRECTLY and do NOT start the reflective conversation. The
+      // FICO report is derived from the classroom audio (+ the corpus extracted here), so
+      // it is complete on the scoring side; the reflection is skipped by design. This is
+      // NEVER set in the normal live flow — new observations leave skipReflection unset and
+      // still get the reflective question below.
+      if (payload.skipReflection) {
+        const CoachingJobQueueService = require('./coaching-job-queue.service');
+        await CoachingJobQueueService.queueReport(coachingSessionId, {
+          from, partial: true, suppressPartialBanner: true,
+        });
+        logToFile('✅ Analysis complete — report queued, reflection skipped (bd-1sddt recovery)', { coachingSessionId });
+        return;
+      }
+
       // Send progress update - Step 3
       const lang3 = await _resolveSessionLanguage(coachingSessionId);
       await WhatsAppService.sendMessage(from, getCoachingMessage('step3_reflecting', lang3));
