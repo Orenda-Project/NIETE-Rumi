@@ -87,7 +87,16 @@ class SQSQueueService {
       }
 
       // Check Redis for duplicate job (idempotency check)
-      const idempotencyKey = `${this.JOB_PREFIX}${sessionId}:${jobType}`;
+      // bd-2645: the key MUST include the payload phase. The observe
+      // teacher-report flow queues three distinct phases (preview →
+      // deliver → teacher_tap) under ONE jobType, so a phase-blind key
+      // made the coach's 'yes, send' look like a duplicate of the preview
+      // for the whole 1-hour TTL: the deliver job was dropped, the
+      // delivery froze at 'awaiting_confirm', and the teacher never got
+      // the report while the coach was told it was on its way.
+      // Jobs without a phase keep their historical key shape exactly.
+      const phaseSuffix = payload && payload.phase ? `:${payload.phase}` : '';
+      const idempotencyKey = `${this.JOB_PREFIX}${sessionId}:${jobType}${phaseSuffix}`;
 
       try {
         const existingMessageId = await RedisService.get(idempotencyKey);
@@ -129,7 +138,16 @@ class SQSQueueService {
 
         // FIFO queue parameters
         MessageGroupId: sessionId,  // Ensures all jobs for a session are processed in order
-        MessageDeduplicationId: `${sessionId}-${jobType}`,  // Stable deduplication ID (no timestamp)
+        // bd-2652: the dedup id MUST include the payload phase. This queue is
+        // FIFO with a 5-MINUTE dedup window, and the observe teacher-report
+        // flow queues three phases (preview → deliver → teacher_tap) under one
+        // jobType. A coach taps "send" seconds after seeing the preview, so the
+        // deliver message landed inside the window with an identical dedup id
+        // and SQS discarded it — while still returning a MessageId, so the send
+        // looked successful and the report simply never arrived. Jobs without a
+        // phase keep their historical id exactly. (bd-2645 fixed the Redis
+        // idempotency key the same way; this is the second dedupe layer.)
+        MessageDeduplicationId: `${sessionId}-${jobType}${payload && payload.phase ? `-${payload.phase}` : ''}`,
 
         // Message attributes for filtering/monitoring
         MessageAttributes: {

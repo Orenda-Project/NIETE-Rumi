@@ -163,3 +163,78 @@ describe('bd-2335 — the guidance is rooted in the evidence, not generic', () =
     expect(prompt).toBeNull();
   });
 });
+
+// bd-2664 — an Urdu quiz's "For tomorrow" guidance was always generated in
+// English, glued onto an otherwise-Urdu report. language='ur' now routes to
+// a fully Urdu prompt, still grounded in the same real evidence.
+describe('bd-2664 — Urdu quizzes get Urdu guidance', () => {
+  const UR_HARDEST = [{
+    question_text: 'لفظ "آزادی" میں یے کی آواز کیا بتائی گئی؟',
+    wrong: 4, total: 8,
+    top_wrong_text: 'ی',
+    correct_text: 'ای',
+    misconception: 'بچے آخر کی آواز الجھا دیتے ہیں۔',
+  }];
+
+  test('the prompt is written in Urdu and carries the real Urdu evidence verbatim', () => {
+    const prompt = report.buildGuidancePrompt({
+      topic: 'چھوٹی یے اور بڑی یے کی آوازیں', grade: 'Prep',
+      average: 79, finished: 6, started: 8, hardest: UR_HARDEST, language: 'ur',
+    });
+    // the real question/distractor/reason pass through untouched — only the
+    // model's INSTRUCTIONS change language, not the evidence itself.
+    expect(prompt).toContain('آزادی');
+    expect(prompt).toContain('بچے آخر کی آواز الجھا دیتے ہیں۔');
+    // the instruction prose itself is Urdu, not English scaffolding.
+    expect(prompt).toMatch(/بالکل تین جملے لکھیں/);
+    expect(prompt).not.toMatch(/Write EXACTLY three sentences/);
+  });
+
+  test('never asks for Roman-Urdu — explicitly bans it', () => {
+    const prompt = report.buildGuidancePrompt({
+      topic: 'چھوٹی یے اور بڑی یے کی آوازیں', grade: 'Prep',
+      average: 79, finished: 6, started: 8, hardest: UR_HARDEST, language: 'ur',
+    });
+    expect(prompt).toMatch(/رومن اردو میں ہرگز نہیں/);
+  });
+
+  test('stays gender-neutral — never asserts the teacher\'s gender', () => {
+    const prompt = report.buildGuidancePrompt({
+      topic: 'چھوٹی یے اور بڑی یے کی آوازیں', grade: 'Prep',
+      average: 79, finished: 6, started: 8, hardest: UR_HARDEST, language: 'ur',
+    });
+    // gendered 2nd/3rd-person verb stems the project's Urdu-broadcast rule
+    // bans when the teacher's gender is unknown.
+    expect(prompt).not.toMatch(/سمجھتی ہوں گی|کریں گی|لکھتی ہے|پڑھتی ہے/);
+  });
+
+  // bd-2693 — NIETE is flat en/ur (root CLAUDE.md language-protocol): there
+  // is no product surface where a NIETE teacher's quiz could ever carry
+  // 'pa-PK'/'sd-PK', unlike the main bot's 5-market region-keyed offer this
+  // test previously assumed (wholesale-copied from PK without adapting to
+  // NIETE's actual language model, in the pre-develop `f34ba17` port). An
+  // out-of-scope language value now falls back to the SAFE default (English)
+  // rather than silently guessing Urdu for a language NIETE never offers.
+  test('an unsupported language value (e.g. pa-PK/sd-PK, out of NIETE\'s en/ur scope) falls back to English, not a silent Urdu guess', () => {
+    const paPrompt = report.buildGuidancePrompt({
+      topic: 'ٹیسٹ', average: 70, finished: 5, started: 6, hardest: UR_HARDEST, language: 'pa-PK',
+    });
+    const sdPrompt = report.buildGuidancePrompt({
+      topic: 'ٹیسٹ', average: 70, finished: 5, started: 6, hardest: UR_HARDEST, language: 'sd-PK',
+    });
+    expect(paPrompt).toMatch(/Write EXACTLY three sentences/);
+    expect(sdPrompt).toMatch(/Write EXACTLY three sentences/);
+  });
+
+  test('no language field (default) is unchanged — still the English prompt', () => {
+    const prompt = report.buildGuidancePrompt({
+      topic: 'Monocots and Dicots', grade: '6', average: 58, finished: 22, started: 26,
+      hardest: [{
+        question_text: 'A leaf has veins that run parallel to each other. Which group does this clue suggest?',
+        wrong: 16, total: 22, top_wrong_text: 'Dicot', correct_text: 'Monocot',
+        misconception: 'You flipped the vein rule.',
+      }],
+    });
+    expect(prompt).toMatch(/Write EXACTLY three sentences/);
+  });
+});

@@ -46,8 +46,12 @@ const SESSION_ROWS = [
 
 function makeQuery() {
   return jest.fn(async (sql) => {
-    if (/observation_schedules/i.test(sql)) return { rows: SCHEDULE_ROWS };
+    // bd-2670: the sessions query now LATERAL-joins observation_schedules to
+    // name the teacher, so it mentions BOTH tables. Discriminate on the
+    // sessions table first — matching observation_schedules first would hand
+    // the sessions query the schedule rows.
     if (/coaching_sessions/i.test(sql)) return { rows: SESSION_ROWS };
+    if (/observation_schedules/i.test(sql)) return { rows: SCHEDULE_ROWS };
     throw new Error(`unexpected sql: ${sql.slice(0, 80)}`);
   });
 }

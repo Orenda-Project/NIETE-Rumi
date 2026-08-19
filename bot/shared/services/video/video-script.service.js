@@ -16,7 +16,16 @@ const ffprobePath = require('@ffprobe-installer/ffprobe').path;
 
 // ElevenLabs configuration
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
-const VOICE_ID = 'cgSgspJ2msm6clMCkdW9'; // Jessica - works well for Urdu
+const { ELEVENLABS_URDU_VOICE_ID } = require('../../utils/constants');
+const { voiceLanguageRules } = require('../../config/voice-language-rules'); // bd-2651
+const VOICE_ID = 'cgSgspJ2msm6clMCkdW9'; // Jessica (English)
+// bd-2651: Jessica mangles Urdu (the lp-voicenotes V20 lesson). Urdu narration must
+// use Sara (eleven_v3). Pick the voice by language, don't hardcode Jessica for all.
+function voiceIdForLanguage(language) {
+  return String(language || 'en').slice(0, 2).toLowerCase() === 'ur'
+    ? ELEVENLABS_URDU_VOICE_ID
+    : VOICE_ID;
+}
 
 /**
  * STYLE_PREFIXES - Issue #35: Video Style Selection
@@ -95,7 +104,8 @@ class VideoScriptService {
         const { audioUrl, duration } = await this.generateVoiceover(
           speakableText,
           videoRequestId,
-          i + 1
+          i + 1,
+          language // bd-2651: route Urdu narration to Sara, not Jessica
         );
 
         audioData.push({
@@ -142,7 +152,7 @@ class VideoScriptService {
     // Simple languageNames causes GPT to generate Urdu instead of Punjabi
     const languageNames = {
       en: 'English',
-      ur: 'Urdu (Roman script for any Urdu words, keep English technical terms)',
+      ur: 'Urdu — written in Urdu Nastaliq script (NOT Roman/Latin), keep English technical terms in English',
       ar: 'Arabic',
       es: 'Spanish',
       'pa-PK': `Punjabi Shahmukhi (پنجابی).
@@ -198,6 +208,7 @@ Avoid war/military metaphors (post-war sensitivity).`
     // ISSUE #35: Style-agnostic prompts - GPT describes content only, style prefix applied later
     const prompt = `Create a ${slideCount}-slide educational video script about "${topic}" in ${langName}.
 ${customizationInstruction}
+${voiceLanguageRules(language)}
 
 === STYLE-AGNOSTIC PROMPTS (ISSUE #35) ===
 
@@ -348,10 +359,11 @@ Respond in JSON format:
    * @param {number} slideId - Slide number
    * @returns {Object} { audioUrl, duration }
    */
-  static async generateVoiceover(text, videoRequestId, slideId) {
-    logToFile('Generating voiceover', { videoRequestId, slideId, textLength: text.length });
+  static async generateVoiceover(text, videoRequestId, slideId, language = 'en') {
+    const voiceId = voiceIdForLanguage(language);
+    logToFile('Generating voiceover', { videoRequestId, slideId, textLength: text.length, language, voiceId });
 
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

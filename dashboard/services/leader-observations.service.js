@@ -30,15 +30,41 @@ const UPCOMING_SQL = `
   ORDER BY scheduled_for ASC, created_at ASC
 `;
 
+// bd-2670: the observed teacher is named from the linked schedule when there is
+// one. LATERAL + LIMIT 1 is deliberate: markDone() stamps session_id on EVERY
+// matching 'upcoming' row for that coach×teacher×school, and live data already
+// has duplicate schedules for one teacher — a plain LEFT JOIN would duplicate
+// the observation in the list.
 const SESSIONS_SQL = `
   SELECT c.id, c.created_at, c.status, c.debrief_status, c.analysis_data,
          c.report_pdf_url, c.user_id, c.observer_user_id,
-         u.first_name AS teacher_first_name
+         u.first_name AS teacher_first_name,
+         os.teacher_name  AS sched_teacher_name,
+         os.school_name   AS sched_school_name,
+         os.school_ext_id AS sched_school_ext_id
   FROM coaching_sessions c
   LEFT JOIN users u ON u.id = c.user_id
+  LEFT JOIN LATERAL (
+    SELECT s.teacher_name, s.school_name, s.school_ext_id
+    FROM observation_schedules s
+    WHERE s.session_id = c.id
+    ORDER BY s.updated_at DESC NULLS LAST
+    LIMIT 1
+  ) os ON true
   WHERE c.observer_user_id = $1 AND c.observation_type = 'leader_observation'
   ORDER BY c.created_at DESC
 `;
+
+/**
+ * The EMIS code coaches read is the suffix of school_ext_id ('niete:509' →
+ * '509'). Riffat asked for it because teachers share names across schools.
+ */
+function emisOf(schoolExtId) {
+  if (!schoolExtId) return null;
+  const s = String(schoolExtId);
+  const code = s.includes(':') ? s.slice(s.lastIndexOf(':') + 1) : s;
+  return code.trim() || null;
+}
 
 function isoDay(value) {
   if (!value) return null;
@@ -65,11 +91,26 @@ function shapeSession(r) {
   // A legacy unbound capture is owned by the observer — never show the coach's
   // own name as the observed teacher.
   const selfOwned = r.user_id && r.observer_user_id && r.user_id === r.observer_user_id;
+
+  // bd-2670: identity in priority order. `users.first_name` alone left 78% of
+  // live rows reading "Unassigned", because most captures are ad-hoc and the
+  // row ends up owned by the coach.
+  //   1. the schedule the coach booked (also carries school + EMIS)
+  //   2. the name she typed/picked when sending the report
+  //   3. the bound teacher's own account
+  const delivered = ((r.analysis_data || {}).teacher_delivery || {}).teacher_name;
+  const teacherName =
+    (r.sched_teacher_name || null)
+    || (delivered || null)
+    || (selfOwned ? null : (r.teacher_first_name || null));
+
   return {
     id: r.id,
     createdAt: r.created_at || null,
-    teacherName: selfOwned ? null : (r.teacher_first_name || null),
+    teacherName,
     teacherUserId: selfOwned ? null : (r.user_id || null),
+    schoolName: r.sched_school_name || null,
+    emis: emisOf(r.sched_school_ext_id),
     status: r.status,
     debriefStatus: r.debrief_status || null,
     score: overall && overall.percentage != null ? overall.percentage : null,

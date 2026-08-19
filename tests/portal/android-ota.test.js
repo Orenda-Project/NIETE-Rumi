@@ -46,26 +46,47 @@ describe('resolveOtaUrl — where the native shell loads its web assets', () => 
     it('derives the web origin from the configured API URL', () => {
       // The API path is stripped: the app loads the SITE, not the endpoint.
       expect(resolveOtaUrl({ isNative: true, apiBaseUrl: API })).toBe(
-        'https://portal-x.up.railway.app'
+        'https://portal-x.up.railway.app/portal/login'
       );
     });
 
     it('keeps a host that serves the API at its root', () => {
       expect(
         resolveOtaUrl({ isNative: true, apiBaseUrl: 'https://portal.niete.pk/api/portal' })
-      ).toBe('https://portal.niete.pk');
+      ).toBe('https://portal.niete.pk/portal/login');
     });
 
     it('ignores query strings and fragments', () => {
       expect(
         resolveOtaUrl({ isNative: true, apiBaseUrl: 'https://portal.niete.pk/api/portal?v=2' })
-      ).toBe('https://portal.niete.pk');
+      ).toBe('https://portal.niete.pk/portal/login');
     });
 
     it('preserves an explicit non-default port', () => {
       expect(
         resolveOtaUrl({ isNative: true, apiBaseUrl: 'https://staging.niete.pk:8443/api/portal' })
-      ).toBe('https://staging.niete.pk:8443');
+      ).toBe('https://staging.niete.pk:8443/portal/login');
+    });
+  });
+
+  // bd-2562: the first OTA APK on real hardware landed on a grey screen and
+  // deep-linked into Chrome. The resolver returned the bare ORIGIN, and the
+  // portal root 302-redirects to the public marketing site
+  // (https://niete.edu.pk). The WebView followed it, decided it was an
+  // external site, and handed off to the browser — leaving the app blank.
+  //
+  // Only the portal PATHS are the app: `/` is a redirect, `/portal/login` and
+  // `/portal/dashboard` both return 200 with no redirect. So the OTA target
+  // must be a portal path, never the origin.
+  describe('never lands on the redirecting root (bd-2562)', () => {
+    it('targets a /portal path, not the bare origin', () => {
+      const url = resolveOtaUrl({ isNative: true, apiBaseUrl: API });
+      expect(new URL(url).pathname).toMatch(/^\/portal\//);
+    });
+
+    it('is not the origin alone', () => {
+      const url = resolveOtaUrl({ isNative: true, apiBaseUrl: API });
+      expect(url).not.toBe(new URL(url).origin);
     });
   });
 
@@ -119,7 +140,8 @@ describe('resolveOtaUrl — where the native shell loads its web assets', () => 
       ]) {
         const ota = resolveOtaUrl({ isNative: true, apiBaseUrl: url });
         const api = resolveApiBaseUrl({ isNative: true, apiBaseUrl: url });
-        expect(api.startsWith(ota)).toBe(true);
+        // Same host: the app cannot load code from one server and data from another.
+        expect(new URL(ota).origin).toBe(new URL(api).origin);
       }
     });
   });

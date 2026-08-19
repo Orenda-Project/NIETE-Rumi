@@ -52,16 +52,17 @@ function resolveApiBaseUrl({ isNative = false, isProd = false, apiBaseUrl, origi
   if (isNative) {
     if (isAbsolute) return stripTrailingSlash(configured);
 
-    // bd-2554: under remote-first OTA the WebView runs the WEB bundle, served
-    // by the portal itself — so there is no VITE_API_BASE_URL, but there IS a
-    // real origin, and a relative path resolves against the very server that
-    // sent the page. Requiring an absolute URL here would throw at first
-    // render and white-screen the app the moment OTA is switched on, which is
-    // bd-2551 arriving through a different door.
+    // bd-2554/bd-2566: under remote-first OTA the WebView runs the WEB bundle,
+    // served by the portal itself — so there is no VITE_API_BASE_URL, but there
+    // IS a real origin, and a relative path resolves against the very server
+    // that sent the page. Requiring an absolute URL here throws at first render
+    // and white-screens the app on every launch. That shipped as versionCode
+    // 1208: the app loaded https://portal.niete.edu.pk/portal/login correctly,
+    // then died on this line before React could mount.
     //
-    // The original rule was never "native ⇒ absolute"; it was "no usable
-    // origin ⇒ absolute". A bundled app sits on https://localhost (or
-    // capacitor://localhost), where nothing is listening — that case must stay
+    // The rule was never "native => absolute"; it is "no usable origin =>
+    // absolute". A bundled app sits on https://localhost (or
+    // capacitor://localhost) where nothing is listening — that case must stay
     // loud. Being SERVED by a real https host is the evidence that it is safe.
     if (isServedByRealHost(origin)) return isProd ? '/api/portal' : stripTrailingSlash(origin) + '/api/portal';
 
@@ -98,23 +99,29 @@ function resolveApiBaseUrl({ isNative = false, isProd = false, apiBaseUrl, origi
 }
 
 /**
+ * The path an OTA build loads. Not `/` — the portal root 302-redirects to the
+ * public marketing site, which sent the WebView to Chrome and left the app
+ * grey (bd-2562). `/portal/login` is the app's entry point and returns 200
+ * with no redirect; the SPA router forwards an authenticated user onward.
+ */
+const OTA_ENTRY_PATH = '/portal/login';
+
+/**
  * Where should the native shell load its web assets from? (bd-2553)
  *
  * The Android app is a pure WebView wrap with no native plugins, so the web
  * bundle is the entire product. Loading it from the live portal turns every
  * web deploy into an instant update for all users, and reserves Play releases
- * for genuinely native changes. Without this, a one-line CSS fix needs a
- * signed upload and a Play review — which is how bd-2551's white screen stayed
- * live long enough to need a downtime notice to 80 coaches.
+ * for genuinely native changes (Capacitor, manifest, MainActivity, SDK).
  *
  * The origin is DERIVED from the API URL rather than configured separately, so
  * the host serving the code can never drift from the host serving the data.
  *
  * Returns `null` to mean "use the assets bundled in the APK". Every failure
  * path returns null rather than throwing: this runs at native boot, and a
- * throw here is precisely the white screen we are eliminating. The bundled
- * build is a known-good floor — shipping "the version in the APK" always beats
- * shipping nothing.
+ * throw here is a white screen with no way back — a bad server.url is compiled
+ * into the APK and cannot be fixed by a web deploy, only another Play release.
+ * The bundled build is a known-good floor.
  *
  * @param {object}  opts
  * @param {boolean} [opts.isNative]  running inside a Capacitor native shell
@@ -131,9 +138,18 @@ function resolveOtaUrl({ isNative = false, apiBaseUrl } = {}) {
     // https only: a WebView loading over http is mixed content, and any other
     // scheme (file:, ftp:) is not something we should ever boot from.
     if (url.protocol !== 'https:') return null;
-    // `origin` drops the path, query and fragment — the app loads the SITE,
-    // not the API endpoint — while preserving an explicit non-default port.
-    return url.origin;
+    // bd-2562: return a PORTAL PATH, not the bare origin.
+    //
+    // The origin alone looked right and was wrong on real hardware: the portal
+    // root 302-redirects to the public marketing site (niete.edu.pk), so the
+    // WebView followed the redirect, judged it an external site, and handed
+    // off to Chrome — leaving the app on a grey screen. `/portal/login`
+    // returns 200 with no redirect and is the app's real entry point; the SPA
+    // router sends an already-authenticated user on to the dashboard.
+    //
+    // `origin` is still what strips the API path, query and fragment while
+    // preserving an explicit non-default port.
+    return `${url.origin}${OTA_ENTRY_PATH}`;
   } catch {
     // Unparseable or relative — fall back to the bundled assets.
     return null;
@@ -141,26 +157,26 @@ function resolveOtaUrl({ isNative = false, apiBaseUrl } = {}) {
 }
 
 /**
- * Was this page served by a real remote host? (bd-2554)
+ * Was this page served by a real remote host? (bd-2559)
  *
- * Only then is a relative API path safe inside a native shell: the request
- * resolves against the server that sent the page. The two origins a Capacitor
- * shell uses for its BUNDLED assets — https://localhost and
- * capacitor://localhost — have no server behind them, which is the whole
- * reason resolveApiBaseUrl demands an absolute URL there.
+ * The signal for "this is a developer running `vite dev`" is the page's own
+ * origin — localhost:5173, with the API on a separate port — not what NODE_ENV
+ * happened to say when the bundle was built. A page served by a real https host
+ * is served by something that also serves the API, so a relative path is right.
  *
- * Deliberately conservative: anything unrecognised returns false and the
- * caller throws. A wrong "true" is a white screen with no way back, while a
- * wrong "false" is a loud build-time error — so unknown must fail closed.
+ * Deliberately conservative: anything unrecognised returns false, which falls
+ * back to the dev URL. That is the safe direction here — a developer sees an
+ * obviously wrong localhost call immediately, whereas a deployed build that
+ * guessed "real host" wrongly would be silently broken for users.
  */
 function isServedByRealHost(origin) {
   if (typeof origin !== 'string') return false;
   try {
     const { protocol, hostname } = new URL(origin);
-    // https only: capacitor:// and file:// are local shells, and a portal
-    // served over plain http is not a host we should trust for the API.
+    // https only: a portal served over plain http is not a host we should
+    // trust for the API, and file:// is not a server at all.
     if (protocol !== 'https:') return false;
-    // The Capacitor bundled-asset host. Nothing is listening on it.
+    // Local origins are the dev case, which is what the fallback is for.
     if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]') return false;
     return true;
   } catch {

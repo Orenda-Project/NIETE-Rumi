@@ -20,14 +20,13 @@
  *
  * The allowlist is a DERIVED artifact — it describes the callsites in one
  * branch's tree. Two diverged branches therefore legitimately hold different
- * allowlists (at the time of writing: 366 entries on `develop`, 389 on `main`),
- * and any cherry-pick or promotion that touches it will conflict. Promoting the
- * ratchet to `main` hit exactly this.
+ * allowlists (at the time of writing: 389 entries on `main`, 366 on `develop`),
+ * and any cherry-pick or promotion that touches it will conflict.
  *
  * Do NOT resolve such a conflict by picking a side or hand-merging the hunks.
  * Either side is simply the wrong description of the tree you are landing on,
  * and the result silently breaks the gate in one of two ways: entries for
- * callsites that don't exist there (the stale-entry assertion fires), or missing
+ * callsites that don't exist here (the stale-entry assertion fires), or missing
  * entries for ones that do (the no-new assertion fires). Instead:
  *
  *   git checkout --ours tests/setup/logger-level-consistency.allowlist.json

@@ -1,6 +1,7 @@
 const { CONVERSATION_HISTORY_LIMIT } = require('../utils/constants');
 const { logToFile } = require('../utils/logger');
 const { buildLanguagePrompt, hasEnhancedPrompt } = require('../config/language-prompts');
+const { voiceLanguageRules } = require('../config/voice-language-rules'); // bd-2651
 const { getConversationHistory: getDbConversationHistory } = require('../database/bot-helpers');
 const { getClient } = require('./llm-client');
 
@@ -211,7 +212,7 @@ ANTI-FALSE-PROMISE RULE (CRITICAL - applies to ALL languages):
       const capabilities = this._getCapabilitiesSection(language, useEmotionTags);
 
       const formatNote = format === 'voice'
-        ? '\n\nVOICE FORMAT: Keep responses SHORT (max 60 seconds). Complete thoughts, never end mid-sentence.'
+        ? `\n\nVOICE FORMAT: Keep responses SHORT (max 60 seconds). Complete thoughts, never end mid-sentence.\n${voiceLanguageRules(language)}` // bd-2651: spoken aloud — enforce Nastaliq/anti-Hindi (ur) or pure English
         : '\n\nTEXT FORMAT: Keep responses concise for WhatsApp. Be warm and supportive.';
 
       logToFile('Using enhanced language prompt', { language, format, ttsProvider: voiceModel?.provider ?? null, useEmotionTags });
@@ -252,7 +253,8 @@ CRITICAL: NEVER say "I can't do that" or "I'm unable to" for any of the 4 capabi
 
 ANTI-FALSE-PROMISE RULE: Only say "I'm creating a lesson plan/presentation" if the user EXPLICITLY asked you to create one (e.g., "create a lesson plan", "make me a presentation"). If they just mention a topic or ask a question (e.g., "Mathematics for grade 2", "How do I teach fractions?"), provide helpful educational guidance - but NEVER claim you are creating documents unless they specifically requested it. False promises destroy trust.
 
-Keep responses conversational and concise. MAXIMUM 60 seconds of speech (150-180 words). Be supportive, pedagogically sound, and speak like a caring friend who happens to be an expert educator.`;
+Keep responses conversational and concise. MAXIMUM 60 seconds of speech (150-180 words). Be supportive, pedagogically sound, and speak like a caring friend who happens to be an expert educator.
+${voiceLanguageRules('en')}`;
     }
 
     // Voice response in Urdu (no emotion tags, Uplift doesn't support them)
@@ -281,7 +283,8 @@ ${firstName ? `\nاستاد کا نام ${firstName} ہے۔ مناسب مواق�
 جھوٹے وعدے سے بچیں: صرف "میں بنا رہی ہوں" کہیں اگر انہوں نے واضح طور پر کہا ہو (جیسے "لیسن پلان بنا دو")۔ اگر وہ صرف موضوع بتائیں یا سوال پوچھیں، تو تعلیمی مشورہ دیں - دستاویز بنانے کا وعدہ نہ کریں۔
 
 Keep your responses short as they will be converted to voice. MAXIMUM 60 seconds.
-IMPORTANT: Always complete your thoughts - never end mid-sentence.`;
+IMPORTANT: Always complete your thoughts - never end mid-sentence.
+${voiceLanguageRules('ur')}`;
     }
 
     // Voice response in Arabic with emotion tags

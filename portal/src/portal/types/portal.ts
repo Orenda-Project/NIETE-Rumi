@@ -158,10 +158,14 @@ export interface LeaderPatchTeacher {
   phone: string | null;
   onRumi: boolean;
   rumiUserId: string | null;
-  coachingSessions: number;
+  coachingSessions: number;   // sessions the teacher recorded herself
+  observations: number;       // bd-2671: visits by a coach (/observe)
   lessonPlans: number;
   lastSessionAt: string | null;
   lastScore: number | null;   // framework-agnostic %, null if never coached
+  focusArea: string | null;   // bd-2672: the named area, not just "Focus Area"
+  schoolName: string | null;
+  emis: string | null;
 }
 
 /** My Patch headline KPIs + focus list (GET /leader/overview). */
@@ -191,8 +195,12 @@ export interface LeaderScheduledObservation {
 export interface LeaderObservationSession {
   id: string;
   createdAt: string | null;
-  teacherName: string | null;    // null for legacy unbound captures
+  // bd-2670: resolved from the linked schedule → the name given at send →
+  // the bound teacher's account. Null only when nothing identifies her.
+  teacherName: string | null;
   teacherUserId: string | null;
+  schoolName: string | null;
+  emis: string | null;           // '509' from school_ext_id 'niete:509'
   status: string;
   debriefStatus: string | null;
   score: number | null;          // framework-agnostic %

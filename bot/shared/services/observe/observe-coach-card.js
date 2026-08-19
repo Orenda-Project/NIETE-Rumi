@@ -121,13 +121,18 @@ function buildCoachCardHtml(fb, { lang = 'sw', brand } = {}) {
   // font discipline (Lexend for Latin; bd-64: embedded NotoNastaliqUrdu
   // for ALL Urdu — operator directive: Nastaliq on every Urdu artifact —
   // with hanging-script sizing: bigger line-heights, slightly smaller display).
+  // bd-2644: Nastaliq leads the stack for an Urdu card (RTL prose), but it is
+  // ALSO a permanent fallback below Lexend for every other card — the model
+  // routinely writes Urdu prose while the strings pack is English, and Lexend
+  // carries no Urdu glyphs, so gating the face on the pack printed a coach's
+  // whole card as tofu boxes. Latin still resolves to Lexend first.
   const urFont = rtl ? `'NastaliqUrdu',` : '';
   return `<!doctype html><html${rtl ? ' dir="rtl"' : ''}><head><meta charset="utf-8"><style>
 @font-face{font-family:'Lexend';font-weight:400;src:url(data:font/ttf;base64,${A.lexR})}
 @font-face{font-family:'Lexend';font-weight:700;src:url(data:font/ttf;base64,${A.lexB})}
 @font-face{font-family:'NastaliqUrdu';font-weight:400;src:url(data:font/ttf;base64,${A.nastR})}
 @font-face{font-family:'NastaliqUrdu';font-weight:700;src:url(data:font/ttf;base64,${A.nastB})}
-*{margin:0;padding:0;box-sizing:border-box;font-family:${urFont}'Lexend','Segoe UI',-apple-system,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box;font-family:${urFont}'Lexend','NastaliqUrdu','Segoe UI',-apple-system,sans-serif}
 .card{width:760px;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 1px 3px ${P.shadow}}
 .hd{background:${P.deep};color:#fff;padding:30px 38px 28px}
 .hd .top{display:flex;align-items:center;gap:14px;margin-bottom:18px}
