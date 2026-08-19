@@ -33,7 +33,13 @@ const fs = require('fs');
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const API_BASE = 'https://www.googleapis.com/calendar/v3/calendars';
-const SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+// The service account's domain-wide delegation grants `.../auth/calendar`, and
+// NOT `.../auth/calendar.events` — asking for the narrow one fails the token
+// mint outright with `unauthorized_client`, so every invite would have died
+// silently behind the non-blocking catch. Verified per scope against Google
+// with the real key before go-live. Do not "tighten" this without re-checking
+// the Admin Console grant.
+const SCOPE = 'https://www.googleapis.com/auth/calendar';
 
 /** Read at CALL time — a worker outlives any one env snapshot. */
 function config() {
