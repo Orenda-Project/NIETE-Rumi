@@ -100,8 +100,11 @@ describe('bd-fwqvm · the remove link must not read as the search box label', ()
     expect(body).toMatch(/add/);
   });
 
-  it('the link still opens the remove picker', () => {
+  it('the link still opens the remove path', () => {
+    // bd-gndeg moved this one hop: the link now opens the SEARCH screen, which
+    // then lists the matching schools. The destination is the same, the route
+    // gained a filter in front of it.
     const link = screen.layout.children.find((c) => c.type === 'EmbeddedLink');
-    expect(link['on-click-action'].payload.step).toBe('manage');
+    expect(link['on-click-action'].payload.step).toBe('manage_search');
   });
 });
