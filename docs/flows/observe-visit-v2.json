@@ -1179,17 +1179,7 @@
         "children": [
           {
             "type": "TextBody",
-            "text": "Search every school by name or EMIS code. Adding one brings its teachers with it."
-          },
-          {
-            "type": "EmbeddedLink",
-            "text": "Remove a school from my list",
-            "on-click-action": {
-              "name": "data_exchange",
-              "payload": {
-                "step": "manage"
-              }
-            }
+            "text": "Search every school by name or EMIS code to ADD it — its teachers come with it. To remove one instead, use the link at the bottom."
           },
           {
             "type": "Form",
@@ -1213,6 +1203,16 @@
                 }
               }
             ]
+          },
+          {
+            "type": "EmbeddedLink",
+            "text": "Remove a school from my list",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "step": "manage"
+              }
+            }
           }
         ]
       }

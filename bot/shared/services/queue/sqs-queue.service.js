@@ -22,6 +22,26 @@ const { logToFile } = require('../../utils/logger');
 const RedisService = require('../cache/railway-redis.service');
 const { getCurrentCorrelationId, logEvent } = require('../../utils/structured-logger');
 
+/**
+ * The FIFO dedup key. Extracted so it can be tested directly — the previous
+ * inline template was nested three deep and could only be checked by parsing
+ * the source, which is how a broken key went unnoticed twice.
+ *
+ * bd-2652: must include the phase — the observe teacher-report flow queues
+ *   preview -> deliver -> teacher_tap under one jobType and a coach taps "send"
+ *   seconds after the preview, inside the 5-MINUTE window.
+ * bd-sf6m7: must include the payload nonce — queueObserveDebrief has set one
+ *   since bd-56 and nothing read it, so that mechanism was inert.
+ * bd-rkofm: the language toggle re-queues the SAME phase, so the nonce is the
+ *   only thing that can distinguish the re-render from the first one.
+ * Jobs with neither keep their historical id exactly. SQS caps the id at 128.
+ */
+function buildDedupId(sessionId, jobType, payload) {
+  const phase = payload && payload.phase ? `-${payload.phase}` : '';
+  const nonce = payload && payload.dedupNonce ? `-${payload.dedupNonce}` : '';
+  return `${sessionId}-${jobType}${phase}${nonce}`.slice(0, 128);
+}
+
 class SQSQueueService {
   constructor() {
     // Configure AWS SDK
@@ -930,3 +950,4 @@ class SQSQueueService {
 
 // Export singleton instance
 module.exports = new SQSQueueService();
+module.exports.buildDedupId = buildDedupId;
