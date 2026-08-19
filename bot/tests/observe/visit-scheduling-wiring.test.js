@@ -157,12 +157,18 @@ describe('entry-point flag gate', () => {
     expect(WhatsAppService.sendFlow).not.toHaveBeenCalled();
   });
 
-  test('flag ON + NOT assigned: unchanged legacy path (interception)', async () => {
+  test('flag ON + NOT assigned: a coach now gets the Flow (bd-0cxz6)', async () => {
+    // bd-0cxz6 (R53, Fatima 18 Aug): this asserted the OPPOSITE until 19 Aug —
+    // that a coach with no assignment keeps the legacy path. That WAS the bug.
+    // The menu is the only route to "Add a school", so gating the menu on
+    // already having one locked 22 of 80 production coaches out of /observe.
+    // A coach now gets the Flow regardless of assignment; a non-coach without
+    // one still falls back (pinned by the non-coach test).
     mockDb.leader_schools = [];
     const handled = await handleObserveCommand(COACH, '92326', '/observe');
     expect(handled).toBe(true);
-    expect(WhatsAppService.sendFlow).not.toHaveBeenCalled();
-    expect(WhatsAppService.sendInteractiveMessage).toHaveBeenCalled();
+    expect(WhatsAppService.sendFlow).toHaveBeenCalled();
+    expect(WhatsAppService.sendInteractiveMessage).not.toHaveBeenCalled();
   });
 });
 

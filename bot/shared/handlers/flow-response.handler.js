@@ -727,6 +727,16 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
       user = data || null;
     } catch (_) { /* arm falls back inside the handler */ }
 
+    // bd-6cnaj — a debrief that is DONE but whose report never reached the
+    // teacher. Must return before the fall-through below, which ends in
+    // buildVisitCapturePrompt; the same ordering trap that had a cancelled
+    // visit still asking the coach to record a lesson.
+    if (visitAction === 'send_report') {
+      const ObserveSend = require('../services/observe/observe-send.service');
+      await ObserveSend.startSendFlow(responseJson.session_id, phoneNumber, user);
+      return true;
+    }
+
     if (visitAction === 'debrief') {
       const ObserveDebrief = require('../services/observe/observe-debrief.service');
       await ObserveDebrief.startDebrief(responseJson.session_id, phoneNumber, user);

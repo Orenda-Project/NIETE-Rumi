@@ -111,7 +111,13 @@ async function reopenObserveVisitFlow(user, from, screen, screenData) {
  */
 async function maybeLaunchVisitFlow(user, from) {
   try {
-    if (OBSERVE_VISIT_FLOW_ID && user && await leaderHasAssignment(user)) {
+    // bd-0cxz6: a coach with NO schools used to be refused here, which meant she
+    // never saw the menu — and the menu is the only way to add a first school.
+    // 22 of 80 prod coaches were locked out of /observe entirely by this. The
+    // assignment check stays as the fallback for anyone whose role was never
+    // set, so nobody who works today loses access.
+    const isCoach = user && user.role === 'coach';
+    if (OBSERVE_VISIT_FLOW_ID && user && (isCoach || await leaderHasAssignment(user))) {
       await sendObserveVisitFlow(user, from);
       return true;
     }
