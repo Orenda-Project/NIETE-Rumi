@@ -123,6 +123,16 @@ async function _gate(schedule) {
 async function _create(schedule, email) {
   const created = await google.insertEvent(_buildEvent(schedule, email));
   if (created && created.id) await _storeEventId(schedule.id, created.id);
+  // Operator telemetry: a working invite used to leave no trace at all, so
+  // "did she actually get it?" was unanswerable without opening her calendar.
+  logToFile('observe-calendar: invite sent', {
+    scheduleId: schedule && schedule.id,
+    eventId: created && created.id,
+    email,
+    teacher: schedule && schedule.teacher_name,
+    when: schedule && schedule.scheduled_for,
+  });
+  return created;
 }
 
 /** A visit was scheduled. */
@@ -150,6 +160,10 @@ async function onRescheduled(schedule) {
     if (!email) return;
     if (!schedule.calendar_event_id) return _create(schedule, email);
     await google.patchEvent(schedule.calendar_event_id, _timing(schedule));
+    logToFile('observe-calendar: invite moved', {
+      scheduleId: schedule.id, eventId: schedule.calendar_event_id, email,
+      when: schedule.scheduled_for, slot: schedule.scheduled_slot,
+    });
   } catch (err) {
     logToFile('observe-calendar: patch failed (non-blocking)', {
       scheduleId: schedule && schedule.id,
@@ -165,8 +179,12 @@ async function onCancelled(schedule) {
     const email = await _gate(schedule);
     if (!email) return;
     if (!schedule.calendar_event_id) return;
-    await google.deleteEvent(schedule.calendar_event_id);
+    const removedId = schedule.calendar_event_id;
+    await google.deleteEvent(removedId);
     await _storeEventId(schedule.id, null);
+    logToFile('observe-calendar: invite removed', {
+      scheduleId: schedule.id, eventId: removedId, email,
+    });
   } catch (err) {
     logToFile('observe-calendar: delete failed (non-blocking)', {
       scheduleId: schedule && schedule.id,
