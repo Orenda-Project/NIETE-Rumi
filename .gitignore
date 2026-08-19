@@ -129,3 +129,6 @@ __pycache__/
 # point-in-time dumps of what Meta was serving, kept locally as a rollback
 # artifact — not source, and per-environment, so they must not be committed.
 bot/scripts/setup/assets/backups/
+
+# Migration run artifacts — contain user UUIDs. Local evidence, never source.
+.migration-snapshots/
