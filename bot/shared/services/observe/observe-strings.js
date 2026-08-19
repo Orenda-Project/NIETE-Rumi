@@ -98,6 +98,9 @@ const STRINGS = {
       'Samahani — sikuweza kusikia mazungumzo ya kutosha kwenye rekodi hiyo. Kama debrief bado inaendelea, rekodi tena sehemu ndefu zaidi na unitumie — mwongozo bado uko hapa juu.',
     debrief_feedback_failed:
       'Nimeipokea rekodi yako, lakini nimeshindwa kuichambua sasa hivi. Andika /observe, chagua uchunguzi huo kwenye orodha, na urekodi tena — nitaisikiliza upya.',
+    // bd-jrxo3 — nothing bound: start from the school, then re-send the recording.
+    redirect_pick_teacher:
+      'Tuanze na shule ili rekodi hii imfikie mwalimu sahihi. Chagua shule, kisha mwalimu — kisha nitumie rekodi tena.',
     long_audio_no_state:
       '🎧 Nimepokea rekodi ndefu — lakini sina uchunguzi unaosubiri kwako sasa. Kama ni rekodi ya somo au ya debrief, andika /observe kwanza (na uchague uchunguzi husika), kisha nitumie rekodi tena.',
     coach_card_title: 'Mbili nzuri · moja ya kujaribu',
@@ -227,6 +230,9 @@ const STRINGS = {
     debrief_audio_received: '🎧 ڈی بریف کی ریکارڈنگ مل گئی — بھروسے کا شکریہ! سن کر چند منٹ میں آپ کو رائے بھیجوں گی۔ یہ صرف میرے اور آپ کے درمیان ہے۔',
     debrief_too_short: 'ریکارڈنگ بہت مختصر لگی۔ پوری گفتگو ریکارڈ کر کے دوبارہ بھیجیں۔',
     debrief_feedback_failed: 'معاف کیجیے، رائے تیار نہیں ہو سکی۔ ریکارڈنگ محفوظ ہے — تھوڑی دیر بعد دوبارہ کوشش ہو گی۔',
+    // bd-jrxo3 — gender-agnostic when addressing the coach (imperatives only).
+    redirect_pick_teacher:
+      'آئیے اسکول سے شروع کرتے ہیں تاکہ یہ ریکارڈنگ صحیح استاد تک پہنچے۔ پہلے اسکول چنیں، پھر استاد — اور اس کے بعد ریکارڈنگ دوبارہ بھیج دیں۔',
     long_audio_no_state: 'لمبی ریکارڈنگ ملی — لیکن ابھی کوئی مشاہدہ زیرِ عمل نہیں۔ پہلے /observe لکھیں، پھر ریکارڈنگ بھیجیں۔',
     coach_card_title: 'خوبیاں · بہتری · عملی منصوبہ',
     coach_card_eyebrow: 'کوچنگ کی رائے',
@@ -368,6 +374,9 @@ const STRINGS = {
       "Sorry — I couldn't hear enough of the conversation in that recording. If the debrief is still going, record a longer stretch and send it over — the guide is still right above.",
     debrief_feedback_failed:
       "I received your recording but couldn't analyze it just now. Type /observe, pick that observation from the list, and record again — I'll listen fresh.",
+    // bd-jrxo3 — the accepted cost is stated plainly: she sends it again.
+    redirect_pick_teacher:
+      "Let's start from the school so this reaches the right teacher. Pick the school, then the teacher — then send me the recording again.",
     long_audio_no_state:
       "🎧 I received a long recording — but there's no observation waiting for you right now. If this was a lesson or debrief recording, type /observe first (and pick the right observation), then send it again.",
     coach_card_title: 'Strengths · growth · action plan',

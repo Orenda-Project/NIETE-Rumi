@@ -107,11 +107,17 @@ describe('1. flow-type-detector', () => {
   });
 });
 
+// UPDATED 2026-08-19 (bd-jrxo3). maybeLaunchVisitFlow returned a boolean, and a
+// boolean could not tell "there is no picker in this market" apart from "this
+// person may not use the picker" — only the first of those may fall back to a
+// bare capture. It now returns 'launched' | 'declined' | 'unavailable'. Every
+// assertion below is the SAME assertion against the new vocabulary; the outcome
+// each case describes is unchanged.
 describe('2. maybeLaunchVisitFlow gate', () => {
   test('env set + assignment → sends the Flow with flowToken=user.id', async () => {
     mockDb.leader_schools = [{ id: 'ls-1', leader_user_id: 'coach-1' }];
     const launched = await maybeLaunchVisitFlow(COACH, '923268124132');
-    expect(launched).toBe(true);
+    expect(launched).toBe('launched');
     const call = WhatsAppService.sendFlow.mock.calls[0];
     expect(call[1].flowId).toBe('visit-flow-123');
     expect(call[1].flowToken).toBe('coach-1');
@@ -125,19 +131,19 @@ describe('2. maybeLaunchVisitFlow gate', () => {
     // A coach now gets the Flow regardless of assignment; a non-coach without
     // one still falls back (pinned by the non-coach test).
     mockDb.leader_schools = [];
-    expect(await maybeLaunchVisitFlow(COACH, '92326')).toBe(true);
+    expect(await maybeLaunchVisitFlow(COACH, '92326')).toBe('launched');
     expect(WhatsAppService.sendFlow).toHaveBeenCalled();
   });
 
-  test('no assignment AND not a coach → still false', async () => {
+  test('no assignment AND not a coach → declined (a Flow exists; she may not use it)', async () => {
     mockDb.leader_schools = [];
     const TEACHER = { id: 'teacher-1', role: 'teacher', preferred_language: 'ur' };
-    expect(await maybeLaunchVisitFlow(TEACHER, '92326')).toBe(false);
+    expect(await maybeLaunchVisitFlow(TEACHER, '92326')).toBe('declined');
     expect(WhatsAppService.sendFlow).not.toHaveBeenCalled();
   });
 
   test('null user never throws', async () => {
-    expect(await maybeLaunchVisitFlow(null, '92326')).toBe(false);
+    expect(await maybeLaunchVisitFlow(null, '92326')).toBe('declined');
   });
 
   test('/observe capture branch routes through the picker when assigned', async () => {
