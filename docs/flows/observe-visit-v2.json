@@ -59,12 +59,15 @@
     ],
     "ADD_SEARCH": [
       "ADD_RESULTS",
-      "MANAGE_SCHOOLS"
+      "REMOVE_SEARCH"
     ],
     "ADD_RESULTS": [
       "ACTION_DONE"
     ],
-    "ACTION_DONE": []
+    "ACTION_DONE": [],
+    "REMOVE_SEARCH": [
+      "MANAGE_SCHOOLS"
+    ]
   },
   "screens": [
     {
@@ -1210,7 +1213,7 @@
             "on-click-action": {
               "name": "data_exchange",
               "payload": {
-                "step": "manage"
+                "step": "manage_search"
               }
             }
           }
@@ -1277,6 +1280,44 @@
                   "payload": {
                     "step": "add_school",
                     "picked": "${form.pick}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "REMOVE_SEARCH",
+      "title": "Remove a school",
+      "refresh_on_back": true,
+      "data": {},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "Search YOUR schools by name or EMIS code to remove one. Leave it blank to see them all."
+          },
+          {
+            "type": "Form",
+            "name": "remove_search_form",
+            "children": [
+              {
+                "type": "TextInput",
+                "name": "term",
+                "label": "Name or EMIS code",
+                "required": false
+              },
+              {
+                "type": "Footer",
+                "label": "Show my schools",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "manage",
+                    "term": "${form.term}"
                   }
                 }
               }
