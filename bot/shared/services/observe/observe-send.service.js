@@ -377,7 +377,14 @@ async function handleSendLangToggle(sessionId, from, user) {
     await mergeTeacherDelivery(sessionId, { lang_override: next, status: 'previewing' });
     await WhatsAppService.sendMessage(from, S.send_lang_switching);
     const CoachingJobQueueService = require('../coaching/coaching-job-queue.service');
-    await CoachingJobQueueService.queueObserveTeacherReport(sessionId, { from, phase: 'preview' });
+    // bd-rkofm: the FIRST preview already queued phase 'preview' for this
+    // session, and SQS FIFO dedups on a 5-MINUTE window — which a coach is
+    // always inside when she taps this button. Without a nonce the re-render is
+    // silently discarded and she waits forever. Keyed on the TARGET language so
+    // a double-tap of the same button still collapses to one re-render.
+    await CoachingJobQueueService.queueObserveTeacherReport(sessionId, {
+      from, phase: 'preview', dedupNonce: `lang-${next}`,
+    });
     logToFile('🌐 observe send: report language switched', { sessionId, from: current, to: next });
   } catch (err) {
     logToFile('❌ observe send: language toggle failed', { sessionId, error: err.message }, 'error');
