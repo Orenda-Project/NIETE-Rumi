@@ -543,6 +543,36 @@ class SQSQueueService {
   }
 
   /**
+   * bd-yd2kb (ports main-bot bd-1541): release an in-flight message back to its
+   * queue IMMEDIATELY (VisibilityTimeout: 0) so another worker can claim it right
+   * away — instead of the message staying invisible for the full per-queue
+   * visibility timeout (up to 20 min on coaching). Used on graceful shutdown so a
+   * deploy mid-analysis never makes a teacher wait for her report.
+   *
+   * @param {string} receiptHandle - SQS receipt handle
+   * @param {string} sourceQueue   - 'main' | 'video' | 'quiz' (default 'main')
+   * @returns {Promise<void>}
+   */
+  async releaseInFlightMessage(receiptHandle, sourceQueue = 'main') {
+    let queueUrl;
+    if (sourceQueue === 'video') {
+      queueUrl = this.videoQueueUrl;
+    } else if (sourceQueue === 'quiz') {
+      queueUrl = this.quizQueueUrl;
+    } else {
+      queueUrl = this.queueUrl;
+    }
+    if (!queueUrl) {
+      throw new Error(`SQS Queue not configured for sourceQueue=${sourceQueue}`);
+    }
+    await this.sqs.changeMessageVisibility({
+      QueueUrl: queueUrl,
+      ReceiptHandle: receiptHandle,
+      VisibilityTimeout: 0,
+    }).promise();
+  }
+
+  /**
    * Return job to queue for retry
    * Job will become visible again after current visibility timeout expires
    *
