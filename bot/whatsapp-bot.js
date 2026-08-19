@@ -2412,7 +2412,21 @@ ${'='.repeat(70)}
 }
 
 if (require.main === module) {
-  startServer();
+  const server = startServer();
+  // bd-gc7uc: graceful web drain. On a deploy SIGTERM, stop accepting new
+  // connections and let in-flight webhook handlers finish before exit, so a
+  // deploy never cuts a request mid-processing (e.g. a coaching audio being
+  // enqueued). Railway's healthcheck already routes NEW webhooks to the new
+  // container; this protects the old one's in-flight work. Hard-exit fallback so
+  // we never hang past Railway's kill window.
+  const gracefulWebShutdown = (signal) => {
+    logToFile(`🛑 ${signal} received — draining HTTP server`);
+    const force = setTimeout(() => { logToFile('⚠️ Web drain timeout — forcing exit'); process.exit(0); }, 25000);
+    if (typeof force.unref === 'function') force.unref();
+    server.close(() => { logToFile('✅ HTTP server drained, exiting'); process.exit(0); });
+  };
+  process.on('SIGTERM', () => gracefulWebShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulWebShutdown('SIGINT'));
 }
 
 module.exports = { app, startServer };
