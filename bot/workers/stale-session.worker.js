@@ -28,10 +28,40 @@ const CoachingJobQueueService = require('../shared/services/coaching/coaching-jo
 const { runSonioxCleanup } = require('../shared/services/soniox-cleanup.service');
 const { classifyStuckInitiatedSession } = require('../shared/services/coaching/coaching-stale-recovery');
 
-// Coaching thresholds (in milliseconds)
-const COACHING_REMINDER_THRESHOLD_MS = 2 * 60 * 60 * 1000;  // 2 hours
-const COACHING_AUTO_COMPLETE_THRESHOLD_MS = 12 * 60 * 60 * 1000;  // 12 hours
-const USER_ACTIVE_THRESHOLD_MS = 5 * 60 * 1000;  // 5 minutes = user considered active
+// Coaching thresholds (in milliseconds).
+//
+// bd-2700: these were hardcoded, which made the reflection-timeout path
+// untestable — one end-to-end verification cost 12 hours of waiting. They are now
+// env-overridable in MINUTES, defaulting to the production values. Staging sets
+// COACHING_REMINDER_MINUTES=2 / COACHING_AUTO_COMPLETE_MINUTES=5 so the whole
+// reminder → auto-complete → partial-report path can be exercised in one sitting.
+//
+// PRODUCTION MUST NOT SET THESE. A 5-minute auto-complete on prod would cut real
+// teachers off mid-reflection and ship them a partial report while they type.
+const MINUTE_MS = 60 * 1000;
+
+/**
+ * Read a minutes-valued env override, falling back to a default when unset,
+ * non-numeric, or negative. Zero IS honoured — COACHING_USER_ACTIVE_MINUTES=0
+ * deliberately disables the "user is active, skip them" guard, which otherwise
+ * swallows every short-threshold test run (a teacher actively testing is never
+ * idle enough to sweep).
+ */
+function _minutesFromEnv(name, defaultMs) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === null || String(raw).trim() === '') return defaultMs;
+  const mins = Number(raw);
+  if (!Number.isFinite(mins) || mins < 0) return defaultMs;
+  return mins * MINUTE_MS;
+}
+
+const COACHING_REMINDER_THRESHOLD_MS = _minutesFromEnv('COACHING_REMINDER_MINUTES', 2 * 60 * MINUTE_MS);  // default 2 hours
+const COACHING_AUTO_COMPLETE_THRESHOLD_MS = _minutesFromEnv('COACHING_AUTO_COMPLETE_MINUTES', 12 * 60 * MINUTE_MS);  // default 12 hours
+const USER_ACTIVE_THRESHOLD_MS = _minutesFromEnv('COACHING_USER_ACTIVE_MINUTES', 5 * MINUTE_MS);  // default 5 minutes
+// bd-j3j4b: how long a session may sit at the photo / lesson-plan gate before we
+// auto-advance it to a report (default 60 min). The photo/LP is optional.
+const PHOTO_GATE_THRESHOLD_MS = _minutesFromEnv('COACHING_PHOTO_GATE_MINUTES', 60 * MINUTE_MS);
+const { PHOTO_GATE_STATUSES, shouldAutoAdvancePhotoGate } = require('../shared/services/coaching/photo-gate-sweep');
 
 // Future: Reading assessment thresholds
 // const READING_REMINDER_THRESHOLD_MS = 1 * 60 * 60 * 1000;  // 1 hour
@@ -519,7 +549,67 @@ async function runRecovery() {
   } catch (err) {
     logToFile('⚠️ untapped sweep threw (non-blocking)', { error: err.message });
   }
-  return { coaching, stuckInitiated, untapped };
+  let photoGate = { found: 0, advanced: 0 };
+  try {
+    photoGate = await processStuckPhotoGateSessions();
+  } catch (err) {
+    logToFile('⚠️ photo-gate sweep threw (non-blocking)', { error: err.message });
+  }
+  return { coaching, stuckInitiated, untapped, photoGate };
+}
+
+/**
+ * bd-j3j4b: recover coaching sessions frozen at the photo / lesson-plan gate.
+ * The photo/LP is optional and the FICO report is derivable from the class audio,
+ * but a session that reached awaiting_photo / awaiting_classroom_photo /
+ * awaiting_lesson_plan and never received a well-formed photo has nothing to
+ * un-stick it (unlike conducting_conversation, which the 12h auto-complete
+ * catches). Past PHOTO_GATE_THRESHOLD we auto-advance: queue analysis with
+ * skipReflection (report-only — the teacher left; the vision pass still runs on
+ * any captured photo) so she still gets her report.
+ */
+async function processStuckPhotoGateSessions() {
+  const cutoff = new Date(Date.now() - PHOTO_GATE_THRESHOLD_MS).toISOString();
+  const { data: stuck, error } = await supabase
+    .from('coaching_sessions')
+    .select('id, user_id, status, created_at, updated_at, transcript_text, users!inner(phone_number, first_name)')
+    .in('status', PHOTO_GATE_STATUSES)
+    .lt('created_at', cutoff);
+  if (error) {
+    logToFile('❌ photo-gate sweep query failed', { error: error.message });
+    return { found: 0, advanced: 0 };
+  }
+
+  const now = Date.now();
+  let advanced = 0;
+  for (const session of stuck || []) {
+    if (!shouldAutoAdvancePhotoGate(session, now, PHOTO_GATE_THRESHOLD_MS)) continue;
+    try {
+      // Move it off the gate status FIRST so the next tick can't re-sweep it.
+      await supabase
+        .from('coaching_sessions')
+        .update({ status: 'analysis_started' })
+        .eq('id', session.id);
+
+      await CoachingJobQueueService.queueAnalysis(session.id, {
+        from: session.users.phone_number,
+        trigger: 'photo_gate_timeout',
+        skipReflection: true,
+      });
+
+      await WhatsAppService.sendMessage(
+        session.users.phone_number,
+        `Hi ${session.users.first_name}! I'm putting together your coaching report from your class recording now. 📊`
+      );
+
+      advanced++;
+      logToFile('✅ Photo-gate session auto-advanced → report', { sessionId: session.id, wasStatus: session.status });
+    } catch (err) {
+      logToFile('❌ Failed to auto-advance photo-gate session', { sessionId: session.id, error: err.message });
+    }
+  }
+  if ((stuck || []).length) logToFile('🔔 photo-gate sweep done', { found: stuck.length, advanced });
+  return { found: (stuck || []).length, advanced };
 }
 
 module.exports = {
@@ -527,6 +617,15 @@ module.exports = {
   runRecovery,
   processStuckInitiatedSessions,
   processStaleCoachingSessions,
-  // bd-2675 — the untapped-report sweep
+  processStuckPhotoGateSessions,
   processUntappedReports,
+  // bd-2700: resolved thresholds, exported so tests can assert the env overrides
+  // and so a deploy can log what it actually picked up (a staging value silently
+  // shipping to prod is the failure mode worth catching loudly).
+  __thresholds: {
+    reminderMs: COACHING_REMINDER_THRESHOLD_MS,
+    autoCompleteMs: COACHING_AUTO_COMPLETE_THRESHOLD_MS,
+    userActiveMs: USER_ACTIVE_THRESHOLD_MS,
+    photoGateMs: PHOTO_GATE_THRESHOLD_MS,
+  },
 };
