@@ -829,13 +829,25 @@ async function _continueObserveLoop(target, user, phoneNumber, userId) {
       const admin = require('../services/observe/observe-school-admin.service');
       const mine = await admin.listMySchools(userId).catch(() => []);
       if (!mine.length) return reopenObserveVisitFlow(user, phoneNumber, null);
+      // EVERY key the screen declares, or the screen fails to render and the
+      // coach's tap does nothing — the payload-schema-error class again. In
+      // navigate mode there is no endpoint round-trip to fill these in, so the
+      // shape must match what the endpoint's own `manage` step would return.
       screenData = {
         options: mine.slice(0, admin.RESULT_CAP).map((m) => ({
-          id: m.school_ext_id, title: String(m.school_name || m.school_ext_id).slice(0, 30),
+          id: String(m.school_ext_id),
+          title: String(m.school_name || m.school_ext_id).slice(0, 30),
+          description: m.emis ? `EMIS ${m.emis}` : '',
+          metadata: '',
         })),
       };
     }
-    await reopenObserveVisitFlow(user, phoneNumber, target.screen, screenData);
+    const sent = await reopenObserveVisitFlow(user, phoneNumber, target.screen, screenData);
+    // Never strand her: if opening straight onto the screen was rejected, put
+    // the menu back in front of her rather than leaving the tap looking dead.
+    if (sent === false && target.screen) {
+      await reopenObserveVisitFlow(user, phoneNumber, null);
+    }
   } catch (err) {
     logToFile('observe loop reopen failed — coach can still use /observe', { userId, error: err.message });
   }
