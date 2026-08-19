@@ -256,6 +256,11 @@ const _success = (heading, body, opts = {}) => ({
 // ── scheduling-UI builders (v2 Flow — bd-2443) ───────────────────────────────
 
 // Lazy requires — observe-debrief pulls whatsapp.service; keep cycles out.
+// bd-0cxz6: MODULE scope. This used to be declared inside handle(), so
+// menuScreen's call to it threw ReferenceError, was swallowed by a catch,
+// and the empty-school menu silently never trimmed.
+const _admin = () => require('../services/observe/observe-school-admin.service');
+
 const _debriefService = () => require('../services/observe/observe-debrief.service');
 const _scheduleStore = () => require('../services/observe/observe-schedule.service');
 
@@ -723,7 +728,6 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
     }
 
     // ── bd-88krt · search, and owning your school list ───────────────────
-    const _admin = () => require('../services/observe/observe-school-admin.service');
     const _opt = (id, title, description, metadata) => ({
       id: String(id), title: clip(title || '', 30),
       description: clip(description || '', 30), metadata: clip(metadata || '', 80),
