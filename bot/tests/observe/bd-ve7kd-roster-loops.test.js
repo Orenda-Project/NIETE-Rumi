@@ -206,6 +206,6 @@ describe('bd-k3w4l · the interstitials say what actually happened', () => {
 
   it('a failed reopen is swallowed — the coach is never left mid-loop with an error', () => {
     const fn = src.slice(src.indexOf('async function _continueObserveLoop'));
-    expect(fn.slice(0, 1400)).toMatch(/catch \(err\)/);
+    expect(fn.slice(0, 2200)).toMatch(/catch \(err\)/);
   });
 });

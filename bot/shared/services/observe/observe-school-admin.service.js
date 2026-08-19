@@ -302,10 +302,16 @@ async function removeSchoolForCoach(leaderUserId, schoolExtId) {
     .from('leader_schools').select('school_name').eq('leader_user_id', leaderUserId)
     .eq('school_ext_id', schoolExtId).limit(1);
   if (!mine || !mine[0]) return { ok: false, reason: 'not_mine' };
-  await supabase.from('leader_teachers').delete()
+  // Check BOTH deletes. These used to be fire-and-forget with an unconditional
+  // ok:true, so a blocked delete still printed "Removed *X*" — which is how a
+  // removal that removed nothing stayed invisible in production.
+  const { error: tErr } = await supabase.from('leader_teachers').delete()
     .eq('leader_user_id', leaderUserId).eq('school_ext_id', schoolExtId);
-  await supabase.from('leader_schools').delete()
+  const { error: sErr } = await supabase.from('leader_schools').delete()
     .eq('leader_user_id', leaderUserId).eq('school_ext_id', schoolExtId);
+  if (tErr || sErr) {
+    return { ok: false, reason: 'delete_failed', error: (sErr || tErr).message || String(sErr || tErr) };
+  }
   return { ok: true, schoolName: mine[0].school_name };
 }
 
