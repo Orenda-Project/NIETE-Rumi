@@ -292,6 +292,19 @@ function main() {
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+  /**
+   * Read every user row.
+   *
+   * `.order('id')` is REQUIRED, not stylistic. `.range()` paginates with
+   * LIMIT/OFFSET and Postgres gives no stable row order without an ORDER BY, so
+   * concurrent writes (registrations land continuously here) can shift rows
+   * between pages — silently skipping or double-counting teachers across a
+   * 9,500-row scan. `id` is the primary key, so the ordering is total and stable.
+   *
+   * The count assertion is the backstop: if pagination still lost a row, the
+   * fetched total will not match an exact server-side count, and this refuses to
+   * proceed rather than migrate a silently incomplete set.
+   */
   async function fetchAllUsers() {
     const out = [];
     const page = 1000;
@@ -299,10 +312,21 @@ function main() {
       const { data, error } = await supabase
         .from('users')
         .select('id,preferred_language,language_locked')
+        .order('id')
         .range(from, from + page - 1);
       if (error) throw new Error(`fetch failed: ${error.message}`);
       out.push(...data);
       if (data.length < page) break;
+    }
+    const { count, error: cErr } = await supabase
+      .from('users')
+      .select('id', { count: 'exact', head: true });
+    if (cErr) throw new Error(`count check failed: ${cErr.message}`);
+    if (typeof count === 'number' && count !== out.length) {
+      throw new Error(
+        `ABORT: paginated scan returned ${out.length} rows but the table reports ${count}. ` +
+          'Refusing to migrate a partial set.'
+      );
     }
     return out;
   }
@@ -349,6 +373,7 @@ function main() {
         .from('conversations')
         .select('user_id')
         .gte('created_at', since)
+        .order('created_at')
         .range(from, from + page - 1);
       if (error) throw new Error(`activity query failed: ${error.message}`);
       for (const r of data) if (r.user_id) ids.add(r.user_id);
