@@ -288,8 +288,10 @@ class SQSCoachingWorker {
         });
     });
 
-    // Add to active jobs
-    this.activeJobs.set(receiptHandle, jobPromise);
+    // Add to active jobs.
+    // bd-yd2kb: store sourceQueue alongside the promise so graceful shutdown can
+    // release the exact message (right queue) back to SQS on a deploy.
+    this.activeJobs.set(receiptHandle, { promise: jobPromise, sourceQueue });
     this.stats.jobsProcessed++;
   }
 
@@ -572,10 +574,40 @@ class SQSCoachingWorker {
     await Promise.race([shutdownPromise, timeoutPromise]);
 
     if (this.activeJobs.size > 0) {
-      logToFile(`⚠️ Shutdown timeout reached with ${this.activeJobs.size} jobs still active`, {
-        workerId: this.workerId
+      // bd-yd2kb (ports main-bot bd-1541): explicitly release each in-flight
+      // message back to its queue (VisibilityTimeout: 0) so a surviving/new worker
+      // claims it in seconds — instead of the message staying invisible for the
+      // full per-queue visibility timeout (up to 20 min on coaching). Without this,
+      // a deploy that lands mid-analysis makes the teacher wait ~20 min for her
+      // report (the 2026-05-11 main-bot incident). Per-call try/catch is mandatory:
+      // one ReceiptHandleIsInvalid (a job that finished but hadn't hit .finally when
+      // SIGTERM fired) must not abort the rest of the release loop.
+      logToFile(`⚠️ Shutdown timeout reached with ${this.activeJobs.size} jobs still active — releasing back to SQS`, {
+        workerId: this.workerId,
+        inFlightCount: this.activeJobs.size,
       });
-      // Note: Uncompleted jobs will become visible again in SQS after visibility timeout
+      const entries = Array.from(this.activeJobs.entries());
+      const results = await Promise.allSettled(
+        entries.map(async ([receiptHandle, meta]) => {
+          try {
+            await SQSQueueService.releaseInFlightMessage(receiptHandle, meta && meta.sourceQueue);
+            logToFile('🔄 Released in-flight message on shutdown', {
+              workerId: this.workerId,
+              sourceQueue: meta && meta.sourceQueue,
+            });
+          } catch (err) {
+            logToFile('⚠️ Failed to release in-flight message on shutdown (will fall back to visibility timeout)', {
+              workerId: this.workerId,
+              sourceQueue: meta && meta.sourceQueue,
+              error: err.message,
+            });
+          }
+        })
+      );
+      const released = results.filter((r) => r.status === 'fulfilled').length;
+      logToFile(`✅ Shutdown release complete: ${released}/${entries.length} in-flight messages released back to SQS`, {
+        workerId: this.workerId,
+      });
     }
   }
 
@@ -591,7 +623,8 @@ class SQSCoachingWorker {
       workerId: this.workerId
     });
 
-    await Promise.allSettled(Array.from(this.activeJobs.values()));
+    // bd-yd2kb: activeJobs values are { promise, sourceQueue } now — await the promises.
+    await Promise.allSettled(Array.from(this.activeJobs.values()).map((v) => v.promise));
 
     logToFile('✅ All active jobs completed', {
       workerId: this.workerId
