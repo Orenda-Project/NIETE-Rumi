@@ -253,12 +253,14 @@ describe('bd-88krt · a coach can always finish, and can reach remove', () => {
         }
       })(s.layout.children);
     }
-    expect(steps).toContain('manage');
+    // bd-gndeg: the door is now the search screen, which submits step 'manage'.
+    expect(steps).toContain('manage_search');
 
     const src = require('fs').readFileSync(
       require('path').join(__dirname, '../../shared/handlers/observe-visit-flow.handler.js'), 'utf8');
-    const at = src.indexOf("step === 'manage'");
+    expect(src).toMatch(/step === 'manage_search'[\s\S]{0,120}REMOVE_SEARCH/);
+    const at = src.indexOf("step === 'manage')");
     expect(at).toBeGreaterThan(-1);
-    expect(src.slice(at, at + 400)).toMatch(/screen: 'MANAGE_SCHOOLS'/);
+    expect(src.slice(at, at + 900)).toMatch(/screen: 'MANAGE_SCHOOLS'/);
   });
 });

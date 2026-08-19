@@ -805,11 +805,22 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         'roster', res.schoolName) };
     }
 
+    // bd-gndeg: the search sits BEFORE the picker because a screen holds one
+    // Footer (MANAGE_SCHOOLS' is already "remove") and routing is a DAG, so a
+    // screen cannot re-filter itself. Same shape as ADD_SEARCH -> ADD_RESULTS.
+    if (step === 'manage_search') return { screen: 'REMOVE_SEARCH', data: {} };
+
     if (step === 'manage') {
       const A = _admin();
+      const term = screenData && screenData.term;
       const mine = await A.listMySchools(userId).catch(() => []);
-      const options = mine.length
-        ? mine.map((x) => _opt(x.school_ext_id, x.school_name, `EMIS ${x.emis || ''}`, ''))
+      // Reuse the matcher the add path uses — name, EMIS or full ext id. A
+      // blank term matches everything, so a short list needs no typing.
+      const hits = mine.filter((x) => A.matchSchool({
+        school_name: x.school_name, emis: x.emis, school_ext_id: x.school_ext_id,
+      }, term));
+      const options = hits.length
+        ? hits.slice(0, A.RESULT_CAP).map((x) => _opt(x.school_ext_id, x.school_name, `EMIS ${x.emis || ''}`, ''))
         : [_opt('none', S_(_flowLang).search_no_match, '', '')];
       return { screen: 'MANAGE_SCHOOLS', data: { options } };
     }
