@@ -18,7 +18,10 @@ jest.mock('../../shared/services/whatsapp.service', () => ({
 }));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../shared/services/cache/railway-redis.service', () => ({
-  redis: { set: jest.fn(async () => 'OK'), get: jest.fn(async () => null), del: jest.fn(async () => 1) },
+  // setex included: the client is ioredis, and main's no-flow fallback stores
+  // its awaiting-topic state via redis.setex — a mock without it fails on main
+  // while passing on develop, whose menu path no longer calls it.
+  redis: { set: jest.fn(async () => 'OK'), setex: jest.fn(async () => 'OK'), get: jest.fn(async () => null), del: jest.fn(async () => 1) },
   set: jest.fn(async () => {}), get: jest.fn(async () => null), delete: jest.fn(async () => {}),
 }));
 jest.mock('../../shared/config/supabase', () => ({

@@ -14,7 +14,32 @@ import type { LeaderPatchTeacher } from "../types/portal";
  * Rumi activity (sessions, lesson plans, last score). Teachers not yet on Rumi
  * are shown with a muted badge so the leader sees their full patch. On-Rumi
  * teachers link to their detail.
+ *
+ * bd-2671/2672: the row also carries the school + EMIS (teachers share names
+ * across schools), counts coach OBSERVATIONS separately from self-recorded
+ * sessions, and names the focus area instead of just flagging that one exists.
  */
+
+/** "IMSG Mohra Nagial · EMIS 509" — omits whatever is unknown. */
+function teacherSchoolLine(t: LeaderPatchTeacher): string {
+  const bits: string[] = [];
+  if (t.schoolName) bits.push(t.schoolName);
+  if (t.emis) bits.push(`EMIS ${t.emis}`);
+  return bits.join(" · ");
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** Observations and self-recorded sessions are different acts — name both. */
+function teacherActivityLine(t: LeaderPatchTeacher): string {
+  if (!t.onRumi) return "Not yet on Rumi";
+  const bits: string[] = [];
+  if (t.observations > 0) bits.push(plural(t.observations, "observation"));
+  bits.push(plural(t.coachingSessions, "session"));
+  bits.push(plural(t.lessonPlans, "lesson plan"));
+  return bits.join(" · ");
+}
+
 const LeaderTeachers = () => {
   const [teachers, setTeachers] = useState<LeaderPatchTeacher[]>([]);
   const [summary, setSummary] = useState<{ total: number; onRumi: number }>({ total: 0, onRumi: 0 });
@@ -54,11 +79,11 @@ const LeaderTeachers = () => {
                   <div className="flex items-center justify-between px-6 py-4">
                     <div className="min-w-0">
                       <p className="font-medium truncate">{t.name || "Unnamed teacher"}</p>
-                      <p className="text-muted-foreground text-sm">
-                        {t.onRumi
-                          ? `${t.coachingSessions} session${t.coachingSessions === 1 ? "" : "s"} · ${t.lessonPlans} lesson plan${t.lessonPlans === 1 ? "" : "s"}`
-                          : "Not yet on Rumi"}
-                      </p>
+                      <p className="text-muted-foreground text-sm truncate">{teacherSchoolLine(t)}</p>
+                      <p className="text-muted-foreground text-sm">{teacherActivityLine(t)}</p>
+                      {t.focusArea && (
+                        <p className="text-sm text-accent truncate">Focus: {t.focusArea}</p>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       {t.lastScore != null && <ScoreIndicator percentage={t.lastScore} size="small" />}

@@ -23,7 +23,7 @@ const LANGUAGE_PROFILES = {
     language: 'Urdu',
     script: 'Nastaliq',
     region: 'Pakistan',
-    avoid_hint: " Avoid Hindi-isms ('turant'→'foran') and bookish words (taajub, muntakhab, markooz).",
+    avoid_hint: " Use everyday Urdu rooted in Persian/Arabic — NEVER Hindi/Sanskrit-origin words (say شکریہ not دھنیہ واد, فوراً not ترنت/turant, سوال not پرشن, ضرورت not آوشیکتا, کوشش not پریاس). Also avoid bookish words (taajub, muntakhab, markooz).",
     gender_hint:
       "Urdu is gendered — agree verbs with a noun (zehen, khayal, sawal, qadam), not with 'aap'.",
   },

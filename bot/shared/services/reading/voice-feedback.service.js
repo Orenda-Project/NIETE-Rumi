@@ -26,6 +26,7 @@ const { getClient } = require('../llm-client');
 const AudioService = require('../audio.service');
 const FluencyService = require('./fluency.service');
 const { logToFile } = require('../../utils/logger');
+const { voiceLanguageRules } = require('../../config/voice-language-rules'); // bd-2651
 const { OPENAI_API_KEY, TEMP_DIR } = require('../../utils/constants');
 
 const openai = getClient();
@@ -393,7 +394,10 @@ ${hasComprehension ? '- ¡Equilibra errores de pronunciación y orientación de 
         };
       }
 
-      const prompt = prompts[userLanguage] || prompts.en;
+      // bd-2651: this feedback script is spoken aloud, so enforce the shared
+      // voice rules — Urdu in Nastaliq with pure Urdu (not Hindi) vocab + English
+      // terms in Latin; English kept pure English (Jessica).
+      const prompt = `${prompts[userLanguage] || prompts.en}\n\n${voiceLanguageRules(userLanguage)}`;
 
       logToFile('Generating feedback script with GPT-4', {
         assessmentId: assessment.id,

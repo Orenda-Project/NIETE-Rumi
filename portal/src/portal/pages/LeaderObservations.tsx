@@ -5,7 +5,7 @@ import { leader } from "../services/api";
 import PortalLayout from "../components/PortalLayout";
 import LoadingState from "../components/LoadingState";
 import ScoreIndicator from "../components/ScoreIndicator";
-import type { LeaderObservationsData, LeaderPatchTeacher } from "../types/portal";
+import type { LeaderObservationsData, LeaderObservationSession, LeaderPatchTeacher } from "../types/portal";
 
 /**
  * Leader Portal — "Observations" (bd-2455).
@@ -21,6 +21,18 @@ function formatDay(iso: string | null): string {
   const d = new Date(iso.length > 10 ? iso : `${iso}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+}
+
+/**
+ * bd-2670 — the line under the teacher's name. Riffat asked for the date, the
+ * school and its EMIS code, because two teachers can share a name across
+ * schools. Unknown parts are omitted rather than rendered as "null"/"—".
+ */
+function observationSubline(d: LeaderObservationSession): string {
+  const bits = [`Observed ${formatDay(d.createdAt)}`];
+  if (d.schoolName) bits.push(d.schoolName);
+  if (d.emis) bits.push(`EMIS ${d.emis}`);
+  return bits.join(" · ");
 }
 
 const SLOTS = ["09:00", "11:30", "14:00"];
@@ -205,7 +217,7 @@ const LeaderObservations = () => {
                     <li key={d.id} className="flex items-center justify-between px-6 py-4">
                       <div>
                         <p className="font-medium">{d.teacherName || "Unassigned observation"}</p>
-                        <p className="text-muted-foreground text-sm">Observed {formatDay(d.createdAt)}</p>
+                        <p className="text-muted-foreground text-sm">{observationSubline(d)}</p>
                       </div>
                       <div className="flex items-center gap-3">
                         {d.score != null && <ScoreIndicator percentage={d.score} size="small" />}
@@ -231,7 +243,7 @@ const LeaderObservations = () => {
                       <>
                         <div>
                           <p className="font-medium">{d.teacherName || "Unassigned observation"}</p>
-                          <p className="text-muted-foreground text-sm">Observed {formatDay(d.createdAt)}</p>
+                          <p className="text-muted-foreground text-sm">{observationSubline(d)}</p>
                         </div>
                         <div className="flex items-center gap-3">
                           {d.score != null && <ScoreIndicator percentage={d.score} size="small" />}

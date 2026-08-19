@@ -2,6 +2,7 @@ const { getClient } = require('./llm-client');
 const { jsonrepair } = require('jsonrepair');
 const { OPENAI_API_KEY } = require('../utils/constants');
 const { logToFile } = require('../utils/logger');
+const { voiceLanguageRules } = require('../config/voice-language-rules'); // bd-2651
 const supabase = require('../config/supabase');
 const {
   CLASSROOM_MARKS_BASE,
@@ -1697,7 +1698,6 @@ TONE:
 ${language === 'ur' ? `
 URDU LANGUAGE NOTES:
 - Use natural Pakistani Urdu (not overly formal)
-- Avoid English jargon where possible
 - Use respectful form (آپ not تم)
 - Keep sentences flowing naturally for speech
 - GENDER — YOUR OWN voice (the coach speaking) is FEMALE. When you refer to
@@ -1706,16 +1706,17 @@ URDU LANGUAGE NOTES:
 - GENDER (teacher) — the teacher may be a man or a woman, so keep everything you
   say ABOUT or TO the teacher gender-neutral: address as آپ and use the respectful
   آپ-imperative (کریں، دیں، آزمائیں), never a gendered second-person verb stem.
+${voiceLanguageRules('ur')}
 ` : `
 ENGLISH LANGUAGE NOTES:
 - Use simple, clear language
-- Avoid educational jargon
 - Keep tone warm and encouraging
+${voiceLanguageRules('en')}
 `}
 
 AVOID:
 - Long lists or overwhelming detail
-- Educational jargon or technical terms
+- Overloading with technical terms (but any English term you DO use stays in English — see the voice rules above)
 - Being overly critical or negative
 - Rushed or incomplete thoughts
 
