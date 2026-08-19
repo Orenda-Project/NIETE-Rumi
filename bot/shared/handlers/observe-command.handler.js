@@ -21,10 +21,16 @@ const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 const { clampLanguage } = require('../config/ux-strings');
 
-// bd-2432 (port of main-bot FEAT-116) — the visit-picker feature flag. Cached at
-// import (restart after setting). Unset ⇒ the whole picker is dormant and
-// /observe behaves exactly as today.
-const OBSERVE_VISIT_FLOW_ID = process.env.OBSERVE_VISIT_FLOW_ID || '';
+// bd-2432 (port of main-bot FEAT-116) — the visit-picker feature flag.
+//
+// bd-jrxo3 reads it at CALL time, not import time. It is no longer only a
+// feature flag: it is the CAPABILITY signal that decides whether a bare capture
+// is the product (no picker in this market) or a bug (a picker exists). A value
+// frozen at import cannot be exercised both ways in one process, and a flag
+// this load-bearing should not need a restart to be true.
+function visitFlowId() {
+  return process.env.OBSERVE_VISIT_FLOW_ID || '';
+}
 
 // Picker invite chrome (coach-facing chat message, ur/en — NIETE market).
 const VISIT_FLOW_BODY = {
@@ -56,7 +62,7 @@ async function leaderHasAssignment(user) {
 async function sendObserveVisitFlow(user, from) {
   const lang = clampLanguage(observeLang(user));
   await WhatsAppService.sendFlow(from, {
-    flowId: OBSERVE_VISIT_FLOW_ID,
+    flowId: visitFlowId(),
     body: VISIT_FLOW_BODY[lang],
     buttonText: VISIT_FLOW_CTA[lang],
     flowToken: user.id, // bd-215: flow_token = bare user.id (no colons)
@@ -88,13 +94,13 @@ const REOPEN_CTA = {
  * runs the endpoint's INIT and serves a freshly-built MENU.
  */
 async function reopenObserveVisitFlow(user, from, screen, screenData) {
-  if (!OBSERVE_VISIT_FLOW_ID) return false;
+  if (!visitFlowId()) return false;
   const lang = clampLanguage(observeLang(user));
   const key = screen || 'MENU';
   const chrome = REOPEN_BODY[key] || REOPEN_BODY.MENU;
   const cta = REOPEN_CTA[key] || REOPEN_CTA.MENU;
   await WhatsAppService.sendFlow(from, {
-    flowId: OBSERVE_VISIT_FLOW_ID,
+    flowId: visitFlowId(),
     body: chrome[lang] || chrome.en,
     buttonText: cta[lang] || cta.en,
     flowToken: user.id,
@@ -105,11 +111,24 @@ async function reopenObserveVisitFlow(user, from, screen, screenData) {
 }
 
 /**
- * bd-2432 — launch the school→teacher→brief picker when the flag is set AND the
- * coach has an assignment. Returns true when the Flow was sent (caller stops);
- * false → caller falls through to today's bare-capture path. Never throws.
+ * bd-jrxo3 — three answers, not two.
+ *
+ * A boolean could not tell "there is no picker in this market" apart from "this
+ * person may not use the picker", and only the FIRST of those may fall back to
+ * a bare capture. Conflating them is how 77 observations were written against
+ * the coach instead of the teacher.
+ *
+ *   'unavailable' — OBSERVE_VISIT_FLOW_ID unset. The ONLY case that keeps bare
+ *                   capture, because it is the product there (upstream Tanzania
+ *                   has no visit Flow, and /observe would otherwise be dead).
+ *   'declined'    — a Flow exists, this user is not eligible for it, OR sending
+ *                   it failed. Never a bare capture: we know a picker exists.
+ *   'launched'    — the Flow was sent.
+ *
+ * Never throws.
  */
 async function maybeLaunchVisitFlow(user, from) {
+  if (!visitFlowId()) return 'unavailable';
   try {
     // bd-0cxz6: a coach with NO schools used to be refused here, which meant she
     // never saw the menu — and the menu is the only way to add a first school.
@@ -117,16 +136,51 @@ async function maybeLaunchVisitFlow(user, from) {
     // assignment check stays as the fallback for anyone whose role was never
     // set, so nobody who works today loses access.
     const isCoach = user && user.role === 'coach';
-    if (OBSERVE_VISIT_FLOW_ID && user && (isCoach || await leaderHasAssignment(user))) {
+    if (user && (isCoach || await leaderHasAssignment(user))) {
       await sendObserveVisitFlow(user, from);
-      return true;
+      return 'launched';
     }
   } catch (err) {
-    logToFile('⚠️ observe-visit: launch failed, falling back to bare capture', {
+    // "I could not open it" is not "there is none here". Falling back to bare
+    // capture on an error would re-open the hole this bead closes.
+    logToFile('⚠️ observe-visit: launch failed — redirecting, not falling back', {
+      userId: user && user.id, error: err.message,
+    });
+    return 'declined';
+  }
+  return 'declined';
+}
+
+/**
+ * bd-jrxo3 — the redirect. One line in her language, then the picker itself, so
+ * the instruction and the means to follow it arrive together.
+ *
+ * Opens on SELECT_SCHOOL when she has schools; on the MENU when she has none,
+ * because the menu is the only place a first school can be added (bd-0cxz6).
+ * Best-effort throughout: /observe always gets her back in.
+ */
+async function sendVisitRedirect(user, from) {
+  const S = observeStrings(observeLang(user));
+  await WhatsAppService.sendMessage(from, S.redirect_pick_teacher);
+
+  let screen = null;
+  let screenData;
+  try {
+    // Opening straight onto a screen is navigate mode — there is no endpoint
+    // round-trip, so WE supply every key the screen declares.
+    const { schoolsScreenV2 } = require('./observe-visit-flow.handler');
+    const built = await schoolsScreenV2(user.id);
+    const options = (built && built.data && built.data.options) || [];
+    if (options.length) { screen = 'SELECT_SCHOOL'; screenData = { options }; }
+  } catch (err) {
+    logToFile('⚠️ observe-visit: school list failed — opening the menu instead', {
       userId: user && user.id, error: err.message,
     });
   }
-  return false;
+
+  const sent = await reopenObserveVisitFlow(user, from, screen, screenData);
+  if (sent === false && screen) await reopenObserveVisitFlow(user, from, null);
+  return true;
 }
 
 async function markOnboarded(user) {
@@ -182,7 +236,11 @@ async function handleObserveCommand(user, from, messageBody) {
       await WhatsAppService.sendMessage(from, armMessage);
       // bd-2432: a coach's FIRST-ever /observe reaches the picker too (upstream
       // bd-2360 — onboarding must not strand them on bare capture).
-      if (await maybeLaunchVisitFlow(user, from)) return true;
+      const outcome = await maybeLaunchVisitFlow(user, from);
+      if (outcome === 'launched') return true;
+      if (outcome === 'declined') return sendVisitRedirect(user, from);
+      // 'unavailable' only: no picker in this market, so the recording IS the
+      // entry point. Byte-for-byte today's path.
       await WhatsAppService.sendMessage(from, S.capture_prompt);
       await ObserveState.setState(user.id, 'awaiting_audio', { arm: result.arm });
       return true;
@@ -195,7 +253,9 @@ async function handleObserveCommand(user, from, messageBody) {
       // and the chat interception below is skipped. Flag off, or unassigned
       // coach (maybeLaunchVisitFlow → false): today's path, byte-identical.
       if (process.env.OBSERVE_SCHEDULING_UI === 'true') {
-        if (await maybeLaunchVisitFlow(user, from)) return true;
+        // Only a LAUNCH short-circuits here; an ineligible coach still gets her
+        // pending debriefs below before the redirect (upstream bd-2330 ordering).
+        if (await maybeLaunchVisitFlow(user, from) === 'launched') return true;
       }
       // bd-21: pending debriefs surface as an interactive list first. The
       // list tap decides the next step, so no capture state is armed here.
@@ -216,7 +276,10 @@ async function handleObserveCommand(user, from, messageBody) {
       }
       // bd-2432: assigned coach → the school→teacher→brief picker (AFTER the
       // pending-debrief interception above, upstream bd-2330 ordering).
-      if (await maybeLaunchVisitFlow(user, from)) return true;
+      const outcome = await maybeLaunchVisitFlow(user, from);
+      if (outcome === 'launched') return true;
+      if (outcome === 'declined') return sendVisitRedirect(user, from);
+      // 'unavailable' only — see the onboard arm.
       await WhatsAppService.sendMessage(from, S.capture_prompt);
       await ObserveState.setState(user.id, 'awaiting_audio', { arm: getObserveArm(user) });
       return true;
@@ -225,4 +288,4 @@ async function handleObserveCommand(user, from, messageBody) {
 }
 
 module.exports = {
-  reopenObserveVisitFlow, handleObserveCommand, maybeLaunchVisitFlow };
+  reopenObserveVisitFlow, handleObserveCommand, maybeLaunchVisitFlow, sendVisitRedirect };
