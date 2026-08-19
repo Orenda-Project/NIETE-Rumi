@@ -44,15 +44,27 @@ const SCOPE = 'https://www.googleapis.com/auth/calendar';
 /** Read at CALL time — a worker outlives any one env snapshot. */
 function config() {
   return {
+    // ENV FIRST, file second (coos-088 convention). A Railway container has no
+    // key file at all: reading only GOOGLE_SERVICE_ACCOUNT_PATH left prod
+    // "unconfigured", so the gate skipped every schedule and not one invite was
+    // even attempted — silently, because this whole path is non-blocking.
+    keyJson: process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '',
     keyPath: process.env.GOOGLE_SERVICE_ACCOUNT_PATH || '',
     subject: process.env.GOOGLE_CALENDAR_SUBJECT || '',
     calendarId: process.env.GOOGLE_CALENDAR_ID || '',
   };
 }
 
+/** The parsed service-account key, from the env var or the file. */
+function loadKey() {
+  const { keyJson, keyPath } = config();
+  if (keyJson) return JSON.parse(keyJson);
+  return JSON.parse(fs.readFileSync(keyPath, 'utf8'));
+}
+
 function isConfigured() {
   const c = config();
-  return Boolean(c.keyPath && c.subject && c.calendarId);
+  return Boolean((c.keyJson || c.keyPath) && c.subject && c.calendarId);
 }
 
 const b64url = (buf) => Buffer.from(buf).toString('base64')
@@ -63,11 +75,11 @@ const b64url = (buf) => Buffer.from(buf).toString('base64')
 let cached = null;
 
 async function accessToken() {
-  const { keyPath, subject } = config();
+  const { subject } = config();
   const now = Math.floor(Date.now() / 1000);
   if (cached && cached.subject === subject && cached.expiresAt > now + 60) return cached.token;
 
-  const key = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
+  const key = loadKey();
   const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
   const claims = b64url(JSON.stringify({
     iss: key.client_email,
