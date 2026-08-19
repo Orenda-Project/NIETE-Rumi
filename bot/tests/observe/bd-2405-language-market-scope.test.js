@@ -59,17 +59,27 @@ describe('bd-2405 · observe language market-scope', () => {
     }
   });
 
-  describe('resolveTeacherLang (market-scoped)', () => {
-    let resolveTeacherLang;
+  // UPDATED 2026-08-19 (bd-dy7hs). These three market-scope invariants are
+  // unchanged; the function that carries them moved. resolveTeacherLang(delivery,
+  // coachLang) is gone — its coach-language fallback was the defect bd-dy7hs
+  // removes — and languageFor('teacher', session) owns the question now. The
+  // assertions below are the SAME assertions against the new seam.
+  describe('the teacher copy is market-scoped (languageFor)', () => {
+    let languageFor;
     beforeEach(() => {
       jest.resetModules();
-      resolveTeacherLang = require('../../shared/services/observe/observe-send.service').resolveTeacherLang;
+      languageFor = require('../../shared/services/observe/observe-language').languageFor;
     });
 
-    it('NIETE (fico) never resolves the teacher copy to sw — clamps a stray sw coach lang to a market language', async () => {
+    const sessionFor = (phone) => ({
+      id: 's', user_id: 'coach', observer_user_id: 'coach',
+      analysis_data: { teacher_delivery: { teacher_phone: phone } },
+    });
+
+    it('NIETE (fico) never resolves the teacher copy to sw', async () => {
       process.env.OBSERVE_FRAMEWORK = 'fico';
       mockTeacherRow = null; // teacher not registered
-      const lang = await resolveTeacherLang({ teacher_phone: '923001234567' }, 'sw');
+      const lang = await languageFor('teacher', sessionFor('923001234567'));
       expect(['ur', 'en']).toContain(lang);
       expect(lang).not.toBe('sw');
     });
@@ -77,14 +87,14 @@ describe('bd-2405 · observe language market-scope', () => {
     it('NIETE (fico) follows the teacher\'s own Urdu preference when registered', async () => {
       process.env.OBSERVE_FRAMEWORK = 'fico';
       mockTeacherRow = { preferred_language: 'ur' };
-      const lang = await resolveTeacherLang({ teacher_phone: '923001234567' }, 'en');
+      const lang = await languageFor('teacher', sessionFor('923001234567'));
       expect(lang).toBe('ur');
     });
 
     it('Tanzania (mewaka) still resolves the teacher copy to sw', async () => {
       process.env.OBSERVE_FRAMEWORK = 'mewaka';
       mockTeacherRow = null;
-      const lang = await resolveTeacherLang({ teacher_phone: '255700000000' }, 'sw');
+      const lang = await languageFor('teacher', sessionFor('255700000000'));
       expect(lang).toBe('sw');
     });
   });

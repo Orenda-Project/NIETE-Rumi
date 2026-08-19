@@ -56,14 +56,10 @@ const STRINGS = {
     list_new_observation_desc: 'Anza uchunguzi mpya wa darasa',
     list_row_default_desc: 'Bonyeza kuanza debrief',
     // bd-2668 — who was observed (asked only when the capture was unbound)
-    // bd-2673 — flip the teacher report's language (button titles: <=20 code points)
     // bd-2675 — the tap event, the single nudge, and the honest stop
     send_tapped_fo: '✅ {name} amefungua ripoti yake.',
     send_nudged_fo: '🔔 {name} bado hajafungua ripoti — nimemkumbusha mara moja.',
     send_gave_up_fo: '{name} hajafungua ripoti. Sitamsumbua tena — mwambie akufungulie, kisha tuma tena kutoka /observe.',
-    btn_send_in_ur: 'Tuma kwa Kiurdu',
-    btn_send_in_en: 'Tuma kwa Kiingereza',
-    send_lang_switching: 'Sawa — naandaa upya ripoti kwa lugha nyingine…',
     // bd-88krt — Flow terminal-screen text (data-driven so a cancel never reads
     // "Observation scheduled")
     search_no_match: 'Hakuna kilicholingana — jaribu tena',
@@ -102,6 +98,9 @@ const STRINGS = {
       'Samahani — sikuweza kusikia mazungumzo ya kutosha kwenye rekodi hiyo. Kama debrief bado inaendelea, rekodi tena sehemu ndefu zaidi na unitumie — mwongozo bado uko hapa juu.',
     debrief_feedback_failed:
       'Nimeipokea rekodi yako, lakini nimeshindwa kuichambua sasa hivi. Andika /observe, chagua uchunguzi huo kwenye orodha, na urekodi tena — nitaisikiliza upya.',
+    // bd-jrxo3 — nothing bound: start from the school, then re-send the recording.
+    redirect_pick_teacher:
+      'Tuanze na shule ili rekodi hii imfikie mwalimu sahihi. Chagua shule, kisha mwalimu — kisha nitumie rekodi tena.',
     long_audio_no_state:
       '🎧 Nimepokea rekodi ndefu — lakini sina uchunguzi unaosubiri kwako sasa. Kama ni rekodi ya somo au ya debrief, andika /observe kwanza (na uchague uchunguzi husika), kisha nitumie rekodi tena.',
     coach_card_title: 'Mbili nzuri · moja ya kujaribu',
@@ -196,14 +195,10 @@ const STRINGS = {
     list_new_observation_desc: 'کلاس کا نیا مشاہدہ شروع کریں',
     list_row_default_desc: 'ڈی بریف باقی ہے',
     // bd-2668 — who was observed (asked only when the capture was unbound)
-    // bd-2673 — flip the teacher report's language (button titles: <=20 code points)
     // bd-2675 — the tap event, the single nudge, and the honest stop
     send_tapped_fo: '✅ {name} نے اپنی رپورٹ کھول لی ہے۔',
     send_nudged_fo: '🔔 {name} نے ابھی تک رپورٹ نہیں کھولی — ایک بار یاد دہانی بھیج دی ہے۔',
     send_gave_up_fo: '{name} نے رپورٹ نہیں کھولی۔ اب مزید یاد دہانی نہیں بھیجوں گی — انہیں بتا دیں، پھر /observe سے دوبارہ بھیج دیں۔',
-    btn_send_in_ur: 'اردو میں بھیجیں',
-    btn_send_in_en: 'انگریزی میں بھیجیں',
-    send_lang_switching: 'ٹھیک ہے — رپورٹ دوسری زبان میں تیار کر رہا ہوں…',
     // bd-88krt — Flow terminal-screen text (per-language, never hardcoded)
     search_no_match: 'کچھ نہیں ملا — دوبارہ کوشش کریں',
     school_already_mine: 'پہلے سے آپ کی فہرست میں',
@@ -235,6 +230,9 @@ const STRINGS = {
     debrief_audio_received: '🎧 ڈی بریف کی ریکارڈنگ مل گئی — بھروسے کا شکریہ! سن کر چند منٹ میں آپ کو رائے بھیجوں گی۔ یہ صرف میرے اور آپ کے درمیان ہے۔',
     debrief_too_short: 'ریکارڈنگ بہت مختصر لگی۔ پوری گفتگو ریکارڈ کر کے دوبارہ بھیجیں۔',
     debrief_feedback_failed: 'معاف کیجیے، رائے تیار نہیں ہو سکی۔ ریکارڈنگ محفوظ ہے — تھوڑی دیر بعد دوبارہ کوشش ہو گی۔',
+    // bd-jrxo3 — gender-agnostic when addressing the coach (imperatives only).
+    redirect_pick_teacher:
+      'آئیے اسکول سے شروع کرتے ہیں تاکہ یہ ریکارڈنگ صحیح استاد تک پہنچے۔ پہلے اسکول چنیں، پھر استاد — اور اس کے بعد ریکارڈنگ دوبارہ بھیج دیں۔',
     long_audio_no_state: 'لمبی ریکارڈنگ ملی — لیکن ابھی کوئی مشاہدہ زیرِ عمل نہیں۔ پہلے /observe لکھیں، پھر ریکارڈنگ بھیجیں۔',
     coach_card_title: 'خوبیاں · بہتری · عملی منصوبہ',
     coach_card_eyebrow: 'کوچنگ کی رائے',
@@ -335,14 +333,10 @@ const STRINGS = {
     list_new_observation_desc: 'Start a new classroom observation',
     list_row_default_desc: 'Tap to start the debrief',
     // bd-2668 — who was observed (asked only when the capture was unbound)
-    // bd-2673 — flip the teacher report's language (button titles: <=20 code points)
     // bd-2675 — the tap event, the single nudge, and the honest stop
     send_tapped_fo: '✅ {name} has opened the report.',
     send_nudged_fo: '🔔 {name} has not opened the report yet — I have sent one reminder.',
     send_gave_up_fo: '{name} has not opened the report. I will not send more reminders — have a word, then send it again from /observe.',
-    btn_send_in_ur: 'Send in Urdu',
-    btn_send_in_en: 'Send in English',
-    send_lang_switching: 'Sure — rebuilding the report in the other language…',
     // bd-88krt — Flow terminal-screen text (per-language, never hardcoded)
     search_no_match: 'No matches — try again',
     school_already_mine: 'Already in your list',
@@ -380,6 +374,9 @@ const STRINGS = {
       "Sorry — I couldn't hear enough of the conversation in that recording. If the debrief is still going, record a longer stretch and send it over — the guide is still right above.",
     debrief_feedback_failed:
       "I received your recording but couldn't analyze it just now. Type /observe, pick that observation from the list, and record again — I'll listen fresh.",
+    // bd-jrxo3 — the accepted cost is stated plainly: she sends it again.
+    redirect_pick_teacher:
+      "Let's start from the school so this reaches the right teacher. Pick the school, then the teacher — then send me the recording again.",
     long_audio_no_state:
       "🎧 I received a long recording — but there's no observation waiting for you right now. If this was a lesson or debrief recording, type /observe first (and pick the right observation), then send it again.",
     coach_card_title: 'Strengths · growth · action plan',

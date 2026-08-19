@@ -19,6 +19,7 @@ const WhatsAppService = require('../whatsapp.service');
 const supabase = require('../../config/supabase');
 const ObserveState = require('./observe-state.service');
 const { observeStrings, observeLang } = require('./observe-strings');
+const { languageFor, clampToMarket } = require('./observe-language');
 const { logToFile } = require('../../utils/logger');
 
 const BTN = {
@@ -26,69 +27,23 @@ const BTN = {
   later: 'observe_send_later_',
   confirm: 'observe_send_confirm_',
   cancel: 'observe_send_cancel_',
-  // bd-2673 — flip the report between the market's two languages
-  lang: 'observe_send_lang_',
 };
 const TEMPLATE_PAYLOAD_PREFIX = 'observe_report_';
 
-// bd-2405 — the teacher's report copy must follow the TEACHER's language,
-// scoped to the market's offered languages (Rule 20: language is market-scoped
-// data). The old code hardcoded observeStrings('sw') (a Tanzania-era D6
-// assumption), so NIETE (fico) teachers received a full Kiswahili report.
-// mewaka=Tanzania stays sw; fico=NIETE and hots=PK never resolve to sw.
-const MARKET_LANGS = {
-  mewaka: { offer: ['sw', 'en'], fallback: 'sw' },
-  fico:   { offer: ['ur', 'en'], fallback: 'en' },
-  hots:   { offer: ['ur', 'en'], fallback: 'ur' },
-};
-function marketLangConfig() {
-  const { getObservePack } = require('./observe-framework');
-  return MARKET_LANGS[getObservePack().key] || { offer: ['en'], fallback: 'en' };
-}
-/** Clamp any language to the current market's offered set (else null). */
-function clampToMarket(lang) {
-  const { offer } = marketLangConfig();
-  return offer.includes(lang) ? lang : null;
-}
-/**
- * Resolve the teacher-report language: the teacher's own locked preference
- * (looked up read-only by phone) → the coach's language → the market fallback,
- * each clamped to the market's offered languages. Never Swahili outside TZ.
- * @param {{teacher_phone?:string}} delivery
- * @param {string} coachLang
- * @returns {Promise<'ur'|'en'|'sw'>}
- */
-function otherLang(lang) {
-  const { offer } = marketLangConfig();
-  const i = offer.indexOf(lang);
-  if (i === -1) return offer[0];
-  return offer[(i + 1) % offer.length];
-}
-
-async function resolveTeacherLang(delivery, coachLang) {
-  const { fallback } = marketLangConfig();
-  // bd-2673 (Riffat R36): the coach's explicit pick wins for THIS report. She
-  // knows the teacher in the room; a teacher who never set a preference would
-  // otherwise inherit the COACH's language. Clamped like everything else, so a
-  // stale 'sw' from a Tanzania-era row can never leak onto NIETE. This is a
-  // per-report override — the teacher's own stored preference is never rewritten.
-  if (delivery && delivery.lang_override) {
-    const forced = clampToMarket(delivery.lang_override);
-    if (forced) return forced;
-  }
-  if (delivery && delivery.teacher_phone) {
-    try {
-      const { data } = await supabase
-        .from('users')
-        .select('preferred_language')
-        .eq('phone_number', delivery.teacher_phone)
-        .maybeSingle();
-      const t = clampToMarket(data && data.preferred_language);
-      if (t) return t;
-    } catch (_) { /* fall through to coach/market default */ }
-  }
-  return clampToMarket(coachLang) || fallback;
-}
+// bd-dy7hs — "whose language is this?" has ONE owner now (bd-04m67). The market
+// table, the clamp and the teacher/coach resolution all live in
+// observe-language.js; this file just names the audience.
+//
+// What used to be here, and why it is gone:
+//   · resolveTeacherLang() fell back to the COACH's language when the teacher
+//     had no preference, so a teacher who never chose one read her feedback in
+//     whatever the coach speaks. languageFor('teacher', …) falls to the MARKET
+//     default instead.
+//   · a `lang_override` branch let the coach flip a single report by hand
+//     (bd-2673). It was a human patch over a resolution bug, and it cost a full
+//     re-render that SQS then silently dropped (bd-rkofm). Overrides already
+//     written stay in analysis_data and simply stop being read — no migration,
+//     and the record of what was chosen survives.
 
 // ── Pure helpers ───────────────────────────────────────────────────────
 
@@ -168,20 +123,16 @@ function buildSendChoiceButtons(sessionId, S) {
   };
 }
 
-function buildSendConfirmButtons(sessionId, S, currentLang) {
-  const buttons = [
-    { id: `${BTN.confirm}${sessionId}`, title: S.btn_send_now },
-  ];
-  // bd-2673: offer the language she is NOT currently getting. WhatsApp allows
-  // 3 buttons and 20 CODE POINTS per title (Rule 20 — Urdu is not measured in
-  // bytes), so this fits alongside send + cancel exactly.
-  if (currentLang) {
-    const target = otherLang(currentLang);
-    const title = target === 'ur' ? S.btn_send_in_ur : S.btn_send_in_en;
-    if (title) buttons.push({ id: `${BTN.lang}${sessionId}`, title });
-  }
-  buttons.push({ id: `${BTN.cancel}${sessionId}`, title: S.btn_send_cancel });
-  return { body: S.send_confirm_body, buttons };
+function buildSendConfirmButtons(sessionId, S) {
+  // bd-dy7hs: send or cancel. The third, language-flipping button is gone —
+  // the report is already in the teacher's own language by the time she sees it.
+  return {
+    body: S.send_confirm_body,
+    buttons: [
+      { id: `${BTN.confirm}${sessionId}`, title: S.btn_send_now },
+      { id: `${BTN.cancel}${sessionId}`, title: S.btn_send_cancel },
+    ],
+  };
 }
 
 // ── DB helper (read-merge-write, D26 pattern) ──────────────────────────
@@ -361,39 +312,6 @@ async function handleTeacherPick(user, from, listId) {
 }
 
 /**
- * bd-2673 — flip the report's language and re-render the preview. Re-rendering
- * is deliberate: the report PNG itself is language-bound, so showing the coach
- * a confirm button over a preview in the other language would be a lie. The
- * override lives on the delivery record, so it survives to the deliver phase.
- */
-async function handleSendLangToggle(sessionId, from, user) {
-  const lang = clampToMarket(observeLang(user)) || marketLangConfig().fallback;
-  const S = observeStrings(lang);
-  try {
-    const session = await _loadSession(sessionId);
-    const delivery = (session.analysis_data && session.analysis_data.teacher_delivery) || {};
-    const current = await resolveTeacherLang(delivery, lang);
-    const next = otherLang(current);
-    await mergeTeacherDelivery(sessionId, { lang_override: next, status: 'previewing' });
-    await WhatsAppService.sendMessage(from, S.send_lang_switching);
-    const CoachingJobQueueService = require('../coaching/coaching-job-queue.service');
-    // bd-rkofm: the FIRST preview already queued phase 'preview' for this
-    // session, and SQS FIFO dedups on a 5-MINUTE window — which a coach is
-    // always inside when she taps this button. Without a nonce the re-render is
-    // silently discarded and she waits forever. Keyed on the TARGET language so
-    // a double-tap of the same button still collapses to one re-render.
-    await CoachingJobQueueService.queueObserveTeacherReport(sessionId, {
-      from, phase: 'preview', dedupNonce: `lang-${next}`,
-    });
-    logToFile('🌐 observe send: report language switched', { sessionId, from: current, to: next });
-  } catch (err) {
-    logToFile('❌ observe send: language toggle failed', { sessionId, error: err.message }, 'error');
-    await WhatsAppService.sendMessage(from, S.debrief_load_error);
-  }
-}
-
-
-/**
  * The approved UTILITY template that opens a cold teacher's window. Extracted
  * (bd-2675) so the nudge sends exactly what the first attempt sent — a nudge
  * that drifted from the original would be a second bug wearing the first one's
@@ -426,7 +344,10 @@ async function processUntappedDelivery(sessionId, nowMs = Date.now()) {
 
   const foPhone = session.users && session.users.phone_number;
   const foName = (session.users && session.users.first_name) || '';
-  const lang = clampToMarket(observeLang(session.users)) || marketLangConfig().fallback;
+  // bd-dy7hs: the coach's own chase-up, in the COACH's language. `session.users`
+  // is the observed TEACHER on a bound session, so reading it here told a
+  // English-reading coach about her teacher in Urdu.
+  const lang = await languageFor('coach', session);
   const S = observeStrings(lang);
   const name = delivery.teacher_name || '';
   const iso = new Date(nowMs).toISOString();
@@ -599,7 +520,7 @@ async function _loadSession(sessionId) {
 
 // Extract teacher-facing debrief notes. NEVER blocks the report — every
 // failure path returns null and the report ships without the companion.
-async function _extractNotes(session, foName) {
+async function _extractNotes(session, foName, notesLang) {
   const od = (session.analysis_data && session.analysis_data.observer_debrief) || {};
   const transcript = od.transcript;
   if (!transcript || transcript.length < MIN_DEBRIEF_CHARS_FOR_NOTES) return null;
@@ -617,8 +538,11 @@ async function _extractNotes(session, foName) {
   try {
     const { buildDebriefNotesPrompt, buildDebriefNotesPromptI18n, validateDebriefNotes } = require('./observe-teacher-report');
     const GPT5MiniService = require('../gpt5-mini.service');
-    // FEAT-093 bd-53: the note follows the officer's LOCKED language (sw untouched)
-    const notesLang = observeLang(session.users);
+    // bd-c3uq9: the language arrives from the caller, already resolved for the
+    // TEACHER — she is the one who reads this note. It used to be
+    // observeLang(session.users), and that join is the teacher on a bound
+    // observation but the coach on a bare one, so the note's language depended
+    // on how the session had been created rather than on who reads it.
     const { result } = await GPT5MiniService.completeJson(
       notesLang !== 'sw'
         ? buildDebriefNotesPromptI18n(transcript, { foName }, notesLang)
@@ -681,14 +605,13 @@ async function processTeacherReport(sessionId, payload = {}) {
     ? payload.from
     : (session.users && session.users.phone_number);
   const foName = (session.users && session.users.first_name) || 'Afisa';
-  // bd-2405: the coach's UI language, clamped to the market (never a stray sw
-  // on NIETE/PK). observeLang handles ur/sw/en; clamp guards data anomalies.
-  const lang = clampToMarket(observeLang(session.users)) || marketLangConfig().fallback;
+  // bd-dy7hs: two audiences, named. They are computed separately and stay
+  // separate (spec 2.3) — the coach's acks ("preview sent", "queued") are hers,
+  // only the teacher-bound artefacts follow the teacher.
+  const lang = await languageFor('coach', session);
   const S = observeStrings(lang);
   const delivery = (session.analysis_data && session.analysis_data.teacher_delivery) || {};
-  // bd-2405: teacher copy follows the TEACHER's market language, not a
-  // hardcoded 'sw'. (TZ still resolves to sw via the market config.)
-  const teacherLang = await resolveTeacherLang(delivery, lang);
+  const teacherLang = await languageFor('teacher', session);
   const teacherS = observeStrings(teacherLang);
 
   if (delivery.status === 'sent') {
@@ -704,7 +627,7 @@ async function processTeacherReport(sessionId, payload = {}) {
     const { heroBrandFor } = require('../coaching/report-renderers/renderer-registry');
     const { uploadImageBuffer } = require('../../storage/r2');
 
-    const notes = await _extractNotes(session, foName);
+    const notes = await _extractNotes(session, foName, teacherLang);
     const v2 = session.analysis_data || {};
     // D32: the OFFICIAL hero report, design unchanged — teacherName is what
     // the FO entered; commitmentAction is the teacher's debrief commitment.
@@ -733,10 +656,8 @@ async function processTeacherReport(sessionId, payload = {}) {
     // The FO sees EXACTLY what the teacher would receive (D33)…
     await _sendPackage(foPhone, png, teacherCaption, companionText);
     // …then decides.
-    // bd-2673: the toggle is labelled with the language she is NOT getting, so
-    // the coach can flip THIS report without touching the teacher's account.
     await WhatsAppService.sendInteractiveButtons(
-      foPhone, buildSendConfirmButtons(sessionId, S, teacherLang));
+      foPhone, buildSendConfirmButtons(sessionId, S));
     logToFile('🔎 observe send: preview delivered to FO', { sessionId });
     return;
   }
@@ -850,9 +771,6 @@ module.exports = {
   handleSendConfirm,
   handleSendCancel,
   processTeacherReport,
-  resolveTeacherLang,
-  otherLang,
-  handleSendLangToggle,
   processUntappedDelivery,
   clampToMarket,
 };
