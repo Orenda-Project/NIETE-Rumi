@@ -472,6 +472,42 @@ class RailwayRedisService {
   }
 
   /**
+   * bd-ecpo5: atomic set-if-not-exists with optional TTL. Returns true if THIS
+   * caller CLAIMED the key (it did not exist), false if it was already set.
+   *
+   * This method was MISSING on NIETE's redis service, yet the image handler calls
+   * it in three places for at-least-once webhook de-dup — most importantly the
+   * classroom-photo capture (Phase 3). `redisService.setNX(...)` was therefore
+   * `undefined`, threw "setNX is not a function", was swallowed by Phase 3's
+   * try/catch, and EVERY classroom photo fell through to the pic-to-LP path — the
+   * true root cause of "0 of 864 sessions ever captured a photo".
+   *
+   * @param {string} key
+   * @param {string|object} value
+   * @param {number|null} ttlSeconds
+   * @returns {Promise<boolean>} true = claimed (proceed), false = duplicate (skip)
+   */
+  async setNX(key, value, ttlSeconds = null) {
+    // Redis down → we cannot de-dup, but we must NOT drop the work. Behave as
+    // "claimed" so the caller proceeds (a rare double-process beats a silent drop).
+    if (!this.isAvailable()) {
+      return true;
+    }
+    try {
+      const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+      // ioredis: SET key val [EX ttl] NX → returns 'OK' when set, null when it existed.
+      const res = ttlSeconds
+        ? await this.redis.set(key, serialized, 'EX', ttlSeconds, 'NX')
+        : await this.redis.set(key, serialized, 'NX');
+      return res === 'OK';
+    } catch (error) {
+      logToFile('Failed to setNX cache', { key, error: error.message });
+      // On error, proceed (don't block capture on a de-dup failure).
+      return true;
+    }
+  }
+
+  /**
    * Get a value
    */
   async get(key) {
