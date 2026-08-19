@@ -637,8 +637,6 @@ app.post('/webhook', async (req, res) => {
           else if (parsed.action === 'later') await ObserveSend.handleSendLater(parsed.sessionId, from, user);
           else if (parsed.action === 'confirm') await ObserveSend.handleSendConfirm(parsed.sessionId, from, user);
           else if (parsed.action === 'cancel') await ObserveSend.handleSendCancel(parsed.sessionId, from, user);
-          // bd-2673 — flip the teacher report's language, then re-preview.
-          else if (parsed.action === 'lang') await ObserveSend.handleSendLangToggle(parsed.sessionId, from, user);
         } else {
           logToFile('⚠️ observe send button without user/parse', { buttonId, hasUser: !!user });
         }
