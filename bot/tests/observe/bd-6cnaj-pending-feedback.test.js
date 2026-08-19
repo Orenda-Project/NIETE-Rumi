@@ -134,6 +134,24 @@ describe('bd-0cxz6 · a coach with no schools can still get in and add her first
     expect(m.data.items.length).toBeGreaterThanOrEqual(1);   // NavigationList needs >=1
   });
 
+  it('COMPUTES the school count itself — not only when handed one', async () => {
+    // The gap that let a real bug through: both menu tests passed `schoolCount`
+    // via opts, so neither exercised the path the product actually takes. The
+    // lookup threw ReferenceError (_admin was declared inside handle(), out of
+    // scope for menuScreen), the catch swallowed it, and the menu never trimmed.
+    jest.resetModules();
+    jest.doMock('../../shared/services/observe/observe-debrief.service', () => ({
+      listPendingDebriefs: async () => [], listUnsentReports: async () => [],
+    }), { virtual: true });
+    jest.doMock('../../shared/services/observe/observe-school-admin.service', () => ({
+      listMySchools: async () => [],            // she has none
+    }), { virtual: true });
+    const H2 = require('../../shared/handlers/observe-visit-flow.handler');
+    const m = await H2.handle('coach-new', 'INIT', '', {}, 'coach-new', null);   // NO opts
+    expect(m.data.items.map((i) => i.id)).toEqual(['manage']);
+    jest.dontMock('../../shared/services/observe/observe-school-admin.service');
+  });
+
   it('a coach who has schools keeps the full menu, unchanged', async () => {
     const m = await H.handle('coach-1', 'INIT', '', {}, 'coach-1', null, { schoolCount: 3 });
     expect(m.data.items.map((i) => i.id)).toEqual(['debriefs', 'schedule', 'new', 'manage']);
