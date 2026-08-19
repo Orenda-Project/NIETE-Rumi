@@ -739,10 +739,17 @@ app.post('/webhook', async (req, res) => {
         logToFile('📸 User declined classroom photo — advancing to LP prompt', { sessionId, from });
 
         // Update conversation state past AWAITING_PHOTO.
+        // bd-3ipd2: MERGE, don't replace — a bare { current_state } drops any
+        // fields already on conversation_state (e.g. a race-held classroom_photos).
+        const { data: noSession } = await supabase
+          .from('coaching_sessions')
+          .select('conversation_state')
+          .eq('id', sessionId)
+          .maybeSingle();
         await supabase
           .from('coaching_sessions')
           .update({
-            conversation_state: { current_state: 'AWAITING_LESSON_PLAN' },
+            conversation_state: { ...(noSession?.conversation_state || {}), current_state: 'AWAITING_LESSON_PLAN' },
             status: 'awaiting_lesson_plan'
           })
           .eq('id', sessionId);
@@ -763,10 +770,16 @@ app.post('/webhook', async (req, res) => {
         const sessionId = buttonId.replace('photo_yes_', '');
         logToFile('📸 User will send classroom photo', { sessionId, from });
 
+        // bd-3ipd2: MERGE conversation_state (don't clobber existing fields).
+        const { data: yesSession } = await supabase
+          .from('coaching_sessions')
+          .select('conversation_state')
+          .eq('id', sessionId)
+          .maybeSingle();
         await supabase
           .from('coaching_sessions')
           .update({
-            conversation_state: { current_state: 'AWAITING_CLASSROOM_PHOTO' },
+            conversation_state: { ...(yesSession?.conversation_state || {}), current_state: 'AWAITING_CLASSROOM_PHOTO' },
             status: 'awaiting_classroom_photo'
           })
           .eq('id', sessionId);
@@ -2000,6 +2013,35 @@ async function handleDocumentMessage(message, from, user) {
     const fileSize = message.document.file_size || 0;
 
     logToFile('Document details', { documentId, mimeType, filename: message.document.filename, fileSize });
+
+    // bd-3ipd2: a classroom photo sent AS A DOCUMENT (Android "Document" picker /
+    // full-resolution send) lands here, not in the image handler. Historically it
+    // was dropped — the document handler only ever recognised AUDIO. If the teacher
+    // is on the photo step, capture it exactly like an image-message photo.
+    try {
+      const { isImageMime, shouldCaptureDocumentAsClassroomPhoto, CLASSROOM_PHOTO_STATUSES } = require('./shared/services/coaching/photo-capture-routing');
+      if (isImageMime(mimeType)) {
+        const supabase = require('./shared/config/supabase');
+        const { data: photoSession } = await supabase
+          .from('coaching_sessions')
+          .select('id, status, conversation_state, classroom_photos')
+          .eq('user_id', user.id)
+          .in('status', CLASSROOM_PHOTO_STATUSES)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (shouldCaptureDocumentAsClassroomPhoto(photoSession, mimeType)) {
+          const imageBuffer = await WhatsAppService.downloadMedia(documentId);
+          const { capturePhotoAndPrompt } = require('./shared/services/coaching/classroom-photo/capture.service');
+          await capturePhotoAndPrompt({ session: photoSession, imageBuffer, mimeType, from, user });
+          return;
+        }
+      }
+    } catch (photoDocErr) {
+      logToFile('⚠️ Classroom-photo-as-document check failed (non-critical)', { error: photoDocErr.message });
+      // fall through to normal document handling
+    }
 
     // CLASSROOM COACHING DETECTION: Check if document is an audio file.
     // Rifat's ask (Coach Platform card): teachers can now upload classroom

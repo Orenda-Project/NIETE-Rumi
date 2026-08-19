@@ -88,16 +88,21 @@ async function handleImageMessage(message, from, user = null) {
       // ============================================================
       try {
         const coachingSupabase = require('../config/supabase');
+        // bd-3ipd2 (ports bd-2636 to develop): accept BOTH the transcription-flow
+        // status (awaiting_photo) AND the photo_yes-button status
+        // (awaiting_classroom_photo). Filtering only awaiting_photo orphaned every
+        // photo a teacher sent after tapping "yes, add a classroom photo".
+        const { CLASSROOM_PHOTO_STATUSES, isClassroomPhotoState } = require('../services/coaching/photo-capture-routing');
         const { data: photoSession } = await coachingSupabase
           .from('coaching_sessions')
-          .select('id, conversation_state')
+          .select('id, conversation_state, status')
           .eq('user_id', user.id)
-          .eq('status', 'awaiting_photo')
+          .in('status', CLASSROOM_PHOTO_STATUSES)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
-        if (photoSession && (photoSession.conversation_state?.current_state === 'COLLECTING_PHOTOS' || photoSession.conversation_state?.current_state === 'AWAITING_PHOTO')) {
+        if (photoSession && isClassroomPhotoState(photoSession.conversation_state?.current_state)) {
           // bd-2371: de-dup at-least-once webhook redelivery for the classroom
           // photo branch too — a redelivered copy must not append the same photo
           // twice or re-fire the "photo N received" ack.
@@ -281,6 +286,34 @@ async function handleImageMessage(message, from, user = null) {
       } catch (examError) {
         logToFile('⚠️ Error in exam checker image detection', { error: examError.message });
         // Continue with regular image analysis
+      }
+
+      // bd-3ipd2: a classroom photo that RACED the transcription/analysis (sent
+      // right after the voice note, before the photo prompt exists) would otherwise
+      // fall to generic vision feedback and be lost from the session. If an analysis
+      // is imminent/running for this teacher, HOLD the photo on the session so the
+      // analysis (bd-gr48y) and report (bd-pv2tl) pick it up.
+      try {
+        const { shouldHoldImageForActiveCoaching, PRE_PHOTO_PROCESSING_STATUSES } = require('../services/coaching/photo-capture-routing');
+        const raceSupabase = require('../config/supabase');
+        const { data: procSession } = await raceSupabase
+          .from('coaching_sessions')
+          .select('id, status, created_at, conversation_state, classroom_photos')
+          .eq('user_id', user.id)
+          .in('status', Array.from(PRE_PHOTO_PROCESSING_STATUSES))
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (shouldHoldImageForActiveCoaching(procSession)) {
+          const raceBuffer = await WhatsAppService.downloadMedia(imageId);
+          const { holdPhotoForSession } = require('../services/coaching/classroom-photo/capture.service');
+          await holdPhotoForSession({ session: procSession, imageBuffer: raceBuffer, mimeType, from, user });
+          typingController.stop();
+          return;
+        }
+      } catch (raceErr) {
+        logToFile('⚠️ Race-hold classroom-photo check failed (non-critical)', { error: raceErr.message });
+        // fall through to generic vision feedback
       }
 
       // Generic vision-feedback path.

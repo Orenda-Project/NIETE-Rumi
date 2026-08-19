@@ -129,6 +129,38 @@ class AnalysisProcessorService {
         reason: frameworkSelectionReason,
       });
 
+      // bd-gr48y: run the vision pass on the teacher's classroom photos and feed the
+      // result INTO the analysis prompt, labelled so the model treats it as photo-sourced.
+      // Score stays audio-primary (the framework's photoNote frames it as supplementary
+      // context); a vision failure is non-blocking and never sinks the audio analysis.
+      metadata.photoAnalysis = null;
+      try {
+        const photos = Array.isArray(session.classroom_photos) ? session.classroom_photos.slice(0, 2) : [];
+        if (photos.length) {
+          const { processClassroomPhoto } = require('./classroom-photo/photo-analysis.service');
+          const { downloadFromR2, extractKeyFromUrl } = require('../../storage/r2');
+          const parts = [];
+          for (const p of photos) {
+            if (!p || !p.url) continue;
+            try {
+              const buf = await downloadFromR2(extractKeyFromUrl(p.url));
+              const text = await processClassroomPhoto(buf, p.mime_type || 'image/jpeg', frameworkKey);
+              if (text) parts.push(text);
+            } catch (perr) {
+              logToFile('[photo-vision] one photo failed (non-blocking)', { coachingSessionId, error: perr.message });
+            }
+          }
+          if (parts.length) {
+            metadata.photoAnalysis = parts
+              .map((t, i) => `Classroom photo ${i + 1} (submitted by the teacher): ${t}`)
+              .join('\n\n');
+            logToFile('[photo-vision] photo analysis attached to prompt', { coachingSessionId, photos: parts.length });
+          }
+        }
+      } catch (verr) {
+        logToFile('[photo-vision] vision pass failed (non-blocking)', { coachingSessionId, error: verr.message });
+      }
+
       // The pedagogy analysis and the v12 reflective corpus extraction run CONCURRENTLY.
       // allSettled (NOT all) keeps the corpus extraction NON-BLOCKING — if it rejects, the
       // critical-path analysis persist still proceeds and the report falls back gracefully
@@ -175,9 +207,13 @@ class AnalysisProcessorService {
       await supabase
         .from('coaching_sessions')
         .update({
-          analysis_data: reflectiveCorpus
-            ? { ...analysisResult.analysis, reflective_corpus: reflectiveCorpus }
-            : analysisResult.analysis,
+          analysis_data: {
+            ...analysisResult.analysis,
+            ...(reflectiveCorpus ? { reflective_corpus: reflectiveCorpus } : {}),
+            // bd-gr48y: persist the photo read so report transformers can flag
+            // photo-aware indicators (hasPhotoAnalysis) and the report can show it.
+            ...(metadata.photoAnalysis ? { photo_analysis: metadata.photoAnalysis } : {}),
+          },
           status: 'analysis_complete',
           analysis_completed_at: new Date().toISOString(),
           analysis_cost: analysisResult.usage.cost,

@@ -12,7 +12,9 @@
 const { buildScoreViewModel } = require('./score-adapter.service');
 const { generateReportNarrative } = require('./narrative.service');
 const { buildHeroReportHtml, buildReportCaption } = require('./hero-report.template');
+const { buildClassroomPhotoVm } = require('./classroom-photo-vm');
 const { loadTrendData } = require('../coaching-trend.service');
+const { downloadFromR2, extractKeyFromUrl } = require('../../../storage/r2');
 const { htmlToImage } = require('../../../utils/html-to-pdf');
 const { logToFile } = require('../../../utils/logger');
 
@@ -52,6 +54,20 @@ async function generateHeroReport(session, analysis, opts = {}) {
     teacherName,
   });
 
+  // bd-pv2tl: the teacher's own classroom photos, framed under the scorecard.
+  // Non-fatal: the helper skips any broken photo and returns [] on failure.
+  let classroomPhotos = [];
+  try {
+    const sharp = require('sharp');
+    classroomPhotos = await buildClassroomPhotoVm(session.classroom_photos, {
+      downloadFn: downloadFromR2,
+      extractKey: extractKeyFromUrl,
+      downscale: (buf) => sharp(buf).rotate().resize({ width: 720, withoutEnlargement: true }).jpeg({ quality: 72 }).toBuffer(),
+    });
+  } catch (e) {
+    logToFile('hero-report: classroom photo strip failed (non-fatal)', { error: e.message });
+  }
+
   const vm = {
     language: lang,
     brand,
@@ -63,7 +79,8 @@ async function generateHeroReport(session, analysis, opts = {}) {
     narrative: narrative || {},
     tryNext: commitmentAction || '',
     trend,
-    photoB64: '', // classroom-photo embedding = follow-up; solid-navy hero is the default
+    photoB64: '', // hero background stays the solid brand colour; photos render in the framed strip
+    classroomPhotos, // bd-pv2tl: up to 2 framed classroom photos under the scorecard
   };
 
   const png = await htmlToImage(buildHeroReportHtml(vm), { selector: '.report', width: 794, deviceScaleFactor: 2 });
