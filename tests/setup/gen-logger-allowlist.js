@@ -15,6 +15,27 @@
  * That is correct when adopting or repairing the ratchet, and wrong as a way to
  * silence a violation you just introduced: for a new callsite, add the severity
  * argument instead. The ratchet only earns its keep if this list shrinks.
+ *
+ * ## Resolving an allowlist merge conflict: REGENERATE, never merge
+ *
+ * The allowlist is a DERIVED artifact — it describes the callsites in one
+ * branch's tree. Two diverged branches therefore legitimately hold different
+ * allowlists (at the time of writing: 366 entries on `develop`, 389 on `main`),
+ * and any cherry-pick or promotion that touches it will conflict. Promoting the
+ * ratchet to `main` hit exactly this.
+ *
+ * Do NOT resolve such a conflict by picking a side or hand-merging the hunks.
+ * Either side is simply the wrong description of the tree you are landing on,
+ * and the result silently breaks the gate in one of two ways: entries for
+ * callsites that don't exist there (the stale-entry assertion fires), or missing
+ * entries for ones that do (the no-new assertion fires). Instead:
+ *
+ *   git checkout --ours tests/setup/logger-level-consistency.allowlist.json
+ *   node tests/setup/gen-logger-allowlist.js --write
+ *   git add tests/setup/logger-level-consistency.allowlist.json
+ *
+ * Then read the resulting count. If it jumped, the branch you are landing
+ * carries new untagged callsites — fix those rather than grandfathering them.
  */
 
 const fs = require('fs');
