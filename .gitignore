@@ -138,3 +138,6 @@ bot/scripts/setup/assets/backups/
 # bd-2540 working notes (accidentally committed in Phase 1b)
 .plans/
 .baseline-failing-*.txt
+
+# Migration run artifacts — contain user UUIDs. Local evidence, never source.
+.migration-snapshots/
