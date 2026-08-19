@@ -89,11 +89,12 @@ async function handleImageMessage(message, from, user = null) {
       // ============================================================
       try {
         const coachingSupabase = require('../config/supabase');
-        // bd-2636: accept BOTH the transcription-flow status ('awaiting_photo')
-        // and the photo_yes-button status ('awaiting_classroom_photo'). Filtering
-        // on only 'awaiting_photo' orphaned every photo a teacher sent after
-        // tapping "yes", freezing her session with no analysis or report.
-        const { CLASSROOM_PHOTO_STATUSES, isClassroomPhotoState } = require('../services/coaching/coaching-photo-status');
+        // bd-2636 / bd-3ipd2: accept BOTH the transcription-flow status
+        // ('awaiting_photo') and the photo_yes-button status
+        // ('awaiting_classroom_photo'). Filtering only awaiting_photo orphaned every
+        // photo a teacher sent after tapping "yes". photo-capture-routing is the
+        // single source for these constants (shared with the document + race paths).
+        const { CLASSROOM_PHOTO_STATUSES, isClassroomPhotoState } = require('../services/coaching/photo-capture-routing');
         const { data: photoSession } = await coachingSupabase
           .from('coaching_sessions')
           .select('id, conversation_state, status')
@@ -287,6 +288,35 @@ async function handleImageMessage(message, from, user = null) {
       } catch (examError) {
         logToFile('⚠️ Error in exam checker image detection', { error: examError.message });
         // Continue with regular image analysis
+      }
+
+      // bd-3ipd2: a classroom photo that RACED the transcription/analysis (sent
+      // right after the voice note, before the photo prompt exists) would otherwise
+      // fall to pic-to-LP / generic vision feedback and be lost from the session.
+      // If an analysis is imminent/running for this teacher, HOLD the photo on the
+      // session so the analysis (bd-gr48y) and report (bd-pv2tl) pick it up. This
+      // MUST run BEFORE the pic-to-LP block below (that is the path it was lost to).
+      try {
+        const { shouldHoldImageForActiveCoaching, PRE_PHOTO_PROCESSING_STATUSES } = require('../services/coaching/photo-capture-routing');
+        const raceSupabase = require('../config/supabase');
+        const { data: procSession } = await raceSupabase
+          .from('coaching_sessions')
+          .select('id, status, created_at, conversation_state, classroom_photos')
+          .eq('user_id', user.id)
+          .in('status', Array.from(PRE_PHOTO_PROCESSING_STATUSES))
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (shouldHoldImageForActiveCoaching(procSession)) {
+          const raceBuffer = await WhatsAppService.downloadMedia(imageId);
+          const { holdPhotoForSession } = require('../services/coaching/classroom-photo/capture.service');
+          await holdPhotoForSession({ session: procSession, imageBuffer: raceBuffer, mimeType, from, user });
+          typingController.stop();
+          return;
+        }
+      } catch (raceErr) {
+        logToFile('⚠️ Race-hold classroom-photo check failed (non-critical)', { error: raceErr.message });
+        // fall through to pic-to-LP / generic vision feedback
       }
 
       // ============================================================
