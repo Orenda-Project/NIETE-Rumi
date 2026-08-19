@@ -47,13 +47,11 @@ describe('bd-rkofm · a re-queued preview must not collide with the first one', 
     expect(first).not.toBe(retry);
   });
 
-  it('the language toggle attaches a nonce, so the re-render actually runs', () => {
-    const src = require('fs').readFileSync(
-      require('path').join(__dirname, '../../shared/services/observe/observe-send.service.js'), 'utf8');
-    const fn = src.slice(src.indexOf('async function handleSendLangToggle'),
-      src.indexOf('async function handleSendLangToggle') + 1400);
-    expect(fn).toMatch(/dedupNonce/);
-  });
+  // REMOVED 2026-08-19 (bd-dy7hs): "the language toggle attaches a nonce, so the
+  // re-render actually runs". The toggle itself is gone — the report is rendered
+  // in the teacher's own language the first time, so there is no second render
+  // to dedup. The dedup-id rule it exercised is still pinned by the tests either
+  // side of this note, which is the part that generalises.
 
   it('tapping the same toggle twice still dedups — one re-render, not two', () => {
     const a = dedupIdFor('s1', 'observe_teacher_report', { phase: 'preview', dedupNonce: 'lang-ur' });
