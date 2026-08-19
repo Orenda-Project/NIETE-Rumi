@@ -1,0 +1,48 @@
+-- V1.1.5 — users.preferred_language default: 'en' -> 'ur'
+--
+-- WHY
+--
+-- This deployment OFFERS Urdu first but STORED English by default, and had done
+-- since the offer was introduced. `LANGUAGE_OFFER[0]` is 'ur' and
+-- `offerDefaultLanguage()` returns 'ur', while this column's default was 'en'. A
+-- teacher who opened the language picker saw Urdu at the top; a teacher who never
+-- opened it was stored as English. Both behaved exactly as coded.
+--
+-- At the time of writing that was 9,391 of 9,510 teachers on English, 97.6% of
+-- whom registered before the offer existed. Of the 119 who had expressed a
+-- preference, 117 chose Urdu.
+--
+-- WHY THE JAVASCRIPT CONSTANT IS NOT THE FIX
+--
+-- `DEFAULT_LANGUAGE` in bot/shared/utils/language-cache.js also reads 'en', and
+-- changing it is a NO-OP for real teachers: every row holds a non-null value, so
+-- `preferred_language || DEFAULT_LANGUAGE` never fires. The floor that actually
+-- decides a new teacher's language is THIS column default. That constant only
+-- applies when there is no row or the read fails, and it is left alone here
+-- deliberately — it is a separate decision about failure behaviour.
+--
+-- WHAT THIS DOES AND DOES NOT DO
+--
+-- Affects NEW rows only. Existing rows are unchanged by a DEFAULT change, and are
+-- migrated separately by scripts/language-floor-flip.js, which touches only
+-- teachers who never chose (`language_locked != true`) and never sets the lock.
+-- Run in the same window: without this default, every new registration returns to
+-- English and the backfilled population regrows immediately.
+--
+-- SAFETY
+--
+-- No table rewrite. SET DEFAULT is a catalog-only change on an existing nullable
+-- column, so it does not scan or lock the table beyond a brief ACCESS EXCLUSIVE
+-- lock to update the catalog entry. No CHECK constraint or enum governs this
+-- column (verified), so 'ur' is accepted. Reversible with the statement in the
+-- ROLLBACK note below.
+--
+-- Verified on staging before prod: the catalog default reads 'ur', and a real
+-- INSERT of a new row produced preferred_language='ur', language_locked=false.
+-- (Note when probing: phone_number is varchar(20).)
+--
+-- ROLLBACK
+--   ALTER TABLE public.users ALTER COLUMN preferred_language SET DEFAULT 'en';
+
+ALTER TABLE public.users
+  ALTER COLUMN preferred_language SET DEFAULT 'ur';
