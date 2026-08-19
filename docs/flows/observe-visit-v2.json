@@ -23,7 +23,8 @@
       "SEARCH_TEACHER"
     ],
     "BRIEF_SCHEDULE": [
-      "SCHEDULE_PICKER"
+      "SCHEDULE_PICKER",
+      "BRIEF"
     ],
     "SCHEDULE_PICKER": [
       "CONFIRM_SCHEDULED"
@@ -543,6 +544,30 @@
           {
             "type": "TextCaption",
             "text": "${data.guidance_text}"
+          },
+          {
+            "type": "EmbeddedLink",
+            "text": "Record the lesson now",
+            "on-click-action": {
+              "name": "navigate",
+              "next": {
+                "type": "screen",
+                "name": "BRIEF"
+              },
+              "payload": {
+                "teacher_name": "${data.teacher_name}",
+                "subtitle": "${data.subtitle}",
+                "strength_text": "${data.strength_text}",
+                "growth_text": "${data.growth_text}",
+                "moves_intro": "${data.moves_intro}",
+                "moves_text": "${data.moves_text}",
+                "trend_text": "${data.trend_text}",
+                "debrief_reminder": "${data.debrief_reminder}",
+                "guidance_text": "${data.guidance_text}",
+                "teacher_ext_id": "${data.teacher_ext_id}",
+                "school_ext_id": "${data.school_ext_id}"
+              }
+            }
           },
           {
             "type": "Footer",

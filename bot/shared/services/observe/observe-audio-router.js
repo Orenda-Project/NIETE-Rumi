@@ -91,11 +91,32 @@ async function routeLeaderAudio({ user, from, audioId, sessionId, isLongAudio = 
   // School leader, no observe state armed.
   if (isLongAudio) {
     logToFile('🔭 observe: leader sent long audio with no armed observation', { userId: user.id });
+    // bd-jrxo3 — the back door. This is the stale-state and resumed-chat case:
+    // a recording arrives, nothing is bound, and the old reply ("type /observe
+    // first, then send it again") was a dead end she had to decode. Where a
+    // picker EXISTS, say what to do and open it in the same breath. Where it
+    // does not — upstream Tanzania — the recording is still the entry point, so
+    // today's line stands unchanged.
+    if (process.env.OBSERVE_VISIT_FLOW_ID) {
+      try {
+        const { sendVisitRedirect } = require('../../handlers/observe-command.handler');
+        await sendVisitRedirect(user, from);
+        return true;
+      } catch (err) {
+        logToFile('⚠️ observe: redirect failed — falling back to the plain nudge', {
+          userId: user.id, error: err.message,
+        });
+      }
+    }
     await WhatsAppService.sendMessage(from, S.long_audio_no_state);
     return true;   // the invariant: never teacher coaching for a school leader
   }
 
-  return false;    // short audio, no observation — let them chat normally
+  // Short audio, no observation — let them chat normally. Deliberately NOT
+  // redirected even where a picker exists: this is a coach talking to Rumi, not
+  // a lesson recording, and the bare-capture hole is closed at the arming layer
+  // (observe-command.handler) rather than by hijacking every voice note.
+  return false;
 }
 
 module.exports = { routeLeaderAudio };
