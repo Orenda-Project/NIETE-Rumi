@@ -259,9 +259,19 @@ const _success = (heading, body, opts = {}) => ({
 const _debriefService = () => require('../services/observe/observe-debrief.service');
 const _scheduleStore = () => require('../services/observe/observe-schedule.service');
 
-async function menuScreen(userId) {
+async function menuScreen(userId, opts = {}) {
   let pending = 0;
   let upcoming = 0;
+  // bd-0cxz6: how many schools she actually has. Zero is a real state now that
+  // /observe opens for any coach, and the menu must not offer her a scheduling
+  // path that can only dead-end on an empty school list.
+  let schoolCount = opts.schoolCount;
+  if (schoolCount == null) {
+    try {
+      const A = _admin();
+      schoolCount = (await A.listMySchools(userId)).length;
+    } catch (_) { schoolCount = 1; }   // unknown -> behave as today
+  }
   try {
     const Debrief = _debriefService();
     const [p, u] = await Promise.all([
@@ -310,6 +320,13 @@ async function menuScreen(userId) {
       'on-click-action': { name: 'data_exchange', payload: { step: 'add_search_open' } },
     },
   ];
+  if (!schoolCount) {
+    // Nothing to debrief, schedule or observe until she has a school. Show the
+    // one action that gets her unstuck, and say why the rest is missing.
+    const only = items.filter((i) => i.id === 'manage');
+    only[0]['main-content'].metadata = 'Start here — add your first school';
+    return { screen: 'MENU', data: { items: only } };
+  }
   return { screen: 'MENU', data: { items } };
 }
 
@@ -319,7 +336,13 @@ async function debriefsScreen(userId) {
     Debrief.listPendingDebriefs(userId).catch(() => []),
     Debrief.listUnsentReports(userId).catch(() => []),
   ]);
-  const row = (sess, metaSuffix) => ({
+  // bd-6cnaj: the ACTION is per-group. These two row types look alike and used
+  // to share one action ('debrief'), which sent the unsent-report rows into
+  // startDebrief — whose guard correctly refuses anything not 'pending'. That is
+  // why a coach tapping "report not sent yet" was told the debrief was already
+  // complete. The send path (ObserveSend.startSendFlow) already exists and is
+  // already wired for the legacy WhatsApp list; only this surface was wrong.
+  const row = (sess, metaSuffix, action) => ({
     id: String(sess.id),
     'main-content': {
       title: clip((sess.analysis_data && sess.analysis_data.teacher_delivery && sess.analysis_data.teacher_delivery.teacher_name) || 'Observation', 30),
@@ -327,12 +350,12 @@ async function debriefsScreen(userId) {
     },
     'on-click-action': {
       name: 'complete',
-      payload: { observe_visit_action: 'debrief', session_id: String(sess.id) },
+      payload: { observe_visit_action: action, session_id: String(sess.id) },
     },
   });
   const items = [
-    ...pendings.map((s) => row(s, 'debrief pending')),
-    ...unsent.map((s) => row(s, 'report not sent yet')),
+    ...pendings.map((s) => row(s, 'debrief pending', 'debrief')),
+    ...unsent.map((s) => row(s, 'report not sent yet', 'send_report')),
   ];
   if (!items.length) {
     // NavigationList needs >=1 row; a self-refreshing placeholder keeps an
@@ -572,13 +595,13 @@ async function rememberedPick(userId, screenData) {
  * @param {string} flowToken raw flow token
  * @param {object} [user]    coach users row (optional — for the observe arm on bind)
  */
-async function handle(userId, action, screen, screenData = {}, flowToken = '', user = null) {
+async function handle(userId, action, screen, screenData = {}, flowToken = '', user = null, opts = {}) {
   const step = screenData && screenData.step;
   const v2 = schedulingOn();
   logToFile('observe-visit flow', { userId, action, screen, step, v2 });
 
   if (action === 'INIT' || action === 'init') {
-    return v2 ? menuScreen(userId) : schoolsScreen(userId);
+    return v2 ? menuScreen(userId, opts) : schoolsScreen(userId);
   }
 
   if (action === 'BACK') {
