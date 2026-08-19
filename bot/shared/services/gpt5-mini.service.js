@@ -350,7 +350,7 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
         {
           role: 'user',
           content: useFrameworkModule
-            ? framework.buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, null)
+            ? framework.buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, metadata.photoAnalysis || null)
             : this._buildAnalysisPrompt(transcript, metadata, lessonPlanStructured)
         }
       ];
