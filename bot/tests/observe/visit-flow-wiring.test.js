@@ -117,9 +117,22 @@ describe('2. maybeLaunchVisitFlow gate', () => {
     expect(call[1].flowToken).toBe('coach-1');
   });
 
-  test('no assignment → false (coach keeps today\'s path)', async () => {
+  test('no assignment → TRUE for a coach (the menu is how she adds her first school)', async () => {
+    // bd-0cxz6 (R53, Fatima 18 Aug): this asserted the OPPOSITE until 19 Aug —
+    // that a coach with no assignment keeps the legacy path. That WAS the bug.
+    // The menu is the only route to "Add a school", so gating the menu on
+    // already having one locked 22 of 80 production coaches out of /observe.
+    // A coach now gets the Flow regardless of assignment; a non-coach without
+    // one still falls back (pinned by the non-coach test).
     mockDb.leader_schools = [];
-    expect(await maybeLaunchVisitFlow(COACH, '92326')).toBe(false);
+    expect(await maybeLaunchVisitFlow(COACH, '92326')).toBe(true);
+    expect(WhatsAppService.sendFlow).toHaveBeenCalled();
+  });
+
+  test('no assignment AND not a coach → still false', async () => {
+    mockDb.leader_schools = [];
+    const TEACHER = { id: 'teacher-1', role: 'teacher', preferred_language: 'ur' };
+    expect(await maybeLaunchVisitFlow(TEACHER, '92326')).toBe(false);
     expect(WhatsAppService.sendFlow).not.toHaveBeenCalled();
   });
 
@@ -134,11 +147,10 @@ describe('2. maybeLaunchVisitFlow gate', () => {
     expect(WhatsAppService.sendFlow).toHaveBeenCalled();
   });
 
-  test('/observe without assignment falls back to bare capture prompt', async () => {
+  test('/observe without assignment now opens the Flow for a coach (bd-0cxz6)', async () => {
     const handled = await handleObserveCommand(COACH, '923268124132', '/observe');
     expect(handled).toBe(true);
-    expect(WhatsAppService.sendFlow).not.toHaveBeenCalled();
-    expect(WhatsAppService.sendMessage).toHaveBeenCalled(); // capture prompt
+    expect(WhatsAppService.sendFlow).toHaveBeenCalled();
   });
 });
 
