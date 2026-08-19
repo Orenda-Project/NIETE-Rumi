@@ -13,6 +13,7 @@ const { buildScoreViewModel } = require('./score-adapter.service');
 const { generateReportNarrative } = require('./narrative.service');
 const { buildHeroReportHtml, buildReportCaption } = require('./hero-report.template');
 const { buildClassroomPhotoVm } = require('./classroom-photo-vm');
+const { resolveReportLanguage } = require('./report-language');
 const { loadTrendData } = require('../coaching-trend.service');
 const { downloadFromR2, extractKeyFromUrl } = require('../../../storage/r2');
 const { htmlToImage } = require('../../../utils/html-to-pdf');
@@ -27,8 +28,13 @@ const { logToFile } = require('../../../utils/logger');
  * @returns {Promise<{png:Buffer, caption:string}>}
  */
 async function generateHeroReport(session, analysis, opts = {}) {
-  const { teacherName = 'Teacher', commitmentAction = '', language, brand } = opts;
-  const lang = language || analysis.language || session.transcript_language || 'en';
+  const { teacherName = 'Teacher', commitmentAction = '', brand } = opts;
+  // bd-gipr1 — this used to be `language || analysis.language ||
+  // session.transcript_language || 'en'`, which let an STT label choose both the
+  // template's script branch and the language the narrative LLM writes in.
+  // transcript_language has been 'hindi'/'javanese'/'sindhi' on prod (bd-bfy69).
+  // resolveReportLanguage() only ever returns a language we actually offer.
+  const lang = resolveReportLanguage(opts, analysis, session);
   const framework = (analysis.framework || 'oecd').toLowerCase();
 
   const score = buildScoreViewModel(analysis, { framework, language: lang });

@@ -131,8 +131,19 @@ function buildHeroReportHtml(vm) {
   // LLM-generated BODY (affirmation, moment, strength copy) stays in `lang`, and
   // layout stays RTL for ur/ar. The card heading is chrome, so it is English too.
   const C = CHROME.en;
-  const headFam = RTL ? (lang === 'ar' ? `'NaskhArabic',serif` : `'NastaliqUrdu',serif`) : `'Fraunces',serif`;
-  const bodyFam = RTL ? (lang === 'ar' ? `'NaskhArabic',serif` : `'NastaliqUrdu',serif`) : `'Lexend',sans-serif`;
+  // bd-osmk0 — the Urdu/Arabic faces are a PERMANENT FALLBACK in EVERY branch,
+  // never gated on `lang`. `lang` here is only as trustworthy as its source, and
+  // its source includes `session.transcript_language` — an STT label. Since
+  // 2026-08-11 Soniox has labelled Urdu classroom audio `en`/`hindi`/`javanese`,
+  // which drove Urdu-bodied reports down the Latin arm, where nothing in the
+  // stack covered Urdu. Railway's Chromium has no system fonts, so those glyphs
+  // painted as tofu boxes (44 reports); macOS substitutes a system Nastaliq,
+  // which is exactly why it always looked right locally. Latin still resolves to
+  // Lexend/Fraunces first — the fallbacks only catch what those cannot draw.
+  // Same fix bd-2644 applied to the coach card.
+  const NON_LATIN = `'NastaliqUrdu','NaskhArabic'`;
+  const headFam = RTL ? (lang === 'ar' ? `'NaskhArabic','NastaliqUrdu',serif` : `'NastaliqUrdu','NaskhArabic',serif`) : `'Fraunces',${NON_LATIN},serif`;
+  const bodyFam = RTL ? (lang === 'ar' ? `'NaskhArabic','NastaliqUrdu',serif` : `'NastaliqUrdu','NaskhArabic',serif`) : `'Lexend',${NON_LATIN},sans-serif`;
   const dir = RTL ? 'rtl' : 'ltr';
 
   // Split on tags AND HTML entities so we don't tear an entity apart. Without
@@ -203,7 +214,11 @@ function buildHeroReportHtml(vm) {
   .pgrid{display:flex;gap:14px}
   .pframe{flex:1;max-width:342px;border-radius:14px;overflow:hidden;border:1px solid ${P.barBg};background:#fff;box-shadow:0 3px 13px rgba(51,55,72,.10)}
   .pframe img{width:100%;height:158px;object-fit:cover;display:block;background:${P.barBg}}
-  .pframe .pcap{font-size:11px;color:${P.quiet};padding:8px 12px;font-family:'Lexend',sans-serif;letter-spacing:.01em}
+  /* bd-osmk0 — the photo caption is LLM-generated prose, so it can be Urdu even
+     on a correctly-labelled ur report; it was pinned to Latin-only Lexend in
+     every branch. This is the bd-2362 class: the small-print element nobody
+     re-checks after the main stacks are fixed. */
+  .pframe .pcap{font-size:11px;color:${P.quiet};padding:8px 12px;font-family:'Lexend',${NON_LATIN},sans-serif;letter-spacing:.01em}
   .journey{padding:14px 42px 0}.j-cap{font-size:12.5px;color:${P.note};line-height:${RTL ? '1.7' : '1.5'};margin-top:2px}
   .try{margin:16px 42px 0;background:${P.tryGrad};color:#fff;border-radius:16px;padding:18px 24px}
   .try .label{color:${P.tryLabel};opacity:1;margin-bottom:6px}
