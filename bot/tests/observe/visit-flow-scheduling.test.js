@@ -40,6 +40,12 @@ jest.mock('../../shared/services/observe/observe-debrief.service', () => ({
   listPendingDebriefs: jest.fn(async () => mockPendings),
   listUnsentReports: jest.fn(async () => mockUnsent),
 }));
+// bd-0cxz6: menuScreen now asks how many schools she has, so this suite needs
+// the same stub treatment as every other service it already mocks — otherwise
+// the real module loads shared/config/supabase, which process.exit(78)s here.
+jest.mock('../../shared/services/observe/observe-school-admin.service', () => ({
+  listMySchools: jest.fn(async () => [{ school_ext_id: 'niete:401', school_name: 'Test School' }]),
+}));
 jest.mock('../../shared/services/observe/observe-state.service', () => ({
   setState: jest.fn(async (uid, s, d) => { mockState.current = { state: s, ...(d || {}) }; }),
   getState: jest.fn(async () => mockState.current),
