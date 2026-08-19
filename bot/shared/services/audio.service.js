@@ -103,7 +103,25 @@ class AudioService {
     // all supported languages (coaching multi-language audio). Soniox expects
     // ISO 639-1 codes (e.g. 'pa'), NOT locale codes ('pa-PK') — strip the suffix.
     const normalizedLanguage = language ? language.split('-')[0] : null;
-    const languageHints = normalizedLanguage ? [normalizedLanguage] : ['en', 'ur', 'es', 'ar', 'pa', 'ta'];
+    // bd-bfy69 — LAYER 1 of the Devanagari defence: stop inviting it.
+    //
+    // This list used to be ['en','ur','es','ar','pa','ta'] — six languages, four
+    // of which this deployment does not serve. Hints only BIAS Soniox's language
+    // identification; they do not restrict it, and a wide, mostly-irrelevant list
+    // widens the search. Urdu and Hindi are the same spoken language, so the
+    // identifier settled on Hindi and wrote the transcript in DEVANAGARI: one
+    // prod session came back with 4,926 tokens tagged `hi`, 139 tagged `en`, and
+    // not one tagged `ur` (2026-08-19). Coaches then read that script in the FICO
+    // evidence box, where it cannot even be drawn — we ship no Devanagari font.
+    //
+    // The default now comes from LANGUAGE_OFFER, the single source of truth for
+    // what this deployment serves, rather than a second hardcoded list that can
+    // drift from it (language-protocol: one offer source).
+    //
+    // Callers passing an explicit language (reading assessment) are unaffected —
+    // they take the single-hint branch above, exactly as before.
+    const { LANGUAGE_OFFER } = require('../config/languages');
+    const languageHints = normalizedLanguage ? [normalizedLanguage] : [...LANGUAGE_OFFER];
 
     const requestBody = {
       file_id: fileId,
@@ -555,7 +573,79 @@ class AudioService {
    * @param {boolean} enableDiarization - Whether to enable speaker diarization (for classroom audio)
    * @returns {Promise<string>} Transcription text
    */
+  /**
+   * bd-bfy69 — LAYERS 2 AND 3 of the Devanagari defence.
+   *
+   * Layer 1 (the hints, in _buildSonioxRequestBody) makes Hindi much less
+   * likely, but hints only bias the language identifier; they cannot forbid an
+   * outcome. So this wrapper checks what actually came back:
+   *
+   *   layer 2 — Devanagari present and the caller did not pin a language:
+   *             transcribe once more with a single forced `ur` hint, which
+   *             takes the single-language branch and leaves the identifier no
+   *             room to choose Hindi.
+   *   layer 3 — still Devanagari (or the retry failed, or the caller pinned a
+   *             language so a retry would be pointless): transliterate to
+   *             Perso-Arabic. Never return Devanagari to a caller. We ship no
+   *             Devanagari font, so anything that reaches a report or a Flow in
+   *             that script renders as empty boxes.
+   *
+   * Both layers log at level='error': reaching either means the language
+   * identifier is still getting Urdu wrong, and that is worth seeing.
+   *
+   * The unwrapped single attempt is `_transcribeOnce`.
+   */
   static async transcribe(audioPath, enableDiarization = false, language = null) {
+    const { hasDevanagari, countDevanagari, ensureNoDevanagari } = require('../utils/devanagari-guard');
+
+    const result = await this._transcribeOnce(audioPath, enableDiarization, language);
+    if (!result || !hasDevanagari(result.text)) return result;
+
+    logToFile('❌ Transcript returned in Devanagari — Urdu speech identified as Hindi', {
+      audioPath,
+      devanagariChars: countDevanagari(result.text),
+      sonioxLanguage: result.language,
+      callerLanguage: language || null,
+      willRetryAsUrdu: !language,
+    }, 'error');
+
+    // Layer 2 — only worth trying when the caller left the language open. If a
+    // caller already pinned one, Soniox was given a single hint and re-running
+    // the identical request would return the identical answer.
+    if (!language) {
+      try {
+        const retry = await this._transcribeOnce(audioPath, enableDiarization, 'ur');
+        if (retry && retry.text && !hasDevanagari(retry.text)) {
+          logToFile('✅ Devanagari cleared by re-transcribing with a forced Urdu hint', {
+            audioPath, textLength: retry.text.length,
+          });
+          return { ...retry, language: retry.language || 'ur', devanagariRetried: true };
+        }
+        logToFile('❌ Forced-Urdu retry still returned Devanagari — falling back to transliteration', {
+          audioPath, devanagariChars: countDevanagari(retry && retry.text),
+        }, 'error');
+      } catch (retryError) {
+        logToFile('❌ Forced-Urdu retry threw — falling back to transliteration', {
+          audioPath, error: retryError.message,
+        }, 'error');
+      }
+    }
+
+    // Layer 3 — the guarantee. Lossy, and deliberately loud about it.
+    const text = ensureNoDevanagari(result.text, {
+      onDetected: ({ count, sample }) => logToFile(
+        '❌ Transliterating Devanagari to Urdu script as a last resort — the transcript is readable but not verbatim',
+        { audioPath, devanagariChars: count, sample }, 'error',
+      ),
+    });
+    // The language label was part of the same wrong answer: Soniox reported
+    // 'en'/'hindi' for speech we have now written in Urdu script. Downstream
+    // (resolveReportLanguage) picks the report's script from this field, so
+    // leaving the bad label would send an Urdu report down the Latin branch.
+    return { ...result, text, language: 'ur', devanagariTransliterated: true };
+  }
+
+  static async _transcribeOnce(audioPath, enableDiarization = false, language = null) {
     let fileId = null;
 
     try {
