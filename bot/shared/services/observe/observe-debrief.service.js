@@ -82,7 +82,12 @@ function buildDebriefChoiceButtons(sessionId, S) {
  * Sessions awaiting a debrief for this observer, newest first, capped at 9.
  * Backed by the partial index idx_coaching_sessions_observer_pending.
  */
-async function listPendingDebriefs(observerUserId) {
+async function listPendingDebriefs(observerUserId, opts = {}) {
+  // bd-43474: MAX_PENDING_ROWS is a WhatsApp interactive-list limit (9 + the
+  // sentinel = 10). The Flow's NavigationList holds 20, so it passes its own
+  // window rather than inheriting a constraint that does not apply to it.
+  const limit = opts.limit == null ? MAX_PENDING_ROWS : opts.limit;
+  const offset = opts.offset || 0;
   const { data, error } = await supabase
     .from('coaching_sessions')
     .select('id, created_at, analysis_data')
@@ -91,7 +96,7 @@ async function listPendingDebriefs(observerUserId) {
     .eq('debrief_status', 'pending')
     .eq('status', 'observer_review_complete')
     .order('created_at', { ascending: false })
-    .limit(MAX_PENDING_ROWS);
+    .range(offset, offset + limit - 1);
   if (error) throw new Error(`listPendingDebriefs failed: ${error.message}`);
   return _withObservedTeacher(data || []);
 }
@@ -126,7 +131,9 @@ async function _withObservedTeacher(rows) {
  * reached the teacher — the durable re-entry point for "Baadaye" on the send
  * offer. Row cap shared with the debrief rows in buildPendingListPayload.
  */
-async function listUnsentReports(observerUserId) {
+async function listUnsentReports(observerUserId, opts = {}) {
+  const limit = opts.limit == null ? MAX_PENDING_ROWS : opts.limit;
+  const offset = opts.offset || 0;
   const { data, error } = await supabase
     .from('coaching_sessions')
     .select('id, created_at, analysis_data')
@@ -135,13 +142,26 @@ async function listUnsentReports(observerUserId) {
     .eq('debrief_status', 'done')
     .eq('status', 'observer_review_complete')
     .order('created_at', { ascending: false })
-    .limit(MAX_PENDING_ROWS);
+    .range(offset, offset + limit - 1);
   if (error) throw new Error(`listUnsentReports failed: ${error.message}`);
   const DONE = ['sent', 'awaiting_teacher_tap', 'operator_review'];
-  return (data || []).filter((r) => {
+  const open = (data || []).filter((r) => {
     const d = r.analysis_data && r.analysis_data.teacher_delivery;
     return !d || !DONE.includes(d.status);
   });
+  // bd-bos31: these rows never got the schedule join, so every one of them
+  // rendered as the literal "Observation". The pending list has had it since
+  // bd-2669; this one was simply missed.
+  return _withObservedTeacher(open);
+}
+
+/** Total rows waiting for this coach — drives the "show more" decision. */
+async function countPending(observerUserId) {
+  const [p, u] = await Promise.all([
+    listPendingDebriefs(observerUserId, { limit: 1000 }).catch(() => []),
+    listUnsentReports(observerUserId, { limit: 1000 }).catch(() => []),
+  ]);
+  return p.length + u.length;
 }
 
 // bd-2216: the deployment's own timezone, not a hardcoded one. This row is how
@@ -653,6 +673,7 @@ module.exports = {
   buildDebriefChoiceButtons,
   listPendingDebriefs,
   listUnsentReports,
+  countPending,
   buildPendingListPayload,
   handleDebriefLater,
   clearStateAfterSubmit,

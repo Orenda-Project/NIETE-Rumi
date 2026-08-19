@@ -335,33 +335,53 @@ async function menuScreen(userId, opts = {}) {
   return { screen: 'MENU', data: { items } };
 }
 
-async function debriefsScreen(userId) {
+// bd-43474: Meta's NavigationList holds 20 rows. Reserve one for "show more"
+// so a coach with a long backlog can always reach the rest.
+const DEBRIEF_PAGE = 19;
+
+async function debriefsScreen(userId, offset = 0) {
   const Debrief = _debriefService();
+  const off = Math.max(0, Number(offset) || 0);
+  // The screen shows ONE list stitched from two queries, so the offset applies
+  // to the stitched result, not to either query. Fetch both from the start up
+  // to the end of this page (+1 to detect another page) and slice after. At the
+  // real sizes here — the largest backlog on prod is 13 — that is one extra row
+  // per query, not a scan.
+  const upto = off + DEBRIEF_PAGE + 1;
   const [pendings, unsent] = await Promise.all([
-    Debrief.listPendingDebriefs(userId).catch(() => []),
-    Debrief.listUnsentReports(userId).catch(() => []),
+    Debrief.listPendingDebriefs(userId, { limit: upto, offset: 0 }).catch(() => []),
+    Debrief.listUnsentReports(userId, { limit: upto, offset: 0 }).catch(() => []),
   ]);
-  // bd-6cnaj: the ACTION is per-group. These two row types look alike and used
-  // to share one action ('debrief'), which sent the unsent-report rows into
-  // startDebrief — whose guard correctly refuses anything not 'pending'. That is
-  // why a coach tapping "report not sent yet" was told the debrief was already
-  // complete. The send path (ObserveSend.startSendFlow) already exists and is
-  // already wired for the legacy WhatsApp list; only this surface was wrong.
+  // bd-bos31: prefer the schedule-resolved name the query already attached. The
+  // analysis_data field is empty on 166 of 323 prod observations, which is why
+  // rows read "Observation"; the name was there, just never read.
+  const nameOf = (sess) => sess.teacher_name
+    || (sess.analysis_data && sess.analysis_data.teacher_delivery && sess.analysis_data.teacher_delivery.teacher_name)
+    || 'Observation';
   const row = (sess, metaSuffix, action) => ({
     id: String(sess.id),
     'main-content': {
-      title: clip((sess.analysis_data && sess.analysis_data.teacher_delivery && sess.analysis_data.teacher_delivery.teacher_name) || 'Observation', 30),
-      metadata: clip(`Observed ${fmtVisitDate(sess.created_at)} - ${metaSuffix}`, 80),
+      title: clip(nameOf(sess), 30),
+      metadata: clip([sess.school_name, `Observed ${fmtVisitDate(sess.created_at)}`, metaSuffix].filter(Boolean).join(' - '), 80),
     },
     'on-click-action': {
       name: 'complete',
       payload: { observe_visit_action: action, session_id: String(sess.id) },
     },
   });
-  const items = [
+  const all = [
     ...pendings.map((s) => row(s, 'debrief pending', 'debrief')),
     ...unsent.map((s) => row(s, 'report not sent yet', 'send_report')),
   ];
+  const page = all.slice(off, off + DEBRIEF_PAGE);
+  const items = [...page];
+  if (all.length > off + DEBRIEF_PAGE) {
+    items.push({
+      id: 'more',
+      'main-content': { title: 'Show more', metadata: `${off + page.length} of ${all.length} shown` },
+      'on-click-action': { name: 'data_exchange', payload: { step: 'debriefs', offset: off + DEBRIEF_PAGE } },
+    });
+  }
   if (!items.length) {
     // NavigationList needs >=1 row; a self-refreshing placeholder keeps an
     // accidental tap harmless (the system back arrow returns to MENU).
@@ -648,7 +668,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
   if (action === 'data_exchange') {
     // v2-only steps (the v1 Flow never sends them, so they are inert dark)
     if (step === 'add_search_open') return { screen: 'ADD_SEARCH', data: {} };
-    if (step === 'debriefs') return debriefsScreen(userId);
+    if (step === 'debriefs') return debriefsScreen(userId, screenData && screenData.offset);
     if (step === 'schedule') return scheduleScreen(userId);
     if (step === 'schools') return schoolsScreenV2(userId);
     if (step === 'sched_teacher') {
