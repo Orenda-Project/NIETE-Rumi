@@ -4,6 +4,12 @@
  * WHY THIS EXISTS
  * Two vocabularies live in the users table and nothing translated between them:
  *
+ *   users.training_bands ['PRIMARY','MIDDLE','HIGH']  bd-43478 — the teacher's
+ *                                                     OWN choice, made on the bot
+ *                                                     or portal. Highest priority.
+ *                                                     TRAINING SCOPING ONLY: must
+ *                                                     never gate lesson plans or
+ *                                                     any other feature.
  *   users.levels        ['PRIMARY','MIDDLE','HIGH']   written only by the bulk
  *                                                     import (migrate-users.py),
  *                                                     read only by an offline migration
@@ -49,6 +55,15 @@ const PROGRAM_MIDDLE_HIGH = 'niete_middle_high';
 const OVERRIDES = Object.freeze({
   923215531977: [PROGRAM_PRIMARY],
 });
+
+/** Normalise a band array column into sorted unique valid bands. */
+function pickBands(value) {
+  if (!Array.isArray(value) || value.length === 0) return [];
+  const out = value
+    .map((l) => String(l).trim().toUpperCase())
+    .filter((l) => VALID_BANDS.has(l));
+  return [...new Set(out)].sort();
+}
 
 /** Map a single grade token to its band, or null if unrecognized. */
 function bandForGradeToken(token) {
@@ -102,14 +117,18 @@ function tokenize(gradesTaught) {
 function deriveBands(user) {
   if (!user || typeof user !== 'object') return null;
 
+  // bd-43478 — users.training_bands is the teacher's OWN statement and outranks
+  // everything: it was chosen deliberately on the bot or portal, whereas levels
+  // came from an import and grades_taught is a one-time signup answer. This is
+  // the column the training path reads; users.levels is retained only for the
+  // role-backfill heuristics and legacy migrations (see migration V1.1.8).
+  const explicit = pickBands(user.training_bands);
+  if (explicit.length > 0) return explicit;
+
   // users.levels is already a band array and outranks grades_taught: it came
   // from the source system, whereas grades_taught is self-reported at signup.
-  if (Array.isArray(user.levels) && user.levels.length > 0) {
-    const fromLevels = user.levels
-      .map((l) => String(l).trim().toUpperCase())
-      .filter((l) => VALID_BANDS.has(l));
-    if (fromLevels.length > 0) return [...new Set(fromLevels)].sort();
-  }
+  const fromLevels = pickBands(user.levels);
+  if (fromLevels.length > 0) return fromLevels;
 
   const bands = tokenize(user.grades_taught)
     .map(bandForGradeToken)
