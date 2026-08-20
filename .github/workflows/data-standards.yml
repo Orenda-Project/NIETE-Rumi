@@ -65,16 +65,28 @@ jobs:
         with:
           fetch-depth: 0   # the real merge-base, not a shallow clone
 
+      # `github.event.pull_request.base.sha` is the base branch's CURRENT TIP, not
+      # the merge base. Diffing tip..head therefore drags in every commit that
+      # landed on the base branch after this PR was cut, and reports those files as
+      # if this PR had changed them. Caught live on PR #320: it attributed two
+      # other people's migrations to a PR that touches no schema file at all, and
+      # said so in the comment. `git merge-base` is the actual fork point, which is
+      # why this job needs fetch-depth: 0 above.
       - name: Resolve base..head
         id: refs
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "base=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
-            echo "head=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+            head="${{ github.event.pull_request.head.sha }}"
+            tip="${{ github.event.pull_request.base.sha }}"
+            base=$(git merge-base "$tip" "$head")
+            echo "Base tip: $tip"
+            echo "Merge base (used): $base"
           else
-            echo "base=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
-            echo "head=${{ github.sha }}"          >> "$GITHUB_OUTPUT"
+            head="${{ github.sha }}"
+            base="${{ github.event.before }}"
           fi
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "head=$head" >> "$GITHUB_OUTPUT"
 
       # The skill's own detector is the single source of "is this relevant",
       # driven by .data-standards.json. No glob list lives in this workflow.
@@ -152,10 +164,12 @@ jobs:
       # file gets no comment at all — but the check still reports, so this is safe
       # to require. An `ambiguous` file is surfaced even with no findings: the
       # detector could not tell schema from data dump, so silence would be a lie.
+      # Runs even when nothing is relevant. It must: post nothing on a PR that has
+      # no schema change AND no prior comment, but CORRECT a prior comment if one
+      # exists — otherwise a comment from an earlier push stays visible and lies
+      # about the current state (e.g. after a fix removes the last schema file).
       - name: Comment on the PR
-        if: >
-          github.event_name == 'pull_request' &&
-          (steps.scope.outputs.relevant != '0' || steps.scope.outputs.ambiguous != '0')
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
@@ -164,6 +178,25 @@ jobs:
             const nRel = '${{ steps.scope.outputs.relevant }}';
             const nAmb = '${{ steps.scope.outputs.ambiguous }}';
             const marker = '<!-- data-standards -->';
+
+            const findExisting = async () => {
+              const { data } = await github.rest.issues.listComments({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: context.issue.number,
+              });
+              return data.find(c => c.body && c.body.includes(marker));
+            };
+
+            if (nRel === '0' && nAmb === '0') {
+              const stale = await findExisting();
+              if (!stale) return;                     // nothing to say, nothing to correct
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner, repo: context.repo.repo, comment_id: stale.id,
+                body: [marker, '### Data standards — advisory',
+                       'This PR no longer changes any schema file in scope. Nothing to report.'].join('\n'),
+              });
+              return;
+            }
             const head =
               code === '1' ? `Findings on ${nRel} schema file(s) this PR touches. **Advisory — does not block the merge.** About a quarter of D8 findings are known false positives (commented-out SQL read as live destructive statements).`
               : code === '2' ? 'The validator could not run — see the job log.'
@@ -173,11 +206,7 @@ jobs:
               : '';
             const body = [marker, '### Data standards — advisory', head + amb, '',
               fs.existsSync('report.md') ? fs.readFileSync('report.md', 'utf8') : ''].join('\n');
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner, repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-            const existing = comments.find(c => c.body && c.body.includes(marker));
+            const existing = await findExisting();
             if (existing) {
               await github.rest.issues.updateComment({
                 owner: context.repo.owner, repo: context.repo.repo,
