@@ -1,0 +1,10 @@
+{
+  "hooks": [
+    {
+      "event": "PreToolUse",
+      "matcher": "Bash",
+      "script": "hooks/schema-change-gate.sh",
+      "description": "Blocks a Claude-initiated git commit/push or gh pr create/merge when the staged schema change has a confirmed NON-NEGOTIABLE violation (via the shared validator, scripts/validate_schema.py). Bypass requires a validated reason, not a boolean — export TALEEMABAD_DATA_STANDARDS_BYPASS=\"<real reason>\"; see reference/enforcement-policy.md and hooks/schema-change-gate.sh."
+    }
+  ]
+}
