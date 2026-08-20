@@ -33,6 +33,10 @@ async function __recentFidelityLps(userId) {
     return [];
   }
 }
+
+// bd-lqpog — route the LP-selection prompt to the right send method (a list payload
+// throws in sendInteractiveButtons and stalls coaching). Extracted + unit-tested.
+const { sendLpPrompt: __sendLpPrompt } = require('./shared/services/coaching/lp-coaching/send-lp-prompt');
 const ExamCheckerHandler = require('./shared/handlers/exam-checker.handler');
 
 // Import Utils
@@ -789,7 +793,7 @@ app.post('/webhook', async (req, res) => {
         // Region drives the coach-role footer label (e.g. "Human Coach" for
         // ICT / NIETE, "Rumi Digital Coach" as default).
         const lpPrompt = buildLPSelectionList(sessionId, await __recentFidelityLps(user.id), lang, userRow?.region);
-        await WhatsAppService.sendInteractiveButtons(from, lpPrompt);
+        await __sendLpPrompt(WhatsAppService, from, lpPrompt);
       } else if (buttonId.startsWith('photo_yes_')) {
         const sessionId = buttonId.replace('photo_yes_', '');
         logToFile('📸 User will send classroom photo', { sessionId, from });
@@ -854,7 +858,7 @@ app.post('/webhook', async (req, res) => {
           .maybeSingle();
         const lang = userRow?.preferred_language || 'en';
         const lpPrompt = buildLPSelectionList(sessionId, await __recentFidelityLps(user.id), lang, userRow?.region);
-        await WhatsAppService.sendInteractiveButtons(from, lpPrompt);
+        await __sendLpPrompt(WhatsAppService, from, lpPrompt);
       }
       // bd-u35ex: "Add another" — keep collecting; the image handler (Phase 3) picks
       // up the next photo. Session stays at awaiting_classroom_photo.
