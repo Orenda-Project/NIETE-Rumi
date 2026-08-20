@@ -194,6 +194,8 @@ async function applyObserverEdits(sessionId, edits) {
   });
 
   getObservePack().computeScores(v2);
+  reapplyFidelitySectionB(v2, sessionId);
+
   const summary = {
     indicators_rescored: rescored,
     text_fields_changed: textChanged,
@@ -218,4 +220,23 @@ async function applyObserverEdits(sessionId, edits) {
   return summary;
 }
 
-module.exports = { onAnalysisReady, buildScreenPrefill, applyObserverEdits, SCALE_OPTIONS_BY_LANG };
+/**
+ * bd-9hzdn.5 (observe parity, D27): Section B is MEASURED lesson-plan fidelity
+ * (executed÷prescribed), not observer opinion — computeScores re-sums it from the
+ * editable B indicators, clobbering the fidelity-derived domain_score. Re-apply
+ * the measurement so it survives observer edits. Self-guarding: only fires for
+ * FICO analyses that carry a usable lp_fidelity blob; never throws.
+ */
+function reapplyFidelitySectionB(v2, sessionId) {
+  try {
+    const ficoFramework = require('../coaching/frameworks/fico-framework');
+    if (v2 && v2.framework === 'fico' && v2.lp_fidelity && typeof ficoFramework.applyLpFidelity === 'function') {
+      ficoFramework.applyLpFidelity(v2, v2.lp_fidelity);
+    }
+  } catch (fidErr) {
+    logToFile('⚠️ observe: re-applying fidelity Section B failed (proxy stands)', { sessionId, error: fidErr.message });
+  }
+  return v2;
+}
+
+module.exports = { onAnalysisReady, buildScreenPrefill, applyObserverEdits, reapplyFidelitySectionB, SCALE_OPTIONS_BY_LANG };

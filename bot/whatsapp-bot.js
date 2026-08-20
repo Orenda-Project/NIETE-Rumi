@@ -769,9 +769,11 @@ app.post('/webhook', async (req, res) => {
         // Update conversation state past AWAITING_PHOTO.
         // bd-3ipd2: MERGE, don't replace — a bare { current_state } drops any
         // fields already on conversation_state (e.g. a race-held classroom_photos).
+        // bd-9hzdn.3: also read user_id — the recent-LP menu must show the LPs of the
+        // session OWNER (the observed teacher in /observe), not the tapper (the coach).
         const { data: noSession } = await supabase
           .from('coaching_sessions')
-          .select('conversation_state')
+          .select('conversation_state, user_id')
           .eq('id', sessionId)
           .maybeSingle();
         await supabase
@@ -783,6 +785,8 @@ app.post('/webhook', async (req, res) => {
           .eq('id', sessionId);
 
         // Send the same LP prompt the OECD/HOTS pre-photo-prompt flow used.
+        // Language = the TAPPER's preference (teacher flow: the teacher; observe: the coach).
+        // Recents = the session OWNER's LPs (identical in the teacher flow; the teacher's in observe).
         const { buildLPSelectionList } = require('./shared/services/coaching/lp-coaching/lp-selection-list.service');
         const { data: userRow } = await supabase
           .from('users')
@@ -790,9 +794,7 @@ app.post('/webhook', async (req, res) => {
           .eq('id', user.id)
           .maybeSingle();
         const lang = userRow?.preferred_language || 'en';
-        // Region drives the coach-role footer label (e.g. "Human Coach" for
-        // ICT / NIETE, "Rumi Digital Coach" as default).
-        const lpPrompt = buildLPSelectionList(sessionId, await __recentFidelityLps(user.id), lang, userRow?.region);
+        const lpPrompt = buildLPSelectionList(sessionId, await __recentFidelityLps(noSession?.user_id || user.id), lang, userRow?.region);
         await __sendLpPrompt(WhatsAppService, from, lpPrompt);
       } else if (buttonId.startsWith('photo_yes_')) {
         const sessionId = buttonId.replace('photo_yes_', '');
@@ -837,9 +839,11 @@ app.post('/webhook', async (req, res) => {
         // Advance to the SAME lesson-plan step the skip-photo path uses (photo_no),
         // which is the flow that works (R49). PRESERVE the existing conversation_state
         // (it holds the uploaded classroom_photos) — only move current_state forward.
+        // bd-9hzdn.3: read user_id too — recents come from the session OWNER (the
+        // observed teacher in /observe), language from the tapper.
         const { data: doneSession } = await supabase
           .from('coaching_sessions')
-          .select('conversation_state')
+          .select('conversation_state, user_id')
           .eq('id', sessionId)
           .maybeSingle();
         await supabase
@@ -857,7 +861,7 @@ app.post('/webhook', async (req, res) => {
           .eq('id', user.id)
           .maybeSingle();
         const lang = userRow?.preferred_language || 'en';
-        const lpPrompt = buildLPSelectionList(sessionId, await __recentFidelityLps(user.id), lang, userRow?.region);
+        const lpPrompt = buildLPSelectionList(sessionId, await __recentFidelityLps(doneSession?.user_id || user.id), lang, userRow?.region);
         await __sendLpPrompt(WhatsAppService, from, lpPrompt);
       }
       // bd-u35ex: "Add another" — keep collecting; the image handler (Phase 3) picks
@@ -2059,10 +2063,12 @@ async function handleDocumentMessage(message, from, user) {
       const { isImageMime, shouldCaptureDocumentAsClassroomPhoto, CLASSROOM_PHOTO_STATUSES } = require('./shared/services/coaching/photo-capture-routing');
       if (isImageMime(mimeType)) {
         const supabase = require('./shared/config/supabase');
+        // bd-9hzdn.2: match observer_user_id too — a coach's photo-as-document
+        // must attach to her leader-observation session (owned by the teacher).
         const { data: photoSession } = await supabase
           .from('coaching_sessions')
           .select('id, status, conversation_state, classroom_photos')
-          .eq('user_id', user.id)
+          .or(`user_id.eq.${user.id},observer_user_id.eq.${user.id}`)
           .in('status', CLASSROOM_PHOTO_STATUSES)
           .order('created_at', { ascending: false })
           .limit(1)
@@ -2225,11 +2231,13 @@ async function handleDocumentMessage(message, from, user) {
       }
     }
 
-    // LESSON PLAN DOCUMENT: Check if there's an active coaching session awaiting lesson plan
+    // LESSON PLAN DOCUMENT: Check if there's an active coaching session awaiting lesson plan.
+    // bd-9hzdn.2: match observer_user_id too — in the /observe flow the COACH uploads
+    // the teacher's lesson plan; the session row is owned by the observed teacher.
     const { data: coachingSession } = await supabase
       .from('coaching_sessions')
       .select('*')
-      .eq('user_id', user.id)
+      .or(`user_id.eq.${user.id},observer_user_id.eq.${user.id}`)
       .eq('status', 'awaiting_lesson_plan')
       .order('created_at', { ascending: false })
       .limit(1)
