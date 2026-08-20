@@ -49,10 +49,49 @@ const BUTTON_RX = /^lp_feedback_(yes|no)_([0-9a-f-]{36})$/;
 // Keep tight — 2 languages, 4 messages. If NIETE adds Sindhi/Punjabi/etc.
 // later, extend by copying the parent bot's branches.
 
-function _promptBody(language) {
+function _promptBody(language, triggerMode) {
+  // When a voice note rode along, the question has to name BOTH artefacts — she just received
+  // two things and "was it useful?" is ambiguous about which one we mean (bd-vw0aj).
+  if (triggerMode === 'after_voice_note') {
+    return language === 'ur'
+      ? 'کیا وائس نوٹ اور لیسن پلان آپ کے لیے مفید رہے؟'
+      : 'Did you find the voice note and the lesson plan useful?';
+  }
   return language === 'ur'
     ? 'امید ہے یہ سبق کا منصوبہ آپ کی کلاس میں مدد کرے گا۔ کیا یہ مفید تھا؟'
     : "Hope that lesson plan helps for your class! Was it useful for planning?";
+}
+
+// ── Q2: what she DID with it (bd-vw0aj) ───────────────────────────────────
+//
+// Rawalpindi asked "lesson plan / voice note / both?" — a preference question. We deliberately do
+// not ask that: ranking our own artefacts tells us nothing about whether the lesson happened, and
+// it invites her to grade us rather than tell us something we can act on. Usage is the outcome we
+// care about, and it is the one answer that can later be checked against real behaviour.
+//
+// Fires ONLY on 👍 and ONLY when a voice note actually landed.
+
+const USAGE_RX = /^lp_used_(taught|planned|not_yet)_([0-9a-f-]{36})$/;
+
+function _usageBody(language) {
+  return language === 'ur'
+    ? 'کیا آپ نے اسے کلاس میں استعمال کیا؟'
+    : 'Did you get to use it in class?';
+}
+
+// WhatsApp button titles are capped at 20 CODE POINTS. Measured: 'آج پڑھا دیا' = 11,
+// 'ارادہ ہے' = 8, 'ابھی نہیں' = 9. An over-cap title fails the send silently.
+function _usageButtons(language, lessonPlanId) {
+  const ur = language === 'ur';
+  return [
+    { id: `lp_used_taught_${lessonPlanId}`,  title: ur ? 'آج پڑھا دیا' : 'Taught it today' },
+    { id: `lp_used_planned_${lessonPlanId}`, title: ur ? 'ارادہ ہے'    : 'Planning to' },
+    { id: `lp_used_not_yet_${lessonPlanId}`, title: ur ? 'ابھی نہیں'   : 'Not yet' },
+  ];
+}
+
+function _usageAck(language) {
+  return language === 'ur' ? 'شکریہ!' : 'Thank you!';
 }
 
 // WhatsApp button labels capped at 20 chars; emoji counts as ~2 chars.
@@ -144,7 +183,7 @@ function scheduleFeedbackPrompt(opts) {
 
 async function sendFeedbackPrompt({ lessonPlanId, userId, phone, context }) {
   const language = await _resolveLanguage(userId, context && context.language);
-  const body = _promptBody(language);
+  const body = _promptBody(language, context && context.triggerMode);
   const buttons = _promptButtons(language, lessonPlanId);
   const ok = await WhatsAppService.sendInteractiveButtons(phone, { body, buttons });
   logToFile('LP Feedback: prompt sent', { lessonPlanId, userId, phone, language, ok });
@@ -273,8 +312,18 @@ async function handleFeedbackButton(buttonId, phone) {
   });
 
   if (useful) {
-    // NIETE MVP: no askReasonOnYes opt-in. Just say thanks.
-    await WhatsAppService.sendMessage(phone, _ackYes(language));
+    // A voice note landed → ask what she DID with it. Otherwise just say thanks (NIETE MVP has
+    // no askReasonOnYes opt-in). Gate on the DELIVERED trigger_mode, never on "we have voice
+    // notes now" — a lesson whose audio failed must not be asked about audio she never heard.
+    if (meta.trigger_mode === 'after_voice_note') {
+      await WhatsAppService.sendInteractiveButtons(phone, {
+        body: _usageBody(language),
+        buttons: _usageButtons(language, lessonPlanId),
+      });
+      logToFile('LP Feedback: usage prompt sent', { lessonPlanId, userId: lp.user_id, language });
+    } else {
+      await WhatsAppService.sendMessage(phone, _ackYes(language));
+    }
   } else {
     await redisService.set(
       REDIS_REASON_KEY(lp.user_id),
@@ -283,6 +332,45 @@ async function handleFeedbackButton(buttonId, phone) {
     );
     await WhatsAppService.sendMessage(phone, _askReasonOnNo(language));
   }
+  return true;
+}
+
+/**
+ * Q2 button router entry — `lp_used_(taught|planned|not_yet)_<uuid>` (bd-vw0aj).
+ *
+ * UPDATEs `used_in_class` on the lp_feedback row this teacher already created by tapping 👍,
+ * so one delivery stays one row. Deliberately forgiving: a tap we cannot store still gets a
+ * thank-you, because the teacher has done her part and a silent button is worse than a lost datum.
+ *
+ * @param {string} buttonId Full interactive-button id
+ * @param {string} phone    Sender phone
+ * @returns {Promise<boolean>} true if this handler owned the button
+ */
+async function handleUsageButton(buttonId, phone) {
+  const match = USAGE_RX.exec(buttonId || '');
+  if (!match) return false;
+
+  const usedInClass = match[1];                 // taught | planned | not_yet
+  const lessonPlanId = match[2];
+
+  let language = 'en';
+  try {
+    const { data: lp } = await supabase
+      .from('lesson_plans').select('id, user_id').eq('id', lessonPlanId).maybeSingle();
+    if (lp && lp.user_id) language = await _resolveLanguage(lp.user_id, null);
+  } catch (_) { /* fall back to en */ }
+
+  try {
+    await supabase
+      .from('lp_feedback')
+      .update({ used_in_class: usedInClass })
+      .eq('lesson_plan_id', lessonPlanId);
+    logToFile('LP Feedback: used_in_class recorded', { lessonPlanId, usedInClass });
+  } catch (err) {
+    logToFile('LP Feedback: used_in_class UPDATE failed', { lessonPlanId, usedInClass, error: err.message });
+  }
+
+  await WhatsAppService.sendMessage(phone, _usageAck(language));
   return true;
 }
 
@@ -373,6 +461,8 @@ module.exports = {
   scheduleFeedbackPrompt,
   sendFeedbackPrompt,
   handleFeedbackButton,
+  handleUsageButton,
+  __promptBodyForTests: _promptBody,
   consumeReasonIfPending,
   // exported for tests:
   FEEDBACK_DELAY_MS,
