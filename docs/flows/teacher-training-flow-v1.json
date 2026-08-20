@@ -1,7 +1,11 @@
 {
-  "version": "5.1",
+  "version": "5.2",
   "data_api_version": "3.0",
   "routing_model": {
+    "BAND_PICKER": [
+      "VENDOR_PICKER",
+      "SUCCESS"
+    ],
     "VENDOR_PICKER": [
       "MY_CERTIFICATES",
       "TRAINING_HOME",
@@ -20,6 +24,115 @@
     ]
   },
   "screens": [
+    {
+      "id": "BAND_PICKER",
+      "title": "Which grades do you teach?",
+      "terminal": false,
+      "data": {
+        "hero_title": {
+          "type": "string",
+          "__example__": "Which grades do you teach?"
+        },
+        "hero_caption": {
+          "type": "string",
+          "__example__": "We use this to show you the right training. Choose all that apply."
+        },
+        "band_options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "PRIMARY",
+              "title": "Primary (Grades 1-5)"
+            },
+            {
+              "id": "MIDDLE",
+              "title": "Middle (Grades 6-8)"
+            },
+            {
+              "id": "HIGH",
+              "title": "High (Grades 9-10)"
+            }
+          ]
+        },
+        "init_bands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "__example__": [
+            "PRIMARY"
+          ]
+        },
+        "cooldown_notice": {
+          "type": "string",
+          "__example__": "Once you save this, it cannot be changed again for 48 hours."
+        },
+        "notice_visible": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "footer_label": {
+          "type": "string",
+          "__example__": "Save and continue"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "${data.hero_title}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "${data.hero_caption}"
+          },
+          {
+            "type": "Form",
+            "name": "band_form",
+            "init-values": {
+              "band_choice": "${data.init_bands}"
+            },
+            "children": [
+              {
+                "type": "CheckboxGroup",
+                "name": "band_choice",
+                "label": "Grades you teach",
+                "required": true,
+                "data-source": "${data.band_options}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.cooldown_notice}",
+                "visible": "${data.notice_visible}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.footer_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "save_bands",
+                    "_bands": "${form.band_choice}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
     {
       "id": "VENDOR_PICKER",
       "title": "Choose a program",
@@ -121,6 +234,16 @@
                   "name": "data_exchange",
                   "payload": {
                     "_action": "open_certificates"
+                  }
+                }
+              },
+              {
+                "type": "EmbeddedLink",
+                "text": "Change what I teach",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "change_bands"
                   }
                 }
               }

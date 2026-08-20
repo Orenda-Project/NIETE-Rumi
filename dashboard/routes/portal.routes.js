@@ -29,6 +29,12 @@ const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const supabase = require('../config/supabase');
+const {
+  applyBandSelection,
+  canChangeBands,
+  changeWarning,
+  BANDS,
+} = require('../../bot/shared/services/training/band-selection.service');
 const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { generatePresignedUrl, generatePresignedUrls, isValidR2Url } = require('../services/r2.service');
 const axios = require('axios');
@@ -1841,6 +1847,78 @@ async function _computeLevelStates(userId, levels) {
  * Empty vendors array when the teacher has no active assignments. Vendors
  * sorted alphabetically by name so the cards render in a predictable order.
  */
+/**
+ * GET /training/bands — what the teacher has chosen, and whether they may change it.
+ *
+ * The portal half of band self-selection. Before this, a teacher with no active
+ * assignment got `vendors: []` and a dead end, and one whose bands were wrong
+ * had no way to correct them: nothing in the app had ever written an assignment
+ * row. Bands are the teacher's own statement; they map to training programs,
+ * which is what makes the partner vendors visible at all.
+ *
+ * Shares its logic and its write path with the WhatsApp Flow — both surfaces
+ * gate on teacher_training_assignments -> training_program_scopes, so one write
+ * serves both.
+ */
+router.get('/training/bands', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('training_bands, training_bands_updated_at')
+      .eq('id', userId)
+      .single();
+    if (error) throw error;
+
+    const gate = canChangeBands(user || {});
+    return res.json({
+      success: true,
+      options: BANDS.map(b => ({ id: b.key, title: b.label })),
+      selected: Array.isArray(user && user.training_bands) ? user.training_bands : [],
+      can_change: gate.allowed,
+      is_first_selection: gate.isFirstSelection,
+      hours_remaining: gate.hoursRemaining,
+      // Shown before saving when there is something to lose; a first-ever
+      // choice carries no warning.
+      notice: gate.allowed ? (gate.isFirstSelection ? null : changeWarning()) : gate.message,
+    });
+  } catch (e) {
+    console.error('Portal GET /training/bands error:', e);
+    return res.status(500).json({ success: false, error: 'Could not load your grades.' });
+  }
+});
+
+/**
+ * POST /training/bands — save the teacher's choice and assign their programs.
+ *
+ * Enforces the 48-hour change cooldown before writing anything, so a blocked
+ * attempt leaves the database untouched and returns 429 rather than a silent
+ * no-op.
+ */
+router.post('/training/bands', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const raw = req.body && req.body.bands;
+    const selection = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+
+    const result = await applyBandSelection(userId, selection);
+    if (!result.ok) {
+      // 429 for the cooldown (a retry later succeeds), 400 for a bad selection.
+      const status = result.reason === 'cooldown' ? 429
+        : result.reason === 'user_not_found' ? 404 : 400;
+      return res.status(status).json({ success: false, reason: result.reason, error: result.message });
+    }
+    return res.json({
+      success: true,
+      unchanged: Boolean(result.unchanged),
+      programs: result.programs || [],
+    });
+  } catch (e) {
+    console.error('Portal POST /training/bands error:', e);
+    return res.status(500).json({ success: false, error: 'Could not save your grades.' });
+  }
+});
+
 router.get('/training/vendors', requirePortalAuth, async (req, res) => {
   try {
     const userId = req.session.portalUserId;
