@@ -473,10 +473,12 @@ async function buildLevelDetail(userId, levelOrder, opts = {}) {
  * natural progression through the level's topics.
  */
 async function loadModulesWithProgress(userId, levelId) {
-  const [{ data: courses }, { data: modules }, { data: progressRows }] = await Promise.all([
+  const [{ data: courses }, { data: modules }, { data: progressRows }, unlockLogic] = await Promise.all([
     supabase.from('training_courses').select('id, title, order_index').eq('level_id', levelId).eq('is_active', true).order('order_index'),
     supabase.from('training_modules').select('id, course_id, title, order_index').eq('is_active', true),
     supabase.from('teacher_training_progress').select('module_id').eq('user_id', userId),
+    // bd-43477 — whether these modules sequence at all is the vendor's call.
+    loadLevelUnlockLogic(levelId),
   ]);
   const doneIds = new Set((progressRows || []).map(r => r.module_id));
   const courseById = new Map((courses || []).map(c => [c.id, c]));
@@ -492,8 +494,43 @@ async function loadModulesWithProgress(userId, levelId) {
     title: m.title,
     course_title: courseById.get(m.course_id).title,
     done: doneIds.has(m.id),
-  })));
+  })), unlockLogic);
 }
+
+/**
+ * bd-43477 — the owning vendor's unlock_logic for a level.
+ *
+ * Fails closed: an unreadable level, a missing vendor row or a null column all
+ * answer 'chain', which is the stricter rule. Same default as isLadderVendor
+ * and the level gate, so a lookup failure can never quietly open content.
+ *
+ * @param {number|string} levelId
+ * @returns {Promise<string>} 'chain' | 'all_modules' | whatever the row holds
+ */
+async function loadLevelUnlockLogic(levelId) {
+  const { data, error } = await supabase
+    .from('training_levels')
+    .select('vendor:training_vendors(unlock_logic)')
+    .eq('id', levelId)
+    .maybeSingle();
+  if (error) {
+    logToFile('⚠️ unlock_logic lookup failed — defaulting to chain', {
+      levelId, error: error.message,
+    });
+    return 'chain';
+  }
+  return data?.vendor?.unlock_logic || 'chain';
+}
+
+/**
+ * bd-43477 — vendor unlock_logic values that do NOT sequence their modules.
+ *
+ * An allow-list on purpose. The gate asks "is this one of the values we know
+ * to be open?", never "is this not 'chain'?" — so a typo, a null, or a value
+ * added to the vendor table before the code understands it sequences (the
+ * strict answer) instead of unlocking a whole level.
+ */
+const NON_SEQUENTIAL_UNLOCK_LOGICS = new Set(['all_modules']);
 
 /**
  * bd-2448 — mark each module in level order as passed / next / locked.
@@ -510,15 +547,37 @@ async function loadModulesWithProgress(userId, levelId) {
  * refuses the tap call this one function; two copies of "which module is next"
  * is exactly how a label and its handler drift apart (bd-2446).
  *
+ * bd-43477 — but that rule is the CHAIN vendor's rule, and this function used
+ * to apply it to everyone. `unlock_logic` was already honoured one layer up
+ * (loadVisibleLevelsWithProgress gates a LEVEL behind the previous level's
+ * exam only when the vendor is 'chain') and already read by isLadderVendor,
+ * which says in as many words that an all_modules vendor's "levels" are
+ * SUBJECTS, not a ladder. Ignoring it here contradicted both: Beacon House
+ * ships English/Mathematics/General Science/Computer Science, so a Maths
+ * teacher had to grind 55 English modules in fixed order before her own
+ * subject opened, and the level exam — which needs every module — never
+ * unlocked. Reported against 923455495431 as "Take quiz option is locked".
+ *
+ * So the sequencing is now a permission the vendor row grants: 'chain' keeps
+ * strict one-at-a-time, anything else opens every module at once. No vendor
+ * is named here — a new partner is a data row, not a branch.
+ *
  * @param {Array<{id:number,title:string,course_title:string,done:boolean}>} orderedModules
  *        modules in level order (course order_index, then module order_index)
+ * @param {string} [unlockLogic='chain'] the owning vendor's unlock_logic.
+ *        Missing or unrecognised means 'chain' — fail closed, matching the
+ *        default this file uses everywhere else.
  * @returns {Array<object>} the same rows, each with `lock`: 'passed'|'next'|'locked'
  */
-function annotateModuleLocks(orderedModules) {
+function annotateModuleLocks(orderedModules, unlockLogic = 'chain') {
+  // Allow-list, not "anything that isn't chain" — a typo'd or newly-invented
+  // unlock_logic must not silently unlock a level's whole content. Only a
+  // value we recognise as non-sequential opens everything; the rest sequence.
+  const sequential = !NON_SEQUENTIAL_UNLOCK_LOGICS.has(unlockLogic);
   let nextTaken = false;
   return orderedModules.map(m => {
     if (m.done) return { ...m, lock: 'passed' };
-    if (!nextTaken) {
+    if (!sequential || !nextTaken) {
       nextTaken = true;
       return { ...m, lock: 'next' };
     }
