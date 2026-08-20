@@ -151,14 +151,13 @@ class LessonPlanExtractionWorker {
         return;
       }
 
-      const updatePayload = {
-        lesson_plan_excerpt: excerpt,
-        lesson_plan_structured: structuredData,
-        lesson_plan_word_count: wordCount,
-        lesson_plan_extraction_status: 'completed',
-        lesson_plan_extraction_error: null,
-        lesson_plan_format: normalizedFormat
-      };
+      const updatePayload = LessonPlanExtractionWorker.buildCompletedPayload({
+        excerpt,
+        structuredData,
+        wordCount,
+        extractedText,
+        normalizedFormat
+      });
 
       if (normalized) {
         updatePayload.lesson_plan_r2_key = normalizedKey;
@@ -205,6 +204,21 @@ class LessonPlanExtractionWorker {
       });
       throw error;
     }
+  }
+
+  // bd-dflr7 — carry the FULL extracted text as lesson_plan_text (not just the
+  // 500-char excerpt) so the uploaded-LP fidelity path (which reads
+  // coaching_sessions.lesson_plan_text) can grade an uploaded plan.
+  static buildCompletedPayload({ excerpt, structuredData, wordCount, extractedText, normalizedFormat }) {
+    return {
+      lesson_plan_excerpt: excerpt,
+      lesson_plan_structured: structuredData,
+      lesson_plan_word_count: wordCount,
+      lesson_plan_text: extractedText || null,
+      lesson_plan_extraction_status: 'completed',
+      lesson_plan_extraction_error: null,
+      lesson_plan_format: normalizedFormat
+    };
   }
 
   static async extractText(buffer, fileType) {

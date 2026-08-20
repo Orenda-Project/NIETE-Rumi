@@ -18,6 +18,26 @@ function isFidelityEnabled() {
 }
 
 /**
+ * Decide the fidelity inputs for a coaching session (bd-dflr7).
+ *   - a corpus `_fidelity_ref` (teacher picked a Taleemabad LP) → corpusKey, preferred.
+ *   - else any extracted uploaded-LP text → uploadedText — REGARDLESS of link_method.
+ *     (Auto-detected uploads carry link_method=null, not 'uploaded'; the old gate on
+ *     link_method==='uploaded' + the never-populated lesson_plan_text meant uploaded
+ *     fidelity never fired.)
+ * `lesson_plan_text` is only stored for CONFIRMED lesson plans, so its presence is the signal.
+ * @param {object} session
+ * @returns {{corpusKey: object|null, uploadedText: string|null, meta: object}}
+ */
+function resolveFidelitySources(session) {
+  const s = session || {};
+  const fidelityRef = s.lesson_plan_structured && s.lesson_plan_structured._fidelity_ref;
+  if (fidelityRef) {
+    return { corpusKey: fidelityRef, uploadedText: null, meta: { lesson_id: fidelityRef.lesson_id } };
+  }
+  return { corpusKey: null, uploadedText: s.lesson_plan_text || null, meta: {} };
+}
+
+/**
  * @param {object} input  { corpusKey?:{lesson_id,version_stamp,content_hash}, uploadedText?:string,
  *                          transcript:string, meta?:object }
  * @param {object} deps    { resolveMoveList, extractUploadedLp, analyzeFidelity, scoreFidelity } (optional)
@@ -79,4 +99,4 @@ async function computeLpFidelity(input = {}, deps = {}) {
   }
 }
 
-module.exports = { computeLpFidelity, isFidelityEnabled };
+module.exports = { computeLpFidelity, isFidelityEnabled, resolveFidelitySources };
