@@ -38,7 +38,8 @@
       "libxkbcommon0",
       "libxrandr2",
       "fonts-liberation",
-      "fonts-noto-color-emoji"
+      "fonts-noto-color-emoji",
+      "poppler-utils"
     ]
   }
 }
