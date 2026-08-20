@@ -17,6 +17,22 @@ const ReadingAssessmentService = require('./shared/services/reading-assessment.s
 const { handleTextMessage, isSelectVideoButton } = require('./shared/handlers/text-message.handler');
 const { handleVoiceMessage } = require('./shared/handlers/voice-message.handler');
 const { handleImageMessage } = require('./shared/handlers/image-message.handler');
+
+// LP fidelity: the coaching LP-selection list is populated from the teacher's recent downloads (labelled
+// like the delivery caption she saw when she made the LP — D25), and each row carries the LP-version keys
+// the fidelity pass resolves. Flag-gated OFF (LP_FIDELITY_ENABLED); any failure returns [] so the flow
+// falls back to the Yes/No prompt. Non-blocking by construction.
+async function __recentFidelityLps(userId) {
+  try {
+    const { isFidelityEnabled } = require('./shared/services/coaching/fidelity/fidelity-orchestrator');
+    if (!isFidelityEnabled() || !userId) return [];
+    const { getRecentFidelityLps } = require('./shared/services/coaching/lp-coaching/recent-fidelity-lps.service');
+    return await getRecentFidelityLps(userId);
+  } catch (e) {
+    try { require('./shared/utils/logger').logToFile('[lp-fidelity] recent LP fetch failed (Yes/No fallback)', { error: e.message }); } catch (_) { /* ignore */ }
+    return [];
+  }
+}
 const ExamCheckerHandler = require('./shared/handlers/exam-checker.handler');
 
 // Import Utils
@@ -762,7 +778,7 @@ app.post('/webhook', async (req, res) => {
         const lang = userRow?.preferred_language || 'en';
         // Region drives the coach-role footer label (e.g. "Human Coach" for
         // ICT / NIETE, "Rumi Digital Coach" as default).
-        const lpPrompt = buildLPSelectionList(sessionId, [], lang, userRow?.region);
+        const lpPrompt = buildLPSelectionList(sessionId, await __recentFidelityLps(user.id), lang, userRow?.region);
         await WhatsAppService.sendInteractiveButtons(from, lpPrompt);
       } else if (buttonId.startsWith('photo_yes_')) {
         const sessionId = buttonId.replace('photo_yes_', '');
@@ -827,7 +843,7 @@ app.post('/webhook', async (req, res) => {
           .eq('id', user.id)
           .maybeSingle();
         const lang = userRow?.preferred_language || 'en';
-        const lpPrompt = buildLPSelectionList(sessionId, [], lang, userRow?.region);
+        const lpPrompt = buildLPSelectionList(sessionId, await __recentFidelityLps(user.id), lang, userRow?.region);
         await WhatsAppService.sendInteractiveButtons(from, lpPrompt);
       }
       // bd-u35ex: "Add another" — keep collecting; the image handler (Phase 3) picks
