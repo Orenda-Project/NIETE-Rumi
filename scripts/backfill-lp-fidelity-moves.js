@@ -3,11 +3,11 @@
 /**
  * Backfill niete_lp_fidelity_moves from the offline-extracted move-lists (bd-wmfsp.3, P1.2).
  *
- * For each `<lesson_id>.moves.json`, join niete_lp_assets (asset_kind='lesson', is_current) to get the
- * version_stamp + content_hash + catalog_version of the LP version currently served, then upsert the
- * move-list keyed by (lesson_id, version_stamp, content_hash).
+ * Batched: read the CURRENT 'lesson' assets once (paged) → map lesson_id → version keys, then bulk-upsert
+ * the move-lists in chunks. Keyed by (lesson_id, version_stamp, content_hash) identical to niete_lp_assets,
+ * so a coaching session resolves the moves for the exact LP version the teacher downloaded.
  *
- * ⚠️ PROD WRITE — needs an explicit operator "go" (root CLAUDE.md Rule 7) and runs against the NIETE DB.
+ * ⚠️ PROD WRITE — needs an explicit operator "go" (root CLAUDE.md Rule 7), runs against the NIETE DB.
  * Safety (bd-2536): asserts the Supabase project ref is NIETE before writing; --dry-run makes no writes.
  *
  * Usage:
@@ -20,6 +20,7 @@ const path = require('path');
 const EXPECTED_REF = 'ihzciabopbttygxxgrkm'; // NIETE prod Supabase project ref
 const DRY = process.argv.includes('--dry-run');
 const MOVES_DIR = process.env.MOVES_DIR;
+const CHUNK = 400;
 
 function assertNieteDb() {
   const url = process.env.SUPABASE_URL || process.env.NIETE_SUPABASE_URL || '';
@@ -30,44 +31,57 @@ function assertNieteDb() {
   }
 }
 
+async function loadAssetMap(supabase) {
+  const map = new Map();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from('niete_lp_assets')
+      .select('lesson_id, catalog_version, version_stamp, content_hash')
+      .eq('asset_kind', 'lesson').eq('is_current', true)
+      .range(from, from + 999);
+    if (error) throw error;
+    for (const a of data) if (!map.has(a.lesson_id)) map.set(a.lesson_id, a);
+    if (data.length < 1000) break;
+  }
+  return map;
+}
+
 async function main() {
   if (!MOVES_DIR) throw new Error('set MOVES_DIR to the dir of <lesson_id>.moves.json files');
   assertNieteDb();
   const supabase = require('../bot/shared/config/supabase');
-  const { upsertMoveList } = require('../bot/shared/services/coaching/fidelity/lp-fidelity-store');
+
+  const assets = await loadAssetMap(supabase);
+  console.log(`asset map: ${assets.size} current 'lesson' assets`);
 
   const files = fs.readdirSync(MOVES_DIR).filter((f) => f.endsWith('.moves.json'));
-  console.log(`${files.length} move-lists in ${MOVES_DIR}  ${DRY ? '(DRY RUN — no writes)' : '(WRITING)'}`);
-
-  let ok = 0, noAsset = 0, failed = 0;
+  const rows = [];
+  let noAsset = 0;
   for (const f of files) {
     const ext = JSON.parse(fs.readFileSync(path.join(MOVES_DIR, f), 'utf8'));
-    const lessonId = ext.lesson_id;
-    // find the currently-served LP asset version for this lesson
-    const { data: asset, error } = await supabase
-      .from('niete_lp_assets')
-      .select('catalog_version, version_stamp, content_hash')
-      .eq('lesson_id', lessonId).eq('asset_kind', 'lesson').eq('is_current', true)
-      .maybeSingle();
-    if (error) { console.error(`  ${lessonId}: asset query error`, error.message); failed++; continue; }
-    if (!asset) { noAsset++; continue; } // no served asset → nothing to key against yet
-    const row = {
-      lesson_id: lessonId,
-      catalog_version: asset.catalog_version,
-      version_stamp: asset.version_stamp,
-      content_hash: asset.content_hash,
-      brief_sha: ext.brief_sha,
-      template: ext.template,
-      total_minutes: ext.total_minutes,
-      moves: ext.moves,
-      n_moves: (ext.moves || []).length,
-      model: ext.model,
-    };
-    if (DRY) { ok++; continue; }
-    try { await upsertMoveList(row); ok++; }
-    catch (e) { console.error(`  ${lessonId}: upsert failed`, e.message); failed++; }
+    const a = assets.get(ext.lesson_id);
+    if (!a) { noAsset++; continue; }
+    rows.push({
+      lesson_id: ext.lesson_id,
+      catalog_version: a.catalog_version, version_stamp: a.version_stamp, content_hash: a.content_hash,
+      brief_sha: ext.brief_sha, template: ext.template, total_minutes: ext.total_minutes,
+      moves: ext.moves, n_moves: (ext.moves || []).length, model: ext.model,
+      updated_at: new Date().toISOString(),
+    });
   }
-  console.log(`done: ${ok} upserted, ${noAsset} skipped (no served asset), ${failed} failed`);
+  console.log(`${files.length} move-lists → ${rows.length} keyed, ${noAsset} skipped (no current asset)  ${DRY ? '(DRY RUN — no writes)' : '(WRITING)'}`);
+  if (DRY || rows.length === 0) { console.log('done (dry run)'); return; }
+
+  let written = 0;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const chunk = rows.slice(i, i + CHUNK);
+    const { error } = await supabase.from('niete_lp_fidelity_moves')
+      .upsert(chunk, { onConflict: 'lesson_id,version_stamp,content_hash' });
+    if (error) throw error;
+    written += chunk.length;
+    console.log(`  upserted ${written}/${rows.length}`);
+  }
+  console.log(`done: ${written} rows upserted, ${noAsset} skipped`);
 }
 
 main().catch((e) => { console.error(e.message); process.exit(1); });
