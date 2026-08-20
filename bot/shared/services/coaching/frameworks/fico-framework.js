@@ -446,7 +446,7 @@ const DOMAINS = {
 
 const TOTAL_INDICATORS = 37; // FICO V3 B10+C12+D7+F8 (Section E omitted — ASER assessment, not audio-observable)
 const SCALE_MAX = 4;
-const MAX_MARKS = TOTAL_INDICATORS * SCALE_MAX; // 104
+const MAX_MARKS = TOTAL_INDICATORS * SCALE_MAX; // 148 (FICO V3: 37×4). NB: header/comments elsewhere still say 104 — that was FICO V2 (26 indicators); V3 was adopted 2026-07-29.
 
 // ─── Cached system prompt ────────────────────────────────────────────
 
@@ -652,6 +652,52 @@ function computeScores(analysis) {
   return analysis;
 }
 
+// ─── Section B from measured LP fidelity (P4.1 / bd-wmfsp.9, D27) ────
+//
+// When a lesson plan is linked and the executed÷prescribed fidelity engine produced a
+// USABLE score, Section B (Lesson Plan Fidelity) is DERIVED from that measurement —
+// fidelity_pct scaled onto Section B's /40 — instead of the 10 legacy B indicators.
+// The overall /104 is recomputed so the total reflects the measured Section B.
+//
+// The 10 legacy B indicators are still emitted by the LLM: fidelity runs CONCURRENTLY
+// with the pedagogy pass and may fail (garbled recording → fidelity_pct null), in which
+// case the legacy indicator-summed Section B (the proxy) must be able to stand. So we
+// override at merge time, never by stripping B from the prompt. No-LP and unusable
+// recordings keep the proxy untouched.
+const SECTION_B_KEY = 'lesson_plan_fidelity';
+
+function applyLpFidelity(analysis, lpFidelity) {
+  if (!analysis || !analysis.domains) return analysis;
+  if (!lpFidelity || lpFidelity.status !== 'ok') return analysis;
+
+  const pct = Number(lpFidelity.fidelity_pct);
+  if (lpFidelity.fidelity_pct == null || Number.isNaN(pct)) return analysis; // unusable → proxy stands
+
+  const sectionB = analysis.domains[SECTION_B_KEY];
+  if (!sectionB) return analysis; // not a FICO analysis / no Section B — no-op
+
+  const maxB = DOMAINS[SECTION_B_KEY].indicatorCount * SCALE_MAX; // 40
+  sectionB.domain_score = Math.round((pct / 100) * maxB);
+  sectionB.domain_max = maxB;
+  sectionB.fidelity_derived = true;
+  sectionB.fidelity_pct = pct;
+  if (lpFidelity.band) sectionB.fidelity_band = lpFidelity.band;
+
+  // Recompute overall from the (now fidelity-derived) domain_scores. C/D/F are unchanged.
+  let overallMarks = 0;
+  for (const key of Object.keys(DOMAINS)) {
+    const d = analysis.domains[key];
+    if (d && typeof d.domain_score === 'number') overallMarks += d.domain_score;
+  }
+  analysis.scores = {
+    ...(analysis.scores || {}),
+    overall_marks: overallMarks,
+    overall_max_marks: MAX_MARKS,
+    overall_percentage: parseFloat(((overallMarks / MAX_MARKS) * 100).toFixed(1)),
+  };
+  return analysis;
+}
+
 // ─── Performance bands (per sheet's Interpretation Guide) ────────────
 
 function getPerformanceBand(percentage) {
@@ -685,6 +731,7 @@ module.exports = {
   getSystemPrompt,
   buildAnalysisPrompt,
   computeScores,
+  applyLpFidelity,
   getPerformanceBand,
   getScoringConstants,
 };

@@ -205,6 +205,30 @@ class AnalysisProcessorService {
         logToFile('[lp-fidelity] computed', { coachingSessionId, status: lpFidelity.status, source: lpFidelity.source, pct: lpFidelity.fidelity_pct });
       }
 
+      // P4.1 (bd-wmfsp.9, D27) — when the FICO framework is active and the fidelity engine
+      // produced a USABLE score, Section B (Lesson Plan Fidelity) is DERIVED from the measured
+      // executed÷prescribed fidelity (→/40) instead of the 10 legacy B indicators, and the overall
+      // is recomputed. Applied here (post-settle, pre-persist) so a fidelity failure leaves the
+      // legacy proxy intact. applyLpFidelity self-guards on status/pct and is a no-op otherwise.
+      if (analysisResult.analysis && analysisResult.analysis.framework === 'fico'
+          && lpFidelity && lpFidelity.status === 'ok') {
+        try {
+          framework.applyLpFidelity(analysisResult.analysis, lpFidelity);
+          logToFile('[lp-fidelity] Section B derived from measured fidelity', {
+            coachingSessionId,
+            fidelity_pct: lpFidelity.fidelity_pct,
+            section_b_marks: analysisResult.analysis.domains
+              && analysisResult.analysis.domains.lesson_plan_fidelity
+              && analysisResult.analysis.domains.lesson_plan_fidelity.domain_score,
+            overall_marks: analysisResult.analysis.scores && analysisResult.analysis.scores.overall_marks,
+          });
+        } catch (fbErr) {
+          logToFile('[lp-fidelity] Section B override failed (non-blocking, proxy stands)', {
+            coachingSessionId, error: fbErr.message,
+          });
+        }
+      }
+
       let reflectiveCorpus = null;
       if (corpusSettled.status === 'fulfilled' && corpusSettled.value) {
         reflectiveCorpus = corpusSettled.value.corpus;
