@@ -10,7 +10,7 @@
 -- make the code deploy and the schema change non-atomic on a live 8.7k-user
 -- table.
 --
--- So this is ADDITIVE and no-downtime (operator, 2026-08-20): `levels` stays
+-- So this is ADDITIVE and no-downtime (product decision): `levels` stays
 -- exactly where it is, every prior migration keeps working untouched, and
 -- training is re-plugged onto `training_bands`. `levels` can be dropped later
 -- once nothing reads it — not in this change.
@@ -40,7 +40,7 @@ UPDATE users
    AND array_length(levels, 1) > 0;
 
 -- When the teacher last changed their bands. Drives the 48-hour cooldown
--- (operator, 2026-08-20): after a change they cannot change again for 48h, and
+-- (product decision): after a change they cannot change again for 48h, and
 -- a second attempt inside the window is told to contact NIETE Support.
 -- NULL = never self-selected (so the picker is a first-time choice, not a
 -- change, and is never blocked). Deliberately NOT set by the seed above:

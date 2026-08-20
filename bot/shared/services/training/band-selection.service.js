@@ -1,11 +1,11 @@
 'use strict';
 /**
- * bd-43478 — the teacher's own statement of which grade bands they teach, and
+ * The teacher's own statement of which grade bands they teach, and
  * the training programs that follow from it.
  *
  * WHY THIS EXISTS
- * ICT sheet Row 6: a teacher teaching primary AND middle saw only the 4 NIETE
- * levels — no Oxbridge, no Beacon House. Nothing was wrong with the visibility
+ * Reported by a partner reviewer: a teacher teaching primary AND middle saw only
+ * the base vendor's levels — none of the partner vendors'. Nothing was wrong with
  * code. She registered with grades_taught=["grade_4"], which correctly derives
  * to PRIMARY -> niete_primary, and that program scopes to the NIETE vendor
  * alone; Oxbridge and Beacon House exist only under niete_middle_high. Her
@@ -13,13 +13,13 @@
  *
  * Before this, NO code path in bot/, dashboard/ or portal/ ever inserted into
  * teacher_training_assignments — every row came from a migration, a backfill,
- * or hand-typed console SQL (bd-2672). This module is the first one that lets
+ * or hand-typed console SQL. This module is the first one that lets
  * the teacher decide, and it is the shared write path for both surfaces: the
  * bot Flow and the portal both gate on
  * teacher_training_assignments -> training_program_scopes, so one write lights
  * up both.
  *
- * ISOLATION (operator, 2026-08-20)
+ * ISOLATION (product decision)
  * The choice lands in users.training_bands, NOT users.levels. It is scoped to
  * teacher training and must never gate lesson plans or any other feature — a
  * teacher picking "Middle" to reach the Beacon House training must not thereby
@@ -31,13 +31,25 @@
  * without a database. The persistence half lives in applyBandSelection().
  */
 
-const supabase = require('../../config/supabase');
-const { logToFile } = require('../../utils/logger');
+// Required LAZILY inside applyBandSelection, not at module load.
+//
+// The dashboard imports this module for the portal's band routes, and a
+// top-level `require` of the bot's Supabase client made every portal test suite
+// depend on a bot-only package (@supabase/supabase-js) that is not installed
+// when the root suite runs. The pure logic below — the band->program mapping and
+// the cooldown — has no I/O and must stay importable anywhere, including from
+// the dashboard and from a test with no bot dependencies present.
+function deps() {
+  return {
+    supabase: require('../../config/supabase'),
+    logToFile: require('../../utils/logger').logToFile,
+  };
+}
 
 const PROGRAM_PRIMARY = 'niete_primary';
 const PROGRAM_MIDDLE_HIGH = 'niete_middle_high';
 
-/** Hours a teacher must wait between band changes (operator, 2026-08-20). */
+/** Hours a teacher must wait between band changes (product decision). */
 const COOLDOWN_HOURS = 48;
 
 /**
@@ -46,7 +58,7 @@ const COOLDOWN_HOURS = 48;
  * The label carries the grade range because "level" is dangerously overloaded
  * in this schema: training_levels holds CPD career stages for NIETE (Aspiring
  * Teacher … Teacher Leader) and SUBJECTS for Beacon House (English, Maths, …).
- * ICT sheet Row 5 is a teacher confused by exactly that collision, so the
+ * A partner reviewer reported a teacher confused by exactly that collision, so the
  * picker never says a bare "Level N".
  */
 const BANDS = Object.freeze([
@@ -78,7 +90,7 @@ function normalizeBands(selection) {
  * Deliberately mirrors programsForUser() in
  * scripts/lib/training-band-derivation.js: MIDDLE and HIGH share one program,
  * so both collapse to a single row. An empty or unrecognised selection yields
- * NO programs — never a default (the bd-2672 rule: no access beats wrong-band
+ * NO programs — never a default (no access beats wrong-band
  * access, because a wrong band is invisible once written).
  *
  * @param {string[]} selection band keys chosen by the teacher
@@ -147,7 +159,7 @@ function canChangeBands(user, now = Date.now()) {
 }
 
 /**
- * The warning shown BEFORE a teacher confirms a change (operator, 2026-08-20).
+ * The warning shown BEFORE a teacher confirms a change (product decision).
  * Not shown on a first-ever selection — there is nothing to lose yet.
  */
 function changeWarning() {
@@ -161,7 +173,7 @@ function changeWarning() {
  * from grades_taught on every run, so without a marker it would silently
  * overwrite a teacher's own choice with an inference. The backfill skips rows
  * carrying this tag — a teacher's explicit statement outranks a script's guess,
- * permanently (operator, 2026-08-20).
+ * permanently (product decision).
  */
 const SELF_SELECT_TAG = 'teacher_self_select';
 
@@ -181,6 +193,7 @@ const SELF_SELECT_TAG = 'teacher_self_select';
  * @returns {Promise<{ok: boolean, reason?: string, message?: string, unchanged?: boolean, programs?: string[]}>}
  */
 async function applyBandSelection(userId, selection, now = Date.now()) {
+  const { supabase, logToFile } = deps();
   const bands = normalizeBands(selection);
 
   // An empty selection is a rejected input, NOT an instruction to revoke
