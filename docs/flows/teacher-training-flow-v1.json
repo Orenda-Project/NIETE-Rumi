@@ -85,6 +85,18 @@
         "footer_label": {
           "type": "string",
           "__example__": "Save and continue"
+        },
+        "continue_visible": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "save_label": {
+          "type": "string",
+          "__example__": "Save these grades"
+        },
+        "primary_action": {
+          "type": "string",
+          "__example__": "continue_to_training"
         }
       },
       "layout": {
@@ -120,6 +132,18 @@
               {
                 "type": "Footer",
                 "label": "${data.footer_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "${data.primary_action}",
+                    "_bands": "${form.band_choice}"
+                  }
+                }
+              },
+              {
+                "type": "EmbeddedLink",
+                "text": "${data.save_label}",
+                "visible": "${data.continue_visible}",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
