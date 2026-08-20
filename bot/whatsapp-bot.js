@@ -648,6 +648,16 @@ app.post('/webhook', async (req, res) => {
         return;
       }
 
+      // LP usage follow-up (bd-vw0aj) — the 👍 path when a voice note was delivered.
+      // `lp_used_(taught|planned|not_yet)_<uuid>`. An unregistered prefix falls through to
+      // generic text handling and the tap is silently lost, so this must stay beside the
+      // survey buttons it follows.
+      if (buttonId.startsWith('lp_used_')) {
+        const LpFeedbackService = require('./shared/services/lp-feedback.service');
+        await LpFeedbackService.handleUsageButton(buttonId, from);
+        return;
+      }
+
       // FEAT-080  — Oxbridge Grade 6-12 LP picker buttons.
       // `oxbridge_lp_pick_<catalogRowId>` → deliver the verbatim Oxbridge LP.
       // `oxbridge_lp_rumi`                → re-run the standard LLM LP path.
