@@ -53,6 +53,14 @@
             }
           ]
         },
+        "has_fidelity": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "fidelity_summary": {
+          "type": "string",
+          "__example__": "Measured LP fidelity: 46% (low) · 12 moves\n✓ Read the word problem\n✗ Exit ticket"
+        },
         "s_B1": {
           "type": "string",
           "__example__": "2"
@@ -172,14 +180,6 @@
         "i_B10": {
           "type": "string",
           "__example__": "Ushauri…"
-        },
-        "has_fidelity": {
-          "type": "boolean",
-          "__example__": true
-        },
-        "fidelity_summary": {
-          "type": "string",
-          "__example__": "Measured LP fidelity: 46% (Low) · 12 moves\n✓ Read the word problem\n✗ Exit ticket"
         }
       },
       "layout": {

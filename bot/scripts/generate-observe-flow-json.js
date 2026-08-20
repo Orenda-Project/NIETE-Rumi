@@ -116,6 +116,22 @@ function domainScreen(key, idx) {
       __example__: L.scale,
     },
   };
+
+  // bd-9hzdn (observe parity): Section B carries the MEASURED per-move fidelity
+  // analysis (D20/D27) — the reviewer must see it, not just the legacy indicator
+  // matrix. Rendered only when the endpoint sends has_fidelity=true (prefill is
+  // env-gated on OBSERVE_FICO_FLOW_HAS_FIDELITY, flipped with the republish).
+  if (key === 'lesson_plan_fidelity') {
+    children.unshift(
+      { type: 'TextSubheading', text: 'Measured lesson-plan fidelity', visible: '${data.has_fidelity}' },
+      { type: 'TextBody', text: '${data.fidelity_summary}', visible: '${data.has_fidelity}' },
+    );
+    data.has_fidelity = { type: 'boolean', __example__: true };
+    data.fidelity_summary = {
+      type: 'string',
+      __example__: 'Measured LP fidelity: 46% (low) · 12 moves\n✓ Read the word problem\n✗ Exit ticket',
+    };
+  }
   const payload = { _screen: screenId(key) };
 
   for (const ind of d.indicators) {
