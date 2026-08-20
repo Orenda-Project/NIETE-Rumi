@@ -172,6 +172,14 @@
         "i_B10": {
           "type": "string",
           "__example__": "Ushauri…"
+        },
+        "has_fidelity": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "fidelity_summary": {
+          "type": "string",
+          "__example__": "Measured LP fidelity: 46% (Low) · 12 moves\n✓ Read the word problem\n✗ Exit ticket"
         }
       },
       "layout": {
@@ -213,6 +221,16 @@
               "imp_B10": "${data.i_B10}"
             },
             "children": [
+              {
+                "type": "TextSubheading",
+                "text": "Measured lesson-plan fidelity",
+                "visible": "${data.has_fidelity}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.fidelity_summary}",
+                "visible": "${data.has_fidelity}"
+              },
               {
                 "type": "TextHeading",
                 "text": "B. Lesson Plan Fidelity"
