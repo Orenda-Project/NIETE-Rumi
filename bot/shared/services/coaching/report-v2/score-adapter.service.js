@@ -39,11 +39,21 @@ function buildScoreViewModel(analysisData, opts = {}) {
   const framework = String(opts.framework || a.framework || 'oecd').toLowerCase();
   const language = opts.language || a.language || 'en';
 
-  const overall = round(a.scores?.overall_percentage);
-  const marks = a.scores?.overall_marks ?? null;
-  const max = a.scores?.overall_max_marks ?? null;
-
   const groups = getScoreAdapter(framework)(a, language);
+
+  // bd-5n1a2: the flat scores fields are the source of truth, but a bad writer
+  // (the enhance LLM restructuring `scores` — prod 57484afc rendered "0%") can
+  // leave them absent while the domain groups are intact. The groups feed the
+  // very bars next to the headline, so deriving the headline from them can
+  // never contradict what the reader sees.
+  const groupMarks = groups.reduce((s, g) => s + (Number(g.score) || 0), 0);
+  const groupMax = groups.reduce((s, g) => s + (Number(g.max) || 0), 0);
+  const flatPct = parseFloat(a.scores?.overall_percentage);
+  const overall = Number.isFinite(flatPct)
+    ? Math.round(flatPct)
+    : (groupMax > 0 ? Math.round((groupMarks / groupMax) * 100) : 0);
+  const marks = a.scores?.overall_marks ?? (groupMax > 0 ? groupMarks : null);
+  const max = a.scores?.overall_max_marks ?? (groupMax > 0 ? groupMax : null);
 
   return { framework, language, overall, marks, max, groups };
 }
