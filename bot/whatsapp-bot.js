@@ -1691,6 +1691,15 @@ app.post('/webhook', async (req, res) => {
         return;
       }
 
+      // bd-wa5io — LP-selection menu taps (lp_select_/lp_upload_/lp_none_). The
+      // menu became a LIST when LP fidelity shipped, but these ids had no
+      // list_reply routing: the linker was never called and the session hung at
+      // awaiting_lesson_plan. Handle BEFORE the Reading-Assessment session logic.
+      if (/^lp_(select|upload|none)_/.test(listId)) {
+        const { handleLpListSelection } = require('./shared/services/coaching/lp-coaching/lp-list-selection.handler');
+        if (await handleLpListSelection(listId, from)) return;
+      }
+
       // CRITICAL: Get the CURRENT session first, then query conversations in THAT session
       const { getOrCreateSession } = require('./shared/database/bot-helpers');
       const currentSessionId = await getOrCreateSession(user.id);
