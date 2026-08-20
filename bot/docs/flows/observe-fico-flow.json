@@ -57,9 +57,105 @@
           "type": "boolean",
           "__example__": true
         },
-        "fidelity_summary": {
+        "fid_header": {
           "type": "string",
-          "__example__": "Measured LP fidelity: 46% (low) · 12 moves\n✓ Read the word problem\n✗ Exit ticket"
+          "__example__": "Measured lesson-plan fidelity: 46% (LOW) · 9 counted moves\nScore = credit earned ÷ prescribed moves."
+        },
+        "mv_1": {
+          "type": "string",
+          "__example__": "1/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+        },
+        "mv_1_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "mv_2": {
+          "type": "string",
+          "__example__": "2/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+        },
+        "mv_2_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "mv_3": {
+          "type": "string",
+          "__example__": "3/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+        },
+        "mv_3_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "mv_4": {
+          "type": "string",
+          "__example__": "4/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+        },
+        "mv_4_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "mv_5": {
+          "type": "string",
+          "__example__": "5/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+        },
+        "mv_5_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "mv_6": {
+          "type": "string",
+          "__example__": "6/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+        },
+        "mv_6_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "mv_7": {
+          "type": "string",
+          "__example__": "7/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+        },
+        "mv_7_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "mv_8": {
+          "type": "string",
+          "__example__": "8/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+        },
+        "mv_8_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "mv_9": {
+          "type": "string",
+          "__example__": "9/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+        },
+        "mv_9_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "mv_10": {
+          "type": "string",
+          "__example__": "10/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+        },
+        "mv_10_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "mv_11": {
+          "type": "string",
+          "__example__": "11/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+        },
+        "mv_11_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "mv_12": {
+          "type": "string",
+          "__example__": "12/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+        },
+        "mv_12_v": {
+          "type": "boolean",
+          "__example__": false
         },
         "s_B1": {
           "type": "string",
@@ -228,8 +324,68 @@
               },
               {
                 "type": "TextBody",
-                "text": "${data.fidelity_summary}",
+                "text": "${data.fid_header}",
                 "visible": "${data.has_fidelity}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_1}",
+                "visible": "${data.mv_1_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_2}",
+                "visible": "${data.mv_2_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_3}",
+                "visible": "${data.mv_3_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_4}",
+                "visible": "${data.mv_4_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_5}",
+                "visible": "${data.mv_5_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_6}",
+                "visible": "${data.mv_6_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_7}",
+                "visible": "${data.mv_7_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_8}",
+                "visible": "${data.mv_8_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_9}",
+                "visible": "${data.mv_9_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_10}",
+                "visible": "${data.mv_10_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_11}",
+                "visible": "${data.mv_11_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_12}",
+                "visible": "${data.mv_12_v}"
               },
               {
                 "type": "TextHeading",
@@ -242,7 +398,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_B1",
-                "label": "B1 — Instructional Clarity & L",
+                "label": "B1 — Instructional Clarity &…",
                 "description": "Instructional Clarity & Learning Objectives",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -264,7 +420,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_B2",
-                "label": "B2 — Lesson Structure & Sequen",
+                "label": "B2 — Lesson Structure &…",
                 "description": "Lesson Structure & Sequence",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -286,7 +442,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_B3",
-                "label": "B3 — Activities & Tasks Alignm",
+                "label": "B3 — Activities & Tasks…",
                 "description": "Activities & Tasks Alignment",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -308,7 +464,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_B4",
-                "label": "B4 — Activation of Prior Knowl",
+                "label": "B4 — Activation of Prior…",
                 "description": "Activation of Prior Knowledge",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -330,7 +486,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_B5",
-                "label": "B5 — Meaningful & Real-World C",
+                "label": "B5 — Meaningful & Real-World…",
                 "description": "Meaningful & Real-World Connections",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -352,7 +508,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_B6",
-                "label": "B6 — Differentiation / Caterin",
+                "label": "B6 — Differentiation /…",
                 "description": "Differentiation / Catering to Learning Levels",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -374,7 +530,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_B7",
-                "label": "B7 — Use of Taleemabad Lesson ",
+                "label": "B7 — Use of Taleemabad…",
                 "description": "Use of Taleemabad Lesson Plan",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -396,7 +552,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_B8",
-                "label": "B8 — Use of Prescribed Resourc",
+                "label": "B8 — Use of Prescribed…",
                 "description": "Use of Prescribed Resources",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -418,7 +574,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_B9",
-                "label": "B9 — Time on Task / Time on Le",
+                "label": "B9 — Time on Task / Time on…",
                 "description": "Time on Task / Time on Learning",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -440,7 +596,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_B10",
-                "label": "B10 — Lesson Closure & Consoli",
+                "label": "B10 — Lesson Closure &…",
                 "description": "Lesson Closure & Consolidation",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -741,7 +897,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_C1",
-                "label": "C1 — Quality Questioning (Bloo",
+                "label": "C1 — Quality Questioning…",
                 "description": "Quality Questioning (Bloom's Aligned)",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -763,7 +919,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_C2",
-                "label": "C2 — Responsive Re-explanation",
+                "label": "C2 — Responsive…",
                 "description": "Responsive Re-explanation & Adaptive Teaching",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -851,7 +1007,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_C6",
-                "label": "C6 — Classroom Management & Ro",
+                "label": "C6 — Classroom Management &…",
                 "description": "Classroom Management & Routines",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -873,7 +1029,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_C7",
-                "label": "C7 — Positive & Supportive Lea",
+                "label": "C7 — Positive & Supportive…",
                 "description": "Positive & Supportive Learning Environment",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -895,7 +1051,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_C8",
-                "label": "C8 — Modeling, Scaffolding & P",
+                "label": "C8 — Modeling, Scaffolding &…",
                 "description": "Modeling, Scaffolding & Problem-Solving",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -939,7 +1095,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_C10",
-                "label": "C10 — Integration of Taleemaba",
+                "label": "C10 — Integration of…",
                 "description": "Integration of Taleemabad Technology",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -961,7 +1117,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_C11",
-                "label": "C11 — Self & Peer Assessment F",
+                "label": "C11 — Self & Peer Assessment…",
                 "description": "Self & Peer Assessment Facilitation",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -983,7 +1139,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_C12",
-                "label": "C12 — Classroom Resources & Sp",
+                "label": "C12 — Classroom Resources &…",
                 "description": "Classroom Resources & Space for Collaboration",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -1237,7 +1393,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_D2",
-                "label": "D2 — Cognitive Engagement Leve",
+                "label": "D2 — Cognitive Engagement…",
                 "description": "Cognitive Engagement Level (Bloom's)",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -1259,7 +1415,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_D3",
-                "label": "D3 — Student-to-Student Intera",
+                "label": "D3 — Student-to-Student…",
                 "description": "Student-to-Student Interaction",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -1281,7 +1437,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_D4",
-                "label": "D4 — Student Confidence & Risk",
+                "label": "D4 — Student Confidence &…",
                 "description": "Student Confidence & Risk-Taking",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -1303,7 +1459,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_D5",
-                "label": "D5 — On-Task Behavior During I",
+                "label": "D5 — On-Task Behavior During…",
                 "description": "On-Task Behavior During Independent Work",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -1325,7 +1481,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_D6",
-                "label": "D6 — Student Use of Learning M",
+                "label": "D6 — Student Use of Learning…",
                 "description": "Student Use of Learning Materials",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -1623,7 +1779,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_F3",
-                "label": "F3 — Anticipation of Student M",
+                "label": "F3 — Anticipation of Student…",
                 "description": "Anticipation of Student Misconceptions",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -1667,7 +1823,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_F5",
-                "label": "F5 — Subject-Specific Pedagogy",
+                "label": "F5 — Subject-Specific…",
                 "description": "Subject-Specific Pedagogy: MATH",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -1689,7 +1845,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_F6",
-                "label": "F6 — Subject-Specific Pedagogy",
+                "label": "F6 — Subject-Specific…",
                 "description": "Subject-Specific Pedagogy: SCIENCE",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -1711,7 +1867,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_F7",
-                "label": "F7 — Subject-Specific Pedagogy",
+                "label": "F7 — Subject-Specific…",
                 "description": "Subject-Specific Pedagogy: LITERACY / LANGUAGE",
                 "required": false,
                 "data-source": "${data.scale}"
@@ -1733,7 +1889,7 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_F8",
-                "label": "F8 — Cross-Curricular Connecti",
+                "label": "F8 — Cross-Curricular…",
                 "description": "Cross-Curricular Connections",
                 "required": false,
                 "data-source": "${data.scale}"

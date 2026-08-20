@@ -1255,42 +1255,7 @@ GUIDELINES:
       // Cost: 1 GPT call still runs OECD-style enrichment on top of a FICO body.
       // Root fix (framework-aware enhance prompt) is a follow-up — this preserves
       // the analysis end-to-end today.
-      const originalFramework = analysisData?.framework;
-      if (originalFramework && originalFramework !== 'oecd') {
-        enhancedAnalysis.framework = originalFramework;
-        if (analysisData.domains && !enhancedAnalysis.domains) {
-          enhancedAnalysis.domains = analysisData.domains;
-        }
-        if (analysisData.scores && !enhancedAnalysis.scores) {
-          enhancedAnalysis.scores = analysisData.scores;
-        }
-        // Preserve framework-native optional fields the enhance prompt doesn't know about.
-        for (const key of ['areas', 'photo_analysis', 'subject', 'topic']) {
-          if (analysisData[key] !== undefined && enhancedAnalysis[key] === undefined) {
-            enhancedAnalysis[key] = analysisData[key];
-          }
-        }
-        // Drop the OECD-shape junk the LLM emitted — it has null competency_scores
-        // that would confuse the OECD-fallback transformer if framework dispatch
-        // ever drifted back to OECD.
-        for (const k of [
-          'goal1_formative_assessment',
-          'goal2_student_engagement',
-          'goal3_quality_content',
-          'goal4_classroom_interaction',
-          'goal5_classroom_management',
-          'domain4_professional_responsibilities',
-        ]) {
-          delete enhancedAnalysis[k];
-        }
-        logToFile('[enhance] non-OECD framework — preserved framework/domains/scores and stripped OECD junk', {
-          framework: originalFramework,
-          domainsCount: enhancedAnalysis.domains ? Object.keys(enhancedAnalysis.domains).length : 0,
-        });
-      } else if (analysisData?.framework === 'oecd' && !enhancedAnalysis.framework) {
-        // Keep OECD stamped so the report-side dispatch doesn't re-fall-through to oecd via null.
-        enhancedAnalysis.framework = 'oecd';
-      }
+      GPT5MiniService._preserveFrameworkShape(enhancedAnalysis, analysisData);
 
       // Compute marks for Debrief & Reflection section
       if (enhancedAnalysis.debrief_reflection) {
@@ -1769,5 +1734,50 @@ Generate ONLY the script text (no stage directions, just what will be spoken).`;
     return parseFloat(cost.toFixed(6));
   }
 }
+
+/**
+ * bd-5n1a2 — FICO/HOTS/TEACH: the enhance prompt is OECD-shaped, so the LLM
+ * both drops framework-native structure AND sometimes emits its OWN `scores`
+ * (real numbers restructured under a nested `overall` key — prod 57484afc
+ * rendered "0%" because the adapter's flat `scores.overall_percentage` read
+ * found nothing). The framework-computed `domains`/`scores` are the single
+ * source of truth, so for non-OECD frameworks they ALWAYS overwrite the LLM's
+ * output — presence of an LLM-emitted key is never a reason to keep it.
+ */
+GPT5MiniService._preserveFrameworkShape = function (enhancedAnalysis, analysisData) {
+  const originalFramework = analysisData?.framework;
+  if (originalFramework && originalFramework !== 'oecd') {
+    enhancedAnalysis.framework = originalFramework;
+    if (analysisData.domains) enhancedAnalysis.domains = analysisData.domains;
+    if (analysisData.scores) enhancedAnalysis.scores = analysisData.scores;
+    // Preserve framework-native optional fields the enhance prompt doesn't know about.
+    for (const key of ['areas', 'photo_analysis', 'subject', 'topic', 'lp_fidelity']) {
+      if (analysisData[key] !== undefined && enhancedAnalysis[key] === undefined) {
+        enhancedAnalysis[key] = analysisData[key];
+      }
+    }
+    // Drop the OECD-shape junk the LLM emitted — it has null competency_scores
+    // that would confuse the OECD-fallback transformer if framework dispatch
+    // ever drifted back to OECD.
+    for (const k of [
+      'goal1_formative_assessment',
+      'goal2_student_engagement',
+      'goal3_quality_content',
+      'goal4_classroom_interaction',
+      'goal5_classroom_management',
+      'domain4_professional_responsibilities',
+    ]) {
+      delete enhancedAnalysis[k];
+    }
+    logToFile('[enhance] non-OECD framework — restored framework domains/scores over enhance output', {
+      framework: originalFramework,
+      domainsCount: enhancedAnalysis.domains ? Object.keys(enhancedAnalysis.domains).length : 0,
+    });
+  } else if (analysisData?.framework === 'oecd' && !enhancedAnalysis.framework) {
+    // Keep OECD stamped so the report-side dispatch doesn't re-fall-through to oecd via null.
+    enhancedAnalysis.framework = 'oecd';
+  }
+  return enhancedAnalysis;
+};
 
 module.exports = GPT5MiniService;

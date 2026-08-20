@@ -117,9 +117,9 @@ describe('FICO Report Transformer (ICT canonical rubric)', () => {
     expect(c.photoEvidence).toBeNull();
   });
 
-  test('SCENARIO: maxScore is 104 (26 indicators × 4)', () => {
+  test('SCENARIO: maxScore comes from the framework module (V3 = 37 indicators / 148)', () => {
     const reportData = transformFICOToReportData(mockSession, 'Hassan', mockFICOAnalysis);
-    expect(reportData.maxScore).toBe(104);
+    expect(reportData.maxScore).toBe(require('../../../bot/shared/services/coaching/frameworks/fico-framework').getScoringConstants().maxMarks);
   });
 
   test('SCENARIO: photoEvidence is always null (rubric is audio-scoreable)', () => {

@@ -5,7 +5,7 @@
  * pdf-report.service.js and the hero renderer.
  *
  * 4 scored sections (B, C, D, F) → 4 goals, indicators → criteria,
- * scale 1-4, max 104, no debrief, no LP bonus.
+ * scale 1-4, max marks from the framework module, no debrief, no LP bonus.
  *
  * focusArea — the ONE focus indicator + try-this + lever question, mirrored
  * from mewaka-report-transformer.js so "FICO = the MEWAKA flow with only the
@@ -27,7 +27,9 @@ const { formatDate, extractFidelity, buildPartialNote } = require('./_shared');
 const { coachRoleLabelForRegion } = require('../../../config/region-config');
 
 const SCALE_MAX = 4;
-const MAX_MARKS = 104;
+// bd-5n1a2: derive from the framework — the 104 literal was FICO V2 and the
+// framework moved to V3 (37 indicators / 148 marks) without this file noticing.
+const MAX_MARKS = ficoFramework.getScoringConstants().maxMarks;
 
 // Section title map (rendered above each block in the report). The Latin-letter
 // section key (B/C/D/F) is preserved so trainers can cross-reference the sheet.

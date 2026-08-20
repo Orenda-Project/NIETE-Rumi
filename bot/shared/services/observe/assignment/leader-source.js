@@ -67,7 +67,10 @@ async function _teachers(leaderUserId, schoolExtId = null) {
     .from('leader_teachers')
     .select('teacher_ext_id, teacher_name, teacher_phone_e164, school_ext_id, level')
     .eq('leader_user_id', leaderUserId);
-  if (schoolExtId != null) q = q.eq('school_ext_id', schoolExtId);
+  // bd-5n1a2: '' must mean "no filter" — a schedule row with school_ext_id=""
+  // turned `.eq('school_ext_id','')` into a zero-row roster and silently
+  // unbound a picked teacher (live 2026-08-21).
+  if (schoolExtId != null && schoolExtId !== '') q = q.eq('school_ext_id', schoolExtId);
   const { data, error } = await q;
   if (error) { logToFile('leader-source: _teachers error', { error: error.message }); return []; }
   return data || [];
@@ -406,8 +409,20 @@ async function leaderLang(leaderUserId) {
  * user_id (may be null), phone (E.164) and name. Returns null if not found.
  */
 async function resolveTeacher(leaderUserId, teacherExtId, schoolExtId = null) {
-  const teachers = await _teachers(leaderUserId, schoolExtId);
-  const t = teachers.find((x) => String(x.teacher_ext_id) === String(teacherExtId)) || null;
+  let teachers = await _teachers(leaderUserId, schoolExtId);
+  let t = teachers.find((x) => String(x.teacher_ext_id) === String(teacherExtId)) || null;
+  // bd-5n1a2: the ext-id is already leader-scoped, so a school-filtered miss is
+  // far more likely a stale/wrong school value than a wrong teacher. Retry the
+  // whole roster once before letting the binding fail.
+  if (!t && schoolExtId != null && schoolExtId !== '') {
+    teachers = await _teachers(leaderUserId, null);
+    t = teachers.find((x) => String(x.teacher_ext_id) === String(teacherExtId)) || null;
+    if (t) {
+      logToFile('leader-source: resolveTeacher matched only WITHOUT the school filter', {
+        leaderUserId, teacherExtId, filteredSchool: schoolExtId, actualSchool: t.school_ext_id,
+      });
+    }
+  }
   if (!t) return null;
   const users = await _usersByPhone([t.teacher_phone_e164]);
   const u = users[0] || null;

@@ -266,12 +266,12 @@ describe('Multi-Framework Report Integration (bd-610)', () => {
     expect(reportData.frameworkDisplayName).toBe('Teach Framework');
   });
 
-  test('SCENARIO: FICO analysis → 4 goals (B/C/D/F), no debrief, max 104', () => {
+  test('SCENARIO: FICO analysis → 4 goals (B/C/D/F), no debrief, max from framework', () => {
     const transformer = getReportTransformer('fico');
     const reportData = transformer(mockSession, 'Hassan', mockFICOAnalysis);
     expect(reportData.goals).toHaveLength(4);
     expect(reportData.debriefReflection).toBeNull();
-    expect(reportData.maxScore).toBe(104);
+    expect(reportData.maxScore).toBe(require('../../bot/shared/services/coaching/frameworks/fico-framework').getScoringConstants().maxMarks);
     expect(reportData.frameworkDisplayName).toBe('FICO Framework');
   });
 
