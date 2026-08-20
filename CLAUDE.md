@@ -39,6 +39,7 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
 |------|-------|
 | The bot codebase (handlers, services, workers) | [bot/CLAUDE.md](bot/CLAUDE.md) |
 | Database schema, RLS, seed, one-command bootstrap | [infrastructure/CLAUDE.md](infrastructure/CLAUDE.md) |
+| Writing a migration / adding a table or a data column | [docs/data-standards.md](docs/data-standards.md) · [.claude/skills/data-standards](.claude/skills/data-standards/SKILL.md) |
 | Agent/skill config + what skills exist | [.claude/CLAUDE.md](.claude/CLAUDE.md) |
 | Set up a clone from scratch | [SETUP.md](SETUP.md) · `npm run doctor` (preflight) |
 | Customize branding / swap a framework / add a feature | [docs/agent-customization.md](docs/agent-customization.md) |
@@ -67,6 +68,15 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
 - **Conformance guards** (`tests/setup/`) enforce: every `.from()` table + every `.rpc()` exists in the
   schema, every insert/select column exists, every schema table is referenced, entry files parse, and no
   secrets/internal-refs ship. Keep them green.
+- **Schema/data changes**: before writing a migration, adding a table, or adding a column that holds
+  teacher or student data, load the [data-standards](.claude/skills/data-standards/SKILL.md) skill and
+  check the change against it. A `PreToolUse` hook also warns (never blocks) on a `git commit` that
+  stages a schema change with findings, and CI reports on every PR. Full guide, including the two known
+  detection gaps you should not trust blindly: [docs/data-standards.md](docs/data-standards.md).
+- **Run agent sessions from this repo, not from a parent workspace.** What gets loaded — this repo's
+  `.claude/` skills *and* its hooks — is fixed by the directory Claude was launched in; a `cd` mid-session
+  does not change it. Launch inside this clone or one of its worktrees, otherwise none of the guards above
+  are active and a schema commit can pass unchecked while appearing green.
 - **DB bootstrap**: `npm run bootstrap:db` applies schema → RLS → seed (idempotent).
 
 ## Repo map

@@ -7,7 +7,9 @@
 | Path | Purpose |
 |------|---------|
 | `skills/<name>/SKILL.md` | On-demand domain knowledge an agent loads when a task matches |
-| `settings.json` | MCP servers (e.g. Supabase) — secrets via `${ENV_VAR}` interpolation, never inline |
+| `settings.json` | MCP servers (e.g. Supabase) — secrets via `${ENV_VAR}` interpolation, never inline. Also registers the `PreToolUse` schema-standards warning (see `hooks/`) |
+| `hooks/data-standards-warn.sh` | Warns (never blocks) when a `git commit`/`push` stages a schema change with standards findings. Ours; wraps the vendored validator |
+| `skills/data-standards/` | **Vendored verbatim from the Data Team's own repo — never edit anything in it.** `scripts/data-standards-verify.sh` fails CI if it is modified. Adaptation lives in `.data-standards.json` at the repo root. See [../docs/data-standards.md](../docs/data-standards.md) |
 
 ## Skills
 
@@ -26,6 +28,7 @@ folder with a `SKILL.md` (+ optional reference files).
 | [whatsapp-flows](skills/whatsapp-flows/SKILL.md) | Building & publishing WhatsApp Flows (endpoint data exchange, the publish lifecycle) |
 | [cross-agent-safety](skills/cross-agent-safety/SKILL.md) | Safety checklist before editing shared services/workers |
 | [pre-merge-checklist](skills/pre-merge-checklist/SKILL.md) | Defensive pre-flight checks for recurring bug classes |
+| [data-standards](skills/data-standards/SKILL.md) | Auditing a schema, migration or PR against the 27 written data standards (D1-D27). **Load before touching any migration, schema file, or column holding teacher/student data.** Vendored — do not edit |
 | [database-analysis](skills/database-analysis/SKILL.md) | Read-only analyst guide: connection, query patterns, anti-sprawl |
 | [qa-testing](skills/qa-testing/SKILL.md) | Test runner, conformance guards, the route-contract pattern |
 | [video-generation](skills/video-generation/SKILL.md) | The educational-video pipeline, presigned-URL gotcha, checkpoint/resume |
