@@ -43,6 +43,9 @@ function deps() {
   return {
     supabase: require('../../config/supabase'),
     logToFile: require('../../utils/logger').logToFile,
+    // A ❌ message must be visible to the error-level monitor, so failures go
+    // through logError rather than a plain info-level write.
+    logError: require('../../utils/logger').logError,
   };
 }
 
@@ -193,7 +196,7 @@ const SELF_SELECT_TAG = 'teacher_self_select';
  * @returns {Promise<{ok: boolean, reason?: string, message?: string, unchanged?: boolean, programs?: string[]}>}
  */
 async function applyBandSelection(userId, selection, now = Date.now()) {
-  const { supabase, logToFile } = deps();
+  const { supabase, logToFile, logError } = deps();
   const bands = normalizeBands(selection);
 
   // An empty selection is a rejected input, NOT an instruction to revoke
@@ -257,7 +260,7 @@ async function applyBandSelection(userId, selection, now = Date.now()) {
     }));
     const { error } = await supabase.from('teacher_training_assignments').insert(rows);
     if (error) {
-      logToFile('❌ Band selection: insert failed', { userId, error: error.message });
+      logError('Band selection: assignment insert failed', { userId, error: error.message });
       return { ok: false, reason: 'write_failed', message: 'We could not save that just now. Please try again.' };
     }
   }
