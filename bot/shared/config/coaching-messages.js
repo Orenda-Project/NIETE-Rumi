@@ -53,9 +53,21 @@ function en(text) {
 
 const COACHING_MESSAGES = {
   // Lesson-plan branch: teacher said NO lesson plan
-  lessonPlan_skip: en("No problem! I'll analyze your classroom audio without the lesson plan."),
+  lessonPlan_skip: {
+    ...en("No problem! I'll analyze your classroom audio without the lesson plan."),
+    ur: 'کوئی بات نہیں! سبق کے منصوبے کے بغیر ہی کلاس روم آڈیو کا تجزیہ کیا جائے گا۔',
+  },
   // Lesson-plan branch: teacher said yes but didn't send the document
-  lessonPlan_request: en("Great! Please send your lesson plan as a document (PDF, Word, or image).\n\nTap 📎 → Document to upload it."),
+  lessonPlan_request: {
+    ...en("Great! Please send your lesson plan as a document (PDF, Word, or image).\n\nTap 📎 → Document to upload it."),
+    ur: 'بہت خوب! اپنا سبق کا منصوبہ بطور دستاویز بھیجیں (PDF، Word یا تصویر)۔\n\nاپلوڈ کے لیے 📎 → Document پر ٹیپ کریں۔',
+  },
+  // Lesson-plan branch: a recent Taleemabad LP was linked from the selection list
+  // (bd-wa5io — the fidelity pass scores against exactly this plan).
+  lessonPlan_linked: {
+    ...en("✅ Lesson plan linked! I'll compare your teaching against this plan in the analysis."),
+    ur: '✅ سبق کا منصوبہ منسلک ہو گیا! تجزیے میں تدریس کا موازنہ اسی منصوبے سے کیا جائے گا۔',
+  },
   // Lesson-plan branch: document received, queued for processing
   lessonPlan_received: en("📄 Lesson plan received! I'm processing it in the background and will weave it into your analysis."),
   // Lesson-plan branch: the uploaded document doesn't look like a lesson plan

@@ -9,7 +9,6 @@
  */
 
 const { logToFile } = require('../../../utils/logger');
-const { coachRoleLabelForRegion } = require('../../../config/region-config');
 
 /**
  * Truncate a string to maxLen, appending '...' if truncated.
@@ -33,14 +32,10 @@ function truncate(str, maxLen) {
  */
 function buildLPSelectionList(coachingSessionId, recentLPs, language = 'en', region) {
   const isUrdu = language === 'ur';
-  // Coach-role label for the list footer. English label used verbatim in the
-  // en path; the ur path keeps its localised default when no region override
-  // is supplied, and swaps to the region-scoped label when one is set.
-  const roleLabel = coachRoleLabelForRegion(region);
-  // When the role is the deployment default (no region override), Urdu users get
-  // a localised label. bd-2381: default flipped Rumi→NIETE, so both the match and
-  // the Urdu string are NIETE now (kills the stale "رومی ڈیجیٹل کوچ" self-reference).
-  const isDefaultEnRole = roleLabel === 'NIETE Digital Coach';
+  // bd-wa5io — `region` no longer drives the footer: coachRoleLabelForRegion()
+  // is HITL observe-card branding (env DEFAULT_COACH_ROLE_LABEL="Human Coach")
+  // and this menu is teacher-facing DC UI. Param kept for call-site stability.
+  void region;
 
   // Fallback: no recent LPs → simple Yes/No buttons
   if (!recentLPs || recentLPs.length === 0) {
@@ -91,12 +86,12 @@ function buildLPSelectionList(coachingSessionId, recentLPs, language = 'en', reg
         : 'Would you like to link a recent lesson plan? It improves the analysis.',
     },
     footer: {
-      // Preserve the historical Urdu footer text when the region resolves to
-      // the default English label (no override configured); otherwise use the
-      // region-scoped label (in Latin script) for both — a "Human Coach"
-      // deployment renders that in both languages until a localised override
-      // is supplied via the same env map (future work).
-      text: isUrdu && isDefaultEnRole ? 'NIETE ڈیجیٹل کوچ' : roleLabel,
+      // bd-wa5io — this menu is TEACHER-facing Digital-Coach UI. It previously
+      // sourced its footer from coachRoleLabelForRegion(), whose live env
+      // default (DEFAULT_COACH_ROLE_LABEL="Human Coach") is the HITL
+      // observe-card branding — so teachers saw a confusing "Human Coach"
+      // footer on their own coaching flow. Always the DC label, localised.
+      text: isUrdu ? 'NIETE ڈیجیٹل کوچ' : 'NIETE Digital Coach',
     },
     action: {
       button: isUrdu ? 'منتخب کریں' : 'Select',
