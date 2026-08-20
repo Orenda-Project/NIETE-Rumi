@@ -42,12 +42,22 @@ explanation still counts; it does not need to be a separate, announced event.
   denominator, never scored as a miss.
 
 > **GLOBAL-UNUSABILITY GUARD (critical).** If the transcript as a whole is garbled/unintelligible, or
-> has no usable timestamps, or plainly does not correspond to this lesson — i.e. you cannot reliably
-> adjudicate ANY move — then EVERY move's verdict is **\`not_adjudicable\`, NOT \`not_done\`.** \`not_done\`
-> means "she could have, and the recording shows she didn't"; a recording you cannot read shows no such
-> thing. A garbled recording must yield "not assessed from this recording" (no score), never 0%. Set
-> \`moderators.note\` to \`"recording_unusable"\` so the pipeline can flag it for re-capture. Only use
-> \`not_done\` when the transcript is READABLE and the move is genuinely absent from it.
+> has no usable timestamps — i.e. you cannot READ the recording well enough to adjudicate ANY move —
+> then EVERY move's verdict is **\`not_adjudicable\`, NOT \`not_done\`.** \`not_done\` means "she could
+> have, and the recording shows she didn't"; a recording you cannot read shows no such thing. A garbled
+> recording must yield "not assessed from this recording" (no score), never 0%. Set \`moderators.note\`
+> to \`"recording_unusable"\` so the pipeline can flag it for re-capture. Only use \`not_done\` when the
+> transcript is READABLE and the move is genuinely absent from it.
+
+> **LESSON-MISMATCH RULE (critical — the opposite case).** If the transcript is READABLE but the
+> lesson taught plainly does NOT correspond to the prescribed plan (different topic/subject — e.g. the
+> plan prescribes a counting warm-up and the recording is an LCM lesson), that is NOT unusability: the
+> recording affirmatively shows the prescribed moves were **not executed**. Verdict each such move
+> \`not_done\` (rationale: content mismatch), so fidelity to the linked plan scores what it truly is —
+> near 0%. Set \`moderators.note\` to \`"lesson_mismatch"\` so the report can say the linked plan does
+> not match this lesson. Judge PARTIAL overlap (an adjacent day's plan, a shared warm-up) move by
+> move as normal — the mismatch rule is for moves the readable recording shows never happened, never
+> a blanket verdict.
 
 ## PER-MOVE, EMIT:
 - \`move_id\`
