@@ -17,6 +17,7 @@ jest.mock('../../bot/shared/config/supabase', () => {
     limit: jest.fn().mockReturnThis(),
     update: jest.fn().mockReturnThis(),
     single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
   };
   return { from: jest.fn(() => chain) };
 });
@@ -156,6 +157,8 @@ describe('LP Coaching Linker (bd-620)', () => {
           data: { id: 'lp-1', content: { steps: ['step1'] }, topic: 'Photosynthesis' },
           error: null,
         }),
+        // resolveCorpusRef queries niete_lp_assets first; null → falls back to the lesson_plans path
+        maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
       };
       return { from: jest.fn(() => chain) };
     });

@@ -166,7 +166,24 @@ class AnalysisProcessorService {
       // critical-path analysis persist still proceeds and the report falls back gracefully
       // (the rest of the coaching flow doesn't depend on the corpus being present).
       const langCode = session.transcript_language || metadata.language || 'en';
-      const [analysisSettled, corpusSettled] = await Promise.allSettled([
+
+      // LP fidelity (FICO Section B) — a SEPARATE gpt-5.6-luna call sharing the transcript, run in the
+      // same allSettled so it is NON-BLOCKING (a fidelity failure never fails the coaching job). Flag-gated
+      // OFF by default (LP_FIDELITY_ENABLED); computeLpFidelity is itself internally non-throwing. The
+      // corpus move-list is resolved from the LP version the teacher downloaded (stashed by the linker as
+      // lesson_plan_structured._fidelity_ref) or extracted from her uploaded LP text.
+      const { isFidelityEnabled, computeLpFidelity } = require('./fidelity/fidelity-orchestrator');
+      const fidelityRef = session.lesson_plan_structured && session.lesson_plan_structured._fidelity_ref;
+      const fidelityTask = isFidelityEnabled()
+        ? computeLpFidelity({
+            corpusKey: fidelityRef || null,
+            uploadedText: session.lesson_plan_link_method === 'uploaded' ? (session.lesson_plan_text || null) : null,
+            transcript: session.transcript_text,
+            meta: { lesson_id: fidelityRef && fidelityRef.lesson_id },
+          })
+        : Promise.resolve(null);
+
+      const [analysisSettled, corpusSettled, fidelitySettled] = await Promise.allSettled([
         GPT5MiniService.analyzePedagogy(
           session.transcript_text,
           metadata,
@@ -174,9 +191,43 @@ class AnalysisProcessorService {
           framework,
         ),
         GPT5MiniService.extractReflectiveCorpus(session.transcript_text, langCode),
+        fidelityTask,
       ]);
       if (analysisSettled.status === 'rejected') throw analysisSettled.reason;
       const analysisResult = analysisSettled.value;
+      const lpFidelity = fidelitySettled.status === 'fulfilled' ? fidelitySettled.value : null;
+      if (fidelitySettled.status === 'rejected') {
+        logToFile('[lp-fidelity] failed (non-blocking)', {
+          coachingSessionId,
+          error: fidelitySettled.reason && fidelitySettled.reason.message,
+        });
+      } else if (lpFidelity && lpFidelity.status) {
+        logToFile('[lp-fidelity] computed', { coachingSessionId, status: lpFidelity.status, source: lpFidelity.source, pct: lpFidelity.fidelity_pct });
+      }
+
+      // P4.1 (bd-wmfsp.9, D27) — when the FICO framework is active and the fidelity engine
+      // produced a USABLE score, Section B (Lesson Plan Fidelity) is DERIVED from the measured
+      // executed÷prescribed fidelity (→/40) instead of the 10 legacy B indicators, and the overall
+      // is recomputed. Applied here (post-settle, pre-persist) so a fidelity failure leaves the
+      // legacy proxy intact. applyLpFidelity self-guards on status/pct and is a no-op otherwise.
+      if (analysisResult.analysis && analysisResult.analysis.framework === 'fico'
+          && lpFidelity && lpFidelity.status === 'ok') {
+        try {
+          framework.applyLpFidelity(analysisResult.analysis, lpFidelity);
+          logToFile('[lp-fidelity] Section B derived from measured fidelity', {
+            coachingSessionId,
+            fidelity_pct: lpFidelity.fidelity_pct,
+            section_b_marks: analysisResult.analysis.domains
+              && analysisResult.analysis.domains.lesson_plan_fidelity
+              && analysisResult.analysis.domains.lesson_plan_fidelity.domain_score,
+            overall_marks: analysisResult.analysis.scores && analysisResult.analysis.scores.overall_marks,
+          });
+        } catch (fbErr) {
+          logToFile('[lp-fidelity] Section B override failed (non-blocking, proxy stands)', {
+            coachingSessionId, error: fbErr.message,
+          });
+        }
+      }
 
       let reflectiveCorpus = null;
       if (corpusSettled.status === 'fulfilled' && corpusSettled.value) {
@@ -213,6 +264,9 @@ class AnalysisProcessorService {
             // bd-gr48y: persist the photo read so report transformers can flag
             // photo-aware indicators (hasPhotoAnalysis) and the report can show it.
             ...(metadata.photoAnalysis ? { photo_analysis: metadata.photoAnalysis } : {}),
+            // LP fidelity (FICO Section B) analysis blob — pct + band + per-move verdicts/evidence +
+            // narrative + moderators. Only when the feature is on and a move-list resolved (D20).
+            ...(lpFidelity && lpFidelity.status === 'ok' ? { lp_fidelity: lpFidelity } : {}),
           },
           status: 'analysis_complete',
           analysis_completed_at: new Date().toISOString(),
