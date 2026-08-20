@@ -547,7 +547,15 @@ async function _extractNotes(session, foName, notesLang) {
       notesLang !== 'sw'
         ? buildDebriefNotesPromptI18n(transcript, { foName }, notesLang)
         : buildDebriefNotesPrompt(transcript, { foName }),
-      { maxTokens: 2000, label: 'observeDebriefNotes' },
+      // bd-2670: raised from 2000 → 6000. NIETE-Rumi Urdu debrief output for
+      // 40-min classroom-observation transcripts routinely exceeded 2000 tokens,
+      // hitting `finish_reason: length` and either truncating mid-JSON or
+      // breaking the mixed-script quote escape. niete-logs Aug 13-20 showed the
+      // trend climbing 5→11→28→31/day. `_extractNotes` swallows the failure so
+      // the report still ships, but teachers were routinely missing the
+      // companion debrief notes. 6000 gives O(4-6K) NIETE Urdu output the
+      // headroom it needs, well below completeJson's 24000-token ceiling.
+      { maxTokens: 6000, label: 'observeDebriefNotes' },
     );
     validateDebriefNotes(result);
     return result;
