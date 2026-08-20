@@ -57,6 +57,28 @@ jobs:
       - name: Verify the vendored skill matches its receipt
         run: ./scripts/data-standards-verify.sh
 
+  # This PR relaxes one rule in tests/setup/source-hygiene.test.js — the org name
+  # is permitted inside the vendored skill directory, because their docs use it and
+  # we cannot edit their files. Five assertions pin how narrow that hole is.
+  #
+  # `ci.yml` is disabled repo-wide (its own header explains why: a pre-existing
+  # failure backlog), so that guard runs in NO workflow today — meaning the
+  # assertions protecting the hole would never execute in CI. This job runs exactly
+  # those five, by name, so the rest of the suite's known failures are not inherited
+  # and this stays green and meaningful. Widen the exemption and this goes red.
+  exemption:
+    name: hygiene exemption stays narrow
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install root dependencies
+        run: npm ci
+      - name: Assert the vendored-skill exemption is org-name-only
+        run: node tests/run.js --testPathPattern="source-hygiene" -t "vendored-skill exemption"
+
   report:
     name: schema findings (advisory)
     runs-on: ubuntu-latest

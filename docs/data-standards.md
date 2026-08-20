@@ -106,6 +106,26 @@ unmodified and do not patch around them. This is why CI is advisory:
    flagged. 3 of our 6 real PII column names are invisible to it, so classify
    PII columns by hand rather than trusting a clean D4 result.
 
+**Two of the vendored scripts cannot work in this repo**, by construction. They
+reach outside the skill directory for siblings that only exist in the Data Team's
+own pack:
+
+| Script | Needs | Symptom here |
+|---|---|---|
+| `scripts/notify.py` | `skills/storytime/scripts/slack_send.py` | Slack notification is skipped; returns "couldn't import the pack's Slack helper" |
+| `scripts/scorecard.py` | `skills/notion-board/reference/economist_chart.py` | `ImportError` — the D21 compliance chart cannot render |
+
+Neither is on the enforcement path, so nothing breaks. `notify.py` fails soft by
+design. `scorecard.py` will simply error if you run it — use it from a machine
+that has the full pack instead.
+
+**Committing from a subdirectory works**, but only because the warn hook anchors
+itself at the repo root first. The validator fails open on a file it cannot read,
+and `git diff --cached` reports repo-root-relative paths from anywhere in the
+tree — so a bare `validate_schema.py --mode staged` run from `bot/` reports a
+clean pass for a migration that has findings. If you invoke the validator by hand,
+`cd` to the repo root first.
+
 **Bypassing the commit gate** needs a real reason, not a flag:
 
 ```bash
@@ -122,8 +142,9 @@ not work — `export` it.
 Anyone with the pack cloned can refresh it; nobody needs write access to the pack:
 
 ```bash
+PACK=/path/to/your/agent-skills-checkout       # wherever you cloned it
 rsync -a --exclude __pycache__ --exclude '*.pyc' \
-  ~/Documents/agent-skills-taleemabad/skills/data-standards/ \
+  "$PACK"/skills/data-standards/ \
   .claude/skills/data-standards/
 ./scripts/data-standards-verify.sh --update    # regenerate the receipt
 ```

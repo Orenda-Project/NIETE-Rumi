@@ -30,7 +30,25 @@ set -uo pipefail
 INPUT_JSON=$(cat)
 export INPUT_JSON
 
-REPO_ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+# Resolve the repository we are about to commit in FROM THE CWD, via git itself.
+#
+# Not from CLAUDE_PROJECT_DIR: that is the session's LAUNCH directory, which may
+# be a different repository entirely (a parent workspace that contains this one).
+# Using the cwd's own toplevel means the hook checks the repo the commit actually
+# belongs to, and keeps working from any subdirectory.
+#
+# Both matter, because the validator FAILS OPEN on a path it cannot read:
+# `git diff --cached` emits repo-root-relative paths even when run from a
+# subdirectory, and validate_schema.py's read_files() resolves them against cwd,
+# returning "" for anything it cannot open. An empty file has no CREATE TABLE, so
+# it is reported as a clean pass. Committing from `bot/` therefore printed
+# "No blocking findings" for a migration that has four, silently. That is an
+# upstream bug in their validator; anchoring cwd here is the fix available to us
+# without editing the vendored skill.
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
+if [ -z "$REPO_ROOT" ]; then
+    REPO_ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+fi
 VALIDATOR="$REPO_ROOT/.claude/skills/data-standards/scripts/validate_schema.py"
 
 COMMAND=$(python3 - <<'PY'
@@ -61,6 +79,11 @@ fi
 if [ ! -f "$VALIDATOR" ]; then
     exit 0
 fi
+
+# Anchor at the repo root so the validator can open the repo-root-relative paths
+# the detector hands it. See the REPO_ROOT comment above for why this is load-
+# bearing rather than tidiness.
+cd "$REPO_ROOT" || exit 0
 
 OUTPUT=$(python3 "$VALIDATOR" --mode staged --markdown 2>&1)
 CODE=$?

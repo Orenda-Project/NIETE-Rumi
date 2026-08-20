@@ -78,6 +78,22 @@ grep -q "DATA STANDARDS (warn" /tmp/ds-selftest.err \
 code=$(DATA_STANDARDS_BLOCK=1 bash -c "echo '{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"git commit -m x\"}}' | bash '$HOOK' >/dev/null 2>&1"; echo $?)
 check "DATA_STANDARDS_BLOCK=1 promotes to a block" "$code" 2
 
+# 4b — committing from a SUBDIRECTORY must report the same findings.
+# The validator fails open on a path it cannot read, and `git diff --cached`
+# emits repo-root-relative paths from anywhere in the tree — so before the hook
+# anchored cwd at the repo root, a commit from bot/ printed nothing at all for a
+# migration with four findings. Devs commit from subdirectories constantly, and
+# this silently passed rather than erroring, so it is pinned here.
+root_n=$(echo "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"git commit -m x\"}}" \
+           | bash "$HOOK" 2>&1 | grep -cE '^- \*\*D')
+for sub in bot dashboard infrastructure/supabase/migrations; do
+    sub_n=$( (cd "$REPO/$sub" && echo "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"git commit -m x\"}}" \
+               | bash "$HOOK" 2>&1 | grep -cE '^- \*\*D') )
+    [ "$sub_n" = "$root_n" ] \
+        && ok "same findings from $sub/ as from the root ($root_n)" \
+        || bad "findings differ from $sub/ ($sub_n) vs root ($root_n) — validator failing open"
+done
+
 # 6 — the compliant shape documented in docs/data-standards.md must be silent.
 cat > "$PROBE" <<'SQL'
 -- V0.0.0 — selftest probe. Flyway migration.
