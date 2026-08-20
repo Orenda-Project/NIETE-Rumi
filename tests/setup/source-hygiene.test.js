@@ -173,6 +173,44 @@ describe('Source Hygiene', () => {
       }
       expect(offenders).toEqual([]);
     });
+
+    // The vendored-skill exemption above is a deliberate hole in a guard that
+    // protects a public repo. These assertions pin how narrow it is, so a later
+    // "just add one more name" widening fails here instead of silently shipping.
+    describe('the vendored-skill exemption stays narrow', () => {
+      it('only applies to the vendored skill path', () => {
+        expect(internalReFor('.claude/skills/data-standards/SKILL.md')).toBe(VENDORED_INTERNAL_RE);
+        expect(internalReFor('.claude/skills/coaching/SKILL.md')).toBe(INTERNAL_RE);
+        expect(internalReFor('CLAUDE.md')).toBe(INTERNAL_RE);
+        expect(internalReFor('.claude/CLAUDE.md')).toBe(INTERNAL_RE);
+      });
+
+      it('still catches deployment phone numbers inside the vendored path', () => {
+        expect(VENDORED_INTERNAL_RE.test('call +92300000000')).toBe(true);
+        expect(VENDORED_INTERNAL_RE.test('the number is +255677095937')).toBe(true);
+        expect(VENDORED_INTERNAL_RE.test('bot at 0329 5012345')).toBe(true);
+      });
+
+      it('still catches partner and tester names inside the vendored path', () => {
+        for (const name of ['TaleemHub', 'Rawalpindi', 'Silverleaf', 'Junaid', 'Aloyce', 'Shams', 'Attar']) {
+          expect(VENDORED_INTERNAL_RE.test(`something ${name} something`)).toBe(true);
+        }
+      });
+
+      it('exempts the org name and nothing else', () => {
+        // The one and only difference from INTERNAL_RE.
+        const orgOnly = 'audit against the org data standards';
+        expect(INTERNAL_RE.test('against Taleemabad standards')).toBe(true);
+        expect(VENDORED_INTERNAL_RE.test('against Taleemabad standards')).toBe(false);
+        expect(VENDORED_INTERNAL_RE.test(orgOnly)).toBe(false);
+      });
+
+      it('leaves ticket-reference detection fully enforced everywhere', () => {
+        // REF_RE is applied unchanged to vendored files; assert it still bites.
+        expect(REF_RE.test('see bd-1234 for context')).toBe(true);
+        expect(REF_RE.test('FEAT-99 tracked this')).toBe(true);
+      });
+    });
   });
 
   describe('no hardcoded secrets or deployment PII in ANY markdown', () => {

@@ -124,9 +124,17 @@ jobs:
             --mode diff --base "${{ steps.refs.outputs.base }}" \
             --head "${{ steps.refs.outputs.head }}" --markdown > report.md 2>/dev/null
           echo "--- exit $code (0=pass 1=findings 2=validator error 3=no schema change) ---"
-          cat report.md || true
-          cat err.txt  || true
-          exit 0
+          # Deliberately no exit-code mask on these reads:
+          # tests/setup/ci-workflow-no-silent-masks.test.js forbids that pattern in
+          # a workflow, correctly — it hides the failure a step was added to catch.
+          # Guard the reads with a file test instead.
+          if [ -f report.md ]; then cat report.md; fi
+          if [ -s err.txt   ]; then cat err.txt;   fi
+          # Exit with the validator's real code so the step's status tells the
+          # truth in the UI, and let `continue-on-error` above absorb it rather
+          # than faking a green with `exit 0`. Findings show as a visible warning;
+          # the job still proceeds to comment.
+          exit "$code"
 
       - name: Upload report
         if: always()
