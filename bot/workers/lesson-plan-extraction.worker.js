@@ -228,10 +228,32 @@ class LessonPlanExtractionWorker {
 
     const lowerType = (fileType || '').toLowerCase();
 
+    // bd-o1m1m — scanned/image LP PDFs (no text layer, multi-page) OR photo uploads
+    // are read by a vision model, NOT Textract: Textract's sync AnalyzeDocument rejects
+    // multi-page PDFs ("unsupported document format") and cannot read Urdu at all.
+    // Textract stays as a last-resort fallback if vision yields nothing.
+    const visionOcr = require('../shared/services/lp-vision-ocr.service');
     const textractFallback = async (reason) => {
-      logToFile('Lesson plan falling back to Textract', { reason, fileType: lowerType });
-      const textractText = await AWSTextractService.extractText(buffer);
-      return { text: textractText?.trim() || '', parser: `textract:${reason}` };
+      const isImage = lowerType === 'png' || lowerType === 'jpg' || lowerType === 'jpeg';
+      try {
+        logToFile('Lesson plan OCR via vision model', { reason, fileType: lowerType, model: visionOcr.visionModel() });
+        const text = isImage
+          ? await visionOcr.extractTextFromImage(buffer, `image/${lowerType === 'jpg' ? 'jpeg' : lowerType}`)
+          : await visionOcr.extractTextFromPdf(buffer);
+        if (text && text.trim().length >= 20) {
+          return { text: text.trim(), parser: `vision:${reason}` };
+        }
+        logToFile('Lesson plan vision OCR returned little text, trying Textract', { reason, textLength: text ? text.length : 0 });
+      } catch (err) {
+        logToFile('Lesson plan vision OCR failed, trying Textract', { reason, error: err.message });
+      }
+      try {
+        const textractText = await AWSTextractService.extractText(buffer);
+        return { text: textractText?.trim() || '', parser: `textract:${reason}` };
+      } catch (terr) {
+        logToFile('Lesson plan Textract fallback also failed', { reason, error: terr.message });
+        return { text: '', parser: `failed:${reason}` };
+      }
     };
 
     if (lowerType === 'pdf') {
