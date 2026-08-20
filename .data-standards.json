@@ -1,0 +1,20 @@
+{
+  "include": [
+    "bot/database/migrations/**",
+    "dashboard/database/migrations/**",
+    "dashboard/supabase/migrations/**",
+    "infrastructure/supabase/migrations/**",
+    "scripts/migrations/**"
+  ],
+  "exclude": [
+    "tests/migrations/**",
+    "infrastructure/supabase/00_complete-schema.sql",
+    "infrastructure/supabase/01_rls-policies.sql",
+    "infrastructure/supabase/02_seed-data.sql",
+    "infrastructure/supabase/verify-schema.sql",
+    "bot/database/schema.sql",
+    "bot/shared/database/schema.sql",
+    "**/test_connection.sql",
+    "**/test_migration_*.sql"
+  ]
+}

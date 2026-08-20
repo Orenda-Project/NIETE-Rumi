@@ -141,3 +141,10 @@ bot/scripts/setup/assets/backups/
 
 # Migration run artifacts — contain user UUIDs. Local evidence, never source.
 .migration-snapshots/
+
+# data-standards local state (machine-local; never committed).
+# Written by the vendored skill's scripts when they run against this repo.
+.data-standards-cache.json
+.data-standards-last-report.json
+.data-standards-bypass-log.jsonl
+.data-standards-governance-events.jsonl

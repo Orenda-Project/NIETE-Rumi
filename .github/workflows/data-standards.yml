@@ -1,0 +1,153 @@
+name: data-standards
+
+# Schema gate for the Taleemabad Data Standards (D1-D27).
+#
+# Why this is its own workflow and not a job in `ci.yml`: `ci.yml` runs the whole
+# root suite, has a pre-existing failure backlog, and is effectively dead (last
+# green run: July 2026). Folding this in would make it red for reasons unrelated
+# to schema. This workflow is fast, path-scoped, and green today — the same
+# reasoning `logger-level.yml` documents for itself.
+#
+# ADVISORY ON PURPOSE (for now). The `report` job never fails the build; it
+# comments on the PR. Two known upstream noise sources make blocking premature:
+#
+#   1. The D8 destructive check does not strip SQL comments, so a commented-out
+#      rollback line (`-- DROP TABLE IF EXISTS x;`) is read as live destructive
+#      SQL. Measured on this repo: 23 of 85 findings (27%) are this.
+#   2. D4's PII pattern is `\b(phone|cnic|email|dob)\b`, and `_` is a word
+#      character — so `parent_phone`, `teacher_phone` and `work_email` are NOT
+#      detected. 3 of our 6 real PII column names are invisible to it.
+#
+# Both live in the Data Team's skill, which this repo vendors verbatim and does
+# not patch. Revisit `continue-on-error` below once upstream addresses them.
+#
+# The `ownership` job is NOT advisory — it fails hard. It proves nobody edited
+# the vendored skill, which is the whole basis for calling it "the Data Team's".
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - '**/*.sql'
+      - '**/migrations/**'
+      - '.data-standards.json'
+      - 'tools/data-standards/**'
+      - 'tools/data-standards.upstream.json'
+      - '.github/workflows/data-standards.yml'
+  pull_request:
+    paths:
+      - '**/*.sql'
+      - '**/migrations/**'
+      - '.data-standards.json'
+      - 'tools/data-standards/**'
+      - 'tools/data-standards.upstream.json'
+      - '.github/workflows/data-standards.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  ownership:
+    name: vendored skill is verbatim
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify the vendored skill matches its receipt
+        run: ./scripts/data-standards-verify.sh
+
+  report:
+    name: schema findings (advisory)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need the real merge-base for --mode diff
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # The validator hard-exits 2 without pyyaml, and the gate treats exit 2 as
+      # blocking — so a missing dependency would read as a schema violation.
+      - name: Install pyyaml
+        run: pip install pyyaml
+
+      - name: Resolve base..head
+        id: refs
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "base=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+            echo "head=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "base=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+            echo "head=${{ github.sha }}"          >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate changed schema files
+        id: validate
+        continue-on-error: true
+        run: |
+          set +e
+          python3 tools/data-standards/scripts/validate_schema.py \
+            --mode diff --base "${{ steps.refs.outputs.base }}" \
+            --head "${{ steps.refs.outputs.head }}" > report.json 2>err.txt
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          python3 tools/data-standards/scripts/validate_schema.py \
+            --mode diff --base "${{ steps.refs.outputs.base }}" \
+            --head "${{ steps.refs.outputs.head }}" --markdown > report.md 2>/dev/null
+          echo "--- exit $code (0=pass 1=findings 2=validator error 3=no schema change) ---"
+          cat report.md || true
+          cat err.txt  || true
+          exit 0
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-standards-report
+          path: |
+            report.json
+            report.md
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Comment on the PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const code = '${{ steps.validate.outputs.exit_code }}';
+            if (code === '3') return;   // no schema-relevant change — stay silent
+            const marker = '<!-- data-standards -->';
+            const body = [
+              marker,
+              '### Data standards — advisory',
+              code === '0'
+                ? 'No findings on the schema files this PR touches.'
+                : code === '1'
+                  ? 'Findings below. **Advisory — this does not block the merge.** '
+                    + 'Roughly a quarter of D8 findings are known false positives '
+                    + '(commented-out SQL read as live destructive statements).'
+                  : 'The validator could not run — see the job log.',
+              '',
+              fs.existsSync('report.md') ? fs.readFileSync('report.md', 'utf8') : '',
+            ].join('\n');
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                comment_id: existing.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: context.issue.number, body,
+              });
+            }
