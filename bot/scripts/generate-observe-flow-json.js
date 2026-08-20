@@ -96,6 +96,22 @@ const L = PACK.key === 'hots' ? {
 };
 const SCREEN_LETTERS = 'ABCDEF';
 const fid = (id) => String(id).replace(/\./g, '_');   // A1.1 → A1_1; ints pass through
+// bd-5n1a2: per-move fidelity slots on Section B — MUST equal MAX_MOVE_SLOTS in
+// observe-draft.service.js (the endpoint serves exactly this many mv_k keys).
+// Literal, not a require: observe-draft pulls config/supabase which exits(78)
+// without env, and this script runs locally. Parity is locked by a test.
+const MAX_MOVE_SLOTS = 12;
+// bd-5n1a2: Meta caps RadioButtonsGroup labels at 30 chars; a raw slice cut
+// "Activation of Prior Knowl" mid-word (operator screenshot, 2026-08-21).
+// Clip at a word boundary — the full name is in `description` regardless.
+function clipLabel(s, n) {
+  const str = String(s || '');
+  if (str.length <= n) return str;
+  const cut = str.slice(0, n - 1);
+  const sp = cut.lastIndexOf(' ');
+  // any space past the "B4 — " id prefix beats a mid-word cut
+  return (sp > 5 ? cut.slice(0, sp) : cut).replace(/[\s—·-]+$/, '') + '…';
+}
 const screenId = (key) => `DOMAIN_${domains[key].key || SCREEN_LETTERS[DOMAIN_ORDER.indexOf(key)]}`;
 
 function domainScreen(key, idx) {
@@ -117,20 +133,28 @@ function domainScreen(key, idx) {
     },
   };
 
-  // bd-9hzdn (observe parity): Section B carries the MEASURED per-move fidelity
-  // analysis (D20/D27) — the reviewer must see it, not just the legacy indicator
-  // matrix. Rendered only when the endpoint sends has_fidelity=true (prefill is
-  // env-gated on OBSERVE_FICO_FLOW_HAS_FIDELITY, flipped with the republish).
+  // bd-9hzdn / bd-5n1a2 (v3): Section B carries the MEASURED per-move fidelity
+  // analysis (D20/D27) exactly as the teacher-flow scorer grades it — one block
+  // per prescribed move (plan → what was seen → the scorer's credit verdict),
+  // replacing the v2 single truncated summary blob. Rendered only when the
+  // endpoint sends has_fidelity=true (prefill is env-gated on
+  // OBSERVE_FICO_FLOW_HAS_FIDELITY='moves', flipped with the republish).
   if (key === 'lesson_plan_fidelity') {
-    children.unshift(
+    const fidelityChildren = [
       { type: 'TextSubheading', text: 'Measured lesson-plan fidelity', visible: '${data.has_fidelity}' },
-      { type: 'TextBody', text: '${data.fidelity_summary}', visible: '${data.has_fidelity}' },
-    );
+      { type: 'TextBody', text: '${data.fid_header}', visible: '${data.has_fidelity}' },
+    ];
     data.has_fidelity = { type: 'boolean', __example__: true };
-    data.fidelity_summary = {
+    data.fid_header = {
       type: 'string',
-      __example__: 'Measured LP fidelity: 46% (low) · 12 moves\n✓ Read the word problem\n✗ Exit ticket',
+      __example__: 'Measured lesson-plan fidelity: 46% (LOW) · 9 counted moves\nScore = credit earned ÷ prescribed moves.',
     };
+    for (let k = 1; k <= MAX_MOVE_SLOTS; k++) {
+      fidelityChildren.push({ type: 'TextBody', text: `\${data.mv_${k}}`, visible: `\${data.mv_${k}_v}` });
+      data[`mv_${k}`] = { type: 'string', __example__: `${k}/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice` };
+      data[`mv_${k}_v`] = { type: 'boolean', __example__: k === 1 };
+    }
+    children.unshift(...fidelityChildren);
   }
   const payload = { _screen: screenId(key) };
 
@@ -139,7 +163,11 @@ function domainScreen(key, idx) {
     children.push({
       type: 'RadioButtonsGroup',
       name: `r_${f}`,
-      label: `${ind.id} — ${ind.text_sw || ind.name}`.slice(0, 30),
+      // fico gets the word-boundary clip; mewaka/hots keep the raw slice so
+      // their regenerated JSON stays byte-identical (TZ/PK published assets).
+      label: PACK.key === 'fico'
+        ? clipLabel(`${ind.id} — ${ind.text_sw || ind.name}`, 30)
+        : `${ind.id} — ${ind.text_sw || ind.name}`.slice(0, 30),
       description: String(ind.text_sw || ind.name).slice(0, 300),
       required: false,
       'data-source': '${data.scale}',
@@ -226,4 +254,4 @@ const worst = Math.max(...screens.map(s => JSON.stringify(s).split('"type"').len
 console.log(`✓ wrote ${out}`);
 console.log(`  screens: ${screens.length} | worst-screen component-ish count: ${worst}`);
 
-module.exports = { fid, DOMAIN_ORDER };
+module.exports = { fid, DOMAIN_ORDER, MAX_MOVE_SLOTS, clipLabel };

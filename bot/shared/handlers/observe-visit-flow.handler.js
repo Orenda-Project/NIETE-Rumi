@@ -588,9 +588,19 @@ async function bindAndStart(userId, screenData, user) {
     // matching observation_schedules row (bd-2445).
     boundTeacher: teacher ? { ...teacher, school_ext_id: String(schoolExtId || '') } : null,
   });
-  logToFile('🔭 observe-visit: teacher bound, awaiting_audio', {
-    userId, teacherExtId, boundUserId: teacher && teacher.user_id,
-  });
+  // bd-5n1a2: this line used to say "teacher bound" even when resolveTeacher
+  // returned null — which is exactly the case that silently breaks the capture
+  // (unbound session → report goes to the coach, who-ask re-fires). Say which
+  // one actually happened.
+  if (teacher) {
+    logToFile('🔭 observe-visit: teacher bound, awaiting_audio', {
+      userId, teacherExtId, boundUserId: teacher.user_id || null,
+    });
+  } else {
+    logToFile('❌ observe-visit: teacher bind FAILED — capture will run UNBOUND', {
+      userId, teacherExtId, schoolExtId: String(schoolExtId || ''),
+    });
+  }
   return { action: 'bound', boundTeacher: teacher };
 }
 

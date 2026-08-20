@@ -110,6 +110,70 @@ function composeFidelitySummary(lp) {
   return [...out].slice(0, FIDELITY_SUMMARY_CAP).join('');
 }
 
+// bd-5n1a2 — per-move presentation for the v3 Flow asset. One block per
+// prescribed move: the plan's move, what the recording showed, and the EXACT
+// credit the fidelity scorer gave. Labels mirror fidelity-scorer.js's credit
+// map (D4/D5): executed/substituted → 1.0, partial → 0.5, not_done → 0,
+// not_adjudicable excluded from the denominator.
+const MAX_MOVE_SLOTS = 12;
+const MOVE_BLOCK_CAP = 450;        // code points per slot (payload discipline)
+const VERDICT_LABEL = {
+  executed:               '✓ Executed — full credit',
+  substituted_equivalent: '✓ Substituted (equal) — full credit',
+  substituted_better:     '✓＋ Substituted (better) — full credit',
+  partial:                '◐ Partially done — half credit',
+  not_done:               '✗ Not done — no credit',
+  not_adjudicable:        '– Not assessable — not counted',
+};
+const PHASE_LABEL = {
+  warm_up: 'Warm-up', introduction: 'Introduction', direct_instruction: 'Direct instruction',
+  guided_practice: 'Guided practice', independent_practice: 'Independent practice',
+  assessment: 'Assessment', closure: 'Closure', homework: 'Homework',
+};
+
+// Word-boundary clip: never cuts mid-word (the operator's exact complaint,
+// 2026-08-21 — "the form truncates text"). Falls back to a hard cut only when
+// there is no space in the tail 40% of the allowance.
+function clipWords(s, n) {
+  const a = [...String(s == null ? '' : s)];
+  if (a.length <= n) return a.join('');
+  const cut = a.slice(0, n - 1).join('');
+  const sp = cut.lastIndexOf(' ');
+  return (sp > n * 0.6 ? cut.slice(0, sp) : cut).replace(/[\s،,;:·]+$/, '') + '…';
+}
+
+function composeMoveBlocks(lp) {
+  if (!lp || lp.status !== 'ok' || lp.fidelity_pct == null) return null;
+  const all = Array.isArray(lp.moves) ? lp.moves : [];
+  if (!all.length) return null;
+
+  const bandLabel = lp.band ? ` (${String(lp.band).toUpperCase()})` : '';
+  const counted = lp.prescribed_count ?? all.filter(m => m.counted).length;
+  const header = [
+    `Measured lesson-plan fidelity: ${lp.fidelity_pct}%${bandLabel} · ${counted} counted moves`,
+    'Score = credit earned ÷ prescribed moves. ✓ full credit · ◐ half · ✗ none · – not counted.',
+    'Section B\'s score IS this measurement — the B1–B10 ratings below inform coaching but do not change it.',
+  ].join('\n');
+
+  const overflow = all.length > MAX_MOVE_SLOTS;
+  const shown = overflow ? all.slice(0, MAX_MOVE_SLOTS - 1) : all;
+  const moves = shown.map((m, i) => {
+    const phase = PHASE_LABEL[m.phase] || '';
+    const verdict = VERDICT_LABEL[m.verdict] || `· ${String(m.verdict || 'ungraded')}`;
+    const seen = String(m.evidence || m.rationale || '').trim();
+    const lines = [
+      `${i + 1}/${all.length}${phase ? ` · ${phase}` : ''} — ${verdict}`,
+      `Plan: ${clipWords(m.text, 180)}`,
+    ];
+    if (seen) lines.push(`Seen: ${clipWords(seen, 200)}`);
+    return clipWords(lines.join('\n'), MOVE_BLOCK_CAP);
+  });
+  if (overflow) {
+    moves.push(`…and ${all.length - (MAX_MOVE_SLOTS - 1)} more moves — the full detail is in the report.`);
+  }
+  return { header, moves };
+}
+
 function buildScreenPrefill(analysis, domainKey) {
   const { domains } = { domains: getObservePack().domains };
   const spec = domains[domainKey];
@@ -120,14 +184,28 @@ function buildScreenPrefill(analysis, domainKey) {
   const { min: SMIN, max: SMAX } = scaleBounds();
   const data = { scale: scaleOptions() };
 
-  // Section B: attach the measured-fidelity summary WHEN the published Flow
+  // Section B: attach the measured-fidelity analysis WHEN the published Flow
   // declares the keys (env flipped together with the Flow republish — serving
   // undeclared keys to the old asset would fail Meta's schema validation).
-  if (domainKey === 'lesson_plan_fidelity'
-      && process.env.OBSERVE_FICO_FLOW_HAS_FIDELITY === 'true') {
+  // The gate is VALUE-aware because published Flows are immutable and the env
+  // flip can't be atomic with the deploy (bd-5n1a2):
+  //   'true'  → the v2 asset's single fidelity_summary blob
+  //   'moves' → the v3 asset's per-move slots (scorer-faithful presentation)
+  const fidelityMode = process.env.OBSERVE_FICO_FLOW_HAS_FIDELITY;
+  if (domainKey === 'lesson_plan_fidelity' && fidelityMode === 'true') {
     const summary = composeFidelitySummary((analysis || {}).lp_fidelity);
     data.has_fidelity = !!summary;
     data.fidelity_summary = summary || '';
+  }
+  if (domainKey === 'lesson_plan_fidelity' && fidelityMode === 'moves') {
+    const blocks = composeMoveBlocks((analysis || {}).lp_fidelity);
+    data.has_fidelity = !!blocks;
+    data.fid_header = blocks ? blocks.header : '';
+    for (let k = 1; k <= MAX_MOVE_SLOTS; k++) {
+      const mv = blocks && blocks.moves[k - 1];
+      data[`mv_${k}`] = mv || '';
+      data[`mv_${k}_v`] = !!mv;
+    }
   }
   spec.indicators.forEach(specInd => {
     const f = fid(specInd.id);
@@ -138,8 +216,9 @@ function buildScreenPrefill(analysis, domainKey) {
     // bd-2369: the form shows the ≤500-char evidence_summary (the whole gist,
     // fits Meta's 600-char TextArea); the FULL evidence stays in analysis_data
     // and flows to the teacher's report. evidence_sw keeps MEWAKA/TZ unchanged.
-    data[`e_${f}`] = String(ind.evidence_summary || ind.evidence_sw || ind.evidence || '').slice(0, PREFILL_TEXT_CAP);
-    data[`i_${f}`] = String(ind.improvement_sw || ind.improvement || '').slice(0, PREFILL_TEXT_CAP);
+    // bd-5n1a2: clip at a word boundary — a mid-word cut reads as a bug.
+    data[`e_${f}`] = clipWords(String(ind.evidence_summary || ind.evidence_sw || ind.evidence || ''), PREFILL_TEXT_CAP);
+    data[`i_${f}`] = clipWords(String(ind.improvement_sw || ind.improvement || ''), PREFILL_TEXT_CAP);
   });
   return data;
 }
@@ -275,4 +354,7 @@ function reapplyFidelitySectionB(v2, sessionId) {
   return v2;
 }
 
-module.exports = { onAnalysisReady, buildScreenPrefill, applyObserverEdits, reapplyFidelitySectionB, composeFidelitySummary, SCALE_OPTIONS_BY_LANG };
+module.exports = {
+  onAnalysisReady, buildScreenPrefill, applyObserverEdits, reapplyFidelitySectionB,
+  composeFidelitySummary, composeMoveBlocks, clipWords, MAX_MOVE_SLOTS, SCALE_OPTIONS_BY_LANG,
+};
