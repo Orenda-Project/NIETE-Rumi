@@ -3,11 +3,28 @@
 Schema changes here are checked against Taleemabad's 27 Data Standards (D1–D27).
 The checker is a skill **owned by the Data Team** in
 `Orenda-Project/agent-skills-taleemabad`, vendored into this repo verbatim at
-`tools/data-standards/`.
+`.claude/skills/data-standards/`.
 
 **Never edit anything under that directory.** CI proves it is untouched
 (`scripts/data-standards-verify.sh`), and that check fails hard. Everything this
 repo needs to adapt the checker lives *outside* it, in `.data-standards.json`.
+
+Because it sits under `.claude/skills/`, Claude Code picks it up as a project
+skill — so `/data-standards`, "audit this migration", "is this table PII-safe"
+work in a session here even for someone who has none of our agent tooling
+installed.
+
+Two consequences of vendoring someone else's docs into `.claude/`, both
+deliberate:
+
+- `tests/setup/source-hygiene.test.js` scans every `.md` under `.claude/` and
+  forbids the org name. The skill's own docs use it 5 times and we cannot patch
+  their files, so that guard applies a **reduced** check to
+  `.claude/skills/data-standards/**`: the org name is allowed there, while ticket
+  refs, partner/tester names and real deployment phone numbers stay enforced. If
+  an upstream refresh introduces one of those, CI still catches it.
+- `.claude/skills/data-standards.upstream.json` (the receipt) lives *beside* the
+  directory, not inside it, so the vendored tree contains only their files.
 
 ## One-time setup
 
@@ -15,7 +32,7 @@ repo needs to adapt the checker lives *outside* it, in `.data-standards.json`.
 pip install pyyaml                       # required — see "Gotchas" below
 
 # optional: also check plain terminal / GUI commits, not just Claude's
-python3 tools/data-standards/scripts/install_repo_hooks.py --repo .
+python3 .claude/skills/data-standards/scripts/install_repo_hooks.py --repo .
 ```
 
 Run the hook installer against **this main clone, not a worktree** — a linked
@@ -26,7 +43,7 @@ hooks live in the shared `.git/hooks`, so installing once covers every worktree.
 
 ```bash
 git add <your migration>
-python3 tools/data-standards/scripts/validate_schema.py --mode staged --markdown
+python3 .claude/skills/data-standards/scripts/validate_schema.py --mode staged --markdown
 ```
 
 Exit codes: `0` clean · `1` findings · `2` validator could not run · `3` nothing
@@ -107,13 +124,13 @@ Anyone with the pack cloned can refresh it; nobody needs write access to the pac
 ```bash
 rsync -a --exclude __pycache__ --exclude '*.pyc' \
   ~/Documents/agent-skills-taleemabad/skills/data-standards/ \
-  tools/data-standards/
+  .claude/skills/data-standards/
 ./scripts/data-standards-verify.sh --update    # regenerate the receipt
 ```
 
 Then open a PR. Check whether the finding count moved before merging — an
 upstream change can add checks that newly fail existing files.
 
-`tools/data-standards.upstream.json` records which upstream commit this
+`.claude/skills/data-standards.upstream.json` records which upstream commit this
 copy came from. It sits *outside* the skill directory deliberately — that
 directory holds only the Data Team’s files, nothing of ours.

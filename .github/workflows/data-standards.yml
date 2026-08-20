@@ -1,47 +1,48 @@
 name: data-standards
 
-# Schema gate for the Taleemabad Data Standards (D1-D27).
+# Schema gate for the Data Standards (D1-D27).
 #
-# Why this is its own workflow and not a job in `ci.yml`: `ci.yml` runs the whole
-# root suite, has a pre-existing failure backlog, and is effectively dead (last
-# green run: July 2026). Folding this in would make it red for reasons unrelated
-# to schema. This workflow is fast, path-scoped, and green today — the same
-# reasoning `logger-level.yml` documents for itself.
+# WHY THERE IS NO `paths:` FILTER
+# ------------------------------
+# The obvious shape for this workflow is `pull_request: paths: ['**/*.sql', ...]`.
+# That is wrong here, for two reasons, and both only bite later:
 #
-# ADVISORY ON PURPOSE (for now). The `report` job never fails the build; it
-# comments on the PR. Two known upstream noise sources make blocking premature:
+#   1. A required status check with a `paths:` filter NEVER REPORTS on a PR that
+#      doesn't match it. GitHub then holds the PR as "expected — waiting for
+#      status", forever. So the moment anyone marks this check required (the whole
+#      point of building it), every non-schema PR in the repo wedges.
+#   2. A hand-maintained glob list is a second, drifting definition of "is this
+#      change schema-relevant". The skill already owns that definition, in
+#      `.data-standards.json` + its own detector. Two copies disagree eventually,
+#      and the disagreement shows up as a violation that slipped one gate and got
+#      caught confusingly late by another — exactly what the skill's
+#      reference/detection-guidance.md warns against.
 #
+# So: run on EVERY pull request, and let the skill's own detector decide whether
+# there is anything to say. Nothing relevant changed -> the job succeeds quietly
+# and posts no comment. That is safe to make a required check, and there is no
+# path list to forget to update.
+#
+# ADVISORY, FOR NOW
+# -----------------
+# The `report` job never fails the build. Two known upstream detection gaps make
+# blocking premature, both measured against this repo:
 #   1. The D8 destructive check does not strip SQL comments, so a commented-out
-#      rollback line (`-- DROP TABLE IF EXISTS x;`) is read as live destructive
-#      SQL. Measured on this repo: 23 of 85 findings (27%) are this.
+#      rollback line (`-- DROP TABLE IF EXISTS x;`) reads as live destructive SQL.
+#      23 of our 85 findings are this — 27%.
 #   2. D4's PII pattern is `\b(phone|cnic|email|dob)\b`, and `_` is a word
-#      character — so `parent_phone`, `teacher_phone` and `work_email` are NOT
+#      character, so `parent_phone` / `teacher_phone` / `work_email` are NOT
 #      detected. 3 of our 6 real PII column names are invisible to it.
-#
 # Both live in the Data Team's skill, which this repo vendors verbatim and does
-# not patch. Revisit `continue-on-error` below once upstream addresses them.
+# not patch. Drop `continue-on-error` once upstream addresses them.
 #
-# The `ownership` job is NOT advisory — it fails hard. It proves nobody edited
-# the vendored skill, which is the whole basis for calling it "the Data Team's".
+# The `ownership` job is NOT advisory — it fails hard. It proves nobody edited the
+# vendored skill, which is the entire basis for calling it the Data Team's.
 
 on:
   push:
     branches: [main, develop]
-    paths:
-      - '**/*.sql'
-      - '**/migrations/**'
-      - '.data-standards.json'
-      - 'tools/data-standards/**'
-      - 'tools/data-standards.upstream.json'
-      - '.github/workflows/data-standards.yml'
   pull_request:
-    paths:
-      - '**/*.sql'
-      - '**/migrations/**'
-      - '.data-standards.json'
-      - 'tools/data-standards/**'
-      - 'tools/data-standards.upstream.json'
-      - '.github/workflows/data-standards.yml'
 
 permissions:
   contents: read
@@ -62,14 +63,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # need the real merge-base for --mode diff
+          fetch-depth: 0   # the real merge-base, not a shallow clone
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # The validator hard-exits 2 without pyyaml, and the gate treats exit 2 as
-      # blocking — so a missing dependency would read as a schema violation.
+      # The validator hard-exits 2 without pyyaml, and every gate treats exit 2 as
+      # blocking — a missing dependency would otherwise read as a schema violation.
       - name: Install pyyaml
         run: pip install pyyaml
 
@@ -84,17 +85,36 @@ jobs:
             echo "head=${{ github.sha }}"          >> "$GITHUB_OUTPUT"
           fi
 
+      # The skill's own detector is the single source of "is this relevant",
+      # driven by .data-standards.json. No glob list lives in this workflow.
+      - name: Is anything schema-relevant in this diff?
+        id: scope
+        run: |
+          python3 .claude/skills/data-standards/scripts/detect_schema_changes.py \
+            --git-diff "${{ steps.refs.outputs.base }}" "${{ steps.refs.outputs.head }}" \
+            > detect.json
+          n=$(python3 -c "import json;print(len(json.load(open('detect.json'))['relevant']))")
+          a=$(python3 -c "import json;print(len(json.load(open('detect.json'))['ambiguous']))")
+          echo "relevant=$n" >> "$GITHUB_OUTPUT"
+          echo "ambiguous=$a" >> "$GITHUB_OUTPUT"
+          echo "Schema-relevant files in this diff: $n (ambiguous: $a)"
+          python3 -c "
+          import json;d=json.load(open('detect.json'))
+          [print('  relevant :',x['path']) for x in d['relevant']]
+          [print('  AMBIGUOUS:',x['path'],'-',x.get('reason','')) for x in d['ambiguous']]"
+
       - name: Validate changed schema files
         id: validate
+        if: steps.scope.outputs.relevant != '0'
         continue-on-error: true
         run: |
           set +e
-          python3 tools/data-standards/scripts/validate_schema.py \
+          python3 .claude/skills/data-standards/scripts/validate_schema.py \
             --mode diff --base "${{ steps.refs.outputs.base }}" \
             --head "${{ steps.refs.outputs.head }}" > report.json 2>err.txt
           code=$?
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
-          python3 tools/data-standards/scripts/validate_schema.py \
+          python3 .claude/skills/data-standards/scripts/validate_schema.py \
             --mode diff --base "${{ steps.refs.outputs.base }}" \
             --head "${{ steps.refs.outputs.head }}" --markdown > report.md 2>/dev/null
           echo "--- exit $code (0=pass 1=findings 2=validator error 3=no schema change) ---"
@@ -108,33 +128,37 @@ jobs:
         with:
           name: data-standards-report
           path: |
+            detect.json
             report.json
             report.md
           retention-days: 30
           if-no-files-found: ignore
 
+      # Comment only when there is something to say. A PR that touches no schema
+      # file gets no comment at all — but the check still reports, so this is safe
+      # to require. An `ambiguous` file is surfaced even with no findings: the
+      # detector could not tell schema from data dump, so silence would be a lie.
       - name: Comment on the PR
-        if: github.event_name == 'pull_request'
+        if: >
+          github.event_name == 'pull_request' &&
+          (steps.scope.outputs.relevant != '0' || steps.scope.outputs.ambiguous != '0')
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             const code = '${{ steps.validate.outputs.exit_code }}';
-            if (code === '3') return;   // no schema-relevant change — stay silent
+            const nRel = '${{ steps.scope.outputs.relevant }}';
+            const nAmb = '${{ steps.scope.outputs.ambiguous }}';
             const marker = '<!-- data-standards -->';
-            const body = [
-              marker,
-              '### Data standards — advisory',
-              code === '0'
-                ? 'No findings on the schema files this PR touches.'
-                : code === '1'
-                  ? 'Findings below. **Advisory — this does not block the merge.** '
-                    + 'Roughly a quarter of D8 findings are known false positives '
-                    + '(commented-out SQL read as live destructive statements).'
-                  : 'The validator could not run — see the job log.',
-              '',
-              fs.existsSync('report.md') ? fs.readFileSync('report.md', 'utf8') : '',
-            ].join('\n');
+            const head =
+              code === '1' ? `Findings on ${nRel} schema file(s) this PR touches. **Advisory — does not block the merge.** About a quarter of D8 findings are known false positives (commented-out SQL read as live destructive statements).`
+              : code === '2' ? 'The validator could not run — see the job log.'
+              : `No findings on the ${nRel} schema file(s) this PR touches.`;
+            const amb = nAmb !== '0'
+              ? `\n\n⚠️ ${nAmb} file(s) could not be classified as schema vs. data dump — see \`detect.json\` in the run artifacts.`
+              : '';
+            const body = [marker, '### Data standards — advisory', head + amb, '',
+              fs.existsSync('report.md') ? fs.readFileSync('report.md', 'utf8') : ''].join('\n');
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner, repo: context.repo.repo,
               issue_number: context.issue.number,

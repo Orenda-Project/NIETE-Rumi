@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Verify the vendored data-standards skill still matches its own receipt.
 #
-# The skill under tools/data-standards/ is owned by the Data Team in
+# The skill under .claude/skills/data-standards/ is owned by the Data Team in
 # Orenda-Project/agent-skills-taleemabad and is vendored here VERBATIM. Nobody
 # in this repo edits it — this script is what proves that claim, and it runs in
 # CI so a local edit can't land silently.
@@ -12,7 +12,7 @@
 #
 # Refreshing from upstream is a manual step for anyone who has the pack cloned:
 #   rsync -a --exclude __pycache__ --exclude '*.pyc' \
-#     <pack>/skills/data-standards/ tools/data-standards/
+#     <pack>/skills/data-standards/ .claude/skills/data-standards/
 #   ./scripts/data-standards-verify.sh --update
 #
 # __pycache__ is excluded everywhere on purpose: running the validator once
@@ -29,8 +29,8 @@ from pathlib import Path
 mode = sys.argv[1]
 # The receipt lives OUTSIDE the skill directory on purpose: that directory is
 # the Data Team's, vendored verbatim, and must contain nothing we authored.
-root = Path("tools/data-standards")
-receipt = Path("tools/data-standards.upstream.json")
+root = Path(".claude/skills/data-standards")
+receipt = Path(".claude/skills/data-standards.upstream.json")
 
 if not root.is_dir():
     print("data-standards: vendored skill missing at", root, file=sys.stderr)

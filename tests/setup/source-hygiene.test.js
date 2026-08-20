@@ -27,6 +27,24 @@ const REF_RE = /\b(?:bd-\d+|BUG-\d+|PROJ-\d+|FEAT-\d+|TASK-\d+|plt-[a-z0-9]+|etv
 // legitimate and intentionally NOT listed here.
 const INTERNAL_RE = /\b(?:Taleemabad|TaleemHub|Rawalpindi|Silverleaf|Junaid|Aloyce|Shams|Attar)\b|\+92\d|\+255\d|\b0?329[\s-]?5012345\b|\b5012345\b/i;
 
+// `.claude/skills/data-standards/**` is the Data Team's schema-standards skill,
+// vendored in VERBATIM from their repo and never edited here — CI proves that
+// separately (scripts/data-standards-verify.sh, which fails hard on any local
+// modification). Their own docs name the org, which INTERNAL_RE forbids, and we
+// cannot patch their files without breaking the "vendored, unmodified" contract
+// that makes the skill theirs to own.
+//
+// So vendored files get a REDUCED internal check: the org name is allowed (it is
+// already public in this repo's own root CLAUDE.md and is not the leak this guard
+// exists to stop), while everything that genuinely matters stays enforced —
+// ticket refs (REF_RE, applied unchanged), partner and tester names, and real
+// deployment phone numbers. If an upstream refresh ever introduces one of those,
+// this guard still catches it before the copy lands.
+const VENDORED_PREFIX = path.join('.claude', 'skills', 'data-standards') + path.sep;
+const VENDORED_INTERNAL_RE = /\b(?:TaleemHub|Rawalpindi|Silverleaf|Junaid|Aloyce|Shams|Attar)\b|\+92\d|\+255\d|\b0?329[\s-]?5012345\b|\b5012345\b/i;
+const internalReFor = (relPath) =>
+  relPath.startsWith(VENDORED_PREFIX) ? VENDORED_INTERNAL_RE : INTERNAL_RE;
+
 // A real secret assigned to a credential variable — a UUID or a long contiguous
 // high-entropy value (a live RAILWAY_ACCOUNT_TOKEN UUID once leaked into a doc and
 // gitleaks didn't flag it, because docs were path-allowlisted and a bare UUID isn't
@@ -146,9 +164,11 @@ describe('Source Hygiene', () => {
     it('CLAUDE.md routers + AGENTS.md + .claude/**/*.md are free of ticket refs and internal context', () => {
       const offenders = [];
       for (const f of collectAgentDocs()) {
+        const rel = path.relative(ROOT, f);
+        const internalRe = internalReFor(rel);
         const lines = fs.readFileSync(f, 'utf-8').split('\n');
         lines.forEach((line, i) => {
-          if (REF_RE.test(line) || INTERNAL_RE.test(line)) offenders.push(`${path.relative(ROOT, f)}:${i + 1}`);
+          if (REF_RE.test(line) || internalRe.test(line)) offenders.push(`${rel}:${i + 1}`);
         });
       }
       expect(offenders).toEqual([]);
