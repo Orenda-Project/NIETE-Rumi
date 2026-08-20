@@ -134,16 +134,39 @@ const MULTI = [
 ];
 
 describe('BUG-144 — INIT must return a routing-model entry point', () => {
-  test('single-vendor teacher gets VENDOR_PICKER, not the TRAINING_HOME shortcut', async () => {
+  test('a teacher WITH training also gets BAND_PICKER — INIT must return the entry point', async () => {
+    // THE REGRESSION THIS PINS. An earlier revision returned VENDOR_PICKER here,
+    // reasoning that the entry-point rule constrains only the routing model.
+    // It does not — Meta enforces it on the INIT RESPONSE, and the client
+    // rejected the whole Flow with:
+    //   "invalid-screen-transition ... The first screen -[VENDOR_PICKER] that
+    //    was provided with response already have incoming nodes found in the
+    //    routing model"
+    // so /training showed "Something went wrong" for every teacher who HAS
+    // training — the 8,365 case, not the 353.
     mockTables = enrolment({ vendors: SINGLE });
     const res = await handleTeacherTrainingInit('u1', 'u1:teacher-training:1');
-    expect(res.screen).toBe(LEGAL_FIRST_SCREEN);
+    expect(res.screen).toBe(BAND_FIRST_SCREEN);
+    expect(ENTRY_POINTS).toContain(res.screen);
   });
 
-  test('multi-vendor teacher still gets VENDOR_PICKER', async () => {
+  test('a multi-vendor teacher likewise gets the entry point from INIT', async () => {
     mockTables = enrolment({ vendors: MULTI });
     const res = await handleTeacherTrainingInit('u1', 'u1:teacher-training:1');
-    expect(res.screen).toBe(LEGAL_FIRST_SCREEN);
+    expect(res.screen).toBe(BAND_FIRST_SCREEN);
+  });
+
+  test('INIT never returns a screen that has incoming edges', async () => {
+    // The invariant itself, stated once and checked against the live routing
+    // model rather than a hardcoded name.
+    for (const fixture of [SINGLE, MULTI, []]) {
+      mockTables = { ...enrolment({ vendors: fixture }),
+                     teacher_training_assignments: { data: [], error: null } };
+      const res = await handleTeacherTrainingInit('u1', 'u1:teacher-training:1');
+      const incoming = Object.entries(ROUTING)
+        .filter(([, outs]) => outs.includes(res.screen)).map(([f]) => f);
+      expect(incoming).toEqual([]);
+    }
   });
 
   test('teacher with no enrolment gets the BAND PICKER, not a dead end', async () => {
