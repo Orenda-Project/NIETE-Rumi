@@ -56,13 +56,16 @@ function buildLPSelectionList(coachingSessionId, recentLPs, language = 'en', reg
     };
   }
 
-  // Build interactive list rows from recent LPs
+  // Build interactive list rows from recent LPs. The label mirrors the delivery caption a teacher
+  // saw when she GENERATED the LP — topic headline + "Grade · Ch·Day · pages · recency" (D25, Option A)
+  // — so a heavy generator recognises her own plan. formatLpRow enforces code-point caps (Urdu-safe).
+  const { formatLpRow } = require('./lp-selection-format');
   const lpRows = recentLPs.map((lp) => {
-    const date = lp.created_at ? new Date(lp.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+    const f = formatLpRow(lp);
     return {
       id: `lp_select_${lp.id}_${coachingSessionId}`,
-      title: truncate(lp.topic || 'Untitled', 24),
-      description: truncate(`Grade ${lp.grade || '?'} • ${date}`, 72),
+      title: f.title,
+      description: f.description,
     };
   });
 
