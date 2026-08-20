@@ -10,7 +10,8 @@
       "SUBJECTS"
     ],
     "SUBJECTS": [
-      "SAVED"
+      "SAVED",
+      "ADD_STUDENTS"
     ],
     "ROSTER": [
       "ADD_STUDENTS",
@@ -35,7 +36,7 @@
         },
         "summary": {
           "type": "string",
-          "__example__": "Grade 4 - A \u00b7 2026-2027\nGrade 5 \u00b7 2026-2027"
+          "__example__": "Grade 4 - A · 2026-2027\nGrade 5 · 2026-2027"
         },
         "add_label": {
           "type": "string",
