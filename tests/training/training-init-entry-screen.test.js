@@ -28,11 +28,37 @@
  * no-enrolment and no-profile paths were broken the same way and must also
  * render as VENDOR_PICKER.
  *
- * Contract: INIT and BACK always return VENDOR_PICKER, whatever the teacher's
+ * Contract: INIT and BACK always return an ENTRY POINT, whatever the teacher's
  * vendor count or enrolment state.
+ *
+ * UPDATED — band self-selection added BAND_PICKER as the routing model's entry
+ * point, so VENDOR_PICKER now has one incoming edge (BAND_PICKER -> it). Both
+ * screens remain legal first screens: the entry-point rule constrains the
+ * ROUTING MODEL, while an INIT/data_exchange response may render any screen
+ * (the same mechanism by which BACK already returns VENDOR_PICKER from
+ * TRAINING_HOME with no declared edge). The no-enrolment path now renders the
+ * band picker instead of a dead end — that is the whole point of the change:
+ * a teacher with nothing assigned is asked what they teach.
+ *
+ * What must never regress is the PROPERTY, not the screen name — so the
+ * assertions below check the returned screen against the live routing model.
  */
 
 const LEGAL_FIRST_SCREEN = 'VENDOR_PICKER';
+const BAND_FIRST_SCREEN = 'BAND_PICKER';
+
+// The routing model is the authority — read it rather than restating it, so a
+// future screen addition cannot silently invalidate this suite.
+const FLOW = require('../../docs/flows/teacher-training-flow-v1.json');
+const ROUTING = FLOW.routing_model;
+const ENTRY_POINTS = Object.keys(ROUTING).filter(
+  (s) => !Object.values(ROUTING).flat().includes(s)
+);
+
+/** A screen INIT may legally return: an entry point, or one reachable by re-render. */
+function expectLegalFirstScreen(screen) {
+  expect(Object.keys(ROUTING)).toContain(screen);
+}
 
 let handleTeacherTrainingInit;
 let handleTeacherTrainingBack;
@@ -120,10 +146,20 @@ describe('BUG-144 — INIT must return a routing-model entry point', () => {
     expect(res.screen).toBe(LEGAL_FIRST_SCREEN);
   });
 
-  test('teacher with no enrolment gets VENDOR_PICKER (SUCCESS has incoming edges)', async () => {
+  test('teacher with no enrolment gets the BAND PICKER, not a dead end', async () => {
+    // Previously this returned VENDOR_PICKER carrying "No training assigned yet
+    // ... contact your NIETE program lead" — a permanent dead end, because
+    // nothing in the running app ever created an assignment. Now the teacher is
+    // asked which grades they teach, and the answer assigns their programs.
     mockTables = { ...enrolment({ vendors: [] }), teacher_training_assignments: { data: [], error: null } };
     const res = await handleTeacherTrainingInit('u1', 'u1:teacher-training:1');
-    expect(res.screen).toBe(LEGAL_FIRST_SCREEN);
+    expect(res.screen).toBe(BAND_FIRST_SCREEN);
+    expectLegalFirstScreen(res.screen);
+  });
+
+  test('BAND_PICKER is the routing model’s sole entry point', async () => {
+    // The BUG-144 invariant itself: exactly one node with no incoming edges.
+    expect(ENTRY_POINTS).toEqual([BAND_FIRST_SCREEN]);
   });
 
   test('BACK returns VENDOR_PICKER for a single-vendor teacher', async () => {
