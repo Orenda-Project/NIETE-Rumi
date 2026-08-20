@@ -149,3 +149,14 @@ describe('Flow prefill shows the MEASURED fidelity analysis (bd-9hzdn — flow p
     if (prev === undefined) delete process.env.OBSERVE_FICO_FLOW_HAS_FIDELITY; else process.env.OBSERVE_FICO_FLOW_HAS_FIDELITY = prev;
   });
 });
+
+describe('grader brief: lesson-mismatch is not_done, never unusable (D28)', () => {
+  const { GRADER_BRIEF } = require('../../bot/shared/services/coaching/fidelity/grader-prompt');
+  test('the brief carries the mismatch rule and the guard no longer swallows mismatches', () => {
+    expect(GRADER_BRIEF).toMatch(/LESSON-MISMATCH RULE/);
+    expect(GRADER_BRIEF).toMatch(/lesson_mismatch/);
+    // The unusability guard must no longer claim the mismatch case for itself.
+    const guard = GRADER_BRIEF.split('GLOBAL-UNUSABILITY GUARD')[1].split('LESSON-MISMATCH')[0];
+    expect(guard).not.toMatch(/does not correspond/i);
+  });
+});
