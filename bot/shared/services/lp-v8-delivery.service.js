@@ -197,6 +197,35 @@ async function sendAnswerKeyIfAny({ userId, lessonId, phone, book, chapter, cont
   }
 }
 
+/**
+ * The voice note that rides with the lesson. Returns whether it actually reached her —
+ * the survey needs to know, because asking "was the voice note useful?" about a voice note
+ * that never arrived is worse than not asking at all.
+ *
+ * @returns {Promise<boolean>} true only if WhatsApp accepted the voice message
+ */
+async function sendVoicenoteIfAny({ userId, lessonId, phone, asset }) {
+  if (!asset || !asset.r2_key) return false;
+  const oggKey = String(asset.r2_key).replace(/\.pdf$/i, '.ogg');
+  if (oggKey === asset.r2_key) return false;               // not a .pdf key — nothing to derive
+  if (typeof WhatsAppService.sendVoicenoteFromR2Key !== 'function') return false;
+
+  try {
+    const sent = await WhatsAppService.sendVoicenoteFromR2Key(phone, oggKey);
+    if (!sent) {
+      // Silent by design: voicenotes exist for the current corpus version only, and a teacher
+      // who gets none should simply get her lesson, not an apology for a thing she never
+      // knew was coming. Same stance as the answer key.
+      logToFile('LP v8: no voicenote for this lesson version', { userId, lessonId, oggKey });
+      return false;
+    }
+    return true;
+  } catch (err) {
+    logToFile('LP v8: voicenote send failed (non-fatal)', { userId, lessonId, oggKey, error: err.message });
+    return false;
+  }
+}
+
 async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
   const hit = V8Catalog.lessonById(lessonId);
   if (!hit) {
@@ -273,6 +302,21 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
     return { ok: false, reason: errorText || 'send failed' };
   }
 
+  // ── The voice note (bd-vw0aj) ─────────────────────────────────────────────
+  //
+  // Sent AFTER the PDF and never allowed to gate it. The teacher hears ~55s of
+  // Sara telling her the heart of this lesson and the slip to watch for.
+  //
+  // Convention path, exactly as the curriculum_lp_ast corpus already does
+  // (pakistan-lp-endpoint.js): the LP's own r2_key with `.ogg`. That binds the
+  // audio to THIS content_hash — re-render the lesson and the stale voicenote
+  // simply stops being found, which is what we want. A note describing a lesson
+  // that changed underneath it is worse than no note.
+  //
+  // Soft-fail by design: R2 hiccup, missing upload, WhatsApp rejection — all of
+  // it is logged and none of it costs her the PDF or the survey.
+  const voicenoteSent = await sendVoicenoteIfAny({ userId, lessonId, phone, asset });
+
   // ── The marking scheme (bd-52f1x) ─────────────────────────────────────────
   //
   // An assessment worksheet on its own is half a deliverable: the answer key is
@@ -312,10 +356,10 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
         lp_variant: LP_VARIANT,
         grade: book.grade,
         subject: book.subject_key,
-        // Voicenotes are NOT live for NIETE, so the quiz covers the lesson plan
-        // only; lp_feedback.useful_component (migration 018) is reserved for
-        // when they are.
-        trigger_mode: 'after_pdf_only',
+        // Derived from what actually reached her, never assumed (bd-vw0aj). The
+        // survey asks a different question when a voice note landed, so a wrong
+        // value here asks her about audio she never heard.
+        trigger_mode: voicenoteSent ? 'after_voice_note' : 'after_pdf_only',
         // Provenance detail, v8-specific.
         v8: {
           lesson_id: lessonId,
@@ -348,9 +392,9 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
           segmentNumber: lesson.segment_index,
           topic: lesson.topic_short || lesson.topic,
           lpVariant: LP_VARIANT,
-          // Voicenotes are NOT live for NIETE — the quiz covers the lesson plan
-          // only. lp_feedback.useful_component is reserved for when they are.
-          triggerMode: 'after_pdf_only',
+          // Same derived value as the lesson_plans row above — the two must agree,
+          // or the survey and its stored context describe different deliveries.
+          triggerMode: voicenoteSent ? 'after_voice_note' : 'after_pdf_only',
           language: (user && user.preferred_language) || 'en',
         },
       });
