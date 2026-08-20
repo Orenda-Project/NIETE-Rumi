@@ -172,14 +172,14 @@ class AnalysisProcessorService {
       // OFF by default (LP_FIDELITY_ENABLED); computeLpFidelity is itself internally non-throwing. The
       // corpus move-list is resolved from the LP version the teacher downloaded (stashed by the linker as
       // lesson_plan_structured._fidelity_ref) or extracted from her uploaded LP text.
-      const { isFidelityEnabled, computeLpFidelity } = require('./fidelity/fidelity-orchestrator');
-      const fidelityRef = session.lesson_plan_structured && session.lesson_plan_structured._fidelity_ref;
+      const { isFidelityEnabled, computeLpFidelity, resolveFidelitySources } = require('./fidelity/fidelity-orchestrator');
+      const { corpusKey, uploadedText, meta: fidelityMeta } = resolveFidelitySources(session);
       const fidelityTask = isFidelityEnabled()
         ? computeLpFidelity({
-            corpusKey: fidelityRef || null,
-            uploadedText: session.lesson_plan_link_method === 'uploaded' ? (session.lesson_plan_text || null) : null,
+            corpusKey,
+            uploadedText,
             transcript: session.transcript_text,
-            meta: { lesson_id: fidelityRef && fidelityRef.lesson_id },
+            meta: fidelityMeta,
           })
         : Promise.resolve(null);
 
