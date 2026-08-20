@@ -65,8 +65,12 @@ describe('BAND_PICKER — the routing model stays valid (BUG-144)', () => {
     }
   });
 
-  test('the flow version was bumped — Meta caches by version', () => {
-    expect(parseFloat(FLOW.version)).toBeGreaterThan(5.1);
+  test('version is a Meta-recognised Flow JSON SCHEMA version', () => {
+    // `version` is Meta's SCHEMA version, NOT a content version — inventing
+    // "5.2" to mark this change made the publish fail validation with
+    // INVALID_FLOW_JSON_VERSION. The valid values are the ones Meta ships;
+    // these are the four in use across this repo's flows.
+    expect(['5.1', '6.2', '6.3', '7.0']).toContain(String(FLOW.version));
   });
 });
 
