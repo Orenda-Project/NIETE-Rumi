@@ -498,28 +498,33 @@ async function loadModulesWithProgress(userId, levelId) {
 }
 
 /**
- * bd-43477 — the owning vendor's unlock_logic for a level.
+ * bd-43482 — the owning vendor's MODULE-ordering axis for a level.
+ *
+ * Reads module_unlock_logic, NOT unlock_logic. bd-43477 read the latter and so
+ * tied module sequencing to the level ladder; the two are independent (Beacon
+ * House: parallel subjects, ordered modules inside each). unlock_logic now
+ * means certification semantics only.
  *
  * Fails closed: an unreadable level, a missing vendor row or a null column all
- * answer 'chain', which is the stricter rule. Same default as isLadderVendor
- * and the level gate, so a lookup failure can never quietly open content.
+ * answer 'chain', which is the stricter rule. A lookup failure can never
+ * quietly open a level's content.
  *
  * @param {number|string} levelId
- * @returns {Promise<string>} 'chain' | 'all_modules' | whatever the row holds
+ * @returns {Promise<string>} 'chain' | 'all_modules'
  */
 async function loadLevelUnlockLogic(levelId) {
   const { data, error } = await supabase
     .from('training_levels')
-    .select('vendor:training_vendors(unlock_logic)')
+    .select('vendor:training_vendors(module_unlock_logic)')
     .eq('id', levelId)
     .maybeSingle();
   if (error) {
-    logToFile('⚠️ unlock_logic lookup failed — defaulting to chain', {
+    logToFile('⚠️ module_unlock_logic lookup failed — defaulting to chain', {
       levelId, error: error.message,
     });
     return 'chain';
   }
-  return data?.vendor?.unlock_logic || 'chain';
+  return data?.vendor?.module_unlock_logic || 'chain';
 }
 
 /**
@@ -531,6 +536,33 @@ async function loadLevelUnlockLogic(levelId) {
  * strict answer) instead of unlocking a whole level.
  */
 const NON_SEQUENTIAL_UNLOCK_LOGICS = new Set(['all_modules']);
+
+/**
+ * bd-43482 — level_unlock_logic values that do NOT chain their levels.
+ *
+ * Allow-list, same reasoning as NON_SEQUENTIAL_UNLOCK_LOGICS: an unknown or
+ * missing value chains, so a typo cannot unlock a vendor's whole ladder.
+ */
+const UNCHAINED_LEVEL_UNLOCK_LOGICS = new Set(['parallel']);
+
+/**
+ * bd-43482 — is level N gated behind level N-1's exam for this vendor?
+ *
+ * The LEVEL axis. Beacon House answers no: its levels are parallel subjects
+ * (English / Mathematics / General Science / Computer Science) with no order
+ * between them. NIETE and Oxbridge answer yes — a real ladder.
+ *
+ * Deliberately does NOT read `unlock_logic`. That column means certification
+ * semantics (capstone vs MCQ grand quiz) and both Beacon House AND Oxbridge
+ * carry 'all_modules' there while wanting OPPOSITE answers here — which is
+ * exactly the conflation bd-43477 shipped.
+ *
+ * @param {object|null} vendor a training_vendors row
+ * @returns {boolean} true when levels must be taken in order
+ */
+function isLevelChainLocked(vendor) {
+  return !UNCHAINED_LEVEL_UNLOCK_LOGICS.has(vendor?.level_unlock_logic);
+}
 
 /**
  * bd-2448 — mark each module in level order as passed / next / locked.
@@ -698,7 +730,7 @@ async function loadVisibleLevelsWithProgress(userId) {
       .in('vendor_id', vendorIds)
       .eq('is_active', true)
       .order('order_index', { ascending: true }),
-    supabase.from('training_vendors').select('id, key, name, unlock_logic, has_grand_quiz').in('id', vendorIds),
+    supabase.from('training_vendors').select('id, key, name, unlock_logic, level_unlock_logic, module_unlock_logic, has_grand_quiz').in('id', vendorIds),
   ]);
   if (lErr || !allLevels) return [];
   const vendorById = new Map((vendorRows || []).map(v => [v.id, v]));
@@ -794,7 +826,9 @@ async function loadVisibleLevelsWithProgress(userId) {
     const passedAttempt = (attempts || []).find(a => a.level_id === lv.id && isGrandPass(a));
     const cooldownAttempt = (attempts || []).find(a => a.level_id === lv.id && a.status === 'failed' && a.cooldown_until && new Date(a.cooldown_until) > new Date());
     const vendor = vendorById.get(lv.vendor_id);
-    const chainLocked = vendor?.unlock_logic === 'chain';
+    // bd-43482 — the LEVEL axis. Not unlock_logic: BH and Oxbridge both carry
+    // 'all_modules' there for certification, yet want opposite answers here.
+    const chainLocked = isLevelChainLocked(vendor);
     const prevLevel = visibleLevels
       .filter(l => l.vendor_id === lv.vendor_id)
       .find(l => l.order_index === lv.order_index - 1);
@@ -1418,6 +1452,9 @@ module.exports = {
   // it so the "exactly one unpassed module is open" contract can be asserted
   // without a DB fixture.
   annotateModuleLocks,
+  // bd-43482 — the LEVEL axis, exported so "BH subjects are parallel but
+  // NIETE/Oxbridge ladders are not" is assertable without a DB.
+  isLevelChainLocked,
   checkModuleUnlocked,
   // bd-2479 — the level-scoped gate, exported so the portal can ask the bot
   // instead of keeping its own copy (which had already drifted).
