@@ -95,10 +95,14 @@ async function handleImageMessage(message, from, user = null) {
         // photo a teacher sent after tapping "yes". photo-capture-routing is the
         // single source for these constants (shared with the document + race paths).
         const { CLASSROOM_PHOTO_STATUSES, isClassroomPhotoState } = require('../services/coaching/photo-capture-routing');
+        // bd-9hzdn.2 (observe parity): the sender may be the COACH of a leader
+        // observation — the session row is owned by the observed TEACHER
+        // (user_id) while the coach is observer_user_id. Match either, so a
+        // coach's classroom photo attaches to her observation session.
         const { data: photoSession } = await coachingSupabase
           .from('coaching_sessions')
           .select('id, conversation_state, status')
-          .eq('user_id', user.id)
+          .or(`user_id.eq.${user.id},observer_user_id.eq.${user.id}`)
           .in('status', CLASSROOM_PHOTO_STATUSES)
           .order('created_at', { ascending: false })
           .limit(1)

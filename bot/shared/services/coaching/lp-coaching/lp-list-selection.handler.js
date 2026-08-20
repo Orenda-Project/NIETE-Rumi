@@ -39,9 +39,19 @@ async function handleLpListSelection(listId, from, deps = {}) {
         const supabase = require('../../../config/supabase');
         const { data } = await supabase
           .from('coaching_sessions')
-          .select('users:users(preferred_language)')
+          .select('observation_type, observer_user_id, users:users(preferred_language)')
           .eq('id', sid)
           .maybeSingle();
+        // bd-9hzdn.3: in a leader observation the COACH is the one tapping —
+        // reply in the observer's language, not the observed teacher's.
+        if (data && data.observation_type === 'leader_observation' && data.observer_user_id) {
+          const { data: obs } = await supabase
+            .from('users')
+            .select('preferred_language')
+            .eq('id', data.observer_user_id)
+            .maybeSingle();
+          if (obs && obs.preferred_language) return obs.preferred_language;
+        }
         return (data && data.users && data.users.preferred_language) || 'en';
       } catch (_) { return 'en'; }
     });
