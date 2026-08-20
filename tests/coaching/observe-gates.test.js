@@ -106,3 +106,46 @@ describe('reapplyFidelitySectionB — measured Section B survives observer edits
     expect(() => reapplyFidelitySectionB(null, 'sid')).not.toThrow();
   });
 });
+
+describe('Flow prefill shows the MEASURED fidelity analysis (bd-9hzdn — flow parity)', () => {
+  const { composeFidelitySummary, buildScreenPrefill } = require('../../bot/shared/services/observe/observe-draft.service');
+
+  const LP = {
+    status: 'ok', fidelity_pct: 46, band: 'low', prescribed_count: 3,
+    moves: [
+      { text: 'Read the word problem aloud', verdict: 'executed', counted: true },
+      { text: 'Pair task: LCM of 6 and 8', verdict: 'not_done', counted: true },
+      { text: 'Exit slip: LCM of 3 and 5', verdict: 'partial', counted: true },
+    ],
+    narrative: 'Executed the reading and modelling; skipped the pair task and exit slip.',
+  };
+
+  test('composer: header + per-move verdict glyphs + narrative, capped', () => {
+    const s = composeFidelitySummary(LP);
+    expect(s).toMatch(/^Measured LP fidelity: 46% \(low\) · 3 moves prescribed/);
+    expect(s).toContain('✓ Read the word problem aloud');
+    expect(s).toContain('✗ Pair task: LCM of 6 and 8');
+    expect(s).toContain('◐ Exit slip');
+    expect([...s].length).toBeLessThanOrEqual(3800);
+  });
+
+  test('unusable / absent fidelity → null (no block in the flow)', () => {
+    expect(composeFidelitySummary(null)).toBeNull();
+    expect(composeFidelitySummary({ status: 'ok', fidelity_pct: null })).toBeNull();
+    expect(composeFidelitySummary({ status: 'lp_absent' })).toBeNull();
+  });
+
+  test('prefill gates on env: keys only sent when the published Flow declares them', () => {
+    process.env.OBSERVE_FRAMEWORK = 'fico'; // resolve the FICO observe pack (has lesson_plan_fidelity)
+    const analysis = { framework: 'fico', lp_fidelity: LP, domains: {} };
+    const prev = process.env.OBSERVE_FICO_FLOW_HAS_FIDELITY;
+    delete process.env.OBSERVE_FICO_FLOW_HAS_FIDELITY;
+    const off = buildScreenPrefill(analysis, 'lesson_plan_fidelity');
+    expect(off.has_fidelity).toBeUndefined(); // old asset: never send undeclared keys
+    process.env.OBSERVE_FICO_FLOW_HAS_FIDELITY = 'true';
+    const on = buildScreenPrefill(analysis, 'lesson_plan_fidelity');
+    expect(on.has_fidelity).toBe(true);
+    expect(on.fidelity_summary).toContain('Measured LP fidelity: 46%');
+    if (prev === undefined) delete process.env.OBSERVE_FICO_FLOW_HAS_FIDELITY; else process.env.OBSERVE_FICO_FLOW_HAS_FIDELITY = prev;
+  });
+});

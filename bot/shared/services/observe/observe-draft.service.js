@@ -84,6 +84,32 @@ async function loadSession(sessionId) {
  * @param {string} domainKey e.g. 'introduction'
  * @returns {object} ${data.*} bindings for that domain's Flow screen
  */
+// bd-9hzdn (observe parity) — compact, English, code-point-capped summary of the
+// MEASURED fidelity analysis for the review Flow's Section B screen. Fidelity
+// evolved from the B1-B10 proxy to per-move executed÷prescribed verdicts (D20/D27);
+// the coach reviewing the form must see THAT analysis, not just the old matrix.
+const FIDELITY_SUMMARY_CAP = 3800; // TextBody limit is 4096; leave headroom
+const FIDELITY_GLYPH = {
+  executed: '✓', substituted_equivalent: '✓', substituted_better: '✓＋',
+  partial: '◐', not_done: '✗', not_adjudicable: '–',
+};
+
+function composeFidelitySummary(lp) {
+  if (!lp || lp.status !== 'ok' || lp.fidelity_pct == null) return null;
+  const bandLabel = lp.band ? ` (${String(lp.band)})` : '';
+  const lines = [
+    `Measured LP fidelity: ${lp.fidelity_pct}%${bandLabel} · ${lp.prescribed_count ?? (lp.moves || []).filter(m => m.counted).length} moves prescribed`,
+  ];
+  for (const m of (lp.moves || [])) {
+    const glyph = FIDELITY_GLYPH[m.verdict] || '·';
+    const text = [...String(m.text || '')].slice(0, 70).join('');
+    lines.push(`${glyph} ${text}`);
+  }
+  if (lp.narrative) lines.push('', [...String(lp.narrative)].slice(0, 400).join(''));
+  const out = lines.join('\n');
+  return [...out].slice(0, FIDELITY_SUMMARY_CAP).join('');
+}
+
 function buildScreenPrefill(analysis, domainKey) {
   const { domains } = { domains: getObservePack().domains };
   const spec = domains[domainKey];
@@ -93,6 +119,16 @@ function buildScreenPrefill(analysis, domainKey) {
 
   const { min: SMIN, max: SMAX } = scaleBounds();
   const data = { scale: scaleOptions() };
+
+  // Section B: attach the measured-fidelity summary WHEN the published Flow
+  // declares the keys (env flipped together with the Flow republish — serving
+  // undeclared keys to the old asset would fail Meta's schema validation).
+  if (domainKey === 'lesson_plan_fidelity'
+      && process.env.OBSERVE_FICO_FLOW_HAS_FIDELITY === 'true') {
+    const summary = composeFidelitySummary((analysis || {}).lp_fidelity);
+    data.has_fidelity = !!summary;
+    data.fidelity_summary = summary || '';
+  }
   spec.indicators.forEach(specInd => {
     const f = fid(specInd.id);
     const ind = byId[specInd.id] || {};
@@ -239,4 +275,4 @@ function reapplyFidelitySectionB(v2, sessionId) {
   return v2;
 }
 
-module.exports = { onAnalysisReady, buildScreenPrefill, applyObserverEdits, reapplyFidelitySectionB, SCALE_OPTIONS_BY_LANG };
+module.exports = { onAnalysisReady, buildScreenPrefill, applyObserverEdits, reapplyFidelitySectionB, composeFidelitySummary, SCALE_OPTIONS_BY_LANG };
