@@ -502,7 +502,12 @@ async function handleClassManagerDataExchange(userId, screen, screenData) {
       });
     }
 
-    pending.delete(userId);
+    // Hand her straight to the roster instead of ending here. Creating
+    // a class and then filling it is one intention, not two: SAVED is terminal, so
+    // stopping there cost her a second /class and a re-pick to reach ADD_STUDENTS.
+    // The new class replaces the in-flight choice rather than clearing it, which is
+    // what rosterContext() reads on the next hop.
+    rememberChoice(userId, { rosterClassId: result.class.id });
 
     const display = classDisplay(choice.gradeCode, choice.section, who, choice.shiftCode);
 
@@ -527,14 +532,11 @@ async function handleClassManagerDataExchange(userId, screen, screenData) {
       detail = `${detail}\n\n${resolveUx('classSavedRoleTaken', { user: who })}`;
     }
 
-    return {
-      screen: 'SAVED',
-      data: {
-        heading: resolveUx('classSavedHeading', { user: who }),
-        detail,
-        done_label: resolveUx('classDone', { user: who }),
-      },
-    };
+    // The confirmation she would have read on SAVED rides along as the hint, so
+    // chaining does not swallow "saved", nor a declined subject/class-teacher claim.
+    const addStudents = buildAddStudentsScreen(who, display);
+    addStudents.data.hint = detail;
+    return addStudents;
   }
 
   logToFile('⚠️ class-manager: unknown screen', { screen });

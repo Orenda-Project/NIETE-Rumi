@@ -168,16 +168,17 @@ describe('ADD → SUBJECTS', () => {
   });
 });
 
-describe('SUBJECTS → SAVED', () => {
-  it('creates the class, assigns the teacher, and lands on the terminal screen', async () => {
+describe('SUBJECTS → ADD_STUDENTS', () => {
+  it('creates the class, assigns the teacher, and hands her the roster (bd-43483)', async () => {
     await ep.handleClassManagerDataExchange(TEACHER, 'ADD', { grade: 'grade_4', section: 'A' });
     const res = await ep.handleClassManagerDataExchange(TEACHER, 'SUBJECTS', {
       subjects: ['maths'], is_class_teacher: true,
     });
 
-    const terminal = flowJson.screens.find((s) => s.terminal).id;
-    expect(res.screen).toBe(terminal);
-    expect(res.data.detail).toBe('Grade 4 - A, 2026-2027.');
+    // Was SAVED (terminal) until bd-43483; the confirmation now rides as the hint
+    // on the screen that lets her fill the class she just made.
+    expect(res.screen).toBe('ADD_STUDENTS');
+    expect(res.data.hint).toBe('Grade 4 - A, 2026-2027.');
 
     expect(mockDb._tables.classes).toHaveLength(1);
     expect(mockDb._tables.classes[0]).toMatchObject({
@@ -205,7 +206,7 @@ describe('SUBJECTS → SAVED', () => {
     const res = await ep.handleClassManagerDataExchange(TEACHER, 'SUBJECTS', {
       subjects: [], is_class_teacher: true,
     });
-    expect(res.screen).toBe('SAVED');
+    expect(res.screen).toBe('ADD_STUDENTS');
     expect(mockDb._tables.class_teacher_subjects).toHaveLength(0);
   });
 
@@ -223,6 +224,54 @@ describe('SUBJECTS → SAVED', () => {
 
     expect(mockDb._tables.classes).toHaveLength(0);
     expect(entryScreens()).toContain(res.screen);
+  });
+});
+
+describe('bd-43483: creating a class leads straight to its students', () => {
+  /**
+   * The dead-end Hasnat hit on staging (2026-08-18): SUBJECTS returned the
+   * terminal SAVED screen and dropped the pending choice, so the class she had
+   * just made had no route to a roster. ADD_STUDENTS is only reachable via
+   * CLASSES → ROSTER, which meant re-sending /class and picking the class again
+   * to do the one thing she was obviously about to do.
+   */
+  it('lands on ADD_STUDENTS after the class is created, not on the terminal screen', async () => {
+    await ep.handleClassManagerDataExchange(TEACHER, 'ADD', { grade: 'grade_4', section: 'A' });
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'SUBJECTS', {
+      subjects: ['maths'], is_class_teacher: true,
+    });
+
+    expect(res.screen).toBe('ADD_STUDENTS');
+    const terminal = flowJson.screens.find((s) => s.terminal).id;
+    expect(res.screen).not.toBe(terminal);
+    // The class was still really created — chaining must not cost her the save.
+    expect(mockDb._tables.classes).toHaveLength(1);
+  });
+
+  it('names the class she just made on that screen', async () => {
+    await ep.handleClassManagerDataExchange(TEACHER, 'ADD', { grade: 'grade_4', section: 'A' });
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'SUBJECTS', { subjects: [] });
+
+    expect(String(res.data.heading)).toContain('Grade 4 - A');
+  });
+
+  it('remembers the new class, so the pasted roster reaches it without re-picking', async () => {
+    await ep.handleClassManagerDataExchange(TEACHER, 'ADD', { grade: 'grade_4', section: 'A' });
+    await ep.handleClassManagerDataExchange(TEACHER, 'SUBJECTS', { subjects: [] });
+
+    // Straight on to the paste box — no second /class, no re-pick.
+    const saved = await ep.handleClassManagerDataExchange(TEACHER, 'ADD_STUDENTS', {
+      roster: 'Ayesha Bibi\nBilal Ahmed',
+    });
+
+    expect(saved.screen).toBe(flowJson.screens.find((s) => s.terminal).id);
+    const created = mockDb._tables.classes[0];
+    const enrolled = mockDb._tables.class_enrollments.filter((r) => r.class_id === created.id);
+    expect(enrolled).toHaveLength(2);
+  });
+
+  it('declares the SUBJECTS → ADD_STUDENTS route, or WhatsApp refuses the hop', async () => {
+    expect(flowJson.routing_model.SUBJECTS).toContain('ADD_STUDENTS');
   });
 });
 
@@ -326,7 +375,7 @@ describe('shift reaches the class', () => {
   });
 });
 
-describe('SAVED tells the truth when a claim is declined', () => {
+describe('the confirmation tells the truth when a claim is declined', () => {
   const OTHER = 'teacher-uuid-2';
 
   async function colleagueAlreadyTeachesMaths() {
@@ -346,11 +395,11 @@ describe('SAVED tells the truth when a claim is declined', () => {
     await ep.handleClassManagerDataExchange(TEACHER, 'ADD', { grade: 'grade_4', section: 'A' });
     const res = await ep.handleClassManagerDataExchange(TEACHER, 'SUBJECTS', { subjects: ['maths'] });
 
-    expect(res.screen).toBe('SAVED');
+    expect(res.screen).toBe('ADD_STUDENTS');
     // Additive, not a replacement: the class WAS saved, and copy that reads as
     // failure would send her back to create it again.
-    expect(res.data.detail).toContain('Grade 4 - A, 2026-2027.');
-    expect(res.data.detail).toMatch(/already teaches Mathematics/);
+    expect(res.data.hint).toContain('Grade 4 - A, 2026-2027.');
+    expect(res.data.hint).toMatch(/already teaches Mathematics/);
   });
 
   it('says the class was saved AND that the class-teacher role is taken', async () => {
@@ -360,8 +409,8 @@ describe('SAVED tells the truth when a claim is declined', () => {
       subjects: ['urdu'], is_class_teacher: true,
     });
 
-    expect(res.data.detail).toContain('Grade 4 - A, 2026-2027.');
-    expect(res.data.detail).toMatch(/already the class teacher/);
+    expect(res.data.hint).toContain('Grade 4 - A, 2026-2027.');
+    expect(res.data.hint).toMatch(/already the class teacher/);
   });
 
   it('still joins her to the class, with the subject that was free', async () => {
