@@ -265,17 +265,19 @@ class TranscriptionProcessorService {
         .eq('id', coachingSessionId);
 
       // FEAT-102 bd-2138 (ported from main-bot FEAT-053 bd-16): leader observations
-      // skip every teacher interstitial (encouraging message, agency reminder, photo
-      // ask, LP gate) and go straight to analysis. Observe-ness derives from the
-      // session ROW — never the queue payload. Status stays 'transcription_complete',
-      // which the analysis claim CAS accepts.
+      // skip every teacher interstitial (encouraging message, agency reminder) — those
+      // are teacher-praise, not coach UI. bd-9hzdn.1 (observe parity): when
+      // OBSERVE_CAPTURE_GATES_ENABLED, the COACH now gets the same photo → LP gates the
+      // teacher flow has (prompts addressed to the coach `from`, in the COACH's language
+      // — the observer row, not the observed teacher's). The downstream tap/media
+      // routing is observer-aware (bd-9hzdn.2/.3), and analysis queues after the LP
+      // step exactly like the teacher flow. Flag OFF → legacy direct-to-analysis.
+      // Observe-ness derives from the session ROW — never the queue payload.
       if (session.observation_type === 'leader_observation') {
-        const CoachingJobQueueService = require('./coaching-job-queue.service');
-        await CoachingJobQueueService.queueAnalysis(coachingSessionId, { from });
+        await TranscriptionProcessorService.observePostTranscription(coachingSessionId, session, from);
         if (fs.existsSync(tempAudioPath)) {
           fs.unlinkSync(tempAudioPath);
         }
-        logToFile('✅ Transcription complete (observe path — analysis queued directly)', { coachingSessionId });
         return;
       }
 
@@ -353,6 +355,53 @@ class TranscriptionProcessorService {
    *   - silences: Detected silence markers (gaps > 3s)
    *   - cost: Estimated transcription cost
    */
+  /**
+   * bd-9hzdn.1 (observe parity) — what happens after an /observe transcription.
+   *
+   * Flag OFF (legacy): queue analysis directly — the FEAT-102 behaviour.
+   * Flag ON (OBSERVE_CAPTURE_GATES_ENABLED='true'): the COACH gets the same
+   * photo → LP gates the teacher flow has. The prompt goes to the coach's phone
+   * (`from` is the coach in the observe path) in the COACH's language (the
+   * observer row, not the observed teacher's). Teacher-praise interstitials
+   * stay skipped either way. Downstream tap/media routing is observer-aware
+   * (bd-9hzdn.2/.3) and queues analysis after the LP step.
+   *
+   * @param {object} deps injectable for tests: { queueAnalysis, sendButtons,
+   *   buildPhotoPrompt, getLanguage, updateConversationState, updateStatus, env }
+   */
+  static async observePostTranscription(coachingSessionId, session, from, deps = {}) {
+    const env = deps.env || process.env;
+    const gatesOn = env.OBSERVE_CAPTURE_GATES_ENABLED === 'true';
+
+    if (!gatesOn) {
+      const queueAnalysis = deps.queueAnalysis
+        || ((sid, payload) => require('./coaching-job-queue.service').queueAnalysis(sid, payload));
+      await queueAnalysis(coachingSessionId, { from });
+      logToFile('✅ Transcription complete (observe path — analysis queued directly)', { coachingSessionId });
+      return { action: 'queued_analysis' };
+    }
+
+    const getLanguage = deps.getLanguage || getUserLanguage;
+    const buildPrompt = deps.buildPhotoPrompt
+      || require('./classroom-photo/photo-prompt.service').buildPhotoPrompt;
+    const sendButtons = deps.sendButtons
+      || ((to, prompt) => WhatsAppService.sendInteractiveButtons(to, prompt));
+    const updateConversationState = deps.updateConversationState
+      || ((sid, cs) => CoachingSessionService.updateConversationState(sid, cs));
+    const updateStatus = deps.updateStatus
+      || ((sid, st) => CoachingSessionService.updateStatus(sid, st));
+
+    // Coach-addressed photo gate. Language = the OBSERVER's preference, falling
+    // back to the session owner's (unbound observation: observer IS the owner).
+    const coachLangUserId = session.observer_user_id || session.user_id;
+    const observerLanguage = (await getLanguage(coachLangUserId)) || 'en';
+    await sendButtons(from, buildPrompt(coachingSessionId, observerLanguage));
+    await updateConversationState(coachingSessionId, { current_state: 'AWAITING_PHOTO' });
+    await updateStatus(coachingSessionId, 'awaiting_photo');
+    logToFile('✅ Transcription complete (observe path — coach photo gate sent)', { coachingSessionId, observerLanguage });
+    return { action: 'photo_gate', observerLanguage };
+  }
+
   static async transcribeWithDiarization(audioPath) {
     // Enable diarization for classroom audio transcription
     const transcriptionResult = await AudioService.transcribe(audioPath, true);
