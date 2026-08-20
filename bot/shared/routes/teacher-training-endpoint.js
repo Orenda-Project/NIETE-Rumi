@@ -69,25 +69,42 @@ async function buildBandPicker(userId, teacher, opts = {}) {
   const gate = canChangeBands(teacher);
   const current = Array.isArray(teacher && teacher.training_bands) ? teacher.training_bands : [];
 
+  // A teacher who already has training reaches this screen only because INIT is
+  // required to return the entry point (see handleTeacherTrainingInit). For
+  // them it is a confirm-or-change step, not a question: the primary action
+  // walks straight on to their programs and the copy says so.
+  const hasTraining = Boolean(opts.hasTraining);
+
   // A blocked teacher still sees the screen (so they know what they picked),
   // with the reason in place of the warning.
   const notice = opts.error || (gate.allowed ? (gate.isFirstSelection ? '' : changeWarning()) : gate.message);
 
   const data = {
-    hero_title: gate.isFirstSelection
-      ? 'Which grades do you teach?'
-      : 'Change the grades you teach',
-    hero_caption: 'We use this to show you the right training. Choose all that apply.',
+    hero_title: hasTraining
+      ? 'Your training'
+      : (gate.isFirstSelection ? 'Which grades do you teach?' : 'Change the grades you teach'),
+    hero_caption: hasTraining
+      ? 'These are the grades we have for you. Change them if they are wrong, or continue to your training.'
+      : 'We use this to show you the right training. Choose all that apply.',
     band_options: BANDS.map(b => ({ id: b.key, title: b.label })),
     init_bands: current,
     cooldown_notice: notice || '',
     notice_visible: Boolean(notice),
-    footer_label: gate.allowed ? 'Save and continue' : 'Back',
+    // For a teacher with training the footer is the FORWARD action; changing
+    // the selection is the secondary link. For a teacher with none, saving IS
+    // the forward action.
+    footer_label: hasTraining ? 'Continue to my training' : 'Save and continue',
+    // The footer's action differs by audience: forward for a teacher who
+    // already has training, save-then-forward for one who does not.
+    primary_action: hasTraining ? 'continue_to_training' : 'save_bands',
+    continue_visible: hasTraining,
+    save_label: hasTraining ? 'Save these grades' : '',
   };
 
   logToFile('🎓 BAND_PICKER response snapshot', {
     userId,
     current_bands: current,
+    has_training: hasTraining,
     first_selection: gate.isFirstSelection,
     allowed: gate.allowed,
     hours_remaining: gate.hoursRemaining,
@@ -105,26 +122,33 @@ async function handleTeacherTrainingInit(userId /*, flowToken */) {
   const teacher = await loadTeacher(userId);
   if (!teacher) return entryErrorScreen('We could not find your training profile. Please contact NIETE support.');
 
-  // A teacher with no visible training used to hit a dead end here
-  // ("No training assigned yet ... contact your NIETE program lead"). 353
-  // teachers were in that state and nothing in the running app had ever created
-  // an assignment, so the dead end was permanent. Ask them what they teach
-  // instead; the answer assigns their programs and opens the training.
-  if (catalog.length === 0) return buildBandPicker(userId, teacher);
-
-  // BUG-144 — INIT must return a routing-model ENTRY POINT (a node with no
-  // incoming edges). BAND_PICKER is now that node; VENDOR_PICKER has
-  // an incoming edge from it, and TRAINING_HOME one from VENDOR_PICKER. The old
-  // single-vendor shortcut returned TRAINING_HOME to save a tap and the client
-  // rejected the whole Flow with "invalid-screen-transition ... already have
-  // incoming nodes".
+  // BUG-144 — INIT MUST return the routing model's ENTRY POINT. Not "should":
+  // the client rejects the entire Flow with
+  //   "invalid-screen-transition ... The first screen -[X] that was provided
+  //    with response already have incoming nodes found in the routing model"
+  // and the teacher sees "Something went wrong" before anything renders.
   //
-  // Returning VENDOR_PICKER from INIT is still correct even though it now has
-  // an incoming edge: the entry-point rule constrains the ROUTING MODEL, and a
-  // data_exchange/INIT response may render any screen (this is the same
-  // mechanism back_to_vendors uses to return VENDOR_PICKER from TRAINING_HOME
-  // with no declared edge).
-  return buildVendorPicker(userId, teacher, partitionByVendor(catalog));
+  // This is enforced on the INIT RESPONSE, not merely on the routing model.
+  // An earlier revision of this change assumed the opposite — that INIT could
+  // return VENDOR_PICKER once BAND_PICKER became the entry point, by analogy
+  // with back_to_vendors returning VENDOR_PICKER from TRAINING_HOME without a
+  // declared edge. That analogy is false: BACK and data_exchange are different
+  // actions from INIT, and only INIT is checked against the entry point. It
+  // broke /training for every teacher who HAS training.
+  //
+  // So INIT always returns BAND_PICKER, which is the sole entry point. What
+  // differs is the screen's shape:
+  //   - no bands recorded  -> a first-time question ("Which grades do you
+  //     teach?"), because a teacher with nothing assigned previously hit a
+  //     permanent dead end here
+  //   - bands already set  -> confirm-or-change, whose primary action walks
+  //     forward into VENDOR_PICKER along the declared BAND_PICKER ->
+  //     VENDOR_PICKER edge
+  //
+  // A teacher who already has training therefore pays one extra tap to reach
+  // the vendor list. That is the cost of the entry-point rule; the alternative
+  // is the whole Flow failing to open.
+  return buildBandPicker(userId, teacher, { hasTraining: catalog.length > 0 });
 }
 
 /**
@@ -159,6 +183,18 @@ async function handleTeacherTrainingDataExchange(userId, screen, screenData /*, 
           'Thank you. We have saved that, but there is no training set up for those grades yet. ' +
           'Please contact NIETE support.'
         );
+      }
+      return buildVendorPicker(userId, teacher, partitionByVendor(catalog));
+    }
+    // The forward step for a teacher who already has training: no write, just
+    // walk the declared BAND_PICKER -> VENDOR_PICKER edge.
+    if (action === 'continue_to_training') {
+      const catalog = await loadVisibleLevelsWithProgress(userId);
+      const teacher = await loadTeacher(userId);
+      if (!teacher || catalog.length === 0) {
+        return buildBandPicker(userId, teacher, {
+          error: 'We could not find your training. Please contact NIETE support.',
+        });
       }
       return buildVendorPicker(userId, teacher, partitionByVendor(catalog));
     }
