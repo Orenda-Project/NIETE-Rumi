@@ -24,9 +24,61 @@ function formatDate(dateString) {
  * @param {object} analysis - Enhanced analysis data
  * @returns {object|null} Fidelity section or null
  */
-function extractFidelity(analysis) {
-  if (!analysis.fidelity_analysis) return null;
+const FIDELITY_DONE = new Set(['executed', 'substituted_equivalent', 'substituted_better']);
+const FIDELITY_PHASE_ORDER = ['warm_up', 'hook', 'recall', 'announce', 'explain', 'guided', 'independent', 'peer_review', 'exit', 'homework'];
 
+// Map the MEASURED lp_fidelity blob (executed÷prescribed — the P3 engine, D20) to the report section:
+// %, band, a phase bar (one status per phase), per-action verdicts, strengths (better substitutions) and
+// gaps (not-done). Degrades safely: a partly-garbled/truncated recording shows "not assessed", never 0%.
+function buildLpFidelitySection(lp) {
+  const scored = (lp.moves || []).filter((m) => m.counted);
+  const statusOf = (m) => (FIDELITY_DONE.has(m.verdict) ? 'done' : m.verdict === 'partial' ? 'partial' : 'missed');
+
+  const byPhase = {};
+  for (const m of scored) {
+    const s = statusOf(m);
+    if (!byPhase[m.phase]) byPhase[m.phase] = new Set();
+    byPhase[m.phase].add(s);
+  }
+  const phaseBar = FIDELITY_PHASE_ORDER.filter((p) => byPhase[p]).map((p) => {
+    const set = byPhase[p];
+    const status = set.size === 1 ? [...set][0] : 'partial'; // mixed phase → partial
+    return { phase: p, status };
+  });
+
+  const doneCount = scored.filter((m) => FIDELITY_DONE.has(m.verdict)).length;
+  return {
+    source: lp.source || null,
+    score: lp.fidelity_pct,
+    maxScore: 100,
+    band: lp.band || null,
+    coverage: lp.coverage != null ? lp.coverage : null,
+    lowConfidence: !!lp.low_confidence,
+    note: `${doneCount} of ${scored.length} prescribed actions delivered`,
+    commentary: lp.narrative || '',
+    phaseBar,
+    perAction: scored.map((m) => ({ phase: m.phase, text: m.text, verdict: m.verdict, evidence: m.evidence || '' })),
+    strengths: (lp.strengths || []).map((s) => s.text).filter(Boolean),
+    gaps: scored.filter((m) => m.verdict === 'not_done').map((m) => m.text).filter(Boolean),
+    notAssessed: lp.not_assessed || [],
+    moderators: lp.moderators || null,
+    timeOnTask: lp.time_on_task || null,
+  };
+}
+
+function extractFidelity(analysis) {
+  // Preferred: the measured LP-fidelity blob from the P3 engine (analysis_data.lp_fidelity).
+  const lp = analysis.lp_fidelity;
+  if (lp && lp.status) {
+    if (lp.recording_unusable || (lp.status === 'ok' && lp.fidelity_pct == null)) {
+      return { score: null, maxScore: 100, note: 'Lesson-plan fidelity was not assessed from this recording.', commentary: '', phaseBar: [], perAction: [], strengths: [], gaps: [] };
+    }
+    if (lp.status === 'ok') return buildLpFidelitySection(lp);
+    return null; // lp_absent / fidelity_unavailable → no fidelity block
+  }
+
+  // Legacy fallback (pre-engine fidelity_analysis field).
+  if (!analysis.fidelity_analysis) return null;
   return {
     score: analysis.fidelity_analysis.score || 0,
     maxScore: analysis.fidelity_analysis.max_score || 100,
