@@ -65,15 +65,6 @@ jobs:
         with:
           fetch-depth: 0   # the real merge-base, not a shallow clone
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      # The validator hard-exits 2 without pyyaml, and every gate treats exit 2 as
-      # blocking — a missing dependency would otherwise read as a schema violation.
-      - name: Install pyyaml
-        run: pip install pyyaml
-
       - name: Resolve base..head
         id: refs
         run: |
@@ -102,6 +93,21 @@ jobs:
           import json;d=json.load(open('detect.json'))
           [print('  relevant :',x['path']) for x in d['relevant']]
           [print('  AMBIGUOUS:',x['path'],'-',x.get('reason','')) for x in d['ambiguous']]"
+
+      # Only from here on does this job cost anything. The detector above is
+      # stdlib-only and runs in ~0.03s, so a PR that touches no schema file pays a
+      # checkout and nothing else — no Python setup, no pip install. That is what
+      # makes "run on every PR" cheap enough to also be the required check.
+      - uses: actions/setup-python@v5
+        if: steps.scope.outputs.relevant != '0'
+        with:
+          python-version: '3.11'
+
+      # The validator hard-exits 2 without pyyaml, and every gate treats exit 2 as
+      # blocking — a missing dependency would otherwise read as a schema violation.
+      - name: Install pyyaml
+        if: steps.scope.outputs.relevant != '0'
+        run: pip install pyyaml
 
       - name: Validate changed schema files
         id: validate
