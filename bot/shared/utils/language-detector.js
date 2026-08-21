@@ -162,7 +162,7 @@ const LANGUAGE_OVERRIDE_COMMANDS = {
  */
 function calculateDominantLanguage(tokens) {
   if (!tokens || tokens.length === 0) {
-    logToFile('⚠️  No tokens provided for language detection', { level: 'warn' });
+    logToFile('⚠️  No tokens provided for language detection', null, 'warn');
     return {
       language: null,
       confidence: 0,

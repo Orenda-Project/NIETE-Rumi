@@ -26,6 +26,7 @@ const {
   scanViolations,
   keyOf,
   diffAgainstAllowlist,
+  findSeverityInData,
 } = require('./logger-level-lib');
 
 /** Build a throwaway source tree; returns its root. */
@@ -170,5 +171,67 @@ describe('diffAgainstAllowlist — the property the old file:line key got wrong'
     const allowlist = [{ file: 'gone.js', line: 1, snippet, occurrence: 0 }];
     const { stale } = diffAgainstAllowlist(scanViolations(root), allowlist);
     expect(stale).toHaveLength(1);
+  });
+});
+
+describe('findSeverityInData — severity passed as a data key instead of the 3rd argument', () => {
+  // `logToFile(msg, { level: 'error' })` does NOT set severity. The level is the
+  // THIRD POSITIONAL argument; a `level` key in the data object is just another
+  // field. Worse, `level` is a reserved pino/base field, so the emitted line
+  // carries TWO "level" keys and which one a consumer honours is parser-
+  // dependent (JSON.parse takes the last, a first-wins parser takes pino's).
+  // The author's intent is unambiguous, so this is always a mistake — no
+  // allowlist.
+  it('flags a severity string passed as a data key', () => {
+    const root = fixture({ 'a.js': `logToFile('boom', { userId: 1, level: 'error' });\n` });
+    const v = findSeverityInData(root);
+    expect(v).toHaveLength(1);
+    expect(v[0]).toMatchObject({ file: 'a.js', severity: 'error' });
+  });
+
+  it('flags warn as well as error', () => {
+    const root = fixture({ 'a.js': `logToFile('degraded', { level: 'warn' });\n` });
+    expect(findSeverityInData(root).map((x) => x.severity)).toEqual(['warn']);
+  });
+
+  it('does NOT flag a domain "level" — a training level, grade or mastery level', () => {
+    const root = fixture({
+      'a.js': `logToFile('module done', { userId: 1, level: 3 });\n`,
+      'b.js': `logToFile('passage picked', { level: currentLevel });\n`,
+      'c.js': `logToFile('cpd', { level: lv.cpd_level });\n`,
+      'd.js': `logToFile('grade', { level: passageConfig.grade });\n`,
+    });
+    expect(findSeverityInData(root)).toEqual([]);
+  });
+
+  it('does NOT flag the correct form (severity as the 3rd positional arg)', () => {
+    const root = fixture({ 'a.js': `logToFile('boom', { userId: 1 }, 'error');\n` });
+    expect(findSeverityInData(root)).toEqual([]);
+  });
+
+  it('flags it even when the message carries no ❌ sentinel', () => {
+    // This is the blind spot: the ❌ ratchet cannot see these at all.
+    const root = fixture({ 'a.js': `logToFile('language_drift: chat reply', { level: 'error' });\n` });
+    expect(findSeverityInData(root)).toHaveLength(1);
+  });
+
+  it('handles a multi-line data object', () => {
+    const root = fixture({
+      'a.js': [`logToFile('drift', {`, `  surface: 'chat_text',`, `  userId: u?.id,`, `  level: 'error'`, `});`, ``].join('\n'),
+    });
+    expect(findSeverityInData(root)).toHaveLength(1);
+  });
+
+  it('covers logError/logWarn and console.* callers too', () => {
+    const root = fixture({
+      'a.js': `logError('x', { level: 'error' });\n`,
+      'b.js': `console.warn('y', { level: 'warn' });\n`,
+    });
+    expect(findSeverityInData(root)).toHaveLength(2);
+  });
+
+  it('does not flag a level key nested deeper than the data object', () => {
+    const root = fixture({ 'a.js': `logToFile('x', { meta: { level: 'error' } });\n` });
+    expect(findSeverityInData(root)).toEqual([]);
   });
 });

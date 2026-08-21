@@ -1468,7 +1468,7 @@ class WhatsAppService {
         // received NOTHING — she typed /language and the bot went silent — and at
         // info level that never reaches error monitoring. This exact failure ran
         // seven times on staging before a human noticed by testing by hand.
-        logToFile('❌ Error sending language selection list', { error: data, level: 'error' });
+        logToFile('❌ Error sending language selection list', { error: data }, 'error');
         return false;
       }
 
@@ -1476,9 +1476,8 @@ class WhatsAppService {
       return true;
     } catch (error) {
       logToFile('❌ Error sending language selection list', {
-        error: error.message,
-        level: 'error'
-      });
+        error: error.message
+      }, 'error');
       return false;
     }
   }

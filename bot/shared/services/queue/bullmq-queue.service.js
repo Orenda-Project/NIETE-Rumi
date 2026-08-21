@@ -49,7 +49,7 @@ class BullMQQueueService {
     this._workers = {};        // name → Worker (manual mode, for getNextJob)
 
     if (!this.redisUrl) {
-      logToFile('⚠️  REDIS_URL not configured. BullMQ queue driver disabled.', { level: 'warn' });
+      logToFile('⚠️  REDIS_URL not configured. BullMQ queue driver disabled.', null, 'warn');
     } else {
       logToFile('✅ BullMQ queue driver selected', { queues: QUEUE_NAMES });
     }

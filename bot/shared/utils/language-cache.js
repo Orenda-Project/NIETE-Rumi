@@ -54,7 +54,7 @@ const CACHE_TTL = 86400; // 24 hours
  */
 async function getUserLanguage(userId) {
   if (!userId) {
-    logToFile('⚠️  getUserLanguage: No userId provided', { level: 'warn' });
+    logToFile('⚠️  getUserLanguage: No userId provided', null, 'warn');
     return DEFAULT_LANGUAGE;
   }
 
@@ -126,7 +126,7 @@ async function getUserLanguage(userId) {
  */
 async function setUserLanguage(userId, languageCode, lockLanguage = true) {
   if (!userId) {
-    logToFile('⚠️  setUserLanguage: No userId provided', { level: 'warn' });
+    logToFile('⚠️  setUserLanguage: No userId provided', null, 'warn');
     return false;
   }
 
@@ -281,7 +281,7 @@ async function isUserLanguageLocked(userId) {
  */
 async function clearUserLanguageCache(userId) {
   if (!userId) {
-    logToFile('⚠️  clearUserLanguageCache: No userId provided', { level: 'warn' });
+    logToFile('⚠️  clearUserLanguageCache: No userId provided', null, 'warn');
     return false;
   }
 
