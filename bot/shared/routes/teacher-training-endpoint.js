@@ -81,7 +81,7 @@ function buildBandSetupPrompt(userId, teacher) {
       // MUST be set explicitly, not omitted. A ${data.*} field left out of a
       // response is not treated as false — the client keeps the value it last
       // had (or the schema's __example__), so omitting this rendered BOTH the
-      // "Choose the grades you teach" row AND the "Edit the grades I teach"
+      // "Choose the grades you teach" row AND the "Edit Teacher Level"
       // link, which are mutually exclusive by definition.
       bands_edit_visible: false,
     },
@@ -117,7 +117,7 @@ async function buildBandPicker(userId, teacher, opts = {}) {
   const data = {
     hero_title: blocked
       ? 'Grades you teach'
-      : (hasTraining ? 'Edit the grades you teach' : 'Which grades do you teach?'),
+      : (hasTraining ? 'Edit Teacher Level' : 'Which grades do you teach?'),
     hero_caption: blocked
       ? (current.length
           ? `We have you down for: ${bandLabels(current)}.`
@@ -532,7 +532,7 @@ function buildVendorPicker(userId, teacher, vendors, opts = {}) {
   // The teacher's own bands are shown here rather than gating the screen behind
   // a confirm step: they are what decides which programs appear, so a teacher
   // seeing only one vendor can tell at a glance whether that is because of
-  // what they told us. "Edit the grades I teach" routes forward to BAND_PICKER.
+  // what they told us. "Edit Teacher Level" routes forward to BAND_PICKER.
   const bands = bandSummary(teacher);
   const data = {
     hero_title:    'Choose a program',
