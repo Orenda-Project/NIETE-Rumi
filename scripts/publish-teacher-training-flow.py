@@ -24,11 +24,12 @@ tester phone number without exposing the change to the general teacher
 population. Promote to PUBLISHED with --publish after sign-off.
 """
 from __future__ import annotations
+import os
 import argparse, json, sys, urllib.request, urllib.error, uuid
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-ENV = REPO / ".env.stage"
+ENV = REPO / (os.environ.get("FLOW_ENV_FILE") or ".env.stage")
 FLOW_JSON = REPO / "docs" / "flows" / "teacher-training-flow-v1.json"
 
 
