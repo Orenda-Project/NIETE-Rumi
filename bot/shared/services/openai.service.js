@@ -396,7 +396,14 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
       // there is nothing to strip. The slice was the load-bearing half of that
       // convention — remove the seed and the slice must go with it, or the first
       // real history message would be silently dropped.
-      const existingHistory = await this.getConversationHistory(userId);
+      //
+      // The filter is the second half of the bd-njn7u invariant (history is
+      // user/assistant turns ONLY): any system message found here is a stale
+      // system prompt from an older storage shape, and replaying it mid-array
+      // would present last turn's instructions — injected featureContext
+      // included — as still current.
+      const existingHistory = (await this.getConversationHistory(userId))
+        .filter((m) => m.role !== 'system');
 
       // Build new history with format-specific system prompt
       const messages = [
@@ -421,9 +428,12 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
 
       const aiResponse = completion.choices[0].message.content;
 
-      // Update conversation history with new system prompt and messages
+      // Store the turn WITHOUT the system prompt (bd-njn7u). Storing it put
+      // this turn's system message — featureContext and all — at [0] of the
+      // next turn's "existing history", where it rode mid-conversation as a
+      // second system message and outlived whatever context it described. The
+      // system prompt is composed fresh per request; history is turns only.
       const newHistory = [
-        { role: 'system', content: systemPrompt },
         ...existingHistory,
         { role: 'user', content: userMessage },
         { role: 'assistant', content: aiResponse }
@@ -431,7 +441,7 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
 
       // Keep only last N messages to manage memory
       if (newHistory.length > CONVERSATION_HISTORY_LIMIT) {
-        newHistory.splice(1, 2); // Keep system message, remove oldest user-assistant pair
+        newHistory.splice(0, 2); // remove oldest user-assistant pair
       }
 
       this.conversationHistory.set(userId, newHistory);
