@@ -216,12 +216,94 @@ async function buildLpContext(userId) {
     }
 
     const lessonIds = entries.map((e) => e.lesson_id);
+    const referenceTerms = referenceTermsFor(entries);
     logEvent('lp_context.built', { userId, source, lessonIds, blockChars: fullBlock.length });
-    return { identityLine, fullBlock, lessonIds, source };
+    return { identityLine, fullBlock, lessonIds, source, referenceTerms };
   } catch (err) {
     logToFile('LP context builder failed (soft-fail → no context)', { userId, error: err.message });
     return null;
   }
 }
 
-module.exports = { buildLpContext };
+// ─── the Tier-B gate (bd-njn7u Phase 3) ─────────────────────────────────────
+
+// Referring-back phrasings, Urdu + Roman Urdu + English. Multi-word on purpose:
+// a bare "is"/"lesson" would fire on half of all messages. Over-triggering is
+// self-healing (Tier B injected once too often is mild); under-triggering is
+// covered by the classifier and by Tier A's ask-her line.
+const REFERRING_BACK_TOKENS = [
+  'اس سبق', 'یہ سبق', 'اس والا', 'یہ والا', 'والے سبق', 'والا سبق',
+  'اس لیسن', 'یہ لیسن', 'آپ نے بھیجا', 'بھیجا تھا',
+  'is lesson', 'yeh lesson', 'us lesson', 'is sabaq', 'yeh sabaq', 'us sabaq',
+  'walay sabaq', 'wala sabaq', 'wale sabaq', 'walay lesson', 'wala lesson',
+  'yeh wala', 'is wala', 'us wala', 'jo aap ne bheja', 'jo apne bheja',
+  'this lesson', 'that lesson', 'the lesson you', 'you sent',
+];
+
+const TERM_STOPWORDS = new Set(['the', 'and', 'for', 'with', 'from', 'day']);
+const TERMS_MAX = 20;
+
+/** Distinct significant words from the delivered lessons' titles + topics. */
+function referenceTermsFor(entries) {
+  const terms = new Set();
+  for (const e of entries) {
+    for (const raw of `${e.chapter_title || ''} ${e.topic || ''}`.split(/[\s،۔؟!,.:;()'"“”]+/)) {
+      const w = raw.trim().toLowerCase();
+      if (w.length >= 3 && !TERM_STOPWORDS.has(w)) terms.add(w);
+      if (terms.size >= TERMS_MAX) return [...terms];
+    }
+  }
+  return [...terms];
+}
+
+/**
+ * Lexical fallback for "is she talking about a delivered lesson?" — catches
+ * the obvious referring-back phrasings a classifier miss would drop.
+ * @param {string} message
+ * @param {string[]} referenceTerms - from buildLpContext
+ */
+function messageReferencesLp(message, referenceTerms = []) {
+  const msg = String(message || '').toLowerCase();
+  if (!msg) return false;
+  if (REFERRING_BACK_TOKENS.some((t) => msg.includes(t))) return true;
+  return (referenceTerms || []).some((t) => t && String(t).length >= 3 && msg.includes(String(t).toLowerCase()));
+}
+
+// Injectable for unit tests only — production always uses the real builder.
+let _buildLpContext = buildLpContext;
+function __setBuildLpContextForTests(fn) { _buildLpContext = fn || buildLpContext; }
+
+/**
+ * The ONE line each handler calls before getResponseWithFormat.
+ *
+ * Composes the tiered LP block onto whatever featureContext the caller
+ * already has (ContextService, video — never clobbered). Tier A (identity
+ * line) whenever anything was recently delivered; Tier B (voicenote script +
+ * steps) only when her message plausibly concerns it — classifier
+ * `lp_reference` OR the lexical fallback. Soft-fail: the caller's existing
+ * context comes back unchanged.
+ *
+ * @param {{userId:string, message:string, intent?:{lp_reference?:boolean}, existingContext?:string|null}} args
+ * @returns {Promise<string|null>} the featureContext to pass on
+ */
+async function injectLpContext({ userId, message, intent, existingContext = null }) {
+  try {
+    const ctx = await _buildLpContext(userId);
+    if (!ctx) return existingContext;
+
+    const wantsDetail = !!(intent && intent.lp_reference) || messageReferencesLp(message, ctx.referenceTerms);
+    const lpBlock = wantsDetail ? `${ctx.identityLine}\n\n${ctx.fullBlock}` : ctx.identityLine;
+    logEvent('lp_context.injected', {
+      userId,
+      tier: wantsDetail ? 'B' : 'A',
+      source: ctx.source,
+      lessonIds: ctx.lessonIds,
+    });
+    return existingContext ? `${existingContext}\n\n${lpBlock}` : lpBlock;
+  } catch (err) {
+    logToFile('LP context injection failed (non-blocking)', { userId, error: err.message });
+    return existingContext;
+  }
+}
+
+module.exports = { buildLpContext, messageReferencesLp, injectLpContext, __setBuildLpContextForTests };

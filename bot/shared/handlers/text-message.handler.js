@@ -5,6 +5,7 @@ const ContentService = require('../services/content.service');
 const LanguageDetectorService = require('../services/language-detector.service');
 const FeatureRegistrationService = require('../services/feature-registration.service');
 const ContextService = require('../services/context.service'); // Phase 2: Conditional Feature Context
+const { injectLpContext } = require('../services/lp-context.service'); // bd-njn7u: LP Q&A awareness
 const redisService = require('../services/cache/railway-redis.service');
 const redis = redisService.redis; // Get Redis instance
 const CoachingService = require('../services/coaching-orchestrator.service');
@@ -2376,7 +2377,9 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     const topic = await VideoOrchestrator.extractTopicFromMessage(messageBody, responseLanguage);
     await VideoOrchestrator.initiateVideoRequest(user, from, sessionId, responseLanguage, topic);
   } else {
-    await handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController);
+    // intent rides along so the LP-context tier gate can reuse the classifier's
+    // lp_reference output instead of paying for a second LLM call (bd-njn7u).
+    await handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController, intent);
   }
   } finally {
     // CRITICAL: Always stop typing indicator, even if function exits early or throws
@@ -2464,7 +2467,7 @@ async function handlePresentationRequest(from, messageBody, user, sessionId, res
  * @param {Object} typingController - Typing indicator controller
  * @returns {Promise<void>}
  */
-async function handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController) {
+async function handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController, intent = null) {
   // Get firstName from user if registered
   const firstName = user?.first_name || null;
 
@@ -2479,6 +2482,16 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
         logToFile('Phase 2: Feature context retrieved', { contextLength: featureContext.length });
       }
     }
+
+    // bd-njn7u: LP Q&A awareness — composes onto any context above, never
+    // clobbers it. The AI stays the one who answers; it just knows what she
+    // was recently given. Soft-fail inside: featureContext survives untouched.
+    featureContext = await injectLpContext({
+      userId: user.id,
+      message: messageBody,
+      intent,
+      existingContext: featureContext,
+    });
   }
 
   // Get AI response with format-aware prompting (text format, detected language)
