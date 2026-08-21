@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const WhatsAppService = require('../services/whatsapp.service');
 const OpenAIService = require('../services/openai.service');
+const { injectLpContext } = require('../services/lp-context.service'); // bd-njn7u: LP Q&A awareness
 const { clampLanguage } = require('../config/ux-strings');
 const { verifyOutputLanguage } = require('../utils/output-language-check');
 const AudioService = require('../services/audio.service');
@@ -1180,12 +1181,26 @@ async function handleVoiceMessage(message, from, user = null) {
     // Get firstName from user if registered
     const firstName = user?.first_name || null;
 
+    // bd-njn7u: LP Q&A awareness — same tiers as the text path. She often
+    // ASKS by voice about the lesson she was just sent; the reply must know
+    // what that lesson says. Soft-fail: null keeps today's behaviour.
+    let featureContext = null;
+    if (user?.id) {
+      featureContext = await injectLpContext({
+        userId: user.id,
+        message: transcription,
+        intent,
+        existingContext: null,
+      });
+    }
+
     const aiResponse = await OpenAIService.getResponseWithFormat(
       transcription,
       user.id, // Use UUID, not phone number - for DB conversation history
       'voice', // outputFormat: voice response
       detectedLanguage, // outputLanguage: mirror user's language
-      firstName // firstName: for personalization
+      firstName, // firstName: for personalization
+      featureContext // bd-njn7u: what she was recently given, tier-gated
     );
     logToFile('AI response generated (format-aware)', {
       response: aiResponse,
