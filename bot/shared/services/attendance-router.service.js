@@ -203,6 +203,16 @@ async function route(userId) {
     return { action: 'ERROR', message: "I couldn't find your account. Please say \"register\" first." };
   }
 
+  // bd-njn7u: defensive LP-shelf flush — starting attendance is a real
+  // feature switch, so any in-flight LP-Q&A context belongs to the past.
+  // Parity with quiz/coaching/video/menu. Non-blocking by design.
+  try {
+    const LPShelfService = require('./lp-shelf.service');
+    await LPShelfService.flushShelf(userId);
+  } catch (err) {
+    logToFile('⚠️ LP shelf flush failed at attendance start (non-blocking)', { error: err.message });
+  }
+
   const classes = await loadClasses(userId);
   const isPrincipal = user.role === 'principal';
   const canMarkStaff = isPrincipal && Boolean(user.school_id);

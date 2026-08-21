@@ -303,6 +303,17 @@ class MenuService {
    * @private
    */
   static async _handleLessonPlanningChoice(userId, sessionId, from, language) {
+    // bd-njn7u: the explicit menu tap means "I'm starting fresh" — any
+    // in-flight LP-Q&A context belongs to the past. Parent-bot parity
+    // (bd-1565 L1b); quiz/coaching/video carry the same defensive flush.
+    // Non-blocking: a flush failure must never cost her the lesson menu.
+    try {
+      const LPShelfService = require('./lp-shelf.service');
+      await LPShelfService.flushShelf(userId);
+    } catch (err) {
+      logToFile('⚠️ LP shelf flush failed at menu_lesson_plan (non-blocking)', { error: err.message });
+    }
+
     const PAKISTAN_LP_FLOW_ID = process.env.PAKISTAN_LP_FLOW_ID || '';
 
     if (PAKISTAN_LP_FLOW_ID) {

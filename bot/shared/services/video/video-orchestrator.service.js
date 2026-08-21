@@ -40,6 +40,19 @@ class VideoOrchestrator {
   static async initiateVideoRequest(user, from, sessionId, language, topic = null) {
     const supabase = require('../../config/supabase');
 
+    // bd-njn7u: defensive LP-shelf flush on real feature switches — parity
+    // with quiz/coaching/menu (parent-bot bd-1349). Before the flag check on
+    // purpose: asking for a video is the context switch, whether or not the
+    // feature is enabled for her yet.
+    if (user?.id) {
+      try {
+        const LPShelfService = require('../lp-shelf.service');
+        await LPShelfService.flushShelf(user.id);
+      } catch (err) {
+        logToFile('⚠️ LP shelf flush failed at video start (non-blocking)', { error: err.message });
+      }
+    }
+
     logToFile('Initiating video request', {
       userId: user?.id,
       from,
