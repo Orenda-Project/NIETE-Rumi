@@ -2,13 +2,13 @@
   "version": "5.1",
   "data_api_version": "3.0",
   "routing_model": {
-    "BAND_PICKER": [
-      "VENDOR_PICKER",
-      "SUCCESS"
-    ],
     "VENDOR_PICKER": [
+      "BAND_PICKER",
       "MY_CERTIFICATES",
       "TRAINING_HOME",
+      "SUCCESS"
+    ],
+    "BAND_PICKER": [
       "SUCCESS"
     ],
     "TRAINING_HOME": [
@@ -24,6 +24,130 @@
     ]
   },
   "screens": [
+    {
+      "id": "VENDOR_PICKER",
+      "title": "Choose a program",
+      "terminal": false,
+      "data": {
+        "hero_title": {
+          "type": "string",
+          "__example__": "Choose a program"
+        },
+        "hero_subtitle": {
+          "type": "string",
+          "__example__": "Aisha Malik · NIETE Support"
+        },
+        "hero_caption": {
+          "type": "string",
+          "__example__": "You are enrolled in 3 training programs. Pick one to open its levels."
+        },
+        "vendor_options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "TALEEMABAD",
+              "title": "Taleemabad",
+              "description": "4 levels · 1 certified · 25% · 9/36 courses"
+            },
+            {
+              "id": "OXBRIDGE",
+              "title": "Oxbridge",
+              "description": "1 level · 7 sessions · Open-access"
+            },
+            {
+              "id": "BEACONHOUSE",
+              "title": "Beacon House",
+              "description": "4 levels · 0% · 0/24 courses"
+            }
+          ]
+        },
+        "certificates_visible": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "bands_edit_visible": {
+          "type": "boolean",
+          "__example__": true
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "${data.hero_title}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "${data.hero_subtitle}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "${data.hero_caption}"
+          },
+          {
+            "type": "Form",
+            "name": "form",
+            "children": [
+              {
+                "type": "RadioButtonsGroup",
+                "name": "vendor_choice",
+                "label": "Programs",
+                "required": true,
+                "data-source": "${data.vendor_options}"
+              },
+              {
+                "type": "Footer",
+                "label": "Open program",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "open_vendor",
+                    "_vendor_key": "${form.vendor_choice}"
+                  }
+                }
+              },
+              {
+                "type": "EmbeddedLink",
+                "text": "My certificates",
+                "visible": "${data.certificates_visible}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "open_certificates"
+                  }
+                }
+              },
+              {
+                "type": "EmbeddedLink",
+                "text": "Edit the grades I teach",
+                "visible": "${data.bands_edit_visible}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "change_bands"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
     {
       "id": "BAND_PICKER",
       "title": "Which grades do you teach?",
@@ -85,18 +209,6 @@
         "footer_label": {
           "type": "string",
           "__example__": "Save and continue"
-        },
-        "continue_visible": {
-          "type": "boolean",
-          "__example__": true
-        },
-        "save_label": {
-          "type": "string",
-          "__example__": "Save these grades"
-        },
-        "primary_action": {
-          "type": "string",
-          "__example__": "continue_to_training"
         }
       },
       "layout": {
@@ -135,139 +247,8 @@
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "_action": "${data.primary_action}",
-                    "_bands": "${form.band_choice}"
-                  }
-                }
-              },
-              {
-                "type": "EmbeddedLink",
-                "text": "${data.save_label}",
-                "visible": "${data.continue_visible}",
-                "on-click-action": {
-                  "name": "data_exchange",
-                  "payload": {
                     "_action": "save_bands",
                     "_bands": "${form.band_choice}"
-                  }
-                }
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "id": "VENDOR_PICKER",
-      "title": "Choose a program",
-      "terminal": false,
-      "data": {
-        "hero_title": {
-          "type": "string",
-          "__example__": "Choose a program"
-        },
-        "hero_subtitle": {
-          "type": "string",
-          "__example__": "Aisha Malik · NIETE Support"
-        },
-        "hero_caption": {
-          "type": "string",
-          "__example__": "You are enrolled in 3 training programs. Pick one to open its levels."
-        },
-        "vendor_options": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "title": {
-                "type": "string"
-              },
-              "description": {
-                "type": "string"
-              }
-            }
-          },
-          "__example__": [
-            {
-              "id": "TALEEMABAD",
-              "title": "Taleemabad",
-              "description": "4 levels · 1 certified · 25% · 9/36 courses"
-            },
-            {
-              "id": "OXBRIDGE",
-              "title": "Oxbridge",
-              "description": "1 level · 7 sessions · Open-access"
-            },
-            {
-              "id": "BEACONHOUSE",
-              "title": "Beacon House",
-              "description": "4 levels · 0% · 0/24 courses"
-            }
-          ]
-        },
-        "certificates_visible": {
-          "type": "boolean",
-          "__example__": true
-        }
-      },
-      "layout": {
-        "type": "SingleColumnLayout",
-        "children": [
-          {
-            "type": "TextHeading",
-            "text": "${data.hero_title}"
-          },
-          {
-            "type": "TextSubheading",
-            "text": "${data.hero_subtitle}"
-          },
-          {
-            "type": "TextCaption",
-            "text": "${data.hero_caption}"
-          },
-          {
-            "type": "Form",
-            "name": "form",
-            "children": [
-              {
-                "type": "RadioButtonsGroup",
-                "name": "vendor_choice",
-                "label": "Programs",
-                "required": true,
-                "data-source": "${data.vendor_options}"
-              },
-              {
-                "type": "Footer",
-                "label": "Open program",
-                "on-click-action": {
-                  "name": "data_exchange",
-                  "payload": {
-                    "_action": "open_vendor",
-                    "_vendor_key": "${form.vendor_choice}"
-                  }
-                }
-              },
-              {
-                "type": "EmbeddedLink",
-                "text": "My certificates",
-                "visible": "${data.certificates_visible}",
-                "on-click-action": {
-                  "name": "data_exchange",
-                  "payload": {
-                    "_action": "open_certificates"
-                  }
-                }
-              },
-              {
-                "type": "EmbeddedLink",
-                "text": "Change what I teach",
-                "on-click-action": {
-                  "name": "data_exchange",
-                  "payload": {
-                    "_action": "change_bands"
                   }
                 }
               }
