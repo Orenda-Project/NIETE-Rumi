@@ -81,7 +81,10 @@ async function handleEditClassInit(flowToken) {
 
 async function handleActionChoice(flowToken, screenData) {
   const { listId } = parseToken(flowToken);
-  const action = screenData?.action;
+  // NOT `action`: a form field of that name collides with the data_exchange
+  // envelope's own top-level `action` and never reaches us. `action` stays as a
+  // fallback for handsets still holding the previously published asset.
+  const action = screenData?.roster_action ?? screenData?.action;
   const [cls, roster] = await Promise.all([loadClass(listId), loadRoster(listId)]);
 
   if (action === 'add') {
