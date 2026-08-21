@@ -32,22 +32,18 @@ describe('BAND_PICKER — the routing model stays valid (BUG-144)', () => {
     expect(screenIds).toContain('BAND_PICKER');
   });
 
-  test('BAND_PICKER is an ENTRY POINT — nothing routes into it', () => {
-    const incoming = Object.entries(FLOW.routing_model)
-      .filter(([, outs]) => outs.includes('BAND_PICKER'))
-      .map(([from]) => from);
-    expect(incoming).toEqual([]);
+  test('VENDOR_PICKER routes FORWARD into BAND_PICKER', () => {
+    // The direction matters: BAND_PICKER as entry point charged every teacher
+    // who already has bands an extra tap on every open. VENDOR_PICKER is the
+    // majority case and therefore the entry point.
+    expect(FLOW.routing_model.VENDOR_PICKER).toContain('BAND_PICKER');
   });
 
-  test('BAND_PICKER routes forward into VENDOR_PICKER', () => {
-    expect(FLOW.routing_model.BAND_PICKER).toContain('VENDOR_PICKER');
-  });
-
-  test('exactly one entry point exists', () => {
+  test('exactly one entry point exists, and it is VENDOR_PICKER', () => {
     // Two entry points is as broken as none — INIT can only return one.
     const targets = new Set(Object.values(FLOW.routing_model).flat());
     const entries = Object.keys(FLOW.routing_model).filter(s => !targets.has(s));
-    expect(entries).toEqual(['BAND_PICKER']);
+    expect(entries).toEqual(['VENDOR_PICKER']);
   });
 
   test('the routing graph is ACYCLIC — no flow in this repo declares a cycle', () => {
@@ -93,6 +89,16 @@ describe('BAND_PICKER — the screen itself', () => {
     expect(cb).toContain('"required":true');
   });
 
+  test('has ONE action, not a save/continue split', () => {
+    // It carried two — "Save these grades" and "Continue to my training" —
+    // which forced a choice the teacher never wants to make, and silently threw
+    // away an edit if they tapped Continue. One button saves and moves on; an
+    // unchanged save is a no-op that does not spend the 48h cooldown.
+    const json = JSON.stringify(screen().layout);
+    expect(json).not.toContain('continue_to_training');
+    expect((json.match(/data_exchange/g) || []).length).toBe(1);
+  });
+
   test('submits _action=save_bands with the selection', () => {
     const json = JSON.stringify(screen().layout);
     expect(json).toContain('save_bands');
@@ -126,5 +132,32 @@ describe('BAND_PICKER — the screen itself', () => {
     const used = [...JSON.stringify(screen().layout).matchAll(/\$\{data\.([a-z_]+)\}/g)]
       .map(m => m[1]);
     for (const u of used) expect(declared).toContain(u);
+  });
+});
+
+describe('VENDOR_PICKER — bands are shown, not gated behind a confirm step', () => {
+  const vp = () => screenById.get('VENDOR_PICKER');
+
+  test('carries an "Edit the grades I teach" link into BAND_PICKER', () => {
+    const json = JSON.stringify(vp().layout);
+    expect(json).toContain('change_bands');
+    expect(json).toContain('Edit the grades I teach');
+  });
+
+  test('the edit link has its own visibility flag', () => {
+    // Hidden when there are no bands to edit — that teacher gets the
+    // setup-prompt row instead, which routes to the same screen.
+    expect(vp().data).toHaveProperty('bands_edit_visible');
+    expect(JSON.stringify(vp().layout)).toContain('${data.bands_edit_visible}');
+  });
+
+  test('it is still the entry point, so nobody pays a tap to reach training', () => {
+    const targets = new Set(Object.values(FLOW.routing_model).flat());
+    expect(Object.keys(FLOW.routing_model).filter(s => !targets.has(s)))
+      .toEqual(['VENDOR_PICKER']);
+  });
+
+  test('the caption slot can carry the bands summary', () => {
+    expect(vp().data).toHaveProperty('hero_caption');
   });
 });

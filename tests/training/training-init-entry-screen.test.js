@@ -134,7 +134,7 @@ const MULTI = [
 ];
 
 describe('BUG-144 — INIT must return a routing-model entry point', () => {
-  test('a teacher WITH training also gets BAND_PICKER — INIT must return the entry point', async () => {
+  test('a teacher WITH training goes straight to their programs — no extra tap', async () => {
     // THE REGRESSION THIS PINS. An earlier revision returned VENDOR_PICKER here,
     // reasoning that the entry-point rule constrains only the routing model.
     // It does not — Meta enforces it on the INIT RESPONSE, and the client
@@ -146,14 +146,14 @@ describe('BUG-144 — INIT must return a routing-model entry point', () => {
     // training — the 8,365 case, not the 353.
     mockTables = enrolment({ vendors: SINGLE });
     const res = await handleTeacherTrainingInit('u1', 'u1:teacher-training:1');
-    expect(res.screen).toBe(BAND_FIRST_SCREEN);
+    expect(res.screen).toBe(LEGAL_FIRST_SCREEN);
     expect(ENTRY_POINTS).toContain(res.screen);
   });
 
   test('a multi-vendor teacher likewise gets the entry point from INIT', async () => {
     mockTables = enrolment({ vendors: MULTI });
     const res = await handleTeacherTrainingInit('u1', 'u1:teacher-training:1');
-    expect(res.screen).toBe(BAND_FIRST_SCREEN);
+    expect(res.screen).toBe(LEGAL_FIRST_SCREEN);
   });
 
   test('INIT never returns a screen that has incoming edges', async () => {
@@ -169,20 +169,26 @@ describe('BUG-144 — INIT must return a routing-model entry point', () => {
     }
   });
 
-  test('teacher with no enrolment gets the BAND PICKER, not a dead end', async () => {
+  test('teacher with no enrolment gets a live route to the band picker, not a dead end', async () => {
     // Previously this returned VENDOR_PICKER carrying "No training assigned yet
     // ... contact your NIETE program lead" — a permanent dead end, because
     // nothing in the running app ever created an assignment. Now the teacher is
     // asked which grades they teach, and the answer assigns their programs.
     mockTables = { ...enrolment({ vendors: [] }), teacher_training_assignments: { data: [], error: null } };
     const res = await handleTeacherTrainingInit('u1', 'u1:teacher-training:1');
-    expect(res.screen).toBe(BAND_FIRST_SCREEN);
+    // Still the entry point, but its single row routes forward to BAND_PICKER
+    // rather than dead-ending on "contact your programme lead".
+    expect(res.screen).toBe(LEGAL_FIRST_SCREEN);
+    expect(res.data.vendor_options).toHaveLength(1);
+    expect(res.data.vendor_options[0].id).toBe('setup_bands');
     expectLegalFirstScreen(res.screen);
   });
 
-  test('BAND_PICKER is the routing model’s sole entry point', async () => {
+  test('VENDOR_PICKER is the routing model’s sole entry point', async () => {
     // The BUG-144 invariant itself: exactly one node with no incoming edges.
-    expect(ENTRY_POINTS).toEqual([BAND_FIRST_SCREEN]);
+    // BAND_PICKER is a FORWARD destination from it, so teachers who already
+    // have bands are not charged a tap they do not need.
+    expect(ENTRY_POINTS).toEqual([LEGAL_FIRST_SCREEN]);
   });
 
   test('BACK returns VENDOR_PICKER for a single-vendor teacher', async () => {
