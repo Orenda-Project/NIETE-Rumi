@@ -366,7 +366,12 @@ async function handleClassManagerDataExchange(userId, screen, screenData) {
     const ctx = await rosterContext(userId, who);
     if (!ctx) return await handleClassesInit(userId);
 
-    const action = screenData && screenData.action;
+    // NOT `action`: the data_exchange envelope already carries a top-level `action`
+    // ("data_exchange"), and a form field of the same name is dropped before it
+    // reaches us — every ROSTER request arrived with an empty data object, so remove
+    // silently fell through to add. `action` is read as a fallback only so a handset
+    // still holding the previously published asset keeps working.
+    const action = screenData && (screenData.roster_action || screenData.action);
     if (action === 'remove') return await buildRemoveStudentsScreen(who, ctx.classId, ctx.display);
     return buildAddStudentsScreen(who, ctx.display);
   }
