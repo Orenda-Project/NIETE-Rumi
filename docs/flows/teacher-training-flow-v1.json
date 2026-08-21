@@ -388,6 +388,26 @@
         "certificates_visible": {
           "type": "boolean",
           "__example__": true
+        },
+        "level_1_visible": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "level_2_visible": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "level_3_visible": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "level_4_visible": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "level_5_visible": {
+          "type": "boolean",
+          "__example__": false
         }
       },
       "layout": {
@@ -407,43 +427,53 @@
           },
           {
             "type": "TextHeading",
-            "text": "${data.level_1_title}"
+            "text": "${data.level_1_title}",
+            "visible": "${data.level_1_visible}"
           },
           {
             "type": "TextBody",
-            "text": "${data.level_1_progress}"
+            "text": "${data.level_1_progress}",
+            "visible": "${data.level_1_visible}"
           },
           {
             "type": "TextHeading",
-            "text": "${data.level_2_title}"
+            "text": "${data.level_2_title}",
+            "visible": "${data.level_2_visible}"
           },
           {
             "type": "TextBody",
-            "text": "${data.level_2_progress}"
+            "text": "${data.level_2_progress}",
+            "visible": "${data.level_2_visible}"
           },
           {
             "type": "TextHeading",
-            "text": "${data.level_3_title}"
+            "text": "${data.level_3_title}",
+            "visible": "${data.level_3_visible}"
           },
           {
             "type": "TextBody",
-            "text": "${data.level_3_progress}"
+            "text": "${data.level_3_progress}",
+            "visible": "${data.level_3_visible}"
           },
           {
             "type": "TextHeading",
-            "text": "${data.level_4_title}"
+            "text": "${data.level_4_title}",
+            "visible": "${data.level_4_visible}"
           },
           {
             "type": "TextBody",
-            "text": "${data.level_4_progress}"
+            "text": "${data.level_4_progress}",
+            "visible": "${data.level_4_visible}"
           },
           {
             "type": "TextHeading",
-            "text": "${data.level_5_title}"
+            "text": "${data.level_5_title}",
+            "visible": "${data.level_5_visible}"
           },
           {
             "type": "TextBody",
-            "text": "${data.level_5_progress}"
+            "text": "${data.level_5_progress}",
+            "visible": "${data.level_5_visible}"
           },
           {
             "type": "Form",
