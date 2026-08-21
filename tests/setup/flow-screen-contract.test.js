@@ -116,3 +116,53 @@ describe('flow screen contract', () => {
     });
   });
 });
+
+/**
+ * Meta refuses to publish a NavigationList that shares a screen with anything
+ * else. The error it returns names the wrong cause — "Only up to 2
+ * NavigationList components can be used per screen. Please remove other
+ * components." — while pointing at the FIRST sibling, so it reads as a count
+ * limit when it is really a co-existence rule.
+ *
+ * This cost a DRAFT on staging: PICK_TEACHER shipped as
+ * TextHeading + TextBody + NavigationList, the publish was rejected, and
+ * /remark could not open until a valid asset went up. The working precedent
+ * (observe-visit-v2 MENU) has the NavigationList as its ONLY child.
+ *
+ * Anything the screen needs to say has to live in the rows themselves.
+ */
+describe('NavigationList screens carry nothing else', () => {
+  const FLOW_DIR = path.join(ROOT, 'docs/flows');
+
+  const flows = fs.existsSync(FLOW_DIR)
+    ? fs.readdirSync(FLOW_DIR).filter((f) => f.endsWith('.json'))
+    : [];
+
+  function childTypes(node, acc = []) {
+    if (Array.isArray(node)) { node.forEach((n) => childTypes(n, acc)); return acc; }
+    if (node && typeof node === 'object') {
+      if (typeof node.type === 'string') acc.push(node.type);
+      Object.values(node).forEach((v) => childTypes(v, acc));
+    }
+    return acc;
+  }
+
+  flows.forEach((file) => {
+    it(`${file}: every NavigationList is the only component on its screen`, () => {
+      const flow = JSON.parse(fs.readFileSync(path.join(FLOW_DIR, file), 'utf8'));
+      const offenders = [];
+
+      for (const screen of flow.screens || []) {
+        const types = childTypes(screen.layout || {});
+        if (!types.includes('NavigationList')) continue;
+        // The layout wrapper itself is allowed; nothing else is.
+        const siblings = types.filter(
+          (t) => t !== 'NavigationList' && !/Layout$/.test(t),
+        );
+        if (siblings.length) offenders.push(`${screen.id}: + ${siblings.join(', ')}`);
+      }
+
+      expect(offenders).toEqual([]);
+    });
+  });
+});

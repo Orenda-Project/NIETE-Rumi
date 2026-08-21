@@ -16,14 +16,6 @@
       "id": "PICK_TEACHER",
       "title": "Teacher Evaluation",
       "data": {
-        "heading": {
-          "type": "string",
-          "__example__": "Your teachers"
-        },
-        "hint": {
-          "type": "string",
-          "__example__": "1 of 3 evaluated this quarter."
-        },
         "items": {
           "type": "array",
           "items": {
@@ -96,14 +88,6 @@
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          {
-            "type": "TextHeading",
-            "text": "${data.heading}"
-          },
-          {
-            "type": "TextBody",
-            "text": "${data.hint}"
-          },
           {
             "type": "NavigationList",
             "name": "teacher_list",

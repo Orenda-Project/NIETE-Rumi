@@ -121,15 +121,13 @@ async function handleRemarkInit(userId) {
   const progress = await cycle.getProgress(user.id, activeCycle.id);
   const scoreRows = await loadScoreIndex(user.id, activeCycle.id);
 
-  const done = teachers.filter((t) => stateOf(progress, t.id) === 'done').length;
-
+  // A NavigationList must be the ONLY component on its screen — Meta rejects the
+  // publish outright if it has siblings, and reports it as a count limit. So
+  // there is no heading and no hint element to hang "3 of 12 done" on: the
+  // per-row status carries it, and the screen title is static Flow chrome.
   return {
     screen: 'PICK_TEACHER',
     data: {
-      heading: resolveUx('remarkPickHeading', { language }),
-      hint: resolveUx('remarkRosterHint', {
-        language, params: { done, total: teachers.length },
-      }),
       items: teachers.map((t) => rosterRow(t, progress, scoreRows, language)),
     },
   };
