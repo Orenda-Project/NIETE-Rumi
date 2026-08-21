@@ -29,6 +29,12 @@
 
 const { logToFile } = require('../utils/logger');
 const supabase = require('../config/supabase');
+const {
+  applyBandSelection,
+  canChangeBands,
+  changeWarning,
+  BANDS,
+} = require('../services/training/band-selection.service');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 
@@ -40,9 +46,113 @@ const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const EXAM_QUIZ_TYPES = ['grand_quiz', 'capstone'];
 const EXAM_QUIZ_KINDS = ['grand', 'capstone'];
 const BADGES_BUCKET = 'training-assets';
+// The VENDOR_PICKER row that routes a teacher with no training into
+// BAND_PICKER. Distinct from the legacy 'none' placeholder, which is a dead end
+// emitted by entryErrorScreen when the catalog could not be loaded at all.
+const SETUP_BANDS_OPTION = 'setup_bands';
 
 function badgeUrl(name) {
   return `${SUPABASE_URL.replace(/\/$/, '')}/storage/v1/object/public/${BADGES_BUCKET}/badges/${name}.png`;
+}
+
+/**
+ * VENDOR_PICKER rendered for a teacher who has no training visible yet.
+ *
+ * Not an error screen: the single row is a live route into BAND_PICKER, so the
+ * teacher can say which grades they teach and get their programs. This replaces
+ * a permanent dead end — nothing in the running app had ever created an
+ * assignment, so "contact your NIETE program lead" was the end of the road.
+ */
+function buildBandSetupPrompt(userId, teacher) {
+  logToFile('🎓 VENDOR_PICKER (band setup prompt)', { userId });
+  return {
+    screen: 'VENDOR_PICKER',
+    data: {
+      hero_title: 'Teacher Training',
+      hero_subtitle: teacherSubtitle(teacher),
+      hero_caption:
+        'Tell us which grades you teach and we will set up the right training for you.',
+      vendor_options: [{
+        id: SETUP_BANDS_OPTION,
+        title: 'Choose the grades you teach',
+        description: 'Takes a few seconds',
+      }],
+      certificates_visible: false,
+      // MUST be set explicitly, not omitted. A ${data.*} field left out of a
+      // response is not treated as false — the client keeps the value it last
+      // had (or the schema's __example__), so omitting this rendered BOTH the
+      // "Choose the grades you teach" row AND the "Edit the grades I teach"
+      // link, which are mutually exclusive by definition.
+      bands_edit_visible: false,
+    },
+  };
+}
+
+/**
+ * BAND_PICKER: ask the teacher which grade bands they teach.
+ *
+ * Two audiences, one screen:
+ *   - a teacher with no visible training (the 353), for whom this replaces a
+ *     permanent dead end; and
+ *   - any teacher tapping "Change what I teach" to correct a stale band — the
+ *     reported case, where a signup answer of one primary grade had frozen a teacher
+ *     into the base-vendor-only program with no partner-vendor training.
+ *
+ * The 48h cooldown notice is shown only when there is something to lose: a
+ * first-ever selection carries no warning, and a teacher already inside the
+ * window is told they must contact NIETE Support.
+ */
+async function buildBandPicker(userId, teacher, opts = {}) {
+  const gate = canChangeBands(teacher);
+  const current = Array.isArray(teacher && teacher.training_bands) ? teacher.training_bands : [];
+  const hasTraining = Boolean(opts.hasTraining);
+
+  // A teacher inside the cooldown gets the REASON and a way back — never the
+  // checkbox form. Rendering a form they cannot submit is a trap: they tick a
+  // box, tap Save, and the write is refused, which previously read as success
+  // because we sent them onward with the refusal as a caption. Either they can
+  // change it or they cannot; the screen must say which.
+  const blocked = !gate.allowed;
+
+  const data = {
+    hero_title: blocked
+      ? 'Grades you teach'
+      : (hasTraining ? 'Edit the grades you teach' : 'Which grades do you teach?'),
+    hero_caption: blocked
+      ? (current.length
+          ? `We have you down for: ${bandLabels(current)}.`
+          : 'We do not have your grades recorded yet.')
+      : (hasTraining
+          ? 'Update this and we will adjust your training to match. Choose all that apply.'
+          : 'We use this to show you the right training. Choose all that apply.'),
+    band_options: BANDS.map(b => ({ id: b.key, title: b.label })),
+    init_bands: current,
+    // Shown under the form as a heads-up BEFORE a change; reused as the body of
+    // the blocked state.
+    cooldown_notice: opts.error || (blocked ? gate.message : (gate.isFirstSelection ? '' : changeWarning())),
+    notice_visible: Boolean(opts.error || (!blocked && !gate.isFirstSelection)),
+    // The single Footer switches label AND action with the state, so a blocked
+    // teacher has no way to submit — only a way back.
+    footer_label: blocked
+      ? 'Back to my training'
+      : (hasTraining ? 'Save changes' : 'Save and continue'),
+    primary_action: blocked ? 'back_to_training' : 'save_bands',
+    // Exactly one of these is ever true.
+    form_visible: !blocked,
+    blocked_visible: blocked,
+    blocked_heading: 'This cannot be changed yet',
+    blocked_body: blocked ? gate.message : '',
+  };
+
+  logToFile('🎓 BAND_PICKER response snapshot', {
+    userId,
+    current_bands: current,
+    has_training: hasTraining,
+    blocked,
+    first_selection: gate.isFirstSelection,
+    hours_remaining: gate.hoursRemaining,
+  });
+  return { screen: 'BAND_PICKER', data };
 }
 
 /**
@@ -54,19 +164,28 @@ async function handleTeacherTrainingInit(userId /*, flowToken */) {
   const catalog = await loadVisibleLevelsWithProgress(userId);
   const teacher = await loadTeacher(userId);
   if (!teacher) return entryErrorScreen('We could not find your training profile. Please contact NIETE support.');
-  if (catalog.length === 0) {
-    return entryErrorScreen(
-      `No training assigned yet, ${teacher.first_name || 'teacher'}. ` +
-      'Please contact your NIETE program lead to enrol you.'
-    );
-  }
 
-  // BUG-144 — INIT must return a routing-model ENTRY POINT (a node with no
-  // incoming edges). VENDOR_PICKER is the only one; TRAINING_HOME has an
-  // incoming edge from it. The old single-vendor shortcut returned
-  // TRAINING_HOME to save a tap and the client rejected the whole Flow with
-  // "invalid-screen-transition ... already have incoming nodes". Always open
-  // on the picker — single-vendor teachers see a one-row list and tap through.
+  // BUG-144 — INIT MUST return the routing model's ENTRY POINT. Not "should":
+  // the client rejects the entire Flow with
+  //   "invalid-screen-transition ... The first screen -[X] that was provided
+  //    with response already have incoming nodes found in the routing model"
+  // and the teacher sees "Something went wrong" before anything renders. This
+  // is enforced on the INIT RESPONSE, not merely on the routing model.
+  //
+  // VENDOR_PICKER is that entry point, and BAND_PICKER is a FORWARD
+  // destination from it. An earlier revision inverted this — BAND_PICKER as
+  // entry — which was correct for Meta but wrong for teachers: it charged all
+  // 8,709 who already have bands an extra tap on every single open, to serve
+  // the few hundred who have none. The entry point belongs to the majority
+  // case.
+  //
+  // A teacher with no visible training still must not dead-end here (they used
+  // to get "No training assigned yet ... contact your NIETE program lead",
+  // permanently, because nothing in the running app ever created an
+  // assignment). They get a VENDOR_PICKER whose only row walks forward to
+  // BAND_PICKER to tell us what they teach.
+  if (catalog.length === 0) return buildBandSetupPrompt(userId, teacher);
+
   return buildVendorPicker(userId, teacher, partitionByVendor(catalog));
 }
 
@@ -77,14 +196,88 @@ async function handleTeacherTrainingInit(userId /*, flowToken */) {
 async function handleTeacherTrainingDataExchange(userId, screen, screenData /*, flowToken */) {
   logToFile('🎓 Training Flow data_exchange', { userId, screen, screenData });
 
+  // The teacher told us which grades they teach.
+  if (screen === 'BAND_PICKER') {
+    const action = screenData._action;
+
+    // ONE button: save whatever is selected, then continue.
+    //
+    // This screen used to carry two actions — "Save these grades" and
+    // "Continue to my training" — which was a bad split. It made the teacher
+    // choose between saving and proceeding when they always want both, and it
+    // was actively wrong: tapping Continue after editing the checkboxes threw
+    // the edit away silently, because Continue did no write.
+    //
+    // Saving unconditionally is safe. applyBandSelection is a no-op when the
+    // selection matches what is already stored — no rows written, and crucially
+    // NO cooldown stamp — so a teacher who just wants to get to their training
+    // does not spend their 48-hour change on tapping through.
+    if (action === 'save_bands' || action === 'continue_to_training') {
+      const raw = screenData._bands;
+      const selection = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+      const result = await applyBandSelection(userId, selection);
+
+      const teacher = await loadTeacher(userId);
+      const catalog = await loadVisibleLevelsWithProgress(userId);
+
+      if (!result.ok) {
+        // Never continue silently. Sending the teacher onward with the refusal
+        // as a caption read as SUCCESS — they believed the change had saved.
+        // Re-render the picker in its blocked state: the reason, and a way
+        // back. buildBandPicker decides the shape from the live cooldown, so a
+        // refusal is always shown as a refusal.
+        logToFile('🎓 Band change refused', { userId, reason: result.reason });
+        return buildBandPicker(userId, teacher, {
+          hasTraining: catalog.length > 0,
+          error: result.reason === 'cooldown' ? null : result.message,
+        });
+      }
+
+      // Returning VENDOR_PICKER here is a BACKWARD render — there is no
+      // declared BAND_PICKER -> VENDOR_PICKER edge now that the edge runs the
+      // other way. That is allowed: the entry-point rule binds the INIT
+      // response, and a data_exchange response may render any screen. This is
+      // the same mechanism back_to_vendors uses to return VENDOR_PICKER from
+      // TRAINING_HOME.
+      if (catalog.length === 0) {
+        // Saved, but nothing is set up for those grades — a scope gap, not the
+        // teacher's fault. Say so rather than looping them back.
+        return buildSuccessScreen(
+          'Thank you. We have saved that, but there is no training set up for those grades yet. ' +
+          'Please contact NIETE support.'
+        );
+      }
+      return buildVendorPicker(userId, teacher, partitionByVendor(catalog));
+    }
+
+    // The blocked state's only exit — back to whatever training they have.
+    if (action === 'back_to_training') {
+      const teacher = await loadTeacher(userId);
+      const catalog = await loadVisibleLevelsWithProgress(userId);
+      if (!teacher || catalog.length === 0) return buildBandSetupPrompt(userId, teacher);
+      return buildVendorPicker(userId, teacher, partitionByVendor(catalog));
+    }
+    if (action === 'close') return buildSuccessScreen('See you soon!');
+    return createErrorResponse('Unknown action on band picker');
+  }
+
   if (screen === 'VENDOR_PICKER') {
     const action = screenData._action;
+    // "Change what I teach" — a declared forward edge
+    // (VENDOR_PICKER -> BAND_PICKER), so no re-render trickery needed.
+    if (action === 'change_bands') {
+      return buildBandPicker(userId, await loadTeacher(userId), { hasTraining: true });
+    }
     if (action === 'open_vendor') {
       const vendorKey = String(screenData._vendor_key || '').trim();
       if (!vendorKey) return createErrorResponse('Missing vendor');
       // BUG-144 — the placeholder row emitted by entryErrorScreen. Nothing to
       // open; close cleanly instead of resolving it to an arbitrary vendor.
       if (vendorKey === 'none') return buildSuccessScreen('No training assigned yet.');
+      // The band-setup row — walk forward into BAND_PICKER.
+      if (vendorKey === SETUP_BANDS_OPTION) {
+        return buildBandPicker(userId, await loadTeacher(userId), { hasTraining: false });
+      }
       return buildTrainingHome(userId, { vendorKey });
     }
     // bd-2665 — the certificate route. VENDOR_PICKER is the Flow's only entry
@@ -318,11 +511,36 @@ function partitionByVendor(catalog) {
  * The dropdown value is the vendor_key (e.g. TALEEMABAD / OXBRIDGE / BEACONHOUSE)
  * which the data_exchange handler uses to scope buildTrainingHome.
  */
-function buildVendorPicker(userId, teacher, vendors) {
+/** ["PRIMARY","MIDDLE"] -> "Primary (Grades 1-5), Middle (Grades 6-8)" */
+function bandLabels(keys) {
+  return (Array.isArray(keys) ? keys : [])
+    .map(k => (BANDS.find(b => b.key === String(k).toUpperCase()) || {}).label)
+    .filter(Boolean)
+    .join(', ');
+}
+
+/** Same, read off a teacher row. */
+function bandSummary(teacher) {
+  const keys = Array.isArray(teacher && teacher.training_bands) ? teacher.training_bands : [];
+  const labels = keys
+    .map(k => (BANDS.find(b => b.key === String(k).toUpperCase()) || {}).label)
+    .filter(Boolean);
+  return labels.join(', ');
+}
+
+function buildVendorPicker(userId, teacher, vendors, opts = {}) {
+  // The teacher's own bands are shown here rather than gating the screen behind
+  // a confirm step: they are what decides which programs appear, so a teacher
+  // seeing only one vendor can tell at a glance whether that is because of
+  // what they told us. "Edit the grades I teach" routes forward to BAND_PICKER.
+  const bands = bandSummary(teacher);
   const data = {
     hero_title:    'Choose a program',
     hero_subtitle: teacherSubtitle(teacher),
-    hero_caption:  `You are enrolled in ${vendors.length} training programs. Pick one to open its levels.`,
+    hero_caption:  opts.notice
+      || (bands
+            ? `Grades you teach: ${bands}. Pick a program to open its levels.`
+            : `You are enrolled in ${vendors.length} training programs. Pick one to open its levels.`),
     vendor_options: vendors.map(v => ({
       id:    v.vendor_key,
       title: v.vendor_name,
@@ -331,11 +549,16 @@ function buildVendorPicker(userId, teacher, vendors) {
     // bd-2665 — see buildTrainingHome. Derived from the vendor groups already
     // partitioned here, so no extra query.
     certificates_visible: vendors.some(v => (v.summary && v.summary.levels_certified > 0)),
+    // Hidden only when we have no bands to edit (the setup-prompt case renders
+    // its own row instead).
+    bands_edit_visible: Boolean(bands),
   };
   logToFile('🎓 VENDOR_PICKER response snapshot', {
     userId,
     vendor_count: vendors.length,
     vendor_keys: vendors.map(v => v.vendor_key),
+    bands,
+    notice: opts.notice || null,
   });
   return { screen: 'VENDOR_PICKER', data };
 }
@@ -664,7 +887,7 @@ async function checkModuleUnlocked(userId, moduleId) {
 async function loadTeacher(userId) {
   const { data, error } = await supabase
     .from('users')
-    .select('id, first_name, last_name, name, phone_number, teacher_uuid, levels, school_name')
+    .select('id, first_name, last_name, name, phone_number, teacher_uuid, training_bands, training_bands_updated_at, school_name')
     .eq('id', userId)
     .single();
   if (error) {
@@ -1425,6 +1648,10 @@ function entryErrorScreen(message) {
       // all, so we cannot know whether certificates exist. Hide the link
       // rather than offer a second dead end on top of the first.
       certificates_visible: false,
+      // Must be explicit: an omitted ${data.*} field keeps its previous value
+      // on the client rather than defaulting to false, which rendered the Edit
+      // link on a screen that has no bands to edit.
+      bands_edit_visible: false,
     },
   };
 }

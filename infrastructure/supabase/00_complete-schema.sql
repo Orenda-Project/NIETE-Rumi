@@ -4042,6 +4042,20 @@ $function$;
 -- users.levels is the array ['PRIMARY','MIDDLE','HIGH'] used by future access rules.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS teacher_uuid UUID;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS levels VARCHAR(16)[];
+
+-- users.training_bands: the teacher's OWN statement of which grade
+-- bands they teach, chosen on the bot or portal. TRAINING SCOPING ONLY: it maps
+-- to training_programs and must NEVER gate lesson plans or any other feature (a
+-- teacher picking "Middle" to reach the Beacon House training must not thereby
+-- change their lesson-plan content). Deliberately NOT a rename of users.levels,
+-- which is still read by the role-backfill heuristics as evidence of
+-- teacherhood — a self-declared training band is not that. See migration
+-- V1.1.8__users_training_bands.sql for the full rationale.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS training_bands VARCHAR(16)[];
+-- When the teacher last CHANGED training_bands themselves. NULL = never
+-- self-selected, so a first choice is always allowed and an imported band does
+-- not start a teacher inside the 48h change cooldown.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS training_bands_updated_at TIMESTAMPTZ;
 CREATE UNIQUE INDEX IF NOT EXISTS ux_users_teacher_uuid ON users(teacher_uuid) WHERE teacher_uuid IS NOT NULL;
 
 -- ---------------------------------------------------------------------------
