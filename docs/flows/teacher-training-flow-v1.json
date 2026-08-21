@@ -209,6 +209,18 @@
         "footer_label": {
           "type": "string",
           "__example__": "Save and continue"
+        },
+        "form_visible": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "blocked_visible": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "blocked_heading": {
+          "type": "string",
+          "__example__": "You cannot change this yet"
         }
       },
       "layout": {
@@ -228,6 +240,7 @@
             "init-values": {
               "band_choice": "${data.init_bands}"
             },
+            "visible": "${data.form_visible}",
             "children": [
               {
                 "type": "CheckboxGroup",
@@ -249,6 +262,31 @@
                   "payload": {
                     "_action": "save_bands",
                     "_bands": "${form.band_choice}"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "Form",
+            "name": "blocked_form",
+            "visible": "${data.blocked_visible}",
+            "children": [
+              {
+                "type": "TextSubheading",
+                "text": "${data.blocked_heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.cooldown_notice}"
+              },
+              {
+                "type": "Footer",
+                "label": "Back to my training",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "back_to_training"
                   }
                 }
               }
