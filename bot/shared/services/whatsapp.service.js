@@ -313,15 +313,24 @@ class WhatsAppService {
     const path = require('path');
 
     try {
+      // bd-z5olm: sniff the container instead of assuming MP3. TTS now
+      // produces Ogg Opus (ElevenLabs opus_48000_64, OpenAI 'opus'), and
+      // audio/ogg is what makes WhatsApp render a real VOICE message —
+      // waveform + speed control — instead of a music-player bubble. Any
+      // straggler MP3 producer (Uplift tiers) still sends as audio/mpeg.
+      const isOgg = audioBuffer.slice(0, 4).toString('latin1') === 'OggS';
+      const ext = isOgg ? 'ogg' : 'mp3';
+      const contentType = isOgg ? 'audio/ogg' : 'audio/mpeg';
+
       // Save audio to temp file
-      const audioPath = path.join(tempDir, `audio_${Date.now()}.mp3`);
+      const audioPath = path.join(tempDir, `audio_${Date.now()}.${ext}`);
       fs.writeFileSync(audioPath, audioBuffer);
 
       // Upload media to WhatsApp
       const formData = new FormData();
       formData.append('file', fs.createReadStream(audioPath), {
-        contentType: 'audio/mpeg',
-        filename: 'audio.mp3',
+        contentType,
+        filename: `audio.${ext}`,
       });
       formData.append('messaging_product', 'whatsapp');
 
