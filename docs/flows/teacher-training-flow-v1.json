@@ -134,7 +134,7 @@
               },
               {
                 "type": "EmbeddedLink",
-                "text": "Edit the grades I teach",
+                "text": "Edit Teacher Level",
                 "visible": "${data.bands_edit_visible}",
                 "on-click-action": {
                   "name": "data_exchange",

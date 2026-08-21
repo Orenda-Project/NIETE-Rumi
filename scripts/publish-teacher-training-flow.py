@@ -24,11 +24,12 @@ tester phone number without exposing the change to the general teacher
 population. Promote to PUBLISHED with --publish after sign-off.
 """
 from __future__ import annotations
+import os
 import argparse, json, sys, urllib.request, urllib.error, uuid
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-ENV = REPO / ".env.stage"
+ENV = REPO / (os.environ.get("FLOW_ENV_FILE") or ".env.stage")
 FLOW_JSON = REPO / "docs" / "flows" / "teacher-training-flow-v1.json"
 
 
@@ -76,9 +77,24 @@ def main() -> int:
     ap.add_argument("--publish", action="store_true", help="Publish the Flow immediately (default: DRAFT)")
     ap.add_argument("--flow-id", help="Update an existing draft Flow instead of creating a new one")
     ap.add_argument("--name", default="teacher_training_v52", help="Flow name (default: assessment_gen_v3 — bumped for FEAT-092 rev3)")
-    ap.add_argument("--endpoint-uri", default="https://bot-production-67c2.up.railway.app/api/flows/teacher-training",
+    # NO hardcoded default. A hardcoded host is the wrong host for whichever
+    # environment you are not thinking about: pointing the PRODUCTION flow at the
+    # staging bot silently breaks every teacher's INIT. Derive it from the env
+    # file in use, and require it explicitly if that file cannot say.
+    ap.add_argument("--endpoint-uri", default=None,
                     help="Public URL Meta calls for data_exchange (default: NIETE prod)")
     args = ap.parse_args()
+
+    if not args.endpoint_uri:
+        base = (env("APP_URL", required=False) or "").rstrip("/")
+        if not base:
+            sys.exit(
+                "ERROR: --endpoint-uri not given and APP_URL is empty in %s.\n"
+                "       Pass it explicitly. Read the correct value off the LIVE flow\n"
+                "       (GET /<flow-id>?fields=endpoint_uri) rather than guessing —\n"
+                "       the prod bot and the staging bot are different hosts."
+                % ENV.name)
+        args.endpoint_uri = base + "/api/flows/teacher-training"
 
     waba_id = env("WABA_ID")
     flow_json = FLOW_JSON.read_text()
