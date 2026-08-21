@@ -131,11 +131,17 @@ async function buildBandPicker(userId, teacher, opts = {}) {
     // the blocked state.
     cooldown_notice: opts.error || (blocked ? gate.message : (gate.isFirstSelection ? '' : changeWarning())),
     notice_visible: Boolean(opts.error || (!blocked && !gate.isFirstSelection)),
-    footer_label: hasTraining ? 'Save changes' : 'Save and continue',
+    // The single Footer switches label AND action with the state, so a blocked
+    // teacher has no way to submit — only a way back.
+    footer_label: blocked
+      ? 'Back to my training'
+      : (hasTraining ? 'Save changes' : 'Save and continue'),
+    primary_action: blocked ? 'back_to_training' : 'save_bands',
     // Exactly one of these is ever true.
     form_visible: !blocked,
     blocked_visible: blocked,
     blocked_heading: 'This cannot be changed yet',
+    blocked_body: blocked ? gate.message : '',
   };
 
   logToFile('🎓 BAND_PICKER response snapshot', {
