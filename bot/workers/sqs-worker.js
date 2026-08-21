@@ -1110,7 +1110,12 @@ function startWorker() {
       if (worker.isShuttingDown) return;
       try {
         const res = await ConversationResume.sweepAndOffer();
-        if (res.offered || res.expired || res.failed) {
+        // skippedLocked belongs in here. acquireLock fails CLOSED — no
+        // cache, no sweep — which is the right direction, but it was the one
+        // outcome that produced no log line, so a sweeper that was lock-blocked or
+        // cache-starved on EVERY interval looked exactly like a healthy idle one.
+        // Every field the sweep can report must be able to speak.
+        if (res.offered || res.expired || res.failed || res.skippedLocked) {
           logToFile('🔄 Interrupted-task resume sweep', res);
         }
       } catch (error) {

@@ -53,6 +53,23 @@ function detectFlowType(responseJson) {
     return 'remark';
   }
 
+  // 0c. /status. status-flow-endpoint.js has emitted status_action in
+  //     extension_message_response.params since it shipped — and its own comment
+  //     said the params existed "so the chat-side nfm_reply branch can dispatch a
+  //     contextual ack instead of the generic" one. There was no rule here and no
+  //     branch there, so every /status completion fell to the "Unknown flow type"
+  //     arm: it logged a warning and replied "Thanks for your response!", telling a
+  //     teacher who had just stopped a task precisely nothing about it.
+  //
+  //     Same placement reasoning as the two rules above: the attendance_marking
+  //     fallback matches any flow_token containing a colon. This flow's token is a
+  //     bare user id today, so it would not match — but that is exactly what was
+  //     true of the exam-generator and observe flows before their token formats
+  //     changed and the fallback ate them.
+  if (responseJson.status_action !== undefined) {
+    return 'status';
+  }
+
   // 0.05 Training multi-answer question — the select-all-that-apply
   //      CheckboxGroup Flow. The screen echoes training_msq_action in its
   //      completion payload; the field is unique to this flow, so the rule

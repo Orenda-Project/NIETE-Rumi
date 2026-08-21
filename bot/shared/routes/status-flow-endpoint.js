@@ -105,11 +105,29 @@ async function buildMainScreen(userId) {
       );
     }
 
-    const summaryHeading = items.length === 1
-      ? 'You have 1 thing running right now.'
-      : `You have ${items.length} things running right now.`;
+    // Count TASKS, not the actions available on them. One live
+    // conversation state contributes two selectable rows — resume and stop — and
+    // counting the row array told a teacher with a single coaching session that she
+    // had "2 things running", bulleted as "• Continue: …" / "• Stop: …". Those are
+    // verbs, not work. It scaled the wrong way too: two in-flight flows would have
+    // announced four.
+    //
+    // `taskKey` is set only by the kinds that split into multiple rows; everything
+    // else falls back to its own id, so single-row kinds keep counting as one.
+    const tasks = [];
+    const seenTasks = new Set();
+    for (const it of items) {
+      const key = it.taskKey || it.id;
+      if (seenTasks.has(key)) continue;
+      seenTasks.add(key);
+      tasks.push(it.taskTitle || it.title);
+    }
 
-    const summaryBody = items.map(it => `• ${it.title}`).join('\n');
+    const summaryHeading = tasks.length === 1
+      ? 'You have 1 thing running right now.'
+      : `You have ${tasks.length} things running right now.`;
+
+    const summaryBody = tasks.map(t => `• ${t}`).join('\n');
 
     const resources = items.map(it => ({
       id: it.id,

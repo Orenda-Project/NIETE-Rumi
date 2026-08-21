@@ -226,17 +226,28 @@ async function listActiveResources(userId) {
     if (active && active.step !== ConversationResume.OFFERED) {
       const label = ConversationResume.TASK_LABEL[active.flow];
       const title = label ? label.en : active.flow;
+      // TWO selectable rows, ONE task. She must be able to pick resume
+      // or stop, so the rows stay per-action — but /status counted and bulleted
+      // this same array and therefore told a teacher with one coaching session
+      // that she had "2 things running", listing the two verbs as if they were the
+      // work. `taskKey` groups the pair; `taskTitle` is the task without the verb,
+      // so a summary needs no string-surgery on "Continue: ".
+      const taskKey = `flow:${active.flow}`;
       items.push({
         id: `resume_flow_${active.flow}`,
         title: `Continue: ${title}`.slice(0, 70),
         kind: 'flow_resume',
         refId: active.flow,
+        taskKey,
+        taskTitle: title,
       });
       items.push({
         id: `cancel_flow_${active.flow}`,
         title: `Stop: ${title}`.slice(0, 70),
         kind: 'flow_cancel',
         refId: active.flow,
+        taskKey,
+        taskTitle: title,
       });
     }
   } catch (err) {
