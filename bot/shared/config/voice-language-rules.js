@@ -26,7 +26,11 @@ const URDU_VOICE_RULES = `URDU-FOR-VOICE RULES (this text is spoken aloud by an 
     شکریہ (not دھنیہ واد) · فوراً (not ترنت) · سوال (not پرشن) · ضرورت (not آوشیکتا) · مشکل (not کٹھن) · کوشش (not پریاس) · مثال (not اُداہرن) · اُمید (not آشا) · طالبِ علم/بچے (not ودیارتھی) · استاد/ٹیچر (not ادھیاپک).
 - ENGLISH TERMS STAY IN ENGLISH (Latin letters), inline: genuine English words — lesson plan, classroom, worksheet, activity, Grade 3, and pedagogy terms — stay written in English. NEVER transliterate them into Urdu script (never "گریڈ تھری" → write "Grade 3"). The voice handles inline English cleanly.
 - NUMBERS: never write a bare digit inline (the voice garbles "43"/"8") — spell numbers as words.
-- NO markdown (** or *) — the voice reads the asterisks aloud.`;
+- NO markdown (** or *) — the voice reads the asterisks aloud.
+- RELIGIOUS HONORIFICS (measured on this voice, 2026-08-20): the ligature ﷺ speaks correctly — for the Prophet Muhammad write ﷺ or the full صَلَّى ٱللَّٰهُ عَلَيْهِ وَسَلَّمَ. But the COMBINING marks ؓ ؑ ؒ ؐ are silently swallowed by the voice — NEVER write them; write the full spoken phrase instead:
+    a male Companion (Zaid, Abu Bakr, Umar) → رَضِیَ ٱللَّٰهُ عَنْہُ · a female Companion or wife of the Prophet (Khadija, Aisha) → رَضِیَ ٱللَّٰهُ عَنْہا · several Companions → رَضِیَ ٱللَّٰهُ عَنْہُم · another prophet (Ibrahim, Musa, Isa) → عَلَیْہِ السَّلام · a revered woman (Maryam) → عَلَیْہَا السَّلام · a past scholar → رَحْمَۃُ ٱللَّٰهِ عَلَیْہِ.
+    Gender and number are not optional — عنہا for a wife of the Prophet, never عنہُ. Honour whoever the source honours: never drop an honorific it carries, never invent one it does not.
+- NEVER split a word into dash-syllables inside Nastaliq (بَ-نا-یا) — the voice reads it as the whole word; write words whole.`;
 
 const ENGLISH_VOICE_RULES = `ENGLISH-FOR-VOICE RULES (this text is spoken aloud by an English voice):
 - Respond ONLY in natural, simple English. Do NOT use any Urdu, Hindi, or transliteration — English words only.
