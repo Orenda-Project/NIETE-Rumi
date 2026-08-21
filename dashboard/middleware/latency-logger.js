@@ -8,6 +8,34 @@
  * Solution: Log all request durations, alert on slow requests
  */
 
+// Emit through the dashboard's OWN telemetry sink.
+//
+// This middleware used to guard both of its emits with `if (global.logEvent)`.
+// Nothing in this repository ever assigns that global, so both branches were
+// dead: the service carried AXIOM_DATASET + AXIOM_TOKEN, looked instrumented,
+// and shipped nothing. Axiom held no rows for this service at all.
+//
+// The first attempt at a fix required the BOT's structured logger. That fails
+// in this process: the bot's logger needs `pino`, which is in the bot's
+// dependency set, not the dashboard's. It failed silently in exactly the way
+// the original bug did — deploy green, telemetry still absent — so the sink is
+// now local and depends only on Node built-ins. Do not reintroduce a
+// cross-service require here.
+//
+// The cost of the blind spot was real: a report of "training levels are not
+// visible in the portal" could not be diagnosed, because no record of the
+// teacher's request survived. The platform log buffer keeps only minutes.
+const telemetry = require('../services/telemetry.service');
+
+/** Emit a semantic event. Instrumentation must never break a response. */
+function emit(event, data) {
+  try {
+    telemetry.logEvent(event, data);
+  } catch (err) {
+    process.stderr.write(`[latency-logger] emit failed for ${event}: ${err.message}\n`);
+  }
+}
+
 // Threshold for "slow" request alerts (milliseconds)
 const SLOW_REQUEST_THRESHOLD = 5000; // 5 seconds
 
@@ -90,10 +118,8 @@ function createLatencyLogger(options = {}) {
         console.log(`[LATENCY] ${req.method} ${req.path} - ${preciseMs}ms - ${res.statusCode}`);
       }
 
-      // Log to Axiom if available
-      if (global.logEvent) {
-        global.logEvent('http.request.completed', logData);
-      }
+      // Ship the request record to the structured logger (Axiom).
+      emit('http.request.completed', logData);
 
       // Alert on slow requests
       if (durationMs > config.slowThreshold) {
@@ -110,9 +136,7 @@ function createLatencyLogger(options = {}) {
           timestamp: new Date().toISOString()
         };
 
-        if (global.logEvent) {
-          global.logEvent('http.request.slow', slowLogData);
-        }
+        emit('http.request.slow', slowLogData);
       }
     });
 

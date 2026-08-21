@@ -30,6 +30,7 @@ import ModuleQuizPanel, { type SubmittedAttempt } from '../components/ModuleQuiz
 import LevelExamCard from '../components/LevelExamCard';
 import CapstoneResultCard from '../components/CapstoneResultCard';
 import CertificatesPanel from '../components/CertificatesPanel';
+import BandPicker from '../components/BandPicker';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -250,6 +251,11 @@ const PortalTraining = () => {
   const [selectedCourse, setSelectedCourse] = useState<string>('');
   const [selectedModule, setSelectedModule] = useState<string>('');
 
+  // bd-43487 — true only once GET /training/levels has actually answered. See
+  // the fetch below: it separates "you have nothing assigned" (a real answer
+  // worth explaining) from "we could not ask" (never claim the former).
+  const [levelsLoaded, setLevelsLoaded] = useState(false);
+
   const [loadingVendors, setLoadingVendors] = useState(true);
   const [loadingLevels, setLoadingLevels] = useState(true);
   const [loadingCourses, setLoadingCourses] = useState(false);
@@ -278,6 +284,11 @@ const PortalTraining = () => {
       try {
         const { data } = await api.get('/training/levels');
         setLevels(data.levels || []);
+        // bd-43487 — an empty list means "nothing assigned to you" ONLY when the
+        // request succeeded. On a failure the catch below leaves this false, so
+        // the empty state can never make a claim about the teacher's record that
+        // we did not actually verify.
+        setLevelsLoaded(true);
       } catch {
         toast({ title: 'Could not load training levels', variant: 'destructive' });
       } finally { setLoadingLevels(false); }
@@ -474,6 +485,23 @@ const PortalTraining = () => {
             lazy — it fetches nothing until the button is pressed, so it costs
             the page nothing on load. */}
         <CertificatesPanel />
+
+        {/* bd-43487 — nothing assigned. Say so, and offer the fix.
+            Gated on levelsLoaded so a failed request never renders as a claim
+            about the teacher's record; and on !loadingLevels so it does not
+            flash during the first fetch. */}
+        {levelsLoaded && !loadingLevels && levels.length === 0 && (
+          <div
+            data-testid="training-no-assignment"
+            className="mb-6 rounded-lg border border-border bg-muted/40 p-4 sm:p-6"
+          >
+            <p className="text-sm text-foreground">
+              You do not have any training assigned yet, so there is nothing to show here. Tell us
+              the grades you teach and we will set up the right training for you.
+            </p>
+            <BandPicker onSaved={refreshLevels} />
+          </div>
+        )}
 
         {/* Vendor grouping — click a card to filter the cascade below */}
         <VendorGrouping
