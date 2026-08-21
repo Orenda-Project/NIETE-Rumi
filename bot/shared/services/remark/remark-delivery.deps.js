@@ -54,7 +54,12 @@ function makeDeliveryDeps({ principal, teacherLabelFor }) {
         .select('indicator_ordinal, score')
         .eq('remark_id', remarkId);
       if (error) throw new Error(`remark-deps: loadScores failed — ${error.message}`);
-      return data || [];
+      // The column is indicator_ordinal; computeS reads `ordinal` and throws on
+      // anything else. Returning the rows raw threw above submitRemark's two
+      // try/catch blocks, so it took the narrative, the teacher's note AND the
+      // principal's confirmation with it — while the scores still saved and the
+      // principal still saw SUCCESS. The retry worker has always mapped here.
+      return (data || []).map((r) => ({ ordinal: r.indicator_ordinal, score: r.score }));
     },
 
     loadTeacher: async (teacherId) => {
