@@ -8,52 +8,29 @@
  * Solution: Log all request durations, alert on slow requests
  */
 
-// Emit through the structured logger MODULE, not `global.logEvent`.
+// Emit through the dashboard's OWN telemetry sink.
 //
 // This middleware used to guard both of its emits with `if (global.logEvent)`.
-// Nothing in this repository ever assigns that global: the bot requires the
-// logger as a module (`require('./shared/utils/structured-logger')`), which
-// self-initialises its Axiom batcher on first require and exports `logEvent`.
-// So the guard was never true, the portal shipped ZERO request telemetry, and
-// Axiom held no `service == "portal"` rows at all — while the service carried
-// AXIOM_DATASET + AXIOM_TOKEN and the middleware looked instrumented.
+// Nothing in this repository ever assigns that global, so both branches were
+// dead: the service carried AXIOM_DATASET + AXIOM_TOKEN, looked instrumented,
+// and shipped nothing. Axiom held no rows for this service at all.
 //
-// The cost was a real one: a report of "training levels are not visible in the
-// portal" could not be diagnosed, because no record of the teacher's request
-// survived. The platform log buffer keeps only minutes of stdout.
+// The first attempt at a fix required the BOT's structured logger. That fails
+// in this process: the bot's logger needs `pino`, which is in the bot's
+// dependency set, not the dashboard's. It failed silently in exactly the way
+// the original bug did — deploy green, telemetry still absent — so the sink is
+// now local and depends only on Node built-ins. Do not reintroduce a
+// cross-service require here.
 //
-// Resolved lazily and defensively. The dashboard and the bot are separate
-// deploy units that do not always install the same dependency set — requiring
-// bot code from the dashboard process has thrown before, and the throw was
-// swallowed for two days. A logging middleware must never be the reason a
-// request fails, so a resolution failure degrades to console-only.
-let _logEvent = null;
-let _logEventResolved = false;
+// The cost of the blind spot was real: a report of "training levels are not
+// visible in the portal" could not be diagnosed, because no record of the
+// teacher's request survived. The platform log buffer keeps only minutes.
+const telemetry = require('../services/telemetry.service');
 
-function resolveLogEvent() {
-  if (_logEventResolved) return _logEvent;
-  _logEventResolved = true;
-  try {
-    // eslint-disable-next-line global-require
-    const logger = require('../../bot/shared/utils/structured-logger');
-    if (logger && typeof logger.logEvent === 'function') {
-      _logEvent = logger.logEvent;
-    }
-  } catch (err) {
-    // Console stays the floor — never let telemetry wiring break a response.
-    process.stderr.write(
-      `[latency-logger] structured logger unavailable, console only: ${err.message}\n`
-    );
-  }
-  return _logEvent;
-}
-
-/** Emit a semantic event, tolerating an absent or throwing sink. */
+/** Emit a semantic event. Instrumentation must never break a response. */
 function emit(event, data) {
-  const fn = resolveLogEvent();
-  if (!fn) return;
   try {
-    fn(event, data);
+    telemetry.logEvent(event, data);
   } catch (err) {
     process.stderr.write(`[latency-logger] emit failed for ${event}: ${err.message}\n`);
   }
