@@ -411,7 +411,7 @@
               },
               {
                 "type": "RadioButtonsGroup",
-                "name": "action",
+                "name": "roster_action",
                 "label": "${data.choose_label}",
                 "required": true,
                 "data-source": "${data.actions}"
@@ -423,7 +423,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "ROSTER",
-                    "action": "${form.action}"
+                    "roster_action": "${form.roster_action}"
                   }
                 }
               }

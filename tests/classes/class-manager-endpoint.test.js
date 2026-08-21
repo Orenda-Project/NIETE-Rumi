@@ -502,6 +502,42 @@ describe('the roster screens', () => {
     return cls;
   }
 
+  describe('the choice survives the data_exchange envelope', () => {
+    /**
+     * "Remove students" always opened the ADD paste box on staging. The ROSTER form
+     * field was named `action` — the same key the data_exchange envelope uses for
+     * "data_exchange" itself — so the client dropped it: Axiom showed every ROSTER
+     * request arriving with screenDataKeys [] while ADD sent grade/section/shift and
+     * CLASSES sent target. With nothing to read, remove fell through to add.
+     *
+     * These feed the payload the CLIENT actually sends. The other roster tests pass
+     * `action` by hand, which is why they stayed green while nobody could remove a
+     * student.
+     */
+    it('does not name the ROSTER field `action` — the envelope already owns that key', () => {
+      const roster = flowJson.screens.find((s) => s.id === 'ROSTER');
+      const names = JSON.stringify(roster.layout).match(/"name":"[a-z_]+"/g) || [];
+      expect(names).not.toContain('"name":"action"');
+    });
+
+    it('forwards the choice under the key the endpoint reads', () => {
+      const roster = flowJson.screens.find((s) => s.id === 'ROSTER');
+      expect(JSON.stringify(roster.layout)).toContain('"roster_action":"${form.roster_action}"');
+    });
+
+    it('opens REMOVE_STUDENTS when she picks remove', async () => {
+      await onRoster(['Ayesha Bibi']);
+      const res = await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { roster_action: 'remove' });
+      expect(res.screen).toBe('REMOVE_STUDENTS');
+    });
+
+    it('still opens ADD_STUDENTS when she picks add', async () => {
+      await onRoster(['Ayesha Bibi']);
+      const res = await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { roster_action: 'add' });
+      expect(res.screen).toBe('ADD_STUDENTS');
+    });
+  });
+
   it('says so plainly when the roster is empty', async () => {
     await onRoster();
     const res = await ep.handleClassManagerDataExchange(TEACHER, 'CLASSES', {
