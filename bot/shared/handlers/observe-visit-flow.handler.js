@@ -599,7 +599,7 @@ async function bindAndStart(userId, screenData, user) {
   } else {
     logToFile('❌ observe-visit: teacher bind FAILED — capture will run UNBOUND', {
       userId, teacherExtId, schoolExtId: String(schoolExtId || ''),
-    });
+    }, 'error');
   }
   return { action: 'bound', boundTeacher: teacher };
 }
