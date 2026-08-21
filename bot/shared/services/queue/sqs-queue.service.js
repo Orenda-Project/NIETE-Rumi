@@ -96,7 +96,14 @@ class SQSQueueService {
       // the report while the coach was told it was on its way.
       // Jobs without a phase keep their historical key shape exactly.
       const phaseSuffix = payload && payload.phase ? `:${payload.phase}` : '';
-      const idempotencyKey = `${this.JOB_PREFIX}${sessionId}:${jobType}${phaseSuffix}`;
+      // bd-lh9c2: the dedupNonce (sha1 of the audioId, stamped by
+      // queueObserveDebrief) must reach BOTH dedupe layers. It was computed but
+      // consumed by neither, so a coach re-sending a longer debrief recording
+      // 3 minutes after a too-short one was silently swallowed here (1h TTL)
+      // — and would have been swallowed again by SQS FIFO below (5-min window).
+      // Jobs without a nonce keep their historical key shape exactly.
+      const nonceSuffix = payload && payload.dedupNonce ? `:${payload.dedupNonce}` : '';
+      const idempotencyKey = `${this.JOB_PREFIX}${sessionId}:${jobType}${phaseSuffix}${nonceSuffix}`;
 
       try {
         const existingMessageId = await RedisService.get(idempotencyKey);
@@ -138,16 +145,14 @@ class SQSQueueService {
 
         // FIFO queue parameters
         MessageGroupId: sessionId,  // Ensures all jobs for a session are processed in order
-        // bd-2652: the dedup id MUST include the payload phase. This queue is
-        // FIFO with a 5-MINUTE dedup window, and the observe teacher-report
-        // flow queues three phases (preview → deliver → teacher_tap) under one
-        // jobType. A coach taps "send" seconds after seeing the preview, so the
-        // deliver message landed inside the window with an identical dedup id
-        // and SQS discarded it — while still returning a MessageId, so the send
-        // looked successful and the report simply never arrived. Jobs without a
-        // phase keep their historical id exactly. (bd-2645 fixed the Redis
-        // idempotency key the same way; this is the second dedupe layer.)
-        MessageDeduplicationId: `${sessionId}-${jobType}${payload && payload.phase ? `-${payload.phase}` : ''}`,
+        // bd-2652: the dedup id MUST include the payload phase (FIFO 5-min
+        // window; preview→deliver under one jobType — the deliver vanished
+        // while SQS still returned a MessageId). bd-lh9c2: it must ALSO include
+        // the dedupNonce (per-recording audioId hash) — buildDedupId always
+        // carried both, but nothing called it, so a re-sent debrief recording
+        // was discarded the same way. buildDedupId is now the single source of
+        // truth; jobs with neither phase nor nonce keep their historical id.
+        MessageDeduplicationId: buildDedupId(sessionId, jobType, payload),
 
         // Message attributes for filtering/monitoring
         MessageAttributes: {
