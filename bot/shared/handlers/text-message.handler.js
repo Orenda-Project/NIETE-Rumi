@@ -2764,9 +2764,8 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
       expected: langCheck.expected,
       detected: langCheck.detected,
       reason: langCheck.reason,
-      userId: user?.id,
-      level: 'error'
-    });
+      userId: user?.id
+    }, 'error');
   }
 
   // Stop typing indicator before sending reply

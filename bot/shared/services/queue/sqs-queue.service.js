@@ -62,7 +62,7 @@ class SQSQueueService {
     this.JOB_TTL = 3600; // 1 hour TTL for job idempotency keys
 
     if (!this.queueUrl) {
-      logToFile('⚠️  SQS_QUEUE_URL not configured. Queue service disabled.', { level: 'warn' });
+      logToFile('⚠️  SQS_QUEUE_URL not configured. Queue service disabled.', null, 'warn');
     }
     if (this.videoQueueUrl) {
       logToFile('✅ Dedicated video queue configured', { videoQueueUrl: this.videoQueueUrl });

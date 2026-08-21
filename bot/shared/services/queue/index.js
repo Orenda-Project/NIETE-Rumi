@@ -19,7 +19,8 @@ if (driver === 'bullmq') {
   if (driver !== 'sqs') {
     require('../../utils/logger').logToFile(
       `⚠️  Unknown QUEUE_DRIVER="${driver}" — falling back to sqs. Valid values: sqs | bullmq.`,
-      { level: 'warn' }
+      null,
+      'warn'
     );
   }
   module.exports = require('./sqs-queue.service');
