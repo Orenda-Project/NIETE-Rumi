@@ -597,9 +597,12 @@ async function bindAndStart(userId, screenData, user) {
       userId, teacherExtId, boundUserId: teacher.user_id || null,
     });
   } else {
+    // level='error' is required, not decorative: an unbound capture sends the
+    // report to the coach instead of the teacher, so an on-caller wants this in
+    // the `level == 'error'` dashboard filter rather than buried at info.
     logToFile('❌ observe-visit: teacher bind FAILED — capture will run UNBOUND', {
       userId, teacherExtId, schoolExtId: String(schoolExtId || ''),
-    });
+    }, 'error');
   }
   return { action: 'bound', boundTeacher: teacher };
 }
