@@ -110,7 +110,10 @@ class LPShelfService {
    * @param {string} userId
    */
   static async flushShelf(userId) {
-    await redis.del(this.key(userId));
+    // NIETE's railway-redis wrapper exposes delete(), not the parent bot's
+    // del() — the ported del() call threw on every flush and was silently
+    // swallowed by callers' try/catch (bd-njn7u).
+    await redis.delete(this.key(userId));
     logEvent('lp_shelf.flushed', { userId });
   }
 

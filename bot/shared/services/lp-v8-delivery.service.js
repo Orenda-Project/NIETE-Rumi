@@ -17,6 +17,7 @@ const supabase = require('../config/supabase');
 const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
 const WhatsAppService = require('./whatsapp.service');
 const LpFeedback = require('./lp-feedback.service');
+const LPShelfService = require('./lp-shelf.service');
 const V8Catalog = require('./lp-v8-catalog.service');
 const { resolveUx } = require('../config/ux-strings');
 const { logToFile } = require('../utils/logger');
@@ -377,6 +378,36 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
     lessonPlanId = data && data.id;
   } catch (err) {
     logToFile('LP v8: lesson_plans insert failed (non-fatal)', { userId, lessonId, error: err.message });
+  }
+
+  // ── The shelf entry (bd-njn7u) ────────────────────────────────────────────
+  //
+  // The record of "what was this teacher recently given", read by LP Q&A when
+  // she asks about a lesson later. Keys only, never content: lesson_id +
+  // content_hash resolve the voicenote script (R2 .txt) and the lesson's move
+  // list fresh at question time, so she is always answered about the precise
+  // version she was sent. voicenote_sent is derived from the actual send —
+  // context claiming "the voice note you heard" about audio that never arrived
+  // would be worse than no context.
+  try {
+    await LPShelfService.pushToShelf(userId, {
+      lesson_id: lessonId,
+      grade: book.grade,
+      subject: book.subject_key,
+      subject_label: book.subject,
+      chapter_number: chapter.number,
+      chapter_title: chapter.title,
+      topic: lesson.topic_short || lesson.topic,
+      pages_label: lesson.pages_label,
+      r2_key: asset.r2_key,
+      content_hash: asset.content_hash,
+      version_stamp: asset.version_stamp,
+      voicenote_sent: voicenoteSent,
+      lesson_plan_id: lessonPlanId,
+      delivered_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    logToFile('LP v8: shelf push failed (non-fatal)', { userId, lessonId, error: err.message });
   }
 
   if (lessonPlanId) {
