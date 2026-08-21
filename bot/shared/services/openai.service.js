@@ -495,6 +495,13 @@ IMPORTANT: Distinguish carefully:
 - "Help me figure out how to teach X" → general (they want guidance)
 - "What's the best way to teach X?" → general (they want advice)
 - "What is photosynthesis?" → general (they want information, not a document)
+- A QUESTION or COMMENT ABOUT a lesson plan she already has/received → general
+  ("is lesson mein activity kaisi karun", "yeh wali activity mushkil hai",
+   "grade 2 maths walay sabaq mein time kam parta hai", "explain this lesson again")
+- Even when it names a topic and grade: referring-back language ("is/yeh/us lesson",
+  "jo aap ne bheja", "walay sabaq", "اس سبق", "یہ والا") means she is talking about
+  a lesson she ALREADY has → general, not lesson_plan.
+- lesson_plan is ONLY for wanting a NEW document made.
 
 The message may be in English, Urdu, or Roman Urdu. Look for semantic meaning, not just keywords.
 
@@ -514,7 +521,8 @@ Examples:
 - "Figure out how to teach X" → general
 - "What's a good way to explain X?" → general
 
-Return ONLY one word: lesson_plan, presentation, video, or general`
+Return ONLY one word: lesson_plan, presentation, video, or general
+If (and ONLY if) the message refers back to a lesson plan the teacher ALREADY has or received, append " lp_ref" after the word (e.g. "general lp_ref").`
           },
           {
             role: 'user',
@@ -525,17 +533,22 @@ Return ONLY one word: lesson_plan, presentation, video, or general`
         temperature: 0.1,
       });
 
-      const intent = completion.choices[0].message.content.trim().toLowerCase();
+      const raw = completion.choices[0].message.content.trim().toLowerCase();
+      // bd-njn7u: the optional " lp_ref" marker — she is referring back to a
+      // lesson she already has. Only meaningful on general (it gates the LP
+      // Q&A context detail tier); stripped before intent validation either way.
+      const lpRef = /\blp_ref\b/.test(raw);
+      const intent = raw.replace(/\blp_ref\b/g, '').trim();
 
       // Validate the response
       if (intent === 'lesson_plan' || intent === 'lesson plan') {
-        return { type: 'lesson_plan', message };
+        return { type: 'lesson_plan', message, lp_reference: false };
       } else if (intent === 'presentation') {
-        return { type: 'presentation', message };
+        return { type: 'presentation', message, lp_reference: false };
       } else if (intent === 'video') {
-        return { type: 'video', message };
+        return { type: 'video', message, lp_reference: false };
       } else {
-        return { type: 'general', message };
+        return { type: 'general', message, lp_reference: lpRef };
       }
     } catch (error) {
       logToFile('Error detecting intent with LLM', { error: error.message });
@@ -570,23 +583,23 @@ Return ONLY one word: lesson_plan, presentation, video, or general`
 
     for (const keyword of lessonPlanKeywords) {
       if (lowerMessage.includes(keyword.toLowerCase())) {
-        return { type: 'lesson_plan', message };
+        return { type: 'lesson_plan', message, lp_reference: false };
       }
     }
 
     for (const keyword of presentationKeywords) {
       if (lowerMessage.includes(keyword.toLowerCase())) {
-        return { type: 'presentation', message };
+        return { type: 'presentation', message, lp_reference: false };
       }
     }
 
     for (const keyword of videoKeywords) {
       if (lowerMessage.includes(keyword.toLowerCase())) {
-        return { type: 'video', message };
+        return { type: 'video', message, lp_reference: false };
       }
     }
 
-    return { type: 'general', message };
+    return { type: 'general', message, lp_reference: false };
   }
 
   /**
