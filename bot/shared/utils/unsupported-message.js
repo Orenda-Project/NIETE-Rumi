@@ -21,7 +21,12 @@ const VIDEO_REPLY =
   'میں ویڈیو نہیں لے سکتی — تصاویر، آواز یا متن بھیجیں۔\n' +
   "I can't take videos — please send photos, voice notes, or text.";
 
-const DEFAULT_REPLY = 'میں صرف متن اور آواز پیغامات کا جواب دے سکتا ہوں۔'; // historical fallback, unchanged
+// bd-z5olm: the historical fallback spoke as a MALE («سکتا ہوں») and
+// Urdu-only. Rumi is female, and NIETE serves en/ur — bilingual like
+// VIDEO_REPLY above.
+const DEFAULT_REPLY =
+  'میں صرف متن اور آواز کے پیغامات کا جواب دے سکتی ہوں۔\n' +
+  'I can only reply to text and voice messages.';
 
 /** @returns {string|null} reply text, or null for "stay silent" */
 function unsupportedTypeReply(messageType) {
