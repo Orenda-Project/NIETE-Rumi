@@ -78,6 +78,12 @@ function buildBandSetupPrompt(userId, teacher) {
         description: 'Takes a few seconds',
       }],
       certificates_visible: false,
+      // MUST be set explicitly, not omitted. A ${data.*} field left out of a
+      // response is not treated as false — the client keeps the value it last
+      // had (or the schema's __example__), so omitting this rendered BOTH the
+      // "Choose the grades you teach" row AND the "Edit the grades I teach"
+      // link, which are mutually exclusive by definition.
+      bands_edit_visible: false,
     },
   };
 }
@@ -99,38 +105,45 @@ function buildBandSetupPrompt(userId, teacher) {
 async function buildBandPicker(userId, teacher, opts = {}) {
   const gate = canChangeBands(teacher);
   const current = Array.isArray(teacher && teacher.training_bands) ? teacher.training_bands : [];
-
-  // A teacher who already has training reaches this screen only because INIT is
-  // required to return the entry point (see handleTeacherTrainingInit). For
-  // them it is a confirm-or-change step, not a question: the primary action
-  // walks straight on to their programs and the copy says so.
   const hasTraining = Boolean(opts.hasTraining);
 
-  // A blocked teacher still sees the screen (so they know what they picked),
-  // with the reason in place of the warning.
-  const notice = opts.error || (gate.allowed ? (gate.isFirstSelection ? '' : changeWarning()) : gate.message);
+  // A teacher inside the cooldown gets the REASON and a way back — never the
+  // checkbox form. Rendering a form they cannot submit is a trap: they tick a
+  // box, tap Save, and the write is refused, which previously read as success
+  // because we sent them onward with the refusal as a caption. Either they can
+  // change it or they cannot; the screen must say which.
+  const blocked = !gate.allowed;
 
   const data = {
-    hero_title: hasTraining ? 'Edit the grades you teach' : 'Which grades do you teach?',
-    hero_caption: hasTraining
-      ? 'Update this and we will adjust your training to match. Choose all that apply.'
-      : 'We use this to show you the right training. Choose all that apply.',
+    hero_title: blocked
+      ? 'Grades you teach'
+      : (hasTraining ? 'Edit the grades you teach' : 'Which grades do you teach?'),
+    hero_caption: blocked
+      ? (current.length
+          ? `We have you down for: ${bandLabels(current)}.`
+          : 'We do not have your grades recorded yet.')
+      : (hasTraining
+          ? 'Update this and we will adjust your training to match. Choose all that apply.'
+          : 'We use this to show you the right training. Choose all that apply.'),
     band_options: BANDS.map(b => ({ id: b.key, title: b.label })),
     init_bands: current,
-    cooldown_notice: notice || '',
-    notice_visible: Boolean(notice),
-    // For a teacher with training the footer is the FORWARD action; changing
-    // the selection is the secondary link. For a teacher with none, saving IS
-    // the forward action.
+    // Shown under the form as a heads-up BEFORE a change; reused as the body of
+    // the blocked state.
+    cooldown_notice: opts.error || (blocked ? gate.message : (gate.isFirstSelection ? '' : changeWarning())),
+    notice_visible: Boolean(opts.error || (!blocked && !gate.isFirstSelection)),
     footer_label: hasTraining ? 'Save changes' : 'Save and continue',
+    // Exactly one of these is ever true.
+    form_visible: !blocked,
+    blocked_visible: blocked,
+    blocked_heading: 'This cannot be changed yet',
   };
 
   logToFile('🎓 BAND_PICKER response snapshot', {
     userId,
     current_bands: current,
     has_training: hasTraining,
+    blocked,
     first_selection: gate.isFirstSelection,
-    allowed: gate.allowed,
     hours_remaining: gate.hoursRemaining,
   });
   return { screen: 'BAND_PICKER', data };
@@ -202,19 +215,16 @@ async function handleTeacherTrainingDataExchange(userId, screen, screenData /*, 
       const catalog = await loadVisibleLevelsWithProgress(userId);
 
       if (!result.ok) {
-        // A teacher inside the cooldown who edited the boxes must not be
-        // trapped on this screen: their existing training is still valid, so
-        // send them on and tell them the change did not take. Only a teacher
-        // with nowhere to go stays here to read the reason.
-        if (catalog.length > 0 && teacher) {
-          logToFile('🎓 Band change refused, continuing to existing training', {
-            userId, reason: result.reason,
-          });
-          return buildVendorPicker(userId, teacher, partitionByVendor(catalog), {
-            notice: result.message,
-          });
-        }
-        return buildBandPicker(userId, teacher, { error: result.message });
+        // Never continue silently. Sending the teacher onward with the refusal
+        // as a caption read as SUCCESS — they believed the change had saved.
+        // Re-render the picker in its blocked state: the reason, and a way
+        // back. buildBandPicker decides the shape from the live cooldown, so a
+        // refusal is always shown as a refusal.
+        logToFile('🎓 Band change refused', { userId, reason: result.reason });
+        return buildBandPicker(userId, teacher, {
+          hasTraining: catalog.length > 0,
+          error: result.reason === 'cooldown' ? null : result.message,
+        });
       }
 
       // Returning VENDOR_PICKER here is a BACKWARD render — there is no
@@ -234,6 +244,13 @@ async function handleTeacherTrainingDataExchange(userId, screen, screenData /*, 
       return buildVendorPicker(userId, teacher, partitionByVendor(catalog));
     }
 
+    // The blocked state's only exit — back to whatever training they have.
+    if (action === 'back_to_training') {
+      const teacher = await loadTeacher(userId);
+      const catalog = await loadVisibleLevelsWithProgress(userId);
+      if (!teacher || catalog.length === 0) return buildBandSetupPrompt(userId, teacher);
+      return buildVendorPicker(userId, teacher, partitionByVendor(catalog));
+    }
     if (action === 'close') return buildSuccessScreen('See you soon!');
     return createErrorResponse('Unknown action on band picker');
   }
@@ -488,7 +505,15 @@ function partitionByVendor(catalog) {
  * The dropdown value is the vendor_key (e.g. TALEEMABAD / OXBRIDGE / BEACONHOUSE)
  * which the data_exchange handler uses to scope buildTrainingHome.
  */
-/** "PRIMARY","MIDDLE" -> "Primary (Grades 1-5), Middle (Grades 6-8)" */
+/** ["PRIMARY","MIDDLE"] -> "Primary (Grades 1-5), Middle (Grades 6-8)" */
+function bandLabels(keys) {
+  return (Array.isArray(keys) ? keys : [])
+    .map(k => (BANDS.find(b => b.key === String(k).toUpperCase()) || {}).label)
+    .filter(Boolean)
+    .join(', ');
+}
+
+/** Same, read off a teacher row. */
 function bandSummary(teacher) {
   const keys = Array.isArray(teacher && teacher.training_bands) ? teacher.training_bands : [];
   const labels = keys
@@ -1617,6 +1642,10 @@ function entryErrorScreen(message) {
       // all, so we cannot know whether certificates exist. Hide the link
       // rather than offer a second dead end on top of the first.
       certificates_visible: false,
+      // Must be explicit: an omitted ${data.*} field keeps its previous value
+      // on the client rather than defaulting to false, which rendered the Edit
+      // link on a screen that has no bands to edit.
+      bands_edit_visible: false,
     },
   };
 }

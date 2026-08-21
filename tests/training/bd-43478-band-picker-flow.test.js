@@ -89,12 +89,18 @@ describe('BAND_PICKER — the screen itself', () => {
     expect(cb).toContain('"required":true');
   });
 
-  test('has ONE action, not a save/continue split', () => {
+  test('the editable state has ONE action, not a save/continue split', () => {
     // It carried two — "Save these grades" and "Continue to my training" —
     // which forced a choice the teacher never wants to make, and silently threw
     // away an edit if they tapped Continue. One button saves and moves on; an
     // unchanged save is a no-op that does not spend the 48h cooldown.
-    const json = JSON.stringify(screen().layout);
+    //
+    // Scoped to the EDITABLE form: the blocked state carries its own single
+    // action (back_to_training), which is a different screen state, not a
+    // second choice offered at the same time.
+    const forms = screen().layout.children.filter(c => c.type === 'Form');
+    const editable = forms.find(f => JSON.stringify(f).includes('CheckboxGroup'));
+    const json = JSON.stringify(editable);
     expect(json).not.toContain('continue_to_training');
     expect((json.match(/data_exchange/g) || []).length).toBe(1);
   });
@@ -159,5 +165,76 @@ describe('VENDOR_PICKER — bands are shown, not gated behind a confirm step', (
 
   test('the caption slot can carry the bands summary', () => {
     expect(vp().data).toHaveProperty('hero_caption');
+  });
+});
+
+describe('every screen render supplies EVERY ${data.*} field it references', () => {
+  // The bug this pins: buildBandSetupPrompt omitted bands_edit_visible, and an
+  // omitted field is NOT treated as false — the client keeps the value it last
+  // had (or the schema __example__). So the setup screen rendered BOTH "Choose
+  // the grades you teach" AND "Edit the grades I teach", which are mutually
+  // exclusive. entryErrorScreen had the same latent omission.
+  const fs = require('fs');
+  const path = require('path');
+  const SRC = fs.readFileSync(
+    path.join(__dirname, '../../bot/shared/routes/teacher-training-endpoint.js'), 'utf8');
+
+  const RENDERS = [
+    ['buildVendorPicker', 'VENDOR_PICKER'],
+    ['buildBandSetupPrompt', 'VENDOR_PICKER'],
+    ['entryErrorScreen', 'VENDOR_PICKER'],
+    ['buildBandPicker', 'BAND_PICKER'],
+  ];
+
+  test.each(RENDERS)('%s supplies every field %s declares', (fn, screenId) => {
+    const start = SRC.indexOf(`function ${fn}`);
+    expect(start).toBeGreaterThan(-1);
+    const body = SRC.slice(start, SRC.indexOf('\n}\n', start));
+    const declared = Object.keys(screenById.get(screenId).data);
+    const missing = declared.filter(k => !body.includes(k));
+    expect(missing).toEqual([]);
+  });
+});
+
+describe('BAND_PICKER — the blocked state is not a form', () => {
+  const bp = () => screenById.get('BAND_PICKER');
+
+  test('carries two mutually exclusive states', () => {
+    expect(bp().data).toHaveProperty('form_visible');
+    expect(bp().data).toHaveProperty('blocked_visible');
+  });
+
+  test('the checkbox form is gated on form_visible', () => {
+    const forms = bp().layout.children.filter(c => c.type === 'Form');
+    const editable = forms.find(f => JSON.stringify(f).includes('CheckboxGroup'));
+    expect(editable.visible).toBe('${data.form_visible}');
+  });
+
+  test('the blocked state has NO checkbox group and NO save action', () => {
+    // The whole point: a form the teacher cannot submit is a trap. They ticked a
+    // box, tapped Save, the write was refused, and they were sent onward with
+    // the refusal as a caption — which read as success.
+    const forms = bp().layout.children.filter(c => c.type === 'Form');
+    const blocked = forms.find(f => f.visible === '${data.blocked_visible}');
+    const json = JSON.stringify(blocked);
+    expect(json).not.toContain('CheckboxGroup');
+    expect(json).not.toContain('save_bands');
+  });
+
+  test('the blocked state offers only a way back', () => {
+    const forms = bp().layout.children.filter(c => c.type === 'Form');
+    const blocked = forms.find(f => f.visible === '${data.blocked_visible}');
+    expect(JSON.stringify(blocked)).toContain('back_to_training');
+    const footers = blocked.children.filter(c => c.type === 'Footer');
+    expect(footers).toHaveLength(1);
+  });
+
+  test('the refusal is a heading + body, not a grey caption', () => {
+    const forms = bp().layout.children.filter(c => c.type === 'Form');
+    const blocked = forms.find(f => f.visible === '${data.blocked_visible}');
+    const types = blocked.children.map(c => c.type);
+    expect(types).toContain('TextSubheading');
+    expect(types).toContain('TextBody');
+    expect(types).not.toContain('TextCaption');
   });
 });
