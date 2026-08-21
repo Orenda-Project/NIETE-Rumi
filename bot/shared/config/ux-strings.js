@@ -268,6 +268,43 @@ const UX_STRINGS = {
     ur: 'استاد',
   },
 
+  // The roster hint replaces remarkPickHint: she is reading a full list now, so
+  // "how far am I?" is the useful sentence, not "how many are left".
+  remarkRosterHint: {
+    en: '{done} of {total} evaluated this quarter.',
+    ur: 'اس سہ ماہی میں {total} میں سے {done} مکمل۔',
+  },
+
+  remarkStateDone: {
+    en: 'Evaluated',
+    ur: 'مکمل',
+  },
+
+  remarkStateInProgress: {
+    en: 'In progress',
+    ur: 'جاری',
+  },
+
+  remarkStateNotStarted: {
+    en: 'Not started',
+    ur: 'باقی',
+  },
+
+  remarkNoTeachers: {
+    en: 'No teachers are listed at your school yet.',
+    ur: 'آپ کے سکول میں ابھی کوئی استاد درج نہیں۔',
+  },
+
+  remarkSummaryOverall: {
+    en: 'Overall: {pct}',
+    ur: 'مجموعی: {pct}',
+  },
+
+  remarkSummaryDone: {
+    en: 'Done',
+    ur: 'مکمل',
+  },
+
   remarkContinue: {
     en: 'Continue',
     ur: 'آگے بڑھیں',
