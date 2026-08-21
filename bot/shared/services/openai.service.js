@@ -107,6 +107,8 @@ EMOTION TAGS (use naturally in your speech):
 - [enthusiastically] for excitement
 - [gently] for suggestions
 - [encouragingly] for motivation
+- [methodically] for step-by-step guidance
+Use at most 3 tags per reply — they colour the voice, they are never spoken.
 ` : '';
 
     // Language-specific capability responses
@@ -257,7 +259,10 @@ Keep responses conversational and concise. MAXIMUM 60 seconds of speech (150-180
 ${voiceLanguageRules('en')}`;
     }
 
-    // Voice response in Urdu (no emotion tags, Uplift doesn't support them)
+    // Voice response in Urdu. UNREACHABLE in practice: 'ur' has an enhanced
+    // prompt, so the enhanced branch above returns first (tags now ride there
+    // via VOICE_MODELS.ur.supportsEmotionTags — bd-njn7u 4.2). The old comment
+    // here blamed Uplift; the voice has been Sara/eleven_v3 since bd-2375.
     if (format === 'voice' && language === 'ur') {
       return `You are the NIETE Teaching Assistant, a warm and supportive teaching companion for teachers. You're responding via voice message in Urdu. Always respond in Urdu (اردو). Be friendly, warm, supportive, professional, and pedagogically sound. Use female verb forms in Urdu.
 ${firstName ? `\nاستاد کا نام ${firstName} ہے۔ مناسب مواقع پر ان کا نام استعمال کریں تاکہ بات چیت زیادہ ذاتی ہو، لیکن زیادہ استعمال نہ کریں۔` : ''}
