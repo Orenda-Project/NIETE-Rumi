@@ -55,8 +55,11 @@ class ElevenLabsService {
         hasEmotionTags: /\[[\w]+\]/.test(text)
       });
 
+      // bd-z5olm: Ogg Opus, not MP3 — WhatsApp renders opus audio as a real
+      // VOICE message (waveform + speed control), exactly like the LP
+      // voicenotes. Probed live 2026-08-21: eleven_v3 returns OggS bytes.
       const response = await axios.post(
-        `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
+        `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}?output_format=opus_48000_64`,
         {
           text: text,
           model_id: 'eleven_v3', // v3 supports audio tags and emotion control
@@ -175,8 +178,9 @@ class ElevenLabsService {
         ? { stability: 0.7, similarity_boost: 0.85, style: 0.0, use_speaker_boost: true }
         : { stability: 0.0, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true };
 
+      // bd-z5olm: Ogg Opus for the WhatsApp voice bubble — see generateSpeech.
       const response = await axios.post(
-        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=opus_48000_64`,
         {
           text: text,
           model_id: 'eleven_v3', // v3 supports audio tags and emotion control
@@ -259,14 +263,18 @@ class ElevenLabsService {
 
       const voice = openaiVoices[languageCode] || 'nova';
 
-      const mp3 = await this.openai.audio.speech.create({
+      // bd-z5olm: opus here too, so the fallback keeps the voice bubble.
+      // OpenAI's 'opus' response_format is Ogg-contained — same container the
+      // ElevenLabs path now returns and sendAudio sniffs for.
+      const speech = await this.openai.audio.speech.create({
         model: 'tts-1',
         voice: voice,
         input: cleanText,
+        response_format: 'opus',
         speed: 1.0
       });
 
-      const buffer = Buffer.from(await mp3.arrayBuffer());
+      const buffer = Buffer.from(await speech.arrayBuffer());
 
       logToFile('✅ OpenAI TTS generated successfully', {
         audioSize: buffer.length,
