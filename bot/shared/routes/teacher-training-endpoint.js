@@ -914,14 +914,40 @@ async function loadTeacher(userId) {
  * chain-lock. Rows with a missing quiz_kind are treated as grand: they predate
  * the column, when the table held level exams only.
  *
- * @param {object} a attempt row (needs is_passed, quiz_kind)
+ * bd-43491 — `quiz_kind` alone cannot answer this, because a DIAGNOSTIC is
+ * also stored as quiz_kind='grand'. The attempts table's check constraint
+ * allows only grand / training_module / capstone, so a diagnostic has no kind
+ * of its own to take; its nature lives on the QUIZ it was sat against
+ * (`training_grand_quizzes.quiz_type`), not on the attempt.
+ *
+ * A diagnostic gates ENTRY to a level and certifies nothing. Accepting one
+ * here made a level read `certified` with no certificate behind it, chain-
+ * unlocked the level above it, and told the teacher "✓ Passed" for an exam she
+ * had not sat — while the certificate service, which resolves the level's exam
+ * by type, correctly issued nothing. On NIETE production that split 1,462
+ * (teacher, level) pairs across 1,452 teachers.
+ *
+ * `examQuizIds` is therefore REQUIRED for the type check to happen. Callers
+ * pass the set of ids of the active exam-type quizzes in scope. Omitting it
+ * would silently restore the bug, so a missing set is a hard false rather than
+ * a permissive fallback: refusing to certify is recoverable (the teacher sits
+ * the exam), wrongly certifying is not (a certificate she never earned, or an
+ * exam she can never reach).
+ *
+ * @param {object} a attempt row (needs is_passed, quiz_kind, grand_quiz_id)
+ * @param {Set<number>} examQuizIds ids of active grand_quiz/capstone quizzes
  * @returns {boolean}
  */
-function isGrandPass(a) {
+function isGrandPass(a, examQuizIds) {
   if (!a || a.is_passed !== true) return false;
   // bd-2474 — a capstone IS the level exam for all_modules vendors. Rows with
   // no quiz_kind predate the column, when the table held level exams only.
-  return EXAM_QUIZ_KINDS.includes(a.quiz_kind || 'grand');
+  if (!EXAM_QUIZ_KINDS.includes(a.quiz_kind || 'grand')) return false;
+  // bd-43491 — the quiz must be an EXAM, not a diagnostic. Pre-column rows
+  // (grand_quiz_id null) predate diagnostics sharing this table and stay
+  // trusted, exactly as the quiz_kind fallback above does.
+  if (a.grand_quiz_id == null) return true;
+  return examQuizIds instanceof Set && examQuizIds.has(a.grand_quiz_id);
 }
 
 async function loadVisibleLevelsWithProgress(userId) {
@@ -992,7 +1018,13 @@ async function loadVisibleLevelsWithProgress(userId) {
     // dedupes per attempt_id, not per level) and a chain vendor's next level
     // stayed locked. `quiz_kind` is selected because isGrandPass discriminates
     // on it; widening the filter without it leaves the guard blind.
-    supabase.from('training_assessment_attempts').select('level_id, status, is_passed, cooldown_until, completed_at, quiz_kind').eq('user_id', userId).in('quiz_kind', EXAM_QUIZ_KINDS).in('level_id', levelIds),
+    //
+    // bd-43491 — `grand_quiz_id` is selected for the same reason: a diagnostic
+    // rides under quiz_kind='grand', so the kind cannot distinguish it and the
+    // guard needs the quiz id to look its TYPE up. Selecting the column without
+    // passing the exam-id set to isGrandPass (or the reverse) leaves it blind
+    // again, which is how bd-2485 happened one axis over.
+    supabase.from('training_assessment_attempts').select('level_id, status, is_passed, cooldown_until, completed_at, quiz_kind, grand_quiz_id').eq('user_id', userId).in('quiz_kind', EXAM_QUIZ_KINDS).in('level_id', levelIds),
     supabase.from('training_grand_quizzes').select('id, level_id, quiz_type').in('level_id', levelIds).in('quiz_type', EXAM_QUIZ_TYPES).eq('is_active', true),
     // bd-2503 — some levels have NO exam at all (Oxbridge). For an all_modules
     // vendor with no capstone, maybeIssueQuizScoreCertificate certifies the
@@ -1002,6 +1034,11 @@ async function loadVisibleLevelsWithProgress(userId) {
     supabase.from('training_certificates').select('level_id').eq('user_id', userId).in('level_id', levelIds),
   ]);
   const certifiedLevelIds = new Set((certRows || []).map(c => c.level_id));
+  // bd-43491 — the ids of the quizzes that actually CERTIFY. The `quizzes` read
+  // above is already filtered to EXAM_QUIZ_TYPES + is_active, so its ids are
+  // exactly that set; a diagnostic's id is absent by construction rather than
+  // by a second filter that could drift out of step with the first.
+  const examQuizIds = new Set((quizzes || []).map(q => q.id));
 
   // bd-2447 — a course is complete when EVERY active module under it is done.
   //
@@ -1046,7 +1083,7 @@ async function loadVisibleLevelsWithProgress(userId) {
     // bd-2391 — `isGrandPass` also guards in memory, not just in the query, so
     // the "only a level exam certifies a level" rule survives a caller that
     // hands us unfiltered rows.
-    const passedAttempt = (attempts || []).find(a => a.level_id === lv.id && isGrandPass(a));
+    const passedAttempt = (attempts || []).find(a => a.level_id === lv.id && isGrandPass(a, examQuizIds));
     const cooldownAttempt = (attempts || []).find(a => a.level_id === lv.id && a.status === 'failed' && a.cooldown_until && new Date(a.cooldown_until) > new Date());
     const vendor = vendorById.get(lv.vendor_id);
     // bd-43482 — the LEVEL axis. Not unlock_logic: BH and Oxbridge both carry
@@ -1055,7 +1092,7 @@ async function loadVisibleLevelsWithProgress(userId) {
     const prevLevel = visibleLevels
       .filter(l => l.vendor_id === lv.vendor_id)
       .find(l => l.order_index === lv.order_index - 1);
-    const prevPassed = !prevLevel || !!(attempts || []).find(a => a.level_id === prevLevel.id && isGrandPass(a));
+    const prevPassed = !prevLevel || !!(attempts || []).find(a => a.level_id === prevLevel.id && isGrandPass(a, examQuizIds));
     const isFirst = !prevLevel;
     const grand = (quizzes || []).find(q => q.level_id === lv.id) || null;
 
@@ -1278,7 +1315,12 @@ async function loadGrandQuizState(userId, levelId) {
     // module quick check rendered "🏆 You passed this level exam" and replaced
     // the CTA with "✓ Passed". bd-2474 widens 'grand' to both exam kinds so a
     // passed capstone is recognised the same way.
-    supabase.from('training_assessment_attempts').select('status, is_passed, cooldown_until, quiz_kind').eq('user_id', userId).in('quiz_kind', EXAM_QUIZ_KINDS).eq('level_id', levelId),
+    //
+    // bd-43491 — `grand_quiz_id` joins the select for the same reason it does
+    // in loadVisibleLevelsWithProgress: a passed DIAGNOSTIC is also
+    // quiz_kind='grand', and it rendered this exact "✓ Passed" screen for an
+    // exam the teacher had never sat, hiding the real one behind it.
+    supabase.from('training_assessment_attempts').select('status, is_passed, cooldown_until, quiz_kind, grand_quiz_id').eq('user_id', userId).in('quiz_kind', EXAM_QUIZ_KINDS).eq('level_id', levelId),
     supabase.from('training_courses').select('id').eq('level_id', levelId).eq('is_active', true),
     supabase.from('training_modules').select('id, course_id').eq('is_active', true),
     supabase.from('teacher_training_progress').select('module_id').eq('user_id', userId),
@@ -1291,7 +1333,13 @@ async function loadGrandQuizState(userId, levelId) {
     // for the very teachers who had most certainly passed it.
     supabase.from('training_certificates').select('id').eq('user_id', userId).eq('level_id', levelId).limit(1),
   ]);
-  const passed = (attempts || []).some(isGrandPass);
+  // bd-43491 — `catalog` is the level's exam, already resolved by EXAM_QUIZ_TYPES
+  // above, so its id is the whole exam set for this level; a diagnostic's id is
+  // never in it. Written as an explicit arrow rather than `.some(isGrandPass)`
+  // because Array.some passes (element, INDEX, array) — bare, the second
+  // argument would arrive as 0 and the type check would silently never fire.
+  const examQuizIds = new Set(catalog && catalog.id != null ? [catalog.id] : []);
+  const passed = (attempts || []).some(a => isGrandPass(a, examQuizIds));
   const cooldown = (attempts || []).find(a => a.status === 'failed' && a.cooldown_until && new Date(a.cooldown_until) > new Date());
   const doneIds = new Set((progressRows || []).map(r => r.module_id));
   const courseIds = new Set((courses || []).map(c => c.id));
