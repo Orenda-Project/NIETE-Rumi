@@ -23,18 +23,19 @@
  * is missing, so nothing looks broken until an incident needs the logs and they
  * are not there. That is why it is asserted rather than eyeballed.
  *
- * The two assertions below are deliberately about BEHAVIOUR, not wiring:
- *   1. a completed request emits an http.request.completed event, and
- *   2. a 500 is emitted with its status code intact
- * so the test keeps passing if the logger is later swapped for another sink,
- * and keeps failing if the emit is dropped again.
+ * The assertions below are deliberately about BEHAVIOUR, not wiring: a served
+ * request emits an http.request.completed event, and a 500 is emitted with its
+ * status code intact. The sink itself has since moved — see
+ * dashboard-axiom-sink.test.js for why it must live in the dashboard's own
+ * dependency set — but what this file guards is unchanged: the middleware must
+ * actually emit.
  */
 
 const path = require('path');
 
 describe('bd-43487 — portal request telemetry reaches the log sink', () => {
-  const LOGGER_PATH = path.join(
-    __dirname, '..', '..', 'bot', 'shared', 'utils', 'structured-logger'
+  const SINK_PATH = path.join(
+    __dirname, '..', '..', 'dashboard', 'services', 'telemetry.service'
   );
 
   let emitted;
@@ -43,13 +44,12 @@ describe('bd-43487 — portal request telemetry reaches the log sink', () => {
     jest.resetModules();
     emitted = [];
 
-    // Stand in for the real Axiom-backed logger. The middleware must reach the
+    // Stand in for the real Axiom-backed sink. The middleware must reach the
     // module, not a global that nothing sets.
-    jest.doMock(LOGGER_PATH, () => ({
+    jest.doMock(SINK_PATH, () => ({
       logEvent: (event, data) => emitted.push({ event, data }),
-      logger: { info: () => {}, warn: () => {}, error: () => {} },
-      runWithCorrelation: (_id, fn) => fn(),
-      generateCorrelationId: () => 'test-correlation-id',
+      flush: () => {},
+      isEnabled: () => true,
     }));
 
     // Nothing in the repo assigns this. Set it to undefined explicitly so a
