@@ -105,10 +105,16 @@ describe('BAND_PICKER — the screen itself', () => {
     expect((json.match(/data_exchange/g) || []).length).toBe(1);
   });
 
-  test('submits _action=save_bands with the selection', () => {
+  test('submits the selection with a state-driven action', () => {
+    // The action is templated (${data.primary_action}) rather than the literal
+    // 'save_bands', so the one Footer can be Save when editable and Back when
+    // blocked. The endpoint supplies save_bands / back_to_training.
     const json = JSON.stringify(screen().layout);
-    expect(json).toContain('save_bands');
+    expect(json).toContain('${data.primary_action}');
     expect(json).toContain('${form.band_choice}');
+    const src = require('fs').readFileSync(
+      require('path').join(__dirname, '../../bot/shared/routes/teacher-training-endpoint.js'), 'utf8');
+    expect(src).toContain("primary_action: blocked ? 'back_to_training' : 'save_bands'");
   });
 
   test('pre-fills the current selection so a change starts from today', () => {
@@ -196,45 +202,46 @@ describe('every screen render supplies EVERY ${data.*} field it references', () 
   });
 });
 
-describe('BAND_PICKER — the blocked state is not a form', () => {
+describe('BAND_PICKER — the blocked state offers no way to submit', () => {
   const bp = () => screenById.get('BAND_PICKER');
+  const form = () => bp().layout.children.find(c => c.type === 'Form');
+  const kids = () => form().children;
 
   test('carries two mutually exclusive states', () => {
     expect(bp().data).toHaveProperty('form_visible');
     expect(bp().data).toHaveProperty('blocked_visible');
   });
 
-  test('the checkbox form is gated on form_visible', () => {
-    const forms = bp().layout.children.filter(c => c.type === 'Form');
-    const editable = forms.find(f => JSON.stringify(f).includes('CheckboxGroup'));
-    expect(editable.visible).toBe('${data.form_visible}');
-  });
-
-  test('the blocked state has NO checkbox group and NO save action', () => {
-    // The whole point: a form the teacher cannot submit is a trap. They ticked a
-    // box, tapped Save, the write was refused, and they were sent onward with
-    // the refusal as a caption — which read as success.
-    const forms = bp().layout.children.filter(c => c.type === 'Form');
-    const blocked = forms.find(f => f.visible === '${data.blocked_visible}');
-    const json = JSON.stringify(blocked);
-    expect(json).not.toContain('CheckboxGroup');
-    expect(json).not.toContain('save_bands');
-  });
-
-  test('the blocked state offers only a way back', () => {
-    const forms = bp().layout.children.filter(c => c.type === 'Form');
-    const blocked = forms.find(f => f.visible === '${data.blocked_visible}');
-    expect(JSON.stringify(blocked)).toContain('back_to_training');
-    const footers = blocked.children.filter(c => c.type === 'Footer');
-    expect(footers).toHaveLength(1);
+  test('the checkbox group is hidden in the blocked state', () => {
+    const cb = kids().find(c => c.type === 'CheckboxGroup');
+    expect(cb.visible).toBe('${data.form_visible}');
   });
 
   test('the refusal is a heading + body, not a grey caption', () => {
-    const forms = bp().layout.children.filter(c => c.type === 'Form');
-    const blocked = forms.find(f => f.visible === '${data.blocked_visible}');
-    const types = blocked.children.map(c => c.type);
+    const blocked = kids().filter(c => c.visible === '${data.blocked_visible}');
+    const types = blocked.map(c => c.type);
     expect(types).toContain('TextSubheading');
     expect(types).toContain('TextBody');
-    expect(types).not.toContain('TextCaption');
+  });
+
+  test('there is exactly ONE Footer, whose action switches with the state', () => {
+    // A blocked teacher must have no way to submit. Rather than two footers
+    // (Meta renders only one per screen), the single footer's action is driven
+    // by ${data.primary_action}: save_bands when editable, back_to_training
+    // when blocked.
+    const footers = kids().filter(c => c.type === 'Footer');
+    expect(footers).toHaveLength(1);
+    expect(JSON.stringify(footers[0])).toContain('${data.primary_action}');
+  });
+
+  test('no Form carries a `visible` property', () => {
+    // Meta rejects it: INVALID_PROPERTY_KEY "Property 'visible' is not allowed
+    // in 'Form' component." An earlier revision used two conditionally-visible
+    // Forms and failed to publish. State is expressed per-CHILD instead.
+    for (const sc of FLOW.screens) {
+      for (const c of sc.layout.children) {
+        if (c.type === 'Form') expect(c.visible).toBeUndefined();
+      }
+    }
   });
 });

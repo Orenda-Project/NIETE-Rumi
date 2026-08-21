@@ -221,6 +221,14 @@
         "blocked_heading": {
           "type": "string",
           "__example__": "You cannot change this yet"
+        },
+        "blocked_body": {
+          "type": "string",
+          "__example__": "You changed this less than 48 hours ago."
+        },
+        "primary_action": {
+          "type": "string",
+          "__example__": "save_bands"
         }
       },
       "layout": {
@@ -240,13 +248,13 @@
             "init-values": {
               "band_choice": "${data.init_bands}"
             },
-            "visible": "${data.form_visible}",
             "children": [
               {
                 "type": "CheckboxGroup",
                 "name": "band_choice",
                 "label": "Grades you teach",
                 "required": true,
+                "visible": "${data.form_visible}",
                 "data-source": "${data.band_options}"
               },
               {
@@ -255,38 +263,23 @@
                 "visible": "${data.notice_visible}"
               },
               {
+                "type": "TextSubheading",
+                "text": "${data.blocked_heading}",
+                "visible": "${data.blocked_visible}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.blocked_body}",
+                "visible": "${data.blocked_visible}"
+              },
+              {
                 "type": "Footer",
                 "label": "${data.footer_label}",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "_action": "save_bands",
+                    "_action": "${data.primary_action}",
                     "_bands": "${form.band_choice}"
-                  }
-                }
-              }
-            ]
-          },
-          {
-            "type": "Form",
-            "name": "blocked_form",
-            "visible": "${data.blocked_visible}",
-            "children": [
-              {
-                "type": "TextSubheading",
-                "text": "${data.blocked_heading}"
-              },
-              {
-                "type": "TextBody",
-                "text": "${data.cooldown_notice}"
-              },
-              {
-                "type": "Footer",
-                "label": "Back to my training",
-                "on-click-action": {
-                  "name": "data_exchange",
-                  "payload": {
-                    "_action": "back_to_training"
                   }
                 }
               }
