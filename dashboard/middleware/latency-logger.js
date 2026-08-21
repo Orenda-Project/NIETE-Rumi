@@ -8,6 +8,57 @@
  * Solution: Log all request durations, alert on slow requests
  */
 
+// Emit through the structured logger MODULE, not `global.logEvent`.
+//
+// This middleware used to guard both of its emits with `if (global.logEvent)`.
+// Nothing in this repository ever assigns that global: the bot requires the
+// logger as a module (`require('./shared/utils/structured-logger')`), which
+// self-initialises its Axiom batcher on first require and exports `logEvent`.
+// So the guard was never true, the portal shipped ZERO request telemetry, and
+// Axiom held no `service == "portal"` rows at all — while the service carried
+// AXIOM_DATASET + AXIOM_TOKEN and the middleware looked instrumented.
+//
+// The cost was a real one: a report of "training levels are not visible in the
+// portal" could not be diagnosed, because no record of the teacher's request
+// survived. The platform log buffer keeps only minutes of stdout.
+//
+// Resolved lazily and defensively. The dashboard and the bot are separate
+// deploy units that do not always install the same dependency set — requiring
+// bot code from the dashboard process has thrown before, and the throw was
+// swallowed for two days. A logging middleware must never be the reason a
+// request fails, so a resolution failure degrades to console-only.
+let _logEvent = null;
+let _logEventResolved = false;
+
+function resolveLogEvent() {
+  if (_logEventResolved) return _logEvent;
+  _logEventResolved = true;
+  try {
+    // eslint-disable-next-line global-require
+    const logger = require('../../bot/shared/utils/structured-logger');
+    if (logger && typeof logger.logEvent === 'function') {
+      _logEvent = logger.logEvent;
+    }
+  } catch (err) {
+    // Console stays the floor — never let telemetry wiring break a response.
+    process.stderr.write(
+      `[latency-logger] structured logger unavailable, console only: ${err.message}\n`
+    );
+  }
+  return _logEvent;
+}
+
+/** Emit a semantic event, tolerating an absent or throwing sink. */
+function emit(event, data) {
+  const fn = resolveLogEvent();
+  if (!fn) return;
+  try {
+    fn(event, data);
+  } catch (err) {
+    process.stderr.write(`[latency-logger] emit failed for ${event}: ${err.message}\n`);
+  }
+}
+
 // Threshold for "slow" request alerts (milliseconds)
 const SLOW_REQUEST_THRESHOLD = 5000; // 5 seconds
 
@@ -90,10 +141,8 @@ function createLatencyLogger(options = {}) {
         console.log(`[LATENCY] ${req.method} ${req.path} - ${preciseMs}ms - ${res.statusCode}`);
       }
 
-      // Log to Axiom if available
-      if (global.logEvent) {
-        global.logEvent('http.request.completed', logData);
-      }
+      // Ship the request record to the structured logger (Axiom).
+      emit('http.request.completed', logData);
 
       // Alert on slow requests
       if (durationMs > config.slowThreshold) {
@@ -110,9 +159,7 @@ function createLatencyLogger(options = {}) {
           timestamp: new Date().toISOString()
         };
 
-        if (global.logEvent) {
-          global.logEvent('http.request.slow', slowLogData);
-        }
+        emit('http.request.slow', slowLogData);
       }
     });
 
