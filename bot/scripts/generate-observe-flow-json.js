@@ -125,6 +125,7 @@ function domainScreen(key, idx) {
         : `${d.displayName || d.title_en} · sehemu ${idx + 1}/${DOMAIN_ORDER.length} — hakiki alama na maoni, badilisha unavyoona inafaa.` },
   ];
   const initValues = {};
+  const payload = { _screen: screenId(key) };
   const data = {
     scale: {
       type: 'array',
@@ -133,32 +134,68 @@ function domainScreen(key, idx) {
     },
   };
 
-  // bd-9hzdn / bd-5n1a2 (v3): Section B carries the MEASURED per-move fidelity
-  // analysis (D20/D27) exactly as the teacher-flow scorer grades it — one block
-  // per prescribed move (plan → what was seen → the scorer's credit verdict),
-  // replacing the v2 single truncated summary blob. Rendered only when the
-  // endpoint sends has_fidelity=true (prefill is env-gated on
-  // OBSERVE_FICO_FLOW_HAS_FIDELITY='moves', flipped with the republish).
-  if (key === 'lesson_plan_fidelity') {
+  // bd-c5zs1 (v4, supersedes the v3 read-only blocks): the legacy B1-B10
+  // indicator groups are RETIRED from this screen — parity with the teacher
+  // flow (D27), where measured fidelity replaced them. Per prescribed move the
+  // coach sees the plan's action (read-only) and EDITS the verdict + evidence;
+  // the endpoint re-runs the fidelity scorer on the corrected verdicts, so
+  // Section B is the coach-corrected measurement. Prefill is env-gated on
+  // OBSERVE_FICO_FLOW_HAS_FIDELITY='editable', flipped with the republish.
+  if (key === 'lesson_plan_fidelity' && PACK.key === 'fico') {
     const fidelityChildren = [
       { type: 'TextSubheading', text: 'Measured lesson-plan fidelity', visible: '${data.has_fidelity}' },
       { type: 'TextBody', text: '${data.fid_header}', visible: '${data.has_fidelity}' },
+      { type: 'TextBody', text: '${data.fid_fallback}', visible: '${data.no_fidelity}' },
     ];
     data.has_fidelity = { type: 'boolean', __example__: true };
+    data.no_fidelity = { type: 'boolean', __example__: false };
     data.fid_header = {
       type: 'string',
-      __example__: 'Measured lesson-plan fidelity: 46% (LOW) · 9 counted moves\nScore = credit earned ÷ prescribed moves.',
+      __example__: 'Measured lesson-plan fidelity: 46% (LOW) · 9 counted moves\nChange any rating you disagree with.',
+    };
+    data.fid_fallback = { type: 'string', __example__: '' };
+    data.fid_scale = {
+      type: 'array',
+      items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' } } },
+      __example__: [
+        { id: 'executed', title: '✓ Executed — full credit' },
+        { id: 'not_done', title: '✗ Not done — no credit' },
+      ],
     };
     for (let k = 1; k <= MAX_MOVE_SLOTS; k++) {
       fidelityChildren.push({ type: 'TextBody', text: `\${data.mv_${k}}`, visible: `\${data.mv_${k}_v}` });
-      data[`mv_${k}`] = { type: 'string', __example__: `${k}/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice` };
+      fidelityChildren.push({
+        type: 'RadioButtonsGroup',
+        name: `fid_r_${k}`,
+        label: `Rating — move ${k}`,
+        required: false,
+        visible: `\${data.mv_${k}_v}`,
+        'data-source': '${data.fid_scale}',
+      });
+      fidelityChildren.push({
+        type: 'TextArea',
+        name: `fid_e_${k}`,
+        label: 'Evidence',
+        'helper-text': `Move ${k} — what was seen`,
+        required: false,
+        visible: `\${data.mv_${k}_v}`,
+      });
+      data[`mv_${k}`] = { type: 'string', __example__: `${k}/9 · Warm-up — Plan: Read the word problem aloud` };
       data[`mv_${k}_v`] = { type: 'boolean', __example__: k === 1 };
+      data[`fr_${k}`] = { type: 'string', __example__: 'executed' };
+      data[`fe_${k}`] = { type: 'string', __example__: '[02:10] Teacher reads it twice' };
+      initValues[`fid_r_${k}`] = `\${data.fr_${k}}`;
+      initValues[`fid_e_${k}`] = `\${data.fe_${k}}`;
+      payload[`fid_r_${k}`] = `\${form.fid_r_${k}}`;
+      payload[`fid_e_${k}`] = `\${form.fid_e_${k}}`;
     }
     children.unshift(...fidelityChildren);
   }
-  const payload = { _screen: screenId(key) };
-
-  for (const ind of d.indicators) {
+  // bd-c5zs1: on the fico fidelity screen the legacy B1-B10 indicator groups
+  // are RETIRED — the per-move editable measurement above replaces them, same
+  // as the teacher flow (D27). Every other screen keeps its indicators.
+  const retiredIndicators = key === 'lesson_plan_fidelity' && PACK.key === 'fico';
+  for (const ind of retiredIndicators ? [] : d.indicators) {
     const f = fid(ind.id);
     children.push({
       type: 'RadioButtonsGroup',

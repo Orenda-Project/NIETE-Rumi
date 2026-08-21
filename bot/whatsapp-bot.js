@@ -2012,12 +2012,14 @@ app.post('/webhook', async (req, res) => {
         logToFile('⚠️ Unknown list item ID', { listId });
       }
     } else {
-      // Handle unsupported message types
-      logToFile(`⚠️ Unsupported message type: ${messageType}`);
-      await WhatsAppService.sendMessage(
-        from,
-        'میں صرف متن اور آواز پیغامات کا جواب دے سکتا ہوں۔' // I can only respond to text and voice messages
-      );
+      // bd-fbih0: reactions/stickers get NO reply (reacting 👍 used to trigger
+      // the error text); video gets an explanatory line naming the supported
+      // inputs (a coach mid-photo-capture read the old generic reply as the
+      // bot breaking). Everything else keeps the historical fallback.
+      const { unsupportedTypeReply } = require('./shared/utils/unsupported-message');
+      const reply = unsupportedTypeReply(messageType);
+      logToFile(`⚠️ Unsupported message type: ${messageType}`, { replied: !!reply });
+      if (reply) await WhatsAppService.sendMessage(from, reply);
     }
 
     // Always respond with 200 OK to acknowledge receipt
