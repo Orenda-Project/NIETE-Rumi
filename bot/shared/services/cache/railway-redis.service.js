@@ -23,7 +23,7 @@ const { RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_SECONDS } = require('../../utils/const
 class RailwayRedisService {
   constructor() {
     if (!process.env.REDIS_URL) {
-      logToFile('⚠️  REDIS_URL not configured. Redis service disabled.', { level: 'warn' });
+      logToFile('⚠️  REDIS_URL not configured. Redis service disabled.', null, 'warn');
       this.redis = null;
       return;
     }
@@ -49,7 +49,8 @@ class RailwayRedisService {
               logToFile(
                 `❌ Redis unreachable after ${times} attempts — giving up. ` +
                 'Check REDIS_URL or unset it to disable Redis features.',
-                { url: process.env.REDIS_URL.replace(/:[^:@]*@/, ':***@'), level: 'error' }
+                { url: process.env.REDIS_URL.replace(/:[^:@]*@/, ':***@') },
+                'error'
               );
             }
             return null; // ioredis stops reconnecting when retryStrategy returns null

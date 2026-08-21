@@ -200,8 +200,147 @@ function diffAgainstAllowlist(violations, allowlist) {
   };
 }
 
+/** Severity words that only ever mean a log level, never domain data. */
+const SEVERITY_WORDS = new Set(['error', 'warn', 'info', 'debug', 'fatal', 'trace']);
+
+/** Log-emitting callees whose 2nd argument is a structured-data object. */
+const LOG_CALLEES = /\b(logToFile|logError|logWarn|console\.(?:log|error|warn|info|debug))\s*\(/g;
+
+/**
+ * Split a call's inner source into top-level arguments, string- and
+ * bracket-aware. Returns [] if the call cannot be parsed confidently.
+ */
+function topLevelArgs(inner) {
+  const args = [];
+  let depth = 0;
+  let cur = '';
+  let i = 0;
+  while (i < inner.length) {
+    const c = inner[i];
+    if (QUOTES.has(c)) {
+      const j = skipString(inner, i);
+      cur += inner.slice(i, j);
+      i = j;
+      continue;
+    }
+    if (c === '(' || c === '[' || c === '{') depth += 1;
+    else if (c === ')' || c === ']' || c === '}') depth -= 1;
+    if (c === ',' && depth === 0) { args.push(cur); cur = ''; i += 1; continue; }
+    cur += c;
+    i += 1;
+  }
+  if (cur.trim()) args.push(cur);
+  return args;
+}
+
+/**
+ * If the given data-object source has a `level` key at its OWN top level whose
+ * value is a severity word, return that word. Otherwise null.
+ *
+ * Depth-aware on purpose: `{ meta: { level: 'error' } }` must NOT match — that
+ * nested `level` belongs to someone else's payload and is not a misplaced
+ * severity. A regex cannot make that distinction.
+ */
+function topLevelLevelValue(argSrc) {
+  const src = argSrc.trim();
+  if (!src.startsWith('{')) return null;          // not an inline object literal
+  const inner = src.slice(1, src.lastIndexOf('}'));
+  let depth = 0;
+  let i = 0;
+  let keyStart = 0;
+  while (i < inner.length) {
+    const c = inner[i];
+    if (QUOTES.has(c)) { i = skipString(inner, i); continue; }
+    if (c === '(' || c === '[' || c === '{') { depth += 1; i += 1; continue; }
+    if (c === ')' || c === ']' || c === '}') { depth -= 1; i += 1; continue; }
+    if (c === ',' && depth === 0) { keyStart = i + 1; i += 1; continue; }
+    if (c === ':' && depth === 0) {
+      const key = inner.slice(keyStart, i).trim().replace(/^['"`]|['"`]$/g, '');
+      if (key === 'level') {
+        const m = inner.slice(i + 1).match(/^\s*(['"`])(\w+)\1/);
+        if (m && SEVERITY_WORDS.has(m[2])) return m[2];
+      }
+      // skip to the next top-level comma so a nested object cannot be misread
+      i += 1;
+      continue;
+    }
+    i += 1;
+  }
+  return null;
+}
+
+/**
+ * Find log calls that pass severity as a `level` key in the DATA object rather
+ * than as the third positional argument.
+ *
+ * `logToFile(msg, { level: 'error' })` does not set severity — the level is the
+ * third positional argument, so that `level` is just another data field. And
+ * because `level` is a reserved pino/base field name, the emitted line ends up
+ * carrying TWO `"level"` keys; which one a consumer honours is parser-dependent
+ * (`JSON.parse` keeps the last, a first-wins parser keeps pino's). So the log is
+ * neither reliably `error` nor cleanly `info`.
+ *
+ * Only severity WORDS are flagged. A `level` key is legitimate domain data all
+ * over this codebase — a training level, a grade, a mastery level, a CPD level —
+ * and those must not be reported. That distinction is why this cannot be a blunt
+ * "no `level` in data" rule.
+ *
+ * Unlike `scanViolations` this has no allowlist: the author wrote a severity, so
+ * their intent is unambiguous and the placement is simply wrong.
+ *
+ * @param {string} scanRoot directory to walk
+ * @param {{relativeTo?: string}} [opts]
+ * @returns {Array<{file: string, line: number, severity: string, snippet: string}>}
+ */
+function findSeverityInData(scanRoot, opts = {}) {
+  const relativeTo = opts.relativeTo || scanRoot;
+  const found = [];
+
+  for (const abs of walk(scanRoot)) {
+    let src;
+    try {
+      src = fs.readFileSync(abs, 'utf8');
+    } catch {
+      continue;
+    }
+    if (!/level\s*:/.test(src)) continue;
+
+    const lines = src.split(/\r?\n/);
+    const file = path.relative(relativeTo, abs).split(path.sep).join('/');
+    const re = new RegExp(LOG_CALLEES.source, 'g');
+    let m;
+    while ((m = re.exec(src)) !== null) {
+      const openIdx = src.indexOf('(', m.index);
+      const end = findCallEnd(src, openIdx);
+      if (end === -1) continue;
+      const args = topLevelArgs(src.slice(openIdx + 1, end - 1));
+      if (args.length < 2) continue;
+
+      // Only the data object (2nd arg), and only a `level` key at ITS top level.
+      // A `level` nested inside a sub-object is somebody else's field, and the
+      // 3rd positional arg is the correct place for severity.
+      const severity = topLevelLevelValue(args[1]);
+      if (!severity) continue;
+
+      const line = src.slice(0, m.index).split('\n').length;
+      found.push({
+        file,
+        line,
+        severity,
+        snippet: (lines[line - 1] || '').trim().slice(0, 100),
+      });
+    }
+  }
+
+  found.sort((a, b) => (a.file === b.file ? a.line - b.line : a.file.localeCompare(b.file)));
+  return found;
+}
+
 module.exports = {
   scanViolations,
+  findSeverityInData,
+  topLevelLevelValue,
+  topLevelArgs,
   keyOf,
   diffAgainstAllowlist,
   // exported for the generator + focused tests

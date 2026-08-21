@@ -35,7 +35,7 @@
 const path = require('path');
 
 const ALLOWLIST = require('./logger-level-consistency.allowlist.json');
-const { scanViolations, diffAgainstAllowlist } = require('./logger-level-lib');
+const { scanViolations, diffAgainstAllowlist, findSeverityInData } = require('./logger-level-lib');
 
 const REPO_ROOT = path.resolve(__dirname, '../..');
 
@@ -50,6 +50,25 @@ describe('Logger level consistency (❌ messages must pass level=error|warn)', (
 
   it('every allowlist entry still exists (else clean it up)', () => {
     expect(stale.map((a) => `${a.file}:${a.line ?? '?'}  ${a.snippet}`)).toEqual([]);
+  });
+
+  it('no call passes severity as a `level` key in its data object', () => {
+    // `logToFile(msg, { level: 'error' })` does NOT set severity — the level is
+    // the THIRD positional argument. Worse, `level` is a reserved pino/base
+    // field, so the emitted line carries two "level" keys and which one a
+    // consumer honours is parser-dependent (JSON.parse keeps the last, a
+    // first-wins parser keeps pino's `info`). The log is therefore neither
+    // reliably `error` nor cleanly `info`.
+    //
+    // No allowlist here, deliberately: the author typed a severity, so the
+    // intent is unambiguous and the placement is simply wrong. Contrast the
+    // assertions above, where "is this failure terminal?" is a judgement call
+    // worth grandfathering.
+    //
+    // Note this catches cases the ❌ ratchet above cannot see at all — most of
+    // these messages open with ⚠️ or 🈯, not ❌.
+    const misplaced = findSeverityInData(path.join(REPO_ROOT, 'bot'), { relativeTo: REPO_ROOT });
+    expect(misplaced.map((v) => `${v.file}:${v.line}  level: '${v.severity}'  ${v.snippet}`)).toEqual([]);
   });
 
   it('the grandfathered backlog never grows', () => {
