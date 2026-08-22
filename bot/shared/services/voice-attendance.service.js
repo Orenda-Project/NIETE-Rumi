@@ -116,21 +116,29 @@ function readStatus(phrase) {
  * never overrule a stronger one:
  *
  *   1. the whole name, exactly
- *   2. one part of the name, exactly — how a principal actually speaks
+ *   2. any WORD of the name, exactly — how a principal actually speaks
  *   3. the whole name, approximately — Soniox spells "Ayesha" four ways
  *
  * A pass that finds MORE THAN ONE candidate returns null and does not fall through:
  * two matches is a refusal, not a reason to try a fuzzier rule that would break the
- * tie by accident.
+ * tie by accident. A word every name shares — "test" across a seeded roster — is a
+ * refusal by the same rule, which is the behaviour we want rather than a special case.
+ *
+ * Pass 2 is by WORD and not by field, because a field is often two names: Pakistani
+ * first names run "Muhammad Usman" and the principal says "Usman". Matching the whole
+ * field only would miss every one of those, and misses a roster whose names carry any
+ * kind of suffix.
  */
 function matchPerson(spoken, roster) {
   const said = normalise(spoken);
   if (!said || !Array.isArray(roster) || !roster.length) return null;
 
+  const words = (value) => normalise(value).split(' ').filter(Boolean);
+
   const people = roster.map((p) => ({
     person: p,
     full: normalise(personName(p)),
-    parts: [p.first_name, p.last_name].filter(Boolean).map(normalise).filter(Boolean),
+    words: new Set([...words(p.first_name), ...words(p.last_name)]),
   }));
 
   const only = (hits) => (hits.length === 1 ? hits[0].person : null);
@@ -139,9 +147,10 @@ function matchPerson(spoken, roster) {
   const exact = people.filter((p) => p.full === said);
   if (exact.length) return only(exact);
 
-  // 2. Exact, one part. "Bilal" or "Iqbal" — the common case.
-  const byPart = people.filter((p) => p.parts.includes(said));
-  if (byPart.length) return only(byPart);
+  // 2. Exact, on every word the principal said. "Bilal", "Iqbal", "Muhammad Usman".
+  const saidWords = said.split(' ').filter(Boolean);
+  const byWord = people.filter((p) => saidWords.every((w) => p.words.has(w)));
+  if (byWord.length) return only(byWord);
 
   // 3. Approximate, whole name. Only reached when nothing matched exactly, so it
   //    cannot silently outvote pass 2's refusal.
