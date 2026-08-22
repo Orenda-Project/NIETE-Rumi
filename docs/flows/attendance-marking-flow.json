@@ -80,6 +80,14 @@
         "class_label": {
           "type": "string",
           "__example__": "Class"
+        },
+        "use_radio": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "use_dropdown": {
+          "type": "boolean",
+          "__example__": false
         }
       },
       "layout": {
@@ -94,10 +102,19 @@
                 "text": "${data.heading}"
               },
               {
-                "type": "Dropdown",
-                "name": "class_id",
+                "type": "RadioButtonsGroup",
+                "name": "class_radio",
                 "label": "${data.class_label}",
-                "required": true,
+                "required": false,
+                "visible": "${data.use_radio}",
+                "data-source": "${data.classes}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "class_dropdown",
+                "label": "${data.class_label}",
+                "required": false,
+                "visible": "${data.use_dropdown}",
                 "data-source": "${data.classes}"
               },
               {
@@ -107,7 +124,8 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "CLASS",
-                    "class_id": "${form.class_id}"
+                    "class_radio": "${form.class_radio}",
+                    "class_dropdown": "${form.class_dropdown}"
                   }
                 }
               }

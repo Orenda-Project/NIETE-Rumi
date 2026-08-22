@@ -154,16 +154,24 @@ async function handleVoiceMessage(message, from, user = null) {
 
         if (waiting) {
           typingController.stop();
-          logToFile('🎙️ Voice attendance note received', { userId: user.id, schoolId: waiting.schoolId });
+          logToFile('🎙️ Voice attendance note received', {
+            userId: user.id, subject: waiting.subject, targetId: waiting.targetId || waiting.schoolId,
+          });
 
-          const { loadStaffRoster } = require('../services/attendance-write.service');
-          const roster = await loadStaffRoster(waiting.schoolId, user.id);
+          // Whose roster, resolved by the SUBJECT the wait was armed with — the
+          // marking endpoint's own loader, so the names offered on REVIEW are exactly
+          // the names matched against here.
+          const marking = require('../routes/attendance-marking-endpoint');
+          const subject = waiting.subject === 'student' ? 'student' : 'teacher';
+          const targetId = waiting.targetId || waiting.schoolId;
+          const { people: roster } = await marking.loadSubject({ userId: user.id, subject, targetId });
 
           if (!roster.length) {
             await VoiceAttendance.disarm(user.id);
-            await WhatsAppService.sendMessage(from,
-              'There are no teachers listed for your school yet, so there is nobody to mark. '
-              + 'Your NIETE coordinator can link your staff.');
+            await WhatsAppService.sendMessage(from, subject === 'teacher'
+              ? 'There are no teachers listed for your school yet, so there is nobody to mark. '
+                + 'Your NIETE coordinator can link your staff.'
+              : 'There is nobody on that class list yet. Add students from /class, then mark attendance.');
             return;
           }
 
@@ -189,7 +197,8 @@ async function handleVoiceMessage(message, from, user = null) {
           }
 
           await VoiceAttendance.stashResult(user.id, {
-            schoolId: waiting.schoolId,
+            subject,
+            targetId,
             absentIds: heard.absentIds,
             leaveIds: heard.leaveIds,
             transcript: heard.transcript,
@@ -211,7 +220,7 @@ async function handleVoiceMessage(message, from, user = null) {
               ? `I heard ${named} ${named === 1 ? 'name' : 'names'}. Open this to check and save.`
               : 'I did not catch any names — open this to tick them yourself.',
             buttonText: 'Check and save',
-            flowToken: `${user.id}:teacher:${waiting.schoolId}:voice`,
+            flowToken: `${user.id}:${subject}:${targetId}:voice`,
           });
 
           logToFile('✅ Voice attendance handed to REVIEW', {
