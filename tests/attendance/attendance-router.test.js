@@ -3,9 +3,11 @@
  *
  * Three decisions, all of which the old code got wrong or could not make:
  *
- *  1. A principal marks TEACHERS; a teacher marks STUDENTS. A principal who also
- *     runs a class is ASKED rather than guessed. The invariant that matters: a
- *     principal is never silently dropped into the student flow.
+ *  1. A principal marks TEACHERS — always, whether or not they also run a class,
+ *     and they are never shown a class picker on this path (bd-43520). What they ARE
+ *     asked is how: by tapping, or by voice note. The invariant that matters is
+ *     unchanged and stronger: a principal cannot end up marking children while
+ *     believing they are marking staff.
  *  2. A teacher with no class yet is handed to /class, which OWNS class creation
  *     since bd-2724. And since bd-2726 route() no longer picks a class at all —
  *     the Flow's CLASS screen does, so route() only decides whether there is
@@ -75,18 +77,18 @@ describe('route — one Flow, opened directly', () => {
     expect(r.flowToken).toBe('t1');
   });
 
-  it('opens the register for a principal with a school, even with no classes', async () => {
+  it('asks a principal how they want to mark, not whose attendance it is', async () => {
     db({ user: { id: 'p1', role: 'principal', school_id: 'sch1' }, classes: [] });
     const r = await router.route('p1');
-    expect(r.action).toBe('OPEN_REGISTER');
-    expect(r.flowToken).toBe('p1');
+    expect(r.action).toBe('ASK_METHOD');
+    expect(r.buttons.map((b) => b.id)).toEqual(['att_method_tap', 'att_method_voice']);
   });
 
-  it('does not ask "teachers or students?" in chat any more — that is the first Dropdown option', async () => {
+  it('never asks "teachers or students?" — a principal\'s /attendance is staff, full stop', async () => {
     db({ user: { id: 'p2', role: 'principal', school_id: 'sch1' }, classes: [{ id: 'c9', class_name: 'Grade 4' }] });
     const r = await router.route('p2');
-    expect(r.action).toBe('OPEN_REGISTER');
-    expect(r.action).not.toBe('ASK_SUBJECT');
+    expect(r.action).toBe('ASK_METHOD');
+    expect(['ASK_SUBJECT', 'OPEN_REGISTER']).not.toContain(r.action);
   });
 
   it('never emits a chat class picker, at any class count', async () => {
@@ -128,19 +130,16 @@ describe('the legacy tap paths still work for buttons already on a handset', () 
 
   it('rejects a tap that is not a class id', async () => {
     db({ user: { id: 't3', role: 'teacher' }, classes: [] });
-    const r = await router.resolveClassChoice('t3', 'att_subject_student');
+    const r = await router.resolveClassChoice('t3', 'att_method_tap');
     expect(r.action).toBe('ERROR');
   });
 
-  it('keeps legacy picker titles inside the 24-char cap', async () => {
-    db({
-      user: { id: 'p5', role: 'principal', school_id: 'sch1' },
-      classes: Array.from({ length: 4 }, (_, i) => ({
-        id: `c${i}`, class_name: 'Higher Secondary (11-12)', section: 'Section Blue',
-      })),
-    });
-    const r = await router.resolveSubjectChoice('p5', 'att_subject_student');
-    r.rows.forEach((row) => expect([...row.title].length).toBeLessThanOrEqual(24));
+  it('a method tap that means nothing re-asks rather than guessing', async () => {
+    // A stale or malformed id must not be read as "tap" — the two options do very
+    // different things, and defaulting silently picks one for the principal.
+    db({ user: { id: 'p5', role: 'principal', school_id: 'sch1' }, classes: [] });
+    const r = await router.resolveMethodChoice('p5', 'att_method_');
+    expect(r.action).toBe('ASK_METHOD');
   });
 });
 

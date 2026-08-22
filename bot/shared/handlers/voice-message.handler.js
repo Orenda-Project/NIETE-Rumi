@@ -132,9 +132,103 @@ async function handleVoiceMessage(message, from, user = null) {
       }
     }
 
-    // ATTENDANCE voice roll call — removed 2026-08-10, rebuilding from scratch.
-    // Voice marking never reached a single teacher on this deployment
-    // (attendance_sessions: 0 rows, ever).
+    // ════════════════════════════════════════════════════════════════════════
+    // ATTENDANCE voice roll call (bd-43520).
+    //
+    // Restored for the PRINCIPAL path. Placed HERE, before every other voice
+    // route, because a principal who has just been asked for a voice note is
+    // unambiguously answering that question — routing this audio to coaching or a
+    // reading assessment instead would lose the roll call and start a five-minute
+    // pipeline nobody asked for.
+    //
+    // The wait is armed in conversation state by the router's AWAIT_VOICE branch,
+    // so it survives the process restart that a Redis-held flag would not.
+    //
+    // NOTHING IS WRITTEN HERE. The extraction is stashed and the marking Flow is
+    // opened on its REVIEW screen with the absentees pre-ticked, so a mis-heard
+    // name costs the principal a tap rather than marking a colleague absent.
+    // ════════════════════════════════════════════════════════════════════════
+    if (user?.id) {
+      try {
+        const VoiceAttendance = require('../services/voice-attendance.service');
+        const waiting = await VoiceAttendance.armed(user.id);
+
+        if (waiting) {
+          typingController.stop();
+          logToFile('🎙️ Voice attendance note received', { userId: user.id, schoolId: waiting.schoolId });
+
+          const { loadStaffRoster } = require('../services/attendance-write.service');
+          const roster = await loadStaffRoster(waiting.schoolId, user.id);
+
+          if (!roster.length) {
+            await VoiceAttendance.disarm(user.id);
+            await WhatsAppService.sendMessage(from,
+              'There are no teachers listed for your school yet, so there is nobody to mark. '
+              + 'Your NIETE coordinator can link your staff.');
+            return;
+          }
+
+          const audioBuffer = await WhatsAppService.downloadMedia(audioId);
+          const wavPath = path.join(TEMP_DIR, `attendance_${user.id}_${Date.now()}.wav`);
+          await AudioService.convertToWav(audioBuffer, wavPath);
+
+          let heard;
+          try {
+            heard = await VoiceAttendance.processVoiceAttendance(wavPath, roster);
+          } finally {
+            try { if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath); } catch { /* temp file */ }
+          }
+
+          if (!heard.ok) {
+            // Stay armed: the principal is mid-task and the fix is to speak again.
+            // Disarming here would silently drop them back into general chat, where
+            // their second attempt becomes a lesson-plan request.
+            await WhatsAppService.sendMessage(from,
+              'I could not make out that voice note. Please try again, a little slower — '
+              + 'or say "attendance" to mark by tapping instead.');
+            return;
+          }
+
+          await VoiceAttendance.stashResult(user.id, {
+            schoolId: waiting.schoolId,
+            absentIds: heard.absentIds,
+            leaveIds: heard.leaveIds,
+            transcript: heard.transcript,
+            unmatched: heard.unmatched,
+          });
+
+          const { ATTENDANCE_MARKING_FLOW_ID } = require('../utils/constants');
+          if (!ATTENDANCE_MARKING_FLOW_ID) {
+            await VoiceAttendance.disarm(user.id);
+            await WhatsAppService.sendMessage(from, 'Attendance is not available on this number yet.');
+            return;
+          }
+
+          const named = heard.absentIds.length + heard.leaveIds.length;
+          await WhatsAppService.sendFlow(from, {
+            flowId: ATTENDANCE_MARKING_FLOW_ID,
+            header: '📋 Attendance',
+            body: named
+              ? `I heard ${named} ${named === 1 ? 'name' : 'names'}. Open this to check and save.`
+              : 'I did not catch any names — open this to tick them yourself.',
+            buttonText: 'Check and save',
+            flowToken: `${user.id}:teacher:${waiting.schoolId}:voice`,
+          });
+
+          logToFile('✅ Voice attendance handed to REVIEW', {
+            userId: user.id, absent: heard.absentIds.length,
+            leave: heard.leaveIds.length, unmatched: heard.unmatched.length,
+          });
+          return;
+        }
+      } catch (error) {
+        // Fall through to normal voice routing. A failure here must not swallow the
+        // note — the principal would be left with silence and no way to tell why.
+        logToFile('⚠️ Voice attendance check failed, continuing with normal routing', {
+          userId: user?.id, error: error.message, stack: error.stack,
+        });
+      }
+    }
 
     // PRIORITY 1: CHECK FOR COMPREHENSION QUESTION ANSWER (Sprint 1.8)
     // CRITICAL: Must check BEFORE reading assessment to avoid routing comprehension answers as new readings

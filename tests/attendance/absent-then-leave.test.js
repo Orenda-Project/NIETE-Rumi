@@ -81,12 +81,11 @@ function db() {
   });
 }
 
-/** Walk CLASS -> DATE -> METHOD and land on MARK. */
+/** Walk CLASS -> DATE and land on MARK. */
 async function toMark(token = 't1') {
   db();
   await marking.handleMarkingDataExchange(token, 'CLASS', { class_id: `student:${LIST}` });
-  await marking.handleMarkingDataExchange(token, 'DATE', { register_date: '2026-08-14' });
-  return marking.handleMarkingDataExchange(token, 'METHOD', { method: 'tap' });
+  return marking.handleMarkingDataExchange(token, 'DATE', { register_date: '2026-08-14' });
 }
 
 beforeEach(() => jest.clearAllMocks());

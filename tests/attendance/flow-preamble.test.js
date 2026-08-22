@@ -83,10 +83,16 @@ const PRINCIPAL = { id: 'p1', role: 'principal', school_id: 'sch1' };
 beforeEach(() => jest.clearAllMocks());
 
 describe('the Flow graph', () => {
-  it('runs CLASS -> DATE -> METHOD -> MARK', () => {
+  it('runs CLASS -> DATE -> MARK for a teacher', () => {
     expect(flow.routing_model.CLASS).toEqual(['DATE']);
-    expect(flow.routing_model.DATE).toEqual(['METHOD']);
-    expect(flow.routing_model.METHOD).toEqual(['MARK']);
+    expect(flow.routing_model.DATE).toEqual(['MARK']);
+  });
+
+  it('and STAFF_DATE -> MARK for a principal, with no class step at all', () => {
+    // bd-43520: the tap-or-voice question left the Flow for chat, and the principal
+    // got their own root so they never meet the class picker.
+    expect(flow.routing_model.STAFF_DATE).toEqual(['MARK']);
+    expect(flow.routing_model.METHOD).toBeUndefined();
   });
 
   it('picks classes with a Dropdown, not a RadioButtonsGroup', () => {
@@ -121,7 +127,10 @@ describe('CLASS — the entry screen', () => {
     expect(res.data.classes[0].description).toMatch(/2 students/);
   });
 
-  it('offers a principal their teachers as the FIRST option, then their classes', async () => {
+  it('does not offer a principal their staff here — they never reach this screen', async () => {
+    // Staff USED to be the first Dropdown option, because CLASS was the Flow's only
+    // root and there was nowhere else to put it. STAFF_DATE is now a root of its own
+    // (bd-43520), so this screen is classes and only classes.
     db({
       user: PRINCIPAL,
       staff: [{ id: 'x', first_name: 'Sana' }],
@@ -129,11 +138,15 @@ describe('CLASS — the entry screen', () => {
       rosters: { l1: [] },
     });
 
-    const res = await marking.handleMarkingInit('p1');
+    const res = await marking.renderClassScreen('p1');
 
-    expect(res.data.classes[0].id).toBe('teacher:sch1');
-    expect(res.data.classes[0].title).toMatch(/teacher/i);
-    expect(res.data.classes[1].id).toBe('student:l1');
+    expect(res.data.classes.map((o) => o.id)).toEqual(['student:l1']);
+  });
+
+  it('sends a principal to their own date screen, not to this one', async () => {
+    db({ user: PRINCIPAL, staff: [{ id: 'x', first_name: 'Sana' }], schools: [{ id: 'sch1', name: 'GGPS' }] });
+    const res = await marking.handleMarkingInit('p1:teacher:sch1');
+    expect(res.screen).toBe('STAFF_DATE');
   });
 
   it('does not offer staff to a plain teacher', async () => {
@@ -161,36 +174,25 @@ describe('CLASS — the entry screen', () => {
   });
 });
 
-describe('METHOD — voice is offered but disabled', () => {
-  async function toMethod() {
+describe('the date screen leads straight into the register', () => {
+  async function toDate() {
     db({
       user: TEACHER,
       lists: [{ id: 'l1', class_name: 'Grade 11', section: 'B', class_id: null }],
       rosters: { l1: [{ id: 's1', student_name: 'Amna' }] },
     });
-    await marking.handleMarkingDataExchange('t1', 'CLASS', { class_id: 'student:l1' });
-    return marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
+    return marking.handleMarkingDataExchange('t1', 'CLASS', { class_id: 'student:l1' });
   }
 
-  it('marks voice as coming soon and not enabled', async () => {
-    const res = await toMethod();
-    expect(res.screen).toBe('METHOD');
-    const voice = res.data.methods.find((m) => m.id === 'voice');
-    expect(voice.enabled).toBe(false);
-    expect(voice.title).toMatch(/coming soon/i);
-    expect(res.data.methods.find((m) => m.id === 'tap').enabled).toBe(true);
+  it('asks for the day after the class', async () => {
+    const res = await toDate();
+    expect(res.screen).toBe('DATE');
+    expect(res.data.max_date).toBe(marking.regionToday());
   });
 
-  it('choosing voice does not proceed — it stays on METHOD and says why', async () => {
-    await toMethod();
-    const res = await marking.handleMarkingDataExchange('t1', 'METHOD', { method: 'voice' });
-    expect(res.screen).toBe('METHOD');
-    expect(res.data.method_label).toMatch(/not ready|choose tap/i);
-  });
-
-  it('choosing tap reaches the register', async () => {
-    await toMethod();
-    const res = await marking.handleMarkingDataExchange('t1', 'METHOD', { method: 'tap' });
+  it('submitting the day opens the register — there is no method question left', async () => {
+    await toDate();
+    const res = await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
     expect(res.screen).toBe('MARK');
     expect(res.data.roster).toHaveLength(1);
   });
@@ -225,7 +227,9 @@ describe('the register date is region-local, not UTC', () => {
     });
     await marking.handleMarkingDataExchange('t1', 'CLASS', { class_id: 'student:l1' });
     const res = await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '1786694544000' });
-    expect(res.screen).toBe('METHOD');
+    expect(res.screen).toBe('MARK');
+    // The register names the class AND the day it is for, so a mis-parsed date is
+    // visible on the screen the teacher is about to fill in.
     expect(res.data.heading).toMatch(/·/);
   });
 });

@@ -60,13 +60,20 @@ describe('a teacher with no class', () => {
   });
 });
 
-describe('a principal choosing "My students" with no class', () => {
-  it('is also sent to the class manager', async () => {
+describe('a principal is never routed at their classes from /attendance', () => {
+  // The "My students" branch is gone (bd-43520): a principal's /attendance is staff
+  // attendance, and their own class is marked from /class. So there is no path from
+  // here to the class manager for them — and, more to the point, no path to a class
+  // picker either.
+  it('gets the tap-or-voice question, whether or not they have a class', async () => {
     db({ user: { id: 'p1', role: 'principal', school_id: 'sch1' }, classes: [] });
+    expect((await router.route('p1')).action).toBe('ASK_METHOD');
 
-    const r = await router.resolveSubjectChoice('p1', 'att_subject_student');
-
-    expect(r.action).toBe('SEND_CLASS_MANAGER');
+    db({
+      user: { id: 'p1', role: 'principal', school_id: 'sch1' },
+      classes: [{ id: 'c1', class_name: 'Grade 5' }],
+    });
+    expect((await router.route('p1')).action).toBe('ASK_METHOD');
   });
 });
 

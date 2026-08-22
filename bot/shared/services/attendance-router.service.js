@@ -1,17 +1,22 @@
 /**
  * Attendance — decide what "attendance" means for whoever just said it.
  *
- * One keyword, four possible destinations:
+ * One keyword, two audiences:
  *
- *   principal (+ school)            → mark TEACHERS
- *   teacher, one class              → mark STUDENTS
- *   teacher, several classes        → pick a class first
- *   teacher, no class yet           → offer class SETUP
+ *   principal (+ school)  → TEACHER attendance, always. Ask tap or voice.
+ *   teacher               → STUDENT attendance. Open the register; it picks the class.
  *
- * A principal who also runs their own class is ASKED, never guessed. The
- * invariant is that a principal can never be silently dropped into the student
- * flow — it is the one mistake that would have them marking children while they
- * believe they are marking staff.
+ * A principal's /attendance is STAFF attendance and nothing else (bd-43520). It used
+ * to be a question — "your teachers, or your students?" — first as two reply buttons,
+ * later as the first option on the Flow's class Dropdown. Both were asking a
+ * principal to re-answer something their role had already settled, and the Dropdown
+ * version buried the staff roster one screen deeper than the classes it sat above.
+ * A principal who also runs a class marks it from /class, not from here.
+ *
+ * What a principal IS asked is how they want to mark: by tapping, or by talking. That
+ * question is answered in CHAT rather than on a Flow screen, because it is the first
+ * thing to decide and because a Flow cannot receive a voice note — the voice branch
+ * has to leave the Flow before it can start.
  */
 
 const supabase = require('../config/supabase');
@@ -25,11 +30,6 @@ const KEYWORDS = [
   'حاضری', 'hazri', 'haazri', 'haziri', 'hajri',
 ];
 
-// WhatsApp platform caps: 3 reply buttons, 10 list rows, 24-char row titles.
-const MAX_BUTTONS = 3;
-const MAX_ROWS = 10;
-const TITLE_CAP = 24;
-
 function detect(message) {
   if (!message || typeof message !== 'string') return { detected: false };
   const lower = message.toLowerCase().trim();
@@ -40,22 +40,6 @@ function detect(message) {
     if (re.test(lower)) return { detected: true, keyword: kw };
   }
   return { detected: false };
-}
-
-function classLabel(cls) {
-  // A class-backed mirror row already carries section AND shift inside class_name
-  // (ClassService.mirrorLabel), so appending section renders "Grade 11 - B - B",
-  // and "Grade 7 - E (evening) - E" is 25 code points — over the 24-char row cap,
-  // truncating to a dangling "Grade 7 - E (evening) - ". (bd-2725)
-  const name = String(cls.class_name || '').trim();
-  const section = cls.section ? String(cls.section).trim() : '';
-  let base = name;
-  if (section) {
-    const esc = section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const already = new RegExp(`(^|[\\s\\-])${esc}\\s*(\\(|$)`, 'i');
-    base = already.test(name) ? name : `${name} - ${section}`;
-  }
-  return String(base || 'Class').slice(0, TITLE_CAP);
 }
 
 async function loadUser(userId) {
@@ -165,37 +149,27 @@ function noClassYet(user) {
 }
 
 /**
- * "Which class?" — buttons while they fit, a list once they do not.
+ * Tap or talk — the only question a principal is asked before the register opens.
  *
- * Extracted so BOTH entry points can offer the picker. resolveSubjectChoice used
- * to delegate the multi-class case back to route(), which re-enters the principal
- * fork and asks "teachers or students?" again — an unbreakable loop for any
- * principal with 2+ classes. A principal with exactly one class was fine, so it
- * stayed hidden until a second class existed.
+ * Both options are named in the body text as well as on the buttons: reply buttons
+ * render below the fold on some clients, and "How would you like to mark attendance?"
+ * with nothing visible under it is unanswerable.
  */
-function pickClass(classes) {
-  if (classes.length <= MAX_BUTTONS) {
-    return {
-      action: 'ASK_CLASS_BUTTONS',
-      message: 'Which class?',
-      classes,
-      buttons: classes.map((c) => ({ id: `att_class_${c.id}`, title: classLabel(c) })),
-    };
-  }
-
-  const shown = classes.slice(0, MAX_ROWS);
+function askMethod() {
   return {
-    action: 'ASK_CLASS_LIST',
-    message: 'Which class?',
-    classes,
-    rows: shown.map((c) => ({ id: `att_class_${c.id}`, title: classLabel(c) })),
-    truncated: classes.length > MAX_ROWS,
+    action: 'ASK_METHOD',
+    message: 'Taking today\'s teacher attendance. How would you like to mark it '
+      + '— by tapping the names, or by sending a voice note?',
+    buttons: [
+      { id: 'att_method_tap', title: 'Mark by tapping' },
+      { id: 'att_method_voice', title: 'Mark by voice note' },
+    ],
   };
 }
 
 /**
  * @returns {Promise<{action:string, message?:string, flowToken?:string,
- *                    buttons?:Array, rows?:Array, truncated?:boolean, classes?:Array}>}
+ *                    buttons?:Array, schoolId?:string, listId?:string}>}
  */
 async function route(userId) {
   const user = await loadUser(userId);
@@ -213,21 +187,24 @@ async function route(userId) {
     logToFile('⚠️ LP shelf flush failed at attendance start (non-blocking)', { error: err.message });
   }
 
-  const classes = await loadClasses(userId);
-  const isPrincipal = user.role === 'principal';
-  const canMarkStaff = isPrincipal && Boolean(user.school_id);
-
-  // Nothing to mark at all — /class owns creating it (bd-2724).
-  if (!classes.length && !canMarkStaff) {
-    if (isPrincipal) {
+  // The principal fork comes FIRST and does not consult classes at all. Loading them
+  // is what let a class picker back into this path twice; not loading them is the
+  // guarantee that it cannot happen a third time. (bd-43520)
+  if (user.role === 'principal') {
+    if (!user.school_id) {
       return {
         action: 'NO_SCHOOL',
         message: 'Your account is set up as a principal but is not linked to a school yet, '
           + 'so there is no staff list to mark. Your NIETE coordinator can link it.',
       };
     }
-    return noClassYet(user);
+    return askMethod();
   }
+
+  const classes = await loadClasses(userId);
+
+  // Nothing to mark at all — /class owns creating it (bd-2724).
+  if (!classes.length) return noClassYet(user);
 
   // One Flow, one open. The picker moved onto the Flow's CLASS screen (bd-2726),
   // because chat could only ever offer 3 reply buttons or 10 list rows in total —
@@ -240,27 +217,39 @@ async function route(userId) {
   return { action: 'OPEN_REGISTER', flowToken: userId };
 }
 
-/** Resolve the "my teachers / my students" tap. */
-async function resolveSubjectChoice(userId, buttonId) {
+/**
+ * Resolve the tap/voice choice.
+ *
+ * Re-reads the user rather than trusting the button: a reply button is a durable
+ * artifact on a handset and may come back long after the role or school changed.
+ */
+async function resolveMethodChoice(userId, buttonId) {
   const user = await loadUser(userId);
   if (!user) return { action: 'ERROR', message: "I couldn't find your account." };
+  if (user.role !== 'principal' || !user.school_id) {
+    return {
+      action: 'NO_SCHOOL',
+      message: 'Teacher attendance is marked by a principal whose account is linked to a school. '
+        + 'Your NIETE coordinator can link yours.',
+    };
+  }
 
-  if (buttonId === 'att_subject_teacher') {
-    if (!user.school_id) {
-      return { action: 'NO_SCHOOL', message: 'Your account is not linked to a school yet.' };
-    }
+  if (buttonId === 'att_method_voice') {
+    return {
+      action: 'AWAIT_VOICE',
+      schoolId: user.school_id,
+      message: 'Send me a voice note naming the teachers who are away — for example '
+        + '"Ayesha aur Bilal ghair hazir hain". I will tick them for you to check before saving.',
+    };
+  }
+
+  if (buttonId === 'att_method_tap') {
     return { action: 'MARK_TEACHERS', flowToken: `${userId}:teacher:${user.school_id}` };
   }
 
-  const classes = await loadClasses(userId);
-  if (!classes.length) return noClassYet(user);
-  if (classes.length === 1) {
-    if (!await hasStudents(classes[0])) return emptyClass(classes[0].id);
-    return { action: 'MARK_STUDENTS', flowToken: `${userId}:student:${classes[0].id}` };
-  }
-  // Offer the picker directly. Delegating to route() here re-asked the subject
-  // question a principal had just answered, forever.
-  return pickClass(classes);
+  // Neither id. Ask again rather than defaulting: tapping and talking do very
+  // different things, and picking one silently picks it FOR the principal.
+  return askMethod();
 }
 
 /**
@@ -272,8 +261,8 @@ async function resolveSubjectChoice(userId, buttonId) {
  */
 async function resolveClassChoice(userId, buttonId) {
   const id = String(buttonId || '');
-  // Require the prefix. A bare `.replace()` treated ANY id as a list id, so a
-  // stray tap became flowToken "<user>:student:att_subject_student" and opened a
+  // Require the prefix. A bare `.replace()` treated ANY id as a list id, so any
+  // stray button id became a flowToken like "<user>:student:<that id>" and opened a
   // register against a class that does not exist.
   if (!id.startsWith('att_class_')) {
     return { action: 'ERROR', message: 'I did not catch that class. Say "attendance" again.' };
@@ -287,10 +276,7 @@ async function resolveClassChoice(userId, buttonId) {
 module.exports = {
   detect,
   route,
-  resolveSubjectChoice,
+  resolveMethodChoice,
   resolveClassChoice,
   KEYWORDS,
-  MAX_BUTTONS,
-  MAX_ROWS,
-  TITLE_CAP,
 };

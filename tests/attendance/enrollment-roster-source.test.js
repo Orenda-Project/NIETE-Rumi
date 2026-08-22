@@ -18,7 +18,7 @@
  *   enrollments for this class  ->  use them
  *   none                        ->  use students.list_id
  *
- * Since bd-2726 the register is reached CLASS -> DATE -> METHOD -> MARK, so these
+ * Since bd-2726 the register is reached CLASS -> DATE -> MARK, so these
  * exercise the data_exchange path rather than INIT, which now always answers CLASS.
  *
  * That ordering is what makes the change safe in any sequence. Enrollment is not
@@ -129,8 +129,7 @@ describe('roster source: prefer enrollments, fall back to legacy', () => {
     });
 
     await marking.handleMarkingDataExchange('t1', 'CLASS', { class_id: `student:${LEGACY_LIST}` });
-    await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
-    const res = await marking.handleMarkingDataExchange('t1', 'METHOD', { method: 'tap' });
+    const res = await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
 
     expect(res.screen).toBe('MARK');
     expect(res.data.roster.map((r) => r.title)).toEqual(['Aleeha Noor']);
@@ -147,8 +146,7 @@ describe('roster source: prefer enrollments, fall back to legacy', () => {
     });
 
     await marking.handleMarkingDataExchange('t1', 'CLASS', { class_id: `student:${CLASS_LIST}` });
-    await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
-    const res = await marking.handleMarkingDataExchange('t1', 'METHOD', { method: 'tap' });
+    const res = await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
 
     const titles = res.data.roster.map((r) => r.title);
     expect(titles).toEqual(['Amna Rafiq']);
@@ -167,8 +165,7 @@ describe('roster source: prefer enrollments, fall back to legacy', () => {
     });
 
     await marking.handleMarkingDataExchange('t1', 'CLASS', { class_id: `student:${CLASS_LIST}` });
-    await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
-    const res = await marking.handleMarkingDataExchange('t1', 'METHOD', { method: 'tap' });
+    const res = await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
 
     expect(res.data.roster.map((r) => r.title)).toEqual(['Danish Iqbal']);
   });
@@ -181,8 +178,7 @@ describe('roster source: prefer enrollments, fall back to legacy', () => {
     });
 
     await marking.handleMarkingDataExchange('t1', 'CLASS', { class_id: `student:${CLASS_LIST}` });
-    await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
-    const res = await marking.handleMarkingDataExchange('t1', 'METHOD', { method: 'tap' });
+    const res = await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
 
     expect(res.screen).toBe('MARK');           // entry screen, per bd-2713
     expect(res.data.roster).toEqual([]);
@@ -230,8 +226,7 @@ describe('labels for class-backed rosters (bd-2725)', () => {
     });
 
     await marking.handleMarkingDataExchange('t1', 'CLASS', { class_id: `student:${CLASS_LIST}` });
-    await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
-    const res = await marking.handleMarkingDataExchange('t1', 'METHOD', { method: 'tap' });
+    const res = await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
 
     expect(res.data.heading).not.toMatch(/- B - B/);
     expect(res.data.heading).toMatch(/B/);
