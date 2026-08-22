@@ -60,7 +60,10 @@ describe('arming the wait actually persists it', () => {
 
     expect(mockCounters.writes).toBe(1);
     const waiting = await voice.armed(USER);
-    expect(waiting).toEqual({ schoolId: 'sch1' });
+    // The payload names the SUBJECT as well as the target since students came along:
+    // a teacher's note is about one class out of several, and schoolId cannot say
+    // which. schoolId is still carried so a principal caller reading it by name works.
+    expect(waiting).toMatchObject({ subject: 'teacher', targetId: 'sch1', schoolId: 'sch1' });
   });
 
   it('says we are NOT waiting when nothing was armed — the control', async () => {
@@ -111,8 +114,10 @@ describe('the extraction survives the gap between the note and the Flow', () => 
   it('is no longer "waiting for a note" once the note has been processed', async () => {
     // Otherwise a second voice note would be re-extracted while the first is still
     // open in a Flow, and whichever finished last would win.
-    await voice.arm(USER, { schoolId: 'sch1' });
-    await voice.stashResult(USER, { schoolId: 'sch1', absentIds: [], leaveIds: [], transcript: 'x' });
+    await voice.arm(USER, { subject: 'teacher', targetId: 'sch1' });
+    await voice.stashResult(USER, {
+      subject: 'teacher', targetId: 'sch1', absentIds: [], leaveIds: [], transcript: 'x',
+    });
 
     expect(await voice.armed(USER)).toBeNull();
     expect(await voice.pendingResult(USER)).not.toBeNull();
