@@ -1677,6 +1677,20 @@ app.post('/webhook', async (req, res) => {
         } catch (visitErr) {
           logToFile('❌ observe-visit completion handler failed', { from, error: visitErr.message });
         }
+      } else if (flowType === 'status') {
+        // /status. The endpoint did every write before the Flow closed,
+        // so this branch ONLY acknowledges. Without it the completion landed on the
+        // catch-all below and answered "Thanks for your response! Type /menu…" —
+        // so a teacher who had just stopped a task was told nothing about it, and
+        // every /status use logged a spurious unknown-flow warning.
+        logToFile('📋 Detected status flow submission', {
+          from, responseFields: Object.keys(responseJson),
+        });
+        try {
+          await FlowResponseHandler.handleStatusFlowCompletion(responseJson, from, user);
+        } catch (statusAckErr) {
+          logToFile('❌ status completion handler failed', { from, error: statusAckErr.message }, 'error');
+        }
       } else {
         // Unknown flow type
         logToFile('⚠️ Received unknown flow submission', {

@@ -863,12 +863,65 @@ async function _continueObserveLoop(target, user, phoneNumber, userId) {
   }
 }
 
+/**
+ * Acknowledge a /status Flow completion in the CHAT.
+ *
+ * The endpoint already did every write before the Flow closed, so this only
+ * acknowledges — it must not re-persist or re-clear anything. Without it the
+ * completion fell to whatsapp-bot.js's "Unknown flow type" arm and answered
+ * "Thanks for your response! Type /menu…", which told a teacher who had just
+ * stopped a task nothing about it. Same failure the `remark` and `observe_visit`
+ * branches exist to prevent.
+ *
+ * Only the STOP gets a chat line, and that is deliberate:
+ *
+ *  · cancelled — a state change she may want to look back on tomorrow, after the
+ *    Flow's SUCCESS screen is long gone. The chat is the only persistent record.
+ *  · resumed   — the SUCCESS screen already told her to reply here to pick up, and
+ *    the state is untouched, so a chat line would say the same thing twice. The
+ *    remark branch calls this out explicitly: "ONE message, not two."
+ *  · done/idle/noop — she closed a menu. Nothing happened; saying so is noise.
+ *
+ * Reuses `resumeDiscarded`, which is already the bilingual copy for "that one is
+ * closed" — no new string, so no language-registry surface added (root CLAUDE.md
+ * Rule 20).
+ *
+ * @returns {Promise<boolean>} always true — the completion was recognised and
+ *   handled, whatever the action was. The caller uses this only to know it should
+ *   not fall through to the generic ack.
+ */
+async function handleStatusFlowCompletion(responseJson, from, user) {
+  const action = (responseJson && responseJson.status_action) || 'done';
+
+  logToFile('📋 Status flow completion', {
+    from,
+    action,
+    resourceKind: (responseJson && responseJson.resource_kind) || null,
+  });
+
+  if (action === 'cancelled') {
+    try {
+      const { resolveUx } = require('../config/ux-strings');
+      await WhatsAppService.sendMessage(from, resolveUx('resumeDiscarded', { user }));
+    } catch (err) {
+      // The cancel itself already succeeded inside the Flow; a failed ack must not
+      // read as a failed cancel, so this is logged and swallowed.
+      logToFile('⚠️ status cancel ack failed (the stop itself already applied)', {
+        from, error: err.message,
+      });
+    }
+  }
+
+  return true;
+}
+
 module.exports = {
   handleFlowResponse,
   handleReadingAssessmentFlow,
   handleRegistrationFlow,
   handleTeacherTrainingFlow,
   handleObserveVisitFlow,
+  handleStatusFlowCompletion,
   mapLevelToPassageType,
   READING_ASSESSMENT_FLOW_ID,
   REGISTRATION_FLOW_ID
