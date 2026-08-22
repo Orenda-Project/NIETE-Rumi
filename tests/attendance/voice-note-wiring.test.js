@@ -49,8 +49,10 @@ describe('the voice note reaches attendance at all', () => {
     expect(VOICE_HANDLER).toMatch(/const waiting = await VoiceAttendance\.armed\(/);
   });
 
-  it('opens the register on its REVIEW root, with a voice token', () => {
-    expect(VOICE_HANDLER).toMatch(/flowToken: `\$\{user\.id\}:teacher:\$\{waiting\.schoolId\}:voice`/);
+  it('opens the register on its REVIEW root, with a voice token for either subject', () => {
+    // The subject is no longer hardcoded: a teacher's note is about a class, a
+    // principal's about their staff, and the token has to say which.
+    expect(VOICE_HANDLER).toMatch(/flowToken: `\$\{user\.id\}:\$\{subject\}:\$\{targetId\}:voice`/);
   });
 
   it('stays armed when nothing could be heard, so speaking again works', () => {

@@ -95,13 +95,16 @@ describe('the Flow graph', () => {
     expect(flow.routing_model.METHOD).toBeUndefined();
   });
 
-  it('picks classes with a Dropdown, not a RadioButtonsGroup', () => {
-    // Meta caps RadioButtonsGroup and CheckboxGroup at 20 options; Dropdown at 200.
-    // A subject teacher can hold more class-sections than 20.
+  it('carries BOTH pickers, and shows whichever suits the class count', () => {
+    // Was a Dropdown alone. A Dropdown is a field that opens a picker sheet, which is
+    // right for twenty class-sections and one tap too many for three — so radio
+    // buttons show inline up to five and the Dropdown takes over past that. Meta caps
+    // RadioButtonsGroup at 20 options and Dropdown at 200, so the fallback is what
+    // keeps a 20-section teacher whole.
     const cls = flow.screens.find((s) => s.id === 'CLASS');
-    const types = JSON.stringify(cls.layout);
-    expect(types).toContain('"Dropdown"');
-    expect(types).not.toContain('RadioButtonsGroup');
+    const kids = cls.layout.children.find((c) => c.type === 'Form').children;
+    expect(kids.find((c) => c.type === 'RadioButtonsGroup')).toBeDefined();
+    expect(kids.find((c) => c.type === 'Dropdown')).toBeDefined();
   });
 
   it('uses CalendarPicker, which needs flow >= 6.1', () => {

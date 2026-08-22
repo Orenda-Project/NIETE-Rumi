@@ -123,11 +123,13 @@ describe('the chat question: how would you like to mark?', () => {
     expect(r.message).toMatch(/coordinator|not linked/i);
   });
 
-  it('leaves the teacher path alone — they still open the register directly', async () => {
+  it('asks a teacher the same question, about their class rather than the staff', async () => {
+    // Teachers were opened straight into the register when this suite was written.
+    // They are asked the method too now, and the wording is the only difference.
     db({ user: { id: 't1', role: 'teacher', school_id: 'sch1' }, lists: [{ id: 'c1', class_name: 'Grade 5' }] });
     const r = await router.route('t1');
-    expect(r.action).toBe('OPEN_REGISTER');
-    expect(r.flowToken).toBe('t1');
+    expect(r.action).toBe('ASK_METHOD');
+    expect(r.subject).toBe('student');
   });
 });
 

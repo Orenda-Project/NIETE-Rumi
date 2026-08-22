@@ -1949,8 +1949,31 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       });
 
       if (decision.action === 'AWAIT_VOICE') {
-        await VoiceAttendance.arm(user.id, { schoolId: decision.schoolId });
+        await VoiceAttendance.arm(user.id, { subject: decision.subject, targetId: decision.targetId });
         await WhatsAppService.sendMessage(from, decision.message);
+        return;
+      }
+      if (decision.action === 'ASK_CLASS_FOR_VOICE' || decision.action === 'ASK_CLASS_FOR_VOICE_LIST') {
+        // Typed "voice" with several classes: fall through to the same picker the
+        // tapped answer gets, rather than arming a wait with no roster behind it.
+        if (decision.buttons) {
+          await WhatsAppService.sendInteractiveButtons(from, { body: decision.message, buttons: decision.buttons });
+        } else {
+          await WhatsAppService.sendInteractiveMessage(from, {
+            body: { text: decision.message },
+            action: { button: 'Choose class', sections: [{ title: 'Your classes', rows: decision.rows }] },
+          });
+        }
+        return;
+      }
+      if (decision.action === 'OPEN_REGISTER' && ATTENDANCE_MARKING_FLOW_ID) {
+        await WhatsAppService.sendFlow(from, {
+          flowId: ATTENDANCE_MARKING_FLOW_ID,
+          header: '📋 Attendance',
+          body: 'Pick the class and the day, then tap whoever is away.',
+          buttonText: 'Mark attendance',
+          flowToken: decision.flowToken,
+        });
         return;
       }
       if (decision.action === 'MARK_TEACHERS' && ATTENDANCE_MARKING_FLOW_ID) {
@@ -2002,8 +2025,27 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         // conversation state (Postgres), not Redis — a restart mid-roll-call would
         // otherwise drop it, and the NIETE Redis has no persistent volume.
         case 'AWAIT_VOICE':
-          await VoiceAttendance.arm(user.id, { schoolId: decision.schoolId });
+          await VoiceAttendance.arm(user.id, { subject: decision.subject, targetId: decision.targetId });
           await WhatsAppService.sendMessage(from, decision.message);
+          break;
+
+        // A teacher choosing voice with several classes is asked which one first: the
+        // roster has to be in hand before spoken names can be matched to anybody.
+        case 'ASK_CLASS_FOR_VOICE':
+          await WhatsAppService.sendInteractiveButtons(from, {
+            body: decision.message,
+            buttons: decision.buttons,
+          });
+          break;
+
+        case 'ASK_CLASS_FOR_VOICE_LIST':
+          await WhatsAppService.sendInteractiveMessage(from, {
+            body: { text: decision.message },
+            action: { button: 'Choose class', sections: [{ title: 'Your classes', rows: decision.rows }] },
+          });
+          if (decision.truncated) {
+            await WhatsAppService.sendMessage(from, `Showing your first ${AttendanceRouter.MAX_ROWS} classes.`);
+          }
           break;
 
         // One Flow, opened with the bare user id; it picks the class and

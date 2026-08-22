@@ -70,11 +70,16 @@ describe('route — one Flow, opened directly', () => {
   // reply buttons or 10 list rows TOTAL and a teacher with 20 class-sections had ten
   // unreachable. route()'s only job now is deciding whether there is anything to
   // mark at all. What the picker SHOWS is covered by flow-preamble.test.js.
-  it('opens the register for a teacher with classes, with a bare user id token', async () => {
+  it('asks a teacher how they want to mark, then opens the register on the tap', async () => {
+    // route() no longer opens anything for a teacher either: tap-or-voice is the
+    // first question for both actors, because a voice note cannot be answered from
+    // inside a Flow.
     db({ user: { id: 't1', role: 'teacher' }, classes: [{ id: 'c1', class_name: 'Grade 5', section: 'A' }] });
-    const r = await router.route('t1');
-    expect(r.action).toBe('OPEN_REGISTER');
-    expect(r.flowToken).toBe('t1');
+    expect((await router.route('t1')).action).toBe('ASK_METHOD');
+
+    const tapped = await router.resolveMethodChoice('t1', 'att_method_tap');
+    expect(tapped.action).toBe('OPEN_REGISTER');
+    expect(tapped.flowToken).toBe('t1');
   });
 
   it('asks a principal how they want to mark, not whose attendance it is', async () => {
@@ -91,15 +96,18 @@ describe('route — one Flow, opened directly', () => {
     expect(['ASK_SUBJECT', 'OPEN_REGISTER']).not.toContain(r.action);
   });
 
-  it('never emits a chat class picker, at any class count', async () => {
+  it('never emits a chat class picker on the TAP path, at any class count', async () => {
+    // The tap picker is a Flow screen, which holds 200 options. Chat's three-button
+    // limit binds only on the voice branch, which has its own picker and its own test.
     for (const n of [1, 3, 4, 14, 20]) {
       db({
         user: { id: 't9', role: 'teacher' },
         classes: Array.from({ length: n }, (_, i) => ({ id: `c${i}`, class_name: `Grade ${i}` })),
       });
-      const r = await router.route('t9');
-      expect(['ASK_CLASS_BUTTONS', 'ASK_CLASS_LIST']).not.toContain(r.action);
-      expect(r.action).toBe('OPEN_REGISTER');
+      expect((await router.route('t9')).action).toBe('ASK_METHOD');
+      const tapped = await router.resolveMethodChoice('t9', 'att_method_tap');
+      expect(['ASK_CLASS_BUTTONS', 'ASK_CLASS_LIST']).not.toContain(tapped.action);
+      expect(tapped.action).toBe('OPEN_REGISTER');
     }
   });
 

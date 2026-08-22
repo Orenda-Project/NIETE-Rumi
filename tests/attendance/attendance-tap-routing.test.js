@@ -43,7 +43,12 @@ describe('attendance taps are routed in both interactive branches', () => {
   });
 
   it('the handler refuses to open a Flow when the id is unset', () => {
-    const fn = BOT.split('async function handleAttendanceTap(')[1].slice(0, 2600);
+    // Scoped to the whole function rather than a fixed character count: a magic
+    // slice silently stops covering the guard the moment a branch is added above it,
+    // which is exactly what happened when the voice class-picker landed.
+    const after = BOT.split('async function handleAttendanceTap(')[1];
+    const next = after.search(/\nasync function \w+\s*\(/);
+    const fn = next === -1 ? after : after.slice(0, next);
     expect(fn).toContain('ATTENDANCE_MARKING_FLOW_ID');
     expect(fn).toMatch(/not available/i);
   });

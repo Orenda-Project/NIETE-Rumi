@@ -116,32 +116,58 @@ function readStatus(phrase) {
  * never overrule a stronger one:
  *
  *   1. the whole name, exactly
- *   2. one part of the name, exactly — how a principal actually speaks
+ *   2. any WORD of the name, exactly — how a principal actually speaks
  *   3. the whole name, approximately — Soniox spells "Ayesha" four ways
  *
  * A pass that finds MORE THAN ONE candidate returns null and does not fall through:
  * two matches is a refusal, not a reason to try a fuzzier rule that would break the
- * tie by accident.
+ * tie by accident. A word every name shares — "test" across a seeded roster — is a
+ * refusal by the same rule, which is the behaviour we want rather than a special case.
+ *
+ * Pass 2 is by WORD and not by field, because a field is often two names: Pakistani
+ * first names run "Muhammad Usman" and the principal says "Usman". Matching the whole
+ * field only would miss every one of those, and misses a roster whose names carry any
+ * kind of suffix.
  */
 function matchPerson(spoken, roster) {
   const said = normalise(spoken);
   if (!said || !Array.isArray(roster) || !roster.length) return null;
 
+  const words = (value) => normalise(value).split(' ').filter(Boolean);
+
   const people = roster.map((p) => ({
     person: p,
     full: normalise(personName(p)),
-    parts: [p.first_name, p.last_name].filter(Boolean).map(normalise).filter(Boolean),
+    // A student's name is one `student_name` field; a teacher's is first + last.
+    // personName() already reconciles the two, so the word set is derived from it
+    // rather than from a list of column names this function would have to keep
+    // in step with the schema.
+    words: new Set(words(personName(p))),
+    roll: p.roll_number == null ? null : String(p.roll_number),
   }));
 
   const only = (hits) => (hits.length === 1 ? hits[0].person : null);
+
+  // 0. A ROLL NUMBER, if that is what was said. "roll number five", "number 12",
+  //    "roll 3" — how a register is actually read aloud in a classroom, and the one
+  //    identifier that cannot collide the way children's first names do.
+  //
+  //    Anchored: a bare "5" is NOT treated as a roll number, because a stray digit
+  //    in a transcript would then mark a child absent. The word has to be there.
+  const spokenRoll = said.match(/\b(?:roll(?:\s*(?:number|no|num))?|number)\s*(\d{1,3})\b/);
+  if (spokenRoll) {
+    const byRoll = people.filter((p) => p.roll === String(Number(spokenRoll[1])));
+    return only(byRoll);
+  }
 
   // 1. Exact, whole name.
   const exact = people.filter((p) => p.full === said);
   if (exact.length) return only(exact);
 
-  // 2. Exact, one part. "Bilal" or "Iqbal" — the common case.
-  const byPart = people.filter((p) => p.parts.includes(said));
-  if (byPart.length) return only(byPart);
+  // 2. Exact, on every word the principal said. "Bilal", "Iqbal", "Muhammad Usman".
+  const saidWords = said.split(' ').filter(Boolean);
+  const byWord = people.filter((p) => saidWords.every((w) => p.words.has(w)));
+  if (byWord.length) return only(byWord);
 
   // 3. Approximate, whole name. Only reached when nothing matched exactly, so it
   //    cannot silently outvote pass 2's refusal.
@@ -310,12 +336,20 @@ async function processVoiceAttendance(audioPath, roster, options = {}) {
 // Redis because the NIETE Redis has no persistent volume and a restart would drop
 // every principal mid-roll-call.
 
-/** Expect a voice note from this principal. */
-async function arm(userId, { schoolId }) {
+/**
+ * Expect a voice note, and remember WHAT it is about.
+ *
+ * The payload carries {subject, targetId} rather than a bare schoolId: a teacher's
+ * note is about one class out of several, and "which roster do these names belong to"
+ * is not answerable from a school. `schoolId` is still accepted and mapped, so a wait
+ * armed by an older build still resolves.
+ */
+async function arm(userId, { subject, targetId, schoolId } = {}) {
+  const resolved = subject === 'student' ? 'student' : 'teacher';
   return ConversationState.setState(userId, {
     flow: VOICE_FLOW,
     step: 'awaiting_voice',
-    payload: { schoolId },
+    payload: { subject: resolved, targetId: targetId || schoolId || null, schoolId: schoolId || (resolved === 'teacher' ? targetId : undefined) },
     ttlSeconds: ARM_TTL_SECONDS,
   });
 }
@@ -328,12 +362,17 @@ async function armed(userId) {
 }
 
 /** Hold the extraction until the Flow opens and REVIEW asks for it. */
-async function stashResult(userId, { schoolId, absentIds, leaveIds, transcript, unmatched }) {
+async function stashResult(userId, {
+  subject, targetId, schoolId, absentIds, leaveIds, transcript, unmatched,
+}) {
+  const resolved = subject === 'student' ? 'student' : 'teacher';
   return ConversationState.setState(userId, {
     flow: VOICE_FLOW,
     step: 'awaiting_review',
     payload: {
-      schoolId,
+      subject: resolved,
+      targetId: targetId || schoolId || null,
+      schoolId: schoolId || (resolved === 'teacher' ? targetId : undefined),
       absentIds: absentIds || [],
       leaveIds: leaveIds || [],
       transcript: transcript || '',
