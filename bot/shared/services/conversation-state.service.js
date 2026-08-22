@@ -192,7 +192,17 @@ async function clearState(userId, opts = {}) {
   const { flow } = opts;
 
   if (flow) {
-    const current = await getState(userId);
+    // A RAW read, deliberately NOT getState(). bd-43517: getState applies the
+    // deadline and returns null once it has passed, which is exactly the row the
+    // sweeper asks us to clear — so this guard read null, concluded there was
+    // nothing of that flow here, and returned false without writing. Both of
+    // runSweep()'s cleanup branches call this, so expired state was immortal and
+    // the tally counted the no-op as cleaned.
+    //
+    // Scoping answers WHOSE state this is, never whether it is still live. Those
+    // are separate questions and conflating them is what broke it.
+    const row = await readRow(userId);
+    const current = hydrate(row && row.conversation_state);
     if (!current || current.flow !== flow) return false; // someone else's state — leave it
   }
 
