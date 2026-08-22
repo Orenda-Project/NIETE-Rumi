@@ -20,10 +20,13 @@
       "DATE"
     ],
     "DATE": [
-      "METHOD"
-    ],
-    "METHOD": [
       "MARK"
+    ],
+    "STAFF_DATE": [
+      "MARK"
+    ],
+    "REVIEW": [
+      "LEAVE"
     ],
     "MARK": [
       "LEAVE"
@@ -179,18 +182,95 @@
       }
     },
     {
-      "id": "METHOD",
-      "title": "How would you like to mark?",
+      "id": "STAFF_DATE",
+      "title": "Which day?",
       "data": {
         "heading": {
           "type": "string",
-          "__example__": "Grade 11 - B · Fri 14 Aug"
+          "__example__": "GGPS Dhoke Ratta"
         },
-        "method_label": {
+        "date_label": {
           "type": "string",
-          "__example__": "Method"
+          "__example__": "Date"
         },
-        "methods": {
+        "max_date": {
+          "type": "string",
+          "__example__": "2026-08-22"
+        },
+        "min_date": {
+          "type": "string",
+          "__example__": "2026-05-24"
+        },
+        "marked_note": {
+          "type": "string",
+          "__example__": "Pick today, or any earlier day you missed."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "staff_date_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.marked_note}"
+              },
+              {
+                "type": "CalendarPicker",
+                "name": "register_date",
+                "label": "${data.date_label}",
+                "required": true,
+                "mode": "single",
+                "min-date": "${data.min_date}",
+                "max-date": "${data.max_date}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "STAFF_DATE",
+                    "register_date": "${form.register_date}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "REVIEW",
+      "title": "Is this right?",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "GGPS Dhoke Ratta"
+        },
+        "heard_note": {
+          "type": "string",
+          "__example__": "Heard: \"Ayesha aur Bilal ghair hazir hain\""
+        },
+        "date_label": {
+          "type": "string",
+          "__example__": "Date"
+        },
+        "max_date": {
+          "type": "string",
+          "__example__": "2026-08-22"
+        },
+        "min_date": {
+          "type": "string",
+          "__example__": "2026-05-24"
+        },
+        "roster": {
           "type": "array",
           "items": {
             "type": "object",
@@ -203,26 +283,34 @@
               },
               "description": {
                 "type": "string"
-              },
-              "enabled": {
-                "type": "boolean"
               }
             }
           },
           "__example__": [
             {
-              "id": "tap",
-              "title": "Tap to mark",
-              "description": "Tap whoever is away",
-              "enabled": true
+              "id": "u1",
+              "title": "Ayesha Khan",
+              "description": ""
             },
             {
-              "id": "voice",
-              "title": "Voice note (coming soon)",
-              "description": "Not available yet",
-              "enabled": false
+              "id": "u2",
+              "title": "Bilal Ahmed",
+              "description": ""
             }
           ]
+        },
+        "preselected": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "__example__": [
+            "u1"
+          ]
+        },
+        "correction_note": {
+          "type": "string",
+          "__example__": "Tap to add or remove anyone before saving."
         }
       },
       "layout": {
@@ -230,18 +318,36 @@
         "children": [
           {
             "type": "Form",
-            "name": "method_form",
+            "name": "review_form",
             "children": [
               {
                 "type": "TextHeading",
                 "text": "${data.heading}"
               },
               {
-                "type": "RadioButtonsGroup",
-                "name": "method",
-                "label": "${data.method_label}",
+                "type": "TextBody",
+                "text": "${data.heard_note}"
+              },
+              {
+                "type": "CalendarPicker",
+                "name": "register_date",
+                "label": "${data.date_label}",
                 "required": true,
-                "data-source": "${data.methods}"
+                "mode": "single",
+                "min-date": "${data.min_date}",
+                "max-date": "${data.max_date}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "absent",
+                "label": "Absent",
+                "required": false,
+                "data-source": "${data.roster}",
+                "init-value": "${data.preselected}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.correction_note}"
               },
               {
                 "type": "Footer",
@@ -249,8 +355,9 @@
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "screen": "METHOD",
-                    "method": "${form.method}"
+                    "screen": "REVIEW",
+                    "register_date": "${form.register_date}",
+                    "absent": "${form.absent}"
                   }
                 }
               }
@@ -374,6 +481,13 @@
               "description": "Roll 2"
             }
           ]
+        },
+        "preselected": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "__example__": []
         }
       },
       "layout": {
@@ -396,7 +510,8 @@
                 "name": "on_leave",
                 "label": "On leave",
                 "required": false,
-                "data-source": "${data.roster}"
+                "data-source": "${data.roster}",
+                "init-value": "${data.preselected}"
               },
               {
                 "type": "Footer",

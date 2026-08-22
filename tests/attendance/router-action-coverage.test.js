@@ -10,7 +10,8 @@
  *     text handler had a case for it; handleAttendanceTap() in whatsapp-bot.js did
  *     not. So a principal tapping "My students" got "Which class?" as PLAIN TEXT
  *     with no buttons — announced, never offered. Staging 2026-08-14 10:50:14Z:
- *     "Interactive button clicked" and then nothing sent at all.
+ *     "Interactive button clicked" and then nothing sent at all. (That subject
+ *     question is gone since bd-43520; the join it broke at is not.)
  *
  * Unit tests passed both times, because the router's return value was correct.
  * The defect lived in the gap between the router and the two things that consume
@@ -54,9 +55,12 @@ describe('attendance router action coverage', () => {
   it('finds the router action vocabulary', () => {
     // Sanity: if this drops to a handful the regex has drifted and the whole
     // suite becomes vacuous.
-    expect(actions.length).toBeGreaterThanOrEqual(7);
+    expect(actions.length).toBeGreaterThanOrEqual(6);
     expect(actions).toContain('MARK_STUDENTS');
-    expect(actions).toContain('ASK_CLASS_BUTTONS');
+    expect(actions).toContain('MARK_TEACHERS');
+    // The principal's tap-or-voice question, which replaced the class fork (bd-43520).
+    expect(actions).toContain('ASK_METHOD');
+    expect(actions).toContain('AWAIT_VOICE');
   });
 
   it('every interactive action carries payload the generic fallthrough would drop', () => {

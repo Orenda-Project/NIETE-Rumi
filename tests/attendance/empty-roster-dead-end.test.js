@@ -106,12 +106,21 @@ function db({ user = {}, classes = [], studentsByList = {}, schools = [], staff 
 
 beforeEach(() => jest.clearAllMocks());
 
-describe('the routing_model only permits one entry screen', () => {
-  // Was MARK. Since bd-2726 the picker leads the Flow (CLASS -> DATE -> METHOD ->
-  // MARK), so MARK has an incoming edge and CLASS is the only legal INIT target.
-  // The invariant is unchanged — exactly one entry screen, and INIT must return it.
-  it('CLASS is the sole screen with no incoming edges', () => {
-    expect(entryScreens()).toEqual(['CLASS']);
+describe('the routing_model declares one entry screen per way in', () => {
+  // Was MARK, then CLASS alone. Since bd-43520 there are THREE ways in and so three
+  // roots: a teacher picks a class (CLASS), a principal picks a day (STAFF_DATE),
+  // and a voice note lands on its review (REVIEW). The invariant is unchanged and is
+  // about INIT, not about the count: INIT may only ever answer a screen with no
+  // incoming edges, because WhatsApp refuses to open a Flow anywhere else (bd-2713).
+  it('CLASS, STAFF_DATE and REVIEW are the screens with no incoming edges', () => {
+    expect(entryScreens().sort()).toEqual(['CLASS', 'REVIEW', 'STAFF_DATE']);
+  });
+
+  it('and nothing else is — every other screen is reached by navigation', () => {
+    const incoming = new Set(Object.values(flow.routing_model).flat());
+    ['DATE', 'MARK', 'LEAVE', 'CONFIRM', 'SAVED'].forEach((screen) => {
+      expect(incoming.has(screen)).toBe(true);
+    });
   });
 
   it('MARK is now reachable only by navigation, never as an INIT target', () => {
@@ -160,14 +169,16 @@ describe('router: a class with no students never opens the marking Flow', () => 
     expect(r.listId).toBe('c3');
   });
 
-  it('a principal tapping "My students" on an empty class is caught too', async () => {
+  it('a legacy picker tap on an empty class is caught whoever taps it', async () => {
+    // The principal's "My students" route no longer exists (bd-43520), but the
+    // class-tap resolver is shared and must still refuse an empty roster.
     db({
       user: { id: 'p1', role: 'principal', school_id: 'sch1' },
       classes: [{ id: 'c4', class_name: '5th', section: 'A' }],
       studentsByList: { c4: [] },
     });
 
-    const r = await router.resolveSubjectChoice('p1', 'att_subject_student');
+    const r = await router.resolveClassChoice('p1', 'att_class_c4');
 
     expect(r.action).toBe('EMPTY_CLASS');
   });
@@ -181,10 +192,9 @@ describe('endpoint: INIT never opens on a screen with incoming edges', () => {
       studentsByList: { c1: [] },
     });
 
-    // METHOD -> MARK is the real path now; INIT itself always answers CLASS.
+    // DATE -> MARK is the real path now; INIT itself always answers CLASS.
     await marking.handleMarkingDataExchange('t1', 'CLASS', { class_id: 'student:c1' });
-    await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
-    const res = await marking.handleMarkingDataExchange('t1', 'METHOD', { method: 'tap' });
+    const res = await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
 
     expect(res.screen).toBe('MARK');
     expect(res.screen).not.toBe('CONFIRM');
@@ -197,9 +207,11 @@ describe('endpoint: INIT never opens on a screen with incoming edges', () => {
       staff: [],
     });
 
-    await marking.handleMarkingDataExchange('p1', 'CLASS', { class_id: 'teacher:sch1' });
-    await marking.handleMarkingDataExchange('p1', 'DATE', { register_date: '2026-08-14' });
-    const res = await marking.handleMarkingDataExchange('p1', 'METHOD', { method: 'tap' });
+    // A principal enters on STAFF_DATE, their own root screen (bd-43520).
+    await marking.handleMarkingInit('p1:teacher:sch1');
+    const res = await marking.handleMarkingDataExchange(
+      'p1:teacher:sch1', 'STAFF_DATE', { register_date: '2026-08-14' },
+    );
 
     expect(res.screen).toBe('MARK');
     expect(res.screen).not.toBe('CONFIRM');
@@ -213,8 +225,7 @@ describe('endpoint: INIT never opens on a screen with incoming edges', () => {
     });
 
     await marking.handleMarkingDataExchange('t1', 'CLASS', { class_id: 'student:c1' });
-    await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
-    const res = await marking.handleMarkingDataExchange('t1', 'METHOD', { method: 'tap' });
+    const res = await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
 
     // The empty-state copy must survive the move onto the register screen.
     expect(JSON.stringify(res.data)).toMatch(/no students/i);
@@ -232,8 +243,7 @@ describe('endpoint: INIT never opens on a screen with incoming edges', () => {
     });
 
     await marking.handleMarkingDataExchange('t2', 'CLASS', { class_id: 'student:c2' });
-    await marking.handleMarkingDataExchange('t2', 'DATE', { register_date: '2026-08-14' });
-    const res = await marking.handleMarkingDataExchange('t2', 'METHOD', { method: 'tap' });
+    const res = await marking.handleMarkingDataExchange('t2', 'DATE', { register_date: '2026-08-14' });
 
     expect(res.screen).toBe('MARK');
     expect(res.data.roster).toHaveLength(1);

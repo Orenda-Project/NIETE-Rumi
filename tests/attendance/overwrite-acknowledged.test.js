@@ -83,7 +83,6 @@ function db({ existing = null } = {}) {
 async function toConfirm(token) {
   await marking.handleMarkingDataExchange(token, 'CLASS', { class_id: `student:${LIST}` });
   await marking.handleMarkingDataExchange(token, 'DATE', { register_date: '2026-08-14' });
-  await marking.handleMarkingDataExchange(token, 'METHOD', { method: 'tap' });
   await marking.handleMarkingDataExchange(token, 'MARK', { absent: ['s1'] });
   return marking.handleMarkingDataExchange(token, 'LEAVE', { on_leave: [] });
 }

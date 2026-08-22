@@ -22,6 +22,27 @@ const { logToFile } = require('../utils/logger');
 
 const LEAVE_TYPES = ['casual', 'sick', 'official'];
 
+/**
+ * WHO COUNTS AS STAFF at a school — defined once, here, beside the write.
+ *
+ * Four places need this answer: the marking screen, the voice matcher, the monthly
+ * register and the write itself. Three copies of the query is three chances for them
+ * to disagree about who is on the roster, and a register whose columns do not match
+ * the screen that filled it is worse than no register.
+ *
+ * A principal never appears on their own staff list.
+ */
+async function loadStaffRoster(schoolId, principalUserId) {
+  if (!schoolId) return [];
+  const { data } = await supabase
+    .from('users')
+    .select('id, first_name, last_name, phone_number')
+    .eq('school_id', schoolId)
+    .eq('role', 'teacher')
+    .order('first_name');
+  return (data || []).filter((u) => u.id !== principalUserId);
+}
+
 /** A migrated teacher may have no name; a blank row reads as a bug. */
 function personName(p) {
   const name = [p.first_name, p.last_name].filter(Boolean).join(' ').trim();
@@ -230,6 +251,7 @@ async function markTeachers({
 module.exports = {
   markStudents,
   markTeachers,
+  loadStaffRoster,
   resolveStatuses,
   personName,
   LEAVE_TYPES,
