@@ -17,9 +17,36 @@
  */
 
 const { logToFile } = require('../../utils/logger');
+const { templateCodeFor } = require('../../config/languages');
+const { clampLanguage } = require('../../config/ux-strings');
 
 function db() {
   return require('../../config/supabase');
+}
+
+/**
+ * bd-43519 — the out-of-window fallback.
+ *
+ * Free-form text is only accepted within 24h of the teacher's last inbound
+ * message. A principal works through her whole roster in one sitting, so most
+ * of the teachers she scores are cold — their note was rejected by Meta, the
+ * remark was left deliveryPending, and nothing drains that state (the retry
+ * worker is scheduled nowhere, and would fail against the same closed window).
+ *
+ * A UTILITY template is accepted outside the window. Everything except the
+ * teacher's name and the four narrative sections is FIXED, pre-approved text in
+ * the template itself, so the variable surface is as small as the message allows.
+ */
+const TEACHER_TEMPLATE = 'remark_teacher_feedback_v1';
+
+/**
+ * Meta rejects a body parameter containing a newline, a tab, or 4+ consecutive
+ * spaces — and rejects the WHOLE send, not just the offending parameter. The
+ * narrative sections are single paragraphs today, so this is belt-and-braces
+ * against a model that decides to add a line break.
+ */
+function flattenParam(text) {
+  return String(text == null ? '' : text).replace(/\s+/g, ' ').trim();
 }
 
 /**
@@ -75,17 +102,47 @@ function makeDeliveryDeps({ principal, teacherLabelFor }) {
     generateNarrative: (input) =>
       require('./remark-narrative.service').generateRemarkNarrative(input),
 
-    sendToTeacher: async ({ teacher, narrative }) => {
+    sendToTeacher: async ({ teacher, narrative, language }) => {
       if (!teacher || !teacher.phone_number) {
         throw new Error('remark-deps: teacher has no phone_number');
       }
       const WhatsAppService = require('../whatsapp.service');
+      // Free-form FIRST: it is free, carries no approval coupling, and renders
+      // the note exactly as written. The template is the out-of-window path only.
       const ok = await WhatsAppService.sendMessage(teacher.phone_number, narrativeBody(narrative));
       // sendMessage swallows its own failures and returns false — trusting the
       // absence of a throw is exactly how /remark read as healthy while sending
       // nothing (bd-2711). A false here must become the caller's deliveryPending.
-      if (ok === false) throw new Error('remark-deps: teacher delivery returned false');
-      return ok;
+      if (ok !== false) return ok;
+
+      // 'en_US', never 'en'. Meta's template codes are locale-shaped and a send
+      // asking for 'en' hard-fails against an en_US-approved template with no
+      // fallback — so the code comes from the language registry, not from here.
+      //
+      // clampLanguage rather than `|| 'en'`: it is total (junk and null return the
+      // floor) AND intersected with this deployment's offer, so an off-offer value
+      // grandfathered into a users row cannot ask Meta for a template that was
+      // never submitted. It also keeps the English floor in ONE place instead of
+      // minting a second one here.
+      const lang = clampLanguage((teacher && teacher.preferred_language) || language);
+      const templateCode = templateCodeFor(lang);
+      logToFile('↩️ remark: free-form refused, trying the UTILITY template', {
+        teacherId: teacher.id, templateCode,
+      });
+      const sent = await WhatsAppService.sendTemplate(
+        teacher.phone_number, TEACHER_TEMPLATE, templateCode,
+        [{
+          type: 'body',
+          parameters: [
+            teacher.first_name || 'Teacher',
+            narrative.opening, narrative.strengths, narrative.growth, narrative.action_plan,
+          ].map((text) => ({ type: 'text', text: flattenParam(text) })),
+        }],
+      );
+      if (sent === false) {
+        throw new Error('remark-deps: teacher delivery failed — free-form and template both refused');
+      }
+      return sent;
     },
 
     /**
@@ -118,4 +175,4 @@ function makeDeliveryDeps({ principal, teacherLabelFor }) {
   };
 }
 
-module.exports = { makeDeliveryDeps, narrativeBody };
+module.exports = { makeDeliveryDeps, narrativeBody, flattenParam, TEACHER_TEMPLATE };
