@@ -46,6 +46,30 @@ describe('matching a spoken name to the roster', () => {
     expect(voice.matchPerson('Fatima', STAFF)).toBeNull();
   });
 
+  it('matches one word out of a multi-word name', () => {
+    // Two real cases. Pakistani first names are often two words — "Muhammad Usman"
+    // sits in first_name and the principal says "Usman". And the staging roster
+    // carries a "(test)" suffix on every name, which defeated whole-field matching
+    // and made the feature untestable there.
+    const suffixed = [
+      { id: 't1', first_name: 'Ayesha (test)', last_name: 'One' },
+      { id: 't2', first_name: 'Bilal (test)', last_name: 'Two' },
+    ];
+    expect(voice.matchPerson('Ayesha', suffixed)?.id).toBe('t1');
+    expect(voice.matchPerson('Muhammad Usman', STAFF)?.id).toBe('u4');
+    expect(voice.matchPerson('Usman', STAFF)?.id).toBe('u4');
+  });
+
+  it('refuses a word every name shares', () => {
+    // "test" is in all of them, so it identifies nobody. Six candidates is a
+    // refusal for the same reason two are.
+    const suffixed = [
+      { id: 't1', first_name: 'Ayesha (test)', last_name: 'One' },
+      { id: 't2', first_name: 'Bilal (test)', last_name: 'Two' },
+    ];
+    expect(voice.matchPerson('test', suffixed)).toBeNull();
+  });
+
   it('refuses an ambiguous first name instead of picking one', () => {
     // Two Sanas on staff: a wrong guess marks the wrong colleague absent, which is
     // the exact failure the typed-coordinates channel was deleted for.
