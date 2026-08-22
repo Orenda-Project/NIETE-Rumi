@@ -47,6 +47,9 @@ const pending = new Map();
 /** The "create one instead" choice on the class picker. */
 const ADD_NEW = '__add__';
 
+// Meta caps a CheckboxGroup at 20 options.
+const REMOVE_OPTION_CAP = 20;
+
 /**
  * Radio and checkbox item titles are a capped field, and a long student name (or a
  * class with a shift suffix) will exceed it. Measured in CODE POINTS, because the
@@ -269,57 +272,54 @@ function rosterText(students, who) {
   return shown.join('\n');
 }
 
+/**
+ * ROSTER — the whole edit, on one screen.
+ *
+ * The list, the removals and the additions together. It used to be a list plus a
+ * radio asking which of the two she wanted, and each answer led to a TERMINAL screen —
+ * so adding a child and then removing one cost a second /class, which is the same
+ * complaint that ended the create path.
+ *
+ * A merge rather than another screen, because Flow routing is forward-only: there is
+ * no legal edge back from a save screen to the roster, and ROSTER → ADD → ROSTER_2 →
+ * REMOVE → … is unbounded. One screen, one submit, both halves applied.
+ */
 async function buildRosterScreen(who, classId, display) {
   const students = await ClassService.listStudents({ classId, teacherUserId: who.id });
+
+  // Meta caps a CheckboxGroup at 20 options. The roster TEXT still lists everyone, so
+  // the cap costs a second pass to remove the 21st child rather than hiding her —
+  // and the hint says which, because a silently short list reads as missing data.
+  const options = students.slice(0, REMOVE_OPTION_CAP).map((st) => ({
+    id: st.studentId,
+    title: `${st.rollNumber != null ? `${st.rollNumber}. ` : ''}${st.studentName}`.slice(0, 30),
+  }));
+  const capped = students.length > options.length;
+
   return {
     screen: 'ROSTER',
     data: {
       heading: display,
       roster: rosterText(students, who),
-      choose_label: resolveUx('classRosterAction', { user: who }),
-      next_label: resolveUx('classNext', { user: who }),
-      actions: [
-        { id: 'add', title: cap(resolveUx('classRosterAddOption', { user: who })) },
-        { id: 'remove', title: cap(resolveUx('classRosterRemoveOption', { user: who })) },
-      ],
+      hint: capped
+        ? resolveUx('classEditHintCapped', { user: who, params: { shown: options.length } })
+        : resolveUx('classEditHint', { user: who }),
+      remove_label: resolveUx('classRemoveField', { user: who }),
+      remove_options: options,
+      add_label: resolveUx('classAddField', { user: who }),
+      add_hint: resolveUx('classAddStudentsHint', { user: who }),
+      save_label: resolveUx('classSaveChanges', { user: who }),
     },
   };
 }
 
-function buildAddStudentsScreen(who, display) {
-  return {
-    screen: 'ADD_STUDENTS',
-    data: {
-      heading: resolveUx('classAddStudentsHeading', { user: who, params: { class: display } }),
-      hint: resolveUx('classAddStudentsHint', { user: who }),
-      field_label: resolveUx('classStudentsField', { user: who }),
-      save_label: resolveUx('classAddToClass', { user: who }),
-    },
-  };
-}
-
-async function buildRemoveStudentsScreen(who, classId, display) {
-  const students = await ClassService.listStudents({ classId, teacherUserId: who.id });
-  // Nobody to remove is not an error — send her back to the roster rather than to a
-  // checkbox group with no boxes, which WhatsApp renders as a dead screen.
-  if (!students.length) return await buildRosterScreen(who, classId, display);
-
-  return {
-    screen: 'REMOVE_STUDENTS',
-    data: {
-      heading: resolveUx('classRemoveHeading', { user: who, params: { class: display } }),
-      hint: resolveUx('classRemoveHint', { user: who }),
-      field_label: resolveUx('classStudentsField', { user: who }),
-      remove_label: resolveUx('classRemoveButton', { user: who }),
-      students: students.slice(0, 40).map((st) => ({
-        id: st.studentId,
-        title: cap(`${st.rollNumber != null ? `${st.rollNumber}. ` : ''}${st.studentName}`),
-      })),
-    },
-  };
-}
-
-/** The class she is working on, with its display string, from the remembered choice. */
+/**
+ * The class this roster edit is about — the in-flight choice, re-validated.
+ *
+ * Re-checked against her OWN classes on every hop rather than trusted from the
+ * remembered choice: a Flow can sit on a handset for a long time, and an assignment
+ * can end in between.
+ */
 async function rosterContext(userId, who) {
   const choice = recallChoice(userId);
   if (!choice || !choice.rosterClassId) return null;
@@ -361,81 +361,70 @@ async function handleClassManagerDataExchange(userId, screen, screenData) {
     );
   }
 
-  // ROSTER → add or remove.
-  if (screen === 'ROSTER') {
+  // ROSTER → apply the removals and the additions, in that order, and finish.
+  //
+  // Removals FIRST so that re-typing a name she has just ticked leaves her with the
+  // new enrollment rather than deleting the one she meant to keep.
+  if (screen === 'ROSTER' || screen === 'ADD_STUDENTS' || screen === 'REMOVE_STUDENTS') {
     const ctx = await rosterContext(userId, who);
     if (!ctx) return await handleClassesInit(userId);
 
-    // NOT `action`: the data_exchange envelope already carries a top-level `action`
-    // ("data_exchange"), and a form field of the same name is dropped before it
-    // reaches us — every ROSTER request arrived with an empty data object, so remove
-    // silently fell through to add. `action` is read as a fallback only so a handset
-    // still holding the previously published asset keeps working.
-    const action = screenData && (screenData.roster_action || screenData.action);
-    if (action === 'remove') return await buildRemoveStudentsScreen(who, ctx.classId, ctx.display);
-    return buildAddStudentsScreen(who, ctx.display);
-  }
+    // ADD_STUDENTS and REMOVE_STUDENTS are retired screens. A Flow message already
+    // delivered to a handset still submits under those names with their own field
+    // names, so both are read here rather than dead-ending a teacher mid-edit.
+    const d = screenData || {};
+    const removeIds = normalizeMultiSelect(d.remove);
+    const rawAdd = d.add != null ? d.add : d.roster;
 
-  // ADD_STUDENTS → paste the register.
-  if (screen === 'ADD_STUDENTS') {
-    const ctx = await rosterContext(userId, who);
-    if (!ctx) return await handleClassesInit(userId);
-
-    const result = await ClassService.addStudents({
-      classId: ctx.classId, teacherUserId: userId, rawText: screenData && screenData.roster,
-    });
-
-    if (result.error === 'no_names') return buildAddStudentsScreen(who, ctx.display);
-    if (result.error && !result.added) {
-      logToFile('⚠️ class-manager: addStudents failed', { userId, error: result.error }, 'error');
-      return await buildRosterScreen(who, ctx.classId, ctx.display);
-    }
-
-    // Duplicates and a hit cap are notes on a success, not failures — the count
-    // otherwise disagrees with what she pasted and she cannot tell why.
-    const parts = [resolveUx('classStudentsAdded', {
-      user: who, params: { added: result.added, class: ctx.display },
-    })];
-    if (result.duplicates) {
-      parts.push(resolveUx('classStudentsDuplicates', { user: who, params: { duplicates: result.duplicates } }));
-    }
-    if (result.dropped) {
-      parts.push(resolveUx('classStudentsDropped', { user: who, params: { dropped: result.dropped } }));
-    }
-    pending.delete(userId);
-    return {
-      screen: 'SAVED',
-      data: {
-        heading: resolveUx('classSavedHeading', { user: who }),
-        detail: parts.join(' '),
-        done_label: resolveUx('classDone', { user: who }),
-      },
-    };
-  }
-
-  // REMOVE_STUDENTS → close those enrollments.
-  if (screen === 'REMOVE_STUDENTS') {
-    const ctx = await rosterContext(userId, who);
-    if (!ctx) return await handleClassesInit(userId);
-
-    const ids = normalizeMultiSelect(screenData && screenData.remove);
     let removed = 0;
-    for (const studentId of ids) {
-      const res = await ClassService.removeStudent({
-        classId: ctx.classId, teacherUserId: userId, studentId,
-      });
+    for (const studentId of removeIds) {
+      // eslint-disable-next-line no-await-in-loop
+      const res = await ClassService.removeStudent({ classId: ctx.classId, teacherUserId: userId, studentId });
       if (res.removed) removed += 1;
       else if (res.error) {
         logToFile('⚠️ class-manager: removeStudent failed', { userId, studentId, error: res.error }, 'error');
       }
     }
 
+    let added = null;
+    if (rawAdd && String(rawAdd).trim()) {
+      added = await ClassService.addStudents({
+        classId: ctx.classId, teacherUserId: userId, rawText: rawAdd,
+      });
+      if (added.error && !added.added) {
+        logToFile('⚠️ class-manager: addStudents failed', { userId, error: added.error }, 'error');
+      }
+    }
+
+    // Report BOTH halves. A teacher who did two things and is told about one assumes
+    // the other silently failed.
+    const parts = [];
+    if (removed) {
+      parts.push(resolveUx('classStudentsRemoved', { user: who, params: { removed, class: ctx.display } }));
+    }
+    if (added && added.added) {
+      parts.push(resolveUx('classStudentsAdded', {
+        user: who, params: { added: added.added, class: ctx.display },
+      }));
+      // Duplicates and a hit cap are notes on a success, not failures — the count
+      // otherwise disagrees with what she pasted and she cannot tell why.
+      if (added.duplicates) {
+        parts.push(resolveUx('classStudentsDuplicates', { user: who, params: { duplicates: added.duplicates } }));
+      }
+      if (added.dropped) {
+        parts.push(resolveUx('classStudentsDropped', { user: who, params: { dropped: added.dropped } }));
+      }
+    }
+    if (!parts.length) {
+      parts.push(resolveUx('classNoChanges', { user: who, params: { class: ctx.display } }));
+    }
+
     pending.delete(userId);
     return {
       screen: 'SAVED',
       data: {
         heading: resolveUx('classSavedHeading', { user: who }),
-        detail: resolveUx('classStudentsRemoved', { user: who, params: { removed, class: ctx.display } }),
+        detail: parts.join(' '),
         done_label: resolveUx('classDone', { user: who }),
       },
     };
@@ -539,9 +528,12 @@ async function handleClassManagerDataExchange(userId, screen, screenData) {
 
     // The confirmation she would have read on SAVED rides along as the hint, so
     // chaining does not swallow "saved", nor a declined subject/class-teacher claim.
-    const addStudents = buildAddStudentsScreen(who, display);
-    addStudents.data.hint = detail;
-    return addStudents;
+    // Straight onto the edit screen for the class she has just made. The
+    // confirmation rides along as the hint, so "saved" is still said out loud on the
+    // screen that replaced the terminal one.
+    const roster = await buildRosterScreen(who, result.class.id, display);
+    roster.data.hint = detail;
+    return roster;
   }
 
   logToFile('⚠️ class-manager: unknown screen', { screen });

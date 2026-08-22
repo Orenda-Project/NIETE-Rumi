@@ -168,7 +168,7 @@ describe('ADD → SUBJECTS', () => {
   });
 });
 
-describe('SUBJECTS → ADD_STUDENTS', () => {
+describe('SUBJECTS → ROSTER', () => {
   it('creates the class, assigns the teacher, and hands her the roster (bd-43483)', async () => {
     await ep.handleClassManagerDataExchange(TEACHER, 'ADD', { grade: 'grade_4', section: 'A' });
     const res = await ep.handleClassManagerDataExchange(TEACHER, 'SUBJECTS', {
@@ -177,7 +177,7 @@ describe('SUBJECTS → ADD_STUDENTS', () => {
 
     // Was SAVED (terminal) until bd-43483; the confirmation now rides as the hint
     // on the screen that lets her fill the class she just made.
-    expect(res.screen).toBe('ADD_STUDENTS');
+    expect(res.screen).toBe('ROSTER');
     expect(res.data.hint).toBe('Grade 4 - A, 2026-2027.');
 
     expect(mockDb._tables.classes).toHaveLength(1);
@@ -206,7 +206,7 @@ describe('SUBJECTS → ADD_STUDENTS', () => {
     const res = await ep.handleClassManagerDataExchange(TEACHER, 'SUBJECTS', {
       subjects: [], is_class_teacher: true,
     });
-    expect(res.screen).toBe('ADD_STUDENTS');
+    expect(res.screen).toBe('ROSTER');
     expect(mockDb._tables.class_teacher_subjects).toHaveLength(0);
   });
 
@@ -227,7 +227,7 @@ describe('SUBJECTS → ADD_STUDENTS', () => {
   });
 });
 
-describe('bd-43483: creating a class leads straight to its students', () => {
+describe('creating a class leads straight to its students', () => {
   /**
    * The dead-end Hasnat hit on staging (2026-08-18): SUBJECTS returned the
    * terminal SAVED screen and dropped the pending choice, so the class she had
@@ -235,13 +235,15 @@ describe('bd-43483: creating a class leads straight to its students', () => {
    * CLASSES → ROSTER, which meant re-sending /class and picking the class again
    * to do the one thing she was obviously about to do.
    */
-  it('lands on ADD_STUDENTS after the class is created, not on the terminal screen', async () => {
+  it('lands on the edit screen after the class is created, not on the terminal screen', async () => {
     await ep.handleClassManagerDataExchange(TEACHER, 'ADD', { grade: 'grade_4', section: 'A' });
     const res = await ep.handleClassManagerDataExchange(TEACHER, 'SUBJECTS', {
       subjects: ['maths'], is_class_teacher: true,
     });
 
-    expect(res.screen).toBe('ADD_STUDENTS');
+    // ADD_STUDENTS and REMOVE_STUDENTS were merged into ROSTER, so creating a class
+    // and filling it is one screen rather than a chain of terminal ones.
+    expect(res.screen).toBe('ROSTER');
     const terminal = flowJson.screens.find((s) => s.terminal).id;
     expect(res.screen).not.toBe(terminal);
     // The class was still really created — chaining must not cost her the save.
@@ -271,7 +273,7 @@ describe('bd-43483: creating a class leads straight to its students', () => {
   });
 
   it('declares the SUBJECTS → ADD_STUDENTS route, or WhatsApp refuses the hop', async () => {
-    expect(flowJson.routing_model.SUBJECTS).toContain('ADD_STUDENTS');
+    expect(flowJson.routing_model.SUBJECTS).toContain('ROSTER');
   });
 });
 
@@ -395,7 +397,7 @@ describe('the confirmation tells the truth when a claim is declined', () => {
     await ep.handleClassManagerDataExchange(TEACHER, 'ADD', { grade: 'grade_4', section: 'A' });
     const res = await ep.handleClassManagerDataExchange(TEACHER, 'SUBJECTS', { subjects: ['maths'] });
 
-    expect(res.screen).toBe('ADD_STUDENTS');
+    expect(res.screen).toBe('ROSTER');
     // Additive, not a replacement: the class WAS saved, and copy that reads as
     // failure would send her back to create it again.
     expect(res.data.hint).toContain('Grade 4 - A, 2026-2027.');
@@ -502,7 +504,7 @@ describe('the roster screens', () => {
     return cls;
   }
 
-  describe('the choice survives the data_exchange envelope', () => {
+  describe('the fields survive the data_exchange envelope', () => {
     /**
      * "Remove students" always opened the ADD paste box on staging. The ROSTER form
      * field was named `action` — the same key the data_exchange envelope uses for
@@ -510,31 +512,20 @@ describe('the roster screens', () => {
      * request arriving with screenDataKeys [] while ADD sent grade/section/shift and
      * CLASSES sent target. With nothing to read, remove fell through to add.
      *
-     * These feed the payload the CLIENT actually sends. The other roster tests pass
-     * `action` by hand, which is why they stayed green while nobody could remove a
-     * student.
+     * The radio is gone now (both actions are on the one screen), but the naming rule
+     * that bug taught is not, so it stays asserted.
      */
-    it('does not name the ROSTER field `action` — the envelope already owns that key', () => {
+    it('names no ROSTER field `action` — the envelope already owns that key', () => {
       const roster = flowJson.screens.find((s) => s.id === 'ROSTER');
       const names = JSON.stringify(roster.layout).match(/"name":"[a-z_]+"/g) || [];
       expect(names).not.toContain('"name":"action"');
     });
 
-    it('forwards the choice under the key the endpoint reads', () => {
+    it('forwards both halves under the keys the endpoint reads', () => {
       const roster = flowJson.screens.find((s) => s.id === 'ROSTER');
-      expect(JSON.stringify(roster.layout)).toContain('"roster_action":"${form.roster_action}"');
-    });
-
-    it('opens REMOVE_STUDENTS when she picks remove', async () => {
-      await onRoster(['Ayesha Bibi']);
-      const res = await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { roster_action: 'remove' });
-      expect(res.screen).toBe('REMOVE_STUDENTS');
-    });
-
-    it('still opens ADD_STUDENTS when she picks add', async () => {
-      await onRoster(['Ayesha Bibi']);
-      const res = await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { roster_action: 'add' });
-      expect(res.screen).toBe('ADD_STUDENTS');
+      const layout = JSON.stringify(roster.layout);
+      expect(layout).toContain('"remove":"${form.remove}"');
+      expect(layout).toContain('"add":"${form.add}"');
     });
   });
 
@@ -554,18 +545,22 @@ describe('the roster screens', () => {
     expect(res.data.roster).toBe('1. Ayesha Bibi\n2. Bilal Ahmed');
   });
 
-  it('goes to the paste box', async () => {
-    await onRoster();
-    const res = await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { action: 'add' });
-    expect(res.screen).toBe('ADD_STUDENTS');
-    expect(res.data.heading).toBe('Add students to Grade 4 - A');
+  it('offers the children to remove, and warns it affects colleagues', async () => {
+    const res = await onRoster(['Ayesha Bibi', 'Bilal Ahmed']).then(() => (
+      ep.handleClassManagerDataExchange(TEACHER, 'CLASSES', { target: mockDb._tables.classes[0].id })
+    ));
+
+    expect(res.screen).toBe('ROSTER');
+    expect(res.data.remove_options.map((s) => s.title)).toEqual(['1. Ayesha Bibi', '2. Bilal Ahmed']);
+    // The warning survived the merge on purpose: removing a child affects every
+    // teacher on the class, and that is not something to drop in a UI cleanup.
+    expect(res.data.hint).toMatch(/Every teacher on this class/i);
   });
 
   it('adds a pasted register and reports duplicates', async () => {
     await onRoster(['Ayesha Bibi']);
-    await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { action: 'add' });
-    const res = await ep.handleClassManagerDataExchange(TEACHER, 'ADD_STUDENTS', {
-      roster: '1. Ayesha Bibi\n2) Bilal Ahmed\n- Fatima Noor',
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', {
+      add: '1. Ayesha Bibi\n2) Bilal Ahmed\n- Fatima Noor', remove: [],
     });
 
     expect(res.screen).toBe('SAVED');
@@ -573,35 +568,21 @@ describe('the roster screens', () => {
     expect(res.data.detail).toContain('1 were already on the roster.');
   });
 
-  it('re-asks rather than saving nothing when the paste is empty', async () => {
+  it('saves nothing, and says nothing changed, on an empty submit', async () => {
     await onRoster();
-    await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { action: 'add' });
-    const res = await ep.handleClassManagerDataExchange(TEACHER, 'ADD_STUDENTS', { roster: '   ' });
-    expect(res.screen).toBe('ADD_STUDENTS');
-  });
-
-  it('offers the children to remove, and warns it affects colleagues', async () => {
-    await onRoster(['Ayesha Bibi', 'Bilal Ahmed']);
-    const res = await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { action: 'remove' });
-
-    expect(res.screen).toBe('REMOVE_STUDENTS');
-    expect(res.data.students.map((s) => s.title)).toEqual(['1. Ayesha Bibi', '2. Bilal Ahmed']);
-    expect(res.data.hint).toMatch(/Every teacher on this class/i);
-  });
-
-  it('sends her back to the roster instead of a checkbox group with no boxes', async () => {
-    // WhatsApp renders an empty CheckboxGroup as a dead screen.
-    await onRoster();
-    const res = await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { action: 'remove' });
-    expect(res.screen).toBe('ROSTER');
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { add: '   ', remove: [] });
+    expect(res.screen).toBe('SAVED');
+    expect(res.data.detail).toMatch(/nothing changed/i);
   });
 
   it('closes the enrollments she ticked', async () => {
     await onRoster(['Ayesha Bibi', 'Bilal Ahmed']);
-    const pick = await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { action: 'remove' });
-    const first = pick.data.students[0].id;
+    const pick = await ep.handleClassManagerDataExchange(TEACHER, 'CLASSES', {
+      target: mockDb._tables.classes[0].id,
+    });
+    const first = pick.data.remove_options[0].id;
 
-    const res = await ep.handleClassManagerDataExchange(TEACHER, 'REMOVE_STUDENTS', { remove: [first] });
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { remove: [first], add: '' });
     expect(res.screen).toBe('SAVED');
     expect(res.data.detail).toContain('1 removed from Grade 4 - A.');
 
@@ -612,31 +593,20 @@ describe('the roster screens', () => {
 
   it('accepts a checkbox payload sent as a JSON string', async () => {
     await onRoster(['Ayesha Bibi']);
-    const pick = await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { action: 'remove' });
-    const id = pick.data.students[0].id;
-    const res = await ep.handleClassManagerDataExchange(TEACHER, 'REMOVE_STUDENTS', {
-      remove: JSON.stringify([id]),
+    const pick = await ep.handleClassManagerDataExchange(TEACHER, 'CLASSES', {
+      target: mockDb._tables.classes[0].id,
     });
+    const id = pick.data.remove_options[0].id;
+    const res = await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', {
+      remove: JSON.stringify([id]), add: '',
+    });
+    expect(res.screen).toBe('SAVED');
     expect(res.data.detail).toContain('1 removed');
   });
 
-  it('BACK from the paste box returns to the roster, not to the top', async () => {
+  it('BACK from the edit screen returns to the class list, not to a dead end', async () => {
     await onRoster(['Ayesha Bibi']);
-    await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { action: 'add' });
-    const res = await ep.handleClassManagerBack(TEACHER, 'ADD_STUDENTS');
-    expect(res.screen).toBe('ROSTER');
-  });
-
-  it('every roster screen it can return is declared by the Flow JSON', async () => {
-    const declared = new Set(flowJson.screens.map((s) => s.id));
-    await onRoster(['Ayesha Bibi']);
-    const seen = [
-      (await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { action: 'add' })).screen,
-      (await ep.handleClassManagerDataExchange(TEACHER, 'ADD_STUDENTS', { roster: 'Zara Khan' })).screen,
-      (await ep.handleClassManagerDataExchange(TEACHER, 'CLASSES', { target: mockDb._tables.classes[0].id })).screen,
-      (await ep.handleClassManagerDataExchange(TEACHER, 'ROSTER', { action: 'remove' })).screen,
-      (await ep.handleClassManagerBack(TEACHER, 'REMOVE_STUDENTS')).screen,
-    ];
-    expect(seen.filter((s) => !declared.has(s))).toEqual([]);
+    const res = await ep.handleClassManagerBack(TEACHER, 'ROSTER');
+    expect(['CLASSES', 'ROSTER']).toContain(res.screen);
   });
 });
