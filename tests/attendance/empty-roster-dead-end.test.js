@@ -137,10 +137,25 @@ describe('router: a class with no students never opens the marking Flow', () => 
       studentsByList: { c1: [] },
     });
 
-    // bd-2726: route() opens the Flow; the empty class is flagged on CLASS rather
-    // than intercepted in chat, so the teacher can still pick another class.
-    const r = await router.route('t1');
+    // The empty class is flagged on the Flow's CLASS screen rather than intercepted
+    // in chat, so the teacher can still pick another class. route() now asks the
+    // method first; the TAP answer is what opens the Flow.
+    expect((await router.route('t1')).action).toBe('ASK_METHOD');
+    const r = await router.resolveMethodChoice('t1', 'att_method_tap');
     expect(r.action).toBe('OPEN_REGISTER');
+  });
+
+  it('but refuses to arm a VOICE note against that empty class', async () => {
+    // Voice has no screen to flag it on: the roster has to exist before a spoken name
+    // can be matched to anybody, so this one is intercepted in chat.
+    db({
+      user: { id: 't1', role: 'teacher' },
+      classes: [{ id: 'c1', class_name: '5th', section: 'A' }],
+      studentsByList: { c1: [] },
+    });
+
+    const r = await router.resolveMethodChoice('t1', 'att_method_voice');
+    expect(r.action).toBe('EMPTY_CLASS');
   });
 
   it('a teacher whose class HAS students still marks normally', async () => {
@@ -150,7 +165,8 @@ describe('router: a class with no students never opens the marking Flow', () => 
       studentsByList: { c2: [{ id: 's1', student_name: 'Aleeha Noor', roll_number: 4 }] },
     });
 
-    const r = await router.route('t2');
+    expect((await router.route('t2')).action).toBe('ASK_METHOD');
+    const r = await router.resolveMethodChoice('t2', 'att_method_tap');
 
     expect(r.action).toBe('OPEN_REGISTER');
     expect(r.flowToken).toBe('t2');

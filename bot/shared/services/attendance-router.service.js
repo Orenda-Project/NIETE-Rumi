@@ -21,7 +21,14 @@
 
 const supabase = require('../config/supabase');
 const ConversationState = require('./conversation-state.service');
+const { rosterRowTitle } = require('./classes/roster-label');
 const { logToFile } = require('../utils/logger');
+
+// WhatsApp platform caps, and they bind in exactly one place now: the voice branch's
+// "which class?" question, which has to be answered in chat because a Flow cannot
+// receive a voice note. The TAP picker is a Flow screen and is not bound by these.
+const MAX_BUTTONS = 3;
+const MAX_ROWS = 10;
 
 // Deliberately tight. The old detector matched loose substrings, so "I need the
 // student list for my LP" dropped the teacher into attendance. Everything here is
@@ -150,16 +157,22 @@ function noClassYet(user) {
 }
 
 /**
- * Tap or talk — the only question a principal is asked before the register opens.
+ * Tap or talk — the only question asked before the register opens.
+ *
+ * ONE function for both actors. A principal marks staff and a teacher marks a class,
+ * and the only thing that differs is the noun; giving each its own copy is how the
+ * two would drift apart on the day someone reworded one of them.
  *
  * Both options are named in the body text as well as on the buttons: reply buttons
  * render below the fold on some clients, and "How would you like to mark attendance?"
  * with nothing visible under it is unanswerable.
  */
-function askMethod() {
+function askMethod(subject) {
+  const whose = subject === 'teacher' ? 'teacher attendance' : 'class attendance';
   return {
     action: 'ASK_METHOD',
-    message: 'Taking today\'s teacher attendance. How would you like to mark it '
+    subject: subject === 'teacher' ? 'teacher' : 'student',
+    message: `Taking today's ${whose}. How would you like to mark it `
       + '— by tapping the names, or by sending a voice note?',
     buttons: [
       { id: 'att_method_tap', title: 'Mark by tapping' },
@@ -272,7 +285,7 @@ async function route(userId) {
           + 'so there is no staff list to mark. Your NIETE coordinator can link it.',
       };
     }
-    return askMethod();
+    return askMethod('teacher');
   }
 
   const classes = await loadClasses(userId);
@@ -280,50 +293,114 @@ async function route(userId) {
   // Nothing to mark at all — /class owns creating it.
   if (!classes.length) return noClassYet(user);
 
-  // One Flow, one open. The picker moved onto the Flow's CLASS screen (bd-2726),
-  // because chat could only ever offer 3 reply buttons or 10 list rows in total —
-  // a teacher with 20 class-sections had ten of them unreachable — while a Flow
-  // Dropdown holds 200. The principal's "teachers or students?" question is the
-  // first option on that same screen, since CLASS is the Flow's only legal entry
-  // point and a separate staff entry is not expressible.
-  //
-  // flow_token is the BARE user id: there is nothing to pre-select.
-  return { action: 'OPEN_REGISTER', flowToken: userId };
+  // A teacher is asked the same question a principal is. It used to be a Flow screen
+  // for them and no question at all in chat, which put the voice option somewhere a
+  // voice note cannot be answered from.
+  return askMethod('student');
 }
 
 /**
- * Resolve the tap/voice choice.
+ * Resolve the tap/voice choice, for whoever is asking.
  *
  * Re-reads the user rather than trusting the button: a reply button is a durable
  * artifact on a handset and may come back long after the role or school changed.
+ *
+ * TAP is symmetrical — the principal's target is settled by their role, the teacher's
+ * is settled on the Flow's CLASS screen.
+ *
+ * VOICE is not. Matching spoken names needs the roster IN HAND before the note
+ * arrives, and a teacher may have several classes. So a teacher choosing voice is
+ * asked which class first, in chat, and only then is the wait armed. A principal
+ * has exactly one staff list and skips that step.
  */
 async function resolveMethodChoice(userId, buttonId) {
   const user = await loadUser(userId);
   if (!user) return { action: 'ERROR', message: "I couldn't find your account." };
-  if (user.role !== 'principal' || !user.school_id) {
-    return {
-      action: 'NO_SCHOOL',
-      message: 'Teacher attendance is marked by a principal whose account is linked to a school. '
-        + 'Your NIETE coordinator can link yours.',
-    };
-  }
 
-  if (buttonId === 'att_method_voice') {
-    return {
-      action: 'AWAIT_VOICE',
-      schoolId: user.school_id,
-      message: 'Send me a voice note naming the teachers who are away — for example '
-        + '"Ayesha aur Bilal ghair hazir hain". I will tick them for you to check before saving.',
-    };
-  }
-
-  if (buttonId === 'att_method_tap') {
-    return { action: 'MARK_TEACHERS', flowToken: `${userId}:teacher:${user.school_id}` };
-  }
+  const wantsVoice = buttonId === 'att_method_voice';
+  const wantsTap = buttonId === 'att_method_tap';
+  const isPrincipal = user.role === 'principal';
 
   // Neither id. Ask again rather than defaulting: tapping and talking do very
-  // different things, and picking one silently picks it FOR the principal.
-  return askMethod();
+  // different things, and picking one silently picks it FOR them.
+  if (!wantsVoice && !wantsTap) return askMethod(isPrincipal ? 'teacher' : 'student');
+
+  if (isPrincipal) {
+    if (!user.school_id) {
+      return {
+        action: 'NO_SCHOOL',
+        message: 'Teacher attendance is marked by a principal whose account is linked to a school. '
+          + 'Your NIETE coordinator can link yours.',
+      };
+    }
+    if (wantsTap) return { action: 'MARK_TEACHERS', flowToken: `${userId}:teacher:${user.school_id}` };
+    return awaitVoice('teacher', user.school_id);
+  }
+
+  // A teacher tapping: the Flow picks the class, so the token is the bare user id.
+  if (wantsTap) return { action: 'OPEN_REGISTER', flowToken: userId };
+
+  const classes = await loadClasses(userId);
+  if (!classes.length) return noClassYet(user);
+  if (classes.length === 1) {
+    if (!await hasStudents(classes[0])) return emptyClass(classes[0].id);
+    return awaitVoice('student', classes[0].id);
+  }
+  return pickClassForVoice(classes);
+}
+
+/** The prompt that arms the wait. One place, so both subjects ask the same way. */
+function awaitVoice(subject, targetId) {
+  const example = subject === 'teacher'
+    ? '"Ayesha aur Bilal ghair hazir hain"'
+    : '"Aleeha aur Bilal ghair hazir hain"';
+  return {
+    action: 'AWAIT_VOICE',
+    subject,
+    targetId,
+    // Kept for the principal callers that read it by name.
+    schoolId: subject === 'teacher' ? targetId : undefined,
+    message: `Send me a voice note naming the ${subject === 'teacher' ? 'teachers' : 'students'} `
+      + `who are away — for example ${example}. `
+      + 'I will tick them for you to check before saving.',
+  };
+}
+
+/**
+ * "Which class?" — for the VOICE branch only.
+ *
+ * The tap branch does not need this: its picker is a Flow screen that holds 200
+ * options. Chat allows three reply buttons or ten list rows, so this is the one place
+ * the old chat-picker limits still apply — and it is bounded, because it exists only
+ * to name the roster a voice note will be matched against.
+ */
+function pickClassForVoice(classes) {
+  if (classes.length <= MAX_BUTTONS) {
+    return {
+      action: 'ASK_CLASS_FOR_VOICE',
+      message: 'Which class is the voice note for?',
+      buttons: classes.map((c) => ({ id: `att_voice_${c.id}`, title: rosterRowTitle(c) })),
+    };
+  }
+  const shown = classes.slice(0, MAX_ROWS);
+  return {
+    action: 'ASK_CLASS_FOR_VOICE_LIST',
+    message: 'Which class is the voice note for?',
+    rows: shown.map((c) => ({ id: `att_voice_${c.id}`, title: rosterRowTitle(c) })),
+    truncated: classes.length > MAX_ROWS,
+  };
+}
+
+/** Resolve an "att_voice_<listId>" tap into the armed voice wait. */
+async function resolveVoiceClassChoice(userId, buttonId) {
+  const id = String(buttonId || '');
+  if (!id.startsWith('att_voice_')) {
+    return { action: 'ERROR', message: 'I did not catch that class. Say "attendance" again.' };
+  }
+  const listId = id.slice('att_voice_'.length);
+  if (!listId) return { action: 'ERROR', message: 'I did not catch that class. Say "attendance" again.' };
+  if (!await hasStudents(listId)) return emptyClass(listId);
+  return awaitVoice('student', listId);
 }
 
 /**
@@ -351,7 +428,11 @@ module.exports = {
   detect,
   route,
   resolveMethodChoice,
+  resolveVoiceClassChoice,
   resolveClassChoice,
+  askMethod,
+  MAX_BUTTONS,
+  MAX_ROWS,
   readTypedMethod,
   openMethodQuestion,
   methodQuestionOpen,

@@ -138,10 +138,27 @@ function matchPerson(spoken, roster) {
   const people = roster.map((p) => ({
     person: p,
     full: normalise(personName(p)),
-    words: new Set([...words(p.first_name), ...words(p.last_name)]),
+    // A student's name is one `student_name` field; a teacher's is first + last.
+    // personName() already reconciles the two, so the word set is derived from it
+    // rather than from a list of column names this function would have to keep
+    // in step with the schema.
+    words: new Set(words(personName(p))),
+    roll: p.roll_number == null ? null : String(p.roll_number),
   }));
 
   const only = (hits) => (hits.length === 1 ? hits[0].person : null);
+
+  // 0. A ROLL NUMBER, if that is what was said. "roll number five", "number 12",
+  //    "roll 3" — how a register is actually read aloud in a classroom, and the one
+  //    identifier that cannot collide the way children's first names do.
+  //
+  //    Anchored: a bare "5" is NOT treated as a roll number, because a stray digit
+  //    in a transcript would then mark a child absent. The word has to be there.
+  const spokenRoll = said.match(/\b(?:roll(?:\s*(?:number|no|num))?|number)\s*(\d{1,3})\b/);
+  if (spokenRoll) {
+    const byRoll = people.filter((p) => p.roll === String(Number(spokenRoll[1])));
+    return only(byRoll);
+  }
 
   // 1. Exact, whole name.
   const exact = people.filter((p) => p.full === said);
@@ -319,12 +336,20 @@ async function processVoiceAttendance(audioPath, roster, options = {}) {
 // Redis because the NIETE Redis has no persistent volume and a restart would drop
 // every principal mid-roll-call.
 
-/** Expect a voice note from this principal. */
-async function arm(userId, { schoolId }) {
+/**
+ * Expect a voice note, and remember WHAT it is about.
+ *
+ * The payload carries {subject, targetId} rather than a bare schoolId: a teacher's
+ * note is about one class out of several, and "which roster do these names belong to"
+ * is not answerable from a school. `schoolId` is still accepted and mapped, so a wait
+ * armed by an older build still resolves.
+ */
+async function arm(userId, { subject, targetId, schoolId } = {}) {
+  const resolved = subject === 'student' ? 'student' : 'teacher';
   return ConversationState.setState(userId, {
     flow: VOICE_FLOW,
     step: 'awaiting_voice',
-    payload: { schoolId },
+    payload: { subject: resolved, targetId: targetId || schoolId || null, schoolId: schoolId || (resolved === 'teacher' ? targetId : undefined) },
     ttlSeconds: ARM_TTL_SECONDS,
   });
 }
@@ -337,12 +362,17 @@ async function armed(userId) {
 }
 
 /** Hold the extraction until the Flow opens and REVIEW asks for it. */
-async function stashResult(userId, { schoolId, absentIds, leaveIds, transcript, unmatched }) {
+async function stashResult(userId, {
+  subject, targetId, schoolId, absentIds, leaveIds, transcript, unmatched,
+}) {
+  const resolved = subject === 'student' ? 'student' : 'teacher';
   return ConversationState.setState(userId, {
     flow: VOICE_FLOW,
     step: 'awaiting_review',
     payload: {
-      schoolId,
+      subject: resolved,
+      targetId: targetId || schoolId || null,
+      schoolId: schoolId || (resolved === 'teacher' ? targetId : undefined),
       absentIds: absentIds || [],
       leaveIds: leaveIds || [],
       transcript: transcript || '',

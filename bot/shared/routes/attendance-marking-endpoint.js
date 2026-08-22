@@ -36,7 +36,13 @@ const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 const { markStudents, markTeachers, personName, loadStaffRoster } = require('../services/attendance-write.service');
 const VoiceAttendance = require('../services/voice-attendance.service');
-const { deliverTeacherRegister } = require('../services/attendance-register-delivery.service');
+const { rosterLabel } = require('../services/classes/roster-label');
+const { deliverRegister } = require('../services/attendance-register-delivery.service');
+
+// Above this many classes the inline radio list stops fitting a phone screen and the
+// picker becomes a Dropdown instead. Chosen for the screen, not the platform: Meta
+// allows 20 radio options and 200 dropdown options.
+const RADIO_MAX = 5;
 
 // Region timezone for the register date. Config-driven, never hardcoded per country.
 const REGISTER_TIME_ZONE = process.env.REGION_TIME_ZONE || 'Asia/Karachi';
@@ -194,27 +200,6 @@ async function loadStudentRoster(listId, list = null) {
   return loadLegacyRoster(listId);
 }
 
-/**
- * A class-backed mirror row already carries section AND shift inside class_name
- * (ClassService.mirrorLabel), so appending `section` renders "Grade 11 - B - B"
- * and pushes "Grade 7 - E (evening) - E" past the 24-char row cap (bd-2725).
- * The mirror owns the label for those rows; legacy rows compose it.
- */
-function listLabel(row) {
-  if (!row) return 'Your class';
-  const name = String(row.class_name || '').trim();
-  const section = row.section ? String(row.section).trim() : '';
-  if (!section) return name;
-  // Append the section only if the name does not already end with it. The mirror
-  // has carried BOTH shapes on the same day — "Grade 11 - B" + section "B"
-  // (doubling to "Grade 11 - B - B"), and later "Grade 11" + section "B" (where
-  // dropping the section loses it). Shift-bearing names like
-  // "Grade 7 - E (evening)" must not gain a second "- E" either. Comparing the
-  // tail is stable across all three. (bd-2725)
-  const endsWithSection = new RegExp(`(^|[\\s\\-])${section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*(\\(|$)`, 'i');
-  return endsWithSection.test(name) ? name : `${name} - ${section}`;
-}
-
 async function loadSchoolLabel(schoolId) {
   const { data } = await supabase.from('schools').select('name').eq('id', schoolId).maybeSingle();
   return data?.name || 'Your school';
@@ -253,7 +238,7 @@ async function loadMarkables(userId) {
     const n = counts.get(row.id) || 0;
     options.push({
       id: `student:${row.id}`,
-      title: listLabel(row),
+      title: rosterLabel(row),
       description: n ? `${n} students` : 'No students yet',
     });
   }
@@ -327,13 +312,37 @@ async function renderClassScreen(flowToken) {
       heading: 'Which class are we marking?',
       class_label: 'Class',
       classes: options,
+      ...pickerFor(options.length),
     },
   };
 }
 
-/** CLASS submitted — remember the choice, then ask for the date. */
+/**
+ * Radio buttons while they fit on a screen, a Dropdown once they do not.
+ *
+ * A Dropdown is a FIELD: it renders as one row the teacher taps, which opens a picker
+ * sheet over the screen. Correct for twenty class-sections and one tap too many for
+ * three — the classes are the only question on the screen, so they should BE the
+ * screen. RadioButtonsGroup shows them inline; it caps at 20 options where a Dropdown
+ * takes 200, and five is where a radio list stops fitting a phone without scrolling.
+ *
+ * Both controls live on the screen and exactly one is visible (`visible` on the
+ * CHILDREN — Meta refuses to publish a Form that carries it).
+ */
+function pickerFor(count) {
+  const useRadio = count > 0 && count <= RADIO_MAX;
+  return { use_radio: useRadio, use_dropdown: !useRadio };
+}
+
+/**
+ * CLASS submitted — remember the choice, then ask for the date.
+ *
+ * Reads whichever picker was showing. `class_id` is the pre-two-picker key and is
+ * still accepted, because a Flow already open on a handset submits with it.
+ */
 async function handleClassSubmit(flowToken, screenData) {
-  const choice = String((screenData && screenData.class_id) || '');
+  const d = screenData || {};
+  const choice = String(d.class_radio || d.class_dropdown || d.class_id || '');
   const [subject, targetId] = choice.split(':');
   if (!targetId) return renderClassScreen(flowToken);
 
@@ -351,7 +360,7 @@ async function renderDateScreen(flowToken) {
 
   const label = ctx.subject === 'teacher'
     ? await loadSchoolLabel(ctx.targetId)
-    : listLabel(await loadList(ctx.targetId));
+    : rosterLabel(await loadList(ctx.targetId));
 
   return {
     screen: 'DATE',
@@ -427,37 +436,46 @@ async function handleStaffDateSubmit(flowToken, screenData) {
  * find him" — the second is actionable, the first looks like a bug.
  */
 async function renderReviewScreen(flowToken) {
-  const { userId, targetId } = parseToken(flowToken);
+  const { userId, subject, targetId } = parseToken(flowToken);
   const stashed = (await VoiceAttendance.pendingResult(userId)) || {};
-  const schoolId = targetId || stashed.schoolId;
+  // The token is authoritative — it is what the Flow was opened with. The stash is
+  // the fallback for a token that predates carrying the subject.
+  const ctx = {
+    userId,
+    subject: subject || stashed.subject || 'teacher',
+    targetId: targetId || stashed.targetId || stashed.schoolId,
+  };
 
-  const people = await loadStaffRoster(schoolId, userId);
-  if (!people.length) return emptyRosterScreen(true);
+  const { people, label } = await loadSubject(ctx);
+  if (!people.length) return emptyRosterScreen(ctx.subject === 'teacher');
 
   const known = new Set(people.map((p) => p.id));
   const preselected = (stashed.absentIds || []).filter((id) => known.has(id));
   const leaveIds = (stashed.leaveIds || []).filter((id) => known.has(id) && !preselected.includes(id));
 
-  pending.set(flowToken, {
-    userId, subject: 'teacher', targetId: schoolId, people, voiceLeaveIds: leaveIds,
-  });
+  pending.set(flowToken, { ...ctx, people, voiceLeaveIds: leaveIds });
 
   const unmatched = stashed.unmatched || [];
   const heard = stashed.transcript
     ? `Heard: "${String(stashed.transcript).slice(0, 220)}"`
     : 'I could not make out the voice note — tick the names instead.';
+  const rosterWord = ctx.subject === 'teacher' ? 'staff list' : 'class list';
 
   return {
     screen: 'REVIEW',
     data: {
-      heading: await loadSchoolLabel(schoolId),
+      heading: label,
       heard_note: heard,
       date_label: 'Date',
       ...dateBounds(),
-      roster: people.map((p) => ({ id: p.id, title: personName(p), description: '' })),
+      roster: people.map((p) => ({
+        id: p.id,
+        title: personName(p),
+        description: p.roll_number ? `Roll ${p.roll_number}` : '',
+      })),
       preselected,
       correction_note: unmatched.length
-        ? `I could not find ${unmatched.join(', ')} on your staff list — tick them by hand if they are away.`
+        ? `I could not find ${unmatched.join(', ')} on your ${rosterWord} — tick them by hand if they are away.`
         : 'Tap to add or remove anyone before saving.',
     },
   };
@@ -504,16 +522,34 @@ async function handleMarkingInit(flowToken) {
   const { userId, subject, targetId, picked, mode } = parseToken(flowToken);
   logToFile('📋 Marking INIT', { userId, subject, targetId, picked, mode });
 
+  // A voice note has already been transcribed by the time this Flow opens, whoever
+  // sent it — the extraction is waiting to be reviewed, and REVIEW is a root. This
+  // comes FIRST so a student voice token reaches it too.
+  if (picked && mode === 'voice') return renderReviewScreen(flowToken);
+
   if (subject === 'teacher' && picked) {
     // A principal's target is settled by their role before the Flow opens, so the
     // staff path has a legal root of its own and starts on the date.
-    return mode === 'voice'
-      ? renderReviewScreen(flowToken)
-      : renderStaffDateScreen(flowToken);
+    return renderStaffDateScreen(flowToken);
   }
 
   if (picked) logToFile('📋 Legacy composite token — entering at the picker', { userId, subject, targetId });
   return renderClassScreen(flowToken);
+}
+
+/**
+ * Who this register covers, and what to call it — for EITHER subject.
+ *
+ * Extracted because three screens need the same answer (MARK, LEAVE and REVIEW) and
+ * three copies of a two-branch switch is three chances for the register, the review
+ * screen and the write to disagree about who is on the roster.
+ */
+async function loadSubject(ctx) {
+  if (ctx.subject === 'teacher') {
+    return { people: await loadStaffRoster(ctx.targetId, ctx.userId), label: await loadSchoolLabel(ctx.targetId) };
+  }
+  const listRow = await loadList(ctx.targetId);
+  return { people: await loadStudentRoster(ctx.targetId, listRow), label: rosterLabel(listRow) };
 }
 
 /**
@@ -547,12 +583,7 @@ async function renderMarkScreen(flowToken) {
   if (!ctx) return renderClassScreen(flowToken);
 
   const isTeacherSubject = ctx.subject === 'teacher';
-  const listRow = isTeacherSubject ? null : await loadList(ctx.targetId);
-  const people = isTeacherSubject
-    ? await loadStaffRoster(ctx.targetId, ctx.userId)
-    : await loadStudentRoster(ctx.targetId, listRow);
-
-  const label = isTeacherSubject ? await loadSchoolLabel(ctx.targetId) : listLabel(listRow);
+  const { people, label } = await loadSubject(ctx);
 
   if (!people.length) return emptyRosterScreen(isTeacherSubject);
 
@@ -769,7 +800,8 @@ async function handleConfirmSubmit(flowToken) {
       });
 
     pending.delete(flowToken);
-    if (ctx.subject === 'teacher') await VoiceAttendance.disarm(ctx.userId);
+    // Whoever they are, the voice branch is finished the moment the register is saved.
+    await VoiceAttendance.disarm(ctx.userId);
 
     const s = result.summary;
 
@@ -780,17 +812,16 @@ async function handleConfirmSubmit(flowToken) {
     // hold the SAVED screen hostage to three external services. The register is a
     // follow-up document, not part of the transaction: a failure here is logged and
     // the attendance is still saved, which is what SAVED is reporting.
-    if (ctx.subject === 'teacher') {
-      deliverTeacherRegister({
-        principalUserId: ctx.userId,
-        schoolId: ctx.targetId,
-        date: ctx.date,
-        staff: ctx.people,
-        todayTally: s,
-      }).catch((error) => logToFile('❌ Register delivery threw despite its own guard', {
-        userId: ctx.userId, error: error.message,
-      }, 'error'));
-    }
+    deliverRegister({
+      userId: ctx.userId,
+      subject: ctx.subject,
+      targetId: ctx.targetId,
+      date: ctx.date,
+      roster: ctx.people,
+      todayTally: s,
+    }).catch((error) => logToFile('❌ Register delivery threw despite its own guard', {
+      userId: ctx.userId, error: error.message,
+    }, 'error'));
 
     const saved = result.replaced
       ? 'This replaced the record you saved earlier for the same day.'
@@ -800,9 +831,7 @@ async function handleConfirmSubmit(flowToken) {
       screen: 'SAVED',
       data: {
         heading: `Saved · ${s.present} present · ${s.absent} absent · ${s.leave} on leave`,
-        detail: ctx.subject === 'teacher'
-          ? `${saved} Your register for the month is on its way to this chat.`
-          : saved,
+        detail: `${saved} Your register for the month is on its way to this chat.`,
         overwrite_note: '',
       },
     };
@@ -830,8 +859,11 @@ async function handleMarkingDataExchange(flowToken, screen, screenData) {
 module.exports = {
   handleMarkingInit,
   renderClassScreen,
+  pickerFor,
+  RADIO_MAX,
   renderStaffDateScreen,
   renderReviewScreen,
+  loadSubject,
   regionToday,
   dateBounds,
   readDate,

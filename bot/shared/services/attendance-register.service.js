@@ -66,17 +66,19 @@ function getWeekendDays(year, month) {
 }
 
 /**
- * `Teacher_Attendance_<School>_<Month>_<Year>.xlsx`
+ * `Teacher_Attendance_<School>_<Month>_<Year>.xlsx` for staff,
+ * `Attendance_<Class>_<Month>_<Year>.xlsx` for a class.
  *
- * Named for the school and the month rather than the day, because it IS the month:
+ * Named for the roster and the month rather than the day, because it IS the month:
  * a date-stamped name would read as one day's file and invite a folder of thirty.
  */
-function formatMonthlyFileName(schoolName, month, year) {
-  const safe = String(schoolName || 'School')
+function formatMonthlyFileName(name, month, year, subject = 'teacher') {
+  const safe = String(name || 'School')
     .replace(/[^a-zA-Z0-9\s]/g, ' ')
     .trim()
     .replace(/\s+/g, '_');
-  return `Teacher_Attendance_${safe || 'School'}_${MONTH_NAMES[month - 1]}_${year}.xlsx`;
+  const prefix = subject === 'student' ? 'Attendance' : 'Teacher_Attendance';
+  return `${prefix}_${safe || 'School'}_${MONTH_NAMES[month - 1]}_${year}.xlsx`;
 }
 
 /**
@@ -148,30 +150,38 @@ function thinBorder() {
  */
 async function createMonthlyRegisterBuffer(metadata, month, year, people, records) {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'NIETE Teacher Attendance';
+  const isStudent = (metadata && metadata.subject) === 'student';
+  workbook.creator = isStudent ? 'NIETE Student Attendance' : 'NIETE Teacher Attendance';
 
   const total = daysInMonth(year, month);
   const weekends = getWeekendDays(year, month);
   const matrix = buildMatrix(people, records);
-  const lastCol = 1 + total + 4;   // name + days + P + A + L + %
+  // A class register leads with the roll number, because that is the order a teacher
+  // reads a register in and the key she will cross-check against her own book. Staff
+  // have no roll numbers, so their sheet starts at the name.
+  const idCols = isStudent ? 2 : 1;
+  const lastCol = idCols + total + 4;   // [roll] + name + days + P + A + L + %
+  const title = (metadata && (metadata.title || metadata.schoolName)) || 'Register';
 
-  const sheet = workbook.addWorksheet('Teacher Register', {
+  const sheet = workbook.addWorksheet(isStudent ? 'Class Register' : 'Teacher Register', {
     // Freeze the names and the four header rows, so scrolling into the 20s of the
     // month still shows whose row it is.
-    views: [{ state: 'frozen', xSplit: 1, ySplit: 4 }],
+    views: [{ state: 'frozen', xSplit: idCols, ySplit: 4 }],
   });
 
   // ── Header ────────────────────────────────────────────────────────────────
-  const title = sheet.addRow(['Monthly Teacher Attendance Register']);
+  const titleRow = sheet.addRow([
+    isStudent ? 'Monthly Attendance Register' : 'Monthly Teacher Attendance Register',
+  ]);
   sheet.mergeCells(1, 1, 1, lastCol);
-  title.font = { bold: true, size: 14 };
-  title.alignment = { horizontal: 'center' };
-  title.height = 24;
+  titleRow.font = { bold: true, size: 14 };
+  titleRow.alignment = { horizontal: 'center' };
+  titleRow.height = 24;
 
-  sheet.addRow(['School:', metadata?.schoolName || 'School']);
+  sheet.addRow([isStudent ? 'Class:' : 'School:', title]);
   sheet.addRow(['Month:', `${MONTH_NAMES[month - 1]} ${year}`]);
 
-  const header = ['Teacher'];
+  const header = isStudent ? ['Roll #', 'Student'] : ['Teacher'];
   for (let day = 1; day <= total; day += 1) header.push(String(day));
   header.push('P', 'A', 'L', '%');
 
@@ -181,7 +191,7 @@ async function createMonthlyRegisterBuffer(metadata, month, year, people, record
     cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 };
     cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     cell.border = thinBorder();
-    const weekend = col > 1 && col <= total + 1 && weekends.includes(col - 1);
+    const weekend = col > idCols && col <= total + idCols && weekends.includes(col - idCols);
     cell.fill = {
       type: 'pattern',
       pattern: 'solid',
@@ -189,7 +199,7 @@ async function createMonthlyRegisterBuffer(metadata, month, year, people, record
     };
   });
 
-  const dayNames = [''];
+  const dayNames = new Array(idCols).fill('');
   for (let day = 1; day <= total; day += 1) {
     dayNames.push(DAY_NAMES[new Date(year, month - 1, day).getDay()]);
   }
@@ -199,7 +209,7 @@ async function createMonthlyRegisterBuffer(metadata, month, year, people, record
   subHeader.eachCell((cell, col) => {
     cell.font = { size: 8, color: { argb: 'FF666666' } };
     cell.alignment = { horizontal: 'center', vertical: 'middle' };
-    if (col > 1 && col <= total + 1 && weekends.includes(col - 1)) {
+    if (col > idCols && col <= total + idCols && weekends.includes(col - idCols)) {
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.weekendBg } };
     }
   });
@@ -209,7 +219,7 @@ async function createMonthlyRegisterBuffer(metadata, month, year, people, record
     const days = matrix[person.id]?.days || {};
     const stats = monthlyStats(days);
 
-    const values = [personName(person)];
+    const values = isStudent ? [person.roll_number ?? '', personName(person)] : [personName(person)];
     for (let day = 1; day <= total; day += 1) values.push(days[day] || '-');
     values.push(stats.present, stats.absent, stats.leave, `${stats.percentage}%`);
 
@@ -219,13 +229,14 @@ async function createMonthlyRegisterBuffer(metadata, month, year, people, record
       cell.border = thinBorder();
       cell.font = { size: 9 };
 
-      if (col === 1) {
-        cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      if (col <= idCols) {
+        // The name reads left-aligned; a roll number stays centred like a number.
+        if (col === idCols) cell.alignment = { horizontal: 'left', vertical: 'middle' };
         return;
       }
 
-      if (col > 1 && col <= total + 1) {
-        const day = col - 1;
+      if (col > idCols && col <= total + idCols) {
+        const day = col - idCols;
         const code = days[day];
         const weekend = weekends.includes(day);
 
@@ -254,13 +265,15 @@ async function createMonthlyRegisterBuffer(metadata, month, year, people, record
   }
 
   // ── Widths ────────────────────────────────────────────────────────────────
-  sheet.getColumn(1).width = 24;
-  for (let col = 2; col <= total + 1; col += 1) sheet.getColumn(col).width = 3.5;
-  for (let col = total + 2; col <= lastCol; col += 1) sheet.getColumn(col).width = 5;
+  if (isStudent) { sheet.getColumn(1).width = 6; sheet.getColumn(2).width = 24; }
+  else sheet.getColumn(1).width = 24;
+  for (let col = idCols + 1; col <= total + idCols; col += 1) sheet.getColumn(col).width = 3.5;
+  for (let col = total + idCols + 1; col <= lastCol; col += 1) sheet.getColumn(col).width = 5;
 
   const buffer = await workbook.xlsx.writeBuffer();
-  logToFile('📗 Teacher register generated', {
-    school: metadata?.schoolName, month, year, people: (people || []).length, bytes: buffer.length,
+  logToFile('📗 Register generated', {
+    subject: isStudent ? 'student' : 'teacher', roster: title, month, year,
+    people: (people || []).length, bytes: buffer.length,
   });
   return Buffer.from(buffer);
 }
