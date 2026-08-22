@@ -23,9 +23,13 @@ describe('bd-fbih0 — unsupported-type replies', () => {
     expect(r).toMatch(/photos/);       // and in English
   });
 
-  test('unknown types keep the historical fallback byte-for-byte', () => {
+  test('unknown types keep the generic fallback — feminine + bilingual (bd-z5olm)', () => {
+    // The original lock held the historical string byte-for-byte; bd-z5olm
+    // deliberately changed it — the old line spoke as a MALE («سکتا ہوں»)
+    // and Urdu-only. The contract now: Rumi's voice, both languages.
     expect(unsupportedTypeReply('contacts')).toBe(DEFAULT_REPLY);
-    expect(DEFAULT_REPLY).toBe('میں صرف متن اور آواز پیغامات کا جواب دے سکتا ہوں۔');
+    expect(DEFAULT_REPLY).toContain('سکتی ہوں');
+    expect(DEFAULT_REPLY).toMatch(/text and voice/);
   });
 
   test('whatsapp-bot routes the fallback through the helper (no inline hardcode left)', () => {
