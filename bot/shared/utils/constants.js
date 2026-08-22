@@ -135,7 +135,11 @@ const ELEVENLABS_URDU_VOICE_ID = process.env.ELEVENLABS_VOICE_ID_UR || '9cI5mhBt
 const VOICE_MODELS = {
   // Tier 1: Full support
   en: { provider: 'elevenlabs', voiceId: ELEVENLABS_VOICE_ID, supportsEmotionTags: true, tier: 1 },
-  ur: { provider: 'elevenlabs', voiceId: ELEVENLABS_URDU_VOICE_ID, supportsEmotionTags: false, tier: 1 }, // Sara / eleven_v3 (was Uplift v_8eelc901 — bd-2375)
+  // supportsEmotionTags flipped true (bd-njn7u 4.2): false was an Uplift-era
+  // leftover — the voice moved to Sara/eleven_v3 (bd-2375), which RENDERS
+  // audio tags, but the flag never followed. The v8 voicenote corpus ships
+  // [slowly]-style cues on this exact voice+model, operator ear-checked.
+  ur: { provider: 'elevenlabs', voiceId: ELEVENLABS_URDU_VOICE_ID, supportsEmotionTags: true, tier: 1 }, // Sara / eleven_v3 (was Uplift v_8eelc901 — bd-2375)
 
   // Tier 2: Coaching only
   es: { provider: 'elevenlabs', voiceId: ELEVENLABS_SPANISH_VOICE_ID, supportsEmotionTags: true, tier: 2 },

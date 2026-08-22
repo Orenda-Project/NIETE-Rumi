@@ -107,6 +107,8 @@ EMOTION TAGS (use naturally in your speech):
 - [enthusiastically] for excitement
 - [gently] for suggestions
 - [encouragingly] for motivation
+- [methodically] for step-by-step guidance
+Use at most 3 tags per reply — they colour the voice, they are never spoken.
 ` : '';
 
     // Language-specific capability responses
@@ -257,7 +259,10 @@ Keep responses conversational and concise. MAXIMUM 60 seconds of speech (150-180
 ${voiceLanguageRules('en')}`;
     }
 
-    // Voice response in Urdu (no emotion tags, Uplift doesn't support them)
+    // Voice response in Urdu. UNREACHABLE in practice: 'ur' has an enhanced
+    // prompt, so the enhanced branch above returns first (tags now ride there
+    // via VOICE_MODELS.ur.supportsEmotionTags — bd-njn7u 4.2). The old comment
+    // here blamed Uplift; the voice has been Sara/eleven_v3 since bd-2375.
     if (format === 'voice' && language === 'ur') {
       return `You are the NIETE Teaching Assistant, a warm and supportive teaching companion for teachers. You're responding via voice message in Urdu. Always respond in Urdu (اردو). Be friendly, warm, supportive, professional, and pedagogically sound. Use female verb forms in Urdu.
 ${firstName ? `\nاستاد کا نام ${firstName} ہے۔ مناسب مواقع پر ان کا نام استعمال کریں تاکہ بات چیت زیادہ ذاتی ہو، لیکن زیادہ استعمال نہ کریں۔` : ''}
@@ -396,7 +401,14 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
       // there is nothing to strip. The slice was the load-bearing half of that
       // convention — remove the seed and the slice must go with it, or the first
       // real history message would be silently dropped.
-      const existingHistory = await this.getConversationHistory(userId);
+      //
+      // The filter is the second half of the bd-njn7u invariant (history is
+      // user/assistant turns ONLY): any system message found here is a stale
+      // system prompt from an older storage shape, and replaying it mid-array
+      // would present last turn's instructions — injected featureContext
+      // included — as still current.
+      const existingHistory = (await this.getConversationHistory(userId))
+        .filter((m) => m.role !== 'system');
 
       // Build new history with format-specific system prompt
       const messages = [
@@ -421,9 +433,12 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
 
       const aiResponse = completion.choices[0].message.content;
 
-      // Update conversation history with new system prompt and messages
+      // Store the turn WITHOUT the system prompt (bd-njn7u). Storing it put
+      // this turn's system message — featureContext and all — at [0] of the
+      // next turn's "existing history", where it rode mid-conversation as a
+      // second system message and outlived whatever context it described. The
+      // system prompt is composed fresh per request; history is turns only.
       const newHistory = [
-        { role: 'system', content: systemPrompt },
         ...existingHistory,
         { role: 'user', content: userMessage },
         { role: 'assistant', content: aiResponse }
@@ -431,7 +446,7 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
 
       // Keep only last N messages to manage memory
       if (newHistory.length > CONVERSATION_HISTORY_LIMIT) {
-        newHistory.splice(1, 2); // Keep system message, remove oldest user-assistant pair
+        newHistory.splice(0, 2); // remove oldest user-assistant pair
       }
 
       this.conversationHistory.set(userId, newHistory);
@@ -485,6 +500,13 @@ IMPORTANT: Distinguish carefully:
 - "Help me figure out how to teach X" → general (they want guidance)
 - "What's the best way to teach X?" → general (they want advice)
 - "What is photosynthesis?" → general (they want information, not a document)
+- A QUESTION or COMMENT ABOUT a lesson plan she already has/received → general
+  ("is lesson mein activity kaisi karun", "yeh wali activity mushkil hai",
+   "grade 2 maths walay sabaq mein time kam parta hai", "explain this lesson again")
+- Even when it names a topic and grade: referring-back language ("is/yeh/us lesson",
+  "jo aap ne bheja", "walay sabaq", "اس سبق", "یہ والا") means she is talking about
+  a lesson she ALREADY has → general, not lesson_plan.
+- lesson_plan is ONLY for wanting a NEW document made.
 
 The message may be in English, Urdu, or Roman Urdu. Look for semantic meaning, not just keywords.
 
@@ -504,7 +526,8 @@ Examples:
 - "Figure out how to teach X" → general
 - "What's a good way to explain X?" → general
 
-Return ONLY one word: lesson_plan, presentation, video, or general`
+Return ONLY one word: lesson_plan, presentation, video, or general
+If (and ONLY if) the message refers back to a lesson plan the teacher ALREADY has or received, append " lp_ref" after the word (e.g. "general lp_ref").`
           },
           {
             role: 'user',
@@ -515,17 +538,22 @@ Return ONLY one word: lesson_plan, presentation, video, or general`
         temperature: 0.1,
       });
 
-      const intent = completion.choices[0].message.content.trim().toLowerCase();
+      const raw = completion.choices[0].message.content.trim().toLowerCase();
+      // bd-njn7u: the optional " lp_ref" marker — she is referring back to a
+      // lesson she already has. Only meaningful on general (it gates the LP
+      // Q&A context detail tier); stripped before intent validation either way.
+      const lpRef = /\blp_ref\b/.test(raw);
+      const intent = raw.replace(/\blp_ref\b/g, '').trim();
 
       // Validate the response
       if (intent === 'lesson_plan' || intent === 'lesson plan') {
-        return { type: 'lesson_plan', message };
+        return { type: 'lesson_plan', message, lp_reference: false };
       } else if (intent === 'presentation') {
-        return { type: 'presentation', message };
+        return { type: 'presentation', message, lp_reference: false };
       } else if (intent === 'video') {
-        return { type: 'video', message };
+        return { type: 'video', message, lp_reference: false };
       } else {
-        return { type: 'general', message };
+        return { type: 'general', message, lp_reference: lpRef };
       }
     } catch (error) {
       logToFile('Error detecting intent with LLM', { error: error.message });
@@ -560,23 +588,23 @@ Return ONLY one word: lesson_plan, presentation, video, or general`
 
     for (const keyword of lessonPlanKeywords) {
       if (lowerMessage.includes(keyword.toLowerCase())) {
-        return { type: 'lesson_plan', message };
+        return { type: 'lesson_plan', message, lp_reference: false };
       }
     }
 
     for (const keyword of presentationKeywords) {
       if (lowerMessage.includes(keyword.toLowerCase())) {
-        return { type: 'presentation', message };
+        return { type: 'presentation', message, lp_reference: false };
       }
     }
 
     for (const keyword of videoKeywords) {
       if (lowerMessage.includes(keyword.toLowerCase())) {
-        return { type: 'video', message };
+        return { type: 'video', message, lp_reference: false };
       }
     }
 
-    return { type: 'general', message };
+    return { type: 'general', message, lp_reference: false };
   }
 
   /**

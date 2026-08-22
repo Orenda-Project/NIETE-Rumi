@@ -28,6 +28,16 @@ class CoachingSessionService {
    */
   static async initiateSession(userId, sessionId, audioId, from, audioDuration) {
     try {
+      // bd-njn7u: defensive LP-shelf flush — coaching is a real feature
+      // switch, so any in-flight LP-Q&A context belongs to the past. Same
+      // belt-and-suspenders pattern as QuizOrchestrator (parent-bot bd-1349).
+      try {
+        const LPShelfService = require('../lp-shelf.service');
+        await LPShelfService.flushShelf(userId);
+      } catch (err) {
+        logToFile('⚠️ LP shelf flush failed at coaching start (non-blocking)', { error: err.message });
+      }
+
       logToFile('Initiating coaching session', {
         userId,
         sessionId,
