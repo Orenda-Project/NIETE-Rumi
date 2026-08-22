@@ -501,6 +501,34 @@ const CLASS_FLOW_STRINGS = {
     en: 'Add a new class',
     ur: 'نئی جماعت شامل کریں',
   },
+  classEditHint: {
+    en: 'Tick anyone leaving, and paste any new names below. '
+      + 'Every teacher on this class stops seeing a removed student; their attendance record is kept.',
+    ur: 'جو طلبہ جماعت چھوڑ رہے ہیں انہیں منتخب کریں، اور نئے نام نیچے لکھیں۔ '
+      + 'نکالے گئے طالب علم اس جماعت کے تمام اساتذہ کو نظر آنا بند ہو جائیں گے؛ حاضری کا ریکارڈ محفوظ رہے گا۔',
+  },
+  classEditHintCapped: {
+    en: 'Showing the first {shown} to remove, and paste any new names below. '
+      + 'Every teacher on this class stops seeing a removed student; their attendance record is kept.',
+    ur: 'نکالنے کے لیے پہلے {shown} دکھائے جا رہے ہیں، اور نئے نام نیچے لکھیں۔ '
+      + 'نکالے گئے طالب علم اس جماعت کے تمام اساتذہ کو نظر آنا بند ہو جائیں گے؛ حاضری کا ریکارڈ محفوظ رہے گا۔',
+  },
+  classRemoveField: {
+    en: 'Remove from this class',
+    ur: 'اس جماعت سے نکالیں',
+  },
+  classAddField: {
+    en: 'Add students',
+    ur: 'طلبہ شامل کریں',
+  },
+  classSaveChanges: {
+    en: 'Save changes',
+    ur: 'تبدیلیاں محفوظ کریں',
+  },
+  classNoChanges: {
+    en: 'Nothing changed for {class}.',
+    ur: '{class} میں کوئی تبدیلی نہیں ہوئی۔',
+  },
   classRosterAction: {
     en: 'What would you like to do?',
     ur: 'آپ کیا کرنا چاہتے ہیں؟',
