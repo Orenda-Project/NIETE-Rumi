@@ -319,6 +319,9 @@
           {
             "type": "Form",
             "name": "review_form",
+            "init-values": {
+              "absent": "${data.preselected}"
+            },
             "children": [
               {
                 "type": "TextHeading",
@@ -342,8 +345,7 @@
                 "name": "absent",
                 "label": "Absent",
                 "required": false,
-                "data-source": "${data.roster}",
-                "init-value": "${data.preselected}"
+                "data-source": "${data.roster}"
               },
               {
                 "type": "TextCaption",
@@ -496,6 +498,9 @@
           {
             "type": "Form",
             "name": "leave_form",
+            "init-values": {
+              "on_leave": "${data.preselected}"
+            },
             "children": [
               {
                 "type": "TextHeading",
@@ -510,8 +515,7 @@
                 "name": "on_leave",
                 "label": "On leave",
                 "required": false,
-                "data-source": "${data.roster}",
-                "init-value": "${data.preselected}"
+                "data-source": "${data.roster}"
               },
               {
                 "type": "Footer",

@@ -118,6 +118,73 @@ describe('flow screen contract', () => {
 });
 
 /**
+ * Meta refuses `init-value` on a CheckboxGroup. Pre-ticking lives on the FORM.
+ *
+ * Cost a publish on staging. The local guards all passed — the screen is declared,
+ * routable, terminal-reachable, the routing model is forward-only — and the upload
+ * came back with:
+ *
+ *   INVALID_PROPERTY_KEY: Property 'init-value' is not allowed in 'CheckboxGroup'
+ *   component.
+ *
+ * The documented mechanism is `init-values` on the enclosing Form, keyed by the
+ * group's `name` (training-msq-flow.json is the working precedent). Same shape, one
+ * level up, and only Meta can tell you which — so it is pinned here.
+ *
+ * The rule is deliberately narrow: `init-value` is legal on other components
+ * (TextInput, Dropdown, DatePicker), so this asserts only where Meta rejects it.
+ */
+describe('pre-ticking a CheckboxGroup goes on the Form, not the group', () => {
+  const FLOW_DIR = path.join(ROOT, 'docs/flows');
+  const flows = fs.existsSync(FLOW_DIR)
+    ? fs.readdirSync(FLOW_DIR).filter((f) => f.endsWith('.json'))
+    : [];
+
+  /** Every node of a given type, with the form that encloses it. */
+  function groupsWithForms(node, form = null, acc = []) {
+    if (Array.isArray(node)) { node.forEach((n) => groupsWithForms(n, form, acc)); return acc; }
+    if (node && typeof node === 'object') {
+      const nextForm = node.type === 'Form' ? node : form;
+      if (node.type === 'CheckboxGroup') acc.push({ group: node, form: nextForm });
+      Object.values(node).forEach((v) => groupsWithForms(v, nextForm, acc));
+    }
+    return acc;
+  }
+
+  flows.forEach((file) => {
+    it(`${file}: no CheckboxGroup carries init-value`, () => {
+      const flow = JSON.parse(fs.readFileSync(path.join(FLOW_DIR, file), 'utf8'));
+      const offenders = [];
+
+      for (const screen of flow.screens || []) {
+        for (const { group } of groupsWithForms(screen.layout || {})) {
+          if ('init-value' in group) offenders.push(`${screen.id}.${group.name}`);
+        }
+      }
+
+      expect(offenders).toEqual([]);
+    });
+
+    it(`${file}: any pre-tick is declared on the enclosing Form, keyed by the group name`, () => {
+      const flow = JSON.parse(fs.readFileSync(path.join(FLOW_DIR, file), 'utf8'));
+      const offenders = [];
+
+      for (const screen of flow.screens || []) {
+        for (const { group, form } of groupsWithForms(screen.layout || {})) {
+          const seeded = form && form['init-values'] && group.name in form['init-values'];
+          if (!seeded) continue;
+          // A seeded group must actually be inside a Form — an init-values map on a
+          // node that is not the group's form never reaches it.
+          if (!form || form.type !== 'Form') offenders.push(`${screen.id}.${group.name}: not in a Form`);
+        }
+      }
+
+      expect(offenders).toEqual([]);
+    });
+  });
+});
+
+/**
  * Meta refuses to publish a NavigationList that shares a screen with anything
  * else. The error it returns names the wrong cause — "Only up to 2
  * NavigationList components can be used per screen. Please remove other
