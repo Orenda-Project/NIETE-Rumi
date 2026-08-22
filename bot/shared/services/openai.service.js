@@ -189,6 +189,17 @@ ANTI-FALSE-PROMISE RULE (CRITICAL - applies to ALL languages):
    * @private
    */
   _getFormatAwareSystemPrompt(format, language, firstName = null) {
+    // P0 bd-reverence (2026-08-22): the religious-reverence block rides EVERY
+    // conversational prompt — all languages, all formats, every branch below,
+    // current and future. That is why this is a wrapper around the branchy
+    // builder rather than a per-branch append: a new prompt branch cannot
+    // forget it. End-of-prompt is an attention edge position, on purpose.
+    const { RELIGIOUS_REVERENCE_RULES } = require('../config/religious-reverence-rules');
+    return this._getFormatAwareSystemPromptBase(format, language, firstName)
+      + '\n' + RELIGIOUS_REVERENCE_RULES;
+  }
+
+  _getFormatAwareSystemPromptBase(format, language, firstName = null) {
     // Check if we have enhanced prompts for this language
     if (hasEnhancedPrompt(language)) {
       const basePrompt = buildLanguagePrompt(language, firstName || 'Teacher');
