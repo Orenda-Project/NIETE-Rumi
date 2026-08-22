@@ -131,7 +131,7 @@ async function handleVoiceMessage(message, from, user = null) {
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // ATTENDANCE voice roll call (bd-43520).
+    // ATTENDANCE voice roll call.
     //
     // Restored for the PRINCIPAL path. Placed HERE, before every other voice
     // route, because a principal who has just been asked for a voice note is

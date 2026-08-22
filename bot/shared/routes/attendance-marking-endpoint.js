@@ -15,11 +15,11 @@
  * learn and one to maintain.
  *
  * WHY THREE ENTRY SCREENS. WhatsApp refuses to OPEN a Flow on a screen that has
- * incoming edges (bd-2713), and nothing forbids a Flow having several screens with
+ * incoming edges, and nothing forbids a Flow having several screens with
  * none. That is the whole reason STAFF_DATE exists as a near-duplicate of DATE: a
  * principal's register must start on the date, DATE has an incoming edge from CLASS,
  * so the staff path needs its own root. Collapsing them would put the class picker
- * back in front of a principal, which is precisely what bd-43520 removed.
+ * back in front of a principal, which is precisely what removed.
  *
  * The tap-or-voice question is NOT a screen here any more. It is asked in chat by
  * the router, because a Flow cannot receive a voice note — the voice branch has to
@@ -46,13 +46,15 @@ const REGISTER_TIME_ZONE = process.env.REGION_TIME_ZONE || 'Asia/Karachi';
 const pending = new Map();
 
 /**
- * "<userId>" | "<userId>:<subject>:<targetId>" → its parts.
+ * "<userId>" | "<userId>:<subject>:<targetId>[:<mode>]" → its parts.
  *
- * The target is OPTIONAL since bd-2726: the Flow's CLASS screen picks what to mark,
- * so a TEACHER opens with the bare user id. A principal always carries a composite
- * token, because their target is settled by their role before the Flow opens
- * (bd-43520) — and an old student-composite token from a pre-bd-2726 handset still
- * parses rather than breaking mid-conversation.
+ * The target is OPTIONAL: the Flow's CLASS screen picks what to mark, so a TEACHER
+ * opens with the bare user id. A principal always carries a composite token, because
+ * their target is settled by their role before the Flow opens.
+ *
+ * The old student-composite shape still parses too. A Flow message already delivered
+ * to a handset carries it, and a token the endpoint cannot read is a register the
+ * teacher cannot open.
  */
 function parseToken(flowToken) {
   const [userId, subject, targetId, mode] = String(flowToken || '').split(':');
@@ -228,7 +230,7 @@ async function loadSchoolLabel(schoolId) {
  * "My teachers" USED to be the first option here, because CLASS was the Flow's only
  * entry screen and there was nowhere else to put the staff path. STAFF_DATE is now a
  * second root, so a principal never arrives on this screen at all and staff is no
- * longer an option on it (bd-43520). Classes, and only classes.
+ * longer an option on it. Classes, and only classes.
  *
  * Option ids still carry the subject — "student:<listId>" — so the CLASS submit
  * handler's parser is unchanged and an in-flight Flow keeps working.
@@ -365,7 +367,7 @@ async function renderDateScreen(flowToken) {
 /**
  * DATE submitted — into the register.
  *
- * This used to ask HOW next. That question moved into chat (bd-43520): it is the
+ * This used to ask HOW next. That question moved into chat: it is the
  * first thing to decide, not the third, and the voice half of it cannot be answered
  * from inside a Flow at all.
  */
@@ -381,7 +383,7 @@ async function handleDateSubmit(flowToken, screenData) {
  * STAFF_DATE — the principal's entry screen. Which day are we marking?
  *
  * A near-duplicate of DATE by NECESSITY, not by oversight: DATE has an incoming edge
- * from CLASS, and a Flow cannot be OPENED on a screen with incoming edges (bd-2713).
+ * from CLASS, and a Flow cannot be OPENED on a screen with incoming edges.
  * The staff path has to start somewhere, and this is that somewhere.
  */
 async function renderStaffDateScreen(flowToken) {
@@ -486,7 +488,7 @@ async function handleReviewSubmit(flowToken, screenData) {
 /**
  * INIT — the Flow's entry point. Which of the three roots does this token mean?
  *
- * A Flow may only be OPENED on a screen with no incoming edges (bd-2713), so this
+ * A Flow may only be OPENED on a screen with no incoming edges, so this
  * function may only ever answer CLASS, STAFF_DATE or REVIEW. Answering MARK or
  * CONFIRM earns
  *   invalid-screen-transition: The first screen -[X] ... already have incoming
@@ -494,7 +496,7 @@ async function handleReviewSubmit(flowToken, screenData) {
  * and strands the person mid-flow with their taps already spent. The
  * flow-screen-contract guard enforces this statically; it has caught it twice.
  *
- * A pre-bd-2726 STUDENT composite token deliberately does NOT skip ahead — its
+ * An old STUDENT composite token deliberately does NOT skip ahead — its
  * target would be DATE, which has an incoming edge from CLASS. One extra tap on the
  * picker beats a Flow that cannot open.
  */
@@ -504,7 +506,7 @@ async function handleMarkingInit(flowToken) {
 
   if (subject === 'teacher' && picked) {
     // A principal's target is settled by their role before the Flow opens, so the
-    // staff path has a legal root of its own and starts on the date (bd-43520).
+    // staff path has a legal root of its own and starts on the date.
     return mode === 'voice'
       ? renderReviewScreen(flowToken)
       : renderStaffDateScreen(flowToken);
@@ -520,7 +522,7 @@ async function handleMarkingInit(flowToken) {
  * MARK, not CONFIRM: CONFIRM has incoming edges and answering it at INIT produced
  *   invalid-screen-transition: The first screen -[CONFIRM] ... already have
  *   incoming nodes found in the routing model
- * so the branch written to be graceful was the only one that hard-failed (bd-2713).
+ * so the branch written to be graceful was the only one that hard-failed.
  * Reaching MARK by navigation is legal, which is why this is safe from any entry.
  *
  * `pending` keeps the context but no roster, so submitting re-renders this rather
@@ -787,7 +789,7 @@ async function handleConfirmSubmit(flowToken) {
         todayTally: s,
       }).catch((error) => logToFile('❌ Register delivery threw despite its own guard', {
         userId: ctx.userId, error: error.message,
-      }));
+      }, 'error'));
     }
 
     const saved = result.replaced

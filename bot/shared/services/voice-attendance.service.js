@@ -1,5 +1,5 @@
 /**
- * Voice roll call — a principal says who is away, we tick it for them. (bd-43520)
+ * Voice roll call — a principal says who is away, we tick it for them.
  *
  * THE RULE THAT MAKES THIS SAFE: this service never writes a register. It produces a
  * SELECTION, which the Flow's REVIEW screen shows pre-ticked, and the principal
@@ -259,7 +259,7 @@ async function extract(transcript, roster) {
     });
     return parseExtraction(response?.choices?.[0]?.message?.content);
   } catch (error) {
-    logToFile('❌ Voice attendance extraction failed', { error: error.message });
+    logToFile('❌ Voice attendance extraction failed', { error: error.message }, 'error');
     return [];
   }
 }
@@ -281,7 +281,7 @@ async function processVoiceAttendance(audioPath, roster, options = {}) {
   try {
     transcription = await AudioService.transcribe(audioPath, false, options.language || null);
   } catch (error) {
-    logToFile('❌ Voice attendance: transcription failed', { error: error.message });
+    logToFile('❌ Voice attendance: transcription failed', { error: error.message }, 'error');
     return { ok: false, transcript: '', reason: 'transcription_failed', ...empty };
   }
 
