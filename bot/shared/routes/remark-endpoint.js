@@ -43,6 +43,7 @@ function repo() {
   return {
     cycle: require('../services/remark/remark-cycle.repository'),
     write: require('../services/remark/remark-write.repository'),
+    score: require('../services/remark/remark-score.repository'),
     delivery: require('../services/remark/remark-delivery.service'),
   };
 }
@@ -109,30 +110,86 @@ async function handleRemarkInit(userId) {
   if (!activeCycle) return errorScreen('No evaluation cycle is open.');
 
   const teachers = await cycle.listSchoolTeachers(user);
-  const progress = await cycle.getProgress(user.id, activeCycle.id);
-  const remaining = teachers.filter((t) => (progress[t.id] || {}).state !== 'done');
-
-  if (remaining.length === 0) {
-    return errorScreen(resolveUx('remarkAckAllDone', { language }));
+  if (teachers.length === 0) {
+    return errorScreen(resolveUx('remarkNoTeachers', { language }));
   }
 
+  // The WHOLE roster, annotated — never a filtered one. Handing her only the
+  // teachers she has left made absence the single signal, and absence cannot
+  // distinguish "done" from "not enrolled" from "something broke". It also
+  // dead-ended the flow on an error screen the moment the cycle was complete.
+  const progress = await cycle.getProgress(user.id, activeCycle.id);
+  const scoreRows = await loadScoreIndex(user.id, activeCycle.id);
+
+  // A NavigationList must be the ONLY component on its screen — Meta rejects the
+  // publish outright if it has siblings, and reports it as a count limit. So
+  // there is no heading and no hint element to hang "3 of 12 done" on: the
+  // per-row status carries it, and the screen title is static Flow chrome.
   return {
     screen: 'PICK_TEACHER',
     data: {
-      heading: resolveUx('remarkPickHeading', { language }),
-      hint: resolveUx('remarkPickHint', { language, params: { count: remaining.length } }),
-      picker_label: resolveUx('remarkPickerLabel', { language }),
-      cta: resolveUx('remarkContinue', { language }),
-      teachers: remaining.map((t) => ({
-        id: t.id,
-        title: teacherLabel(t, language),
-        description: (progress[t.id] || {}).state === 'in_progress'
-          ? resolveUx('remarkContinue', { language })
-          : '',
-      })),
+      items: teachers.map((t) => rosterRow(t, progress, scoreRows, language)),
     },
   };
 }
+
+/** done | in_progress | not_started — absent from progress means untouched. */
+function stateOf(progress, teacherId) {
+  return (progress[teacherId] || {}).state || 'not_started';
+}
+
+/**
+ * teacher_id → { s_score, s_pct } for this cycle.
+ *
+ * The view only carries SUBMITTED remarks, so an un-evaluated teacher is simply
+ * missing — which is the right shape: no row means no score, never a zero.
+ * A failure here must not take the roster down with it; she can still evaluate
+ * without seeing last quarter's numbers.
+ */
+async function loadScoreIndex(principalUserId, cycleId) {
+  const { score } = repo();
+  try {
+    const rows = await score.getPrincipalScores(principalUserId, cycleId);
+    const index = {};
+    for (const r of rows || []) index[r.teacher_id] = r;
+    return index;
+  } catch (err) {
+    logToFile('⚠️ remark: score index unavailable — roster renders without percentages', {
+      principalUserId, cycleId, error: err.message,
+    }, 'warn');
+    return {};
+  }
+}
+
+/**
+ * One NavigationList row: name (ticked when complete), where it stands, and the
+ * score she gave. The row carries its own action, so tapping IS the submit —
+ * there is no separate Continue press.
+ */
+function rosterRow(teacher, progress, scoreIndex, language) {
+  const state = stateOf(progress, teacher.id);
+  const pct = (scoreIndex[teacher.id] || {}).s_pct;
+  const tick = state === 'done' ? '✅ ' : state === 'in_progress' ? '▶️ ' : '';
+
+  return {
+    id: teacher.id,
+    'main-content': {
+      title: `${tick}${teacherLabel(teacher, language)}`,
+      description: resolveUx(ROSTER_STATE_KEY[state], { language }),
+      metadata: state === 'done' && pct != null ? `${Math.round(pct)}%` : '',
+    },
+    'on-click-action': {
+      name: 'data_exchange',
+      payload: { step: 'pick_teacher', teacher_id: teacher.id },
+    },
+  };
+}
+
+const ROSTER_STATE_KEY = {
+  done: 'remarkStateDone',
+  in_progress: 'remarkStateInProgress',
+  not_started: 'remarkStateNotStarted',
+};
 
 /**
  * She picked a teacher → render all five indicators on one screen.
@@ -152,6 +209,14 @@ async function handlePickTeacher(userId, screenData) {
   // Not merely "not found" — a teacher outside her school means the id was
   // tampered with or the roster moved under her. Either way she may not score.
   if (!teacher) return errorScreen('That teacher is not on your school roster.');
+
+  // Already submitted → show her what she gave, and stop. Re-opening the rubric
+  // on a finished evaluation would let one tap silently supersede a record the
+  // teacher has already been told about (operator decision, 2026-08-21).
+  const progress = await cycle.getProgress(user.id, activeCycle.id);
+  if (stateOf(progress, teacher.id) === 'done') {
+    return await buildSummaryScreen(user, teacher, activeCycle, language);
+  }
 
   const data = {
     heading: resolveUx('remarkRubricHeading', { language }),
@@ -173,6 +238,50 @@ async function handlePickTeacher(userId, screenData) {
   }
 
   return { screen: 'RUBRIC', data };
+}
+
+/**
+ * The read-only view of a submitted evaluation: per-indicator level in words,
+ * the overall, and nothing to change. Levels are rendered from the rubric so the
+ * wording matches exactly what she picked when she scored it.
+ */
+async function buildSummaryScreen(user, teacher, activeCycle, language) {
+  const { score } = repo();
+
+  let row = null;
+  try {
+    row = await score.getTeacherScore(teacher.id, activeCycle.id);
+  } catch (err) {
+    logToFile('⚠️ remark: could not load a submitted score for review', {
+      teacherId: teacher.id, cycleId: activeCycle.id, error: err.message,
+    }, 'warn');
+  }
+
+  const lines = [];
+  for (const ind of INDICATORS) {
+    const lvl = row ? row[ind.key] : null;
+    const label = lvl != null ? levelWord(ind, lvl, language) : '—';
+    lines.push(`${ind.ordinal}. ${ind.name[language]} — ${label}`);
+  }
+
+  const pct = row && row.s_pct != null ? `${Math.round(row.s_pct)}%` : '—';
+
+  return {
+    screen: 'SUMMARY',
+    data: {
+      heading: teacherLabel(teacher, language),
+      submitted: resolveUx('remarkStateDone', { language }),
+      body: lines.join('\n'),
+      overall: resolveUx('remarkSummaryOverall', { language, params: { pct } }),
+      done_label: resolveUx('remarkSummaryDone', { language }),
+    },
+  };
+}
+
+/** The scale WORD for a level, so the summary reads as she scored it. */
+function levelWord(indicator, level, language) {
+  const band = SCALE[String(level)];
+  return (band && band[language]) || String(level);
 }
 
 /**
