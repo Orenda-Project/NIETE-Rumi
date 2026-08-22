@@ -34,6 +34,61 @@ const ABSENT_WORDS = [
 ];
 const PRESENT_WORDS = ['present', 'here', 'came', 'yes', 'hazir', 'haazir', 'حاضر', 'موجود', 'ہاں', 'جی'];
 
+/**
+ * Urdu/Arabic script → Latin, letter by letter.
+ *
+ * Not a transliteration scheme anybody would publish — it exists to get two spellings
+ * of the same NAME onto common ground, and it only has to be consistent, not correct.
+ * Short vowels are unwritten in Urdu, so the letters that survive are the consonants,
+ * which is exactly the part the two scripts agree on: عثمان → "asman" → skeleton
+ * "smn", and "Usman" → "smn".
+ */
+const SCRIPT_MAP = {
+  'ا': 'a', 'آ': 'a', 'أ': 'a', 'إ': 'a', 'ب': 'b', 'پ': 'p', 'ت': 't', 'ٹ': 't',
+  'ث': 's', 'ج': 'j', 'چ': 'ch', 'ح': 'h', 'خ': 'kh', 'د': 'd', 'ڈ': 'd', 'ذ': 'z',
+  'ر': 'r', 'ڑ': 'r', 'ز': 'z', 'ژ': 'zh', 'س': 's', 'ش': 'sh', 'ص': 's', 'ض': 'z',
+  'ط': 't', 'ظ': 'z', 'ع': 'a', 'غ': 'gh', 'ف': 'f', 'ق': 'q', 'ک': 'k', 'ك': 'k',
+  'گ': 'g', 'ل': 'l', 'م': 'm', 'ن': 'n', 'ں': 'n', 'و': 'o', 'ؤ': 'o', 'ہ': 'h',
+  'ھ': 'h', 'ه': 'h', 'ء': '', 'ی': 'y', 'ي': 'y', 'ے': 'y', 'ئ': 'y', 'ۃ': 'h',
+  'ة': 'h',
+};
+
+/**
+ * Only the SHORT VOWELS come out.
+ *
+ * h, w and y stay: they are consonants in these names and dropping them collapsed
+ * "Ayesha" to a single letter, which then matched nobody because one letter cannot
+ * identify anybody. The digraphs above (kh, sh, ch, gh) exist for the same reason —
+ * "خان" has to reduce the way "Khan" does, not the way "Kan" would.
+ */
+const SKELETON_DROP = /[aeiou']/g;
+
+/** Does this string contain Arabic-script letters at all? */
+function isArabicScript(value) {
+  return /[\u0600-\u06FF\u0750-\u077F]/.test(String(value || ''));
+}
+
+/**
+ * The consonant skeleton of a name, in either script.
+ *
+ * Returns '' when there is nothing identifying left. A one-letter skeleton would
+ * match half a roster, so callers require at least two.
+ */
+function foldScript(value) {
+  const latin = [...normalise(value)]
+    .map((ch) => (SCRIPT_MAP[ch] !== undefined ? SCRIPT_MAP[ch] : ch))
+    .join('');
+  return latin
+    .replace(SKELETON_DROP, '')
+    .replace(/[^a-z0-9]/g, '')
+    // A doubled letter is a spelling choice, not a sound: "Bilal" reduces to "bll"
+    // and "بلال" to the same, but "Muhammad" gives "mhmmd" where "محمد" gives "mhmd".
+    .replace(/(.)\1+/g, '$1');
+}
+
+/** A skeleton shorter than this identifies nobody. */
+const MIN_SKELETON = 2;
+
 /** How close a spoken name must be to a roster name before we accept it. */
 const FUZZY_FLOOR = 0.8;
 
@@ -169,6 +224,27 @@ function matchPerson(spoken, roster) {
   const byWord = people.filter((p) => saidWords.every((w) => p.words.has(w)));
   if (byWord.length) return only(byWord);
 
+  // 2.5. ACROSS SCRIPTS. Soniox transcribes Urdu speech in Urdu script while the
+  //       roster is in Latin, so "عثمان" and "usman" share no characters and every
+  //       pass above misses. Compare consonant skeletons instead — the part the two
+  //       spellings actually agree on.
+  //
+  //       Placed after the exact passes so a Latin roster never changes behaviour,
+  //       and it refuses on more than one hit like every other pass.
+  if (isArabicScript(said)) {
+    const spokenFolds = said.split(' ').map(foldScript).filter((f) => f.length >= MIN_SKELETON);
+    if (spokenFolds.length) {
+      const byFold = people.filter((p) => {
+        const theirs = [...p.words].map(foldScript).filter((f) => f.length >= MIN_SKELETON);
+        return spokenFolds.every((f) => theirs.includes(f));
+      });
+      if (byFold.length) return only(byFold);
+    }
+    // Nothing folded, or nothing matched: an Urdu name has no business going through
+    // the Latin fuzzy pass, where every distance is maximal and the floor is noise.
+    return null;
+  }
+
   // 3. Approximate, whole name. Only reached when nothing matched exactly, so it
   //    cannot silently outvote pass 2's refusal.
   const scored = people
@@ -242,7 +318,12 @@ function buildExtractionPrompt(transcript, roster) {
     'Transcript (may mix Urdu and English, in either script):',
     `"""${transcript}"""`,
     '',
-    'For every person named, return the name AS SPOKEN and one status:',
+    'For every person named, return their name EXACTLY AS IT APPEARS on the roster',
+    'above — copy that spelling character for character. The audio may be in Urdu and',
+    'the roster in English; matching across the two is your job, not the caller\'s.',
+    'Only if you cannot tell who was meant, return the name as spoken instead.',
+    '',
+    'And one status each:',
     '  "absent"  — away, no reason given (absent, ghair hazir, غیر حاضر, nahi aaye)',
     '  "leave"   — away on approved leave (leave, chutti, چھٹی, rukhsat)',
     '  "present" — explicitly said to be present (hazir, حاضر, present)',
@@ -403,6 +484,8 @@ module.exports = {
   buildExtractionPrompt,
   parseExtraction,
   normalise,
+  foldScript,
+  isArabicScript,
   personName,
   arm,
   armed,
