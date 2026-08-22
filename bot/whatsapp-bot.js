@@ -190,26 +190,50 @@ async function handleBroadcastStatusWebhook(statuses) {
  * keyword path (handleTextMessage 'video') so the tap never dead-ends.
  */
 /**
- * Attendance taps — the class picker and the teachers/students choice.
+ * Attendance taps — the principal's tap-or-voice choice, and legacy class picks.
  *
- * Registered for BOTH button_reply and list_reply: a 4+ class picker is sent as a
- * list, and a list selection arrives in a different branch than a button. Emitting
- * an id with a consumer in only one branch is how a tap silently does nothing.
+ * `att_method_*` is the live one: it answers "how would you like to mark?", which the
+ * router asks in chat because the voice half cannot be answered from inside a Flow
+ * (bd-43520). `att_class_*` is a picker button delivered before bd-2726 that may
+ * still be sitting on a handset; the chat class picker is no longer produced.
+ *
+ * Registered for BOTH button_reply and list_reply: a list selection arrives in a
+ * different branch than a button, and emitting an id with a consumer in only one
+ * branch is how a tap silently does nothing (bd-2718 shipped exactly that).
  */
 async function handleAttendanceTap(interactiveId, from, user) {
   const AttendanceRouter = require('./shared/services/attendance-router.service');
   const constants = require('./shared/utils/constants');
 
   let decision;
-  if (interactiveId.startsWith('att_subject_')) {
-    decision = await AttendanceRouter.resolveSubjectChoice(user.id, interactiveId);
+  if (interactiveId.startsWith('att_method_')) {
+    decision = await AttendanceRouter.resolveMethodChoice(user.id, interactiveId);
   } else if (interactiveId.startsWith('att_class_')) {
     decision = await AttendanceRouter.resolveClassChoice(user.id, interactiveId);
   } else {
     return false;
   }
 
-  // bd-2726: one Flow, opened with the bare user id; it picks class, date and method.
+  // Voice leaves the Flow behind — a Flow cannot receive a voice note. Arm the wait
+  // and hand the conversation back to chat; voice-message.handler picks it up.
+  if (decision.action === 'AWAIT_VOICE') {
+    const VoiceAttendance = require('./shared/services/voice-attendance.service');
+    await VoiceAttendance.arm(user.id, { schoolId: decision.schoolId });
+    await WhatsAppService.sendMessage(from, decision.message);
+    return true;
+  }
+
+  // Re-ask rather than assume, when a method id comes back that we do not know.
+  if (decision.action === 'ASK_METHOD') {
+    await WhatsAppService.sendInteractiveButtons(from, {
+      body: decision.message,
+      buttons: decision.buttons,
+    });
+    return true;
+  }
+
+  // bd-2726: one Flow, opened with the bare user id for a teacher; it picks the class
+  // and the date. MARK_* carry an explicit target — a principal always (bd-43520).
   if (decision.action === 'OPEN_REGISTER'
       || decision.action === 'MARK_TEACHERS' || decision.action === 'MARK_STUDENTS') {
     if (!constants.ATTENDANCE_MARKING_FLOW_ID) {
@@ -220,7 +244,7 @@ async function handleAttendanceTap(interactiveId, from, user) {
       flowId: constants.ATTENDANCE_MARKING_FLOW_ID,
       header: '📋 Attendance',
       body: decision.action === 'MARK_TEACHERS'
-        ? "Mark your school's teachers for today."
+        ? "Mark your school's teachers — pick the day, then tap whoever is away."
         : 'Mark your class for today.',
       buttonText: 'Mark attendance',
       flowToken: decision.flowToken,
@@ -674,7 +698,7 @@ app.post('/webhook', async (req, res) => {
       if (buttonId.startsWith('coaching_confirm_')) {
         const sessionId = buttonId.replace('coaching_confirm_', '');
         await CoachingService.handleConfirmation(sessionId, from, true);
-      } else if (buttonId.startsWith('att_subject_') || buttonId.startsWith('att_class_')) {
+      } else if (buttonId.startsWith('att_method_') || buttonId.startsWith('att_class_')) {
         if (user?.id) { await handleAttendanceTap(buttonId, from, user); }
         else { await WhatsAppService.sendMessage(from, 'Please say "register" first.'); }
 } else if (buttonId.startsWith('coaching_cancel_')) {
@@ -1696,7 +1720,7 @@ app.post('/webhook', async (req, res) => {
       // list_reply whenever the question has 4 options or a title too long
       // for a 20-char button. Same `vq_` ids as the button path — routed
       // here too, or a four-option question would accept no answer at all.
-      if (listId.startsWith('att_class_') || listId.startsWith('att_subject_')) {
+      if (listId.startsWith('att_class_') || listId.startsWith('att_method_')) {
         if (user?.id && await handleAttendanceTap(listId, from, user)) return;
       }
 
