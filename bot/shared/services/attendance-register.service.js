@@ -1,15 +1,15 @@
 /**
- * The cumulative monthly teacher-attendance register. (bd-43520)
+ * The cumulative monthly teacher-attendance register.
  *
  * A tally on a Flow screen is not a register — it is gone the moment the principal
  * taps Done. What a school actually keeps is the month-to-date sheet, and the shape
- * that has already proven itself is Rumi's own (bd-199): one row per person, one
+ * that has already proven itself is the upstream student register's: one row per person, one
  * narrow column per day of the month, running totals on the right, weekends greyed.
  * Regenerated in full after every submit, so the newest file always holds the whole
  * month and there is never a set of partial files to reconcile.
  *
- * ONE DELIBERATE DIFFERENCE from Rumi's student register: a third status. Rumi's
- * register knows P and A. Here Leave is a first-class status in
+ * ONE DELIBERATE DIFFERENCE from the upstream student register: a third status. That
+ * one knows only P and A. Here Leave is a first-class status in
  * teacher_attendance_records, and collapsing L into A would report approved leave as
  * absence — a misreport against a colleague, in the document the school files.
  *

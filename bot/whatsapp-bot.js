@@ -195,12 +195,12 @@ async function handleBroadcastStatusWebhook(statuses) {
  *
  * `att_method_*` is the live one: it answers "how would you like to mark?", which the
  * router asks in chat because the voice half cannot be answered from inside a Flow
- * (bd-43520). `att_class_*` is a picker button delivered before bd-2726 that may
+ * `att_class_*` is a picker button from before the register moved into the Flow, and may
  * still be sitting on a handset; the chat class picker is no longer produced.
  *
  * Registered for BOTH button_reply and list_reply: a list selection arrives in a
  * different branch than a button, and emitting an id with a consumer in only one
- * branch is how a tap silently does nothing (bd-2718 shipped exactly that).
+ * branch is how a tap silently does nothing — a past fix shipped exactly that.
  */
 async function handleAttendanceTap(interactiveId, from, user) {
   const AttendanceRouter = require('./shared/services/attendance-router.service');
@@ -209,6 +209,9 @@ async function handleAttendanceTap(interactiveId, from, user) {
   let decision;
   if (interactiveId.startsWith('att_method_')) {
     decision = await AttendanceRouter.resolveMethodChoice(user.id, interactiveId);
+    // Answered by tapping, so stop listening for a typed answer — otherwise the next
+    // message containing "voice" would be read as choosing it all over again.
+    if (decision.action !== 'ASK_METHOD') await AttendanceRouter.closeMethodQuestion(user.id);
   } else if (interactiveId.startsWith('att_class_')) {
     decision = await AttendanceRouter.resolveClassChoice(user.id, interactiveId);
   } else {
@@ -233,8 +236,8 @@ async function handleAttendanceTap(interactiveId, from, user) {
     return true;
   }
 
-  // bd-2726: one Flow, opened with the bare user id for a teacher; it picks the class
-  // and the date. MARK_* carry an explicit target — a principal always (bd-43520).
+  // One Flow, opened with the bare user id for a teacher; it picks the class
+  // and the date. MARK_* carry an explicit target — a principal always.
   if (decision.action === 'OPEN_REGISTER'
       || decision.action === 'MARK_TEACHERS' || decision.action === 'MARK_STUDENTS') {
     if (!constants.ATTENDANCE_MARKING_FLOW_ID) {

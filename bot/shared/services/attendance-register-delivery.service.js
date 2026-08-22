@@ -1,5 +1,5 @@
 /**
- * Getting the monthly teacher register into the principal's hands. (bd-43520)
+ * Getting the monthly teacher register into the principal's hands.
  *
  * Split from attendance-register.service on purpose: that file is pure — people and
  * records in, a buffer out — and stays testable without R2, WhatsApp or a disk. This
@@ -157,7 +157,7 @@ async function deliverTeacherRegister({ principalUserId, schoolId, date, staff, 
   } catch (error) {
     logToFile('❌ Register delivery failed (the register itself is saved)', {
       principalUserId, schoolId, date, error: error.message,
-    });
+    }, 'error');
     return { delivered: false, error: error.message };
   }
 }

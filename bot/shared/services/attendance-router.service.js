@@ -6,7 +6,7 @@
  *   principal (+ school)  → TEACHER attendance, always. Ask tap or voice.
  *   teacher               → STUDENT attendance. Open the register; it picks the class.
  *
- * A principal's /attendance is STAFF attendance and nothing else (bd-43520). It used
+ * A principal's /attendance is STAFF attendance and nothing else. It used
  * to be a question — "your teachers, or your students?" — first as two reply buttons,
  * later as the first option on the Flow's class Dropdown. Both were asking a
  * principal to re-answer something their role had already settled, and the Dropdown
@@ -20,6 +20,7 @@
  */
 
 const supabase = require('../config/supabase');
+const ConversationState = require('./conversation-state.service');
 const { logToFile } = require('../utils/logger');
 
 // Deliberately tight. The old detector matched loose substrings, so "I need the
@@ -168,6 +169,79 @@ function askMethod() {
 }
 
 /**
+ * The tap-or-voice question, while it is open.
+ *
+ * Class A of the pre-merge checklist: WhatsApp delivers a user's answer through four
+ * webhook shapes and free TEXT is one of them. People type "voice" instead of
+ * tapping — the deleted implementation carried a whole VOICE_KEYWORDS list for
+ * exactly that — and without this the typed answer falls through to general chat and
+ * the roll call is lost to an LLM reply about something else.
+ *
+ * `attendance_method` is one of two conversation-state flows this feature owns; the
+ * other is `attendance_voice` (voice-attendance.service), which holds the wait for
+ * the note itself and then the extraction.
+ */
+const METHOD_FLOW = 'attendance_method';
+
+/** Long enough to walk to the staff room; short enough not to haunt the afternoon. */
+const METHOD_TTL_SECONDS = 600;
+
+// "1"/"2" are here because the buttons are offered in that order and people answer
+// numbered lists by number out of habit.
+const TAP_WORDS = ['tap', 'tapping', 'tap to mark', 'type', 'manually', 'haath', '1'];
+const VOICE_WORDS = ['voice', 'voice note', 'voicenote', 'audio', 'speak', 'speaking',
+  'آواز', 'awaz', 'bolo', 'بولو', 'bol', '2'];
+
+// A negation is not a selection. "not by voice" names the option it is refusing, so a
+// plain substring match would read it as choosing that option.
+//
+// Word-boundaried, and that is load-bearing: a substring match on "not" fires inside
+// "voice NOTe" and rejects the commonest answer there is.
+const NEGATIONS = [/\bnot\b/i, /\bno\b/i, /n't\b/i, /\bnahi\b/i, /نہیں/];
+
+/**
+ * Which option a typed message chooses, or null if it is not an answer at all.
+ *
+ * Deliberately narrow. A principal who says "attendance" and then changes their mind
+ * and asks for a lesson plan must get a lesson plan — so anything that is not
+ * recognisably an answer falls through untouched rather than being guessed at.
+ */
+function readTypedMethod(text) {
+  if (!text || typeof text !== 'string') return null;
+  const lower = text.toLowerCase().trim();
+  if (!lower) return null;
+  if (NEGATIONS.some((n) => n.test(lower))) return null;
+
+  const hits = (words) => words.some((w) => (
+    /^[0-9]+$/.test(w) ? lower === w : new RegExp(`(^|[^a-z])${w}([^a-z]|$)`, 'i').test(lower)
+  ));
+
+  const voice = hits(VOICE_WORDS);
+  const tap = hits(TAP_WORDS);
+  // Both, or neither, is not an answer.
+  if (voice === tap) return null;
+  return voice ? 'att_method_voice' : 'att_method_tap';
+}
+
+/** Remember that we are waiting for an answer. */
+async function openMethodQuestion(userId) {
+  return ConversationState.setState(userId, {
+    flow: METHOD_FLOW, step: 'awaiting_method', ttlSeconds: METHOD_TTL_SECONDS,
+  });
+}
+
+/** Are we? */
+async function methodQuestionOpen(userId) {
+  const state = await ConversationState.getState(userId);
+  return Boolean(state && state.flow === METHOD_FLOW);
+}
+
+/** Answered — by a tap or by typing. Either way, stop listening for the other. */
+async function closeMethodQuestion(userId) {
+  return ConversationState.clearState(userId, { flow: METHOD_FLOW });
+}
+
+/**
  * @returns {Promise<{action:string, message?:string, flowToken?:string,
  *                    buttons?:Array, schoolId?:string, listId?:string}>}
  */
@@ -189,7 +263,7 @@ async function route(userId) {
 
   // The principal fork comes FIRST and does not consult classes at all. Loading them
   // is what let a class picker back into this path twice; not loading them is the
-  // guarantee that it cannot happen a third time. (bd-43520)
+  // guarantee that it cannot happen a third time.
   if (user.role === 'principal') {
     if (!user.school_id) {
       return {
@@ -203,7 +277,7 @@ async function route(userId) {
 
   const classes = await loadClasses(userId);
 
-  // Nothing to mark at all — /class owns creating it (bd-2724).
+  // Nothing to mark at all — /class owns creating it.
   if (!classes.length) return noClassYet(user);
 
   // One Flow, one open. The picker moved onto the Flow's CLASS screen (bd-2726),
@@ -278,5 +352,10 @@ module.exports = {
   route,
   resolveMethodChoice,
   resolveClassChoice,
+  readTypedMethod,
+  openMethodQuestion,
+  methodQuestionOpen,
+  closeMethodQuestion,
   KEYWORDS,
+  METHOD_FLOW,
 };
