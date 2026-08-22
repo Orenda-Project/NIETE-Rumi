@@ -298,6 +298,43 @@ const UX_STRINGS = {
     ur: 'شروع کریں',
   },
 
+  /**
+   * bd-43521 — the roster's own copy. These six arrived on `develop` with the
+   * v7.0 NavigationList roster and were NOT part of the earlier remark commits
+   * that reached `main`, so a port of the endpoint alone leaves resolveUx with
+   * no entry and the principal reads a roster with blank status labels. That is
+   * the bd-2566 shape exactly: the caller was picked, the thing it calls was not.
+   */
+  remarkNoTeachers: {
+    en: 'No teachers are listed at your school yet.',
+    ur: 'آپ کے سکول میں ابھی کوئی استاد درج نہیں۔',
+  },
+
+  remarkStateDone: {
+    en: 'Evaluated',
+    ur: 'مکمل',
+  },
+
+  remarkStateInProgress: {
+    en: 'In progress',
+    ur: 'جاری',
+  },
+
+  remarkStateNotStarted: {
+    en: 'Not started',
+    ur: 'باقی',
+  },
+
+  remarkSummaryDone: {
+    en: 'Done',
+    ur: 'مکمل',
+  },
+
+  remarkSummaryOverall: {
+    en: 'Overall: {pct}',
+    ur: 'مجموعی: {pct}',
+  },
+
 };
 
 const PLACEHOLDER = /\{(\w+)\}/g;
