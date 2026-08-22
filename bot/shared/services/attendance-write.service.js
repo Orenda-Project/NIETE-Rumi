@@ -22,6 +22,27 @@ const { logToFile } = require('../utils/logger');
 
 const LEAVE_TYPES = ['casual', 'sick', 'official'];
 
+/**
+ * WHO COUNTS AS STAFF at a school — defined once, here, beside the write.
+ *
+ * Four places need this answer: the marking screen, the voice matcher, the monthly
+ * register and the write itself. Three copies of the query is three chances for them
+ * to disagree about who is on the roster, and a register whose columns do not match
+ * the screen that filled it is worse than no register.
+ *
+ * A principal never appears on their own staff list.
+ */
+async function loadStaffRoster(schoolId, principalUserId) {
+  if (!schoolId) return [];
+  const { data } = await supabase
+    .from('users')
+    .select('id, first_name, last_name, phone_number')
+    .eq('school_id', schoolId)
+    .eq('role', 'teacher')
+    .order('first_name');
+  return (data || []).filter((u) => u.id !== principalUserId);
+}
+
 /** A migrated teacher may have no name; a blank row reads as a bug. */
 function personName(p) {
   const name = [p.first_name, p.last_name].filter(Boolean).join(' ').trim();
@@ -195,6 +216,17 @@ async function markTeachers({
     marked_by_user_id: principalUserId,
   }));
 
+  // Was this day already on file? The upsert below cannot tell us afterwards, so ask
+  // first. Students got `replaced` from the start; the principal path overwrote
+  // silently, so a re-mark looked identical to a first mark (bd-2730).
+  const { data: prior } = await supabase
+    .from('teacher_attendance_records')
+    .select('teacher_id')
+    .eq('school_id', schoolId)
+    .eq('date', date)
+    .limit(1);
+  const replaced = Boolean(prior && prior.length);
+
   // One row per teacher per day — re-marking overwrites rather than duplicating.
   const { error } = await supabase
     .from('teacher_attendance_records')
@@ -205,9 +237,10 @@ async function markTeachers({
     throw new Error('Could not save attendance.');
   }
 
-  logToFile('✅ Teacher attendance saved', { principalUserId, schoolId, date, ...counts });
+  logToFile('✅ Teacher attendance saved', { principalUserId, schoolId, date, ...counts, replaced });
 
   return {
+    replaced,
     summary: counts,
     leaveType: resolvedLeaveType,
     absentNames: resolved.filter((r) => r.status === 'absent').map((r) => personName(r.person)),
@@ -218,6 +251,7 @@ async function markTeachers({
 module.exports = {
   markStudents,
   markTeachers,
+  loadStaffRoster,
   resolveStatuses,
   personName,
   LEAVE_TYPES,

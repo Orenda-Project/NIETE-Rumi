@@ -29,8 +29,10 @@ const { STUDENT_VIDEOS_FLOW_ID } = require('../utils/constants');
 const { logToFile } = require('../utils/logger');
 const { matchDetail: matchLessonPlanIntent } = require('../utils/lp-intent');
 const { TEMP_DIR, LOADING_STICKER_PATH, LOADING_STICKER_MEDIA_ID, OPENAI_API_KEY,
-  ATTENDANCE_SETUP_FLOW_ID, ATTENDANCE_MARKING_FLOW_ID, EDIT_CLASS_FLOW_ID } = require('../utils/constants');
+  ATTENDANCE_SETUP_FLOW_ID, ATTENDANCE_MARKING_FLOW_ID, EDIT_CLASS_FLOW_ID,
+  CLASS_MANAGER_FLOW_ID } = require('../utils/constants');
 const AttendanceRouter = require('../services/attendance-router.service');
+const VoiceAttendance = require('../services/voice-attendance.service');
 const { getClient } = require('../services/llm-client');
 
 const openai = getClient();
@@ -48,6 +50,8 @@ const {
   storeLessonPlan
 } = require('../database/bot-helpers');
 const supabase = require('../config/supabase');
+// The one copy catalog + the one language clamp (see the language-protocol skill).
+const { resolveUx } = require('../config/ux-strings');
 const fs = require('fs');
 
 // Subject aliases: parseSubjectAndGrade returns coarse buckets like 'math' / 'social_studies',
@@ -1792,6 +1796,59 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
+  // /classes COMMAND: view the classes you teach, and add a new one
+  // ============================================================
+  if (/^\/classes\b/i.test(trimmedMessage)
+      || /^(my classes|add a class|add class)\s*$/i.test(trimmedMessage)) {
+    logToFile('🏫 /classes command detected', { userId: user?.id, phoneNumber: from });
+
+    if (!user) {
+      await WhatsAppService.sendMessage(from,
+        'Sorry, I could not find your account. Please send me a message first.');
+      typingController.stop();
+      return;
+    }
+
+    if (!CLASS_MANAGER_FLOW_ID) {
+      await WhatsAppService.sendMessage(from,
+        'Classes are not available on this number yet. Please try again later.');
+      typingController.stop();
+      return;
+    }
+
+    // A class needs a school (classes.school_id is NOT NULL), and roughly one in
+    // eight teachers has none on file. Opening a Flow that cannot succeed is the
+    // dead-end pattern that has already cost this deployment once — so answer in
+    // chat instead, and say what would fix it.
+    const { data: schoolRow } = await supabase
+      .from('users')
+      .select('school_id')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (!schoolRow || !schoolRow.school_id) {
+      logToFile('🏫 /classes: no school on file — answering in chat, not opening the Flow', {
+        userId: user.id,
+      });
+      await WhatsAppService.sendMessage(from, resolveUx('classNoSchool', { user }));
+      typingController.stop();
+      return;
+    }
+
+    await WhatsAppService.sendFlow(from, {
+      flowId: CLASS_MANAGER_FLOW_ID,
+      header: resolveUx('classFlowHeader', { user }),
+      body: resolveUx('classFlowBody', { user }),
+      buttonText: resolveUx('classFlowButton', { user }),
+      // The endpoint reads flow_token AS the user id — same convention as the
+      // attendance Flows. Do not make this a composite token.
+      flowToken: user.id,
+    });
+    typingController.stop();
+    return;
+  }
+
+  // ============================================================
   // /status COMMAND: cross-feature snapshot of what's running + cancel
   // ============================================================
   if (/^\/status\b/i.test(trimmedMessage)) {
@@ -1866,11 +1923,58 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
+  // ATTENDANCE — a TYPED answer to the tap-or-voice question.
+  //
+  // Checked before the keyword block and before anything else can claim the message.
+  // WhatsApp delivers an answer through four webhook shapes and free text is one of
+  // them; people type "voice" instead of tapping. Without this the answer falls
+  // through to general chat and the principal gets an LLM reply to a question they
+  // did not ask, with the roll call quietly lost.
+  //
+  // NARROW on purpose: it fires only while the question is open AND the message reads
+  // as an answer to it. A principal who says "attendance", thinks again and asks for a
+  // lesson plan gets a lesson plan — the question is closed and the message falls
+  // through untouched.
+  // ============================================================
+  if (user?.id && await AttendanceRouter.methodQuestionOpen(user.id)) {
+    const typed = AttendanceRouter.readTypedMethod(messageBody);
+    await AttendanceRouter.closeMethodQuestion(user.id);
+
+    if (typed) {
+      typingController.stop();
+      const decision = await AttendanceRouter.resolveMethodChoice(user.id, typed);
+      logToFile('📋 Attendance method answered by typing', {
+        userId: user.id, typed, action: decision.action,
+      });
+
+      if (decision.action === 'AWAIT_VOICE') {
+        await VoiceAttendance.arm(user.id, { schoolId: decision.schoolId });
+        await WhatsAppService.sendMessage(from, decision.message);
+        return;
+      }
+      if (decision.action === 'MARK_TEACHERS' && ATTENDANCE_MARKING_FLOW_ID) {
+        await WhatsAppService.sendFlow(from, {
+          flowId: ATTENDANCE_MARKING_FLOW_ID,
+          header: '📋 Attendance',
+          body: "Mark your school's teachers — pick the day, then tap whoever is away.",
+          buttonText: 'Mark attendance',
+          flowToken: decision.flowToken,
+        });
+        return;
+      }
+      await WhatsAppService.sendMessage(from, decision.message || 'Sorry, something went wrong.');
+      return;
+    }
+    // Not an answer. The question is now closed; carry on to whatever they DID ask.
+  }
+
+  // ============================================================
   // ATTENDANCE — one keyword, routed by role.
   //
-  // A principal marks teachers, a teacher marks students, and a principal who
-  // also runs a class is ASKED. Everything the teacher sees is a Flow screen;
-  // there is no typed-number step anywhere in this path.
+  // A principal marks TEACHERS, always: their /attendance is staff attendance and
+  // they are asked how (tap or voice), never whose. A teacher marks
+  // students and the Flow picks the class. Everything either of them sees is a Flow
+  // screen or a reply button; there is no typed-number step anywhere in this path.
   // ============================================================
   if (user?.id && AttendanceRouter.detect(messageBody).detected) {
     typingController.stop();
@@ -1879,6 +1983,32 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       logToFile('📋 Attendance routed', { userId: user.id, action: decision.action });
 
       switch (decision.action) {
+        // A principal is asked how they want to mark before anything opens. Both
+        // options are named in the body as well as on the buttons — reply buttons
+        // render below the fold on some clients.
+        case 'ASK_METHOD':
+          // Remember that it is open, so a typed answer is understood as well as a
+          // tapped one (checked above, before anything else claims the message).
+          await AttendanceRouter.openMethodQuestion(user.id);
+          await WhatsAppService.sendInteractiveButtons(from, {
+            body: decision.message,
+            buttons: decision.buttons,
+          });
+          break;
+
+        // Voice leaves the Flow behind: a Flow cannot receive a voice note, so we
+        // arm the wait and hand the conversation back to chat. The arm lives in
+        // conversation state (Postgres), not Redis — a restart mid-roll-call would
+        // otherwise drop it, and the NIETE Redis has no persistent volume.
+        case 'AWAIT_VOICE':
+          await VoiceAttendance.arm(user.id, { schoolId: decision.schoolId });
+          await WhatsAppService.sendMessage(from, decision.message);
+          break;
+
+        // One Flow, opened with the bare user id; it picks the class and
+        // the date. MARK_* carry an explicit target — a principal always, and a tap
+        // on a picker button already delivered to a handset.
+        case 'OPEN_REGISTER':
         case 'MARK_TEACHERS':
         case 'MARK_STUDENTS':
           if (!ATTENDANCE_MARKING_FLOW_ID) {
@@ -1889,43 +2019,41 @@ async function handleTextMessage(message, from, messageBody, user = null) {
             flowId: ATTENDANCE_MARKING_FLOW_ID,
             header: '📋 Attendance',
             body: decision.action === 'MARK_TEACHERS'
-              ? "Mark your school's teachers for today."
+              ? "Mark your school's teachers — pick the day, then tap whoever is away."
               : 'Mark your class for today.',
             buttonText: 'Mark attendance',
             flowToken: decision.flowToken,
           });
           break;
 
-        case 'SEND_SETUP':
-          if (!ATTENDANCE_SETUP_FLOW_ID) {
-            await WhatsAppService.sendMessage(from, 'Class setup is not available on this number yet. Please try again later.');
+        // /class owns class creation now (bd-2724). Same flowToken convention as
+        // the /class command itself: the bare user id.
+        case 'SEND_CLASS_MANAGER':
+          if (!CLASS_MANAGER_FLOW_ID) {
+            await WhatsAppService.sendMessage(from, `${decision.message} Send /class to set one up.`);
             break;
           }
           await WhatsAppService.sendFlow(from, {
-            flowId: ATTENDANCE_SETUP_FLOW_ID,
-            header: '📋 Set up a class',
+            flowId: CLASS_MANAGER_FLOW_ID,
+            header: '🏫 Your classes',
             body: decision.message,
-            buttonText: 'Set up class',
+            buttonText: 'Manage classes',
             flowToken: user.id,
           });
           break;
 
-        case 'ASK_SUBJECT':
-        case 'ASK_CLASS_BUTTONS':
-          await WhatsAppService.sendInteractiveButtons(from, {
-            body: decision.message,
-            buttons: decision.buttons,
-          });
-          break;
-
-        case 'ASK_CLASS_LIST':
-          await WhatsAppService.sendInteractiveMessage(from, {
-            body: { text: decision.message },
-            action: { button: 'Choose class', sections: [{ title: 'Your classes', rows: decision.rows }] },
-          });
-          if (decision.truncated) {
-            await WhatsAppService.sendMessage(from, 'Showing your first 10 classes.');
+        case 'EMPTY_CLASS':
+          if (!EDIT_CLASS_FLOW_ID) {
+            await WhatsAppService.sendMessage(from, decision.message);
+            break;
           }
+          await WhatsAppService.sendFlow(from, {
+            flowId: EDIT_CLASS_FLOW_ID,
+            header: '📋 Add students',
+            body: decision.message,
+            buttonText: 'Add students',
+            flowToken: `${user.id}:${decision.listId}`,
+          });
           break;
 
         case 'NO_SCHOOL':

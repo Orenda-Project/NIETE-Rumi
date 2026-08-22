@@ -23,6 +23,9 @@ module.exports = {
     '^form-data$': '<rootDir>/tests/__mocks__/form-data.js',
     // bot-only optional/native packages — use lightweight mocks for OSS test suite
     '^pino$': '<rootDir>/tests/__mocks__/pino.js',
+    // exceljs is bot-only too. The stub RECORDS rows rather than no-opping, so the
+    // teacher-register tests can assert what the generator wrote without the dep.
+    '^exceljs$': '<rootDir>/tests/__mocks__/exceljs.js',
     '^canvas$': '<rootDir>/tests/__mocks__/canvas.js',
     // Same case, same fix: dotenv lives in bot/node_modules and pg in
     // dashboard/node_modules, so every root suite that loads bot config or

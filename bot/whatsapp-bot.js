@@ -190,26 +190,55 @@ async function handleBroadcastStatusWebhook(statuses) {
  * keyword path (handleTextMessage 'video') so the tap never dead-ends.
  */
 /**
- * Attendance taps — the class picker and the teachers/students choice.
+ * Attendance taps — the principal's tap-or-voice choice, and legacy class picks.
  *
- * Registered for BOTH button_reply and list_reply: a 4+ class picker is sent as a
- * list, and a list selection arrives in a different branch than a button. Emitting
- * an id with a consumer in only one branch is how a tap silently does nothing.
+ * `att_method_*` is the live one: it answers "how would you like to mark?", which the
+ * router asks in chat because the voice half cannot be answered from inside a Flow
+ * `att_class_*` is a picker button from before the register moved into the Flow, and may
+ * still be sitting on a handset; the chat class picker is no longer produced.
+ *
+ * Registered for BOTH button_reply and list_reply: a list selection arrives in a
+ * different branch than a button, and emitting an id with a consumer in only one
+ * branch is how a tap silently does nothing — a past fix shipped exactly that.
  */
 async function handleAttendanceTap(interactiveId, from, user) {
   const AttendanceRouter = require('./shared/services/attendance-router.service');
   const constants = require('./shared/utils/constants');
 
   let decision;
-  if (interactiveId.startsWith('att_subject_')) {
-    decision = await AttendanceRouter.resolveSubjectChoice(user.id, interactiveId);
+  if (interactiveId.startsWith('att_method_')) {
+    decision = await AttendanceRouter.resolveMethodChoice(user.id, interactiveId);
+    // Answered by tapping, so stop listening for a typed answer — otherwise the next
+    // message containing "voice" would be read as choosing it all over again.
+    if (decision.action !== 'ASK_METHOD') await AttendanceRouter.closeMethodQuestion(user.id);
   } else if (interactiveId.startsWith('att_class_')) {
-    decision = AttendanceRouter.resolveClassChoice(user.id, interactiveId);
+    decision = await AttendanceRouter.resolveClassChoice(user.id, interactiveId);
   } else {
     return false;
   }
 
-  if (decision.action === 'MARK_TEACHERS' || decision.action === 'MARK_STUDENTS') {
+  // Voice leaves the Flow behind — a Flow cannot receive a voice note. Arm the wait
+  // and hand the conversation back to chat; voice-message.handler picks it up.
+  if (decision.action === 'AWAIT_VOICE') {
+    const VoiceAttendance = require('./shared/services/voice-attendance.service');
+    await VoiceAttendance.arm(user.id, { schoolId: decision.schoolId });
+    await WhatsAppService.sendMessage(from, decision.message);
+    return true;
+  }
+
+  // Re-ask rather than assume, when a method id comes back that we do not know.
+  if (decision.action === 'ASK_METHOD') {
+    await WhatsAppService.sendInteractiveButtons(from, {
+      body: decision.message,
+      buttons: decision.buttons,
+    });
+    return true;
+  }
+
+  // One Flow, opened with the bare user id for a teacher; it picks the class
+  // and the date. MARK_* carry an explicit target — a principal always.
+  if (decision.action === 'OPEN_REGISTER'
+      || decision.action === 'MARK_TEACHERS' || decision.action === 'MARK_STUDENTS') {
     if (!constants.ATTENDANCE_MARKING_FLOW_ID) {
       await WhatsAppService.sendMessage(from, 'Attendance is not available on this number yet.');
       return true;
@@ -218,7 +247,7 @@ async function handleAttendanceTap(interactiveId, from, user) {
       flowId: constants.ATTENDANCE_MARKING_FLOW_ID,
       header: '📋 Attendance',
       body: decision.action === 'MARK_TEACHERS'
-        ? "Mark your school's teachers for today."
+        ? "Mark your school's teachers — pick the day, then tap whoever is away."
         : 'Mark your class for today.',
       buttonText: 'Mark attendance',
       flowToken: decision.flowToken,
@@ -226,14 +255,40 @@ async function handleAttendanceTap(interactiveId, from, user) {
     return true;
   }
 
-  if (decision.action === 'SEND_SETUP' && constants.ATTENDANCE_SETUP_FLOW_ID) {
-    await WhatsAppService.sendFlow(from, {
-      flowId: constants.ATTENDANCE_SETUP_FLOW_ID,
-      header: '📋 Set up a class',
-      body: decision.message,
-      buttonText: 'Set up class',
-      flowToken: user.id,
-    });
+  // /class owns class creation now — attendance points at it rather than shipping a
+  // second way to make one. flowToken is the bare user id, the class-manager
+  // endpoint's convention (NOT a composite token). (bd-2724)
+  if (decision.action === 'SEND_CLASS_MANAGER') {
+    if (constants.CLASS_MANAGER_FLOW_ID) {
+      await WhatsAppService.sendFlow(from, {
+        flowId: constants.CLASS_MANAGER_FLOW_ID,
+        header: '🏫 Your classes',
+        body: decision.message,
+        buttonText: 'Manage classes',
+        flowToken: user.id,
+      });
+      return true;
+    }
+    await WhatsAppService.sendMessage(from, `${decision.message} Send /class to set one up.`);
+    return true;
+  }
+
+  // bd-2713: a class that exists but has no students. Send them where the
+  // students are added instead of opening a register with nobody on it. Without
+  // this branch EMPTY_CLASS falls through to the generic message below and the
+  // teacher gets told what is wrong with no way to act on it.
+  if (decision.action === 'EMPTY_CLASS') {
+    if (constants.EDIT_CLASS_FLOW_ID) {
+      await WhatsAppService.sendFlow(from, {
+        flowId: constants.EDIT_CLASS_FLOW_ID,
+        header: '📋 Add students',
+        body: decision.message,
+        buttonText: 'Add students',
+        flowToken: `${user.id}:${decision.listId}`,
+      });
+      return true;
+    }
+    await WhatsAppService.sendMessage(from, decision.message);
     return true;
   }
 
@@ -646,7 +701,7 @@ app.post('/webhook', async (req, res) => {
       if (buttonId.startsWith('coaching_confirm_')) {
         const sessionId = buttonId.replace('coaching_confirm_', '');
         await CoachingService.handleConfirmation(sessionId, from, true);
-      } else if (buttonId.startsWith('att_subject_') || buttonId.startsWith('att_class_')) {
+      } else if (buttonId.startsWith('att_method_') || buttonId.startsWith('att_class_')) {
         if (user?.id) { await handleAttendanceTap(buttonId, from, user); }
         else { await WhatsAppService.sendMessage(from, 'Please say "register" first.'); }
 } else if (buttonId.startsWith('coaching_cancel_')) {
@@ -1478,53 +1533,38 @@ app.post('/webhook', async (req, res) => {
           await WhatsAppService.sendMessage(from, 'Sorry, something went wrong with your registration. Please try /register to try again.');
         }
       } else if (flowType === 'attendance_setup') {
-        // Attendance Setup Flow - creating a new class
-        logToFile('📋 Detected attendance setup flow submission', {
+        // Attendance Setup — endpoint flow's terminal ack. The endpoint at
+        // /api/flows/attendance-setup already parsed the roster, created the
+        // class, and rendered the confirmation in its own SUCCESS screen.
+        // Nothing to do here except log completion.
+        //
+        // bd-2714: this used to call FlowResponseHandler.handleAttendanceSetupFlow,
+        // which the 2026-08-10 teardown (696fbd9) deleted while leaving the call
+        // behind — so every completion threw `is not a function` into a catch whose
+        // user-visible error was suppressed on 2026-07-13. Silent, and live on main.
+        logToFile('📋 Attendance setup flow completion (class already created by endpoint)', {
           from,
           responseFields: Object.keys(responseJson)
         });
-
-        try {
-          const success = await FlowResponseHandler.handleAttendanceSetupFlow(message, from, user?.id);
-
-          if (!success) {
-            logToFile('❌ Attendance setup flow processing failed', { from, responseJson });
-            await WhatsAppService.sendMessage(from, 'Sorry, there was an error setting up your class. Please try again.');
-          } else {
-            logToFile('✅ Attendance setup flow processed successfully', { from });
-          }
-        } catch (flowError) {
-          logToFile('❌ Exception in attendance setup flow handler', {
-            from,
-            error: flowError.message,
-            stack: flowError.stack
-          });
-          await WhatsAppService.sendMessage(from, 'Sorry, there was an error setting up your class. Please try again.');
-        }
       } else if (flowType === 'attendance_marking') {
-        // Attendance Marking Flow - marking students absent
-        logToFile('📋 Detected attendance marking flow submission', {
+        // Attendance Marking — endpoint flow's terminal ack. The endpoint at
+        // /api/flows/attendance-marking already wrote the register through
+        // attendance-write.service (one write path for both actors) and rendered
+        // the tallies in its own SAVED screen. Nothing to do here except log.
+        //
+        // bd-2714: this used to call FlowResponseHandler.handleAttendanceMarkingFlow,
+        // deleted by the 2026-08-10 teardown (696fbd9) with the call left behind.
+        // Observed on staging 2026-08-14 08:01:40Z: the write succeeded ("Teacher
+        // attendance saved", 3 present) and then the completion threw
+        // `handleAttendanceMarkingFlow is not a function` — swallowed, so the
+        // principal got no acknowledgement at all. Live on main too.
+        //
+        // This branch is also the seam a future register -> /staff hand-off travels
+        // through, so it needs to stay reachable.
+        logToFile('📋 Attendance marking flow completion (register already written by endpoint)', {
           from,
           responseFields: Object.keys(responseJson)
         });
-
-        try {
-          const success = await FlowResponseHandler.handleAttendanceMarkingFlow(message, from, user?.id);
-
-          if (!success) {
-            logToFile('❌ Attendance marking flow processing failed', { from, responseJson });
-            // User-visible error suppressed 2026-07-13 pending investigation
-          } else {
-            logToFile('✅ Attendance marking flow processed successfully', { from });
-          }
-        } catch (flowError) {
-          logToFile('❌ Exception in attendance marking flow handler', {
-            from,
-            error: flowError.message,
-            stack: flowError.stack
-          });
-          // User-visible error suppressed 2026-07-13 pending investigation
-        }
       } else if (flowType === 'exam_generator') {
         // Exam Generator — endpoint flow's terminal ack. The endpoint at
         // /api/flows/exam-generator already queued the SQS `exam_generate` job
@@ -1683,7 +1723,7 @@ app.post('/webhook', async (req, res) => {
       // list_reply whenever the question has 4 options or a title too long
       // for a 20-char button. Same `vq_` ids as the button path — routed
       // here too, or a four-option question would accept no answer at all.
-      if (listId.startsWith('att_class_') || listId.startsWith('att_subject_')) {
+      if (listId.startsWith('att_class_') || listId.startsWith('att_method_')) {
         if (user?.id && await handleAttendanceTap(listId, from, user)) return;
       }
 

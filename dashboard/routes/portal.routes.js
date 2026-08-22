@@ -2120,6 +2120,178 @@ router.get('/training/vendors', requirePortalAuth, async (req, res) => {
  * ("none yet"), so returning it on error would tell a teacher their
  * certificates do not exist.
  */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * CLASSES — the teacher's own classes.
+ *
+ * Both routes PROXY to the bot's internal API rather than touching the class
+ * tables from this process. Two reasons, both learned here:
+ *
+ *   - creating a class also writes the legacy student_lists mirror and adopts a
+ *     colliding roster. A second implementation of that in this process is the
+ *     same mistake as the training rules, which rotted while this file's own
+ *     comments claimed parity;
+ *   - grade and subject labels live in the bot's copy catalog, so resolving them
+ *     there means the portal renders the same words as WhatsApp.
+ *
+ * Requiring the bot's ClassService directly is the trap — see the render route
+ * above: that require throws on a bot-only dependency and the throw is swallowed.
+ *
+ * Scope: TEACHER-OWNED classes only. A principal's or coach's view of a school's
+ * classes is deliberately not here yet.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/** Shared plumbing for the two class routes. */
+function internalApiConfig() {
+  return {
+    baseUrl: process.env.MAIN_BOT_URL || '',
+    apiKey: process.env.INTERNAL_API_KEY || '',
+  };
+}
+
+async function callBotInternal(pathname, payload) {
+  const { baseUrl, apiKey } = internalApiConfig();
+  if (!baseUrl || !apiKey) {
+    const err = new Error('internal_api_not_configured');
+    err.code = 'not_configured';
+    throw err;
+  }
+  // 4xx carries meaning here (409 class-teacher taken, 422 no school), so the
+  // response body must survive. Belt AND braces: ask axios not to reject on a
+  // non-2xx, and if it rejects anyway, recover the response from the error. The
+  // option name has moved between axios majors and this route must not depend on
+  // which one is installed.
+  try {
+    return await axios.post(`${baseUrl}${pathname}`, payload, {
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
+      timeout: 10000,
+      validateStatus: () => true,
+    });
+  } catch (err) {
+    if (err && err.response) return err.response;
+    throw err;
+  }
+}
+
+/**
+ * GET /api/portal/classes
+ *
+ * The teacher's classes plus everything the page needs to render the add form:
+ * the grade and subject options, and whether adding is possible at all.
+ */
+router.get('/classes', requirePortalAuth, async (req, res) => {
+  const userId = req.session.portalUserId;
+
+  try {
+    const [listRes, optionsRes] = await Promise.all([
+      callBotInternal('/api/internal/classes/list', { userId }),
+      callBotInternal('/api/internal/classes/options', { userId }),
+    ]);
+
+    if (!listRes.data || !listRes.data.success) {
+      console.error('portal/classes: bot list failed', { status: listRes.status, data: listRes.data });
+      return res.status(502).json({ success: false, error: 'Could not load your classes. Please try again.' });
+    }
+
+    return res.json({
+      success: true,
+      classes: listRes.data.classes || [],
+      canAdd: Boolean(listRes.data.canAdd),
+      currentSession: listRes.data.currentSession || null,
+      grades: (optionsRes.data && optionsRes.data.grades) || [],
+      subjects: (optionsRes.data && optionsRes.data.subjects) || [],
+      sections: (optionsRes.data && optionsRes.data.sections) || [],
+      shifts: (optionsRes.data && optionsRes.data.shifts) || [],
+    });
+  } catch (error) {
+    if (error.code === 'not_configured') {
+      console.error('portal/classes: MAIN_BOT_URL or INTERNAL_API_KEY not configured');
+      return res.status(503).json({ success: false, error: 'Classes are temporarily unavailable.' });
+    }
+    console.error('portal/classes error:', error.message);
+    return res.status(502).json({ success: false, error: 'Could not load your classes. Please try again.' });
+  }
+});
+
+/**
+ * POST /api/portal/classes
+ *
+ * Body { gradeCode, section?, subjectCodes?, isClassTeacher? }
+ *
+ * The teacher id comes from the SESSION, never the body — otherwise one teacher
+ * could add a class against another's account.
+ */
+router.post('/classes', requirePortalAuth, async (req, res) => {
+  const userId = req.session.portalUserId;
+  const { gradeCode, section, shiftCode, subjectCodes, isClassTeacher } = req.body || {};
+
+  if (!gradeCode) {
+    return res.status(400).json({ success: false, error: 'Please choose a class.' });
+  }
+
+  try {
+    const botRes = await callBotInternal('/api/internal/classes/create', {
+      userId,
+      gradeCode,
+      section: typeof section === 'string' ? section : null,
+      shiftCode: typeof shiftCode === 'string' && shiftCode ? shiftCode : 'morning',
+      subjectCodes: Array.isArray(subjectCodes) ? subjectCodes : [],
+      isClassTeacher: Boolean(isClassTeacher),
+    });
+
+    const data = botRes.data || {};
+
+    if (botRes.status === 201 && data.success) {
+      // A declined class-teacher role or a subject a colleague already teaches is
+      // reported ALONGSIDE the success — the class was saved either way, and a 409
+      // here used to lose the work and read as "nothing happened".
+      return res.status(201).json({
+        success: true,
+        class: data.class,
+        created: data.created,
+        classTeacherTaken: Boolean(data.classTeacherTaken),
+        subjectsTaken: data.subjectsTaken || [],
+      });
+    }
+
+    // Distinct, actionable messages. Collapsing these into one "failed" is how a
+    // teacher ends up creating the same class three times.
+    if (data.error === 'no_school') {
+      return res.status(422).json({
+        success: false,
+        error: 'We do not know which school you are at yet. Ask your coach to link your school, then try again.',
+      });
+    }
+    if (data.error === 'no_current_session') {
+      return res.status(503).json({
+        success: false,
+        error: 'No academic session is set up yet. Please tell your coach.',
+      });
+    }
+    if (data.error === 'unknown_grade') {
+      return res.status(400).json({ success: false, error: 'That class is not one we recognise.' });
+    }
+    if (data.error === 'unknown_section') {
+      return res.status(400).json({
+        success: false,
+        error: 'That section is not one we support yet. Ask NIETE support to add it.',
+      });
+    }
+    if (data.error === 'unknown_shift') {
+      return res.status(400).json({ success: false, error: 'Please choose a shift.' });
+    }
+
+    console.error('portal/classes create: bot returned failure', { status: botRes.status, data });
+    return res.status(502).json({ success: false, error: 'Could not save the class. Please try again.' });
+  } catch (error) {
+    if (error.code === 'not_configured') {
+      console.error('portal/classes create: MAIN_BOT_URL or INTERNAL_API_KEY not configured');
+      return res.status(503).json({ success: false, error: 'Classes are temporarily unavailable.' });
+    }
+    console.error('portal/classes create error:', error.message);
+    return res.status(502).json({ success: false, error: 'Could not save the class. Please try again.' });
+  }
+});
+
 router.get('/training/certificates', requirePortalAuth, async (req, res) => {
   try {
     const userId = req.session.portalUserId;

@@ -23,9 +23,11 @@ describe('attendance taps are routed in both interactive branches', () => {
   const buttonBranch = BOT.split("interactive?.type === 'button_reply'")[1].split("interactive?.type === 'list_reply'")[0];
   const listBranch = BOT.split("interactive?.type === 'list_reply'")[1];
 
-  it('the button_reply branch handles att_class_ and att_subject_', () => {
+  it('the button_reply branch handles att_method_ and att_class_', () => {
+    // att_method_ is the live id — the principal's tap-or-voice choice (bd-43520).
+    // att_class_ is a picker button that may still be sitting on a handset.
+    expect(buttonBranch).toContain("att_method_");
     expect(buttonBranch).toContain("att_class_");
-    expect(buttonBranch).toContain("att_subject_");
     expect(buttonBranch).toContain('handleAttendanceTap');
   });
 
