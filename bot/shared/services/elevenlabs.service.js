@@ -51,19 +51,21 @@ class ElevenLabsService {
     }
   }
 
-  /** Quota/limit errors only — the shapes ElevenLabs actually returns. @private */
+  /**
+   * TRUE only when the key has genuinely RUN OUT of characters (operator,
+   * 2026-08-23: "use fallback only if main NIETE key runs out"). A 429 is
+   * load, not exhaustion — falling back on it would silently shift NIETE's
+   * concurrency spikes onto the shared global workspace. A bare/unparseable
+   * 401 is a credentials problem, not quota. Both throw unchanged.
+   * @private
+   */
   static _isQuotaError(error) {
-    const status = error.response?.status;
-    if (status === 429) return true;
-    if (status !== 401) return false;
+    if (error.response?.status !== 401) return false;
     try {
       const parsed = JSON.parse(Buffer.from(error.response?.data || '').toString('utf8'));
-      return ['quota_exceeded', 'too_many_concurrent_requests'].includes(parsed?.detail?.status);
+      return parsed?.detail?.status === 'quota_exceeded';
     } catch (_) {
-      // A bare 401 with an unparseable body is treated as quota — an invalid
-      // primary key should also degrade to the fallback rather than to a
-      // different voice.
-      return true;
+      return false;
     }
   }
 

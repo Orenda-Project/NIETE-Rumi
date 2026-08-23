@@ -4,10 +4,14 @@
  * The NIETE ElevenLabs workspace (Pro, 1.08M chars/mo) hit 95% eight days
  * into its cycle. When the primary key runs dry (or is throttled), voice
  * must degrade to the SAME Sara/Jessica voices on the global Rumi workspace
- * key — not to the OpenAI-TTS voice swap — and only for quota/limit errors:
+ * key — not to the OpenAI-TTS voice swap — and ONLY when the key has RUN OUT
+ * (operator, 2026-08-23: "use fallback only if main NIETE key runs out"):
  *
  *   - 401 with detail.status quota_exceeded  → fallback key
- *   - 429 (throttle / too_many_concurrent)   → fallback key
+ *   - 429 (throttle / concurrency blip)      → NO fallback — that is load,
+ *     not exhaustion; shifting spikes onto the shared global key silently is
+ *     exactly what the operator scoped out
+ *   - bare/unparseable 401 (bad key etc.)    → NO fallback
  *   - any other error (500, bad request)     → throw as before (the existing
  *     OpenAI TTS fallback in the callers handles true outages)
  *   - fallback key unset                     → original behaviour exactly
@@ -77,13 +81,18 @@ describe('ElevenLabs key fallback', () => {
     expect(axios.post.mock.calls[1][1]).toEqual(axios.post.mock.calls[0][1]); // same body
   });
 
-  test('primary 429 → fallback key', async () => {
-    axios.post
-      .mockRejectedValueOnce(quotaError(429, 'too_many_concurrent_requests'))
-      .mockResolvedValueOnce({ data: OGG });
-    await ElevenLabs.generateSpeech('Hello!');
-    expect(axios.post).toHaveBeenCalledTimes(2);
-    expect(keyOf(axios.post.mock.calls[1])).toBe('fallback-key-test');
+  test('primary 429 (throttle) → NO fallback: load is not exhaustion', async () => {
+    axios.post.mockRejectedValueOnce(quotaError(429, 'too_many_concurrent_requests'));
+    await expect(ElevenLabs.generateSpeech('Hello!')).rejects.toThrow();
+    expect(axios.post).toHaveBeenCalledTimes(1);
+  });
+
+  test('bare/unparseable 401 (bad key) → NO fallback', async () => {
+    const err = new Error('Request failed with status code 401');
+    err.response = { status: 401, data: Buffer.from('nope') };
+    axios.post.mockRejectedValueOnce(err);
+    await expect(ElevenLabs.generateSpeech('Hello!')).rejects.toThrow();
+    expect(axios.post).toHaveBeenCalledTimes(1);
   });
 
   test('non-quota error (500) → throws, fallback key NEVER burned', async () => {
