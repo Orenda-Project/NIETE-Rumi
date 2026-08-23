@@ -20,6 +20,55 @@ const { normalizeForUrduTTS } = require('./urdu-tts-normalizer');
  * Includes OpenAI TTS fallback for all languages
  */
 class ElevenLabsService {
+  /**
+   * POST one TTS request, falling back to ELEVENLABS_FALLBACK_API_KEY on
+   * QUOTA/LIMIT errors only (bd-errbx). The NIETE workspace (Pro, 1.08M
+   * chars/mo) hit 95% eight days into a cycle; when it runs dry the same
+   * Sara/Jessica voice IDs resolve on the global Rumi workspace — proven in
+   * production (the corpus fleet rendered on the global key with the same
+   * IDs). Scope is deliberate:
+   *   401 quota_exceeded / 429 throttle → retry once on the fallback key.
+   *   Anything else → throw unchanged; the callers' OpenAI-TTS fallback
+   *   remains the net for true outages. Never burn the fallback on a 500.
+   * @private
+   */
+  static async _postTts(url, body) {
+    const post = (key) => axios.post(url, body, {
+      headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
+      responseType: 'arraybuffer',
+      timeout: 120000,
+    });
+
+    try {
+      return await post(ELEVENLABS_API_KEY);
+    } catch (error) {
+      const fallbackKey = process.env.ELEVENLABS_FALLBACK_API_KEY;
+      if (!fallbackKey || !ElevenLabsService._isQuotaError(error)) throw error;
+      logToFile('⚠️ ElevenLabs primary key exhausted/throttled — retrying on fallback key', {
+        status: error.response?.status,
+      });
+      return await post(fallbackKey);
+    }
+  }
+
+  /**
+   * TRUE only when the key has genuinely RUN OUT of characters (operator,
+   * 2026-08-23: "use fallback only if main NIETE key runs out"). A 429 is
+   * load, not exhaustion — falling back on it would silently shift NIETE's
+   * concurrency spikes onto the shared global workspace. A bare/unparseable
+   * 401 is a credentials problem, not quota. Both throw unchanged.
+   * @private
+   */
+  static _isQuotaError(error) {
+    if (error.response?.status !== 401) return false;
+    try {
+      const parsed = JSON.parse(Buffer.from(error.response?.data || '').toString('utf8'));
+      return parsed?.detail?.status === 'quota_exceeded';
+    } catch (_) {
+      return false;
+    }
+  }
+
   // OpenAI client is lazy-initialized. Constructing it at module-load time
   // threw `OpenAIError: Missing credentials` whenever OPENAI_API_KEY was
   // unset, which crashed the bot at cold-boot even though OPENAI_API_KEY is
@@ -58,7 +107,7 @@ class ElevenLabsService {
       // bd-z5olm: Ogg Opus, not MP3 — WhatsApp renders opus audio as a real
       // VOICE message (waveform + speed control), exactly like the LP
       // voicenotes. Probed live 2026-08-21: eleven_v3 returns OggS bytes.
-      const response = await axios.post(
+      const response = await ElevenLabsService._postTts(
         `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}?output_format=opus_48000_64`,
         {
           text: text,
@@ -69,14 +118,6 @@ class ElevenLabsService {
             style: 0.0, // Style exaggeration (0 = natural)
             use_speaker_boost: true // Enhance speaker clarity
           }
-        },
-        {
-          headers: {
-            'xi-api-key': ELEVENLABS_API_KEY,
-            'Content-Type': 'application/json',
-          },
-          responseType: 'arraybuffer',
-          timeout: 120000 // 120 second timeout (increased for long voice debriefs)
         }
       );
 
@@ -179,20 +220,12 @@ class ElevenLabsService {
         : { stability: 0.0, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true };
 
       // bd-z5olm: Ogg Opus for the WhatsApp voice bubble — see generateSpeech.
-      const response = await axios.post(
+      const response = await ElevenLabsService._postTts(
         `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=opus_48000_64`,
         {
           text: text,
           model_id: 'eleven_v3', // v3 supports audio tags and emotion control
           voice_settings: voiceSettings
-        },
-        {
-          headers: {
-            'xi-api-key': ELEVENLABS_API_KEY,
-            'Content-Type': 'application/json',
-          },
-          responseType: 'arraybuffer',
-          timeout: 120000 // 120 second timeout
         }
       );
 
