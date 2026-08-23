@@ -4,8 +4,9 @@
  * Class O of the pre-merge checklist exists because of this exact file's shape: a
  * suite that mocks conversation-state and asserts `toHaveBeenCalledWith` has tested
  * the CALLER, not the behaviour — and the behaviour is where the bug lived
- * (bd-43517: clearState issues no write at all once a row has expired, while still
- * reporting success).
+ * (bd-43517: clearState issued no write at all once a row had expired, and returned
+ * false while the sweeper counted it as cleaned — since fixed, so an expired row IS
+ * clearable now; see the disarm cases below).
  *
  * The voice roll call hangs entirely off that service: arm before the note, read it
  * when the note arrives, stash the extraction, read it again when the Flow opens.
@@ -148,17 +149,30 @@ describe('disarming', () => {
     expect((await ConversationState.getState(USER)).flow).toBe('coaching');
   });
 
-  it('is a harmless no-op on an already-expired wait', async () => {
-    // clearState issues NO write once the row is past its deadline (bd-43517). That
-    // is fine HERE and this test says why: an expired wait already reads as "not
-    // waiting", so nothing downstream can act on the row it declines to clear.
+  it('clears an already-expired wait instead of leaving the row behind', async () => {
+    // UPDATED when bd-43517 was fixed. This asserted `disarm` -> false, because
+    // clearState used to gate on getState() and therefore issued NO write once a
+    // row was past its deadline. The reasoning was sound at the time — an expired
+    // wait already reads as "not waiting", so nothing downstream could act on the
+    // row it declined to clear — but the row was then unclearable by anyone,
+    // including the sweeper, which is what made expired state immortal and put the
+    // resume feature on a countdown to going silent.
+    //
+    // Post-fix, clearState scopes by flow read RAW, so it clears the row and
+    // reports true. Still harmless, and now tidy: the row goes away.
+    //
+    // Safe to change: all three production callers (voice-message.handler x2,
+    // attendance-marking-endpoint) `await disarm(...)` and ignore the result, so
+    // nothing branches on the return value.
     await voice.arm(USER, { schoolId: 'sch1' });
     mockRows.set(USER, {
       ...mockRows.get(USER),
       conversation_state_expires_at: new Date(Date.now() - 60_000).toISOString(),
     });
+    const before = mockCounters.writes;
 
-    expect(await voice.disarm(USER)).toBe(false);
+    expect(await voice.disarm(USER)).toBe(true);
+    expect(mockCounters.writes).toBe(before + 1);
     expect(await voice.armed(USER)).toBeNull();
     expect(await voice.pendingResult(USER)).toBeNull();
   });
