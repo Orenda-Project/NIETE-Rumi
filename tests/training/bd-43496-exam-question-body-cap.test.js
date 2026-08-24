@@ -117,6 +117,7 @@ beforeEach(() => {
     sendInteractiveButtons: jest.fn().mockResolvedValue(true),
     sendInteractiveMessage: jest.fn().mockResolvedValue(false),
     sendFlow: jest.fn().mockResolvedValue(true),
+    sendReaction: jest.fn().mockResolvedValue(true),
   };
   jest.doMock('../../bot/shared/services/whatsapp.service', () => whatsapp);
 });
@@ -283,22 +284,117 @@ describe('bd-43496 — an oversized single-answer question routes to the MSQ Flo
     const opts = tableStates.training_questions.rows[0].options;
     for (const [i, text] of opts.entries()) {
       // the whole option text, not a prefix, and lettered for the tap target
-      expect(data.question_text).toContain(`${'ABCD'[i]}. ${text}`);
+      expect(data.question_text).toContain(`${'ABCD'[i]}.  ${text}`);
     }
     expect(data.question_text).not.toMatch(/…/);
     // the stem is still there, ahead of the options
     expect(data.question_text.startsWith('Q'.repeat(400))).toBe(true);
   });
 
-  it('keeps the tap rows as bare letters, never a clipped sentence', async () => {
+  it('keeps the tap rows as bare letters with NO description at all', async () => {
     process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
     seed({ questionLen: 400, optionLen: 200, correct: '2' });
     const data = await svc().buildMsqFlowScreenData(UID, ATTEMPT, 0);
     expect(data.options.map(o => o.title)).toEqual(['A.', 'B.', 'C.', 'D.']);
-    // The row echo stays inside one clean line so it never LOOKS truncated.
+    // A row description is clamped to ~3 lines, so any echo here renders as a
+    // half sentence competing with the real copy in the body. Omit it entirely.
     for (const o of data.options) {
-      expect([...o.description].length).toBeLessThanOrEqual(120);
+      expect(o.description).toBeUndefined();
     }
+  });
+
+  it('marks the option block off from the stem so the choices are findable', async () => {
+    process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
+    seed({ questionLen: 400, optionLen: 60, correct: '2' });
+    const data = await svc().buildMsqFlowScreenData(UID, ATTEMPT, 0);
+    const body = data.question_text;
+    // A visible separator and an explicit instruction between stem and options.
+    expect(body).toContain('──────────');
+    expect(body).toContain('CHOOSE ONE:');
+    // Each option is its own paragraph, not another line in a wall of prose.
+    expect(body).toMatch(/A\.\s{2}/);
+    expect(body.indexOf('CHOOSE ONE:')).toBeGreaterThan(body.indexOf('Q'.repeat(400)));
+  });
+
+  // Legacy import artefacts: on quiz 4 alone, 64 of 180 options carry stray
+  // whitespace and 9 begin with a "." left over from a list marker, which
+  // rendered as "A. . Pilot the project…" once we added our own letter prefix.
+  it('strips legacy list markers and stray whitespace from the options', async () => {
+    process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
+    seed({ questionLen: 100, optionLen: 20, correct: '2' });
+    tableStates.training_questions.rows[0].options = [
+      '  leading and trailing  ',
+      '. stray list marker',
+      'line one\nline two',
+      'clean',
+    ];
+    const data = await svc().buildMsqFlowScreenData(UID, ATTEMPT, 0);
+    const body = data.question_text;
+
+    expect(body).toContain('A.  leading and trailing\n');
+    expect(body).toContain('B.  stray list marker');
+    expect(body).not.toContain('B.  . ');
+    // an option stays ONE paragraph, or the block stops being scannable
+    expect(body).toContain('C.  line one line two');
+    expect(body).not.toMatch(/A\.\s{3}/);
+  });
+
+  it('says SELECT ALL for a multi-answer question', async () => {
+    process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
+    seed({ questionLen: 100, optionLen: 60, correct: '1,3' });
+    const data = await svc().buildMsqFlowScreenData(UID, ATTEMPT, 0);
+    expect(data.question_text).toContain('SELECT ALL THAT APPLY:');
+  });
+});
+
+// bd-43496 — the interactive-list surface has reacted ✅/❌ and echoed the
+// verdict in text since bd-2525. Answering through the Flow produced NOTHING,
+// so a teacher could not tell whether her answer had registered.
+describe('bd-43496 — a Flow answer gets the same verdict as a list answer', () => {
+  it('reacts on the teacher\'s own message and echoes the verdict', async () => {
+    process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
+    seed({ questionLen: 400, optionLen: 200, correct: '2' });
+    await svc().handleQuizFlowSubmission(UID, {
+      attempt_ref: `${ATTEMPT}:0`, selected_option: '2',
+    }, PHONE, 'wamid.INBOUND');
+
+    expect(whatsapp.sendReaction).toHaveBeenCalledWith(PHONE, 'wamid.INBOUND', '✅');
+    expect(whatsapp.sendMessage.mock.calls.some(c => /Correct/.test(c[1]))).toBe(true);
+  });
+
+  it('reacts ❌ and says so plainly when the answer is wrong', async () => {
+    process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
+    seed({ questionLen: 400, optionLen: 200, correct: '2' });
+    await svc().handleQuizFlowSubmission(UID, {
+      attempt_ref: `${ATTEMPT}:0`, selected_option: '3',
+    }, PHONE, 'wamid.INBOUND');
+
+    expect(whatsapp.sendReaction).toHaveBeenCalledWith(PHONE, 'wamid.INBOUND', '❌');
+    expect(whatsapp.sendMessage.mock.calls.some(c => /Not correct/.test(c[1]))).toBe(true);
+  });
+
+  it('still sends the text verdict when no message id is available', async () => {
+    process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
+    seed({ questionLen: 400, optionLen: 200, correct: '2' });
+    await svc().handleQuizFlowSubmission(UID, {
+      attempt_ref: `${ATTEMPT}:0`, selected_option: '2',
+    }, PHONE);
+
+    expect(whatsapp.sendReaction).not.toHaveBeenCalled();
+    expect(whatsapp.sendMessage.mock.calls.some(c => /Correct/.test(c[1]))).toBe(true);
+  });
+
+  it('a failed reaction never costs the recorded answer', async () => {
+    process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
+    seed({ questionLen: 400, optionLen: 200, correct: '2' });
+    whatsapp.sendReaction.mockRejectedValue(new Error('reaction boom'));
+    await svc().handleQuizFlowSubmission(UID, {
+      attempt_ref: `${ATTEMPT}:0`, selected_option: '2',
+    }, PHONE, 'wamid.INBOUND');
+
+    const ans = tableStates.training_assessment_answers.rows;
+    expect(ans.length).toBe(1);
+    expect(ans[0].is_correct).toBe(true);
   });
 
   // The title cap is 30, not 80. Sending a longer one let the DEVICE clip it
@@ -312,29 +408,20 @@ describe('bd-43496 — an oversized single-answer question routes to the MSQ Flo
     }
   });
 
-  it('letters the options instead of repeating the answer text in the title', async () => {
+  // A very long option is no longer a truncation problem at all: the body is a
+  // TextBody, so it wraps and scrolls instead of clamping. Nothing is cut and
+  // no ellipsis is needed — which is the whole reason the text moved here.
+  it('carries even a 440-char option through the body in full', async () => {
     process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
-    seed({ questionLen: 400, optionLen: 200, correct: '2' });
-    const data = await svc().buildMsqFlowScreenData(UID, ATTEMPT, 0);
-    expect(data.options.map(o => o.title)).toEqual(['A.', 'B.', 'C.', 'D.']);
-    // The title must not be a prefix of its own description — that duplication
-    // wasted the row's most visible line.
-    for (const o of data.options) {
-      expect(o.description.startsWith(o.title)).toBe(false);
-    }
-  });
-
-  it('marks a genuinely over-long option with an ellipsis, cut on a word', async () => {
-    process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
-    // Real words so the word-boundary cut is observable; 400 chars > the 300 cap.
-    const long = 'alpha bravo charlie delta echo foxtrot golf hotel '.repeat(9);
+    // .trim() is applied to every option, so compare against the trimmed form.
+    const long = 'alpha bravo charlie delta echo foxtrot golf hotel '.repeat(9).trim();
     seed({ questionLen: 100, optionLen: 10, correct: '2' });
     tableStates.training_questions.rows[0].options = [long, 'b', 'c', 'd'];
     const data = await svc().buildMsqFlowScreenData(UID, ATTEMPT, 0);
-    const cut = data.options.find(o => o.id === '1');
-    expect([...cut.description].length).toBeLessThanOrEqual(300);
-    expect(cut.description).toMatch(/…$/);
-    expect(cut.description).not.toMatch(/\s…$/);   // no dangling space before it
+
+    expect(long.length).toBeGreaterThan(400);
+    expect(data.question_text).toContain(long);
+    expect(data.question_text).not.toMatch(/…/);
   });
 
   it('grades a single-answer Flow submission correctly', async () => {

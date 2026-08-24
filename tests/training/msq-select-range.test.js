@@ -73,9 +73,10 @@ describe('bd-2502 — the Flow JSON binds the ceiling instead of freezing it', (
     expect(radio['max-selected-items']).toBeUndefined();
   });
 
-  // Exactly one control is visible at a time, and neither may be `required`:
-  // a hidden required field blocks submission outright.
-  it('gates the two controls on complementary flags, neither required', () => {
+  // Exactly one control is visible at a time, and `required` is BOUND to the
+  // same flag as `visible` — so the shown control demands an answer (an exam
+  // question is not optional) while the hidden one can never block submission.
+  it('gates the two controls on complementary flags, required tracking visible', () => {
     const all = [];
     const walk = (n) => {
       if (Array.isArray(n)) return n.forEach(walk);
@@ -87,7 +88,9 @@ describe('bd-2502 — the Flow JSON binds the ceiling instead of freezing it', (
     walk(screen);
     expect(all).toHaveLength(2);
     expect(all.map(c => c.visible).sort()).toEqual(['${data.is_multi}', '${data.is_single}']);
-    for (const c of all) expect(c.required).toBe(false);
+    // required === visible, per control: answering is mandatory on the control
+    // the teacher can actually see, and never demanded of the hidden one.
+    for (const c of all) expect(c.required).toBe(c.visible);
   });
 });
 

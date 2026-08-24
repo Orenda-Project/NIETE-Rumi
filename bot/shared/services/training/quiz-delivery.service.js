@@ -147,7 +147,7 @@ function listBodyText(question, options, optionsInBody) {
   let body = question.question_text || '(missing question text)';
   if (optionsInBody) {
     body += '\n\n' + options
-      .map((o, i) => `${OPTION_LETTERS[i]}. ${String(o || '')}`)
+      .map((o, i) => `${OPTION_LETTERS[i]}. ${cleanOptionText(o)}`)
       .join('\n');
   }
   return body;
@@ -1023,30 +1023,11 @@ async function handleQuizButton(userId, replyId, phoneNumber, messageId = null) 
   //     was not one. An adult professional needs the fact stated plainly. The
   //     thin ✗ carries "wrong" without the red-block shout and matches the ✓
   //     family; the heavy ❌ stays where it works, on the reaction.
-  if (messageId) {
-    try {
-      await WhatsAppService.sendReaction(phoneNumber, messageId, isCorrect ? '✅' : '❌');
-    } catch (error) {
-      logToFile('⚠️ Could not react to quiz answer', {
-        attemptId: attempt.id,
-        index: attempt.current_question_index,
-        error: error.message,
-      });
-    }
-  }
-
-  try {
-    await WhatsAppService.sendMessage(
-      phoneNumber,
-      isCorrect ? '✅ *Correct*' : '✗ *Not correct.*'
-    );
-  } catch (error) {
-    logToFile('⚠️ Could not send per-question feedback', {
-      attemptId: attempt.id,
-      index: attempt.current_question_index,
-      error: error.message,
-    });
-  }
+  // Shared with the Flow surface (bd-43496) so the two can never drift apart on
+  // either signal or copy.
+  await sendAnswerVerdict(phoneNumber, isCorrect, messageId, {
+    attemptId: attempt.id, index: attempt.current_question_index,
+  });
 
   const nextIdx = attempt.current_question_index + 1;
   await supabase.from('training_assessment_attempts').update({
@@ -1147,20 +1128,37 @@ const MSQ_ROW_ECHO_MAX = 120;
  * ellipsis rather than being cut mid-word, so a teacher can see that text is
  * missing instead of silently reading a half sentence.
  */
-function msqOptionRow(canonical, letter, text) {
-  const full = String(text ?? '');
-  const row = {
+function msqOptionRow(canonical, letter) {
+  return {
     // CANONICAL index, never the display position — the shuffle stops at the
     // rendering layer and storage keeps speaking the database's numbering.
     id: String(canonical),
     title: letter ? `${letter}.` : `Option ${canonical}`,
+    // NO `description`. The answer text is in the screen's TextBody in full;
+    // a row description is clamped to ~3 lines on the device, so an echo here
+    // only ever rendered as a half sentence competing with the real copy.
   };
-  // The authoritative copy of the answer is in the screen's TextBody, where it
-  // is never clamped. This is a best-effort echo for a client that renders row
-  // descriptions — deliberately cut short of the 3-line clamp so it reads as a
-  // label rather than a sentence that appears to be missing its end.
-  if (full) row.description = truncateOnWord(full, MSQ_ROW_ECHO_MAX);
-  return row;
+}
+
+/**
+ * Tidy one option's text for display.
+ *
+ * The legacy import left artefacts in the bank: on quiz 4 alone, 64 of 180
+ * options carry leading or trailing whitespace and 9 begin with a stray "."
+ * (a list marker that survived the migration). Rendered straight after our own
+ * "A." prefix that reads as "A. . Pilot the project…".
+ *
+ * Fixed at the RENDER layer, not by rewriting the bank: it repairs every
+ * question in every quiz at once, cannot desynchronise from the stored answer
+ * key, and touches no exam content. Internal newlines collapse to spaces so one
+ * option stays one paragraph, which is what makes the block scannable.
+ */
+function cleanOptionText(text) {
+  return String(text ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^[.•·-]\s*/, '')
+    .trim();
 }
 
 /**
@@ -1206,24 +1204,35 @@ async function buildMsqFlowScreenData(userId, attemptId, questionIndex) {
   // Letters come from the DISPLAY position, exactly as the list surface letters
   // its rows, so "Selected: B" means the same option on either surface.
   const options = r.displayOrder.map((canonical, i) =>
-    msqOptionRow(canonical, OPTION_LETTERS[i], r.allOptions[canonical - 1]));
+    msqOptionRow(canonical, OPTION_LETTERS[i]));
 
   // bd-43496 — the answer text lives in the screen's TextBody, NOT in the option
   // rows. A Radio/Checkbox row `description` is clamped to THREE LINES on the
   // device (~140 chars), which cut 41% of this exam's options; a TextBody is a
   // block that wraps and scrolls, which is why the question stem already renders
-  // in full. The rows keep bare letters so the tap target stays unambiguous, and
-  // `msqOptionRow` still fills `description` as a graceful fallback for a client
-  // that shows it.
+  // in full. The rows carry only the letter, so the letters in this body ARE the
+  // key to the tap targets — they must line up, and they do: both are indexed by
+  // display position.
+  //
+  // A Flow TextBody renders PLAIN text — no markdown, so emphasis has to be
+  // structural. The stem and the option block are separated by a ruled line and
+  // each option starts on its own blank-line-separated paragraph, because in a
+  // wall of wrapped prose a bare "A." at the start of a line is easy to miss
+  // (reported after the first TextBody build).
   //
   // Budget: stem + 4 options is a median of ~1057 and a max of ~1497 code points
   // on this exam, so this stays well inside the TextBody allowance.
   const stem = String(r.question.question_text
     || (r.multiAnswer ? 'Select all that apply.' : 'Choose one option.'));
+  const optionLines = options.map((o, i) =>
+    `${OPTION_LETTERS[i]}.  ${cleanOptionText(r.allOptions[r.displayOrder[i] - 1])}`);
   const questionText = [
     stem,
     '',
-    ...options.map((o, i) => `${OPTION_LETTERS[i]}. ${String(r.allOptions[r.displayOrder[i] - 1] ?? '')}`),
+    '──────────',
+    r.multiAnswer ? 'SELECT ALL THAT APPLY:' : 'CHOOSE ONE:',
+    '',
+    optionLines.join('\n\n'),
   ].join('\n');
 
   return {
@@ -1315,7 +1324,7 @@ function parseSelectedOptionIds(raw) {
  * @param {string} phoneNumber
  * @returns {Promise<boolean>} true when the answer was recorded
  */
-async function handleQuizFlowSubmission(userId, responseJson, phoneNumber) {
+async function handleQuizFlowSubmission(userId, responseJson, phoneNumber, messageId = null) {
   const ref = parseMsqRef(responseJson);
   if (!ref) {
     logToFile('⚠️ Multi-answer Flow submission carried no attempt reference', {
@@ -1369,7 +1378,43 @@ async function handleQuizFlowSubmission(userId, responseJson, phoneNumber) {
     last_activity_at: new Date().toISOString(),
   }).eq('id', r.attempt.id);
 
+  // bd-43496 — per-question verdict, which this path never sent. The list
+  // surface has reacted ✅/❌ and echoed the verdict in text since bd-2525;
+  // answering through the Flow silently produced nothing, so a teacher had no
+  // idea whether the answer landed. Same two signals, same copy, so the two
+  // surfaces are indistinguishable to the teacher.
+  await sendAnswerVerdict(phoneNumber, isCorrect, messageId, {
+    attemptId: r.attempt.id, index: r.index,
+  });
+
   return await sendQuestion(r.attempt.id, phoneNumber);
+}
+
+/**
+ * Tell the teacher whether the answer was right: a reaction on her own message
+ * plus a one-line text echo.
+ *
+ * Both are best-effort — a failed reaction must never cost the teacher her
+ * recorded answer or stop the next question, so each is caught separately. The
+ * reaction needs the inbound wamid; callers that do not have one still send the
+ * text, so no path loses its verdict (the bd-2525 rule).
+ */
+async function sendAnswerVerdict(phoneNumber, isCorrect, messageId, ctx = {}) {
+  if (messageId) {
+    try {
+      await WhatsAppService.sendReaction(phoneNumber, messageId, isCorrect ? '✅' : '❌');
+    } catch (error) {
+      logToFile('⚠️ Could not react to quiz answer', { ...ctx, error: error.message });
+    }
+  }
+  try {
+    await WhatsAppService.sendMessage(
+      phoneNumber,
+      isCorrect ? '✅ *Correct*' : '✗ *Not correct.*'
+    );
+  } catch (error) {
+    logToFile('⚠️ Could not send per-question feedback', { ...ctx, error: error.message });
+  }
 }
 
 async function recordAnswer(attemptId, questionIndex, questionId, chosenOption, isCorrect) {
