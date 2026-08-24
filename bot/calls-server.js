@@ -29,6 +29,9 @@ const CallSession = require('./shared/calls/call-session');
 const RtcPeer = require('./shared/calls/rtc-peer');
 const RealtimeClient = require('./shared/calls/realtime-client');
 const callsApi = require('./shared/calls/graph-calls-api');
+const { buildCallPrompt } = require('./shared/calls/call-prompt.service');
+const { buildCallContext } = require('./shared/calls/call-context.service');
+const contextDeps = require('./shared/calls/call-context.repo');
 
 const logger = {
   info: (msg, meta) => logToFile(msg, meta),
@@ -68,8 +71,19 @@ function buildEngine() {
         voice: config.voice,
         vad: config.vad,
       }),
-      // P1.2 (bd-1hae7.6) replaces this with the Tier-A connect context.
-      buildInstructions: async () => 'You are the NIETE Teaching Assistant.',
+      // Tier-A connect context + persona (bd-1hae7.5/.6). Each context block
+      // soft-fails on its own; a total failure still yields a working persona,
+      // because a call that knows nothing beats a call that never connects.
+      buildInstructions: async ({ from, callId }) => {
+        const { block, language, userId, known, snapshot } = await buildCallContext({
+          from, deps: contextDeps,
+        });
+        logToFile('[calls] context assembled', {
+          callId, userId, known, blocks: snapshot.blocks, failures: snapshot.failures,
+          chars: block.length,
+        });
+        return buildCallPrompt({ language, contextBlock: block });
+      },
       config: {
         maxSeconds: config.maxSeconds,
         wrapUpSeconds: config.wrapUpSeconds,
