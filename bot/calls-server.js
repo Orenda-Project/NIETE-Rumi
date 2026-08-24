@@ -32,6 +32,10 @@ const callsApi = require('./shared/calls/graph-calls-api');
 const { buildCallPrompt } = require('./shared/calls/call-prompt.service');
 const { buildCallContext } = require('./shared/calls/call-context.service');
 const contextDeps = require('./shared/calls/call-context.repo');
+const callLog = require('./shared/calls/call-log.service');
+const { createBudgetGovernor } = require('./shared/calls/budget-governor');
+const WhatsAppService = require('./shared/services/whatsapp.service');
+const { resolveUx } = require('./shared/config/ux-strings');
 
 const logger = {
   info: (msg, meta) => logToFile(msg, meta),
@@ -53,43 +57,138 @@ function replicaGuardTripped() {
   return Number.isFinite(count) && count > 1;
 }
 
+/**
+ * The admission gate: $150/week, 3 calls per caller per day, 80% alarm to the
+ * operator. Fails CLOSED — an unreadable ledger declines the call.
+ */
+const governor = createBudgetGovernor({
+  logger,
+  config: {
+    weeklyBudgetUsd: config.weeklyBudgetUsd,
+    perCallerDaily: config.perCallerDaily,
+  },
+  ledger: {
+    weeklySpendUsd: callLog.weeklySpendUsd,
+    callsToday: callLog.callsToday,
+    onAlarm: async ({ spendUsd, budgetUsd, fraction }) => {
+      const operator = process.env.OPERATOR_WHATSAPP || '923365709413';
+      const pct = Math.round(fraction * 100);
+      await WhatsAppService.sendMessage(operator,
+        `NIETE calls: ${pct}% of the weekly calling budget used `
+        + `($${spendUsd.toFixed(2)} of $${budgetUsd}). New calls are declined at 100%.`);
+    },
+  },
+});
+
+/** The language a declined caller should be answered in — never block on it. */
+async function callerLanguage(from) {
+  try {
+    const user = await contextDeps.fetchUser(from);
+    return (user && user.preferred_language) || 'ur';
+  } catch (_) {
+    return 'ur';
+  }
+}
+
+const OVERFLOW_KEY = {
+  busy: 'callBusyOverflow',
+  weekly_budget: 'callBudgetOverflow',
+  per_caller_daily: 'callDailyLimitOverflow',
+};
+
 function buildEngine() {
   return new CallEngine({
     callsApi,
     logger,
+    gate: ({ from, callId }) => governor.check({ from, callId }),
     config: { maxConcurrent: config.maxConcurrent, drainGraceMs: config.drainGraceMs },
-    createSession: (ctx) => new CallSession({
-      ...ctx,
-      callsApi,
-      logger,
-      createPeer: (peerCtx) => new RtcPeer({ ...peerCtx, logger }),
-      createRealtime: ({ instructions, callbacks }) => new RealtimeClient({
-        instructions,
-        callbacks,
-        apiKey: config.apiKey,
-        model: config.model,
-        voice: config.voice,
-        vad: config.vad,
-      }),
-      // Tier-A connect context + persona (bd-1hae7.5/.6). Each context block
-      // soft-fails on its own; a total failure still yields a working persona,
-      // because a call that knows nothing beats a call that never connects.
-      buildInstructions: async ({ from, callId }) => {
-        const { block, language, userId, known, snapshot } = await buildCallContext({
-          from, deps: contextDeps,
-        });
-        logToFile('[calls] context assembled', {
-          callId, userId, known, blocks: snapshot.blocks, failures: snapshot.failures,
-          chars: block.length,
-        });
-        return buildCallPrompt({ language, contextBlock: block });
-      },
-      config: {
-        maxSeconds: config.maxSeconds,
-        wrapUpSeconds: config.wrapUpSeconds,
-        silenceTimeoutMs: config.silenceTimeoutMs,
-      },
-    }),
+
+    /**
+     * A declined call gets a WhatsApp message, so she is never left wondering
+     * why the phone did not answer. Best-effort: the engine has already
+     * rejected by the time we get here.
+     */
+    onBusy: async ({ from, reason }) => {
+      const key = OVERFLOW_KEY[reason];
+      if (!key || !from) return;
+      const language = await callerLanguage(from);
+      await WhatsAppService.sendMessage(from, resolveUx(key, { language }));
+    },
+
+    /** Close the audit row when the call ends. */
+    onCallEnd: async ({ waCallId, durationSeconds, status, transcript }) => {
+      await callLog.logCallEnd({
+        waCallId, durationSeconds, status, transcript, model: config.model,
+      });
+    },
+
+    createSession: (ctx) => {
+      let traceSeq = 0;
+      const session = new CallSession({
+        ...ctx,
+        callsApi,
+        logger,
+        createPeer: (peerCtx) => new RtcPeer({ ...peerCtx, logger }),
+        createRealtime: ({ instructions, callbacks }) => new RealtimeClient({
+          instructions,
+          callbacks,
+          apiKey: config.apiKey,
+          model: config.model,
+          voice: config.voice,
+          vad: config.vad,
+        }),
+        // Tier-A connect context + persona (bd-1hae7.5/.6). Each context block
+        // soft-fails on its own; a total failure still yields a working persona,
+        // because a call that knows nothing beats a call that never connects.
+        buildInstructions: async ({ from, callId, callerName }) => {
+          const { block, language, userId, known, snapshot } = await buildCallContext({
+            from, deps: contextDeps,
+          });
+          const instructions = buildCallPrompt({ language, contextBlock: block, callerName });
+
+          logToFile('[calls] context assembled', {
+            callId, userId, known, blocks: snapshot.blocks, failures: snapshot.failures,
+            chars: block.length,
+          });
+
+          // Open the audit row with the EXACT instructions the model will run —
+          // this is what makes "what did she know?" answerable afterwards.
+          await callLog.logCallStart({
+            waCallId: callId, from, callerName, userId,
+            model: config.model, voice: config.voice,
+            contextSnapshot: { instructions, ...snapshot },
+          });
+          return instructions;
+        },
+        hooks: {
+          // Rewrite the transcript as each line finalises, so a crash cannot
+          // take the whole conversation with it.
+          onTranscriptLine: () => {
+            callLog.recordTranscript({
+              waCallId: ctx.callId, transcript: session.getTranscript(),
+            }).catch(() => undefined);
+          },
+          onLatency: ({ latencyMs }) => {
+            traceSeq += 1;
+            callLog.recordTrace({
+              waCallId: ctx.callId, seq: traceSeq, kind: 'latency', latencyMs,
+            }).catch(() => undefined);
+          },
+          onTrace: ({ toolName, args, result, latencyMs }) => {
+            traceSeq += 1;
+            callLog.recordTrace({
+              waCallId: ctx.callId, seq: traceSeq, kind: 'tool', toolName, args, result, latencyMs,
+            }).catch(() => undefined);
+          },
+        },
+        config: {
+          maxSeconds: config.maxSeconds,
+          wrapUpSeconds: config.wrapUpSeconds,
+          silenceTimeoutMs: config.silenceTimeoutMs,
+        },
+      });
+      return session;
+    },
   });
 }
 
