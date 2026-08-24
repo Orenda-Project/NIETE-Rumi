@@ -93,10 +93,15 @@ describe('call context — the coaching, in WORDS', () => {
     expect(block).toContain('Pause three seconds');
   });
 
-  test('does NOT put her score in the prompt (the no-measurement rule)', async () => {
+  // CONTRACT REVERSED after the second live call. Withholding the score meant
+  // that when the caller asked "why were my numbers low?" she had nothing to
+  // answer with and told him she could not see his records. The number is now
+  // present but explicitly answer-only-if-asked.
+  test('the score IS present, but marked never-lead-with-it', async () => {
     const { block } = await buildCallContext({ from: '92300', deps: deps() });
-    expect(block).not.toMatch(/\b72\b/);
-    expect(block).not.toMatch(/overall_percentage/);
+    expect(block).toMatch(/\b72\b/);
+    expect(block).toMatch(/unless SHE asks|if she asks/i);
+    expect(block).not.toMatch(/overall_percentage/); // the raw key never leaks
   });
 
   test('a coaching row with no analysis_data is skipped, not half-rendered', async () => {
@@ -208,7 +213,7 @@ describe('call context — the other blocks', () => {
 });
 
 describe('call context — size discipline', () => {
-  test('is capped so a call is not slow and expensive to start', async () => {
+  test('is capped so a call is not slow and expensive to start (12KB)', async () => {
     const huge = 'x'.repeat(50000);
     const { block } = await buildCallContext({
       from: '92300',
@@ -217,14 +222,16 @@ describe('call context — size discipline', () => {
         analysis_data: { executive_summary: huge, strengths: [huge], recommendations: [huge] },
       }) }),
     });
-    expect(block.length).toBeLessThanOrEqual(4500);
+    expect(block.length).toBeLessThanOrEqual(12500);
   });
 
-  test('truncation is marked, never a silent cut mid-sentence', async () => {
+  // CONTRACT REVERSED: the marker was READ ALOUD to the teacher as "your record
+  // is incomplete because of truncation". Trimming is now silent.
+  test('trimming is SILENT — no marker can ever be narrated', async () => {
     const { block } = await buildCallContext({
       from: '92300', deps: deps({ fetchLpContext: async () => 'y'.repeat(50000) }),
     });
-    expect(block).toMatch(/…|\.\.\.|truncated/);
+    expect(block).not.toMatch(/truncat/i);
   });
 
   test('identity survives truncation — it is the block that matters most', async () => {
@@ -331,9 +338,10 @@ describe('call context — production analysis_data shapes', () => {
     expect(block).not.toContain('I Do → We Do → You Do'); // `analysis` is not call material
   });
 
-  test('the score is still never exposed', async () => {
+  test('the score is present and framed, not raw', async () => {
     const { block } = await buildCallContext({ from: '92300', deps: liveDeps() });
-    expect(block).not.toMatch(/\b72\b/);
+    expect(block).toMatch(/\b72\b/);
+    expect(block).toMatch(/Do not mention this number unless SHE asks/);
   });
 
   test('a mixed array of strings AND objects renders both', async () => {
@@ -381,6 +389,6 @@ describe('call context — one block must not starve the others', () => {
       deps: liveDeps({ fetchLatestCoaching: async () => ({ completed_at: '2026-08-23T09:00:00Z', analysis_data: fat }) }),
     });
     expect(block).toMatch(/MOST RECENT COACHING/);
-    expect(block.length).toBeLessThanOrEqual(4500);
+    expect(block.length).toBeLessThanOrEqual(12500);
   });
 });

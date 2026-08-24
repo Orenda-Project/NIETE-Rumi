@@ -11,12 +11,14 @@
  *  2. **Always as-of-dated** (RT-5). Undated context gets spoken as if true
  *     today — "your coaching last Tuesday" is useful, "your coaching" is a lie
  *     waiting to happen.
- *  3. **Words, not numbers.** executive_summary, focus_area, strengths,
- *     recommendations — the narrative is what lets her have a real conversation.
- *     Scores are deliberately EXCLUDED (the no-measurement rule); if she asks
- *     about her score, the recall tools can fetch it.
- *  4. **Size-capped**, identity-first. A 20KB prompt is a slow, expensive call,
- *     and if something has to go it is not her name.
+ *  3. **Words first, but the number is there too.** executive_summary,
+ *     focus_area, strengths, recommendations are what let her have a real
+ *     conversation. The score is INCLUDED and marked answer-only-if-asked:
+ *     withholding it meant that when a caller asked "why were my numbers low?"
+ *     she had nothing to answer with and claimed she could not see his records.
+ *  4. **Size-capped, and trimmed SILENTLY**, identity-first. Trimming used to
+ *     leave a "(truncated)" marker, which she read aloud to the teacher as
+ *     "your record is incomplete".
  *
  * Shapes verified against the live staging DB, 2026-08-24. `analysis_data` keys
  * in production: executive_summary, focus_area, strengths, recommendations,
@@ -26,7 +28,12 @@
  */
 
 const DEFAULT_TIMEOUT_MS = 2500;
-const MAX_BLOCK_CHARS = 4000;
+// Raised from 4,000 after the second live call. The old cap was cutting real
+// lesson content AND — worse — the "… (truncated)" markers were being READ ALOUD
+// to the teacher ("truncation کی وجہ سے پورا نہیں ہے"). A realtime model handles
+// ~12KB of instructions comfortably and the prefix is byte-stable, so caching
+// absorbs the cost. Trimming is now SILENT: never a marker, never narrated.
+const MAX_BLOCK_CHARS = 12000;
 const MAX_LIST_ITEMS = 3;
 
 /** Bound every fetch: a hanging table must not hold up the greeting. */
@@ -115,7 +122,8 @@ async function buildCallContext({ from, deps = {} }) {
   // Every block is recorded explicitly, present or not — an audit trail that
   // only lists what happened to be there cannot answer "why didn't she know?".
   const blocks = {
-    identity: false, coaching: false, lessons: false, visit: false, training: false, memory: false,
+    identity: false, coaching: false, lessons: false, visit: false,
+    training: false, memory: false, observed: false,
   };
 
   const user = await soft('identity', () => deps.fetchUser(from), timeoutMs, failures);
@@ -123,15 +131,19 @@ async function buildCallContext({ from, deps = {} }) {
 
   // Nothing downstream is meaningful without a user, so the rest is fetched only
   // when we know who she is — and all of it concurrently, to keep connect fast.
-  const [coaching, lpContext, visit, training, memory] = userId
+  const [coaching, lpContext, visit, training, memory, observed] = userId
     ? await Promise.all([
       soft('coaching', () => deps.fetchLatestCoaching(userId), timeoutMs, failures),
       soft('lessons', () => deps.fetchLpContext(userId), timeoutMs, failures),
       soft('visit', () => deps.fetchUpcomingVisit(userId), timeoutMs, failures),
       soft('training', () => deps.fetchTraining(userId), timeoutMs, failures),
       soft('memory', () => deps.fetchMemory(from, userId), timeoutMs, failures),
+      // A caller is not always the subject of an observation. Coaches, AEOs and
+      // school leaders ring up about the teachers THEY observed, and until now
+      // we held that data and never gave it to her.
+      soft('observed', () => deps.fetchObservedSessions(userId), timeoutMs, failures),
     ])
-    : [null, null, null, null, null];
+    : [null, null, null, null, null, null];
 
   const parts = [];
 
@@ -146,7 +158,8 @@ async function buildCallContext({ from, deps = {} }) {
       user.school_name ? `School: ${user.school_name}` : null,
       grades ? `Grades: ${grades}` : null,
       subjects ? `Subjects: ${subjects}` : null,
-      user.role ? `Role: ${user.role}` : null,
+      user.role ? `Role: ${user.role} (if this is a coach/observer role, she may ask about the `
+        + `teachers SHE observed as well as her own teaching)` : null,
       'Address her by her first name. Do not read this list back to her.',
     ].filter(Boolean).join('\n'));
     blocks.identity = true;
@@ -188,7 +201,20 @@ async function buildCallContext({ from, deps = {} }) {
     if (recs) seg.push(`What was recommended:\n${recs}`);
     const growth = list(analysis.growth_opportunities, 2);
     if (growth) seg.push(`Growth opportunities:\n${growth}`);
-    seg.push('Do NOT volunteer any score. Talk about the moves and the children\'s thinking.');
+
+    // The score is INCLUDED, deliberately. Withholding it meant that when she
+    // asked "why were my numbers low?" the assistant had nothing to answer with
+    // and said it could not see her records — the worst possible answer to a
+    // direct question about her own work. It is marked answer-only-if-asked so
+    // it is never led with.
+    const score = analysis.scores && (analysis.scores.overall_percentage
+      ?? analysis.scores.overall ?? analysis.scores.percentage);
+    if (score !== undefined && score !== null) {
+      seg.push(`Her overall score on this observation: ${score}. `
+        + 'Do not mention this number unless SHE asks — but if she asks what she scored or why '
+        + 'it was low, tell her the number and what drove it. Never say you cannot see it.');
+    }
+    seg.push('Lead with the moves and the children\'s thinking, not the ranking.');
     if (seg.length > 2) {
       parts.push(seg.join('\n'));
       blocks.coaching = true;
@@ -222,6 +248,25 @@ async function buildCallContext({ from, deps = {} }) {
     blocks.training = true;
   }
 
+  // ---- what she has observed in OTHERS (coach / AEO / school-leader callers) ----
+  if (Array.isArray(observed) && observed.length) {
+    const rows = observed.slice(0, 5).map((o) => {
+      const when = isoDay(o.when);
+      const bits = [o.teacherName || 'a teacher'];
+      if (o.schoolName) bits.push(o.schoolName);
+      if (when) bits.push(`${when} (${agoLabel(o.when, now)})`);
+      if (o.focus) bits.push(`focus: ${o.focus}`);
+      return `  - ${bits.join(' · ')}`;
+    }).join('\n');
+    parts.push([
+      `## TEACHERS SHE HAS OBSERVED (as of ${isoDay(now)})`,
+      'She is a coach/observer as well as a caller. These are the observations SHE conducted:',
+      rows,
+      'If she asks about a teacher she observed, this is hers to discuss — answer from it.',
+    ].join('\n'));
+    blocks.observed = true;
+  }
+
   // ---- rolling memory from previous calls ----
   if (memory && memory.summary) {
     const when = isoDay(memory.updated_at);
@@ -252,6 +297,7 @@ async function buildCallContext({ from, deps = {} }) {
       visit: 'an upcoming coach visit',
       training: 'training progress',
       memory: 'previous calls with her',
+      observed: 'observations she has done of other teachers',
     };
     Object.keys(label).forEach((key) => {
       if (blocks[key]) present.push(label[key]);
@@ -294,14 +340,18 @@ async function buildCallContext({ from, deps = {} }) {
     const remaining = MAX_BLOCK_CHARS - identityPart.length - 40;
     const share = Math.max(200, Math.floor(remaining / Math.max(1, optional.length)));
 
-    const trimmed = optional.map((part) => (part.length <= share
-      ? part
-      : `${part.slice(0, share - 15)}… (truncated)`));
+    // Trim SILENTLY. A "(truncated)" marker in the prompt got narrated to the
+    // teacher as "your record is incomplete" — internal plumbing spoken aloud.
+    // Cut at a line boundary where possible so a block never ends mid-word.
+    const trimAt = (text, limit) => {
+      if (text.length <= limit) return text;
+      const cut = text.slice(0, limit);
+      const lastBreak = Math.max(cut.lastIndexOf('\n'), cut.lastIndexOf('. '));
+      return (lastBreak > limit * 0.5 ? cut.slice(0, lastBreak) : cut).trimEnd();
+    };
 
-    block = [identityPart, ...trimmed].join('\n\n');
-    if (block.length > MAX_BLOCK_CHARS) {
-      block = `${block.slice(0, MAX_BLOCK_CHARS - 15)}… (truncated)`;
-    }
+    const trimmed = optional.map((part) => trimAt(part, share));
+    block = trimAt([identityPart, ...trimmed].join('\n\n'), MAX_BLOCK_CHARS);
   }
 
   return {

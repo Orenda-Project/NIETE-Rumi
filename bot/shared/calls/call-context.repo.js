@@ -120,6 +120,46 @@ async function fetchMemory(waId) {
   return data || null;
 }
 
+/**
+ * Observations this caller CONDUCTED (`coaching_sessions.observer_user_id`).
+ *
+ * Not every caller is the subject of an observation. Coaches, AEOs and school
+ * leaders ring up about the teachers THEY observed — on staging 64 sessions
+ * across 17 distinct observers — and we held all of it while telling them we had
+ * nothing. The caller's own role no longer decides what she can ask about.
+ */
+async function fetchObservedSessions(userId) {
+  const { data, error } = await supabase
+    .from('coaching_sessions')
+    .select('id, user_id, analysis_data, status, completed_at, created_at')
+    .eq('observer_user_id', userId)
+    .in('status', FINISHED_COACHING_STATUSES)
+    .order('created_at', { ascending: false })
+    .limit(5);
+  if (error) throw new Error(`observed sessions lookup failed: ${error.message}`);
+  if (!data || !data.length) return [];
+
+  // Resolve the observed teachers' names in ONE round trip.
+  const teacherIds = [...new Set(data.map((r) => r.user_id).filter(Boolean))];
+  const names = new Map();
+  if (teacherIds.length) {
+    const { data: teachers } = await supabase
+      .from('users').select('id, first_name, last_name, school_name').in('id', teacherIds);
+    (teachers || []).forEach((t) => names.set(t.id, t));
+  }
+
+  return data.map((row) => {
+    const t = names.get(row.user_id) || {};
+    const focus = row.analysis_data && row.analysis_data.focus_area;
+    return {
+      teacherName: [t.first_name, t.last_name].filter(Boolean).join(' ') || null,
+      schoolName: t.school_name || null,
+      when: row.completed_at || row.created_at,
+      focus: (typeof focus === 'string' ? focus : (focus && focus.title)) || null,
+    };
+  });
+}
+
 module.exports = {
   fetchUser,
   fetchLatestCoaching,
@@ -127,4 +167,6 @@ module.exports = {
   fetchUpcomingVisit,
   fetchTraining,
   fetchMemory,
+  fetchObservedSessions,
+  FINISHED_COACHING_STATUSES,
 };
