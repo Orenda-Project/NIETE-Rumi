@@ -177,25 +177,31 @@ async function askCancel(sessionId, from, user) {
   ]);
 }
 
-async function cancelObservation(sessionId, from, user) {
-  const S = observeStrings(observeLang(user));
+// bd-ej21x — the silent mutation both cancel surfaces share. NO chat sends
+// here: the Flow's OBS_ACTION path renders the outcome on the SUCCESS screen,
+// the chat-button path (cancelObservation below) speaks it.
+async function cancelObservationCore(sessionId, user) {
   const s = await _loadOwn(sessionId, user);
-  if (!s) { await WhatsAppService.sendMessage(from, S.debrief_not_yours); return; }
+  if (!s) return { outcome: 'not_yours' };
 
   const d = s.analysis_data && s.analysis_data.teacher_delivery;
-  if (d && ['sent', 'awaiting_teacher_tap'].includes(d.status)) {
-    await WhatsAppService.sendMessage(from, S.cancel_too_late); return;
-  }
-  if (['cancelled', 'abandoned'].includes(s.status)) {
-    await WhatsAppService.sendMessage(from, S.cancel_ack); return;
-  }
+  if (d && ['sent', 'awaiting_teacher_tap'].includes(d.status)) return { outcome: 'too_late' };
+  if (['cancelled', 'abandoned'].includes(s.status)) return { outcome: 'already' };
   await supabase
     .from('coaching_sessions')
     .update({ status: 'cancelled' })
     .eq('id', sessionId)
     .eq('status', s.status);   // CAS — a concurrent pipeline advance wins
   logToFile('🗑 observe-resume: observation cancelled by coach', { sessionId, coachId: user.id });
-  await WhatsAppService.sendMessage(from, S.cancel_ack);
+  return { outcome: 'cancelled' };
+}
+
+async function cancelObservation(sessionId, from, user) {
+  const S = observeStrings(observeLang(user));
+  const { outcome } = await cancelObservationCore(sessionId, user);
+  const msg = { not_yours: S.debrief_not_yours, too_late: S.cancel_too_late,
+    already: S.cancel_ack, cancelled: S.cancel_ack }[outcome];
+  await WhatsAppService.sendMessage(from, msg);
 }
 
 async function keepObservation(sessionId, from, user) {
@@ -207,4 +213,4 @@ async function _sendButtons(from, body, buttons) {
   return WhatsAppService.sendInteractiveButtons(from, { body, buttons: buttons.slice(0, 3) });
 }
 
-module.exports = { resume, sendForm, runRetry, askCancel, cancelObservation, keepObservation };
+module.exports = { resume, sendForm, runRetry, askCancel, cancelObservation, cancelObservationCore, keepObservation };
