@@ -364,6 +364,7 @@ async function buildCallContext({ from, deps = {} }) {
   return {
     block,
     language: (user && user.preferred_language) || 'ur',
+    role: (user && user.role) || '',
     userId,
     known: !!user,
     snapshot: { userId, blocks, failures, builtAt: now.toISOString() },

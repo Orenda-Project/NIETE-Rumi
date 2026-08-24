@@ -155,7 +155,7 @@ function buildEngine() {
         // soft-fails on its own; a total failure still yields a working persona,
         // because a call that knows nothing beats a call that never connects.
         buildInstructions: async ({ from, callId, callerName }) => {
-          const { block, language, userId, known, snapshot } = await buildCallContext({
+          const { block, language, role, userId, known, snapshot } = await buildCallContext({
             from, deps: contextDeps,
           });
 
@@ -175,7 +175,7 @@ function buildEngine() {
             },
           });
 
-          const instructions = buildCallPrompt({ language, contextBlock: block, callerName });
+          const instructions = buildCallPrompt({ language, role, contextBlock: block, callerName });
 
           logToFile('[calls] context assembled', {
             callId, userId, known, blocks: snapshot.blocks, failures: snapshot.failures,
