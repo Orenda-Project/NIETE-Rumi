@@ -147,7 +147,7 @@
                 "type": "CheckboxGroup",
                 "name": "selected_options",
                 "label": "Select all that apply",
-                "required": false,
+                "required": "${data.is_multi}",
                 "visible": "${data.is_multi}",
                 "data-source": "${data.options}",
                 "min-selected-items": 1,
@@ -156,8 +156,8 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "selected_option",
-                "label": "Choose one option",
-                "required": false,
+                "label": "Your answer",
+                "required": "${data.is_single}",
                 "visible": "${data.is_single}",
                 "data-source": "${data.options}"
               },
