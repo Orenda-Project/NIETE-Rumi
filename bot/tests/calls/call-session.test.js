@@ -267,3 +267,32 @@ describe('CallSession — teardown', () => {
     expect(() => session.close()).not.toThrow();
   });
 });
+
+/**
+ * The tools are scoped to the caller resolved during buildInstructions, and read
+ * when the Realtime client is constructed. That only works if the ORDER holds —
+ * a subtle dependency that a refactor could silently invert, leaving every call
+ * toolless with no error anywhere.
+ */
+describe('CallSession — instructions are built BEFORE the model is constructed', () => {
+  test('buildInstructions completes before createRealtime is called', async () => {
+    const order = [];
+    const peer = makeFakePeer();
+    const realtime = makeFakeRealtime();
+
+    const session = new CallSession({
+      callId: 'CALL1', from: '92300',
+      createPeer: () => peer,
+      createRealtime: (opts) => { order.push('createRealtime'); realtime._opts = opts; return realtime; },
+      buildInstructions: async () => { order.push('buildInstructions'); return 'PROMPT'; },
+      callsApi: { terminate: jest.fn(async () => ({})) },
+      hooks: {},
+      logger: { info: () => {}, warn: () => {}, error: () => {} },
+      config: { maxSeconds: 300, wrapUpSeconds: 270, silenceTimeoutMs: 60000, watchdogTickMs: 5000 },
+    });
+
+    await session.createAnswer('OFFER');
+    expect(order).toEqual(['buildInstructions', 'createRealtime']);
+    session.close();
+  });
+});
