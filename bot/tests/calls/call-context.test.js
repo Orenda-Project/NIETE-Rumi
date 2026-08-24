@@ -248,3 +248,135 @@ describe('call context — the snapshot for the audit trail (P3.1)', () => {
     expect(snapshot.userId).toBe('u-1');
   });
 });
+
+/**
+ * ─── LIVE SHAPES (found by a synthetic call against the staging DB, 2026-08-24) ───
+ *
+ * The first real call proved three assumptions wrong, and every one of them was
+ * a silent failure rather than an error:
+ *
+ *   focus_area           is an OBJECT in all 90 production rows, not a string.
+ *                        Stringifying it put a literal "[object Object]" into
+ *                        the prompt.
+ *   strengths[]          are OBJECTS ({title, impact, analysis, evidence}), so a
+ *                        string-only filter dropped ALL of them — the assistant
+ *                        knew none of her strengths and nothing said so.
+ *   growth_opportunities are OBJECTS too.
+ *
+ * These fixtures are copied from real rows. This is the "test against
+ * live-shaped fixtures, never assume" rule, paid for once.
+ */
+const LIVE_ANALYSIS = {
+  framework: 'FICO',
+  executive_summary: 'Meem clearly taught fractions using concrete models.',
+  focus_area: {
+    title: 'کھلی سوال سازی اور سوچ کا وقت',
+    domain: 'high_leverage_practices',
+    indicator: 'C1',
+    rationale: 'کھلے سوالات اور think-time واضح طور پر reasoning کو بڑھاتے ہیں۔',
+    lever_question: 'کیا اس سے ان کی زبان اور reasoning میں فرق آیا؟',
+    try_this_tomorrow: 'ایک اہم سوال کے بعد 10–15 سیکنڈ کی خاموش think-time دیں۔',
+  },
+  strengths: [
+    { title: 'Clear lesson sequence & authentic tasks', impact: 'Strengthened comprehension.', analysis: 'I Do → We Do → You Do.', evidence: 'quote at 12:39' },
+    { title: 'Warm classroom tone', impact: 'Children volunteered readily.', analysis: '…', evidence: '…' },
+  ],
+  growth_opportunities: [
+    { title: 'Equitable participation', impact: 'Few children spoke.', analysis: '…' },
+  ],
+  recommendations: ['Start with a 1-minute Think → Pair → Share.'],
+  scores: { overall_percentage: 72 },
+};
+
+const liveDeps = (over = {}) => deps({
+  fetchLatestCoaching: async () => ({ completed_at: '2026-08-23T09:00:00Z', analysis_data: LIVE_ANALYSIS }),
+  ...over,
+});
+
+describe('call context — production analysis_data shapes', () => {
+  test('focus_area renders its TITLE, never "[object Object]"', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: liveDeps() });
+    expect(block).not.toMatch(/\[object Object\]/);
+    expect(block).toContain('کھلی سوال سازی اور سوچ کا وقت');
+  });
+
+  test('focus_area carries the parts worth TALKING about on a call', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: liveDeps() });
+    expect(block).toContain('ایک اہم سوال کے بعد');       // try_this_tomorrow
+    expect(block).toContain('کیا اس سے ان کی زبان');       // lever_question
+  });
+
+  test('object-shaped strengths are RENDERED, not silently dropped', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: liveDeps() });
+    expect(block).toContain('Clear lesson sequence & authentic tasks');
+    expect(block).toContain('Warm classroom tone');
+  });
+
+  test('object-shaped growth opportunities are rendered too', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: liveDeps() });
+    expect(block).toContain('Equitable participation');
+  });
+
+  test('string-shaped recommendations still work (they really are strings)', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: liveDeps() });
+    expect(block).toContain('Think → Pair → Share');
+  });
+
+  test('the long sub-fields are NOT dumped in full — a call prompt stays lean', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: liveDeps() });
+    expect(block).not.toContain('I Do → We Do → You Do'); // `analysis` is not call material
+  });
+
+  test('the score is still never exposed', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: liveDeps() });
+    expect(block).not.toMatch(/\b72\b/);
+  });
+
+  test('a mixed array of strings AND objects renders both', async () => {
+    const { block } = await buildCallContext({
+      from: '92300',
+      deps: liveDeps({ fetchLatestCoaching: async () => ({
+        completed_at: '2026-08-23T09:00:00Z',
+        analysis_data: { ...LIVE_ANALYSIS, strengths: ['A plain string strength', { title: 'An object strength' }] },
+      }) }),
+    });
+    expect(block).toContain('A plain string strength');
+    expect(block).toContain('An object strength');
+  });
+
+  test('an object with no recognisable text field is skipped, not stringified', async () => {
+    const { block } = await buildCallContext({
+      from: '92300',
+      deps: liveDeps({ fetchLatestCoaching: async () => ({
+        completed_at: '2026-08-23T09:00:00Z',
+        analysis_data: { ...LIVE_ANALYSIS, strengths: [{ unexpected: 'shape' }] },
+      }) }),
+    });
+    expect(block).not.toMatch(/\[object Object\]/);
+  });
+});
+
+describe('call context — one block must not starve the others', () => {
+  test('the LESSONS block survives a very large coaching block', async () => {
+    // The real failure: a rich FICO analysis ate the whole 4KB budget and the
+    // lessons block — the thing she is most likely to ring about — was cut.
+    const fat = { ...LIVE_ANALYSIS, executive_summary: 'S'.repeat(6000) };
+    const { block } = await buildCallContext({
+      from: '92300',
+      deps: liveDeps({ fetchLatestCoaching: async () => ({ completed_at: '2026-08-23T09:00:00Z', analysis_data: fat }) }),
+    });
+    expect(block).toContain('LESSONS RECENTLY DELIVERED');
+    expect(block).toContain('Fractions');
+    expect(block).toContain('Ayesha');
+  });
+
+  test('an oversized single block is trimmed rather than dropped whole', async () => {
+    const fat = { ...LIVE_ANALYSIS, executive_summary: 'S'.repeat(6000) };
+    const { block } = await buildCallContext({
+      from: '92300',
+      deps: liveDeps({ fetchLatestCoaching: async () => ({ completed_at: '2026-08-23T09:00:00Z', analysis_data: fat }) }),
+    });
+    expect(block).toMatch(/MOST RECENT COACHING/);
+    expect(block.length).toBeLessThanOrEqual(4500);
+  });
+});
