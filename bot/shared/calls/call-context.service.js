@@ -309,7 +309,14 @@ async function buildCallContext({ from, deps = {} }) {
       .map((f) => label[f] || f);
 
     const seg = [`## WHAT IS ON RECORD FOR HER (as of ${isoDay(now)})`];
-    if (present.length) seg.push(`On record: ${present.join(', ')}.`);
+    if (present.length) {
+      seg.push(`On record: ${present.join(', ')}.`);
+      // The manifest is what lets the connect block stay SHORT: she is told what
+      // exists and can fetch the rest with a tool, instead of us pre-loading
+      // everything and rotting the context (PLAN Appendix C).
+      seg.push('You can look any of these up with a tool when she asks — do not '
+        + 'assume what is written below is everything we hold.');
+    }
     if (missing.length) {
       seg.push(`NOTHING RECORDED for: ${missing.join(', ')}. If she asks about any of `
         + 'these, say plainly that there is nothing recorded for her yet — do NOT say you '

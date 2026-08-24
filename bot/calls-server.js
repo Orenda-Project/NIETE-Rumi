@@ -32,6 +32,8 @@ const callsApi = require('./shared/calls/graph-calls-api');
 const { buildCallPrompt } = require('./shared/calls/call-prompt.service');
 const { buildCallContext } = require('./shared/calls/call-context.service');
 const contextDeps = require('./shared/calls/call-context.repo');
+const { createCallTools } = require('./shared/calls/call-tools.service');
+const toolsRepo = require('./shared/calls/call-tools.repo');
 const callLog = require('./shared/calls/call-log.service');
 const { createBudgetGovernor } = require('./shared/calls/budget-governor');
 const WhatsAppService = require('./shared/services/whatsapp.service');
@@ -124,6 +126,10 @@ function buildEngine() {
 
     createSession: (ctx) => {
       let traceSeq = 0;
+      // Resolved during buildInstructions, so the tools are scoped to the caller
+      // we actually identified — never to a number we could not resolve.
+      let tools = null;
+
       const session = new CallSession({
         ...ctx,
         callsApi,
@@ -131,11 +137,19 @@ function buildEngine() {
         createPeer: (peerCtx) => new RtcPeer({ ...peerCtx, logger }),
         createRealtime: ({ instructions, callbacks }) => new RealtimeClient({
           instructions,
-          callbacks,
           apiKey: config.apiKey,
           model: config.model,
           voice: config.voice,
           vad: config.vad,
+          tools: tools ? tools.definitions : undefined,
+          callbacks: {
+            ...callbacks,
+            // The model can keep talking while this runs; a preamble covers the
+            // gap. Any failure comes back as a speakable line, never a throw.
+            onToolCall: (name, args) => (tools
+              ? tools.invoke(name, args)
+              : Promise.resolve('That lookup is not available on this call.')),
+          },
         }),
         // Tier-A connect context + persona (bd-1hae7.5/.6). Each context block
         // soft-fails on its own; a total failure still yields a working persona,
@@ -144,6 +158,23 @@ function buildEngine() {
           const { block, language, userId, known, snapshot } = await buildCallContext({
             from, deps: contextDeps,
           });
+
+          // Scope the tools to THIS caller. With no resolved user they decline
+          // rather than query unscoped (the privacy invariant, tested first).
+          tools = createCallTools({
+            callerUserId: userId,
+            callerNumber: from,
+            repo: toolsRepo,
+            logger,
+            onTrace: ({ toolName, args, result, latencyMs }) => {
+              traceSeq += 1;
+              callLog.recordTrace({
+                waCallId: callId, seq: traceSeq, kind: 'tool',
+                toolName, args, result, latencyMs,
+              }).catch(() => undefined);
+            },
+          });
+
           const instructions = buildCallPrompt({ language, contextBlock: block, callerName });
 
           logToFile('[calls] context assembled', {
