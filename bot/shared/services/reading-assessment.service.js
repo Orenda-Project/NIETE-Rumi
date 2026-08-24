@@ -1,6 +1,6 @@
 const WhatsAppService = require('./whatsapp.service');
 const { resolveUx } = require('../config/ux-strings');
-const supabase = require('../config/supabase');
+const ConversationState = require('./conversation-state.service');
 const redisService = require('./cache/railway-redis.service');
 const { logToFile } = require('../utils/logger');
 const { getClient } = require('./llm-client');
@@ -117,97 +117,25 @@ class ReadingAssessmentService {
 
       await WhatsAppService.sendInteractiveMessage(phoneNumber, languageList);
 
-      // Create conversation state record (INSERT first to ensure it exists)
-      // If a conversation record already exists for this session, we'll update it instead
-      // CRITICAL: Check for errors from BOTH query and insert operations
-      const { data: existingConversation, error: queryError } = await supabase
-        .from('conversations')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('session_id', sessionId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(); // Use maybeSingle() instead of single() to avoid error when no rows found
-
-      if (queryError) {
-        logToFile('❌ Error querying existing conversation', {
-          userId,
-          sessionId,
-          error: queryError.message,
-          code: queryError.code
-        });
-      }
-
-      if (existingConversation) {
-        // Update existing conversation record
-        const { error: updateError } = await supabase
-          .from('conversations')
-          .update({
-            current_state: 'AWAITING_READING_LANGUAGE'
-            // Note: conversations table has no updated_at column
-          })
-          .eq('id', existingConversation.id);
-
-        if (updateError) {
-          logToFile('❌ Error updating conversation state', {
-            conversationId: existingConversation.id,
-            error: updateError.message,
-            code: updateError.code
-          });
-          throw updateError;
-        }
-
-        logToFile('✅ Updated existing conversation state', {
-          conversationId: existingConversation.id,
-          newState: 'AWAITING_READING_LANGUAGE'
-        });
-      } else {
-        // Insert new conversation record for state tracking
-        const insertData = {
-          user_id: userId,
-          session_id: sessionId,
-          role: 'system',
-          content: 'Reading assessment initiated',
-          message_type: 'system',
-          current_state: 'AWAITING_READING_LANGUAGE'
-          // Note: created_at has default value now(), no need to specify
-          // conversations table has no updated_at column
-        };
-
-        logToFile('🔄 Attempting to insert conversation record', {
-          userId,
-          sessionId,
-          insertData
-        });
-
-        const { data: insertedData, error: insertError } = await supabase
-          .from('conversations')
-          .insert(insertData)
-          .select();
-
-        if (insertError) {
-          logToFile('❌ CRITICAL: Conversation INSERT failed', {
-            userId,
-            sessionId,
-            error: insertError.message,
-            code: insertError.code,
-            details: insertError.details,
-            hint: insertError.hint,
-            insertData
-          });
-          throw insertError;
-        }
-
-        logToFile('✅ Conversation record created successfully', {
-          insertedId: insertedData?.[0]?.id,
-          currentState: insertedData?.[0]?.current_state
-        });
-      }
+      // one write, keyed on the teacher.
+      //
+      // This replaces ~85 lines of insert-or-update against `conversations`: query
+      // the newest row for the session, UPDATE it if found, otherwise INSERT a
+      // synthetic role:'system' row purely to carry a state string. That put
+      // conversational state on the append-only message log, invented fake messages
+      // to hold it, and scoped it to a session that rotates after 30 minutes idle.
+      //
+      // 1 hour: she is picking a language from a list that is on screen right now.
+      await ConversationState.setState(userId, {
+        flow: 'reading',
+        step: 'AWAITING_READING_LANGUAGE',
+        payload: { sessionId, studentIdentifier },
+        ttlSeconds: 3600,
+      });
 
       logToFile('✅ Reading assessment initiated - awaiting language selection', {
         userId,
         studentIdentifier,
-        conversationCreated: !existingConversation
       });
 
       return { success: true, studentIdentifier };
@@ -320,42 +248,19 @@ class ReadingAssessmentService {
 
       await WhatsAppService.sendInteractiveMessage(phoneNumber, gradeList);
 
-      // Update conversation state
-      const { data: updateData, error: stateUpdateError } = await supabase
-        .from('conversations')
-        .update({
-          current_state: 'AWAITING_READING_GRADE'
-          // Note: conversations table has no updated_at column
-        })
-        .eq('user_id', userId)
-        .eq('session_id', sessionId)
-        .select();
-
-      if (stateUpdateError) {
-        logToFile('❌ Failed to update conversation state to AWAITING_READING_GRADE', {
-          userId,
-          sessionId,
-          error: stateUpdateError.message,
-          code: stateUpdateError.code,
-          details: stateUpdateError.details
-        });
-        throw stateUpdateError;
-      }
-
-      if (!updateData || updateData.length === 0) {
-        logToFile('⚠️ No conversation record found to update', {
-          userId,
-          sessionId,
-          hint: 'Conversation record may not exist - need to create one first'
-        });
-        throw new Error('No conversation record found to update state');
-      }
+      // one write, keyed on the teacher. Was an unbounded UPDATE on
+      // `conversations` matching user_id + session_id, so it rewrote EVERY message
+      // row in the session to carry a state string. She is picking a grade from a list already on screen.
+      await ConversationState.setState(userId, {
+        flow: 'reading',
+        step: 'AWAITING_READING_GRADE',
+        payload: { sessionId, language },
+        ttlSeconds: 3600,
+      });
 
       logToFile('✅ Language selected - awaiting grade level', {
         userId,
         language,
-        updatedRecords: updateData.length,
-        newState: updateData[0]?.current_state
       });
 
       return { success: true };
@@ -464,41 +369,18 @@ class ReadingAssessmentService {
         userLanguage
       );
 
-      // Update conversation state
-      const { data: updateData, error: stateUpdateError } = await supabase
-        .from('conversations')
-        .update({
-          current_state: 'AWAITING_READING_AUDIO'
-          // Note: conversations table has no updated_at column
-        })
-        .eq('user_id', userId)
-        .eq('session_id', sessionId)
-        .select();
-
-      if (stateUpdateError) {
-        logToFile('❌ Failed to update conversation state to AWAITING_READING_AUDIO', {
-          userId,
-          sessionId,
-          error: stateUpdateError.message,
-          code: stateUpdateError.code,
-          details: stateUpdateError.details
-        });
-        throw stateUpdateError;
-      }
-
-      if (!updateData || updateData.length === 0) {
-        logToFile('⚠️ No conversation record found to update', {
-          userId,
-          sessionId,
-          hint: 'Conversation record may not exist - need to create one first'
-        });
-        throw new Error('No conversation record found to update state');
-      }
+      // one write, keyed on the teacher. Was an unbounded UPDATE on
+      // `conversations` matching user_id + session_id, so it rewrote EVERY message
+      // row in the session to carry a state string. Six hours: she has to find the child and record them.
+      await ConversationState.setState(userId, {
+        flow: 'reading',
+        step: 'AWAITING_READING_AUDIO',
+        payload: { sessionId },
+        ttlSeconds: 21600,
+      });
 
       logToFile('✅ Passage generation initiated', {
         assessmentId: assessment.id,
-        updatedRecords: updateData.length,
-        newState: updateData[0]?.current_state
       });
 
       return { success: true, assessmentId: assessment.id };

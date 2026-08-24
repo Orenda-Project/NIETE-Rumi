@@ -47,6 +47,7 @@
  */
 
 const supabase = require('../config/supabase');
+const ConversationState = require('../services/conversation-state.service');
 const PassageGenerationService = require('../services/reading/passage-generation.service');
 const AutoLevelOrchestratorService = require('../services/reading/auto-level-orchestrator.service');
 const WhatsAppService = require('../services/whatsapp.service');
@@ -390,24 +391,22 @@ async function handleReadingAssessmentFlow(message, phoneNumber, userId) {
       assessmentId: assessment.id
     });
 
-    // Update conversation state. Comprehension/assessment context lives in Redis
-    // (see redis-comprehension.service), not a conversations column — writing a
-    // non-existent context_data column here previously failed the whole update,
-    // so current_state never persisted.
-    const { error: updateError } = await supabase
-      .from('conversations')
-      .update({
-        current_state: 'AWAITING_READING_AUDIO'
-      })
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    if (updateError) {
-      logToFile('⚠️ Warning: Could not update conversation state', {
-        error: updateError.message
-      });
-    }
+    // the teacher now owes us a recording of her student reading.
+    //
+    // This used to stamp `current_state` onto her newest `conversations` row, which
+    // put the state on a message-log entry with a lifetime of "until the next
+    // message". It also used `.update().eq().order().limit()`, which PostgREST does
+    // not support as a bounded update — the order/limit are ignored, so this was
+    // rewriting EVERY conversation row for the user.
+    //
+    // 6 hours: she has to get to the child and record them, which may be the next
+    // lesson or after school.
+    await ConversationState.setState(userId, {
+      flow: 'reading',
+      step: 'AWAITING_READING_AUDIO',
+      payload: { assessmentId: assessment.id },
+      ttlSeconds: 21600,
+    });
 
     return true;
 
@@ -679,7 +678,7 @@ async function handleTeacherTrainingFlow(message, phoneNumber, userId) {
     const QuizDelivery = require('../services/training/quiz-delivery.service');
     return await QuizDelivery.startGrandQuiz(userId, levelOrder, phoneNumber);
   }
-  // bd-2451 — a refusal used to land here and fall through to `return true`,
+  // a refusal used to land here and fall through to `return true`,
   // so the bot said nothing at all. The Flow's SUCCESS screen is terminal, so
   // from the teacher's side the Flow just closed and the chat stayed silent —
   // reported as "I tapped the locked one and it never replied to me". The
@@ -873,12 +872,65 @@ async function _continueObserveLoop(target, user, phoneNumber, userId) {
   }
 }
 
+/**
+ * Acknowledge a /status Flow completion in the CHAT.
+ *
+ * The endpoint already did every write before the Flow closed, so this only
+ * acknowledges — it must not re-persist or re-clear anything. Without it the
+ * completion fell to whatsapp-bot.js's "Unknown flow type" arm and answered
+ * "Thanks for your response! Type /menu…", which told a teacher who had just
+ * stopped a task nothing about it. Same failure the `remark` and `observe_visit`
+ * branches exist to prevent.
+ *
+ * Only the STOP gets a chat line, and that is deliberate:
+ *
+ *  · cancelled — a state change she may want to look back on tomorrow, after the
+ *    Flow's SUCCESS screen is long gone. The chat is the only persistent record.
+ *  · resumed   — the SUCCESS screen already told her to reply here to pick up, and
+ *    the state is untouched, so a chat line would say the same thing twice. The
+ *    remark branch calls this out explicitly: "ONE message, not two."
+ *  · done/idle/noop — she closed a menu. Nothing happened; saying so is noise.
+ *
+ * Reuses `resumeDiscarded`, which is already the bilingual copy for "that one is
+ * closed" — no new string, so no language-registry surface added (root CLAUDE.md
+ * Rule 20).
+ *
+ * @returns {Promise<boolean>} always true — the completion was recognised and
+ *   handled, whatever the action was. The caller uses this only to know it should
+ *   not fall through to the generic ack.
+ */
+async function handleStatusFlowCompletion(responseJson, from, user) {
+  const action = (responseJson && responseJson.status_action) || 'done';
+
+  logToFile('📋 Status flow completion', {
+    from,
+    action,
+    resourceKind: (responseJson && responseJson.resource_kind) || null,
+  });
+
+  if (action === 'cancelled') {
+    try {
+      const { resolveUx } = require('../config/ux-strings');
+      await WhatsAppService.sendMessage(from, resolveUx('resumeDiscarded', { user }));
+    } catch (err) {
+      // The cancel itself already succeeded inside the Flow; a failed ack must not
+      // read as a failed cancel, so this is logged and swallowed.
+      logToFile('⚠️ status cancel ack failed (the stop itself already applied)', {
+        from, error: err.message,
+      });
+    }
+  }
+
+  return true;
+}
+
 module.exports = {
   handleFlowResponse,
   handleReadingAssessmentFlow,
   handleRegistrationFlow,
   handleTeacherTrainingFlow,
   handleObserveVisitFlow,
+  handleStatusFlowCompletion,
   mapLevelToPassageType,
   READING_ASSESSMENT_FLOW_ID,
   REGISTRATION_FLOW_ID

@@ -4059,6 +4059,17 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS training_bands VARCHAR(16)[];
 ALTER TABLE users ADD COLUMN IF NOT EXISTS training_bands_updated_at TIMESTAMPTZ;
 CREATE UNIQUE INDEX IF NOT EXISTS ux_users_teacher_uuid ON users(teacher_uuid) WHERE teacher_uuid IS NOT NULL;
 
+-- V1.1.1 — the ONE home for active conversational state, keyed on the teacher.
+-- Replaces conversations.current_state (a message-log row), the never-existing
+-- conversations.conversation_state, and the no-op clear on chat_sessions.
+-- Mirrors the registration_state / registration_state_updated_at pair above it;
+-- see migrations/V1.1.1__conversation_state.sql for the Rule-15 reasoning.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS conversation_state JSONB;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS conversation_state_expires_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_users_conversation_state_expiry
+  ON users (conversation_state_expires_at)
+  WHERE conversation_state IS NOT NULL;
+
 -- ---------------------------------------------------------------------------
 -- Curriculum LP AST (added 2026-07-12 — see docs/migration/01-lesson-plans.md)
 --
