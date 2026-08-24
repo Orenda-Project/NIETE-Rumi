@@ -25,6 +25,9 @@ jest.mock('../../shared/services/observe/observe-capture.service', () => ({
 jest.mock('../../shared/services/observe/observe-debrief.service', () => ({
   startDebriefFromAudio: jest.fn().mockResolvedValue(true),
 }));
+jest.mock('../../shared/services/observe/observe-binding.service', () => ({
+  parkAndAsk: jest.fn().mockResolvedValue({ action: 'asked' }),
+}));
 
 // FEAT-102: routeLeaderAudio is dark-safe — inert unless the market has an
 // observe Flow published (OBSERVE_MEWAKA_FLOW_ID). These tests exercise the
@@ -68,7 +71,7 @@ describe('routeLeaderAudio — armed states (the bug: these never fired for file
   test('awaiting_audio → observation capture, handled', async () => {
     ObserveState.getState.mockResolvedValue({ state: 'awaiting_audio' });
     expect(await call()).toBe(true);
-    expect(ObserveCapture.startFromAudio).toHaveBeenCalledWith(LEADER, FROM, AUDIO, SESSION);
+    expect(ObserveCapture.startFromAudio).toHaveBeenCalledWith(LEADER, FROM, AUDIO, SESSION, null);
   });
 
   test('awaiting_debrief_audio → debrief capture, handled', async () => {
@@ -86,11 +89,11 @@ describe('routeLeaderAudio — armed states (the bug: these never fired for file
 });
 
 describe('routeLeaderAudio — no observe state', () => {
-  test('LONG audio, no state → nudge to /observe, handled (NEVER teacher coaching)', async () => {
+  test('LONG audio, no state → parked + asked, handled (NEVER teacher coaching) [bd-tju8f]', async () => {
     expect(await call({ isLongAudio: true })).toBe(true);
     expect(ObserveCapture.startFromAudio).not.toHaveBeenCalled();
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
-    expect(WhatsAppService.sendMessage.mock.calls[0][1]).toMatch(/observe/i);
+    const ObserveBinding = require('../../shared/services/observe/observe-binding.service');
+    expect(ObserveBinding.parkAndAsk).toHaveBeenCalledTimes(1);
   });
 
   test('SHORT audio, no state → not handled (leader can still chat normally)', async () => {
@@ -103,7 +106,8 @@ describe('routeLeaderAudio — resilience', () => {
   test('state lookup failure on LONG audio → still blocks teacher coaching (fail safe)', async () => {
     ObserveState.getState.mockRejectedValue(new Error('redis down'));
     expect(await call({ isLongAudio: true })).toBe(true);
-    expect(WhatsAppService.sendMessage).toHaveBeenCalled();
+    const ObserveBinding = require('../../shared/services/observe/observe-binding.service');
+    expect(ObserveBinding.parkAndAsk).toHaveBeenCalled();
   });
 
   test('capture failure on LONG audio → handled, never falls into teacher coaching', async () => {

@@ -155,6 +155,43 @@ async function listUnsentReports(observerUserId, opts = {}) {
   return _withObservedTeacher(open);
 }
 
+/**
+ * bd-tju8f — stage A of the coach's worklist: observations not yet at the FICO
+ * form. Everything here is RESUMABLE (audio + transcript live on the row); the
+ * `resume` field says which step a tap re-enters:
+ *   gate  → re-send the photo/LP prompt (with its normal skip path)
+ *   form  → re-send the FICO form Flow (awaiting_observer_review)
+ *   retry → re-queue analysis (failed, or silently stuck mid-pipeline), bounded
+ *   wait  → fresh pipeline still working — informational row, no action
+ */
+const STAGE_A_STATUSES = ['confirmed', 'transcribing', 'analyzing', 'analysis_started',
+  'analysis_complete', 'awaiting_photo', 'awaiting_classroom_photo', 'awaiting_lesson_plan',
+  'awaiting_observer_review', 'failed'];
+
+function resumeKindFor(status, updatedAt, nowMs = Date.now()) {
+  if (['awaiting_photo', 'awaiting_classroom_photo', 'awaiting_lesson_plan'].includes(status)) return 'gate';
+  if (status === 'awaiting_observer_review') return 'form';
+  if (status === 'failed') return 'retry';
+  const ageMin = (nowMs - Date.parse(updatedAt || 0)) / 60000;
+  return ageMin > 30 ? 'retry' : 'wait';   // a 30-min-silent pipeline is stuck, not working
+}
+
+async function listUnfinished(observerUserId, opts = {}) {
+  const limit = opts.limit == null ? MAX_PENDING_ROWS : opts.limit;
+  const { data, error } = await supabase
+    .from('coaching_sessions')
+    .select('id, status, created_at, updated_at, analysis_data')
+    .eq('observer_user_id', observerUserId)
+    .eq('observation_type', 'leader_observation')
+    .eq('debrief_status', 'pending')
+    .in('status', STAGE_A_STATUSES)
+    .order('created_at', { ascending: false })
+    .range(0, limit - 1);
+  if (error) throw new Error(`listUnfinished failed: ${error.message}`);
+  const rows = await _withObservedTeacher(data || []);
+  return rows.map((r) => ({ ...r, resume: resumeKindFor(r.status, r.updated_at) }));
+}
+
 /** Total rows waiting for this coach — drives the "show more" decision. */
 async function countPending(observerUserId) {
   const [p, u] = await Promise.all([
@@ -209,7 +246,7 @@ function _rowDescription(analysisData, S) {
  * Interactive-list payload for sendInteractiveMessage: one row per pending
  * debrief + the "start a new observation" sentinel. Max 10 rows total.
  */
-function buildPendingListPayload(pendings, S, unsentReports = []) {
+function buildPendingListPayload(pendings, S, unsentReports = [], unfinished = []) {
   // bd-2669: lead with WHO, not when. A coach with two pending debriefs could
   // not tell them apart from a date and a focus-area line (Aleeha R28, Riffat
   // R29). The name comes from the linked observation_schedules row; legacy
@@ -237,18 +274,33 @@ function buildPendingListPayload(pendings, S, unsentReports = []) {
         : S.list_send_default_desc).slice(0, 72),
     };
   });
-  const rows = [...debriefRows, ...sendRows].slice(0, MAX_PENDING_ROWS);
-  rows.push({
-    id: LIST_NEW_ID,
-    title: S.list_new_observation.slice(0, 24),
-    description: S.list_new_observation_desc.slice(0, 72),
+  // bd-tju8f: three labelled stage sections inside the WhatsApp 10-row cap.
+  // Priority when over budget: stage A (the previously-INVISIBLE backlog this
+  // exists for) → debriefs → sends; the new-observation sentinel always ships.
+  const unfinishedRows = (unfinished || []).map((u) => ({
+    id: `observe_resume_${u.id}`,
+    title: `📝 ${u.teacher_name || _rowTitle(u.created_at)}`.slice(0, 24),
+    description: String(S[`resume_desc_${u.resume}`] || S.resume_desc_gate || '').slice(0, 72),
+  }));
+  const budget = MAX_PENDING_ROWS;   // 9 + the sentinel = 10 (WhatsApp cap)
+  const a = unfinishedRows.slice(0, budget);
+  const b = debriefRows.slice(0, Math.max(0, budget - a.length));
+  const c = sendRows.slice(0, Math.max(0, budget - a.length - b.length));
+  const sections = [];
+  if (a.length) sections.push({ title: String(S.section_stage_a || S.list_section_title).slice(0, 24), rows: a });
+  if (b.length) sections.push({ title: String(a.length ? (S.section_stage_b || S.list_section_title) : S.list_section_title).slice(0, 24), rows: b });
+  if (c.length) sections.push({ title: String((a.length || S.section_stage_c) ? (S.section_stage_c || S.list_section_title) : S.list_section_title).slice(0, 24), rows: c });
+  sections.push({
+    title: String(S.list_section_new || S.list_section_title).slice(0, 24),
+    rows: [{
+      id: LIST_NEW_ID,
+      title: S.list_new_observation.slice(0, 24),
+      description: S.list_new_observation_desc.slice(0, 72),
+    }],
   });
   return {
     body: S.list_body,
-    action: {
-      button: S.list_button,
-      sections: [{ title: S.list_section_title.slice(0, 24), rows }],
-    },
+    action: { button: S.list_button, sections },
   };
 }
 
@@ -668,6 +720,8 @@ async function processDebriefRecording(sessionId, payload = {}) {
 }
 
 module.exports = {
+  listUnfinished,
+  resumeKindFor,
   parseDebriefButtonId,
   parseDebriefListReplyId,
   buildDebriefChoiceButtons,

@@ -737,6 +737,14 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
       return true;
     }
 
+    if (visitAction === 'resume') {
+      // bd-tju8f: a stage-A row tapped inside the visit Flow re-enters the
+      // observation at its own step (photo/LP prompt, form re-send, retry).
+      const ObserveResume = require('../services/observe/observe-resume.service');
+      await ObserveResume.resume(responseJson.session_id, phoneNumber, user);
+      return true;
+    }
+
     if (visitAction === 'debrief') {
       const ObserveDebrief = require('../services/observe/observe-debrief.service');
       await ObserveDebrief.startDebrief(responseJson.session_id, phoneNumber, user);

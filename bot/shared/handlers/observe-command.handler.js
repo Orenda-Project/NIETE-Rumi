@@ -264,9 +264,11 @@ async function handleObserveCommand(user, from, messageBody) {
       try {
         const pendings = await ObserveDebrief.listPendingDebriefs(user.id);
         const unsent = await ObserveDebrief.listUnsentReports(user.id).catch(() => []);
-        if (pendings.length > 0 || unsent.length > 0) {
+        // bd-tju8f: stage A — the previously-invisible pre-form backlog.
+        const unfinished = await ObserveDebrief.listUnfinished(user.id).catch(() => []);
+        if (pendings.length > 0 || unsent.length > 0 || unfinished.length > 0) {
           await WhatsAppService.sendInteractiveMessage(
-            from, ObserveDebrief.buildPendingListPayload(pendings, S, unsent));
+            from, ObserveDebrief.buildPendingListPayload(pendings, S, unsent, unfinished));
           return true;
         }
       } catch (err) {

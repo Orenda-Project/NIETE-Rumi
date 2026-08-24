@@ -191,44 +191,36 @@ describe('bd-jrxo3 1.2.b — only "unavailable" still arms a bare capture', () =
 });
 
 // ── 1.2.c ────────────────────────────────────────────────────────────────────
-describe('bd-jrxo3 1.2.c — the back door: audio with nothing armed', () => {
+// bd-tju8f superseded the redirect-and-resend back door: an unbound
+// classroom-length recording is now PARKED and the coach picks the teacher
+// from a list — the recording is consumed on the pick, never re-sent. The
+// picker-screen specifics this block used to assert live inside
+// observe-binding.service (the "another teacher" row) and are covered by
+// bd-tju8f-binding.test.js.
+jest.mock('../../shared/services/observe/observe-binding.service', () => ({
+  parkAndAsk: jest.fn(async () => ({ action: 'asked' })),
+}));
+const ObserveBinding = require('../../shared/services/observe/observe-binding.service');
+
+describe('bd-tju8f 1.2.c — the back door: audio with nothing armed is parked and asked', () => {
   const audio = (over = {}) => routeLeaderAudio({
     user: COACH(), from: FROM, audioId: 'a-1', sessionId: 's-1', isLongAudio: true, ...over,
   });
 
-  it('redirects instead of dead-ending, and writes no session',
+  it('parks and asks instead of dead-ending — no session, no nudge to re-send',
     withVisitFlow(async () => {
       expect(await audio()).toBe(true);
       expect(ObserveCapture.startFromAudio).not.toHaveBeenCalled();
+      expect(ObserveBinding.parkAndAsk).toHaveBeenCalledTimes(1);
       const sent = WhatsAppService.sendMessage.mock.calls.map((c) => c[1]);
-      expect(sent).toContain(observeStrings('ur').redirect_pick_teacher);
       expect(sent).not.toContain(observeStrings('ur').long_audio_no_state);
+      expect(sent).not.toContain(observeStrings('ur').redirect_pick_teacher);
     }));
 
-  it('opens the picker on the school screen so she can act on the line she just read',
-    withVisitFlow(async () => {
-      VisitFlow.schoolsScreenV2.mockResolvedValue({
-        screen: 'SELECT_SCHOOL', data: { options: [{ id: 'niete:401', title: 'IMCB Bhara Kau' }] },
-      });
-      await audio();
-      expect(WhatsAppService.sendFlow).toHaveBeenCalledWith(FROM, expect.objectContaining({
-        flowId: VISIT, screen: 'SELECT_SCHOOL',
-      }));
-    }));
-
-  it('opens the MENU instead when she has no schools yet — the only place to add one',
-    withVisitFlow(async () => {
-      VisitFlow.schoolsScreenV2.mockResolvedValue({ screen: 'SELECT_SCHOOL', data: { options: [] } });
-      await audio();
-      const arg = WhatsAppService.sendFlow.mock.calls[0][1];
-      expect(arg.screen).toBeUndefined();
-    }));
-
-  it('keeps today\'s behaviour exactly in a market with no picker',
+  it('parks and asks in a market with no picker too — the wall is universal',
     withoutVisitFlow(async () => {
       expect(await audio()).toBe(true);
-      const sent = WhatsAppService.sendMessage.mock.calls.map((c) => c[1]);
-      expect(sent).toContain(observeStrings('ur').long_audio_no_state);
+      expect(ObserveBinding.parkAndAsk).toHaveBeenCalledTimes(1);
       expect(WhatsAppService.sendFlow).not.toHaveBeenCalled();
     }));
 
