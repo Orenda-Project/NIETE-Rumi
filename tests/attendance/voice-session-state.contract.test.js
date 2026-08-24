@@ -139,26 +139,42 @@ describe('disarming', () => {
     expect(await voice.armed(USER)).toBeNull();
   });
 
-  it('leaves another feature\'s state alone', async () => {
+  it('leaves another feature\'s state alone, and writes nothing', async () => {
     // bd-43517's other half: an unconditional clear is how one feature finishing
     // wiped another feature's state.
     await ConversationState.setState(USER, { flow: 'coaching', step: 'awaiting_audio', ttlSeconds: 600 });
+    const before = mockCounters.writes;
 
     expect(await voice.disarm(USER)).toBe(false);
+    // The write count is what makes `false` mean something. Without it this case
+    // passes just as happily on a clear that returned false AFTER wiping the row.
+    expect(mockCounters.writes).toBe(before);
     expect((await ConversationState.getState(USER)).flow).toBe('coaching');
   });
 
-  it('is a harmless no-op on an already-expired wait', async () => {
-    // clearState issues NO write once the row is past its deadline (bd-43517). That
-    // is fine HERE and this test says why: an expired wait already reads as "not
-    // waiting", so nothing downstream can act on the row it declines to clear.
+  it('clears an already-expired wait — the row must really go', async () => {
+    // This used to assert a no-op returning false, reasoning that an expired wait
+    // "already reads as not waiting, so nothing downstream can act on the row it
+    // declines to clear". True of THIS surface, wrong globally, and bd-43517 is the
+    // difference: sweepExpired takes a limit-100 window with no ORDER BY, so a row
+    // that is never cleared sits at the front of that window permanently and newer
+    // expired state stops being swept at all.
+    //
+    // So `false` now means exactly one thing - "not mine, untouched". An expired
+    // wait is still OURS, so it is cleared and reported as cleared. Whose state this
+    // is and whether it is still live are separate questions; conflating them was
+    // the bug.
     await voice.arm(USER, { schoolId: 'sch1' });
     mockRows.set(USER, {
       ...mockRows.get(USER),
       conversation_state_expires_at: new Date(Date.now() - 60_000).toISOString(),
     });
+    const before = mockCounters.writes;
 
-    expect(await voice.disarm(USER)).toBe(false);
+    expect(await voice.disarm(USER)).toBe(true);
+    // The write IS the fix. Asserting only the return value would pass on a version
+    // that reports success and still writes nothing - the original bug exactly.
+    expect(mockCounters.writes).toBe(before + 1);
     expect(await voice.armed(USER)).toBeNull();
     expect(await voice.pendingResult(USER)).toBeNull();
   });
