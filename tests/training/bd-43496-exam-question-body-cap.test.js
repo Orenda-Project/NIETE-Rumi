@@ -275,11 +275,48 @@ describe('bd-43496 — an oversized single-answer question routes to the MSQ Flo
     process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
     seed({ questionLen: 400, optionLen: 200, correct: '2' });
     const data = await svc().buildMsqFlowScreenData(UID, ATTEMPT, 0);
-    // 200-char options cannot fit an 80-char CheckboxGroup title, so the full
-    // text has to survive in `description` — the whole point of the Flow route.
+    // A 200-char option fits the 300-char description in full — the whole point
+    // of the Flow route. Nothing should be cut at this length.
     for (const o of data.options) {
-      expect(o.description.length).toBeGreaterThan(80);
+      expect(o.description.length).toBe(201);   // 200 x 'o' + the index digit
+      expect(o.description).not.toMatch(/…$/);
     }
+  });
+
+  // The title cap is 30, not 80. Sending a longer one let the DEVICE clip it
+  // mid-word, and the description then repeated the same opening text.
+  it('keeps option titles inside Meta\'s 30-char cap', async () => {
+    process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
+    seed({ questionLen: 400, optionLen: 200, correct: '2' });
+    const data = await svc().buildMsqFlowScreenData(UID, ATTEMPT, 0);
+    for (const o of data.options) {
+      expect([...o.title].length).toBeLessThanOrEqual(30);
+    }
+  });
+
+  it('letters the options instead of repeating the answer text in the title', async () => {
+    process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
+    seed({ questionLen: 400, optionLen: 200, correct: '2' });
+    const data = await svc().buildMsqFlowScreenData(UID, ATTEMPT, 0);
+    expect(data.options.map(o => o.title)).toEqual(['A.', 'B.', 'C.', 'D.']);
+    // The title must not be a prefix of its own description — that duplication
+    // wasted the row's most visible line.
+    for (const o of data.options) {
+      expect(o.description.startsWith(o.title)).toBe(false);
+    }
+  });
+
+  it('marks a genuinely over-long option with an ellipsis, cut on a word', async () => {
+    process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
+    // Real words so the word-boundary cut is observable; 400 chars > the 300 cap.
+    const long = 'alpha bravo charlie delta echo foxtrot golf hotel '.repeat(9);
+    seed({ questionLen: 100, optionLen: 10, correct: '2' });
+    tableStates.training_questions.rows[0].options = [long, 'b', 'c', 'd'];
+    const data = await svc().buildMsqFlowScreenData(UID, ATTEMPT, 0);
+    const cut = data.options.find(o => o.id === '1');
+    expect([...cut.description].length).toBeLessThanOrEqual(300);
+    expect(cut.description).toMatch(/…$/);
+    expect(cut.description).not.toMatch(/\s…$/);   // no dangling space before it
   });
 
   it('grades a single-answer Flow submission correctly', async () => {
