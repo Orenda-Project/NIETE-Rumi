@@ -26,9 +26,12 @@ const dedupId = (sessionId, jobType, payload = {}) =>
   `${sessionId}-${jobType}${payload.phase ? `-${payload.phase}` : ''}`;
 
 describe('bd-2652 — SQS FIFO dedup must distinguish the observe phases', () => {
-  it('the shipped MessageDeduplicationId includes the phase', () => {
+  it('the shipped MessageDeduplicationId delegates to buildDedupId (phase + nonce aware)', () => {
+    // bd-lh9c2: the inline phase-only expression was replaced by the helper —
+    // which carries phase AND the per-recording dedupNonce. The behavioural
+    // proof (mocked SQS params) lives in bd-lh9c2-dedup-nonce-wired.test.js.
     expect(KEY_LINE).toBeDefined();
-    expect(KEY_LINE).toMatch(/phase/);
+    expect(KEY_LINE).toMatch(/buildDedupId\(sessionId, jobType, payload\)/);
   });
 
   it('preview and deliver on one session get DIFFERENT dedup ids', () => {

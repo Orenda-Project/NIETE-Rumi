@@ -61,7 +61,9 @@ async function loadSessionFromToken(flowToken) {
 async function bufferEdits(sessionId, screenData) {
   const edits = {};
   Object.entries(screenData || {}).forEach(([k, v]) => {
-    if (/^(r|ev|imp)_/.test(k)) edits[k] = v;
+    // fid_ = the v4 per-move fidelity fields (bd-c5zs1): fid_r_k verdict radios
+    // and fid_e_k evidence boxes, applied by rescoreFidelityFromEdits on submit.
+    if (/^(r|ev|imp|fid)_/.test(k)) edits[k] = v;
   });
   let existing = {};
   try {

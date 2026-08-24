@@ -840,8 +840,13 @@ async function handleVoiceMessage(message, from, user = null) {
           try {
             const { data: latestCoaching } = await supabase
               .from('coaching_sessions')
-              .select('id, status, created_at')
+              .select('id, status, created_at, observation_type')
               .eq('user_id', user.id)
+              // bd-0c80s: bound observe captures own user_id=teacher — exclude
+              // them HERE, not post-hoc, or an observe row shadows her own
+              // slightly-older mid-flight session behind limit(1). The or()
+              // form keeps pre-column NULL rows (neq alone drops them).
+              .or('observation_type.is.null,observation_type.neq.leader_observation')
               .order('created_at', { ascending: false })
               .limit(1)
               .maybeSingle();
