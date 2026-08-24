@@ -733,6 +733,31 @@ app.post('/webhook', async (req, res) => {
         const sessionId = buttonId.replace('coaching_cancel_', '');
         await CoachingService.handleConfirmation(sessionId, from, false);
       }
+      // bd-tju8f — resume / cancel family. ORDER: the *_yes_/_no_ variants must
+      // precede the bare observe_cancel_ prefix they share.
+      else if (buttonId.startsWith('observe_cancel_yes_')) {
+        const ObserveResume = require('./shared/services/observe/observe-resume.service');
+        if (user) await ObserveResume.cancelObservation(buttonId.replace('observe_cancel_yes_', ''), from, user);
+      }
+      else if (buttonId.startsWith('observe_cancel_no_')) {
+        const ObserveResume = require('./shared/services/observe/observe-resume.service');
+        if (user) await ObserveResume.keepObservation(buttonId.replace('observe_cancel_no_', ''), from, user);
+      }
+      else if (buttonId.startsWith('observe_cancel_')) {
+        const ObserveResume = require('./shared/services/observe/observe-resume.service');
+        if (user) await ObserveResume.askCancel(buttonId.replace('observe_cancel_', ''), from, user);
+      }
+      else if (buttonId.startsWith('observe_form_')) {
+        const ObserveResume = require('./shared/services/observe/observe-resume.service');
+        if (user) await ObserveResume.sendForm(buttonId.replace('observe_form_', ''), from, user);
+      }
+      else if (buttonId.startsWith('observe_retry_')) {
+        const ObserveResume = require('./shared/services/observe/observe-resume.service');
+        if (user) await ObserveResume.runRetry(buttonId.replace('observe_retry_', ''), from, user);
+      }
+      else if (buttonId.startsWith('observe_ok_')) {
+        logToFile('🔁 observe-resume: wait acknowledged', { buttonId });
+      }
       // FEAT-102 /observe buttons — teacher-manage / send-to-teacher / debrief
       else if (buttonId.startsWith('observe_tmg_')) {
         const ObserveSend = require('./shared/services/observe/observe-send.service');
@@ -2050,6 +2075,17 @@ app.post('/webhook', async (req, res) => {
         if (user) await ObserveSend.handleTeacherPick(user, from, listId);
         else logToFile('⚠️ observe teacher-pick tap without user', { listId });
       }
+      // bd-tju8f — stage-A resume rows + the binding-prompt rows.
+      else if (listId.startsWith('observe_resume_')) {
+        const ObserveResume = require('./shared/services/observe/observe-resume.service');
+        if (user) await ObserveResume.resume(listId.replace('observe_resume_', ''), from, user);
+        else logToFile('⚠️ observe resume tap without user', { listId });
+      }
+      else if (listId.startsWith('observe_bind_')) {
+        const ObserveBinding = require('./shared/services/observe/observe-binding.service');
+        if (user) await ObserveBinding.handleBindingTap(listId, from, user);
+        else logToFile('⚠️ observe bind tap without user', { listId });
+      }
       // Unsent-report rows (observe_send_<sessionId>).
       else if (listId.startsWith('observe_send_')) {
         const ObserveSend = require('./shared/services/observe/observe-send.service');
@@ -2064,7 +2100,11 @@ app.post('/webhook', async (req, res) => {
         logToFile('🔭 Observe debrief-list row tapped', { listId, from });
         if (parsed && user) {
           if (parsed.action === 'debrief') {
-            await ObserveDebrief.startDebrief(parsed.sessionId, from, user);
+            // bd-tju8f: a parked debrief recording (the binding sheet's "this is
+            // a debrief" row) is consumed by THIS pick — she never re-sends it.
+            const ObserveBinding = require('./shared/services/observe/observe-binding.service');
+            const consumedParked = await ObserveBinding.consumeParkedDebrief(user, from, parsed.sessionId);
+            if (!consumedParked) await ObserveDebrief.startDebrief(parsed.sessionId, from, user);
           } else {
             // "new observation" — same arm as /observe's capture path.
             // bd-2432 (upstream bd-2330): an assigned coach reaches the
@@ -2254,6 +2294,20 @@ async function handleDocumentMessage(message, from, user) {
 
         // Route short audio documents to voice handler for transcription
         // Instead of showing confusing "send classroom audio first" message
+        // bd-tju8f: a LEADER's audio document is never "just a short audio" —
+        // hand the router the resolved duration and let the wall decide (an
+        // armed debrief consumes it; unbound classroom-length goes to binding).
+        if (user) {
+          const { isSchoolLeader } = require('./shared/services/observe/observe-gate');
+          if (isSchoolLeader(user)) {
+            const { routeLeaderAudio } = require('./shared/services/observe/observe-audio-router');
+            const shortDocHandled = await routeLeaderAudio({
+              user, from, audioId: documentId, sessionId: null,
+              durationSeconds: audioDurationRounded || null,
+            });
+            if (shortDocHandled) return;
+          }
+        }
         logToFile('🎤 Audio document < 15 min, routing to voice handler for transcription', {
           duration: audioDuration,
           durationMinutes: Math.round(audioDuration / 60),

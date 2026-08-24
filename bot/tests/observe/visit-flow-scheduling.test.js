@@ -39,6 +39,7 @@ jest.mock('../../shared/services/observe/observe-schedule.service', () => ({
 jest.mock('../../shared/services/observe/observe-debrief.service', () => ({
   listPendingDebriefs: jest.fn(async () => mockPendings),
   listUnsentReports: jest.fn(async () => mockUnsent),
+  listUnfinished: jest.fn(async () => []),
 }));
 // bd-0cxz6: menuScreen now asks how many schools she has, so this suite needs
 // the same stub treatment as every other service it already mocks — otherwise
@@ -100,17 +101,21 @@ describe('MENU (flag ON)', () => {
 });
 
 describe('DEBRIEFS', () => {
-  test('items from pendings + unsent; tap = complete with observe_visit_action', async () => {
+  test('debrief rows on DEBRIEFS; unsent rows on their own stage screen (bd-tju8f)', async () => {
     mockPendings.push({ id: 'sess-1', created_at: '2026-07-29T10:00:00Z', analysis_data: { teacher_delivery: { teacher_name: 'Abid Ullah' } } });
     mockUnsent.push({ id: 'sess-2', created_at: '2026-07-28T10:00:00Z', analysis_data: {} });
     const res = await handler.handle('coach-1', 'data_exchange', 'MENU', { step: 'debriefs' }, 'coach-1');
     expect(res.screen).toBe('DEBRIEFS');
-    expect(res.data.items).toHaveLength(2);
+    expect(res.data.items).toHaveLength(1);
     expect(res.data.items[0]['main-content'].title).toBe('Abid Ullah');
     expect(res.data.items[0]['on-click-action']).toEqual({
       name: 'complete',
       payload: { observe_visit_action: 'debrief', session_id: 'sess-1' },
     });
+    const snd = await handler.handle('coach-1', 'data_exchange', 'MENU', { step: 'work_send' }, 'coach-1');
+    expect(snd.data.items).toHaveLength(1);
+    expect(snd.data.items[0]['on-click-action'].payload).toEqual(
+      { observe_visit_action: 'send_report', session_id: 'sess-2' });
   });
 
   test('empty → self-refreshing placeholder item (no dead tap)', async () => {
