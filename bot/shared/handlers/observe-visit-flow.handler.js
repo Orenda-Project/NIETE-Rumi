@@ -361,10 +361,15 @@ async function _stageScreen(userId, offset, { screen, step, fetch, metaOf, actio
       title: clip(nameOf(sess), 30),
       metadata: clip([sess.school_name, `Observed ${fmtVisitDate(sess.created_at)}`, metaOf(sess)].filter(Boolean).join(' - '), 80),
     },
-    'on-click-action': {
-      name: 'complete',
-      payload: { observe_visit_action: typeof action === 'function' ? action(sess) : action, session_id: String(sess.id) },
-    },
+    // bd-ej21x: with the OBS_ACTION screen published (flag mirrors the
+    // OBSERVE_STAGE_SCREENS deploy-order contract), a row opens "This
+    // observation" instead of jumping straight into the chat handoff.
+    'on-click-action': process.env.OBSERVE_OBS_ACTION === 'true'
+      ? { name: 'data_exchange', payload: { step: 'obs_action', session_id: String(sess.id), stage: step } }
+      : {
+        name: 'complete',
+        payload: { observe_visit_action: typeof action === 'function' ? action(sess) : action, session_id: String(sess.id) },
+      },
   });
   const all = rows.map(row);
   const page = all.slice(off, off + DEBRIEF_PAGE);
@@ -412,6 +417,15 @@ const workSendScreen = (userId, offset) => _stageScreen(userId, offset, {
   fetch: (D, u, o) => D.listUnsentReports(u, o),
   metaOf: () => 'report not sent yet', action: 'send_report',
 });
+
+// bd-ej21x — one lookup the OBS_ACTION steps share: how to re-fetch a stage's
+// rows, which legacy complete-action "Continue" must carry, and where to fall
+// back when the session vanished between list and tap.
+const _stageDefs = {
+  work_form: { fetch: (D, u, o) => D.listUnfinished(u, o), action: 'resume', screen: workFormScreen },
+  debriefs: { fetch: (D, u, o) => D.listPendingDebriefs(u, o), action: 'debrief', screen: debriefsScreen },
+  work_send: { fetch: (D, u, o) => D.listUnsentReports(u, o), action: 'send_report', screen: workSendScreen },
+};
 
 function _clampOptions(options, label, userId) {
   if (options.length > DROPDOWN_CAP) {
@@ -703,6 +717,41 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
     if (step === 'debriefs') return debriefsScreen(userId, screenData && screenData.offset);
     if (step === 'work_form') return workFormScreen(userId, screenData && screenData.offset);
     if (step === 'work_send') return workSendScreen(userId, screenData && screenData.offset);
+    // bd-ej21x — "This observation": Continue (legacy chat handoff, byte-
+    // identical payload) or Cancel (in-flow, the visit-cancel pattern).
+    if (step === 'obs_action') {
+      const def = _stageDefs[screenData && screenData.stage] || _stageDefs.debriefs;
+      const sid = String((screenData && screenData.session_id) || '');
+      const rows = await def.fetch(_debriefService(), userId, { limit: 100 }).catch(() => []);
+      const sess = rows.find((r) => String(r.id) === sid);
+      if (!sess) return def.screen(userId, 0);
+      const tName = sess.teacher_name
+        || (sess.analysis_data && sess.analysis_data.teacher_delivery && sess.analysis_data.teacher_delivery.teacher_name)
+        || 'Observation';
+      // Meta: a NavigationList screen allows no other components, so the
+      // session summary rides as the Continue row's metadata (80-char cap).
+      const summary = clip([tName, sess.school_name, `Observed ${fmtVisitDate(sess.created_at)}`]
+        .filter(Boolean).join(' - '), 80);
+      return { screen: 'OBS_ACTION', data: { items: [
+        { id: 'continue',
+          'main-content': { title: 'Continue this observation', metadata: summary },
+          'on-click-action': { name: 'complete', payload: { observe_visit_action: def.action, session_id: sid } } },
+        { id: 'cancel',
+          'main-content': { title: 'Cancel this observation', metadata: 'It leaves your list — the recording stays saved' },
+          'on-click-action': { name: 'data_exchange', payload: { step: 'obs_cancel', session_id: sid } } },
+      ] } };
+    }
+    if (step === 'obs_cancel') {
+      const Resume = require('../services/observe/observe-resume.service');
+      const res = await Resume.cancelObservationCore(
+        String((screenData && screenData.session_id) || ''), user || { id: userId });
+      const S = observeStrings(_flowLang);
+      if (res.outcome === 'cancelled' || res.outcome === 'already') {
+        return { screen: 'SUCCESS', data: _success(S.obs_cancelled_heading, S.obs_cancelled_body, { action: 'cancelled' }) };
+      }
+      const body = res.outcome === 'too_late' ? S.cancel_too_late : S.flow_action_failed_body;
+      return { screen: 'SUCCESS', data: _success(S.flow_action_failed_heading, body, { action: 'noop' }) };
+    }
     if (step === 'schedule') return scheduleScreen(userId);
     if (step === 'schools') return schoolsScreenV2(userId);
     if (step === 'sched_teacher') {
