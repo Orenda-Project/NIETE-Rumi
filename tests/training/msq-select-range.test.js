@@ -46,14 +46,90 @@ describe('bd-2502 — the Flow JSON binds the ceiling instead of freezing it', (
 });
 
 describe('bd-2502 — the endpoint sends a ceiling that matches what is on screen', () => {
-  it('max_selected equals the number of options actually rendered', () => {
-    // Asserted against the builder's own output shape rather than a fixture:
-    // the ceiling must track `options.length`, which is the displayed set after
-    // bd-2495's cap and shuffle — not the raw bank, and not a constant.
-    const src = fs.readFileSync(
-      path.join(__dirname, '../../bot/shared/services/training/quiz-delivery.service.js'), 'utf8');
-    const block = src.slice(src.indexOf('async function buildMsqFlowScreenData'));
-    const ret = block.slice(block.indexOf('return {'), block.indexOf('training_msq_action'));
-    expect(ret).toMatch(/max_selected:\s*options\.length/);
+  // Asserted on the builder's real OUTPUT rather than by grepping its source:
+  // a source pattern breaks on any refactor that keeps the behaviour (bd-43496
+  // made the ceiling conditional and did exactly that), and it cannot see
+  // whether the number is actually right.
+  const UID = 'u1', ATTEMPT = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', QUIZ = 4, LEVEL = 4;
+  let tableStates, chain;
+
+  function makeChain(t) {
+    const st = tableStates[t] || {};
+    const rec = { filters: {} };
+    const c = {};
+    const rows = () => {
+      let r = st.rows || [];
+      for (const [col, v] of Object.entries(rec.filters)) {
+        if (v && typeof v === 'object' && Array.isArray(v.in)) r = r.filter(x => v.in.includes(x[col]));
+        else if (!col.includes('.')) r = r.filter(x => x[col] === v || String(x[col]) === String(v));
+      }
+      return r;
+    };
+    c.select = jest.fn(() => c);
+    ['eq','neq','gt','gte','lt','lte','like','ilike','is','not'].forEach(m => { c[m] = jest.fn((col, v) => { rec.filters[col] = v; return c; }); });
+    c.in = jest.fn((col, v) => { rec.filters[col] = { in: v }; return c; });
+    c.order = jest.fn(() => c); c.limit = jest.fn(() => c);
+    c.insert = jest.fn(() => c); c.update = jest.fn(() => c); c.upsert = jest.fn(() => c);
+    c.maybeSingle = jest.fn(async () => ({ data: rows()[0] || null, error: null }));
+    c.single = jest.fn(async () => ({ data: rows()[0] || null, error: null }));
+    c.then = (res, rej) => Promise.resolve({ data: rows(), error: null }).then(res, rej);
+    return c;
+  }
+
+  /** One in-progress attempt on a question with `nOptions` options. */
+  function seed(correctOption, nOptions) {
+    tableStates = {
+      training_assessment_attempts: { rows: [{
+        id: ATTEMPT, user_id: UID, quiz_kind: 'grand', grand_quiz_id: QUIZ,
+        training_module_id: null, level_id: LEVEL, current_question_index: 0,
+        total_questions: 1, status: 'in_progress',
+      }] },
+      training_questions: { rows: [{
+        id: 1, grand_quiz_id: QUIZ, training_module_id: null, order_index: 0, is_active: true,
+        question_text: 'Q', correct_option: correctOption,
+        options: Array.from({ length: nOptions }, (_, i) => `opt${i + 1}`),
+      }] },
+      training_assessment_answers: { rows: [] },
+      training_levels: { rows: [{ id: LEVEL, vendor_id: 'v1', order_index: 3, is_active: true }] },
+      training_vendors: { rows: [{ id: 'v1', key: 'TALEEMABAD', exam_question_cap: null, shuffle_options: false, module_quiz_strategy: 'all' }] },
+      training_grand_quizzes: { rows: [{ id: QUIZ, level_id: LEVEL, quiz_type: 'grand_quiz', is_active: true }] },
+    };
+  }
+
+  beforeEach(() => {
+    jest.resetModules();
+    jest.doMock('dotenv', () => ({ config: () => ({ parsed: {} }) }), { virtual: true });
+    process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || 'test-key';
+    ['@aws-sdk/client-s3','@aws-sdk/s3-request-presigner','exceljs','pdfkit','bullmq','aws-sdk'].forEach(m => jest.doMock(m, () => ({}), { virtual: true }));
+    jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
+    jest.doMock('../../bot/shared/utils/structured-logger', () => ({ logEvent: jest.fn(), getCurrentCorrelationId: () => null, logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() } }));
+    chain = jest.fn(t => makeChain(t));
+    jest.doMock('../../bot/shared/config/supabase', () => ({ from: chain, rpc: jest.fn() }));
+    jest.doMock('../../bot/shared/services/whatsapp.service', () => ({ sendMessage: jest.fn(), sendInteractiveButtons: jest.fn(), sendInteractiveMessage: jest.fn(), sendFlow: jest.fn() }));
+  });
+  afterEach(() => jest.resetModules());
+
+  const build = () => require('../../bot/shared/services/training/quiz-delivery.service').buildMsqFlowScreenData;
+
+  it('a multi-answer question may select every option on screen', async () => {
+    seed('1,3', 5);
+    const data = await build()(UID, ATTEMPT, 0);
+    expect(data.max_selected).toBe(data.options.length);
+  });
+
+  it('tracks the rendered count, not a constant', async () => {
+    seed('1,3', 4);
+    const data = await build()(UID, ATTEMPT, 0);
+    expect(data.options.length).toBe(4);
+    expect(data.max_selected).toBe(4);
+  });
+
+  // bd-43496 — single-answer questions now reach this Flow too (it is the only
+  // surface that fits an oversized question). One right answer means one tick.
+  it('a single-answer question allows exactly one selection', async () => {
+    seed('2', 4);
+    const data = await build()(UID, ATTEMPT, 0);
+    expect(data.options.length).toBe(4);
+    expect(data.max_selected).toBe(1);
   });
 });

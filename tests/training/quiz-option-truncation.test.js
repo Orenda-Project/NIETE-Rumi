@@ -136,11 +136,19 @@ describe('bd-2230 — long options move to the body in full', () => {
     expect(msg.footer.text.toLowerCase()).toContain('select all');
   });
 
-  test('extreme volume never overflows the 4096-char body cap', async () => {
+  // bd-43496 — this asserted 4096, which is the cap for a TEXT message. An
+  // INTERACTIVE body is 1024, so everything between the two was rejected by
+  // Meta with (#131009) rather than delivered. The volume that used to be
+  // "safely under the cap" here is exactly what took the level exam down.
+  test('extreme volume is never sent over the 1024-char interactive body cap', async () => {
     const huge = Array.from({ length: 9 }, (_, i) => `Option ${i + 1} — ${'x'.repeat(600)}`);
     setupAttempt({ options: huge });
     await QuizDelivery.sendQuestion(ATTEMPT_ID, '923001234567');
-    const msg = whatsappInteractive.mock.calls[0][1];
-    expect(msg.body.text.length).toBeLessThanOrEqual(4096);
+    // With no MSQ Flow configured there is nothing that can carry this, so the
+    // send is declined outright — truncating would mark a teacher on text she
+    // cannot read. Whatever IS sent must respect the real cap.
+    for (const call of whatsappInteractive.mock.calls) {
+      expect([...call[1].body.text].length).toBeLessThanOrEqual(1024);
+    }
   });
 });
