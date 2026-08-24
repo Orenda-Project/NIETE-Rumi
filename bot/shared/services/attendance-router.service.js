@@ -264,7 +264,7 @@ async function route(userId) {
     return { action: 'ERROR', message: "I couldn't find your account. Please say \"register\" first." };
   }
 
-  // bd-njn7u: defensive LP-shelf flush — starting attendance is a real
+  // Defensive LP-shelf flush — starting attendance is a real
   // feature switch, so any in-flight LP-Q&A context belongs to the past.
   // Parity with quiz/coaching/video/menu. Non-blocking by design.
   try {
