@@ -738,7 +738,22 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
           'on-click-action': { name: 'complete', payload: { observe_visit_action: def.action, session_id: sid } } },
         { id: 'cancel',
           'main-content': { title: 'Cancel this observation', metadata: 'It leaves your list — the recording stays saved' },
+          // one tap must never cancel — the row opens the in-flow confirm below
+          'on-click-action': { name: 'data_exchange', payload: { step: 'obs_cancel_confirm', session_id: sid, stage: screenData && screenData.stage } } },
+      ] } };
+    }
+    // bd-ej21x — the in-flow confirm: same screen, two server-fed rows. Yes
+    // proceeds to obs_cancel; Keep re-renders the Continue/Cancel pair.
+    if (step === 'obs_cancel_confirm') {
+      const sid = String((screenData && screenData.session_id) || '');
+      const stage = (screenData && screenData.stage) || 'debriefs';
+      return { screen: 'OBS_ACTION', data: { items: [
+        { id: 'cancel_yes',
+          'main-content': { title: 'Yes, cancel it', metadata: 'It leaves your list — the recording stays saved' },
           'on-click-action': { name: 'data_exchange', payload: { step: 'obs_cancel', session_id: sid } } },
+        { id: 'cancel_keep',
+          'main-content': { title: 'Keep this observation', metadata: 'Go back' },
+          'on-click-action': { name: 'data_exchange', payload: { step: 'obs_action', session_id: sid, stage } } },
       ] } };
     }
     if (step === 'obs_cancel') {
