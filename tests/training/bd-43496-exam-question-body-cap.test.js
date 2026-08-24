@@ -214,12 +214,61 @@ describe('bd-43496 — an oversized single-answer question routes to the MSQ Flo
     expect(whatsapp.sendFlow).not.toHaveBeenCalled();
   });
 
-  it('a single-answer Flow allows exactly one selection', async () => {
+  // Meta enforces `max-selected-items >= 2` on a CheckboxGroup. Binding it to 1
+  // uploads clean and then dies ON THE DEVICE — the screen paints, then
+  // "Something Went Wrong". So a single-answer question must be served by the
+  // RadioButtonsGroup, and the checkbox ceiling must never drop below 2.
+  it('never sends a checkbox ceiling below Meta\'s floor of 2', async () => {
     process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
     seed({ questionLen: 400, optionLen: 200, correct: '2' });
     const data = await svc().buildMsqFlowScreenData(UID, ATTEMPT, 0);
     expect(data).not.toBeNull();
-    expect(data.max_selected).toBe(1);
+    expect(data.max_selected).toBeGreaterThanOrEqual(2);
+  });
+
+  it('gates a single-answer question onto the radio control', async () => {
+    process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
+    seed({ questionLen: 400, optionLen: 200, correct: '2' });
+    const data = await svc().buildMsqFlowScreenData(UID, ATTEMPT, 0);
+    expect(data.is_single).toBe(true);
+    expect(data.is_multi).toBe(false);
+  });
+
+  it('gates a multi-answer question onto the checkbox control', async () => {
+    process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
+    seed({ questionLen: 400, optionLen: 200, correct: '1,3' });
+    const data = await svc().buildMsqFlowScreenData(UID, ATTEMPT, 0);
+    expect(data.is_multi).toBe(true);
+    expect(data.is_single).toBe(false);
+    expect(data.max_selected).toBe(data.options.length);
+  });
+
+  it('grades a radio submission sent as selected_option', async () => {
+    process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
+    seed({ questionLen: 400, optionLen: 200, correct: '2' });
+    await svc().handleQuizFlowSubmission(UID, {
+      attempt_ref: `${ATTEMPT}:0`,
+      selected_option: '2',
+      selected_options: '',      // the hidden checkbox rides along empty
+    }, PHONE);
+
+    const ans = tableStates.training_assessment_answers.rows;
+    expect(ans.length).toBe(1);
+    expect(ans[0].chosen_option).toBe('2');
+    expect(ans[0].is_correct).toBe(true);
+  });
+
+  it('a single-answer question never records a set, even if the payload carries one', async () => {
+    process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
+    seed({ questionLen: 400, optionLen: 200, correct: '2' });
+    await svc().handleQuizFlowSubmission(UID, {
+      attempt_ref: `${ATTEMPT}:0`,
+      selected_option: JSON.stringify(['2', '3']),
+    }, PHONE);
+
+    const ans = tableStates.training_assessment_answers.rows;
+    expect(ans.length).toBe(1);
+    expect(String(ans[0].chosen_option)).not.toContain(',');
   });
 
   it('serves the full option text through the Flow, untruncated', async () => {

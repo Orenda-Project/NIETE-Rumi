@@ -1163,10 +1163,23 @@ async function buildMsqFlowScreenData(userId, attemptId, questionIndex) {
     // the Flow JSON, so a 5-option question told the teacher "Select 1-10".
     // Bound to what is actually rendered: the displayed set after bd-2495's cap
     // and shuffle, never the raw bank and never a constant.
-    // bd-43496 — a single-answer question served through this Flow must accept
-    // exactly ONE tick, or the teacher can submit a set for a question that has
-    // one right answer and setsEqual will simply mark it wrong.
-    max_selected: r.multiAnswer ? options.length : 1,
+    // bd-43496 — Meta enforces `max-selected-items >= 2` on a CheckboxGroup, so a
+    // single-answer question CANNOT use one: binding it to 1 uploads clean and
+    // then fails on the device (the screen paints, then "Something Went Wrong").
+    // Those questions get the RadioButtonsGroup instead, gated on is_single, and
+    // this ceiling only ever applies to the multi-answer checkbox. Floored at 2
+    // so the bound value is never below Meta's minimum even for a 1-option
+    // multi-answer question.
+    max_selected: Math.max(2, options.length),
+    // Exactly one of these is true; they gate which control the screen shows.
+    is_multi: r.multiAnswer,
+    is_single: !r.multiAnswer,
+    // RadioButtonsGroup init-value: a single canonical id, or '' for unanswered.
+    // A value not on display would render as nothing selected, so it is filtered
+    // the same way `selected` is.
+    selected_one: (!r.multiAnswer && stored.size > 0
+      ? ([...stored].map(String).find(s => r.displayOrder.includes(Number(s))) || '')
+      : ''),
     attempt_ref: `${r.attempt.id}:${r.index}`,
     training_msq_action: 'submit',
   };
@@ -1252,8 +1265,19 @@ async function handleQuizFlowSubmission(userId, responseJson, phoneNumber) {
   // Only ids that are actually on display count. A checkbox cannot return an
   // id the screen never offered, but the payload is user-reachable input and
   // an unfiltered value would land in a column 400k+ rows are compared against.
-  const chosen = parseSelectedOptionIds(responseJson?.selected_options)
-    .filter(n => r.displayOrder.includes(n));
+  // bd-43496 — two possible controls sent this: `selected_options` from the
+  // multi-answer CheckboxGroup, `selected_option` (singular) from the
+  // single-answer RadioButtonsGroup. Only one is ever visible, but BOTH keys
+  // ride along in the payload, so read whichever the question's own shape
+  // implies rather than trusting the client to omit the other.
+  const rawSelection = r.multiAnswer
+    ? responseJson?.selected_options
+    : (responseJson?.selected_option ?? responseJson?.selected_options);
+  const chosen = parseSelectedOptionIds(rawSelection)
+    .filter(n => r.displayOrder.includes(n))
+    // A radio can only ever yield one, but a hand-crafted payload could carry
+    // more; a single-answer question must never record a set.
+    .slice(0, r.multiAnswer ? undefined : 1);
   if (chosen.length === 0) {
     logToFile('⚠️ Multi-answer Flow submission had no valid options — re-sending', {
       attemptId: r.attempt.id, index: r.index,
