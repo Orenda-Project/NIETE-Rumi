@@ -131,6 +131,33 @@ describe('bd-ej21x · OBS_ACTION screen', () => {
   });
 });
 
+describe('bd-ej21x · back navigation from the new screens (the persistent-bug class)', () => {
+  let H;
+  beforeEach(() => {
+    jest.resetModules();
+    process.env.OBSERVE_OBS_ACTION = 'true';
+    process.env.OBSERVE_STAGE_SCREENS = 'true';
+    jest.doMock('../../shared/services/observe/observe-debrief.service', () => ({
+      listPendingDebriefs: async () => PENDING,
+      listUnsentReports: async () => UNSENT,
+      listUnfinished: async () => FORM_ROWS,
+    }), { virtual: true });
+    H = require('../../shared/handlers/observe-visit-flow.handler');
+  });
+  afterEach(() => {
+    jest.dontMock('../../shared/services/observe/observe-debrief.service');
+    delete process.env.OBSERVE_OBS_ACTION;
+  });
+
+  it.each([['WORK_FORM'], ['WORK_SEND'], ['OBS_ACTION']])(
+    'BACK from %s lands on a fresh MENU, never a dead screen', async (screen) => {
+      const out = await H.handle('coach-1', 'BACK', screen, { v2: true }, 'coach-1', null);
+      expect(out.screen).toBe('MENU');
+      expect(Array.isArray(out.data.items)).toBe(true);
+      expect(out.data.items.length).toBeGreaterThan(0);
+    });
+});
+
 describe('bd-ej21x · cancelObservationCore (silent mutation)', () => {
   let updates;
   const mkRow = (over = {}) => ({ id: 'sess-1', status: 'observer_review_complete',
