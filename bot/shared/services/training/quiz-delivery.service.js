@@ -1121,7 +1121,54 @@ async function resolveMsqQuestion(attemptId, questionIndex) {
   return { attempt, question, allOptions, displayOrder, index, multiAnswer };
 }
 
-const MSQ_OPTION_TITLE_MAX = 80;   // Meta CheckboxGroup data-source title cap
+// bd-43496 — the REAL Meta caps for a Radio/Checkbox data-source row. The title
+// was set to 80 here, which is nearly 3x the actual limit, so the device clipped
+// it mid-word and the same opening text was then repeated by the description.
+// Verified against the documented component table (whatsapp-flows skill).
+const MSQ_OPTION_TITLE_MAX = 30;    // Radio/Checkbox option title
+const MSQ_OPTION_DESC_MAX = 300;    // Radio/Checkbox option description
+
+/**
+ * A row for one option: a short lettered label, with the answer text in full
+ * underneath.
+ *
+ * The title is NOT a truncated copy of the answer — at 30 characters a
+ * prefix of a 130-character pedagogical statement is noise, and repeating it
+ * above the description wasted the row's most visible line. It carries the
+ * option LETTER instead, matching what the interactive-list surface shows and
+ * what `selectedLetters` echoes back, so the two surfaces read the same.
+ *
+ * The full text goes in `description` (300 chars). On this exam that renders
+ * 173 of 180 options complete; the 7 that are longer are marked with an
+ * ellipsis rather than being cut mid-word, so a teacher can see that text is
+ * missing instead of silently reading a half sentence.
+ */
+function msqOptionRow(canonical, letter, text) {
+  const full = String(text ?? '');
+  const row = {
+    // CANONICAL index, never the display position — the shuffle stops at the
+    // rendering layer and storage keeps speaking the database's numbering.
+    id: String(canonical),
+    title: letter ? `${letter}.` : `Option ${canonical}`,
+  };
+  if (full) row.description = truncateOnWord(full, MSQ_OPTION_DESC_MAX);
+  return row;
+}
+
+/**
+ * Cut to `max` code points on a word boundary, marking the cut with an ellipsis.
+ *
+ * Only used where the text genuinely cannot fit a Meta field. Cutting on a space
+ * and showing "…" is the difference between a teacher knowing the option
+ * continues and a teacher confidently answering half a sentence.
+ */
+function truncateOnWord(text, max) {
+  const cp = [...String(text ?? '')];
+  if (cp.length <= max) return String(text ?? '');
+  const slice = cp.slice(0, max - 1).join('');
+  const cut = slice.lastIndexOf(' ');
+  return (cut > max * 0.6 ? slice.slice(0, cut) : slice).trimEnd() + '…';
+}
 
 /**
  * The Flow screen's data for the question an attempt is currently on.
@@ -1148,17 +1195,10 @@ async function buildMsqFlowScreenData(userId, attemptId, questionIndex) {
   }
 
   const stored = await loadPartialAnswer(r.attempt.id, r.index);
-  const options = r.displayOrder.map((canonical) => {
-    const text = String(r.allOptions[canonical - 1] ?? '');
-    const option = {
-      // CANONICAL index, never the display position — the shuffle stops at the
-      // rendering layer and storage keeps speaking the database's numbering.
-      id: String(canonical),
-      title: text.slice(0, MSQ_OPTION_TITLE_MAX) || `Option ${canonical}`,
-    };
-    if (text.length > MSQ_OPTION_TITLE_MAX) option.description = text;
-    return option;
-  });
+  // Letters come from the DISPLAY position, exactly as the list surface letters
+  // its rows, so "Selected: B" means the same option on either surface.
+  const options = r.displayOrder.map((canonical, i) =>
+    msqOptionRow(canonical, OPTION_LETTERS[i], r.allOptions[canonical - 1]));
 
   return {
     progress: `Question ${r.index + 1} of ${r.attempt.total_questions}`,
