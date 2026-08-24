@@ -91,8 +91,21 @@ describe('bd-ej21x · OBS_ACTION screen', () => {
       expect(cont['on-click-action'].name).toBe('complete');
       expect(cont['on-click-action'].payload).toMatchObject({ observe_visit_action: act, session_id: sid });
       expect(cancel['on-click-action'].name).toBe('data_exchange');
-      expect(cancel['on-click-action'].payload).toMatchObject({ step: 'obs_cancel', session_id: sid });
+      // one tap must NEVER cancel: the row goes to an in-flow confirm first
+      expect(cancel['on-click-action'].payload).toMatchObject({ step: 'obs_cancel_confirm', session_id: sid, stage });
     }
+  });
+
+  it('obs_cancel_confirm re-renders OBS_ACTION as a yes/keep choice — yes cancels, keep goes back', async () => {
+    const out = await H.handle('coach-1', 'data_exchange', 'MENU',
+      { step: 'obs_cancel_confirm', session_id: 'sess-deb-1', stage: 'debriefs' }, 'coach-1', null);
+    expect(out.screen).toBe('OBS_ACTION');
+    expect(mockCore).not.toHaveBeenCalled();          // confirming is not cancelling
+    const [yes, keep] = out.data.items;
+    expect(yes['on-click-action'].name).toBe('data_exchange');
+    expect(yes['on-click-action'].payload).toMatchObject({ step: 'obs_cancel', session_id: 'sess-deb-1' });
+    expect(keep['on-click-action'].name).toBe('data_exchange');
+    expect(keep['on-click-action'].payload).toMatchObject({ step: 'obs_action', session_id: 'sess-deb-1', stage: 'debriefs' });
   });
 
   it('a vanished session falls back to its stage list, never a dead screen', async () => {
