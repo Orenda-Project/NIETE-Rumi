@@ -1227,9 +1227,8 @@ async function handleVoiceMessage(message, from, user = null) {
         expected: voiceLangCheck.expected,
         detected: voiceLangCheck.detected,
         reason: voiceLangCheck.reason,
-        userId: user?.id,
-        level: 'error'
-      });
+        userId: user?.id
+      }, 'error');
     }
 
     // Step 7: Generate speech using appropriate TTS service based on language
