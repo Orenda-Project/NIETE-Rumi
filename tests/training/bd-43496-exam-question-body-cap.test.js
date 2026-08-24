@@ -271,15 +271,33 @@ describe('bd-43496 — an oversized single-answer question routes to the MSQ Flo
     expect(String(ans[0].chosen_option)).not.toContain(',');
   });
 
-  it('serves the full option text through the Flow, untruncated', async () => {
+  // A row `description` is clamped to ~3 lines (~140 chars) ON THE DEVICE, so
+  // the answer text cannot live there. It goes in the screen's TextBody, which
+  // is a block that wraps and scrolls — the same component that already renders
+  // the question stem in full.
+  it('serves every option in full through the screen body, untruncated', async () => {
     process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
     seed({ questionLen: 400, optionLen: 200, correct: '2' });
     const data = await svc().buildMsqFlowScreenData(UID, ATTEMPT, 0);
-    // A 200-char option fits the 300-char description in full — the whole point
-    // of the Flow route. Nothing should be cut at this length.
+
+    const opts = tableStates.training_questions.rows[0].options;
+    for (const [i, text] of opts.entries()) {
+      // the whole option text, not a prefix, and lettered for the tap target
+      expect(data.question_text).toContain(`${'ABCD'[i]}. ${text}`);
+    }
+    expect(data.question_text).not.toMatch(/…/);
+    // the stem is still there, ahead of the options
+    expect(data.question_text.startsWith('Q'.repeat(400))).toBe(true);
+  });
+
+  it('keeps the tap rows as bare letters, never a clipped sentence', async () => {
+    process.env.TRAINING_MSQ_FLOW_ID = MSQ_FLOW;
+    seed({ questionLen: 400, optionLen: 200, correct: '2' });
+    const data = await svc().buildMsqFlowScreenData(UID, ATTEMPT, 0);
+    expect(data.options.map(o => o.title)).toEqual(['A.', 'B.', 'C.', 'D.']);
+    // The row echo stays inside one clean line so it never LOOKS truncated.
     for (const o of data.options) {
-      expect(o.description.length).toBe(201);   // 200 x 'o' + the index digit
-      expect(o.description).not.toMatch(/…$/);
+      expect([...o.description].length).toBeLessThanOrEqual(120);
     }
   });
 
