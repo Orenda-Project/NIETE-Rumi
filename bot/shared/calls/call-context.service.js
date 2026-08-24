@@ -68,10 +68,36 @@ function agoLabel(value, now) {
   return days > 0 ? `in ${days} days` : `${Math.abs(days)} days ago`;
 }
 
+/**
+ * Pull the one line worth speaking out of a corpus item.
+ *
+ * Production `strengths` and `growth_opportunities` are arrays of OBJECTS
+ * ({title, impact, analysis, evidence, …}), while `recommendations` really are
+ * strings. A string-only filter silently dropped every strength — the assistant
+ * knew none of them and nothing in the logs said so. So: strings pass through,
+ * objects surrender their title (or the nearest text field), and anything with
+ * no readable text is skipped rather than stringified into "[object Object]".
+ *
+ * Deliberately title-only: `analysis` and `evidence` run to paragraphs each, and
+ * a call prompt has to stay lean enough to start fast.
+ */
+const TEXT_KEYS = ['title', 'text', 'summary', 'name', 'label', 'description'];
+
+function itemText(value) {
+  if (typeof value === 'string') return value.trim();
+  if (value && typeof value === 'object') {
+    for (const key of TEXT_KEYS) {
+      if (typeof value[key] === 'string' && value[key].trim()) return value[key].trim();
+    }
+  }
+  return '';
+}
+
 const list = (value, max = MAX_LIST_ITEMS) => (Array.isArray(value) ? value : [value])
-  .filter((v) => typeof v === 'string' && v.trim())
+  .map(itemText)
+  .filter(Boolean)
   .slice(0, max)
-  .map((v) => `  - ${v.trim()}`)
+  .map((v) => `  - ${v}`)
   .join('\n');
 
 /**
@@ -141,7 +167,21 @@ async function buildCallContext({ from, deps = {} }) {
     const seg = ['## HER MOST RECENT COACHING'
       + (when ? ` (as of ${when}${rel ? `, ${rel}` : ''})` : '')];
     if (analysis.executive_summary) seg.push(`Summary: ${analysis.executive_summary}`);
-    if (analysis.focus_area) seg.push(`Her focus area: ${analysis.focus_area}`);
+
+    // focus_area is an OBJECT in every production row — {title, domain,
+    // indicator, rationale, lever_question, try_this_tomorrow}. The last two are
+    // the most conversation-worthy things we hold about her teaching, so they go
+    // in by name rather than being flattened away.
+    const focus = analysis.focus_area;
+    if (typeof focus === 'string' && focus.trim()) {
+      seg.push(`Her focus area: ${focus.trim()}`);
+    } else if (focus && typeof focus === 'object') {
+      const title = itemText(focus);
+      if (title) seg.push(`Her focus area: ${title}`);
+      if (focus.try_this_tomorrow) seg.push(`What she was asked to try: ${focus.try_this_tomorrow}`);
+      if (focus.lever_question) seg.push(`The question to reflect on: ${focus.lever_question}`);
+    }
+
     const strengths = list(analysis.strengths);
     if (strengths) seg.push(`Strengths noted:\n${strengths}`);
     const recs = list(analysis.recommendations);
@@ -192,22 +232,30 @@ async function buildCallContext({ from, deps = {} }) {
     blocks.memory = true;
   }
 
-  // ---- assemble, identity-first, capped ----
-  let block = parts.join('\n\n');
-  if (block.length > MAX_BLOCK_CHARS) {
+  // ---- assemble: identity first, then every block gets a fair share ----
+  //
+  // The first synthetic call exposed the flaw in a simple running total: a rich
+  // FICO analysis consumed the whole budget and the LESSONS block — the thing a
+  // teacher is most likely to ring about — was cut entirely. So each optional
+  // block is trimmed to its own share BEFORE assembly. Every block survives in
+  // some form; none can starve the rest.
+  let block;
+  if (parts.join('\n\n').length <= MAX_BLOCK_CHARS) {
+    block = parts.join('\n\n');
+  } else {
     const identityPart = parts[0];
-    let out = identityPart;
-    for (const part of parts.slice(1)) {
-      if (out.length + part.length + 2 > MAX_BLOCK_CHARS - 20) {
-        out += '\n\n… (further context truncated)';
-        break;
-      }
-      out += `\n\n${part}`;
+    const optional = parts.slice(1);
+    const remaining = MAX_BLOCK_CHARS - identityPart.length - 40;
+    const share = Math.max(200, Math.floor(remaining / Math.max(1, optional.length)));
+
+    const trimmed = optional.map((part) => (part.length <= share
+      ? part
+      : `${part.slice(0, share - 15)}… (truncated)`));
+
+    block = [identityPart, ...trimmed].join('\n\n');
+    if (block.length > MAX_BLOCK_CHARS) {
+      block = `${block.slice(0, MAX_BLOCK_CHARS - 15)}… (truncated)`;
     }
-    // A single oversized part (one huge block) still has to fit.
-    block = out.length > MAX_BLOCK_CHARS
-      ? `${out.slice(0, MAX_BLOCK_CHARS - 30)}… (truncated)`
-      : out;
   }
 
   return {
