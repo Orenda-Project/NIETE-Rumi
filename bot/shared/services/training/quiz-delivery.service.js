@@ -1126,7 +1126,11 @@ async function resolveMsqQuestion(attemptId, questionIndex) {
 // it mid-word and the same opening text was then repeated by the description.
 // Verified against the documented component table (whatsapp-flows skill).
 const MSQ_OPTION_TITLE_MAX = 30;    // Radio/Checkbox option title
-const MSQ_OPTION_DESC_MAX = 300;    // Radio/Checkbox option description
+// A row `description` ACCEPTS 300 but the device renders only ~3 lines (~140
+// code points) and ellipsizes — measured on-device 2026-08-24. The answer text
+// therefore lives in the screen's TextBody; this shorter budget is only for the
+// row echo, kept inside one clean line so it never looks truncated.
+const MSQ_ROW_ECHO_MAX = 120;
 
 /**
  * A row for one option: a short lettered label, with the answer text in full
@@ -1151,7 +1155,11 @@ function msqOptionRow(canonical, letter, text) {
     id: String(canonical),
     title: letter ? `${letter}.` : `Option ${canonical}`,
   };
-  if (full) row.description = truncateOnWord(full, MSQ_OPTION_DESC_MAX);
+  // The authoritative copy of the answer is in the screen's TextBody, where it
+  // is never clamped. This is a best-effort echo for a client that renders row
+  // descriptions — deliberately cut short of the 3-line clamp so it reads as a
+  // label rather than a sentence that appears to be missing its end.
+  if (full) row.description = truncateOnWord(full, MSQ_ROW_ECHO_MAX);
   return row;
 }
 
@@ -1200,10 +1208,27 @@ async function buildMsqFlowScreenData(userId, attemptId, questionIndex) {
   const options = r.displayOrder.map((canonical, i) =>
     msqOptionRow(canonical, OPTION_LETTERS[i], r.allOptions[canonical - 1]));
 
+  // bd-43496 — the answer text lives in the screen's TextBody, NOT in the option
+  // rows. A Radio/Checkbox row `description` is clamped to THREE LINES on the
+  // device (~140 chars), which cut 41% of this exam's options; a TextBody is a
+  // block that wraps and scrolls, which is why the question stem already renders
+  // in full. The rows keep bare letters so the tap target stays unambiguous, and
+  // `msqOptionRow` still fills `description` as a graceful fallback for a client
+  // that shows it.
+  //
+  // Budget: stem + 4 options is a median of ~1057 and a max of ~1497 code points
+  // on this exam, so this stays well inside the TextBody allowance.
+  const stem = String(r.question.question_text
+    || (r.multiAnswer ? 'Select all that apply.' : 'Choose one option.'));
+  const questionText = [
+    stem,
+    '',
+    ...options.map((o, i) => `${OPTION_LETTERS[i]}. ${String(r.allOptions[r.displayOrder[i] - 1] ?? '')}`),
+  ].join('\n');
+
   return {
     progress: `Question ${r.index + 1} of ${r.attempt.total_questions}`,
-    question_text: String(r.question.question_text
-      || (r.multiAnswer ? 'Select all that apply.' : 'Choose one option.')),
+    question_text: questionText,
     options,
     // Pre-checks a partially-answered question so a resume does not silently
     // discard taps the teacher already made on the list surface. Anything no
