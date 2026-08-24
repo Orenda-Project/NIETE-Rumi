@@ -9,11 +9,19 @@
  * build only intercepted path 1, so file-sent recordings sailed past /observe
  * and into the TEACHER coaching flow (caught on staging 2026-07-12).
  *
- * Both handlers now call routeLeaderAudio() FIRST. If it returns true it has
- * fully handled the audio and the caller must stop.
+ * bd-tju8f (prod 2026-08-24): the webhook NEVER carries an audio duration
+ * (1,000 webhooks sampled: zero had one; `voice` is a boolean on
+ * message.audio), so the old `isLongAudio` computed from it was ALWAYS false
+ * and the no-state wall was inert for voice notes — a coach's second recording
+ * of the day (slot busy) fell into teacher coaching. Four coaches leaked in one
+ * morning. The router now resolves the duration ITSELF (getMediaInfo + the
+ * ffprobe fallback the DC path has used for months) and, when nothing is
+ * armed, PARKS the recording and ASKS whose it is (observe-binding.service) —
+ * never a guess, never teacher coaching, never a dead-end nudge.
  *
- * Invariant: a school leader's long audio NEVER starts a teacher coaching
- * session — not on a lost state, not on a Redis blip, not on a capture failure.
+ * Invariant: a school leader's classroom-length audio NEVER starts a teacher
+ * coaching session — not on a lost state, not on a Redis blip, not on a
+ * capture failure, not on an unresolvable duration with a large file.
  */
 
 const WhatsAppService = require('../whatsapp.service');
@@ -22,26 +30,68 @@ const { observeStrings, observeLang } = require('./observe-strings');
 const { isSchoolLeader } = require('./observe-gate');
 const { logToFile } = require('../../utils/logger');
 
+const CLASSROOM_SECONDS = 900;       // same 15-min line the DC path draws
+const LARGE_FILE_BYTES = 500_000;    // the DC path's "suspiciously large" line
+
+/**
+ * Resolve the REAL duration: caller-supplied → getMediaInfo → ffprobe bytes.
+ * Returns { dur, fileSize } — dur 0 when genuinely unresolvable.
+ */
+async function _resolveDuration(audioId, durationSeconds) {
+  let dur = Number(durationSeconds) || 0;
+  let fileSize = 0;
+  if (dur) return { dur, fileSize };
+  try {
+    const meta = await WhatsAppService.getMediaInfo(audioId);
+    dur = Math.round(meta?.audio?.duration || meta?.voice?.duration || 0);
+    fileSize = meta?.file_size || 0;
+    if (!dur && fileSize >= LARGE_FILE_BYTES) {
+      const buf = await WhatsAppService.downloadMedia(audioId);
+      const AudioService = require('../audio.service');
+      dur = Math.round(await AudioService.getAudioDuration(buf));
+    }
+  } catch (err) {
+    logToFile('⚠️ observe: duration probe failed for leader audio', {
+      audioId, error: err.message,
+    });
+  }
+  return { dur, fileSize };
+}
+
 /**
  * @param {object}  opts.user         users row (may be null)
  * @param {string}  opts.from         WhatsApp sender
  * @param {string}  opts.audioId      media id (voice note id OR document id)
  * @param {string}  opts.sessionId    chat session id
- * @param {boolean} opts.isLongAudio  true when the caller would otherwise route
- *                                    this audio into classroom coaching
+ * @param {boolean} opts.isLongAudio  caller's legacy signal (document path
+ *                                    already probed) — trusted when true
+ * @param {number}  opts.durationSeconds  caller-resolved duration, if any
+ * @param {string}  opts.sha256       webhook checksum (dedupe), if any
  * @returns {Promise<boolean>} handled? (true → caller returns immediately)
  */
-async function routeLeaderAudio({ user, from, audioId, sessionId, isLongAudio = false, durationSeconds = null }) {
-  // FEAT-102 dark-safe gate: when the market has NOT published its observe Flow
-  // (no OBSERVE_MEWAKA_FLOW_ID), the whole /observe capability is off — leaders'
-  // audio flows through normal coaching exactly as before. Mirrors the same
-  // capability gate the /observe command uses (observe-gate.js). This makes the
-  // code safe to deploy DARK before the env is set.
+async function routeLeaderAudio({ user, from, audioId, sessionId, isLongAudio = false, durationSeconds = null, sha256 = null }) {
+  // FEAT-102 dark-safe gate: no published observe Flow → the whole capability
+  // is off and leaders' audio flows through normal coaching exactly as before.
   if (!process.env.OBSERVE_MEWAKA_FLOW_ID) return false;
   if (!isSchoolLeader(user)) return false;   // teachers untouched (family check — bd-46)
 
   const lang = observeLang(user);
   const S = observeStrings(lang);
+
+  const { dur, fileSize } = await _resolveDuration(audioId, durationSeconds);
+  // Classroom-recording test: resolved-long, OR unresolvable-but-large, OR the
+  // caller already probed it long. A resolved-short small file is the coach
+  // TALKING to Rumi — that stays chat.
+  const looksLikeClassroom = dur >= CLASSROOM_SECONDS
+    || (!dur && fileSize >= LARGE_FILE_BYTES)
+    || isLongAudio;
+
+  const park = async () => {
+    const ObserveBinding = require('./observe-binding.service');
+    await ObserveBinding.parkAndAsk(user, from, {
+      audioId, sha256, durationSeconds: dur || null,
+    });
+  };
 
   let state = null;
   try {
@@ -50,23 +100,17 @@ async function routeLeaderAudio({ user, from, audioId, sessionId, isLongAudio = 
     logToFile('⚠️ observe: state lookup failed for leader audio', {
       userId: user.id, error: err.message,
     });
-    // Fail SAFE: on a long recording we still refuse to hand a school leader
-    // to the teacher coaching flow — nudge them to re-arm instead.
-    if (isLongAudio) {
-      await WhatsAppService.sendMessage(from, S.long_audio_no_state);
-      return true;
-    }
+    // Fail SAFE: a state error must never open the teacher-coaching door.
+    if (looksLikeClassroom) { await park(); return true; }
     return false;
   }
 
   try {
     if (state && state.state === 'awaiting_audio') {
       const ObserveCapture = require('./observe-capture.service');
-      // bd-2139: pass the webhook-reported duration through. Dropping it stored
-      // audio_duration_seconds = NULL, which surfaced to Riffat as "your 0-minute
-      // recording". Documents carry no duration at all — the transcription step
-      // backfills those from ffprobe.
-      await ObserveCapture.startFromAudio(user, from, audioId, sessionId, durationSeconds);
+      // bd-2139: pass the resolved duration through. Dropping it stored
+      // audio_duration_seconds = NULL ("your 0-minute recording").
+      await ObserveCapture.startFromAudio(user, from, audioId, sessionId, dur || null);
       logToFile('🔭 observe: classroom recording captured', { userId: user.id, audioId });
       return true;
     }
@@ -80,42 +124,22 @@ async function routeLeaderAudio({ user, from, audioId, sessionId, isLongAudio = 
     logToFile('❌ observe: leader audio capture failed', {
       userId: user.id, state: state && state.state, error: err.message,
     });
-    if (isLongAudio) {
-      // Still never fall through into teacher coaching.
-      await WhatsAppService.sendMessage(from, S.debrief_load_error);
-      return true;
-    }
-    return false;
+    await WhatsAppService.sendMessage(from, S.debrief_load_error);
+    return true;   // never fall through into teacher coaching on an error
   }
 
-  // School leader, no observe state armed.
-  if (isLongAudio) {
-    logToFile('🔭 observe: leader sent long audio with no armed observation', { userId: user.id });
-    // bd-jrxo3 — the back door. This is the stale-state and resumed-chat case:
-    // a recording arrives, nothing is bound, and the old reply ("type /observe
-    // first, then send it again") was a dead end she had to decode. Where a
-    // picker EXISTS, say what to do and open it in the same breath. Where it
-    // does not — upstream Tanzania — the recording is still the entry point, so
-    // today's line stands unchanged.
-    if (process.env.OBSERVE_VISIT_FLOW_ID) {
-      try {
-        const { sendVisitRedirect } = require('../../handlers/observe-command.handler');
-        await sendVisitRedirect(user, from);
-        return true;
-      } catch (err) {
-        logToFile('⚠️ observe: redirect failed — falling back to the plain nudge', {
-          userId: user.id, error: err.message,
-        });
-      }
-    }
-    await WhatsAppService.sendMessage(from, S.long_audio_no_state);
+  // Nothing armed (or the slot is mid-pipeline on ANOTHER observation — the
+  // multi-flight case). A classroom-length recording is parked and the coach
+  // is ASKED whose it is. bd-pkds0: this replaces the duration-gated wall.
+  if (looksLikeClassroom) {
+    logToFile('🔭 observe: unbound leader recording — asking whose it is', {
+      userId: user.id, audioId, dur, slotState: state && state.state,
+    });
+    await park();
     return true;   // the invariant: never teacher coaching for a school leader
   }
 
-  // Short audio, no observation — let them chat normally. Deliberately NOT
-  // redirected even where a picker exists: this is a coach talking to Rumi, not
-  // a lesson recording, and the bare-capture hole is closed at the arming layer
-  // (observe-command.handler) rather than by hijacking every voice note.
+  // Resolved-short, small file: the coach is talking to Rumi. Chat continues.
   return false;
 }
 

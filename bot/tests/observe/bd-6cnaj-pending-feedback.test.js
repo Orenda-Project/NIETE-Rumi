@@ -47,12 +47,19 @@ describe('bd-6cnaj · the two row types must not share one action', () => {
     jest.doMock('../../shared/services/observe/observe-debrief.service', () => ({
       listPendingDebriefs: async () => PENDING,
       listUnsentReports: async () => UNSENT,
+      listUnfinished: async () => [],
     }), { virtual: true });
     H = require('../../shared/handlers/observe-visit-flow.handler');
   });
   afterEach(() => jest.dontMock('../../shared/services/observe/observe-debrief.service'));
 
-  const rowsOf = async () => (await H.handle('coach-1', 'data_exchange', 'MENU', { step: 'debriefs' }, 'coach-1', null)).data.items;
+  // bd-tju8f: the two row types now live on SEPARATE stage screens (the
+  // structural form of this suite's guarantee) — fetch both and merge.
+  const rowsOf = async () => {
+    const deb = (await H.handle('coach-1', 'data_exchange', 'MENU', { step: 'debriefs' }, 'coach-1', null)).data.items;
+    const snd = (await H.handle('coach-1', 'data_exchange', 'MENU', { step: 'work_send' }, 'coach-1', null)).data.items;
+    return [...deb, ...snd].filter((r) => r['on-click-action'].name === 'complete');
+  };
 
   it('a debrief still to do opens the DEBRIEF path', async () => {
     const r = (await rowsOf()).find((x) => x.id === 'sess-pending-1');
@@ -152,8 +159,11 @@ describe('bd-0cxz6 · a coach with no schools can still get in and add her first
     jest.dontMock('../../shared/services/observe/observe-school-admin.service');
   });
 
-  it('a coach who has schools keeps the full menu, unchanged', async () => {
+  it('a coach with schools and an empty backlog gets a stage-row-free menu (bd-tju8f)', async () => {
+    // bd-tju8f: zero-count stage rows are HIDDEN — an empty backlog means the
+    // menu opens straight at schedule/new/manage. (Count-carrying stage rows
+    // are covered in visit-flow-scheduling.test.js, where the counts are real.)
     const m = await H.handle('coach-1', 'INIT', '', {}, 'coach-1', null, { schoolCount: 3 });
-    expect(m.data.items.map((i) => i.id)).toEqual(['debriefs', 'schedule', 'new', 'manage']);
+    expect(m.data.items.map((i) => i.id)).toEqual(['schedule', 'new', 'manage']);
   });
 });

@@ -71,9 +71,9 @@ describe('bd-bos31 · the row shows WHO, using the name the query already resolv
     expect(items[0]['main-content'].title).toBe('Observation');
   });
 
-  it('unsent-report rows get a name too — their query never enriched them', async () => {
+  it('unsent-report rows get a name too — on their OWN stage screen (bd-tju8f)', async () => {
     const H = loadHandler([], [{ id: 'u1', created_at: '2026-08-18T09:00:00Z', analysis_data: {}, teacher_name: 'Bushra Tariq' }]);
-    const items = (await H.handle('c1', 'data_exchange', 'MENU', { step: 'debriefs' }, 'c1', null)).data.items;
+    const items = (await H.handle('c1', 'data_exchange', 'MENU', { step: 'work_send' }, 'c1', null)).data.items;
     expect(items[0]['main-content'].title).toBe('Bushra Tariq');
     expect(items[0]['on-click-action'].payload.observe_visit_action).toBe('send_report');
   });
@@ -118,19 +118,22 @@ describe('bd-43474 · a coach can page through her whole backlog', () => {
     expect(p2.filter((i) => i.id !== 'more' && ids1.has(i.id))).toHaveLength(0);
   });
 
-  it('pages correctly when BOTH lists are populated — no row repeats across pages', async () => {
-    // The case the first implementation got wrong: the offset applies to the
-    // STITCHED list, not to each query, so page 2 must not re-show the unsent rows.
-    const H = loadHandler(mk(15, 'p'), mk(10, 'u'));
+  it('stages page independently — debriefs and sends never share a screen (bd-tju8f)', async () => {
+    // The stitched-offset bug class is now structurally impossible: each stage
+    // pages its own query on its own screen. Verify both in one setup.
+    const H = loadHandler(mk(25, 'p'), mk(10, 'u'));
     const p1 = (await H.handle('c1', 'data_exchange', 'MENU', { step: 'debriefs' }, 'c1', null)).data.items;
     const off = p1.find((i) => i.id === 'more')['on-click-action'].payload.offset;
     const p2 = (await H.handle('c1', 'data_exchange', 'DEBRIEFS', { step: 'debriefs', offset: off }, 'c1', null)).data.items;
     const ids1 = new Set(p1.filter((i) => i.id !== 'more').map((i) => i.id));
-    const repeats = p2.filter((i) => i.id !== 'more' && ids1.has(i.id));
-    expect(repeats).toHaveLength(0);
-    // and between them they cover all 25
-    const seen = new Set([...ids1, ...p2.filter((i) => i.id !== 'more').map((i) => i.id)]);
-    expect(seen.size).toBe(25);
+    expect(p2.filter((i) => i.id !== 'more' && ids1.has(i.id))).toHaveLength(0);
+    const seenDebrief = new Set([...ids1, ...p2.filter((i) => i.id !== 'more').map((i) => i.id)]);
+    expect(seenDebrief.size).toBe(25);
+    const sends = (await H.handle('c1', 'data_exchange', 'MENU', { step: 'work_send' }, 'c1', null)).data.items;
+    expect(sends.filter((i) => i.id !== 'more' && i.id !== 'none')).toHaveLength(10);
+    for (const s of sends.filter((i) => i.id !== 'more' && i.id !== 'none')) {
+      expect(s['on-click-action'].payload.observe_visit_action).toBe('send_report');
+    }
   });
 
   it('no "show more" when everything already fits', async () => {
