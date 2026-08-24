@@ -52,6 +52,7 @@ jest.mock('../../shared/services/observe/observe-state.service', () => {
 jest.mock('../../shared/services/observe/observe-debrief.service', () => ({
   listPendingDebriefs: jest.fn(async () => [{ id: 'sess-9' }]),
   listUnsentReports: jest.fn(async () => []),
+  listUnfinished: jest.fn(async () => []),
   buildPendingListPayload: jest.fn(() => ({})),
   startDebrief: jest.fn(async () => {}),
 }));

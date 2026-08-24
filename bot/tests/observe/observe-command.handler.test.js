@@ -19,6 +19,7 @@ jest.mock('../../shared/utils/region', () => ({
 jest.mock('../../shared/services/observe/observe-debrief.service', () => ({
   listPendingDebriefs: jest.fn().mockResolvedValue([]),
   listUnsentReports: jest.fn().mockResolvedValue([]),
+  listUnfinished: jest.fn().mockResolvedValue([]),
   buildPendingListPayload: jest.fn(() => ({
     body: 'list-body', action: { button: 'Chagua', sections: [{ rows: [] }] },
   })),

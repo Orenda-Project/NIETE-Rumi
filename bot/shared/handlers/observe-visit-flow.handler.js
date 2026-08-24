@@ -277,24 +277,32 @@ async function menuScreen(userId, opts = {}) {
       schoolCount = (await A.listMySchools(userId)).length;
     } catch (_) { schoolCount = 1; }   // unknown -> behave as today
   }
+  let nForm = 0; let nDebrief = 0; let nSend = 0;
   try {
     const Debrief = _debriefService();
-    const [p, u] = await Promise.all([
-      Debrief.listPendingDebriefs(userId).catch(() => []),
-      Debrief.listUnsentReports(userId).catch(() => []),
+    const [f, p, u] = await Promise.all([
+      Debrief.listUnfinished(userId, { limit: 100 }).catch(() => []),
+      Debrief.listPendingDebriefs(userId, { limit: 100 }).catch(() => []),
+      Debrief.listUnsentReports(userId, { limit: 100 }).catch(() => []),
     ]);
-    pending = p.length + u.length;
-  } catch (_) { /* count stays 0 — the menu must always render */ }
+    nForm = f.length; nDebrief = p.length; nSend = u.length;
+    pending = nForm + nDebrief + nSend;
+  } catch (_) { /* counts stay 0 — the menu must always render */ }
   try { upcoming = await _scheduleStore().countUpcoming(userId); } catch (_) {}
+  // bd-tju8f (operator design, 2026-08-24): three stage rows with counts —
+  // mirror of the old single "Complete debriefs" row. Zero-count rows are
+  // hidden (same conditional-trim pattern as the schoolCount==0 case below).
+  const stageRows = [
+    { id: 'work_form', title: 'Complete the form', n: nForm, meta: `${nForm} to finish`, step: 'work_form' },
+    { id: 'debriefs', title: 'Complete debriefs', n: nDebrief, meta: `${nDebrief} pending`, step: 'debriefs' },
+    { id: 'work_send', title: 'Send reports', n: nSend, meta: `${nSend} to send`, step: 'work_send' },
+  ].filter((r) => r.n > 0).map((r) => ({
+    id: r.id,
+    'main-content': { title: r.title, metadata: r.meta },
+    'on-click-action': { name: 'data_exchange', payload: { step: r.step } },
+  }));
   const items = [
-    {
-      id: 'debriefs',
-      'main-content': {
-        title: 'Complete debriefs',
-        metadata: pending > 0 ? `${pending} pending` : 'No pending debriefs',
-      },
-      'on-click-action': { name: 'data_exchange', payload: { step: 'debriefs' } },
-    },
+    ...stageRows,
     {
       id: 'schedule',
       'main-content': {
@@ -339,60 +347,71 @@ async function menuScreen(userId, opts = {}) {
 // so a coach with a long backlog can always reach the rest.
 const DEBRIEF_PAGE = 19;
 
-async function debriefsScreen(userId, offset = 0) {
+async function _stageScreen(userId, offset, { screen, step, fetch, metaOf, action }) {
   const Debrief = _debriefService();
   const off = Math.max(0, Number(offset) || 0);
-  // The screen shows ONE list stitched from two queries, so the offset applies
-  // to the stitched result, not to either query. Fetch both from the start up
-  // to the end of this page (+1 to detect another page) and slice after. At the
-  // real sizes here — the largest backlog on prod is 13 — that is one extra row
-  // per query, not a scan.
   const upto = off + DEBRIEF_PAGE + 1;
-  const [pendings, unsent] = await Promise.all([
-    Debrief.listPendingDebriefs(userId, { limit: upto, offset: 0 }).catch(() => []),
-    Debrief.listUnsentReports(userId, { limit: upto, offset: 0 }).catch(() => []),
-  ]);
-  // bd-bos31: prefer the schedule-resolved name the query already attached. The
-  // analysis_data field is empty on 166 of 323 prod observations, which is why
-  // rows read "Observation"; the name was there, just never read.
+  const rows = await fetch(Debrief, userId, { limit: upto }).catch(() => []);
   const nameOf = (sess) => sess.teacher_name
     || (sess.analysis_data && sess.analysis_data.teacher_delivery && sess.analysis_data.teacher_delivery.teacher_name)
     || 'Observation';
-  const row = (sess, metaSuffix, action) => ({
+  const row = (sess) => ({
     id: String(sess.id),
     'main-content': {
       title: clip(nameOf(sess), 30),
-      metadata: clip([sess.school_name, `Observed ${fmtVisitDate(sess.created_at)}`, metaSuffix].filter(Boolean).join(' - '), 80),
+      metadata: clip([sess.school_name, `Observed ${fmtVisitDate(sess.created_at)}`, metaOf(sess)].filter(Boolean).join(' - '), 80),
     },
     'on-click-action': {
       name: 'complete',
-      payload: { observe_visit_action: action, session_id: String(sess.id) },
+      payload: { observe_visit_action: typeof action === 'function' ? action(sess) : action, session_id: String(sess.id) },
     },
   });
-  const all = [
-    ...pendings.map((s) => row(s, 'debrief pending', 'debrief')),
-    ...unsent.map((s) => row(s, 'report not sent yet', 'send_report')),
-  ];
+  const all = rows.map(row);
   const page = all.slice(off, off + DEBRIEF_PAGE);
   const items = [...page];
   if (all.length > off + DEBRIEF_PAGE) {
     items.push({
       id: 'more',
       'main-content': { title: 'Show more', metadata: `${off + page.length} of ${all.length} shown` },
-      'on-click-action': { name: 'data_exchange', payload: { step: 'debriefs', offset: off + DEBRIEF_PAGE } },
+      'on-click-action': { name: 'data_exchange', payload: { step, offset: off + DEBRIEF_PAGE } },
     });
   }
   if (!items.length) {
-    // NavigationList needs >=1 row; a self-refreshing placeholder keeps an
-    // accidental tap harmless (the system back arrow returns to MENU).
     items.push({
       id: 'none',
       'main-content': { title: 'Nothing pending', metadata: 'Use the back arrow to return' },
-      'on-click-action': { name: 'data_exchange', payload: { step: 'debriefs' } },
+      'on-click-action': { name: 'data_exchange', payload: { step } },
     });
   }
-  return { screen: 'DEBRIEFS', data: { items } };
+  return { screen, data: { items } };
 }
+
+// bd-tju8f: each stage renders on its OWN Flow screen with its own 19-row page
+// (operator design — per-stage budgets instead of one stitched list).
+// WORK_FORM / WORK_SEND are the two screens added to the Flow JSON in the same
+// change; DEBRIEFS keeps its published title and id.
+// Deploy-order safety: until the Flow JSON carrying WORK_FORM/WORK_SEND is
+// PUBLISHED on this WABA, render those stages on the existing DEBRIEFS screen
+// (right rows, provisional title). Flip OBSERVE_STAGE_SCREENS=true after the
+// republish — code first, Flow second, env third; each step is safe alone.
+const _stageScreenId = (want) => (process.env.OBSERVE_STAGE_SCREENS === 'true' ? want : 'DEBRIEFS');
+const workFormScreen = (userId, offset) => _stageScreen(userId, offset, {
+  screen: _stageScreenId('WORK_FORM'), step: 'work_form',
+  fetch: (D, u, o) => D.listUnfinished(u, o),
+  metaOf: (s) => ({ gate: 'finish setup', form: 'form to submit',
+    retry: 'stopped - tap to retry', wait: 'analysing…' })[s.resume] || 'finish setup',
+  action: 'resume',
+});
+const debriefsScreen = (userId, offset) => _stageScreen(userId, offset, {
+  screen: 'DEBRIEFS', step: 'debriefs',
+  fetch: (D, u, o) => D.listPendingDebriefs(u, o),
+  metaOf: () => 'debrief pending', action: 'debrief',
+});
+const workSendScreen = (userId, offset) => _stageScreen(userId, offset, {
+  screen: _stageScreenId('WORK_SEND'), step: 'work_send',
+  fetch: (D, u, o) => D.listUnsentReports(u, o),
+  metaOf: () => 'report not sent yet', action: 'send_report',
+});
 
 function _clampOptions(options, label, userId) {
   if (options.length > DROPDOWN_CAP) {
@@ -679,6 +698,8 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
     // v2-only steps (the v1 Flow never sends them, so they are inert dark)
     if (step === 'add_search_open') return { screen: 'ADD_SEARCH', data: {} };
     if (step === 'debriefs') return debriefsScreen(userId, screenData && screenData.offset);
+    if (step === 'work_form') return workFormScreen(userId, screenData && screenData.offset);
+    if (step === 'work_send') return workSendScreen(userId, screenData && screenData.offset);
     if (step === 'schedule') return scheduleScreen(userId);
     if (step === 'schools') return schoolsScreenV2(userId);
     if (step === 'sched_teacher') {

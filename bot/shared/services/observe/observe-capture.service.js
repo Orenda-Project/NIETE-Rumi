@@ -112,8 +112,13 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
     }
   }
 
-  await ObserveState.setState(user.id, 'analyzing', { sessionId: session.id });
-  await WhatsAppService.sendMessage(from, S.audio_received);
+  // bd-tju8f: FREE the slot — the pipeline lives on the DB row, not in Redis.
+  // Keeping 'analyzing' here is what made recording #2 unbindable (the slot was
+  // occupied, the router saw no armed state, and the audio leaked into teacher
+  // coaching — 4 coaches on 24 Aug). The next recording now gets the binding
+  // prompt, which is the multi-flight entry point.
+  await ObserveState.clearState(user.id);
+  await WhatsAppService.sendMessage(from, `${S.audio_received}\n\n${S.capture_next_hint || ''}`.trim());
 
   // bd-2668: an UNBOUND capture records no teacher, so the pending-debrief list
   // can only show a date and the portal shows "Unassigned" (66 of 85 live
