@@ -569,47 +569,112 @@ async function runRecovery() {
  * any captured photo) so she still gets her report.
  */
 async function processStuckPhotoGateSessions() {
+  // bd-tju8f (absorbs bd-m1jih) — six rules, all structural:
+  //   single-flight claim  only the replica whose CAS update returns a row
+  //                        queues + notifies (the 18-19 Aug x10-replica spam)
+  //   updated_at staleness fresh activity is never yanked (the mid-flow yank)
+  //   notify-once          a re-processed session never re-messages
+  //   observer identity    a bound leader observation messages the COACH
+  //   per-tick cap         oldest first; a backlog drains as a drip, never a burst
+  //   age ceiling          older than the ceiling -> silently 'abandoned'
+  const SWEEP_MAX_PER_TICK = Number(process.env.PHOTO_GATE_SWEEP_MAX_PER_TICK) || 8;
+  const SWEEP_MAX_AGE_DAYS = Number(process.env.PHOTO_GATE_SWEEP_MAX_AGE_DAYS) || 7;
   const cutoff = new Date(Date.now() - PHOTO_GATE_THRESHOLD_MS).toISOString();
   const { data: stuck, error } = await supabase
     .from('coaching_sessions')
-    .select('id, user_id, status, created_at, updated_at, transcript_text, users!inner(phone_number, first_name)')
+    .select('id, user_id, observer_user_id, observation_type, status, created_at, updated_at, transcript_text, conversation_state, users!inner(phone_number, first_name)')
     .in('status', PHOTO_GATE_STATUSES)
-    .lt('created_at', cutoff);
+    .lt('updated_at', cutoff);
   if (error) {
     logToFile('❌ photo-gate sweep query failed', { error: error.message }, 'error');
-    return { found: 0, advanced: 0 };
+    return { found: 0, advanced: 0, abandoned: 0 };
   }
 
   const now = Date.now();
+  const eligible = (stuck || [])
+    .filter((s) => shouldAutoAdvancePhotoGate(s, now, PHOTO_GATE_THRESHOLD_MS))
+    .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));   // oldest first
+
   let advanced = 0;
-  for (const session of stuck || []) {
-    if (!shouldAutoAdvancePhotoGate(session, now, PHOTO_GATE_THRESHOLD_MS)) continue;
+  let abandoned = 0;
+  for (const session of eligible) {
+    if (advanced >= SWEEP_MAX_PER_TICK) break;
+    const ageMs = now - Date.parse(session.created_at);
+    const tooOld = ageMs > SWEEP_MAX_AGE_DAYS * 24 * 3600 * 1000;
     try {
-      // Move it off the gate status FIRST so the next tick can't re-sweep it.
-      await supabase
+      if (tooOld) {
+        // Silent abandon: a report for a weeks-old lesson confuses more than it
+        // helps. Audio + transcript stay on the row; nothing is messaged.
+        const { data: claimedOld } = await supabase
+          .from('coaching_sessions')
+          .update({ status: 'abandoned' })
+          .eq('id', session.id)
+          .in('status', PHOTO_GATE_STATUSES)
+          .select();
+        if (claimedOld && claimedOld.length) {
+          abandoned++;
+          logToFile('🗃 photo-gate session past the age ceiling — abandoned silently', {
+            sessionId: session.id, ageDays: Math.round(ageMs / 86400000) });
+        }
+        continue;
+      }
+
+      // SINGLE-FLIGHT CLAIM: exactly one replica wins the CAS; only the winner
+      // queues + notifies. This is THE bd-m1jih fix.
+      const alreadyNotified = !!(session.conversation_state && session.conversation_state.photo_gate_notified);
+      const { data: claimed } = await supabase
         .from('coaching_sessions')
-        .update({ status: 'analysis_started' })
-        .eq('id', session.id);
+        .update({
+          status: 'analysis_started',
+          conversation_state: { ...(session.conversation_state || {}), photo_gate_notified: true },
+        })
+        .eq('id', session.id)
+        .in('status', PHOTO_GATE_STATUSES)
+        .select();
+      if (!claimed || !claimed.length) continue;   // another replica won
+
+      // Observer identity: on a bound leader observation, session.users is the
+      // TEACHER — every message and job callback must reach the COACH.
+      let notifyPhone = session.users.phone_number;
+      let notifyName = session.users.first_name;
+      if (session.observation_type === 'leader_observation'
+          && session.observer_user_id && session.observer_user_id !== session.user_id) {
+        const { data: coach } = await supabase
+          .from('users').select('phone_number, first_name')
+          .eq('id', session.observer_user_id).single();
+        if (coach && coach.phone_number) { notifyPhone = coach.phone_number; notifyName = coach.first_name; }
+        else {
+          logToFile('⚠️ photo-gate: could not resolve the coach — advancing silently', {
+            sessionId: session.id, observerUserId: session.observer_user_id });
+          notifyPhone = null;   // better silent than the wrong person
+        }
+      }
 
       await CoachingJobQueueService.queueAnalysis(session.id, {
-        from: session.users.phone_number,
+        from: notifyPhone || session.users.phone_number,
         trigger: 'photo_gate_timeout',
         skipReflection: true,
       });
 
-      await WhatsAppService.sendMessage(
-        session.users.phone_number,
-        `Hi ${session.users.first_name}! I'm putting together your coaching report from your class recording now. 📊`
-      );
+      if (notifyPhone && !alreadyNotified) {
+        const dated = ageMs > 24 * 3600 * 1000
+          ? ` from your class on ${new Date(session.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+          : ' from your class recording';
+        await WhatsAppService.sendMessage(
+          notifyPhone,
+          `Hi ${notifyName}! I'm putting together your coaching report${dated} now. 📊`
+        );
+      }
 
       advanced++;
-      logToFile('✅ Photo-gate session auto-advanced → report', { sessionId: session.id, wasStatus: session.status });
+      logToFile('✅ Photo-gate session auto-advanced → report', {
+        sessionId: session.id, wasStatus: session.status, notified: !!(notifyPhone && !alreadyNotified) });
     } catch (err) {
       logToFile('❌ Failed to auto-advance photo-gate session', { sessionId: session.id, error: err.message }, 'error');
     }
   }
-  if ((stuck || []).length) logToFile('🔔 photo-gate sweep done', { found: stuck.length, advanced });
-  return { found: (stuck || []).length, advanced };
+  if (eligible.length) logToFile('🔔 photo-gate sweep done', { found: eligible.length, advanced, abandoned });
+  return { found: eligible.length, advanced, abandoned };
 }
 
 module.exports = {

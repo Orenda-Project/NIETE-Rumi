@@ -49,7 +49,8 @@ describe('bd-2215 — observe list-reply id contract', () => {
     };
     const pendings = [{ id: 'sess-1', created_at: '2026-07-20T14:39:29Z', analysis_data: {} }];
     const payload = ObserveDebrief.buildPendingListPayload(pendings, S, []);
-    const rows = payload.action.sections[0].rows;
+    // bd-tju8f: the payload is now three labelled stage sections + New.
+    const rows = payload.action.sections.flatMap((s) => s.rows);
     expect(rows.some((r) => r.id === 'observe_new')).toBe(true);
     // and every row id must be one the router can parse or prefix-match
     for (const r of rows) {
