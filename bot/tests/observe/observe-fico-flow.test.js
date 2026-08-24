@@ -34,19 +34,31 @@ describe('observe-fico-flow.json — FICO V3 (37 indicators, B/C/D/F)', () => {
     expect(flow.data_api_version).toBe('3.0');
   });
 
-  test('all 37 framework indicators have rating + evidence + improvement fields', () => {
+  // bd-c5zs1 (v4): Section B's legacy B1-B10 indicator fields are RETIRED from
+  // the form — the coach edits the per-move MEASUREMENT instead (fid_r_k /
+  // fid_e_k), parity with the teacher flow (D27). C/D/F keep their indicators.
+  test('C/D/F indicators have rating + evidence + improvement fields; B is the editable measurement', () => {
     const names = new Set();
     domainScreens.forEach(s => s.layout.children[0].children.forEach(c => { if (c.name) names.add(c.name); }));
     let count = 0;
-    Object.values(domains).forEach(d => d.indicators.forEach(ind => {
+    Object.entries(domains).forEach(([key, d]) => d.indicators.forEach(ind => {
       const f = String(ind.id).replace(/\./g, '_');
-      expect(names.has(`r_${f}`)).toBe(true);
-      expect(names.has(`ev_${f}`)).toBe(true);
-      expect(names.has(`imp_${f}`)).toBe(true);
+      if (key === 'lesson_plan_fidelity') {
+        expect(names.has(`r_${f}`)).toBe(false);   // retired
+        expect(names.has(`ev_${f}`)).toBe(false);
+        expect(names.has(`imp_${f}`)).toBe(false);
+      } else {
+        expect(names.has(`r_${f}`)).toBe(true);
+        expect(names.has(`ev_${f}`)).toBe(true);
+        expect(names.has(`imp_${f}`)).toBe(true);
+      }
       count += 1;
     }));
-    expect(count).toBe(totalIndicators); // 37
+    expect(count).toBe(totalIndicators); // 37 in the framework — 10 of them retired from the FORM
     expect(count).toBe(37);
+    // the editable measurement fields stand in Section B's place
+    expect(names.has('fid_r_1')).toBe(true);
+    expect(names.has('fid_e_1')).toBe(true);
   });
 
   test('rating options are the FICO 1-4 scale (never 0-3)', () => {

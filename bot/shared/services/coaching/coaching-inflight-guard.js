@@ -52,6 +52,10 @@ function isMidFlightCoachingStatus(status) {
  */
 function shouldDeferNewClassroomAudio(session, nowMs = Date.now()) {
   if (!session || !isMidFlightCoachingStatus(session.status)) return false;
+  // bd-0c80s: a bound observe capture puts the TEACHER's user_id on the row
+  // (observation_type='leader_observation'). That is a coach observing her,
+  // not her own analysis — it must never bounce her own recording.
+  if (session.observation_type === 'leader_observation') return false;
   const stamp = Date.parse(session.created_at || session.updated_at || '');
   if (Number.isNaN(stamp)) return true; // mid-flight but unknown age → defer (safer)
   return (nowMs - stamp) <= MIDFLIGHT_WINDOW_MS;

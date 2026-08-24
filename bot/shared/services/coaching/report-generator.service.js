@@ -70,7 +70,7 @@ class ReportGeneratorService {
       // Get complete session data
       const { data: session, error: sessionError } = await supabase
         .from('coaching_sessions')
-        .select('*, users!inner(phone_number, first_name, last_name)')
+        .select('*, users!inner(phone_number, first_name, last_name, preferred_language)')
         .eq('id', coachingSessionId)
         .single();
 
@@ -687,7 +687,14 @@ class ReportGeneratorService {
     // Attach the inputs the hero renderer needs so it can reach them off
     // reportData (the PDFKit / HTML renderers ignore these). Kept as
     // underscored fields to make the side-channel intent explicit.
-    const language = session?.users?.preferred_language || 'en'; // bd-3b0co: teacher's preference, no transcript-language leak (matches hero path)
+    // bd-gfsja: her stored preference leads the chain; when it is unset the
+    // resolver falls through to offered candidates and lands on the offer
+    // default — never a hard 'en' floor, which (being offered) used to win
+    // the chain for every teacher because the session join omitted the column.
+    const { resolveReportLanguage } = require('./report-v2/report-language');
+    const language = resolveReportLanguage(
+      { language: session?.users?.preferred_language }, analysisForTransformer, session
+    );
     const commitmentAction = (precomputedCommitment && precomputedCommitment.action) || '';
 
     reportData._heroInput = {

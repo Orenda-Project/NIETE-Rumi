@@ -57,225 +57,233 @@
           "type": "boolean",
           "__example__": true
         },
+        "no_fidelity": {
+          "type": "boolean",
+          "__example__": false
+        },
         "fid_header": {
           "type": "string",
-          "__example__": "Measured lesson-plan fidelity: 46% (LOW) · 9 counted moves\nScore = credit earned ÷ prescribed moves."
+          "__example__": "Measured lesson-plan fidelity: 46% (LOW) · 9 counted moves\nChange any rating you disagree with."
+        },
+        "fid_fallback": {
+          "type": "string",
+          "__example__": ""
+        },
+        "fid_scale": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "executed",
+              "title": "✓ Executed — full credit"
+            },
+            {
+              "id": "not_done",
+              "title": "✗ Not done — no credit"
+            }
+          ]
         },
         "mv_1": {
           "type": "string",
-          "__example__": "1/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+          "__example__": "1/9 · Warm-up — Plan: Read the word problem aloud"
         },
         "mv_1_v": {
           "type": "boolean",
           "__example__": true
         },
+        "fr_1": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_1": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
         "mv_2": {
           "type": "string",
-          "__example__": "2/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+          "__example__": "2/9 · Warm-up — Plan: Read the word problem aloud"
         },
         "mv_2_v": {
           "type": "boolean",
           "__example__": false
         },
+        "fr_2": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_2": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
         "mv_3": {
           "type": "string",
-          "__example__": "3/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+          "__example__": "3/9 · Warm-up — Plan: Read the word problem aloud"
         },
         "mv_3_v": {
           "type": "boolean",
           "__example__": false
         },
+        "fr_3": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_3": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
         "mv_4": {
           "type": "string",
-          "__example__": "4/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+          "__example__": "4/9 · Warm-up — Plan: Read the word problem aloud"
         },
         "mv_4_v": {
           "type": "boolean",
           "__example__": false
         },
+        "fr_4": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_4": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
         "mv_5": {
           "type": "string",
-          "__example__": "5/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+          "__example__": "5/9 · Warm-up — Plan: Read the word problem aloud"
         },
         "mv_5_v": {
           "type": "boolean",
           "__example__": false
         },
+        "fr_5": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_5": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
         "mv_6": {
           "type": "string",
-          "__example__": "6/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+          "__example__": "6/9 · Warm-up — Plan: Read the word problem aloud"
         },
         "mv_6_v": {
           "type": "boolean",
           "__example__": false
         },
+        "fr_6": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_6": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
         "mv_7": {
           "type": "string",
-          "__example__": "7/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+          "__example__": "7/9 · Warm-up — Plan: Read the word problem aloud"
         },
         "mv_7_v": {
           "type": "boolean",
           "__example__": false
         },
+        "fr_7": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_7": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
         "mv_8": {
           "type": "string",
-          "__example__": "8/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+          "__example__": "8/9 · Warm-up — Plan: Read the word problem aloud"
         },
         "mv_8_v": {
           "type": "boolean",
           "__example__": false
         },
+        "fr_8": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_8": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
         "mv_9": {
           "type": "string",
-          "__example__": "9/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+          "__example__": "9/9 · Warm-up — Plan: Read the word problem aloud"
         },
         "mv_9_v": {
           "type": "boolean",
           "__example__": false
         },
+        "fr_9": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_9": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
         "mv_10": {
           "type": "string",
-          "__example__": "10/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+          "__example__": "10/9 · Warm-up — Plan: Read the word problem aloud"
         },
         "mv_10_v": {
           "type": "boolean",
           "__example__": false
         },
+        "fr_10": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_10": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
         "mv_11": {
           "type": "string",
-          "__example__": "11/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+          "__example__": "11/9 · Warm-up — Plan: Read the word problem aloud"
         },
         "mv_11_v": {
           "type": "boolean",
           "__example__": false
         },
+        "fr_11": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_11": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
         "mv_12": {
           "type": "string",
-          "__example__": "12/9 · Warm-up — ✓ Executed — full credit\nPlan: Read the word problem aloud\nSeen: [02:10] Teacher reads it twice"
+          "__example__": "12/9 · Warm-up — Plan: Read the word problem aloud"
         },
         "mv_12_v": {
           "type": "boolean",
           "__example__": false
         },
-        "s_B1": {
+        "fr_12": {
           "type": "string",
-          "__example__": "2"
+          "__example__": "executed"
         },
-        "e_B1": {
+        "fe_12": {
           "type": "string",
-          "__example__": "Ushahidi…"
-        },
-        "i_B1": {
-          "type": "string",
-          "__example__": "Ushauri…"
-        },
-        "s_B2": {
-          "type": "string",
-          "__example__": "2"
-        },
-        "e_B2": {
-          "type": "string",
-          "__example__": "Ushahidi…"
-        },
-        "i_B2": {
-          "type": "string",
-          "__example__": "Ushauri…"
-        },
-        "s_B3": {
-          "type": "string",
-          "__example__": "2"
-        },
-        "e_B3": {
-          "type": "string",
-          "__example__": "Ushahidi…"
-        },
-        "i_B3": {
-          "type": "string",
-          "__example__": "Ushauri…"
-        },
-        "s_B4": {
-          "type": "string",
-          "__example__": "2"
-        },
-        "e_B4": {
-          "type": "string",
-          "__example__": "Ushahidi…"
-        },
-        "i_B4": {
-          "type": "string",
-          "__example__": "Ushauri…"
-        },
-        "s_B5": {
-          "type": "string",
-          "__example__": "2"
-        },
-        "e_B5": {
-          "type": "string",
-          "__example__": "Ushahidi…"
-        },
-        "i_B5": {
-          "type": "string",
-          "__example__": "Ushauri…"
-        },
-        "s_B6": {
-          "type": "string",
-          "__example__": "2"
-        },
-        "e_B6": {
-          "type": "string",
-          "__example__": "Ushahidi…"
-        },
-        "i_B6": {
-          "type": "string",
-          "__example__": "Ushauri…"
-        },
-        "s_B7": {
-          "type": "string",
-          "__example__": "2"
-        },
-        "e_B7": {
-          "type": "string",
-          "__example__": "Ushahidi…"
-        },
-        "i_B7": {
-          "type": "string",
-          "__example__": "Ushauri…"
-        },
-        "s_B8": {
-          "type": "string",
-          "__example__": "2"
-        },
-        "e_B8": {
-          "type": "string",
-          "__example__": "Ushahidi…"
-        },
-        "i_B8": {
-          "type": "string",
-          "__example__": "Ushauri…"
-        },
-        "s_B9": {
-          "type": "string",
-          "__example__": "2"
-        },
-        "e_B9": {
-          "type": "string",
-          "__example__": "Ushahidi…"
-        },
-        "i_B9": {
-          "type": "string",
-          "__example__": "Ushauri…"
-        },
-        "s_B10": {
-          "type": "string",
-          "__example__": "2"
-        },
-        "e_B10": {
-          "type": "string",
-          "__example__": "Ushahidi…"
-        },
-        "i_B10": {
-          "type": "string",
-          "__example__": "Ushauri…"
+          "__example__": "[02:10] Teacher reads it twice"
         }
       },
       "layout": {
@@ -285,36 +293,30 @@
             "type": "Form",
             "name": "form_B",
             "init-values": {
-              "r_B1": "${data.s_B1}",
-              "ev_B1": "${data.e_B1}",
-              "imp_B1": "${data.i_B1}",
-              "r_B2": "${data.s_B2}",
-              "ev_B2": "${data.e_B2}",
-              "imp_B2": "${data.i_B2}",
-              "r_B3": "${data.s_B3}",
-              "ev_B3": "${data.e_B3}",
-              "imp_B3": "${data.i_B3}",
-              "r_B4": "${data.s_B4}",
-              "ev_B4": "${data.e_B4}",
-              "imp_B4": "${data.i_B4}",
-              "r_B5": "${data.s_B5}",
-              "ev_B5": "${data.e_B5}",
-              "imp_B5": "${data.i_B5}",
-              "r_B6": "${data.s_B6}",
-              "ev_B6": "${data.e_B6}",
-              "imp_B6": "${data.i_B6}",
-              "r_B7": "${data.s_B7}",
-              "ev_B7": "${data.e_B7}",
-              "imp_B7": "${data.i_B7}",
-              "r_B8": "${data.s_B8}",
-              "ev_B8": "${data.e_B8}",
-              "imp_B8": "${data.i_B8}",
-              "r_B9": "${data.s_B9}",
-              "ev_B9": "${data.e_B9}",
-              "imp_B9": "${data.i_B9}",
-              "r_B10": "${data.s_B10}",
-              "ev_B10": "${data.e_B10}",
-              "imp_B10": "${data.i_B10}"
+              "fid_r_1": "${data.fr_1}",
+              "fid_e_1": "${data.fe_1}",
+              "fid_r_2": "${data.fr_2}",
+              "fid_e_2": "${data.fe_2}",
+              "fid_r_3": "${data.fr_3}",
+              "fid_e_3": "${data.fe_3}",
+              "fid_r_4": "${data.fr_4}",
+              "fid_e_4": "${data.fe_4}",
+              "fid_r_5": "${data.fr_5}",
+              "fid_e_5": "${data.fe_5}",
+              "fid_r_6": "${data.fr_6}",
+              "fid_e_6": "${data.fe_6}",
+              "fid_r_7": "${data.fr_7}",
+              "fid_e_7": "${data.fe_7}",
+              "fid_r_8": "${data.fr_8}",
+              "fid_e_8": "${data.fe_8}",
+              "fid_r_9": "${data.fr_9}",
+              "fid_e_9": "${data.fe_9}",
+              "fid_r_10": "${data.fr_10}",
+              "fid_e_10": "${data.fe_10}",
+              "fid_r_11": "${data.fr_11}",
+              "fid_e_11": "${data.fe_11}",
+              "fid_r_12": "${data.fr_12}",
+              "fid_e_12": "${data.fe_12}"
             },
             "children": [
               {
@@ -329,7 +331,28 @@
               },
               {
                 "type": "TextBody",
+                "text": "${data.fid_fallback}",
+                "visible": "${data.no_fidelity}"
+              },
+              {
+                "type": "TextBody",
                 "text": "${data.mv_1}",
+                "visible": "${data.mv_1_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_1",
+                "label": "Rating — move 1",
+                "required": false,
+                "visible": "${data.mv_1_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_1",
+                "label": "Evidence",
+                "helper-text": "Move 1 — what was seen",
+                "required": false,
                 "visible": "${data.mv_1_v}"
               },
               {
@@ -338,8 +361,40 @@
                 "visible": "${data.mv_2_v}"
               },
               {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_2",
+                "label": "Rating — move 2",
+                "required": false,
+                "visible": "${data.mv_2_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_2",
+                "label": "Evidence",
+                "helper-text": "Move 2 — what was seen",
+                "required": false,
+                "visible": "${data.mv_2_v}"
+              },
+              {
                 "type": "TextBody",
                 "text": "${data.mv_3}",
+                "visible": "${data.mv_3_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_3",
+                "label": "Rating — move 3",
+                "required": false,
+                "visible": "${data.mv_3_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_3",
+                "label": "Evidence",
+                "helper-text": "Move 3 — what was seen",
+                "required": false,
                 "visible": "${data.mv_3_v}"
               },
               {
@@ -348,8 +403,40 @@
                 "visible": "${data.mv_4_v}"
               },
               {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_4",
+                "label": "Rating — move 4",
+                "required": false,
+                "visible": "${data.mv_4_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_4",
+                "label": "Evidence",
+                "helper-text": "Move 4 — what was seen",
+                "required": false,
+                "visible": "${data.mv_4_v}"
+              },
+              {
                 "type": "TextBody",
                 "text": "${data.mv_5}",
+                "visible": "${data.mv_5_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_5",
+                "label": "Rating — move 5",
+                "required": false,
+                "visible": "${data.mv_5_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_5",
+                "label": "Evidence",
+                "helper-text": "Move 5 — what was seen",
+                "required": false,
                 "visible": "${data.mv_5_v}"
               },
               {
@@ -358,8 +445,40 @@
                 "visible": "${data.mv_6_v}"
               },
               {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_6",
+                "label": "Rating — move 6",
+                "required": false,
+                "visible": "${data.mv_6_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_6",
+                "label": "Evidence",
+                "helper-text": "Move 6 — what was seen",
+                "required": false,
+                "visible": "${data.mv_6_v}"
+              },
+              {
                 "type": "TextBody",
                 "text": "${data.mv_7}",
+                "visible": "${data.mv_7_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_7",
+                "label": "Rating — move 7",
+                "required": false,
+                "visible": "${data.mv_7_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_7",
+                "label": "Evidence",
+                "helper-text": "Move 7 — what was seen",
+                "required": false,
                 "visible": "${data.mv_7_v}"
               },
               {
@@ -368,8 +487,40 @@
                 "visible": "${data.mv_8_v}"
               },
               {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_8",
+                "label": "Rating — move 8",
+                "required": false,
+                "visible": "${data.mv_8_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_8",
+                "label": "Evidence",
+                "helper-text": "Move 8 — what was seen",
+                "required": false,
+                "visible": "${data.mv_8_v}"
+              },
+              {
                 "type": "TextBody",
                 "text": "${data.mv_9}",
+                "visible": "${data.mv_9_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_9",
+                "label": "Rating — move 9",
+                "required": false,
+                "visible": "${data.mv_9_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_9",
+                "label": "Evidence",
+                "helper-text": "Move 9 — what was seen",
+                "required": false,
                 "visible": "${data.mv_9_v}"
               },
               {
@@ -378,13 +529,61 @@
                 "visible": "${data.mv_10_v}"
               },
               {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_10",
+                "label": "Rating — move 10",
+                "required": false,
+                "visible": "${data.mv_10_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_10",
+                "label": "Evidence",
+                "helper-text": "Move 10 — what was seen",
+                "required": false,
+                "visible": "${data.mv_10_v}"
+              },
+              {
                 "type": "TextBody",
                 "text": "${data.mv_11}",
                 "visible": "${data.mv_11_v}"
               },
               {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_11",
+                "label": "Rating — move 11",
+                "required": false,
+                "visible": "${data.mv_11_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_11",
+                "label": "Evidence",
+                "helper-text": "Move 11 — what was seen",
+                "required": false,
+                "visible": "${data.mv_11_v}"
+              },
+              {
                 "type": "TextBody",
                 "text": "${data.mv_12}",
+                "visible": "${data.mv_12_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_12",
+                "label": "Rating — move 12",
+                "required": false,
+                "visible": "${data.mv_12_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_12",
+                "label": "Evidence",
+                "helper-text": "Move 12 — what was seen",
+                "required": false,
                 "visible": "${data.mv_12_v}"
               },
               {
@@ -396,262 +595,36 @@
                 "text": "Part 1/4 — review the score & note, edit as you see fit"
               },
               {
-                "type": "RadioButtonsGroup",
-                "name": "r_B1",
-                "label": "B1 — Instructional Clarity &…",
-                "description": "Instructional Clarity & Learning Objectives",
-                "required": false,
-                "data-source": "${data.scale}"
-              },
-              {
-                "type": "TextArea",
-                "name": "ev_B1",
-                "label": "Evidence",
-                "helper-text": "B1 — what was seen",
-                "required": false
-              },
-              {
-                "type": "TextArea",
-                "name": "imp_B1",
-                "label": "To improve",
-                "helper-text": "B1 — to improve",
-                "required": false
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "r_B2",
-                "label": "B2 — Lesson Structure &…",
-                "description": "Lesson Structure & Sequence",
-                "required": false,
-                "data-source": "${data.scale}"
-              },
-              {
-                "type": "TextArea",
-                "name": "ev_B2",
-                "label": "Evidence",
-                "helper-text": "B2 — what was seen",
-                "required": false
-              },
-              {
-                "type": "TextArea",
-                "name": "imp_B2",
-                "label": "To improve",
-                "helper-text": "B2 — to improve",
-                "required": false
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "r_B3",
-                "label": "B3 — Activities & Tasks…",
-                "description": "Activities & Tasks Alignment",
-                "required": false,
-                "data-source": "${data.scale}"
-              },
-              {
-                "type": "TextArea",
-                "name": "ev_B3",
-                "label": "Evidence",
-                "helper-text": "B3 — what was seen",
-                "required": false
-              },
-              {
-                "type": "TextArea",
-                "name": "imp_B3",
-                "label": "To improve",
-                "helper-text": "B3 — to improve",
-                "required": false
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "r_B4",
-                "label": "B4 — Activation of Prior…",
-                "description": "Activation of Prior Knowledge",
-                "required": false,
-                "data-source": "${data.scale}"
-              },
-              {
-                "type": "TextArea",
-                "name": "ev_B4",
-                "label": "Evidence",
-                "helper-text": "B4 — what was seen",
-                "required": false
-              },
-              {
-                "type": "TextArea",
-                "name": "imp_B4",
-                "label": "To improve",
-                "helper-text": "B4 — to improve",
-                "required": false
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "r_B5",
-                "label": "B5 — Meaningful & Real-World…",
-                "description": "Meaningful & Real-World Connections",
-                "required": false,
-                "data-source": "${data.scale}"
-              },
-              {
-                "type": "TextArea",
-                "name": "ev_B5",
-                "label": "Evidence",
-                "helper-text": "B5 — what was seen",
-                "required": false
-              },
-              {
-                "type": "TextArea",
-                "name": "imp_B5",
-                "label": "To improve",
-                "helper-text": "B5 — to improve",
-                "required": false
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "r_B6",
-                "label": "B6 — Differentiation /…",
-                "description": "Differentiation / Catering to Learning Levels",
-                "required": false,
-                "data-source": "${data.scale}"
-              },
-              {
-                "type": "TextArea",
-                "name": "ev_B6",
-                "label": "Evidence",
-                "helper-text": "B6 — what was seen",
-                "required": false
-              },
-              {
-                "type": "TextArea",
-                "name": "imp_B6",
-                "label": "To improve",
-                "helper-text": "B6 — to improve",
-                "required": false
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "r_B7",
-                "label": "B7 — Use of Taleemabad…",
-                "description": "Use of Taleemabad Lesson Plan",
-                "required": false,
-                "data-source": "${data.scale}"
-              },
-              {
-                "type": "TextArea",
-                "name": "ev_B7",
-                "label": "Evidence",
-                "helper-text": "B7 — what was seen",
-                "required": false
-              },
-              {
-                "type": "TextArea",
-                "name": "imp_B7",
-                "label": "To improve",
-                "helper-text": "B7 — to improve",
-                "required": false
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "r_B8",
-                "label": "B8 — Use of Prescribed…",
-                "description": "Use of Prescribed Resources",
-                "required": false,
-                "data-source": "${data.scale}"
-              },
-              {
-                "type": "TextArea",
-                "name": "ev_B8",
-                "label": "Evidence",
-                "helper-text": "B8 — what was seen",
-                "required": false
-              },
-              {
-                "type": "TextArea",
-                "name": "imp_B8",
-                "label": "To improve",
-                "helper-text": "B8 — to improve",
-                "required": false
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "r_B9",
-                "label": "B9 — Time on Task / Time on…",
-                "description": "Time on Task / Time on Learning",
-                "required": false,
-                "data-source": "${data.scale}"
-              },
-              {
-                "type": "TextArea",
-                "name": "ev_B9",
-                "label": "Evidence",
-                "helper-text": "B9 — what was seen",
-                "required": false
-              },
-              {
-                "type": "TextArea",
-                "name": "imp_B9",
-                "label": "To improve",
-                "helper-text": "B9 — to improve",
-                "required": false
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "r_B10",
-                "label": "B10 — Lesson Closure &…",
-                "description": "Lesson Closure & Consolidation",
-                "required": false,
-                "data-source": "${data.scale}"
-              },
-              {
-                "type": "TextArea",
-                "name": "ev_B10",
-                "label": "Evidence",
-                "helper-text": "B10 — what was seen",
-                "required": false
-              },
-              {
-                "type": "TextArea",
-                "name": "imp_B10",
-                "label": "To improve",
-                "helper-text": "B10 — to improve",
-                "required": false
-              },
-              {
                 "type": "Footer",
                 "label": "Next",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
                     "_screen": "DOMAIN_B",
-                    "r_B1": "${form.r_B1}",
-                    "ev_B1": "${form.ev_B1}",
-                    "imp_B1": "${form.imp_B1}",
-                    "r_B2": "${form.r_B2}",
-                    "ev_B2": "${form.ev_B2}",
-                    "imp_B2": "${form.imp_B2}",
-                    "r_B3": "${form.r_B3}",
-                    "ev_B3": "${form.ev_B3}",
-                    "imp_B3": "${form.imp_B3}",
-                    "r_B4": "${form.r_B4}",
-                    "ev_B4": "${form.ev_B4}",
-                    "imp_B4": "${form.imp_B4}",
-                    "r_B5": "${form.r_B5}",
-                    "ev_B5": "${form.ev_B5}",
-                    "imp_B5": "${form.imp_B5}",
-                    "r_B6": "${form.r_B6}",
-                    "ev_B6": "${form.ev_B6}",
-                    "imp_B6": "${form.imp_B6}",
-                    "r_B7": "${form.r_B7}",
-                    "ev_B7": "${form.ev_B7}",
-                    "imp_B7": "${form.imp_B7}",
-                    "r_B8": "${form.r_B8}",
-                    "ev_B8": "${form.ev_B8}",
-                    "imp_B8": "${form.imp_B8}",
-                    "r_B9": "${form.r_B9}",
-                    "ev_B9": "${form.ev_B9}",
-                    "imp_B9": "${form.imp_B9}",
-                    "r_B10": "${form.r_B10}",
-                    "ev_B10": "${form.ev_B10}",
-                    "imp_B10": "${form.imp_B10}"
+                    "fid_r_1": "${form.fid_r_1}",
+                    "fid_e_1": "${form.fid_e_1}",
+                    "fid_r_2": "${form.fid_r_2}",
+                    "fid_e_2": "${form.fid_e_2}",
+                    "fid_r_3": "${form.fid_r_3}",
+                    "fid_e_3": "${form.fid_e_3}",
+                    "fid_r_4": "${form.fid_r_4}",
+                    "fid_e_4": "${form.fid_e_4}",
+                    "fid_r_5": "${form.fid_r_5}",
+                    "fid_e_5": "${form.fid_e_5}",
+                    "fid_r_6": "${form.fid_r_6}",
+                    "fid_e_6": "${form.fid_e_6}",
+                    "fid_r_7": "${form.fid_r_7}",
+                    "fid_e_7": "${form.fid_e_7}",
+                    "fid_r_8": "${form.fid_r_8}",
+                    "fid_e_8": "${form.fid_e_8}",
+                    "fid_r_9": "${form.fid_r_9}",
+                    "fid_e_9": "${form.fid_e_9}",
+                    "fid_r_10": "${form.fid_r_10}",
+                    "fid_e_10": "${form.fid_e_10}",
+                    "fid_r_11": "${form.fid_r_11}",
+                    "fid_e_11": "${form.fid_e_11}",
+                    "fid_r_12": "${form.fid_r_12}",
+                    "fid_e_12": "${form.fid_e_12}"
                   }
                 }
               }
