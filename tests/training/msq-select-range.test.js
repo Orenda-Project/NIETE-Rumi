@@ -43,6 +43,52 @@ describe('bd-2502 — the Flow JSON binds the ceiling instead of freezing it', (
   it('keeps a floor of 1 — an empty submission is not an answer', () => {
     expect(findCheckbox(screen)['min-selected-items']).toBe(1);
   });
+
+  // bd-43496 — Meta rejects `max-selected-items < 2` (MINIMUM_VALUE_REQUIRED).
+  // A literal 1 fails at upload; a BINDING that resolves to 1 uploads clean and
+  // then kills the screen on the device. Both halves are pinned: the JSON must
+  // not hardcode a sub-2 number, and buildMsqFlowScreenData must never send one
+  // (covered in bd-43496-exam-question-body-cap.test.js).
+  it('never hardcodes a checkbox ceiling below Meta\'s floor of 2', () => {
+    const max = findCheckbox(screen)['max-selected-items'];
+    if (typeof max === 'number') expect(max).toBeGreaterThanOrEqual(2);
+    else expect(max).toBe('${data.max_selected}');
+  });
+
+  // A CheckboxGroup cannot express "exactly one", so single-answer questions
+  // need their own control on the same screen.
+  it('offers a RadioButtonsGroup for single-answer questions', () => {
+    const findRadio = (node) => {
+      if (Array.isArray(node)) return node.map(findRadio).find(Boolean);
+      if (node && typeof node === 'object') {
+        if (node.type === 'RadioButtonsGroup') return node;
+        return Object.values(node).map(findRadio).find(Boolean);
+      }
+      return undefined;
+    };
+    const radio = findRadio(screen);
+    expect(radio).toBeDefined();
+    expect(radio['data-source']).toBe('${data.options}');
+    // No min/max properties exist on a radio — that is the whole point.
+    expect(radio['max-selected-items']).toBeUndefined();
+  });
+
+  // Exactly one control is visible at a time, and neither may be `required`:
+  // a hidden required field blocks submission outright.
+  it('gates the two controls on complementary flags, neither required', () => {
+    const all = [];
+    const walk = (n) => {
+      if (Array.isArray(n)) return n.forEach(walk);
+      if (n && typeof n === 'object') {
+        if (n.type === 'CheckboxGroup' || n.type === 'RadioButtonsGroup') all.push(n);
+        Object.values(n).forEach(walk);
+      }
+    };
+    walk(screen);
+    expect(all).toHaveLength(2);
+    expect(all.map(c => c.visible).sort()).toEqual(['${data.is_multi}', '${data.is_single}']);
+    for (const c of all) expect(c.required).toBe(false);
+  });
 });
 
 describe('bd-2502 — the endpoint sends a ceiling that matches what is on screen', () => {
@@ -125,11 +171,17 @@ describe('bd-2502 — the endpoint sends a ceiling that matches what is on scree
   });
 
   // bd-43496 — single-answer questions now reach this Flow too (it is the only
-  // surface that fits an oversized question). One right answer means one tick.
-  it('a single-answer question allows exactly one selection', async () => {
+  // surface that fits an oversized question), but they are served by the
+  // RadioButtonsGroup, NOT by a checkbox capped at 1: Meta enforces
+  // `max-selected-items >= 2`, and a binding that resolves to 1 kills the screen
+  // on the device after it has already rendered. So the single-answer case is
+  // asserted on the visibility flags, and the ceiling stays at or above the floor.
+  it('a single-answer question is gated onto the radio, not a 1-capped checkbox', async () => {
     seed('2', 4);
     const data = await build()(UID, ATTEMPT, 0);
     expect(data.options.length).toBe(4);
-    expect(data.max_selected).toBe(1);
+    expect(data.is_single).toBe(true);
+    expect(data.is_multi).toBe(false);
+    expect(data.max_selected).toBeGreaterThanOrEqual(2);
   });
 });
