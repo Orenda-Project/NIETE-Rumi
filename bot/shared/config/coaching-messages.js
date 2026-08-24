@@ -83,6 +83,11 @@ const COACHING_MESSAGES = {
   // bd-0c80s: nothing re-queues a deferred recording — after the 30-minute
   // mid-flight window the ONLY path to a report is the teacher resending, so
   // the ack must say so instead of promising "no need to resend".
+  // bd-h9gnk: the watchdog's loud failure — honest, and asks for a resend.
+  coaching_analysisStalledFail: {
+    ...en("😔 I'm sorry — something went wrong while analysing your classroom recording and I couldn't finish your report. Please send the recording again and I'll start fresh."),
+    ur: '😔 معذرت — آپ کی کلاس ریکارڈنگ کے تجزیے میں مسئلہ آ گیا اور رپورٹ مکمل نہ ہو سکی۔ براہِ کرم ریکارڈنگ دوبارہ بھیجیں، میں نئے سرے سے تجزیہ کروں گی۔',
+  },
   coaching_stillAnalysing: {
     ...en("⏳ I'm still analysing your previous recording. If your report hasn't arrived in 30 minutes, please send this recording again."),
     ur: '⏳ میں ابھی آپ کی پچھلی ریکارڈنگ کا تجزیہ کر رہی ہوں۔ اگر 30 منٹ میں رپورٹ نہ ملے تو براہِ کرم یہ ریکارڈنگ دوبارہ بھیج دیں۔',

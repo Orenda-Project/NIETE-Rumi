@@ -38,8 +38,73 @@ function classifyStuckInitiatedSession(session, nowMs = Date.now()) {
   return { action: 'abandon', reason: 'no_audio' };
 }
 
+// ── bd-h9gnk — mid-flight watchdog ─────────────────────────────────────────
+// Farzana (589ddfb3) sat at analysis_started for 4+ hours after a deploy-kill:
+// nothing watched the processing states between transcription and report.
+// Untouched for >45 min → ONE retry from the phase it died in; a spent retry
+// fails LOUDLY so the teacher is told instead of waiting forever.
+
+// updated_at is the activity marker: a healthy pipeline touches the row at
+// every phase change, so "stale" means no touch for this long.
+const MIDFLIGHT_STUCK_AGE_MS = 45 * 60 * 1000; // 45 minutes
+
+// The processing statuses NO other sweep owns. 'initiated' → bd-2417,
+// awaiting_* → bd-j3j4b photo gate, conducting_conversation → the 12h
+// auto-complete, observe stages → the bd-tju8f sweep (coach-addressed).
+const WATCHDOG_STATUSES = new Set([
+  'transcribing',
+  'transcription_complete',
+  'analyzing',
+  'analysis_started',
+  'analysis_complete',
+  'generating_report',
+]);
+
+// Which queue re-enters the pipeline at each death phase.
+const RETRY_QUEUE_BY_STATUS = {
+  transcribing: 'transcription',
+  transcription_complete: 'analysis',
+  analyzing: 'analysis',
+  analysis_started: 'analysis',
+  analysis_complete: 'report',
+  generating_report: 'report',
+};
+
+/**
+ * @param {object} session coaching_sessions row (status, updated_at/created_at,
+ *   audio_id, analysis_data, observation_type)
+ * @param {number} nowMs
+ * @returns {{action:'skip'|'retry'|'fail', queue?:string, reason:string}}
+ */
+function classifyStuckMidFlightSession(session, nowMs = Date.now()) {
+  if (!session || !WATCHDOG_STATUSES.has(String(session.status || ''))) {
+    return { action: 'skip', reason: 'not_a_watchdog_status' };
+  }
+  // Observe sessions have their own coach-addressed sweep (bd-tju8f) — never
+  // message the teacher about an observation she didn't start.
+  if (session.observation_type === 'leader_observation') {
+    return { action: 'skip', reason: 'observe_owned_by_its_own_sweep' };
+  }
+  const stamp = Date.parse(session.updated_at || session.created_at || '');
+  if (Number.isNaN(stamp)) return { action: 'skip', reason: 'unparseable_timestamp' };
+  if (nowMs - stamp < MIDFLIGHT_STUCK_AGE_MS) return { action: 'skip', reason: 'still_fresh' };
+
+  const spent = session.analysis_data && session.analysis_data.watchdog
+    && session.analysis_data.watchdog.retried_at;
+  if (spent) return { action: 'fail', reason: 'retry_already_spent' };
+
+  const queue = RETRY_QUEUE_BY_STATUS[session.status];
+  if (queue === 'transcription' && !session.audio_id) {
+    return { action: 'fail', reason: 'no_audio_to_transcribe' };
+  }
+  return { action: 'retry', queue, reason: `requeue_${queue}` };
+}
+
 module.exports = {
   classifyStuckInitiatedSession,
   STUCK_INITIATED_MIN_AGE_MS,
   STUCK_INITIATED_MAX_AGE_MS,
+  classifyStuckMidFlightSession,
+  MIDFLIGHT_STUCK_AGE_MS,
+  WATCHDOG_STATUSES,
 };
