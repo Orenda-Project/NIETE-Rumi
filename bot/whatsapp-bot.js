@@ -1680,7 +1680,10 @@ app.post('/webhook', async (req, res) => {
         });
         try {
           const QuizDelivery = require('./shared/services/training/quiz-delivery.service');
-          const recorded = await QuizDelivery.handleQuizFlowSubmission(user.id, responseJson, from);
+          // message.id is the wamid of the teacher's own Flow submission, so the
+          // ✅/❌ verdict reaction lands on her message exactly as it does on the
+          // interactive-list surface (bd-2525 / bd-43496).
+          const recorded = await QuizDelivery.handleQuizFlowSubmission(user.id, responseJson, from, message.id);
           if (!recorded) {
             logToFile('⚠️ Multi-answer submission was not recorded', { from });
           }

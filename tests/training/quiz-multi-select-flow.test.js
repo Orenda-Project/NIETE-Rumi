@@ -362,7 +362,17 @@ describe('endpoint INIT', () => {
 
     const order = expectedDisplayOrder({ shuffle: true });
     expect(res.data.options.map(o => o.id)).toEqual(order.map(String));
-    expect(res.data.options.map(o => o.title)).toEqual(order.map(n => MSQ_OPTIONS[n - 1]));
+    // bd-43496 — the rows are bare letters and the answer text lives in the
+    // screen's TextBody. A row `title` is capped at 30 and a row `description`
+    // is clamped to ~3 lines on the device, so neither can hold an option; the
+    // body is a block that wraps and scrolls. Order is still asserted, just
+    // where the text now is.
+    expect(res.data.options.map(o => o.title)).toEqual(['A.', 'B.', 'C.', 'D.', 'E.']);
+    expect(res.data.options.every(o => o.description === undefined)).toBe(true);
+    const letters = ['A', 'B', 'C', 'D', 'E'];
+    order.forEach((n, i) => {
+      expect(res.data.question_text).toContain(`${letters[i]}.  ${MSQ_OPTIONS[n - 1]}`);
+    });
     // the shuffle must actually be doing something, or this test proves nothing
     expect(order).not.toEqual([1, 2, 3, 4, 5]);
   });

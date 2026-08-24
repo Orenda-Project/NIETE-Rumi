@@ -12,6 +12,16 @@
     "6. Modelled on attendance-marking-flow.json (the proven dynamic-data CheckboxGroup pattern here)."
   ],
   "_notes": [
+    "bd-43496 — TWO controls, one screen. A CheckboxGroup CANNOT ask for exactly one answer: Meta",
+    "  enforces `max-selected-items >= 2` (MINIMUM_VALUE_REQUIRED). Because our value is data-bound,",
+    "  the JSON still uploads clean and the floor is enforced ON THE DEVICE at render time — the right",
+    "  screen paints for a split second, then 'Something Went Wrong', while the endpoint logs a",
+    "  perfectly normal INIT. So single-answer questions (which reach this Flow when their interactive",
+    "  list rendering would exceed the 1024-char body cap) use a RadioButtonsGroup, which has no",
+    "  min/max properties and is single-select by construction. `is_multi`/`is_single` gate visibility;",
+    "  exactly one of the two is ever shown. Both are `required: false` — a hidden required field",
+    "  blocks submission — so emptiness is rejected server-side instead (handleQuizFlowSubmission",
+    "  re-sends the question when nothing valid arrives).",
     "Option ids are the question's CANONICAL 1-based option indices, never display positions \u2014",
     "the endpoint orders the list per the attempt's seeded shuffle but the id always identifies",
     "the option the database knows, so the stored answer stays comparable with every historical row.",
@@ -100,6 +110,18 @@
         "max_selected": {
           "type": "number",
           "__example__": 5
+        },
+        "is_multi": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "is_single": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "selected_one": {
+          "type": "string",
+          "__example__": ""
         }
       },
       "layout": {
@@ -109,7 +131,8 @@
             "type": "Form",
             "name": "msq_form",
             "init-values": {
-              "selected_options": "${data.selected}"
+              "selected_options": "${data.selected}",
+              "selected_option": "${data.selected_one}"
             },
             "children": [
               {
@@ -124,10 +147,19 @@
                 "type": "CheckboxGroup",
                 "name": "selected_options",
                 "label": "Select all that apply",
-                "required": true,
+                "required": "${data.is_multi}",
+                "visible": "${data.is_multi}",
                 "data-source": "${data.options}",
                 "min-selected-items": 1,
                 "max-selected-items": "${data.max_selected}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "selected_option",
+                "label": "Your answer",
+                "required": "${data.is_single}",
+                "visible": "${data.is_single}",
+                "data-source": "${data.options}"
               },
               {
                 "type": "Footer",
@@ -136,6 +168,7 @@
                   "name": "complete",
                   "payload": {
                     "selected_options": "${form.selected_options}",
+                    "selected_option": "${form.selected_option}",
                     "attempt_ref": "${data.attempt_ref}",
                     "training_msq_action": "${data.training_msq_action}"
                   }

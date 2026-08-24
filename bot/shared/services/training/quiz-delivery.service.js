@@ -107,6 +107,45 @@ const MULTI_OPTION_CAP = MAX_OPTIONS - 1;
 /** Flow token format: `<userId>:training-msq:<attemptId>:<questionIndex>`. */
 const MSQ_TOKEN_TAG = 'training-msq';
 
+// bd-43496 — Meta's cap on an INTERACTIVE message body. A text message allows
+// 4096 and this code used that number, so a long question was rejected outright
+// with (#131009) "Body text length invalid. Min length: 1, Max length: 1024"
+// rather than truncated. Every other quiz surface in the repo already uses
+// 1024 (quiz-session.service, quiz-generation.service, and the MSQ branch
+// below); this was the one place that did not.
+const INTERACTIVE_BODY_MAX = 1024;
+
+// Shown when a question cannot be delivered. The teacher gets a real sentence
+// instead of silence, and the attempt is left where it is so a retry re-sends
+// the SAME question rather than skipping it and marking it wrong.
+const QUESTION_SEND_FAILED_MSG =
+  "I couldn't display that question just now. Please tap Take exam again — nothing you've answered is lost.";
+
+/** Truncate by CODE POINT, so a multi-byte question is never cut mid-character. */
+function sliceCodePoints(text, max) {
+  const cp = [...String(text ?? '')];
+  return cp.length <= max ? String(text ?? '') : cp.slice(0, max).join('');
+}
+
+/**
+ * The body the LIST surface would send for this question.
+ *
+ * Kept as one function so the size CHECK and the actual send can never drift
+ * apart — measuring one string and sending a different one is how a cap gets
+ * missed. `Selected: …` (multi-answer only) is added by the caller after this
+ * and is bounded by the option letters, so it cannot push a fitting question
+ * over the cap on its own.
+ */
+function listBodyText(question, options, optionsInBody) {
+  let body = question.question_text || '(missing question text)';
+  if (optionsInBody) {
+    body += '\n\n' + options
+      .map((o, i) => `${OPTION_LETTERS[i]}. ${cleanOptionText(o)}`)
+      .join('\n');
+  }
+  return body;
+}
+
 const KIND_GRAND = 'grand';
 const KIND_TRAINING_MODULE = 'training_module';
 
@@ -718,12 +757,44 @@ async function sendQuestion(attemptId, phoneNumber) {
   // endpoint's INIT builds them from this same attempt + question, so there is
   // one derivation, not two. All this message carries is the token that names
   // the question.
-  if (isMultiKey(q.correct_option) && msqFlowId()) {
-    await WhatsAppService.sendFlow(phoneNumber, {
+  const multiAnswer = isMultiKey(q.correct_option);
+
+  // bd-2230 — WhatsApp list rows truncate descriptions at OPTION_DESC_MAX
+  // (72). When any option would be cut, render the FULL options as lettered
+  // lines inside the body and reduce the rows to bare letters so nothing the
+  // teacher must read is lost.
+  const optionsInBody = options.some(o => String(o || '').length > OPTION_DESC_MAX);
+
+  // bd-43496 — how long the LIST rendering would actually be. Measured before
+  // the surface is chosen, because it is what decides the surface: options
+  // pushed into the body by the line above are what blow Meta's 1024-char
+  // interactive-body cap. On the live NIETE "Teacher Leader" exam that was 21
+  // of 45 questions, so no 20-question paper could be completed at all.
+  //
+  // Measured in code points, not UTF-16 units: Meta counts characters, and an
+  // Urdu question would otherwise be over-counted and needlessly routed away
+  // from the fast path.
+  const listBodyLength = [...listBodyText(q, options, optionsInBody)].length;
+  const listBodyFits = listBodyLength <= INTERACTIVE_BODY_MAX;
+
+  // The Flow surface carries the options in its CheckboxGroup data-source
+  // instead of in the body, so the body holds the question alone — which is
+  // exactly the headroom an oversized list rendering needs. It is therefore
+  // the delivery surface for BOTH multi-answer questions (always, so one tap
+  // submits the set) and single-answer questions that cannot fit a list.
+  if ((multiAnswer || !listBodyFits) && msqFlowId()) {
+    const flowBody = String(q.question_text || (multiAnswer ? 'Select all that apply.' : 'Choose one option.'));
+    if (!multiAnswer) {
+      logToFile('🎓 Oversized question — routing to the MSQ Flow', {
+        attemptId: attempt.id, questionId: q.id, index: attempt.current_question_index,
+        listBodyLength, cap: INTERACTIVE_BODY_MAX,
+      });
+    }
+    const sentFlow = await WhatsAppService.sendFlow(phoneNumber, {
       flowId: msqFlowId(),
       header: `Q${attempt.current_question_index + 1}/${attempt.total_questions}`,
-      body: (q.question_text || 'Select all that apply.').toString().slice(0, 1024),
-      footer: 'Select all that apply',
+      body: sliceCodePoints(flowBody, INTERACTIVE_BODY_MAX),
+      footer: multiAnswer ? 'Select all that apply' : 'Choose one option',
       buttonText: 'Answer',
       // Leads with the teacher's own id (segment 0 is how every Flow endpoint
       // here resolves the user) and names the exact question, so a submission
@@ -731,19 +802,33 @@ async function sendQuestion(attemptId, phoneNumber) {
       // stale and dropped instead of overwriting a newer answer.
       flowToken: `${attempt.user_id}:${MSQ_TOKEN_TAG}:${attempt.id}:${attempt.current_question_index}`,
     });
+    // bd-43496 — never claim a delivery that did not happen: an unreported
+    // failure leaves the attempt in_progress on a question the teacher never
+    // saw, and every retry resumes onto the same one. That is the silence.
+    if (sentFlow === false) {
+      logToFile('❌ Question Flow send failed', {
+        attemptId: attempt.id, questionId: q.id, index: attempt.current_question_index,
+      }, 'error');
+      await WhatsAppService.sendMessage(phoneNumber, QUESTION_SEND_FAILED_MSG);
+      return false;
+    }
     return true;
   }
-  if (isMultiKey(q.correct_option)) {
+  if (multiAnswer) {
     logToFile('⚠️ TRAINING_MSQ_FLOW_ID not set — falling back to list + Done delivery', {
       attemptId: attempt.id, questionId: q.id, index: attempt.current_question_index,
     });
   }
-
-  // bd-2230 — WhatsApp list rows truncate descriptions at OPTION_DESC_MAX
-  // (72). When any option would be cut, render the FULL options as lettered
-  // lines inside the body (4,096-char cap) and reduce the rows to bare
-  // letters so nothing the teacher must read is lost.
-  const optionsInBody = options.some(o => String(o || '').length > OPTION_DESC_MAX);
+  if (!listBodyFits) {
+    // No Flow configured and the list cannot carry it. Truncating silently
+    // would mark a teacher on text she cannot read, so say so instead.
+    logToFile('❌ Question exceeds the interactive body cap and no MSQ Flow is configured', {
+      attemptId: attempt.id, questionId: q.id, index: attempt.current_question_index,
+      listBodyLength, cap: INTERACTIVE_BODY_MAX,
+    }, 'error');
+    await WhatsAppService.sendMessage(phoneNumber, QUESTION_SEND_FAILED_MSG);
+    return false;
+  }
 
   const rows = options.map((text, i) => ({
     // The id carries the CANONICAL index, so the shuffle never escapes the
@@ -756,7 +841,9 @@ async function sendQuestion(attemptId, phoneNumber) {
   }));
 
   const multi = isMultiKey(q.correct_option);
-  let bodyText = q.question_text || '(missing question text)';
+  // Built by the same helper the size check used, so the string measured above
+  // and the string sent below cannot drift apart (bd-43496).
+  let bodyText = listBodyText(q, options, optionsInBody);
   // bd-2393 — the exam footer quoted a flat "100% required", which is not the
   // marking policy for any vendor's level exam (NIETE 80, BH 70).
   let footer;
@@ -770,13 +857,7 @@ async function sendQuestion(attemptId, phoneNumber) {
     footer = `${footerPct}% required to pass · tap an option`;
   }
 
-  if (optionsInBody) {
-    bodyText += '\n\n' + options
-      .map((o, i) => `${OPTION_LETTERS[i]}. ${String(o || '')}`)
-      .join('\n');
-  }
-
-  if (multi) {
+  if (multiAnswer) {
     rows.push({
       id: `training_quiz_${attempt.id}_done`,
       title: '✅ Done',
@@ -787,15 +868,27 @@ async function sendQuestion(attemptId, phoneNumber) {
     footer = 'Select all that apply, then tap Done';
   }
 
-  await WhatsAppService.sendInteractiveMessage(phoneNumber, {
+  const sent = await WhatsAppService.sendInteractiveMessage(phoneNumber, {
     header: { type: 'text', text: `Q${attempt.current_question_index + 1}/${attempt.total_questions}` },
-    body: { text: bodyText.slice(0, 4096) },   // WhatsApp interactive body hard cap
+    // bd-43496 — 1024, not 4096: that is Meta's cap for an INTERACTIVE body.
+    body: { text: sliceCodePoints(bodyText, INTERACTIVE_BODY_MAX) },
     footer: { text: footer },
     action: {
       button: 'Answer',
       sections: [{ title: 'Options', rows }],
     },
   });
+  // bd-43496 — the result used to be discarded and `true` returned regardless,
+  // so a rejected send read as delivered and left the attempt frozen on a
+  // question the teacher never received.
+  if (sent === false) {
+    logToFile('❌ Question list send failed', {
+      attemptId: attempt.id, questionId: q.id, index: attempt.current_question_index,
+      bodyLength: [...bodyText].length,
+    }, 'error');
+    await WhatsAppService.sendMessage(phoneNumber, QUESTION_SEND_FAILED_MSG);
+    return false;
+  }
   return true;
 }
 
@@ -919,30 +1012,11 @@ async function handleQuizButton(userId, replyId, phoneNumber, messageId = null) 
   //     was not one. An adult professional needs the fact stated plainly. The
   //     thin ✗ carries "wrong" without the red-block shout and matches the ✓
   //     family; the heavy ❌ stays where it works, on the reaction.
-  if (messageId) {
-    try {
-      await WhatsAppService.sendReaction(phoneNumber, messageId, isCorrect ? '✅' : '❌');
-    } catch (error) {
-      logToFile('⚠️ Could not react to quiz answer', {
-        attemptId: attempt.id,
-        index: attempt.current_question_index,
-        error: error.message,
-      });
-    }
-  }
-
-  try {
-    await WhatsAppService.sendMessage(
-      phoneNumber,
-      isCorrect ? '✅ *Correct*' : '✗ *Not correct.*'
-    );
-  } catch (error) {
-    logToFile('⚠️ Could not send per-question feedback', {
-      attemptId: attempt.id,
-      index: attempt.current_question_index,
-      error: error.message,
-    });
-  }
+  // Shared with the Flow surface (bd-43496) so the two can never drift apart on
+  // either signal or copy.
+  await sendAnswerVerdict(phoneNumber, isCorrect, messageId, {
+    attemptId: attempt.id, index: attempt.current_question_index,
+  });
 
   const nextIdx = attempt.current_question_index + 1;
   await supabase.from('training_assessment_attempts').update({
@@ -992,23 +1066,104 @@ async function resolveMsqQuestion(attemptId, questionIndex) {
   const { questions: served, config } = await resolveServedQuestions(attempt);
   const question = await loadQuestionForDelivery(served[index]);
   if (!question) return { reason: 'question_not_found' };
-  if (!isMultiKey(question.correct_option)) return { reason: 'not_multi_answer' };
+  // bd-43496 — single-answer questions reach this Flow too now: it is the only
+  // surface that can carry a question whose list rendering exceeds Meta's
+  // 1024-char interactive body. The screen constrains them to one selection
+  // via max_selected, and grading is answer-count agnostic (setsEqual over a
+  // one-element set), so nothing downstream needs to know which surface was
+  // used. Refusing them here is what made the oversized ones undeliverable.
+  const multiAnswer = isMultiKey(question.correct_option);
 
   const allOptions = Array.isArray(question.options) ? question.options : [];
   const displayOrder = buildOptionDisplayOrder({
     optionCount: allOptions.length,
     correctOption: question.correct_option,
-    cap: MULTI_OPTION_CAP,
+    // A single-answer question has no "Done" row to reserve, so it may use all
+    // MAX_OPTIONS slots; multi-answer keeps the shared cap so the list and Flow
+    // surfaces letter the same question identically.
+    cap: multiAnswer ? MULTI_OPTION_CAP : MAX_OPTIONS,
     attemptId: attempt.id,
     questionId: question.id,
     shuffle: config.shuffle_options,
   });
   if (displayOrder.length === 0) return { reason: 'no_options' };
 
-  return { attempt, question, allOptions, displayOrder, index };
+  return { attempt, question, allOptions, displayOrder, index, multiAnswer };
 }
 
-const MSQ_OPTION_TITLE_MAX = 80;   // Meta CheckboxGroup data-source title cap
+// bd-43496 — the REAL Meta caps for a Radio/Checkbox data-source row. The title
+// was set to 80 here, which is nearly 3x the actual limit, so the device clipped
+// it mid-word and the same opening text was then repeated by the description.
+// Verified against the documented component table (whatsapp-flows skill).
+const MSQ_OPTION_TITLE_MAX = 30;    // Radio/Checkbox option title
+// A row `description` ACCEPTS 300 but the device renders only ~3 lines (~140
+// code points) and ellipsizes — measured on-device 2026-08-24. The answer text
+// therefore lives in the screen's TextBody; this shorter budget is only for the
+// row echo, kept inside one clean line so it never looks truncated.
+const MSQ_ROW_ECHO_MAX = 120;
+
+/**
+ * A row for one option: a short lettered label, with the answer text in full
+ * underneath.
+ *
+ * The title is NOT a truncated copy of the answer — at 30 characters a
+ * prefix of a 130-character pedagogical statement is noise, and repeating it
+ * above the description wasted the row's most visible line. It carries the
+ * option LETTER instead, matching what the interactive-list surface shows and
+ * what `selectedLetters` echoes back, so the two surfaces read the same.
+ *
+ * The full text goes in `description` (300 chars). On this exam that renders
+ * 173 of 180 options complete; the 7 that are longer are marked with an
+ * ellipsis rather than being cut mid-word, so a teacher can see that text is
+ * missing instead of silently reading a half sentence.
+ */
+function msqOptionRow(canonical, letter) {
+  return {
+    // CANONICAL index, never the display position — the shuffle stops at the
+    // rendering layer and storage keeps speaking the database's numbering.
+    id: String(canonical),
+    title: letter ? `${letter}.` : `Option ${canonical}`,
+    // NO `description`. The answer text is in the screen's TextBody in full;
+    // a row description is clamped to ~3 lines on the device, so an echo here
+    // only ever rendered as a half sentence competing with the real copy.
+  };
+}
+
+/**
+ * Tidy one option's text for display.
+ *
+ * The legacy import left artefacts in the bank: on quiz 4 alone, 64 of 180
+ * options carry leading or trailing whitespace and 9 begin with a stray "."
+ * (a list marker that survived the migration). Rendered straight after our own
+ * "A." prefix that reads as "A. . Pilot the project…".
+ *
+ * Fixed at the RENDER layer, not by rewriting the bank: it repairs every
+ * question in every quiz at once, cannot desynchronise from the stored answer
+ * key, and touches no exam content. Internal newlines collapse to spaces so one
+ * option stays one paragraph, which is what makes the block scannable.
+ */
+function cleanOptionText(text) {
+  return String(text ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^[.•·-]\s*/, '')
+    .trim();
+}
+
+/**
+ * Cut to `max` code points on a word boundary, marking the cut with an ellipsis.
+ *
+ * Only used where the text genuinely cannot fit a Meta field. Cutting on a space
+ * and showing "…" is the difference between a teacher knowing the option
+ * continues and a teacher confidently answering half a sentence.
+ */
+function truncateOnWord(text, max) {
+  const cp = [...String(text ?? '')];
+  if (cp.length <= max) return String(text ?? '');
+  const slice = cp.slice(0, max - 1).join('');
+  const cut = slice.lastIndexOf(' ');
+  return (cut > max * 0.6 ? slice.slice(0, cut) : slice).trimEnd() + '…';
+}
 
 /**
  * The Flow screen's data for the question an attempt is currently on.
@@ -1035,21 +1190,43 @@ async function buildMsqFlowScreenData(userId, attemptId, questionIndex) {
   }
 
   const stored = await loadPartialAnswer(r.attempt.id, r.index);
-  const options = r.displayOrder.map((canonical) => {
-    const text = String(r.allOptions[canonical - 1] ?? '');
-    const option = {
-      // CANONICAL index, never the display position — the shuffle stops at the
-      // rendering layer and storage keeps speaking the database's numbering.
-      id: String(canonical),
-      title: text.slice(0, MSQ_OPTION_TITLE_MAX) || `Option ${canonical}`,
-    };
-    if (text.length > MSQ_OPTION_TITLE_MAX) option.description = text;
-    return option;
-  });
+  // Letters come from the DISPLAY position, exactly as the list surface letters
+  // its rows, so "Selected: B" means the same option on either surface.
+  const options = r.displayOrder.map((canonical, i) =>
+    msqOptionRow(canonical, OPTION_LETTERS[i]));
+
+  // bd-43496 — the answer text lives in the screen's TextBody, NOT in the option
+  // rows. A Radio/Checkbox row `description` is clamped to THREE LINES on the
+  // device (~140 chars), which cut 41% of this exam's options; a TextBody is a
+  // block that wraps and scrolls, which is why the question stem already renders
+  // in full. The rows carry only the letter, so the letters in this body ARE the
+  // key to the tap targets — they must line up, and they do: both are indexed by
+  // display position.
+  //
+  // A Flow TextBody renders PLAIN text — no markdown, so emphasis has to be
+  // structural. The stem and the option block are separated by a ruled line and
+  // each option starts on its own blank-line-separated paragraph, because in a
+  // wall of wrapped prose a bare "A." at the start of a line is easy to miss
+  // (reported after the first TextBody build).
+  //
+  // Budget: stem + 4 options is a median of ~1057 and a max of ~1497 code points
+  // on this exam, so this stays well inside the TextBody allowance.
+  const stem = String(r.question.question_text
+    || (r.multiAnswer ? 'Select all that apply.' : 'Choose one option.'));
+  const optionLines = options.map((o, i) =>
+    `${OPTION_LETTERS[i]}.  ${cleanOptionText(r.allOptions[r.displayOrder[i] - 1])}`);
+  const questionText = [
+    stem,
+    '',
+    '──────────',
+    r.multiAnswer ? 'SELECT ALL THAT APPLY:' : 'CHOOSE ONE:',
+    '',
+    optionLines.join('\n\n'),
+  ].join('\n');
 
   return {
     progress: `Question ${r.index + 1} of ${r.attempt.total_questions}`,
-    question_text: String(r.question.question_text || 'Select all that apply.'),
+    question_text: questionText,
     options,
     // Pre-checks a partially-answered question so a resume does not silently
     // discard taps the teacher already made on the list surface. Anything no
@@ -1060,7 +1237,23 @@ async function buildMsqFlowScreenData(userId, attemptId, questionIndex) {
     // the Flow JSON, so a 5-option question told the teacher "Select 1-10".
     // Bound to what is actually rendered: the displayed set after bd-2495's cap
     // and shuffle, never the raw bank and never a constant.
-    max_selected: options.length,
+    // bd-43496 — Meta enforces `max-selected-items >= 2` on a CheckboxGroup, so a
+    // single-answer question CANNOT use one: binding it to 1 uploads clean and
+    // then fails on the device (the screen paints, then "Something Went Wrong").
+    // Those questions get the RadioButtonsGroup instead, gated on is_single, and
+    // this ceiling only ever applies to the multi-answer checkbox. Floored at 2
+    // so the bound value is never below Meta's minimum even for a 1-option
+    // multi-answer question.
+    max_selected: Math.max(2, options.length),
+    // Exactly one of these is true; they gate which control the screen shows.
+    is_multi: r.multiAnswer,
+    is_single: !r.multiAnswer,
+    // RadioButtonsGroup init-value: a single canonical id, or '' for unanswered.
+    // A value not on display would render as nothing selected, so it is filtered
+    // the same way `selected` is.
+    selected_one: (!r.multiAnswer && stored.size > 0
+      ? ([...stored].map(String).find(s => r.displayOrder.includes(Number(s))) || '')
+      : ''),
     attempt_ref: `${r.attempt.id}:${r.index}`,
     training_msq_action: 'submit',
   };
@@ -1120,7 +1313,7 @@ function parseSelectedOptionIds(raw) {
  * @param {string} phoneNumber
  * @returns {Promise<boolean>} true when the answer was recorded
  */
-async function handleQuizFlowSubmission(userId, responseJson, phoneNumber) {
+async function handleQuizFlowSubmission(userId, responseJson, phoneNumber, messageId = null) {
   const ref = parseMsqRef(responseJson);
   if (!ref) {
     logToFile('⚠️ Multi-answer Flow submission carried no attempt reference', {
@@ -1146,8 +1339,19 @@ async function handleQuizFlowSubmission(userId, responseJson, phoneNumber) {
   // Only ids that are actually on display count. A checkbox cannot return an
   // id the screen never offered, but the payload is user-reachable input and
   // an unfiltered value would land in a column 400k+ rows are compared against.
-  const chosen = parseSelectedOptionIds(responseJson?.selected_options)
-    .filter(n => r.displayOrder.includes(n));
+  // bd-43496 — two possible controls sent this: `selected_options` from the
+  // multi-answer CheckboxGroup, `selected_option` (singular) from the
+  // single-answer RadioButtonsGroup. Only one is ever visible, but BOTH keys
+  // ride along in the payload, so read whichever the question's own shape
+  // implies rather than trusting the client to omit the other.
+  const rawSelection = r.multiAnswer
+    ? responseJson?.selected_options
+    : (responseJson?.selected_option ?? responseJson?.selected_options);
+  const chosen = parseSelectedOptionIds(rawSelection)
+    .filter(n => r.displayOrder.includes(n))
+    // A radio can only ever yield one, but a hand-crafted payload could carry
+    // more; a single-answer question must never record a set.
+    .slice(0, r.multiAnswer ? undefined : 1);
   if (chosen.length === 0) {
     logToFile('⚠️ Multi-answer Flow submission had no valid options — re-sending', {
       attemptId: r.attempt.id, index: r.index,
@@ -1163,7 +1367,43 @@ async function handleQuizFlowSubmission(userId, responseJson, phoneNumber) {
     last_activity_at: new Date().toISOString(),
   }).eq('id', r.attempt.id);
 
+  // bd-43496 — per-question verdict, which this path never sent. The list
+  // surface has reacted ✅/❌ and echoed the verdict in text since bd-2525;
+  // answering through the Flow silently produced nothing, so a teacher had no
+  // idea whether the answer landed. Same two signals, same copy, so the two
+  // surfaces are indistinguishable to the teacher.
+  await sendAnswerVerdict(phoneNumber, isCorrect, messageId, {
+    attemptId: r.attempt.id, index: r.index,
+  });
+
   return await sendQuestion(r.attempt.id, phoneNumber);
+}
+
+/**
+ * Tell the teacher whether the answer was right: a reaction on her own message
+ * plus a one-line text echo.
+ *
+ * Both are best-effort — a failed reaction must never cost the teacher her
+ * recorded answer or stop the next question, so each is caught separately. The
+ * reaction needs the inbound wamid; callers that do not have one still send the
+ * text, so no path loses its verdict (the bd-2525 rule).
+ */
+async function sendAnswerVerdict(phoneNumber, isCorrect, messageId, ctx = {}) {
+  if (messageId) {
+    try {
+      await WhatsAppService.sendReaction(phoneNumber, messageId, isCorrect ? '✅' : '❌');
+    } catch (error) {
+      logToFile('⚠️ Could not react to quiz answer', { ...ctx, error: error.message });
+    }
+  }
+  try {
+    await WhatsAppService.sendMessage(
+      phoneNumber,
+      isCorrect ? '✅ *Correct*' : '✗ *Not correct.*'
+    );
+  } catch (error) {
+    logToFile('⚠️ Could not send per-question feedback', { ...ctx, error: error.message });
+  }
 }
 
 async function recordAnswer(attemptId, questionIndex, questionId, chosenOption, isCorrect) {
