@@ -37,44 +37,50 @@
   },
   {
     "file": "bot/shared/handlers/flow-response.handler.js",
-    "line": 413,
+    "line": 415,
     "snippet": "logToFile('❌ Error processing reading assessment flow', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/handlers/flow-response.handler.js",
-    "line": 568,
+    "line": 570,
     "snippet": "logToFile('❌ Error updating user with registration data', { userId, error: updateError.message });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/handlers/flow-response.handler.js",
-    "line": 625,
+    "line": 627,
     "snippet": "logToFile('❌ Error handling registration flow', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/handlers/flow-response.handler.js",
-    "line": 805,
+    "line": 807,
     "snippet": "logToFile('❌ observe-visit completion failed — degrading to plain capture prompt', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/handlers/image-message.handler.js",
-    "line": 338,
+    "line": 376,
     "snippet": "logToFile('❌ Error processing image message', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/handlers/image-message.handler.js",
-    "line": 462,
+    "line": 501,
     "snippet": "logToFile('❌ R2 upload failed', { error: uploadError.message });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/handlers/image-message.handler.js",
-    "line": 543,
+    "line": 582,
     "snippet": "logToFile('❌ Image analysis failed', {",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/handlers/observe-visit-flow.handler.js",
+    "line": 600,
+    "snippet": "logToFile('❌ observe-visit: teacher bind FAILED — capture will run UNBOUND', {",
     "occurrence": 0
   },
   {
@@ -139,31 +145,55 @@
   },
   {
     "file": "bot/shared/handlers/text-message.handler.js",
-    "line": 1568,
+    "line": 1563,
     "snippet": "logToFile('❌ Failed to retry analysis', { error: error.message });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/handlers/text-message.handler.js",
-    "line": 1896,
+    "line": 1887,
     "snippet": "logToFile('❌ Error starting /status', { userId: user?.id, error: error.message });",
     "occurrence": 0
   },
   {
+    "file": "bot/shared/handlers/text-message.handler.js",
+    "line": 2569,
+    "snippet": "logToFile('❌ Error processing lesson plan request', {",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/handlers/text-message.handler.js",
+    "line": 2687,
+    "snippet": "logToFile('❌ Error processing presentation request', {",
+    "occurrence": 0
+  },
+  {
     "file": "bot/shared/handlers/voice-message.handler.js",
-    "line": 309,
+    "line": 412,
     "snippet": "logToFile('❌ CRITICAL: Failed to generate combined report after comprehension completion', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/handlers/voice-message.handler.js",
-    "line": 1187,
+    "line": 1308,
     "snippet": "logToFile('❌ Error processing voice message', {",
     "occurrence": 0
   },
   {
+    "file": "bot/shared/handlers/voice-message.handler.js",
+    "line": 1373,
+    "snippet": "logToFile('❌ Error queueing lesson plan from voice request', {",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/handlers/voice-message.handler.js",
+    "line": 1433,
+    "snippet": "logToFile('❌ Error queueing presentation from voice request', {",
+    "occurrence": 0
+  },
+  {
     "file": "bot/shared/routes/attendance-marking-endpoint.js",
-    "line": 679,
+    "line": 839,
     "snippet": "logToFile('❌ Marking confirm failed', { flowToken, error: error.message });",
     "occurrence": 0
   },
@@ -181,19 +211,19 @@
   },
   {
     "file": "bot/shared/routes/edit-class-endpoint.js",
-    "line": 141,
+    "line": 144,
     "snippet": "logToFile('❌ edit-class add failed', { listId, error: error.message });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/routes/edit-class-endpoint.js",
-    "line": 174,
+    "line": 177,
     "snippet": "logToFile('❌ edit-class remove failed', { listId, error: error.message });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/routes/edit-class-endpoint.js",
-    "line": 205,
+    "line": 208,
     "snippet": "logToFile('❌ edit-class rename failed', { listId, error: error.message });",
     "occurrence": 0
   },
@@ -229,44 +259,38 @@
   },
   {
     "file": "bot/shared/routes/internal-api.routes.js",
-    "line": 308,
-    "snippet": "logToFile('❌ Internal training API failed', { route: 'exam-verdict', error: error?.message });",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/routes/internal-api.routes.js",
-    "line": 339,
-    "snippet": "logToFile('❌ Internal training API failed', { route: 'mark-paper', error: error?.message });",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/routes/internal-api.routes.js",
-    "line": 384,
-    "snippet": "logToFile('❌ Internal training API failed', { route: 'serve-paper', error: error?.message });",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/routes/internal-api.routes.js",
-    "line": 439,
+    "line": 336,
     "snippet": "logToFile('❌ Internal certificates list failed', { userId, error: error?.message });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/routes/internal-api.routes.js",
-    "line": 494,
+    "line": 381,
     "snippet": "logToFile('❌ Certificate PDF mint failed via internal API', { userId, certificateCode, error: error.",
     "occurrence": 0
   },
   {
     "file": "bot/shared/routes/internal-api.routes.js",
-    "line": 497,
+    "line": 384,
     "snippet": "logToFile('❌ Internal certificate-pdf failed', { userId, certificateCode, error: error?.message });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/routes/observe-mewaka-endpoint.js",
-    "line": 142,
+    "line": 140,
     "snippet": "logToFile('❌ observe-mewaka endpoint error', { error: err.message, action });",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/routes/pic-lp-endpoint.js",
+    "line": 96,
+    "snippet": "logToFile('❌ Pic-LP: no phone for user', { userId: session.user_id });",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/routes/pic-lp-endpoint.js",
+    "line": 112,
+    "snippet": "logToFile('❌ Pic-LP background handoff threw', { error: err.message, sessionId: session.id });",
     "occurrence": 0
   },
   {
@@ -295,7 +319,7 @@
   },
   {
     "file": "bot/shared/routes/status-flow-endpoint.js",
-    "line": 129,
+    "line": 117,
     "snippet": "logToFile('❌ buildMainScreen error', { error: err.message });",
     "occurrence": 0
   },
@@ -325,19 +349,19 @@
   },
   {
     "file": "bot/shared/services/attendance-write.service.js",
-    "line": 130,
+    "line": 151,
     "snippet": "logToFile('❌ Attendance session insert failed', { userId, listId, error: error?.message });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/attendance-write.service.js",
-    "line": 147,
+    "line": 168,
     "snippet": "logToFile('❌ Attendance records insert failed', { userId, sessionId, error: recError.message });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/attendance-write.service.js",
-    "line": 215,
+    "line": 236,
     "snippet": "logToFile('❌ Teacher attendance upsert failed', { principalUserId, schoolId, error: error.message })",
     "occurrence": 0
   },
@@ -409,49 +433,49 @@
   },
   {
     "file": "bot/shared/services/coaching/coaching-session.service.js",
-    "line": 73,
+    "line": 83,
     "snippet": "logToFile('❌ Error creating coaching session', { error: createError });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/coaching/coaching-session.service.js",
-    "line": 95,
+    "line": 105,
     "snippet": "logToFile('❌ Error in initiateSession', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/coaching/coaching-session.service.js",
-    "line": 178,
+    "line": 188,
     "snippet": "logToFile('❌ Error in handleConfirmation', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/coaching/coaching-session.service.js",
-    "line": 213,
+    "line": 223,
     "snippet": "logToFile('❌ Error updating session status', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/coaching/coaching-session.service.js",
-    "line": 263,
+    "line": 273,
     "snippet": "logToFile('❌ Error updating conversation state', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/coaching/coaching-session.service.js",
-    "line": 290,
+    "line": 300,
     "snippet": "logToFile('❌ Error fetching session', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/coaching/coaching-session.service.js",
-    "line": 331,
+    "line": 341,
     "snippet": "logToFile('❌ Error marking session as failed', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/coaching/coaching-session.service.js",
-    "line": 365,
+    "line": 375,
     "snippet": "logToFile('❌ Error marking session as completed', {",
     "occurrence": 0
   },
@@ -481,25 +505,25 @@
   },
   {
     "file": "bot/shared/services/coaching/report-generator.service.js",
-    "line": 77,
+    "line": 78,
     "snippet": "logToFile('❌ Session query error', { sessionError, coachingSessionId });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/coaching/report-generator.service.js",
-    "line": 1358,
+    "line": 1359,
     "snippet": "logToFile('❌ Failed to send hero image report', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/coaching/report-generator.service.js",
-    "line": 1535,
+    "line": 1536,
     "snippet": "logToFile('❌ Error in generateReport', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/coaching/report-generator.service.js",
-    "line": 1565,
+    "line": 1566,
     "snippet": "logToFile('❌ Error in handleReportError', {",
     "occurrence": 0
   },
@@ -523,49 +547,49 @@
   },
   {
     "file": "bot/shared/services/elevenlabs.service.js",
-    "line": 90,
+    "line": 134,
     "snippet": "logToFile('❌ Error generating speech with ElevenLabs', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/elevenlabs.service.js",
-    "line": 98,
+    "line": 142,
     "snippet": "logToFile('❌ ElevenLabs authentication failed - check API key');",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/elevenlabs.service.js",
-    "line": 100,
+    "line": 144,
     "snippet": "logToFile('❌ ElevenLabs rate limit exceeded');",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/elevenlabs.service.js",
-    "line": 102,
+    "line": 146,
     "snippet": "logToFile('❌ ElevenLabs bad request - check text formatting');",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/elevenlabs.service.js",
-    "line": 141,
+    "line": 185,
     "snippet": "logToFile('❌ Primary TTS provider failed, attempting OpenAI fallback', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/elevenlabs.service.js",
-    "line": 206,
+    "line": 243,
     "snippet": "logToFile('❌ Error generating speech with ElevenLabs', {",
     "occurrence": 1
   },
   {
     "file": "bot/shared/services/elevenlabs.service.js",
-    "line": 280,
+    "line": 321,
     "snippet": "logToFile('❌ Error generating speech with OpenAI TTS', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/elevenlabs.service.js",
-    "line": 299,
+    "line": 340,
     "snippet": "logToFile('❌ ElevenLabs connection test failed', { error: error.message });",
     "occurrence": 0
   },
@@ -757,13 +781,13 @@
   },
   {
     "file": "bot/shared/services/menu.service.js",
-    "line": 177,
+    "line": 160,
     "snippet": "logToFile('❌ Error handling menu button response', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/menu.service.js",
-    "line": 266,
+    "line": 249,
     "snippet": "logToFile('❌ Error handling menu choice', {",
     "occurrence": 0
   },
@@ -829,7 +853,7 @@
   },
   {
     "file": "bot/shared/services/observe/observe-send.service.js",
-    "line": 598,
+    "line": 590,
     "snippet": "logToFile('❌ observe send: teacher delivery failed', {",
     "occurrence": 0
   },
@@ -849,6 +873,66 @@
     "file": "bot/shared/services/pdf-report.service.js",
     "line": 1421,
     "snippet": "logToFile('❌ Failed to generate MEWAKA PDF report', {",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/services/pic-to-lp/classifier.service.js",
+    "line": 98,
+    "snippet": "logToFile('❌ Pic-LP classifier failed', { error: error.message });",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/services/pic-to-lp/gamma-client.service.js",
+    "line": 157,
+    "snippet": "logToFile('❌ Pic-LP Gamma client failed', { error: error.message, language: lang });",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/services/pic-to-lp/lp-handoff.service.js",
+    "line": 195,
+    "snippet": "logToFile('❌ Pic-LP Gamma generation failed', {",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/services/pic-to-lp/lp-handoff.service.js",
+    "line": 244,
+    "snippet": "logToFile('❌ Pic-LP delivery failed', {",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/services/pic-to-lp/lp-handoff.service.js",
+    "line": 263,
+    "snippet": "logToFile('❌ Pic-LP handoff threw', { error: error.message, sessionId: session.id });",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/services/pic-to-lp/metadata-extractor.service.js",
+    "line": 187,
+    "snippet": "logToFile('❌ Pic-LP metadata extraction failed (caption pre-fill still applies)', { error: error.mes",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/services/pic-to-lp/pic-lp-session.service.js",
+    "line": 116,
+    "snippet": "logToFile('❌ pic_lp_sessions create failed', { error: error.message, userId });",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/services/pic-to-lp/pic-lp-session.service.js",
+    "line": 136,
+    "snippet": "logToFile('❌ pic_lp_sessions appendPage failed', { error: error.message, sessionId });",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/services/pic-to-lp/pic-lp-session.service.js",
+    "line": 159,
+    "snippet": "logToFile('❌ pic_lp_sessions updateStatus failed', { error: error.message, sessionId, status });",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/services/pic-to-lp/pic-lp-session.service.js",
+    "line": 177,
+    "snippet": "logToFile('❌ pic_lp_sessions attachFlowToken failed', { error: error.message, sessionId });",
     "occurrence": 0
   },
   {
@@ -913,103 +997,103 @@
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 207,
+    "line": 202,
     "snippet": "logToFile('❌ Failed to queue job to SQS', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 324,
+    "line": 319,
     "snippet": "logToFile('❌ Failed to queue video job to SQS', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 375,
+    "line": 370,
     "snippet": "logToFile('❌ Failed to parse video SQS message', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 392,
+    "line": 387,
     "snippet": "logToFile('❌ Failed to receive video jobs from SQS', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 423,
+    "line": 418,
     "snippet": "logToFile('❌ Failed to complete video job', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 457,
+    "line": 452,
     "snippet": "logToFile('❌ Failed to extend video job timeout', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 501,
+    "line": 496,
     "snippet": "logToFile('❌ Failed to parse SQS message', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 517,
+    "line": 512,
     "snippet": "logToFile('❌ Failed to receive jobs from SQS', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 546,
+    "line": 541,
     "snippet": "logToFile('❌ Failed to complete job', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 580,
+    "line": 575,
     "snippet": "logToFile('❌ Failed to extend job timeout', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 643,
+    "line": 638,
     "snippet": "logToFile('❌ Failed to requeue job', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 682,
+    "line": 677,
     "snippet": "logToFile('❌ Failed to get queue metrics', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 728,
+    "line": 723,
     "snippet": "logToFile('❌ Failed to get video queue metrics', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 769,
+    "line": 764,
     "snippet": "logToFile('❌ Failed to get failed jobs from DLQ', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 799,
+    "line": 794,
     "snippet": "logToFile('❌ Failed to purge queue', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 918,
+    "line": 913,
     "snippet": "logToFile('❌ Failed to parse quiz SQS message', { messageId: msg.MessageId, error: parseErr.message ",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 923,
+    "line": 918,
     "snippet": "logToFile('❌ Failed to receive quiz jobs from SQS', { error: err.message });",
     "occurrence": 0
   },
@@ -1027,37 +1111,37 @@
   },
   {
     "file": "bot/shared/services/quiz/quiz-orchestrator.service.js",
-    "line": 89,
+    "line": 76,
     "snippet": "logToFile('❌ QuizOrchestrator.initiateQuizRequest error', { error: err.message, userId: user?.id });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/quiz/quiz-orchestrator.service.js",
-    "line": 202,
+    "line": 186,
     "snippet": "logToFile('❌ QuizOrchestrator.continueWithClass error', { error: err.message });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/quiz/quiz-orchestrator.service.js",
-    "line": 289,
+    "line": 273,
     "snippet": "logToFile('❌ QuizOrchestrator.initiateFromLessonPlan error', { error: err.message });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/quiz/quiz-orchestrator.service.js",
-    "line": 345,
+    "line": 329,
     "snippet": "logToFile('❌ Failed to mark quiz cancelled', { quizId, error: updateErr.message });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/quiz/quiz-orchestrator.service.js",
-    "line": 491,
+    "line": 475,
     "snippet": "logToFile('❌ QuizOrchestrator.handleLPListSelection error', { error: err.message });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/quiz/quiz-orchestrator.service.js",
-    "line": 729,
+    "line": 712,
     "snippet": "logToFile('❌ QuizOrchestrator._generateAndDeliver error', { error: err.message });",
     "occurrence": 0
   },
@@ -1165,37 +1249,67 @@
   },
   {
     "file": "bot/shared/services/reading-assessment.service.js",
-    "line": 144,
+    "line": 133,
+    "snippet": "logToFile('❌ Error querying existing conversation', {",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/services/reading-assessment.service.js",
+    "line": 152,
+    "snippet": "logToFile('❌ Error updating conversation state', {",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/services/reading-assessment.service.js",
+    "line": 189,
+    "snippet": "logToFile('❌ CRITICAL: Conversation INSERT failed', {",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/services/reading-assessment.service.js",
+    "line": 216,
     "snippet": "logToFile('❌ Error initiating reading assessment', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/reading-assessment.service.js",
-    "line": 269,
+    "line": 335,
+    "snippet": "logToFile('❌ Failed to update conversation state to AWAITING_READING_GRADE', {",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/services/reading-assessment.service.js",
+    "line": 364,
     "snippet": "logToFile('❌ Error handling language selection', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/reading-assessment.service.js",
-    "line": 389,
+    "line": 479,
+    "snippet": "logToFile('❌ Failed to update conversation state to AWAITING_READING_AUDIO', {",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/services/reading-assessment.service.js",
+    "line": 507,
     "snippet": "logToFile('❌ Error handling grade selection', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/reading-assessment.service.js",
-    "line": 420,
+    "line": 538,
     "snippet": "logToFile('❌ No active assessment found for user', { userId, error: findError?.message });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/reading-assessment.service.js",
-    "line": 436,
+    "line": 554,
     "snippet": "logToFile('❌ Error calling acquire_assessment_lock function', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/reading-assessment.service.js",
-    "line": 529,
+    "line": 647,
     "snippet": "logToFile('❌ Error handling audio receipt', {",
     "occurrence": 0
   },
@@ -1339,7 +1453,7 @@
   },
   {
     "file": "bot/shared/services/reading/comprehension.service.js",
-    "line": 634,
+    "line": 659,
     "snippet": "logToFile('❌ Error generating word-level questions', {",
     "occurrence": 0
   },
@@ -1419,6 +1533,12 @@
     "file": "bot/shared/services/reading/transcription.service.js",
     "line": 286,
     "snippet": "logToFile('❌ Error processing transcription', {",
+    "occurrence": 0
+  },
+  {
+    "file": "bot/shared/services/reading/vocabulary-image.service.js",
+    "line": 115,
+    "snippet": "logToFile('❌ Gemini image generation failed', {",
     "occurrence": 0
   },
   {
@@ -1513,7 +1633,7 @@
   },
   {
     "file": "bot/shared/services/teacher-state.service.js",
-    "line": 320,
+    "line": 305,
     "snippet": "logToFile('❌ cancelResource error', { kind: item.kind, refId: item.refId, error: err.message });",
     "occurrence": 0
   },
@@ -1573,13 +1693,13 @@
   },
   {
     "file": "bot/shared/services/training/certificate-pdf.service.js",
-    "line": 730,
+    "line": 716,
     "snippet": "logToFile('❌ Certificate document delivery failed', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/training/certificate-pdf.service.js",
-    "line": 797,
+    "line": 783,
     "snippet": "logToFile('❌ Certificate chat delivery failed', { userId, certificateCode, reason, error: err && err",
     "occurrence": 0
   },
@@ -1627,43 +1747,43 @@
   },
   {
     "file": "bot/shared/services/training/quiz-delivery.service.js",
-    "line": 140,
+    "line": 172,
     "snippet": "logToFile('❌ Certificate PDF delivery failed (message already sent)', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/training/quiz-delivery.service.js",
-    "line": 263,
+    "line": 291,
     "snippet": "logToFile('❌ Question bank lookup failed', { quizKind, error: error.message });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/training/quiz-delivery.service.js",
-    "line": 378,
+    "line": 406,
     "snippet": "logToFile('❌ Level exam lookup failed', { levelId: level.id, error: qErr?.message });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/training/quiz-delivery.service.js",
-    "line": 399,
+    "line": 427,
     "snippet": "logToFile('❌ No active program for user', { userId });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/training/quiz-delivery.service.js",
-    "line": 469,
+    "line": 497,
     "snippet": "logToFile('❌ Attempt insert failed', { userId, error: aErr?.message });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/training/quiz-delivery.service.js",
-    "line": 516,
+    "line": 544,
     "snippet": "logToFile('❌ Module lookup failed', { moduleId: moduleIdNum, error: mErr?.message });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/training/quiz-delivery.service.js",
-    "line": 615,
+    "line": 643,
     "snippet": "logToFile('❌ Training-quiz attempt insert failed', { userId, moduleId: moduleIdNum, error: aErr?.mes",
     "occurrence": 0
   },
@@ -1693,151 +1813,151 @@
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 366,
+    "line": 375,
     "snippet": "logToFile('❌ Error sending audio message', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 411,
+    "line": 420,
     "snippet": "logToFile('❌ Error sending document from URL', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 441,
+    "line": 450,
     "snippet": "logToFile('❌ Error sending audio from URL', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 498,
+    "line": 507,
     "snippet": "logToFile('❌ Error sending voicenote from R2 key', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 546,
+    "line": 555,
     "snippet": "logToFile('❌ Error sending image from URL', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 600,
+    "line": 609,
     "snippet": "logToFile('❌ Error sending template message', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 682,
+    "line": 691,
     "snippet": "logToFile('❌ Error sending video message', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 720,
+    "line": 729,
     "snippet": "logToFile('❌ Error sending video from URL', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 758,
+    "line": 767,
     "snippet": "logToFile('❌ sendVideoByLink failed', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 797,
+    "line": 806,
     "snippet": "logToFile('❌ sendDocumentByLink failed', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 880,
+    "line": 889,
     "snippet": "logToFile('❌ Error sending image', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 969,
+    "line": 978,
     "snippet": "logToFile('❌ Error sending sticker', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 1032,
+    "line": 1041,
     "snippet": "logToFile('❌ Error sending interactive button message', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 1054,
+    "line": 1063,
     "snippet": "logToFile('❌ sendImageFromBuffer: empty buffer', { to });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 1071,
+    "line": 1080,
     "snippet": "logToFile('❌ Error in sendImageFromBuffer', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 1202,
+    "line": 1211,
     "snippet": "logToFile('❌ Error sending image with buttons', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 1287,
+    "line": 1296,
     "snippet": "logToFile('❌ Error sending interactive list message', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 1313,
+    "line": 1322,
     "snippet": "logToFile('❌ Flow ID is required', { flowData });",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 1390,
+    "line": 1399,
     "snippet": "logToFile('❌ Error sending WhatsApp Flow', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 1608,
+    "line": 1617,
     "snippet": "logToFile('❌ Style carousel template FAILED - using fallback list', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 1625,
+    "line": 1634,
     "snippet": "logToFile('❌ Style carousel exception - using fallback list', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 1712,
+    "line": 1721,
     "snippet": "logToFile('❌ Style list fallback also FAILED', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 1726,
+    "line": 1735,
     "snippet": "logToFile('❌ Style list fallback exception', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 1959,
+    "line": 1968,
     "snippet": "logToFile('❌ Feature menu list fallback failed', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 1975,
+    "line": 1984,
     "snippet": "logToFile('❌ Feature menu list fallback exception', {",
     "occurrence": 0
   },
@@ -1933,157 +2053,157 @@
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 97,
+    "line": 96,
     "snippet": "logToFile('❌ MESSAGE DELIVERY FAILED', {",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 153,
+    "line": 152,
     "snippet": "logToFile('❌ Failed to update broadcast message status', {",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 179,
+    "line": 178,
     "snippet": "logToFile('❌ Error processing broadcast status', {",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 360,
+    "line": 382,
     "snippet": "logToFile('❌ Failed to update broadcast replied_at', {",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 380,
+    "line": 402,
     "snippet": "logToFile('❌ Error in trackBroadcastReply', {",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 1212,
+    "line": 1284,
     "snippet": "logToFile('❌ quiz intent button routing failed', { buttonId, error: err.message });",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 1390,
+    "line": 1462,
     "snippet": "logToFile('❌ Failed to parse flow response_json', { from, error: error.message });",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 1406,
+    "line": 1478,
     "snippet": "logToFile('❌ student join Flow reply routing failed', { error: joinErr.message });",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 1424,
+    "line": 1496,
     "snippet": "logToFile('❌ video-quiz Flow reply routing failed', { error: vqFlowErr.message });",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 1452,
+    "line": 1524,
     "snippet": "logToFile('❌ Reading assessment flow processing failed', { from, responseJson });",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 1457,
+    "line": 1529,
     "snippet": "logToFile('❌ Exception in reading assessment flow handler', {",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 1475,
+    "line": 1547,
     "snippet": "logToFile('❌ Registration flow processing failed', { from, responseJson });",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 1481,
+    "line": 1553,
     "snippet": "logToFile('❌ Exception in registration flow handler', {",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 1594,
+    "line": 1666,
     "snippet": "logToFile('❌ Exception in teacher training flow handler', {",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 1616,
+    "line": 1691,
     "snippet": "logToFile('❌ Exception handling multi-answer training submission', {",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 1654,
+    "line": 1729,
     "snippet": "logToFile('❌ observe-visit completion handler failed', { from, error: visitErr.message });",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 1763,
+    "line": 1842,
     "snippet": "logToFile('❌ Error processing language selection', {",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 1797,
+    "line": 1876,
     "snippet": "logToFile('❌ Error processing grade selection', {",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 1828,
+    "line": 1907,
     "snippet": "logToFile('❌ Failed to update language preference', { userId: user.id, languageCode });",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 1844,
+    "line": 1923,
     "snippet": "logToFile('❌ Error processing language selection', {",
     "occurrence": 1
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 1938,
+    "line": 2017,
     "snippet": "logToFile('❌ Error processing video language selection', {",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 2028,
+    "line": 2107,
     "snippet": "logToFile('❌ Error processing webhook', {",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 2267,
+    "line": 2346,
     "snippet": "logToFile('❌ Error handling document', {",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 2341,
+    "line": 2420,
     "snippet": "logToFile('❌ Unauthorized internal API call', {",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 2393,
+    "line": 2472,
     "snippet": "logToFile('❌ Failed to send password reset code', {",
     "occurrence": 0
   },
   {
     "file": "bot/whatsapp-bot.js",
-    "line": 2402,
+    "line": 2481,
     "snippet": "logToFile('❌ Internal API error', {",
     "occurrence": 0
   },
@@ -2137,25 +2257,25 @@
   },
   {
     "file": "bot/workers/sqs-worker.js",
-    "line": 543,
+    "line": 552,
     "snippet": "logToFile('❌ Exception in handleJobFailure', {",
     "occurrence": 0
   },
   {
     "file": "bot/workers/sqs-worker.js",
-    "line": 680,
+    "line": 689,
     "snippet": "logToFile('❌ UNCAUGHT EXCEPTION', {",
     "occurrence": 0
   },
   {
     "file": "bot/workers/sqs-worker.js",
-    "line": 691,
+    "line": 700,
     "snippet": "logToFile('❌ UNHANDLED REJECTION', {",
     "occurrence": 0
   },
   {
     "file": "bot/workers/sqs-worker.js",
-    "line": 1011,
+    "line": 1020,
     "snippet": "logToFile('❌ Fatal error in worker', {",
     "occurrence": 0
   },
@@ -2175,18 +2295,6 @@
     "file": "bot/workers/stale-session.worker.js",
     "line": 424,
     "snippet": "logToFile('❌ Failed to auto-complete session', {",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/workers/stale-session.worker.js",
-    "line": 579,
-    "snippet": "logToFile('❌ photo-gate sweep query failed', { error: error.message });",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/workers/stale-session.worker.js",
-    "line": 608,
-    "snippet": "logToFile('❌ Failed to auto-advance photo-gate session', { sessionId: session.id, error: err.message",
     "occurrence": 0
   }
 ]
