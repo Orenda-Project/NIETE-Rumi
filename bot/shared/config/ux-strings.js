@@ -74,6 +74,33 @@ const UX_STRINGS = {
     ur: 'زبان: {language} | مشاہدہ: {framework}',
   },
 
+  // ─── live calls (bd-1hae7) ────────────────────────────────────────────────
+  // Sent right after we decline a call, so a teacher who rings and gets nothing
+  // is not left wondering. Message bodies, not buttons or footers, so no
+  // code-point cap applies — but they stay short because they arrive unbidden.
+  // Feminine first person throughout (Rumi's own voice) and the آپ register.
+
+  // Every line is in use. She rang; the phone did not ring back.
+  callBusyOverflow: {
+    en: "Sorry — I'm on another call right now. Send me a message here and I'll help you straight away.",
+    ur: 'معذرت، میں اس وقت ایک اور کال پر ہوں۔ آپ یہاں پیغام لکھ دیں، میں فوراً مدد کروں گی۔',
+  },
+
+  // The weekly calling budget is spent. Messaging is unaffected, so say so.
+  callBudgetOverflow: {
+    en: "Sorry — calling isn't available just now. Message me here and I'll help you the same way.",
+    ur: 'معذرت، کال اس وقت دستیاب نہیں۔ آپ یہاں پیغام لکھ دیں، میں اسی طرح مدد کروں گی۔',
+  },
+
+  // She has used her calls for today. Not a telling-off — an invitation.
+  // NOTE the Urdu: addressed to the TEACHER, so the verb is a gender-neutral
+  // imperative (لکھ دیں), never a gendered second person (لکھ سکتی/سکتے ہیں).
+  // Cohorts are mixed-gender. Rumi's OWN voice stays feminine (موجود ہوں).
+  callDailyLimitOverflow: {
+    en: "That's all our calls for today. Message me here any time — I'm always available.",
+    ur: 'آج کی کالیں مکمل ہو گئیں۔ آپ یہاں کسی بھی وقت پیغام لکھ دیں، میں ہمیشہ موجود ہوں۔',
+  },
+
   /**
    * The language picker's footer. Bilingual — see languagePickerHeader below —
    * but on a HARD 60-CHARACTER BUDGET, which is why it is terse to the point of
