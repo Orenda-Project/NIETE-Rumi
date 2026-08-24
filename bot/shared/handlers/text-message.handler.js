@@ -671,7 +671,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       typingController.stop();
 
       // Get user's language for intro message
-      const userLanguage = await getUserLanguage(from) || 'en';
+      const userLanguage = await getUserLanguage(user.id) || 'en';
 
       // Integration Point 2: First-time slash command - send intro video if first use
       // This is implicit consent since user initiated the command
@@ -730,7 +730,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       const awaiting = await QuizFollowUpService.getAwaitingState(user.id);
       if (awaiting) {
         typingController.stop();
-        await QuizFollowUpService.handleNextTopicReply(user.id, from, await getUserLanguage(from) || 'en', messageBody);
+        await QuizFollowUpService.handleNextTopicReply(user.id, from, await getUserLanguage(user.id) || 'en', messageBody);
         return;
       }
     } catch (e) {
@@ -786,7 +786,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     // one entry point, shared with the menu's Training row. A second
     // copy here is how the two would drift.
     typingController.stop();
-    const trainingLanguage = await getUserLanguage(from) || 'en';
+    const trainingLanguage = await getUserLanguage(user.id) || 'en';
     const TrainingEntry = require('../services/training/training-entry.service');
     await TrainingEntry.openTrainingFlow(user, from, trainingLanguage);
     return;
@@ -903,7 +903,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     if (assessmentLive && ASSESSMENT_GEN_FLOW_ID) {
       typingController.stop();
       const flowToken = `${user.id}:assessment-gen:${Date.now()}`;
-      const responseLanguage = await getUserLanguage(from) || 'en';
+      const responseLanguage = await getUserLanguage(user.id) || 'en';
       await WhatsAppService.sendFlow(from, {
         flowId: ASSESSMENT_GEN_FLOW_ID,
         header: '📝 New assessment',
@@ -943,7 +943,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     }
     try {
       const QuizOrchestrator = require('../services/quiz/quiz-orchestrator.service');
-      const responseLanguage = await getUserLanguage(from) || 'en';
+      const responseLanguage = await getUserLanguage(user.id) || 'en';
       const topic = trimmedMessage.replace(/^\/quiz[\s,:;\-]*/i, '').trim() || null;
       await QuizOrchestrator.initiateQuizRequest(user, from, sessionId, responseLanguage, topic);
       logToFile('✅ Quiz orchestration started', { userId: user.id, topic });
@@ -990,7 +990,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         return;
       }
       typingController.stop();
-      const responseLanguage = await getUserLanguage(from) || 'en';
+      const responseLanguage = await getUserLanguage(user.id) || 'en';
       const flowToken = `${user.id}:pakistan-lp:${Date.now()}`;
       await WhatsAppService.sendFlow(from, {
         flowId: PAKISTAN_LP_FLOW_ID,
