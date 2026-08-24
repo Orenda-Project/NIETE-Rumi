@@ -232,6 +232,52 @@ async function buildCallContext({ from, deps = {} }) {
     blocks.memory = true;
   }
 
+  // ---- what we hold, and what we DON'T ----
+  //
+  // From the first real call: asked about his coaching scores, she replied that
+  // she could not see his report or "system access". That is false — there was
+  // simply no finished session on record. Omitting an absent block left the
+  // model with no way to tell "nothing recorded" from "not allowed to look", and
+  // it guessed the one that makes the product look broken.
+  //
+  // So absence is now STATED, and stated differently from failure: a block that
+  // is missing is a fact about her records; a block that threw is a temporary
+  // problem, and she should not present it as either a fact or a limitation.
+  if (user) {
+    const present = [];
+    const missing = [];
+    const label = {
+      coaching: 'coaching observations',
+      lessons: 'lesson plans we have sent her',
+      visit: 'an upcoming coach visit',
+      training: 'training progress',
+      memory: 'previous calls with her',
+    };
+    Object.keys(label).forEach((key) => {
+      if (blocks[key]) present.push(label[key]);
+      else if (!failures.includes(key === 'lessons' ? 'lessons' : key)) missing.push(label[key]);
+    });
+
+    const temporarilyUnavailable = failures
+      .filter((f) => f !== 'identity')
+      .map((f) => label[f] || f);
+
+    const seg = [`## WHAT IS ON RECORD FOR HER (as of ${isoDay(now)})`];
+    if (present.length) seg.push(`On record: ${present.join(', ')}.`);
+    if (missing.length) {
+      seg.push(`NOTHING RECORDED for: ${missing.join(', ')}. If she asks about any of `
+        + 'these, say plainly that there is nothing recorded for her yet — do NOT say you '
+        + 'lack access, permission, or the ability to see her records. You can see '
+        + 'everything we hold; there is simply nothing there.');
+    }
+    if (temporarilyUnavailable.length) {
+      seg.push(`Could not be loaded right now (a temporary problem, NOT missing data): `
+        + `${temporarilyUnavailable.join(', ')}. If she asks, say you cannot pull it up this `
+        + 'moment and offer to help another way.');
+    }
+    parts.push(seg.join('\n'));
+  }
+
   // ---- assemble: identity first, then every block gets a fair share ----
   //
   // The first synthetic call exposed the flaw in a simple running total: a rich

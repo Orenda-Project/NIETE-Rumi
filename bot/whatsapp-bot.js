@@ -2121,8 +2121,14 @@ app.post('/webhook', async (req, res) => {
       // inputs (a coach mid-photo-capture read the old generic reply as the
       // bot breaking). Everything else keeps the historical fallback.
       const { unsupportedTypeReply } = require('./shared/utils/unsupported-message');
-      const reply = unsupportedTypeReply(messageType);
-      logToFile(`⚠️ Unsupported message type: ${messageType}`, { replied: !!reply });
+      // The interactive SUB-type matters: WhatsApp posts `call_permission_reply`
+      // around a voice call, and answering it told the teacher "I can only reply
+      // to text and voice" the moment she hung up (bd-1hae7).
+      const interactiveSubType = message.interactive?.type;
+      const reply = unsupportedTypeReply(messageType, interactiveSubType);
+      logToFile(`⚠️ Unsupported message type: ${messageType}`, {
+        replied: !!reply, interactiveType: interactiveSubType,
+      });
       if (reply) await WhatsAppService.sendMessage(from, reply);
     }
 

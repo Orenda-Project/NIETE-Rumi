@@ -27,19 +27,30 @@ async function fetchUser(waId) {
 }
 
 /**
- * coaching_sessions: her most recent COMPLETED session.
- * `status` values in production include completed / confirmed / abandoned /
- * failed / awaiting_observer_review / observer_review_complete — only a
- * completed one has a full analysis_data worth talking about.
+ * coaching_sessions: her most recent FINISHED session.
+ *
+ * A session is finished in TWO states, not one — and filtering on `completed`
+ * alone hid 38 fully-analysed sessions on staging, including the caller's own on
+ * the first real call. She then told him she could not see his report, which was
+ * both wrong and alarming.
+ *
+ * Live counts (staging, 2026-08-24), sessions carrying analysis_data:
+ *   completed 102 · observer_review_complete 38  ← both finished, both included
+ *   awaiting_observer_review 14                  ← analysed but NOT yet reviewed,
+ *                                                  so not final: excluded
+ *   abandoned 6 · cancelled 2 · failed 1         ← excluded
  */
+const FINISHED_COACHING_STATUSES = ['completed', 'observer_review_complete'];
+
 async function fetchLatestCoaching(userId) {
   const { data, error } = await supabase
     .from('coaching_sessions')
-    .select('id, analysis_data, completed_at, created_at')
+    .select('id, analysis_data, status, completed_at, created_at')
     .eq('user_id', userId)
-    .eq('status', 'completed')
+    .in('status', FINISHED_COACHING_STATUSES)
     .not('analysis_data', 'is', null)
     .order('completed_at', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
     .limit(1);
   if (error) throw new Error(`coaching lookup failed: ${error.message}`);
   return (data && data[0]) || null;
