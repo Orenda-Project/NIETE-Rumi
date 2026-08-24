@@ -43,6 +43,9 @@ class CallEngine {
     this.drainGraceMs = config.drainGraceMs === undefined ? DEFAULT_DRAIN_GRACE_MS : config.drainGraceMs;
 
     this._sessions = new Map();   // wa_call_id → session
+    // Calls already reported through onCallEnd. A call that fails at setup is
+    // closed immediately; a stray terminate for it must not close it twice.
+    this._ended = new Set();
     this._draining = false;
     this._drainWaiters = [];
   }
@@ -147,6 +150,25 @@ class CallEngine {
       this._sessions.delete(callId);
       this._notifyDrain();
       try { await this.callsApi.terminate(callId); } catch (_) { /* the call may already be gone */ }
+
+      // Close the audit row. Meta never connected this call, so no `terminate`
+      // webhook is coming — without this the row sits at 'in_progress' forever
+      // and the cost ledger never counts it.
+      this._ended.add(callId);
+      if (this.onCallEnd) {
+        try {
+          await this.onCallEnd({
+            waCallId: callId,
+            from,
+            endedAt: new Date(),
+            durationSeconds: Math.round((Date.now() - startedAt) / 1000),
+            status: 'failed',
+            transcript: undefined,
+          });
+        } catch (hookErr) {
+          this.log.warn('[calls] end hook failed on the failure path', { callId, error: hookErr.message });
+        }
+      }
       return { action: 'failed', reason: err.message };
     }
   }
@@ -165,7 +187,8 @@ class CallEngine {
     this._sessions.delete(callId);
     this._notifyDrain();
 
-    if (this.onCallEnd) {
+    if (this.onCallEnd && !this._ended.has(callId)) {
+      this._ended.add(callId);
       try {
         await this.onCallEnd({
           waCallId: callId,
