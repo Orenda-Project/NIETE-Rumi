@@ -305,3 +305,54 @@ describe('CallEngine — SIGTERM drain (deploys must not cut live calls dead)', 
     expect(h.engine.activeCount).toBe(0);
   });
 });
+
+/**
+ * Found by the first synthetic call: a call that fails at `accept` freed its
+ * concurrency slot correctly, but its `calls` row was left `in_progress`
+ * FOREVER — no terminate webhook ever arrives for a call Meta never connected.
+ * The audit trail showed a call that simply never resolved, and the cost ledger
+ * never counted it.
+ */
+describe('CallEngine — a failed setup closes its audit row', () => {
+  test('accept failure reports the end so the row can be closed', async () => {
+    const onCallEnd = jest.fn(async () => {});
+    const h = makeHarness({ onCallEnd });
+    h.callsApi.accept.mockRejectedValue(new Error('accept refused'));
+
+    await h.engine.handleEvent(connectEvent('CALL1', '923001234567'));
+
+    expect(onCallEnd).toHaveBeenCalledWith(expect.objectContaining({
+      waCallId: 'CALL1', status: 'failed',
+    }));
+  });
+
+  test('createAnswer failure closes the row too', async () => {
+    const onCallEnd = jest.fn(async () => {});
+    const h = makeHarness({
+      onCallEnd,
+      sessionFactory: () => makeFakeSession({
+        createAnswer: jest.fn(async () => { throw new Error('wrtc exploded'); }),
+      }),
+    });
+    await h.engine.handleEvent(connectEvent('CALL1'));
+    expect(onCallEnd).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }));
+  });
+
+  test('a later terminate for the same call does not double-close it', async () => {
+    const onCallEnd = jest.fn(async () => {});
+    const h = makeHarness({ onCallEnd });
+    h.callsApi.accept.mockRejectedValue(new Error('nope'));
+    await h.engine.handleEvent(connectEvent('CALL1'));
+    await h.engine.handleEvent({ id: 'CALL1', event: 'terminate', status: 'FAILED' });
+    expect(onCallEnd).toHaveBeenCalledTimes(1);
+  });
+
+  test('an end-hook failure never changes the outcome of the failure path', async () => {
+    const onCallEnd = jest.fn(async () => { throw new Error('db down'); });
+    const h = makeHarness({ onCallEnd });
+    h.callsApi.accept.mockRejectedValue(new Error('nope'));
+    const res = await h.engine.handleEvent(connectEvent('CALL1'));
+    expect(res.action).toBe('failed');
+    expect(h.engine.activeCount).toBe(0);
+  });
+});
