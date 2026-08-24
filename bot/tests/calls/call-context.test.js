@@ -103,7 +103,10 @@ describe('call context — the coaching, in WORDS', () => {
     const { block } = await buildCallContext({
       from: '92300', deps: deps({ fetchLatestCoaching: async () => ({ id: 'x', analysis_data: null }) }),
     });
-    expect(block).not.toMatch(/COACHING/i);
+    // No coaching BLOCK — but the record summary still names it as absent, on
+    // purpose: silence about absence is what made her claim she had no access.
+    expect(block).not.toMatch(/## HER MOST RECENT COACHING/);
+    expect(block).toMatch(/NOTHING RECORDED/);
     expect(block).toContain('Ayesha');
   });
 
@@ -193,12 +196,13 @@ describe('call context — the other blocks', () => {
     expect(block).toContain('fractions pacing');
   });
 
-  test('absent optional blocks are simply omitted', async () => {
+  test('absent optional blocks render no block, but ARE named as absent', async () => {
     const { block } = await buildCallContext({
       from: '92300',
       deps: deps({ fetchUpcomingVisit: async () => null, fetchTraining: async () => null, fetchMemory: async () => null }),
     });
-    expect(block).not.toMatch(/VISIT|TRAINING|PREVIOUS CALL/i);
+    expect(block).not.toMatch(/## HER NEXT COACH VISIT|## HER TRAINING|## PREVIOUS CALLS/);
+    expect(block).toMatch(/NOTHING RECORDED for:.*upcoming coach visit/s);
     expect(block).toContain('Ayesha');
   });
 });
