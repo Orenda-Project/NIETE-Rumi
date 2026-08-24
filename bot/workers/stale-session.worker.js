@@ -586,7 +586,7 @@ async function processStuckPhotoGateSessions() {
     .in('status', PHOTO_GATE_STATUSES)
     .lt('updated_at', cutoff);
   if (error) {
-    logToFile('❌ photo-gate sweep query failed', { error: error.message });
+    logToFile('❌ photo-gate sweep query failed', { error: error.message }, 'error');
     return { found: 0, advanced: 0, abandoned: 0 };
   }
 
@@ -670,7 +670,7 @@ async function processStuckPhotoGateSessions() {
       logToFile('✅ Photo-gate session auto-advanced → report', {
         sessionId: session.id, wasStatus: session.status, notified: !!(notifyPhone && !alreadyNotified) });
     } catch (err) {
-      logToFile('❌ Failed to auto-advance photo-gate session', { sessionId: session.id, error: err.message });
+      logToFile('❌ Failed to auto-advance photo-gate session', { sessionId: session.id, error: err.message }, 'error');
     }
   }
   if (eligible.length) logToFile('🔔 photo-gate sweep done', { found: eligible.length, advanced, abandoned });

@@ -10,7 +10,7 @@
 /**
  * A class-backed mirror row already carries section AND shift inside class_name
  * (ClassService.mirrorLabel), so appending `section` renders "Grade 11 - B - B"
- * and pushes "Grade 7 - E (evening) - E" past the 24-char row cap (bd-2725).
+ * and pushes "Grade 7 - E (evening) - E" past the 24-char row cap.
  * The mirror owns the label for those rows; legacy rows compose it.
  */
 function rosterLabel(row) {
@@ -23,7 +23,7 @@ function rosterLabel(row) {
   // (doubling to "Grade 11 - B - B"), and later "Grade 11" + section "B" (where
   // dropping the section loses it). Shift-bearing names like
   // "Grade 7 - E (evening)" must not gain a second "- E" either. Comparing the
-  // tail is stable across all three. (bd-2725)
+  // tail is stable across all three.
   const endsWithSection = new RegExp(`(^|[\\s\\-])${section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*(\\(|$)`, 'i');
   return endsWithSection.test(name) ? name : `${name} - ${section}`;
 }
