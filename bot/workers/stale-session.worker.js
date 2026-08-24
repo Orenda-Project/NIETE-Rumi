@@ -26,7 +26,7 @@ const { logToFile } = require('../shared/utils/logger');
 const WhatsAppService = require('../shared/services/whatsapp.service');
 const CoachingJobQueueService = require('../shared/services/coaching/coaching-job-queue.service');
 const { runSonioxCleanup } = require('../shared/services/soniox-cleanup.service');
-const { classifyStuckInitiatedSession } = require('../shared/services/coaching/coaching-stale-recovery');
+const { classifyStuckInitiatedSession, classifyStuckMidFlightSession } = require('../shared/services/coaching/coaching-stale-recovery');
 
 // Coaching thresholds (in milliseconds).
 //
@@ -555,7 +555,81 @@ async function runRecovery() {
   } catch (err) {
     logToFile('⚠️ photo-gate sweep threw (non-blocking)', { error: err.message });
   }
-  return { coaching, stuckInitiated, untapped, photoGate };
+  let midFlight = { total: 0 };
+  try {
+    midFlight = await processStuckMidFlightSessions();
+  } catch (err) {
+    logToFile('⚠️ mid-flight watchdog threw (non-blocking)', { error: err.message });
+  }
+  return { coaching, stuckInitiated, untapped, photoGate, midFlight };
+}
+
+/**
+ * bd-h9gnk — the mid-flight watchdog. A session untouched for >45 min in any
+ * processing status (transcribing → generating_report) gets ONE retry from the
+ * phase it died in (stamped into analysis_data.watchdog so it can never loop);
+ * a spent retry fails the session LOUDLY and tells the teacher to resend.
+ * Observe sessions are excluded at the query — bd-tju8f's sweep owns those,
+ * coach-addressed.
+ */
+async function processStuckMidFlightSessions() {
+  const { getCoachingMessage } = require('../shared/config/coaching-messages');
+  const staleBefore = new Date(Date.now() - 45 * 60 * 1000).toISOString();
+  const { data: stuck } = await supabase
+    .from('coaching_sessions')
+    .select('id, user_id, status, created_at, updated_at, audio_id, analysis_data, observation_type, users!inner(phone_number, first_name, preferred_language)')
+    .in('status', ['transcribing', 'transcription_complete', 'analyzing', 'analysis_started', 'analysis_complete', 'generating_report'])
+    .or('observation_type.is.null,observation_type.neq.leader_observation')
+    .lt('updated_at', staleBefore)
+    .order('updated_at', { ascending: true })
+    .limit(25);
+
+  let retried = 0; let failed = 0; let skipped = 0;
+  for (const session of (stuck || [])) {
+    const decision = classifyStuckMidFlightSession(session);
+    if (decision.action === 'skip') { skipped += 1; continue; }
+    const phone = session.users && session.users.phone_number;
+    try {
+      if (decision.action === 'retry') {
+        // Stamp FIRST — if the queue call dies, the next sweep fails loudly
+        // instead of retrying forever.
+        await supabase.from('coaching_sessions').update({
+          analysis_data: {
+            ...(session.analysis_data || {}),
+            watchdog: { retried_at: new Date().toISOString(), from_status: session.status },
+          },
+          updated_at: new Date().toISOString(),
+        }).eq('id', session.id);
+        if (decision.queue === 'transcription') {
+          await CoachingJobQueueService.queueTranscription(session.id, { from: phone, audioId: session.audio_id });
+        } else if (decision.queue === 'analysis') {
+          await CoachingJobQueueService.queueAnalysis(session.id, { from: phone });
+        } else {
+          await CoachingJobQueueService.queueReport(session.id, { from: phone });
+        }
+        retried += 1;
+        logToFile('🔁 Mid-flight watchdog: retried a dead session', {
+          sessionId: session.id, fromStatus: session.status, queue: decision.queue });
+      } else {
+        await supabase.from('coaching_sessions').update({
+          status: 'failed',
+          error_message: `mid-flight watchdog: ${decision.reason} (bd-h9gnk)`,
+          updated_at: new Date().toISOString(),
+        }).eq('id', session.id);
+        if (phone) {
+          const lang = (session.users && session.users.preferred_language) || 'en';
+          await WhatsAppService.sendMessage(phone, getCoachingMessage('coaching_analysisStalledFail', lang))
+            .catch(() => {});
+        }
+        failed += 1;
+        logToFile('🛑 Mid-flight watchdog: failed a dead session LOUDLY', {
+          sessionId: session.id, fromStatus: session.status, reason: decision.reason }, 'error');
+      }
+    } catch (err) {
+      logToFile('⚠️ Mid-flight watchdog: recovery attempt threw', { sessionId: session.id, error: err.message });
+    }
+  }
+  return { total: (stuck || []).length, retried, failed, skipped };
 }
 
 /**
