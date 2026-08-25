@@ -89,12 +89,37 @@ const MY_TEACHER_COUNT_SQL = `
   WHERE leader_user_id = $1 AND school_ext_id = $2
 `;
 
+// Do the coaches holding this ext id disagree about which school it is?
+//
+// school_ext_id is 'niete:' || an EMIS typed into the roster sheet, and two rows
+// on production carry the wrong number: niete:607 covers Sang Jani AND Shah
+// Allah Ditta, niete:628 covers a boys' and a girls' school. Inheriting "the
+// teachers at this id" would pool two schools' rosters.
+//
+// Measured 2026-08-25: 2 ext ids where the holders disagree, 405 where they
+// agree, 82 held by more than one coach. This fires on 2, never the normal path.
+//
+// Deliberately NOT a UNIQUE index on the canonical name: at least ten register
+// names are shared by two genuinely different schools (IMSG (I-V) Sihala is 529
+// and 540, IMSB (I-V), MAL is 427 and 429), so such an index would pass on
+// creation and then block a legitimate assignment later.
+const AMBIGUOUS_EXT_ID_SQL = `
+  SELECT count(DISTINCT UPPER(REGEXP_REPLACE(school_name, '[^a-zA-Z0-9]', '', 'g'))) AS names
+  FROM leader_schools
+  WHERE school_ext_id = $1
+`;
+
 // The roster for a school, deduped by phone across whichever coaches hold it.
+// The subquery repeats the ambiguity test so no future caller can reach this
+// statement without it. addSchool gates on it separately, to say WHY rather than
+// just handing back an empty list.
 const ROSTER_SQL = `
   SELECT DISTINCT ON (teacher_phone_e164)
          teacher_ext_id, teacher_name, teacher_phone_e164, level
   FROM leader_teachers
   WHERE school_ext_id = $1 AND teacher_phone_e164 IS NOT NULL
+    AND (SELECT count(DISTINCT UPPER(REGEXP_REPLACE(school_name, '[^a-zA-Z0-9]', '', 'g')))
+           FROM leader_schools WHERE school_ext_id = $1) <= 1
   ORDER BY teacher_phone_e164, teacher_name
 `;
 
@@ -211,7 +236,15 @@ async function addSchool(query, leaderUserId, schoolExtId) {
     repairing = true;
   }
 
-  const { rows: roster } = await query(ROSTER_SQL, [schoolExtId]);
+  // Gate the inheritance, and keep the reason so the coach is told the truth
+  // rather than being handed a school that looks like it has no teachers.
+  const { rows: ambRows } = await query(AMBIGUOUS_EXT_ID_SQL, [schoolExtId]);
+  const ambiguousExtId = Number((ambRows && ambRows[0] && ambRows[0].names) || 0) > 1;
+
+  const { rows: roster } = ambiguousExtId
+    ? { rows: [] }
+    : await query(ROSTER_SQL, [schoolExtId]);
+
   if (!repairing) {
     await query(INSERT_SCHOOL_SQL, [leaderUserId, schoolExtId, school.school_name, school.emis]);
   }
@@ -230,7 +263,12 @@ async function addSchool(query, leaderUserId, schoolExtId) {
     schoolExtId, schoolName: school.school_name, alreadyMine, teachersMapped: mapped,
   };
   if (repairing) out.repaired = true;
-  if (!mapped) {
+  if (ambiguousExtId) {
+    out.ambiguousExtId = true;
+    out.warning = 'This school number covers more than one school, so no teachers were '
+      + 'copied across. The school is on your list. Tell the team so the roster can be '
+      + 'corrected, and they will add the teachers.';
+  } else if (!mapped) {
     out.warning = 'This school has no teacher list yet, so no teachers were added. '
       + 'Tell the team and they will load its roster.';
   }
