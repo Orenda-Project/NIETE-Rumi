@@ -507,17 +507,22 @@ async function processUntappedReports() {
   const ObserveSend = require('../shared/services/observe/observe-send.service');
   const { classifyUntappedDelivery } = require('../shared/services/observe/observe-untapped.service');
   let nudged = 0; let gaveUp = 0; let skipped = 0;
+  // bd-mwn4j: select ONLY the delivery slice and filter server-side. The full
+  // analysis_data pull (500 rows x 100KB+ JSONB, every 15 min, per replica) is
+  // what statement-timed-out and OOM-wedged the prod DB on 24/25 Aug — the
+  // sweep only ever needed teacher_delivery.
   const { data: rows, error } = await supabase
     .from('coaching_sessions')
-    .select('id, analysis_data')
+    .select('id, teacher_delivery:analysis_data->teacher_delivery')
     .eq('observation_type', 'leader_observation')
+    .not('analysis_data->teacher_delivery', 'is', null)
     .limit(500);
   if (error) {
     logToFile('⚠️ untapped sweep: query failed', { error: error.message });
     return { total: 0, nudged, gaveUp, skipped };
   }
   const candidates = (rows || []).filter((r) => {
-    const d = (r.analysis_data && r.analysis_data.teacher_delivery) || {};
+    const d = r.teacher_delivery || {};
     return classifyUntappedDelivery(d).action !== 'skip';
   });
   for (const row of candidates) {
