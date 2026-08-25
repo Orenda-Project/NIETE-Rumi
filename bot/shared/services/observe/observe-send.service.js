@@ -195,11 +195,10 @@ async function startSendFlow(sessionId, from, user) {
   const { getRoster } = require('./observe-roster');
   const teachers = await getRoster(user);
   if (teachers.length > 0) {
-    // bd-qq7wb: snapshot ONLY the shown slice — observe_pickt_<i> must resolve
-    // against exactly the list the officer saw, and the list is capped (above).
-    const shown = teachers.slice(0, PICK_LIST_TEACHER_CAP);
-    await ObserveState.setState(user.id, 'awaiting_teacher_pick', { sessionId, teachers: shown });
-    await WhatsAppService.sendInteractiveMessage(from, buildTeacherPickPayload(shown, S));
+    // bd-qq7wb: snapshot the FULL roster once; every page's row ids carry the
+    // global index into this snapshot, so pagination can never mis-resolve.
+    await ObserveState.setState(user.id, 'awaiting_teacher_pick', { sessionId, teachers });
+    await WhatsAppService.sendInteractiveMessage(from, buildTeacherPickPayload(teachers, S));
     return;
   }
   await ObserveState.setState(user.id, 'awaiting_teacher_details', { sessionId });
@@ -241,14 +240,27 @@ async function listKnownTeachers(observerUserId) {
 // coach got SILENCE after tapping "Send report" — 26/83 coaches were over the
 // cliff on 25 Aug (every coach with 9+ distinct delivered teachers, armed
 // instantly by the history backfill). 8 MRU + new + manage = exactly 10.
-const PICK_LIST_TEACHER_CAP = 8;
+const PICK_LIST_TEACHER_CAP = 8;   // fits without a more-row: 8 + new + manage = 10
+const PICK_PAGE = 7;               // page size once a more-row is needed
 
-function buildTeacherPickPayload(teachers, S) {
-  const rows = teachers.slice(0, PICK_LIST_TEACHER_CAP).map((t, i) => ({
-    id: `observe_pickt_${i}`,
+function buildTeacherPickPayload(teachers, S, offset = 0) {
+  // Row ids carry the GLOBAL roster index, so a tap on any page resolves
+  // against the one full-roster snapshot taken at startSendFlow — a later
+  // page can never mis-resolve to a different teacher.
+  const paginated = teachers.length > PICK_LIST_TEACHER_CAP;
+  const page = paginated ? teachers.slice(offset, offset + PICK_PAGE) : teachers;
+  const rows = page.map((t, i) => ({
+    id: `observe_pickt_${offset + i}`,
     title: String(t.name).slice(0, 24),
     description: `+${t.phone}`.slice(0, 72),
   }));
+  if (paginated && offset + PICK_PAGE < teachers.length) {
+    rows.push({
+      id: `observe_pickt_more_${offset + PICK_PAGE}`,
+      title: S.pick_teacher_more.slice(0, 24),
+      description: `${Math.min(offset + PICK_PAGE, teachers.length)} / ${teachers.length}`,
+    });
+  }
   rows.push({
     id: 'observe_pickt_new',
     title: S.pick_teacher_new.slice(0, 24),
@@ -292,6 +304,14 @@ async function handleTeacherPick(user, from, listId) {
     const roster = await getRoster(user);
     await ObserveState.setState(user.id, 'awaiting_teacher_manage', { sessionId, teachers: roster });
     await WhatsAppService.sendInteractiveMessage(from, buildTeacherManagePayload(roster, S));
+    return true;
+  }
+  // bd-qq7wb pagination: "More teachers…" re-renders the next page from the
+  // same snapshot. Checked before the numeric parse (parseInt('more_7') = NaN).
+  if (listId.startsWith('observe_pickt_more_')) {
+    const nextOffset = parseInt(listId.replace('observe_pickt_more_', ''), 10) || 0;
+    await WhatsAppService.sendInteractiveMessage(
+      from, buildTeacherPickPayload(state.teachers || [], S, nextOffset));
     return true;
   }
   const idx = parseInt(listId.replace('observe_pickt_', ''), 10);
