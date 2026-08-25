@@ -141,6 +141,39 @@ function rosterNextTarget(next) {
 const _db = () => require('../../config/supabase');
 
 /**
+ * A school name reduced to letters and digits, upper-cased. Two spellings that
+ * differ only by spacing, case or punctuation are the same school:
+ * 'IMCG(VI-XII)  Herdogher' and 'IMCG(VI-XII) Herdogher' are one school, and the
+ * register itself holds the double-spaced form. One letter still separates two
+ * real schools, which is the whole difference between IMSB and IMSG.
+ */
+function canonicalSchoolName(name) {
+  return String(name == null ? '' : name).toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+/**
+ * Do the coaches holding this school_ext_id disagree about which school it is?
+ *
+ * Fails CLOSED. On a query error this returns true, because refusing to inherit
+ * a roster costs a coach one manual step, while inheriting the wrong one hands
+ * them another school's teachers. Measured on production 2026-08-25: 2 ext ids
+ * where holders disagree, 405 where they agree, so this fires rarely and never
+ * on the normal path.
+ */
+async function extIdIsAmbiguous(schoolExtId) {
+  const supabase = _db();
+  try {
+    const { data, error } = await supabase
+      .from('leader_schools').select('school_name').eq('school_ext_id', schoolExtId);
+    if (error) return true;
+    const names = new Set((data || []).map((r) => canonicalSchoolName(r.school_name)).filter(Boolean));
+    return names.size > 1;
+  } catch (_) {
+    return true;
+  }
+}
+
+/**
  * Universe search — every school we know of, filtered in JS by name/EMIS.
  *
  * Built from TWO sources on purpose. The `schools` master carries emis on
@@ -240,10 +273,20 @@ async function addSchoolForCoach(leaderUserId, schoolExtId) {
     };
   }
 
-  const { data: roster } = await supabase
-    .from('leader_teachers')
-    .select('teacher_ext_id, teacher_name, teacher_phone_e164, teacher_phone, level')
-    .eq('school_ext_id', schoolExtId);
+  // Inheritance is keyed on school_ext_id alone, and that id is 'niete:' || an
+  // EMIS typed into the roster sheet. Two rows on production carry the wrong
+  // number, so niete:607 covers Sang Jani AND Shah Allah Ditta, and niete:628
+  // covers a boys' and a girls' school. Copying "the teachers at this id" across
+  // would pool two schools' rosters. If the coaches holding the id disagree on
+  // what school it is, inherit nothing and say so.
+  const ambiguousExtId = await extIdIsAmbiguous(schoolExtId);
+
+  const { data: roster } = ambiguousExtId
+    ? { data: [] }
+    : await supabase
+      .from('leader_teachers')
+      .select('teacher_ext_id, teacher_name, teacher_phone_e164, teacher_phone, level')
+      .eq('school_ext_id', schoolExtId);
 
   if (!(mine && mine[0])) {
     await supabase.from('leader_schools').insert({
@@ -283,7 +326,7 @@ async function addSchoolForCoach(leaderUserId, schoolExtId) {
   return {
     ok: true, alreadyMine: false, schoolName: school.name, teachersMapped: mapped,
     teacherCount: await _myTeacherCount(supabase, leaderUserId, schoolExtId),
-    insertError,
+    insertError, ambiguousExtId,
   };
 }
 
@@ -316,6 +359,7 @@ async function removeSchoolForCoach(leaderUserId, schoolExtId) {
 }
 
 module.exports = {
+  canonicalSchoolName, extIdIsAmbiguous,
   matchSchool, matchTeacher, normalisePhoneTerm,
   addedSchoolAck, removedSchoolAck,
   searchUniverse, listMySchools, addSchoolForCoach, removeSchoolForCoach,
