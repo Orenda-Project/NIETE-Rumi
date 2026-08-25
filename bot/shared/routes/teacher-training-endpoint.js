@@ -1092,7 +1092,25 @@ async function loadVisibleLevelsWithProgress(userId) {
     const prevLevel = visibleLevels
       .filter(l => l.vendor_id === lv.vendor_id)
       .find(l => l.order_index === lv.order_index - 1);
-    const prevPassed = !prevLevel || !!(attempts || []).find(a => a.level_id === prevLevel.id && isGrandPass(a, examQuizIds));
+    // bd-43812 — a held certificate satisfies the chain-lock, exactly as it
+    // satisfies `certified` six lines below. These two decisions disagreed:
+    // certification accepted an attempt OR a certificate (bd-2503), while the
+    // lock accepted only the attempt. A teacher holding a certificate with no
+    // matching attempt row was therefore shown as certified at level N and
+    // simultaneously locked out of N+1 — the badge said done, the next level
+    // said "pass the grand quiz first". On production that is 65 NIETE
+    // certificates, 47 of them with a next level to be locked out of.
+    //
+    // Such certificates are legitimate: bd-2234's module-score path issues one
+    // off completed modules with no exam attempt at all, and the bd-43811
+    // backfill wrote 912 more with a null attempt_id. The certificate IS the
+    // record that the level was finished, so the lock must read it.
+    //
+    // Keep these two in step. If one grows a new way to finish a level, the
+    // other needs it too, or this split comes back.
+    const prevPassed = !prevLevel
+      || certifiedLevelIds.has(prevLevel.id)
+      || !!(attempts || []).find(a => a.level_id === prevLevel.id && isGrandPass(a, examQuizIds));
     const isFirst = !prevLevel;
     const grand = (quizzes || []).find(q => q.level_id === lv.id) || null;
 
