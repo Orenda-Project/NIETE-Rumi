@@ -3,6 +3,12 @@
 // Handles /quiz command (Trigger 1), LP-anchored offers, and class gate logic
 
 const { logToFile } = require('../../utils/logger');
+const ConversationState = require('../conversation-state.service');
+
+// One flow for the teacher-facing quiz prompts. The student-side keys stay in the
+// cache: they are keyed per STUDENT, not per teacher, so they are a different
+// subject and do not belong in a per-teacher store.
+const QUIZ_FLOW = 'quiz';
 const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
 const redisService = require('../cache/railway-redis.service');
@@ -55,11 +61,18 @@ class QuizOrchestrator {
         description: 'Tap to select this class'
       }));
 
-      // Store state (including pre-supplied topic if any) — non-fatal if Redis is down
+      // Non-fatal by design: if the state write fails she still gets the class list,
+      // and picking a class carries the class id in the row she taps — intent-first,
+      // so a lost state costs the pre-supplied topic, not the whole quiz.
       try {
-        await redisService.setexWithCeiling(`quiz:awaiting_class:${user.id}`, 3600, JSON.stringify({ sessionId, language, preTopic }));
-      } catch (redisErr) {
-        logToFile('⚠️ quiz:awaiting_class Redis write failed (non-fatal)', { error: redisErr.message });
+        await ConversationState.setState(user.id, {
+          flow: QUIZ_FLOW,
+          step: 'awaiting_class',
+          payload: { sessionId, language, preTopic },
+          ttlSeconds: 3600,
+        });
+      } catch (stateErr) {
+        logToFile('⚠️ quiz awaiting_class state write failed (non-fatal)', { error: stateErr.message });
       }
 
       logToFile('📋 Sending class selection list', { classCount: classes.length });
@@ -81,7 +94,7 @@ class QuizOrchestrator {
   }
 
   /**
-   * Handle teacher's topic reply (from quiz:awaiting_topic Redis state).
+   * Handle teacher's topic reply (from the quiz flow's awaiting_topic step).
    */
   static async handleTopicReply(user, from, topicText, state) {
     await this._handleTopicReply(user, from, topicText, state);
@@ -144,14 +157,17 @@ class QuizOrchestrator {
         return;
       }
 
-      // Get pre-supplied topic or state from Redis (non-fatal if Redis is down)
-      let stateRaw = null;
+      // Non-fatal: without it we fall back to the caller's language/session and lose
+      // only the pre-supplied topic.
+      let savedState = {};
       try {
-        stateRaw = await redisService.redis.get(`quiz:awaiting_class:${user.id}`);
-      } catch (redisErr) {
-        logToFile('⚠️ quiz:awaiting_class Redis read failed (non-fatal)', { error: redisErr.message });
+        const active = await ConversationState.getState(user.id);
+        if (active && active.flow === QUIZ_FLOW && active.step === 'awaiting_class') {
+          savedState = active.payload || {};
+        }
+      } catch (stateErr) {
+        logToFile('⚠️ quiz awaiting_class state read failed (non-fatal)', { error: stateErr.message });
       }
-      const savedState = stateRaw ? JSON.parse(stateRaw) : {};
       const lang = savedState.language || language;
       const sid = savedState.sessionId || sessionId;
       const preTopic = savedState.preTopic;
@@ -638,11 +654,12 @@ class QuizOrchestrator {
    * @private
    */
   static async _promptForTopic(user, from, sessionId, language, classId) {
-    await redisService.setexWithCeiling(
-      `quiz:awaiting_topic:${user.id}`,
-      3600,
-      JSON.stringify({ sessionId, language, classId })
-    );
+    await ConversationState.setState(user.id, {
+      flow: QUIZ_FLOW,
+      step: 'awaiting_topic',
+      payload: { sessionId, language, classId },
+      ttlSeconds: 3600,
+    });
 
     await WhatsAppService.sendMessage(from,
       '📝 What topic should the quiz cover?\n\n' +

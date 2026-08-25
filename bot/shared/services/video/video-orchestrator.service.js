@@ -10,12 +10,22 @@ const WhatsAppService = require('../whatsapp.service');
 const VideoSessionService = require('./video-session.service');
 const VideoJobQueueService = require('./video-job-queue.service');
 const OpenAIService = require('../openai.service');
+const ConversationState = require('../conversation-state.service');
 const redisService = require('../cache/railway-redis.service');
 const redis = redisService.redis;
 
 // Issue #58 FIX: Extend TTL from 5 min (300s) to 15 min (900s)
 // Users may take longer between video flow steps, causing state to expire
-const VIDEO_STATE_TTL = 900; // 15 minutes
+// One flow, four steps. These used to be four separate cache keys that could all
+// exist at once, which made a stale earlier step readable while the teacher was on a
+// later one. One row per teacher makes that case stop existing rather than be handled.
+const VIDEO_FLOW = 'video';
+
+// 15 minutes was chosen for a cache key and is kept: the teacher is being asked to
+// type a short answer to a question that is on her screen right now. If she drifts
+// past it the resume sweeper offers the video back, which is the behaviour that
+// replaces the old silent expiry.
+const VIDEO_STATE_TTL = 900;
 
 class VideoOrchestrator {
 
@@ -140,16 +150,19 @@ class VideoOrchestrator {
     };
 
     // Store state in Redis - awaiting video topic from this user
-    const stateKey = `user:${userId}:awaiting_video_topic`;
-    const stateData = JSON.stringify({
+    await ConversationState.setState(userId, {
+      flow: VIDEO_FLOW,
+      step: 'awaiting_topic',
+      payload: {
       sessionId,
       language,
       from,
       askedAt: new Date().toISOString()
+      },
+      ttlSeconds: VIDEO_STATE_TTL,
     });
-    await redis.setex(stateKey, VIDEO_STATE_TTL, stateData); // Issue #58: 15 minute expiry
 
-    logToFile('Stored awaiting_video_topic state', { userId, sessionId, language });
+    logToFile('Video flow step stored', { flow: VIDEO_FLOW, step: 'awaiting_topic', userId, sessionId, language  });
 
     await WhatsAppService.sendMessage(from, messages[language] || messages.en);
   }
@@ -160,13 +173,9 @@ class VideoOrchestrator {
    * @returns {Object|null} State data or null
    */
   static async checkAwaitingTopic(userId) {
-    const stateKey = `user:${userId}:awaiting_video_topic`;
-    const stateData = await redis.get(stateKey);
-
-    if (stateData) {
-      return JSON.parse(stateData);
-    }
-    return null;
+    const active = await ConversationState.getState(userId);
+    if (!active || active.flow !== VIDEO_FLOW || active.step !== 'awaiting_topic') return null;
+    return active.payload || {};
   }
 
   /**
@@ -174,9 +183,8 @@ class VideoOrchestrator {
    * @param {string} userId - User ID
    */
   static async clearAwaitingTopic(userId) {
-    const stateKey = `user:${userId}:awaiting_video_topic`;
-    await redis.del(stateKey);
-    logToFile('Cleared awaiting_video_topic state', { userId });
+    await ConversationState.clearState(userId, { flow: VIDEO_FLOW });
+    logToFile('Video flow cleared', { flow: VIDEO_FLOW, step: 'awaiting_topic', userId  });
   }
 
   // ======================================================================
@@ -214,16 +222,19 @@ class VideoOrchestrator {
     ];
 
     // Store state in Redis - awaiting language selection
-    const stateKey = `user:${userId}:awaiting_video_language`;
-    const stateData = JSON.stringify({
+    await ConversationState.setState(userId, {
+      flow: VIDEO_FLOW,
+      step: 'awaiting_language',
+      payload: {
       sessionId,
       topic,
       from,
       askedAt: new Date().toISOString()
+      },
+      ttlSeconds: VIDEO_STATE_TTL,
     });
-    await redis.setex(stateKey, VIDEO_STATE_TTL, stateData); // Issue #58: 15 minute expiry
 
-    logToFile('Stored awaiting_video_language state', { userId, topic });
+    logToFile('Video flow step stored', { flow: VIDEO_FLOW, step: 'awaiting_language', userId, topic  });
 
     // Send interactive list for language selection
     await WhatsAppService.sendInteractiveMessage(from, {
@@ -242,13 +253,9 @@ class VideoOrchestrator {
    * @returns {Object|null} State data or null
    */
   static async checkAwaitingLanguage(userId) {
-    const stateKey = `user:${userId}:awaiting_video_language`;
-    const stateData = await redis.get(stateKey);
-
-    if (stateData) {
-      return JSON.parse(stateData);
-    }
-    return null;
+    const active = await ConversationState.getState(userId);
+    if (!active || active.flow !== VIDEO_FLOW || active.step !== 'awaiting_language') return null;
+    return active.payload || {};
   }
 
   /**
@@ -256,9 +263,8 @@ class VideoOrchestrator {
    * @param {string} userId - User ID
    */
   static async clearAwaitingLanguage(userId) {
-    const stateKey = `user:${userId}:awaiting_video_language`;
-    await redis.del(stateKey);
-    logToFile('Cleared awaiting_video_language state', { userId });
+    await ConversationState.clearState(userId, { flow: VIDEO_FLOW });
+    logToFile('Video flow cleared', { flow: VIDEO_FLOW, step: 'awaiting_language', userId  });
   }
 
   /**
@@ -328,17 +334,20 @@ class VideoOrchestrator {
     };
 
     // Store state in Redis - awaiting customization from this user
-    const stateKey = `user:${userId}:awaiting_video_customization`;
-    const stateData = JSON.stringify({
+    await ConversationState.setState(userId, {
+      flow: VIDEO_FLOW,
+      step: 'awaiting_customization',
+      payload: {
       sessionId,
       language,
       from,
       topic,
       askedAt: new Date().toISOString()
+      },
+      ttlSeconds: VIDEO_STATE_TTL,
     });
-    await redis.setex(stateKey, VIDEO_STATE_TTL, stateData); // Issue #58: 15 minute expiry
 
-    logToFile('Stored awaiting_video_customization state', { userId, topic });
+    logToFile('Video flow step stored', { flow: VIDEO_FLOW, step: 'awaiting_customization', userId, topic  });
 
     await WhatsAppService.sendMessage(from, messages[language] || messages.en);
   }
@@ -385,13 +394,9 @@ class VideoOrchestrator {
    * @returns {Object|null} State data or null
    */
   static async checkAwaitingCustomization(userId) {
-    const stateKey = `user:${userId}:awaiting_video_customization`;
-    const stateData = await redis.get(stateKey);
-
-    if (stateData) {
-      return JSON.parse(stateData);
-    }
-    return null;
+    const active = await ConversationState.getState(userId);
+    if (!active || active.flow !== VIDEO_FLOW || active.step !== 'awaiting_customization') return null;
+    return active.payload || {};
   }
 
   /**
@@ -399,9 +404,8 @@ class VideoOrchestrator {
    * @param {string} userId - User ID
    */
   static async clearAwaitingCustomization(userId) {
-    const stateKey = `user:${userId}:awaiting_video_customization`;
-    await redis.del(stateKey);
-    logToFile('Cleared awaiting_video_customization state', { userId });
+    await ConversationState.clearState(userId, { flow: VIDEO_FLOW });
+    logToFile('Video flow cleared', { flow: VIDEO_FLOW, step: 'awaiting_customization', userId  });
   }
 
   // ======================================================================
@@ -421,18 +425,21 @@ class VideoOrchestrator {
    */
   static async askForStyle(from, userId, sessionId, language, topic, customization) {
     // Store state in Redis - awaiting style selection
-    const stateKey = `user:${userId}:awaiting_video_style`;
-    const stateData = JSON.stringify({
+    await ConversationState.setState(userId, {
+      flow: VIDEO_FLOW,
+      step: 'awaiting_style',
+      payload: {
       sessionId,
       topic,
       language,
       customization,
       from,
       askedAt: new Date().toISOString()
+      },
+      ttlSeconds: VIDEO_STATE_TTL,
     });
-    await redis.setex(stateKey, VIDEO_STATE_TTL, stateData); // Issue #58: 15 minute expiry
 
-    logToFile('Stored awaiting_video_style state', { userId, topic, customization });
+    logToFile('Video flow step stored', { flow: VIDEO_FLOW, step: 'awaiting_style', userId, topic, customization  });
 
     // Send style carousel
     await WhatsAppService.sendStyleCarousel(from);
@@ -444,13 +451,9 @@ class VideoOrchestrator {
    * @returns {Object|null} State data or null
    */
   static async checkAwaitingStyle(userId) {
-    const stateKey = `user:${userId}:awaiting_video_style`;
-    const stateData = await redis.get(stateKey);
-
-    if (stateData) {
-      return JSON.parse(stateData);
-    }
-    return null;
+    const active = await ConversationState.getState(userId);
+    if (!active || active.flow !== VIDEO_FLOW || active.step !== 'awaiting_style') return null;
+    return active.payload || {};
   }
 
   /**
@@ -458,9 +461,8 @@ class VideoOrchestrator {
    * @param {string} userId - User ID
    */
   static async clearAwaitingStyle(userId) {
-    const stateKey = `user:${userId}:awaiting_video_style`;
-    await redis.del(stateKey);
-    logToFile('Cleared awaiting_video_style state', { userId });
+    await ConversationState.clearState(userId, { flow: VIDEO_FLOW });
+    logToFile('Video flow cleared', { flow: VIDEO_FLOW, step: 'awaiting_style', userId  });
   }
 
   /**

@@ -34,6 +34,12 @@ module.exports = {
     // .env from leaking into test expectations.
     '^dotenv$': '<rootDir>/tests/__mocks__/dotenv.js',
     '^pg$': '<rootDir>/tests/__mocks__/pg.js',
+    // Same case again: the two AWS S3 packages live in bot/node_modules, so any
+    // root suite whose chain reached bot/shared/storage/r2.js died on an
+    // unresolved require rather than on its own assertions.
+    '^@supabase/supabase-js$': '<rootDir>/tests/__mocks__/supabase-js.js',
+    '^@aws-sdk/client-s3$': '<rootDir>/tests/__mocks__/aws-sdk-client-s3.js',
+    '^@aws-sdk/s3-request-presigner$': '<rootDir>/tests/__mocks__/aws-sdk-s3-request-presigner.js',
   },
   setupFiles: ['<rootDir>/tests/setup.js'],
   testEnvironment: 'node',
