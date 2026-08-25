@@ -66,6 +66,20 @@ const ALLOWLIST = {
   // Nested keys inside the users.preferences / screen-data objects (parser artifact);
   // users stores language in preferred_language + preferences, grade in grades_taught.
   users: ['grade', 'language'],
+  // `addSchoolForCoach()` and `removeSchoolForCoach()` build a plain JS result
+  // object immediately after a `.from('leader_teachers')` call, so the parser
+  // reads that object's keys as columns. All five verified non-columns, from
+  // bot/shared/services/observe/observe-school-admin.service.js:
+  //   :238-239  { ok, alreadyMine, schoolName, teachersMapped, teacherCount }
+  //   :284-285  the same shape on the mapped path
+  //   :315      { ok, schoolName } on remove
+  // The real column list for this table is in 00_complete-schema.sql, so a
+  // genuine missing column on leader_teachers still fails this guard by name.
+  //
+  // These surfaced only when leader_teachers was added to 00_complete-schema.sql
+  // (V1.2.0 work): before that the table was absent from the schema entirely, so
+  // the guard had no column list to check against and skipped it.
+  leader_teachers: ['alreadymine', 'ok', 'schoolname', 'teachercount', 'teachersmapped'],
   // ── dashboard/ parser artifacts (verified Wave 6 bd-1876/1877) ──────────────
   // `grade_level` is a real column on reading_assessments (and is selected there:
   // queries.js:1365, portal.routes.js:1443) — chain-attributed to lesson_plans by
