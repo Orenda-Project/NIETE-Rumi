@@ -133,6 +133,81 @@ describe('extIdIsAmbiguous (bot copy)', () => {
   });
 });
 
+/**
+ * The helper being correct is not the same as it being wired in. Deleting the
+ * CALL from addSchoolForCoach while keeping the definition left every other test
+ * in this file green, so this drives the whole function.
+ */
+describe('addSchoolForCoach (bot copy) is actually gated', () => {
+  /** Full supabase double. `names` drives whether the ext id is ambiguous. */
+  function serveAll({ names, roster }) {
+    const inserted = { leader_schools: [], leader_teachers: [] };
+    mockSupabase.from.mockImplementation((table) => {
+      const st = { sel: null, cols: {} };
+      const q = {
+        select: jest.fn((cols) => { st.sel = String(cols || ''); return q; }),
+        eq: jest.fn((c, v) => { st.cols[c] = v; return q; }),
+        limit: jest.fn(() => q),
+        insert: jest.fn((rows) => {
+          inserted[table].push(...(Array.isArray(rows) ? rows : [rows]));
+          return { then: (r) => r({ data: null, error: null }) };
+        }),
+        then: (resolve) => {
+          if (table === 'schools') {
+            return resolve({ data: [{ name: 'IMSB (VI-X) Shah Allah Ditta', emis: '607' }], error: null });
+          }
+          if (table === 'leader_schools') {
+            // the ambiguity probe selects school_name and filters on ext id only
+            if (/school_name/.test(st.sel) && st.cols.leader_user_id === undefined) {
+              return resolve({ data: names.map((n) => ({ school_name: n })), error: null });
+            }
+            return resolve({ data: [], error: null });   // "is it already mine" -> no
+          }
+          if (table === 'leader_teachers') {
+            if (/teacher_phone_e164/.test(st.sel)) return resolve({ data: roster, error: null });
+            return resolve({ data: [], error: null, count: 0 });
+          }
+          return resolve({ data: [], error: null });
+        },
+      };
+      return q;
+    });
+    return inserted;
+  }
+
+  const ROSTER = [
+    { teacher_ext_id: '1', teacher_name: 'A', teacher_phone_e164: '921', teacher_phone: null, level: 'PRIMARY' },
+    { teacher_ext_id: '2', teacher_name: 'B', teacher_phone_e164: '922', teacher_phone: null, level: 'HIGH' },
+  ];
+
+  it('maps the roster when the ext id is unambiguous', async () => {
+    const ins = serveAll({ names: ['IMSB (VI-X) Shah Allah Ditta'], roster: ROSTER });
+    const out = await admin.addSchoolForCoach('leader-1', 'niete:607');
+    expect(out.ambiguousExtId).toBe(false);
+    expect(ins.leader_teachers).toHaveLength(2);
+  });
+
+  it('maps NOBODY when the holders disagree, and flags why', async () => {
+    const ins = serveAll({
+      names: ['IMSB (I-V) Sang Jani', 'IMSB (VI-X) Shah Allah Ditta'],
+      roster: ROSTER,
+    });
+    const out = await admin.addSchoolForCoach('leader-1', 'niete:607');
+    expect(out.ambiguousExtId).toBe(true);
+    expect(out.teachersMapped).toBe(0);
+    expect(ins.leader_teachers).toHaveLength(0);
+  });
+
+  it('still records the school itself, so the coach is not silently refused', async () => {
+    const ins = serveAll({
+      names: ['IMSB (I-V) Sang Jani', 'IMSB (VI-X) Shah Allah Ditta'],
+      roster: ROSTER,
+    });
+    await admin.addSchoolForCoach('leader-1', 'niete:607');
+    expect(ins.leader_schools).toHaveLength(1);
+  });
+});
+
 // ── dashboard copy ──────────────────────────────────────────────────────────
 const { addSchool } = require('../../dashboard/services/leader-assignment.service');
 
@@ -222,5 +297,34 @@ describe('both copies carry the rule', () => {
       const hasGuard = /ambiguous/i.test(code);
       expect(hasGuard).toBe(true);
     }
+  });
+
+  /**
+   * ROSTER_SQL repeats the test as a subquery so a future caller cannot reach
+   * that statement without it. Nothing else exercises that layer, because the JS
+   * gate short-circuits first, so pin the text or the belt-and-braces can be
+   * deleted silently. Verified by mutation: removing the subquery turns this red.
+   */
+  it('the dashboard ROSTER_SQL carries the guard as a subquery, not just in JS', () => {
+    const code = codeOf('dashboard/services/leader-assignment.service.js');
+    const roster = /const ROSTER_SQL = `([\s\S]*?)`;/.exec(code);
+    expect(roster).not.toBeNull();
+    const sql = roster[1];
+    expect(sql).toMatch(/leader_schools/);
+    expect(sql).toMatch(/count\s*\(\s*DISTINCT/i);
+    expect(sql).toMatch(/<=\s*1/);
+  });
+
+  /**
+   * And the bot copy must CALL the helper, not merely define it. Deleting the
+   * call left all fifteen earlier tests green, which is exactly the "would pass
+   * with the feature deleted" failure this repo has hit five times.
+   */
+  it('the bot copy calls extIdIsAmbiguous, it does not just define it', () => {
+    const code = codeOf('bot/shared/services/observe/observe-school-admin.service.js');
+    const defs = (code.match(/function\s+extIdIsAmbiguous/g) || []).length;
+    const calls = (code.match(/await\s+extIdIsAmbiguous\s*\(/g) || []).length;
+    expect(defs).toBe(1);
+    expect(calls).toBeGreaterThanOrEqual(1);
   });
 });
