@@ -30,14 +30,26 @@ describe('bd-qq7wb · the pick list fits WhatsApp', () => {
   let Send;
   beforeEach(() => { jest.resetModules(); Send = require('../../shared/services/observe/observe-send.service'); });
 
-  it('a 25-teacher roster renders EXACTLY 10 rows — 8 MRU + new + manage', () => {
+  it('a 25-teacher roster paginates: page 1 = 7 MRU + more + new + manage = 10 rows', () => {
     const S = require('../../shared/services/observe/observe-strings').observeStrings('ur');
-    const payload = Send.buildTeacherPickPayload(R25, S);
-    const rows = payload.action.sections[0].rows;
-    expect(rows.length).toBeLessThanOrEqual(10);
-    expect(rows[0].title).toBe('Teacher 1');                     // MRU order kept
+    const rows = Send.buildTeacherPickPayload(R25, S).action.sections[0].rows;
+    expect(rows.length).toBe(10);
+    expect(rows[0].id).toBe('observe_pickt_0');
+    expect(rows[6].id).toBe('observe_pickt_6');
+    expect(rows.map(r => r.id)).toContain('observe_pickt_more_7');
     expect(rows.map(r => r.id)).toContain('observe_pickt_new');
     expect(rows.map(r => r.id)).toContain('observe_pickt_manage');
+  });
+
+  it('page 2 carries GLOBAL indexes and the next more-row; the last page has none', () => {
+    const S = require('../../shared/services/observe/observe-strings').observeStrings('en');
+    const p2 = Send.buildTeacherPickPayload(R25, S, 7).action.sections[0].rows;
+    expect(p2[0].id).toBe('observe_pickt_7');
+    expect(p2.map(r => r.id)).toContain('observe_pickt_more_14');
+    const last = Send.buildTeacherPickPayload(R25, S, 21).action.sections[0].rows;
+    expect(last.some(r => String(r.id).includes('more'))).toBe(false);
+    expect(last.length).toBe(4 + 2);                    // teachers 22-25 + new + manage
+    expect(last.every(r => r.id !== undefined)).toBe(true);
   });
 
   it('a small roster is unchanged (3 teachers → 5 rows)', () => {
@@ -83,6 +95,6 @@ describe('bd-qq7wb · startSendFlow snapshot matches the shown rows', () => {
     expect(rows.length).toBeLessThanOrEqual(10);
     const snap = states.find(s => s.state === 'awaiting_teacher_pick');
     expect(snap).toBeTruthy();
-    expect(snap.payload.teachers.length).toBe(rows.length - 2);   // shown teachers only
+    expect(snap.payload.teachers.length).toBe(25);   // FULL snapshot — global ids resolve against it
   });
 });
