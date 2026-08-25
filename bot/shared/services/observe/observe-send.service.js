@@ -195,6 +195,8 @@ async function startSendFlow(sessionId, from, user) {
   const { getRoster } = require('./observe-roster');
   const teachers = await getRoster(user);
   if (teachers.length > 0) {
+    // bd-qq7wb: snapshot the FULL roster once; every page's row ids carry the
+    // global index into this snapshot, so pagination can never mis-resolve.
     await ObserveState.setState(user.id, 'awaiting_teacher_pick', { sessionId, teachers });
     await WhatsAppService.sendInteractiveMessage(from, buildTeacherPickPayload(teachers, S));
     return;
@@ -233,12 +235,32 @@ async function listKnownTeachers(observerUserId) {
 }
 
 /** WhatsApp interactive list: one row per known teacher + the new-teacher row. */
-function buildTeacherPickPayload(teachers, S) {
-  const rows = teachers.map((t, i) => ({
-    id: `observe_pickt_${i}`,
+// bd-qq7wb: WhatsApp lists hold 10 rows TOTAL. The roster caps at 25, so an
+// uncapped render (25 + new + manage = 27) made Meta refuse the send and the
+// coach got SILENCE after tapping "Send report" — 26/83 coaches were over the
+// cliff on 25 Aug (every coach with 9+ distinct delivered teachers, armed
+// instantly by the history backfill). 8 MRU + new + manage = exactly 10.
+const PICK_LIST_TEACHER_CAP = 8;   // fits without a more-row: 8 + new + manage = 10
+const PICK_PAGE = 7;               // page size once a more-row is needed
+
+function buildTeacherPickPayload(teachers, S, offset = 0) {
+  // Row ids carry the GLOBAL roster index, so a tap on any page resolves
+  // against the one full-roster snapshot taken at startSendFlow — a later
+  // page can never mis-resolve to a different teacher.
+  const paginated = teachers.length > PICK_LIST_TEACHER_CAP;
+  const page = paginated ? teachers.slice(offset, offset + PICK_PAGE) : teachers;
+  const rows = page.map((t, i) => ({
+    id: `observe_pickt_${offset + i}`,
     title: String(t.name).slice(0, 24),
     description: `+${t.phone}`.slice(0, 72),
   }));
+  if (paginated && offset + PICK_PAGE < teachers.length) {
+    rows.push({
+      id: `observe_pickt_more_${offset + PICK_PAGE}`,
+      title: S.pick_teacher_more.slice(0, 24),
+      description: `${Math.min(offset + PICK_PAGE, teachers.length)} / ${teachers.length}`,
+    });
+  }
   rows.push({
     id: 'observe_pickt_new',
     title: S.pick_teacher_new.slice(0, 24),
@@ -282,6 +304,14 @@ async function handleTeacherPick(user, from, listId) {
     const roster = await getRoster(user);
     await ObserveState.setState(user.id, 'awaiting_teacher_manage', { sessionId, teachers: roster });
     await WhatsAppService.sendInteractiveMessage(from, buildTeacherManagePayload(roster, S));
+    return true;
+  }
+  // bd-qq7wb pagination: "More teachers…" re-renders the next page from the
+  // same snapshot. Checked before the numeric parse (parseInt('more_7') = NaN).
+  if (listId.startsWith('observe_pickt_more_')) {
+    const nextOffset = parseInt(listId.replace('observe_pickt_more_', ''), 10) || 0;
+    await WhatsAppService.sendInteractiveMessage(
+      from, buildTeacherPickPayload(state.teachers || [], S, nextOffset));
     return true;
   }
   const idx = parseInt(listId.replace('observe_pickt_', ''), 10);
@@ -385,8 +415,13 @@ async function handleSendLater(sessionId, from, user) {
  * Text arriving while awaiting_teacher_details. Returns true when consumed.
  * Called from the text-message handler (school_leader gated there).
  */
+// bd-qq7wb: the states in which a TYPED name+number is a valid answer. The
+// pick list is an accelerator, not a gate — coaches habitually type the
+// details anyway (Shazmina, 25 Aug: her typed reply fell into generic chat).
+const DETAILS_TEXT_STATES = ['awaiting_teacher_details', 'awaiting_teacher_pick'];
+
 async function handleTeacherDetailsText(user, from, text, observeState) {
-  if (!observeState || observeState.state !== 'awaiting_teacher_details') return false;
+  if (!observeState || !DETAILS_TEXT_STATES.includes(observeState.state)) return false;
   const sessionId = observeState.sessionId;
   const lang = observeLang(user);
   const S = observeStrings(lang);
@@ -773,4 +808,5 @@ module.exports = {
   processTeacherReport,
   processUntappedDelivery,
   clampToMarket,
+  DETAILS_TEXT_STATES,
 };

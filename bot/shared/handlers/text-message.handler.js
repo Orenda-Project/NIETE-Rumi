@@ -638,7 +638,8 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       try {
         const ObserveState = require('../services/observe/observe-state.service');
         const sendState = await ObserveState.getState(user.id);
-        if (sendState && sendState.state === 'awaiting_teacher_details') {
+        const { DETAILS_TEXT_STATES } = require('../services/observe/observe-send.service');
+        if (sendState && DETAILS_TEXT_STATES.includes(sendState.state)) {
           const ObserveSend = require('../services/observe/observe-send.service');
           const consumed = await ObserveSend.handleTeacherDetailsText(user, from, trimmedMessage, sendState);
           if (consumed) return;
