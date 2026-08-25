@@ -153,6 +153,7 @@ const STRINGS = {
     pick_teacher_button: 'Chagua mwalimu',
     pick_teacher_section: 'Walimu wako',
     pick_teacher_new: '➕ Mwalimu mpya',
+    pick_teacher_more: 'Walimu zaidi…',
     pick_teacher_new_desc: 'Andika jina na namba ya simu',
     leader_registered_welcome:
       'Umesajiliwa kama kiongozi wa shule. 🌱 Ukiwa tayari kumtembelea mwalimu darasani, andika /observe — nitakusaidia kuchunguza somo, kuandaa mazungumzo ya kujenga, na kumtumia mwalimu ripoti yake.\nYou are registered as a school leader. When you are ready to visit a teacher, type /observe — I will help you observe the lesson, prepare the debrief, and send the teacher their report.',
@@ -332,6 +333,7 @@ const STRINGS = {
     pick_teacher_button: 'استاد چنیں',
     pick_teacher_section: 'آپ کے اساتذہ',
     pick_teacher_new: '➕ نیا استاد',
+    pick_teacher_more: 'مزید اساتذہ…',
     pick_teacher_new_desc: 'نام اور فون نمبر لکھیں',
     pick_teacher_manage: '🛠 فہرست سنبھالیں',
     pick_teacher_manage_desc: 'فہرست سے استاد ہٹائیں یا درست کریں',
@@ -513,6 +515,7 @@ const STRINGS = {
     pick_teacher_button: 'Pick a teacher',
     pick_teacher_section: 'Your teachers',
     pick_teacher_new: '➕ New teacher',
+    pick_teacher_more: 'More teachers…',
     pick_teacher_new_desc: 'Type the name and phone number',
     leader_registered_welcome:
       "You are registered as a school leader. 🌱 When you are ready to visit a teacher's classroom, type /observe — I will help you observe the lesson, prepare the coaching conversation, and send the teacher their report.",
