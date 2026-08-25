@@ -195,3 +195,107 @@ describe('bd-2391 — WhatsApp Flow: LEVEL_DETAIL grand-quiz gate', () => {
     expect(blob).not.toMatch(/passed/i);
   });
 });
+
+/**
+ * bd-43812 — a held certificate must satisfy the chain-lock, not just the badge.
+ *
+ * THE BUG THIS ENCODES
+ * --------------------
+ * `loadVisibleLevelsWithProgress` decided two things about a level six lines
+ * apart, and they disagreed about what counts as finishing it:
+ *
+ *   state === 'certified'  ←  a passing exam attempt OR a certificate  (bd-2503)
+ *   prevPassed             ←  a passing exam attempt ONLY
+ *
+ * So a teacher holding a certificate with no matching attempt row was shown as
+ * certified at level N and simultaneously LOCKED out of level N+1 — the badge
+ * said done, the next level said "Pass Level N's grand quiz first". That is the
+ * partner-sheet report "she has the certificate but it says pass the grand quiz
+ * first" (Middle and High r33, Gulnaz), and on production it is 65 NIETE
+ * certificates across 65 teachers, 47 of whom have a next level to be locked
+ * out of.
+ *
+ * How they get there legitimately: bd-2234's module-score path issues a
+ * certificate off completed modules with no exam attempt at all, and the
+ * bd-43811 backfill wrote 912 more with a null attempt_id. Those certificates
+ * are real; the lock reading past them is the defect.
+ *
+ * WHY THE FIXTURE HAD TO GROW
+ * ---------------------------
+ * `seed()` above never populated `training_certificates`, so every assertion in
+ * this file ran with zero certificates in the world and the certificate branch
+ * of the chain-lock was unreachable by construction. That is precisely why the
+ * split survived bd-2391 and bd-2503. These tests seed it.
+ *
+ * The guard tests matter as much as the fix: a certificate must NOT rescue a
+ * level whose own requirement is unmet, and a module quiz still must not
+ * unlock anything (the bd-2391 contract above stays intact).
+ */
+describe('bd-43812 — a certificate satisfies the chain-lock', () => {
+  /** A certificate for `levelId` with no attempt behind it — the real shape. */
+  function certifyLevel(levelId) {
+    tableStates.training_certificates = {
+      rows: [{
+        user_id: UID, level_id: levelId, attempt_id: null,
+        certificate_code: `NIETE-2026-L${levelId}`,
+      }],
+    };
+  }
+
+  test('a certificate on the previous level UNLOCKS the next one', async () => {
+    seed();
+    // Gulnaz's shape: certified at level 3 by module scores, no grand attempt.
+    certifyLevel(3);
+    const ep = require('../../bot/shared/routes/teacher-training-endpoint');
+    const levels = await ep.loadVisibleLevelsWithProgress(UID);
+
+    expect(levels.find(l => l.id === 3).state).toBe('certified');
+    // The whole bug: this was 'locked' while the level below read 'certified'.
+    expect(levels.find(l => l.id === 4).state).not.toBe('locked');
+  });
+
+  test('the two decisions agree — certified below can never mean locked above', async () => {
+    seed();
+    certifyLevel(3);
+    const ep = require('../../bot/shared/routes/teacher-training-endpoint');
+    const levels = await ep.loadVisibleLevelsWithProgress(UID);
+
+    const lv3 = levels.find(l => l.id === 3);
+    const lv4 = levels.find(l => l.id === 4);
+    // Stated as the invariant rather than the symptom, so any future rewrite of
+    // either branch has to keep them in step.
+    if (lv3.state === 'certified') expect(lv4.state).not.toBe('locked');
+  });
+
+  test('the shared level gate agrees with the card the teacher is looking at', async () => {
+    seed();
+    certifyLevel(3);
+    const ep = require('../../bot/shared/routes/teacher-training-endpoint');
+    const gate = await ep.checkLevelUnlocked(UID, 4);
+
+    // checkLevelUnlocked derives from the same catalogue, so a refusal here
+    // would contradict the badge — which is how the portal and the Flow ended
+    // up telling the teacher two different things.
+    expect(gate.ok).toBe(true);
+  });
+
+  test('a certificate does NOT rescue a level whose OWN requirement is unmet', async () => {
+    seed();
+    // Certificate two levels down; level 3 still has no pass of any kind.
+    certifyLevel(1);
+    const ep = require('../../bot/shared/routes/teacher-training-endpoint');
+    const levels = await ep.loadVisibleLevelsWithProgress(UID);
+
+    // Level 4's predecessor is level 3, which is neither passed nor certified.
+    expect(levels.find(l => l.id === 4).state).toBe('locked');
+  });
+
+  test('bd-2391 still holds — a module quiz alone unlocks nothing', async () => {
+    seed();
+    tableStates.training_certificates = { rows: [] };
+    const ep = require('../../bot/shared/routes/teacher-training-endpoint');
+    const levels = await ep.loadVisibleLevelsWithProgress(UID);
+
+    expect(levels.find(l => l.id === 4).state).toBe('locked');
+  });
+});
