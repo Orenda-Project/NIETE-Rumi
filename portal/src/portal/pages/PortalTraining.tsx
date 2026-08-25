@@ -12,7 +12,11 @@
  *
  * Locked levels appear in the dropdown with 🔒 and cannot be selected.
  * If a teacher somehow reaches a locked-level API (via URL manipulation),
- * the backend returns 403 and the toast surfaces "Pass Level N first".
+ * the backend returns 403 with the reason, and bd-44003 renders that reason as
+ * PERSISTENT text above the cascade — not a toast. Three outcomes are kept
+ * distinct so none of them can be mistaken for another: locked (finish an
+ * earlier level), failed (worth retrying), and empty (nothing to show, tell
+ * NIETE). The classification lives in ../lib/trainingLoadError.ts.
  *
  * When a module is selected the detail card shows:
  *   - title, duration, completion badge
@@ -31,6 +35,7 @@ import LevelExamCard from '../components/LevelExamCard';
 import CapstoneResultCard from '../components/CapstoneResultCard';
 import CertificatesPanel from '../components/CertificatesPanel';
 import BandPicker from '../components/BandPicker';
+import { classifyTrainingLoadError, EMPTY_MODULES_MESSAGE } from '../lib/trainingLoadError';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -247,6 +252,10 @@ const PortalTraining = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [modules, setModules] = useState<ModuleSummary[]>([]);
   const [moduleDetail, setModuleDetail] = useState<ModuleDetail | null>(null);
+  // bd-44003 — why the cascade below failed, kept ON SCREEN. A locked level is
+  // a permanent state until the teacher finishes an earlier one, so a toast
+  // that fades leaves her with an empty dropdown and no explanation.
+  const [loadError, setLoadError] = useState<{ message: string; locked: boolean } | null>(null);
 
   const [selectedLevel, setSelectedLevel] = useState<string>('');
   const [selectedCourse, setSelectedCourse] = useState<string>('');
@@ -355,15 +364,21 @@ const PortalTraining = () => {
   useEffect(() => {
     setCourses([]); setModules([]); setModuleDetail(null);
     setSelectedCourse(''); setSelectedModule('');
+    setLoadError(null);   // bd-44003 — a new level starts with a clean slate
     if (!selectedLevel) return;
     (async () => {
       setLoadingCourses(true);
+      setLoadError(null);
       try {
         const { data } = await api.get('/training/courses', { params: { level_id: selectedLevel } });
         setCourses(data.courses || []);
-      } catch (err: any) {
-        const msg = err?.response?.data?.error || 'Could not load courses';
-        toast({ title: msg, variant: 'destructive' });
+      } catch (err: unknown) {
+        // bd-44003 — the lock gate answers here (checkLevelUnlocked runs before
+        // the courses are fetched), so this is where a chain-locked level is
+        // most often refused. Keep the server's sentence and keep it visible.
+        const e = classifyTrainingLoadError(err);
+        setLoadError({ message: e.message, locked: e.kind === 'locked' });
+        toast({ title: e.message, variant: 'destructive' });
       } finally { setLoadingCourses(false); }
     })();
   }, [selectedLevel, toast]);
@@ -373,6 +388,7 @@ const PortalTraining = () => {
     setModules([]); setModuleDetail(null);
     setSelectedModule('');
     setAttemptsByModule({});
+    setLoadError(null);   // bd-44003
     if (!selectedCourse) return;
     (async () => {
       setLoadingModules(true);
@@ -399,8 +415,13 @@ const PortalTraining = () => {
               setAttemptsByModule(prev => ({ ...prev, [m.id]: [] }));
             });
         }
-      } catch {
-        toast({ title: 'Could not load modules', variant: 'destructive' });
+      } catch (err: unknown) {
+        // bd-44003 — was a bare catch raising "Could not load modules" for
+        // every cause. The module-order gate refuses here too, so the same
+        // rule applies: show what the server said, and keep a lock visible.
+        const e = classifyTrainingLoadError(err);
+        setLoadError({ message: e.message, locked: e.kind === 'locked' });
+        toast({ title: e.message, variant: 'destructive' });
       } finally { setLoadingModules(false); }
     })();
   }, [selectedCourse, toast]);
@@ -439,8 +460,12 @@ const PortalTraining = () => {
       try {
         const { data } = await api.get(`/training/module/${selectedModule}`);
         setModuleDetail(data.module);
-      } catch {
-        toast({ title: 'Could not load module', variant: 'destructive' });
+      } catch (err: unknown) {
+        // bd-44003 — the reported case: a locked module answered with a generic
+        // fading toast, so the teacher was told something failed but never why.
+        const e = classifyTrainingLoadError(err);
+        setLoadError({ message: e.message, locked: e.kind === 'locked' });
+        toast({ title: e.message, variant: 'destructive' });
       } finally { setLoadingDetail(false); }
     })();
   }, [selectedModule, toast]);
@@ -545,6 +570,36 @@ const PortalTraining = () => {
           selectedVendor={selectedVendor}
           onSelect={setSelectedVendor}
         />
+
+        {/* bd-44003 — why the cascade below is empty, in the server's own words
+            and kept on screen. A locked level is permanent until the teacher
+            finishes an earlier one, so the old fading toast left her looking at
+            an empty dropdown with no explanation. */}
+        {loadError && (
+          <div
+            data-testid="training-load-error"
+            className={`mb-6 rounded-lg border p-4 text-sm ${
+              loadError.locked
+                ? 'border-amber-200 bg-amber-50 text-amber-900'
+                : 'border-destructive/30 bg-destructive/5 text-foreground'
+            }`}
+          >
+            <span className="mr-1.5">{loadError.locked ? '🔒' : '⚠'}</span>
+            {loadError.message}
+          </div>
+        )}
+
+        {/* bd-44003 — a course that legitimately has no modules is neither an
+            error nor a lock: nothing the teacher does will fill it, so name the
+            state and tell her who can fix it. */}
+        {!loadError && selectedCourse && !loadingModules && modules.length === 0 && (
+          <div
+            data-testid="training-empty-modules"
+            className="mb-6 rounded-lg border border-border bg-muted/40 p-4 text-sm text-foreground"
+          >
+            {EMPTY_MODULES_MESSAGE}
+          </div>
+        )}
 
         {/* Cascading picker */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
