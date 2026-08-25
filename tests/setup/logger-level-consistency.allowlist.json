@@ -79,7 +79,7 @@
   },
   {
     "file": "bot/shared/handlers/observe-visit-flow.handler.js",
-    "line": 619,
+    "line": 633,
     "snippet": "logToFile('❌ observe-visit: teacher bind FAILED — capture will run UNBOUND', {",
     "occurrence": 0
   },
@@ -175,19 +175,19 @@
   },
   {
     "file": "bot/shared/handlers/voice-message.handler.js",
-    "line": 1305,
+    "line": 1310,
     "snippet": "logToFile('❌ Error processing voice message', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/handlers/voice-message.handler.js",
-    "line": 1370,
+    "line": 1375,
     "snippet": "logToFile('❌ Error queueing lesson plan from voice request', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/handlers/voice-message.handler.js",
-    "line": 1430,
+    "line": 1435,
     "snippet": "logToFile('❌ Error queueing presentation from voice request', {",
     "occurrence": 0
   },
@@ -277,7 +277,7 @@
   },
   {
     "file": "bot/shared/routes/observe-mewaka-endpoint.js",
-    "line": 140,
+    "line": 142,
     "snippet": "logToFile('❌ observe-mewaka endpoint error', { error: err.message, action });",
     "occurrence": 0
   },
@@ -511,19 +511,19 @@
   },
   {
     "file": "bot/shared/services/coaching/report-generator.service.js",
-    "line": 1359,
+    "line": 1366,
     "snippet": "logToFile('❌ Failed to send hero image report', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/coaching/report-generator.service.js",
-    "line": 1536,
+    "line": 1543,
     "snippet": "logToFile('❌ Error in generateReport', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/coaching/report-generator.service.js",
-    "line": 1566,
+    "line": 1573,
     "snippet": "logToFile('❌ Error in handleReportError', {",
     "occurrence": 0
   },
@@ -997,103 +997,103 @@
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 202,
+    "line": 207,
     "snippet": "logToFile('❌ Failed to queue job to SQS', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 319,
+    "line": 324,
     "snippet": "logToFile('❌ Failed to queue video job to SQS', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 370,
+    "line": 375,
     "snippet": "logToFile('❌ Failed to parse video SQS message', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 387,
+    "line": 392,
     "snippet": "logToFile('❌ Failed to receive video jobs from SQS', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 418,
+    "line": 423,
     "snippet": "logToFile('❌ Failed to complete video job', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 452,
+    "line": 457,
     "snippet": "logToFile('❌ Failed to extend video job timeout', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 496,
+    "line": 501,
     "snippet": "logToFile('❌ Failed to parse SQS message', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 512,
+    "line": 517,
     "snippet": "logToFile('❌ Failed to receive jobs from SQS', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 541,
+    "line": 546,
     "snippet": "logToFile('❌ Failed to complete job', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 575,
+    "line": 580,
     "snippet": "logToFile('❌ Failed to extend job timeout', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 638,
+    "line": 643,
     "snippet": "logToFile('❌ Failed to requeue job', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 677,
+    "line": 682,
     "snippet": "logToFile('❌ Failed to get queue metrics', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 723,
+    "line": 728,
     "snippet": "logToFile('❌ Failed to get video queue metrics', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 764,
+    "line": 769,
     "snippet": "logToFile('❌ Failed to get failed jobs from DLQ', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 794,
+    "line": 799,
     "snippet": "logToFile('❌ Failed to purge queue', {",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 913,
+    "line": 918,
     "snippet": "logToFile('❌ Failed to parse quiz SQS message', { messageId: msg.MessageId, error: parseErr.message ",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/queue/sqs-queue.service.js",
-    "line": 918,
+    "line": 923,
     "snippet": "logToFile('❌ Failed to receive quiz jobs from SQS', { error: err.message });",
     "occurrence": 0
   },
