@@ -195,8 +195,11 @@ async function startSendFlow(sessionId, from, user) {
   const { getRoster } = require('./observe-roster');
   const teachers = await getRoster(user);
   if (teachers.length > 0) {
-    await ObserveState.setState(user.id, 'awaiting_teacher_pick', { sessionId, teachers });
-    await WhatsAppService.sendInteractiveMessage(from, buildTeacherPickPayload(teachers, S));
+    // bd-qq7wb: snapshot ONLY the shown slice — observe_pickt_<i> must resolve
+    // against exactly the list the officer saw, and the list is capped (above).
+    const shown = teachers.slice(0, PICK_LIST_TEACHER_CAP);
+    await ObserveState.setState(user.id, 'awaiting_teacher_pick', { sessionId, teachers: shown });
+    await WhatsAppService.sendInteractiveMessage(from, buildTeacherPickPayload(shown, S));
     return;
   }
   await ObserveState.setState(user.id, 'awaiting_teacher_details', { sessionId });
@@ -233,8 +236,15 @@ async function listKnownTeachers(observerUserId) {
 }
 
 /** WhatsApp interactive list: one row per known teacher + the new-teacher row. */
+// bd-qq7wb: WhatsApp lists hold 10 rows TOTAL. The roster caps at 25, so an
+// uncapped render (25 + new + manage = 27) made Meta refuse the send and the
+// coach got SILENCE after tapping "Send report" — 26/83 coaches were over the
+// cliff on 25 Aug (every coach with 9+ distinct delivered teachers, armed
+// instantly by the history backfill). 8 MRU + new + manage = exactly 10.
+const PICK_LIST_TEACHER_CAP = 8;
+
 function buildTeacherPickPayload(teachers, S) {
-  const rows = teachers.map((t, i) => ({
+  const rows = teachers.slice(0, PICK_LIST_TEACHER_CAP).map((t, i) => ({
     id: `observe_pickt_${i}`,
     title: String(t.name).slice(0, 24),
     description: `+${t.phone}`.slice(0, 72),
@@ -385,8 +395,13 @@ async function handleSendLater(sessionId, from, user) {
  * Text arriving while awaiting_teacher_details. Returns true when consumed.
  * Called from the text-message handler (school_leader gated there).
  */
+// bd-qq7wb: the states in which a TYPED name+number is a valid answer. The
+// pick list is an accelerator, not a gate — coaches habitually type the
+// details anyway (Shazmina, 25 Aug: her typed reply fell into generic chat).
+const DETAILS_TEXT_STATES = ['awaiting_teacher_details', 'awaiting_teacher_pick'];
+
 async function handleTeacherDetailsText(user, from, text, observeState) {
-  if (!observeState || observeState.state !== 'awaiting_teacher_details') return false;
+  if (!observeState || !DETAILS_TEXT_STATES.includes(observeState.state)) return false;
   const sessionId = observeState.sessionId;
   const lang = observeLang(user);
   const S = observeStrings(lang);
@@ -781,4 +796,5 @@ module.exports = {
   processTeacherReport,
   processUntappedDelivery,
   clampToMarket,
+  DETAILS_TEXT_STATES,
 };
