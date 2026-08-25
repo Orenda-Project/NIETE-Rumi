@@ -147,3 +147,56 @@ describe('bd-2234 — Oxbridge-style quiz-score certificate', () => {
     expect(tableStates.training_certificates._mutations || []).toHaveLength(0);
   });
 });
+
+/**
+ * bd-43811 — a module the teacher was never QUIZZED on must not be scored 0.
+ *
+ * The bar is "every module's best score >= 70%", read from
+ * training_assessment_attempts. Legacy Oxbridge completions came across from
+ * the old NIETE app as progress rows with NO attempt rows, so those modules
+ * had no score at all. `bestPct.get(id) || 0` conflated "never attempted"
+ * with "scored zero", and zero can never clear 70% — so 930 teachers sat at
+ * 7/7 complete and could never be certified, no matter what they re-took.
+ *
+ * The module-complete gate above already proves the teacher finished the
+ * content (a progress row means the quick check was PASSED, or the module had
+ * no quiz — see bd-2390). So an absent attempt is not evidence of failure and
+ * must be skipped; a PRESENT attempt below the bar still blocks.
+ */
+describe('bd-43811 — un-quizzed modules must not block certification', () => {
+  test('issues when a completed module has NO quiz attempt and the rest clear the bar', async () => {
+    // 201 and 202 both complete; only 201 was ever quizzed.
+    seed({
+      completed: [201, 202],
+      bestScores: { 201: { score: 8, total: 10 } }, // 80%; 202 has no attempt row
+    });
+    const res = await run();
+    expect(res && res.issued).toBe(true);
+    const ins = (tableStates.training_certificates._mutations || []).find(m => m.op === 'insert');
+    expect(ins).toBeTruthy();
+    expect(ins.payload.level_id).toBe(LEVEL);
+  });
+
+  test('issues when NO module was ever quizzed but every module is complete', async () => {
+    seed({ completed: [201, 202], bestScores: {} });
+    const res = await run();
+    expect(res && res.issued).toBe(true);
+  });
+
+  test('still refuses when an ATTEMPTED module scored below the bar', async () => {
+    // 202 un-quizzed (skipped), but 201 genuinely failed at 60%.
+    seed({
+      completed: [201, 202],
+      bestScores: { 201: { score: 6, total: 10 } }, // 60%
+    });
+    const res = await run();
+    expect(res && res.issued).toBeFalsy();
+    expect(tableStates.training_certificates._mutations || []).toHaveLength(0);
+  });
+
+  test('a module still incomplete blocks regardless of missing attempts', async () => {
+    seed({ completed: [201], bestScores: {} });
+    const res = await run();
+    expect(res && res.issued).toBeFalsy();
+  });
+});

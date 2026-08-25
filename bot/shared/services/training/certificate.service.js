@@ -162,6 +162,8 @@ async function issueCertificate(supabase, { userId, programId, levelId, attemptI
  * bd-2234 — quiz-score certificate for all_modules vendors WITHOUT a
  * capstone (Oxbridge). NIETE team rule (21 Jul): complete every module of
  * the level with a best module-quiz score of >= 70% each → certificate.
+ * bd-43811 — "each" means each module that WAS quizzed. A module with no
+ * attempt row is skipped, not treated as a zero.
  * Beacon House levels certify through the capstone path instead
  * (capstone-delivery.service), so levels WITH an active capstone quiz are
  * excluded here.
@@ -235,7 +237,19 @@ async function maybeIssueQuizScoreCertificate(supabase, { userId, moduleId, atte
       const cur = bestPct.get(a.training_module_id) || 0;
       if (pct > cur) bestPct.set(a.training_module_id, pct);
     }
-    const allClear = moduleIds.every(id => (bestPct.get(id) || 0) >= QUIZ_CERT_PASS_PCT);
+    // bd-43811 — a module with NO attempt is skipped, not scored zero.
+    //
+    // `(bestPct.get(id) || 0)` conflated "never quizzed" with "scored zero",
+    // and zero can never clear the bar. Legacy Oxbridge completions came from
+    // the old NIETE app as progress rows with no attempt rows, so 930 teachers
+    // sat at 7/7 complete and could never be certified — re-taking anything
+    // was futile, because the block was on the modules they had no history for.
+    //
+    // Skipping them is safe: the module-complete gate above already proves the
+    // teacher finished the content (a progress row means the quick check was
+    // PASSED, or the module had no quiz at all — bd-2390). An ATTEMPTED module
+    // below the bar still blocks, so a genuine failure is never papered over.
+    const allClear = moduleIds.every(id => !bestPct.has(id) || bestPct.get(id) >= QUIZ_CERT_PASS_PCT);
     if (!allClear) return { issued: false };
 
     const cert = await issueCertificate(supabase, {
