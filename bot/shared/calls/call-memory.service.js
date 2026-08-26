@@ -13,7 +13,55 @@
  */
 
 const MAX_MEMORY_CHARS = 1200;
+// A 5-minute call is ~4-6k chars. The cap is a backstop against a pathological
+// transcript becoming a pathological bill, not a normal-path trim.
+const MAX_TRANSCRIPT_CHARS = 16000;
 const DEFAULT_MODEL = process.env.CALLS_MEMORY_MODEL || 'gpt-4o-mini';
+
+/**
+ * Render the transcript the ENGINE hands us into text the summariser can read.
+ *
+ * `onCallEnd` passes `CallSession.getTranscript()` — an ARRAY of
+ * {role,text,at}, never a string. Interpolating that array directly yields
+ * "[object Object],[object Object]", which is non-empty, so it sails past every
+ * guard and gets summarised into HER NEXT CALL's prompt. That is the same
+ * defect class as the bd-1hae7.6 `focus_area`/`strengths[]` objects, and it is
+ * why this function exists rather than a template literal.
+ *
+ * Accepts a plain string too, so a caller that already has text still works.
+ *
+ * @returns {string} '' when there is nothing worth summarising.
+ */
+function formatTranscript(transcript) {
+  if (!transcript) return '';
+
+  let text;
+  if (typeof transcript === 'string') {
+    text = transcript;
+  } else if (Array.isArray(transcript)) {
+    text = transcript
+      .map((line) => {
+        if (!line) return '';
+        if (typeof line === 'string') return line.trim();
+        const said = String(line.text || '').trim();
+        if (!said) return '';
+        const who = line.role === 'assistant' ? 'Neeyat' : 'Caller';
+        return `${who}: ${said}`;
+      })
+      .filter(Boolean)
+      .join('\n');
+  } else {
+    return '';
+  }
+
+  text = text.trim();
+  if (!text) return '';
+  // Keep the END of a long call: commitments and follow-ups land there.
+  if (text.length > MAX_TRANSCRIPT_CHARS) {
+    text = `…\n${text.slice(-MAX_TRANSCRIPT_CHARS)}`;
+  }
+  return text;
+}
 
 const SYSTEM_PROMPT = `You maintain a concise, durable MEMORY of a NIETE teacher/coach's past PHONE CALLS with the assistant "Neeyat".
 You are given the EXISTING MEMORY and the LATEST CALL TRANSCRIPT. Output an UPDATED memory that MERGES them.
@@ -55,7 +103,11 @@ function createMemoryWriter({ repo, apiKey, logger, llm = defaultLlm, model = DE
   const log = logger || { info: () => {}, warn: () => {} };
 
   return async function summarizeAndStore({ callerNumber, transcript }) {
-    if (!callerNumber || !transcript || !String(transcript).trim()) return;
+    if (!callerNumber) return;
+    const transcriptText = formatTranscript(transcript);
+    // A call with no words in it has nothing to remember — and must not bill an
+    // LLM call to discover that.
+    if (!transcriptText) return;
     try {
       let existingSummary = '(none yet)';
       let callCount = 1;
@@ -72,7 +124,7 @@ function createMemoryWriter({ repo, apiKey, logger, llm = defaultLlm, model = DE
 
       let summary = await llm({
         system: SYSTEM_PROMPT,
-        user: `EXISTING MEMORY:\n${existingSummary}\n\nLATEST CALL TRANSCRIPT:\n${transcript}`,
+        user: `EXISTING MEMORY:\n${existingSummary}\n\nLATEST CALL TRANSCRIPT:\n${transcriptText}`,
         apiKey,
         model,
       });
@@ -89,4 +141,6 @@ function createMemoryWriter({ repo, apiKey, logger, llm = defaultLlm, model = DE
   };
 }
 
-module.exports = { createMemoryWriter, defaultLlm, MAX_MEMORY_CHARS };
+module.exports = {
+  createMemoryWriter, defaultLlm, formatTranscript, MAX_MEMORY_CHARS, MAX_TRANSCRIPT_CHARS,
+};

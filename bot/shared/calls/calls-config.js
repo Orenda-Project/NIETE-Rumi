@@ -18,8 +18,19 @@
 const DEFAULTS = {
   model: 'gpt-realtime-2.1-mini',
   voice: 'marin',
-  // server_vad @ 5ms silence — the snappier, more interruptible turn-taking the
-  // Noor tuning uses (override with CALLS_VAD / CALLS_VAD_SILENCE_MS).
+  // server_vad — snappier, more interruptible turn-taking (the Noor tuning).
+  //
+  // KNOWN TRADE-OFF, recorded so it is not rediscovered on a bad call: the value
+  // this replaced was `semantic_vad`, chosen because teachers ring us from NOISY
+  // CLASSROOMS. server_vad is an energy threshold, so classroom noise is exactly
+  // what it is worst at — it can hold her turn open under chatter, or trip on a
+  // burst. semantic_vad judges whether a THOUGHT finished, which is more robust
+  // to noise but slower.
+  //
+  // We ship server_vad for the latency win and keep the escape hatch one env var
+  // wide: set CALLS_VAD=semantic_vad to go straight back, and tune the turn-end
+  // window with CALLS_VAD_SILENCE_MS (see realtime-client.js — we ship 500 ms,
+  // NOT the 5 ms the Noor tuning uses).
   vad: 'server_vad',
   maxConcurrent: 5,
   maxSeconds: 300,
