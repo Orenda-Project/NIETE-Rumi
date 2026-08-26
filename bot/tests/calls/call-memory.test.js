@@ -77,4 +77,73 @@ describe('call memory — write side', () => {
     const write = createMemoryWriter({ repo, apiKey: 'k', llm: async () => { throw new Error('llm down'); } });
     await expect(write({ callerNumber: '92300', transcript: 'real' })).resolves.toBeUndefined();
   });
+
+  // ---------------------------------------------------------------------------
+  // bd-1hae7.10 — the shape the ENGINE actually hands us.
+  //
+  // `onCallEnd` receives CallSession.getTranscript(): an ARRAY of
+  // {role,text,at} objects, never a string. The first cut of this writer did
+  // `${transcript}` on it, which stringifies to "[object Object],[object
+  // Object]" — it passes the non-empty guard, so the LLM is billed to summarise
+  // literal garbage and that garbage is then injected into HER NEXT CALL.
+  // Exactly the bd-1hae7.6 `focus_area`/`strengths[]` defect in a new door.
+  // ---------------------------------------------------------------------------
+  const REAL_TRANSCRIPT = [
+    { role: 'caller', text: 'السلام علیکم، میں فاطمہ بات کر رہی ہوں', at: '2026-08-26T10:00:00.000Z' },
+    { role: 'assistant', text: 'وعلیکم السلام، میں نیت ہوں', at: '2026-08-26T10:00:04.000Z' },
+    { role: 'caller', text: 'grade 5 English کا lesson plan چاہیے', at: '2026-08-26T10:00:09.000Z' },
+  ];
+
+  test('the ENGINE transcript shape (array of {role,text,at}) reaches the LLM as readable text', async () => {
+    const repo = makeRepo(null);
+    const llm = jest.fn().mockResolvedValue('Fatima, Grade 5 English.');
+    const write = createMemoryWriter({ repo, apiKey: 'k', llm });
+
+    await write({ callerNumber: '923001234567', transcript: REAL_TRANSCRIPT });
+
+    expect(llm).toHaveBeenCalledTimes(1);
+    const { user } = llm.mock.calls[0][0];
+    expect(user).not.toMatch(/\[object Object\]/);
+    expect(user).toMatch(/فاطمہ/);
+    expect(user).toMatch(/grade 5 English/);
+    expect(user).toMatch(/میں نیت ہوں/);
+    // Roles must survive, or the summariser cannot tell who said what.
+    expect(user).toMatch(/caller/i);
+    expect(user).toMatch(/assistant|neeyat/i);
+    expect(repo.upsertMemory).toHaveBeenCalled();
+  });
+
+  test('an EMPTY engine transcript writes nothing and bills no LLM call', async () => {
+    const repo = makeRepo({ summary: 'prior', call_count: 1 });
+    const llm = jest.fn();
+    const write = createMemoryWriter({ repo, apiKey: 'k', llm });
+
+    await write({ callerNumber: '923001234567', transcript: [] });
+
+    expect(llm).not.toHaveBeenCalled();
+    expect(repo.upsertMemory).not.toHaveBeenCalled();
+  });
+
+  test('a transcript of only blank lines is treated as empty', async () => {
+    const repo = makeRepo(null);
+    const llm = jest.fn();
+    const write = createMemoryWriter({ repo, apiKey: 'k', llm });
+
+    await write({ callerNumber: '923001234567', transcript: [{ role: 'caller', text: '   ' }] });
+
+    expect(llm).not.toHaveBeenCalled();
+    expect(repo.upsertMemory).not.toHaveBeenCalled();
+  });
+
+  test('a very long call is bounded before it reaches the LLM', async () => {
+    const repo = makeRepo(null);
+    const llm = jest.fn().mockResolvedValue('ok');
+    const write = createMemoryWriter({ repo, apiKey: 'k', llm });
+    const long = Array.from({ length: 4000 }, (_, i) => ({ role: 'caller', text: `line ${i} ${'x'.repeat(40)}` }));
+
+    await write({ callerNumber: '923001234567', transcript: long });
+
+    const { user } = llm.mock.calls[0][0];
+    expect(user.length).toBeLessThan(20000);
+  });
 });

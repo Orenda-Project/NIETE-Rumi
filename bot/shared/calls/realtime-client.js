@@ -117,7 +117,20 @@ class RealtimeClient {
         type: 'server_vad',
         threshold: 0.5,
         prefix_padding_ms: 300,
-        silence_duration_ms: Number(process.env.CALLS_VAD_SILENCE_MS || 5),
+        // How long she must be quiet before the model decides her turn ended.
+        //
+        // The Noor tuning this came from uses 5 ms. We do NOT ship that: it is
+        // two orders of magnitude under OpenAI's own 500 ms default, and the API
+        // echoes it back unclamped (verified 2026-08-26), so it really is
+        // applied. Our callers are teachers thinking aloud in Urdu, and a
+        // mid-sentence breath is far longer than 5 ms — at that setting she gets
+        // talked over every time she pauses to find a word, which is the least
+        // authentic thing a call can do.
+        //
+        // 500 ms is the documented default and the safe shipping value. 200-300
+        // is the snappier band if a live call feels sluggish. Tune with
+        // CALLS_VAD_SILENCE_MS — no redeploy of logic needed.
+        silence_duration_ms: Number(process.env.CALLS_VAD_SILENCE_MS || 500),
         create_response: true,
         interrupt_response: true,
       }
@@ -154,6 +167,10 @@ class RealtimeClient {
 
     // Low reasoning effort keeps her replies snappy on a live call (matches the
     // Noor tuning). Override with CALLS_REASONING_EFFORT; 'none' leaves it unset.
+    // Verified against the live GA API 2026-08-26: `session.reasoning` is
+    // accepted and echoed back on gpt-realtime-2.1-mini, so this cannot silently
+    // reject the whole session.update (which would drop voice, VAD, instructions
+    // AND tools on the floor).
     const effort = process.env.CALLS_REASONING_EFFORT || 'minimal';
     if (effort && effort !== 'none') session.reasoning = { effort };
 

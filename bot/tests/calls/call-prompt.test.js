@@ -171,3 +171,50 @@ describe('call prompt — composition with context', () => {
     expect(buildCallPrompt({ language: 'en' })).toMatch(/English/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// bd-1hae7.18 — how she says her own name, and how much warmth she performs.
+//
+// The operator's two steers on the Neeyat rename, pinned so a later prompt edit
+// cannot quietly undo them:
+//   "NIETE is pronounced like the Urdu word نیت"  →  never spelled out, never
+//   given an English reading.
+//   "Dhanesh's bot sounds a little fake"          →  warmth is allowed, PERFORMED
+//   warmth is not, and honesty about being an AI stays absolute.
+// ---------------------------------------------------------------------------
+describe('Neeyat — name, pronunciation and honest warmth', () => {
+  const prompt = buildCallPrompt({ language: 'ur', callerName: 'Ayesha' });
+
+  test('the name is taught as the Urdu word نیت, not as an English reading', () => {
+    const flat = prompt.replace(/\s+/g, ' ');
+    expect(flat).toMatch(/نیت/);
+    expect(flat).toMatch(/nee-yat/i);
+    // The two spellings must be tied together, or she says "NIETE" the wrong way.
+    expect(flat).toMatch(/NIETE/);
+    expect(flat).toMatch(/NEVER spell N-I-E-T-E out letter by letter/i);
+    expect(flat).toMatch(/nye-eet/i);
+  });
+
+  test('warmth is permitted but performing it is forbidden', () => {
+    expect(prompt).toMatch(/DO NOT PERFORM WARMTH/i);
+    expect(prompt).toMatch(/no filler and no laugh at all/i);
+    // The first draft ASKED for this register; it must never come back.
+    expect(prompt).not.toMatch(/a little bubbly/i);
+    expect(prompt).not.toMatch(/cheerful/i);
+    expect(prompt).toMatch(/No bubbliness/i);
+  });
+
+  test('being warm never licenses claiming to be human', () => {
+    // The prompt is hard-wrapped, so match across the line breaks.
+    const flat = prompt.replace(/\s+/g, ' ');
+    expect(flat).toMatch(/NEVER claim to be a human being/);
+    expect(flat).toMatch(/never invent a human colleague/);
+    // Ambience now plays under the call, so she must not narrate a place either.
+    expect(flat).toMatch(/never describe yourself as sitting in an office/i);
+  });
+
+  test('the reverence rules still ride last, under all of it', () => {
+    const tail = prompt.slice(-2500);
+    expect(tail).toMatch(/ﷺ|صلی اللہ|reverence|Prophet/i);
+  });
+});

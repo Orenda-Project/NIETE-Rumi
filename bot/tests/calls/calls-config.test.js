@@ -83,6 +83,13 @@ describe('calls-config', () => {
     test('server_vad by default (snappy, interruptible — Noor tuning)', () => {
       expect(load().getCallsConfig().vad).toBe('server_vad');
     });
+
+    // Noisy classrooms were the reason semantic_vad was the original default.
+    // The way back must stay one env var wide.
+    test('CALLS_VAD=semantic_vad still switches back for noisy callers', () => {
+      process.env.CALLS_VAD = 'semantic_vad';
+      expect(load().getCallsConfig().vad).toBe('semantic_vad');
+    });
   });
 
   describe('overrides', () => {
