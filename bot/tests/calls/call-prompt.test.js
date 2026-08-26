@@ -188,11 +188,12 @@ describe('Neeyat — name, pronunciation and honest warmth', () => {
   test('the name is taught as the Urdu word نیت, not as an English reading', () => {
     const flat = prompt.replace(/\s+/g, ' ');
     expect(flat).toMatch(/نیت/);
-    expect(flat).toMatch(/nee-yat/i);
+    expect(flat).toMatch(/ni-yat/i);
     // The two spellings must be tied together, or she says "NIETE" the wrong way.
-    expect(flat).toMatch(/NIETE/);
-    expect(flat).toMatch(/NEVER spell N-I-E-T-E out letter by letter/i);
-    expect(flat).toMatch(/nye-eet/i);
+    // bd-1hae7.19: the Latin spellings are now FORBIDDEN aloud, not taught —
+    // writing them in the prompt is what made her say them with English phonetics.
+    expect(flat).toMatch(/NEVER say the Latin spellings "NIETE" or "Neeyat" out loud/i);
+    expect(flat).toMatch(/never spell N-I-E-T-E out letter by letter/i);
   });
 
   test('warmth is permitted but performing it is forbidden', () => {
