@@ -4589,6 +4589,91 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_one_teacher_per_class_subject
 CREATE INDEX IF NOT EXISTS idx_class_teacher_subjects_subject
     ON class_teacher_subjects (subject_code);
 
+-- ============================================================
+-- COACH ALLOCATIONS + OBSERVATION SCHEDULING
+-- ============================================================
+-- These three tables shipped as migrations (V1.0.9, V1.0.10, V1.1.7) and were
+-- never added here, so `npm run bootstrap:db` produced a database without them.
+-- The bot then failed silently: leaderHasAssignment() catches every error and
+-- returns false, so visit planning simply never appeared. Defined here so a
+-- fresh clone and a migrated database end up with the same shape.
+--
+-- school_id is the identity going forward. school_ext_id ('niete:<EMIS>') came
+-- from the coach roster sheet and is kept as a record of what the sheet said.
+-- Both columns are present on purpose during the transition; see
+-- docs/leader-schools-school-id-migration.md.
+--
+-- RLS: deliberately NOT enabled on these three, which matches the live databases
+-- but differs from schools and the other 69 tables in 01_rls-policies.sql.
+-- leader_teachers holds teacher names and phone numbers, so this is a real gap
+-- and not a considered exemption. It is called out here rather than quietly
+-- reproduced in every new clone. Settling it is its own change, because turning
+-- RLS on without a policy would cut off any anon or authenticated read that the
+-- portal currently depends on.
+
+CREATE TABLE IF NOT EXISTS leader_schools (
+  id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  leader_user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  source             text NOT NULL CHECK (source IN ('niete_ict')),
+  school_ext_id      text,
+  school_id          uuid REFERENCES schools(id),
+  school_name        text NOT NULL,
+  emis               text,
+  name_match_quality text,
+  created_at         timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (leader_user_id, source, school_ext_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_leader_schools_leader
+  ON leader_schools (leader_user_id);
+CREATE INDEX IF NOT EXISTS idx_leader_schools_school_id
+  ON leader_schools (school_id);
+
+CREATE TABLE IF NOT EXISTS leader_teachers (
+  id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  leader_user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  source             text NOT NULL CHECK (source IN ('niete_ict')),
+  school_ext_id      text,
+  school_id          uuid REFERENCES schools(id),
+  teacher_ext_id     text,
+  teacher_name       text NOT NULL,
+  teacher_phone      text,
+  teacher_phone_e164 text,
+  level              text,
+  created_at         timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (leader_user_id, source, school_ext_id, teacher_ext_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_leader_teachers_leader_school
+  ON leader_teachers (leader_user_id, school_ext_id);
+CREATE INDEX IF NOT EXISTS idx_leader_teachers_phone_e164
+  ON leader_teachers (teacher_phone_e164);
+CREATE INDEX IF NOT EXISTS idx_leader_teachers_school_id
+  ON leader_teachers (school_id);
+
+CREATE TABLE IF NOT EXISTS observation_schedules (
+  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  leader_user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  school_ext_id     text NOT NULL,
+  school_id         uuid REFERENCES schools(id),
+  teacher_ext_id    text NOT NULL,
+  teacher_name      text,
+  school_name       text,
+  scheduled_for     date NOT NULL,
+  scheduled_slot    text,
+  status            text NOT NULL DEFAULT 'upcoming' CHECK (status IN ('upcoming','done','cancelled')),
+  session_id        uuid,
+  calendar_event_id text,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_obs_sched_leader_status
+  ON observation_schedules (leader_user_id, status, scheduled_for);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_obs_sched_active
+  ON observation_schedules (leader_user_id, school_ext_id, teacher_ext_id)
+  WHERE status = 'upcoming';
+
 -- ── lp_feedback: reserve the voicenote follow-up column ─────────────────────
 -- Voicenotes are NOT live for NIETE, so the post-LP quiz asks about the lesson
 -- plan only. This column is the one piece of schema the later voicenote
