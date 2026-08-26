@@ -154,20 +154,74 @@ function canonicalSchoolName(name) {
 /**
  * Do the coaches holding this school_ext_id disagree about which school it is?
  *
- * Fails CLOSED. On a query error this returns true, because refusing to inherit
- * a roster costs a coach one manual step, while inheriting the wrong one hands
- * them another school's teachers. Measured on production 2026-08-25: 2 ext ids
- * where holders disagree, 405 where they agree, so this fires rarely and never
- * on the normal path.
+ * Two questions, in order. First, do the names disagree once spacing and case
+ * are removed? If they agree we are done, which is the normal path: production
+ * 2026-08-26 has 498 ext ids where holders agree and 1 where they do not.
+ *
+ * Second, and only when the names disagree: do the spellings share a teacher?
+ * One shared teacher means one school typed two ways, and refusing there costs a
+ * coach a pointless re-entry. niete:427 is exactly that, 'IMSB (I-V), MAL' and
+ * 'IMSB (I-V), MALOT' over the same seven teachers. Disjoint rosters mean two
+ * real schools under one number, which is the bug this guard exists for.
+ *
+ * Fails CLOSED throughout. A query error, or a spelling with no teachers at all,
+ * counts as disagreement: refusing costs one manual step, while inheriting the
+ * wrong roster hands a coach another school's teachers.
  */
 async function extIdIsAmbiguous(schoolExtId) {
   const supabase = _db();
   try {
     const { data, error } = await supabase
-      .from('leader_schools').select('school_name').eq('school_ext_id', schoolExtId);
+      .from('leader_schools').select('school_name, leader_user_id').eq('school_ext_id', schoolExtId);
     if (error) return true;
-    const names = new Set((data || []).map((r) => canonicalSchoolName(r.school_name)).filter(Boolean));
-    return names.size > 1;
+    const rows = data || [];
+
+    // Which coaches hold each spelling.
+    const holdersByName = new Map();
+    for (const r of rows) {
+      const canon = canonicalSchoolName(r.school_name);
+      if (!canon) continue;
+      if (!holdersByName.has(canon)) holdersByName.set(canon, new Set());
+      if (r.leader_user_id) holdersByName.get(canon).add(r.leader_user_id);
+    }
+    if (holdersByName.size <= 1) return false;
+
+    // teacher_phone_e164, not teacher_phone: the raw column carries whatever the
+    // roster sheet held and differs from the normalised one on 8,007 of 8,025
+    // production rows, so two coaches who typed one teacher differently would
+    // read as disjoint and be refused.
+    //
+    // Deliberately no .limit(). One ext id's roster is 20 rows on average and 160
+    // at worst (production 2026-08-26), two short text columns, on an Index Scan
+    // over idx_leader_teachers_leader_school — call it 6KB, reached by 1 ext id in
+    // 405 and only when a human adds a school. A cap here would be worse than
+    // useless: truncating the roster invents a disjoint pair and refuses a school
+    // that should have inherited.
+    const { data: tRows, error: tErr } = await supabase
+      .from('leader_teachers').select('leader_user_id, teacher_phone_e164').eq('school_ext_id', schoolExtId);
+    if (tErr) return true;
+
+    // Phones per spelling, via the coaches that hold it.
+    const phonesByName = new Map();
+    for (const [canon, holders] of holdersByName) {
+      const phones = new Set();
+      for (const t of tRows || []) {
+        if (holders.has(t.leader_user_id) && t.teacher_phone_e164) phones.add(t.teacher_phone_e164);
+      }
+      phonesByName.set(canon, phones);
+    }
+
+    // Ambiguous as soon as ONE pair of spellings shares nothing. An empty set
+    // shares nothing with anything, which is the no-evidence case.
+    const names = [...phonesByName.keys()];
+    for (let i = 0; i < names.length; i += 1) {
+      for (let j = i + 1; j < names.length; j += 1) {
+        const a = phonesByName.get(names[i]);
+        const b = phonesByName.get(names[j]);
+        if (![...a].some((p) => b.has(p))) return true;
+      }
+    }
+    return false;
   } catch (_) {
     return true;
   }
