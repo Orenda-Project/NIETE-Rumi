@@ -80,8 +80,8 @@ describe('calls-config', () => {
       expect(c.perCallerDaily).toBe(3);
     });
 
-    test('semantic VAD by default (noisy classrooms)', () => {
-      expect(load().getCallsConfig().vad).toBe('semantic_vad');
+    test('server_vad by default (snappy, interruptible — Noor tuning)', () => {
+      expect(load().getCallsConfig().vad).toBe('server_vad');
     });
   });
 

@@ -117,7 +117,7 @@ class RealtimeClient {
         type: 'server_vad',
         threshold: 0.5,
         prefix_padding_ms: 300,
-        silence_duration_ms: Number(process.env.CALLS_VAD_SILENCE_MS || 700),
+        silence_duration_ms: Number(process.env.CALLS_VAD_SILENCE_MS || 5),
         create_response: true,
         interrupt_response: true,
       }
@@ -151,6 +151,11 @@ class RealtimeClient {
       session.tools = this.tools;
       session.tool_choice = 'auto';
     }
+
+    // Low reasoning effort keeps her replies snappy on a live call (matches the
+    // Noor tuning). Override with CALLS_REASONING_EFFORT; 'none' leaves it unset.
+    const effort = process.env.CALLS_REASONING_EFFORT || 'minimal';
+    if (effort && effort !== 'none') session.reasoning = { effort };
 
     this._send({ type: 'session.update', session });
     this._ready = true;
@@ -204,6 +209,9 @@ class RealtimeClient {
       case 'response.output_item.added':
         if (evt.item && evt.item.type === 'function_call' && evt.item.call_id) {
           this._toolNames.set(evt.item.call_id, evt.item.name || '');
+          // She is about to look something up — cue the typing ambience until
+          // her answer audio starts.
+          if (this.cb.onToolStart) this.cb.onToolStart();
         }
         break;
       case 'response.function_call_arguments.done':

@@ -37,9 +37,9 @@ tell her the time for today's call is up, that she can message you on WhatsApp
 any time and you will keep helping there. Do not start a new topic. Keep it to a
 sentence or two.`;
 
-const FALLBACK_INSTRUCTIONS = 'You are the NIETE Teaching Assistant, a warm and professional '
-  + 'female AI assistant for teachers. Speak Urdu unless the caller speaks English. '
-  + 'Be brief and helpful.';
+const FALLBACK_INSTRUCTIONS = 'You are Neeyat Assistant, a warm, friendly, cheerful '
+  + 'female AI assistant for NIETE teachers. Speak Urdu unless the caller speaks English. '
+  + 'Be brief, warm and helpful.';
 
 class CallSession {
   constructor({
@@ -108,11 +108,17 @@ class CallSession {
         onAudio: (pcm24k) => {
           if (this._closed) return;
           this._lastActivityAt = Date.now(); // she is speaking = activity
+          this._peer.setTyping(false); // she is answering — stop the typing sfx
           this._peer.playAssistantAudio(pcm24k);
+        },
+        onToolStart: () => {
+          if (this._closed) return;
+          this._peer.setTyping(true); // she is looking something up
         },
         onBargeIn: () => {
           if (this._closed) return;
           this._peer.flushPlayout();
+          this._peer.setTyping(false);
         },
         onTranscript: (role, text) => this._onTranscript(role, text),
         onResponseLatency: (ms) => {

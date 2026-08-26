@@ -29,12 +29,14 @@ const CallSession = require('./shared/calls/call-session');
 const RtcPeer = require('./shared/calls/rtc-peer');
 const RealtimeClient = require('./shared/calls/realtime-client');
 const callsApi = require('./shared/calls/graph-calls-api');
+const { loadAmbience } = require('./shared/calls/ambience');
 const { buildCallPrompt } = require('./shared/calls/call-prompt.service');
 const { buildCallContext } = require('./shared/calls/call-context.service');
 const contextDeps = require('./shared/calls/call-context.repo');
 const { createCallTools } = require('./shared/calls/call-tools.service');
 const toolsRepo = require('./shared/calls/call-tools.repo');
 const callLog = require('./shared/calls/call-log.service');
+const { createMemoryWriter } = require('./shared/calls/call-memory.service');
 const { createBudgetGovernor } = require('./shared/calls/budget-governor');
 const WhatsAppService = require('./shared/services/whatsapp.service');
 const { resolveUx } = require('./shared/config/ux-strings');
@@ -46,6 +48,10 @@ const logger = {
 };
 
 const config = getCallsConfig();
+
+// Post-call memory writer (bd-neeyat): summarizes each finished call into the
+// caller's rolling call_memory so the next call remembers her.
+const memoryWriter = createMemoryWriter({ repo: contextDeps, apiKey: config.apiKey, logger });
 
 /**
  * Single-replica guard (RT-4). Call sessions live in this process's memory, so a
@@ -117,11 +123,16 @@ function buildEngine() {
       await WhatsAppService.sendMessage(from, resolveUx(key, { language }));
     },
 
-    /** Close the audit row when the call ends. */
-    onCallEnd: async ({ waCallId, durationSeconds, status, transcript }) => {
+    /** Close the audit row when the call ends, then fold the call into memory. */
+    onCallEnd: async ({ waCallId, from, durationSeconds, status, transcript }) => {
       await callLog.logCallEnd({
         waCallId, durationSeconds, status, transcript, model: config.model,
       });
+      // Roll this call into the caller's memory so the next call remembers her
+      // (off the call path — never blocks teardown, never throws).
+      if (from && transcript) {
+        memoryWriter({ callerNumber: from, transcript }).catch(() => undefined);
+      }
     },
 
     createSession: (ctx) => {
@@ -294,12 +305,16 @@ app.post('/internal/call-event', async (req, res) => {
   }
 });
 
+// Load the background ambience PCM once at boot (office chatter + typing).
+loadAmbience(logger);
+
 const port = process.env.PORT || 8080;
 const server = app.listen(port, () => {
   logToFile('[calls] service listening', {
     port,
     callsEnabled: isCallsEnabled(),
     model: config.model,
+    vad: config.vad,
     maxConcurrent: config.maxConcurrent,
     maxSeconds: config.maxSeconds,
   });
