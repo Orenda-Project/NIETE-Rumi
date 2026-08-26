@@ -649,6 +649,21 @@ async function handleTextMessage(message, from, messageBody, user = null) {
           userId: user && user.id, error: sendErr.message,
         });
       }
+      // bd-5azz0: a leader typing while a session waits at awaiting_lesson_plan
+      // ("No", "wait", the teacher's name…) used to fall into generic AI chat
+      // and the session wedged until the 60-min sweep advanced it LP-less.
+      // Re-send the LP prompt instead (recency-guarded inside the service so a
+      // days-old wedged row can never hijack normal conversation). Slash
+      // commands pass through untouched — /menu and /reading are matched
+      // FURTHER DOWN this handler, so consuming them here would swallow them.
+      try {
+        const { resendLpPromptIfWaiting } = require('../services/coaching/lp-coaching/lp-step.service');
+        if (!trimmedMessage.startsWith('/') && await resendLpPromptIfWaiting(user, from)) return;
+      } catch (lpErr) {
+        logToFile('⚠️ observe LP-step text check failed (falling through to chat)', {
+          userId: user && user.id, error: lpErr.message,
+        });
+      }
     }
   }
 

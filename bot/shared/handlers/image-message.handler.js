@@ -140,20 +140,17 @@ async function handleImageMessage(message, from, user = null) {
           // Append photo URL to coaching_sessions.classroom_photos JSONB array
           const existingPhotos = photoSession.conversation_state?.classroom_photos || [];
           if (existingPhotos.length >= MAX_COACHING_PHOTOS) {
+            // bd-5azz0: the max path used to queueAnalysis directly — skipping
+            // the lesson-plan ask entirely, so LP fidelity scored on nothing.
+            // Land on the SAME LP step the photo_done_ tap reaches.
             await WhatsAppService.sendMessage(
               from,
               userLang === 'ur'
-                ? '📸 زیادہ سے زیادہ 3 تصاویر بھیجی جا سکتی ہیں۔ اب تجزیہ شروع کیا جا رہا ہے۔'
-                : '📸 You can upload a maximum of 3 photos. Starting analysis now.'
+                ? '📸 زیادہ سے زیادہ 3 تصاویر بھیجی جا سکتی ہیں۔'
+                : '📸 You can upload a maximum of 3 photos.'
             );
-            const CoachingSessionService = require('../services/coaching/coaching-session.service');
-            const CoachingJobQueueService = require('../services/coaching/coaching-job-queue.service');
-            await CoachingSessionService.updateStatus(photoSession.id, 'analysis_started');
-            await CoachingJobQueueService.queueAnalysis(photoSession.id, {
-              from,
-              trigger: 'photo_max_limit_reached',
-              photoCount: existingPhotos.length
-            });
+            const { advanceToLessonPlanStep } = require('../services/coaching/lp-coaching/lp-step.service');
+            await advanceToLessonPlanStep({ sessionId: photoSession.id, from, tapperUserId: user.id });
             typingController.stop();
             return;
           }
@@ -173,20 +170,15 @@ async function handleImageMessage(message, from, user = null) {
 
           // Photo received — ask explicitly whether to add more photos or proceed.
           if (existingPhotos.length >= MAX_COACHING_PHOTOS) {
+            // bd-5azz0: max reached → the LP step (never straight to analysis).
             await WhatsAppService.sendMessage(
               from,
               userLang === 'ur'
-                ? `📸 تصویر ${existingPhotos.length} موصول۔ زیادہ سے زیادہ حد پوری ہو گئی ہے، اب تجزیہ شروع کیا جا رہا ہے۔`
-                : `📸 Photo ${existingPhotos.length} received. Maximum reached, starting analysis now.`
+                ? `📸 تصویر ${existingPhotos.length} موصول۔ زیادہ سے زیادہ حد پوری ہو گئی ہے۔`
+                : `📸 Photo ${existingPhotos.length} received. Maximum reached.`
             );
-            const CoachingSessionService = require('../services/coaching/coaching-session.service');
-            const CoachingJobQueueService = require('../services/coaching/coaching-job-queue.service');
-            await CoachingSessionService.updateStatus(photoSession.id, 'analysis_started');
-            await CoachingJobQueueService.queueAnalysis(photoSession.id, {
-              from,
-              trigger: 'photo_max_reached',
-              photoCount: existingPhotos.length
-            });
+            const { advanceToLessonPlanStep } = require('../services/coaching/lp-coaching/lp-step.service');
+            await advanceToLessonPlanStep({ sessionId: photoSession.id, from, tapperUserId: user.id });
           } else {
             const confirmMsg = userLang === 'ur'
               ? `📸 تصویر ${existingPhotos.length} موصول۔ کیا ایک اور تصویر شامل کرنی ہے؟`
@@ -227,10 +219,15 @@ async function handleImageMessage(message, from, user = null) {
       // ============================================================
       try {
         const lpSupabase = require('../config/supabase');
+        // bd-5azz0: match the OBSERVER too — in /observe the session is owned
+        // by the observed teacher while the COACH uploads the paper LP photo.
+        // The document path got this in bd-9hzdn.2; this image path missed it,
+        // so a coach's LP photo fell through to pic-to-LP and the session
+        // wedged at awaiting_lesson_plan (Arooba/Mehwish, 24-Aug).
         const { data: lpSession } = await lpSupabase
           .from('coaching_sessions')
           .select('id, conversation_state')
-          .eq('user_id', user.id)
+          .or(`user_id.eq.${user.id},observer_user_id.eq.${user.id}`)
           .eq('status', 'awaiting_lesson_plan')
           .order('created_at', { ascending: false })
           .limit(1)
@@ -300,10 +297,12 @@ async function handleImageMessage(message, from, user = null) {
       try {
         const { shouldHoldImageForActiveCoaching, PRE_PHOTO_PROCESSING_STATUSES } = require('../services/coaching/photo-capture-routing');
         const raceSupabase = require('../config/supabase');
+        // bd-5azz0: observer parity here too — a coach's raced photo must hold
+        // on the teacher-owned observe session, same as line-105's capture.
         const { data: procSession } = await raceSupabase
           .from('coaching_sessions')
           .select('id, status, created_at, conversation_state, classroom_photos')
-          .eq('user_id', user.id)
+          .or(`user_id.eq.${user.id},observer_user_id.eq.${user.id}`)
           .in('status', Array.from(PRE_PHOTO_PROCESSING_STATUSES))
           .order('created_at', { ascending: false })
           .limit(1)

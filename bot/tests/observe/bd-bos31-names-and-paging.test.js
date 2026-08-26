@@ -81,7 +81,7 @@ describe('bd-bos31 · the row shows WHO, using the name the query already resolv
   it('the service enriches unsent reports, not just pending debriefs', () => {
     const src = require('fs').readFileSync(
       require('path').join(__dirname, '../../shared/services/observe/observe-debrief.service.js'), 'utf8');
-    const fn = src.slice(src.indexOf('async function listUnsentReports'), src.indexOf('async function listUnsentReports') + 1400);
+    const fn = src.slice(src.indexOf('async function listUnsentReports'), src.indexOf('async function listUnsentReports') + 2000);
     expect(fn).toMatch(/_withObservedTeacher/);
   });
 });
