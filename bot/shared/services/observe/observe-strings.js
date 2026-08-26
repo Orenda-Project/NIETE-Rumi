@@ -194,6 +194,7 @@ const STRINGS = {
     send_delivering: '📨 Natuma ripoti kwa mwalimu sasa. Nitakujulisha ikifika.',
     send_cancel_ack: 'Sawa — sijatuma chochote. Ukibadili mawazo, andika /observe na uchague uchunguzi huo.',
     send_already_sent: '✅ Ripoti ya uchunguzi huo imeshatumwa kwa mwalimu.',
+    send_waiting_tap_info: '📨 Ripoti iko tayari — mwaliko ulitumwa kwa {name} ({date}). Bado hajaugusa; Rumi anamkumbusha, na ripoti itafika mara tu atakapobonyeza.',
     send_done_fo: '✅ Ripoti imefika kwa mwalimu. Asante kwa kazi nzuri ya ukocha! 🌱',
     // bd-2411: delivery to the teacher failed on the worker; tell the coach so it isn't a silent drop.
     send_failed_fo: '⚠️ Samahani — ripoti haikuweza kutumwa kwa mwalimu sasa hivi. Andika /observe, chagua uchunguzi huo, na ujaribu tena kutuma (📨).',
@@ -359,6 +360,7 @@ const STRINGS = {
     send_delivering: '📨 رپورٹ بھیجی جا رہی ہے — پہنچتے ہی بتاؤں گی۔',
     send_cancel_ack: 'ٹھیک ہے، نہیں بھیجی۔ تفصیلات محفوظ ہیں — جب چاہیں /observe سے دوبارہ۔',
     send_already_sent: 'یہ رپورٹ پہلے ہی بھیجی جا چکی ہے۔ ✅',
+    send_waiting_tap_info: '📨 رپورٹ تیار ہے — {name} کو دعوت ({date}) بھیجی جا چکی ہے۔ ابھی دعوت پر ٹیپ نہیں ہوا؛ رومی یاد دہانی بھیجتی رہتی ہے، اور ٹیپ ہوتے ہی رپورٹ خود بخود پہنچ جائے گی۔',
     send_done_fo: '✅ رپورٹ استاد کو پہنچ گئی۔',
     // bd-2411: delivery failed on the worker — surface it to the coach, never silent.
     send_failed_fo: '⚠️ معذرت — رپورٹ ابھی استاد کو نہیں بھیجی جا سکی۔ /observe لکھیں، وہ مشاہدہ منتخب کریں، اور دوبارہ بھیجنے کی کوشش کریں (📨)۔',
@@ -556,6 +558,7 @@ const STRINGS = {
     send_delivering: '📨 Sending the report to the teacher now. I\'ll confirm once it lands.',
     send_cancel_ack: "Okay — nothing was sent. If you change your mind, type /observe and pick that observation.",
     send_already_sent: '✅ That observation\'s report has already been sent to the teacher.',
+    send_waiting_tap_info: '📨 The report is ready — the invitation went to {name} ({date}). No tap yet; Rumi keeps reminding, and the report is delivered automatically the moment the invitation is tapped.',
     send_done_fo: '✅ The report reached the teacher. Beautiful coaching work! 🌱',
     // bd-2411: delivery failed on the worker — surface it to the coach, never silent.
     send_failed_fo: "⚠️ Sorry — the report couldn't be sent to the teacher just now. Type /observe, pick that observation, and try sending again (📨).",
