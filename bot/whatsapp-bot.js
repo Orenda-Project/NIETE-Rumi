@@ -1362,8 +1362,27 @@ app.post('/webhook', async (req, res) => {
         userId: user?.id
       });
 
+      // bd-nnco2: the DC-intro broadcast's "View notification" quick-reply —
+      // deliver the official FDE authorization letter (repo asset — no hosting,
+      // no expiring URL) and log a countable tap event for broadcast tracking.
+      if (buttonPayload === 'VIEW_FDE_NOTIFICATION') {
+        logToFile('📄 FDE notification requested (broadcast button)', {
+          event: 'broadcast.fde_notification_viewed',
+          from,
+          userId: user?.id || null,
+        });
+        // local require: `path` is NOT a module-scope import in this file, and an
+        // untested branch is exactly where a ReferenceError hides (bd-nnco2 QA).
+        const fdePdf = require('path').join(__dirname, 'shared', 'assets', 'fde-notification-digital-coach.pdf');
+        await WhatsAppService.sendDocument(
+          from,
+          fdePdf,
+          'FDE Notification - Digital Coach.pdf',
+          'FDE کا سرکاری notification — Digital Coach'
+        );
+      }
       // Handle style_* payloads from video style carousel
-      if (buttonPayload && buttonPayload.startsWith('style_')) {
+      else if (buttonPayload && buttonPayload.startsWith('style_')) {
         if (user) {
           const VideoOrchestrator = require('./shared/services/video/video-orchestrator.service');
           const { parseStyleFromButtonId } = require('./shared/handlers/text-message.handler');
