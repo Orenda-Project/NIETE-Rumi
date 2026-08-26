@@ -20,6 +20,23 @@ const { htmlToImage } = require('../../../utils/html-to-pdf');
 const { logToFile } = require('../../../utils/logger');
 
 /**
+ * bd-1t1wz (ports the main bot's bd-43483): attach the per-domain one-line
+ * "why" diagnosis onto each scorecard row. Groups key by domainKey (the
+ * canonical snake_case domain key); a group without a matching why simply
+ * renders no line. Exported as a pure helper so it is unit-testable without
+ * this service's R2/sharp/LLM dependency graph (same split rationale as
+ * report-language.js).
+ */
+function attachDomainWhys(groups, domainWhys) {
+  if (!domainWhys || typeof domainWhys !== 'object') return groups;
+  for (const g of (groups || [])) {
+    const why = domainWhys[g.domainKey || g.key];
+    if (why) g.why = why;
+  }
+  return groups;
+}
+
+/**
  * @param {object} session - coaching_sessions row (transcript_text, user_id, created_at, classroom_photos)
  * @param {object} analysis - enhancedAnalysis (framework, scores, domains, reflective_corpus, …)
  * @param {object} opts - { teacherName, commitmentAction, language, brand }
@@ -60,6 +77,9 @@ async function generateHeroReport(session, analysis, opts = {}) {
     teacherName,
   });
 
+  // bd-1t1wz: per-section "why" diagnosis lines onto the scorecard rows.
+  attachDomainWhys(score.groups, narrative && narrative.domain_whys);
+
   // bd-pv2tl: the teacher's own classroom photos, framed under the scorecard.
   // Non-fatal: the helper skips any broken photo and returns [] on failure.
   let classroomPhotos = [];
@@ -93,4 +113,4 @@ async function generateHeroReport(session, analysis, opts = {}) {
   return { png, caption: buildReportCaption(vm) };
 }
 
-module.exports = { generateHeroReport };
+module.exports = { generateHeroReport, attachDomainWhys };

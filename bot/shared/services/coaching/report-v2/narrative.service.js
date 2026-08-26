@@ -91,6 +91,22 @@ const TRANSLIT_FIX = [
   [/جماعتی\s*پڑھائی/g, 'classroom'],
   [/(?:واضح\s*)?گرم\s*سوالات?/g, 'warm questions'],
   [/پیر\s*اور\s*سیلف\s*اسسمنٹ/g, 'peer and self assessment'],
+  // bd-1t1wz (26-Aug audit of 200 prod sessions): every transliteration that
+  // escaped the net — all of them in the commitment/action text, which had no
+  // deterministic net at all — plus two bad literal translations the operator
+  // sighted in the field. Order matters: plural before singular.
+  [/ورژنز/g, 'versions'],
+  [/ورژن/g, 'version'],
+  [/فیڈ\s*بیک/g, 'feedback'],
+  [/چیلنجنگ/g, 'challenging'],
+  [/ماڈلنگ/g, 'modeling'],
+  [/پریکٹس/g, 'practice'],
+  [/ریئل\s*لائف/g, 'real-life'],
+  [/ون\s*بائی\s*ون/g, 'one-by-one'],
+  [/ویٹ\s*ٹائم/g, 'wait time'],
+  [/انتظار\s*کا\s*وقت/g, 'wait time'],
+  [/گرم\s*(?:الفاظ|جملے)/g, 'warm words'],
+  [/کھلے\s*جوابات/g, 'open-ended questions'],
 ];
 
 function fixCodeswitch(s) {
@@ -104,6 +120,11 @@ function normalize(c, language) {
     if (c[k]) c[k] = fixCodeswitch(c[k]);
   }
   (c.moments || []).forEach((m) => { m.title = fixCodeswitch(m.title); m.why = fixCodeswitch(m.why); });
+  // bd-1t1wz: per-domain "why" diagnosis lines get the same RTL code-switch net
+  // (ports the main bot's bd-43483 normalize).
+  if (c.domain_whys && typeof c.domain_whys === 'object') {
+    for (const k of Object.keys(c.domain_whys)) c.domain_whys[k] = fixCodeswitch(c.domain_whys[k]);
+  }
   return c;
 }
 
@@ -139,6 +160,40 @@ function buildPrompt(analysis, { transcript, trend = [], language, teacherName }
     .map((m) => `- ${m.what_happened || ''} (${m.significance_reason_en || ''})`).join('\n');
   const weakest = pickWeakestDomain(a);
 
+  // bd-1t1wz (ports the main bot's bd-43483, "every domain explains itself"):
+  // ask for a one-line PAST-TENSE diagnosis per FICO section — why the score
+  // landed where it did and what was missing for full marks — for BOTH en and
+  // ur reports. Fed the per-domain scores + weakest indicators so each line is
+  // grounded in what was actually scored, never invented.
+  //
+  // Evidence preference: the COACH-EDITED text first (the observe review form
+  // writes evidence_sw / improvement_sw via applyObserverEdits, and on an
+  // observe session this call runs AFTER those edits persist — so the coach's
+  // corrections ARE the grounding) → evidence_summary → evidence.
+  const isFico = (a.framework || '').toLowerCase() === 'fico';
+  const FICO_DOMAIN_LABELS = {
+    lesson_plan_fidelity: 'Lesson Plan Fidelity',
+    high_leverage_practices: 'High-Leverage Practices',
+    student_engagement: 'Student Engagement',
+    teacher_subject_knowledge: 'Teacher Subject Knowledge',
+  };
+  const domainScoresBlock = (isFico && a.domains && typeof a.domains === 'object')
+    ? Object.keys(FICO_DOMAIN_LABELS).filter((k) => a.domains[k]).map((k) => {
+        const d = a.domains[k];
+        // Section B may be DERIVED from the measured LP-fidelity engine (P4.1/D27):
+        // ground its "why" in the actual missed moves, not the legacy proxy indicators.
+        if (k === 'lesson_plan_fidelity' && d.fidelity_derived) {
+          const missed = ((a.lp_fidelity && a.lp_fidelity.moves) || [])
+            .filter((m) => m.verdict === 'not_done' || m.verdict === 'partial')
+            .slice(0, 3).map((m) => `"${String(m.text || '').slice(0, 90)}" (${m.verdict})`);
+          return `- ${k} (${FICO_DOMAIN_LABELS[k]}): ${d.domain_score}/${d.domain_max} — MEASURED from her lesson plan: ${d.fidelity_pct}% of prescribed moves executed.${missed.length ? ` Moves missed or partial: ${missed.join('; ')}` : ''}`;
+        }
+        const lows = (d.indicators || []).slice().sort((x, y) => (x.score || 0) - (y.score || 0)).slice(0, 2)
+          .map((i) => `${i.id} scored ${i.score}/4 — ${String(i.evidence_sw || i.evidence_summary || i.evidence || '').slice(0, 160)}${i.improvement_sw ? ` | to improve: ${String(i.improvement_sw).slice(0, 120)}` : ''}`);
+        return `- ${k} (${FICO_DOMAIN_LABELS[k]}): ${d.domain_score}/${d.domain_max}${lows.length ? `. Lowest indicators: ${lows.join(' | ')}` : ''}`;
+      }).join('\n')
+    : '';
+
   return `You are the NIETE Teaching Assistant, a warm, perceptive instructional coach. Below is the FULL TRANSCRIPT of a real lesson by ${teacherName} plus its ${fw} rubric analysis. Write the words for a CELEBRATION report that makes this teacher feel truly SEEN — not graded like a medical report.
 
 Use the TRANSCRIPT as source of truth. Find what is UNIQUELY hers — a signature move, how she talks to children, how she connects ideas — and ground every claim in something she actually did. Tie it to the ${fw} lens (clarity, student involvement, questioning, classroom management) honestly, but lead with humanity. Address her as "you".
@@ -160,9 +215,19 @@ Return STRICT JSON:
  "horizon_title":"her growth edge framed as an exciting next horizon, 2-5 words",
  "horizon_note":"one warm sentence naming the growth area without making her feel deficient",
  "journey_note":"one sentence on her ${sessionCount}-session arc (peaked at ${peak}%, keeps showing up). Honest + encouraging.",
- "score_framing":"one warm sentence framing overall ${pct}% as a stage in a journey, not a verdict."
+ "score_framing":"one warm sentence framing overall ${pct}% as a stage in a journey, not a verdict."${isFico ? `,
+ "domain_whys":{ ${Object.keys(FICO_DOMAIN_LABELS).map((k) => `"${k}":"..."`).join(', ')} }` : ''}
 }
 moments: EXACTLY 3, the best real moments. Do NOT invent quotes — use real lines from the transcript.
+${isFico ? `
+domain_whys: ONE sentence per domain, in the report language, in the PAST TENSE, with NO instruction verb (no "try", "should", "could", "کریں", "چاہیے") — pure diagnosis, not advice; the single next-step lives elsewhere. Follow this EXACT two-clause skeleton (bd-43497, the locked reference):
+  EN: "This is strong/developing because <one concrete classroom moment> — it's not full marks because <one clear, concrete missing thing>."
+  UR: «یہ اسکور اچھا/بہتر ہے کیونکہ <کلاس کا ایک ٹھوس لمحہ> — مکمل نمبر اس لیے نہیں کیونکہ <ایک واضح، ٹھوس کمی>۔»
+- ONE sentence, never a paragraph. ALWAYS name ONE concrete missing element in the second clause; never end vague. If (and only if) the domain scored the full max, drop the second clause and just state what made it strong.
+- Ground every claim in the DOMAIN SCORES data below or the transcript — NEVER invent an activity or moment that is not there, and NEVER contradict the recorded evidence (on observed lessons it is the observer's own corrected record).
+- LANGUAGE PURITY (bd-43497 R5): write the WHOLE line in the report language and, for Urdu, in Urdu SCRIPT — these diagnosis lines must read as clean, single-language prose (no sprinkled English pedagogy terms here, unlike the concept names elsewhere).
+DOMAIN SCORES (diagnose each):
+${domainScoresBlock}` : ''}
 
 ${throughline ? `THIS LESSON'S THROUGHLINE (from prior analysis): ${throughline}\n` : ''}${corpusMoments ? `MOMENTS ALREADY SURFACED (hints — prefer these, but pull the verbatim quote from the transcript):\n${corpusMoments}\n` : ''}LESSON TOPIC: ${a.topic || ''}
 ${fw} summary: ${(a.executive_summary_sw || a.executive_summary || '').slice(0, 700)}
@@ -198,6 +263,17 @@ async function generateReportNarrative(analysis, opts = {}) {
     narrative.moments = (narrative.moments || []).slice(0, 3).map((m) => ({
       title: m.title || '', quote: m.quote || '', why: m.why || '',
     }));
+    // bd-1t1wz: keep domain_whys a flat {domainKey: non-empty string} map —
+    // drop anything else so the template only ever sees renderable lines.
+    if (narrative.domain_whys && typeof narrative.domain_whys === 'object') {
+      for (const k of Object.keys(narrative.domain_whys)) {
+        if (typeof narrative.domain_whys[k] !== 'string' || !narrative.domain_whys[k].trim()) {
+          delete narrative.domain_whys[k];
+        }
+      }
+    } else {
+      delete narrative.domain_whys;
+    }
     narrative._language = language;
     return narrative;
   } catch (err) {

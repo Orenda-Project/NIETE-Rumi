@@ -29,8 +29,14 @@ const { simplifyPedagogyJargon } = require('../pedagogy-jargon');
 function finalizeCard(card) {
   if (!card) return card;
   const lang = card.language || 'en';
-  if (typeof card.commitment === 'string') card.commitment = simplifyPedagogyJargon(card.commitment, lang);
-  if (typeof card.action === 'string') card.action = simplifyPedagogyJargon(card.action, lang);
+  // bd-1t1wz (26-Aug audit): this path had only prompt-side code-switch rules,
+  // and 22 of 22 transliteration leaks found across 200 prod sessions were in
+  // commitment/action text (ورژن، فیڈبیک، چیلنجنگ…). Run the same deterministic
+  // net the narrative pass uses — the regexes only match Arabic-script forms,
+  // so en/sw text passes through untouched.
+  const { fixCodeswitch } = require('../report-v2/narrative.service');
+  if (typeof card.commitment === 'string') card.commitment = fixCodeswitch(simplifyPedagogyJargon(card.commitment, lang));
+  if (typeof card.action === 'string') card.action = fixCodeswitch(simplifyPedagogyJargon(card.action, lang));
   return card;
 }
 

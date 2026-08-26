@@ -29,6 +29,9 @@ const DOMAINS = {
   lesson_plan_fidelity: {
     key: 'B',
     displayName: 'Lesson Plan Fidelity',
+    // bd-1t1wz — Urdu-variant section label (Qurat's verbatim wording, 2026-08-26).
+    // Rendered ONLY when the report language is 'ur'; en reports stay English-only.
+    displayName_ur: 'Lesson Plan Fidelity (سبق کے منصوبے پر عمل درآمد)',
     indicatorCount: 10,
     indicators: [
       {
@@ -146,6 +149,7 @@ const DOMAINS = {
   high_leverage_practices: {
     key: 'C',
     displayName: 'High-Leverage Practices',
+    displayName_ur: 'High-Leverage Practices (مؤثر تدریسی طریقے)',
     indicatorCount: 12,
     indicators: [
       {
@@ -273,6 +277,7 @@ const DOMAINS = {
   student_engagement: {
     key: 'D',
     displayName: 'Student Engagement',
+    displayName_ur: 'Student Engagement (طلبہ کی شمولیت)',
     indicatorCount: 7,
     indicators: [
       {
@@ -350,6 +355,7 @@ const DOMAINS = {
   teacher_subject_knowledge: {
     key: 'F',
     displayName: 'Teacher Subject Knowledge',
+    displayName_ur: 'Teacher Subject Knowledge (استاد کا مضمون سے متعلق علم)',
     indicatorCount: 8,
     indicators: [
       {
