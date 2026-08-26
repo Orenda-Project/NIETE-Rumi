@@ -144,15 +144,37 @@ async function listUnsentReports(observerUserId, opts = {}) {
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
   if (error) throw new Error(`listUnsentReports failed: ${error.message}`);
-  const DONE = ['sent', 'awaiting_teacher_tap', 'operator_review'];
-  const open = (data || []).filter((r) => {
-    const d = r.analysis_data && r.analysis_data.teacher_delivery;
-    return !d || !DONE.includes(d.status);
-  });
+  // bd-1ezak: awaiting_teacher_tap counted as DONE, so a report waiting on the
+  // teacher's tap VANISHED from Send-reports. includeAwaitingTap surfaces those
+  // rows (annotated below); the default keeps historical chat-list semantics.
+  const DONE = opts.includeAwaitingTap
+    ? ['sent', 'operator_review']
+    : ['sent', 'awaiting_teacher_tap', 'operator_review'];
+  const dOf = (r) => (r.analysis_data && r.analysis_data.teacher_delivery) || {};
+  const open = (data || [])
+    .filter((r) => !DONE.includes(dOf(r).status))
+    .map((r) => ({ ...r, delivery_status: dOf(r).status || null, template_sent_at: dOf(r).template_sent_at || null }));
   // bd-bos31: these rows never got the schedule join, so every one of them
   // rendered as the literal "Observation". The pending list has had it since
   // bd-2669; this one was simply missed.
   return _withObservedTeacher(open);
+}
+
+// bd-1ezak — the live status line a Send-reports row carries (Flow metadata is
+// plain English by convention on these screens, same as 'debrief pending').
+const _META_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function sendReportRowMeta(sess) {
+  const d = (sess && sess.analysis_data && sess.analysis_data.teacher_delivery) || {};
+  const status = (sess && sess.delivery_status) || d.status || null;
+  if (status === 'awaiting_teacher_tap') {
+    const ts = (sess && sess.template_sent_at) || d.template_sent_at;
+    const when = ts ? new Date(ts) : null;
+    const day = when && !Number.isNaN(when.getTime())
+      ? ` ${when.getUTCDate()} ${_META_MONTHS[when.getUTCMonth()]}` : '';
+    return `invite sent${day} - waiting for teacher's tap`;
+  }
+  if (status === 'send_failed') return 'send failed - tap to retry';
+  return 'report not sent yet';
 }
 
 /**
@@ -582,6 +604,13 @@ async function _deliverCoachFeedback(sessionId, from, feedback, S, framework, la
   if (error) throw new Error(`observe debrief: done-flip failed: ${error.message}`);
   logToFile('✅ observe debrief coached', { sessionId, rubric: feedback.rubric });
 
+  // bd-9rrd5: debrief done — if the teacher report already went out (the other
+  // completion order), the observation is COMPLETE. Non-fatal by design.
+  {
+    const { maybeCompleteObservation } = require('./observe-completion');
+    await maybeCompleteObservation(sessionId);
+  }
+
   // FEAT-053 bd-24: the natural next step — offer to send the teacher her
   // combined report. Non-fatal: the /observe list carries an unsent-report
   // row as the durable re-entry point.
@@ -592,6 +621,37 @@ async function _deliverCoachFeedback(sessionId, from, feedback, S, framework, la
     logToFile('⚠️ observe: send-report offer failed (list re-entry still available)', {
       sessionId, error: offerErr.message,
     });
+  }
+}
+
+/**
+ * bd-b5elb — the coach-feedback LLM pass, with ONE guided repair. A shape
+ * rejection from validateCoachFeedback used to dead-end the whole debrief
+ * (coach told "couldn't analyze it", no retry of the LLM call): 10 sessions
+ * since 20-Aug held a transcript and no feedback, three distinct validator
+ * errors in one morning (24-Aug). The repair feeds the validator's error back
+ * and asks for a corrected SAME-shape answer. The harm gate stays programmatic
+ * — a repair that still fails validation throws; there is no bypass and no
+ * manufactured praise.
+ */
+async function coachFeedbackWithRepair(prompt, sessionId) {
+  const { validateCoachFeedback } = require('./observe-coach-feedback');
+  const { result } = await GPT5MiniService.completeJson(prompt, {
+    maxTokens: 6000, label: 'observeCoachFeedback',
+  });
+  try {
+    validateCoachFeedback(result);
+    return result;
+  } catch (vErr) {
+    logToFile('⚠️ observe debrief: feedback failed validation — one guided repair', {
+      sessionId, error: vErr.message,
+    });
+    const repairPrompt = `${prompt}\n\nIMPORTANT — your previous answer was rejected by a strict validator with this error:\n"${vErr.message}"\nProduce the SAME JSON shape again, corrected so the validator passes. Stay faithful to the transcript; fix only what the error names. Remember the hard rules: a harmful debrief (teacher disparaged, or feedback aimed at the person not the moves) must have wins: [] , NO praise_line, and a filled concern {what_happened, why_it_matters, instead}; a non-harmful one needs a praise_line and exactly 2 wins, each with behaviour + evidence.`;
+    const { result: repaired } = await GPT5MiniService.completeJson(repairPrompt, {
+      maxTokens: 6000, label: 'observeCoachFeedbackRepair',
+    });
+    validateCoachFeedback(repaired);   // still strict — throws on a second miss
+    return repaired;
   }
 }
 
@@ -696,11 +756,7 @@ async function processDebriefRecording(sessionId, payload = {}) {
         diarization,
         language: lang,
       });
-      const { result } = await GPT5MiniService.completeJson(prompt, {
-        maxTokens: 6000, label: 'observeCoachFeedback',
-      });
-      validateCoachFeedback(result);
-      feedback = result;
+      feedback = await coachFeedbackWithRepair(prompt, sessionId);
     } catch (llmErr) {
       logToFile('⚠️ observe debrief: coach-feedback LLM failed/invalid', {
         sessionId, error: llmErr.message,
@@ -727,6 +783,7 @@ module.exports = {
   buildDebriefChoiceButtons,
   listPendingDebriefs,
   listUnsentReports,
+  sendReportRowMeta,
   countPending,
   buildPendingListPayload,
   handleDebriefLater,
@@ -735,4 +792,5 @@ module.exports = {
   startDebrief,
   startDebriefFromAudio,
   processDebriefRecording,
+  coachFeedbackWithRepair,
 };

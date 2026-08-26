@@ -183,7 +183,20 @@ async function startSendFlow(sessionId, from, user) {
     return;
   }
   const delivery = (session.analysis_data && session.analysis_data.teacher_delivery) || {};
-  if (delivery.status === 'sent' || delivery.status === 'awaiting_teacher_tap') {
+  if (delivery.status === 'awaiting_teacher_tap') {
+    // bd-1ezak: say WHERE it stands — invite sent on <date>, teacher hasn't
+    // tapped yet — instead of a bare "already sent". Never re-invites (the
+    // untapped-nudge planner owns reminders, bd-2675).
+    const ts = delivery.template_sent_at ? new Date(delivery.template_sent_at) : null;
+    const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const day = ts && !Number.isNaN(ts.getTime()) ? `${ts.getUTCDate()} ${MONTHS[ts.getUTCMonth()]}` : '';
+    await WhatsAppService.sendMessage(from,
+      (S.send_waiting_tap_info || '{name} — invite sent {date}; waiting for her tap.')
+        .replace('{name}', delivery.teacher_name || '')
+        .replace('{date}', day));
+    return;
+  }
+  if (delivery.status === 'sent') {
     await WhatsAppService.sendMessage(from, S.send_already_sent);
     return;
   }
@@ -773,6 +786,13 @@ async function processTeacherReport(sessionId, payload = {}) {
       sent_at: nowIso,
       ...(phase === 'teacher_tap' ? { tapped_at: nowIso } : {}),
     });
+    // bd-9rrd5: report sent — if the debrief is done too, the observation is
+    // COMPLETE. Without this flip HITL sessions never left
+    // observer_review_complete and every "completed" count read coaches as 0.
+    {
+      const { maybeCompleteObservation } = require('./observe-completion');
+      await maybeCompleteObservation(sessionId);
+    }
     await WhatsAppService.sendMessage(
       foPhone,
       phase === 'teacher_tap'
