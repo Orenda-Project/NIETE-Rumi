@@ -10,7 +10,7 @@ const ficoFramework = require('../../frameworks/fico-framework');
 
 const SCALE_MAX = 4;
 
-function buildFicoGroups(a) {
+function buildFicoGroups(a, language) {
   const DOMAINS = ficoFramework.getScoringConstants().domains;
   const container = (a && (a.domains || a.areas)) || {};
   return Object.entries(DOMAINS).map(([sectionKey, def]) => {
@@ -21,7 +21,11 @@ function buildFicoGroups(a) {
       // Use the sheet's section letter (B/C/D/F) as the group key — trainers
       // and printed rubric readers instantly cross-reference.
       key: def.key,
-      name: def.displayName,
+      // bd-1t1wz — canonical domain key, for narrative.domain_whys lookups.
+      domainKey: sectionKey,
+      // bd-1t1wz — the ur variant carries the bilingual bracketed label
+      // (framework data, ports the main bot's bd-43483 displayName_ur pattern).
+      name: language === 'ur' ? (def.displayName_ur || def.displayName) : def.displayName,
       score,
       max,
       pct: max > 0 ? Math.round((score / max) * 100) : 0,

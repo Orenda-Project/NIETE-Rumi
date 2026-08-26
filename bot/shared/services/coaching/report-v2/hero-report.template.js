@@ -164,10 +164,17 @@ function buildHeroReportHtml(vm) {
 
   // Domain-altitude scorecard (e.g. MEWAKA: 6 rows w/ proportional bar). Indicator-altitude
   // frameworks render rows the same way (score/max + bar).
+  // bd-1t1wz (ports the main bot's bd-43483): each scored domain carries a
+  // one-line "Why:" past-tense diagnosis under its bar. The LABEL localises
+  // with the report language (matches the Sindh/RWP reference design); the
+  // diagnosis text arrives already in the report language from the narrative.
+  const whyLabel = lang === 'ur' ? 'کیوں' : (lang === 'ar' ? 'لماذا' : 'Why');
+  const whyLine = (cls, text) => text ? `<div class="${cls}"><span class="why-l">${T(whyLabel)}:</span> ${T(text)}</div>` : '';
   const scorecard = (vm.groups || []).map((g) => `
     <div class="sc-row">
       <div class="sc-h"><span class="sc-n">${T(g.name)}</span><span class="sc-s">${g.score}/${g.max}</span></div>
       <div class="pbar"><div class="pfill" style="width:${g.pct}%;background:${g.pct >= 80 ? P.barHigh : g.pct >= 50 ? '#e0a52e' : '#dd7a5c'}"></div></div>
+      ${whyLine('sc-why', g.why)}
     </div>`).join('');
 
   return `<!doctype html><html dir="${dir}" lang="${lang}"><head><meta charset="utf-8"><style>${fontFaces()}
@@ -201,6 +208,9 @@ function buildHeroReportHtml(vm) {
   .sc-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
   .sc-n{font-size:13px;font-weight:700;color:${P.mid}}.sc-s{font-family:'Lexend';font-size:13px;font-weight:700;color:${P.deep}}
   .pbar{height:8px;border-radius:5px;background:${P.barBg};overflow:hidden}.pfill{height:100%;border-radius:5px}
+  /* bd-1t1wz: per-domain "why" diagnosis line */
+  .sc-why{margin-top:5px;font-size:11.5px;color:${P.quiet};line-height:${RTL ? '1.8' : '1.45'}}
+  .why-l{font-weight:700;color:${P.mid}}
   .moment{background:${P.momentBg};border-radius:14px;padding:16px 18px;margin-bottom:14px}
   .m-q{font-family:${headFam};font-size:16px;line-height:${RTL ? '1.7' : '1.4'};color:${P.ink}}
   .m-w{font-size:12.5px;color:${P.quiet};margin-top:6px;line-height:${RTL ? '1.7' : '1.45'}}
