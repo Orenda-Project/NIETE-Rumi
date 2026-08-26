@@ -103,10 +103,28 @@ const MY_TEACHER_COUNT_SQL = `
 // names are shared by two genuinely different schools (IMSG (I-V) Sihala is 529
 // and 540, IMSB (I-V), MAL is 427 and 429), so such an index would pass on
 // creation and then block a legitimate assignment later.
+// Disagreeing names alone are not enough. niete:427 is held as 'IMSB (I-V), MAL'
+// and 'IMSB (I-V), MALOT' over the same seven teachers: one school typed twice,
+// where refusing costs a coach a pointless re-entry. So the test is whether any
+// PAIR of spellings shares no teacher. A spelling with no teachers shares
+// nothing, which keeps the no-evidence case refusing.
+//
+// teacher_phone_e164, not teacher_phone: the raw column differs from the
+// normalised one on 8,007 of 8,025 production rows.
 const AMBIGUOUS_EXT_ID_SQL = `
-  SELECT count(DISTINCT UPPER(REGEXP_REPLACE(school_name, '[^a-zA-Z0-9]', '', 'g'))) AS names
-  FROM leader_schools
-  WHERE school_ext_id = $1
+  WITH per_name AS (
+    SELECT UPPER(REGEXP_REPLACE(ls.school_name, '[^a-zA-Z0-9]', '', 'g')) AS canon,
+           array_agg(DISTINCT lt.teacher_phone_e164)
+             FILTER (WHERE lt.teacher_phone_e164 IS NOT NULL) AS phones
+    FROM leader_schools ls
+    LEFT JOIN leader_teachers lt
+      ON lt.leader_user_id = ls.leader_user_id AND lt.school_ext_id = ls.school_ext_id
+    WHERE ls.school_ext_id = $1
+    GROUP BY 1
+  )
+  SELECT count(*) AS disjoint_pairs
+  FROM per_name a JOIN per_name b ON a.canon < b.canon
+  WHERE NOT EXISTS (SELECT 1 FROM unnest(a.phones) p WHERE p = ANY(b.phones))
 `;
 
 // The roster for a school, deduped by phone across whichever coaches hold it.
@@ -118,8 +136,21 @@ const ROSTER_SQL = `
          teacher_ext_id, teacher_name, teacher_phone_e164, level
   FROM leader_teachers
   WHERE school_ext_id = $1 AND teacher_phone_e164 IS NOT NULL
-    AND (SELECT count(DISTINCT UPPER(REGEXP_REPLACE(school_name, '[^a-zA-Z0-9]', '', 'g')))
-           FROM leader_schools WHERE school_ext_id = $1) <= 1
+    AND NOT EXISTS (
+      WITH per_name AS (
+        SELECT UPPER(REGEXP_REPLACE(ls.school_name, '[^a-zA-Z0-9]', '', 'g')) AS canon,
+               array_agg(DISTINCT lt2.teacher_phone_e164)
+                 FILTER (WHERE lt2.teacher_phone_e164 IS NOT NULL) AS phones
+        FROM leader_schools ls
+        LEFT JOIN leader_teachers lt2
+          ON lt2.leader_user_id = ls.leader_user_id AND lt2.school_ext_id = ls.school_ext_id
+        WHERE ls.school_ext_id = $1
+        GROUP BY 1
+      )
+      SELECT 1
+      FROM per_name a JOIN per_name b ON a.canon < b.canon
+      WHERE NOT EXISTS (SELECT 1 FROM unnest(a.phones) p WHERE p = ANY(b.phones))
+    )
   ORDER BY teacher_phone_e164, teacher_name
 `;
 
@@ -239,7 +270,7 @@ async function addSchool(query, leaderUserId, schoolExtId) {
   // Gate the inheritance, and keep the reason so the coach is told the truth
   // rather than being handed a school that looks like it has no teachers.
   const { rows: ambRows } = await query(AMBIGUOUS_EXT_ID_SQL, [schoolExtId]);
-  const ambiguousExtId = Number((ambRows && ambRows[0] && ambRows[0].names) || 0) > 1;
+  const ambiguousExtId = Number((ambRows && ambRows[0] && ambRows[0].disjoint_pairs) || 0) > 0;
 
   const { rows: roster } = ambiguousExtId
     ? { rows: [] }
