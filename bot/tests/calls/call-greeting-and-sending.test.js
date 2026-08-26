@@ -34,7 +34,7 @@ describe('bd-1hae7.19 — she introduces herself ONCE', () => {
   test('the pronunciation guidance survives the trim', () => {
     const f = flat(buildCallPrompt({ language: 'ur' }));
     expect(f).toMatch(/نیت/);
-    expect(f).toMatch(/nee-yat/i);
+    expect(f).toMatch(/ni-yat/i);
     expect(f).toMatch(/letter by letter/i);
   });
 });
