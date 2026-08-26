@@ -27,18 +27,18 @@ async function capturePhotoAndPrompt({ session, imageBuffer, mimeType, from, use
   const { uploadImageWithRetry } = require('../../../storage/r2');
   const { getUserLanguage } = require('../../../utils/language-cache');
   const { logToFile } = require('../../../utils/logger');
-  const CoachingSessionService = require('../coaching-session.service');
-  const CoachingJobQueueService = require('../coaching-job-queue.service');
 
   const userLang = (await getUserLanguage(user.id)) || user.preferred_language || 'en';
   const existing = session.classroom_photos || (session.conversation_state && session.conversation_state.classroom_photos) || [];
 
   if (Array.isArray(existing) && existing.length >= MAX_COACHING_PHOTOS) {
+    // bd-5azz0: max reached → the LP step, never straight to analysis (the
+    // skip was why LP fidelity scored on nothing for photo-heavy coaches).
     await WhatsAppService.sendMessage(from, userLang === 'ur'
-      ? '📸 زیادہ سے زیادہ 3 تصاویر بھیجی جا سکتی ہیں۔ اب تجزیہ شروع کیا جا رہا ہے۔'
-      : '📸 You can upload a maximum of 3 photos. Starting analysis now.');
-    await CoachingSessionService.updateStatus(session.id, 'analysis_started');
-    await CoachingJobQueueService.queueAnalysis(session.id, { from, trigger: 'photo_max_limit_reached', photoCount: existing.length });
+      ? '📸 زیادہ سے زیادہ 3 تصاویر بھیجی جا سکتی ہیں۔'
+      : '📸 You can upload a maximum of 3 photos.');
+    const { advanceToLessonPlanStep } = require('../lp-coaching/lp-step.service');
+    await advanceToLessonPlanStep({ sessionId: session.id, from, tapperUserId: user.id });
     return existing.length;
   }
 
@@ -47,11 +47,12 @@ async function capturePhotoAndPrompt({ session, imageBuffer, mimeType, from, use
   await supabase.from('coaching_sessions').update(mergedPhotoUpdate(session, photos)).eq('id', session.id);
 
   if (full) {
+    // bd-5azz0: same routing as the webhook path — max lands on the LP step.
     await WhatsAppService.sendMessage(from, userLang === 'ur'
-      ? `📸 تصویر ${photos.length} موصول۔ زیادہ سے زیادہ حد پوری ہو گئی ہے، اب تجزیہ شروع کیا جا رہا ہے۔`
-      : `📸 Photo ${photos.length} received. Maximum reached, starting analysis now.`);
-    await CoachingSessionService.updateStatus(session.id, 'analysis_started');
-    await CoachingJobQueueService.queueAnalysis(session.id, { from, trigger: 'photo_max_reached', photoCount: photos.length });
+      ? `📸 تصویر ${photos.length} موصول۔ زیادہ سے زیادہ حد پوری ہو گئی ہے۔`
+      : `📸 Photo ${photos.length} received. Maximum reached.`);
+    const { advanceToLessonPlanStep } = require('../lp-coaching/lp-step.service');
+    await advanceToLessonPlanStep({ sessionId: session.id, from, tapperUserId: user.id });
   } else {
     await WhatsAppService.sendInteractiveButtons(from, {
       body: userLang === 'ur'
