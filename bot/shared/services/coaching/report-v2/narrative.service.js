@@ -91,6 +91,22 @@ const TRANSLIT_FIX = [
   [/جماعتی\s*پڑھائی/g, 'classroom'],
   [/(?:واضح\s*)?گرم\s*سوالات?/g, 'warm questions'],
   [/پیر\s*اور\s*سیلف\s*اسسمنٹ/g, 'peer and self assessment'],
+  // bd-1t1wz (26-Aug audit of 200 prod sessions): every transliteration that
+  // escaped the net — all of them in the commitment/action text, which had no
+  // deterministic net at all — plus two bad literal translations the operator
+  // sighted in the field. Order matters: plural before singular.
+  [/ورژنز/g, 'versions'],
+  [/ورژن/g, 'version'],
+  [/فیڈ\s*بیک/g, 'feedback'],
+  [/چیلنجنگ/g, 'challenging'],
+  [/ماڈلنگ/g, 'modeling'],
+  [/پریکٹس/g, 'practice'],
+  [/ریئل\s*لائف/g, 'real-life'],
+  [/ون\s*بائی\s*ون/g, 'one-by-one'],
+  [/ویٹ\s*ٹائم/g, 'wait time'],
+  [/انتظار\s*کا\s*وقت/g, 'wait time'],
+  [/گرم\s*(?:الفاظ|جملے)/g, 'warm words'],
+  [/کھلے\s*جوابات/g, 'open-ended questions'],
 ];
 
 function fixCodeswitch(s) {
