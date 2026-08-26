@@ -190,6 +190,13 @@ async function extIdIsAmbiguous(schoolExtId) {
     // roster sheet held and differs from the normalised one on 8,007 of 8,025
     // production rows, so two coaches who typed one teacher differently would
     // read as disjoint and be refused.
+    //
+    // Deliberately no .limit(). One ext id's roster is 20 rows on average and 160
+    // at worst (production 2026-08-26), two short text columns, on an Index Scan
+    // over idx_leader_teachers_leader_school — call it 6KB, reached by 1 ext id in
+    // 405 and only when a human adds a school. A cap here would be worse than
+    // useless: truncating the roster invents a disjoint pair and refuses a school
+    // that should have inherited.
     const { data: tRows, error: tErr } = await supabase
       .from('leader_teachers').select('leader_user_id, teacher_phone_e164').eq('school_ext_id', schoolExtId);
     if (tErr) return true;
