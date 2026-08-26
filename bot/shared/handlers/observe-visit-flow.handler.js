@@ -412,10 +412,19 @@ const debriefsScreen = (userId, offset) => _stageScreen(userId, offset, {
   fetch: (D, u, o) => D.listPendingDebriefs(u, o),
   metaOf: () => 'debrief pending', action: 'debrief',
 });
+// bd-1ezak: the Send-reports screen now carries the LIVE delivery status per
+// row (invite sent <date> — waiting for tap / send failed / not sent yet), and
+// includes the awaiting-tap rows that used to vanish entirely.
 const workSendScreen = (userId, offset) => _stageScreen(userId, offset, {
   screen: _stageScreenId('WORK_SEND'), step: 'work_send',
-  fetch: (D, u, o) => D.listUnsentReports(u, o),
-  metaOf: () => 'report not sent yet', action: 'send_report',
+  fetch: (D, u, o) => D.listUnsentReports(u, { ...o, includeAwaitingTap: true }),
+  // Test doubles may stub the service without the helper — fall back to the
+  // historical constant rather than throwing mid-screen.
+  metaOf: (s) => {
+    const D = _debriefService();
+    return typeof D.sendReportRowMeta === 'function' ? D.sendReportRowMeta(s) : 'report not sent yet';
+  },
+  action: 'send_report',
 });
 
 // bd-ej21x — one lookup the OBS_ACTION steps share: how to re-fetch a stage's
@@ -424,7 +433,7 @@ const workSendScreen = (userId, offset) => _stageScreen(userId, offset, {
 const _stageDefs = {
   work_form: { fetch: (D, u, o) => D.listUnfinished(u, o), action: 'resume', screen: workFormScreen },
   debriefs: { fetch: (D, u, o) => D.listPendingDebriefs(u, o), action: 'debrief', screen: debriefsScreen },
-  work_send: { fetch: (D, u, o) => D.listUnsentReports(u, o), action: 'send_report', screen: workSendScreen },
+  work_send: { fetch: (D, u, o) => D.listUnsentReports(u, { ...o, includeAwaitingTap: true }), action: 'send_report', screen: workSendScreen },
 };
 
 function _clampOptions(options, label, userId) {
