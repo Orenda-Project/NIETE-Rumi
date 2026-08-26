@@ -21,7 +21,7 @@ describe('call prompt — identity', () => {
   test('says NIETE and how it is pronounced', () => {
     const p = prompt();
     expect(p).toMatch(/NIETE/);
-    expect(p).toMatch(/Nee-yaat/i);
+    expect(p).toMatch(/Neeyat/i);
     expect(p).toMatch(/نیت/);
   });
 

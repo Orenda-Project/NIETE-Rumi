@@ -93,7 +93,7 @@ describe('C — truncation is silent, never narrated', () => {
 describe('D — she has a name and uses it', () => {
   test('the prompt states the name instead of asking her to supply one', () => {
     const p = buildCallPrompt({ language: 'ur' });
-    expect(p).toMatch(/NIETE Teaching Assistant/);
+    expect(p).toMatch(/Neeyat/);
     expect(p).not.toMatch(/your name,/i); // the phrasing that produced "my name is …"
   });
 });

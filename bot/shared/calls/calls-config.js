@@ -18,7 +18,9 @@
 const DEFAULTS = {
   model: 'gpt-realtime-2.1-mini',
   voice: 'marin',
-  vad: 'semantic_vad',
+  // server_vad @ 5ms silence — the snappier, more interruptible turn-taking the
+  // Noor tuning uses (override with CALLS_VAD / CALLS_VAD_SILENCE_MS).
+  vad: 'server_vad',
   maxConcurrent: 5,
   maxSeconds: 300,
   wrapUpSeconds: 270,
