@@ -25,6 +25,7 @@
 
 const pcm = require('./pcm');
 const PlayoutBuffer = require('./playout-buffer');
+const { ambienceReady, AmbienceMixer } = require('./ambience');
 
 const FRAME_MS = 10;
 const FRAME_SAMPLES_48K = (pcm.WHATSAPP_RATE * FRAME_MS) / 1000; // 480
@@ -69,11 +70,19 @@ class RtcPeer {
     this._playoutTimer = null;
     this._disconnectTimer = null;
     this._buffer = new PlayoutBuffer({ frameSamples: FRAME_SAMPLES_48K });
+    // Background ambience (office chatter always; typing during lookups). Shares
+    // read-only PCM loaded once at boot; null when ambience is off/unavailable.
+    this._ambience = ambienceReady() ? new AmbienceMixer() : null;
   }
 
   onCallerAudio(cb) { this._audioCb = cb; }
 
   onStateChange(cb) { this._stateCb = cb; }
+
+  /** Toggle the keyboard-typing ambience (on while she looks something up). */
+  setTyping(on) {
+    if (this._ambience) this._ambience.setTyping(on);
+  }
 
   /** Queue model audio (24 kHz) for playout, upsampled to the wire rate. */
   playAssistantAudio(pcm24k) {
@@ -142,6 +151,7 @@ class RtcPeer {
     this._playoutTimer = null;
     this._disconnectTimer = null;
     this._buffer.flush();
+    if (this._ambience) this._ambience.dispose();
     try { if (this._sink) this._sink.stop(); } catch (_) { /* best effort */ }
     try { if (this._pc) this._pc.close(); } catch (_) { /* best effort */ }
     this._sink = null;
@@ -178,6 +188,9 @@ class RtcPeer {
     this._playoutTimer = setInterval(() => {
       if (this._closed || !this._source) return;
       const frame = this._buffer.readFrame();
+      // Mix background ambience into EVERY frame (voice or silence) so the office
+      // hum is continuous under her voice.
+      if (this._ambience) this._ambience.mixInto(frame);
       this._source.onData({
         samples: frame,
         sampleRate: pcm.WHATSAPP_RATE,

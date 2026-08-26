@@ -37,9 +37,10 @@ tell her the time for today's call is up, that she can message you on WhatsApp
 any time and you will keep helping there. Do not start a new topic. Keep it to a
 sentence or two.`;
 
-const FALLBACK_INSTRUCTIONS = 'You are the NIETE Teaching Assistant, a warm and professional '
-  + 'female AI assistant for teachers. Speak Urdu unless the caller speaks English. '
-  + 'Be brief and helpful.';
+const FALLBACK_INSTRUCTIONS = 'You are Neeyat (نیت) — say your name as the Urdu word نیت '
+  + '("nee-yat"), which is also how NIETE is pronounced. You are a warm, friendly female AI '
+  + 'assistant for NIETE teachers. Speak Urdu unless the caller speaks English. Be brief, warm '
+  + 'and genuine — never perform cheerfulness.';
 
 class CallSession {
   constructor({
@@ -108,11 +109,17 @@ class CallSession {
         onAudio: (pcm24k) => {
           if (this._closed) return;
           this._lastActivityAt = Date.now(); // she is speaking = activity
+          this._setTyping(false); // she is answering — stop the typing sfx
           this._peer.playAssistantAudio(pcm24k);
+        },
+        onToolStart: () => {
+          if (this._closed) return;
+          this._setTyping(true); // she is looking something up
         },
         onBargeIn: () => {
           if (this._closed) return;
           this._peer.flushPlayout();
+          this._setTyping(false);
         },
         onTranscript: (role, text) => this._onTranscript(role, text),
         onResponseLatency: (ms) => {
@@ -164,6 +171,19 @@ class CallSession {
   }
 
   // ---------------------------------------------------------------- internals
+
+  /**
+   * Ambience is an OPTIONAL capability of the peer, not part of its contract.
+   * The peer is injectable (that is how this module is testable at all), so a
+   * peer without `setTyping` must not throw — and this is called from `onAudio`,
+   * the hottest path on the call, where a TypeError would kill her voice for the
+   * rest of the conversation.
+   */
+  _setTyping(on) {
+    try {
+      if (this._peer && typeof this._peer.setTyping === 'function') this._peer.setTyping(on);
+    } catch (_) { /* ambience must never break a call */ }
+  }
 
   _onTranscript(role, text) {
     const clean = (text || '').trim();

@@ -121,6 +121,20 @@ async function fetchMemory(waId) {
 }
 
 /**
+ * call_memory (write side, bd-neeyat): upsert the caller's rolling summary after
+ * a call. The read side (fetchMemory) already existed; nothing wrote it, so the
+ * "PREVIOUS CALLS WITH HER" block never filled. Keyed by caller_number.
+ */
+async function upsertMemory(waId, { summary, callCount }) {
+  const row = { caller_number: waId, summary, updated_at: new Date().toISOString() };
+  if (Number.isFinite(callCount)) row.call_count = callCount;
+  const { error } = await supabase
+    .from('call_memory')
+    .upsert(row, { onConflict: 'caller_number' });
+  if (error) throw new Error(`call_memory upsert failed: ${error.message}`);
+}
+
+/**
  * Observations this caller CONDUCTED (`coaching_sessions.observer_user_id`).
  *
  * Not every caller is the subject of an observation. Coaches, AEOs and school
@@ -167,6 +181,7 @@ module.exports = {
   fetchUpcomingVisit,
   fetchTraining,
   fetchMemory,
+  upsertMemory,
   fetchObservedSessions,
   FINISHED_COACHING_STATUSES,
 };
