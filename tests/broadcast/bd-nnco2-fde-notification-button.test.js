@@ -27,6 +27,17 @@ describe('bd-nnco2 — FDE notification button', () => {
     expect(head).toBe('%PDF-');
   });
 
+  it('the PDF is TRACKED BY GIT — a working-tree file is not a shipped file', () => {
+    // Caught live 2026-08-26: bot/.gitignore has `*.pdf`, so `git add -A`
+    // silently skipped the asset. The deploy carried the handler but not the
+    // file → ENOENT on the operator's very first tap. The working-tree check
+    // above passed the whole time; only the index can prove it ships.
+    const { execSync } = require('child_process');
+    const tracked = execSync('git ls-files bot/shared/assets/fde-notification-digital-coach.pdf',
+      { cwd: path.join(__dirname, '../..') }).toString().trim();
+    expect(tracked).toBe('bot/shared/assets/fde-notification-digital-coach.pdf');
+  });
+
   it('the template-button dispatch handles VIEW_FDE_NOTIFICATION and sends the document', () => {
     const s = src();
     expect(s).toContain("'VIEW_FDE_NOTIFICATION'");
