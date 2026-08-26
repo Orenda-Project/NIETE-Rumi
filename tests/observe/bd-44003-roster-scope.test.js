@@ -70,6 +70,34 @@ function serveLeaderSchools(rows) {
   });
 }
 
+/**
+ * Serves both register tables, so the teacher-overlap question can be driven.
+ * Filters on whatever `.eq()` the caller applied, which is how the guard reaches
+ * one ext id's rows.
+ */
+function serveRegister({ schools = [], teachers = [], teachersError = null } = {}) {
+  mockSupabase.from.mockImplementation((table) => {
+    const state = {};
+    const rows = table === 'leader_schools' ? schools
+      : table === 'leader_teachers' ? teachers
+        : [];
+    const q = {
+      select: jest.fn(() => q),
+      eq: jest.fn((col, val) => { state[col] = val; return q; }),
+      limit: jest.fn(() => q),
+      then: (resolve) => {
+        if (table === 'leader_teachers' && teachersError) {
+          return resolve({ data: null, error: teachersError });
+        }
+        let out = rows;
+        for (const [col, val] of Object.entries(state)) out = out.filter((r) => r[col] === val);
+        return resolve({ data: out, error: null });
+      },
+    };
+    return q;
+  });
+}
+
 beforeEach(() => { mockSupabase.from.mockReset(); });
 
 describe('canonicalSchoolName', () => {
@@ -134,13 +162,119 @@ describe('extIdIsAmbiguous (bot copy)', () => {
 });
 
 /**
+ * Disagreeing names are not enough to refuse.
+ *
+ * Production 2026-08-26, after the duplicate merge: exactly one ext id has
+ * holders who disagree, niete:427, held as 'IMSB (I-V), MAL' by one coach and
+ * 'IMSB (I-V), MALOT' by another. Both rosters are the SAME seven teachers. It
+ * is one school typed two ways, so refusing inheritance there costs a coach a
+ * manual re-entry and teaches them the guard is wrong.
+ *
+ * Teachers settle it. Two spellings that share a teacher are one school; two
+ * spellings with disjoint rosters are two schools sharing a number, which is the
+ * bug. No shared teacher and no evidence either way still refuses.
+ */
+describe('extIdIsAmbiguous: one school spelled two ways', () => {
+  const at427 = (leader, phone) => ({ school_ext_id: 'niete:427', leader_user_id: leader, teacher_phone_e164: phone });
+
+  it('is FALSE when the two spellings share their roster, the real niete:427 shape', async () => {
+    serveRegister({
+      schools: [
+        { school_ext_id: 'niete:427', school_name: 'IMSB (I-V), MAL', leader_user_id: 'coach-a' },
+        { school_ext_id: 'niete:427', school_name: 'IMSB (I-V), MALOT', leader_user_id: 'coach-b' },
+      ],
+      teachers: [at427('coach-a', 'p1'), at427('coach-a', 'p2'),
+        at427('coach-b', 'p1'), at427('coach-b', 'p2')],
+    });
+    await expect(admin.extIdIsAmbiguous('niete:427')).resolves.toBe(false);
+  });
+
+  it('is FALSE on a partial overlap: one shared teacher is one school', async () => {
+    serveRegister({
+      schools: [
+        { school_ext_id: 'niete:427', school_name: 'IMSB (I-V), MAL', leader_user_id: 'coach-a' },
+        { school_ext_id: 'niete:427', school_name: 'IMSB (I-V), MALOT', leader_user_id: 'coach-b' },
+      ],
+      teachers: [at427('coach-a', 'p1'), at427('coach-a', 'p2'), at427('coach-b', 'p2')],
+    });
+    await expect(admin.extIdIsAmbiguous('niete:427')).resolves.toBe(false);
+  });
+
+  it('stays TRUE when the two spellings share NO teacher, which is the niete:607 bug', async () => {
+    serveRegister({
+      schools: [
+        { school_ext_id: 'niete:607', school_name: 'IMSB (I-V) Sang Jani', leader_user_id: 'coach-a' },
+        { school_ext_id: 'niete:607', school_name: 'IMSB (VI-X) Shah Allah Ditta', leader_user_id: 'coach-b' },
+      ],
+      teachers: [at427('coach-a', 'p1'), at427('coach-b', 'p9')].map(
+        (r) => ({ ...r, school_ext_id: 'niete:607' }),
+      ),
+    });
+    await expect(admin.extIdIsAmbiguous('niete:607')).resolves.toBe(true);
+  });
+
+  it('stays TRUE when a spelling has no teachers: absence of evidence is not agreement', async () => {
+    serveRegister({
+      schools: [
+        { school_ext_id: 'niete:607', school_name: 'IMSB (I-V) Sang Jani', leader_user_id: 'coach-a' },
+        { school_ext_id: 'niete:607', school_name: 'IMSB (VI-X) Shah Allah Ditta', leader_user_id: 'coach-b' },
+      ],
+      teachers: [{ school_ext_id: 'niete:607', leader_user_id: 'coach-a', teacher_phone_e164: 'p1' }],
+    });
+    await expect(admin.extIdIsAmbiguous('niete:607')).resolves.toBe(true);
+  });
+
+  it('is TRUE when a third spelling is disjoint, even though two of them agree', async () => {
+    serveRegister({
+      schools: [
+        { school_ext_id: 'niete:427', school_name: 'IMSB (I-V), MAL', leader_user_id: 'coach-a' },
+        { school_ext_id: 'niete:427', school_name: 'IMSB (I-V), MALOT', leader_user_id: 'coach-b' },
+        { school_ext_id: 'niete:427', school_name: 'IMSG (VI-X) Somewhere Else', leader_user_id: 'coach-c' },
+      ],
+      teachers: [at427('coach-a', 'p1'), at427('coach-b', 'p1'), at427('coach-c', 'p9')],
+    });
+    await expect(admin.extIdIsAmbiguous('niete:427')).resolves.toBe(true);
+  });
+
+  it('fails CLOSED when the teacher lookup errors', async () => {
+    serveRegister({
+      schools: [
+        { school_ext_id: 'niete:427', school_name: 'IMSB (I-V), MAL', leader_user_id: 'coach-a' },
+        { school_ext_id: 'niete:427', school_name: 'IMSB (I-V), MALOT', leader_user_id: 'coach-b' },
+      ],
+      teachers: [at427('coach-a', 'p1'), at427('coach-b', 'p1')],
+      teachersError: { message: 'boom' },
+    });
+    await expect(admin.extIdIsAmbiguous('niete:427')).resolves.toBe(true);
+  });
+
+  it('does not go looking for teachers when the names already agree', async () => {
+    serveRegister({
+      schools: [
+        { school_ext_id: 'niete:722', school_name: 'IMSG(I-VIII) KH. DAK', leader_user_id: 'coach-a' },
+        { school_ext_id: 'niete:722', school_name: 'IMSG(I-VIII)  KH.  DAK', leader_user_id: 'coach-b' },
+      ],
+      teachers: [],
+      teachersError: { message: 'must not be reached' },
+    });
+    await expect(admin.extIdIsAmbiguous('niete:722')).resolves.toBe(false);
+  });
+});
+
+/**
  * The helper being correct is not the same as it being wired in. Deleting the
  * CALL from addSchoolForCoach while keeping the definition left every other test
  * in this file green, so this drives the whole function.
  */
 describe('addSchoolForCoach (bot copy) is actually gated', () => {
-  /** Full supabase double. `names` drives whether the ext id is ambiguous. */
-  function serveAll({ names, roster }) {
+  /**
+   * Full supabase double. `names` drives whether the spellings disagree, and
+   * `probeTeachers` (rows carrying leader_user_id) drives whether they overlap.
+   * Both leader_teachers selects mention teacher_phone_e164, so they are told
+   * apart by leader_user_id, which only the probe asks for. Default is no shared
+   * teachers, i.e. two genuinely different schools.
+   */
+  function serveAll({ names, roster, probeTeachers = [] }) {
     const inserted = { leader_schools: [], leader_teachers: [] };
     mockSupabase.from.mockImplementation((table) => {
       const st = { sel: null, cols: {} };
@@ -159,11 +293,16 @@ describe('addSchoolForCoach (bot copy) is actually gated', () => {
           if (table === 'leader_schools') {
             // the ambiguity probe selects school_name and filters on ext id only
             if (/school_name/.test(st.sel) && st.cols.leader_user_id === undefined) {
-              return resolve({ data: names.map((n) => ({ school_name: n })), error: null });
+              const rows = names.map((n, i) => ({ school_name: n, leader_user_id: `coach-${i}` }));
+              return resolve({ data: rows, error: null });
             }
             return resolve({ data: [], error: null });   // "is it already mine" -> no
           }
           if (table === 'leader_teachers') {
+            // the probe asks for leader_user_id; the roster read never does
+            if (/leader_user_id/.test(st.sel) && /teacher_phone_e164/.test(st.sel)) {
+              return resolve({ data: probeTeachers, error: null });
+            }
             if (/teacher_phone_e164/.test(st.sel)) return resolve({ data: roster, error: null });
             return resolve({ data: [], error: null, count: 0 });
           }
@@ -206,6 +345,39 @@ describe('addSchoolForCoach (bot copy) is actually gated', () => {
     await admin.addSchoolForCoach('leader-1', 'niete:607');
     expect(ins.leader_schools).toHaveLength(1);
   });
+
+  /**
+   * End to end for the niete:427 shape: the names disagree, the rosters are the
+   * same people, so it is one school and the coach SHOULD inherit. Without the
+   * overlap condition this returns 0 teachers and ambiguousExtId true.
+   */
+  it('maps the roster when the spellings disagree but the teachers are shared', async () => {
+    const ins = serveAll({
+      names: ['IMSB (I-V), MAL', 'IMSB (I-V), MALOT'],
+      roster: ROSTER,
+      probeTeachers: [
+        { leader_user_id: 'coach-0', teacher_phone_e164: '921' },
+        { leader_user_id: 'coach-1', teacher_phone_e164: '921' },
+      ],
+    });
+    const out = await admin.addSchoolForCoach('leader-1', 'niete:427');
+    expect(out.ambiguousExtId).toBe(false);
+    expect(ins.leader_teachers).toHaveLength(2);
+  });
+
+  it('still maps NOBODY when the spellings disagree and share no teacher', async () => {
+    const ins = serveAll({
+      names: ['IMSB (I-V) Sang Jani', 'IMSB (VI-X) Shah Allah Ditta'],
+      roster: ROSTER,
+      probeTeachers: [
+        { leader_user_id: 'coach-0', teacher_phone_e164: '921' },
+        { leader_user_id: 'coach-1', teacher_phone_e164: '999' },
+      ],
+    });
+    const out = await admin.addSchoolForCoach('leader-1', 'niete:607');
+    expect(out.ambiguousExtId).toBe(true);
+    expect(ins.leader_teachers).toHaveLength(0);
+  });
 });
 
 // ── dashboard copy ──────────────────────────────────────────────────────────
@@ -215,12 +387,12 @@ const { addSchool } = require('../../dashboard/services/leader-assignment.servic
  * Fake `query`. Dispatches on the SQL so the ambiguity probe can be driven
  * independently of the roster read.
  */
-function makeQuery({ ambiguousNames = 1, roster = [] } = {}) {
+function makeQuery({ disjointPairs = 0, roster = [] } = {}) {
   const writes = [];
   const q = jest.fn(async (sql) => {
-    // Match on the probe's own alias. ROSTER_SQL also carries a count(DISTINCT …)
-    // subquery as belt-and-braces, so matching on that would misroute it here.
-    if (/\bas\s+names\b/is.test(sql)) return { rows: [{ names: ambiguousNames }] };
+    // Match on the probe's own alias. ROSTER_SQL repeats the same test as a
+    // NOT EXISTS subquery, so matching on its body would misroute it here.
+    if (/\bas\s+disjoint_pairs\b/is.test(sql)) return { rows: [{ disjoint_pairs: disjointPairs }] };
     if (/distinct\s+on/is.test(sql) && /leader_teachers/is.test(sql)) return { rows: roster };
     if (/from\s+schools/is.test(sql)) {
       return { rows: [{ school_ext_id: 'niete:607', school_name: 'IMSB (VI-X) Shah Allah Ditta', emis: '607' }] };
@@ -242,28 +414,28 @@ describe('addSchool (dashboard copy)', () => {
   ];
 
   it('inherits the roster when the ext id is unambiguous', async () => {
-    const q = makeQuery({ ambiguousNames: 1, roster: ROSTER });
+    const q = makeQuery({ disjointPairs: 0, roster: ROSTER });
     const out = await addSchool(q, 'leader-1', 'niete:607');
     expect(out.teachersMapped).toBe(2);
     expect(q.writes.filter((s) => /insert\s+into\s+leader_teachers/is.test(s))).toHaveLength(2);
   });
 
   it('inherits NOTHING when the holders disagree on the school', async () => {
-    const q = makeQuery({ ambiguousNames: 2, roster: ROSTER });
+    const q = makeQuery({ disjointPairs: 1, roster: ROSTER });
     const out = await addSchool(q, 'leader-1', 'niete:607');
     expect(out.teachersMapped).toBe(0);
     expect(q.writes.filter((s) => /insert\s+into\s+leader_teachers/is.test(s))).toHaveLength(0);
   });
 
   it('says why, instead of looking like a school with no teachers', async () => {
-    const q = makeQuery({ ambiguousNames: 2, roster: ROSTER });
+    const q = makeQuery({ disjointPairs: 1, roster: ROSTER });
     const out = await addSchool(q, 'leader-1', 'niete:607');
     expect(out.ambiguousExtId).toBe(true);
     expect(String(out.warning)).toMatch(/more than one school|two schools|different school/i);
   });
 
   it('still adds the school itself, so the coach is not silently refused', async () => {
-    const q = makeQuery({ ambiguousNames: 2, roster: ROSTER });
+    const q = makeQuery({ disjointPairs: 1, roster: ROSTER });
     await addSchool(q, 'leader-1', 'niete:607');
     expect(q.writes.filter((s) => /insert\s+into\s+leader_schools/is.test(s))).toHaveLength(1);
   });
@@ -311,8 +483,20 @@ describe('both copies carry the rule', () => {
     expect(roster).not.toBeNull();
     const sql = roster[1];
     expect(sql).toMatch(/leader_schools/);
-    expect(sql).toMatch(/count\s*\(\s*DISTINCT/i);
-    expect(sql).toMatch(/<=\s*1/);
+    expect(sql).toMatch(/REGEXP_REPLACE/i);
+    expect(sql).toMatch(/NOT\s+EXISTS/i);
+    // and it must compare the spellings by teacher, not just count names
+    expect(sql).toMatch(/teacher_phone_e164/);
+  });
+
+  /**
+   * Both copies must ask the teacher question, not just the name question. The
+   * name-only version refuses niete:427, which is one school spelled two ways.
+   */
+  it.each(FILES)('%s decides on shared teachers, not names alone', (rel) => {
+    const code = codeOf(rel);
+    expect(code).toMatch(/teacher_phone_e164/);
+    expect(code).toMatch(/leader_teachers/);
   });
 
   /**
