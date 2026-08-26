@@ -625,6 +625,37 @@ async function _deliverCoachFeedback(sessionId, from, feedback, S, framework, la
 }
 
 /**
+ * bd-b5elb — the coach-feedback LLM pass, with ONE guided repair. A shape
+ * rejection from validateCoachFeedback used to dead-end the whole debrief
+ * (coach told "couldn't analyze it", no retry of the LLM call): 10 sessions
+ * since 20-Aug held a transcript and no feedback, three distinct validator
+ * errors in one morning (24-Aug). The repair feeds the validator's error back
+ * and asks for a corrected SAME-shape answer. The harm gate stays programmatic
+ * — a repair that still fails validation throws; there is no bypass and no
+ * manufactured praise.
+ */
+async function coachFeedbackWithRepair(prompt, sessionId) {
+  const { validateCoachFeedback } = require('./observe-coach-feedback');
+  const { result } = await GPT5MiniService.completeJson(prompt, {
+    maxTokens: 6000, label: 'observeCoachFeedback',
+  });
+  try {
+    validateCoachFeedback(result);
+    return result;
+  } catch (vErr) {
+    logToFile('⚠️ observe debrief: feedback failed validation — one guided repair', {
+      sessionId, error: vErr.message,
+    });
+    const repairPrompt = `${prompt}\n\nIMPORTANT — your previous answer was rejected by a strict validator with this error:\n"${vErr.message}"\nProduce the SAME JSON shape again, corrected so the validator passes. Stay faithful to the transcript; fix only what the error names. Remember the hard rules: a harmful debrief (teacher disparaged, or feedback aimed at the person not the moves) must have wins: [] , NO praise_line, and a filled concern {what_happened, why_it_matters, instead}; a non-harmful one needs a praise_line and exactly 2 wins, each with behaviour + evidence.`;
+    const { result: repaired } = await GPT5MiniService.completeJson(repairPrompt, {
+      maxTokens: 6000, label: 'observeCoachFeedbackRepair',
+    });
+    validateCoachFeedback(repaired);   // still strict — throws on a second miss
+    return repaired;
+  }
+}
+
+/**
  * bd-28 (worker side) — transcribe the debrief recording and coach the coach.
  * Success: praise line + 2-wins-1-try card, debrief_status → 'done', rubric
  * booleans persisted for the study. Any failure keeps status 'pending' (the
@@ -725,11 +756,7 @@ async function processDebriefRecording(sessionId, payload = {}) {
         diarization,
         language: lang,
       });
-      const { result } = await GPT5MiniService.completeJson(prompt, {
-        maxTokens: 6000, label: 'observeCoachFeedback',
-      });
-      validateCoachFeedback(result);
-      feedback = result;
+      feedback = await coachFeedbackWithRepair(prompt, sessionId);
     } catch (llmErr) {
       logToFile('⚠️ observe debrief: coach-feedback LLM failed/invalid', {
         sessionId, error: llmErr.message,
@@ -765,4 +792,5 @@ module.exports = {
   startDebrief,
   startDebriefFromAudio,
   processDebriefRecording,
+  coachFeedbackWithRepair,
 };
