@@ -4798,6 +4798,33 @@ COMMENT ON COLUMN lp_feedback.useful_component IS
   'Reserved: which half the teacher found more useful once voicenotes '
   'ship alongside the PDF. NULL for every after_pdf_only row.';
 
+-- ── schools: the five columns production grew out of band ───────────────────
+-- The table definition above declares six columns. Production carries eleven: emis,
+-- source_school_id, source_system, is_active and is_probable_test were added
+-- straight to the database and never written down here or in a migration.
+--
+-- So production works and anything built from this file does not. Staging has
+-- exactly the declared six, which is why the portal's leader school-add path
+-- fails there on its FIRST query -- 'niete:' || emis against schools, 42703
+-- column "emis" does not exist -- and why that whole feature has never had a
+-- pre-prod test route. A DR rebuild from this file would have reproduced the
+-- same break on production.
+--
+-- All five are declared, not just the two the code reads today. Leaving three
+-- undeclared keeps the drift alive for whoever hits it next.
+
+ALTER TABLE schools ADD COLUMN IF NOT EXISTS emis             TEXT;
+ALTER TABLE schools ADD COLUMN IF NOT EXISTS source_school_id BIGINT;
+ALTER TABLE schools ADD COLUMN IF NOT EXISTS source_system    TEXT;
+ALTER TABLE schools ADD COLUMN IF NOT EXISTS is_active        BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE schools ADD COLUMN IF NOT EXISTS is_probable_test BOOLEAN NOT NULL DEFAULT false;
+
+COMMENT ON COLUMN schools.emis IS
+  'Official EMIS number. The coach roster keys a school as ''niete:'' || emis, '
+  'so the portal school lookup cannot resolve anything without this column.';
+COMMENT ON COLUMN schools.is_active IS
+  'Soft delete. School search reads WHERE is_active IS NOT FALSE.';
+
 -- Reload PostgREST's schema cache last, so the reconciled columns + functions
 -- above are immediately visible to the REST API (the earlier NOTIFY predates these DDLs).
 NOTIFY pgrst, 'reload schema';
