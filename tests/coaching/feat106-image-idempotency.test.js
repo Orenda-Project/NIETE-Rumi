@@ -47,6 +47,9 @@ function load() {
       const chain = {
         select: () => chain,
         eq: (col, val) => { if (col === 'status') status = val; return chain; },
+        // bd-5azz0: the LP-as-image branch now matches the observer too via .or()
+        or: () => chain,
+        in: () => chain,
         order: () => chain,
         limit: () => chain,
         update: () => chain,
