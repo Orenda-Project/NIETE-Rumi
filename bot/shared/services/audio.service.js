@@ -277,7 +277,7 @@ class AudioService {
 
           if (tokens && tokens.length > 0 && tokens.some(t => t.speaker)) {
             // We have speaker diarization data - format transcript with speaker labels
-            const result = this._formatTranscriptWithSpeakers(tokens, speakerInfo);
+            const result = this._formatTranscriptWithSpeakers(tokens, speakerInfo, roles);
             formattedTranscript = result.transcript;
             diarizationData = result.diarization;
 
@@ -595,7 +595,9 @@ class AudioService {
    *
    * The unwrapped single attempt is `_transcribeOnce`.
    */
-  static async transcribe(audioPath, enableDiarization = false, language = null) {
+  // bd-ri5o9.2 — `roles` is the speaker vocabulary for diarization. Omitted
+  // means CLASSROOM (Teacher/Student), i.e. every existing caller is unchanged.
+  static async transcribe(audioPath, enableDiarization = false, language = null, roles = null) {
     const { hasDevanagari, countDevanagari, ensureNoDevanagari } = require('../utils/devanagari-guard');
 
     const result = await this._transcribeOnce(audioPath, enableDiarization, language);
@@ -947,7 +949,7 @@ class AudioService {
    * @returns {Object} { transcript: string, diarization: object }
    * @private
    */
-  static _formatTranscriptWithSpeakers(tokens, speakerInfo) {
+  static _formatTranscriptWithSpeakers(tokens, speakerInfo, roles) {
     if (!tokens || tokens.length === 0) {
       return { transcript: '', diarization: null };
     }
@@ -967,16 +969,17 @@ class AudioService {
       .sort((a, b) => b[1].wordCount - a[1].wordCount)
       .map(([id]) => id);
 
-    // Assign labels: first speaker (most words) = Teacher, rest = Students
-    const speakerLabels = {};
-    speakerLabels[sortedSpeakers[0]] = 'Teacher';
-    for (let i = 1; i < sortedSpeakers.length; i++) {
-      speakerLabels[sortedSpeakers[i]] = i === 1 ? 'Student' : `Student ${i}`;
-    }
+    // bd-ri5o9.2 — labels come from the shared role vocabulary. Unset `roles`
+    // means CLASSROOM, which is byte-identical to the behaviour this replaced
+    // (Teacher, Student, Student 2, …). Only the debrief path passes anything.
+    const { assignSpeakerLabels, CLASSROOM_ROLES } = require('./speaker-roles');
+    const activeRoles = roles || CLASSROOM_ROLES;
+    const speakerLabels = assignSpeakerLabels(speakerStats, activeRoles);
 
     logToFile('Speaker identification', {
       totalSpeakers: sortedSpeakers.length,
       speakerWordCounts: speakerStats,
+      roles: activeRoles.primary,
       labels: speakerLabels
     });
 

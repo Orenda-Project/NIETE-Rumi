@@ -719,7 +719,15 @@ async function processDebriefRecording(sessionId, payload = {}) {
       const audioData = await WhatsAppService.downloadMedia(audioId);
       fs.writeFileSync(tempAudioPath, audioData);
 
-      const transcription = await TranscriptionProcessorService.transcribeWithDiarization(tempAudioPath);
+      // bd-ri5o9.2 — a debrief is the COACH and the TEACHER, not a lesson. Without
+      // these roles the classroom schema applies and one of the two adults is
+      // announced as "Student" — and because the label follows word count, WHICH
+      // adult flips between sessions (80/20 across 520 production debriefs). Every
+      // downstream pass reads this transcript, so a report could quote the coach
+      // as the teacher (reported by a coach, 2026-08-25).
+      const { DEBRIEF_ROLES } = require('../speaker-roles');
+      const transcription = await TranscriptionProcessorService.transcribeWithDiarization(
+        tempAudioPath, { roles: DEBRIEF_ROLES });
       transcript = (transcription && transcription.transcript) || '';
       diarization = transcription && transcription.diarization;
 
