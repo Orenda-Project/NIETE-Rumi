@@ -5,6 +5,7 @@ const OpenAIService = require('../services/openai.service');
 const { injectLpContext } = require('../services/lp-context.service'); // bd-njn7u: LP Q&A awareness
 const { clampLanguage } = require('../config/ux-strings');
 const { verifyOutputLanguage } = require('../utils/output-language-check');
+const { resolveResponseLanguage } = require('../utils/resolve-response-language');
 const AudioService = require('../services/audio.service');
 const ContentService = require('../services/content.service');
 const FeatureRegistrationService = require('../services/feature-registration.service');
@@ -967,24 +968,27 @@ async function handleVoiceMessage(message, from, user = null) {
     // Get current language preference using user ID
     const currentUserLanguage = user ? await getUserLanguage(user.id) : 'en';
 
-    // BUG FIX: Check if user has locked their language preference
-    // If language_locked = true, use their preferred_language instead of GPT detection
-    // This prevents auto-detection from overriding explicit user choice
-    if (user && user.language_locked === true) {
-      logToFile('Language preference is LOCKED - using user preference over GPT detection', {
-        gptDetected: detectedLanguage,
-        userPreference: user.preferred_language,
-        using: user.preferred_language
-      });
-      detectedLanguage = user.preferred_language || currentUserLanguage;
-    } else {
-      // Auto-detect mode: GPT detection is used (detectedLanguage already set above)
-      logToFile('Language preference is UNLOCKED - using GPT detection', {
-        gptDetected: detectedLanguage,
-        userPreference: user?.preferred_language,
-        using: detectedLanguage
-      });
-    }
+    // Same resolver as the text path, so the two cannot diverge again. Voice
+    // detection (Soniox + getConfirmedLanguage) is better than the text
+    // script-counter, but it shares the same failure mode: a transcript that
+    // comes back Latin-ish resolves to 'en' and would drag a teacher off a
+    // stored 'ur'. Only unambiguous evidence may override her preference.
+    const resolvedVoice = resolveResponseLanguage({
+      user,
+      stored: currentUserLanguage,
+      detected: detectedLanguage,
+    });
+    logToFile('🈯 response language resolved (voice)', {
+      using: resolvedVoice.language,
+      source: resolvedVoice.source,
+      autoAdapted: resolvedVoice.autoAdapted,
+      storedPreference: currentUserLanguage,
+      gptDetected: detectedLanguage,
+      locked: user?.language_locked === true,
+      reason: resolvedVoice.reason,
+      userId: user?.id,
+    });
+    detectedLanguage = resolvedVoice.language;
 
     // Clamp ONCE, here, after both branches.
     //

@@ -1,5 +1,6 @@
 const WhatsAppService = require('../services/whatsapp.service');
 const { verifyOutputLanguage } = require('../utils/output-language-check');
+const { resolveResponseLanguage } = require('../utils/resolve-response-language');
 const OpenAIService = require('../services/openai.service');
 const ContentService = require('../services/content.service');
 const LanguageDetectorService = require('../services/language-detector.service');
@@ -1352,33 +1353,30 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // If no explicit switch, detect language from content and use it for response
   const detectedLanguage = LanguageDetectorService.detectLanguage(messageBody);
 
-  // BUG FIX: Check if user has locked their language preference
-  // If language_locked = true, use their preferred_language instead of auto-detection
-  // This prevents auto-detection from overriding explicit user choice via /language command
-  if (user && user.language_locked === true) {
-    // Language is locked - use user's explicit preference
-    responseLanguage = user.preferred_language || currentLanguage;
+  // One resolver for text AND voice, so the two cannot diverge again. It only
+  // overrides a stored preference on UNAMBIGUOUS script evidence: Perso-Arabic
+  // means Urdu, but Latin script does NOT mean English here — Roman Urdu is
+  // Latin-script Urdu. The old `detectedLanguage !== currentLanguage` branch
+  // treated it as English and overrode the stored 'ur' on every Roman-Urdu
+  // message, which is what produced 94% of prod `language_drift`
+  // (expected en -> detected ur) after the en->ur default migration.
+  const resolved = resolveResponseLanguage({
+    user,
+    stored: currentLanguage,
+    detected: detectedLanguage,
+  });
+  responseLanguage = resolved.language;
+  logToFile('🈯 response language resolved', {
+    using: resolved.language,
+    source: resolved.source,
+    autoAdapted: resolved.autoAdapted,
+    storedPreference: currentLanguage,
+    detectedLanguage,
+    locked: user?.language_locked === true,
+    reason: resolved.reason,
+    userId: user?.id,
+  });
 
-    logToFile('Language preference is LOCKED - using user preference over auto-detection', {
-      detectedLanguage: detectedLanguage,
-      userPreference: user.preferred_language,
-      using: responseLanguage
-    });
-  } else if (detectedLanguage && detectedLanguage !== currentLanguage) {
-    // Auto-detect mode: Use detected language for this response (temporary override, doesn't update stored preference)
-    responseLanguage = detectedLanguage;
-
-    logToFile('🔄 Auto-adapting response language based on message content (UNLOCKED)', {
-      storedPreference: currentLanguage,
-      detectedLanguage: detectedLanguage,
-      usingForResponse: responseLanguage
-    });
-  } else {
-    logToFile('Language detected from text content (UNLOCKED)', {
-      detected: detectedLanguage,
-      using: responseLanguage
-    });
-  }
 
   // Store user message in database with session
   if (user && sessionId) {

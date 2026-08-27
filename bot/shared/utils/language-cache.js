@@ -42,7 +42,9 @@ const VALID_LANGUAGES = [...CANONICAL];
  * offerDefaultLanguage() (Urdu — what a teacher is offered first). An Urdu floor
  * would be the same silent-wrong-language error in the other direction.
  */
-const DEFAULT_LANGUAGE = 'en';
+// Single definition lives in the dependency-free config module; re-exported
+// below so existing importers of this file keep working.
+const { DEFAULT_LANGUAGE } = require('../config/languages');
 const CACHE_TTL = 86400; // 24 hours
 
 /**
