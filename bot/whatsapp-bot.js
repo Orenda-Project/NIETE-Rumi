@@ -826,13 +826,6 @@ app.post('/webhook', async (req, res) => {
           .select('conversation_state, user_id')
           .eq('id', sessionId)
           .maybeSingle();
-        await supabase
-          .from('coaching_sessions')
-          .update({
-            conversation_state: { ...(noSession?.conversation_state || {}), current_state: 'AWAITING_LESSON_PLAN' },
-            status: 'awaiting_lesson_plan'
-          })
-          .eq('id', sessionId);
 
         // Send the same LP prompt the OECD/HOTS pre-photo-prompt flow used.
         // Language = the TAPPER's preference (teacher flow: the teacher; observe: the coach).
@@ -845,7 +838,22 @@ app.post('/webhook', async (req, res) => {
           .maybeSingle();
         const lang = userRow?.preferred_language || 'en';
         const lpPrompt = buildLPSelectionList(sessionId, await __recentFidelityLps(noSession?.user_id || user.id), lang, userRow?.region);
-        await __sendLpPrompt(WhatsAppService, from, lpPrompt);
+        // bd-zrlcp — send FIRST, commit only if the prompt actually went out.
+        // sendInteractiveMessage returns false (it does not throw) when it refuses
+        // a payload, so committing first parked sessions at a step the user was
+        // never shown, with no sweeper to recover them.
+        const lpSent = await __sendLpPrompt(WhatsAppService, from, lpPrompt);
+        if (lpSent) {
+          await supabase
+            .from('coaching_sessions')
+            .update({
+              conversation_state: { ...(noSession?.conversation_state || {}), current_state: 'AWAITING_LESSON_PLAN' },
+              status: 'awaiting_lesson_plan'
+            })
+            .eq('id', sessionId);
+        } else {
+          logToFile('⚠️ LP prompt could not be delivered — session left in place', { sessionId, from });
+        }
       } else if (buttonId.startsWith('photo_yes_')) {
         const sessionId = buttonId.replace('photo_yes_', '');
         logToFile('📸 User will send classroom photo', { sessionId, from });
@@ -896,13 +904,6 @@ app.post('/webhook', async (req, res) => {
           .select('conversation_state, user_id')
           .eq('id', sessionId)
           .maybeSingle();
-        await supabase
-          .from('coaching_sessions')
-          .update({
-            conversation_state: { ...(doneSession?.conversation_state || {}), current_state: 'AWAITING_LESSON_PLAN' },
-            status: 'awaiting_lesson_plan'
-          })
-          .eq('id', sessionId);
 
         const { buildLPSelectionList } = require('./shared/services/coaching/lp-coaching/lp-selection-list.service');
         const { data: userRow } = await supabase
@@ -912,7 +913,22 @@ app.post('/webhook', async (req, res) => {
           .maybeSingle();
         const lang = userRow?.preferred_language || 'en';
         const lpPrompt = buildLPSelectionList(sessionId, await __recentFidelityLps(doneSession?.user_id || user.id), lang, userRow?.region);
-        await __sendLpPrompt(WhatsAppService, from, lpPrompt);
+        // bd-zrlcp — send FIRST, commit only if the prompt actually went out.
+        // sendInteractiveMessage returns false (it does not throw) when it refuses
+        // a payload, so committing first parked sessions at a step the user was
+        // never shown, with no sweeper to recover them.
+        const lpSent = await __sendLpPrompt(WhatsAppService, from, lpPrompt);
+        if (lpSent) {
+          await supabase
+            .from('coaching_sessions')
+            .update({
+              conversation_state: { ...(doneSession?.conversation_state || {}), current_state: 'AWAITING_LESSON_PLAN' },
+              status: 'awaiting_lesson_plan'
+            })
+            .eq('id', sessionId);
+        } else {
+          logToFile('⚠️ LP prompt could not be delivered — session left in place', { sessionId, from });
+        }
       }
       // bd-u35ex: "Add another" — keep collecting; the image handler (Phase 3) picks
       // up the next photo. Session stays at awaiting_classroom_photo.

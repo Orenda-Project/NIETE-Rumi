@@ -13,7 +13,10 @@
 async function getRecentFidelityLps(userId, opts = {}) {
   const sb = opts.client || require('../../../config/supabase');
   const lessonById = opts.lessonById || require('../../lp-v8-catalog.service').lessonById;
-  const limit = opts.limit || 15;
+  // bd-zrlcp — matches the LP-selection list's row budget (8 = WhatsApp's
+  // 10-row list cap minus the 2 Options rows). Fetching more than the surface
+  // can render only wastes catalogue lookups.
+  const limit = opts.limit || 8;
 
   const { data, error } = await sb
     .from('niete_lp_downloads')
