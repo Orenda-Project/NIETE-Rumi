@@ -35,6 +35,23 @@
 const LANGUAGE_OFFER = ['ur', 'en'];
 
 /**
+ * The EMERGENCY FLOOR: what we answer in when nothing about the teacher can be
+ * determined at all — no row, a failed read, no usable detection.
+ *
+ * Deliberately NOT `offerDefaultLanguage()`. That one is Urdu, because ICT
+ * teaching is predominantly Urdu-medium and Urdu is what a teacher is offered
+ * first. This one is English, because on a total failure we would rather be
+ * legible than confidently wrong. Conflating the two shipped a silent no-op fix
+ * once already.
+ *
+ * It lives HERE, in the dependency-free config module, rather than in
+ * language-cache.js, so that code needing only the constant does not transitively
+ * require Redis, Supabase and pino. language-cache re-exports it, so every
+ * existing import keeps working and there is still exactly one definition.
+ */
+const DEFAULT_LANGUAGE = 'en';
+
+/**
  * Everything a language implies, in one place. A surface that needs the font,
  * the voice or the template code reads it from here rather than keeping its own
  * map — that duplication is what let the report render Urdu in the wrong script
@@ -141,6 +158,7 @@ module.exports = {
   LANGUAGE_OFFER,
   SUPPORTED_LANGUAGES,
   offerDefaultLanguage,
+  DEFAULT_LANGUAGE,
   isOffered,
   getOfferedLanguages,
   getLanguage,
