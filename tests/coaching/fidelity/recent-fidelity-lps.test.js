@@ -54,10 +54,20 @@ describe('recent-fidelity-lps', () => {
     expect(sb.calls.eq.status).toBe('sent');
   });
 
-  test('caps the list (default 15)', async () => {
+  // bd-zrlcp — the default dropped from 15 to 8 to match what the LP-selection
+  // list can actually render: WhatsApp caps an interactive list at 10 rows and
+  // the Options section always takes 2. At 15 the prompt was silently refused by
+  // our own send helper and the session stranded at awaiting_lesson_plan.
+  test('caps the list at the LP-selection row budget (default 8)', async () => {
     const many = Array.from({ length: 25 }, (_, i) => dl(`grade_5_urdu_ch1_seg${i}`));
     const out = await getRecentFidelityLps('u1', { client: mockSb({ data: many, error: null }), lessonById: () => null });
-    expect(out.length).toBe(15);
+    expect(out.length).toBe(8);
+  });
+
+  test('an explicit limit still wins over the default', async () => {
+    const many = Array.from({ length: 25 }, (_, i) => dl(`grade_5_urdu_ch1_seg${i}`));
+    const out = await getRecentFidelityLps('u1', { client: mockSb({ data: many, error: null }), lessonById: () => null, limit: 3 });
+    expect(out.length).toBe(3);
   });
 
   test('a lesson missing from the catalog still appears (structural fields from the download row)', async () => {
