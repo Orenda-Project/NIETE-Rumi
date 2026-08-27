@@ -10,6 +10,17 @@
 
 const { logToFile } = require('../../../utils/logger');
 
+// bd-zrlcp — WhatsApp accepts at most 10 rows TOTAL across all sections of an
+// interactive list. whatsapp.service.js enforces that itself: over the cap it
+// logs a warning and returns FALSE without ever contacting Meta, so the prompt
+// simply vanishes. The Options section always contributes 2 rows, which leaves
+// 8 for recent lesson plans. Exceeding it does not truncate — it drops the whole
+// message, and the caller had already moved the session to awaiting_lesson_plan,
+// stranding it there (20 sessions on the morning of 2026-08-27).
+const WHATSAPP_MAX_LIST_ROWS = 10;
+const OPTION_ROWS = 2;
+const MAX_LP_ROWS = WHATSAPP_MAX_LIST_ROWS - OPTION_ROWS;
+
 /**
  * Truncate a string to maxLen, appending '...' if truncated.
  */
@@ -37,25 +48,31 @@ function buildLPSelectionList(coachingSessionId, recentLPs, language = 'en', reg
   // and this menu is teacher-facing DC UI. Param kept for call-site stability.
   void region;
 
+  // The 2-row Yes/No prompt. It is what a teacher with no recent LPs is sent, AND
+  // the fallback carried on every list payload — 2 rows always fit, so it is the
+  // one prompt that can never be refused. Built once so the two cannot drift.
+  const yesNoPrompt = {
+    type: 'buttons',
+    body: isUrdu
+      ? 'کیا آپ کے پاس اس کلاس کا سبق کا منصوبہ ہے؟'
+      : 'Do you have a lesson plan for this class?',
+    buttons: [
+      { id: `lessonplan_yes_${coachingSessionId}`, title: isUrdu ? 'ہاں' : 'Yes' },
+      { id: `lessonplan_no_${coachingSessionId}`, title: isUrdu ? 'نہیں' : 'No' },
+    ],
+  };
+
   // Fallback: no recent LPs → simple Yes/No buttons
   if (!recentLPs || recentLPs.length === 0) {
-    return {
-      type: 'buttons',
-      body: isUrdu
-        ? 'کیا آپ کے پاس اس کلاس کا سبق کا منصوبہ ہے؟'
-        : 'Do you have a lesson plan for this class?',
-      buttons: [
-        { id: `lessonplan_yes_${coachingSessionId}`, title: isUrdu ? 'ہاں' : 'Yes' },
-        { id: `lessonplan_no_${coachingSessionId}`, title: isUrdu ? 'نہیں' : 'No' },
-      ],
-    };
+    return yesNoPrompt;
   }
 
   // Build interactive list rows from recent LPs. The label mirrors the delivery caption a teacher
   // saw when she GENERATED the LP — topic headline + "Grade · Ch·Day · pages · recency" (D25, Option A)
   // — so a heavy generator recognises her own plan. formatLpRow enforces code-point caps (Urdu-safe).
   const { formatLpRow } = require('./lp-selection-format');
-  const lpRows = recentLPs.map((lp) => {
+  // Only the 8 most recent fit alongside the 2 option rows (bd-zrlcp).
+  const lpRows = recentLPs.slice(0, MAX_LP_ROWS).map((lp) => {
     const f = formatLpRow(lp);
     return {
       id: `lp_select_${lp.id}_${coachingSessionId}`,
@@ -111,10 +128,13 @@ function buildLPSelectionList(coachingSessionId, recentLPs, language = 'en', reg
   logToFile('LP selection list built', {
     coachingSessionId,
     lpCount: recentLPs.length,
+    shown: lpRows.length,
     language,
   });
 
-  return { type: 'list', listData };
+  // `fallback` travels with the list so sendLpPrompt can recover without needing
+  // the session id or language again (bd-zrlcp).
+  return { type: 'list', listData, fallback: yesNoPrompt };
 }
 
 module.exports = { buildLPSelectionList };

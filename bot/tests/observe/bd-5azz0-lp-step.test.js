@@ -113,3 +113,34 @@ describe('bd-5azz0 · advanceToLessonPlanStep (behavior)', () => {
     expect(sent.length).toBe(1);   // the LP prompt (buttons — no recents in this mock)
   });
 });
+
+/**
+ * bd-zrlcp — the step used to be committed before the prompt was sent, so a
+ * refused payload (WhatsApp caps an interactive list at 10 rows; our send helper
+ * returns false rather than throwing) left the session parked at
+ * awaiting_lesson_plan with nothing delivered and no sweeper to recover it.
+ */
+describe('bd-zrlcp — advanceToLessonPlanStep commits only after the prompt lands', () => {
+  const SRC = require('fs').readFileSync(
+    require('path').join(__dirname, '../../shared/services/coaching/lp-coaching/lp-step.service.js'),
+    'utf8'
+  );
+
+  it('sends the prompt BEFORE writing status awaiting_lesson_plan', () => {
+    const send = SRC.indexOf('await sendLpPrompt(');
+    const commit = SRC.indexOf("status: 'awaiting_lesson_plan'");
+    expect(send).toBeGreaterThan(-1);
+    expect(commit).toBeGreaterThan(-1);
+    expect(send).toBeLessThan(commit);
+  });
+
+  it('returns early without committing when the prompt could not be delivered', () => {
+    expect(SRC).toMatch(/const\s+sent\s*=\s*await\s+sendLpPrompt\(/);
+    expect(SRC).toMatch(/if\s*\(\s*!sent\s*\)\s*\{[\s\S]{0,220}return\s+false;/);
+  });
+
+  it('still reports success on the happy path', () => {
+    expect(SRC).toMatch(/return true;/);
+  });
+});
+

@@ -47,3 +47,54 @@ describe('sendLpPrompt routing (bd-lqpog)', () => {
     await expect(w.sendInteractiveButtons('92300', listPayload)).rejects.toThrow();
   });
 });
+
+describe('bd-zrlcp · a refused list must fall back, never vanish', () => {
+  // sendInteractiveMessage returns FALSE (it does not throw) when it refuses a
+  // payload — over the 10-row cap, no sections, or a transport failure. Ignoring
+  // that return is what stranded 20 sessions on 2026-08-27: the caller had
+  // already moved the session to awaiting_lesson_plan and the teacher saw nothing.
+  function refusingSvc() {
+    const calls = { list: [], buttons: [] };
+    return {
+      calls,
+      sendInteractiveMessage: async (to, listData) => { calls.list.push({ to, listData }); return false; },
+      sendInteractiveButtons: async (to, options) => { calls.buttons.push({ to, options }); return true; },
+    };
+  }
+
+  const fallback = {
+    type: 'buttons',
+    body: 'Do you have a lesson plan for this class?',
+    buttons: [{ id: 'lessonplan_yes_s1', title: 'Yes' }, { id: 'lessonplan_no_s1', title: 'No' }],
+  };
+  const listPayload = () => ({
+    type: 'list',
+    listData: { body: { text: 'b' }, action: { button: 'pick', sections: [{ title: 'x', rows: [] }] } },
+    fallback,
+  });
+
+  test('when the list is refused, the 2-row Yes/No prompt is sent instead', async () => {
+    const w = refusingSvc();
+    await expect(sendLpPrompt(w, '92300', listPayload())).resolves.toBe(true);
+    expect(w.calls.list).toHaveLength(1);
+    expect(w.calls.buttons).toHaveLength(1);
+    expect(w.calls.buttons[0].options).toEqual(fallback);
+  });
+
+  test('when the list IS delivered, no fallback is sent', async () => {
+    const calls = { list: [], buttons: [] };
+    const w = {
+      sendInteractiveMessage: async (to, listData) => { calls.list.push({ to, listData }); return true; },
+      sendInteractiveButtons: async (to, options) => { calls.buttons.push({ to, options }); return true; },
+    };
+    await expect(sendLpPrompt(w, '92300', listPayload())).resolves.toBe(true);
+    expect(calls.buttons).toHaveLength(0);
+  });
+
+  test('a refusal with no fallback available reports failure rather than claiming success', async () => {
+    const w = refusingSvc();
+    const noFallback = listPayload();
+    delete noFallback.fallback;
+    await expect(sendLpPrompt(w, '92300', noFallback)).resolves.toBe(false);
+  });
+});
