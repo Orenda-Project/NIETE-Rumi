@@ -152,7 +152,16 @@ function buildHeroReportHtml(vm) {
   // which Chromium then renders as visible literal "&amp;". Preserving entities
   // as opaque segments keeps them intact through the RTL wrap pass.
   const wrapLatin = (html) => !RTL ? html : html.split(/(<[^>]+>|&(?:#\d+|#x[0-9a-fA-F]+|[a-zA-Z]+);)/).map((seg) => seg.startsWith('<') || seg.startsWith('&') ? seg
-    : seg.replace(/[A-Za-z][A-Za-z'’.\-]*(?:[\s\-][A-Za-z'’.\-]+)*/g, (m) => `<span class="ltr">${m}</span>`)).join('');
+    // bd-d26qh: the run must include DIGITS, not just letters. "3 plus 7 makes 10"
+    // was matching as two letter-only runs, leaving the numerals as separate bidi
+    // runs; under the inherited RTL base direction the UBA then repainted the whole
+    // phrase as "10 makes 7 plus 3". Matching the contiguous letter+digit run and
+    // isolating it as ONE span is what keeps it in reading order.
+    // The `/[A-Za-z]/` gate is load-bearing: a run with NO Latin letter (a bare
+    // score "31", "75", a marks fraction) is returned untouched, so numeric chrome
+    // renders exactly as it does today.
+    : seg.replace(/[A-Za-z0-9][A-Za-z0-9'’.\-]*(?:[\s\-][A-Za-z0-9'’.\-]+)*/g,
+      (m) => (/[A-Za-z]/.test(m) ? `<span class="ltr">${m}</span>` : m))).join('');
   const T = (s) => wrapLatin(esc(s));
 
   const n = vm.narrative || {};
@@ -181,7 +190,18 @@ function buildHeroReportHtml(vm) {
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:${P.pageBg}}
   .report{width:794px;background:#fff;font-family:${bodyFam};color:${P.text}}
-  .ltr{font-family:'Lexend',sans-serif;font-weight:600}
+  /* bd-d26qh: BOTH properties are required. direction:ltr is inert on an inline
+     box unless unicode-bidi opens a level, and without direction:ltr the run
+     inherits rtl from the rtl document root and reorders internally.
+
+     It must be embed, NOT isolate. Verified by rendering the real report:
+     isolate swaps the run out for a neutral object in the OUTER algorithm, so any
+     line carrying several sibling .ltr spans (the scores eyebrow, the journey
+     label, the footer sign-off) had the SPANS reordered right-to-left by the RTL
+     parent - a regression caught on the first render pass. embed keeps the run
+     strong-L to the outside so sibling spans still coalesce into one L run, while
+     still forcing the run's own content LTR. */
+  .ltr{font-family:'Lexend',sans-serif;font-weight:600;unicode-bidi:embed;direction:ltr}
   /* hero grows with the affirmation (2-4 lines) — never clipped */
   .hero{position:relative;min-height:210px;overflow:hidden;background:${P.deep};padding:26px 42px 30px}
   .hero>.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.4}
