@@ -15,6 +15,8 @@ const ReadingAssessmentService = require('./shared/services/reading-assessment.s
 
 // Import Handlers
 const { handleTextMessage, isSelectVideoButton } = require('./shared/handlers/text-message.handler');
+// bd-ri5o9.1 — the report-invite template's QUICK_REPLY had no reader at all.
+const { matchObserveReportTap, isObserveReportTapText } = require('./shared/services/observe/report-tap-routing');
 const { handleVoiceMessage } = require('./shared/handlers/voice-message.handler');
 const { handleImageMessage } = require('./shared/handlers/image-message.handler');
 
@@ -1465,6 +1467,28 @@ app.post('/webhook', async (req, res) => {
       else if (isSelectVideoButton({ buttonPayload, buttonText })) {
         await openStudentVideosFlowFromCta(message, from, user);
       }
+      // bd-ri5o9.1 — the teacher tapped "Get Report" on the report-invite
+      // template. MUST stay above the bd-kggts fallthrough: below it this branch
+      // is unreachable, which is exactly the bug. The payload carries the session,
+      // and the worker's 'teacher_tap' phase re-checks that `from` is the number
+      // the coach named before it delivers anything.
+      else if (matchObserveReportTap({ payload: buttonPayload, text: buttonText })) {
+        const sessionId = matchObserveReportTap({ payload: buttonPayload, text: buttonText });
+        logToFile('📨 observe report tap received', {
+          event: 'observe.report.tap_received', sessionId, from, userId: user?.id || null,
+        });
+        const CoachingJobQueueService = require('./shared/services/coaching/coaching-job-queue.service');
+        await CoachingJobQueueService.queueObserveTeacherReport(sessionId, { from, phase: 'teacher_tap' });
+      }
+      // …the same button with the payload stripped by Meta (bd-2482 class). The
+      // label proves intent but never WHICH report, so we must not guess a
+      // session — tell the teacher we are on it and leave a countable event.
+      else if (isObserveReportTapText(buttonText)) {
+        logToFile('📨 observe report tap — text only, no session payload', {
+          event: 'observe.report.tap_no_payload', buttonText, from, userId: user?.id || null,
+        });
+        await handleTextMessage(message, from, String(buttonText).trim(), user);
+      }
       // FALLTHROUGH (bd-kggts). A QUICK_REPLY is the teacher saying that phrase —
       // so route its text through the normal text path instead of dead-ending.
       //
@@ -1477,6 +1501,15 @@ app.post('/webhook', async (req, res) => {
       // (already learned on bd-2482), so the visible label is the reliable signal.
       else {
         const asText = String(buttonText || buttonPayload || '').trim();
+        // bd-ri5o9.1 — this fallthrough is deliberately silent about intent, so a
+        // payload nobody routes becomes an ordinary chat message with no error
+        // anywhere. That is how the whole report-tap path stayed dead for a month.
+        // Emit a countable event so the NEXT unrouted payload is visible on day one.
+        if (buttonPayload) {
+          logToFile('⚠️ Template button payload matched no branch — routed as text', {
+            event: 'observe.report.tap_unrouted', buttonPayload, buttonText, from,
+          });
+        }
         if (asText) {
           logToFile('↩️ Template button → text handler', { asText, buttonPayload, from });
           await handleTextMessage(message, from, asText, user);
