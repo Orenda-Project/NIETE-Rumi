@@ -402,9 +402,18 @@ class TranscriptionProcessorService {
     return { action: 'photo_gate', observerLanguage };
   }
 
-  static async transcribeWithDiarization(audioPath) {
+  /**
+   * @param {string} audioPath
+   * @param {{roles?: object}} [opts] bd-ri5o9.2 — the speaker vocabulary.
+   *   OMITTED means CLASSROOM (Teacher/Student), so the lesson path is unchanged.
+   *   The debrief caller passes DEBRIEF_ROLES because a debrief is two adults —
+   *   coach and teacher — and labelling one of them "Student" made every
+   *   downstream pass misattribute who said what.
+   */
+  static async transcribeWithDiarization(audioPath, opts = {}) {
+    const roles = (opts && opts.roles) || null;
     // Enable diarization for classroom audio transcription
-    const transcriptionResult = await AudioService.transcribe(audioPath, true);
+    const transcriptionResult = await AudioService.transcribe(audioPath, true, null, roles);
 
     // Extract tokens from Soniox response (may be empty for Whisper fallback)
     const tokens = transcriptionResult.tokens || [];
@@ -419,10 +428,17 @@ class TranscriptionProcessorService {
         speakerCount: diarization.speakers.length
       });
     } else {
-      // Fallback for Whisper (no token-level data)
+      // Fallback for Whisper (no token-level data).
+      // bd-ri5o9.2 — this is the SECOND place a lesson label was hardcoded. A fix
+      // applied only to _formatTranscriptWithSpeakers leaves a debrief that fell
+      // back to Whisper still calling its single speaker "Teacher".
+      const { CLASSROOM_ROLES } = require('../speaker-roles');
+      const fallbackLabel = roles
+        ? `${roles.neutral || 'Speaker'} 1`   // a debrief: we cannot tell who this is
+        : CLASSROOM_ROLES.primary;             // a lesson: one voice is the teacher
       diarization = {
         speakers: [
-          { id: 'speaker_0', label: 'Teacher', tokenCount: 0, segments: [] }
+          { id: 'speaker_0', label: fallbackLabel, tokenCount: 0, segments: [] }
         ],
         segments: [],
         totalSegments: 0,
