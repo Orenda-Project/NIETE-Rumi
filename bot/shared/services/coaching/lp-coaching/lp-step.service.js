@@ -41,7 +41,9 @@ async function _recentLpsFor(ownerUserId) {
  * text re-prompt path does exactly that).
  *
  * @param {{ sessionId: string, from: string, tapperUserId: string }} args
- * @returns {Promise<boolean>} true when the prompt went out
+ * @returns {Promise<boolean>} true when the prompt went out AND the session was
+ *   moved to the lesson-plan step; false when the prompt could not be delivered
+ *   (the session is deliberately left where it was).
  */
 async function advanceToLessonPlanStep({ sessionId, from, tapperUserId }) {
   const WhatsAppService = require('../../whatsapp.service');
@@ -54,6 +56,27 @@ async function advanceToLessonPlanStep({ sessionId, from, tapperUserId }) {
     .eq('id', sessionId)
     .maybeSingle();
 
+  const { data: userRow } = await supabase
+    .from('users')
+    .select('preferred_language, region')
+    .eq('id', tapperUserId)
+    .maybeSingle();
+  const lang = (userRow && userRow.preferred_language) || 'en';
+
+  const recents = await _recentLpsFor((session && session.user_id) || tapperUserId);
+  const lpPrompt = buildLPSelectionList(sessionId, recents, lang, userRow && userRow.region);
+
+  // bd-zrlcp — send FIRST, commit only if the prompt actually went out.
+  // sendLpPrompt returns false when the payload was refused (WhatsApp caps an
+  // interactive list at 10 rows and our send helper returns false rather than
+  // throwing). Committing first parked sessions at a step the user was never
+  // shown, and nothing sweeps that status.
+  const sent = await sendLpPrompt(WhatsAppService, from, lpPrompt);
+  if (!sent) {
+    logToFile('⚠️ LP prompt could not be delivered — session left in place', { sessionId, tapperUserId });
+    return false;
+  }
+
   await supabase
     .from('coaching_sessions')
     .update({
@@ -65,16 +88,6 @@ async function advanceToLessonPlanStep({ sessionId, from, tapperUserId }) {
     })
     .eq('id', sessionId);
 
-  const { data: userRow } = await supabase
-    .from('users')
-    .select('preferred_language, region')
-    .eq('id', tapperUserId)
-    .maybeSingle();
-  const lang = (userRow && userRow.preferred_language) || 'en';
-
-  const recents = await _recentLpsFor((session && session.user_id) || tapperUserId);
-  const lpPrompt = buildLPSelectionList(sessionId, recents, lang, userRow && userRow.region);
-  await sendLpPrompt(WhatsAppService, from, lpPrompt);
   logToFile('📄 LP step (re)prompted', { sessionId, tapperUserId });
   return true;
 }
