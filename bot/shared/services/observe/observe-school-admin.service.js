@@ -228,6 +228,53 @@ async function extIdIsAmbiguous(schoolExtId) {
 }
 
 /**
+ * The school this ext id names, in the MASTER — creating it there if the only
+ * place it exists is the assignment table.
+ *
+ * Two things this fixes at once.
+ *
+ * `leader_schools.school_id` is a declared FK to `schools(id)` that adding a
+ * school never wrote, so every join ran on the text `'niete:' || emis`. That
+ * string join is the reason `extIdIsAmbiguous()` and the niete:607 / niete:628
+ * guards exist in application code — two real schools were typed with the same
+ * EMIS. Returning the id is what lets the assignment row carry the real key.
+ *
+ * And the search draws from `schools` UNION `leader_schools`, so a coach can
+ * add a school that exists only in the assignment table. Since a teacher now
+ * reaches a coach through `users.school_id -> schools.id`, such a school can
+ * never have anyone derived into it: she adds it, it succeeds, and the list is
+ * empty forever with nothing explaining why. Materialising the row closes that.
+ *
+ * Returns null for an ext id nobody has ever heard of — a school is created
+ * from a record that already exists, never invented from a typed string.
+ */
+async function resolveOrCreateSchool(supabase, schoolExtId) {
+  const emis = String(schoolExtId || '').split(':').pop();
+  if (!emis) return null;
+
+  // The master first. `schools.emis` exists on production but not on every
+  // environment, so a failure here falls through rather than throwing.
+  try {
+    const { data, error } = await supabase.from('schools').select('id, name, emis').eq('emis', emis).limit(1);
+    if (!error && data && data[0]) {
+      return { school_id: data[0].id, name: data[0].name, emis: String(data[0].emis || emis) };
+    }
+  } catch (_) { /* fall through */ }
+
+  // Only known to the assignment table — promote it.
+  const { data: ls } = await supabase
+    .from('leader_schools').select('school_name, emis').eq('school_ext_id', schoolExtId).limit(1);
+  if (!ls || !ls[0]) return null;
+
+  const name = ls[0].school_name;
+  const { data: made, error: insErr } = await supabase.from('schools')
+    .insert({ name, emis: String(ls[0].emis || emis), is_active: true })
+    .select('id, name, emis').limit(1);
+  if (insErr || !made || !made[0]) return null;
+  return { school_id: made[0].id, name: made[0].name, emis: String(made[0].emis || emis) };
+}
+
+/**
  * Universe search — every school we know of, filtered in JS by name/EMIS.
  *
  * Built from TWO sources on purpose. The `schools` master carries emis on
@@ -297,20 +344,9 @@ async function listMySchools(leaderUserId) {
  */
 async function addSchoolForCoach(leaderUserId, schoolExtId) {
   const supabase = _db();
-  const emis = String(schoolExtId || '').split(':').pop();
-  // Same schema caveat as _universeRows: `schools.emis` exists on prod, not on
-  // staging. Resolve the name from whichever source actually has the school.
-  let school = null;
-  try {
-    const { data, error } = await supabase.from('schools').select('*').eq('emis', emis).limit(1);
-    if (!error && data && data[0]) school = { emis, name: data[0].name };
-  } catch (_) { /* fall back below */ }
-  if (!school) {
-    const { data } = await supabase
-      .from('leader_schools').select('school_name, emis')
-      .eq('school_ext_id', schoolExtId).limit(1);
-    if (data && data[0]) school = { emis: data[0].emis || emis, name: data[0].school_name };
-  }
+  // Resolve in the MASTER, creating the row there if that is the only gap —
+  // a school with no `schools` row can never have anyone derived into it.
+  const school = await resolveOrCreateSchool(supabase, schoolExtId);
   if (!school) return { ok: false, reason: 'not_found' };
 
   const { data: mine } = await supabase
@@ -345,6 +381,8 @@ async function addSchoolForCoach(leaderUserId, schoolExtId) {
   if (!(mine && mine[0])) {
     await supabase.from('leader_schools').insert({
       leader_user_id: leaderUserId, school_ext_id: schoolExtId,
+      // The real key, finally. Every join used to run on the text ext id.
+      school_id: school.school_id,
       school_name: school.name, emis: String(school.emis), source: ROW_SOURCE,
     });
   }
@@ -413,6 +451,7 @@ async function removeSchoolForCoach(leaderUserId, schoolExtId) {
 }
 
 module.exports = {
+  resolveOrCreateSchool,
   canonicalSchoolName, extIdIsAmbiguous,
   matchSchool, matchTeacher, normalisePhoneTerm,
   addedSchoolAck, removedSchoolAck,
