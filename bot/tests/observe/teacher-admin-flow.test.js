@@ -194,3 +194,44 @@ describe('every screen these steps return satisfies the keys it declares', () =>
     expect({ screen: res.screen, missing }).toEqual({ screen: res.screen, missing: [] });
   });
 });
+
+// ── the loop back, which a terminal screen cannot do on its own ────────
+
+describe('the "what next?" tap after a teacher change', () => {
+  const { rosterTeacherNextTarget } = require('../../shared/services/observe/observe-teacher-admin.service');
+
+  it('reopens rather than falling through to the capture prompt', () => {
+    // The visit action this screen emits must have its OWN branch. An
+    // unhandled action falls through to buildVisitCapturePrompt, which
+    // answers a roster tap with "tell me about the lesson you observed".
+    const src = require('fs').readFileSync(
+      require('path').join(__dirname, '../../shared/handlers/flow-response.handler.js'), 'utf8');
+    expect(src).toMatch(/visitAction === 'roster_teacher'/);
+  });
+
+  it('every option the screen offers has a target', () => {
+    const screen = flow.screens.find((s) => s.id === 'TEACHER_DONE');
+    const radio = screen.layout.children
+      .find((c) => c.type === 'Form').children
+      .find((c) => c.type === 'RadioButtonsGroup');
+    for (const opt of radio['data-source']) {
+      expect(rosterTeacherNextTarget(opt.id)).toBeTruthy();
+    }
+  });
+
+  it('looping back goes through the endpoint, never a bare navigate', () => {
+    // TEACHER_SCHOOL and TEACHER_PICK DECLARE `options`, and navigate mode has
+    // no endpoint round trip to fill them — the screen would fail silently.
+    // So a loop reopens at MENU in data_exchange mode: one extra tap, always live.
+    for (const id of ['teacher_add', 'teacher_remove']) {
+      const t = rosterTeacherNextTarget(id);
+      expect(t.reopen).toBe(true);
+      expect(t.screen).toBeNull();
+    }
+  });
+
+  it('"I\'m done" closes instead of reopening', () => {
+    expect(rosterTeacherNextTarget('done')).toMatchObject({ reopen: false });
+    expect(rosterTeacherNextTarget('anything-stale')).toMatchObject({ reopen: false });
+  });
+});

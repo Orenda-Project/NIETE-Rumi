@@ -648,7 +648,30 @@ function refusalBody(lang, key) {
   return t[key] || t.failed;
 }
 
+/**
+ * Where a "what next?" tap after a teacher change sends the coach.
+ *
+ * Both loop options reopen at MENU (screen null => data_exchange => the
+ * endpoint builds the screen) rather than navigating straight back to
+ * TEACHER_SCHOOL. That costs one extra tap and buys correctness: those screens
+ * DECLARE `options`, navigate mode has no endpoint round trip to fill them, and
+ * a declared key the payload omits fails the screen with no visible error —
+ * the same silent-failure class that made removing a school look like a no-op.
+ */
+function rosterTeacherNextTarget(next) {
+  switch (next) {
+    case 'teacher_add':
+    case 'teacher_remove':
+      return { reopen: true, screen: null };
+    case 'menu':
+      return { reopen: true, screen: null };
+    default:
+      return { reopen: false, screen: null };   // 'done' and anything stale
+  }
+}
+
 module.exports = {
+  rosterTeacherNextTarget,
   planAdd,
   planRemoval,
   listTeachersAtSchool,
