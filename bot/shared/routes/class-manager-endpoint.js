@@ -51,6 +51,23 @@ const ADD_NEW = '__add__';
 const REMOVE_OPTION_CAP = 20;
 
 /**
+ * Keeps `remove_options` well-formed when there is nobody to remove yet.
+ *
+ * ROSTER binds a CheckboxGroup's `data-source` to that array, and an EMPTY array is
+ * not renderable: the client shows Meta's generic "Something went wrong" and the
+ * screen never draws. A new class has no students by definition, so EVERY class made
+ * through /class died on this — the endpoint had already written the class and
+ * assigned the teacher, so nothing threw and nothing logged (bd-2731). The catch-22
+ * it produced: you could only add students to a class that already had students.
+ *
+ * The group itself is hidden by `visible: ${data.has_students}` whenever this
+ * sentinel is the only entry, so it is never drawn and never selectable. It exists
+ * purely so the data-source is well-formed while hidden. Submissions are filtered
+ * for it anyway — a Flow already on a handset can post back whatever it likes.
+ */
+const NO_STUDENTS_OPTION = Object.freeze({ id: '__none__', title: '—' });
+
+/**
  * Radio and checkbox item titles are a capped field, and a long student name (or a
  * class with a shift suffix) will exceed it. Measured in CODE POINTS, because the
  * count that matters at the Graph API diverges from .length on Urdu.
@@ -295,6 +312,7 @@ async function buildRosterScreen(who, classId, display) {
     title: `${st.rollNumber != null ? `${st.rollNumber}. ` : ''}${st.studentName}`.slice(0, 30),
   }));
   const capped = students.length > options.length;
+  const hasStudents = options.length > 0;
 
   return {
     screen: 'ROSTER',
@@ -305,7 +323,10 @@ async function buildRosterScreen(who, classId, display) {
         ? resolveUx('classEditHintCapped', { user: who, params: { shown: options.length } })
         : resolveUx('classEditHint', { user: who }),
       remove_label: resolveUx('classRemoveField', { user: who }),
-      remove_options: options,
+      // Drives `visible` on the CheckboxGroup: there is nothing to remove from a
+      // class nobody is in yet, and an empty group cannot be rendered at all.
+      has_students: hasStudents,
+      remove_options: hasStudents ? options : [NO_STUDENTS_OPTION],
       add_label: resolveUx('classAddField', { user: who }),
       add_hint: resolveUx('classAddStudentsHint', { user: who }),
       save_label: resolveUx('classSaveChanges', { user: who }),
@@ -373,7 +394,11 @@ async function handleClassManagerDataExchange(userId, screen, screenData) {
     // delivered to a handset still submits under those names with their own field
     // names, so both are read here rather than dead-ending a teacher mid-edit.
     const d = screenData || {};
-    const removeIds = normalizeMultiSelect(d.remove);
+    // The empty-roster placeholder is not a student. It is hidden on the screen, so
+    // it should never come back — but a Flow sitting on a handset is a durable
+    // artifact, and removeStudent() would otherwise go hunting for id '__none__'.
+    const removeIds = normalizeMultiSelect(d.remove)
+      .filter((id) => id !== NO_STUDENTS_OPTION.id);
     const rawAdd = d.add != null ? d.add : d.roster;
 
     let removed = 0;
@@ -598,6 +623,7 @@ module.exports = {
   handleClassManagerDataExchange,
   handleClassManagerBack,
   // Exported for tests.
+  NO_STUDENTS_OPTION,
   normalizeSubjectSelection,
   normalizeMultiSelect,
   classDisplay,
