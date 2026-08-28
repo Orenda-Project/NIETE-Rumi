@@ -136,7 +136,12 @@ async function loadCtx(flowToken) {
   if (!userId) return null;
   const state = await ConversationState.getState(userId);
   // Scoped: a teacher parked in some other flow is not half-way through a register.
-  if (!state || state.flow !== MARKING_FLOW) return null;
+  if (!state || state.flow !== MARKING_FLOW) {
+    // A miss is the whole reason a register bounces back to the class picker, and it
+    // is otherwise indistinguishable from a normal start. Say which it was.
+    logToFile('📋 Marking ctx MISS', { userId, foundFlow: state ? state.flow : null });
+    return null;
+  }
   return { ...state.payload, userId };
 }
 
@@ -462,7 +467,12 @@ async function handleClassSubmit(flowToken, screenData) {
   const d = screenData || {};
   const choice = String(d.class_radio || d.class_dropdown || d.class_id || '');
   const [subject, targetId] = choice.split(':');
-  if (!targetId) return renderClassScreen(flowToken);
+  if (!targetId) {
+    // Re-rendering CLASS in answer to CLASS is not a legal transition, so this reads
+    // to the teacher as a dead button rather than as a re-ask.
+    logToFile('📋 Marking CLASS choice unparsed', { keys: Object.keys(d), choice });
+    return renderClassScreen(flowToken);
+  }
 
   const { userId } = parseToken(flowToken);
   const resolved = subject === 'teacher' ? 'teacher' : 'student';
@@ -1009,6 +1019,14 @@ async function handleConfirmSubmit(flowToken) {
 
 async function handleMarkingDataExchange(flowToken, screen, screenData) {
   logToFile('📋 Marking data_exchange', { screen });
+  const answer = await dispatchMarking(flowToken, screen, screenData);
+  // The missing half of this trace. Every report so far has been "it went back a
+  // screen", and the incoming screen alone cannot show that — only what we sent can.
+  logToFile('📋 Marking answered', { screen, answered: answer && answer.screen });
+  return answer;
+}
+
+async function dispatchMarking(flowToken, screen, screenData) {
   if (screen === 'CLASS') return handleClassSubmit(flowToken, screenData);
   if (screen === 'DATE') return handleDateSubmit(flowToken, screenData);
   if (screen === 'STAFF_DATE') return handleStaffDateSubmit(flowToken, screenData);
