@@ -13,11 +13,19 @@
 const { getOverall } = require('./coaching-frameworks.service');
 
 // Membership + identity in one shot. Empty result ⇒ not in this leader's patch.
+// Membership is DERIVED: she is in this leader's patch iff her school is one
+// of his. The stored roster used to answer this and disagreed with
+// users.school_id on 230 rows, which meant a leader could open a teacher the
+// schools say is not his — or be refused one that is.
 const MEMBERSHIP_SQL = `
   SELECT u.id, u.first_name, u.phone_number
-  FROM leader_teachers lt
-  JOIN users u ON u.phone_number = lt.teacher_phone_e164
-  WHERE lt.leader_user_id = $1 AND u.id = $2
+  FROM leader_schools ls
+  JOIN schools s
+    ON ls.school_id = s.id OR 'niete:' || s.emis = ls.school_ext_id
+  JOIN users u
+    ON u.school_id = s.id
+   AND u.role IN ('teacher', 'principal')
+  WHERE ls.leader_user_id = $1 AND u.id = $2
   LIMIT 1
 `;
 

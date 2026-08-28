@@ -39,7 +39,7 @@ const MOVE_LIBRARY = {
     {
       grade: null,
       text: {
-        en: 'Open the lesson plan together before class — ask her to show you where today\'s lesson sits in it, and watch whether the taught steps follow it.',
+        en: 'Open the lesson plan together before class — ask the teacher to show you where today\'s lesson sits in it, and watch whether the taught steps follow it.',
         ur: 'کلاس سے پہلے سبق کا منصوبہ ساتھ کھولیں — پوچھیں کہ آج کا سبق اس میں کہاں ہے، اور دیکھیں کہ پڑھائے گئے مراحل اسی کے مطابق ہیں یا نہیں۔',
       },
     },
@@ -55,14 +55,14 @@ const MOVE_LIBRARY = {
     {
       grade: null,
       text: {
-        en: 'Count the seconds after her questions — if answers come only from the same few hands, suggest "ask, wait 5 seconds, then pick" as one move to try.',
+        en: 'Count the seconds after each question — if answers come only from the same few hands, suggest "ask, wait 5 seconds, then pick" as one move to try.',
         ur: 'سوال کے بعد سیکنڈ گنیں — اگر جواب ہمیشہ وہی چند ہاتھ دیتے ہیں تو مشورہ دیں: «سوال کریں، پانچ سیکنڈ رکیں، پھر کسی کو چنیں»۔',
       },
     },
     {
       grade: null,
       text: {
-        en: 'Watch one worked example on the board: does she model the thinking step by step before students try? If not, suggest "I do → we do → you do" for one topic.',
+        en: 'Watch one worked example on the board: is the thinking modelled step by step before students try? If not, suggest "I do → we do → you do" for one topic.',
         ur: 'بورڈ پر ایک حل شدہ مثال دیکھیں: کیا بچوں کے خود کرنے سے پہلے سوچ کے مراحل دکھائے جاتے ہیں؟ اگر نہیں، تو ایک موضوع کے لیے «میں کروں → ہم کریں → تم کرو» کا مشورہ دیں۔',
       },
     },
@@ -78,7 +78,7 @@ const MOVE_LIBRARY = {
     {
       grade: null,
       text: {
-        en: 'Notice what students are doing while she teaches: listening only, or doing? Suggest one 3-minute "everyone writes/solves" moment per lesson.',
+        en: 'Notice what students are doing during the lesson: listening only, or doing? Suggest one 3-minute "everyone writes/solves" moment per lesson.',
         ur: 'دیکھیں کہ پڑھاتے وقت بچے کیا کر رہے ہیں: صرف سن رہے ہیں یا کچھ کر رہے ہیں؟ ہر سبق میں تین منٹ کا «سب لکھیں/حل کریں» لمحہ تجویز کریں۔',
       },
     },
@@ -87,7 +87,7 @@ const MOVE_LIBRARY = {
     {
       grade: null,
       text: {
-        en: 'Listen for one concept explained two different ways. If an explanation stays word-for-word from the book, ask her afterwards to explain it to you in her own words — that surfaces where support is needed.',
+        en: 'Listen for one concept explained two different ways. If an explanation stays word-for-word from the book, ask the teacher afterwards to explain it to you in their own words — that surfaces where support is needed.',
         ur: 'سنیں کہ کوئی تصور دو مختلف طریقوں سے سمجھایا گیا یا نہیں۔ اگر وضاحت کتاب کے لفظ بہ لفظ ہے تو بعد میں ان سے اپنے الفاظ میں سمجھانے کو کہیں — اسی سے پتہ چلے گا کہ مدد کہاں چاہیے۔',
       },
     },
@@ -116,7 +116,7 @@ const OPENING_TIPS = [
     ur: 'ایک ایسی چیز نوٹ کریں جو واقعی اچھی ہو — ڈی بریف کا آغاز اسی سے کریں گے۔',
   },
   {
-    en: 'Ask the teacher what SHE wants help with — her answer usually points at the real gap.',
+    en: 'Ask the teacher what THEY want help with — the answer usually points at the real gap.',
     ur: 'استاد سے پوچھیں کہ انہیں خود کس چیز میں مدد چاہیے — ان کا جواب اکثر اصل کمی کی نشاندہی کرتا ہے۔',
   },
 ];

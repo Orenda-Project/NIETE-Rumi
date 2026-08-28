@@ -4648,6 +4648,36 @@ CREATE INDEX IF NOT EXISTS idx_leader_teachers_leader_school
   ON leader_teachers (leader_user_id, school_ext_id);
 CREATE INDEX IF NOT EXISTS idx_leader_teachers_phone_e164
   ON leader_teachers (teacher_phone_e164);
+-- Append-only history of coach-driven roster changes (V1.2.3). ONE ROW PER
+-- AFFECTED COACH: a change that reaches four coaches writes four rows, so each
+-- of them can be told why a teacher left their list.
+--
+-- Deliberately not dashboard_audit_log: that table's user_id is FK'd to
+-- dashboard_users, and the actor here is a coach in `users`.
+CREATE TABLE IF NOT EXISTS leader_roster_audit (
+  id                      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  action                  text NOT NULL CHECK (action IN ('add', 'remove', 'move')),
+  actor_user_id           uuid NOT NULL REFERENCES users(id),
+  affected_leader_user_id uuid REFERENCES users(id),
+  -- The teacher is denormalised on purpose: she may have no users row at all,
+  -- and an audit row must stay readable after the thing it describes is gone.
+  teacher_ext_id          text,
+  teacher_phone_e164      text,
+  teacher_name            text,
+  -- NULL from_ = an add. NULL to_ = a removal. Both set = a move.
+  from_school_ext_id      text,
+  to_school_ext_id        text,
+  detail                  jsonb,
+  created_at              timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_roster_audit_teacher
+  ON leader_roster_audit (teacher_phone_e164, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_roster_audit_actor
+  ON leader_roster_audit (actor_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_roster_audit_affected
+  ON leader_roster_audit (affected_leader_user_id, created_at DESC);
+
 CREATE INDEX IF NOT EXISTS idx_leader_teachers_school_id
   ON leader_teachers (school_id);
 

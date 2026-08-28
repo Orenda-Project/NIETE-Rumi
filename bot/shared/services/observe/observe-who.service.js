@@ -115,25 +115,19 @@ async function _withSchools(leaderUserId, teachers) {
     const supabase = require('../../config/supabase');
     const extIds = teachers.map((t) => t.teacher_ext_id).filter(Boolean);
     if (!extIds.length) return teachers;
-    const { data: lt } = await supabase
-      .from('leader_teachers')
-      .select('teacher_ext_id, school_ext_id')
-      .eq('leader_user_id', leaderUserId)
-      .in('teacher_ext_id', extIds);
-    if (!lt || !lt.length) return teachers;
-    const schoolByTeacher = new Map(lt.map((r) => [r.teacher_ext_id, r.school_ext_id]));
-    const schoolIds = [...new Set(lt.map((r) => r.school_ext_id).filter(Boolean))];
-    let nameBySchool = new Map();
-    if (schoolIds.length) {
-      const { data: ls } = await supabase
-        .from('leader_schools')
-        .select('school_ext_id, school_name')
-        .in('school_ext_id', schoolIds);
-      nameBySchool = new Map((ls || []).map((r) => [r.school_ext_id, r.school_name]));
-    }
+    // Derived patch: the school comes from users.school_id, which is the same
+    // answer the picker used to choose these people.
+    const { listPatchViaSupabase } = require('./patch-resolver.service');
+    const people = await listPatchViaSupabase(supabase, leaderUserId);
+    if (!people.length) return teachers;
+    const byPhone = new Map(people.filter((p) => p.phone).map((p) => [p.phone, p]));
     return teachers.map((t) => {
-      const sid = schoolByTeacher.get(t.teacher_ext_id) || null;
-      return { ...t, school_ext_id: sid, school_name: sid ? (nameBySchool.get(sid) || null) : null };
+      const p = byPhone.get(t.teacher_ext_id);
+      return {
+        ...t,
+        school_ext_id: p && p.emis ? `niete:${p.emis}` : null,
+        school_name: (p && p.schoolName) || null,
+      };
     });
   } catch (_) {
     return teachers;
