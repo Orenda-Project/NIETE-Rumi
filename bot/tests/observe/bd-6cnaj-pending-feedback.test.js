@@ -164,6 +164,7 @@ describe('bd-0cxz6 · a coach with no schools can still get in and add her first
     // menu opens straight at schedule/new/manage. (Count-carrying stage rows
     // are covered in visit-flow-scheduling.test.js, where the counts are real.)
     const m = await H.handle('coach-1', 'INIT', '', {}, 'coach-1', null, { schoolCount: 3 });
-    expect(m.data.items.map((i) => i.id)).toEqual(['schedule', 'new', 'manage']);
+    // 'manage_teachers' joined the roster block when teacher-level add/remove landed.
+    expect(m.data.items.map((i) => i.id)).toEqual(['schedule', 'new', 'manage', 'manage_teachers']);
   });
 });

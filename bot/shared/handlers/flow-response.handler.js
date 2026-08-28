@@ -762,6 +762,16 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
     // with no params landed on the generic "Thanks for your response". The
     // in-Flow screen already confirmed what happened, so the only thing left to
     // do is continue the loop she picked.
+    // Teacher-level roster changes emit their own action: the "what next?"
+    // options differ from the school screen's, and an unhandled action falls
+    // through to the capture prompt below — answering a roster tap with
+    // "tell me about the lesson you observed".
+    if (visitAction === 'roster_teacher') {
+      const { rosterTeacherNextTarget } = require('../services/observe/observe-teacher-admin.service');
+      await _continueObserveLoop(rosterTeacherNextTarget(responseJson.roster_next), user, phoneNumber, userId);
+      return;
+    }
+
     if (visitAction === 'roster') {
       const { rosterNextTarget } = require('../services/observe/observe-school-admin.service');
       await _continueObserveLoop(rosterNextTarget(responseJson.roster_next), user, phoneNumber, userId);

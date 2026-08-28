@@ -1,1934 +1,2366 @@
 {
- "version": "7.0",
- "data_api_version": "3.0",
- "routing_model": {
-  "MENU": [
-   "DEBRIEFS",
-   "SCHEDULE",
-   "SELECT_SCHOOL",
-   "MANAGE_SCHOOLS",
-   "ADD_SEARCH",
-   "WORK_FORM",
-   "WORK_SEND"
-  ],
-  "DEBRIEFS": [
-   "OBS_ACTION"
-  ],
-  "SCHEDULE": [
-   "VISIT_ACTION",
-   "BRIEF"
-  ],
-  "SELECT_SCHOOL": [
-   "SELECT_TEACHER",
-   "SEARCH_SCHOOL"
-  ],
-  "SELECT_TEACHER": [
-   "BRIEF_SCHEDULE",
-   "SEARCH_TEACHER"
-  ],
-  "BRIEF_SCHEDULE": [
-   "SCHEDULE_PICKER",
-   "BRIEF"
-  ],
-  "SCHEDULE_PICKER": [
-   "CONFIRM_SCHEDULED"
-  ],
-  "CONFIRM_SCHEDULED": [
-   "SCHEDULE",
-   "SUCCESS"
-  ],
-  "BRIEF": [],
-  "SUCCESS": [],
-  "SEARCH_TEACHER": [
-   "TEACHER_RESULTS"
-  ],
-  "VISIT_ACTION": [
-   "BRIEF",
-   "SCHEDULE_EDIT",
-   "SUCCESS"
-  ],
-  "SCHEDULE_EDIT": [
-   "SUCCESS"
-  ],
-  "SEARCH_SCHOOL": [
-   "SCHOOL_RESULTS"
-  ],
-  "SCHOOL_RESULTS": [
-   "SELECT_TEACHER"
-  ],
-  "TEACHER_RESULTS": [
-   "BRIEF_SCHEDULE"
-  ],
-  "MANAGE_SCHOOLS": [
-   "ACTION_DONE"
-  ],
-  "ADD_SEARCH": [
-   "ADD_RESULTS",
-   "REMOVE_SEARCH"
-  ],
-  "ADD_RESULTS": [
-   "ACTION_DONE"
-  ],
-  "ACTION_DONE": [],
-  "REMOVE_SEARCH": [
-   "MANAGE_SCHOOLS"
-  ],
-  "WORK_FORM": [
-   "OBS_ACTION"
-  ],
-  "WORK_SEND": [
-   "OBS_ACTION"
-  ],
-  "OBS_ACTION": [
-   "SUCCESS"
+  "version": "7.0",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "MENU": [
+      "DEBRIEFS",
+      "SCHEDULE",
+      "SELECT_SCHOOL",
+      "MANAGE_SCHOOLS",
+      "ADD_SEARCH",
+      "WORK_FORM",
+      "WORK_SEND",
+      "TEACHER_SCHOOL"
+    ],
+    "DEBRIEFS": [
+      "OBS_ACTION"
+    ],
+    "SCHEDULE": [
+      "VISIT_ACTION",
+      "BRIEF"
+    ],
+    "SELECT_SCHOOL": [
+      "SELECT_TEACHER",
+      "SEARCH_SCHOOL"
+    ],
+    "SELECT_TEACHER": [
+      "BRIEF_SCHEDULE",
+      "SEARCH_TEACHER"
+    ],
+    "BRIEF_SCHEDULE": [
+      "SCHEDULE_PICKER",
+      "BRIEF"
+    ],
+    "SCHEDULE_PICKER": [
+      "CONFIRM_SCHEDULED"
+    ],
+    "CONFIRM_SCHEDULED": [
+      "SCHEDULE",
+      "SUCCESS"
+    ],
+    "BRIEF": [],
+    "SUCCESS": [],
+    "SEARCH_TEACHER": [
+      "TEACHER_RESULTS"
+    ],
+    "VISIT_ACTION": [
+      "BRIEF",
+      "SCHEDULE_EDIT",
+      "SUCCESS"
+    ],
+    "SCHEDULE_EDIT": [
+      "SUCCESS"
+    ],
+    "SEARCH_SCHOOL": [
+      "SCHOOL_RESULTS"
+    ],
+    "SCHOOL_RESULTS": [
+      "SELECT_TEACHER"
+    ],
+    "TEACHER_RESULTS": [
+      "BRIEF_SCHEDULE"
+    ],
+    "MANAGE_SCHOOLS": [
+      "ACTION_DONE"
+    ],
+    "ADD_SEARCH": [
+      "ADD_RESULTS",
+      "REMOVE_SEARCH"
+    ],
+    "ADD_RESULTS": [
+      "ACTION_DONE"
+    ],
+    "ACTION_DONE": [],
+    "REMOVE_SEARCH": [
+      "MANAGE_SCHOOLS"
+    ],
+    "WORK_FORM": [
+      "OBS_ACTION"
+    ],
+    "WORK_SEND": [
+      "OBS_ACTION"
+    ],
+    "OBS_ACTION": [
+      "SUCCESS"
+    ],
+    "TEACHER_SCHOOL": [
+      "TEACHER_ADD"
+    ],
+    "TEACHER_ADD": [
+      "TEACHER_CONFIRM",
+      "TEACHER_PICK",
+      "TEACHER_DONE"
+    ],
+    "TEACHER_CONFIRM": [
+      "TEACHER_DONE"
+    ],
+    "TEACHER_PICK": [
+      "TEACHER_REMOVE_CONFIRM",
+      "TEACHER_DONE"
+    ],
+    "TEACHER_REMOVE_CONFIRM": [
+      "TEACHER_DONE"
+    ],
+    "TEACHER_DONE": []
+  },
+  "screens": [
+    {
+      "id": "MENU",
+      "title": "Observe",
+      "refresh_on_back": true,
+      "data": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "main-content": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "string"
+                  }
+                }
+              },
+              "on-click-action": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "payload": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "debriefs",
+              "main-content": {
+                "title": "Complete debriefs",
+                "metadata": "2 pending"
+              },
+              "on-click-action": {
+                "name": "data_exchange",
+                "payload": {
+                  "step": "debriefs"
+                }
+              }
+            },
+            {
+              "id": "schedule",
+              "main-content": {
+                "title": "My schedule",
+                "metadata": "4 upcoming"
+              },
+              "on-click-action": {
+                "name": "data_exchange",
+                "payload": {
+                  "step": "schedule"
+                }
+              }
+            },
+            {
+              "id": "new",
+              "main-content": {
+                "title": "Schedule new observation",
+                "metadata": "Pick a school and teacher"
+              },
+              "on-click-action": {
+                "name": "data_exchange",
+                "payload": {
+                  "step": "schools"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "NavigationList",
+            "name": "menu_list",
+            "list-items": "${data.items}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "DEBRIEFS",
+      "title": "Pending debriefs",
+      "refresh_on_back": true,
+      "data": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "main-content": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "string"
+                  }
+                }
+              },
+              "on-click-action": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "payload": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "sess-1",
+              "main-content": {
+                "title": "Abid Ullah",
+                "metadata": "Observed 29 Jul - debrief pending"
+              },
+              "on-click-action": {
+                "name": "complete",
+                "payload": {
+                  "observe_visit_action": "debrief",
+                  "session_id": "sess-1"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "NavigationList",
+            "name": "debriefs_list",
+            "list-items": "${data.items}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "WORK_FORM",
+      "title": "Complete the form",
+      "refresh_on_back": true,
+      "data": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "main-content": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "string"
+                  }
+                }
+              },
+              "on-click-action": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "payload": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "sess-1",
+              "main-content": {
+                "title": "Abid Ullah",
+                "metadata": "IMS G-7 - Observed 22 Aug - form to submit"
+              },
+              "on-click-action": {
+                "name": "complete",
+                "payload": {
+                  "observe_visit_action": "resume",
+                  "session_id": "sess-1"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "NavigationList",
+            "name": "work_form_list",
+            "list-items": "${data.items}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "WORK_SEND",
+      "title": "Send reports",
+      "refresh_on_back": true,
+      "data": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "main-content": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "string"
+                  }
+                }
+              },
+              "on-click-action": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "payload": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "sess-1",
+              "main-content": {
+                "title": "Abid Ullah",
+                "metadata": "IMS G-7 - Observed 22 Aug - report not sent yet"
+              },
+              "on-click-action": {
+                "name": "complete",
+                "payload": {
+                  "observe_visit_action": "send_report",
+                  "session_id": "sess-1"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "NavigationList",
+            "name": "work_send_list",
+            "list-items": "${data.items}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "OBS_ACTION",
+      "title": "This observation",
+      "refresh_on_back": true,
+      "data": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "main-content": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "string"
+                  }
+                }
+              },
+              "on-click-action": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "payload": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "continue",
+              "main-content": {
+                "title": "Continue this observation",
+                "metadata": "Ayesha Karim - IMS G-7 - Observed 22 Aug"
+              },
+              "on-click-action": {
+                "name": "complete",
+                "payload": {
+                  "observe_visit_action": "resume",
+                  "session_id": "sess-1"
+                }
+              }
+            },
+            {
+              "id": "cancel",
+              "main-content": {
+                "title": "Cancel this observation",
+                "metadata": "It leaves your list - the recording stays saved"
+              },
+              "on-click-action": {
+                "name": "data_exchange",
+                "payload": {
+                  "step": "obs_cancel",
+                  "session_id": "sess-1"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "NavigationList",
+            "name": "obs_action_list",
+            "list-items": "${data.items}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SCHEDULE",
+      "title": "My schedule",
+      "refresh_on_back": true,
+      "data": {
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "metadata": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "os-1",
+              "title": "Abid Ullah",
+              "description": "IMCB Bhara Kau",
+              "metadata": "Wed 6 Aug - 08:30"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "schedule_form",
+            "children": [
+              {
+                "type": "Dropdown",
+                "name": "pick_schedule",
+                "label": "Scheduled visit",
+                "required": true,
+                "data-source": "${data.options}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "sched_teacher",
+                    "picked": "${form.pick_schedule}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SELECT_SCHOOL",
+      "title": "Pick a school",
+      "refresh_on_back": true,
+      "data": {
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "metadata": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "niete:401",
+              "title": "IMCB Bhara Kau",
+              "description": "15 teachers - 6 due for a visit"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "select_school_form",
+            "children": [
+              {
+                "type": "Dropdown",
+                "name": "pick_select_school",
+                "label": "School",
+                "required": true,
+                "data-source": "${data.options}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "school",
+                    "picked": "${form.pick_select_school}"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "EmbeddedLink",
+            "text": "Search schools by name or EMIS",
+            "on-click-action": {
+              "name": "navigate",
+              "next": {
+                "type": "screen",
+                "name": "SEARCH_SCHOOL"
+              },
+              "payload": {}
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "SELECT_TEACHER",
+      "title": "Pick a teacher",
+      "refresh_on_back": true,
+      "data": {
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "metadata": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "923331234567",
+              "title": "Abid Ullah",
+              "description": "HIGH",
+              "metadata": "Needs support - Not yet visited"
+            }
+          ]
+        },
+        "school_ext_id": {
+          "type": "string",
+          "__example__": "niete:401"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "select_teacher_form",
+            "children": [
+              {
+                "type": "Dropdown",
+                "name": "pick_select_teacher",
+                "label": "Teacher",
+                "required": true,
+                "data-source": "${data.options}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "teacher",
+                    "school_ext_id": "${data.school_ext_id}",
+                    "picked": "${form.pick_select_teacher}"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "EmbeddedLink",
+            "text": "Search teachers by name or phone",
+            "on-click-action": {
+              "name": "navigate",
+              "next": {
+                "type": "screen",
+                "name": "SEARCH_TEACHER"
+              },
+              "payload": {
+                "school_ext_id": "${data.school_ext_id}"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRIEF_SCHEDULE",
+      "title": "Support brief",
+      "refresh_on_back": true,
+      "data": {
+        "teacher_name": {
+          "type": "string",
+          "__example__": "Ayesha Bibi"
+        },
+        "subtitle": {
+          "type": "string",
+          "__example__": "Grade 2 · GPS Dhok Bilal"
+        },
+        "strength_text": {
+          "type": "string",
+          "__example__": "✅ What's working: questioning & how she teaches"
+        },
+        "growth_text": {
+          "type": "string",
+          "__example__": "🌱 Where your support helps most: getting every student involved"
+        },
+        "moves_intro": {
+          "type": "string",
+          "__example__": "During your visit:"
+        },
+        "moves_text": {
+          "type": "string",
+          "__example__": "1. Watch her questioning: does she pause after asking, or answer it herself? If there's no wait-time, suggest she count silently to five.\n2. Count how many students actually speak. If it's only a few, suggest a 30-second think-pair-share.\n3. Watch how she checks understanding — suggest a one-question exit slip."
+        },
+        "trend_text": {
+          "type": "string",
+          "__example__": "📈 Journey: Developing → Proficient (3 sessions)"
+        },
+        "debrief_reminder": {
+          "type": "string",
+          "__example__": "In the debrief, pick just ONE thing to work on with her — and open with a genuine strength."
+        },
+        "guidance_text": {
+          "type": "string",
+          "__example__": "This is guidance to support your visit — not a grade or a ranking."
+        },
+        "teacher_ext_id": {
+          "type": "string",
+          "__example__": "t1"
+        },
+        "school_ext_id": {
+          "type": "string",
+          "__example__": "s1"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "${data.teacher_name}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "${data.subtitle}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.strength_text}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.growth_text}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "${data.moves_intro}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.moves_text}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.trend_text}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.debrief_reminder}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "${data.guidance_text}"
+          },
+          {
+            "type": "EmbeddedLink",
+            "text": "Record the lesson now",
+            "on-click-action": {
+              "name": "navigate",
+              "next": {
+                "type": "screen",
+                "name": "BRIEF"
+              },
+              "payload": {
+                "teacher_name": "${data.teacher_name}",
+                "subtitle": "${data.subtitle}",
+                "strength_text": "${data.strength_text}",
+                "growth_text": "${data.growth_text}",
+                "moves_intro": "${data.moves_intro}",
+                "moves_text": "${data.moves_text}",
+                "trend_text": "${data.trend_text}",
+                "debrief_reminder": "${data.debrief_reminder}",
+                "guidance_text": "${data.guidance_text}",
+                "teacher_ext_id": "${data.teacher_ext_id}",
+                "school_ext_id": "${data.school_ext_id}"
+              }
+            }
+          },
+          {
+            "type": "Footer",
+            "label": "Pick date & time",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "step": "to_picker",
+                "teacher_ext_id": "${data.teacher_ext_id}",
+                "school_ext_id": "${data.school_ext_id}"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "SCHEDULE_PICKER",
+      "title": "Date & time",
+      "data": {
+        "recap": {
+          "type": "string",
+          "__example__": "Abid Ullah - IMCB Bhara Kau"
+        },
+        "min_date": {
+          "type": "string",
+          "__example__": "2026-08-01"
+        },
+        "max_date": {
+          "type": "string",
+          "__example__": "2026-09-26"
+        },
+        "teacher_ext_id": {
+          "type": "string",
+          "__example__": "923331234567"
+        },
+        "school_ext_id": {
+          "type": "string",
+          "__example__": "niete:401"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextSubheading",
+            "text": "${data.recap}"
+          },
+          {
+            "type": "Form",
+            "name": "picker_form",
+            "children": [
+              {
+                "type": "CalendarPicker",
+                "name": "obs_date",
+                "label": "Observation date",
+                "mode": "single",
+                "min-date": "${data.min_date}",
+                "max-date": "${data.max_date}",
+                "include-days": [
+                  "Mon",
+                  "Tue",
+                  "Wed",
+                  "Thu",
+                  "Fri"
+                ],
+                "required": true
+              },
+              {
+                "type": "Dropdown",
+                "name": "obs_slot",
+                "label": "Time",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "07:30",
+                    "title": "07:30"
+                  },
+                  {
+                    "id": "08:00",
+                    "title": "08:00"
+                  },
+                  {
+                    "id": "08:30",
+                    "title": "08:30"
+                  },
+                  {
+                    "id": "09:00",
+                    "title": "09:00"
+                  },
+                  {
+                    "id": "09:30",
+                    "title": "09:30"
+                  },
+                  {
+                    "id": "10:00",
+                    "title": "10:00"
+                  },
+                  {
+                    "id": "10:30",
+                    "title": "10:30"
+                  },
+                  {
+                    "id": "11:00",
+                    "title": "11:00"
+                  },
+                  {
+                    "id": "11:30",
+                    "title": "11:30"
+                  },
+                  {
+                    "id": "12:00",
+                    "title": "12:00"
+                  },
+                  {
+                    "id": "12:30",
+                    "title": "12:30"
+                  },
+                  {
+                    "id": "13:00",
+                    "title": "13:00"
+                  },
+                  {
+                    "id": "13:30",
+                    "title": "13:30"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Save schedule",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "save_schedule",
+                    "obs_date": "${form.obs_date}",
+                    "obs_slot": "${form.obs_slot}",
+                    "teacher_ext_id": "${data.teacher_ext_id}",
+                    "school_ext_id": "${data.school_ext_id}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "CONFIRM_SCHEDULED",
+      "title": "Scheduled",
+      "data": {
+        "recap": {
+          "type": "string",
+          "__example__": "Abid Ullah - Wed 6 Aug at 08:30 - IMCB Bhara Kau"
+        },
+        "teacher_name": {
+          "type": "string",
+          "__example__": "Abid Ullah"
+        },
+        "sched_date": {
+          "type": "string",
+          "__example__": "2026-08-06"
+        },
+        "sched_slot": {
+          "type": "string",
+          "__example__": "08:30"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "Scheduled"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.recap}"
+          },
+          {
+            "type": "EmbeddedLink",
+            "text": "I'm done for now",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "step": "done",
+                "teacher_name": "${data.teacher_name}",
+                "sched_date": "${data.sched_date}",
+                "sched_slot": "${data.sched_slot}"
+              }
+            }
+          },
+          {
+            "type": "Footer",
+            "label": "Observe someone now",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "step": "schedule"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "SEARCH_TEACHER",
+      "title": "Find a teacher",
+      "refresh_on_back": true,
+      "data": {
+        "school_ext_id": {
+          "type": "string",
+          "__example__": "niete:401"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "Type part of the teacher's name, or her phone number."
+          },
+          {
+            "type": "Form",
+            "name": "search_teacher_form",
+            "children": [
+              {
+                "type": "TextInput",
+                "name": "term",
+                "label": "Name or phone number",
+                "required": false
+              },
+              {
+                "type": "Footer",
+                "label": "Search",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "teacher_search",
+                    "term": "${form.term}",
+                    "school_ext_id": "${data.school_ext_id}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "VISIT_ACTION",
+      "title": "This visit",
+      "refresh_on_back": true,
+      "data": {
+        "summary": {
+          "type": "string",
+          "__example__": "Abid Ullah · IMCB Bhara Kau · Wed 6 Aug 08:30"
+        },
+        "visit_id": {
+          "type": "string",
+          "__example__": "os-1"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextSubheading",
+            "text": "${data.summary}"
+          },
+          {
+            "type": "Form",
+            "name": "visit_action_form",
+            "children": [
+              {
+                "type": "RadioButtonsGroup",
+                "name": "choice",
+                "label": "What would you like to do?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "run",
+                    "title": "Run the observation"
+                  },
+                  {
+                    "id": "reschedule",
+                    "title": "Change the date or time"
+                  },
+                  {
+                    "id": "cancel",
+                    "title": "Cancel this visit"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "visit_action",
+                    "visit_id": "${data.visit_id}",
+                    "choice": "${form.choice}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SCHEDULE_EDIT",
+      "title": "Change this visit",
+      "refresh_on_back": true,
+      "data": {
+        "visit_id": {
+          "type": "string",
+          "__example__": "os-1"
+        },
+        "summary": {
+          "type": "string",
+          "__example__": "Abid Ullah · IMCB Bhara Kau"
+        },
+        "min_date": {
+          "type": "string",
+          "__example__": "2026-08-17"
+        },
+        "max_date": {
+          "type": "string",
+          "__example__": "2026-10-16"
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "09:00",
+              "title": "09:00"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextSubheading",
+            "text": "${data.summary}"
+          },
+          {
+            "type": "Form",
+            "name": "edit_form",
+            "children": [
+              {
+                "type": "CalendarPicker",
+                "name": "edit_date",
+                "label": "Observation date",
+                "mode": "single",
+                "min-date": "${data.min_date}",
+                "max-date": "${data.max_date}",
+                "include-days": [
+                  "Mon",
+                  "Tue",
+                  "Wed",
+                  "Thu",
+                  "Fri"
+                ],
+                "required": true
+              },
+              {
+                "type": "Dropdown",
+                "name": "edit_slot",
+                "label": "Time",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "07:30",
+                    "title": "07:30"
+                  },
+                  {
+                    "id": "08:00",
+                    "title": "08:00"
+                  },
+                  {
+                    "id": "08:30",
+                    "title": "08:30"
+                  },
+                  {
+                    "id": "09:00",
+                    "title": "09:00"
+                  },
+                  {
+                    "id": "09:30",
+                    "title": "09:30"
+                  },
+                  {
+                    "id": "10:00",
+                    "title": "10:00"
+                  },
+                  {
+                    "id": "10:30",
+                    "title": "10:30"
+                  },
+                  {
+                    "id": "11:00",
+                    "title": "11:00"
+                  },
+                  {
+                    "id": "11:30",
+                    "title": "11:30"
+                  },
+                  {
+                    "id": "12:00",
+                    "title": "12:00"
+                  },
+                  {
+                    "id": "12:30",
+                    "title": "12:30"
+                  },
+                  {
+                    "id": "13:00",
+                    "title": "13:00"
+                  },
+                  {
+                    "id": "13:30",
+                    "title": "13:30"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Save the change",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "visit_edit",
+                    "visit_id": "${data.visit_id}",
+                    "date": "${form.edit_date}",
+                    "slot": "${form.edit_slot}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SEARCH_SCHOOL",
+      "title": "Find a school",
+      "refresh_on_back": true,
+      "data": {},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "Type part of the school's name, or its EMIS code."
+          },
+          {
+            "type": "Form",
+            "name": "search_school_form",
+            "children": [
+              {
+                "type": "TextInput",
+                "name": "term",
+                "label": "Name or EMIS code",
+                "required": false
+              },
+              {
+                "type": "Footer",
+                "label": "Search",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "school_search",
+                    "term": "${form.term}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SCHOOL_RESULTS",
+      "title": "Matching schools",
+      "refresh_on_back": true,
+      "data": {
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "metadata": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "x",
+              "title": "Example",
+              "description": "",
+              "metadata": ""
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "school_results_form",
+            "children": [
+              {
+                "type": "Dropdown",
+                "name": "pick",
+                "label": "School",
+                "required": true,
+                "data-source": "${data.options}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "school",
+                    "picked": "${form.pick}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "TEACHER_RESULTS",
+      "title": "Matching teachers",
+      "refresh_on_back": true,
+      "data": {
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "metadata": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "x",
+              "title": "Example",
+              "description": "",
+              "metadata": ""
+            }
+          ]
+        },
+        "school_ext_id": {
+          "type": "string",
+          "__example__": "niete:401"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "teacher_results_form",
+            "children": [
+              {
+                "type": "Dropdown",
+                "name": "pick",
+                "label": "Teacher",
+                "required": true,
+                "data-source": "${data.options}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "teacher",
+                    "picked": "${form.pick}",
+                    "school_ext_id": "${data.school_ext_id}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ADD_SEARCH",
+      "title": "Add a school",
+      "refresh_on_back": true,
+      "data": {},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "Search every school by name or EMIS code to ADD it — its teachers come with it. To remove one instead, use the link at the bottom."
+          },
+          {
+            "type": "Form",
+            "name": "add_search_form",
+            "children": [
+              {
+                "type": "TextInput",
+                "name": "term",
+                "label": "Name or EMIS code",
+                "required": false
+              },
+              {
+                "type": "Footer",
+                "label": "Search",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "add_search",
+                    "term": "${form.term}"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "EmbeddedLink",
+            "text": "Remove a school from my list",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "step": "manage_search"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ADD_RESULTS",
+      "title": "Schools found",
+      "refresh_on_back": true,
+      "data": {
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "metadata": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "x",
+              "title": "Example",
+              "description": "",
+              "metadata": ""
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "Pick a school to add to your list."
+          },
+          {
+            "type": "Form",
+            "name": "add_results_form",
+            "children": [
+              {
+                "type": "Dropdown",
+                "name": "pick",
+                "label": "School to add",
+                "required": true,
+                "data-source": "${data.options}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "add_school",
+                    "picked": "${form.pick}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "REMOVE_SEARCH",
+      "title": "Remove a school",
+      "refresh_on_back": true,
+      "data": {},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "Search YOUR schools by name or EMIS code to remove one. Leave it blank to see them all."
+          },
+          {
+            "type": "Form",
+            "name": "remove_search_form",
+            "children": [
+              {
+                "type": "TextInput",
+                "name": "term",
+                "label": "Name or EMIS code",
+                "required": false
+              },
+              {
+                "type": "Footer",
+                "label": "Show my schools",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "manage",
+                    "term": "${form.term}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "MANAGE_SCHOOLS",
+      "title": "My schools",
+      "refresh_on_back": true,
+      "data": {
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "metadata": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "x",
+              "title": "Example",
+              "description": "",
+              "metadata": ""
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "These are your schools. Pick one to remove it, or use Add a school from the menu."
+          },
+          {
+            "type": "Form",
+            "name": "manage_schools_form",
+            "children": [
+              {
+                "type": "Dropdown",
+                "name": "pick",
+                "label": "School to remove",
+                "required": true,
+                "data-source": "${data.options}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "remove_school",
+                    "picked": "${form.pick}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "TEACHER_SCHOOL",
+      "title": "Teachers",
+      "refresh_on_back": true,
+      "data": {
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "metadata": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "x",
+              "title": "Example",
+              "description": "",
+              "metadata": ""
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "Pick the school whose teacher list you want to change."
+          },
+          {
+            "type": "Form",
+            "name": "teacher_school_form",
+            "children": [
+              {
+                "type": "Dropdown",
+                "name": "pick",
+                "label": "School",
+                "required": true,
+                "data-source": "${data.options}"
+              },
+              {
+                "type": "Footer",
+                "label": "Add a teacher",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "teacher_add_open",
+                    "school_ext_id": "${form.pick}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "TEACHER_ADD",
+      "title": "Add a teacher",
+      "refresh_on_back": true,
+      "data": {
+        "school_ext_id": {
+          "type": "string",
+          "__example__": "niete:916"
+        },
+        "school_name": {
+          "type": "string",
+          "__example__": "IMCG, G-10/2"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "Adding a teacher to ${data.school_name}.\n\nType her WhatsApp number. If we already know her you will see her details before anything changes."
+          },
+          {
+            "type": "Form",
+            "name": "teacher_add_form",
+            "children": [
+              {
+                "type": "TextInput",
+                "name": "phone",
+                "label": "Her number",
+                "input-type": "phone",
+                "required": true
+              },
+              {
+                "type": "TextInput",
+                "name": "name",
+                "label": "Her name",
+                "required": false,
+                "helper-text": "Only needed if she is new to us"
+              },
+              {
+                "type": "Footer",
+                "label": "Check this number",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "teacher_add_lookup",
+                    "school_ext_id": "${data.school_ext_id}",
+                    "phone": "${form.phone}",
+                    "name": "${form.name}"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "EmbeddedLink",
+            "text": "Remove a teacher from this school",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "step": "teacher_remove_open",
+                "school_ext_id": "${data.school_ext_id}"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "TEACHER_CONFIRM",
+      "title": "Confirm",
+      "refresh_on_back": true,
+      "data": {
+        "plan": {
+          "type": "string",
+          "__example__": "About to move Tahira Manzoor from IMS(I-V) No.2 G-10/2 to IMCG, G-10/2."
+        },
+        "school_ext_id": {
+          "type": "string",
+          "__example__": "niete:916"
+        },
+        "phone": {
+          "type": "string",
+          "__example__": "923001234567"
+        },
+        "name": {
+          "type": "string",
+          "__example__": "Tahira Manzoor"
+        },
+        "confirm_label": {
+          "type": "string",
+          "__example__": "Yes, move her"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "${data.plan}"
+          },
+          {
+            "type": "Form",
+            "name": "teacher_confirm_form",
+            "children": [
+              {
+                "type": "Footer",
+                "label": "${data.confirm_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "teacher_add_commit",
+                    "school_ext_id": "${data.school_ext_id}",
+                    "phone": "${data.phone}",
+                    "name": "${data.name}"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "EmbeddedLink",
+            "text": "No, leave things as they are",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "step": "teacher_cancel"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "TEACHER_PICK",
+      "title": "Remove a teacher",
+      "refresh_on_back": true,
+      "data": {
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "metadata": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "x",
+              "title": "Example",
+              "description": "",
+              "metadata": ""
+            }
+          ]
+        },
+        "school_ext_id": {
+          "type": "string",
+          "__example__": "niete:916"
+        },
+        "school_name": {
+          "type": "string",
+          "__example__": "IMCG, G-10/2"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "Pick the teacher to take off ${data.school_name}."
+          },
+          {
+            "type": "Form",
+            "name": "teacher_pick_form",
+            "children": [
+              {
+                "type": "Dropdown",
+                "name": "pick",
+                "label": "Teacher",
+                "required": true,
+                "data-source": "${data.options}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "teacher_remove_check",
+                    "school_ext_id": "${data.school_ext_id}",
+                    "teacher_ext_id": "${form.pick}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "TEACHER_REMOVE_CONFIRM",
+      "title": "Confirm",
+      "refresh_on_back": true,
+      "data": {
+        "plan": {
+          "type": "string",
+          "__example__": "Tahira Manzoor will come off IMCG, G-10/2."
+        },
+        "school_ext_id": {
+          "type": "string",
+          "__example__": "niete:916"
+        },
+        "teacher_ext_id": {
+          "type": "string",
+          "__example__": "923001234567"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "${data.plan}"
+          },
+          {
+            "type": "Form",
+            "name": "teacher_remove_form",
+            "children": [
+              {
+                "type": "TextInput",
+                "name": "reason",
+                "label": "Why?",
+                "required": false,
+                "helper-text": "Kept on the record"
+              },
+              {
+                "type": "Footer",
+                "label": "Yes, remove her",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "teacher_remove_commit",
+                    "school_ext_id": "${data.school_ext_id}",
+                    "teacher_ext_id": "${data.teacher_ext_id}",
+                    "reason": "${form.reason}"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "EmbeddedLink",
+            "text": "No, keep her on the list",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "step": "teacher_cancel"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "TEACHER_DONE",
+      "title": "Done",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Teacher added"
+        },
+        "body": {
+          "type": "string",
+          "__example__": "Added Tahira Manzoor to IMCG, G-10/2."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "${data.heading}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.body}"
+          },
+          {
+            "type": "Form",
+            "name": "teacher_done_form",
+            "children": [
+              {
+                "type": "RadioButtonsGroup",
+                "name": "next",
+                "label": "What next?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "teacher_add",
+                    "title": "Add another teacher"
+                  },
+                  {
+                    "id": "teacher_remove",
+                    "title": "Remove a teacher"
+                  },
+                  {
+                    "id": "menu",
+                    "title": "Main menu"
+                  },
+                  {
+                    "id": "done",
+                    "title": "I'm done"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "observe_visit_action": "roster_teacher",
+                    "roster_next": "${form.next}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ACTION_DONE",
+      "title": "Done",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "School added"
+        },
+        "body": {
+          "type": "string",
+          "__example__": "Added IMCB, I-8/3."
+        },
+        "school_name": {
+          "type": "string",
+          "__example__": "IMCB, I-8/3"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "${data.heading}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.body}"
+          },
+          {
+            "type": "Form",
+            "name": "action_done_form",
+            "children": [
+              {
+                "type": "RadioButtonsGroup",
+                "name": "next",
+                "label": "What next?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "add",
+                    "title": "Add another school"
+                  },
+                  {
+                    "id": "remove",
+                    "title": "Remove a school"
+                  },
+                  {
+                    "id": "menu",
+                    "title": "Main menu"
+                  },
+                  {
+                    "id": "done",
+                    "title": "I'm done"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "observe_visit_action": "roster",
+                    "roster_next": "${form.next}",
+                    "school_name": "${data.school_name}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRIEF",
+      "title": "Support brief",
+      "terminal": true,
+      "data": {
+        "teacher_name": {
+          "type": "string",
+          "__example__": "Ayesha Bibi"
+        },
+        "subtitle": {
+          "type": "string",
+          "__example__": "Grade 2 · GPS Dhok Bilal"
+        },
+        "strength_text": {
+          "type": "string",
+          "__example__": "✅ What's working: questioning & how she teaches"
+        },
+        "growth_text": {
+          "type": "string",
+          "__example__": "🌱 Where your support helps most: getting every student involved"
+        },
+        "moves_intro": {
+          "type": "string",
+          "__example__": "During your visit:"
+        },
+        "moves_text": {
+          "type": "string",
+          "__example__": "1. Watch her questioning: does she pause after asking, or answer it herself? If there's no wait-time, suggest she count silently to five.\n2. Count how many students actually speak. If it's only a few, suggest a 30-second think-pair-share.\n3. Watch how she checks understanding — suggest a one-question exit slip."
+        },
+        "trend_text": {
+          "type": "string",
+          "__example__": "📈 Journey: Developing → Proficient (3 sessions)"
+        },
+        "debrief_reminder": {
+          "type": "string",
+          "__example__": "In the debrief, pick just ONE thing to work on with her — and open with a genuine strength."
+        },
+        "guidance_text": {
+          "type": "string",
+          "__example__": "This is guidance to support your visit — not a grade or a ranking."
+        },
+        "teacher_ext_id": {
+          "type": "string",
+          "__example__": "t1"
+        },
+        "school_ext_id": {
+          "type": "string",
+          "__example__": "s1"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "${data.teacher_name}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "${data.subtitle}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.strength_text}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.growth_text}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "${data.moves_intro}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.moves_text}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.trend_text}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.debrief_reminder}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "${data.guidance_text}"
+          },
+          {
+            "type": "Footer",
+            "label": "Start observation",
+            "on-click-action": {
+              "name": "complete",
+              "payload": {
+                "step": "start",
+                "teacher_ext_id": "${data.teacher_ext_id}",
+                "school_ext_id": "${data.school_ext_id}"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "SUCCESS",
+      "title": "Done",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "extension_message_response": {
+          "type": "object",
+          "properties": {
+            "params": {
+              "type": "object"
+            }
+          },
+          "__example__": {
+            "params": {
+              "observe_visit_action": "done"
+            }
+          }
+        },
+        "heading": {
+          "type": "string",
+          "__example__": "Observation scheduled"
+        },
+        "body": {
+          "type": "string",
+          "__example__": "Tap /observe anytime to see your schedule."
+        },
+        "action": {
+          "type": "string",
+          "__example__": "done"
+        },
+        "teacher_name": {
+          "type": "string",
+          "__example__": "Ayesha Khan"
+        },
+        "sched_date": {
+          "type": "string",
+          "__example__": "2026-08-20"
+        },
+        "sched_slot": {
+          "type": "string",
+          "__example__": "09:00"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "${data.heading}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.body}"
+          },
+          {
+            "type": "Form",
+            "name": "success_form",
+            "children": [
+              {
+                "type": "RadioButtonsGroup",
+                "name": "next",
+                "label": "What next?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "schedule",
+                    "title": "Schedule another observation"
+                  },
+                  {
+                    "id": "menu",
+                    "title": "Main menu"
+                  },
+                  {
+                    "id": "done",
+                    "title": "I'm done for now"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "observe_visit_action": "${data.action}",
+                    "visit_next": "${form.next}",
+                    "teacher_name": "${data.teacher_name}",
+                    "sched_date": "${data.sched_date}",
+                    "sched_slot": "${data.sched_slot}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
   ]
- },
- "screens": [
-  {
-   "id": "MENU",
-   "title": "Observe",
-   "refresh_on_back": true,
-   "data": {
-    "items": {
-     "type": "array",
-     "items": {
-      "type": "object",
-      "properties": {
-       "id": {
-        "type": "string"
-       },
-       "main-content": {
-        "type": "object",
-        "properties": {
-         "title": {
-          "type": "string"
-         },
-         "description": {
-          "type": "string"
-         },
-         "metadata": {
-          "type": "string"
-         }
-        }
-       },
-       "on-click-action": {
-        "type": "object",
-        "properties": {
-         "name": {
-          "type": "string"
-         },
-         "payload": {
-          "type": "object"
-         }
-        }
-       }
-      }
-     },
-     "__example__": [
-      {
-       "id": "debriefs",
-       "main-content": {
-        "title": "Complete debriefs",
-        "metadata": "2 pending"
-       },
-       "on-click-action": {
-        "name": "data_exchange",
-        "payload": {
-         "step": "debriefs"
-        }
-       }
-      },
-      {
-       "id": "schedule",
-       "main-content": {
-        "title": "My schedule",
-        "metadata": "4 upcoming"
-       },
-       "on-click-action": {
-        "name": "data_exchange",
-        "payload": {
-         "step": "schedule"
-        }
-       }
-      },
-      {
-       "id": "new",
-       "main-content": {
-        "title": "Schedule new observation",
-        "metadata": "Pick a school and teacher"
-       },
-       "on-click-action": {
-        "name": "data_exchange",
-        "payload": {
-         "step": "schools"
-        }
-       }
-      }
-     ]
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "NavigationList",
-      "name": "menu_list",
-      "list-items": "${data.items}"
-     }
-    ]
-   }
-  },
-  {
-   "id": "DEBRIEFS",
-   "title": "Pending debriefs",
-   "refresh_on_back": true,
-   "data": {
-    "items": {
-     "type": "array",
-     "items": {
-      "type": "object",
-      "properties": {
-       "id": {
-        "type": "string"
-       },
-       "main-content": {
-        "type": "object",
-        "properties": {
-         "title": {
-          "type": "string"
-         },
-         "description": {
-          "type": "string"
-         },
-         "metadata": {
-          "type": "string"
-         }
-        }
-       },
-       "on-click-action": {
-        "type": "object",
-        "properties": {
-         "name": {
-          "type": "string"
-         },
-         "payload": {
-          "type": "object"
-         }
-        }
-       }
-      }
-     },
-     "__example__": [
-      {
-       "id": "sess-1",
-       "main-content": {
-        "title": "Abid Ullah",
-        "metadata": "Observed 29 Jul - debrief pending"
-       },
-       "on-click-action": {
-        "name": "complete",
-        "payload": {
-         "observe_visit_action": "debrief",
-         "session_id": "sess-1"
-        }
-       }
-      }
-     ]
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "NavigationList",
-      "name": "debriefs_list",
-      "list-items": "${data.items}"
-     }
-    ]
-   }
-  },
-  {
-   "id": "WORK_FORM",
-   "title": "Complete the form",
-   "refresh_on_back": true,
-   "data": {
-    "items": {
-     "type": "array",
-     "items": {
-      "type": "object",
-      "properties": {
-       "id": {
-        "type": "string"
-       },
-       "main-content": {
-        "type": "object",
-        "properties": {
-         "title": {
-          "type": "string"
-         },
-         "description": {
-          "type": "string"
-         },
-         "metadata": {
-          "type": "string"
-         }
-        }
-       },
-       "on-click-action": {
-        "type": "object",
-        "properties": {
-         "name": {
-          "type": "string"
-         },
-         "payload": {
-          "type": "object"
-         }
-        }
-       }
-      }
-     },
-     "__example__": [
-      {
-       "id": "sess-1",
-       "main-content": {
-        "title": "Abid Ullah",
-        "metadata": "IMS G-7 - Observed 22 Aug - form to submit"
-       },
-       "on-click-action": {
-        "name": "complete",
-        "payload": {
-         "observe_visit_action": "resume",
-         "session_id": "sess-1"
-        }
-       }
-      }
-     ]
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "NavigationList",
-      "name": "work_form_list",
-      "list-items": "${data.items}"
-     }
-    ]
-   }
-  },
-  {
-   "id": "WORK_SEND",
-   "title": "Send reports",
-   "refresh_on_back": true,
-   "data": {
-    "items": {
-     "type": "array",
-     "items": {
-      "type": "object",
-      "properties": {
-       "id": {
-        "type": "string"
-       },
-       "main-content": {
-        "type": "object",
-        "properties": {
-         "title": {
-          "type": "string"
-         },
-         "description": {
-          "type": "string"
-         },
-         "metadata": {
-          "type": "string"
-         }
-        }
-       },
-       "on-click-action": {
-        "type": "object",
-        "properties": {
-         "name": {
-          "type": "string"
-         },
-         "payload": {
-          "type": "object"
-         }
-        }
-       }
-      }
-     },
-     "__example__": [
-      {
-       "id": "sess-1",
-       "main-content": {
-        "title": "Abid Ullah",
-        "metadata": "IMS G-7 - Observed 22 Aug - report not sent yet"
-       },
-       "on-click-action": {
-        "name": "complete",
-        "payload": {
-         "observe_visit_action": "send_report",
-         "session_id": "sess-1"
-        }
-       }
-      }
-     ]
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "NavigationList",
-      "name": "work_send_list",
-      "list-items": "${data.items}"
-     }
-    ]
-   }
-  },
-  {
-   "id": "OBS_ACTION",
-   "title": "This observation",
-   "refresh_on_back": true,
-   "data": {
-    "items": {
-     "type": "array",
-     "items": {
-      "type": "object",
-      "properties": {
-       "id": {
-        "type": "string"
-       },
-       "main-content": {
-        "type": "object",
-        "properties": {
-         "title": {
-          "type": "string"
-         },
-         "description": {
-          "type": "string"
-         },
-         "metadata": {
-          "type": "string"
-         }
-        }
-       },
-       "on-click-action": {
-        "type": "object",
-        "properties": {
-         "name": {
-          "type": "string"
-         },
-         "payload": {
-          "type": "object"
-         }
-        }
-       }
-      }
-     },
-     "__example__": [
-      {
-       "id": "continue",
-       "main-content": {
-        "title": "Continue this observation",
-        "metadata": "Ayesha Karim - IMS G-7 - Observed 22 Aug"
-       },
-       "on-click-action": {
-        "name": "complete",
-        "payload": {
-         "observe_visit_action": "resume",
-         "session_id": "sess-1"
-        }
-       }
-      },
-      {
-       "id": "cancel",
-       "main-content": {
-        "title": "Cancel this observation",
-        "metadata": "It leaves your list - the recording stays saved"
-       },
-       "on-click-action": {
-        "name": "data_exchange",
-        "payload": {
-         "step": "obs_cancel",
-         "session_id": "sess-1"
-        }
-       }
-      }
-     ]
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "NavigationList",
-      "name": "obs_action_list",
-      "list-items": "${data.items}"
-     }
-    ]
-   }
-  },
-  {
-   "id": "SCHEDULE",
-   "title": "My schedule",
-   "refresh_on_back": true,
-   "data": {
-    "options": {
-     "type": "array",
-     "items": {
-      "type": "object",
-      "properties": {
-       "id": {
-        "type": "string"
-       },
-       "title": {
-        "type": "string"
-       },
-       "description": {
-        "type": "string"
-       },
-       "metadata": {
-        "type": "string"
-       }
-      }
-     },
-     "__example__": [
-      {
-       "id": "os-1",
-       "title": "Abid Ullah",
-       "description": "IMCB Bhara Kau",
-       "metadata": "Wed 6 Aug - 08:30"
-      }
-     ]
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "Form",
-      "name": "schedule_form",
-      "children": [
-       {
-        "type": "Dropdown",
-        "name": "pick_schedule",
-        "label": "Scheduled visit",
-        "required": true,
-        "data-source": "${data.options}"
-       },
-       {
-        "type": "Footer",
-        "label": "Continue",
-        "on-click-action": {
-         "name": "data_exchange",
-         "payload": {
-          "step": "sched_teacher",
-          "picked": "${form.pick_schedule}"
-         }
-        }
-       }
-      ]
-     }
-    ]
-   }
-  },
-  {
-   "id": "SELECT_SCHOOL",
-   "title": "Pick a school",
-   "refresh_on_back": true,
-   "data": {
-    "options": {
-     "type": "array",
-     "items": {
-      "type": "object",
-      "properties": {
-       "id": {
-        "type": "string"
-       },
-       "title": {
-        "type": "string"
-       },
-       "description": {
-        "type": "string"
-       },
-       "metadata": {
-        "type": "string"
-       }
-      }
-     },
-     "__example__": [
-      {
-       "id": "niete:401",
-       "title": "IMCB Bhara Kau",
-       "description": "15 teachers - 6 due for a visit"
-      }
-     ]
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "Form",
-      "name": "select_school_form",
-      "children": [
-       {
-        "type": "Dropdown",
-        "name": "pick_select_school",
-        "label": "School",
-        "required": true,
-        "data-source": "${data.options}"
-       },
-       {
-        "type": "Footer",
-        "label": "Continue",
-        "on-click-action": {
-         "name": "data_exchange",
-         "payload": {
-          "step": "school",
-          "picked": "${form.pick_select_school}"
-         }
-        }
-       }
-      ]
-     },
-     {
-      "type": "EmbeddedLink",
-      "text": "Search schools by name or EMIS",
-      "on-click-action": {
-       "name": "navigate",
-       "next": {
-        "type": "screen",
-        "name": "SEARCH_SCHOOL"
-       },
-       "payload": {}
-      }
-     }
-    ]
-   }
-  },
-  {
-   "id": "SELECT_TEACHER",
-   "title": "Pick a teacher",
-   "refresh_on_back": true,
-   "data": {
-    "options": {
-     "type": "array",
-     "items": {
-      "type": "object",
-      "properties": {
-       "id": {
-        "type": "string"
-       },
-       "title": {
-        "type": "string"
-       },
-       "description": {
-        "type": "string"
-       },
-       "metadata": {
-        "type": "string"
-       }
-      }
-     },
-     "__example__": [
-      {
-       "id": "923331234567",
-       "title": "Abid Ullah",
-       "description": "HIGH",
-       "metadata": "Needs support - Not yet visited"
-      }
-     ]
-    },
-    "school_ext_id": {
-     "type": "string",
-     "__example__": "niete:401"
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "Form",
-      "name": "select_teacher_form",
-      "children": [
-       {
-        "type": "Dropdown",
-        "name": "pick_select_teacher",
-        "label": "Teacher",
-        "required": true,
-        "data-source": "${data.options}"
-       },
-       {
-        "type": "Footer",
-        "label": "Continue",
-        "on-click-action": {
-         "name": "data_exchange",
-         "payload": {
-          "step": "teacher",
-          "school_ext_id": "${data.school_ext_id}",
-          "picked": "${form.pick_select_teacher}"
-         }
-        }
-       }
-      ]
-     },
-     {
-      "type": "EmbeddedLink",
-      "text": "Search teachers by name or phone",
-      "on-click-action": {
-       "name": "navigate",
-       "next": {
-        "type": "screen",
-        "name": "SEARCH_TEACHER"
-       },
-       "payload": {
-        "school_ext_id": "${data.school_ext_id}"
-       }
-      }
-     }
-    ]
-   }
-  },
-  {
-   "id": "BRIEF_SCHEDULE",
-   "title": "Support brief",
-   "refresh_on_back": true,
-   "data": {
-    "teacher_name": {
-     "type": "string",
-     "__example__": "Ayesha Bibi"
-    },
-    "subtitle": {
-     "type": "string",
-     "__example__": "Grade 2 · GPS Dhok Bilal"
-    },
-    "strength_text": {
-     "type": "string",
-     "__example__": "✅ What's working: questioning & how she teaches"
-    },
-    "growth_text": {
-     "type": "string",
-     "__example__": "🌱 Where your support helps most: getting every student involved"
-    },
-    "moves_intro": {
-     "type": "string",
-     "__example__": "During your visit:"
-    },
-    "moves_text": {
-     "type": "string",
-     "__example__": "1. Watch her questioning: does she pause after asking, or answer it herself? If there's no wait-time, suggest she count silently to five.\n2. Count how many students actually speak. If it's only a few, suggest a 30-second think-pair-share.\n3. Watch how she checks understanding — suggest a one-question exit slip."
-    },
-    "trend_text": {
-     "type": "string",
-     "__example__": "📈 Journey: Developing → Proficient (3 sessions)"
-    },
-    "debrief_reminder": {
-     "type": "string",
-     "__example__": "In the debrief, pick just ONE thing to work on with her — and open with a genuine strength."
-    },
-    "guidance_text": {
-     "type": "string",
-     "__example__": "This is guidance to support your visit — not a grade or a ranking."
-    },
-    "teacher_ext_id": {
-     "type": "string",
-     "__example__": "t1"
-    },
-    "school_ext_id": {
-     "type": "string",
-     "__example__": "s1"
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "TextHeading",
-      "text": "${data.teacher_name}"
-     },
-     {
-      "type": "TextSubheading",
-      "text": "${data.subtitle}"
-     },
-     {
-      "type": "TextBody",
-      "text": "${data.strength_text}"
-     },
-     {
-      "type": "TextBody",
-      "text": "${data.growth_text}"
-     },
-     {
-      "type": "TextSubheading",
-      "text": "${data.moves_intro}"
-     },
-     {
-      "type": "TextBody",
-      "text": "${data.moves_text}"
-     },
-     {
-      "type": "TextBody",
-      "text": "${data.trend_text}"
-     },
-     {
-      "type": "TextBody",
-      "text": "${data.debrief_reminder}"
-     },
-     {
-      "type": "TextCaption",
-      "text": "${data.guidance_text}"
-     },
-     {
-      "type": "EmbeddedLink",
-      "text": "Record the lesson now",
-      "on-click-action": {
-       "name": "navigate",
-       "next": {
-        "type": "screen",
-        "name": "BRIEF"
-       },
-       "payload": {
-        "teacher_name": "${data.teacher_name}",
-        "subtitle": "${data.subtitle}",
-        "strength_text": "${data.strength_text}",
-        "growth_text": "${data.growth_text}",
-        "moves_intro": "${data.moves_intro}",
-        "moves_text": "${data.moves_text}",
-        "trend_text": "${data.trend_text}",
-        "debrief_reminder": "${data.debrief_reminder}",
-        "guidance_text": "${data.guidance_text}",
-        "teacher_ext_id": "${data.teacher_ext_id}",
-        "school_ext_id": "${data.school_ext_id}"
-       }
-      }
-     },
-     {
-      "type": "Footer",
-      "label": "Pick date & time",
-      "on-click-action": {
-       "name": "data_exchange",
-       "payload": {
-        "step": "to_picker",
-        "teacher_ext_id": "${data.teacher_ext_id}",
-        "school_ext_id": "${data.school_ext_id}"
-       }
-      }
-     }
-    ]
-   }
-  },
-  {
-   "id": "SCHEDULE_PICKER",
-   "title": "Date & time",
-   "data": {
-    "recap": {
-     "type": "string",
-     "__example__": "Abid Ullah - IMCB Bhara Kau"
-    },
-    "min_date": {
-     "type": "string",
-     "__example__": "2026-08-01"
-    },
-    "max_date": {
-     "type": "string",
-     "__example__": "2026-09-26"
-    },
-    "teacher_ext_id": {
-     "type": "string",
-     "__example__": "923331234567"
-    },
-    "school_ext_id": {
-     "type": "string",
-     "__example__": "niete:401"
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "TextSubheading",
-      "text": "${data.recap}"
-     },
-     {
-      "type": "Form",
-      "name": "picker_form",
-      "children": [
-       {
-        "type": "CalendarPicker",
-        "name": "obs_date",
-        "label": "Observation date",
-        "mode": "single",
-        "min-date": "${data.min_date}",
-        "max-date": "${data.max_date}",
-        "include-days": [
-         "Mon",
-         "Tue",
-         "Wed",
-         "Thu",
-         "Fri"
-        ],
-        "required": true
-       },
-       {
-        "type": "Dropdown",
-        "name": "obs_slot",
-        "label": "Time",
-        "required": true,
-        "data-source": [
-         {
-          "id": "07:30",
-          "title": "07:30"
-         },
-         {
-          "id": "08:00",
-          "title": "08:00"
-         },
-         {
-          "id": "08:30",
-          "title": "08:30"
-         },
-         {
-          "id": "09:00",
-          "title": "09:00"
-         },
-         {
-          "id": "09:30",
-          "title": "09:30"
-         },
-         {
-          "id": "10:00",
-          "title": "10:00"
-         },
-         {
-          "id": "10:30",
-          "title": "10:30"
-         },
-         {
-          "id": "11:00",
-          "title": "11:00"
-         },
-         {
-          "id": "11:30",
-          "title": "11:30"
-         },
-         {
-          "id": "12:00",
-          "title": "12:00"
-         },
-         {
-          "id": "12:30",
-          "title": "12:30"
-         },
-         {
-          "id": "13:00",
-          "title": "13:00"
-         },
-         {
-          "id": "13:30",
-          "title": "13:30"
-         }
-        ]
-       },
-       {
-        "type": "Footer",
-        "label": "Save schedule",
-        "on-click-action": {
-         "name": "data_exchange",
-         "payload": {
-          "step": "save_schedule",
-          "obs_date": "${form.obs_date}",
-          "obs_slot": "${form.obs_slot}",
-          "teacher_ext_id": "${data.teacher_ext_id}",
-          "school_ext_id": "${data.school_ext_id}"
-         }
-        }
-       }
-      ]
-     }
-    ]
-   }
-  },
-  {
-   "id": "CONFIRM_SCHEDULED",
-   "title": "Scheduled",
-   "data": {
-    "recap": {
-     "type": "string",
-     "__example__": "Abid Ullah - Wed 6 Aug at 08:30 - IMCB Bhara Kau"
-    },
-    "teacher_name": {
-     "type": "string",
-     "__example__": "Abid Ullah"
-    },
-    "sched_date": {
-     "type": "string",
-     "__example__": "2026-08-06"
-    },
-    "sched_slot": {
-     "type": "string",
-     "__example__": "08:30"
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "TextHeading",
-      "text": "Scheduled"
-     },
-     {
-      "type": "TextBody",
-      "text": "${data.recap}"
-     },
-     {
-      "type": "EmbeddedLink",
-      "text": "I'm done for now",
-      "on-click-action": {
-       "name": "data_exchange",
-       "payload": {
-        "step": "done",
-        "teacher_name": "${data.teacher_name}",
-        "sched_date": "${data.sched_date}",
-        "sched_slot": "${data.sched_slot}"
-       }
-      }
-     },
-     {
-      "type": "Footer",
-      "label": "Observe someone now",
-      "on-click-action": {
-       "name": "data_exchange",
-       "payload": {
-        "step": "schedule"
-       }
-      }
-     }
-    ]
-   }
-  },
-  {
-   "id": "SEARCH_TEACHER",
-   "title": "Find a teacher",
-   "refresh_on_back": true,
-   "data": {
-    "school_ext_id": {
-     "type": "string",
-     "__example__": "niete:401"
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "TextBody",
-      "text": "Type part of the teacher's name, or her phone number."
-     },
-     {
-      "type": "Form",
-      "name": "search_teacher_form",
-      "children": [
-       {
-        "type": "TextInput",
-        "name": "term",
-        "label": "Name or phone number",
-        "required": false
-       },
-       {
-        "type": "Footer",
-        "label": "Search",
-        "on-click-action": {
-         "name": "data_exchange",
-         "payload": {
-          "step": "teacher_search",
-          "term": "${form.term}",
-          "school_ext_id": "${data.school_ext_id}"
-         }
-        }
-       }
-      ]
-     }
-    ]
-   }
-  },
-  {
-   "id": "VISIT_ACTION",
-   "title": "This visit",
-   "refresh_on_back": true,
-   "data": {
-    "summary": {
-     "type": "string",
-     "__example__": "Abid Ullah · IMCB Bhara Kau · Wed 6 Aug 08:30"
-    },
-    "visit_id": {
-     "type": "string",
-     "__example__": "os-1"
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "TextSubheading",
-      "text": "${data.summary}"
-     },
-     {
-      "type": "Form",
-      "name": "visit_action_form",
-      "children": [
-       {
-        "type": "RadioButtonsGroup",
-        "name": "choice",
-        "label": "What would you like to do?",
-        "required": true,
-        "data-source": [
-         {
-          "id": "run",
-          "title": "Run the observation"
-         },
-         {
-          "id": "reschedule",
-          "title": "Change the date or time"
-         },
-         {
-          "id": "cancel",
-          "title": "Cancel this visit"
-         }
-        ]
-       },
-       {
-        "type": "Footer",
-        "label": "Continue",
-        "on-click-action": {
-         "name": "data_exchange",
-         "payload": {
-          "step": "visit_action",
-          "visit_id": "${data.visit_id}",
-          "choice": "${form.choice}"
-         }
-        }
-       }
-      ]
-     }
-    ]
-   }
-  },
-  {
-   "id": "SCHEDULE_EDIT",
-   "title": "Change this visit",
-   "refresh_on_back": true,
-   "data": {
-    "visit_id": {
-     "type": "string",
-     "__example__": "os-1"
-    },
-    "summary": {
-     "type": "string",
-     "__example__": "Abid Ullah · IMCB Bhara Kau"
-    },
-    "min_date": {
-     "type": "string",
-     "__example__": "2026-08-17"
-    },
-    "max_date": {
-     "type": "string",
-     "__example__": "2026-10-16"
-    },
-    "slots": {
-     "type": "array",
-     "items": {
-      "type": "object",
-      "properties": {
-       "id": {
-        "type": "string"
-       },
-       "title": {
-        "type": "string"
-       }
-      }
-     },
-     "__example__": [
-      {
-       "id": "09:00",
-       "title": "09:00"
-      }
-     ]
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "TextSubheading",
-      "text": "${data.summary}"
-     },
-     {
-      "type": "Form",
-      "name": "edit_form",
-      "children": [
-       {
-        "type": "CalendarPicker",
-        "name": "edit_date",
-        "label": "Observation date",
-        "mode": "single",
-        "min-date": "${data.min_date}",
-        "max-date": "${data.max_date}",
-        "include-days": [
-         "Mon",
-         "Tue",
-         "Wed",
-         "Thu",
-         "Fri"
-        ],
-        "required": true
-       },
-       {
-        "type": "Dropdown",
-        "name": "edit_slot",
-        "label": "Time",
-        "required": true,
-        "data-source": [
-         {
-          "id": "07:30",
-          "title": "07:30"
-         },
-         {
-          "id": "08:00",
-          "title": "08:00"
-         },
-         {
-          "id": "08:30",
-          "title": "08:30"
-         },
-         {
-          "id": "09:00",
-          "title": "09:00"
-         },
-         {
-          "id": "09:30",
-          "title": "09:30"
-         },
-         {
-          "id": "10:00",
-          "title": "10:00"
-         },
-         {
-          "id": "10:30",
-          "title": "10:30"
-         },
-         {
-          "id": "11:00",
-          "title": "11:00"
-         },
-         {
-          "id": "11:30",
-          "title": "11:30"
-         },
-         {
-          "id": "12:00",
-          "title": "12:00"
-         },
-         {
-          "id": "12:30",
-          "title": "12:30"
-         },
-         {
-          "id": "13:00",
-          "title": "13:00"
-         },
-         {
-          "id": "13:30",
-          "title": "13:30"
-         }
-        ]
-       },
-       {
-        "type": "Footer",
-        "label": "Save the change",
-        "on-click-action": {
-         "name": "data_exchange",
-         "payload": {
-          "step": "visit_edit",
-          "visit_id": "${data.visit_id}",
-          "date": "${form.edit_date}",
-          "slot": "${form.edit_slot}"
-         }
-        }
-       }
-      ]
-     }
-    ]
-   }
-  },
-  {
-   "id": "SEARCH_SCHOOL",
-   "title": "Find a school",
-   "refresh_on_back": true,
-   "data": {},
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "TextBody",
-      "text": "Type part of the school's name, or its EMIS code."
-     },
-     {
-      "type": "Form",
-      "name": "search_school_form",
-      "children": [
-       {
-        "type": "TextInput",
-        "name": "term",
-        "label": "Name or EMIS code",
-        "required": false
-       },
-       {
-        "type": "Footer",
-        "label": "Search",
-        "on-click-action": {
-         "name": "data_exchange",
-         "payload": {
-          "step": "school_search",
-          "term": "${form.term}"
-         }
-        }
-       }
-      ]
-     }
-    ]
-   }
-  },
-  {
-   "id": "SCHOOL_RESULTS",
-   "title": "Matching schools",
-   "refresh_on_back": true,
-   "data": {
-    "options": {
-     "type": "array",
-     "items": {
-      "type": "object",
-      "properties": {
-       "id": {
-        "type": "string"
-       },
-       "title": {
-        "type": "string"
-       },
-       "description": {
-        "type": "string"
-       },
-       "metadata": {
-        "type": "string"
-       }
-      }
-     },
-     "__example__": [
-      {
-       "id": "x",
-       "title": "Example",
-       "description": "",
-       "metadata": ""
-      }
-     ]
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "Form",
-      "name": "school_results_form",
-      "children": [
-       {
-        "type": "Dropdown",
-        "name": "pick",
-        "label": "School",
-        "required": true,
-        "data-source": "${data.options}"
-       },
-       {
-        "type": "Footer",
-        "label": "Continue",
-        "on-click-action": {
-         "name": "data_exchange",
-         "payload": {
-          "step": "school",
-          "picked": "${form.pick}"
-         }
-        }
-       }
-      ]
-     }
-    ]
-   }
-  },
-  {
-   "id": "TEACHER_RESULTS",
-   "title": "Matching teachers",
-   "refresh_on_back": true,
-   "data": {
-    "options": {
-     "type": "array",
-     "items": {
-      "type": "object",
-      "properties": {
-       "id": {
-        "type": "string"
-       },
-       "title": {
-        "type": "string"
-       },
-       "description": {
-        "type": "string"
-       },
-       "metadata": {
-        "type": "string"
-       }
-      }
-     },
-     "__example__": [
-      {
-       "id": "x",
-       "title": "Example",
-       "description": "",
-       "metadata": ""
-      }
-     ]
-    },
-    "school_ext_id": {
-     "type": "string",
-     "__example__": "niete:401"
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "Form",
-      "name": "teacher_results_form",
-      "children": [
-       {
-        "type": "Dropdown",
-        "name": "pick",
-        "label": "Teacher",
-        "required": true,
-        "data-source": "${data.options}"
-       },
-       {
-        "type": "Footer",
-        "label": "Continue",
-        "on-click-action": {
-         "name": "data_exchange",
-         "payload": {
-          "step": "teacher",
-          "picked": "${form.pick}",
-          "school_ext_id": "${data.school_ext_id}"
-         }
-        }
-       }
-      ]
-     }
-    ]
-   }
-  },
-  {
-   "id": "ADD_SEARCH",
-   "title": "Add a school",
-   "refresh_on_back": true,
-   "data": {},
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "TextBody",
-      "text": "Search every school by name or EMIS code to ADD it — its teachers come with it. To remove one instead, use the link at the bottom."
-     },
-     {
-      "type": "Form",
-      "name": "add_search_form",
-      "children": [
-       {
-        "type": "TextInput",
-        "name": "term",
-        "label": "Name or EMIS code",
-        "required": false
-       },
-       {
-        "type": "Footer",
-        "label": "Search",
-        "on-click-action": {
-         "name": "data_exchange",
-         "payload": {
-          "step": "add_search",
-          "term": "${form.term}"
-         }
-        }
-       }
-      ]
-     },
-     {
-      "type": "EmbeddedLink",
-      "text": "Remove a school from my list",
-      "on-click-action": {
-       "name": "data_exchange",
-       "payload": {
-        "step": "manage_search"
-       }
-      }
-     }
-    ]
-   }
-  },
-  {
-   "id": "ADD_RESULTS",
-   "title": "Schools found",
-   "refresh_on_back": true,
-   "data": {
-    "options": {
-     "type": "array",
-     "items": {
-      "type": "object",
-      "properties": {
-       "id": {
-        "type": "string"
-       },
-       "title": {
-        "type": "string"
-       },
-       "description": {
-        "type": "string"
-       },
-       "metadata": {
-        "type": "string"
-       }
-      }
-     },
-     "__example__": [
-      {
-       "id": "x",
-       "title": "Example",
-       "description": "",
-       "metadata": ""
-      }
-     ]
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "TextBody",
-      "text": "Pick a school to add to your list."
-     },
-     {
-      "type": "Form",
-      "name": "add_results_form",
-      "children": [
-       {
-        "type": "Dropdown",
-        "name": "pick",
-        "label": "School to add",
-        "required": true,
-        "data-source": "${data.options}"
-       },
-       {
-        "type": "Footer",
-        "label": "Continue",
-        "on-click-action": {
-         "name": "data_exchange",
-         "payload": {
-          "step": "add_school",
-          "picked": "${form.pick}"
-         }
-        }
-       }
-      ]
-     }
-    ]
-   }
-  },
-  {
-   "id": "REMOVE_SEARCH",
-   "title": "Remove a school",
-   "refresh_on_back": true,
-   "data": {},
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "TextBody",
-      "text": "Search YOUR schools by name or EMIS code to remove one. Leave it blank to see them all."
-     },
-     {
-      "type": "Form",
-      "name": "remove_search_form",
-      "children": [
-       {
-        "type": "TextInput",
-        "name": "term",
-        "label": "Name or EMIS code",
-        "required": false
-       },
-       {
-        "type": "Footer",
-        "label": "Show my schools",
-        "on-click-action": {
-         "name": "data_exchange",
-         "payload": {
-          "step": "manage",
-          "term": "${form.term}"
-         }
-        }
-       }
-      ]
-     }
-    ]
-   }
-  },
-  {
-   "id": "MANAGE_SCHOOLS",
-   "title": "My schools",
-   "refresh_on_back": true,
-   "data": {
-    "options": {
-     "type": "array",
-     "items": {
-      "type": "object",
-      "properties": {
-       "id": {
-        "type": "string"
-       },
-       "title": {
-        "type": "string"
-       },
-       "description": {
-        "type": "string"
-       },
-       "metadata": {
-        "type": "string"
-       }
-      }
-     },
-     "__example__": [
-      {
-       "id": "x",
-       "title": "Example",
-       "description": "",
-       "metadata": ""
-      }
-     ]
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "TextBody",
-      "text": "These are your schools. Pick one to remove it, or use Add a school from the menu."
-     },
-     {
-      "type": "Form",
-      "name": "manage_schools_form",
-      "children": [
-       {
-        "type": "Dropdown",
-        "name": "pick",
-        "label": "School to remove",
-        "required": true,
-        "data-source": "${data.options}"
-       },
-       {
-        "type": "Footer",
-        "label": "Continue",
-        "on-click-action": {
-         "name": "data_exchange",
-         "payload": {
-          "step": "remove_school",
-          "picked": "${form.pick}"
-         }
-        }
-       }
-      ]
-     }
-    ]
-   }
-  },
-  {
-   "id": "ACTION_DONE",
-   "title": "Done",
-   "terminal": true,
-   "success": true,
-   "data": {
-    "heading": {
-     "type": "string",
-     "__example__": "School added"
-    },
-    "body": {
-     "type": "string",
-     "__example__": "Added IMCB, I-8/3."
-    },
-    "school_name": {
-     "type": "string",
-     "__example__": "IMCB, I-8/3"
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "TextHeading",
-      "text": "${data.heading}"
-     },
-     {
-      "type": "TextBody",
-      "text": "${data.body}"
-     },
-     {
-      "type": "Form",
-      "name": "action_done_form",
-      "children": [
-       {
-        "type": "RadioButtonsGroup",
-        "name": "next",
-        "label": "What next?",
-        "required": true,
-        "data-source": [
-         {
-          "id": "add",
-          "title": "Add another school"
-         },
-         {
-          "id": "remove",
-          "title": "Remove a school"
-         },
-         {
-          "id": "menu",
-          "title": "Main menu"
-         },
-         {
-          "id": "done",
-          "title": "I'm done"
-         }
-        ]
-       },
-       {
-        "type": "Footer",
-        "label": "Continue",
-        "on-click-action": {
-         "name": "complete",
-         "payload": {
-          "observe_visit_action": "roster",
-          "roster_next": "${form.next}",
-          "school_name": "${data.school_name}"
-         }
-        }
-       }
-      ]
-     }
-    ]
-   }
-  },
-  {
-   "id": "BRIEF",
-   "title": "Support brief",
-   "terminal": true,
-   "data": {
-    "teacher_name": {
-     "type": "string",
-     "__example__": "Ayesha Bibi"
-    },
-    "subtitle": {
-     "type": "string",
-     "__example__": "Grade 2 · GPS Dhok Bilal"
-    },
-    "strength_text": {
-     "type": "string",
-     "__example__": "✅ What's working: questioning & how she teaches"
-    },
-    "growth_text": {
-     "type": "string",
-     "__example__": "🌱 Where your support helps most: getting every student involved"
-    },
-    "moves_intro": {
-     "type": "string",
-     "__example__": "During your visit:"
-    },
-    "moves_text": {
-     "type": "string",
-     "__example__": "1. Watch her questioning: does she pause after asking, or answer it herself? If there's no wait-time, suggest she count silently to five.\n2. Count how many students actually speak. If it's only a few, suggest a 30-second think-pair-share.\n3. Watch how she checks understanding — suggest a one-question exit slip."
-    },
-    "trend_text": {
-     "type": "string",
-     "__example__": "📈 Journey: Developing → Proficient (3 sessions)"
-    },
-    "debrief_reminder": {
-     "type": "string",
-     "__example__": "In the debrief, pick just ONE thing to work on with her — and open with a genuine strength."
-    },
-    "guidance_text": {
-     "type": "string",
-     "__example__": "This is guidance to support your visit — not a grade or a ranking."
-    },
-    "teacher_ext_id": {
-     "type": "string",
-     "__example__": "t1"
-    },
-    "school_ext_id": {
-     "type": "string",
-     "__example__": "s1"
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "TextHeading",
-      "text": "${data.teacher_name}"
-     },
-     {
-      "type": "TextSubheading",
-      "text": "${data.subtitle}"
-     },
-     {
-      "type": "TextBody",
-      "text": "${data.strength_text}"
-     },
-     {
-      "type": "TextBody",
-      "text": "${data.growth_text}"
-     },
-     {
-      "type": "TextSubheading",
-      "text": "${data.moves_intro}"
-     },
-     {
-      "type": "TextBody",
-      "text": "${data.moves_text}"
-     },
-     {
-      "type": "TextBody",
-      "text": "${data.trend_text}"
-     },
-     {
-      "type": "TextBody",
-      "text": "${data.debrief_reminder}"
-     },
-     {
-      "type": "TextCaption",
-      "text": "${data.guidance_text}"
-     },
-     {
-      "type": "Footer",
-      "label": "Start observation",
-      "on-click-action": {
-       "name": "complete",
-       "payload": {
-        "step": "start",
-        "teacher_ext_id": "${data.teacher_ext_id}",
-        "school_ext_id": "${data.school_ext_id}"
-       }
-      }
-     }
-    ]
-   }
-  },
-  {
-   "id": "SUCCESS",
-   "title": "Done",
-   "terminal": true,
-   "success": true,
-   "data": {
-    "extension_message_response": {
-     "type": "object",
-     "properties": {
-      "params": {
-       "type": "object"
-      }
-     },
-     "__example__": {
-      "params": {
-       "observe_visit_action": "done"
-      }
-     }
-    },
-    "heading": {
-     "type": "string",
-     "__example__": "Observation scheduled"
-    },
-    "body": {
-     "type": "string",
-     "__example__": "Tap /observe anytime to see your schedule."
-    },
-    "action": {
-     "type": "string",
-     "__example__": "done"
-    },
-    "teacher_name": {
-     "type": "string",
-     "__example__": "Ayesha Khan"
-    },
-    "sched_date": {
-     "type": "string",
-     "__example__": "2026-08-20"
-    },
-    "sched_slot": {
-     "type": "string",
-     "__example__": "09:00"
-    }
-   },
-   "layout": {
-    "type": "SingleColumnLayout",
-    "children": [
-     {
-      "type": "TextHeading",
-      "text": "${data.heading}"
-     },
-     {
-      "type": "TextBody",
-      "text": "${data.body}"
-     },
-     {
-      "type": "Form",
-      "name": "success_form",
-      "children": [
-       {
-        "type": "RadioButtonsGroup",
-        "name": "next",
-        "label": "What next?",
-        "required": true,
-        "data-source": [
-         {
-          "id": "schedule",
-          "title": "Schedule another observation"
-         },
-         {
-          "id": "menu",
-          "title": "Main menu"
-         },
-         {
-          "id": "done",
-          "title": "I'm done for now"
-         }
-        ]
-       },
-       {
-        "type": "Footer",
-        "label": "Continue",
-        "on-click-action": {
-         "name": "complete",
-         "payload": {
-          "observe_visit_action": "${data.action}",
-          "visit_next": "${form.next}",
-          "teacher_name": "${data.teacher_name}",
-          "sched_date": "${data.sched_date}",
-          "sched_slot": "${data.sched_slot}"
-         }
-        }
-       }
-      ]
-     }
-    ]
-   }
-  }
- ]
 }
