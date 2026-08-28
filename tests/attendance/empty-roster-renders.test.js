@@ -32,11 +32,25 @@
  */
 
 const mockSupabase = { from: jest.fn() };
-jest.mock('../../bot/shared/config/supabase', () => mockSupabase);
+jest.mock('../../bot/shared/config/supabase', () =>
+  // The real ConversationState runs against a fake `users` row — see the fixture
+  // for why stubbing the service itself would prove nothing (bd-2733).
+  require('../fixtures/conversation-state-fake').withConversationState(mockSupabase));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 
 const marking = require('../../bot/shared/routes/attendance-marking-endpoint');
 const flow = require('../../docs/flows/attendance-marking-flow.json');
+
+/** PostgREST builders are both awaitable and chainable; the mock must be both. */
+function thenable(rows) {
+  const p = Promise.resolve({ data: rows, error: null });
+  p.eq = () => thenable(rows);
+  p.in = () => thenable(rows);
+  p.order = () => thenable(rows);
+  p.limit = (n) => thenable(rows.slice(0, n));
+  p.maybeSingle = () => Promise.resolve({ data: rows[0] || null, error: null });
+  return p;
+}
 
 /** Same stub surface as empty-roster-dead-end.test.js — the four tables in play. */
 function db({ user = {}, classes = [], studentsByList = {}, schools = [], staff = [] } = {}) {
@@ -74,8 +88,16 @@ function db({ user = {}, classes = [], studentsByList = {}, schools = [], staff 
             };
             return { eq: () => tail, ...tail };
           },
+          // The CLASS screen counts every class at once (bd-2728). Reached whenever
+          // a register falls back to the picker, so the harness has to answer it.
+          in: (col, ids) => thenable(col === 'list_id'
+            ? ids.flatMap((lid) => (studentsByList[lid] || []).map((r) => ({ ...r, list_id: lid })))
+            : []),
         }),
       };
+    }
+    if (table === 'class_enrollments') {
+      return { select: () => ({ in: () => thenable([]), eq: () => thenable([]) }) };
     }
     if (table === 'schools') {
       return {
@@ -240,5 +262,88 @@ describe('the Flow asset has to agree', () => {
     const res = await toMark();
     const declared = Object.keys(flow.screens.find((s) => s.id === 'MARK').data);
     Object.keys(res.data).forEach((k) => expect(declared).toContain(k));
+  });
+});
+
+/**
+ * bd-2733 — the register survives a hop to another process.
+ *
+ * These would all have passed against the old in-memory Map too; that is the point.
+ * The Map only ever failed ACROSS processes, which a single-process test cannot
+ * reproduce — so what is pinned here is the observable contract that makes the
+ * shared store correct: the state is written where another replica can read it, the
+ * roster is re-read rather than carried, and the voice path does not lose its
+ * pre-ticks to the state write that replaces its stash.
+ */
+describe('bd-2733 — in-flight state lives outside the process', () => {
+  it('keeps the register in conversation_state, not in module memory', async () => {
+    db({ user: TEACHER, classes: CLASS, studentsByList: { c1: [] } });
+    await marking.handleMarkingDataExchange('t1', 'CLASS', { class_id: 'student:c1' });
+
+    // The fake `users` row is the only place it could have gone.
+    const supa = require('../../bot/shared/config/supabase');
+    const row = supa._stateStore.get('t1');
+
+    expect(row).toBeDefined();
+    expect(row.conversation_state.flow).toBe('attendance_marking');
+    expect(row.conversation_state.payload.targetId).toBe('c1');
+    expect(row.conversation_state_expires_at).toBeTruthy();
+  });
+
+  it('never stores the roster — it is re-read per screen', async () => {
+    db({
+      user: { id: 't9', role: 'teacher' },
+      classes: [{ id: 'c9', class_name: '5th' }],
+      studentsByList: { c9: [{ id: 's1', student_name: 'Aleeha Noor', roll_number: 1 }] },
+    });
+    await toMark('t9', 'c9');
+
+    const supa = require('../../bot/shared/config/supabase');
+    const payload = supa._stateStore.get('t9').conversation_state.payload;
+
+    // A 225-child class would otherwise be rewritten on every hop.
+    expect(payload.people).toBeUndefined();
+    expect(JSON.stringify(payload)).not.toContain('Aleeha');
+  });
+
+  it('picks up a register written by "another process"', async () => {
+    db({
+      user: { id: 't8', role: 'teacher' },
+      classes: [{ id: 'c8', class_name: '5th' }],
+      studentsByList: { c8: [{ id: 's1', student_name: 'Aleeha Noor', roll_number: 1 }] },
+    });
+
+    // Written as if by the replica that served CLASS and DATE.
+    const supa = require('../../bot/shared/config/supabase');
+    supa._stateStore.set('t8', {
+      conversation_state: {
+        flow: 'attendance_marking',
+        step: null,
+        payload: { userId: 't8', subject: 'student', targetId: 'c8', date: '2026-08-14', absentIds: [], leaveIds: [], voiceLeaveIds: [] },
+        stack: [],
+        version: 1,
+      },
+      conversation_state_expires_at: new Date(Date.now() + 60000).toISOString(),
+    });
+
+    // This "replica" has never seen the flow before — under the old Map it answered
+    // CLASS here, which is the bounce the teacher reported.
+    const res = await marking.handleMarkingDataExchange('t8', 'MARK', { absent: ['s1'] });
+
+    expect(res.screen).toBe('LEAVE');
+    expect(res.data.heading).toMatch(/1 marked absent/i);
+  });
+
+  it('a register belonging to a different flow is not mistaken for one', async () => {
+    db({ user: TEACHER, classes: CLASS, studentsByList: { c1: [] } });
+    const supa = require('../../bot/shared/config/supabase');
+    supa._stateStore.set('t1', {
+      conversation_state: { flow: 'quiz', step: 'q1', payload: { targetId: 'nope' }, stack: [], version: 1 },
+      conversation_state_expires_at: new Date(Date.now() + 60000).toISOString(),
+    });
+
+    // Scoped read: a teacher parked in a quiz is not half-way through a register.
+    const res = await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
+    expect(res.screen).toBe('CLASS');
   });
 });
