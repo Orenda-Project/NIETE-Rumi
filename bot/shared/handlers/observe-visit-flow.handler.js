@@ -982,21 +982,25 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const A = _admin();
       const mine = await A.listMySchools(userId).catch(() => []);
       const school = mine.find((x) => x.school_ext_id === schoolExtId);
-      // The school NAME is required by the screen and was rendering as the
-      // literal `${data.school_name}` when this was left empty — a declared key
-      // with a blank value reads as an unresolved binding. Refuse instead.
-      if (!school || !school.school_name) return _refuse('not_my_school');
+      if (!school) return _refuse('not_my_school');
+      // Composed HERE, not in the screen. Flow substitutes ${data.x} only when
+      // it is the whole property value — a reference inside a sentence is
+      // printed literally, which is what put "${data.school_name}" in front of
+      // a coach.
       return {
         screen: 'TEACHER_ADD',
-        data: { school_ext_id: schoolExtId, school_name: school.school_name },
+        data: {
+          school_ext_id: schoolExtId,
+          intro: `Adding a teacher to ${school.school_name}.\n\nType their WhatsApp number and we'll look them up before anything changes.`,
+        },
       };
     }
 
-    // READS ONLY.
+    // READS ONLY. The number is all we asked for; the name screen only appears
+    // when we genuinely do not know this person.
     if (step === 'teacher_add_lookup') {
       const T = _T();
       const schoolExtId = String((screenData && screenData.school_ext_id) || '');
-      const typedName = String((screenData && screenData.name) || '').trim();
       const plan = await T.planAdd({
         actorLeaderUserId: userId, schoolExtId, rawPhone: screenData && screenData.phone,
       }).catch(() => ({ outcome: 'failed' }));
@@ -1004,21 +1008,35 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       if (['invalid_phone', 'not_my_school', 'is_coach', 'failed'].includes(plan.outcome)) {
         return _refuse(plan.outcome);
       }
-      // A number nobody holds needs a name — the users row cannot be created
-      // without one, and the screen makes it optional because most adds are
-      // people we already know.
-      if (plan.outcome === 'new' && !typedName) return _refuse('name_required');
 
-      return {
-        screen: 'TEACHER_CONFIRM',
-        data: {
-          plan: T.addPlanAck(_flowLang, { ...plan, person: plan.person || { name: typedName } }),
-          school_ext_id: schoolExtId,
-          phone: String(plan.phone || ''),
-          name: typedName || ((plan.person && plan.person.name) || ''),
-          confirm_label: clip(S_(_flowLang).teacher_confirm_label || 'Yes, go ahead', 20),
-        },
-      };
+      if (plan.outcome === 'new') {
+        return {
+          screen: 'TEACHER_NAME',
+          data: {
+            school_ext_id: schoolExtId,
+            phone: String(plan.phone || ''),
+            intro: `We don't have an account for ${plan.phone}.\n\nWhat is their full name?`,
+          },
+        };
+      }
+
+      return { screen: 'TEACHER_CONFIRM', data: T.foundAccountScreen(_flowLang, plan, schoolExtId) };
+    }
+
+    // The name screen's Continue — the person is new, so go straight to confirm.
+    if (step === 'teacher_add_named') {
+      const T = _T();
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const name = String((screenData && screenData.name) || '').trim();
+      if (!name) return _refuse('name_required');
+      const plan = await T.planAdd({
+        actorLeaderUserId: userId, schoolExtId, rawPhone: screenData && screenData.phone,
+      }).catch(() => ({ outcome: 'failed' }));
+      if (plan.outcome !== 'new') {
+        // Someone registered between the two taps — fall back to the found path.
+        return { screen: 'TEACHER_CONFIRM', data: T.foundAccountScreen(_flowLang, plan, schoolExtId) };
+      }
+      return { screen: 'TEACHER_CONFIRM', data: T.foundAccountScreen(_flowLang, { ...plan, name }, schoolExtId) };
     }
 
     if (step === 'teacher_add_commit') {
@@ -1049,7 +1067,11 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         : [_opt('none', S_(_flowLang).search_no_match, '', '')];
       return {
         screen: 'TEACHER_PICK',
-        data: { options, school_ext_id: schoolExtId, school_name: school.school_name || '' },
+        data: {
+          options,
+          school_ext_id: schoolExtId,
+          intro: `Pick the person to take off ${school.school_name}.`,
+        },
       };
     }
 
