@@ -129,3 +129,107 @@ describe('dedupePatch · two of a coach\'s schools can name the same person', ()
     expect(out.map((r) => r.name)).toEqual(['Aaa Teacher', 'Zzz Teacher', 'Aaa Principal']);
   });
 });
+
+// ── the supabase path, and the legacy shape the bot still expects ──────
+
+const {
+  listPatchViaSupabase, toLeaderSourceRow,
+} = require('../../shared/services/observe/patch-resolver.service');
+
+/** A fake supabase whose .from() returns canned tables. */
+function fakeSupabase(tables, spy = {}) {
+  return {
+    from(name) {
+      spy[name] = (spy[name] || 0) + 1;
+      const q = {
+        _rows: tables[name] || [],
+        select() { return q; },
+        eq(col, val) { q._rows = q._rows.filter((r) => r[col] === val); return q; },
+        in(col, vals) { q._rows = q._rows.filter((r) => vals.includes(r[col])); return q; },
+        then(res) { return res({ data: q._rows, error: null }); },
+      };
+      return q;
+    },
+  };
+}
+
+const TABLES = () => ({
+  leader_schools: [
+    { leader_user_id: 'c1', school_ext_id: 'niete:409', school_id: null },
+    { leader_user_id: 'c1', school_ext_id: 'niete:203', school_id: null },
+    { leader_user_id: 'c2', school_ext_id: 'niete:999', school_id: null },
+  ],
+  schools: [
+    { id: 's409', name: 'IMSB (VI-X), Rawal Dam', emis: '409' },
+    { id: 's203', name: 'IMS (I-V) G-6/1-1', emis: '203' },
+  ],
+  users: [
+    { id: 'u1', phone_number: '923001111111', first_name: 'Tahira', role: 'teacher', school_id: 's409', training_bands: ['PRIMARY'] },
+    { id: 'u2', phone_number: '923002222222', first_name: 'Nasir', role: 'principal', school_id: 's409', training_bands: [] },
+    { id: 'u3', phone_number: '923003333333', first_name: 'Bushra', role: 'teacher', school_id: 's203', training_bands: ['MIDDLE'] },
+    { id: 'u4', phone_number: '923004444444', first_name: 'Someone Else', role: 'teacher', school_id: 'sOTHER', training_bands: [] },
+    { id: 'u5', phone_number: '923005555555', first_name: 'A Coach', role: 'coach', school_id: 's409', training_bands: [] },
+  ],
+});
+
+describe('listPatchViaSupabase · the bot side of the same derivation', () => {
+  it('returns everyone at her schools and nobody else', async () => {
+    const out = await listPatchViaSupabase(fakeSupabase(TABLES()), 'c1');
+    expect(out.map((r) => r.name).sort()).toEqual(['Bushra', 'Nasir', 'Tahira']);
+  });
+
+  it('excludes a coach who happens to sit at one of her schools', async () => {
+    const out = await listPatchViaSupabase(fakeSupabase(TABLES()), 'c1');
+    expect(out.find((r) => r.name === 'A Coach')).toBeUndefined();
+  });
+
+  it('excludes people at schools she does not hold', async () => {
+    const out = await listPatchViaSupabase(fakeSupabase(TABLES()), 'c1');
+    expect(out.find((r) => r.name === 'Someone Else')).toBeUndefined();
+  });
+
+  it('filters to ONE school when asked', async () => {
+    const out = await listPatchViaSupabase(fakeSupabase(TABLES()), 'c1', 'niete:203');
+    expect(out.map((r) => r.name)).toEqual(['Bushra']);
+  });
+
+  it("a blank school filter means no filter — '' must not zero the roster", async () => {
+    // bd-5n1a2 shipped exactly this bug on the old path: a schedule row with
+    // school_ext_id='' turned into a zero-row roster and unbound a picked teacher.
+    for (const blank of ['', null, undefined]) {
+      const out = await listPatchViaSupabase(fakeSupabase(TABLES()), 'c1', blank);
+      expect(out).toHaveLength(3);
+    }
+  });
+
+  it('a coach with no schools gets nothing, without querying users', async () => {
+    const spy = {};
+    const out = await listPatchViaSupabase(fakeSupabase(TABLES(), spy), 'nobody');
+    expect(out).toEqual([]);
+    expect(spy.users).toBeUndefined();
+  });
+});
+
+describe('toLeaderSourceRow · the shape the visit Flow already consumes', () => {
+  it('keys on the phone, because that is what observation_schedules stores', () => {
+    // 980 of 992 live schedules and 8,043 of 8,057 roster rows already use the
+    // phone as teacher_ext_id, so emitting it keeps scheduling continuous.
+    const r = toLeaderSourceRow({
+      userId: 'u1', name: 'Tahira', phone: '923001111111',
+      emis: '409', schoolName: 'Rawal Dam', band: 'primary', isPrincipal: false,
+    });
+    expect(r).toEqual({
+      teacher_ext_id: '923001111111',
+      teacher_name: 'Tahira',
+      teacher_phone_e164: '923001111111',
+      school_ext_id: 'niete:409',
+      level: 'PRIMARY',
+      is_principal: false,
+    });
+  });
+
+  it('keeps level uppercase — the old column was PRIMARY/MIDDLE/HIGH', () => {
+    expect(toLeaderSourceRow({ band: 'high' }).level).toBe('HIGH');
+    expect(toLeaderSourceRow({ band: null }).level).toBeNull();
+  });
+});

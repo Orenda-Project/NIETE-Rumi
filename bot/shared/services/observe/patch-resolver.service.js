@@ -147,8 +147,69 @@ async function listPatch(query, leaderUserId) {
   return dedupePatch((rows || []).map(shapePatchRow));
 }
 
+// ── the supabase path (the bot; the dashboard uses PATCH_SQL) ──────────
+
+/**
+ * The same derivation over the supabase client, in three indexed round trips.
+ *
+ * Not one join because PostgREST cannot express `leader_schools -> schools` on
+ * a text key. Each hop is a primary-key or indexed lookup and the widest coach
+ * on production resolves 388 people, so this is small.
+ */
+async function listPatchViaSupabase(supabase, leaderUserId, schoolExtId = null) {
+  const { data: mine } = await supabase
+    .from('leader_schools').select('school_ext_id, school_id').eq('leader_user_id', leaderUserId);
+
+  // bd-5n1a2: '' must mean "no filter". A schedule row carrying school_ext_id=''
+  // once turned into a zero-row roster and silently unbound a picked teacher.
+  const wanted = (schoolExtId == null || schoolExtId === '')
+    ? (mine || [])
+    : (mine || []).filter((r) => r.school_ext_id === schoolExtId);
+  if (!wanted.length) return [];
+
+  const emis = [...new Set(wanted.map((r) => String(r.school_ext_id || '').split(':').pop()).filter(Boolean))];
+  const { data: schools } = await supabase.from('schools').select('id, name, emis').in('emis', emis);
+  const byId = new Map((schools || []).map((s) => [s.id, s]));
+  if (!byId.size) return [];
+
+  const { data: people } = await supabase
+    .from('users')
+    .select('id, phone_number, first_name, role, school_id, training_bands, grades_taught')
+    .in('school_id', [...byId.keys()])
+    .in('role', [...PATCH_ROLES]);
+
+  return dedupePatch((people || []).map((u) => {
+    const s = byId.get(u.school_id) || {};
+    return shapePatchRow({ ...u, user_id: u.id, school_name: s.name, emis: s.emis });
+  }));
+}
+
+/**
+ * A patch person in the shape `leader-source` and the visit Flow already read.
+ *
+ * `teacher_ext_id` is the PHONE. 980 of 992 live observation_schedules rows and
+ * 8,043 of 8,057 old roster rows already key on it, so emitting the phone keeps
+ * scheduling continuous across the switch. The 12 `name:` slug schedules do not
+ * resolve and are the known cost.
+ *
+ * `level` stays uppercase because every consumer was written against the old
+ * column's PRIMARY/MIDDLE/HIGH.
+ */
+function toLeaderSourceRow(p = {}) {
+  return {
+    teacher_ext_id: p.phone || null,
+    teacher_name: p.name || null,
+    teacher_phone_e164: p.phone || null,
+    school_ext_id: p.emis ? `niete:${p.emis}` : null,
+    level: p.band ? String(p.band).toUpperCase() : null,
+    is_principal: !!p.isPrincipal,
+  };
+}
+
 module.exports = {
   PATCH_ROLES,
+  listPatchViaSupabase,
+  toLeaderSourceRow,
   PATCH_SQL,
   bandOf,
   shapePatchRow,
