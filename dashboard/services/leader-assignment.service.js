@@ -1,4 +1,42 @@
 /**
+ * DEPRECATED DEPENDENCY — `leader_teachers`.
+ *
+ * This file is one of only two left that still touch that table, and it is the
+ * reason the table has not been dropped.
+ *
+ * WHAT IT USED TO BE. `leader_teachers` stored one row per
+ * (coach, school, teacher) and answered two questions: "who does this coach
+ * coach?" and — because no school→teacher roster table was ever built — "who
+ * teaches at this school?", derived as DISTINCT teachers at a school_ext_id
+ * across whoever held it.
+ *
+ * WHAT REPLACED IT. A coach's people are now computed:
+ *
+ *     leader_schools (coach → school)  ×  users.school_id (person → school)
+ *
+ * The stored table and the schools disagreed on 230 production rows. A join
+ * cannot disagree with itself, so the question now has exactly one answer.
+ *
+ * WHY IT IS STILL HERE. Adding or removing a SCHOOL still writes teacher rows
+ * here, and only this path reads them back. The table is maintained for its own
+ * sake: 7,954 rows on production, none of them consulted to resolve a patch.
+ *
+ * WHEN TO DELETE IT. When coach observation has run on production against the
+ * derived patch long enough to trust — coaches finding their teachers, booking
+ * and completing visits, no "where did my list go" reports — AND
+ * `leader_roster_audit` carries real coach-driven rows, AND the 7 teachers who
+ * are held by a coach but have no `users.school_id` have been given one (until
+ * then this table is the only record that they belong to anybody).
+ *
+ * Deleting it also retires `extIdIsAmbiguous()` and the niete:607 / niete:628
+ * guards. Those exist only because the old text `'niete:' || emis` join could
+ * not tell two schools apart; the foreign key can.
+ *
+ * The ratchet that keeps this list from growing:
+ * bot/tests/observe/leader-teachers-deprecated.test.js
+ */
+
+/**
  * bd-88krt — coach self-service: edit a visit, and own your school list.
  *
  * Riffat (HITL R38/R39/R41). R41's root cause was not a missing feature but a

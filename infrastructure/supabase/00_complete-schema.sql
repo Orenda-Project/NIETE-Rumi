@@ -4629,6 +4629,26 @@ CREATE INDEX IF NOT EXISTS idx_leader_schools_leader
 CREATE INDEX IF NOT EXISTS idx_leader_schools_school_id
   ON leader_schools (school_id);
 
+-- DEPRECATED (V1.2.4) — do not read, do not add callers.
+--
+-- Stored one row per (coach, school, teacher). It answered "who does this coach
+-- coach?" and, because no school->teacher roster table was ever built, also
+-- "who teaches at this school?" — DISTINCT teachers at a school_ext_id across
+-- whoever held it. A coach-assignment table doing duty as institutional record.
+--
+-- Both questions are now derived:  leader_schools x users.school_id.
+-- The stored answer and the schools disagreed on 230 production rows; a join
+-- cannot disagree with itself.
+--
+-- Still WRITTEN by the school add/remove path, which is also the only thing
+-- that reads the rows back. Populated, indexed, and deciding nothing — which is
+-- precisely why the deprecation is stated here and on the table itself, rather
+-- than left to be inferred from 7,954 healthy-looking rows.
+--
+-- Delete when coach observation has run on the derived patch long enough to
+-- trust it, leader_roster_audit carries real coach-driven rows, and the 7
+-- teachers held by a coach with no users.school_id have been given one.
+-- Ratchet: bot/tests/observe/leader-teachers-deprecated.test.js
 CREATE TABLE IF NOT EXISTS leader_teachers (
   id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   leader_user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
