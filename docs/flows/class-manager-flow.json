@@ -362,6 +362,10 @@
           "type": "string",
           "__example__": "Remove from this class"
         },
+        "has_students": {
+          "type": "boolean",
+          "__example__": true
+        },
         "remove_options": {
           "type": "array",
           "items": {
@@ -419,6 +423,7 @@
                 "name": "remove",
                 "label": "${data.remove_label}",
                 "required": false,
+                "visible": "${data.has_students}",
                 "data-source": "${data.remove_options}"
               },
               {
