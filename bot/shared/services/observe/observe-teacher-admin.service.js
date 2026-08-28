@@ -301,6 +301,24 @@ function _supabaseDb() {
       return !error;
     },
 
+    /** How many upcoming visits a removal WOULD cancel — the warning, not the act. */
+    async countUpcoming({ schoolExtId, teacherExtId }) {
+      const { count } = await supabase.from('observation_schedules')
+        .select('id', { count: 'exact', head: true })
+        .eq('school_ext_id', schoolExtId).eq('teacher_ext_id', teacherExtId)
+        .eq('status', 'upcoming');
+      return Number(count) || 0;
+    },
+
+    /** This coach's own live teachers at one school — what she may remove. */
+    async myTeachersAtSchool(leaderUserId, schoolExtId) {
+      const { data } = await supabase.from('leader_teachers')
+        .select('teacher_ext_id, teacher_name, teacher_phone_e164, level')
+        .eq('leader_user_id', leaderUserId).eq('school_ext_id', schoolExtId)
+        .is('deleted_at', null).order('teacher_name');
+      return data || [];
+    },
+
     async writeAudit(rows) {
       if (!rows || !rows.length) return 0;
       const { error } = await supabase.from('leader_roster_audit').insert(rows);
@@ -515,7 +533,127 @@ async function commitRemoval({ actorLeaderUserId, schoolExtId, teacherExtId, rea
   };
 }
 
+// ── planning (reads only — the confirm screen's source of truth) ───────
+
+/**
+ * What WOULD happen, for the screen the coach reads before confirming.
+ *
+ * Shares `classifyAdd` with `commitAdd` on purpose: the confirm text and the
+ * write must never be able to disagree about the outcome. commitAdd re-plans
+ * anyway, because the two are separate data_exchange round trips and another
+ * coach can move the same teacher in between.
+ */
+async function planAdd({ actorLeaderUserId, schoolExtId, rawPhone }, deps = {}) {
+  const { db } = _deps(deps);
+  const phone = normaliseTeacherPhone(rawPhone);
+  if (!phone) return { outcome: 'invalid_phone' };
+
+  const live = await db.liveRowsByPhone(phone);
+  const plan = classifyAdd({ existing: live, targetSchoolExtId: schoolExtId, actorLeaderUserId });
+  const target = await db.resolveSchool(schoolExtId);
+  const known = live[0] || null;
+
+  return {
+    ...plan,
+    phone,
+    teacherName: plan.teacherName || (known && known.teacher_name) || null,
+    toSchoolExtId: schoolExtId,
+    toSchoolName: (target && target.school_name) || null,
+  };
+}
+
+/** What a removal would cost, including the visits it takes down with it. */
+async function planRemoval({ schoolExtId, teacherExtId }, deps = {}) {
+  const { db } = _deps(deps);
+  const rows = await db.liveRowsAtSchool(schoolExtId, teacherExtId);
+  if (!rows.length) return { ok: false, reason: 'not_found' };
+  return {
+    ok: true,
+    teacherName: rows[0].teacher_name,
+    schoolName: rows[0].school_name,
+    coachesAffected: new Set(rows.map((r) => r.leader_user_id).filter(Boolean)).size,
+    upcomingVisits: await db.countUpcoming({ schoolExtId, teacherExtId }),
+  };
+}
+
+/** This coach's own teachers at one school — the remove picker's options. */
+async function listTeachersAtSchool(leaderUserId, schoolExtId, deps = {}) {
+  const { db } = _deps(deps);
+  return db.myTeachersAtSchool(leaderUserId, schoolExtId);
+}
+
+// ── the removal confirm, and the refusals ──────────────────────────────
+
+const REMOVAL_PLAN = {
+  en: {
+    base: 'About to take *{name}* off *{school}*.',
+    coaches: ' She comes off {n} in total.',
+    visits: ' {v} already booked will be cancelled.',
+    tail: '\n\nHer account and her full history stay. She can be added to another school later.',
+  },
+  ur: {
+    base: '*{name}* کو *{school}* سے ہٹایا جا رہا ہے۔',
+    coaches: ' وہ کل {n} کی فہرست سے ہٹ جائیں گی۔',
+    visits: ' پہلے سے طے شدہ {v} منسوخ ہو جائیں گی۔',
+    tail: '\n\nان کا اکاؤنٹ اور پورا ریکارڈ محفوظ رہے گا۔ انہیں بعد میں کسی اور اسکول میں شامل کیا جا سکتا ہے۔',
+  },
+};
+
+function _visits(lang, n) {
+  if (lang === 'ur') return `${n} وزٹس`;
+  return n === 1 ? '1 visit' : `${n} visits`;
+}
+
+/**
+ * The removal confirm. Names the visits it will cancel, because a coach who
+ * loses a booking she made should have been told before, not after.
+ */
+function removalPlanAck(lang, plan = {}) {
+  const l = clampLanguage(lang);
+  const t = REMOVAL_PLAN[l] || REMOVAL_PLAN.en;
+  let out = t.base
+    .replace('{name}', String(plan.teacherName || '').trim() || 'that teacher')
+    .replace('{school}', String(plan.schoolName || '').trim() || 'that school');
+  const n = Number(plan.coachesAffected) || 0;
+  if (n > 1) out += t.coaches.replace('{n}', _coaches(l, n));
+  const v = Number(plan.upcomingVisits) || 0;
+  if (v > 0) out += t.visits.replace('{v}', _visits(l, v));
+  return out + t.tail;
+}
+
+const REFUSALS = {
+  en: {
+    invalid_phone: 'That does not look like a mobile number. Type it as 03001234567 and try again.',
+    ambiguous: 'That number is on our records for more than one teacher, so we cannot tell which one you mean. Tell the team and they will sort the number out.',
+    school_not_found: 'We could not find that school. Tell the team.',
+    name_required: 'We do not know this teacher yet, so we need her name to add her.',
+    not_found: 'She is not on that school’s list, so there is nothing to remove.',
+    cancelled: 'Nothing was changed.',
+    failed: 'That did not go through. Nothing was changed — please try again.',
+  },
+  ur: {
+    invalid_phone: 'یہ موبائل نمبر نہیں لگتا۔ اسے 03001234567 کی طرح لکھ کر دوبارہ کوشش کریں۔',
+    ambiguous: 'یہ نمبر ایک سے زیادہ ٹیچرز کے ریکارڈ میں ہے، اس لیے ہم نہیں بتا سکتے کہ آپ کس کی بات کر رہی ہیں۔ ٹیم کو بتائیں، وہ نمبر درست کر دیں گے۔',
+    school_not_found: 'یہ اسکول نہیں مل سکا۔ ٹیم کو بتائیں۔',
+    name_required: 'ہم اس ٹیچر کو ابھی نہیں جانتے، انہیں شامل کرنے کے لیے ان کا نام درکار ہے۔',
+    not_found: 'وہ اس اسکول کی فہرست میں نہیں ہیں، اس لیے ہٹانے کو کچھ نہیں۔',
+    cancelled: 'کچھ تبدیل نہیں کیا گیا۔',
+    failed: 'یہ مکمل نہیں ہو سکا۔ کچھ تبدیل نہیں ہوا — دوبارہ کوشش کریں۔',
+  },
+};
+
+function refusalBody(lang, key) {
+  const l = clampLanguage(lang);
+  const t = REFUSALS[l] || REFUSALS.en;
+  return t[key] || t.failed;
+}
+
 module.exports = {
+  planAdd,
+  planRemoval,
+  listTeachersAtSchool,
+  removalPlanAck,
+  refusalBody,
   commitAdd,
   commitRemoval,
   normaliseTeacherPhone,
