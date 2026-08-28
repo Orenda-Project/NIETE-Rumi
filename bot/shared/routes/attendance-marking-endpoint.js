@@ -58,12 +58,18 @@ const REGISTER_TIME_ZONE = process.env.REGION_TIME_ZONE || 'Asia/Karachi';
  * class yet" went on producing the same unrenderable screen it was meant to replace.
  * Reported again on 2026-08-28 at DATE → MARK for an empty class.
  *
- * The group is hidden by `visible: ${data.has_roster}` whenever this sentinel is the
- * only entry, so it is never drawn and never selectable; the array stays non-empty
- * purely so the data-source is well-formed underneath it. Selections are filtered for
- * it anyway — a Flow already delivered to a handset can post back anything.
+ * The group is NOT hidden when this is the only entry. A `visible` guard was tried
+ * and had to come out: MARK's Form carries exactly one control, so making it
+ * conditional left the Footer's `${form.absent}` with nothing to resolve and the
+ * submit silently never left the handset — the screen drew, the teacher ticked, and
+ * pressing Continue did nothing (2026-08-28, WhatsApp Web). /class survives the same
+ * guard because its Form always has a visible TextArea beside the checkbox.
+ *
+ * So the row is always drawn and simply says there is nobody yet. It is filtered out
+ * of any submission — a Flow already delivered to a handset can post back anything —
+ * and the heading and note above it say the same thing in full.
  */
-const NO_ROSTER_OPTION = Object.freeze({ id: '__none__', title: '—' });
+const NO_ROSTER_OPTION = Object.freeze({ id: '__none__', title: 'Nobody on this list yet' });
 
 /**
  * The two fields every roster-bearing screen needs, derived from one list.

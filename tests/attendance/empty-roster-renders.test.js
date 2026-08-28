@@ -241,7 +241,7 @@ describe('the Flow asset has to agree', () => {
     expect(screen.data.has_roster.type).toBe('boolean');
   });
 
-  it.each(bound)('%s guards its roster CheckboxGroup with it', (id) => {
+  it.each(bound)('%s does NOT make its roster CheckboxGroup conditional', (id) => {
     const screen = flow.screens.find((s) => s.id === id);
     const find = (n) => {
       if (Array.isArray(n)) return n.map(find).find(Boolean);
@@ -254,7 +254,12 @@ describe('the Flow asset has to agree', () => {
     const group = find(screen.layout);
 
     expect(group).toBeDefined();
-    expect(group.visible).toBe('${data.has_roster}');
+    // A `visible` guard was tried here and had to come out. MARK's Form carries
+    // exactly one control, so making it conditional left the Footer's
+    // `${form.absent}` with nothing to resolve: the screen drew, the teacher ticked,
+    // and Continue silently never sent anything (2026-08-28, WhatsApp Web). The
+    // empty state is carried by the row's own text instead.
+    expect(group.visible).toBeUndefined();
   });
 
   it('leaves every screen still declaring the keys the endpoint sends', async () => {
