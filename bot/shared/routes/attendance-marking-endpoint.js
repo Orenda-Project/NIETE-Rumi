@@ -36,6 +36,7 @@ const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 const { markStudents, markTeachers, personName, loadStaffRoster } = require('../services/attendance-write.service');
 const VoiceAttendance = require('../services/voice-attendance.service');
+const ConversationState = require('../services/conversation-state.service');
 const { rosterLabel } = require('../services/classes/roster-label');
 const { deliverRegister } = require('../services/attendance-register-delivery.service');
 
@@ -78,9 +79,95 @@ function stripPlaceholder(ids) {
   return (ids || []).filter((id) => id !== NO_ROSTER_OPTION.id);
 }
 
-// In-flight marking state, keyed by flow token. The Flow carries the taps between
-// screens; we only need to remember the roster and the parsed selection.
-const pending = new Map();
+/**
+ * In-flight marking state — in Postgres, because this process is not the only one.
+ *
+ * This was a module-level `Map` keyed by flow token. That works only if every screen
+ * of a register lands on the SAME process, and staging alone runs three replicas
+ * (three "Bot server started" inside two seconds) on top of ordinary restarts. When
+ * the hop misses, every reader here falls back to renderClassScreen() — so the
+ * teacher is thrown back to the class picker mid-register, and because CLASS has no
+ * self-edge in the routing model, answering CLASS while already on CLASS is not a
+ * legal transition and the button appears dead. Reported 2026-08-28 as "it goes back
+ * to the date page, and Continue does nothing", intermittently, which is the shape of
+ * a round-robin: one attempt in three completed.
+ *
+ * ConversationState is the store built for exactly this, and its own header says why
+ * Redis was rejected for it — the NIETE Redis has no persistent volume, so a restart
+ * dropped every in-flight conversation. Keyed on user id alone, so a teacher who is
+ * interrupted still finds their register where they left it.
+ *
+ * THE ROSTER IS DELIBERATELY NOT STORED. It is re-read per screen from the same
+ * (subject, targetId) the state does carry, which keeps the JSONB small — a 225-child
+ * class is ~20KB that would otherwise be rewritten on every hop — and means a child
+ * added or removed mid-register is reflected rather than frozen at CLASS. See
+ * withRoster().
+ */
+const MARKING_FLOW = 'attendance_marking';
+
+/** Long enough to walk a full class; short enough not to haunt the afternoon. */
+const MARKING_TTL_SECONDS = 1800;
+
+/**
+ * The fields worth persisting — every one a scalar or a list of ids.
+ * Anything derivable (people, label) is left out on purpose.
+ */
+function persistable(ctx) {
+  return {
+    userId: ctx.userId || null,
+    subject: ctx.subject || null,
+    targetId: ctx.targetId || null,
+    date: ctx.date || null,
+    absentIds: ctx.absentIds || [],
+    leaveIds: ctx.leaveIds || [],
+    leaveType: ctx.leaveType == null ? null : ctx.leaveType,
+    voiceLeaveIds: ctx.voiceLeaveIds || [],
+    // Display-only, and only the voice path sets them: the transcript REVIEW quotes
+    // back and the names it could not place. Carried because saving this state
+    // replaces the voice stash they came from.
+    transcript: ctx.transcript || null,
+    unmatched: ctx.unmatched || [],
+  };
+}
+
+/** The register this teacher is in the middle of, or null. */
+async function loadCtx(flowToken) {
+  const { userId } = parseToken(flowToken);
+  if (!userId) return null;
+  const state = await ConversationState.getState(userId);
+  // Scoped: a teacher parked in some other flow is not half-way through a register.
+  if (!state || state.flow !== MARKING_FLOW) return null;
+  return { ...state.payload, userId };
+}
+
+/** Remember it. Returns the ctx so call sites can chain as they did with the Map. */
+async function saveCtx(flowToken, ctx) {
+  const { userId } = parseToken(flowToken);
+  const merged = { ...ctx, userId: ctx.userId || userId };
+  await ConversationState.setState(userId, {
+    flow: MARKING_FLOW,
+    step: ctx.step || null,
+    payload: persistable(merged),
+    ttlSeconds: MARKING_TTL_SECONDS,
+  });
+  return merged;
+}
+
+/** Done with it. */
+async function dropCtx(flowToken) {
+  const { userId } = parseToken(flowToken);
+  return ConversationState.clearState(userId, { flow: MARKING_FLOW });
+}
+
+/**
+ * ctx plus the roster it refers to, read fresh.
+ * Every screen that needs names or counts goes through here rather than trusting a
+ * copy taken at CLASS.
+ */
+async function withRoster(ctx) {
+  const { people, label } = await loadSubject(ctx);
+  return { ...ctx, people, label };
+}
 
 /**
  * "<userId>" | "<userId>:<subject>:<targetId>[:<mode>]" → its parts.
@@ -379,14 +466,14 @@ async function handleClassSubmit(flowToken, screenData) {
 
   const { userId } = parseToken(flowToken);
   const resolved = subject === 'teacher' ? 'teacher' : 'student';
-  pending.set(flowToken, { userId, subject: resolved, targetId });
+  await saveCtx(flowToken, { userId, subject: resolved, targetId });
 
   return renderDateScreen(flowToken);
 }
 
 /** DATE — any day up to today in the region's timezone. */
 async function renderDateScreen(flowToken) {
-  const ctx = pending.get(flowToken);
+  const ctx = await loadCtx(flowToken);
   if (!ctx) return renderClassScreen(flowToken);
 
   const label = ctx.subject === 'teacher'
@@ -412,10 +499,10 @@ async function renderDateScreen(flowToken) {
  * from inside a Flow at all.
  */
 async function handleDateSubmit(flowToken, screenData) {
-  const ctx = pending.get(flowToken);
+  const ctx = await loadCtx(flowToken);
   if (!ctx) return renderClassScreen(flowToken);
 
-  pending.set(flowToken, { ...ctx, date: readDate(screenData && screenData.register_date) });
+  await saveCtx(flowToken, { ...ctx, date: readDate(screenData && screenData.register_date) });
   return renderMarkScreen(flowToken);
 }
 
@@ -428,11 +515,12 @@ async function handleDateSubmit(flowToken, screenData) {
  */
 async function renderStaffDateScreen(flowToken) {
   const { userId, targetId } = parseToken(flowToken);
-  const schoolId = (pending.get(flowToken) || {}).targetId || targetId;
+  const existing = (await loadCtx(flowToken)) || {};
+  const schoolId = existing.targetId || targetId;
 
   // Seed the context here rather than on submit: the date screen is the first thing
   // a principal sees, so this is where the register's identity is established.
-  pending.set(flowToken, { ...(pending.get(flowToken) || {}), userId, subject: 'teacher', targetId: schoolId });
+  await saveCtx(flowToken, { ...existing, userId, subject: 'teacher', targetId: schoolId });
 
   return {
     screen: 'STAFF_DATE',
@@ -447,10 +535,10 @@ async function renderStaffDateScreen(flowToken) {
 
 /** STAFF_DATE submitted — straight into the register; there is no class to pick. */
 async function handleStaffDateSubmit(flowToken, screenData) {
-  const ctx = pending.get(flowToken) || {};
+  const ctx = (await loadCtx(flowToken)) || {};
   if (!ctx.targetId) return renderStaffDateScreen(flowToken);
 
-  pending.set(flowToken, { ...ctx, date: readDate(screenData && screenData.register_date) });
+  await saveCtx(flowToken, { ...ctx, date: readDate(screenData && screenData.register_date) });
   return renderMarkScreen(flowToken);
 }
 
@@ -468,7 +556,22 @@ async function handleStaffDateSubmit(flowToken, screenData) {
  */
 async function renderReviewScreen(flowToken) {
   const { userId, subject, targetId } = parseToken(flowToken);
-  const stashed = (await VoiceAttendance.pendingResult(userId)) || {};
+  // Saving the register's context replaces the voice stash — both live in the same
+  // conversation-state row under different flow names, and setState does not merge.
+  // So on a RE-render (a resubmit, or a handset reopening the Flow) the stash is
+  // already gone, and reading only it would silently drop every pre-tick the voice
+  // note earned. What was carried across at the first render is authoritative.
+  const carried = (await loadCtx(flowToken)) || {};
+  const stashed = Object.keys(carried).length
+    ? {
+      subject: carried.subject,
+      targetId: carried.targetId,
+      absentIds: carried.absentIds || [],
+      leaveIds: carried.voiceLeaveIds || [],
+      transcript: carried.transcript,
+      unmatched: carried.unmatched,
+    }
+    : ((await VoiceAttendance.pendingResult(userId)) || {});
   // The token is authoritative — it is what the Flow was opened with. The stash is
   // the fallback for a token that predates carrying the subject.
   const ctx = {
@@ -484,7 +587,13 @@ async function renderReviewScreen(flowToken) {
   const preselected = (stashed.absentIds || []).filter((id) => known.has(id));
   const leaveIds = (stashed.leaveIds || []).filter((id) => known.has(id) && !preselected.includes(id));
 
-  pending.set(flowToken, { ...ctx, people, voiceLeaveIds: leaveIds });
+  await saveCtx(flowToken, {
+    ...ctx,
+    absentIds: preselected,
+    voiceLeaveIds: leaveIds,
+    transcript: stashed.transcript || null,
+    unmatched: stashed.unmatched || [],
+  });
 
   const unmatched = stashed.unmatched || [];
   const heard = stashed.transcript
@@ -514,16 +623,19 @@ async function renderReviewScreen(flowToken) {
 
 /** REVIEW submitted — the principal's taps win over the transcription, always. */
 async function handleReviewSubmit(flowToken, screenData) {
-  const ctx = pending.get(flowToken);
-  if (!ctx) return renderReviewScreen(flowToken);
+  const stored = await loadCtx(flowToken);
+  if (!stored) return renderReviewScreen(flowToken);
 
+  // Re-read rather than trusting a roster copied at REVIEW: the ids coming back are
+  // validated against it, so it has to be the roster as it is NOW.
+  const ctx = await withRoster(stored);
   const known = new Set((ctx.people || []).map((p) => p.id));
   // Whatever came back from the screen IS the answer: a name the principal
   // un-ticked was un-ticked on purpose, and re-adding the voice's suggestion here
   // would silently overrule the correction this screen exists to collect.
   const absentIds = ((screenData && screenData.absent) || []).filter((id) => known.has(id));
 
-  pending.set(flowToken, {
+  await saveCtx(flowToken, {
     ...ctx,
     date: readDate(screenData && screenData.register_date),
     absentIds,
@@ -610,7 +722,7 @@ function emptyRosterScreen(isTeacherSubject) {
 
 /** The register itself — roster loaded for whatever was picked. */
 async function renderMarkScreen(flowToken) {
-  const ctx = pending.get(flowToken);
+  const ctx = await loadCtx(flowToken);
   if (!ctx) return renderClassScreen(flowToken);
 
   const isTeacherSubject = ctx.subject === 'teacher';
@@ -627,9 +739,12 @@ async function renderMarkScreen(flowToken) {
   //
   // Deliberately NOT capped here: a silent slice would GUARANTEE the unsafe outcome
   // instead of merely risking it. Pagination with an explicit "not reviewed"
-  // confirmation is the agreed fix, and needs this in-flight state in a shared store
-  // first — the Map above is process-local. See docs/features/attendance.md.
-  pending.set(flowToken, { ...ctx, people });
+  // confirmation is the agreed fix. It wanted this state in a shared store first,
+  // which it now is (bd-2733). See docs/features/attendance.md.
+  //
+  // Re-saved rather than skipped so reaching the register refreshes the TTL — a
+  // teacher part-way through a long roster has not gone idle.
+  await saveCtx(flowToken, ctx);
 
   return {
     screen: 'MARK',
@@ -660,8 +775,9 @@ async function renderMarkScreen(flowToken) {
  * abandoned the leave page would leave them wrong for good.
  */
 async function handleMarkSubmit(flowToken, screenData) {
-  const ctx = pending.get(flowToken);
-  if (!ctx) return renderClassScreen(flowToken);
+  const stored = await loadCtx(flowToken);
+  if (!stored) return renderClassScreen(flowToken);
+  const ctx = await withRoster(stored);
 
   // Nobody on the roster means there is no register to take. The footer submits like
   // any other screen, so without this the teacher walks an empty class straight
@@ -671,15 +787,19 @@ async function handleMarkSubmit(flowToken, screenData) {
     return emptyRosterScreen(ctx.subject === 'teacher');
   }
 
-  const absentIds = stripPlaceholder(screenData?.absent);
-  pending.set(flowToken, { ...ctx, absentIds });
+  // Only ids that are actually on the roster. Guards the placeholder and a stale
+  // handset naming somebody who has since left the class.
+  const onRoster = new Set(ctx.people.map((p) => p.id));
+  const absentIds = stripPlaceholder(screenData?.absent).filter((id) => onRoster.has(id));
+  await saveCtx(flowToken, { ...ctx, absentIds });
   return renderLeaveScreen(flowToken);
 }
 
 /** LEAVE — only the students who were NOT marked absent. */
 async function renderLeaveScreen(flowToken) {
-  const ctx = pending.get(flowToken);
-  if (!ctx) return renderClassScreen(flowToken);
+  const stored = await loadCtx(flowToken);
+  if (!stored) return renderClassScreen(flowToken);
+  const ctx = await withRoster(stored);
 
   const absent = new Set(ctx.absentIds || []);
   const remaining = (ctx.people || []).filter((p) => !absent.has(p.id));
@@ -712,8 +832,9 @@ async function renderLeaveScreen(flowToken) {
 
 /** LEAVE submitted — a leave type only if anyone actually is. */
 async function handleLeaveSubmit(flowToken, screenData) {
-  const ctx = pending.get(flowToken);
-  if (!ctx) return renderClassScreen(flowToken);
+  const stored = await loadCtx(flowToken);
+  if (!stored) return renderClassScreen(flowToken);
+  const ctx = await withRoster(stored);
 
   // Intersect with what this page actually offered. A payload naming an absentee
   // cannot promote them onto the leave list.
@@ -721,7 +842,7 @@ async function handleLeaveSubmit(flowToken, screenData) {
   const offered = new Set((ctx.people || []).filter((p) => !absent.has(p.id)).map((p) => p.id));
   const leaveIds = (screenData?.on_leave || []).filter((id) => offered.has(id));
 
-  pending.set(flowToken, { ...ctx, leaveIds });
+  await saveCtx(flowToken, { ...ctx, leaveIds });
 
   // No leave TYPE step (bd-2729): the register is Present / Absent / Leave. Asking
   // casual-vs-sick-vs-official cost a screen on every marking run to record a
@@ -821,7 +942,8 @@ async function renderConfirm(flowToken, ctx) {
 
 /** CONFIRM confirmed — write through the shared service. */
 async function handleConfirmSubmit(flowToken) {
-  const ctx = pending.get(flowToken);
+  const stored = await loadCtx(flowToken);
+  const ctx = stored ? await withRoster(stored) : null;
   if (!ctx) {
     return {
       screen: 'CONFIRM',
@@ -840,7 +962,7 @@ async function handleConfirmSubmit(flowToken) {
         roster: ctx.people, absentIds: ctx.absentIds, leaveIds: ctx.leaveIds, leaveType: ctx.leaveType,
       });
 
-    pending.delete(flowToken);
+    await dropCtx(flowToken);
     // Whoever they are, the voice branch is finished the moment the register is saved.
     await VoiceAttendance.disarm(ctx.userId);
 
