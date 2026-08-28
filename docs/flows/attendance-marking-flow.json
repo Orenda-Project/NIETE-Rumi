@@ -362,7 +362,6 @@
                 "name": "absent",
                 "label": "Absent",
                 "required": false,
-                "visible": "${data.has_roster}",
                 "data-source": "${data.roster}"
               },
               {
@@ -447,7 +446,6 @@
                 "name": "absent",
                 "label": "Absent",
                 "required": false,
-                "visible": "${data.has_roster}",
                 "data-source": "${data.roster}"
               },
               {
@@ -533,7 +531,6 @@
                 "name": "on_leave",
                 "label": "On leave",
                 "required": false,
-                "visible": "${data.has_roster}",
                 "data-source": "${data.roster}"
               },
               {
