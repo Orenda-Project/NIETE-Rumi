@@ -50,7 +50,7 @@ const MIDFLIGHT_STUCK_AGE_MS = 45 * 60 * 1000; // 45 minutes
 
 // The processing statuses NO other sweep owns. 'initiated' → bd-2417,
 // awaiting_* → bd-j3j4b photo gate, conducting_conversation → the 12h
-// auto-complete, observe stages → the bd-tju8f sweep (coach-addressed).
+// auto-complete. Observations are IN this set as of bd-go4tl — see above.
 const WATCHDOG_STATUSES = new Set([
   'transcribing',
   'transcription_complete',
@@ -80,11 +80,13 @@ function classifyStuckMidFlightSession(session, nowMs = Date.now()) {
   if (!session || !WATCHDOG_STATUSES.has(String(session.status || ''))) {
     return { action: 'skip', reason: 'not_a_watchdog_status' };
   }
-  // Observe sessions have their own coach-addressed sweep (bd-tju8f) — never
-  // message the teacher about an observation she didn't start.
-  if (session.observation_type === 'leader_observation') {
-    return { action: 'skip', reason: 'observe_owned_by_its_own_sweep' };
-  }
+  // bd-go4tl: observations used to be skipped here, deferring to "bd-tju8f's
+  // sweep". That sweep never existed — bd-tju8f is the coach-INITIATED resume
+  // service, so an observation that died mid-pipeline had nothing watching it at
+  // all (Javeria's 28-Aug row sat at 'transcribing' for hours). They are
+  // classified exactly like teacher sessions now; the WORKER owns the identity
+  // difference — every message and callback goes to the COACH, not the observed
+  // teacher, who never started this and must never hear about it.
   const stamp = Date.parse(session.updated_at || session.created_at || '');
   if (Number.isNaN(stamp)) return { action: 'skip', reason: 'unparseable_timestamp' };
   if (nowMs - stamp < MIDFLIGHT_STUCK_AGE_MS) return { action: 'skip', reason: 'still_fresh' };
@@ -107,4 +109,7 @@ module.exports = {
   classifyStuckMidFlightSession,
   MIDFLIGHT_STUCK_AGE_MS,
   WATCHDOG_STATUSES,
+  // bd-go4tl: the observe resume path re-enters the pipeline at the phase a
+  // session died in too, so the map has one owner rather than two drifting copies.
+  RETRY_QUEUE_BY_STATUS,
 };

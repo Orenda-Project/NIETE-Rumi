@@ -30,7 +30,10 @@
  */
 
 const mockSupabase = { from: jest.fn() };
-jest.mock('../../bot/shared/config/supabase', () => mockSupabase);
+jest.mock('../../bot/shared/config/supabase', () =>
+  // The real ConversationState runs against a fake `users` row — see the fixture
+  // for why stubbing the service itself would prove nothing (bd-2733).
+  require('../fixtures/conversation-state-fake').withConversationState(mockSupabase));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 
 const router = require('../../bot/shared/services/attendance-router.service');
@@ -181,7 +184,11 @@ describe('roster source: prefer enrollments, fall back to legacy', () => {
     const res = await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
 
     expect(res.screen).toBe('MARK');           // entry screen, per bd-2713
-    expect(res.data.roster).toEqual([]);
+    // `roster: []` used to be asserted here. A CheckboxGroup can render neither a
+    // missing data-source nor an empty one, so that payload was still unrenderable —
+    // the emptiness is carried by has_roster and the group is hidden (bd-2732).
+    expect(res.data.has_roster).toBe(false);
+    expect(res.data.roster.length).toBeGreaterThan(0);
     expect(JSON.stringify(res.data)).toMatch(/no students/i);
   });
 });
