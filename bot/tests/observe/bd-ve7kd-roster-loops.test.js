@@ -139,7 +139,14 @@ describe('bd-51wpo · adding a school is ONE write, not one per teacher', () => 
   const mockDb = () => {
     inserts = [];
     const result = (table, filters) => {
-      if (table === 'leader_schools') return { data: [{ school_name: 'IMCB, I-8/3', emis: '910' }], error: null };
+      if (table === 'leader_schools') {
+        // Same filter-awareness the leader_teachers branch already has:
+        // scoped by leader_user_id it answers "do I hold this?" (no), scoped by
+        // school_ext_id alone it answers "what school is this?" (the record).
+        return filters.leader_user_id
+          ? { data: [], error: null }
+          : { data: [{ school_name: 'IMCB, I-8/3', emis: '910' }], error: null };
+      }
       if (table === 'schools') return { data: [], error: null };
       if (table === 'leader_teachers') {
         return filters.leader_user_id ? { data: [], error: null, count: 57 } : { data: ROSTER, error: null };
@@ -151,7 +158,17 @@ describe('bd-51wpo · adding a school is ONE write, not one per teacher', () => 
       const self = {
         select: () => self, limit: () => self, delete: () => self,
         eq: (col, val) => { filters[col] = val; return self; },
-        insert: (payload) => { inserts.push({ table, payload }); return Promise.resolve({ error: null }); },
+        // The real client returns a builder, so .insert().select().limit() is
+        // valid — resolveOrCreateSchool uses it to read back a created school.
+        insert: (payload) => {
+          inserts.push({ table, payload });
+          const made = { id: `new-${table}-id`, ...payload };
+          const ins = {
+            select: () => ins, limit: () => ins,
+            then: (res) => res({ data: [made], error: null }),
+          };
+          return ins;
+        },
         then: (res) => res(result(table, filters)),
       };
       return self;
@@ -164,6 +181,18 @@ describe('bd-51wpo · adding a school is ONE write, not one per teacher', () => 
     jest.doMock('../../shared/config/supabase', () => mockDb(), { virtual: true });
   });
   afterEach(() => jest.dontMock('../../shared/config/supabase'));
+
+  it('materialises the school into the master, then links it by id', async () => {
+    // A school known only to leader_schools can never have anyone derived into
+    // it — users.school_id has nothing to point at. So the add creates the
+    // master row and the assignment carries the real foreign key.
+    const svc = require('../../shared/services/observe/observe-school-admin.service');
+    await svc.addSchoolForCoach('coach-1', 'niete:910');
+    const schoolInsert = inserts.find((i) => i.table === 'schools');
+    expect(schoolInsert.payload).toMatchObject({ name: 'IMCB, I-8/3', emis: '910' });
+    const assignment = inserts.find((i) => i.table === 'leader_schools');
+    expect(assignment.payload.school_id).toBe('new-schools-id');
+  });
 
   it('writes the whole roster in a single insert call', async () => {
     const svc = require('../../shared/services/observe/observe-school-admin.service');
