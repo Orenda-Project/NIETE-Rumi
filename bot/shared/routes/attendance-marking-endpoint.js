@@ -47,6 +47,37 @@ const RADIO_MAX = 5;
 // Region timezone for the register date. Config-driven, never hardcoded per country.
 const REGISTER_TIME_ZONE = process.env.REGION_TIME_ZONE || 'Asia/Karachi';
 
+/**
+ * Keeps a roster data-source well-formed when there is nobody on it.
+ *
+ * MARK, LEAVE and REVIEW each bind a CheckboxGroup to `${data.roster}`, and a
+ * CheckboxGroup can render neither a MISSING data-source nor an EMPTY one. bd-2713
+ * fixed the first half — the empty-roster branch had been answering with no roster
+ * key at all — and left the second, so the branch written to say "no students in this
+ * class yet" went on producing the same unrenderable screen it was meant to replace.
+ * Reported again on 2026-08-28 at DATE → MARK for an empty class.
+ *
+ * The group is hidden by `visible: ${data.has_roster}` whenever this sentinel is the
+ * only entry, so it is never drawn and never selectable; the array stays non-empty
+ * purely so the data-source is well-formed underneath it. Selections are filtered for
+ * it anyway — a Flow already delivered to a handset can post back anything.
+ */
+const NO_ROSTER_OPTION = Object.freeze({ id: '__none__', title: '—' });
+
+/**
+ * The two fields every roster-bearing screen needs, derived from one list.
+ * @param {Array<{id:string,title:string,description?:string}>} rows
+ */
+function rosterPayload(rows) {
+  const has = rows.length > 0;
+  return { has_roster: has, roster: has ? rows : [NO_ROSTER_OPTION] };
+}
+
+/** Drop the placeholder from anything a screen sends back. */
+function stripPlaceholder(ids) {
+  return (ids || []).filter((id) => id !== NO_ROSTER_OPTION.id);
+}
+
 // In-flight marking state, keyed by flow token. The Flow carries the taps between
 // screens; we only need to remember the roster and the parsed selection.
 const pending = new Map();
@@ -468,11 +499,11 @@ async function renderReviewScreen(flowToken) {
       heard_note: heard,
       date_label: 'Date',
       ...dateBounds(),
-      roster: people.map((p) => ({
+      ...rosterPayload(people.map((p) => ({
         id: p.id,
         title: personName(p),
         description: p.roll_number ? `Roll ${p.roll_number}` : '',
-      })),
+      }))),
       preselected,
       correction_note: unmatched.length
         ? `I could not find ${unmatched.join(', ')} on your ${rosterWord} — tick them by hand if they are away.`
@@ -572,7 +603,7 @@ function emptyRosterScreen(isTeacherSubject) {
       subject_note: isTeacherSubject
         ? 'Your NIETE coordinator needs to link staff to your school before you can mark them.'
         : 'Add students from /class, then mark attendance.',
-      roster: [],
+      ...rosterPayload([]),
     },
   };
 }
@@ -607,11 +638,11 @@ async function renderMarkScreen(flowToken) {
       subject_note: isTeacherSubject
         ? 'Tap the teachers who are absent. Leave is asked next.'
         : 'Tap the students who are absent. Leave is asked next.',
-      roster: people.map((p) => ({
+      ...rosterPayload(people.map((p) => ({
         id: p.id,
         title: personName(p),
         description: p.roll_number ? `Roll ${p.roll_number}` : '',
-      })),
+      }))),
     },
   };
 }
@@ -632,7 +663,15 @@ async function handleMarkSubmit(flowToken, screenData) {
   const ctx = pending.get(flowToken);
   if (!ctx) return renderClassScreen(flowToken);
 
-  const absentIds = screenData?.absent || [];
+  // Nobody on the roster means there is no register to take. The footer submits like
+  // any other screen, so without this the teacher walks an empty class straight
+  // through LEAVE and CONFIRM into a saved register of nobody. emptyRosterScreen()
+  // has always claimed this behaviour in its comment; it never had it.
+  if (!ctx.people || !ctx.people.length) {
+    return emptyRosterScreen(ctx.subject === 'teacher');
+  }
+
+  const absentIds = stripPlaceholder(screenData?.absent);
   pending.set(flowToken, { ...ctx, absentIds });
   return renderLeaveScreen(flowToken);
 }
@@ -659,11 +698,13 @@ async function renderLeaveScreen(flowToken) {
         : 'Nobody marked absent',
       // Say what has already been decided, so the teacher is not re-deciding it.
       subject_note: `Everyone else is marked present. Tap anyone on approved leave instead — ${remaining.length} left to consider.`,
-      roster: remaining.map((p) => ({
+      // Everyone absent empties this list, which is a legitimate register and must
+      // still walk on to CONFIRM — so the group is hidden, not the screen refused.
+      ...rosterPayload(remaining.map((p) => ({
         id: p.id,
         title: personName(p),
         description: p.roll_number ? `Roll ${p.roll_number}` : '',
-      })),
+      }))),
       preselected: heardOnLeave,
     },
   };
@@ -870,4 +911,5 @@ module.exports = {
   handleMarkingDataExchange,
   parseToken,
   prettyDate,
+  NO_ROSTER_OPTION,
 };
