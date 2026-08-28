@@ -574,37 +574,98 @@ async function runRecovery() {
  * processing status (transcribing → generating_report) gets ONE retry from the
  * phase it died in (stamped into analysis_data.watchdog so it can never loop);
  * a spent retry fails the session LOUDLY and tells the teacher to resend.
- * Observe sessions are excluded at the query — bd-tju8f's sweep owns those,
- * coach-addressed.
+ *
+ * bd-go4tl: observations are IN this sweep now. They were excluded at the query,
+ * deferring to a "bd-tju8f sweep" that does not exist, so an observation that
+ * died between transcribing and generating_report had nothing watching it — the
+ * coach's only lever was tapping the row, which refused, while telling her the
+ * team had been notified. Nobody was. Identity is the one thing that differs:
+ * on a bound observation every message and job callback goes to the COACH. The
+ * observed teacher never started this and must never hear about it; if the coach
+ * cannot be resolved we go silent rather than message the wrong person.
  */
+/**
+ * bd-go4tl — who the mid-flight watchdog should talk to about this session.
+ * Teacher session: the teacher. Bound observation: the COACH, in the COACH's
+ * language. Coach unresolvable: nobody (better silent than the wrong person —
+ * the same call the photo-gate sweep already makes).
+ */
+async function resolveMidFlightRecipient(session) {
+  // Language resolution goes through observeLang, the single owner — never a
+  // local `|| 'en'` floor (language-protocol: language is data, not code).
+  const { observeLang } = require('../shared/services/observe/observe-strings');
+  const u = session.users || {};
+  const isObservation = session.observation_type === 'leader_observation'
+    && !!session.observer_user_id && session.observer_user_id !== session.user_id;
+  if (!isObservation) {
+    return { phone: u.phone_number, name: u.first_name, lang: observeLang(u), isObservation: false };
+  }
+  const { data: coach } = await supabase
+    .from('users').select('phone_number, first_name, preferred_language')
+    .eq('id', session.observer_user_id).maybeSingle();
+  if (!coach || !coach.phone_number) {
+    logToFile('⚠️ mid-flight watchdog: could not resolve the coach — staying silent', {
+      sessionId: session.id, observerUserId: session.observer_user_id }, 'error');
+    return { phone: null, name: null, lang: observeLang(null), isObservation: true };
+  }
+  return { phone: coach.phone_number, name: coach.first_name, lang: observeLang(coach), isObservation: true };
+}
+
 async function processStuckMidFlightSessions() {
   const { getCoachingMessage } = require('../shared/config/coaching-messages');
+  const { observeStrings } = require('../shared/services/observe/observe-strings');
   const staleBefore = new Date(Date.now() - 45 * 60 * 1000).toISOString();
+  // bd-go4tl / bd-mwn4j: project the SLICE, never the fat column. This sweep now
+  // includes observations, whose analysis_data carries the whole FICO analysis —
+  // pulling it for 25 rows every 15 minutes per replica is the exact shape that
+  // OOM-wedged prod on 24/25 Aug. The planner only reads .watchdog; the one row
+  // we actually act on re-reads its own analysis_data by primary key to merge.
+  // Load math: 25 rows x ~200 bytes x 4 ticks/hr x replicas — kilobytes, not MB.
   const { data: stuck } = await supabase
     .from('coaching_sessions')
-    .select('id, user_id, status, created_at, updated_at, audio_id, analysis_data, observation_type, users!inner(phone_number, first_name, preferred_language)')
+    .select('id, user_id, status, created_at, updated_at, audio_id, observation_type, observer_user_id, watchdog:analysis_data->watchdog, users!inner(phone_number, first_name, preferred_language)')
     .in('status', ['transcribing', 'transcription_complete', 'analyzing', 'analysis_started', 'analysis_complete', 'generating_report'])
-    .or('observation_type.is.null,observation_type.neq.leader_observation')
     .lt('updated_at', staleBefore)
     .order('updated_at', { ascending: true })
     .limit(25);
 
   let retried = 0; let failed = 0; let skipped = 0;
   for (const session of (stuck || [])) {
-    const decision = classifyStuckMidFlightSession(session);
+    // The planner's contract is the full row shape; feed it the projected slice.
+    const decision = classifyStuckMidFlightSession(
+      { ...session, analysis_data: { watchdog: session.watchdog || null } });
     if (decision.action === 'skip') { skipped += 1; continue; }
-    const phone = session.users && session.users.phone_number;
+    // bd-go4tl — WHO hears about this. On a bound observation the joined
+    // `users` row is the observed TEACHER; she did not start this and must
+    // never be messaged. An unresolvable coach means silence, not the teacher.
+    const { phone, lang, isObservation } = await resolveMidFlightRecipient(session);
+    // An observation with no reachable coach must not be re-queued: the job
+    // metadata's `from` falls back to session.users.phone_number downstream,
+    // which on a bound observation is the OBSERVED TEACHER. Re-queueing here
+    // would message her about an observation she never started. Leave it for a
+    // human instead of guessing a recipient.
+    if (isObservation && !phone && decision.action === 'retry') { skipped += 1; continue; }
     try {
       if (decision.action === 'retry') {
         // Stamp FIRST — if the queue call dies, the next sweep fails loudly
-        // instead of retrying forever.
-        await supabase.from('coaching_sessions').update({
+        // instead of retrying forever. bd-go4tl: the stamp is also the
+        // SINGLE-FLIGHT CLAIM (database-engineering J1) — CAS on the updated_at
+        // this replica read, so of N replicas racing the same row exactly one
+        // queues. Without it every replica re-queued the same session, which is
+        // the bd-m1jih x10 spam shape.
+        // Single-row PK read of the fat column, only for the row we are acting
+        // on — legal under skill §1.1, and the only way to merge without
+        // clobbering whatever else analysis_data holds.
+        const { data: full } = await supabase
+          .from('coaching_sessions').select('analysis_data').eq('id', session.id).maybeSingle();
+        const { data: claimed } = await supabase.from('coaching_sessions').update({
           analysis_data: {
-            ...(session.analysis_data || {}),
+            ...((full && full.analysis_data) || {}),
             watchdog: { retried_at: new Date().toISOString(), from_status: session.status },
           },
           updated_at: new Date().toISOString(),
-        }).eq('id', session.id);
+        }).eq('id', session.id).eq('updated_at', session.updated_at).select();
+        if (!claimed || !claimed.length) { skipped += 1; continue; }   // another replica won
         if (decision.queue === 'transcription') {
           await CoachingJobQueueService.queueTranscription(session.id, { from: phone, audioId: session.audio_id });
         } else if (decision.queue === 'analysis') {
@@ -616,15 +677,20 @@ async function processStuckMidFlightSessions() {
         logToFile('🔁 Mid-flight watchdog: retried a dead session', {
           sessionId: session.id, fromStatus: session.status, queue: decision.queue });
       } else {
-        await supabase.from('coaching_sessions').update({
+        const { data: closed } = await supabase.from('coaching_sessions').update({
           status: 'failed',
-          error_message: `mid-flight watchdog: ${decision.reason} (bd-h9gnk)`,
+          error_message: `mid-flight watchdog: ${decision.reason} (bd-h9gnk/bd-go4tl)`,
           updated_at: new Date().toISOString(),
-        }).eq('id', session.id);
+        }).eq('id', session.id).eq('updated_at', session.updated_at).select();
+        if (!closed || !closed.length) { skipped += 1; continue; }     // another replica won
         if (phone) {
-          const lang = (session.users && session.users.preferred_language) || 'en';
-          await WhatsAppService.sendMessage(phone, getCoachingMessage('coaching_analysisStalledFail', lang))
-            .catch(() => {});
+          // An observation gets the coach-addressed wording; a teacher session
+          // keeps its own. Neither claims an escalation — nothing escalates
+          // from a NIETE worker, which ships no logs at all (bd-162d5).
+          const body = isObservation
+            ? observeStrings(lang).watchdog_stalled_coach
+            : getCoachingMessage('coaching_analysisStalledFail', lang);
+          await WhatsAppService.sendMessage(phone, body).catch(() => {});
         }
         failed += 1;
         logToFile('🛑 Mid-flight watchdog: failed a dead session LOUDLY', {
@@ -762,6 +828,7 @@ module.exports = {
   processStuckInitiatedSessions,
   processStaleCoachingSessions,
   processStuckPhotoGateSessions,
+  processStuckMidFlightSessions,
   processUntappedReports,
   // bd-2700: resolved thresholds, exported so tests can assert the env overrides
   // and so a deploy can log what it actually picked up (a staging value silently
