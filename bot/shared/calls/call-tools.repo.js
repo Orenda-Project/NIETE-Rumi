@@ -180,20 +180,21 @@ async function readLessonScript({ lessonId, contentHash }) {
 /** Teachers assigned to a coach/AEO/leader. teacher_phone is NEVER selected. */
 async function findRoster({ userId, school }) {
   requireCaller(userId, 'findRoster');
-  let q = supabase.from('leader_teachers')
-    .select('teacher_name, level, school_ext_id')
-    .eq('leader_user_id', userId);
-  if (school) q = q.ilike('school_ext_id', `%${String(school).replace(/[%_]/g, ' ')}%`);
-
-  const { data, error } = await q.limit(200);
-  if (error) throw new Error(error.message);
-
-  const schools = await schoolNames(userId);
-  return (data || []).map((r) => ({
-    teacher_name: r.teacher_name,
-    level: r.level,
-    school_name: schools.get(r.school_ext_id) || null,
-  }));
+  // Derived from her schools, not the old stored roster. Still never selects a
+  // phone: this feeds a voice call, and reading a number aloud is a leak.
+  const { listPatchViaSupabase } = require('../services/observe/patch-resolver.service');
+  const people = await listPatchViaSupabase(supabase, userId);
+  const term = school ? String(school).trim().toLowerCase() : '';
+  return people
+    .filter((p) => !term
+      || String(p.schoolName || '').toLowerCase().includes(term)
+      || String(p.emis || '').includes(term))
+    .slice(0, 200)
+    .map((p) => ({
+      teacher_name: p.name,
+      level: p.band ? String(p.band).toUpperCase() : null,
+      school_name: p.schoolName || null,
+    }));
 }
 
 /** Her upcoming observation visits, as the leader conducting them. */
