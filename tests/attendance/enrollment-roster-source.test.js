@@ -181,7 +181,11 @@ describe('roster source: prefer enrollments, fall back to legacy', () => {
     const res = await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
 
     expect(res.screen).toBe('MARK');           // entry screen, per bd-2713
-    expect(res.data.roster).toEqual([]);
+    // `roster: []` used to be asserted here. A CheckboxGroup can render neither a
+    // missing data-source nor an empty one, so that payload was still unrenderable —
+    // the emptiness is carried by has_roster and the group is hidden (bd-2732).
+    expect(res.data.has_roster).toBe(false);
+    expect(res.data.roster.length).toBeGreaterThan(0);
     expect(JSON.stringify(res.data)).toMatch(/no students/i);
   });
 });

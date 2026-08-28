@@ -329,6 +329,10 @@
         "correction_note": {
           "type": "string",
           "__example__": "Tap to add or remove anyone before saving."
+        },
+        "has_roster": {
+          "type": "boolean",
+          "__example__": true
         }
       },
       "layout": {
@@ -363,6 +367,7 @@
                 "name": "absent",
                 "label": "Absent",
                 "required": false,
+                "visible": "${data.has_roster}",
                 "data-source": "${data.roster}"
               },
               {
@@ -426,6 +431,10 @@
               "description": "Roll 7"
             }
           ]
+        },
+        "has_roster": {
+          "type": "boolean",
+          "__example__": true
         }
       },
       "layout": {
@@ -448,6 +457,7 @@
                 "name": "absent",
                 "label": "Absent",
                 "required": false,
+                "visible": "${data.has_roster}",
                 "data-source": "${data.roster}"
               },
               {
@@ -508,6 +518,10 @@
             "type": "string"
           },
           "__example__": []
+        },
+        "has_roster": {
+          "type": "boolean",
+          "__example__": true
         }
       },
       "layout": {
@@ -533,6 +547,7 @@
                 "name": "on_leave",
                 "label": "On leave",
                 "required": false,
+                "visible": "${data.has_roster}",
                 "data-source": "${data.roster}"
               },
               {
