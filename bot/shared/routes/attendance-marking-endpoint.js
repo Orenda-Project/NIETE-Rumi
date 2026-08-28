@@ -109,6 +109,28 @@ const MARKING_FLOW = 'attendance_marking';
 const MARKING_TTL_SECONDS = 1800;
 
 /**
+ * One roster row for a CheckboxGroup.
+ *
+ * The roll number rides in the TITLE and there is no `description` key, which is not
+ * cosmetic: WhatsApp WEB refuses to render a CheckboxGroup whose data-source items
+ * carry `description`, while the phone renders it fine. Reported 2026-08-28 — the
+ * register bounced from DATE back to the class picker on WhatsApp Desktop and worked
+ * on the same account from a handset. Every payload that DID render on desktop had
+ * two-key items: /class's remove list ({id, title}) and this flow's own empty-roster
+ * placeholder. The only one that failed was the populated register, which was the
+ * only one sending three.
+ *
+ * /class already had it right (class-manager-endpoint.js :: buildRosterScreen), so
+ * this is the same row shape, cap included — item titles are a capped field and a
+ * long name plus a roll prefix will exceed it.
+ */
+function rosterRow(p) {
+  const roll = p.roll_number != null ? `${p.roll_number}. ` : '';
+  const chars = [...`${roll}${personName(p)}`];
+  return { id: p.id, title: chars.length <= 30 ? chars.join('') : `${chars.slice(0, 29).join('')}…` };
+}
+
+/**
  * The fields worth persisting — every one a scalar or a list of ids.
  * Anything derivable (people, label) is left out on purpose.
  */
@@ -618,11 +640,7 @@ async function renderReviewScreen(flowToken) {
       heard_note: heard,
       date_label: 'Date',
       ...dateBounds(),
-      ...rosterPayload(people.map((p) => ({
-        id: p.id,
-        title: personName(p),
-        description: p.roll_number ? `Roll ${p.roll_number}` : '',
-      }))),
+      ...rosterPayload(people.map(rosterRow)),
       preselected,
       correction_note: unmatched.length
         ? `I could not find ${unmatched.join(', ')} on your ${rosterWord} — tick them by hand if they are away.`
@@ -763,11 +781,7 @@ async function renderMarkScreen(flowToken) {
       subject_note: isTeacherSubject
         ? 'Tap the teachers who are absent. Leave is asked next.'
         : 'Tap the students who are absent. Leave is asked next.',
-      ...rosterPayload(people.map((p) => ({
-        id: p.id,
-        title: personName(p),
-        description: p.roll_number ? `Roll ${p.roll_number}` : '',
-      }))),
+      ...rosterPayload(people.map(rosterRow)),
     },
   };
 }
@@ -830,11 +844,7 @@ async function renderLeaveScreen(flowToken) {
       subject_note: `Everyone else is marked present. Tap anyone on approved leave instead — ${remaining.length} left to consider.`,
       // Everyone absent empties this list, which is a legitimate register and must
       // still walk on to CONFIRM — so the group is hidden, not the screen refused.
-      ...rosterPayload(remaining.map((p) => ({
-        id: p.id,
-        title: personName(p),
-        description: p.roll_number ? `Roll ${p.roll_number}` : '',
-      }))),
+      ...rosterPayload(remaining.map(rosterRow)),
       preselected: heardOnLeave,
     },
   };
