@@ -347,3 +347,93 @@ describe('bd-2733 — in-flight state lives outside the process', () => {
     expect(res.screen).toBe('CLASS');
   });
 });
+
+/**
+ * bd-2734 — WhatsApp WEB will not render a CheckboxGroup whose data-source items
+ * carry a `description`.
+ *
+ * Reported 2026-08-28: the register bounced from DATE back to the class picker on
+ * WhatsApp Desktop, and the SAME account walked the same class through to a saved
+ * register from a handset. Server side was identical and provably fine — the payload
+ * was valid, the screen declared every key, the answer was MARK, and the endpoint
+ * replied in under two seconds.
+ *
+ * The differential was in the item shape, and it explains three earlier observations
+ * that had looked unrelated:
+ *   - /class's remove list renders on desktop; its items are {id, title}.
+ *   - This flow's EMPTY roster renders on desktop; the placeholder is {id, title}.
+ *   - The populated register does not; its items were {id, title, description}.
+ *
+ * So the roll number moves into the title, exactly as /class already did it, and a
+ * roster row carries two keys and no more. This is a rendering constraint of one
+ * client, invisible to every server-side test, which is why the shape itself is
+ * pinned rather than any behaviour derived from it.
+ */
+describe('bd-2734 — roster rows are two keys, on every screen', () => {
+  const twoKeys = (rows) => rows.forEach((r) => {
+    expect(Object.keys(r).sort()).toEqual(['id', 'title']);
+  });
+
+  it('MARK sends {id, title} only', async () => {
+    db({
+      user: { id: 'w1', role: 'teacher' },
+      classes: [{ id: 'wc1', class_name: '5th' }],
+      studentsByList: { wc1: [{ id: 's1', student_name: 'Aleeha Noor', roll_number: 4 }] },
+    });
+    const res = await toMark('w1', 'wc1');
+
+    twoKeys(res.data.roster);
+    expect(res.data.roster[0].title).toBe('4. Aleeha Noor');
+  });
+
+  it('LEAVE sends {id, title} only', async () => {
+    db({
+      user: { id: 'w2', role: 'teacher' },
+      classes: [{ id: 'wc2', class_name: '5th' }],
+      studentsByList: {
+        wc2: [
+          { id: 's1', student_name: 'Aleeha Noor', roll_number: 1 },
+          { id: 's2', student_name: 'Bilal Hussain', roll_number: 2 },
+        ],
+      },
+    });
+    await toMark('w2', 'wc2');
+    const res = await marking.handleMarkingDataExchange('w2', 'MARK', { absent: ['s1'] });
+
+    expect(res.screen).toBe('LEAVE');
+    twoKeys(res.data.roster);
+  });
+
+  it('the empty-roster placeholder is the same two keys', async () => {
+    db({ user: TEACHER, classes: CLASS, studentsByList: { c1: [] } });
+    const res = await toMark();
+    twoKeys(res.data.roster);
+  });
+
+  it('a child with no roll number is listed by name alone', async () => {
+    db({
+      user: { id: 'w3', role: 'teacher' },
+      classes: [{ id: 'wc3', class_name: '5th' }],
+      studentsByList: { wc3: [{ id: 's1', student_name: 'Aleeha Noor', roll_number: null }] },
+    });
+    const res = await toMark('w3', 'wc3');
+    expect(res.data.roster[0].title).toBe('Aleeha Noor');
+  });
+
+  it('a very long name is capped, because item titles are a capped field', async () => {
+    db({
+      user: { id: 'w4', role: 'teacher' },
+      classes: [{ id: 'wc4', class_name: '5th' }],
+      studentsByList: { wc4: [{ id: 's1', student_name: 'Muhammad Abdul Rahman Siddiqui Junior', roll_number: 12 }] },
+    });
+    const res = await toMark('w4', 'wc4');
+    expect([...res.data.roster[0].title].length).toBeLessThanOrEqual(30);
+  });
+
+  it('the Flow no longer declares description on any roster item', () => {
+    ['MARK', 'LEAVE', 'REVIEW'].forEach((id) => {
+      const props = flow.screens.find((s) => s.id === id).data.roster.items.properties;
+      expect(Object.keys(props).sort()).toEqual(['id', 'title']);
+    });
+  });
+});

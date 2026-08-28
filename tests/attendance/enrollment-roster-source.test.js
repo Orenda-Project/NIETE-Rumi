@@ -135,7 +135,9 @@ describe('roster source: prefer enrollments, fall back to legacy', () => {
     const res = await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
 
     expect(res.screen).toBe('MARK');
-    expect(res.data.roster.map((r) => r.title)).toEqual(['Aleeha Noor']);
+    // The roll number rides in the title now — WhatsApp Web will not render a
+    // CheckboxGroup whose items carry `description` (bd-2734).
+    expect(res.data.roster.map((r) => r.title)).toEqual(['1. Aleeha Noor']);
   });
 
   it('a class-backed list reads class_enrollments, not the legacy roster', async () => {
@@ -152,9 +154,11 @@ describe('roster source: prefer enrollments, fall back to legacy', () => {
     const res = await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
 
     const titles = res.data.roster.map((r) => r.title);
-    expect(titles).toEqual(['Amna Rafiq']);
+    expect(titles).toEqual(['7. Amna Rafiq']);
     expect(titles).not.toContain('Ghost Row');
-    expect(res.data.roster[0].description).toMatch(/7/);
+    // The roll number is still shown; it moved from `description` into the title,
+    // and the item carries exactly two keys (bd-2734).
+    expect(Object.keys(res.data.roster[0]).sort()).toEqual(['id', 'title']);
   });
 
   it('a class-backed list with NO enrollments yet falls back to the legacy roster', async () => {
@@ -170,7 +174,7 @@ describe('roster source: prefer enrollments, fall back to legacy', () => {
     await marking.handleMarkingDataExchange('t1', 'CLASS', { class_id: `student:${CLASS_LIST}` });
     const res = await marking.handleMarkingDataExchange('t1', 'DATE', { register_date: '2026-08-14' });
 
-    expect(res.data.roster.map((r) => r.title)).toEqual(['Danish Iqbal']);
+    expect(res.data.roster.map((r) => r.title)).toEqual(['3. Danish Iqbal']);
   });
 
   it('empty in BOTH places is still an empty class, not a blank register', async () => {
