@@ -86,6 +86,20 @@ describe('/observe copy is gender-neutral', () => {
     expect(offenders).toEqual([]);
   });
 
+  it('the menu rows a coach reads do not assume a gender', () => {
+    // The hole that let "By her WhatsApp number" ship: the earlier guard
+    // scanned the Flow JSON and the services, but the /observe menu rows are
+    // built in the handler, which nothing was reading.
+    for (const f of ['observe-visit-flow.handler.js', 'observe-command.handler.js']) {
+      const src = fs.readFileSync(path.join(__dirname, '../../shared/handlers/', f), 'utf8');
+      const offenders = [];
+      for (const m of src.matchAll(/(?:title|metadata|label|text):\s*'((?:[^'\\]|\\.)*)'/g)) {
+        if (GENDERED.test(m[1])) offenders.push(`${f} · ${m[1].slice(0, 60)}`);
+      }
+      expect(offenders).toEqual([]);
+    }
+  });
+
   it('the area labels shown to a leader do not assume a gender', () => {
     const src = fs.readFileSync(
       path.join(__dirname, '../../shared/services/observe/assignment/leader-source.js'), 'utf8');

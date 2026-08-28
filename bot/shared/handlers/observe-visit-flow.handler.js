@@ -338,7 +338,7 @@ async function menuScreen(userId, opts = {}) {
       id: 'manage_teachers',
       'main-content': {
         title: 'Add or remove a teacher',
-        metadata: 'By her WhatsApp number',
+        metadata: 'By WhatsApp number',
       },
       'on-click-action': { name: 'data_exchange', payload: { step: 'teacher_school_open' } },
     },
