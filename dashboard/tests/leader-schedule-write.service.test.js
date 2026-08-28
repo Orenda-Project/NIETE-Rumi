@@ -33,7 +33,8 @@ const PATCH_ROW = {
 /** query stub: patch lookup, existing-row lookup, then the write. */
 function makeQuery({ patch = [PATCH_ROW], existing = [], writes = [] } = {}) {
   return jest.fn(async (sql, params) => {
-    if (/leader_teachers/i.test(sql)) return { rows: patch };
+    // The patch is derived: leader_schools x schools x users.school_id.
+    if (/leader_schools/i.test(sql)) return { rows: patch };
     if (/select/i.test(sql) && /observation_schedules/i.test(sql)) return { rows: existing };
     writes.push({ sql, params });
     return { rows: [{ id: 'new-sched-1' }] };
