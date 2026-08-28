@@ -24,7 +24,10 @@
  */
 
 const mockSupabase = { from: jest.fn() };
-jest.mock('../../bot/shared/config/supabase', () => mockSupabase);
+jest.mock('../../bot/shared/config/supabase', () =>
+  // The real ConversationState runs against a fake `users` row — see the fixture
+  // for why stubbing the service itself would prove nothing (bd-2733).
+  require('../fixtures/conversation-state-fake').withConversationState(mockSupabase));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 
 const marking = require('../../bot/shared/routes/attendance-marking-endpoint');
@@ -117,7 +120,10 @@ describe('MARK — absentees only', () => {
   it('offers the whole roster', async () => {
     const mark = await toMark();
     expect(mark.screen).toBe('MARK');
-    expect(mark.data.roster.map((r) => r.title)).toEqual(['Hataf Atif', 'Tariq Asim', 'Shujaan Azhar']);
+    // Roll number in the title, no `description` key — WhatsApp Web will not render
+    // a CheckboxGroup whose items carry one (bd-2734).
+    expect(mark.data.roster.map((r) => r.title))
+      .toEqual(['1. Hataf Atif', '2. Tariq Asim', '3. Shujaan Azhar']);
   });
 });
 
@@ -128,8 +134,8 @@ describe('LEAVE — the roster minus the absentees', () => {
 
     expect(leave.screen).toBe('LEAVE');
     const titles = leave.data.roster.map((r) => r.title);
-    expect(titles).not.toContain('Hataf Atif');   // the reported bug
-    expect(titles).toEqual(['Tariq Asim', 'Shujaan Azhar']);
+    expect(titles.join(' ')).not.toContain('Hataf Atif');   // the reported bug
+    expect(titles).toEqual(['2. Tariq Asim', '3. Shujaan Azhar']);
   });
 
   it('says what has already been decided', async () => {

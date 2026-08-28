@@ -298,22 +298,17 @@
               },
               "title": {
                 "type": "string"
-              },
-              "description": {
-                "type": "string"
               }
             }
           },
           "__example__": [
             {
               "id": "u1",
-              "title": "Ayesha Khan",
-              "description": ""
+              "title": "Ayesha Khan"
             },
             {
               "id": "u2",
-              "title": "Bilal Ahmed",
-              "description": ""
+              "title": "Bilal Ahmed"
             }
           ]
         },
@@ -329,6 +324,10 @@
         "correction_note": {
           "type": "string",
           "__example__": "Tap to add or remove anyone before saving."
+        },
+        "has_roster": {
+          "type": "boolean",
+          "__example__": true
         }
       },
       "layout": {
@@ -408,24 +407,23 @@
               },
               "title": {
                 "type": "string"
-              },
-              "description": {
-                "type": "string"
               }
             }
           },
           "__example__": [
             {
               "id": "s1",
-              "title": "Ahmed Raza",
-              "description": "Roll 4"
+              "title": "Ahmed Raza"
             },
             {
               "id": "s2",
-              "title": "Ayesha Bibi",
-              "description": "Roll 7"
+              "title": "Ayesha Bibi"
             }
           ]
+        },
+        "has_roster": {
+          "type": "boolean",
+          "__example__": true
         }
       },
       "layout": {
@@ -488,17 +486,13 @@
               },
               "title": {
                 "type": "string"
-              },
-              "description": {
-                "type": "string"
               }
             }
           },
           "__example__": [
             {
               "id": "s2",
-              "title": "Tariq Asim",
-              "description": "Roll 2"
+              "title": "Tariq Asim"
             }
           ]
         },
@@ -508,6 +502,10 @@
             "type": "string"
           },
           "__example__": []
+        },
+        "has_roster": {
+          "type": "boolean",
+          "__example__": true
         }
       },
       "layout": {

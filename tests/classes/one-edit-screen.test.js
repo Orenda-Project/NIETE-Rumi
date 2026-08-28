@@ -139,7 +139,14 @@ describe('picking an existing class opens the edit screen', () => {
   it('says so plainly when the class is empty, rather than offering nothing', async () => {
     const res = await ep.handleClassManagerDataExchange(TEACHER, 'CLASSES', { target: CLASS_ID });
     expect(res.screen).toBe('ROSTER');
-    expect(res.data.remove_options).toEqual([]);
+    // This used to assert `remove_options` was `[]`, reading an empty array as the
+    // graceful empty state. It is the opposite: a CheckboxGroup cannot render an
+    // empty data-source, so that payload was what made the screen fail to draw at
+    // all — every class created through /class was stranded on it (bd-2731). The
+    // empty state is carried by `has_students` + the roster text; the group is
+    // hidden. See roster-empty-class.test.js.
+    expect(res.data.has_students).toBe(false);
+    expect(res.data.remove_options.length).toBeGreaterThan(0);
     expect(res.data.roster).toMatch(/no students/i);
   });
 });
@@ -218,7 +225,11 @@ describe('creating a class runs into the same screen', () => {
 
     // Creating a class and filling it is ONE intention. It used to end here.
     expect(res.screen).toBe('ROSTER');
-    expect(res.data.remove_options).toEqual([]);
+    // A class one second old has nobody in it, so this is the payload every real
+    // creation produced — and asserting `[]` here is why the suite stayed green
+    // while the screen failed to draw for seven consecutive teachers (bd-2731).
+    expect(res.data.has_students).toBe(false);
+    expect(res.data.remove_options.length).toBeGreaterThan(0);
   });
 });
 

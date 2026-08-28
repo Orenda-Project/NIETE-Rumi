@@ -28,7 +28,10 @@
  */
 
 const mockSupabase = { from: jest.fn() };
-jest.mock('../../bot/shared/config/supabase', () => mockSupabase);
+jest.mock('../../bot/shared/config/supabase', () =>
+  // The real ConversationState runs against a fake `users` row — see the fixture
+  // for why stubbing the service itself would prove nothing (bd-2733).
+  require('../fixtures/conversation-state-fake').withConversationState(mockSupabase));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 
 const router = require('../../bot/shared/services/attendance-router.service');
@@ -245,10 +248,15 @@ describe('endpoint: INIT never opens on a screen with incoming edges', () => {
 
     // The empty-state copy must survive the move onto the register screen.
     expect(JSON.stringify(res.data)).toMatch(/no students/i);
-    // And the roster the CheckboxGroup binds to must be present and empty —
-    // an absent data-source is what produced the unrenderable response.
+    // The roster the CheckboxGroup binds to must be present AND non-empty. This
+    // asserted length 0 until bd-2732, on the reading that "an absent data-source is
+    // what produced the unrenderable response". That was half the cause: a
+    // CheckboxGroup can render an EMPTY data-source no better than a missing one, so
+    // the fix swapped one unrenderable payload for another and this test pinned it.
+    // The emptiness now travels in has_roster, and the group is hidden.
     expect(Array.isArray(res.data.roster)).toBe(true);
-    expect(res.data.roster).toHaveLength(0);
+    expect(res.data.roster.length).toBeGreaterThan(0);
+    expect(res.data.has_roster).toBe(false);
   });
 
   it('a populated roster is unaffected', async () => {

@@ -267,7 +267,7 @@ describe('a teacher marking by voice', () => {
     const res = await marking.handleMarkingInit('t1:student:l0:voice');
     expect(res.screen).toBe('REVIEW');
     expect(res.data.preselected).toEqual(['s1']);
-    expect(res.data.roster.map((r) => r.title)).toEqual(['Aleeha Noor', 'Bilal Ahmed']);
+    expect(res.data.roster.map((r) => r.title)).toEqual(['1. Aleeha Noor', '2. Bilal Ahmed']);
   });
 });
 
