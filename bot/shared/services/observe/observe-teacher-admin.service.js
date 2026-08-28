@@ -348,7 +348,68 @@ function rosterTeacherNextTarget(next) {
   }
 }
 
+// ── the confirm screen's payload ───────────────────────────────────────
+
+const FOUND = {
+  en: {
+    heading_found: "We found this teacher's account",
+    heading_new: 'No account on this number yet',
+    name: 'Name', school: 'School', no_school: 'not set',
+    to: 'Adding them to *{to}*.',
+    already: 'They are already at *{to}*. Nothing to change.',
+    confirm: 'Yes, go ahead', confirm_new: 'Add them',
+  },
+  ur: {
+    heading_found: 'یہ اکاؤنٹ مل گیا',
+    heading_new: 'اس نمبر پر کوئی اکاؤنٹ نہیں',
+    name: 'نام', school: 'اسکول', no_school: 'درج نہیں',
+    to: 'انہیں *{to}* میں شامل کیا جا رہا ہے۔',
+    already: 'وہ پہلے ہی *{to}* میں ہیں۔ کچھ تبدیل کرنے کی ضرورت نہیں۔',
+    confirm: 'جی، آگے بڑھیں', confirm_new: 'شامل کریں',
+  },
+};
+
+/**
+ * What TEACHER_CONFIRM renders, composed here rather than in the screen.
+ *
+ * The operator's shape: show the account we matched — name and current school —
+ * set apart from the sentence about what happens next, so the coach can check
+ * they have the right person before agreeing to move them.
+ *
+ * Every value is a WHOLE data field. Flow substitutes `${data.x}` only when it
+ * is the entire property value; a reference inside a sentence is printed
+ * verbatim, which is how "${data.school_name}" reached a coach.
+ */
+function foundAccountScreen(lang, plan = {}, schoolExtId = '') {
+  const l = clampLanguage(lang);
+  const t = FOUND[l] || FOUND.en;
+  const person = plan.person || {};
+  const isNew = plan.outcome === 'new';
+  const name = String(person.name || plan.name || '').trim();
+  const role = person.isPrincipal ? ` (${l === 'ur' ? 'پرنسپل' : 'Principal'})` : '';
+  const at = String(plan.fromSchoolName || '').trim() || t.no_school;
+
+  const details = isNew
+    ? `${t.name}: ${name}`
+    : `${t.name}: ${name}${role}\n${t.school}: ${at}`;
+
+  const tail = plan.outcome === 'already_here'
+    ? t.already.replace('{to}', String(plan.toSchoolName || ''))
+    : t.to.replace('{to}', String(plan.toSchoolName || ''));
+
+  return {
+    found_heading: isNew ? t.heading_new : t.heading_found,
+    found_details: details,
+    plan: tail,
+    school_ext_id: schoolExtId,
+    phone: String(plan.phone || ''),
+    name,
+    confirm_label: (isNew ? t.confirm_new : t.confirm).slice(0, 20),
+  };
+}
+
 module.exports = {
+  foundAccountScreen,
   rosterTeacherNextTarget,
   normaliseTeacherPhone,
   planAdd,

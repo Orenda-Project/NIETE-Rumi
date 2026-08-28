@@ -102,21 +102,49 @@ describe('adding', () => {
     expect(res.data.options.map((o) => o.id)).toContain('niete:916');
   });
 
-  it('teacher_add_open carries the school through, named', async () => {
+  it('teacher_add_open composes the sentence server-side, school named in full', async () => {
+    // The screen binds ${data.intro} as a whole value. It used to interpolate
+    // ${data.school_name} mid-sentence, which Flow prints verbatim.
     const res = await step('teacher_add_open', { school_ext_id: 'niete:916' });
     expect(res.screen).toBe('TEACHER_ADD');
-    expect(res.data).toMatchObject({ school_ext_id: 'niete:916', school_name: 'IMCG, G-10/2' });
+    expect(res.data.intro).toContain('IMCG, G-10/2');
+    expect(res.data.intro).not.toContain('${');
+    expect(res.data.school_ext_id).toBe('niete:916');
   });
 
-  it('teacher_add_lookup shows the plan and writes NOTHING yet', async () => {
-    const res = await step('teacher_add_lookup', {
-      school_ext_id: 'niete:916', phone: '03001234567', name: '',
+  it('teacher_add_open asks for a number and nothing else', () => {
+    const scr = flow.screens.find((x) => x.id === 'TEACHER_ADD');
+    const inputs = JSON.stringify(scr).match(/"type":"TextInput"/g) || [];
+    expect(inputs).toHaveLength(1);
+    expect(JSON.stringify(scr)).toContain('"name":"phone"');
+  });
+
+  it('a KNOWN number goes straight to the account we found — no name asked', async () => {
+    const res = await step('teacher_add_lookup', { school_ext_id: 'niete:916', phone: '03001234567' });
+    expect(res.screen).toBe('TEACHER_CONFIRM');
+    expect(res.data.found_heading).toMatch(/found/i);
+    expect(res.data.found_details).toContain('Tahira Manzoor');
+    expect(res.data.found_details).toContain('IMS(I-V) No.2 G-10/2');
+    expect(TeacherAdmin.commitAdd).not.toHaveBeenCalled();
+    expect(res.data).toMatchObject({ school_ext_id: 'niete:916', phone: '923001234567' });
+  });
+
+  it('an UNKNOWN number is the only case that asks for a name', async () => {
+    TeacherAdmin.planAdd.mockResolvedValueOnce({ outcome: 'new', phone: '923273222269' });
+    const res = await step('teacher_add_lookup', { school_ext_id: 'niete:916', phone: '3273222269' });
+    expect(res.screen).toBe('TEACHER_NAME');
+    expect(res.data.intro).toContain('923273222269');
+    expect(res.data.intro).not.toContain('${');
+  });
+
+  it('the name screen hands back to confirm, still writing nothing', async () => {
+    TeacherAdmin.planAdd.mockResolvedValueOnce({ outcome: 'new', phone: '923273222269' });
+    const res = await step('teacher_add_named', {
+      school_ext_id: 'niete:916', phone: '923273222269', name: 'Hataf Test Two',
     });
     expect(res.screen).toBe('TEACHER_CONFIRM');
-    expect(res.data.plan).toContain('Tahira Manzoor');
+    expect(res.data.found_details).toContain('Hataf Test Two');
     expect(TeacherAdmin.commitAdd).not.toHaveBeenCalled();
-    // The confirm screen has to hand every field back, or the commit loses them.
-    expect(res.data).toMatchObject({ school_ext_id: 'niete:916', phone: '923001234567' });
   });
 
   it('a bad number ends the flow with a reason, never a crash', async () => {
@@ -194,6 +222,7 @@ describe('every screen these steps return satisfies the keys it declares', () =>
     ['teacher_school_open', {}],
     ['teacher_add_open', { school_ext_id: 'niete:916' }],
     ['teacher_add_lookup', { school_ext_id: 'niete:916', phone: '03001234567' }],
+    ['teacher_add_named', { school_ext_id: 'niete:916', phone: '923001234567', name: 'X' }],
     ['teacher_add_commit', { school_ext_id: 'niete:916', phone: '923001234567', name: 'T' }],
     ['teacher_remove_open', { school_ext_id: 'niete:916' }],
     ['teacher_remove_check', { school_ext_id: 'niete:916', teacher_ext_id: 'u1' }],

@@ -41,7 +41,7 @@ const AREA_LABEL = {
   // (student_engagement is shared with the HOTS set below.)
   classroom_environment: { en: 'the classroom setup & discussion culture', ur: 'کلاس روم کی ترتیب اور بحث کا ماحول', sw: 'mpangilio wa darasa na utamaduni wa majadiliano', ar: 'ترتيب الصف وثقافة النقاش' },
   lesson_planning: { en: 'lesson objectives & planning', ur: 'سبق کے مقاصد اور منصوبہ بندی', sw: 'malengo ya somo na upangaji', ar: 'أهداف الدرس والتخطيط' },
-  instructional_strategies: { en: 'questioning & how she teaches', ur: 'سوالات اور تدریس کا انداز', sw: 'namna ya kuuliza na kufundisha', ar: 'طرح الأسئلة وأسلوب التدريس' },
+  instructional_strategies: { en: 'questioning & teaching style', ur: 'سوالات اور تدریس کا انداز', sw: 'namna ya kuuliza na kufundisha', ar: 'طرح الأسئلة وأسلوب التدريس' },
   student_engagement: { en: 'getting every student involved', ur: 'ہر بچے کو شامل کرنا', sw: 'kuwashirikisha wanafunzi wote', ar: 'إشراك كل طالب' },
   assessment_feedback: { en: 'checking understanding & feedback', ur: 'سمجھ کی جانچ اور رہنمائی', sw: 'kukagua uelewa na maoni', ar: 'التحقق من الفهم والتغذية الراجعة' },
 };

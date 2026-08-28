@@ -88,6 +88,7 @@
     ],
     "TEACHER_ADD": [
       "TEACHER_CONFIRM",
+      "TEACHER_NAME",
       "TEACHER_PICK",
       "TEACHER_DONE"
     ],
@@ -101,7 +102,11 @@
     "TEACHER_REMOVE_CONFIRM": [
       "TEACHER_DONE"
     ],
-    "TEACHER_DONE": []
+    "TEACHER_DONE": [],
+    "TEACHER_NAME": [
+      "TEACHER_CONFIRM",
+      "TEACHER_DONE"
+    ]
   },
   "screens": [
     {
@@ -725,7 +730,7 @@
         },
         "strength_text": {
           "type": "string",
-          "__example__": "✅ What's working: questioning & how she teaches"
+          "__example__": "✅ What's working: questioning & teaching style"
         },
         "growth_text": {
           "type": "string",
@@ -737,7 +742,7 @@
         },
         "moves_text": {
           "type": "string",
-          "__example__": "1. Watch her questioning: does she pause after asking, or answer it herself? If there's no wait-time, suggest she count silently to five.\n2. Count how many students actually speak. If it's only a few, suggest a 30-second think-pair-share.\n3. Watch how she checks understanding — suggest a one-question exit slip."
+          "__example__": "1. Watch the questioning: is there a pause after asking, or does the answer come straight back? If there's no wait-time, suggest counting silently to five.\n2. Count how many students actually speak. If it's only a few, suggest a 30-second think-pair-share.\n3. Watch how understanding gets checked — suggest a one-question exit slip."
         },
         "trend_text": {
           "type": "string",
@@ -745,7 +750,7 @@
         },
         "debrief_reminder": {
           "type": "string",
-          "__example__": "In the debrief, pick just ONE thing to work on with her — and open with a genuine strength."
+          "__example__": "In the debrief, pick just ONE thing to work on together — and open with a genuine strength."
         },
         "guidance_text": {
           "type": "string",
@@ -1042,7 +1047,7 @@
         "children": [
           {
             "type": "TextBody",
-            "text": "Type part of the teacher's name, or her phone number."
+            "text": "Type part of the teacher's name, or their phone number."
           },
           {
             "type": "Form",
@@ -1746,13 +1751,13 @@
       "title": "Add a teacher",
       "refresh_on_back": true,
       "data": {
+        "intro": {
+          "type": "string",
+          "__example__": "Adding a teacher to IMSB (VI-X), Rawal Dam."
+        },
         "school_ext_id": {
           "type": "string",
           "__example__": "niete:916"
-        },
-        "school_name": {
-          "type": "string",
-          "__example__": "IMCG, G-10/2"
         }
       },
       "layout": {
@@ -1760,7 +1765,7 @@
         "children": [
           {
             "type": "TextBody",
-            "text": "Adding a teacher to ${data.school_name}.\n\nType their WhatsApp number. If we already know them you will see their details before anything changes."
+            "text": "${data.intro}"
           },
           {
             "type": "Form",
@@ -1771,25 +1776,18 @@
                 "name": "phone",
                 "label": "WhatsApp number",
                 "input-type": "phone",
-                "required": true
-              },
-              {
-                "type": "TextInput",
-                "name": "name",
-                "label": "Full name",
-                "required": false,
-                "helper-text": "Required only if they are new to us"
+                "required": true,
+                "helper-text": "We'll look them up before anything changes"
               },
               {
                 "type": "Footer",
-                "label": "Check this number",
+                "label": "Look them up",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
                     "step": "teacher_add_lookup",
                     "school_ext_id": "${data.school_ext_id}",
-                    "phone": "${form.phone}",
-                    "name": "${form.name}"
+                    "phone": "${form.phone}"
                   }
                 }
               }
@@ -1810,13 +1808,74 @@
       }
     },
     {
+      "id": "TEACHER_NAME",
+      "title": "Who are they?",
+      "refresh_on_back": true,
+      "data": {
+        "intro": {
+          "type": "string",
+          "__example__": "We don't have an account for 03001234567."
+        },
+        "school_ext_id": {
+          "type": "string",
+          "__example__": "niete:916"
+        },
+        "phone": {
+          "type": "string",
+          "__example__": "923001234567"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "${data.intro}"
+          },
+          {
+            "type": "Form",
+            "name": "teacher_name_form",
+            "children": [
+              {
+                "type": "TextInput",
+                "name": "name",
+                "label": "Full name",
+                "required": true
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "teacher_add_named",
+                    "school_ext_id": "${data.school_ext_id}",
+                    "phone": "${data.phone}",
+                    "name": "${form.name}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "TEACHER_CONFIRM",
       "title": "Confirm",
       "refresh_on_back": true,
       "data": {
+        "found_heading": {
+          "type": "string",
+          "__example__": "We found this teacher's account"
+        },
+        "found_details": {
+          "type": "string",
+          "__example__": "Name: Hataf Atif\nSchool: IMCG I-8/3"
+        },
         "plan": {
           "type": "string",
-          "__example__": "About to move Tahira Manzoor from IMS(I-V) No.2 G-10/2 to IMCG, G-10/2."
+          "__example__": "Adding them to IMSB (VI-X), Rawal Dam."
         },
         "school_ext_id": {
           "type": "string",
@@ -1828,7 +1887,7 @@
         },
         "name": {
           "type": "string",
-          "__example__": "Tahira Manzoor"
+          "__example__": "Hataf Atif"
         },
         "confirm_label": {
           "type": "string",
@@ -1838,6 +1897,14 @@
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
+          {
+            "type": "TextBody",
+            "text": "${data.found_heading}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "${data.found_details}"
+          },
           {
             "type": "TextBody",
             "text": "${data.plan}"
@@ -1911,9 +1978,9 @@
           "type": "string",
           "__example__": "niete:916"
         },
-        "school_name": {
+        "intro": {
           "type": "string",
-          "__example__": "IMCG, G-10/2"
+          "__example__": "Pick the person to take off IMSB (VI-X), Rawal Dam."
         }
       },
       "layout": {
@@ -1921,7 +1988,7 @@
         "children": [
           {
             "type": "TextBody",
-            "text": "Pick the person to take off ${data.school_name}."
+            "text": "${data.intro}"
           },
           {
             "type": "Form",
@@ -2175,7 +2242,7 @@
         },
         "strength_text": {
           "type": "string",
-          "__example__": "✅ What's working: questioning & how she teaches"
+          "__example__": "✅ What's working: questioning & teaching style"
         },
         "growth_text": {
           "type": "string",
@@ -2187,7 +2254,7 @@
         },
         "moves_text": {
           "type": "string",
-          "__example__": "1. Watch her questioning: does she pause after asking, or answer it herself? If there's no wait-time, suggest she count silently to five.\n2. Count how many students actually speak. If it's only a few, suggest a 30-second think-pair-share.\n3. Watch how she checks understanding — suggest a one-question exit slip."
+          "__example__": "1. Watch the questioning: is there a pause after asking, or does the answer come straight back? If there's no wait-time, suggest counting silently to five.\n2. Count how many students actually speak. If it's only a few, suggest a 30-second think-pair-share.\n3. Watch how understanding gets checked — suggest a one-question exit slip."
         },
         "trend_text": {
           "type": "string",
@@ -2195,7 +2262,7 @@
         },
         "debrief_reminder": {
           "type": "string",
-          "__example__": "In the debrief, pick just ONE thing to work on with her — and open with a genuine strength."
+          "__example__": "In the debrief, pick just ONE thing to work on together — and open with a genuine strength."
         },
         "guidance_text": {
           "type": "string",
