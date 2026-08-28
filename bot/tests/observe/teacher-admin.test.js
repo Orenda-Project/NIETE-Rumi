@@ -233,3 +233,35 @@ describe('classifyAdd · "at this school" and "on MY list" are different facts',
     expect(plan.callerHoldsHer).toBe(false);
   });
 });
+
+// ── number agreement, in both languages ────────────────────────────────
+
+describe('removalPlanAck · a count of one does not read as a plural', () => {
+  const { removalPlanAck } = require('../../shared/services/observe/observe-teacher-admin.service');
+  const base = { teacherName: 'Tahira Manzoor', schoolName: 'IMCG, G-10/2', coachesAffected: 1 };
+
+  it('English: 1 visit, 2 visits', () => {
+    expect(removalPlanAck('en', { ...base, upcomingVisits: 1 })).toContain('1 visit already');
+    expect(removalPlanAck('en', { ...base, upcomingVisits: 2 })).toContain('2 visits already');
+  });
+
+  it('Urdu uses the house word for a scheduled visit, not a transliteration', () => {
+    // observe-strings calls one 'شیڈول شدہ مشاہدہ'. 'وزٹ' is a borrowing the
+    // rest of the observe copy does not use.
+    const t = removalPlanAck('ur', { ...base, upcomingVisits: 2 });
+    expect(t).toContain('مشاہدے');
+    expect(t).not.toContain('وزٹ');
+  });
+
+  it('Urdu singular is مشاہدہ, not the plural form', () => {
+    const one = removalPlanAck('ur', { ...base, upcomingVisits: 1 });
+    expect(one).toContain('1 مشاہدہ');
+    expect(one).not.toContain('مشاہدے');
+  });
+
+  it('no visits booked -> the sentence is simply absent', () => {
+    for (const l of ['en', 'ur']) {
+      expect(removalPlanAck(l, { ...base, upcomingVisits: 0 })).not.toMatch(/مشاہد|visit/);
+    }
+  });
+});

@@ -600,7 +600,10 @@ const REMOVAL_PLAN = {
 };
 
 function _visits(lang, n) {
-  if (lang === 'ur') return `${n} وزٹس`;
+  // 'مشاہدہ' is what observe-strings calls a scheduled visit
+  // ('شیڈول شدہ مشاہدہ'); 'وزٹ' is a borrowing the rest of this copy avoids.
+  // Singular and plural differ, and "1 مشاہدے" reads as badly as "1 visits".
+  if (lang === 'ur') return n === 1 ? '1 مشاہدہ' : `${n} مشاہدے`;
   return n === 1 ? '1 visit' : `${n} visits`;
 }
 
