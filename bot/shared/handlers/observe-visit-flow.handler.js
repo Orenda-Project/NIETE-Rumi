@@ -332,11 +332,21 @@ async function menuScreen(userId, opts = {}) {
       },
       'on-click-action': { name: 'data_exchange', payload: { step: 'add_search_open' } },
     },
+    {
+      // Teacher-level admin is its OWN entry. Folding it into the school one
+      // would hide it behind a label that promises something else.
+      id: 'manage_teachers',
+      'main-content': {
+        title: 'Add or remove a teacher',
+        metadata: 'By WhatsApp number',
+      },
+      'on-click-action': { name: 'data_exchange', payload: { step: 'teacher_school_open' } },
+    },
   ];
   if (!schoolCount) {
     // Nothing to debrief, schedule or observe until she has a school. Show the
     // one action that gets her unstuck, and say why the rest is missing.
-    const only = items.filter((i) => i.id === 'manage');
+    const only = items.filter((i) => i.id === 'manage');   // teacher admin needs a school first
     only[0]['main-content'].metadata = 'Start here — add your first school';
     return { screen: 'MENU', data: { items: only } };
   }
@@ -639,9 +649,12 @@ async function bindAndStart(userId, screenData, user) {
       userId, teacherExtId, boundUserId: teacher.user_id || null,
     });
   } else {
+    // level='error' is required, not decorative: an unbound capture sends the
+    // report to the coach instead of the teacher, so an on-caller wants this in
+    // the `level == 'error'` dashboard filter rather than buried at info.
     logToFile('❌ observe-visit: teacher bind FAILED — capture will run UNBOUND', {
       userId, teacherExtId, schoolExtId: String(schoolExtId || ''),
-    });
+    }, 'error');
   }
   return { action: 'bound', boundTeacher: teacher };
 }
@@ -938,6 +951,167 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       return { screen: 'ACTION_DONE', data: res.ok
         ? _done(S.school_removed_heading, A.removedSchoolAck(_flowLang, { schoolName: res.schoolName }), 'roster')
         : _done(S.flow_action_failed_heading, S.flow_action_failed_body) };
+    }
+
+    // ── teachers, one at a time ──────────────────────────────────────
+    //
+    // Two data_exchange round trips per change: a *_lookup/_check step that
+    // only READS and renders the plan, then a *_commit step that writes. The
+    // coach sees what is about to happen and can back out.
+    //
+    // On the derived model the write is a single one — the person's school —
+    // so "remove" clears it and there is no assignment row either way.
+
+    const _T = () => require('../services/observe/observe-teacher-admin.service');
+    const _P = () => require('../services/observe/patch-resolver.service');
+    const _tdone = (heading, body) => ({ screen: 'TEACHER_DONE', data: { heading, body } });
+    const _refuse = (key) => _tdone(S_(_flowLang).flow_action_failed_heading, _T().refusalBody(_flowLang, key));
+
+    if (step === 'teacher_school_open') {
+      const A = _admin();
+      const mine = await A.listMySchools(userId).catch(() => []);
+      const options = mine.length
+        ? mine.slice(0, A.RESULT_CAP).map((x) => _opt(x.school_ext_id, x.school_name, `EMIS ${x.emis || ''}`, ''))
+        : [_opt('none', S_(_flowLang).search_no_match, '', '')];
+      return { screen: 'TEACHER_SCHOOL', data: { options } };
+    }
+
+    if (step === 'teacher_add_open') {
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      if (!schoolExtId || schoolExtId === 'none') return _refuse('not_my_school');
+      const A = _admin();
+      const mine = await A.listMySchools(userId).catch(() => []);
+      const school = mine.find((x) => x.school_ext_id === schoolExtId);
+      if (!school) return _refuse('not_my_school');
+      // Composed HERE, not in the screen. Flow substitutes ${data.x} only when
+      // it is the whole property value — a reference inside a sentence is
+      // printed literally, which is what put "${data.school_name}" in front of
+      // a coach.
+      return {
+        screen: 'TEACHER_ADD',
+        data: {
+          school_ext_id: schoolExtId,
+          intro: `Adding a teacher to ${school.school_name}.\n\nType their WhatsApp number and we'll look them up before anything changes.`,
+        },
+      };
+    }
+
+    // READS ONLY. The number is all we asked for; the name screen only appears
+    // when we genuinely do not know this person.
+    if (step === 'teacher_add_lookup') {
+      const T = _T();
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const plan = await T.planAdd({
+        actorLeaderUserId: userId, schoolExtId, rawPhone: screenData && screenData.phone,
+      }).catch(() => ({ outcome: 'failed' }));
+
+      if (['invalid_phone', 'not_my_school', 'is_coach', 'failed'].includes(plan.outcome)) {
+        return _refuse(plan.outcome);
+      }
+
+      if (plan.outcome === 'new') {
+        return {
+          screen: 'TEACHER_NAME',
+          data: {
+            school_ext_id: schoolExtId,
+            phone: String(plan.phone || ''),
+            intro: `We don't have an account for ${plan.phone}.\n\nWhat is their full name?`,
+          },
+        };
+      }
+
+      return { screen: 'TEACHER_CONFIRM', data: T.foundAccountScreen(_flowLang, plan, schoolExtId) };
+    }
+
+    // The name screen's Continue — the person is new, so go straight to confirm.
+    if (step === 'teacher_add_named') {
+      const T = _T();
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const name = String((screenData && screenData.name) || '').trim();
+      if (!name) return _refuse('name_required');
+      const plan = await T.planAdd({
+        actorLeaderUserId: userId, schoolExtId, rawPhone: screenData && screenData.phone,
+      }).catch(() => ({ outcome: 'failed' }));
+      if (plan.outcome !== 'new') {
+        // Someone registered between the two taps — fall back to the found path.
+        return { screen: 'TEACHER_CONFIRM', data: T.foundAccountScreen(_flowLang, plan, schoolExtId) };
+      }
+      return { screen: 'TEACHER_CONFIRM', data: T.foundAccountScreen(_flowLang, { ...plan, name }, schoolExtId) };
+    }
+
+    if (step === 'teacher_add_commit') {
+      const T = _T();
+      const res = await T.commitAdd({
+        actorLeaderUserId: userId,
+        schoolExtId: String((screenData && screenData.school_ext_id) || ''),
+        rawPhone: screenData && screenData.phone,
+        name: screenData && screenData.name,
+      }).catch(() => ({ outcome: 'failed' }));
+
+      if (!res.wrote && res.outcome !== 'already_here') return _refuse(res.outcome || 'failed');
+      return _tdone(S_(_flowLang).teacher_added_heading || 'Done', T.addPlanAck(_flowLang, res));
+    }
+
+    if (step === 'teacher_remove_open') {
+      const A = _admin();
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const mine = await A.listMySchools(userId).catch(() => []);
+      const school = mine.find((x) => x.school_ext_id === schoolExtId);
+      if (!school) return _refuse('not_my_school');
+      // Her people at THIS school, derived — the same list the picker shows.
+      const supabase = require('../config/supabase');
+      const people = await _P().listPatchViaSupabase(supabase, userId, schoolExtId).catch(() => []);
+      const options = people.length
+        ? people.slice(0, A.RESULT_CAP).map((p) => _opt(
+          p.userId, p.name, p.roleLabel || (p.band || ''), p.phone || ''))
+        : [_opt('none', S_(_flowLang).search_no_match, '', '')];
+      return {
+        screen: 'TEACHER_PICK',
+        data: {
+          options,
+          school_ext_id: schoolExtId,
+          intro: `Pick the person to take off ${school.school_name}.`,
+        },
+      };
+    }
+
+    // READS ONLY — and where the coach learns a booked visit will go.
+    if (step === 'teacher_remove_check') {
+      const T = _T();
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const pickedUserId = String((screenData && screenData.teacher_ext_id) || '');
+      if (!pickedUserId || pickedUserId === 'none') return _refuse('not_found');
+      const supabase = require('../config/supabase');
+      const people = await _P().listPatchViaSupabase(supabase, userId, schoolExtId).catch(() => []);
+      const person = people.find((p) => p.userId === pickedUserId);
+      if (!person) return _refuse('not_found');
+      return {
+        screen: 'TEACHER_REMOVE_CONFIRM',
+        data: {
+          plan: T.removedTeacherAck(_flowLang, { name: person.name, schoolName: person.schoolName }),
+          school_ext_id: schoolExtId,
+          teacher_ext_id: pickedUserId,
+        },
+      };
+    }
+
+    if (step === 'teacher_remove_commit') {
+      const T = _T();
+      const res = await T.commitRemoval({
+        actorLeaderUserId: userId,
+        schoolExtId: String((screenData && screenData.school_ext_id) || ''),
+        userId: String((screenData && screenData.teacher_ext_id) || ''),
+        reason: (screenData && screenData.reason) || null,
+      }).catch(() => ({ ok: false }));
+      if (!res.ok) return _refuse(res.reason || 'failed');
+      return _tdone(
+        S_(_flowLang).teacher_removed_heading || 'Removed',
+        T.removedTeacherAck(_flowLang, { name: res.name, schoolName: res.schoolName }),
+      );
+    }
+
+    if (step === 'teacher_cancel') {
+      return _tdone(S_(_flowLang).teacher_cancelled_heading || 'No changes', _T().refusalBody(_flowLang, 'cancelled'));
     }
 
     if (step === 'to_picker') return pickerScreen(userId, screenData);

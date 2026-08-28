@@ -79,7 +79,6 @@ const ENDPOINT_ONLY_FLOWS = [
   { name: 'Homework Request',  envVar: 'HOMEWORK_FLOW_ID',          endpoint: '/api/flows/homework-request' },
   { name: 'Edit Class',        envVar: 'EDIT_CLASS_FLOW_ID',        endpoint: '/api/flows/edit-class' },
   { name: 'Student Videos',    envVar: 'STUDENT_VIDEOS_FLOW_ID',    endpoint: '/api/flows/student-videos' },
-  { name: 'Pic-to-LP Confirm', envVar: 'PIC_LP_FLOW_ID',            endpoint: '/api/flows/pic-lp' },
   { name: 'Quiz Manager',      envVar: 'QUIZ_FLOW_ID',              endpoint: '/api/flows/quiz' },
   // Training multi-answer question. Listed here so a submission that reaches
   // handleFlowResponse (rather than the flowType switch in whatsapp-bot.js,
@@ -763,6 +762,16 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
     // with no params landed on the generic "Thanks for your response". The
     // in-Flow screen already confirmed what happened, so the only thing left to
     // do is continue the loop she picked.
+    // Teacher-level roster changes emit their own action: the "what next?"
+    // options differ from the school screen's, and an unhandled action falls
+    // through to the capture prompt below — answering a roster tap with
+    // "tell me about the lesson you observed".
+    if (visitAction === 'roster_teacher') {
+      const { rosterTeacherNextTarget } = require('../services/observe/observe-teacher-admin.service');
+      await _continueObserveLoop(rosterTeacherNextTarget(responseJson.roster_next), user, phoneNumber, userId);
+      return;
+    }
+
     if (visitAction === 'roster') {
       const { rosterNextTarget } = require('../services/observe/observe-school-admin.service');
       await _continueObserveLoop(rosterNextTarget(responseJson.roster_next), user, phoneNumber, userId);

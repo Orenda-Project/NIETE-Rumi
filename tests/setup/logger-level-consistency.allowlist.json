@@ -78,12 +78,6 @@
     "occurrence": 0
   },
   {
-    "file": "bot/shared/handlers/observe-visit-flow.handler.js",
-    "line": 633,
-    "snippet": "logToFile('❌ observe-visit: teacher bind FAILED — capture will run UNBOUND', {",
-    "occurrence": 0
-  },
-  {
     "file": "bot/shared/handlers/portal-command.handler.js",
     "line": 93,
     "snippet": "logToFile('❌ Failed to send portal invitation', {",

@@ -32,11 +32,12 @@ const { getOverall } = require('./coaching-frameworks.service');
 const TERMINAL = `('completed', 'observer_review_complete')`;
 
 const PATCH_TEACHERS_SQL = `
-  SELECT
-    lt.teacher_ext_id,
-    lt.teacher_name,
-    lt.teacher_phone_e164 AS phone,
-    lt.school_ext_id      AS school_ext_id,
+  SELECT DISTINCT ON (u.id)
+    u.phone_number        AS teacher_ext_id,
+    u.first_name          AS teacher_name,
+    u.phone_number        AS phone,
+    'niete:' || sch.emis  AS school_ext_id,
+    u.role                AS role,
     u.id                  AS rumi_user_id,
     u.first_name          AS rumi_first_name,
     COALESCE(cc.n, 0)     AS coaching_sessions,
@@ -44,15 +45,18 @@ const PATCH_TEACHERS_SQL = `
     COALESCE(lpc.plans, 0) AS lesson_plans,
     ls.analysis_data      AS last_analysis_data,
     ls.created_at         AS last_session_at,
-    sch.school_name       AS school_name
-  FROM leader_teachers lt
-  LEFT JOIN users u ON u.phone_number = lt.teacher_phone_e164
-  LEFT JOIN LATERAL (
-    SELECT s.school_name
-    FROM leader_schools s
-    WHERE s.school_ext_id = lt.school_ext_id
-    LIMIT 1
-  ) sch ON true
+    sch.name              AS school_name
+  -- The patch is DERIVED: whoever has the school has the teacher (operator,
+  -- 2026-08-28). leader_teachers stored this and disagreed with users.school_id
+  -- on 230 rows; a join cannot disagree with itself.
+  -- DISTINCT ON because two of a coach's school_ext_ids can resolve to one
+  -- schools row (niete:607 covers two real schools in the register).
+  FROM leader_schools lsch
+  JOIN schools sch
+    ON lsch.school_id = sch.id OR 'niete:' || sch.emis = lsch.school_ext_id
+  JOIN users u
+    ON u.school_id = sch.id
+   AND u.role IN ('teacher', 'principal')
   LEFT JOIN LATERAL (
     SELECT count(*) AS n
     FROM coaching_sessions c
@@ -79,8 +83,8 @@ const PATCH_TEACHERS_SQL = `
     ORDER BY c.created_at DESC
     LIMIT 1
   ) ls ON true
-  WHERE lt.leader_user_id = $1
-  ORDER BY lt.teacher_name ASC
+  WHERE lsch.leader_user_id = $1
+  ORDER BY u.id, u.first_name ASC
 `;
 
 /** EMIS is the suffix of school_ext_id ('niete:509' → '509'). */
@@ -122,6 +126,9 @@ function shapeTeacher(r) {
     focusArea: onRumi ? focusAreaOf(r.last_analysis_data) : null,
     schoolName: r.school_name || null,
     emis: emisOf(r.school_ext_id),
+    // 354 principals join patches that never had them. An unlabelled principal
+    // in a teacher list is how the wrong person gets observed.
+    isPrincipal: r.role === 'principal',
   };
 }
 
