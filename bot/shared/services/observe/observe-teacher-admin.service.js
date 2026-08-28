@@ -274,8 +274,8 @@ function _supabaseDb() {
 
     /**
      * Cancel, never delete: 43 of the 45 live upcoming visits are backed by a
-     * roster row, and a 'done' row IS the record of who was observed (bd-2668),
-     * so only 'upcoming' is ever touched.
+     * roster row, and a 'done' row IS the record of who was observed, so only
+     * 'upcoming' is ever touched.
      */
     async cancelUpcoming({ schoolExtId, teacherExtId }) {
       const { data, error } = await supabase.from('observation_schedules')
