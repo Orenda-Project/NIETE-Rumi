@@ -955,17 +955,17 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
 
     // ── teachers, one at a time ──────────────────────────────────────
     //
-    // Two data_exchange round trips per change on purpose: a *_lookup/_check
-    // step that only READS and renders the plan, then a *_commit step that
-    // writes. The coach sees exactly what is about to happen and can back out,
-    // which is the whole requirement.
+    // Two data_exchange round trips per change: a *_lookup/_check step that
+    // only READS and renders the plan, then a *_commit step that writes. The
+    // coach sees what is about to happen and can back out.
+    //
+    // On the derived model the write is a single one — the person's school —
+    // so "remove" clears it and there is no assignment row either way.
 
     const _T = () => require('../services/observe/observe-teacher-admin.service');
+    const _P = () => require('../services/observe/patch-resolver.service');
     const _tdone = (heading, body) => ({ screen: 'TEACHER_DONE', data: { heading, body } });
-    const _refuse = (key) => {
-      const T = _T();
-      return _tdone(S_(_flowLang).flow_action_failed_heading, T.refusalBody(_flowLang, key));
-    };
+    const _refuse = (key) => _tdone(S_(_flowLang).flow_action_failed_heading, _T().refusalBody(_flowLang, key));
 
     if (step === 'teacher_school_open') {
       const A = _admin();
@@ -978,39 +978,44 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
 
     if (step === 'teacher_add_open') {
       const schoolExtId = String((screenData && screenData.school_ext_id) || '');
-      if (!schoolExtId || schoolExtId === 'none') return _refuse('school_not_found');
+      if (!schoolExtId || schoolExtId === 'none') return _refuse('not_my_school');
       const A = _admin();
       const mine = await A.listMySchools(userId).catch(() => []);
       const school = mine.find((x) => x.school_ext_id === schoolExtId);
+      // The school NAME is required by the screen and was rendering as the
+      // literal `${data.school_name}` when this was left empty — a declared key
+      // with a blank value reads as an unresolved binding. Refuse instead.
+      if (!school || !school.school_name) return _refuse('not_my_school');
       return {
         screen: 'TEACHER_ADD',
-        data: { school_ext_id: schoolExtId, school_name: (school && school.school_name) || '' },
+        data: { school_ext_id: schoolExtId, school_name: school.school_name },
       };
     }
 
-    // READS ONLY. Renders what would happen; writes nothing.
+    // READS ONLY.
     if (step === 'teacher_add_lookup') {
       const T = _T();
       const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const typedName = String((screenData && screenData.name) || '').trim();
       const plan = await T.planAdd({
         actorLeaderUserId: userId, schoolExtId, rawPhone: screenData && screenData.phone,
       }).catch(() => ({ outcome: 'failed' }));
 
-      if (['invalid_phone', 'ambiguous', 'school_not_found', 'failed'].includes(plan.outcome)) {
+      if (['invalid_phone', 'not_my_school', 'is_coach', 'failed'].includes(plan.outcome)) {
         return _refuse(plan.outcome);
       }
-      // A teacher nobody knows needs a name, and the coach may not have typed one.
-      const typedName = String((screenData && screenData.name) || '').trim();
+      // A number nobody holds needs a name — the users row cannot be created
+      // without one, and the screen makes it optional because most adds are
+      // people we already know.
       if (plan.outcome === 'new' && !typedName) return _refuse('name_required');
 
-      const name = plan.teacherName || typedName;
       return {
         screen: 'TEACHER_CONFIRM',
         data: {
-          plan: T.movePlanAck(_flowLang, { ...plan, teacherName: name }),
+          plan: T.addPlanAck(_flowLang, { ...plan, person: plan.person || { name: typedName } }),
           school_ext_id: schoolExtId,
           phone: String(plan.phone || ''),
-          name,
+          name: typedName || ((plan.person && plan.person.name) || ''),
           confirm_label: clip(S_(_flowLang).teacher_confirm_label || 'Yes, go ahead', 20),
         },
       };
@@ -1022,51 +1027,48 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         actorLeaderUserId: userId,
         schoolExtId: String((screenData && screenData.school_ext_id) || ''),
         rawPhone: screenData && screenData.phone,
-        teacherName: screenData && screenData.name,
+        name: screenData && screenData.name,
       }).catch(() => ({ outcome: 'failed' }));
 
       if (!res.wrote && res.outcome !== 'already_here') return _refuse(res.outcome || 'failed');
-      return _tdone(
-        S_(_flowLang).teacher_added_heading || 'Done',
-        T.movePlanAck(_flowLang, { ...res, outcome: res.outcome === 'move' ? 'move' : 'already_here' }),
-      );
+      return _tdone(S_(_flowLang).teacher_added_heading || 'Done', T.addPlanAck(_flowLang, res));
     }
 
     if (step === 'teacher_remove_open') {
-      const T = _T();
       const A = _admin();
       const schoolExtId = String((screenData && screenData.school_ext_id) || '');
       const mine = await A.listMySchools(userId).catch(() => []);
       const school = mine.find((x) => x.school_ext_id === schoolExtId);
-      const teachers = await T.listTeachersAtSchool(userId, schoolExtId).catch(() => []);
-      const options = teachers.length
-        ? teachers.slice(0, A.RESULT_CAP).map((t) => _opt(
-          t.teacher_ext_id, t.teacher_name, t.level || '', t.teacher_phone_e164 || ''))
+      if (!school) return _refuse('not_my_school');
+      // Her people at THIS school, derived — the same list the picker shows.
+      const supabase = require('../config/supabase');
+      const people = await _P().listPatchViaSupabase(supabase, userId, schoolExtId).catch(() => []);
+      const options = people.length
+        ? people.slice(0, A.RESULT_CAP).map((p) => _opt(
+          p.userId, p.name, p.roleLabel || (p.band || ''), p.phone || ''))
         : [_opt('none', S_(_flowLang).search_no_match, '', '')];
       return {
         screen: 'TEACHER_PICK',
-        data: {
-          options,
-          school_ext_id: schoolExtId,
-          school_name: (school && school.school_name) || '',
-        },
+        data: { options, school_ext_id: schoolExtId, school_name: school.school_name || '' },
       };
     }
 
-    // READS ONLY — and it is where the coach learns a booked visit will go.
+    // READS ONLY — and where the coach learns a booked visit will go.
     if (step === 'teacher_remove_check') {
       const T = _T();
       const schoolExtId = String((screenData && screenData.school_ext_id) || '');
-      const teacherExtId = String((screenData && screenData.teacher_ext_id) || '');
-      if (!teacherExtId || teacherExtId === 'none') return _refuse('not_found');
-      const plan = await T.planRemoval({ schoolExtId, teacherExtId }).catch(() => ({ ok: false }));
-      if (!plan.ok) return _refuse(plan.reason || 'failed');
+      const pickedUserId = String((screenData && screenData.teacher_ext_id) || '');
+      if (!pickedUserId || pickedUserId === 'none') return _refuse('not_found');
+      const supabase = require('../config/supabase');
+      const people = await _P().listPatchViaSupabase(supabase, userId, schoolExtId).catch(() => []);
+      const person = people.find((p) => p.userId === pickedUserId);
+      if (!person) return _refuse('not_found');
       return {
         screen: 'TEACHER_REMOVE_CONFIRM',
         data: {
-          plan: T.removalPlanAck(_flowLang, plan),
+          plan: T.removedTeacherAck(_flowLang, { name: person.name, schoolName: person.schoolName }),
           school_ext_id: schoolExtId,
-          teacher_ext_id: teacherExtId,
+          teacher_ext_id: pickedUserId,
         },
       };
     }
@@ -1076,13 +1078,13 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const res = await T.commitRemoval({
         actorLeaderUserId: userId,
         schoolExtId: String((screenData && screenData.school_ext_id) || ''),
-        teacherExtId: String((screenData && screenData.teacher_ext_id) || ''),
+        userId: String((screenData && screenData.teacher_ext_id) || ''),
         reason: (screenData && screenData.reason) || null,
       }).catch(() => ({ ok: false }));
       if (!res.ok) return _refuse(res.reason || 'failed');
       return _tdone(
         S_(_flowLang).teacher_removed_heading || 'Removed',
-        T.removedTeacherAck(_flowLang, { teacherName: res.teacherName, schoolName: res.schoolName }),
+        T.removedTeacherAck(_flowLang, { name: res.name, schoolName: res.schoolName }),
       );
     }
 

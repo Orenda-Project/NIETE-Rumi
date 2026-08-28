@@ -2,7 +2,7 @@
  * bd-2434 — Leader → single teacher detail (TDD, red-first). NIETE port of bd-2388.
  *
  * SECURITY-CRITICAL: a leader may only view a teacher who is in THEIR patch.
- * getPatchTeacherDetail first proves membership (leader_teachers ∩ the teacher's
+ * getPatchTeacherDetail first proves membership (the coach's schools ∩ the teacher's
  * Rumi user) and returns null otherwise — the endpoint 404s, so a leader cannot
  * enumerate arbitrary teachers' coaching data by guessing user ids.
  *
@@ -18,7 +18,8 @@ function router(fixtures) {
   const calls = [];
   const fn = async (sql, params) => {
     calls.push({ sql, params });
-    if (/FROM\s+leader_teachers/i.test(sql)) return { rows: fixtures.member || [] };
+    // Membership is derived from the coach's schools now, not the stored roster.
+    if (/FROM\s+leader_schools/i.test(sql)) return { rows: fixtures.member || [] };
     if (/FROM\s+coaching_sessions/i.test(sql)) return { rows: fixtures.sessions || [] };
     if (/lesson_plans/i.test(sql)) return { rows: fixtures.counts || [{ lesson_plans: 0, reading_assessments: 0 }] };
     return { rows: [] };
@@ -48,7 +49,7 @@ describe('getPatchTeacherDetail', () => {
   it('scopes the membership check to BOTH the leader and the teacher id', async () => {
     const q = router(IN_PATCH);
     await getPatchTeacherDetail(q, 'leader-1', 'teach-1');
-    const memberCall = q.calls.find((c) => /FROM\s+leader_teachers/i.test(c.sql));
+    const memberCall = q.calls.find((c) => /FROM\s+leader_schools/i.test(c.sql));
     expect(memberCall.params).toEqual(['leader-1', 'teach-1']);
   });
 

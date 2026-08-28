@@ -10,7 +10,7 @@
  */
 
 // ── supabase mockChain mock ─────────────────────────────────────────────────────
-const mockRows = { leader_schools: [], leader_teachers: [], users: [], coaching_sessions: [] };
+const mockRows = { leader_schools: [], leader_teachers: [], schools: [], users: [], coaching_sessions: [] };
 
 function mockChain(table) {
   const state = { table, filters: [] };
@@ -70,13 +70,20 @@ beforeEach(() => {
   mockRows.leader_schools = [
     { leader_user_id: LEADER, school_ext_id: 'niete:401', school_name: 'IMCB Bhara Kau', emis: '401' },
   ];
-  mockRows.leader_teachers = [
-    { leader_user_id: LEADER, school_ext_id: 'niete:401', teacher_ext_id: '923331234567', teacher_name: 'Abid Ullah', teacher_phone_e164: '923331234567', level: 'HIGH' },
-    { leader_user_id: LEADER, school_ext_id: 'niete:401', teacher_ext_id: '923337654321', teacher_name: 'Off Rumi', teacher_phone_e164: '923337654321', level: 'PRIMARY' },
-  ];
+  // The patch is DERIVED now: leader_schools x schools x users.school_id.
+  // leader_teachers is no longer read, so the people live on `users`.
+  mockRows.schools = [{ id: 's401', name: 'IMCB Bhara Kau', emis: '401' }];
   mockRows.users = [
-    { id: 'teacher-1', phone_number: '923331234567', preferred_language: 'ur', grades_taught: null },
-    { id: LEADER, phone_number: '923268124132', preferred_language: 'ur' },
+    { id: 'teacher-1', phone_number: '923331234567', first_name: 'Abid Ullah',
+      role: 'teacher', school_id: 's401', training_bands: ['HIGH'],
+      preferred_language: 'ur', grades_taught: null },
+    // Registered but never coached — the "no activity yet" case. Under the old
+    // model this row did not exist at all and the teacher carried user_id null;
+    // a derived patch cannot produce someone who is not a user.
+    { id: 'teacher-2', phone_number: '923337654321', first_name: 'Not Yet Coached',
+      role: 'teacher', school_id: 's401', training_bands: ['PRIMARY'],
+      preferred_language: 'ur', grades_taught: null },
+    { id: LEADER, phone_number: '923268124132', role: 'coach', preferred_language: 'ur' },
   ];
   mockRows.coaching_sessions = [
     // teacher's OWN AI coaching (trend/score source)
@@ -165,7 +172,11 @@ describe('listSchools / listTeachers', () => {
     expect(onRumi.score).toBeGreaterThan(0);
     expect(onRumi.growthAreaKey).toBe('lesson_plan_fidelity');
     expect(onRumi.level).toBe('HIGH');
-    expect(offRumi.user_id).toBeNull();
+    // Was `toBeNull()`: the old stored roster could hold someone with no Rumi
+    // account. A derived patch reads FROM users, so everyone has an id. The
+    // behaviour that matters — an uncoached teacher still appears and sorts as
+    // new — is unchanged.
+    expect(offRumi.user_id).toBe('teacher-2');
     expect(offRumi.priority).toBe('new');
   });
 });

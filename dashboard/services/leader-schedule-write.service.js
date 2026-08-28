@@ -19,14 +19,21 @@
 
 const SLOTS = ['09:00', '11:30', '14:00'];
 
+// teacher_ext_id is the phone — 980 of 992 live observation_schedules rows
+// already key on it — so a booking still resolves by the same value it always
+// did, just against the derived patch rather than the stored roster.
 const PATCH_SQL = `
-  SELECT lt.teacher_ext_id, lt.teacher_name, lt.school_ext_id, s.school_name
-  FROM leader_teachers lt
-  LEFT JOIN LATERAL (
-    SELECT school_name FROM leader_schools ls
-    WHERE ls.school_ext_id = lt.school_ext_id LIMIT 1
-  ) s ON true
-  WHERE lt.leader_user_id = $1 AND lt.teacher_ext_id = $2
+  SELECT u.phone_number       AS teacher_ext_id,
+         u.first_name         AS teacher_name,
+         'niete:' || s.emis   AS school_ext_id,
+         s.name               AS school_name
+  FROM leader_schools ls
+  JOIN schools s
+    ON ls.school_id = s.id OR 'niete:' || s.emis = ls.school_ext_id
+  JOIN users u
+    ON u.school_id = s.id
+   AND u.role IN ('teacher', 'principal')
+  WHERE ls.leader_user_id = $1 AND u.phone_number = $2
   LIMIT 1
 `;
 

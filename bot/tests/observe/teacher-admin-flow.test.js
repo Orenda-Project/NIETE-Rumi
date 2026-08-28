@@ -48,25 +48,35 @@ jest.mock('../../shared/services/observe/observe-teacher-admin.service', () => {
   return {
     ...actual,
     planAdd: jest.fn(async () => ({
-      outcome: 'move', teacherName: 'Tahira Manzoor', phone: '923001234567',
-      fromSchoolName: 'IMS(I-V) No.2 G-10/2', toSchoolName: 'IMCG, G-10/2',
-      coachesLosingHer: 2,
+      outcome: 'move',
+      phone: '923001234567',
+      person: { userId: 'u1', name: 'Tahira Manzoor', role: 'teacher', isPrincipal: false },
+      fromSchoolExtId: 'niete:273',
+      fromSchoolName: 'IMS(I-V) No.2 G-10/2',
+      toSchoolName: 'IMCG, G-10/2',
+      target: { school_ext_id: 'niete:916', school_id: 's916', school_name: 'IMCG, G-10/2' },
     })),
     commitAdd: jest.fn(async () => ({
-      outcome: 'move', wrote: true, teacherName: 'Tahira Manzoor',
-      schoolName: 'IMCG, G-10/2', visitsCancelled: 1, coachesNotified: 2, notifyFailed: 0,
-    })),
-    listTeachersAtSchool: jest.fn(async () => ([
-      { teacher_ext_id: '923001234567', teacher_name: 'Tahira Manzoor', teacher_phone_e164: '923001234567', level: 'PRIMARY' },
-    ])),
-    planRemoval: jest.fn(async () => ({
-      ok: true, teacherName: 'Tahira Manzoor', schoolName: 'IMCG, G-10/2',
-      coachesAffected: 2, upcomingVisits: 1,
+      outcome: 'move', wrote: true, phone: '923001234567',
+      person: { name: 'Tahira Manzoor', isPrincipal: false },
+      fromSchoolName: 'IMS(I-V) No.2 G-10/2', toSchoolName: 'IMCG, G-10/2',
     })),
     commitRemoval: jest.fn(async () => ({
-      ok: true, teacherName: 'Tahira Manzoor', schoolName: 'IMCG, G-10/2',
-      coachesAffected: 2, visitsCancelled: 1, coachesNotified: 1, notifyFailed: 0,
+      ok: true, name: 'Tahira Manzoor', schoolName: 'IMCG, G-10/2', visitsCancelled: 1,
     })),
+  };
+});
+
+// The remove picker reads the DERIVED patch, not a roster table.
+jest.mock('../../shared/services/observe/patch-resolver.service', () => {
+  const actual = jest.requireActual('../../shared/services/observe/patch-resolver.service');
+  return {
+    ...actual,
+    listPatchViaSupabase: jest.fn(async () => ([
+      { userId: 'u1', name: 'Tahira Manzoor', phone: '923001234567',
+        isPrincipal: false, roleLabel: '', band: 'primary',
+        schoolName: 'IMCG, G-10/2', emis: '916' },
+    ])),
   };
 });
 
@@ -117,13 +127,13 @@ describe('adding', () => {
   });
 
   it('an ambiguous number refuses and says why', async () => {
-    TeacherAdmin.planAdd.mockResolvedValueOnce({
-      outcome: 'ambiguous',
-      candidates: [{ teacherName: 'Ayesha Khan' }, { teacherName: 'Bilal Ahmed' }],
-    });
+    // The old 'ambiguous' case is gone: users.phone_number is UNIQUE, so one
+    // number is one person. Filing a coach as a teacher is the refusal that
+    // replaced it.
+    TeacherAdmin.planAdd.mockResolvedValueOnce({ outcome: 'is_coach', phone: '923001234567' });
     const res = await step('teacher_add_lookup', { school_ext_id: 'niete:916', phone: '03001234567' });
     expect(res.screen).toBe('TEACHER_DONE');
-    expect(res.data.body).toMatch(/more than one|two/i);
+    expect(res.data.body).toMatch(/coach/i);
   });
 
   it('teacher_add_commit is what actually writes', async () => {
@@ -140,22 +150,25 @@ describe('removing', () => {
   it('teacher_remove_open lists her teachers at that school', async () => {
     const res = await step('teacher_remove_open', { school_ext_id: 'niete:916' });
     expect(res.screen).toBe('TEACHER_PICK');
-    expect(res.data.options[0].id).toBe('923001234567');
+    // Keyed on the user id: removal clears users.school_id, so the id is what
+    // the commit needs, not the phone.
+    expect(res.data.options[0].id).toBe('u1');
     expect(res.data.school_ext_id).toBe('niete:916');
   });
 
   it('teacher_remove_check warns about the visits it will cancel', async () => {
     const res = await step('teacher_remove_check', {
-      school_ext_id: 'niete:916', teacher_ext_id: '923001234567',
+      school_ext_id: 'niete:916', teacher_ext_id: 'u1',
     });
     expect(res.screen).toBe('TEACHER_REMOVE_CONFIRM');
-    expect(res.data.plan).toMatch(/visit/i);
+    expect(res.data.plan).toContain('Tahira Manzoor');
+    expect(res.data.teacher_ext_id).toBe('u1');
     expect(TeacherAdmin.commitRemoval).not.toHaveBeenCalled();
   });
 
   it('teacher_remove_commit writes and reports what happened', async () => {
     const res = await step('teacher_remove_commit', {
-      school_ext_id: 'niete:916', teacher_ext_id: '923001234567', reason: 'left',
+      school_ext_id: 'niete:916', teacher_ext_id: 'u1', reason: 'left',
     });
     expect(TeacherAdmin.commitRemoval).toHaveBeenCalled();
     expect(res.screen).toBe('TEACHER_DONE');
@@ -183,8 +196,8 @@ describe('every screen these steps return satisfies the keys it declares', () =>
     ['teacher_add_lookup', { school_ext_id: 'niete:916', phone: '03001234567' }],
     ['teacher_add_commit', { school_ext_id: 'niete:916', phone: '923001234567', name: 'T' }],
     ['teacher_remove_open', { school_ext_id: 'niete:916' }],
-    ['teacher_remove_check', { school_ext_id: 'niete:916', teacher_ext_id: '923001234567' }],
-    ['teacher_remove_commit', { school_ext_id: 'niete:916', teacher_ext_id: '923001234567' }],
+    ['teacher_remove_check', { school_ext_id: 'niete:916', teacher_ext_id: 'u1' }],
+    ['teacher_remove_commit', { school_ext_id: 'niete:916', teacher_ext_id: 'u1' }],
     ['teacher_cancel', {}],
   ];
 

@@ -1760,7 +1760,7 @@
         "children": [
           {
             "type": "TextBody",
-            "text": "Adding a teacher to ${data.school_name}.\n\nType her WhatsApp number. If we already know her you will see her details before anything changes."
+            "text": "Adding a teacher to ${data.school_name}.\n\nType their WhatsApp number. If we already know them you will see their details before anything changes."
           },
           {
             "type": "Form",
@@ -1769,16 +1769,16 @@
               {
                 "type": "TextInput",
                 "name": "phone",
-                "label": "Her number",
+                "label": "WhatsApp number",
                 "input-type": "phone",
                 "required": true
               },
               {
                 "type": "TextInput",
                 "name": "name",
-                "label": "Her name",
+                "label": "Full name",
                 "required": false,
-                "helper-text": "Only needed if she is new to us"
+                "helper-text": "Required only if they are new to us"
               },
               {
                 "type": "Footer",
@@ -1832,7 +1832,7 @@
         },
         "confirm_label": {
           "type": "string",
-          "__example__": "Yes, move her"
+          "__example__": "Yes, go ahead"
         }
       },
       "layout": {
@@ -1921,7 +1921,7 @@
         "children": [
           {
             "type": "TextBody",
-            "text": "Pick the teacher to take off ${data.school_name}."
+            "text": "Pick the person to take off ${data.school_name}."
           },
           {
             "type": "Form",
@@ -1930,7 +1930,7 @@
               {
                 "type": "Dropdown",
                 "name": "pick",
-                "label": "Teacher",
+                "label": "Teacher or principal",
                 "required": true,
                 "data-source": "${data.options}"
               },
@@ -1989,7 +1989,7 @@
               },
               {
                 "type": "Footer",
-                "label": "Yes, remove her",
+                "label": "Yes, remove them",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
@@ -2004,7 +2004,7 @@
           },
           {
             "type": "EmbeddedLink",
-            "text": "No, keep her on the list",
+            "text": "No, keep them on the list",
             "on-click-action": {
               "name": "data_exchange",
               "payload": {

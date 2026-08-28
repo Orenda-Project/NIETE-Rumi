@@ -21,6 +21,7 @@
 
 const supabase = require('../../../config/supabase');
 const { orderTeachers, classify } = require('./prioritise');
+const { listPatchViaSupabase, toLeaderSourceRow } = require('../patch-resolver.service');
 const { loadTrendData } = require('../../coaching/coaching-trend.service');
 const { buildMoves, openingTips, KNOWN_AREAS } = require('../observe-support-moves');
 const { logToFile } = require('../../../utils/logger');
@@ -62,18 +63,29 @@ async function _schools(leaderUserId) {
   return data || [];
 }
 
+/**
+ * The coach's people, DERIVED from her schools rather than read from
+ * `leader_teachers`.
+ *
+ * "Whoever has the school has the teacher" (operator, 2026-08-28). The stored
+ * table and the schools disagreed on 230 rows; a derivation cannot.
+ *
+ * The returned shape is unchanged, so every caller below and the visit Flow
+ * downstream are untouched — `teacher_ext_id` is still the phone, which is what
+ * 980 of 992 live observation_schedules rows already key on.
+ *
+ * The '' school filter still means "no filter" (bd-5n1a2): a schedule row
+ * carrying school_ext_id='' once produced a zero-row roster and silently
+ * unbound a picked teacher.
+ */
 async function _teachers(leaderUserId, schoolExtId = null) {
-  let q = supabase
-    .from('leader_teachers')
-    .select('teacher_ext_id, teacher_name, teacher_phone_e164, school_ext_id, level')
-    .eq('leader_user_id', leaderUserId);
-  // bd-5n1a2: '' must mean "no filter" — a schedule row with school_ext_id=""
-  // turned `.eq('school_ext_id','')` into a zero-row roster and silently
-  // unbound a picked teacher (live 2026-08-21).
-  if (schoolExtId != null && schoolExtId !== '') q = q.eq('school_ext_id', schoolExtId);
-  const { data, error } = await q;
-  if (error) { logToFile('leader-source: _teachers error', { error: error.message }); return []; }
-  return data || [];
+  try {
+    const people = await listPatchViaSupabase(supabase, leaderUserId, schoolExtId);
+    return people.map(toLeaderSourceRow);
+  } catch (error) {
+    logToFile('leader-source: _teachers error', { error: error.message });
+    return [];
+  }
 }
 
 async function _usersByPhone(phones) {
