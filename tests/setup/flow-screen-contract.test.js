@@ -27,6 +27,7 @@ const PAIRS = [
   ['bot/shared/routes/attendance-marking-endpoint.js', 'docs/flows/attendance-marking-flow.json'],
   ['bot/shared/routes/edit-class-endpoint.js', 'docs/flows/edit-class-flow.json'],
   ['bot/shared/routes/class-manager-endpoint.js', 'docs/flows/class-manager-flow.json'],
+  ['bot/shared/routes/roster-flow-endpoint.js', 'docs/flows/roster-flow-v1.json'],
 ];
 
 describe('flow screen contract', () => {
@@ -231,5 +232,61 @@ describe('NavigationList screens carry nothing else', () => {
 
       expect(offenders).toEqual([]);
     });
+  });
+});
+
+/**
+ * A terminal screen's completion payload must be DECLARED, not just exampled.
+ *
+ * `screen.data` is a JSON schema and Meta validates the completion payload
+ * against it, stripping any sub-object that was not declared. So
+ *
+ *   "extension_message_response": {
+ *     "type": "object",
+ *     "properties": {},
+ *     "__example__": { "params": { "roster_action": "saved" } }
+ *   }
+ *
+ * ships a completion payload with NO params. Nothing errors: the endpoint saves,
+ * the flow completes, and the webhook receives a response body carrying none of
+ * the discriminators the code branches on — so flow-type-detector answers
+ * 'unknown' and the teacher gets the catch-all reply instead of the contextual
+ * one. The `__example__` sitting right underneath reads like the contract and is
+ * not; it is documentation.
+ *
+ * Caught twice. The registration "Something Went Wrong" investigation was the
+ * same class, and /roster shipped it again on 2026-08-30 — a field test where the
+ * roster saved correctly and the log said `flowType: "unknown"`.
+ *
+ * Worth knowing while reading this: the shape this deployment actually proves in
+ * production is the FLAT one — observe-visit-v2, remark, training-msq and
+ * exam-checker all put their discriminators straight into the `complete` payload
+ * and their acks work. `extension_message_response` is the minority shape here.
+ * This test does not pick a side; it only refuses a declaration that cannot work.
+ */
+describe('terminal screens declare their completion params', () => {
+  const FLOW_DIR = path.join(ROOT, 'docs/flows');
+  const flows = fs.existsSync(FLOW_DIR)
+    ? fs.readdirSync(FLOW_DIR).filter((f) => f.endsWith('.json'))
+    : [];
+
+  flows.forEach((file) => {
+    it(`${file}: every extension_message_response declares properties.params`, () => {
+      const flow = JSON.parse(fs.readFileSync(path.join(FLOW_DIR, file), 'utf8'));
+      const offenders = [];
+
+      for (const screen of flow.screens || []) {
+        const emr = (screen.data || {}).extension_message_response;
+        if (!emr) continue;
+        const props = emr.properties || {};
+        if (!props.params) offenders.push(`${screen.id}: properties has no 'params'`);
+        else if (props.params.type !== 'object') {
+          offenders.push(`${screen.id}: params declared as '${props.params.type}', want 'object'`);
+        }
+      }
+
+      expect(offenders).toEqual([]);
+    });
+
   });
 });

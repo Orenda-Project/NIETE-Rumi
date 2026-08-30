@@ -1028,8 +1028,175 @@ async function addStudents({ classId, teacherUserId, rawText } = {}) {
   return { added: students.length, duplicates, dropped, students };
 }
 
+
+// ---------------------------------------------------------------------------
+// importRoster — a whole class, scanned off a register by someone who is not
+// the class teacher
+// ---------------------------------------------------------------------------
+
+/**
+ * Write a scanned register into the classes model, as ONE class with ONE roster.
+ *
+ * This is /roster's only write path. It exists because the first version of that
+ * feature wrote `classes`, `students` and `class_enrollments` itself, making it the
+ * fourth independent writer of this model — and it skipped the legacy `student_lists`
+ * mirror, which is the thing that decides whether attendance can see a child.
+ * Measured on a real save: 16 children correctly enrolled, `list_id` null on every
+ * one, and the teacher who teaches that class saw an empty roster. The coach's work
+ * was invisible to the only person who needed it.
+ *
+ * WHOSE LIST. The mirror is per-teacher and `students.list_id` is a single FK, so a
+ * roster can live in exactly one person's legacy list. It goes to the class teacher
+ * the coach named, because she is the one who will mark the attendance. With no
+ * teacher named it falls back to the coach: the class and the children are still
+ * written and nothing is lost, they are simply not in anyone's attendance yet.
+ *
+ * IDEMPOTENT, because someone will re-scan the same page. A child already on the
+ * roster at the same roll number — or by name, where the register carried no
+ * readable roll — is skipped, not duplicated.
+ *
+ * @param {object} p
+ * @param {Array<{roll_number: string|null, student_name: string,
+ *                father_name?: string|null, parent_phone?: string|null}>} p.students
+ * @returns {Promise<{classId?, added?, skipped?, mirrored?, classTeacherAssigned?, error?}>}
+ */
+async function importRoster({
+  schoolId, gradeCode, section, shiftCode = 'morning', sessionCode,
+  classTeacherUserId = null, createdByUserId, students = [],
+} = {}) {
+  if (!createdByUserId) return { error: 'missing_teacher' };
+
+  const incoming = (students || [])
+    .map((s) => ({
+      roll_number: s.roll_number === null || s.roll_number === undefined || s.roll_number === ''
+        ? null : String(s.roll_number).trim(),
+      student_name: String(s.student_name || '').trim(),
+      father_name: (s.father_name && String(s.father_name).trim()) || null,
+      parent_phone: (s.parent_phone && String(s.parent_phone).trim()) || null,
+    }))
+    .filter((s) => s.student_name);
+
+  // Refuse BEFORE creating the class. An empty scan that leaves an empty class
+  // behind is worse than no scan: the next run adopts it and looks successful.
+  if (!incoming.length) return { error: 'no_students' };
+
+  // The mirror owner. Named teacher first — see WHOSE LIST above.
+  const mirrorOwner = classTeacherUserId || createdByUserId;
+
+  const made = await createClass({
+    schoolId, gradeCode, section, shiftCode, sessionCode, teacherUserId: mirrorOwner,
+  });
+  if (made.error) return { error: made.error, section: made.section, shift: made.shift };
+  const classId = made.class.id;
+
+  let classTeacherAssigned = false;
+  if (classTeacherUserId) {
+    const assigned = await assignTeacher({
+      classId, teacherUserId: classTeacherUserId, isClassTeacher: true,
+    });
+    // A refused role must not cost the roster — same rule assignTeacher itself
+    // follows. The class and the children matter more than the flag.
+    classTeacherAssigned = !assigned.error;
+    if (assigned.error) {
+      logToFile('⚠️ ClassService.importRoster: teacher not assigned — roster kept', {
+        classId, error: assigned.error,
+      });
+    }
+  }
+
+  // The mirror row createClass just wrote or adopted, so every child lands in it.
+  const { data: mirrors } = await supabase
+    .from('student_lists')
+    .select('id, user_id, class_id, is_active')
+    .eq('class_id', classId)
+    .eq('user_id', mirrorOwner)
+    .eq('is_active', true);
+  const listId = (mirrors || [])[0] ? mirrors[0].id : null;
+
+  // Who is already here, so a re-scan is a no-op. Matched on roll where the
+  // register gave us one, and on name where it did not.
+  const { data: existingEnrollments } = await supabase
+    .from('class_enrollments')
+    .select('id, student_id, roll_number, is_active')
+    .eq('class_id', classId)
+    .eq('is_active', true);
+
+  const takenRolls = new Set();
+  const studentIds = [];
+  for (const e of existingEnrollments || []) {
+    if (e.roll_number !== null && e.roll_number !== undefined) takenRolls.add(Number(e.roll_number));
+    studentIds.push(e.student_id);
+  }
+
+  const takenNames = new Set();
+  if (studentIds.length) {
+    const { data: kids } = await supabase
+      .from('students').select('id, student_name').in('id', studentIds);
+    for (const k of kids || []) takenNames.add(String(k.student_name || '').trim().toLowerCase());
+  }
+
+  let added = 0;
+  let skipped = 0;
+
+  for (const s of incoming) {
+    // students.roll_number is INTEGER. Anything that is not a plain number reached
+    // here as null already (roster-extraction sanitises it) — this is the belt.
+    const roll = s.roll_number !== null && /^\d{1,3}$/.test(s.roll_number)
+      ? Number(s.roll_number) : null;
+    const nameKey = s.student_name.toLowerCase();
+
+    if (roll !== null ? takenRolls.has(roll) : takenNames.has(nameKey)) {
+      skipped += 1;
+      continue;
+    }
+
+    const { data: student, error: insErr } = await supabase
+      .from('students')
+      .insert({
+        student_name: s.student_name,
+        father_name: s.father_name,
+        parent_phone: s.parent_phone,
+        roll_number: roll,
+        list_id: listId,
+        enrolled_by_user_id: createdByUserId,
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    if (insErr || !student) {
+      logToFile('⚠️ ClassService.importRoster: stopped part-way', {
+        classId, added, error: insErr && insErr.message,
+      }, 'error');
+      // Report what DID land. The coach needs to know what is already saved before
+      // she re-scans, or she will end up with the class written twice.
+      return { classId, added, skipped, mirrored: made.mirrored, classTeacherAssigned, error: 'insert_failed' };
+    }
+
+    const enrolled = await enrollStudent({
+      classId, studentId: student.id, rollNumber: roll,
+      enrolledOn: new Date().toISOString().slice(0, 10),
+    });
+    if (enrolled.error) {
+      logToFile('⚠️ ClassService.importRoster: enrolment failed after the student row was written', {
+        classId, studentId: student.id, error: enrolled.error,
+      }, 'error');
+      return { classId, added, skipped, mirrored: made.mirrored, classTeacherAssigned, error: enrolled.error };
+    }
+
+    if (roll !== null) takenRolls.add(roll); else takenNames.add(nameKey);
+    added += 1;
+  }
+
+  return {
+    classId, added, skipped, created: made.created,
+    mirrored: made.mirrored, mirrorOwnerUserId: mirrorOwner, classTeacherAssigned,
+  };
+}
+
 module.exports = {
   createClass,
+  importRoster,
   assignTeacher,
   updateAssignment,
   leaveClass,
