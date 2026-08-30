@@ -42,7 +42,10 @@ describe('bd-wpupy — LP context position in the message array', () => {
     const beforeLast = messages[messages.length - 2];
     expect(last).toEqual({ role: 'user', content: 'give this to me in text form' });
     expect(beforeLast.role).toBe('system');
-    expect(beforeLast.content).toBe('LP_BLOCK');
+    // bd-eb1ec: the block now opens with the reply-language pin; the LP block
+    // itself is still the body of that same adjacent message.
+    expect(beforeLast.content).toMatch(/^REPLY LANGUAGE: Urdu\b/);
+    expect(beforeLast.content).toMatch(/LP_BLOCK$/);
   });
 
   test('it is NOT appended to the base system prompt (that is the bug)', async () => {

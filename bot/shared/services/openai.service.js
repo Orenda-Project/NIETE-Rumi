@@ -386,6 +386,21 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
    * @param {string|null} featureContext - Phase 2: Conditional feature context (optional)
    * @returns {Promise<string>} AI response
    */
+  /**
+   * The English name of a language code, for a model instruction ("Urdu", not
+   * "ur" — the model follows a name far more reliably than a code). Not
+   * teacher-facing copy, so no catalog entry; Intl carries the names.
+   * @private
+   */
+  _languageName(code) {
+    try {
+      const name = new Intl.DisplayNames(['en'], { type: 'language' }).of(String(code || 'en').split('-')[0]);
+      return name || String(code || 'en');
+    } catch (_) {
+      return String(code || 'en');
+    }
+  }
+
   async getResponseWithFormat(userMessage, userId, format, language, firstName = null, featureContext = null) {
     try {
       logToFile('Getting format-aware response', {
@@ -436,11 +451,25 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
       const existingHistory = (await this.getConversationHistory(userId))
         .filter((m) => m.role !== 'system');
 
+      // bd-eb1ec: the adjacent context block is the last thing the model reads
+      // before her turn, and when it carries ~4,000 characters of Urdu lesson
+      // script the reply follows the block's language, not the base prompt's —
+      // an English-locked teacher got her lesson back in Urdu (staging,
+      // 2026-08-30, conversations row output_language='en'). The base prompt's
+      // language rule lost to position, exactly as the referent did in
+      // bd-wpupy. So the reply language is stated INSIDE the adjacent block,
+      // where position works for us instead of against us.
+      const adjacentContext = featureContext
+        ? `REPLY LANGUAGE: ${this._languageName(language)}. Write the whole reply in ${this._languageName(language)}, `
+          + 'even if the reference material below is in another language — translate as you rewrite.\n\n'
+          + featureContext
+        : null;
+
       // Build new history with format-specific system prompt
       const messages = [
         { role: 'system', content: systemPrompt },
         ...existingHistory,
-        ...(featureContext ? [{ role: 'system', content: featureContext }] : []),
+        ...(adjacentContext ? [{ role: 'system', content: adjacentContext }] : []),
         { role: 'user', content: userMessage }
       ];
 
