@@ -77,8 +77,39 @@ function fmtDayDate(ymd) {
   return `${DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
 }
 
+/** The teaching band/grade, as the picker prints it. '' when genuinely unknown. */
+function teacherLevel(t) {
+  const lvl = t && (t.level || (t.grade != null && t.grade !== '' ? `Grade ${t.grade}` : null));
+  return lvl ? String(lvl) : '';
+}
+
+/**
+ * bd-43530 — `users.phone_number` for this row (operator: "phone number should
+ * be taken from the users table as the phone number field for that teacher").
+ *
+ * `phone_e164` is that column, carried through listTeachers. It falls back to
+ * `teacher_ext_id` because that field IS the phone for 980 of 992 live
+ * observation_schedules rows; the 12 legacy `name:` slugs are not phones and
+ * must not be printed as one.
+ */
+function teacherPhone(t) {
+  const p = String((t && t.phone_e164) || '').trim();
+  if (p) return p;
+  const ext = String((t && t.teacher_ext_id) || '').trim();
+  return /^[0-9]{6,}$/.test(ext) ? ext : '';
+}
+
+/**
+ * bd-43530 — the level moved to the FRONT of this line so `description` is free
+ * to hold the phone alone. A phone shares no field: 12 digits do not fit beside
+ * 'EARLY_YEARS' in the legacy NavigationList's 20-char description, and a
+ * number clipped to "92300123456…" cannot be dialled while still reading as
+ * real. This line caps at 80 and the longest real value is ~48.
+ */
 function teacherMeta(t) {
   const parts = [];
+  const level = teacherLevel(t);
+  if (level) parts.push(level);
   if (t.needsSupport) parts.push(NEEDS_SUPPORT);
   const dateStr = t.lastVisitAt ? fmtVisitDate(t.lastVisitAt) : '';
   parts.push(t.lastVisitAt && dateStr ? `${LAST_VISITED} ${dateStr}` : NOT_VISITED);
@@ -106,8 +137,10 @@ function teacherItem(t, schoolExtId) {
     title: clip(t.teacher_name || 'Teacher', 30),
     metadata: clip(teacherMeta(t), 80),
   };
-  const desc = t.level || (t.grade != null && t.grade !== '' ? `Grade ${t.grade}` : null);
-  if (desc) mc.description = clip(String(desc), 20);
+  // bd-43530: the phone, alone, uncut. Omitted entirely when there isn't one —
+  // an empty secondary line beats a truncated or invented number.
+  const phone = teacherPhone(t);
+  if (phone) mc.description = clip(phone, 20);
   return {
     id: String(t.teacher_ext_id),
     'main-content': mc,
@@ -489,7 +522,8 @@ async function teachersScreenV2(userId, schoolExtId, term = null) {
   const options = teachers.map((t) => ({
     id: String(t.teacher_ext_id),
     title: clip(t.teacher_name || 'Teacher', 30),
-    description: clip(String(t.level || (t.grade != null && t.grade !== '' ? `Grade ${t.grade}` : '')), 30),
+    // bd-43530: phone here, level folded into metadata — see teacherMeta.
+    description: clip(teacherPhone(t), 30),
     metadata: clip(teacherMeta(t), 80),
   }));
   try { await ObserveState.setState(userId, 'awaiting_pick', { schoolExtId }); } catch (_) {}
