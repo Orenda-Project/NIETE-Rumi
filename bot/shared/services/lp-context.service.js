@@ -67,8 +67,12 @@ function headingFor(entry) {
 }
 
 function renderMoves(moves) {
+  // Every must-happen step, whether or not it is `adjudicable`. That flag is
+  // a coaching-scoring concern (can a classroom recording show it happened?)
+  // and homework never can — so it was silently missing from the lesson the
+  // teacher asked to see written out (bd-91r48). Optional extensions stay out.
   const lines = (moves || [])
-    .filter((m) => m.bucket === 'must_happen' && m.adjudicable !== false && m.text)
+    .filter((m) => m.bucket === 'must_happen' && m.text)
     .slice(0, MOVES_MAX)
     .map((m) => `- ${m.phase} · ${m.text}`);
   return lines.length ? `The lesson's steps:\n${lines.join('\n')}` : null;
