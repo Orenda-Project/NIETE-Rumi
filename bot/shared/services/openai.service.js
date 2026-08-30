@@ -479,11 +479,17 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
       const RTL_LANGUAGES = ['ur', 'ar', 'bal-PK', 'sd-PK', 'ps-PK', 'pa-PK'];
       const isRTL = RTL_LANGUAGES.includes(language);
       const voiceMaxTokens = isRTL ? 400 : 250;
+      // bd-f9hmw: a text reply that carries a lesson block may be the lesson
+      // written out — nine phases in brief ran to section 8 and stopped at
+      // "C) Calculate" under the 500 cap (staging, 2026-08-30). Room to finish
+      // it; 1,200 tokens sits under WhatsApp's 4,096-char message cap in both
+      // scripts. Plain conversation keeps 500; voice keeps its 60-second cap.
+      const textMaxTokens = featureContext ? 1200 : 500;
 
       const completion = await this.openai.chat.completions.create({
         model: 'gpt-4.1-mini',
         messages: messages,
-        max_tokens: format === 'voice' ? voiceMaxTokens : 500,
+        max_tokens: format === 'voice' ? voiceMaxTokens : textMaxTokens,
         temperature: 0.7,
       });
 
