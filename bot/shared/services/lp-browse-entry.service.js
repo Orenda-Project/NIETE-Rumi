@@ -19,21 +19,10 @@
 const WhatsAppService = require('./whatsapp.service');
 const { logToFile } = require('../utils/logger');
 
-// NIETE is a flat en/ur deployment: every teacher-facing string exists in
-// both, and fits its WhatsApp field cap measured in CODE POINTS (header 60,
-// button 20). Pinned by tests/lp-v8/bd-hgwfo-gamma-door.test.js.
-const COPY = {
-  en: {
-    header: '📘 Lesson Plans',
-    body: "Pick your class, subject and chapter, then the day's lesson — the plan lands in your chat.",
-    buttonText: 'Pick Class',
-  },
-  ur: {
-    header: '📘 سبق کے منصوبے',
-    body: 'اپنی جماعت، مضمون اور باب چنیں، پھر اُس دن کا سبق — منصوبہ آپ کی چیٹ میں آ جائے گا۔',
-    buttonText: 'جماعت چنیں',
-  },
-};
+// The copy lives in the catalogue (ux-strings.js: lpBrowseHeader / Body /
+// Button) — one reviewed string per offered language, capped there, resolved
+// through the one language clamp. No inline map here, by doctrine.
+const { resolveUx } = require('../config/ux-strings');
 
 /**
  * @param {object} args
@@ -49,11 +38,12 @@ async function openLpBrowseFlow({ from, userId, language, reason = 'unspecified'
     logToFile('LP browse: no PAKISTAN_LP_FLOW_ID provisioned, caller falls back', { userId, reason });
     return false;
   }
-  const copy = String(language || '').toLowerCase().startsWith('ur') ? COPY.ur : COPY.en;
   try {
     const sent = await WhatsAppService.sendFlow(from, {
       flowId,
-      ...copy,
+      header: resolveUx('lpBrowseHeader', { language }),
+      body: resolveUx('lpBrowseBody', { language }),
+      buttonText: resolveUx('lpBrowseButton', { language }),
       flowToken: `${userId}:pakistan-lp:${Date.now()}`,
     });
     if (sent) {
@@ -68,4 +58,4 @@ async function openLpBrowseFlow({ from, userId, language, reason = 'unspecified'
   }
 }
 
-module.exports = { openLpBrowseFlow, COPY };
+module.exports = { openLpBrowseFlow };
