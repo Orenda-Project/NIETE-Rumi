@@ -480,7 +480,7 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
    * @param {string} message - User's message
    * @returns {Promise<Object>} Intent object {type: string, message: string}
    */
-  async detectIntent(message) {
+  async detectIntent(message, contextHint = '') {
     try {
       const completion = await this.openai.chat.completions.create({
         model: 'gpt-4.1-mini',
@@ -538,7 +538,7 @@ Examples:
 - "What's a good way to explain X?" → general
 
 Return ONLY one word: lesson_plan, presentation, video, or general
-If (and ONLY if) the message refers back to a lesson plan the teacher ALREADY has or received, append " lp_ref" after the word (e.g. "general lp_ref").`
+If (and ONLY if) the message refers back to a lesson plan the teacher ALREADY has or received, append " lp_ref" after the word (e.g. "general lp_ref").${contextHint || ''}`
           },
           {
             role: 'user',

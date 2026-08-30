@@ -2459,7 +2459,19 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // Detect intent (lesson plan, presentation, or general)
-  const intent = await OpenAIService.detectIntent(messageBody);
+  // bd-wpupy: the classifier used to judge the message in a vacuum, so a deictic
+  // "give me this in text form" 35s after a delivery was genuinely ambiguous to
+  // it and never got lp_ref. Tell it what just landed and it resolves correctly.
+  let intentHint = '';
+  let lpCtx;
+  try {
+    if (user?.id && process.env.LP_CONTEXT_V2_ENABLED === 'true') {
+      const { buildLpContext, deliveryHint } = require('../services/lp-context.service');
+      lpCtx = await buildLpContext(user.id);
+      intentHint = deliveryHint((lpCtx && lpCtx.entries) || []);
+    }
+  } catch (_) { /* the hint is an optimisation; classification must never break on it */ }
+  const intent = await OpenAIService.detectIntent(messageBody, intentHint);
   logToFile('Intent detected', { intent: intent.type });
 
   // Update session type based on intent
@@ -2488,7 +2500,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   } else {
     // intent rides along so the LP-context tier gate can reuse the classifier's
     // lp_reference output instead of paying for a second LLM call (bd-njn7u).
-    await handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController, intent);
+    await handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController, intent, lpCtx);
   }
   } finally {
     // CRITICAL: Always stop typing indicator, even if function exits early or throws
@@ -2576,7 +2588,7 @@ async function handlePresentationRequest(from, messageBody, user, sessionId, res
  * @param {Object} typingController - Typing indicator controller
  * @returns {Promise<void>}
  */
-async function handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController, intent = null) {
+async function handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController, intent = null, prebuiltLpCtx = undefined) {
   // Get firstName from user if registered
   const firstName = user?.first_name || null;
 
@@ -2600,6 +2612,8 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
       message: messageBody,
       intent,
       existingContext: featureContext,
+      // Built once above for the classifier hint (bd-wpupy) — reuse it.
+      prebuiltCtx: prebuiltLpCtx,
     });
   }
 

@@ -1174,7 +1174,16 @@ async function handleVoiceMessage(message, from, user = null) {
 
     // Step 5: Detect intent from transcription
     logToFile('Step 5: Detecting intent from transcription...');
-    const intent = await OpenAIService.detectIntent(transcription);
+    // bd-wpupy: same delivery hint as the text path — she asks by voice too.
+    let intentHint = '';
+    try {
+      if (user?.id && process.env.LP_CONTEXT_V2_ENABLED === 'true') {
+        const { buildLpContext, deliveryHint } = require('../services/lp-context.service');
+        const lpCtx = await buildLpContext(user.id);
+        intentHint = deliveryHint((lpCtx && lpCtx.entries) || []);
+      }
+    } catch (_) { /* never break classification on the hint */ }
+    const intent = await OpenAIService.detectIntent(transcription, intentHint);
     logToFile('Intent detected', { intent: intent.type });
 
     // Update session type for voice messages

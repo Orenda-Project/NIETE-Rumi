@@ -21,6 +21,7 @@ const LPShelfService = require('./lp-shelf.service');
 const V8Catalog = require('./lp-v8-catalog.service');
 const { resolveUx } = require('../config/ux-strings');
 const { logToFile } = require('../utils/logger');
+const { recordDeliveryMarker } = require('./lp-delivery-marker.service');
 
 const LP_VARIANT = 'niete_v8_segment';
 const FILENAME_MAX = 64;
@@ -294,6 +295,21 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
     status: ok ? 'sent' : 'failed',
     error_text: errorText,
   });
+
+  // bd-wpupy F5: leave a trace of the hand-over in the dialogue itself, so a
+  // later "give me this in text form" has a correct antecedent. Grade/chapter
+  // only — deliberately no title or content (see the service header). Only on
+  // success: a failed send is not something she can refer back to.
+  if (ok) {
+    await recordDeliveryMarker({
+      userId,
+      lessonId,
+      grade: book && book.grade,
+      subject: book && (book.subject || book.subject_key),
+      chapterNumber: chapter && chapter.number,
+      segmentLabel: lesson && (lesson.day_label || null),
+    });
+  }
 
   if (!ok) {
     // Never leave the teacher in silence after a failed delivery.
