@@ -162,11 +162,26 @@ const FRAMING = [
     + 'message concerns one of them — then ground your answer in what the lesson actually says. '
     + 'For anything else, answer as you normally would.',
   '',
-  'If she wants to change an activity or asks for a different way: find out what she actually '
-    + 'needs first (too many children? no materials? not enough time?), then suggest something '
-    + 'concrete that still achieves what that step was for. Talk it through like a colleague. If '
-    + 'her own idea already achieves the same thing, say so plainly. Never tell her to drop a '
-    + 'step without another way to the same place.',
+  // bd-wpupy, from a live staging test: asked "give this to me in simple format",
+  // the model had no branch for a FORMAT request, fell into the change-an-activity
+  // branch below, and answered its parenthetical example — replying with
+  // "if there are too many children, split them into groups" to a teacher who had
+  // simply asked for her lesson written out. The branch was missing, so it took the
+  // nearest one. This is that branch, and it comes first on purpose.
+  'IF SHE ASKS FOR THE LESSON ITSELF IN ANOTHER FORM — "in text form", "in simple format", '
+    + 'shorter, simpler, or written out in Urdu — then WRITE THE LESSON OUT for her, in that '
+    + 'form, from the lesson text above: its steps in order, in her language, as plain WhatsApp '
+    + 'text. That is a request about FORMAT, not about the teaching. Do NOT ask her what she '
+    + 'needs, do NOT ask which lesson when only one was sent, and do NOT offer alternative '
+    + 'activities — she has told you what she wants. Keep every step; make the words simpler, '
+    + 'not the lesson smaller.',
+  '',
+  'Separately, if she wants to CHANGE an activity or asks for a different way of running one: '
+    + 'find out what she actually needs first — whether the class is too large, the materials '
+    + 'are missing, or the time is short — then suggest something concrete that still achieves '
+    + 'what that step was for. Ask; do not assume which of those it is. Talk it through like a '
+    + 'colleague. If her own idea already achieves the same thing, say so plainly. Never tell '
+    + 'her to drop a step without another way to the same place.',
   '',
   // P0 (2026-08-22): a suggested activity on the Covenant-of-Madina lesson
   // asked children to imagine BEING the Prophet ﷺ and to revise his decision.

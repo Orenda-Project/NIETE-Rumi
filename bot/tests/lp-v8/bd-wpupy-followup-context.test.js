@@ -311,3 +311,34 @@ describe('bd-wpupy — asking for a DIFFERENT artefact from the lesson', () => {
     }).tier).toBe('B');
   });
 });
+
+// ---------------------------------------------------------------------------
+// From a LIVE staging test, 2026-08-30 11:16. The gate worked — tier B, correct
+// lesson (grade_4_general_science_ch2_seg2, logged) — but the ANSWER was
+// "اگر بچے زیادہ ہوں تو: بچوں کو چھوٹے گروپس میں بانٹ دیں...", i.e. the model
+// answered the parenthetical example inside our own FRAMING ("too many
+// children? no materials? not enough time?") instead of writing the lesson out.
+//
+// There was no branch for a FORMAT request, so it took the nearest one. Fixing
+// the source (the missing branch), not adding a "don't do that" rule.
+// ---------------------------------------------------------------------------
+describe('bd-wpupy — a FORMAT request has its own branch in the framing', () => {
+  // Assert on the RENDERED framing, not the file: it is built by string
+  // concatenation, so sentences are split across source lines.
+  const SRC = require('fs')
+    .readFileSync(require('path').join(__dirname, '../../shared/services/lp-context.service.js'), 'utf8')
+    .replace(/'\s*\n\s*\+\s*'/g, '');
+
+  test('the framing tells her the lesson gets written out, not re-negotiated', () => {
+    expect(SRC).toMatch(/IF SHE ASKS FOR THE LESSON ITSELF IN ANOTHER FORM/);
+    expect(SRC).toMatch(/WRITE THE LESSON OUT for her/);
+    expect(SRC).toMatch(/do NOT offer alternative/i);
+    expect(SRC).toMatch(/Keep every step; make the words simpler, not the lesson smaller/);
+  });
+
+  test('the change-an-activity branch no longer offers answers to pick from', () => {
+    // This exact parenthetical is what the model answered verbatim on staging.
+    expect(SRC).not.toMatch(/\(too many children\? no materials\? not enough time\?\)/);
+    expect(SRC).toMatch(/Ask; do not assume which of those it is/);
+  });
+});
