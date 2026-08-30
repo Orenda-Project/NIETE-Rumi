@@ -168,6 +168,19 @@ const FRAMING = [
   // "if there are too many children, split them into groups" to a teacher who had
   // simply asked for her lesson written out. The branch was missing, so it took the
   // nearest one. This is that branch, and it comes first on purpose.
+  // The failure this fixes, reproduced in a controlled run: with the real
+  // production model (gpt-4.1-mini) and TEN turns of real history, "this" binds
+  // to the previous ASSISTANT message rather than to the lesson. The same block
+  // and the same model answer correctly with no history, and gpt-4o answers
+  // correctly even WITH it — so this is recency beating the system prompt on the
+  // weaker model. It is self-reinforcing: once a wrong answer lands, it becomes
+  // the antecedent for her next "this", forever.
+  'WHAT "THIS" MEANS. When she says "this", "it", "یہ" or "اسے" and a lesson plan was recently '
+    + 'sent to her, she means THE LESSON PLAN below — she does NOT mean your own previous reply. '
+    + 'Never re-format, re-summarise or re-send your last message when she says "this": go back '
+    + 'to the lesson text below and answer from that. If your previous reply was about something '
+    + 'else entirely, it is not what she is pointing at.',
+  '',
   'IF SHE ASKS FOR THE LESSON ITSELF IN ANOTHER FORM — "in text form", "in simple format", '
     + 'shorter, simpler, or written out in Urdu — then WRITE THE LESSON OUT for her, in that '
     + 'form, from the lesson text above: its steps in order, in her language, as plain WhatsApp '

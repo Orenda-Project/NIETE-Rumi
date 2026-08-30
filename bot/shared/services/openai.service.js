@@ -398,10 +398,25 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
       // Create a temporary conversation history with format-specific system prompt
       let systemPrompt = this._getFormatAwareSystemPrompt(format, language, firstName);
 
-      // Phase 2: Inject feature context if provided (conditional injection)
+      // bd-wpupy: featureContext used to be appended to the system prompt, which
+      // put it ~10 turns away from the message it is meant to answer. On the
+      // production model that loses to recency: with a real 10-turn history,
+      // "give this to me in text form" bound to the previous ASSISTANT reply
+      // instead of the lesson plan sitting in the system prompt, and the teacher
+      // got her last answer reworded instead of her lesson. A stronger model
+      // (gpt-4o) resisted; gpt-4.1-mini did not, and a prompt rule telling it
+      // what "this" means did NOT fix it — position did.
+      //
+      // So the context now rides as its own system message IMMEDIATELY BEFORE
+      // her turn. Verified against the real failing conversation: appended =
+      // wrong answer, adjacent = the lesson, same model and same history.
+      //
+      // This is NOT the stale-system-message case the history filter below
+      // guards against: that filter drops system messages found INSIDE stored
+      // history (last turn's instructions replayed as current). This one is
+      // built fresh for this turn, from this turn's context.
       if (featureContext) {
-        systemPrompt = systemPrompt + '\n\n' + featureContext;
-        logToFile('Feature context injected into system prompt', {
+        logToFile('Feature context injected adjacent to the user turn', {
           userId,
           contextLength: featureContext.length
         });
@@ -425,6 +440,7 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
       const messages = [
         { role: 'system', content: systemPrompt },
         ...existingHistory,
+        ...(featureContext ? [{ role: 'system', content: featureContext }] : []),
         { role: 'user', content: userMessage }
       ];
 
