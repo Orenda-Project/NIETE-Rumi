@@ -183,7 +183,8 @@ const FRAMING = [
   '',
   'IF SHE ASKS FOR THE LESSON ITSELF IN ANOTHER FORM — "in text form", "in simple format", '
     + 'shorter, simpler, or written out in Urdu — then WRITE THE LESSON OUT for her, in that '
-    + 'form, from the lesson text above: its steps in order, in her language, as plain WhatsApp '
+    + 'form, from the lesson text above: its steps in order, in the REPLY LANGUAGE stated at the '
+    + 'top of this block (translate if the lesson text is in another language), as plain WhatsApp '
     + 'text. That is a request about FORMAT, not about the teaching. Do NOT ask her what she '
     + 'needs, do NOT ask which lesson when only one was sent, and do NOT offer alternative '
     + 'activities — she has told you what she wants. Keep every step; make the words simpler, '
