@@ -56,6 +56,28 @@ Rules:
 - headcount is the number of students actually listed on this page.
 - If the page is an unfilled printed template, set is_blank true and return no students.`;
 
+/**
+ * Turn an upstream failure into something a coach standing in a school can act on.
+ *
+ * The raw error is always logged; only this sanitised line is ever shown. A vendor's
+ * billing or auth message is OUR problem, and pasting an HTTP 402 with a credits URL
+ * into a WhatsApp screen is a leak, not an explanation.
+ */
+function describeFailure(rawError) {
+  const e = String(rawError || '').toLowerCase();
+
+  // Ours to fix: billing, auth, quota. The coach can do nothing about these.
+  if (/\b40[123]\b|credit|quota|billing|max_tokens|no auth|api key|unauthor/.test(e)) {
+    return 'The register reader is not available right now. This is our problem, not yours — we have been told.';
+  }
+  // Temporary: rate limits and timeouts.
+  if (/\b429\b|rate.?limit|timeout|etimedout|econnreset|socket hang up|\b5\d\d\b/.test(e)) {
+    return 'The register reader is busy. Give it a moment and try again.';
+  }
+  // The page itself: nothing came back, or nothing parseable did.
+  return 'That photo could not be read. Try a closer, straighter photo of the name column.';
+}
+
 function visionModel() {
   return process.env.ROSTER_VISION_MODEL || DEFAULT_MODEL;
 }
@@ -82,6 +104,12 @@ async function extractPage(imageBuffer, mimeType, deps = {}) {
   const resp = await getClient().chat.completions.create({
     model: visionModel(),
     temperature: 0,
+    // Without this the client asks for the model's full ceiling (65,536 on the
+    // flash-lite tier). A 40-row register serialises to well under 8k tokens, and
+    // OpenRouter authorises a request against the max you ASK for, not the max you
+    // use — so an unbounded ask is both needlessly expensive to clear and the
+    // difference between a call succeeding and a 402 on a thin balance.
+    max_tokens: 8000,
     messages: [{
       role: 'user',
       content: [
@@ -128,8 +156,9 @@ async function extractPages(pages, deps = {}) {
       }
       for (const p of r.problems) problems.push(`page ${i + 1}: ${p}`);
     } catch (err) {
-      problems.push(`page ${i + 1}: could not be read (${err.message})`);
+      // Log the real thing; surface only the sanitised line.
       logToFile('[roster] page extraction failed', { page: i + 1, error: err.message }, 'error');
+      problems.push(describeFailure(err.message));
     }
   }
 
@@ -142,4 +171,7 @@ async function extractPages(pages, deps = {}) {
   return { students: usable, problems, blankPages, pagesRead: capped.length };
 }
 
-module.exports = { extractPage, extractPages, visionModel, DEFAULT_MODEL, MAX_PAGES, PROMPT };
+module.exports = {
+  extractPage, extractPages, visionModel, describeFailure,
+  DEFAULT_MODEL, MAX_PAGES, PROMPT,
+};

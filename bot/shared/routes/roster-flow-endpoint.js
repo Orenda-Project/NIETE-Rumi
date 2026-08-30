@@ -38,7 +38,17 @@ const CLASS_WAIT_MS = 6000;
  */
 const pending = new Map();
 
+// Returning { data: { error } } from a data_exchange makes WhatsApp render its own
+// generic "Something went wrong. Try again later." — the coach learns nothing and we
+// get no field report worth having. Anything the coach can act on is therefore shown
+// as TEXT on a real screen. err() is kept only for states that are genuinely our bug.
 const err = (message) => ({ data: { error: { message } } });
+
+/** A dead end the coach can read, on a screen that exists. */
+const stop = (message) => ({
+  screen: 'WORKING',
+  data: { message: String(message).slice(0, 4000) },
+});
 
 function getCurrentAcademicYear() {
   const now = new Date();
@@ -126,7 +136,7 @@ async function runExtraction(state, pages) {
 
 async function handleRosterDataExchange(userId, screen, screenData = {}) {
   const state = pending.get(userId);
-  if (!state) return err('That session expired. Send /roster again.');
+  if (!state) return stop('That session has expired. Close this and send /roster again.');
 
   if (screen === 'SCHOOL') {
     state.schoolId = screenData.school_id;
@@ -144,7 +154,7 @@ async function handleRosterDataExchange(userId, screen, screenData = {}) {
 
   if (screen === 'PHOTOS') {
     const pages = Array.isArray(screenData.pages) ? screenData.pages : [];
-    if (!pages.length) return err('No photos came through. Try again.');
+    if (!pages.length) return stop('No photos came through. Close this and try again.');
 
     state.extraction = null;
     state.extractionStarted = Date.now();
@@ -218,7 +228,12 @@ async function waitThenReview(state) {
   state.rendered = students;
 
   if (!students.length) {
-    return err('No student names could be read from those photos. Try a closer, straighter photo.');
+    // Say WHY where we know why. The extractor records a per-page reason, and a coach
+    // standing in a school can act on "the photo was too blurry" but not on a shrug.
+    const why = (state.extraction.problems || [])[0];
+    return stop(why
+      ? `I could not read a student list from those photos.\n\n${why}\n\nClose this and send /roster again.`
+      : 'I could not read any student names from those photos. Try a closer, straighter photo of the name column, then send /roster again.');
   }
 
   const { chunks, labels, visible, overflow } = toChunks(students);
@@ -258,12 +273,12 @@ async function saveRoster(state, screenData) {
     father_name: e.father_name,
   })).filter((s) => s.student_name).slice(0, MAX_STUDENTS);
 
-  if (!finalList.length) return err('The list came back empty. Nothing was saved.');
+  if (!finalList.length) return stop('The list came back empty, so nothing was saved.');
 
   const saved = await persist(state, finalList);
   if (saved.error) {
     logToFile('[roster] save failed', { error: saved.error }, 'error');
-    return err(saved.message || 'Could not save the roster. Nothing was changed.');
+    return stop(`${saved.message || 'The roster could not be saved.'} Nothing was changed.`);
   }
 
   const classLabel = `Grade ${String(state.gradeCode || '').replace('grade_', '')}${state.section ? `-${state.section}` : ''}`;
