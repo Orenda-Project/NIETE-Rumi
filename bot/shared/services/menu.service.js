@@ -314,31 +314,19 @@ class MenuService {
       logToFile('⚠️ LP shelf flush failed at menu_lesson_plan (non-blocking)', { error: err.message });
     }
 
-    const PAKISTAN_LP_FLOW_ID = process.env.PAKISTAN_LP_FLOW_ID || '';
-
-    if (PAKISTAN_LP_FLOW_ID) {
-      // FEAT-059 (bd-72dth): bilingual copy. NIETE is a flat en/ur deployment,
-      // and a teacher-facing string on it must exist in both — plus fit its
-      // WhatsApp field cap measured in CODE POINTS (header 60, button 20).
-      // Covered by tests/lp-v8/menu-entry.test.js.
-      const isUrdu = String(language || '').toLowerCase().startsWith('ur');
-      const flowSent = await WhatsAppService.sendFlow(from, {
-        flowId: PAKISTAN_LP_FLOW_ID,
-        header: isUrdu ? '📘 سبق کے منصوبے' : '📘 Lesson Plans',
-        body: isUrdu
-          ? 'اپنی جماعت، مضمون اور باب چنیں، پھر اُس دن کا سبق — منصوبہ آپ کی چیٹ میں آ جائے گا۔'
-          : "Pick your class, subject and chapter, then the day's lesson — the plan lands in your chat.",
-        buttonText: isUrdu ? 'جماعت چنیں' : 'Pick Class',
-        flowToken: `${userId}:pakistan-lp:${Date.now()}`,
-      });
-      if (flowSent) {
-        logToFile('LP menu → Pakistan LP Flow sent (FEAT-109)', { userId, sessionId });
-        return;
-      }
-      logToFile('LP menu → Pakistan LP Flow send failed, falling back to topic prompt', { userId, sessionId });
+    // bd-hgwfo: one door, one copy — shared with the bare "lp" command, the
+    // lesson_plan intent (text + voice) and the Oxbridge fallback tap, so the
+    // entry points cannot drift apart again (bd-72dth). Caps + bilingual copy
+    // are pinned in tests/lp-v8/bd-hgwfo-gamma-door.test.js.
+    const { openLpBrowseFlow } = require('./lp-browse-entry.service');
+    if (await openLpBrowseFlow({ from, userId, language, reason: 'menu' })) {
+      logToFile('LP menu → Pakistan LP Flow sent (FEAT-109)', { userId, sessionId });
+      return;
     }
 
-    // Fallback (Gamma path) — only when Flow not configured or send failed.
+    // Fallback — only when no Flow is provisioned or the send failed. The topic
+    // she types then reaches handleLessonPlanRequest, which tries the Flow again
+    // and otherwise replies not-in-catalog (bd-2540).
     const redis = redisService.redis;
     const message = language === 'ur'
       ? 'بہترین! آپ کس موضوع پر لیسن پلان یا پریزنٹیشن چاہتے ہیں؟\n\nمثال کے طور پر: "گریڈ 5 کے لیے فوٹو سنتھیسس"'

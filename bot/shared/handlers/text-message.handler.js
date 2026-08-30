@@ -31,6 +31,7 @@ const ChildFlowToken = require('../services/quiz/child-flow-token'); // bd-2475 
 const { STUDENT_VIDEOS_FLOW_ID } = require('../utils/constants');
 const { logToFile } = require('../utils/logger');
 const { matchDetail: matchLessonPlanIntent } = require('../utils/lp-intent');
+const { openLpBrowseFlow } = require('../services/lp-browse-entry.service'); // bd-hgwfo: the one door to the catalogue
 const { TEMP_DIR, LOADING_STICKER_PATH, LOADING_STICKER_MEDIA_ID, OPENAI_API_KEY,
   ATTENDANCE_SETUP_FLOW_ID, ATTENDANCE_MARKING_FLOW_ID, EDIT_CLASS_FLOW_ID,
   CLASS_MANAGER_FLOW_ID } = require('../utils/constants');
@@ -1026,27 +1027,25 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
-  // PAKISTAN LP INTERCEPT (FEAT-059 / bd-hvhhu): ANY mention of a lesson plan
-  // opens the LP menu — English, Urdu script, or Roman Urdu.
+  // LP BARE COMMAND (bd-hgwfo, was FEAT-059 / bd-hvhhu): a message that is
+  // JUST "lp" / "lesson plan" / "/lesson plans" / "لیسن پلان" opens the
+  // catalogue Flow — the isVideoCommand shape (bd-2486).
   //
-  // This used to be exact-match only
-  //   /^(lp|lesson\s*plan|لیسن\s*پلان|lesson-plan|\/lp)$/i
-  // so "can you send me the lesson plan for tomorrow" fell through to the LLM
-  // intent path and often produced a GENERATED plan instead of the ready-made
-  // corpus a teacher was asking for. isLessonPlanRequest() is tiered (strong /
-  // weak-needs-a-companion / blocked) so a generous trigger list does not cost
-  // false positives — see shared/utils/lp-intent.js and its tests.
-  //
-  // Presence-gated on PAKISTAN_LP_FLOW_ID — when empty, the message falls
-  // through to the existing curriculum-LP topic intercept.
+  // It used to fire on ANY mention, because a message that reached the LLM
+  // "often produced a GENERATED plan instead of the ready-made corpus". bd-2540
+  // retired generation, which removed the reason and left the cost: 748
+  // intercepts in 14 days of production, 47% of them messages the picker could
+  // not answer — "shorten this lp" 30s after a delivery, dictated observations,
+  // a teacher saying the plans she got were useless. Anything with content now
+  // reaches the LLM classifier, which knows what was just delivered (bd-wpupy):
+  // a NEW request still lands on this same Flow via the lesson_plan intent; a
+  // follow-up about the lesson she has gets the lesson rewritten.
   // ============================================================
   {
-    const PAKISTAN_LP_FLOW_ID = process.env.PAKISTAN_LP_FLOW_ID || '';
     const lpMatch = matchLessonPlanIntent(trimmedMessage);
-    if (PAKISTAN_LP_FLOW_ID && lpMatch.matched) {
-      logToFile('📘 LP intent detected → opening Pakistan LP flow', {
-        userId: user?.id, phoneNumber: from, message: trimmedMessage,
-        tier: lpMatch.tier, token: lpMatch.token,
+    if (lpMatch.matched && process.env.PAKISTAN_LP_FLOW_ID) {
+      logToFile('📘 LP bare command → opening catalogue Flow', {
+        userId: user?.id, phoneNumber: from, message: trimmedMessage, token: lpMatch.token,
       });
       if (!user) {
         typingController.stop();
@@ -1058,19 +1057,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       }
       typingController.stop();
       const responseLanguage = await getUserLanguage(user.id) || 'en';
-      const flowToken = `${user.id}:pakistan-lp:${Date.now()}`;
-      await WhatsAppService.sendFlow(from, {
-        flowId: PAKISTAN_LP_FLOW_ID,
-        header: '📘 Lesson Plans',
-        body: ({
-          ur: 'اپنی جماعت، مضمون اور باب چنیں، پھر اُس دن کا سبق — منصوبہ آپ کی چیٹ میں آ جائے گا۔',
-        })[responseLanguage] || "Pick your class, subject and chapter, then the day's lesson — the plan lands in your chat.",
-        buttonText: ({
-          ur: 'شروع کریں',
-        })[responseLanguage] || 'Browse',
-        flowToken,
-      });
-      logToFile('📘 Sent Pakistan LP flow', { userId: user.id });
+      await openLpBrowseFlow({ from, userId: user.id, language: responseLanguage, reason: 'bare_command' });
       return;
     }
   }
@@ -2569,12 +2556,18 @@ async function handleTextMessage(message, from, messageBody, user = null) {
  * @returns {Promise<void>}
  */
 async function handleLessonPlanRequest(from, messageBody, user, sessionId, responseLanguage, typingController) {
-  // bd-2540 (Option A partial Gamma strip): freeform LP generation is retired.
-  // A teacher who reaches this handler either (a) typed an LP request that did
-  // not match any AST catalog row, or (b) came via the Oxbridge-picker "Generate
-  // NIETE LP" tap for a chapter the picker did not resolve to a catalog row.
-  // Both cases now reply "not in catalog" instead of enqueuing a Gamma render.
+  // bd-2540 retired freeform generation here and replaced it with a "not in
+  // catalog" reply. bd-hgwfo / bd-jnfbd: that reply would have landed on the
+  // ~200 teachers a day who reach this handler on production asking for a plan
+  // (2,793 requests in 14 days). Once generation is gone the catalogue IS the
+  // answer — open the browse Flow. The not-in-catalog copy survives only for a
+  // deployment with no Flow provisioned.
+  // Reached by: the lesson_plan intent (text), the /menu topic fallback, and
+  // the Oxbridge picker's "Generate NIETE LP" tap.
   typingController.stop();
+  if (user && await openLpBrowseFlow({ from, userId: user.id, language: responseLanguage, reason: 'lesson_plan_intent' })) {
+    return;
+  }
   const notInCatalogMessages = {
     en: "We don't have that lesson plan in the catalog yet. Send \"menu\" to see what's available.",
     ur: '\u06CC\u06C1 \u0633\u0628\u0642 \u0627\u0628\u06BE\u06CC \u06C1\u0645\u0627\u0631\u06D2 \u0646\u0635\u0627\u0628\u06CC \u0645\u062C\u0645\u0648\u0639\u06D2 \u0645\u06CC\u06BA \u062F\u0633\u062A\u06CC\u0627\u0628 \u0646\u06C1\u06CC\u06BA\u06D4 \u062F\u0633\u062A\u06CC\u0627\u0628 \u0633\u0628\u0642 \u062F\u06CC\u06A9\u06BE\u0646\u06D2 \u06A9\u06D2 \u0644\u06CC\u06D2 "menu" \u0644\u06A9\u06BE\u06CC\u06BA\u06D4',
