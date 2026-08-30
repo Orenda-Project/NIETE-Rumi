@@ -199,3 +199,86 @@ describe('bd-wpupy — Urdu diacritics must not hide a reference', () => {
     expect(normaliseUrdu('lesson')).toBe('lesson');
   });
 });
+
+// ---------------------------------------------------------------------------
+// F4 — the SOURCE fix. The lexical tokens above are a safety net; this is the
+// thing that actually resolves "Urdu ma explain krna" and "How to improve",
+// which no token list could reach without over-firing on ordinary speech.
+// ---------------------------------------------------------------------------
+describe('bd-wpupy F4 — the classifier is told what just landed', () => {
+  const { deliveryHint } = require('../../shared/services/lp-context.service');
+  const recentEntry = [{
+    lesson_id: 'grade_4_general_science_ch1_seg1', grade: 4,
+    subject: 'general_science', chapter_number: 1, delivered_at: minsAgo(2),
+  }];
+
+  test('a recent delivery produces a hint naming what she was sent', () => {
+    const h = deliveryHint(recentEntry);
+    expect(h).toMatch(/RECENT DELIVERY/);
+    expect(h).toMatch(/Grade 4/);
+    expect(h).toMatch(/Chapter 1/);
+    expect(h).toMatch(/minute\(s\) ago/);
+  });
+
+  test('it teaches BOTH sides — the follow-ups and the new-request negatives', () => {
+    const h = deliveryHint(recentEntry);
+    expect(h).toMatch(/general lp_ref/);
+    expect(h).toMatch(/L\/p/);                       // the fixation trap
+    expect(h).toMatch(/lesson_plan, never lp_ref/);
+    expect(h).toMatch(/FOR HER STUDENTS/);           // the آسان آسان false positive
+  });
+
+  test('nothing delivered recently → no hint, so the classifier is unchanged', () => {
+    expect(deliveryHint([])).toBe('');
+    expect(deliveryHint([{ lesson_id: 'x', delivered_at: minsAgo(60 * 24 * 5) }])).toBe('');
+  });
+
+  test('a malformed entry cannot produce a broken hint', () => {
+    expect(deliveryHint([{}])).toBe('');
+    expect(deliveryHint(null)).toBe('');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The handler builds the LP context once (for the classifier hint) and hands it
+// on, so a message costs ONE build, not two. Caught during review that the
+// first attempt referenced the variable across a function boundary — a
+// ReferenceError on every general-conversation message.
+// ---------------------------------------------------------------------------
+describe('bd-wpupy — the context is built once per message', () => {
+  test('injectLpContext uses a prebuilt context instead of rebuilding', async () => {
+    const { injectLpContext, __setBuildLpContextForTests } = require('../../shared/services/lp-context.service');
+    const build = jest.fn(async () => ({
+      identityLine: 'ID', fullBlock: 'FULL', lessonIds: ['a'], source: 'shelf',
+      referenceTerms: [], entries: [{ lesson_id: 'a', delivered_at: minsAgo(1) }],
+    }));
+    __setBuildLpContextForTests(build);
+
+    const prebuilt = {
+      identityLine: 'PREBUILT', fullBlock: 'FULL', lessonIds: ['a'], source: 'shelf',
+      referenceTerms: [], entries: [{ lesson_id: 'a', delivered_at: minsAgo(1) }],
+    };
+    const out = await injectLpContext({
+      userId: 'u1', message: 'hello', intent: { type: 'general' }, prebuiltCtx: prebuilt,
+    });
+    expect(build).not.toHaveBeenCalled();
+    expect(out).toMatch(/PREBUILT/);
+
+    // and without one it still builds, so every other caller is unaffected
+    await injectLpContext({ userId: 'u1', message: 'hello', intent: { type: 'general' } });
+    expect(build).toHaveBeenCalledTimes(1);
+    __setBuildLpContextForTests(null);
+  });
+
+  test('a null prebuilt context (nothing delivered) does not trigger a rebuild', async () => {
+    const { injectLpContext, __setBuildLpContextForTests } = require('../../shared/services/lp-context.service');
+    const build = jest.fn(async () => null);
+    __setBuildLpContextForTests(build);
+    const out = await injectLpContext({
+      userId: 'u1', message: 'hi', intent: { type: 'general' }, prebuiltCtx: null, existingContext: 'KEEP',
+    });
+    expect(build).not.toHaveBeenCalled();
+    expect(out).toBe('KEEP');
+    __setBuildLpContextForTests(null);
+  });
+});

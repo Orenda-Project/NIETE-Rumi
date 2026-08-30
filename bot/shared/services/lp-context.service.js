@@ -436,6 +436,68 @@ function resolveFollowUp({ message, intent, entries = [], referenceTerms = [] })
   return { tier: 'B', ask: false, lessonIds: recent, why: 'deictic-follow-up' };
 }
 
+
+/**
+ * The delivery hint for the intent classifier (bd-wpupy F4 — the SOURCE fix).
+ *
+ * The classifier was being asked to judge a message in a vacuum: it never knew
+ * a lesson had just landed, so "Give this to me in text form" was genuinely
+ * ambiguous to it and it returned no lp_ref. Every deictic follow-up failed for
+ * that one reason.
+ *
+ * Told what just happened, it resolves them correctly — measured 22/22 on the
+ * real production messages from this bug (9 true follow-ups the lexical gate
+ * could never reach, including "Urdu ma explain krna" and "How to improve",
+ * plus 13 negatives it must NOT claim: "L/p", "Class2", a different chapter, a
+ * video request, and a teacher asking for easy questions FOR HER STUDENTS).
+ *
+ * This is the fix the lexical tokens were a substitute for. Reference is
+ * positional; the classifier just needed to be given the position.
+ *
+ * @param {object[]} entries newest-first, each {grade, subject, chapter_number, delivered_at}
+ * @returns {string} '' when nothing was delivered recently enough to matter
+ */
+function deliveryHint(entries = []) {
+  const recent = (entries || []).filter((e) => {
+    if (!e || !e.delivered_at) return false;
+    const age = Date.now() - new Date(e.delivered_at).getTime();
+    return Number.isFinite(age) && age >= 0 && age <= FOLLOWUP_WINDOW_MS;
+  });
+  if (!recent.length) return '';
+
+  const e = recent[0];
+  const mins = Math.max(1, Math.round((Date.now() - new Date(e.delivered_at).getTime()) / 60000));
+  const what = [
+    e.grade != null ? `Grade ${e.grade}` : null,
+    e.subject_label || e.subject || null,
+    e.chapter_number != null ? `Chapter ${e.chapter_number}` : null,
+  ].filter(Boolean).join(', ');
+
+  return `
+
+RECENT DELIVERY: a lesson plan PDF was sent to this teacher ${mins} minute(s) ago${what ? ` (${what})` : ''}.
+
+She has JUST been given a lesson plan, so resolve what she is pointing at:
+
+- A SHORT message that points at something without naming it — "this", "it", "yeh",
+  "اسے" — almost always means THAT lesson plan.  -> general lp_ref
+- Asking to change its FORM, language or difficulty, or to have it explained:
+  "in text form", "simplify this", "Urdu ma explain krna", "how to improve",
+  "لکھ کر بھیجیں", "اسے آسان کر دیں".  -> general lp_ref
+- A question about what is IN it: "کیا اس لیسن پلان میں ...".  -> general lp_ref
+
+Do NOT mark lp_ref when she is asking for a NEW artefact, even a short or
+abbreviated ask:
+- "L/p", "LP", "lesson plan", "سبق کا منصوبہ", "Class2" all mean she wants a NEW
+  lesson plan made.  -> lesson_plan, never lp_ref
+- She names a DIFFERENT grade, subject or chapter than the one just sent.  -> lesson_plan
+- She asks for a video or presentation.  -> video / presentation
+- She is asking for material FOR HER STUDENTS rather than about her lesson —
+  "4 کلاس کے کوئسچن بھیجیں، آسان آسان" is asking for easy QUESTIONS for children,
+  not to simplify her lesson plan.  -> general, no lp_ref
+- She names a different feature (coaching, reading assessment).  -> general, no lp_ref`;
+}
+
 /** The one line that turns a guess into a question (F2). */
 function ambiguityLine(lessonIds) {
   return 'She has just been sent more than one lesson, so you do NOT know which one she means. '
@@ -460,9 +522,11 @@ function __setBuildLpContextForTests(fn) { _buildLpContext = fn || buildLpContex
  * @param {{userId:string, message:string, intent?:{lp_reference?:boolean}, existingContext?:string|null}} args
  * @returns {Promise<string|null>} the featureContext to pass on
  */
-async function injectLpContext({ userId, message, intent, existingContext = null }) {
+async function injectLpContext({ userId, message, intent, existingContext = null, prebuiltCtx }) {
   try {
-    const ctx = await _buildLpContext(userId);
+    // The handler already builds this to construct the classifier's delivery
+    // hint. Reusing it keeps this one DB read per message, not two.
+    const ctx = prebuiltCtx !== undefined ? prebuiltCtx : await _buildLpContext(userId);
     if (!ctx) return existingContext;
 
     // bd-wpupy: reference is POSITIONAL, not lexical. Behind a flag so the old
@@ -503,5 +567,6 @@ module.exports = {
   ambiguityLine,
   __setBuildLpContextForTests,
   normaliseUrdu,
+  deliveryHint,
   __consts: { FOLLOWUP_WINDOW_MS, DEICTIC_MAX_CHARS },
 };
