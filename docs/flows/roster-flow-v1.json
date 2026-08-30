@@ -1,0 +1,509 @@
+{
+  "_comment": "WhatsApp Flow — /roster. A coach or principal photographs a school's attendance register; a vision model extracts the class roster; the coach reviews and corrects the WHOLE list in one editable screen, then saves.",
+  "_instructions": [
+    "1. Registered via bot/scripts/setup/flow-configs.js → 'Roster'. Resulting Flow ID goes to ROSTER_FLOW_ID.",
+    "2. Endpoint (data_api_version 3.0, encrypted): POST /api/flows/roster.",
+    "3. Gated by isSchoolLeader() from observe-gate.js AND the presence of ROSTER_FLOW_ID. Unset = the command does not exist."
+  ],
+  "_notes": [
+    "PHOTOS BEFORE CLASS, deliberately. Extraction takes ~8s per page and Meta kills a data_exchange at ~10s, so the upload submit returns instantly and extraction runs async while the coach taps through grade/section. The class picker exists to buy that latency. If extraction is still running when CLASS submits, the endpoint routes to WORKING instead of REVIEW.",
+    "REVIEW is ONE editable screen, not a per-student fix loop. attendance-setup-flow's own header records why: the previous per-student design meant 'a 40-student class was 40 submissions to Meta and nobody ever finished one'. Flows have no repeater, table or inline-edit component, so a prefilled TextArea IS the edit surface.",
+    "TextArea max-length is 600 characters and that is a hard cap, so the roster is chunked across SIX boxes (~3600 chars, roughly 100 students with father names). Four boxes overflowed a 60-student class in test. Unused boxes are hidden via visible bindings rather than removed, because screen structure is static once published.",
+    "Each line is prefixed with its roll number so the endpoint can map an edited line back to the right student UUID by position AND by prefix. Identity is the platform UUID; the roll number is only a locator.",
+    "routing_model must stay ACYCLIC. REVIEW → FIX → REVIEW would be a cycle and Meta rejects it — the second reason edit-in-place beats a fix loop.",
+    "Dropdown chrome is Latin-only (the Urdu-script list-chrome defect): Meta's list/dropdown secondary text fails on Urdu script. Student names live in TextArea, which is a form field, not list chrome."
+  ],
+  "version": "7.0",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "SCHOOL": [
+      "PHOTOS"
+    ],
+    "PHOTOS": [
+      "CLASS"
+    ],
+    "CLASS": [
+      "REVIEW",
+      "WORKING"
+    ],
+    "WORKING": [
+      "REVIEW"
+    ],
+    "REVIEW": [
+      "SAVED"
+    ],
+    "SAVED": []
+  },
+  "screens": [
+    {
+      "id": "SCHOOL",
+      "title": "Pick the school",
+      "data": {
+        "schools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "abc",
+              "title": "IMSG (I-8/4)"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "school_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Which school are you at?"
+              },
+              {
+                "type": "Dropdown",
+                "name": "school_id",
+                "label": "School",
+                "required": true,
+                "data-source": "${data.schools}"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "SCHOOL",
+                    "school_id": "${form.school_id}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "PHOTOS",
+      "title": "Photograph the register",
+      "data": {
+        "school_name": {
+          "type": "string",
+          "__example__": "IMSG (I-8/4)"
+        },
+        "hint": {
+          "type": "string",
+          "__example__": "One photo per register page. Get the whole name column in frame."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "photos_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.school_name}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.hint}"
+              },
+              {
+                "type": "PhotoPicker",
+                "name": "pages",
+                "label": "Register pages",
+                "description": "Take a photo of each page, or pick from your gallery.",
+                "photo-source": "camera_gallery",
+                "min-uploaded-photos": 1,
+                "max-uploaded-photos": 10,
+                "max-file-size-kb": 10240
+              },
+              {
+                "type": "Footer",
+                "label": "Read the register",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "PHOTOS",
+                    "pages": "${form.pages}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "CLASS",
+      "title": "Which class?",
+      "data": {
+        "grades": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "grade_3",
+              "title": "Grade 3"
+            }
+          ]
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "A",
+              "title": "A"
+            }
+          ]
+        },
+        "caption": {
+          "type": "string",
+          "__example__": "Reading the register while you do this."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "class_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Which class is this?"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.caption}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "grade_code",
+                "label": "Grade",
+                "required": true,
+                "data-source": "${data.grades}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "section",
+                "label": "Section",
+                "data-source": "${data.sections}"
+              },
+              {
+                "type": "TextInput",
+                "name": "teacher_name",
+                "label": "Class teacher",
+                "input-type": "text",
+                "helper-text": "Optional. As written on the register."
+              },
+              {
+                "type": "Footer",
+                "label": "See the students",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "CLASS",
+                    "grade_code": "${form.grade_code}",
+                    "section": "${form.section}",
+                    "teacher_name": "${form.teacher_name}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "WORKING",
+      "title": "Still reading",
+      "data": {
+        "message": {
+          "type": "string",
+          "__example__": "Still reading the register — give it a few more seconds."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "working_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Almost there"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.message}"
+              },
+              {
+                "type": "Footer",
+                "label": "Check again",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "WORKING"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "REVIEW",
+      "title": "Check the students",
+      "terminal": false,
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "41 students found"
+        },
+        "note": {
+          "type": "string",
+          "__example__": "Grade 3-A. Fix any name that is wrong, then save."
+        },
+        "chunk1": {
+          "type": "string",
+          "__example__": "1. Ayesha Bilal"
+        },
+        "chunk2": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chunk3": {
+          "type": "string",
+          "__example__": ""
+        },
+        "chunk4": {
+          "type": "string",
+          "__example__": ""
+        },
+        "label1": {
+          "type": "string",
+          "__example__": "Students 1-15"
+        },
+        "label2": {
+          "type": "string",
+          "__example__": "Students 16-30"
+        },
+        "label3": {
+          "type": "string",
+          "__example__": "Students 31-45"
+        },
+        "label4": {
+          "type": "string",
+          "__example__": "Students 46-60"
+        },
+        "show2": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "show3": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "show4": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "chunk5": {
+          "type": "string",
+          "__example__": ""
+        },
+        "label5": {
+          "type": "string",
+          "__example__": "Students 61-75"
+        },
+        "show5": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "chunk6": {
+          "type": "string",
+          "__example__": ""
+        },
+        "label6": {
+          "type": "string",
+          "__example__": "Students 76-90"
+        },
+        "show6": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "review_form",
+            "init-values": {
+              "chunk1": "${data.chunk1}",
+              "chunk2": "${data.chunk2}",
+              "chunk3": "${data.chunk3}",
+              "chunk4": "${data.chunk4}",
+              "chunk5": "${data.chunk5}",
+              "chunk6": "${data.chunk6}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.note}"
+              },
+              {
+                "type": "TextArea",
+                "name": "chunk1",
+                "label": "${data.label1}",
+                "helper-text": "One student per line. Edit any that are wrong."
+              },
+              {
+                "type": "TextArea",
+                "name": "chunk2",
+                "label": "${data.label2}",
+                "visible": "${data.show2}"
+              },
+              {
+                "type": "TextArea",
+                "name": "chunk3",
+                "label": "${data.label3}",
+                "visible": "${data.show3}"
+              },
+              {
+                "type": "TextArea",
+                "name": "chunk4",
+                "label": "${data.label4}",
+                "visible": "${data.show4}"
+              },
+              {
+                "type": "TextArea",
+                "name": "chunk5",
+                "label": "${data.label5}",
+                "visible": "${data.show5}"
+              },
+              {
+                "type": "TextArea",
+                "name": "chunk6",
+                "label": "${data.label6}",
+                "visible": "${data.show6}"
+              },
+              {
+                "type": "Footer",
+                "label": "Save the roster",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "REVIEW",
+                    "chunk1": "${form.chunk1}",
+                    "chunk2": "${form.chunk2}",
+                    "chunk3": "${form.chunk3}",
+                    "chunk4": "${form.chunk4}",
+                    "chunk5": "${form.chunk5}",
+                    "chunk6": "${form.chunk6}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SAVED",
+      "title": "Saved",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Grade 3-A saved"
+        },
+        "body": {
+          "type": "string",
+          "__example__": "41 students are on the roster."
+        },
+        "extension_message_response": {
+          "type": "object",
+          "properties": {},
+          "__example__": {
+            "params": {
+              "roster_action": "saved"
+            }
+          }
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "saved_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.body}"
+              },
+              {
+                "type": "Footer",
+                "label": "Done",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "extension_message_response": "${data.extension_message_response}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
