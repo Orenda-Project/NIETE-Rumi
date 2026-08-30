@@ -60,6 +60,14 @@ const FLOW_CONFIGS = [
     categories: ['OTHER'],
   },
   {
+    name: 'Roster',
+    jsonPath: path.join(FLOWS_DIR, 'roster-flow-v1.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/roster',
+    envVar: 'ROSTER_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
     name: 'Edit Class',
     jsonPath: path.join(FLOWS_DIR, 'edit-class-flow.json'),
     type: 'endpoint',

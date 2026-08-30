@@ -30,6 +30,10 @@ const {
   handleSetupDataExchange
 } = require('./attendance-setup-endpoint');
 const {
+  handleRosterInit,
+  handleRosterDataExchange
+} = require('./roster-flow-endpoint');
+const {
   handleClassesInit,
   handleClassManagerDataExchange,
   handleClassManagerBack
@@ -392,6 +396,53 @@ async function handleAttendanceSetupRequest(data) {
   }
 
   logToFile('Unknown attendance-setup flow action', { action });
+  return FlowEncryptionService.createErrorResponse('Unknown action');
+}
+
+/**
+ * Roster — SCHOOL -> PHOTOS -> CLASS -> (WORKING) -> REVIEW -> SAVED.
+ * A coach photographs a school's attendance register and confirms the class list.
+ */
+router.post('/roster', async (req, res) => {
+  try {
+    if (!FlowEncryptionService.isConfigured()) {
+      logToFile('Flow encryption not configured', { endpoint: 'roster' });
+      return res.status(500).json({ error: 'Flow encryption not configured' });
+    }
+
+    const encryptedResponse = await FlowEncryptionService.processEncryptedRequest(
+      req.body,
+      async (decryptedData) => handleRosterRequest(decryptedData)
+    );
+
+    res.set('Content-Type', 'text/plain');
+    res.send(encryptedResponse);
+  } catch (error) {
+    logToFile('Flow endpoint error', {
+      endpoint: 'roster', error: error.message, stack: error.stack,
+    });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/** flow_token is the user id (set when the Flow is sent). */
+async function handleRosterRequest(data) {
+  const { action, flow_token: flowToken, screen, data: screenData } = data;
+
+  logToFile('Handling roster request', {
+    action, screen,
+    hasFlowToken: !!flowToken,
+    screenDataKeys: screenData ? Object.keys(screenData) : [],
+  });
+
+  if (action === 'ping') return FlowEncryptionService.handlePing();
+
+  const userId = (flowToken || '').split(':')[0];
+
+  if (action === 'INIT' || action === 'init') return handleRosterInit(userId);
+  if (action === 'data_exchange') return handleRosterDataExchange(userId, screen, screenData);
+
+  logToFile('Unknown roster flow action', { action });
   return FlowEncryptionService.createErrorResponse('Unknown action');
 }
 
