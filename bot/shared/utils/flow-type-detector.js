@@ -141,6 +141,14 @@ function detectFlowType(responseJson) {
     return 'exam_generator';
   }
 
+  // 2.55. Roster — the coach photographed a class register and saved the list.
+  // Tagged explicitly in extension_message_response.params rather than inferred from
+  // the token, because the roster flow token is a BARE user id and the loose
+  // attendance-marking fallback below would otherwise not catch it either way.
+  if (responseJson.roster_action) {
+    return 'roster';
+  }
+
   // 2.6. Assessment Generator — external UG_EG-backed flow.
   // Flow token from text-message.handler.js is `${user.id}:assessment-gen:${ts}`.
   // The flow endpoint has already submitted the job to UG_EG; the callback at

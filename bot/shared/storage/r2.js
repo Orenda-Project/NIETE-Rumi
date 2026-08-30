@@ -480,7 +480,12 @@ function extractKeyFromUrl(url) {
     if (/^https?:\/\//i.test(bareUrl)) {
       throw new Error(`Could not extract R2 key from URL: ${url}`);
     }
-    return bareUrl;
+    // bd-yp2sp: R2 keys are literal and never start with "/", but an unset
+    // R2_PUBLIC_URL turns constants like FEATURE_VIDEO_URLS into bare paths
+    // ("/feature_videos/coaching_intro.mp4") — the leading slash made every
+    // lookup a NoSuchKey while the asset sat in the bucket, and the graceful
+    // skip hid it. Normalize.
+    return bareUrl.replace(/^\/+/, '');
   }
   return bareUrl.substring(bucketIndex + `/${BUCKET_NAME}/`.length);
 }

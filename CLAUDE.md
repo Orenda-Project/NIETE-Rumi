@@ -10,6 +10,7 @@
 > | **Env** | `NIETE-Rumi/.env` for prod; staging creds in project-root `01_Digital Coach Docs/03_ACCESS_CREDENTIALS.md` |
 > | **Docs** | `NIETE-Rumi/docs/migration/` (00 through 08) |
 > | **Branches (Gitflow)** | `main` → prod · `develop` → staging · feature branches → PR into `develop`. **No cherry-picking** — staging must promote to prod via `develop → main` PR only. |
+> | **Deploys** | Git push ONLY. Railway auto-deploys `develop`→staging and `main`→prod. Deploying by CLI upload is FORBIDDEN and blocked by `.claude/hooks/block-railway-up.sh` — it uploads the local working tree, so it can put unreviewed code on prod and records no commit, which makes "what is prod running?" unanswerable. |
 > | **Status** | 🟢 LIVE — Feature #1 (LP via UGLP) proven E2E, other features being ported |
 >
 > **NOT the same as:**

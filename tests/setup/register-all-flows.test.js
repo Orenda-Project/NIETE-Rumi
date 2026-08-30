@@ -95,10 +95,16 @@ describe('register-all-flows', () => {
   describe('FLOW_CONFIGS', () => {
     // The count is a deliberate tripwire: adding a Flow should force a conscious
     // update here. It had drifted to 13 against an actual 14 before the class
-    // manager landed, which is the failure mode of a tripwire nobody re-arms.
-    it('exports an array of all 15 registerable flow configurations', () => {
+    // manager landed, and to 15 against 16 when Roster landed — which is the
+    // failure mode of a tripwire nobody re-arms.
+    //
+    // THE NUMBER DIFFERS BY BRANCH, deliberately. `main` and `develop` have
+    // diverged and do not carry the same set of Flows (main has Pic-to-LP
+    // Confirm; develop does not), so this is 17 here and 16 there. Read the
+    // count off the tree you are on rather than copying it across a cherry-pick.
+    it('exports an array of all 17 registerable flow configurations', () => {
       expect(Array.isArray(FLOW_CONFIGS)).toBe(true);
-      expect(FLOW_CONFIGS).toHaveLength(15);
+      expect(FLOW_CONFIGS).toHaveLength(17);
     });
 
     it('gives every flow a unique name, envVar and endpointPath', () => {
