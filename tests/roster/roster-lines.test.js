@@ -14,6 +14,7 @@ const {
   toChunks,
   parseChunk,
   reconcile,
+  renderList,
 } = require('../../bot/shared/services/roster/roster-lines');
 
 const student = (i, name, father, roll) => ({
@@ -119,5 +120,87 @@ describe('reconcile — matching edits back to student identities', () => {
     const edits = chunks.flatMap(parseChunk);
     const out = reconcile(originals, edits);
     expect(out).toEqual({ updated: [], added: [], removed: [] });
+  });
+});
+
+/**
+ * An unreadable roll number is shown as an unreadable roll number.
+ *
+ * Field test 2026-08-30: three children whose rolls were hidden behind a drawing
+ * came back from the model as 10, 11 and 12 — the page numbers them 35, 36, 37.
+ * The extractor now abstains instead of inferring, which leaves the roll null, and
+ * that null has to survive all the way to the coach's eyes. Rendering the ordinal
+ * in its place would recreate exactly the bug, one layer down: the coach would read
+ * "12." as a roll number we had read off the page.
+ */
+describe('an unreadable roll number renders as ?, not as an invented number', () => {
+  const unknown = (name, father) => ({
+    id: `u-${name}`, roll_number: null, student_name: name, father_name: father || null,
+  });
+
+  it('prefixes a student with no roll number with ?', () => {
+    const { chunks } = toChunks([student(0, 'Ayesha', 'Bilal'), unknown('Minahil', 'Asif')]);
+    expect(chunks[0]).toBe('1. Ayesha / Bilal\n?. Minahil / Asif');
+  });
+
+  it('reads a ? line back as a student with no roll number', () => {
+    expect(parseChunk('?. Minahil / Asif')).toEqual([
+      { roll: null, student_name: 'Minahil', father_name: 'Asif' },
+    ]);
+  });
+
+  it('lets the coach supply the real roll number by typing over the ?', () => {
+    expect(parseChunk('35. Minahil / Asif')[0].roll).toBe('35');
+  });
+
+  it('matches ?-lines back to the right children in order, and calls nothing an addition', () => {
+    const originals = [unknown('Minahil', 'Asif'), unknown('Hooria', 'Kamran')];
+    const { chunks } = toChunks(originals);
+    const out = reconcile(originals, chunks.flatMap(parseChunk));
+    expect(out).toEqual({ updated: [], added: [], removed: [] });
+  });
+
+  it('attributes a correction on a ?-line to the child it was rendered for', () => {
+    const originals = [unknown('Minahil', 'Asif'), unknown('Hooria', 'Kamran')];
+    const out = reconcile(originals, parseChunk('?. Minahil / Asif\n?. Hooriya / Kamran'));
+    expect(out.updated).toEqual([
+      { id: 'u-Hooria', student_name: 'Hooriya', father_name: 'Kamran' },
+    ]);
+  });
+});
+
+/**
+ * The readable list. A TextArea has no height property and no scrollbar, so the
+ * boxes cannot be made bigger — a coach reading a 40-name class through one saw
+ * four names and thought that was the whole extraction. The list is therefore
+ * rendered once, in full, as a TextBody above the boxes.
+ */
+describe('renderList — the whole class, readable, above the edit boxes', () => {
+  it('renders every student on its own line, in roster order', () => {
+    const text = renderList([student(0, 'Ayesha', 'Bilal'), student(1, 'Hadia', null)]);
+    expect(text.split('\n')).toEqual(['1. Ayesha / Bilal', '2. Hadia']);
+  });
+
+  it('stays inside the TextBody character budget and says what it could not show', () => {
+    const many = Array.from({ length: 300 }, (_, i) =>
+      student(i, `Muhammad Student Number ${i}`, `Father Of Student ${i}`));
+    const text = renderList(many);
+    expect(text.length).toBeLessThanOrEqual(4000);
+    expect(text).toMatch(/more below/);
+  });
+
+  it('is empty for an empty roster rather than throwing', () => {
+    expect(renderList([])).toBe('');
+  });
+});
+
+describe('helper text — the count that tells a coach the box is a slice, not the class', () => {
+  it('names the slice and the class size, within Metas 80-character helper cap', () => {
+    const many = Array.from({ length: 41 }, (_, i) => student(i, `Child ${i}`, `Father ${i}`));
+    const { helpers, visible } = toChunks(many);
+    helpers.forEach((h) => expect(h.length).toBeLessThanOrEqual(80));
+    expect(helpers[0]).toContain('of 41');
+    // A hidden box still needs a string — the screen is static.
+    expect(helpers).toHaveLength(visible.length);
   });
 });
