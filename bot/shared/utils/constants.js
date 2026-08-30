@@ -41,6 +41,8 @@ const EDIT_CLASS_FLOW_ID = process.env.EDIT_CLASS_FLOW_ID || '';
 // Class manager — the teacher-facing surface for the classes model
 // (CLASSES -> ADD -> SUBJECTS -> SAVED).
 const CLASS_MANAGER_FLOW_ID = process.env.CLASS_MANAGER_FLOW_ID || '';
+// Roster — coach photographs a class register. Absent = the /roster command does not exist.
+const ROSTER_FLOW_ID = process.env.ROSTER_FLOW_ID || '';
 
 // Pic-to-LP (photo → illustrated lesson plan)
 const KIE_API_KEY = process.env.KIE_API_KEY;
@@ -183,6 +185,7 @@ module.exports = {
   HOMEWORK_FLOW_ID,
   EDIT_CLASS_FLOW_ID,
   CLASS_MANAGER_FLOW_ID,
+  ROSTER_FLOW_ID,
 
   KIE_API_KEY,
   RUMI_LOGO_R2_KEY,

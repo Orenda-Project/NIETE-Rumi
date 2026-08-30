@@ -669,6 +669,56 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
+  // ROSTER COMMAND: photograph a school's attendance register
+  // ============================================================
+  // Gated two ways, both deliberate. The role check reuses isSchoolLeader() from
+  // observe-gate — the single source of truth for the leader family, with a guard
+  // test that forbids anyone comparing the role string directly. The env check is
+  // how a market ships: no ROSTER_FLOW_ID means the command does not exist here,
+  // so this is a no-op on any deployment that has not published the Flow.
+  if (trimmedMessage === '/roster') {
+    const { isSchoolLeader } = require('../services/observe/observe-gate');
+
+    if (!process.env.ROSTER_FLOW_ID) return;
+
+    if (!user) {
+      await WhatsAppService.sendMessage(
+        from,
+        'I could not find your account. Send me a message first so I can set you up.'
+      );
+      return;
+    }
+
+    if (!isSchoolLeader(user)) {
+      await WhatsAppService.sendMessage(
+        from,
+        'Building a class roster is for coaches and school leaders.'
+      );
+      return;
+    }
+
+    typingController.stop();
+
+    const sent = await WhatsAppService.sendFlow(from, {
+      flowId: process.env.ROSTER_FLOW_ID,
+      header: 'Class roster',
+      body: 'Photograph a class register and I will turn it into a student list. '
+        + 'You get to check every name before anything is saved.',
+      footer: 'About 2 minutes per class',
+      buttonText: 'Start',
+      // No screen: with a flow token this sends as data_exchange, so Meta calls the
+      // endpoint's INIT and the school list is built server-side.
+      flowToken: user.id,
+    });
+
+    logToFile(sent ? '📋 /roster flow sent' : '❌ /roster flow failed', { userId: user.id });
+    if (!sent) {
+      await WhatsAppService.sendMessage(from, 'Something went wrong opening that. Try again in a moment.');
+    }
+    return;
+  }
+
+  // ============================================================
   // READING TEST COMMAND DETECTION: Check for /reading test command
   // ============================================================
   if (trimmedMessage === '/reading test' || trimmedMessage === '/readingtest') {

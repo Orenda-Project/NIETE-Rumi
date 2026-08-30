@@ -1657,6 +1657,17 @@ app.post('/webhook', async (req, res) => {
           from,
           responseFields: Object.keys(responseJson)
         });
+      } else if (flowType === 'roster') {
+        // The Flow already showed the saved count on its own terminal screen; this
+        // is the chat breadcrumb so the coach can see it later in the thread.
+        const cls = responseJson.roster_class || 'That class';
+        const n = responseJson.roster_count;
+        await WhatsAppService.sendMessage(
+          from,
+          n
+            ? `📋 ${cls} saved — ${n} students on the roster. Send /roster again for the next class.`
+            : `📋 ${cls} saved. Send /roster again for the next class.`
+        );
       } else if (flowType === 'exam_generator') {
         // Exam Generator — endpoint flow's terminal ack. The endpoint at
         // /api/flows/exam-generator already queued the SQS `exam_generate` job
