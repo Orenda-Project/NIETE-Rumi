@@ -84,14 +84,17 @@ async function renderEntry(entry, { detailed }) {
 
   if (detailed) {
     const inner = [];
+    // Steps FIRST, teaser second (bd-91r48): the steps are the lesson; the
+    // voice note is a 60-second summary of it. If the block ever has to be
+    // clipped from the end, the teaser is what should go.
+    const resolved = await resolveMoveList({ lesson_id: entry.lesson_id, content_hash: entry.content_hash });
+    const movesText = resolved && renderMoves(resolved.moves);
+    if (movesText) inner.push(movesText);
     const script = await getVoicenoteScript(entry);
     if (script) {
       const clipped = script.length > SCRIPT_CHARS_MAX ? `${script.slice(0, SCRIPT_CHARS_MAX).trim()}…` : script;
       inner.push(`The voice note that rides with this lesson (she may quote it back):\n${clipped}`);
     }
-    const resolved = await resolveMoveList({ lesson_id: entry.lesson_id, content_hash: entry.content_hash });
-    const movesText = resolved && renderMoves(resolved.moves);
-    if (movesText) inner.push(movesText);
     if (inner.length) parts.push(`<lesson_reference>\n${inner.join('\n\n')}\n</lesson_reference>`);
   }
 
@@ -250,16 +253,24 @@ async function buildLpContext(userId) {
       rendered.push(await renderEntry(entries[i], { detailed: i < DETAIL_ENTRIES }));
     }
 
-    // Budget: drop oldest entries until the block fits; hard-clip as a last resort.
+    // Budget: the 4 KB is for the LESSON BODY (RT-6). FRAMING is fixed
+    // overhead the author controls and does not count against it — it had
+    // grown to ~2,600 chars (bd-wpupy) and was silently eating the lesson:
+    // on 2026-08-30 a real entry was clipped after its third step, and the
+    // model invented a "Wrap-up and Q&A" to stand in for the eight it never
+    // saw (bd-91r48). Drop oldest entries until the body fits; hard-clip the
+    // body as a last resort — which, with steps rendered before the teaser,
+    // costs the voice note, not the lesson.
     let body = rendered;
-    let fullBlock = `${FRAMING}\n\n${body.join('\n\n')}`;
-    while (fullBlock.length > BLOCK_BUDGET_CHARS && body.length > 1) {
+    let bodyText = body.join('\n\n');
+    while (bodyText.length > BLOCK_BUDGET_CHARS && body.length > 1) {
       body = body.slice(0, -1);
-      fullBlock = `${FRAMING}\n\n${body.join('\n\n')}`;
+      bodyText = body.join('\n\n');
     }
-    if (fullBlock.length > BLOCK_BUDGET_CHARS) {
-      fullBlock = `${fullBlock.slice(0, BLOCK_BUDGET_CHARS - 1)}…`;
+    if (bodyText.length > BLOCK_BUDGET_CHARS) {
+      bodyText = `${bodyText.slice(0, BLOCK_BUDGET_CHARS - 1)}…`;
     }
+    let fullBlock = `${FRAMING}\n\n${bodyText}`;
 
     const lessonIds = entries.map((e) => e.lesson_id);
     const referenceTerms = referenceTermsFor(entries);
@@ -636,5 +647,5 @@ module.exports = {
   __setBuildLpContextForTests,
   normaliseUrdu,
   deliveryHint,
-  __consts: { FOLLOWUP_WINDOW_MS, DEICTIC_MAX_CHARS, AMBIGUITY_GAP_MS },
+  __consts: { FOLLOWUP_WINDOW_MS, DEICTIC_MAX_CHARS, AMBIGUITY_GAP_MS, BLOCK_BUDGET_CHARS, FRAMING },
 };
