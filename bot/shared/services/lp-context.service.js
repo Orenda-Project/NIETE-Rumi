@@ -343,6 +343,16 @@ const FORMAT_TOKENS = [
 
 const NEW_ARTEFACT_INTENTS = new Set(['lesson_plan', 'presentation', 'video']);
 
+// Belt and braces for the intent gate. "Can you generate video related to it"
+// names a DIFFERENT artefact while still pointing at the lesson, and a live
+// classifier returned `general lp_ref` for it — which would have put the lesson
+// plan in front of the model when she asked for a video. Whether the classifier
+// gets that right varies by model, so the artefact word is checked in code,
+// where the behaviour is deterministic.
+const OTHER_ARTEFACT_WORDS = [
+  'video', 'ویڈیو', 'presentation', 'پریزنٹیشن', 'slides', 'ppt', 'quiz', 'کوئز',
+];
+
 /**
  * Urdu diacritics (harakat) break literal matching, and a real teacher hit this:
  *   «کیا اس لَیسن پلان میں بچوں کو ریڈنگ کے ذریعے بھی سکھایا جا سکتا ہے؟»
@@ -409,6 +419,12 @@ function resolveFollowUp({ message, intent, entries = [], referenceTerms = [] })
   // of the model — see the header. An explicit reference still overrides.
   if (!explicit && intent && NEW_ARTEFACT_INTENTS.has(intent.type)) {
     return { tier: 'A', ask: false, lessonIds: recent, why: 'new-artefact-request' };
+  }
+
+  // She named the lesson AND asked for a different artefact from it. The ask is
+  // for the artefact; the lesson body would only distract.
+  if (explicit && hasAny(msg, OTHER_ARTEFACT_WORDS, wordsOf(msg))) {
+    return { tier: 'A', ask: false, lessonIds: recent, why: 'other-artefact-from-lesson' };
   }
 
   if (explicit) {

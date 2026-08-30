@@ -282,3 +282,32 @@ describe('bd-wpupy — the context is built once per message', () => {
     __setBuildLpContextForTests(null);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Found by the live end-to-end run, not by unit reasoning: a real classifier
+// (gpt-4o via OpenRouter) returned `general lp_ref` for "Can you generate video
+// related to it" — pointing at the lesson while asking for a different artefact.
+// That would put the lesson plan in front of the model when she wants a video.
+// Model-dependent, so it is guarded in code where behaviour is deterministic.
+// ---------------------------------------------------------------------------
+describe('bd-wpupy — asking for a DIFFERENT artefact from the lesson', () => {
+  const explicit = { type: 'general', lp_reference: true };
+  const RECENT_ONE = [{ lesson_id: 'grade_1_english_ch1_seg1', delivered_at: minsAgo(2) }];
+
+  test.each([
+    'Can you generate video related to it',
+    'make a presentation from this lesson',
+    'is lesson ka quiz bana do',
+    'اس سبق کی ویڈیو بنا دیں',
+  ])('stays tier A even with lp_ref set: %s', (msg) => {
+    const r = resolveFollowUp({ message: msg, intent: explicit, entries: RECENT_ONE });
+    expect(r.tier).toBe('A');
+    expect(r.why).toBe('other-artefact-from-lesson');
+  });
+
+  test('but a plain question about the lesson is unaffected', () => {
+    expect(resolveFollowUp({
+      message: 'is lesson mein activity kaisi karun', intent: explicit, entries: RECENT_ONE,
+    }).tier).toBe('B');
+  });
+});
