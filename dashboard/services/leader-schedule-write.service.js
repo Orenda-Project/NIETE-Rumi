@@ -22,9 +22,23 @@ const SLOTS = ['09:00', '11:30', '14:00'];
 // teacher_ext_id is the phone — 980 of 992 live observation_schedules rows
 // already key on it — so a booking still resolves by the same value it always
 // did, just against the derived patch rather than the stored roster.
+// bd-43530: the WHOLE name, not `first_name`. This row is what gets stamped
+// into observation_schedules.teacher_name, and that column is what the bot
+// prints on My schedule / Pending debriefs / the visit actions — so a first
+// name written here reappears as a first name in WhatsApp days later.
+// `name` is populated for 7,912 of 9,362 NIETE teachers+principals against
+// 4,304 for `last_name`, and 2,531 have a one-word first_name beside a
+// multi-word name — so `name` leads and first+last is the fallback. NULLIF
+// stops a blank string from beating that fallback. Mirrors
+// patch-resolver.fullNameOf on the bot side; keep the two in step.
 const PATCH_SQL = `
   SELECT u.phone_number       AS teacher_ext_id,
-         u.first_name         AS teacher_name,
+         COALESCE(
+           NULLIF(btrim(u.name), ''),
+           NULLIF(btrim(concat_ws(' ',
+             NULLIF(btrim(u.first_name), ''),
+             NULLIF(btrim(u.last_name), ''))), '')
+         )                    AS teacher_name,
          'niete:' || s.emis   AS school_ext_id,
          s.name               AS school_name
   FROM leader_schools ls
