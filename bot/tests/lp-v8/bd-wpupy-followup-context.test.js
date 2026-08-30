@@ -342,3 +342,59 @@ describe('bd-wpupy — a FORMAT request has its own branch in the framing', () =
     expect(SRC).toMatch(/Ask; do not assume which of those it is/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// From the live staging test at 16:46. The teacher was sent Grade 3 Math Ch2
+// Day 6, asked "give this to me in simple text form" 30 SECONDS later, and was
+// asked back "Chapter 1 or Chapter 2?" — because Ch1 had also been delivered
+// earlier the same day and the ambiguity rule counted lessons in a 6h window.
+//
+// Asking a teacher which lesson she means, 30 seconds after sending her one, is
+// worse than the bug this was meant to fix. Ambiguity is a question of whether
+// the deliveries arrived TOGETHER, not of how many are in the window.
+// ---------------------------------------------------------------------------
+describe('bd-wpupy — ambiguity is about the GAP, not the count', () => {
+  const general = { type: 'general', lp_reference: false };
+
+  test('one lesson just now, another hours earlier → answer the recent one', () => {
+    const r = resolveFollowUp({
+      message: 'give this to me in simple text form',
+      intent: general,
+      entries: [
+        { lesson_id: 'grade_3_math_ch2_seg6', delivered_at: minsAgo(0.5) },
+        { lesson_id: 'grade_3_math_ch1_seg1', delivered_at: minsAgo(180) },
+      ],
+    });
+    expect(r.tier).toBe('B');
+    expect(r.ask).toBe(false);
+    expect(r.lessonIds).toEqual(['grade_3_math_ch2_seg6']);
+  });
+
+  test('a genuine batch — several lessons inside two minutes → still ask', () => {
+    const r = resolveFollowUp({
+      message: 'give this to me in text form',
+      intent: general,
+      entries: [
+        { lesson_id: 'grade_4_urdu_ch7_seg1', delivered_at: minsAgo(1) },
+        { lesson_id: 'grade_4_urdu_ch7_seg2', delivered_at: minsAgo(2) },
+        { lesson_id: 'grade_4_urdu_ch7_seg3', delivered_at: minsAgo(2.5) },
+      ],
+    });
+    expect(r.ask).toBe(true);
+    expect(r.lessonIds).toHaveLength(3);
+  });
+
+  test('the burst wins, and lessons outside it are not offered as choices', () => {
+    const r = resolveFollowUp({
+      message: 'simplify this',
+      intent: general,
+      entries: [
+        { lesson_id: 'newest_a', delivered_at: minsAgo(1) },
+        { lesson_id: 'newest_b', delivered_at: minsAgo(2) },
+        { lesson_id: 'much_older', delivered_at: minsAgo(120) },
+      ],
+    });
+    expect(r.lessonIds).toEqual(['newest_a', 'newest_b']);
+    expect(r.lessonIds).not.toContain('much_older');
+  });
+});

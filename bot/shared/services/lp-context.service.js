@@ -410,16 +410,39 @@ function hasAny(msg, tokens, words) {
   return tokens.some((t) => (t.includes(' ') ? msg.includes(t) : w.has(t)));
 }
 
-/** Distinct lesson_ids among entries delivered inside the follow-up window. */
+// Two lessons are only genuinely AMBIGUOUS if they arrived at about the same
+// time. A teacher who was sent Chapter 1 this morning and Chapter 2 thirty
+// seconds ago is not confused about which one "this" is — but a 6-hour window
+// containing both made us ask her, which is worse than the bug we were fixing.
+// The real ambiguous case is the batch delivery: four lessons inside two
+// minutes (grade_5_math_ch5_seg8 x4, and one teacher who got five grade_4_urdu
+// segments in three minutes). So ambiguity is decided by the GAP between the
+// newest and the next, not by "more than one in the window".
+const AMBIGUITY_GAP_MS = 3 * 60 * 1000;
+
+/**
+ * Distinct lesson_ids delivered inside the follow-up window, newest first.
+ * Anything delivered clearly LATER than the rest wins outright and is returned
+ * alone — there is nothing to ask about.
+ */
 function recentDistinct(entries, now = Date.now()) {
-  const seen = [];
+  const inWindow = [];
   for (const e of entries || []) {
     if (!e || !e.delivered_at) continue;
-    const age = now - new Date(e.delivered_at).getTime();
+    const t = new Date(e.delivered_at).getTime();
+    const age = now - t;
     if (!Number.isFinite(age) || age < 0 || age > FOLLOWUP_WINDOW_MS) continue;
-    if (!seen.includes(e.lesson_id)) seen.push(e.lesson_id);
+    const seen = inWindow.find((x) => x.lesson_id === e.lesson_id);
+    if (seen) { seen.at = Math.max(seen.at, t); continue; }
+    inWindow.push({ lesson_id: e.lesson_id, at: t });
   }
-  return seen;
+  if (inWindow.length <= 1) return inWindow.map((x) => x.lesson_id);
+
+  inWindow.sort((a, b) => b.at - a.at);
+  // Everything delivered in the same burst as the newest is a genuine candidate;
+  // anything older than that burst is not what she just received.
+  const cutoff = inWindow[0].at - AMBIGUITY_GAP_MS;
+  return inWindow.filter((x) => x.at >= cutoff).map((x) => x.lesson_id);
 }
 
 /**
@@ -612,5 +635,5 @@ module.exports = {
   __setBuildLpContextForTests,
   normaliseUrdu,
   deliveryHint,
-  __consts: { FOLLOWUP_WINDOW_MS, DEICTIC_MAX_CHARS },
+  __consts: { FOLLOWUP_WINDOW_MS, DEICTIC_MAX_CHARS, AMBIGUITY_GAP_MS },
 };
