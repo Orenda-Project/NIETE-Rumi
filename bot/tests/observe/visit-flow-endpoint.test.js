@@ -64,7 +64,11 @@ describe('screens', () => {
     expect(item['on-click-action'].payload.step).toBe('school');
   });
 
-  test('school pick → SELECT_TEACHER with level description + Latin-only chrome', async () => {
+  // bd-43530 moved the level off `description` so the PHONE can have that field
+  // to itself (12 digits do not fit beside a level in a 20-char field, and a
+  // clipped phone still reads as a real number). The level did not disappear —
+  // it is now the head of the metadata line.
+  test('school pick → SELECT_TEACHER: phone description, level in metadata, Latin-only chrome', async () => {
     mockTeachers.push(...teacherFixture(3));
     const res = await handler.handle('leader-1', 'data_exchange', 'SELECT_SCHOOL', { step: 'school', school_ext_id: 'niete:401' }, 'leader-1');
     expect(res.screen).toBe('SELECT_TEACHER');
@@ -72,7 +76,9 @@ describe('screens', () => {
     expect(res.data.items).toHaveLength(3);
     const md = res.data.items.map((i) => JSON.stringify(i['main-content'])).join('');
     expect(/[؀-ۿ]/.test(md)).toBe(false); // bd-2331: NavigationList chrome must be Latin
-    expect(res.data.items[0]['main-content'].description).toContain('PRIMARY');
+    const mc = res.data.items[0]['main-content'];
+    expect(mc.description).toBe('923330000000');
+    expect(mc.metadata).toContain('PRIMARY');
   });
 
   test('teacher pick → BRIEF native text fields, no image, ur content allowed', async () => {

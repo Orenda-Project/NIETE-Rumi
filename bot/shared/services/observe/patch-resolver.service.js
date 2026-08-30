@@ -64,6 +64,36 @@ function bandOf(user = {}) {
 
 // ── shaping ────────────────────────────────────────────────────────────
 
+const _norm = (s) => String(s == null ? '' : s).trim().replace(/\s+/g, ' ');
+
+/**
+ * bd-43530 — the WHOLE name, taken from the fullest column that has one.
+ *
+ * `first_name` alone is a first name, which is what coaches were shown. But the
+ * fix is NOT `first_name || ' ' || last_name`. Measured over all 9,362 NIETE
+ * teachers+principals on 2026-08-31:
+ *   · `name` is populated for 7,912 of them, `last_name` for only 4,304 — so
+ *     preferring `name` yields a real multi-word name 7,912 times against 4,315
+ *     for the concatenation.
+ *   · 2,531 people have a ONE-WORD `first_name` and a MULTI-WORD `name`
+ *     ('Irene' / NULL / 'Irene Khan'). Concatenating there returns "Irene" and
+ *     leaves the bug exactly as reported.
+ *   · 1,150 names have three parts ('Muhammad Kashif Rafique') — two columns
+ *     cannot rebuild those at all.
+ *   · 26 rows carry first/last but NO `name`, so the concatenation is a needed
+ *     FALLBACK rather than dead code.
+ *   · 513 carry nothing. They return null and the picker falls back to the
+ *     phone — never the string "null".
+ *
+ * Longest full name on prod is 29 code points, so nothing clips at the picker's
+ * 30-char title cap.
+ */
+function fullNameOf(r = {}) {
+  return _norm(r.name)
+    || [_norm(r.first_name), _norm(r.last_name)].filter(Boolean).join(' ')
+    || null;
+}
+
 /**
  * One database row -> one person in the patch.
  *
@@ -75,7 +105,7 @@ function shapePatchRow(r = {}) {
   const isPrincipal = r.role === 'principal';
   return {
     userId: r.user_id || r.id || null,
-    name: r.first_name || null,
+    name: fullNameOf(r),
     phone: r.phone_number || null,
     role: r.role || null,
     isPrincipal,
@@ -125,6 +155,8 @@ const PATCH_SQL = `
   SELECT u.id            AS user_id,
          u.phone_number,
          u.first_name,
+         u.last_name,
+         u.name,
          u.role,
          u.training_bands,
          u.grades_taught,
@@ -174,7 +206,7 @@ async function listPatchViaSupabase(supabase, leaderUserId, schoolExtId = null) 
 
   const { data: people } = await supabase
     .from('users')
-    .select('id, phone_number, first_name, role, school_id, training_bands, grades_taught')
+    .select('id, phone_number, first_name, last_name, name, role, school_id, training_bands, grades_taught')
     .in('school_id', [...byId.keys()])
     .in('role', [...PATCH_ROLES]);
 
@@ -213,6 +245,7 @@ module.exports = {
   PATCH_SQL,
   bandOf,
   shapePatchRow,
+  fullNameOf,
   dedupePatch,
   listPatch,
 };

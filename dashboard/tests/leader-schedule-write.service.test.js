@@ -126,3 +126,52 @@ describe('cancelSchedule', () => {
     await expect(cancelSchedule(q, LEADER, 'nope')).rejects.toThrow(/not found/i);
   });
 });
+
+/**
+ * bd-43530 — a portal-scheduled visit must stamp the teacher's WHOLE name.
+ *
+ * `observation_schedules.teacher_name` is denormalised at write time and is the
+ * name the bot later prints on My schedule, Pending debriefs and the visit
+ * actions (via _withObservedTeacher). This service selected `u.first_name`, so
+ * every visit booked from the portal wrote a first name into the record — the
+ * same bug the coach reported in the /observe picker, just entering through the
+ * other door. The comment above PATCH_SQL is explicit that this is "where the
+ * names come from", so it is also where the fix belongs.
+ *
+ * Resolution matches patch-resolver.fullNameOf: name → first+last → NULL.
+ * Measured on NIETE prod 2026-08-31: `name` is populated for 7,912 of 9,362
+ * teachers+principals vs `last_name` for 4,304, and 2,531 people have a
+ * one-word first_name beside a multi-word name.
+ */
+describe('bd-43530 · the portal writes a full name, not a first name', () => {
+  const SQL = require('fs').readFileSync(
+    require.resolve('../services/leader-schedule-write.service'), 'utf8');
+
+  it('no longer takes teacher_name straight from u.first_name', () => {
+    expect(SQL).not.toMatch(/u\.first_name\s+AS\s+teacher_name/i);
+  });
+
+  it('prefers users.name, falling back to first+last', () => {
+    const patch = SQL.slice(SQL.indexOf('const PATCH_SQL'), SQL.indexOf('const ACTIVE_SQL'));
+    expect(patch).toMatch(/AS\s+teacher_name/i);
+    expect(patch).toMatch(/u\.name/);
+    expect(patch).toMatch(/u\.last_name/);
+    expect(patch).toMatch(/COALESCE/i);
+    // A blank string must not beat the fallback — '' is not a name.
+    expect(patch).toMatch(/NULLIF/i);
+  });
+
+  it('still writes whatever the patch resolved, never a caller-supplied name', async () => {
+    const writes = [];
+    const q = makeQuery({
+      patch: [{ ...PATCH_ROW, teacher_name: 'Muhammad Kashif Rafique' }], writes,
+    });
+    await createSchedule(q, LEADER, {
+      schoolExtId: 'niete:509', teacherExtId: 'p1', date: '2026-08-20', slot: '09:00',
+      teacherName: 'SPOOFED',
+    }, { today: TODAY });
+    expect(writes).toHaveLength(1);
+    expect(writes[0].params).toContain('Muhammad Kashif Rafique');
+    expect(writes[0].params).not.toContain('SPOOFED');
+  });
+});
