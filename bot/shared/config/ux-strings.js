@@ -182,6 +182,28 @@ const UX_STRINGS = {
     ur: '{student} کی قرائت جانچتے ہیں۔ اس میں تقریباً 3 سے 5 منٹ لگیں گے۔ پہلے اقتباس کی زبان منتخب کریں۔',
   },
 
+  /**
+   * bd-hgwfo — the one door into the lesson-plan catalogue Flow. Every entry
+   * point (bare "lp", the lesson_plan intent in text and voice, /menu, the
+   * Oxbridge fallback tap) renders these three, via lp-browse-entry.service.
+   * Header 60 / button 20 in CODE POINTS — this is where the copy is capped,
+   * once, rather than in each caller's inline map (the bd-72dth drift).
+   */
+  lpBrowseHeader: {
+    en: '📘 Lesson Plans',
+    ur: '📘 سبق کے منصوبے',
+  },
+
+  lpBrowseBody: {
+    en: "Pick your class, subject and chapter, then the day's lesson — the plan lands in your chat.",
+    ur: 'اپنی جماعت، مضمون اور باب چنیں، پھر اُس دن کا سبق — منصوبہ آپ کی چیٹ میں آ جائے گا۔',
+  },
+
+  lpBrowseButton: {
+    en: 'Pick Class',
+    ur: 'جماعت چنیں',
+  },
+
   readingPickerHeader: {
     en: 'Select Language',
     ur: 'زبان منتخب کریں',
