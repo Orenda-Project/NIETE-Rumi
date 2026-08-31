@@ -64,3 +64,23 @@ describe('saveRoster — the endpoint half of the idempotency contract', () => {
     expect(res.screen).toBe('SAVED');
   });
 });
+
+describe('saveRoster — identity fields survive the review screen', () => {
+  beforeEach(() => { mockImport = jest.fn(); });
+
+  it('admission number and DOB are carried across by roll, like the parent phone', async () => {
+    mockImport.mockResolvedValue({ classId: 'c1', added: 1, skipped: 0 });
+    const state = {
+      ...STATE,
+      rendered: [{
+        roll_number: '1', student_name: 'Abu Bakar', father_name: 'Arshad Khan',
+        parent_phone: '923125185888', admission_no: '4818', date_of_birth: '2014-01-14',
+      }],
+    };
+    await endpoint.saveRoster(state, { chunk1: '1. Abu Bakar / Arshad Khan' });
+    const sent = mockImport.mock.calls[0][0].students[0];
+    expect(sent.admission_no).toBe('4818');
+    expect(sent.date_of_birth).toBe('2014-01-14');
+    expect(sent.parent_phone).toBe('923125185888');
+  });
+});

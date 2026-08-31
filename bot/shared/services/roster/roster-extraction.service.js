@@ -46,8 +46,9 @@ Return ONLY a JSON object, no commentary:
   "is_blank": true/false,
   "headcount": integer|null,
   "students": [
-    { "roll_number": string|null, "student_name": string|null,
-      "father_name": string|null, "parent_phone": string|null, "notes": string|null }
+    { "roll_number": string|null, "admission_no": string|null, "student_name": string|null,
+      "father_name": string|null, "parent_phone": string|null,
+      "date_of_birth": string|null, "notes": string|null }
   ],
   "problems": [ short strings describing anything that blocked or degraded extraction ]
 }
@@ -65,6 +66,16 @@ Rules:
   marker and no separate column, put the whole string in student_name, leave father_name null,
   and say so in that row's notes.
 - If a row is hidden behind a drawing or cut off, still emit the row with nulls and a note.
+- Registers usually print TWO number columns: "Admission/Register No." and "Serial No." The
+  SERIAL (roll) number is the small sequence that climbs from about 1 down the page. The
+  ADMISSION number is the school's permanent id for the child — larger (often 3-5 digits) and
+  NOT sequential. Some filled registers have them written under each other's printed headings —
+  classify each number by its VALUE AND PATTERN, never by the printed column title. If only one
+  number column is filled, decide by shape: a strictly-increasing run starting near 1 is
+  roll_number; anything else is admission_no. If the admission column is blank, admission_no is
+  null — never invent one.
+- date_of_birth only if the register has a Date of Birth column, exactly as written. Do NOT
+  confuse it with "Date of Admission", which some registers also print. Null when absent.
 - parent_phone only if the register actually has a contact-number column for that child. Never
   a school or teacher number, and never a guess.
 - Do NOT report the class, grade or section. The coach supplies those; a guessed grade is
@@ -132,6 +143,68 @@ function normalizeParentPhone(raw) {
 }
 
 /**
+ * The admission number is the school's own permanent id for the child — recognition
+ * data, never identity. Stripped of spaces; must carry at least one digit; short.
+ * Anything else (dashes-for-empty, prose, absurd lengths) becomes null.
+ */
+function normalizeAdmission(raw) {
+  if (raw === null || raw === undefined) return null;
+  const v = String(raw).replace(/\s+/g, '');
+  if (!v || !/\d/.test(v)) return null;
+  if (!/^[A-Za-z0-9/-]{1,16}$/.test(v)) return null;
+  return v;
+}
+
+/**
+ * Registers write DOB as dd-mm-yyyy (or with slashes, or a 2-digit year). Parsed
+ * to ISO; an implausible school age (outside 3-20 years) is discarded rather than
+ * stored — a wrong birth year poisons every age-standardised assessment later.
+ */
+function normalizeDob(raw) {
+  if (raw === null || raw === undefined) return null;
+  const v = String(raw).trim();
+  let y; let m; let d;
+  let hit = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (hit) {
+    y = Number(hit[1]); m = Number(hit[2]); d = Number(hit[3]);
+  } else {
+    hit = v.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/);
+    if (hit) {
+      d = Number(hit[1]); m = Number(hit[2]); y = Number(hit[3]);
+      if (y < 100) y += 2000;
+    }
+  }
+  if (!hit || !y || m < 1 || m > 12 || d < 1 || d > 31) return null;
+  const iso = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  const age = (Date.now() - new Date(`${iso}T00:00:00Z`).getTime()) / (365.25 * 24 * 3600 * 1000);
+  if (age < 3 || age > 20) return null;
+  return iso;
+}
+
+/**
+ * The swapped-column register, measured on a real page from the first live day:
+ * printed "Admission/Register No. | Serial No.", filled with rolls 01-08 under
+ * Admission and admission numbers 7831… under Serial. A literal reading abstains
+ * on every roll AND stores rolls as admission numbers. When most number-bearing
+ * rows show that shape — a 4+ digit "roll" beside a 1-3 digit "admission" —
+ * the two columns are swapped back wholesale before anything else runs.
+ */
+function maybeSwapNumberColumns(rows) {
+  const both = rows.filter((r) => {
+    const roll = String(r.roll_number == null ? '' : r.roll_number).trim();
+    const adm = String(r.admission_no == null ? '' : r.admission_no).trim();
+    return roll && adm;
+  });
+  if (both.length < 3) return rows;
+  const swappedShape = both.filter((r) => {
+    const rollDigits = String(r.roll_number).replace(/\D/g, '');
+    return rollDigits.length >= 4 && /^\d{1,3}$/.test(String(r.admission_no).trim());
+  });
+  if (swappedShape.length / both.length <= 0.6) return rows;
+  return rows.map((r) => ({ ...r, roll_number: r.admission_no, admission_no: r.roll_number }));
+}
+
+/**
  * The deterministic pass between the model's rows and the roster.
  *
  * A roll number survives only if it is a plain 1-3 digit number (students.roll_number
@@ -146,7 +219,7 @@ function sanitizeRows(rows) {
   const seen = new Set();
   let lastRoll = 0;
 
-  const students = (rows || []).map((r) => {
+  const students = maybeSwapNumberColumns(rows || []).map((r) => {
     const rawName = String(r.student_name || '').trim();
     const modelFather = String(r.father_name || '').trim() || null;
     const split = modelFather ? { student_name: rawName, father_name: modelFather } : splitCombinedName(rawName);
@@ -155,9 +228,9 @@ function sanitizeRows(rows) {
     let roll = null;
     if (/^\d{1,3}$/.test(rawRoll)) {
       const n = Number(rawRoll);
-      if (n > lastRoll && !seen.has(rawRoll)) {
-        roll = rawRoll;
-        seen.add(rawRoll);
+      if (n > lastRoll && !seen.has(String(n))) {
+        roll = String(n); // canonical form: '01' and '1' are the same roll
+        seen.add(roll);
         lastRoll = n;
       } else {
         abstained.push(split.student_name || rawRoll);
@@ -171,6 +244,8 @@ function sanitizeRows(rows) {
       student_name: split.student_name || null,
       father_name: split.father_name,
       parent_phone: normalizeParentPhone(r.parent_phone),
+      admission_no: normalizeAdmission(r.admission_no),
+      date_of_birth: normalizeDob(r.date_of_birth),
       notes: r.notes || null,
     };
   });
@@ -284,5 +359,6 @@ async function extractPages(pages, deps = {}) {
 module.exports = {
   extractPage, extractPages, visionModel, describeFailure,
   sanitizeRows, splitCombinedName, normalizeParentPhone,
+  normalizeAdmission, normalizeDob, maybeSwapNumberColumns,
   DEFAULT_MODEL, MAX_PAGES, PROMPT,
 };

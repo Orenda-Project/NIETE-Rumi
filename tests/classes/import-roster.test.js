@@ -185,3 +185,52 @@ describe('importRoster — the P0 duplication contract', () => {
     expect(table('students')).toHaveLength(0);
   });
 });
+
+/**
+ * Recognition, not fuzzy matching (Phase 1). The admission number the register
+ * prints is the school's own permanent id for the child. A re-scan next term —
+ * new class, new roll numbers — must find the SAME child, not mint a second one.
+ * Name is never how that happens: 18 same-name pairs were measured inside single
+ * reviewed registers.
+ */
+describe('importRoster — recognition by (school, admission number)', () => {
+  it('sends the school with the payload so the function can recognise', async () => {
+    await importIt();
+    const call = mockDb._rpcCalls.find((c) => c.name === 'roster_import_students');
+    expect(call.args.p_school_id).toBe(SCHOOL);
+  });
+
+  it('a known admission number is the SAME child — enrolled, not duplicated', async () => {
+    // She was scanned last term into another class, admission no 4818.
+    table('students').push({
+      id: 'existing-ayesha', student_name: 'Ayesha', father_name: null,
+      parent_phone: null, roll_number: 7, list_id: null, school_id: SCHOOL,
+      admission_no: '4818', status: 'active', is_active: true, import_run_id: 'old-run',
+    });
+    const res = await importIt({
+      runId: 'run-new-term',
+      students: [{ roll_number: '1', student_name: 'Aisha', father_name: 'Bilal', parent_phone: null, admission_no: '4818' }],
+    });
+    expect(res.added).toBe(1); // on THIS roster now
+    const rows = table('students').filter((s) => s.admission_no === '4818');
+    expect(rows).toHaveLength(1); // still one child
+    const enr = table('class_enrollments').filter((e) => e.student_id === 'existing-ayesha');
+    expect(enr).toHaveLength(1);
+  });
+
+  it('recognition fills blanks and never overwrites what the child already has', async () => {
+    table('students').push({
+      id: 'existing-k', student_name: 'Kinza', father_name: 'Tariq',
+      parent_phone: null, roll_number: null, list_id: null, school_id: SCHOOL,
+      admission_no: '5155', status: 'active', is_active: true, import_run_id: 'old-run',
+    });
+    await importIt({
+      runId: 'run-new-term-2',
+      students: [{ roll_number: '3', student_name: 'Kinza Bibi', father_name: 'Different Man', parent_phone: '923001112223', admission_no: '5155' }],
+    });
+    const k = table('students').find((s) => s.id === 'existing-k');
+    expect(k.father_name).toBe('Tariq');            // never overwritten
+    expect(k.parent_phone).toBe('923001112223');    // blank, so filled
+    expect(k.student_name).toBe('Kinza');           // the record keeps its name
+  });
+});

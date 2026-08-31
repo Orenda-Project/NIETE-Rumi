@@ -1084,6 +1084,8 @@ async function importRoster({
       student_name: String(s.student_name || '').trim(),
       father_name: (s.father_name && String(s.father_name).trim()) || null,
       parent_phone: (s.parent_phone && String(s.parent_phone).trim()) || null,
+      admission_no: (s.admission_no && String(s.admission_no).trim()) || null,
+      date_of_birth: (s.date_of_birth && String(s.date_of_birth).trim()) || null,
     }))
     .filter((s) => s.student_name);
 
@@ -1132,6 +1134,9 @@ async function importRoster({
     p_run_id: runId,
     p_enrolled_by: createdByUserId,
     p_students: incoming,
+    // Recognition scope: an incoming admission number is matched against active
+    // children of THIS school, so a re-scan next term finds the same child.
+    p_school_id: schoolId || null,
   });
 
   if (rpcErr) {
