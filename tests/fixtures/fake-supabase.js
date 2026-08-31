@@ -43,6 +43,12 @@ function createFakeSupabase(seed = {}, opts = {}) {
   /** Tables whose next operation should fail, e.g. { classes: 'boom' }. */
   const failures = { ...(opts.failOn || {}) };
 
+  /** RPCs whose next call should fail, e.g. { roster_import_students: { code: '55P03' } }. */
+  const rpcFailures = { ...(opts.failRpc || {}) };
+
+  /** Every rpc call, in order — so a test can assert the write was ONE call. */
+  const rpcCalls = [];
+
   /** Every write, in order — so a test can assert what was actually written. */
   const writes = [];
 
@@ -149,13 +155,179 @@ function createFakeSupabase(seed = {}, opts = {}) {
     return api;
   }
 
+  /**
+   * Faithful in-memory twin of bot/database/migrations/roster_import_students.sql.
+   * The SQL is the truth; this mirrors its OBSERVABLE contract (normalise, in-payload
+   * first-occurrence, run-id replay guard, committed-state dedupe by roll-else-name,
+   * bulk insert with provenance, list count maintenance) so behavioural tests stay
+   * meaningful. The lock itself is proven on the staging DB, not here.
+   */
+  function rosterImportStudents({ p_class_id, p_list_id, p_run_id, p_enrolled_by, p_students, p_school_id = null }) {
+    const students = table('students');
+    const enrollments = table('class_enrollments');
+
+    const named = [];
+    const seenRolls = new Set();
+    const seenNames = new Set();
+    for (const raw of p_students || []) {
+      const name = String(raw.student_name || '').trim();
+      if (!name) continue;
+      const rollStr = raw.roll_number === null || raw.roll_number === undefined ? '' : String(raw.roll_number).trim();
+      const roll = /^\d{1,3}$/.test(rollStr) ? Number(rollStr) : null;
+      const dupInPayload = roll !== null ? seenRolls.has(roll) : seenNames.has(name.toLowerCase());
+      if (roll !== null) seenRolls.add(roll); else seenNames.add(name.toLowerCase());
+      named.push(dupInPayload ? null : {
+        student_name: name,
+        father_name: (raw.father_name && String(raw.father_name).trim()) || null,
+        parent_phone: (raw.parent_phone && String(raw.parent_phone).trim()) || null,
+        admission_no: (raw.admission_no && String(raw.admission_no).trim()) || null,
+        date_of_birth: (raw.date_of_birth && String(raw.date_of_birth).trim()) || null,
+        roll,
+      });
+    }
+
+    if (students.some((s) => s.import_run_id === p_run_id)) {
+      return { added: 0, skipped: named.length, replay: true };
+    }
+
+    const active = enrollments.filter((e) => e.class_id === p_class_id && e.is_active);
+    const takenRolls = new Set(active.map((e) => e.roll_number).filter((r) => r !== null && r !== undefined));
+    const activeIds = new Set(active.map((e) => e.student_id));
+    const takenNames = new Set(students
+      .filter((s) => activeIds.has(s.id))
+      .map((s) => String(s.student_name || '').trim().toLowerCase()));
+
+    let added = 0;
+    for (const v of named) {
+      if (!v) continue;
+      const hit = v.roll !== null ? takenRolls.has(v.roll) : takenNames.has(v.student_name.toLowerCase());
+      if (hit) continue;
+
+      // RECOGNITION (mirrors the SQL): same school + same admission number is
+      // the SAME child — enrol her here, fill her blanks, never duplicate or
+      // overwrite.
+      if (p_school_id && v.admission_no) {
+        const known = students.find((s) => s.school_id === p_school_id
+          && s.admission_no === v.admission_no
+          && (s.status || 'active') === 'active' && s.is_active !== false);
+        if (known) {
+          const enrolledHere = enrollments.some((e) => e.class_id === p_class_id
+            && e.student_id === known.id && e.is_active);
+          if (!enrolledHere) {
+            if (!known.father_name && v.father_name) known.father_name = v.father_name;
+            if (!known.parent_phone && v.parent_phone) known.parent_phone = v.parent_phone;
+            if (!known.date_of_birth && v.date_of_birth) known.date_of_birth = v.date_of_birth;
+            enrollments.push({
+              id: nextId('class_enrollments'), class_id: p_class_id, student_id: known.id,
+              roll_number: v.roll, enrolled_on: new Date().toISOString().slice(0, 10), is_active: true,
+            });
+            if (v.roll !== null) takenRolls.add(v.roll); else takenNames.add(v.student_name.toLowerCase());
+            added += 1;
+          }
+          continue;
+        }
+      }
+
+      const id = nextId('students');
+      students.push({
+        id, student_name: v.student_name, father_name: v.father_name,
+        parent_phone: v.parent_phone, roll_number: v.roll, list_id: p_list_id,
+        enrolled_by_user_id: p_enrolled_by, import_run_id: p_run_id, is_active: true,
+        school_id: p_school_id, admission_no: v.admission_no,
+        date_of_birth: v.date_of_birth, status: 'active',
+      });
+      enrollments.push({
+        id: nextId('class_enrollments'), class_id: p_class_id, student_id: id,
+        roll_number: v.roll, enrolled_on: new Date().toISOString().slice(0, 10), is_active: true,
+      });
+      if (v.roll !== null) takenRolls.add(v.roll); else takenNames.add(v.student_name.toLowerCase());
+      added += 1;
+    }
+
+    if (p_list_id) {
+      const list = table('student_lists').find((l) => l.id === p_list_id);
+      if (list) list.student_count = students.filter((s) => s.list_id === p_list_id && s.is_active).length;
+    }
+    return { added, skipped: named.length - added, replay: false };
+  }
+
+  /** In-memory twin of roster_apply_edits.sql — same observable contract. */
+  function rosterApplyEdits({ p_class_id, p_run_id, p_edited_by, p_updates = [], p_moves = [], p_adds = [], p_removes = [] }) {
+    const students = table('students');
+    const enrollments = table('class_enrollments');
+    if (students.some((s) => s.import_run_id === p_run_id)) {
+      return { updated: 0, moved: 0, added: 0, removed: 0, replay: true };
+    }
+    const enrolledHere = (id) => enrollments.some((e) => e.class_id === p_class_id && e.student_id === id && e.is_active);
+    let updated = 0;
+    for (const u of p_updates) {
+      const s = students.find((x) => x.id === u.id);
+      if (s && enrolledHere(u.id)) {
+        if (u.student_name) s.student_name = String(u.student_name).trim();
+        s.father_name = (u.father_name && String(u.father_name).trim()) || null;
+        updated += 1;
+      }
+    }
+    let moved = 0;
+    for (const m of p_moves) {
+      const roll = /^\d{1,3}$/.test(String(m.roll || '')) ? Number(m.roll) : null;
+      const e = enrollments.find((x) => x.class_id === p_class_id && x.student_id === m.id && x.is_active);
+      const taken = roll !== null && enrollments.some((x) => x.class_id === p_class_id && x.is_active && x.roll_number === roll && x.student_id !== m.id);
+      if (e && roll !== null && !taken) {
+        e.roll_number = roll;
+        const s = students.find((x) => x.id === m.id);
+        if (s) s.roll_number = roll;
+        moved += 1;
+      }
+    }
+    let added = 0;
+    for (const a of p_adds) {
+      const name = String(a.student_name || '').trim();
+      if (!name) continue;
+      const roll = /^\d{1,3}$/.test(String(a.roll || '')) ? Number(a.roll) : null;
+      if (roll !== null && enrollments.some((x) => x.class_id === p_class_id && x.is_active && x.roll_number === roll)) continue;
+      const id = nextId('students');
+      students.push({ id, student_name: name, father_name: a.father_name || null, roll_number: roll,
+        enrolled_by_user_id: p_edited_by, import_run_id: p_run_id, is_active: true, status: 'active' });
+      enrollments.push({ id: nextId('class_enrollments'), class_id: p_class_id, student_id: id,
+        roll_number: roll, enrolled_on: new Date().toISOString().slice(0, 10), is_active: true });
+      added += 1;
+    }
+    let removed = 0;
+    for (const r of p_removes) {
+      const e = enrollments.find((x) => x.class_id === p_class_id && x.student_id === r.id && x.is_active);
+      if (e) {
+        e.is_active = false;
+        e.left_on = new Date().toISOString().slice(0, 10);
+        removed += 1;
+        const s = students.find((x) => x.id === r.id);
+        if (s && !enrollments.some((x) => x.student_id === r.id && x.is_active)) {
+          s.is_active = false; s.status = 'inactive';
+        }
+      }
+    }
+    return { updated, moved, added, removed, replay: false };
+  }
+
   return {
     from: (name) => builder(name),
+    async rpc(name, args) {
+      rpcCalls.push({ name, args });
+      if (rpcFailures[name]) return { data: null, error: rpcFailures[name] };
+      if (name === 'roster_import_students') return { data: rosterImportStudents(args || {}), error: null };
+      if (name === 'roster_apply_edits') return { data: rosterApplyEdits(args || {}), error: null };
+      return { data: null, error: { code: 'PGRST202', message: `unknown rpc ${name}` } };
+    },
     /** Test helpers — not part of the Supabase surface. */
     _tables: tables,
     _writes: writes,
+    _rpcCalls: rpcCalls,
     _failOn: (t, msg) => { failures[t] = msg; },
-    _clearFailures: () => { for (const k of Object.keys(failures)) delete failures[k]; },
+    _failRpc: (name, errObj) => { rpcFailures[name] = errObj; },
+    _clearFailures: () => {
+      for (const k of Object.keys(failures)) delete failures[k];
+      for (const k of Object.keys(rpcFailures)) delete rpcFailures[k];
+    },
   };
 }
 

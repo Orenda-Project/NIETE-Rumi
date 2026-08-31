@@ -1051,20 +1051,31 @@ async function addStudents({ classId, teacherUserId, rawText } = {}) {
  * teacher named it falls back to the coach: the class and the children are still
  * written and nothing is lost, they are simply not in anyone's attendance yet.
  *
- * IDEMPOTENT, because someone will re-scan the same page. A child already on the
- * roster at the same roll number — or by name, where the register carried no
- * readable roll — is skipped, not duplicated.
+ * IDEMPOTENT AND SERIALIZED — IN THE DATABASE, NOT HERE. The first live day
+ * (2026-08-31) proved the JS version wrong: the save took 25-38s (2N sequential
+ * round-trips), coaches pressed Save again, both passes read the class before
+ * either had committed, and 460 children were written twice. The student write
+ * is now ONE call to roster_import_students() (bot/database/migrations/), which
+ * takes a per-class advisory lock, refuses to apply the same runId twice, and
+ * does the whole insert as two bulk statements inside one transaction. A re-scan
+ * of the same page is still deduped there — on roll where the register gave one,
+ * on name where it did not.
  *
  * @param {object} p
+ * @param {string} p.runId  minted at PHOTOS, stable across every Save press of
+ *                          one scan — the idempotency key. Required.
  * @param {Array<{roll_number: string|null, student_name: string,
  *                father_name?: string|null, parent_phone?: string|null}>} p.students
- * @returns {Promise<{classId?, added?, skipped?, mirrored?, classTeacherAssigned?, error?}>}
+ * @returns {Promise<{classId?, added?, skipped?, replay?, mirrored?, classTeacherAssigned?, error?}>}
  */
 async function importRoster({
-  schoolId, gradeCode, section, shiftCode = 'morning', sessionCode,
+  runId, schoolId, gradeCode, section, shiftCode = 'morning', sessionCode,
   classTeacherUserId = null, createdByUserId, students = [],
 } = {}) {
   if (!createdByUserId) return { error: 'missing_teacher' };
+  // No run id, no write: an unidentifiable save cannot be made idempotent, and
+  // a non-idempotent save is exactly the P0 this function exists to end.
+  if (!runId) return { error: 'missing_run' };
 
   const incoming = (students || [])
     .map((s) => ({
@@ -1073,6 +1084,8 @@ async function importRoster({
       student_name: String(s.student_name || '').trim(),
       father_name: (s.father_name && String(s.father_name).trim()) || null,
       parent_phone: (s.parent_phone && String(s.parent_phone).trim()) || null,
+      admission_no: (s.admission_no && String(s.admission_no).trim()) || null,
+      date_of_birth: (s.date_of_birth && String(s.date_of_birth).trim()) || null,
     }))
     .filter((s) => s.student_name);
 
@@ -1113,90 +1126,90 @@ async function importRoster({
     .eq('is_active', true);
   const listId = (mirrors || [])[0] ? mirrors[0].id : null;
 
-  // Who is already here, so a re-scan is a no-op. Matched on roll where the
-  // register gave us one, and on name where it did not.
-  const { data: existingEnrollments } = await supabase
-    .from('class_enrollments')
-    .select('id, student_id, roll_number, is_active')
-    .eq('class_id', classId)
-    .eq('is_active', true);
+  // The student write itself: one call, one transaction, serialized per class,
+  // idempotent per run. All the dedupe lives in the function (see the migration).
+  const { data: result, error: rpcErr } = await supabase.rpc('roster_import_students', {
+    p_class_id: classId,
+    p_list_id: listId,
+    p_run_id: runId,
+    p_enrolled_by: createdByUserId,
+    p_students: incoming,
+    // Recognition scope: an incoming admission number is matched against active
+    // children of THIS school, so a re-scan next term finds the same child.
+    p_school_id: schoolId || null,
+  });
 
-  const takenRolls = new Set();
-  const studentIds = [];
-  for (const e of existingEnrollments || []) {
-    if (e.roll_number !== null && e.roll_number !== undefined) takenRolls.add(Number(e.roll_number));
-    studentIds.push(e.student_id);
+  if (rpcErr) {
+    // 55P03 = lock_not_available: another save of THIS class is mid-flight.
+    // Not a failure — someone is doing the work; the coach gets honest copy.
+    const locked = rpcErr.code === '55P03' || /lock timeout/i.test(rpcErr.message || '');
+    logToFile('⚠️ ClassService.importRoster: bulk write refused', {
+      classId, runId, code: rpcErr.code, error: rpcErr.message, locked,
+    }, 'error');
+    return {
+      classId, added: 0, skipped: 0, mirrored: made.mirrored, classTeacherAssigned,
+      error: locked ? 'save_in_progress' : 'insert_failed',
+    };
   }
 
-  const takenNames = new Set();
-  if (studentIds.length) {
-    const { data: kids } = await supabase
-      .from('students').select('id, student_name').in('id', studentIds);
-    for (const k of kids || []) takenNames.add(String(k.student_name || '').trim().toLowerCase());
-  }
-
-  let added = 0;
-  let skipped = 0;
-
-  for (const s of incoming) {
-    // students.roll_number is INTEGER. Anything that is not a plain number reached
-    // here as null already (roster-extraction sanitises it) — this is the belt.
-    const roll = s.roll_number !== null && /^\d{1,3}$/.test(s.roll_number)
-      ? Number(s.roll_number) : null;
-    const nameKey = s.student_name.toLowerCase();
-
-    if (roll !== null ? takenRolls.has(roll) : takenNames.has(nameKey)) {
-      skipped += 1;
-      continue;
-    }
-
-    const { data: student, error: insErr } = await supabase
-      .from('students')
-      .insert({
-        student_name: s.student_name,
-        father_name: s.father_name,
-        parent_phone: s.parent_phone,
-        roll_number: roll,
-        list_id: listId,
-        enrolled_by_user_id: createdByUserId,
-        is_active: true,
-      })
-      .select()
-      .single();
-
-    if (insErr || !student) {
-      logToFile('⚠️ ClassService.importRoster: stopped part-way', {
-        classId, added, error: insErr && insErr.message,
-      }, 'error');
-      // Report what DID land. The coach needs to know what is already saved before
-      // she re-scans, or she will end up with the class written twice.
-      return { classId, added, skipped, mirrored: made.mirrored, classTeacherAssigned, error: 'insert_failed' };
-    }
-
-    const enrolled = await enrollStudent({
-      classId, studentId: student.id, rollNumber: roll,
-      enrolledOn: new Date().toISOString().slice(0, 10),
-    });
-    if (enrolled.error) {
-      logToFile('⚠️ ClassService.importRoster: enrolment failed after the student row was written', {
-        classId, studentId: student.id, error: enrolled.error,
-      }, 'error');
-      return { classId, added, skipped, mirrored: made.mirrored, classTeacherAssigned, error: enrolled.error };
-    }
-
-    if (roll !== null) takenRolls.add(roll); else takenNames.add(nameKey);
-    added += 1;
-  }
-
+  const out = result || {};
   return {
-    classId, added, skipped, created: made.created,
+    classId,
+    added: Number(out.added) || 0,
+    skipped: Number(out.skipped) || 0,
+    replay: out.replay === true,
+    created: made.created,
     mirrored: made.mirrored, mirrorOwnerUserId: mirrorOwner, classTeacherAssigned,
   };
+}
+
+
+// ---------------------------------------------------------------------------
+// applyRosterEdits — a coach corrects a saved roster (the edit half of the
+// one-writer rule)
+// ---------------------------------------------------------------------------
+
+/**
+ * Apply a reconciled edit diff to one class's roster, as ONE database call.
+ * Same guarantees as importRoster and the same per-class lock, so an edit and
+ * an import can never interleave on one class. See roster_apply_edits.sql.
+ *
+ * @param {object} p
+ * @param {string} p.runId  minted when the editor opened — the idempotency key
+ * @returns {Promise<{updated?, moved?, added?, removed?, replay?, error?}>}
+ */
+async function applyRosterEdits({
+  classId, runId, editedByUserId,
+  updates = [], moves = [], adds = [], removes = [],
+} = {}) {
+  if (!classId) return { error: 'missing_class' };
+  if (!editedByUserId) return { error: 'missing_teacher' };
+  if (!runId) return { error: 'missing_run' };
+
+  const { data: result, error: rpcErr } = await supabase.rpc('roster_apply_edits', {
+    p_class_id: classId,
+    p_run_id: runId,
+    p_edited_by: editedByUserId,
+    p_updates: updates,
+    p_moves: moves,
+    p_adds: adds,
+    p_removes: removes,
+  });
+
+  if (rpcErr) {
+    const locked = rpcErr.code === '55P03' || /lock timeout/i.test(rpcErr.message || '');
+    logToFile('⚠️ ClassService.applyRosterEdits: refused', {
+      classId, runId, code: rpcErr.code, error: rpcErr.message, locked,
+    }, 'error');
+    return { error: locked ? 'save_in_progress' : 'insert_failed' };
+  }
+  return result || {};
 }
 
 module.exports = {
   createClass,
   importRoster,
+  applyRosterEdits,
   assignTeacher,
   updateAssignment,
   leaveClass,

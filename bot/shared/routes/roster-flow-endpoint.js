@@ -34,7 +34,7 @@ const { logToFile } = require('../utils/logger');
 const { isSchoolLeader, LEADER_ROLES } = require('../services/observe/observe-gate');
 const { decryptMedia } = require('../services/roster/roster-media');
 const { extractPages } = require('../services/roster/roster-extraction.service');
-const { toChunks, parseChunk, reconcile, renderList, MAX_BOXES } = require('../services/roster/roster-lines');
+const { toChunks, parseChunk, reconcile, pairMoves, renderList, MAX_BOXES } = require('../services/roster/roster-lines');
 const rosterStorage = require('../services/roster/roster-storage');
 const ClassService = require('../services/classes/class.service');
 
@@ -241,13 +241,31 @@ async function handleRosterDataExchange(userId, screen, screenData = {}) {
     const { data: school } = await supabase
       .from('schools').select('name').eq('id', state.schoolId).maybeSingle();
     state.schoolName = (school && school.name) || 'This school';
-    return {
-      screen: 'PHOTOS',
-      data: {
-        school_name: state.schoolName.slice(0, 80),
-        hint: 'One photo per register page, for ONE class. Get the whole name column in frame.',
-      },
-    };
+
+    // A school she has already scanned shows its status first — what is done, what
+    // of grades 1-5 is missing, and the rosters she can open. A school with nothing
+    // scanned keeps the old zero-friction path straight to the camera.
+    const status = await schoolStatus(state).catch((e) => {
+      logToFile('[roster] status build failed — falling through to camera', { error: e.message }, 'error');
+      return null;
+    });
+    if (status) return status;
+    return toPhotosResponse(state);
+  }
+
+  if (screen === 'SCHOOL_STATUS') {
+    const action = String(screenData.next_action || '');
+    if (action === 'scan') return toPhotosResponse(state);
+    if (action.startsWith('open:')) return openRosterView(state, action.slice(5));
+    return stop('Nothing was chosen. Close this and send /roster again.');
+  }
+
+  if (screen === 'ROSTER_VIEW') {
+    return openRosterEditor(state);
+  }
+
+  if (screen === 'ROSTER_EDIT') {
+    return saveRosterEdits(state, screenData);
   }
 
   // The search filters the coach's OWN schools — the ones she may build a roster
@@ -326,6 +344,256 @@ function classLabelOf(state) {
   return `Grade ${String(state.gradeCode || '').replace('grade_', '')}${state.section ? `-${state.section}` : ''}`;
 }
 
+function toPhotosResponse(state) {
+  return {
+    screen: 'PHOTOS',
+    data: {
+      school_name: String(state.schoolName || 'This school').slice(0, 80),
+      hint: 'One photo per register page, for ONE class. Get the whole name column in frame.',
+    },
+  };
+}
+
+/**
+ * Which grades of 1-5 does this school have rosters for? The unit is the GRADE
+ * (any section with children counts), because nothing tells us how many sections
+ * a school runs — the status list shows each scanned class, so a coach who knows
+ * there is a 1-B can see it missing herself.
+ */
+async function gradeCoverage(schoolId) {
+  const { data: classes } = await supabase
+    .from('classes').select('id, grade_code, section, is_active')
+    .eq('school_id', schoolId).eq('is_active', true);
+  const ids = (classes || []).map((c) => c.id);
+  const counts = new Map();
+  if (ids.length) {
+    const { data: enr } = await supabase
+      .from('class_enrollments').select('class_id')
+      .in('class_id', ids).eq('is_active', true);
+    for (const e of enr || []) counts.set(e.class_id, (counts.get(e.class_id) || 0) + 1);
+  }
+  const { data: grades } = await supabase
+    .from('grade_levels').select('code, ordinal').eq('band', 'primary').order('ordinal');
+  const ordinalOf = new Map((grades || []).map((g) => [g.code, g.ordinal]));
+
+  const done = (classes || [])
+    .filter((c) => (counts.get(c.id) || 0) > 0)
+    .map((c) => ({
+      id: c.id,
+      ordinal: ordinalOf.get(c.grade_code) || null,
+      label: `Grade ${ordinalOf.get(c.grade_code) || '?'}${c.section ? `-${c.section}` : ''}`,
+      count: counts.get(c.id) || 0,
+    }))
+    .sort((a, b) => (a.ordinal || 99) - (b.ordinal || 99) || a.label.localeCompare(b.label));
+
+  const doneOrdinals = new Set(done.map((c) => c.ordinal).filter((o) => o >= 1 && o <= 5));
+  const missingOrdinals = [1, 2, 3, 4, 5].filter((o) => !doneOrdinals.has(o));
+  return { done, doneOrdinals, missingOrdinals };
+}
+
+/** The completion nudge, appended to every confirmation. Best-effort by design. */
+async function coverageLine(schoolId) {
+  try {
+    const cov = await gradeCoverage(schoolId);
+    if (cov.doneOrdinals.size >= 5) {
+      return '\n\nAll 5 grades are scanned at this school — it is complete. Thank you.';
+    }
+    const missing = cov.missingOrdinals.map((o) => `Grade ${o}`).join(', ');
+    return `\n\nNow ${cov.doneOrdinals.size} of 5 grades scanned at this school — ${missing} remaining.`;
+  } catch (e) {
+    return '';
+  }
+}
+
+async function schoolStatus(state) {
+  const cov = await gradeCoverage(state.schoolId);
+  if (!cov.done.length) return null;
+  state.statusClasses = cov.done;
+
+  const lines = [`Scanned ${cov.doneOrdinals.size} of 5 grades at this school.`, ''];
+  cov.done.forEach((c) => lines.push(`\u2714 ${c.label} — ${c.count} ${c.count === 1 ? 'child' : 'children'}`));
+  cov.missingOrdinals.forEach((o) => lines.push(`\u2022 Grade ${o} — not yet scanned`));
+
+  return {
+    screen: 'SCHOOL_STATUS',
+    data: {
+      heading: String(state.schoolName).slice(0, 80),
+      coverage_text: lines.join('\n').slice(0, 4000),
+      nudge: 'A school is complete when every class of grades 1-5 has a roster.',
+      actions: [
+        opt('scan', 'Scan a new register'),
+        ...cov.done.map((c) => opt(`open:${c.id}`, `${c.label} \u00b7 ${c.count} children`.slice(0, 30))),
+      ],
+    },
+  };
+}
+
+async function classLabelFor(state, classId) {
+  const hit = (state.statusClasses || []).find((c) => c.id === classId);
+  if (hit) return hit.label;
+  const { data: cls } = await supabase
+    .from('classes').select('grade_code, section').eq('id', classId).maybeSingle();
+  if (!cls) return 'This class';
+  const { data: grades } = await supabase
+    .from('grade_levels').select('code, ordinal').eq('band', 'primary').order('ordinal');
+  const ord = new Map((grades || []).map((g) => [g.code, g.ordinal])).get(cls.grade_code);
+  return `Grade ${ord || '?'}${cls.section ? `-${cls.section}` : ''}`;
+}
+
+/** A saved roster, read back from the database — identities kept for the editor. */
+async function openRosterView(state, classId) {
+  const { data: enr } = await supabase
+    .from('class_enrollments').select('student_id, roll_number')
+    .eq('class_id', classId).eq('is_active', true);
+  if (!enr || !enr.length) return stop('That roster is empty now. Close this and send /roster again.');
+
+  const { data: kids } = await supabase
+    .from('students').select('id, student_name, father_name')
+    .in('id', enr.map((e) => e.student_id));
+  const byId = new Map((kids || []).map((k) => [k.id, k]));
+
+  const rows = enr
+    .map((e) => {
+      const k = byId.get(e.student_id) || {};
+      return {
+        id: e.student_id,
+        roll_number: e.roll_number === null || e.roll_number === undefined ? null : e.roll_number,
+        student_name: k.student_name || '',
+        father_name: k.father_name || null,
+      };
+    })
+    .filter((r) => r.student_name)
+    .sort((a, b) => ((a.roll_number === null ? 999 : a.roll_number) - (b.roll_number === null ? 999 : b.roll_number))
+      || a.student_name.localeCompare(b.student_name));
+
+  const label = await classLabelFor(state, classId);
+  state.viewClass = { id: classId, label };
+  state.viewRoster = rows;
+
+  return {
+    screen: 'ROSTER_VIEW',
+    data: {
+      heading: `${label} \u00b7 ${rows.length} ${rows.length === 1 ? 'child' : 'children'}`,
+      note: 'Saved from a scanned register.',
+      roster_text: renderList(rows),
+    },
+  };
+}
+
+function openRosterEditor(state) {
+  if (!state.viewRoster || !state.viewClass) {
+    return stop('That session has expired. Close this and send /roster again.');
+  }
+  state.editRunId = rosterStorage.newRunId();
+
+  const { chunks, labels, helpers, visible, overflow } = toChunks(state.viewRoster);
+  const notes = [`${state.viewClass.label}. Fix a name or roll, add a missing child on a new line, delete a line to remove.`];
+  if (overflow) notes.push(`${overflow} more are on this roster than fit here.`);
+
+  const data = {
+    heading: `${state.viewRoster.length} children on this roster`,
+    note: notes.join(' ').slice(0, 400),
+    roster_text: renderList(state.viewRoster),
+  };
+  for (let i = 0; i < MAX_BOXES; i += 1) {
+    data[`chunk${i + 1}`] = chunks[i];
+    data[`label${i + 1}`] = labels[i];
+    data[`help${i + 1}`] = helpers[i];
+    if (i > 0) data[`show${i + 1}`] = visible[i];
+  }
+  return { screen: 'ROSTER_EDIT', data };
+}
+
+async function saveRosterEdits(state, screenData) {
+  if (!state.viewRoster || !state.viewClass || !state.editRunId) {
+    return stop('That session has expired. Close this and send /roster again.');
+  }
+  const edits = [];
+  for (let i = 1; i <= MAX_BOXES; i += 1) {
+    edits.push(...parseChunk(screenData[`chunk${i}`]));
+  }
+  const diff = pairMoves(reconcile(state.viewRoster, edits));
+  const label = state.viewClass.label;
+  const total = diff.updated.length + diff.moved.length + diff.added.length + diff.removed.length;
+  const coverage = await coverageLine(state.schoolId);
+
+  if (!total) {
+    return {
+      screen: 'SAVED',
+      data: {
+        heading: `${label} unchanged`,
+        body: `Nothing was changed — ${state.viewRoster.length} children on the roster, as before.${coverage}`,
+        roster_action: 'unchanged',
+        roster_class: label,
+        roster_count: String(state.viewRoster.length),
+      },
+    };
+  }
+
+  const res = await ClassService.applyRosterEdits({
+    classId: state.viewClass.id,
+    runId: state.editRunId,
+    editedByUserId: state.user.id,
+    updates: diff.updated,
+    moves: diff.moved,
+    adds: diff.added,
+    removes: diff.removed.map((r) => ({ id: r.id })),
+  });
+  if (res.error) {
+    logToFile('[roster] edit failed', { runId: state.editRunId, classId: state.viewClass.id, error: res.error }, 'error');
+    return stop(`${IMPORT_FAILURES[res.error] || 'The changes could not be saved.'} Nothing was changed.`);
+  }
+
+  logToFile('[roster] edited', {
+    runId: state.editRunId,
+    classId: state.viewClass.id,
+    updated: diff.updated.length,
+    moved: diff.moved.length,
+    added: diff.added.length,
+    removed: diff.removed.length,
+    replay: res.replay === true,
+  });
+  await rosterStorage.putManifest({
+    schoolId: state.schoolId,
+    runId: state.editRunId,
+    manifest: {
+      action: 'edit',
+      run_id: state.editRunId,
+      saved_at: new Date().toISOString(),
+      school_id: state.schoolId,
+      school_name: state.schoolName,
+      class_id: state.viewClass.id,
+      class_label: label,
+      edited_by_user_id: state.user.id,
+      diff: {
+        updated: diff.updated,
+        moved: diff.moved,
+        added: diff.added,
+        removed: diff.removed.map((r) => r.id),
+      },
+      result: res,
+    },
+  });
+
+  const parts = [];
+  if (diff.updated.length) parts.push(`${diff.updated.length} corrected`);
+  if (diff.moved.length) parts.push(`${diff.moved.length} roll ${diff.moved.length === 1 ? 'number' : 'numbers'} fixed`);
+  if (diff.added.length) parts.push(`${diff.added.length} added`);
+  if (diff.removed.length) parts.push(`${diff.removed.length} removed`);
+  const now = state.viewRoster.length + diff.added.length - diff.removed.length;
+
+  return {
+    screen: 'SAVED',
+    data: {
+      heading: `${label} updated`,
+      body: `${parts.join(', ')}. ${now} children on the roster.${coverage}`,
+      roster_action: 'edited',
+      roster_class: label,
+      roster_count: String(now),
+    },
+  };
+}
+
 async function waitThenReview(state) {
   const deadline = Date.now() + CLASS_WAIT_MS;
   while (!state.extraction && Date.now() < deadline) {
@@ -395,24 +663,31 @@ async function saveRoster(state, screenData) {
   }
   const diff = reconcile(state.rendered || [], edits);
 
-  // The parent phone is not on the review screen — it is not the coach's job to
-  // check a number she cannot see on the page from here — so it is carried across
-  // from what was extracted, matched on the line the coach left in place.
-  const phoneByKey = new Map();
+  // Fields that are not ON the review screen — the parent phone, the admission
+  // number, the date of birth — are not the coach's job to re-check from here, so
+  // they are carried across from what was extracted, matched on the line the
+  // coach left in place (by roll; a line without a roll carries nothing).
+  const extractedByRoll = new Map();
   (state.rendered || []).forEach((s) => {
-    if (s.parent_phone && s.roll_number) phoneByKey.set(String(s.roll_number), s.parent_phone);
+    if (s.roll_number) extractedByRoll.set(String(s.roll_number), s);
   });
 
-  const finalList = edits.map((e) => ({
-    roll_number: e.roll,
-    student_name: e.student_name,
-    father_name: e.father_name,
-    parent_phone: e.roll ? (phoneByKey.get(String(e.roll)) || null) : null,
-  })).filter((s) => s.student_name).slice(0, MAX_STUDENTS);
+  const finalList = edits.map((e) => {
+    const x = e.roll ? extractedByRoll.get(String(e.roll)) : null;
+    return {
+      roll_number: e.roll,
+      student_name: e.student_name,
+      father_name: e.father_name,
+      parent_phone: (x && x.parent_phone) || null,
+      admission_no: (x && x.admission_no) || null,
+      date_of_birth: (x && x.date_of_birth) || null,
+    };
+  }).filter((s) => s.student_name).slice(0, MAX_STUDENTS);
 
   if (!finalList.length) return stop('The list came back empty, so nothing was saved.');
 
   const saved = await ClassService.importRoster({
+    runId: state.runId,
     schoolId: state.schoolId,
     gradeCode: state.gradeCode,
     section: state.section,
@@ -479,6 +754,8 @@ async function saveRoster(state, screenData) {
     ? ' The class teacher can see them in her attendance now.'
     : '';
   const skippedLine = saved.skipped ? ` ${saved.skipped} were already there.` : '';
+  // The completion nudge: every save says how far this school is from all of 1-5.
+  const coverage = await coverageLine(state.schoolId);
   // What the coach cares about is how many children are on the class roster now,
   // not how many rows this particular submit inserted — a re-scan that adds nobody
   // is a successful confirmation, not "0 students".
@@ -488,7 +765,7 @@ async function saveRoster(state, screenData) {
     screen: 'SAVED',
     data: {
       heading: `${classLabel} saved`,
-      body: `${onRoster} students are on the roster.${skippedLine}${teacherLine}`,
+      body: `${onRoster} students are on the roster.${skippedLine}${teacherLine}${coverage}`,
       // FLAT, not nested. The first version put these inside an
       // extension_message_response whose `properties` were declared `{}`; Meta
       // dropped the whole sub-object, flow-type-detector answered 'unknown', and a
@@ -502,6 +779,7 @@ async function saveRoster(state, screenData) {
 
 /** ClassService returns error VALUES; these are the sentences for the ones a coach can see. */
 const IMPORT_FAILURES = {
+  save_in_progress: 'This roster is already being saved — give it a minute, then check the class before scanning again.',
   unknown_grade: 'That grade is not one this school uses.',
   unknown_section: 'That section is not set up for this school.',
   unknown_session: 'The school year is not set up yet.',
@@ -513,6 +791,8 @@ const IMPORT_FAILURES = {
 module.exports = {
   handleRosterInit,
   handleRosterDataExchange,
+  // Exported for tests — the save is where the idempotency contract lives.
+  saveRoster,
   teachersFor,
   MAX_STUDENTS,
   CLASS_WAIT_MS,

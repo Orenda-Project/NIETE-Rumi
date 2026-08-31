@@ -248,7 +248,9 @@ function reconcile(originals, edits) {
     }
 
     if (!hit) {
-      added.push({ student_name: e.student_name, father_name: e.father_name });
+      // Keep the roll the coach typed: in edit mode an add becomes a database
+      // row, and a roll-less add cannot be told apart from a move (see pairMoves).
+      added.push({ roll: e.roll, student_name: e.student_name, father_name: e.father_name });
       continue;
     }
     if (!same(hit.student_name, e.student_name) || !same(hit.father_name, e.father_name)) {
@@ -261,6 +263,36 @@ function reconcile(originals, edits) {
   unnumbered.forEach((s) => { if (!seen.has(s)) removed.push(s); });
 
   return { updated, added, removed };
+}
+
+/**
+ * A roll correction must stay the SAME child. reconcile() keys on the roll, so
+ * "Ayesha moves from roll 1 to roll 7" comes out as removed(Ayesha@1) +
+ * added(Ayesha@7) — and if those became database actions, the child would be
+ * closed and re-created: her identity split, her attendance stranded.
+ *
+ * This pairs an added row with a removed row bearing the SAME name (and, when
+ * both carry one, the same father) into a move of the existing child. The name
+ * match is safe here precisely because it is within one human-confirmed edit of
+ * one class — never the global fuzzy matching the architecture forbids.
+ */
+function pairMoves(diff) {
+  const norm = (v) => String(v || '').trim().toLowerCase();
+  const moved = [];
+  const added = [];
+  const removedLeft = [...(diff.removed || [])];
+
+  for (const a of diff.added || []) {
+    const i = removedLeft.findIndex((r) => norm(r.student_name) === norm(a.student_name)
+      && (!r.father_name || !a.father_name || norm(r.father_name) === norm(a.father_name)));
+    if (i >= 0 && a.roll !== null && a.roll !== undefined) {
+      moved.push({ id: removedLeft[i].id, roll: a.roll });
+      removedLeft.splice(i, 1);
+    } else {
+      added.push(a);
+    }
+  }
+  return { updated: diff.updated || [], moved, added, removed: removedLeft };
 }
 
 module.exports = {
@@ -277,4 +309,5 @@ module.exports = {
   toChunks,
   parseChunk,
   reconcile,
+  pairMoves,
 };
