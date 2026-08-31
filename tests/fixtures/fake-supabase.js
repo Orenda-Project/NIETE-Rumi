@@ -162,7 +162,7 @@ function createFakeSupabase(seed = {}, opts = {}) {
    * bulk insert with provenance, list count maintenance) so behavioural tests stay
    * meaningful. The lock itself is proven on the staging DB, not here.
    */
-  function rosterImportStudents({ p_class_id, p_list_id, p_run_id, p_enrolled_by, p_students }) {
+  function rosterImportStudents({ p_class_id, p_list_id, p_run_id, p_enrolled_by, p_students, p_school_id = null }) {
     const students = table('students');
     const enrollments = table('class_enrollments');
 
@@ -180,6 +180,8 @@ function createFakeSupabase(seed = {}, opts = {}) {
         student_name: name,
         father_name: (raw.father_name && String(raw.father_name).trim()) || null,
         parent_phone: (raw.parent_phone && String(raw.parent_phone).trim()) || null,
+        admission_no: (raw.admission_no && String(raw.admission_no).trim()) || null,
+        date_of_birth: (raw.date_of_birth && String(raw.date_of_birth).trim()) || null,
         roll,
       });
     }
@@ -200,11 +202,39 @@ function createFakeSupabase(seed = {}, opts = {}) {
       if (!v) continue;
       const hit = v.roll !== null ? takenRolls.has(v.roll) : takenNames.has(v.student_name.toLowerCase());
       if (hit) continue;
+
+      // RECOGNITION (mirrors the SQL): same school + same admission number is
+      // the SAME child — enrol her here, fill her blanks, never duplicate or
+      // overwrite.
+      if (p_school_id && v.admission_no) {
+        const known = students.find((s) => s.school_id === p_school_id
+          && s.admission_no === v.admission_no
+          && (s.status || 'active') === 'active' && s.is_active !== false);
+        if (known) {
+          const enrolledHere = enrollments.some((e) => e.class_id === p_class_id
+            && e.student_id === known.id && e.is_active);
+          if (!enrolledHere) {
+            if (!known.father_name && v.father_name) known.father_name = v.father_name;
+            if (!known.parent_phone && v.parent_phone) known.parent_phone = v.parent_phone;
+            if (!known.date_of_birth && v.date_of_birth) known.date_of_birth = v.date_of_birth;
+            enrollments.push({
+              id: nextId('class_enrollments'), class_id: p_class_id, student_id: known.id,
+              roll_number: v.roll, enrolled_on: new Date().toISOString().slice(0, 10), is_active: true,
+            });
+            if (v.roll !== null) takenRolls.add(v.roll); else takenNames.add(v.student_name.toLowerCase());
+            added += 1;
+          }
+          continue;
+        }
+      }
+
       const id = nextId('students');
       students.push({
         id, student_name: v.student_name, father_name: v.father_name,
         parent_phone: v.parent_phone, roll_number: v.roll, list_id: p_list_id,
         enrolled_by_user_id: p_enrolled_by, import_run_id: p_run_id, is_active: true,
+        school_id: p_school_id, admission_no: v.admission_no,
+        date_of_birth: v.date_of_birth, status: 'active',
       });
       enrollments.push({
         id: nextId('class_enrollments'), class_id: p_class_id, student_id: id,

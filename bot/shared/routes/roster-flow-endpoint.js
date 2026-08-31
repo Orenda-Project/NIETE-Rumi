@@ -395,20 +395,26 @@ async function saveRoster(state, screenData) {
   }
   const diff = reconcile(state.rendered || [], edits);
 
-  // The parent phone is not on the review screen — it is not the coach's job to
-  // check a number she cannot see on the page from here — so it is carried across
-  // from what was extracted, matched on the line the coach left in place.
-  const phoneByKey = new Map();
+  // Fields that are not ON the review screen — the parent phone, the admission
+  // number, the date of birth — are not the coach's job to re-check from here, so
+  // they are carried across from what was extracted, matched on the line the
+  // coach left in place (by roll; a line without a roll carries nothing).
+  const extractedByRoll = new Map();
   (state.rendered || []).forEach((s) => {
-    if (s.parent_phone && s.roll_number) phoneByKey.set(String(s.roll_number), s.parent_phone);
+    if (s.roll_number) extractedByRoll.set(String(s.roll_number), s);
   });
 
-  const finalList = edits.map((e) => ({
-    roll_number: e.roll,
-    student_name: e.student_name,
-    father_name: e.father_name,
-    parent_phone: e.roll ? (phoneByKey.get(String(e.roll)) || null) : null,
-  })).filter((s) => s.student_name).slice(0, MAX_STUDENTS);
+  const finalList = edits.map((e) => {
+    const x = e.roll ? extractedByRoll.get(String(e.roll)) : null;
+    return {
+      roll_number: e.roll,
+      student_name: e.student_name,
+      father_name: e.father_name,
+      parent_phone: (x && x.parent_phone) || null,
+      admission_no: (x && x.admission_no) || null,
+      date_of_birth: (x && x.date_of_birth) || null,
+    };
+  }).filter((s) => s.student_name).slice(0, MAX_STUDENTS);
 
   if (!finalList.length) return stop('The list came back empty, so nothing was saved.');
 
