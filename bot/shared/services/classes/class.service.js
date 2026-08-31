@@ -1163,9 +1163,53 @@ async function importRoster({
   };
 }
 
+
+// ---------------------------------------------------------------------------
+// applyRosterEdits — a coach corrects a saved roster (the edit half of the
+// one-writer rule)
+// ---------------------------------------------------------------------------
+
+/**
+ * Apply a reconciled edit diff to one class's roster, as ONE database call.
+ * Same guarantees as importRoster and the same per-class lock, so an edit and
+ * an import can never interleave on one class. See roster_apply_edits.sql.
+ *
+ * @param {object} p
+ * @param {string} p.runId  minted when the editor opened — the idempotency key
+ * @returns {Promise<{updated?, moved?, added?, removed?, replay?, error?}>}
+ */
+async function applyRosterEdits({
+  classId, runId, editedByUserId,
+  updates = [], moves = [], adds = [], removes = [],
+} = {}) {
+  if (!classId) return { error: 'missing_class' };
+  if (!editedByUserId) return { error: 'missing_teacher' };
+  if (!runId) return { error: 'missing_run' };
+
+  const { data: result, error: rpcErr } = await supabase.rpc('roster_apply_edits', {
+    p_class_id: classId,
+    p_run_id: runId,
+    p_edited_by: editedByUserId,
+    p_updates: updates,
+    p_moves: moves,
+    p_adds: adds,
+    p_removes: removes,
+  });
+
+  if (rpcErr) {
+    const locked = rpcErr.code === '55P03' || /lock timeout/i.test(rpcErr.message || '');
+    logToFile('⚠️ ClassService.applyRosterEdits: refused', {
+      classId, runId, code: rpcErr.code, error: rpcErr.message, locked,
+    }, 'error');
+    return { error: locked ? 'save_in_progress' : 'insert_failed' };
+  }
+  return result || {};
+}
+
 module.exports = {
   createClass,
   importRoster,
+  applyRosterEdits,
   assignTeacher,
   updateAssignment,
   leaveClass,

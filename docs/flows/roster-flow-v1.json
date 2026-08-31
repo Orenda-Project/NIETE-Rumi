@@ -21,13 +21,15 @@
   "routing_model": {
     "SCHOOL": [
       "PHOTOS",
-      "SCHOOL_SEARCH"
+      "SCHOOL_SEARCH",
+      "SCHOOL_STATUS"
     ],
     "SCHOOL_SEARCH": [
       "SCHOOL_RESULTS"
     ],
     "SCHOOL_RESULTS": [
-      "PHOTOS"
+      "PHOTOS",
+      "SCHOOL_STATUS"
     ],
     "PHOTOS": [
       "CLASS"
@@ -42,7 +44,17 @@
     "REVIEW": [
       "SAVED"
     ],
-    "SAVED": []
+    "SAVED": [],
+    "SCHOOL_STATUS": [
+      "PHOTOS",
+      "ROSTER_VIEW"
+    ],
+    "ROSTER_VIEW": [
+      "ROSTER_EDIT"
+    ],
+    "ROSTER_EDIT": [
+      "SAVED"
+    ]
   },
   "screens": [
     {
@@ -200,6 +212,344 @@
                   "payload": {
                     "screen": "SCHOOL_RESULTS",
                     "school_id": "${form.school_id}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SCHOOL_STATUS",
+      "title": "This school so far",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "IMSG (I-8/4)"
+        },
+        "coverage_text": {
+          "type": "string",
+          "__example__": "Scanned 2 of 5 grades.\n✔ Grade 1 — 1-A · 42 children\n• Grade 3 — not yet scanned"
+        },
+        "nudge": {
+          "type": "string",
+          "__example__": "A school is complete when every class of grades 1-5 has a roster."
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "scan",
+              "title": "Scan a new register"
+            },
+            {
+              "id": "open:abc",
+              "title": "See Grade 1-A · 42 children"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "status_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.coverage_text}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.nudge}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "next_action",
+                "label": "What next?",
+                "required": true,
+                "data-source": "${data.actions}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "SCHOOL_STATUS",
+                    "next_action": "${form.next_action}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ROSTER_VIEW",
+      "title": "Saved roster",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Grade 1-A · 42 children"
+        },
+        "note": {
+          "type": "string",
+          "__example__": "Saved 31 Aug · class teacher named"
+        },
+        "roster_text": {
+          "type": "string",
+          "__example__": "1. Ayesha Bilal / Bilal Ahmed\n2. Fatima Noor / Noor Muhammad"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "view_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.note}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.roster_text}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "Just checking? Close this window — nothing is changed."
+              },
+              {
+                "type": "Footer",
+                "label": "Edit this roster",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ROSTER_VIEW",
+                    "action": "edit"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ROSTER_EDIT",
+      "title": "Fix the roster",
+      "terminal": false,
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "41 students found"
+        },
+        "note": {
+          "type": "string",
+          "__example__": "Grade 3-A. Fix any name that is wrong, then save."
+        },
+        "roster_text": {
+          "type": "string",
+          "__example__": "1. Ayesha Bilal / Bilal Ahmed\n2. Fatima Noor / Noor Muhammad"
+        },
+        "chunk1": {
+          "type": "string",
+          "__example__": "1. Ayesha Bilal"
+        },
+        "label1": {
+          "type": "string",
+          "__example__": "Students 1-15"
+        },
+        "help1": {
+          "type": "string",
+          "__example__": "Students 1-15 of 41. One per line."
+        },
+        "chunk2": {
+          "type": "string",
+          "__example__": ""
+        },
+        "label2": {
+          "type": "string",
+          "__example__": "Students 16-30"
+        },
+        "help2": {
+          "type": "string",
+          "__example__": "Students 16-30 of 41. One per line."
+        },
+        "show2": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "chunk3": {
+          "type": "string",
+          "__example__": ""
+        },
+        "label3": {
+          "type": "string",
+          "__example__": "Students 31-45"
+        },
+        "help3": {
+          "type": "string",
+          "__example__": "Students 31-45 of 41. One per line."
+        },
+        "show3": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "chunk4": {
+          "type": "string",
+          "__example__": ""
+        },
+        "label4": {
+          "type": "string",
+          "__example__": "Students 46-60"
+        },
+        "help4": {
+          "type": "string",
+          "__example__": "Students 46-60 of 41. One per line."
+        },
+        "show4": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "chunk5": {
+          "type": "string",
+          "__example__": ""
+        },
+        "label5": {
+          "type": "string",
+          "__example__": "Students 61-75"
+        },
+        "help5": {
+          "type": "string",
+          "__example__": "Students 61-75 of 41. One per line."
+        },
+        "show5": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "chunk6": {
+          "type": "string",
+          "__example__": ""
+        },
+        "label6": {
+          "type": "string",
+          "__example__": "Students 76-90"
+        },
+        "help6": {
+          "type": "string",
+          "__example__": "Students 76-90 of 41. One per line."
+        },
+        "show6": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "roster_edit_form",
+            "init-values": {
+              "chunk1": "${data.chunk1}",
+              "chunk2": "${data.chunk2}",
+              "chunk3": "${data.chunk3}",
+              "chunk4": "${data.chunk4}",
+              "chunk5": "${data.chunk5}",
+              "chunk6": "${data.chunk6}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.note}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.roster_text}"
+              },
+              {
+                "type": "TextArea",
+                "name": "chunk1",
+                "label": "${data.label1}",
+                "helper-text": "${data.help1}"
+              },
+              {
+                "type": "TextArea",
+                "name": "chunk2",
+                "label": "${data.label2}",
+                "helper-text": "${data.help2}",
+                "visible": "${data.show2}"
+              },
+              {
+                "type": "TextArea",
+                "name": "chunk3",
+                "label": "${data.label3}",
+                "helper-text": "${data.help3}",
+                "visible": "${data.show3}"
+              },
+              {
+                "type": "TextArea",
+                "name": "chunk4",
+                "label": "${data.label4}",
+                "helper-text": "${data.help4}",
+                "visible": "${data.show4}"
+              },
+              {
+                "type": "TextArea",
+                "name": "chunk5",
+                "label": "${data.label5}",
+                "helper-text": "${data.help5}",
+                "visible": "${data.show5}"
+              },
+              {
+                "type": "TextArea",
+                "name": "chunk6",
+                "label": "${data.label6}",
+                "helper-text": "${data.help6}",
+                "visible": "${data.show6}"
+              },
+              {
+                "type": "Footer",
+                "label": "Save changes",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ROSTER_EDIT",
+                    "chunk1": "${form.chunk1}",
+                    "chunk2": "${form.chunk2}",
+                    "chunk3": "${form.chunk3}",
+                    "chunk4": "${form.chunk4}",
+                    "chunk5": "${form.chunk5}",
+                    "chunk6": "${form.chunk6}"
                   }
                 }
               }
