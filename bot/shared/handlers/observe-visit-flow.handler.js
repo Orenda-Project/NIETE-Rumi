@@ -1045,9 +1045,15 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
     // The fork. Neither branch writes: both land on a screen that still asks
     // for a number or a name before anything changes.
     if (step === 'teacher_action_pick') {
-      // Named `picked`, not `action` — `action` is this function's own
-      // parameter and shadowing it here would hide the flow action.
-      const picked = String((screenData && screenData.action) || '').trim();
+      // bd-59811 — READ `choice`, NEVER `action`. `action` is the reserved
+      // Flow request field: the endpoint destructures
+      //   const { action, flow_token, screen, data } = decryptedData
+      // so a payload key of that name arrives as 'data_exchange', not the
+      // coach's pick. Shipping it that way meant every tap on this screen fell
+      // through to _refuse('not_found') — "there is nothing to remove" — with
+      // no phone screen ever shown. `choice` is the key VISIT_ACTION already
+      // uses and proves works.
+      const picked = String((screenData && screenData.choice) || '').trim();
       const schoolExtId = String((screenData && screenData.school_ext_id) || '');
       // Re-enter at the step the coach chose. `step` is read off screenData, so
       // rewriting it is the whole handoff — and it keeps the add and remove

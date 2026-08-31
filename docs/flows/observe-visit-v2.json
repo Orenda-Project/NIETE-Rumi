@@ -1778,7 +1778,7 @@
             "children": [
               {
                 "type": "RadioButtonsGroup",
-                "name": "action",
+                "name": "choice",
                 "label": "Choose one",
                 "required": true,
                 "data-source": [
@@ -1800,7 +1800,7 @@
                   "payload": {
                     "step": "teacher_action_pick",
                     "school_ext_id": "${data.school_ext_id}",
-                    "action": "${form.action}"
+                    "choice": "${form.choice}"
                   }
                 }
               }
