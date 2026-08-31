@@ -187,3 +187,53 @@ describe('every new step fills the keys its screen declares', () => {
     expect({ screen: res.screen, missing }).toEqual({ screen: res.screen, missing: [] });
   });
 });
+
+// ── the routing model, which Meta validates and we did not ─────────────
+//
+// Learned the hard way on this very bead: publishing TEACHER_ACTION without a
+// routing_model entry was REJECTED by Meta with INVALID_ROUTING_MODEL, and the
+// live staging Flow dropped from PUBLISHED to DRAFT. A screen can be perfectly
+// valid on its own and still take the whole Flow down by not being wired into
+// the graph. Every screen must appear, and every edge must point somewhere real.
+
+describe('routing_model — Meta rejects the publish without it', () => {
+  const rm = flow.routing_model;
+
+  it('every screen in the flow appears in the routing model', () => {
+    const declared = flow.screens.filter((s) => !s.terminal).map((s) => s.id);
+    const missing = declared.filter((id) => !(id in rm));
+    expect(missing).toEqual([]);
+  });
+
+  it('every routing target is a screen that actually exists', () => {
+    const ids = new Set(flow.screens.map((s) => s.id));
+    const dangling = [];
+    for (const [from, tos] of Object.entries(rm)) {
+      for (const to of tos) if (!ids.has(to)) dangling.push(`${from} -> ${to}`);
+    }
+    expect(dangling).toEqual([]);
+  });
+
+  it('TEACHER_ACTION is wired between the school and both paths', () => {
+    expect(rm.TEACHER_SCHOOL).toContain('TEACHER_ACTION');
+    expect(rm.TEACHER_ACTION).toEqual(expect.arrayContaining(['TEACHER_ADD', 'TEACHER_PICK']));
+  });
+
+  it('the add screen no longer routes to the remove picker', () => {
+    // The EmbeddedLink is gone, so the edge must go with it — a stale edge is
+    // not rejected by Meta, it just quietly misdescribes the flow.
+    expect(rm.TEACHER_ADD).not.toContain('TEACHER_PICK');
+  });
+
+  it('no screen is orphaned — everything is reachable from MENU', () => {
+    const seen = new Set(['MENU']);
+    const queue = ['MENU'];
+    while (queue.length) {
+      for (const to of rm[queue.shift()] || []) {
+        if (!seen.has(to)) { seen.add(to); queue.push(to); }
+      }
+    }
+    const orphans = flow.screens.map((s) => s.id).filter((id) => !seen.has(id));
+    expect(orphans).toEqual([]);
+  });
+});

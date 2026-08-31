@@ -84,12 +84,17 @@
       "SUCCESS"
     ],
     "TEACHER_SCHOOL": [
-      "TEACHER_ADD"
+      "TEACHER_ACTION",
+      "TEACHER_DONE"
+    ],
+    "TEACHER_ACTION": [
+      "TEACHER_ADD",
+      "TEACHER_PICK",
+      "TEACHER_DONE"
     ],
     "TEACHER_ADD": [
       "TEACHER_CONFIRM",
       "TEACHER_NAME",
-      "TEACHER_PICK",
       "TEACHER_DONE"
     ],
     "TEACHER_CONFIRM": [
