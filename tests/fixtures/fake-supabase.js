@@ -251,12 +251,71 @@ function createFakeSupabase(seed = {}, opts = {}) {
     return { added, skipped: named.length - added, replay: false };
   }
 
+  /** In-memory twin of roster_apply_edits.sql — same observable contract. */
+  function rosterApplyEdits({ p_class_id, p_run_id, p_edited_by, p_updates = [], p_moves = [], p_adds = [], p_removes = [] }) {
+    const students = table('students');
+    const enrollments = table('class_enrollments');
+    if (students.some((s) => s.import_run_id === p_run_id)) {
+      return { updated: 0, moved: 0, added: 0, removed: 0, replay: true };
+    }
+    const enrolledHere = (id) => enrollments.some((e) => e.class_id === p_class_id && e.student_id === id && e.is_active);
+    let updated = 0;
+    for (const u of p_updates) {
+      const s = students.find((x) => x.id === u.id);
+      if (s && enrolledHere(u.id)) {
+        if (u.student_name) s.student_name = String(u.student_name).trim();
+        s.father_name = (u.father_name && String(u.father_name).trim()) || null;
+        updated += 1;
+      }
+    }
+    let moved = 0;
+    for (const m of p_moves) {
+      const roll = /^\d{1,3}$/.test(String(m.roll || '')) ? Number(m.roll) : null;
+      const e = enrollments.find((x) => x.class_id === p_class_id && x.student_id === m.id && x.is_active);
+      const taken = roll !== null && enrollments.some((x) => x.class_id === p_class_id && x.is_active && x.roll_number === roll && x.student_id !== m.id);
+      if (e && roll !== null && !taken) {
+        e.roll_number = roll;
+        const s = students.find((x) => x.id === m.id);
+        if (s) s.roll_number = roll;
+        moved += 1;
+      }
+    }
+    let added = 0;
+    for (const a of p_adds) {
+      const name = String(a.student_name || '').trim();
+      if (!name) continue;
+      const roll = /^\d{1,3}$/.test(String(a.roll || '')) ? Number(a.roll) : null;
+      if (roll !== null && enrollments.some((x) => x.class_id === p_class_id && x.is_active && x.roll_number === roll)) continue;
+      const id = nextId('students');
+      students.push({ id, student_name: name, father_name: a.father_name || null, roll_number: roll,
+        enrolled_by_user_id: p_edited_by, import_run_id: p_run_id, is_active: true, status: 'active' });
+      enrollments.push({ id: nextId('class_enrollments'), class_id: p_class_id, student_id: id,
+        roll_number: roll, enrolled_on: new Date().toISOString().slice(0, 10), is_active: true });
+      added += 1;
+    }
+    let removed = 0;
+    for (const r of p_removes) {
+      const e = enrollments.find((x) => x.class_id === p_class_id && x.student_id === r.id && x.is_active);
+      if (e) {
+        e.is_active = false;
+        e.left_on = new Date().toISOString().slice(0, 10);
+        removed += 1;
+        const s = students.find((x) => x.id === r.id);
+        if (s && !enrollments.some((x) => x.student_id === r.id && x.is_active)) {
+          s.is_active = false; s.status = 'inactive';
+        }
+      }
+    }
+    return { updated, moved, added, removed, replay: false };
+  }
+
   return {
     from: (name) => builder(name),
     async rpc(name, args) {
       rpcCalls.push({ name, args });
       if (rpcFailures[name]) return { data: null, error: rpcFailures[name] };
       if (name === 'roster_import_students') return { data: rosterImportStudents(args || {}), error: null };
+      if (name === 'roster_apply_edits') return { data: rosterApplyEdits(args || {}), error: null };
       return { data: null, error: { code: 'PGRST202', message: `unknown rpc ${name}` } };
     },
     /** Test helpers — not part of the Supabase surface. */
