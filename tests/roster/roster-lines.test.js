@@ -110,7 +110,7 @@ describe('reconcile — matching edits back to student identities', () => {
   it('treats an unnumbered new line as an addition, never as an edit of someone else', () => {
     const edits = parseChunk('1. Ayesha / Bilal\n2. Jabeen / Akram\n3. Zoha / Rauf\nNew Child / New Father');
     const out = reconcile(originals, edits);
-    expect(out.added).toEqual([{ student_name: 'New Child', father_name: 'New Father' }]);
+    expect(out.added).toEqual([{ roll: null, student_name: 'New Child', father_name: 'New Father' }]);
     expect(out.updated).toHaveLength(0);
     expect(out.removed).toHaveLength(0);
   });
@@ -202,5 +202,52 @@ describe('helper text — the count that tells a coach the box is a slice, not t
     expect(helpers[0]).toContain('of 41');
     // A hidden box still needs a string — the screen is static.
     expect(helpers).toHaveLength(visible.length);
+  });
+});
+
+/**
+ * Edit mode (coach-requested, pre-prod): reconcile's diffs become DATABASE
+ * actions against existing children, so two things matter that import never
+ * needed: an added line keeps the roll the coach typed, and a roll correction
+ * must resolve to the SAME child moving — not a remove+create that would split
+ * her identity and strand her attendance history.
+ */
+const { pairMoves } = require('../../bot/shared/services/roster/roster-lines');
+
+describe('reconcile for edit mode', () => {
+  const DB = [
+    { id: 'st-1', roll_number: 1, student_name: 'Ayesha', father_name: 'Bilal' },
+    { id: 'st-2', roll_number: 2, student_name: 'Minahil', father_name: 'Asif' },
+  ];
+
+  it('an added line carries the roll the coach typed', () => {
+    const diff = reconcile(DB, [
+      { roll: '1', student_name: 'Ayesha', father_name: 'Bilal' },
+      { roll: '2', student_name: 'Minahil', father_name: 'Asif' },
+      { roll: '3', student_name: 'Hooria', father_name: null },
+    ]);
+    expect(diff.added).toEqual([{ roll: '3', student_name: 'Hooria', father_name: null }]);
+  });
+
+  it('a roll correction pairs the removed and added rows into a MOVE of the same child', () => {
+    const diff = reconcile(DB, [
+      { roll: '7', student_name: 'Ayesha', father_name: 'Bilal' }, // 1 → 7, same child
+      { roll: '2', student_name: 'Minahil', father_name: 'Asif' },
+    ]);
+    const paired = pairMoves(diff);
+    expect(paired.moved).toEqual([{ id: 'st-1', roll: '7' }]);
+    expect(paired.added).toEqual([]);
+    expect(paired.removed).toEqual([]);
+  });
+
+  it('pairMoves never pairs different children just because a slot opened', () => {
+    const diff = reconcile(DB, [
+      { roll: '2', student_name: 'Minahil', father_name: 'Asif' },
+      { roll: '9', student_name: 'Zainab', father_name: null }, // genuinely new
+    ]); // Ayesha genuinely removed
+    const paired = pairMoves(diff);
+    expect(paired.moved).toEqual([]);
+    expect(paired.added).toEqual([{ roll: '9', student_name: 'Zainab', father_name: null }]);
+    expect(paired.removed.map((r) => r.id)).toEqual(['st-1']);
   });
 });
