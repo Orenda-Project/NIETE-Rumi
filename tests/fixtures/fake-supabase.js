@@ -43,6 +43,12 @@ function createFakeSupabase(seed = {}, opts = {}) {
   /** Tables whose next operation should fail, e.g. { classes: 'boom' }. */
   const failures = { ...(opts.failOn || {}) };
 
+  /** RPCs whose next call should fail, e.g. { roster_import_students: { code: '55P03' } }. */
+  const rpcFailures = { ...(opts.failRpc || {}) };
+
+  /** Every rpc call, in order — so a test can assert the write was ONE call. */
+  const rpcCalls = [];
+
   /** Every write, in order — so a test can assert what was actually written. */
   const writes = [];
 
@@ -149,13 +155,90 @@ function createFakeSupabase(seed = {}, opts = {}) {
     return api;
   }
 
+  /**
+   * Faithful in-memory twin of bot/database/migrations/roster_import_students.sql.
+   * The SQL is the truth; this mirrors its OBSERVABLE contract (normalise, in-payload
+   * first-occurrence, run-id replay guard, committed-state dedupe by roll-else-name,
+   * bulk insert with provenance, list count maintenance) so behavioural tests stay
+   * meaningful. The lock itself is proven on the staging DB, not here.
+   */
+  function rosterImportStudents({ p_class_id, p_list_id, p_run_id, p_enrolled_by, p_students }) {
+    const students = table('students');
+    const enrollments = table('class_enrollments');
+
+    const named = [];
+    const seenRolls = new Set();
+    const seenNames = new Set();
+    for (const raw of p_students || []) {
+      const name = String(raw.student_name || '').trim();
+      if (!name) continue;
+      const rollStr = raw.roll_number === null || raw.roll_number === undefined ? '' : String(raw.roll_number).trim();
+      const roll = /^\d{1,3}$/.test(rollStr) ? Number(rollStr) : null;
+      const dupInPayload = roll !== null ? seenRolls.has(roll) : seenNames.has(name.toLowerCase());
+      if (roll !== null) seenRolls.add(roll); else seenNames.add(name.toLowerCase());
+      named.push(dupInPayload ? null : {
+        student_name: name,
+        father_name: (raw.father_name && String(raw.father_name).trim()) || null,
+        parent_phone: (raw.parent_phone && String(raw.parent_phone).trim()) || null,
+        roll,
+      });
+    }
+
+    if (students.some((s) => s.import_run_id === p_run_id)) {
+      return { added: 0, skipped: named.length, replay: true };
+    }
+
+    const active = enrollments.filter((e) => e.class_id === p_class_id && e.is_active);
+    const takenRolls = new Set(active.map((e) => e.roll_number).filter((r) => r !== null && r !== undefined));
+    const activeIds = new Set(active.map((e) => e.student_id));
+    const takenNames = new Set(students
+      .filter((s) => activeIds.has(s.id))
+      .map((s) => String(s.student_name || '').trim().toLowerCase()));
+
+    let added = 0;
+    for (const v of named) {
+      if (!v) continue;
+      const hit = v.roll !== null ? takenRolls.has(v.roll) : takenNames.has(v.student_name.toLowerCase());
+      if (hit) continue;
+      const id = nextId('students');
+      students.push({
+        id, student_name: v.student_name, father_name: v.father_name,
+        parent_phone: v.parent_phone, roll_number: v.roll, list_id: p_list_id,
+        enrolled_by_user_id: p_enrolled_by, import_run_id: p_run_id, is_active: true,
+      });
+      enrollments.push({
+        id: nextId('class_enrollments'), class_id: p_class_id, student_id: id,
+        roll_number: v.roll, enrolled_on: new Date().toISOString().slice(0, 10), is_active: true,
+      });
+      if (v.roll !== null) takenRolls.add(v.roll); else takenNames.add(v.student_name.toLowerCase());
+      added += 1;
+    }
+
+    if (p_list_id) {
+      const list = table('student_lists').find((l) => l.id === p_list_id);
+      if (list) list.student_count = students.filter((s) => s.list_id === p_list_id && s.is_active).length;
+    }
+    return { added, skipped: named.length - added, replay: false };
+  }
+
   return {
     from: (name) => builder(name),
+    async rpc(name, args) {
+      rpcCalls.push({ name, args });
+      if (rpcFailures[name]) return { data: null, error: rpcFailures[name] };
+      if (name === 'roster_import_students') return { data: rosterImportStudents(args || {}), error: null };
+      return { data: null, error: { code: 'PGRST202', message: `unknown rpc ${name}` } };
+    },
     /** Test helpers — not part of the Supabase surface. */
     _tables: tables,
     _writes: writes,
+    _rpcCalls: rpcCalls,
     _failOn: (t, msg) => { failures[t] = msg; },
-    _clearFailures: () => { for (const k of Object.keys(failures)) delete failures[k]; },
+    _failRpc: (name, errObj) => { rpcFailures[name] = errObj; },
+    _clearFailures: () => {
+      for (const k of Object.keys(failures)) delete failures[k];
+      for (const k of Object.keys(rpcFailures)) delete rpcFailures[k];
+    },
   };
 }
 

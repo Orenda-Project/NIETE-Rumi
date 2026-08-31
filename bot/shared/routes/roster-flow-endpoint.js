@@ -413,6 +413,7 @@ async function saveRoster(state, screenData) {
   if (!finalList.length) return stop('The list came back empty, so nothing was saved.');
 
   const saved = await ClassService.importRoster({
+    runId: state.runId,
     schoolId: state.schoolId,
     gradeCode: state.gradeCode,
     section: state.section,
@@ -502,6 +503,7 @@ async function saveRoster(state, screenData) {
 
 /** ClassService returns error VALUES; these are the sentences for the ones a coach can see. */
 const IMPORT_FAILURES = {
+  save_in_progress: 'This roster is already being saved — give it a minute, then check the class before scanning again.',
   unknown_grade: 'That grade is not one this school uses.',
   unknown_section: 'That section is not set up for this school.',
   unknown_session: 'The school year is not set up yet.',
@@ -513,6 +515,8 @@ const IMPORT_FAILURES = {
 module.exports = {
   handleRosterInit,
   handleRosterDataExchange,
+  // Exported for tests — the save is where the idempotency contract lives.
+  saveRoster,
   teachersFor,
   MAX_STUDENTS,
   CLASS_WAIT_MS,
