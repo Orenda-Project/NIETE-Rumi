@@ -4921,11 +4921,15 @@ CREATE TABLE IF NOT EXISTS assessment_requests (
   subject_code      TEXT NOT NULL REFERENCES subjects(code),
   textbook_id       UUID NOT NULL REFERENCES textbooks(id),
 
-  -- Exactly one of these is how she chose what to cover. chapter_number is null
-  -- when she typed page numbers instead; page_ranges is always filled, because
-  -- by the time we store the request we have resolved her chapter to pages.
+  -- How she chose what to cover. She picked a chapter, or she typed pages, and
+  -- the CHECK below is that it was one of the two. When she picked a chapter we
+  -- resolve it to pages and store both, so the row says what it covers without
+  -- re-reading a contents page that a re-import can change underneath it.
+  -- page_ranges stays null only for a chapter the contents page never paginated.
   chapter_number    INTEGER,
-  page_ranges       TEXT NOT NULL,
+  page_ranges       TEXT,
+  CONSTRAINT assessment_requests_has_coverage
+    CHECK (chapter_number IS NOT NULL OR page_ranges IS NOT NULL),
 
   content_source    TEXT NOT NULL DEFAULT 'unseen'
                       CHECK (content_source IN ('seen', 'unseen', 'both')),

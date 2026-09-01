@@ -273,13 +273,22 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
       await submit(state);
     } catch (err) {
       logToFile('[assessment-flow] submit failed', { error: err.message, userId: state.userId });
+      // The terminal screen is shared, so every line of it has to change on the
+      // failure path. Leaving the heading and caption saying a paper is coming
+      // is worse than the failure: she waits for something nobody is making.
       return screen('SUBMITTED', {
-        message: "Something went wrong starting your paper. Please send /assessment and try again.",
+        heading: "That didn't start",
+        message: "Something went wrong starting your paper. Nothing is being made.",
+        caption: 'Send /assessment to try again.',
       });
     }
 
     await clearSession(flowToken);
-    return screen('SUBMITTED', { message: 'Making your paper — about a minute. It will arrive in this chat.' });
+    return screen('SUBMITTED', {
+      heading: 'Making your paper',
+      message: 'About a minute.',
+      caption: 'It will arrive in this chat. You can close this.',
+    });
   }
 
   logToFile('[assessment-flow] unknown screen', { screenId });
@@ -329,8 +338,37 @@ function confirmScreen(state) {
  * the worker is handed and what the watchdog looks for, so a queued job that
  * refers to nothing is worse than a row with no job.
  */
+/**
+ * The pages a chapter covers, or null when the contents page never said.
+ * Best-effort: a request whose coverage cannot be named is still a request,
+ * and the generator works from the chapter number regardless.
+ */
+async function chapterPageRange(state) {
+  try {
+    const chapters = await BookContent.listChapters({
+      grade: state.grade, subject: state.subject,
+    });
+    const c = chapters.find((x) => x.chapterNumber === Number(state.chapterNumber));
+    return (c && c.pageStart != null && c.pageEnd != null)
+      ? `${c.pageStart}-${c.pageEnd}` : null;
+  } catch (err) {
+    logToFile('[assessment-flow] could not resolve chapter pages', {
+      grade: state.grade, subject: state.subject,
+      chapter: state.chapterNumber, error: err.message,
+    });
+    return null;
+  }
+}
+
 async function submit(state) {
   const book = await bookFacts(state);
+
+  // She chose a chapter, not pages — but the row should still say which pages
+  // it covers, so a request is readable later without re-reading the contents
+  // page (which can change under a re-import).
+  const pageRanges = state.pageRanges
+    || (state.chapterNumber != null ? await chapterPageRange(state) : null);
+
   const types = (state.pickedTypes && state.pickedTypes.length)
     ? QuestionTypes.withCounts(state.pickedTypes, state.questionCount, state.subject, state.grade)
     : QuestionTypes.defaultMix(state.subject, state.grade, state.questionCount);
@@ -344,7 +382,7 @@ async function submit(state) {
       subject_code: state.subject,
       textbook_id: book.id,
       chapter_number: state.chapterNumber || null,
-      page_ranges: state.pageRanges || null,
+      page_ranges: pageRanges,
       content_source: state.contentSource || 'unseen',
       question_count: state.questionCount || 20,
       question_types: types,
@@ -363,7 +401,7 @@ async function submit(state) {
     grade: state.grade,
     subject: state.subject,
     chapterNumber: state.chapterNumber || null,
-    pageRanges: state.pageRanges || null,
+    pageRanges,
     contentSource: state.contentSource || 'unseen',
     questionTypes: types,
     includeAnswerKey: !!state.answerKey,
@@ -394,5 +432,5 @@ module.exports = {
   handleAssessmentGenDataExchange: handleDataExchange,
   handleAssessmentGenBack: handleBack,
   // exported for tests
-  _internal: { summaryOf, GRADE_BANDS, COUNT_CHOICES },
+  _internal: { summaryOf, submit, chapterPageRange, GRADE_BANDS, COUNT_CHOICES },
 };

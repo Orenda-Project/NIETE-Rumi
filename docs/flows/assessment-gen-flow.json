@@ -556,9 +556,17 @@
       "title": "New assessment",
       "terminal": true,
       "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Making your paper"
+        },
         "message": {
           "type": "string",
-          "__example__": "Making your paper — about a minute."
+          "__example__": "About a minute. It will arrive in this chat."
+        },
+        "caption": {
+          "type": "string",
+          "__example__": "You can close this."
         }
       },
       "layout": {
@@ -566,7 +574,7 @@
         "children": [
           {
             "type": "TextHeading",
-            "text": "Making your paper"
+            "text": "${data.heading}"
           },
           {
             "type": "TextBody",
@@ -574,7 +582,7 @@
           },
           {
             "type": "TextCaption",
-            "text": "It will arrive in this chat. You can close this."
+            "text": "${data.caption}"
           },
           {
             "type": "Footer",
