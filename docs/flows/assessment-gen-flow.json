@@ -82,6 +82,10 @@
         "error": {
           "type": "string",
           "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
         }
       },
       "layout": {
@@ -98,7 +102,7 @@
               {
                 "type": "TextBody",
                 "text": "${data.error}",
-                "visible": "${data.error}"
+                "visible": "${data.has_error}"
               },
               {
                 "type": "Dropdown",
@@ -169,6 +173,10 @@
         "error": {
           "type": "string",
           "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
         }
       },
       "layout": {
@@ -189,7 +197,7 @@
               {
                 "type": "TextBody",
                 "text": "${data.error}",
-                "visible": "${data.error}"
+                "visible": "${data.has_error}"
               },
               {
                 "type": "Dropdown",
@@ -235,6 +243,10 @@
         "error": {
           "type": "string",
           "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
         }
       },
       "layout": {
@@ -255,7 +267,7 @@
               {
                 "type": "TextBody",
                 "text": "${data.error}",
-                "visible": "${data.error}"
+                "visible": "${data.has_error}"
               },
               {
                 "type": "TextInput",
@@ -315,6 +327,10 @@
         "error": {
           "type": "string",
           "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
         }
       },
       "layout": {
@@ -416,6 +432,10 @@
         "error": {
           "type": "string",
           "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
         }
       },
       "layout": {
@@ -436,7 +456,7 @@
               {
                 "type": "TextBody",
                 "text": "${data.error}",
-                "visible": "${data.error}"
+                "visible": "${data.has_error}"
               },
               {
                 "type": "CheckboxGroup",
@@ -471,6 +491,10 @@
         "error": {
           "type": "string",
           "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
         }
       },
       "layout": {

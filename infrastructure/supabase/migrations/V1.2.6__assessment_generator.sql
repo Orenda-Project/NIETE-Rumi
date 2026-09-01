@@ -119,3 +119,7 @@ COMMENT ON COLUMN assessment_papers.selected_question_ids IS
   '[] = she unticked every one.';
 COMMENT ON COLUMN assessment_papers.error_detail IS
   'Internal. Never write a name, phone number or CNIC here.';
+
+-- PostgREST caches the schema. Without this the new tables 404 through the API
+-- even though they exist — which reads as "the migration did not run".
+NOTIFY pgrst, 'reload schema';
