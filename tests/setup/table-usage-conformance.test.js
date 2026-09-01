@@ -27,6 +27,19 @@ const ALLOWLIST = new Set([
   // pre_generated_lps set. Populated by a curriculum-ingestion path not yet in
   // the OSS tree (the OSS curriculum-LP path serves pre_generated_lps + toc).
   'textbook_pages',
+
+  // The BANK-COMPOSED exam generator's four tables. Its code was deleted in
+  // bd-59814 — it predates the UG_EG assessment generator and was superseded by
+  // it — but the data stays: 35,020 vetted questions, 5,807 groups and 38 real
+  // papers generated for teachers. Dropping 43,367 rows is its own reviewed
+  // decision, not the exhaust of a code teardown, so the tables are DEPRECATED
+  // IN PLACE and say so in their own COMMENT ON TABLE.
+  // ('exams' only escaped this guard before because unrelated prose elsewhere
+  //  matches the word — it is as orphaned as the other three.)
+  'exam_question_bank',
+  'exam_question_groups',
+  'exams',
+  'exam_questions',
 ]);
 
 function collectFiles(dir, exts) {

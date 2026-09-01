@@ -155,19 +155,6 @@ const FLOW_CONFIGS = [
     categories: ['OTHER'],
   },
   {
-    // Assessment Generator (external UG_EG / EG_Pipeline service). 2-screen
-    // data_exchange Flow: SPEC → QUESTIONS → SUCCESS. The endpoint submits
-    // the collected spec to UG_EG as an async job; UG_EG posts the completed
-    // exam back to POST /webhooks/assessment-generator, which renders the
-    // HTML → PDF and delivers via WhatsApp.
-    name: 'Assessment Generator',
-    jsonPath: path.join(FLOWS_DIR, 'assessment-gen-flow.json'),
-    type: 'endpoint',
-    endpointPath: '/api/flows/assessment-gen',
-    envVar: 'ASSESSMENT_GEN_FLOW_ID',
-    categories: ['OTHER'],
-  },
-  {
     // Pakistan LP picker. Grade → Subject → Chapter → Topic over
     // pre_generated_lps where curriculum='pakistan', populated by the
     // seed + chapter-load scripts in bot/scripts/. The `menu_lesson_plan`
