@@ -474,6 +474,15 @@ function extractKeyFromUrl(url) {
   const bareUrl = url.split('?')[0];
   const bucketIndex = bareUrl.indexOf(`/${BUCKET_NAME}/`);
   if (bucketIndex === -1) {
+    // Virtual-hosted style: the bucket is the first host label, so the whole
+    // path is the key. getPresignedUrl RETURNS this shape — it re-addresses
+    // host/bucket/key as bucket.host/key — which means a presigned url handed
+    // to a server-side downloader threw here and the caller logged a `false`.
+    const vhost = /^https?:\/\/([^/]+)(\/.*)$/i.exec(bareUrl);
+    if (vhost && vhost[1].startsWith(`${BUCKET_NAME}.`)) {
+      return vhost[2].replace(/^\/+/, '');
+    }
+
     // No /bucket/ marker — treat the input as an already-bare key iff it
     // doesn't look like an HTTP(S) URL. If it starts with http(s):// but
     // has no /bucket/, the caller passed something we can't safely handle.

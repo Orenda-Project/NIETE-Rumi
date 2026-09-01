@@ -16,7 +16,7 @@ const mockUploadExamBuffer = jest.fn();
 const mockBuildR2PublicUrl = jest.fn();
 const mockGetPresignedUrl = jest.fn();
 const mockSendMessage = jest.fn();
-const mockSendDocumentFromUrl = jest.fn();
+const mockSendDocumentByLink = jest.fn();
 
 jest.mock('../../bot/shared/services/assessment/book-content.service', () => ({
   loadChapterContent: mockLoadChapterContent,
@@ -34,7 +34,7 @@ jest.mock('../../bot/shared/storage/r2', () => ({
 }));
 jest.mock('../../bot/shared/services/whatsapp.service', () => ({
   sendMessage: mockSendMessage,
-  sendDocumentFromUrl: mockSendDocumentFromUrl,
+  sendDocumentByLink: mockSendDocumentByLink,
 }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 
@@ -88,7 +88,7 @@ function happyPath() {
   mockBuildR2PublicUrl.mockReturnValue('https://r2/exams/x.pdf');
   mockGetPresignedUrl.mockResolvedValue('https://r2/exams/x.pdf?signed');
   mockSendMessage.mockResolvedValue(true);
-  mockSendDocumentFromUrl.mockResolvedValue(true);
+  mockSendDocumentByLink.mockResolvedValue(true);
 }
 
 beforeEach(() => {
@@ -108,7 +108,7 @@ describe('the happy path', () => {
     expect(mockRenderPaper).toHaveBeenCalled();
     expect(mockHtmlToPdf).toHaveBeenCalled();
     expect(mockUploadExamBuffer).toHaveBeenCalled();
-    expect(mockSendDocumentFromUrl).toHaveBeenCalled();
+    expect(mockSendDocumentByLink).toHaveBeenCalled();
     expect(out.status).toBe('ready');
   });
 
@@ -125,7 +125,7 @@ describe('the happy path', () => {
   it('names the file so it means something in a phone full of downloads', async () => {
     happyPath();
     await Orchestrator.process(JOB);
-    const filename = mockSendDocumentFromUrl.mock.calls[0][2];
+    const filename = mockSendDocumentByLink.mock.calls[0][2];
     expect(filename).toMatch(/Grade1/);
     expect(filename).toMatch(/English/i);
     expect(filename).toMatch(/\.pdf$/);
@@ -172,7 +172,7 @@ describe('when a step fails she is told, in words she can act on', () => {
     const out = await Orchestrator.process(JOB);
 
     expect(out.status).toBe('failed');
-    expect(mockSendDocumentFromUrl).not.toHaveBeenCalled();
+    expect(mockSendDocumentByLink).not.toHaveBeenCalled();
     expect(mockSendMessage).toHaveBeenCalled();
     const said = mockSendMessage.mock.calls.map((c) => c[1]).join(' ');
     expect(said).toMatch(expected);
