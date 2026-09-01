@@ -65,11 +65,25 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
 ## Working rules
 
 - **TDD**: tests live at repo-root `tests/<domain>/` and require bot code via `../../bot/shared/...`.
-  Run `npm test` (Jest via `tests/run.js`). CI runs root `npm test` **before** `bot/ npm ci`, so a test that
-  loads bot code must mock bot-only deps (`aws-sdk`, `bullmq`, `pdfkit`, …) virtually.
+- **`npm test` is the BASELINE GATE, not raw Jest.** The suite is not green and has not been for a while.
+  `npm test` runs every suite and then judges the *delta* against `tests/baseline.snapshot.json`:
+  **exit 0 means "you added no new failure"**, which is the only question a gate can usefully answer here.
+  A suspected regression is re-run once and only fails if it reproduces, so a flaky suite cannot redden
+  your PR at random. Use `npm run test:raw` for unfiltered Jest output when debugging (add `--forceExit`
+  to a filtered run).
+  **The ~30 suites in the snapshot are known-red debt. Do not try to fix them to get green — you already
+  are green. Do not add to them either: the snapshot may only ever shrink.** Read
+  [tests/BASELINE.md](tests/BASELINE.md) before concluding you broke something.
+- **Bot-only dependencies must be stubbed.** CI runs root `npm test` **before** `bot/ npm ci`, so source
+  that requires a `bot/node_modules` package at module scope kills the whole suite *file*. Every such
+  package reachable from a root suite is already stubbed in `tests/__mocks__/` and wired through
+  `moduleNameMapper` in `tests/jest.config.js`. Add a bot dependency, add its stub in the same PR — the
+  gate reports a `Cannot find module` as a new failing suite.
 - **Conformance guards** (`tests/setup/`) enforce: every `.from()` table + every `.rpc()` exists in the
   schema, every insert/select column exists, every schema table is referenced, entry files parse, and no
-  secrets/internal-refs ship. Keep them green.
+  secrets/internal-refs ship. Fourteen of them are currently red with stale allowlists — fix one
+  just-in-time when you touch the surface it covers, and never widen its offender list (the gate compares
+  offender-by-offender, so a new entry inside an already-red guard is still a regression).
 - **Schema/data changes**: before writing a migration, adding a table, or adding a column that holds
   teacher or student data, load the [data-standards](.claude/skills/data-standards/SKILL.md) skill and
   check the change against it. A `PreToolUse` hook also warns (never blocks) on a `git commit` that
@@ -84,5 +98,5 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
 ## Repo map
 
 `bot/` WhatsApp bot (Node/Express; entry `bot/whatsapp-bot.js`; 10 handlers, 49 services, 10 workers) ·
-`infrastructure/` Supabase schema (73 tables) + deploy configs · `tests/` Jest suites (93 suites / 1161
+`infrastructure/` Supabase schema (73 tables) + deploy configs · `tests/` Jest suites (407 suites / 4,713
 tests) · `docs/` architecture & customization · `dashboard/` + `portal/` observability/teacher UIs.
