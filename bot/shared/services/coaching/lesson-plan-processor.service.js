@@ -60,7 +60,11 @@ class LessonPlanProcessorService {
         await supabase
           .from('coaching_sessions')
           .update({
-            has_lesson_plan: false
+            has_lesson_plan: false,
+            // bd-5knlj: the buttons-path "No" left no lesson_plan_link_method,
+            // which hid 153 coach answers from every later analysis — the
+            // largest bucket of missing-Section-B looked like "never answered".
+            lesson_plan_link_method: 'none'
           })
           .eq('id', coachingSessionId);
 
