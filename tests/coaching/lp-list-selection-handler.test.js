@@ -70,3 +70,42 @@ describe('handleLpListSelection (bd-wa5io)', () => {
     expect(d.sent.length).toBeGreaterThanOrEqual(1); // teacher hears SOMETHING
   });
 });
+
+/**
+ * bd-5knlj — a late tap (the session already analyzed) used to re-queue a full
+ * analysis or do nothing useful; now it recomputes ONLY the fidelity section,
+ * while a pre-analysis tap keeps the original queueAnalysis continuation.
+ */
+describe('late LP selection → fidelity recompute (bd-5knlj)', () => {
+  const { handleLpListSelection } = require('../../bot/shared/services/coaching/lp-coaching/lp-list-selection.handler');
+
+  function lateDeps(status) {
+    const calls = { queued: 0, recomputed: 0, sent: [] };
+    return {
+      calls,
+      deps: {
+        linker: { handleLPSelection: async () => ({ lesson_plan_link_method: 'selected_recent' }) },
+        sendMessage: async (to, text) => { calls.sent.push(text); },
+        queueAnalysis: async () => { calls.queued += 1; },
+        recomputeFidelity: async () => { calls.recomputed += 1; return { recomputed: true }; },
+        sessionStatus: async () => status,
+        resolveLanguage: async () => 'en',
+        messages: { getCoachingMessage: (k) => k },
+      },
+    };
+  }
+
+  it('a tap on an already-analyzed session recomputes fidelity instead of re-running analysis', async () => {
+    const { deps, calls } = lateDeps('awaiting_observer_review');
+    await handleLpListSelection('lp_select_asset1_11111111-1111-1111-1111-111111111111', '92300', deps);
+    expect(calls.recomputed).toBe(1);
+    expect(calls.queued).toBe(0);
+  });
+
+  it('a tap at the LP step keeps the original continuation', async () => {
+    const { deps, calls } = lateDeps('awaiting_lesson_plan');
+    await handleLpListSelection('lp_select_asset1_11111111-1111-1111-1111-111111111111', '92300', deps);
+    expect(calls.queued).toBe(1);
+    expect(calls.recomputed).toBe(0);
+  });
+});

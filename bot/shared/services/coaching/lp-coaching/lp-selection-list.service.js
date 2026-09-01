@@ -41,8 +41,13 @@ function truncate(str, maxLen) {
  *   label: "Human Coach" for ICT / NIETE, "Rumi Digital Coach" as default).
  * @returns {{ type: 'list'|'buttons', listData?: object, body?: string, buttons?: Array }}
  */
-function buildLPSelectionList(coachingSessionId, recentLPs, language = 'en', region) {
+function buildLPSelectionList(coachingSessionId, recentLPs, language = 'en', region, opts = {}) {
   const isUrdu = language === 'ur';
+  // bd-5knlj: on a leader observation the TAPPER is a coach beside the teacher's
+  // PAPER lesson plan. "Do you have a lesson plan?" with a document-only Yes had
+  // no viable Yes — 71% of observations ended "No". Ask about the teacher's plan
+  // and say a photo works.
+  const isObservation = !!opts.isObservation;
   // bd-wa5io — `region` no longer drives the footer: coachRoleLabelForRegion()
   // is HITL observe-card branding (env DEFAULT_COACH_ROLE_LABEL="Human Coach")
   // and this menu is teacher-facing DC UI. Param kept for call-site stability.
@@ -53,9 +58,13 @@ function buildLPSelectionList(coachingSessionId, recentLPs, language = 'en', reg
   // one prompt that can never be refused. Built once so the two cannot drift.
   const yesNoPrompt = {
     type: 'buttons',
-    body: isUrdu
-      ? 'کیا آپ کے پاس اس کلاس کا سبق کا منصوبہ ہے؟'
-      : 'Do you have a lesson plan for this class?',
+    body: isObservation
+      ? (isUrdu
+        ? 'کیا استاد کے پاس اس کلاس کا سبق کا منصوبہ ہے؟ کاغذی منصوبے کی تصویر بھی بھیجی جا سکتی ہے۔'
+        : "Does the teacher have a lesson plan for this class? A photo of the paper plan works — it powers the fidelity section.")
+      : (isUrdu
+        ? 'کیا آپ کے پاس اس کلاس کا سبق کا منصوبہ ہے؟'
+        : 'Do you have a lesson plan for this class?'),
     buttons: [
       { id: `lessonplan_yes_${coachingSessionId}`, title: isUrdu ? 'ہاں' : 'Yes' },
       { id: `lessonplan_no_${coachingSessionId}`, title: isUrdu ? 'نہیں' : 'No' },

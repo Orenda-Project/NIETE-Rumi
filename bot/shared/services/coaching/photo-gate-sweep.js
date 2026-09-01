@@ -26,4 +26,22 @@ function shouldAutoAdvancePhotoGate(session, nowMs = Date.now(), thresholdMs = 6
   return nowMs - stamp >= thresholdMs;
 }
 
-module.exports = { PHOTO_GATE_STATUSES, shouldAutoAdvancePhotoGate };
+/**
+ * bd-5knlj — the sweep threshold is PER SESSION TYPE. 60 minutes suits teacher
+ * self-record (fast report beats frozen session); on a leader observation the
+ * coach is mid-school-visit and answers the LP prompt hours later — sweeping
+ * at 60 minutes deleted her Section B (96 of 379 broken observations,
+ * Aug 24 – Sep 1). Observations default to 8 hours; both are env-tunable.
+ */
+const MINUTE = 60 * 1000;
+function gateThresholdFor(session, env = process.env) {
+  const isObservation = !!(session && session.observation_type === 'leader_observation');
+  if (isObservation) {
+    const m = Number(env.OBSERVE_LP_GATE_MINUTES);
+    return (Number.isFinite(m) && m > 0 ? m : 8 * 60) * MINUTE;
+  }
+  const m = Number(env.COACHING_PHOTO_GATE_MINUTES);
+  return (Number.isFinite(m) && m > 0 ? m : 60) * MINUTE;
+}
+
+module.exports = { PHOTO_GATE_STATUSES, shouldAutoAdvancePhotoGate, gateThresholdFor };

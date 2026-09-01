@@ -52,7 +52,7 @@ async function advanceToLessonPlanStep({ sessionId, from, tapperUserId }) {
 
   const { data: session } = await supabase
     .from('coaching_sessions')
-    .select('conversation_state, user_id')
+    .select('conversation_state, user_id, observation_type')
     .eq('id', sessionId)
     .maybeSingle();
 
@@ -64,7 +64,8 @@ async function advanceToLessonPlanStep({ sessionId, from, tapperUserId }) {
   const lang = (userRow && userRow.preferred_language) || 'en';
 
   const recents = await _recentLpsFor((session && session.user_id) || tapperUserId);
-  const lpPrompt = buildLPSelectionList(sessionId, recents, lang, userRow && userRow.region);
+  const lpPrompt = buildLPSelectionList(sessionId, recents, lang, userRow && userRow.region,
+    { isObservation: !!(session && session.observation_type === 'leader_observation') });
 
   // bd-zrlcp — send FIRST, commit only if the prompt actually went out.
   // sendLpPrompt returns false when the payload was refused (WhatsApp caps an

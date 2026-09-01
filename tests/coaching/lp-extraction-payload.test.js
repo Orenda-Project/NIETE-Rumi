@@ -29,3 +29,25 @@ describe('LessonPlanExtractionWorker.buildCompletedPayload (bd-dflr7)', () => {
     expect(p.lesson_plan_text).toBeNull();
   });
 });
+
+/**
+ * bd-5knlj — extraction can land AFTER analysis (the queue races: analysis is
+ * queued at upload time, extraction runs in the background). When it does, the
+ * fidelity section must be recomputed or the uploaded plan is silently useless.
+ */
+describe('maybeRecomputeFidelity hook (bd-5knlj)', () => {
+  test('delegates to the recompute service, non-throwing', async () => {
+    let called = null;
+    const res = await Worker.maybeRecomputeFidelity('cs-7', {
+      recompute: async (sid) => { called = sid; return { recomputed: true }; },
+    });
+    expect(called).toBe('cs-7');
+    expect(res.recomputed).toBe(true);
+  });
+  test('a recompute crash never propagates', async () => {
+    const res = await Worker.maybeRecomputeFidelity('cs-7', {
+      recompute: async () => { throw new Error('boom'); },
+    });
+    expect(res.recomputed).toBe(false);
+  });
+});
