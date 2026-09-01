@@ -39,17 +39,17 @@ devDependency — see **Bot-only dependencies** below.
 
 ---
 
-## Baseline as of `553ab40` (develop)
+## Baseline as of `0c52957` (develop)
 
 Measured over four consecutive runs. Node v22.23.1, Jest 29.7.0.
 
 | | |
 |---|---|
-| Total suites | 407 |
-| Total tests | 4,713 |
+| Total suites | 415 |
+| Total tests | 4,784 |
 | Stable failing suites | **30** |
-| Flaky failing suites | **1** |
-| Failing tests | 91–92 (varies with the flaky one) |
+| Flaky failing suites | **4** (listed below, not gating) |
+| Failing tests | 91–93 (varies with the flaky ones) |
 | Suites that fail to *load* | **0** |
 
 That last row is the one to protect. Until 2026-08-31, **20 of 55 failing suites
@@ -132,14 +132,38 @@ failure as inconclusive and re-run before investigating.
 
 ```
 tests/queue/sqs-cancel-by-group.test.js
+tests/training/certificate-pdf-issuance.test.js
+tests/training/portal-capstone-submit.test.js
+tests/training/portal-grand-quiz.test.js
 ```
 
-Its Redis cancel-flag mock intermittently does not observe the expected `setex`.
-This is the only flake left. The previous list named three certificate/R2-presign
-suites, and separately `handlers/voice-language-floor` and `cache/language-writer`
-were flaking — all of those were the missing-module problem surfacing
-non-deterministically, depending on whether a suite's own `jest.mock` registered
-before the real require. Stubbing the modules removed them.
+`sqs-cancel-by-group` is its own thing: its Redis cancel-flag mock intermittently does
+not observe the expected `setex`.
+
+**The other three are ONE bug, not three.** All live in `tests/training/`, all reach
+`bot/shared/services/training/certificate.service`, and all register their mock with
+`jest.doMock` against a module the code under test requires *lazily* — so whether the
+mock or the real module wins is decided by interleaving. Each passes **3/3 in isolation**
+and inside its own `tests/training/` run, and each fails roughly one full-suite run in
+ten. The tell is unmistakable: `portal-grand-quiz` fails with a genuine `CERT-…` code
+where the mock's `TESTPFX-…` was expected, meaning the real generator ran.
+
+They are listed rather than fixed because the fix belongs to the training work, not to
+the gate: the lazy require needs mocking at the seam the route actually reaches. Fixing
+that one seam should retire all three lines at once — and it is a real bug, because a
+test that sometimes exercises the real certificate generator is not testing what it says
+it tests.
+
+This is also exactly why `--update` prunes the flaky list rather than recording it: a
+`--update` run that happened to catch one of these would otherwise have baked it in as a
+permanently accepted failure. It caught `certificate-pdf-issuance` doing precisely that
+while this baseline was being recorded.
+
+The previous list named three certificate/R2-presign suites, and separately
+`handlers/voice-language-floor` and `cache/language-writer` were flaking — all of
+those were the missing-module problem surfacing non-deterministically, depending on
+whether a suite's own `jest.mock` registered before the real require. Stubbing the
+modules removed them.
 
 ---
 
@@ -203,6 +227,20 @@ The check only asks whether the require chain loads; it has no business claiming
 jobs. The guard lives in the test rather than in an npm script so it travels with the
 code that needs it and cannot be bypassed by invoking Jest directly.
 
+**`schema-completeness` does not read `bot/database/migrations/`.** It compares
+`.from()` and `.rpc()` references against ONE file,
+`infrastructure/supabase/00_complete-schema.sql`. There are 45 further `.sql` files in
+`bot/database/migrations/` that it never opens, so a function defined there is reported
+as missing from the schema. `roster_apply_edits` and `roster_import_students` are
+exactly that: both have a `CREATE FUNCTION` on disk, in a directory outside the guard's
+scope. They are recorded as offenders below because that is the guard's current
+behaviour, not because the migrations are absent.
+
+Widening `SCHEMA_PATH` to include that directory would likely retire several offenders
+at once — including `increment_share_code_uses`. It is left alone deliberately: whether
+`bot/database/migrations/` is authoritative for the deployed schema is a call for
+whoever owns the schema, and quietly broadening a guard is how a guard stops guarding.
+
 **Known-failing is not the same as acceptable.** The 30 above are debt with a
 deadline, not a new normal. The rule is that the snapshot may only ever **shrink**.
 
@@ -241,7 +279,8 @@ Improvements are reported and never gate: fewer offenders, fewer failing tests, 
 suite going green are all clean.
 
 The snapshot is [`tests/baseline.snapshot.json`](baseline.snapshot.json) — 30 failing
-suites, matching the counts recorded above. Its own logic is covered by
+suites, matching the counts recorded above (the flaky three are pruned from it by
+`--update`, so a flaky suite can never be baked in as an accepted failure). Its own logic is covered by
 [`tests/setup/baseline-gate.test.js`](setup/baseline-gate.test.js), including a test
 that pins the offender-level case specifically.
 
