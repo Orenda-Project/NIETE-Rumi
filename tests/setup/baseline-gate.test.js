@@ -27,6 +27,8 @@ const {
   pruneFlaky,
   canonicalise,
   confirmRegressions,
+  parseCliArgs,
+  snapshotGrowth,
 } = require('../baseline-gate');
 
 const ESC = String.fromCharCode(27);
@@ -350,5 +352,108 @@ describe('confirmRegressions — a regression must reproduce before it gates', (
     confirmRegressions(first, second);
     expect(first.newSuites).toEqual(['tests/a.test.js']);
     expect(second.newSuites).toEqual([]);
+  });
+});
+
+
+/**
+ * `npm test` runs the whole suite and judges a delta, so it cannot honour a path
+ * filter — a filtered run compared against a full snapshot would report every
+ * un-run baseline suite as "fixed", and `npm test -- tests/nothing/` would pass
+ * cleanly. Silently ignoring the argument is worse than refusing it.
+ *
+ * This is not hypothetical: when `npm test` became the gate, three Android
+ * workflows and the qa-testing skill were still calling `npm test -- tests/portal/`
+ * and `npm test -- --testPathPattern=coaching`. The filter was dropped without a
+ * word, so those jobs silently went from 289 tests to 4,784 — still passing, still
+ * green, and no longer doing what they said.
+ */
+describe('parseCliArgs — an argument the gate cannot honour must be refused, not ignored', () => {
+  it('accepts no arguments', () => {
+    expect(parseCliArgs([])).toEqual({ update: false, retry: true, unknown: [] });
+  });
+
+  it('accepts --update', () => {
+    expect(parseCliArgs(['--update'])).toEqual({ update: true, retry: true, unknown: [] });
+  });
+
+  it('accepts --no-retry, which turns confirmation off', () => {
+    expect(parseCliArgs(['--no-retry'])).toEqual({ update: false, retry: false, unknown: [] });
+  });
+
+  it('reports a path filter as unknown — the exact call the workflows were making', () => {
+    expect(parseCliArgs(['tests/portal/']).unknown).toEqual(['tests/portal/']);
+  });
+
+  it('reports a jest flag as unknown — the exact call the docs and skill were making', () => {
+    expect(parseCliArgs(['--testPathPattern=coaching']).unknown).toEqual(['--testPathPattern=coaching']);
+  });
+
+  it('collects every unknown argument, not just the first', () => {
+    expect(parseCliArgs(['--update', 'tests/a/', '--bogus']).unknown).toEqual(['tests/a/', '--bogus']);
+  });
+});
+
+/**
+ * "The snapshot may only ever shrink" was written into BASELINE.md and CLAUDE.md and
+ * enforced by nothing — so a PR could add its own failures to the snapshot and the
+ * gate would pass, cleanly. That is the same shape as the bug the gate itself exists
+ * to fix: a rule described in prose that nothing computes.
+ */
+describe('snapshotGrowth — the baseline may shrink, never grow', () => {
+  const snap = (suites) => Object.fromEntries(
+    Object.entries(suites).map(([k, v]) => [k, { failing: v.failing || [], offenders: v.offenders || [] }]),
+  );
+
+  it('is clean when nothing changed', () => {
+    const a = snap({ 'tests/a.test.js': { failing: ['t1'], offenders: ['o1'] } });
+    expect(snapshotGrowth(a, a).grew).toBe(false);
+  });
+
+  it('is clean when a suite was removed — that is the point', () => {
+    const before = snap({ 'tests/a.test.js': {}, 'tests/b.test.js': {} });
+    const after = snap({ 'tests/a.test.js': {} });
+    const g = snapshotGrowth(before, after);
+    expect(g.grew).toBe(false);
+    expect(g.removedSuites).toEqual(['tests/b.test.js']);
+  });
+
+  it('is clean when offenders shrink', () => {
+    const before = snap({ 'tests/a.test.js': { offenders: ['o1', 'o2'] } });
+    const after = snap({ 'tests/a.test.js': { offenders: ['o1'] } });
+    expect(snapshotGrowth(before, after).grew).toBe(false);
+  });
+
+  it('FLAGS a newly accepted suite', () => {
+    const before = snap({ 'tests/a.test.js': {} });
+    const after = snap({ 'tests/a.test.js': {}, 'tests/new.test.js': {} });
+    const g = snapshotGrowth(before, after);
+    expect(g.grew).toBe(true);
+    expect(g.addedSuites).toEqual(['tests/new.test.js']);
+  });
+
+  it('FLAGS newly accepted failing tests inside an already-accepted suite', () => {
+    const before = snap({ 'tests/a.test.js': { failing: ['t1'] } });
+    const after = snap({ 'tests/a.test.js': { failing: ['t1', 't2'] } });
+    const g = snapshotGrowth(before, after);
+    expect(g.grew).toBe(true);
+    expect(g.addedTests).toEqual([{ suite: 'tests/a.test.js', tests: ['t2'] }]);
+  });
+
+  it('FLAGS newly accepted offenders — the level the real incident lived at', () => {
+    const before = snap({ 'tests/setup/source-hygiene.test.js': { offenders: ['a.js:1'] } });
+    const after = snap({ 'tests/setup/source-hygiene.test.js': { offenders: ['a.js:1', 'b.js:2'] } });
+    const g = snapshotGrowth(before, after);
+    expect(g.grew).toBe(true);
+    expect(g.addedOffenders).toEqual([{ suite: 'tests/setup/source-hygiene.test.js', offenders: ['b.js:2'] }]);
+  });
+
+  it('reports a mixed diff honestly — growth wins even alongside a removal', () => {
+    const before = snap({ 'tests/a.test.js': {}, 'tests/gone.test.js': {} });
+    const after = snap({ 'tests/a.test.js': {}, 'tests/new.test.js': {} });
+    const g = snapshotGrowth(before, after);
+    expect(g.grew).toBe(true);
+    expect(g.addedSuites).toEqual(['tests/new.test.js']);
+    expect(g.removedSuites).toEqual(['tests/gone.test.js']);
   });
 });

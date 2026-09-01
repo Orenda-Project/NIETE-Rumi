@@ -64,7 +64,7 @@ jobs:
       - name: Run Android guard tests
         run: |
           npm ci
-          npm test -- tests/portal/
+          npm run test:raw -- tests/portal/
 
       # A debug build points at staging by default so testers cannot generate
       # load or side effects against production data by installing a PR build.

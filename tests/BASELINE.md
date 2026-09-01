@@ -22,12 +22,20 @@ have. That is the whole point: before 2026-08-31 it exited 1 on every branch for
 everyone, so the exit code carried no information and both humans and agents
 learned to ignore it. A gate nobody reads is not a gate.
 
-Need the raw Jest output with no verdict — debugging a single suite, or wanting the
-unfiltered exit code?
+**`npm test` takes NO arguments.** It runs the whole suite and compares the result
+against the snapshot, so it cannot honour a path or pattern filter: a filtered run
+would report every suite it did not run as "fixed", and `npm test -- tests/nothing/`
+would exit 0 having tested nothing. It now refuses an argument it cannot honour rather
+than dropping it silently — which it did until 2026-09-01, sending three Android
+workflows and the qa-testing skill from 289 tests to 4,784 without a word. A guard
+(`tests/setup/npm-test-args.test.js`) keeps a filtered `npm test` out of the repo.
+
+Filtered runs go to raw Jest, which takes any Jest argument:
 
 ```bash
 npm run test:raw                                   # plain jest, still red by design
 npm run test:raw -- --testPathPattern=coaching     # one area
+npm run test:raw -- tests/portal/                  # one directory
 ```
 
 Add `--forceExit` to a filtered raw run: `tests/jest.config.js` does not set it, so
@@ -148,11 +156,30 @@ and inside its own `tests/training/` run, and each fails roughly one full-suite 
 ten. The tell is unmistakable: `portal-grand-quiz` fails with a genuine `CERT-…` code
 where the mock's `TESTPFX-…` was expected, meaning the real generator ran.
 
-They are listed rather than fixed because the fix belongs to the training work, not to
-the gate: the lazy require needs mocking at the seam the route actually reaches. Fixing
-that one seam should retire all three lines at once — and it is a real bug, because a
-test that sometimes exercises the real certificate generator is not testing what it says
-it tests.
+They are listed rather than fixed because **the root cause is not yet established**, and
+guessing at a fix in three test files nobody has diagnosed is how a flake becomes two
+flakes. What an investigation on 2026-09-01 ruled OUT, so the next person does not
+repeat it:
+
+- **Not fixture-state leakage between tests.** `beforeEach` calls `jest.resetModules()`
+  and reassigns `tableStates = {}`, and the fixtures only ever emit `TESTPFX-…` codes.
+  The observed `CERT-20260901-IKNIRB` carries today's date and a random suffix, so it
+  came from the real generator, not from a leaked fixture row.
+- **Not a second require site with a different specifier.**
+  `bot/shared/routes/internal-api.routes.js` lazy-requires `certificate-pdf.service`,
+  a different module. The only site reaching `certificate.service` is
+  `dashboard/routes/portal.routes.js`, whose specifier resolves to the same absolute
+  path the test's `jest.doMock` targets.
+
+What is still unknown is *which* require call returned the real module, and the run
+produces no record of it. Finding it needs the run instrumented — wrap the mock factory
+so it logs when it is consulted, and log at the lazy-require site, then run the full
+suite until it reproduces (about one run in ten). Until then the confirm-run plus this
+list keep the gate honest.
+
+It is worth doing rather than tolerating: a test that sometimes exercises the real
+certificate generator is not testing what it says it tests, and quarantining these four
+suites costs 35 tests of gating.
 
 This is also exactly why `--update` prunes the flaky list rather than recording it: a
 `--update` run that happened to catch one of these would otherwise have baked it in as a
@@ -227,19 +254,25 @@ The check only asks whether the require chain loads; it has no business claiming
 jobs. The guard lives in the test rather than in an npm script so it travels with the
 code that needs it and cannot be bypassed by invoking Jest directly.
 
-**`schema-completeness` does not read `bot/database/migrations/`.** It compares
-`.from()` and `.rpc()` references against ONE file,
-`infrastructure/supabase/00_complete-schema.sql`. There are 45 further `.sql` files in
-`bot/database/migrations/` that it never opens, so a function defined there is reported
-as missing from the schema. `roster_apply_edits` and `roster_import_students` are
-exactly that: both have a `CREATE FUNCTION` on disk, in a directory outside the guard's
-scope. They are recorded as offenders below because that is the guard's current
-behaviour, not because the migrations are absent.
+**`schema-completeness` is RIGHT to flag the roster RPCs — do not widen it.**
 
-Widening `SCHEMA_PATH` to include that directory would likely retire several offenders
-at once — including `increment_share_code_uses`. It is left alone deliberately: whether
-`bot/database/migrations/` is authoritative for the deployed schema is a call for
-whoever owns the schema, and quietly broadening a guard is how a guard stops guarding.
+An earlier version of this note said the guard was merely scoped too narrowly, because
+`roster_apply_edits` and `roster_import_students` do have a `CREATE FUNCTION` on disk in
+`bot/database/migrations/`, which the guard never opens. **That was too generous, and it
+is corrected here.**
+
+The guard compares against `infrastructure/supabase/00_complete-schema.sql`, and that is
+the correct file to compare against: `npm run bootstrap:db` applies **only** that file
+plus RLS and seed (`infrastructure/scripts/bootstrap-db.js`). Nothing applies
+`bot/database/migrations/` — its 45 files are run by hand, one at a time, via the
+Supabase SQL editor or `node infrastructure/scripts/run-migration.js <file>`, as those
+files' own headers say.
+
+So a **fresh clone that bootstraps does not get these two functions**, and the roster
+save path calls them. That is a real gap for clone deployments, not a guard artefact.
+The fix is to fold them into `00_complete-schema.sql`, not to broaden `SCHEMA_PATH` —
+widening it would teach the guard to accept functions a fresh install never receives,
+which is the opposite of what it is for.
 
 **Known-failing is not the same as acceptable.** The 30 above are debt with a
 deadline, not a new normal. The rule is that the snapshot may only ever **shrink**.
@@ -287,3 +320,28 @@ that pins the offender-level case specifically.
 **`--update` is the dangerous flag.** It swallows every regression present in the
 tree at the time it runs. Only re-record from a tree you have separately verified,
 read the resulting diff, and say in the PR why the baseline moved.
+
+**And the baseline may only ever SHRINK — now computed, not just asserted.**
+
+```bash
+npm run test:baseline:growth        # vs origin/develop
+```
+
+The gate compares your run against the snapshot **in your branch**, so a PR that adds
+its own failures to the snapshot passes it, cleanly, printing CLEAN. That is the same
+shape as the bug the gate was built to fix: a rule in prose that nothing computes.
+`tests/baseline-growth-check.js` closes it by comparing the snapshot against the base
+branch and failing if it grew — at all three levels. It runs on every PR in `ci.yml`
+(which checks out with `fetch-depth: 0`, since a shallow clone cannot see the base).
+
+Removals are reported and never fail; shrinking is the goal. A deliberate re-record
+that genuinely must grow passes `--allow-growth`, so the intent is recorded rather than
+inferred.
+
+**It blocks a PR into `develop` and is advisory on a `develop` → `main` promotion.** A
+promotion legitimately carries develop's larger baseline into main — develop is ahead,
+so its snapshot is generally a superset — and blocking that would fire on every single
+release. Measured 2026-09-01: main's snapshot held 24 suites against develop's 30, so a
+promotion PR would have been refused for doing exactly what a promotion does. Advisory
+keeps the signal — *you are importing N newly-accepted failures into prod* — without the
+false block.

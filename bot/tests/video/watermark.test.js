@@ -2,7 +2,7 @@
  * TDD Tests for Video Watermark Service
  * Issue #39: Add Rumi branding watermark to generated videos
  *
- * Run: npm test -- tests/video/watermark.test.js
+ * Run: npm run test:raw -- tests/video/watermark.test.js
  */
 
 const fs = require('fs');

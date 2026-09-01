@@ -5,7 +5,7 @@
  * - Transcript processing jobs (GPT-4o-mini transcript refinement)
  * - AMA processing jobs (Ask Me Anything SQL generation)
  *
- * Run with: npm test -- tests/queue/portal-sqs.service.test.js
+ * Run with: npm run test:raw -- tests/queue/portal-sqs.service.test.js
  */
 
 require('dotenv').config();

@@ -70,7 +70,7 @@ jobs:
       - name: Run Android guard tests
         run: |
           npm ci
-          npm test -- tests/portal/
+          npm run test:raw -- tests/portal/
 
       # Staging URL comes from a repo VARIABLE, not a secret — it is a public
       # hostname, and keeping it visible means a wrong target is obvious in the
