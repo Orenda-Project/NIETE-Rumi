@@ -716,102 +716,6 @@
         "i_C4": {
           "type": "string",
           "__example__": "Ushauri…"
-        },
-        "s_C5": {
-          "type": "string",
-          "__example__": "2"
-        },
-        "e_C5": {
-          "type": "string",
-          "__example__": "Ushahidi…"
-        },
-        "i_C5": {
-          "type": "string",
-          "__example__": "Ushauri…"
-        },
-        "s_C6": {
-          "type": "string",
-          "__example__": "2"
-        },
-        "e_C6": {
-          "type": "string",
-          "__example__": "Ushahidi…"
-        },
-        "i_C6": {
-          "type": "string",
-          "__example__": "Ushauri…"
-        },
-        "s_C7": {
-          "type": "string",
-          "__example__": "2"
-        },
-        "e_C7": {
-          "type": "string",
-          "__example__": "Ushahidi…"
-        },
-        "i_C7": {
-          "type": "string",
-          "__example__": "Ushauri…"
-        },
-        "s_C8": {
-          "type": "string",
-          "__example__": "2"
-        },
-        "e_C8": {
-          "type": "string",
-          "__example__": "Ushahidi…"
-        },
-        "i_C8": {
-          "type": "string",
-          "__example__": "Ushauri…"
-        },
-        "s_C9": {
-          "type": "string",
-          "__example__": "2"
-        },
-        "e_C9": {
-          "type": "string",
-          "__example__": "Ushahidi…"
-        },
-        "i_C9": {
-          "type": "string",
-          "__example__": "Ushauri…"
-        },
-        "s_C10": {
-          "type": "string",
-          "__example__": "2"
-        },
-        "e_C10": {
-          "type": "string",
-          "__example__": "Ushahidi…"
-        },
-        "i_C10": {
-          "type": "string",
-          "__example__": "Ushauri…"
-        },
-        "s_C11": {
-          "type": "string",
-          "__example__": "2"
-        },
-        "e_C11": {
-          "type": "string",
-          "__example__": "Ushahidi…"
-        },
-        "i_C11": {
-          "type": "string",
-          "__example__": "Ushauri…"
-        },
-        "s_C12": {
-          "type": "string",
-          "__example__": "2"
-        },
-        "e_C12": {
-          "type": "string",
-          "__example__": "Ushahidi…"
-        },
-        "i_C12": {
-          "type": "string",
-          "__example__": "Ushauri…"
         }
       },
       "layout": {
@@ -832,31 +736,7 @@
               "imp_C3": "${data.i_C3}",
               "r_C4": "${data.s_C4}",
               "ev_C4": "${data.e_C4}",
-              "imp_C4": "${data.i_C4}",
-              "r_C5": "${data.s_C5}",
-              "ev_C5": "${data.e_C5}",
-              "imp_C5": "${data.i_C5}",
-              "r_C6": "${data.s_C6}",
-              "ev_C6": "${data.e_C6}",
-              "imp_C6": "${data.i_C6}",
-              "r_C7": "${data.s_C7}",
-              "ev_C7": "${data.e_C7}",
-              "imp_C7": "${data.i_C7}",
-              "r_C8": "${data.s_C8}",
-              "ev_C8": "${data.e_C8}",
-              "imp_C8": "${data.i_C8}",
-              "r_C9": "${data.s_C9}",
-              "ev_C9": "${data.e_C9}",
-              "imp_C9": "${data.i_C9}",
-              "r_C10": "${data.s_C10}",
-              "ev_C10": "${data.e_C10}",
-              "imp_C10": "${data.i_C10}",
-              "r_C11": "${data.s_C11}",
-              "ev_C11": "${data.e_C11}",
-              "imp_C11": "${data.i_C11}",
-              "r_C12": "${data.s_C12}",
-              "ev_C12": "${data.e_C12}",
-              "imp_C12": "${data.i_C12}"
+              "imp_C4": "${data.i_C4}"
             },
             "children": [
               {
@@ -936,8 +816,8 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_C4",
-                "label": "C4 — Equitable Participation",
-                "description": "Equitable Participation",
+                "label": "C4 — Student Agency & Voice",
+                "description": "Student Agency & Voice",
                 "required": false,
                 "data-source": "${data.scale}"
               },
@@ -953,182 +833,6 @@
                 "name": "imp_C4",
                 "label": "To improve",
                 "helper-text": "C4 — to improve",
-                "required": false
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "r_C5",
-                "label": "C5 — Student Agency & Voice",
-                "description": "Student Agency & Voice",
-                "required": false,
-                "data-source": "${data.scale}"
-              },
-              {
-                "type": "TextArea",
-                "name": "ev_C5",
-                "label": "Evidence",
-                "helper-text": "C5 — what was seen",
-                "required": false
-              },
-              {
-                "type": "TextArea",
-                "name": "imp_C5",
-                "label": "To improve",
-                "helper-text": "C5 — to improve",
-                "required": false
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "r_C6",
-                "label": "C6 — Classroom Management &…",
-                "description": "Classroom Management & Routines",
-                "required": false,
-                "data-source": "${data.scale}"
-              },
-              {
-                "type": "TextArea",
-                "name": "ev_C6",
-                "label": "Evidence",
-                "helper-text": "C6 — what was seen",
-                "required": false
-              },
-              {
-                "type": "TextArea",
-                "name": "imp_C6",
-                "label": "To improve",
-                "helper-text": "C6 — to improve",
-                "required": false
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "r_C7",
-                "label": "C7 — Positive & Supportive…",
-                "description": "Positive & Supportive Learning Environment",
-                "required": false,
-                "data-source": "${data.scale}"
-              },
-              {
-                "type": "TextArea",
-                "name": "ev_C7",
-                "label": "Evidence",
-                "helper-text": "C7 — what was seen",
-                "required": false
-              },
-              {
-                "type": "TextArea",
-                "name": "imp_C7",
-                "label": "To improve",
-                "helper-text": "C7 — to improve",
-                "required": false
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "r_C8",
-                "label": "C8 — Modeling, Scaffolding &…",
-                "description": "Modeling, Scaffolding & Problem-Solving",
-                "required": false,
-                "data-source": "${data.scale}"
-              },
-              {
-                "type": "TextArea",
-                "name": "ev_C8",
-                "label": "Evidence",
-                "helper-text": "C8 — what was seen",
-                "required": false
-              },
-              {
-                "type": "TextArea",
-                "name": "imp_C8",
-                "label": "To improve",
-                "helper-text": "C8 — to improve",
-                "required": false
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "r_C9",
-                "label": "C9 — Collaborative Learning",
-                "description": "Collaborative Learning",
-                "required": false,
-                "data-source": "${data.scale}"
-              },
-              {
-                "type": "TextArea",
-                "name": "ev_C9",
-                "label": "Evidence",
-                "helper-text": "C9 — what was seen",
-                "required": false
-              },
-              {
-                "type": "TextArea",
-                "name": "imp_C9",
-                "label": "To improve",
-                "helper-text": "C9 — to improve",
-                "required": false
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "r_C10",
-                "label": "C10 — Integration of…",
-                "description": "Integration of Taleemabad Technology",
-                "required": false,
-                "data-source": "${data.scale}"
-              },
-              {
-                "type": "TextArea",
-                "name": "ev_C10",
-                "label": "Evidence",
-                "helper-text": "C10 — what was seen",
-                "required": false
-              },
-              {
-                "type": "TextArea",
-                "name": "imp_C10",
-                "label": "To improve",
-                "helper-text": "C10 — to improve",
-                "required": false
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "r_C11",
-                "label": "C11 — Self & Peer Assessment…",
-                "description": "Self & Peer Assessment Facilitation",
-                "required": false,
-                "data-source": "${data.scale}"
-              },
-              {
-                "type": "TextArea",
-                "name": "ev_C11",
-                "label": "Evidence",
-                "helper-text": "C11 — what was seen",
-                "required": false
-              },
-              {
-                "type": "TextArea",
-                "name": "imp_C11",
-                "label": "To improve",
-                "helper-text": "C11 — to improve",
-                "required": false
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "r_C12",
-                "label": "C12 — Classroom Resources &…",
-                "description": "Classroom Resources & Space for Collaboration",
-                "required": false,
-                "data-source": "${data.scale}"
-              },
-              {
-                "type": "TextArea",
-                "name": "ev_C12",
-                "label": "Evidence",
-                "helper-text": "C12 — what was seen",
-                "required": false
-              },
-              {
-                "type": "TextArea",
-                "name": "imp_C12",
-                "label": "To improve",
-                "helper-text": "C12 — to improve",
                 "required": false
               },
               {
@@ -1149,31 +853,7 @@
                     "imp_C3": "${form.imp_C3}",
                     "r_C4": "${form.r_C4}",
                     "ev_C4": "${form.ev_C4}",
-                    "imp_C4": "${form.imp_C4}",
-                    "r_C5": "${form.r_C5}",
-                    "ev_C5": "${form.ev_C5}",
-                    "imp_C5": "${form.imp_C5}",
-                    "r_C6": "${form.r_C6}",
-                    "ev_C6": "${form.ev_C6}",
-                    "imp_C6": "${form.imp_C6}",
-                    "r_C7": "${form.r_C7}",
-                    "ev_C7": "${form.ev_C7}",
-                    "imp_C7": "${form.imp_C7}",
-                    "r_C8": "${form.r_C8}",
-                    "ev_C8": "${form.ev_C8}",
-                    "imp_C8": "${form.imp_C8}",
-                    "r_C9": "${form.r_C9}",
-                    "ev_C9": "${form.ev_C9}",
-                    "imp_C9": "${form.imp_C9}",
-                    "r_C10": "${form.r_C10}",
-                    "ev_C10": "${form.ev_C10}",
-                    "imp_C10": "${form.imp_C10}",
-                    "r_C11": "${form.r_C11}",
-                    "ev_C11": "${form.ev_C11}",
-                    "imp_C11": "${form.imp_C11}",
-                    "r_C12": "${form.r_C12}",
-                    "ev_C12": "${form.ev_C12}",
-                    "imp_C12": "${form.imp_C12}"
+                    "imp_C4": "${form.imp_C4}"
                   }
                 }
               }
@@ -1277,30 +957,6 @@
         "i_D5": {
           "type": "string",
           "__example__": "Ushauri…"
-        },
-        "s_D6": {
-          "type": "string",
-          "__example__": "2"
-        },
-        "e_D6": {
-          "type": "string",
-          "__example__": "Ushahidi…"
-        },
-        "i_D6": {
-          "type": "string",
-          "__example__": "Ushauri…"
-        },
-        "s_D7": {
-          "type": "string",
-          "__example__": "2"
-        },
-        "e_D7": {
-          "type": "string",
-          "__example__": "Ushahidi…"
-        },
-        "i_D7": {
-          "type": "string",
-          "__example__": "Ushauri…"
         }
       },
       "layout": {
@@ -1324,13 +980,7 @@
               "imp_D4": "${data.i_D4}",
               "r_D5": "${data.s_D5}",
               "ev_D5": "${data.e_D5}",
-              "imp_D5": "${data.i_D5}",
-              "r_D6": "${data.s_D6}",
-              "ev_D6": "${data.e_D6}",
-              "imp_D6": "${data.i_D6}",
-              "r_D7": "${data.s_D7}",
-              "ev_D7": "${data.e_D7}",
-              "imp_D7": "${data.i_D7}"
+              "imp_D5": "${data.i_D5}"
             },
             "children": [
               {
@@ -1344,8 +994,8 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_D1",
-                "label": "D1 — Active Participation Rate",
-                "description": "Active Participation Rate",
+                "label": "D1 — Diversity of Conceptual…",
+                "description": "Diversity of Conceptual Expression",
                 "required": false,
                 "data-source": "${data.scale}"
               },
@@ -1366,8 +1016,8 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_D2",
-                "label": "D2 — Cognitive Engagement…",
-                "description": "Cognitive Engagement Level (Bloom's)",
+                "label": "D2 — Student Reasoning in…",
+                "description": "Student Reasoning in Responses",
                 "required": false,
                 "data-source": "${data.scale}"
               },
@@ -1388,8 +1038,8 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_D3",
-                "label": "D3 — Student-to-Student…",
-                "description": "Student-to-Student Interaction",
+                "label": "D3 — Student-Initiated…",
+                "description": "Student-Initiated Questions",
                 "required": false,
                 "data-source": "${data.scale}"
               },
@@ -1410,8 +1060,8 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_D4",
-                "label": "D4 — Student Confidence &…",
-                "description": "Student Confidence & Risk-Taking",
+                "label": "D4 — Spontaneous Transfer &…",
+                "description": "Spontaneous Transfer & Connection-Making",
                 "required": false,
                 "data-source": "${data.scale}"
               },
@@ -1432,8 +1082,8 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_D5",
-                "label": "D5 — On-Task Behavior During…",
-                "description": "On-Task Behavior During Independent Work",
+                "label": "D5 — Visible Learning…",
+                "description": "Visible Learning Progression Across the Lesson",
                 "required": false,
                 "data-source": "${data.scale}"
               },
@@ -1449,50 +1099,6 @@
                 "name": "imp_D5",
                 "label": "To improve",
                 "helper-text": "D5 — to improve",
-                "required": false
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "r_D6",
-                "label": "D6 — Student Use of Learning…",
-                "description": "Student Use of Learning Materials",
-                "required": false,
-                "data-source": "${data.scale}"
-              },
-              {
-                "type": "TextArea",
-                "name": "ev_D6",
-                "label": "Evidence",
-                "helper-text": "D6 — what was seen",
-                "required": false
-              },
-              {
-                "type": "TextArea",
-                "name": "imp_D6",
-                "label": "To improve",
-                "helper-text": "D6 — to improve",
-                "required": false
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "r_D7",
-                "label": "D7 — Inclusivity of Engagement",
-                "description": "Inclusivity of Engagement",
-                "required": false,
-                "data-source": "${data.scale}"
-              },
-              {
-                "type": "TextArea",
-                "name": "ev_D7",
-                "label": "Evidence",
-                "helper-text": "D7 — what was seen",
-                "required": false
-              },
-              {
-                "type": "TextArea",
-                "name": "imp_D7",
-                "label": "To improve",
-                "helper-text": "D7 — to improve",
                 "required": false
               },
               {
@@ -1516,13 +1122,7 @@
                     "imp_D4": "${form.imp_D4}",
                     "r_D5": "${form.r_D5}",
                     "ev_D5": "${form.ev_D5}",
-                    "imp_D5": "${form.imp_D5}",
-                    "r_D6": "${form.r_D6}",
-                    "ev_D6": "${form.ev_D6}",
-                    "imp_D6": "${form.imp_D6}",
-                    "r_D7": "${form.r_D7}",
-                    "ev_D7": "${form.ev_D7}",
-                    "imp_D7": "${form.imp_D7}"
+                    "imp_D5": "${form.imp_D5}"
                   }
                 }
               }
@@ -1662,6 +1262,30 @@
         "i_F8": {
           "type": "string",
           "__example__": "Ushauri…"
+        },
+        "s_F9": {
+          "type": "string",
+          "__example__": "2"
+        },
+        "e_F9": {
+          "type": "string",
+          "__example__": "Ushahidi…"
+        },
+        "i_F9": {
+          "type": "string",
+          "__example__": "Ushauri…"
+        },
+        "s_F10": {
+          "type": "string",
+          "__example__": "2"
+        },
+        "e_F10": {
+          "type": "string",
+          "__example__": "Ushahidi…"
+        },
+        "i_F10": {
+          "type": "string",
+          "__example__": "Ushauri…"
         }
       },
       "layout": {
@@ -1694,7 +1318,13 @@
               "imp_F7": "${data.i_F7}",
               "r_F8": "${data.s_F8}",
               "ev_F8": "${data.e_F8}",
-              "imp_F8": "${data.i_F8}"
+              "imp_F8": "${data.i_F8}",
+              "r_F9": "${data.s_F9}",
+              "ev_F9": "${data.e_F9}",
+              "imp_F9": "${data.i_F9}",
+              "r_F10": "${data.s_F10}",
+              "ev_F10": "${data.e_F10}",
+              "imp_F10": "${data.i_F10}"
             },
             "children": [
               {
@@ -1774,8 +1404,8 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_F4",
-                "label": "F4 — Depth of Explanation",
-                "description": "Depth of Explanation",
+                "label": "F4 — Mathematical Discourse…",
+                "description": "Mathematical Discourse & Reasoning",
                 "required": false,
                 "data-source": "${data.scale}"
               },
@@ -1796,8 +1426,8 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_F5",
-                "label": "F5 — Subject-Specific…",
-                "description": "Subject-Specific Pedagogy: MATH",
+                "label": "F5 — Problem-Solving &…",
+                "description": "Problem-Solving & Productive Struggle",
                 "required": false,
                 "data-source": "${data.scale}"
               },
@@ -1818,8 +1448,8 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_F6",
-                "label": "F6 — Subject-Specific…",
-                "description": "Subject-Specific Pedagogy: SCIENCE",
+                "label": "F6 — Inquiry-Based Approach",
+                "description": "Inquiry-Based Approach",
                 "required": false,
                 "data-source": "${data.scale}"
               },
@@ -1840,8 +1470,8 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_F7",
-                "label": "F7 — Subject-Specific…",
-                "description": "Subject-Specific Pedagogy: LITERACY / LANGUAGE",
+                "label": "F7 — Science Talk & Student…",
+                "description": "Science Talk & Student Sense-Making",
                 "required": false,
                 "data-source": "${data.scale}"
               },
@@ -1862,8 +1492,8 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "r_F8",
-                "label": "F8 — Cross-Curricular…",
-                "description": "Cross-Curricular Connections",
+                "label": "F8 — Explicit Phonics /…",
+                "description": "Explicit Phonics / Decoding",
                 "required": false,
                 "data-source": "${data.scale}"
               },
@@ -1879,6 +1509,50 @@
                 "name": "imp_F8",
                 "label": "To improve",
                 "helper-text": "F8 — to improve",
+                "required": false
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r_F9",
+                "label": "F9 — Comprehension Strategy…",
+                "description": "Comprehension Strategy Instruction",
+                "required": false,
+                "data-source": "${data.scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_F9",
+                "label": "Evidence",
+                "helper-text": "F9 — what was seen",
+                "required": false
+              },
+              {
+                "type": "TextArea",
+                "name": "imp_F9",
+                "label": "To improve",
+                "helper-text": "F9 — to improve",
+                "required": false
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r_F10",
+                "label": "F10 — Reading-Writing…",
+                "description": "Reading-Writing Connections",
+                "required": false,
+                "data-source": "${data.scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_F10",
+                "label": "Evidence",
+                "helper-text": "F10 — what was seen",
+                "required": false
+              },
+              {
+                "type": "TextArea",
+                "name": "imp_F10",
+                "label": "To improve",
+                "helper-text": "F10 — to improve",
                 "required": false
               },
               {
@@ -1911,7 +1585,13 @@
                     "imp_F7": "${form.imp_F7}",
                     "r_F8": "${form.r_F8}",
                     "ev_F8": "${form.ev_F8}",
-                    "imp_F8": "${form.imp_F8}"
+                    "imp_F8": "${form.imp_F8}",
+                    "r_F9": "${form.r_F9}",
+                    "ev_F9": "${form.ev_F9}",
+                    "imp_F9": "${form.imp_F9}",
+                    "r_F10": "${form.r_F10}",
+                    "ev_F10": "${form.ev_F10}",
+                    "imp_F10": "${form.imp_F10}"
                   }
                 }
               }

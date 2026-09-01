@@ -356,6 +356,26 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // lp-feedback.service.js handleFeedbackButton). Short-circuit here so
   // intent detection / AI chat doesn't eat the reason.
   // ============================================================
+  // Coaching survey — same shape, checked first because its window is opened by a button
+  // tap that is unambiguous; an open coaching window means she is answering "what could we
+  // do better?" and that must not reach intent detection.
+  if (user?.id) {
+    try {
+      const CoachingFeedbackService = require('../services/coaching/coaching-feedback.service');
+      const tookIt = await CoachingFeedbackService.handlePendingReason(user.id, from, messageBody);
+      if (tookIt) {
+        logToFile('Coaching Feedback: reason captured, short-circuiting text handler', {
+          userId: user.id, from,
+        });
+        return;
+      }
+    } catch (coachingFbErr) {
+      logToFile('Coaching Feedback: handlePendingReason error (non-fatal)', {
+        error: coachingFbErr.message, userId: user.id,
+      });
+    }
+  }
+
   if (user?.id) {
     try {
       const consumed = await LpFeedbackService.consumeReasonIfPending(user.id, from, messageBody);

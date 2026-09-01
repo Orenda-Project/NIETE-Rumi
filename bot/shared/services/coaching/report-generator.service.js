@@ -1528,6 +1528,28 @@ class ReportGeneratorService {
     // Record quality metrics
     const updatedSession = await CoachingSessionService.getSession(coachingSessionId);
     await CoachingHelpersService.recordQualityMetrics(updatedSession);
+
+    // The session has now SETTLED — report delivered, voice debrief attempted, metrics row
+    // written. Only now is it fair to ask whether any of it was useful. Scheduling is
+    // non-blocking and swallows its own errors: a survey must never fail a session.
+    try {
+      const CoachingFeedbackService = require('./coaching-feedback.service');
+      // The phone lives on the JOINED users row (the session query selects
+      // `users!inner(phone_number, ...)`), NOT as a column on coaching_sessions. Reading
+      // session.phone_number returns undefined and the survey silently never sends.
+      const phone = (session && session.users && session.users.phone_number)
+        || (updatedSession && updatedSession.users && updatedSession.users.phone_number);
+      CoachingFeedbackService.scheduleFeedbackPrompt({
+        coachingSessionId,
+        userId: (updatedSession && updatedSession.user_id) || session.user_id,
+        phone,
+        language: _languageFromSession(updatedSession || session),
+      });
+    } catch (surveyErr) {
+      logToFile('Coaching Feedback: could not schedule (non-fatal)', {
+        coachingSessionId, error: surveyErr.message,
+      });
+    }
   }
 
   /**
