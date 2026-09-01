@@ -936,65 +936,6 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
-  // NOTE — /exam trigger removed (Umama's spec 2026-07-16, bd-2033):
-  // the legacy Exam Generator (WEEKLY/TERM composed from `exam_question_bank`)
-  // is superseded by the Assessment Generator Flow below (UG_EG-backed).
-  // `/assessment` is the single entry point for exam + practice creation.
-  // The old exam-generator Flow + endpoint remain wired for now — they can
-  // still be published under a different trigger if we ever need the fallback.
-  // ============================================================
-
-  // ============================================================
-  // ASSESSMENT COMMAND: /assessment — open the Assessment Generator Flow.
-  // Dynamic multi-screen state machine: SPEC → SEEN_UNSEEN → (fast-path SUCCESS
-  // if 'Seen') → OBJ_SUBJ → QUESTION_TYPES (dynamic per subject+category) →
-  // SUCCESS. Backend submits to external UG_EG service; result lands on
-  // /webhooks/assessment-generator. See routes/assessment-gen-endpoint.js.
-  // ============================================================
-  if (trimmedMessage === '/assessment' || trimmedMessage === '/practice') {
-    logToFile('📝 /assessment command detected', { userId: user?.id, phoneNumber: from });
-    if (!user) {
-      typingController.stop();
-      await WhatsAppService.sendMessage(
-        from,
-        'Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔'
-      );
-      return;
-    }
-    // the Assessment Generator is held OFF until it is ready on BOTH
-    // surfaces. The switch is one app_settings row shared with the portal, so
-    // neither side can claim the feature is live while the other says it isn't.
-    // Fail-closed: an absent row or a failed lookup reads as off.
-    const { isAssessmentGeneratorEnabled } = require('../config/feature-flags');
-    const assessmentLive = await isAssessmentGeneratorEnabled();
-    const ASSESSMENT_GEN_FLOW_ID = process.env.ASSESSMENT_GEN_FLOW_ID || '';
-    if (assessmentLive && ASSESSMENT_GEN_FLOW_ID) {
-      typingController.stop();
-      const flowToken = `${user.id}:assessment-gen:${Date.now()}`;
-      const responseLanguage = await getUserLanguage(user.id) || 'en';
-      await WhatsAppService.sendFlow(from, {
-        flowId: ASSESSMENT_GEN_FLOW_ID,
-        header: '📝 New assessment',
-        body: ({
-          ur: 'اپنی کلاس کے لیے امتحان یا مشق تیار کریں — گریڈ، مضمون، صفحات اور سوالات منتخب کریں۔',
-        })[responseLanguage] || 'Build an exam or classroom practice — pick grade, subject, pages, and question types.',
-        buttonText: ({
-          ur: 'شروع کریں',
-        })[responseLanguage] || 'Start',
-        flowToken,
-      });
-      logToFile('📝 Sent assessment-gen flow (/assessment)', { userId: user.id });
-      return;
-    }
-    typingController.stop();
-    await WhatsAppService.sendMessage(
-      from,
-      "The assessment generator is being prepared for you. We'll notify you when it's live."
-    );
-    return;
-  }
-
-  // ============================================================
   // QUIZ COMMAND: /quiz [topic] — generate + send a quiz to the class.
   // Direct path (QuizOrchestrator). A Quiz Manager Flow can be layered later
   // via QUIZ_FLOW_ID, but the direct path needs no Meta-flow registration.

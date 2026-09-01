@@ -7,7 +7,6 @@
  * Flow types:
  * - training_msq: Training multi-answer question (training_msq_action)
  * - reading_assessment: Reading assessment flow (Student_Full_Name, Assessment_Mode)
- * - exam_generator: Exam generator flow (`:exam-generator:` in flow_token)
  * - attendance_setup: Class setup flow (class_name + student_list/students_text)
  * - attendance_marking: Attendance marking flow (absent_students or attendance flow_token)
  * - registration: User registration flow (full_name + country, or :registration: in flow_token)
@@ -125,21 +124,6 @@ function detectFlowType(responseJson) {
     return 'registration';
   }
 
-  // 2.5. Exam Generator (endpoint flow — terminal ack; the endpoint at
-  // /api/flows/exam-generator has already queued the SQS `exam_generate` job
-  // by the time this NFM_REPLY arrives; the SQS worker sends follow-up chat
-  // messages + the .docx. Nothing to do here except identify the flow so it
-  // isn't misrouted by the loose attendance-marking fallback below.
-  //
-  // Flow token from text-message.handler.js:678 is `${user.id}:exam-generator:${ts}`.
-  // The two colons here would otherwise match the attendance_marking check.
-  //
-  // Bug caught 2026-07-12 during live E2E — teacher saw "Sorry, error recording
-  // attendance: Failed to fetch students" after clicking "Generate exam", because
-  // the exam-generator flow_token matched the loose attendance-marking fallback.
-  if (responseJson.flow_token?.includes(':exam-generator:')) {
-    return 'exam_generator';
-  }
 
   // 2.55. Roster — the coach photographed a class register and saved the list.
   // Tagged explicitly in extension_message_response.params rather than inferred from
@@ -149,15 +133,6 @@ function detectFlowType(responseJson) {
     return 'roster';
   }
 
-  // 2.6. Assessment Generator — external UG_EG-backed flow.
-  // Flow token from text-message.handler.js is `${user.id}:assessment-gen:${ts}`.
-  // The flow endpoint has already submitted the job to UG_EG; the callback at
-  // /webhooks/assessment-generator will deliver the PDF asynchronously.
-  // Nothing to do on the NFM_REPLY except identify it (same reason as
-  // exam-generator above — avoid the loose attendance-marking fallback).
-  if (responseJson.flow_token?.includes(':assessment-gen:')) {
-    return 'assessment_generator';
-  }
 
   // 3. Attendance Setup (class creation)
   // Navigate-based format: class_name + student_list/students_text
