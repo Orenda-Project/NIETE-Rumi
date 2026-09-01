@@ -27,6 +27,29 @@ module.exports = {
     // teacher-register tests can assert what the generator wrote without the dep.
     '^exceljs$': '<rootDir>/tests/__mocks__/exceljs.js',
     '^canvas$': '<rootDir>/tests/__mocks__/canvas.js',
+    // Same case again: @supabase/supabase-js and the two AWS S3 packages live in
+    // bot/node_modules, so any root suite whose chain reached bot/shared/config/supabase.js
+    // or bot/shared/storage/r2.js died on an unresolved require rather than on its own
+    // assertions. Ported from main, where these have been in place since 2026-08.
+    '^@supabase/supabase-js$': '<rootDir>/tests/__mocks__/supabase-js.js',
+    '^@aws-sdk/client-s3$': '<rootDir>/tests/__mocks__/aws-sdk-client-s3.js',
+    '^@aws-sdk/s3-request-presigner$': '<rootDir>/tests/__mocks__/aws-sdk-s3-request-presigner.js',
+    // Media + PDF: fluent-ffmpeg shells out to a real transcoder and the two
+    // installer packages exist only to expose a binary path, so these are stubbed
+    // rather than added as root deps — a unit suite must never invoke ffmpeg.
+    // pdf-parse is 30MB and the suite that needed it only exercises a pure function.
+    '^fluent-ffmpeg$': '<rootDir>/tests/__mocks__/fluent-ffmpeg.js',
+    '^@ffmpeg-installer/ffmpeg$': '<rootDir>/tests/__mocks__/ffmpeg-installer.js',
+    '^@ffprobe-installer/ffprobe$': '<rootDir>/tests/__mocks__/ffmpeg-installer.js',
+    '^pdf-parse$': '<rootDir>/tests/__mocks__/pdf-parse.js',
+    // Document + browser rendering: pdfkit, mammoth and the Playwright browser are
+    // all bot-only. Suites that already install their own virtual mock keep it —
+    // an explicit jest.mock takes precedence over moduleNameMapper. These are the
+    // floor for the suites that never had one.
+    '^pdfkit$': '<rootDir>/tests/__mocks__/pdfkit.js',
+    '^mammoth$': '<rootDir>/tests/__mocks__/mammoth.js',
+    '^playwright-core$': '<rootDir>/tests/__mocks__/playwright-core.js',
+    '^@aws-sdk/client-textract$': '<rootDir>/tests/__mocks__/aws-sdk-client-textract.js',
     // Same case, same fix: dotenv lives in bot/node_modules and pg in
     // dashboard/node_modules, so every root suite that loads bot config or
     // dashboard source died on an unresolved require rather than on anything
