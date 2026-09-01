@@ -337,3 +337,11 @@ branch and failing if it grew — at all three levels. It runs on every PR in `c
 Removals are reported and never fail; shrinking is the goal. A deliberate re-record
 that genuinely must grow passes `--allow-growth`, so the intent is recorded rather than
 inferred.
+
+**It blocks a PR into `develop` and is advisory on a `develop` → `main` promotion.** A
+promotion legitimately carries develop's larger baseline into main — develop is ahead,
+so its snapshot is generally a superset — and blocking that would fire on every single
+release. Measured 2026-09-01: main's snapshot held 24 suites against develop's 30, so a
+promotion PR would have been refused for doing exactly what a promotion does. Advisory
+keeps the signal — *you are importing N newly-accepted failures into prod* — without the
+false block.

@@ -64,11 +64,25 @@ jobs:
       # failures to the snapshot passes it, cleanly. This is the other half: the
       # baseline may shrink, never grow. PR-only — on a push the base is this branch,
       # so there is nothing to compare against.
+      #
+      # BLOCKING for a PR into `develop`, ADVISORY for a `develop` -> `main`
+      # promotion. A promotion legitimately carries develop's larger baseline into
+      # main — develop is ahead, so its snapshot is generally a superset — and
+      # blocking that would fire on every single release. Measured 2026-09-01:
+      # main's snapshot held 24 suites, develop's 30, so a promotion PR would have
+      # been refused for doing exactly what a promotion does. Advisory keeps the
+      # signal ("you are importing 8 newly-accepted failures into prod") without
+      # the false block.
       - name: Baseline may only shrink
         if: github.event_name == 'pull_request'
         env:
           BASELINE_BASE_REF: origin/${{ github.base_ref }}
-        run: npm run test:baseline:growth
+        run: |
+          if [ "${{ github.base_ref }}" = "main" ]; then
+            npm run test:baseline:growth -- --allow-growth
+          else
+            npm run test:baseline:growth
+          fi
 
       - name: Install canvas system dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential libcairo2-dev libjpeg-dev libpango1.0-dev libgif-dev librsvg2-dev libpixman-1-dev
