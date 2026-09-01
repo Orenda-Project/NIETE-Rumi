@@ -208,6 +208,35 @@ describe('answer lines', () => {
   });
 });
 
+describe('fonts — the tofu-box guard', () => {
+  // The Chromium that prints this has NO system fonts. A stylesheet that merely
+  // NAMES a Nastaliq face gets no glyphs and every Urdu character renders as an
+  // empty box. bd-2664 shipped hundreds of unreadable Urdu reports that way.
+  const q = one('MCQs', { question: 'یہ ایک سوال ہے', marks: 1 });
+
+  it('embeds real font data rather than naming a font and hoping', () => {
+    const html = R.renderPaper({ ...HEAD, subject: 'Urdu', examJson: q });
+    expect(html).toMatch(/@font-face/);
+    expect(html).toMatch(/src:url\(data:font\/ttf;base64,[A-Za-z0-9+/]{500}/);
+  });
+
+  it('embeds the Urdu face for an Urdu paper, not only the Latin one', () => {
+    const html = R.renderPaper({ ...HEAD, subject: 'Urdu', examJson: q });
+    expect(html).toContain("font-family:'PaperUrdu'");
+    expect(html).toMatch(/font-family: 'PaperUrdu'/);
+  });
+
+  it('never names a font that only exists on someone\'s laptop', () => {
+    const html = R.renderPaper({ ...HEAD, subject: 'Urdu', examJson: q });
+    expect(html).not.toMatch(/Jameel Noori|Segoe UI/);
+  });
+
+  it('isolates marks so digits do not reorder the Urdu around them', () => {
+    const html = R.renderPaper({ ...HEAD, subject: 'Urdu', examJson: q });
+    expect(html).toMatch(/\.marks[^}]*unicode-bidi: isolate/);
+  });
+});
+
 describe('language', () => {
   it('sets the paper right-to-left for an Urdu-medium subject', () => {
     const html = R.renderPaper({ ...HEAD, subject: 'Urdu', examJson: one('MCQs', { question: 'سوال', marks: 1 }) });

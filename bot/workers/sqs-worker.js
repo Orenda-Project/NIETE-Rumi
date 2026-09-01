@@ -391,6 +391,17 @@ class SQSCoachingWorker {
         break;
       }
 
+      case 'assessment_generate': {
+        // Load the chapter, write the questions, render the paper, send it.
+        // The model call alone runs ~25s and the print adds a few more, so five
+        // minutes is headroom rather than an estimate: a job that times out
+        // mid-flight sends the teacher nothing at all.
+        await SQSQueueService.extendJobTimeout(receiptHandle, 300);
+        const AssessmentOrchestrator = require('../shared/services/assessment/assessment-orchestrator.service');
+        await AssessmentOrchestrator.process(payload);
+        break;
+      }
+
       // Quiz jobs (v2 envelope with body.groupId). Producers enqueue via
       // SQSQueueService.queueJob(); each handler in quiz-job-handler does a
       // cancel-flag check, an optional cascade re-queue (quiz_report/quiz_expire),

@@ -16,6 +16,55 @@
  * appear on the page, not disappear into the DOM.
  */
 
+const fs = require('fs');
+const path = require('path');
+
+/**
+ * Fonts are base64-embedded into the HTML, not named and hoped for.
+ *
+ * The Chromium that prints this runs headless on a container with NO system
+ * fonts. A stylesheet that merely NAMES 'Noto Nastaliq Urdu' gets no glyphs and
+ * every Urdu character renders as an empty box. This has shipped here before:
+ * hundreds of unreadable Urdu reports went out because a redesign copied a
+ * template's CSS and not its font embedding. Naming a font that happens to be
+ * installed on the author's laptop is the exact shape of that bug.
+ */
+const FONT_FILES = {
+  latin: 'Lexend-Regular.ttf',
+  latinBold: 'Lexend-Bold.ttf',
+  nastaliq: 'NotoNastaliqUrdu-Regular.ttf',
+  nastaliqBold: 'NotoNastaliqUrdu-Bold.ttf',
+};
+
+let _fonts = null;
+function fonts() {
+  if (_fonts) return _fonts;
+  _fonts = {};
+  for (const [key, file] of Object.entries(FONT_FILES)) {
+    const abs = path.join(__dirname, '..', '..', 'fonts', file);
+    try {
+      _fonts[key] = fs.existsSync(abs) ? fs.readFileSync(abs).toString('base64') : '';
+    } catch {
+      _fonts[key] = '';
+    }
+  }
+  return _fonts;
+}
+
+function fontFaces() {
+  const f = fonts();
+  const face = (family, weight, data) => (data
+    ? `@font-face{font-family:'${family}';font-weight:${weight};font-style:normal;`
+      + `src:url(data:font/ttf;base64,${data}) format('truetype');}`
+    : '');
+  return [
+    face('PaperLatin', 400, f.latin),
+    face('PaperLatin', 700, f.latinBold),
+    face('PaperUrdu', 400, f.nastaliq),
+    face('PaperUrdu', 700, f.nastaliqBold),
+  ].filter(Boolean).join('\n');
+}
+
 const SUBJECT_NAMES = {
   eng: 'English', english: 'English',
   urdu: 'Urdu',
@@ -266,9 +315,14 @@ function renderPaper({ examJson, grade, subject, schoolName, pageReference,
 <head><meta charset="utf-8"><title>${heading}</title>
 <style>
   @page { size: A4; margin: 14mm 12mm; }
+  ${fontFaces()}
   body { font-family: ${rtl
-    ? "'Jameel Noori Nastaleeq','Noto Nastaliq Urdu',serif"
-    : "'Lexend','Segoe UI',Arial,sans-serif"}; font-size: 12pt; color: #000; line-height: 1.5; margin: 0; }
+    ? "'PaperUrdu','PaperLatin',serif"
+    : "'PaperLatin',Arial,sans-serif"}; font-size: ${rtl ? '13.5pt' : '12pt'};
+    color: #000; line-height: ${rtl ? 2.0 : 1.5}; margin: 0; }
+  /* Digits, page numbers and marks stay left-to-right inside RTL text. Isolate
+     rather than force direction — an override reorders the surrounding Urdu. */
+  .marks, .num { unicode-bidi: isolate; }
   .school { text-align: center; font-weight: 700; font-size: 13pt; letter-spacing: .01em; }
   .class-line { text-align: center; font-size: 11.5pt; margin: 2px 0 10px; }
   .chapter { text-align: center; font-size: 10.5pt; color: #333; margin-bottom: 10px; }
