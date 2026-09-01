@@ -65,7 +65,13 @@ async function clearSession(token) {
   try { await redis.delete(sessionKey(token)); } catch { /* best effort */ }
 }
 
-const screen = (id, data) => ({ screen: id, data });
+// Meta requires a component's `visible` to be a boolean, not a truthy string,
+// so the error TEXT and the decision to SHOW it are two fields. Deriving the
+// flag here means no caller can set one and forget the other.
+const screen = (id, data) => ({
+  screen: id,
+  data: ('error' in (data || {})) ? { ...data, has_error: Boolean(data.error) } : data,
+});
 
 /** Which grades we hold any book for. */
 async function gradesOnOffer() {

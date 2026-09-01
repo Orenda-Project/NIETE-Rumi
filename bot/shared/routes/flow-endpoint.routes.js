@@ -827,8 +827,13 @@ router.post('/assessment-gen', async (req, res) => {
       logToFile('Flow encryption not configured', { endpoint: 'assessment-gen' });
       return res.status(500).send();
     }
-    return await FlowEncryptionService.handleFlowRequest(req, res,
-      async (decryptedData) => await handleAssessmentGenRequest(decryptedData));
+    const encryptedResponse = await FlowEncryptionService.processEncryptedRequest(
+      req.body,
+      async (decryptedData) => await handleAssessmentGenRequest(decryptedData)
+    );
+
+    res.set('Content-Type', 'text/plain');
+    return res.send(encryptedResponse);
   } catch (error) {
     logToFile('Flow endpoint error', { endpoint: 'assessment-gen', error: error.message, stack: error.stack });
     return res.status(500).send();
@@ -964,7 +969,7 @@ async function handleExamConfirmRequest(data) {
 }
 
 // ============================================================
-// PAKISTAN LP FLOW ENDPOINT (FEAT-059) — pick a pre-generated LP by
+// PAKISTAN LP FLOW ENDPOINT — pick a pre-generated LP by
 // Grade → Subject → Chapter and deliver the PDF to chat.
 // ============================================================
 
