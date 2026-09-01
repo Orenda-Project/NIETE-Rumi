@@ -266,7 +266,9 @@ class AnalysisProcessorService {
             ...(metadata.photoAnalysis ? { photo_analysis: metadata.photoAnalysis } : {}),
             // LP fidelity (FICO Section B) analysis blob — pct + band + per-move verdicts/evidence +
             // narrative + moderators. Only when the feature is on and a move-list resolved (D20).
-            ...(lpFidelity && lpFidelity.status === 'ok' ? { lp_fidelity: lpFidelity } : {}),
+            // bd-5knlj: non-ok statuses persist too — lp_absent vs
+            // fidelity_unavailable vs never-ran were indistinguishable before.
+            ...require('./fidelity/fidelity-orchestrator').fidelityPatch(lpFidelity),
           },
           status: 'analysis_complete',
           analysis_completed_at: new Date().toISOString(),

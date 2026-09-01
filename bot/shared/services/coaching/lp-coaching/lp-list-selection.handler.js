@@ -56,6 +56,17 @@ async function handleLpListSelection(listId, from, deps = {}) {
       } catch (_) { return 'en'; }
     });
   const { getCoachingMessage } = deps.messages || require('../../../config/coaching-messages');
+  const recomputeFidelity = deps.recomputeFidelity
+    || ((sid) => require('../fidelity/fidelity-recompute.service').recomputeFidelityForSession(sid));
+  const sessionStatus = deps.sessionStatus
+    || (async (sid) => {
+      try {
+        const supabase = require('../../../config/supabase');
+        const { data } = await supabase
+          .from('coaching_sessions').select('status').eq('id', sid).maybeSingle();
+        return (data && data.status) || null;
+      } catch (_) { return null; }
+    });
 
   const sessionId = sessionIdFrom(listId);
   if (!sessionId) {
@@ -83,6 +94,14 @@ async function handleLpListSelection(listId, from, deps = {}) {
 
   if (result && result.lesson_plan_link_method === 'selected_recent') {
     await sendMessage(from, getCoachingMessage('lessonPlan_linked', lang));
+    // bd-5knlj: a LATE tap — the session already analyzed — must not re-run the
+    // whole analysis; recompute ONLY the fidelity section so Section B fills in
+    // for the still-unsubmitted review.
+    const status = await sessionStatus(sessionId);
+    if (status && status !== 'awaiting_lesson_plan') {
+      await recomputeFidelity(sessionId);
+      return true;
+    }
     await queueAnalysis(sessionId, { from });
     return true;
   }

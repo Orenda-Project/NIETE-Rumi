@@ -736,8 +736,10 @@ async function processStuckPhotoGateSessions() {
   }
 
   const now = Date.now();
+  // bd-5knlj: per-session threshold — leader observations wait hours, not minutes.
+  const { gateThresholdFor } = require('../shared/services/coaching/photo-gate-sweep');
   const eligible = (stuck || [])
-    .filter((s) => shouldAutoAdvancePhotoGate(s, now, PHOTO_GATE_THRESHOLD_MS))
+    .filter((s) => shouldAutoAdvancePhotoGate(s, now, gateThresholdFor(s)))
     .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));   // oldest first
 
   let advanced = 0;
