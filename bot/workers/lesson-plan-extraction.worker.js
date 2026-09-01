@@ -177,6 +177,12 @@ class LessonPlanExtractionWorker {
         excerptLength: excerpt?.length || 0,
         wordCount
       });
+
+      // bd-5knlj: extraction can land AFTER the analysis that was queued at
+      // upload time — the uploaded plan then never reached the fidelity engine
+      // and Section B stayed on its fallback. Recompute is CAS-guarded to
+      // unsubmitted-review statuses and a no-op when fidelity is already ok.
+      await LessonPlanExtractionWorker.maybeRecomputeFidelity(coachingSessionId);
     } catch (error) {
       const sanitizedError = (error.message || 'Unknown error')
         .replace(/\/[^\/\s]+/g, '[path]')
@@ -209,6 +215,21 @@ class LessonPlanExtractionWorker {
   // bd-dflr7 — carry the FULL extracted text as lesson_plan_text (not just the
   // 500-char excerpt) so the uploaded-LP fidelity path (which reads
   // coaching_sessions.lesson_plan_text) can grade an uploaded plan.
+  /** bd-5knlj — fire the late-LP fidelity recompute; never throws. */
+  static async maybeRecomputeFidelity(coachingSessionId, deps = {}) {
+    const recompute = deps.recompute
+      || ((sid) => require('../shared/services/coaching/fidelity/fidelity-recompute.service')
+        .recomputeFidelityForSession(sid));
+    try {
+      return await recompute(coachingSessionId);
+    } catch (e) {
+      logToFile('[fidelity-recompute] post-extraction hook failed (non-blocking)', {
+        coachingSessionId, error: e.message,
+      });
+      return { recomputed: false, reason: 'error' };
+    }
+  }
+
   static buildCompletedPayload({ excerpt, structuredData, wordCount, extractedText, normalizedFormat }) {
     return {
       lesson_plan_excerpt: excerpt,
