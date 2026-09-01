@@ -61,12 +61,11 @@ const TEACHER_TRAINING_FLOW_ID = process.env.TEACHER_TRAINING_FLOW_ID || '';
 // "Done" delivery. Clearing this env var is the rollback lever for the Flow.
 const TRAINING_MSQ_FLOW_ID = process.env.TRAINING_MSQ_FLOW_ID || '';
 // WhatsApp Flow ID for the Exam Generator (empty → /exam is disabled and replies with a hint).
-const EXAM_GENERATOR_FLOW_ID = process.env.EXAM_GENERATOR_FLOW_ID || '';
 // WhatsApp Flow ID for the Assessment Generator Service (Orenda-Project/UG_EG).
 // Empty → /assessment is disabled and replies with a hint.
-const ASSESSMENT_GEN_FLOW_ID = process.env.ASSESSMENT_GEN_FLOW_ID || '';
 // WhatsApp Flow ID for the Pakistan LP picker (FEAT-059). Empty → the `lp`
 // keyword falls through to the text-intercept path (topic → grade+subject).
+const ASSESSMENT_GEN_FLOW_ID = process.env.ASSESSMENT_GEN_FLOW_ID || '';
 const PAKISTAN_LP_FLOW_ID = process.env.PAKISTAN_LP_FLOW_ID || '';
 // Teacher-facing WhatsApp number shown in the lesson-plan Coaching Corner
 // (empty → the contact line is omitted from the rendered LP).
@@ -192,7 +191,6 @@ module.exports = {
   QUIZ_FLOW_ID,
   TEACHER_TRAINING_FLOW_ID,
   TRAINING_MSQ_FLOW_ID,
-  EXAM_GENERATOR_FLOW_ID,
   ASSESSMENT_GEN_FLOW_ID,
   PAKISTAN_LP_FLOW_ID,
   COACHING_WHATSAPP_NUMBER,

@@ -1,6 +1,5 @@
 /**
- * bd-2460 — bot-side reader for the shared, fail-closed feature flags in
- * `app_settings`.
+ * Bot-side reader for the shared, fail-closed feature flags in `app_settings`.
  *
  * Mirrors dashboard/lib/feature-flags.js. The two are deliberately separate
  * files rather than a cross-tree require: the dashboard's guarded imports of

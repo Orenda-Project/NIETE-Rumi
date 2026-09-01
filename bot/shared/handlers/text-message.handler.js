@@ -936,61 +936,48 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
-  // NOTE — /exam trigger removed (Umama's spec 2026-07-16, bd-2033):
-  // the legacy Exam Generator (WEEKLY/TERM composed from `exam_question_bank`)
-  // is superseded by the Assessment Generator Flow below (UG_EG-backed).
-  // `/assessment` is the single entry point for exam + practice creation.
-  // The old exam-generator Flow + endpoint remain wired for now — they can
-  // still be published under a different trigger if we ever need the fallback.
+  // ASSESSMENT COMMAND — five names for one thing, because a teacher reaching
+  // for this thinks "exam" as often as she thinks "assessment", and guessing
+  // wrong costs her a round trip.
+  //
+  // These are slash commands, which matters: the exam CHECKER matches on
+  // keywords but is skipped for anything starting with '/', so /exam here
+  // cannot collide with it.
   // ============================================================
-
-  // ============================================================
-  // ASSESSMENT COMMAND: /assessment — open the Assessment Generator Flow.
-  // Dynamic multi-screen state machine: SPEC → SEEN_UNSEEN → (fast-path SUCCESS
-  // if 'Seen') → OBJ_SUBJ → QUESTION_TYPES (dynamic per subject+category) →
-  // SUCCESS. Backend submits to external UG_EG service; result lands on
-  // /webhooks/assessment-generator. See routes/assessment-gen-endpoint.js.
-  // ============================================================
-  if (trimmedMessage === '/assessment' || trimmedMessage === '/practice') {
-    logToFile('📝 /assessment command detected', { userId: user?.id, phoneNumber: from });
+  if (['/assessment', '/assess', '/assessments', '/exam', '/exams'].includes(trimmedMessage)) {
+    logToFile('📝 assessment command', { userId: user?.id, command: trimmedMessage });
     if (!user) {
       typingController.stop();
-      await WhatsAppService.sendMessage(
-        from,
-        'Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔'
-      );
+      await WhatsAppService.sendMessage(from,
+        'Send me a message first so I know who you are.\n\nپہلے مجھے پیغام بھیجیں تاکہ میں آپ کو پہچان سکوں۔');
       return;
     }
-    // the Assessment Generator is held OFF until it is ready on BOTH
-    // surfaces. The switch is one app_settings row shared with the portal, so
-    // neither side can claim the feature is live while the other says it isn't.
-    // Fail-closed: an absent row or a failed lookup reads as off.
+
+    // One switch, shared with the portal, fail-closed. An absent row means off,
+    // so shipping the code does not ship the feature.
     const { isAssessmentGeneratorEnabled } = require('../config/feature-flags');
-    const assessmentLive = await isAssessmentGeneratorEnabled();
-    const ASSESSMENT_GEN_FLOW_ID = process.env.ASSESSMENT_GEN_FLOW_ID || '';
-    if (assessmentLive && ASSESSMENT_GEN_FLOW_ID) {
+    const { ASSESSMENT_GEN_FLOW_ID } = require('../utils/constants');
+    const live = await isAssessmentGeneratorEnabled();
+
+    if (live && ASSESSMENT_GEN_FLOW_ID) {
       typingController.stop();
-      const flowToken = `${user.id}:assessment-gen:${Date.now()}`;
       const responseLanguage = await getUserLanguage(user.id) || 'en';
       await WhatsAppService.sendFlow(from, {
         flowId: ASSESSMENT_GEN_FLOW_ID,
         header: '📝 New assessment',
         body: ({
-          ur: 'اپنی کلاس کے لیے امتحان یا مشق تیار کریں — گریڈ، مضمون، صفحات اور سوالات منتخب کریں۔',
-        })[responseLanguage] || 'Build an exam or classroom practice — pick grade, subject, pages, and question types.',
-        buttonText: ({
-          ur: 'شروع کریں',
-        })[responseLanguage] || 'Start',
-        flowToken,
+          ur: 'اپنی جماعت کے لیے پرچہ بنائیں — جماعت، مضمون اور سبق منتخب کریں۔',
+        })[responseLanguage] || 'Build a paper for your class — pick the grade, subject and chapter.',
+        buttonText: ({ ur: 'شروع کریں' })[responseLanguage] || 'Start',
+        flowToken: `${user.id}:assessment-gen:${Date.now()}`,
       });
-      logToFile('📝 Sent assessment-gen flow (/assessment)', { userId: user.id });
+      logToFile('📝 sent assessment flow', { userId: user.id });
       return;
     }
+
     typingController.stop();
-    await WhatsAppService.sendMessage(
-      from,
-      "The assessment generator is being prepared for you. We'll notify you when it's live."
-    );
+    await WhatsAppService.sendMessage(from,
+      "We're getting the assessment generator ready for you. I'll tell you the moment it's live.");
     return;
   }
 

@@ -17,20 +17,20 @@
  *   1. FAIL CLOSED. Absent row, malformed value, or a failed lookup all mean
  *      OFF. Turning the feature ON must be a deliberate act, and a database
  *      hiccup must never silently expose an unfinished feature.
- *   2. The API is the gate, not the tab. Hiding the panel while leaving
- *      /assessment/generate open is the same mistake as a "🔒 Locked" label
- *      with no server-side check (bd-2452) — a session cookie would still
- *      drive the generator.
- *   3. Both /assessment/generate and /assessment/status refuse. Gating only
- *      the submit leaves an in-flight job pollable.
- *   4. The refusal carries the SAME wording the bot already sends, so a
- *      teacher who tries both surfaces gets one consistent answer.
- *   5. value: true turns it on and the endpoints behave exactly as before.
+ *   2. The refusal carries the SAME wording the bot sends, so a teacher who
+ *      tries both surfaces gets one consistent answer.
+ *   3. value: true reports it as available.
+ *
+ * bd-59814 narrowed this file. The portal's /assessment/generate and
+ * /assessment/status endpoints were deleted with the UG_EG-backed
+ * implementation, so the cases that gated THEM went with them. What remains is
+ * the part that still has a subject: /config, which is what the browser reads
+ * to decide whether to offer the feature at all. The flag itself is unchanged
+ * and still fail-closed — it is the switch the rebuild ships dark behind.
  */
 
 let supabaseFrom;
 let tableStates;
-let submitJob;
 
 const MESSAGE_RE = /being prepared|not.*available yet|notify you when/i;
 
@@ -129,14 +129,6 @@ beforeEach(() => {
   jest.doMock('express-rate-limit', () => jest.fn(() => (_q, _s, next) => next()), { virtual: true });
   jest.doMock('@aws-sdk/client-s3', () => ({ S3Client: jest.fn(), GetObjectCommand: jest.fn() }), { virtual: true });
 
-  submitJob = jest.fn().mockResolvedValue({ jobId: 'job-1' });
-  jest.doMock('../../bot/shared/services/assessment-generator-client.service', () => ({
-    submitJob, pollJob: jest.fn().mockResolvedValue({ status: 'pending' }),
-  }));
-  jest.doMock('../../bot/shared/services/cache/railway-redis.service', () => ({
-    set: jest.fn().mockResolvedValue(true),
-    get: jest.fn().mockResolvedValue({ jobId: 'job-1', userId: 'user-1', spec: {}, filename: 'f', outputFormat: 'pdf' }),
-  }));
 });
 
 afterEach(() => jest.resetModules());
@@ -146,80 +138,6 @@ const VALID_SPEC = {
   pageRanges: '1-10', contentSource: 'Seen',
   questionTypes: [{ id: 'mcq', count: 5, category: 'objective' }],
 };
-
-describe('bd-2460 — the generate endpoint is gated, not just the tab', () => {
-  it('refuses with 503 when the flag row is absent (fail closed)', async () => {
-    setFlag(undefined);
-
-    const { statusCode, payload } = await invoke('post', '/assessment/generate', { body: VALID_SPEC });
-
-    expect(statusCode).toBe(503);
-    expect(String(payload.error)).toMatch(MESSAGE_RE);
-  });
-
-  it('does not submit anything to the generation service while off', async () => {
-    setFlag(undefined);
-
-    await invoke('post', '/assessment/generate', { body: VALID_SPEC });
-
-    expect(submitJob).not.toHaveBeenCalled();
-  });
-
-  it('refuses when the flag is explicitly false', async () => {
-    setFlag(false);
-
-    const { statusCode } = await invoke('post', '/assessment/generate', { body: VALID_SPEC });
-
-    expect(statusCode).toBe(503);
-  });
-
-  it('refuses when the lookup errors — a DB hiccup must not open the feature', async () => {
-    tableStates.app_settings = { error: { message: 'connection reset' } };
-
-    const { statusCode } = await invoke('post', '/assessment/generate', { body: VALID_SPEC });
-
-    expect(statusCode).toBe(503);
-  });
-
-  it('refuses on a malformed value rather than guessing', async () => {
-    setFlag('yes-please');
-
-    const { statusCode } = await invoke('post', '/assessment/generate', { body: VALID_SPEC });
-
-    expect(statusCode).toBe(503);
-  });
-
-  it('passes through when the flag is true', async () => {
-    setFlag(true);
-
-    const { statusCode, payload } = await invoke('post', '/assessment/generate', { body: VALID_SPEC });
-
-    expect(statusCode).toBe(200);
-    expect(payload.success).toBe(true);
-    expect(submitJob).toHaveBeenCalled();
-  });
-});
-
-describe('bd-2460 — the status endpoint is gated too', () => {
-  it('refuses with 503 while off, so an in-flight job cannot be polled', async () => {
-    setFlag(undefined);
-
-    const { statusCode, payload } = await invoke('get', '/assessment/status/:jobId', {
-      params: { jobId: 'job-1' },
-    });
-
-    expect(statusCode).toBe(503);
-    expect(String(payload.error)).toMatch(MESSAGE_RE);
-  });
-
-  it('is reachable again when the flag is true', async () => {
-    setFlag(true);
-
-    const { statusCode } = await invoke('get', '/assessment/status/:jobId', { params: { jobId: 'job-1' } });
-
-    expect(statusCode).not.toBe(503);
-  });
-});
 
 describe('bd-2460 — the portal tells the browser what is available', () => {
   it('reports the generator as unavailable while off', async () => {
