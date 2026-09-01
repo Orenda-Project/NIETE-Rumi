@@ -166,7 +166,7 @@ node bot/workers/attendance-bigquery-export.worker.js
 
 Run with:
 ```
-npm test -- --testPathPattern=attendance/bigquery
+npm run test:raw -- --testPathPattern=attendance/bigquery
 ```
 
 Both suites mock BigQuery + Supabase — no external calls.

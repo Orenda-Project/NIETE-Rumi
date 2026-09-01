@@ -123,7 +123,7 @@ In `bot/shared/services/pdf-report.service.js`, search for goal/domain headers (
 
 ```bash
 # Run the coaching-related tests
-npm test -- --testPathPattern="coaching"
+npm run test:raw -- --testPathPattern="coaching"
 
 # Use the CLI simulator to test an end-to-end coaching flow
 cd bot && npm run simulate
@@ -198,7 +198,7 @@ In `report.service.js`, update the metrics displayed (e.g., show ASER level inst
 ### Testing
 
 ```bash
-npm test -- --testPathPattern="reading"
+npm run test:raw -- --testPathPattern="reading"
 cd bot && npm run simulate
 # Then type: /reading test
 ```
