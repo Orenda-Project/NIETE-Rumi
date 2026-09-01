@@ -258,6 +258,72 @@ function confirmRegressions(first, second) {
   };
 }
 
+/**
+ * Parse the gate's own flags, and report anything it cannot honour.
+ *
+ * The gate runs the WHOLE suite and compares the result against a full snapshot, so
+ * it cannot accept a path filter: a filtered run would report every un-run baseline
+ * suite as "fixed", and `npm test -- tests/nothing/` would exit 0 having tested
+ * nothing. Refusing the argument is the only safe behaviour — silently dropping it
+ * is how a green check comes to mean nothing.
+ *
+ * Learned the hard way. When `npm test` became the gate, three Android workflows and
+ * the qa-testing skill were still passing `-- tests/portal/` and
+ * `-- --testPathPattern=coaching`. The filters were dropped without a word, so those
+ * jobs went from 289 tests to 4,784, stayed green, and stopped doing what they said.
+ * Anything filtered belongs on `npm run test:raw`.
+ */
+function parseCliArgs(argv) {
+  const known = new Set(['--update', '--no-retry']);
+  return {
+    update: argv.includes('--update'),
+    retry: !argv.includes('--no-retry'),
+    unknown: argv.filter((a) => !known.has(a)),
+  };
+}
+
+/**
+ * Compare two snapshots and report whether the baseline GREW.
+ *
+ * "The snapshot may only ever shrink" was written into BASELINE.md and CLAUDE.md and
+ * enforced by nothing, which is precisely the shape of the bug this gate exists to
+ * fix: a rule in prose that nothing computes. Without this, a PR can add its own
+ * failures to the snapshot and the gate passes, cleanly, saying CLEAN.
+ *
+ * Shrinking is the goal, so a removal is never flagged. Growth is flagged at all
+ * three levels the gate itself compares, for the same reason: a new offender inside
+ * an already-accepted suite is the level the real incident lived at.
+ */
+function snapshotGrowth(before, after) {
+  const list = (o, k, f) => (o[k] ? o[k][f] || [] : []);
+  const addedSuites = Object.keys(after).filter((s) => !(s in before)).sort();
+  const removedSuites = Object.keys(before).filter((s) => !(s in after)).sort();
+
+  // `outKey` is separate from `field` on purpose: the snapshot stores the test list
+  // under `failing`, but every other result in this file calls it `tests`, and a
+  // reader comparing gate output to growth output should not have to notice.
+  const grown = (field, outKey) => {
+    const out = [];
+    for (const suite of Object.keys(after)) {
+      if (!(suite in before)) continue;          // covered by addedSuites
+      const was = new Set(list(before, suite, field));
+      const now = list(after, suite, field).filter((x) => !was.has(x));
+      if (now.length) out.push({ suite, [outKey]: now.sort() });
+    }
+    return out.sort((a, b) => a.suite.localeCompare(b.suite));
+  };
+
+  const addedTests = grown('failing', 'tests');
+  const addedOffenders = grown('offenders', 'offenders');
+  return {
+    grew: !!(addedSuites.length || addedTests.length || addedOffenders.length),
+    addedSuites,
+    removedSuites,
+    addedTests,
+    addedOffenders,
+  };
+}
+
 // ── CLI ──────────────────────────────────────────────────────────────────────
 function runJest() {
   const out = path.join(require('os').tmpdir(), `niete-jest-${process.pid}.json`);
@@ -284,7 +350,21 @@ function list(label, items, fmt = (x) => x) {
 }
 
 function main() {
-  const update = process.argv.includes('--update');
+  const { update, retry, unknown } = parseCliArgs(process.argv.slice(2));
+  if (unknown.length) {
+    console.error(`baseline-gate: cannot honour ${unknown.map((a) => `"${a}"`).join(', ')}.`);
+    console.error('');
+    console.error('  `npm test` is the baseline gate. It runs the WHOLE suite and compares the');
+    console.error('  result against tests/baseline.snapshot.json, so it cannot take a path or');
+    console.error('  pattern filter — a filtered run would report every suite it did not run as');
+    console.error('  "fixed", and would exit 0 having tested almost nothing.');
+    console.error('');
+    console.error('  For a filtered run, use raw jest, which takes any jest argument:');
+    console.error(`    npm run test:raw -- ${unknown.join(' ')}`);
+    console.error('');
+    console.error('  The gate itself accepts only --update and --no-retry. See tests/BASELINE.md.');
+    process.exit(2);
+  }
   const flaky = flakyFromBaselineDoc();
   const now = summariseRun(runJest());
 
@@ -318,7 +398,7 @@ function main() {
   // behaviour for anyone who wants the raw first verdict.
   let r = first;
   let didConfirm = false;
-  if (!first.clean && !process.argv.includes('--no-retry')) {
+  if (!first.clean && retry) {
     console.log('\nbaseline-gate: possible regression — confirming with a second full run.');
     r = confirmRegressions(first, compareSnapshots(summariseRun(runJest()), base, { flaky }));
     didConfirm = true;
@@ -367,5 +447,7 @@ module.exports = {
   compareSnapshots,
   flakyFromBaselineDoc,
   confirmRegressions,
+  parseCliArgs,
+  snapshotGrowth,
   relSuite,
 };

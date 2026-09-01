@@ -89,7 +89,7 @@ jobs:
       - name: Run Android guard tests
         run: |
           npm ci
-          npm test -- tests/portal/
+          npm run test:raw -- tests/portal/
 
       # The absolute API URL is the thing bd-2551 shipped without. It comes
       # from a secret, and the build fails loudly if it is missing or relative

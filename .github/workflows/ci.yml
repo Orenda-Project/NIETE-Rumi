@@ -40,6 +40,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # Full history: the baseline-growth check reads the snapshot as it exists on
+          # the base branch, which a shallow clone cannot see. Without this it degrades
+          # to a warning and stops guarding anything.
+          fetch-depth: 0
 
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
@@ -54,6 +59,16 @@ jobs:
       # `npm run test:raw` for unfiltered jest output when debugging a failure.
       - name: Run unit tests (baseline gate — fails only on NEW failures)
         run: npm test
+
+      # The gate compares against the snapshot IN THE BRANCH, so a PR that adds its own
+      # failures to the snapshot passes it, cleanly. This is the other half: the
+      # baseline may shrink, never grow. PR-only — on a push the base is this branch,
+      # so there is nothing to compare against.
+      - name: Baseline may only shrink
+        if: github.event_name == 'pull_request'
+        env:
+          BASELINE_BASE_REF: origin/${{ github.base_ref }}
+        run: npm run test:baseline:growth
 
       - name: Install canvas system dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential libcairo2-dev libjpeg-dev libpango1.0-dev libgif-dev librsvg2-dev libpixman-1-dev

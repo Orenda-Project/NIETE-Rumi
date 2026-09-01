@@ -69,8 +69,13 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
   `npm test` runs every suite and then judges the *delta* against `tests/baseline.snapshot.json`:
   **exit 0 means "you added no new failure"**, which is the only question a gate can usefully answer here.
   A suspected regression is re-run once and only fails if it reproduces, so a flaky suite cannot redden
-  your PR at random. Use `npm run test:raw` for unfiltered Jest output when debugging (add `--forceExit`
-  to a filtered run).
+  your PR at random.
+  **`npm test` takes NO arguments** — it must run everything to judge a delta, and it refuses a filter
+  rather than dropping it. For a filtered run use `npm run test:raw -- <any jest args>` (add
+  `--forceExit`; a filtered run can hang on an open handle).
+  **The snapshot may only ever SHRINK, and that is now enforced** — `npm run test:baseline:growth`
+  compares it against the base branch and CI fails a PR that grows it. Adding your failure to the
+  snapshot is not a way past the gate.
   **The ~30 suites in the snapshot are known-red debt. Do not try to fix them to get green — you already
   are green. Do not add to them either: the snapshot may only ever shrink.** Read
   [tests/BASELINE.md](tests/BASELINE.md) before concluding you broke something.
