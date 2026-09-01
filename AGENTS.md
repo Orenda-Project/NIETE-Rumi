@@ -31,7 +31,7 @@ rumi-platform/
 ├── infrastructure/
 │   ├── supabase/           # SQL schema, RLS policies, seed data
 │   └── railway/            # Deployment configs
-├── tests/                  # Jest suites (93 suites / 1161 tests)
+├── tests/                  # Jest suites (407 suites / 4,713 tests)
 ├── docs/                   # Architecture, customization, monitoring
 └── .claude/                # Claude Code config + /setup skill
 ```
@@ -41,7 +41,8 @@ rumi-platform/
 ```bash
 npm install               # Install root dependencies
 cd bot && npm install     # Install bot dependencies
-npm test                  # Run all tests (Jest via tests/run.js)
+npm test                  # Baseline gate: all suites, fails only on NEW failures
+npm run test:raw          # Raw Jest output (red by design — see tests/BASELINE.md)
 npm run test:security     # Security scan (no hardcoded secrets)
 npm run test:sprint1      # Core feature tests
 npm run test:schema       # Database schema validation

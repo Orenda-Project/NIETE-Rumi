@@ -26,6 +26,7 @@ const {
   compareSnapshots,
   pruneFlaky,
   canonicalise,
+  confirmRegressions,
 } = require('../baseline-gate');
 
 const ESC = String.fromCharCode(27);
@@ -246,5 +247,108 @@ describe('canonicalise — the snapshot must be byte-stable across runs', () => 
     const a = { 'tests/b.test.js': { failing: ['x'], offenders: [] }, 'tests/a.test.js': { failing: [], offenders: [] } };
     const b = { 'tests/a.test.js': { failing: [], offenders: [] }, 'tests/b.test.js': { failing: ['x'], offenders: [] } };
     expect(JSON.stringify(canonicalise(a))).toBe(JSON.stringify(canonicalise(b)));
+  });
+});
+
+
+/**
+ * A gate that goes red at random is a gate that gets switched off — which is exactly
+ * how this repo's CI came to be `disabled_manually` in the first place. So a suspected
+ * regression is CONFIRMED by a second full run, and only what reproduces in BOTH runs
+ * counts.
+ *
+ * The case that forced this: `tests/training/portal-grand-quiz.test.js` fails roughly
+ * one run in fourteen — its `jest.doMock` of the shared certificate service
+ * intermittently loses to the real module, so a genuine `CERT-…` code arrives where the
+ * mock's `TESTPFX-…` was expected. Nothing in the diff under test touched it. Left
+ * unconfirmed, that one suite would have made every fourteenth PR red for a reason
+ * nobody could act on.
+ *
+ * This is deliberately NOT the flaky list: a flaky-list entry is permanent and excuses
+ * the suite forever, whereas confirmation is per-run and still fails the moment the
+ * failure is real and reproducible.
+ */
+describe('confirmRegressions — a regression must reproduce before it gates', () => {
+  const red = (suites) => ({ newSuites: suites, newTests: [], newOffenders: [], clean: false });
+
+  it('drops a new failing suite that did not reproduce on the second run', () => {
+    const c = confirmRegressions(red(['tests/a.test.js']), red([]));
+    expect(c.newSuites).toEqual([]);
+    expect(c.clean).toBe(true);
+    expect(c.unconfirmed.newSuites).toEqual(['tests/a.test.js']);
+  });
+
+  it('keeps a new failing suite that reproduced on both runs', () => {
+    const c = confirmRegressions(red(['tests/a.test.js']), red(['tests/a.test.js']));
+    expect(c.newSuites).toEqual(['tests/a.test.js']);
+    expect(c.clean).toBe(false);
+    expect(c.unconfirmed.newSuites).toEqual([]);
+  });
+
+  it('separates the reproducible from the transient in one run', () => {
+    const c = confirmRegressions(
+      red(['tests/real.test.js', 'tests/flake.test.js']),
+      red(['tests/real.test.js']),
+    );
+    expect(c.newSuites).toEqual(['tests/real.test.js']);
+    expect(c.unconfirmed.newSuites).toEqual(['tests/flake.test.js']);
+    expect(c.clean).toBe(false);
+  });
+
+  it('confirms at test level, per suite — a new test must reproduce', () => {
+    const first = {
+      newSuites: [], newOffenders: [], clean: false,
+      newTests: [{ suite: 'tests/a.test.js', tests: ['real one', 'flaky one'] }],
+    };
+    const second = {
+      newSuites: [], newOffenders: [], clean: false,
+      newTests: [{ suite: 'tests/a.test.js', tests: ['real one'] }],
+    };
+    const c = confirmRegressions(first, second);
+    expect(c.newTests).toEqual([{ suite: 'tests/a.test.js', tests: ['real one'] }]);
+    expect(c.unconfirmed.newTests).toEqual([{ suite: 'tests/a.test.js', tests: ['flaky one'] }]);
+  });
+
+  it('confirms at offender level, per suite — the level that caught the real incident', () => {
+    const first = {
+      newSuites: [], newTests: [], clean: false,
+      newOffenders: [{ suite: 'tests/setup/source-hygiene.test.js', offenders: ['a.js:1', 'b.js:2'] }],
+    };
+    const second = {
+      newSuites: [], newTests: [], clean: false,
+      newOffenders: [{ suite: 'tests/setup/source-hygiene.test.js', offenders: ['a.js:1'] }],
+    };
+    const c = confirmRegressions(first, second);
+    expect(c.newOffenders).toEqual([{ suite: 'tests/setup/source-hygiene.test.js', offenders: ['a.js:1'] }]);
+    expect(c.clean).toBe(false);
+  });
+
+  it('drops a suite entirely when none of its new tests reproduced', () => {
+    const first = {
+      newSuites: [], newOffenders: [], clean: false,
+      newTests: [{ suite: 'tests/a.test.js', tests: ['transient'] }],
+    };
+    const c = confirmRegressions(first, { newSuites: [], newTests: [], newOffenders: [], clean: true });
+    expect(c.newTests).toEqual([]);
+    expect(c.clean).toBe(true);
+  });
+
+  it('carries the first run fixed-lists through, so improvements are still reported', () => {
+    const first = {
+      ...red(['tests/a.test.js']),
+      fixedSuites: ['tests/was-red.test.js'],
+      fixedOffenders: [{ suite: 'tests/setup/x.test.js', offenders: ['gone.js:1'] }],
+    };
+    const c = confirmRegressions(first, red([]));
+    expect(c.fixedSuites).toEqual(['tests/was-red.test.js']);
+    expect(c.fixedOffenders).toEqual([{ suite: 'tests/setup/x.test.js', offenders: ['gone.js:1'] }]);
+  });
+
+  it('does not mutate either input', () => {
+    const first = red(['tests/a.test.js']);
+    const second = red([]);
+    confirmRegressions(first, second);
+    expect(first.newSuites).toEqual(['tests/a.test.js']);
+    expect(second.newSuites).toEqual([]);
   });
 });

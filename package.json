@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "build:portal": "npm ci --prefix portal && npm run build --prefix portal && rm -rf dashboard/portal-frontend/dist && cp -r portal/dist dashboard/portal-frontend/dist && npm install --prefix dashboard",
-    "test": "node tests/run.js",
+    "test": "node tests/baseline-gate.js",
+    "test:raw": "node tests/run.js",
     "test:baseline": "node tests/baseline-gate.js",
     "test:baseline:update": "node tests/baseline-gate.js --update",
     "test:security": "node tests/run.js --testPathPattern=sprint-0",

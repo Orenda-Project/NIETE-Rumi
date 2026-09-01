@@ -198,6 +198,66 @@ function flakyFromBaselineDoc(md = BASELINE_MD) {
     .filter((l) => l.endsWith('.test.js'));
 }
 
+/**
+ * Keep only the regressions that reproduce across two independent runs.
+ *
+ * A gate that goes red at random gets switched off — which is literally how this
+ * repo's CI ended up `disabled_manually`. `tests/training/portal-grand-quiz.test.js`
+ * fails about one run in fourteen (its `jest.doMock` of the shared certificate
+ * service intermittently loses to the real module), and one such suite is enough to
+ * make every fourteenth PR red for a reason nobody can act on.
+ *
+ * So a suspected regression is CONFIRMED by a second full run and only what appears
+ * in BOTH counts. Confirmation is per-run and costs nothing on the happy path: the
+ * second run happens only when the first looks red.
+ *
+ * This is deliberately not the flaky list. A flaky-list entry is permanent and
+ * excuses a suite forever; confirmation still fails the moment a failure is real and
+ * reproducible. Use the list for a suite whose flakiness is understood and accepted,
+ * and confirmation for everything else.
+ *
+ * Returns a new result; neither input is mutated. `unconfirmed` carries what did not
+ * reproduce, so a transient failure is still reported rather than silently dropped.
+ */
+function confirmRegressions(first, second) {
+  const arr = (x) => x || [];
+  const secondSuites = new Set(arr(second.newSuites));
+  const newSuites = arr(first.newSuites).filter((x) => secondSuites.has(x));
+  const staleSuites = arr(first.newSuites).filter((x) => !secondSuites.has(x));
+
+  const index = (entries, field) => {
+    const m = new Map();
+    for (const e of arr(entries)) m.set(e.suite, new Set(e[field]));
+    return m;
+  };
+
+  const split = (entries, field, seen) => {
+    const kept = [];
+    const stale = [];
+    for (const e of arr(entries)) {
+      const also = seen.get(e.suite) || new Set();
+      const c = e[field].filter((x) => also.has(x));
+      const u = e[field].filter((x) => !also.has(x));
+      if (c.length) kept.push({ suite: e.suite, [field]: c });
+      if (u.length) stale.push({ suite: e.suite, [field]: u });
+    }
+    return [kept, stale];
+  };
+
+  const [newTests, staleTests] = split(first.newTests, 'tests', index(second.newTests, 'tests'));
+  const [newOffenders, staleOffenders] =
+    split(first.newOffenders, 'offenders', index(second.newOffenders, 'offenders'));
+
+  return {
+    ...first,
+    newSuites,
+    newTests,
+    newOffenders,
+    unconfirmed: { newSuites: staleSuites, newTests: staleTests, newOffenders: staleOffenders },
+    clean: !newSuites.length && !newTests.length && !newOffenders.length,
+  };
+}
+
 // ── CLI ──────────────────────────────────────────────────────────────────────
 function runJest() {
   const out = path.join(require('os').tmpdir(), `niete-jest-${process.pid}.json`);
@@ -251,7 +311,18 @@ function main() {
   }
 
   const base = JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8'));
-  const r = compareSnapshots(now, base, { flaky });
+  const first = compareSnapshots(now, base, { flaky });
+
+  // Confirm before failing. The second run costs ~11s and happens ONLY when the first
+  // pass looks red, so the happy path is unchanged. --no-retry restores single-pass
+  // behaviour for anyone who wants the raw first verdict.
+  let r = first;
+  let didConfirm = false;
+  if (!first.clean && !process.argv.includes('--no-retry')) {
+    console.log('\nbaseline-gate: possible regression — confirming with a second full run.');
+    r = confirmRegressions(first, compareSnapshots(summariseRun(runJest()), base, { flaky }));
+    didConfirm = true;
+  }
 
   list('NEW failing suites (were green):', r.newSuites);
   list('NEW failing tests in already-red suites:', r.newTests,
@@ -262,6 +333,20 @@ function main() {
   list('Fixed offenders:', r.fixedOffenders,
     (x) => `${x.suite} (-${x.offenders.length})`);
   list('Flaky suites failing — inconclusive, not gating:', r.flakyFailures);
+
+  if (didConfirm && r.unconfirmed) {
+    const u = r.unconfirmed;
+    list('Did NOT reproduce on the second run — treated as flake, not gating:', u.newSuites);
+    list('Did NOT reproduce (tests):', u.newTests,
+      (x) => `${x.suite}\n      ${x.tests.join('\n      ')}`);
+    list('Did NOT reproduce (offenders):', u.newOffenders,
+      (x) => `${x.suite} (${x.offenders.length})`);
+    const n = u.newSuites.length + u.newTests.length + u.newOffenders.length;
+    if (n) {
+      console.log('\n  A suite that fails intermittently is still a bug. If one keeps');
+      console.log('  appearing here, fix it or add it to the Flaky list in tests/BASELINE.md.');
+    }
+  }
 
   if (r.clean) {
     console.log('\nbaseline-gate: CLEAN — no new failing suite, test, or offender.');
@@ -281,5 +366,6 @@ module.exports = {
   summariseRun,
   compareSnapshots,
   flakyFromBaselineDoc,
+  confirmRegressions,
   relSuite,
 };
