@@ -1,26 +1,45 @@
 /**
- * FICO Framework Module — ICT Canonical Rubric
+ * FICO Framework Module — ICT Canonical Rubric, v4
  *
  * FICO — Fidelity & Impact Classroom Observation Tool.
  *
  * 4 scored sections (B, C, D, F) + Section A (metadata only, not scored).
- * 26 indicators, scale 1-4, max 104 marks.
+ * 26 indicators (B7 · C4 · D5 · F10), scale 0-2, max 52 marks defined.
  *
- * Rubric content (sections, indicators, "AI Detection Method" scoring guidance)
- * mirrors the canonical Google Sheet authored by the ICT team, verbatim.
- * Sheet: 1UZaHrXARlJ2cWiZAGFEuc-_o1zOiC5LNXaz11_XVkFU
+ * A SCORED LESSON IS NOT MARKED OUT OF 52. Seven Section-F indicators are subject-gated and
+ * exactly one subject group applies to any lesson, so the real denominator is computed per
+ * session by computeScores() from the indicators the scorer declared applicable — 21 x 2 = 42
+ * for maths and science, 22 x 2 = 44 for literacy, 19 x 2 = 38 when the subject is unknown.
+ * Read getScoringConstants(); never assume a constant.
  *
- * Scale:
- *   1 = Not Observed / Emerging
- *   2 = Developing
- *   3 = Proficient / Effective
- *   4 = Highly Effective
+ * Scale — three rungs, zero-based:
+ *   0 = Not observed
+ *   1 = Developing
+ *   2 = Proficient
  *
- * Section F (Teacher Subject Knowledge) contains 10 indicators of which only
- * the subject-relevant rows apply per lesson (F1-F3 general; F4-F5 Mathematics;
- * F6-F7 Science; F8-F10 Literacy). Non-applicable rows are scored 1 with
- * evidence noting the subject mismatch — this keeps the total denominator
- * stable at 104 per the sheet's Scoring Summary tab.
+ * WHY THREE RUNGS (measured on 2,788 live sessions). The old 1-4 scale had no zero, so
+ * a teacher who did nothing scored 25% and a teacher proficient on everything scored 75%; 93.1%
+ * of all sessions landed in one 20-point band. The fourth rung was awarded on 4.9% of 103k
+ * judgements, and across 845 Punjab classrooms observed by trained humans not one reached the top
+ * rung on the cognitive-demand items. Zero-based, three rungs: floor 0%, ceiling reachable at
+ * 100%, and the spread roughly doubles.
+ *
+ * WHY EVERY INDICATOR CARRIES A `count` AND A `notCounted`. Levels used to be judgements of degree
+ * ("open-ended questions dominate", "most activities support the objective"). A proportion needs a
+ * denominator the model cannot hear, so C1 returned exactly 2 in 90.4% of lessons — and because
+ * the focus_area prompt also named C1 to 57% of teachers, the most-issued advice in the product
+ * pointed at the one indicator the scorer could not register movement on. Every rung is now read
+ * off an absolute count with a quotable instance, and `notCounted` names the specific ways the
+ * model has been over-crediting — the standing "scores are too lenient" complaint.
+ *
+ * Rubric content mirrors the ICT team's canonical sheet
+ * (1UZaHrXARlJ2cWiZAGFEuc-_o1zOiC5LNXaz11_XVkFU) for the indicator SET; the descriptors are
+ * re-authored as counts. Section E (Student Assessment) is deliberately out of scope — it is
+ * one-on-one ASER/EGRA testing, not observable from a classroom recording.
+ *
+ * Section B is the FALLBACK path only. Whenever a lesson plan is linked and the fidelity engine
+ * returns a usable score, applyLpFidelity() overrides Section B with the measured
+ * executed-over-prescribed figure and these seven indicators are not what the teacher is scored on.
  */
 
 // ─── Section definitions (verbatim from the ICT sheet) ───────────────
@@ -29,120 +48,85 @@ const DOMAINS = {
   lesson_plan_fidelity: {
     key: 'B',
     displayName: 'Lesson Plan Fidelity',
-    // bd-1t1wz — Urdu-variant section label (Qurat's verbatim wording, 2026-08-26).
-    // Rendered ONLY when the report language is 'ur'; en reports stay English-only.
     displayName_ur: 'Lesson Plan Fidelity (سبق کے منصوبے پر عمل درآمد)',
-    indicatorCount: 10,
+    indicatorCount: 7,
     indicators: [
       {
         id: 'B1',
         name: 'Instructional Clarity & Learning Objectives',
+        count: 'times the objective is stated, and times it is referred back to',
         levels: {
-          1: 'No clear learning objective stated. Activities lack purpose.',
-          2: 'Objective mentioned but vague or not referenced during lesson.',
-          3: 'Clear objective stated, referred to during lesson, linked to classroom activities.',
-          4: 'Objective co-constructed with students, revisited at close. Students can articulate what they are learning and why.',
+          0: 'No learning objective is stated anywhere in the lesson.',
+          1: 'An objective is stated once and never referred to again.',
+          2: 'An objective is stated AND referred back to at least once more during the lesson. Quote both moments.',
         },
+        notCounted: 'A topic announcement (\'aaj hum jama karna seekhenge\' / \'today, chapter 4\') names the TOPIC, not an objective — it counts only if it says what students will be able to DO. Writing the date or page number is not an objective.',
       },
       {
         id: 'B2',
         name: 'Lesson Structure & Sequence',
+        count: 'spoken transitions between lesson phases',
         levels: {
-          1: 'No discernible structure; random activities.',
-          2: 'Some structure but missing key phases (intro/body/close).',
-          3: 'Clear I Do → We Do → You Do sequence. Logical flow with transitions.',
-          4: 'Logical flow with smooth transitions, recap, and closure activity. Students can follow the arc.',
+          0: 'No phases are distinguishable; the lesson is one undifferentiated block.',
+          1: 'Phases are distinguishable but the teacher never marks a move between them out loud.',
+          2: 'At least TWO transitions are spoken out loud (\'ab hum…\', \'now that we have…, let us…\'). Quote each one.',
         },
+        notCounted: 'A pause, a page turn, or simply starting a new activity is not a transition — the teacher must SAY that the lesson is moving on. \'Chup ho jao\' is management, not a transition.',
       },
       {
         id: 'B3',
         name: 'Activities & Tasks Alignment',
+        count: 'distinct activities, and how many serve the stated objective',
         levels: {
-          1: 'Activities unrelated to lesson objective.',
-          2: 'Some activities align but others are filler.',
-          3: 'Most activities directly support the learning objective.',
-          4: 'All activities purposefully scaffolded toward objective mastery. No wasted time.',
+          0: 'No activity can be traced to the stated objective, or no objective was stated.',
+          1: 'At least one activity serves the objective and at least one other is filler or unrelated.',
+          2: 'EVERY activity in the lesson serves the objective. Name each activity and state the link.',
         },
+        notCounted: 'Do not credit an activity for being on-topic. Copying from the board, or reading the chapter aloud with no task attached, serves an objective only if the objective is about copying or reading aloud.',
       },
       {
         id: 'B4',
         name: 'Activation of Prior Knowledge',
+        count: 'NAMED prior concepts actually recalled',
         levels: {
-          1: 'No reference to what students already know.',
-          2: 'Brief mention but no student input sought.',
-          3: 'Teacher connects new content to previously taught material.',
-          4: 'Students actively recall and link prior knowledge; teacher builds on it.',
+          0: 'No reference to anything students already know.',
+          1: 'A generic opener (\'do you remember yesterday?\', \'pichla sabaq yaad hai?\') with no specific concept named, OR exactly one named concept.',
+          2: 'TWO OR MORE named prior concepts are recalled and linked to today\'s content, OR a student restates a prior concept in their own words. Name the concepts; quote the student.',
         },
-        // bd-2383 — named-evidence gate (Naveera R4). The generic "absent→1"
-        // rule left B4 at 96% Proficient+ because the model credits ANY warm-up.
-        // Score by NAMED concepts, never mere presence.
-        aiDetectionMethod:
-          'Do NOT reward the mere presence of a warm-up or an "any recall" opener. Score by NAMED evidence you can quote: level 3 (Proficient) requires the teacher explicitly restating or eliciting TWO OR MORE NAMED concepts from prior lessons that connect to today\'s content — name them. Level 4 requires a STUDENT restating or applying prior knowledge in their OWN words — quote the student. A generic opener ("do you remember yesterday?") with no specific concept actually recalled is level 2 at most; no reference is level 1. If you cannot name the specific prior concepts that were recalled, do NOT score above 2.',
+        notCounted: '\'Do you remember?\' with nothing named is never above rung 1, however warmly asked. Re-reading yesterday\'s date or title is not recall. The teacher naming a concept the students do not respond to still counts, but only as a named concept — not as student recall.',
       },
       {
         id: 'B5',
         name: 'Meaningful & Real-World Connections',
+        count: 'developed connections to life outside the textbook',
         levels: {
-          1: 'Content presented in isolation, no real-world link.',
-          2: 'Teacher mentions a connection but doesn\'t develop it.',
-          3: 'Content connected to students\' lives or local context.',
-          4: 'Students generate their own connections; examples from their community.',
+          0: 'Content is presented with no link to anything outside the textbook.',
+          1: 'One connection is mentioned in passing and not developed.',
+          2: 'At least one connection is DEVELOPED — the teacher explains how it relates — OR a student offers a connection of their own. Quote it.',
         },
+        notCounted: 'Naming a familiar object (aam, cricket, bazaar) is not a connection unless it is used to explain the content. A word problem set in a shop is not a real-world connection by itself.',
       },
       {
         id: 'B6',
         name: 'Differentiation / Catering to Learning Levels',
+        count: 'distinct tasks or supports offered to different learners',
         levels: {
-          1: 'One-size-fits-all delivery, no differentiation.',
-          2: 'Aware of different levels but no adapted tasks.',
-          3: 'Tasks differentiated for at least 2 ability groups.',
-          4: 'Multiple pathways offered; struggling students supported, advanced students stretched.',
+          0: 'One task, one delivery, for the whole class.',
+          1: 'The teacher acknowledges that students are at different levels but everyone still does the same task.',
+          2: 'TWO OR MORE distinct tasks or supports — an easier set, an extension for finishers, targeted help to a named group. Quote the instruction that differentiates.',
         },
+        notCounted: 'Repeating an instruction louder, slower, or in Urdu is not differentiation. Walking around helping individuals is not a distinct task. \'Tez bachche aage karo\' with no different task attached is rung 1.',
       },
       {
         id: 'B7',
-        name: 'Use of Taleemabad Lesson Plan',
-        levels: {
-          1: 'Taleemabad lesson plan not used at all.',
-          2: 'Plan open but teacher deviates significantly.',
-          3: 'Plan followed with minor contextual adaptations.',
-          4: 'Plan followed faithfully AND adapted intelligently to class needs.',
-        },
-      },
-      {
-        id: 'B8',
-        name: 'Use of Prescribed Resources',
-        levels: {
-          1: 'No Taleemabad resources (video, worksheet, manipulatives) used.',
-          2: 'Some resources used but not as intended.',
-          3: 'Key resources used as prescribed in lesson plan.',
-          4: 'All resources used effectively; teacher adds complementary materials.',
-        },
-      },
-      {
-        id: 'B9',
-        name: 'Time on Task / Time on Learning',
-        levels: {
-          1: 'Less than 50% of class time spent on learning activities.',
-          2: '50–69% on task (significant management/transition time lost).',
-          3: '70–85% on task with efficient transitions.',
-          4: 'More than 85% on task; routines are automatic, transitions seamless.',
-        },
-      },
-      {
-        id: 'B10',
         name: 'Lesson Closure & Consolidation',
+        count: 'closure moves that CHECK learning rather than announce the end',
         levels: {
-          1: 'Lesson ends abruptly with no summary.',
-          2: 'Teacher rushes through a brief recap.',
-          3: 'Structured closure: recap key points, check understanding.',
-          4: 'Students summarize learning, connect to next lesson, self-assess.',
+          0: 'The lesson ends with no recap of any kind.',
+          1: 'The teacher delivers a recap herself; students are not asked to produce anything.',
+          2: 'The closure CHECKS learning — students answer a closing question or summarise in their own words. Quote a student.',
         },
-        // bd-2383 — named-evidence gate (Naveera R4). B10 stayed at 89%
-        // Proficient+ because the model credits that the lesson closed at all;
-        // a closed "samajh aa gayi?" check is NOT consolidation.
-        aiDetectionMethod:
-          'Do NOT credit that the lesson merely ended, nor a closed check for understanding ("samajh aa gayi?", "clear?", "theek hai?") — those are yes/no checks, not consolidation. Score by NAMED consolidation evidence you can quote: level 3 (Proficient) requires the teacher recapping TWO OR MORE NAMED key points of TODAY\'s lesson AND a genuine understanding check that surfaces what students learned (an open question, not yes/no). Level 4 requires STUDENTS summarizing the learning in their OWN words or self-assessing — quote them. A closed "did you understand?" with no student output is level 2 at most; an abrupt end is level 1. If you cannot name what was consolidated, do NOT score above 2.',
+        notCounted: 'The bell, \'kal milte hain\', assigning homework, or \'samajh aa gaya?\' with a choral yes is NOT closure. A teacher-delivered summary is rung 1 no matter how thorough.',
       },
     ],
   },
@@ -150,127 +134,51 @@ const DOMAINS = {
     key: 'C',
     displayName: 'High-Leverage Practices',
     displayName_ur: 'High-Leverage Practices (مؤثر تدریسی طریقے)',
-    indicatorCount: 12,
+    indicatorCount: 4,
     indicators: [
       {
         id: 'C1',
         name: 'Quality Questioning (Bloom\'s Aligned)',
+        count: 'open-ended questions asked, and follow-ups on a student\'s own answer',
         levels: {
-          1: 'Only yes/no or recall questions asked. Close-ended, requiring one-word answers.',
-          2: 'Mix of recall and some open-ended questions, but they lack depth. E.g., \'Why is the capital important?\' without further exploration.',
-          3: 'Purposeful mix including application & analysis questions. Open-ended questions dominate. Wait time given.',
-          4: 'Questions span all Bloom\'s levels (Remember→Create); students generate questions; Socratic questioning evident.',
+          0: 'No open-ended question is asked. Every question is yes/no, one-word, or a number read off the board.',
+          1: 'ONE OR TWO open-ended questions, with no follow-up on what any student said.',
+          2: 'THREE OR MORE open-ended questions AND at least one follow-up that refers to what a student just said. Quote each open question and the follow-up.',
         },
+        notCounted: 'A question with its answer embedded (\'yeh teen hai na?\'), a yes/no, a one-word recall, a rhetorical question, and a choral prompt are NOT open-ended. Repeating the same question louder is not a follow-up. Asking a NEW question after an answer is not a follow-up — a follow-up must refer to what the student actually said.',
       },
       {
         id: 'C2',
         name: 'Responsive Re-explanation & Adaptive Teaching',
+        count: 'genuinely DIFFERENT re-explanations after a student does not understand',
         levels: {
-          1: 'Repeats same explanation when students don\'t understand.',
-          2: 'Tries a different approach but still teacher-centered.',
-          3: 'Uses alternative representations (visual, concrete, analogy). Adjusts teaching to student level.',
-          4: 'Diagnoses misconception, re-explains using student\'s own logic, confirms understanding.',
+          0: 'When students do not understand, the teacher repeats the same explanation, or moves on.',
+          1: 'The teacher tries again in different words, but the second attempt uses the same representation as the first.',
+          2: 'At least one re-explanation uses a DIFFERENT representation — a drawing, an object, an analogy, a worked example, a story. Quote the first attempt and the different one.',
         },
+        notCounted: 'Saying the same sentence louder, slower, or translated into Urdu is not a different representation. Giving the answer is not a re-explanation. This indicator scores 0 if no student ever signals confusion — do not credit a re-explanation that never had to happen.',
       },
       {
         id: 'C3',
         name: 'Effective Feedback',
+        count: 'specific feedback moves, and how many say what to do next',
         levels: {
-          1: 'No feedback given, or only \'good/bad\' evaluations. Generic: \'Good job\' or \'Try again.\'',
-          2: 'Feedback given but generic (\'try harder\'). Specific but does not consistently guide improvement.',
-          3: 'Specific feedback on what was done well and what to improve. Actionable.',
-          4: 'Feedback is specific, actionable, with next steps. Students use feedback to self-correct. Guides refinement of reasoning.',
+          0: 'No feedback, or only bare evaluation — \'shabash\', \'good\', \'galat\', or repeating the right answer.',
+          1: 'ONE OR TWO pieces of feedback that name what was right or wrong, but none say what to do next.',
+          2: 'THREE OR MORE specific feedback moves AND at least one tells the student what to do next. Quote them.',
         },
+        notCounted: '\'Shabash\', \'very good\', \'galat\', \'phir se karo\', a tick, or restating the correct answer are NOT specific feedback. Praise of the child (\'achhi bachi\') is never feedback. Feedback must name something about THIS piece of work.',
       },
       {
         id: 'C4',
-        name: 'Equitable Participation',
-        levels: {
-          1: 'Only 2–3 students participate; others ignored. Teacher-dominated.',
-          2: 'Teacher calls on volunteers only. A few students contribute while others stay silent.',
-          3: 'Deliberate strategies: cold call, pair-share, name sticks. Diverse students included.',
-          4: 'All students participate; teacher tracks contributions; gender-equitable. Students debate and refine arguments.',
-        },
-      },
-      {
-        id: 'C5',
         name: 'Student Agency & Voice',
+        count: 'moments a student chooses a method, or reasons at length unprompted',
         levels: {
-          1: 'Students are passive recipients; no choice or voice. Content from single perspective.',
-          2: 'Occasional student input but teacher-dominated. Multiple perspectives mentioned but not explored.',
-          3: 'Students make choices about how to demonstrate learning. Explore multiple perspectives.',
-          4: 'Students lead discussions, choose methods, self-assess, peer-teach. Create novel solutions. Evaluate alternatives.',
+          0: 'Students only answer closed questions; no choice and no extended reasoning anywhere.',
+          1: 'Students answer at length, but every contribution is a response to a direct teacher question — no choices are offered.',
+          2: 'At least one moment where a student CHOOSES how to solve, answer, or present, OR explains their reasoning in a full sentence without being asked to. Quote it.',
         },
-      },
-      {
-        id: 'C6',
-        name: 'Classroom Management & Routines',
-        levels: {
-          1: 'Frequent disruptions; no visible routines. Students struggle to engage.',
-          2: 'Some routines but inconsistently enforced. Instructions lack clarity for all groups.',
-          3: 'Clear routines (entry, transitions, dismissal); minimal disruptions. Expectations clear.',
-          4: 'Seamless routines; students self-manage; positive behavioral reinforcement. Students actively participate in complex, clearly defined tasks.',
-        },
-      },
-      {
-        id: 'C7',
-        name: 'Positive & Supportive Learning Environment',
-        levels: {
-          1: 'Negative tone; punitive language or humiliation.',
-          2: 'Neutral but cold; no encouragement.',
-          3: 'Warm, encouraging tone; mistakes treated as learning opportunities.',
-          4: 'Joyful classroom; students feel safe to take risks; laughter and curiosity present.',
-        },
-      },
-      {
-        id: 'C8',
-        name: 'Modeling, Scaffolding & Problem-Solving',
-        levels: {
-          1: 'Teacher tells but doesn\'t show. Simple tasks demonstrated without explanation of process.',
-          2: 'Teacher demonstrates once but moves on quickly. Problem-solving modeled but strategies not explained.',
-          3: 'I Do → We Do → You Do scaffolding visible. Problem-solving and creativity modeled with clear strategies.',
-          4: 'Gradual release with checks at each stage; scaffold removed when ready. Teacher brainstorms solutions and explains reasoning.',
-        },
-      },
-      {
-        id: 'C9',
-        name: 'Collaborative Learning',
-        levels: {
-          1: 'No group or pair work. Students work individually without interaction.',
-          2: 'Students in groups but working individually. Tasks lack depth.',
-          3: 'Purposeful pair/group tasks with clear roles. Students work towards synthesized solutions.',
-          4: 'Structured collaboration (think-pair-share, jigsaw); students build on each other\'s ideas. Teams design solutions to community problems.',
-        },
-      },
-      {
-        id: 'C10',
-        name: 'Integration of Taleemabad Technology',
-        levels: {
-          1: 'No technology used despite availability.',
-          2: 'Technology used as distraction/babysitter.',
-          3: 'Taleemabad videos/apps used to support learning objectives.',
-          4: 'Technology integrated seamlessly; students interact with content; teacher facilitates around it.',
-        },
-      },
-      {
-        id: 'C11',
-        name: 'Self & Peer Assessment Facilitation',
-        levels: {
-          1: 'Assessment limited to teacher-led grading. Students receive grades without reflection.',
-          2: 'Some self- or peer-assessment occurs, but inconsistent. Students assess without clear criteria.',
-          3: 'Self- and peer-assessment structured and purposeful. Students use rubrics to assess work.',
-          4: 'Students use rubrics to assess work, suggest improvements for peers, and set goals. Assessment tasks require analysis/evaluation/creation.',
-        },
-      },
-      {
-        id: 'C12',
-        name: 'Classroom Resources & Space for Collaboration',
-        levels: {
-          1: 'Resources and space disorganized, limiting collaborative learning. No group work areas.',
-          2: 'Some organization, but space/resources do not fully support collaboration.',
-          3: 'Resources and space well-organized for collaborative tasks. Materials accessible.',
-          4: 'Tables arranged for group work, materials easily accessible. Environment designed for inquiry and collaboration.',
-        },
+        notCounted: 'Answering a question, however long the answer, is not agency. Being picked to come to the board is not a choice. A student repeating the teacher\'s method is not choosing a method.',
       },
     ],
   },
@@ -278,77 +186,62 @@ const DOMAINS = {
     key: 'D',
     displayName: 'Student Engagement',
     displayName_ur: 'Student Engagement (طلبہ کی شمولیت)',
-    indicatorCount: 7,
+    indicatorCount: 5,
     indicators: [
       {
         id: 'D1',
-        name: 'Active Participation Rate',
+        name: 'Diversity of Conceptual Expression',
+        count: 'distinct student phrasings of the concept, and any not borrowed from the teacher',
         levels: {
-          1: 'Less than 25% of students visibly engaged. Collaboration minimal or absent.',
-          2: '25–50% engaged; many passive or off-task.',
-          3: '50–75% actively participating (writing, discussing, solving).',
-          4: 'More than 75% actively engaged; energy is visible; students initiating. Structured collaboration on synthesis/problem-solving.',
+          0: 'No student responses about the concept appear in the transcript at all.',
+          1: 'All student responses copy the teacher\'s wording closely, or students give only very short answers — one word, a number, or a chorus.',
+          2: 'Students phrase the concept in TWO OR MORE different ways. Quote each phrasing.',
         },
+        notCounted: 'A chorus repetition counts as one response, not many. Two students saying the same sentence is one phrasing, not two. Reading aloud from the book is not the student\'s phrasing.',
       },
       {
         id: 'D2',
-        name: 'Cognitive Engagement Level (Bloom\'s)',
+        name: 'Student Reasoning in Responses',
+        count: 'student utterances containing a reason, and whether each was prompted',
         levels: {
-          1: 'Students copying or doing rote recall only. Passively receiving information.',
-          2: 'Students completing tasks but without thinking deeply.',
-          3: 'Students applying concepts to new problems (Bloom\'s Apply/Analyze).',
-          4: 'Students creating, evaluating, debating — genuine intellectual work. Actively analyse, interpret, and critique content with supporting evidence.',
+          0: 'The teacher never asks for reasoning and no student reasoning appears anywhere.',
+          1: 'The teacher asks for reasoning at least once, but no student response actually contains a reason.',
+          2: 'At least ONE student response contains an explanation or reason. Quote it, and say whether the teacher had to ask.',
         },
+        notCounted: '\'Because\' inside a repeated sentence from the book is not the student\'s reasoning. A one-word answer following \'why?\' is not a reason. The teacher supplying the reason and the student agreeing does not count.',
       },
       {
         id: 'D3',
-        name: 'Student-to-Student Interaction',
+        name: 'Student-Initiated Questions',
+        count: 'questions asked BY students, split into procedural and content',
         levels: {
-          1: 'No peer interaction; silent individual work only.',
-          2: 'Students talk but not about content.',
-          3: 'Students discuss content in pairs/groups; academic language used.',
-          4: 'Students build on each other\'s ideas; respectful disagreement; peer teaching. Students debate solutions and propose creative alternatives.',
+          0: 'No student questions of any kind appear in the transcript.',
+          1: 'Students ask only procedural questions (\'kaunsa page?\', \'likhna hai?\') — no content questions at all.',
+          2: 'At least ONE student asks a question about the concept itself. Quote it.',
         },
+        notCounted: '\'Miss?\' or calling for attention is not a question. Repeating the teacher\'s question back is not a student question. Asking what page, whether to write, or if they may leave is procedural.',
       },
       {
         id: 'D4',
-        name: 'Student Confidence & Risk-Taking',
+        name: 'Spontaneous Transfer & Connection-Making',
+        count: 'student connections to something outside the lesson, and whether prompted',
         levels: {
-          1: 'Students afraid to answer; avoidance behaviors visible.',
-          2: 'Students answer only when certain; no risk-taking.',
-          3: 'Students attempt challenging tasks; some comfortable with mistakes.',
-          4: 'Students volunteer, ask questions, try difficult problems. Mistakes celebrated. Students freely share and debate ideas.',
+          0: 'No connection-making activity of any kind appears in the lesson.',
+          1: 'The teacher invites students to make a connection, but no student does.',
+          2: 'At least ONE student makes a connection to something outside the lesson. Quote it, and say whether the teacher prompted it.',
         },
+        notCounted: 'The teacher making the connection does not count, however good it is. A student naming an object the teacher just named is not a connection.',
       },
       {
         id: 'D5',
-        name: 'On-Task Behavior During Independent Work',
+        name: 'Visible Learning Progression Across the Lesson',
+        count: 'student responses in the first third vs the last third — length and key vocabulary',
         levels: {
-          1: 'Most students off-task during independent/group work.',
-          2: 'Students start on-task but lose focus quickly.',
-          3: 'Students sustain focus for most of independent work time.',
-          4: 'Students self-regulate; seek help appropriately; persist through difficulty.',
+          0: 'Fewer than THREE student responses in total — not enough to compare the start and the end.',
+          1: 'Student responses look about the same at the end as at the start: no change in length or vocabulary.',
+          2: 'By the end, student responses are longer or use the concept\'s key vocabulary more than at the start. Quote one early response and one late response.',
         },
-      },
-      {
-        id: 'D6',
-        name: 'Student Use of Learning Materials',
-        levels: {
-          1: 'Students don\'t interact with provided materials.',
-          2: 'Materials used passively (watching video, holding textbook).',
-          3: 'Students actively use materials to solve problems or practice.',
-          4: 'Students use materials creatively; extend beyond prescribed use.',
-        },
-      },
-      {
-        id: 'D7',
-        name: 'Inclusivity of Engagement',
-        levels: {
-          1: 'Only front-row or high-ability students engaged.',
-          2: 'Teacher attempts inclusion but success is limited.',
-          3: 'Students across ability levels and genders are participating.',
-          4: 'Deliberate inclusion of marginalized students; no one invisible. Gender-equitable participation.',
-        },
+        notCounted: 'A single long answer at the end does not establish progression — compare the general pattern. Louder or more confident chorus is not progression. If the transcript has no usable ordering, score 0 rather than guessing.',
       },
     ],
   },
@@ -356,103 +249,134 @@ const DOMAINS = {
     key: 'F',
     displayName: 'Teacher Subject Knowledge',
     displayName_ur: 'Teacher Subject Knowledge (استاد کا مضمون سے متعلق علم)',
-    indicatorCount: 8,
+    indicatorCount: 10,
     indicators: [
       {
         id: 'F1',
         name: 'Content Accuracy',
-        subjectGroup: 'general',
+        count: 'uncorrected factual errors, and explanations of WHY',
         levels: {
-          1: 'Teacher makes factual errors that go uncorrected.',
-          2: 'Mostly accurate but with minor errors or imprecise language.',
-          3: 'Content is accurate; no errors observed.',
-          4: 'Content is accurate AND teacher explains WHY (conceptual depth, not just facts).',
+          0: 'One or more factual errors go uncorrected. Name the error.',
+          1: 'Content is accurate but purely procedural — the teacher says what to do and never why it works.',
+          2: 'Content is accurate AND the teacher explains WHY at least once. Quote the explanation.',
         },
+        notCounted: 'Do not credit accuracy you cannot verify. If the content is outside what you can check, score what you can hear and say so in the evidence — never invent an error, and never award rung 2 for the absence of errors alone.',
       },
       {
         id: 'F2',
         name: 'Use of Academic Language',
-        subjectGroup: 'general',
+        count: 'key subject terms used, and how many are explained',
         levels: {
-          1: 'Incorrect or no subject-specific terminology used.',
-          2: 'Some terms used but not explained or used inconsistently.',
-          3: 'Key terms used accurately and explained to students.',
-          4: 'Terms used naturally; students also use them; bilingual bridging (Urdu/English) effective.',
+          0: 'No subject-specific term is used; the lesson is entirely in general language.',
+          1: 'Subject terms are used but never explained.',
+          2: 'TWO OR MORE key terms are used AND explained, or students are heard using them correctly. Name the terms.',
         },
+        notCounted: 'An English word inside an Urdu sentence is code-switching, not academic language, unless it is a subject term. Reading a term aloud from the book is not using it. Translating a term is not explaining it.',
       },
       {
         id: 'F3',
         name: 'Anticipation of Student Misconceptions',
-        subjectGroup: 'general',
+        count: 'misconceptions NAMED as a wrong idea students hold',
         levels: {
-          1: 'Teacher unaware of common misconceptions in this topic.',
-          2: 'Aware but doesn\'t address them proactively.',
-          3: 'Anticipates and addresses at least 1–2 common misconceptions.',
-          4: 'Systematically surfaces and corrects misconceptions; uses diagnostic questions.',
+          0: 'No wrong idea is surfaced or addressed anywhere.',
+          1: 'A wrong answer is corrected, but the underlying misconception is never named.',
+          2: 'At least ONE common misconception is NAMED as a wrong idea students hold (\'bahut bachche samajhte hain ke…, lekin…\') and then addressed. Quote it.',
         },
+        notCounted: 'Marking an answer wrong is not addressing a misconception. Saying \'galat, sahi jawab yeh hai\' is a correction, not a named misconception. The misconception must be stated as a belief, not just an error.',
       },
       {
         id: 'F4',
-        name: 'Depth of Explanation',
-        subjectGroup: 'general',
+        name: 'Mathematical Discourse & Reasoning',
+        subject: 'maths',
+        count: 'reasoning questions asked, and student explanations that follow',
         levels: {
-          1: 'Superficial/procedural explanation only (\'do it this way\').',
-          2: 'Some conceptual explanation but relies on memorization.',
-          3: 'Explains the \'why\' behind procedures; uses multiple representations.',
-          4: 'Deep conceptual teaching; connects to broader principles; encourages student reasoning.',
+          0: 'Entirely answer-focused (\'jawab kya hai?\') with no how or why, and no student explanation at any point.',
+          1: 'Reasoning questions are asked but one-word or answer-only responses are accepted without pressing further.',
+          2: 'Reasoning questions are asked AND the teacher presses for reasoning rather than accepting an answer alone. Quote the press.',
         },
+        notCounted: '\'Kaise kiya?\' answered by re-reading the procedure is not reasoning. Accepting the first correct number and moving on is rung 1 even if the question was well phrased.',
       },
       {
         id: 'F5',
-        name: 'Subject-Specific Pedagogy: MATH',
-        subjectGroup: 'math',
+        name: 'Problem-Solving & Productive Struggle',
+        subject: 'maths',
+        count: 'non-routine problems presented, and the think time allowed before the teacher intervenes',
         levels: {
-          1: 'Math taught purely procedurally; no use of manipulatives or visuals.',
-          2: 'Some visual aids but conceptual understanding not developed.',
-          3: 'Uses concrete → pictorial → abstract (CPA) progression; manipulatives present.',
-          4: 'CPA approach mastered; multiple solution strategies explored; math talk norms established.',
+          0: 'Only routine procedural practice; the teacher provides solutions immediately; no think time.',
+          1: 'A challenging problem is presented but the teacher jumps in quickly and removes the challenge.',
+          2: 'A genuinely challenging or multi-step problem is presented AND students are given time to work on it before the answer arrives. Quote the problem.',
         },
+        notCounted: 'A longer sum of the same type is not a non-routine problem. Silence while students copy is not think time. If the transcript gives no usable sense of elapsed time, judge by whether the teacher gave the answer in her very next turn.',
       },
       {
         id: 'F6',
-        name: 'Subject-Specific Pedagogy: SCIENCE',
-        subjectGroup: 'science',
+        name: 'Inquiry-Based Approach',
+        subject: 'science',
+        count: 'new concepts opened with a question or scenario BEFORE the explanation',
         levels: {
-          1: 'Science taught from textbook only; no inquiry or observation.',
-          2: 'Some demonstration but teacher-led; students observe passively.',
-          3: 'Hands-on activities present; students make predictions and observations.',
-          4: 'Full inquiry cycle: question → predict → investigate → conclude. Students design investigations.',
+          0: 'The teacher starts directly with a definition or explanation; no space for student thinking at any point.',
+          1: 'An inquiry opening is attempted but the answer is given too quickly, or the lesson reverts to pure transmission.',
+          2: 'At least ONE concept is opened with a question, picture, or scenario, and students are given genuine space to respond before the explanation. Quote the opening and a student response.',
         },
+        notCounted: 'A rhetorical question followed immediately by the answer is not inquiry. \'Kya tum jante ho?\' answered by the teacher in the same breath is rung 1.',
       },
       {
         id: 'F7',
-        name: 'Subject-Specific Pedagogy: LITERACY / LANGUAGE',
-        subjectGroup: 'literacy',
+        name: 'Science Talk & Student Sense-Making',
+        subject: 'science',
+        count: 'student responses expressing an idea in their OWN words',
         levels: {
-          1: 'Reading taught as decoding only; no comprehension strategies.',
-          2: 'Some reading activities but no explicit strategy instruction.',
-          3: 'Teacher models reading strategies (prediction, summarizing, questioning). Balanced approach.',
-          4: 'Balanced literacy: phonics + fluency + vocabulary + comprehension + writing integrated.',
+          0: 'All student responses are one-word, chorus, or direct repetition of the teacher; no student expresses an idea in their own words.',
+          1: 'Some sentence-level responses, but most are one-word or chorus, or students mostly repeat the teacher\'s exact wording.',
+          2: 'At least ONE student expresses a science idea in their own words rather than repeating a phrase. Quote it.',
         },
+        notCounted: 'Reading from the textbook is not the student\'s own words. A chorus answer is never sense-making, however long.',
       },
       {
         id: 'F8',
-        name: 'Cross-Curricular Connections',
-        subjectGroup: 'general',
+        name: 'Explicit Phonics / Decoding',
+        subject: 'literacy',
+        count: 'phonics stages present, in order, with audible student practice',
         levels: {
-          1: 'Subject taught in complete isolation.',
-          2: 'Occasional reference to other subjects but not developed.',
-          3: 'Meaningful connections made to at least one other subject area.',
-          4: 'Integrated approach; students see how math connects to science connects to language.',
+          0: 'Phonics is skipped entirely; no sound-level instruction at any point.',
+          1: 'Some phonics happens but the sequence is incomplete or rushed — one or more stages are skipped.',
+          2: 'Phonics follows most of the sequence — sound, then blending, then segmenting — explicitly taught and modelled, with students audibly practising. Name the stages you heard.',
         },
+        notCounted: 'Reading words aloud is not phonics. Naming letters (alif, bay) without their sounds is not phonics. The teacher demonstrating with no student response is rung 1.',
+      },
+      {
+        id: 'F9',
+        name: 'Comprehension Strategy Instruction',
+        subject: 'literacy',
+        count: 'of the three steps — naming the strategy, modelling it, students practising it — how many are present',
+        levels: {
+          0: 'No strategy instruction at any point; comprehension questions may be asked, but HOW to comprehend is never taught.',
+          1: 'The strategy is named or modelled but students never practise it, OR students practise with the strategy never named.',
+          2: 'At least TWO of the three steps are present — named, modelled, practised. Say which two, and quote them.',
+        },
+        notCounted: 'Asking \'kya hua?\' is a comprehension question, not strategy instruction. The strategy must be named as a thing you do (\'is ko prediction kehte hain\'), not merely performed.',
+      },
+      {
+        id: 'F10',
+        name: 'Reading-Writing Connections',
+        subject: 'literacy',
+        count: 'explicit links made between what was read and what students write',
+        levels: {
+          0: 'Reading and writing are completely separate, or only one of the two happens at all.',
+          1: 'Both reading and writing happen but the link is never made explicit — \'we read, now write\'.',
+          2: 'At least ONE explicit link is made between the reading and the writing — the text used as a model or prompt. Quote the bridge.',
+        },
+        notCounted: 'Copying sentences from the text is not a reading-writing connection. Answering questions about a text in writing is not a connection unless the text is used as a model for the writing.',
       },
     ],
   },
 };
 
-const TOTAL_INDICATORS = 37; // FICO V3 B10+C12+D7+F8 (Section E omitted — ASER assessment, not audio-observable)
-const SCALE_MAX = 4;
-const MAX_MARKS = TOTAL_INDICATORS * SCALE_MAX; // 148 (FICO V3: 37×4). NB: header/comments elsewhere still say 104 — that was FICO V2 (26 indicators); V3 was adopted 2026-07-29.
+const TOTAL_INDICATORS = 26;  // FICO v4: B7 + C4 + D5 + F10
+const SCALE_MAX = 2;          // three rungs: 0 not observed, 1 developing, 2 proficient
+// The DEFINED ceiling. The denominator a teacher is actually scored against is computed per
+// session by computeScores() from the applicable indicators — see the header.
+const MAX_MARKS = TOTAL_INDICATORS * SCALE_MAX;
 
 // ─── Cached system prompt ────────────────────────────────────────────
 
@@ -460,14 +384,13 @@ let _cachedSystemPrompt = null;
 
 function renderIndicatorRubric(ind) {
   const levels = ind.levels;
-  const subjectTag = ind.subjectGroup && ind.subjectGroup !== 'general'
-    ? ` — SUBJECT: ${ind.subjectGroup.toUpperCase()}`
-    : '';
-  return `${ind.id} **${ind.name}** (1-4)${subjectTag}
+  const subjectTag = ind.subject ? `   ⟵ ${ind.subject.toUpperCase()} lessons only` : '';
+  return `${ind.id} **${ind.name}**${subjectTag}
+   COUNT: ${ind.count}
+   - 0: ${levels[0]}
    - 1: ${levels[1]}
    - 2: ${levels[2]}
-   - 3: ${levels[3]}
-   - 4: ${levels[4]}${ind.aiDetectionMethod ? `\n   AI Detection Method: ${ind.aiDetectionMethod}` : ''}`;
+   DOES NOT COUNT: ${ind.notCounted}`;
 }
 
 function getSystemPrompt() {
@@ -479,38 +402,55 @@ function getSystemPrompt() {
     return `${header}\n\n${body}`;
   }).join('\n\n');
 
-  _cachedSystemPrompt = `You are an expert classroom observer analyzing teaching practices using the FICO Fidelity & Impact Classroom Observation Tool (the ICT canonical rubric).
+  _cachedSystemPrompt = `You are an expert classroom observer analysing a primary lesson in a Pakistani government school, using the FICO Fidelity & Impact Classroom Observation Tool (the ICT canonical rubric).
+Urdu, English and code-switching between them are all normal — never treat a code-switch as an error.
 
-OBSERVATION FRAMEWORK: FICO V3
-4 scored sections (B, C, D, F) — ${TOTAL_INDICATORS} indicators total — Scale 1-4
-(Section E — Student Assessment — is intentionally out of scope for this flow: it is
-one-on-one ASER/EGRA reading & numeracy testing, not observable from a classroom recording.)
+OBSERVATION FRAMEWORK: FICO V4 — 4 sections (B, C, D, F), ${TOTAL_INDICATORS} indicators, scale 0-2.
+(Section E — Student Assessment — is intentionally out of scope: it is one-on-one ASER/EGRA
+reading & numeracy testing, not observable from a classroom recording.)
 
-**SCALE — score by EFFECT, not mere presence:**
-- 1 = Not Observed / Emerging: Indicator not present, not attempted, or not evidenced in the transcript.
-- 2 = Developing: The move APPEARS but is superficial, closed, teacher-centred, or does not achieve its purpose.
-- 3 = Proficient / Effective: The move is present AND the transcript shows it WORKED — a student responds substantively, a check surfaces real understanding, a task lands.
-- 4 = Highly Effective: Proficient PLUS a student independently extends, applies, or transfers — the descriptor's level-4 bar is met.
+**THE SCALE — three rungs, and you read the rung off a COUNT:**
+- 0 = Not observed. The behaviour is absent from the transcript.
+- 1 = Developing. The behaviour appears but does not reach the rung-2 count.
+- 2 = Proficient. The rung-2 count is met AND you can quote every instance.
 
-**SCORING DISCIPLINE (applies to EVERY indicator, no exceptions):**
-- A score of 3 or 4 REQUIRES a direct transcript quote showing BOTH the teacher move AND its effect on students. If you cannot quote the effect, cap the score at 2.
-- If the behaviour is absent from the transcript, score 1. NEVER infer a move "probably happened" — score only what the transcript evidences.
-- A closed or compliance check ("samajh aa gayi?", "are you sure?", "theek hai?", a choral "yes") is NOT a comprehension check. On its own it caps the relevant indicator at 2; reach 3 only if the teacher restates ≥2 named lesson concepts or a student restates/applies the content.
-- For questioning indicators: classify each teacher question by Bloom level and count open-ended vs closed. Do not reach Proficient unless open-ended/higher-order questions dominate (≥50%).
-- Match the transcript to the LEVEL DESCRIPTORS below literally — they are behavioural and specific. Pick the highest level whose description is fully evidenced, not the one the lesson gestured at.
+**HOW TO SCORE — this is the whole method:**
+1. For each indicator, first TALLY the unit named on its COUNT line, and quote each instance.
+2. Then read the rung off the count using the 0/1/2 lines, and apply the DOES NOT COUNT line
+   before you finish counting. Do not judge a proportion; do not average an impression.
+   If your count and your instinct disagree, THE COUNT WINS.
+3. No quote, no count. If you cannot quote the line that contains an instance, it did not happen.
+4. If the behaviour is absent, score 0. NEVER infer that a move "probably happened".
+5. A closed or compliance check — "samajh aa gayi?", "theek hai?", a choral "yes" — is not
+   evidence of anything. It never counts toward any indicator.
+6. Rung 2 is meant to be REACHABLE by a good teacher in a real government primary classroom.
+   It is not a description of an ideal lesson. Award it whenever the count is met.
+
+**TWO DEFINITIONS USED BY SEVERAL INDICATORS. Apply them exactly.**
+- IN THE STUDENT'S OWN WORDS (D1, D2, D5, F7): the student's phrasing differs from the teacher's
+  and from the textbook's. Repeating the teacher's sentence, a chorus answer, and reading aloud
+  from the book are NEVER the student's own words, however long or correct.
+- PROMPTED vs UNPROMPTED (D2, D4): a response is prompted when the teacher's immediately preceding
+  turn asked for exactly that thing ("kyun?", "where else have you seen this?"). Anything the
+  student volunteers without that ask is unprompted. When you cannot tell, call it prompted.
 
 ${sectionBlocks}
 
-**TOTAL: ${MAX_MARKS} marks maximum** (${TOTAL_INDICATORS} indicators × 4)
+**SUBJECT-GATED INDICATORS — F4 to F10.**
+F4/F5 = MATHEMATICS. F6/F7 = SCIENCE. F8/F9/F10 = LITERACY/LANGUAGE. B, C, D and F1-F3 apply to
+every lesson. For a subject-tagged indicator whose subject does not match this lesson, emit
+"applicable": false with "score": null and evidence "Not applicable — lesson subject is <subject>".
+DO NOT score it 0: a non-applicable indicator LEAVES THE TOTAL ENTIRELY, it is not a low mark.
+Every other indicator carries "applicable": true. If you cannot tell the subject, mark ALL SEVEN
+subject-tagged indicators non-applicable rather than guessing.
 
-SUBJECT-CONDITIONAL SECTION F:
-F1-F4 and F8 apply to every subject. F5 = MATHEMATICS, F6 = SCIENCE, F7 = LITERACY/LANGUAGE. If the lesson subject does not match a subject-tagged indicator, score it 1 with evidence "Not applicable — lesson subject is <subject>, indicator applies to <subjectGroup>."
+**TOTAL: 2 marks per APPLICABLE indicator.** Do not compute a percentage yourself.
 
 SPECIAL INSTRUCTIONS:
-- For Section B indicator B1 (Instructional Clarity & Learning Objectives): if a lesson plan is linked, compare observed execution against the specific LP objectives + steps.
-- Score STRICTLY by the level descriptors + the SCORING DISCIPLINE above. Where an AI Detection Method is given, apply it exactly.
-- Provide SPECIFIC transcript evidence (a real quote) for each indicator; name the EFFECT on students, not just the teacher's move.
-- Reference timestamps when quoting dialogue.`;
+- For B1 (Instructional Clarity & Learning Objectives): if a lesson plan is linked, compare the
+  observed execution against the specific LP objectives and steps.
+- Provide SPECIFIC transcript evidence (a real quote) for every indicator, including a 0.
+- Reference timestamps when quoting dialogue, if the transcript carries them.`;
 
   return _cachedSystemPrompt;
 }
@@ -541,7 +481,7 @@ function buildIndicatorJsonRow(ind) {
   // and flows to the teacher's report unchanged. One LLM pass emits both — no
   // extra call. Keep them consistent: the summary is a faithful compression of
   // the same moment, never a different judgement.
-  return `        { "id": "${ind.id}", "name": "${ind.name.replace(/"/g, '\\"')}", "score": <1-4>, "evidence": "Detailed description + Quote: \\\"...\\\"", "evidence_summary": "<= 500 chars: the move + its effect on students + one short quote — the gist a reviewer needs to sanity-check the score", "timestamp": "exact time" }`;
+  return `        { "id": "${ind.id}", "name": "${ind.name.replace(/"/g, '\\"')}", "score": <0-2, or null if not applicable>, "applicable": <true|false>, "evidence": "Detailed description + Quote: \\\"...\\\"", "evidence_summary": "<= 500 chars: the move + its effect on students + one short quote — the gist a reviewer needs to sanity-check the score", "timestamp": "exact time" }`;
 }
 
 function buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, photoAnalysis) {
@@ -602,7 +542,7 @@ ${sectionJsonBlocks}
   ],
   "focus_area": {
     "domain": "<ONE of: lesson_plan_fidelity | high_leverage_practices | student_engagement | teacher_subject_knowledge>",
-    "indicator": "<the single indicator id to focus on next, e.g. C1>",
+    "indicator": "<the single indicator id to focus on next>",
     "title": "<short headline, 3-6 words>",
     "rationale": "<1-2 sentences: why this ONE indicator is the highest-leverage next focus for this teacher>",
     "try_this_tomorrow": "<one concrete classroom move the teacher can try in their very next lesson>",
@@ -611,7 +551,7 @@ ${sectionJsonBlocks}
   "recommendations": ["Actionable recommendation 1", "Actionable recommendation 2", "Actionable recommendation 3"]
 }
 
-FOCUS AREA — pick the SINGLE most useful growth area (one domain + one indicator) as the teacher's lead next-step. Prefer the domain the lesson's actual evidence points to; do not default to "questioning". Its "domain" MUST be one of the four section keys above and "indicator" MUST be one of that section's indicator ids.
+FOCUS AREA — pick the SINGLE most useful growth area (one domain + one indicator) as the teacher's lead next-step. Choose it from the indicators you scored LOWEST in this lesson, and among those prefer the one whose evidence you can quote most concretely. Never pick a non-applicable indicator. Its "domain" MUST be one of the four section keys above and "indicator" MUST be one of that section's indicator ids.
 ${focusAreaLangDirective(language)}
 
 EVIDENCE RULES:
@@ -628,31 +568,54 @@ EVIDENCE RULES:
 
 // ─── Score computation ───────────────────────────────────────────────
 
+// An indicator the lesson could not exercise leaves BOTH sides of the fraction.
+// Before this, a maths-pedagogy row in an Urdu lesson was scored at the bottom rung and kept in a
+// fixed denominator, so every teacher lost marks she could not earn. `applicable === false` is the
+// ONLY thing that removes a row; an ABSENT flag means applicable, so every pre-cutover session
+// scores exactly as it did before.
+function isApplicable(indicator) {
+  return !(indicator && indicator.applicable === false);
+}
+
 function computeScores(analysis) {
   const domainKeys = Object.keys(DOMAINS);
   let overallMarks = 0;
+  let overallMax = 0;
+  let applicableCount = 0;
+  let notApplicableCount = 0;
 
   for (const domainKey of domainKeys) {
     if (analysis.domains && analysis.domains[domainKey]) {
       const domain = analysis.domains[domainKey];
       let domainScore = 0;
+      let domainMax = 0;
 
       if (domain.indicators) {
         for (const indicator of domain.indicators) {
+          if (!isApplicable(indicator)) { notApplicableCount += 1; continue; }
           domainScore += indicator.score || 0;
+          domainMax += SCALE_MAX;
+          applicableCount += 1;
         }
       }
 
       domain.domain_score = domainScore;
-      domain.domain_max = DOMAINS[domainKey].indicatorCount * SCALE_MAX;
+      // Fall back to the declared size only when the domain emitted no scorable rows at all,
+      // so an empty domain still reports a sane max rather than 0.
+      domain.domain_max = domainMax || DOMAINS[domainKey].indicatorCount * SCALE_MAX;
+      domain.indicators_applicable = domainMax / SCALE_MAX;
       overallMarks += domainScore;
+      overallMax += domainMax;
     }
   }
 
+  const maxMarks = overallMax || MAX_MARKS;
   analysis.scores = {
     overall_marks: overallMarks,
-    overall_max_marks: MAX_MARKS,
-    overall_percentage: parseFloat(((overallMarks / MAX_MARKS) * 100).toFixed(1))
+    overall_max_marks: maxMarks,
+    overall_percentage: parseFloat(((overallMarks / maxMarks) * 100).toFixed(1)),
+    indicators_applicable: applicableCount,
+    indicators_not_applicable: notApplicableCount,
   };
 
   return analysis;
@@ -682,7 +645,11 @@ function applyLpFidelity(analysis, lpFidelity) {
   const sectionB = analysis.domains[SECTION_B_KEY];
   if (!sectionB) return analysis; // not a FICO analysis / no Section B — no-op
 
-  const maxB = DOMAINS[SECTION_B_KEY].indicatorCount * SCALE_MAX; // 40
+  // Use the max computeScores already derived for Section B (applicable-aware), not the declared
+  // size. Hardcoding it here is what produced the denominator bug in a sibling framework: the
+  // pedagogy pass reported against the applicable total while this path reported against a
+  // constant, and the two percentages silently disagreed.
+  const maxB = sectionB.domain_max || DOMAINS[SECTION_B_KEY].indicatorCount * SCALE_MAX;
   sectionB.domain_score = Math.round((pct / 100) * maxB);
   sectionB.domain_max = maxB;
   sectionB.fidelity_derived = true;
@@ -695,11 +662,14 @@ function applyLpFidelity(analysis, lpFidelity) {
     const d = analysis.domains[key];
     if (d && typeof d.domain_score === 'number') overallMarks += d.domain_score;
   }
+  // Keep the denominator computeScores derived from the applicable indicators. Section B's own
+  // max is unchanged by the override — only its score is — so the overall max is untouched.
+  const maxMarks = (analysis.scores && analysis.scores.overall_max_marks) || MAX_MARKS;
   analysis.scores = {
     ...(analysis.scores || {}),
     overall_marks: overallMarks,
-    overall_max_marks: MAX_MARKS,
-    overall_percentage: parseFloat(((overallMarks / MAX_MARKS) * 100).toFixed(1)),
+    overall_max_marks: maxMarks,
+    overall_percentage: parseFloat(((overallMarks / maxMarks) * 100).toFixed(1)),
   };
   return analysis;
 }

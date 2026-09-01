@@ -2,7 +2,7 @@
  * FICO Framework Module Tests (module-interface contract)
  *
  * The FICO framework now carries the canonical ICT rubric (Sections B/C/D/F,
- * 26 indicators, max 104). Detailed shape assertions live in
+ * 26 indicators, three rungs 0-2). Detailed shape assertions live in
  * `fico-framework-ict.test.js`. This file locks the generic framework-module
  * interface contract that every framework in the registry must satisfy.
  */
@@ -31,8 +31,9 @@ describe('FICO Framework Module', () => {
     });
 
     test('SCENARIO: FICO max marks matches indicator count × scale', () => {
-      // ICT canonical rubric: 26 × 4 = 104.
-      expect(ficoFramework.maxMarks).toBe(ficoFramework.getScoringConstants().totalIndicators * 4);
+      // ICT canonical rubric, v4: 26 indicators x 2 = 52 DEFINED. The denominator a
+      // teacher is scored against is derived per session from the applicable indicators.
+      expect(ficoFramework.maxMarks).toBe(ficoFramework.getScoringConstants().totalIndicators * 2);
     });
 
     test('SCENARIO: FICO has NO debrief section', () => {
@@ -174,7 +175,7 @@ describe('FICO Framework Module', () => {
       expect(c.domains).toBeDefined();
       expect(typeof c.totalIndicators).toBe('number');
       expect(typeof c.maxMarks).toBe('number');
-      expect(c.scaleMax).toBe(4);
+      expect(c.scaleMax).toBe(2);
     });
 
     test('SCENARIO: total indicators across sections matches totalIndicators constant', () => {

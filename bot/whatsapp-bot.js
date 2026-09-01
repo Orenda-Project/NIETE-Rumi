@@ -688,6 +688,15 @@ app.post('/webhook', async (req, res) => {
         return;
       }
 
+      // Coaching survey buttons (👍 Yes / 👎 Not really) — sent once the report AND the
+      // voice debrief have both landed. Must be registered here: an unrecognised prefix
+      // falls through to generic text handling and the tap is silently lost.
+      if (buttonId.startsWith('coaching_fb_yes_') || buttonId.startsWith('coaching_fb_no_')) {
+        const CoachingFeedbackService = require('./shared/services/coaching/coaching-feedback.service');
+        await CoachingFeedbackService.handleFeedbackButton(buttonId, from);
+        return;
+      }
+
       // LP feedback survey buttons (👍 Yes / 👎 Not really) — 30s after LP delivery
       if (buttonId.startsWith('lp_feedback_yes_') || buttonId.startsWith('lp_feedback_no_')) {
         const LpFeedbackService = require('./shared/services/lp-feedback.service');
