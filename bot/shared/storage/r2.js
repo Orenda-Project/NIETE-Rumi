@@ -113,7 +113,11 @@ async function uploadExamBuffer({ buffer, userId, examId, filename }) {
     Bucket: BUCKET_NAME,
     Key: key,
     Body: buffer,
-    ContentType: getContentType('.docx'),
+    // From the filename, not a constant. This was hardcoded to .docx for the
+    // feature it was written for, and a PDF stored under a docx type is only
+    // wrong once something FETCHES the url and believes the header — which is
+    // what WhatsApp does for a document sent by link.
+    ContentType: getContentType(path.extname(filename || '') || '.docx'),
     Metadata: {
       userId,
       examId,

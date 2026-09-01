@@ -50,3 +50,46 @@ describe('extractKeyFromUrl', () => {
     expect(() => extractKeyFromUrl('https://example.com/some/file.pdf')).toThrow(/Could not extract/);
   });
 });
+
+/**
+ * An object must be stored as the type it actually is.
+ *
+ * uploadExamBuffer hardcoded `.docx` — correct for the feature it was written
+ * for, wrong the moment a PDF went through it. Nothing local notices: the bytes
+ * are intact and a server-side download ignores the header. It only matters
+ * when something FETCHES the url and believes it, which is exactly what
+ * WhatsApp does for a document sent by link.
+ */
+describe('uploadExamBuffer stores the type the file actually is', () => {
+  const sent = [];
+
+  beforeAll(() => {
+    jest.resetModules();
+    process.env.R2_BUCKET_NAME = 'digital-coach-audio';
+    process.env.R2_ENDPOINT = 'https://acct.r2.cloudflarestorage.com';
+    process.env.R2_ACCESS_KEY_ID = 'test-key';
+    process.env.R2_SECRET_ACCESS_KEY = 'test-secret';
+    jest.doMock('@aws-sdk/client-s3', () => {
+      const actual = jest.requireActual('@aws-sdk/client-s3');
+      return {
+        ...actual,
+        S3Client: class { async send(cmd) { sent.push(cmd.input); return {}; } },
+      };
+    });
+  });
+
+  afterAll(() => { jest.dontMock('@aws-sdk/client-s3'); });
+
+  test.each([
+    ['Grade1_English.pdf', 'application/pdf'],
+    ['Grade1_English.docx',
+     'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  ])('%s is stored as %s', async (filename, expected) => {
+    const r2 = require('../../bot/shared/storage/r2');
+    sent.length = 0;
+    await r2.uploadExamBuffer({
+      buffer: Buffer.from('x'), userId: 'u1', examId: 'e1', filename,
+    });
+    expect(sent[0].ContentType).toBe(expected);
+  });
+});
