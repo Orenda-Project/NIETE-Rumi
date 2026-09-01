@@ -88,6 +88,11 @@ const {
   handleTeacherTrainingBack
 } = require('./teacher-training-endpoint');
 const {
+  handleAssessmentGenInit,
+  handleAssessmentGenDataExchange,
+  handleAssessmentGenBack
+} = require('./assessment-gen-endpoint');
+const {
   handlePakistanLpInit,
   handlePakistanLpDataExchange,
   handlePakistanLpBack
@@ -808,6 +813,40 @@ async function handleTeacherTrainingRequest(data) {
   if (action === 'BACK')                      return await handleTeacherTrainingBack(userId, screen, flow_token);
 
   logToFile('Unknown teacher training flow action', { action });
+  return FlowEncryptionService.createErrorResponse('Unknown action');
+}
+
+// ============================================================
+// ASSESSMENT GENERATOR FLOW — class → coverage → questions → confirm.
+// Every list is built server-side from the books we actually hold, so a
+// teacher cannot pick something we would then have to refuse.
+// ============================================================
+router.post('/assessment-gen', async (req, res) => {
+  try {
+    if (!FlowEncryptionService.isConfigured()) {
+      logToFile('Flow encryption not configured', { endpoint: 'assessment-gen' });
+      return res.status(500).send();
+    }
+    return await FlowEncryptionService.handleFlowRequest(req, res,
+      async (decryptedData) => await handleAssessmentGenRequest(decryptedData));
+  } catch (error) {
+    logToFile('Flow endpoint error', { endpoint: 'assessment-gen', error: error.message, stack: error.stack });
+    return res.status(500).send();
+  }
+});
+
+async function handleAssessmentGenRequest(data) {
+  const { action, screen, data: screenData, flow_token } = data;
+  const userId = flow_token ? String(flow_token).split(':')[0] : null;
+
+  logToFile('Handling assessment-gen flow request', { action, screen, userId });
+
+  if (action === 'ping') return { data: { status: 'active' } };
+  if (action === 'INIT' || action === 'init') return await handleAssessmentGenInit(userId, flow_token);
+  if (action === 'data_exchange') return await handleAssessmentGenDataExchange(userId, screen, screenData, flow_token);
+  if (action === 'BACK') return await handleAssessmentGenBack(userId, screen, flow_token);
+
+  logToFile('Unknown assessment-gen flow action', { action });
   return FlowEncryptionService.createErrorResponse('Unknown action');
 }
 

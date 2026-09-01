@@ -155,6 +155,16 @@ const FLOW_CONFIGS = [
     categories: ['OTHER'],
   },
   {
+    // Assessment Generator. Endpoint flow: every list is served from the books
+    // we hold, so the screens cannot drift from the content.
+    name: 'Assessment Generator',
+    jsonPath: path.join(FLOWS_DIR, 'assessment-gen-flow.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/assessment-gen',
+    envVar: 'ASSESSMENT_GEN_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
     // Pakistan LP picker. Grade → Subject → Chapter → Topic over
     // pre_generated_lps where curriculum='pakistan', populated by the
     // seed + chapter-load scripts in bot/scripts/. The `menu_lesson_plan`

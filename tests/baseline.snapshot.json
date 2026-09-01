@@ -1,37 +1,37 @@
 {
   "tests/coaching/bd-h9gnk-midflight-watchdog.test.js": {
     "failing": [
-      "bd-h9gnk \u2014 classifyStuckMidFlightSession skips observe sessions \u2014 the bd-tju8f sweep owns those, coach-addressed",
-      "bd-h9gnk \u2014 worker wiring the sweep query excludes observe rows and orders by staleness"
+      "bd-h9gnk — classifyStuckMidFlightSession skips observe sessions — the bd-tju8f sweep owns those, coach-addressed",
+      "bd-h9gnk — worker wiring the sweep query excludes observe rows and orders by staleness"
     ],
     "offenders": []
   },
   "tests/coaching/document-audio-routing.test.js": {
     "failing": [
-      "audio-document-router \u2014 Whisper 25MB gate audio at 40MB (typical rejected classroom recording) \u2192 reject_too_large with size",
-      "audio-document-router \u2014 Whisper 25MB gate audio near the WhatsApp 100MB document ceiling \u2192 reject_too_large (does not attempt download)",
-      "audio-document-router \u2014 invariants used by handleDocumentMessage WHISPER_MAX_BYTES is 25MB (do not tune without confirming Whisper limit)"
+      "audio-document-router — Whisper 25MB gate audio at 40MB (typical rejected classroom recording) → reject_too_large with size",
+      "audio-document-router — Whisper 25MB gate audio near the WhatsApp 100MB document ceiling → reject_too_large (does not attempt download)",
+      "audio-document-router — invariants used by handleDocumentMessage WHISPER_MAX_BYTES is 25MB (do not tune without confirming Whisper limit)"
     ],
     "offenders": []
   },
   "tests/coaching/fico-framework-ict.test.js": {
     "failing": [
-      "All 4 dispatch touchpoints wire fico (bd-2039 audit) renderer-registry: fico \u2192 hero renderer (not the pdfkit fallback)",
-      "FICO Framework \u2014 ICT Canonical Rubric (bd-2039) Section F subject grouping F4-F5 tagged mathematics",
-      "FICO Framework \u2014 ICT Canonical Rubric (bd-2039) Section F subject grouping F6-F7 tagged science",
-      "FICO Framework \u2014 ICT Canonical Rubric (bd-2039) Section F subject grouping F8-F10 tagged literacy",
-      "FICO Framework \u2014 ICT Canonical Rubric (bd-2039) Section shape Section B (Lesson Plan Fidelity) has 7 indicators (B1-B7)",
-      "FICO Framework \u2014 ICT Canonical Rubric (bd-2039) Section shape Section C (High-Leverage Practices) has 4 indicators (C1-C4)",
-      "FICO Framework \u2014 ICT Canonical Rubric (bd-2039) Section shape Section D (Student Engagement) has 5 indicators (D1-D5)",
-      "FICO Framework \u2014 ICT Canonical Rubric (bd-2039) Section shape Section F (Teacher Subject Knowledge) has 10 indicators (F1-F10)",
-      "FICO Framework \u2014 ICT Canonical Rubric (bd-2039) Section shape every indicator has a scoring method (1-4 levels) + AI detection method",
-      "FICO Framework \u2014 ICT Canonical Rubric (bd-2039) Section shape max marks is 104 (26 \u00d7 4)",
-      "FICO Framework \u2014 ICT Canonical Rubric (bd-2039) Section shape total indicators is 26 (per Scoring Summary tab)",
-      "FICO Framework \u2014 ICT Canonical Rubric (bd-2039) computeScores() sums the new section shape all 4 sections at max \u2192 104 marks",
-      "FICO Framework \u2014 ICT Canonical Rubric (bd-2039) computeScores() sums the new section shape missing sections do not crash",
-      "FICO Framework \u2014 ICT Canonical Rubric (bd-2039) computeScores() sums the new section shape per-section max: B=28, C=16, D=20, F=40",
-      "FICO Framework \u2014 ICT Canonical Rubric (bd-2039) framework-registry: getFramework('fico') returns ICT shape fico framework has name=fico, maxMarks=104",
-      "FICO Framework \u2014 ICT Canonical Rubric (bd-2039) getSystemPrompt() bakes in the sheet rubric uses the sheet's \"AI Detection Method\" text verbatim for at least one indicator"
+      "All 4 dispatch touchpoints wire fico (bd-2039 audit) renderer-registry: fico → hero renderer (not the pdfkit fallback)",
+      "FICO Framework — ICT Canonical Rubric (bd-2039) Section F subject grouping F4-F5 tagged mathematics",
+      "FICO Framework — ICT Canonical Rubric (bd-2039) Section F subject grouping F6-F7 tagged science",
+      "FICO Framework — ICT Canonical Rubric (bd-2039) Section F subject grouping F8-F10 tagged literacy",
+      "FICO Framework — ICT Canonical Rubric (bd-2039) Section shape Section B (Lesson Plan Fidelity) has 7 indicators (B1-B7)",
+      "FICO Framework — ICT Canonical Rubric (bd-2039) Section shape Section C (High-Leverage Practices) has 4 indicators (C1-C4)",
+      "FICO Framework — ICT Canonical Rubric (bd-2039) Section shape Section D (Student Engagement) has 5 indicators (D1-D5)",
+      "FICO Framework — ICT Canonical Rubric (bd-2039) Section shape Section F (Teacher Subject Knowledge) has 10 indicators (F1-F10)",
+      "FICO Framework — ICT Canonical Rubric (bd-2039) Section shape every indicator has a scoring method (1-4 levels) + AI detection method",
+      "FICO Framework — ICT Canonical Rubric (bd-2039) Section shape max marks is 104 (26 × 4)",
+      "FICO Framework — ICT Canonical Rubric (bd-2039) Section shape total indicators is 26 (per Scoring Summary tab)",
+      "FICO Framework — ICT Canonical Rubric (bd-2039) computeScores() sums the new section shape all 4 sections at max → 104 marks",
+      "FICO Framework — ICT Canonical Rubric (bd-2039) computeScores() sums the new section shape missing sections do not crash",
+      "FICO Framework — ICT Canonical Rubric (bd-2039) computeScores() sums the new section shape per-section max: B=28, C=16, D=20, F=40",
+      "FICO Framework — ICT Canonical Rubric (bd-2039) framework-registry: getFramework('fico') returns ICT shape fico framework has name=fico, maxMarks=104",
+      "FICO Framework — ICT Canonical Rubric (bd-2039) getSystemPrompt() bakes in the sheet rubric uses the sheet's \"AI Detection Method\" text verbatim for at least one indicator"
     ],
     "offenders": []
   },
@@ -55,25 +55,25 @@
   },
   "tests/coaching/reflective-v12-question-chain.test.js": {
     "failing": [
-      "_generateReflectiveQuestionV12 \u2014 guardrails ladder non-Latin script enforces TTS gates (roman_script)"
+      "_generateReflectiveQuestionV12 — guardrails ladder non-Latin script enforces TTS gates (roman_script)"
     ],
     "offenders": []
   },
   "tests/handlers/text-message-lp-keyword.test.js": {
     "failing": [
-      "LP intercept \u2014 behaviour a marketing string that merely contains the words does not fire",
-      "LP intercept \u2014 behaviour fires on \"I need a lesson plan on photosynthesis\"",
-      "LP intercept \u2014 behaviour fires on \"lesson plan for grade 3 math\"",
-      "LP intercept \u2014 behaviour stays quiet on \"lesson\"",
-      "LP intercept \u2014 handler wiring the intercept is still presence-gated on PAKISTAN_LP_FLOW_ID",
-      "LP intercept \u2014 handler wiring the match tier is logged, so a false positive is diagnosable"
+      "LP intercept — behaviour a marketing string that merely contains the words does not fire",
+      "LP intercept — behaviour fires on \"I need a lesson plan on photosynthesis\"",
+      "LP intercept — behaviour fires on \"lesson plan for grade 3 math\"",
+      "LP intercept — behaviour stays quiet on \"lesson\"",
+      "LP intercept — handler wiring the intercept is still presence-gated on PAKISTAN_LP_FLOW_ID",
+      "LP intercept — handler wiring the match tier is logged, so a false positive is diagnosable"
     ],
     "offenders": []
   },
   "tests/observe/bd-5n1a2-resolve-teacher-empty-school.test.js": {
     "failing": [
-      "resolveTeacher survives bad school values (bd-5n1a2) school_ext_id '' \u2192 treated as no filter, teacher binds",
-      "resolveTeacher survives bad school values (bd-5n1a2) wrong school value \u2192 unfiltered retry still binds"
+      "resolveTeacher survives bad school values (bd-5n1a2) school_ext_id '' → treated as no filter, teacher binds",
+      "resolveTeacher survives bad school values (bd-5n1a2) wrong school value → unfiltered retry still binds"
     ],
     "offenders": []
   },
@@ -244,26 +244,26 @@
   },
   "tests/setup/no-hardcoded-bot-name.test.js": {
     "failing": [
-      "Bot self-name hygiene \u2014 no hardcoded \"Rumi\" in teacher-facing source every user-facing self-reference routes through botName / the deployment name"
+      "Bot self-name hygiene — no hardcoded \"Rumi\" in teacher-facing source every user-facing self-reference routes through botName / the deployment name"
     ],
     "offenders": [
-      "bot/shared/services/observe/observe-brief-card.js:104 \u2014 hardcoded self-name \u2014 en: 'First visit with this teacher on Rumi. Start by getting to know the class \u2014 say hello, watch a lesson, and use the moves above to open the conversation.',",
-      "bot/shared/services/observe/observe-brief-card.js:105 \u2014 hardcoded self-name \u2014 ur: '\u0631\u0648\u0645\u06cc \u067e\u0631 \u0627\u0633 \u0627\u0633\u062a\u0627\u062f \u06a9\u06d2 \u0633\u0627\u062a\u06be \u067e\u06c1\u0644\u0627 \u062f\u0648\u0631\u06c1\u06d4 \u06a9\u0644\u0627\u0633 \u06a9\u0648 \u062c\u0627\u0646\u0646\u06d2 \u0633\u06d2 \u0622\u063a\u0627\u0632 \u06a9\u0631\u06cc\u06ba \u2014 \u0633\u0644\u0627\u0645 \u06a9\u0631\u06cc\u06ba\u060c \u0627\u06cc\u06a9 \u0633\u0628\u0642 \u062f\u06cc\u06a9\u06be\u06cc\u06ba\u060c \u0627\u0648\u0631 \u0628\u0627\u062a \u0686\u06cc\u062a \u0634\u0631\u0648\u0639 \u06a9\u0631\u0646\u06d2 \u06a9\u06d2 \u0644\u06cc\u06d2 \u0627\u0648\u067e\u0631 \u062f\u06cc\u06d2 \u06af\u0626\u06d2 \u0637\u0631\u06cc\u0642\u06d2 \u0627\u0633\u062a\u0639\u0645\u0627\u0644 \u06a9\u0631\u06cc\u06ba\u06d4',",
-      "bot/shared/services/observe/observe-brief-card.js:106 \u2014 hardcoded self-name \u2014 sw: 'Ziara ya kwanza na mwalimu huyu kwenye Rumi. Anza kwa kufahamiana na darasa \u2014 salimia, tazama somo, na tumia hatua zilizo hapo juu kuanzisha mazungumzo.',",
-      "bot/shared/services/observe/observe-strings.js:198 \u2014 hardcoded self-name \u2014 send_waiting_tap_info: '\ud83d\udce8 Ripoti iko tayari \u2014 mwaliko ulitumwa kwa {name} ({date}). Bado hajaugusa; Rumi anamkumbusha, na ripoti itafika mara tu atakapobonyeza.',",
-      "bot/shared/services/observe/observe-strings.js:365 \u2014 hardcoded self-name \u2014 send_waiting_tap_info: '\ud83d\udce8 \u0631\u067e\u0648\u0631\u0679 \u062a\u06cc\u0627\u0631 \u06c1\u06d2 \u2014 {name} \u06a9\u0648 \u062f\u0639\u0648\u062a ({date}) \u0628\u06be\u06cc\u062c\u06cc \u062c\u0627 \u0686\u06a9\u06cc \u06c1\u06d2\u06d4 \u0627\u0628\u06be\u06cc \u062f\u0639\u0648\u062a \u067e\u0631 \u0679\u06cc\u067e \u0646\u06c1\u06cc\u06ba \u06c1\u0648\u0627\u061b \u0631\u0648\u0645\u06cc \u06cc\u0627\u062f \u062f\u06c1\u0627\u0646\u06cc \u0628\u06be\u06cc\u062c\u062a\u06cc \u0631\u06c1\u062a\u06cc \u06c1\u06d2\u060c \u0627\u0648\u0631 \u0679\u06cc\u067e \u06c1\u0648\u062a\u06d2 \u06c1\u06cc \u0631\u067e\u0648\u0631\u0679 \u062e\u0648\u062f \u0628\u062e\u0648\u062f \u067e\u06c1\u0646\u0686 \u062c\u0627\u0626\u06d2 \u06af\u06cc\u06d4',",
-      "bot/shared/services/observe/observe-strings.js:564 \u2014 hardcoded self-name \u2014 send_waiting_tap_info: '\ud83d\udce8 The report is ready \u2014 the invitation went to {name} ({date}). No tap yet; Rumi keeps reminding, and the report is delivered automatically the moment the invitation is tapped.',"
+      "bot/shared/services/observe/observe-brief-card.js:104 — hardcoded self-name — en: 'First visit with this teacher on Rumi. Start by getting to know the class — say hello, watch a lesson, and use the moves above to open the conversation.',",
+      "bot/shared/services/observe/observe-brief-card.js:105 — hardcoded self-name — ur: 'رومی پر اس استاد کے ساتھ پہلا دورہ۔ کلاس کو جاننے سے آغاز کریں — سلام کریں، ایک سبق دیکھیں، اور بات چیت شروع کرنے کے لیے اوپر دیے گئے طریقے استعمال کریں۔',",
+      "bot/shared/services/observe/observe-brief-card.js:106 — hardcoded self-name — sw: 'Ziara ya kwanza na mwalimu huyu kwenye Rumi. Anza kwa kufahamiana na darasa — salimia, tazama somo, na tumia hatua zilizo hapo juu kuanzisha mazungumzo.',",
+      "bot/shared/services/observe/observe-strings.js:198 — hardcoded self-name — send_waiting_tap_info: '📨 Ripoti iko tayari — mwaliko ulitumwa kwa {name} ({date}). Bado hajaugusa; Rumi anamkumbusha, na ripoti itafika mara tu atakapobonyeza.',",
+      "bot/shared/services/observe/observe-strings.js:365 — hardcoded self-name — send_waiting_tap_info: '📨 رپورٹ تیار ہے — {name} کو دعوت ({date}) بھیجی جا چکی ہے۔ ابھی دعوت پر ٹیپ نہیں ہوا؛ رومی یاد دہانی بھیجتی رہتی ہے، اور ٹیپ ہوتے ہی رپورٹ خود بخود پہنچ جائے گی۔',",
+      "bot/shared/services/observe/observe-strings.js:564 — hardcoded self-name — send_waiting_tap_info: '📨 The report is ready — the invitation went to {name} ({date}). No tap yet; Rumi keeps reminding, and the report is delivered automatically the moment the invitation is tapped.',"
     ]
   },
   "tests/setup/no-hardcoded-brand-urls.test.js": {
     "failing": [
-      "Brand-URL hygiene \u2014 no hardcoded upstream brand domains in source every literal `hellorumi.ai` / `taleemabad.com` reference flows through an env var"
+      "Brand-URL hygiene — no hardcoded upstream brand domains in source every literal `hellorumi.ai` / `taleemabad.com` reference flows through an env var"
     ],
     "offenders": [
-      "bot/docs/flows/registration-flow.json:432 \u2014 matches /hellorumi\\\\.ai/ \u2014 \\",
-      "bot/tests/observe/bd-calkey-env.test.js:30 \u2014 matches /hellorumi\\\\.ai/ \u2014 const base = { GOOGLE_CALENDAR_SUBJECT: 'rumi@hellorumi.ai', GOOGLE_CALENDAR_ID: 'primary' };",
-      "bot/tests/observe/bd-calkey-env.test.js:62 \u2014 matches /hellorumi\\\\.ai/ \u2014 const c = load({ GOOGLE_CALENDAR_SUBJECT: 'rumi@hellorumi.ai', GOOGLE_CALENDAR_ID: 'primary',",
-      "bot/tests/observe/bd-calops-scope-telemetry.test.js:12 \u2014 matches /hellorumi\\\\.ai/ \u2014 *    creating, patching and deleting a real event on rumi@hellorumi.ai."
+      "bot/docs/flows/registration-flow.json:432 — matches /hellorumi\\\\.ai/ — \\",
+      "bot/tests/observe/bd-calkey-env.test.js:30 — matches /hellorumi\\\\.ai/ — const base = { GOOGLE_CALENDAR_SUBJECT: 'rumi@hellorumi.ai', GOOGLE_CALENDAR_ID: 'primary' };",
+      "bot/tests/observe/bd-calkey-env.test.js:62 — matches /hellorumi\\\\.ai/ — const c = load({ GOOGLE_CALENDAR_SUBJECT: 'rumi@hellorumi.ai', GOOGLE_CALENDAR_ID: 'primary',",
+      "bot/tests/observe/bd-calops-scope-telemetry.test.js:12 — matches /hellorumi\\\\.ai/ — *    creating, patching and deleting a real event on rumi@hellorumi.ai."
     ]
   },
   "tests/setup/no-undefined-whatsapp-methods.test.js": {
@@ -271,8 +271,8 @@
       "No undefined WhatsAppService methods every WhatsAppService.<method>( call in bot source names a real member"
     ],
     "offenders": [
-      "bot/shared/services/quiz/video-quiz-sender.service.js:100 \u2014 WhatsAppService.sendTextReturningId() is not a static member of WhatsAppService. Add the method, or fix the call.",
-      "bot/shared/services/quiz/video-quiz-sender.service.js:112 \u2014 WhatsAppService.sendAudioFromUrlReturningId() is not a static member of WhatsAppService. Add the method, or fix the call."
+      "bot/shared/services/quiz/video-quiz-sender.service.js:100 — WhatsAppService.sendTextReturningId() is not a static member of WhatsAppService. Add the method, or fix the call.",
+      "bot/shared/services/quiz/video-quiz-sender.service.js:112 — WhatsAppService.sendAudioFromUrlReturningId() is not a static member of WhatsAppService. Add the method, or fix the call."
     ]
   },
   "tests/setup/schema-completeness.test.js": {
@@ -397,27 +397,27 @@
       "bot/shared/handlers/remark-command.handler.js:2",
       "bot/shared/handlers/remark-command.handler.js:91",
       "bot/shared/handlers/remark-command.handler.js:99",
-      "bot/shared/handlers/text-message.handler.js:1008",
+      "bot/shared/handlers/text-message.handler.js:1017",
       "bot/shared/handlers/text-message.handler.js:1019",
+      "bot/shared/handlers/text-message.handler.js:1022",
+      "bot/shared/handlers/text-message.handler.js:1054",
+      "bot/shared/handlers/text-message.handler.js:1065",
       "bot/shared/handlers/text-message.handler.js:138",
       "bot/shared/handlers/text-message.handler.js:162",
-      "bot/shared/handlers/text-message.handler.js:1664",
+      "bot/shared/handlers/text-message.handler.js:1710",
       "bot/shared/handlers/text-message.handler.js:173",
       "bot/shared/handlers/text-message.handler.js:187",
-      "bot/shared/handlers/text-message.handler.js:2075",
-      "bot/shared/handlers/text-message.handler.js:2500",
-      "bot/shared/handlers/text-message.handler.js:2527",
-      "bot/shared/handlers/text-message.handler.js:2543",
-      "bot/shared/handlers/text-message.handler.js:2560",
+      "bot/shared/handlers/text-message.handler.js:2121",
+      "bot/shared/handlers/text-message.handler.js:2546",
+      "bot/shared/handlers/text-message.handler.js:2573",
+      "bot/shared/handlers/text-message.handler.js:2589",
+      "bot/shared/handlers/text-message.handler.js:2606",
       "bot/shared/handlers/text-message.handler.js:27",
       "bot/shared/handlers/text-message.handler.js:293",
       "bot/shared/handlers/text-message.handler.js:379",
       "bot/shared/handlers/text-message.handler.js:432",
       "bot/shared/handlers/text-message.handler.js:609",
       "bot/shared/handlers/text-message.handler.js:635",
-      "bot/shared/handlers/text-message.handler.js:971",
-      "bot/shared/handlers/text-message.handler.js:973",
-      "bot/shared/handlers/text-message.handler.js:976",
       "bot/shared/handlers/voice-message.handler.js:1023",
       "bot/shared/handlers/voice-message.handler.js:1349",
       "bot/shared/handlers/voice-message.handler.js:1361",
@@ -433,11 +433,11 @@
       "bot/shared/routes/attendance-marking-endpoint.js:873",
       "bot/shared/routes/attendance-marking-endpoint.js:888",
       "bot/shared/routes/class-manager-endpoint.js:60",
-      "bot/shared/routes/flow-endpoint.routes.js:124",
-      "bot/shared/routes/flow-endpoint.routes.js:148",
+      "bot/shared/routes/flow-endpoint.routes.js:129",
+      "bot/shared/routes/flow-endpoint.routes.js:153",
       "bot/shared/routes/flow-endpoint.routes.js:17",
-      "bot/shared/routes/flow-endpoint.routes.js:532",
-      "bot/shared/routes/flow-endpoint.routes.js:928",
+      "bot/shared/routes/flow-endpoint.routes.js:537",
+      "bot/shared/routes/flow-endpoint.routes.js:967",
       "bot/shared/routes/internal-api.routes.js:103",
       "bot/shared/routes/internal-api.routes.js:111",
       "bot/shared/routes/internal-api.routes.js:115",
@@ -1047,13 +1047,13 @@
       "bot/shared/templates/video-quiz-scorecard.template.js:63",
       "bot/shared/templates/video-quiz-scorecard.template.js:67",
       "bot/shared/templates/video-quiz-scorecard.template.js:87",
-      "bot/shared/utils/constants.js:121",
-      "bot/shared/utils/constants.js:134",
-      "bot/shared/utils/constants.js:137",
-      "bot/shared/utils/constants.js:227",
+      "bot/shared/utils/constants.js:122",
+      "bot/shared/utils/constants.js:135",
+      "bot/shared/utils/constants.js:138",
+      "bot/shared/utils/constants.js:229",
       "bot/shared/utils/constants.js:26",
       "bot/shared/utils/constants.js:66",
-      "bot/shared/utils/constants.js:94",
+      "bot/shared/utils/constants.js:95",
       "bot/shared/utils/flow-type-detector.js:101",
       "bot/shared/utils/flow-type-detector.js:45",
       "bot/shared/utils/flow-type-detector.js:83",
@@ -1259,9 +1259,9 @@
       "Unresolved-require audit no literal require() in reachable code points at a missing file"
     ],
     "offenders": [
-      "bot/shared/services/pic-to-lp/lp-handoff.service.js \u2192 ../lesson-plan-prompts.service",
-      "bot/workers/homework-bundle.worker.js \u2192 ../shared/services/lp-feedback.service",
-      "bot/workers/pic-lp-kieai.worker.js \u2192 ../shared/services/lp-feedback.service",
+      "bot/shared/services/pic-to-lp/lp-handoff.service.js → ../lesson-plan-prompts.service",
+      "bot/workers/homework-bundle.worker.js → ../shared/services/lp-feedback.service",
+      "bot/workers/pic-lp-kieai.worker.js → ../shared/services/lp-feedback.service",
       "from",
       "spec"
     ]
@@ -1277,9 +1277,9 @@
     "failing": [
       "student-videos-endpoint INIT lists grades sorted, excluding rows without a video_url",
       "student-videos-endpoint INIT with an empty library returns an error message",
-      "student-videos-endpoint SELECT_GRADE \u2192 subjects for that grade",
-      "student-videos-endpoint SELECT_SUBJECT \u2192 singleton topic uses the bare title (subtopic null \u2192 topic)",
-      "student-videos-endpoint SELECT_SUBJECT \u2192 videos, prefixing the topic only when \u22652 share it",
+      "student-videos-endpoint SELECT_GRADE → subjects for that grade",
+      "student-videos-endpoint SELECT_SUBJECT → singleton topic uses the bare title (subtopic null → topic)",
+      "student-videos-endpoint SELECT_SUBJECT → videos, prefixing the topic only when ≥2 share it",
       "student-videos-endpoint SELECT_TOPIC delivers the video, returns SUCCESS, and schedules feedback",
       "student-videos-endpoint gradeTitle / videoTitle helpers",
       "student-videos-flow.json is leak-free (no internal phone/name/path/bead tokens)"
@@ -1303,9 +1303,9 @@
   },
   "tests/training/portal-level-unlock-logic.test.js": {
     "failing": [
-      "GET /training/courses \u2014 lockdown guard honours unlock_logic 200s an all_modules vendor's level with no progress at all",
-      "GET /training/levels \u2014 unlock_logic-aware lockdown does NOT lock a level whose vendor row is missing \u2014 matches the bot (bd-2480)",
-      "GET /training/levels \u2014 unlock_logic-aware lockdown never locks an all_modules vendor, even with zero attempts"
+      "GET /training/courses — lockdown guard honours unlock_logic 200s an all_modules vendor's level with no progress at all",
+      "GET /training/levels — unlock_logic-aware lockdown does NOT lock a level whose vendor row is missing — matches the bot (bd-2480)",
+      "GET /training/levels — unlock_logic-aware lockdown never locks an all_modules vendor, even with zero attempts"
     ],
     "offenders": []
   },

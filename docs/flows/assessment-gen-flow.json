@@ -1,0 +1,567 @@
+{
+  "_comment": "Assessment Generator. Endpoint flow: every screen is served by the server so what she sees is always valid for the book we actually hold. Screens: CLASS -> COVERAGE (-> PAGES) -> QUESTIONS (-> TYPES) -> CONFIRM -> SUBMITTED.",
+  "_instructions": "Publish via scripts/setup/register-all-flows.js. The endpoint is /api/flows/assessment-gen.",
+  "version": "7.0",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "CLASS": [
+      "COVERAGE"
+    ],
+    "COVERAGE": [
+      "PAGES",
+      "QUESTIONS"
+    ],
+    "PAGES": [
+      "QUESTIONS"
+    ],
+    "QUESTIONS": [
+      "TYPES",
+      "CONFIRM"
+    ],
+    "TYPES": [
+      "CONFIRM"
+    ],
+    "CONFIRM": [
+      "SUBMITTED"
+    ],
+    "SUBMITTED": []
+  },
+  "screens": [
+    {
+      "id": "CLASS",
+      "title": "New assessment",
+      "data": {
+        "grades": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "Grade 1"
+            },
+            {
+              "id": "2",
+              "title": "Grade 2"
+            }
+          ]
+        },
+        "subjects": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "english",
+              "title": "English"
+            },
+            {
+              "id": "urdu",
+              "title": "Urdu"
+            }
+          ]
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "class_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Which class is this for?"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.error}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "grade",
+                "label": "Grade",
+                "required": true,
+                "data-source": "${data.grades}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "subject",
+                "label": "Subject",
+                "required": true,
+                "data-source": "${data.subjects}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "grade": "${form.grade}",
+                    "subject": "${form.subject}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "COVERAGE",
+      "title": "New assessment",
+      "data": {
+        "chapters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Hello World! (pages 4-14)"
+            },
+            {
+              "id": "3",
+              "title": "3 · Pinky's Yummy Tummy (pages 28-40)"
+            }
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "__example__": "Grade 1 · English"
+        },
+        "has_chapters": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "coverage_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Which chapter?"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.summary}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.error}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "chapter",
+                "label": "Chapter",
+                "required": false,
+                "data-source": "${data.chapters}",
+                "visible": "${data.has_chapters}"
+              },
+              {
+                "type": "OptIn",
+                "name": "use_pages",
+                "label": "Type page numbers instead"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "chapter": "${form.chapter}",
+                    "use_pages": "${form.use_pages}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "PAGES",
+      "title": "New assessment",
+      "data": {
+        "summary": {
+          "type": "string",
+          "__example__": "Grade 1 · English"
+        },
+        "hint": {
+          "type": "string",
+          "__example__": "This book has pages 1-166."
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "pages_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Which pages?"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.summary}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.error}"
+              },
+              {
+                "type": "TextInput",
+                "name": "page_ranges",
+                "label": "Pages",
+                "required": true,
+                "input-type": "text",
+                "helper-text": "${data.hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "page_ranges": "${form.page_ranges}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTIONS",
+      "title": "New assessment",
+      "data": {
+        "summary": {
+          "type": "string",
+          "__example__": "Grade 1 · English · Chapter 1"
+        },
+        "counts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "10",
+              "title": "10 questions"
+            },
+            {
+              "id": "20",
+              "title": "20 questions"
+            }
+          ]
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "questions_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "What kind of questions?"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.summary}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "content_source",
+                "label": "Where questions come from",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "seen",
+                    "title": "From the book"
+                  },
+                  {
+                    "id": "unseen",
+                    "title": "New questions on the same topics"
+                  },
+                  {
+                    "id": "both",
+                    "title": "A mix of both"
+                  }
+                ]
+              },
+              {
+                "type": "Dropdown",
+                "name": "question_count",
+                "label": "How many questions",
+                "required": true,
+                "data-source": "${data.counts}"
+              },
+              {
+                "type": "OptIn",
+                "name": "pick_types",
+                "label": "Choose question types myself"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "content_source": "${form.content_source}",
+                    "question_count": "${form.question_count}",
+                    "pick_types": "${form.pick_types}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "TYPES",
+      "title": "New assessment",
+      "data": {
+        "summary": {
+          "type": "string",
+          "__example__": "Grade 1 · English"
+        },
+        "types": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "MCQs",
+              "title": "MCQs"
+            },
+            {
+              "id": "Fill in the Blanks",
+              "title": "Fill in the Blanks"
+            }
+          ]
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "types_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Which kinds of question?"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.summary}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.error}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "question_types",
+                "label": "Question types",
+                "required": true,
+                "data-source": "${data.types}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "question_types": "${form.question_types}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "CONFIRM",
+      "title": "New assessment",
+      "data": {
+        "recap": {
+          "type": "string",
+          "__example__": "Grade 1 English\nChapter 1 · Hello World!\nNew questions · 20 questions"
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "confirm_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Ready?"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.recap}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "output_format",
+                "label": "File type",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "pdf",
+                    "title": "PDF — ready to print"
+                  }
+                ]
+              },
+              {
+                "type": "OptIn",
+                "name": "answer_lines",
+                "label": "Lines for the answers"
+              },
+              {
+                "type": "OptIn",
+                "name": "answer_key",
+                "label": "Include an answer key"
+              },
+              {
+                "type": "Footer",
+                "label": "Make my paper",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "output_format": "${form.output_format}",
+                    "answer_lines": "${form.answer_lines}",
+                    "answer_key": "${form.answer_key}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SUBMITTED",
+      "title": "New assessment",
+      "terminal": true,
+      "data": {
+        "message": {
+          "type": "string",
+          "__example__": "Making your paper — about a minute."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "Making your paper"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.message}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "It will arrive in this chat. You can close this."
+          },
+          {
+            "type": "Footer",
+            "label": "Close",
+            "on-click-action": {
+              "name": "complete",
+              "payload": {}
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

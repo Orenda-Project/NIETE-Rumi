@@ -936,6 +936,52 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
+  // ASSESSMENT COMMAND — five names for one thing, because a teacher reaching
+  // for this thinks "exam" as often as she thinks "assessment", and guessing
+  // wrong costs her a round trip.
+  //
+  // These are slash commands, which matters: the exam CHECKER matches on
+  // keywords but is skipped for anything starting with '/', so /exam here
+  // cannot collide with it.
+  // ============================================================
+  if (['/assessment', '/assess', '/assessments', '/exam', '/exams'].includes(trimmedMessage)) {
+    logToFile('📝 assessment command', { userId: user?.id, command: trimmedMessage });
+    if (!user) {
+      typingController.stop();
+      await WhatsAppService.sendMessage(from,
+        'Send me a message first so I know who you are.\n\nپہلے مجھے پیغام بھیجیں تاکہ میں آپ کو پہچان سکوں۔');
+      return;
+    }
+
+    // One switch, shared with the portal, fail-closed. An absent row means off,
+    // so shipping the code does not ship the feature.
+    const { isAssessmentGeneratorEnabled } = require('../config/feature-flags');
+    const { ASSESSMENT_GEN_FLOW_ID } = require('../utils/constants');
+    const live = await isAssessmentGeneratorEnabled();
+
+    if (live && ASSESSMENT_GEN_FLOW_ID) {
+      typingController.stop();
+      const responseLanguage = await getUserLanguage(user.id) || 'en';
+      await WhatsAppService.sendFlow(from, {
+        flowId: ASSESSMENT_GEN_FLOW_ID,
+        header: '📝 New assessment',
+        body: ({
+          ur: 'اپنی جماعت کے لیے پرچہ بنائیں — جماعت، مضمون اور سبق منتخب کریں۔',
+        })[responseLanguage] || 'Build a paper for your class — pick the grade, subject and chapter.',
+        buttonText: ({ ur: 'شروع کریں' })[responseLanguage] || 'Start',
+        flowToken: `${user.id}:assessment-gen:${Date.now()}`,
+      });
+      logToFile('📝 sent assessment flow', { userId: user.id });
+      return;
+    }
+
+    typingController.stop();
+    await WhatsAppService.sendMessage(from,
+      "We're getting the assessment generator ready for you. I'll tell you the moment it's live.");
+    return;
+  }
+
+  // ============================================================
   // QUIZ COMMAND: /quiz [topic] — generate + send a quiz to the class.
   // Direct path (QuizOrchestrator). A Quiz Manager Flow can be layered later
   // via QUIZ_FLOW_ID, but the direct path needs no Meta-flow registration.

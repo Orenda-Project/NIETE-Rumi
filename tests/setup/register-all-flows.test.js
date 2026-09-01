@@ -97,9 +97,9 @@ describe('register-all-flows', () => {
     // update here. It had drifted to 13 against an actual 14 before the class
     // manager landed, and to 15 against 16 when Roster landed — which is the
     // failure mode of a tripwire nobody re-arms. Re-armed at 16 on 2026-08-30.
-    it('exports an array of all 15 registerable flow configurations', () => {
+    it('exports an array of all 16 registerable flow configurations', () => {
       expect(Array.isArray(FLOW_CONFIGS)).toBe(true);
-      expect(FLOW_CONFIGS).toHaveLength(15);
+      expect(FLOW_CONFIGS).toHaveLength(16);
     });
 
     it('gives every flow a unique name, envVar and endpointPath', () => {
