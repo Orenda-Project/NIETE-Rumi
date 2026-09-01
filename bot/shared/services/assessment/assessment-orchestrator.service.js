@@ -43,6 +43,8 @@ const TEACHER_MESSAGE = {
   NO_QUESTIONS: "Sorry — we couldn't write questions from that chapter. Please try another.",
   RENDER_FAILED: "Sorry — we couldn't make the file. Please try again.",
   UPLOAD_FAILED: "Sorry — we couldn't save your paper. Please try again.",
+  SEND_FAILED: "Your paper is made but we couldn't send it here. "
+    + 'Please send /assessment to try again.',
 };
 
 const FALLBACK_MESSAGE = 'Sorry — something went wrong making your paper. Please try again.';
@@ -154,6 +156,11 @@ async function process(job) {
     }
 
     // Signed rather than public: a child's exam paper is not a link to leave open.
+    // It goes out by LINK, so the signature is the point — WhatsApp fetches the
+    // url itself and it stops working an hour later. (Handing a signed url to a
+    // sender that re-downloads server-side instead silently loses the document:
+    // presigning rewrites host/bucket/key into bucket.host/key, and the key
+    // extraction looks for the bucket in the path.)
     const url = await r2.getPresignedUrl(r2.buildR2PublicUrl(key), 3600);
 
     const marks = Renderer.totalMarks(Renderer.collectQuestions
@@ -164,8 +171,15 @@ async function process(job) {
       `${generated.questionCount} questions`,
     ].filter(Boolean).join(' · ');
 
-    await WhatsAppService.sendMessage(phone, 'Your paper is ready 👇');
-    await WhatsAppService.sendDocumentFromUrl(phone, url, name, caption);
+    // The caption says what the document is, so there is no herald message. A
+    // "your paper is ready 👇" sent BEFORE the document is a promise made by a
+    // step that has not run yet, and when the send failed that is exactly what
+    // she was left holding.
+    const sent = await WhatsAppService.sendDocumentByLink(phone, url, name, caption);
+    if (!sent) {
+      throw Object.assign(new Error('sendDocumentByLink returned falsy'),
+        { code: 'SEND_FAILED' });
+    }
 
     await _patchPaper(paperId, {
       status: 'ready',
