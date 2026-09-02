@@ -84,12 +84,12 @@
    "SUCCESS"
   ],
   "TEACHER_SCHOOL": [
-   "TEACHER_ADD"
+   "TEACHER_ACTION",
+   "TEACHER_DONE"
   ],
   "TEACHER_ADD": [
    "TEACHER_CONFIRM",
    "TEACHER_NAME",
-   "TEACHER_PICK",
    "TEACHER_DONE"
   ],
   "TEACHER_CONFIRM": [
@@ -105,6 +105,11 @@
   "TEACHER_DONE": [],
   "TEACHER_NAME": [
    "TEACHER_CONFIRM",
+   "TEACHER_DONE"
+  ],
+  "TEACHER_ACTION": [
+   "TEACHER_ADD",
+   "TEACHER_PICK",
    "TEACHER_DONE"
   ]
  },
@@ -1732,12 +1737,70 @@
        },
        {
         "type": "Footer",
-        "label": "Add a teacher",
+        "label": "Continue",
         "on-click-action": {
          "name": "data_exchange",
          "payload": {
-          "step": "teacher_add_open",
+          "step": "teacher_action_open",
           "school_ext_id": "${form.pick}"
+         }
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "TEACHER_ACTION",
+   "title": "Add or remove",
+   "refresh_on_back": true,
+   "data": {
+    "intro": {
+     "type": "string",
+     "__example__": "IMSB (VI-X), Rawal Dam.\n\nWhat would you like to do?"
+    },
+    "school_ext_id": {
+     "type": "string",
+     "__example__": "niete:916"
+    }
+   },
+   "layout": {
+    "type": "SingleColumnLayout",
+    "children": [
+     {
+      "type": "TextBody",
+      "text": "${data.intro}"
+     },
+     {
+      "type": "Form",
+      "name": "teacher_action_form",
+      "children": [
+       {
+        "type": "RadioButtonsGroup",
+        "name": "choice",
+        "label": "Choose one",
+        "required": true,
+        "data-source": [
+         {
+          "id": "add",
+          "title": "Add a teacher"
+         },
+         {
+          "id": "remove",
+          "title": "Remove a teacher"
+         }
+        ]
+       },
+       {
+        "type": "Footer",
+        "label": "Continue",
+        "on-click-action": {
+         "name": "data_exchange",
+         "payload": {
+          "step": "teacher_action_pick",
+          "school_ext_id": "${data.school_ext_id}",
+          "choice": "${form.choice}"
          }
         }
        }
@@ -1792,17 +1855,6 @@
         }
        }
       ]
-     },
-     {
-      "type": "EmbeddedLink",
-      "text": "Remove a teacher from this school",
-      "on-click-action": {
-       "name": "data_exchange",
-       "payload": {
-        "step": "teacher_remove_open",
-        "school_ext_id": "${data.school_ext_id}"
-       }
-      }
      }
     ]
    }

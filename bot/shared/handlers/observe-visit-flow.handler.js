@@ -1010,6 +1010,63 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       return { screen: 'TEACHER_SCHOOL', data: { options } };
     }
 
+    // Reported from the field: "when a user selects the option to add a
+    // teacher, the remove option appears as well, even if removal isn't
+    // needed."
+    //
+    // He was describing the screen ORDER. Picking a school used to commit the
+    // coach to adding (the Footer read "Add a teacher" before she had said
+    // which action she wanted), and removing was reachable only as a link at
+    // the bottom of the add screen, under a phone box she had no reason to
+    // fill. The choice now sits on its own screen between the two:
+    //
+    //   TEACHER_SCHOOL -> TEACHER_ACTION -> TEACHER_ADD | TEACHER_PICK
+    //
+    // Both destinations are the SAME screens and steps as before, so the add
+    // and remove paths past this point are untouched.
+    if (step === 'teacher_action_open') {
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      if (!schoolExtId || schoolExtId === 'none') return _refuse('not_my_school');
+      const A = _admin();
+      const mine = await A.listMySchools(userId).catch(() => []);
+      const school = mine.find((x) => x.school_ext_id === schoolExtId);
+      if (!school) return _refuse('not_my_school');
+      // Composed server-side: Flow prints a ${data.x} reference inside a
+      // sentence verbatim, so the school name has to arrive already in it.
+      return {
+        screen: 'TEACHER_ACTION',
+        data: {
+          school_ext_id: schoolExtId,
+          intro: `${school.school_name}\n\nWould you like to add a teacher to this school, or remove one?`,
+        },
+      };
+    }
+
+    // The fork. Neither branch writes: both land on a screen that still asks
+    // for a number or a name before anything changes.
+    if (step === 'teacher_action_pick') {
+      // READ `choice`, NEVER `action`. `action` is the reserved
+      // Flow request field: the endpoint destructures
+      //   const { action, flow_token, screen, data } = decryptedData
+      // so a payload key of that name arrives as 'data_exchange', not the
+      // coach's pick. Shipping it that way meant every tap on this screen fell
+      // through to _refuse('not_found') — "there is nothing to remove" — with
+      // no phone screen ever shown. `choice` is the key VISIT_ACTION already
+      // uses and proves works.
+      const picked = String((screenData && screenData.choice) || '').trim();
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      // Re-enter at the step the coach chose. `step` is read off screenData, so
+      // rewriting it is the whole handoff — and it keeps the add and remove
+      // paths as the single implementation each already had, rather than a
+      // second copy that can drift.
+      const next = picked === 'remove' ? 'teacher_remove_open'
+        : picked === 'add' ? 'teacher_add_open'
+          : null;
+      if (!next) return _refuse('not_found');
+      return handle(userId, 'data_exchange', screen,
+        { ...screenData, step: next, school_ext_id: schoolExtId }, flowToken, user, opts);
+    }
+
     if (step === 'teacher_add_open') {
       const schoolExtId = String((screenData && screenData.school_ext_id) || '');
       if (!schoolExtId || schoolExtId === 'none') return _refuse('not_my_school');
