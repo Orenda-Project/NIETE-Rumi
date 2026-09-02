@@ -245,6 +245,26 @@ function composeMoveBlocks(lp) {
   return { header, moves };
 }
 
+// bd-s192t.4 — the non-editable Section B states are NOT one state, and the
+// single copy that claimed "No usable lesson plan was linked" was false for
+// the most common one (plan linked, recording not adjudicable). Wrong copy
+// here rewrites every field report: coaches described an LP-linking failure
+// and a whole fix cycle chased the wrong layer.
+function fidelityFallbackCopy(lp) {
+  if (lp && lp.status === 'ok' && lp.fidelity_pct == null) {
+    return 'The lesson plan was linked, but the recording could not be matched to it move-by-move, '
+      + 'so there are no per-move ratings to review. Section B keeps its standard AI assessment — '
+      + 'continue to the next section.';
+  }
+  if (lp && lp.status === 'fidelity_unavailable') {
+    return 'The lesson plan was received, but the move-by-move check could not run for this '
+      + 'observation. Section B keeps its standard AI assessment — continue to the next section.';
+  }
+  // lp_absent, or no fidelity blob at all: no plan ever reached this observation.
+  return 'No usable lesson plan was linked for this observation, so Section B was scored by the '
+    + 'AI assessment. Nothing to review here — continue to the next section.';
+}
+
 function buildScreenPrefill(analysis, domainKey) {
   const { domains } = { domains: getObservePack().domains };
   const spec = domains[domainKey];
@@ -282,12 +302,12 @@ function buildScreenPrefill(analysis, domainKey) {
   // the form; each move gets prescribed text + an editable verdict radio + an
   // editable evidence box, pre-filled from the scorer's own output.
   if (domainKey === 'lesson_plan_fidelity' && fidelityMode === 'editable') {
-    const ed = composeEditableFidelity((analysis || {}).lp_fidelity);
+    const lpBlob = (analysis || {}).lp_fidelity;
+    const ed = composeEditableFidelity(lpBlob);
     data.has_fidelity = !!ed;
     data.no_fidelity = !ed;
     data.fid_header = ed ? ed.header : '';
-    data.fid_fallback = ed ? '' :
-      'No usable lesson plan was linked for this observation, so Section B was scored by the AI assessment. Nothing to review here — continue to the next section.';
+    data.fid_fallback = ed ? '' : fidelityFallbackCopy(lpBlob);
     data.fid_scale = FIDELITY_VERDICT_OPTIONS;
     for (let k = 1; k <= MAX_MOVE_SLOTS; k++) {
       const slot = ed && ed.slots[k - 1];

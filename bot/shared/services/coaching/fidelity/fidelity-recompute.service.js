@@ -73,7 +73,12 @@ async function recomputeFidelityForSession(sessionId, opts = {}) {
     const analysis = session.analysis_data || null;
     if (!analysis || analysis.framework !== 'fico') return { recomputed: false, reason: 'not_fico' };
     if (!session.transcript_text) return { recomputed: false, reason: 'no_transcript' };
-    if (analysis.lp_fidelity && analysis.lp_fidelity.status === 'ok') {
+    // bd-s192t.3 — ok is terminal only with a usable score. ok/pct-null is the
+    // guard-refusal shape (all moves not_adjudicable, Section B empty); treating
+    // it as "already ok" stranded the entire Aug/Sep unusable cohort with no
+    // recovery path. Those blobs must stay recomputable.
+    if (analysis.lp_fidelity && analysis.lp_fidelity.status === 'ok'
+        && analysis.lp_fidelity.fidelity_pct != null) {
       return { recomputed: false, reason: 'already_ok' };
     }
 
