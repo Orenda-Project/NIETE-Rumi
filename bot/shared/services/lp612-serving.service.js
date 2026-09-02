@@ -31,7 +31,11 @@
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 const WhatsAppService = require('./whatsapp.service');
-const { queueJob } = require('./queue');
+// The singleton, NOT a destructured method: queueJob reads `this.queueUrl` and
+// `this.quizQueueUrl`, so pulling it off the module strips the receiver and
+// throws on the first real enqueue. Every other producer in this repo keeps the
+// instance for the same reason.
+const SQSQueueService = require('./queue');
 const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const Catalog = require('./lp612-catalog.service');
@@ -128,7 +132,7 @@ async function addWaiter(renderId, waiters, req) {
 }
 
 async function enqueue({ renderId, segmentId, lang, tv, correlationId }) {
-  await queueJob(segmentId, JOB_TYPE, {
+  await SQSQueueService.queueJob(segmentId, JOB_TYPE, {
     renderId,
     segmentId,
     lang,

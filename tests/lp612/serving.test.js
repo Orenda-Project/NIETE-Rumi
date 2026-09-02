@@ -26,7 +26,24 @@ jest.mock('../../bot/shared/services/whatsapp.service', () => ({
   sendMessage: mockSendMessage,
   sendDocumentByLink: mockSendDocumentByLink,
 }));
-jest.mock('../../bot/shared/services/queue', () => ({ queueJob: mockQueueJob }));
+// The queue module exports a singleton INSTANCE, and its queueJob reads
+// `this.queueUrl` / `this.quizQueueUrl`. Destructuring it strips the receiver
+// and throws at the first real call — in production, not in a test that mocked
+// it as a plain function. So the double is deliberately `this`-dependent: it
+// records the receiver, and the test below fails if the service ever calls it
+// detached.
+const queueModule = {
+  __isQueueSingleton: true,
+  queueJob(...args) {
+    if (!this || this.__isQueueSingleton !== true) {
+      throw new TypeError(
+        "queueJob called without its receiver — `this.queueUrl` would be undefined in production",
+      );
+    }
+    return mockQueueJob(...args);
+  },
+};
+jest.mock('../../bot/shared/services/queue', () => queueModule);
 jest.mock('../../bot/shared/storage/r2', () => ({
   getPresignedUrl: mockGetPresignedUrl,
   buildR2PublicUrl: mockBuildR2PublicUrl,

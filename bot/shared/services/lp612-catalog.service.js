@@ -26,7 +26,7 @@
 
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
-const { clip, cps, TITLE_CAP, DESC_CAP, META_CAP, PAGE_SIZE, MORE_ROW_ID } =
+const { clip, TITLE_CAP, DESC_CAP, META_CAP, PAGE_SIZE, MORE_ROW_ID } =
   require('./lp-v8-catalog.service');
 const { isReligiousEnabled, LP612_MIN_GRADE, LP612_MAX_GRADE } = require('../config/lp612-flags');
 
