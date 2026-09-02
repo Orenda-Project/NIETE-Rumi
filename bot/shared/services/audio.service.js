@@ -159,7 +159,7 @@ class AudioService {
     return requestBody;
   }
 
-  static async _attemptTranscription(fileId, modelVersion, timeoutSeconds, enableDiarization = false, language = null) {
+  static async _attemptTranscription(fileId, modelVersion, timeoutSeconds, enableDiarization = false, language = null, roles = null) {
     let transcriptionId = null;
 
     try {
@@ -600,7 +600,7 @@ class AudioService {
   static async transcribe(audioPath, enableDiarization = false, language = null, roles = null) {
     const { hasDevanagari, countDevanagari, ensureNoDevanagari } = require('../utils/devanagari-guard');
 
-    const result = await this._transcribeOnce(audioPath, enableDiarization, language);
+    const result = await this._transcribeOnce(audioPath, enableDiarization, language, roles);
     if (!result || !hasDevanagari(result.text)) return result;
 
     logToFile('❌ Transcript returned in Devanagari — Urdu speech identified as Hindi', {
@@ -616,7 +616,7 @@ class AudioService {
     // the identical request would return the identical answer.
     if (!language) {
       try {
-        const retry = await this._transcribeOnce(audioPath, enableDiarization, 'ur');
+        const retry = await this._transcribeOnce(audioPath, enableDiarization, 'ur', roles);
         if (retry && retry.text && !hasDevanagari(retry.text)) {
           logToFile('✅ Devanagari cleared by re-transcribing with a forced Urdu hint', {
             audioPath, textLength: retry.text.length,
@@ -647,7 +647,12 @@ class AudioService {
     return { ...result, text, language: 'ur', devanagariTransliterated: true };
   }
 
-  static async _transcribeOnce(audioPath, enableDiarization = false, language = null) {
+  // bd-s192t.1 — `roles` must survive EVERY hop down to the speaker labeller.
+  // 44fe3ae added it to transcribe() but dropped it here, so line ~280 read a
+  // free identifier: ReferenceError on every diarization-success, silent
+  // fallback to the no-diarization backup, and timestamp-free transcripts
+  // fleet-wide (which starved the LP-fidelity grader — Section B incident).
+  static async _transcribeOnce(audioPath, enableDiarization = false, language = null, roles = null) {
     let fileId = null;
 
     try {
@@ -685,7 +690,7 @@ class AudioService {
           enableDiarization,
           language: language || 'auto-detect'
         });
-        transcriptionResult = await this._attemptTranscription(fileId, SONIOX_PRIMARY_MODEL, SONIOX_V3_TIMEOUT, enableDiarization, language);
+        transcriptionResult = await this._attemptTranscription(fileId, SONIOX_PRIMARY_MODEL, SONIOX_V3_TIMEOUT, enableDiarization, language, roles);
       } catch (v3Error) {
         soniox3Error = v3Error;
         logToFile(`⚠️ ${SONIOX_PRIMARY_MODEL} failed, trying ${SONIOX_BACKUP_MODEL} backup (2 minute timeout)...`, {
@@ -695,7 +700,7 @@ class AudioService {
 
         try {
           logToFile(`Attempting transcription with ${SONIOX_BACKUP_MODEL} (backup)...`);
-          transcriptionResult = await this._attemptTranscription(fileId, SONIOX_BACKUP_MODEL, SONIOX_V2_TIMEOUT, false, language); // backup runs basic (no diarization)
+          transcriptionResult = await this._attemptTranscription(fileId, SONIOX_BACKUP_MODEL, SONIOX_V2_TIMEOUT, false, language, roles); // backup runs basic (no diarization)
           logToFile('✅ Backup Soniox model succeeded!');
         } catch (v2Error) {
           soniox2Error = v2Error;
