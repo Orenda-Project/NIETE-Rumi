@@ -498,6 +498,9 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
    NO BACKTICKS IN THIS BLOCK: it lives inside a template literal, and one ends the string. */
 .coach .vid{ margin-top:var(--sp-1); color:#DCE6F2; }
 .coach .vid .ico{ margin-inline-end:6px; }
+/* The link sits on the navy box, so it is AMBER and underlined: a default-blue anchor on navy
+   is unreadable in print, and an un-underlined one does not read as tappable on paper at all. */
+.coach .vid a{ color:var(--amber); text-decoration:underline; }
 /* The footer is pinned to the page floor by margin-top:auto, so its LAST LINE is the last
    painted pixel on every page. Under RTL the Nastaliq face hangs its descenders below the
    line box and the wordmark ran 4px past the page's inner bottom on every single Urdu page.
@@ -1119,11 +1122,26 @@ function shortVideoUrl(v) {
 function videoLineHtml(ctx) {
   const short = shortVideoUrl(ctx.video);
   if (!short) return "";
-  // U+2066 LTR ISOLATE … U+2069 POP DIRECTIONAL ISOLATE. Without it the RTL paragraph reorders
-  // the latin run and the Urdu page prints a url that cannot be typed — the same defect the
-  // phone number two lines above already carries this exact fix for.
-  const url = ctx.rtl ? `\u2066${short}\u2069` : short;
-  return `<p class="vid"><span class="ico">&#128250;</span>${esc(ctx.L.video)}: ${esc(url)}</p>`;
+
+  // THE LINE IS A LINK, not printed text (operator, 2026-09-03: "the video should be clickable
+  // from inside the lesson"). A url a teacher has to retype on a phone keyboard is the same as
+  // no url. Headless Chromium turns an <a href> into a real PDF link annotation, so the tap
+  // target survives print-to-PDF — verify with a /URI grep over the bytes, never by assuming.
+  //
+  // Only http(s) becomes an anchor. The picks come from our own ranker, but an anchor built out
+  // of stored data is an anchor someone would eventually like to control.
+  const href = String((ctx.video && ctx.video.url) || "");
+  const safe = /^https?:\/\//i.test(href);
+
+  // U+2066 LTR ISOLATE … U+2069 POP DIRECTIONAL ISOLATE, INSIDE the link text. Without it the
+  // RTL paragraph reorders the latin run and the Urdu page prints a url that cannot be read —
+  // the same defect the phone number two lines above already carries this exact fix for. It
+  // isolates; it does not force direction on the whole line.
+  const shown = ctx.rtl ? `\u2066${short}\u2069` : short;
+  const label = `${esc(ctx.L.video)}: ${esc(shown)}`;
+
+  const body = safe ? `<a href="${esc(href)}">${label}</a>` : label;
+  return `<p class="vid"><span class="ico">&#128250;</span>${body}</p>`;
 }
 
 function page2(doc, ctx, secIndex) {

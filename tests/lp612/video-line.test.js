@@ -70,6 +70,55 @@ describe('the video line in the coaching corner', () => {
   test('a url with no video_id still prints, trimmed of its protocol', () => {
     const out = html({ lang: 'en', video: { url: 'https://example.org/watch/abc' } });
     expect(out).toContain('example.org/watch/abc');
-    expect(out).not.toContain('https://example.org');
+    expect(out).not.toContain('>https://example.org');
+  });
+
+  // ── the operator's ask: it has to be TAPPABLE ────────────────────────────
+  //
+  // "the video should be clickable from inside the lesson btw!" A printed url is
+  // a url a teacher has to retype on a phone keyboard, which is the same as no
+  // url at all. Headless Chromium turns an <a href> into a real PDF link
+  // annotation, so the line is an anchor rather than styled text.
+
+  test('the line is a real anchor pointing at the full url', () => {
+    const out = html({ lang: 'en', video: PICK });
+    expect(out).toContain('<a href="https://www.youtube.com/watch?v=pWLEUhu-60A"');
+  });
+
+  // The page carries other anchors, so these read the VIDEO paragraph rather
+  // than the document's first <a> — which is how these two first went green
+  // against a heading link that had nothing to do with the video.
+  const videoAnchorText = (out) => {
+    const para = out.match(/<p class="vid">[\s\S]*?<\/p>/);
+    expect(para).toBeTruthy();
+    const anchor = para[0].match(/<a href="[^"]*"[^>]*>([\s\S]*?)<\/a>/);
+    expect(anchor).toBeTruthy();
+    return anchor[1];
+  };
+
+  test('the visible text stays the SHORT url — the href carries the long one', () => {
+    const text = videoAnchorText(html({ lang: 'en', video: PICK }));
+    expect(text).toContain('youtu.be/pWLEUhu-60A');
+    expect(text).not.toContain('watch?v=');
+  });
+
+  test('on the Urdu page the anchor TEXT is still LTR-isolated', () => {
+    // The isolate belongs INSIDE the link text. An RTL paragraph reorders the
+    // visible run, and a shredded url is unreadable even when the tap works.
+    expect(videoAnchorText(html({ lang: 'ur', video: PICK })))
+      .toContain('⁦youtu.be/pWLEUhu-60A⁩');
+  });
+
+  test('a non-http url is NOT turned into a tap target', () => {
+    // The picks come from our own ranker, but an anchor built from stored data
+    // is an anchor someone would like to control. Only http(s) becomes a link.
+    const out = html({ lang: 'en', video: { url: 'javascript:alert(1)', video_id: 'x' } });
+    expect(out).not.toContain('javascript:');
+  });
+
+  test('the anchor is legible against the navy coaching box', () => {
+    // White-on-navy body text with a default-blue link is unreadable in print.
+    const out = html({ lang: 'en', video: PICK });
+    expect(out).toMatch(/\.coach \.vid a\{[^}]*color:/);
   });
 });
