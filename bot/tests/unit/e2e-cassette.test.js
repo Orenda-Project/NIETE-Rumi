@@ -172,3 +172,41 @@ describe('e2e-cassette: wrapBuffer (TTS at the provider-agnostic seam)', () => {
     expect(fs.readdirSync(dir)).toHaveLength(0);
   });
 });
+
+
+describe('e2e-cassette: key normalisation for volatile prompt content', () => {
+  // The record run stored the SAME reflective-question call twice (17:48 and 18:14) under different
+  // keys: the prompt carries per-run content — ISO timestamps, UUIDs (session ids), "today" dates —
+  // that changes nothing about the answer we want replayed. normaliseForKey() blanks those tokens
+  // inside string leaves before hashing, so the key follows the request's SUBSTANCE.
+  test('UUIDs, ISO timestamps and dates inside strings do not change the key', () => {
+    const c = fresh({});
+    const mk = (uuid, iso, date) => ({ model: 'm', messages: [{ role: 'system', content: 'Session ' + uuid + ' at ' + iso + ' on ' + date + '. Transcript: the teacher said hello.' }] });
+    const a = c.keyFor('llm', c.normaliseForKey(mk('4f1cb316-061b-458a-a828-0cdc9f31225b', '2026-09-02T17:48:29.123Z', '2026-09-02')));
+    const b = c.keyFor('llm', c.normaliseForKey(mk('ed353b3a-7b50-4429-b47d-c9b3a5ac82d0', '2026-09-03T05:01:10.000Z', '2026-09-03')));
+    expect(a).toBe(b);
+  });
+  test('different substance still gives a different key', () => {
+    const c = fresh({});
+    const a = c.keyFor('llm', c.normaliseForKey({ messages: [{ content: 'Transcript: hello' }] }));
+    const b = c.keyFor('llm', c.normaliseForKey({ messages: [{ content: 'Transcript: goodbye' }] }));
+    expect(a).not.toBe(b);
+  });
+  test('wrapChatCompletions keys by the normalised params', async () => {
+    const dir = tmpDir();
+    const c = fresh({ E2E_CASSETTE: 'replay', E2E_CASSETTE_DIR: dir, SUPABASE_URL: 'https://rpqkekcfvumypldbejhp.supabase.co' });
+    const create = jest.fn(async () => ({ choices: [{ message: { content: 'same answer' } }] }));
+    const client = { chat: { completions: { create } } };
+    c.wrapChatCompletions(client);
+    await client.chat.completions.create({ model: 'm', messages: [{ role: 'user', content: 'session 4f1cb316-061b-458a-a828-0cdc9f31225b at 2026-09-02T17:48:29Z' }] });
+    await client.chat.completions.create({ model: 'm', messages: [{ role: 'user', content: 'session ed353b3a-7b50-4429-b47d-c9b3a5ac82d0 at 2026-09-03T05:01:10Z' }] });
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+  test('the record keeps a sanitised copy of the request so a miss can be diagnosed', async () => {
+    const dir = tmpDir();
+    const c = fresh({ E2E_CASSETTE: 'record', E2E_CASSETTE_DIR: dir, SUPABASE_URL: 'https://rpqkekcfvumypldbejhp.supabase.co' });
+    await c.wrap('llm', { model: 'm', messages: [{ role: 'user', content: 'q' }] }, async () => ({ ok: 1 }));
+    const saved = JSON.parse(fs.readFileSync(path.join(dir, fs.readdirSync(dir)[0]), 'utf8'));
+    expect(saved.request).toEqual({ model: 'm', messages: [{ role: 'user', content: 'q' }] });
+  });
+});
