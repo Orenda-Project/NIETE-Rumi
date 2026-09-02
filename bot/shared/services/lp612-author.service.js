@@ -346,7 +346,10 @@ function printedOutcomes(pages) {
 
 function buildUserPrompt({ segment, bundle, lang, video }) {
   const book = bundle.book || {};
-  const medium = book.medium || segment.medium || 'en';
+  // clampLanguage rather than an inline `|| 'en'` floor: the book's medium is a
+  // language decision like any other, and every one of them belongs to the one
+  // function that owns them.
+  const medium = clampLanguage(book.medium || segment.medium);
   const outcomes = printedOutcomes(bundle.pages);
   const ocTxt = outcomes.length
     ? outcomes.map((o) => `- (p.${o.printed_page}) ${o.text}`).join('\n')

@@ -28,6 +28,8 @@
 const fs = require('fs');
 const path = require('path');
 
+const { clampLanguage } = require('../shared/config/ux-strings');
+
 const TABLE = 'niete_lp612_segments';
 const CHUNK = 250;
 
@@ -143,7 +145,11 @@ function toRow(segment, { corpusVersion = 'v1' } = {}) {
     grade: intOrNull(s.grade),
     subject: s.subject,
     medium: s.medium ?? null,
-    language: s.language || 'en',
+    // clampLanguage, not `|| 'en'`. An independent English floor is a language
+    // decision made outside the one place that owns them, and it is how a
+    // lookup miss degrades silently instead of loudly. Here it also stops the
+    // corpus from writing a value the column's CHECK would reject.
+    language: clampLanguage(s.language),
     chapter_number: intOrNull(s.chapter_number),
     chapter_title: s.chapter_title ?? null,
     chapter_key: s.chapter_key,
