@@ -68,10 +68,30 @@ async function run(q, what) {
  * fallback corpus behind it, so it is simply not offered.
  */
 async function buildGradeItems() {
-  const rows = await run(menuQuery('grade'), 'grades');
-  const grades = [...new Set(rows.map((r) => Number(r.grade)))]
-    .filter((g) => g >= LP612_MIN_GRADE && g <= LP612_MAX_GRADE)
-    .sort((a, b) => a - b);
+  // ONE BOUNDED PROBE PER GRADE — never a scan.
+  //
+  // This used to derive the DISTINCT list in JS from `select('grade')` across
+  // every servable row. PostgREST answers an unbounded select with at most its
+  // max-rows (1,000 by default), so once the corpus passed a thousand segments
+  // the tail of the table stopped existing as far as the picker was concerned.
+  //
+  // On staging with the real corpus (4,565 servable rows) that showed up as a
+  // grade picker offering 6, 7, 8, 10, 11: grade 9 and grade 12 had fallen off
+  // the end of the first page. No error, no empty screen — two whole grades
+  // silently absent from a menu that looked fine. The lane was built against
+  // three books, and 198 rows fit in one page.
+  //
+  // Seven indexed `limit(1)` existence checks answer the same question in
+  // bounded work, and cannot degrade as the corpus grows.
+  const candidates = [];
+  for (let g = LP612_MIN_GRADE; g <= LP612_MAX_GRADE; g++) candidates.push(g);
+
+  const present = await Promise.all(candidates.map(async (g) => {
+    const rows = await run(menuQuery('grade').eq('grade', g).limit(1), `grade ${g}`);
+    return rows.length ? g : null;
+  }));
+
+  const grades = present.filter((g) => g !== null).sort((a, b) => a - b);
 
   return grades.map((g) => ({
     id: String(g),
