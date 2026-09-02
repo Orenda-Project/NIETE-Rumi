@@ -143,3 +143,32 @@ describe('e2e-cassette: LLM client wrapper', () => {
     expect(create).toHaveBeenCalledTimes(3);   // streaming never goes through the cassette
   });
 });
+
+
+describe('e2e-cassette: wrapBuffer (TTS at the provider-agnostic seam)', () => {
+  // The worker's Urdu voice does not go through ElevenLabs' _postTts — generateSpeechForLanguage
+  // routes by voiceConfig.provider (elevenlabs | uplift | openai fallback). The record run of
+  // 2026-09-02 18:00Z showed 0 tts cassette lines from the worker for that reason. The seam has to
+  // be the Buffer-returning function itself, whatever provider it picks.
+  test('replays a Buffer-returning function; the second call never reaches the provider', async () => {
+    const dir = tmpDir();
+    const c = fresh({ E2E_CASSETTE: 'replay', E2E_CASSETTE_DIR: dir, SUPABASE_URL: 'https://rpqkekcfvumypldbejhp.supabase.co' });
+    const audio = Buffer.from('ID3 fake-mp3-bytes', 'binary');
+    const live = jest.fn(async () => audio);
+    const a = await c.wrapBuffer('tts', { text: 'shabash', languageCode: 'ur' }, live);
+    const b = await c.wrapBuffer('tts', { languageCode: 'ur', text: 'shabash' }, live);
+    expect(live).toHaveBeenCalledTimes(1);
+    expect(Buffer.isBuffer(a)).toBe(true);
+    expect(Buffer.isBuffer(b)).toBe(true);
+    expect(b.equals(audio)).toBe(true);
+  });
+  test('a null/undefined result is passed through and not recorded', async () => {
+    const dir = tmpDir();
+    const c = fresh({ E2E_CASSETTE: 'replay', E2E_CASSETTE_DIR: dir, SUPABASE_URL: 'https://rpqkekcfvumypldbejhp.supabase.co' });
+    const live = jest.fn(async () => null);
+    expect(await c.wrapBuffer('tts', { text: 'x' }, live)).toBeNull();
+    expect(await c.wrapBuffer('tts', { text: 'x' }, live)).toBeNull();
+    expect(live).toHaveBeenCalledTimes(2);
+    expect(fs.readdirSync(dir)).toHaveLength(0);
+  });
+});

@@ -142,6 +142,31 @@ function wrapChatCompletions(client) {
   return client;
 }
 
+/** wrap() for a function that returns a Buffer (or null): audio survives JSON as base64, and a
+ *  null/undefined result is passed through without being recorded (a provider that returned
+ *  nothing is not an answer worth replaying). */
+async function wrapBuffer(kind, keyParts, fn) {
+  const m = mode();
+  if (m === 'off') return fn();
+  const key = keyFor(kind, keyParts);
+  if (m === 'replay') {
+    let rec = readLocal(key);
+    if (!rec) { rec = await readR2(key); if (rec) { try { writeLocal(key, rec); } catch (_) {} } }
+    if (rec && typeof rec.b64 === 'string') {
+      _log('📼 e2e-cassette: replay hit', { kind, key: key.slice(0, 20), recordedAt: rec.recordedAt });
+      return Buffer.from(rec.b64, 'base64');
+    }
+    _log('📼 e2e-cassette: replay MISS — going live and recording', { kind, key: key.slice(0, 20) });
+  }
+  const t0 = Date.now();
+  const buf = await fn();
+  if (buf == null || !Buffer.isBuffer(buf) || buf.length === 0) return buf;
+  const record = { kind, key, recordedAt: new Date().toISOString(), liveMs: Date.now() - t0, b64: buf.toString('base64') };
+  try { writeLocal(key, record); } catch (e) { _log('⚠️ e2e-cassette: local write failed', { key, error: e.message }); }
+  await writeR2(key, record);
+  return buf;
+}
+
 /** Key parts for an audio file: its bytes, not its path (temp paths change every run). */
 function audioKey(audioPath, extra) {
   let fileSha = null;
@@ -149,4 +174,4 @@ function audioKey(audioPath, extra) {
   return { fileSha, ...extra };
 }
 
-module.exports = { mode, keyFor, wrap, wrapChatCompletions, audioKey, stable, sha256, dir, PROD_PROJECT_REFS };
+module.exports = { mode, keyFor, wrap, wrapBuffer, wrapChatCompletions, audioKey, stable, sha256, dir, PROD_PROJECT_REFS };
