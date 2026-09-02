@@ -336,3 +336,101 @@ describe('language', () => {
     expect(mockSendMessage.mock.calls[0][1]).toMatch(/[؀-ۿ]/);
   });
 });
+
+// ── the WhatsApp body that goes with the file ───────────────────────────────
+
+/**
+ * `one_screen` is the lesson on one phone screen — 150-260 words, the field the
+ * authoring brief calls "the WhatsApp body" and the lint gate sizes as such. It
+ * was being authored on every plan and then dropped: the teacher got a PDF and a
+ * caption, and the one artefact designed to be read WITHOUT opening a file never
+ * left the worker.
+ *
+ * It is sent BEFORE the document on purpose. She is on a phone, often on a poor
+ * connection, and the summary is useful in the two seconds before a 2MB PDF has
+ * downloaded.
+ *
+ * The video link rides on the same message as a plain url — WhatsApp linkifies
+ * it, and a plain url costs no new catalog string and therefore no new field cap
+ * to get wrong in either language.
+ */
+describe('the lesson body that goes out with the PDF', () => {
+  const PICK = {
+    url: 'https://www.youtube.com/watch?v=pWLEUhu-60A',
+    video_id: 'pWLEUhu-60A',
+    title: 'Definition of Chemistry',
+  };
+  const ONE_SCREEN = 'Today the class defines chemistry and names its branches.';
+
+  // jest.clearAllMocks() clears CALLS but keeps IMPLEMENTATIONS, and an earlier
+  // suite in this file installs a permanent `mockRejectedValue` on the document
+  // send. Without this the whole block inherits a WhatsApp that always 400s.
+  beforeEach(() => {
+    mockSendMessage.mockReset();
+    mockSendDocumentByLink.mockReset();
+  });
+
+  it('sends the one_screen body before the document', async () => {
+    await Serving.deliverRender({
+      phone: '923001234567', r2Key: 'lp612/v9.1/en/x.pdf', segment: SEGMENT,
+      lang: 'en', oneScreen: ONE_SCREEN,
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    expect(mockSendMessage.mock.calls[0][1]).toContain(ONE_SCREEN);
+    expect(mockSendMessage.mock.invocationCallOrder[0])
+      .toBeLessThan(mockSendDocumentByLink.mock.invocationCallOrder[0]);
+  });
+
+  it('appends the video link as a plain url when the segment has a pick', async () => {
+    await Serving.deliverRender({
+      phone: '923001234567', r2Key: 'k', segment: { ...SEGMENT, yt: PICK },
+      lang: 'en', oneScreen: ONE_SCREEN,
+    });
+    const body = mockSendMessage.mock.calls[0][1];
+    expect(body).toContain(ONE_SCREEN);
+    expect(body).toContain('https://www.youtube.com/watch?v=pWLEUhu-60A');
+  });
+
+  it('sends NO body message at all when there is neither a summary nor a link', async () => {
+    // Renders cached before this shipped have no stored one_screen. They must
+    // still deliver, and they must not deliver an empty message.
+    await Serving.deliverRender({
+      phone: '923001234567', r2Key: 'k', segment: SEGMENT, lang: 'en',
+    });
+    expect(mockSendMessage).not.toHaveBeenCalled();
+    expect(mockSendDocumentByLink).toHaveBeenCalledTimes(1);
+  });
+
+  it('a pick with no url adds nothing — never a bare emoji on its own line', async () => {
+    await Serving.deliverRender({
+      phone: '923001234567', r2Key: 'k', segment: { ...SEGMENT, yt: { title: 'x' } },
+      lang: 'en', oneScreen: ONE_SCREEN,
+    });
+    expect(mockSendMessage.mock.calls[0][1].trim()).toBe(ONE_SCREEN);
+  });
+
+  it('a failure to send the body does not cost her the lesson', async () => {
+    mockSendMessage.mockRejectedValueOnce(new Error('meta 400'));
+    await Serving.deliverRender({
+      phone: '923001234567', r2Key: 'k', segment: SEGMENT, lang: 'en', oneScreen: ONE_SCREEN,
+    });
+    expect(mockSendDocumentByLink).toHaveBeenCalledTimes(1);
+  });
+
+  it('a cache hit sends the stored one_screen, not just the file', async () => {
+    // The body must not be a first-hit-only luxury: every teacher after the
+    // first is served entirely from this row.
+    mockDbResults.push({
+      data: {
+        id: 'r1', status: 'ready', r2_key: 'lp612/v9.1/en/x.pdf',
+        waiters: [], error_code: null, one_screen: ONE_SCREEN,
+      },
+      error: null,
+    });
+    const out = await Serving.requestLesson({ segmentId: SEGMENT.segment_id, ...REQ });
+    expect(out.outcome).toBe('cache_hit');
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    expect(mockSendMessage.mock.calls[0][1]).toContain(ONE_SCREEN);
+  });
+});

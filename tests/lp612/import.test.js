@@ -209,3 +209,167 @@ describe('re-running the importer', () => {
     expect(plan.bookStem).toBe('grade_9_chemistry');
   });
 });
+
+// ── the YouTube overlay ─────────────────────────────────────────────────────
+
+/**
+ * The picks land HOURS after the segments do.
+ *
+ * The segmentation fleet writes `out/<book>_segments.json` with `yt: null`; the
+ * YouTube swarm writes `yt/corpus_filled/<book>_segments.json`, the same rows
+ * with a pick attached, and it finishes book by book overnight. So the importer
+ * has to be runnable in any order, any number of times, and the one thing it
+ * must never do is run over a book from `out/` in the morning and wipe the
+ * picks that landed at 3am.
+ */
+
+const { overlayYt, mergeExistingYt } = Import;
+
+const withYt = (over = {}) => ({
+  url: 'https://www.youtube.com/watch?v=pWLEUhu-60A',
+  video_id: 'pWLEUhu-60A',
+  title: 'Definition of Chemistry',
+  channel: 'Chemistry Virus',
+  ...over,
+});
+
+describe('overlaying YouTube picks onto a book', () => {
+  test('a pick is attached to the segment with the same id', () => {
+    const out = overlayYt(
+      [seg({ segment_id: 'a', yt: null }), seg({ segment_id: 'b', yt: null })],
+      [{ segment_id: 'a', yt: withYt() }],
+    );
+    expect(out[0].yt).toEqual(withYt());
+    expect(out[1].yt).toBeNull();
+  });
+
+  test('a pick with no url is ignored rather than stored as furniture', () => {
+    // The swarm writes a row for every segment it considered; only the ones it
+    // actually resolved carry a url. An empty object would render an empty
+    // video line on the page.
+    const out = overlayYt([seg({ segment_id: 'a', yt: null })], [{ segment_id: 'a', yt: {} }]);
+    expect(out[0].yt).toBeNull();
+  });
+
+  test('a segment the overlay does not mention keeps the yt it arrived with', () => {
+    const out = overlayYt([seg({ segment_id: 'a', yt: withYt() })], [{ segment_id: 'z', yt: withYt() }]);
+    expect(out[0].yt).toEqual(withYt());
+  });
+});
+
+describe('a yt-less re-import must not wipe picks already in the table', () => {
+  test('mergeExistingYt carries a stored pick forward over an incoming null', () => {
+    const rows = [
+      { segment_id: 'a', yt: null },
+      { segment_id: 'b', yt: null },
+    ];
+    const merged = mergeExistingYt(rows, [{ segment_id: 'a', yt: withYt() }]);
+    expect(merged.find((r) => r.segment_id === 'a').yt).toEqual(withYt());
+    expect(merged.find((r) => r.segment_id === 'b').yt).toBeNull();
+  });
+
+  test('an incoming pick WINS over a stored one — a re-run is how a bad pick is replaced', () => {
+    const fresh = withYt({ video_id: 'NEW', url: 'https://youtu.be/NEW' });
+    const merged = mergeExistingYt(
+      [{ segment_id: 'a', yt: fresh }],
+      [{ segment_id: 'a', yt: withYt() }],
+    );
+    expect(merged[0].yt).toEqual(fresh);
+  });
+});
+
+// ── the real thing: importFile against a fake table ─────────────────────────
+
+/**
+ * Executes importFile itself rather than its helpers, because the bug this
+ * guards against lives in the ORDER of the calls: the read of existing picks
+ * has to happen before the upsert, on the same ids, or the carry-forward is a
+ * no-op that every unit test above still passes.
+ */
+function fakeSupabase(existingRows = []) {
+  const table = new Map(existingRows.map((r) => [r.segment_id, { ...r }]));
+  const calls = { upserts: [], selects: 0 };
+  const api = {
+    from() { return api; },
+    upsert(rows) {
+      calls.upserts.push(rows);
+      for (const r of rows) table.set(r.segment_id, { ...table.get(r.segment_id), ...r });
+      return Promise.resolve({ error: null });
+    },
+    select(cols) {
+      calls.selects += 1;
+      api._cols = cols;
+      return api;
+    },
+    eq(col, val) {
+      api._filter = { col, val };
+      return Promise.resolve({
+        data: [...table.values()].filter((r) => r[col] === val && r.is_current !== false),
+        error: null,
+      }).then((x) => x);
+    },
+    in(col, vals) {
+      return Promise.resolve({
+        data: [...table.values()].filter((r) => vals.includes(r[col])),
+        error: null,
+      });
+    },
+    update() { return api; },
+    _table: table,
+    _calls: calls,
+  };
+  // `.eq(...).eq(...)` in the reconcile read: make eq chainable AND thenable.
+  api.eq = (col, val) => {
+    const rows = () => [...table.values()].filter((r) => r[col] === val);
+    const chain = {
+      eq: (c2, v2) => Promise.resolve({
+        data: rows().filter((r) => r[c2] === v2),
+        error: null,
+      }),
+      then: (res) => Promise.resolve({ data: rows(), error: null }).then(res),
+    };
+    return chain;
+  };
+  return api;
+}
+
+const emptyReport = () => ({
+  files: 0, upserted: 0, retired: 0, wouldUpsert: 0, ytFilled: 0,
+  errors: [], warnings: [], flaggedByText: [],
+});
+
+describe('importFile keeps picks that are already in the table', () => {
+  test('re-importing a book from the yt-less corpus does not null its picks', async () => {
+    const supabase = fakeSupabase([
+      { segment_id: 'grade_9_chemistry.c01.p007-008', book_stem: 'grade_9_chemistry', yt: withYt(), is_current: true },
+    ]);
+    const report = emptyReport();
+
+    await Import.importFile({
+      supabase,
+      file: 'grade_9_chemistry_segments.json',
+      segments: [seg({ segment_id: 'grade_9_chemistry.c01.p007-008', yt: null })],
+      corpusVersion: 'v1',
+      dryRun: false,
+      report,
+    });
+
+    const upserted = supabase._calls.upserts.flat()
+      .find((r) => r.segment_id === 'grade_9_chemistry.c01.p007-008');
+    expect(upserted.yt).toEqual(withYt());
+  });
+
+  test('a first import of a book with no picks still writes null', async () => {
+    const supabase = fakeSupabase([]);
+    const report = emptyReport();
+    await Import.importFile({
+      supabase,
+      file: 'x_segments.json',
+      segments: [seg({ segment_id: 'new.c01.p001-002', yt: null })],
+      corpusVersion: 'v1',
+      dryRun: false,
+      report,
+    });
+    expect(supabase._calls.upserts.flat()[0].yt).toBeNull();
+  });
+});

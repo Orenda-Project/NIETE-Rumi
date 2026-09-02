@@ -251,3 +251,49 @@ describe('the Linux/Railway chromium channel (vendor divergence)', () => {
     if ('channel' in mockLaunchCalls[0]) expect(mockLaunchCalls[0].channel).toBeTruthy();
   });
 });
+
+// ── the video pick reaches the page ─────────────────────────────────────────
+
+/**
+ * The pick travels beside the document, not inside it.
+ *
+ * `lp_doc` is `additionalProperties: false` at every level, so there is nowhere in the schema to
+ * put a url — and that is the point: the printed link must not be something the authoring model
+ * can rewrite or invent. It arrives as a render option and is emitted as coaching-corner
+ * furniture.
+ *
+ * These assertions read the HTML the service ACTUALLY WROTE, so they execute the whole chain
+ * (service -> renderDoc -> buildHtml -> the coaching corner). A test that only asserted the
+ * option was forwarded would stay green if the renderer dropped it on the repack pass.
+ */
+describe('renderLessonPlan carries the segment video onto the page', () => {
+  const PICK = {
+    url: 'https://www.youtube.com/watch?v=pWLEUhu-60A',
+    video_id: 'pWLEUhu-60A',
+    title: 'Definition of Chemistry',
+  };
+
+  it('prints the short url when the segment has a pick', async () => {
+    const out = await renderLessonPlan({
+      lpDoc: CLEAN_DOC, lang: 'en', stem: 'vid-en', outDir, video: PICK,
+    });
+    expect(fs.readFileSync(out.htmlPath, 'utf8')).toContain('youtu.be/pWLEUhu-60A');
+  });
+
+  it('prints nothing at all when the segment has no pick', async () => {
+    const out = await renderLessonPlan({ lpDoc: CLEAN_DOC, lang: 'en', stem: 'vid-none', outDir });
+    expect(fs.readFileSync(out.htmlPath, 'utf8')).not.toContain('youtu.be');
+  });
+
+  it('survives the repack pass — the line is on the FINAL html, not just the measure pass', async () => {
+    // buildHtml is called twice: once to measure, once to rebuild at the chosen page breaks.
+    // Passing the pick to only the first prints it on a page nobody ever sees.
+    const out = await renderLessonPlan({
+      lpDoc: CLEAN_DOC, lang: 'ur', stem: 'vid-ur', outDir, video: PICK,
+    });
+    const html = fs.readFileSync(out.htmlPath, 'utf8');
+    expect(html).toContain('youtu.be/pWLEUhu-60A');
+    // and LTR-isolated, so the RTL paragraph cannot reorder it into an untypable url
+    expect(html).toContain('⁦youtu.be/pWLEUhu-60A⁩');
+  });
+});

@@ -183,6 +183,63 @@ function toRow(segment, { corpusVersion = 'v1' } = {}) {
   };
 }
 
+// ── the YouTube overlay ─────────────────────────────────────────────────────
+
+/**
+ * A pick is real only if it has a url.
+ *
+ * The swarm writes a `yt` slot for every segment it CONSIDERED; only the ones it
+ * actually resolved carry a url. Storing the rest would put an empty object in a
+ * column serving tests with `yt && yt.url` — truthy, urlless, and rendered as an
+ * empty video line on a teacher's page.
+ */
+const hasPick = (yt) => !!(yt && typeof yt === 'object' && yt.url);
+
+/**
+ * Attach the swarm's picks to a book's segments, by segment_id.
+ *
+ * The two corpora are the same rows written by two different fleets hours apart:
+ * `out/<book>_segments.json` (segments, `yt: null`) and
+ * `yt/corpus_filled/<book>_segments.json` (the same rows with a pick). Keyed by
+ * id rather than by position, because a re-cut book changes both the count and
+ * the order and a positional overlay would then attach every video to the wrong
+ * lesson — silently, and only visible to a teacher who followed the link.
+ */
+function overlayYt(segments, ytSegments) {
+  const picks = new Map();
+  for (const y of ytSegments || []) {
+    if (y && y.segment_id && hasPick(y.yt)) picks.set(y.segment_id, y.yt);
+  }
+  if (!picks.size) return segments || [];
+  return (segments || []).map((s) => (
+    s && picks.has(s.segment_id) ? { ...s, yt: picks.get(s.segment_id) } : s
+  ));
+}
+
+/**
+ * Never let a yt-less run wipe a pick that is already in the table.
+ *
+ * The corpora arrive in the wrong order on purpose: segments tonight, picks
+ * overnight, and in the morning someone re-imports a book from `out/` to top up
+ * two late arrivals. That run carries `yt: null` for every row, and an upsert
+ * replaces the whole row — so without this the morning's top-up is also the
+ * morning's deletion of ~4,700 video links, and nothing would report it.
+ *
+ * An INCOMING pick still wins. A re-run is how a bad pick gets replaced.
+ */
+function mergeExistingYt(rows, existingRows) {
+  const stored = new Map();
+  for (const r of existingRows || []) {
+    if (r && r.segment_id && hasPick(r.yt)) stored.set(r.segment_id, r.yt);
+  }
+  if (!stored.size) return rows || [];
+  return (rows || []).map((r) => (
+    !hasPick(r.yt) && stored.has(r.segment_id)
+      ? { ...r, yt: stored.get(r.segment_id) }
+      : r
+  ));
+}
+
 // ── reconcile ───────────────────────────────────────────────────────────────
 
 /**
@@ -247,11 +304,28 @@ async function importFile({ supabase, file, segments, corpusVersion, dryRun, rep
 
   if (dryRun) {
     report.wouldUpsert += rows.length;
+    report.ytFilled += rows.filter((r) => hasPick(r.yt)).length;
     return;
   }
 
-  for (let i = 0; i < rows.length; i += CHUNK) {
-    const chunk = rows.slice(i, i + CHUNK);
+  // Read the picks already stored for exactly these ids, BEFORE the upsert that
+  // would overwrite them. Order is the whole point: doing this afterwards reads
+  // back the nulls this run just wrote.
+  const incomingIds = rows.map((r) => r.segment_id);
+  // A fresh array, never `rows` itself: mergeExistingYt returns its input
+  // unchanged when there is nothing to carry, so aliasing here and then
+  // rewriting `rows` in place empties both and silently upserts nothing.
+  let carried = rows.slice();
+  for (let i = 0; i < incomingIds.length; i += CHUNK) {
+    const ids = incomingIds.slice(i, i + CHUNK);
+    const { data, error } = await supabase.from(TABLE).select('segment_id, yt').in('segment_id', ids);
+    if (error) throw new Error(`existing-pick read failed for ${file}: ${error.message}`);
+    carried = mergeExistingYt(carried, data || []);
+  }
+  report.ytFilled += carried.filter((r) => hasPick(r.yt)).length;
+
+  for (let i = 0; i < carried.length; i += CHUNK) {
+    const chunk = carried.slice(i, i + CHUNK);
     const { error } = await supabase.from(TABLE).upsert(chunk, { onConflict: 'segment_id' });
     if (error) throw new Error(`upsert failed for ${file}: ${error.message}`);
     report.upserted += chunk.length;
@@ -288,26 +362,46 @@ async function main(argv = process.argv.slice(2)) {
   const dryRun = argv.includes('--dry-run');
   const cvIdx = argv.indexOf('--corpus-version');
   const corpusVersion = cvIdx >= 0 ? argv[cvIdx + 1] : 'v1';
+  // Where the YouTube swarm writes its filled corpus. Optional: the picks land
+  // hours after the segments, so an import with no --yt-dir is the normal first
+  // run, not a degraded one.
+  const ytIdx = argv.indexOf('--yt-dir');
+  const ytDir = ytIdx >= 0 ? argv[ytIdx + 1] : null;
 
   // Required lazily so the pure helpers above stay importable in a test that
   // has no database.
   const supabase = dryRun ? null : require('../shared/config/supabase');
 
   const report = {
-    files: 0, upserted: 0, retired: 0, wouldUpsert: 0,
+    files: 0, upserted: 0, retired: 0, wouldUpsert: 0, ytFilled: 0, ytBooks: 0,
     errors: [], warnings: [], flaggedByText: [],
   };
 
   for (const file of readSegmentFiles(target)) {
     const { segments } = parseFile(file);
     report.files += 1;
-    await importFile({ supabase, file, segments, corpusVersion, dryRun, report });
+
+    // The overlay is per BOOK and by filename, because that is how both fleets
+    // write: one file per book, the same basename in both trees. A book the
+    // swarm has not reached yet simply has no file here, and imports without a
+    // pick rather than failing.
+    let merged = segments;
+    if (ytDir) {
+      const ytFile = path.join(ytDir, path.basename(file));
+      if (fs.existsSync(ytFile)) {
+        merged = overlayYt(segments, parseFile(ytFile).segments);
+        report.ytBooks += 1;
+      }
+    }
+
+    await importFile({ supabase, file, segments: merged, corpusVersion, dryRun, report });
   }
 
   console.log(`\nlp612 segment import ${dryRun ? '(DRY RUN) ' : ''}—`);
   console.log(`  files      ${report.files}`);
   console.log(`  ${dryRun ? 'would load' : 'upserted '}  ${dryRun ? report.wouldUpsert : report.upserted}`);
   if (!dryRun) console.log(`  retired    ${report.retired}`);
+  console.log(`  video links ${report.ytFilled}${ytDir ? ` (overlay read for ${report.ytBooks} book(s))` : ' (no --yt-dir given)'}`);
   console.log(`  held (religious, flagged by text, review these): ${report.flaggedByText.length}`);
   for (const f of report.flaggedByText.slice(0, 20)) {
     console.log(`    ${f.segment_id}  ${f.title}`);
@@ -331,6 +425,9 @@ module.exports = {
   isReligiousSegment,
   validateSegment,
   toRow,
+  overlayYt,
+  mergeExistingYt,
+  hasPick,
   reconcilePlan,
   readSegmentFiles,
   parseFile,

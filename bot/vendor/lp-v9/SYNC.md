@@ -150,7 +150,37 @@ expert tore apart. Dropping it removes an advisory signal and a per-round LLM ca
 no gate. The consequence to know: upstream's ladder can reject a round for a judge-score drop as
 well as for a defect-count rise, and **the ported ladder can only see the defect count.**
 
-### 3.6 Nothing else
+### 3.6 The video line — a canon change, NOT a divergence
+
+`lib/template.js` and `render_lp.js` both gained the coaching corner's video line (2026-09-03,
+`bd-xl9ux`). **It was written in the canon first and mirrored here**, which is the order §6
+requires, so it is listed under divergences only to say that it is not one: `lib/template.js`
+remains byte-identical to upstream, and `render_lp.js` still differs from upstream only by
+§3.2/§3.3/§3.4.
+
+What it is: a segment's YouTube pick, printed in the coaching corner as `📺 Video: youtu.be/<id>`.
+Three properties worth keeping if this is ever re-cut:
+
+* **It travels beside the document, never inside it.** `lp_doc` is `additionalProperties: false`
+  at every level, so there is no schema slot for a url — deliberately. The pick reaches the page
+  through `renderDoc({ video })` → `buildHtml(doc, { video })` → `ctx.video`, so the authoring
+  model is never shown a url and cannot return a subtly different one. The schemas were NOT
+  touched.
+* **It must be passed to BOTH `buildHtml` calls.** The renderer builds once to measure and once
+  to repack at the chosen page breaks; passing it to only the first prints the line on a page
+  nobody ever sees.
+* **On the Urdu page the url is LTR-isolated** (U+2066 … U+2069), for the same reason the phone
+  number two lines above it is: an RTL paragraph reorders a bare latin run and prints a url a
+  teacher cannot type.
+
+No pick means no line at all — no label, no dash, no empty box. Most of the corpus has no pick on
+any given night, and a `Video: —` across half the books reads as a broken page.
+
+One trap, paid for once: the `.coach .vid` CSS lives inside a **template literal**, so a backtick
+in a comment there ends the string and turns the whole stylesheet into a tagged template. No
+backticks in that block.
+
+### 3.7 Nothing else
 
 `lint_lp.js`, both schemas, every other file in `lib/`, and the whole `diagrams/` tree are
 **byte-identical to upstream**. In particular the lint's gate list, thresholds, word budgets and

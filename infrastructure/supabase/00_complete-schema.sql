@@ -4966,6 +4966,12 @@ CREATE TABLE IF NOT EXISTS niete_lp612_renders (
   rounds_used       INTEGER,
   lint_clean        BOOLEAN,
   lint_fails        JSONB,
+
+  -- The authored one_screen body (150-260 words), sent as the WhatsApp message
+  -- beside the PDF. Stored rather than re-derived because every teacher after
+  -- the first is served entirely from this row. Nullable: renders cached before
+  -- V1.2.9 have none and serve the document alone. (V1.2.9)
+  one_screen        TEXT,
   error_code        TEXT,
   error_detail      TEXT,
   waiters           JSONB NOT NULL DEFAULT '[]'::jsonb,

@@ -492,6 +492,12 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
    below it (caught at 15px on the first render of this strip). So the strip is made quiet with
    COLOUR, not size — every word on a v9 page is 18px or it does not ship. */
 .coach .offer{ margin-top:var(--sp-1); color:#DCE6F2; }
+/* The video line sits under the offer and obeys the same rule: quiet by COLOUR, never by size.
+   No font-size here on purpose — it inherits .coach p's 18px, and render_lp.js fails the build
+   under that floor. The .ico span carries the glyph so the label stays selectable text.
+   NO BACKTICKS IN THIS BLOCK: it lives inside a template literal, and one ends the string. */
+.coach .vid{ margin-top:var(--sp-1); color:#DCE6F2; }
+.coach .vid .ico{ margin-inline-end:6px; }
 /* The footer is pinned to the page floor by margin-top:auto, so its LAST LINE is the last
    painted pixel on every page. Under RTL the Nastaliq face hangs its descenders below the
    line box and the wordmark ran 4px past the page's inner bottom on every single Urdu page.
@@ -1084,6 +1090,42 @@ function unnumber(s) {
   return String(s ?? "").replace(/^\s*[0-9\u0660-\u0669\u06F0-\u06F9]{1,2}\s*[.)\u06D4\u060C:\u2013-]\s+/, "");
 }
 
+/**
+ * The short, printable form of a YouTube pick.
+ *
+ * `youtu.be/<id>` rather than the `watch?v=` form the ranker stored: same video, roughly half
+ * the characters, and it fits on one line of the coaching corner without wrapping. When there
+ * is no video_id to build it from, the url is printed with its protocol trimmed — a teacher
+ * types what she sees, and "https://" is four words of noise she does not need to type.
+ */
+function shortVideoUrl(v) {
+  if (!v || !v.url) return null;
+  if (v.video_id) return `youtu.be/${v.video_id}`;
+  return String(v.url).replace(/^https?:\/\//i, "").replace(/^www\./i, "");
+}
+
+/**
+ * The video line — FURNITURE, exactly like the coaching offer above it.
+ *
+ * The pick is chosen offline by the ranking swarm and stored on the segment row; it reaches the
+ * page through the render options and never through the document, because `lp_doc` is
+ * `additionalProperties: false` at every level and because a model shown a URL is a model that
+ * can return a slightly different one. Nothing here is authored.
+ *
+ * An absent pick renders NOTHING — no label, no dash, no empty box. Most of the corpus has no
+ * pick on any given night, and a "Video: —" line across half the books reads as a broken page
+ * rather than as a missing extra.
+ */
+function videoLineHtml(ctx) {
+  const short = shortVideoUrl(ctx.video);
+  if (!short) return "";
+  // U+2066 LTR ISOLATE … U+2069 POP DIRECTIONAL ISOLATE. Without it the RTL paragraph reorders
+  // the latin run and the Urdu page prints a url that cannot be typed — the same defect the
+  // phone number two lines above already carries this exact fix for.
+  const url = ctx.rtl ? `\u2066${short}\u2069` : short;
+  return `<p class="vid"><span class="ico">&#128250;</span>${esc(ctx.L.video)}: ${esc(url)}</p>`;
+}
+
 function page2(doc, ctx, secIndex) {
   const L = ctx.L;
   const P = doc.page2;
@@ -1251,7 +1293,8 @@ function page2(doc, ctx, secIndex) {
   // way: a CTA that does not say what comes BACK is just a request (FEEDBACK_LEDGER #13).
   S("H", L.p2Coach, [`<div class="coach"><p>${rich(P.coaching_lookfor)}</p>
     ${P.coaching_reflection ? `<p class="ask"><span class="lbl">${esc(L.coachAsk)}</span>${rich(P.coaching_reflection)}</p>` : ""}
-    <p class="offer">1 ${esc(L.coachOffer)} &rarr; 2 ${esc(L.coachSend)} &rarr; 3 ${esc(L.coachBack)}</p></div>`]);
+    <p class="offer">1 ${esc(L.coachOffer)} &rarr; 2 ${esc(L.coachSend)} &rarr; 3 ${esc(L.coachBack)}</p>
+    ${videoLineHtml(ctx)}</div>`]);
 
   return { part: "support", atoms: A };
 }
@@ -1331,6 +1374,9 @@ function buildHtml(input, opts = {}) {
     L,
     rtl,
     lang,
+    // The segment's YouTube pick, if it has one. Render-time furniture: it rides beside the
+    // document rather than inside it, so nothing the model writes can reach the printed url.
+    video: opts.video || null,
     docDir: opts.docDir || process.cwd(),
     renderDiagram: renderDiagram || ((s) => { throw new Error("no diagram engine"); }),
     placeholder,
