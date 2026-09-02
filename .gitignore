@@ -41,6 +41,13 @@ tmp/
 
 # Build outputs
 dist/
+
+# ...except the katex stub's dist/, which is a TEST FIXTURE and not build output.
+# bot/vendor/lp-v9/lib/fonts.js inlines katex's stylesheet by resolving the package's
+# own package.json and reading ../dist/katex.min.css beside it, so the stub has to sit at
+# exactly this path. Without it every test that calls buildHtml() dies on ENOENT.
+!tests/__mocks__/katex-stub/dist/
+!tests/__mocks__/katex-stub/dist/katex.min.css
 build/
 .next/
 out/

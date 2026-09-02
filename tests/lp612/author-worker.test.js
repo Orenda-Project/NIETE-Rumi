@@ -288,3 +288,83 @@ describe('the long tail', () => {
     delete process.env.LP612_FOLLOWUP_MS;
   });
 });
+
+// ── the video pick and the one-screen body ──────────────────────────────────
+
+/**
+ * Two things the worker is the only place that can do.
+ *
+ * The PICK reaches the renderer from the segment ROW, never from the document —
+ * the authoring model is never shown a url, so it cannot return a subtly
+ * different one. It carries the religious hold with it: a held book's video is
+ * held for the same reason its lesson is.
+ *
+ * The ONE_SCREEN body is authored on every plan and, until now, thrown away. It
+ * has to be STORED, not just sent, because every teacher after the first is
+ * served entirely from the cached row and would otherwise get the file with no
+ * summary while the first got both.
+ */
+describe('the video pick and the stored body', () => {
+  const PICK = { url: 'https://youtu.be/abc', video_id: 'abc', title: 'T' };
+  const patches = () => mockDbCalls.filter((c) => c.op === 'update').map((c) => c.payload);
+
+  test('the segment row video is handed to the renderer', async () => {
+    seed({}, { ...SEGMENT, yt: PICK });
+    await Worker.process(JOB);
+    expect(mockRenderLessonPlan.mock.calls[0][0].video).toEqual(PICK);
+  });
+
+  test('a segment with no pick renders with none — not undefined-shaped furniture', async () => {
+    seed();
+    await Worker.process(JOB);
+    expect(mockRenderLessonPlan.mock.calls[0][0].video).toBeNull();
+  });
+
+  test('a HELD segment does not get its video printed either', async () => {
+    // The hold is on the content. If the lesson is not served, nothing attached
+    // to it is served — and if the hold is ever lifted, both lift together,
+    // because they read the same flag.
+    delete process.env.LP_612_RELIGIOUS_ENABLED;
+    seed({}, { ...SEGMENT, is_religious: true, yt: PICK });
+    await Worker.process(JOB);
+    expect(mockRenderLessonPlan.mock.calls[0][0].video).toBeNull();
+  });
+
+  test('with the religious flag ON, a held segment keeps its video', async () => {
+    process.env.LP_612_RELIGIOUS_ENABLED = 'true';
+    seed({}, { ...SEGMENT, is_religious: true, yt: PICK });
+    await Worker.process(JOB);
+    expect(mockRenderLessonPlan.mock.calls[0][0].video).toEqual(PICK);
+    delete process.env.LP_612_RELIGIOUS_ENABLED;
+  });
+
+  test('the authored one_screen is written to the render row', async () => {
+    mockAuthorLessonPlan.mockResolvedValue({
+      lpDoc: { lesson_id: 'x', one_screen: 'The lesson in one screen.' },
+      lintClean: true, fails: [], rounds: 1, model: 'm',
+    });
+    seed();
+    await Worker.process(JOB);
+    const ready = patches().find((p) => p.status === 'ready');
+    expect(ready.one_screen).toBe('The lesson in one screen.');
+  });
+
+  test('a document with no one_screen stores null rather than "undefined"', async () => {
+    seed();
+    await Worker.process(JOB);
+    expect(patches().find((p) => p.status === 'ready').one_screen).toBeNull();
+  });
+
+  test('every waiter is delivered the body as well as the file', async () => {
+    mockAuthorLessonPlan.mockResolvedValue({
+      lpDoc: { lesson_id: 'x', one_screen: 'Summary.' },
+      lintClean: true, fails: [], rounds: 1, model: 'm',
+    });
+    seed();
+    await Worker.process(JOB);
+    expect(mockDeliverRender).toHaveBeenCalledTimes(2);
+    for (const call of mockDeliverRender.mock.calls) {
+      expect(call[0].oneScreen).toBe('Summary.');
+    }
+  });
+});

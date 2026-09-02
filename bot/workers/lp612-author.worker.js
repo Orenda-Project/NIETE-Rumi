@@ -34,13 +34,30 @@ const { authorLessonPlan } = require('../shared/services/lp612-author.service');
 const { renderLessonPlan } = require('../shared/services/lp612-render.service');
 const Serving = require('../shared/services/lp612-serving.service');
 const {
-  resolveAuthorModel, authorRounds, authorTimeoutMs, followupAfterMs,
+  resolveAuthorModel, authorRounds, authorTimeoutMs, followupAfterMs, isReligiousEnabled,
 } = require('../shared/config/lp612-flags');
 
 const RENDERS = 'niete_lp612_renders';
 const SEGMENTS = 'niete_lp612_segments';
 
 const nowIso = () => new Date().toISOString();
+
+/**
+ * The segment's video pick, or null — never undefined, which would read as
+ * "not supplied" to the renderer rather than as "there isn't one".
+ */
+function videoFor(segment) {
+  const s = segment || {};
+  if (s.is_religious && !isReligiousEnabled()) return null;
+  return s.yt || null;
+}
+
+/** null, not the string "undefined": this goes into a TEXT column that serving
+ *  tests for emptiness before it sends anything. */
+function oneScreenOf(authored) {
+  const v = authored && authored.lpDoc && authored.lpDoc.one_screen;
+  return v ? String(v) : null;
+}
 
 async function loadRender(renderId) {
   const { data, error } = await supabase
@@ -176,6 +193,16 @@ async function process(payload) {
         lang,
         stem: segmentId.replace(/[^A-Za-z0-9._-]/g, '_'),
         outDir: tmpDir,
+        // The pick comes off the SEGMENT ROW and is handed straight to the
+        // renderer as furniture. It never passes through authorLessonPlan,
+        // because a model shown a url is a model that can return a different
+        // one, and a wrong video on a teacher's page is worse than no video.
+        //
+        // It carries the religious hold with it, reading the SAME flag the
+        // serving path reads rather than a copy of the rule: if the lesson is
+        // held, everything attached to it is held, and if the hold is ever
+        // lifted they lift together.
+        video: videoFor(segment),
         correlationId,
       });
 
@@ -200,6 +227,10 @@ async function process(payload) {
       // Recorded even on a clean run (as []), so "was this ever gated?" is
       // answerable from the row rather than only from a log that rolls off.
       lint_fails: authored.fails || [],
+      // The lesson on one phone screen, STORED and not merely sent. Every
+      // teacher after the first is served entirely from this row, and without
+      // it she would get the file with no summary while the first got both.
+      one_screen: oneScreenOf(authored),
       // The audience is consumed. Leaving it populated would re-send the lesson
       // to everyone if this row were ever reprocessed.
       waiters: [],
@@ -210,7 +241,9 @@ async function process(payload) {
     let deliveryFailures = 0;
     for (const w of waiters) {
       try {
-        await Serving.deliverRender({ phone: w.phone, r2Key, segment, lang });
+        await Serving.deliverRender({
+          phone: w.phone, r2Key, segment, lang, oneScreen: oneScreenOf(authored),
+        });
         delivered += 1;
       } catch (err) {
         deliveryFailures += 1;

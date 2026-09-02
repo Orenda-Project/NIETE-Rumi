@@ -420,7 +420,12 @@ async function renderDoc(a) {
   };
 
   const pw = loadPlaywright();
-  let built = buildHtml(doc, { lang, docDir: path.dirname(docPath), probeCont: !!pw });
+  // `video` is the segment's YouTube pick and it is RENDER FURNITURE, not document content:
+  // lp_doc is additionalProperties:false at every level, so there is nowhere in the schema to
+  // put it, and that is deliberate — the printed url must not be something a model can rewrite.
+  // It has to be passed to BOTH buildHtml calls: the repack below rebuilds the whole page, and
+  // dropping it there would print the line on the measure pass and lose it on the real one.
+  let built = buildHtml(doc, { lang, docDir: path.dirname(docPath), probeCont: !!pw, video: a.video || null });
   const { warnings, fontReport, pageContentHeight, hasRasterFigure } = built;
   let figureProblems = built.figureProblems || [];
   const htmlPath = path.join(outDir, `${stem}.html`);
@@ -432,7 +437,7 @@ async function renderDoc(a) {
     const repaginate = {
       capacity: pageContentHeight,
       atoms: built.atoms,
-      rebuild: (breaks) => buildHtml(doc, { lang, docDir: path.dirname(docPath), breaks }),
+      rebuild: (breaks) => buildHtml(doc, { lang, docDir: path.dirname(docPath), breaks, video: a.video || null }),
     };
     result = await renderWithPlaywright(pw, htmlPath, pdfPath, path.join(outDir, stem), a.png, repaginate, pdfMeta);
     if (repaginate.warnings) { warnings.length = 0; warnings.push(...repaginate.warnings); }

@@ -84,7 +84,7 @@ async function tell(phone, key, lang) {
 async function findRender(segmentId, lang, tv) {
   const { data, error } = await supabase
     .from(RENDERS)
-    .select('id, status, r2_key, waiters, error_code')
+    .select('id, status, r2_key, waiters, error_code, one_screen')
     .eq('segment_id', segmentId)
     .eq('lang', lang)
     .eq('template_version', tv)
@@ -96,10 +96,51 @@ async function findRender(segmentId, lang, tv) {
   return data || null;
 }
 
+/**
+ * The message that goes out beside the file.
+ *
+ * `one_screen` is the lesson on one phone screen — the field the authoring brief
+ * calls "the WhatsApp body" and the lint gate sizes at 150-260 words. The video
+ * link, when the segment has one, is appended as a PLAIN url: WhatsApp linkifies
+ * it, and a bare url needs no catalog string, which means no new teacher-facing
+ * copy and no field cap to get wrong in either language.
+ *
+ * Returns '' when there is nothing to say. Renders cached before this shipped
+ * carry no stored `one_screen`, and an empty message is worse than none.
+ */
+function buildBody({ oneScreen, segment }) {
+  const yt = segment && segment.yt;
+  const parts = [];
+  if (oneScreen && String(oneScreen).trim()) parts.push(String(oneScreen).trim());
+  // `yt.url`, never `yt` — the swarm writes a slot for every segment it
+  // considered and only a resolved one carries a url. A truthy urlless object
+  // would put a lone emoji on its own line.
+  if (yt && yt.url) parts.push(`\u{1F4FA} ${yt.url}`);
+  return parts.join('\n\n');
+}
+
 /** Send a finished render to one phone. Exported because the worker delivers
  *  the same bytes to the same shape of recipient when the job completes. */
-async function deliverRender({ phone, r2Key, segment, lang }) {
+async function deliverRender({ phone, r2Key, segment, lang, oneScreen }) {
   const url = await getPresignedUrl(buildR2PublicUrl(r2Key));
+
+  // The body goes FIRST: she is on a phone, and the summary is readable in the
+  // seconds before a multi-megabyte PDF has finished downloading.
+  //
+  // Its failure is swallowed on purpose. The lesson is the document; losing the
+  // summary must never cost her the thing she actually asked for, and the whole
+  // point of the ordering is defeated if it can throw before the file is sent.
+  const body = buildBody({ oneScreen, segment });
+  if (body) {
+    try {
+      await WhatsAppService.sendMessage(phone, body);
+    } catch (err) {
+      logToFile('LP 6-12: could not send lesson body', {
+        segmentId: segment && segment.segment_id, error: err.message,
+      });
+    }
+  }
+
   await WhatsAppService.sendDocumentByLink(
     phone,
     url,
@@ -191,7 +232,9 @@ async function requestLesson({ segmentId, userId, phone, lang, correlationId }) 
   // useful logged.
   if (existing && existing.status === 'ready' && existing.r2_key) {
     try {
-      await deliverRender({ phone, r2Key: existing.r2_key, segment, lang: language });
+      await deliverRender({
+        phone, r2Key: existing.r2_key, segment, lang: language, oneScreen: existing.one_screen,
+      });
       logToFile('LP 6-12: served from cache', { segmentId, lang: language, tv, correlationId });
       return { outcome: 'cache_hit', renderId: existing.id };
     } catch (err) {
@@ -289,6 +332,7 @@ async function requestLesson({ segmentId, userId, phone, lang, correlationId }) 
 module.exports = {
   requestLesson,
   deliverRender,
+  buildBody,
   buildFilename,
   buildCaption,
   r2KeyFor,
