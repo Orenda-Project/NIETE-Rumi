@@ -271,12 +271,16 @@ function totalMarks(questions) {
   }, 0);
 }
 
+// The paper a child writes on never carries the answers, whatever was asked for.
+// The key is its own document — see renderAnswerKey. (`includeAnswerKey` is still
+// accepted so older callers keep working; it changes nothing here.)
+// eslint-disable-next-line no-unused-vars
 function renderPaper({ examJson, grade, subject, schoolName, pageReference,
                        chapterTitle, includeAnswerKey = false, answerLines = true }) {
   const lineMm = lineHeightMm(grade);
   const questions = collectQuestions(examJson);
   const rtl = isRtl(subject);
-  const opts = { includeAnswerKey, answerLines };
+  const opts = { includeAnswerKey: false, answerLines };
 
   const body = [];
   let number = 1;
@@ -368,4 +372,89 @@ ${body.join('\n')}
 </body></html>`;
 }
 
-module.exports = { renderPaper, collectQuestions, totalMarks, renderQuestion };
+/** The text a question asks, short enough to sit beside its answer. */
+function questionLabel(question) {
+  if (typeof question === 'string') return question;
+  return question.question || question.main_question || '';
+}
+
+/**
+ * The answer key, as a document of its own: every question in the order and
+ * under the number the paper printed it, with its answer beside it. A question
+ * the model gave no answer for still appears, so the numbering matches the
+ * paper and the teacher sees the gap rather than a renumbered list.
+ */
+function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, chapterTitle }) {
+  const questions = collectQuestions(examJson);
+  const rtl = isRtl(subject);
+  const dash = '—';
+
+  const rows = [];
+  let number = 1;
+  let lastType = null;
+  for (const { type, question } of questions) {
+    if (type !== lastType) {
+      if (type && !GENERIC_TYPES.has(String(type).trim().toLowerCase())) {
+        rows.push(`<tr class="type"><td colspan="3">${esc(type)}</td></tr>`);
+      }
+      lastType = type;
+    }
+    let answer;
+    if (question && Array.isArray(question.questions) && question.passage) {
+      answer = question.questions.map((sub, i) => {
+        const letter = String.fromCharCode(97 + i);
+        const a = typeof sub === 'object' && sub.answer ? esc(sub.answer) : dash;
+        return `<div><b>${letter})</b> ${a}</div>`;
+      }).join('');
+    } else if (question && Array.isArray(question.words) && question.words.length && !question.answer) {
+      answer = dash;
+    } else {
+      answer = question && question.answer ? escMultiline(question.answer) : dash;
+    }
+    rows.push(`<tr><td class="num">${number}.</td><td class="qt">${esc(questionLabel(question))}</td><td class="ans">${answer}</td></tr>`);
+    number += 1;
+  }
+
+  const heading = [`Grade ${esc(grade)}`, esc(subjectName(subject))].join(' · ');
+  const sub = chapterTitle
+    ? `${esc(chapterTitle)}${pageReference ? ` · Pages ${esc(pageReference)}` : ''}`
+    : (pageReference ? `Pages ${esc(pageReference)}` : '');
+
+  return `<!DOCTYPE html>
+<html lang="${rtl ? 'ur' : 'en'}"${rtl ? ' dir="rtl"' : ''}>
+<head><meta charset="utf-8"><title>${heading} · Answer Key</title>
+<style>
+  @page { size: A4; margin: 14mm 12mm; }
+  ${fontFaces()}
+  body { font-family: ${rtl
+    ? "'PaperUrdu','PaperLatin',serif"
+    : "'PaperLatin',Arial,sans-serif"}; font-size: ${rtl ? '13pt' : '11.5pt'};
+    color: #000; line-height: ${rtl ? 1.9 : 1.45}; margin: 0; }
+  .num, .marks { unicode-bidi: isolate; }
+  .school { text-align: center; font-weight: 700; font-size: 13pt; }
+  .class-line { text-align: center; font-size: 11.5pt; margin: 2px 0 2px; }
+  .title { text-align: center; font-size: 15pt; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; margin: 6px 0 2px; }
+  .chapter { text-align: center; font-size: 10.5pt; color: #333; margin-bottom: 12px; }
+  .teacher { border: 1px solid #999; padding: 6px 10px; font-size: 10.5pt; margin-bottom: 12px; color: #222; }
+  table.key { width: 100%; border-collapse: collapse; }
+  table.key td { border-bottom: 1px solid #ccc; padding: 6px 7px; vertical-align: top; }
+  table.key td.num { width: 8%; font-weight: 700; white-space: nowrap; }
+  table.key td.qt { width: 46%; color: #333; }
+  table.key td.ans { width: 46%; font-weight: 600; }
+  table.key tr.type td { border-bottom: 1.5px solid #000; font-size: 10.5pt; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .04em; padding-top: 14px; }
+  tr { page-break-inside: avoid; }
+</style></head>
+<body>
+${schoolName ? `<div class="school">${esc(schoolName)}</div>` : ''}
+<div class="class-line">${heading}</div>
+<div class="title">Answer Key</div>
+${sub ? `<div class="chapter">${sub}</div>` : ''}
+<div class="teacher">For the teacher. Numbers match the question paper. ${dash} marks a question the generator gave no model answer for.</div>
+<table class="key">
+${rows.join('\n')}
+</table>
+</body></html>`;
+}
+
+module.exports = { renderPaper, renderAnswerKey, collectQuestions, totalMarks, renderQuestion };

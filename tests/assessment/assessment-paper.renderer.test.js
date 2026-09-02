@@ -258,12 +258,45 @@ describe('safety of the text itself', () => {
     expect(html).toContain('&lt;script&gt;');
   });
 
-  it('keeps the answer out unless it was asked for', () => {
-    const withKey = R.renderPaper({ ...HEAD, includeAnswerKey: true,
-      examJson: one('MCQs', { question: 'q', options: ['(a) x'], marks: 1, answer: '(a) x' }) });
-    const without = R.renderPaper({ ...HEAD, includeAnswerKey: false,
-      examJson: one('MCQs', { question: 'q', options: ['(a) x'], marks: 1, answer: '(a) x' }) });
-    expect(withKey).toMatch(/Answer/);
+  it('never prints an answer on the paper, key or no key (bd-60015)', () => {
+    const exam = one('MCQs', { question: 'q', options: ['(a) x'], marks: 1, answer: 'ANSWER-TOKEN' });
+    const withKey = R.renderPaper({ ...HEAD, includeAnswerKey: true, examJson: exam });
+    const without = R.renderPaper({ ...HEAD, includeAnswerKey: false, examJson: exam });
+    expect(withKey).not.toMatch(/Answer:/);
+    expect(withKey).not.toContain('ANSWER-TOKEN');
     expect(without).not.toMatch(/Answer:/);
+  });
+});
+
+describe('the answer key is its own document (bd-60015)', () => {
+  const exam = {
+    unseen: {
+      objective: { MCQs: [{ question: 'Pick one', options: ['(a) x', '(b) y'], marks: 1, answer: '(b) y' }] },
+      subjective: { 'Short Questions': [
+        { question: 'Why?', marks: 2, answer: 'Because it rains.' },
+        { question: 'No answer given', marks: 2 },
+      ] },
+    },
+  };
+
+  it('lists every answer under the number the paper printed', () => {
+    const key = R.renderAnswerKey({ ...HEAD, examJson: exam, chapterTitle: 'Hello World!', pageReference: '1-11' });
+    expect(key).toMatch(/Answer Key/);
+    expect(key).toMatch(/1\.[\s\S]*\(b\) y/);
+    expect(key).toMatch(/2\.[\s\S]*Because it rains\./);
+    expect(key).toMatch(/3\./);
+    expect(key.indexOf('(b) y')).toBeLessThan(key.indexOf('Because it rains.'));
+    expect(key).toContain('Hello World!');
+  });
+
+  it('carries the question text so the key reads on its own', () => {
+    const key = R.renderAnswerKey({ ...HEAD, examJson: exam });
+    expect(key).toContain('Pick one');
+    expect(key).toContain('Why?');
+  });
+
+  it('is laid out right-to-left for Urdu-medium subjects, like the paper', () => {
+    expect(R.renderAnswerKey({ ...HEAD, subject: 'urdu', examJson: exam })).toMatch(/dir="rtl"/);
+    expect(R.renderAnswerKey({ ...HEAD, subject: 'english', examJson: exam })).not.toMatch(/dir="rtl"/);
   });
 });
