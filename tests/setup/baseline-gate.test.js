@@ -26,6 +26,9 @@ const {
   compareSnapshots,
   pruneFlaky,
   canonicalise,
+  confirmRegressions,
+  parseCliArgs,
+  snapshotGrowth,
 } = require('../baseline-gate');
 
 const ESC = String.fromCharCode(27);
@@ -246,5 +249,211 @@ describe('canonicalise — the snapshot must be byte-stable across runs', () => 
     const a = { 'tests/b.test.js': { failing: ['x'], offenders: [] }, 'tests/a.test.js': { failing: [], offenders: [] } };
     const b = { 'tests/a.test.js': { failing: [], offenders: [] }, 'tests/b.test.js': { failing: ['x'], offenders: [] } };
     expect(JSON.stringify(canonicalise(a))).toBe(JSON.stringify(canonicalise(b)));
+  });
+});
+
+
+/**
+ * A gate that goes red at random is a gate that gets switched off — which is exactly
+ * how this repo's CI came to be `disabled_manually` in the first place. So a suspected
+ * regression is CONFIRMED by a second full run, and only what reproduces in BOTH runs
+ * counts.
+ *
+ * The case that forced this: `tests/training/portal-grand-quiz.test.js` fails roughly
+ * one run in fourteen — its `jest.doMock` of the shared certificate service
+ * intermittently loses to the real module, so a genuine `CERT-…` code arrives where the
+ * mock's `TESTPFX-…` was expected. Nothing in the diff under test touched it. Left
+ * unconfirmed, that one suite would have made every fourteenth PR red for a reason
+ * nobody could act on.
+ *
+ * This is deliberately NOT the flaky list: a flaky-list entry is permanent and excuses
+ * the suite forever, whereas confirmation is per-run and still fails the moment the
+ * failure is real and reproducible.
+ */
+describe('confirmRegressions — a regression must reproduce before it gates', () => {
+  const red = (suites) => ({ newSuites: suites, newTests: [], newOffenders: [], clean: false });
+
+  it('drops a new failing suite that did not reproduce on the second run', () => {
+    const c = confirmRegressions(red(['tests/a.test.js']), red([]));
+    expect(c.newSuites).toEqual([]);
+    expect(c.clean).toBe(true);
+    expect(c.unconfirmed.newSuites).toEqual(['tests/a.test.js']);
+  });
+
+  it('keeps a new failing suite that reproduced on both runs', () => {
+    const c = confirmRegressions(red(['tests/a.test.js']), red(['tests/a.test.js']));
+    expect(c.newSuites).toEqual(['tests/a.test.js']);
+    expect(c.clean).toBe(false);
+    expect(c.unconfirmed.newSuites).toEqual([]);
+  });
+
+  it('separates the reproducible from the transient in one run', () => {
+    const c = confirmRegressions(
+      red(['tests/real.test.js', 'tests/flake.test.js']),
+      red(['tests/real.test.js']),
+    );
+    expect(c.newSuites).toEqual(['tests/real.test.js']);
+    expect(c.unconfirmed.newSuites).toEqual(['tests/flake.test.js']);
+    expect(c.clean).toBe(false);
+  });
+
+  it('confirms at test level, per suite — a new test must reproduce', () => {
+    const first = {
+      newSuites: [], newOffenders: [], clean: false,
+      newTests: [{ suite: 'tests/a.test.js', tests: ['real one', 'flaky one'] }],
+    };
+    const second = {
+      newSuites: [], newOffenders: [], clean: false,
+      newTests: [{ suite: 'tests/a.test.js', tests: ['real one'] }],
+    };
+    const c = confirmRegressions(first, second);
+    expect(c.newTests).toEqual([{ suite: 'tests/a.test.js', tests: ['real one'] }]);
+    expect(c.unconfirmed.newTests).toEqual([{ suite: 'tests/a.test.js', tests: ['flaky one'] }]);
+  });
+
+  it('confirms at offender level, per suite — the level that caught the real incident', () => {
+    const first = {
+      newSuites: [], newTests: [], clean: false,
+      newOffenders: [{ suite: 'tests/setup/source-hygiene.test.js', offenders: ['a.js:1', 'b.js:2'] }],
+    };
+    const second = {
+      newSuites: [], newTests: [], clean: false,
+      newOffenders: [{ suite: 'tests/setup/source-hygiene.test.js', offenders: ['a.js:1'] }],
+    };
+    const c = confirmRegressions(first, second);
+    expect(c.newOffenders).toEqual([{ suite: 'tests/setup/source-hygiene.test.js', offenders: ['a.js:1'] }]);
+    expect(c.clean).toBe(false);
+  });
+
+  it('drops a suite entirely when none of its new tests reproduced', () => {
+    const first = {
+      newSuites: [], newOffenders: [], clean: false,
+      newTests: [{ suite: 'tests/a.test.js', tests: ['transient'] }],
+    };
+    const c = confirmRegressions(first, { newSuites: [], newTests: [], newOffenders: [], clean: true });
+    expect(c.newTests).toEqual([]);
+    expect(c.clean).toBe(true);
+  });
+
+  it('carries the first run fixed-lists through, so improvements are still reported', () => {
+    const first = {
+      ...red(['tests/a.test.js']),
+      fixedSuites: ['tests/was-red.test.js'],
+      fixedOffenders: [{ suite: 'tests/setup/x.test.js', offenders: ['gone.js:1'] }],
+    };
+    const c = confirmRegressions(first, red([]));
+    expect(c.fixedSuites).toEqual(['tests/was-red.test.js']);
+    expect(c.fixedOffenders).toEqual([{ suite: 'tests/setup/x.test.js', offenders: ['gone.js:1'] }]);
+  });
+
+  it('does not mutate either input', () => {
+    const first = red(['tests/a.test.js']);
+    const second = red([]);
+    confirmRegressions(first, second);
+    expect(first.newSuites).toEqual(['tests/a.test.js']);
+    expect(second.newSuites).toEqual([]);
+  });
+});
+
+
+/**
+ * `npm test` runs the whole suite and judges a delta, so it cannot honour a path
+ * filter — a filtered run compared against a full snapshot would report every
+ * un-run baseline suite as "fixed", and `npm test -- tests/nothing/` would pass
+ * cleanly. Silently ignoring the argument is worse than refusing it.
+ *
+ * This is not hypothetical: when `npm test` became the gate, three Android
+ * workflows and the qa-testing skill were still calling `npm test -- tests/portal/`
+ * and `npm test -- --testPathPattern=coaching`. The filter was dropped without a
+ * word, so those jobs silently went from 289 tests to 4,784 — still passing, still
+ * green, and no longer doing what they said.
+ */
+describe('parseCliArgs — an argument the gate cannot honour must be refused, not ignored', () => {
+  it('accepts no arguments', () => {
+    expect(parseCliArgs([])).toEqual({ update: false, retry: true, unknown: [] });
+  });
+
+  it('accepts --update', () => {
+    expect(parseCliArgs(['--update'])).toEqual({ update: true, retry: true, unknown: [] });
+  });
+
+  it('accepts --no-retry, which turns confirmation off', () => {
+    expect(parseCliArgs(['--no-retry'])).toEqual({ update: false, retry: false, unknown: [] });
+  });
+
+  it('reports a path filter as unknown — the exact call the workflows were making', () => {
+    expect(parseCliArgs(['tests/portal/']).unknown).toEqual(['tests/portal/']);
+  });
+
+  it('reports a jest flag as unknown — the exact call the docs and skill were making', () => {
+    expect(parseCliArgs(['--testPathPattern=coaching']).unknown).toEqual(['--testPathPattern=coaching']);
+  });
+
+  it('collects every unknown argument, not just the first', () => {
+    expect(parseCliArgs(['--update', 'tests/a/', '--bogus']).unknown).toEqual(['tests/a/', '--bogus']);
+  });
+});
+
+/**
+ * "The snapshot may only ever shrink" was written into BASELINE.md and CLAUDE.md and
+ * enforced by nothing — so a PR could add its own failures to the snapshot and the
+ * gate would pass, cleanly. That is the same shape as the bug the gate itself exists
+ * to fix: a rule described in prose that nothing computes.
+ */
+describe('snapshotGrowth — the baseline may shrink, never grow', () => {
+  const snap = (suites) => Object.fromEntries(
+    Object.entries(suites).map(([k, v]) => [k, { failing: v.failing || [], offenders: v.offenders || [] }]),
+  );
+
+  it('is clean when nothing changed', () => {
+    const a = snap({ 'tests/a.test.js': { failing: ['t1'], offenders: ['o1'] } });
+    expect(snapshotGrowth(a, a).grew).toBe(false);
+  });
+
+  it('is clean when a suite was removed — that is the point', () => {
+    const before = snap({ 'tests/a.test.js': {}, 'tests/b.test.js': {} });
+    const after = snap({ 'tests/a.test.js': {} });
+    const g = snapshotGrowth(before, after);
+    expect(g.grew).toBe(false);
+    expect(g.removedSuites).toEqual(['tests/b.test.js']);
+  });
+
+  it('is clean when offenders shrink', () => {
+    const before = snap({ 'tests/a.test.js': { offenders: ['o1', 'o2'] } });
+    const after = snap({ 'tests/a.test.js': { offenders: ['o1'] } });
+    expect(snapshotGrowth(before, after).grew).toBe(false);
+  });
+
+  it('FLAGS a newly accepted suite', () => {
+    const before = snap({ 'tests/a.test.js': {} });
+    const after = snap({ 'tests/a.test.js': {}, 'tests/new.test.js': {} });
+    const g = snapshotGrowth(before, after);
+    expect(g.grew).toBe(true);
+    expect(g.addedSuites).toEqual(['tests/new.test.js']);
+  });
+
+  it('FLAGS newly accepted failing tests inside an already-accepted suite', () => {
+    const before = snap({ 'tests/a.test.js': { failing: ['t1'] } });
+    const after = snap({ 'tests/a.test.js': { failing: ['t1', 't2'] } });
+    const g = snapshotGrowth(before, after);
+    expect(g.grew).toBe(true);
+    expect(g.addedTests).toEqual([{ suite: 'tests/a.test.js', tests: ['t2'] }]);
+  });
+
+  it('FLAGS newly accepted offenders — the level the real incident lived at', () => {
+    const before = snap({ 'tests/setup/source-hygiene.test.js': { offenders: ['a.js:1'] } });
+    const after = snap({ 'tests/setup/source-hygiene.test.js': { offenders: ['a.js:1', 'b.js:2'] } });
+    const g = snapshotGrowth(before, after);
+    expect(g.grew).toBe(true);
+    expect(g.addedOffenders).toEqual([{ suite: 'tests/setup/source-hygiene.test.js', offenders: ['b.js:2'] }]);
+  });
+
+  it('reports a mixed diff honestly — growth wins even alongside a removal', () => {
+    const before = snap({ 'tests/a.test.js': {}, 'tests/gone.test.js': {} });
+    const after = snap({ 'tests/a.test.js': {}, 'tests/new.test.js': {} });
+    const g = snapshotGrowth(before, after);
+    expect(g.grew).toBe(true);
+    expect(g.addedSuites).toEqual(['tests/new.test.js']);
+    expect(g.removedSuites).toEqual(['tests/gone.test.js']);
   });
 });

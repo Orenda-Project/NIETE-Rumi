@@ -21,7 +21,7 @@ npm run test:security    # one slice (sprint-0)
 npm run test:schema      # schema guards (sprint-2)
 npm run test:setup       # setup/onboarding (sprint-3)
 npm run test:docs        # doc conformance (sprint-4)
-npm test -- --testPathPattern=coaching   # one domain
+npm run test:raw -- --testPathPattern=coaching   # one domain
 ```
 
 [tests/run.js](../../../tests/run.js) resolves the jest binary and adds the Node-compatibility flags.
@@ -145,7 +145,7 @@ comm -23 /tmp/now.txt /tmp/base.txt     # anything printed here, you introduced
 
 | Situation | Run |
 |-----------|-----|
-| Editing a handler/service | `npm test -- --testPathPattern=<domain>` then the full suite before pushing |
+| Editing a handler/service | `npm run test:raw -- --testPathPattern=<domain>` then the full suite before pushing |
 | Adding a table/column/flow/skill | the relevant `tests/setup/` guard, then `npm test` |
 | Before any push | `npm test` (the whole suite — it's fast) |
 | Editing a shared service | full suite + the checks in [cross-agent-safety](../cross-agent-safety/SKILL.md) |

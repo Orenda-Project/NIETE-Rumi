@@ -4,28 +4,47 @@ name: CI
 # so it needs the same gate — previously this ran on `main` only, which meant a
 # PR into `develop` had no test check at all (gitleaks was the only one).
 #
-# NOTE: this workflow is currently disabled and its suite has a pre-existing
-# failure backlog. Re-enabling it before that backlog is quarantined would make
-# every PR red, which is how it came to be disabled in the first place. The
-# logger-severity ratchet therefore runs in its own fast workflow
-# (`logger-level.yml`) that is green today and can stay enabled.
+# This workflow was `disabled_manually` because `npm test` exited 1 on every
+# branch: the suite carried a large pre-existing failure backlog, so enabling it
+# would have made every PR red. That is fixed at the source rather than papered
+# over — `npm test` is now the BASELINE GATE (`tests/baseline-gate.js`). It still
+# runs every suite; its exit code now means "this change added no new failure"
+# instead of "the repo is perfect", and a suspected regression is confirmed by a
+# second run before it fails, so a flaky suite cannot redden a PR at random.
+#
+# Re-enable with `gh workflow enable ci.yml`. Do it AFTER watching one run go
+# green: the snapshot in `tests/baseline.snapshot.json` was recorded on Node 22
+# locally, and a CI environment can surface small deltas in the repo-auditing
+# guards under `tests/setup/`. Re-record with `npm run test:baseline:update` if so.
 on:
   push:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
+  workflow_dispatch:        # so the gate can be proven green before it guards PRs
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
+    # One Node version, deliberately. The baseline snapshot records which suites
+    # fail, and that set is version-sensitive — `tests/run.js` already switches
+    # NODE_OPTIONS by major — so gating Node 18 against a baseline recorded on 22
+    # produces regressions that are really version deltas. Multi-version drift is
+    # covered by `fresh-clone-smoke.yml`, which runs the RAW suite on a schedule
+    # and is not gated by the snapshot.
     strategy:
       matrix:
-        node-version: [18, 20, 22]
+        node-version: [22]
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # Full history: the baseline-growth check reads the snapshot as it exists on
+          # the base branch, which a shallow clone cannot see. Without this it degrades
+          # to a warning and stops guarding anything.
+          fetch-depth: 0
 
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
@@ -35,8 +54,35 @@ jobs:
       - name: Install root dependencies
         run: npm ci
 
-      - name: Run unit tests
+      # `npm test` IS the baseline gate — it runs every suite via tests/run.js and
+      # then judges the delta against tests/baseline.snapshot.json. Use
+      # `npm run test:raw` for unfiltered jest output when debugging a failure.
+      - name: Run unit tests (baseline gate — fails only on NEW failures)
         run: npm test
+
+      # The gate compares against the snapshot IN THE BRANCH, so a PR that adds its own
+      # failures to the snapshot passes it, cleanly. This is the other half: the
+      # baseline may shrink, never grow. PR-only — on a push the base is this branch,
+      # so there is nothing to compare against.
+      #
+      # BLOCKING for a PR into `develop`, ADVISORY for a `develop` -> `main`
+      # promotion. A promotion legitimately carries develop's larger baseline into
+      # main — develop is ahead, so its snapshot is generally a superset — and
+      # blocking that would fire on every single release. Measured 2026-09-01:
+      # main's snapshot held 24 suites, develop's 30, so a promotion PR would have
+      # been refused for doing exactly what a promotion does. Advisory keeps the
+      # signal ("you are importing 8 newly-accepted failures into prod") without
+      # the false block.
+      - name: Baseline may only shrink
+        if: github.event_name == 'pull_request'
+        env:
+          BASELINE_BASE_REF: origin/${{ github.base_ref }}
+        run: |
+          if [ "${{ github.base_ref }}" = "main" ]; then
+            npm run test:baseline:growth -- --allow-growth
+          else
+            npm run test:baseline:growth
+          fi
 
       - name: Install canvas system dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential libcairo2-dev libjpeg-dev libpango1.0-dev libgif-dev librsvg2-dev libpixman-1-dev

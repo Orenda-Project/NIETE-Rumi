@@ -220,13 +220,19 @@ LLM_MODEL=anthropic/claude-sonnet-4
 ## Testing
 
 ```bash
-npm test               # full suite (run via node tests/run.js)
+npm test               # baseline gate: runs every suite, fails only on NEW failures
+npm run test:raw       # plain jest — takes any jest argument, e.g. -- --testPathPattern=x
 npm run test:security  # secret scan — no hardcoded credentials
 npm run test:schema    # database schema validation
 npm run test:setup     # setup tooling
 npm run doctor         # live preflight: which services + features are configured
 npm run simulate       # CLI simulator (test without WhatsApp)
 ```
+
+The suite is not green and has not been for a while, so `npm test` judges the *delta*
+against `tests/baseline.snapshot.json` rather than demanding all-green: **exit 0 means
+your change added no new failure.** It takes no arguments — use `npm run test:raw` for
+a filtered run. See [tests/BASELINE.md](tests/BASELINE.md).
 
 Every push and PR is gated by CI: an automated **secret scan** (gitleaks) plus conformance guards that verify the schema, the docs, the agent skills, and the link web all stay honest.
 
