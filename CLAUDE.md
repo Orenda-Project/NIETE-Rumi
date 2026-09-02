@@ -65,6 +65,12 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
 ## Working rules
 
 - **TDD**: tests live at repo-root `tests/<domain>/` and require bot code via `../../bot/shared/...`.
+  **The red test must EXECUTE the changed line on its live branch and fail for the intended reason.**
+  A source-text grep assertion or a pure-helper test does not satisfy red-first: a grep-green line
+  can still be a runtime `ReferenceError`. Mock at the network boundary, never the module you are
+  changing, and never skip the call chain. (A parameter once dropped one hop short of its use site
+  shipped a guaranteed crash under 28 green tests, and silently degraded every downstream consumer
+  of that service's output for six days.)
 - **`npm test` is the BASELINE GATE, not raw Jest.** The suite is not green and has not been for a while.
   `npm test` runs every suite and then judges the *delta* against `tests/baseline.snapshot.json`:
   **exit 0 means "you added no new failure"**, which is the only question a gate can usefully answer here.
