@@ -403,6 +403,7 @@ async function submit(state) {
     chapterNumber: state.chapterNumber || null,
     pageRanges,
     contentSource: state.contentSource || 'unseen',
+    questionCount: state.questionCount || 20,
     questionTypes: types,
     includeAnswerKey: !!state.answerKey,
     answerLines: state.answerLines !== false,

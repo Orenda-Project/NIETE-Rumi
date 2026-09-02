@@ -102,25 +102,73 @@ function buildSystemPrompt({ subject, includeAnswerKey }) {
   return parts.join('');
 }
 
+function _count(t) {
+  return Math.max(1, parseInt(t.count, 10) || 1);
+}
+
+/** `target` questions spread over the same types, the remainder to the earlier
+ * ones, so a paper opens with its fullest section (mirrors QuestionTypes.withCounts). */
+function _rescale(types, target) {
+  if (!types.length || target <= 0) return [];
+  const base = Math.floor(target / types.length);
+  let spare = target - base * types.length;
+  return types.map((t) => {
+    const count = base + (spare > 0 ? 1 : 0);
+    if (spare > 0) spare -= 1;
+    return { ...t, count: Math.max(1, count) };
+  });
+}
+
+/**
+ * The number a teacher types is the size of her paper — all of it. Until
+ * bd-60015 it sized only the unseen half, and "a mix of both" then added every
+ * exercise in the chapter on top, so a request for 20 came back as 64.
+ *
+ *   unseen  → all `total` are new questions, types as given.
+ *   both    → at most half are lifted from the book (seenTarget = floor(total/2)),
+ *             the rest are new, and the types are re-spread over that rest.
+ *   seen    → exactly `total` lifted from the book, no new ones.
+ *
+ * Jobs queued before the count travelled with them carry only the types, whose
+ * counts summed to the number she typed — so the total is derived from those.
+ */
+function planCounts({ contentSource = 'unseen', questionCount, questionTypes = [] }) {
+  const typed = questionTypes.reduce((s, t) => s + _count(t), 0);
+  const total = Number(questionCount) > 0 ? Number(questionCount) : typed;
+  if (contentSource === 'seen') {
+    return { total, seenTarget: total, unseenTarget: 0, questionTypes: [] };
+  }
+  if (contentSource === 'both') {
+    const seenTarget = Math.floor(total / 2);
+    const unseenTarget = total - seenTarget;
+    return { total, seenTarget, unseenTarget, questionTypes: _rescale(questionTypes, unseenTarget) };
+  }
+  return { total, seenTarget: 0, unseenTarget: total, questionTypes };
+}
+
 /**
  * What to make, in the words the prompts expect. Objective and subjective are
  * listed separately because that is the shape of the tree the model returns.
  */
 function buildUserPrompt({ grade, subject, pageContent, pageReference,
-                           contentSource, questionTypes = [] }) {
-  const objective = questionTypes.filter((q) => q.category === 'objective');
-  const subjective = questionTypes.filter((q) => q.category !== 'objective');
-  const describe = (list) => list
-    .map((q) => `${Math.max(1, parseInt(q.count, 10) || 1)} ${q.id}`)
-    .join(', ');
+                           contentSource, questionCount, questionTypes = [] }) {
+  const plan = planCounts({ contentSource, questionCount, questionTypes });
+  const objective = plan.questionTypes.filter((q) => q.category === 'objective');
+  const subjective = plan.questionTypes.filter((q) => q.category !== 'objective');
+  const describe = (list) => list.map((q) => `${_count(q)} ${q.id}`).join(', ');
 
   const items = [];
   if (contentSource === 'unseen' || contentSource === 'both') {
     if (objective.length) items.push(`Unseen Objective questions — ${describe(objective)}`);
     if (subjective.length) items.push(`Unseen Subjective questions — ${describe(subjective)}`);
   }
-  if (contentSource === 'seen' || contentSource === 'both') {
-    items.push('Seen questions (all objective and subjective questions directly from the textbook)');
+  if (contentSource === 'both') {
+    items.push(`Seen questions — at most ${plan.seenTarget}, taken directly from the textbook's own `
+      + 'exercises on these pages (if the pages hold fewer usable exercise questions, add unseen '
+      + 'questions instead so the total below is still met)');
+  } else if (contentSource === 'seen') {
+    items.push(`Seen questions — exactly ${plan.seenTarget}, taken directly from the textbook's own `
+      + 'exercises on these pages (objective and subjective)');
   }
 
   return `**Grade:** ${grade}
@@ -134,10 +182,12 @@ ${pageContent}
 
 **GENERATE THE FOLLOWING:**
 ${items.map((i) => `• ${i}`).join('\n')}
+• In total the paper must have exactly ${plan.total} questions — no more
 
 **IMPORTANT NOTES:**
 • For SEEN questions: Extract questions exactly as they appear in the textbook
 • For UNSEEN questions: Create new questions based on concepts from the textbook
+• The paper carries no pictures. Do NOT include any question that needs a picture, illustration or diagram to answer (e.g. "write the name of each object under its picture", "look at the picture and…", "colour the…"). Rewrite it so it can be answered from text alone, or leave it out
 • Include proper marks allocation for each question
 • Maintain grade-appropriate language and difficulty
 • Return output in the JSON format specified in the system prompt
@@ -145,6 +195,37 @@ ${items.map((i) => `• ${i}`).join('\n')}
 
 ---
 `;
+}
+
+/**
+ * Keep the first `seenTarget` seen questions in tree order and drop the rest.
+ * The prompt asks for the cap; this makes it true when the model ignores it.
+ * Returns how many were removed.
+ */
+function trimSeen(examJson, seenTarget) {
+  const branch = examJson?.seen;
+  if (!branch || typeof branch !== 'object') return 0;
+  let kept = 0;
+  let removed = 0;
+  const take = (list) => {
+    const out = [];
+    for (const q of list) {
+      if (kept < seenTarget) { out.push(q); kept += 1; } else removed += 1;
+    }
+    return out;
+  };
+  for (const category of Object.values(branch)) {
+    if (!category || typeof category !== 'object') continue;
+    for (const [type, entry] of Object.entries(category)) {
+      if (Array.isArray(entry)) category[type] = take(entry);
+      else if (entry && typeof entry === 'object') {
+        for (const [sub, list] of Object.entries(entry)) {
+          if (Array.isArray(list)) entry[sub] = take(list);
+        }
+      }
+    }
+  }
+  return removed;
 }
 
 /**
@@ -193,19 +274,21 @@ function stripImageKeys(examJson) {
 
 async function generateExam(args) {
   const { grade, subject, pageContent, pageReference,
-          contentSource = 'unseen', questionTypes = [], includeAnswerKey = false } = args;
+          contentSource = 'unseen', questionCount, questionTypes = [], includeAnswerKey = false } = args;
 
   const key = canonical(subject) || 'eng';
   const model = URDU_MEDIUM.has(key) ? MODELS.urdu : MODELS.eng;
+  const plan = planCounts({ contentSource, questionCount, questionTypes });
 
   const messages = [
     { role: 'system', content: buildSystemPrompt({ subject, includeAnswerKey }) },
-    { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionTypes }) },
+    { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes }) },
   ];
 
   logToFile('[assessment] generating', {
     grade, subject: key, model, pageReference, contentSource,
-    types: questionTypes.map((q) => q.id), contentChars: (pageContent || '').length,
+    total: plan.total, seenTarget: plan.seenTarget,
+    types: plan.questionTypes.map((q) => `${q.count} ${q.id}`), contentChars: (pageContent || '').length,
   });
 
   let response;
@@ -250,8 +333,13 @@ async function generateExam(args) {
   }
 
   stripImageKeys(examJson);
-  const questionCount = countQuestions(examJson);
-  if (questionCount === 0) {
+  const removedSeen = trimSeen(examJson, plan.seenTarget);
+  if (removedSeen > 0) {
+    logToFile('[assessment] trimmed seen questions to the cap', { seenTarget: plan.seenTarget, removed: removedSeen });
+  }
+  const trimmed = removedSeen > 0 ? { seen: removedSeen } : {};
+  const produced = countQuestions(examJson);
+  if (produced === 0) {
     // Valid JSON with an empty tree. Rare, and worth its own code: retrying is
     // reasonable here, where retrying a refusal is not.
     throw fail('NO_QUESTIONS', 'The question writer returned no questions.');
@@ -266,16 +354,18 @@ async function generateExam(args) {
   };
 
   logToFile('[assessment] generated', {
-    grade, subject: key, questionCount, elapsedMs: Date.now() - startedAt, ...tokenData,
+    grade, subject: key, questionCount: produced, elapsedMs: Date.now() - startedAt, ...tokenData,
   });
 
-  return { examJson, questionCount, tokenData, elapsedMs: Date.now() - startedAt };
+  return { examJson, questionCount: produced, tokenData, trimmed, plan, elapsedMs: Date.now() - startedAt };
 }
 
 module.exports = {
   generateExam,
   buildSystemPrompt,
   buildUserPrompt,
+  planCounts,
+  trimSeen,
   countQuestions,
   stripImageKeys,
   MODELS,

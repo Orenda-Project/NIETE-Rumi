@@ -11,6 +11,7 @@ const mockLoadChapterContent = jest.fn();
 const mockLoadPageRangeContent = jest.fn();
 const mockGenerateExam = jest.fn();
 const mockRenderPaper = jest.fn();
+const mockRenderAnswerKey = jest.fn();
 const mockHtmlToPdf = jest.fn();
 const mockUploadExamBuffer = jest.fn();
 const mockBuildR2PublicUrl = jest.fn();
@@ -24,7 +25,7 @@ jest.mock('../../bot/shared/services/assessment/book-content.service', () => ({
 }));
 jest.mock('../../bot/shared/services/assessment/assessment-generation.service', () => ({ generateExam: mockGenerateExam }));
 jest.mock('../../bot/shared/services/assessment/assessment-paper.renderer', () => ({
-  renderPaper: mockRenderPaper, totalMarks: () => 11, collectQuestions: () => [],
+  renderPaper: mockRenderPaper, renderAnswerKey: mockRenderAnswerKey, totalMarks: () => 11, collectQuestions: () => [],
 }));
 jest.mock('../../bot/shared/utils/html-to-pdf', () => ({ htmlToPdf: mockHtmlToPdf }));
 jest.mock('../../bot/shared/storage/r2', () => ({
@@ -204,5 +205,51 @@ describe('when a step fails she is told, in words she can act on', () => {
     expect(out.status).toBe('failed');
     expect(mockGenerateExam).not.toHaveBeenCalled();
     expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe('the answer key is a second document (bd-60015)', () => {
+  it('sends paper then key when she asked for a key', async () => {
+    happyPath();
+    mockRenderAnswerKey.mockReturnValue('<html>key</html>');
+    const out = await Orchestrator.process({ ...JOB, includeAnswerKey: true });
+    expect(out.status).toBe('ready');
+    expect(mockRenderAnswerKey).toHaveBeenCalledTimes(1);
+    expect(mockHtmlToPdf).toHaveBeenCalledTimes(2);
+    expect(mockUploadExamBuffer).toHaveBeenCalledTimes(2);
+    expect(mockSendDocumentByLink).toHaveBeenCalledTimes(2);
+    expect(mockSendDocumentByLink.mock.calls[0][2]).not.toMatch(/AnswerKey/);
+    expect(mockSendDocumentByLink.mock.calls[1][2]).toMatch(/AnswerKey/);
+  });
+
+  it('sends one document when she did not', async () => {
+    happyPath();
+    await Orchestrator.process({ ...JOB, includeAnswerKey: false });
+    expect(mockRenderAnswerKey).not.toHaveBeenCalled();
+    expect(mockSendDocumentByLink).toHaveBeenCalledTimes(1);
+  });
+
+  it('the paper itself never carries the answers', async () => {
+    happyPath();
+    mockRenderAnswerKey.mockReturnValue('<html>key</html>');
+    await Orchestrator.process({ ...JOB, includeAnswerKey: true });
+    expect(mockRenderPaper.mock.calls[0][0].includeAnswerKey).not.toBe(true);
+  });
+
+  it('a key that fails to send still leaves her with the paper, and is recorded', async () => {
+    happyPath();
+    mockRenderAnswerKey.mockReturnValue('<html>key</html>');
+    mockSendDocumentByLink.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    const out = await Orchestrator.process({ ...JOB, includeAnswerKey: true });
+    expect(out.status).toBe('ready');
+    expect(out.answerKeySent).toBe(false);
+  });
+});
+
+describe('the question count reaches the generator (bd-60015)', () => {
+  it('passes questionCount through untouched', async () => {
+    happyPath();
+    await Orchestrator.process({ ...JOB, questionCount: 10, contentSource: 'both' });
+    expect(mockGenerateExam).toHaveBeenCalledWith(expect.objectContaining({ questionCount: 10, contentSource: 'both' }));
   });
 });
