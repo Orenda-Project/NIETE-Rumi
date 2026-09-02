@@ -83,6 +83,88 @@ describe('what gets uploaded', () => {
   });
 });
 
+describe('the prefix guard — the only isolation this bucket has', () => {
+  // NIETE and the main PK bot share ONE R2 bucket with byte-identical
+  // credentials. There is no storage isolation between the two deployments,
+  // only prefix discipline, so a script with a wrong key prefix lands on top of
+  // PK production assets. The K-5 v8 uploader refuses to write outside its own
+  // prefix for exactly this reason; this is the same guard.
+  const { assertKeyInPrefix, KEY_PREFIX } = Upload;
+
+  test('the prefix is the namespace this feature owns', () => {
+    expect(KEY_PREFIX).toBe('lp612/page-truth/');
+  });
+
+  test('a key inside the prefix is allowed', () => {
+    expect(() => assertKeyInPrefix('lp612/page-truth/grade_9_chemistry/_book.json')).not.toThrow();
+  });
+
+  test.each([
+    ['a PK production LP cache prefix', 'pre_gen_lps/foo.json'],
+    ['the other LP prefix', 'lesson_plans/foo.json'],
+    ['the K-5 v8 corpus prefix', 'lp-cache/v8/foo.pdf'],
+    ['session audio', 'audio/whatever.ogg'],
+    ['the bucket root', 'foo.json'],
+    ['a near-miss on our own prefix', 'lp612/page-truthX/foo.json'],
+  ])('refuses to write to %s', (_label, key) => {
+    expect(() => assertKeyInPrefix(key)).toThrow(/refus|prefix/i);
+  });
+
+  test('refuses a traversal that would climb out of the prefix', () => {
+    expect(() => assertKeyInPrefix('lp612/page-truth/../../pre_gen_lps/x.json')).toThrow();
+  });
+
+  test('a book stem that would escape the prefix cannot be planned', () => {
+    // Book stems come from directory names on disk, so they are input.
+    expect(() => planUpload({ bookStem: '../../..', files: ['_book.json'] })).toThrow();
+  });
+
+  test('every key the planner emits passes its own guard', () => {
+    const plan = planUpload({ bookStem: 'grade_9_chemistry', files: FILES, includeFigures: true });
+    expect(plan.length).toBeGreaterThan(0);
+    for (const item of plan) expect(() => assertKeyInPrefix(item.key)).not.toThrow();
+  });
+});
+
+describe('the upload pool', () => {
+  // Sequential PUTs to APAC measured ~1.7s each, which is ~5 hours for the
+  // 11,261-file corpus. A bounded pool makes the run feasible; bounded rather
+  // than unbounded because 11k simultaneous sockets is its own failure.
+  const { runPool } = Upload;
+
+  test('every item is processed exactly once', async () => {
+    const items = Array.from({ length: 50 }, (_, i) => i);
+    const seen = [];
+    await runPool(items, async (n) => { seen.push(n); }, 8);
+    expect(seen.sort((a, b) => a - b)).toEqual(items);
+  });
+
+  test('never exceeds the concurrency limit', async () => {
+    let inFlight = 0;
+    let peak = 0;
+    await runPool(Array.from({ length: 40 }, (_, i) => i), async () => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((r) => setTimeout(r, 1));
+      inFlight -= 1;
+    }, 5);
+    expect(peak).toBeLessThanOrEqual(5);
+    expect(peak).toBeGreaterThan(1);
+  });
+
+  test('a failure propagates rather than being silently dropped', async () => {
+    // A partially-uploaded book that reports success is worse than a loud
+    // failure: the author would find _book.json and fail on a missing page.
+    await expect(runPool([1, 2, 3], async (n) => {
+      if (n === 2) throw new Error('R2 503');
+    }, 2)).rejects.toThrow('R2 503');
+  });
+
+  test('an empty list is fine', async () => {
+    await expect(runPool([], async () => {}, 4)).resolves.toBeUndefined();
+  });
+});
+
 describe('discovery', () => {
   test('walks a real page-truth tree and finds its books', () => {
     // Runs against the fixture in this repo rather than the corpus, so it works

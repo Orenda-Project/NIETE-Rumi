@@ -27,6 +27,37 @@ const path = require('path');
 
 const R2_PREFIX = 'lp612/page-truth';
 
+/**
+ * The prefix this script is allowed to write to, and the ONLY isolation there is.
+ *
+ * NIETE and the main PK bot share one R2 bucket with byte-identical credentials.
+ * There is no storage isolation between the two deployments — only prefix
+ * discipline — so a script with a wrong key prefix lands on top of PK
+ * production assets (session audio under `audio/`, LP caches under
+ * `pre_gen_lps/`, `lesson_plans/`, `lps/`, `lp-cache/v8/`). The K-5 v8 uploader
+ * refuses to write outside its own prefix for exactly this reason; so does this.
+ *
+ * Enforced immediately before every put, not merely at plan time, so that no
+ * future caller can construct a key some other way and skip it.
+ */
+const KEY_PREFIX = `${R2_PREFIX}/`;
+
+function assertKeyInPrefix(key) {
+  const k = String(key == null ? '' : key);
+  // Traversal first: 'lp612/page-truth/../x' starts with the prefix but does
+  // not stay inside it.
+  if (k.includes('..')) {
+    throw new Error(`refusing to write "${k}": path traversal outside ${KEY_PREFIX}`);
+  }
+  if (!k.startsWith(KEY_PREFIX)) {
+    throw new Error(
+      `refusing to write "${k}": this bucket is shared with PK production and this `
+      + `script may only write under the ${KEY_PREFIX} prefix`,
+    );
+  }
+  return k;
+}
+
 /** The three shapes the author actually reads. Anything else in a book folder —
  *  editor backups, notes, intermediate dumps — is left behind. */
 const PAGE_FILE_RE = /^pg_\d+\.json$/;
@@ -76,9 +107,42 @@ function planUpload({ bookStem, files, includeFigures = false }) {
   // previous dry run should show content changes, not directory-order noise.
   return wanted.sort().map((file) => ({
     file,
-    key: r2KeyFor(bookStem, file),
+    // Guarded at plan time so a bad book stem fails before any bytes move...
+    key: assertKeyInPrefix(r2KeyFor(bookStem, file)),
     contentType: contentTypeFor(file),
   }));
+}
+
+/**
+ * Run `worker` over `items` with at most `concurrency` in flight.
+ *
+ * Sequential PUTs to this bucket measured ~1.7s each, which is ~5 hours for the
+ * full 11,261-file corpus. Bounded rather than unbounded because 11k
+ * simultaneous sockets is its own failure mode.
+ *
+ * A worker rejection propagates and stops the run. That is deliberate: a
+ * partially-uploaded book that reports success is worse than a loud failure,
+ * because the author would find `_book.json`, start a lesson, and only then hit
+ * a missing page.
+ */
+async function runPool(items, worker, concurrency = 16) {
+  const queue = [...items];
+  const width = Math.max(1, Math.min(concurrency, queue.length));
+  let failed = null;
+
+  const runner = async () => {
+    while (queue.length && !failed) {
+      const item = queue.shift();
+      try {
+        await worker(item);
+      } catch (err) {
+        failed = failed || err;
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: width }, runner));
+  if (failed) throw failed;
 }
 
 /** Book folders under the page-truth root — a book is any directory holding a
@@ -110,13 +174,15 @@ async function main(argv = process.argv.slice(2)) {
   const root = argv.find((a) => !a.startsWith('--'));
   if (!root) {
     console.error('usage: upload-lp612-page-truth.js <page-truth-root> '
-      + '[--books a,b] [--include-figures] [--dry-run]');
+      + '[--books a,b] [--include-figures] [--concurrency N] [--dry-run]');
     process.exit(2);
   }
   const dryRun = argv.includes('--dry-run');
   const includeFigures = argv.includes('--include-figures');
   const booksIdx = argv.indexOf('--books');
   const only = booksIdx >= 0 ? new Set(argv[booksIdx + 1].split(',').map((s) => s.trim())) : null;
+  const concIdx = argv.indexOf('--concurrency');
+  const concurrency = concIdx >= 0 ? Math.max(1, parseInt(argv[concIdx + 1], 10) || 16) : 16;
 
   // Lazily required so the pure helpers stay importable without R2 credentials.
   const { uploadBuffer } = dryRun ? { uploadBuffer: null } : require('../shared/storage/r2');
@@ -133,12 +199,13 @@ async function main(argv = process.argv.slice(2)) {
       skipped.push(bookStem);
       continue;
     }
-    for (const item of plan) {
+    await runPool(plan, async (item) => {
       const body = fs.readFileSync(path.join(bookDir, item.file));
       bytes += body.length;
-      if (!dryRun) await uploadBuffer(body, item.key, item.contentType);
+      // ...and again here, because this is the line that actually writes.
+      if (!dryRun) await uploadBuffer(body, assertKeyInPrefix(item.key), item.contentType);
       uploaded += 1;
-    }
+    }, concurrency);
     console.log(`  ${bookStem.padEnd(34)} ${String(plan.length).padStart(5)} files`);
   }
 
@@ -154,8 +221,8 @@ async function main(argv = process.argv.slice(2)) {
 }
 
 module.exports = {
-  planUpload, findBooks, listBookFiles, r2KeyFor, contentTypeFor, main,
-  R2_PREFIX, BOOK_FILE, TOC_FILE,
+  planUpload, findBooks, listBookFiles, r2KeyFor, contentTypeFor, main, runPool,
+  assertKeyInPrefix, KEY_PREFIX, R2_PREFIX, BOOK_FILE, TOC_FILE,
 };
 
 if (require.main === module) {
