@@ -75,4 +75,24 @@ describe('recomputeFidelityForSession', () => {
     const res = await recomputeFidelityForSession('cs-1', deps);
     expect(res.recomputed).toBe(false);
   });
+
+  // bd-s192t.3 — ok-with-null-pct is NOT a result, it is the guard-refusal
+  // shape (every move not_adjudicable, nothing scored, Section B empty). The
+  // 241-session Aug/Sep cohort was stranded because this gate treated it as
+  // terminal: no late LP tap, extraction, or transcript repair could ever
+  // recompute it. Only ok WITH a usable pct is "already ok".
+  it('recomputes an ok blob whose fidelity_pct is null (guard-refused) instead of treating it as terminal', async () => {
+    const { deps, updates } = makeDeps({
+      session: {
+        analysis_data: {
+          framework: 'fico',
+          lp_fidelity: { status: 'ok', fidelity_pct: null, recording_unusable: true },
+        },
+      },
+    });
+    const res = await recomputeFidelityForSession('cs-1', deps);
+    expect(res.recomputed).toBe(true);
+    expect(updates).toHaveLength(1);
+    expect(updates[0].patch.analysis_data.lp_fidelity.fidelity_pct).toBe(70);
+  });
 });
