@@ -45,17 +45,19 @@ describe('bd-bfy69 layer 2 — retry with a forced Urdu hint', () => {
   it('wraps the single attempt rather than replacing it', () => {
     expect(SRC).toMatch(/static async transcribe\(/);
     expect(SRC).toMatch(/static async _transcribeOnce\(/);
-    expect(SRC).toMatch(/await this\._transcribeOnce\(audioPath, enableDiarization, language\)/);
+    // bd-s192t.1 — `roles` must survive this hop (the Aug-27 regression dropped it here)
+    expect(SRC).toMatch(/await this\._transcribeOnce\(audioPath, enableDiarization, language, roles\)/);
   });
 
   it('retries with the literal Urdu hint', () => {
-    expect(SRC).toMatch(/await this\._transcribeOnce\(audioPath, enableDiarization, ['"]ur['"]\)/);
+    // bd-s192t.1 — the Urdu retry keeps the speaker vocabulary too
+    expect(SRC).toMatch(/await this\._transcribeOnce\(audioPath, enableDiarization, ['"]ur['"], roles\)/);
   });
 
   it('only retries when the caller left the language open', () => {
     // A caller that pinned a language already got a single hint; re-running the
     // identical request would return the identical answer.
-    expect(SRC).toMatch(/if \(!language\) \{[\s\S]*_transcribeOnce\(audioPath, enableDiarization, ['"]ur['"]\)/);
+    expect(SRC).toMatch(/if \(!language\) \{[\s\S]*_transcribeOnce\(audioPath, enableDiarization, ['"]ur['"], roles\)/);
   });
 
   it('returns early and unchanged when the transcript is already clean', () => {
@@ -107,8 +109,8 @@ describe('mutation — each guard above can actually fail', () => {
   });
 
   it('the retry assertion fails if the forced-Urdu retry is removed', () => {
-    const b = broken(/_transcribeOnce\(audioPath, enableDiarization, 'ur'\)/, '_transcribeOnce(audioPath, enableDiarization, null)');
-    expect(b).not.toMatch(/await this\._transcribeOnce\(audioPath, enableDiarization, ['"]ur['"]\)/);
+    const b = broken(/_transcribeOnce\(audioPath, enableDiarization, 'ur', roles\)/, '_transcribeOnce(audioPath, enableDiarization, null, roles)');
+    expect(b).not.toMatch(/await this\._transcribeOnce\(audioPath, enableDiarization, ['"]ur['"], roles\)/);
   });
 
   it('the guard assertion fails if ensureNoDevanagari is removed', () => {
