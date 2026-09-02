@@ -78,10 +78,8 @@ function fail(code, message, extra = {}) {
 
 // ── JSON extraction ─────────────────────────────────────────────────────────
 //
-// Ported from `extract_json` / `repair_backslashes`. NOT ported: upstream's
-// `_literal_eval_object`, which rescues a reply that came back as a single-quoted PYTHON dict.
-// It is `ast.literal_eval` behind a round-trip guard and Node has no safe equivalent, so a
-// reply in that shape costs an attempt and then a round here. See SYNC.md §4.
+// Ported from `extract_json` / `repair_backslashes`, plus `_literal_eval_object` — see
+// pythonDictToJson below for how that one is done without an `ast.literal_eval` equivalent.
 
 const VALID_ESCAPE = new Set(['"', '\\', '/', 'b', 'f', 'n', 'r', 't', 'u']);
 
@@ -139,6 +137,111 @@ function repairBackslashes(s) {
   return out.join('');
 }
 
+/**
+ * Rescue a reply that came back as a PYTHON dict rather than JSON.
+ *
+ * Upstream (`_literal_eval_object`) does this with `ast.literal_eval` behind a
+ * round-trip guard, because the failure it prevents is expensive and real: a
+ * model that answers with single-quoted strings and `True`/`False`/`None` fails
+ * every round of the ladder, and the run burns its budget producing nothing.
+ *
+ * Node has no `literal_eval`, and the obvious substitutes — `eval`, `new
+ * Function`, `vm` — all execute a string a model wrote, which is not a trade
+ * worth making for a formatting slip. So this is a strict scanner instead. It
+ * rewrites only what is unambiguous OUTSIDE a string body:
+ *
+ *   - a `'` delimiter becomes `"` (and any `"` inside that string is escaped,
+ *     any `\'` unescaped);
+ *   - the bare words True / False / None become true / false / null, matched on
+ *     word boundaries and only outside strings.
+ *
+ * Nothing inside a string body is ever altered. That clause is the whole point:
+ * a repair that corrupts string contents turns a loud parse failure into a
+ * lesson plan with silently mangled text, which is strictly worse. `None of the
+ * above` stays `None of the above`.
+ *
+ * Guarded like upstream: the result must parse AND be a plain object. Anything
+ * else returns null rather than throwing, so the caller keeps its own error.
+ *
+ * @returns {string|null} a JSON string, or null if it cannot be safely rescued
+ */
+function pythonDictToJson(text) {
+  const src = String(text == null ? '' : text);
+  if (!src.trim()) return null;
+
+  const isWordChar = (c) => c !== undefined && /[A-Za-z0-9_]/.test(c);
+  const LITERALS = [['True', 'true'], ['False', 'false'], ['None', 'null']];
+
+  let out = '';
+  let i = 0;
+
+  while (i < src.length) {
+    const ch = src[i];
+
+    // ── double-quoted string: copied verbatim, delimiters included ──────────
+    if (ch === '"') {
+      out += ch;
+      i += 1;
+      while (i < src.length) {
+        if (src[i] === '\\') { out += src[i] + (src[i + 1] ?? ''); i += 2; continue; }
+        if (src[i] === '"') { out += '"'; i += 1; break; }
+        out += src[i];
+        i += 1;
+      }
+      continue;
+    }
+
+    // ── single-quoted string: re-delimited, body preserved ─────────────────
+    if (ch === "'") {
+      out += '"';
+      i += 1;
+      while (i < src.length) {
+        if (src[i] === '\\') {
+          // \' is a Python escape that JSON does not allow — unescape it.
+          // Everything else (\n, \\, \uXXXX, and the doubled LaTeX backslashes
+          // repairBackslashes has already produced) passes through untouched.
+          if (src[i + 1] === "'") { out += "'"; i += 2; continue; }
+          out += src[i] + (src[i + 1] ?? '');
+          i += 2;
+          continue;
+        }
+        // A bare " inside a single-quoted string is legal in Python and must be
+        // escaped once it is living inside double quotes.
+        if (src[i] === '"') { out += '\\"'; i += 1; continue; }
+        if (src[i] === "'") { out += '"'; i += 1; break; }
+        out += src[i];
+        i += 1;
+      }
+      continue;
+    }
+
+    // ── outside any string: the only place literals are rewritten ──────────
+    let matched = false;
+    for (const [py, js] of LITERALS) {
+      if (src.startsWith(py, i) && !isWordChar(src[i - 1]) && !isWordChar(src[i + py.length])) {
+        out += js;
+        i += py.length;
+        matched = true;
+        break;
+      }
+    }
+    if (matched) continue;
+
+    out += ch;
+    i += 1;
+  }
+
+  // The round-trip guard, same as upstream's dict check: it must parse, and it
+  // must be an object. A list that parses is still not an lp_doc.
+  try {
+    const parsed = JSON.parse(out);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    return out;
+  } catch (_) {
+    return null;
+  }
+}
+
 /** @throws Error with .code 'UNPARSEABLE' */
 function extractJson(text) {
   let t = String(text || '').trim();
@@ -169,9 +272,14 @@ function extractJson(text) {
     else if (ch === '}') {
       depth -= 1;
       if (depth === 0) {
+        const slice = t.slice(start, i + 1);
         try {
-          return JSON.parse(t.slice(start, i + 1));
+          return JSON.parse(slice);
         } catch (e) {
+          // Last resort before failing the round: the reply may be a Python
+          // dict rather than JSON. Costs one scan; saves the whole ladder.
+          const rescued = pythonDictToJson(slice);
+          if (rescued) return JSON.parse(rescued);
           throw fail('UNPARSEABLE', `JSON object in model output does not parse: ${e.message}`);
         }
       }
@@ -624,6 +732,8 @@ function rangeOf(start, end) {
 }
 
 module.exports = {
+  pythonDictToJson,
+  __extractJsonForTests: extractJson,
   authorLessonPlan,
   resolveAuthorModel,
   // exported for the suite and for anyone porting a fix back upstream
