@@ -77,7 +77,10 @@ today = datetime.date.today().isoformat()
 def chip(txt, cls=""): return f'<span class="chip {cls}">{esc(txt)}</span>'
 
 def asked_vs_got(ex):
-    asked = {t["id"]: t["count"] for t in ex["spec"]["questionTypes"]}
+    # From bd-60015 the code re-spreads the teacher's types over the unseen share
+    # of the count; when that plan is recorded, it is what the model was asked for.
+    plan_types = (ex["res"].get("plan") or {}).get("questionTypes")
+    asked = {t["id"]: t["count"] for t in (plan_types or ex["spec"]["questionTypes"])}
     got = ex["res"]["delivered"]
     norm = lambda s: s.lower().replace(" ", "")
     rows = []
@@ -94,8 +97,9 @@ def asked_vs_got(ex):
     extra_seen = [(k, v) for k, v in got["seen"].items() if norm(k) not in {norm(t) for t in asked}]
     for k, v in extra_seen:
         rows.append(f"<tr class=extra><td>{esc(k)} <span class=tag>seen, not asked by type</span></td><td class=num>—</td><td class=num>·</td><td class=num>{v}</td></tr>")
-    return f"""<table class=avg><thead><tr><th>Type</th><th>Asked (unseen)</th><th>Got unseen</th><th>Got seen</th></tr></thead><tbody>{''.join(rows)}</tbody>
-    <tfoot><tr><td>Total <span class=hint>Word Meanings counted per word</span></td><td class=num>{ex['spec']['questionCount']}</td><td class=num>{ex['eff']['unseen']}</td><td class=num>{ex['eff']['seen'] or '·'}</td></tr></tfoot></table>"""
+    asked_head = "Asked of the model (unseen)" if plan_types else "Asked (unseen)"
+    return f"""<table class=avg><thead><tr><th>Type</th><th>{asked_head}</th><th>Got unseen</th><th>Got seen</th></tr></thead><tbody>{''.join(rows)}</tbody>
+    <tfoot><tr><td>Total <span class=hint>Word Meanings counted per word</span></td><td class=num>{sum(asked.values())}{' of ' + str(ex['spec']['questionCount']) + ' typed' if plan_types and sum(asked.values()) != ex['spec']['questionCount'] else ''}</td><td class=num>{ex['eff']['unseen']}</td><td class=num>{ex['eff']['seen'] or '·'}</td></tr></tfoot></table>"""
 
 def questions_block(ex):
     out = []

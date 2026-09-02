@@ -30,7 +30,7 @@ const path = require('path');
 
 // Refuse to run against anything but the database the operator expects.
 // (dotenv lives in bot/'s dependencies, not the repo root's.)
-require(require.resolve('dotenv', { paths: [path.join(__dirname, '../../bot')] })).config();
+require('dotenv').config();
 const REF = (process.env.SUPABASE_URL || '').match(/https:\/\/([a-z]+)\./)?.[1];
 const EXPECT_REF = process.env.EVAL_EXPECT_SUPABASE_REF || 'rpqkekcfvumypldbejhp';
 if (REF !== EXPECT_REF) {
