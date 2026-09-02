@@ -184,7 +184,7 @@ const UX_STRINGS = {
     ur: 'یہ سبق کا منصوبہ ابھی تیاری میں ہے — تھوڑی دیر بعد دوبارہ کوشش کریں۔',
   },
 
-  // ── FEAT-080: 6-12 lesson plans, written at the moment she asks ───────────
+  // ── 6-12 lesson plans, written at the moment she asks ────────────────────
   //
   // A 6-12 lesson is authored on the first request, not looked up: the wait is
   // real (about two minutes, occasionally longer) and every one of these strings

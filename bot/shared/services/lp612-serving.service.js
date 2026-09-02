@@ -1,5 +1,5 @@
 /**
- * FEAT-080 — what happens between the tap and the PDF.
+ * What happens between the tap and the PDF, for grades 6-12.
  *
  * The operator's decision was runtime authoring with NO pre-generation: the
  * first teacher to ask for a lesson pays for it being written, and every teacher
@@ -31,11 +31,7 @@
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 const WhatsAppService = require('./whatsapp.service');
-// The singleton, NOT a destructured method: queueJob reads `this.queueUrl` and
-// `this.quizQueueUrl`, so pulling it off the module strips the receiver and
-// throws on the first real enqueue. Every other producer in this repo keeps the
-// instance for the same reason.
-const SQSQueueService = require('./queue');
+// NB: the queue is required LAZILY, inside enqueue() — see the note there.
 const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const Catalog = require('./lp612-catalog.service');
@@ -132,6 +128,20 @@ async function addWaiter(renderId, waiters, req) {
 }
 
 async function enqueue({ renderId, segmentId, lang, tv, correlationId }) {
+  // Required HERE, not at module scope, for two independent reasons.
+  //
+  // 1. `./queue` pulls in the SQS driver, which requires `aws-sdk` at module
+  //    scope. Root suites run before `bot/ npm ci`, so a module-scope require
+  //    kills every suite FILE that transitively reaches this service — which is
+  //    how a change here took the existing pakistan-lp-endpoint suite red
+  //    without touching a line of its behaviour. `video-job-queue.service.js`
+  //    requires the queue inside each method for the same reason.
+  //
+  // 2. It is the SINGLETON, never a destructured method: queueJob reads
+  //    `this.queueUrl` and `this.quizQueueUrl`, so pulling the function off the
+  //    module strips its receiver and throws on the first real enqueue.
+  const SQSQueueService = require('./queue');
+
   await SQSQueueService.queueJob(segmentId, JOB_TYPE, {
     renderId,
     segmentId,

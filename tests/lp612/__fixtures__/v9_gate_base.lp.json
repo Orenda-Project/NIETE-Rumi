@@ -1,0 +1,446 @@
+{
+ "lesson_id": "PK_G9_MATH_CH1_MATRIX_MULTIPLY",
+ "schema_version": "3.0",
+ "template_version": "v9",
+ "lint_profile": "full",
+ "provenance": {
+  "book_stem": "grade_9_mathematics",
+  "grade": 9,
+  "subject": "Mathematics",
+  "medium": "en",
+  "chapter": "Ch. 1 · Matrices and Determinants",
+  "chapter_title": "Matrices and Determinants",
+  "topic": "Multiplying two 2×2 matrices",
+  "printed_pages": "24-25",
+  "pdf_pages": "34-35",
+  "page_offset": 10,
+  "version": "2026-09-01"
+ },
+ "slo": {
+  "code": "M-09-A-07",
+  "text_verbatim": "Multiply two matrices of order up to 2 by 2 and state when the product is defined.",
+  "source_page": "24",
+  "cognitive_level": "A",
+  "assessment_status": "Summative"
+ },
+ "lp_type": "STEM-2",
+ "period_minutes": 40,
+ "board_weight": "FBISE SSC-I · ~5 marks",
+ "materials": [
+  "Textbook p.24-25",
+  "Squared paper"
+ ],
+ "sequence": {
+  "previous": "Adding and subtracting matrices (p.22)",
+  "this": "Multiplying two 2×2 matrices (p.24-25)",
+  "next": "The determinant of a 2×2 matrix (p.26)",
+  "checkpoint": "Ch. 1 assessment, day 9"
+ },
+ "objectives": {
+  "outcome": "You can multiply two 2×2 matrices and say when the product is defined.",
+  "by_the_end": "By the end you can answer a 4-mark short-response question that asks you to find the product of two 2×2 matrices.",
+  "items": [
+   {
+    "text": "State whether a product is defined by comparing the inner orders.",
+    "slo_code": "M-09-A-07"
+   },
+   {
+    "text": "Find the product of two 2×2 matrices row by column.",
+    "slo_code": "M-09-A-07"
+   }
+  ]
+ },
+ "sections": [
+  {
+   "id": "introduction",
+   "minutes": 10,
+   "warmup": {
+    "items": [
+     {
+      "ref": "W1",
+      "kind": "scaffold",
+      "q": "Work out $3 \\times 2 + 4 \\times 5$, saying each product out loud before you add.",
+      "a": "$26$"
+     },
+     {
+      "ref": "W2",
+      "kind": "prerequisite",
+      "q": "Write down the order of the matrix $\\begin{bmatrix} 1 & 0 \\\\ 2 & 3 \\end{bmatrix}$.",
+      "a": "$2 \\times 2$ — two rows and two columns."
+     },
+     {
+      "ref": "W3",
+      "kind": "spaced",
+      "from": "p.22, adding matrices",
+      "q": "Add $\\begin{bmatrix} 1 & 2 \\\\ 0 & 1 \\end{bmatrix}$ and $\\begin{bmatrix} 3 & 0 \\\\ 1 & 4 \\end{bmatrix}$.",
+      "a": "$\\begin{bmatrix} 4 & 2 \\\\ 1 & 5 \\end{bmatrix}$"
+     }
+    ]
+   },
+   "blocks": [
+    {
+     "type": "ask",
+     "id": "hook",
+     "hook": true,
+     "question": "Two shops stock two products. One table holds the prices and another the quantities — can a single new table hold the takings?",
+     "look_for": "A pupil who says a price is multiplied by a quantity, then added.",
+     "closed_by": "close-hook"
+    },
+    {
+     "type": "keywords",
+     "page": "24",
+     "items": [
+      {
+       "word": "order",
+       "meaning": "rows × columns, in that order"
+      },
+      {
+       "word": "product",
+       "meaning": "the matrix you get when you multiply two matrices"
+      },
+      {
+       "word": "defined",
+       "meaning": "allowed — the inner orders match"
+      }
+     ]
+    },
+    {
+     "type": "watch_out",
+     "text": "Pupils multiply matching positions, as they did for addition. Multiplication does not work position by position."
+    },
+    {
+     "type": "board",
+     "text": "Order of $A$ × order of $B$: $(2\\times2)(2\\times2)$ — the inner pair matches, so the product is defined."
+    }
+   ]
+  },
+  {
+   "id": "development",
+   "minutes": 12,
+   "textbook_page": "24",
+   "video": {
+    "url": "https://www.youtube.com/watch?v=OMA2Mwo0aZg",
+    "title": "Multiplying 2×2 matrices",
+    "channel": "Khan Academy",
+    "duration": "4:12",
+    "why": "Play once after the I-do, so the class sees the row-by-column sweep a second time."
+   },
+   "blocks": [
+    {
+     "type": "paragraph",
+     "id": "close-hook",
+     "closes_hook": true,
+     "text": "Yes — one table can hold the takings, and the rule that builds it is the warm-up's: take a row, take a column, multiply and add."
+    },
+    {
+     "type": "key_points",
+     "items": [
+      "A product is defined only when the columns of the first matrix equal the rows of the second.",
+      "Entry $c_{ij}$ is row $i$ of $A$ paired with column $j$ of $B$.",
+      "Matrix multiplication is not commutative: $AB$ and $BA$ can differ."
+     ]
+    },
+    {
+     "type": "latex",
+     "tex": "\\begin{bmatrix} a & b \\\\ c & d \\end{bmatrix}\\begin{bmatrix} p & q \\\\ r & s \\end{bmatrix} = \\begin{bmatrix} ap+br & aq+bs \\\\ cp+dr & cq+ds \\end{bmatrix}",
+     "caption": "Every entry is one row paired with one column."
+    },
+    {
+     "type": "worked_example",
+     "id": "ido",
+     "title": "I do — p.24, worked example 1",
+     "prompt": "Find the product $AB$ when $A = \\begin{bmatrix} 1 & 2 \\\\ 3 & 0 \\end{bmatrix}$ and $B = \\begin{bmatrix} 4 & 1 \\\\ 2 & 5 \\end{bmatrix}$.",
+     "steps": [
+      "Check the orders: $(2\\times2)(2\\times2)$, so the product is defined and is $2\\times2$.",
+      "Row 1 with column 1: $1\\times4 + 2\\times2 = 8$.",
+      "Row 1 with column 2: $1\\times1 + 2\\times5 = 11$.",
+      "Row 2 with column 1: $3\\times4 + 0\\times2 = 12$.",
+      "Row 2 with column 2: $3\\times1 + 0\\times5 = 3$."
+     ],
+     "result": "$AB = \\begin{bmatrix} 8 & 11 \\\\ 12 & 3 \\end{bmatrix}$"
+    },
+    {
+     "type": "watch_out",
+     "misconception": true,
+     "text": "Pupils write $8$ under the wrong entry because they sweep down the row of $B$ instead of down its column."
+    }
+   ]
+  },
+  {
+   "id": "activity",
+   "minutes": 12,
+   "blocks": [
+    {
+     "type": "faded_example",
+     "id": "wedo",
+     "title": "We do — together on the board",
+     "minutes": 5,
+     "prompt": "Find $PQ$ when $P = \\begin{bmatrix} 2 & 1 \\\\ 0 & 3 \\end{bmatrix}$ and $Q = \\begin{bmatrix} 1 & 4 \\\\ 2 & 0 \\end{bmatrix}$.",
+     "steps": [
+      "Row 1 with column 1: $2\\times1 + 1\\times2 = 4$.",
+      "Row 1 with column 2: you fill this in.",
+      "Row 2 with column 1: you fill this in.",
+      "Row 2 with column 2: $0\\times4 + 3\\times0 = 0$."
+     ],
+     "answer": "$PQ = \\begin{bmatrix} 4 & 8 \\\\ 6 & 0 \\end{bmatrix}$"
+    },
+    {
+     "type": "practice",
+     "id": "youdo",
+     "mode": "independent",
+     "minutes": 7,
+     "cite": "Ex 1.3 Q1(a)-(c), p.25",
+     "items": [
+      {
+       "ref": "P1",
+       "tier": "support",
+       "level": "K",
+       "q": "State whether the product $AB$ is defined when $A$ is $2\\times2$ and $B$ is $2\\times2$, and give the order of the answer.",
+       "a": "Defined, because the inner orders match; the product is $2\\times2$."
+      },
+      {
+       "ref": "P2",
+       "tier": "core",
+       "level": "A",
+       "q": "Find $AB$ when $A = \\begin{bmatrix} 1 & 0 \\\\ 2 & 3 \\end{bmatrix}$ and $B = \\begin{bmatrix} 5 & 1 \\\\ 0 & 2 \\end{bmatrix}$.",
+       "a": "$AB = \\begin{bmatrix} 5 & 1 \\\\ 10 & 8 \\end{bmatrix}$"
+      },
+      {
+       "ref": "P3",
+       "tier": "extension",
+       "level": "A",
+       "q": "Show that $AB$ and $BA$ are different for the two matrices in the question above.",
+       "a": "$BA = \\begin{bmatrix} 7 & 3 \\\\ 4 & 6 \\end{bmatrix}$, which is not the same matrix as $AB$."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "conclusion",
+   "minutes": 4,
+   "checkpoint": {
+    "ref": "C1",
+    "question": "Find the product $\\begin{bmatrix} 2 & 0 \\\\ 1 & 3 \\end{bmatrix}\\begin{bmatrix} 1 & 2 \\\\ 4 & 0 \\end{bmatrix}$.",
+    "marks": 4,
+    "mark_scheme": [
+     "1 mark: the orders are checked and the product is stated as defined.",
+     "2 marks: at least two entries correct, row by column.",
+     "4 marks: all four entries correct."
+    ]
+   },
+   "exit_ticket": [
+    {
+     "ref": "X1",
+     "q": "Write down the entry in row 2, column 1 of the product you have just found.",
+     "a": "$13$"
+    }
+   ],
+   "reteach_rule": "If more than a third of the class miss the row-2 entries, redo the I-do on p.24 with the addresses said out loud.",
+   "blocks": [
+    {
+     "type": "board",
+     "text": "Row × column, pair by pair, then add. Check the inner orders first."
+    }
+   ]
+  },
+  {
+   "id": "homework",
+   "minutes": 2,
+   "homework": {
+    "items": [
+     {
+      "ref": "H1",
+      "format": "mcq",
+      "level": "K",
+      "slo_code": "M-09-A-07",
+      "marks": 1,
+      "text": "Which product is defined? (A) a $2\\times2$ times a $2\\times2$ (B) a $2\\times2$ times a $3\\times3$ (C) a $1\\times2$ times a $3\\times2$ (D) none of these."
+     },
+     {
+      "ref": "H2",
+      "format": "mcq",
+      "level": "U",
+      "slo_code": "M-09-A-07",
+      "marks": 1,
+      "text": "In the product $AB$, which pair builds the entry in row 2, column 1? (A) row 2 of $A$ with column 1 of $B$ (B) row 1 of $A$ with column 2 of $B$ (C) row 2 of $B$ with column 1 of $A$"
+     },
+     {
+      "ref": "H3",
+      "format": "short",
+      "level": "A",
+      "slo_code": "M-09-A-07",
+      "marks": 4,
+      "source": {
+       "page": "25",
+       "questions": "Ex 1.3 Q2(a)"
+      },
+      "text": "Find the product $MN$ when $M = \\begin{bmatrix} 3 & 1 \\\\ 0 & 2 \\end{bmatrix}$ and $N = \\begin{bmatrix} 2 & 4 \\\\ 1 & 0 \\end{bmatrix}$."
+     },
+     {
+      "ref": "H4",
+      "format": "short",
+      "level": "U",
+      "slo_code": "M-09-A-07",
+      "marks": 2,
+      "text": "Explain, in one sentence, why the product of a $2\\times3$ matrix and a $2\\times2$ matrix is not defined."
+     }
+    ]
+   },
+   "blocks": [
+    {
+     "type": "key_points",
+     "title": "",
+     "items": [
+      "Answers are checked at the start of the next period against the board."
+     ]
+    }
+   ]
+  }
+ ],
+ "page2": {
+  "board_final": {
+   "draw_order": [
+    "Write the two matrices side by side with their orders underneath.",
+    "Ring the inner pair and write \"defined\".",
+    "Sweep row 1 across column 1 and write the first entry.",
+    "Fill the remaining three entries, saying each address out loud."
+   ]
+  },
+  "model_answers": [
+   {
+    "ref": "P1",
+    "answer": "Defined, because the inner orders match; the product is $2\\times2$.",
+    "marking_note": "No mark for \"yes\" alone — the reason earns it."
+   },
+   {
+    "ref": "P2",
+    "answer": "$AB = \\begin{bmatrix} 5 & 1 \\\\ 10 & 8 \\end{bmatrix}$"
+   },
+   {
+    "ref": "P3",
+    "answer": "$BA = \\begin{bmatrix} 7 & 3 \\\\ 4 & 6 \\end{bmatrix}$, so $AB \\neq BA$."
+   },
+   {
+    "ref": "C1",
+    "answer": "$\\begin{bmatrix} 2 & 4 \\\\ 13 & 2 \\end{bmatrix}$"
+   },
+   {
+    "ref": "X1",
+    "answer": "$13$"
+   }
+  ],
+  "mistakes": [
+   {
+    "pupil_says": "Multiplies matching positions, giving $\\begin{bmatrix} 5 & 0 \\\\ 0 & 6 \\end{bmatrix}$.",
+    "you_ask": "That is the addition rule. Where does a price meet a quantity?"
+   },
+   {
+    "pupil_says": "Sweeps along row 1 of both matrices.",
+    "you_ask": "Which way does the second matrix run — across or down?"
+   },
+   {
+    "pupil_says": "Says $AB$ and $BA$ must be equal.",
+    "you_ask": "Work out $BA$ for the same pair and put the two answers side by side."
+   }
+  ],
+  "differentiation": {
+   "stuck": "Give a printed grid with the four addresses already written in.",
+   "barrier": "Drop to $2\\times1$ column vectors so there is one entry per sweep.",
+   "early": "Ask for $A(BC)$ and $(AB)C$ and a sentence on what they notice."
+  },
+  "exam_bank": {
+   "mcq": [
+    {
+     "q": "Which statement about matrix multiplication is true?",
+     "options": [
+      "$AB$ is always equal to $BA$",
+      "$AB$ may differ from $BA$",
+      "$AB$ is never defined",
+      "$AB$ is found position by position"
+     ],
+     "answer": "B",
+     "distractor_codes": [
+      "treats matrices like numbers",
+      "thinks products are rarely defined",
+      "carries the addition rule across"
+     ]
+    },
+    {
+     "q": "A $2\\times2$ matrix is multiplied by a $2\\times2$ matrix. What is the order of the product?",
+     "options": [
+      "$2\\times2$",
+      "$4\\times4$",
+      "$2\\times4$",
+      "It is not defined"
+     ],
+     "answer": "A",
+     "distractor_codes": [
+      "multiplies the orders",
+      "adds the columns",
+      "does not check inner orders"
+     ]
+    }
+   ],
+   "srq": {
+    "q": "A shopkeeper's prices are $\\begin{bmatrix} 20 & 35 \\end{bmatrix}$ and Monday's sales are $\\begin{bmatrix} 4 \\\\ 2 \\end{bmatrix}$. Work out the takings and say why the answer is a single number.",
+    "marks": 4,
+    "mark_scheme": [
+     "1 mark: states the product is defined because the inner orders match.",
+     "2 marks: shows $20\\times4 + 35\\times2$.",
+     "4 marks: $150$, with a sentence saying a $1\\times2$ times a $2\\times1$ gives a $1\\times1$."
+    ]
+   },
+   "erq_skeleton": {
+    "q": "A shop's prices and weekly quantities are given as two matrices. Find the weekly takings and comment on the order of the answer.",
+    "marks_total": 8,
+    "parts": [
+     {
+      "heading": "State whether the product is defined and give its order",
+      "marks": 2
+     },
+     {
+      "heading": "Work out every entry, showing the row-by-column sweep",
+      "marks": 4
+     },
+     {
+      "heading": "Say what each entry of the answer means for the shop",
+      "marks": 2
+     }
+    ]
+   },
+   "how_marked": "An answer with no working scores nothing beyond the first mark; two correct entries score half."
+  },
+  "homework_key": [
+   {
+    "ref": "H1",
+    "answer": "A — a $2\\times2$ times a $2\\times2$. The inner orders match.",
+    "level": "K",
+    "marks": 1
+   },
+   {
+    "ref": "H2",
+    "answer": "A — row 2 of $A$ with column 1 of $B$.",
+    "level": "U",
+    "marks": 1
+   },
+   {
+    "ref": "H3",
+    "answer": "$MN = \\begin{bmatrix} 7 & 12 \\\\ 2 & 0 \\end{bmatrix}$. Row 1: $3\\times2 + 1\\times1 = 7$ and $3\\times4 + 1\\times0 = 12$. Row 2: $0\\times2 + 2\\times1 = 2$ and $0\\times4 + 2\\times0 = 0$.",
+    "level": "A",
+    "marks": 4
+   },
+   {
+    "ref": "H4",
+    "answer": "The inner orders — three and two — do not match, so no sweep is possible.",
+    "level": "U",
+    "marks": 2
+   }
+  ],
+  "next_period": "The determinant $|A|$ of a $2\\times2$ matrix (p.26), which uses the same entry addresses you practised today.",
+  "not_going": "Do not introduce the inverse yet — it needs the determinant, which is next period's work.",
+  "coaching_lookfor": "Watch that the teacher says the address — row 2, column 1 — out loud before writing each entry, and that pupils copy that habit in the independent practice.",
+  "coaching_reflection": "Which of my pupils could say the address out loud before writing it, and who do I re-teach that to tomorrow?"
+ },
+ "one_screen": "Today's lesson is multiplying two 2×2 matrices, from page 24 of the Grade 9 mathematics book. Start with the warm-up: work out three times two plus four times five, which is twenty six. That single line is the whole rule in miniature. Then ask the class the opening question: two shops, one table of prices, one table of quantities — can one new table hold the takings? Yes, and the rule that builds it is row by column. Model worked example one on page 24 in front of the class. Check the orders first, then say each address out loud — row one, column one — before writing the entry. The predictable error is multiplying matching positions, as the class did for addition, so name it before it happens. Guided practice comes next, with two of the four entries blanked, then three independent items tagged support, core and extension. Close with the four-mark board question on the conclusion card and a one-item exit ticket. Homework is four tagged items, two of them multiple choice, answered in full in the reference block."
+}

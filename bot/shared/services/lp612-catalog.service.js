@@ -1,5 +1,5 @@
 /**
- * FEAT-080 — the 6-12 menu tree: grade -> subject -> chapter -> subtopic.
+ * The 6-12 menu tree: grade -> subject -> chapter -> subtopic.
  *
  * The teacher walks the BOOK's own segmentation, in taught order. Nothing here
  * invents a better sequence than the book's; `order_index` is the book's and the
@@ -12,9 +12,9 @@
  *
  * Two rules that cost the K-5 lane real bugs and are re-encoded here:
  *
- *  - **Meta does not ride screen data along with a tap** (bd-hd2wy). Every field
- *    the next step needs is in the row's own payload, or that screen cannot be
- *    built.
+ *  - **Meta does not ride screen data along with a tap** (learned the hard way on
+ *    the K-5 lane). Every field the next step needs is in the row's own payload,
+ *    or that screen cannot be built.
  *  - **The caps are CODE POINTS** (root CLAUDE.md Rule 20). Title 30,
  *    description 20, metadata 80, 20 rows a screen. `V8Catalog.clip` is the one
  *    measure; this module borrows it rather than growing a second.

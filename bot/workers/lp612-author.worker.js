@@ -1,5 +1,5 @@
 /**
- * FEAT-080 — the job that writes a 6-12 lesson nobody has asked for before.
+ * The job that writes a 6-12 lesson nobody has asked for before.
  *
  * Author -> render -> store -> deliver, in that order, for one
  * (segment, lang, template_version). It runs on the SQS worker rather than the

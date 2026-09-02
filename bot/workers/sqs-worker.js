@@ -403,7 +403,7 @@ class SQSCoachingWorker {
       }
 
       case 'lp612_author': {
-        // FEAT-080 — write a 6-12 lesson plan that has never been asked for
+        // Write a 6-12 lesson plan that has never been asked for
         // before, render it, cache it in R2 and send it.
         //
         // The longest job on this worker. The author call alone is 1-2.5 min and

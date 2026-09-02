@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * FEAT-080 — load the 6-12 segmentation corpus into the serving menu.
+ * Load the 6-12 segmentation corpus into the serving menu.
  *
  *   node bot/scripts/import-lp612-segments.js <dir-or-file> [--corpus-version v1] [--dry-run]
  *

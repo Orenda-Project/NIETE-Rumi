@@ -1,5 +1,5 @@
 /**
- * FEAT-080 — the flags and constants for runtime 6-12 lesson plans.
+ * The flags and constants for runtime 6-12 lesson plans.
  *
  * Two flags, deliberately not one.
  *

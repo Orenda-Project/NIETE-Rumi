@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * FEAT-080 — put the printed-page text where the runtime author can read it.
+ * Put the printed-page text where the runtime author can read it.
  *
  *   node bot/scripts/upload-lp612-page-truth.js <page-truth-root> \
  *        [--books a,b] [--include-figures] [--dry-run]

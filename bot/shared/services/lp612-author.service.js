@@ -1,0 +1,630 @@
+/**
+ * lp612-author.service — segment -> lp_doc (schema 3.0), through the v9 revision ladder.
+ *
+ * A PORT, not an invention. The control flow below is `lp_author/author_lp.py::author()` from
+ * the lesson-plan pipeline, rewritten in Node against this repo's LLM client. The vendored
+ * pieces it drives — the author brief, the two schemas, the canon lint — live in
+ * `bot/vendor/lp-v9/`; `bot/vendor/lp-v9/SYNC.md` is the record of what came from where and
+ * every deliberate divergence.
+ *
+ * THE SHAPE OF THE LADDER, and why each turn of it is here:
+ *
+ *   author -> gates -> clean? done : revise -> gates -> better? keep : reject, CONTINUE
+ *
+ *   • THE GATES RUN IN PROCESS. Schema first, and a schema failure SHORT-CIRCUITS: pedagogy
+ *     findings on a broken shape are not trustworthy, so the lint is not even asked. Then the
+ *     vendored `lint()` — the deterministic gate of record, no LLM, no judgement.
+ *   • THE JUDGE IS NOT HERE AT ALL. Upstream calls an advisory LLM judge; it is out of scope
+ *     for this lane and deliberately unported (SYNC.md §3.5). The consequence to know: upstream
+ *     can reject a revision round for a judge-score drop as well as a defect-count rise; this
+ *     ladder can only see the defect count.
+ *   • A BAD ROUND COSTS THE ROUND, NEVER THE LADDER. A candidate that comes back worse is
+ *     rejected and the climb CONTINUES from the document we kept. So does a round that fails to
+ *     parse after both attempts, and so does one that blows up in transport. One pilot exited
+ *     with four fixable defects and two unused rounds because a single unparseable reply ended
+ *     the whole climb.
+ *   • ONE CALL, ONE RETRY — on the revision call as well as the author call. That asymmetry is
+ *     exactly what cost that pilot its rounds.
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+const { logToFile } = require('../utils/logger');
+const { getClient } = require('./llm-client');
+const { fetchPages } = require('./lp612-pagetruth.service');
+const { clampLanguage } = require('../config/ux-strings');
+
+// Static, literal requires on purpose: the repo's unresolved-require audit reads the source
+// text, and a `require(path.join(...))` is invisible to it — which is how a vendored file that
+// stopped existing would reach production as a runtime crash instead of a red gate.
+const { lint } = require('../../vendor/lp-v9/lint_lp.js');
+const { validateDoc } = require('../../vendor/lp-v9/lib/validate.js');
+
+const BRIEF_PATH = path.join(__dirname, '..', '..', 'vendor', 'lp-v9', 'brief_author_v3.md');
+
+// The model is the CALLER's choice, defaulted from the environment so the worker and any
+// operator script agree without passing it around. Every call goes through llm-client
+// (OpenRouter) — never the pipeline's Python backend picker, never a direct vendor API.
+const DEFAULT_AUTHOR_MODEL = 'anthropic/claude-sonnet-5';
+const DEFAULT_ROUNDS = 3;
+const MAX_TOKENS = 24000;
+const TEMPERATURE = 0.2;
+const PAGE_TRUTH_MAX_CHARS = 90000;
+
+function resolveAuthorModel() {
+  return process.env.LP_AUTHOR_MODEL || DEFAULT_AUTHOR_MODEL;
+}
+
+function resolveRounds(explicit) {
+  if (Number.isInteger(explicit) && explicit >= 0) return explicit;
+  const env = parseInt(process.env.LP612_AUTHOR_ROUNDS, 10);
+  if (Number.isInteger(env) && env >= 0) return env;
+  return DEFAULT_ROUNDS;
+}
+
+let _brief = null;
+function authorBrief() {
+  if (_brief === null) _brief = fs.readFileSync(BRIEF_PATH, 'utf8');
+  return _brief;
+}
+
+function fail(code, message, extra = {}) {
+  const err = new Error(message);
+  err.code = code;
+  Object.assign(err, extra);
+  return err;
+}
+
+// ── JSON extraction ─────────────────────────────────────────────────────────
+//
+// Ported from `extract_json` / `repair_backslashes`. NOT ported: upstream's
+// `_literal_eval_object`, which rescues a reply that came back as a single-quoted PYTHON dict.
+// It is `ast.literal_eval` behind a round-trip guard and Node has no safe equivalent, so a
+// reply in that shape costs an attempt and then a round here. See SYNC.md §4.
+
+const VALID_ESCAPE = new Set(['"', '\\', '/', 'b', 'f', 'n', 'r', 't', 'u']);
+
+// LaTeX/mhchem commands beginning with a letter that is ALSO a legal JSON escape (\b \f \n \r
+// \t). Everything else after a backslash — \ce, \left, \sqrt, \alpha … — is already an illegal
+// escape and gets doubled unconditionally. This whitelist is why a real "line\nbreak" survives.
+const LATEX_AMBIG = [
+  'begin', 'bmatrix', 'binom', 'bar', 'boxed', 'bullet', 'because', 'bigg',
+  'frac', 'forall', 'fbox', 'frown',
+  'nabla', 'neq', 'ne', 'notin', 'nu', 'nonumber', 'newline',
+  'rho', 'rightarrow', 'right', 'rangle', 'rm',
+  'times', 'text', 'textbf', 'textit', 'to', 'theta', 'tau', 'therefore', 'tan',
+  'triangle', 'tfrac', 'top',
+];
+
+const isAlpha = (c) => /[A-Za-z]/.test(c);
+
+/**
+ * Double every backslash inside a string literal that is not a valid JSON escape.
+ *
+ * The failure this exists for is silent, not loud: `\f` is a LEGAL JSON escape, so
+ * `"\frac{1}{2}"` PARSES — into a form feed followed by "rac{1}{2}" — and the formula is gone
+ * with no error anywhere. Three revision passes were lost to that before the repair existed.
+ */
+function repairBackslashes(s) {
+  const out = [];
+  let inStr = false;
+  let i = 0;
+  while (i < s.length) {
+    const c = s[i];
+    if (!inStr) {
+      out.push(c);
+      if (c === '"') inStr = true;
+      i += 1;
+      continue;
+    }
+    if (c === '\\') {
+      const nxt = i + 1 < s.length ? s[i + 1] : '';
+      let keep = VALID_ESCAPE.has(nxt);
+      if (keep && 'bfnrt'.includes(nxt)) {
+        let run = '';
+        let k = i + 1;
+        while (k < s.length && isAlpha(s[k])) { run += s[k]; k += 1; }
+        if (LATEX_AMBIG.some((cmd) => run.startsWith(cmd))) keep = false;
+      }
+      if (keep) { out.push(c, nxt); i += 2; continue; }
+      out.push('\\\\');
+      i += 1;
+      continue;
+    }
+    out.push(c);
+    if (c === '"') inStr = false;
+    i += 1;
+  }
+  return out.join('');
+}
+
+/** @throws Error with .code 'UNPARSEABLE' */
+function extractJson(text) {
+  let t = String(text || '').trim();
+  if (t.startsWith('```')) {
+    t = t.replace(/^```[a-zA-Z]*\s*/, '').replace(/\s*```\s*$/, '');
+  }
+  // Repair BEFORE parsing — see repairBackslashes: a "successful" parse is the bad outcome.
+  t = repairBackslashes(t);
+  try {
+    return JSON.parse(t);
+  } catch (_) { /* fall through to the brace scan */ }
+
+  const start = t.indexOf('{');
+  if (start < 0) throw fail('UNPARSEABLE', 'no JSON object in model output');
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  for (let i = start; i < t.length; i++) {
+    const ch = t[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === '\\') esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') inStr = true;
+    else if (ch === '{') depth += 1;
+    else if (ch === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        try {
+          return JSON.parse(t.slice(start, i + 1));
+        } catch (e) {
+          throw fail('UNPARSEABLE', `JSON object in model output does not parse: ${e.message}`);
+        }
+      }
+    }
+  }
+  throw fail('UNPARSEABLE', 'unbalanced JSON in model output');
+}
+
+// ── the LLM call ────────────────────────────────────────────────────────────
+
+/**
+ * One completion. Returns { text, usage }.
+ *
+ * REASONING IS OFF, and the spelling is per ENDPOINT, not per vendor. This client speaks to
+ * OpenRouter, whose spelling is `reasoning: {enabled:false}`. Reasoning bills as completion
+ * tokens and, at max_tokens, truncates the JSON before it is closed — a judge call once burned
+ * all 5,999 of its budget on reasoning and returned `content: ""`.
+ *
+ * @throws Error with .code 'LLM_FAILED'
+ */
+async function callLlm({ system, user, model, correlationId, stage }) {
+  let res;
+  try {
+    res = await getClient().chat.completions.create({
+      model,
+      temperature: TEMPERATURE,
+      max_tokens: MAX_TOKENS,
+      reasoning: { enabled: false },
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+    });
+  } catch (e) {
+    throw fail('LLM_FAILED', `${stage}: LLM call failed — ${e.message}`, { cause: e });
+  }
+
+  const message = (res && res.choices && res.choices[0] && res.choices[0].message) || {};
+  const text = message.content || '';
+  if (!String(text).trim()) {
+    // An empty `content` beside `reasoning_content` is a NAMED failure, not a "no JSON" death
+    // four layers later beside a 0-byte artefact. The message says which it was and how much
+    // of the budget went on reasoning.
+    const reasoning = message.reasoning_content || message.reasoning;
+    const spent = (res && res.usage && res.usage.completion_tokens) || 0;
+    if (reasoning) {
+      throw fail('LLM_FAILED',
+        `${stage}: the model returned empty content with reasoning_content present — ` +
+        `${spent} completion tokens went on reasoning. Reasoning must be disabled for this endpoint.`);
+    }
+    throw fail('LLM_FAILED', `${stage}: the model returned empty content`);
+  }
+
+  logToFile('lp612 author LLM call', {
+    correlationId, stage, model,
+    chars: String(text).length,
+    usage: res.usage || null,
+  });
+
+  return { text: String(text), usage: (res && res.usage) || {} };
+}
+
+/**
+ * One call, ONE retry when the reply carries no JSON. The raw text of each attempt is logged
+ * (upstream keeps `<stem>.raw.txt` beside the doc; a worker has no such directory) so a failure
+ * explains itself without paying for the call again.
+ *
+ * @throws Error with .code 'UNPARSEABLE' | 'LLM_FAILED' — the CALLER decides what that costs,
+ *         and for a revision round the answer is: that round, never the ladder.
+ */
+async function callWithRetry({ system, user, model, correlationId, stage, usageSink }) {
+  let lastErr = null;
+  for (const attempt of [1, 2]) {
+    try {
+      const { text, usage } = await callLlm({ system, user, model, correlationId, stage: `${stage}.a${attempt}` });
+      usageSink(usage);
+      try {
+        return extractJson(text);
+      } catch (e) {
+        lastErr = e;
+        logToFile('lp612 author: reply carried no JSON', {
+          correlationId, stage, attempt, error: e.message,
+          raw: String(text).slice(0, 4000),
+        }, 'warn');
+      }
+    } catch (e) {
+      lastErr = e;
+      logToFile('lp612 author: LLM call failed', { correlationId, stage, attempt, error: e.message }, 'warn');
+    }
+  }
+  throw lastErr;
+}
+
+// ── the prompt ──────────────────────────────────────────────────────────────
+
+/** Page-truth as compact, ordered, readable text — cheaper and clearer than raw JSON. */
+function compactPageTruth(pages, maxChars = PAGE_TRUTH_MAX_CHARS) {
+  const lines = [];
+  const j = (o) => JSON.stringify(o);
+  for (const pg of pages) {
+    lines.push(`\n===== PRINTED PAGE ${pg.printed_page_number} (pdf ${pg.pdf_page_index}, ${pg.page_type}) =====`);
+    for (const b of pg.blocks || []) {
+      switch (b.t) {
+        case 'heading': lines.push(`[HEADING] ${b.text}`); break;
+        case 'prose': lines.push(`[PROSE] ${b.text}`); break;
+        case 'list':
+          lines.push(`[LIST] ${b.title || ''}`);
+          for (const it of b.items || []) lines.push(`  - ${it}`);
+          break;
+        case 'note': lines.push(`[NOTE] ${b.text}`); break;
+        case 'worked': lines.push(`[WORKED EXAMPLE] ${j(b)}`); break;
+        case 'table':
+          lines.push(`[TABLE] ${b.caption || ''}`);
+          if ((b.columns || []).length) lines.push('  cols: ' + b.columns.join(' | '));
+          for (const row of (b.rows || []).slice(0, 25)) lines.push('  ' + row.join(' | '));
+          break;
+        case 'illus':
+          // `decoration` is the page-truth's own marker for a border, a mascot, a rule — a
+          // figure with nothing to teach. Upstream drops those; so do we.
+          if (b.role === 'decoration' || b.decoration) break;
+          lines.push(`[FIGURE] ${b.desc}`);
+          if (b.text_in_image) lines.push(`  labels in figure: ${b.text_in_image}`);
+          if (b.role) lines.push(`  role: ${b.role}`);
+          break;
+        case 'formula': lines.push(`[FORMULA] ${j(b)}`); break;
+        case 'mcq': lines.push(`[MCQ IN BOOK] ${j(b)}`); break;
+        case 'cols2': lines.push(`[TWO-COLUMN] ${j(b)}`); break;
+        case 'dua': lines.push(`[DUA — reproduce exactly, never alter] ${b.text}`); break;
+        default: lines.push(`[${String(b.t).toUpperCase()}] ${j(b)}`);
+      }
+    }
+  }
+  const out = lines.join('\n');
+  return out.length <= maxChars ? out : `${out.slice(0, maxChars)}\n…[truncated]`;
+}
+
+/**
+ * `--lang` states the language of instruction, BUT THE BOOK'S OWN MEDIUM ALWAYS WINS. An
+ * Urdu-medium book is authored in Urdu whatever the caller asks for — self-translation is
+ * banned — and a request for Urdu against an English-medium book authors in English and leaves
+ * the toggle to a separate pass over the finished document.
+ */
+function languageDirective(want, medium) {
+  if (want === 'ur' && medium !== 'ur') {
+    return 'The teacher asked for URDU. This is an English-medium book, so author the lp_doc in ' +
+      'ENGLISH exactly as §7 requires — the Urdu toggle is built by a separate pass over the ' +
+      'finished document. Do NOT emit ur_overlay yourself.';
+  }
+  if (want === 'en' && medium === 'ur') {
+    return 'The teacher asked for ENGLISH, but this is an URDU-MEDIUM book: author the whole ' +
+      'lp_doc in Urdu (§7). The book\'s language of instruction wins; a self-translated Urdu ' +
+      'lesson in English is law L1d\'s exact failure.';
+  }
+  return `Author in the book's own medium: ${medium}.`;
+}
+
+/** Printed learning outcomes the page-truth found, for the verbatim SLO quote. */
+function printedOutcomes(pages) {
+  const hits = [];
+  const RE = /(learning outcomes?|students will be able to|by the end of this|سیکھنے کے نتائج|طلبہ اس قابل)/i;
+  for (const pg of pages) {
+    for (const b of pg.blocks || []) {
+      const text = b.text || b.title || '';
+      const items = (b.items || []).join(' ');
+      if (RE.test(`${text} ${items}`)) {
+        hits.push({ printed_page: pg.printed_page_number, text: `${text} ${items}`.trim().slice(0, 1400) });
+      }
+    }
+  }
+  return hits;
+}
+
+function buildUserPrompt({ segment, bundle, lang, video }) {
+  const book = bundle.book || {};
+  const medium = book.medium || segment.medium || 'en';
+  const outcomes = printedOutcomes(bundle.pages);
+  const ocTxt = outcomes.length
+    ? outcomes.map((o) => `- (p.${o.printed_page}) ${o.text}`).join('\n')
+    : '(none printed on these pages — author the objective from the SLO below and say so)';
+
+  const videoTxt = video
+    ? `A curated video has ALREADY been chosen for this lesson and is inserted mechanically after ` +
+      `you answer. Put NO "video" key in your output — whatever you write there is discarded.\n` +
+      `  url: ${video.url}\n  title: ${video.title}`
+    : 'No video is available for this lesson. Emit NO "video" key — an unvalidated link must ' +
+      'never reach a teacher, so anything you write there is discarded.';
+
+  return `# LESSON TO AUTHOR
+
+## LANGUAGE
+${languageDirective(lang, medium)}
+
+lesson_id: ${segment.segment_id}
+book_stem: ${segment.book_stem}  ·  ${book.title || ''}
+grade: ${book.grade != null ? book.grade : segment.grade}  ·  subject: ${book.subject || segment.subject}  ·  medium: ${book.language || segment.language} (${medium})
+chapter: ${segment.chapter_number != null ? `${segment.chapter_number} — ${segment.chapter_title || ''}` : '(none)'}
+section: ${segment.section_ref || '(none)'}
+topic: ${segment.subtopic_title || segment.menu_title || segment.chapter_title || ''}
+printed pages: ${bundle.pages.map((p) => p.printed_page_number).join(', ')}   (pdf offset ${book.offset})
+period: ${segment.period_minutes || 40} minutes
+suggested lp_type: ${segment.lp_type || '(unset)'}  — confirm or override, and say why
+skill type: ${segment.skill_type || '(unset)'}  ·  day ${segment.day_number != null ? segment.day_number : '(unset)'} of the chapter
+where this sits: previous ${segment.prev_segment_id || '(none)'} · next ${segment.next_segment_id || '(none)'}
+
+## THE SLO THIS SEGMENT CARRIES (quote it verbatim into slo.text_verbatim)
+${segment.slo_text || '(none recorded on the segment — take one verbatim from the page-truth below)'}
+
+## SEGMENT NOTES (operator/reviewer instructions — obey these over your own instincts)
+${segment.notes || '(none)'}
+
+## VIDEO
+${videoTxt}
+
+## PRINTED LEARNING OUTCOMES found in the page-truth
+${ocTxt}
+
+## PAGE-TRUTH — the printed pages, block by block. Everything you write must trace to this.
+${compactPageTruth(bundle.pages)}
+
+---
+Return ONE JSON object conforming to lp_doc schema_version 3.0. No prose, no markdown fence.
+`;
+}
+
+const REVISION_PREAMBLE =
+  'Your previous lp_doc is below, followed by every defect found by the schema validator and ' +
+  'the deterministic lint.\n\n' +
+  'Return the COMPLETE corrected lp_doc JSON — the whole document, not a patch, not a diff. ' +
+  'Fix EVERY listed defect, including every word-budget line: when a budget says CUT N words, ' +
+  'actually delete that much text from that section rather than rewording it, and OVERSHOOT the ' +
+  'cut by about 10% — word counters differ slightly, and landing even a few words over a ceiling ' +
+  'costs another full revision round. Change nothing else. Keep every fact traceable to the same ' +
+  'page-truth.\n\n';
+
+function buildRevisionPrompt({ doc, gates, originalUser, notes }) {
+  return REVISION_PREAMBLE +
+    (notes ? `=== THE OPERATOR'S NAMED DEFECTS — THESE OUTRANK EVERYTHING BELOW ===\n${notes}\n\n` : '') +
+    '=== PREVIOUS lp_doc ===\n' + JSON.stringify(doc, null, 1) +
+    '\n\n=== SCHEMA ERRORS ===\n' + (gates.schema.join('\n') || '(none)') +
+    '\n\n=== LINT ERRORS ===\n' + (gates.lint.join('\n') || '(none)') +
+    '\n\n=== LINT WARNINGS ===\n' + (gates.warns.join('\n') || '(none)') +
+    '\n\n=== THE ORIGINAL TASK (same page-truth, unchanged) ===\n' + originalUser;
+}
+
+// ── the video slot ──────────────────────────────────────────────────────────
+
+/**
+ * The segment's `yt` is the authority for the development section's video slot, and the ONLY
+ * one. The brief asks the model for a video because upstream had an agent picking and
+ * live-validating one; here the link is curated data on the segment, so it is written in
+ * mechanically and anything the model invented is DELETED.
+ *
+ * Why delete rather than leave: a model-authored YouTube URL is unvalidated by construction, and
+ * an unvalidated link on a lesson plan is a teacher standing in front of a class with a dead
+ * video or someone else's content. This is the routing rule the pipeline states for itself —
+ * anything mechanically decidable is repaired mechanically, and nothing judgement-shaped ever
+ * is. A key is mechanical.
+ */
+function parseYt(yt) {
+  if (!yt) return null;
+  let v = yt;
+  if (typeof v === 'string') {
+    try { v = JSON.parse(v); } catch (_) { return null; }
+  }
+  if (!v || typeof v !== 'object') return null;
+  const url = typeof v.url === 'string' ? v.url.trim() : '';
+  const title = typeof v.title === 'string' ? v.title.trim() : '';
+  if (!/^https?:\/\//.test(url) || title.length < 3) return null;
+  const out = { url, title };
+  for (const k of ['channel', 'duration', 'why', 'checked_at']) {
+    if (typeof v[k] === 'string' && v[k].trim()) out[k] = v[k].trim();
+  }
+  return out;
+}
+
+function applyVideo(doc, video) {
+  if (!doc || !Array.isArray(doc.sections)) return doc;
+  for (const s of doc.sections) {
+    if (s && s.id === 'development') {
+      if (video) s.video = { ...video };
+      else delete s.video;
+    } else if (s && s.video) {
+      // The schema says DEVELOPMENT ONLY. A video parked on the activity section would be a
+      // schema failure the author then burns a round on; drop it here instead.
+      delete s.video;
+    }
+  }
+  return doc;
+}
+
+// ── the gates ───────────────────────────────────────────────────────────────
+
+/**
+ * Schema, then the vendored canon lint — both IN PROCESS, neither writing a file.
+ *
+ * A schema failure SHORT-CIRCUITS, exactly as `lint()` does internally: findings about pedagogy
+ * on a document with a broken shape are not trustworthy, and half of them would be crashes.
+ */
+function runGates(doc) {
+  const v = validateDoc(doc);
+  // The `SCHEMA:` prefix is the lint's own vocabulary for the same finding — worth matching so
+  // a caller (and the revision prompt) reads one consistent list of coded defects.
+  if (!v.ok) return { schema: v.errors.map((e) => `SCHEMA: ${e}`), lint: [], warns: [] };
+  // `docPath` is unused by lint() — it takes it for its CLI's sake. Nothing here writes.
+  const r = lint(doc, null, {});
+  return {
+    schema: [],
+    lint: r.fails.slice(),
+    warns: r.warns.slice(),
+  };
+}
+
+const gateCost = (g) => g.schema.length + g.lint.length;
+const gateFails = (g) => [...g.schema, ...g.lint];
+
+// ── the ladder ──────────────────────────────────────────────────────────────
+
+/**
+ * @param {object} args
+ * @param {object} args.segment  a niete_lp612_segments row (snake_case, as in the segmentation contract)
+ * @param {'en'|'ur'} [args.lang]
+ * @param {string} [args.model]  OpenRouter model id; defaults to resolveAuthorModel()
+ * @param {number} [args.rounds] max revision rounds; defaults to LP612_AUTHOR_ROUNDS or 3
+ * @param {string} [args.correlationId]
+ * @returns {Promise<{lpDoc:object, lintClean:boolean, fails:string[], warns:string[],
+ *                    rounds:number, model:string, usage:object}>}
+ * @throws Error with .code in {'AUTHOR_LLM_FAILED','AUTHOR_UNPARSEABLE','PAGE_TRUTH_MISSING'}
+ */
+async function authorLessonPlan({ segment, lang, model, rounds, correlationId } = {}) {
+  if (!segment || !segment.book_stem) {
+    throw fail('AUTHOR_LLM_FAILED', 'authorLessonPlan needs a segment with a book_stem');
+  }
+
+  const chosenModel = model || resolveAuthorModel();
+  const maxRounds = resolveRounds(rounds);
+  // clampLanguage, not an inline `=== 'ur' ? 'ur' : 'en'`. That inline form was
+  // written 23 separate times in this codebase before it was collapsed into one
+  // function, and a conformance guard now fails the build on the 24th. It also
+  // does the right thing here for free: an unoffered `lang` falls to the floor
+  // rather than being keyed into an R2 cache path as junk.
+  const language = clampLanguage(lang || segment.medium);
+
+  // PAGE_TRUTH_MISSING propagates untouched — a lesson we cannot ground is not a lesson we
+  // spend a model call on.
+  const bundle = await fetchPages({
+    bookStem: segment.book_stem,
+    pages: segment.pages_covered && segment.pages_covered.length
+      ? segment.pages_covered
+      : rangeOf(segment.printed_page_start, segment.printed_page_end),
+    correlationId,
+  });
+
+  const video = parseYt(segment.yt);
+  const system = authorBrief();
+  const user = buildUserPrompt({ segment, bundle, lang: language, video });
+
+  const usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, calls: 0 };
+  const addUsage = (u) => {
+    usage.calls += 1;
+    usage.prompt_tokens += (u && u.prompt_tokens) || 0;
+    usage.completion_tokens += (u && u.completion_tokens) || 0;
+    usage.total_tokens += (u && u.total_tokens) || 0;
+  };
+
+  let doc;
+  try {
+    doc = await callWithRetry({
+      system, user, model: chosenModel, correlationId, stage: 'author', usageSink: addUsage,
+    });
+  } catch (e) {
+    throw fail(
+      e.code === 'UNPARSEABLE' ? 'AUTHOR_UNPARSEABLE' : 'AUTHOR_LLM_FAILED',
+      `authoring ${segment.segment_id || segment.book_stem} failed: ${e.message}`,
+      { cause: e }
+    );
+  }
+  applyVideo(doc, video);
+
+  let gates = runGates(doc);
+  let spent = 0;
+
+  for (let rnd = 0; rnd < maxRounds; rnd++) {
+    if (gateCost(gates) === 0) break;
+    spent = rnd + 1;
+    logToFile('lp612 author revision round', {
+      correlationId, segmentId: segment.segment_id, round: spent, of: maxRounds,
+      defects: gateCost(gates),
+    });
+
+    const fixUser = buildRevisionPrompt({ doc, gates, originalUser: user, notes: segment.notes });
+    let candidate;
+    try {
+      candidate = await callWithRetry({
+        system, user: fixUser, model: chosenModel, correlationId,
+        stage: `revision${spent}`, usageSink: addUsage,
+      });
+    } catch (e) {
+      // BOTH attempts unusable, or the transport blew up. That costs THIS ROUND, never the
+      // ladder: the next round starts from the document we kept, with the same defect list.
+      logToFile('lp612 author revision unusable — kept previous, continuing', {
+        correlationId, segmentId: segment.segment_id, round: spent, error: e.message,
+      }, 'warn');
+      continue;
+    }
+
+    applyVideo(candidate, video);
+    const g2 = runGates(candidate);
+    if (gateCost(g2) <= gateCost(gates)) {
+      doc = candidate;
+      gates = g2;
+    } else {
+      // Upstream keeps the rejected candidate on disk — "was worse" with no numbers and no
+      // artefact is unreviewable. A worker has nowhere to put it, so the numbers go to the log
+      // and the document itself is dropped. Then CONTINUE, not break.
+      logToFile('lp612 author revision was worse — kept previous, continuing', {
+        correlationId, segmentId: segment.segment_id, round: spent,
+        defectsCandidate: gateCost(g2), defectsKept: gateCost(gates),
+        candidateFails: gateFails(g2).slice(0, 10),
+      }, 'warn');
+    }
+  }
+
+  const fails = gateFails(gates);
+  logToFile('lp612 author finished', {
+    correlationId, segmentId: segment.segment_id, model: chosenModel,
+    rounds: spent, lintClean: fails.length === 0, fails: fails.slice(0, 10), usage,
+  });
+
+  return {
+    lpDoc: doc,
+    lintClean: fails.length === 0,
+    fails,
+    warns: gates.warns,
+    rounds: spent,
+    model: chosenModel,
+    usage,
+  };
+}
+
+/** printed_page_start..printed_page_end, inclusive — the fallback when pages_covered is empty. */
+function rangeOf(start, end) {
+  if (!Number.isInteger(start)) return [];
+  const last = Number.isInteger(end) ? end : start;
+  const out = [];
+  for (let n = start; n <= last; n++) out.push(n);
+  return out;
+}
+
+module.exports = {
+  authorLessonPlan,
+  resolveAuthorModel,
+  // exported for the suite and for anyone porting a fix back upstream
+  extractJson,
+  repairBackslashes,
+  parseYt,
+};

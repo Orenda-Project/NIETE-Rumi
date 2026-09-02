@@ -141,7 +141,7 @@ async function handlePakistanLpDataExchange(flowToken, screen, screenData) {
   if (step === 'lesson')      return selectLesson(flowToken, d);
   if (step === 'lesson_page') return selectLessonPage(flowToken, d);
 
-  // FEAT-080 — the 6-12 runtime lane. Its own step names rather than a shared
+  // The 6-12 runtime lane. Its own step names rather than a shared
   // one, for the reason the file header already gives about id prefixes: two
   // corpora behind one Flow stay unambiguous only if the routing says which.
   //
@@ -168,7 +168,7 @@ async function handlePakistanLpDataExchange(flowToken, screen, screenData) {
 // Static 1..10 grade dropdown — surface all grades even where the DB is
 // still empty; the subject screen shows a friendly message if no LPs exist.
 async function openGradePicker() {
-  // FEAT-080 — grades 11 and 12 do not exist on this picker today. They appear
+  // Grades 11 and 12 do not exist on this picker today. They appear
   // only when the flag is on AND the 6-12 corpus actually holds segments for
   // them, because unlike 1-10 there is no fallback corpus behind them: an empty
   // grade 12 row would be a dead end, not a "check back soon".
@@ -225,7 +225,7 @@ async function selectGrade(screenData) {
     logToFile('Pakistan LP: no v8 assets for grade — falling back to pre_generated_lps', { grade });
   }
 
-  // ── FEAT-080 6-12 corpus, with OXBRIDGE as the fallback ──────────────────
+  // ── the 6-12 corpus, with OXBRIDGE as the fallback ───────────────────────
   // Same shape of decision as v8-over-legacy above, and for the same reason:
   // 70 Oxbridge LPs are live for grades 6-10 today, and this lane must not take
   // them away from a grade whose books the segmentation fleet has not finished.
@@ -645,7 +645,7 @@ function deliverPakistanLpAsync(flowToken, row) {
   })();
 }
 
-// ─── FEAT-080: the 6-12 runtime lane ────────────────────────────────────
+// ─── the 6-12 runtime lane ──────────────────────────────────────────────
 //
 // Same three selection screens as the K-5 lane, bound to the same Flow, reading
 // niete_lp612_segments instead of a static catalogue. The difference is the last

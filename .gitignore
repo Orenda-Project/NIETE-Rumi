@@ -148,3 +148,7 @@ bot/scripts/setup/assets/backups/
 .data-standards-last-report.json
 .data-standards-bypass-log.jsonl
 .data-standards-governance-events.jsonl
+
+# Cleaned raster figure cache written by the vendored LP renderer at render time.
+# Derived output, regenerated on demand — never source.
+bot/vendor/lp-v9/.figcache/

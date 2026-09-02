@@ -4891,7 +4891,7 @@ COMMENT ON COLUMN schools.is_active IS
   'Soft delete. School search reads WHERE is_active IS NOT FALSE.';
 
 -- ---------------------------------------------------------------------------
--- FEAT-080 6-12 runtime lesson plans (V1.2.8).
+-- 6-12 runtime lesson plans (V1.2.8).
 --
 -- niete_lp612_segments is the menu tree: one row per teaching day, produced by
 -- the segmentation fleet and loaded idempotently by
