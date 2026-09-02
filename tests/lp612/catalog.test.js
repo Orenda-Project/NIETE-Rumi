@@ -31,7 +31,20 @@ function mockBuilder(table) {
     limit: () => b,
     then: (res, rej) => {
       mockDbCalls.push({ ...state });
-      return Promise.resolve({ data: mockRows, error: null }).then(res, rej);
+      // Apply the eq() filters the service actually sets, so the fake behaves
+      // like a table rather than like a bag of rows. It filters ONLY on columns
+      // the fixture defines: a row that does not model `is_current` is not
+      // claiming to be non-current, and filtering it out would just make every
+      // test here depend on fixture bookkeeping.
+      //
+      // This matters beyond tidiness. While the filters were ignored, a query
+      // narrowed to one grade returned rows of every grade — so a bounded
+      // per-grade read looked identical to an unbounded scan, and the suite
+      // could not have told the two apart.
+      const rows = mockRows.filter((r) => state.filters.every(
+        ([c, v]) => r[c] === undefined || r[c] === v,
+      ));
+      return Promise.resolve({ data: rows, error: null }).then(res, rej);
     },
   };
   return b;
@@ -215,7 +228,9 @@ describe('menu shape', () => {
   test('segmentById does NOT silently apply the religious hold — the caller decides', async () => {
     // Serving must be able to LOAD a held segment in order to refuse it with a
     // real message. A filter here would turn the refusal into "not found".
-    mockRows = [seg({ is_religious: true })];
+    // The id must match what is looked up: the fake now applies eq() filters,
+    // so a fixture whose segment_id is not the one requested is correctly a miss.
+    mockRows = [seg({ is_religious: true, segment_id: 'x' })];
     const row = await Catalog.segmentById('x');
     expect(row.is_religious).toBe(true);
     expect(mockDbCalls[0].filters.map(([c]) => c)).not.toContain('is_religious');
