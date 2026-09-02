@@ -33,6 +33,17 @@ class ElevenLabsService {
    * @private
    */
   static async _postTts(url, body) {
+    // Staging-only record/replay of the synthesized audio (E2E_CASSETTE) — the axios response is
+    // reduced to {data, status, headers} with the audio as base64 so it survives JSON.
+    const cassette = require('./e2e-cassette');
+    if (cassette.mode() === 'off') return this._postTtsLive(url, body);
+    return cassette.wrap('tts', { url, body }, () => this._postTtsLive(url, body), {
+      serialize: r => ({ status: r.status, headers: { 'content-type': r.headers && r.headers['content-type'] }, b64: Buffer.from(r.data).toString('base64') }),
+      deserialize: s => ({ status: s.status, headers: s.headers || {}, data: Buffer.from(s.b64, 'base64') }),
+    });
+  }
+
+  static async _postTtsLive(url, body) {
     const post = (key) => axios.post(url, body, {
       headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
       responseType: 'arraybuffer',

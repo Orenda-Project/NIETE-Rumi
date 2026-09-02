@@ -66,6 +66,10 @@ function createLLMClient() {
 function getClient() {
   if (!_client) {
     _client = createLLMClient();
+    // Staging-only record/replay of every non-streaming completion (E2E_CASSETTE=replay|record).
+    // Off by default and forced off against the production DB — see e2e-cassette.js.
+    const cassette = require('./e2e-cassette');
+    if (cassette.mode() !== 'off') cassette.wrapChatCompletions(_client);
   }
   return _client;
 }
