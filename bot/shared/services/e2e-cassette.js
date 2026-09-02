@@ -53,6 +53,25 @@ function stable(v) {
 function sha256(x) { return crypto.createHash('sha256').update(x).digest('hex'); }
 function keyFor(kind, keyParts) { return `${kind}-${sha256(stable(keyParts))}`; }
 
+/** Blank per-run tokens inside string leaves so the key follows the request's SUBSTANCE.
+ *  The 2026-09-02 record run stored the same reflective-question call twice: the prompt carried a
+ *  session UUID and timestamps. UUIDs, ISO timestamps, bare dates and clock times are replaced with
+ *  fixed placeholders; everything else (model, roles, transcript, instructions) is untouched. */
+const VOLATILE = [
+  [/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '<uuid>'],
+  [/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?/g, '<iso>'],
+  [/\b\d{4}-\d{2}-\d{2}\b/g, '<date>'],
+  [/\b\d{1,2}:\d{2}(?::\d{2})?\s?(?:AM|PM|am|pm)?\b/g, '<time>'],
+];
+function normaliseForKey(v) {
+  if (typeof v === 'string') return VOLATILE.reduce((acc, [re, rep]) => acc.replace(re, rep), v);
+  if (Array.isArray(v)) return v.map(normaliseForKey);
+  if (v && typeof v === 'object' && !Buffer.isBuffer(v)) {
+    const out = {}; for (const k of Object.keys(v)) out[k] = normaliseForKey(v[k]); return out;
+  }
+  return v;
+}
+
 function dir() {
   return process.env.E2E_CASSETTE_DIR || path.join(__dirname, '..', '..', 'temp', 'e2e-cassettes');
 }
@@ -99,6 +118,14 @@ async function writeR2(key, record) {
   } catch (e) { _log('⚠️ e2e-cassette: R2 mirror write failed (local copy kept)', { key, error: e.message }); }
 }
 
+/** What of the request is kept in the record so a MISS can be diagnosed (why did the key change?).
+ *  Long strings are truncated; nothing secret lives in these params (keys are headers, not body). */
+function requestForRecord(keyParts) {
+  const trim = v => typeof v === 'string' && v.length > 4000 ? v.slice(0, 4000) + `…(+${v.length - 4000})` : v;
+  const walk = v => Array.isArray(v) ? v.map(walk) : (v && typeof v === 'object' && !Buffer.isBuffer(v)) ? Object.fromEntries(Object.keys(v).map(k => [k, walk(v[k])])) : trim(v);
+  try { return walk(keyParts); } catch (_) { return null; }
+}
+
 // ── the one primitive ────────────────────────────────────────────────────────
 /**
  * Run `fn` through the cassette.
@@ -126,7 +153,7 @@ async function wrap(kind, keyParts, fn, opts = {}) {
 
   const t0 = Date.now();
   const value = await fn();                       // a throw propagates; nothing is stored
-  const record = { kind, key, recordedAt: new Date().toISOString(), liveMs: Date.now() - t0, value: ser(value) };
+  const record = { kind, key, recordedAt: new Date().toISOString(), liveMs: Date.now() - t0, request: requestForRecord(keyParts), value: ser(value) };
   try { writeLocal(key, record); } catch (e) { _log('⚠️ e2e-cassette: local write failed', { key, error: e.message }); }
   await writeR2(key, record);
   return value;
@@ -137,7 +164,7 @@ function wrapChatCompletions(client) {
   const original = client.chat.completions.create.bind(client.chat.completions);
   client.chat.completions.create = (params, options) => {
     if (!params || params.stream) return original(params, options);
-    return wrap('llm', params, () => original(params, options));
+    return wrap('llm', normaliseForKey(params), () => original(params, options));
   };
   return client;
 }
@@ -161,7 +188,7 @@ async function wrapBuffer(kind, keyParts, fn) {
   const t0 = Date.now();
   const buf = await fn();
   if (buf == null || !Buffer.isBuffer(buf) || buf.length === 0) return buf;
-  const record = { kind, key, recordedAt: new Date().toISOString(), liveMs: Date.now() - t0, b64: buf.toString('base64') };
+  const record = { kind, key, recordedAt: new Date().toISOString(), liveMs: Date.now() - t0, request: requestForRecord(keyParts), b64: buf.toString('base64') };
   try { writeLocal(key, record); } catch (e) { _log('⚠️ e2e-cassette: local write failed', { key, error: e.message }); }
   await writeR2(key, record);
   return buf;
@@ -174,4 +201,4 @@ function audioKey(audioPath, extra) {
   return { fileSha, ...extra };
 }
 
-module.exports = { mode, keyFor, wrap, wrapBuffer, wrapChatCompletions, audioKey, stable, sha256, dir, PROD_PROJECT_REFS };
+module.exports = { mode, keyFor, wrap, wrapBuffer, wrapChatCompletions, audioKey, normaliseForKey, requestForRecord, stable, sha256, dir, PROD_PROJECT_REFS };
