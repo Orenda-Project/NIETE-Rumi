@@ -56,11 +56,11 @@ function safeDetail(err) {
     .slice(0, 500);
 }
 
-function fileName({ grade, subject, chapterTitle, format }) {
+function fileName({ grade, subject, chapterTitle, format, suffix = '' }) {
   const label = (SUBJECT_LABEL[subject] || subject || 'Subject').replace(/[^A-Za-z0-9]/g, '');
   const chapter = chapterTitle
     ? `_${String(chapterTitle).replace(/[^A-Za-z0-9]+/g, '').slice(0, 24)}` : '';
-  return `Grade${grade}_${label}${chapter}.${format}`;
+  return `Grade${grade}_${label}${chapter}${suffix}.${format}`;
 }
 
 async function _patchPaper(paperId, patch) {
@@ -78,7 +78,7 @@ async function _patchPaper(paperId, patch) {
 async function process(job) {
   const {
     userId, requestId, grade, subject, chapterNumber, pageRanges,
-    questionTypes = [], contentSource = 'unseen',
+    questionTypes = [], contentSource = 'unseen', questionCount,
     outputFormat = 'pdf', includeAnswerKey = false, answerLines = true,
   } = job;
 
@@ -117,7 +117,7 @@ async function process(job) {
       grade, subject,
       pageContent: source.content,
       pageReference: source.pageReference,
-      contentSource, questionTypes, includeAnswerKey,
+      contentSource, questionCount, questionTypes, includeAnswerKey,
     });
 
     await _patchPaper(paperId, {
@@ -129,13 +129,15 @@ async function process(job) {
       output_tokens: generated.tokenData?.outputTokens,
     });
 
+    // The paper never carries the answers; the key, if she asked for one, is a
+    // second document sent after it (bd-60015).
     const html = Renderer.renderPaper({
       examJson: generated.examJson,
       grade, subject,
       schoolName: user.school_name || null,
       pageReference: source.pageReference,
       chapterTitle: source.chapterTitle || null,
-      includeAnswerKey, answerLines,
+      answerLines,
     });
 
     let buffer;
@@ -188,10 +190,36 @@ async function process(job) {
       ready_at: new Date().toISOString(),
     });
 
+    // The paper is hers now. Whatever happens to the key from here is logged,
+    // never allowed to turn a delivered paper into a "failed" message.
+    let answerKeySent = null;
+    if (includeAnswerKey) {
+      answerKeySent = false;
+      try {
+        const keyHtml = Renderer.renderAnswerKey({
+          examJson: generated.examJson, grade, subject,
+          schoolName: user.school_name || null,
+          pageReference: source.pageReference, chapterTitle: source.chapterTitle || null,
+        });
+        const keyBuffer = await htmlToPdf(keyHtml, { timeout: 60000 });
+        const keyName = fileName({ grade, subject, chapterTitle: source.chapterTitle, format: outputFormat, suffix: '_AnswerKey' });
+        const keyKey = await r2.uploadExamBuffer({
+          buffer: keyBuffer, userId, examId: paperId || requestId, filename: keyName,
+        });
+        const keyUrl = await r2.getPresignedUrl(r2.buildR2PublicUrl(keyKey), 3600);
+        answerKeySent = !!(await WhatsAppService.sendDocumentByLink(
+          phone, keyUrl, keyName, `Answer key · ${caption}`));
+        logToFile(answerKeySent ? '[assessment] answer key delivered' : '[assessment] answer key send returned falsy',
+          { userId, requestId, paperId, key: keyKey });
+      } catch (err) {
+        logToFile('[assessment] answer key failed', { userId, requestId, paperId, error: err.message });
+      }
+    }
+
     logToFile('[assessment] delivered', {
-      userId, requestId, paperId, questions: generated.questionCount, key,
+      userId, requestId, paperId, questions: generated.questionCount, key, answerKeySent,
     });
-    return { status: 'ready', paperId, key, questionCount: generated.questionCount };
+    return { status: 'ready', paperId, key, questionCount: generated.questionCount, answerKeySent };
   } catch (err) {
     const code = err.code || 'UNKNOWN';
     logToFile('[assessment] failed', { userId, requestId, paperId, code, error: err.message });

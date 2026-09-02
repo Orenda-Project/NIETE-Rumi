@@ -111,4 +111,16 @@ describe('a chapter choice records the pages it covers', () => {
     expect(mockQueueJob).toHaveBeenCalledWith('u1', 'assessment_generate',
       expect.objectContaining({ chapterNumber: 3, pageRanges: '28-40' }));
   });
+
+  test('the queued job carries the question count, so the limit can govern the whole paper (bd-60015)', async () => {
+    const { _internal } = require('../../bot/shared/routes/assessment-gen-endpoint');
+    await _internal.submit({
+      userId: 'u1', grade: 1, subject: 'english',
+      chapterNumber: 1, chapterTitle: 'Hello World!', pageRanges: null,
+      questionCount: 10, contentSource: 'both',
+      outputFormat: 'pdf', answerLines: true, answerKey: true,
+    });
+    expect(mockQueueJob).toHaveBeenCalledWith('u1', 'assessment_generate',
+      expect.objectContaining({ questionCount: 10, contentSource: 'both', includeAnswerKey: true }));
+  });
 });

@@ -182,8 +182,20 @@ describe('generateExam', () => {
         subjective: { 'Long Question': { 'Essay Writing': [{ question: 'd' }, { question: 'e' }] } },
       },
     }));
-    const out = await Gen.generateExam(BASE);
+    // A mixed request whose seen cap (5) is above the two seen questions here,
+    // so nothing is trimmed and the count is the whole tree.
+    const out = await Gen.generateExam({ ...BASE, contentSource: 'both', questionCount: 10 });
     expect(out.questionCount).toBe(5);
+  });
+
+  it('drops seen questions the model adds to an unseen-only paper', async () => {
+    mockCreate.mockResolvedValue(reply({
+      seen: { objective: { MCQs: [{ question: 'a' }, { question: 'b' }] } },
+      unseen: { objective: { 'True/False': [{ question: 'c' }] } },
+    }));
+    const out = await Gen.generateExam(BASE);
+    expect(out.questionCount).toBe(1);
+    expect(out.trimmed).toEqual({ seen: 2 });
   });
 
   it('strips image keys — image generation is not part of this', async () => {
@@ -236,5 +248,74 @@ describe('generateExam', () => {
   it('surfaces a model outage as its own code, not as bad output', async () => {
     mockCreate.mockRejectedValue(new Error('502 upstream'));
     await expect(Gen.generateExam(BASE)).rejects.toMatchObject({ code: 'MODEL_UNAVAILABLE' });
+  });
+});
+
+describe('the question limit governs the whole paper (bd-60015)', () => {
+  const T = (id, count, category = 'objective') => ({ id, count, category });
+  const MIX = [T('MCQs', 4), T('Fill in the Blanks', 3), T('True/False', 3)];
+
+  it('splits a mixed paper half seen, half unseen', () => {
+    const plan = Gen.planCounts({ contentSource: 'both', questionCount: 10, questionTypes: MIX });
+    expect(plan.seenTarget).toBe(5);
+    expect(plan.unseenTarget).toBe(5);
+    expect(plan.questionTypes.reduce((s, t) => s + t.count, 0)).toBe(5);
+    expect(plan.questionTypes.map((t) => t.id)).toEqual(['MCQs', 'Fill in the Blanks', 'True/False']);
+  });
+
+  it('gives an odd count the extra question to unseen — seen is at most half', () => {
+    const plan = Gen.planCounts({ contentSource: 'both', questionCount: 15, questionTypes: MIX });
+    expect(plan.seenTarget).toBe(7);
+    expect(plan.unseenTarget).toBe(8);
+    expect(plan.questionTypes.reduce((s, t) => s + t.count, 0)).toBe(8);
+  });
+
+  it('leaves an unseen-only paper exactly as asked', () => {
+    const plan = Gen.planCounts({ contentSource: 'unseen', questionCount: 10, questionTypes: MIX });
+    expect(plan.seenTarget).toBe(0);
+    expect(plan.questionTypes).toEqual(MIX);
+  });
+
+  it('caps a seen-only paper at the count', () => {
+    const plan = Gen.planCounts({ contentSource: 'seen', questionCount: 10, questionTypes: MIX });
+    expect(plan.seenTarget).toBe(10);
+    expect(plan.unseenTarget).toBe(0);
+  });
+
+  it('derives the count from the types when a job predates the field', () => {
+    const plan = Gen.planCounts({ contentSource: 'both', questionTypes: MIX });
+    expect(plan.seenTarget).toBe(5);
+  });
+
+  it('tells the model the seen cap, the unseen remainder and the total', () => {
+    const p = Gen.buildUserPrompt({
+      ...BASE, contentSource: 'both', questionCount: 10,
+      questionTypes: [T('MCQs', 6), T('True/False', 4)],
+    });
+    expect(p).toMatch(/Seen questions[^\n]*\b5\b/);
+    expect(p).toContain('3 MCQs');
+    expect(p).toContain('2 True/False');
+    expect(p).toMatch(/total[^\n]*\b10\b/i);
+    expect(p).not.toMatch(/all objective and subjective questions directly from the textbook/i);
+  });
+
+  it('tells the model the paper carries no pictures', () => {
+    expect(Gen.buildUserPrompt(BASE)).toMatch(/no pictures|without pictures|carries no (pictures|images)/i);
+  });
+
+  it('trims seen questions the model over-delivers, and says so', async () => {
+    const q = (n) => ({ question: `s${n}`, marks: 1 });
+    mockCreate.mockResolvedValue(reply({
+      seen: { objective: { MCQs: [q(1), q(2), q(3), q(4), q(5), q(6)], 'True/False': [q(7), q(8)] } },
+      unseen: { objective: { MCQs: [q(9), q(10), q(11), q(12), q(13)] } },
+    }));
+    const out = await Gen.generateExam({
+      ...BASE, contentSource: 'both', questionCount: 10, questionTypes: [T('MCQs', 10)],
+    });
+    const seen = out.examJson.seen.objective;
+    expect(seen.MCQs.length + seen['True/False'].length).toBe(5);
+    expect(seen.MCQs.map((x) => x.question)).toEqual(['s1', 's2', 's3', 's4', 's5']);
+    expect(out.questionCount).toBe(10);
+    expect(out.trimmed).toEqual({ seen: 3 });
   });
 });
