@@ -616,7 +616,7 @@ class AudioService {
     // the identical request would return the identical answer.
     if (!language) {
       try {
-        const retry = await this._transcribeOnce(audioPath, enableDiarization, 'ur');
+        const retry = await this._transcribeOnce(audioPath, enableDiarization, 'ur', roles);
         if (retry && retry.text && !hasDevanagari(retry.text)) {
           logToFile('✅ Devanagari cleared by re-transcribing with a forced Urdu hint', {
             audioPath, textLength: retry.text.length,
