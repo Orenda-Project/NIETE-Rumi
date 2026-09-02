@@ -47,18 +47,22 @@ devDependency — see **Bot-only dependencies** below.
 
 ---
 
-## Baseline as of `0c52957` (develop)
+## Baseline as of `e71dbaa` (main)
 
 Measured over four consecutive runs. Node v22.23.1, Jest 29.7.0.
 
 | | |
 |---|---|
-| Total suites | 415 |
-| Total tests | 4,784 |
+| Total suites | 420 |
+| Total tests | 4,797 |
 | Stable failing suites | **30** |
-| Flaky failing suites | **4** (listed below, not gating) |
-| Failing tests | 91–93 (varies with the flaky ones) |
+| Flaky failing suites | **0 observed** (3 quarantined, see below) |
+| Failing tests | 86 |
 | Suites that fail to *load* | **0** |
+
+`main` is measurably steadier than `develop`: four consecutive runs produced an
+identical 30-suite failure set with **no flake at all**. The three suites quarantined
+below did not fire once here.
 
 That last row is the one to protect. Until 2026-08-31, **20 of 55 failing suites
 never executed a single assertion** — they died at `require()` on a package that
@@ -104,7 +108,7 @@ tests/coaching/fico-framework.test.js
 tests/coaching/framework-registry.test.js
 tests/coaching/lp-coaching-link.test.js
 tests/coaching/reflective-v12-question-chain.test.js
-tests/handlers/text-message-lp-keyword.test.js
+tests/flow-response/endpoint-flow-routing.test.js
 tests/observe/bd-5n1a2-resolve-teacher-empty-school.test.js
 tests/quiz/lp-shelf.test.js
 tests/student-videos/student-videos-flow.test.js
@@ -113,6 +117,11 @@ tests/textbook-lp-v2/pregen-lookup.test.js
 tests/textbook-lp-v2/topic-matching.test.js
 tests/training/portal-level-unlock-logic.test.js
 ```
+
+Three of these fail on `main` but not on `develop`, so `develop` already carries the
+fix and they will retire on a future promotion: `portal-assessment-endpoint`,
+`endpoint-flow-routing` (Pic-to-LP Confirm reads as an unknown flow ID — **this one is
+live on production**), and `handler-curriculum`.
 
 The highest-signal four, if you are picking one up:
 
@@ -141,9 +150,13 @@ failure as inconclusive and re-run before investigating.
 ```
 tests/queue/sqs-cancel-by-group.test.js
 tests/training/certificate-pdf-issuance.test.js
-tests/training/portal-capstone-submit.test.js
 tests/training/portal-grand-quiz.test.js
 ```
+
+`portal-capstone-submit` is on the `develop` list too; it does not exist on `main` and
+so is omitted here. **None of these three flaked in four consecutive runs on `main`** —
+they are quarantined because the underlying race is the same code, not because they
+misbehaved here.
 
 `sqs-cancel-by-group` is its own thing: its Redis cancel-flag mock intermittently does
 not observe the expected `setex`.

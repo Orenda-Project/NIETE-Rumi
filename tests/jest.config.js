@@ -27,13 +27,6 @@ module.exports = {
     // teacher-register tests can assert what the generator wrote without the dep.
     '^exceljs$': '<rootDir>/tests/__mocks__/exceljs.js',
     '^canvas$': '<rootDir>/tests/__mocks__/canvas.js',
-    // Same case again: @supabase/supabase-js and the two AWS S3 packages live in
-    // bot/node_modules, so any root suite whose chain reached bot/shared/config/supabase.js
-    // or bot/shared/storage/r2.js died on an unresolved require rather than on its own
-    // assertions. Ported from main, where these have been in place since 2026-08.
-    '^@supabase/supabase-js$': '<rootDir>/tests/__mocks__/supabase-js.js',
-    '^@aws-sdk/client-s3$': '<rootDir>/tests/__mocks__/aws-sdk-client-s3.js',
-    '^@aws-sdk/s3-request-presigner$': '<rootDir>/tests/__mocks__/aws-sdk-s3-request-presigner.js',
     // Media + PDF: fluent-ffmpeg shells out to a real transcoder and the two
     // installer packages exist only to expose a binary path, so these are stubbed
     // rather than added as root deps — a unit suite must never invoke ffmpeg.
