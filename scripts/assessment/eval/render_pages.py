@@ -30,4 +30,9 @@ for d in sorted(evals.iterdir()):
         pp=d/"paper"; shutil.rmtree(pp, ignore_errors=True); pp.mkdir()
         render(paper, 1, 99, str(pp/"p"))
         for f in sorted(pp.glob("p-*.jpg")): f.rename(pp/f"p{int(f.stem.split('-')[1])}.jpg")
+    key=d/"key.pdf"
+    if key.exists():
+        kp=d/"key"; shutil.rmtree(kp, ignore_errors=True); kp.mkdir()
+        render(key, 1, 99, str(kp/"p"))
+        for f in sorted(kp.glob("p-*.jpg")): f.rename(kp/f"p{int(f.stem.split('-')[1])}.jpg")
     print(d.name, "src", len(list((d/"src").glob("*.jpg"))) if (d/"src").exists() else "-", "paper", len(list((d/"paper").glob("*.jpg"))) if (d/"paper").exists() else "-", flush=True)

@@ -118,7 +118,7 @@ async function runOne(book, spec) {
 
     const promptArgs = {
       grade, subject, pageContent: source.content, pageReference: source.pageReference,
-      contentSource: spec.contentSource, questionTypes: spec.questionTypes,
+      contentSource: spec.contentSource, questionCount: spec.questionCount, questionTypes: spec.questionTypes,
     };
     write(dir, 'system.txt', Generation.buildSystemPrompt({ subject, includeAnswerKey: spec.includeAnswerKey }));
     write(dir, 'user.txt', Generation.buildUserPrompt(promptArgs));
@@ -150,6 +150,21 @@ async function runOne(book, spec) {
       pdfOk = true;
     } catch (err) { result.renderError = err.message; }
 
+    // The answer key is its own document from bd-60015 on; older code has no renderer for it.
+    let keyOk = null;
+    if (spec.includeAnswerKey && typeof Renderer.renderAnswerKey === 'function') {
+      keyOk = false;
+      try {
+        const keyHtml = Renderer.renderAnswerKey({
+          examJson: generated.examJson, grade, subject, schoolName: null,
+          pageReference: source.pageReference, chapterTitle: source.chapterTitle || null,
+        });
+        write(dir, 'key.html', keyHtml);
+        fs.writeFileSync(path.join(dir, 'key.pdf'), await htmlToPdf(keyHtml, { timeout: 90000 }));
+        keyOk = true;
+      } catch (err) { result.keyRenderError = err.message; }
+    }
+
     const counts = summariseCounts(generated.examJson);
     const questions = Renderer.collectQuestions ? Renderer.collectQuestions(generated.examJson) : [];
     Object.assign(result, {
@@ -158,7 +173,9 @@ async function runOne(book, spec) {
       asked: { total: spec.questionCount, types: spec.questionTypes.map((t) => ({ id: t.id, count: t.count, category: t.category })) },
       delivered: counts, questionCount: generated.questionCount,
       totalMarks: Renderer.totalMarks ? Renderer.totalMarks(questions) : null,
-      tokens: generated.tokenData, elapsedMs: generated.elapsedMs, pdfOk,
+      tokens: generated.tokenData, elapsedMs: generated.elapsedMs, pdfOk, keyOk,
+      plan: generated.plan || null, trimmed: generated.trimmed || null,
+      codeVersion: require('child_process').execSync('git rev-parse --short HEAD', { cwd: path.join(__dirname, '../..') }).toString().trim(),
     });
   } catch (err) {
     Object.assign(result, { status: 'failed', code: err.code || 'UNKNOWN', error: err.message });

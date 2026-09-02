@@ -3,7 +3,11 @@
 """
 import json, base64, html, re, sys, datetime
 from pathlib import Path
-evals, book_id, out, label = Path(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4]
+evals, out, page_label = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+RUNS = []
+for arg in sys.argv[4:]:
+    bid, tab, note = (arg.split(":", 2) + ["", ""])[:3]
+    RUNS.append({"book_id": bid, "tab": tab, "note": note})
 
 def b64(p): return "data:image/jpeg;base64," + base64.b64encode(Path(p).read_bytes()).decode()
 def esc(s): return html.escape(str(s if s is not None else ""))
@@ -15,6 +19,11 @@ def q_text(q):
         v = q.get(k)
         if isinstance(v, list): parts += [str(x) for x in v]
     return " ".join(str(p) for p in parts if p)
+
+PICTURE = re.compile(r"\b(pictures?|images?|photos?|illustrations?|diagrams?|drawings?|shown (below|above)|given (below|above)|look at the|in the (box|figure)|under (its|each|the) picture|colou?r the|trace the|name (the|each) object)\b", re.I)
+def needs_picture(q):
+    """A question that cannot be answered on a paper with no pictures."""
+    return bool(PICTURE.search(q_text(q)))
 
 def grounding(q, vocab):
     words = {w.lower() for w in WORD.findall(q_text(q))}
@@ -34,8 +43,9 @@ def walk(exam):
                         if isinstance(sub, list): qs += [q for q in sub if isinstance(q, dict)]
                 if qs: yield sec, cat, t, qs
 
-exams = []
-for lab in ("A", "B"):
+def load_exams(book_id):
+  exams = []
+  for lab in ("A", "B"):
     d = evals / f"{book_id}-{lab}"
     if not d.exists(): continue
     spec = json.load(open(d / "spec.json")); res = json.load(open(d / "result.json"))
@@ -44,7 +54,10 @@ for lab in ("A", "B"):
     content = (d / "content.txt").read_text(); user = (d / "user.txt").read_text(); system = (d / "system.txt").read_text()
     vocab = {w.lower() for w in WORD.findall(content)}
     paper_imgs = sorted((d / "paper").glob("p*.jpg"), key=lambda p: int(p.stem[1:]))
-    exams.append(dict(lab=lab, spec=spec, res=res, pages=pages, exam=exam, src=src_index, content=content, user=user, system=system, vocab=vocab, paper=paper_imgs, dir=d))
+    key_imgs = sorted((d / "key").glob("p*.jpg"), key=lambda p: int(p.stem[1:])) if (d / "key").exists() else []
+    flagged = [(sec, t, i + 1, q) for sec, cat, t, qs in walk(exam) for i, q in enumerate(qs) if needs_picture(q)]
+    exams.append(dict(lab=lab, spec=spec, res=res, pages=pages, exam=exam, src=src_index, content=content, user=user, system=system, vocab=vocab, paper=paper_imgs, key=key_imgs, flagged=flagged, dir=d))
+  return exams
 
 def effective(ex, sec):
     """Items delivered, except Word Meanings where the unit the teacher asked for is a word, not the item."""
@@ -53,12 +66,12 @@ def effective(ex, sec):
         if s_ != sec: continue
         n += sum(len(q.get("words") or [1]) for q in qs) if t.lower().replace(" ", "") == "wordmeanings" else len(qs)
     return n
-for ex in exams:
-    ex["eff"] = {"seen": effective(ex, "seen"), "unseen": effective(ex, "unseen")}
-    ex["eff"]["total"] = ex["eff"]["seen"] + ex["eff"]["unseen"]
+def annotate(exams):
+    for ex in exams:
+        ex["eff"] = {"seen": effective(ex, "seen"), "unseen": effective(ex, "unseen")}
+        ex["eff"]["total"] = ex["eff"]["seen"] + ex["eff"]["unseen"]
+    return exams
 
-spec0 = exams[0]["spec"]
-model = exams[0]["res"]["tokens"]["model"]
 today = datetime.date.today().isoformat()
 
 def chip(txt, cls=""): return f'<span class="chip {cls}">{esc(txt)}</span>'
@@ -96,7 +109,8 @@ def questions_block(ex):
             if isinstance(opts, list) and opts: body += "<div class=opts>" + " · ".join(esc(o) for o in opts) + "</div>"
             if q.get("column_a"): body += "<div class=opts>A: " + " · ".join(esc(o) for o in q["column_a"]) + "<br>B: " + " · ".join(esc(o) for o in q.get("column_b") or []) + "</div>"
             ans = q.get("answer"); ans_html = f"<div class=ans>Answer: {esc(ans)}</div>" if ans else ""
-            items.append(f"<li><div class=qrow><div class=qtext>{body}{ans_html}</div><div class=qmeta><span class=marks>{esc(q.get('marks','?'))} mk</span>{bar}</div></div></li>")
+            flag = '<div class=flag>Cannot be answered: refers to a picture, and the paper carries none</div>' if needs_picture(q) else ""
+            items.append(f"<li class='{'flagged' if flag else ''}'><div class=qrow><div class=qtext>{body}{ans_html}{flag}</div><div class=qmeta><span class=marks>{esc(q.get('marks','?'))} mk</span>{bar}</div></div></li>")
         out.append(f"<section class=qgroup><h5><span class='sec {sec}'>{sec}</span> {esc(t)} <span class=count>{len(qs)}</span></h5><ol>{''.join(items)}</ol></section>")
     return "".join(out)
 
@@ -106,6 +120,13 @@ def exam_html(ex):
         f'<figure><img src="{b64(ex["dir"]/e["file"])}" alt="Printed page {e["printed"]}" loading=lazy data-full="1"><figcaption>p.{e["printed"]} <span class=pdf>pdf {e["pdf"]}</span></figcaption></figure>'
         for e in ex["src"] if (ex["dir"]/e["file"]).exists())
     paper = "".join(f'<img class=paperpg src="{b64(f)}" alt="Generated paper page {i}" data-full="1">' for i, f in enumerate(ex["paper"], 1))
+    key_pages = "".join(f'<img class=paperpg src="{b64(f)}" alt="Answer key page {i}" data-full="1">' for i, f in enumerate(ex["key"], 1))
+    plan = r.get("plan"); trimmed = r.get("trimmed") or {}
+    plan_line = ""
+    if plan:
+        plan_line = f"<div class=row><span class=k>Plan the code derived</span><span class=v>{plan['total']} in total · seen ≤ {plan['seenTarget']} · unseen {plan['unseenTarget']}" + (f" · <b class=warn>{trimmed['seen']} seen trimmed by code</b>" if trimmed.get('seen') else "") + "</span></div>"
+    n_flag = len(ex["flagged"])
+    flag_kpi = f'<div><dt>Needs a picture</dt><dd class="{"bad" if n_flag else ""}">{n_flag}</dd></div>'
     types = " ".join(chip(f"{t['count']} × {t['id']}", "obj" if t["category"] == "objective" else "subj") for t in s["questionTypes"])
     source_word = {"both": "seen + unseen (a mix of both)", "unseen": "unseen only (new questions on the same topics)", "seen": "seen only (from the book)"}[s["contentSource"]]
     tok = r["tokens"]
@@ -120,6 +141,7 @@ def exam_html(ex):
       <div><dt>Marks</dt><dd>{r['totalMarks']}</dd></div>
       <div><dt>Tokens in / out</dt><dd>{tok['inputTokens']:,} / {tok['outputTokens']:,}</dd></div>
       <div><dt>Model time</dt><dd>{r['elapsedMs']/1000:.0f}s</dd></div>
+      {flag_kpi}
     </dl>
   </header>
   <div class=spread>
@@ -135,6 +157,8 @@ def exam_html(ex):
         <div class=row><span class=k>Question types</span><span class=v>{types}</span></div>
         <div class=row><span class=k>Answer key</span><span class=v>{'on' if s['includeAnswerKey'] else 'off'} · answer lines {'on' if s['answerLines'] else 'off'}</span></div>
         <div class=row><span class=k>Model</span><span class=v><code>{esc(tok['model'])}</code> · temperature 0.7 · JSON mode</span></div>
+        {plan_line}
+        <div class=row><span class=k>Code</span><span class=v><code>{esc(r.get('codeVersion') or 'develop @ 1 Sep (before bd-60015)')}</code></span></div>
       </div>
       <details><summary>Text the model saw <span class=hint>{len(ex['content']):,} chars, {r['pagesLoaded']} page markers</span></summary><pre class=content>{esc(ex['content'])}</pre></details>
       <details><summary>User prompt <span class=hint>{len(ex['user']):,} chars — the text above is inside it</span></summary><pre class=content>{esc(ex['user'].split('**Book Text Content:**')[0])}<span class=elided>… book text ({len(ex['content']):,} chars, shown above) …</span>{esc(ex['user'].split('```', 2)[-1])}</pre></details>
@@ -146,6 +170,7 @@ def exam_html(ex):
       {asked_vs_got(ex)}
       <h4>The paper, as the teacher receives it <span class=hint>{len(ex['paper'])} pages</span></h4>
       <div class=paper>{paper}</div>
+      {f'<h4>The answer key, sent as a second document <span class=hint>{len(ex["key"])} pages</span></h4><div class=paper>{key_pages}</div>' if ex['key'] else ('<h4>Answer key <span class=hint>this run printed answers inline on the paper — see the green boxes above</span></h4>' if s['includeAnswerKey'] else '')}
       <h4>Every question, with vocabulary overlap against the chapter text <span class=hint>heuristic: share of the question's words (4+ letters) that occur in the pages above</span></h4>
       {questions_block(ex)}
       <details><summary>Raw exam JSON</summary><pre class=content>{esc(json.dumps(ex['exam'], ensure_ascii=False, indent=1))}</pre></details>
@@ -153,11 +178,28 @@ def exam_html(ex):
   </div>
 </article>"""
 
-summary_rows = "".join(f"""<tr><td><a href="#exam-{e['lab']}">Exam {e['lab']}</a></td><td>{e['spec']['chapterNumber']} · {esc(e['spec']['chapterTitle'])}</td><td class=num>{esc(e['res']['pageReference'])}</td>
+def summary_rows_for(exams):
+  return "".join(f"""<tr><td><a href="#exam-{e['lab']}">Exam {e['lab']}</a></td><td>{e['spec']['chapterNumber']} · {esc(e['spec']['chapterTitle'])}</td><td class=num>{esc(e['res']['pageReference'])}</td>
 <td>{esc(e['spec']['contentSource'])}</td><td class=num>{e['spec']['questionCount']}</td><td class="num {'warn' if e['eff']['total']!=e['spec']['questionCount'] else ''}">{e['eff']['total']}</td>
-<td class=num>{e['eff']['seen']}</td><td class=num>{e['eff']['unseen']}</td><td class=num>{e['res']['totalMarks']}</td><td class=num>{e['res']['tokens']['inputTokens']:,} / {e['res']['tokens']['outputTokens']:,}</td><td class=num>{e['res']['elapsedMs']/1000:.0f}s</td></tr>""" for e in exams)
+<td class=num>{e['eff']['seen']}</td><td class=num>{e['eff']['unseen']}</td><td class="num {'bad' if e['flagged'] else ''}">{len(e['flagged'])}</td><td class=num>{e['res']['totalMarks']}</td><td class=num>{e['res']['tokens']['inputTokens']:,} / {e['res']['tokens']['outputTokens']:,}</td><td class=num>{e['res']['elapsedMs']/1000:.0f}s</td></tr>""" for e in exams)
 
-page = f"""<title>AG Eval · {esc(label)}</title>
+def run_panel(run, idx):
+    exams = annotate(load_exams(run["book_id"]))
+    spec0 = exams[0]["spec"]; model = exams[0]["res"]["tokens"]["model"]
+    return f"""
+<section class=run id="run-{idx}" role=tabpanel {'hidden' if idx else ''}>
+  <div class=runhead>
+    <div><div class=eyebrow>{esc(run['tab'])}</div><h2 class=runtitle>{esc(spec0['title'])} <span class=hint>book {run['book_id']} · pdf offset {spec0['pdfPageOffset']} · {esc(model)}</span></h2>
+    {f'<p class=runnote>{esc(run["note"])}</p>' if run['note'] else ''}</div>
+  </div>
+  <div class=summary><table>
+  <thead><tr><th>Exam</th><th>Chapter</th><th class=num>Pages</th><th>Source</th><th class=num>Asked</th><th class=num>Got</th><th class=num>Seen</th><th class=num>Unseen</th><th class=num>Needs picture</th><th class=num>Marks</th><th class=num>Tokens in / out</th><th class=num>Time</th></tr></thead>
+  <tbody>{summary_rows_for(exams)}</tbody></table></div>
+  {''.join(exam_html(e) for e in exams)}
+</section>"""
+
+
+page = f"""<title>AG Eval · {esc(page_label)}</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 :root{{--ground:#F6F7F5;--surface:#FFFFFF;--surface2:#EEF3EF;--ink:#333748;--ink2:#565C6E;--muted:#6C7A72;--rule:#DCE3DE;--rule2:#C9D3CC;--accent:#47BA7D;--accent-ink:#2E8F5C;--accent-wash:#E4F4EB;--warn:#C9822B;--warn-wash:#F8EEDF;--seen:#5C6BC0;--seen-wash:#E8EAF6;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;--sans:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;--shadow:0 1px 2px rgba(51,55,72,.06),0 8px 24px -16px rgba(51,55,72,.25)}}
@@ -203,29 +245,28 @@ pre.content{{margin:0;padding:12px 14px;border-top:1px solid var(--rule);font:12
 .opts{{color:var(--ink2);font-size:12.5px;margin-top:2px}} .ans{{color:var(--accent-ink);font-size:12.5px;margin-top:2px}}
 .qmeta{{display:grid;grid-template-columns:44px 1fr 34px;gap:6px;align-items:center;font:12px var(--mono);color:var(--muted)}} .gbar{{height:6px;background:var(--rule);border-radius:3px;overflow:hidden;display:block}} .gbar i{{display:block;height:100%;background:var(--accent)}} .gpct{{text-align:right;font-variant-numeric:tabular-nums}}
 dialog{{border:0;padding:0;background:transparent;max-width:min(96vw,1100px);max-height:96vh}} dialog::backdrop{{background:rgba(20,24,30,.78)}} dialog img{{max-width:min(96vw,1100px);max-height:94vh;display:block;border-radius:4px;background:#fff}}
+.tabs{{display:flex;gap:4px;margin:22px 0 4px;border-bottom:1px solid var(--rule2)}} .tabs button{{appearance:none;background:none;border:0;border-bottom:3px solid transparent;padding:10px 16px;font:600 14px var(--sans);color:var(--muted);cursor:pointer;margin-bottom:-1px}} .tabs button.on{{color:var(--ink);border-bottom-color:var(--accent)}} .tabs button:hover{{color:var(--ink)}}
+.runhead{{margin-top:26px}} .runtitle{{font-size:22px;font-weight:600;letter-spacing:-.01em}} .runnote{{margin:6px 0 0;color:var(--ink2);max-width:90ch}}
+.bad{{color:#B4544A;font-weight:600}} li.flagged{{background:var(--warn-wash)}} .flag{{color:#B4544A;font-size:12.5px;font-weight:600;margin-top:3px}}
 a{{color:var(--accent-ink)}} :focus-visible{{outline:2px solid var(--accent);outline-offset:2px}}
 @media (max-width:1100px){{.spread{{grid-template-columns:1fr}} .col{{border-right:0;border-bottom:1px solid var(--rule)}} .exhead,.masthead{{grid-template-columns:1fr}} .kpis{{flex-wrap:wrap}}}}
 @media (prefers-reduced-motion:no-preference){{details summary{{transition:background .15s}}}}
 </style>
 <div class=wrap>
 <header class=masthead>
-  <div><div class=eyebrow>Assessment Generator · eval run · NIETE staging</div><h1>{esc(label)}: two exams, page by page</h1>
-  <p class=lede>The generator was run the way the worker runs it, on the same three services with the same arguments, and the delivery step cut off so the output could be read instead of received. For each exam: the textbook pages the text was read from, exactly what the model was given, and what came back.</p></div>
-  <dl class=facts>
-    <dt>Book</dt><dd>{esc(spec0['title'])} · id {book_id}</dd>
-    <dt>Printed pages</dt><dd>166 · pdf offset {spec0['pdfPageOffset']}</dd>
-    <dt>Model</dt><dd>{esc(model)}</dd>
-    <dt>Run</dt><dd>{today} · staging DB</dd>
-  </dl>
+  <div><div class=eyebrow>Assessment Generator · eval runs · NIETE staging</div><h1>{esc(page_label)}</h1>
+  <p class=lede>The generator was run the way the worker runs it, on the same three services with the same arguments, and the delivery step cut off so the output could be read instead of received. For each exam: the textbook pages the text was read from, exactly what the model was given, and what came back. Each tab is one run; the note under its title says what changed.</p></div>
+  <dl class=facts><dt>Run date</dt><dd>{today}</dd><dt>Database</dt><dd>staging</dd><dt>Runs</dt><dd>{len(RUNS)}</dd></dl>
 </header>
-<div class=summary><table>
-<thead><tr><th>Exam</th><th>Chapter</th><th class=num>Pages</th><th>Source</th><th class=num>Asked</th><th class=num>Got</th><th class=num>Seen</th><th class=num>Unseen</th><th class=num>Marks</th><th class=num>Tokens in / out</th><th class=num>Time</th></tr></thead>
-<tbody>{summary_rows}</tbody></table></div>
-<p class=note><b>How to read "asked".</b> The count a teacher types governs the <i>unseen</i> questions only. With "a mix of both", the prompt adds an uncapped instruction to lift all of the textbook's own questions as <i>seen</i> questions, so the paper is longer than the number typed. That is the open decision from 1 September, and Exam A shows it. Exam B asks for new questions only. Page numbers are printed page numbers; the pdf index each was read from is under every thumbnail.</p>
-{''.join(exam_html(e) for e in exams)}
+<nav class=tabs role=tablist>{''.join(f'<button role=tab class="{"on" if i==0 else ""}" data-tab="{i}" aria-selected="{"true" if i==0 else "false"}">{esc(r["tab"])}</button>' for i, r in enumerate(RUNS))}</nav>
+<p class=note><b>How to read "asked".</b> The count a teacher types is the size of her paper. Run 1 predates that rule: the count sized only the <i>unseen</i> questions and "a mix of both" added every textbook exercise on top. From run 2 the code splits the count — at most half <i>seen</i>, the rest <i>unseen</i> — and trims what the model over-delivers. "Needs picture" counts questions that refer to a picture the paper does not carry; run 2's prompt forbids them. Page numbers are printed page numbers; the pdf index each was read from is under every thumbnail.</p>
+{''.join(run_panel(r, i) for i, r in enumerate(RUNS))}
 </div>
 <dialog id=zoom><img alt=""></dialog>
 <script>
+(function(){{var tabs=document.querySelectorAll('.tabs [role=tab]'),panels=document.querySelectorAll('.run');
+tabs.forEach(function(t){{t.addEventListener('click',function(){{tabs.forEach(function(x){{x.classList.remove('on');x.setAttribute('aria-selected','false');}});panels.forEach(function(p){{p.hidden=true;}});t.classList.add('on');t.setAttribute('aria-selected','true');document.getElementById('run-'+t.dataset.tab).hidden=false;try{{localStorage.setItem('ag-eval-tab',t.dataset.tab);}}catch(e){{}}}});}});
+try{{var saved=localStorage.getItem('ag-eval-tab');if(saved&&document.querySelector('.tabs [data-tab="'+saved+'"]'))document.querySelector('.tabs [data-tab="'+saved+'"]').click();}}catch(e){{}}}})();
 (function(){{var d=document.getElementById('zoom'),im=d.querySelector('img');
 document.addEventListener('click',function(e){{var t=e.target;if(t.tagName==='IMG'&&t.dataset.full){{im.src=t.src;im.alt=t.alt;d.showModal();}}else if(e.target===d||e.target===im){{d.close();}}}});
 d.addEventListener('click',function(e){{if(e.target===d)d.close();}});}})();
