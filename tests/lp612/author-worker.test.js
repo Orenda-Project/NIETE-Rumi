@@ -134,7 +134,10 @@ describe('the happy path', () => {
     const done = mockDbCalls.filter((c) => c.op === 'update').pop();
     expect(done.payload).toMatchObject({
       status: 'ready',
-      r2_key: 'lp612/v9.1/en/seg.pdf',
+      // The key the SERVING path will look under, derived deterministically —
+      // not whatever the upload call happened to return. The two must agree or
+      // a lesson is stored somewhere the cache lookup will never find it.
+      r2_key: 'lp612/v9.1/en/grade_9_chemistry.c01.p007-008.pdf',
       page_count: 9,
       lint_clean: true,
       rounds_used: 1,
@@ -259,9 +262,13 @@ describe('the long tail', () => {
     mockAuthorLessonPlan.mockReturnValue(new Promise((r) => { release = r; }));
 
     const running = Worker.process(JOB);
-    await Promise.resolve();
+    // The job awaits several times before it parks on the author call, and the
+    // follow-up itself awaits once per waiter. One microtask tick is not
+    // enough to settle either — drain properly, or this asserts nothing.
+    const flush = async () => { for (let i = 0; i < 20; i += 1) await Promise.resolve(); };
+    await flush();
     jest.advanceTimersByTime(1500);
-    await Promise.resolve();
+    await flush();
 
     expect(mockSendMessage).toHaveBeenCalledTimes(2);   // one per waiter
     release({ lpDoc: {}, lintClean: true, fails: [], warns: [], rounds: 1, model: 'm' });
