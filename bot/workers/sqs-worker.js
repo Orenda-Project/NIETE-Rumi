@@ -402,6 +402,23 @@ class SQSCoachingWorker {
         break;
       }
 
+      case 'lp612_author': {
+        // FEAT-080 — write a 6-12 lesson plan that has never been asked for
+        // before, render it, cache it in R2 and send it.
+        //
+        // The longest job on this worker. The author call alone is 1-2.5 min and
+        // the revision ladder can triple that; the measured worst case end to
+        // end is around 10 minutes, so the visibility extension is 15 and the
+        // job's own hard timeout (LP612_AUTHOR_TIMEOUT_MS, default 12 min) is
+        // what actually stops it. Those two numbers are deliberately ordered:
+        // the job must give up and apologise to the teacher BEFORE SQS decides
+        // it died and hands the same lesson to a second worker.
+        await SQSQueueService.extendJobTimeout(receiptHandle, 900);
+        const Lp612AuthorWorker = require('./lp612-author.worker');
+        await Lp612AuthorWorker.process(payload);
+        break;
+      }
+
       // Quiz jobs (v2 envelope with body.groupId). Producers enqueue via
       // SQSQueueService.queueJob(); each handler in quiz-job-handler does a
       // cancel-flag check, an optional cascade re-queue (quiz_report/quiz_expire),

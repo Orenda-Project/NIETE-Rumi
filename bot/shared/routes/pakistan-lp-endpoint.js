@@ -46,6 +46,9 @@ const OxbridgeLpService = require('../services/oxbridge-lp.service');
 const { clampLanguage } = require('../config/ux-strings');
 const V8Catalog = require('../services/lp-v8-catalog.service');
 const V8Delivery = require('../services/lp-v8-delivery.service');
+const Lp612Catalog = require('../services/lp612-catalog.service');
+const Lp612Serving = require('../services/lp612-serving.service');
+const { isLp612Enabled, isLp612Grade } = require('../config/lp612-flags');
 
 const CURRICULUM_TAG = 'pakistan';
 const STATIC_GRADES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -138,6 +141,19 @@ async function handlePakistanLpDataExchange(flowToken, screen, screenData) {
   if (step === 'lesson')      return selectLesson(flowToken, d);
   if (step === 'lesson_page') return selectLessonPage(flowToken, d);
 
+  // FEAT-080 — the 6-12 runtime lane. Its own step names rather than a shared
+  // one, for the reason the file header already gives about id prefixes: two
+  // corpora behind one Flow stay unambiguous only if the routing says which.
+  //
+  // Each is guarded on the flag INDIVIDUALLY rather than once at the top,
+  // because a teacher's scrollback outlives a flag. Rows rendered while the
+  // feature was on stay tappable forever, and a tap on one after the flag goes
+  // off must be refused, not served.
+  if (step === 'lp612_subject')      return lp612Guard(() => selectLp612Subject(d));
+  if (step === 'lp612_chapter')      return lp612Guard(() => selectLp612Chapter(d));
+  if (step === 'lp612_segment')      return lp612Guard(() => selectLp612Segment(flowToken, d));
+  if (step === 'lp612_segment_page') return lp612Guard(() => selectLp612SegmentPage(d));
+
   // v2 Flow fallback — payloads carry a screen but no step. Live during the
   // endpoint-deployed-but-Flow-not-yet-republished window.
   if (screen === 'SELECT_GRADE')    return selectGrade(d);
@@ -152,14 +168,34 @@ async function handlePakistanLpDataExchange(flowToken, screen, screenData) {
 // Static 1..10 grade dropdown — surface all grades even where the DB is
 // still empty; the subject screen shows a friendly message if no LPs exist.
 async function openGradePicker() {
+  // FEAT-080 — grades 11 and 12 do not exist on this picker today. They appear
+  // only when the flag is on AND the 6-12 corpus actually holds segments for
+  // them, because unlike 1-10 there is no fallback corpus behind them: an empty
+  // grade 12 row would be a dead end, not a "check back soon".
+  let grades = STATIC_GRADES;
+  if (isLp612Enabled()) {
+    try {
+      const extra = (await Lp612Catalog.buildGradeItems())
+        .map((i) => parseInt(i.id, 10))
+        .filter((g) => Number.isFinite(g) && !STATIC_GRADES.includes(g));
+      if (extra.length) grades = [...STATIC_GRADES, ...extra].sort((a, b) => a - b);
+    } catch (err) {
+      // The picker is the front door. A corpus lookup that fails must cost the
+      // teacher grade 12, not the whole menu.
+      logToFile('LP 6-12: grade picker lookup failed, serving static grades', {
+        error: err.message,
+      });
+    }
+  }
+
   // `items` is what the v3 NavigationList binds; `grades` is kept so a still-
   // published v2 Flow (Dropdown-bound) does not render an empty screen during
   // the deploy window.
   return {
     screen: 'SELECT_GRADE',
     data: {
-      items: V8Catalog.buildGradeItems(STATIC_GRADES),
-      grades: STATIC_GRADES.map((g) => ({ id: String(g), title: gradeTitle(g) })),
+      items: V8Catalog.buildGradeItems(grades),
+      grades: grades.map((g) => ({ id: String(g), title: gradeTitle(g) })),
     },
   };
 }
@@ -187,6 +223,23 @@ async function selectGrade(screenData) {
       };
     }
     logToFile('Pakistan LP: no v8 assets for grade — falling back to pre_generated_lps', { grade });
+  }
+
+  // ── FEAT-080 6-12 corpus, with OXBRIDGE as the fallback ──────────────────
+  // Same shape of decision as v8-over-legacy above, and for the same reason:
+  // 70 Oxbridge LPs are live for grades 6-10 today, and this lane must not take
+  // them away from a grade whose books the segmentation fleet has not finished.
+  // The 6-12 corpus wins where it has content; where it does not, Oxbridge
+  // answers exactly as it does now.
+  if (isLp612Enabled() && isLp612Grade(grade)) {
+    const items = await Lp612Catalog.buildSubjectItems(grade);
+    if (items.length) {
+      return {
+        screen: 'SELECT_SUBJECT',
+        data: { items, grade_value: String(grade), grade_display: gradeTitle(grade) },
+      };
+    }
+    logToFile('LP 6-12: no segments for grade — falling back to Oxbridge', { grade });
   }
 
   let subjects = [];
@@ -590,6 +643,116 @@ function deliverPakistanLpAsync(flowToken, row) {
       logToFile('Pakistan LP: delivery failed', { userId, rowId: row.id, error: err.message, stack: err.stack });
     }
   })();
+}
+
+// ─── FEAT-080: the 6-12 runtime lane ────────────────────────────────────
+//
+// Same three selection screens as the K-5 lane, bound to the same Flow, reading
+// niete_lp612_segments instead of a static catalogue. The difference is the last
+// step: there is no pre-rendered PDF waiting. Tapping a subtopic asks the
+// serving service for one, which either finds it in R2 or has it written.
+
+/** Every 6-12 step passes through here.
+ *
+ *  A teacher's scrollback outlives a feature flag: rows rendered while the
+ *  feature was on remain tappable forever. Turning the flag off has to mean the
+ *  lane is closed, not that old rows keep working — otherwise "off" is not off.
+ */
+async function lp612Guard(fn) {
+  if (!isLp612Enabled()) {
+    logToFile('LP 6-12: step arrived while the feature is disabled', {});
+    return { data: { error: { message: 'Those lesson plans are not available right now.' } } };
+  }
+  return fn();
+}
+
+async function selectLp612Subject(d) {
+  const grade = parseInt(d.grade, 10);
+  if (!Number.isFinite(grade) || !d.subject) {
+    return { data: { error: { message: 'Please select a subject.' } } };
+  }
+  const items = await Lp612Catalog.buildChapterItems(grade, d.subject);
+  if (!items.length) {
+    return { data: { error: { message: 'Those lesson plans are being prepared — check back soon.' } } };
+  }
+  return {
+    screen: 'SELECT_CHAPTER',
+    data: {
+      items,
+      grade_value: String(grade),
+      subject_value: d.subject,
+      header_text: `${gradeTitle(grade)} — ${d.subject}`,
+    },
+  };
+}
+
+async function lp612SegmentScreen(d, page, screenId) {
+  const grade = parseInt(d.grade, 10);
+  if (!Number.isFinite(grade) || !d.subject || !d.chapter_key) {
+    return { data: { error: { message: 'Please pick a chapter again.' } } };
+  }
+  const { items, total } = await Lp612Catalog.buildSegmentItems(grade, d.subject, d.chapter_key, page);
+  if (!items.length) {
+    return { data: { error: { message: 'Those lesson plans are being prepared — check back soon.' } } };
+  }
+  return {
+    screen: screenId,
+    data: {
+      items,
+      grade_value: String(grade),
+      subject_value: d.subject,
+      chapter_value: String(d.chapter_key),
+      header_text: `${gradeTitle(grade)} ${d.subject}`,
+      lesson_total: String(total),
+    },
+  };
+}
+
+async function selectLp612Chapter(d) {
+  return lp612SegmentScreen(d, 1, 'SELECT_LESSON');
+}
+
+/** "More lessons →" — a second screen, because Meta rejects a self-route. */
+async function selectLp612SegmentPage(d) {
+  return lp612SegmentScreen(d, parseInt(d.page, 10) || 2, 'SELECT_LESSON_MORE');
+}
+
+/**
+ * A subtopic was tapped. This is where a lesson gets written.
+ *
+ * Fire-and-forget, like the K-5 lane and for a sharper version of the same
+ * reason: data_exchange has roughly a ten-second budget, and a first hit here
+ * is minutes, not milliseconds. Awaiting it would fail the Flow with a generic
+ * "Something went wrong" AND still leave the lesson being authored in the
+ * background — the worst of both. So SUCCESS returns now, and every subsequent
+ * word to the teacher (the ack, the follow-up, the PDF, the apology) arrives in
+ * her chat from the serving service and the worker.
+ */
+async function selectLp612Segment(flowToken, d) {
+  const segmentId = d && d.segment_id;
+  if (!segmentId) return { data: { error: { message: 'Please pick a lesson.' } } };
+
+  const userId = userIdFrom(flowToken);
+  const who = await getPhoneForUser(userId);
+  if (!who || !who.phone_number) {
+    logToFile('LP 6-12: no phone for user, cannot serve', { userId, segmentId });
+    return { data: { error: { message: 'That lesson plan is not available right now.' } } };
+  }
+
+  Promise.resolve(Lp612Serving.requestLesson({
+    segmentId,
+    userId,
+    phone: who.phone_number,
+    lang: who.preferred_language,
+    correlationId: `lp612:${segmentId}:${userId}`,
+  })).catch((err) => logToFile('LP 6-12: serving threw', {
+    segmentId, userId, error: err.message,
+  }));
+
+  return {
+    screen: 'SUCCESS',
+    data: { message: 'Your lesson plan is on its way — check this chat in a moment.' },
+  };
 }
 
 async function handlePakistanLpBack(flowToken, screen) {
