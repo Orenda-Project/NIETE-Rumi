@@ -1,0 +1,1177 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://rumi.dev/schema/lp_doc/2.0",
+  "title": "lp_doc v2.0 — the LP-HTML v8 content model (grades 6-12)",
+  "description": "THE one content model for a Rumi 6-12 lesson plan. Unifies senior_lp_schema_v1 (provenance / verbatim SLO / subject packs) with the render_lp_html.js block shape (say / board / watch / diagram). The lp_doc JSON is the ARTEFACT OF RECORD; the PDF is a cache. Spine is the FDE lesson diary (Objectives, Introduction, Development, Activity, Conclusion, Homework) — see PLAN_lp_v8_html_2026-08-30.md D1. What varies by lp_type is the INTERNALS of development/activity, never the spine (D2). Every string may carry inline $...$ KaTeX and \\ce{...} mhchem.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "lesson_id",
+    "schema_version",
+    "provenance",
+    "slo",
+    "lp_type",
+    "period_minutes",
+    "materials",
+    "warmup",
+    "objectives",
+    "sections",
+    "page2",
+    "one_screen"
+  ],
+  "properties": {
+    "lesson_id": {
+      "type": "string",
+      "minLength": 3,
+      "description": "Stable key, e.g. PK_G7_GSCI_CH1_PHOTOSYNTHESIS. Also the cache key for the rendered PDF."
+    },
+    "schema_version": {
+      "const": "2.0"
+    },
+    "lint_profile": {
+      "type": "string",
+      "enum": [
+        "full",
+        "smoke"
+      ],
+      "default": "full",
+      "description": "'full' = every pedagogy gate applies (the only value a teacher-facing LP may carry). 'smoke' = a deliberately tiny fixture that proves the renderer; word budgets and FDE-completeness are skipped and lint prints a loud banner. Never ship a 'smoke' doc to a teacher."
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "book_stem",
+        "grade",
+        "subject",
+        "medium",
+        "chapter",
+        "topic",
+        "printed_pages",
+        "pdf_pages",
+        "page_offset"
+      ],
+      "description": "Every factual claim in the LP must trace to this page range. printed != pdf; the offset differs per book and is recorded in each 01_page_truth/*.json.",
+      "properties": {
+        "book_stem": {
+          "type": "string",
+          "description": "e.g. grade_7_general_science — the page-truth corpus key"
+        },
+        "grade": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        },
+        "subject": {
+          "type": "string"
+        },
+        "medium": {
+          "type": "string",
+          "enum": [
+            "en",
+            "ur"
+          ],
+          "description": "Language of INSTRUCTION. Textbook quotations stay in the book's own language regardless (LP_DESIGN_RULES §5)."
+        },
+        "chapter": {
+          "type": "string"
+        },
+        "topic": {
+          "type": "string"
+        },
+        "printed_pages": {
+          "type": "string",
+          "description": "What the teacher sees printed on the page, e.g. '11' or '20-21'"
+        },
+        "pdf_pages": {
+          "type": "string",
+          "description": "Index into the source PDF, e.g. '13'"
+        },
+        "page_offset": {
+          "type": "integer",
+          "description": "pdf_page - printed_page"
+        },
+        "publisher": {
+          "type": "string"
+        },
+        "curriculum": {
+          "type": "string"
+        },
+        "edition": {
+          "type": "string"
+        },
+        "source_quality_flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Known defects in the source the LP must not propagate."
+        },
+        "brand": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "description": "The DEPLOYMENT's brand — whose name the teacher reads on the page. OPTIONAL, and its absence is meaningful: with no brand the page carries NO brand text at all (white-label). Render-law 13: the authoring house is not the deployment brand, and no internal brand — the company's, the product's or a partner's — may appear as content. lint_lp.js FAILS (BRANDLEAK) on any other brand's name found in the document's strings.",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "e.g. 'NIETE Teaching Assistant'. Printed in the hero kicker and the support-page footer."
+            },
+            "primary_hex": {
+              "type": "string",
+              "pattern": "^#[0-9A-Fa-f]{6}$",
+              "description": "The brand's primary colour, e.g. NIETE navy-slate '#333748'. Colours the footer brand mark."
+            }
+          }
+        },
+        "chapter_title": {
+          "type": "string",
+          "description": "The chapter's NAME, when the book prints one separately from `chapter` (which is normally 'Ch. 6 · Stoichiometry'). Optional, additive: it only enriches the page footer."
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "description": "ISO date this lp_doc was authored/revised, e.g. '2026-08-30'. Printed in the page footer as v<date> so a teacher and a reviewer can tell two copies apart. OPTIONAL — the renderer NEVER invents one: an undated doc simply carries no version."
+        }
+      }
+    },
+    "slo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text_verbatim",
+        "source_page",
+        "cognitive_level"
+      ],
+      "description": "NEVER invented. FBISE examines SLOs, not textbooks. R2: the objective goes at the top, always.",
+      "properties": {
+        "code": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "e.g. B-10-R-10. null when the book prints an outcome with no code — say so rather than inventing one."
+        },
+        "text_verbatim": {
+          "type": "string",
+          "minLength": 10
+        },
+        "source_page": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Printed page the outcome is quoted from."
+        },
+        "cognitive_level": {
+          "type": "string",
+          "enum": [
+            "K",
+            "U",
+            "A"
+          ],
+          "description": "FBISE buckets: K=Knowledge, U=Understanding, A=Application (apply/analyse/evaluate/create). Paper weighting 30/50/20."
+        },
+        "assessment_status": {
+          "type": "string",
+          "enum": [
+            "Summative",
+            "Formative",
+            "Summative-PBA",
+            "Internal"
+          ],
+          "description": "Formative SLOs are taught but EXCLUDED from the board exam."
+        },
+        "command_word": {
+          "type": "string"
+        },
+        "success_criterion": {
+          "type": "string",
+          "description": "The outcome restated in exam terms: 'by the end you can answer a 4-mark SRQ on X'."
+        }
+      }
+    },
+    "lp_type": {
+      "type": "string",
+      "enum": [
+        "STEM-1",
+        "STEM-2",
+        "STEM-3",
+        "LL-1",
+        "LL-2",
+        "LL-3",
+        "SS-1",
+        "SS-2",
+        "SS-3",
+        "RECALL",
+        "GEN-6-8"
+      ],
+      "description": "Decides the Development/Activity INTERNALS, never the spine. STEM-1 phenomenon-first, STEM-2 I-do/we-do/you-do, STEM-3 investigation, LL-* languages, SS-* social studies, RECALL recall-floor, GEN-6-8 the general middle-school shape."
+    },
+    "period_minutes": {
+      "type": "integer",
+      "minimum": 20,
+      "maximum": 120,
+      "description": "THE MINUTES RULE (L3 ask 4): warmup.minutes plus the minutes of EVERY section — homework included, normally 1-2 — must equal this exactly. lint_lp.js enforces it. A teacher counted 5+8+17+7=37 against a labelled 40 and wrote it up."
+    },
+    "board_weight": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "e.g. 'FBISE SSC-I · ~8 marks'. null for grades 6-8 (FBISE's examining remit starts at SSC)."
+    },
+    "materials": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Physical things only. Zero-materials alternatives belong in the block that needs them."
+    },
+    "warmup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items"
+      ],
+      "description": "Just-in-time acceleration, not remediation (TNTP). 2 prerequisite + 1 spaced, ANSWERS PRINTED.",
+      "properties": {
+        "minutes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "layout": {
+          "type": "string",
+          "enum": [
+            "full",
+            "half"
+          ],
+          "default": "full",
+          "description": "'half' puts the W band beside the FIRST section when that section is also 'half' — the introduction. Saves ~50px on page 1."
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "q",
+              "a",
+              "kind"
+            ],
+            "properties": {
+              "q": {
+                "type": "string",
+                "minLength": 3
+              },
+              "a": {
+                "type": "string",
+                "minLength": 1
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "prerequisite",
+                  "spaced"
+                ]
+              },
+              "from": {
+                "type": "string",
+                "description": "For kind=spaced: which earlier chapter/page it retrieves."
+              }
+            }
+          }
+        }
+      }
+    },
+    "objectives": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 5
+      },
+      "description": "Section O. First entry is normally the verbatim SLO restated as a pupil-facing 'can do'; locally-added application objectives must SAY they are locally added."
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 1,
+      "description": "The FDE spine, in order. lint (profile=full) requires exactly introduction, development, activity, conclusion, homework.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "minutes",
+          "blocks"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "introduction",
+              "development",
+              "activity",
+              "conclusion",
+              "homework"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "description": "Override for the printed bar label. Defaults to the localized section name."
+          },
+          "minutes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "layout": {
+            "type": "string",
+            "enum": [
+              "full",
+              "half"
+            ],
+            "default": "full",
+            "description": "'half' pairs this section with the NEXT consecutive 'half' section into one two-column band, each keeping its own lettered bar. Use it for short tail sections (conclusion + homework) — it is the single biggest space saving on page 1. A lone trailing 'half' renders full width."
+          },
+          "blocks": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/definitions/block"
+            }
+          }
+        }
+      }
+    },
+    "page2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "board_final",
+        "model_answers",
+        "mistakes",
+        "differentiation",
+        "exam_bank",
+        "homework_key",
+        "next_period",
+        "not_going",
+        "coaching_lookfor"
+      ],
+      "description": "Support page. Explicitly NOT read aloud in class.",
+      "properties": {
+        "board_final": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "draw_order"
+          ],
+          "description": "A — the board at the END of the lesson: the diagram in final state plus the order to draw it in.",
+          "properties": {
+            "draw_order": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            },
+            "diagram": {
+              "$ref": "#/definitions/diagram_spec"
+            },
+            "caption": {
+              "type": "string"
+            }
+          }
+        },
+        "model_answers": {
+          "type": "array",
+          "minItems": 1,
+          "description": "B — every practice item answered in full, grouped by tier/part.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "label",
+              "answer"
+            ],
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "answer": {
+                "type": "string"
+              },
+              "marking_note": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "mistakes": {
+          "type": "array",
+          "minItems": 1,
+          "description": "C — what pupils actually write, and the exact question you ask back. Naming a misconception is not addressing it.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "pupil_says",
+              "you_ask"
+            ],
+            "properties": {
+              "pupil_says": {
+                "type": "string",
+                "minLength": 3
+              },
+              "you_ask": {
+                "type": "string",
+                "minLength": 3
+              }
+            }
+          }
+        },
+        "differentiation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stuck",
+            "barrier",
+            "early"
+          ],
+          "description": "D — one concrete instruction each. Never narrative.",
+          "properties": {
+            "stuck": {
+              "type": "string",
+              "minLength": 3
+            },
+            "barrier": {
+              "type": "string",
+              "minLength": 3
+            },
+            "early": {
+              "type": "string",
+              "minLength": 3
+            }
+          }
+        },
+        "exam_bank": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "E — the exam surface. lint requires mcq >= 2, srq and erq_skeleton for grades 9-12.",
+          "properties": {
+            "mcq": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "q",
+                  "options",
+                  "answer"
+                ],
+                "properties": {
+                  "q": {
+                    "type": "string",
+                    "minLength": 5
+                  },
+                  "options": {
+                    "type": "array",
+                    "minItems": 3,
+                    "maxItems": 5,
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "answer": {
+                    "type": "string",
+                    "description": "The correct option, as its letter (A/B/C/D) or its full text."
+                  },
+                  "distractor_codes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "One short misconception code per WRONG option, in option order. A distractor that encodes nothing is a wasted distractor (EEF diagnostic questions)."
+                  }
+                }
+              }
+            },
+            "srq": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "q",
+                "mark_scheme"
+              ],
+              "description": "One short-response question in exact board phrasing + a bullet mark scheme (the 50% band).",
+              "properties": {
+                "q": {
+                  "type": "string",
+                  "minLength": 10
+                },
+                "marks": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "mark_scheme": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "erq_skeleton": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "Headings + marks per part. Not a model essay.",
+              "properties": {
+                "q": {
+                  "type": "string"
+                },
+                "marks_total": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "L3 ask 7. Omit and the total is the sum of the parts; lint warns when a stated total disagrees with that sum."
+                },
+                "parts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "heading"
+                    ],
+                    "properties": {
+                      "heading": {
+                        "type": "string"
+                      },
+                      "marks": {
+                        "type": "integer"
+                      },
+                      "note": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "how_marked": {
+              "type": "string",
+              "description": "One line on what earns and what loses the mark."
+            }
+          }
+        },
+        "homework_key": {
+          "type": "array",
+          "minItems": 1,
+          "description": "F — the homework worked through in FULL, not 'see answer key'.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "item",
+              "answer"
+            ],
+            "properties": {
+              "item": {
+                "type": "string"
+              },
+              "answer": {
+                "type": "string"
+              },
+              "level": {
+                "type": "string",
+                "enum": [
+                  "K",
+                  "U",
+                  "A"
+                ]
+              },
+              "marks": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        },
+        "next_period": {
+          "type": "string",
+          "minLength": 3,
+          "description": "G — one line, with the SLO code where there is one."
+        },
+        "not_going": {
+          "type": "string",
+          "minLength": 3,
+          "description": "G — what NOT to teach yet, and why. Stops the LP being over-taught into next period's content."
+        },
+        "coaching_lookfor": {
+          "type": "string",
+          "minLength": 3,
+          "description": "H — the observable a Digital Coach observer would look for in this lesson."
+        }
+      }
+    },
+    "one_screen": {
+      "type": "string",
+      "minLength": 40,
+      "description": "The ~200-word WhatsApp message body: objective -> 1 prerequisite item + answer -> worked example <=5 steps -> 3 practice items + answers -> misconception -> exit question. The PDF is the attachment. Front-loads practice because the END of a structured lesson is what gets cut (MDPI 16:5:699)."
+    },
+    "notes": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Author-side record (L3 ask 1). Distinct from provenance.source_quality_flags, which is ONLY for defects in the printed source. These are about the LESSON: what it had to add, what the book got wrong, and what the pages could not give.",
+      "properties": {
+        "supplied": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Facts the LP supplies that the book never states, each with the page checked. A supplied fact that is not declared here is indistinguishable from an invention."
+        },
+        "defects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "A missing answer key, an unused given, an outcome the exercise does not cover. LP_DESIGN_RULES §5 makes these the PREFERRED basis for a lesson, so they must survive into the artefact."
+        },
+        "gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "What the page range could not give at all."
+        }
+      }
+    },
+    "needs_human_review": {
+      "type": "boolean",
+      "default": false,
+      "description": "Skill gate G5c (L3 ask 2). Islamiat and سیرت content is NEVER served on-demand. A boolean the serving path branches on — not a substring match against a free-text array. `lint_lp.js --auto-send` FAILS on a doc with this set."
+    },
+    "human_review_reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "ur_overlay": {
+      "type": "object",
+      "description": "THE URDU TOGGLE (operator decision 2026-08-30: English author + Urdu toggle, not side-by-side). Keys are RFC-6901 JSON Pointers into THIS document; values are the Urdu string that replaces the English one at render time under `--lang ur`. Structure never changes — only instruction strings swap, so an lp_doc has one shape and two renderings. Books whose medium is already 'ur' are authored in Urdu directly and carry no overlay. WHAT MAY NOT BE OVERLAID (lint enforces): /slo/text_verbatim (the printed outcome, quoted), anything under /page2/exam_bank (the exam is in the book's language), and the text of any `board` block (board text follows the exam). Textbook quotations inside a paragraph stay in the book's language too — overlay the instruction around them, not the quote.",
+      "propertyNames": {
+        "pattern": "^/"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "revisions": {
+      "type": "array",
+      "description": "Append-only edit log. Edits arrive as whitelisted JSON-Patch, re-lint, re-render.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "at",
+          "by",
+          "why"
+        ],
+        "properties": {
+          "at": {
+            "type": "string"
+          },
+          "by": {
+            "type": "string"
+          },
+          "why": {
+            "type": "string"
+          },
+          "patch": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "diagram_spec": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "description": "Handed verbatim to diagrams/index.js -> renderDiagram(spec) -> SVG string. L2 owns the renderer and the per-type sub-schemas; L1 only guarantees `type` exists and passes the rest through untouched.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "caption": {
+          "type": "string"
+        },
+        "alt": {
+          "type": "string",
+          "description": "Screen-reader / fallback text. Also what lint reads when the diagram cannot be rendered."
+        }
+      }
+    },
+    "block": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "description": "One renderable unit. Exactly one vocabulary — the renderer switches on `type` and nothing else.",
+      "oneOf": [
+        {
+          "properties": {
+            "type": {
+              "const": "paragraph"
+            },
+            "id": {
+              "type": "string",
+              "description": "Optional label so an `ask.closed_by` can point here."
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "type",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "A line the teacher says out loud. The only scripted part (semi-scripting; scripting correlates slightly NEGATIVELY with outcomes).",
+          "properties": {
+            "type": {
+              "const": "say"
+            },
+            "id": {
+              "type": "string",
+              "description": "Optional label so an `ask.closed_by` can point here."
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "type",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "A question the teacher asks, with what a good answer contains. M2: middle/high teachers want the QUESTIONS, not a script.",
+          "properties": {
+            "type": {
+              "const": "ask"
+            },
+            "question": {
+              "type": "string",
+              "minLength": 3
+            },
+            "look_for": {
+              "type": "string",
+              "description": "What a correct/promising answer contains. Not the answer to read out."
+            },
+            "hook": {
+              "type": "boolean",
+              "description": "true = this is the lesson's provocation (M3). Exactly one per LP, in the introduction."
+            },
+            "closed_by": {
+              "type": "string",
+              "description": "The `id` of the later block that ANSWERS this hook (L3 ask 3). The most repeated teacher complaint across v7 was an opening question the lesson never closes; naming the closing beat is what lets lint check it."
+            }
+          },
+          "required": [
+            "type",
+            "question"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "The 'don't do this yet' / misconception caution.",
+          "properties": {
+            "type": {
+              "const": "watch_out"
+            },
+            "text": {
+              "type": "string",
+              "minLength": 3
+            },
+            "misconception": {
+              "type": "boolean",
+              "description": "true = this states a named pupil misconception (lint requires >=1 in development)."
+            }
+          },
+          "required": [
+            "type",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "What must be left visible on the board.",
+          "properties": {
+            "type": {
+              "const": "board"
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "type",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "keywords"
+            },
+            "items": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 8,
+              "items": {
+                "type": "object",
+                "required": [
+                  "word",
+                  "meaning"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "word": {
+                    "type": "string"
+                  },
+                  "meaning": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "required": [
+            "type",
+            "items"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Declarative sentences, <=5. Not bullets-as-topics.",
+          "properties": {
+            "type": {
+              "const": "key_points"
+            },
+            "title": {
+              "type": "string",
+              "description": "Overrides the printed \"Key points\" label. Pass \"\" to print no label at all — e.g. a homework list, which is a list of tasks and not a set of key points."
+            },
+            "items": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 6,
+              "items": {
+                "type": "string",
+                "minLength": 3
+              }
+            }
+          },
+          "required": [
+            "type",
+            "items"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "I DO — fully worked, numbered.",
+          "properties": {
+            "type": {
+              "const": "worked_example"
+            },
+            "title": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string"
+            },
+            "steps": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 2
+              }
+            },
+            "result": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "steps"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "WE DO — same type, 1-2 steps blanked. Fading beats fixed examples.",
+          "properties": {
+            "type": {
+              "const": "faded_example"
+            },
+            "title": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string"
+            },
+            "steps": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 2
+              }
+            },
+            "answer": {
+              "type": "string",
+              "description": "What the blanked steps come to. Required by lint — every closed item is solved."
+            }
+          },
+          "required": [
+            "type",
+            "steps"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "YOU DO — graded items, ANSWERS ALONGSIDE. The heart of the plan.",
+          "properties": {
+            "type": {
+              "const": "practice"
+            },
+            "title": {
+              "type": "string"
+            },
+            "mode": {
+              "type": "string",
+              "enum": [
+                "guided",
+                "independent"
+              ],
+              "description": "Renders the GUIDED PRACTICE / INDEPENDENT PRACTICE tag the v7-1 teachers recognised."
+            },
+            "items": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "q",
+                  "a"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "q": {
+                    "type": "string",
+                    "minLength": 2
+                  },
+                  "a": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "tier": {
+                    "type": "string",
+                    "enum": [
+                      "support",
+                      "core",
+                      "extension"
+                    ],
+                    "description": "Difficulty. NOT the cognitive level — see `level`."
+                  },
+                  "level": {
+                    "type": "string",
+                    "enum": [
+                      "K",
+                      "U",
+                      "A"
+                    ],
+                    "description": "FBISE cognitive level, weighted ~30/50/20 across a paper (L3 ask 5). Teachers who liked LP2 said so because it followed K/U/A."
+                  },
+                  "marks": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          },
+          "required": [
+            "type",
+            "items"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "The two side-by-side cards from v7-1: a simplified starter and an early-finisher stretch.",
+          "properties": {
+            "type": {
+              "const": "support_extension"
+            },
+            "support": {
+              "type": "string",
+              "minLength": 3
+            },
+            "extension": {
+              "type": "string",
+              "minLength": 3
+            }
+          },
+          "required": [
+            "type",
+            "support",
+            "extension"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Two blocks side by side as CARDS. This is the v7-1 Support/Extension pattern generalised, and it is how a figure sits beside its key points without either shrinking. D4 forbids side-by-side BODY TEXT, so lint rejects a split containing `paragraph`, `practice`, `worked_example` or `faded_example`, and rejects nested splits.",
+          "properties": {
+            "type": {
+              "const": "split"
+            },
+            "left": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/definitions/block"
+              }
+            },
+            "right": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/definitions/block"
+              }
+            },
+            "ratio": {
+              "type": "number",
+              "minimum": 0.25,
+              "maximum": 0.75,
+              "default": 0.5,
+              "description": "Fraction of the width the LEFT column takes."
+            }
+          },
+          "required": [
+            "type",
+            "left",
+            "right"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Diagram-as-code. Delegates to diagrams/index.js.",
+          "properties": {
+            "type": {
+              "const": "diagram"
+            },
+            "spec": {
+              "$ref": "#/definitions/diagram_spec"
+            }
+          },
+          "required": [
+            "type",
+            "spec"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "A REAL figure from the book, used as 'as in your book, p.N' reference art. Any figure that must be labelled correctly for the exam is redrawn as SVG instead.",
+          "properties": {
+            "type": {
+              "const": "textbook_figure"
+            },
+            "ref": {
+              "type": "string",
+              "description": "Stable asset key, e.g. grade_7_general_science/p011/f2"
+            },
+            "src": {
+              "type": "string",
+              "description": "Repo-relative path to the crop. Never an absolute /Users path. OPTIONAL when `ref` is given (L3 ask 6): the figure-locator pass may not have run yet, so the renderer falls back to the caption/legend text and REPORTS the missing crop rather than failing."
+            },
+            "caption": {
+              "type": "string"
+            },
+            "figure_label": {
+              "type": "string",
+              "description": "e.g. 'Figure 1.11'"
+            },
+            "page": {
+              "type": "string"
+            },
+            "legend": {
+              "type": "string",
+              "description": "One line telling the teacher how to READ the figure."
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Display maths. Body text carries inline $...$ instead.",
+          "properties": {
+            "type": {
+              "const": "latex"
+            },
+            "tex": {
+              "type": "string",
+              "minLength": 1
+            },
+            "caption": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "tex"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Display chemistry (mhchem). `tex` is the INSIDE of \\ce{...}.",
+          "properties": {
+            "type": {
+              "const": "chem"
+            },
+            "tex": {
+              "type": "string",
+              "minLength": 1
+            },
+            "caption": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "tex"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

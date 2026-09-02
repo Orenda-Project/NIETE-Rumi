@@ -184,6 +184,54 @@ const UX_STRINGS = {
     ur: 'یہ سبق کا منصوبہ ابھی تیاری میں ہے — تھوڑی دیر بعد دوبارہ کوشش کریں۔',
   },
 
+  // ── 6-12 lesson plans, written at the moment she asks ────────────────────
+  //
+  // A 6-12 lesson is authored on the first request, not looked up: the wait is
+  // real (about two minutes, occasionally longer) and every one of these strings
+  // exists so that no part of that wait is silent. The Urdu is deliberately
+  // gender-agnostic in the second person — imperatives and impersonal
+  // constructions, never `رہی ہوں گی` / `رہے ہوں گے` — because the cohort is
+  // mixed and the bot cannot know.
+
+  lp612Preparing: {
+    en: '📄 Writing your lesson plan now — it usually takes about 2 minutes. I will send it here as soon as it is ready.',
+    ur: '📄 آپ کا سبق کا منصوبہ ابھی تیار کیا جا رہا ہے — عام طور پر دو منٹ لگتے ہیں۔ تیار ہوتے ہی یہیں بھیج دیا جائے گا۔',
+  },
+
+  lp612StillWorking: {
+    en: 'Still working on that lesson plan — a few more minutes. It will arrive here.',
+    ur: 'سبق کا منصوبہ ابھی تیار ہو رہا ہے — کچھ اور منٹ لگیں گے۔ یہیں موصول ہو جائے گا۔',
+  },
+
+  lp612AlreadyPreparing: {
+    en: 'That lesson plan is already being written — I will send it here as soon as it is ready.',
+    ur: 'یہ سبق کا منصوبہ پہلے ہی تیار ہو رہا ہے — تیار ہوتے ہی یہیں بھیج دیا جائے گا۔',
+  },
+
+  // Never a silent failure. She is told it failed, and told exactly what to do.
+  lp612Failed: {
+    en: 'I could not finish that lesson plan this time. Please tap it again in a few minutes and I will try once more.',
+    ur: 'اس بار سبق کا منصوبہ مکمل نہیں ہو سکا۔ چند منٹ بعد دوبارہ اسی سبق پر ٹیپ کریں، دوبارہ کوشش کی جائے گی۔',
+  },
+
+  // The operator's hold on religious content. Phrased as "not yet", because
+  // that is what it is — a review is pending, not a refusal.
+  lp612Held: {
+    en: 'Lesson plans for this subject are still being reviewed, so I cannot share them yet. Everything else is ready to use.',
+    ur: 'اس مضمون کے سبق کے منصوبے ابھی نظرثانی کے مرحلے میں ہیں، اس لیے فی الحال دستیاب نہیں۔ باقی تمام مضامین حاضر ہیں۔',
+  },
+
+  lp612NotFound: {
+    en: 'I could not find that lesson. Open the lesson plan menu and choose it again.',
+    ur: 'یہ سبق نہیں مل سکا۔ سبق کے منصوبے کا مینو کھول کر دوبارہ منتخب کریں۔',
+  },
+
+  // Sent with the PDF. {topic} is the book's own subtopic wording.
+  lp612Caption: {
+    en: '{topic}\nGrade {grade} · {subject} · pages {pages}',
+    ur: '{topic}\nجماعت {grade} · {subject} · صفحات {pages}',
+  },
+
   lpV8SendFailed: {
     en: "I couldn't send that lesson plan just now — please try again in a minute.",
     ur: 'ابھی یہ سبق کا منصوبہ نہیں بھیجا جا سکا — براہِ کرم ایک منٹ بعد دوبارہ کوشش کریں۔',

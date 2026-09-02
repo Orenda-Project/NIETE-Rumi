@@ -4890,6 +4890,100 @@ COMMENT ON COLUMN schools.emis IS
 COMMENT ON COLUMN schools.is_active IS
   'Soft delete. School search reads WHERE is_active IS NOT FALSE.';
 
+-- ---------------------------------------------------------------------------
+-- 6-12 runtime lesson plans (V1.2.8).
+--
+-- niete_lp612_segments is the menu tree: one row per teaching day, produced by
+-- the segmentation fleet and loaded idempotently by
+-- bot/scripts/import-lp612-segments.js. niete_lp612_renders is the R2 cache
+-- ledger, keyed (segment_id, lang, template_version) -- a UNIQUE constraint
+-- rather than a convention, because it doubles as the lock that stops two
+-- teachers tapping the same lesson from authoring it twice.
+--
+-- Full rationale, column by column, lives in the migration:
+-- infrastructure/supabase/migrations/V1.2.8__lp612_runtime_lesson_plans.sql
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS niete_lp612_segments (
+  segment_id            TEXT PRIMARY KEY,
+  book_stem             TEXT    NOT NULL,
+  grade                 INTEGER NOT NULL CHECK (grade BETWEEN 6 AND 12),
+  subject               TEXT    NOT NULL,
+  medium                TEXT,
+  language              TEXT    NOT NULL DEFAULT 'en' CHECK (language IN ('en', 'ur')),
+  chapter_number        INTEGER,
+  chapter_title         TEXT,
+  chapter_key           TEXT    NOT NULL,
+  part                  TEXT,
+  part_index            INTEGER,
+  subtopic_title        TEXT    NOT NULL,
+  menu_title            TEXT    NOT NULL,
+  section_ref           TEXT,
+  printed_page_start    INTEGER NOT NULL,
+  printed_page_end      INTEGER NOT NULL,
+  pages_covered         INTEGER[] NOT NULL DEFAULT '{}',
+  order_index           INTEGER NOT NULL,
+  day_number            INTEGER,
+  segment_index         INTEGER,
+  lp_type               TEXT    NOT NULL DEFAULT 'content'
+                          CHECK (lp_type IN ('content', 'exercise_review', 'assessment',
+                                             'practical', 'revision')),
+  skill_type            TEXT,
+  slo_text              TEXT,
+  revision_source_segments TEXT[] NOT NULL DEFAULT '{}',
+  prev_segment_id       TEXT,
+  next_segment_id       TEXT,
+  yt                    JSONB,
+  is_religious          BOOLEAN NOT NULL DEFAULT FALSE,
+  notes                 TEXT,
+  corpus_version        TEXT    NOT NULL DEFAULT 'v1',
+  is_current            BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_lp612_segments_menu
+  ON niete_lp612_segments (grade, subject, chapter_number, order_index)
+  WHERE is_current;
+CREATE INDEX IF NOT EXISTS idx_lp612_segments_book
+  ON niete_lp612_segments (book_stem, chapter_key, order_index);
+
+COMMENT ON COLUMN niete_lp612_segments.is_religious IS
+  'Operator hold: Islamiat + seerah segments are never served on demand unless '
+  'LP_612_RELIGIOUS_ENABLED is on, which is separate from the feature flag so '
+  'that enabling the feature cannot enable these by accident.';
+
+CREATE TABLE IF NOT EXISTS niete_lp612_renders (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  segment_id        TEXT NOT NULL REFERENCES niete_lp612_segments(segment_id),
+  lang              TEXT NOT NULL CHECK (lang IN ('en', 'ur')),
+  template_version  TEXT NOT NULL,
+  status            TEXT NOT NULL DEFAULT 'authoring'
+                      CHECK (status IN ('authoring', 'ready', 'failed')),
+  r2_key            TEXT,
+  page_count        INTEGER,
+  model_used        TEXT,
+  rounds_used       INTEGER,
+  lint_clean        BOOLEAN,
+  lint_fails        JSONB,
+  error_code        TEXT,
+  error_detail      TEXT,
+  waiters           JSONB NOT NULL DEFAULT '[]'::jsonb,
+  requested_by      UUID REFERENCES users(id),
+  correlation_id    TEXT,
+  started_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at      TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT niete_lp612_renders_cache_key UNIQUE (segment_id, lang, template_version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_lp612_renders_lookup
+  ON niete_lp612_renders (segment_id, lang, template_version, status);
+CREATE INDEX IF NOT EXISTS idx_lp612_renders_inflight
+  ON niete_lp612_renders (started_at)
+  WHERE status = 'authoring';
+
 -- Reload PostgREST's schema cache last, so the reconciled columns + functions
 -- above are immediately visible to the REST API (the earlier NOTIFY predates these DDLs).
 NOTIFY pgrst, 'reload schema';

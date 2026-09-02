@@ -57,6 +57,16 @@ module.exports = {
     // .env from leaking into test expectations.
     '^dotenv$': '<rootDir>/tests/__mocks__/dotenv.js',
     '^pg$': '<rootDir>/tests/__mocks__/pg.js',
+    // The vendored LP v9 pipeline (bot/vendor/lp-v9) pulls three more bot-only packages at
+    // module scope: ajv (schema), katex + mhchem (server-side maths), openchemlib (molecule
+    // diagrams). Same rule as everything above — CI runs this suite before `bot/ npm ci`.
+    // The katex mapping has THREE entries because lib/fonts.js also resolves the package's
+    // own path to inline dist/katex.min.css; the more specific patterns must precede '^katex$'.
+    '^katex/dist/contrib/mhchem\\.js$': '<rootDir>/tests/__mocks__/katex-mhchem.js',
+    '^katex/package\\.json$': '<rootDir>/tests/__mocks__/katex-stub/package.json',
+    '^katex$': '<rootDir>/tests/__mocks__/katex.js',
+    '^ajv$': '<rootDir>/tests/__mocks__/ajv.js',
+    '^openchemlib$': '<rootDir>/tests/__mocks__/openchemlib.js',
   },
   setupFiles: ['<rootDir>/tests/setup.js'],
   testEnvironment: 'node',
