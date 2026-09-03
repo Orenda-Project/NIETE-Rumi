@@ -54,6 +54,7 @@ async function computeLpFidelity(input = {}, deps = {}) {
   try {
     let moves = null;
     let source = null;
+    let uploadHash = null;
     let meta = { ...(input.meta || {}) };
 
     // 1) corpus LP the teacher selected — the EXACT version she downloaded first,
@@ -82,6 +83,7 @@ async function computeLpFidelity(input = {}, deps = {}) {
       if (ext && Array.isArray(ext.moves) && ext.moves.length) {
         moves = ext.moves;
         source = 'uploaded';
+        uploadHash = uploadTextHash(capped);
         meta = { ...meta, template: 'UPLOADED', goal: ext.goal };
       }
     }
@@ -103,6 +105,10 @@ async function computeLpFidelity(input = {}, deps = {}) {
       status: 'ok',
       source,
       lesson_id: meta.lesson_id || null,
+      // bd-2kxxa.4: identity of the uploaded plan this blob was graded from, so the
+      // recompute gate can tell a re-upload from the same document. Top-level, not
+      // in meta — meta is the grader's prompt input.
+      upload_hash: source === 'uploaded' ? uploadHash : null,
       meta,
       ...analysis,
       narrative: graded.narrative || null,
@@ -121,6 +127,18 @@ async function computeLpFidelity(input = {}, deps = {}) {
 const UPLOAD_TEXT_CAP = 24000;
 
 /**
+ * bd-2kxxa.4: sha1 of an uploaded plan's text exactly as the extractor sees it
+ * (capped), so the same document hashes the same whether or not it was over the
+ * cap. null for no text.
+ */
+function uploadTextHash(text) {
+  if (text == null || text === '') return null;
+  const s = String(text);
+  const capped = s.length > UPLOAD_TEXT_CAP ? s.slice(0, UPLOAD_TEXT_CAP) : s;
+  return require('crypto').createHash('sha1').update(capped, 'utf8').digest('hex');
+}
+
+/**
  * The persist patch for a computeLpFidelity result. NON-ok statuses persist
  * too (bd-5knlj): lp_absent vs fidelity_unavailable vs never-ran used to be
  * indistinguishable, which cost a week of archaeology. Every reader guards on
@@ -130,4 +148,4 @@ function fidelityPatch(lpFidelity) {
   return lpFidelity ? { lp_fidelity: lpFidelity } : {};
 }
 
-module.exports = { computeLpFidelity, isFidelityEnabled, resolveFidelitySources, UPLOAD_TEXT_CAP, fidelityPatch };
+module.exports = { computeLpFidelity, isFidelityEnabled, resolveFidelitySources, UPLOAD_TEXT_CAP, fidelityPatch, uploadTextHash };

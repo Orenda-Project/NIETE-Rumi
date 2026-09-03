@@ -222,11 +222,21 @@ describe('bd-2447 — /register always opens the registration Flow', () => {
     );
   });
 
-  test('already-registered user: /register confirms, no Flow (regression pin)', async () => {
-    await handleTextMessage(MESSAGE, FROM, '/register', unregisteredUser({ first_name: 'Sana' }));
+  // bd-2kxxa.1: the old pin here ("already-registered → confirm, no Flow") encoded the bug that
+  // locked a coach out of fixing her own name. Since bd-2480 the gate keys on
+  // registration_completed (not first_name), and since bd-2kxxa.1 a completed account re-opens
+  // the Flow with the "Update your details" copy. Full coverage lives in
+  // bd-2kxxa1-register-reopens-for-registered.test.js; this keeps the /register contract in one place.
+  test('already-registered user (registration_completed=true): /register re-opens the Flow, not the "already registered" text', async () => {
+    await handleTextMessage(MESSAGE, FROM, '/register', unregisteredUser({
+      first_name: 'Sana', registration_completed: true, registration_state: 'completed',
+    }));
 
-    expect(WhatsAppService.sendFlow).not.toHaveBeenCalled();
-    expect(sentTexts().some((t) => t.includes("already registered, Sana"))).toBe(true);
+    expect(WhatsAppService.sendFlow).toHaveBeenCalledWith(
+      FROM,
+      expect.objectContaining({ flowId: REGISTRATION_FLOW_ID, header: 'Update your details' }),
+    );
+    expect(sentTexts().some((t) => t.includes("already registered, Sana"))).toBe(false);
   });
 
   test('lazy onboarding untouched: plain-text "register" (non-command) with 0 features still gets the deferred-onboarding guide, not the Flow', async () => {

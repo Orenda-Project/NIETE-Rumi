@@ -56,7 +56,7 @@ async function _writeQueue(userId, queue) {
  * Park an unbound recording and ask whose it is. Returns
  * {action: 'asked'|'dupe'|'park_full', ...}.
  */
-async function parkAndAsk(user, from, { audioId, sha256 = null, durationSeconds = null }) {
+async function parkAndAsk(user, from, { audioId, sha256 = null, durationSeconds = null, mimeType = null }) {
   const S = observeStrings(observeLang(user));
 
   // Dedupe: identical bytes already bound recently → point at the live one.
@@ -80,7 +80,9 @@ async function parkAndAsk(user, from, { audioId, sha256 = null, durationSeconds 
     await WhatsAppService.sendMessage(from, S.bind_park_full);
     return { action: 'park_full' };
   }
-  queue.push({ audioId, sha256, durationSeconds, parkedAt: new Date().toISOString() });
+  // bd-2kxxa.3: mimeType rides along so a parked AAC document, later picked as
+  // a debrief, is stored with its real container.
+  queue.push({ audioId, sha256, durationSeconds, mimeType, parkedAt: new Date().toISOString() });
   await _writeQueue(user.id, queue);
 
   const payload = await buildBindingList(user, S);
@@ -276,7 +278,7 @@ async function consumeParkedDebrief(user, from, sessionId) {
 
   const ObserveDebrief = require('./observe-debrief.service');
   await ObserveDebrief.startDebriefFromAudio(user, from, st.parkedHead.audioId,
-    { state: 'awaiting_debrief_audio', sessionId });
+    { state: 'awaiting_debrief_audio', sessionId }, { mimeType: st.parkedHead.mimeType || null });
 
   const queue = await _readQueue(user.id);
   if (queue.length && queue[0].audioId === st.parkedHead.audioId) {

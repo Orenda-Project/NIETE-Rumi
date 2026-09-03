@@ -36,32 +36,44 @@ process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'test-key';
 const IMAGE_HANDLER = path.join(__dirname, '../../shared/handlers/image-message.handler.js');
 const TEXT_HANDLER = path.join(__dirname, '../../shared/handlers/text-message.handler.js');
 const CAPTURE_SERVICE = path.join(__dirname, '../../shared/services/coaching/classroom-photo/capture.service.js');
+// bd-2kxxa.2: the per-gate session queries moved out of the image handler into
+// ONE shared resolver; the observer-parity contract is asserted there now.
+const RESOLVER = path.join(__dirname, '../../shared/services/coaching/media-session-resolver.js');
 
 describe('bd-5azz0 · wiring contracts (source)', () => {
   const imageSrc = fs.readFileSync(IMAGE_HANDLER, 'utf8');
   const captureSrc = fs.readFileSync(CAPTURE_SERVICE, 'utf8');
   const textSrc = fs.readFileSync(TEXT_HANDLER, 'utf8');
+  const resolverSrc = fs.readFileSync(RESOLVER, 'utf8');
 
   it('LP-as-image branch matches the observer too (bd-9hzdn.2 parity)', () => {
     // The branch that resolves the awaiting_lesson_plan session for an inbound
     // IMAGE must use the same or(user_id, observer_user_id) shape as the
-    // document path — a bare .eq('user_id') is defect 2.
+    // document path — a bare .eq('user_id') is defect 2. Since bd-2kxxa.2 the
+    // image branch delegates to the shared resolver, which owns that query.
     const lpBranch = imageSrc.slice(imageSrc.indexOf('lesson plan sent as a PHOTO'),
       imageSrc.indexOf('EXAM CHECKER DETECTION'));
-    expect(lpBranch).toMatch(/observer_user_id\.eq\./);
+    expect(lpBranch).toMatch(/handleLessonPlanMediaArrival/);
     expect(lpBranch).not.toMatch(/\.eq\('user_id', user\.id\)/);
+    expect(resolverSrc).toMatch(/observer_user_id\.eq\./);
+    expect(resolverSrc).not.toMatch(/\.eq\('user_id', user\.id\)/);
   });
 
   it('race-hold branch matches the observer too', () => {
-    const start = imageSrc.indexOf('shouldHoldImageForActiveCoaching');
-    const raceBranch = imageSrc.slice(start, start + 1500);
-    expect(raceBranch).toMatch(/observer_user_id\.eq\./);
+    // kind 'hold' runs the same resolver query (observer parity included).
+    const start = imageSrc.indexOf("kind: 'hold'");
+    expect(start).toBeGreaterThan(-1);
+    expect(resolverSrc).toMatch(/hold:\s*\{[\s\S]*?PRE_PHOTO_PROCESSING_STATUSES/);
+    expect(resolverSrc).toMatch(/observer_user_id\.eq\./);
   });
 
   it('image-webhook photo-max advances to the LP step, never straight to analysis', () => {
+    // The webhook Phase 3 now captures through capture.service (via
+    // media-attach.service), whose photo-max path lands on the LP step.
     const phase3 = imageSrc.slice(imageSrc.indexOf('Phase 3'), imageSrc.indexOf('lesson plan sent as a PHOTO'));
-    expect(phase3).toMatch(/advanceToLessonPlanStep/);
-    expect(phase3).not.toMatch(/photo_max_limit_reached|photo_max_reached/);
+    expect(phase3).toMatch(/handlePhotoArrival/);
+    expect(phase3).not.toMatch(/photo_max_limit_reached|photo_max_reached|queueAnalysis/);
+    expect(captureSrc).toMatch(/advanceToLessonPlanStep/);
   });
 
   it('document-as-photo capture photo-max advances to the LP step too', () => {

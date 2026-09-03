@@ -459,3 +459,49 @@ describe('every write is guarded, not merely well-named', () => {
     spy.mockRestore();
   });
 });
+
+// ── copy that names the actual state ────────────────────────────────────────
+
+/**
+ * `lp612Failed` says: *"I could not finish that lesson plan this time. Please tap it again in a
+ * few minutes and I will try once more."*
+ *
+ * For a transient failure that is exactly right. For a segment whose page range is over the cap it
+ * is a lie with a cost: the retry will fail identically every time, so she is invited to wait and
+ * tap forever. One shared fallback across distinct states is the thing rule 24(d) exists to stop —
+ * it misdirects the teacher AND every field report that follows.
+ */
+describe('an over-long segment is refused honestly, not offered a pointless retry', () => {
+  const sent = () => mockSendMessage.mock.calls.map((c) => c[1]).join(' ');
+
+  test.each([
+    ['PAGE_RANGE_TOO_LARGE'],
+    ['PAGE_TRUTH_TOO_LARGE'],
+  ])('%s does NOT tell her to tap again', async (code) => {
+    const err = new Error('too big'); err.code = code;
+    mockAuthorLessonPlan.mockRejectedValue(err);
+    seed();
+
+    const out = await Worker.process(JOB);
+
+    expect(out.status).toBe('failed');
+    expect(out.errorCode).toBe(code);
+    expect(sent()).not.toMatch(/tap it again|try once more/i);
+  });
+
+  test('it says the lesson covers too many pages, so the reason is visible to her', async () => {
+    const err = new Error('too big'); err.code = 'PAGE_RANGE_TOO_LARGE';
+    mockAuthorLessonPlan.mockRejectedValue(err);
+    seed();
+    await Worker.process(JOB);
+    expect(sent()).toMatch(/too many pages|covers too much/i);
+  });
+
+  test('an ORDINARY failure still gets the retry copy — the change is scoped', async () => {
+    const err = new Error('transient'); err.code = 'AUTHOR_LLM_FAILED';
+    mockAuthorLessonPlan.mockRejectedValue(err);
+    seed();
+    await Worker.process(JOB);
+    expect(sent()).toMatch(/tap it again/i);
+  });
+});

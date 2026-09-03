@@ -688,6 +688,16 @@ app.post('/webhook', async (req, res) => {
         return;
       }
 
+      // Commitment-card buttons ("Will you commit to trying this in your next
+      // class?" → Yes / Maybe later / Not for me) — sent after every self-serve
+      // coaching report. They were registered nowhere: every tap fell through to
+      // generic text handling and was lost. One-line delegation; id parsing, the
+      // record merge and the ack live in the service.
+      if (buttonId.startsWith('card_')) {
+        const { handleCardButton } = require('./shared/services/coaching/coaching-card/card-response.service');
+        if (await handleCardButton(buttonId, from, user && user.preferred_language)) return;
+      }
+
       // Coaching survey buttons (👍 Yes / 👎 Not really) — sent once the report AND the
       // voice debrief have both landed. Must be registered here: an unrecognised prefix
       // falls through to generic text handling and the tap is silently lost.
@@ -830,6 +840,12 @@ app.post('/webhook', async (req, res) => {
       else if (buttonId.startsWith('lessonplan_yes_')) {
         const sessionId = buttonId.replace('lessonplan_yes_', '');
         await CoachingService.handleLessonPlanResponse(sessionId, from, true);
+        // R165: the document she sends next belongs to THIS observation.
+        try {
+          await require('./shared/services/coaching/media-target.service').setTarget(user.id, sessionId, 'lp');
+        } catch (targetErr) {
+          logToFile('⚠️ media-target: could not record lp target (non-fatal)', { sessionId, error: targetErr.message });
+        }
       } else if (buttonId.startsWith('lessonplan_no_')) {
         const sessionId = buttonId.replace('lessonplan_no_', '');
         await CoachingService.handleLessonPlanResponse(sessionId, from, false);
@@ -899,6 +915,13 @@ app.post('/webhook', async (req, res) => {
             status: 'awaiting_classroom_photo'
           })
           .eq('id', sessionId);
+        // R165: the tap names the observation — remember it so the
+        // photo that follows binds HERE, not to the coach's newest session.
+        try {
+          await require('./shared/services/coaching/media-target.service').setTarget(user.id, sessionId, 'photo');
+        } catch (targetErr) {
+          logToFile('⚠️ media-target: could not record photo target (non-fatal)', { sessionId, error: targetErr.message });
+        }
 
         const { data: userRow } = await supabase
           .from('users')
@@ -1851,9 +1874,17 @@ app.post('/webhook', async (req, res) => {
       // menu became a LIST when LP fidelity shipped, but these ids had no
       // list_reply routing: the linker was never called and the session hung at
       // awaiting_lesson_plan. Handle BEFORE the Reading-Assessment session logic.
+      // R165 — the coach's answer to "which teacher is this photo /
+      // lesson plan for?": binds the parked media to the tapped observation.
+      if (listId.startsWith('mediatarget_')) {
+        const { handleMediaTargetTap } = require('./shared/services/coaching/media-attach.service');
+        if (user?.id && await handleMediaTargetTap(listId, from, user)) return;
+      }
+
       if (/^lp_(select|upload|none)_/.test(listId)) {
         const { handleLpListSelection } = require('./shared/services/coaching/lp-coaching/lp-list-selection.handler');
-        if (await handleLpListSelection(listId, from)) return;
+        // R165: pass WHO tapped so lp_upload_ can record the media target.
+        if (await handleLpListSelection(listId, from, { userId: user?.id })) return;
       }
 
       // CRITICAL: Get the CURRENT session first, then query conversations in THAT session
@@ -2234,27 +2265,14 @@ async function handleDocumentMessage(message, from, user) {
     // full-resolution send) lands here, not in the image handler. Historically it
     // was dropped — the document handler only ever recognised AUDIO. If the teacher
     // is on the photo step, capture it exactly like an image-message photo.
+    // R165: same shared resolver as the image webhook — the
+    // observation the coach tapped photo_yes_ for wins; with two at the photo
+    // gate she is asked which teacher (this gate used to take the newest).
     try {
-      const { isImageMime, shouldCaptureDocumentAsClassroomPhoto, CLASSROOM_PHOTO_STATUSES } = require('./shared/services/coaching/photo-capture-routing');
+      const { isImageMime } = require('./shared/services/coaching/photo-capture-routing');
       if (isImageMime(mimeType)) {
-        const supabase = require('./shared/config/supabase');
-        // bd-9hzdn.2: match observer_user_id too — a coach's photo-as-document
-        // must attach to her leader-observation session (owned by the teacher).
-        const { data: photoSession } = await supabase
-          .from('coaching_sessions')
-          .select('id, status, conversation_state, classroom_photos')
-          .or(`user_id.eq.${user.id},observer_user_id.eq.${user.id}`)
-          .in('status', CLASSROOM_PHOTO_STATUSES)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (shouldCaptureDocumentAsClassroomPhoto(photoSession, mimeType)) {
-          const imageBuffer = await WhatsAppService.downloadMedia(documentId);
-          const { capturePhotoAndPrompt } = require('./shared/services/coaching/classroom-photo/capture.service');
-          await capturePhotoAndPrompt({ session: photoSession, imageBuffer, mimeType, from, user });
-          return;
-        }
+        const { handlePhotoArrival } = require('./shared/services/coaching/media-attach.service');
+        if (await handlePhotoArrival({ user, from, mediaId: documentId, mimeType, kind: 'photo' })) return;
       }
     } catch (photoDocErr) {
       logToFile('⚠️ Classroom-photo-as-document check failed (non-critical)', { error: photoDocErr.message });
@@ -2329,7 +2347,7 @@ async function handleDocumentMessage(message, from, user) {
           {
             const { routeLeaderAudio } = require('./shared/services/observe/observe-audio-router');
             const observeHandled = await routeLeaderAudio({
-              user, from, audioId: documentId, sessionId, isLongAudio: true,
+              user, from, audioId: documentId, sessionId, isLongAudio: true, mimeType,
             });
             if (observeHandled) return;
           }
@@ -2357,7 +2375,7 @@ async function handleDocumentMessage(message, from, user) {
             const { routeLeaderAudio } = require('./shared/services/observe/observe-audio-router');
             const shortDocHandled = await routeLeaderAudio({
               user, from, audioId: documentId, sessionId: null,
-              durationSeconds: audioDurationRounded || null,
+              durationSeconds: audioDurationRounded || null, mimeType,
             });
             if (shortDocHandled) return;
           }
@@ -2407,7 +2425,7 @@ async function handleDocumentMessage(message, from, user) {
           if (isSchoolLeader(user)) {
             const { routeLeaderAudio } = require('./shared/services/observe/observe-audio-router');
             const observeHandled = await routeLeaderAudio({
-              user, from, audioId: documentId, sessionId: null, isLongAudio: true,
+              user, from, audioId: documentId, sessionId: null, isLongAudio: true, mimeType,
             });
             if (observeHandled) return;
           }
@@ -2423,24 +2441,14 @@ async function handleDocumentMessage(message, from, user) {
     // LESSON PLAN DOCUMENT: Check if there's an active coaching session awaiting lesson plan.
     // bd-9hzdn.2: match observer_user_id too — in the /observe flow the COACH uploads
     // the teacher's lesson plan; the session row is owned by the observed teacher.
-    const { data: coachingSession } = await supabase
-      .from('coaching_sessions')
-      .select('*')
-      .or(`user_id.eq.${user.id},observer_user_id.eq.${user.id}`)
-      .eq('status', 'awaiting_lesson_plan')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (coachingSession) {
-      // Document is lesson plan for active coaching session
-      await CoachingService.handleLessonPlanResponse(
-        coachingSession.id,
-        from,
-        true,
-        documentId
-      );
-    } else {
+    // R165: resolved through the shared media resolver — the
+    // observation the coach tapped Upload / Yes for wins; with two sessions at
+    // awaiting_lesson_plan she is asked which teacher. This gate used to take
+    // the sender's NEWEST session (newest-first, one row, all columns) — every
+    // document of a coach running observations back-to-back landed on it.
+    const { handleLessonPlanMediaArrival } = require('./shared/services/coaching/media-attach.service');
+    const lpHandled = await handleLessonPlanMediaArrival({ user, from, mediaId: documentId, mimeType });
+    if (!lpHandled) {
       // No active coaching session - regular document
       await WhatsAppService.sendMessage(from,
         "I received your document. If you're trying to submit a lesson plan for classroom coaching, " +

@@ -75,12 +75,21 @@ async function readOne(bookStem, file, localDir) {
 }
 
 /**
+ * The documented hard maximum for one segment's page range.
+ *
+ * 25 is not invented here — it is the number `brief_segment_v2.md` has always stated. What was
+ * missing was any code that enforced it. 119 of the 5,482 live segments exceed it (largest: 63
+ * pages), all of them chapter-spanning revision rows, so this is a real guardrail on a real path.
+ */
+const MAX_SEGMENT_PAGES = 25;
+
+/**
  * @param {object} args
  * @param {string} args.bookStem       corpus folder, e.g. `grade_9_biology`
  * @param {number[]} args.pages        PRINTED page numbers, in the order they should appear
  * @param {string} [args.correlationId]
  * @returns {Promise<{book: object, toc: object, pages: object[]}>}
- * @throws  Error with .code 'PAGE_TRUTH_MISSING' | 'PAGE_TRUTH_CORRUPT'
+ * @throws  Error with .code 'PAGE_TRUTH_MISSING' | 'PAGE_TRUTH_CORRUPT' | 'PAGE_RANGE_TOO_LARGE'
  */
 async function fetchPages({ bookStem, pages, correlationId } = {}) {
   if (!bookStem || typeof bookStem !== 'string') {
@@ -88,6 +97,33 @@ async function fetchPages({ bookStem, pages, correlationId } = {}) {
   }
   if (!Array.isArray(pages) || pages.length === 0) {
     throw missing(`no printed pages requested for ${bookStem} — an LP with no page-truth is not authorable`, { bookStem });
+  }
+
+  // THE CAP THE BRIEF ALWAYS CLAIMED EXISTED.
+  //
+  // brief_segment_v2.md: "Hard maximum: 25 pages… A segment past that cannot be served at all —
+  // the author pipeline refuses the page range." That refusal was never implemented anywhere:
+  // no length check here, no page-span check in the importer, no CHECK on the column. The only
+  // real bound was a 90,000-character slice inside compactPageTruth that appended "…[truncated]"
+  // with no throw, no log and no user-facing message — so a long chapter silently lost its tail
+  // and the lesson was authored from a book that stopped mid-sentence, at around 44 pages in
+  // English and 29 in Urdu.
+  //
+  // It is enforced HERE because this is the single choke point with exactly one caller, and as a
+  // THROW rather than a slice because a lesson built from two thirds of its source is worse than
+  // an honest refusal: the teacher cannot tell the difference by looking at it.
+  if (pages.length > MAX_SEGMENT_PAGES) {
+    logToFile('lp612 page-truth: page range too large, refusing', {
+      correlationId, bookStem, requested: pages.length, cap: MAX_SEGMENT_PAGES,
+    }, 'error');
+    const err = new Error(
+      `segment asks for ${pages.length} printed pages; the cap is ${MAX_SEGMENT_PAGES}. `
+      + 'A range this long cannot be authored without silently losing its tail.',
+    );
+    err.code = 'PAGE_RANGE_TOO_LARGE';
+    err.requested = pages.length;
+    err.cap = MAX_SEGMENT_PAGES;
+    throw err;
   }
 
   const localDir = process.env.LP612_PAGE_TRUTH_DIR || null;
@@ -132,4 +168,4 @@ async function fetchPages({ bookStem, pages, correlationId } = {}) {
   return { book: bookRaw, toc: tocRaw, pages: out };
 }
 
-module.exports = { fetchPages };
+module.exports = { fetchPages, MAX_SEGMENT_PAGES };
