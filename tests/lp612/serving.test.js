@@ -74,7 +74,14 @@ function mockBuilder(table) {
   };
   return b;
 }
-jest.mock('../../bot/shared/config/supabase', () => ({ from: jest.fn((t) => mockBuilder(t)) }));
+// `rpc` is part of the client now: joining a waiter list goes through the atomic
+// lp612_join_waiters function instead of a read-modify-write of the JSONB column.
+// Defaults to 'joined'; a test that cares overrides it.
+const mockRpc = jest.fn(() => Promise.resolve({ data: 'joined', error: null }));
+jest.mock('../../bot/shared/config/supabase', () => ({
+  from: jest.fn((t) => mockBuilder(t)),
+  rpc: (...a) => mockRpc(...a),
+}));
 
 const Serving = require('../../bot/shared/services/lp612-serving.service');
 
@@ -205,8 +212,11 @@ describe('two teachers, one lesson, one authoring run', () => {
     expect(out.outcome).toBe('joined');
     expect(mockQueueJob).not.toHaveBeenCalled();
     expect(mockSendMessage).toHaveBeenCalledTimes(1);
-    const update = mockDbCalls.find((c) => c.op === 'update');
-    expect(update.payload.waiters).toHaveLength(2);
+    // The append is ATOMIC now — one database function call, not a client-side rewrite of the
+    // whole array. Asserted as "the RPC ran AND nothing wrote the waiters column", because the
+    // old shape is exactly what dropped 90% of a twenty-way stampede.
+    expect(mockRpc).toHaveBeenCalledWith('lp612_join_waiters', expect.objectContaining({ p_render_id: 'r1' }));
+    expect(mockDbCalls.filter((c) => c.op === 'update' && c.payload && 'waiters' in c.payload)).toEqual([]);
   });
 
   test('a teacher already on the waiter list is not added twice', async () => {
@@ -214,14 +224,14 @@ describe('two teachers, one lesson, one authoring run', () => {
       data: { id: 'r1', status: 'authoring', waiters: [{ user_id: 'user-1', phone: '923001234567' }] },
       error: null,
     });
+    // The duplicate check moved INTO the statement — the function's WHERE clause refuses to
+    // append a phone already on the list, so a repeat tap is decided by the database rather than
+    // by a client-side scan of a possibly-stale array.
+    mockRpc.mockResolvedValueOnce({ data: 'duplicate', error: null });
+
     const out = await Serving.requestLesson({ segmentId: SEGMENT.segment_id, ...REQ });
     expect(out.outcome).toBe('joined');
-    // She is already on the list, so there is nothing to write — and the list
-    // must not have grown. Asserted as "no waiter write happened at all",
-    // because a re-write with the same length would still be a wasted round
-    // trip on every repeat tap.
-    const update = mockDbCalls.find((c) => c.op === 'update');
-    expect(update).toBeUndefined();
+    expect(mockDbCalls.filter((c) => c.op === 'update' && c.payload && 'waiters' in c.payload)).toEqual([]);
     // ...and she is still told what is happening, exactly once.
     expect(mockSendMessage).toHaveBeenCalledTimes(1);
   });

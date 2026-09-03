@@ -286,7 +286,19 @@ const PROBE = `() => {
 
 async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, repaginate, pdfMeta) {
   const channel = chromeChannel();
-  const browser = await pw.chromium.launch(channel ? { channel } : {});
+// VENDOR DIVERGENCE (see SYNC.md, "container launch flags"): two flags that matter only on a
+  // container, and only under load (bd-v60qf).
+  //   --disable-dev-shm-usage : a container's /dev/shm defaults to 64MB; Chromium keeps its
+  //     shared memory there and a 9-page A4 render with embedded fonts and SVG diagrams exhausts
+  //     it. The tab dies mid-render and it surfaces as "the render failed", with no readable
+  //     out-of-memory anywhere — the worst shape of failure this pipeline can have.
+  //   --no-sandbox : the sandbox needs kernel privileges the Railway container does not grant,
+  //     without which the browser can fail to start at all.
+  // Harmless on a dev box, which is exactly why nothing on a laptop would ever catch their absence.
+  const LAUNCH_ARGS = ['--no-sandbox', '--disable-dev-shm-usage'];
+  const browser = await pw.chromium.launch(
+    channel ? { channel, args: LAUNCH_ARGS } : { args: LAUNCH_ARGS },
+  );
   try {
     const page = await browser.newPage({ viewport: { width: A4.w, height: A4.h }, deviceScaleFactor: 2 });
     const load = async (p) => {

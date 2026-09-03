@@ -251,3 +251,31 @@ describe('the Linux/Railway chromium channel (vendor divergence)', () => {
     if ('channel' in mockLaunchCalls[0]) expect(mockLaunchCalls[0].channel).toBeTruthy();
   });
 });
+
+// ── the container flags ─────────────────────────────────────────────────────
+
+/**
+ * Two flags that only matter on a container, and only when it is under load (bd-v60qf).
+ *
+ *   --disable-dev-shm-usage : a container's /dev/shm defaults to 64MB. Chromium puts its shared
+ *                             memory there, and a 9-page A4 render with embedded fonts and SVG
+ *                             diagrams exhausts it. The tab dies mid-render — which surfaces as a
+ *                             render that simply fails, not as an out-of-memory error anyone can
+ *                             read.
+ *   --no-sandbox            : the sandbox needs kernel privileges the Railway container does not
+ *                             grant. Without this the browser can fail to start at all.
+ *
+ * Asserted at the launch boundary because there is no way to test this from the outside: on a dev
+ * laptop both flags are unnecessary and everything passes with or without them, so the only place
+ * the requirement can be recorded is here.
+ */
+describe('the browser is launched with the flags a container needs', () => {
+  it('passes --no-sandbox and --disable-dev-shm-usage', async () => {
+    mockLaunchCalls.length = 0;
+    await renderLessonPlan({ lpDoc: CLEAN_DOC, lang: 'en', stem: 'flags', outDir });
+
+    expect(mockLaunchCalls.length).toBeGreaterThan(0);
+    const args = (mockLaunchCalls[0] && mockLaunchCalls[0].args) || [];
+    expect(args).toEqual(expect.arrayContaining(['--no-sandbox', '--disable-dev-shm-usage']));
+  });
+});
