@@ -40,6 +40,10 @@ const { clampLanguage } = require('../config/ux-strings');
 // stopped existing would reach production as a runtime crash instead of a red gate.
 const { lint } = require('../../vendor/lp-v9/lint_lp.js');
 const { validateDoc } = require('../../vendor/lp-v9/lib/validate.js');
+// The schema itself, for the ONE repair that needs to know which top-level keys exist. Read from
+// the schema rather than copied into a list here, so a field added upstream is never silently
+// deleted by this file.
+const docSchema = require('../../vendor/lp-v9/schema/lp_doc.schema.json');
 
 const BRIEF_PATH = path.join(__dirname, '..', '..', 'vendor', 'lp-v9', 'brief_author_v3.md');
 
@@ -621,6 +625,40 @@ function sanitizeOverlay(doc) {
   return doc;
 }
 
+/**
+ * Drop top-level keys `lp_doc` does not define.
+ *
+ * Measured on staging twice in one morning, on two different segments:
+ *
+ *   SCHEMA INVALID — / must NOT have additional properties ('provenance_note')
+ *   SCHEMA INVALID — /ur_overlay must be object
+ *
+ * Both are the same failure. The model adds something the schema forbids and a lesson that is
+ * otherwise finished — 265 s and three revision rounds in — is discarded at the last gate. The
+ * teacher waits four minutes and gets an apology for a document that was fine.
+ *
+ * The root schema is `additionalProperties: false`, so an unknown key is BY DEFINITION one the
+ * renderer can never read: dropping it cannot lose anything, while keeping it loses the whole
+ * lesson. That makes this a mechanical repair of a mechanically-decidable defect, not a
+ * judgement call being automated — the same routing rule `parseYt` follows.
+ *
+ * ONLY the top level. A nested additionalProperties failure is a real shape defect that the
+ * revision ladder should be told about and fix, not something to paper over.
+ *
+ * The allowed set is read FROM THE SCHEMA. A hardcoded list would silently start deleting real
+ * fields the day someone adds one.
+ */
+function sanitizeUnknownTopLevel(doc) {
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return doc;
+  const allowed = (docSchema && docSchema.properties) ? Object.keys(docSchema.properties) : null;
+  // No schema, no opinion — never guess at what is allowed.
+  if (!allowed || !allowed.length) return doc;
+  for (const k of Object.keys(doc)) {
+    if (!allowed.includes(k)) delete doc[k];
+  }
+  return doc;
+}
+
 function applyVideo(doc, video) {
   if (!doc || !Array.isArray(doc.sections)) return doc;
   for (const s of doc.sections) {
@@ -756,6 +794,7 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
     );
   }
   applyVideo(doc, video);
+  sanitizeUnknownTopLevel(doc);
   sanitizeOverlay(doc);
 
   let gates = await runGates(doc, renderCheck);
@@ -786,6 +825,7 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
     }
 
     applyVideo(candidate, video);
+    sanitizeUnknownTopLevel(candidate);
     sanitizeOverlay(candidate);
     const g2 = await runGates(candidate, renderCheck);
     if (gateCost(g2) <= gateCost(gates)) {
@@ -831,6 +871,7 @@ function rangeOf(start, end) {
 
 module.exports = {
   sanitizeOverlay,
+  sanitizeUnknownTopLevel,
   pythonDictToJson,
   __extractJsonForTests: extractJson,
   authorLessonPlan,

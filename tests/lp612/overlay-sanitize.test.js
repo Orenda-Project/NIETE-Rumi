@@ -73,3 +73,61 @@ describe('ur_overlay is repaired before it reaches the schema wall', () => {
     expect('ur_overlay' in sanitizeOverlay(doc())).toBe(false);
   });
 });
+
+// ── fields the model invents ────────────────────────────────────────────────
+
+/**
+ * MEASURED ON STAGING, twice in one morning, on two different segments:
+ *
+ *   SCHEMA INVALID — / must NOT have additional properties ('provenance_note')
+ *   SCHEMA INVALID — /ur_overlay must be object
+ *
+ * Both are the same failure: the model adds something `lp_doc` forbids, and a lesson that is
+ * otherwise finished — 265 s and three revision rounds in — is thrown away at the last gate. The
+ * teacher gets an apology for a document that was fine.
+ *
+ * The root schema is `additionalProperties: false`, which means an unknown key is BY DEFINITION
+ * one the renderer can never read. Dropping it cannot lose anything, and the alternative is
+ * discarding the whole lesson — so this is not a judgement call being automated, it is a
+ * mechanical repair of a mechanically-decidable defect.
+ *
+ * The allowed set is read FROM THE SCHEMA, never hardcoded: a hardcoded list silently starts
+ * deleting real fields the day someone adds one.
+ */
+
+const schema = require('../../bot/vendor/lp-v9/schema/lp_doc.schema.json');
+const { sanitizeUnknownTopLevel } = require('../../bot/shared/services/lp612-author.service');
+
+describe('a field the schema does not know is dropped, not fatal', () => {
+  test("the exact key that killed a staging render is removed", () => {
+    const d = sanitizeUnknownTopLevel({ lesson_id: 'x', provenance_note: 'invented' });
+    expect('provenance_note' in d).toBe(false);
+    expect(d.lesson_id).toBe('x');
+  });
+
+  test('EVERY real schema property survives', () => {
+    // The guard against the obvious way to get this wrong: dropping something real.
+    const doc = {};
+    for (const k of Object.keys(schema.properties)) doc[k] = 'keep';
+    const out = sanitizeUnknownTopLevel(doc);
+    expect(Object.keys(out).sort()).toEqual(Object.keys(schema.properties).sort());
+  });
+
+  test('the allowed set comes from the schema, not a copy of it', () => {
+    // If this ever drifts, a newly-added schema field starts being deleted in production.
+    const invented = `definitely_not_in_the_schema_${Date.now()}`;
+    expect(Object.keys(schema.properties)).not.toContain(invented);
+    expect(invented in sanitizeUnknownTopLevel({ [invented]: 1 })).toBe(false);
+  });
+
+  test('it only touches the TOP level — nested shapes are the schema\'s business', () => {
+    // Nested additionalProperties failures are real defects the ladder should fix, not hide.
+    const d = sanitizeUnknownTopLevel({ page2: { board_final: {}, invented_here: 1 } });
+    expect(d.page2.invented_here).toBe(1);
+  });
+
+  test('a clean document is returned untouched', () => {
+    const d = { lesson_id: 'x', sections: [], page2: {} };
+    expect(sanitizeUnknownTopLevel({ ...d })).toEqual(d);
+  });
+});
