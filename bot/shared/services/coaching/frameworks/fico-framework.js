@@ -489,6 +489,52 @@ function buildIndicatorJsonRow(ind) {
   return `        { "id": "${ind.id}", "name": "${ind.name.replace(/"/g, '\\"')}", "score": <0-2, or null if not applicable>, "applicable": <true|false>, "evidence": "Detailed description + Quote: \\\"...\\\"", "evidence_summary": "<= 500 chars: the move + its effect on students + one short quote — the gist a reviewer needs to sanity-check the score", "timestamp": "exact time" }`;
 }
 
+// ─── Feedback-uptake loop: the PRIOR ACTION block ─────────────────────
+//
+// The teacher's previous action record (metadata.priorAction, attached by the
+// analysis processor only when the loop is enabled) rides inside THIS scoring
+// call — zero extra LLM calls — and asks for a TALLY of the target indicator's
+// COUNT unit, quoted. The verdict is computed in code from that tally; the
+// model never judges uptake, and the block must never move a score.
+
+function describeTally(obj) {
+  if (!obj || typeof obj !== 'object') return 'not recorded';
+  const parts = Object.entries(obj)
+    .filter(([, v]) => v !== null && v !== undefined && v !== '')
+    .map(([k, v]) => `${String(k).replace(/_/g, ' ')}: ${v}`);
+  return parts.length ? parts.join(', ') : 'not recorded';
+}
+
+function priorTallyKeys(prior) {
+  const bar = prior && prior.action_spec && prior.action_spec.count_target;
+  if (!bar || typeof bar !== 'object') return [];
+  return Object.keys(bar).filter((k) => /^[a-z][a-z0-9_]*$/.test(k));
+}
+
+function buildPriorActionBlock(prior) {
+  if (!prior || !prior.target || !prior.target.indicator) return '';
+  const keys = priorTallyKeys(prior);
+  if (!keys.length) return '';
+  const id = String(prior.target.indicator);
+  const name = String(prior.target.name || id).replace(/"/g, '\\"');
+  const date = String(prior.created_at || '').slice(0, 10);
+  const asked = String(prior.action || '').replace(/\s+/g, ' ').trim();
+  const baseline = prior.baseline || {};
+  const rung = baseline.rung !== null && baseline.rung !== undefined ? ` (rung ${baseline.rung})` : '';
+  return `
+PRIOR ACTION (this teacher's previous lesson${date ? `, ${date}` : ''}) — target ${id} "${name}".
+The teacher was asked: "${asked}". The bar the rubric sets for ${id} at rung 2: ${describeTally(prior.action_spec.count_target)}. Last lesson's tally: ${describeTally(baseline.count)}${rung}.
+For the "uptake" field below, tally from THIS transcript ONLY: count each unit for ${id} exactly as its COUNT line defines it, apply its DOES NOT COUNT line, and quote every counted moment in "evidence". This is a count, not a judgement of effort. Do NOT let the prior action change any indicator score — score every indicator exactly as you would without this block.
+`;
+}
+
+function buildUptakeSchema(prior) {
+  if (!buildPriorActionBlock(prior)) return '';
+  const keys = priorTallyKeys(prior).map((k) => `"${k}": <integer>`).join(', ');
+  return `,
+  "uptake": { "count": { ${keys} }, "evidence": "<quote each counted moment, in order>", "moment": "<where in the lesson the first counted moment happened, a short phrase, or empty>" }`;
+}
+
 function buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, photoAnalysis) {
   const {
     grade,
@@ -496,8 +542,12 @@ function buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, photoAn
     duration,
     language,
     teacherFirstName,
-    priorFeedback
+    priorFeedback,
+    priorAction
   } = metadata || {};
+
+  const priorActionBlock = buildPriorActionBlock(priorAction);
+  const uptakeSchema = buildUptakeSchema(priorAction);
 
   const lpFidelityNote = lessonPlanStructured
     ? `\nIMPORTANT - LP Fidelity: A lesson plan is linked. For Section B (especially B1, B2, B3), compare the planned LP objectives + steps against what was observed in the transcript.\n`
@@ -527,7 +577,7 @@ ${subject ? `- Subject: ${subject}` : ''}
 ${duration ? `- Duration: ${Math.round(duration / 60)} minutes` : ''}
 ${language ? `- Primary Language: ${language}` : ''}
 
-${priorFeedback ? `PRIOR FEEDBACK:\n${priorFeedback}\n` : ''}
+${priorFeedback ? `PRIOR FEEDBACK:\n${priorFeedback}\n` : ''}${priorActionBlock}
 ${lpFidelityNote}${photoNote}
 CLASSROOM TRANSCRIPT:
 ${transcript}
@@ -553,7 +603,7 @@ ${sectionJsonBlocks}
     "try_this_tomorrow": "<one concrete classroom move the teacher can try in their very next lesson>",
     "lever_question": "<ONE short, plain, open question the OBSERVER asks the TEACHER about her OWN lesson — inviting her to reflect on a real moment in this lesson (e.g. 'When you saw…', 'What made you…', 'When the pupils were asked…'). NOT a question about how to design questions, NOT pedagogy jargon, NOT a task. Max 15 words.>"
   },
-  "recommendations": ["Actionable recommendation 1", "Actionable recommendation 2", "Actionable recommendation 3"]
+  "recommendations": ["Actionable recommendation 1", "Actionable recommendation 2", "Actionable recommendation 3"]${uptakeSchema}
 }
 
 FOCUS AREA — pick the SINGLE most useful growth area (one domain + one indicator) as the teacher's lead next-step. Choose it from the indicators you scored LOWEST in this lesson, and among those prefer the one whose evidence you can quote most concretely. Never pick a non-applicable indicator. Its "domain" MUST be one of the four section keys above and "indicator" MUST be one of that section's indicator ids.
@@ -712,6 +762,7 @@ module.exports = {
 
   getSystemPrompt,
   buildAnalysisPrompt,
+  buildPriorActionBlock,
   computeScores,
   applyLpFidelity,
   getPerformanceBand,

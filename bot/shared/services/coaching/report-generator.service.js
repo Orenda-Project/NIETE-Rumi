@@ -30,6 +30,7 @@ const { uploadVoiceDebrief, uploadReportPDF, uploadReportImage } = require('../.
 const { TEMP_DIR } = require('../../utils/constants');
 const { getCoachingMessage } = require('../../config/coaching-messages');
 const { coachRoleLabelForRegion } = require('../../config/region-config');
+const { isUptakeLoopEnabled } = require('../../config/uptake-loop-flags');
 
 /**
  * Resolve language directly from a session row already in memory. The
@@ -197,6 +198,39 @@ class ReportGeneratorService {
       // ticker and the LP prompt, so a teacher whose UI is English but who
       // just taught in Urdu gets ALL messages in English (no jarring mix).
       const heroLanguage = outputLanguage; // bd-3b0co: unified resolver (was preferred || analysis || transcript || en)
+
+      // Feedback-uptake loop (flag-gated, FICO only): grade the PRIOR action
+      // from this lesson's tally, advance the state. `loop` then feeds the
+      // commitment card (the target + attempt + angle), the hero renderer (the
+      // uptake block) and the record written below. Never fatal — a failure
+      // here means the report ships exactly as it does with the flag off.
+      let loop = null;
+      if (isUptakeLoopEnabled() && String(enhancedAnalysis.framework || '').toLowerCase() === 'fico') {
+        try {
+          const { loadPriorAction } = require('./coaching-trend.service');
+          const { deriveUptakeStatus, nextTarget } = require('./uptake-loop.service');
+          const prior = await loadPriorAction(session.user_id, { excludeSessionId: coachingSessionId });
+          const status = deriveUptakeStatus(enhancedAnalysis.uptake, prior, enhancedAnalysis);
+          const state = nextTarget(prior, status, enhancedAnalysis);
+          loop = { prior, status, state };
+          logToFile('[uptake-loop] carry step', {
+            coachingSessionId,
+            prior_session: prior && prior.session_id,
+            prior_target: prior && prior.target && prior.target.indicator,
+            uptake_status: status,
+            next_target: state.target && state.target.indicator,
+            attempt: state.attempt,
+            angle: state.angle,
+            reason: state.reason,
+          });
+        } catch (loopErr) {
+          logToFile('[uptake-loop] carry step failed (non-fatal; report proceeds without the loop)', {
+            coachingSessionId, error: loopErr.message,
+          });
+          loop = null;
+        }
+      }
+
       let precomputedCommitment = null;
       try {
         const { generateCommitmentCard } = require('./coaching-card/commitment-card.service');
@@ -215,7 +249,7 @@ class ReportGeneratorService {
           enhancedAnalysis,
           session.conversation_state,
           cardLanguage,
-          { teacherName: teacherFirstNameForCard, priorAction: priorActionForCard }
+          { teacherName: teacherFirstNameForCard, priorAction: priorActionForCard, ...(loop ? { loop } : {}) }
         );
       } catch (e) {
         logToFile('⚠️  Pre-compute commitment card failed (non-fatal; hero renders without tryNext)', {
@@ -229,7 +263,7 @@ class ReportGeneratorService {
       // `{ png, caption }` (hero renderer — currently FICO on NIETE, plus
       // OECD/HOTS/TEACH/MEWAKA once they're wired). Delivery path branches
       // on the shape (FEAT-098).
-      const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment);
+      const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment, loop);
       const isHeroImage = !Buffer.isBuffer(reportResult) && reportResult && reportResult.png;
 
       // Upload report to R2 for portal access.
@@ -324,7 +358,7 @@ class ReportGeneratorService {
             enhancedAnalysis,
             session.conversation_state,
             cardLanguage,
-            { teacherName: teacherFirstName, priorAction }
+            { teacherName: teacherFirstName, priorAction, ...(loop ? { loop } : {}) }
           );
         }
 
@@ -346,6 +380,17 @@ class ReportGeneratorService {
               { id: `card_no_${coachingSessionId}`, title: cardCopy.commitButtons.no },
             ],
           });
+
+          // Feedback-uptake loop: the record extends the card in place — the
+          // target, the attempt and angle, the baseline for the NEXT verdict,
+          // the lineage, and this lesson's verdict on the prior action.
+          if (loop) {
+            const { buildRecord } = require('./uptake-loop.service');
+            actionData = buildRecord(loop.state, {
+              prior: loop.prior, analysis: enhancedAnalysis, card: actionData,
+              instrument: 'self', uptake: enhancedAnalysis.uptake, uptakeStatus: loop.status,
+            });
+          }
 
           await supabase
             .from('coaching_sessions')
@@ -642,7 +687,7 @@ class ReportGeneratorService {
    * @returns {Promise<Buffer>} PDF buffer
    * @private
    */
-  static async generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment = null) {
+  static async generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment = null, loop = null) {
     logToFile('Generating PDF report', { coachingSessionId: session.id });
 
     // Resolve framework and dispatch to correct transformer
@@ -709,8 +754,12 @@ class ReportGeneratorService {
         commitmentAction,
         // The ONE indicator this report is about — the same resolver the
         // commitment card used, on the same analysis, so the narrative's
-        // horizon and the green box name the same thing.
-        target: resolveTarget(analysisForTransformer),
+        // horizon and the green box name the same thing. With the loop on,
+        // the sticky loop target wins (the card and the record use it too).
+        target: (loop && loop.state && loop.state.target) || resolveTarget(analysisForTransformer),
+        // Feedback-uptake loop state ({ prior, status, state }) — the hero's
+        // uptake block reads it; null when the loop is off.
+        loop,
       },
     };
 

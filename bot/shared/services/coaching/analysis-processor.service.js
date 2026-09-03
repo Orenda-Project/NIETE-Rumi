@@ -20,6 +20,7 @@ const CoachingSessionService = require('./coaching-session.service');
 const { PEDAGOGICAL_ANALYSIS_MEDIA_ID } = require('../../utils/constants');
 const { selectFrameworkWithReason } = require('./frameworks/framework-selector');
 const { getCoachingMessage } = require('../../config/coaching-messages');
+const { isUptakeLoopEnabled } = require('../../config/uptake-loop-flags');
 
 /**
  * Look up the teacher's preferred language for a coaching session.
@@ -112,6 +113,17 @@ class AnalysisProcessorService {
         lessonPlanSubject: session.lesson_plan_structured?.subject || null,
         lessonPlanTopic: session.lesson_plan_structured?.topic || null
       };
+
+      // Feedback-uptake loop (flag-gated): the teacher's prior action record
+      // rides into the scoring prompt so the model tallies uptake of the ONE
+      // thing she was asked to try — inside this same call, no extra LLM call.
+      // The lookup never throws; null means "no prior" and the prompt is
+      // byte-identical to the flag-off prompt.
+      metadata.priorAction = null;
+      if (isUptakeLoopEnabled()) {
+        const { loadPriorAction } = require('./coaching-trend.service');
+        metadata.priorAction = await loadPriorAction(session.user_id, { excludeSessionId: coachingSessionId });
+      }
 
       logToFile('Analysis metadata', metadata);
 
