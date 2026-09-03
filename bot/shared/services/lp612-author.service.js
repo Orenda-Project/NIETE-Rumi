@@ -558,6 +558,42 @@ function parseYt(yt) {
   return out;
 }
 
+/**
+ * Repair `ur_overlay` before the schema wall, or drop it.
+ *
+ * The field is optional, and for an English-medium book asked for in Urdu the brief tells the
+ * model in as many words: "Do NOT emit ur_overlay yourself." It emitted one anyway, and not as
+ * an object — so the renderer refused the whole document with
+ * `SCHEMA INVALID … /ur_overlay must be object`, on staging, AFTER a full authoring run. The
+ * lesson was written and it was fine; it died at the last gate on a field nothing needed.
+ *
+ * This is the "assert the prompt's contract in code" rule: the model complies almost always and
+ * freestyles the rest, and a schema is a wall rather than a repair. So the repair happens first.
+ *
+ * Deliberately narrow — DROP what cannot be valid, never invent. The schema says an overlay is a
+ * map of JSON-Pointer (`^/`) to replacement STRING; anything else is not a lossy overlay, it is
+ * not an overlay, and every document renders correctly without one. An overlay left with nothing
+ * valid is removed rather than left as `{}`, so that "did the model write one?" stays answerable.
+ */
+function sanitizeOverlay(doc) {
+  if (!doc || !Object.prototype.hasOwnProperty.call(doc, 'ur_overlay')) return doc;
+
+  const ov = doc.ur_overlay;
+  const isPlainObject = ov && typeof ov === 'object' && !Array.isArray(ov);
+  if (!isPlainObject) {
+    delete doc.ur_overlay;
+    return doc;
+  }
+
+  const kept = {};
+  for (const [pointer, value] of Object.entries(ov)) {
+    if (pointer.startsWith('/') && typeof value === 'string') kept[pointer] = value;
+  }
+  if (Object.keys(kept).length) doc.ur_overlay = kept;
+  else delete doc.ur_overlay;
+  return doc;
+}
+
 function applyVideo(doc, video) {
   if (!doc || !Array.isArray(doc.sections)) return doc;
   for (const s of doc.sections) {
@@ -660,6 +696,7 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId } 
     );
   }
   applyVideo(doc, video);
+  sanitizeOverlay(doc);
 
   let gates = runGates(doc);
   let spent = 0;
@@ -689,6 +726,7 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId } 
     }
 
     applyVideo(candidate, video);
+    sanitizeOverlay(candidate);
     const g2 = runGates(candidate);
     if (gateCost(g2) <= gateCost(gates)) {
       doc = candidate;
@@ -732,6 +770,7 @@ function rangeOf(start, end) {
 }
 
 module.exports = {
+  sanitizeOverlay,
   pythonDictToJson,
   __extractJsonForTests: extractJson,
   authorLessonPlan,

@@ -34,23 +34,13 @@ const { authorLessonPlan } = require('../shared/services/lp612-author.service');
 const { renderLessonPlan } = require('../shared/services/lp612-render.service');
 const Serving = require('../shared/services/lp612-serving.service');
 const {
-  resolveAuthorModel, authorRounds, authorTimeoutMs, followupAfterMs, isReligiousEnabled,
+  resolveAuthorModel, authorRounds, authorTimeoutMs, followupAfterMs,
 } = require('../shared/config/lp612-flags');
 
 const RENDERS = 'niete_lp612_renders';
 const SEGMENTS = 'niete_lp612_segments';
 
 const nowIso = () => new Date().toISOString();
-
-/**
- * The segment's video pick, or null — never undefined, which would read as
- * "not supplied" to the renderer rather than as "there isn't one".
- */
-function videoFor(segment) {
-  const s = segment || {};
-  if (s.is_religious && !isReligiousEnabled()) return null;
-  return s.yt || null;
-}
 
 /** null, not the string "undefined": this goes into a TEXT column that serving
  *  tests for emptiness before it sends anything. */
@@ -193,16 +183,6 @@ async function process(payload) {
         lang,
         stem: segmentId.replace(/[^A-Za-z0-9._-]/g, '_'),
         outDir: tmpDir,
-        // The pick comes off the SEGMENT ROW and is handed straight to the
-        // renderer as furniture. It never passes through authorLessonPlan,
-        // because a model shown a url is a model that can return a different
-        // one, and a wrong video on a teacher's page is worse than no video.
-        //
-        // It carries the religious hold with it, reading the SAME flag the
-        // serving path reads rather than a copy of the rule: if the lesson is
-        // held, everything attached to it is held, and if the hold is ever
-        // lifted they lift together.
-        video: videoFor(segment),
         correlationId,
       });
 

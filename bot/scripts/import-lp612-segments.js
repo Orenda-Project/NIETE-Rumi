@@ -132,6 +132,15 @@ function validateSegment(segment) {
 
 // ── the row ─────────────────────────────────────────────────────────────────
 
+/** A TEXT[] column takes an array of strings or nothing. A bare string is the
+ *  shape the enrichment pass would produce for a single-SLO segment if it ever
+ *  stopped wrapping, and it fails the whole chunk rather than the one row. */
+const strList = (v) => {
+  if (Array.isArray(v)) return v.filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim());
+  if (typeof v === 'string' && v.trim()) return [v.trim()];
+  return [];
+};
+
 const intOrNull = (v) => {
   const n = parseInt(String(v), 10);
   return Number.isFinite(n) ? n : null;
@@ -169,6 +178,20 @@ function toRow(segment, { corpusVersion = 'v1' } = {}) {
     lp_type: s.lp_type || 'content',
     skill_type: s.skill_type ?? null,
     slo_text: s.slo_text ?? null,
+    // The deterministic SLO/section enrichment pass. These are the curriculum
+    // spine the authoring brief quotes from — a row without them produces a
+    // lesson with no learning outcome to teach to.
+    //
+    // Coerced to arrays here because the columns are TEXT[] NOT NULL DEFAULT
+    // '{}' (the house convention, matching pages_covered): a bare string or a
+    // null does not fail one row, it fails the whole 250-row chunk.
+    slo_codes: strList(s.slo_codes),
+    slo_descriptions: strList(s.slo_descriptions),
+    slo_source: s.slo_source ?? null,
+    // `section` is the human label and is present for every segment;
+    // `section_ref` is the printed section number and is null for ~68% of them.
+    // Both are kept: the ref is what a teacher matches against her book.
+    section: s.section ?? null,
     revision_source_segments: Array.isArray(s.revision_source_segments) ? s.revision_source_segments : [],
     prev_segment_id: s.prev_segment_id ?? null,
     next_segment_id: s.next_segment_id ?? null,
