@@ -91,7 +91,24 @@ const cps = (s) => [...String(s == null ? '' : s)].length;
     for (const it of items) {
       const mc = it['main-content'];
       chapters += 1;
-      const row = { grade: g, subject, id: it.id, ...mc };
+      // The SOURCE fields ride along so a comparison render can rebuild the
+      // pre-fix row from the same data instead of hand-transcribing it — the
+      // two panels then cannot drift apart or show different chapters.
+      const src = ROWS.find((r) => r.chapter_key === it.id
+        && r.subject === subject
+        && (r.grade === g || (r.also_grades || []).includes(g))) || {};
+      const row = {
+        grade: g,
+        subject,
+        id: it.id,
+        ...mc,
+        source: {
+          number: src.chapter_number ?? null,
+          name: src.chapter_title || '',
+          part: src.part || null,
+          rtl: src.language === 'ur',
+        },
+      };
       if ((mc.title || '').includes('…')) ellipsis += 1;
       if ((mc.metadata || '').includes('…')) lost += 1;
       seen.set(mc.title, (seen.get(mc.title) || 0) + 1);
