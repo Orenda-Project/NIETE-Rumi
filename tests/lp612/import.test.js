@@ -164,6 +164,47 @@ describe('the row that reaches the table', () => {
     expect(toRow(seg({ yt })).yt).toEqual(yt);
   });
 
+  // ── the deterministic SLO/section enrichment pass ────────────────────────
+  //
+  // A pass over the finished corpus fills slo_codes, slo_descriptions, slo_source,
+  // section and skill_type for every one of the 5,482 segments. These are the
+  // curriculum spine the authoring brief quotes from, so a row that reaches the
+  // table without them produces a lesson with no learning outcome to teach to.
+
+  test('the SLO enrichment fields reach the row', () => {
+    const row = toRow(seg({
+      slo_codes: ['B-10-C01-01', 'B-10-C01-02'],
+      slo_descriptions: ['Ingestion and digestion', 'The alimentary canal'],
+      slo_source: 'house_minted',
+      section: 'Nature of Chemistry',
+    }));
+    expect(row.slo_codes).toEqual(['B-10-C01-01', 'B-10-C01-02']);
+    expect(row.slo_descriptions).toEqual(['Ingestion and digestion', 'The alimentary canal']);
+    expect(row.slo_source).toBe('house_minted');
+    expect(row.section).toBe('Nature of Chemistry');
+  });
+
+  test('the list fields default to [] and never to null', () => {
+    // They are NOT NULL DEFAULT '{}' columns, matching pages_covered and
+    // revision_source_segments. A null here fails the insert for the whole chunk.
+    const row = toRow(seg());
+    expect(row.slo_codes).toEqual([]);
+    expect(row.slo_descriptions).toEqual([]);
+  });
+
+  test('a non-array slo_codes is coerced rather than passed to Postgres', () => {
+    // The enrichment pass is deterministic, but the importer is the last gate
+    // before a TEXT[] column, and a bare string there fails the entire batch.
+    expect(toRow(seg({ slo_codes: 'B-10-C01-01' })).slo_codes).toEqual(['B-10-C01-01']);
+    expect(toRow(seg({ slo_codes: null })).slo_codes).toEqual([]);
+  });
+
+  test('section_ref stays nullable — it is null for most of the corpus', () => {
+    // 3,708 of 5,482 segments have no printed section number. `section` carries
+    // the human label instead, and that one IS always present.
+    expect(toRow(seg({ section_ref: null })).section_ref).toBeNull();
+  });
+
   test('page numbers are taken verbatim — never recomputed from an offset', () => {
     // Three books in this corpus shift offset mid-book and one prints duplicate
     // page numbers. Recomputation is how a lesson opens the wrong pages.

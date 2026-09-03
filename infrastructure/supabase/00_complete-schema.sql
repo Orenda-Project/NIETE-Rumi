@@ -4930,6 +4930,16 @@ CREATE TABLE IF NOT EXISTS niete_lp612_segments (
                                              'practical', 'revision')),
   skill_type            TEXT,
   slo_text              TEXT,
+
+  -- The deterministic SLO/section enrichment pass (V1.3.0). 100% coverage on the
+  -- 5,482-segment corpus; the curriculum spine the authoring brief quotes from.
+  -- Native arrays match this table's pages_covered / revision_source_segments.
+  slo_codes             TEXT[] NOT NULL DEFAULT '{}',
+  slo_descriptions      TEXT[] NOT NULL DEFAULT '{}',
+  slo_source            TEXT,
+  -- `section` is the human label (every segment has one); `section_ref` above is
+  -- the PRINTED section number and is null for ~68% of the corpus.
+  section               TEXT,
   revision_source_segments TEXT[] NOT NULL DEFAULT '{}',
   prev_segment_id       TEXT,
   next_segment_id       TEXT,

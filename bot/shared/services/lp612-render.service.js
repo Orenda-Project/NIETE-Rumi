@@ -54,16 +54,11 @@ function renderFailed(message, extra = {}) {
  * @param {'en'|'ur'} [args.lang] language to render; defaults to the document's own medium
  * @param {string} args.stem      output basename, without extension
  * @param {string} args.outDir    directory for the .json, .html, .pdf and .render.json
- * @param {object} [args.video]   the segment's YouTube pick ({url, video_id, title}), printed as
- *                                coaching-corner furniture. Passed BESIDE the document rather
- *                                than inside it: lp_doc is additionalProperties:false at every
- *                                level, and keeping the url out of the schema keeps it out of
- *                                the authoring model's reach. Absent = no line at all.
  * @param {string} [args.correlationId]
  * @returns {Promise<{pdfPath:string, htmlPath:string, pageCount:number, warnings:string[]}>}
  * @throws  Error with .code 'RENDER_FAILED' and .problems[]
  */
-async function renderLessonPlan({ lpDoc, lang, stem, outDir, video, correlationId } = {}) {
+async function renderLessonPlan({ lpDoc, lang, stem, outDir, correlationId } = {}) {
   if (!lpDoc || typeof lpDoc !== 'object') throw renderFailed('renderLessonPlan needs an lpDoc object');
   if (!stem) throw renderFailed('renderLessonPlan needs a stem');
   if (!outDir) throw renderFailed('renderLessonPlan needs an outDir');
@@ -79,7 +74,6 @@ async function renderLessonPlan({ lpDoc, lang, stem, outDir, video, correlationI
       out: outDir,
       stem,
       lang: lang || null,
-      video: video || null,
       png: false,
       pdf: true,
       quiet: true,
