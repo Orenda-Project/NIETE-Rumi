@@ -36,6 +36,7 @@ const Serving = require('../shared/services/lp612-serving.service');
 const {
   resolveAuthorModel, authorRounds, authorTimeoutMs, followupAfterMs,
 } = require('../shared/config/lp612-flags');
+const { familyForBook } = require('../shared/config/lp612-families');
 
 const RENDERS = 'niete_lp612_renders';
 const SEGMENTS = 'niete_lp612_segments';
@@ -179,7 +180,15 @@ async function process(payload) {
   if (followup.unref) followup.unref();
   const stopFollowup = () => { clearTimeout(followup); followup = null; };
 
-  const model = resolveAuthorModel();
+  // PER FAMILY, and the family comes from the segment we just loaded.
+  //
+  // This line previously read `resolveAuthorModel()` with no argument, and it is
+  // the only caller that runs in production — the worker passes `model` EXPLICITLY
+  // to authorLessonPlan(), so the service's own family-aware default was never
+  // reached. The maths/physics pilot was inert on staging (a Grade 9 physics
+  // segment authored on sonnet) while the service-level tests were green, because
+  // they called authorLessonPlan the way the worker does not: without a model.
+  const model = resolveAuthorModel(familyForBook(segment.book_stem));
   let tmpDir;
 
   try {

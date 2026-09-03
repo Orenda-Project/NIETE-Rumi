@@ -46,6 +46,14 @@ describe('lp-v9 vendored pipeline', () => {
       'diagrams/lib/degenerate.js',
       // the author system prompt
       'brief_author_v3.md',
+      // the flash-tier system prompts, one per subject family (bd-u6za9). Listed
+      // here and not only in the family suite because THIS is the guard that
+      // polices a re-vendor: they are GENERATED upstream, so a re-vendor that
+      // regenerates v3 and forgets these leaves the flash lane authoring against
+      // a brief that no longer matches the canon.
+      'brief_author_v3_flash_maths.md',
+      'brief_author_v3_flash_sci.md',
+      'brief_author_v3_flash_prose.md',
       // the re-vendor procedure
       'SYNC.md',
     ];
@@ -63,6 +71,24 @@ describe('lp-v9 vendored pipeline', () => {
     const brief = fs.readFileSync(path.join(VENDOR, 'brief_author_v3.md'), 'utf8');
     expect(brief.length).toBeGreaterThan(40000);
   });
+
+  it.each(['maths', 'sci', 'prose'])(
+    'the %s flash brief is whole AND still carries the v3 canon inside it',
+    (family) => {
+      // Each family brief is GENERATED as "the whole v3 brief verbatim + this
+      // family's preamble", so it must be strictly larger than v3. If it ever
+      // came back SMALLER, the generator was run against a stale or truncated v3
+      // and the flash lane would be authoring against a different contract than
+      // the standard lane — a silent harness fork, which is exactly the drift
+      // that turns a model comparison into a harness comparison.
+      const v3 = fs.readFileSync(path.join(VENDOR, 'brief_author_v3.md'), 'utf8');
+      const flash = fs.readFileSync(
+        path.join(VENDOR, `brief_author_v3_flash_${family}.md`), 'utf8'
+      );
+      expect(flash.length).toBeGreaterThan(40000);
+      expect(flash.length).toBeGreaterThan(v3.length);
+    }
+  );
 
   it('the v3 schema is the closed heading system at schema_version 3.0', () => {
     const schema = JSON.parse(
