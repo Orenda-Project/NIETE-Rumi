@@ -95,20 +95,20 @@ beforeEach(() => {
 describe('the chapter row counts lessons in Urdu', () => {
   test('an Urdu book says اسباق, not "lessons"', async () => {
     mockRows = [ur(), ur({ segment_id: 's2', order_index: 2 })];
-    const mc = (await Catalog.buildChapterItems(9, 'Urdu'))[0]['main-content'];
+    const mc = (await Catalog.buildChapterItems(9, 'Urdu')).items[0]['main-content'];
     expect(mc.description).toContain('اسباق');
     expect(mc.description).not.toContain('lessons');
   });
 
   test('the count itself is still an Urdu digit', async () => {
     mockRows = [ur(), ur({ segment_id: 's2', order_index: 2 })];
-    const mc = (await Catalog.buildChapterItems(9, 'Urdu'))[0]['main-content'];
+    const mc = (await Catalog.buildChapterItems(9, 'Urdu')).items[0]['main-content'];
     expect(mc.description).toContain('۲');
   });
 
   test('an English book is untouched', async () => {
     mockRows = [en()];
-    const mc = (await Catalog.buildChapterItems(9, 'Physics'))[0]['main-content'];
+    const mc = (await Catalog.buildChapterItems(9, 'Physics')).items[0]['main-content'];
     expect(mc.description).toBe('1 lessons');
     expect(mc.description).not.toContain('اسباق');
   });
@@ -170,7 +170,7 @@ describe('no middle dot ever touches an Urdu digit', () => {
       ur({ yt: { url: 'u' }, lp_type: 'end_of_chapter' }),
       ur({ segment_id: 's2', order_index: 2 }),
     ];
-    const chapters = await Catalog.buildChapterItems(9, 'Urdu');
+    const { items: chapters } = await Catalog.buildChapterItems(9, 'Urdu');
     const { items } = await Catalog.buildSegmentItems(9, 'Urdu', 'c02');
     for (const it of [...chapters, ...items]) {
       const mc = it['main-content'];
@@ -224,7 +224,7 @@ describe('Urdu furniture does not push a row over its cap', () => {
       ur({ yt: { url: 'u' }, lp_type: 'end_of_chapter' }),
       ur({ segment_id: 's2', order_index: 2, printed_page_start: 128, printed_page_end: 134 }),
     ];
-    const chapters = await Catalog.buildChapterItems(9, 'Urdu');
+    const { items: chapters } = await Catalog.buildChapterItems(9, 'Urdu');
     const { items } = await Catalog.buildSegmentItems(9, 'Urdu', 'c02');
     for (const it of [...chapters, ...items]) {
       const mc = it['main-content'];
@@ -236,7 +236,7 @@ describe('Urdu furniture does not push a row over its cap', () => {
 
   test('an Urdu description leads with an Urdu character so the row renders RTL', async () => {
     mockRows = [ur()];
-    const mc = (await Catalog.buildChapterItems(9, 'Urdu'))[0]['main-content'];
+    const mc = (await Catalog.buildChapterItems(9, 'Urdu')).items[0]['main-content'];
     const first = [...mc.description][0];
     expect(first === '‏' || URDU_DIGITS.test(first) || /[؀-ۿ]/.test(first)).toBe(true);
   });

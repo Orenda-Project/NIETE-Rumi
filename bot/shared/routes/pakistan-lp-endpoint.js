@@ -151,6 +151,7 @@ async function handlePakistanLpDataExchange(flowToken, screen, screenData) {
   // feature was on stay tappable forever, and a tap on one after the flag goes
   // off must be refused, not served.
   if (step === 'lp612_subject')      return lp612Guard(() => selectLp612Subject(d));
+  if (step === 'lp612_chapter_page') return lp612Guard(() => selectLp612ChapterPage(d));
   if (step === 'lp612_chapter')      return lp612Guard(() => selectLp612Chapter(d));
   if (step === 'lp612_segment')      return lp612Guard(() => selectLp612Segment(flowToken, d));
   if (step === 'lp612_segment_page') return lp612Guard(() => selectLp612SegmentPage(d));
@@ -668,17 +669,17 @@ async function lp612Guard(fn) {
   return fn();
 }
 
-async function selectLp612Subject(d) {
+async function lp612ChapterScreen(d, page, screenId) {
   const grade = parseInt(d.grade, 10);
   if (!Number.isFinite(grade) || !d.subject) {
     return { data: { error: { message: 'Please select a subject.' } } };
   }
-  const items = await Lp612Catalog.buildChapterItems(grade, d.subject);
+  const { items } = await Lp612Catalog.buildChapterItems(grade, d.subject, page);
   if (!items.length) {
     return { data: { error: { message: 'Those lesson plans are being prepared — check back soon.' } } };
   }
   return {
-    screen: 'SELECT_CHAPTER',
+    screen: screenId,
     data: {
       items,
       grade_value: String(grade),
@@ -686,6 +687,16 @@ async function selectLp612Subject(d) {
       header_text: `${gradeTitle(grade)} — ${d.subject}`,
     },
   };
+}
+
+async function selectLp612Subject(d) {
+  return lp612ChapterScreen(d, 1, 'SELECT_CHAPTER');
+}
+
+/** "More chapters →" — a second screen, because Meta rejects a self-route.
+ *  53 chapters across 13 books were unreachable without it (bd-3r01z). */
+async function selectLp612ChapterPage(d) {
+  return lp612ChapterScreen(d, parseInt(d.page, 10) || 2, 'SELECT_CHAPTER_MORE');
 }
 
 async function lp612SegmentScreen(d, page, screenId) {

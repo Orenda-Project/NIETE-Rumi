@@ -159,7 +159,18 @@ async function buildSubjectItems(grade) {
 
 // ── chapter ─────────────────────────────────────────────────────────────────
 
-async function buildChapterItems(grade, subject) {
+/**
+ * Paginated like the segment list, and for the same reason a More row exists
+ * there: this list used to `.slice(0, PAGE_SIZE)` with NO overflow row, so 53
+ * chapters across 13 staging books (Islamiat, Chemistry, Urdu) simply did not
+ * exist for a teacher — chapter 21 of a 27-chapter book was unreachable with
+ * no error and nothing to tap (bd-3r01z). Page 1 carries PAGE_SIZE-1 real rows
+ * plus the More row; overflow lands on SELECT_CHAPTER_MORE because Meta
+ * rejects a row that routes back to its own screen.
+ *
+ * @returns {Promise<{items: object[], hasMore: boolean, total: number, page: number}>}
+ */
+async function buildChapterItems(grade, subject, page = 1) {
   const rows = await run(
     byGrade(menuQuery('chapter_key, chapter_number, chapter_title, part, language, order_index'), grade)
       .eq('subject', subject),
@@ -180,9 +191,11 @@ async function buildChapterItems(grade, subject) {
     byChapter.set(r.chapter_key, e);
   }
 
+  // The WHOLE book, in order — pagination slices AFTER the naming pass below,
+  // so a chapter number that repeats on a later page still counts as repeated
+  // and keeps its own words.
   const ordered = [...byChapter.entries()]
-    .sort((a, b) => (a[1].number ?? 999) - (b[1].number ?? 999) || a[0].localeCompare(b[0]))
-    .slice(0, PAGE_SIZE);
+    .sort((a, b) => (a[1].number ?? 999) - (b[1].number ?? 999) || a[0].localeCompare(b[0]));
 
   // ── pass 1: the number token, and how many chapters would share it ────────
   //
@@ -217,8 +230,16 @@ async function buildChapterItems(grade, subject) {
   const tokenUses = new Map();
   for (const p of prepared) if (p.token) tokenUses.set(p.token, (tokenUses.get(p.token) || 0) + 1);
 
+  // ── pagination window (AFTER the naming pass — see above) ────────────────
+  const total = prepared.length;
+  const p = Math.max(1, parseInt(String(page), 10) || 1);
+  const perPage = PAGE_SIZE - 1;
+  const start = (p - 1) * perPage;
+  const pageSlice = prepared.slice(start, start + perPage);
+  const hasMore = start + perPage < total;
+
   // ── pass 2: the rows ─────────────────────────────────────────────────────
-  return prepared.map(({ chapterKey, e, n, lead, name, token, merged, fits }) => {
+  const items = pageSlice.map(({ chapterKey, e, n, lead, name, token, merged, fits }) => {
     // A number that names exactly one chapter in this book can carry the title
     // on its own — the cleanest row, and the name appears once, whole, below.
     // A number that names three cannot: `باب ۱` three times over is a list the
@@ -254,6 +275,29 @@ async function buildChapterItems(grade, subject) {
       },
     };
   });
+
+  if (hasMore) {
+    // The overflow row speaks the book's language, like the segment lane's
+    // (bd-t8mbl): «مزید ابواب ←» with the arrow pointing the reading direction.
+    const moreRtl = !!(pageSlice[0] && pageSlice[0].e.rtl);
+    items.push({
+      id: MORE_ROW_ID,
+      'main-content': moreRtl
+        ? { title: clip(`${RLM}مزید ابواب ←`, TITLE_CAP), description: `${RLM}اگلا صفحہ` }
+        : { title: clip('More chapters →', TITLE_CAP), description: 'Next page' },
+      'on-click-action': {
+        name: 'data_exchange',
+        payload: {
+          step: 'lp612_chapter_page',
+          grade: String(grade),
+          subject,
+          page: String(p + 1),
+        },
+      },
+    });
+  }
+
+  return { items, hasMore, total, page: p };
 }
 
 // ── subtopic (the row that authors a lesson) ────────────────────────────────
