@@ -30,8 +30,32 @@ outside this repo and not in this repo's git history:
 | `schema/lp_doc.v2.schema.json` | `lp_html/schema/lp_doc.v2.schema.json` (v2.0 — frozen) |
 | `diagrams/index.js`, `diagrams/lib/*.js`, `diagrams/types/*.js` | `lp_html/diagrams/` |
 | `brief_author_v3.md` | `lp_author/brief_author_v3.md` |
+| `brief_author_v3_flash_{maths,sci,prose}.md` | `lp_author/brief_author_v3_flash_{maths,sci,prose}.md` |
 | `fonts/Inter-{Regular,SemiBold,Bold}.ttf` | workspace `06_Logs & Misc/Reports/Active/Tanzania Expansion/02_Coaching_MEWAKA/mewaka-sample-report/` |
 | `fonts/NotoNastaliqUrdu.ttf` | workspace `02_Main Rumi Bot/fonts/` |
+
+> **Partial re-vendor 2026-09-03 (third, night — bd-u6za9): the three FAMILY FLASH BRIEFS,
+> byte-for-byte.** `brief_author_v3_flash_{maths,sci,prose}.md` copied from `lp_author/`
+> unmodified, verified by SHA-256 against the skill copies at the moment of vendoring:
+>
+> | file | bytes | sha256 (first 12) |
+> |---|---|---|
+> | `brief_author_v3_flash_maths.md` | 102,471 | `bb444a1f8ead` |
+> | `brief_author_v3_flash_sci.md`   | 102,144 | `9a6b0f862194` |
+> | `brief_author_v3_flash_prose.md` | 102,542 | `3c0e3070dd8e` |
+>
+> Upstream's `build_flash_brief.py --check` reported all four generated briefs up to date against
+> `brief_author_v3.md` immediately before the copy, so the flash briefs and the vendored v3 describe
+> the same canon. **No `§3` divergence** — these are additions, and nothing already vendored moved.
+>
+> The GENERIC flash brief (`brief_author_v3_flash.md`) is deliberately NOT vendored: the serving
+> lane always resolves a family from `book_stem` (NOT NULL in `niete_lp612_segments`), so the
+> family-less variant is unreachable here and vendoring it would be ~100 KB that nothing can load.
+>
+> **Re-vendor obligation:** these are GENERATED files. When `brief_author_v3.md` changes upstream,
+> the flash briefs must be REGENERATED there (`build_flash_brief.py`) before being re-copied —
+> copying a stale flash brief beside a fresh v3 silently turns a model comparison into a harness
+> comparison, which is the exact drift `--check` exists to catch (§6b of BAKEOFF_ROUND3).
 
 > **Partial re-vendor 2026-09-03 (second, evening): `lib/template.js`, `lib/rich.js`,
 > `brief_author_v3.md` byte-for-byte; `render_lp.js` by hunk.** Fixed upstream first (upstream's
