@@ -1,27 +1,31 @@
 /**
- * bd-2447 — `/register` must ALWAYS open the registration Flow
+ * bd-2kxxa.1 (R162) — `/register` must open the registration Flow for an
+ * ALREADY-REGISTERED user too, so a coach can correct her own name.
  *
- * Live repro (operator, +92 320 6281951, user 923365709413, role NULL,
- * first_name NULL, 0 completed features): typing `/register` replied with the
- * deprecated deferred-onboarding text ("I'll ask for your name after you try
- * one of my features!") instead of sending the Registration v4 Flow.
+ * Live case: a new coach (Syeda Mariam Abbas Naqvi) was issued a phone number
+ * that previously belonged to Iqra Arshad. The users row for that number is
+ * registration_completed=true with first_name "Iqra", so the bot greets her as
+ * Iqra — and `/register` replied "✅ You're already registered, Iqra!" and
+ * returned BEFORE sending the Flow. She had no way to fix her own name.
  *
- * Root cause: text-message.handler.js /register branch gates the Flow-send
- * path behind `featureCount > 0` — zero-feature unregistered users (and users
- * with no row at all) fall through to the deferred-onboarding guide message.
- * A second adjacent hole: the registration_pending_name intercept (which runs
- * BEFORE the /register branch) swallows "/register" as a name answer.
+ * Root cause: text-message.handler.js /register branch checked the
+ * already-registered predicate FIRST and returned, so the Flow-send path below
+ * it was unreachable for any completed account.
  *
- * Contract under test (matches the main Rumi bot, where conversational
- * registration is deprecated): for any user who isn't mid-Flow, `/register`
- * ALWAYS sends the registration Flow (env REGISTRATION_FLOW_ID) — regardless
- * of feature count, registration_pending_name, or onboarding gates. The
- * deferred-onboarding guide still fires for NON-command feature-first inputs
- * (plain-text "register" keyword), so lazy onboarding is untouched elsewhere.
+ * Contract under test:
+ *  - REGISTRATION_FLOW_ID configured → /register ALWAYS sends the Flow.
+ *    Registered users get header 'Update your details' + an update body;
+ *    unregistered users keep the existing 'Welcome' copy. The "already
+ *    registered" text is NOT sent when the Flow goes out.
+ *  - A registered re-open is logged.
+ *  - Legacy paths (no REGISTRATION_FLOW_ID, or the Flow send throws) are
+ *    unchanged: a registered user still gets the "already registered" reply.
  *
- * These tests drive the REAL handleTextMessage (unlike the doc-style tests in
- * bug-002-registration-recovery.test.js, which never call the handler — which
- * is how this regression shipped unpinned).
+ * The submission side (flow-response.handler.js handleRegistrationFlow) already
+ * overwrites first_name/name and only writes role when a valid role is
+ * submitted, so re-opening the Flow for a registered user is safe.
+ *
+ * These tests drive the REAL handleTextMessage (same mock set as bd-2447).
  */
 
 process.env.REGISTRATION_FLOW_ID = '2010172012940869'; // published "Registration v4"
@@ -146,17 +150,34 @@ jest.mock('../../shared/services/redis-comprehension.service', () => ({
 
 const WhatsAppService = require('../../shared/services/whatsapp.service');
 const FeatureRegistrationService = require('../../shared/services/feature-registration.service');
-const { getOrCreateUser } = require('../../shared/database/bot-helpers');
+const { logToFile } = require('../../shared/utils/logger');
 const { handleTextMessage } = require('../../shared/handlers/text-message.handler');
 
 const REGISTRATION_FLOW_ID = '2010172012940869';
-const FROM = '923365709413';
-const MESSAGE = { id: 'wamid.bd2447.test' };
-const DEFERRED_TEXT_MARKER = "I'll ask for your name after you try one of my features";
+const FROM = '923001234567';
+const MESSAGE = { id: 'wamid.bd2kxxa1.test' };
 
-/** Unregistered existing row — the operator's live state (role NULL, no name). */
+const UPDATE_HEADER = 'Update your details';
+const UPDATE_BODY = 'Correct your name or details — this replaces what I have on file.';
+const WELCOME_HEADER = 'Welcome';
+const ALREADY_REGISTERED_MARKER = "already registered";
+
+/** The live row: the previous holder's completed registration on the re-issued number. */
+const registeredUser = (over = {}) => ({
+  id: 'user-uuid-iqra',
+  phone_number: FROM,
+  first_name: 'Iqra',
+  name: 'Iqra Arshad',
+  role: 'coach',
+  preferred_language: 'en',
+  registration_completed: true,
+  registration_state: 'completed',
+  registration_pending_name: false,
+  ...over,
+});
+
 const unregisteredUser = (over = {}) => ({
-  id: 'user-uuid-bd2447',
+  id: 'user-uuid-new',
   phone_number: FROM,
   first_name: null,
   role: null,
@@ -166,83 +187,89 @@ const unregisteredUser = (over = {}) => ({
   ...over,
 });
 
-const sentFlowCalls = () => WhatsAppService.sendFlow.mock.calls;
 const sentTexts = () => WhatsAppService.sendMessage.mock.calls.map((c) => String(c[1]));
+const logLines = () => logToFile.mock.calls.map((c) => String(c[0]));
 
 beforeEach(() => {
   jest.clearAllMocks();
+  process.env.REGISTRATION_FLOW_ID = REGISTRATION_FLOW_ID;
+  WhatsAppService.sendFlow.mockResolvedValue(true);
   FeatureRegistrationService.isPendingName.mockResolvedValue(false);
   FeatureRegistrationService.countUserFeatures.mockResolvedValue(0);
 });
 
-describe('bd-2447 — /register always opens the registration Flow', () => {
-  test('unregistered user with 0 features (operator repro): /register sends the Flow, NOT the deferred-onboarding text', async () => {
-    await handleTextMessage(MESSAGE, FROM, '/register', unregisteredUser());
+describe('bd-2kxxa.1 — /register re-opens the registration Flow for an already-registered user', () => {
+  test('registered user (registration_completed=true, first_name set): /register sends the Flow with the update copy and does NOT say "already registered"', async () => {
+    const user = registeredUser();
+
+    await handleTextMessage(MESSAGE, FROM, '/register', user);
 
     expect(WhatsAppService.sendFlow).toHaveBeenCalledTimes(1);
     expect(WhatsAppService.sendFlow).toHaveBeenCalledWith(
       FROM,
-      expect.objectContaining({ flowId: REGISTRATION_FLOW_ID }),
+      expect.objectContaining({
+        flowId: REGISTRATION_FLOW_ID,
+        flowToken: user.id,
+        header: UPDATE_HEADER,
+        body: UPDATE_BODY,
+      }),
     );
-    expect(sentTexts().some((t) => t.includes(DEFERRED_TEXT_MARKER))).toBe(false);
+    expect(sentTexts().some((t) => t.includes(ALREADY_REGISTERED_MARKER))).toBe(false);
   });
 
-  test('registration_pending_name=true: /register is NOT swallowed as a name answer — the Flow is sent', async () => {
-    FeatureRegistrationService.isPendingName.mockResolvedValue(true);
+  test('legacy account (registration_state=completed, no boolean flag): /register still sends the Flow with the update copy', async () => {
+    const user = registeredUser({ registration_completed: undefined, registration_state: 'completed' });
 
-    await handleTextMessage(MESSAGE, FROM, '/register', unregisteredUser({ registration_pending_name: true }));
-
-    expect(FeatureRegistrationService.handleNameResponse).not.toHaveBeenCalled();
-    expect(WhatsAppService.sendFlow).toHaveBeenCalledWith(
-      FROM,
-      expect.objectContaining({ flowId: REGISTRATION_FLOW_ID }),
-    );
-  });
-
-  test('brand-new number (row created on the fly, no name/features): /register sends the Flow', async () => {
-    getOrCreateUser.mockResolvedValue(unregisteredUser({ id: 'fresh-uuid-bd2447' }));
-
-    await handleTextMessage(MESSAGE, FROM, '/register', null);
+    await handleTextMessage(MESSAGE, FROM, '/register', user);
 
     expect(WhatsAppService.sendFlow).toHaveBeenCalledWith(
       FROM,
-      expect.objectContaining({ flowId: REGISTRATION_FLOW_ID }),
+      expect.objectContaining({ flowId: REGISTRATION_FLOW_ID, header: UPDATE_HEADER }),
     );
-    expect(sentTexts().some((t) => t.includes(DEFERRED_TEXT_MARKER))).toBe(false);
+    expect(sentTexts().some((t) => t.includes(ALREADY_REGISTERED_MARKER))).toBe(false);
   });
 
-  test('no users row at all (DB down, user stays null): /register still sends the Flow', async () => {
-    getOrCreateUser.mockRejectedValue(new Error('db unavailable'));
+  test('registered re-open is logged (so a name-fix leaves a trace in the logs)', async () => {
+    await handleTextMessage(MESSAGE, FROM, '/register', registeredUser());
 
-    await handleTextMessage(MESSAGE, FROM, '/register', null);
+    expect(logLines().some((l) => /re-open/i.test(l) && /registered/i.test(l))).toBe(true);
+  });
+
+  test('unregistered user keeps the existing "Welcome" copy (no regression on first-time setup)', async () => {
+    await handleTextMessage(MESSAGE, FROM, '/register', unregisteredUser());
 
     expect(WhatsAppService.sendFlow).toHaveBeenCalledWith(
       FROM,
-      expect.objectContaining({ flowId: REGISTRATION_FLOW_ID }),
+      expect.objectContaining({ flowId: REGISTRATION_FLOW_ID, header: WELCOME_HEADER }),
     );
-  });
-
-  // bd-2kxxa.1: the old pin here ("already-registered → confirm, no Flow") encoded the bug that
-  // locked a coach out of fixing her own name. Since bd-2480 the gate keys on
-  // registration_completed (not first_name), and since bd-2kxxa.1 a completed account re-opens
-  // the Flow with the "Update your details" copy. Full coverage lives in
-  // bd-2kxxa1-register-reopens-for-registered.test.js; this keeps the /register contract in one place.
-  test('already-registered user (registration_completed=true): /register re-opens the Flow, not the "already registered" text', async () => {
-    await handleTextMessage(MESSAGE, FROM, '/register', unregisteredUser({
-      first_name: 'Sana', registration_completed: true, registration_state: 'completed',
-    }));
-
-    expect(WhatsAppService.sendFlow).toHaveBeenCalledWith(
+    expect(WhatsAppService.sendFlow).not.toHaveBeenCalledWith(
       FROM,
-      expect.objectContaining({ flowId: REGISTRATION_FLOW_ID, header: 'Update your details' }),
+      expect.objectContaining({ header: UPDATE_HEADER }),
     );
-    expect(sentTexts().some((t) => t.includes("already registered, Sana"))).toBe(false);
   });
 
-  test('lazy onboarding untouched: plain-text "register" (non-command) with 0 features still gets the deferred-onboarding guide, not the Flow', async () => {
-    await handleTextMessage(MESSAGE, FROM, 'register', unregisteredUser());
+  test('WhatsApp field caps: update header fits the 60-code-point header cap', () => {
+    expect([...UPDATE_HEADER].length).toBeLessThanOrEqual(60);
+  });
 
-    expect(WhatsAppService.sendFlow).not.toHaveBeenCalled();
-    expect(sentTexts().some((t) => t.includes(DEFERRED_TEXT_MARKER))).toBe(true);
+  describe('legacy fallback paths are unchanged', () => {
+    test('no REGISTRATION_FLOW_ID configured: registered user still gets the "already registered" reply, no Flow', async () => {
+      delete process.env.REGISTRATION_FLOW_ID;
+
+      await handleTextMessage(MESSAGE, FROM, '/register', registeredUser());
+
+      expect(WhatsAppService.sendFlow).not.toHaveBeenCalled();
+      expect(sentTexts().some((t) => t.includes('already registered, Iqra'))).toBe(true);
+    });
+
+    test('Flow send throws for a registered user: falls back to the "already registered" reply (not the recovery name question)', async () => {
+      WhatsAppService.sendFlow.mockRejectedValueOnce(new Error('meta 5xx'));
+
+      await handleTextMessage(MESSAGE, FROM, '/register', registeredUser());
+
+      expect(WhatsAppService.sendFlow).toHaveBeenCalledTimes(1);
+      expect(sentTexts().some((t) => t.includes('already registered, Iqra'))).toBe(true);
+      expect(FeatureRegistrationService.sendNameQuestion).not.toHaveBeenCalled();
+    });
   });
 });
