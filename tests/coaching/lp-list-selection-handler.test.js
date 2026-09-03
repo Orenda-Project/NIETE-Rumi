@@ -109,3 +109,74 @@ describe('late LP selection → fidelity recompute (bd-5knlj)', () => {
     expect(calls.recomputed).toBe(0);
   });
 });
+
+/**
+ * bd-2kxxa.4 — the "which lesson plan?" list stays in the chat. A tap AFTER the
+ * observer's review was submitted used to: write the new _fidelity_ref, tell the
+ * coach "linked", then have the fidelity recompute refuse silently
+ * (review_submitted) and the handler discard that result — "linked", and nothing
+ * changed. Now the status is checked FIRST: a submitted session gets an honest
+ * reply and NO write; an open one is told "linked" only after the linker ran.
+ */
+describe('late re-selection is honest (bd-2kxxa.4)', () => {
+  const { handleLpListSelection } = require('../../bot/shared/services/coaching/lp-coaching/lp-list-selection.handler');
+  const { getCoachingMessage } = require('../../bot/shared/config/coaching-messages');
+  const TAP = 'lp_select_asset1_11111111-1111-1111-1111-111111111111';
+
+  function build(status, recomputeResult = { recomputed: true }) {
+    const calls = { linked: 0, recomputed: 0, queued: 0, sent: [], order: [] };
+    return {
+      calls,
+      deps: {
+        linker: {
+          handleLPSelection: async () => {
+            calls.linked += 1; calls.order.push('link');
+            return { lesson_plan_link_method: 'selected_recent', fidelity_ref: { lesson_id: 'B' } };
+          },
+        },
+        sendMessage: async (to, text) => { calls.sent.push(text); calls.order.push(`send:${text}`); },
+        queueAnalysis: async () => { calls.queued += 1; },
+        recomputeFidelity: async () => { calls.recomputed += 1; calls.order.push('recompute'); return recomputeResult; },
+        sessionStatus: async () => status,
+        resolveLanguage: async () => 'en',
+        messages: { getCoachingMessage: (k) => k },
+      },
+    };
+  }
+
+  it.each(['observer_review_complete', 'completed', 'cancelled'])(
+    'T1 status=%s: linker NOT called, honest reply, "linked" NOT sent',
+    async (status) => {
+      const { deps, calls } = build(status);
+      expect(await handleLpListSelection(TAP, '92300', deps)).toBe(true);
+      expect(calls.linked).toBe(0);      // no _fidelity_ref write on a submitted review
+      expect(calls.recomputed).toBe(0);
+      expect(calls.queued).toBe(0);
+      expect(calls.sent).toEqual(['lessonPlan_review_submitted']);
+    },
+  );
+
+  it('T2 status=awaiting_observer_review: links, says "linked" only AFTER the linker, recomputes', async () => {
+    const { deps, calls } = build('awaiting_observer_review');
+    expect(await handleLpListSelection(TAP, '92300', deps)).toBe(true);
+    expect(calls.linked).toBe(1);
+    expect(calls.recomputed).toBe(1);
+    expect(calls.queued).toBe(0);
+    expect(calls.sent).toEqual(['lessonPlan_linked']);
+    expect(calls.order).toEqual(['link', 'send:lessonPlan_linked', 'recompute']);
+  });
+
+  it('race: submitted between the status check and the write → the honest reply still goes out', async () => {
+    const { deps, calls } = build('awaiting_observer_review', { recomputed: false, reason: 'review_submitted' });
+    await handleLpListSelection(TAP, '92300', deps);
+    expect(calls.sent[calls.sent.length - 1]).toBe('lessonPlan_review_submitted');
+  });
+
+  it('the honest string is catalogued in en AND ur — never an inline literal', () => {
+    expect(getCoachingMessage('lessonPlan_review_submitted', 'en'))
+      .toBe("This observation's review has already been submitted, so I can't change its lesson plan.");
+    const ur = getCoachingMessage('lessonPlan_review_submitted', 'ur');
+    expect(ur).not.toBe(getCoachingMessage('lessonPlan_review_submitted', 'en'));
+    expect(ur).toMatch(/[؀-ۿ]/); // a real Urdu translation, not the English fallback
+  });
+});
