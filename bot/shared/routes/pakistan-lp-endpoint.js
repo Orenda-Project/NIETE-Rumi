@@ -48,7 +48,8 @@ const V8Catalog = require('../services/lp-v8-catalog.service');
 const V8Delivery = require('../services/lp-v8-delivery.service');
 const Lp612Catalog = require('../services/lp612-catalog.service');
 const Lp612Serving = require('../services/lp612-serving.service');
-const { isLp612Enabled, isLp612Grade } = require('../config/lp612-flags');
+const { isLp612Enabled, isLp612Grade, isLp612LangMenuEnabled } = require('../config/lp612-flags');
+const { LANGUAGE_OFFER, offerDefaultLanguage } = require('../config/languages');
 
 const CURRICULUM_TAG = 'pakistan';
 const STATIC_GRADES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -153,6 +154,7 @@ async function handlePakistanLpDataExchange(flowToken, screen, screenData) {
   if (step === 'lp612_chapter')      return lp612Guard(() => selectLp612Chapter(d));
   if (step === 'lp612_segment')      return lp612Guard(() => selectLp612Segment(flowToken, d));
   if (step === 'lp612_segment_page') return lp612Guard(() => selectLp612SegmentPage(d));
+  if (step === 'lp612_serve')        return lp612Guard(() => serveLp612Segment(flowToken, d));
 
   // v2 Flow fallback — payloads carry a screen but no step. Live during the
   // endpoint-deployed-but-Flow-not-yet-republished window.
@@ -739,20 +741,128 @@ async function selectLp612Segment(flowToken, d) {
     return { data: { error: { message: 'That lesson plan is not available right now.' } } };
   }
 
-  Promise.resolve(Lp612Serving.requestLesson({
-    segmentId,
-    userId,
-    phone: who.phone_number,
-    lang: who.preferred_language,
-    correlationId: `lp612:${segmentId}:${userId}`,
-  })).catch((err) => logToFile('LP 6-12: serving threw', {
-    segmentId, userId, error: err.message,
-  }));
+  // The language step. Behind its OWN flag (deploy-before-republish — see
+  // lp612-flags.js): while it is off this function is yesterday's, byte for
+  // byte, serving in her stored preference.
+  if (isLp612LangMenuEnabled()) {
+    return lp612LanguageScreen(segmentId, who);
+  }
+
+  serveLp612(segmentId, userId, who, who.preferred_language);
 
   return {
     screen: 'SUCCESS',
     data: { message: 'Your lesson plan is on its way — check this chat in a moment.' },
   };
+}
+
+// ── the language step ──────────────────────────────────────────────────────
+
+/**
+ * «اردو / English», as the FINAL tap before serving.
+ *
+ * A PER-REQUEST choice, deliberately: no setUserLanguage(), no
+ * preferred_language write. She may want physics in English and Islamiat in
+ * Urdu, and a write here would silently flip her whole bot UI (language
+ * protocol invariant 8: a lock is a decision, not a side effect). Her usual
+ * language merely goes FIRST; a teacher with none gets the deployment's offer
+ * default first.
+ *
+ * The Urdu row's metadata deliberately states the operator's own composition
+ * policy — scientific terms stay in English — so the teacher's expectation
+ * matches the document before she opens it. Caps are CODE POINTS (title 30 ·
+ * description 20 · metadata 80); the copy below is operator-approved
+ * (2026-09-03) and measured.
+ */
+async function lp612LanguageScreen(segmentId, who) {
+  const segment = await Lp612Catalog.segmentById(segmentId);
+  if (!segment) {
+    logToFile('LP 6-12: language screen for unknown segment', { segmentId });
+    return { data: { error: { message: 'That lesson plan is not available right now.' } } };
+  }
+
+  const rows = {
+    ur: {
+      id: 'ur',
+      'main-content': {
+        title: 'اردو',
+        description: 'مکمل سبق اردو میں',
+        metadata: 'سائنسی اصطلاحات انگریزی میں رہتی ہیں',
+      },
+      'on-click-action': {
+        name: 'data_exchange',
+        payload: { step: 'lp612_serve', segment_id: segmentId, lang: 'ur' },
+      },
+    },
+    en: {
+      id: 'en',
+      'main-content': {
+        title: 'English',
+        description: 'Full plan in English',
+      },
+      'on-click-action': {
+        name: 'data_exchange',
+        payload: { step: 'lp612_serve', segment_id: segmentId, lang: 'en' },
+      },
+    },
+  };
+
+  // Her usual language first, then the rest of the offer in its own order —
+  // derived from LANGUAGE_OFFER rather than a hardcoded pair, so the row set
+  // and the offer cannot drift apart.
+  const first = clampLanguage(who.preferred_language || offerDefaultLanguage());
+  const order = [first, ...LANGUAGE_OFFER.filter((l) => l !== first)];
+
+  return {
+    screen: 'SELECT_LANGUAGE',
+    data: {
+      items: order.map((id) => rows[id]).filter(Boolean),
+      header_text: String(segment.menu_title || segment.subtopic_title || ''),
+    },
+  };
+}
+
+/**
+ * A language row was tapped: serve exactly as the old segment tap did, with the
+ * CHOSEN language as the document and her stored preference as the voice of the
+ * acks (the uiLang/lang split — the two territories diverge the moment an
+ * Urdu-UI teacher orders an English physics plan). The payload's lang is passed
+ * through raw: clampLanguage() inside requestLesson is the ONE validation
+ * surface, and a tampered payload floors there — no second validator grows
+ * here.
+ */
+async function serveLp612Segment(flowToken, d) {
+  const segmentId = d && d.segment_id;
+  if (!segmentId) return { data: { error: { message: 'Please pick a lesson.' } } };
+
+  const userId = userIdFrom(flowToken);
+  const who = await getPhoneForUser(userId);
+  if (!who || !who.phone_number) {
+    logToFile('LP 6-12: no phone for user, cannot serve', { userId, segmentId });
+    return { data: { error: { message: 'That lesson plan is not available right now.' } } };
+  }
+
+  serveLp612(segmentId, userId, who, d.lang);
+
+  return {
+    screen: 'SUCCESS',
+    data: { message: 'Your lesson plan is on its way — check this chat in a moment.' },
+  };
+}
+
+/** The one fire-and-forget hand-off to serving — shared by the flag-off tap
+ *  and the language-row tap, so the two paths cannot drift. */
+function serveLp612(segmentId, userId, who, lang) {
+  Promise.resolve(Lp612Serving.requestLesson({
+    segmentId,
+    userId,
+    phone: who.phone_number,
+    lang,
+    uiLang: who.preferred_language,
+    correlationId: `lp612:${segmentId}:${userId}`,
+  })).catch((err) => logToFile('LP 6-12: serving threw', {
+    segmentId, userId, error: err.message,
+  }));
 }
 
 async function handlePakistanLpBack(flowToken, screen) {
