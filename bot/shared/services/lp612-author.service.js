@@ -417,7 +417,33 @@ function compactPageTruth(pages, maxChars = PAGE_TRUTH_MAX_CHARS) {
     }
   }
   const out = lines.join('\n');
-  return out.length <= maxChars ? out : `${out.slice(0, maxChars)}\n…[truncated]`;
+
+  // NEVER A SILENT BITE.
+  //
+  // This used to return `out.slice(0, maxChars) + '…[truncated]'` — no throw, no log, no message.
+  // A long chapter lost its tail and the lesson was authored from a book that stopped
+  // mid-sentence, at roughly 44 pages in English and 29 in Urdu, and nothing at any layer said
+  // so. That is a textbook regression mask: the defect is invisible exactly where it would be
+  // reported.
+  //
+  // A backstop, not the primary guard — fetchPages refuses over MAX_SEGMENT_PAGES before we get
+  // here. This catches the other shape: a page range inside the cap whose pages are unusually
+  // dense. It REFUSES for the same reason the cap does, and carries a distinct code so the worker
+  // can persist which of the two happened.
+  if (out.length > maxChars) {
+    logToFile('lp612 page-truth exceeds the character bound, refusing', {
+      chars: out.length, cap: maxChars, pages: (pages || []).length,
+    }, 'error');
+    const err = new Error(
+      `page-truth is ${out.length} characters against a bound of ${maxChars}. `
+      + 'Truncating it would author the lesson from an incomplete book.',
+    );
+    err.code = 'PAGE_TRUTH_TOO_LARGE';
+    err.chars = out.length;
+    err.cap = maxChars;
+    throw err;
+  }
+  return out;
 }
 
 /**
@@ -870,6 +896,8 @@ function rangeOf(start, end) {
 }
 
 module.exports = {
+  compactPageTruth,
+  PAGE_TRUTH_MAX_CHARS,
   sanitizeOverlay,
   sanitizeUnknownTopLevel,
   pythonDictToJson,

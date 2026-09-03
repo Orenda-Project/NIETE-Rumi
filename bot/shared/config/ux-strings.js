@@ -218,6 +218,15 @@ const UX_STRINGS = {
     ur: '📄 وہ سبق درمیان میں رک گیا تھا، اس لیے دوبارہ شروع کر دیا گیا ہے۔ عام طور پر دو منٹ لگتے ہیں اور یہیں موصول ہو جائے گا۔',
   },
 
+  // A lesson whose page range is over the cap will fail identically on every retry, so it must
+  // NOT get lp612Failed's "tap it again in a few minutes" — that invites her to wait and tap for
+  // ever on something that can never succeed. Rule 24(d): the copy names the actual state, and
+  // points at the thing that WILL work (the shorter rows in the same chapter).
+  lp612TooLong: {
+    en: 'That lesson covers too many pages for me to plan in one go. Open the chapter and pick one of the shorter lessons — those I can write for you now.',
+    ur: 'یہ سبق اتنے زیادہ صفحات پر پھیلا ہوا ہے کہ ایک ساتھ منصوبہ نہیں بن سکتا۔ باب کھول کر کوئی چھوٹا سبق منتخب کریں — وہ ابھی تیار کر دیا جائے گا۔',
+  },
+
   // Never a silent failure. She is told it failed, and told exactly what to do.
   lp612Failed: {
     en: 'I could not finish that lesson plan this time. Please tap it again in a few minutes and I will try once more.',
