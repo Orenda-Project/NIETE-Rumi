@@ -1724,16 +1724,21 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     // Already registered = the Flow was COMPLETED, not merely "has a first_name". Since bd-2480,
     // registration-endpoint persists first_name at the FIRST screen, so keying on first_name would
     // lock out anyone who started and abandoned the Flow. registration_completed is the real flag.
-    if (user?.registration_completed || user?.registration_state === 'completed') {
-      const known = user.first_name || 'there';
-      await WhatsAppService.sendMessage(from, `✅ You're already registered, ${known}! What would you like to do next?`);
-      return;
-    }
+    const isAlreadyRegistered = !!(user?.registration_completed || user?.registration_state === 'completed');
 
     // bd-2447: conversational/deferred registration is DEPRECATED (matches the
     // main Rumi bot). /register ALWAYS opens the registration Flow when one is
     // configured — regardless of feature count, registration_pending_name, or
     // any onboarding gate, and even when the users row doesn't exist yet.
+    //
+    // bd-2kxxa.1 (R162): ...and regardless of registration_completed. A
+    // registered user re-opening the Flow is how she CORRECTS her details —
+    // e.g. a coach issued a number whose previous holder's name is still on
+    // the row. Replying "already registered" here left her no way to fix it.
+    // The submission handler (flow-response.handler.js handleRegistrationFlow)
+    // overwrites first_name/name and only writes role when a valid one is
+    // submitted, so re-running the Flow on a completed account is safe.
+    //
     // The legacy recovery/guide paths below only remain as fallbacks for
     // deployments with no REGISTRATION_FLOW_ID (or a failed Flow send).
     const REGISTRATION_FLOW_ID = process.env.REGISTRATION_FLOW_ID || '';
@@ -1742,12 +1747,22 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         await WhatsAppService.sendFlow(from, {
           flowId: REGISTRATION_FLOW_ID,
           flowToken: user?.id || from,
-          header: 'Welcome',
-          body: 'Quick setup — tell us a little about you.',
+          header: isAlreadyRegistered ? 'Update your details' : 'Welcome',
+          body: isAlreadyRegistered
+            ? 'Correct your name or details — this replaces what I have on file.'
+            : 'Quick setup — tell us a little about you.',
           footer: 'Powered by NIETE',
           buttonText: 'Get started',
         });
-        logToFile('📝 Registration flow sent from /register command', { userId: user?.id, phoneNumber: from });
+        if (isAlreadyRegistered) {
+          logToFile('📝 Registration flow re-opened from /register for an already-registered user (details update)', {
+            userId: user?.id,
+            phoneNumber: from,
+            currentFirstName: user?.first_name || null,
+          });
+        } else {
+          logToFile('📝 Registration flow sent from /register command', { userId: user?.id, phoneNumber: from });
+        }
         return;
       } catch (error) {
         logToFile('⚠️ Registration flow send failed from /register — falling back to legacy paths', {
@@ -1756,6 +1771,14 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         });
         // fall through to the legacy recovery/guide paths below
       }
+    }
+
+    // Legacy path (no REGISTRATION_FLOW_ID, or the Flow send failed): a completed
+    // account has nothing to recover, so confirm and stop here.
+    if (isAlreadyRegistered) {
+      const known = user.first_name || 'there';
+      await WhatsAppService.sendMessage(from, `✅ You're already registered, ${known}! What would you like to do next?`);
+      return;
     }
 
     // Check if user has features but missed registration (recovery path)
