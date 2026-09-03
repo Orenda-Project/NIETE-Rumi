@@ -302,7 +302,16 @@ async function process(payload) {
     for (const w of waiters) {
       try {
         await Serving.deliverRender({
-          phone: w.phone, r2Key, segment, lang, oneScreen: oneScreenOf(authored), overlayDropped,
+          // `userId` is what the shelf write is keyed by, and the waiter list is the only place
+          // this worker knows one. Without it the recording no-ops for every teacher who waited
+          // on a first render — precisely the people the feature exists for.
+          phone: w.phone,
+          userId: w.user_id,
+          r2Key,
+          segment,
+          lang,
+          oneScreen: oneScreenOf(authored),
+          overlayDropped,
         });
         delivered += 1;
       } catch (err) {

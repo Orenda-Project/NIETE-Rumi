@@ -128,6 +128,18 @@ describe('the happy path', () => {
       .toEqual(['923001111111', '923002222222']);
   });
 
+  // The shelf write inside deliverRender is keyed by userId, and the waiter list is the ONLY
+  // place the worker knows one. Drop it here and the recording silently no-ops for every
+  // teacher who waited on a first render — the whole population the feature exists for — while
+  // every test that checks the phone number still passes. That is the bd-s192t shape exactly:
+  // a parameter that stops one hop short of its use site.
+  test('each waiter delivery carries HER userId, not just her phone', async () => {
+    seed();
+    await Worker.process(JOB);
+    expect(mockDeliverRender.mock.calls.map((c) => c[0].userId))
+      .toEqual(['u1', 'u2']);
+  });
+
   test('the model is passed in, never hardcoded — the operator flips it by env alone', async () => {
     process.env.LP_AUTHOR_MODEL = 'deepseek/deepseek-v4-flash';
     seed();
