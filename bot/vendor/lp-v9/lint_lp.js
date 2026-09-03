@@ -33,11 +33,12 @@
 // UNDER budget only WARNS: short is allowed (operator, 2026-08-30), and §6's own finding is
 // that teachers cut the tail of a long plan first.
 //
-// Urdu holds roughly two thirds of these counts: Nastaliq needs a unitless line-height >= 2.0,
-// so an Urdu page carries ~2/3 the lines of an English one at the same font size. Raising the
-// type floor did NOT soften that — the caps moved by the same proportion the type did, so an
-// Urdu render of a full-cap English plan is still over the cap (the v9 golden: 6+5 pages
-// against 4+3 at 16.5px, 7+6 against 5+4 at 18px). It is the same open question, restated.
+// Urdu needs no discount on these counts: Nastaliq's unitless line-height >= 2.0 means an Urdu
+// page carries ~2/3 the lines of an English one at the same font size, and that cost is paid in
+// PAGES, not words — render_lp.js gives an Urdu render its own caps (teach 7 / support 5 against
+// English's 5 / 4; operator, 2026-09-03: "keep the same word limit (though pages can be a bit
+// more to allow for decent urdu spacing)"). One set of word budgets for both languages: an Urdu
+// plan says no more than an English one; it only breathes more.
 // What survives the cut is §6's own ranking 1-8 (practice with answers, worked example,
 // prerequisite check, misconception, board question, exit ticket + re-teach rule). What goes
 // is length, not elements.

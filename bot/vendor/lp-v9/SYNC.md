@@ -33,6 +33,28 @@ outside this repo and not in this repo's git history:
 | `fonts/Inter-{Regular,SemiBold,Bold}.ttf` | workspace `06_Logs & Misc/Reports/Active/Tanzania Expansion/02_Coaching_MEWAKA/mewaka-sample-report/` |
 | `fonts/NotoNastaliqUrdu.ttf` | workspace `02_Main Rumi Bot/fonts/` |
 
+> **Partial re-vendor 2026-09-03 (second, evening): `lib/template.js`, `lib/rich.js`,
+> `brief_author_v3.md` byte-for-byte; `render_lp.js` by hunk.** Fixed upstream first (upstream's
+> own suites run there: `test/run_tests.js` 149/0 with a new mixed-script bidi section, and the
+> other runners green except `diagram_overlap_gate`, red before AND after on the same unrelated
+> rejected-sample artefact). What changed, in both homes identically — **no new §3 divergence**:
+>
+> * **The mixed-script bidi pass** (the 2026-09 staging audit): numeric ranges in RTL prose get
+>   LRI…PDI isolates (`lib/rich.js` `setRtlProse`, driven by `buildHtml`); chrome isolates
+>   `printed_pages` and the outcome box's Latin citation atoms; sequence/answer arrows flip to
+>   `&larr;` under RTL; prose blocks carry `unicode-bidi:plaintext` (RTL stylesheet only — the
+>   English render is byte-identical, asserted upstream and in `tests/lp612/bidi-caps.test.js`).
+> * **Per-language page caps** (`render_lp.js`): `pageCapsFor(lang)` — English unchanged at
+>   5/4 (warn 4/3); Urdu 7/5 (warn 6/4), the measured ~+33% footprint. Word budgets in
+>   `lint_lp.js` are deliberately untouched: identical content volume, more paper. The caps
+>   hunks were applied to the vendored file BY HAND around the §3.2/3.3/3.4 divergences — never
+>   blind-copied.
+> * **`brief_author_v3.md`**: new §7c (writing Urdu and English on the same page) + the Urdu
+>   page-cap note in §8, and the previously-pending skill→vendor delta (the `DUPLICATE_DIAGRAM`
+>   section, "20 types") rides along — the two copies are byte-identical again.
+>
+> `lint_lp.js` and both schemas remain byte-identical to upstream.
+
 > **Partial re-vendor 2026-09-03 (bd-x4xxm): `lib/template.js` only.** Fixed upstream first and
 > copied byte-for-byte; upstream's own suites were run there (`test/packing.js` added, 13
 > assertions; 7 of 8 files green, `diagram_overlap_gate` red before and after on an unrelated

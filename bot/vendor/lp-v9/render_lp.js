@@ -48,6 +48,32 @@ const A4 = { w: 794, h: 1123 };
 const MAX_PAGES = { teach: 5, support: 4 };     // above this: FAIL
 const WARN_PAGES = { teach: 4, support: 3 };    // above this: WARN, and keep going
 
+// PAGE CAPS ARE LANGUAGE-AWARE; WORD BUDGETS ARE NOT (operator, 2026-09-03).
+//
+// The SAME document rendered in both languages measured en=9pp / ur=12pp — a
+// controlled ~+33% footprint, because Nastaliq's tall marks and descenders need
+// line-height ~2.05 against Latin's 1.55, so an Urdu page carries roughly 2/3
+// the lines of an English one at the same floor. Under the English caps every
+// Urdu render of a full English-cap plan failed PAGE COUNT while carrying
+// IDENTICAL content — the staging field score the day this was measured was
+// EN 2/3 ready vs UR 0/4, every Urdu failure a PAGE COUNT.
+//
+// The operator's call, verbatim: "keep the same word limit (though pages can be
+// a bit more to allow for decent urdu spacing)". So the word budgets in
+// lint_lp.js stay one set of numbers for both languages — an Urdu plan says no
+// more than an English one — and Urdu pays its measured paper cost here, in
+// pages: teach 7 / support 5 (5/4 × 4/3 line density, rounded up), warns one
+// page under each cap exactly as English warns.
+const MAX_PAGES_UR = { teach: 7, support: 5 };
+const WARN_PAGES_UR = { teach: 6, support: 4 };
+
+/** The caps for one render, by the language actually being laid out. */
+function pageCapsFor(lang) {
+  return lang === "ur"
+    ? { max: MAX_PAGES_UR, warn: WARN_PAGES_UR }
+    : { max: MAX_PAGES, warn: WARN_PAGES };
+}
+
 // THE TYPE FLOORS, in one place. D4 was 16.5/13; the operator moved it to 18/14 on 2026-09-01
 // because 16.5 still did not read on a phone. The DIAGRAM label floor is NOT here — it is
 // 13.5px and it belongs to the diagram engine (diagrams/lib/svg.js), which sizes labels
@@ -463,11 +489,12 @@ async function renderDoc(a) {
     }
   }
   const byPart = (probe && probe.pagesByPart) || {};
-  for (const [part, cap] of Object.entries(MAX_PAGES)) {
+  const CAPS = pageCapsFor(lang);
+  for (const [part, cap] of Object.entries(CAPS.max)) {
     const n = byPart[part] || 0;
     if (n > cap) problems.push(`PAGE COUNT: ${part} needs ${n} pages; the cap is ${cap}. Cut it, or move content to the other part.`);
-    else if (WARN_PAGES[part] && n > WARN_PAGES[part]) {
-      warnings.push(`${part} runs to ${n} pages (soft target ${WARN_PAGES[part]}, hard cap ${cap}). Allowed — completeness beats page count — but check nothing is padding.`);
+    else if (CAPS.warn[part] && n > CAPS.warn[part]) {
+      warnings.push(`${part} runs to ${n} pages (soft target ${CAPS.warn[part]}, hard cap ${cap}). Allowed — completeness beats page count — but check nothing is padding.`);
     }
   }
   const pagesBuilt = (byPart.teach || 0) + (byPart.support || 0);
@@ -481,8 +508,8 @@ async function renderDoc(a) {
   }
   // Chrome-CLI fallback has no per-part probe, so the per-part caps above cannot fire. Guard
   // the total there so a runaway build is still caught rather than shipped.
-  if (!pagesBuilt && result.pdfPages != null && result.pdfPages > MAX_PAGES.teach + MAX_PAGES.support) {
-    problems.push(`PAGE COUNT: PDF has ${result.pdfPages} pages; the cap is ${MAX_PAGES.teach + MAX_PAGES.support}.`);
+  if (!pagesBuilt && result.pdfPages != null && result.pdfPages > CAPS.max.teach + CAPS.max.support) {
+    problems.push(`PAGE COUNT: PDF has ${result.pdfPages} pages; the cap is ${CAPS.max.teach + CAPS.max.support}.`);
   }
 
   const report = {
@@ -493,8 +520,8 @@ async function renderDoc(a) {
     pdf: pdfPath ? path.relative(REPO_ROOT, pdfPath) : null,
     pdf_pages: result.pdfPages,
     pages_by_part: (probe && probe.pagesByPart) || null,
-    max_pages: MAX_PAGES,
-    warn_pages: WARN_PAGES,
+    max_pages: CAPS.max,
+    warn_pages: CAPS.warn,
     has_raster_figure: !!hasRasterFigure,
     has_vector_figure: !!built.hasVectorFigure,
     page_breaks: result.breaks || null,
@@ -547,7 +574,7 @@ async function main() {
         console.log(`  ${p.id}: content ${p.contentBottomPx}px / box ${p.footTopPx}px = ${fill}% full` +
           (p.overflowPx > 0 ? `  ** CLIPPED by ${p.overflowPx}px (${p.lastElement}) **` : "  ok"));
       }
-      console.log(`  pages: teach ${byPart.teach || 0}/${MAX_PAGES.teach} \u00b7 support ${byPart.support || 0}/${MAX_PAGES.support}`);
+      console.log(`  pages: teach ${byPart.teach || 0}/${report.max_pages.teach} \u00b7 support ${byPart.support || 0}/${report.max_pages.support}`);
       console.log(`  smallest body ${probe.minBodyFontPx}px (floor ${BODY_FLOOR_PX}) · smallest chip ${probe.minChipFontPx}px (floor ${CHIP_FLOOR_PX}) · PDF pages: ${pdfPages}`);
     }
     for (const w of warnings) console.log(`  ! ${w}`);
@@ -566,4 +593,5 @@ if (require.main === module) {
 // Exported for test/run_tests.js — the packer is the new core logic and needs its own cover.
 // `renderDoc` and `chromeChannel` are vendor additions (see SYNC.md).
 module.exports = { renderDoc, chromeChannel, computeBreaks, packAtoms,
-  MAX_PAGES, WARN_PAGES, BODY_FLOOR_PX, CHIP_FLOOR_PX };
+  MAX_PAGES, WARN_PAGES, MAX_PAGES_UR, WARN_PAGES_UR, pageCapsFor,
+  BODY_FLOOR_PX, CHIP_FLOOR_PX };
