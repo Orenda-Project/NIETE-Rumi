@@ -20,7 +20,7 @@ name: logger-level
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, staging]
     paths:
       - 'bot/**'
       - 'tests/setup/logger-level-*'

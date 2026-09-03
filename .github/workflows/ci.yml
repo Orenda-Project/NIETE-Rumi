@@ -1,8 +1,13 @@
 name: CI
 
-# `develop` is the staging branch every change must pass through before `main`,
-# so it needs the same gate — previously this ran on `main` only, which meant a
-# PR into `develop` had no test check at all (gitleaks was the only one).
+# `staging` is the branch every change must pass through before `main`, so it needs
+# the same gate. Previously this ran on `main` only, which meant a PR into the
+# staging branch had no test check at all (gitleaks was the only one).
+#
+# `staging` replaced `develop` on 2026-09-03. `develop` had drifted 631 commits from
+# `main`, so every release needed a cherry-pick. `staging` is cut FROM `main` and only
+# receives work promoted from `sandbox`, which is what keeps `staging -> main` a
+# fast-forward. `develop` is frozen as a rollback anchor.
 #
 # This workflow was `disabled_manually` because `npm test` exited 1 on every
 # branch: the suite carried a large pre-existing failure backlog, so enabling it
@@ -18,9 +23,9 @@ name: CI
 # guards under `tests/setup/`. Re-record with `npm run test:baseline:update` if so.
 on:
   push:
-    branches: [main, develop]
+    branches: [main, staging]
   pull_request:
-    branches: [main, develop]
+    branches: [main, staging]
   workflow_dispatch:        # so the gate can be proven green before it guards PRs
 
 jobs:
@@ -65,24 +70,26 @@ jobs:
       # baseline may shrink, never grow. PR-only — on a push the base is this branch,
       # so there is nothing to compare against.
       #
-      # BLOCKING for a PR into `develop`, ADVISORY for a `develop` -> `main`
-      # promotion. A promotion legitimately carries develop's larger baseline into
-      # main — develop is ahead, so its snapshot is generally a superset — and
-      # blocking that would fire on every single release. Measured 2026-09-01:
-      # main's snapshot held 24 suites, develop's 30, so a promotion PR would have
-      # been refused for doing exactly what a promotion does. Advisory keeps the
-      # signal ("you are importing 8 newly-accepted failures into prod") without
-      # the false block.
+      # BLOCKING on both boundaries now, which is a change.
+      #
+      # Under the old `develop` model this was advisory for a promotion into `main`,
+      # because `develop` was 631 commits ahead and its baseline was legitimately a
+      # superset of main's, so blocking would have fired on every release. Measured
+      # 2026-09-01: main's snapshot held 24 suites, develop's 30.
+      #
+      # That justification is gone. `staging` is cut FROM `main` and stays in sync, so
+      # a `staging -> main` promotion should show ZERO growth. Anything else means
+      # failures were accepted into staging's baseline and are now being carried into
+      # production, which is exactly what this check exists to stop. Leaving it
+      # advisory on that boundary would leave a hole in the one place it matters most.
+      #
+      # A deliberate re-record still has `--allow-growth`; it now has to be asked for
+      # rather than granted automatically.
       - name: Baseline may only shrink
         if: github.event_name == 'pull_request'
         env:
           BASELINE_BASE_REF: origin/${{ github.base_ref }}
-        run: |
-          if [ "${{ github.base_ref }}" = "main" ]; then
-            npm run test:baseline:growth -- --allow-growth
-          else
-            npm run test:baseline:growth
-          fi
+        run: npm run test:baseline:growth
 
       - name: Install canvas system dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential libcairo2-dev libjpeg-dev libpango1.0-dev libgif-dev librsvg2-dev libpixman-1-dev

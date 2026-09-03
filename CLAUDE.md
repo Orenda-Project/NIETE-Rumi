@@ -9,8 +9,8 @@
 > | **WhatsApp (staging)** | `+92 322 2482222` (Meta App `4509630046027431`, added 2026-08-03) |
 > | **Env** | `NIETE-Rumi/.env` for prod; staging creds in project-root `01_Digital Coach Docs/03_ACCESS_CREDENTIALS.md` |
 > | **Docs** | `NIETE-Rumi/docs/migration/` (00 through 08) |
-> | **Branches (Gitflow)** | `main` → prod · `develop` → staging · feature branches → PR into `develop`. **No cherry-picking** — staging must promote to prod via `develop → main` PR only. |
-> | **Deploys** | Git push ONLY. Railway auto-deploys `develop`→staging and `main`→prod. Deploying by CLI upload is FORBIDDEN and blocked by `.claude/hooks/block-railway-up.sh` — it uploads the local working tree, so it can put unreviewed code on prod and records no commit, which makes "what is prod running?" unanswerable. |
+> | **Branches (Gitflow)** | `main` → prod · `staging` → staging · `sandbox` → sandbox. Devs land on `sandbox`; promotable work is cherry-picked `sandbox → staging`; `staging → main` is a plain fast-forward, never a cherry-pick. A PR into `main` from anything but `staging` is refused by `.github/workflows/main-source-branch.yml`. `develop` is frozen as a rollback anchor. |
+> | **Deploys** | Git push ONLY. Railway auto-deploys `sandbox`→sandbox, `staging`→staging and `main`→prod. Deploying by CLI upload is FORBIDDEN and blocked by `.claude/hooks/block-railway-up.sh` — it uploads the local working tree, so it can put unreviewed code on prod and records no commit, which makes "what is prod running?" unanswerable. |
 > | **Status** | 🟢 LIVE — Feature #1 (LP via UGLP) proven E2E, other features being ported |
 >
 > **NOT the same as:**
