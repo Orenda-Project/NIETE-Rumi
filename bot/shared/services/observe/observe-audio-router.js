@@ -67,9 +67,13 @@ async function _resolveDuration(audioId, durationSeconds) {
  *                                    already probed) — trusted when true
  * @param {number}  opts.durationSeconds  caller-resolved duration, if any
  * @param {string}  opts.sha256       webhook checksum (dedupe), if any
+ * @param {string}  opts.mimeType     webhook MIME (audio/ogg voice note,
+ *                                    audio/aac document…) — bd-2kxxa.3: stored
+ *                                    with a debrief so the worker keeps the
+ *                                    real container extension
  * @returns {Promise<boolean>} handled? (true → caller returns immediately)
  */
-async function routeLeaderAudio({ user, from, audioId, sessionId, isLongAudio = false, durationSeconds = null, sha256 = null }) {
+async function routeLeaderAudio({ user, from, audioId, sessionId, isLongAudio = false, durationSeconds = null, sha256 = null, mimeType = null }) {
   // FEAT-102 dark-safe gate: no published observe Flow → the whole capability
   // is off and leaders' audio flows through normal coaching exactly as before.
   if (!process.env.OBSERVE_MEWAKA_FLOW_ID) return false;
@@ -89,7 +93,7 @@ async function routeLeaderAudio({ user, from, audioId, sessionId, isLongAudio = 
   const park = async () => {
     const ObserveBinding = require('./observe-binding.service');
     await ObserveBinding.parkAndAsk(user, from, {
-      audioId, sha256, durationSeconds: dur || null,
+      audioId, sha256, durationSeconds: dur || null, mimeType,
     });
   };
 
@@ -116,7 +120,7 @@ async function routeLeaderAudio({ user, from, audioId, sessionId, isLongAudio = 
     }
     if (state && state.state === 'awaiting_debrief_audio') {
       const ObserveDebrief = require('./observe-debrief.service');
-      await ObserveDebrief.startDebriefFromAudio(user, from, audioId, state);
+      await ObserveDebrief.startDebriefFromAudio(user, from, audioId, state, { mimeType });
       logToFile('🎙 observe: debrief recording captured', { userId: user.id, audioId });
       return true;
     }

@@ -20,6 +20,10 @@ const { logToFile } = require('../utils/logger');
 const OpenAI = require('openai');
 const { planWhisperChunks, WHISPER_UPLOAD_CAP_BYTES } = require('./whisper-chunk-planner');
 
+// bd-2kxxa.3 — the containers Whisper accepts (by extension). Anything else is
+// transcoded to mp3 before upload in _whisperSingleFile.
+const WHISPER_EXTENSIONS = new Set(['.flac', '.m4a', '.mp3', '.mp4', '.mpeg', '.mpga', '.oga', '.ogg', '.wav', '.webm']);
+
 // Set ffmpeg and ffprobe paths
 ffmpeg.setFfmpegPath(ffmpegPath);
 ffmpeg.setFfprobePath(ffprobePath);
@@ -475,9 +479,48 @@ class AudioService {
     });
   }
 
+  /**
+   * bd-2kxxa.3 — Whisper sniffs the file EXTENSION and accepts only these. A
+   * debrief recorded by a phone recorder arrives as an AAC document; handed to
+   * Whisper as .aac (or, before bd-2kxxa.3, mislabelled .ogg) it answers
+   * "400 invalid format" and the whole fallback dies. So: unsupported extension
+   * → transcode to mp3 first. Supported files are untouched — this is the
+   * last-resort path of a SHARED service and only the unsupported-extension
+   * case changes behaviour.
+   */
+  static _whisperAcceptsExtension(audioPath) {
+    const ext = path.extname(String(audioPath || '')).toLowerCase();
+    return WHISPER_EXTENSIONS.has(ext);
+  }
+
+  /** Transcode to mp3 for Whisper. Resolves the new path; the caller unlinks it. */
+  static _transcodeForWhisper(audioPath) {
+    const outPath = path.join(TEMP_DIR,
+      `whisper_conv_${Date.now()}_${process.pid}_${Math.random().toString(36).slice(2, 8)}.mp3`);
+    return new Promise((resolve, reject) => {
+      ffmpeg(audioPath)
+        .audioCodec('libmp3lame')
+        .format('mp3')
+        .output(outPath)
+        .on('end', () => resolve(outPath))
+        .on('error', (err) => reject(err))
+        .run();
+    });
+  }
+
   static async _whisperSingleFile(audioPath) {
+    let uploadPath = audioPath;
+    let converted = null;
     try {
       logToFile('🎙️ Starting OpenAI Whisper transcription...', { audioPath });
+
+      if (!this._whisperAcceptsExtension(audioPath)) {
+        converted = await this._transcodeForWhisper(audioPath);
+        uploadPath = converted;
+        logToFile('🎙️ Whisper: unsupported container transcoded to mp3', {
+          from: path.extname(audioPath), to: converted,
+        });
+      }
 
       // Initialize OpenAI client
       const openai = new OpenAI({
@@ -485,15 +528,15 @@ class AudioService {
       });
 
       // Read the audio file
-      const audioFile = fs.createReadStream(audioPath);
+      const audioFile = fs.createReadStream(uploadPath);
 
       // Get file size for logging
-      const stats = fs.statSync(audioPath);
+      const stats = fs.statSync(uploadPath);
       const fileSizeInMB = stats.size / (1024 * 1024);
 
       logToFile('Whisper: Uploading audio file', {
         fileSizeMB: fileSizeInMB.toFixed(2),
-        path: audioPath
+        path: uploadPath
       });
 
       // Call Whisper API with turbo model for speed
@@ -563,6 +606,10 @@ class AudioService {
         throw new Error(`Whisper: Invalid request - ${error.message}`);
       } else {
         throw new Error(`Whisper transcription failed: ${error.message}`);
+      }
+    } finally {
+      if (converted) {
+        try { if (fs.existsSync(converted)) fs.unlinkSync(converted); } catch (_e) { /* best-effort */ }
       }
     }
   }
