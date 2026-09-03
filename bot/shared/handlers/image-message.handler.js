@@ -30,7 +30,6 @@ const { storeConversation, getOrCreateSession } = require('../database/bot-helpe
 
 // Idempotency TTL (1 hour - prevents reprocessing of same image)
 const IDEMPOTENCY_TTL_SECONDS = 3600;
-const MAX_COACHING_PHOTOS = 3;
 
 /**
  * Handle image message processing
@@ -86,119 +85,21 @@ async function handleImageMessage(message, from, user = null) {
 
       // ============================================================
       // Phase 3: Classroom photo collection for coaching
+      //
+      // R165: the session is resolved by the SHARED media resolver
+      // (media-session-resolver via media-attach.service) — the observation the
+      // coach tapped photo_yes_ for wins; with no target and MORE THAN ONE
+      // observation at the photo gate she is ASKED which teacher. This branch
+      // used to pick the sender's newest session (.order desc .limit(1)), which
+      // cross-wired every photo of a coach running observations back-to-back.
+      // Capture / add-another prompt / image-id SETNX idempotency / photo-max
+      // → LP step all live in media-attach.service + capture.service now.
+      // observer parity (user_id OR observer_user_id) is kept in the
+      // resolver's candidate query.
       // ============================================================
       try {
-        const coachingSupabase = require('../config/supabase');
-        // bd-2636 / bd-3ipd2: accept BOTH the transcription-flow status
-        // ('awaiting_photo') and the photo_yes-button status
-        // ('awaiting_classroom_photo'). Filtering only awaiting_photo orphaned every
-        // photo a teacher sent after tapping "yes". photo-capture-routing is the
-        // single source for these constants (shared with the document + race paths).
-        const { CLASSROOM_PHOTO_STATUSES, isClassroomPhotoState } = require('../services/coaching/photo-capture-routing');
-        // bd-9hzdn.2 (observe parity): the sender may be the COACH of a leader
-        // observation — the session row is owned by the observed TEACHER
-        // (user_id) while the coach is observer_user_id. Match either, so a
-        // coach's classroom photo attaches to her observation session.
-        const { data: photoSession } = await coachingSupabase
-          .from('coaching_sessions')
-          .select('id, conversation_state, status')
-          .or(`user_id.eq.${user.id},observer_user_id.eq.${user.id}`)
-          .in('status', CLASSROOM_PHOTO_STATUSES)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (photoSession && isClassroomPhotoState(photoSession.conversation_state?.current_state)) {
-          // bd-2371: de-dup at-least-once webhook redelivery for the classroom
-          // photo branch too — a redelivered copy must not append the same photo
-          // twice or re-fire the "photo N received" ack.
-          const photoImageId = message.image?.id;
-          const photoKey = `image:${user.id}:${photoImageId}`;
-          const photoClaimed = await redisService.setNX(
-            photoKey,
-            JSON.stringify({ status: 'classroom_photo_handled', startedAt: Date.now() }),
-            IDEMPOTENCY_TTL_SECONDS,
-          );
-          if (!photoClaimed) {
-            logToFile('🔁 Duplicate classroom-photo webhook — skipping', {
-              coachingSessionId: photoSession.id, userId: user.id, imageId: photoImageId,
-            });
-            typingController.stop();
-            return;
-          }
-          logToFile('📸 Phase 3: Classroom photo received for coaching session', {
-            coachingSessionId: photoSession.id,
-            userId: user.id
-          });
-
-          // Download and upload image to R2
-          const imageId = message.image?.id;
-          const imageBuffer = await WhatsAppService.downloadMedia(imageId);
-          const { uploadImageWithRetry: uploadPhoto } = require('../storage/r2');
-          const photoUrl = await uploadPhoto(imageBuffer, user.id, imageId, message.image?.mime_type || 'image/jpeg');
-
-          const userLang = await getUserLanguage(user.id) || user.preferred_language || 'en';
-
-          // Append photo URL to coaching_sessions.classroom_photos JSONB array
-          const existingPhotos = photoSession.conversation_state?.classroom_photos || [];
-          if (existingPhotos.length >= MAX_COACHING_PHOTOS) {
-            // bd-5azz0: the max path used to queueAnalysis directly — skipping
-            // the lesson-plan ask entirely, so LP fidelity scored on nothing.
-            // Land on the SAME LP step the photo_done_ tap reaches.
-            await WhatsAppService.sendMessage(
-              from,
-              userLang === 'ur'
-                ? '📸 زیادہ سے زیادہ 3 تصاویر بھیجی جا سکتی ہیں۔'
-                : '📸 You can upload a maximum of 3 photos.'
-            );
-            const { advanceToLessonPlanStep } = require('../services/coaching/lp-coaching/lp-step.service');
-            await advanceToLessonPlanStep({ sessionId: photoSession.id, from, tapperUserId: user.id });
-            typingController.stop();
-            return;
-          }
-
-          existingPhotos.push({ url: photoUrl, uploaded_at: new Date().toISOString() });
-
-          await coachingSupabase
-            .from('coaching_sessions')
-            .update({
-              classroom_photos: existingPhotos,
-              conversation_state: {
-                ...photoSession.conversation_state,
-                classroom_photos: existingPhotos
-              }
-            })
-            .eq('id', photoSession.id);
-
-          // Photo received — ask explicitly whether to add more photos or proceed.
-          if (existingPhotos.length >= MAX_COACHING_PHOTOS) {
-            // bd-5azz0: max reached → the LP step (never straight to analysis).
-            await WhatsAppService.sendMessage(
-              from,
-              userLang === 'ur'
-                ? `📸 تصویر ${existingPhotos.length} موصول۔ زیادہ سے زیادہ حد پوری ہو گئی ہے۔`
-                : `📸 Photo ${existingPhotos.length} received. Maximum reached.`
-            );
-            const { advanceToLessonPlanStep } = require('../services/coaching/lp-coaching/lp-step.service');
-            await advanceToLessonPlanStep({ sessionId: photoSession.id, from, tapperUserId: user.id });
-          } else {
-            const confirmMsg = userLang === 'ur'
-              ? `📸 تصویر ${existingPhotos.length} موصول۔ کیا ایک اور تصویر شامل کرنی ہے؟`
-              : `📸 Photo ${existingPhotos.length} received. Would you like to add another photo?`;
-            await WhatsAppService.sendInteractiveButtons(from, {
-              body: confirmMsg,
-              buttons: [
-                { id: `photo_more_${photoSession.id}`, title: userLang === 'ur' ? 'مزید تصویر' : 'Add another' },
-                { id: `photo_done_${photoSession.id}`, title: userLang === 'ur' ? 'مکمل' : 'Done' }
-              ]
-            });
-          }
-
-          logToFile('📸 Coaching photo stored, waiting for more or timeout', {
-            coachingSessionId: photoSession.id,
-            photoCount: existingPhotos.length
-          });
-
+        const { handlePhotoArrival } = require('../services/coaching/media-attach.service');
+        if (await handlePhotoArrival({ user, from, mediaId: imageId, mimeType, kind: 'photo' })) {
           typingController.stop();
           return;
         }
@@ -219,50 +120,14 @@ async function handleImageMessage(message, from, user = null) {
       // plan?", then lost her coaching session entirely (Sana Nawaz, ICT,
       // 2026-07-21). We promised images; we now accept them.
       // ============================================================
+      // R165: resolved through the same shared resolver as the document
+      // path (tapped lp target → single candidate → ask which teacher). The
+      // observer match (user_id OR observer_user_id) and the image-id SETNX claim are
+      // inside media-attach.service; the LP processor entry is unchanged
+      // (handleLessonPlanResponse → handleLessonPlanUpload + queueAnalysis).
       try {
-        const lpSupabase = require('../config/supabase');
-        // bd-5azz0: match the OBSERVER too — in /observe the session is owned
-        // by the observed teacher while the COACH uploads the paper LP photo.
-        // The document path got this in bd-9hzdn.2; this image path missed it,
-        // so a coach's LP photo fell through to pic-to-LP and the session
-        // wedged at awaiting_lesson_plan (Arooba/Mehwish, 24-Aug).
-        const { data: lpSession } = await lpSupabase
-          .from('coaching_sessions')
-          .select('id, conversation_state')
-          .or(`user_id.eq.${user.id},observer_user_id.eq.${user.id}`)
-          .eq('status', 'awaiting_lesson_plan')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (lpSession) {
-          const imageId = message.image?.id;
-          // bd-2371: de-dup at-least-once webhook redelivery. Claim the image
-          // key BEFORE processing so a redelivered copy is a silent no-op —
-          // otherwise the teacher gets duplicate "got your plan" acks and the
-          // analysis is double-queued (Sana Nawaz, ICT, 3× duplicate acks).
-          const lpImageKey = `image:${user.id}:${imageId}`;
-          const lpClaimed = await redisService.setNX(
-            lpImageKey,
-            JSON.stringify({ status: 'lp_image_handled', startedAt: Date.now() }),
-            IDEMPOTENCY_TTL_SECONDS,
-          );
-          if (!lpClaimed) {
-            logToFile('🔁 Duplicate lesson-plan image webhook — skipping', {
-              coachingSessionId: lpSession.id, userId: user.id, imageId,
-            });
-            typingController.stop();
-            return;
-          }
-          logToFile('📄 Lesson plan received as image for coaching session', {
-            coachingSessionId: lpSession.id, userId: user.id, imageId,
-          });
-          const LessonPlanProcessor = require('../services/coaching/lesson-plan-processor.service');
-          const CoachingJobQueueService = require('../services/coaching/coaching-job-queue.service');
-          // detectFileType already sniffs jpg/png, so the document path handles
-          // an image media id unchanged.
-          await LessonPlanProcessor.handleLessonPlanUpload(lpSession.id, from, imageId);
-          await CoachingJobQueueService.queueAnalysis(lpSession.id, { from, lpUploaded: true });
+        const { handleLessonPlanMediaArrival } = require('../services/coaching/media-attach.service');
+        if (await handleLessonPlanMediaArrival({ user, from, mediaId: imageId, mimeType })) {
           typingController.stop();
           return;
         }
@@ -293,27 +158,14 @@ async function handleImageMessage(message, from, user = null) {
 
       // bd-3ipd2: a classroom photo that RACED the transcription/analysis (sent
       // right after the voice note, before the photo prompt exists) would otherwise
-      // fall to pic-to-LP / generic vision feedback and be lost from the session.
-      // If an analysis is imminent/running for this teacher, HOLD the photo on the
-      // session so the analysis (bd-gr48y) and report (bd-pv2tl) pick it up. This
-      // MUST run BEFORE the pic-to-LP block below (that is the path it was lost to).
+      // fall to generic vision feedback and be lost from the session. If an analysis
+      // is imminent/running for this teacher, HOLD the photo on the session so the
+      // analysis (bd-gr48y) and report (bd-pv2tl) pick it up.
+      // R165: kind 'hold' = the same resolver over PRE_PHOTO_PROCESSING_STATUSES
+      // (30-min window, observer parity); two sessions still processing → ask.
       try {
-        const { shouldHoldImageForActiveCoaching, PRE_PHOTO_PROCESSING_STATUSES } = require('../services/coaching/photo-capture-routing');
-        const raceSupabase = require('../config/supabase');
-        // bd-5azz0: observer parity here too — a coach's raced photo must hold
-        // on the teacher-owned observe session, same as line-105's capture.
-        const { data: procSession } = await raceSupabase
-          .from('coaching_sessions')
-          .select('id, status, created_at, conversation_state, classroom_photos')
-          .or(`user_id.eq.${user.id},observer_user_id.eq.${user.id}`)
-          .in('status', Array.from(PRE_PHOTO_PROCESSING_STATUSES))
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (shouldHoldImageForActiveCoaching(procSession)) {
-          const raceBuffer = await WhatsAppService.downloadMedia(imageId);
-          const { holdPhotoForSession } = require('../services/coaching/classroom-photo/capture.service');
-          await holdPhotoForSession({ session: procSession, imageBuffer: raceBuffer, mimeType, from, user });
+        const { handlePhotoArrival } = require('../services/coaching/media-attach.service');
+        if (await handlePhotoArrival({ user, from, mediaId: imageId, mimeType, kind: 'hold' })) {
           typingController.stop();
           return;
         }

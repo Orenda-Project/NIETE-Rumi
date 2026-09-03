@@ -58,6 +58,11 @@ async function handleLpListSelection(listId, from, deps = {}) {
   const { getCoachingMessage } = deps.messages || require('../../../config/coaching-messages');
   const recomputeFidelity = deps.recomputeFidelity
     || ((sid) => require('../fidelity/fidelity-recompute.service').recomputeFidelityForSession(sid));
+  // R165: remember WHICH observation the upload is for (deps.userId =
+  // the tapper), so the document that follows binds here — not to the newest
+  // session at awaiting_lesson_plan.
+  const setMediaTarget = deps.setMediaTarget
+    || ((uid, sid, kind) => require('../media-target.service').setTarget(uid, sid, kind));
   const sessionStatus = deps.sessionStatus
     || (async (sid) => {
       try {
@@ -88,6 +93,13 @@ async function handleLpListSelection(listId, from, deps = {}) {
 
   if (result && result.awaiting_upload) {
     // "Upload new": ask for the document; the document handler continues the flow.
+    if (deps.userId) {
+      try {
+        await setMediaTarget(deps.userId, sessionId, 'lp');
+      } catch (err) {
+        logToFile('[lp-list] could not record lp media target (non-fatal)', { sessionId, error: err.message });
+      }
+    }
     await sendMessage(from, getCoachingMessage('lessonPlan_request', lang));
     return true;
   }
