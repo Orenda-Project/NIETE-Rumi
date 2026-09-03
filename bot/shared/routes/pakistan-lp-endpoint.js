@@ -694,7 +694,7 @@ async function selectLp612Subject(d) {
 }
 
 /** "More chapters →" — a second screen, because Meta rejects a self-route.
- *  53 chapters across 13 books were unreachable without it (bd-3r01z). */
+ *  53 chapters across 13 books were unreachable without it. */
 async function selectLp612ChapterPage(d) {
   return lp612ChapterScreen(d, parseInt(d.page, 10) || 2, 'SELECT_CHAPTER_MORE');
 }

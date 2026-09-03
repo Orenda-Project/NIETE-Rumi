@@ -164,7 +164,7 @@ async function buildSubjectItems(grade) {
  * there: this list used to `.slice(0, PAGE_SIZE)` with NO overflow row, so 53
  * chapters across 13 staging books (Islamiat, Chemistry, Urdu) simply did not
  * exist for a teacher — chapter 21 of a 27-chapter book was unreachable with
- * no error and nothing to tap (bd-3r01z). Page 1 carries PAGE_SIZE-1 real rows
+ * no error and nothing to tap. Page 1 carries PAGE_SIZE-1 real rows
  * plus the More row; overflow lands on SELECT_CHAPTER_MORE because Meta
  * rejects a row that routes back to its own screen.
  *
@@ -278,7 +278,7 @@ async function buildChapterItems(grade, subject, page = 1) {
 
   if (hasMore) {
     // The overflow row speaks the book's language, like the segment lane's
-    // (bd-t8mbl): «مزید ابواب ←» with the arrow pointing the reading direction.
+    // overflow row: «مزید ابواب ←» with the arrow pointing the reading direction.
     const moreRtl = !!(pageSlice[0] && pageSlice[0].e.rtl);
     items.push({
       id: MORE_ROW_ID,
