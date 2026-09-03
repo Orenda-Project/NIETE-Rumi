@@ -91,6 +91,17 @@ describe('language protocol — the acks live in the one catalog', () => {
       expect(/[؀-ۿ]/.test(resolveUx(k, { language: 'ur' }))).toBe(true);
     }
   });
+  test('every commit button title fits WhatsApp\'s 20 CODE POINT cap, and the Urdu yes carries no gendered verb stem', () => {
+    // Measured in code points, not .length. A 25-point title makes Meta reject the whole
+    // interactive send — so Urdu teachers never received the commit buttons at all.
+    const { COACHING_CARD_COPY } = require('../../bot/shared/config/coaching-card.config');
+    for (const [lang, copy] of Object.entries(COACHING_CARD_COPY)) {
+      for (const title of Object.values(copy.commitButtons)) expect([...title].length).toBeLessThanOrEqual(20);
+    }
+    // The teacher speaks this button: کروں گا / کروں گی would pick her gender for her.
+    expect(COACHING_CARD_COPY.ur.commitButtons.yes).not.toMatch(/گا|گی/);
+  });
+
   test('the service holds no inline per-language ternary of its own', () => {
     const src = require('fs').readFileSync(require.resolve('../../bot/shared/services/coaching/coaching-card/card-response.service'), 'utf8');
     expect(src).not.toMatch(/=== 'ur'\s*\?/);

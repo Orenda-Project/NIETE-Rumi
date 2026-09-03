@@ -20,7 +20,8 @@ const GPT5MiniService = require('../../gpt5-mini.service');
 const { logToFile } = require('../../../utils/logger');
 const { generatePrioritizedAction } = require('./prioritized-action.service');
 const { simplifyPedagogyJargon } = require('../pedagogy-jargon');
-const { resolveTarget } = require('../target-resolver');
+const { resolveTarget, resolveIndicator } = require('../target-resolver');
+const { tooSimilar, countBarFor, rubricAsk } = require('../uptake-loop.service');
 
 /**
  * bd-2373: gloss any coach-jargon that slipped into the visible text so the
@@ -38,7 +39,86 @@ function finalizeCard(card) {
   const { fixCodeswitch } = require('../report-v2/narrative.service');
   if (typeof card.commitment === 'string') card.commitment = fixCodeswitch(simplifyPedagogyJargon(card.commitment, lang));
   if (typeof card.action === 'string') card.action = fixCodeswitch(simplifyPedagogyJargon(card.action, lang));
+  if (card.action_spec && typeof card.action_spec === 'object') {
+    for (const k of ['cue', 'move', 'model_line']) {
+      if (typeof card.action_spec[k] === 'string') card.action_spec[k] = fixCodeswitch(simplifyPedagogyJargon(card.action_spec[k], lang));
+    }
+  }
   return card;
+}
+
+// ─── Feedback-uptake loop: the card knows the attempt and changes shape ──
+//
+// "It must not all sound the same." The same target, a different angle each
+// attempt — the ladder is the record's `angle`; these are the shapes.
+const ANGLE_INSTRUCTION = {
+  tell: 'TELL — state the move plainly and the number to reach (the bar below). This is the first time she hears it; make the unit unmistakable.',
+  cue: 'CUE — the SAME move, opened by an if-then on a moment she will recognise from THIS lesson: "Next class, when <a cue from this transcript>, <the move>". The cue must be real, from this lesson.',
+  show: 'SHOW — give her one sentence to say, scripted from what she already said or nearly said in this lesson (adapt a real line), then the move. Put that sentence in model_line.',
+  shrink: 'SHRINK — the smallest countable unit of this indicator: ONE <unit> in ONE named place in the lesson (e.g. the first wrong answer of the practice task). Make it almost impossible to miss.',
+  hand_over: 'SHRINK — the smallest countable unit of this indicator: ONE <unit> in ONE named place in the lesson. Her coach will also pick this up with her in person; say so in one warm clause, never as a failure.',
+};
+
+function describeBar(bar) {
+  return Object.entries(bar || {}).map(([k, v]) => `${k.replace(/_/g, ' ')} ≥ ${v}`).join(', ') || 'the rubric\'s rung-2 bar';
+}
+
+/**
+ * Which indicator this card is about. With the loop on, the sticky loop
+ * target (validated against THIS analysis) — except on a bridge lesson, where
+ * the target does not apply and the card coaches this lesson's own indicator.
+ * Without the loop, the scorer's validated focus_area.
+ */
+function cardTarget(analysis, loop) {
+  if (loop && loop.state && loop.state.target && loop.state.target.indicator && !loop.state.bridge) {
+    const t = resolveIndicator(analysis, loop.state.target.indicator);
+    if (t) return t;
+  }
+  return resolveTarget(analysis);
+}
+
+function loopBlock(loop, target, langName) {
+  if (!loop || !loop.state || !target) return '';
+  const st = loop.state;
+  const attempt = Number(st.attempt) || 1;
+  const angle = ANGLE_INSTRUCTION[st.angle] ? st.angle : 'tell';
+  const bar = countBarFor(target.indicator) || {};
+  const prior = loop.prior || null;
+  const bridge = st.bridge && prior && prior.target
+    ? `\nBRIDGE LESSON: the open target ${prior.target.indicator} "${prior.target.name || prior.target.indicator}" does not apply to this lesson's subject, so THE TARGET above is a one-lesson bridge. End "action" with one short clause that ${prior.target.name || prior.target.indicator} returns in the next lesson where it applies.`
+    : '';
+  const priorLine = prior && prior.action
+    ? `\nPRIOR ACTION FOR THIS TARGET (do NOT reuse this framing, its cue, or its example — a different way in): "${String(prior.action).replace(/\s+/g, ' ').trim()}"${prior.action_spec && prior.action_spec.model_line ? ` (its model line: "${prior.action_spec.model_line}")` : ''}`
+    : '';
+  return `
+ATTEMPT ${attempt} · ANGLE "${angle}": ${ANGLE_INSTRUCTION[angle]}${bridge}
+THE BAR the rubric sets for ${target.indicator} at rung 2: ${describeBar(bar)}.${priorLine}
+Return ALSO "action_spec": {"cue": "<the if-then moment from this lesson, or empty>", "move": "<the ONE move, max 15 words>", "count_target": ${JSON.stringify(bar)}, "model_line": "<one sentence she can say, in ${langName}, or empty>"}.
+`;
+}
+
+/** Three moves in one is not one move: numbered/bulleted lists or more than three sentences. */
+function looksLikeManyMoves(text) {
+  const s = String(text || '');
+  const markers = (s.match(/(?:^|\s)(?:[1-9][.)]|[•\-–])\s/g) || []).length;
+  if (markers >= 2) return true;
+  const sentences = s.split(/[.!?۔]+\s+/).filter((x) => x.trim().length > 3).length;
+  return sentences > 3;
+}
+
+/** The loop's structured action, validated: strings only, the bar always the rubric's. */
+function normaliseSpec(raw, bar, action) {
+  const spec = raw && typeof raw === 'object' ? raw : {};
+  const str = (v) => (typeof v === 'string' ? v.trim() : '');
+  const same = spec.count_target && typeof spec.count_target === 'object'
+    && Object.keys(bar).length === Object.keys(spec.count_target).length
+    && Object.keys(bar).every((k) => Object.prototype.hasOwnProperty.call(spec.count_target, k));
+  return {
+    cue: str(spec.cue),
+    move: str(spec.move) || String(action || '').trim(),
+    count_target: same ? { ...bar } : { ...bar },
+    model_line: str(spec.model_line),
+  };
 }
 
 const MODEL = 'gpt-5-mini-2025-08-07';
@@ -82,8 +162,9 @@ function targetBlock(target) {
   return `\nTHE TARGET (fixed — do NOT choose a different area): indicator ${target.indicator} "${target.name}".${why}${move} Your "action" is about THIS indicator only — ONE move, not a list of moves.\n`;
 }
 
-function buildPrompt(lang, analysis, q3, target = null) {
+function buildPrompt(lang, analysis, q3, target = null, loop = null) {
   const langName = LANG_NAME[lang] || 'English';
+  if (!target) target = cardTarget(analysis, loop);
   const strengths = (analysis.strengths || []).map((s) => s.title || s.analysis || s).slice(0, 3);
   const growth = (analysis.growth_opportunities || []).map((g) => ({
     area: g.area || g.title,
@@ -108,7 +189,7 @@ The card has TWO parts:
 
 Also return "highlights": an array of 2–4 short ${langName} keyword phrases that appear verbatim in "action" (concrete nouns) to visually emphasise. And "lesson_label": a 2–4 word ${langName} subject·topic label.
 
-Session (framework: ${(analysis.framework || 'oecd').toUpperCase()}):${targetBlock(target)}
+Session (framework: ${(analysis.framework || 'oecd').toUpperCase()}):${targetBlock(target)}${loopBlock(loop, target, langName)}
 - Her strengths: ${strengths.join(' | ') || '(none captured)'}
 - Growth areas: ${growth.map((g) => `${g.area} — ${g.observation} Strategy: ${g.strategy}`).join(' || ') || '(none)'}
 - Q3 question we asked her: ${q3.question || '(n/a)'}
@@ -167,23 +248,38 @@ async function localisePair(commitment, action, lang) {
  * The rule template ("dedicate 5 minutes to X") is reached only when there is
  * no valid focus_area at all.
  */
-async function fallbackCard(analysis, teacherName, priorAction, lang) {
-  const target = resolveTarget(analysis);
-  if (target && target.try.trim().length >= 12) {
-    let commitment = (target.title || target.name).trim();
-    let action = target.try.trim();
-    if (needsLocalisation(action, lang)) {
-      ({ commitment, action } = await localisePair(commitment, action, lang));
+async function fallbackCard(analysis, teacherName, priorAction, lang, loop = null) {
+  const target = cardTarget(analysis, loop);
+  if (target) {
+    // The scorer's own move when it is about this target; with the loop on,
+    // the rubric's own rung-2 ask for the target otherwise — never the generic
+    // template while a real target exists.
+    let source = null;
+    let commitment = '';
+    let action = '';
+    if (target.try.trim().length >= 12) {
+      source = 'focus_area';
+      commitment = (target.title || target.name).trim();
+      action = target.try.trim();
+    } else if (loop) {
+      const ask = rubricAsk(target.indicator);
+      if (ask) { source = 'rubric'; commitment = target.name; action = ask; }
     }
-    return {
-      commitment,
-      action,
-      highlights: [],
-      lesson_label: (analysis.framework || '').toUpperCase(),
-      indicator: target.indicator,
-      language: lang,
-      _source: 'focus_area',
-    };
+    if (source) {
+      if (needsLocalisation(action, lang)) {
+        ({ commitment, action } = await localisePair(commitment, action, lang));
+      }
+      return {
+        commitment,
+        action,
+        highlights: [],
+        lesson_label: (analysis.framework || '').toUpperCase(),
+        indicator: target.indicator,
+        language: lang,
+        ...(loop ? { action_spec: { cue: '', move: action, count_target: countBarFor(target.indicator) || {}, model_line: '' } } : {}),
+        _source: source,
+      };
+    }
   }
 
   const pa = await generatePrioritizedAction(analysis, teacherName, priorAction);
@@ -216,19 +312,19 @@ async function fallbackCard(analysis, teacherName, priorAction, lang) {
  * @returns {Promise<object|null>}
  */
 async function generateCommitmentCard(analysis, conversationState, outputLanguage = 'en', opts = {}) {
-  const { teacherName = 'Teacher', priorAction = null } = opts;
+  const { teacherName = 'Teacher', priorAction = null, loop = null } = opts;
   const lang = (outputLanguage || 'en').slice(0, 2);
   if (!analysis) return null;
 
   const q3 = extractQ3(conversationState);
   if (!q3) {
     logToFile('Commitment card: no Q3 commitment → rule-based fallback', { framework: analysis.framework });
-    return finalizeCard(await fallbackCard(analysis, teacherName, priorAction, lang));
+    return finalizeCard(await fallbackCard(analysis, teacherName, priorAction, lang, loop));
   }
 
-  const target = resolveTarget(analysis);
-  try {
-    const prompt = buildPrompt(lang, analysis, q3, target);
+  const target = cardTarget(analysis, loop);
+  const bar = loop && target ? (countBarFor(target.indicator) || {}) : null;
+  const ask = async (prompt) => {
     const r = await GPT5MiniService.openai.chat.completions.create({
       model: MODEL,
       messages: [{ role: 'user', content: prompt }],
@@ -236,6 +332,33 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
     });
     const parsed = JSON.parse(r.choices[0].message.content);
     if (!parsed.commitment || !parsed.action) throw new Error('incomplete card JSON (no commitment/action)');
+    return parsed;
+  };
+  try {
+    const prompt = buildPrompt(lang, analysis, q3, target, loop);
+    let parsed = await ask(prompt);
+    let similarToPrior = false;
+    if (loop) {
+      // Two guards, one regeneration at most: the action must be ONE move, and
+      // it must not read like the prior action for the same target.
+      const problems = (d) => ({
+        many: looksLikeManyMoves(d.action),
+        similar: !!(loop.prior && loop.prior.action && tooSimilar(loop.prior.action, d.action)),
+      });
+      const first = problems(parsed);
+      if (first.many || first.similar) {
+        const note = `\n\nREWRITE — your previous draft was rejected: ${first.many ? 'it contained more than ONE move (write exactly one); ' : ''}${first.similar ? 'it was too close to the prior action for this target (a different cue, a different example, a different shape); ' : ''}return a fresh "action" and "action_spec".`;
+        logToFile('[uptake-loop] card draft regenerated once', { many: first.many, similar: first.similar });
+        const second = await ask(prompt + note);
+        const again = problems(second);
+        if (first.many && again.many) {
+          parsed = String(second.action).length < String(parsed.action).length ? second : parsed;
+        } else {
+          parsed = second;
+        }
+        similarToPrior = problems(parsed).similar;
+      }
+    }
     return finalizeCard({
       commitment: String(parsed.commitment).trim(),
       action: String(parsed.action).trim(),
@@ -243,12 +366,14 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
       lesson_label: parsed.lesson_label ? String(parsed.lesson_label).trim() : '',
       indicator: target ? target.indicator : undefined,
       language: lang,
+      ...(loop && target ? { action_spec: normaliseSpec(parsed.action_spec, bar, parsed.action) } : {}),
+      ...(similarToPrior ? { _similar_to_prior: true } : {}),
       _source: 'llm',
     });
   } catch (e) {
     logToFile('Commitment card LLM failed → rule-based fallback', { error: e.message });
-    return finalizeCard(await fallbackCard(analysis, teacherName, priorAction, lang));
+    return finalizeCard(await fallbackCard(analysis, teacherName, priorAction, lang, loop));
   }
 }
 
-module.exports = { generateCommitmentCard, extractQ3, buildPrompt, needsLocalisation, LANG_NAME };
+module.exports = { generateCommitmentCard, extractQ3, buildPrompt, needsLocalisation, looksLikeManyMoves, cardTarget, LANG_NAME };

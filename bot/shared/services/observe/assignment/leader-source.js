@@ -22,7 +22,8 @@
 const supabase = require('../../../config/supabase');
 const { orderTeachers, classify } = require('./prioritise');
 const { listPatchViaSupabase, toLeaderSourceRow } = require('../patch-resolver.service');
-const { loadTrendData } = require('../../coaching/coaching-trend.service');
+const { loadTrendData, loadPriorAction } = require('../../coaching/coaching-trend.service');
+const { isUptakeLoopEnabled } = require('../../../config/uptake-loop-flags');
 const { buildMoves, openingTips, KNOWN_AREAS } = require('../observe-support-moves');
 const { logToFile } = require('../../../utils/logger');
 const { clampLanguage } = require('../../../config/ux-strings');
@@ -336,6 +337,20 @@ async function buildBrief(leaderUserId, teacherExtId, schoolExtId) {
     // her user_id must never leak into the brief trend (two clean sources).
     const trend = userId ? await loadTrendData(userId, { locale: 'en', teacherOwnOnly: true }) : [];
 
+    // Feedback-uptake loop (flag-gated): the teacher's open target from EITHER
+    // instrument — what the AI coach asked, how many times, what happened
+    // last lesson, and whether this visit is the hand-over.
+    const record = (userId && isUptakeLoopEnabled()) ? await loadPriorAction(userId, { maxAgeDays: 30 }) : null;
+    const loop = record && record.target ? {
+      target_name: record.target.name || record.target.indicator,
+      asked: record.action || '',
+      attempt: Number(record.attempt) || 1,
+      angle: record.angle || 'tell',
+      last_status: (record.uptake && record.uptake.status) || null,
+      hand_over: !!record.hand_over,
+      instrument: record.instrument || 'self',
+    } : null;
+
     let analysis = null;
     if (userId) {
       const map = await _latestAnalysisMap([userId]);
@@ -369,6 +384,7 @@ async function buildBrief(leaderUserId, teacherExtId, schoolExtId) {
         showTrend: false,
         firstVisit: true,
         noData: true,
+        loop,
       };
     }
 
@@ -388,6 +404,7 @@ async function buildBrief(leaderUserId, teacherExtId, schoolExtId) {
       showTrend: trend.length >= 2,
       firstVisit: trend.length === 0,
       noData: false,
+      loop,
     };
   } catch (err) {
     logToFile('leader-source: buildBrief degraded to opening tips', { leaderUserId, teacherExtId, error: err.message });
@@ -400,6 +417,7 @@ async function buildBrief(leaderUserId, teacherExtId, schoolExtId) {
       showTrend: false,
       firstVisit: true,
       noData: true,
+      loop: null,
     };
   }
 }

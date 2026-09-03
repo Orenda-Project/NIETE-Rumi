@@ -74,10 +74,14 @@ const PALETTES = {
 
 const MARKS_WORD = { sw: ' alama', en: ' marks', ur: ' نمبر', ar: ' درجة' };
 const CHROME = {
-  en: { celebrate: 'A celebration of your teaching', signature: 'The signature of your classroom', scores: 'Your scores · this lesson', classroom: 'From your classroom', moments: 'Moments worth remembering', strength: 'Your strength', horizon: 'Your next horizon', journey: (k) => `Your journey — ${k} lessons together`, trynext: 'One thing to try next class', made: (n) => `Made just for you, ${n}`, caption: (d, t) => `📋 Your coaching report${t ? ` · ${t}` : ''}${d ? ` · ${d}` : ''}` },
-  sw: { celebrate: 'Sherehe ya ufundishaji wako', signature: 'Alama ya darasa lako', scores: 'Alama kwa kila eneo · somo hili', moments: 'Matukio ya kukumbukwa', strength: 'Nguvu yako', horizon: 'Hatua yako inayofuata', journey: (k) => `Safari yako — ${k} masomo pamoja`, trynext: 'Jambo moja la kujaribu darasa lijalo', made: (n) => `Imeandaliwa kwa ajili yako, ${n}`, caption: (d, t) => `📋 Ripoti yako ya ufundishaji${t ? ` · ${t}` : ''}${d ? ` · ${d}` : ''}` },
-  ur: { celebrate: 'آپ کی تدریس کا جشن', signature: 'آپ کی کلاس کی پہچان', scores: 'اس سبق کے اسکور', moments: 'یادگار لمحے', strength: 'آپ کی خوبی', horizon: 'آپ کا اگلا اُفق', journey: (k) => `آپ کا سفر — ${k} اسباق ایک ساتھ`, trynext: 'اگلی کلاس میں آزمانے کے لیے ایک بات', made: (n) => `خاص آپ کے لیے، ${n}`, caption: (d, t) => `📋 آپ کی کوچنگ رپورٹ${t ? ` · ${t}` : ''}${d ? ` · ${d}` : ''}` },
-  ar: { celebrate: 'احتفاء بتدريسك', signature: 'بصمة صفّك', scores: 'درجاتك · هذا الدرس', moments: 'لحظات تستحق التذكر', strength: 'قوتك', horizon: 'أفقك التالي', journey: (k) => `رحلتك — ${k} دروس معًا`, trynext: 'أمر واحد لتجربته في الحصة القادمة', made: (n) => `أُعدّ خصيصًا لك، ${n}`, caption: (d, t) => `📋 تقرير التدريب الخاص بك${t ? ` · ${t}` : ''}${d ? ` · ${d}` : ''}` },
+  en: { celebrate: 'A celebration of your teaching', signature: 'The signature of your classroom', scores: 'Your scores · this lesson', classroom: 'From your classroom', moments: 'Moments worth remembering', strength: 'Your strength', horizon: 'Your next horizon', journey: (k) => `Your journey — ${k} lessons together`, trynext: 'One thing to try next class', made: (n) => `Made just for you, ${n}`, caption: (d, t) => `📋 Your coaching report${t ? ` · ${t}` : ''}${d ? ` · ${d}` : ''}`,
+    uptake_asked: 'Last time we asked', uptake_achieved: 'Done', uptake_partial: 'Getting there', uptake_not_seen: 'Not this time', uptake_not_applicable: 'Next time it applies', uptake_unknown: 'Not counted' },
+  sw: { celebrate: 'Sherehe ya ufundishaji wako', signature: 'Alama ya darasa lako', scores: 'Alama kwa kila eneo · somo hili', moments: 'Matukio ya kukumbukwa', strength: 'Nguvu yako', horizon: 'Hatua yako inayofuata', journey: (k) => `Safari yako — ${k} masomo pamoja`, trynext: 'Jambo moja la kujaribu darasa lijalo', made: (n) => `Imeandaliwa kwa ajili yako, ${n}`, caption: (d, t) => `📋 Ripoti yako ya ufundishaji${t ? ` · ${t}` : ''}${d ? ` · ${d}` : ''}`,
+    uptake_asked: 'Mara ya mwisho tuliomba', uptake_achieved: 'Imefanyika', uptake_partial: 'Inakaribia', uptake_not_seen: 'Si wakati huu', uptake_not_applicable: 'Wakati ujao itakapohusika', uptake_unknown: 'Haikuhesabiwa' },
+  ur: { celebrate: 'آپ کی تدریس کا جشن', signature: 'آپ کی کلاس کی پہچان', scores: 'اس سبق کے اسکور', moments: 'یادگار لمحے', strength: 'آپ کی خوبی', horizon: 'آپ کا اگلا اُفق', journey: (k) => `آپ کا سفر — ${k} اسباق ایک ساتھ`, trynext: 'اگلی کلاس میں آزمانے کے لیے ایک بات', made: (n) => `خاص آپ کے لیے، ${n}`, caption: (d, t) => `📋 آپ کی کوچنگ رپورٹ${t ? ` · ${t}` : ''}${d ? ` · ${d}` : ''}`,
+    uptake_asked: 'پچھلی بار ہم نے کہا تھا', uptake_achieved: 'ہو گیا', uptake_partial: 'قریب', uptake_not_seen: 'اس بار نہیں', uptake_not_applicable: 'اگلی بار جب لاگو ہو', uptake_unknown: 'گنا نہیں گیا' },
+  ar: { celebrate: 'احتفاء بتدريسك', signature: 'بصمة صفّك', scores: 'درجاتك · هذا الدرس', moments: 'لحظات تستحق التذكر', strength: 'قوتك', horizon: 'أفقك التالي', journey: (k) => `رحلتك — ${k} دروس معًا`, trynext: 'أمر واحد لتجربته في الحصة القادمة', made: (n) => `أُعدّ خصيصًا لك، ${n}`, caption: (d, t) => `📋 تقرير التدريب الخاص بك${t ? ` · ${t}` : ''}${d ? ` · ${d}` : ''}`,
+    uptake_asked: 'في المرة الماضية طلبنا', uptake_achieved: 'تم', uptake_partial: 'يقترب', uptake_not_seen: 'ليس هذه المرة', uptake_not_applicable: 'في المرة القادمة عندما ينطبق', uptake_unknown: 'لم يُحتسب' },
 };
 
 const EN_MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -250,6 +254,15 @@ function buildHeroReportHtml(vm) {
      re-checks after the main stacks are fixed. */
   .pframe .pcap{font-size:11px;color:${P.quiet};padding:8px 12px;font-family:'Lexend',${NON_LATIN},sans-serif;letter-spacing:.01em}
   .journey{padding:14px 42px 0}.j-cap{font-size:12.5px;color:${P.note};line-height:${RTL ? '1.7' : '1.5'};margin-top:2px}
+  /* feedback-uptake loop: "last time we asked" — the ask, a status pill, the tally in words. Never a score. */
+  .uptake{margin:16px 42px 0;border:1px solid ${P.barBg};border-radius:16px;padding:14px 20px;background:#fff}
+  .uptake .label{margin-bottom:6px}
+  .uptake .u-asked{font-family:${headFam};font-size:14.5px;line-height:${RTL ? '1.7' : '1.4'};color:${P.ink};font-style:italic;margin-bottom:8px}
+  .uptake .u-line{font-size:12.5px;color:${P.note};line-height:${RTL ? '1.8' : '1.5'}}
+  .upill{display:inline-block;font-size:11px;font-weight:700;padding:3px 11px;border-radius:14px;margin-${RTL ? 'left' : 'right'}:6px;font-family:'Lexend',${NON_LATIN},sans-serif;background:${P.barBg};color:${P.deep}}
+  .upill.achieved{background:${P.barHigh};color:#fff}
+  .upill.partial{background:#e0a52e;color:#fff}
+  .upill.not_seen{background:#dd7a5c;color:#fff}
   .try{margin:16px 42px 0;background:${P.tryGrad};color:#fff;border-radius:16px;padding:18px 24px}
   .try .label{color:${P.tryLabel};opacity:1;margin-bottom:6px}
   .try-text{font-family:${headFam};font-size:17px;line-height:${RTL ? '1.7' : '1.4'}}
@@ -281,6 +294,7 @@ function buildHeroReportHtml(vm) {
     </div>
     ${(vm.classroomPhotos && vm.classroomPhotos.length) ? `<div class="photos"><div class="label">${T(C.classroom)}</div><div class="pgrid">${vm.classroomPhotos.slice(0, 2).map((p) => `<div class="pframe"><img src="${p.src}" alt="classroom photo">${p.caption ? `<div class="pcap">${T(p.caption)}</div>` : ''}</div>`).join('')}</div></div>` : ''}
     ${(vm.trend && vm.trend.length >= 2) ? `<div class="journey"><div class="label">${T(C.journey(vm.trend.length))}</div>${ltrTrend(vm.trend, peak, P)}<div class="j-cap">${T(n.journey_note || '')}</div></div>` : ''}
+    ${(vm.uptake && vm.uptake.asked) ? `<div class="uptake"><div class="label">${T(C.uptake_asked)}</div><div class="u-asked">${T(vm.uptake.asked)}</div><div class="u-line"><span class="upill ${esc(vm.uptake.status || 'unknown')}">${T(C['uptake_' + (vm.uptake.status || 'unknown')] || C.uptake_unknown)}</span>${T(vm.uptake.line || '')}</div></div>` : ''}
     ${vm.tryNext ? `<div class="try"><div class="label">${T(C.trynext)}</div><div class="try-text">${T(vm.tryNext)}</div></div>` : ''}
     <div class="foot"><div class="brand">${logo(A.logoNavy, '')}NIETE</div><div>${T(C.made(vm.teacherName || ''))}</div></div>
   </div>
