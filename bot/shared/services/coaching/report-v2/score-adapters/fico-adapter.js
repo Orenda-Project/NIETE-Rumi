@@ -8,7 +8,9 @@
 
 const ficoFramework = require('../../frameworks/fico-framework');
 
-const SCALE_MAX = 4;
+// The framework owns the scale; a local copy here silently mis-sizes every section max
+// the moment the rubric changes.
+const { scaleMax: SCALE_MAX } = ficoFramework.getScoringConstants();
 
 function buildFicoGroups(a, language) {
   const DOMAINS = ficoFramework.getScoringConstants().domains;

@@ -752,6 +752,83 @@ async function runGates(doc, renderCheck) {
 const gateCost = (g) => g.schema.length + g.lint.length + (g.render ? g.render.length : 0);
 const gateFails = (g) => [...g.schema, ...g.lint, ...(g.render || [])];
 
+/**
+ * ADVISORY defect codes — real findings, recorded and returned, but they do not gate DELIVERY
+ * and therefore may not buy a revision round on their own.
+ *
+ * `BUDGET` is here on measured evidence (bd-wbvtb, n=24, 2026-09-03):
+ *
+ *   • It does not gate delivery. The worker marks the row `ready` and sends the PDF whenever
+ *     the final render is inside both page caps; `lint_clean` is RECORDED on that row and is
+ *     never consulted. A lesson with a BUDGET defect reaches the teacher either way.
+ *   • It is not satisfiable in this lane. Across the study's 23 saved documents the whole
+ *     document ran 1,352-1,725 words against a 1,200 ceiling — the MINIMUM was 152 words over
+ *     — and the pipeline's own v9 golden fixture measures 1,380 and fails it too. The ceiling
+ *     was calibrated before `docWords` was widened to count section-level extras and the whole
+ *     support page (~250 words a plan); the count moved and the number did not follow.
+ *   • It points the wrong way. BUDGET says CUT WORDS; pages are spent on CARD COUNT, which is
+ *     what the render defect says. The two instructions pulled against each other in one prompt.
+ *
+ * The cost of treating it as blocking: 23 of 24 lessons burned all five rounds, ~2 extra
+ * minutes and ~$0.35 each, ~$3,900 across the corpus, for zero measured improvement — every
+ * gate trajectory in the study was flat from round 2 or 3 onward.
+ *
+ * THE CEILING ITSELF IS NOT CHANGED HERE. The word budgets belong to the operator; this only
+ * stops an unsatisfiable advisory defect from buying revision rounds. If the budget is ever
+ * re-derived against today's word count, delete `BUDGET` from this set and the ladder chases it
+ * again with no other change.
+ *
+ * Matching is on the lint's own `CODE: message` shape (lint_lp.js builds every fail as
+ * `${code}: ${msg}`), so this is exact rather than a substring search that could catch the word
+ * "budget" inside someone's prose.
+ */
+const ADVISORY_CODES = ['BUDGET'];
+const isAdvisory = (d) => ADVISORY_CODES.some((c) => String(d).startsWith(`${c}:`));
+
+/** The defects that actually decide whether the teacher gets a lesson. */
+const blockingFails = (g) => gateFails(g).filter((d) => !isAdvisory(d));
+const blockingCost = (g) => blockingFails(g).length;
+
+/**
+ * Is `a` an acceptable replacement for `b`? Lexicographic: fewer BLOCKING defects always wins,
+ * and only on a tie there does total defect count decide (`<=`, so an equal-cost candidate is
+ * still taken, which is the long-standing behaviour).
+ *
+ * The ordering matters. Under a flat count a candidate carrying one PAGE COUNT defect and no
+ * BUDGET (cost 1) would displace a kept document that renders inside both caps and merely runs
+ * long (cost 2) — trading a lesson that ships for one that does not.
+ */
+const notWorse = (a, b) =>
+  (blockingCost(a) !== blockingCost(b) ? blockingCost(a) < blockingCost(b) : gateCost(a) <= gateCost(b));
+
+/**
+ * How many consecutive rounds may reduce no blocking defect before the ladder gives up.
+ *
+ * FOUR, and the number is measured rather than chosen. Replaying the new stop rule over the
+ * n=24 study's own recorded per-round render gates:
+ *
+ *   threshold | revision rounds | lessons delivered | median wall
+ *   ----------|-----------------|-------------------|------------
+ *   none      |   118 -> 90     |     11 / 24       | 376s -> 356s
+ *   >= 4      |   118 -> 85     |     11 / 24       | 376s -> 313s
+ *   >= 3      |   118 -> 76     |     10 / 24  LOSES ONE
+ *   >= 2      |   118 -> 59     |     10 / 24  LOSES ONE
+ *
+ * Cell c09 is what sets it, and it is worth knowing before anyone tunes this down. Its defect
+ * list read "support needs 5 pages; the cap is 4" for FOUR consecutive rounds — one defect,
+ * never fewer — while the document really was shrinking underneath (teach went 5 pages to 4 at
+ * round 4), and the support part finally came inside the cap at round 5. Progress was real and
+ * completely invisible to the defect list; it is invisible to page-overage and to total page
+ * count too, both of which were also flat across those rounds. A threshold of 3 stops that
+ * lesson one round before it succeeds and the teacher gets nothing.
+ *
+ * So: this guard is a bound on the pathological case, not the main saving. The main saving is
+ * ADVISORY_CODES above — that is what takes 118 rounds to 90 without risking a single lesson.
+ * If the round cap is ever raised above 5 this number matters much more; re-derive it against a
+ * fresh sample rather than tightening it on intuition.
+ */
+const STALE_ROUNDS = 4;
+
 // ── the ladder ──────────────────────────────────────────────────────────────
 
 /**
@@ -825,13 +902,26 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
 
   let gates = await runGates(doc, renderCheck);
   let spent = 0;
+  // Consecutive rounds that have reduced no BLOCKING defect. See STALE_ROUNDS.
+  let stale = 0;
 
   for (let rnd = 0; rnd < maxRounds; rnd++) {
-    if (gateCost(gates) === 0) break;
+    // The climb ends when nothing that gates delivery is left — NOT when the defect list is
+    // empty. An advisory defect (today: BUDGET) is reported and served, never chased.
+    if (blockingCost(gates) === 0) break;
+    if (stale >= STALE_ROUNDS) {
+      logToFile('lp612 author ladder stopped — no blocking progress', {
+        correlationId, segmentId: segment.segment_id, roundsUsed: spent, of: maxRounds,
+        staleRounds: stale, blocking: blockingCost(gates),
+        blockingFails: blockingFails(gates).slice(0, 5),
+      });
+      break;
+    }
     spent = rnd + 1;
+    const blockingBefore = blockingCost(gates);
     logToFile('lp612 author revision round', {
       correlationId, segmentId: segment.segment_id, round: spent, of: maxRounds,
-      defects: gateCost(gates),
+      defects: gateCost(gates), blocking: blockingBefore,
     });
 
     const fixUser = buildRevisionPrompt({ doc, gates, originalUser: user, notes: segment.notes });
@@ -844,6 +934,9 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
     } catch (e) {
       // BOTH attempts unusable, or the transport blew up. That costs THIS ROUND, never the
       // ladder: the next round starts from the document we kept, with the same defect list.
+      // It counts as a stale round — it improved nothing, and a transport that failed twice in
+      // one round is not evidence the next one will land.
+      stale += 1;
       logToFile('lp612 author revision unusable — kept previous, continuing', {
         correlationId, segmentId: segment.segment_id, round: spent, error: e.message,
       }, 'warn');
@@ -854,7 +947,7 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
     sanitizeUnknownTopLevel(candidate);
     sanitizeOverlay(candidate);
     const g2 = await runGates(candidate, renderCheck);
-    if (gateCost(g2) <= gateCost(gates)) {
+    if (notWorse(g2, gates)) {
       doc = candidate;
       gates = g2;
     } else {
@@ -864,9 +957,15 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
       logToFile('lp612 author revision was worse — kept previous, continuing', {
         correlationId, segmentId: segment.segment_id, round: spent,
         defectsCandidate: gateCost(g2), defectsKept: gateCost(gates),
+        blockingCandidate: blockingCost(g2), blockingKept: blockingCost(gates),
         candidateFails: gateFails(g2).slice(0, 10),
       }, 'warn');
     }
+
+    // Progress is measured on the BLOCKING list only. A round that shaved a word off an
+    // advisory defect has not moved the lesson any closer to a teacher.
+    if (blockingCost(gates) < blockingBefore) stale = 0;
+    else stale += 1;
   }
 
   const fails = gateFails(gates);

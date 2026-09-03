@@ -688,6 +688,16 @@ app.post('/webhook', async (req, res) => {
         return;
       }
 
+      // Commitment-card buttons ("Will you commit to trying this in your next
+      // class?" → Yes / Maybe later / Not for me) — sent after every self-serve
+      // coaching report. They were registered nowhere: every tap fell through to
+      // generic text handling and was lost. One-line delegation; id parsing, the
+      // record merge and the ack live in the service.
+      if (buttonId.startsWith('card_')) {
+        const { handleCardButton } = require('./shared/services/coaching/coaching-card/card-response.service');
+        if (await handleCardButton(buttonId, from, user && user.preferred_language)) return;
+      }
+
       // Coaching survey buttons (👍 Yes / 👎 Not really) — sent once the report AND the
       // voice debrief have both landed. Must be registered here: an unrecognised prefix
       // falls through to generic text handling and the tap is silently lost.
@@ -2329,7 +2339,7 @@ async function handleDocumentMessage(message, from, user) {
           {
             const { routeLeaderAudio } = require('./shared/services/observe/observe-audio-router');
             const observeHandled = await routeLeaderAudio({
-              user, from, audioId: documentId, sessionId, isLongAudio: true,
+              user, from, audioId: documentId, sessionId, isLongAudio: true, mimeType,
             });
             if (observeHandled) return;
           }
@@ -2357,7 +2367,7 @@ async function handleDocumentMessage(message, from, user) {
             const { routeLeaderAudio } = require('./shared/services/observe/observe-audio-router');
             const shortDocHandled = await routeLeaderAudio({
               user, from, audioId: documentId, sessionId: null,
-              durationSeconds: audioDurationRounded || null,
+              durationSeconds: audioDurationRounded || null, mimeType,
             });
             if (shortDocHandled) return;
           }
@@ -2407,7 +2417,7 @@ async function handleDocumentMessage(message, from, user) {
           if (isSchoolLeader(user)) {
             const { routeLeaderAudio } = require('./shared/services/observe/observe-audio-router');
             const observeHandled = await routeLeaderAudio({
-              user, from, audioId: documentId, sessionId: null, isLongAudio: true,
+              user, from, audioId: documentId, sessionId: null, isLongAudio: true, mimeType,
             });
             if (observeHandled) return;
           }

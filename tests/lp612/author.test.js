@@ -87,6 +87,27 @@ function pacingBrokenDoc() {
   return d;
 }
 
+/**
+ * Two more single-code breakages, so a ladder can be shown actually CLIMBING rather than
+ * spinning: three blocking defects, then two, then one. Each mutation is verified to add
+ * exactly one lint code on top of the ones below it, and none of them is `BUDGET` — an
+ * advisory defect would not move the ladder at all (bd-wbvtb).
+ *
+ *   threeDefectDoc -> PLACEHOLDER + REF_ABSENT + PACING_SUM
+ *   twoDefectDoc   -> REF_ABSENT + PACING_SUM
+ *   pacingBrokenDoc-> PACING_SUM
+ */
+function twoDefectDoc() {
+  const d = pacingBrokenDoc();
+  d.page2.model_answers = [d.page2.model_answers[0]];   // a homework ref now resolves to nothing
+  return d;
+}
+function threeDefectDoc() {
+  const d = twoDefectDoc();
+  d.provenance.topic = 'TODO';
+  return d;
+}
+
 const reply = (obj, usage = { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 }) => ({
   choices: [{ message: { content: typeof obj === 'string' ? obj : JSON.stringify(obj) } }],
   usage,
@@ -435,10 +456,41 @@ describe('the revision ladder', () => {
   });
 
   it('defaults to 3 rounds', async () => {
-    create.mockResolvedValue(reply(pacingBrokenDoc()));
+    // bd-wbvtb changed what this has to be measured with. It used to hand back the SAME
+    // pacing-broken document every round and count to 3 — which only proved the cap because
+    // the ladder used to burn every round it was given, however useless. The ladder now gives
+    // up after two rounds that reduce no blocking defect, so a document that never improves
+    // stops at 2 and can no longer demonstrate a cap of 3.
+    //
+    // So the cap is now measured on a ladder that is genuinely still climbing: three stacked
+    // blocking defects, one cleared per round, still dirty when the third round ends. That is
+    // what "the default is 3" actually means, and it is the shape a real run has.
+    create
+      .mockResolvedValueOnce(reply(threeDefectDoc()))
+      .mockResolvedValueOnce(reply(twoDefectDoc()))
+      .mockResolvedValueOnce(reply(pacingBrokenDoc()))
+      .mockResolvedValue(reply(pacingBrokenDoc()));
+
     const out = await authorLessonPlan({ segment: SEGMENT, lang: 'en' });
+
     expect(out.rounds).toBe(3);
-    expect(create).toHaveBeenCalledTimes(4);
+    expect(create).toHaveBeenCalledTimes(4);     // author + 3 revisions
+    expect(out.lintClean).toBe(false);
+  });
+
+  it('gives up early when four straight rounds reduce no blocking defect', async () => {
+    // The guard against a runaway ladder. Deliberately measured with SIX rounds available,
+    // because at the default of 3 it can never fire — which is the point: the threshold is set
+    // at 4 so that a lesson whose progress is invisible to the defect list still gets its
+    // rounds (study cell c09 needed five, showing one unchanged defect for four of them).
+    create.mockResolvedValue(reply(pacingBrokenDoc()));
+
+    const out = await authorLessonPlan({ segment: SEGMENT, lang: 'en', rounds: 6 });
+
+    expect(out.rounds).toBe(4);
+    expect(create).toHaveBeenCalledTimes(5);     // author + 4 revisions, then it stops
+    expect(out.fails.some((f) => f.startsWith('PACING_SUM'))).toBe(true);
+    expect(out.lpDoc).toBeDefined();
   });
 
   it('honours LP612_AUTHOR_ROUNDS', async () => {

@@ -378,6 +378,11 @@ const SCALE_MAX = 2;          // three rungs: 0 not observed, 1 developing, 2 pr
 // session by computeScores() from the applicable indicators — see the header.
 const MAX_MARKS = TOTAL_INDICATORS * SCALE_MAX;
 
+// The rung names, owned here. Anything that shows a score to a human — the /observe review form,
+// the report adapter — reads these rather than keeping its own copy. A second copy of the scale is
+// exactly how the HITL form came to show a Proficient 2 as "2 · Developing" (Rifat, 3 Sep).
+const RUNG_LABELS = { 0: 'Not observed', 1: 'Developing', 2: 'Proficient' };
+
 // ─── Cached system prompt ────────────────────────────────────────────
 
 let _cachedSystemPrompt = null;
@@ -690,7 +695,8 @@ function getScoringConstants() {
     domains: DOMAINS,
     maxMarks: MAX_MARKS,
     scaleMax: SCALE_MAX,
-    totalIndicators: TOTAL_INDICATORS
+    totalIndicators: TOTAL_INDICATORS,
+    rungLabels: RUNG_LABELS,
   };
 }
 
@@ -710,4 +716,5 @@ module.exports = {
   applyLpFidelity,
   getPerformanceBand,
   getScoringConstants,
+  RUNG_LABELS,
 };

@@ -535,7 +535,22 @@ async function handleRegistrationFlow(message, phoneNumber, userId) {
     const resolvedOrg = organization === 'other' ? organizationOther : organization;
 
     // Extract first name from full name
-    const firstName = fullName.split(/\s+/)[0] || fullName;
+    let firstName = fullName.split(/\s+/)[0] || fullName;
+
+    // The terminal Flow payload loses the earlier screens' values (name/country come
+    // back empty — bd-2480). registration-endpoint.js now persists each screen to the
+    // user row as it is submitted, so here we must NOT overwrite those columns with the
+    // payload's empties: write a field only when the payload actually carries it, and
+    // read the persisted first_name back for the greeting when the payload dropped it.
+    if (!firstName) {
+      try {
+        const { data: existing } = await supabase.from('users').select('first_name, name, country').eq('id', userId).single();
+        if (existing) {
+          firstName = existing.first_name || firstName;
+        }
+      } catch (_) { /* greeting falls back to the payload value */ }
+    }
+    const setIf = (v) => (v !== undefined && v !== null && !(typeof v === 'string' && v.trim() === ''));
 
     // Generate portal token
     const { v4: uuidv4 } = require('uuid');
@@ -547,15 +562,15 @@ async function handleRegistrationFlow(message, phoneNumber, userId) {
     const { error: updateError } = await supabase
       .from('users')
       .update({
-        first_name: firstName,
-        name: fullName,
-        country: country,
-        region: region,
-        organization: resolvedOrg,
-        ...(submittedRole ? { role: submittedRole } : {}), // FEAT-102 bd-2132
-        school_name: schoolName,
-        grades_taught: grade,
-        subjects_taught: Array.isArray(subjects) ? subjects : [subjects],
+        ...(setIf(firstName) ? { first_name: firstName } : {}),
+        ...(setIf(fullName) ? { name: fullName } : {}),
+        ...(setIf(country) ? { country } : {}),
+        ...(setIf(region) ? { region } : {}),
+        ...(setIf(resolvedOrg) ? { organization: resolvedOrg } : {}),
+        ...(submittedRole ? { role: submittedRole } : {}), // FEAT-102 bd-2132; per-screen write is the primary source now
+        ...(setIf(schoolName) ? { school_name: schoolName } : {}),
+        ...(setIf(grade) ? { grades_taught: grade } : {}),
+        ...((Array.isArray(subjects) ? subjects.length : subjects) ? { subjects_taught: Array.isArray(subjects) ? subjects : [subjects] } : {}),
         registration_completed: true,
         registration_completed_at: new Date().toISOString(),
         registration_pending_name: false,
