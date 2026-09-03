@@ -36,20 +36,20 @@
           },
           "__example__": [
             {
+              "id": "0",
+              "title": "0 · Not observed"
+            },
+            {
               "id": "1",
-              "title": "1 · Not Observed / Emerging"
+              "title": "1 · Developing"
             },
             {
               "id": "2",
-              "title": "2 · Developing"
+              "title": "2 · Proficient"
             },
             {
-              "id": "3",
-              "title": "3 · Proficient / Effective"
-            },
-            {
-              "id": "4",
-              "title": "4 · Highly Effective"
+              "id": "na",
+              "title": "— Not applicable to this lesson"
             }
           ]
         },
@@ -652,20 +652,20 @@
           },
           "__example__": [
             {
+              "id": "0",
+              "title": "0 · Not observed"
+            },
+            {
               "id": "1",
-              "title": "1 · Not Observed / Emerging"
+              "title": "1 · Developing"
             },
             {
               "id": "2",
-              "title": "2 · Developing"
+              "title": "2 · Proficient"
             },
             {
-              "id": "3",
-              "title": "3 · Proficient / Effective"
-            },
-            {
-              "id": "4",
-              "title": "4 · Highly Effective"
+              "id": "na",
+              "title": "— Not applicable to this lesson"
             }
           ]
         },
@@ -881,20 +881,20 @@
           },
           "__example__": [
             {
+              "id": "0",
+              "title": "0 · Not observed"
+            },
+            {
               "id": "1",
-              "title": "1 · Not Observed / Emerging"
+              "title": "1 · Developing"
             },
             {
               "id": "2",
-              "title": "2 · Developing"
+              "title": "2 · Proficient"
             },
             {
-              "id": "3",
-              "title": "3 · Proficient / Effective"
-            },
-            {
-              "id": "4",
-              "title": "4 · Highly Effective"
+              "id": "na",
+              "title": "— Not applicable to this lesson"
             }
           ]
         },
@@ -1150,20 +1150,20 @@
           },
           "__example__": [
             {
+              "id": "0",
+              "title": "0 · Not observed"
+            },
+            {
               "id": "1",
-              "title": "1 · Not Observed / Emerging"
+              "title": "1 · Developing"
             },
             {
               "id": "2",
-              "title": "2 · Developing"
+              "title": "2 · Proficient"
             },
             {
-              "id": "3",
-              "title": "3 · Proficient / Effective"
-            },
-            {
-              "id": "4",
-              "title": "4 · Highly Effective"
+              "id": "na",
+              "title": "— Not applicable to this lesson"
             }
           ]
         },

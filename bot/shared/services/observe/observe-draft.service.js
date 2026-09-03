@@ -46,6 +46,8 @@ const SCALE_OPTIONS_BY_LANG = {
     { id: '3', title: '3 · بھرپور · Strong' },
   ],
 };
+const { FICO_NA_ID: NA_ID } = require('./observe-framework');
+
 const scaleOptions = () => {
   const pack = getObservePack();
   // FEAT-102: a pack may carry its OWN scale (FICO is 1-4, not the lang-keyed
@@ -323,9 +325,18 @@ function buildScreenPrefill(analysis, domainKey) {
   spec.indicators.forEach(specInd => {
     const f = fid(specInd.id);
     const ind = byId[specInd.id] || {};
-    const score = Number.isFinite(Number(ind.score)) && ind.score !== null && ind.score !== undefined
-      ? Math.max(SMIN, Math.min(SMAX, Number(ind.score))) : SMIN;
-    data[`s_${f}`] = String(score);
+    // A subject-gated indicator carries applicable:false / score:null. Falling through to SMIN
+    // showed it selected at the bottom rung, so an indicator the scorer had deliberately left out
+    // of the total looked scored — and submitting as prefilled would have written that score back.
+    let cell;
+    if (ind.applicable === false) {
+      cell = NA_ID;
+    } else if (Number.isFinite(Number(ind.score)) && ind.score !== null && ind.score !== undefined) {
+      cell = String(Math.max(SMIN, Math.min(SMAX, Number(ind.score))));
+    } else {
+      cell = String(SMIN);
+    }
+    data[`s_${f}`] = cell;
     // bd-2369: the form shows the ≤500-char evidence_summary (the whole gist,
     // fits Meta's 600-char TextArea); the FULL evidence stays in analysis_data
     // and flows to the teacher's report. evidence_sw keeps MEWAKA/TZ unchanged.
@@ -389,6 +400,30 @@ async function onAnalysisReady(sessionId, from) {
  * analysis, recompute scores, stamp the annotation summary, persist.
  * v1 (autofill_analysis_data) is never touched here.
  */
+/**
+ * Merge ONE radio choice into ONE indicator. Pure, so the N/A round-trip is testable without a DB.
+ *
+ * The not-applicable choice is not a score: it restores applicable:false / score:null, which is
+ * what keeps the row out of BOTH sides of the fraction. Choosing a number on a row the scorer
+ * excluded is a deliberate override — the coach is saying we read the subject wrong — so the row
+ * becomes applicable again.
+ *
+ * @returns {boolean} true if the stored score changed
+ */
+function mergeIndicatorEdit(ind, raw, bounds) {
+  const { min: SMIN, max: SMAX } = bounds || scaleBounds();
+  const before = ind.score;
+  if (String(raw) === NA_ID) {
+    ind.applicable = false;
+    ind.score = null;
+    return before !== null;
+  }
+  const n = Math.max(SMIN, Math.min(SMAX, parseInt(raw, 10) || SMIN));
+  ind.applicable = true;
+  ind.score = n;
+  return n !== Number(before);
+}
+
 async function applyObserverEdits(sessionId, edits) {
   const session = await loadSession(sessionId);
   const v1 = session.autofill_analysis_data || session.analysis_data;
@@ -406,9 +441,11 @@ async function applyObserverEdits(sessionId, edits) {
       const f = fid(ind.id);
       const orig = v1ById[ind.id] || {};
       if (edits[`r_${f}`] !== undefined && edits[`r_${f}`] !== null && edits[`r_${f}`] !== '') {
-        const newScore = Math.max(SMIN, Math.min(SMAX, parseInt(edits[`r_${f}`], 10) || SMIN));
-        if (newScore !== Number(orig.score)) rescored += 1;
-        ind.score = newScore;
+        const wasOrig = { score: orig.score };
+        if (mergeIndicatorEdit(ind, edits[`r_${f}`], { min: SMIN, max: SMAX })
+            && ind.score !== Number(wasOrig.score)) {
+          rescored += 1;
+        }
       }
       for (const [prefix, field] of [['ev_', 'evidence_sw'], ['imp_', 'improvement_sw']]) {
         const val = edits[`${prefix}${f}`];
@@ -483,6 +520,7 @@ function reapplyFidelitySectionB(v2, sessionId) {
 }
 
 module.exports = {
+  mergeIndicatorEdit,
   onAnalysisReady, buildScreenPrefill, applyObserverEdits, reapplyFidelitySectionB,
   composeFidelitySummary, composeMoveBlocks, composeEditableFidelity, rescoreFidelityFromEdits,
   clipWords, MAX_MOVE_SLOTS, FIDELITY_VERDICT_OPTIONS, SCALE_OPTIONS_BY_LANG,
