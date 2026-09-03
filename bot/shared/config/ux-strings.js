@@ -93,6 +93,24 @@ const UX_STRINGS = {
     ur: 'سمجھ گئی، شکریہ — اس سے اگلی رپورٹ بہتر ہوگی۔',
   },
 
+  // ─── commitment-card buttons ──────────────────────────────────────────────
+  // The one-line acknowledgement after a tap on "Will you commit to trying this
+  // in your next class?". Gender-neutral by construction: the Urdu is Rumi's
+  // own first-person plural or an impersonal statement, never a second-person
+  // verb stem that would have to pick the teacher's gender.
+  coachingCardAckYes: {
+    en: 'Noted — we will look for it in your next lesson. Good luck!',
+    ur: 'نوٹ کر لیا — اگلے سبق میں ہم اسے دیکھیں گے۔ بہت خوب!',
+  },
+  coachingCardAckLater: {
+    en: 'No problem — it will be here whenever you are ready.',
+    ur: 'کوئی بات نہیں — یہ یہیں موجود رہے گا، جب بھی وقت ہو۔',
+  },
+  coachingCardAckNo: {
+    en: 'Thanks for telling us — we will suggest something different next time.',
+    ur: 'بتانے کا شکریہ — اگلی بار ہم کچھ مختلف تجویز کریں گے۔',
+  },
+
   // Shown on the Settings SUCCESS screen. Previously English-only, so a teacher
   // who had just switched to Urdu was congratulated in English.
   settingsSaved: {
