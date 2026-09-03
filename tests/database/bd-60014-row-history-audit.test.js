@@ -11,7 +11,7 @@
  * and nothing in the database can say how they got that way.
  */
 const {
-  WATCHED, EXCLUDED, NIETE_PROJECT_REF,
+  WATCHED, EXCLUDED, DROPPED_COLUMNS, NIETE_PROJECT_REF,
   assertProjectRef, isDistinct, diffWatched, attributeActor, isAudited,
 } = require('../../scripts/row-history-audit');
 
@@ -80,9 +80,30 @@ t('an array column compares by value', () => {
 
 // ── coaching_sessions: four state machines, 63 columns, 902 MB ───────────────
 
-t('watches exactly the four coaching status columns and nothing else', () => {
+t('watches exactly the three coaching status columns and nothing else', () => {
   eq(WATCHED.coaching_sessions.sort(),
-     ['conversation_state','debrief_status','lesson_plan_extraction_status','status']);
+     ['debrief_status','lesson_plan_extraction_status','status']);
+});
+
+t('does NOT watch conversation_state — 93% of the bytes for ephemeral scratch', () => {
+  // Measured in production 27 minutes after go-live: 43% of record_history rows
+  // but 93% of its jsonb bytes, at 1,199 B/row against 73 for everything else,
+  // because each diff stores the whole nested conversation twice.
+  expect(WATCHED.coaching_sessions).not.toContain('conversation_state');
+  expect(DROPPED_COLUMNS['coaching_sessions.conversation_state']).toMatch(/93% of its bytes/);
+});
+
+t('a conversation_state-only update now records NOTHING', () => {
+  eq(diffWatched('coaching_sessions',
+     { id: 'c1', status: 'conducting_conversation', conversation_state: { step: 1 } },
+     { id: 'c1', status: 'conducting_conversation', conversation_state: { step: 2 } }), null);
+});
+
+t('but a status change alongside it is still recorded', () => {
+  const d = diffWatched('coaching_sessions',
+    { id: 'c1', status: 'conducting_conversation', conversation_state: { step: 1 } },
+    { id: 'c1', status: 'completed',               conversation_state: { step: 2 } });
+  eq(d.changed_cols, ['status']);          // conversation_state absent from the diff
 });
 
 t('ignores the other ~59 coaching_sessions columns', () => {
