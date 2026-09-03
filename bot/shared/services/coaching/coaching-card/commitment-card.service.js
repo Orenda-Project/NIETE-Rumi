@@ -20,6 +20,7 @@ const GPT5MiniService = require('../../gpt5-mini.service');
 const { logToFile } = require('../../../utils/logger');
 const { generatePrioritizedAction } = require('./prioritized-action.service');
 const { simplifyPedagogyJargon } = require('../pedagogy-jargon');
+const { resolveTarget } = require('../target-resolver');
 
 /**
  * bd-2373: gloss any coach-jargon that slipped into the visible text so the
@@ -68,7 +69,20 @@ function extractQ3(conversationState) {
   return q3;
 }
 
-function buildPrompt(lang, analysis, q3) {
+/**
+ * The scorer's ONE target, pinned into the prompt so the card's action is about
+ * the same indicator the report's horizon names. Without it the LLM chose from
+ * growth_opportunities (prompt-emit order) and the same report contradicted
+ * itself. Null target → the prompt reads exactly as before.
+ */
+function targetBlock(target) {
+  if (!target || !target.indicator) return '';
+  const move = target.try ? ` The scorer's suggested move: "${target.try}".` : '';
+  const why = target.rationale ? ` Why it is the next step: ${target.rationale}` : '';
+  return `\nTHE TARGET (fixed — do NOT choose a different area): indicator ${target.indicator} "${target.name}".${why}${move} Your "action" is about THIS indicator only — ONE move, not a list of moves.\n`;
+}
+
+function buildPrompt(lang, analysis, q3, target = null) {
   const langName = LANG_NAME[lang] || 'English';
   const strengths = (analysis.strengths || []).map((s) => s.title || s.analysis || s).slice(0, 3);
   const growth = (analysis.growth_opportunities || []).map((g) => ({
@@ -90,11 +104,11 @@ PLAIN LANGUAGE — the teacher must understand every word. Do NOT use coach-jarg
 
 The card has TWO parts:
 1. "commitment" — a single warm sentence (max ~18 words) in the teacher's OWN spirit, reflecting back what SHE values, drawn from her Q3 answer (her forward-looking reflection). Address her as "you"/"we". No honorifics, no name inside it.
-2. "action" — ONE specific, concrete thing to try in her NEXT class. It MUST be rooted in THIS exact lesson AND fuse her own value (from her Q3 answer + strengths) with the single highest-leverage growth area. Phrase it as an implementation intention anchored to next class ("Next class, when [trigger], [do X]") — but respect the gender-neutral rule above (imperative, not a gendered "you will"). Max ~32 words. Vivid and classroom-specific — name the actual materials/concept from THIS lesson. NOT generic.
+2. "action" — ONE specific, concrete thing to try in her NEXT class. It MUST be rooted in THIS exact lesson AND fuse her own value (from her Q3 answer + strengths) with ${target ? 'THE TARGET below' : 'the single highest-leverage growth area'}. Phrase it as an implementation intention anchored to next class ("Next class, when [trigger], [do X]") — but respect the gender-neutral rule above (imperative, not a gendered "you will"). Max ~32 words. Vivid and classroom-specific — name the actual materials/concept from THIS lesson. NOT generic.
 
 Also return "highlights": an array of 2–4 short ${langName} keyword phrases that appear verbatim in "action" (concrete nouns) to visually emphasise. And "lesson_label": a 2–4 word ${langName} subject·topic label.
 
-Session (framework: ${(analysis.framework || 'oecd').toUpperCase()}):
+Session (framework: ${(analysis.framework || 'oecd').toUpperCase()}):${targetBlock(target)}
 - Her strengths: ${strengths.join(' | ') || '(none captured)'}
 - Growth areas: ${growth.map((g) => `${g.area} — ${g.observation} Strategy: ${g.strategy}`).join(' || ') || '(none)'}
 - Q3 question we asked her: ${q3.question || '(n/a)'}
@@ -103,34 +117,84 @@ Session (framework: ${(analysis.framework || 'oecd').toUpperCase()}):
 Return STRICT JSON only: {"commitment":"...","action":"...","lesson_label":"...","highlights":["...","..."]}`;
 }
 
-/** Map the rule-based prioritized-action output into the commitment-card shape. */
+const ARABIC_SCRIPT = /[\u0600-\u06FF]/;
+const RTL_LANGS = new Set(['ur', 'ar']);
+
+/**
+ * Does this text need a localisation pass to be read in `lang`? The scorer
+ * writes focus_area in the language the STT labelled the lesson with, and the
+ * card language is the teacher's preference — the two can disagree. Script is
+ * the only signal we can check without a model: an Urdu/Arabic card needs
+ * Arabic-script text, an English (or Latin-script) card must not carry it.
+ */
+function needsLocalisation(text, lang) {
+  const hasArabic = ARABIC_SCRIPT.test(String(text || ''));
+  return RTL_LANGS.has(lang) ? !hasArabic : hasArabic;
+}
+
+/**
+ * One lightweight LLM pass that moves two visible strings into `lang`, keeping
+ * pedagogical terms in English and the gender-neutral rule. Failure = the
+ * original text is kept (a soft fallback: better the scorer's move in the
+ * wrong script than the generic template).
+ */
+async function localisePair(commitment, action, lang) {
+  try {
+    const langName = LANG_NAME[lang] || 'the teacher\'s language';
+    const codeSwitch = CODESWITCH_RULE[lang] || '';
+    const genderRule = GENDER_RULE[lang] || '';
+    const prompt = `Translate the following two teacher-coaching messages into ${langName}, warm and natural. Keep pedagogical/technical terms in ENGLISH (Latin letters) inline (e.g. "open-ended questions", "wait time", "scaffolding"). ${genderRule}\n\n${codeSwitch}\n\nReturn STRICT JSON: {"commitment":"...","action":"..."}.\n\nMESSAGES:\ncommitment: ${commitment}\naction: ${action}`;
+    const r = await GPT5MiniService.openai.chat.completions.create({
+      model: MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+    });
+    const parsed = JSON.parse(r.choices[0].message.content);
+    return {
+      commitment: parsed.commitment ? String(parsed.commitment).trim() : commitment,
+      action: parsed.action ? String(parsed.action).trim() : action,
+    };
+  } catch (e) {
+    logToFile('⚠️  Fallback card localisation failed — keeping source text', { error: e.message, lang });
+    return { commitment, action };
+  }
+}
+
+/**
+ * No reflective answer (or the LLM card failed). The fallback of record is the
+ * scorer's OWN move for its chosen indicator — focus_area.try_this_tomorrow —
+ * which is specific, evidence-grounded and already in the lesson's language.
+ * The rule template ("dedicate 5 minutes to X") is reached only when there is
+ * no valid focus_area at all.
+ */
 async function fallbackCard(analysis, teacherName, priorAction, lang) {
+  const target = resolveTarget(analysis);
+  if (target && target.try.trim().length >= 12) {
+    let commitment = (target.title || target.name).trim();
+    let action = target.try.trim();
+    if (needsLocalisation(action, lang)) {
+      ({ commitment, action } = await localisePair(commitment, action, lang));
+    }
+    return {
+      commitment,
+      action,
+      highlights: [],
+      lesson_label: (analysis.framework || '').toUpperCase(),
+      indicator: target.indicator,
+      language: lang,
+      _source: 'focus_area',
+    };
+  }
+
   const pa = await generatePrioritizedAction(analysis, teacherName, priorAction);
   if (!pa) return null;
 
   // The rule-based path is authored in English. For non-English teachers,
-  // localise the two visible fields via a lightweight LLM pass so the
-  // fallback card doesn't drop them back into English unexpectedly.
-  // Failure = keep the English text (soft fallback of the fallback).
+  // localise the two visible fields so the card doesn't drop back into English.
   let commitment = pa.action;
   let action = pa.example;
   if (lang && lang !== 'en') {
-    try {
-      const langName = LANG_NAME[lang] || 'the teacher\'s language';
-      const codeSwitch = CODESWITCH_RULE[lang] || '';
-      const genderRule = GENDER_RULE[lang] || '';
-      const prompt = `Translate the following two teacher-coaching messages into ${langName}, warm and natural. Keep pedagogical/technical terms in ENGLISH (Latin letters) inline (e.g. "open-ended questions", "wait time", "scaffolding"). ${genderRule}\n\n${codeSwitch}\n\nReturn STRICT JSON: {"commitment":"...","action":"..."}.\n\nMESSAGES:\ncommitment: ${pa.action}\naction: ${pa.example}`;
-      const r = await GPT5MiniService.openai.chat.completions.create({
-        model: MODEL,
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: 'json_object' },
-      });
-      const parsed = JSON.parse(r.choices[0].message.content);
-      if (parsed.commitment) commitment = String(parsed.commitment).trim();
-      if (parsed.action) action = String(parsed.action).trim();
-    } catch (e) {
-      logToFile('⚠️  Fallback card localisation failed — keeping English text', { error: e.message, lang });
-    }
+    ({ commitment, action } = await localisePair(commitment, action, lang));
   }
 
   return {
@@ -162,8 +226,9 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
     return finalizeCard(await fallbackCard(analysis, teacherName, priorAction, lang));
   }
 
+  const target = resolveTarget(analysis);
   try {
-    const prompt = buildPrompt(lang, analysis, q3);
+    const prompt = buildPrompt(lang, analysis, q3, target);
     const r = await GPT5MiniService.openai.chat.completions.create({
       model: MODEL,
       messages: [{ role: 'user', content: prompt }],
@@ -176,6 +241,7 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
       action: String(parsed.action).trim(),
       highlights: Array.isArray(parsed.highlights) ? parsed.highlights.filter(Boolean) : [],
       lesson_label: parsed.lesson_label ? String(parsed.lesson_label).trim() : '',
+      indicator: target ? target.indicator : undefined,
       language: lang,
       _source: 'llm',
     });
@@ -185,4 +251,4 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
   }
 }
 
-module.exports = { generateCommitmentCard, extractQ3, buildPrompt, LANG_NAME };
+module.exports = { generateCommitmentCard, extractQ3, buildPrompt, needsLocalisation, LANG_NAME };
