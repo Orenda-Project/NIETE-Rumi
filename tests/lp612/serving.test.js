@@ -143,7 +143,7 @@ describe('a cached render is served immediately', () => {
 // ── cache miss ──────────────────────────────────────────────────────────────
 
 describe('a miss authors the lesson at request time', () => {
-  test('acks the teacher BEFORE enqueuing — the ack is what buys the two minutes', async () => {
+  test('acks the teacher BEFORE enqueuing — the ack is what buys the five minutes', async () => {
     mockDbResults.push({ data: null, error: null });
     mockDbResults.push({ data: { id: 'r2' }, error: null });
 
@@ -151,7 +151,9 @@ describe('a miss authors the lesson at request time', () => {
 
     expect(out.outcome).toBe('queued');
     expect(mockSendMessage).toHaveBeenCalledTimes(1);
-    expect(mockSendMessage.mock.calls[0][1]).toMatch(/2 minutes/);
+    // The measured first-hit median is 313s, not the 2 minutes this once
+    // promised — see the ux-strings note above lp612Preparing (bd-2ym0h).
+    expect(mockSendMessage.mock.calls[0][1]).toMatch(/5–6 minutes/);
     const ackOrder = mockSendMessage.mock.invocationCallOrder[0];
     const queueOrder = mockQueueJob.mock.invocationCallOrder[0];
     expect(ackOrder).toBeLessThan(queueOrder);
