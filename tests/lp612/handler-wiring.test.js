@@ -19,6 +19,31 @@
  * Everything below the handler is stubbed at the module boundary; the handler itself is real.
  */
 
+/**
+ * BOT-ONLY DEPENDENCIES, MOCKED VIRTUALLY.
+ *
+ * CI runs the root suite BEFORE `bot/ npm ci`, so every package that lives only in
+ * `bot/node_modules` is genuinely absent when this file runs there — and a module-scope require
+ * of one kills the whole suite FILE, not just a test. Loading the real text handler reaches 254
+ * files, and this is the complete set of bare packages in that graph that the root install does
+ * not provide and `tests/jest.config.js` does not already stub.
+ *
+ * `{ virtual: true }` is the point: it mocks a module that does not exist on disk at all, which
+ * a normal `jest.mock` cannot do. Kept LOCAL to this file rather than added to the shared
+ * moduleNameMapper, because only a suite that loads the whole handler needs them — the global
+ * config should not grow six entries to serve one test.
+ *
+ * My machine could not have caught this. This worktree borrows another worktree's root
+ * node_modules, which carries these packages even though the root package.json never declares
+ * them, so every local run was green while CI failed twice.
+ */
+jest.mock('uuid', () => ({ v4: () => 'stub-uuid' }), { virtual: true });
+jest.mock('p-limit', () => () => ((fn) => fn()), { virtual: true });
+jest.mock('sharp', () => () => ({}), { virtual: true });
+jest.mock('bullmq', () => ({ Queue: class {}, Worker: class {}, QueueEvents: class {} }), { virtual: true });
+jest.mock('chartjs-node-canvas', () => ({ ChartJSNodeCanvas: class {} }), { virtual: true });
+jest.mock('microsoft-cognitiveservices-speech-sdk', () => ({}), { virtual: true });
+
 const mockMaybeHandle = jest.fn();
 const mockDetectIntent = jest.fn().mockResolvedValue({ type: 'general' });
 const mockSendMessage = jest.fn().mockResolvedValue(undefined);
