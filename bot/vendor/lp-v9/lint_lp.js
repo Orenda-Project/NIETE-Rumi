@@ -588,6 +588,67 @@ function lint(doc, docPath, opts = {}) {
   if (full && doc.page2.model_answers.length < 2) warn("MODELS", "fewer than 2 model-answer cards; the reference block is meant to answer every tier.");
   if (full && doc.page2.mistakes.length < 3) warn("MISTAKES", `${doc.page2.mistakes.length} mistake/repair pairs; the v7-1 shape teachers recognised carries 3.`);
 
+  // ── DUPLICATE_DIAGRAM ────────────────────────────────────────────────────
+  // One lesson, one drawing of any given figure. bd-t1nhp: the operator's first
+  // staging maths LP (G8 Ch.7, y = mx + c) printed the SAME two-line graph twice
+  // — once in Development, once as the reference page's board_final — eating
+  // roughly half a page of paper a teacher pays for.
+  //
+  // This is an AUTHORING defect, not a render-layer one: `page2.board_final.diagram`
+  // is its own authored spec that lib/template.js renders directly, so nothing
+  // downstream can tell "deliberately restated" from "pasted twice". Catching it
+  // here puts it in front of the revision ladder, which can drop one copy — as
+  // opposed to silently de-duplicating at render time, which would quietly
+  // discard a figure the author might have meant to vary.
+  //
+  // Captions are compared OUT: re-wording the caption does not make it a
+  // different picture, and both real corpus instances differ only there (or not
+  // at all). Anything else that differs IS a different figure and is allowed.
+  {
+    const PRESENTATIONAL = new Set(["caption", "title", "alt", "note", "source"]);
+    const canonical = (v) => {
+      if (Array.isArray(v)) return v.map(canonical);
+      if (v && typeof v === "object") {
+        const out = {};
+        for (const k of Object.keys(v).sort()) {
+          if (PRESENTATIONAL.has(k)) continue;
+          out[k] = canonical(v[k]);
+        }
+        return out;
+      }
+      return v;
+    };
+
+    const placed = [];
+    for (const s of doc.sections || []) {
+      for (const b of allBlocks(s.blocks)) {
+        if (b && b.type === "diagram" && b.spec && typeof b.spec === "object") {
+          placed.push({ where: s.id, spec: b.spec });
+        }
+      }
+    }
+    if (doc.page2 && doc.page2.board_final && doc.page2.board_final.diagram) {
+      placed.push({ where: "the reference page's board_final", spec: doc.page2.board_final.diagram });
+    }
+
+    const groups = new Map();
+    for (const p of placed) {
+      const key = `${p.spec.type}|${JSON.stringify(canonical(p.spec))}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(p);
+    }
+    for (const g of groups.values()) {
+      if (g.length < 2) continue;
+      const where = g.map((p) => p.where);
+      fail(
+        "DUPLICATE_DIAGRAM",
+        `the same "${g[0].spec.type}" figure is drawn ${g.length} times in this lesson — in ${where.join(" and in ")}. ` +
+          `Their specs are identical once captions are set aside, so the teacher pays for the same picture twice and loses the space to something she does not already have. ` +
+          `Keep ONE: if the figure belongs in the teaching flow, keep the body copy and let the board page describe the final state in words (draw_order); if it is genuinely the end state of the board, keep the board copy and cut it from the body.`
+      );
+    }
+  }
+
   // ── 18 — THE V9 GATES ────────────────────────────────────────────────────
   // Everything below is scoped to a 3.0 document ON PURPOSE. The 2.0 corpus predates the
   // closed heading system and has no homework tags, no refs and no scaffold item; running

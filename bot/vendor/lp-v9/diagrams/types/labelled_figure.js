@@ -174,7 +174,7 @@ function render(spec) {
       svg.circle(px, py, 3.2, { fill: color, stroke: "#fff", sw: 1 });
 
       lines.forEach((ln, li) =>
-        svg.text(textX, ly - ((lines.length - 1) * lh) / 2 + li * lh, ln, {
+        svg.plateText(textX, ly - ((lines.length - 1) * lh) / 2 + li * lh, ln, {
           size: labelSize,
           anchor: side === "left" ? "end" : "start",
           baseline: "middle",
@@ -182,6 +182,9 @@ function render(spec) {
           weight: row.l.bold ? 700 : undefined,
           lang,
           w: side === "left" ? gutL - 12 : gutR - 12,
+          // the leader-line stacking (`stackOf`/hOf) already budgets exact room
+          // per label — the plate must hug the text's own box, not add to it.
+          padY: 0,
         })
       );
     });

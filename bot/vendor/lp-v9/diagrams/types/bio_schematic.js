@@ -62,13 +62,17 @@ function drawLeaders(svg, items, o) {
           { stroke: C.faint, sw: 1.1 }
         );
         svg.circle(it.x, it.y, 2.6, { fill: color });
-        svg.text(o.leftEdge, ly, it.text, {
+        svg.plateText(o.leftEdge, ly, it.text, {
           size,
           anchor: "end",
           baseline: "middle",
           fill: C.text,
           lang: hasUrdu(it.text) ? o.lang || "ur" : "en",
           w: hasUrdu(it.text) ? o.leftEdge - 2 : undefined,
+          // slotYs() already budgets exactly `spacing` between stacked labels
+          // (tighter still for a predicted Urdu box height) — the plate must
+          // not eat into that margin, so it hugs the text's own measured box.
+          padY: 0,
         });
       } else {
         const knee = Math.min(o.rightEdge - 16, it.x + 22);
@@ -87,12 +91,14 @@ function drawLeaders(svg, items, o) {
         const uw = hasUrdu(it.text)
           ? Math.min(o.width - o.rightEdge - 2, measure(it.text, size, { lang: "ur" }) * 1.3 + size)
           : undefined;
-        svg.text(o.rightEdge, ly, it.text, {
+        svg.plateText(o.rightEdge, ly, it.text, {
           size,
           baseline: "middle",
           fill: C.text,
           lang: hasUrdu(it.text) ? o.lang || "ur" : "en",
           w: uw,
+          // see the matching comment on the left-side plateText call above.
+          padY: 0,
         });
       }
     });
@@ -622,23 +628,29 @@ function renderHeartLoop(spec, L) {
 
   /* ---- labels, placed beside their own segment ---- */
   if (showLabels) {
-    const lab = (x, y, s, anchor, color) =>
-      svg.text(x, y, s, {
+    // One consistent text colour for every label. The vessels themselves are
+    // already colour-coded (red/blue); repeating that on the label text just
+    // reads as noise. plateText also gives each label its own opaque backdrop,
+    // so legibility never depends on what is actually behind it (a vessel path,
+    // a page-level colour override) — see lib/svg.js's plateText doc.
+    const lab = (x, y, s, anchor) =>
+      svg.plateText(x, y, s, {
         size: LSIZE,
         anchor,
         baseline: "middle",
         weight: 600,
-        fill: color,
+        fill: C.text,
         lang: hasUrdu(s) ? lang : "en",
         w: hasUrdu(s) ? 150 : undefined,
+        padY: 0,
       });
-    lab(cx, hTop - 8, L.heart, "middle", C.ink);
-    lab(RIGHT + 40, hy + 95, L.artery, "start", red);
-    lab(RIGHT + 40, bedY - 70, L.arteriole, "start", red);
-    lab(LEFTX - 40, hy + 95, L.vein, "end", blue);
-    lab(LEFTX - 40, bedY - 70, L.venule, "end", blue);
-    lab(cx, bedY + 70, L.capillary, "middle", C.ink);
-    lab(cx, bedY + 96, L.exchange, "middle", C.muted);
+    lab(cx, hTop - 8, L.heart, "middle");
+    lab(RIGHT + 40, hy + 95, L.artery, "start");
+    lab(RIGHT + 40, bedY - 70, L.arteriole, "start");
+    lab(LEFTX - 40, hy + 95, L.vein, "end");
+    lab(LEFTX - 40, bedY - 70, L.venule, "end");
+    lab(cx, bedY + 70, L.capillary, "middle");
+    lab(cx, bedY + 96, L.exchange, "middle");
   }
 
   return svg.toString();

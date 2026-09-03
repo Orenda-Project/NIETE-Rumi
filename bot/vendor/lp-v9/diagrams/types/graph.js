@@ -25,18 +25,28 @@ function lab(svg, x, y, s, o = {}) {
   // gridlines when the axis is inside the plot, and a curve can pass through any
   // of them; the plate is what keeps the number readable and is what makes the
   // crossing legal (see lib/measure.js checkOverlaps).
-  const draw = o.plate ? (a, b, t, oo) => svg.plateText(a, b, t, oo) : (a, b, t, oo) => svg.text(a, b, t, oo);
+  // `plate` is pulled OUT of `o` here and never forwarded. It is this function's
+  // own boolean "use a plate?" switch, but svg.plateText() has an option of the
+  // exact same name meaning something else entirely — an explicit plate FILL
+  // COLOUR. Forwarding the boolean verbatim made every tick/point/curve label
+  // plate render `fill="true"`, which is not a colour, so SVG's fallback for an
+  // invalid paint (black) is what actually painted: solid black plates on every
+  // graph this type ever drew. plateText() also type-guards this at the sink
+  // (diagrams/lib/svg.js), so the two fixes are belt and braces — this one keeps
+  // the flag from leaking into ANY future option of the same name.
+  const { plate, ...rest } = o;
+  const draw = plate ? (a, b, t, oo) => svg.plateText(a, b, t, oo) : (a, b, t, oo) => svg.text(a, b, t, oo);
   if (!hasUrdu(str)) {
     draw(x, y, str, {
-      ...o,
+      ...rest,
       anchor: align === "center" ? "middle" : align === "right" ? "end" : "start",
     });
     return;
   }
   const w = o.w ?? Math.max(46, measure(str, o.size ?? SIZE.small, { lang: "ur" }) * 1.3 + 12);
-  if (align === "center") draw(x, y, str, { ...o, anchor: "middle", w, lang: "ur" });
-  else if (align === "right") draw(x - w, y, str, { ...o, anchor: "start", w, lang: "ur" });
-  else draw(x + w, y, str, { ...o, anchor: "end", w, lang: "ur" });
+  if (align === "center") draw(x, y, str, { ...rest, anchor: "middle", w, lang: "ur" });
+  else if (align === "right") draw(x - w, y, str, { ...rest, anchor: "start", w, lang: "ur" });
+  else draw(x + w, y, str, { ...rest, anchor: "end", w, lang: "ur" });
 }
 
 /* ------------------------------------------------------------------ */
@@ -153,7 +163,16 @@ function render(spec) {
       if (!f) return null;
       const fn = typeof f.fn === "function" ? f.fn : compile(f.expr);
       if (!fn) return null;
-      return { fn, label: f.label, color: f.color, dash: f.dash, i };
+      return {
+        fn,
+        label: f.label,
+        color: f.color,
+        dash: f.dash,
+        shade: f.shade,
+        shadeColor: f.shadeColor,
+        shadeOpacity: f.shadeOpacity,
+        i,
+      };
     })
     .filter(Boolean);
   const pts = (Array.isArray(spec.points) ? spec.points : []).filter(
@@ -302,6 +321,37 @@ function render(spec) {
   fns.forEach((f) => {
     const color = f.color || [C.ink, C.warn, C.leaf, C.plum][f.i % 4];
     const segs = sample(f.fn, xMin, xMax, yMin, yMax, nSamples);
+
+    // Shaded half-plane (y > f(x) / y < f(x)): the standard textbook convention
+    // for a linear (or any) inequality. Drawn from the SAME window-clipped
+    // points sample() already produced for the curve itself — never a
+    // <clipPath> (this file's own header rule: a pattern/clip rasterises in
+    // Chromium's PDF pass) — closed against the plot's own top/bottom edge and
+    // filled as a plain <polygon>. Two functions that both set `shade` overlap
+    // where both inequalities hold, and since each fill is semi-transparent
+    // that overlap reads visibly darker, which is exactly the right convention
+    // for a system-of-inequalities figure with no extra code for it.
+    //
+    // Known limitation: if the curve leaves the window on the y-side OPPOSITE
+    // the shaded side (e.g. shading "above" a line that dips below yMin), the
+    // polygon covers only the curve's own visible x-range — the part beyond,
+    // which should also be fully shaded, is left blank. Fine for the case this
+    // serves (a single line crossing the chosen window); a general fix would
+    // have to reason about where the curve went off-window.
+    if (f.shade === "above" || f.shade === "below") {
+      const edgeY = f.shade === "above" ? padT : padT + plotH;
+      for (const seg of segs) {
+        if (seg.length < 2) continue;
+        const sp = seg.map((p) => [X(p[0]), Y(p[1])]);
+        const first = sp[0];
+        const last = sp[sp.length - 1];
+        svg.polygon([...sp, [last[0], edgeY], [first[0], edgeY]], {
+          fill: f.shadeColor || color,
+          opacity: f.shadeOpacity ?? 0.16,
+        });
+      }
+    }
+
     for (const seg of segs) {
       svg.polyline(
         seg.map((p) => [X(p[0]), Y(p[1])]),
@@ -402,7 +452,7 @@ module.exports = {
   type: "graph",
   aliases: ["plot", "function_plot"],
   summary:
-    "Cartesian plot — sampled function curves (safe expression strings), plotted points, straight segments, gridlines and labelled axes.",
+    "Cartesian plot — sampled function curves (safe expression strings), plotted points, straight segments, gridlines and labelled axes. A function can set shade:'above'|'below' to fill the half-plane on one side of it, for inequality diagrams; two shaded functions overlap into a visibly darker region, which is the right convention for a system of inequalities.",
   render,
   examples: [
     {
@@ -475,6 +525,24 @@ module.exports = {
         xLabel: "x (radians)",
         title: "y = sin x and y = cos x over one full turn",
         caption: "The two curves are the same shape, a quarter turn apart.",
+      },
+    },
+    {
+      name: "graph_linear_inequality",
+      spec: {
+        type: "graph",
+        xMin: -3,
+        xMax: 5,
+        yMin: -8,
+        yMax: 10,
+        xStep: 1,
+        yStep: 2,
+        functions: [{ expr: "2*x - 1", label: "y = 2x − 1", color: C.cool, dash: "6 4", shade: "above" }],
+        xLabel: "x",
+        yLabel: "y",
+        title: "y > 2x − 1",
+        caption:
+          "The line is dashed because the inequality is strict — points ON it don't count. Every point in the shaded half-plane does.",
       },
     },
   ],

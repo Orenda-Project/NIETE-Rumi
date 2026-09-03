@@ -114,7 +114,9 @@ describe('the happy path', () => {
     expect(out.status).toBe('ready');
     expect(mockAuthorLessonPlan).toHaveBeenCalledTimes(1);
     expect(mockRenderLessonPlan).toHaveBeenCalledTimes(1);
-    expect(mockUploadBuffer).toHaveBeenCalledTimes(1);
+    // Two objects now: the PDF, and the lp_doc beside it so a question about this lesson is
+    // answerable next month. See "the authored document is kept beside the PDF" below.
+    expect(mockUploadBuffer.mock.calls.map((c) => c[1].replace(/^.*\./, ''))).toEqual(['pdf', 'json']);
     expect(mockDeliverRender).toHaveBeenCalledTimes(2);
     expect(mockDeliverRender.mock.calls.map((c) => c[0].phone))
       .toEqual(['923001111111', '923002222222']);
@@ -378,5 +380,55 @@ describe('the worker gives the author a render gate', () => {
     const { renderCheck } = mockAuthorLessonPlan.mock.calls[0][0];
     mockRenderLessonPlan.mockRejectedValueOnce(new Error('browser would not launch'));
     await expect(renderCheck({ lesson_id: 'x' })).resolves.toEqual([]);
+  });
+});
+
+// ── keep the document that made the PDF ─────────────────────────────────────
+
+/**
+ * The operator asked why a graph appeared twice in his lesson. The honest answer needed the
+ * authored `lp_doc` — and it did not exist. `renderLessonPlan` writes `<stem>.lp.json`, `.html`
+ * and `.pdf` into a temp dir; the worker uploaded ONLY the pdf and deleted the directory. R2 held
+ * three PDFs and nothing else, and the render row has no doc column. His document was gone
+ * seconds after it rendered, so the diagnosis had to be reconstructed from a raster.
+ *
+ * Every "why does my lesson look like this?" is unanswerable under those conditions, and that is
+ * the class of question this lane will get for months. The doc is a few KB next to a ~200KB PDF.
+ *
+ * It goes in the SAME prefix and the same cache key shape, so it is findable from the render row
+ * without a second lookup, and so the shared-bucket prefix guard covers it unchanged.
+ */
+describe('the authored document is kept beside the PDF', () => {
+  test('both the PDF and the lp_doc JSON are uploaded', async () => {
+    seed();
+    await Worker.process(JOB);
+
+    const keys = mockUploadBuffer.mock.calls.map((c) => c[1]);
+    expect(keys).toContain('lp612/v9.1/en/grade_9_chemistry.c01.p007-008.pdf');
+    expect(keys).toContain('lp612/v9.1/en/grade_9_chemistry.c01.p007-008.lp.json');
+  });
+
+  test('the JSON is the document that was rendered, not a summary of it', async () => {
+    mockAuthorLessonPlan.mockResolvedValue({
+      lpDoc: { lesson_id: 'KEEP_ME', one_screen: 's' },
+      lintClean: true, fails: [], rounds: 1, model: 'm',
+    });
+    seed();
+    await Worker.process(JOB);
+
+    const call = mockUploadBuffer.mock.calls.find((c) => c[1].endsWith('.lp.json'));
+    expect(JSON.parse(call[0].toString()).lesson_id).toBe('KEEP_ME');
+    expect(call[2]).toBe('application/json');
+  });
+
+  test('a failed doc upload does NOT cost her the lesson', async () => {
+    // The PDF is the product. Keeping the source is for us, and must never be able to turn a
+    // finished lesson into a failure.
+    mockUploadBuffer.mockImplementation((buf, key) => (key.endsWith('.lp.json')
+      ? Promise.reject(new Error('R2 said no'))
+      : Promise.resolve(key)));
+    seed();
+    const out = await Worker.process(JOB);
+    expect(out.status).toBe('ready');
   });
 });
