@@ -54,8 +54,10 @@ describe('recomputeFidelityForSession', () => {
     expect(updates).toHaveLength(0);
   });
 
-  it('is a no-op when fidelity is already ok', async () => {
-    const { deps, updates } = makeDeps({ session: { analysis_data: { framework: 'fico', lp_fidelity: { status: 'ok', fidelity_pct: 50 } } } });
+  it('is a no-op when fidelity is already ok — for the plan that is linked', async () => {
+    // bd-2kxxa.4: "already ok" is only terminal when the graded plan IS the linked
+    // plan (makeDeps links g3_u_ch1_seg1), so the blob must name what it graded.
+    const { deps, updates } = makeDeps({ session: { analysis_data: { framework: 'fico', lp_fidelity: { status: 'ok', fidelity_pct: 50, source: 'corpus', lesson_id: 'g3_u_ch1_seg1' } } } });
     const res = await recomputeFidelityForSession('cs-1', deps);
     expect(res.recomputed).toBe(false);
     expect(res.reason).toBe('already_ok');
@@ -94,5 +96,103 @@ describe('recomputeFidelityForSession', () => {
     expect(res.recomputed).toBe(true);
     expect(updates).toHaveLength(1);
     expect(updates[0].patch.analysis_data.lp_fidelity.fidelity_pct).toBe(70);
+  });
+});
+
+/**
+ * bd-2kxxa.4 — 'already_ok' used to fire on ANY ok blob with a score, without
+ * asking which plan produced it. A coach correcting the linked plan BEFORE
+ * submitting the review was refused as silently as one tapping after. Now the
+ * gate compares the linked plan (lesson_plan_structured._fidelity_ref, or the
+ * uploaded text) against the plan the blob was graded from (lesson_id / source /
+ * upload_hash) and only skips when they are the same plan.
+ */
+describe("already_ok only when the graded plan IS the linked plan (bd-2kxxa.4)", () => {
+  const { uploadTextHash } = require('../../../bot/shared/services/coaching/fidelity/fidelity-orchestrator');
+  const graded = (extra = {}) => ({
+    framework: 'fico',
+    lp_fidelity: { status: 'ok', fidelity_pct: 62, source: 'corpus', lesson_id: 'lessonA', ...extra },
+  });
+  function spyDeps(overrides) {
+    const built = makeDeps(overrides);
+    const inner = built.deps.computeLpFidelity;
+    let computeCalls = 0;
+    built.deps.computeLpFidelity = async (...a) => { computeCalls += 1; return inner(...a); };
+    built.computeCalls = () => computeCalls;
+    return built;
+  }
+
+  it('T3a graded against lesson A, now linked to lesson B → compute runs and the new grade persists', async () => {
+    const b = spyDeps({ session: {
+      analysis_data: graded(),
+      lesson_plan_structured: { _fidelity_ref: { lesson_id: 'lessonB', version_stamp: 'v8' } },
+    } });
+    const res = await recomputeFidelityForSession('cs-1', b.deps);
+    expect(res.recomputed).toBe(true);
+    expect(b.computeCalls()).toBe(1);
+    expect(b.updates).toHaveLength(1);
+    expect(b.updates[0].patch.analysis_data.lp_fidelity.fidelity_pct).toBe(70);
+  });
+
+  it('T3b graded against lesson A, still linked to lesson A → already_ok and compute NOT called', async () => {
+    const b = spyDeps({ session: {
+      analysis_data: graded(),
+      lesson_plan_structured: { _fidelity_ref: { lesson_id: 'lessonA', version_stamp: 'v8' } },
+    } });
+    const res = await recomputeFidelityForSession('cs-1', b.deps);
+    expect(res).toEqual({ recomputed: false, reason: 'already_ok' });
+    expect(b.computeCalls()).toBe(0);
+    expect(b.updates).toHaveLength(0);
+  });
+
+  it('graded from her upload, now a corpus plan is linked → recomputes', async () => {
+    const b = spyDeps({ session: {
+      analysis_data: graded({ source: 'uploaded', lesson_id: null }),
+      lesson_plan_structured: { _fidelity_ref: { lesson_id: 'lessonB' } },
+    } });
+    const res = await recomputeFidelityForSession('cs-1', b.deps);
+    expect(res.recomputed).toBe(true);
+    expect(b.computeCalls()).toBe(1);
+  });
+
+  it('graded against corpus A, now her own upload replaced it → recomputes', async () => {
+    const b = spyDeps({ session: {
+      analysis_data: graded(),
+      lesson_plan_structured: {},
+      lesson_plan_text: 'her own plan',
+    } });
+    const res = await recomputeFidelityForSession('cs-1', b.deps);
+    expect(res.recomputed).toBe(true);
+    expect(b.computeCalls()).toBe(1);
+  });
+
+  it('re-upload: a different document recomputes, the same document is already_ok', async () => {
+    const gradedUpload = graded({ source: 'uploaded', lesson_id: null, upload_hash: uploadTextHash('old plan') });
+    const changed = spyDeps({ session: { analysis_data: gradedUpload, lesson_plan_structured: {}, lesson_plan_text: 'new plan' } });
+    expect((await recomputeFidelityForSession('cs-1', changed.deps)).recomputed).toBe(true);
+    expect(changed.computeCalls()).toBe(1);
+
+    const same = spyDeps({ session: { analysis_data: gradedUpload, lesson_plan_structured: {}, lesson_plan_text: 'old plan' } });
+    expect((await recomputeFidelityForSession('cs-1', same.deps)).reason).toBe('already_ok');
+    expect(same.computeCalls()).toBe(0);
+  });
+
+  it('legacy uploaded blob with no upload_hash + an upload linked → already_ok (cannot tell them apart)', async () => {
+    const b = spyDeps({ session: {
+      analysis_data: graded({ source: 'uploaded', lesson_id: null }),
+      lesson_plan_structured: {},
+      lesson_plan_text: 'some plan',
+    } });
+    expect((await recomputeFidelityForSession('cs-1', b.deps)).reason).toBe('already_ok');
+    expect(b.computeCalls()).toBe(0);
+  });
+
+  it('legacy blob naming no plan at all, corpus linked → recomputes (cannot prove it graded THIS plan)', async () => {
+    const b = spyDeps({ session: {
+      analysis_data: { framework: 'fico', lp_fidelity: { status: 'ok', fidelity_pct: 62 } },
+      lesson_plan_structured: { _fidelity_ref: { lesson_id: 'lessonB' } },
+    } });
+    expect((await recomputeFidelityForSession('cs-1', b.deps)).recomputed).toBe(true);
+    expect(b.computeCalls()).toBe(1);
   });
 });

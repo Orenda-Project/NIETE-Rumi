@@ -68,6 +68,13 @@ const COACHING_MESSAGES = {
     ...en("✅ Lesson plan linked! I'll compare your teaching against this plan in the analysis."),
     ur: '✅ سبق کا منصوبہ منسلک ہو گیا! تجزیے میں تدریس کا موازنہ اسی منصوبے سے کیا جائے گا۔',
   },
+  // Lesson-plan branch: a late LP tap after the observer's review was submitted
+  // (bd-2kxxa.4). The list stays in the chat; once the review is in, the linked
+  // plan can no longer change — say so instead of a "linked" that changes nothing.
+  lessonPlan_review_submitted: {
+    ...en("This observation's review has already been submitted, so I can't change its lesson plan."),
+    ur: 'اس مشاہدے کا جائزہ پہلے ہی جمع ہو چکا ہے، اس لیے اب اس کا سبق کا منصوبہ تبدیل نہیں کیا جا سکتا۔',
+  },
   // Lesson-plan branch: document received, queued for processing
   lessonPlan_received: en("📄 Lesson plan received! I'm processing it in the background and will weave it into your analysis."),
   // Lesson-plan branch: the uploaded document doesn't look like a lesson plan

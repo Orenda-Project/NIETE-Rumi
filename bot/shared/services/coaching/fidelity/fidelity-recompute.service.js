@@ -23,6 +23,34 @@ const { logToFile } = require('../../../utils/logger');
 /** Statuses in which the fidelity section may still be rewritten. */
 const RECOMPUTABLE_STATUSES = ['analysis_started', 'analysis_complete', 'awaiting_observer_review'];
 
+/**
+ * bd-2kxxa.4 — statuses in which the observer's review is in (or the session is
+ * over): the linked plan can no longer change. The LP list handler checks these
+ * BEFORE linking so the coach hears the truth instead of "linked".
+ */
+const REVIEW_SUBMITTED_STATUSES = ['observer_review_complete', 'completed', 'cancelled'];
+
+/**
+ * bd-2kxxa.4 — was this ok blob graded from the plan that is linked NOW?
+ * 'already_ok' used to fire on ANY scored blob, so a coach correcting the plan
+ * before submitting was refused as silently as one tapping after. Unknown
+ * provenance counts as DIFFERENT: a tap or upload is an explicit intent and we
+ * cannot prove the score already reflects it. One exception: an uploaded blob
+ * with no upload_hash (pre-hash) against an upload — indistinguishable, keep it.
+ */
+function gradedPlanIsLinkedPlan(session, lpFidelity, { resolveFidelitySources, uploadTextHash }) {
+  const { corpusKey, uploadedText } = resolveFidelitySources(session);
+  const gradedLessonId = lpFidelity.lesson_id
+    || (lpFidelity.meta && lpFidelity.meta.lesson_id) || null;
+  if (corpusKey && corpusKey.lesson_id) return gradedLessonId === corpusKey.lesson_id;
+  if (uploadedText) {
+    if (lpFidelity.source !== 'uploaded') return false;
+    if (!lpFidelity.upload_hash) return true;
+    return lpFidelity.upload_hash === uploadTextHash(uploadedText);
+  }
+  return true; // nothing linked → nothing new to grade against
+}
+
 async function defaultLoadSession(sessionId) {
   const supabase = require('../../../config/supabase');
   const { data } = await supabase
@@ -77,12 +105,15 @@ async function recomputeFidelityForSession(sessionId, opts = {}) {
     // guard-refusal shape (all moves not_adjudicable, Section B empty); treating
     // it as "already ok" stranded the entire Aug/Sep unusable cohort with no
     // recovery path. Those blobs must stay recomputable.
+    // bd-2kxxa.4 — and ok is terminal only for the plan that is linked NOW.
+    const orchestrator = require('./fidelity-orchestrator');
+    const { resolveFidelitySources } = orchestrator;
     if (analysis.lp_fidelity && analysis.lp_fidelity.status === 'ok'
-        && analysis.lp_fidelity.fidelity_pct != null) {
+        && analysis.lp_fidelity.fidelity_pct != null
+        && gradedPlanIsLinkedPlan(session, analysis.lp_fidelity, orchestrator)) {
       return { recomputed: false, reason: 'already_ok' };
     }
 
-    const { resolveFidelitySources } = require('./fidelity-orchestrator');
     const { corpusKey, uploadedText, meta } = resolveFidelitySources(session);
     const result = await compute({ corpusKey, uploadedText, transcript: session.transcript_text, meta });
     if (!result) return { recomputed: false, reason: 'no_sources' };
@@ -109,4 +140,4 @@ async function recomputeFidelityForSession(sessionId, opts = {}) {
   }
 }
 
-module.exports = { recomputeFidelityForSession, RECOMPUTABLE_STATUSES };
+module.exports = { recomputeFidelityForSession, RECOMPUTABLE_STATUSES, REVIEW_SUBMITTED_STATUSES };
