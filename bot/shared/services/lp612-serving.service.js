@@ -261,19 +261,33 @@ function waiterEntry({ userId, phone }) {
   return { user_id: userId, phone, requested_at: new Date().toISOString() };
 }
 
-async function addWaiter(renderId, waiters, req) {
-  const list = Array.isArray(waiters) ? waiters : [];
-  // Tapping twice must not mean being sent the lesson twice.
-  if (list.some((w) => w && w.user_id === req.userId)) return list;
-  const next = [...list, waiterEntry(req)];
-  const { error } = await supabase
-    .from(RENDERS)
-    .update({ waiters: next, updated_at: new Date().toISOString() })
-    .eq('id', renderId);
+/**
+ * Join the waiter list, ATOMICALLY.
+ *
+ * This used to read `waiters`, append in JS, and write the whole array back. Measured on staging:
+ * twenty concurrent taps on one lesson, all twenty told "I'll send it here as soon as it's ready",
+ * and TWO waiters survived — 90% dropped, worst on the most popular lesson. Every caller read the
+ * same array and wrote a one-element array back; last write won. Nothing errored, nothing logged,
+ * and the ack had already gone out, so the failure was invisible from both sides.
+ *
+ * The append now happens inside ONE statement in `lp612_join_waiters`, where the row lock
+ * serialises writers and `waiters` is re-read while held. Retrying a lost write would not have
+ * fixed this — only atomicity does.
+ *
+ * @returns 'joined' | 'duplicate' | 'not_authoring' | 'missing' | 'error'
+ */
+async function joinWaiters(renderId, req) {
+  const { data, error } = await supabase.rpc('lp612_join_waiters', {
+    p_render_id: renderId,
+    p_entry: waiterEntry(req),
+  });
   if (error) {
+    // Never silent: she is still told something by the caller, and this is the line that says why
+    // a lesson went missing if it ever does again.
     logToFile('LP 6-12: could not join waiter list', { renderId, error: error.message });
+    return 'error';
   }
-  return next;
+  return data || 'error';
 }
 
 async function enqueue({ renderId, segmentId, lang, tv, correlationId }) {
@@ -312,7 +326,7 @@ async function enqueue({ renderId, segmentId, lang, tv, correlationId }) {
  * @returns {Promise<{outcome: string, [key: string]: any}>}
  *   outcome ∈ cache_hit | queued | joined | retry | held | not_found | deliver_failed | error
  */
-async function requestLesson({ segmentId, userId, phone, lang, correlationId }) {
+async function requestLesson({ segmentId, userId, phone, lang, correlationId }, depth = 0) {
   const language = clampLanguage(lang);
   const tv = templateVersion();
 
@@ -359,9 +373,23 @@ async function requestLesson({ segmentId, userId, phone, lang, correlationId }) 
   // lesson is the thing it prevents. A STRANDED one falls through to the reset below instead,
   // because joining a corpse is how a teacher ends up waiting forever.
   if (existing && existing.status === 'authoring' && !isStrandedAuthoring(existing)) {
-    await addWaiter(existing.id, existing.waiters, req);
+    const joined = await joinWaiters(existing.id, req);
+
+    // The run finished between our read and our append. The worker clears `waiters` when it
+    // delivers, so parking her on that list now means she waits for ever for a job that is
+    // already over. Re-decide once against the row as it now stands — she is owed the lesson,
+    // which by definition is sitting in R2.
+    if (joined === 'not_authoring' && depth === 0) {
+      logToFile('LP 6-12: render finished mid-join, re-deciding', {
+        segmentId, renderId: existing.id, correlationId,
+      });
+      return requestLesson({ segmentId, userId, phone, lang, correlationId }, depth + 1);
+    }
+
     await tell(phone, 'lp612AlreadyPreparing', language);
-    logToFile('LP 6-12: joined render in flight', { segmentId, renderId: existing.id, correlationId });
+    logToFile('LP 6-12: joined render in flight', {
+      segmentId, renderId: existing.id, result: joined, correlationId,
+    });
     return { outcome: 'joined', renderId: existing.id };
   }
 
@@ -424,7 +452,7 @@ async function requestLesson({ segmentId, userId, phone, lang, correlationId }) 
     if (insertError.code === UNIQUE_VIOLATION) {
       const winner = await findRender(segmentId, language, tv);
       if (winner) {
-        await addWaiter(winner.id, winner.waiters, req);
+        await joinWaiters(winner.id, req);
         await tell(phone, 'lp612AlreadyPreparing', language);
         logToFile('LP 6-12: lost insert race, joined winner', {
           segmentId, renderId: winner.id, correlationId,
@@ -454,6 +482,7 @@ module.exports = {
   buildBody,
   isStrandedAuthoring,
   reapStrandedRenders,
+  joinWaiters,
   buildFilename,
   buildCaption,
   r2KeyFor,

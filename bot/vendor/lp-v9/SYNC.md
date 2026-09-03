@@ -211,7 +211,24 @@ so a link checked on that path proves nothing about the deployed one.
 `render_lp.js` carries no video plumbing: the earlier `renderDoc({ video })` option was removed with
 the coaching-corner line and was not reinstated, because the document already holds the pick.
 
-### 3.7 Nothing else
+### 3.7 `render_lp.js` — container launch flags
+
+Two flags on the browser launch that matter ONLY on a container, and only under load (`bd-v60qf`):
+
+* `--disable-dev-shm-usage` — a container's `/dev/shm` defaults to 64MB. The browser keeps its
+  shared memory there, and a 9-page A4 render with four embedded faces and SVG diagrams exhausts
+  it. The tab dies mid-render, and it surfaces as "the render failed" with no readable
+  out-of-memory anywhere.
+* `--no-sandbox` — the sandbox needs kernel privileges the Railway container does not grant;
+  without it the browser can fail to start at all.
+
+Both are harmless on a dev box, which is exactly why nothing on a laptop would ever catch their
+absence. Upstream does not carry them because upstream renders on a workstation.
+
+Asserted at the launch boundary in `tests/lp612/render.test.js` — there is no way to observe this
+from outside the process, so the launch call is the only place the requirement can be recorded.
+
+### 3.8 Nothing else
 
 `lint_lp.js`, both schemas, every other file in `lib/`, and the whole `diagrams/` tree are
 **byte-identical to upstream**. In particular the lint's gate list, thresholds, word budgets and

@@ -61,7 +61,14 @@ function mockBuilder(table) {
   };
   return b;
 }
-jest.mock('../../bot/shared/config/supabase', () => ({ from: jest.fn((t) => mockBuilder(t)) }));
+// `rpc` is part of the client now: joining a waiter list goes through the atomic
+// lp612_join_waiters function instead of a read-modify-write of the JSONB column.
+// Defaults to 'joined'; a test that cares overrides it.
+const mockRpc = jest.fn(() => Promise.resolve({ data: 'joined', error: null }));
+jest.mock('../../bot/shared/config/supabase', () => ({
+  from: jest.fn((t) => mockBuilder(t)),
+  rpc: (...a) => mockRpc(...a),
+}));
 
 const Serving = require('../../bot/shared/services/lp612-serving.service');
 const { isStrandedAuthoring } = Serving;
