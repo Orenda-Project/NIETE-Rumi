@@ -150,31 +150,50 @@ expert tore apart. Dropping it removes an advisory signal and a per-round LLM ca
 no gate. The consequence to know: upstream's ladder can reject a round for a judge-score drop as
 well as for a defect-count rise, and **the ported ladder can only see the defect count.**
 
-### 3.6 The video line — added, then REMOVED as a duplicate (2026-09-03)
+### 3.6 The video link — MOVED to a resources line at the top of page 1 (2026-09-03)
 
-A YouTube link was briefly added to the coaching corner as render furniture (`bd-xl9ux`), threaded
-through `renderDoc({ video })` -> `buildHtml` -> `ctx.video`. **It has been removed again, and the
-reason is worth keeping.**
+Two edits, in order, and the second is the one that stands.
 
-The lane already had a video path and nobody grepped for it: `lp612-author.service.js` does
-`parseYt(segment.yt)` -> `applyVideo(doc, video)`, which sets the development section's `video`,
-and `lib/template.js` has rendered that as a labelled anchor since v8. So the coaching-corner line
-was a SECOND copy of the same link on the same document -- on the support page, which is also the
-page that hits the 4-page cap.
+**First**, a video line was added to the coaching corner and then **removed**, because the lane
+already had a video path nobody had grepped for: `lp612-author.service.js` does
+`parseYt(segment.yt)` then `applyVideo(doc, video)`, which sets the development section's `video`,
+and `lib/template.js` had rendered that as a labelled anchor since v8. The coaching-corner copy was
+a SECOND copy of the same link on the same document, on the support page -- the page that hits the
+4-page cap.
 
-What survives, and what was verified rather than assumed:
+**Then**, on operator feedback (*"YT link didnt appear in my lesson? Isnt it supposed to? Somewhere
+at the top perhaps? In resources?"*), the surviving link **moved** out of Development and into a
+compact **resources line at the top of page 1**, directly under the outcome box:
 
-* the pre-existing development-section block is a REAL link -- the produced file carries a `/Link`
-  annotation with the watch URL (`qpdf --qdf` then grep for `/URI`; `check_links.sh` in the
-  FEAT-080 `staging_render_proof/` folder does exactly this);
-* it is deterministic -- `applyVideo` writes the url onto the parsed document AFTER the model
-  replies, on every round of the ladder, so the model never authors a URL and cannot invent one;
-* the engine matters. The headless browser driven through the automation library emits the
-  annotation; the no-library CLI fallback produces a byte-valid file with **no annotations at all**.
-  A link verified on the fallback path proves nothing about the deployed one.
+    [tv] Video: youtu.be/<id>
 
-`lib/template.js` and `render_lp.js` therefore carry no video furniture of their own again, and
-`lib/template.js` is byte-identical to upstream.
+Properties worth keeping if this is ever re-cut:
+
+* **It is a MOVE, not an addition.** `resourcesLine` reads the SAME
+  `sections[<development>].video`; the old `.blk vid` emission in `after()` is gone. One link, one
+  place. Asserted by a test that counts the line's marker across the whole document.
+* **The data still never passes through the model.** `applyVideo` writes the url onto the parsed
+  document after every LLM reply, so the printed link is curated data and cannot be invented.
+* **It costs no page.** Measured before and after on the gate fixture: `teach 4 / support 3`,
+  0 problems, both times. Page 1 is the busiest page and the teach part is often at its cap, so
+  the line is deliberately the URL ALONE -- not the title, channel, duration and "why" the old
+  inline block printed.
+* **CLASS NAMES ARE A MINEFIELD HERE.** It is `.vres`. `.res` is already the KaTeX result block and
+  `.vid` was the old inline video block; a colliding class silently inherits someone else's box,
+  which happened once already during this work.
+* **Urdu:** the visible url is wrapped in U+2066 ... U+2069 INSIDE the link text, the same fix the
+  coaching corner's phone number carries. The label follows the page's own pack (`L.video`).
+* **Only http(s) becomes an anchor**, and no pick renders nothing at all -- no label, no dash, no
+  empty box. Most of the corpus has no pick on any given night.
+
+Verified at byte level rather than by eye: the produced file carries a `/Link` annotation with the
+watch URL (`qpdf --qdf` then grep `/URI`; `check_links.sh` in the FEAT-080 `staging_render_proof/`
+folder). The engine matters -- the headless browser driven through the automation library emits the
+annotation, while the no-library CLI fallback produces a byte-valid file with NO annotations at all,
+so a link checked on that path proves nothing about the deployed one.
+
+`render_lp.js` carries no video plumbing: the earlier `renderDoc({ video })` option was removed with
+the coaching-corner line and was not reinstated, because the document already holds the pick.
 
 ### 3.7 Nothing else
 
