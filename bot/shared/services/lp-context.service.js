@@ -88,6 +88,19 @@ async function renderEntry(entry, { detailed }) {
 
   if (detailed) {
     const inner = [];
+    // The 6-12 lane's only body text, and the reason this branch exists.
+    //
+    // Both detail sources below are K-5-only: resolveMoveList needs a v8 `lesson_id`, and
+    // getVoicenoteScript needs an `r2_key` for a voicenote transcript. A 6-12 entry has neither
+    // by design (see lp612-serving `recordDelivery` for why carrying an r2_key would buy a
+    // guaranteed-missing R2 fetch), so without this it would render a bare heading and the model
+    // would answer "what does the activity mean?" without knowing what the activity is.
+    //
+    // Keyed on the FIELD, not on a lane flag: no K-5 entry sets `one_screen`, so every K-5
+    // render is byte-identical and this cannot regress the lane it shares.
+    if (entry.one_screen) {
+      inner.push(`The lesson as she received it on her phone:\n${String(entry.one_screen).trim()}`);
+    }
     // Steps FIRST, teaser second (bd-91r48): the steps are the lesson; the
     // voice note is a 60-second summary of it. If the block ever has to be
     // clipped from the end, the teaser is what should go.

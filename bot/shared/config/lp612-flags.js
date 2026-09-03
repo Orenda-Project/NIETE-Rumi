@@ -78,6 +78,19 @@ function isReligiousEnabled() {
   return isTrue(process.env.LP_612_RELIGIOUS_ENABLED);
 }
 
+/**
+ * The teacher edit lane. A THIRD flag, and separate for the same reason the religious hold is
+ * separate: turning 6-12 lessons on must not silently turn on a path that spends ~$0.36 and
+ * rewrites a document every time a teacher replies to one.
+ *
+ * It only ever NARROWS isLp612Enabled() — a caller must already have passed that gate. With this
+ * unset the router still recognises an edit request and says so honestly (lp612EditNotYet); what
+ * it does not do is author anything.
+ */
+function isLp612EditEnabled() {
+  return isTrue(process.env.LP_612_EDIT_ENABLED);
+}
+
 function templateVersion() {
   const v = (process.env.LP_612_TEMPLATE_VERSION || '').trim();
   return v || DEFAULT_TEMPLATE_VERSION;
@@ -157,6 +170,7 @@ function isLp612Grade(g) {
 
 module.exports = {
   isLp612Enabled,
+  isLp612EditEnabled,
   isLp612LangMenuEnabled,
   isReligiousEnabled,
   templateVersion,

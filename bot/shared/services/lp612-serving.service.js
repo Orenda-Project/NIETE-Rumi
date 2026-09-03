@@ -35,6 +35,10 @@ const WhatsAppService = require('./whatsapp.service');
 const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const Catalog = require('./lp612-catalog.service');
+// The shelf `buildLpContext` reads. Required at module scope deliberately: it pulls in the Redis
+// wrapper, which the root suites already stub, and a lazy require here would hide a missing
+// dependency until the first real delivery.
+const LPShelfService = require('./lp-shelf.service');
 const { isReligiousEnabled, templateVersion, authorTimeoutMs } = require('../config/lp612-flags');
 
 const RENDERS = 'niete_lp612_renders';
@@ -94,10 +98,15 @@ function buildFilename(segment, lang) {
   return `${base}_${lang}.pdf`.slice(0, FILENAME_MAX);
 }
 
-function buildCaption(segment, lang, { overlayDropped = false } = {}) {
-  const pages = segment.printed_page_start === segment.printed_page_end
+/** "71" for a single page, "71-73" for a range. One definition, two callers. */
+function pagesLabel(segment) {
+  return segment.printed_page_start === segment.printed_page_end
     ? String(segment.printed_page_start)
     : `${segment.printed_page_start}-${segment.printed_page_end}`;
+}
+
+function buildCaption(segment, lang, { overlayDropped = false } = {}) {
+  const pages = pagesLabel(segment);
   const caption = resolveUx('lp612Caption', {
     language: lang,
     params: {
@@ -239,7 +248,51 @@ function buildBody({ oneScreen, segment }) {
  *  the same bytes to the same shape of recipient when the job completes.
  *  `overlayDropped` rides along so the caption can be honest about a degraded
  *  Urdu document — on the first delivery AND on every cache hit after it. */
-async function deliverRender({ phone, r2Key, segment, lang, oneScreen, overlayDropped }) {
+/**
+ * Leave a trace of this delivery where the CHAT can find it.
+ *
+ * Until this existed, `deliverRender` sent two messages and returned. `buildLpContext` reads the
+ * LP shelf and then `niete_lp_downloads`; this lane wrote to neither, so a teacher who replied
+ * "what does the activity mean?" was answered by a model that had never seen her lesson — a
+ * confident, ungrounded reply that reads like an answer.
+ *
+ * THE ENTRY IS DELIBERATELY THIN. `lp-context.service`'s renderEntry runs two K-5 resolvers over
+ * every shelf entry: `resolveMoveList` returns null the moment `lesson_id` is absent (free), but
+ * `getVoicenoteScript` derives a `.txt` key from `r2_key` and FETCHES IT FROM R2. A 6-12 lesson
+ * has no voicenote, so passing the PDF key would buy a guaranteed-missing R2 round-trip on every
+ * turn of every conversation. So: no `lesson_id`, no `content_hash`, no `r2_key`. What is here is
+ * exactly what `headingFor` renders plus the one-screen summary, which is the part that actually
+ * grounds her question.
+ *
+ * `lane` marks it ours without anyone having to infer "6-12" from which fields are missing.
+ *
+ * Soft-fail, like the body send above it and for the same reason: the lesson is the document.
+ * Redis being down must never cost her the thing she asked for.
+ */
+async function recordDelivery({ userId, segment, lang, oneScreen }) {
+  if (!userId) return;
+  try {
+    await LPShelfService.pushToShelf(userId, {
+      lane: 'lp612',
+      segment_id: segment.segment_id,
+      grade: segment.grade,
+      subject: segment.subject,
+      chapter_number: segment.chapter_number,
+      chapter_title: segment.chapter_title,
+      topic: segment.subtopic_title || segment.menu_title || '',
+      pages_label: pagesLabel(segment),
+      one_screen: oneScreen || null,
+      lang,
+      delivered_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    logToFile('LP 6-12: could not record the delivery on the shelf', {
+      segmentId: segment && segment.segment_id, userId, error: err.message,
+    });
+  }
+}
+
+async function deliverRender({ phone, userId, r2Key, segment, lang, oneScreen, overlayDropped }) {
   const url = await getPresignedUrl(buildR2PublicUrl(r2Key));
 
   // The body goes FIRST: she is on a phone, and the summary is readable in the
@@ -265,6 +318,9 @@ async function deliverRender({ phone, r2Key, segment, lang, oneScreen, overlayDr
     buildFilename(segment, lang),
     buildCaption(segment, lang, { overlayDropped: overlayDropped === true }),
   );
+
+  // AFTER the document, never before: recording is for us, the PDF is for her.
+  await recordDelivery({ userId, segment, lang, oneScreen });
 }
 
 /** `ui_lang` is the language SHE is spoken to in — recorded per waiter, because
@@ -380,6 +436,7 @@ async function requestLesson({ segmentId, userId, phone, lang, uiLang, correlati
     try {
       await deliverRender({
         phone,
+        userId,
         r2Key: existing.r2_key,
         segment,
         lang: language,

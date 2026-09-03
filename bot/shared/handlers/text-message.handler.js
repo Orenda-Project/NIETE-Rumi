@@ -32,6 +32,7 @@ const { STUDENT_VIDEOS_FLOW_ID } = require('../utils/constants');
 const { logToFile } = require('../utils/logger');
 const { matchDetail: matchLessonPlanIntent } = require('../utils/lp-intent');
 const { openLpBrowseFlow } = require('../services/lp-browse-entry.service'); // bd-hgwfo: the one door to the catalogue
+const Lp612EditRouter = require('../services/lp612-edit-router.service'); // bd-33oc2: 6-12 lesson follow-ups
 const { TEMP_DIR, LOADING_STICKER_PATH, LOADING_STICKER_MEDIA_ID, OPENAI_API_KEY,
   ATTENDANCE_SETUP_FLOW_ID, ATTENDANCE_MARKING_FLOW_ID, EDIT_CLASS_FLOW_ID,
   CLASS_MANAGER_FLOW_ID } = require('../utils/constants');
@@ -2525,6 +2526,34 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       }
     } catch (interceptErr) {
       logToFile('Curriculum LP early intercept threw (non-fatal)', { error: interceptErr.message });
+    }
+  }
+
+  // ============================================================
+  // 6-12 LESSON FOLLOW-UP (bd-33oc2)
+  //
+  // She received a 6-12 lesson and is replying to it. Until this existed, that reply fell
+  // through every branch above and was answered by the general path — by a model that had never
+  // seen her lesson, because this lane wrote nothing the LP context could read. It read like an
+  // answer, which is why it was never reported.
+  //
+  // The router only claims a message when she has a 6-12 lesson on the shelf AND the reply is an
+  // edit request or an out-of-scope ask. A QUESTION about the lesson deliberately falls through
+  // to the conversation path below — which is grounded now that the delivery is recorded.
+  //
+  // Placed immediately before intent detection, which is exactly where the message used to land.
+  // Wrapped like the curriculum intercept above it: a fault here must cost her nothing.
+  // ============================================================
+  if (user) {
+    try {
+      typingController.stop();
+      if (await Lp612EditRouter.maybeHandleLp612Reply({
+        from, messageBody, user, language: responseLanguage,
+      })) {
+        return;
+      }
+    } catch (lp612Err) {
+      logToFile('LP 6-12 follow-up router threw (non-fatal)', { error: lp612Err.message });
     }
   }
 
