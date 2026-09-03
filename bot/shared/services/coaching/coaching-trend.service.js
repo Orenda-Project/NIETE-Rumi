@@ -116,4 +116,53 @@ async function loadTrendData(userId, opts = {}) {
   }
 }
 
-module.exports = { loadTrendData, shortLabel };
+/**
+ * The teacher's most recent feedback-uptake action record, from EITHER
+ * instrument — her own self-serve coaching or a coach-confirmed /observe visit.
+ *
+ * Null when there is none, when it is older than maxAgeDays (history, not
+ * state), when it predates the loop (no .target — every row before switch-on),
+ * when it was written for another framework, or when the newest row is an AI
+ * draft no coach signed off (awaiting_observer_review is excluded by status).
+ * Never throws: the loop must degrade to "no prior", not sink a report.
+ *
+ * @param {string} userId
+ * @param {object} [opts] - { excludeSessionId, maxAgeDays = 30 }
+ */
+async function loadPriorAction(userId, opts = {}) {
+  const { excludeSessionId = null, maxAgeDays = 30 } = opts;
+  try {
+    if (!userId) return null;
+    let q = supabase
+      .from('coaching_sessions')
+      .select('id, created_at, observation_type, status, prioritized_action')
+      .eq('user_id', userId)
+      .in('status', ['completed', 'observer_review_complete'])
+      .not('prioritized_action', 'is', null);
+    if (excludeSessionId) q = q.neq('id', excludeSessionId);
+    // Newest first, ONE row — `.order(ascending:true).limit(1)` returns the OLDEST.
+    const { data, error } = await q.order('created_at', { ascending: false }).limit(1);
+    if (error) {
+      logToFile('[uptake-loop] loadPriorAction supabase error', { userId, error: error.message });
+      return null;
+    }
+    const row = Array.isArray(data) ? data[0] : null;
+    if (!row) return null;
+    const rec = row.prioritized_action;
+    if (!rec || typeof rec !== 'object' || !rec.target || !rec.target.indicator) return null;
+    if (rec.framework && String(rec.framework).toLowerCase() !== 'fico') return null;
+    const ageDays = (Date.now() - new Date(row.created_at).getTime()) / 86400000;
+    if (!Number.isFinite(ageDays) || ageDays > maxAgeDays) return null;
+    return {
+      ...rec,
+      session_id: row.id,
+      created_at: row.created_at,
+      instrument: row.observation_type ? 'observe' : 'self',
+    };
+  } catch (err) {
+    logToFile('[uptake-loop] loadPriorAction unexpected error', { userId, error: err.message });
+    return null;
+  }
+}
+
+module.exports = { loadTrendData, loadPriorAction, shortLabel };
