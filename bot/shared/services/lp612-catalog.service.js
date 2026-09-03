@@ -230,7 +230,11 @@ async function buildChapterItems(grade, subject) {
 
     const mc = {
       title: clip(`${lead}${head}`, TITLE_CAP),
-      description: clip(`${n(e.lessons)} lessons`, DESC_CAP),
+      // Urdu rows get Urdu furniture, matching the K-5 builder's `اسباق`. A
+      // localised digit beside an English noun is worse than either alone: in a
+      // right-to-left row the English word lands FIRST, so `۶ lessons` reads as
+      // "lessons ۶" on the handset (bd-t8mbl).
+      description: clip(e.rtl ? `${lead}${n(e.lessons)} اسباق` : `${e.lessons} lessons`, DESC_CAP),
     };
     // The part, when there is one, already led the title; repeating it here
     // would spend the metadata line on words the teacher has just read.
@@ -281,13 +285,21 @@ async function buildSegmentItems(grade, subject, chapterKey, page = 1) {
     const rtl = r.language === 'ur';
     const n = (v) => (rtl ? urD(v) : String(v));
     const lead = rtl ? RLM : '';
+    // `ص` and Urdu digits on an Urdu book, matching the K-5 builder (bd-t8mbl).
+    const pageMark = rtl ? 'ص ' : 'p';
     const pages = r.printed_page_start === r.printed_page_end
-      ? `p${n(r.printed_page_start)}`
-      : `p${n(r.printed_page_start)}-${n(r.printed_page_end)}`;
+      ? `${pageMark}${n(r.printed_page_start)}`
+      : `${pageMark}${n(r.printed_page_start)}-${n(r.printed_page_end)}`;
+    // THE SEPARATOR IS NOT COSMETIC ON AN URDU ROW. In Noto Nastaliq a middle
+    // dot adjacent to an Extended Arabic-Indic digit renders AS A ZERO — `ص ۷-۸
+    // · 🎬` reads as page 80, and `۲۸ ·` reads as 280 (measured on the NIETE
+    // FICO card). Urdu rows use the Urdu comma; the dot is safe between words,
+    // so English rows keep it.
+    const sep = rtl ? '، ' : ' · ';
     // A video is a real reason to tap one row over another, so it is surfaced
     // rather than being a surprise inside the PDF.
-    const video = r.yt && r.yt.url ? ' · 🎬' : '';
-    const kind = r.lp_type && r.lp_type !== 'content' ? ` · ${r.lp_type.replace(/_/g, ' ')}` : '';
+    const video = r.yt && r.yt.url ? `${sep}🎬` : '';
+    const kind = r.lp_type && r.lp_type !== 'content' ? `${sep}${r.lp_type.replace(/_/g, ' ')}` : '';
 
     const sub = r.subtopic_title || '';
     const menu = r.menu_title || sub;
@@ -299,11 +311,13 @@ async function buildSegmentItems(grade, subject, chapterKey, page = 1) {
     // last and therefore always being the first thing the clip removes — 103
     // rows overflow this line (bd-3uiev).
     const budget = META_CAP - cps(lead);
-    const meta = body ? `${clip(body, budget - cps(kind))}${kind}` : kind.replace(/^ · /, '');
+    const meta = body ? `${clip(body, budget - cps(kind))}${kind}` : kind.slice(cps(sep));
 
     const mc = {
       title: clip(`${lead}${menu}`, TITLE_CAP),
-      description: clip(`${pages}${video}`, DESC_CAP),
+      // The lead mark goes on an Urdu description too, or a row that opens with
+      // `ص` is fine but one opening with a digit renders left-aligned.
+      description: clip(`${lead}${pages}${video}`, DESC_CAP),
     };
     if (meta) mc.metadata = `${lead}${clip(meta, budget)}`;
 
@@ -320,9 +334,15 @@ async function buildSegmentItems(grade, subject, chapterKey, page = 1) {
   });
 
   if (hasMore) {
+    // The overflow row speaks the book's language too — K-5's `مزید اسباق ←`,
+    // with the arrow pointing the direction of reading flow (bd-t8mbl). The
+    // language comes from the rows themselves; an empty page has no More row.
+    const moreRtl = !!(slice[0] || rows[0] || {}).language && (slice[0] || rows[0]).language === 'ur';
     items.push({
       id: MORE_ROW_ID,
-      'main-content': { title: clip('More lessons →', TITLE_CAP), description: 'Next page' },
+      'main-content': moreRtl
+        ? { title: clip(`${RLM}مزید اسباق ←`, TITLE_CAP), description: `${RLM}اگلا صفحہ` }
+        : { title: clip('More lessons →', TITLE_CAP), description: 'Next page' },
       'on-click-action': {
         name: 'data_exchange',
         payload: {
