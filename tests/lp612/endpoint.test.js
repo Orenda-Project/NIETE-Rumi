@@ -119,6 +119,14 @@ describe('with LP_612_ENABLED off, nothing about today changes', () => {
     expect(mockRequestLesson).not.toHaveBeenCalled();
     expect(res.data.error).toBeTruthy();
   });
+
+  test('the chapter More step is refused while the flag is off, like every other step', async () => {
+    const res = await Endpoint.handlePakistanLpDataExchange('u1:tok', 'SELECT_CHAPTER', {
+      step: 'lp612_chapter_page', grade: '9', subject: 'Islamiat', page: '2',
+    });
+    expect(mockBuildChapterItems).not.toHaveBeenCalled();
+    expect(res.data.error).toBeTruthy();
+  });
 });
 
 // ── the lane, once it is on ─────────────────────────────────────────────────
@@ -162,12 +170,24 @@ describe('with LP_612_ENABLED on', () => {
   });
 
   test('subject -> chapter routes on the 6-12 step', async () => {
-    mockBuildChapterItems.mockResolvedValue([NAV_ROW]);
+    mockBuildChapterItems.mockResolvedValue({ items: [NAV_ROW], hasMore: false, total: 1 });
     const res = await Endpoint.handlePakistanLpDataExchange('u1:tok', 'SELECT_SUBJECT', {
       step: 'lp612_subject', grade: '9', subject: 'Chemistry',
     });
-    expect(mockBuildChapterItems).toHaveBeenCalledWith(9, 'Chemistry');
+    expect(mockBuildChapterItems).toHaveBeenCalledWith(9, 'Chemistry', 1);
     expect(res.screen).toBe('SELECT_CHAPTER');
+    expect(res.data.items).toEqual([NAV_ROW]);
+  });
+
+  test('the chapter More row opens a SECOND screen — chapter 21 of 27 must exist', async () => {
+    // 53 chapters across 13 books were unreachable when the chapter list
+    // silently sliced at 20 with no More row (bd-3r01z).
+    mockBuildChapterItems.mockResolvedValue({ items: [NAV_ROW], hasMore: false, total: 27 });
+    const res = await Endpoint.handlePakistanLpDataExchange('u1:tok', 'SELECT_CHAPTER', {
+      step: 'lp612_chapter_page', grade: '9', subject: 'Islamiat', page: '2',
+    });
+    expect(mockBuildChapterItems).toHaveBeenCalledWith(9, 'Islamiat', 2);
+    expect(res.screen).toBe('SELECT_CHAPTER_MORE');
   });
 
   test('chapter -> subtopic routes on the 6-12 step', async () => {

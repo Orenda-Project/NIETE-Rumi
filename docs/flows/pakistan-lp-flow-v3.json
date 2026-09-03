@@ -9,6 +9,10 @@
       "SELECT_CHAPTER"
     ],
     "SELECT_CHAPTER": [
+      "SELECT_CHAPTER_MORE",
+      "SELECT_LESSON"
+    ],
+    "SELECT_CHAPTER_MORE": [
       "SELECT_LESSON"
     ],
     "SELECT_LESSON": [
@@ -264,6 +268,87 @@
           {
             "type": "NavigationList",
             "name": "chapter_list",
+            "list-items": "${data.items}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SELECT_CHAPTER_MORE",
+      "title": "Pick a chapter",
+      "data": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "main-content": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "string"
+                  }
+                }
+              },
+              "start": {
+                "type": "object",
+                "properties": {
+                  "image": {
+                    "type": "string"
+                  },
+                  "alt-text": {
+                    "type": "string"
+                  }
+                }
+              },
+              "on-click-action": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "payload": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "c21",
+              "main-content": {
+                "title": "Ch 21 — The Second Journey",
+                "description": "8 lessons"
+              },
+              "on-click-action": {
+                "name": "data_exchange",
+                "payload": {
+                  "step": "lp612_chapter",
+                  "grade": "9",
+                  "subject": "Islamiat",
+                  "chapter_key": "c21"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "NavigationList",
+            "name": "chapter_list_more",
             "list-items": "${data.items}"
           }
         ]
@@ -562,7 +647,7 @@
         "children": [
           {
             "type": "TextHeading",
-            "text": "Sent! 📘"
+            "text": "On its way! 📘"
           },
           {
             "type": "TextBody",
@@ -570,7 +655,7 @@
           },
           {
             "type": "TextBody",
-            "text": "Check your chat — the PDF arrives in a few seconds. You can close this now."
+            "text": "Check your chat — everything lands there. A ready lesson plan arrives in moments; a brand-new one takes about 5–6 minutes to write, and I will keep you posted. You can close this now."
           },
           {
             "type": "Footer",
