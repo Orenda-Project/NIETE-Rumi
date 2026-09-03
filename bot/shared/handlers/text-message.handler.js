@@ -1721,9 +1721,12 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     logToFile('📝 Register command detected');
     typingController.stop();
 
-    // Check if user is already registered (has first_name)
-    if (user?.first_name) {
-      await WhatsAppService.sendMessage(from, `✅ You're already registered, ${user.first_name}! What would you like to do next?`);
+    // Already registered = the Flow was COMPLETED, not merely "has a first_name". Since bd-2480,
+    // registration-endpoint persists first_name at the FIRST screen, so keying on first_name would
+    // lock out anyone who started and abandoned the Flow. registration_completed is the real flag.
+    if (user?.registration_completed || user?.registration_state === 'completed') {
+      const known = user.first_name || 'there';
+      await WhatsAppService.sendMessage(from, `✅ You're already registered, ${known}! What would you like to do next?`);
       return;
     }
 
@@ -2193,10 +2196,10 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   if (registrationRequested) {
     typingController.stop();
 
-    // Check if user is already registered
-    if (user?.first_name) {
+    // Already registered = completed the Flow (not just first_name — persisted at screen 1 since bd-2480).
+    if (user?.registration_completed || user?.registration_state === 'completed') {
       // User already registered - confirm and guide to menu
-      await WhatsAppService.sendMessage(from, `✅ You're already registered, ${user.first_name}! Type /menu to see what I can help you with.`);
+      await WhatsAppService.sendMessage(from, `✅ You're already registered, ${user.first_name || 'there'}! Type /menu to see what I can help you with.`);
       return;
     }
 
