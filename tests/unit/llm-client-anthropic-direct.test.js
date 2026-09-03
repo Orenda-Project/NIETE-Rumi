@@ -147,3 +147,67 @@ describe('bd-yoc6i — llm-client direct-Anthropic routing', () => {
     expect(unwired.getProviderInfo().anthropicDirectConfigured).toBe(false);
   });
 });
+
+/**
+ * HAZARD GUARD (raised by the bake-off lane, 2026-09-03).
+ *
+ * Their runner auto-detected ANTHROPIC_API_KEY from the environment and silently
+ * rerouted to api.anthropic.com — so results produced on Anthropic were SCORED AS
+ * OPENROUTER until an explicit backend pin was added. The cost was not the
+ * routing; it was a set of measurements labelled with the wrong provider.
+ *
+ * This lane must never be able to do that. Routing here is EXPLICIT OPT-IN by
+ * model id, and key presence is not a signal. These tests exist to make that
+ * property hard to delete by accident.
+ */
+describe('bd-yoc6i — key presence is NOT a routing signal (explicit opt-in only)', () => {
+  test('setting ANTHROPIC_API_KEY changes NOTHING about default routing', () => {
+    const without = load({ OPENROUTER_API_KEY: 'test-or-key' });
+    const baseline = {
+      provider: without.getProviderInfo().provider,
+      baseURL: without.getProviderInfo().baseURL,
+      model: without.getDefaultModel(),
+      clientBase: without.getClient()._config.baseURL,
+    };
+
+    const with_ = load({ OPENROUTER_API_KEY: 'test-or-key', ANTHROPIC_API_KEY: 'test-grant-key' });
+    const after = {
+      provider: with_.getProviderInfo().provider,
+      baseURL: with_.getProviderInfo().baseURL,
+      model: with_.getDefaultModel(),
+      clientBase: with_.getClient()._config.baseURL,
+    };
+
+    // Byte-for-byte identical. The ONLY thing the key may change is the
+    // `anthropicDirectConfigured` advertisement, which is asserted separately and
+    // reports CONFIGURED, never IN USE.
+    expect(after).toEqual(baseline);
+    expect(after.clientBase).toBe(OPENROUTER_BASE);
+  });
+
+  test('every model id shape still routes to OpenRouter when only the key is present', () => {
+    const mod = load({ OPENROUTER_API_KEY: 'test-or-key', ANTHROPIC_API_KEY: 'test-grant-key' });
+
+    for (const id of [
+      'anthropic/claude-sonnet-5',   // an Anthropic model — still OpenRouter
+      'claude-sonnet-5',             // a bare Anthropic-looking id
+      'deepseek/deepseek-v4-flash',
+      'openai/gpt-4o',
+    ]) {
+      const { client, model } = mod.getClientForModel(id);
+      expect(client._config.baseURL).toBe(OPENROUTER_BASE);
+      expect(model).toBe(id);
+    }
+  });
+
+  test('the ONLY thing that routes to the grant is the explicit prefix', () => {
+    const mod = load({ OPENROUTER_API_KEY: 'test-or-key', ANTHROPIC_API_KEY: 'test-grant-key' });
+
+    expect(mod.getClientForModel('anthropic/claude-sonnet-5').client._config.baseURL)
+      .toBe(OPENROUTER_BASE);
+    expect(mod.getClientForModel('anthropic-direct/claude-sonnet-5').client._config.baseURL)
+      .toBe(ANTHROPIC_BASE);
+    // And the prefix is the documented constant, not a stringly-typed guess.
+    expect(mod.ANTHROPIC_DIRECT_PREFIX).toBe('anthropic-direct/');
+  });
+});
