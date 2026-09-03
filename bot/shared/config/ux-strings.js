@@ -205,15 +205,29 @@ const UX_STRINGS = {
   // ── 6-12 lesson plans, written at the moment she asks ────────────────────
   //
   // A 6-12 lesson is authored on the first request, not looked up: the wait is
-  // real (about two minutes, occasionally longer) and every one of these strings
-  // exists so that no part of that wait is silent. The Urdu is deliberately
-  // gender-agnostic in the second person — imperatives and impersonal
-  // constructions, never `رہی ہوں گی` / `رہے ہوں گے` — because the cohort is
-  // mixed and the bot cannot know.
+  // real, and every one of these strings exists so that no part of it is silent.
+  //
+  // HOW LONG, measured rather than guessed (bd-2ym0h): a first hit on the
+  // post-optimisation lane runs a median of 313 seconds, spread roughly four to
+  // eleven minutes. These strings used to say "about 2 minutes", which is the
+  // number the lane hit before the authoring ladder grew, and being told two
+  // while waiting five is how a working feature earns a bug report. They say
+  // five to six now. If the lane's timings move again, this comment and the two
+  // strings below move with them — a stale promise is a defect, not a detail.
+  //
+  // A SECOND request for the same lesson is served from R2 in about a second and
+  // sends no interstitial at all (lp612-serving.service.js answers a cache hit
+  // by delivering the file directly). Nobody reads these strings on a fast path,
+  // so they can quote the slow number plainly — and saying "brand-new" is what
+  // stops five minutes reading as the price of every lesson.
+  //
+  // The Urdu is deliberately gender-agnostic in the second person — imperatives
+  // and impersonal constructions, never `رہی ہوں گی` / `رہے ہوں گے` — because
+  // the cohort is mixed and the bot cannot know.
 
   lp612Preparing: {
-    en: '📄 Writing your lesson plan now — it usually takes about 2 minutes. I will send it here as soon as it is ready.',
-    ur: '📄 آپ کا سبق کا منصوبہ ابھی تیار کیا جا رہا ہے — عام طور پر دو منٹ لگتے ہیں۔ تیار ہوتے ہی یہیں بھیج دیا جائے گا۔',
+    en: '📄 Writing your lesson plan now — a brand-new lesson usually takes about 5–6 minutes. I will send it here as soon as it is ready.',
+    ur: '📄 آپ کا سبق کا منصوبہ ابھی تیار کیا جا رہا ہے — نئے سبق میں عام طور پر پانچ سے چھ منٹ لگتے ہیں۔ تیار ہوتے ہی یہیں بھیج دیا جائے گا۔',
   },
 
   lp612StillWorking: {
@@ -232,8 +246,8 @@ const UX_STRINGS = {
   // staging, and it is what rule 24(d) is about. She does not need to know what a worker is;
   // she needs to know it stopped, it has restarted, and she does not have to do anything.
   lp612Restarted: {
-    en: '📄 That lesson stopped partway through, so I have started it again. It usually takes about 2 minutes and will arrive here.',
-    ur: '📄 وہ سبق درمیان میں رک گیا تھا، اس لیے دوبارہ شروع کر دیا گیا ہے۔ عام طور پر دو منٹ لگتے ہیں اور یہیں موصول ہو جائے گا۔',
+    en: '📄 That lesson stopped partway through, so I have started it again. It usually takes about 5–6 minutes and will arrive here.',
+    ur: '📄 وہ سبق درمیان میں رک گیا تھا، اس لیے دوبارہ شروع کر دیا گیا ہے۔ عام طور پر پانچ سے چھ منٹ لگتے ہیں اور یہیں موصول ہو جائے گا۔',
   },
 
   // Never a silent failure. She is told it failed, and told exactly what to do.
@@ -252,6 +266,22 @@ const UX_STRINGS = {
   lp612NotFound: {
     en: 'I could not find that lesson. Open the lesson plan menu and choose it again.',
     ur: 'یہ سبق نہیں مل سکا۔ سبق کے منصوبے کا مینو کھول کر دوبارہ منتخب کریں۔',
+  },
+
+  // The last thing the Flow itself says, on the terminal SUCCESS screen, before
+  // she closes it and goes back to the chat.
+  //
+  // It used to be a hardcoded English sentence in the endpoint ending "check
+  // this chat in a moment" — the same two-minute optimism as the ack, in the one
+  // place she reads FIRST, and English regardless of her preference. It points
+  // at the chat now and deliberately quotes no duration: the screen's own static
+  // body still reads "the PDF arrives in a few seconds" (true for the K-5 lane
+  // it is shared with, and only changeable by republishing the Flow), so a
+  // number here would argue with the line directly beneath it. The estimate
+  // belongs in the chat ack, where nothing contradicts it.
+  lp612FlowAck: {
+    en: 'Your lesson plan is being written now — I will send it to this chat as soon as it is ready.',
+    ur: 'آپ کا سبق کا منصوبہ ابھی تیار کیا جا رہا ہے — تیار ہوتے ہی اسی چیٹ میں بھیج دیا جائے گا۔',
   },
 
   // Sent with the PDF. {topic} is the book's own subtopic wording.

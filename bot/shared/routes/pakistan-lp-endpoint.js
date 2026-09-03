@@ -43,7 +43,7 @@ const { logToFile } = require('../utils/logger');
 const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
 const WhatsAppService = require('../services/whatsapp.service');
 const OxbridgeLpService = require('../services/oxbridge-lp.service');
-const { clampLanguage } = require('../config/ux-strings');
+const { clampLanguage, resolveUx } = require('../config/ux-strings');
 const V8Catalog = require('../services/lp-v8-catalog.service');
 const V8Delivery = require('../services/lp-v8-delivery.service');
 const Lp612Catalog = require('../services/lp612-catalog.service');
@@ -749,9 +749,13 @@ async function selectLp612Segment(flowToken, d) {
     segmentId, userId, error: err.message,
   }));
 
+  // Teacher-addressed text reads her CURRENT preference at send time (root
+  // CLAUDE.md rule 20), so this comes from the catalog rather than being a
+  // hardcoded English sentence — `who.preferred_language` is already loaded
+  // above for exactly this request.
   return {
     screen: 'SUCCESS',
-    data: { message: 'Your lesson plan is on its way — check this chat in a moment.' },
+    data: { message: resolveUx('lp612FlowAck', { language: who.preferred_language }) },
   };
 }
 
