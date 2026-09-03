@@ -294,9 +294,28 @@ const UX_STRINGS = {
   },
 
   // Sent with the PDF. {topic} is the book's own subtopic wording.
+  //
+  // The Urdu line wraps {subject} and {pages} in LRI…PDI (U+2066/U+2069)
+  // ISOLATES, in the catalog string itself. Without them a page RANGE after an
+  // Urdu word paints reversed — «صفحات 7-8» renders «8-7» — because UAX#9 W2
+  // reclassifies digits after an Arabic-class letter, W4 only re-joins
+  // EUROPEAN numbers across a hyphen, and N1 then orders the two halves RTL.
+  // The placeholder is isolated rather than the value because the value's bidi
+  // class is unknowable at authoring time (language-protocol §9 rule 8).
   lp612Caption: {
     en: '{topic}\nGrade {grade} · {subject} · pages {pages}',
-    ur: '{topic}\nجماعت {grade} · {subject} · صفحات {pages}',
+    ur: '{topic}\nجماعت {grade} · ⁦{subject}⁩ · صفحات ⁦{pages}⁩',
+  },
+
+  // Appended to the Urdu caption when the document is an English-medium book
+  // whose ur_overlay did not survive sanitizeOverlay: what she receives is an
+  // essentially-English document in RTL chrome, and saying so beats a silent
+  // fallback (rule 24(c)/(d)). English variant exists so the catalog is never
+  // a partial map (language-protocol §6.3); the line itself is only ever
+  // APPENDED on Urdu deliveries.
+  lp612OverlayDropped: {
+    en: 'This lesson is from the English textbook — instructions partly in Urdu.',
+    ur: 'یہ سبق انگریزی کتاب سے ہے — ہدایات جزوی اردو میں',
   },
 
   lpV8SendFailed: {

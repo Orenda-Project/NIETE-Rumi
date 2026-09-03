@@ -56,6 +56,22 @@ function isLp612Enabled() {
   return isTrue(process.env.LP_612_ENABLED);
 }
 
+/** The 6-12 language step — «اردو / English» as the final tap before serving.
+ *
+ *  A flag and not a versioned step name, because the items and payloads are
+ *  server data — an OLD published Flow happily renders new rows and echoes new
+ *  step names. The only thing that breaks in the deploy-before-republish window
+ *  is returning a SCREEN ID the published asset does not define, so this flag
+ *  is the "served" switch: deploy with it off (inert) → republish Flow v3.1
+ *  (SELECT_LANGUAGE valid-but-unreturned, harmless) → verify published on the
+ *  WABA → flip. Rollback is the flag, with no deploy and no republish.
+ *
+ *  Never consulted on its own — every path through it already sits behind
+ *  isLp612Enabled() via lp612Guard; this only ever narrows. */
+function isLp612LangMenuEnabled() {
+  return isTrue(process.env.LP_612_LANG_MENU);
+}
+
 /** Islamiat + seerah. Never consulted on its own — the caller must already have
  *  passed isLp612Enabled(); this only ever narrows. */
 function isReligiousEnabled() {
@@ -91,6 +107,7 @@ function isLp612Grade(g) {
 
 module.exports = {
   isLp612Enabled,
+  isLp612LangMenuEnabled,
   isReligiousEnabled,
   templateVersion,
   resolveAuthorModel,

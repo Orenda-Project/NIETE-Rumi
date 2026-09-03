@@ -4987,6 +4987,12 @@ CREATE TABLE IF NOT EXISTS niete_lp612_renders (
   -- the first is served entirely from this row. Nullable: renders cached before
   -- V1.2.9 have none and serve the document alone. (V1.2.9)
   one_screen        TEXT,
+
+  -- True when an Urdu render of an EN-medium book lost its ur_overlay — the
+  -- document is essentially English in RTL chrome, and every delivery from this
+  -- row appends the honest Urdu caption line instead of silently labelling it
+  -- Urdu. Not a status value: the render IS ready; it is served honestly. (V1.3.2)
+  overlay_dropped   BOOLEAN NOT NULL DEFAULT FALSE,
   error_code        TEXT,
   error_detail      TEXT,
   waiters           JSONB NOT NULL DEFAULT '[]'::jsonb,

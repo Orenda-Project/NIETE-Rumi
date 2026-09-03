@@ -88,12 +88,14 @@ async function patch(renderId, fields) {
 const waitersOf = (render) => (Array.isArray(render && render.waiters) ? render.waiters : [])
   .filter((w) => w && w.phone);
 
-/** Tell every waiter the same thing. Never throws — a failure to console
- *  someone must not become the reason the job dies. */
+/** Tell every waiter the same thing — each in HER OWN ui language (the waiter
+ *  entry carries `ui_lang`; the job's document language is only the fallback
+ *  for entries written before the language step shipped). Never throws — a
+ *  failure to console someone must not become the reason the job dies. */
 async function tellAll(waiters, key, lang) {
   for (const w of waiters) {
     try {
-      await WhatsAppService.sendMessage(w.phone, resolveUx(key, { language: lang }));
+      await WhatsAppService.sendMessage(w.phone, resolveUx(key, { language: w.ui_lang || lang }));
     } catch (err) {
       logToFile('LP 6-12 worker: could not message waiter', {
         phone: w.phone, key, error: err.message,
@@ -263,9 +265,21 @@ async function process(payload) {
 
     stopFollowup();
 
+    // AN URDU RENDER THAT LOST ITS OVERLAY IS SAID SO, ON THE ROW (rule 24(b):
+    // a silent fallback is a regression mask). An EN-medium book asked for in
+    // Urdu whose ur_overlay did not survive (sanitizeOverlay dropped it, or the
+    // model never wrote one) serves an essentially-English document in RTL
+    // chrome — every delivery from this row, first hit and cache hits alike,
+    // appends the honest caption. A UR-medium book needs no overlay and an
+    // English render dropped nothing, so neither is ever flagged.
+    const overlayDropped = lang === 'ur'
+      && segment.language !== 'ur'
+      && !(Array.isArray(rendered.overlayApplied) && rendered.overlayApplied.length > 0);
+
     await patch(renderId, {
       status: 'ready',
       r2_key: r2Key,
+      overlay_dropped: overlayDropped,
       page_count: rendered.pageCount ?? null,
       model_used: authored.model || model,
       rounds_used: authored.rounds ?? null,
@@ -288,7 +302,7 @@ async function process(payload) {
     for (const w of waiters) {
       try {
         await Serving.deliverRender({
-          phone: w.phone, r2Key, segment, lang, oneScreen: oneScreenOf(authored),
+          phone: w.phone, r2Key, segment, lang, oneScreen: oneScreenOf(authored), overlayDropped,
         });
         delivered += 1;
       } catch (err) {

@@ -120,6 +120,12 @@ async function renderLessonPlan({ lpDoc, lang, stem, outDir, correlationId } = {
     htmlPath: out.htmlPath,
     pageCount,
     warnings,
+    // The JSON pointers the ur_overlay actually replaced (renderDoc's
+    // report.overlay_applied). The worker persists `overlay_dropped` from this
+    // — an Urdu render of an EN-medium book with NOTHING applied is an
+    // essentially-English document in RTL chrome, and the row must say so.
+    // Always a list, never undefined: absence of a record is "nothing applied".
+    overlayApplied: (out.report && out.report.overlay_applied) || [],
   };
 }
 

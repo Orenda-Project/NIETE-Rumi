@@ -21,7 +21,7 @@ const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const { execFileSync } = require("child_process");
-const { rich, esc, display, displayChem } = require("./rich");
+const { rich, esc, display, displayChem, setRtlProse } = require("./rich");
 const { LABELS } = require("./overlay");
 const { fontCss, katexCss, REPO_ROOT } = require("./fonts");
 const { toV3 } = require("./migrate");
@@ -519,7 +519,22 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
 .foot .fl{ min-width:0; }
 .foot .fr{ text-align:${end}; flex:0 0 auto; white-space:nowrap; }
 .foot .wm{ font-weight:800; color:var(--brand, var(--navy)); }
-`;
+${rtl ? `
+/* ── mixed-script prose under RTL (the 2026-09 audit, class D3) ──────────────
+   Each prose run follows ITS OWN first strong character
+   (unicode-bidi:plaintext), so an embedded English sentence lays out LTR with
+   its punctuation at the correct end while Urdu prose stays RTL — base
+   direction per paragraph, isolates per atom. This is also the video-title fix:
+   a Latin title inside RTL chrome takes its own direction instead of
+   scrambling. Emitted ONLY under RTL, so the English stylesheet stays
+   byte-identical. KaTeX is untouched: its own rule above already carries
+   direction:ltr + unicode-bidi:isolate, which is stronger. */
+p, li, figcaption,
+.h-title, .h-sub, .say .t, .watch .t, .board .t, .reteach .t,
+.hook .q, .hook .lf, .askb .q, .askb .lf, .srq .q, .ck .q, .erq .q,
+.wu .q, .pr .q, .hw .q, .mcq .q, .exq h4, .exq .prompt,
+.exit .it > span, .vres a, .tnote, .crit, .bythe, .how, .refq{ unicode-bidi:plaintext; }
+` : ""}`;
 }
 
 // ── geometry the figure sizer needs ─────────────────────────────────────────
@@ -614,13 +629,14 @@ function dataUri(relOrAbs, docDir) {
 
 function makeBlockRenderer(ctx) {
   const L = ctx.L;
+  const AR = arrowFor(ctx);
   // Pulled out of R.practice so the ATOMISER can re-use them verbatim: a long practice list
   // may be split between its items across a page break (v8.1), and a second copy of the item
   // markup would drift from this one the first time either is touched.
   const practiceTag = (b) =>
     b.title || (b.mode === "guided" ? L.guided : b.mode === "independent" ? L.independent : L.practice);
   const practiceItem = (it, i) => `<div class="it"><span class="n">${i + 1}.</span>
-            <span class="q">${rich(it.q)} <span class="a">&rarr; ${rich(it.a)}</span></span>
+            <span class="q">${rich(it.q)} <span class="a">${AR} ${rich(it.a)}</span></span>
             ${it.tier && it.tier !== "core" ? `<span class="tier">${esc(L.tier[it.tier] || it.tier)}</span>` : ""}</div>`;
   const R = {
     paragraph: (b) => `<div class="blk"><p>${rich(b.text)}</p></div>`,
@@ -863,6 +879,29 @@ function p2bar(letter, name, extraCls = "") {
 }
 
 /** Rebuild a section's bar for a page that opens in the middle of it. */
+/**
+ * Bidi furniture (the 2026-09 mixed-script audit).
+ *
+ * isoAtom — LRI…PDI around a machine atom printed into RTL chrome. «صفحہ 6-7»
+ * paints «7-6» without it (UAX#9 W2/W4/N1: digits after an Arabic-class letter
+ * become Arabic Numbers, the hyphen only re-joins EUROPEAN numbers, and the two
+ * halves then order RTL). Applied to printed_pages wherever chrome prints it,
+ * and to the outcome box's Latin citation atoms. Identity under LTR, so the
+ * English render is byte-identical.
+ *
+ * arrowFor — sequence/answer arrows point WITH the reading direction. Paired
+ * brackets auto-mirror under bidi; arrows never do, so an RTL page must emit
+ * its own.
+ */
+const isoAtom = (html, ctx) => (ctx.rtl ? `⁦${html}⁩` : html);
+const arrowFor = (ctx) => (ctx.rtl ? "&larr;" : "&rarr;");
+
+/** FSI…PDI — a FIRST-STRONG isolate for an atom whose language is unknowable at
+ *  template time (the verbatim SLO quote: English on an EN-medium book, Urdu on
+ *  a UR-medium one). The run takes its own direction and keeps its own
+ *  punctuation inside, instead of shedding it into the surrounding paragraph. */
+const isoQuote = (html, ctx) => (ctx.rtl ? `⁨${html}⁩` : html);
+
 function contBarHtml(key, ctx, secIndex) {
   const info = secIndex[key];
   const L = ctx.L;
@@ -903,7 +942,7 @@ function footerHtml(doc, ctx, n, total) {
   const p = doc.provenance;
   const L = ctx.L;
   const chapter = p.chapter_title ? `${p.chapter} &mdash; ${rich(p.chapter_title)}` : rich(p.chapter);
-  const left = `${esc(L.grade)} ${p.grade} ${rich(p.subject)} &middot; ${chapter} &middot; ${esc(L.pp)}${esc(p.printed_pages)}`;
+  const left = `${esc(L.grade)} ${p.grade} ${rich(p.subject)} &middot; ${chapter} &middot; ${esc(L.pp)}${isoAtom(esc(p.printed_pages), ctx)}`;
   const brand = p.brand && p.brand.name ? `<span class="wm">${esc(p.brand.name)}</span> &middot; ` : "";
   // No invented dates: a doc with no provenance.version simply carries none.
   const ver = p.version ? `v${esc(p.version)} &middot; ` : "";
@@ -932,7 +971,7 @@ function page1(doc, ctx, secIndex) {
     </div>
     <div class="h-meta">
       <div>${rich(p.chapter)}</div>
-      <div>${esc(L.page)}${esc(p.printed_pages)} &middot; <b>${doc.period_minutes} ${esc(L.min)}</b></div>
+      <div>${esc(L.page)}${isoAtom(esc(p.printed_pages), ctx)} &middot; <b>${doc.period_minutes} ${esc(L.min)}</b></div>
       <div class="chips">
         <span class="tchip">${esc(doc.lp_type)}</span>
         ${doc.board_weight ? `<span class="tchip plain">${rich(doc.board_weight)}</span>` : ""}
@@ -953,7 +992,7 @@ function page1(doc, ctx, secIndex) {
     <div class="lbl">${esc(L.outcome)}${doc.slo.code ? ` &middot; ${rich(doc.slo.code)}` : ""}</div>
     <p>${rich(O.outcome)}</p>
     ${O.by_the_end ? `<div class="bythe"><b>&#10003;</b> ${rich(O.by_the_end)}</div>` : ""}
-    <div class="src">${esc(L.slo)}: &ldquo;${rich(doc.slo.text_verbatim)}&rdquo; &middot; ${esc(L.page)}${rich(doc.slo.source_page)}${doc.slo.assessment_status ? ` &middot; ${esc(doc.slo.assessment_status)}` : ""} &middot; ${esc(doc.slo.cognitive_level)}</div>
+    <div class="src">${esc(L.slo)}: ${isoQuote(`&ldquo;${rich(doc.slo.text_verbatim)}&rdquo;`, ctx)} &middot; ${esc(L.page)}${rich(doc.slo.source_page)}${doc.slo.assessment_status ? ` &middot; ${isoAtom(esc(doc.slo.assessment_status), ctx)}` : ""} &middot; ${isoAtom(esc(doc.slo.cognitive_level), ctx)}</div>
     <div class="objhd"><span class="badge">O</span>${esc(L.objectives)}</div>
     <ul class="objs">${O.items.map(objLi).join("")}</ul>
   </div>`;
@@ -997,11 +1036,13 @@ function page1(doc, ctx, secIndex) {
     return `<div class="vres"><span class="ico">&#128250;</span><span class="lbl">${esc(L.video)}</span><a href="${esc(href)}">${esc(shown)}</a></div>`;
   })();
 
-  // The sequence strip (spec §5), directly under the masthead.
+  // The sequence strip (spec §5), directly under the masthead. Arrows point
+  // WITH the reading direction — see arrowFor.
+  const AR = arrowFor(ctx);
   const seq = doc.sequence
-    ? `<div class="seq">${doc.sequence.previous ? `<span><b>${esc(L.seqPrev)}:</b> ${rich(doc.sequence.previous)}</span><span class="arrow">&rarr;</span>` : ""}
+    ? `<div class="seq">${doc.sequence.previous ? `<span><b>${esc(L.seqPrev)}:</b> ${rich(doc.sequence.previous)}</span><span class="arrow">${AR}</span>` : ""}
        <span class="now">${rich(doc.sequence.this)}</span>
-       ${doc.sequence.next ? `<span class="arrow">&rarr;</span><span><b>${esc(L.seqNext)}:</b> ${rich(doc.sequence.next)}</span>` : ""}
+       ${doc.sequence.next ? `<span class="arrow">${AR}</span><span><b>${esc(L.seqNext)}:</b> ${rich(doc.sequence.next)}</span>` : ""}
        ${doc.sequence.checkpoint ? `<span>&middot; <b>${esc(L.seqCheck)}:</b> ${rich(doc.sequence.checkpoint)}</span>` : ""}</div>`
     : "";
 
@@ -1010,7 +1051,7 @@ function page1(doc, ctx, secIndex) {
   const warmupBody = (wu) => `<div class="blk wu"><div class="lbl" style="color:#8A5F04">${esc(L.warmup)}</div>${wu.items
     .map(
       (it, i) => `<div class="it"><span class="n">${i + 1}.</span>
-        <span class="q">${rich(it.q)} <span class="a">&rarr; ${rich(it.a)}</span></span>
+        <span class="q">${rich(it.q)} <span class="a">${AR} ${rich(it.a)}</span></span>
         <span class="kind">${esc(L.kind[it.kind] || it.kind)}${it.from ? ` &middot; ${rich(it.from)}` : ""}</span></div>`
     )
     .join("")}</div>`;
@@ -1042,7 +1083,7 @@ function page1(doc, ctx, secIndex) {
       }
       if (s.exit_ticket) {
         out.push({ html: `<div class="blk exit"><div class="lbl">${esc(L.exitTicket)}</div>${s.exit_ticket
-          .map((x, i) => `<div class="it"><span>${i + 1}.</span><span>${rich(x.q)} <span class="a">&rarr; ${rich(x.a)}</span></span></div>`)
+          .map((x, i) => `<div class="it"><span>${i + 1}.</span><span>${rich(x.q)} <span class="a">${AR} ${rich(x.a)}</span></span></div>`)
           .join("")}</div>`, sp: 2 });
       }
       if (s.reteach_rule) {
@@ -1232,7 +1273,7 @@ function page2(doc, ctx, secIndex) {
   const p2head = `<div class="p2head">
       <span class="pill">${esc(L.supportPage)}</span>
       <div class="t">${rich(p.topic)}</div>
-      <div class="r">${esc(L.grade)} ${p.grade} ${rich(p.subject)} &middot; ${esc(L.notReadAloud)}<br>${rich(p.chapter)} &middot; ${esc(L.page)}${esc(p.printed_pages)}</div>
+      <div class="r">${esc(L.grade)} ${p.grade} ${rich(p.subject)} &middot; ${esc(L.notReadAloud)}<br>${rich(p.chapter)} &middot; ${esc(L.page)}${isoAtom(esc(p.printed_pages), ctx)}</div>
     </div>`;
   A.push(atom(p2head, { sp: 0 }));
 
@@ -1350,7 +1391,7 @@ function page2(doc, ctx, secIndex) {
   // way: a CTA that does not say what comes BACK is just a request (FEEDBACK_LEDGER #13).
   S("H", L.p2Coach, [`<div class="coach"><p>${rich(P.coaching_lookfor)}</p>
     ${P.coaching_reflection ? `<p class="ask"><span class="lbl">${esc(L.coachAsk)}</span>${rich(P.coaching_reflection)}</p>` : ""}
-    <p class="offer">1 ${esc(L.coachOffer)} &rarr; 2 ${esc(L.coachSend)} &rarr; 3 ${esc(L.coachBack)}</p></div>`]);
+    <p class="offer">1 ${esc(L.coachOffer)} ${arrowFor(ctx)} 2 ${esc(L.coachSend)} ${arrowFor(ctx)} 3 ${esc(L.coachBack)}</p></div>`]);
 
   return { part: "support", atoms: A };
 }
@@ -1399,6 +1440,9 @@ function buildHtml(input, opts = {}) {
   const doc = toV3(input);
   const lang = opts.lang || doc.provenance.medium || "en";
   const rtl = lang === "ur";
+  // Every build sets the prose pipeline's direction for itself (see lib/rich.js
+  // — buildHtml is synchronous, so two documents cannot interleave).
+  setRtlProse(rtl);
   const L = LABELS[rtl ? "ur" : "en"];
   const warnings = [];
   const figureProblems = [];

@@ -54,6 +54,31 @@ const displayify = (src) => (hasMatrix(src) && !/\\displaystyle/.test(src) ? `\\
 const inlineMath = (src) =>
   hasMatrix(src) ? `<span class="mtx" data-displaystyle="1">${tex(displayify(src), false)}</span>` : tex(src, false);
 
+// ── RTL prose mode: numeric-range isolation (the 2026-09 mixed-script audit) ─
+//
+// «صفحہ 6-7» paints «7-6» under an RTL base direction: UAX#9 W2 reclassifies a
+// European digit whose nearest preceding strong character is Arabic-class as an
+// Arabic Number, W4 re-joins a hyphen only between EUROPEAN numbers, and N1
+// then orders the two now-separate number runs right-to-left. The same range
+// after Latin text («p.122-124») survives — which is why this shipped unseen on
+// three audited documents until the rendered pages were read. Deterministic, so
+// it belongs to the renderer, never to the authoring model: every numeric range
+// in prose is wrapped in a LEFT-TO-RIGHT ISOLATE (U+2066 … U+2069) when the
+// document renders RTL. A lone number is left alone — it has no internal order
+// to lose — and math runs are exempt by construction: rich() tokenizes on the
+// math delimiters FIRST and this pass touches only the prose slices (KaTeX
+// already carries direction:ltr + unicode-bidi:isolate).
+//
+// Module state, set by buildHtml at entry, cleared nowhere: buildHtml is fully
+// synchronous, so two documents cannot interleave inside one process, and every
+// build sets the mode for itself.
+const LRI = "⁦", PDI = "⁩";
+const NUM_RANGE = /[0-9۰-۹]+(?:\s*[-–—~]\s*[0-9۰-۹]+)+/g;
+let RTL_PROSE = false;
+function setRtlProse(on) { RTL_PROSE = !!on; }
+const isolateRanges = (s) => String(s ?? "").replace(NUM_RANGE, (m) => LRI + m + PDI);
+const prose = (s) => (RTL_PROSE ? isolateRanges(s) : s);
+
 /** Prose -> HTML. Escapes, applies **bold**, renders inline/display maths and chem. */
 function rich(s) {
   const src = String(s ?? "");
@@ -62,13 +87,13 @@ function rich(s) {
   let m;
   MATH.lastIndex = 0;
   while ((m = MATH.exec(src)) !== null) {
-    out += bold(esc(src.slice(last, m.index)));
+    out += bold(esc(prose(src.slice(last, m.index))));
     if (m[1] !== undefined) out += tex(m[1], true);                    // $$…$$
     else if (m[2] !== undefined) out += inlineMath(m[2]);              // $…$
     else out += tex(`\\ce{${m[3]}}`, false);
     last = m.index + m[0].length;
   }
-  out += bold(esc(src.slice(last)));
+  out += bold(esc(prose(src.slice(last))));
   return out;
 }
 
@@ -128,4 +153,7 @@ function fixChemPlus(s, bare = false) {
   return src.replace(CE, (_, body) => `\\ce{${spacePlus(body)}}`);
 }
 
-module.exports = { rich, esc, display, displayChem, wordCount, chemPlusDefects, fixChemPlus };
+module.exports = {
+  rich, esc, display, displayChem, wordCount, chemPlusDefects, fixChemPlus,
+  setRtlProse, isolateRanges,
+};

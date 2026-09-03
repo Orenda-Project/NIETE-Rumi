@@ -13,9 +13,14 @@
     ],
     "SELECT_LESSON": [
       "SELECT_LESSON_MORE",
+      "SELECT_LANGUAGE",
       "SUCCESS"
     ],
     "SELECT_LESSON_MORE": [
+      "SELECT_LANGUAGE",
+      "SUCCESS"
+    ],
+    "SELECT_LANGUAGE": [
       "SUCCESS"
     ],
     "SUCCESS": []
@@ -437,6 +442,106 @@
           {
             "type": "NavigationList",
             "name": "lesson_list_more",
+            "list-items": "${data.items}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SELECT_LANGUAGE",
+      "title": "Language · زبان",
+      "data": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "main-content": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "string"
+                  }
+                }
+              },
+              "start": {
+                "type": "object",
+                "properties": {
+                  "image": {
+                    "type": "string"
+                  },
+                  "alt-text": {
+                    "type": "string"
+                  }
+                }
+              },
+              "on-click-action": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "payload": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "ur",
+              "main-content": {
+                "title": "اردو",
+                "description": "مکمل سبق اردو میں",
+                "metadata": "سائنسی اصطلاحات انگریزی میں رہتی ہیں"
+              },
+              "on-click-action": {
+                "name": "data_exchange",
+                "payload": {
+                  "step": "lp612_serve",
+                  "segment_id": "grade_9_chemistry.c01.p007-008",
+                  "lang": "ur"
+                }
+              }
+            },
+            {
+              "id": "en",
+              "main-content": {
+                "title": "English",
+                "description": "Full plan in English"
+              },
+              "on-click-action": {
+                "name": "data_exchange",
+                "payload": {
+                  "step": "lp612_serve",
+                  "segment_id": "grade_9_chemistry.c01.p007-008",
+                  "lang": "en"
+                }
+              }
+            }
+          ]
+        },
+        "header_text": {
+          "type": "string",
+          "__example__": "Branches of chemistry"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "NavigationList",
+            "name": "language_list",
             "list-items": "${data.items}"
           }
         ]

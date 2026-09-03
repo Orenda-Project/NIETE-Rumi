@@ -721,9 +721,23 @@ The schema allows EXACTLY these keys — nothing more:
 {"type": "diagram", "id": "dg-water-cycle", "spec": {"type": "cycle", "caption": "…", "…": "…"}}
 ```
 A diagram block is `type` + `id` + `spec`, full stop. The spec object carries EVERYTHING else —
-its own `type` (one of the 19), title, caption, steps, panels. The four shapes that FAIL:
+its own `type` (one of the 20), title, caption, steps, panels. The four shapes that FAIL:
 `"diagram": {…}` as the key instead of `"spec"`; `"caption"` sitting OUTSIDE spec (it goes
 caption INSIDE `spec`); a missing `id`; a spec whose inner `type` is null or invented.
+
+**DRAW EACH FIGURE ONCE — `DUPLICATE_DIAGRAM` is a hard fail.** `page2.board_final.diagram` is a
+SEPARATE spec you author, not a pointer back to a figure in the lesson body — so pasting the body's
+diagram into it prints the same picture twice and burns roughly half a reference page the teacher
+paid to print. (The first staging maths LP did exactly this: the same `y = 2x + 1` / `y = 2x − 1`
+graph in Development and again on the board page.) The gate compares specs with captions set aside,
+so **re-wording the caption does not make it a different figure**. Decide which single home it has:
+
+* it teaches a step → keep it in the body, and let `board_final.draw_order` describe the end state
+  **in words** (that list is what the board page is for — a teacher copies it onto her board);
+* it IS the finished board → keep `board_final.diagram` and cut it from the body.
+
+Two genuinely different figures are always fine — vary the data, the window or the labels, not just
+the caption.
 
 ```json
 {"type": "textbook_figure", "id": "fig-1-11", "ref": "…/p011/fig_1_11_leaf",
@@ -836,6 +850,40 @@ The Physics reviewer named it: homework that is real board-shaped work, tagged, 
   them English. Keep every honorific (`ﷺ`) exactly as printed.
 - **Textbook quotations always stay in the book's language**, whatever the instruction language is.
 
+## 7c · WRITING URDU AND ENGLISH ON THE SAME PAGE
+
+The page's base direction is RTL and the renderer lays your text out with the Unicode bidi
+algorithm. You write **logical order** — the order the sentence is read aloud — and you never
+compensate for layout by re-ordering words. These rules are about what to WRITE; the renderer
+owns direction and isolation.
+
+1. **Digits in Urdu prose are Urdu digits: ۰۱۲۳۴۵۶۷۸۹** (the same rule diagrams already
+   follow). Keep ASCII digits inside math, `\ce{…}`, SLO codes, URLs and the phone number —
+   those are Latin atoms and the renderer isolates them.
+2. **Page ranges in Urdu prose use تا, never a hyphen:** «ص ۸۵ تا ۸۸», «صفحات ۶ تا ۷». A
+   hyphenated range beside Urdu text paints reversed («7-6») — تا cannot. Single pages are
+   fine either way: «ص ۸۵».
+3. **An English term of record sits exactly where the word belongs in the Urdu sentence.**
+   Do not move it to the sentence edge, do not bracket it away, do not repeat it in Roman
+   Urdu. First mention in a lesson carries an Urdu gloss in parentheses:
+   «ضیائی تالیف (Photosynthesis) کے عمل میں پودے…». After that, use whichever single form the
+   book itself prints. Which words ARE terms of record: the ones the book prints in English —
+   scientific, mathematical and technical vocabulary the pupil must recognise on the exam
+   paper. The exam's language is the book's language, always (§7b).
+4. **Citations are one language in one order.** In an Urdu document write the source line
+   fully Urdu-first: «(تشخیص: Summative · یونٹ ۵ · ص ۸۵)» — the English classification word
+   last, immediately before the closing bracket, never interleaved digit-by-digit with Urdu
+   words. Never write «صفحہ 85 · U · Summative» — it paints garbled on every render.
+5. **Prefer sentence shapes that do not END on an English term.** «…photosynthesis کہتے ہیں۔»
+   is safe; «…اسے کہتے ہیں photosynthesis.» strands the full stop. When the term must be last,
+   end with the Urdu full stop ۔ directly after it and accept the renderer's isolation.
+6. **Never split a Latin atom.** A formula, a `\ce{…}`, a URL, a code like `PS-10-C1-O1`, the
+   phone number as dialled — each is written whole, in one place, untranslated, with no Urdu
+   inserted inside it.
+7. **In an `ur_overlay`, overlay EVERY instruction string you are allowed to** (§7b lists the
+   protected slots). A half-overlaid document serves half-English prose under an Urdu label;
+   the renderer cannot fix a missing translation.
+
 ---
 ---
 
@@ -843,7 +891,10 @@ The Physics reviewer named it: homework that is real board-shaped work, tagged, 
 
 `lint_lp.js` budgets each section and the whole document; the renderer then proves the fit by
 measuring the real layout. **TEACH ≤ 5 A4 pages, SUPPORT ≤ 4** (the measured capacity at the 18px
-body floor). Over the cap is a loud failure, not a quiet trim.
+body floor). Over the cap is a loud failure, not a quiet trim. **An Urdu render is allowed
+TEACH ≤ 7, SUPPORT ≤ 5** — the same words measured ~+33% more paper under Nastaliq's spacing —
+but the WORD budgets below are one set of numbers for both languages: an Urdu plan says no more
+than an English one; it only breathes more.
 
 **Write to the AIM column, not the ceiling.** Word counters differ by a few percent and no model
 counts words precisely — a document written *at* a ceiling lands a few words over it and costs a

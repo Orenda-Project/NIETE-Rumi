@@ -94,11 +94,11 @@ function buildFilename(segment, lang) {
   return `${base}_${lang}.pdf`.slice(0, FILENAME_MAX);
 }
 
-function buildCaption(segment, lang) {
+function buildCaption(segment, lang, { overlayDropped = false } = {}) {
   const pages = segment.printed_page_start === segment.printed_page_end
     ? String(segment.printed_page_start)
     : `${segment.printed_page_start}-${segment.printed_page_end}`;
-  return resolveUx('lp612Caption', {
+  const caption = resolveUx('lp612Caption', {
     language: lang,
     params: {
       topic: segment.subtopic_title || segment.menu_title || '',
@@ -107,6 +107,14 @@ function buildCaption(segment, lang) {
       pages,
     },
   });
+  // The honesty line (rule 24(c)/(d)): an Urdu delivery whose document lost its
+  // ur_overlay is an essentially-English document under an Urdu label, and the
+  // caption says so instead of promising what the pages do not hold. Urdu
+  // territory only — an English delivery of an English book dropped nothing.
+  if (overlayDropped && lang === 'ur') {
+    return `${caption}\n${resolveUx('lp612OverlayDropped', { language: lang })}`;
+  }
+  return caption;
 }
 
 /** Say something, always, and never let saying it break the caller. */
@@ -192,7 +200,7 @@ async function reapStrandedRenders() {
 async function findRender(segmentId, lang, tv) {
   const { data, error } = await supabase
     .from(RENDERS)
-    .select('id, status, r2_key, waiters, error_code, one_screen, started_at')
+    .select('id, status, r2_key, waiters, error_code, one_screen, started_at, overlay_dropped')
     .eq('segment_id', segmentId)
     .eq('lang', lang)
     .eq('template_version', tv)
@@ -228,8 +236,10 @@ function buildBody({ oneScreen, segment }) {
 }
 
 /** Send a finished render to one phone. Exported because the worker delivers
- *  the same bytes to the same shape of recipient when the job completes. */
-async function deliverRender({ phone, r2Key, segment, lang, oneScreen }) {
+ *  the same bytes to the same shape of recipient when the job completes.
+ *  `overlayDropped` rides along so the caption can be honest about a degraded
+ *  Urdu document — on the first delivery AND on every cache hit after it. */
+async function deliverRender({ phone, r2Key, segment, lang, oneScreen, overlayDropped }) {
   const url = await getPresignedUrl(buildR2PublicUrl(r2Key));
 
   // The body goes FIRST: she is on a phone, and the summary is readable in the
@@ -253,12 +263,17 @@ async function deliverRender({ phone, r2Key, segment, lang, oneScreen }) {
     phone,
     url,
     buildFilename(segment, lang),
-    buildCaption(segment, lang),
+    buildCaption(segment, lang, { overlayDropped: overlayDropped === true }),
   );
 }
 
-function waiterEntry({ userId, phone }) {
-  return { user_id: userId, phone, requested_at: new Date().toISOString() };
+/** `ui_lang` is the language SHE is spoken to in — recorded per waiter, because
+ *  two teachers waiting on one render need not share one. The document's own
+ *  language is on the row; this is the other territory. */
+function waiterEntry({ userId, phone, uiLang }) {
+  return {
+    user_id: userId, phone, ui_lang: uiLang, requested_at: new Date().toISOString(),
+  };
 }
 
 /**
@@ -321,31 +336,40 @@ async function enqueue({ renderId, segmentId, lang, tv, correlationId }) {
  * @param {string} req.segmentId  the row a teacher tapped
  * @param {string} req.userId
  * @param {string} req.phone
- * @param {string} [req.lang]     clamped to the deployment's offer (en/ur)
+ * @param {string} [req.lang]     the DOCUMENT's language, clamped to the offer (en/ur)
+ * @param {string} [req.uiLang]   the language SHE is spoken to in (acks, holds,
+ *                                failures). Defaults to `lang` — she did just
+ *                                choose it — but the two are separate
+ *                                territories: an Urdu-UI teacher ordering an
+ *                                English physics plan gets an English PDF and
+ *                                Urdu acks. (language-protocol invariant 4)
  * @param {string} [req.correlationId]
  * @returns {Promise<{outcome: string, [key: string]: any}>}
  *   outcome ∈ cache_hit | queued | joined | retry | held | not_found | deliver_failed | error
  */
-async function requestLesson({ segmentId, userId, phone, lang, correlationId }, depth = 0) {
+async function requestLesson({ segmentId, userId, phone, lang, uiLang, correlationId }, depth = 0) {
   const language = clampLanguage(lang);
+  const voice = clampLanguage(uiLang || lang);
   const tv = templateVersion();
 
   const segment = await Catalog.segmentById(segmentId);
   if (!segment) {
     logToFile('LP 6-12: segment not found', { segmentId, correlationId });
-    await tell(phone, 'lp612NotFound', language);
+    await tell(phone, 'lp612NotFound', voice);
     return { outcome: 'not_found' };
   }
 
   // The operator's hold. Checked on the row rather than on a subject name, so
-  // a seerah chapter inside a non-Islamiat book is held too.
+  // a seerah chapter inside a non-Islamiat book is held too — and checked HERE,
+  // after the menu's own filter, so a forged or stale payload arriving at any
+  // step (lp612_segment, lp612_serve) meets it in both languages identically.
   if (segment.is_religious && !isReligiousEnabled()) {
     logToFile('LP 6-12: religious segment withheld', { segmentId, correlationId });
-    await tell(phone, 'lp612Held', language);
+    await tell(phone, 'lp612Held', voice);
     return { outcome: 'held' };
   }
 
-  const req = { userId, phone };
+  const req = { userId, phone, uiLang: voice };
   const existing = await findRender(segmentId, language, tv);
 
   // ── hit ──────────────────────────────────────────────────────────────────
@@ -355,7 +379,12 @@ async function requestLesson({ segmentId, userId, phone, lang, correlationId }, 
   if (existing && existing.status === 'ready' && existing.r2_key) {
     try {
       await deliverRender({
-        phone, r2Key: existing.r2_key, segment, lang: language, oneScreen: existing.one_screen,
+        phone,
+        r2Key: existing.r2_key,
+        segment,
+        lang: language,
+        oneScreen: existing.one_screen,
+        overlayDropped: existing.overlay_dropped === true,
       });
       logToFile('LP 6-12: served from cache', { segmentId, lang: language, tv, correlationId });
       return { outcome: 'cache_hit', renderId: existing.id };
@@ -363,7 +392,7 @@ async function requestLesson({ segmentId, userId, phone, lang, correlationId }, 
       logToFile('LP 6-12: cache delivery failed', {
         segmentId, r2Key: existing.r2_key, error: err.message, correlationId,
       });
-      await tell(phone, 'lp612Failed', language);
+      await tell(phone, 'lp612Failed', voice);
       return { outcome: 'deliver_failed', error: err.message };
     }
   }
@@ -383,10 +412,10 @@ async function requestLesson({ segmentId, userId, phone, lang, correlationId }, 
       logToFile('LP 6-12: render finished mid-join, re-deciding', {
         segmentId, renderId: existing.id, correlationId,
       });
-      return requestLesson({ segmentId, userId, phone, lang, correlationId }, depth + 1);
+      return requestLesson({ segmentId, userId, phone, lang, uiLang, correlationId }, depth + 1);
     }
 
-    await tell(phone, 'lp612AlreadyPreparing', language);
+    await tell(phone, 'lp612AlreadyPreparing', voice);
     logToFile('LP 6-12: joined render in flight', {
       segmentId, renderId: existing.id, result: joined, correlationId,
     });
@@ -413,13 +442,13 @@ async function requestLesson({ segmentId, userId, phone, lang, correlationId }, 
       logToFile('LP 6-12: could not reset render for retry', {
         renderId: existing.id, error: error.message, correlationId,
       });
-      await tell(phone, 'lp612Failed', language);
+      await tell(phone, 'lp612Failed', voice);
       return { outcome: 'error', error: error.message };
     }
     // Distinct copy for a distinct state (rule 24(d)). A stranded run is not a fresh request and
     // it is not an ordinary failure — she watched it say "preparing" and nothing came.
     const stranded = isStrandedAuthoring(existing);
-    await tell(phone, stranded ? 'lp612Restarted' : 'lp612Preparing', language);
+    await tell(phone, stranded ? 'lp612Restarted' : 'lp612Preparing', voice);
     await enqueue({ renderId: existing.id, segmentId, lang: language, tv, correlationId });
     logToFile('LP 6-12: retrying render', {
       segmentId,
@@ -453,7 +482,7 @@ async function requestLesson({ segmentId, userId, phone, lang, correlationId }, 
       const winner = await findRender(segmentId, language, tv);
       if (winner) {
         await joinWaiters(winner.id, req);
-        await tell(phone, 'lp612AlreadyPreparing', language);
+        await tell(phone, 'lp612AlreadyPreparing', voice);
         logToFile('LP 6-12: lost insert race, joined winner', {
           segmentId, renderId: winner.id, correlationId,
         });
@@ -463,12 +492,12 @@ async function requestLesson({ segmentId, userId, phone, lang, correlationId }, 
     logToFile('LP 6-12: could not claim render', {
       segmentId, error: insertError.message, code: insertError.code, correlationId,
     });
-    await tell(phone, 'lp612Failed', language);
+    await tell(phone, 'lp612Failed', voice);
     return { outcome: 'error', error: insertError.message };
   }
 
   // Ack FIRST. Two minutes of silence is the failure mode this prevents.
-  await tell(phone, 'lp612Preparing', language);
+  await tell(phone, 'lp612Preparing', voice);
   await enqueue({ renderId: created.id, segmentId, lang: language, tv, correlationId });
   logToFile('LP 6-12: queued runtime authoring', {
     segmentId, renderId: created.id, lang: language, tv, correlationId,
