@@ -33,6 +33,22 @@ outside this repo and not in this repo's git history:
 | `fonts/Inter-{Regular,SemiBold,Bold}.ttf` | workspace `06_Logs & Misc/Reports/Active/Tanzania Expansion/02_Coaching_MEWAKA/mewaka-sample-report/` |
 | `fonts/NotoNastaliqUrdu.ttf` | workspace `02_Main Rumi Bot/fonts/` |
 
+> **Partial re-vendor 2026-09-03 (bd-x4xxm): `lib/template.js` only.** Fixed upstream first and
+> copied byte-for-byte; upstream's own suites were run there (`test/packing.js` added, 13
+> assertions; 7 of 8 files green, `diagram_overlap_gate` red before and after on an unrelated
+> rejected-sample artefact). **No new divergence** — §3 is unchanged, and the pre-copy diff
+> showed exactly the four hunks of that change and nothing else. `render_lp.js` was NOT touched,
+> so its §3.2/§3.3/§3.4 divergences are intact; `lint_lp.js` remains byte-identical.
+>
+> What changed: three repeated structures used to be emitted as ONE indivisible atom each — the
+> page-2 `homework_key` and `model_answers` card grids and the teach part's homework list — so
+> the packer had nowhere legal to break inside them and pushed each whole block to a fresh page.
+> They now emit one atom per grid ROW / per item, which is the cut already shipped for practice
+> items and MCQs. It is visually lossless: the grid gap and the list gap the split removes are
+> exactly the `sp-2`/`sp-1` atom margins that replace them, and `.blk` has no box of its own.
+> Measured on the n=24 study's own documents: 27 of 46 parts within cap → 28, and the packer's
+> page counts are unchanged everywhere else.
+
 **Vendored on 2026-09-02**, from the working tree of that skill (the skill is not versioned in
 this repo, so there is no upstream commit SHA to quote — the newest source mtimes at the time of
 copy were `lint_lp.js`, `render_lp.js` and `lib/` from 2026-09-01/02 and
