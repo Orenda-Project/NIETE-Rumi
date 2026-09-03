@@ -528,6 +528,18 @@ function buildRevisionPrompt({ doc, gates, originalUser, notes }) {
     // and from WHICH part of the document.
     '\n\n=== PAGE / LAYOUT ERRORS (the rendered page refused these) ===\n'
       + ((gates.render || []).join('\n') || '(none)') +
+    // MEASURED, not guessed: page2 held 658 words across 6 A4 pages — about 110 words a page.
+    // The support page is built from CARDS, each with fixed chrome at the 18px body floor the
+    // renderer enforces, so pages are spent on CARD COUNT and barely at all on prose length.
+    // The first render-gated run proved the point: told only "it is too long", the model
+    // shortened sentences and moved 6 pages to 5. It has to be told to delete whole items.
+    ((gates.render || []).some((d) => /PAGE COUNT/.test(d))
+      ? '\n\nHOW TO FIX A PAGE-COUNT ERROR: pages are spent on CARD COUNT, not on word count — '
+        + 'each exam_bank item, model_answers entry, mistakes row and differentiation row is a '
+        + 'box with its own heading and padding. Shortening sentences will NOT remove a page. '
+        + 'REMOVE WHOLE ITEMS instead, fewest-value first — drop exam_bank questions and '
+        + 'model_answers entries until the part fits, and keep the ones that carry the lesson.'
+      : '') +
     '\n\n=== LINT WARNINGS ===\n' + (gates.warns.join('\n') || '(none)') +
     '\n\n=== THE ORIGINAL TASK (same page-truth, unchanged) ===\n' + originalUser;
 }
