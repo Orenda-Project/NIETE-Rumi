@@ -38,9 +38,17 @@ function load() {
     examChecker: { handleExamImage: jest.fn().mockResolvedValue({ handled: false }) },
   };
 
+  // R165 (bd-2kxxa.2): the LP-as-image branch now reaches the processor via
+  // handleLessonPlanResponse (through the orchestrator) instead of calling
+  // handleLessonPlanUpload inline. Mirror the real processor: upload + queue.
+  mocks.lpProcessor.handleLessonPlanResponse = jest.fn(async (sid, from, has, docId) => {
+    await mocks.lpProcessor.handleLessonPlanUpload(sid, docId, from);
+    await mocks.jobQueue.queueAnalysis(sid, { from });
+  });
+
   // Chainable supabase stub keyed on the .eq('status', X) value so only the
   // awaiting_lesson_plan query resolves a session.
-  const sessionsByStatus = { awaiting_lesson_plan: { id: 'sess-lp', conversation_state: {} } };
+  const sessionsByStatus = { awaiting_lesson_plan: { id: 'sess-lp', status: 'awaiting_lesson_plan', user_id: 'user-1', conversation_state: {} } };
   const supa = {
     from: () => {
       let status = null;
@@ -49,13 +57,15 @@ function load() {
         eq: (col, val) => { if (col === 'status') status = val; return chain; },
         // bd-5azz0: the LP-as-image branch now matches the observer too via .or()
         or: () => chain,
-        in: () => chain,
+        // R165 (bd-2kxxa.2): the shared media-session resolver filters with
+        // .in('status', [...]) and awaits the chain as a LIST (no .limit(1)).
+        in: (col, vals) => { if (col === 'status' && Array.isArray(vals) && vals.length === 1) status = vals[0]; return chain; },
         order: () => chain,
         limit: () => chain,
         update: () => chain,
         single: () => Promise.resolve({ data: sessionsByStatus[status] || null, error: null }),
         maybeSingle: () => Promise.resolve({ data: sessionsByStatus[status] || null, error: null }),
-        then: (resolve) => resolve({ data: null, error: null }),
+        then: (resolve) => resolve({ data: sessionsByStatus[status] ? [sessionsByStatus[status]] : [], error: null }),
       };
       return chain;
     },
@@ -78,6 +88,9 @@ function load() {
     getOrCreateSession: jest.fn().mockResolvedValue('conv-1'),
   }));
   jest.doMock('../../bot/shared/services/coaching/lesson-plan-processor.service', () => mocks.lpProcessor);
+  jest.doMock('../../bot/shared/services/coaching-orchestrator.service', () => ({
+    handleLessonPlanResponse: (...a) => mocks.lpProcessor.handleLessonPlanResponse(...a),
+  }));
   jest.doMock('../../bot/shared/services/coaching/coaching-job-queue.service', () => mocks.jobQueue);
   jest.doMock('../../bot/shared/services/coaching/coaching-session.service', () => mocks.sessionSvc);
   jest.doMock('../../bot/shared/handlers/exam-checker.handler', () => mocks.examChecker);
