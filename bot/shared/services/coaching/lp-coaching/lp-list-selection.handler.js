@@ -15,6 +15,7 @@
  * hung at awaiting_lesson_plan.
  */
 const { logToFile } = require('../../../utils/logger');
+const { REVIEW_SUBMITTED_STATUSES } = require('../fidelity/fidelity-recompute.service');
 
 const LP_ID_RE = /^lp_(select|upload|none)_/;
 
@@ -80,6 +81,20 @@ async function handleLpListSelection(listId, from, deps = {}) {
   }
   const lang = await resolveLanguage(sessionId);
 
+  // bd-2kxxa.4: the list stays in the chat, so a tap can land AFTER the observer's
+  // review was submitted. Check FIRST — a submitted session gets an honest reply
+  // and NO write; the old path wrote the ref, said "linked", then the recompute
+  // refused silently (review_submitted) and nothing changed.
+  let status = null;
+  if (listId.startsWith('lp_select_')) {
+    status = await sessionStatus(sessionId);
+    if (REVIEW_SUBMITTED_STATUSES.includes(status)) {
+      logToFile('[lp-list] late tap after review submitted — not linking', { sessionId, status });
+      await sendMessage(from, getCoachingMessage('lessonPlan_review_submitted', lang));
+      return true;
+    }
+  }
+
   let result = null;
   try {
     result = await linker.handleLPSelection(sessionId, listId);
@@ -105,13 +120,20 @@ async function handleLpListSelection(listId, from, deps = {}) {
   }
 
   if (result && result.lesson_plan_link_method === 'selected_recent') {
+    // "linked" only once the linker has actually written the ref.
     await sendMessage(from, getCoachingMessage('lessonPlan_linked', lang));
     // bd-5knlj: a LATE tap — the session already analyzed — must not re-run the
     // whole analysis; recompute ONLY the fidelity section so Section B fills in
     // for the still-unsubmitted review.
-    const status = await sessionStatus(sessionId);
+    if (status == null) status = await sessionStatus(sessionId);
     if (status && status !== 'awaiting_lesson_plan') {
-      await recomputeFidelity(sessionId);
+      const r = await recomputeFidelity(sessionId);
+      // bd-2kxxa.4: race — the review was submitted between our status check and
+      // the write. The CAS persist refused; tell the coach instead of leaving
+      // "linked" as the last word.
+      if (r && r.recomputed === false && r.reason === 'review_submitted') {
+        await sendMessage(from, getCoachingMessage('lessonPlan_review_submitted', lang));
+      }
       return true;
     }
     await queueAnalysis(sessionId, { from });
