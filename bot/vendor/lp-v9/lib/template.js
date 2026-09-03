@@ -382,6 +382,16 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
 /* Development's textbook citation. Reviewer sign-off 7: no page, no pass. */
 .cite{ display:inline-block; font-size:14px; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
       color:var(--navy2); background:#EAF0F8; border-radius:11px; padding:2px 9px; }
+/* The resources line: one compact row under the outcome box. Amber link on a pale rule so it
+   reads as an offer rather than as part of the lesson body. No font-size — it inherits the 18px
+   floor render_lp.js enforces.
+   NAMED .vres, not .res or .vid: BOTH of those are already taken (.res is the KaTeX result block,
+   .vid was the old inline video block). A colliding class silently inherits someone else's box. */
+.vres{ display:flex; gap:8px; align-items:baseline; margin-top:var(--sp-2);
+      padding:6px 10px; border:1.5px solid #E5E9F0; border-radius:8px; background:#FBFCFE; }
+.vres .ico{ flex:0 0 auto; }
+.vres .lbl{ color:var(--navy2); font-weight:700; flex:0 0 auto; }
+.vres a{ color:#8A5F04; text-decoration:underline; word-break:break-all; }
 .vid{ display:flex; gap:8px; align-items:baseline; background:#F5F8FC; border:1.5px solid #CBD8E8;
       border-radius:8px; padding:6px 12px; font-size:16.5px; }
 .vid .lbl{ color:var(--navy2); flex:0 0 auto; }
@@ -944,6 +954,45 @@ function page1(doc, ctx, secIndex) {
     <ul class="objs">${O.items.map(objLi).join("")}</ul>
   </div>`;
 
+  /**
+   * THE RESOURCES LINE — the video, at the top of page 1.
+   *
+   * Operator, on his first staging pull: *"YT link didnt appear in my lesson? Isnt it supposed to?
+   * Somewhere at the top perhaps? In resources?"* It had been printed inside Development, partway
+   * down the plan, wrapped around the video's own title. A teacher scanning her plan before class
+   * does not find it there.
+   *
+   * This is a MOVE and not an addition. The same `sections[<development>].video` — written
+   * mechanically by the author service from `segment.yt`, never by the model — renders in exactly
+   * ONE place. A second copy of the same link on the same document is a defect that costs a page,
+   * which is what the coaching-corner version was.
+   *
+   * COMPACT on purpose: the url alone, not the title/channel/duration/why the old block printed.
+   * Page 1 is the busiest page in the document and this is furniture, so it may cost a LINE, not a
+   * paragraph — the page-count gate is real and the teach part is often at its cap.
+   */
+  const shortVideoUrl = (v) => {
+    if (!v || !v.url) return null;
+    const m = /(?:v=|youtu\.be\/)([A-Za-z0-9_-]{6,})/.exec(String(v.url));
+    if (m) return `youtu.be/${m[1]}`;
+    return String(v.url).replace(/^https?:\/\//i, "").replace(/^www\./i, "");
+  };
+
+  const resourcesLine = (() => {
+    const dev = (doc.sections || []).find((x) => x && x.id === "development");
+    const v = dev && dev.video;
+    const short = shortVideoUrl(v);
+    if (!short) return "";
+    const href = String(v.url || "");
+    // Only http(s) becomes a tap target. The picks come from our own ranker, but an anchor built
+    // out of stored data is an anchor someone would eventually like to control.
+    if (!/^https?:\/\//i.test(href)) return "";
+    // U+2066 … U+2069 around the VISIBLE run: an RTL paragraph reorders a bare latin url into
+    // something a teacher cannot read, which is the fix the phone number already carries.
+    const shown = ctx.rtl ? `\u2066${short}\u2069` : short;
+    return `<div class="vres"><span class="ico">&#128250;</span><span class="lbl">${esc(L.video)}</span><a href="${esc(href)}">${esc(shown)}</a></div>`;
+  })();
+
   // The sequence strip (spec §5), directly under the masthead.
   const seq = doc.sequence
     ? `<div class="seq">${doc.sequence.previous ? `<span><b>${esc(L.seqPrev)}:</b> ${rich(doc.sequence.previous)}</span><span class="arrow">&rarr;</span>` : ""}
@@ -977,11 +1026,9 @@ function page1(doc, ctx, secIndex) {
   };
   const after = (s) => {
     const out = [];
-    if (s.id === "development" && s.video) {
-      const v = s.video;
-      out.push({ html: `<div class="blk vid"><span class="lbl">${esc(L.video)}</span>
-        <span><a href="${esc(v.url)}">${rich(v.title)}</a>${v.channel ? ` &middot; ${rich(v.channel)}` : ""}${v.duration ? ` &middot; ${esc(v.duration)}` : ""}${v.why ? `<br><span class="why">${rich(v.why)}</span>` : ""}</span></div>`, sp: 2 });
-    }
+    // The video used to print HERE, mid-Development. It now renders once, in the resources
+    // line at the top of page 1 — see resourcesLine. Do not re-add it here: two copies of one
+    // link on one document is the defect that cost a page on the part already at its cap.
     if (s.id === "conclusion") {
       if (s.checkpoint) {
         const c = s.checkpoint;
@@ -1055,6 +1102,8 @@ function page1(doc, ctx, secIndex) {
   const A = [atom(hero, { sp: 0 })];
   if (seq) A.push(atom(seq, { sp: 2 }));
   A.push(atom(sloBox, { sp: 2 }));
+  // Directly under the outcome box: the first thing after "what the pupil can do".
+  if (resourcesLine) A.push(atom(resourcesLine, { sp: 2 }));
 
   // consecutive layout:"half" sections share one two-column band. Each keeps its own
   // lettered bar, so the closed heading vocabulary survives; only the stacking goes away.
