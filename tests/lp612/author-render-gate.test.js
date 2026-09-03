@@ -33,6 +33,13 @@ const create = require('../../bot/shared/services/llm-client').__create;
 const { authorLessonPlan } = require('../../bot/shared/services/lp612-author.service');
 const CLEAN_DOC = require('./__fixtures__/v9_gate_base.lp.json');
 
+/** The fixture with its pacing knocked out — one deterministic lint FAIL, no schema error. */
+function pacingBrokenDoc() {
+  const d = JSON.parse(JSON.stringify(CLEAN_DOC));
+  d.sections.find((s) => s.id === 'activity').minutes += 7;
+  return d;
+}
+
 const BOOK = { title: 'Biology 9', publisher: 'PCTB', subject: 'biology', grade: 9, medium: 'en', language: 'English', offset: 4 };
 const TOC = { chapters: [{ number: 1, title: 'The Biological Method', printed_start: 9 }] };
 const SEGMENT = {
@@ -139,5 +146,41 @@ describe('the render gate runs inside the revision ladder', () => {
     const out = await run(renderCheck, 2);
     expect(out.lpDoc).toBeTruthy();
     expect(out.rounds).toBe(2);
+  });
+});
+
+// ── telling the model the RIGHT way to cut ──────────────────────────────────
+
+/**
+ * Measured on the real corpus: page2 held 658 words across 6 A4 pages — about 110 words a page.
+ * The support page is built from CARDS (exam bank, model answers, mistakes, differentiation),
+ * each with fixed chrome at the mandatory 18px body floor, so pages are consumed by CARD COUNT
+ * and not by prose length.
+ *
+ * That is why the first render-gated run only got 6 pages down to 5: the model shortened
+ * sentences, which is nearly free in pages. It has to be told to drop whole items instead.
+ */
+describe('a page-overflow defect asks for ITEMS to be cut, not words', () => {
+  test('the revision prompt says card count is what costs pages', async () => {
+    const renderCheck = jest.fn().mockResolvedValueOnce([OVERFLOW]).mockResolvedValue([]);
+    create.mockResolvedValueOnce(reply(CLEAN_DOC)).mockResolvedValueOnce(reply(CLEAN_DOC));
+
+    await run(renderCheck);
+
+    const prompt = create.mock.calls[1][0].messages.map((m) => m.content).join('\n');
+    expect(prompt).toMatch(/whole items|CARD COUNT/i);
+    expect(prompt).toMatch(/exam_bank/);
+  });
+
+  test('the hint appears ONLY when the page actually overflowed', async () => {
+    // A lint-only revision must not be told to delete exam questions.
+    const renderCheck = jest.fn().mockResolvedValue([]);
+    create.mockResolvedValue(reply(pacingBrokenDoc()));
+
+    await run(renderCheck, 1);
+
+    const prompt = (create.mock.calls[1] || [{ messages: [] }])[0].messages
+      .map((m) => m.content).join('\n');
+    expect(prompt).not.toMatch(/CARD COUNT/i);
   });
 });
