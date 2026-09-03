@@ -33,7 +33,8 @@ const {
   PRE_PHOTO_PROCESSING_STATUSES, shouldHoldImageForActiveCoaching,
 } = require('./photo-capture-routing');
 
-const SESSION_COLUMNS = 'id, status, user_id, observer_user_id, created_at, conversation_state, classroom_photos';
+// bd-wwcgf: observation_type rides every read so drivesSession() has its input.
+const SESSION_COLUMNS = 'id, status, user_id, observer_user_id, observation_type, created_at, conversation_state, classroom_photos';
 
 // kind → which sessions can accept this media right now. `targetKind` names
 // the stored-target kind that may pre-empt the candidate rule (null = never:
@@ -56,8 +57,14 @@ const KINDS = {
   },
 };
 
+// bd-wwcgf: being a PARTY to a session is not enough — the sender must DRIVE
+// its conversation. The observed teacher on a leader_observation row is its
+// subject, not its driver; matching her routed her DC self-serve media and
+// texts into the coach's observation and, downstream, the editable observer
+// FICO form into her chat (Saima/Mubashar, ICT, 3 Sep 2026).
+const { drivesSession } = require('./session-ownership');
 function isSenderParty(session, userId) {
-  return !!session && (session.user_id === userId || session.observer_user_id === userId);
+  return drivesSession(userId, session);
 }
 
 /** True when `session` is at the gate for `kind` (status + state). */
@@ -113,7 +120,9 @@ async function resolveMediaSession({ user, kind, client = supabase }) {
     return { outcome: 'none', session: null, candidates: [] };
   }
 
-  const candidates = (data || []).filter((s) => spec.accepts(s));
+  // bd-wwcgf: the .or() above matches the observed teacher on observations of
+  // her — keep only sessions the SENDER drives.
+  const candidates = (data || []).filter((s) => drivesSession(userId, s) && spec.accepts(s));
   if (candidates.length === 0) return { outcome: 'none', session: null, candidates: [] };
   if (candidates.length === 1) return { outcome: 'single', session: candidates[0], candidates };
   return { outcome: 'ambiguous', session: null, candidates };

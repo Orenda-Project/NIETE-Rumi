@@ -105,14 +105,20 @@ const LP_REPROMPT_WINDOW_MS = 3 * 60 * 60 * 1000;
 
 async function resendLpPromptIfWaiting(user, from) {
   if (!user || !user.id) return false;
-  const { data: lpSession } = await supabase
+  const { data: rows } = await supabase
     .from('coaching_sessions')
-    .select('id, updated_at')
+    .select('id, updated_at, user_id, observer_user_id, observation_type')
     .or(`user_id.eq.${user.id},observer_user_id.eq.${user.id}`)
     .eq('status', 'awaiting_lesson_plan')
     .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(5);
+  // bd-wwcgf: only a session this user DRIVES may consume their text — their own
+  // self-serve session, or an observation they are the OBSERVER on. The observed
+  // teacher on a leader_observation row is its subject, not its conversation
+  // owner: matching her here served her the coach's LP list and, downstream, his
+  // editable draft form (Saima/Mubashar, ICT, 3 Sep 2026).
+  const { firstDrivenSession } = require('../session-ownership');
+  const lpSession = firstDrivenSession(user.id, rows);
   if (!lpSession) return false;
   const touched = Date.parse(lpSession.updated_at || '');
   if (Number.isNaN(touched) || Date.now() - touched > LP_REPROMPT_WINDOW_MS) return false;

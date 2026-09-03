@@ -365,11 +365,36 @@ async function onAnalysisReady(sessionId, from) {
     await ObserveState.setState(observerId, 'awaiting_form', { sessionId });
   }
 
+  // bd-wwcgf: the recipient is derived from the SESSION ROW (same principle as
+  // observe-ness itself, header above) — NEVER from the message `from` that
+  // happened to trigger this pipeline stage. In the 3-Sep incident the observed
+  // TEACHER tapped the LP list, so `from` was her phone and the editable
+  // observer form landed in her chat (Saima/Mubashar, ICT). The users!inner
+  // join on loadSession rides user_id (the observed teacher), so a distinct
+  // observer needs their own phone lookup.
+  let recipient = (session.users && session.users.phone_number) || from;
+  if (session.observer_user_id && session.observer_user_id !== session.user_id) {
+    const { data: obsRow } = await supabase
+      .from('users')
+      .select('phone_number')
+      .eq('id', session.observer_user_id)
+      .maybeSingle();
+    if (obsRow && obsRow.phone_number) {
+      recipient = obsRow.phone_number;
+    } else {
+      logToFile('⚠️ observe: observer phone not found — draft form falls back to job `from`', { sessionId, observerId });
+      recipient = from;
+    }
+  }
+  if (recipient !== from) {
+    logToFile('🔭 observe: draft-form recipient derived from session row, not job `from` (bd-wwcgf)', { sessionId, observerId });
+  }
+
   // Read at call time (COMMITMENT_CARD_ENABLED precedent) — per-service env
   // var; constants.js caches env at first import which breaks late-set envs.
   const OBSERVE_MEWAKA_FLOW_ID = process.env.OBSERVE_MEWAKA_FLOW_ID || '';
   if (OBSERVE_MEWAKA_FLOW_ID) {
-    await WhatsAppService.sendFlow(from, {
+    await WhatsAppService.sendFlow(recipient, {
       flowId: OBSERVE_MEWAKA_FLOW_ID,
       flowToken: `${observerId}:${sessionId}`,   // endpoint derives identity from this
       header: S.flow_header,
@@ -379,7 +404,7 @@ async function onAnalysisReady(sessionId, from) {
     logToFile('🔭 observe: pre-filled MEWAKA flow sent', { sessionId, observerId });
   } else {
     // Pre-publish grace: flow not yet configured on this deployment.
-    await WhatsAppService.sendMessage(from, S.flow_fallback);
+    await WhatsAppService.sendMessage(recipient, S.flow_fallback);
     logToFile('⚠️ observe: OBSERVE_MEWAKA_FLOW_ID unset — sent text fallback', { sessionId });
   }
 }
