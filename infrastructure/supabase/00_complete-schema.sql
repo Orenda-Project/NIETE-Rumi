@@ -4991,7 +4991,7 @@ CREATE TABLE IF NOT EXISTS niete_lp612_renders (
   -- True when an Urdu render of an EN-medium book lost its ur_overlay — the
   -- document is essentially English in RTL chrome, and every delivery from this
   -- row appends the honest Urdu caption line instead of silently labelling it
-  -- Urdu. Not a status value: the render IS ready; it is served honestly. (V1.3.2)
+  -- Urdu. Not a status value: the render IS ready; it is served honestly. (V1.3.3)
   overlay_dropped   BOOLEAN NOT NULL DEFAULT FALSE,
   error_code        TEXT,
   error_detail      TEXT,
