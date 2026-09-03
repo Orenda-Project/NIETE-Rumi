@@ -1110,6 +1110,23 @@ function startWorker() {
       } catch (error) {
         logToFile('Error in stale-session recovery (non-fatal)', { error: error.message });
       }
+
+      // 6-12 renders stranded by a restart. This table was the one thing with an
+      // in-flight state and NO sweep, and the gap is not survivable: `requestLesson`
+      // reads `authoring` as "someone else is already paying for this one", so a row
+      // whose worker died tells every later teacher her lesson is being written, for
+      // ever. Measured on staging 2026-09-03 — one deploy mid-authoring did it, and
+      // NIETE deploys on every merge to `develop`.
+      //
+      // Required lazily and in its own try: this sweep must never be able to take the
+      // stale-session recovery above down with it.
+      try {
+        const { reapStrandedRenders } = require('../shared/services/lp612-serving.service');
+        const reaped = await reapStrandedRenders();
+        if (reaped) logToFile('🔄 Reaped stranded 6-12 renders', { count: reaped });
+      } catch (error) {
+        logToFile('Error reaping stranded 6-12 renders (non-fatal)', { error: error.message });
+      }
     }, STALE_RECOVERY_INTERVAL_MS);
 
     logToFile(`Periodic stale-session recovery enabled (every ${STALE_RECOVERY_INTERVAL_MS / 60000} minutes)`);

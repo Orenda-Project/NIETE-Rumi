@@ -208,6 +208,16 @@ const UX_STRINGS = {
     ur: 'یہ سبق کا منصوبہ پہلے ہی تیار ہو رہا ہے — تیار ہوتے ہی یہیں بھیج دیا جائے گا۔',
   },
 
+  // A run that was killed mid-flight — almost always a deploy restarting the worker — gets its
+  // OWN sentence. It is deliberately not lp612AlreadyPreparing: saying "already being written"
+  // about a run that is never coming back is precisely what made this failure invisible on
+  // staging, and it is what rule 24(d) is about. She does not need to know what a worker is;
+  // she needs to know it stopped, it has restarted, and she does not have to do anything.
+  lp612Restarted: {
+    en: '📄 That lesson stopped partway through, so I have started it again. It usually takes about 2 minutes and will arrive here.',
+    ur: '📄 وہ سبق درمیان میں رک گیا تھا، اس لیے دوبارہ شروع کر دیا گیا ہے۔ عام طور پر دو منٹ لگتے ہیں اور یہیں موصول ہو جائے گا۔',
+  },
+
   // Never a silent failure. She is told it failed, and told exactly what to do.
   lp612Failed: {
     en: 'I could not finish that lesson plan this time. Please tap it again in a few minutes and I will try once more.',

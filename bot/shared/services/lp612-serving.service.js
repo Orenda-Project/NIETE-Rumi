@@ -35,7 +35,7 @@ const WhatsAppService = require('./whatsapp.service');
 const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const Catalog = require('./lp612-catalog.service');
-const { isReligiousEnabled, templateVersion } = require('../config/lp612-flags');
+const { isReligiousEnabled, templateVersion, authorTimeoutMs } = require('../config/lp612-flags');
 
 const RENDERS = 'niete_lp612_renders';
 const JOB_TYPE = 'lp612_author';
@@ -81,10 +81,81 @@ async function tell(phone, key, lang) {
   }
 }
 
+/**
+ * How long past its own hard stop a run has to be before we call it dead.
+ *
+ * The worker gives up at authorTimeoutMs and writes `failed`. If a row is STILL `authoring` well
+ * past that, nobody is coming to write it: the process that owned it is gone. The grace is there
+ * so we do not shoot a run that is merely finishing its upload — authoring the same lesson twice
+ * costs ~$0.60 and several minutes, and the unique constraint exists precisely to avoid that.
+ */
+const STRANDED_GRACE_MS = 3 * 60 * 1000;
+
+/**
+ * Is this row a corpse?
+ *
+ * Measured on staging: a deploy killed the worker mid-authoring, the SQS message was never acked
+ * and dead-lettered, and the row sat at `authoring` indefinitely. `requestLesson` reads that as
+ * "someone else is already paying for this one", so every later tap joined a run that was never
+ * coming back — the teacher told her lesson was being written, forever, with no error and no way
+ * out. Nothing else in this table can express "the owner died", so it is inferred from the clock.
+ */
+function isStrandedAuthoring(render) {
+  if (!render || render.status !== 'authoring' || !render.started_at) return false;
+  const startedAt = Date.parse(render.started_at);
+  if (!Number.isFinite(startedAt)) return false;
+  return (Date.now() - startedAt) > (authorTimeoutMs() + STRANDED_GRACE_MS);
+}
+
+/**
+ * The sweep, for when nobody taps.
+ *
+ * The tap path below heals the teacher standing in front of us, but a stranded row that nobody
+ * touches is still lying about its state when the NEXT teacher arrives. This transitions those
+ * rows to `failed` with a NAMED code, so the next tap retries — and so that "how often does a
+ * deploy strand a lesson?" is answerable by query rather than from logs that have rolled off.
+ *
+ * Returns a count and never throws: it runs inside the worker's periodic sweep, where an
+ * exception would take the other sweeps down with it.
+ */
+async function reapStrandedRenders() {
+  const cutoff = new Date(Date.now() - (authorTimeoutMs() + STRANDED_GRACE_MS)).toISOString();
+  const { data, error } = await supabase
+    .from(RENDERS)
+    .select('id, segment_id, started_at')
+    .eq('status', 'authoring')
+    .lt('started_at', cutoff);
+  if (error) {
+    logToFile('LP 6-12: stranded-render sweep read failed', { error: error.message });
+    return 0;
+  }
+  const rows = data || [];
+  if (!rows.length) return 0;
+
+  const { error: patchError } = await supabase
+    .from(RENDERS)
+    .update({
+      status: 'failed',
+      error_code: 'AUTHOR_STRANDED',
+      error_detail: 'The worker that owned this run went away (almost always a restart mid-authoring). Reset by the sweep so the next tap retries.',
+      completed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .in('id', rows.map((r) => r.id));
+  if (patchError) {
+    logToFile('LP 6-12: stranded-render sweep write failed', { error: patchError.message });
+    return 0;
+  }
+  logToFile('LP 6-12: reaped stranded renders', {
+    count: rows.length, segmentIds: rows.map((r) => r.segment_id).slice(0, 20),
+  });
+  return rows.length;
+}
+
 async function findRender(segmentId, lang, tv) {
   const { data, error } = await supabase
     .from(RENDERS)
-    .select('id, status, r2_key, waiters, error_code, one_screen')
+    .select('id, status, r2_key, waiters, error_code, one_screen, started_at')
     .eq('segment_id', segmentId)
     .eq('lang', lang)
     .eq('template_version', tv)
@@ -247,7 +318,10 @@ async function requestLesson({ segmentId, userId, phone, lang, correlationId }) 
   }
 
   // ── already running ──────────────────────────────────────────────────────
-  if (existing && existing.status === 'authoring') {
+  // A LIVE run is joined — that is what the unique constraint is for, and paying twice for one
+  // lesson is the thing it prevents. A STRANDED one falls through to the reset below instead,
+  // because joining a corpse is how a teacher ends up waiting forever.
+  if (existing && existing.status === 'authoring' && !isStrandedAuthoring(existing)) {
     await addWaiter(existing.id, existing.waiters, req);
     await tell(phone, 'lp612AlreadyPreparing', language);
     logToFile('LP 6-12: joined render in flight', { segmentId, renderId: existing.id, correlationId });
@@ -277,12 +351,20 @@ async function requestLesson({ segmentId, userId, phone, lang, correlationId }) 
       await tell(phone, 'lp612Failed', language);
       return { outcome: 'error', error: error.message };
     }
-    await tell(phone, 'lp612Preparing', language);
+    // Distinct copy for a distinct state (rule 24(d)). A stranded run is not a fresh request and
+    // it is not an ordinary failure — she watched it say "preparing" and nothing came.
+    const stranded = isStrandedAuthoring(existing);
+    await tell(phone, stranded ? 'lp612Restarted' : 'lp612Preparing', language);
     await enqueue({ renderId: existing.id, segmentId, lang: language, tv, correlationId });
-    logToFile('LP 6-12: retrying failed render', {
-      segmentId, renderId: existing.id, previous: existing.error_code, correlationId,
+    logToFile('LP 6-12: retrying render', {
+      segmentId,
+      renderId: existing.id,
+      previous: existing.error_code,
+      // Named separately so a query can count how often a restart costs a lesson.
+      reason: stranded ? 'stranded' : 'failed',
+      correlationId,
     });
-    return { outcome: 'retry', renderId: existing.id };
+    return { outcome: 'retry', renderId: existing.id, stranded };
   }
 
   // ── miss: claim it ───────────────────────────────────────────────────────
@@ -333,6 +415,8 @@ module.exports = {
   requestLesson,
   deliverRender,
   buildBody,
+  isStrandedAuthoring,
+  reapStrandedRenders,
   buildFilename,
   buildCaption,
   r2KeyFor,

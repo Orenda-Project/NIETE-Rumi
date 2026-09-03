@@ -82,6 +82,30 @@ function isReligiousSegment(segment) {
 
 // ── validation ──────────────────────────────────────────────────────────────
 
+/**
+ * A grade that is really two.
+ *
+ * `grade_9_10_chemistry_experiment` is one practicals book taught to both years, and its 34
+ * segments carry `grade: "9-10"`. The column is INTEGER, so this splits the span into a PRIMARY
+ * grade and the others.
+ *
+ * It stays ONE row on purpose. segment_id is the primary key, `niete_lp612_renders` carries a
+ * foreign key to it, and the R2 cache is keyed (segment_id, lang, template_version) — so a second
+ * row would mean a second cache entry and the same lesson authored twice at ~$0.60 a go. One row
+ * listed under two grades costs nothing and dedupes by construction.
+ *
+ * Returns null for anything outside 6-12, so the range guard is narrowed by this, never widened.
+ */
+function parseGradeSpan(spec) {
+  const raw = String(spec == null ? '' : spec).trim();
+  // en-dash as well as hyphen: parts of this corpus are written by hand.
+  const parts = raw.split(/[-–]/).map((x) => parseInt(x, 10));
+  if (!parts.length || parts.some((n) => !Number.isFinite(n))) return null;
+  if (parts.some((n) => n < 6 || n > 12)) return null;
+  const [grade, ...alsoGrades] = parts;
+  return { grade, alsoGrades };
+}
+
 const REQUIRED = [
   'segment_id', 'book_stem', 'grade', 'subject', 'chapter_key',
   'subtopic_title', 'menu_title', 'printed_page_start', 'order_index',
@@ -105,8 +129,8 @@ function validateSegment(segment) {
     if (s[f] === undefined || s[f] === null || s[f] === '') errors.push(`missing ${f}`);
   }
 
-  const grade = Number(s.grade);
-  if (s.grade !== undefined && (!Number.isFinite(grade) || grade < 6 || grade > 12)) {
+  // A span ("9-10") is valid; anything that does not resolve to grades inside 6-12 is not.
+  if (s.grade !== undefined && !parseGradeSpan(s.grade)) {
     errors.push(`grade ${s.grade} is outside 6-12`);
   }
 
@@ -151,7 +175,10 @@ function toRow(segment, { corpusVersion = 'v1' } = {}) {
   return {
     segment_id: s.segment_id,
     book_stem: s.book_stem,
-    grade: intOrNull(s.grade),
+    grade: (parseGradeSpan(s.grade) || {}).grade ?? null,
+    // The OTHER years this same row is taught in. One row, one segment_id, one render —
+    // listed under two menus rather than authored twice.
+    also_grades: (parseGradeSpan(s.grade) || {}).alsoGrades || [],
     subject: s.subject,
     medium: s.medium ?? null,
     // clampLanguage, not `|| 'en'`. An independent English floor is a language
@@ -450,6 +477,7 @@ module.exports = {
   toRow,
   overlayYt,
   mergeExistingYt,
+  parseGradeSpan,
   hasPick,
   reconcilePlan,
   readSegmentFiles,

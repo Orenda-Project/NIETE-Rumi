@@ -27,6 +27,10 @@ function mockBuilder(table) {
     select: (c) => { state.columns = c; return b; },
     eq: (c, v) => { state.filters.push([c, v]); return b; },
     in: (c, v) => { state.filters.push([c, v]); return b; },
+    // PostgREST `or=(grade.eq.N,also_grades.cs.{N})`: a row matches on its own grade OR by
+    // listing that grade in also_grades — the Grade 9-10 practicals book is one row in two menus.
+    or: (expr) => { state.or = expr; return b; },
+    limit: () => b,
     order: (c, o) => { state.order = [c, o]; return b; },
     limit: () => b,
     then: (res, rej) => {
@@ -41,9 +45,17 @@ function mockBuilder(table) {
       // narrowed to one grade returned rows of every grade — so a bounded
       // per-grade read looked identical to an unbounded scan, and the suite
       // could not have told the two apart.
-      const rows = mockRows.filter((r) => state.filters.every(
+      let rows = mockRows.filter((r) => state.filters.every(
         ([c, v]) => r[c] === undefined || r[c] === v,
       ));
+      if (state.or) {
+        const m = /grade\.eq\.(\d+)/.exec(state.or);
+        if (m) {
+          const g = Number(m[1]);
+          rows = rows.filter((r) => r.grade === undefined
+            || r.grade === g || (r.also_grades || []).includes(g));
+        }
+      }
       return Promise.resolve({ data: rows, error: null }).then(res, rej);
     },
   };

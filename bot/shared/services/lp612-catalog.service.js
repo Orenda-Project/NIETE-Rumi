@@ -51,6 +51,19 @@ function menuQuery(columns) {
   return q;
 }
 
+/**
+ * Narrow a menu read to one grade — INCLUDING the rows that merely list it.
+ *
+ * `grade_9_10_chemistry_experiment` is one practicals book taught in both years. It is stored as
+ * a single row (grade 9, also_grades {10}) so that segment_id, the render and the R2 cache entry
+ * stay singular; the price is that every read has to ask both questions, or the book is invisible
+ * in grade 10 and the import looks successful while the teacher sees nothing.
+ */
+function byGrade(q, grade) {
+  const g = Number(grade);
+  return q.or(`grade.eq.${g},also_grades.cs.{${g}}`);
+}
+
 async function run(q, what) {
   const { data, error } = await q;
   if (error) {
@@ -87,7 +100,7 @@ async function buildGradeItems() {
   for (let g = LP612_MIN_GRADE; g <= LP612_MAX_GRADE; g++) candidates.push(g);
 
   const present = await Promise.all(candidates.map(async (g) => {
-    const rows = await run(menuQuery('grade').eq('grade', g).limit(1), `grade ${g}`);
+    const rows = await run(byGrade(menuQuery('grade'), g).limit(1), `grade ${g}`);
     return rows.length ? g : null;
   }));
 
@@ -110,7 +123,7 @@ async function buildGradeItems() {
 
 async function buildSubjectItems(grade) {
   const rows = await run(
-    menuQuery('subject, chapter_key, language').eq('grade', Number(grade)),
+    byGrade(menuQuery('subject, chapter_key, language'), grade),
     'subjects',
   );
 
@@ -148,8 +161,7 @@ async function buildSubjectItems(grade) {
 
 async function buildChapterItems(grade, subject) {
   const rows = await run(
-    menuQuery('chapter_key, chapter_number, chapter_title, part, language, order_index')
-      .eq('grade', Number(grade))
+    byGrade(menuQuery('chapter_key, chapter_number, chapter_title, part, language, order_index'), grade)
       .eq('subject', subject),
     'chapters',
   );
@@ -207,9 +219,8 @@ async function buildChapterItems(grade, subject) {
  */
 async function buildSegmentItems(grade, subject, chapterKey, page = 1) {
   const rows = await run(
-    menuQuery('segment_id, menu_title, subtopic_title, printed_page_start, printed_page_end, ' +
-              'order_index, lp_type, language, yt')
-      .eq('grade', Number(grade))
+    byGrade(menuQuery('segment_id, menu_title, subtopic_title, printed_page_start, printed_page_end, ' +
+              'order_index, lp_type, language, yt'), grade)
       .eq('subject', subject)
       .eq('chapter_key', chapterKey)
       .order('order_index', { ascending: true }),
