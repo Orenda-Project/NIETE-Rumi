@@ -326,7 +326,7 @@ function buildScreenPrefill(analysis, domainKey) {
     const score = Number.isFinite(Number(ind.score)) && ind.score !== null && ind.score !== undefined
       ? Math.max(SMIN, Math.min(SMAX, Number(ind.score))) : SMIN;
     data[`s_${f}`] = String(score);
-    // bd-2369: the form shows the ≤500-char evidence_summary (the whole gist,
+    // The form shows the ≤500-char evidence_summary (the whole gist,
     // fits Meta's 600-char TextArea); the FULL evidence stays in analysis_data
     // and flows to the teacher's report. evidence_sw keeps MEWAKA/TZ unchanged.
     // bd-5n1a2: clip at a word boundary — a mid-word cut reads as a bug.
@@ -353,7 +353,7 @@ async function onAnalysisReady(sessionId, from) {
   const { error: upErr } = await supabase.from('coaching_sessions').update(update).eq('id', sessionId);
   if (upErr) logToFile('⚠️ observe: failed to persist review status/freeze', { sessionId, error: upErr.message });
 
-  // bd-28 review fix: never clobber a live debrief-recording state (the FO
+  // Review fix: never clobber a live debrief-recording state (the FO
   // may be mid-debrief for ANOTHER session when this analysis completes).
   // awaiting_form is informational — the Flow endpoint never reads it.
   const currentState = await ObserveState.getState(observerId);
@@ -396,7 +396,7 @@ async function applyObserverEdits(sessionId, edits) {
 
   let rescored = 0;
   let textChanged = 0;
-  const { min: SMIN, max: SMAX } = scaleBounds(); // bd-2369: 1-4 for FICO, 0-3 for mewaka/hots
+  const { min: SMIN, max: SMAX } = scaleBounds(); // 1-4 for FICO, 0-3 for mewaka/hots
   const v1ById = {};
   Object.values((v1 || {}).domains || {}).forEach(d =>
     (d.indicators || []).forEach(ind => { v1ById[ind.id] = ind; }));
@@ -446,7 +446,7 @@ async function applyObserverEdits(sessionId, edits) {
   };
   v2.observer_edit_summary = summary;
 
-  // bd-28 review fix: this is a wholesale analysis_data write from a read at
+  // Review fix: this is a wholesale analysis_data write from a read at
   // function entry — re-read observer_debrief at write time so a Flow
   // resubmission can't drop debrief data the worker merged meanwhile.
   const { data: freshRow } = await supabase.from('coaching_sessions')
