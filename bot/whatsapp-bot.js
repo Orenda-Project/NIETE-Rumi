@@ -2329,7 +2329,7 @@ async function handleDocumentMessage(message, from, user) {
           {
             const { routeLeaderAudio } = require('./shared/services/observe/observe-audio-router');
             const observeHandled = await routeLeaderAudio({
-              user, from, audioId: documentId, sessionId, isLongAudio: true,
+              user, from, audioId: documentId, sessionId, isLongAudio: true, mimeType,
             });
             if (observeHandled) return;
           }
@@ -2357,7 +2357,7 @@ async function handleDocumentMessage(message, from, user) {
             const { routeLeaderAudio } = require('./shared/services/observe/observe-audio-router');
             const shortDocHandled = await routeLeaderAudio({
               user, from, audioId: documentId, sessionId: null,
-              durationSeconds: audioDurationRounded || null,
+              durationSeconds: audioDurationRounded || null, mimeType,
             });
             if (shortDocHandled) return;
           }
@@ -2407,7 +2407,7 @@ async function handleDocumentMessage(message, from, user) {
           if (isSchoolLeader(user)) {
             const { routeLeaderAudio } = require('./shared/services/observe/observe-audio-router');
             const observeHandled = await routeLeaderAudio({
-              user, from, audioId: documentId, sessionId: null, isLongAudio: true,
+              user, from, audioId: documentId, sessionId: null, isLongAudio: true, mimeType,
             });
             if (observeHandled) return;
           }
