@@ -26,7 +26,7 @@
 
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
-const { clip, TITLE_CAP, DESC_CAP, META_CAP, PAGE_SIZE, MORE_ROW_ID } =
+const { clip, cps, TITLE_CAP, DESC_CAP, META_CAP, PAGE_SIZE, MORE_ROW_ID } =
   require('./lp-v8-catalog.service');
 const { isReligiousEnabled, LP612_MIN_GRADE, LP612_MAX_GRADE } = require('../config/lp612-flags');
 
@@ -180,33 +180,76 @@ async function buildChapterItems(grade, subject) {
     byChapter.set(r.chapter_key, e);
   }
 
-  return [...byChapter.entries()]
+  const ordered = [...byChapter.entries()]
     .sort((a, b) => (a[1].number ?? 999) - (b[1].number ?? 999) || a[0].localeCompare(b[0]))
-    .slice(0, PAGE_SIZE)
-    .map(([chapterKey, e]) => {
-      const n = (v) => (e.rtl ? urD(v) : String(v));
-      const lead = e.rtl ? RLM : '';
-      // The chapter's own printed number, then its own title. A book that
-      // restarts numbering inside a part shows the part, because 'Chapter 1'
-      // twice in one list is the collision the part-prefixed key exists for.
-      const label = e.part ? `${e.part} · ${e.title || chapterKey}` : (e.title || chapterKey);
-      return {
-        id: chapterKey,
-        'main-content': {
-          title: clip(`${lead}${e.number != null ? `${n(e.number)}. ` : ''}${label}`, TITLE_CAP),
-          description: clip(`${n(e.lessons)} lessons`, DESC_CAP),
+    .slice(0, PAGE_SIZE);
+
+  // ── pass 1: the number token, and how many chapters would share it ────────
+  //
+  // The K-5 lane's rule, ported (lp-v8-catalog.service.js buildChapterItems):
+  // the number leads the title, the name merges in only when the WHOLE thing
+  // fits, and a name that does not fit moves IN FULL to the 80-code-point
+  // metadata line. Nothing is lost, only reseated.
+  //
+  // This lane used to put number+name on the 30-point title line and emit no
+  // metadata at all, so the overflow was dropped rather than moved: 277 of 761
+  // chapters in the staging corpus rendered with an ellipsis and no second home
+  // for the missing words, including 16 of the 19 chapters in grade 9 Urdu
+  // (bd-3uiev).
+  //
+  // Reseating to a number alone needs that number to IDENTIFY the chapter, and
+  // in this corpus it does not always. Three different books shape it three
+  // ways: grade 12 Urdu carries its part in the `part` column; grade 11 Urdu
+  // carries the same idea only in the chapter_key prefix (p1c01/p2c01/p3c01)
+  // with `part` NULL; grade 6 English splits one chapter into c01a/c01b. All
+  // three produce repeated chapter numbers, so the token is counted first and
+  // a chapter that cannot be named by its number keeps its words instead.
+  const prepared = ordered.map(([chapterKey, e]) => {
+    const n = (v) => (e.rtl ? urD(v) : String(v));
+    const lead = e.rtl ? RLM : '';
+    const name = e.title || chapterKey;
+    const num = e.number != null ? (e.rtl ? `باب ${n(e.number)}` : `Ch ${e.number}`) : '';
+    const token = [e.part, num].filter(Boolean).join(' · ');
+    const merged = token ? `${token}${e.rtl ? ': ' : ' — '}${name}` : name;
+    return { chapterKey, e, n, lead, name, token, merged, fits: cps(`${lead}${merged}`) <= TITLE_CAP };
+  });
+
+  const tokenUses = new Map();
+  for (const p of prepared) if (p.token) tokenUses.set(p.token, (tokenUses.get(p.token) || 0) + 1);
+
+  // ── pass 2: the rows ─────────────────────────────────────────────────────
+  return prepared.map(({ chapterKey, e, n, lead, name, token, merged, fits }) => {
+    // A number that names exactly one chapter in this book can carry the title
+    // on its own — the cleanest row, and the name appears once, whole, below.
+    // A number that names three cannot: `باب ۱` three times over is a list the
+    // teacher cannot choose from, so those rows keep as many of their own words
+    // as fit. The ellipsis is then cosmetic rather than lossy, because the full
+    // name is on the metadata line either way.
+    const canStandAlone = !!token && tokenUses.get(token) === 1;
+    const head = fits ? merged : (canStandAlone ? token : (merged || name));
+
+    const mc = {
+      title: clip(`${lead}${head}`, TITLE_CAP),
+      description: clip(`${n(e.lessons)} lessons`, DESC_CAP),
+    };
+    // The part, when there is one, already led the title; repeating it here
+    // would spend the metadata line on words the teacher has just read.
+    if (!fits) mc.metadata = clip(`${lead}${name}`, META_CAP);
+
+    return {
+      id: chapterKey,
+      'main-content': mc,
+      'on-click-action': {
+        name: 'data_exchange',
+        payload: {
+          step: 'lp612_chapter',
+          grade: String(grade),
+          subject,
+          chapter_key: chapterKey,
         },
-        'on-click-action': {
-          name: 'data_exchange',
-          payload: {
-            step: 'lp612_chapter',
-            grade: String(grade),
-            subject,
-            chapter_key: chapterKey,
-          },
-        },
-      };
-    });
+      },
+    };
+  });
 }
 
 // ── subtopic (the row that authors a lesson) ────────────────────────────────
@@ -246,13 +289,27 @@ async function buildSegmentItems(grade, subject, chapterKey, page = 1) {
     const video = r.yt && r.yt.url ? ' · 🎬' : '';
     const kind = r.lp_type && r.lp_type !== 'content' ? ` · ${r.lp_type.replace(/_/g, ' ')}` : '';
 
+    const sub = r.subtopic_title || '';
+    const menu = r.menu_title || sub;
+    // 278 rows in the corpus carry the same string in menu_title and
+    // subtopic_title. Printing it twice on one row is noise, not information.
+    const body = sub && sub === r.menu_title ? '' : sub;
+    // The kind marker ("end of chapter", "review") is a real reason to tap one
+    // row over another, so it gets its room reserved instead of being appended
+    // last and therefore always being the first thing the clip removes — 103
+    // rows overflow this line (bd-3uiev).
+    const budget = META_CAP - cps(lead);
+    const meta = body ? `${clip(body, budget - cps(kind))}${kind}` : kind.replace(/^ · /, '');
+
+    const mc = {
+      title: clip(`${lead}${menu}`, TITLE_CAP),
+      description: clip(`${pages}${video}`, DESC_CAP),
+    };
+    if (meta) mc.metadata = `${lead}${clip(meta, budget)}`;
+
     return {
       id: r.segment_id,
-      'main-content': {
-        title: clip(`${lead}${r.menu_title || r.subtopic_title}`, TITLE_CAP),
-        description: clip(`${pages}${video}`, DESC_CAP),
-        metadata: clip(`${r.subtopic_title || ''}${kind}`, META_CAP),
-      },
+      'main-content': mc,
       // Only the segment id. Serving reads the row for everything else, so a
       // payload cannot drift out of step with the corpus.
       'on-click-action': {
