@@ -45,8 +45,12 @@ const COACHING_CARD_COPY = {
     focusAreaTitle: 'آپ کی توجہ کا شعبہ',
     focusAreaMessage: '🎯 *آپ کی توجہ کا شعبہ*\n\n{action}\n\n💡 _{example}_',
     commitPrompt: 'کیا آپ اگلی کلاس میں یہ آزمانے کا عہد کریں گے؟',
+    // WhatsApp caps a button title at 20 CODE POINTS: the old yes title was 25
+    // and Meta rejected the whole interactive send, so Urdu teachers never got
+    // these buttons. It also said کروں گا — the teacher speaks this button, and
+    // a masculine stem picks her gender for her. Neutral, and 12 code points.
     commitButtons: {
-      yes: 'جی ہاں، میں کوشش کروں گا!',
+      yes: 'جی ہاں، ضرور!',
       later: 'شاید بعد میں',
       no: 'میرے لیے نہیں',
     },
