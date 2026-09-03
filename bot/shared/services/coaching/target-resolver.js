@@ -56,4 +56,36 @@ function resolveTarget(analysis) {
   return null;
 }
 
-module.exports = { resolveTarget };
+/**
+ * The same shape as resolveTarget, for ANY indicator id the caller already
+ * chose (the loop's sticky target). Validated the same way — null when the
+ * row is absent, not applicable or unscored in this analysis. The scorer's
+ * move/title/rationale ride along only when its focus_area is this very id.
+ */
+function resolveIndicator(analysis, indicatorId) {
+  const id = String(indicatorId || '').trim();
+  if (!id || !analysis || !analysis.domains || typeof analysis.domains !== 'object') return null;
+  const fa = analysis.focus_area && typeof analysis.focus_area === 'object' && String(analysis.focus_area.indicator || '') === id
+    ? analysis.focus_area : {};
+  for (const [domainKey, domain] of Object.entries(analysis.domains)) {
+    for (const ind of (domain && Array.isArray(domain.indicators) ? domain.indicators : [])) {
+      if (!ind || String(ind.id) !== id) continue;
+      if (ind.applicable === false || ind.score === null || ind.score === undefined) return null;
+      const def = indicatorSpec(domainKey, id) || {};
+      return {
+        indicator: id,
+        domain: domainKey,
+        name: ind.name || def.name || id,
+        rung: Number(ind.score),
+        rationale: typeof fa.rationale === 'string' ? fa.rationale : '',
+        try: typeof fa.try_this_tomorrow === 'string' ? fa.try_this_tomorrow : '',
+        title: typeof fa.title === 'string' ? fa.title : '',
+        count: def.count || null,
+        levels: def.levels || null,
+      };
+    }
+  }
+  return null;
+}
+
+module.exports = { resolveTarget, resolveIndicator };

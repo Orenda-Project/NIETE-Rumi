@@ -549,6 +549,7 @@ async function briefScreen(userId, screenData, screenId = 'BRIEF') {
     growth: brief.growthLabel,
     moves: brief.moves,
     noData: brief.noData,
+    loop: brief.loop || null, // feedback-uptake loop (null when off)
   });
   let page = 0;
   let origin = screenData && screenData.origin;
