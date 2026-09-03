@@ -4934,6 +4934,11 @@ CREATE TABLE IF NOT EXISTS niete_lp612_segments (
   -- The deterministic SLO/section enrichment pass (V1.3.0). 100% coverage on the
   -- 5,482-segment corpus; the curriculum spine the authoring brief quotes from.
   -- Native arrays match this table's pages_covered / revision_source_segments.
+  -- Extra years this same segment is taught in — the Grade 9-10 shared practicals book. ONE row,
+  -- one segment_id, one cached render, listed in two menus. Menu reads filter
+  -- `grade = N OR also_grades @> {N}`; the column alone leaves the book invisible. (V1.3.1)
+  also_grades           INTEGER[] NOT NULL DEFAULT '{}',
+
   slo_codes             TEXT[] NOT NULL DEFAULT '{}',
   slo_descriptions      TEXT[] NOT NULL DEFAULT '{}',
   slo_source            TEXT,
