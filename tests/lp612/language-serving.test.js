@@ -112,9 +112,14 @@ describe('two territories: the document vs the acks', () => {
     });
 
     expect(mockSendMessage).toHaveBeenCalledWith('92300', UX_STRINGS.lp612Preparing.ur);
+    // The 4th argument is the FIFO options bag, carrying an explicit deduplicationId that names
+    // this render and this language — the shared default cannot tell the en job for a segment
+    // from the ur one. Matched loosely here because this test is about the LANGUAGE territories,
+    // not the dedup key; that key has its own tests in tests/lp612/golden-path-races.test.js.
     expect(mockQueueJob).toHaveBeenCalledWith(
       SEGMENT.segment_id, 'lp612_author',
       expect.objectContaining({ lang: 'en' }),
+      expect.any(Object),
     );
   });
 

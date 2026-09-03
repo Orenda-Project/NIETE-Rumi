@@ -197,6 +197,20 @@ async function reapStrandedRenders() {
   return rows.length;
 }
 
+/**
+ * Look up the render for one (segment, lang, template_version).
+ *
+ * RETURNS A DISCRIMINATED RESULT, because "there is no row" and "I could not find out" are
+ * different facts and this used to answer `null` to both.
+ *
+ * The conflation was not cosmetic. A transient read error on the main lookup fell through to the
+ * INSERT branch — claiming a lesson that may already exist — and on the 23505 path it turned the
+ * one thing a unique violation PROVES (the winner's row is there) into "it failed": she was told
+ * her lesson had failed, was appended to no waiter list, and never received the lesson the winner
+ * was at that moment writing for her.
+ *
+ * @returns {Promise<{render: object|null, readFailed: boolean}>}
+ */
 async function findRender(segmentId, lang, tv) {
   const { data, error } = await supabase
     .from(RENDERS)
@@ -207,9 +221,9 @@ async function findRender(segmentId, lang, tv) {
     .maybeSingle();
   if (error) {
     logToFile('LP 6-12: render lookup failed', { segmentId, lang, tv, error: error.message });
-    return null;
+    return { render: null, readFailed: true };
   }
-  return data || null;
+  return { render: data || null, readFailed: false };
 }
 
 /**
@@ -305,6 +319,38 @@ async function joinWaiters(renderId, req) {
   return data || 'error';
 }
 
+/**
+ * Join a run in flight and OBEY THE ANSWER.
+ *
+ * `joinWaiters` has always returned joined|duplicate|not_authoring|missing|error. The in-flight
+ * path read it; the insert-race path threw it away and told her "already being written" and
+ * reported `joined` regardless — so when the winner's row had moved to ready/failed in between,
+ * nobody was appended, nothing would ever deliver, and both she and the logs said she had joined.
+ *
+ * One implementation for both callers, because two copies of "join and tell her" is exactly how
+ * they drifted apart.
+ *
+ * @returns {'joined'|'redecide'} — 'redecide' means the row we read is not the row that will
+ *   serve her, and the caller must run the whole decision again against the row as it now stands.
+ */
+async function joinInFlight(renderId, req, ctx = {}) {
+  let result = await joinWaiters(renderId, req);
+
+  // 'error' means we do not know whether she is on the list, and she is about to be told her
+  // lesson is on its way. One retry costs a round trip and is the difference between that promise
+  // being true and being silently false.
+  if (result === 'error') {
+    result = await joinWaiters(renderId, req);
+    logToFile('LP 6-12: retried a failed waiter append', { renderId, result, ...ctx });
+  }
+
+  // 'not_authoring' — the run finished between our read and our append (the worker clears
+  // `waiters` when it delivers, so parking her there means waiting for ever for a job that is
+  // over). 'missing' — the row went away underneath her. Neither is a join.
+  if (result === 'not_authoring' || result === 'missing') return 'redecide';
+  return 'joined';
+}
+
 async function enqueue({ renderId, segmentId, lang, tv, correlationId }) {
   // Required HERE, not at module scope, for two independent reasons.
   //
@@ -326,6 +372,24 @@ async function enqueue({ renderId, segmentId, lang, tv, correlationId }) {
     lang,
     templateVersion: tv,
     correlationId,
+  }, {
+    // AN EXPLICIT FIFO DEDUP ID, because the shared default cannot identify this lesson.
+    //
+    // queueJob falls back to `${groupId}-${jobType}-${Date.now()}`, and this lane passes
+    // groupId = segmentId alone. The English job and the Urdu job for one segment therefore
+    // differ in NOTHING but the millisecond: a same-millisecond collision makes SQS silently
+    // discard an entirely different lesson's job for the whole 5-minute dedup window, and the
+    // teacher waiting on it is never told anything. `renderId` and `lang` are what make this
+    // message about THIS lesson.
+    //
+    // The clock stays in it deliberately. A retry reuses the same render row, so renderId+lang
+    // alone would dedup the retry away inside that same window — the reset would succeed, the
+    // job would never be queued, and the row would sit at `authoring` until the reaper.
+    //
+    // Volatile parts FIRST so the 128-char cap can never truncate away the thing that makes it
+    // unique. Set here rather than in the shared builder: `buildDedupId` is on the coaching
+    // path and changing its shape would alter dedup behaviour for every other job type.
+    deduplicationId: `${Date.now()}-${lang}-${JOB_TYPE}-${renderId}`.slice(0, 128),
   });
 }
 
@@ -370,7 +434,17 @@ async function requestLesson({ segmentId, userId, phone, lang, uiLang, correlati
   }
 
   const req = { userId, phone, uiLang: voice };
-  const existing = await findRender(segmentId, language, tv);
+  const retry = () => requestLesson({ segmentId, userId, phone, lang, uiLang, correlationId }, depth + 1);
+
+  const { render: existing, readFailed } = await findRender(segmentId, language, tv);
+
+  // A read that FAILED is not an absent row. Falling through to the claim below would try to
+  // insert a row that may already exist, and the honest thing to tell her is that this attempt
+  // did not work and to tap again — not to hand her a run she is not attached to.
+  if (readFailed) {
+    await tell(phone, 'lp612Failed', voice);
+    return { outcome: 'error', error: 'render lookup failed' };
+  }
 
   // ── hit ──────────────────────────────────────────────────────────────────
   // `ready` is a claim; r2_key is the evidence. A ready row with no key is
@@ -402,17 +476,16 @@ async function requestLesson({ segmentId, userId, phone, lang, uiLang, correlati
   // lesson is the thing it prevents. A STRANDED one falls through to the reset below instead,
   // because joining a corpse is how a teacher ends up waiting forever.
   if (existing && existing.status === 'authoring' && !isStrandedAuthoring(existing)) {
-    const joined = await joinWaiters(existing.id, req);
+    const joined = await joinInFlight(existing.id, req, { segmentId, correlationId });
 
-    // The run finished between our read and our append. The worker clears `waiters` when it
-    // delivers, so parking her on that list now means she waits for ever for a job that is
-    // already over. Re-decide once against the row as it now stands — she is owed the lesson,
-    // which by definition is sitting in R2.
-    if (joined === 'not_authoring' && depth === 0) {
-      logToFile('LP 6-12: render finished mid-join, re-deciding', {
+    // The row we read is not the row that will serve her — it finished, or it went away. Re-decide
+    // once against the row as it now stands; she is owed the lesson, which by definition is
+    // sitting in R2.
+    if (joined === 'redecide' && depth === 0) {
+      logToFile('LP 6-12: render moved on mid-join, re-deciding', {
         segmentId, renderId: existing.id, correlationId,
       });
-      return requestLesson({ segmentId, userId, phone, lang, uiLang, correlationId }, depth + 1);
+      return retry();
     }
 
     await tell(phone, 'lp612AlreadyPreparing', voice);
@@ -424,20 +497,44 @@ async function requestLesson({ segmentId, userId, phone, lang, uiLang, correlati
 
   // ── retry a failure, or re-claim a ready row with no bytes ───────────────
   if (existing) {
-    const { error } = await supabase
+    const stranded = isStrandedAuthoring(existing);
+
+    /**
+     * A COMPARE-AND-SWAP, not a write.
+     *
+     * This used to filter on `.eq('id', …)` alone, so two taps on one failed or stranded row BOTH
+     * matched and both succeeded. Both then enqueued: two authoring runs for one lesson, about
+     * $1.50 and several minutes of worker time each — precisely what the unique constraint on
+     * (segment_id, lang, template_version) exists to prevent, defeated one layer above it. The
+     * second reset also wrote `waiters: [me]` wholesale, evicting the first tapper on its way past.
+     *
+     * Guarding on the state we READ makes Postgres arbitrate: under READ COMMITTED the second
+     * UPDATE re-evaluates its predicate against the row the first one just wrote, matches zero
+     * rows, and says so. `started_at` is guarded too, and it is what carries the stranded case —
+     * there the status is 'authoring' both BEFORE and AFTER the reset, so status alone cannot tell
+     * the two taps apart.
+     *
+     * `waiters` is deliberately absent from the payload. A stranded run can have real teachers
+     * parked on it who were already told the lesson was coming; they are preserved, and this
+     * tapper is added by the atomic append below like everyone else.
+     */
+    let swap = supabase
       .from(RENDERS)
       .update({
         status: 'authoring',
         error_code: null,
         error_detail: null,
-        waiters: [waiterEntry(req)],
         requested_by: userId,
         correlation_id: correlationId,
         started_at: new Date().toISOString(),
         completed_at: null,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', existing.id);
+      .eq('id', existing.id)
+      .eq('status', existing.status);
+    if (existing.started_at) swap = swap.eq('started_at', existing.started_at);
+
+    const { data: won, error } = await swap.select('id');
     if (error) {
       logToFile('LP 6-12: could not reset render for retry', {
         renderId: existing.id, error: error.message, correlationId,
@@ -445,9 +542,25 @@ async function requestLesson({ segmentId, userId, phone, lang, uiLang, correlati
       await tell(phone, 'lp612Failed', voice);
       return { outcome: 'error', error: error.message };
     }
+
+    // Lost the swap: another tap restarted this render a moment ago. Join THAT run instead of
+    // paying for a second one.
+    if (!Array.isArray(won) || won.length === 0) {
+      logToFile('LP 6-12: lost the restart race, joining the run that won', {
+        segmentId, renderId: existing.id, correlationId,
+      });
+      const joinedWinner = await joinInFlight(existing.id, req, { segmentId, correlationId });
+      if (joinedWinner === 'redecide' && depth === 0) return retry();
+      await tell(phone, 'lp612AlreadyPreparing', voice);
+      return { outcome: 'joined', renderId: existing.id };
+    }
+
+    // Won it. Take our own place on the list through the same atomic append everyone else uses,
+    // so the restarter and any preserved waiters coexist and a double tap cannot duplicate her.
+    await joinInFlight(existing.id, req, { segmentId, correlationId });
+
     // Distinct copy for a distinct state (rule 24(d)). A stranded run is not a fresh request and
     // it is not an ordinary failure — she watched it say "preparing" and nothing came.
-    const stranded = isStrandedAuthoring(existing);
     await tell(phone, stranded ? 'lp612Restarted' : 'lp612Preparing', voice);
     await enqueue({ renderId: existing.id, segmentId, lang: language, tv, correlationId });
     logToFile('LP 6-12: retrying render', {
@@ -479,9 +592,29 @@ async function requestLesson({ segmentId, userId, phone, lang, uiLang, correlati
   if (insertError) {
     // Lost the race. The winner is already authoring exactly this lesson.
     if (insertError.code === UNIQUE_VIOLATION) {
-      const winner = await findRender(segmentId, language, tv);
+      // A 23505 is PROOF the winner's row exists, so a failed re-read here is a blip, not an
+      // answer. It used to be indistinguishable from "no row", which dropped her out of this
+      // branch entirely: told her lesson had failed, appended to no list, and never sent the
+      // lesson the winner was writing for her at that moment. One retry settles it.
+      let found = await findRender(segmentId, language, tv);
+      if (found.readFailed) {
+        logToFile('LP 6-12: winner re-read failed after a unique violation, retrying', {
+          segmentId, correlationId,
+        });
+        found = await findRender(segmentId, language, tv);
+      }
+      const winner = found.render;
       if (winner) {
-        await joinWaiters(winner.id, req);
+        // The answer is OBEYED, not discarded. If the winner finished or vanished between the
+        // failed insert and this append, nothing would ever have delivered to her — and she was
+        // still told "already being written" and booked as joined.
+        const joined = await joinInFlight(winner.id, req, { segmentId, correlationId });
+        if (joined === 'redecide' && depth === 0) {
+          logToFile('LP 6-12: winner moved on mid-join, re-deciding', {
+            segmentId, renderId: winner.id, correlationId,
+          });
+          return retry();
+        }
         await tell(phone, 'lp612AlreadyPreparing', voice);
         logToFile('LP 6-12: lost insert race, joined winner', {
           segmentId, renderId: winner.id, correlationId,

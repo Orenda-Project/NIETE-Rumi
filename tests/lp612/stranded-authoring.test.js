@@ -129,7 +129,10 @@ describe('a tap on a stranded run restarts it instead of joining it', () => {
       },
       error: null,
     });
-    mockDbResults.push({ data: null, error: null });   // the reset
+    // The reset is a compare-and-swap: guarded on the status AND started_at that were read, and
+    // it SELECTs what it matched so a second tap on the same corpse can be told it lost. A
+    // returned row is this tap winning the restart.
+    mockDbResults.push({ data: [{ id: 'r1' }], error: null });   // the reset, CAS won
 
     const out = await Serving.requestLesson({ segmentId: SEGMENT.segment_id, ...REQ });
 
@@ -147,7 +150,7 @@ describe('a tap on a stranded run restarts it instead of joining it', () => {
       },
       error: null,
     });
-    mockDbResults.push({ data: null, error: null });
+    mockDbResults.push({ data: [{ id: 'r1' }], error: null });   // the reset, CAS won
 
     await Serving.requestLesson({ segmentId: SEGMENT.segment_id, ...REQ });
 

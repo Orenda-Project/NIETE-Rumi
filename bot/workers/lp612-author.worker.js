@@ -10,9 +10,11 @@
  * Three properties this job has to hold, each of them learned rather than
  * assumed:
  *
- *  - **Every waiter gets the lesson.** The render row's waiter list is the whole
- *    audience, not just whoever's tap happened to lose the insert race. One
- *    delivery failure does not cancel the others.
+ *  - **Every waiter gets the lesson — including the ones who arrived while it was
+ *    being written.** The audience is the list as it stands AT THE END, claimed
+ *    atomically once the terminal status is written, never a snapshot taken
+ *    minutes earlier at the top of the job. One delivery failure does not cancel
+ *    the others.
  *  - **SQS delivers at least once.** A redelivered job whose render is already
  *    `ready` must not author a second time; the status check at the top is the
  *    idempotency key.
@@ -88,6 +90,61 @@ async function patch(renderId, fields) {
 const waitersOf = (render) => (Array.isArray(render && render.waiters) ? render.waiters : [])
   .filter((w) => w && w.phone);
 
+/**
+ * Who is waiting RIGHT NOW — read fresh, and left on the row.
+ *
+ * Used by the follow-up message, which fires minutes into the run: by then the list has usually
+ * grown, and consoling the snapshot means the teachers who joined most recently — the ones who
+ * have seen nothing at all yet — are the ones told nothing.
+ *
+ * A failed read or a vanished row falls back to what the caller already knows rather than going
+ * silent. Distinguishing that from a legitimately empty list matters: an empty list must NOT
+ * resurrect a stale snapshot.
+ */
+async function readWaiters(renderId, fallback) {
+  const { data, error } = await supabase
+    .from(RENDERS)
+    .select('waiters')
+    .eq('id', renderId)
+    .maybeSingle();
+  if (error || !data) {
+    logToFile('LP 6-12 worker: could not re-read the waiter list', {
+      renderId, error: error && error.message,
+    });
+    return fallback;
+  }
+  return waitersOf(data);
+}
+
+/**
+ * Take the audience off the row, atomically, and empty it.
+ *
+ * THE DEFECT THIS EXISTS FOR. The worker used to read `waiters` at the top of the job and deliver
+ * to that snapshot two to ten minutes later, having just written `waiters: []` over the real list.
+ * Every teacher who joined DURING authoring was appended correctly by V1.3.2's atomic RPC, never
+ * read, then erased. V1.3.2 fixed the append; the drop simply moved one step downstream.
+ *
+ * Reading the list and clearing it have to be ONE statement for the same reason the append did:
+ * split in two, a teacher who joins in the gap is cleared without ever being read.
+ *
+ * CALL IT ONLY AFTER THE TERMINAL STATUS IS WRITTEN. `lp612_join_waiters` refuses a row that is
+ * no longer `authoring`, so once the status has flipped a late joiner is turned away with
+ * 'not_authoring' and the serving path re-decides her into a cache hit. Claim before the flip and
+ * that guard is not yet armed — there is a window, and it is the window this whole change closes.
+ */
+async function claimWaiters(renderId, fallback) {
+  const { data, error } = await supabase.rpc('lp612_claim_waiters', { p_render_id: renderId });
+  if (error) {
+    // Never silent, and never nobody. The teachers we already know about still get their lesson,
+    // and the row's status was written before we got here, so it is not left stranded.
+    logToFile('LP 6-12 worker: could not claim the waiter list', {
+      renderId, error: error.message,
+    });
+    return fallback;
+  }
+  return waitersOf({ waiters: data });
+}
+
 /** Tell every waiter the same thing — each in HER OWN ui language (the waiter
  *  entry carries `ui_lang`; the job's document language is only the fallback
  *  for entries written before the language step shipped). Never throws — a
@@ -118,13 +175,20 @@ async function tellAll(waiters, key, lang) {
  */
 const NO_RETRY_CODES = new Set(['PAGE_RANGE_TOO_LARGE', 'PAGE_TRUTH_TOO_LARGE']);
 
-async function fail(renderId, waiters, lang, code, detail) {
+async function fail(renderId, snapshot, lang, code, detail) {
+  // Status FIRST, then claim. From the moment this write lands, `lp612_join_waiters` refuses the
+  // row and a teacher mid-tap is re-decided by the serving path (a failed row is retried, which
+  // is what she is owed) rather than being parked on a list about to be emptied.
   await patch(renderId, {
     status: 'failed',
     error_code: code || 'UNKNOWN',
     error_detail: String(detail || '').slice(0, 2000),
     completed_at: nowIso(),
   });
+  // The failure path needs the live list every bit as much as the success path: a teacher who
+  // joined during a run that then died was getting no message at all, just silence on a lesson
+  // that had already given up.
+  const waiters = await claimWaiters(renderId, snapshot);
   await tellAll(waiters, NO_RETRY_CODES.has(code) ? 'lp612TooLong' : 'lp612Failed', lang);
   return { status: 'failed', errorCode: code || 'UNKNOWN' };
 }
@@ -163,18 +227,29 @@ async function process(payload) {
     return { status: 'skipped', reason: `status_${render.status}` };
   }
 
-  const waiters = waitersOf(render);
+  // A SNAPSHOT, and named one so it cannot quietly become the delivery audience again. It is a
+  // FALLBACK only — for the two moments where a fresh read is unavailable — because by the time
+  // this job finishes the real list will have grown by everyone who tapped the same lesson while
+  // it was being written.
+  const snapshot = waitersOf(render);
 
   const segment = await loadSegment(segmentId);
   if (!segment) {
-    return fail(renderId, waiters, lang, 'SEGMENT_MISSING',
+    return fail(renderId, snapshot, lang, 'SEGMENT_MISSING',
       `segment ${segmentId} not found`);
   }
 
   // The slow tail gets a second message rather than silence. Cleared on every
   // exit path so a fast render cannot leave a "still working" message behind it.
+  //
+  // It re-reads the list instead of consoling the snapshot: this fires MINUTES in, which is
+  // exactly when the list has grown, and the teachers who joined most recently are the ones with
+  // nothing to go on. Non-destructive — the row keeps its waiters; only the claim at the end
+  // empties them.
   let followup = setTimeout(() => {
-    tellAll(waiters, 'lp612StillWorking', lang).catch(() => {});
+    (async () => {
+      await tellAll(await readWaiters(renderId, snapshot), 'lp612StillWorking', lang);
+    })().catch(() => {});
   }, followupAfterMs());
   if (followup.unref) followup.unref();
   const stopFollowup = () => { clearTimeout(followup); followup = null; };
@@ -291,11 +366,14 @@ async function process(payload) {
       // teacher after the first is served entirely from this row, and without
       // it she would get the file with no summary while the first got both.
       one_screen: oneScreenOf(authored),
-      // The audience is consumed. Leaving it populated would re-send the lesson
-      // to everyone if this row were ever reprocessed.
-      waiters: [],
       completed_at: nowIso(),
     });
+
+    // `waiters` is deliberately NOT in the patch above. Emptying the list blind is what erased
+    // every teacher who joined during authoring; the claim below reads it and empties it in one
+    // locked statement, and it runs AFTER the status flip so a join arriving now is refused
+    // ('not_authoring') and re-decided into a cache hit rather than dropped.
+    const waiters = await claimWaiters(renderId, snapshot);
 
     let delivered = 0;
     let deliveryFailures = 0;
@@ -340,7 +418,7 @@ async function process(payload) {
       elapsedMs: Date.now() - startedAt,
       correlationId,
     });
-    return fail(renderId, waiters, lang, err.code, err.message);
+    return fail(renderId, snapshot, lang, err.code, err.message);
   } finally {
     stopFollowup();
     if (tmpDir) {

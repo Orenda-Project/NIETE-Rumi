@@ -5011,6 +5011,95 @@ CREATE INDEX IF NOT EXISTS idx_lp612_renders_inflight
   ON niete_lp612_renders (started_at)
   WHERE status = 'authoring';
 
+-- ---------------------------------------------------------------------------
+-- The two functions that make `waiters` safe under concurrency.
+--
+-- THEY BELONG IN THIS FILE, and one of them was missing from it. `lp612_join_waiters` shipped in
+-- migrations/V1.3.2 and nowhere else, so a fresh clone bootstrapped with `npm run bootstrap:db`
+-- got the tables WITHOUT the function: every joinWaiters() call returned 'error' and every
+-- waiting teacher was dropped, silently, on a system that looked correctly installed. The
+-- schema↔code guard that exists to catch exactly this could not see the reference, because its
+-- name-matching pattern accepted no digits (fixed in tests/setup/schema-completeness.test.js).
+--
+-- `waiters` is a JSONB list on the render row, and both of its dangerous operations are
+-- read-modify-writes. Each is therefore ONE statement under the row lock rather than a
+-- client-side round trip. See migrations/V1.3.2 and V1.3.4 for the measurements behind them.
+-- ---------------------------------------------------------------------------
+
+-- Append one waiter atomically. Returns joined | duplicate | not_authoring | missing.
+-- Replaces a client-side read-modify-write that dropped 90% of waiters in a 20-way stampede.
+CREATE OR REPLACE FUNCTION lp612_join_waiters(p_render_id UUID, p_entry JSONB)
+RETURNS TEXT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_updated INTEGER;
+  v_status  TEXT;
+BEGIN
+  -- ONE statement: the row lock serialises concurrent callers and `waiters` is re-read under it,
+  -- so an append can never be computed from a stale copy.
+  UPDATE niete_lp612_renders
+     SET waiters    = waiters || jsonb_build_array(p_entry),
+         updated_at = NOW()
+   WHERE id = p_render_id
+     -- Refuse to attach a waiter to a run that is already over: the worker clears `waiters` when
+     -- it delivers, so an append a moment later means waiting for ever. The caller re-decides.
+     AND status = 'authoring'
+     -- Tapping twice must not mean being sent the lesson twice. Deduped on PHONE, because that is
+     -- what delivery actually uses and it is present for every caller; user_id may be null.
+     AND NOT EXISTS (
+       SELECT 1 FROM jsonb_array_elements(waiters) AS w
+        WHERE w->>'phone' IS NOT DISTINCT FROM p_entry->>'phone'
+     );
+
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
+  IF v_updated = 1 THEN
+    RETURN 'joined';
+  END IF;
+
+  SELECT status INTO v_status FROM niete_lp612_renders WHERE id = p_render_id;
+  IF v_status IS NULL        THEN RETURN 'missing';       END IF;
+  IF v_status <> 'authoring' THEN RETURN 'not_authoring'; END IF;
+  RETURN 'duplicate';
+END;
+$$;
+
+COMMENT ON FUNCTION lp612_join_waiters(UUID, JSONB) IS
+  'Atomically append one waiter to niete_lp612_renders.waiters. Returns joined | duplicate | not_authoring | missing. Replaces a client-side read-modify-write that dropped 90% of waiters in a 20-way stampede.';
+
+-- Return the delivery audience and empty it, under one row lock. Called by the authoring worker
+-- AFTER it writes the terminal status, so a concurrent join is either included in what comes back
+-- or refused by the `status = 'authoring'` guard above and re-decided into a cache hit.
+CREATE OR REPLACE FUNCTION lp612_claim_waiters(p_render_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_waiters JSONB;
+BEGIN
+  -- Take the row lock FIRST and read under it. A concurrent lp612_join_waiters() blocks here
+  -- until this transaction commits, so no append can slip between the read and the clear.
+  SELECT waiters INTO v_waiters
+    FROM niete_lp612_renders
+   WHERE id = p_render_id
+     FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN '[]'::jsonb;
+  END IF;
+
+  UPDATE niete_lp612_renders
+     SET waiters    = '[]'::jsonb,
+         updated_at = NOW()
+   WHERE id = p_render_id;
+
+  RETURN COALESCE(v_waiters, '[]'::jsonb);
+END;
+$$;
+
+COMMENT ON FUNCTION lp612_claim_waiters(UUID) IS
+  'Atomically return niete_lp612_renders.waiters and empty it, under one row lock. The delivery audience for a finished (or failed) authoring run. Call it AFTER writing the terminal status, so a concurrent lp612_join_waiters is either included here or refused with not_authoring.';
+
 -- Reload PostgREST's schema cache last, so the reconciled columns + functions
 -- above are immediately visible to the REST API (the earlier NOTIFY predates these DDLs).
 NOTIFY pgrst, 'reload schema';
