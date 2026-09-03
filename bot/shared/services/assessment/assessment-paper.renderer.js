@@ -372,6 +372,49 @@ ${body.join('\n')}
 </body></html>`;
 }
 
+/**
+ * Bloom's levels, in the revised (2001) order. The generator tags every question
+ * with one, but the model spells them however it likes — "analyse" and "ANALYZE"
+ * are the same level and must count as one. Anything unrecognised is reported as
+ * given rather than dropped, so a new spelling is visible instead of silent.
+ */
+const BLOOM_ORDER = ['Remember', 'Understand', 'Apply', 'Analyze', 'Evaluate', 'Create'];
+const BLOOM_ALIASES = {
+  remember: 'Remember', recall: 'Remember', knowledge: 'Remember',
+  understand: 'Understand', understanding: 'Understand', comprehension: 'Understand',
+  apply: 'Apply', application: 'Apply', applying: 'Apply',
+  analyze: 'Analyze', analyse: 'Analyze', analysis: 'Analyze', analyzing: 'Analyze',
+  evaluate: 'Evaluate', evaluation: 'Evaluate', evaluating: 'Evaluate',
+  create: 'Create', creating: 'Create', synthesis: 'Create',
+};
+
+function bloomOf(question) {
+  const raw = question && (question.blooms || question.bloom || question.bloom_level);
+  if (!raw) return null;
+  const key = String(raw).trim().toLowerCase();
+  return BLOOM_ALIASES[key] || String(raw).trim();
+}
+
+/** Marks per Bloom level, in taxonomy order — the paper's cognitive spread. */
+function bloomSpread(questions) {
+  const tally = new Map();
+  for (const { question } of questions) {
+    const level = bloomOf(question);
+    if (!level) continue;
+    const marks = Number(question.marks) || 0;
+    const row = tally.get(level) || { level, items: 0, marks: 0 };
+    row.items += 1;
+    row.marks += marks;
+    tally.set(level, row);
+  }
+  return [...tally.values()].sort((a, b) => {
+    const ia = BLOOM_ORDER.indexOf(a.level);
+    const ib = BLOOM_ORDER.indexOf(b.level);
+    // unknown spellings sort last, so they stand out rather than hide mid-table
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+}
+
 /** The text a question asks, short enough to sit beside its answer. */
 function questionLabel(question) {
   if (typeof question === 'string') return question;
@@ -395,7 +438,7 @@ function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, 
   for (const { type, question } of questions) {
     if (type !== lastType) {
       if (type && !GENERIC_TYPES.has(String(type).trim().toLowerCase())) {
-        rows.push(`<tr class="type"><td colspan="3">${esc(type)}</td></tr>`);
+        rows.push(`<tr class="type"><td colspan="4">${esc(type)}</td></tr>`);
       }
       lastType = type;
     }
@@ -411,7 +454,10 @@ function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, 
     } else {
       answer = question && question.answer ? escMultiline(question.answer) : dash;
     }
-    rows.push(`<tr><td class="num">${number}.</td><td class="qt">${esc(questionLabel(question))}</td><td class="ans">${answer}</td></tr>`);
+    const level = bloomOf(question);
+    rows.push(`<tr><td class="num">${number}.</td><td class="qt">${esc(questionLabel(question))}</td>`
+      + `<td class="ans">${answer}</td>`
+      + `<td class="bl">${level ? `<span class="chip">${esc(level)}</span>` : ''}</td></tr>`);
     number += 1;
   }
 
@@ -419,6 +465,17 @@ function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, 
   const sub = chapterTitle
     ? `${esc(chapterTitle)}${pageReference ? ` · Pages ${esc(pageReference)}` : ''}`
     : (pageReference ? `Pages ${esc(pageReference)}` : '');
+
+  // The cognitive spread is for the teacher: it says at a glance whether the
+  // paper is all recall or actually reaches the levels the grade should.
+  const spread = bloomSpread(questions);
+  const spreadTotalMarks = spread.reduce((sum, r) => sum + r.marks, 0);
+  const spreadHtml = spread.length
+    ? `<table class="spread"><tr><th colspan="${spread.length + 1}">Cognitive spread (Bloom&rsquo;s)</th></tr>`
+      + `<tr>${spread.map((r) => `<td class="lv">${esc(r.level)}</td>`).join('')}<td class="lv">Total</td></tr>`
+      + `<tr>${spread.map((r) => `<td>${r.items} ${r.items === 1 ? 'item' : 'items'}<br>${r.marks} mk</td>`).join('')}`
+      + `<td>${questions.length} items<br>${spreadTotalMarks} mk</td></tr></table>`
+    : '';
 
   return `<!DOCTYPE html>
 <html lang="${rtl ? 'ur' : 'en'}"${rtl ? ' dir="rtl"' : ''}>
@@ -440,7 +497,15 @@ function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, 
   table.key td { border-bottom: 1px solid #ccc; padding: 6px 7px; vertical-align: top; }
   table.key td.num { width: 8%; font-weight: 700; white-space: nowrap; }
   table.key td.qt { width: 46%; color: #333; }
-  table.key td.ans { width: 46%; font-weight: 600; }
+  table.key td.ans { width: 34%; font-weight: 600; }
+  table.key td.bl { width: 12%; text-align: ${rtl ? 'left' : 'right'}; }
+  table.key td.bl .chip { display: inline-block; font-size: 8.5pt; letter-spacing: .02em;
+    border: 1px solid #bbb; border-radius: 9px; padding: 1px 7px; color: #333; white-space: nowrap; }
+  table.spread { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 9.5pt; }
+  table.spread th { background: #f2f2f2; border: 1px solid #999; padding: 4px 7px;
+    text-align: ${rtl ? 'right' : 'left'}; font-size: 10pt; }
+  table.spread td { border: 1px solid #ccc; padding: 4px 7px; text-align: center; }
+  table.spread td.lv { background: #fafafa; font-weight: 600; font-size: 9pt; }
   table.key tr.type td { border-bottom: 1.5px solid #000; font-size: 10.5pt; font-weight: 700;
     text-transform: uppercase; letter-spacing: .04em; padding-top: 14px; }
   tr { page-break-inside: avoid; }
@@ -450,11 +515,15 @@ ${schoolName ? `<div class="school">${esc(schoolName)}</div>` : ''}
 <div class="class-line">${heading}</div>
 <div class="title">Answer Key</div>
 ${sub ? `<div class="chapter">${sub}</div>` : ''}
-<div class="teacher">For the teacher. Numbers match the question paper. ${dash} marks a question the generator gave no model answer for.</div>
+<div class="teacher">For the teacher. Numbers match the question paper. ${dash} marks a question the generator gave no model answer for. The right-hand column gives each question&rsquo;s Bloom&rsquo;s level; these appear here only, never on the child&rsquo;s paper.</div>
+${spreadHtml}
 <table class="key">
 ${rows.join('\n')}
 </table>
 </body></html>`;
 }
 
-module.exports = { renderPaper, renderAnswerKey, collectQuestions, totalMarks, renderQuestion };
+module.exports = {
+  renderPaper, renderAnswerKey, collectQuestions, totalMarks, renderQuestion,
+  bloomOf, bloomSpread, BLOOM_ORDER,
+};
