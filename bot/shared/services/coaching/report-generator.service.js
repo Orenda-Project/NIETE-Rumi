@@ -691,6 +691,7 @@ class ReportGeneratorService {
     // default — never a hard 'en' floor, which (being offered) used to win
     // the chain for every teacher because the session join omitted the column.
     const { resolveReportLanguage } = require('./report-v2/report-language');
+    const { resolveTarget } = require('./target-resolver');
     const language = resolveReportLanguage(
       { language: session?.users?.preferred_language }, analysisForTransformer, session
     );
@@ -706,6 +707,10 @@ class ReportGeneratorService {
         // (single source of next-step truth). Empty string → hero omits the
         // tryNext callout gracefully (template guards on truthiness).
         commitmentAction,
+        // The ONE indicator this report is about — the same resolver the
+        // commitment card used, on the same analysis, so the narrative's
+        // horizon and the green box name the same thing.
+        target: resolveTarget(analysisForTransformer),
       },
     };
 

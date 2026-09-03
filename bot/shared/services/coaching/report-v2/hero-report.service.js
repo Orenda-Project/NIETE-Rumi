@@ -15,6 +15,7 @@ const { buildHeroReportHtml, buildReportCaption } = require('./hero-report.templ
 const { buildClassroomPhotoVm } = require('./classroom-photo-vm');
 const { resolveReportLanguage } = require('./report-language');
 const { loadTrendData } = require('../coaching-trend.service');
+const { resolveTarget } = require('../target-resolver');
 const { downloadFromR2, extractKeyFromUrl } = require('../../../storage/r2');
 const { htmlToImage } = require('../../../utils/html-to-pdf');
 const { logToFile } = require('../../../utils/logger');
@@ -39,7 +40,10 @@ function attachDomainWhys(groups, domainWhys) {
 /**
  * @param {object} session - coaching_sessions row (transcript_text, user_id, created_at, classroom_photos)
  * @param {object} analysis - enhancedAnalysis (framework, scores, domains, reflective_corpus, …)
- * @param {object} opts - { teacherName, commitmentAction, language, brand }
+ * @param {object} opts - { teacherName, commitmentAction, language, brand, target }
+ *   `target` is the ONE indicator this report is about (target-resolver). When the
+ *   caller does not supply it, it is resolved from the analysis here so the
+ *   observe path and the coaching pipeline name the same horizon.
  *   `brand` selects the template palette ('niete' for the FICO/NIETE path,
  *   injected by renderer-registry; omitted = default palette). bd-2452.
  * @returns {Promise<{png:Buffer, caption:string}>}
@@ -70,11 +74,13 @@ async function generateHeroReport(session, analysis, opts = {}) {
     logToFile('hero-report: trend load failed (non-fatal)', { error: e.message });
   }
 
+  const target = opts.target !== undefined ? opts.target : resolveTarget(analysis);
   const narrative = await generateReportNarrative(analysis, {
     transcript: session.transcript_text,
     trend,
     language: lang,
     teacherName,
+    target,
   });
 
   // bd-1t1wz: per-section "why" diagnosis lines onto the scorecard rows.
