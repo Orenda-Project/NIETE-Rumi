@@ -698,7 +698,82 @@ function buildVisitRescheduledAck(lang, opts = {}) {
     .replace('{slot}', slot);
 }
 
+// ── R165 — "which teacher is this for?" ────────────────────────────────
+// Sent when a photo / lesson plan arrives while MORE THAN ONE of the coach's
+// observations is waiting at that gate and no tap named the target. One row per
+// candidate (`mediatarget_<sessionId>`), titled with the observed teacher's
+// name, falling back to the recording time. en/ur only (NIETE market, Rule 20);
+// the Urdu addresses the coach with neutral imperatives (gender-neutral Urdu guard).
+const MEDIA_TARGET_TEMPLATES = {
+  en: {
+    photo_body: "📎 Got your photo. Which teacher's observation is it for?",
+    lp_body: "📎 Got the lesson plan. Which teacher's observation is it for?",
+    button: 'Choose teacher',
+    section: 'Waiting observations',
+    row_fallback: 'Observation',
+    row_desc: 'Recorded {time}',
+    resend: "👍 Noted. Please send that photo or lesson plan again — it will go to this teacher's observation.",
+    stale: 'That observation has already moved past this step, so I could not add the file. If it belongs to another teacher, send it again and pick them.',
+  },
+  ur: {
+    photo_body: '📎 تصویر مل گئی۔ یہ کس استاد کے مشاہدے کے لیے ہے؟',
+    lp_body: '📎 لیسن پلان مل گیا۔ یہ کس استاد کے مشاہدے کے لیے ہے؟',
+    button: 'استاد چنیں',
+    section: 'زیرِ التوا مشاہدے',
+    row_fallback: 'مشاہدہ',
+    row_desc: 'ریکارڈ: {time}',
+    resend: '👍 ٹھیک ہے۔ براہ کرم وہ تصویر یا لیسن پلان دوبارہ بھیجیں — یہ اسی استاد کے مشاہدے میں شامل ہوگا۔',
+    stale: 'وہ مشاہدہ اس مرحلے سے آگے بڑھ چکا ہے، اس لیے فائل شامل نہیں ہو سکی۔ اگر یہ کسی اور استاد کی ہے تو دوبارہ بھیج کر انہیں منتخب کریں۔',
+  },
+};
+
+// WhatsApp list caps, measured in CODE POINTS (Rule 20): row title 24,
+// row description 72, section title 24, button 20.
+function _truncateCp(str, max) {
+  const cp = [...String(str || '')];
+  return cp.length <= max ? cp.join('') : `${cp.slice(0, max - 1).join('')}…`;
+}
+
+// NIETE serves ICT Islamabad only — one display timezone.
+const MEDIA_TARGET_TZ = 'Asia/Karachi';
+function _timeLabel(iso) {
+  const ms = Date.parse(iso || '');
+  if (!Number.isFinite(ms)) return '';
+  return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: MEDIA_TARGET_TZ })
+    .format(new Date(ms));
+}
+
+/**
+ * @param {string} lang  coach language ('ur' | anything-else→en)
+ * @param {{ kind: 'photo'|'lp', candidates: Array<{id:string, teacherName?:string|null, created_at?:string}> }} opts
+ * @returns {object} listData for WhatsAppService.sendInteractiveMessage
+ */
+function buildMediaTargetPrompt(lang, { kind, candidates } = {}) {
+  const l = clampLanguage(lang);
+  const T = MEDIA_TARGET_TEMPLATES[l] || MEDIA_TARGET_TEMPLATES.en;
+  const rows = (candidates || []).slice(0, 10).map((c) => {
+    const time = _timeLabel(c.created_at);
+    const name = String(c.teacherName || '').trim();
+    const title = name || `${T.row_fallback}${time ? ` · ${time}` : ''}`;
+    const row = { id: `mediatarget_${c.id}`, title: _truncateCp(title, 24) };
+    if (name && time) row.description = _truncateCp(T.row_desc.replace('{time}', time), 72);
+    return row;
+  });
+  return {
+    body: { text: kind === 'lp' ? T.lp_body : T.photo_body },
+    action: { button: _truncateCp(T.button, 20), sections: [{ title: _truncateCp(T.section, 24), rows }] },
+  };
+}
+
+/** R165 — a single media-target string ('resend' | 'stale' | …) in the coach's language. */
+function mediaTargetString(lang, key) {
+  const l = clampLanguage(lang);
+  const T = MEDIA_TARGET_TEMPLATES[l] || MEDIA_TARGET_TEMPLATES.en;
+  return T[key] || MEDIA_TARGET_TEMPLATES.en[key] || '';
+}
+
 module.exports = {
   observeStrings, observeLang, buildVisitCapturePrompt, buildScheduleDoneAck,
   buildVisitCancelledAck, buildVisitRescheduledAck,
+  buildMediaTargetPrompt, mediaTargetString,
 };
