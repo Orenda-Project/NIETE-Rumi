@@ -223,6 +223,32 @@ async function process(payload) {
     const r2Key = Serving.r2KeyFor(segmentId, lang, templateVersion);
     await uploadBuffer(pdf, r2Key, 'application/pdf');
 
+    // KEEP THE DOCUMENT THAT MADE THE PDF.
+    //
+    // The operator asked why a graph appeared twice in his lesson and the honest answer needed
+    // the authored lp_doc — which did not exist. The renderer writes it to a temp dir, this
+    // worker uploaded only the pdf, and the directory is deleted in `finally`. R2 held three
+    // PDFs and nothing else. His document was gone seconds after it rendered, and the diagnosis
+    // had to be reconstructed from a raster.
+    //
+    // A few KB beside a ~200KB PDF, in the SAME prefix and the same key shape, so it is findable
+    // from the render row without a second lookup and the shared-bucket prefix guard covers it
+    // unchanged.
+    //
+    // Its failure is swallowed on purpose: the PDF is the product, keeping the source is for us,
+    // and it must never turn a finished lesson into a failed one.
+    try {
+      await uploadBuffer(
+        Buffer.from(JSON.stringify(authored.lpDoc, null, 1), 'utf8'),
+        r2Key.replace(/\.pdf$/, '.lp.json'),
+        'application/json',
+      );
+    } catch (err) {
+      logToFile('LP 6-12 worker: could not store the authored document', {
+        renderId, segmentId, error: err.message, correlationId,
+      });
+    }
+
     stopFollowup();
 
     await patch(renderId, {
