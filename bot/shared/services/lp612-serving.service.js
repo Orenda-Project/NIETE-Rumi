@@ -35,6 +35,10 @@ const WhatsAppService = require('./whatsapp.service');
 const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const Catalog = require('./lp612-catalog.service');
+// The shelf `buildLpContext` reads. Required at module scope deliberately: it pulls in the Redis
+// wrapper, which the root suites already stub, and a lazy require here would hide a missing
+// dependency until the first real delivery.
+const LPShelfService = require('./lp-shelf.service');
 const { isReligiousEnabled, templateVersion, authorTimeoutMs } = require('../config/lp612-flags');
 
 const RENDERS = 'niete_lp612_renders';
@@ -53,6 +57,63 @@ function r2KeyFor(segmentId, lang, tv) {
 
 /** The ONLY isolation this lane has. */
 const R2_KEY_PREFIX = 'lp612/';
+
+/**
+ * Where a TEACHER-EDITED lesson lives.
+ *
+ *   lp612/{tv}/{lang}/edits/{segment_id}/{hash}.pdf   (+ the .lp.json beside it)
+ *
+ * It is a FORK, never an overwrite. The shared render above has no user dimension — every
+ * teacher who taps that subtopic is served the same bytes — so writing an edit back onto it
+ * would rewrite the national lesson to suit one teacher's homework preference. The shared object
+ * stays pristine and the edit lands somewhere new.
+ *
+ * `template_version` still leads, exactly as it does for the parent, so bumping it expires a
+ * version's forks alongside the renders they were derived from instead of orphaning them.
+ *
+ * The segment id is sanitised into the path rather than trusted: `assertKeyInPrefix` would catch
+ * a traversal at the put, but a key that has to be rejected is a bug caught late.
+ */
+function editKeyFor({ segmentId, lang, tv, hash, ext = 'pdf' }) {
+  // Dots are KEPT — a real segment id is `grade_8_mathematics.c05.p071-073` — so the character
+  // filter alone leaves `..` intact and `../../pre_gen_lps/x` sanitises to `.._.._pre_gen_lps_x`,
+  // which assertKeyInPrefix then rejects at the put. Collapsing runs of dots removes the
+  // traversal while leaving every legitimate id untouched.
+  const seg = String(segmentId == null ? '' : segmentId)
+    .replace(/[^A-Za-z0-9._-]/g, '_')
+    .replace(/\.{2,}/g, '.');
+  return `${R2_KEY_PREFIX}${tv}/${lang}/edits/${seg}/${hash}.${ext}`;
+}
+
+/**
+ * The fork's identity: CONTENT, not the teacher.
+ *
+ * `userId` is accepted and deliberately ignored. Two teachers who ask the same thing of the same
+ * document get the same hash and therefore ONE render rather than two — the economics the main
+ * cache already has, at a finer grain — and a retry after a dropped connection lands on work
+ * already done instead of paying for it twice. Which teachers hold which edit is a database
+ * question, answered by the edits table; it is not the storage path's job.
+ *
+ * (The design note that preceded this said "content-addressed, not user-addressed" while listing
+ * user_id among the hash inputs. Those are contradictory; this is the resolution, and the
+ * parameter stays in the signature so a caller passing it is not silently wrong.)
+ *
+ * The SOURCE DOCUMENT is hashed too, so an edit of an already-edited lesson cannot collide with
+ * an edit of the original — same instruction, different starting point, different result.
+ *
+ * The instruction is normalised (trimmed, collapsed, lower-cased) so trivial variants of the same
+ * request share one render, and HASHED so her words never appear in an object key.
+ */
+function editHash({ instruction, doc, userId } = {}) {   // eslint-disable-line no-unused-vars
+  const norm = String(instruction == null ? '' : instruction)
+    .trim().replace(/\s+/g, ' ').toLowerCase();
+  const source = JSON.stringify(doc == null ? null : doc);
+  return require('crypto')
+    .createHash('sha256')
+    .update(`${norm}\u0000${source}`)
+    .digest('hex')
+    .slice(0, 16);
+}
 
 /**
  * Refuse to write anywhere but under `lp612/`.
@@ -94,10 +155,15 @@ function buildFilename(segment, lang) {
   return `${base}_${lang}.pdf`.slice(0, FILENAME_MAX);
 }
 
-function buildCaption(segment, lang, { overlayDropped = false } = {}) {
-  const pages = segment.printed_page_start === segment.printed_page_end
+/** "71" for a single page, "71-73" for a range. One definition, two callers. */
+function pagesLabel(segment) {
+  return segment.printed_page_start === segment.printed_page_end
     ? String(segment.printed_page_start)
     : `${segment.printed_page_start}-${segment.printed_page_end}`;
+}
+
+function buildCaption(segment, lang, { overlayDropped = false } = {}) {
+  const pages = pagesLabel(segment);
   const caption = resolveUx('lp612Caption', {
     language: lang,
     params: {
@@ -253,7 +319,51 @@ function buildBody({ oneScreen, segment }) {
  *  the same bytes to the same shape of recipient when the job completes.
  *  `overlayDropped` rides along so the caption can be honest about a degraded
  *  Urdu document — on the first delivery AND on every cache hit after it. */
-async function deliverRender({ phone, r2Key, segment, lang, oneScreen, overlayDropped }) {
+/**
+ * Leave a trace of this delivery where the CHAT can find it.
+ *
+ * Until this existed, `deliverRender` sent two messages and returned. `buildLpContext` reads the
+ * LP shelf and then `niete_lp_downloads`; this lane wrote to neither, so a teacher who replied
+ * "what does the activity mean?" was answered by a model that had never seen her lesson — a
+ * confident, ungrounded reply that reads like an answer.
+ *
+ * THE ENTRY IS DELIBERATELY THIN. `lp-context.service`'s renderEntry runs two K-5 resolvers over
+ * every shelf entry: `resolveMoveList` returns null the moment `lesson_id` is absent (free), but
+ * `getVoicenoteScript` derives a `.txt` key from `r2_key` and FETCHES IT FROM R2. A 6-12 lesson
+ * has no voicenote, so passing the PDF key would buy a guaranteed-missing R2 round-trip on every
+ * turn of every conversation. So: no `lesson_id`, no `content_hash`, no `r2_key`. What is here is
+ * exactly what `headingFor` renders plus the one-screen summary, which is the part that actually
+ * grounds her question.
+ *
+ * `lane` marks it ours without anyone having to infer "6-12" from which fields are missing.
+ *
+ * Soft-fail, like the body send above it and for the same reason: the lesson is the document.
+ * Redis being down must never cost her the thing she asked for.
+ */
+async function recordDelivery({ userId, segment, lang, oneScreen }) {
+  if (!userId) return;
+  try {
+    await LPShelfService.pushToShelf(userId, {
+      lane: 'lp612',
+      segment_id: segment.segment_id,
+      grade: segment.grade,
+      subject: segment.subject,
+      chapter_number: segment.chapter_number,
+      chapter_title: segment.chapter_title,
+      topic: segment.subtopic_title || segment.menu_title || '',
+      pages_label: pagesLabel(segment),
+      one_screen: oneScreen || null,
+      lang,
+      delivered_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    logToFile('LP 6-12: could not record the delivery on the shelf', {
+      segmentId: segment && segment.segment_id, userId, error: err.message,
+    });
+  }
+}
+
+async function deliverRender({ phone, userId, r2Key, segment, lang, oneScreen, overlayDropped }) {
   const url = await getPresignedUrl(buildR2PublicUrl(r2Key));
 
   // The body goes FIRST: she is on a phone, and the summary is readable in the
@@ -279,6 +389,9 @@ async function deliverRender({ phone, r2Key, segment, lang, oneScreen, overlayDr
     buildFilename(segment, lang),
     buildCaption(segment, lang, { overlayDropped: overlayDropped === true }),
   );
+
+  // AFTER the document, never before: recording is for us, the PDF is for her.
+  await recordDelivery({ userId, segment, lang, oneScreen });
 }
 
 /** `ui_lang` is the language SHE is spoken to in — recorded per waiter, because
@@ -454,6 +567,7 @@ async function requestLesson({ segmentId, userId, phone, lang, uiLang, correlati
     try {
       await deliverRender({
         phone,
+        userId,
         r2Key: existing.r2_key,
         segment,
         lang: language,
@@ -648,6 +762,8 @@ module.exports = {
   buildFilename,
   buildCaption,
   r2KeyFor,
+  editKeyFor,
+  editHash,
   assertKeyInPrefix,
   R2_KEY_PREFIX,
   RENDERS,

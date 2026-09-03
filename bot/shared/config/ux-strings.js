@@ -306,6 +306,38 @@ const UX_STRINGS = {
     ur: 'یہ سبق نہیں مل سکا۔ سبق کے منصوبے کا مینو کھول کر دوبارہ منتخب کریں۔',
   },
 
+  // ── the edit lane's honest refusals ──────────────────────────────────────
+  //
+  // The 12-cell spike (bd-6pxpk) measured why these have to exist. Asked to "write me an exam
+  // paper for this whole chapter", the revision ladder could not produce one — lp_doc has
+  // nowhere to put an exam paper — so it added a single question to the existing exam bank and
+  // said nothing. Every gate passed. She would have received her lesson back, subtly different,
+  // with no idea her request had not been understood.
+  //
+  // The schema stops the harm; only copy can stop the confusion. Both strings therefore do the
+  // same three things: name what CAN be changed, state plainly that her lesson is unchanged, and
+  // leave her a next move. Neither apologises for a limit it can do nothing about.
+  //
+  // Voice: Rumi speaks of herself in the feminine («سکتی ہوں»), but never conjugates the TEACHER
+  // — «بتائیں» and «پوچھ لیں» are imperatives, so a mixed-gender cohort is addressed correctly.
+  lp612EditOutOfScope: {
+    en: 'I can change parts of a lesson I have already sent you — shorten a section, add an '
+      + 'activity, swap an example. What you asked for is a different thing, so your lesson is '
+      + 'unchanged. Tell me which part to change and I will do it.',
+    ur: 'میں بھیجے گئے سبق کے حصے بدل سکتی ہوں — کوئی حصہ مختصر کرنا، سرگرمی شامل کرنا، مثال بدلنا۔ '
+      + 'آپ نے جو مانگا وہ اس سے الگ کام ہے، اس لیے آپ کا سبق ویسا ہی ہے۔ بتائیں کون سا حصہ بدلنا ہے۔',
+  },
+
+  // The flag-off branch. It is NOT lp612EditOutOfScope: she asked for something this feature will
+  // do, and telling her it is out of scope would be a lie she would reasonably repeat. It is also
+  // not lp612Failed — nothing failed. Rule 24(d): distinct state, distinct sentence.
+  lp612EditNotYet: {
+    en: 'I cannot change a lesson yet — that is being built. Your lesson is unchanged. Ask me '
+      + 'anything about it in the meantime and I will help.',
+    ur: 'سبق میں تبدیلی کی سہولت ابھی دستیاب نہیں — اس پر کام ہو رہا ہے۔ آپ کا سبق ویسا ہی ہے۔ '
+      + 'اس دوران سبق کے بارے میں کچھ بھی پوچھ لیں، میں مدد کروں گی۔',
+  },
+
   // The last thing the Flow itself says, on the terminal SUCCESS screen, before
   // she closes it and goes back to the chat.
   //

@@ -78,14 +78,77 @@ function isReligiousEnabled() {
   return isTrue(process.env.LP_612_RELIGIOUS_ENABLED);
 }
 
+/**
+ * The teacher edit lane. A THIRD flag, and separate for the same reason the religious hold is
+ * separate: turning 6-12 lessons on must not silently turn on a path that spends ~$0.36 and
+ * rewrites a document every time a teacher replies to one.
+ *
+ * It only ever NARROWS isLp612Enabled() — a caller must already have passed that gate. With this
+ * unset the router still recognises an edit request and says so honestly (lp612EditNotYet); what
+ * it does not do is author anything.
+ */
+function isLp612EditEnabled() {
+  return isTrue(process.env.LP_612_EDIT_ENABLED);
+}
+
 function templateVersion() {
   const v = (process.env.LP_612_TEMPLATE_VERSION || '').trim();
   return v || DEFAULT_TEMPLATE_VERSION;
 }
 
-function resolveAuthorModel() {
+/**
+ * The author model, optionally per subject family (bd-u6za9).
+ *
+ * THE PILOT. The 2026-09-03 bake-off found `deepseek/deepseek-v4-flash` authoring
+ * a Grade 9 physics lesson LINT-CLEAN on the first pass — no revision ladder — in
+ * 59.9 s for $0.0036, while `claude-sonnet-5` produced no clean cell in the round
+ * and had the worst mean defect rate. dsflash is ~50x cheaper. But one clean cell
+ * is an existence proof, not a rate (dsflash is 1/5 clean overall, with volatile
+ * latency), so the operator's decision is a PILOT on the family where it already
+ * wins — maths and physics — with everything else staying on sonnet.
+ *
+ * REVERT IS AN ENV CHANGE, NOT A DEPLOY. Unset LP_AUTHOR_MODEL_MATHS_PHYSICS and
+ * every family falls back to LP_AUTHOR_MODEL. Nothing anywhere hardcodes a pilot
+ * model, and an absent or unknown family never silently selects one.
+ *
+ * @param {'maths'|'sci'|'prose'} [family]
+ */
+function resolveAuthorModel(family) {
+  if (family === 'maths') {
+    const pilot = (process.env.LP_AUTHOR_MODEL_MATHS_PHYSICS || '').trim();
+    if (pilot) return pilot;
+  }
   const m = (process.env.LP_AUTHOR_MODEL || '').trim();
   return m || DEFAULT_AUTHOR_MODEL;
+}
+
+/** The two author harnesses. `standard` is the v3 brief with no repair pass. */
+const AUTHOR_TIERS = Object.freeze(['standard', 'flash']);
+
+/**
+ * Which brief harness a model runs on.
+ *
+ * The tier follows the MODEL, not the family. The flash-tier harness — the
+ * stronger family preamble plus the mechanical repairs — was built and measured
+ * for the flash models; putting sonnet through it would change the production
+ * path that is currently serving teachers, which this pilot must not do.
+ *
+ * `LP612_AUTHOR_TIER` pins the tier for an A/B. An unknown value RAISES rather
+ * than falling back to standard: a typo'd tier that silently authored on the
+ * other harness would be scored as this one, which is the mislabelling that made
+ * the first bake-off run unreadable.
+ */
+function authorTierFor(model) {
+  const pinned = (process.env.LP612_AUTHOR_TIER || '').trim();
+  if (pinned) {
+    if (!AUTHOR_TIERS.includes(pinned)) {
+      throw new Error(
+        `LP612_AUTHOR_TIER must be one of ${AUTHOR_TIERS.join(', ')} (got "${pinned}")`
+      );
+    }
+    return pinned;
+  }
+  return /flash/i.test(String(model || '')) ? 'flash' : 'standard';
 }
 
 function authorRounds() {
@@ -107,10 +170,13 @@ function isLp612Grade(g) {
 
 module.exports = {
   isLp612Enabled,
+  isLp612EditEnabled,
   isLp612LangMenuEnabled,
   isReligiousEnabled,
   templateVersion,
   resolveAuthorModel,
+  authorTierFor,
+  AUTHOR_TIERS,
   authorRounds,
   authorTimeoutMs,
   followupAfterMs,

@@ -34,6 +34,7 @@ const { logToFile } = require('../utils/logger');
 const { getClient } = require('./llm-client');
 const { fetchPages } = require('./lp612-pagetruth.service');
 const { clampLanguage } = require('../config/ux-strings');
+const { familyForBook } = require('../config/lp612-families');
 
 // Static, literal requires on purpose: the repo's unresolved-require audit reads the source
 // text, and a `require(path.join(...))` is invisible to it — which is how a vendored file that
@@ -45,20 +46,28 @@ const { validateDoc } = require('../../vendor/lp-v9/lib/validate.js');
 // deleted by this file.
 const docSchema = require('../../vendor/lp-v9/schema/lp_doc.schema.json');
 
-const BRIEF_PATH = path.join(__dirname, '..', '..', 'vendor', 'lp-v9', 'brief_author_v3.md');
+const VENDOR_DIR = path.join(__dirname, '..', '..', 'vendor', 'lp-v9');
+const BRIEF_PATH = path.join(VENDOR_DIR, 'brief_author_v3.md');
 
 // The model is the CALLER's choice, defaulted from the environment so the worker and any
 // operator script agree without passing it around. Every call goes through llm-client
 // (OpenRouter) — never the pipeline's Python backend picker, never a direct vendor API.
-const DEFAULT_AUTHOR_MODEL = 'anthropic/claude-sonnet-5';
 const DEFAULT_ROUNDS = 3;
 const MAX_TOKENS = 24000;
 const TEMPERATURE = 0.2;
 const PAGE_TRUTH_MAX_CHARS = 90000;
 
-function resolveAuthorModel() {
-  return process.env.LP_AUTHOR_MODEL || DEFAULT_AUTHOR_MODEL;
-}
+/**
+ * ONE resolver, in `lp612-flags.js`.
+ *
+ * This file used to carry its own private copy reading `LP_AUTHOR_MODEL`
+ * directly. Because the worker calls authorLessonPlan() WITHOUT a model, that
+ * private copy was the one that actually decided the production model — so a
+ * family-aware resolver added to lp612-flags.js would have been dead code while
+ * every unit test on it passed. Re-exported below so existing callers and tests
+ * are unaffected.
+ */
+const { resolveAuthorModel, authorTierFor } = require('../config/lp612-flags');
 
 function resolveRounds(explicit) {
   if (Number.isInteger(explicit) && explicit >= 0) return explicit;
@@ -67,10 +76,30 @@ function resolveRounds(explicit) {
   return DEFAULT_ROUNDS;
 }
 
-let _brief = null;
-function authorBrief() {
-  if (_brief === null) _brief = fs.readFileSync(BRIEF_PATH, 'utf8');
-  return _brief;
+/**
+ * The system brief, by tier and subject family.
+ *
+ * `standard` is the v3 brief and is the path that serves teachers today — it
+ * ignores the family entirely, so the current production prompt is byte-identical
+ * to what it was before the pilot.
+ *
+ * `flash` resolves a per-family brief. Each family file carries the whole v3
+ * brief VERBATIM plus its own preamble (upstream `build_flash_brief.py` asserts
+ * that and fails on drift), so the flash tier is a superset of the canon rather
+ * than a fork of it.
+ *
+ * Cached per resolved file, not globally: a worker authors many segments across
+ * families in one process, and re-reading ~100 KB per lesson is pure waste.
+ */
+const _briefs = new Map();
+function authorBrief(tier = 'standard', family = null) {
+  const file = tier === 'flash' && family
+    ? `brief_author_v3_flash_${family}.md`
+    : 'brief_author_v3.md';
+  if (!_briefs.has(file)) {
+    _briefs.set(file, fs.readFileSync(path.join(VENDOR_DIR, file), 'utf8'));
+  }
+  return _briefs.get(file);
 }
 
 function fail(code, message, extra = {}) {
@@ -305,20 +334,59 @@ function extractJson(text) {
  * @throws Error with .code 'LLM_FAILED'
  */
 async function callLlm({ system, user, model, correlationId, stage }) {
+  const payload = {
+    model,
+    temperature: TEMPERATURE,
+    max_tokens: MAX_TOKENS,
+    reasoning: { enabled: false },
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ],
+  };
+
   let res;
   try {
-    res = await getClient().chat.completions.create({
-      model,
-      temperature: TEMPERATURE,
-      max_tokens: MAX_TOKENS,
-      reasoning: { enabled: false },
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-    });
+    try {
+      res = await getClient().chat.completions.create(payload);
+    } catch (e) {
+      // Some reasoning-native models REFUSE to have it turned off and answer HTTP
+      // 400 "Reasoning is mandatory for this endpoint and cannot be disabled".
+      // Dropping a model over a payload flag would silently shrink the pilot to
+      // whichever models happen to share our defaults, so retry once WITHOUT the
+      // flag and let it think. The post-call check below then reports what that
+      // cost, so an expensive model cannot hide inside the fallback.
+      if (!/reasoning is mandatory/i.test(String(e && e.message))) throw e;
+      logToFile('lp612 author: model mandates reasoning — retrying with it enabled', {
+        correlationId, stage, model,
+      }, 'warn');
+      const { reasoning, ...withoutReasoning } = payload;
+      res = await getClient().chat.completions.create(withoutReasoning);
+    }
   } catch (e) {
     throw fail('LLM_FAILED', `${stage}: LLM call failed — ${e.message}`, { cause: e });
+  }
+
+  // ASSERT THE CONTRACT, DO NOT TRUST THE FLAG.
+  //
+  // Measured 2026-09-03, provider-pinned on OpenRouter for deepseek-v4-flash:
+  // with no flag, StreamLake spent 2,680 reasoning tokens and Baidu 6,320, while
+  // Azure and DeepInfra spent none. `reasoning:{enabled:false}` took all four to
+  // zero; `thinking:{type:"disabled"}` — the DIRECT api.deepseek.com spelling — was
+  // silently IGNORED by OpenRouter and left StreamLake at 2,788.
+  //
+  // OpenRouter load-balances, so which upstream serves a request is not ours to
+  // choose. Reasoning bills as completion tokens and truncates the JSON at
+  // max_tokens, so a provider that ignored the flag would cost ~60 s and a broken
+  // document, silently. This turns that into a named, queryable signal.
+  const reasoningTokens =
+    (res && res.usage && res.usage.completion_tokens_details
+      && res.usage.completion_tokens_details.reasoning_tokens) || 0;
+  if (reasoningTokens > 0) {
+    logToFile('lp612 author: reasoning was NOT disabled by the provider', {
+      correlationId, stage, model, reasoningTokens,
+      completionTokens: (res.usage && res.usage.completion_tokens) || 0,
+    }, 'warn');
   }
 
   const message = (res && res.choices && res.choices[0] && res.choices[0].message) || {};
@@ -853,7 +921,12 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
     throw fail('AUTHOR_LLM_FAILED', 'authorLessonPlan needs a segment with a book_stem');
   }
 
-  const chosenModel = model || resolveAuthorModel();
+  // The subject family drives BOTH the model (the maths/physics pilot) and, on the
+  // flash tier, which preamble the model is given. Derived from book_stem, which
+  // niete_lp612_segments carries NOT NULL, so it never needs a second lookup.
+  const family = familyForBook(segment.book_stem);
+  const chosenModel = model || resolveAuthorModel(family);
+  const tier = authorTierFor(chosenModel);
   const maxRounds = resolveRounds(rounds);
   // clampLanguage, not an inline `=== 'ur' ? 'ur' : 'en'`. That inline form was
   // written 23 separate times in this codebase before it was collapsed into one
@@ -873,7 +946,7 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
   });
 
   const video = parseYt(segment.yt);
-  const system = authorBrief();
+  const system = authorBrief(tier, family);
   const user = buildUserPrompt({ segment, bundle, lang: language, video });
 
   const usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, calls: 0 };
@@ -971,6 +1044,7 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
   const fails = gateFails(gates);
   logToFile('lp612 author finished', {
     correlationId, segmentId: segment.segment_id, model: chosenModel,
+    family, tier,
     rounds: spent, lintClean: fails.length === 0, fails: fails.slice(0, 10), usage,
   });
 
@@ -981,7 +1055,199 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
     warns: gates.warns,
     rounds: spent,
     model: chosenModel,
+    // Reported so the render row records WHICH harness produced the document. A
+    // bake-off row that does not know its own tier is a mislabelled cell, which is
+    // what made the first bake-off run unreadable.
+    family,
+    tier,
     usage,
+  };
+}
+
+// ── the edit lane ───────────────────────────────────────────────────────────
+
+/**
+ * Her sentence, framed so the model treats it as an instruction to obey rather than prose to
+ * fold in — and bounded, because the preamble it lands inside says "change nothing else" about
+ * DEFECTS, not about how far her authority extends.
+ */
+function teacherInstructionNote(instruction) {
+  return [
+    'A TEACHER HAS ASKED FOR ONE CHANGE TO THIS LESSON. Apply it exactly and change nothing else.',
+    '',
+    `HER REQUEST: "${String(instruction).trim()}"`,
+    '',
+    'Rules for applying it:',
+    '  - Apply ONLY this change. Every other section, item and sentence stays as it is.',
+    '  - Keep every fact traceable to the same page-truth. Do not introduce content the printed',
+    '    pages do not support.',
+    '  - Keep the document valid: never remove a required property to satisfy her, and keep each',
+    '    part inside its page cap.',
+    '  - If her request cannot be satisfied without breaking one of those rules, apply the closest',
+    '    version that does not, and leave the rest untouched.',
+  ].join('\n');
+}
+
+/**
+ * The repair round's note.
+ *
+ * It must NOT repeat her instruction. Re-asking for "shorter homework" against an already-
+ * shortened document is how a lesson gets cut twice — and repair rounds are the common path, not
+ * the corner case: 7 of the 12 measured cells needed one.
+ */
+const REPAIR_NOTE =
+  "A teacher's edit has ALREADY been applied to the document below and must be PRESERVED. "
+  + 'Fix ONLY the listed defects that edit introduced. Do not undo the edit, and do not apply it '
+  + 'a second time.';
+
+/**
+ * Apply ONE teacher instruction to a lesson she already has.
+ *
+ * WHAT MAKES THIS CHEAP: there is no authoring call. The document we already paid for is the
+ * starting point, and her sentence enters through the same `notes` channel `buildRevisionPrompt`
+ * already renders above every gate finding. Measured across 12 cells: ~$0.27 an attempt against
+ * ~$0.97 to author, and ~122s against ~376s.
+ *
+ * WHAT MAKES IT SAFE — and this is the part that must never be softened:
+ *
+ *   **A REJECTED EDIT RETURNS HER ORIGINAL.** To let a second round repair what the first one
+ *   broke, the loop keeps climbing from the candidate — so on a final rejected round the working
+ *   document is the broken one. Returning that with `accepted: false` beside it (which the
+ *   prototype did) hands a caller the exact document the gates just refused, one careless
+ *   `if (out.lpDoc)` away from sending it. So the original is captured up front and returned
+ *   unchanged on every failure path: rejection, transport, unparseable, schema.
+ *
+ * ACCEPTANCE IS ABSOLUTE, NOT RELATIVE. `notWorse()` on the authoring ladder compares two
+ * candidates chasing the same target. Here the incumbent is a document she ALREADY HAS and which
+ * already renders, so the bar is "introduces no NEW blocking defect" — an edit is not entitled to
+ * cost her a working lesson just by being an improvement on its own last attempt.
+ *
+ * `rounds` is a REPAIR budget, not an edit budget: round 1 applies her instruction, and any
+ * further round exists only to fix what that broke.
+ *
+ * @param {object} args
+ * @param {object} args.doc          the persisted lp_doc she was sent
+ * @param {string} args.instruction  her words, verbatim
+ * @param {object} args.segment      the segment row, for page-truth and the original task
+ * @param {'en'|'ur'} [args.lang]
+ * @param {string} [args.model]
+ * @param {number} [args.rounds=2]   total rounds: 1 edit + (rounds-1) repair
+ * @param {function} [args.renderCheck] async (doc) -> string[] of RENDER defects
+ * @returns {Promise<{lpDoc:object, accepted:boolean, gatesBefore:object, gatesAfter:object,
+ *                    rejectedFails:string[], rounds:number, usage:object, model:string}>}
+ */
+async function reviseLessonPlan({
+  doc, instruction, segment, lang, model, rounds = 2, correlationId, renderCheck,
+} = {}) {
+  if (!doc || typeof doc !== 'object') {
+    throw fail('REVISE_INPUT', 'reviseLessonPlan needs the document to edit');
+  }
+  if (!instruction || !String(instruction).trim()) {
+    throw fail('REVISE_INPUT', 'reviseLessonPlan needs a teacher instruction');
+  }
+  if (!segment || !segment.book_stem) {
+    throw fail('REVISE_INPUT', 'reviseLessonPlan needs a segment with a book_stem');
+  }
+
+  // HERS. Captured before anything can mutate it, deep-copied because the sanitisers below
+  // mutate in place and would otherwise reach into the document we promised to hand back.
+  const original = JSON.parse(JSON.stringify(doc));
+
+  const chosenModel = model || resolveAuthorModel();
+  const language = clampLanguage(lang || segment.medium);
+
+  const bundle = await fetchPages({
+    bookStem: segment.book_stem,
+    pages: segment.pages_covered && segment.pages_covered.length
+      ? segment.pages_covered
+      : rangeOf(segment.printed_page_start, segment.printed_page_end),
+    correlationId,
+  });
+
+  const video = parseYt(segment.yt);
+  const system = authorBrief();
+  const originalUser = buildUserPrompt({ segment, bundle, lang: language, video });
+
+  const usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, calls: 0 };
+  const addUsage = (u) => {
+    usage.calls += 1;
+    usage.prompt_tokens += (u && u.prompt_tokens) || 0;
+    usage.completion_tokens += (u && u.completion_tokens) || 0;
+    usage.total_tokens += (u && u.total_tokens) || 0;
+  };
+
+  // The bar. Her document's own defect count — an edit may not raise it.
+  const gatesBefore = await runGates(original, renderCheck);
+  const bar = blockingCost(gatesBefore);
+
+  let current = original;
+  let gates = gatesBefore;
+  let accepted = false;
+  let spent = 0;
+
+  for (let rnd = 0; rnd < Math.max(1, rounds); rnd++) {
+    spent = rnd + 1;
+    const notes = rnd === 0 ? teacherInstructionNote(instruction) : REPAIR_NOTE;
+    const fixUser = buildRevisionPrompt({ doc: current, gates, originalUser, notes });
+
+    let candidate;
+    try {
+      candidate = await callWithRetry({
+        system, user: fixUser, model: chosenModel, correlationId,
+        stage: `edit${spent}`, usageSink: addUsage,
+      });
+    } catch (e) {
+      // Both attempts unusable, or the transport died. That costs the round, and — if it was the
+      // last one — the edit. Never her lesson.
+      logToFile('lp612 edit: round unusable, keeping the previous document', {
+        correlationId, segmentId: segment.segment_id, round: spent, error: e.message,
+      }, 'warn');
+      continue;
+    }
+
+    applyVideo(candidate, video);
+    sanitizeUnknownTopLevel(candidate);
+    sanitizeOverlay(candidate);
+
+    const g2 = await runGates(candidate, renderCheck);
+
+    if (blockingCost(g2) <= bar) {
+      current = candidate;
+      gates = g2;
+      accepted = true;
+      break;                       // clean enough to ship; further rounds buy nothing
+    }
+
+    // Not acceptable YET. Climb from it anyway so the next round can repair what it broke —
+    // but `accepted` stays false, and the return below is what guarantees that a run which ends
+    // here hands back the original rather than this.
+    logToFile('lp612 edit: candidate introduced blocking defects', {
+      correlationId, segmentId: segment.segment_id, round: spent,
+      bar, candidate: blockingCost(g2), fails: blockingFails(g2).slice(0, 5),
+    }, 'warn');
+    current = candidate;
+    gates = g2;
+    accepted = false;
+  }
+
+  // THE CONTRACT. Accepted → the edit. Anything else → hers, untouched.
+  const lpDoc = accepted ? current : original;
+  const rejectedFails = accepted ? [] : blockingFails(gates);
+
+  logToFile('lp612 edit finished', {
+    correlationId, segmentId: segment.segment_id, model: chosenModel,
+    accepted, rounds: spent, bar, rejectedFails: rejectedFails.slice(0, 5), usage,
+  });
+
+  return {
+    lpDoc,
+    accepted,
+    gatesBefore,
+    gatesAfter: gates,
+    rejectedFails,
+    rounds: spent,
+    usage,
+    model: chosenModel,
   };
 }
 
@@ -1002,6 +1268,7 @@ module.exports = {
   pythonDictToJson,
   __extractJsonForTests: extractJson,
   authorLessonPlan,
+  reviseLessonPlan,
   resolveAuthorModel,
   // exported for the suite and for anyone porting a fix back upstream
   extractJson,

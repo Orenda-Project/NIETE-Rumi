@@ -32,6 +32,11 @@ module.exports = {
     // or bot/shared/storage/r2.js died on an unresolved require rather than on its own
     // assertions. Ported from main, where these have been in place since 2026-08.
     '^@supabase/supabase-js$': '<rootDir>/tests/__mocks__/supabase-js.js',
+    // The v2 SDK, required at module scope by the SQS queue driver. Any root suite that loads
+    // the real text-message handler reaches it (handler → lesson-plan-queue → ./queue → SQS),
+    // which is why that handler's older suite asserts against source text instead of loading
+    // the module. With this stub the handler can actually be executed in a test.
+    '^aws-sdk$': '<rootDir>/tests/__mocks__/aws-sdk.js',
     '^@aws-sdk/client-s3$': '<rootDir>/tests/__mocks__/aws-sdk-client-s3.js',
     '^@aws-sdk/s3-request-presigner$': '<rootDir>/tests/__mocks__/aws-sdk-s3-request-presigner.js',
     // Media + PDF: fluent-ffmpeg shells out to a real transcoder and the two
