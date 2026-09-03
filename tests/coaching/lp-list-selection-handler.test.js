@@ -24,6 +24,8 @@ function deps(linkResult) {
     sendMessage: async (to, text) => { sent.push({ to, text }); },
     queueAnalysis: async (sessionId, payload) => { queued.push({ sessionId, payload }); },
     resolveLanguage: async () => 'ur',
+    // Injected so the test never touches the default supabase lookup (a network call that hangs on some machines).
+    sessionStatus: async () => 'awaiting_lesson_plan',
   };
 }
 
