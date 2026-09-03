@@ -1064,6 +1064,193 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
   };
 }
 
+// ── the edit lane ───────────────────────────────────────────────────────────
+
+/**
+ * Her sentence, framed so the model treats it as an instruction to obey rather than prose to
+ * fold in — and bounded, because the preamble it lands inside says "change nothing else" about
+ * DEFECTS, not about how far her authority extends.
+ */
+function teacherInstructionNote(instruction) {
+  return [
+    'A TEACHER HAS ASKED FOR ONE CHANGE TO THIS LESSON. Apply it exactly and change nothing else.',
+    '',
+    `HER REQUEST: "${String(instruction).trim()}"`,
+    '',
+    'Rules for applying it:',
+    '  - Apply ONLY this change. Every other section, item and sentence stays as it is.',
+    '  - Keep every fact traceable to the same page-truth. Do not introduce content the printed',
+    '    pages do not support.',
+    '  - Keep the document valid: never remove a required property to satisfy her, and keep each',
+    '    part inside its page cap.',
+    '  - If her request cannot be satisfied without breaking one of those rules, apply the closest',
+    '    version that does not, and leave the rest untouched.',
+  ].join('\n');
+}
+
+/**
+ * The repair round's note.
+ *
+ * It must NOT repeat her instruction. Re-asking for "shorter homework" against an already-
+ * shortened document is how a lesson gets cut twice — and repair rounds are the common path, not
+ * the corner case: 7 of the 12 measured cells needed one.
+ */
+const REPAIR_NOTE =
+  "A teacher's edit has ALREADY been applied to the document below and must be PRESERVED. "
+  + 'Fix ONLY the listed defects that edit introduced. Do not undo the edit, and do not apply it '
+  + 'a second time.';
+
+/**
+ * Apply ONE teacher instruction to a lesson she already has.
+ *
+ * WHAT MAKES THIS CHEAP: there is no authoring call. The document we already paid for is the
+ * starting point, and her sentence enters through the same `notes` channel `buildRevisionPrompt`
+ * already renders above every gate finding. Measured across 12 cells: ~$0.27 an attempt against
+ * ~$0.97 to author, and ~122s against ~376s.
+ *
+ * WHAT MAKES IT SAFE — and this is the part that must never be softened:
+ *
+ *   **A REJECTED EDIT RETURNS HER ORIGINAL.** To let a second round repair what the first one
+ *   broke, the loop keeps climbing from the candidate — so on a final rejected round the working
+ *   document is the broken one. Returning that with `accepted: false` beside it (which the
+ *   prototype did) hands a caller the exact document the gates just refused, one careless
+ *   `if (out.lpDoc)` away from sending it. So the original is captured up front and returned
+ *   unchanged on every failure path: rejection, transport, unparseable, schema.
+ *
+ * ACCEPTANCE IS ABSOLUTE, NOT RELATIVE. `notWorse()` on the authoring ladder compares two
+ * candidates chasing the same target. Here the incumbent is a document she ALREADY HAS and which
+ * already renders, so the bar is "introduces no NEW blocking defect" — an edit is not entitled to
+ * cost her a working lesson just by being an improvement on its own last attempt.
+ *
+ * `rounds` is a REPAIR budget, not an edit budget: round 1 applies her instruction, and any
+ * further round exists only to fix what that broke.
+ *
+ * @param {object} args
+ * @param {object} args.doc          the persisted lp_doc she was sent
+ * @param {string} args.instruction  her words, verbatim
+ * @param {object} args.segment      the segment row, for page-truth and the original task
+ * @param {'en'|'ur'} [args.lang]
+ * @param {string} [args.model]
+ * @param {number} [args.rounds=2]   total rounds: 1 edit + (rounds-1) repair
+ * @param {function} [args.renderCheck] async (doc) -> string[] of RENDER defects
+ * @returns {Promise<{lpDoc:object, accepted:boolean, gatesBefore:object, gatesAfter:object,
+ *                    rejectedFails:string[], rounds:number, usage:object, model:string}>}
+ */
+async function reviseLessonPlan({
+  doc, instruction, segment, lang, model, rounds = 2, correlationId, renderCheck,
+} = {}) {
+  if (!doc || typeof doc !== 'object') {
+    throw fail('REVISE_INPUT', 'reviseLessonPlan needs the document to edit');
+  }
+  if (!instruction || !String(instruction).trim()) {
+    throw fail('REVISE_INPUT', 'reviseLessonPlan needs a teacher instruction');
+  }
+  if (!segment || !segment.book_stem) {
+    throw fail('REVISE_INPUT', 'reviseLessonPlan needs a segment with a book_stem');
+  }
+
+  // HERS. Captured before anything can mutate it, deep-copied because the sanitisers below
+  // mutate in place and would otherwise reach into the document we promised to hand back.
+  const original = JSON.parse(JSON.stringify(doc));
+
+  const chosenModel = model || resolveAuthorModel();
+  const language = clampLanguage(lang || segment.medium);
+
+  const bundle = await fetchPages({
+    bookStem: segment.book_stem,
+    pages: segment.pages_covered && segment.pages_covered.length
+      ? segment.pages_covered
+      : rangeOf(segment.printed_page_start, segment.printed_page_end),
+    correlationId,
+  });
+
+  const video = parseYt(segment.yt);
+  const system = authorBrief();
+  const originalUser = buildUserPrompt({ segment, bundle, lang: language, video });
+
+  const usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, calls: 0 };
+  const addUsage = (u) => {
+    usage.calls += 1;
+    usage.prompt_tokens += (u && u.prompt_tokens) || 0;
+    usage.completion_tokens += (u && u.completion_tokens) || 0;
+    usage.total_tokens += (u && u.total_tokens) || 0;
+  };
+
+  // The bar. Her document's own defect count — an edit may not raise it.
+  const gatesBefore = await runGates(original, renderCheck);
+  const bar = blockingCost(gatesBefore);
+
+  let current = original;
+  let gates = gatesBefore;
+  let accepted = false;
+  let spent = 0;
+
+  for (let rnd = 0; rnd < Math.max(1, rounds); rnd++) {
+    spent = rnd + 1;
+    const notes = rnd === 0 ? teacherInstructionNote(instruction) : REPAIR_NOTE;
+    const fixUser = buildRevisionPrompt({ doc: current, gates, originalUser, notes });
+
+    let candidate;
+    try {
+      candidate = await callWithRetry({
+        system, user: fixUser, model: chosenModel, correlationId,
+        stage: `edit${spent}`, usageSink: addUsage,
+      });
+    } catch (e) {
+      // Both attempts unusable, or the transport died. That costs the round, and — if it was the
+      // last one — the edit. Never her lesson.
+      logToFile('lp612 edit: round unusable, keeping the previous document', {
+        correlationId, segmentId: segment.segment_id, round: spent, error: e.message,
+      }, 'warn');
+      continue;
+    }
+
+    applyVideo(candidate, video);
+    sanitizeUnknownTopLevel(candidate);
+    sanitizeOverlay(candidate);
+
+    const g2 = await runGates(candidate, renderCheck);
+
+    if (blockingCost(g2) <= bar) {
+      current = candidate;
+      gates = g2;
+      accepted = true;
+      break;                       // clean enough to ship; further rounds buy nothing
+    }
+
+    // Not acceptable YET. Climb from it anyway so the next round can repair what it broke —
+    // but `accepted` stays false, and the return below is what guarantees that a run which ends
+    // here hands back the original rather than this.
+    logToFile('lp612 edit: candidate introduced blocking defects', {
+      correlationId, segmentId: segment.segment_id, round: spent,
+      bar, candidate: blockingCost(g2), fails: blockingFails(g2).slice(0, 5),
+    }, 'warn');
+    current = candidate;
+    gates = g2;
+    accepted = false;
+  }
+
+  // THE CONTRACT. Accepted → the edit. Anything else → hers, untouched.
+  const lpDoc = accepted ? current : original;
+  const rejectedFails = accepted ? [] : blockingFails(gates);
+
+  logToFile('lp612 edit finished', {
+    correlationId, segmentId: segment.segment_id, model: chosenModel,
+    accepted, rounds: spent, bar, rejectedFails: rejectedFails.slice(0, 5), usage,
+  });
+
+  return {
+    lpDoc,
+    accepted,
+    gatesBefore,
+    gatesAfter: gates,
+    rejectedFails,
+    rounds: spent,
+    usage,
+    model: chosenModel,
+  };
+}
+
 /** printed_page_start..printed_page_end, inclusive — the fallback when pages_covered is empty. */
 function rangeOf(start, end) {
   if (!Number.isInteger(start)) return [];
@@ -1081,6 +1268,7 @@ module.exports = {
   pythonDictToJson,
   __extractJsonForTests: extractJson,
   authorLessonPlan,
+  reviseLessonPlan,
   resolveAuthorModel,
   // exported for the suite and for anyone porting a fix back upstream
   extractJson,
