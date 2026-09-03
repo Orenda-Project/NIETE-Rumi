@@ -35,13 +35,20 @@ describe('bd-2636 — classroom-photo acceptance covers both namings', () => {
   });
 });
 
-describe('bd-2636 — image handler actually uses the widened filter (source guard)', () => {
-  const src = fs.readFileSync(path.join(__dirname, '../../bot/shared/handlers/image-message.handler.js'), 'utf8');
-  it('queries coaching_sessions by the CLASSROOM_PHOTO_STATUSES set, not a single status', () => {
-    expect(src).toMatch(/CLASSROOM_PHOTO_STATUSES/);
-    expect(src).toMatch(/isClassroomPhotoState/);
-    // the old single-status .eq('status', 'awaiting_photo') for the coaching-photo
-    // branch must be gone
-    expect(src).not.toMatch(/\.eq\('status',\s*'awaiting_photo'\)/);
+describe('bd-2636 — the photo gate actually uses the widened filter (source guard)', () => {
+  // R165 (bd-2kxxa.2): the image handler no longer queries coaching_sessions
+  // itself — it delegates to media-attach.service, whose media-session-resolver
+  // carries the widened filter. Guard the resolver AND the delegation.
+  const handlerSrc = fs.readFileSync(path.join(__dirname, '../../bot/shared/handlers/image-message.handler.js'), 'utf8');
+  const resolverSrc = fs.readFileSync(path.join(__dirname, '../../bot/shared/services/coaching/media-session-resolver.js'), 'utf8');
+  it('the image handler routes classroom photos through the shared media-attach service', () => {
+    expect(handlerSrc).toMatch(/media-attach\.service/);
+    expect(handlerSrc).toMatch(/handlePhotoArrival\(/);
+    expect(handlerSrc).not.toMatch(/\.eq\('status',\s*'awaiting_photo'\)/);
+  });
+  it('the resolver queries coaching_sessions by the CLASSROOM_PHOTO_STATUSES set, not a single status', () => {
+    expect(resolverSrc).toMatch(/CLASSROOM_PHOTO_STATUSES/);
+    expect(resolverSrc).toMatch(/isClassroomPhotoState/);
+    expect(resolverSrc).not.toMatch(/\.eq\('status',\s*'awaiting_photo'\)/);
   });
 });
