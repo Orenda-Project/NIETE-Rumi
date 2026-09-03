@@ -652,7 +652,18 @@ class AudioService {
   // free identifier: ReferenceError on every diarization-success, silent
   // fallback to the no-diarization backup, and timestamp-free transcripts
   // fleet-wide (which starved the LP-fidelity grader — Section B incident).
+  /**
+   * Cassette front for the live Soniox/Whisper call (E2E_CASSETTE=replay|record, staging only).
+   * Keyed by the AUDIO BYTES + options, never the temp path — see e2e-cassette.js.
+   */
   static async _transcribeOnce(audioPath, enableDiarization = false, language = null, roles = null) {
+    const cassette = require('./e2e-cassette');
+    if (cassette.mode() === 'off') return this._transcribeOnceLive(audioPath, enableDiarization, language, roles);
+    return cassette.wrap('asr', cassette.audioKey(audioPath, { enableDiarization, language, roles }),
+      () => this._transcribeOnceLive(audioPath, enableDiarization, language, roles));
+  }
+
+  static async _transcribeOnceLive(audioPath, enableDiarization = false, language = null, roles = null) {
     let fileId = null;
 
     try {

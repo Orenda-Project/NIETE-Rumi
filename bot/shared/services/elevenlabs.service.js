@@ -96,6 +96,12 @@ class ElevenLabsService {
    * @returns {Promise<Buffer>} Audio buffer (MP3 format)
    */
   static async generateSpeech(text) {
+    const cassette = require('./e2e-cassette');
+    if (cassette.mode() === 'off') return this._generateSpeechLive(text);
+    return cassette.wrapBuffer('tts', { fn: 'generateSpeech', text }, () => this._generateSpeechLive(text));
+  }
+
+  static async _generateSpeechLive(text) {
     try {
       logToFile('Generating speech with ElevenLabs', {
         textLength: text.length,
@@ -158,7 +164,19 @@ class ElevenLabsService {
    * @param {string} languageCode - Language code (en, es, ur, ar)
    * @returns {Promise<Buffer>} Audio buffer (MP3 or OGG format)
    */
+  /**
+   * Cassette front (E2E_CASSETTE, staging only). This is the seam, not _postTts: the voice for a
+   * language may come from ElevenLabs, Uplift or the OpenAI fallback (voiceConfig.provider), and
+   * the E2E suite only cares that the SAME text in the SAME language yields the same audio.
+   */
   static async generateSpeechForLanguage(text, languageCode = 'en') {
+    const cassette = require('./e2e-cassette');
+    if (cassette.mode() === 'off') return this._generateSpeechForLanguageLive(text, languageCode);
+    return cassette.wrapBuffer('tts', { fn: 'generateSpeechForLanguage', text, languageCode },
+      () => this._generateSpeechForLanguageLive(text, languageCode));
+  }
+
+  static async _generateSpeechForLanguageLive(text, languageCode = 'en') {
     const voiceConfig = VOICE_MODELS[languageCode];
 
     if (!voiceConfig) {
