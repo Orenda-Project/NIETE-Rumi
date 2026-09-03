@@ -42,6 +42,24 @@ PICTURE = re.compile(
 # legitimate, so a naming verb rescues a stem that would otherwise look self-answering.
 NAMES_A_TARGET = re.compile(r"\b(mark|show|draw|circle|match|shade|point|write|label|find|locate)\b", re.I)
 
+# The answer BELONGS in the stem for a whole family of legitimate items, and treating
+# that as a defect fails every real paper. Measured: the first version of this guard
+# flagged 8 items across all four Grade 3 English papers (2026-09-03) and every one was
+# a false positive. Three shapes:
+#   * IDENTIFY — "which word is the adverb in 'The cat walked quietly'?" The child's
+#     task IS to pick the word out of the sentence shown.
+#   * WORD BANK — "The ___ (beautiful/run) flowers smell nice." The options are printed
+#     in the stem on purpose.
+#   * TRANSFORM — "rewrite this sentence with correct capitalisation". The answer is the
+#     stem, changed.
+# A check that fires on these is measuring the wrong thing (LP skill: "when a gate fails
+# everything, suspect the gate").
+IDENTIFY = re.compile(
+    r"\b(identify|which word|which one|choose the|pick|select|underline|circle the"
+    r"|name the (?:word|noun|verb|adjective|adverb)|find the (?:word|noun|verb|adjective|adverb))\b", re.I)
+TRANSFORM = re.compile(r"\b(rewrite|rearrange|correct|change|convert|put .* into|turn .* into)\b", re.I)
+WORD_BANK = re.compile(r"\([^)]*/[^)]*\)")          # "(beautiful/run)" — options inline in the stem
+
 WORD = re.compile(r"[^\W\d_]{3,}", re.UNICODE)
 
 
@@ -92,6 +110,9 @@ def _self_answering(q):
     """
     stem = " ".join(str(q.get(k) or "") for k in ("main_question", "question"))
     if not stem.strip():
+        return False
+    # Item families where the answer legitimately appears in the stem.
+    if IDENTIFY.search(stem) or TRANSFORM.search(stem) or WORD_BANK.search(stem):
         return False
     ans = answer_of(q)
     if ans is None:

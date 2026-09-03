@@ -26,10 +26,18 @@ diagrams or figures. An item that needs one is worthless however well written.
 4. Is it ALIGNED — to the topic, the textbook pages, the SLO, and the Bloom level claimed?
 5. Is it WELL FORMED — complete items, sane marks, the length asked for?
 
-HOW TO SCORE. Every check is 1–4 ascending, using the descriptors given. Read the descriptors \
-literally; do not invent an intermediate standard. A rating of 3 means "meets the standard", \
-4 means "meets it fully and well". Be biased toward the LOWER band when a paper sits between \
+HOW TO SCORE. Every check is 1–4 ascending, using the descriptors given. Read the descriptors
+literally; do not invent an intermediate standard. A rating of 3 means "meets the standard",
+4 means "meets it fully and well". Be biased toward the LOWER band when a paper sits between
 two: a false alarm costs one regeneration, a miss reaches a classroom.
+
+FIND FIRST, THEN RATE — in that order, and never the reverse. For every check, first list the
+specific items that fail it, quoting them. Only then read the band off that list. Where a check's
+descriptors name a COUNT (the answerability check does), the band is arithmetic: two reviewers who
+find the same items must give the same rating, with no room left for an overall impression of the
+paper. Do not let a paper that is good elsewhere pull a failing count upward, and do not let one
+bad item drag unrelated checks down. This instruction exists because nine blind judgings of one
+paper once found the same defects and rated them anywhere from 1 to 4.
 
 CALIBRATION — things that are NOT defects, and must not be reported as such:
 - A "seen" item that reproduces a textbook exercise closely is CORRECT behaviour, not plagiarism.

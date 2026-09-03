@@ -108,17 +108,23 @@ CONTENT_ACCURACY = {
             "scope": "item",
             "requirement": (
                 "Exactly one answer must be defensible. Ambiguity usually means the item does not "
-                "test the SLO's action verb precisely."
+                "test the SLO's action verb precisely. COUNT the ambiguous items. An intentionally OPEN "
+                "item ('write three action words') is NOT ambiguous when its key carries an 'accept any "
+                "valid…' note; it IS a fault when keyed to one fixed answer as though it were closed."
             ),
             "descriptors": {
-                1: "Multiple answers possible.",
-                2: "Two defensible answers with reasonable argument.",
-                3: "Mostly clear but can be interpreted two ways.",
-                4: "One clear correct answer — no room for debate.",
+                1: "3 or more items admit a defensible answer the key rejects.",
+                2: "2 items do.",
+                3: "1 item does — or an open item is keyed to a single answer with no 'accept any valid…' note.",
+                4: "Every item admits exactly one defensible answer, and every open item's key says what else to accept.",
             },
             "standards": ["P7", "P7b"],
             "requires_context": [],
-            "source": "exam sheet v2 row 4 (verbatim)",
+            "source": (
+                "exam sheet v2 row 4 (verbatim); bands made countable and the open-item case added after "
+                "the 2026-09-03 drift run, where judges split 3/4 over whether a one-answer key on an "
+                "open question counts as ambiguity"
+            ),
         },
         {
             "id": "A1c",
@@ -161,19 +167,29 @@ CONTENT_ACCURACY = {
             "name": "Internal consistency & plausible references",
             "scope": "paper",
             "requirement": (
-                "The paper must not contradict itself: a page/exercise reference must be plausible for "
-                "the range supplied, a passage referred to must be present, and no two items may give "
-                "conflicting facts. The answer key must answer the question actually asked."
+                "Does the paper contradict ITSELF? Three faults count: two items asserting conflicting "
+                "facts; a key answer that answers a different question than its stem asks; a stem whose "
+                "own parts disagree (plural 'the proper nouns' over a sentence containing one).\n"
+                "⚠ DO NOT COUNT A MISSING PASSAGE HERE. An item pointing at text the paper does not print "
+                "is scored by A5a (answerability) and by A5a ALONE. Charging it here too punishes one "
+                "defect twice, and was the largest source of disagreement in the 2026-09-03 drift run — "
+                "the same missing story drove this check to 1, 2, 3 and 4 across nine judgings. If a "
+                "reference is absent, that is A5a's finding; ask only whether what IS present hangs "
+                "together."
             ),
             "descriptors": {
-                1: "Self-contradictory, or references a passage/page/figure the paper does not contain.",
-                2: "One reference is implausible or one key answer does not match its question.",
-                3: "Internally consistent with a single cosmetic slip (e.g. a mis-numbered reference).",
-                4: "Fully self-consistent; every reference resolves and every key answers its own question.",
+                1: "Two or more items assert conflicting facts, OR a key answer answers a different question than its stem asks.",
+                2: "One internal contradiction between items, or between a stem and its own key.",
+                3: "Nothing contradicts; one or more cosmetic slips (a plural where the sentence holds one instance, a mis-numbered cross-reference).",
+                4: "Fully self-consistent — no contradictions and no slips.",
             },
             "standards": ["P7", "P8"],
             "requires_context": [],
-            "source": "LP rubric 7A 'Internal Consistency & Plausible Textbook References'",
+            "source": (
+                "LP rubric 7A 'Internal Consistency & Plausible Textbook References'. SCOPE NARROWED after "
+                "the 2026-09-03 drift run: it was overlapping A5a (cross-judge spread 2.0, the worst on the "
+                "rubric) because a missing passage satisfied both checks' wording."
+            ),
         },
     ],
 }
@@ -319,14 +335,19 @@ FAIRNESS_BIAS = {
                 "pipeline (a QA hard-fail) and applies identically here."
             ),
             "descriptors": {
-                1: "Asks for a depiction of a revered figure, or requires a contested religious/political claim as the correct answer.",
-                2: "Handles sensitive material carelessly (informal register on revered figures, or a claim needing a source it does not give).",
-                3: "Sensitive material handled correctly with a minor register slip.",
-                4: "Sensitive material handled with the curriculum's own conventions throughout.",
+                1: "Asks a child to draw/depict a revered figure, OR the correct answer to some item is a contested religious or political claim.",
+                2: "Names a revered figure without the curriculum's honorific, or asserts a sectarian/political claim as settled fact in a stem.",
+                3: "Sensitive material handled correctly, with a register slip that a teacher would notice but no child would be harmed by.",
+                4: "No sensitive material at all, OR it appears exactly as the textbook itself presents it (a festival as setting, an honorific carried through).",
             },
             "standards": ["P7g"],
             "requires_context": [],
-            "source": "LP rubric 6D + the curriculum-baked-LP G5c religious-content gate",
+            "source": (
+                "LP rubric 6D + the curriculum-baked-LP G5c religious-content gate. Bands sharpened after "
+                "the 2026-09-03 drift run: all 9 judgings agreed (4/4/4) but their rationales showed they "
+                "were each inventing a threshold — band 4 now names the common case (a festival used as "
+                "setting) so agreement is earned rather than lucky."
+            ),
         },
     ],
 }
@@ -363,16 +384,24 @@ COGNITIVE_ALIGNMENT = {
             "id": "A4b",
             "name": "Bloom's tag matches the question",
             "scope": "item",
-            "requirement": "The declared Bloom level must match the cognitive demand the item actually makes.",
+            "requirement": (
+                "The declared Bloom level must match the cognitive demand the item actually makes. COUNT "
+                "the mistagged items and read the band off that count; do not form an overall impression. "
+                "A tag inflated by one level (Understand claimed for pure recall) counts as one; a tag two "
+                "or more levels off (Analyze claimed for a lookup) is severe."
+            ),
             "descriptors": {
-                1: "Bloom's level does not match at all.",
-                2: "Bloom's level notably mismatched — two or more levels off.",
-                3: "Bloom's level partially matches.",
-                4: "Bloom's level exactly matches cognitive level of question.",
+                1: "Over a third of items are mistagged, OR any tag is 2+ levels off.",
+                2: "3 or more items mistagged by one level.",
+                3: "1–2 items mistagged by one level.",
+                4: "Every tag matches the demand the item actually makes.",
             },
             "standards": ["P7b", "P7c", "P7f", "T5"],
             "requires_context": [],
-            "source": "exam sheet v2 row 13 (verbatim)",
+            "source": (
+                "exam sheet v2 row 13 (verbatim); bands made countable after the 2026-09-03 drift run, "
+                "where judges finding the same mistags split 2/3/4 on 'partially matches'"
+            ),
         },
         {
             "id": "A4c",
@@ -431,21 +460,54 @@ ANSWERABILITY = {
             "name": "Answerable from the paper alone",
             "scope": "item",
             "requirement": (
-                "A child holding only this paper must be able to attempt the item. The paper carries NO "
-                "pictures, diagrams or figures, so an item that depends on one cannot be answered. Nor may "
-                "an item point at a passage, table or word bank the paper does not print."
+                "A child holding ONLY this paper, with the textbook closed, must be able to attempt every "
+                "item. That is the standard: a paper is sat under exam conditions, so 'the class read this "
+                "story last week' does NOT make an item answerable. Three distinct failures count as "
+                "UNANSWERABLE — apply them mechanically, do not weigh how good the rest of the paper is:\n"
+                "  (a) PICTURE — the item needs a picture, diagram, figure or illustration. The paper "
+                "carries none at all, so any such item fails.\n"
+                "  (b) MISSING TEXT — the item points at a passage, story, poem, table or word bank that "
+                "the paper does not print ('based on the story X', 'read the passage above', 'from the "
+                "table'). A 'seen' item gets NO exemption here: if the text is not on the paper, the item "
+                "is unanswerable even though the class was taught it.\n"
+                "    ⚠ (b) IS NOT A BAN ON RECALL — this is the distinction that decides the check.\n"
+                "      DURABLE KNOWLEDGE is a fact, rule or word the curriculum wants held for life: "
+                "3 × 3 = 9; a proper noun takes a capital; the past tense of 'eat'; the meaning of a word "
+                "from the chapter's vocabulary list; the seasons. Asking for it is the POINT of an "
+                "assessment. Such items are FULLY ANSWERABLE and are NOT counted here, even though "
+                "nothing printed on the paper supplies the answer.\n"
+                "      TEXT DETAIL is a fact true only inside one particular story or passage: who "
+                "spilled the kheer, what colour a character's dress was, which page a poem is on. A child "
+                "who understood the chapter perfectly may never have stored it. These DO count under (b) "
+                "unless the text is printed.\n"
+                "      THE TEST: could a child who learned this concept well, but read a DIFFERENT story "
+                "teaching it, still answer? Yes → durable knowledge, fair, do not count. No → text detail, "
+                "count it.\n"
+                "      A comprehension item is fixed by PRINTING its stimulus, not by deleting the item — "
+                "two sentences of scenario suffice and are not an excerpt of the textbook.\n"
+                "  (c) MISSING ANTECEDENT — the item assumes an object, event or prior item the paper "
+                "never establishes ('write back to Dani' when no letter from Dani appears; 'the box "
+                "above'; 'your answer to Q3' where Q3 asks something unrelated).\n"
+                "COUNT the failing items, then read the band off that count. Two judges finding the SAME "
+                "items must give the SAME rating — the band is arithmetic, not judgement."
             ),
             "descriptors": {
-                1: "Cannot be answered: depends on a picture/diagram/figure the paper does not carry, or on material it never prints.",
-                2: "Answerable only by guessing at the missing material, or the reference is ambiguous enough that a child may not find it.",
-                3: "Answerable, with a reference that is present but awkwardly worded.",
-                4: "Fully self-contained: everything needed to attempt the item is printed on the paper.",
+                1: "3 or more items fail (a), (b) or (c) — or any single failing item is worth 20%+ of the paper's marks.",
+                2: "2 items fail.",
+                3: "Exactly 1 item fails.",
+                4: "0 items fail — every item is attemptable with the textbook closed.",
             },
             "standards": ["Q4"],
             "requires_context": [],
             "source": (
-                "ours — Grade 1 English eval 2026-09-02, seen item 'Label the Picture: write the name of "
-                "each object under its picture' on a paper with no pictures (bd-60015)"
+                "ours — Grade 1 English eval 2026-09-02 ('Label the Picture' with no pictures, bd-60015); "
+                "The durable-knowledge vs text-detail split was ruled by the operator on 2026-09-03 "
+                "against a 16-question Bloom-1 calibration set. REWRITTEN after the 2026-09-03 drift run, "
+                "where 9 blind judgings of one paper found the "
+                "same defects but rated them 1,1,2,2,2,3,3,3,4 — two runs naming the identical item set "
+                "{2,3} scored it 1 and 3. The old bands described severity in prose and left the "
+                "findings-to-rating mapping to the judge; these count items instead. The 'seen items are "
+                "answerable from memory' reading (fable-r3, gemini-r2) is now explicitly ruled out."
             ),
         },
         {
@@ -489,17 +551,23 @@ ANSWERABILITY = {
             "scope": "paper",
             "requirement": (
                 "Every item carries a mark value; the values scale with the work asked (a one-word blank is "
-                "not worth the same as a paragraph); the printed total equals the sum of the items."
+                "not worth the same as a paragraph); the printed total equals the sum of the items. COUNT "
+                "the out-of-step weightings and read the band off that count. A paper carrying no printed "
+                "total is not a fault here — that is the renderer's job; this check judges the mark data."
             ),
             "descriptors": {
-                1: "Marks missing on items, or the printed total does not equal the sum of the items.",
-                2: "Marks present but clearly disproportionate — trivial and demanding items carry the same weight.",
-                3: "Marks present and add up, with one or two odd weightings.",
-                4: "Every item marked, weightings match the work asked, total is correct.",
+                1: "Any item carries no mark, OR the printed total does not equal the sum of the items.",
+                2: "3 or more items are weighted out of step with the work they ask.",
+                3: "1–2 items are weighted out of step.",
+                4: "Every item marked, every weighting tracks the work asked, total correct.",
             },
             "standards": ["Q5", "P7"],
             "requires_context": [],
-            "source": "ours — Grade 3 eval 2026-09-03: same request scored 26 marks on one model and 18 on another",
+            "source": (
+                "ours — Grade 3 eval 2026-09-03: same request scored 26 marks on one model and 18 on "
+                "another; bands made countable after the same day's drift run, where judges finding the "
+                "same weightings split 2/3/4 on 'one or two odd weightings'"
+            ),
         },
         {
             "id": "A5e",
@@ -530,17 +598,28 @@ ANSWERABILITY = {
             "requirement": (
                 "The key must cover every item on the paper, in the paper's own numbering, and each answer "
                 "must be correct for the question actually asked. An item the generator could not answer must "
-                "show as a gap, not be silently renumbered away."
+                "show as a gap, not be silently renumbered away.\n"
+                "Rank the faults, worst first, and rate on the WORST one present:\n"
+                "  WRONG — an answer is factually wrong, or answers a different question than the one asked.\n"
+                "  MISNUMBERED — the key's numbering does not line up with the paper's.\n"
+                "  MISSING — an item has no entry and no gap marker.\n"
+                "  THIN — the answer is correct but under-specified for marking: an open item given one "
+                "fixed answer with no 'accept any valid…' note, or a model answer that rests on a premise "
+                "the paper does not establish. THIN is a 3, never lower: a teacher can still mark it."
             ),
             "descriptors": {
-                1: "Key missing, or its numbering does not correspond to the paper, or an answer is wrong.",
-                2: "Key covers most items but omits some without marking them as gaps.",
-                3: "Complete and correctly numbered, with a thin or ambiguous answer on one or two items.",
-                4: "Every item answered, correctly, under the number the paper printed.",
+                1: "Key missing entirely, OR any answer is WRONG, OR the numbering does not correspond to the paper.",
+                2: "Every answer that is present is correct, but one or more items are MISSING with no gap marker.",
+                3: "Complete, correctly numbered and correct throughout, with one or more THIN entries.",
+                4: "Every item answered, correct, correctly numbered, and specified well enough to mark consistently.",
             },
             "standards": ["P7", "P7f"],
             "requires_context": [CONTEXT_ANSWER_KEY],
-            "source": "ours — the key became a separate document in bd-60015; nothing checked it",
+            "source": (
+                "ours — the key became a separate document in bd-60015; nothing checked it. Bands rewritten "
+                "after the 2026-09-03 drift run, where runs finding the same 'thin' entries split 3/4 "
+                "because 'thin or ambiguous' had no boundary against 'wrong'."
+            ),
         },
     ],
 }

@@ -93,6 +93,68 @@ class RubricShape(unittest.TestCase):
             self.assertTrue(len(why) > 20, f"{code} needs a real reason")
 
 
+class BlockingChecksAreCountable(unittest.TestCase):
+    """After the 2026-09-03 drift run: two judges naming the identical defect set
+    {Q2,Q3} rated A5a 1 and 3. A blocking check whose bands describe severity in
+    prose leaves the findings-to-rating step to the judge, and that step is where
+    the drift lived. These bands must be arithmetic."""
+
+    def test_a5a_bands_are_defined_by_a_count_of_failing_items(self):
+        _, chk = R.find_check("A5a")
+        import re
+        for band in (1, 2, 3, 4):
+            d = chk["descriptors"][band]
+            self.assertRegex(d, r"\b(0|1|2|3 or more|one|Exactly 1)\b",
+                             f"A5a band {band} does not name a count: {d!r}")
+        self.assertIn("Exactly 1", chk["descriptors"][3])
+        self.assertIn("0 items fail", chk["descriptors"][4])
+
+    def test_a5a_names_its_three_failure_modes(self):
+        _, chk = R.find_check("A5a")
+        req = chk["requirement"].lower()
+        for mode in ("picture", "missing text", "missing antecedent"):
+            self.assertIn(mode, req, f"A5a does not name the {mode} failure")
+
+    def test_a5a_rules_out_the_seen_from_memory_reading(self):
+        """The split that caused the widest swing: is a 'seen' item answerable
+        because the class was taught the text? The rubric must decide, not the judge."""
+        _, chk = R.find_check("A5a")
+        req = chk["requirement"].lower()
+        self.assertIn("textbook closed", req)
+        self.assertIn("no exemption", req)
+
+    def test_a5a_protects_durable_knowledge_from_the_recall_ban(self):
+        """Operator ruling, 2026-09-03: 3 x 3 = 9 must not be punished as unanswerable.
+        Recall of durable knowledge is the point of an assessment; recall of one text's
+        incidental detail is not. The rubric must draw that line, not the judge."""
+        _, chk = R.find_check("A5a")
+        req = chk["requirement"]
+        self.assertIn("DURABLE KNOWLEDGE", req)
+        self.assertIn("TEXT DETAIL", req)
+        self.assertIn("3 × 3 = 9", req)
+        self.assertIn("NOT counted here", req)
+        # the operational test, not just the labels
+        self.assertRegex(req, r"DIFFERENT story")
+
+    def test_a5f_ranks_its_faults_so_thin_cannot_read_as_wrong(self):
+        _, chk = R.find_check("A5f")
+        req = chk["requirement"]
+        for fault in ("WRONG", "MISNUMBERED", "MISSING", "THIN"):
+            self.assertIn(fault, req)
+        self.assertIn("THIN is a 3", req)
+        self.assertIn("WRONG", chk["descriptors"][1])
+
+    def test_a3d_band_4_names_the_common_case(self):
+        _, chk = R.find_check("A3d")
+        self.assertRegex(chk["descriptors"][4], r"festival|textbook itself")
+
+    def test_every_blocking_check_records_why_it_was_rewritten(self):
+        for cid in ("A5a", "A5f", "A3d"):
+            _, chk = R.find_check(cid)
+            self.assertIn("2026-09-03 drift", chk["source"],
+                          f"{cid} does not record the drift run that changed it")
+
+
 class Prompt(unittest.TestCase):
     def test_renders_every_check_with_its_descriptors(self):
         p = build_reviewer_prompt(subject="English", grade=3)
@@ -121,6 +183,11 @@ class Prompt(unittest.TestCase):
         p = build_reviewer_prompt(subject="Maths", grade=4)
         self.assertIn("per item", p)
         self.assertIn("once for the whole paper", p)
+
+    def test_prompt_tells_the_judge_to_count_before_rating(self):
+        p = build_reviewer_prompt(subject="English", grade=3)
+        self.assertIn("count", p.lower())
+        self.assertRegex(p, r"same items? .{0,40}same rating|arithmetic, not judgement")
 
     def test_output_contract_names_the_json_shape(self):
         p = build_reviewer_prompt(subject="English", grade=1)
@@ -186,6 +253,30 @@ class DeterministicChecks(unittest.TestCase):
              "answer": "300 mL line", "marks": 1}]}})
         rep = run_checks(p, requested_count=1, total_marks=1)
         self.assertNotIn("D7", [f["id"] for f in rep["hard_failures"]])
+
+    def test_identification_items_are_not_self_answering(self):
+        """The answer MUST appear in the stem when the child's job is to pick it out.
+        All four Grade 3 English papers (2026-09-03) tripped the first version of this
+        guard on exactly these shapes — a check that fails every paper is a broken check."""
+        cases = [
+            # grammar identification: the word is in the sentence by design
+            {"question": "Identify the describing word in the sentence: 'The small cat sat on the mat.'",
+             "options": ["a) Cat", "b) Small"], "answer": "b) Small", "marks": 1},
+            {"question": "Which word is an adverb of manner in this sentence: 'The cat walked quietly.'?",
+             "options": ["a) cat", "d) quietly"], "answer": "d) quietly", "marks": 1},
+            # word-bank fill-in: the options are printed in the stem on purpose
+            {"question": "The ___________ (beautiful/run) flowers smell nice.",
+             "answer": "beautiful", "marks": 1},
+            # rewrite: the answer is the input sentence, transformed
+            {"main_question": "Rewrite the sentence with correct capitalization",
+             "question": "Rewrite the sentence and capitalize the proper nouns: dani gives tasty kheer.",
+             "answer": "Dani gives tasty kheer.", "marks": 2},
+        ]
+        for q in cases:
+            p = paper(unseen={"objective": {"MCQs": [q]}})
+            rep = run_checks(p, requested_count=1, total_marks=q["marks"])
+            self.assertNotIn("D7", [f["id"] for f in rep["hard_failures"]],
+                             f"false positive on: {q['question'][:60]}")
 
     def test_short_stem_self_answer_is_still_caught(self):
         """The guard must not early-out on short questions (the LP skill's own bug)."""

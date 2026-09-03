@@ -119,6 +119,12 @@ def main():
     ap.add_argument("--slo-map", default=None)
     ap.add_argument("--judge", default=DEFAULT_JUDGE)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--emit-prompt", metavar="FILE", default=None,
+                    help="write the judge prompt here and exit — for judging in-session "
+                         "(the agent reading this repo IS the judge) instead of calling a provider")
+    ap.add_argument("--review", metavar="FILE", default=None,
+                    help="score an already-produced review JSON (the in-session judge's answer) "
+                         "instead of calling a provider")
     a = ap.parse_args()
 
     exam = json.load(open(a.exam))
@@ -144,11 +150,28 @@ def main():
     if a.slo_map:
         user.append(f"\nSLO MAP FOR THIS CHAPTER:\n{open(a.slo_map).read()}")
 
-    raw, usage = call_judge(a.judge, system, "\n".join(user), api_key())
-    try:
-        review = json.loads(raw)
-    except json.JSONDecodeError:
-        review = json.loads(raw[raw.find("{"):raw.rfind("}") + 1])
+    # Three ways to get a review, in the order they cost.
+    #   --emit-prompt : write the prompt and stop. The agent already in this session
+    #                   reads it, judges, and writes a review JSON. No provider call,
+    #                   no key, and the judge can open the textbook pages itself.
+    #   --review      : score that review JSON.
+    #   neither       : call the pinned provider model (the batch path).
+    if a.emit_prompt:
+        with open(a.emit_prompt, "w", encoding="utf-8") as fh:
+            fh.write("=== SYSTEM ===\n" + system + "\n\n=== USER ===\n" + "\n".join(user))
+        print(f"prompt -> {a.emit_prompt}\n"
+              f"Judge it, save the review JSON, then re-run with --review <file>.")
+        return 0
+
+    usage = {}
+    if a.review:
+        review = json.load(open(a.review, encoding="utf-8"))
+    else:
+        raw, usage = call_judge(a.judge, system, "\n".join(user), api_key())
+        try:
+            review = json.loads(raw)
+        except json.JSONDecodeError:
+            review = json.loads(raw[raw.find("{"):raw.rfind("}") + 1])
 
     total, denom, flags = tally(review)
     judge_pct = round(100 * total / denom, 1) if denom else 0.0
