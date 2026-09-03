@@ -171,8 +171,9 @@ t('all 14 tables are audited', () => {
   eq(Object.keys(WATCHED).length, 14);
 });
 
-t('60 columns are watched in total', () => {
-  eq(Object.values(WATCHED).reduce((n, c) => n + c.length, 0), 60);
+t('59 columns are watched in total', () => {
+  // 60 minus coaching_sessions.conversation_state, dropped on production evidence.
+  eq(Object.values(WATCHED).reduce((n, c) => n + c.length, 0), 59);
 });
 
 t('the 9 roster/config tables are all registered', () => {
