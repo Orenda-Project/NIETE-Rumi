@@ -167,6 +167,6 @@ describe('report-generator hands the same target to the hero renderer', () => {
   const SRC = require('fs').readFileSync(require.resolve('../../bot/shared/services/coaching/report-generator.service'), 'utf8');
   test('generatePDFReport puts resolveTarget(analysis) on _heroInput.opts', () => {
     const body = SRC.slice(SRC.indexOf('static async generatePDFReport'));
-    expect(body).toMatch(/target:\s*resolveTarget\(analysisForTransformer\)/);
+    expect(body).toMatch(/target:[^\n]*resolveTarget\(analysisForTransformer\)/);
   });
 });

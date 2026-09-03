@@ -237,6 +237,14 @@ function buildRecord(state, { prior = null, analysis = null, card = null, instru
   const bar = target ? countBarFor(target.indicator) : null;
   const spec = c.action_spec && typeof c.action_spec === 'object' ? { ...c.action_spec } : {};
   if (target && (!spec.count_target || typeof spec.count_target !== 'object')) spec.count_target = bar;
+  if (target && !c.action) {
+    // No card (the /observe write): the ask is the scorer's own move when it
+    // is about this very target, else the rubric's rung-2 descriptor.
+    const fa = analysis && analysis.focus_area;
+    const scorerMove = fa && String(fa.indicator || '') === target.indicator && typeof fa.try_this_tomorrow === 'string'
+      ? fa.try_this_tomorrow.trim() : '';
+    c.action = scorerMove || rubricAsk(target.indicator);
+  }
   if (!spec.move && c.action) spec.move = c.action;
   const sameTargetAsPrior = !!(prior && prior.target && target && prior.target.indicator === target.indicator);
   const lineage = [...((prior && Array.isArray(prior.lineage)) ? prior.lineage : []), ...(prior && prior.session_id ? [prior.session_id] : [])].slice(-12);
@@ -270,6 +278,25 @@ function buildRecord(state, { prior = null, analysis = null, card = null, instru
   };
 }
 
+/**
+ * The rubric's own rung-2 descriptor for an indicator, as a plain ask
+ * ("THREE OR MORE open-ended questions AND at least one follow-up…"), with the
+ * scorer-facing tail ("Quote each…", "Name the…") removed. Used when a record
+ * must carry an ask but no card was generated (the /observe write), so the
+ * next lesson's PRIOR ACTION block never quotes an empty string.
+ */
+function rubricAsk(indicatorId) {
+  const domains = fico.getScoringConstants().domains || {};
+  for (const d of Object.values(domains)) {
+    const spec = (d.indicators || []).find((i) => i.id === indicatorId);
+    if (!spec || !spec.levels || !spec.levels[2]) continue;
+    const sentences = String(spec.levels[2]).split(/(?<=\.)\s+/);
+    const kept = sentences.filter((s) => !/^(Quote|Name|Say|State)\b/i.test(s.trim()));
+    return (kept.length ? kept : sentences).join(' ').trim();
+  }
+  return '';
+}
+
 /** "open_questions ≥ 3, followups_on_a_student_answer ≥ 1" — for prompts and logs. */
 function describeCount(obj) {
   if (!obj || typeof obj !== 'object') return 'not recorded';
@@ -279,6 +306,6 @@ function describeCount(obj) {
 
 module.exports = {
   chooseTarget, nextTarget, tooSimilar, applicableToday, rungOf, deriveUptakeStatus, buildRecord,
-  countBarFor, describeCount, isLoopSection,
+  countBarFor, describeCount, isLoopSection, rubricAsk,
   LADDER, MAX_ATTEMPTS, CLOSE_AFTER, COUNT_BARS, LOOP_VERSION,
 };
