@@ -173,11 +173,39 @@ async function process(payload) {
 
   try {
     const result = await withTimeout((async () => {
+      tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'lp612-'));
+
+      /**
+       * THE RENDER GATE, handed to the ladder.
+       *
+       * The packer decides `PAGE COUNT: support needs 6 pages; the cap is 4`, and it used to run
+       * only AFTER authoring had finished — so the ladder polished a lint-clean document that
+       * could never become a PDF, and every English lesson died there. The worker is the only
+       * caller with a browser, so it is the only one that can close that loop.
+       *
+       * Returns the renderer's OWN defect strings, verbatim, because those go in front of the
+       * model. A renderer that dies for its own reasons (a browser that would not launch) is not
+       * the document's fault and reports nothing, which degrades to the old behaviour.
+       */
+      const renderCheck = async (candidate) => {
+        try {
+          await renderLessonPlan({
+            lpDoc: candidate,
+            lang,
+            stem: `gate_${Date.now()}`,
+            outDir: tmpDir,
+            correlationId,
+          });
+          return [];
+        } catch (e) {
+          return Array.isArray(e.problems) ? e.problems : [];
+        }
+      };
+
       const authored = await authorLessonPlan({
-        segment, lang, model, rounds: authorRounds(), correlationId,
+        segment, lang, model, rounds: authorRounds(), correlationId, renderCheck,
       });
 
-      tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'lp612-'));
       const rendered = await renderLessonPlan({
         lpDoc: authored.lpDoc,
         lang,

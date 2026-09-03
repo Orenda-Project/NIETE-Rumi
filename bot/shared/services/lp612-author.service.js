@@ -523,6 +523,11 @@ function buildRevisionPrompt({ doc, gates, originalUser, notes }) {
     '=== PREVIOUS lp_doc ===\n' + JSON.stringify(doc, null, 1) +
     '\n\n=== SCHEMA ERRORS ===\n' + (gates.schema.join('\n') || '(none)') +
     '\n\n=== LINT ERRORS ===\n' + (gates.lint.join('\n') || '(none)') +
+    // The renderer's own words, verbatim. "Make it shorter" and "support needs 6 pages; the cap
+    // is 4" are different instructions, and only the second one tells the model how much to cut
+    // and from WHICH part of the document.
+    '\n\n=== PAGE / LAYOUT ERRORS (the rendered page refused these) ===\n'
+      + ((gates.render || []).join('\n') || '(none)') +
     '\n\n=== LINT WARNINGS ===\n' + (gates.warns.join('\n') || '(none)') +
     '\n\n=== THE ORIGINAL TASK (same page-truth, unchanged) ===\n' + originalUser;
 }
@@ -617,22 +622,49 @@ function applyVideo(doc, video) {
  * A schema failure SHORT-CIRCUITS, exactly as `lint()` does internally: findings about pedagogy
  * on a document with a broken shape are not trustworthy, and half of them would be crashes.
  */
-function runGates(doc) {
+/**
+ * Schema, then the vendored canon lint, then — if the caller supplied one — THE RENDERER.
+ *
+ * The render gate is here because leaving it downstream is what made every English lesson fail
+ * on staging. `PAGE COUNT: support needs 6 pages; the cap is 4` is decided by the packer, which
+ * ran only after the ladder had finished; the ladder saw a lint-clean document, stopped, and
+ * handed back something that could not be turned into a PDF. Three rounds were spent polishing
+ * prose that was never going to fit.
+ *
+ * Rendering is attempted only once the SHAPE is valid — the renderer throws on a schema-invalid
+ * document, and a crash is not a defect list.
+ *
+ * A renderer that BLOWS UP is not the document's fault (a browser that would not launch), so it
+ * is swallowed: the run falls back to exactly the old behaviour rather than losing the lesson.
+ */
+async function runGates(doc, renderCheck) {
   const v = validateDoc(doc);
   // The `SCHEMA:` prefix is the lint's own vocabulary for the same finding — worth matching so
   // a caller (and the revision prompt) reads one consistent list of coded defects.
-  if (!v.ok) return { schema: v.errors.map((e) => `SCHEMA: ${e}`), lint: [], warns: [] };
+  if (!v.ok) return { schema: v.errors.map((e) => `SCHEMA: ${e}`), lint: [], render: [], warns: [] };
   // `docPath` is unused by lint() — it takes it for its CLI's sake. Nothing here writes.
   const r = lint(doc, null, {});
+
+  let render = [];
+  if (typeof renderCheck === 'function') {
+    try {
+      render = (await renderCheck(doc)) || [];
+    } catch (e) {
+      logToFile('lp612 author: render gate threw, continuing on lint alone', { error: e.message }, 'warn');
+      render = [];
+    }
+  }
+
   return {
     schema: [],
     lint: r.fails.slice(),
+    render,
     warns: r.warns.slice(),
   };
 }
 
-const gateCost = (g) => g.schema.length + g.lint.length;
-const gateFails = (g) => [...g.schema, ...g.lint];
+const gateCost = (g) => g.schema.length + g.lint.length + (g.render ? g.render.length : 0);
+const gateFails = (g) => [...g.schema, ...g.lint, ...(g.render || [])];
 
 // ── the ladder ──────────────────────────────────────────────────────────────
 
@@ -647,7 +679,13 @@ const gateFails = (g) => [...g.schema, ...g.lint];
  *                    rounds:number, model:string, usage:object}>}
  * @throws Error with .code in {'AUTHOR_LLM_FAILED','AUTHOR_UNPARSEABLE','PAGE_TRUTH_MISSING'}
  */
-async function authorLessonPlan({ segment, lang, model, rounds, correlationId } = {}) {
+/**
+ * @param {function} [args.renderCheck] async (doc) -> string[] of RENDER defects. Optional, and
+ *   optional on purpose: the pure-authoring callers (scripts, tests) have no browser. When it is
+ *   supplied the ladder gates on it too, which is the only way a page-count defect can ever be
+ *   fixed — see runGates.
+ */
+async function authorLessonPlan({ segment, lang, model, rounds, correlationId, renderCheck } = {}) {
   if (!segment || !segment.book_stem) {
     throw fail('AUTHOR_LLM_FAILED', 'authorLessonPlan needs a segment with a book_stem');
   }
@@ -698,7 +736,7 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId } 
   applyVideo(doc, video);
   sanitizeOverlay(doc);
 
-  let gates = runGates(doc);
+  let gates = await runGates(doc, renderCheck);
   let spent = 0;
 
   for (let rnd = 0; rnd < maxRounds; rnd++) {
@@ -727,7 +765,7 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId } 
 
     applyVideo(candidate, video);
     sanitizeOverlay(candidate);
-    const g2 = runGates(candidate);
+    const g2 = await runGates(candidate, renderCheck);
     if (gateCost(g2) <= gateCost(gates)) {
       doc = candidate;
       gates = g2;

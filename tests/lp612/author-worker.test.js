@@ -334,3 +334,49 @@ describe('the stored one-screen body', () => {
     }
   });
 });
+
+// ── the worker supplies the render gate ─────────────────────────────────────
+
+/**
+ * The ladder can only gate on the renderer if somebody hands it one, and the worker is the only
+ * caller that has a browser. Without this wiring the gate exists and never runs — which is
+ * indistinguishable, from the teacher's side, from not having built it.
+ */
+describe('the worker gives the author a render gate', () => {
+  test('authorLessonPlan is called WITH a renderCheck', async () => {
+    seed();
+    await Worker.process(JOB);
+    expect(typeof mockAuthorLessonPlan.mock.calls[0][0].renderCheck).toBe('function');
+  });
+
+  test('the renderCheck returns the renderer\'s own defect list', async () => {
+    // Not a boolean, not a throw: the ladder puts these strings in front of the model, so they
+    // have to arrive verbatim.
+    seed();
+    await Worker.process(JOB);
+    const { renderCheck } = mockAuthorLessonPlan.mock.calls[0][0];
+
+    const err = new Error('nope');
+    err.problems = ['PAGE COUNT: support needs 6 pages; the cap is 4.'];
+    mockRenderLessonPlan.mockRejectedValueOnce(err);
+
+    await expect(renderCheck({ lesson_id: 'x' }))
+      .resolves.toEqual(['PAGE COUNT: support needs 6 pages; the cap is 4.']);
+  });
+
+  test('a clean render reports NO defects', async () => {
+    seed();
+    await Worker.process(JOB);
+    const { renderCheck } = mockAuthorLessonPlan.mock.calls[0][0];
+    mockRenderLessonPlan.mockResolvedValueOnce({ pdfPath: '/tmp/a.pdf', pageCount: 7, warnings: [] });
+    await expect(renderCheck({ lesson_id: 'x' })).resolves.toEqual([]);
+  });
+
+  test('a renderer that dies for its own reasons reports no defects rather than blaming the doc', async () => {
+    seed();
+    await Worker.process(JOB);
+    const { renderCheck } = mockAuthorLessonPlan.mock.calls[0][0];
+    mockRenderLessonPlan.mockRejectedValueOnce(new Error('browser would not launch'));
+    await expect(renderCheck({ lesson_id: 'x' })).resolves.toEqual([]);
+  });
+});
