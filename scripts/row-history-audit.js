@@ -16,9 +16,11 @@ const WATCHED = {
     'grade', 'subject', 'grades_taught', 'subjects_taught', 'levels', 'training_bands',
     'is_test_user', 'portal_activated',
   ],
-  coaching_sessions: [
-    'status', 'conversation_state', 'lesson_plan_extraction_status', 'debrief_status',
-  ],
+  // conversation_state was REMOVED after measuring production: 43% of rows but
+  // 93% of record_history's bytes, because each diff stores the whole nested
+  // conversation twice. It is ephemeral session scratch — the same reason
+  // chat_sessions is excluded. The status transitions are what people dispute.
+  coaching_sessions: ['status', 'lesson_plan_extraction_status', 'debrief_status'],
   lesson_plan_requests: ['status', 'retry_count', 'error_message'],
   training_assessment_attempts: ['status', 'score', 'total_score', 'is_passed', 'level_id'],
   observation_schedules: ['status'],
@@ -63,6 +65,15 @@ function rowKey(table, row) {
 const EXCLUDED = {
   chat_sessions: 'ephemeral per-message conversation_state; ~22k updates/day of pure noise',
   training_certificates: '19 rows / 2,705 updates — a regeneration loop, not state worth keeping',
+};
+
+/**
+ * Columns deliberately dropped from a table that IS audited, with the evidence.
+ * Kept next to the allowlist so the omission reads as a decision, not an oversight.
+ */
+const DROPPED_COLUMNS = {
+  'coaching_sessions.conversation_state':
+    'measured in prod: 43% of record_history rows but 93% of its bytes (1,199 B/row vs 73). Ephemeral per-turn scratch.',
 };
 
 const NIETE_PROJECT_REF = 'ihzciabopbttygxxgrkm';
@@ -137,6 +148,6 @@ function isAudited(table) {
 }
 
 module.exports = {
-  WATCHED, EXCLUDED, NIETE_PROJECT_REF, KEY_COLUMN,
+  WATCHED, EXCLUDED, DROPPED_COLUMNS, NIETE_PROJECT_REF, KEY_COLUMN,
   assertProjectRef, isDistinct, diffWatched, attributeActor, isAudited, rowKey,
 };
