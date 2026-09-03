@@ -174,7 +174,7 @@ describe('with LP_612_ENABLED on', () => {
     const res = await Endpoint.handlePakistanLpDataExchange('u1:tok', 'SELECT_SUBJECT', {
       step: 'lp612_subject', grade: '9', subject: 'Chemistry',
     });
-    expect(mockBuildChapterItems).toHaveBeenCalledWith(9, 'Chemistry');
+    expect(mockBuildChapterItems).toHaveBeenCalledWith(9, 'Chemistry', 1);
     expect(res.screen).toBe('SELECT_CHAPTER');
     expect(res.data.items).toEqual([NAV_ROW]);
   });

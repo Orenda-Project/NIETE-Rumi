@@ -112,7 +112,7 @@ describe('the religious hold is applied at the query', () => {
   test('every level applies the same hold — not just the first', async () => {
     for (const run of [
       () => Catalog.buildSubjectItems(9),
-      () => Catalog.buildChapterItems(9, 'Chemistry'),
+      () => Catalog.buildChapterItems(9, 'Chemistry').then((r) => r.items),
       () => Catalog.buildSegmentItems(9, 'Chemistry', 'c01'),
     ]) {
       mockDbCalls.length = 0;
@@ -142,7 +142,7 @@ describe('row payloads carry everything the next step needs', () => {
 
   test('a chapter row carries grade, subject and chapter_key', async () => {
     mockRows = [seg()];
-    const items = await Catalog.buildChapterItems(9, 'Chemistry');
+    const { items } = await Catalog.buildChapterItems(9, 'Chemistry');
     expect(items[0]['on-click-action'].payload).toEqual({
       step: 'lp612_chapter', grade: '9', subject: 'Chemistry', chapter_key: 'c01',
     });
@@ -190,7 +190,7 @@ describe('WhatsApp caps are measured in code points', () => {
     })];
     const levels = [
       await Catalog.buildSubjectItems(9),
-      await Catalog.buildChapterItems(9, 'D'.repeat(60)),
+      (await Catalog.buildChapterItems(9, 'D'.repeat(60))).items,
       (await Catalog.buildSegmentItems(9, 'D'.repeat(60), 'c01')).items,
     ];
     for (const items of levels) {
@@ -219,7 +219,7 @@ describe('menu shape', () => {
       seg({ chapter_key: 'c01', chapter_number: 1, chapter_title: 'One' }),
       seg({ chapter_key: 'c02', chapter_number: 2, chapter_title: 'Two' }),
     ];
-    const items = await Catalog.buildChapterItems(9, 'Chemistry');
+    const { items } = await Catalog.buildChapterItems(9, 'Chemistry');
     expect(items.map((i) => i.id)).toEqual(['c01', 'c02']);
   });
 

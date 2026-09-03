@@ -109,7 +109,7 @@ describe("the operator's grade 9 Physics rows keep their whole name", () => {
 
   test.each(REPORTED)('chapter %i keeps "%s" somewhere on the row, in full', async (number, title) => {
     mockRows = [seg({ chapter_number: number, chapter_title: title, chapter_key: `c0${number}` })];
-    const mc = only(await Catalog.buildChapterItems(9, 'Physics'));
+    const mc = only((await Catalog.buildChapterItems(9, 'Physics')).items);
 
     const row = [mc.title, mc.description, mc.metadata].filter(Boolean).join(' | ');
     expect(row).toContain(title);          // the name survives, uncut
@@ -118,7 +118,7 @@ describe("the operator's grade 9 Physics rows keep their whole name", () => {
 
   test('the chapter number is still what leads the title', async () => {
     mockRows = [seg()];
-    const mc = only(await Catalog.buildChapterItems(9, 'Physics'));
+    const mc = only((await Catalog.buildChapterItems(9, 'Physics')).items);
     expect(mc.title).toMatch(/\b1\b/);
   });
 });
@@ -128,7 +128,7 @@ describe("the operator's grade 9 Physics rows keep their whole name", () => {
 describe('a short name stays on the title line', () => {
   test('"KINEMATICS" merges into the title and needs no metadata line', async () => {
     mockRows = [seg({ chapter_number: 2, chapter_key: 'c02', chapter_title: 'KINEMATICS' })];
-    const mc = only(await Catalog.buildChapterItems(9, 'Physics'));
+    const mc = only((await Catalog.buildChapterItems(9, 'Physics')).items);
 
     expect(mc.title).toContain('KINEMATICS');
     expect(cps(mc.title)).toBeLessThanOrEqual(TITLE_CAP);
@@ -140,7 +140,7 @@ describe('a short name stays on the title line', () => {
 describe('a long name is reseated, not truncated', () => {
   test('the title falls back to the number and the full name moves to metadata', async () => {
     mockRows = [seg()];
-    const mc = only(await Catalog.buildChapterItems(9, 'Physics'));
+    const mc = only((await Catalog.buildChapterItems(9, 'Physics')).items);
 
     expect(mc.metadata).toBe('PHYSICAL QUANTITIES AND MEASUREMENT');
     // The title carries the number only — a half-word plus the same words again
@@ -151,7 +151,7 @@ describe('a long name is reseated, not truncated', () => {
 
   test('the lesson count keeps its own line either way', async () => {
     mockRows = [seg(), seg({ segment_id: 'x2', order_index: 2 })];
-    const mc = only(await Catalog.buildChapterItems(9, 'Physics'));
+    const mc = only((await Catalog.buildChapterItems(9, 'Physics')).items);
     expect(mc.description).toContain('2');
   });
 });
@@ -166,7 +166,7 @@ describe('Urdu rows reseat in Urdu', () => {
       grade: 9, subject: 'Urdu', language: 'ur',
       chapter_number: 5, chapter_key: 'c05', chapter_title: UR_TITLE,
     })];
-    const mc = only(await Catalog.buildChapterItems(9, 'Urdu'));
+    const mc = only((await Catalog.buildChapterItems(9, 'Urdu')).items);
     expect(mc.metadata).toContain(UR_TITLE);
   });
 
@@ -175,7 +175,7 @@ describe('Urdu rows reseat in Urdu', () => {
       grade: 9, subject: 'Urdu', language: 'ur',
       chapter_number: 5, chapter_key: 'c05', chapter_title: UR_TITLE,
     })];
-    const mc = only(await Catalog.buildChapterItems(9, 'Urdu'));
+    const mc = only((await Catalog.buildChapterItems(9, 'Urdu')).items);
     expect(mc.title.startsWith('‏')).toBe(true);
     expect(mc.title).toContain('۵');
     expect(mc.title).not.toContain('5');
@@ -186,7 +186,7 @@ describe('Urdu rows reseat in Urdu', () => {
       grade: 9, subject: 'Urdu', language: 'ur',
       chapter_number: 5, chapter_key: 'c05', chapter_title: UR_TITLE,
     })];
-    const mc = only(await Catalog.buildChapterItems(9, 'Urdu'));
+    const mc = only((await Catalog.buildChapterItems(9, 'Urdu')).items);
     expect(mc.metadata.startsWith('‏')).toBe(true);
   });
 });
@@ -212,7 +212,7 @@ describe('parts keep reseated titles distinct', () => {
 
   test('three chapter 3s in one book do not render as three identical titles', async () => {
     mockRows = rows();
-    const items = await Catalog.buildChapterItems(12, 'Urdu');
+    const { items } = await Catalog.buildChapterItems(12, 'Urdu');
     expect(items).toHaveLength(3);
     const titles = items.map((i) => i['main-content'].title);
     expect(new Set(titles).size).toBe(3);
@@ -220,7 +220,7 @@ describe('parts keep reseated titles distinct', () => {
 
   test('each title names its part, so the teacher can tell them apart', async () => {
     mockRows = rows();
-    const items = await Catalog.buildChapterItems(12, 'Urdu');
+    const { items } = await Catalog.buildChapterItems(12, 'Urdu');
     const titles = items.map((i) => i['main-content'].title).join('\n');
     expect(titles).toContain('نثر');
     expect(titles).toContain('نظم');
@@ -229,7 +229,7 @@ describe('parts keep reseated titles distinct', () => {
 
   test('the part is not repeated on the metadata line it already led the title with', async () => {
     mockRows = rows();
-    const items = await Catalog.buildChapterItems(12, 'Urdu');
+    const { items } = await Catalog.buildChapterItems(12, 'Urdu');
     for (const i of items) {
       const mc = i['main-content'];
       if (mc.metadata) expect(mc.metadata).not.toContain('حصہ');
@@ -256,7 +256,7 @@ describe('a repeated chapter number never reduces two rows to one title', () => 
       seg({ segment_id: 's3', grade: 11, subject: 'Urdu', language: 'ur', chapter_key: 'p3c01', chapter_number: 1,
         part: null, chapter_title: 'پیا باج نہ آوے چین (غزل) — میر تقی میر' }),
     ];
-    const items = await Catalog.buildChapterItems(11, 'Urdu');
+    const { items } = await Catalog.buildChapterItems(11, 'Urdu');
     const titles = items.map((i) => i['main-content'].title);
     expect(titles).toHaveLength(3);
     expect(new Set(titles).size).toBe(3);
@@ -269,7 +269,7 @@ describe('a repeated chapter number never reduces two rows to one title', () => 
       seg({ segment_id: 's2', grade: 6, subject: 'English', chapter_key: 'c01b', chapter_number: 1, part: null,
         chapter_title: 'Dedicated to Humanity (Abdul Sattar Edhi / Mother Teresa / Helen Keller)' }),
     ];
-    const items = await Catalog.buildChapterItems(6, 'English');
+    const { items } = await Catalog.buildChapterItems(6, 'English');
     const titles = items.map((i) => i['main-content'].title);
     expect(new Set(titles).size).toBe(2);
   });
@@ -282,7 +282,7 @@ describe('a repeated chapter number never reduces two rows to one title', () => 
       seg({ segment_id: 's2', grade: 11, subject: 'Urdu', language: 'ur', chapter_key: 'p3c01', chapter_number: 1,
         part: null, chapter_title: LONG }),
     ];
-    const items = await Catalog.buildChapterItems(11, 'Urdu');
+    const { items } = await Catalog.buildChapterItems(11, 'Urdu');
     const row = items.find((i) => i.id === 'p3c01')['main-content'];
     expect(row.metadata).toContain(LONG);
   });
@@ -292,7 +292,7 @@ describe('a repeated chapter number never reduces two rows to one title', () => 
       seg({ chapter_number: 1, chapter_key: 'c01' }),
       seg({ segment_id: 's2', chapter_number: 2, chapter_key: 'c02', chapter_title: 'KINEMATICS' }),
     ];
-    const items = await Catalog.buildChapterItems(9, 'Physics');
+    const { items } = await Catalog.buildChapterItems(9, 'Physics');
     const ch1 = items.find((i) => i.id === 'c01')['main-content'];
     expect(ch1.title).toBe('Ch 1');
     expect(ch1.metadata).toBe('PHYSICAL QUANTITIES AND MEASUREMENT');
@@ -313,7 +313,7 @@ describe('every field stays inside its cap, measured in code points', () => {
       }),
     ];
     for (const subject of ['Physics', 'Urdu']) {
-      const items = await Catalog.buildChapterItems(9, subject);
+      const { items } = await Catalog.buildChapterItems(9, subject);
       for (const i of items) {
         const mc = i['main-content'];
         expect(cps(mc.title)).toBeLessThanOrEqual(TITLE_CAP);
