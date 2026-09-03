@@ -107,6 +107,15 @@ async function tellAll(waiters, key, lang) {
  * SQS switch can ack. A failed row is not a dead lesson — the next tap sees
  * `failed` and retries.
  */
+/**
+ * Codes for which "tap it again in a few minutes" is a LIE.
+ *
+ * An over-long page range fails identically on every retry, so the generic copy invites her to
+ * wait and tap for ever on something that can never succeed. Rule 24(d): one shared fallback
+ * across distinct states misdirects the teacher and every field report after her.
+ */
+const NO_RETRY_CODES = new Set(['PAGE_RANGE_TOO_LARGE', 'PAGE_TRUTH_TOO_LARGE']);
+
 async function fail(renderId, waiters, lang, code, detail) {
   await patch(renderId, {
     status: 'failed',
@@ -114,7 +123,7 @@ async function fail(renderId, waiters, lang, code, detail) {
     error_detail: String(detail || '').slice(0, 2000),
     completed_at: nowIso(),
   });
-  await tellAll(waiters, 'lp612Failed', lang);
+  await tellAll(waiters, NO_RETRY_CODES.has(code) ? 'lp612TooLong' : 'lp612Failed', lang);
   return { status: 'failed', errorCode: code || 'UNKNOWN' };
 }
 
