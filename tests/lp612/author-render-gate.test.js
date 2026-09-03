@@ -184,3 +184,40 @@ describe('a page-overflow defect asks for ITEMS to be cut, not words', () => {
     expect(prompt).not.toMatch(/CARD COUNT/i);
   });
 });
+
+// ── cutting without amputating ──────────────────────────────────────────────
+
+/**
+ * The first VALID end-to-end run (real LLM, cassette off) proved the gate works: the page-count
+ * defects disappeared. The document then failed on something else —
+ *
+ *   SCHEMA INVALID — /page2/differentiation must have required property 'barrier'
+ *
+ * — because "delete whole items, fewest-value first" is an instruction a model can obey too well.
+ * exam_bank and model_answers are LISTS, where dropping an entry is free; differentiation is an
+ * OBJECT with required keys, where dropping one is a broken document.
+ *
+ * So the instruction has to name what is safe to cut AND what may never be removed. Telling it
+ * only what to do, and not what it must not do, is what cost this run.
+ */
+describe('the cut instruction protects required structure', () => {
+  test('it names what must never be removed', async () => {
+    const renderCheck = jest.fn().mockResolvedValueOnce([OVERFLOW]).mockResolvedValue([]);
+    create.mockResolvedValueOnce(reply(CLEAN_DOC)).mockResolvedValueOnce(reply(CLEAN_DOC));
+
+    await run(renderCheck);
+
+    const prompt = create.mock.calls[1][0].messages.map((m) => m.content).join('\n');
+    expect(prompt).toMatch(/never (remove|delete)[^.]*required/i);
+    expect(prompt).toMatch(/differentiation/);
+  });
+
+  test('it still says which sections ARE safe to shorten', async () => {
+    const renderCheck = jest.fn().mockResolvedValueOnce([OVERFLOW]).mockResolvedValue([]);
+    create.mockResolvedValueOnce(reply(CLEAN_DOC)).mockResolvedValueOnce(reply(CLEAN_DOC));
+    await run(renderCheck);
+    const prompt = create.mock.calls[1][0].messages.map((m) => m.content).join('\n');
+    expect(prompt).toMatch(/exam_bank/);
+    expect(prompt).toMatch(/model_answers/);
+  });
+});

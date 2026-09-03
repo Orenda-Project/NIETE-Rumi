@@ -538,7 +538,17 @@ function buildRevisionPrompt({ doc, gates, originalUser, notes }) {
         + 'each exam_bank item, model_answers entry, mistakes row and differentiation row is a '
         + 'box with its own heading and padding. Shortening sentences will NOT remove a page. '
         + 'REMOVE WHOLE ITEMS instead, fewest-value first — drop exam_bank questions and '
-        + 'model_answers entries until the part fits, and keep the ones that carry the lesson.'
+        + 'model_answers entries until the part fits, and keep the ones that carry the lesson. '
+        // The first valid end-to-end run obeyed the instruction above and then deleted a
+        // REQUIRED key out of page2.differentiation, so the document died on schema instead of
+        // page count. exam_bank and model_answers are LISTS, where dropping an entry is free;
+        // differentiation and the coaching corner are OBJECTS with required keys, where dropping
+        // one is a broken document. Saying what to cut without saying what is structural is what
+        // cost that run.
+        + 'NEVER REMOVE A REQUIRED PROPERTY to save space: cut only from the LISTS (exam_bank, '
+        + 'model_answers, mistakes rows). page2.differentiation must keep stuck, barrier and '
+        + 'early; every other required field stays. Shorten those in place if you must, but a '
+        + 'missing required property fails the whole document and wastes the round.'
       : '') +
     '\n\n=== LINT WARNINGS ===\n' + (gates.warns.join('\n') || '(none)') +
     '\n\n=== THE ORIGINAL TASK (same page-truth, unchanged) ===\n' + originalUser;
