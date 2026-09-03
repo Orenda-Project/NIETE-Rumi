@@ -1052,12 +1052,21 @@ function page1(doc, ctx, secIndex) {
     if (s.id === "homework" && s.homework) {
       // NO ANSWERS HERE. Defect class E: the reviewed plan printed the answer beside the
       // question, so the homework taught nothing. The answers live in reference F.
-      out.push({ html: `<div class="blk hw">${s.homework.items
-        .map((it, i) => `<div class="it"><span class="n">${i + 1}.</span>
+      //
+      // bd-x4xxm: ONE ATOM PER ITEM, on the YOU-DO practice precedent in blockAtoms() above.
+      // As one atom this list was the teach part's tallest tail block (median 348px, max 421px)
+      // and it stranded the last teach page at 43% on every teach-side packing failure in the
+      // 2026-09-03 study. The split is visually lossless: `.hw` is a flex column whose only
+      // separation is `gap:var(--sp-1)`, each `.hw .it` carries its own border and background,
+      // and `.blk` is `margin:0` with no box of its own — so N one-item wrappers paint exactly
+      // what one N-item wrapper painted, with the 4px gap returning as the atom's sp-1 margin.
+      const hwItem = (it, i) => `<div class="it"><span class="n">${i + 1}.</span>
           <span class="q">${rich(it.text)}${it.source && (it.source.page || it.source.questions || it.source.paper)
             ? ` <span class="src">(${[it.source.paper, it.source.questions, it.source.page ? `${L.page}${it.source.page}` : null].filter(Boolean).map((x) => rich(x)).join(", ")})</span>` : ""}</span>
-          <span class="tag">[${rich(it.slo_code)}, ${esc(it.level)}]${it.marks ? ` ${it.marks}${esc(L.markAbbr)}` : ""}</span></div>`)
-        .join("")}</div>`, sp: 2 });
+          <span class="tag">[${rich(it.slo_code)}, ${esc(it.level)}]${it.marks ? ` ${it.marks}${esc(L.markAbbr)}` : ""}</span></div>`;
+      s.homework.items.forEach((it, i) => {
+        out.push({ html: `<div class="blk hw">${hwItem(it, i)}</div>`, sp: i === 0 ? 2 : 1 });
+      });
     }
     return out;
   };
@@ -1163,6 +1172,44 @@ function page2(doc, ctx, secIndex) {
     });
   };
 
+  /**
+   * A card grid, emitted ONE ROW PER ATOM instead of one atom for the whole grid.
+   *
+   * bd-x4xxm. A grid of N cards used to be a single atom, so the packer had nowhere legal to
+   * break inside it and had to push the whole block to a fresh page. Measured on the 24 real
+   * lessons of the 2026-09-03 study, that stranded up to 453px — nearly half a page — right
+   * before section F, whose homework_key grid is the tallest thing on the support page
+   * (median 496px, max 853px). Twelve of the twenty over-cap parts in that study held LESS
+   * content than their own cap allows; the content fitted and the BREAKS were in the wrong
+   * places.
+   *
+   * Splitting by ROW is visually lossless, and that is why the row is the chosen cut:
+   *   • `.grid2` / `.grid3` are `display:grid` with `gap:var(--sp-2)`, and CSS grid sizes each
+   *     row to its own tallest card — so N separate one-row grids lay out identically to one
+   *     N-card grid at the same container width;
+   *   • the row gap the split removes is put straight back as the atom's own top margin, and
+   *     `.pad > .sp-2` is the same 8px that gap was;
+   *   • a break still may never fall INSIDE a row — two columns cannot straddle a page break —
+   *     which is exactly what keeping each row whole preserves.
+   *
+   * This is the cut already shipped for the two structures either side of these: YOU-DO
+   * practice items and the exam bank's MCQs are each their own atom for this identical reason.
+   * The inconsistency was the bug; nothing here changes what is on the page.
+   *
+   * @param cls     "grid2" | "grid3" — the class carries the column count
+   * @param cards   already-rendered card HTML, one string per card
+   * @param firstSp the rung the FIRST row sits at (it follows the section bar, not a gap)
+   */
+  const gridRows = (cls, cards, firstSp = 1) => {
+    const perRow = cls === "grid3" ? 3 : 2;
+    const out = [];
+    for (let i = 0; i < cards.length; i += perRow) {
+      out.push({ html: `<div class="${cls}">${cards.slice(i, i + perRow).join("")}</div>`,
+                 sp: i === 0 ? firstSp : 2 });
+    }
+    return out;
+  };
+
   let boardDia = "";
   if (P.board_final.diagram) {
     let svg;
@@ -1202,23 +1249,21 @@ function page2(doc, ctx, secIndex) {
   // resolves to nothing the card says so out loud — lint's REF_ABSENT fails the doc, and the
   // page must not quietly look complete in the meantime.
   const Q = questionIndex(doc);
-  S("B", L.p2Model, [`<div class="grid2">${P.model_answers
+  S("B", L.p2Model, gridRows("grid2", P.model_answers
     .map((m) => {
       const q = m.ref ? Q.get(m.ref) : null;
       return `<div class="card"><span class="lbl">${m.ref ? esc(m.ref) : ""}</span>
       ${q ? `<span class="refq">${rich(q.q)}</span>` : (m.label ? `<span class="refq">${rich(m.label)}</span>` : `<span class="refq">${esc(L.refMissing)}</span>`)}
       <p class="a">${rich(m.answer)}</p>
       ${m.marking_note ? `<span class="how">${rich(m.marking_note)}</span>` : ""}</div>`;
-    })
-    .join("")}</div>`]);
+    })));
 
-  S("C", L.p2Mistakes, [`<div class="grid3">${P.mistakes
+  S("C", L.p2Mistakes, gridRows("grid3", P.mistakes
     .map(
       (m) => `<div class="mis">
       <div class="x"><span class="lbl">&#10007; ${esc(L.pupilSays)}</span><p>${rich(m.pupil_says)}</p></div>
       <div class="v"><span class="lbl">&#10003; ${esc(L.youAsk)}</span><p>${rich(m.you_ask)}</p></div></div>`
-    )
-    .join("")}</div>`]);
+    )));
 
   S("D", L.p2Diff, [`<div class="grid3">
     <div class="card"><span class="lbl">${esc(L.stuck)}</span><p>${rich(P.differentiation.stuck)}</p></div>
@@ -1284,14 +1329,15 @@ function page2(doc, ctx, secIndex) {
 
   // F — the homework worked in full. Like B, each entry resolves its `ref` back to the item as
   // the homework section states it, so the teacher never has to hold two pages side by side.
-  S("F", L.p2Hw, [`<div class="grid2">${P.homework_key
+  // F is the tallest structure on the support page — median 496px, max 853px across the study's
+  // 24 lessons — and therefore the single biggest source of stranded space. It splits by row.
+  S("F", L.p2Hw, gridRows("grid2", P.homework_key
     .map((h) => {
       const it = h.ref ? Q.get(h.ref) : null;
       return `<div class="card mk"><span class="lbl">${h.ref ? esc(h.ref) : ""}${h.marks ? ` &middot; ${h.marks} ${esc(L.marks)}` : ""}</span>
       <span class="refq">${it ? rich(it.q) : (h.item ? rich(h.item) : esc(L.refMissing))}</span>
       <p class="a">${rich(h.answer)}</p></div>`;
-    })
-    .join("")}</div>`]);
+    })));
 
   S("G", `${L.p2Next} / ${L.p2NotGoing}`, [`<div class="nxt">
     <div class="a"><span class="lbl">${esc(L.p2Next)}</span><p>${rich(P.next_period)}</p></div>
