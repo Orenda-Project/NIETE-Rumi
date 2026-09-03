@@ -51,6 +51,43 @@ function r2KeyFor(segmentId, lang, tv) {
   return `lp612/${tv}/${lang}/${segmentId}.pdf`;
 }
 
+/** The ONLY isolation this lane has. */
+const R2_KEY_PREFIX = 'lp612/';
+
+/**
+ * Refuse to write anywhere but under `lp612/`.
+ *
+ * NIETE and PK production share ONE bucket with byte-identical credentials. There is no separate
+ * bucket, no separate account, and nothing at the storage layer that would stop a wrong key
+ * landing on top of a PK production asset — `pre_gen_lps/`, `lesson_plans/`, `lp-cache/v8/` and
+ * `audio/` are all one mistake away.
+ *
+ * The page-truth uploader has carried this guard since day one, and its comment says exactly why
+ * it is applied at the put and not at plan time: "so that no future caller can construct a key
+ * some other way and skip it." The serving path WAS that future caller — it uploaded the PDF, and
+ * later the authored document, with keys that were correct only because `r2KeyFor` happened to
+ * build them. That is a convention, not an enforcement.
+ *
+ * It lives HERE, beside the key builder, so key shape and key safety are decided in one place.
+ *
+ * Traversal is checked FIRST: `lp612/../pre_gen_lps/x` starts with the prefix and does not stay
+ * inside it.
+ */
+function assertKeyInPrefix(key) {
+  const k = String(key == null ? '' : key);
+  if (!k) throw new Error('refusing to write an empty R2 key');
+  if (k.includes('..')) {
+    throw new Error(`refusing to write "${k}": path traversal outside ${R2_KEY_PREFIX}`);
+  }
+  if (!k.startsWith(R2_KEY_PREFIX)) {
+    throw new Error(
+      `refusing to write "${k}": this bucket is shared with PK production and this lane `
+      + `may only write under the ${R2_KEY_PREFIX} prefix`,
+    );
+  }
+  return k;
+}
+
 function buildFilename(segment, lang) {
   const base = `${segment.book_stem}_${segment.chapter_key}_p${segment.printed_page_start}`
     .replace(/[^A-Za-z0-9_-]/g, '_');
@@ -420,6 +457,8 @@ module.exports = {
   buildFilename,
   buildCaption,
   r2KeyFor,
+  assertKeyInPrefix,
+  R2_KEY_PREFIX,
   RENDERS,
   JOB_TYPE,
 };

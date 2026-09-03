@@ -220,7 +220,10 @@ async function process(payload) {
     const { authored, rendered } = result;
 
     const pdf = await fs.promises.readFile(rendered.pdfPath);
-    const r2Key = Serving.r2KeyFor(segmentId, lang, templateVersion);
+    // Guarded, not merely well-named: NIETE shares this bucket with PK production and `lp612/`
+    // is the only isolation there is. Applied at the put so no future edit can construct a key
+    // some other way and skip it.
+    const r2Key = Serving.assertKeyInPrefix(Serving.r2KeyFor(segmentId, lang, templateVersion));
     await uploadBuffer(pdf, r2Key, 'application/pdf');
 
     // KEEP THE DOCUMENT THAT MADE THE PDF.
@@ -240,7 +243,7 @@ async function process(payload) {
     try {
       await uploadBuffer(
         Buffer.from(JSON.stringify(authored.lpDoc, null, 1), 'utf8'),
-        r2Key.replace(/\.pdf$/, '.lp.json'),
+        Serving.assertKeyInPrefix(r2Key.replace(/\.pdf$/, '.lp.json')),
         'application/json',
       );
     } catch (err) {

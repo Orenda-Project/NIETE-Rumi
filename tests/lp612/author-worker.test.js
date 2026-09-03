@@ -25,10 +25,16 @@ jest.mock('../../bot/shared/services/lp612-render.service', () => ({
   renderLessonPlan: mockRenderLessonPlan,
 }));
 jest.mock('../../bot/shared/storage/r2', () => ({ uploadBuffer: mockUploadBuffer }));
-jest.mock('../../bot/shared/services/lp612-serving.service', () => ({
-  deliverRender: mockDeliverRender,
-  r2KeyFor: (s, l, t) => `lp612/${t}/${l}/${s}.pdf`,
-}));
+jest.mock('../../bot/shared/services/lp612-serving.service', () => {
+  // The guard is the REAL one: a double that always says yes would make the test below pass
+  // while production wrote over PK's bucket.
+  const real = jest.requireActual('../../bot/shared/services/lp612-serving.service');
+  return {
+    deliverRender: mockDeliverRender,
+    r2KeyFor: (s, l, t) => `lp612/${t}/${l}/${s}.pdf`,
+    assertKeyInPrefix: real.assertKeyInPrefix,
+  };
+});
 jest.mock('../../bot/shared/services/whatsapp.service', () => ({ sendMessage: mockSendMessage }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('fs', () => ({
@@ -430,5 +436,26 @@ describe('the authored document is kept beside the PDF', () => {
     seed();
     const out = await Worker.process(JOB);
     expect(out.status).toBe('ready');
+  });
+});
+
+// ── the shared bucket ───────────────────────────────────────────────────────
+
+/**
+ * Both uploads go through the prefix guard, not just past a correctly-shaped key. NIETE shares
+ * this bucket with PK production and `lp612/` is the only isolation there is.
+ */
+describe('every write is guarded, not merely well-named', () => {
+  test('a key outside lp612/ is refused rather than uploaded', async () => {
+    const Serving = require('../../bot/shared/services/lp612-serving.service');
+    const spy = jest.spyOn(Serving, 'r2KeyFor').mockReturnValue('pre_gen_lps/oops.pdf');
+    seed();
+
+    const out = await Worker.process(JOB);
+
+    // It fails the render rather than writing over a PK production asset.
+    expect(out.status).toBe('failed');
+    expect(mockUploadBuffer).not.toHaveBeenCalled();
+    spy.mockRestore();
   });
 });
