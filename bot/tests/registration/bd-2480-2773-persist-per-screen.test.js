@@ -62,13 +62,20 @@ describe('bd-2480/bd-2773 — registration persists each screen to the user row'
       { full_name: 'Sara Coach', country: 'TZ' }, FLOW_TOKEN);
     mockRegStore = {};   // the store is gone — exactly what prod does
     const prof = await handleRegistrationDataExchange('user-1', 'PROFESSIONAL_INFO',
-      { organization: 'other', school_name: 'X', grade: 'grade_3', subjects: [], role: 'principal' }, FLOW_TOKEN);
+      { organization: 'other', school_name: 'X', grade: ['grade_3'], subjects: ['maths'], role: 'principal' }, FLOW_TOKEN);
     expect(prof.screen).toBe('ORG_DETAILS');
     await handleRegistrationDataExchange('user-1', 'ORG_DETAILS',
       { organization_other: 'Beacon House' }, FLOW_TOKEN);
     const w = merged();
     expect(w.first_name).toBe('Sara');       // written at PERSONAL_INFO, not lost with Redis
     expect(w.role).toBe('principal');        // written at PROFESSIONAL_INFO, not lost with ORG_DETAILS as the last screen
+    // Only REAL users columns — grades_taught/subjects_taught, never grade/subjects. A wrong name
+    // makes PostgREST reject the whole update and drops the role (bd-2773 verify 2026-09-03).
+    const cols = Object.keys(w);
+    expect(cols).toContain('grades_taught');
+    expect(cols).toContain('subjects_taught');
+    expect(cols).not.toContain('grade');
+    expect(cols).not.toContain('subjects');
   });
 
   it('an empty name is never written (validation still rejects it)', async () => {

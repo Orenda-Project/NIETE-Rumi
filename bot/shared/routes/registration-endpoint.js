@@ -316,8 +316,12 @@ async function handleProfessionalInfoSubmit(userId, screenData, flowToken) {
   await persistToUser(userId, {
     role: allData.role,
     school_name: allData.school_name,
-    grade: Array.isArray(allData.grade) ? allData.grade : (allData.grade || undefined),
-    subjects: (allData.subjects && allData.subjects.length) ? allData.subjects : undefined,
+    // users columns are grades_taught / subjects_taught (matching flow-response.handler); NOT
+    // grade/subjects — a wrong name makes PostgREST reject the WHOLE update, which dropped the
+    // role again on the org="other" path (bd-2773 verify, 2026-09-03: "Could not find the
+    // 'subjects' column of 'users'").
+    grades_taught: (Array.isArray(allData.grade) ? allData.grade.length : allData.grade) ? allData.grade : undefined,
+    subjects_taught: (allData.subjects && allData.subjects.length) ? allData.subjects : undefined,
     organization: organization === 'other' ? undefined : organization,
   });
 
