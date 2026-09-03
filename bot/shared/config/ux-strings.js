@@ -111,6 +111,35 @@ const UX_STRINGS = {
     ur: 'بتانے کا شکریہ — اگلی بار ہم کچھ مختلف تجویز کریں گے۔',
   },
 
+  // ─── feedback-uptake loop: the hero report's "last time we asked" line ────
+  // {count} is the tally in words (unit names stay English by the code-switch
+  // rule; the connecting words are the report's language); {target} is the
+  // indicator's name. Never a score, never a percentage.
+  uptakeLineAchieved: {
+    en: '{count}. The bar was met.',
+    ur: '{count}۔ ہدف پورا ہوا۔',
+  },
+  uptakeLinePartial: {
+    en: '{count}. One more push reaches the bar.',
+    ur: '{count}۔ ایک اور کوشش سے ہدف پورا ہو جائے گا۔',
+  },
+  uptakeLineNotSeen: {
+    en: '{count}. Next class, a different way in.',
+    ur: '{count}۔ اگلی کلاس میں ایک نیا انداز۔',
+  },
+  uptakeLineNotApplicable: {
+    en: 'We will come back to {target} in a lesson where it applies.',
+    ur: '{target} پر ہم ایسے سبق میں لوٹیں گے جہاں یہ لاگو ہو۔',
+  },
+  uptakeLineUnknown: {
+    en: 'We could not count it this time — we will look again next lesson.',
+    ur: 'اس بار ہم اسے گن نہیں سکے — اگلے سبق میں دوبارہ دیکھیں گے۔',
+  },
+  uptakeLineHandOver: {
+    en: 'Your coach will pick this up with you in person.',
+    ur: 'آپ کے کوچ اسے آپ کے ساتھ بالمشافہ آگے بڑھائیں گے۔',
+  },
+
   // Shown on the Settings SUCCESS screen. Previously English-only, so a teacher
   // who had just switched to Urdu was congratulated in English.
   settingsSaved: {
