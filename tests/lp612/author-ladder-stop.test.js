@@ -158,11 +158,16 @@ describe('a non-blocking BUDGET defect does not spend rounds', () => {
 // ── (2) a round that achieves nothing must end the climb ────────────────────
 
 describe('the ladder stops when a round stops making progress', () => {
+  // A NON-page-count defect, so these two exercise the STALE guard rather than bd-vjk68's
+  // one-round page-count budget. `OVERFLOW` above is (confusingly) a PAGE COUNT string; this is
+  // the renderer's actual clipped-content finding, and it is not covered by the length policy.
+  const CLIPPED = 'OVERFLOW on s2: content is 40px taller than the page. Offending: exam_bank (+40px)';
+
   test('an unfixable blocking defect does not burn every round', async () => {
     // c01's measured trajectory was 6/6 → 6/5 → 5/5 → 5/5 → 5/5 → 5/5: flat from round 3, and
     // rounds 3-5 were bought and thrown away. The ladder must stop short of the ceiling once
     // four consecutive rounds have improved nothing.
-    const renderCheck = jest.fn().mockResolvedValue([OVERFLOW]);
+    const renderCheck = jest.fn().mockResolvedValue([CLIPPED]);
     create.mockResolvedValue(reply(CLEAN_DOC));
 
     const out = await run(renderCheck, 8);
@@ -180,18 +185,38 @@ describe('the ladder stops when a round stops making progress', () => {
     // So the ladder has to tolerate THREE consecutive flat rounds and still take the fourth.
     // At a threshold of 3 it breaks at the top of round 4 and that lesson is lost — measured:
     // 11/24 delivered at 4, 10/24 at 3.
+    //
+    // WRITTEN WITH A CLIPPED-CONTENT DEFECT SINCE bd-vjk68, and the substitution is the whole
+    // story of that bead. c09's real defect was a PAGE COUNT, and a page count no longer earns
+    // four flat rounds: it earns one, and then the lesson is DELIVERED one page over cap
+    // (`over_cap` on its row) instead of costing the teacher four more minutes for a 50%-then-18%
+    // chance of losing a sheet. The stale threshold itself is unchanged, and this is the
+    // behaviour it still governs for every defect that is a broken document rather than a long one.
     const renderCheck = jest.fn()
-      .mockResolvedValueOnce([OVERFLOW])   // the opening gate
-      .mockResolvedValueOnce([OVERFLOW])   // after round 1 — flat
-      .mockResolvedValueOnce([OVERFLOW])   // after round 2 — flat
-      .mockResolvedValueOnce([OVERFLOW])   // after round 3 — flat
-      .mockResolvedValue([]);              // round 4 finally fits
+      .mockResolvedValueOnce([CLIPPED])   // the opening gate
+      .mockResolvedValueOnce([CLIPPED])   // after round 1 — flat
+      .mockResolvedValueOnce([CLIPPED])   // after round 2 — flat
+      .mockResolvedValueOnce([CLIPPED])   // after round 3 — flat
+      .mockResolvedValue([]);             // round 4 finally fits
     create.mockResolvedValue(reply(CLEAN_DOC));
 
     const out = await run(renderCheck, 5);
 
     expect(out.rounds).toBe(4);
     expect(out.fails).toHaveLength(0);     // the lesson is delivered, not abandoned
+  });
+
+  test('and the SAME trajectory, page-count only, now costs ONE round (bd-vjk68)', async () => {
+    // The other side of the substitution above, stated rather than implied: the c09 shape with
+    // its real defect. One round, then the draft is handed back over cap for the worker to
+    // deliver — the operator's "stop delaying lesson plans because of the length issue".
+    const renderCheck = jest.fn().mockResolvedValue([OVERFLOW]);
+    create.mockResolvedValue(reply(CLEAN_DOC));
+
+    const out = await run(renderCheck, 5);
+
+    expect(out.rounds).toBe(1);
+    expect(out.fails).toContain(OVERFLOW);
   });
 
   test('but a ladder that IS still improving keeps climbing', async () => {

@@ -45,8 +45,27 @@ const A4 = { w: 794, h: 1123 };
 // and keep enough spacing that it doesn't get airtight". A deliberate font increase is NOT
 // bloat, so the CAP gives, not the content — see the measured numbers in lint_lp.js. Over the
 // cap is still a loud FAIL; the cap's job is to catch padding, and it still does.
-const MAX_PAGES = { teach: 5, support: 4 };     // above this: FAIL
-const WARN_PAGES = { teach: 4, support: 3 };    // above this: WARN, and keep going
+//
+// Revised again 2026-09-04 (bd-vjk68, operator: "we will stop cancelling or delaying lesson
+// plans now because of the length issue"). TEACH 5 -> 6; SUPPORT unchanged at 4.
+//
+// MEASURED, not chosen. Every other lever against the page-overflow failure class was priced
+// and eliminated first: card-count ceilings (best separating cut anywhere catches 2 over-cap
+// parts and blocks 33 good ones), an exact-DP page packer (582 -> 582 pages over 62 documents,
+// 0 repaginated), the word budget (r = 0.18 against printed pages), the model (sonnet is the
+// faster one), the furniture trim (0 pages on its own), and rounds 5 -> 3 (loses 15% of
+// deliveries). What was left was the cap itself. On the 9 live page-cap failures of 2026-09-04,
+// EN teach 5->6 rescues 4 and EN teach 6 + UR support 6 rescues 7 — one sheet per language.
+//
+// AND THE OVER-CAP PARTS ARE NOT PADDED. Each carries 89-96% of its own cap's paper AS CONTENT
+// (page_cap_decision_2026-09-04/card_ceilings/FINDING.md §4), so this is not room for bloat; it
+// is the sheet the content already needed. The "cap as target" worry (23 of 27 EN lessons print
+// at exactly the cap) is the LADDER trimming down to fit, not the author padding up — the author
+// never sees a page count on round 0. Whether the distribution refills to the new cap is the
+// open question, and it is now measurable: `over_cap` on niete_lp612_renders and the
+// `lp612.deliver.over_cap` event carry the pages and the caps they were measured against.
+const MAX_PAGES = { teach: 6, support: 4 };     // above this: FAIL
+const WARN_PAGES = { teach: 5, support: 3 };    // above this: WARN, and keep going
 
 // PAGE CAPS ARE LANGUAGE-AWARE; WORD BUDGETS ARE NOT (operator, 2026-09-03).
 //
@@ -64,8 +83,16 @@ const WARN_PAGES = { teach: 4, support: 3 };    // above this: WARN, and keep go
 // more than an English one — and Urdu pays its measured paper cost here, in
 // pages: teach 7 / support 5 (5/4 × 4/3 line density, rounded up), warns one
 // page under each cap exactly as English warns.
-const MAX_PAGES_UR = { teach: 7, support: 5 };
-const WARN_PAGES_UR = { teach: 6, support: 4 };
+//
+// SUPPORT 5 -> 6 on 2026-09-04 (bd-vjk68), and TEACH stays at 7. All three live Urdu page
+// failures that day were "support needs 6; the cap is 5" — never teach — so the sheet goes
+// where the failures are. Note this leaves the Urdu ratio uneven against English (teach
+// 7/6 = 1.17, support 6/4 = 1.50) rather than the clean 4/3 the original derivation used:
+// the derivation was a prediction, these are the measured overflows, and the measurement wins.
+// The n=4 "raise-and-refill" datum for Urdu is too thin to settle whether 7 is still short —
+// that is what the post-40-lesson re-measure is for.
+const MAX_PAGES_UR = { teach: 7, support: 6 };
+const WARN_PAGES_UR = { teach: 6, support: 5 };
 
 /** The caps for one render, by the language actually being laid out. */
 function pageCapsFor(lang) {

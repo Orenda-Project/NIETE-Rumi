@@ -36,6 +36,9 @@ const { uploadBuffer } = require('../shared/storage/r2');
 const { resolveUx } = require('../shared/config/ux-strings');
 const { authorLessonPlan } = require('../shared/services/lp612-author.service');
 const { renderLessonPlan } = require('../shared/services/lp612-render.service');
+// The caps the renderer gated on, read from the renderer itself so the over-cap event can never
+// quote a number the gate did not use (bd-vjk68). Never retyped here — see `pageCapsFor`.
+const { pageCapsFor } = require('../vendor/lp-v9/render_lp.js');
 const Serving = require('../shared/services/lp612-serving.service');
 const {
   resolveAuthorModel, authorTierFor, authorRounds, authorTimeoutMs, followupAfterMs,
@@ -463,21 +466,68 @@ async function process(payload) {
       // Recorded the moment it exists, so a render that refuses it below is still explicable.
       authoredDoc = authored.lpDoc;
 
-      const rendered = await renderLessonPlan({
-        lpDoc: authored.lpDoc,
-        lang,
-        stem: segmentId.replace(/[^A-Za-z0-9._-]/g, '_'),
-        outDir: tmpDir,
-        correlationId,
-        segmentId,
-        renderId,
-        phase: 'final',
-      });
+      let rendered;
+      let overCap = false;
+      try {
+        rendered = await renderLessonPlan({
+          lpDoc: authored.lpDoc,
+          lang,
+          stem: segmentId.replace(/[^A-Za-z0-9._-]/g, '_'),
+          outDir: tmpDir,
+          correlationId,
+          segmentId,
+          renderId,
+          phase: 'final',
+        });
+      } catch (e) {
+        // ── bd-vjk68: A LESSON IS NEVER LOST FOR BEING LONG ──────────────────
+        //
+        // Operator, 2026-09-04: *"we will stop cancelling or delaying lesson plans now because
+        // of the length issue"*. 9 of the 20 failures in the 59-lesson live window were page
+        // count — 6 of them the identical "teach needs 6; the cap is 5" — and every one of them
+        // was a lesson that had already been authored, rendered, and written to disk, then
+        // thrown away and replaced with an apology.
+        //
+        // The PDF EXISTS at this point. `lp612-render.service` writes the file and only then
+        // inspects the report, so `e.pdfPath` on a defect throw points at a complete, correct,
+        // merely-longer-than-we-wanted document. Delivering it costs one file read.
+        //
+        // THE CONDITION IS DELIBERATELY NARROW, and each clause earns its place:
+        //   • `infra === false` — a Chromium that never launched produced no PDF at all; there
+        //     is nothing to deliver and `e.problems` is a crash message, not a defect list.
+        //   • EVERY problem is `PAGE COUNT:` — not merely "at least one is". `OVERFLOW` means
+        //     content is clipped off the bottom of a page and `TRUNCATION` means pages of the
+        //     lesson are missing from the file. Those are broken documents, not long ones, and
+        //     a teacher must never be sent one. A mixed set fails, exactly as it does today.
+        //   • a non-empty `pdfPath` — the belt to the braces above.
+        //
+        // Rule 24(a)/(b): this is a distinct persisted state, not a silent fallback. The row
+        // carries `over_cap`, the event `lp612.deliver.over_cap` carries the pages AND the caps
+        // they were measured against, and both exist so the question the raised caps opened —
+        // does the distribution simply refill to the new ceiling? — is answerable from data
+        // after ~40 lessons rather than argued about.
+        const pageOnly = e && e.infra === false
+          && Array.isArray(e.problems) && e.problems.length > 0
+          && e.problems.every((p) => String(p).startsWith('PAGE COUNT:'))
+          && typeof e.pdfPath === 'string' && e.pdfPath.length > 0;
+        if (!pageOnly) throw e;
 
-      return { authored, rendered };
+        overCap = true;
+        rendered = {
+          pdfPath: e.pdfPath,
+          htmlPath: e.htmlPath,
+          pageCount: e.pageCount ?? null,
+          pagesByPart: e.pagesByPart || {},
+          overlayApplied: e.overlayApplied || [],
+          warnings: e.warnings || [],
+          problems: e.problems,
+        };
+      }
+
+      return { authored, rendered, overCap };
     })(), authorTimeoutMs(), 'AUTHOR_TIMEOUT');
 
-    const { authored, rendered } = result;
+    const { authored, rendered, overCap } = result;
 
     const pdf = await fs.promises.readFile(rendered.pdfPath);
     // Guarded, not merely well-named: NIETE shares this bucket with PK production and `lp612/`
@@ -514,6 +564,38 @@ async function process(payload) {
 
     stopFollowup();
 
+    // THE OVER-CAP EVENT — the measurement the raised caps are on probation for (bd-vjk68).
+    //
+    // Emitted BEFORE the row patch and the sends, so it exists even if delivery then fails: this
+    // is a fact about the DOCUMENT, not about whether Meta accepted it.
+    //
+    // The caps travel WITH the pages on purpose. `teach_pages: 7` is uninterpretable six weeks
+    // from now unless the row also says what the cap was at the time — and moving the cap is
+    // precisely what this bead did, so a reader who assumes today's constants will misread every
+    // row written before the next change. Same failure shape as reading `status` without the
+    // payload (rule 24(a)).
+    if (overCap) {
+      const caps = pageCapsFor(lang).max;
+      const byPart = rendered.pagesByPart || {};
+      logEvent('lp612.deliver.over_cap', {
+        renderId,
+        segmentId,
+        correlationId: correlationId || null,
+        lang,
+        templateVersion,
+        teach_pages: byPart.teach ?? null,
+        support_pages: byPart.support ?? null,
+        cap_teach: caps.teach,
+        cap_support: caps.support,
+        page_count: rendered.pageCount ?? null,
+        rounds: authored.rounds ?? null,
+        problems: rendered.problems || [],
+      });
+      logToFile('LP 6-12 worker: delivering an over-cap lesson rather than failing it', {
+        renderId, segmentId, lang, pagesByPart: byPart, caps, correlationId,
+      }, 'warn');
+    }
+
     // AN URDU RENDER THAT LOST ITS OVERLAY IS SAID SO, ON THE ROW (rule 24(b):
     // a silent fallback is a regression mask). An EN-medium book asked for in
     // Urdu whose ur_overlay did not survive (sanitizeOverlay dropped it, or the
@@ -540,6 +622,14 @@ async function process(payload) {
       error_detail: null,
       r2_key: r2Key,
       overlay_dropped: overlayDropped,
+      // bd-vjk68. A DELIVERED OVER-CAP LESSON IS DISTINGUISHABLE, ON THE ROW.
+      //
+      // Always written, never left to whatever was in the column: the flag's whole job is to
+      // answer "of the lessons we sent, how many were over the cap", and a NULL that means "we
+      // did not look" is indistinguishable from a false in every query anyone will run. Same
+      // reasoning as `error_code: null` two lines up (bd-7yxsu) — a column an UPDATE does not
+      // name keeps its old value, and a retry after an over-cap attempt would inherit `true`.
+      over_cap: overCap === true,
       page_count: rendered.pageCount ?? null,
       model_used: authored.model || model,
       rounds_used: authored.rounds ?? null,
@@ -629,6 +719,11 @@ async function process(payload) {
       rounds: authored.rounds ?? null,
       lintClean: authored.lintClean === true,
       pageCount: rendered.pageCount ?? null,
+      // The per-part pages on EVERY delivery, not only the over-cap ones (bd-vjk68). "Does the
+      // distribution refill to the new cap?" is a question about all delivered lessons; a
+      // sample of only the ones that spilled cannot answer it.
+      pagesByPart: rendered.pagesByPart || null,
+      overCap: overCap === true,
       overlayDropped,
       delivered,
       deliveryFailures,

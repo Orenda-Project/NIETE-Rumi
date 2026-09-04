@@ -277,9 +277,32 @@ async function renderLessonPlan({
       ...trace, stem, outcome: 'failed', elapsedMs: Date.now() - startedAt,
       code: 'RENDER_DEFECTS', pageCount, problems, pagesByPart: byPart, infra: false,
     });
+    // THE ERROR CARRIES EVERYTHING THE SUCCESS RETURN DOES.
+    //
+    // bd-vjk68: a document refused ONLY for `PAGE COUNT` is now DELIVERED — the operator's call,
+    // "we will stop cancelling ... lesson plans because of the length issue" — and the PDF that
+    // makes that possible has already been written by the time this throws. The caller therefore
+    // needs the same three facts the happy path returns: which parts ran to how many pages (for
+    // the `over_cap` row and the `lp612.deliver.over_cap` event, whose whole purpose is to make
+    // the page distribution measurable after the caps moved), and which overlay pointers were
+    // applied (for `overlay_dropped`, whose absence would silently mark every over-cap Urdu
+    // render as overlay-dropped and staple an honesty caption onto a perfectly good document).
+    //
+    // Nothing here decides anything: the service's contract is unchanged — any defect is still a
+    // throw, and PAGE COUNT is still a defect. It only stops the throw from being lossier than
+    // the return.
     throw renderFailed(
       `render of ${stem} produced ${problems.length} defect(s): ${problems.join(' | ')}`,
-      { problems, infra: false, warnings, htmlPath: out.htmlPath, pdfPath: out.pdfPath, pageCount }
+      {
+        problems,
+        infra: false,
+        warnings,
+        htmlPath: out.htmlPath,
+        pdfPath: out.pdfPath,
+        pageCount,
+        pagesByPart: byPart,
+        overlayApplied: (out.report && out.report.overlay_applied) || [],
+      }
     );
   }
 
@@ -296,6 +319,10 @@ async function renderLessonPlan({
     pdfPath: out.pdfPath,
     htmlPath: out.htmlPath,
     pageCount,
+    // Per-part pages, so the row can record `over_cap` HONESTLY on the happy path too — a
+    // delivered lesson that fits must say `over_cap: false`, not leave the column ambiguous.
+    // The same field is on the throw path above; the two must not disagree in shape.
+    pagesByPart: byPart,
     warnings,
     // The JSON pointers the ur_overlay actually replaced (renderDoc's
     // report.overlay_applied). The worker persists `overlay_dropped` from this

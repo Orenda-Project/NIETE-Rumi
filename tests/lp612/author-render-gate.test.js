@@ -138,14 +138,23 @@ describe('the render gate runs inside the revision ladder', () => {
 
   test('a document that never fits still returns the best draft rather than nothing', async () => {
     // The ladder has always served its best effort rather than refusing. The render gate must
-    // not change that: the renderer will reject it downstream and the teacher gets the honest
-    // apology, which is the designed path.
+    // not change that.
+    //
+    // WHAT HAPPENS TO THAT DRAFT CHANGED ON 2026-09-04 (bd-vjk68), and the old comment here —
+    // "the renderer will reject it downstream and the teacher gets the honest apology, which is
+    // the designed path" — is no longer true and was the thing the operator ordered removed. A
+    // document refused ONLY for page count is now DELIVERED at whatever length it is; the
+    // apology path survives for defects that make a document broken rather than long.
+    //
+    // The round count moved with it: a page-count-only ladder buys ONE revision, not the two
+    // it was given here (PAGE_COUNT_ROUND_BUDGET).
     const renderCheck = jest.fn().mockResolvedValue([OVERFLOW]);
     create.mockResolvedValue(reply(CLEAN_DOC));
 
     const out = await run(renderCheck, 2);
     expect(out.lpDoc).toBeTruthy();
-    expect(out.rounds).toBe(2);
+    expect(out.rounds).toBe(1);
+    expect(out.fails).toContain(OVERFLOW);   // and it is handed back HONESTLY, still over cap
   });
 });
 

@@ -1645,9 +1645,9 @@ owns direction and isolation.
 ## 8 · WORD BUDGETS — the page is finite
 
 `lint_lp.js` budgets each section and the whole document; the renderer then proves the fit by
-measuring the real layout. **TEACH ≤ 5 A4 pages, SUPPORT ≤ 4** (the measured capacity at the 18px
+measuring the real layout. **TEACH ≤ 6 A4 pages, SUPPORT ≤ 4** (the measured capacity at the 18px
 body floor). Over the cap is a loud failure, not a quiet trim. **An Urdu render is allowed
-TEACH ≤ 7, SUPPORT ≤ 5** — the same words measured ~+33% more paper under Nastaliq's spacing —
+TEACH ≤ 7, SUPPORT ≤ 6** — the same words measured ~+33% more paper under Nastaliq's spacing —
 but the WORD budgets below are one set of numbers for both languages: an Urdu plan says no more
 than an English one; it only breathes more.
 

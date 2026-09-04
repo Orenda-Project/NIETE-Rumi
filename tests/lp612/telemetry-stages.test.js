@@ -32,7 +32,14 @@ jest.mock('../../bot/shared/utils/structured-logger', () => ({
   logEvent: (...a) => mockLogEvent(...a),
   getCurrentCorrelationId: () => undefined,
 }));
-jest.mock('../../bot/vendor/lp-v9/render_lp.js', () => ({ renderDoc: (...a) => mockRenderDoc(...a) }));
+// Spread the REAL module and override only `renderDoc`. A hand-written object drops every
+// other export, and the author service now reads `pageCapsFor` from here so the budget card in
+// its prompt can never quote a cap the renderer does not gate on (bd-vjk68) — a partial mock
+// turned that into `pageCapsFor is not a function` in a suite about telemetry.
+jest.mock('../../bot/vendor/lp-v9/render_lp.js', () => ({
+  ...jest.requireActual('../../bot/vendor/lp-v9/render_lp.js'),
+  renderDoc: (...a) => mockRenderDoc(...a),
+}));
 
 const create = require('../../bot/shared/services/llm-client').__create;
 const { authorLessonPlan } = require('../../bot/shared/services/lp612-author.service');

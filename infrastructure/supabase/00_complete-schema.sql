@@ -4993,6 +4993,15 @@ CREATE TABLE IF NOT EXISTS niete_lp612_renders (
   -- row appends the honest Urdu caption line instead of silently labelling it
   -- Urdu. Not a status value: the render IS ready; it is served honestly. (V1.3.3)
   overlay_dropped   BOOLEAN NOT NULL DEFAULT FALSE,
+
+  -- True when this lesson was DELIVERED while a part ran past its hard page cap.
+  -- Page-count overflow stopped being a delivery failure on 2026-09-04 (bd-vjk68) — a document
+  -- refused ONLY for length is sent at whatever length it is, because the PDF already exists by
+  -- the time the renderer reports the defect. Not a status value and never an error_code: the
+  -- row IS ready and the teacher HAS it (bd-7yxsu — status and error code may never disagree).
+  -- The per-part pages and the caps they were measured against ride the
+  -- `lp612.deliver.over_cap` event; this column is the filter that makes them findable. (V1.3.7)
+  over_cap          BOOLEAN NOT NULL DEFAULT FALSE,
   error_code        TEXT,
   error_detail      TEXT,
   waiters           JSONB NOT NULL DEFAULT '[]'::jsonb,
