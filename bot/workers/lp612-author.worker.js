@@ -165,6 +165,40 @@ async function tellAll(waiters, key, lang) {
 }
 
 /**
+ * KEEP THE DOCUMENT THE RENDERER REFUSED — bd-owx8t.
+ *
+ * The success path already stores the authored lp_doc beside its PDF. The failure path stored
+ * nothing, and the failures are the only ones anybody ever needs to read.
+ *
+ * On 2026-09-04 the question was: derive a content ceiling from the nine page-cap failures
+ * staging had just produced. Thirty-nine DELIVERED documents came back out of R2 in seconds. All
+ * nine failures came back `NoSuchKey` — the worker writes the document into a temp dir, uploads
+ * the PDF, and `finally` removes the directory, so every over-long lesson was gone within seconds
+ * of being refused. The corpus therefore describes only lessons that fit, which is the one
+ * population that cannot answer "why is this one too long".
+ *
+ * Keyed under `failed/` inside the same guarded prefix: it can never collide with a delivered
+ * document, and the serving path looks for `.pdf` only, so nothing can serve it by accident.
+ *
+ * ITS OWN FAILURE IS SWALLOWED, exactly as the success-path twin's is. The teacher has already
+ * been failed for a reason she is about to be told; an R2 problem here must not overwrite that
+ * reason with a different one.
+ */
+async function keepFailedDoc({ doc, segmentId, lang, templateVersion, renderId, correlationId }) {
+  if (!doc) return;                       // died before authoring — there is nothing to keep
+  try {
+    const key = Serving.assertKeyInPrefix(
+      Serving.r2KeyFor(segmentId, lang, templateVersion).replace(/\/([^/]+)\.pdf$/, '/failed/$1.lp.json'),
+    );
+    await uploadBuffer(Buffer.from(JSON.stringify(doc, null, 1), 'utf8'), key, 'application/json');
+  } catch (err) {
+    logToFile('LP 6-12 worker: could not store the refused document', {
+      renderId, segmentId, error: err.message, correlationId,
+    });
+  }
+}
+
+/**
  * Fail one render: mark the row, tell everyone waiting, and return a result the
  * SQS switch can ack. A failed row is not a dead lesson — the next tap sees
  * `failed` and retries.
@@ -293,6 +327,9 @@ async function process(payload) {
   // unhandled rejection with no row written and nobody told.
   const tier = (() => { try { return authorTierFor(model); } catch (_) { return null; } })();
   let tmpDir;
+  // Hoisted out of the IIFE below ON PURPOSE: the catch needs the document the renderer refused,
+  // and inside the closure it is unreachable from there. See `keepFailedDoc`.
+  let authoredDoc = null;
 
   try {
     const result = await withTimeout((async () => {
@@ -375,6 +412,8 @@ async function process(payload) {
       const authored = await authorLessonPlan({
         segment, lang, model, rounds: authorRounds(), correlationId, renderCheck,
       });
+      // Recorded the moment it exists, so a render that refuses it below is still explicable.
+      authoredDoc = authored.lpDoc;
 
       const rendered = await renderLessonPlan({
         lpDoc: authored.lpDoc,
@@ -564,6 +603,7 @@ async function process(payload) {
       error: err.message,
       elapsedMs: Date.now() - startedAt,
     });
+    await keepFailedDoc({ doc: authoredDoc, segmentId, lang, templateVersion, renderId, correlationId });
     return fail(renderId, snapshot, lang, err.code, err.message, model);
   } finally {
     stopFollowup();
