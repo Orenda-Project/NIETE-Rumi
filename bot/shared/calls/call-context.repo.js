@@ -13,17 +13,28 @@
  */
 
 const supabase = require('../config/supabase');
+const { readWithFallback } = require('../config/supabase-replica');
+
+/**
+ * Which client each query below uses is deliberate, not incidental (bd-vrbk4.2):
+ * `readWithFallback` reads the production read-replica, bare `supabase` is the
+ * primary. Reads of tables THIS stack writes — here that is `call_memory` — stay
+ * on the primary, because they are read-after-write and replication lag would
+ * present as the assistant forgetting the caller. See shared/config/supabase-replica.js.
+ */
 
 /** users: the caller's profile, by wa_id. */
 async function fetchUser(waId) {
-  const { data, error } = await supabase
-    .from('users')
-    .select('id, first_name, last_name, name, school_name, grades_taught, subjects_taught, '
-      + 'grade, subject, preferred_language, role, region, organization')
-    .eq('phone_number', waId)
-    .maybeSingle();
-  if (error) throw new Error(`users lookup failed: ${error.message}`);
-  return data || null;
+  return readWithFallback(async (db) => {
+    const { data, error } = await db
+      .from('users')
+      .select('id, first_name, last_name, name, school_name, grades_taught, subjects_taught, '
+        + 'grade, subject, preferred_language, role, region, organization')
+      .eq('phone_number', waId)
+      .maybeSingle();
+    if (error) throw new Error(`users lookup failed: ${error.message}`);
+    return data || null;
+  });
 }
 
 /**
@@ -43,17 +54,19 @@ async function fetchUser(waId) {
 const FINISHED_COACHING_STATUSES = ['completed', 'observer_review_complete'];
 
 async function fetchLatestCoaching(userId) {
-  const { data, error } = await supabase
-    .from('coaching_sessions')
-    .select('id, analysis_data, status, completed_at, created_at')
-    .eq('user_id', userId)
-    .in('status', FINISHED_COACHING_STATUSES)
-    .not('analysis_data', 'is', null)
-    .order('completed_at', { ascending: false, nullsFirst: false })
-    .order('created_at', { ascending: false })
-    .limit(1);
-  if (error) throw new Error(`coaching lookup failed: ${error.message}`);
-  return (data && data[0]) || null;
+  return readWithFallback(async (db) => {
+    const { data, error } = await db
+      .from('coaching_sessions')
+      .select('id, analysis_data, status, completed_at, created_at')
+      .eq('user_id', userId)
+      .in('status', FINISHED_COACHING_STATUSES)
+      .not('analysis_data', 'is', null)
+      .order('completed_at', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (error) throw new Error(`coaching lookup failed: ${error.message}`);
+    return (data && data[0]) || null;
+  });
 }
 
 /**
@@ -69,46 +82,56 @@ async function fetchLpContext(userId) {
 
 /** hcp_visit_schedules: her next scheduled observation. teacher_id is a uuid. */
 async function fetchUpcomingVisit(userId) {
-  const { data, error } = await supabase
-    .from('hcp_visit_schedules')
-    .select('scheduled_at, observation_tool, status')
-    .eq('teacher_id', userId)
-    .gte('scheduled_at', new Date().toISOString())
-    .not('status', 'in', '("cancelled")')
-    .order('scheduled_at', { ascending: true })
-    .limit(1);
-  if (error) throw new Error(`visit lookup failed: ${error.message}`);
-  return (data && data[0]) || null;
+  return readWithFallback(async (db) => {
+    const { data, error } = await db
+      .from('hcp_visit_schedules')
+      .select('scheduled_at, observation_tool, status')
+      .eq('teacher_id', userId)
+      .gte('scheduled_at', new Date().toISOString())
+      .not('status', 'in', '("cancelled")')
+      .order('scheduled_at', { ascending: true })
+      .limit(1);
+    if (error) throw new Error(`visit lookup failed: ${error.message}`);
+    return (data && data[0]) || null;
+  });
 }
 
 /** teacher_training_progress + training_modules: where she is in the course. */
 async function fetchTraining(userId) {
-  const { data, error } = await supabase
-    .from('teacher_training_progress')
-    .select('module_id, completed_at')
-    .eq('user_id', userId)
-    .order('completed_at', { ascending: false });
-  if (error) throw new Error(`training lookup failed: ${error.message}`);
-  if (!data || data.length === 0) return null;
+  return readWithFallback(async (db) => {
+    const { data, error } = await db
+      .from('teacher_training_progress')
+      .select('module_id, completed_at')
+      .eq('user_id', userId)
+      .order('completed_at', { ascending: false });
+    if (error) throw new Error(`training lookup failed: ${error.message}`);
+    if (!data || data.length === 0) return null;
 
-  const { count, error: countError } = await supabase
-    .from('training_modules')
-    .select('id', { count: 'exact', head: true })
-    .eq('is_active', true);
-  if (countError) throw new Error(`module count failed: ${countError.message}`);
+    const { count, error: countError } = await db
+      .from('training_modules')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_active', true);
+    if (countError) throw new Error(`module count failed: ${countError.message}`);
 
-  let latestTitle = null;
-  if (data[0] && data[0].module_id) {
-    const { data: mod } = await supabase
-      .from('training_modules').select('title').eq('id', data[0].module_id).maybeSingle();
-    latestTitle = (mod && mod.title) || null;
-  }
-  return { completed: data.length, total: count || data.length, latestTitle };
+    let latestTitle = null;
+    if (data[0] && data[0].module_id) {
+      const { data: mod } = await db
+        .from('training_modules').select('title').eq('id', data[0].module_id).maybeSingle();
+      latestTitle = (mod && mod.title) || null;
+    }
+    return { completed: data.length, total: count || data.length, latestTitle };
+  });
 }
 
 /**
  * call_memory: the bounded rolling summary of previous calls (bd-1hae7.10).
  * Returns null until that table exists — the block is simply absent.
+ *
+ * ⚠ PRIMARY ONLY — do not route this to the read replica (bd-vrbk4.2). This row
+ * is written at the END of a call and read at the START of the next one. On a
+ * replica, a teacher who rings back inside the replication window is met by an
+ * assistant that has forgotten her, and the symptom points at the summariser
+ * rather than at lag. Asserted in tests/calls/call-context-replica.test.js.
  */
 async function fetchMemory(waId) {
   const { data, error } = await supabase
@@ -143,34 +166,36 @@ async function upsertMemory(waId, { summary, callCount }) {
  * nothing. The caller's own role no longer decides what she can ask about.
  */
 async function fetchObservedSessions(userId) {
-  const { data, error } = await supabase
-    .from('coaching_sessions')
-    .select('id, user_id, analysis_data, status, completed_at, created_at')
-    .eq('observer_user_id', userId)
-    .in('status', FINISHED_COACHING_STATUSES)
-    .order('created_at', { ascending: false })
-    .limit(5);
-  if (error) throw new Error(`observed sessions lookup failed: ${error.message}`);
-  if (!data || !data.length) return [];
+  return readWithFallback(async (db) => {
+    const { data, error } = await db
+      .from('coaching_sessions')
+      .select('id, user_id, analysis_data, status, completed_at, created_at')
+      .eq('observer_user_id', userId)
+      .in('status', FINISHED_COACHING_STATUSES)
+      .order('created_at', { ascending: false })
+      .limit(5);
+    if (error) throw new Error(`observed sessions lookup failed: ${error.message}`);
+    if (!data || !data.length) return [];
 
-  // Resolve the observed teachers' names in ONE round trip.
-  const teacherIds = [...new Set(data.map((r) => r.user_id).filter(Boolean))];
-  const names = new Map();
-  if (teacherIds.length) {
-    const { data: teachers } = await supabase
-      .from('users').select('id, first_name, last_name, school_name').in('id', teacherIds);
-    (teachers || []).forEach((t) => names.set(t.id, t));
-  }
+    // Resolve the observed teachers' names in ONE round trip.
+    const teacherIds = [...new Set(data.map((r) => r.user_id).filter(Boolean))];
+    const names = new Map();
+    if (teacherIds.length) {
+      const { data: teachers } = await db
+        .from('users').select('id, first_name, last_name, school_name').in('id', teacherIds);
+      (teachers || []).forEach((t) => names.set(t.id, t));
+    }
 
-  return data.map((row) => {
-    const t = names.get(row.user_id) || {};
-    const focus = row.analysis_data && row.analysis_data.focus_area;
-    return {
-      teacherName: [t.first_name, t.last_name].filter(Boolean).join(' ') || null,
-      schoolName: t.school_name || null,
-      when: row.completed_at || row.created_at,
-      focus: (typeof focus === 'string' ? focus : (focus && focus.title)) || null,
-    };
+    return data.map((row) => {
+      const t = names.get(row.user_id) || {};
+      const focus = row.analysis_data && row.analysis_data.focus_area;
+      return {
+        teacherName: [t.first_name, t.last_name].filter(Boolean).join(' ') || null,
+        schoolName: t.school_name || null,
+        when: row.completed_at || row.created_at,
+        focus: (typeof focus === 'string' ? focus : (focus && focus.title)) || null,
+      };
+    });
   });
 }
 
