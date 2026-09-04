@@ -43,6 +43,7 @@ const { familyForBook } = require('../config/lp612-families');
 // text, and a `require(path.join(...))` is invisible to it — which is how a vendored file that
 // stopped existing would reach production as a runtime crash instead of a red gate.
 const { lint } = require('../../vendor/lp-v9/lint_lp.js');
+const { meetsSubjectMinimum } = require('../../vendor/lp-v9/visual_check.js');
 const { validateDoc } = require('../../vendor/lp-v9/lib/validate.js');
 // The page caps the RENDERER will actually gate on, so the budget card in the prompt and the
 // gate can never state different numbers (bd-vjk68). This module's top-level cost is `fs`,
@@ -718,11 +719,36 @@ const REVISION_PREAMBLE =
   'Fix EVERY listed defect. Change nothing else. Keep every fact traceable to the same ' +
   'page-truth.\n\n';
 
+/**
+ * THE VISUAL CONTRACT IS LISTED FIRST, AND IT IS LISTED AS A THING TO FIX.
+ *
+ * Measured across the n=24 study's 118 revision rounds, the defect lines the model was handed
+ * were: `PAGE COUNT` **158 times**, `OVERFLOW` 7, `FIGURE TOO SMALL` 4 — and `VISUALS` once, in
+ * 24 runs. Every sustained instruction in the ladder said DELETE, and the page-count block below
+ * says it in as many words ("REMOVE WHOLE ITEMS", "Shortening sentences will NOT remove a page").
+ * A diagram costs page height. Under five rounds of that, with nothing pulling the other way, the
+ * cheapest surviving figure wins — which is how the corpus arrived at 1.77 diagrams a lesson
+ * against its own stated floor of 2, and 83.5% of them the three types that cost the least space.
+ *
+ * So ordering here is not cosmetic. Two things fix it, and both are needed:
+ *
+ *   • the page cap is SOFT (see the cap policy) — length yields, the visual floor does not;
+ *   • and the list the model reads puts the visual defects at the top, under a heading that says
+ *     to ADD the missing figure, so it cannot be read as one more thing to cut.
+ *
+ * `VISUAL:` lines are hoisted out of the lint block rather than reordered inside it, because a
+ * heading is the part the model actually acts on — the same reason the page-count block exists at
+ * all instead of a bare "it is too long".
+ */
+const isVisual = (d) => String(d).startsWith('VISUAL:');
+
 function buildRevisionPrompt({ doc, gates, originalUser, notes, lang }) {
   // ADVISORY defects are recorded, not chased (see ADVISORY_CODES). A defect the ladder will not
   // spend a round on must not spend the model's attention either: showing it under "Fix EVERY
   // listed defect" is an order to act on something we have decided does not matter.
-  const lint = gates.lint.filter((d) => !isAdvisory(d));
+  const kept = gates.lint.filter((d) => !isAdvisory(d));
+  const visual = kept.filter(isVisual);
+  const lint = kept.filter((d) => !isVisual(d));
   const warns = gates.warns.filter((d) => !isAdvisory(d));
   // The SAME card the first pass opened with, first again — above the defect lists, not buried
   // under them. `originalUser` carries a copy too, but it is appended LAST, ~40k tokens down,
@@ -731,6 +757,14 @@ function buildRevisionPrompt({ doc, gates, originalUser, notes, lang }) {
   // volume alone, with a NEGATIVE input coefficient — so this is free in latency terms.
   return budgetCard(clampLanguage(lang)) + '\n' + REVISION_PREAMBLE +
     (notes ? `=== THE OPERATOR'S NAMED DEFECTS — THESE OUTRANK EVERYTHING BELOW ===\n${notes}\n\n` : '') +
+    (visual.length
+      ? '=== THE VISUAL CONTRACT (§4b) — FIX THESE FIRST, BY ADDING A FIGURE ===\n'
+        + 'These are missing PICTURES, and the fix is always to put one in — never to delete '
+        + 'something else to make room, and never to satisfy a later page-count note by dropping '
+        + 'a diagram. Page length is soft here; this floor is not. Emit the exact spec shape from '
+        + 'brief §4b.4 for the type named, and put it beside the beat it explains.\n'
+        + visual.join('\n') + '\n\n'
+      : '') +
     '=== PREVIOUS lp_doc ===\n' + JSON.stringify(doc, null, 1) +
     '\n\n=== SCHEMA ERRORS ===\n' + (gates.schema.join('\n') || '(none)') +
     '\n\n=== LINT ERRORS ===\n' + (lint.join('\n') || '(none)') +
@@ -759,7 +793,16 @@ function buildRevisionPrompt({ doc, gates, originalUser, notes, lang }) {
         + 'NEVER REMOVE A REQUIRED PROPERTY to save space: cut only from the LISTS (exam_bank, '
         + 'model_answers, mistakes rows). page2.differentiation must keep stuck, barrier and '
         + 'early; every other required field stays. Shorten those in place if you must, but a '
-        + 'missing required property fails the whole document and wastes the round.'
+        + 'missing required property fails the whole document and wastes the round. '
+        // The diagram is the FIRST thing a length instruction reaches for — it is the biggest
+        // single object on the page and the easiest to justify dropping. It is also the thing
+        // §4b makes mandatory, and the thing the corpus proves does not survive five rounds of
+        // "make it shorter". Naming it is the counter-pressure.
+        + 'AND DO NOT REMOVE A DIAGRAM: the visual contract in §4b is a floor, the page count is '
+        + 'not — a lesson that comes in one page over with its figures intact is served, and a '
+        + 'lesson that fits by dropping its figures is not. If a figure is genuinely too tall, '
+        + 'make it smaller (a `flow` with direction "lr" instead of "tb", fewer branches, shorter '
+        + 'labels) rather than deleting it.'
       : '') +
     '\n\n=== LINT WARNINGS ===\n' + (warns.join('\n') || '(none)') +
     '\n\n=== THE ORIGINAL TASK (same page-truth, unchanged) ===\n' + originalUser;
@@ -1082,6 +1125,48 @@ const notWorse = (a, b) => {
 };
 
 /**
+ * THE REWARD SIDE OF THE VISUAL CONTRACT.
+ *
+ * `lint_lp.js` has FOUR ways to fail because a diagram is present — `FIGURE` (a label under the
+ * 13.5px floor), `DIAGRAM_OVERLAP`, `DIAGRAM_DEGENERATE`, `DUPLICATE_DIAGRAM` — and, before
+ * §4b was wired in, exactly zero ways to be rewarded for one. All four can only fire ON a
+ * figure, and the ones they fire on are the dense subject-specific types: a `circuit`, a
+ * `ray_diagram`, a `punnett`, a `labelled_figure` is what trips label size and collisions.
+ * `flow`, `mindmap` and `panels` have short labels by construction. The gradient ran one way,
+ * and `notWorse` — which decides on defect COUNT alone — pointed the same way: a candidate that
+ * dropped its dense figure lost every defect that figure could have caused, and won.
+ *
+ * So the count is no longer the only thing compared. Meeting the subject's §4b.2 minimum is a
+ * TIER above it, in the same shape as the schema tier above: a candidate that satisfies its
+ * subject's minimum is not "a bit better" than one that dodged it — a Chemistry lesson with no
+ * molecule in it is not a Chemistry lesson, however few defects it lists.
+ *
+ * Deliberately narrower than it could be, in two ways:
+ *
+ *   • It only ever protects a candidate that MEETS the minimum. When neither side meets it (the
+ *     common case mid-ladder) or both do, the existing comparison decides exactly as before, so
+ *     this cannot slow the climb on any document where the contract is not the live question.
+ *   • It is a tier, not a weight. Folding "+1 for a subject figure" into `blockingCost` would
+ *     let a document with enough other defects still lose its figures to the numbers — the same
+ *     bug with extra steps, which is the reasoning `schemaOk` records above.
+ *
+ * Ordering: schema validity outranks it. A schema-invalid document cannot be rendered at all, so
+ * a beautiful figure inside one buys nothing.
+ */
+const notWorseVisual = (a, b, aDoc, bDoc) => {
+  const aOk = schemaOk(a);
+  const bOk = schemaOk(b);
+  if (aOk !== bOk) return aOk;
+  if (aOk && bOk) {
+    const aMeets = meetsSubjectMinimum(aDoc);
+    const bMeets = meetsSubjectMinimum(bDoc);
+    // Never take a candidate that gave up a minimum the document we already hold was meeting.
+    if (aMeets !== bMeets) return aMeets;
+  }
+  return notWorse(a, b);
+};
+
+/**
  * How many consecutive rounds may reduce no blocking defect before the ladder gives up.
  *
  * FOUR, and the number is measured rather than chosen. Replaying the new stop rule over the
@@ -1311,7 +1396,7 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
     sanitizeOverlay(candidate);
     sanitizeSequence(candidate, segment);
     const g2 = await runGates(candidate, renderCheck, { correlationId, segmentId: segment.segment_id, round: spent });
-    if (notWorse(g2, gates)) {
+    if (notWorseVisual(g2, gates, candidate, doc)) {
       doc = candidate;
       gates = g2;
     } else {
@@ -1613,8 +1698,10 @@ module.exports = {
   buildUserPrompt,
   // Exported for the suite: the budget card's POSITION is the whole point of bd-vjk68, and a
   // test that cannot see the assembled revision prompt cannot assert it is above the defects.
+  // Same reason the visual block's position is asserted (bd-q2jr1).
   buildRevisionPrompt,
   budgetCard,
+  __notWorseVisualForTests: (a, b, ad, bd) => notWorseVisual(a, b, ad, bd),
   pythonDictToJson,
   __extractJsonForTests: extractJson,
   authorLessonPlan,
