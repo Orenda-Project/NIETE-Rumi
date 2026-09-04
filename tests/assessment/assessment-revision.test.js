@@ -230,3 +230,73 @@ describe('grade_code is decoded before it reaches a teacher (bd-60024)', () => {
     expect(caption).not.toContain('grade_4');
   });
 });
+
+describe('saveEdit — writing one question back into the tree (bd-60025)', () => {
+  test('writes at the path and stamps edited_at', async () => {
+    const res = await Revision.saveEdit({
+      paperId: 'paper-1', userId: 'user-1',
+      questionId: 'seen.objective.MCQs.0',
+      edit: { question: 'Which of these is alive?' },
+    });
+    expect(res.status).toBe('ok');
+    const row = patched.find((p) => p.exam_json);
+    expect(row.exam_json.seen.objective.MCQs[0].question).toBe('Which of these is alive?');
+    expect(row.edited_at).toBeTruthy();
+  });
+
+  test('leaves every OTHER question untouched', async () => {
+    await Revision.saveEdit({
+      paperId: 'paper-1', userId: 'user-1',
+      questionId: 'seen.objective.MCQs.0',
+      edit: { question: 'changed' },
+    });
+    const row = patched.find((p) => p.exam_json);
+    expect(row.exam_json.seen.objective.MCQs[1].question).toBe('Plants make food using ____.');
+    expect(row.exam_json.unseen['objective']['True / False'][0].question).toBe('The sun is a plant.');
+  });
+
+  test('NEVER touches original_exam_json — the prompt-quality signal survives editing', async () => {
+    await Revision.saveEdit({
+      paperId: 'paper-1', userId: 'user-1',
+      questionId: 'seen.objective.MCQs.0', edit: { question: 'changed' },
+    });
+    expect(patched.every((p) => p.original_exam_json === undefined)).toBe(true);
+  });
+
+  test('a rejected edit is reported, not written', async () => {
+    const res = await Revision.saveEdit({
+      paperId: 'paper-1', userId: 'user-1',
+      questionId: 'seen.objective.MCQs.0', edit: { question: '   ' },
+    });
+    expect(res.status).toBe('rejected');
+    expect(res.message).toMatch(/cannot be empty/i);
+    expect(patched.find((p) => p.exam_json)).toBeUndefined();
+  });
+
+  test('refuses a paper that is not hers', async () => {
+    const res = await Revision.saveEdit({
+      paperId: 'paper-1', userId: 'someone-else',
+      questionId: 'seen.objective.MCQs.0', edit: { question: 'x' },
+    });
+    expect(res.status).toBe('rejected');
+    expect(patched.find((p) => p.exam_json)).toBeUndefined();
+  });
+
+  test('an id that no longer resolves is refused rather than creating a question', async () => {
+    const res = await Revision.saveEdit({
+      paperId: 'paper-1', userId: 'user-1',
+      questionId: 'seen.objective.MCQs.99', edit: { question: 'x' },
+    });
+    expect(res.status).toBe('rejected');
+    expect(patched.find((p) => p.exam_json)).toBeUndefined();
+  });
+
+  test('recomputes the stored question count and marks from the edited tree', async () => {
+    await Revision.saveEdit({
+      paperId: 'paper-1', userId: 'user-1',
+      questionId: 'seen.objective.MCQs.0', edit: { marks: '5' },
+    });
+    const row = patched.find((p) => p.exam_json);
+    expect(row.total_marks).toBe(5 + 1 + 1);
+  });
+});

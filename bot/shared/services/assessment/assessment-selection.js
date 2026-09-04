@@ -172,7 +172,29 @@ function optionTitle({ number, text }) {
   return `${prefix}${kept.replace(/[\s\W]+$/, '')}`;
 }
 
+/**
+ * A copy of the tree with ONE question replaced.
+ *
+ * Addressed by the same path the id encodes, so the replacement cannot land on a
+ * neighbour. Returns null when the path no longer resolves — which is a refusal,
+ * not a reason to append a question the teacher never asked for.
+ */
+function replaceAt(examJson, id, replacement) {
+  const next = JSON.parse(JSON.stringify(examJson || {}));
+  let found = false;
+  _walk(next, ({ path, index }) => {
+    if (found || questionId(path, index) !== id) return;
+    const [section, category, type, subType] = path;
+    const list = subType
+      ? next[section][category][type][subType]
+      : next[section][category][type];
+    list[index] = replacement;
+    found = true;
+  });
+  return found ? next : null;
+}
+
 module.exports = {
   questionId, indexQuestions, applySelection, isAllSelected, marksOf,
-  pageOf, optionTitle, PAGE_SIZE, TITLE_MAX,
+  pageOf, optionTitle, replaceAt, PAGE_SIZE, TITLE_MAX,
 };

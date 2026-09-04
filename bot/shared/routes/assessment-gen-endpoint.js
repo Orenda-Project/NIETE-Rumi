@@ -108,40 +108,64 @@ function summaryOf(state) {
 // She comes back to this Flow already holding a paper, so her token names a
 // PAPER rather than a half-built request: `<userId>:assessment-review:<paperId>`.
 // Same Flow, same endpoint, different entry point — which is why the token, not
-// a screen id, is what decides where INIT lands.
+// a screen id, decides where INIT lands.
+//
+//   KEEP ──▶ PICK ──▶ one of six screens, by question shape ──▶ PICK_DONE
+//
+// Removing and editing are two jobs, so they are two screens. On one screen,
+// unticking a question and then editing it are contradictory actions taken in
+// the same breath; ordered, the second list never offers a question she already
+// dropped.
 
 // Required lazily, at call time, NOT at module scope. The revision service
 // reaches R2 and so pulls in `@aws-sdk/client-s3`, which lives in bot/ — and CI
 // runs the root suite before bot's deps are installed. A top-level require here
-// kills every root suite that loads this endpoint for an unrelated reason,
-// reporting a missing module instead of whatever it was actually asserting.
+// kills every root suite that loads this endpoint for an unrelated reason.
 const Selection = require('../services/assessment/assessment-selection');
+const Edit = require('../services/assessment/assessment-edit');
+const { isAssessmentEditingEnabled } = require('../config/feature-flags');
 const revision = () => require('../services/assessment/assessment-revision.service');
 
 const REVIEW_MARKER = ':assessment-review:';
 
-/** The paper id a review token names, or null if this is an ordinary session. */
+/** Which screen each question shape is edited on. */
+const SHAPE_SCREEN = {
+  standard: 'EDIT_STANDARD',
+  options: 'EDIT_OPTIONS',
+  columns: 'EDIT_COLUMNS',
+  words: 'EDIT_WORDS',
+  passage: 'EDIT_PASSAGE',
+  comprehension: 'EDIT_COMPREHENSION',
+};
+
+/** The paper id a review token names, or null for an ordinary session. */
 function paperIdFromToken(flowToken) {
   const i = String(flowToken || '').indexOf(REVIEW_MARKER);
   return i === -1 ? null : String(flowToken).slice(i + REVIEW_MARKER.length) || null;
 }
 
+function totalsOf(items, selected) {
+  const keep = new Set(selected);
+  const kept = items.filter((q) => keep.has(q.id));
+  const marks = kept.reduce((s, q) => s + (Number(q.marks) || 0), 0);
+  return { count: kept.length, marks, kept };
+}
+
 /**
- * One page of her questions.
+ * One page of the tick list.
  *
  * `selected` is the running answer for the WHOLE paper and lives in the session,
- * not in the form: the form only ever knows the twenty rows currently on screen,
- * so trusting it alone would silently drop every question she never scrolled to.
+ * not in the form: the form only knows the twenty rows on screen, so trusting it
+ * alone would drop every question she never scrolled to.
  */
-function reviewScreen({ items, selected, page, error = '' }) {
+function keepScreen({ items, selected, page, error = '' }) {
   const view = Selection.pageOf(items, page);
   const keep = new Set(selected);
-  return screen('REVIEW', {
-    summary: `${items.length} question${items.length === 1 ? '' : 's'} · `
-      + `${keep.size} kept`,
+  const t = totalsOf(items, selected);
+  return screen('KEEP', {
+    summary: `${t.count} question${t.count === 1 ? '' : 's'} · ${t.marks} marks`,
     progress: view.total > view.items.length
-      ? `Questions ${view.from}-${view.to} of ${view.total}`
-      : `${view.total} question${view.total === 1 ? '' : 's'}`,
+      ? `Questions ${view.from}-${view.to} of ${view.total}` : '',
     questions: view.items.map((q) => ({
       id: q.id,
       title: Selection.optionTitle(q),
@@ -155,12 +179,141 @@ function reviewScreen({ items, selected, page, error = '' }) {
   });
 }
 
-/** An empty review screen that explains itself, for when there is no paper. */
+/** An empty tick list that explains itself, for when there is no paper. */
 function reviewError(message) {
-  return screen('REVIEW', {
+  return screen('KEEP', {
     summary: '', progress: '', questions: [], selected: [],
     page: '0', has_prev: false, has_next: false, error: message,
   });
+}
+
+/**
+ * The picker — built from what survived KEEP.
+ *
+ * A NavigationList must be the only component on its screen (the repo's own
+ * guard enforces it), so the rebuild button lives on PICK_DONE next door rather
+ * than under the list.
+ */
+function pickScreen({ items, selected }) {
+  const { kept } = totalsOf(items, selected);
+  return screen('PICK', {
+    items: kept.map((q) => ({
+      id: q.id,
+      'main-content': {
+        title: Selection.optionTitle(q),
+        description: `${q.marks} mark${q.marks === 1 ? '' : 's'}${q.type ? ` · ${q.type}` : ''}`,
+        metadata: '',
+      },
+      'on-click-action': {
+        name: 'data_exchange',
+        payload: { _action: 'open', question_id: q.id },
+      },
+    })),
+  });
+}
+
+function pickDoneScreen({ items, selected, error = '' }) {
+  const t = totalsOf(items, selected);
+  return screen('PICK_DONE', {
+    summary: `${t.count} question${t.count === 1 ? '' : 's'} · ${t.marks} marks`,
+    note: 'Nothing to fix? Just rebuild.',
+    error,
+  });
+}
+
+/** The edit screen for one question, pre-filled with what it currently says. */
+function editScreen(item, { error = '', overrides = null } = {}) {
+  const shape = item.shape || Edit.shapeOf(item.question);
+  const f = Edit.fieldsFor(item.question);
+  const data = {
+    heading: `سوال ${item.number} · Question ${item.number}`,
+    subheading: `${item.type || ''} · ${item.marks} mark${item.marks === 1 ? '' : 's'}`.trim(),
+    marks_hint: 'A whole number, 1 or more.',
+    question: f.question,
+    marks: Number(f.marks) || 1,
+    error,
+  };
+
+  if (shape === 'options' || shape === 'words') {
+    const label = shape === 'words' ? 'لفظ' : 'جواب';
+    f.slots.forEach((v, i) => {
+      data[`slot_${i}`] = v;
+      data[`slot_label_${i}`] = `${label} ${i + 1}`;
+      // A blank beyond the first free one is hidden: showing six empty boxes on
+      // a question that has two options is noise, not affordance.
+      data[`slot_show_${i}`] = i < f.slots.filter((x) => x !== '').length + 1;
+    });
+  } else if (shape === 'columns') {
+    const filled = f.pairs.filter((p) => p.left || p.right).length;
+    f.pairs.forEach((p, i) => {
+      data[`left_${i}`] = p.left;
+      data[`right_${i}`] = p.right;
+      data[`left_label_${i}`] = `جوڑا ${i + 1} — بائیں · Pair ${i + 1} left`;
+      data[`right_label_${i}`] = `جوڑا ${i + 1} — دائیں · Pair ${i + 1} right`;
+      data[`pair_show_${i}`] = i < filled + 1;
+    });
+  } else if (shape === 'passage') {
+    data.passage = f.passage;
+    data.section = f.section || '';
+  } else if (shape === 'comprehension') {
+    data.passage = f.passage;
+    data.subs = f.subs.map((sub) => ({
+      id: `sub-${sub.index}`,
+      'main-content': {
+        title: `${String.fromCharCode(97 + sub.index)}) ${sub.text}`.slice(0, 30),
+        description: sub.marks == null ? '' : `${sub.marks} marks`,
+        metadata: '',
+      },
+      'on-click-action': {
+        name: 'data_exchange',
+        payload: { _action: 'open_sub', question_id: item.id, sub_index: String(sub.index) },
+      },
+    }));
+  }
+
+  // On a refusal her typing must survive, or she retypes the whole question.
+  if (overrides) Object.assign(data, overrides);
+  return screen(SHAPE_SCREEN[shape] || 'EDIT_STANDARD', data);
+}
+
+/** The sub-question screen, carrying its passage as context. */
+function subScreen(item, subIndex, { error = '', overrides = null } = {}) {
+  const f = Edit.fieldsFor(item.question);
+  const sub = f.subs[subIndex] || { text: '', marks: null };
+  const raw = (item.question.questions || [])[subIndex] || {};
+  const options = Array.isArray(raw.options) ? raw.options : [];
+  const data = {
+    heading: `سوال ${item.number} · ${String.fromCharCode(97 + subIndex)}`,
+    subheading: sub.marks == null ? '' : `${sub.marks} marks`,
+    marks_hint: 'A whole number, 1 or more.',
+    passage_hint: `Passage: "${String(f.passage).slice(0, 60)}…"`,
+    question: sub.text,
+    marks: Number(sub.marks) || 1,
+    error,
+  };
+  const slots = [...options.map(String)];
+  while (slots.length < Edit.SLOT_CAP) slots.push('');
+  slots.forEach((v, i) => {
+    data[`slot_${i}`] = v;
+    data[`slot_label_${i}`] = `جواب ${i + 1}`;
+    data[`slot_show_${i}`] = i < options.length + 1;
+  });
+  if (overrides) Object.assign(data, overrides);
+  return screen('EDIT_SUB', data);
+}
+
+/** Collect slot_0..slot_N off a submitted form, in order. */
+function slotsFrom(data, prefix = 'slot_') {
+  const out = [];
+  for (let i = 0; i < Edit.SLOT_CAP; i += 1) out.push(String(data[`${prefix}${i}`] ?? ''));
+  return out;
+}
+
+async function loadItems(state, flowToken, userId) {
+  const paperId = state.paperId || paperIdFromToken(flowToken);
+  const owner = state.userId || userId;
+  const { items, code } = await revision().listQuestions({ paperId, userId: owner });
+  return { items, code, paperId, owner };
 }
 
 async function openReview(userId, paperId, flowToken) {
@@ -172,15 +325,15 @@ async function openReview(userId, paperId, flowToken) {
   }
   const selected = items.filter((q) => q.selected).map((q) => q.id);
   await writeSession(flowToken, { userId, paperId, page: 0, selected });
-  return reviewScreen({ items, selected, page: 0 });
+  return keepScreen({ items, selected, page: 0 });
 }
 
 /**
  * Fold this page's ticks into the answer for the whole paper.
  *
- * Only the ids ON THIS PAGE are decided by `keep`; everything else keeps whatever
- * it already had. Replacing the whole set with `keep` would untick every question
- * she has not scrolled to — the paper would quietly shrink to one screenful.
+ * Only the ids ON THIS PAGE are decided by `keep`; everything else keeps what it
+ * had. Replacing the whole set would untick every question she has not scrolled
+ * to — the paper would quietly shrink to one screenful.
  */
 function mergePageTicks({ selected, pageIds, keep }) {
   const onPage = new Set(pageIds);
@@ -190,41 +343,75 @@ function mergePageTicks({ selected, pageIds, keep }) {
   return out;
 }
 
-async function handleReview(userId, data, flowToken) {
+async function handleKeep(userId, data, flowToken) {
   const state = await readSession(flowToken);
-  const paperId = state.paperId || paperIdFromToken(flowToken);
-  const owner = state.userId || userId;
-
-  const { items, code } = await revision().listQuestions({ paperId, userId: owner });
+  const { items, paperId, owner } = await loadItems(state, flowToken, userId);
   if (!items) return reviewError("I couldn't find that paper. Send /assessment to make a new one.");
 
   const page = Number.parseInt(data.page, 10) || 0;
   const view = Selection.pageOf(items, page);
-  const merged = mergePageTicks({
+  const selected = [...mergePageTicks({
     selected: state.selected ?? items.map((q) => q.id),
     pageIds: view.items.map((q) => q.id),
     keep: data.keep,
-  });
-  const selected = [...merged];
+  })];
 
-  const action = String(data.action || 'done');
+  const action = String(data._action || 'done');
+  const save = (extra) => writeSession(flowToken, { ...state, userId: owner, paperId, ...extra });
+
   if (action === 'next' || action === 'prev') {
     const nextPage = action === 'next' ? view.index + 1 : view.index - 1;
-    await writeSession(flowToken, { userId: owner, paperId, page: nextPage, selected });
-    return reviewScreen({ items, selected, page: nextPage });
+    await save({ page: nextPage, selected });
+    return keepScreen({ items, selected, page: nextPage });
   }
 
   // She can untick everything; it is a real state and it means something. Saying
-  // so on the screen keeps her one tap from a paper, where sending a blank
-  // document would cost her the whole journey.
+  // so here keeps her one tap from a paper.
   if (selected.length === 0) {
-    await writeSession(flowToken, { userId: owner, paperId, page: view.index, selected });
-    return reviewScreen({
+    await save({ page: view.index, selected });
+    return keepScreen({
       items, selected, page: view.index,
-      error: 'Keep at least one question, then tap "Make the paper".',
+      error: 'Keep at least one question, then tap Next.',
     });
   }
 
+  await save({ page: view.index, selected });
+
+  // Editing off: ticking is the whole journey, so Next rebuilds rather than
+  // handing her a picker whose every row leads to a screen she cannot open.
+  if (!(await isAssessmentEditingEnabled())) {
+    return rebuildAndClose({ paperId, owner, selected, flowToken });
+  }
+  return pickScreen({ items, selected });
+}
+
+async function handlePick(userId, data, flowToken) {
+  const state = await readSession(flowToken);
+  const { items } = await loadItems(state, flowToken, userId);
+  if (!items) return reviewError("I couldn't find that paper. Send /assessment to make a new one.");
+  const selected = state.selected ?? items.map((q) => q.id);
+
+  const action = String(data._action || 'summary');
+  if (action === 'open') {
+    // A gate, not a UI hint: a stale or hand-built client must not be able to
+    // walk into a screen the deployment has switched off.
+    if (!(await isAssessmentEditingEnabled())) {
+      return pickDoneScreen({ items, selected });
+    }
+    const item = items.find((q) => q.id === data.question_id);
+    if (!item) {
+      return pickDoneScreen({
+        items, selected, error: 'That question is no longer on the paper.',
+      });
+    }
+    await writeSession(flowToken, { ...state, editing: item.id, editingSub: null });
+    return editScreen(item);
+  }
+  return pickDoneScreen({ items, selected });
+}
+
+/** Rebuild the paper from her ticks and end the Flow. Shared by two paths. */
+async function rebuildAndClose({ paperId, owner, selected, flowToken }) {
   const result = await revision().rerender({ paperId, userId: owner, selectedIds: selected });
   await clearSession(flowToken);
 
@@ -236,13 +423,100 @@ async function handleReview(userId, data, flowToken) {
       caption: 'You can close this.',
     });
   }
-
   return screen('SUBMITTED', {
     heading: 'Your paper is on its way',
     message: `${result.questionCount} question${result.questionCount === 1 ? '' : 's'}`
       + `${result.marks ? ` · ${result.marks} marks` : ''}. It will arrive in this chat.`,
     caption: 'You can close this.',
   });
+}
+
+async function handlePickDone(userId, data, flowToken) {
+  const state = await readSession(flowToken);
+  const { items, paperId, owner } = await loadItems(state, flowToken, userId);
+  if (!items) return reviewError("I couldn't find that paper. Send /assessment to make a new one.");
+  const selected = state.selected ?? items.map((q) => q.id);
+
+  if (String(data._action) === 'pick') return pickScreen({ items, selected });
+
+  if (!selected.length) {
+    return pickDoneScreen({ items, selected, error: 'Keep at least one question.' });
+  }
+
+  return rebuildAndClose({ paperId, owner, selected, flowToken });
+}
+
+async function handleEditSave(userId, screenId, data, flowToken) {
+  const state = await readSession(flowToken);
+  const { items, paperId, owner } = await loadItems(state, flowToken, userId);
+  if (!items) return reviewError("I couldn't find that paper. Send /assessment to make a new one.");
+  const selected = state.selected ?? items.map((q) => q.id);
+
+  // Checked here too, and before anything is written: the screen is only one of
+  // three ways into this handler, and the other two do not pass through PICK.
+  if (!(await isAssessmentEditingEnabled())) {
+    return pickDoneScreen({ items, selected });
+  }
+
+  // The payload names the question wherever it can — a NavigationList row
+  // carries its own id, and trusting only the session breaks when she reopens
+  // the Flow or the session has rolled.
+  const wantedId = data.question_id || state.editing;
+  const item = items.find((q) => q.id === wantedId);
+  if (!item) return pickDoneScreen({ items, selected, error: 'That question is no longer there.' });
+
+  // A comprehension screen is a list, not a form: its only action is opening a
+  // sub-question.
+  if (screenId === 'EDIT_COMPREHENSION') {
+    if (String(data._action) === 'open_sub') {
+      const idx = Number.parseInt(data.sub_index, 10) || 0;
+      await writeSession(flowToken, { ...state, editing: item.id, editingSub: idx });
+      return subScreen(item, idx);
+    }
+    return pickDoneScreen({ items, selected });
+  }
+
+  const shape = item.shape || Edit.shapeOf(item.question);
+  const edit = {};
+  if (data.question !== undefined) edit.question = data.question;
+  if (data.passage !== undefined) edit.passage = data.passage;
+  if (data.marks !== undefined) edit.marks = data.marks;
+
+  const isSub = screenId === 'EDIT_SUB';
+  if (isSub) edit.subIndex = state.editingSub ?? 0;
+
+  if (isSub || shape === 'options' || shape === 'words') edit.slots = slotsFrom(data);
+  if (shape === 'columns') {
+    edit.pairs = [];
+    for (let i = 0; i < Edit.SLOT_CAP; i += 1) {
+      edit.pairs.push({ left: String(data[`left_${i}`] ?? ''), right: String(data[`right_${i}`] ?? '') });
+    }
+  }
+
+  const res = await revision().saveEdit({ paperId, userId: owner, questionId: item.id, edit });
+
+  if (res.status !== 'ok') {
+    // Back to the SAME screen, carrying what she typed — a refusal that clears
+    // the form makes her retype the whole question to fix one field.
+    const overrides = { question: data.question ?? undefined };
+    if (edit.slots) edit.slots.forEach((v, i) => { overrides[`slot_${i}`] = v; });
+    if (edit.pairs) {
+      edit.pairs.forEach((p, i) => { overrides[`left_${i}`] = p.left; overrides[`right_${i}`] = p.right; });
+    }
+    return isSub
+      ? subScreen(item, edit.subIndex, { error: res.message, overrides })
+      : editScreen(item, { error: res.message, overrides });
+  }
+
+  const fresh = await revision().listQuestions({ paperId, userId: owner });
+  const nextItems = fresh.items || items;
+  if (isSub) {
+    const parent = nextItems.find((q) => q.id === item.id) || item;
+    await writeSession(flowToken, { ...state, editingSub: null });
+    return editScreen(parent);
+  }
+  await writeSession(flowToken, { ...state, editing: null, editingSub: null });
+  return pickDoneScreen({ items: nextItems, selected });
 }
 
 async function handleInit(userId, flowToken) {
@@ -271,9 +545,14 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
   state.userId = state.userId || userId;
   const data = formData || {};
 
-  // ── REVIEW → REVIEW | SUBMITTED ──────────────────────────────────────────
-  // Its own journey, entered by token rather than by walking the screens above.
-  if (screenId === 'REVIEW') return handleReview(userId, data, flowToken);
+  // ── The review journey ───────────────────────────────────────────────────
+  // Its own path, entered by token rather than by walking the screens above.
+  if (screenId === 'KEEP') return handleKeep(userId, data, flowToken);
+  if (screenId === 'PICK') return handlePick(userId, data, flowToken);
+  if (screenId === 'PICK_DONE') return handlePickDone(userId, data, flowToken);
+  if (String(screenId).startsWith('EDIT_')) {
+    return handleEditSave(userId, screenId, data, flowToken);
+  }
 
   // ── CLASS → COVERAGE ─────────────────────────────────────────────────────
   if (screenId === 'CLASS') {
@@ -585,5 +864,5 @@ module.exports = {
   handleAssessmentGenBack: handleBack,
   // exported for tests
   _internal: { summaryOf, submit, chapterPageRange, GRADE_BANDS, COUNT_CHOICES,
-    paperIdFromToken, mergePageTicks, REVIEW_MARKER },
+    paperIdFromToken, mergePageTicks, REVIEW_MARKER, SHAPE_SCREEN },
 };
