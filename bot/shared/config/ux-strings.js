@@ -379,6 +379,47 @@ const UX_STRINGS = {
     ur: 'یہ سبق انگریزی کتاب سے ہے — ہدایات جزوی اردو میں',
   },
 
+  // ── the 6-12 post-delivery survey (bd-86ivw) ─────────────────────────────
+  //
+  // The only signal the lane cannot generate for itself. Every gate in it — schema, canon lint,
+  // the render page caps — measures the DOCUMENT; none of them can tell us a teacher would
+  // actually teach from it. Sent once, a short while after the PDF lands, as two buttons.
+  //
+  // Caps, in CODE POINTS: button 20, body 1024. An emoji is one code point and roughly two
+  // columns on her screen, so the button titles stay short in both languages. An over-cap title
+  // is not truncated by Meta — the whole message is REJECTED (#131009) and the survey silently
+  // never appears. tests/lp612/honest-eta.test.js pins all six.
+  //
+  // Urdu voice: Rumi speaks of herself in the feminine («سمجھ گئی»), and every verb aimed at the
+  // teacher agrees with a NOUN rather than with her — «منصوبہ … رہا», «چیز … آئی» — so a
+  // mixed-gender cohort is addressed correctly without stilted phrasing.
+  lp612FeedbackAsk: {
+    en: 'Was that lesson plan useful for your class?',
+    ur: 'کیا یہ سبق کا منصوبہ آپ کی کلاس کے لیے مفید رہا؟',
+  },
+  lp612FeedbackYes: {
+    en: '👍 Yes, useful',
+    ur: '👍 جی ہاں',
+  },
+  lp612FeedbackNo: {
+    en: '👎 Not really',
+    ur: '👎 نہیں',
+  },
+  lp612FeedbackThanks: {
+    en: 'Thanks — glad it helped.',
+    ur: 'شکریہ — خوشی ہے کہ یہ مفید رہا۔',
+  },
+  // Only ever sent on a 👎. A thumbs-down with no reason tells us a lesson is bad and nothing
+  // about which part, which is the least actionable datum the survey could collect.
+  lp612FeedbackAskReason: {
+    en: 'Thanks for telling us. Which part did not work? (one line is enough)',
+    ur: 'بتانے کا شکریہ۔ کون سا حصہ کام نہیں آیا؟ (ایک سطر کافی ہے)',
+  },
+  lp612FeedbackReasonThanks: {
+    en: 'Got it, thank you — this makes the next lesson better.',
+    ur: 'سمجھ گئی، شکریہ — اس سے اگلا سبق بہتر ہوگا۔',
+  },
+
   lpV8SendFailed: {
     en: "I couldn't send that lesson plan just now — please try again in a minute.",
     ur: 'ابھی یہ سبق کا منصوبہ نہیں بھیجا جا سکا — براہِ کرم ایک منٹ بعد دوبارہ کوشش کریں۔',

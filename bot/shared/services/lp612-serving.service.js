@@ -30,6 +30,8 @@
 
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
+// Additive semantic-event channel (feature.action.result). Every prose line below is untouched.
+const { logEvent } = require('../utils/structured-logger');
 const WhatsAppService = require('./whatsapp.service');
 // NB: the queue is required LAZILY, inside enqueue() — see the note there.
 const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
@@ -392,6 +394,32 @@ async function deliverRender({ phone, userId, r2Key, segment, lang, oneScreen, o
 
   // AFTER the document, never before: recording is for us, the PDF is for her.
   await recordDelivery({ userId, segment, lang, oneScreen });
+
+  // "Was that useful?", a short while from now.
+  //
+  // IT LIVES HERE AND NOT IN THE TWO CALLERS. `deliverRender` is the one function both delivery
+  // paths run through — the worker's per-waiter loop and the cache hit in `requestLesson` — and
+  // the cache hit is the path most teachers are on, so a prompt wired only into the worker would
+  // survey the first teacher for each lesson and nobody after her.
+  //
+  // Required lazily to keep the module graph acyclic: the feedback service has no reason to know
+  // about serving, but the pairing is close enough that a future edit could make it so.
+  //
+  // Soft-fail, like the body send above it. The lesson is the document; a survey that cannot be
+  // scheduled must never turn a delivered lesson into a thrown error in the worker's waiter loop,
+  // where it would be counted as a delivery failure and could cost her a retry.
+  if (userId) {
+    try {
+      const Lp612Feedback = require('./lp612-feedback.service');
+      Lp612Feedback.scheduleFeedbackPrompt({
+        segmentId: segment.segment_id, userId, phone, lang,
+      });
+    } catch (err) {
+      logToFile('LP 6-12: could not schedule the feedback prompt', {
+        segmentId: segment && segment.segment_id, userId, error: err.message,
+      });
+    }
+  }
 }
 
 /** `ui_lang` is the language SHE is spoken to in — recorded per waiter, because
@@ -524,7 +552,35 @@ async function enqueue({ renderId, segmentId, lang, tv, correlationId }) {
  * @returns {Promise<{outcome: string, [key: string]: any}>}
  *   outcome ∈ cache_hit | queued | joined | retry | held | not_found | deliver_failed | error
  */
-async function requestLesson({ segmentId, userId, phone, lang, uiLang, correlationId }, depth = 0) {
+/**
+ * ONE EVENT PER REQUEST, emitted by the wrapper below rather than at each of the nine return
+ * sites. Two reasons, both learned in this file: a `return` added later would silently miss an
+ * event placed by hand, and `requestLesson` RE-ENTERS ITSELF when the row moves under it — a
+ * per-attempt event would double-count exactly the races this lane is instrumented to measure.
+ * The recursion therefore runs on the inner function and never re-enters the wrapper.
+ */
+async function requestLesson(req) {
+  const startedAt = Date.now();
+  const result = await requestLessonImpl(req, 0);
+  const outcome = (result && result.outcome) || 'error';
+  logEvent(`lp612.serve.${outcome}`, {
+    outcome,
+    segmentId: req && req.segmentId,
+    // The DOCUMENT's language, clamped exactly as the decision clamped it, so the event and the
+    // cache key agree about which lesson this was.
+    lang: clampLanguage(req && req.lang),
+    uiLang: clampLanguage((req && req.uiLang) || (req && req.lang)),
+    userId: (req && req.userId) || null,
+    renderId: (result && result.renderId) || null,
+    templateVersion: templateVersion(),
+    correlationId: (req && req.correlationId) || null,
+    elapsedMs: Date.now() - startedAt,
+    error: (result && result.error) || null,
+  });
+  return result;
+}
+
+async function requestLessonImpl({ segmentId, userId, phone, lang, uiLang, correlationId }, depth = 0) {
   const language = clampLanguage(lang);
   const voice = clampLanguage(uiLang || lang);
   const tv = templateVersion();
@@ -547,7 +603,9 @@ async function requestLesson({ segmentId, userId, phone, lang, uiLang, correlati
   }
 
   const req = { userId, phone, uiLang: voice };
-  const retry = () => requestLesson({ segmentId, userId, phone, lang, uiLang, correlationId }, depth + 1);
+  // The INNER function, deliberately: a re-decide is one request, not two, and re-entering the
+  // wrapper would emit a second event for the same tap.
+  const retry = () => requestLessonImpl({ segmentId, userId, phone, lang, uiLang, correlationId }, depth + 1);
 
   const { render: existing, readFailed } = await findRender(segmentId, language, tv);
 

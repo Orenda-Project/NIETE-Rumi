@@ -94,3 +94,45 @@ describe('every one of these fits the WhatsApp body, measured in code points', (
     },
   );
 });
+
+/**
+ * bd-86ivw — the post-delivery feedback prompt's own copy.
+ *
+ * A BUTTON is capped at 20 code points and an emoji costs one code point but two columns of the
+ * teacher's screen; the /language outage that made this file's sibling suite necessary was an
+ * 87-code-point footer against a 60 cap, and Meta rejected the ENTIRE message with
+ * `(#131009) Parameter value is not valid` — the survey would simply never appear, with nothing
+ * logged and nothing to notice. Measured in CODE POINTS ([...s].length), never `.length`.
+ */
+describe('the feedback prompt fits its WhatsApp fields', () => {
+  const BUTTON_KEYS = ['lp612FeedbackYes', 'lp612FeedbackNo'];
+  const BODY_KEYS = [
+    'lp612FeedbackAsk', 'lp612FeedbackThanks', 'lp612FeedbackAskReason', 'lp612FeedbackReasonThanks',
+  ];
+
+  test.each(BUTTON_KEYS)('%s is inside the 20-code-point button cap in both languages', (key) => {
+    for (const lang of ['en', 'ur']) expect(cps(UX_STRINGS[key][lang])).toBeLessThanOrEqual(20);
+  });
+
+  test.each(BODY_KEYS)('%s is inside the 1024-code-point body cap in both languages', (key) => {
+    for (const lang of ['en', 'ur']) expect(cps(UX_STRINGS[key][lang])).toBeLessThanOrEqual(1024);
+  });
+
+  test.each([...BUTTON_KEYS, ...BODY_KEYS])('%s is a complete map — no language falls back', (key) => {
+    expect(UX_STRINGS[key].en).toBeTruthy();
+    expect(UX_STRINGS[key].ur).toBeTruthy();
+    expect(UX_STRINGS[key].ur).not.toBe(UX_STRINGS[key].en);
+  });
+
+  // The SAME four stems the suite above bans, and for the same reason: these conjugate the
+  // ADDRESSEE, and the cohort is mixed. A verb agreeing with a NOUN («منصوبہ … رہا», «چیز … آئی»)
+  // is correct Urdu and is deliberately not on this list — banning those would force stilted copy
+  // to fix a problem that does not exist.
+  test.each([...BUTTON_KEYS, ...BODY_KEYS])(
+    '%s addresses her without a gendered second-person verb stem',
+    (key) => {
+      const GENDERED = ['رہی ہوں گی', 'رہے ہوں گے', 'کر رہی ہیں', 'کر رہے ہیں'];
+      for (const stem of GENDERED) expect(UX_STRINGS[key].ur).not.toContain(stem);
+    },
+  );
+});

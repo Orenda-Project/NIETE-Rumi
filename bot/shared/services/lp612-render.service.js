@@ -34,6 +34,9 @@ const fs = require('fs');
 const path = require('path');
 
 const { logToFile } = require('../utils/logger');
+// The semantic-event channel (feature.action.result). Additive: the prose lines below stay
+// exactly as they were — a sentence is what a human reads, an event name is what a query counts.
+const { logEvent } = require('../utils/structured-logger');
 
 // A static, literal require: the repo's unresolved-require audit reads the source text, and a
 // `require(path.join(...))` is invisible to it — a vendored file that stopped existing would
@@ -55,13 +58,31 @@ function renderFailed(message, extra = {}) {
  * @param {string} args.stem      output basename, without extension
  * @param {string} args.outDir    directory for the .json, .html, .pdf and .render.json
  * @param {string} [args.correlationId]
+ * @param {string} [args.segmentId] the lesson this render is for. Telemetry only — `stem` is
+ *   sanitised for the filesystem and is `gate_<ts>` on ladder runs, so it cannot be joined back
+ *   to a segment. Optional so the pure-authoring callers (scripts, tests) need not supply it.
+ * @param {string} [args.renderId]  the niete_lp612_renders row. Telemetry only.
+ * @param {'final'|'gate'} [args.phase='final'] which call this is: the document the teacher gets,
+ *   or one of the revision ladder's gate probes. Defaults to `final` so a caller that has not
+ *   been updated is never silently counted as a gate run.
  * @returns {Promise<{pdfPath:string, htmlPath:string, pageCount:number, warnings:string[]}>}
  * @throws  Error with .code 'RENDER_FAILED' and .problems[]
  */
-async function renderLessonPlan({ lpDoc, lang, stem, outDir, correlationId } = {}) {
+async function renderLessonPlan({
+  lpDoc, lang, stem, outDir, correlationId, segmentId, renderId, phase,
+} = {}) {
   if (!lpDoc || typeof lpDoc !== 'object') throw renderFailed('renderLessonPlan needs an lpDoc object');
   if (!stem) throw renderFailed('renderLessonPlan needs a stem');
   if (!outDir) throw renderFailed('renderLessonPlan needs an outDir');
+
+  const startedAt = Date.now();
+  const trace = {
+    segmentId: segmentId || null,
+    renderId: renderId || null,
+    lang: lang || null,
+    phase: phase || 'final',
+    correlationId: correlationId || null,
+  };
 
   fs.mkdirSync(outDir, { recursive: true });
   const docPath = path.join(outDir, `${stem}.lp.json`);
@@ -84,6 +105,10 @@ async function renderLessonPlan({ lpDoc, lang, stem, outDir, correlationId } = {
     logToFile('lp612 render threw', {
       correlationId, stem, code: e.code || null, error: e.message,
     }, 'error');
+    logEvent('lp612.render.failed', {
+      ...trace, stem, outcome: 'failed', elapsedMs: Date.now() - startedAt,
+      code: e.code || null, error: e.message, problems: e.errors || [e.message],
+    });
     throw renderFailed(`render of ${stem} failed: ${e.message}`, {
       problems: e.errors || [e.message],
       cause: e,
@@ -104,6 +129,10 @@ async function renderLessonPlan({ lpDoc, lang, stem, outDir, correlationId } = {
     logToFile('lp612 render produced defects', {
       correlationId, stem, lang: lang || null, problems, pagesByPart: byPart,
     }, 'error');
+    logEvent('lp612.render.failed', {
+      ...trace, stem, outcome: 'failed', elapsedMs: Date.now() - startedAt,
+      code: 'RENDER_DEFECTS', pageCount, problems, pagesByPart: byPart,
+    });
     throw renderFailed(
       `render of ${stem} produced ${problems.length} defect(s): ${problems.join(' | ')}`,
       { problems, warnings, htmlPath: out.htmlPath, pdfPath: out.pdfPath, pageCount }
@@ -113,6 +142,10 @@ async function renderLessonPlan({ lpDoc, lang, stem, outDir, correlationId } = {
   logToFile('lp612 render ok', {
     correlationId, stem, lang: lang || null, pageCount, pagesByPart: byPart,
     warnings, reportPath: out.reportPath,
+  });
+  logEvent('lp612.render.completed', {
+    ...trace, stem, outcome: 'ready', elapsedMs: Date.now() - startedAt,
+    pageCount, pagesByPart: byPart, warnings: warnings.length,
   });
 
   return {
