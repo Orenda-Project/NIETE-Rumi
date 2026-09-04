@@ -16,9 +16,55 @@ const Module = require('module');
 
 const URL = process.env.SUPABASE_URL;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!URL || !KEY) { console.error('need SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY'); process.exit(1); }
+
+// Offline mode: rebuild the corpus from a previous run's --json snapshot, which
+// carries each row's SOURCE fields. Chapter-step only (a snapshot records
+// chapters, not subtopics), and it is a snapshot rather than the live table —
+// state which you used when you quote the numbers.
+const fromIdx = process.argv.indexOf('--from-json');
+const FROM_JSON = fromIdx > -1 ? process.argv[fromIdx + 1] : null;
+
+if (!FROM_JSON && (!URL || !KEY)) {
+  console.error('need SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY, or --from-json <snapshot>');
+  process.exit(1);
+}
 
 const TABLE = 'niete_lp612_segments';
+
+/** Turn a snapshot's chapter rows back into the segment rows the builder reads. */
+function rowsFromSnapshot(file) {
+  const snap = JSON.parse(require('fs').readFileSync(file, 'utf8'));
+  const out = [];
+  for (const r of snap) {
+    const s = r.source || {};
+    // The snapshot stores a lesson COUNT per chapter; the builder counts rows,
+    // so emit that many.
+    const digits = String(r.description || '').replace(/[^0-9۰-۹]/g, '');
+    const n = Math.max(1, Number([...digits].map((c) => (/[۰-۹]/.test(c) ? '۰۱۲۳۴۵۶۷۸۹'.indexOf(c) : c)).join('')) || 1);
+    for (let i = 0; i < n; i += 1) {
+      out.push({
+        segment_id: `${r.grade}_${r.subject}_${r.id}_${i}`,
+        grade: r.grade,
+        also_grades: [],
+        subject: r.subject,
+        language: s.rtl ? 'ur' : 'en',
+        chapter_number: s.number,
+        chapter_title: s.name,
+        chapter_key: r.id,
+        part: s.part,
+        subtopic_title: s.name,
+        menu_title: s.name,
+        printed_page_start: 1,
+        printed_page_end: 2,
+        order_index: i + 1,
+        lp_type: 'content',
+        is_current: true,
+        is_religious: false,
+      });
+    }
+  }
+  return out;
+}
 
 async function fetchAll() {
   const out = [];
@@ -69,11 +115,14 @@ Module._load = function (req, parent, isMain) {
 };
 
 const Catalog = require(SERVICE);
+const { MORE_ROW_ID } = require(path.resolve(__dirname, '..', 'bot', 'shared', 'services', 'lp-v8-catalog.service.js'));
 const cps = (s) => [...String(s == null ? '' : s)].length;
 
 (async () => {
-  ROWS = await fetchAll();
-  console.log(`servable rows: ${ROWS.length}\n`);
+  ROWS = FROM_JSON ? rowsFromSnapshot(FROM_JSON) : await fetchAll();
+  console.log(FROM_JSON
+    ? `servable rows: ${ROWS.length}  (rebuilt from snapshot ${FROM_JSON} — chapter step only)\n`
+    : `servable rows: ${ROWS.length}\n`);
 
   const books = new Map();
   for (const r of ROWS) {
@@ -83,11 +132,46 @@ const cps = (s) => [...String(s == null ? '' : s)].length;
     }
   }
 
+  /** Every chapter row of a book, across its pages. */
+  async function allChapters(g, subject) {
+    const out = [];
+    for (let page = 1; ; page += 1) {
+      const { items, hasMore } = await Catalog.buildChapterItems(g, subject, page);
+      out.push(...items.filter((i) => i.id !== MORE_ROW_ID));
+      if (!hasMore) return out;
+    }
+  }
+
   const report = [];
   let chapters = 0; let ellipsis = 0; let lost = 0; let dupTitles = 0;
+  // bd-tnvpg: the row SHAPE must not vary with the data. A book whose rows do
+  // not all use the same set of fields is the "some in the upper field, some in
+  // the smaller subtitle field" the operator reported.
+  let shapeSplits = 0; let nameFieldSplits = 0;
   for (const [g, subject] of [...books.values()].sort()) {
-    const items = await Catalog.buildChapterItems(g, subject);
+    const items = await allChapters(g, subject);
     const seen = new Map();
+    const shapes = new Set();
+    const nameFields = new Set();
+    for (const it of items) {
+      const mc0 = it['main-content'];
+      shapes.add(Object.keys(mc0).sort().join(','));
+      const src0 = ROWS.find((r) => r.chapter_key === it.id && r.subject === subject
+        && (r.grade === g || (r.also_grades || []).includes(g))) || {};
+      const nm = src0.chapter_title || '';
+      // Which field is this row's NAME actually rendered in?
+      for (const f of ['title', 'description', 'metadata']) {
+        if (nm && String(mc0[f] || '').replace(/^‏/, '').startsWith(nm.slice(0, 12))) nameFields.add(f);
+      }
+    }
+    if (shapes.size > 1) {
+      shapeSplits += 1;
+      console.log(`SHAPE SPLIT      g${g} ${subject}  ${[...shapes].map((s) => `{${s}}`).join(' vs ')}`);
+    }
+    if (nameFields.size > 1) {
+      nameFieldSplits += 1;
+      console.log(`NAME FIELD SPLIT g${g} ${subject}  name appears in ${[...nameFields].join(' and ')}`);
+    }
     for (const it of items) {
       const mc = it['main-content'];
       chapters += 1;
@@ -124,11 +208,13 @@ const cps = (s) => [...String(s == null ? '' : s)].length;
   console.log(`title lines ending in '…'    : ${ellipsis}`);
   console.log(`metadata lines still clipped : ${lost}`);
   console.log(`duplicate titles within a book: ${dupTitles}`);
+  console.log(`books whose rows differ in SHAPE: ${shapeSplits}`);
+  console.log(`books where the NAME changes field: ${nameFieldSplits}`);
 
   // segments
   let segs = 0; let segEcho = 0; let segKindLost = 0;
   for (const [g, subject] of [...books.values()].sort()) {
-    const chs = await Catalog.buildChapterItems(g, subject);
+    const chs = await allChapters(g, subject);
     for (const ch of chs) {
       let page = 1;
       for (;;) {
