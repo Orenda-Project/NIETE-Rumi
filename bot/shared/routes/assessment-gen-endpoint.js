@@ -103,7 +103,154 @@ function summaryOf(state) {
   ].filter(Boolean).join(' · ');
 }
 
+// ── The review journey ──────────────────────────────────────────────────────
+//
+// She comes back to this Flow already holding a paper, so her token names a
+// PAPER rather than a half-built request: `<userId>:assessment-review:<paperId>`.
+// Same Flow, same endpoint, different entry point — which is why the token, not
+// a screen id, is what decides where INIT lands.
+
+// Required lazily, at call time, NOT at module scope. The revision service
+// reaches R2 and so pulls in `@aws-sdk/client-s3`, which lives in bot/ — and CI
+// runs the root suite before bot's deps are installed. A top-level require here
+// kills every root suite that loads this endpoint for an unrelated reason,
+// reporting a missing module instead of whatever it was actually asserting.
+const Selection = require('../services/assessment/assessment-selection');
+const revision = () => require('../services/assessment/assessment-revision.service');
+
+const REVIEW_MARKER = ':assessment-review:';
+
+/** The paper id a review token names, or null if this is an ordinary session. */
+function paperIdFromToken(flowToken) {
+  const i = String(flowToken || '').indexOf(REVIEW_MARKER);
+  return i === -1 ? null : String(flowToken).slice(i + REVIEW_MARKER.length) || null;
+}
+
+/**
+ * One page of her questions.
+ *
+ * `selected` is the running answer for the WHOLE paper and lives in the session,
+ * not in the form: the form only ever knows the twenty rows currently on screen,
+ * so trusting it alone would silently drop every question she never scrolled to.
+ */
+function reviewScreen({ items, selected, page, error = '' }) {
+  const view = Selection.pageOf(items, page);
+  const keep = new Set(selected);
+  return screen('REVIEW', {
+    summary: `${items.length} question${items.length === 1 ? '' : 's'} · `
+      + `${keep.size} kept`,
+    progress: view.total > view.items.length
+      ? `Questions ${view.from}-${view.to} of ${view.total}`
+      : `${view.total} question${view.total === 1 ? '' : 's'}`,
+    questions: view.items.map((q) => ({
+      id: q.id,
+      title: Selection.optionTitle(q),
+      description: `${q.marks} mark${q.marks === 1 ? '' : 's'}${q.type ? ` · ${q.type}` : ''}`,
+    })),
+    selected: view.items.filter((q) => keep.has(q.id)).map((q) => q.id),
+    page: String(view.index),
+    has_prev: view.hasPrev,
+    has_next: view.hasNext,
+    error,
+  });
+}
+
+/** An empty review screen that explains itself, for when there is no paper. */
+function reviewError(message) {
+  return screen('REVIEW', {
+    summary: '', progress: '', questions: [], selected: [],
+    page: '0', has_prev: false, has_next: false, error: message,
+  });
+}
+
+async function openReview(userId, paperId, flowToken) {
+  const { items, code } = await revision().listQuestions({ paperId, userId });
+  if (!items) {
+    return reviewError(code === 'NOT_READY'
+      ? 'That paper is still being made. I will send it here when it is done.'
+      : "I couldn't find that paper. Send /assessment to make a new one.");
+  }
+  const selected = items.filter((q) => q.selected).map((q) => q.id);
+  await writeSession(flowToken, { userId, paperId, page: 0, selected });
+  return reviewScreen({ items, selected, page: 0 });
+}
+
+/**
+ * Fold this page's ticks into the answer for the whole paper.
+ *
+ * Only the ids ON THIS PAGE are decided by `keep`; everything else keeps whatever
+ * it already had. Replacing the whole set with `keep` would untick every question
+ * she has not scrolled to — the paper would quietly shrink to one screenful.
+ */
+function mergePageTicks({ selected, pageIds, keep }) {
+  const onPage = new Set(pageIds);
+  const ticked = new Set(Array.isArray(keep) ? keep : []);
+  const out = new Set((selected || []).filter((id) => !onPage.has(id)));
+  for (const id of pageIds) if (ticked.has(id)) out.add(id);
+  return out;
+}
+
+async function handleReview(userId, data, flowToken) {
+  const state = await readSession(flowToken);
+  const paperId = state.paperId || paperIdFromToken(flowToken);
+  const owner = state.userId || userId;
+
+  const { items, code } = await revision().listQuestions({ paperId, userId: owner });
+  if (!items) return reviewError("I couldn't find that paper. Send /assessment to make a new one.");
+
+  const page = Number.parseInt(data.page, 10) || 0;
+  const view = Selection.pageOf(items, page);
+  const merged = mergePageTicks({
+    selected: state.selected ?? items.map((q) => q.id),
+    pageIds: view.items.map((q) => q.id),
+    keep: data.keep,
+  });
+  const selected = [...merged];
+
+  const action = String(data.action || 'done');
+  if (action === 'next' || action === 'prev') {
+    const nextPage = action === 'next' ? view.index + 1 : view.index - 1;
+    await writeSession(flowToken, { userId: owner, paperId, page: nextPage, selected });
+    return reviewScreen({ items, selected, page: nextPage });
+  }
+
+  // She can untick everything; it is a real state and it means something. Saying
+  // so on the screen keeps her one tap from a paper, where sending a blank
+  // document would cost her the whole journey.
+  if (selected.length === 0) {
+    await writeSession(flowToken, { userId: owner, paperId, page: view.index, selected });
+    return reviewScreen({
+      items, selected, page: view.index,
+      error: 'Keep at least one question, then tap "Make the paper".',
+    });
+  }
+
+  const result = await revision().rerender({ paperId, userId: owner, selectedIds: selected });
+  await clearSession(flowToken);
+
+  if (result.status !== 'ready') {
+    return screen('SUBMITTED', {
+      heading: "That didn't work",
+      message: revision().TEACHER_MESSAGE?.[result.code]
+        || 'Sorry — something went wrong making your paper. Please try again.',
+      caption: 'You can close this.',
+    });
+  }
+
+  return screen('SUBMITTED', {
+    heading: 'Your paper is on its way',
+    message: `${result.questionCount} question${result.questionCount === 1 ? '' : 's'}`
+      + `${result.marks ? ` · ${result.marks} marks` : ''}. It will arrive in this chat.`,
+    caption: 'You can close this.',
+  });
+}
+
 async function handleInit(userId, flowToken) {
+  // A review token means she already has a paper and wants to trim it. Checked
+  // before anything else, because every screen below assumes a fresh request.
+  const reviewPaperId = paperIdFromToken(flowToken);
+  if (reviewPaperId) return openReview(userId, reviewPaperId, flowToken);
+
   await writeSession(flowToken, { userId });
   const grades = await gradesOnOffer();
   if (grades.length === 0) {
@@ -123,6 +270,10 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
   const state = await readSession(flowToken);
   state.userId = state.userId || userId;
   const data = formData || {};
+
+  // ── REVIEW → REVIEW | SUBMITTED ──────────────────────────────────────────
+  // Its own journey, entered by token rather than by walking the screens above.
+  if (screenId === 'REVIEW') return handleReview(userId, data, flowToken);
 
   // ── CLASS → COVERAGE ─────────────────────────────────────────────────────
   if (screenId === 'CLASS') {
@@ -433,5 +584,6 @@ module.exports = {
   handleAssessmentGenDataExchange: handleDataExchange,
   handleAssessmentGenBack: handleBack,
   // exported for tests
-  _internal: { summaryOf, submit, chapterPageRange, GRADE_BANDS, COUNT_CHOICES },
+  _internal: { summaryOf, submit, chapterPageRange, GRADE_BANDS, COUNT_CHOICES,
+    paperIdFromToken, mergePageTicks, REVIEW_MARKER },
 };
