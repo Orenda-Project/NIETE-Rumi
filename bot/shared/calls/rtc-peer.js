@@ -90,6 +90,19 @@ class RtcPeer {
     this._buffer.push(pcm.resampleLinear(pcm24k, pcm.OPENAI_RATE, pcm.WHATSAPP_RATE));
   }
 
+  /**
+   * Queue audio ALREADY at the wire rate (48 kHz) — the external-TTS voice path
+   * (bd-oxu2q). Uplift returns 22.05 kHz, which is resampled statefully upstream
+   * so chunk seams do not click; resampling it a second time here would both
+   * corrupt the rate and undo that. Deliberately a separate method rather than a
+   * flag on playAssistantAudio, so a caller cannot pass 48 kHz audio to the 24 kHz
+   * path by omission.
+   */
+  playAssistantPcm48k(pcm48k) {
+    if (this._closed) return;
+    this._buffer.push(pcm48k);
+  }
+
   /** Barge-in: drop everything queued so she stops talking over the caller. */
   flushPlayout() {
     this._buffer.flush();

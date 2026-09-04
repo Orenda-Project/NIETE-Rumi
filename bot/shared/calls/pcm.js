@@ -47,6 +47,62 @@ function resampleLinear(input, fromRate, toRate) {
  * @param {number} [channelCount]
  * @returns {Int16Array}
  */
+/**
+ * Stateful resampler for a CONTINUOUS stream (bd-oxu2q).
+ *
+ * Unlike `resampleLinear`, this carries the fractional read position AND the
+ * previous chunk's last sample across calls, so back-to-back chunks resample
+ * WITHOUT a discontinuity at each boundary. Use one instance per continuous
+ * stream — e.g. Uplift TTS (22.05 kHz) → the 48 kHz wire. Feeding a streamed
+ * voice through the stateless `resampleLinear` once per chunk clicks audibly at
+ * every seam, which on a phone call sounds like a bad line rather than like a
+ * bug, so it would very likely have been mis-diagnosed.
+ */
+class StreamResampler {
+  constructor(fromRate, toRate) {
+    this._step = fromRate / toRate; // input samples advanced per output sample
+    this._cursor = 0;               // fractional read pos; 0 == prev chunk's last sample
+    this._prev = 0;                 // last sample of the previous chunk
+    this._primed = false;
+  }
+
+  process(input) {
+    if (!input || input.length === 0) return new Int16Array(0);
+    // Once primed, prepend the previous chunk's last sample so interpolation can
+    // bridge the boundary between the previous chunk and this one.
+    let data;
+    if (this._primed) {
+      data = new Int16Array(input.length + 1);
+      data[0] = this._prev;
+      data.set(input, 1);
+    } else {
+      data = input;
+    }
+    const out = [];
+    let c = this._cursor;
+    const last = data.length - 1;
+    while (c <= last) {
+      const i = Math.floor(c);
+      const f = c - i;
+      const a = data[i];
+      const b = i + 1 <= last ? data[i + 1] : a;
+      out.push((a + (b - a) * f) | 0);
+      c += this._step;
+    }
+    this._cursor = c - last; // leftover, relative to this chunk's last sample
+    this._prev = data[last];
+    this._primed = true;
+    return Int16Array.from(out);
+  }
+
+  /** Reset continuity — after a barge-in flush the next audio is discontinuous. */
+  reset() {
+    this._cursor = 0;
+    this._prev = 0;
+    this._primed = false;
+  }
+}
+
 function downmixToMono(samples, channelCount) {
   const channels = channelCount || 1;
   if (channels <= 1) return samples;
@@ -90,6 +146,7 @@ module.exports = {
   OPENAI_RATE,
   WHATSAPP_RATE,
   resampleLinear,
+  StreamResampler,
   downmixToMono,
   int16ToBase64,
   base64ToInt16,
