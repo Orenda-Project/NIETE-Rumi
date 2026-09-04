@@ -165,6 +165,10 @@ function targetBlock(target) {
 function buildPrompt(lang, analysis, q3, target = null, loop = null) {
   const langName = LANG_NAME[lang] || 'English';
   if (!target) target = cardTarget(analysis, loop);
+  // She may not have answered the reflective question (51% do not). That gates
+  // the COMMITMENT half only — never the action. Nothing below may quote or
+  // imply an answer that does not exist.
+  const reflected = !!(q3 && typeof q3.answer === 'string' && q3.answer.trim());
   const strengths = (analysis.strengths || []).map((s) => s.title || s.analysis || s).slice(0, 3);
   const growth = (analysis.growth_opportunities || []).map((g) => ({
     area: g.area || g.title,
@@ -184,16 +188,18 @@ ${CODESWITCH_RULE[lang] || CODESWITCH_RULE.en}
 PLAIN LANGUAGE — the teacher must understand every word. Do NOT use coach-jargon she wouldn't say herself: "scaffolding", "extension", "differentiation", "formative assessment", "higher-order thinking", "metacognition", "gradual release". Describe the concrete move in plain words instead (e.g. instead of "scaffolding", write "break it into small steps"; instead of "an extension", write "a harder task for the ones who finish early").
 
 The card has TWO parts:
-1. "commitment" — a single warm sentence (max ~18 words) in the teacher's OWN spirit, reflecting back what SHE values, drawn from her Q3 answer (her forward-looking reflection). Address her as "you"/"we". No honorifics, no name inside it.
-2. "action" — ONE specific, concrete thing to try in her NEXT class. It MUST be rooted in THIS exact lesson AND fuse her own value (from her Q3 answer + strengths) with ${target ? 'THE TARGET below' : 'the single highest-leverage growth area'}. Phrase it as an implementation intention anchored to next class ("Next class, when [trigger], [do X]") — but respect the gender-neutral rule above (imperative, not a gendered "you will"). Max ~32 words. Vivid and classroom-specific — name the actual materials/concept from THIS lesson. NOT generic.
+1. "commitment" — a single warm sentence (max ~18 words) in the teacher's OWN spirit. ${reflected
+  ? 'Reflect back what SHE values, drawn from her Q3 answer (her forward-looking reflection).'
+  : 'She did not answer the reflective question this time, so draw it from her strengths below and why THE TARGET matters in HER classroom — never invent, quote or imply a reflection she did not give.'} Address her as "you"/"we". No honorifics, no name inside it.
+2. "action" — ONE specific, concrete thing to try in her NEXT class. It MUST be rooted in THIS exact lesson AND fuse ${reflected ? 'her own value (from her Q3 answer + strengths)' : 'her strengths below'} with ${target ? 'THE TARGET below' : 'the single highest-leverage growth area'}. Phrase it as an implementation intention anchored to next class ("Next class, when [trigger], [do X]") — but respect the gender-neutral rule above (imperative, not a gendered "you will"). Max ~32 words. Vivid and classroom-specific — name the actual materials/concept from THIS lesson. NOT generic.
 
 Also return "highlights": an array of 2–4 short ${langName} keyword phrases that appear verbatim in "action" (concrete nouns) to visually emphasise. And "lesson_label": a 2–4 word ${langName} subject·topic label.
 
 Session (framework: ${(analysis.framework || 'oecd').toUpperCase()}):${targetBlock(target)}${loopBlock(loop, target, langName)}
 - Her strengths: ${strengths.join(' | ') || '(none captured)'}
 - Growth areas: ${growth.map((g) => `${g.area} — ${g.observation} Strategy: ${g.strategy}`).join(' || ') || '(none)'}
-- Q3 question we asked her: ${q3.question || '(n/a)'}
-- Her Q3 answer (in ${langName}): "${String(q3.answer).slice(0, 400)}"
+${reflected ? `- Q3 question we asked her: ${q3.question || '(n/a)'}
+- Her Q3 answer (in ${langName}): "${String(q3.answer).slice(0, 400)}"` : '- She did not answer the reflective question this time.'}
 
 Return STRICT JSON only: {"commitment":"...","action":"...","lesson_label":"...","highlights":["...","..."]}`;
 }
@@ -317,12 +323,23 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
   if (!analysis) return null;
 
   const q3 = extractQ3(conversationState);
-  if (!q3) {
-    logToFile('Commitment card: no Q3 commitment → rule-based fallback', { framework: analysis.framework });
+  const target = cardTarget(analysis, loop);
+  // The reflection gates the COMMITMENT half of the card, never the ACTION half.
+  // When a loop target is open the ask must carry THIS attempt's angle and the
+  // prior-action do-not-reuse block, so it is phrased by the model whether or
+  // not she reflected. The early return this replaces sent every unreflected
+  // attempt to the angle-blind rubric sentence: on staging, attempts 2 and 3
+  // for one teacher shipped byte-identical asks (overlap 1.00) while the record
+  // claimed the angle had advanced from `cue` to `show`.
+  if (!q3 && !(loop && target)) {
+    logToFile('Commitment card: no Q3 commitment and no loop target → rule-based fallback', { framework: analysis.framework });
     return finalizeCard(await fallbackCard(analysis, teacherName, priorAction, lang, loop));
   }
-
-  const target = cardTarget(analysis, loop);
+  if (!q3) {
+    logToFile('[uptake-loop] no reflection — the ask is still phrased with the angle', {
+      indicator: target.indicator, attempt: loop.state && loop.state.attempt, angle: loop.state && loop.state.angle,
+    });
+  }
   const bar = loop && target ? (countBarFor(target.indicator) || {}) : null;
   const ask = async (prompt) => {
     const r = await GPT5MiniService.openai.chat.completions.create({
