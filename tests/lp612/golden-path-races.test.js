@@ -98,7 +98,10 @@ const joinCalls = () => mockRpc.mock.calls.filter((c) => c[0] === 'lp612_join_wa
 beforeEach(() => {
   jest.clearAllMocks();
   mockDbResults.length = 0; mockDbCalls.length = 0;
-  mockSendMessage.mockReset(); mockSendDocumentByLink.mockReset(); mockQueueJob.mockReset();
+  mockSendMessage.mockReset();
+  // bd-m1xyt: deliverRender now checks this return and retries/throws on a falsy one.
+  mockSendDocumentByLink.mockReset().mockResolvedValue(true);
+  mockQueueJob.mockReset();
   mockRpc.mockReset().mockResolvedValue({ data: 'joined', error: null });
   mockSegmentById.mockResolvedValue(SEGMENT);
   mockGetPresignedUrl.mockResolvedValue('https://signed/x.pdf');
@@ -165,7 +168,7 @@ describe('losing the insert race: the append answer is READ, not discarded', () 
     const run = async () => {
       mockDbResults.length = 0; mockDbCalls.length = 0;
       mockRpc.mockReset().mockResolvedValue({ data: 'not_authoring', error: null });
-      mockSendDocumentByLink.mockReset();
+      mockSendDocumentByLink.mockReset().mockResolvedValue(true);
     };
 
     await run();

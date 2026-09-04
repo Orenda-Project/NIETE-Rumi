@@ -422,6 +422,15 @@ async function process(payload) {
     // ('not_authoring') and re-decided into a cache hit rather than dropped.
     const waiters = await claimWaiters(renderId, snapshot);
 
+    // bd-m1xyt: ONE deadline for the WHOLE loop, not one per waiter. This send runs after the
+    // `withTimeout(...)` above, so it is unbounded by LP612_AUTHOR_TIMEOUT_MS — a lesson with many
+    // waiters, all hitting Meta's pair rate limit (131056; see the constant's own comment in
+    // lp612-serving.service.js), could otherwise stack N x up-to-12s of backoff and push this job
+    // past its SQS visibility window. Sharing the deadline means a pile-up shortens later waiters'
+    // retries instead of extending the job without bound; every waiter still gets at least one
+    // attempt.
+    const deliveryDeadline = Date.now() + Serving.SEND_TOTAL_BUDGET_MS;
+
     let delivered = 0;
     let deliveryFailures = 0;
     for (const w of waiters) {
@@ -437,6 +446,8 @@ async function process(payload) {
           lang,
           oneScreen: oneScreenOf(authored),
           overlayDropped,
+          renderId,
+          sendDeadlineAt: deliveryDeadline,
         });
         delivered += 1;
       } catch (err) {

@@ -20,7 +20,8 @@
  */
 
 const mockSendMessage = jest.fn();
-const mockSendDocumentByLink = jest.fn();
+// bd-m1xyt: deliverRender now checks this return and retries/throws on a falsy one.
+const mockSendDocumentByLink = jest.fn().mockResolvedValue(true);
 const mockQueueJob = jest.fn();
 const mockGetPresignedUrl = jest.fn();
 const mockSegmentById = jest.fn();
