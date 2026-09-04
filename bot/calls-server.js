@@ -156,9 +156,14 @@ function buildEngine() {
     },
 
     /** Close the audit row when the call ends, then fold the call into memory. */
-    onCallEnd: async ({ waCallId, from, durationSeconds, status, transcript }) => {
+    onCallEnd: async ({ waCallId, from, durationSeconds, status, transcript, voiceUsed }) => {
       await callLog.logCallEnd({
         waCallId, durationSeconds, status, transcript, model: config.model,
+        // Which voice actually spoke. The row was opened with config.voice before
+        // the engine had settled one, so without this every call claims the
+        // OpenAI voice — including the ones Uplift spoke. The engine reads it off
+        // the session before teardown, the same way it reads the transcript.
+        voice: voiceUsed || config.voice,
       });
       // Roll this call into the caller's memory so the next call remembers her
       // (off the call path — never blocks teardown, never throws).
