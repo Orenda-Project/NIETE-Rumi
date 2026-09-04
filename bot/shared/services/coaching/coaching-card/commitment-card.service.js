@@ -70,9 +70,25 @@ function describeBar(bar) {
  * Without the loop, the scorer's validated focus_area.
  */
 function cardTarget(analysis, loop) {
-  if (loop && loop.state && loop.state.target && loop.state.target.indicator && !loop.state.bridge) {
-    const t = resolveIndicator(analysis, loop.state.target.indicator);
-    if (t) return t;
+  const st = loop && loop.state && loop.state.target;
+  if (st && !loop.state.bridge) {
+    // A PHASE target is coached as the plan step, not as a rubric indicator.
+    // `try` carries what THIS lesson's plan actually asked for, so the ask can
+    // show her the step she skipped before asking for it next time.
+    if (st.kind === 'phase') {
+      const moves = ((analysis && analysis.lp_fidelity && analysis.lp_fidelity.moves) || [])
+        .filter((m) => m && m.phase === st.phase);
+      const missed = moves.find((m) => m.verdict === 'not_done' || m.verdict === 'partial') || moves[0];
+      return {
+        kind: 'phase', phase: st.phase, name: st.name,
+        try: (missed && String(missed.text || '').trim()) || '',
+        rationale: '', title: st.name, count: null, levels: null,
+      };
+    }
+    if (st.indicator) {
+      const t = resolveIndicator(analysis, st.indicator);
+      if (t) return t;
+    }
   }
   return resolveTarget(analysis);
 }
@@ -82,7 +98,7 @@ function loopBlock(loop, target, langName) {
   const st = loop.state;
   const attempt = Number(st.attempt) || 1;
   const angle = ANGLE_INSTRUCTION[st.angle] ? st.angle : 'tell';
-  const bar = countBarFor(target.indicator) || {};
+  const bar = target.kind === 'phase' ? {} : (countBarFor(target.indicator) || {});
   const prior = loop.prior || null;
   const bridge = st.bridge && prior && prior.target
     ? `\nBRIDGE LESSON: the open target ${prior.target.indicator} "${prior.target.name || prior.target.indicator}" does not apply to this lesson's subject, so THE TARGET above is a one-lesson bridge. End "action" with one short clause that ${prior.target.name || prior.target.indicator} returns in the next lesson where it applies.`
@@ -92,8 +108,8 @@ function loopBlock(loop, target, langName) {
     : '';
   return `
 ATTEMPT ${attempt} · ANGLE "${angle}": ${ANGLE_INSTRUCTION[angle]}${bridge}
-THE BAR the rubric sets for ${target.indicator} at rung 2: ${describeBar(bar)}.${priorLine}
-Return ALSO "action_spec": {"cue": "<the if-then moment from this lesson, or empty>", "move": "<the ONE move, max 15 words>", "count_target": ${JSON.stringify(bar)}, "model_line": "<one sentence she can say, in ${langName}, or empty>"}.
+${target.kind === 'phase' ? `THE BAR: the "${target.name}" step of next class's plan actually happens.` : `THE BAR the rubric sets for ${target.indicator} at rung 2: ${describeBar(bar)}.`}${priorLine}
+Return ALSO "action_spec": {"cue": "<the if-then moment from this lesson, or empty>", "move": "<the ONE move, max 15 words>", "count_target": ${JSON.stringify(target.kind === 'phase' ? { phase_moves_executed: 1 } : bar)}, "model_line": "<one sentence she can say, in ${langName}, or empty>"}.
 `;
 }
 
@@ -156,6 +172,12 @@ function extractQ3(conversationState) {
  * itself. Null target → the prompt reads exactly as before.
  */
 function targetBlock(target) {
+  if (target && target.kind === 'phase') {
+    const asked = target.try
+      ? ` In the lesson just observed her plan asked for: "${String(target.try).replace(/\s+/g, ' ').trim().slice(0, 300)}" — and it did not happen.`
+      : '';
+    return `\nTHE TARGET (fixed — do NOT choose a different area): the "${target.name}" step of her own lesson plan.${asked} Your "action" asks her to do THAT step of whatever lesson plan she teaches NEXT class — one step, not the whole plan, and not this lesson's exact wording (next class has a different plan).\n`;
+  }
   if (!target || !target.indicator) return '';
   const move = target.try ? ` The scorer's suggested move: "${target.try}".` : '';
   const why = target.rationale ? ` Why it is the next step: ${target.rationale}` : '';
@@ -340,7 +362,9 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
       indicator: target.indicator, attempt: loop.state && loop.state.attempt, angle: loop.state && loop.state.angle,
     });
   }
-  const bar = loop && target ? (countBarFor(target.indicator) || {}) : null;
+  const bar = loop && target
+    ? (target.kind === 'phase' ? { phase_moves_executed: 1 } : (countBarFor(target.indicator) || {}))
+    : null;
   const ask = async (prompt) => {
     const r = await GPT5MiniService.openai.chat.completions.create({
       model: MODEL,
@@ -381,7 +405,7 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
       action: String(parsed.action).trim(),
       highlights: Array.isArray(parsed.highlights) ? parsed.highlights.filter(Boolean) : [],
       lesson_label: parsed.lesson_label ? String(parsed.lesson_label).trim() : '',
-      indicator: target ? target.indicator : undefined,
+      indicator: target && target.kind !== 'phase' ? target.indicator : undefined,
       language: lang,
       ...(loop && target ? { action_spec: normaliseSpec(parsed.action_spec, bar, parsed.action) } : {}),
       ...(similarToPrior ? { _similar_to_prior: true } : {}),

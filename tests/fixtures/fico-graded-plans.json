@@ -1,0 +1,5633 @@
+{
+ "note": "Graded LP-fidelity plans from NIETE prod, reduced to phase/bucket/verdict/counted. No move text, no evidence, no rationale. Teacher and session ids are one-way hashes. Trimmed to the 20 teachers with the most graded plans.",
+ "plans": [
+  {
+   "session": "0d0ecc52",
+   "teacher": "704e3a61",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 11.1,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "peer_review",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "cf5227f2",
+   "teacher": "704e3a61",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 27.8,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "f65070b7",
+   "teacher": "704e3a61",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 44.4,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "peer_review",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "executed",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "08f9f80e",
+   "teacher": "704e3a61",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 57.1,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "a5662495",
+   "teacher": "704e3a61",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 78.6,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "executed",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "7d943b3d",
+   "teacher": "704e3a61",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 44.4,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "peer_review",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_adjudicable",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "f23f5fc9",
+   "teacher": "704e3a61",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 50,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "713edfd2",
+   "teacher": "b9d66d1a",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 41.7,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "efcf6e30",
+   "teacher": "b9d66d1a",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 73.1,
+   "moves": [
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "peer_review",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "adaptive_set",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "5e490dc8",
+   "teacher": "b9d66d1a",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 64.3,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "peer_review",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "substituted_equivalent",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "62241580",
+   "teacher": "b9d66d1a",
+   "created_at": "2026-09-04",
+   "fidelity_pct": 53.6,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "peer_review",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "1a3720ea",
+   "teacher": "b9d66d1a",
+   "created_at": "2026-09-04",
+   "fidelity_pct": 61.5,
+   "moves": [
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "peer_review",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "peer_review",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "0941004a",
+   "teacher": "b9d66d1a",
+   "created_at": "2026-09-04",
+   "fidelity_pct": 53.8,
+   "moves": [
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "peer_review",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "adaptive_set",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "ae2bf991",
+   "teacher": "4f2b10e7",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 42.9,
+   "moves": [
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "ad1cc3ff",
+   "teacher": "4f2b10e7",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 28.6,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_adjudicable",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "8a3cc3e6",
+   "teacher": "4f2b10e7",
+   "created_at": "2026-09-04",
+   "fidelity_pct": 0,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "9b2ba7ee",
+   "teacher": "4f2b10e7",
+   "created_at": "2026-09-04",
+   "fidelity_pct": 0,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "0e146abf",
+   "teacher": "4f2b10e7",
+   "created_at": "2026-09-04",
+   "fidelity_pct": 6.3,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "b9d7dd5e",
+   "teacher": "9f91c393",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 45,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "3cac9c0c",
+   "teacher": "9f91c393",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 45,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "901042cc",
+   "teacher": "9f91c393",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 36.4,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "c434f6e3",
+   "teacher": "9f91c393",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 40,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "f86f2257",
+   "teacher": "60253ffb",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 25,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_adjudicable",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "aebc184a",
+   "teacher": "60253ffb",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 0,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "4509c071",
+   "teacher": "60253ffb",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 21.4,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "peer_review",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "83b647f0",
+   "teacher": "60253ffb",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 25,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "8e13a6a9",
+   "teacher": "b99d20f1",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 45.5,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "peer_review",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "4507baae",
+   "teacher": "b99d20f1",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 41.7,
+   "moves": [
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "988690ef",
+   "teacher": "b99d20f1",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 28.6,
+   "moves": [
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "substituted_equivalent",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "e8adaf03",
+   "teacher": "b99d20f1",
+   "created_at": "2026-09-04",
+   "fidelity_pct": 50,
+   "moves": [
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "c5c1df51",
+   "teacher": "51e99d34",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 50,
+   "moves": [
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "99e9cf96",
+   "teacher": "51e99d34",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 50,
+   "moves": [
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "5b3218a7",
+   "teacher": "51e99d34",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 38.9,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "peer_review",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "fd160d62",
+   "teacher": "51e99d34",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 45.5,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "a9fbb5b0",
+   "teacher": "4c9bb8ac",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 7.1,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "baff0c2d",
+   "teacher": "4c9bb8ac",
+   "created_at": "2026-09-04",
+   "fidelity_pct": 45,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "substituted_better",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "substituted_better",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "substituted_better",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_adjudicable",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "be2ae5e7",
+   "teacher": "4c9bb8ac",
+   "created_at": "2026-09-04",
+   "fidelity_pct": 30,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_adjudicable",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "23676770",
+   "teacher": "4c9bb8ac",
+   "created_at": "2026-09-04",
+   "fidelity_pct": 50,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "peer_review",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "67cc717e",
+   "teacher": "d6ea4636",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 35.7,
+   "moves": [
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "ac23108c",
+   "teacher": "d6ea4636",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 38.9,
+   "moves": [
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "peer_review",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "21f7e5fd",
+   "teacher": "d6ea4636",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 72.7,
+   "moves": [
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    }
+   ]
+  },
+  {
+   "session": "e6ff398b",
+   "teacher": "d6ea4636",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 46.2,
+   "moves": [
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "5a854243",
+   "teacher": "6088329d",
+   "created_at": "2026-09-02",
+   "fidelity_pct": 53.8,
+   "moves": [
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "7c73726f",
+   "teacher": "6088329d",
+   "created_at": "2026-09-02",
+   "fidelity_pct": null,
+   "moves": [
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_adjudicable",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "282336f0",
+   "teacher": "6088329d",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 57.1,
+   "moves": [
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "executed",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "38f69cae",
+   "teacher": "a6715886",
+   "created_at": "2026-09-02",
+   "fidelity_pct": 31.3,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "610cdd39",
+   "teacher": "a6715886",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 35.7,
+   "moves": [
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "peer_review",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    }
+   ]
+  },
+  {
+   "session": "fb7de686",
+   "teacher": "a6715886",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 0,
+   "moves": [
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "0d70f329",
+   "teacher": "293f04e3",
+   "created_at": "2026-09-02",
+   "fidelity_pct": 31.3,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "cbcf2658",
+   "teacher": "293f04e3",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 6.3,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "grouping",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "group_beginner",
+     "bucket": "adaptive_set",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "group_intermediate",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "group_advanced",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    }
+   ]
+  },
+  {
+   "session": "736bf69b",
+   "teacher": "293f04e3",
+   "created_at": "2026-09-04",
+   "fidelity_pct": 53.8,
+   "moves": [
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "peer_review",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "ef3b5057",
+   "teacher": "f62a8760",
+   "created_at": "2026-09-02",
+   "fidelity_pct": null,
+   "moves": [
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "d0b38fc6",
+   "teacher": "f62a8760",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 95,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    }
+   ]
+  },
+  {
+   "session": "af83857a",
+   "teacher": "f62a8760",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 30,
+   "moves": [
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    }
+   ]
+  },
+  {
+   "session": "7d7e1d88",
+   "teacher": "9b982e30",
+   "created_at": "2026-09-02",
+   "fidelity_pct": null,
+   "moves": [
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "peer_review",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_adjudicable",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "5b59ef95",
+   "teacher": "9b982e30",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 42.9,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "fbc82893",
+   "teacher": "9b982e30",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 57.1,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "b89ea747",
+   "teacher": "ba708d88",
+   "created_at": "2026-09-02",
+   "fidelity_pct": null,
+   "moves": [
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "guided",
+     "bucket": "adaptive_set",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "guided",
+     "bucket": "adaptive_set",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_adjudicable",
+     "counted": false
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_adjudicable",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "eb33b77f",
+   "teacher": "ba708d88",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 46.2,
+   "moves": [
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "6d332c13",
+   "teacher": "ba708d88",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 45.8,
+   "moves": [
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "adaptive_set",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "0278faf3",
+   "teacher": "8b98a50b",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 20,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "332fc18f",
+   "teacher": "8b98a50b",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 20,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "92890698",
+   "teacher": "8b98a50b",
+   "created_at": "2026-09-04",
+   "fidelity_pct": 21.4,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "e05201b8",
+   "teacher": "1790f172",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 0,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_adjudicable",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "4c240224",
+   "teacher": "1790f172",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 8.3,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "3d431102",
+   "teacher": "1790f172",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 11.5,
+   "moves": [
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "peer_review",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "c9a9de5e",
+   "teacher": "3ab63598",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 75,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "fe0981c1",
+   "teacher": "3ab63598",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 66.7,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "executed",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "2559069d",
+   "teacher": "3ab63598",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 60,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "substituted_equivalent",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    }
+   ]
+  },
+  {
+   "session": "2fb8a634",
+   "teacher": "13172dc6",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 21.4,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "fb15b8c3",
+   "teacher": "13172dc6",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 0,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "721a07a8",
+   "teacher": "13172dc6",
+   "created_at": "2026-09-04",
+   "fidelity_pct": 14.3,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "grouping",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": false
+    },
+    {
+     "phase": "group_beginner",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "group_beginner",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "group_intermediate",
+     "bucket": "adaptive_set",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "group_intermediate",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "group_advanced",
+     "bucket": "adaptive_set",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "group_advanced",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    }
+   ]
+  },
+  {
+   "session": "bd74f54f",
+   "teacher": "37440f6c",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 0,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "independent",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "9bd72b03",
+   "teacher": "37440f6c",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 50,
+   "moves": [
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "partial",
+     "counted": false
+    }
+   ]
+  },
+  {
+   "session": "c2f89002",
+   "teacher": "37440f6c",
+   "created_at": "2026-09-03",
+   "fidelity_pct": 35.7,
+   "moves": [
+    {
+     "phase": "warm_up",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "recall",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "hook",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "announce",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "explain",
+     "bucket": "must_happen",
+     "verdict": "executed",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "partial",
+     "counted": true
+    },
+    {
+     "phase": "guided",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "independent",
+     "bucket": "adaptive_set",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "exit",
+     "bucket": "must_happen",
+     "verdict": "not_done",
+     "counted": true
+    },
+    {
+     "phase": "homework",
+     "bucket": "optional_extension",
+     "verdict": "not_done",
+     "counted": false
+    }
+   ]
+  }
+ ]
+}
