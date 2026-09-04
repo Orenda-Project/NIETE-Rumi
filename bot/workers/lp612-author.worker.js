@@ -307,10 +307,27 @@ async function process(payload) {
        * caller with a browser, so it is the only one that can close that loop.
        *
        * Returns the renderer's OWN defect strings, verbatim, because those go in front of the
-       * model. A renderer that dies for its own reasons (a browser that would not launch) is not
-       * the document's fault and reports nothing, which degrades to the old behaviour.
+       * model.
+       *
+       * bd-htueq: a renderer that dies for ITS OWN reasons (OOM, a launch that could not get a
+       * slot under contention, a crash) is not the document's fault — but it used to be reported
+       * as `[]`, "no defects", which `runGates`/`blockingCost` in the author service reads as
+       * "the page-cap gate passed". That silently disables the ONE gate that catches an unfittable
+       * document, exactly when load makes contention (and this failure) most likely. A gate that
+       * turns itself off under load is worse than no gate.
+       *
+       * Fix: classify the failure (see lp612-render.service.js's `.infra` flag — `true` for a
+       * renderer blow-up, `false` for a real document defect it validated and rejected). A real
+       * defect is returned as-is, same as before. An infra failure gets ONE retry — the semaphore
+       * added alongside this makes a transient blip the common case, so most of these resolve
+       * here — and if it fails again we return an explicit, always non-empty, always-blocking
+       * defect string instead of `[]`. The ladder can then never mistake "unverified" for "clean".
        */
-      const renderCheck = async (candidate) => {
+      const isInfraRenderFailure = (e) => (
+        e.infra === true || !Array.isArray(e.problems) || e.problems.length === 0
+      );
+
+      const attemptRenderCheck = async (candidate) => {
         try {
           await renderLessonPlan({
             lpDoc: candidate,
@@ -326,10 +343,33 @@ async function process(payload) {
             renderId,
             phase: 'gate',
           });
-          return [];
+          return { clean: true };
         } catch (e) {
-          return Array.isArray(e.problems) ? e.problems : [];
+          return {
+            clean: false,
+            infra: isInfraRenderFailure(e),
+            problems: Array.isArray(e.problems) ? e.problems : [],
+          };
         }
+      };
+
+      const renderCheck = async (candidate) => {
+        let result = await attemptRenderCheck(candidate);
+        if (result.clean) return [];
+        if (!result.infra) return result.problems; // a real defect — feed it to the model, once
+
+        result = await attemptRenderCheck(candidate); // the one retry
+        if (result.clean) return [];
+        if (!result.infra) return result.problems;
+
+        logEvent('lp612.render.gate_infra_unresolved', {
+          segmentId, renderId, correlationId, phase: 'gate',
+        });
+        return [
+          'RENDER_INFRA: the page-cap gate could not be verified after 2 attempts because the '
+          + 'renderer failed for infrastructure reasons (not a document defect). Treating this '
+          + 'round as not render-clean.',
+        ];
       };
 
       const authored = await authorLessonPlan({

@@ -17,6 +17,7 @@ const mockUploadBuffer = jest.fn();
 const mockDeliverRender = jest.fn();
 const mockSendMessage = jest.fn();
 const mockReadFile = jest.fn();
+const mockLogEvent = jest.fn();
 
 jest.mock('../../bot/shared/services/lp612-author.service', () => ({
   authorLessonPlan: mockAuthorLessonPlan,
@@ -37,6 +38,7 @@ jest.mock('../../bot/shared/services/lp612-serving.service', () => {
 });
 jest.mock('../../bot/shared/services/whatsapp.service', () => ({ sendMessage: mockSendMessage }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
+jest.mock('../../bot/shared/utils/structured-logger', () => ({ logEvent: (...a) => mockLogEvent(...a) }));
 jest.mock('fs', () => ({
   ...jest.requireActual('fs'),
   promises: { ...jest.requireActual('fs').promises, readFile: (...a) => mockReadFile(...a) },
@@ -516,12 +518,82 @@ describe('the worker gives the author a render gate', () => {
     await expect(renderCheck({ lesson_id: 'x' })).resolves.toEqual([]);
   });
 
-  test('a renderer that dies for its own reasons reports no defects rather than blaming the doc', async () => {
+  // ── bd-htueq: an infra death must never look like a clean render ──────────
+
+  /**
+   * The render gate used to swallow ANY thrown error into `[]` — "no defects". For a real
+   * document defect that is correct (see the two tests above: the renderer's own words go to
+   * the model). For a renderer that dies for ITS OWN reasons — OOM, a launch that could not get
+   * a slot under contention, a crash — `[]` is a false "the page-cap gate passed", and
+   * `blockingCost(gates) === 0` lets the ladder stop believing it verified something it never
+   * checked. Then the ladder spends fewer rounds fixing a real page-count problem, and the
+   * UNGATED final render (a separate call, later) is what actually finds out — as a job failure
+   * instead of a fixed lesson.
+   *
+   * Fix: one retry (the semaphore added alongside this makes a transient blip the common case),
+   * then an explicit, always-non-empty, always-blocking defect string if it still won't render —
+   * never a silent [].
+   */
+  test('a renderer that dies for infrastructure reasons is retried once, then reported as an explicit non-clean render', async () => {
     seed();
     await Worker.process(JOB);
     const { renderCheck } = mockAuthorLessonPlan.mock.calls[0][0];
-    mockRenderLessonPlan.mockRejectedValueOnce(new Error('browser would not launch'));
+    // Worker.process() already spent one call on the (unconditional) final render above — clear
+    // it so the count below reflects only what THIS renderCheck invocation does.
+    mockRenderLessonPlan.mockClear();
+
+    // Both attempts are bare infra crashes — no `.problems` array at all, exactly what a
+    // browser-would-not-launch error looks like coming out of renderLessonPlan.
+    mockRenderLessonPlan
+      .mockRejectedValueOnce(new Error('browser would not launch'))
+      .mockRejectedValueOnce(new Error('browser would not launch (retry)'));
+
+    const result = await renderCheck({ lesson_id: 'x' });
+
+    expect(mockRenderLessonPlan).toHaveBeenCalledTimes(2); // one retry — not zero, not unbounded
+    expect(result).not.toEqual([]); // NEVER silently clean
+    expect(result.length).toBeGreaterThan(0);
+    expect(result.some((d) => /RENDER_INFRA/.test(d))).toBe(true);
+  });
+
+  test('an infra failure that clears on the retry reports a clean render — the retry absorbs a transient blip', async () => {
+    seed();
+    await Worker.process(JOB);
+    const { renderCheck } = mockAuthorLessonPlan.mock.calls[0][0];
+    mockRenderLessonPlan.mockClear();
+
+    mockRenderLessonPlan
+      .mockRejectedValueOnce(new Error('browser would not launch'))
+      .mockResolvedValueOnce({ pdfPath: '/tmp/a.pdf', pageCount: 7, warnings: [] });
+
     await expect(renderCheck({ lesson_id: 'x' })).resolves.toEqual([]);
+    expect(mockRenderLessonPlan).toHaveBeenCalledTimes(2);
+  });
+
+  test('a persistent infra failure is telemetered — it is a decision, not a silent fallback', async () => {
+    seed();
+    await Worker.process(JOB);
+    const { renderCheck } = mockAuthorLessonPlan.mock.calls[0][0];
+    mockLogEvent.mockClear();
+    mockRenderLessonPlan.mockRejectedValue(new Error('browser would not launch'));
+
+    await renderCheck({ lesson_id: 'x' });
+
+    expect(mockLogEvent.mock.calls.some((c) => c[0] === 'lp612.render.gate_infra_unresolved')).toBe(true);
+  });
+
+  test('a real content defect explicitly marked non-infra is NOT retried — no wasted attempt on an actual defect', async () => {
+    seed();
+    await Worker.process(JOB);
+    const { renderCheck } = mockAuthorLessonPlan.mock.calls[0][0];
+    mockRenderLessonPlan.mockClear();
+    const err = new Error('nope');
+    err.problems = ['OVERFLOW on teach-1: content is 42px taller than the page.'];
+    err.infra = false;
+    mockRenderLessonPlan.mockRejectedValueOnce(err);
+
+    await expect(renderCheck({ lesson_id: 'x' })).resolves.toEqual(err.problems);
+    expect(mockRenderLessonPlan).toHaveBeenCalledTimes(1);
   });
 });
 
