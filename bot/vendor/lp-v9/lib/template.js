@@ -1149,12 +1149,19 @@ function page1(doc, ctx, secIndex) {
     for (const b of s.blocks) {
       for (const a of blockAtoms(b, colPx)) out.push(atom(a.html, { sec: id, glue: a.glue, sp: a.sp }));
     }
-    for (const x of after(s)) out.push(atom(x.html, { sec: id, sp: x.sp }));
+    // `glue` is forwarded here exactly as it is for before(s) above. No atom from after()
+    // sets it today, so this changes nothing — but the asymmetry was a trap: an atom that
+    // declared glue would have had it dropped on the floor, silently, and now that the
+    // packer chooses its breaks freely a dropped glue is a split a reader sees.
+    for (const x of after(s)) out.push(atom(x.html, { sec: id, glue: x.glue, sp: x.sp }));
     return out;
   };
 
-  const A = [atom(hero, { sp: 0 })];
-  if (seq) A.push(atom(seq, { sp: 2 }));
+  // The hero and the sequence strip are the page's masthead: a break under either of them
+  // would print a sheet carrying a title and nothing else. Greedy could never do that — it
+  // fills first — so neither was ever marked. An exact packer has to be told.
+  const A = [atom(hero, { sp: 0, glue: true })];
+  if (seq) A.push(atom(seq, { sp: 2, glue: true }));
   A.push(atom(sloBox, { sp: 2 }));
   // Directly under the outcome box: the first thing after "what the pupil can do".
   if (resourcesLine) A.push(atom(resourcesLine, { sp: 2 }));
@@ -1209,7 +1216,16 @@ function page2(doc, ctx, secIndex) {
     A.push(atom(p2bar(letter, name), { sec: key, first: true, glue: true, sp: 2 }));
     bodies.filter(Boolean).forEach((b) => {
       const html = typeof b === "string" ? b : b.html;
-      A.push(atom(html, { sec: key, sp: typeof b === "string" ? 1 : b.sp == null ? 1 : b.sp }));
+      // A body may now declare its own `glue`. It could not before, and it did not need to
+      // while the packer was greedy: greedy breaks as LATE as it can, so it only ever
+      // separated two adjacent body atoms when the second genuinely did not fit. An exact
+      // packer chooses its breaks freely, so every adjacency a reader depends on has to be
+      // stated rather than left to that accident. See section A below.
+      A.push(atom(html, {
+        sec: key,
+        sp: typeof b === "string" ? 1 : b.sp == null ? 1 : b.sp,
+        glue: typeof b === "string" ? false : !!b.glue,
+      }));
     });
   };
 
@@ -1275,10 +1291,16 @@ function page2(doc, ctx, secIndex) {
       <div class="t">${rich(p.topic)}</div>
       <div class="r">${esc(L.grade)} ${p.grade} ${rich(p.subject)} &middot; ${esc(L.notReadAloud)}<br>${rich(p.chapter)} &middot; ${esc(L.page)}${isoAtom(esc(p.printed_pages), ctx)}</div>
     </div>`;
-  A.push(atom(p2head, { sp: 0 }));
+  // The support page's masthead, glued for the same reason as the teach page's hero.
+  A.push(atom(p2head, { sp: 0, glue: true }));
 
+  // The board diagram and the draw-order card that tells the teacher how to build it are ONE
+  // instruction in two atoms. Splitting them across a page leaves the teacher looking at a
+  // finished board on one sheet and the order to draw it on another — which is the whole use
+  // of section A. It was never marked `glue` because the greedy packer separated them only
+  // when the card genuinely did not fit; an exact packer would find that break and take it.
   S("A", L.p2Board, [
-    boardDia ? { html: boardDia, sp: 2 } : null,
+    boardDia ? { html: boardDia, sp: 2, glue: true } : null,
     `<div class="card"><span class="lbl">${esc(L.drawOrder)}</span>
       <ol class="ord">${P.board_final.draw_order.map((d) => `<li>${rich(unnumber(d))}</li>`).join("")}</ol></div>`,
   ]);
