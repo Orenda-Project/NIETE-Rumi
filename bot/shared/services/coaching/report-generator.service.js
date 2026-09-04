@@ -207,8 +207,8 @@ class ReportGeneratorService {
       let loop = null;
       if (isUptakeLoopEnabled() && String(enhancedAnalysis.framework || '').toLowerCase() === 'fico') {
         try {
-          const { loadPriorAction, loadRecentSectionBModes } = require('./coaching-trend.service');
-          const { deriveUptakeStatus, nextTarget } = require('./uptake-loop.service');
+          const { loadPriorAction, loadRecentSectionBModes, loadRecentFidelity } = require('./coaching-trend.service');
+          const { deriveUptakeStatus, nextTarget, choosePhaseTarget, sectionBIsProxy } = require('./uptake-loop.service');
           const prior = await loadPriorAction(session.user_id, { excludeSessionId: coachingSessionId });
           // Section B is only coachable when it is the PROXY measurement. If her
           // recent lessons all came with a plan, a fresh B target would sit
@@ -225,8 +225,24 @@ class ReportGeneratorService {
               coachingSessionId, error: modeErr.message,
             });
           }
+          // The fidelity half: when THIS lesson was graded against her plan, the
+          // carryable unit is the plan PHASE she repeatedly fails to execute.
+          // Skipped entirely on a lesson with no usable plan — there is nothing
+          // to grade a phase against, and the query would be wasted.
+          let phaseTarget = null;
+          if (!sectionBIsProxy(enhancedAnalysis)) {
+            try {
+              const fidelityHistory = await loadRecentFidelity(session.user_id, { excludeSessionId: coachingSessionId });
+              phaseTarget = choosePhaseTarget(fidelityHistory);
+            } catch (phErr) {
+              logToFile('[uptake-loop] phase-target selection unavailable — indicator loop stands', {
+                coachingSessionId, error: phErr.message,
+              });
+            }
+          }
+
           const status = deriveUptakeStatus(enhancedAnalysis.uptake, prior, enhancedAnalysis);
-          const state = nextTarget(prior, status, enhancedAnalysis, { recentModes });
+          const state = nextTarget(prior, status, enhancedAnalysis, { recentModes, phaseTarget });
           loop = { prior, status, state };
           logToFile('[uptake-loop] carry step', {
             coachingSessionId,
@@ -234,6 +250,7 @@ class ReportGeneratorService {
             prior_target: prior && prior.target && prior.target.indicator,
             uptake_status: status,
             section_b_modes: recentModes.join(',') || 'none',
+            phase_target: phaseTarget && phaseTarget.phase,
             next_target: state.target && state.target.indicator,
             attempt: state.attempt,
             angle: state.angle,

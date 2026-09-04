@@ -203,4 +203,40 @@ async function loadRecentSectionBModes(userId, opts = {}) {
   }
 }
 
-module.exports = { loadTrendData, loadPriorAction, loadRecentSectionBModes, shortLabel };
+/**
+ * Her recent GRADED lesson plans, for the fidelity phase loop.
+ *
+ * Selects only the lp_fidelity blob — never the whole analysis_data — and is
+ * bounded to a handful of rows: choosePhaseTarget needs the per-move phase and
+ * verdict, which no narrower projection can reach (PostgREST cannot project
+ * inside a JSON array).
+ *
+ * Shaped as [{ lp_fidelity }] so it drops straight into choosePhaseTarget.
+ * Never throws: [] simply means "no pattern to coach".
+ *
+ * @param {string} userId
+ * @param {object} [opts] - { limit = 5, excludeSessionId }
+ */
+async function loadRecentFidelity(userId, opts = {}) {
+  const { limit = 5, excludeSessionId = null } = opts;
+  try {
+    if (!userId) return [];
+    let q = supabase
+      .from('coaching_sessions')
+      .select('id, created_at, fid:analysis_data->lp_fidelity')
+      .eq('user_id', userId)
+      .eq('status', 'completed');
+    if (excludeSessionId) q = q.neq('id', excludeSessionId);
+    const { data, error } = await q.order('created_at', { ascending: false }).limit(limit);
+    if (error) {
+      logToFile('[uptake-loop] loadRecentFidelity error', { userId, error: error.message });
+      return [];
+    }
+    return (Array.isArray(data) ? data : []).map((r) => ({ lp_fidelity: (r && r.fid) || null }));
+  } catch (err) {
+    logToFile('[uptake-loop] loadRecentFidelity unexpected error', { userId, error: err.message });
+    return [];
+  }
+}
+
+module.exports = { loadTrendData, loadPriorAction, loadRecentSectionBModes, loadRecentFidelity, shortLabel };
