@@ -280,3 +280,81 @@ describe('UpliftTtsSession — protocol handling', () => {
     expect(chunks).toHaveLength(1);
   });
 });
+
+describe('a voice that produces no audio must not pass as working', () => {
+  const { UpliftTtsSession } = require('../../shared/calls/uplift-tts');
+
+  function makeSocket() {
+    const handlers = {};
+    return {
+      emitted: [],
+      on: (ev, fn) => { handlers[ev] = fn; },
+      emit: function emit(ev, payload) { this.emitted.push({ ev, payload }); },
+      close: jest.fn(),
+      _fire: (ev, payload) => handlers[ev] && handlers[ev](payload),
+    };
+  }
+
+  async function connected(cb = {}, opts = {}) {
+    const socket = makeSocket();
+    const s = new UpliftTtsSession({
+      apiKey: 'k', callbacks: cb, ioFactory: () => socket, ...opts,
+    });
+    const p = s.connect();
+    socket._fire('message', { type: 'ready' });
+    await p;
+    return { s, socket };
+  }
+
+  test('a request that returns NOTHING raises an error instead of dying quietly', async () => {
+    // Probed against the live API 2026-09-04: an unknown voiceId does NOT come
+    // back as {type:'error'} — the server accepts the request and simply never
+    // sends audio. So the protocol-error branch does not cover the single most
+    // likely misconfiguration, and without this watchdog a wrong UPLIFT_VOICE_ID
+    // is a completely silent assistant with a clean log.
+    jest.useFakeTimers();
+    try {
+      const onError = jest.fn();
+      const { s } = await connected({ onError }, { firstAudioTimeoutMs: 4000 });
+      s.speak('ٹیسٹ۔');
+      expect(onError).not.toHaveBeenCalled();
+      jest.advanceTimersByTime(4001);
+      expect(onError).toHaveBeenCalled();
+      expect(String(onError.mock.calls[0][0].message)).toMatch(/no audio/i);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('audio arriving in time cancels the watchdog', async () => {
+    jest.useFakeTimers();
+    try {
+      const onError = jest.fn();
+      const { s, socket } = await connected({ onError, onPcm: () => {} }, { firstAudioTimeoutMs: 4000 });
+      s.speak('ٹھیک۔');
+      const audio = Buffer.from(new Int16Array([1, 2]).buffer).toString('base64');
+      socket._fire('message', { type: 'audio', requestId: 'g0_0', audio });
+      jest.advanceTimersByTime(10000);
+      expect(onError).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('a silent request does not stall the sentences behind it', async () => {
+    jest.useFakeTimers();
+    try {
+      const chunks = [];
+      const { s, socket } = await connected({ onPcm: (p) => chunks.push(p), onError: () => {} }, { firstAudioTimeoutMs: 4000 });
+      s.speak('پہلا۔');
+      s.speak('دوسرا۔');
+      const audio = Buffer.from(new Int16Array([7, 8]).buffer).toString('base64');
+      socket._fire('message', { type: 'audio', requestId: 'g0_1', audio });
+      expect(chunks).toHaveLength(0);          // held behind sentence 1
+      jest.advanceTimersByTime(4001);          // sentence 1 times out
+      expect(chunks).toHaveLength(1);          // playout advances
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
