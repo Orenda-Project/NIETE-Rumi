@@ -948,7 +948,49 @@ async function handleStatusFlowCompletion(responseJson, from, user) {
   return true;
 }
 
+
+/**
+ * What she reads instead of a closing screen.
+ *
+ * The Flow used to end on a SUBMITTED screen whose whole content was one
+ * sentence and a Close button — a message ABOUT the chat, shown anywhere but
+ * the chat, costing a tap to dismiss. The Flow now closes on submit and the
+ * sentence arrives here.
+ *
+ * Every branch says what happens next, because that is the only thing she can
+ * act on: wait, or send /assessment again.
+ */
+async function handleAssessmentFlowCompletion(responseJson, from, user) {
+  const action = String(responseJson?.assessment_action || '');
+  const summary = String(responseJson?.summary || '').trim();
+
+  const MESSAGES = {
+    queued: summary
+      ? `📝 Making your paper — about a minute.\n\n${summary}`
+      : '📝 Making your paper — about a minute.',
+    rebuilt: summary
+      ? `📝 Making your paper again — a few seconds.\n\n${summary}`
+      : '📝 Making your paper again — a few seconds.',
+    queue_failed: "Something went wrong starting your paper, so nothing is being made. "
+      + 'Send /assessment to try again.',
+    rebuild_failed: "Sorry — we couldn't rebuild that paper. "
+      + 'Send /assessment to make a new one.',
+  };
+
+  const text = MESSAGES[action];
+  if (!text) {
+    // An unrecognised tag is ours to notice, not hers to puzzle over: stay
+    // silent rather than send something that does not fit what she just did.
+    logToFile('[assessment] unrecognised completion tag — no ack sent', { from, action });
+    return;
+  }
+
+  await WhatsAppService.sendMessage(from, text);
+  logToFile('[assessment] completion acknowledged in chat', { userId: user?.id, action });
+}
+
 module.exports = {
+  handleAssessmentFlowCompletion,
   handleFlowResponse,
   handleReadingAssessmentFlow,
   handleRegistrationFlow,

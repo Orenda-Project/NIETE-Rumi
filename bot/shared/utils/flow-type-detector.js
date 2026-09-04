@@ -104,6 +104,17 @@ function detectFlowType(responseJson) {
     return 'observe_visit';
   }
 
+  // 0.3 Assessment Generator (bd-60027). The Flow now CLOSES on submit rather
+  //     than ending on a screen, so its completion arrives here carrying
+  //     `assessment_action`. That tag is unique to this flow and MUST be matched
+  //     above the loose attendance_marking flow_token fallback — the token
+  //     `<userId>:assessment-gen:<ts>` is full of colons and would otherwise be
+  //     misrouted to attendance, the exact bug that hit the exam generator,
+  //     observe, and training-msq before it.
+  if (responseJson.assessment_action !== undefined) {
+    return 'assessment_gen';
+  }
+
   // 1. Reading Assessment (highest priority - unique fields)
   const hasReadingFields = responseJson.screen_0_Student_Full_Name_0 ||
                            responseJson.screen_0_Select_the_reading_level_2 ||

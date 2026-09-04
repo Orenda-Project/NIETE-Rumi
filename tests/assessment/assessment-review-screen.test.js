@@ -164,7 +164,8 @@ describe('submitting', () => {
     const res = await exchange('user-1', 'KEEP',
       { keep, page: '0', _action: 'done' }, REVIEW_TOKEN);
 
-    expect(res.screen).toBe('SUBMITTED');
+    // The Flow closes rather than showing a screen; the ack rides the payload.
+    expect(res.data.extension_message_response.params.assessment_action).toBe('rebuilt');
     const sent = mockRerender.mock.calls[0][0];
     expect(sent.paperId).toBe('paper-1');
     expect(sent.userId).toBe('user-1');
@@ -192,10 +193,9 @@ describe('submitting', () => {
     const res = await exchange('user-1', 'KEEP',
       { keep: ITEMS.slice(0, 20).map((q) => q.id), page: '0', _action: 'done' }, REVIEW_TOKEN);
 
-    // The terminal screen is shared between success and failure, so all three
-    // lines must be data — a half-bound screen once showed a success heading
-    // above a failure message.
-    expect(res.screen).toBe('SUBMITTED');
-    expect(res.data.heading).not.toMatch(/ready|making/i);
+    // A failure closes the Flow too, tagged so the chat ack says the right
+    // thing — she is never left on a screen holding an error she cannot act on.
+    expect(res.data.extension_message_response.params.assessment_action)
+      .toBe('rebuild_failed');
   });
 });

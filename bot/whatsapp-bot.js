@@ -1837,6 +1837,19 @@ app.post('/webhook', async (req, res) => {
         } catch (statusAckErr) {
           logToFile('❌ status completion handler failed', { from, error: statusAckErr.message }, 'error');
         }
+      } else if (flowType === 'assessment_gen') {
+        // The assessment Flow CLOSES on submit rather than ending on a screen,
+        // so the "making your paper" line she used to read there arrives here
+        // as a message. Without this branch the completion falls to the
+        // catch-all below and she is told "Type /menu" — the bd-1249 failure.
+        logToFile('📝 Detected assessment flow submission', {
+          from, action: responseJson.assessment_action,
+        });
+        try {
+          await FlowResponseHandler.handleAssessmentFlowCompletion(responseJson, from, user);
+        } catch (ackErr) {
+          logToFile('❌ assessment completion handler failed', { from, error: ackErr.message }, 'error');
+        }
       } else {
         // Unknown flow type
         logToFile('⚠️ Received unknown flow submission', {
