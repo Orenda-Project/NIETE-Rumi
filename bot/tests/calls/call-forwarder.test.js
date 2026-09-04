@@ -132,6 +132,32 @@ describe('call-forwarder — delivery', () => {
     await expect(forwarder.forwardCallEvents(payload)).resolves.toBeUndefined();
   });
 
+  test('a calls service that accepts the socket and never answers is abandoned', async () => {
+    // bd-vrbk4.2. The forward is fire-and-forget, so a hung calls service cannot
+    // cost us the webhook 200 today. What it CAN do is leave one pending promise
+    // and one open socket per call event for as long as the service stays hung.
+    // A deadline turns an unbounded leak into a logged 3-second failure.
+    fetchMock.mockImplementation((_url, init) => new Promise((_resolve, reject) => {
+      if (init && init.signal) {
+        init.signal.addEventListener('abort', () => {
+          const err = new Error('This operation was aborted');
+          err.name = 'AbortError';
+          reject(err);
+        });
+      }
+    }));
+
+    await expect(forwarder.forwardCallEvents(payload)).resolves.toBeUndefined();
+    expect(fetchMock.mock.calls[0][1].signal).toBeDefined();
+  }, 10000);
+
+  test('the deadline is passed to fetch as an abort signal, not left to the default', async () => {
+    await forwarder.forwardCallEvents(payload);
+    const { signal } = fetchMock.mock.calls[0][1];
+    expect(signal).toBeInstanceOf(AbortSignal);
+    expect(signal.aborted).toBe(false);
+  });
+
   test('a trailing slash on the service URL does not double up the path', async () => {
     process.env.CALLS_SERVICE_URL = 'http://calls.railway.internal:8080/';
     jest.resetModules();
