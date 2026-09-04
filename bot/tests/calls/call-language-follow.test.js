@@ -116,3 +116,30 @@ describe('the session honours the configured language set', () => {
     expect(realtime._opts.outputMode).toBe('audio');
   });
 });
+
+describe('one Rumi voice — the calls voice defaults to the product voice', () => {
+  const { getCallsConfig } = require('../../shared/calls/calls-config');
+
+  afterEach(() => {
+    delete process.env.UPLIFT_VOICE_ID;
+    delete process.env.UPLIFT_VOICE_ID_UR;
+  });
+
+  test('with nothing set, calls use the same Urdu voice as voice notes', () => {
+    // constants.js already speaks Sindhi/Balochi voice notes through Uplift and
+    // uses v_8eelc901 for Urdu. A teacher should hear ONE Rumi whether she plays
+    // a voice note or rings up, so the two must not drift apart by default.
+    expect(getCallsConfig().uplift.voiceId).toBe('v_8eelc901');
+  });
+
+  test('the product-wide Urdu voice is honoured when it is configured', () => {
+    process.env.UPLIFT_VOICE_ID_UR = 'v_product';
+    expect(getCallsConfig().uplift.voiceId).toBe('v_product');
+  });
+
+  test('UPLIFT_VOICE_ID gives calls a different voice when that is wanted', () => {
+    process.env.UPLIFT_VOICE_ID_UR = 'v_product';
+    process.env.UPLIFT_VOICE_ID = 'v_meklc281';
+    expect(getCallsConfig().uplift.voiceId).toBe('v_meklc281');
+  });
+});

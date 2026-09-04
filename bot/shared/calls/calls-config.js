@@ -44,7 +44,12 @@ const DEFAULTS = {
   // Selection is also not final: if Uplift is selected but cannot connect, that
   // CALL falls back to the OpenAI voice — see call-session.
   voiceProvider: 'openai',
-  upliftVoiceId: 'v_meklc281',                 // Urdu female; override per env
+  // The product ALREADY speaks with Uplift: `constants.js` uses it for Sindhi and
+  // Balochi voice notes, with UPLIFT_VOICE_ID_UR ('v_8eelc901') as its Urdu voice.
+  // Calls default to that same voice so a teacher hears one Rumi whether she plays
+  // a voice note or rings up. UPLIFT_VOICE_ID overrides it for calls only — e.g.
+  // 'v_meklc281', the conversational voice the calls prototype used.
+  upliftVoiceId: 'v_8eelc901',
   upliftWsUrl: 'wss://api.upliftai.org/text-to-speech/multi-stream',
   // Which call languages the external voice may speak. Urdu only by default —
   // Uplift models Urdu/Sindhi/Balochi. This is a LIST rather than an `if`
@@ -118,7 +123,10 @@ function getCallsConfig() {
     voiceProvider: String(process.env.VOICE_PROVIDER || DEFAULTS.voiceProvider).toLowerCase(),
     uplift: {
       apiKey: process.env.UPLIFT_API_KEY || '',
-      voiceId: process.env.UPLIFT_VOICE_ID || DEFAULTS.upliftVoiceId,
+      // calls-specific override → the product-wide Urdu voice → the shared default.
+      voiceId: process.env.UPLIFT_VOICE_ID
+        || process.env.UPLIFT_VOICE_ID_UR
+        || DEFAULTS.upliftVoiceId,
       wsUrl: process.env.UPLIFT_WS_URL || DEFAULTS.upliftWsUrl,
       languages: parseLanguages(process.env.UPLIFT_LANGUAGES, DEFAULTS.upliftLanguages),
     },
