@@ -28,7 +28,10 @@
 
 const UPLIFT_RATE = 22050;
 const DEFAULT_WS_URL = 'wss://api.upliftai.org/text-to-speech/multi-stream';
-const DEFAULT_VOICE_ID = 'v_meklc281'; // Urdu female; override with UPLIFT_VOICE_ID
+// The product's existing Urdu Uplift voice (see shared/utils/constants.js, which
+// already uses Uplift for Sindhi and Balochi voice notes). calls-config resolves
+// the real value; this is only the floor for a directly-constructed session.
+const DEFAULT_VOICE_ID = 'v_8eelc901';
 const CONNECT_TIMEOUT_MS = 5000;
 const MAX_TEXT_CHARS = 10000; // documented hard limit; over it the request errors
 
