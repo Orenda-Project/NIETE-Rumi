@@ -168,4 +168,87 @@ async function fetchPages({ bookStem, pages, correlationId } = {}) {
   return { book: bookRaw, toc: tocRaw, pages: out };
 }
 
-module.exports = { fetchPages, MAX_SEGMENT_PAGES };
+// ── book crops (bd-17mht) ────────────────────────────────────────────────────
+// The diagram plan names a book figure by `ref` = "<book_stem>/<page>_f<k>".
+// The renderer inlines it from `<outDir>/<ref>.jpg` (template.js), so these two
+// helpers put the file where the renderer looks. They run AFTER the authoring
+// LLM call, which takes minutes, so one or two small downloads cost nothing on
+// the critical path.
+
+/** A ref is exactly "<book>/<file>" — no traversal, no absolute paths. */
+const REF_RX = /^[A-Za-z0-9_][A-Za-z0-9_-]*\/[A-Za-z0-9_][A-Za-z0-9_-]*$/;
+
+/** Every distinct, well-formed textbook_figure ref in an lp_doc. */
+function refsFromDoc(doc) {
+  const out = new Set();
+  const walk = (node) => {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    if (node.type === 'textbook_figure' && typeof node.ref === 'string') {
+      // A malformed or traversing ref is dropped, not fetched. The page then
+      // degrades to the book-reference card, which is the designed fallback.
+      if (REF_RX.test(node.ref)) out.add(node.ref);
+    }
+    for (const v of Object.values(node)) walk(v);
+  };
+  walk(doc);
+  return [...out];
+}
+
+/** R2 key for a crop ref. Mirrors build_plan.py's r2_key() and the uploader. */
+function figureKeyFor(ref) {
+  const i = ref.indexOf('/');
+  return `${R2_PREFIX}/${ref.slice(0, i)}/figures/${ref.slice(i + 1)}.jpg`;
+}
+
+/**
+ * Download the named crops into `outDir` as `<ref>.jpg`.
+ * Never throws for a missing crop — a lesson without its picture still ships.
+ * @returns {Promise<{staged: string[], missing: string[]}>}
+ */
+async function stageFigures({ refs = [], outDir, correlationId } = {}) {
+  const staged = [];
+  const missing = [];
+  if (!refs.length) return { staged, missing };
+
+  const localDir = process.env.LP612_PAGE_TRUTH_DIR || null;
+  const { downloadFromR2 } = localDir ? {} : require('../storage/r2');
+
+  await Promise.all(
+    refs.map(async (ref) => {
+      const dest = path.join(outDir, `${ref}.jpg`);
+      try {
+        let buf;
+        if (localDir) {
+          const i = ref.indexOf('/');
+          const src = path.join(
+            localDir, ref.slice(0, i), 'figures', `${ref.slice(i + 1)}.jpg`
+          );
+          if (!fs.existsSync(src)) throw new Error('not on disk');
+          buf = fs.readFileSync(src);
+        } else {
+          buf = await downloadFromR2(figureKeyFor(ref));
+        }
+        if (!buf || !buf.length) throw new Error('empty');
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.writeFileSync(dest, buf);
+        staged.push(ref);
+      } catch (_) {
+        missing.push(ref);
+      }
+    })
+  );
+
+  if (missing.length) {
+    logToFile(
+      `lp612.figures.missing correlationId=${correlationId || '-'} ` +
+        `missing=${missing.join(',')} staged=${staged.length}`
+    );
+  }
+  return { staged, missing };
+}
+
+module.exports = { fetchPages, MAX_SEGMENT_PAGES, refsFromDoc, stageFigures, figureKeyFor };

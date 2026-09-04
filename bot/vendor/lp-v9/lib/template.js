@@ -733,6 +733,16 @@ function makeBlockRenderer(ctx) {
       // src may be absent while the figure-locator pass has not yet cropped `ref` (L3 ask 6).
       // Fall back to the words, and SAY the crop is missing — never a silently blank box.
       let img = b.src ? dataUri(b.src, ctx.docDir) : null;
+      // bd-17mht: the diagram plan names a crop by `ref` and the worker stages
+      // it into the render dir as `<ref>.jpg`. Without this, `src` is never
+      // populated by anything in the codebase and EVERY book figure silently
+      // degraded to the text-only reference below.
+      // `ref` reaches us from LLM output, and dataUri() resolves against
+      // REPO_ROOT as well as docDir, so a `..` would escape the render dir —
+      // refuse anything that is not a plain book/page ref.
+      if (!img && typeof b.ref === "string" && /^[A-Za-z0-9_][A-Za-z0-9_\-./]*$/.test(b.ref) && !b.ref.includes("..")) {
+        img = dataUri(`${b.ref}.jpg`, ctx.docDir);
+      }
       if (img && /\.(jpe?g|png)$/i.test(img.path)) {
         const cleaned = cleanedFigure(img.path, ctx.warn);
         if (cleaned !== img.path) img = dataUri(cleaned, ctx.docDir);
