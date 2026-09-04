@@ -207,17 +207,33 @@ class ReportGeneratorService {
       let loop = null;
       if (isUptakeLoopEnabled() && String(enhancedAnalysis.framework || '').toLowerCase() === 'fico') {
         try {
-          const { loadPriorAction } = require('./coaching-trend.service');
+          const { loadPriorAction, loadRecentSectionBModes } = require('./coaching-trend.service');
           const { deriveUptakeStatus, nextTarget } = require('./uptake-loop.service');
           const prior = await loadPriorAction(session.user_id, { excludeSessionId: coachingSessionId });
+          // Section B is only coachable when it is the PROXY measurement. If her
+          // recent lessons all came with a plan, a fresh B target would sit
+          // bridged almost every time — prefer C/D/F for her.
+          //
+          // Its OWN try/catch on purpose: this is a preference, not an input. A
+          // failure here must degrade to "no preference", never fall through to
+          // the outer catch and silently switch the whole loop off.
+          let recentModes = [];
+          try {
+            recentModes = await loadRecentSectionBModes(session.user_id, { excludeSessionId: coachingSessionId });
+          } catch (modeErr) {
+            logToFile('[uptake-loop] section-B mode history unavailable — proceeding with no preference', {
+              coachingSessionId, error: modeErr.message,
+            });
+          }
           const status = deriveUptakeStatus(enhancedAnalysis.uptake, prior, enhancedAnalysis);
-          const state = nextTarget(prior, status, enhancedAnalysis);
+          const state = nextTarget(prior, status, enhancedAnalysis, { recentModes });
           loop = { prior, status, state };
           logToFile('[uptake-loop] carry step', {
             coachingSessionId,
             prior_session: prior && prior.session_id,
             prior_target: prior && prior.target && prior.target.indicator,
             uptake_status: status,
+            section_b_modes: recentModes.join(',') || 'none',
             next_target: state.target && state.target.indicator,
             attempt: state.attempt,
             angle: state.angle,
