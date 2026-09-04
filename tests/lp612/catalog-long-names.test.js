@@ -126,14 +126,19 @@ describe("the operator's grade 9 Physics rows keep their whole name", () => {
 // ── 2. merge when it fits, reseat when it does not ──────────────────────────
 
 describe('a short name stays on the title line', () => {
-  test('"KINEMATICS" merges into the title and needs no metadata line', async () => {
+  // SUPERSEDED BY bd-tnvpg. This used to assert the opposite: that a short name
+  // merges into the title and emits no metadata line. That is exactly the
+  // length-conditional layout the operator called broken — "some chapters have
+  // their menu in the smaller subtitle field, some in the upper field" — so the
+  // short name now goes where every other name goes. The assertion is kept,
+  // inverted, so nothing quietly reintroduces the special case.
+  test('"KINEMATICS" is short enough to merge, and deliberately does NOT', async () => {
     mockRows = [seg({ chapter_number: 2, chapter_key: 'c02', chapter_title: 'KINEMATICS' })];
     const mc = only((await Catalog.buildChapterItems(9, 'Physics')).items);
 
-    expect(mc.title).toContain('KINEMATICS');
+    expect(mc.title).toBe('Ch 2');
+    expect(mc.metadata).toBe('KINEMATICS');
     expect(cps(mc.title)).toBeLessThanOrEqual(TITLE_CAP);
-    // No echo: the name is on the row exactly once.
-    expect(mc.metadata || '').not.toContain('KINEMATICS');
   });
 });
 
@@ -245,7 +250,14 @@ describe('parts keep reseated titles distinct', () => {
 // differently. A number-only title is only usable when the number identifies
 // the chapter, and in this corpus that is a property of the data, not a given.
 
-describe('a repeated chapter number never reduces two rows to one title', () => {
+// REVISED BY bd-tnvpg. These two books still matter, but what they must prove
+// changed. Uniqueness used to come from putting the name back in the TITLE,
+// which is the length-conditional layout the operator rejected. Every row now
+// renders its name on the metadata line, so two chapter 1s DO share a title —
+// and are told apart on the line every row has, rather than on whichever field
+// that particular row happened to use.
+
+describe('a repeated chapter number is still tellable apart, on the name line', () => {
   test('grade 11 Urdu keeps its parts in the chapter_key, not the part column', async () => {
     // p1c01 / p2c01 / p3c01 — three chapter 1s, `part` NULL on all three.
     mockRows = [
@@ -257,9 +269,13 @@ describe('a repeated chapter number never reduces two rows to one title', () => 
         part: null, chapter_title: 'پیا باج نہ آوے چین (غزل) — میر تقی میر' }),
     ];
     const { items } = await Catalog.buildChapterItems(11, 'Urdu');
-    const titles = items.map((i) => i['main-content'].title);
-    expect(titles).toHaveLength(3);
-    expect(new Set(titles).size).toBe(3);
+    expect(items).toHaveLength(3);
+    // Same title by design — the number is the title now.
+    expect(new Set(items.map((i) => i['main-content'].title)).size).toBe(1);
+    // Distinguished, in full, on the line all three share.
+    const names = items.map((i) => i['main-content'].metadata);
+    expect(new Set(names).size).toBe(3);
+    for (const n of names) expect(n).not.toContain('\u2026');
   });
 
   test('grade 6 English splits chapter 1 into c01a and c01b', async () => {
@@ -270,8 +286,11 @@ describe('a repeated chapter number never reduces two rows to one title', () => 
         chapter_title: 'Dedicated to Humanity (Abdul Sattar Edhi / Mother Teresa / Helen Keller)' }),
     ];
     const { items } = await Catalog.buildChapterItems(6, 'English');
-    const titles = items.map((i) => i['main-content'].title);
-    expect(new Set(titles).size).toBe(2);
+    expect(items).toHaveLength(2);
+    // Both are "Ch 1"; the biography and the Edhi chapter are told apart by the
+    // names, which every row now renders (bd-tnvpg).
+    expect(new Set(items.map((i) => i['main-content'].title)).size).toBe(1);
+    expect(new Set(items.map((i) => i['main-content'].metadata)).size).toBe(2);
   });
 
   test('a collided row still carries its full name on the metadata line', async () => {

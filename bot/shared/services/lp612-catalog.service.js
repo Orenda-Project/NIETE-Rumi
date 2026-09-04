@@ -197,38 +197,48 @@ async function buildChapterItems(grade, subject, page = 1) {
   const ordered = [...byChapter.entries()]
     .sort((a, b) => (a[1].number ?? 999) - (b[1].number ?? 999) || a[0].localeCompare(b[0]));
 
-  // ── pass 1: the number token, and how many chapters would share it ────────
+  // ── pass 1: one shape for every row ──────────────────────────────────────
   //
-  // The K-5 lane's rule, ported (lp-v8-catalog.service.js buildChapterItems):
-  // the number leads the title, the name merges in only when the WHOLE thing
-  // fits, and a name that does not fit moves IN FULL to the 80-code-point
-  // metadata line. Nothing is lost, only reseated.
+  // ONE FORMAT, EVERY CHAPTER, EVERY BOOK. The chapter NUMBER is the title, the
+  // lesson count is the description, and the chapter NAME is always on the
+  // metadata line — never sometimes here and sometimes there.
   //
-  // This lane used to put number+name on the 30-point title line and emit no
-  // metadata at all, so the overflow was dropped rather than moved: 277 of 761
-  // chapters in the staging corpus rendered with an ellipsis and no second home
-  // for the missing words, including 16 of the 19 chapters in grade 9 Urdu
-  // (bd-3uiev).
+  // This replaces the K-5 reseat rule that was ported in bd-3uiev (name merges
+  // into the title when it fits, moves to metadata when it does not). That rule
+  // loses nothing, and it still shipped a menu the operator called broken:
   //
-  // Reseating to a number alone needs that number to IDENTIFY the chapter, and
-  // in this corpus it does not always. Three different books shape it three
-  // ways: grade 12 Urdu carries its part in the `part` column; grade 11 Urdu
-  // carries the same idea only in the chapter_key prefix (p1c01/p2c01/p3c01)
-  // with `part` NULL; grade 6 English splits one chapter into c01a/c01b. All
-  // three produce repeated chapter numbers, so the token is counted first and
-  // a chapter that cannot be named by its number keeps its words instead.
+  //   "it is inconsistent. Some chapters have their menu in the smaller
+  //    subtitle field, some in the upper field. All of them need to have it in
+  //    the consistent format so it fits chapter name and looks coherent too."
+  //
+  // He is right, and the reason is worth keeping: length is a property of the
+  // DATA, so a length-conditional layout makes the design of the row depend on
+  // which book a teacher opened. Grade 9 Physics then reads as two lists
+  // stapled together — `Ch 2 — KINEMATICS` in bold beside a bare `Ch 1` whose
+  // name is in small grey text. Nothing is missing; it just looks broken.
+  //
+  // Which field the name goes in is decided by the caps, not by taste: title is
+  // 30 code points and description is 20, and 277 of 761 chapter names in this
+  // corpus exceed 30. Metadata's 80 is the only field that holds a real chapter
+  // name, so metadata is where the name lives — for the 4-character ones too.
+  //
+  // A consequence, accepted deliberately: books that repeat a chapter number
+  // (grade 11 Urdu's p1c01/p2c01/p3c01, grade 6 English's c01a/c01b) now show
+  // the same title twice or three times. That is fine BECAUSE the name is
+  // always rendered — every row is told apart on the same line, rather than by
+  // whichever field that particular row happened to use. Uniqueness moved to a
+  // consistent place; it did not disappear.
   const prepared = ordered.map(([chapterKey, e]) => {
     const n = (v) => (e.rtl ? urD(v) : String(v));
     const lead = e.rtl ? RLM : '';
     const name = e.title || chapterKey;
     const num = e.number != null ? (e.rtl ? `باب ${n(e.number)}` : `Ch ${e.number}`) : '';
+    // The part rides with the number so a part-split book still labels its
+    // sections. Both sides of this dot are words, so it is clear of the
+    // Nastaliq digit-adjacency hazard handled in buildSegmentItems (bd-t8mbl).
     const token = [e.part, num].filter(Boolean).join(' · ');
-    const merged = token ? `${token}${e.rtl ? ': ' : ' — '}${name}` : name;
-    return { chapterKey, e, n, lead, name, token, merged, fits: cps(`${lead}${merged}`) <= TITLE_CAP };
+    return { chapterKey, e, n, lead, name, token };
   });
-
-  const tokenUses = new Map();
-  for (const p of prepared) if (p.token) tokenUses.set(p.token, (tokenUses.get(p.token) || 0) + 1);
 
   // ── pagination window (AFTER the naming pass — see above) ────────────────
   const total = prepared.length;
@@ -239,27 +249,23 @@ async function buildChapterItems(grade, subject, page = 1) {
   const hasMore = start + perPage < total;
 
   // ── pass 2: the rows ─────────────────────────────────────────────────────
-  const items = pageSlice.map(({ chapterKey, e, n, lead, name, token, merged, fits }) => {
-    // A number that names exactly one chapter in this book can carry the title
-    // on its own — the cleanest row, and the name appears once, whole, below.
-    // A number that names three cannot: `باب ۱` three times over is a list the
-    // teacher cannot choose from, so those rows keep as many of their own words
-    // as fit. The ellipsis is then cosmetic rather than lossy, because the full
-    // name is on the metadata line either way.
-    const canStandAlone = !!token && tokenUses.get(token) === 1;
-    const head = fits ? merged : (canStandAlone ? token : (merged || name));
-
+  const items = pageSlice.map(({ chapterKey, e, n, lead, name, token }) => {
+    // Every row, identically: number / count / name. A book with no chapter
+    // number at all has nothing to put in the title, so it falls back to the
+    // name there — the name still also appears on its own line, so the row
+    // keeps the same shape as its siblings rather than gaining a field they
+    // lack. (No book in the corpus is numberless today; this is the guard.)
     const mc = {
-      title: clip(`${lead}${head}`, TITLE_CAP),
+      title: clip(`${lead}${token || name}`, TITLE_CAP),
       // Urdu rows get Urdu furniture, matching the K-5 builder's `اسباق`. A
       // localised digit beside an English noun is worse than either alone: in a
       // right-to-left row the English word lands FIRST, so `۶ lessons` reads as
       // "lessons ۶" on the handset (bd-t8mbl).
       description: clip(e.rtl ? `${lead}${n(e.lessons)} اسباق` : `${e.lessons} lessons`, DESC_CAP),
+      // ALWAYS. Not "when it did not fit above" — that conditional is the whole
+      // bug this row shape exists to remove (bd-tnvpg).
+      metadata: clip(`${lead}${name}`, META_CAP),
     };
-    // The part, when there is one, already led the title; repeating it here
-    // would spend the metadata line on words the teacher has just read.
-    if (!fits) mc.metadata = clip(`${lead}${name}`, META_CAP);
 
     return {
       id: chapterKey,
