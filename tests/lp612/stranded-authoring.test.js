@@ -22,6 +22,15 @@
  *
  * And per rule 24(d), a stranded run gets its OWN user-facing sentence. One shared fallback
  * across distinct states is how a whole fix cycle gets aimed at the wrong layer.
+ *
+ * CORRECTED 2026-09-04 (bd-dr216 / bd-w36m5). The recovery above was right; the CLOCK it read was
+ * wrong. These fixtures used to age a row on `started_at`, which this table stamps at ENQUEUE — so
+ * the reaper condemned jobs that were still waiting in the queue, unattempted, and jobs a worker
+ * was legitimately still authoring inside a valid SQS visibility window. Every fixture here now
+ * carries `picked_up_at`, and the threshold is derived from the service rather than written out,
+ * because it is the SQS envelope (heartbeat ceiling + one visibility window + grace) and not the
+ * job's own timeout. `render-lifecycle-honesty.test.js` holds the tests for the queued case that
+ * this file's old fixtures could not distinguish.
  */
 
 const mockSendMessage = jest.fn();
@@ -56,6 +65,9 @@ function mockBuilder(table) {
     eq: (c, v) => { state.filters.push([c, v]); return b; },
     lt: (c, v) => { state.filters.push(['lt:' + c, v]); return b; },
     in: (c, v) => { state.filters.push([c, v]); return b; },
+    // The sweep now reads every `authoring` row under a scan cap and classifies in JS, so that the
+    // tap path and the reaper cannot hold two different definitions of "corpse" (bd-w36m5).
+    limit: (n) => { state.filters.push(['limit', n]); return b; },
     single: settle, maybeSingle: settle,
     then: (res, rej) => settle().then(res, rej),
   };
@@ -81,6 +93,8 @@ const SEGMENT = {
 const REQ = { userId: 'u1', phone: '923001234567', lang: 'en', correlationId: 'c1' };
 
 const agoMs = (ms) => new Date(Date.now() - ms).toISOString();
+/** A pickup old enough that the SQS envelope holding the message has demonstrably expired. */
+const strandedPickup = () => agoMs(Serving.reapAfterPickupMs() + 60 * 1000);
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -98,23 +112,31 @@ describe('telling a live run from a corpse', () => {
     expect(isStrandedAuthoring({ status: 'authoring', started_at: agoMs(60 * 1000) })).toBe(false);
   });
 
-  test('a run past the timeout plus grace is STRANDED', () => {
-    expect(isStrandedAuthoring({ status: 'authoring', started_at: agoMs(30 * 60 * 1000) })).toBe(true);
+  test('a run past the whole SQS envelope is STRANDED', () => {
+    expect(isStrandedAuthoring({
+      status: 'authoring', started_at: agoMs(60 * 60 * 1000), picked_up_at: strandedPickup(),
+    })).toBe(true);
   });
 
   test('the grace period means we do not shoot a run that is merely slow', () => {
-    // The worker's own hard stop is 12 min. A row at 12m30s may still be finishing its upload,
-    // and killing it would author the same lesson twice at ~$0.60 a go.
-    expect(isStrandedAuthoring({ status: 'authoring', started_at: agoMs(12.5 * 60 * 1000) })).toBe(false);
+    // The worker's own hard stop is 12 min, but the heartbeat keeps re-extending visibility to 2x
+    // that and the last extension buys another 900s on top. A row at 12m30s may still be finishing
+    // its upload, and killing it would author the same lesson twice at ~$0.60 a go.
+    expect(isStrandedAuthoring({
+      status: 'authoring', started_at: agoMs(20 * 60 * 1000), picked_up_at: agoMs(12.5 * 60 * 1000),
+    })).toBe(false);
   });
 
   test('only `authoring` rows can be stranded', () => {
-    expect(isStrandedAuthoring({ status: 'ready', started_at: agoMs(60 * 60 * 1000) })).toBe(false);
-    expect(isStrandedAuthoring({ status: 'failed', started_at: agoMs(60 * 60 * 1000) })).toBe(false);
+    expect(isStrandedAuthoring({ status: 'ready', picked_up_at: strandedPickup() })).toBe(false);
+    expect(isStrandedAuthoring({ status: 'failed', picked_up_at: strandedPickup() })).toBe(false);
   });
 
-  test('a row with no started_at is not assumed dead', () => {
-    expect(isStrandedAuthoring({ status: 'authoring', started_at: null })).toBe(false);
+  test('a row nobody has picked up is not assumed dead, however old', () => {
+    // bd-dr216, stated as a discriminator: age in the QUEUE is not evidence of anything.
+    expect(isStrandedAuthoring({
+      status: 'authoring', started_at: agoMs(60 * 60 * 1000), picked_up_at: null,
+    })).toBe(false);
   });
 });
 
@@ -125,7 +147,8 @@ describe('a tap on a stranded run restarts it instead of joining it', () => {
     mockDbResults.push({
       data: {
         id: 'r1', status: 'authoring', r2_key: null, waiters: [{ user_id: 'someone-else' }],
-        error_code: null, started_at: agoMs(30 * 60 * 1000), one_screen: null,
+        error_code: null, started_at: agoMs(60 * 60 * 1000), picked_up_at: strandedPickup(),
+        one_screen: null,
       },
       error: null,
     });
@@ -146,7 +169,8 @@ describe('a tap on a stranded run restarts it instead of joining it', () => {
     mockDbResults.push({
       data: {
         id: 'r1', status: 'authoring', r2_key: null, waiters: [],
-        error_code: null, started_at: agoMs(30 * 60 * 1000), one_screen: null,
+        error_code: null, started_at: agoMs(60 * 60 * 1000), picked_up_at: strandedPickup(),
+        one_screen: null,
       },
       error: null,
     });
@@ -164,7 +188,8 @@ describe('a tap on a stranded run restarts it instead of joining it', () => {
     mockDbResults.push({
       data: {
         id: 'r1', status: 'authoring', r2_key: null, waiters: [],
-        error_code: null, started_at: agoMs(60 * 1000), one_screen: null,
+        error_code: null, started_at: agoMs(3 * 60 * 1000), picked_up_at: agoMs(60 * 1000),
+        one_screen: null,
       },
       error: null,
     });
@@ -181,7 +206,10 @@ describe('a tap on a stranded run restarts it instead of joining it', () => {
 describe('the reaper, for when nobody taps', () => {
   test('it transitions stranded rows to failed with a NAMED code', async () => {
     mockDbResults.push({
-      data: [{ id: 'r1', segment_id: 's1', started_at: agoMs(30 * 60 * 1000) }],
+      data: [{
+        id: 'r1', segment_id: 's1', started_at: agoMs(60 * 60 * 1000),
+        picked_up_at: strandedPickup(), updated_at: strandedPickup(),
+      }],
       error: null,
     });
     mockDbResults.push({ data: null, error: null });

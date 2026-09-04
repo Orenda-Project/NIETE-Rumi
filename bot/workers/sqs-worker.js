@@ -42,7 +42,7 @@ const VideoGenerationWorker = require('./video-generation.worker');
 const ExamGradingWorker = require('./exam-grading.worker');
 const { runSonioxCleanup } = require('../shared/services/soniox-cleanup.service');
 const { startVisibilityHeartbeat } = require('../shared/utils/sqs-visibility-heartbeat');
-const { authorTimeoutMs } = require('../shared/config/lp612-flags');
+const { heartbeatCeilingMs } = require('../shared/config/lp612-flags');
 const os = require('os');
 
 // Configuration
@@ -455,7 +455,7 @@ class SQSCoachingWorker {
           extend: (seconds) => SQSQueueService.extendJobTimeout(receiptHandle, seconds),
           intervalMs: 60 * 1000,
           extendSeconds: 900,
-          ceilingMs: authorTimeoutMs() * 2,
+          ceilingMs: heartbeatCeilingMs(), // bd-w36m5: shared with the reaper, see lp612-flags.js
           // No correlationId here: it's not a parameter of executeJob(), and logToFile already
           // pulls the current one from AsyncLocalStorage (set by runWithCorrelation in
           // processJob(), which wraps this whole call) — see shared/utils/logger.js.
