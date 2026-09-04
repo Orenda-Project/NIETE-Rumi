@@ -29,6 +29,8 @@ const path = require('path');
 
 const supabase = require('../shared/config/supabase');
 const { logToFile } = require('../shared/utils/logger');
+// Additive semantic-event channel (feature.action.result). Every prose line stays as it was.
+const { logEvent } = require('../shared/utils/structured-logger');
 const WhatsAppService = require('../shared/services/whatsapp.service');
 const { uploadBuffer } = require('../shared/storage/r2');
 const { resolveUx } = require('../shared/config/ux-strings');
@@ -36,7 +38,7 @@ const { authorLessonPlan } = require('../shared/services/lp612-author.service');
 const { renderLessonPlan } = require('../shared/services/lp612-render.service');
 const Serving = require('../shared/services/lp612-serving.service');
 const {
-  resolveAuthorModel, authorRounds, authorTimeoutMs, followupAfterMs,
+  resolveAuthorModel, authorTierFor, authorRounds, authorTimeoutMs, followupAfterMs,
 } = require('../shared/config/lp612-flags');
 const { familyForBook } = require('../shared/config/lp612-families');
 
@@ -176,7 +178,21 @@ async function tellAll(waiters, key, lang) {
  */
 const NO_RETRY_CODES = new Set(['PAGE_RANGE_TOO_LARGE', 'PAGE_TRUTH_TOO_LARGE']);
 
-async function fail(renderId, snapshot, lang, code, detail) {
+/**
+ * @param {string|null} [model] WHICH MODEL FAILED IT.
+ *
+ * On 2026-09-03 two rows sat at status='failed', error_code='AUTHOR_TIMEOUT', model_used NULL, and
+ * could not answer the one question they existed to answer: the maths/physics pilot routes some
+ * families to a different model by env alone (bd-u6za9), so "did the pilot time out, or sonnet?"
+ * is the whole point of a failed row. `model_used` was written only inside the SUCCESS patch,
+ * which is the one path that never needs it urgently.
+ *
+ * It is passed rather than re-resolved here: the worker already resolved it from the segment's
+ * family before the try block, and re-deriving it would re-read the env at a different moment and
+ * could name a model this run never used. `null` when the run died before a segment was loaded —
+ * there was no family, so there was no model, and a guess on the row would be worse than a NULL.
+ */
+async function fail(renderId, snapshot, lang, code, detail, model = null) {
   // Status FIRST, then claim. From the moment this write lands, `lp612_join_waiters` refuses the
   // row and a teacher mid-tap is re-decided by the serving path (a failed row is retried, which
   // is what she is owed) rather than being parked on a list about to be emptied.
@@ -184,6 +200,7 @@ async function fail(renderId, snapshot, lang, code, detail) {
     status: 'failed',
     error_code: code || 'UNKNOWN',
     error_detail: String(detail || '').slice(0, 2000),
+    ...(model ? { model_used: model } : {}),
     completed_at: nowIso(),
   });
   // The failure path needs the live list every bit as much as the success path: a teacher who
@@ -263,7 +280,18 @@ async function process(payload) {
   // reached. The maths/physics pilot was inert on staging (a Grade 9 physics
   // segment authored on sonnet) while the service-level tests were green, because
   // they called authorLessonPlan the way the worker does not: without a model.
-  const model = resolveAuthorModel(familyForBook(segment.book_stem));
+  const family = familyForBook(segment.book_stem);
+  const model = resolveAuthorModel(family);
+  // The harness the model runs on. Resolved HERE, beside the model, so a failed run reports the
+  // same (model, family, tier) triple a successful one does — authorLessonPlan returns all three,
+  // but a run that threw returns nothing at all.
+  //
+  // SWALLOWED ON PURPOSE. `authorTierFor` throws on a typo'd LP612_AUTHOR_TIER, deliberately, so
+  // that a mislabelled A/B cannot run. That throw belongs INSIDE the try below, where it becomes a
+  // failed row and a sentence to the teacher — which is where it happens today, via
+  // authorLessonPlan. Letting a telemetry line move it out here would turn a named failure into an
+  // unhandled rejection with no row written and nobody told.
+  const tier = (() => { try { return authorTierFor(model); } catch (_) { return null; } })();
   let tmpDir;
 
   try {
@@ -290,6 +318,13 @@ async function process(payload) {
             stem: `gate_${Date.now()}`,
             outDir: tmpDir,
             correlationId,
+            // `stem` is `gate_<ts>` here, so nothing in the render service could join this probe
+            // back to a lesson. `phase` is what separates a ladder probe from the document the
+            // teacher receives — without it the two are one undifferentiated stream and the
+            // gate-rejection rate is unmeasurable.
+            segmentId,
+            renderId,
+            phase: 'gate',
           });
           return [];
         } catch (e) {
@@ -307,6 +342,9 @@ async function process(payload) {
         stem: segmentId.replace(/[^A-Za-z0-9._-]/g, '_'),
         outDir: tmpDir,
         correlationId,
+        segmentId,
+        renderId,
+        phase: 'final',
       });
 
       return { authored, rendered };
@@ -426,6 +464,28 @@ async function process(payload) {
       correlationId,
     });
 
+    // The terminal event for the whole job. `authored.model/family/tier` are preferred over the
+    // worker's own because they are what the authoring run REPORTED using; the worker's are the
+    // floor for a document authored before the service returned them.
+    logEvent('lp612.deliver.completed', {
+      outcome: 'ready',
+      renderId,
+      segmentId,
+      lang,
+      templateVersion,
+      correlationId: correlationId || null,
+      model: authored.model || model,
+      family: authored.family || family,
+      tier: authored.tier || tier,
+      rounds: authored.rounds ?? null,
+      lintClean: authored.lintClean === true,
+      pageCount: rendered.pageCount ?? null,
+      overlayDropped,
+      delivered,
+      deliveryFailures,
+      elapsedMs: Date.now() - startedAt,
+    });
+
     return { status: 'ready', r2Key, delivered, deliveryFailures, elapsedMs: Date.now() - startedAt };
   } catch (err) {
     stopFollowup();
@@ -436,7 +496,24 @@ async function process(payload) {
       elapsedMs: Date.now() - startedAt,
       correlationId,
     });
-    return fail(renderId, snapshot, lang, err.code, err.message);
+    // The failure twin of the event above, carrying the SAME provenance triple. The row records
+    // model_used (see fail()); this records the family and the tier too, which the renders table
+    // has no columns for and which a pilot cannot be read without.
+    logEvent('lp612.deliver.failed', {
+      outcome: 'failed',
+      renderId,
+      segmentId,
+      lang,
+      templateVersion,
+      correlationId: correlationId || null,
+      model,
+      family,
+      tier,
+      errorCode: err.code || 'UNKNOWN',
+      error: err.message,
+      elapsedMs: Date.now() - startedAt,
+    });
+    return fail(renderId, snapshot, lang, err.code, err.message, model);
   } finally {
     stopFollowup();
     if (tmpDir) {

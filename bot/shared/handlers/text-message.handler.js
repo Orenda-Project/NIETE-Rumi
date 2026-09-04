@@ -394,6 +394,30 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     }
   }
 
+  // The 6-12 survey's reason window (bd-86ivw). Beside the K-5 one, and for the same reason it
+  // sits this early: an open window was opened by HER OWN 👎 tap thirty seconds ago, so the next
+  // message is an answer to "which part did not work?" and must not reach intent detection.
+  //
+  // It also has to beat the 6-12 EDIT router further down this function, which would otherwise
+  // read "the activity was too long" as an instruction to rewrite the lesson — spending a model
+  // call and changing her document when she was answering a question we asked her.
+  if (user?.id && messageBody) {
+    try {
+      const Lp612FeedbackService = require('../services/lp612-feedback.service');
+      const consumed = await Lp612FeedbackService.consumeReasonIfPending(user.id, from, messageBody);
+      if (consumed) {
+        logToFile('LP 6-12 feedback: reason captured, short-circuiting text handler', {
+          userId: user.id, from,
+        });
+        return;
+      }
+    } catch (lp612FbErr) {
+      logToFile('LP 6-12 feedback: consumeReasonIfPending error (non-fatal)', {
+        error: lp612FbErr.message, userId: user.id,
+      });
+    }
+  }
+
   // ============================================================
   // FEATURE-BASED REGISTRATION: Check if waiting for name
   // ============================================================

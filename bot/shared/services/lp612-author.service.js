@@ -31,6 +31,9 @@ const fs = require('fs');
 const path = require('path');
 
 const { logToFile } = require('../utils/logger');
+// Additive semantic-event channel (feature.action.result). The prose lines stay; this is the
+// name a query can count without a regex over a sentence somebody will improve one day.
+const { logEvent } = require('../utils/structured-logger');
 const { getClient } = require('./llm-client');
 const { fetchPages } = require('./lp612-pagetruth.service');
 const { clampLanguage } = require('../config/ux-strings');
@@ -987,6 +990,7 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
   // The subject family drives BOTH the model (the maths/physics pilot) and, on the
   // flash tier, which preamble the model is given. Derived from book_stem, which
   // niete_lp612_segments carries NOT NULL, so it never needs a second lookup.
+  const startedAt = Date.now();
   const family = familyForBook(segment.book_stem);
   const chosenModel = model || resolveAuthorModel(family);
   const tier = authorTierFor(chosenModel);
@@ -1111,6 +1115,23 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
     correlationId, segmentId: segment.segment_id, model: chosenModel,
     family, tier,
     rounds: spent, lintClean: fails.length === 0, fails: fails.slice(0, 10), usage,
+  });
+  logEvent('lp612.author.completed', {
+    correlationId: correlationId || null,
+    segmentId: segment.segment_id || null,
+    lang: language,
+    model: chosenModel,
+    family,
+    tier,
+    rounds: spent,
+    lintClean: fails.length === 0,
+    outcome: 'authored',
+    elapsedMs: Date.now() - startedAt,
+    // The count, not the strings: the strings are already in the prose line above, and a defect
+    // list on an event is a cardinality problem, not a metric.
+    failCount: fails.length,
+    tokens: usage.total_tokens,
+    calls: usage.calls,
   });
 
   return {

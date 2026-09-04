@@ -714,6 +714,16 @@ app.post('/webhook', async (req, res) => {
         return;
       }
 
+      // 6-12 lesson survey (bd-86ivw) — `lp612_fb_(yes|no)_(en|ur)_<segment_id>`, sent a short
+      // while after a 6-12 PDF lands. A SEPARATE prefix from `lp_feedback_` above because the
+      // lesson is identified by a text segment id, not a lesson_plans UUID, and that branch's
+      // regex would reject it. Registered here beside its siblings: an emitted prefix with no
+      // dispatcher falls through to generic text handling and the tap is silently lost.
+      if (buttonId.startsWith('lp612_fb_')) {
+        const Lp612FeedbackService = require('./shared/services/lp612-feedback.service');
+        if (await Lp612FeedbackService.handleFeedbackButton(buttonId, from)) return;
+      }
+
       // LP usage follow-up (bd-vw0aj) — the 👍 path when a voice note was delivered.
       // `lp_used_(taught|planned|not_yet)_<uuid>`. An unregistered prefix falls through to
       // generic text handling and the tap is silently lost, so this must stay beside the

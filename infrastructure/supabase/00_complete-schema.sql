@@ -5215,3 +5215,41 @@ COMMENT ON COLUMN assessment_papers.selected_question_ids IS
   '[] = she unticked every one.';
 COMMENT ON COLUMN assessment_papers.error_detail IS
   'Internal. Never write a name, phone number or CNIC here.';
+
+-- =============================================================================
+-- lp_feedback: the 6-12 lane's lesson identity (migration V1.3.5)
+--
+-- HERE, at the end, and not inside the `lp_feedback` table definition several
+-- thousand lines above: the foreign key points at `niete_lp612_segments`, which
+-- is declared later in this file. Adding it to the table body would make a fresh
+-- `npm run bootstrap:db` fail on a table that does not exist yet.
+-- (Wording note: this comment deliberately avoids the two-word DDL phrase — the
+--  schema-production-parity guard greps the whole file for it, prose included.)
+--
+-- Anti-sprawl (rule 15): ONE nullable column on a table that already holds
+-- exactly this shape, rather than a second feedback table. The full list of what
+-- was ruled out lives in the migration:
+-- infrastructure/supabase/migrations/V1.3.5__lp612_teacher_feedback.sql
+--
+-- This block is the reason bd-pfest existed: a column that ships only in a
+-- migration is invisible to bootstrap, and a fresh clone then runs code that
+-- inserts a column its database has never heard of.
+-- =============================================================================
+
+ALTER TABLE lp_feedback
+  ADD COLUMN IF NOT EXISTS lp612_segment_id TEXT
+  REFERENCES niete_lp612_segments(segment_id) ON DELETE SET NULL;
+
+COMMENT ON COLUMN lp_feedback.lp612_segment_id IS
+  'The 6-12 lesson this verdict is about (niete_lp612_segments.segment_id). NULL for every K-5 '
+  'row, where lesson_plan_id carries the identity instead. Set together with '
+  'lp_variant = ''lp612_en'' | ''lp612_ur'', which is the lane + document-language discriminator.';
+
+CREATE INDEX IF NOT EXISTS idx_lp_feedback_lp612_segment
+  ON lp_feedback (lp612_segment_id, created_at DESC)
+  WHERE lp612_segment_id IS NOT NULL;
+
+-- And the cache reload LAST, per infrastructure/CLAUDE.md: the NOTIFY several hundred lines above
+-- predates this DDL, so without one here a fresh bootstrap would create the column and leave
+-- PostgREST unable to see it — which is a 400 on the first insert, not an obvious schema error.
+NOTIFY pgrst, 'reload schema';

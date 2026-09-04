@@ -40,6 +40,8 @@
 
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
+// Additive semantic-event channel (feature.action.result) — see the tap event in serveLp612().
+const { logEvent } = require('../utils/structured-logger');
 const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
 const WhatsAppService = require('../services/whatsapp.service');
 const OxbridgeLpService = require('../services/oxbridge-lp.service');
@@ -868,13 +870,33 @@ async function serveLp612Segment(flowToken, d) {
 /** The one fire-and-forget hand-off to serving — shared by the flag-off tap
  *  and the language-row tap, so the two paths cannot drift. */
 function serveLp612(segmentId, userId, who, lang) {
+  const correlationId = `lp612:${segmentId}:${userId}`;
+
+  // THE FIRST EVENT IN THE LANE, and the only place the tap itself is observable. Everything
+  // after this point is asynchronous and reports from serving or the worker, so without it a
+  // request that never reached serving at all — a throw inside the hand-off, a promise dropped —
+  // leaves no trace that a teacher ever asked. It sits here rather than in the two callers for
+  // the reason the comment above gives: two copies of one hand-off is how they drift apart.
+  //
+  // No renderId, model, family or tier: none of them EXISTS yet at a tap (the render row is
+  // claimed inside requestLesson, and the model is resolved in the worker from the segment's
+  // book). Emitting them as nulls here would put four permanently-empty fields on the highest-
+  // volume event in the lane. `correlationId` is what joins this to the rows that do carry them.
+  logEvent('lp612.tap.received', {
+    segmentId,
+    userId,
+    lang: clampLanguage(lang),
+    uiLang: clampLanguage(who && who.preferred_language),
+    correlationId,
+  });
+
   Promise.resolve(Lp612Serving.requestLesson({
     segmentId,
     userId,
     phone: who.phone_number,
     lang,
     uiLang: who.preferred_language,
-    correlationId: `lp612:${segmentId}:${userId}`,
+    correlationId,
   })).catch((err) => logToFile('LP 6-12: serving threw', {
     segmentId, userId, error: err.message,
   }));
