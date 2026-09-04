@@ -47,7 +47,7 @@ async function logCallStart({
 
 /** Close the row: duration, status, final transcript, cost. */
 async function logCallEnd({
-  waCallId, durationSeconds, status, transcript, model, endedAt,
+  waCallId, durationSeconds, status, transcript, model, endedAt, voice,
 }) {
   try {
     const patch = {
@@ -57,6 +57,10 @@ async function logCallEnd({
       cost_estimate: estimateCallCost({ durationSeconds, model }),
     };
     if (transcript) patch.transcript = transcript;
+    // Only when known. The row already carries the configured voice from
+    // logCallStart; overwriting it with undefined would trade a stale value for
+    // no value, which is worse.
+    if (voice) patch.voice = voice;
 
     const { error } = await supabase.from('calls').update(patch).eq('wa_call_id', waCallId);
     if (error) throw new Error(error.message);

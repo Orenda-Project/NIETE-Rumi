@@ -179,6 +179,10 @@ class CallEngine {
 
     // Read the transcript BEFORE closing — teardown clears session state.
     const transcript = session && session.getTranscript ? session.getTranscript() : undefined;
+    // Same reason, and the same window: which voice actually spoke is session
+    // state, and the audit row is closed from out here where the session is
+    // already gone.
+    const voiceUsed = session && session.getVoiceUsed ? session.getVoiceUsed() : undefined;
     const from = (session && session.ctx && session.ctx.from) || call.from;
 
     if (session) {
@@ -197,6 +201,7 @@ class CallEngine {
           durationSeconds: call.duration,
           status: call.status,
           transcript,
+          voiceUsed,
         });
       } catch (err) {
         this.log.warn('[calls] end hook failed', { callId, error: err.message });

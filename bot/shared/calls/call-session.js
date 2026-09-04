@@ -132,12 +132,24 @@ class CallSession {
     this._textBuf = '';          // text deltas accumulating until a sentence is ready
     this._responseText = '';     // the whole reply, for the transcript
     this._speechStoppedAt = 0;   // latency clock; on this path first audio is Uplift's
+    this._voiceUsed = null;      // set once the engine is settled; null = OpenAI voice
     this._transcript = [];
     this._closed = false;
     this._lastActivityAt = Date.now();
     this._watchdog = null;
     this._wrapUpTimer = null;
     this._capTimer = null;
+  }
+
+  /**
+   * Which voice engine actually spoke, or null for the OpenAI voice.
+   *
+   * Null rather than the OpenAI voice NAME on purpose: this class does not own
+   * that name (it lives in calls-config), and inventing it here would be a second
+   * source of truth for the same fact. The caller substitutes config.voice.
+   */
+  getVoiceUsed() {
+    return this._voiceUsed;
   }
 
   /** Ordered transcript of the call, both roles, each line timestamped. */
@@ -198,6 +210,9 @@ class CallSession {
 
     // Settle the voice engine now that the caller's language is known.
     const useUplift = await this._settleVoice({ ttsConnect, language });
+    // Record it BEFORE anything can fail below: the audit row's whole purpose is
+    // answering "what actually happened on this call".
+    this._voiceUsed = useUplift ? 'uplift' : null;
     if (useUplift) {
       this._ttsResampler = new StreamResampler(UPLIFT_RATE, WHATSAPP_RATE);
       instructions = `${instructions}\n\n${UPLIFT_URDU_OUTPUT_DIRECTIVE}`;
