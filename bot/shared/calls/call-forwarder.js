@@ -17,6 +17,9 @@
 const crypto = require('crypto');
 const { logToFile } = require('../utils/logger');
 
+/** How long we wait on the calls service before abandoning a forward. */
+const FORWARD_TIMEOUT_MS = Number(process.env.CALLS_FORWARD_TIMEOUT_MS) || 3000;
+
 /**
  * Pull call events out of a webhook body.
  * @returns {{calls: Array, contacts: Array, metadata: object}|null} null when
@@ -60,6 +63,12 @@ async function forwardCallEvents(payload) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-calls-secret': secret },
       body: JSON.stringify(payload),
+      // A hung calls service — socket accepted, no response — cannot cost us the
+      // webhook 200 (this is a void call), but without a deadline it leaves one
+      // pending promise and one open socket per call event for as long as it
+      // stays hung. Meta's own call-event window is far shorter than this, so a
+      // forward still in flight at 3s has already missed the call it was for.
+      signal: AbortSignal.timeout(FORWARD_TIMEOUT_MS),
     });
     if (!res.ok) {
       logToFile('[calls] forward returned non-2xx', { status: res.status, callCount: payload.calls.length });
@@ -67,7 +76,14 @@ async function forwardCallEvents(payload) {
   } catch (err) {
     // The calls service being down must not cost us the webhook 200 — Meta
     // retries webhooks, and a retry storm on messages would be far worse.
-    logToFile('[calls] forward failed', { error: err.message, callCount: payload.calls.length });
+    // A timeout is logged distinctly: "the service is unreachable" and "the
+    // service accepted my socket and went quiet" are different outages.
+    const timedOut = err.name === 'TimeoutError' || err.name === 'AbortError';
+    logToFile(timedOut ? '[calls] forward timed out' : '[calls] forward failed', {
+      error: err.message,
+      timeoutMs: timedOut ? FORWARD_TIMEOUT_MS : undefined,
+      callCount: payload.calls.length,
+    });
   }
   return undefined;
 }
@@ -84,4 +100,6 @@ function verifyForwardSecret(expected, provided) {
   return crypto.timingSafeEqual(a, b);
 }
 
-module.exports = { extractCallEvents, forwardCallEvents, verifyForwardSecret };
+module.exports = {
+  extractCallEvents, forwardCallEvents, verifyForwardSecret, FORWARD_TIMEOUT_MS,
+};
