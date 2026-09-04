@@ -80,6 +80,44 @@ async function loadSegment(segmentId) {
   return data || null;
 }
 
+/**
+ * Take the job, and RECORD THAT WE TOOK IT.
+ *
+ * bd-dr216: `niete_lp612_renders` had one clock where it needed two. `started_at` is the INSERT's
+ * own `DEFAULT NOW()` — it says when the teacher asked, i.e. when the job was ENQUEUED — and
+ * nothing anywhere recorded when a worker actually began. The stranded-render reaper therefore
+ * measured a run's age from enqueue and condemned jobs that were still sitting in the queue,
+ * unattempted, at ~17 minutes. Under the current one-replica capacity fault (bd-nxkme) the measured
+ * p90 enqueue->done is 1023s, so ordinary queue wait crossed that line by itself.
+ *
+ * This is that second clock. It is written at PICKUP and re-written on every redelivery, so the
+ * reaper always measures the latest attempt.
+ *
+ * IT IS ALSO THE IDEMPOTENCY CHECK, which it was not before. `process()` used to read the row and
+ * then compare `status !== 'authoring'` in JS — two statements, so two deliveries of the same
+ * at-least-once message could both read `authoring` and both author the same lesson (~$0.60 and a
+ * scarce authoring slot each). Guarding the stamp on `status = 'authoring'` makes claiming and
+ * checking one statement: exactly one delivery matches a row, and the loser is told it lost.
+ *
+ * @returns {boolean} true if this worker owns the run.
+ */
+async function claimPickup(renderId) {
+  const { data, error } = await supabase
+    .from(RENDERS)
+    .update({ picked_up_at: nowIso(), updated_at: nowIso() })
+    .eq('id', renderId)
+    .eq('status', 'authoring')
+    .select('id')
+    .maybeSingle();
+  if (error) {
+    // Not fatal to the job — the lesson is what she is owed and the row is already `authoring`.
+    // What it costs is the reaper's ability to date this run, so it is never silent.
+    logToFile('LP 6-12 worker: could not stamp pickup', { renderId, error: error.message });
+    return true;
+  }
+  return !!data;
+}
+
 async function patch(renderId, fields) {
   const { error } = await supabase
     .from(RENDERS)
@@ -277,6 +315,16 @@ async function process(payload) {
       renderId, status: render.status, correlationId,
     });
     return { status: 'skipped', reason: `status_${render.status}` };
+  }
+
+  // Claim it and start the authoring clock. See claimPickup above: this is both the second
+  // timestamp the reaper needs (bd-dr216) and the idempotency check the read above only
+  // approximated.
+  if (!await claimPickup(renderId)) {
+    logToFile('LP 6-12 worker: lost the pickup race, another delivery owns this run', {
+      renderId, correlationId,
+    });
+    return { status: 'skipped', reason: 'pickup_lost' };
   }
 
   // A SNAPSHOT, and named one so it cannot quietly become the delivery audience again. It is a
@@ -479,6 +527,17 @@ async function process(payload) {
 
     await patch(renderId, {
       status: 'ready',
+      // bd-7yxsu: STATUS AND ERROR CODE MAY NEVER DISAGREE.
+      //
+      // A run can legitimately recover — the reaper wrote `failed` on a row this worker was still
+      // authoring (bd-w36m5), or an earlier attempt failed and this one is the retry — and this
+      // patch used to leave `error_code` untouched. An UPDATE that does not name a column leaves
+      // whatever is in it, so `grade_11_physics.c01.p014-018` came out of that as status=ready,
+      // error_code=AUTHOR_STRANDED: a healthy, delivered lesson reading as errored in every query
+      // anyone ran, and inflating every failure count quoted on 2026-09-04. Naming them here is
+      // what makes the two columns incapable of contradicting each other.
+      error_code: null,
+      error_detail: null,
       r2_key: r2Key,
       overlay_dropped: overlayDropped,
       page_count: rendered.pageCount ?? null,

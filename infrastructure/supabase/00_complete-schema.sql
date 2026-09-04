@@ -4999,6 +4999,13 @@ CREATE TABLE IF NOT EXISTS niete_lp612_renders (
   requested_by      UUID REFERENCES users(id),
   correlation_id    TEXT,
   started_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- When a WORKER actually took the job off the queue. THE SECOND CLOCK (V1.3.6).
+  -- `started_at` above is the INSERT's own DEFAULT NOW() — it records when the teacher asked, i.e.
+  -- when the job was ENQUEUED. The stranded-render reaper measured a run's age from it and so
+  -- condemned jobs still waiting in the queue, unattempted, at ~17 minutes. NULL means "queued, not
+  -- yet attempted", which is a state this table previously could not express. (V1.3.6)
+  picked_up_at      TIMESTAMPTZ,
   completed_at      TIMESTAMPTZ,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),

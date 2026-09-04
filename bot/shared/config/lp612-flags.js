@@ -163,6 +163,54 @@ function followupAfterMs() {
   return num(process.env.LP612_FOLLOWUP_MS, DEFAULT_FOLLOWUP_MS);
 }
 
+/**
+ * How long the SQS visibility heartbeat keeps a running job's message invisible.
+ *
+ * ONE DEFINITION, ON PURPOSE (bd-w36m5). `workers/sqs-worker.js` computed `authorTimeoutMs() * 2`
+ * inline for the heartbeat's `ceilingMs`, and `lp612-serving.service.js`'s reaper carried a
+ * completely unrelated number for "how long before we call this row a corpse". Those two describe
+ * the SAME envelope from opposite ends and they disagreed by a factor of four: the reaper condemned
+ * rows at ~17 minutes while the heartbeat was still actively re-extending visibility for a worker
+ * that was demonstrably alive, so the row went `failed` and then back to `ready` when the job
+ * finished. A corpse detector whose window is shorter than the window in which the owner is
+ * provably alive is not detecting corpses.
+ *
+ * Both callers now read this. Changing the multiplier changes both, which is the point.
+ */
+function heartbeatCeilingMs() {
+  return authorTimeoutMs() * 2;
+}
+
+/**
+ * The visibility window one `extendJobTimeout` call buys.
+ *
+ * Matches `receiveJobs`'s `VisibilityTimeout: 900` and the `extendSeconds: 900` the lp612 heartbeat
+ * passes. It matters to the reaper because the heartbeat's LAST extension is still in force after
+ * the ceiling stops it: the earliest SQS itself could hand the job to another worker is
+ * ceiling + this.
+ */
+const SQS_VISIBILITY_WINDOW_MS = 900 * 1000;
+
+/**
+ * When a row that NO WORKER EVER PICKED UP is finally written off (bd-dr216).
+ *
+ * This is not the authoring clock and must never share its threshold. A row with no `picked_up_at`
+ * is waiting in the queue, and waiting is not failing — under the current one-replica capacity
+ * fault the measured p90 enqueue->done is 1023s, so a threshold anywhere near the authoring one
+ * condemns healthy lessons purely for being queued (2 of 16 coach taps on 2026-09-04).
+ *
+ * Six hours is deliberately far outside any plausible queue wait — ~21x the worst measured one —
+ * because this is a BACKSTOP, not a detector. The orphan it exists for (the row was inserted and
+ * the enqueue then threw, so no message exists and no worker is ever coming) is now caught at its
+ * source by the serving path, which writes ENQUEUE_FAILED on the row. What is left for this sweep
+ * is only the case where the process died between those two writes.
+ */
+const DEFAULT_QUEUE_ABANDON_MS = 6 * 60 * 60 * 1000;
+
+function queueAbandonMs() {
+  return num(process.env.LP612_QUEUE_ABANDON_MS, DEFAULT_QUEUE_ABANDON_MS);
+}
+
 function isLp612Grade(g) {
   const n = parseInt(String(g), 10);
   return Number.isFinite(n) && n >= LP612_MIN_GRADE && n <= LP612_MAX_GRADE;
@@ -180,6 +228,10 @@ module.exports = {
   authorRounds,
   authorTimeoutMs,
   followupAfterMs,
+  heartbeatCeilingMs,
+  queueAbandonMs,
+  SQS_VISIBILITY_WINDOW_MS,
+  DEFAULT_QUEUE_ABANDON_MS,
   isLp612Grade,
   LP612_MIN_GRADE,
   LP612_MAX_GRADE,

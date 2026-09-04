@@ -41,7 +41,10 @@ const Catalog = require('./lp612-catalog.service');
 // wrapper, which the root suites already stub, and a lazy require here would hide a missing
 // dependency until the first real delivery.
 const LPShelfService = require('./lp-shelf.service');
-const { isReligiousEnabled, templateVersion, authorTimeoutMs } = require('../config/lp612-flags');
+const {
+  isReligiousEnabled, templateVersion, authorTimeoutMs,
+  heartbeatCeilingMs, queueAbandonMs, SQS_VISIBILITY_WINDOW_MS,
+} = require('../config/lp612-flags');
 
 const RENDERS = 'niete_lp612_renders';
 const JOB_TYPE = 'lp612_author';
@@ -195,14 +198,65 @@ async function tell(phone, key, lang) {
 }
 
 /**
- * How long past its own hard stop a run has to be before we call it dead.
+ * The margin on top of an interval we can already prove the owner was alive through.
  *
- * The worker gives up at authorTimeoutMs and writes `failed`. If a row is STILL `authoring` well
- * past that, nobody is coming to write it: the process that owned it is gone. The grace is there
- * so we do not shoot a run that is merely finishing its upload — authoring the same lesson twice
- * costs ~$0.60 and several minutes, and the unique constraint exists precisely to avoid that.
+ * Not "past its own hard stop" any more — see reapAfterPickupMs below for why that was the wrong
+ * quantity entirely. This is only the slack for clock skew between the worker and the database and
+ * for a job finishing its uploads. Authoring the same lesson twice costs ~$0.60 and several
+ * minutes, and the unique constraint exists precisely to avoid that.
  */
 const STRANDED_GRACE_MS = 3 * 60 * 1000;
+
+/**
+ * THE TWO CLOCKS.
+ *
+ * `started_at` is written by the INSERT's own `DEFAULT NOW()` and re-written by the retry CAS: it
+ * records when the TEACHER ASKED, i.e. when the job was enqueued. `picked_up_at` is written by the
+ * worker when it actually takes the job off the queue. They are minutes apart under load and the
+ * difference is queue wait, which is not a failure of anything.
+ *
+ * bd-dr216: this function measured staleness from `started_at`, so a job still WAITING in the queue
+ * was called stranded at authorTimeoutMs + grace (~17 min on staging) before any worker had touched
+ * it. Confirmed live on 2026-09-04 07:42 for 2 of 16 coach taps, with a measured p90 enqueue->done
+ * of 1023s sitting right on that boundary — every extra minute of queueing pushed more innocent
+ * lessons over a threshold that was never meant to measure queueing. And a false `failed` is worse
+ * than a slow success: the next tap resets the row and enqueues a SECOND authoring run, so the
+ * false reap manufactures duplicate load in exactly the capacity-starved conditions that produced
+ * the long queue.
+ *
+ * A row with no `picked_up_at` is therefore NOT stranded, however old it is. It is queued. The
+ * separate, far longer backstop for a row that was never picked up is isQueueAbandoned() below.
+ */
+function pickupOf(render) {
+  if (!render || render.status !== 'authoring' || !render.picked_up_at) return null;
+  const t = Date.parse(render.picked_up_at);
+  return Number.isFinite(t) ? t : null;
+}
+
+/**
+ * How long after PICKUP a run has to be silent before nobody can be coming for it.
+ *
+ * DERIVED, not chosen (bd-w36m5). From the moment a worker picks the job up:
+ *
+ *   - the visibility heartbeat (bd-awqt3, PR #590) re-extends the message every 60s by 900s,
+ *   - it stops doing so at `heartbeatCeilingMs()` (2x the job's own hard timeout),
+ *   - the LAST extension it made is still in force for a further `SQS_VISIBILITY_WINDOW_MS`.
+ *
+ * So `ceiling + visibility` is the EARLIEST moment SQS itself could hand this job to another
+ * worker. Before it, the message is legitimately in flight and the row's owner is provably alive —
+ * writing `failed` there is what made rows flip failed -> ready when the job finished (observed
+ * 2026-09-04: the failed count fell 20->15 while ready climbed).
+ *
+ * The old window was authorTimeoutMs + grace, i.e. it fired roughly a quarter of the way into an
+ * interval in which nothing could possibly have gone wrong. The new one lands close to where SQS's
+ * own retry budget is exhausted, which is the honest moment to give up.
+ *
+ * Note the clock RESETS on redelivery: a second worker re-stamps `picked_up_at`, so this always
+ * measures the latest attempt rather than the first.
+ */
+function reapAfterPickupMs() {
+  return heartbeatCeilingMs() + SQS_VISIBILITY_WINDOW_MS + STRANDED_GRACE_MS;
+}
 
 /**
  * Is this row a corpse?
@@ -211,14 +265,51 @@ const STRANDED_GRACE_MS = 3 * 60 * 1000;
  * and dead-lettered, and the row sat at `authoring` indefinitely. `requestLesson` reads that as
  * "someone else is already paying for this one", so every later tap joined a run that was never
  * coming back — the teacher told her lesson was being written, forever, with no error and no way
- * out. Nothing else in this table can express "the owner died", so it is inferred from the clock.
+ * out. Nothing else in this table can express "the owner died", so it is inferred from the clock —
+ * but from the RIGHT clock, and only once the SQS envelope above has actually expired.
  */
 function isStrandedAuthoring(render) {
-  if (!render || render.status !== 'authoring' || !render.started_at) return false;
+  const pickedUpAt = pickupOf(render);
+  if (pickedUpAt == null) return false;
+  return (Date.now() - pickedUpAt) > reapAfterPickupMs();
+}
+
+/**
+ * The other corpse: a row nobody ever picked up, long past any plausible queue wait.
+ *
+ * A DISTINCT STATE WITH A DISTINCT CODE, per rule 24(d). Calling this AUTHOR_STRANDED — which is
+ * what the old sweep did to every long-queued row — misdirects every count and every field report:
+ * "the worker that owned this run went away" is a claim about a worker that never existed.
+ *
+ * Its real cause is an enqueue that never happened. The serving path now writes ENQUEUE_FAILED on
+ * the row when `enqueue()` throws, so this only catches the residue: the process dying between the
+ * claim and the enqueue. Hence a window measured in hours, not minutes.
+ */
+function isQueueAbandoned(render) {
+  if (!render || render.status !== 'authoring' || render.picked_up_at) return false;
+  if (!render.started_at) return false;
   const startedAt = Date.parse(render.started_at);
   if (!Number.isFinite(startedAt)) return false;
-  return (Date.now() - startedAt) > (authorTimeoutMs() + STRANDED_GRACE_MS);
+  return (Date.now() - startedAt) > queueAbandonMs();
 }
+
+/** A ceiling on one sweep. `authoring` rows are bounded by concurrency in normal operation, so this
+ *  only ever bites during an incident — where the log line matters more than reaping every row in
+ *  one pass, and the next sweep takes the rest. */
+const REAP_SCAN_LIMIT = 500;
+
+const REAP_CLASSES = [
+  {
+    code: 'AUTHOR_STRANDED',
+    detail: 'The worker that owned this run went away (almost always a restart mid-authoring), and the SQS message it held has since expired. Reset by the sweep so the next tap retries.',
+    matches: isStrandedAuthoring,
+  },
+  {
+    code: 'QUEUE_ABANDONED',
+    detail: 'No worker ever picked this job up and it is far past any plausible queue wait — the enqueue almost certainly never landed. Reset by the sweep so the next tap retries.',
+    matches: isQueueAbandoned,
+  },
+];
 
 /**
  * The sweep, for when nobody taps.
@@ -228,41 +319,75 @@ function isStrandedAuthoring(render) {
  * rows to `failed` with a NAMED code, so the next tap retries — and so that "how often does a
  * deploy strand a lesson?" is answerable by query rather than from logs that have rolled off.
  *
+ * IT SELECTS EVERY `authoring` ROW AND CLASSIFIES IN JS, rather than encoding the threshold as a
+ * SQL predicate. Two reasons, both learned here. The predicate and `isStrandedAuthoring` were two
+ * expressions of one rule and could drift apart silently — the tap path and the sweep must agree
+ * about what a corpse is or a teacher gets one answer and the dashboard another. And there are now
+ * TWO classes with different clocks and different codes; a single `.lt()` cannot express that, and
+ * a second index to make it could. The set is bounded by concurrency (`REAP_SCAN_LIMIT` guards the
+ * pathological case) and the existing partial index on `WHERE status = 'authoring'` serves it.
+ *
+ * The write is a COMPARE-AND-SWAP. It used to be `.in('id', ids)` with no guard at all, so a row
+ * that reached `ready` between the SELECT and the UPDATE was written back to `failed` — destroying
+ * a delivered lesson's state on the way past. Guarding on `status` plus `updated_at < sweepStart`
+ * excludes anything touched in the gap by ANY writer (the retry CAS, a waiter join, the worker's
+ * own terminal patch — all four write paths set `updated_at`), which is conservative in the only
+ * safe direction: a row we skip is caught by the next sweep.
+ *
  * Returns a count and never throws: it runs inside the worker's periodic sweep, where an
  * exception would take the other sweeps down with it.
  */
 async function reapStrandedRenders() {
-  const cutoff = new Date(Date.now() - (authorTimeoutMs() + STRANDED_GRACE_MS)).toISOString();
+  const sweepStartedAt = new Date().toISOString();
   const { data, error } = await supabase
     .from(RENDERS)
-    .select('id, segment_id, started_at')
+    .select('id, segment_id, started_at, picked_up_at, updated_at')
     .eq('status', 'authoring')
-    .lt('started_at', cutoff);
+    .limit(REAP_SCAN_LIMIT);
   if (error) {
     logToFile('LP 6-12: stranded-render sweep read failed', { error: error.message });
     return 0;
   }
   const rows = data || [];
+  if (rows.length >= REAP_SCAN_LIMIT) {
+    logToFile('LP 6-12: stranded-render sweep hit its scan limit — in-flight rows are piling up', {
+      limit: REAP_SCAN_LIMIT,
+    });
+  }
   if (!rows.length) return 0;
 
-  const { error: patchError } = await supabase
-    .from(RENDERS)
-    .update({
-      status: 'failed',
-      error_code: 'AUTHOR_STRANDED',
-      error_detail: 'The worker that owned this run went away (almost always a restart mid-authoring). Reset by the sweep so the next tap retries.',
-      completed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .in('id', rows.map((r) => r.id));
-  if (patchError) {
-    logToFile('LP 6-12: stranded-render sweep write failed', { error: patchError.message });
-    return 0;
+  let reaped = 0;
+  for (const klass of REAP_CLASSES) {
+    const doomed = rows.filter((r) => klass.matches({ ...r, status: 'authoring' }));
+    if (!doomed.length) continue;
+
+    // eslint-disable-next-line no-await-in-loop
+    const { error: patchError } = await supabase
+      .from(RENDERS)
+      .update({
+        status: 'failed',
+        error_code: klass.code,
+        error_detail: klass.detail,
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('status', 'authoring')
+      .lt('updated_at', sweepStartedAt)
+      .in('id', doomed.map((r) => r.id));
+    if (patchError) {
+      logToFile('LP 6-12: stranded-render sweep write failed', {
+        code: klass.code, error: patchError.message,
+      });
+      continue;
+    }
+    reaped += doomed.length;
+    logToFile('LP 6-12: reaped stranded renders', {
+      code: klass.code,
+      count: doomed.length,
+      segmentIds: doomed.map((r) => r.segment_id).slice(0, 20),
+    });
   }
-  logToFile('LP 6-12: reaped stranded renders', {
-    count: rows.length, segmentIds: rows.map((r) => r.segment_id).slice(0, 20),
-  });
-  return rows.length;
+  return reaped;
 }
 
 /**
@@ -282,7 +407,10 @@ async function reapStrandedRenders() {
 async function findRender(segmentId, lang, tv) {
   const { data, error } = await supabase
     .from(RENDERS)
-    .select('id, status, r2_key, waiters, error_code, one_screen, started_at, overlay_dropped')
+    // `picked_up_at` is here because the stranded/queued decision below is made from it. A column
+    // the lookup does not read cannot decide anything, and reading it as `undefined` would silently
+    // classify every live run as never-picked-up.
+    .select('id, status, r2_key, waiters, error_code, one_screen, started_at, picked_up_at, overlay_dropped')
     .eq('segment_id', segmentId)
     .eq('lang', lang)
     .eq('template_version', tv)
@@ -654,6 +782,51 @@ async function enqueue({ renderId, segmentId, lang, tv, correlationId }) {
 }
 
 /**
+ * Enqueue, and if that fails SAY SO ON THE ROW.
+ *
+ * THE ORPHAN THIS CLOSES (bd-dr216, the never-picked-up half). Both call sites below did a bare
+ * `await enqueue(...)` with no catch, and the row is already `authoring` by then. A queue outage,
+ * an expired credential, a FIFO rejection — any of them left a row claiming to be in flight with
+ * no message anywhere and no worker ever coming. `requestLesson` reads `authoring` as "someone
+ * else is already paying for this one", so every later tap joined a run that did not exist.
+ *
+ * That state used to be inferred hours later from a clock, which is both slow and a guess. It is
+ * KNOWN here, at the moment it happens, so it is written here — with its own code, so it is never
+ * counted as a worker that died.
+ *
+ * @returns {boolean} true if the job is on the queue.
+ */
+async function enqueueOrFail({ renderId, segmentId, lang, tv, correlationId }) {
+  try {
+    await enqueue({ renderId, segmentId, lang, tv, correlationId });
+    return true;
+  } catch (err) {
+    logToFile('LP 6-12: could not enqueue the authoring job', {
+      renderId, segmentId, lang, error: err.message, correlationId,
+    });
+    const { error: patchError } = await supabase
+      .from(RENDERS)
+      .update({
+        status: 'failed',
+        error_code: 'ENQUEUE_FAILED',
+        error_detail: String(err.message || '').slice(0, 2000),
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', renderId)
+      .eq('status', 'authoring');
+    if (patchError) {
+      // Worth its own line: this is the one path that can still leave an orphan, and the
+      // QUEUE_ABANDONED backstop in the sweep is what eventually clears it.
+      logToFile('LP 6-12: could not mark an un-enqueued render as failed', {
+        renderId, error: patchError.message, correlationId,
+      });
+    }
+    return false;
+  }
+}
+
+/**
  * The whole serving decision.
  *
  * @param {object} req
@@ -819,6 +992,10 @@ async function requestLessonImpl({ segmentId, userId, phone, lang, uiLang, corre
         requested_by: userId,
         correlation_id: correlationId,
         started_at: new Date().toISOString(),
+        // THE NEW RUN HAS NOT BEEN PICKED UP. Carrying the dead run's pickup stamp forward would
+        // hand the fresh job an already-expired authoring clock, and the reaper would condemn it
+        // on its first sweep — the row would be `failed` before the worker had read the message.
+        picked_up_at: null,
         completed_at: null,
         updated_at: new Date().toISOString(),
       })
@@ -854,7 +1031,10 @@ async function requestLessonImpl({ segmentId, userId, phone, lang, uiLang, corre
     // Distinct copy for a distinct state (rule 24(d)). A stranded run is not a fresh request and
     // it is not an ordinary failure — she watched it say "preparing" and nothing came.
     await tell(phone, stranded ? 'lp612Restarted' : 'lp612Preparing', voice);
-    await enqueue({ renderId: existing.id, segmentId, lang: language, tv, correlationId });
+    if (!await enqueueOrFail({ renderId: existing.id, segmentId, lang: language, tv, correlationId })) {
+      await tell(phone, 'lp612Failed', voice);
+      return { outcome: 'error', error: 'enqueue failed', renderId: existing.id };
+    }
     logToFile('LP 6-12: retrying render', {
       segmentId,
       renderId: existing.id,
@@ -923,7 +1103,10 @@ async function requestLessonImpl({ segmentId, userId, phone, lang, uiLang, corre
 
   // Ack FIRST. Two minutes of silence is the failure mode this prevents.
   await tell(phone, 'lp612Preparing', voice);
-  await enqueue({ renderId: created.id, segmentId, lang: language, tv, correlationId });
+  if (!await enqueueOrFail({ renderId: created.id, segmentId, lang: language, tv, correlationId })) {
+    await tell(phone, 'lp612Failed', voice);
+    return { outcome: 'error', error: 'enqueue failed', renderId: created.id };
+  }
   logToFile('LP 6-12: queued runtime authoring', {
     segmentId, renderId: created.id, lang: language, tv, correlationId,
   });
@@ -935,6 +1118,8 @@ module.exports = {
   deliverRender,
   buildBody,
   isStrandedAuthoring,
+  isQueueAbandoned,
+  reapAfterPickupMs,
   reapStrandedRenders,
   joinWaiters,
   buildFilename,
