@@ -29,6 +29,7 @@ const {
   confirmRegressions,
   parseCliArgs,
   snapshotGrowth,
+  normaliseOffender,
 } = require('../baseline-gate');
 
 const ESC = String.fromCharCode(27);
@@ -455,5 +456,79 @@ describe('snapshotGrowth — the baseline may shrink, never grow', () => {
     expect(g.grew).toBe(true);
     expect(g.addedSuites).toEqual(['tests/new.test.js']);
     expect(g.removedSuites).toEqual(['tests/gone.test.js']);
+  });
+});
+
+
+/**
+ * An offender that only MOVED is not growth.
+ *
+ * The conformance guards under tests/setup/ report offenders as `path:line`, sometimes
+ * with the offending source appended. Line numbers move whenever anything above them
+ * is edited, so a snapshot comparison keyed on the raw string reports the same
+ * violation at a new line as a brand-new offender.
+ *
+ * Measured on the staging sync, 2026-09-04: re-recording after merging main reported
+ * 70 added offenders. Two were real. The other 68 were identical violations whose line
+ * numbers had shifted — `no-hardcoded-bot-name` reported +3 for three byte-identical
+ * strings that moved from lines 198/365/572 to 202/372/575.
+ *
+ * A gate that cries wolf 70-for-2 gets switched off, so growth is judged on the
+ * normalised form: an addition counts only when the same violation was not also
+ * removed. The REPORT still shows raw strings, because a human chasing it needs the
+ * real line number.
+ */
+describe('normaliseOffender — line numbers move, violations do not', () => {
+  it('strips a trailing path:line', () => {
+    expect(normaliseOffender('bot/x.js:198')).toBe(normaliseOffender('bot/x.js:202'));
+  });
+
+  it('keeps the file distinct', () => {
+    expect(normaliseOffender('bot/x.js:1')).not.toBe(normaliseOffender('bot/y.js:1'));
+  });
+
+  it('normalises path:line even when the offending source is appended', () => {
+    const a = "bot/s.js:198 — hardcoded self-name — foo: 'Rumi reminds'";
+    const b = "bot/s.js:202 — hardcoded self-name — foo: 'Rumi reminds'";
+    expect(normaliseOffender(a)).toBe(normaliseOffender(b));
+  });
+
+  it('does NOT collapse two different violations in the same file', () => {
+    const a = "bot/s.js:198 — hardcoded self-name — foo: 'one'";
+    const b = "bot/s.js:198 — hardcoded self-name — bar: 'two'";
+    expect(normaliseOffender(a)).not.toBe(normaliseOffender(b));
+  });
+
+  it('leaves a non-positional offender untouched', () => {
+    expect(normaliseOffender('video_requests.observer_debrief')).toBe('video_requests.observer_debrief');
+  });
+});
+
+describe('snapshotGrowth — a moved offender is not growth', () => {
+  const snap = (offs) => ({ 'tests/setup/g.test.js': { failing: [], offenders: offs } });
+
+  it('ignores an offender that only changed line number', () => {
+    const g = snapshotGrowth(snap(['bot/x.js:10']), snap(['bot/x.js:14']));
+    expect(g.grew).toBe(false);
+    expect(g.addedOffenders).toEqual([]);
+  });
+
+  it('still reports a genuinely new violation alongside moved ones', () => {
+    const before = snap(['bot/x.js:10', 'bot/y.js:5']);
+    const after  = snap(['bot/x.js:14', 'bot/y.js:5', 'bot/z.js:1']);
+    const g = snapshotGrowth(before, after);
+    expect(g.grew).toBe(true);
+    expect(g.addedOffenders).toEqual([{ suite: 'tests/setup/g.test.js', offenders: ['bot/z.js:1'] }]);
+  });
+
+  it('reports the RAW string so the line number is chaseable', () => {
+    const g = snapshotGrowth(snap([]), snap(['bot/z.js:77']));
+    expect(g.addedOffenders[0].offenders).toEqual(['bot/z.js:77']);
+  });
+
+  it('a second violation in a file that already had one is growth', () => {
+    const before = snap(["bot/s.js:10 — x — a: 'one'"]);
+    const after  = snap(["bot/s.js:12 — x — a: 'one'", "bot/s.js:20 — x — b: 'two'"]);
+    expect(snapshotGrowth(before, after).grew).toBe(true);
   });
 });

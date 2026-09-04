@@ -89,7 +89,14 @@ const ALLOWLIST = {
   lesson_plans: ['grade_level', 'lessonplans', 'limit', 'page'],
   // `videoswithpresignedurls` is a result var; `limit`/`page` are pagination vars
   // (portal.routes.js video listing) — parser artifacts, not columns.
-  video_requests: ['limit', 'page', 'videoswithpresignedurls'],
+  // `observer_debrief` joins them, verified 2026-09-04: sqs-worker.js:1043 selects a
+  // JSON path under an ALIAS —
+  //   .select('id, debrief_status, created_at, observer_debrief:analysis_data->observer_debrief')
+  // — so the parser reads the alias as a column and attributes it to `video_requests`
+  // via the nearest preceding `.from()` (line 950). It is not a column anywhere:
+  // absent from 00_complete-schema.sql, and a live query against staging finds no
+  // table with that column. It is a key inside the `analysis_data` JSONB blob.
+  video_requests: ['limit', 'page', 'videoswithpresignedurls', 'observer_debrief'],
   // Chain-proximity artifact from portal.routes.js POST /training/module/:id/quiz-attempts:
   //   supabase.from('training_assessment_answers').insert(answerRows)
   //   supabase.from('teacher_training_progress').upsert({ user_id, module_id, completed_at }, ...)
