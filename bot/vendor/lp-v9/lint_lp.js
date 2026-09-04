@@ -51,6 +51,7 @@ const { wordCount, chemPlusDefects, fixChemPlus } = require("./lib/rich");
 const { buildHtml } = require("./lib/template");
 const { textNodes } = require("./lib/domtext");
 const { allQuestions, questionIndex, duplicateRefs } = require("./lib/questions");
+const { check: visualContract } = require("./visual_check");
 
 // Brands that must never appear as CONTENT in a document that is not theirs (render-law 13,
 // carried by the judges as J-BRAND-LEAK, critical). The authoring house is not the deployment
@@ -539,7 +540,28 @@ function lint(doc, docPath, opts = {}) {
       }
     }
   }
-  if (full && visuals === 0) fail("VISUALS", "page 1 carries no diagram, figure or formula. Visuals are mandatory (M5).");
+  // 14c — THE VISUAL CONTRACT (brief §4b), the per-subject minimum.
+  //
+  // `visuals === 0` below is the rule this REPLACES on a v9 document, and it is worth naming
+  // what it was: it counts a `latex` or a `chem` block as a visual, so ONE typeset formula and
+  // no picture at all satisfies it. `author_lp.py` calls that same rule its ImportError
+  // fallback and says of it, in the source, *"exactly how they shipped 'bereft' of diagrams."*
+  // Between 2026-09-02 and 2026-09-04 it was the ONLY visual rule the serving lane executed,
+  // because `visual_check.py` was never vendored beside it — while the brief told the model on
+  // every call that the real gate was running on its output. Replayed over the 62 documents
+  // teachers received, the real gate fails 48 of them and its per-subject minimum (V6) fires 45
+  // times; live output was 1.77 diagrams a lesson against a floor of 2, 83.5% of them
+  // flow/mindmap/panels, with nine of the twenty types never appearing once.
+  //
+  // Scoped to v3 for the same reason every other v9 gate is (see §18): the 2.0 corpus predates
+  // this contract and would turn red overnight without one of its lessons improving. A 2.0
+  // document keeps the old floor; a 3.0 document gets the contract INSTEAD, so exactly one
+  // authority speaks about visuals per document and the two never double-report the same miss.
+  if (full && v3) {
+    for (const e of visualContract(doc)) fail("VISUAL", e);
+  } else if (full && visuals === 0) {
+    fail("VISUALS", "page 1 carries no diagram, figure or formula. Visuals are mandatory (M5).");
+  }
 
   // 15 — the hook must be CLOSED. The most repeated v7 complaint was an opening question
   //      the lesson never answers (L3 ask 3).

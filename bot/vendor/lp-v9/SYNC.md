@@ -24,6 +24,7 @@ outside this repo and not in this repo's git history:
 | Vendored here | Upstream path (relative to that `scripts/` dir) |
 |---|---|
 | `lint_lp.js` | `lp_html/lint_lp.js` |
+| `visual_check.js` | `lp_html/visual_check.js` |
 | `render_lp.js` | `lp_html/render_lp.js` |
 | `lib/*.js`, `lib/clean_figure.py` | `lp_html/lib/` |
 | `schema/lp_doc.schema.json` | `lp_html/schema/lp_doc.schema.json` (v3.0 — current) |
@@ -33,6 +34,52 @@ outside this repo and not in this repo's git history:
 | `brief_author_v3_flash_{maths,sci,prose}.md` | `lp_author/brief_author_v3_flash_{maths,sci,prose}.md` |
 | `fonts/Inter-{Regular,SemiBold,Bold}.ttf` | workspace `06_Logs & Misc/Reports/Active/Tanzania Expansion/02_Coaching_MEWAKA/mewaka-sample-report/` |
 | `fonts/NotoNastaliqUrdu.ttf` | workspace `02_Main Rumi Bot/fonts/` |
+
+> **Partial re-vendor 2026-09-04 (bd-q2jr1): a NEW FILE — `visual_check.js` — plus `lint_lp.js`,
+> `brief_author_v3.md` and all three flash briefs.** Fixed upstream first, in both upstream homes,
+> and copied byte-for-byte. **No new §3 divergence.**
+>
+> **What this closes.** `brief_author_v3.md` has told the model, in its system prompt on every
+> call since v2, that *"`visual_check.py` runs on the emitted document … and **FAILS** any lesson
+> that misses its subject's minimum."* `visual_check.py` was **never vendored here and no runtime
+> code referenced it** — `git grep -i visual_check` on `origin/develop` returned 8 hits, all of
+> them that sentence inside the four briefs. What actually ran was `lint_lp.js`'s
+> `if (full && visuals === 0)`, counting a `latex` or `chem` block as a visual: one typeset
+> formula and no picture satisfied it. `author_lp.py:1437–1448` calls that exact rule its
+> `except ImportError` fallback and says of it, in the source, *"exactly how they shipped 'bereft'
+> of diagrams."* **The serving lane ran the fallback, permanently, for two days and 62 lessons.**
+>
+> | file | what changed |
+> |---|---|
+> | `visual_check.js` | **new.** A transliteration of `lp_author/visual_check.py` — same rules V0–V14, same codes, same message strings, asserted string-for-string against the Python over all 62 real documents (0 divergences, before AND after the rule change below). It lives in `lp_html/` upstream, not `lp_author/`, because `lint_lp.js` is what requires it and the two must vendor together. Adds `meetsSubjectMinimum()`, which the Python does not have — it is the REWARD side the author service's acceptance needs, and it is additive. |
+> | `lint_lp.js` | one hunk, §14c: on a **v3** document the contract runs and its findings are emitted as `VISUAL: <line>`; the old `visuals === 0` rule still governs the **2.0** corpus, so exactly one authority speaks about visuals per document and 200 migrated documents do not turn red overnight. |
+> | `brief_author_v3.md` | §4b.2 rewritten (see below); §4b.4 gains `dna_helix` and `graph`'s `shade`; the `textbook_figure` block's `ref` contract corrected; ten copyable specs de-poisoned. |
+> | the three flash briefs | REGENERATED with `build_flash_brief.py` before copying, per the re-vendor obligation two paragraphs down, and `--check` re-run green afterwards. |
+>
+> **The §4b.2 rule change, and why it is not a straight port.** Porting the Python as-is fixes
+> Chemistry, Physics, Maths, English and Pak Studies and does **nothing** for Biology, General
+> Science or Computer Science:
+> * the Biology row was the single permissive union `{cell, flow, labelled_figure, mindmap,
+>   punnett}` — one `flow` satisfies it — which is why Biology posted **zero** V6 failures across
+>   the delivered corpus while carrying **zero** labelled structures in 13 diagrams. It is now two
+>   groups (a real biological figure AND a process/relations map), which is what the row's own
+>   prose always said.
+> * **General Science is no longer an alias of Biology.** The 6–8 book is biology and chemistry
+>   and physics in one cover, and only 70% of its segments carry a labelled structure in their
+>   page-truth; demanding a `cell` of a push-and-pull lesson forces an invented figure.
+> * **Computer Science had no row at all**, so V0 fired and `check()` RETURNED — V6–V14 never ran
+>   on a CS lesson. Its row is derived from the CS page-truth (702 screenshots, 414 tables, 400
+>   charts, 364 labelled devices, **54** flowcharts), not from instinct. Agricultural Education
+>   had the same hole and gets the same treatment.
+>
+> Both rule tables were changed **identically**, and the parity replay was re-run afterwards: 0
+> divergences over 62 documents. If they ever drift, the authoring lane and the serving lane are
+> gating different documents while quoting the same section number.
+>
+> Measured on those 62 pre-change documents: 48 → **54** fail, V6 45 → **59**, V0 5 → **1**. That
+> number going UP is the expected direction and is **not** a regression — the corpus was authored
+> with no gate running, so a stricter rule can only find more in it. The fail count can fall only
+> on documents authored WITH the gate on.
 
 > **Upstream cap mirror, 2026-09-04 (bd-09m6a).** The bd-vjk68 raise above was applied to the
 > VENDORED tree first. The skill copy has now been brought level in the same change: `MAX_PAGES`,
@@ -178,6 +225,7 @@ authority applies inside this directory too: **quote a number from `render_lp.js
 |---|---|
 | `lp_author/author_lp.py` | Its **control flow** was ported to `bot/shared/services/lp612-author.service.js` (see §4). The Python itself has no place in a Node worker. |
 | `lp_author/retrieve.py` | Same: ported to `bot/shared/services/lp612-pagetruth.service.js`. |
+| `lp_author/visual_check.py` | Transliterated to `lp_html/visual_check.js` upstream and vendored from there (2026-09-04). The Python stays as the AUTHORING lane's gate; the two tables are kept identical by hand and asserted equal by a 62-document parity replay. **Change one, change both.** |
 | `lp_html/phone_gate.py` | A human-review tool (rasterise → 390px phone sims → **look at them**). It belongs to the authoring workflow, not to the serving path. |
 | `lp_html/test/`, `lp_author/test_lp_author.py` | Upstream's own suites. This repo tests its own services in `tests/lp612/`; running upstream's suites here would need their fixtures, their runner and a browser. **This is a real coverage gap — see §5.** |
 | `lp_html/samples/`, `lp_author/samples/` | Fixtures and corpus. Large, and not needed to serve. |
