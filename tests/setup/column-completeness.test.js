@@ -60,12 +60,17 @@ const ALLOWLIST = {
   // table that merely mentions the column, not a real read of `conversations`.
   conversations: ['conversation_state'],
   // camelCase key from a nested non-DB object (parser artifact).
-  coaching_sessions: ['excerptlength'],
+  // `ok` is a destructured response field (`const { ok } = ...`), not a column;
+  // verified 2026-09-04 against the live sandbox DB, which has no such column.
+  coaching_sessions: ['excerptlength', 'ok'],
   // Mis-attributed by chain proximity; no quiz_sessions write references updated_at.
   quiz_sessions: ['updated_at'],
   // Nested keys inside the users.preferences / screen-data objects (parser artifact);
   // users stores language in preferred_language + preferences, grade in grades_taught.
-  users: ['grade', 'language'],
+  // `cols` and `error` are destructured JS locals (`const { data, error } = await q`)
+  // that the parser reads as columns; verified 2026-09-04 against the live sandbox DB,
+  // which has neither.
+  users: ['grade', 'language', 'cols', 'error'],
   // `addSchoolForCoach()` and `removeSchoolForCoach()` build a plain JS result
   // object immediately after a `.from('leader_teachers')` call, so the parser
   // reads that object's keys as columns. All five verified non-columns, from
@@ -89,7 +94,11 @@ const ALLOWLIST = {
   lesson_plans: ['grade_level', 'lessonplans', 'limit', 'page'],
   // `videoswithpresignedurls` is a result var; `limit`/`page` are pagination vars
   // (portal.routes.js video listing) — parser artifacts, not columns.
-  video_requests: ['limit', 'page', 'videoswithpresignedurls'],
+  // `observer_debrief` is a JSON path selected under an ALIAS in sqs-worker.js
+  // (`observer_debrief:analysis_data->observer_debrief`), attributed to this table by
+  // the nearest preceding `.from()`. Verified 2026-09-04: no table anywhere has that
+  // column; it is a key inside the `analysis_data` JSONB blob.
+  video_requests: ['limit', 'page', 'videoswithpresignedurls', 'observer_debrief'],
   // Chain-proximity artifact from portal.routes.js POST /training/module/:id/quiz-attempts:
   //   supabase.from('training_assessment_answers').insert(answerRows)
   //   supabase.from('teacher_training_progress').upsert({ user_id, module_id, completed_at }, ...)

@@ -41,7 +41,7 @@ name: data-standards
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, staging, sandbox]
   pull_request:
 
 permissions:

@@ -130,7 +130,7 @@ async function process(job) {
     });
 
     // The paper never carries the answers; the key, if she asked for one, is a
-    // second document sent after it (bd-60015).
+    // second document sent after it.
     const html = Renderer.renderPaper({
       examJson: generated.examJson,
       grade, subject,
