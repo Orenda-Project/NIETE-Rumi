@@ -613,22 +613,44 @@ Return ONE JSON object conforming to lp_doc schema_version 3.0. No prose, no mar
 `;
 }
 
+// bd-owx8t: THE PREAMBLE NO LONGER ORDERS A WORD CUT.
+//
+// It used to read "Fix EVERY listed defect, including every word-budget line: when a budget says
+// CUT N words, actually delete that much text from that section rather than rewording it, and
+// OVERSHOOT the cut by about 10%". That was written when BUDGET was a gate. It has not been one
+// since 2026-09-03 (bd-wbvtb, `ADVISORY_CODES`), and leaving the sentence behind left the model
+// under two contradictory orders in one prompt — this one, first and amplified, and the
+// page-count block below saying in as many words that shortening sentences will NOT remove a page.
+//
+// Measured over 62 real lp_docs on 2026-09-04 (39 delivered off staging since the Urdu caps went
+// live, plus the n=24 study's cells) replayed through the shipped lint: BUDGET fires on 59 of the
+// 62 — on the documents teachers actually received — 119 lines against 8 from every other lint
+// code combined, with whole-document counts of 1,290-1,830 words against a 1,200 ceiling. A rule
+// that fires on 95% of a corpus carries no information about the 5%. And it is not even aimed at
+// the right quantity: word count scores r = 0.375 against the renderer's own measured content
+// height and r = 0.18 against printed pages.
+//
+// So every round spent real text — 10% more than asked — on a ceiling nothing has ever met, for a
+// number that does not decide the page count being revised for. The defect is still computed,
+// returned and stored on the row; it is drafting feedback, not an order.
 const REVISION_PREAMBLE =
   'Your previous lp_doc is below, followed by every defect found by the schema validator and ' +
   'the deterministic lint.\n\n' +
   'Return the COMPLETE corrected lp_doc JSON — the whole document, not a patch, not a diff. ' +
-  'Fix EVERY listed defect, including every word-budget line: when a budget says CUT N words, ' +
-  'actually delete that much text from that section rather than rewording it, and OVERSHOOT the ' +
-  'cut by about 10% — word counters differ slightly, and landing even a few words over a ceiling ' +
-  'costs another full revision round. Change nothing else. Keep every fact traceable to the same ' +
+  'Fix EVERY listed defect. Change nothing else. Keep every fact traceable to the same ' +
   'page-truth.\n\n';
 
 function buildRevisionPrompt({ doc, gates, originalUser, notes }) {
+  // ADVISORY defects are recorded, not chased (see ADVISORY_CODES). A defect the ladder will not
+  // spend a round on must not spend the model's attention either: showing it under "Fix EVERY
+  // listed defect" is an order to act on something we have decided does not matter.
+  const lint = gates.lint.filter((d) => !isAdvisory(d));
+  const warns = gates.warns.filter((d) => !isAdvisory(d));
   return REVISION_PREAMBLE +
     (notes ? `=== THE OPERATOR'S NAMED DEFECTS — THESE OUTRANK EVERYTHING BELOW ===\n${notes}\n\n` : '') +
     '=== PREVIOUS lp_doc ===\n' + JSON.stringify(doc, null, 1) +
     '\n\n=== SCHEMA ERRORS ===\n' + (gates.schema.join('\n') || '(none)') +
-    '\n\n=== LINT ERRORS ===\n' + (gates.lint.join('\n') || '(none)') +
+    '\n\n=== LINT ERRORS ===\n' + (lint.join('\n') || '(none)') +
     // The renderer's own words, verbatim. "Make it shorter" and "support needs 6 pages; the cap
     // is 4" are different instructions, and only the second one tells the model how much to cut
     // and from WHICH part of the document.
@@ -656,7 +678,7 @@ function buildRevisionPrompt({ doc, gates, originalUser, notes }) {
         + 'early; every other required field stays. Shorten those in place if you must, but a '
         + 'missing required property fails the whole document and wastes the round.'
       : '') +
-    '\n\n=== LINT WARNINGS ===\n' + (gates.warns.join('\n') || '(none)') +
+    '\n\n=== LINT WARNINGS ===\n' + (warns.join('\n') || '(none)') +
     '\n\n=== THE ORIGINAL TASK (same page-truth, unchanged) ===\n' + originalUser;
 }
 

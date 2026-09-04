@@ -647,6 +647,85 @@ describe('the authored document is kept beside the PDF', () => {
   });
 });
 
+/**
+ * bd-owx8t — AND KEPT WHEN THE RENDERER REFUSES IT, WHICH IS THE ONE WE ACTUALLY NEED.
+ *
+ * The doc was stored only on the SUCCESS path, so the corpus holds every lesson that worked and
+ * not one that failed. Asked on 2026-09-04 to derive a content ceiling from the nine page-cap
+ * failures staging had just produced, the answer was that none of those nine documents exists
+ * anywhere: the worker writes the lp_doc into a temp dir, uploads the PDF, and `finally` deletes
+ * the directory. Thirty-nine delivered documents came back out of R2; the nine that matter came
+ * back as `NoSuchKey`. Every question about WHY a lesson is too long is therefore answerable only
+ * about lessons that were not.
+ *
+ * A few KB per failure, under the same guarded prefix, keyed so it can never be mistaken for a
+ * delivered document or picked up by the serving path (which looks for `.pdf` only).
+ */
+describe('the authored document is kept when the render REFUSES it', () => {
+  const refuse = () => {
+    const err = new Error('render of x produced 1 defect(s): PAGE COUNT: teach needs 6 pages; the cap is 5.');
+    err.code = 'RENDER_FAILED';
+    err.problems = ['PAGE COUNT: teach needs 6 pages; the cap is 5.'];
+    mockRenderLessonPlan.mockRejectedValue(err);
+  };
+
+  test('a page-cap failure stores the document that overflowed', async () => {
+    refuse();
+    mockAuthorLessonPlan.mockResolvedValue({
+      lpDoc: { lesson_id: 'TOO_LONG', one_screen: 's' },
+      lintClean: false, fails: [], rounds: 5, model: 'm',
+    });
+    seed();
+
+    const out = await Worker.process(JOB);
+
+    expect(out.status).toBe('failed');
+    const call = mockUploadBuffer.mock.calls.find((c) => c[1].endsWith('.lp.json'));
+    expect(call).toBeDefined();
+    expect(JSON.parse(call[0].toString()).lesson_id).toBe('TOO_LONG');
+    expect(call[2]).toBe('application/json');
+  });
+
+  test('it is keyed as a failure, so it can never be served or mistaken for the delivered doc', async () => {
+    refuse();
+    seed();
+    await Worker.process(JOB);
+
+    const key = mockUploadBuffer.mock.calls.find((c) => c[1].endsWith('.lp.json'))[1];
+    expect(key).toBe('lp612/v9.1/en/failed/grade_9_chemistry.c01.p007-008.lp.json');
+    // The guard is the real one — a shared bucket has no other isolation.
+    expect(() => require('../../bot/shared/services/lp612-serving.service').assertKeyInPrefix(key))
+      .not.toThrow();
+  });
+
+  test('no PDF is stored for a refused render — only the source', async () => {
+    refuse();
+    seed();
+    await Worker.process(JOB);
+    expect(mockUploadBuffer.mock.calls.filter((c) => c[1].endsWith('.pdf'))).toHaveLength(0);
+  });
+
+  test('a failure BEFORE authoring stores nothing — there is no document to keep', async () => {
+    mockAuthorLessonPlan.mockRejectedValue(new Error('page-truth missing'));
+    seed();
+    await Worker.process(JOB);
+    expect(mockUploadBuffer).not.toHaveBeenCalled();
+  });
+
+  test('an R2 refusal on the way out does not change the failure the teacher is told about', async () => {
+    refuse();
+    mockUploadBuffer.mockRejectedValue(new Error('R2 said no'));
+    seed();
+
+    const out = await Worker.process(JOB);
+
+    expect(out.status).toBe('failed');
+    expect(out.errorCode).toBe('RENDER_FAILED');
+    const done = mockDbCalls.filter((c) => c.op === 'update').pop();
+    expect(done.payload.error_code).toBe('RENDER_FAILED');
+  });
+});
+
 // ── the shared bucket ───────────────────────────────────────────────────────
 
 /**
