@@ -19,6 +19,23 @@
 
 const { Svg, C, SIZE, hasUrdu, measure, urduBoxH, textBox, wrap, LEADING } = require("../lib/svg");
 
+// The body chip is ONE string — "<label>  <mass>" — handed to a foreignObject whose
+// direction is the page's. When the label is Urdu and the mass is not, Unicode's bidi
+// algorithm reorders that trailing Latin run against the Urdu and "ڈبہ  5 kg" PRINTS AS
+// "kg 5 ڈبہ": the unit before the number. Nothing in this engine can see it — the SVG
+// string is right, the collision gate is clean, and the reversal happens in the browser's
+// text layout. So the Latin atom is wrapped in LRI…PDI (U+2066…U+2069), the same isolate
+// this pipeline already puts around a phone number and a URL. Applied ONLY when the two
+// scripts actually mix, so no all-Latin figure in the shipped corpus changes by a byte.
+const LRI = "\u2066";
+const PDI = "\u2069";
+function bodyChipText(body) {
+  const label = body.label === undefined || body.label === null ? "" : String(body.label);
+  const mass = body.mass === undefined || body.mass === null ? "" : String(body.mass);
+  const mixed = mass && hasUrdu(label) && !hasUrdu(mass);
+  return [label, mass ? (mixed ? LRI + mass + PDI : mass) : ""].filter(Boolean).join("  ");
+}
+
 const BODY_W = 620;
 // Arrows leave the CENTRE of the body, but only the part OUTSIDE the body
 // carries meaning — that part is what SCALE stretches, so the visible lengths
@@ -274,9 +291,7 @@ function renderPlain(sp, body, forces) {
   }
 
   // body identity last, on an opaque chip, so the arrow tails never eat it
-  const bodyTxt = [body.label, body.mass !== undefined && body.mass !== null ? String(body.mass) : ""]
-    .filter(Boolean)
-    .join("  ");
+  const bodyTxt = bodyChipText(body);
   if (bodyTxt)
     chip(svg, cx, cy, bodyTxt, { lang, maxW: body.shape === "circle" ? DISC_R * 2 : BOX_HW * 2 });
   else svg.circle(cx, cy, 3.4, { fill: C.ink });
@@ -434,9 +449,7 @@ function renderIncline(sp, body, forcesIn) {
     tipLabel(svg, tip, labelLines(f, lang, unit, sp.showMagnitudes === true), col, lang);
   });
 
-  const bodyTxt = [body.label, body.mass !== undefined && body.mass !== null ? String(body.mass) : ""]
-    .filter(Boolean)
-    .join("  ");
+  const bodyTxt = bodyChipText(body);
   if (bodyTxt) chip(svg, cx, cy, bodyTxt, { lang, size: SIZE.tiny, maxW: bw });
   else svg.circle(cx, cy, 3.4, { fill: C.ink });
 

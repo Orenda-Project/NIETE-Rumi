@@ -196,12 +196,16 @@ function render(spec) {
 }
 
 // The 4-label proof: a real NBF leaf figure from an earlier LP build.
-const LEAF =
-  "06_Logs & Misc/Reports/Production/Lesson Plan Enhancement - Jan 2026/" +
-  "canva-build/diagram-assets/cropped/fig_1_11_leaf.jpg";
-// types/ -> diagrams -> lp_html -> scripts -> curriculum-baked-lesson-plans
-//        -> skills -> .claude -> repo root  (7 levels; never a hardcoded /Users path)
-const REPO = path.resolve(__dirname, "..", "..", "..", "..", "..", "..", "..");
+//
+// It lives INSIDE the engine (diagrams/assets/) on purpose. It used to be resolved
+// seven levels up, out of the skill and into `06_Logs & Misc/Reports/Production/…`,
+// which made the two gallery examples fail on any checkout where that investigation
+// folder is not present — a git worktree, a fresh clone, CI, or the vendored copy in
+// the serving repo. Both examples then rendered an "image not found" card that
+// collides with its own labels, so the engine's own test.js has been red on those two
+// for as long as anyone has run it. An example is a CONTRACT; it may not depend on a
+// path outside the thing it documents.
+const LEAF = path.join(__dirname, "..", "assets", "fig_1_11_leaf.jpg");
 
 module.exports = {
   type: "labelled_figure",
@@ -215,7 +219,7 @@ module.exports = {
       pngWidth: 820,
       spec: {
         type: "labelled_figure",
-        image: path.join(REPO, LEAF),
+        image: LEAF,
         imageWidth: 400,
         title: "The four things a leaf needs, and the two it makes",
         labels: [
@@ -233,7 +237,7 @@ module.exports = {
       pngWidth: 860,
       spec: {
         type: "labelled_figure",
-        image: path.join(REPO, LEAF),
+        image: LEAF,
         imageWidth: 380,
         lang: "ur",
         title: "پتا کیا لیتا ہے اور کیا بناتا ہے",

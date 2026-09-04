@@ -62,7 +62,22 @@ function render(spec) {
   // negative x and is clipped away by the viewBox.
   const gutterL = spec.rowLabel ? (spec.lang === "ur" ? 54 : 26) : 0;
   const gutterT = spec.colLabel ? (spec.lang === "ur" ? 44 : 22) : 0;
-  const bodyW = gw + pad * 2 + gutterL;
+  // THE CANVAS MUST FIT THE READOUT THIS TYPE GENERATES FOR ITSELF.
+  // The legend above is built from rows/cols/shaded — "1/4 = 25% = 0.25" is 116 units at
+  // SIZE.label — while the body used to be sized from the GRID alone. A 2x2 therefore
+  // produced a 76-unit canvas carrying a readout wider than itself: the text ran edge to
+  // edge, checkOverlaps flagged it against the page rect, and lint_lp.js's
+  // DIAGRAM_OVERLAP — a HARD FAIL — rejected a minimal, entirely correct grid. The
+  // failure only appears BELOW about 5x5, which is why a 10x10 hundred square never
+  // showed it and why nobody had seen it. Measured with the engine's own estimator, so
+  // the reservation and the drawing can never disagree.
+  const legendW = legend
+    ? measure(String(legend), SIZE.label, {
+        lang: hasUrdu(String(legend)) ? "ur" : "en",
+        weight: 700,
+      })
+    : 0;
+  const bodyW = Math.max(gw + pad * 2 + gutterL, Math.ceil(legendW) + pad * 2);
   const bodyH = gh + pad * 2 + legendH + gutterT;
 
   const svg = new Svg(bodyW, bodyH, {
@@ -74,7 +89,10 @@ function render(spec) {
     spec,
   });
 
-  const x0 = pad + gutterL;
+  // Centre the grid in whatever width the readout demanded, rather than pinning it left
+  // and leaving a lopsided margin. With no readout, or a readout narrower than the grid,
+  // this is exactly the old `pad + gutterL`.
+  const x0 = gutterL + Math.max(pad, (bodyW - gutterL - gw) / 2);
   const y0 = pad + gutterT;
 
   // shaded cells first, so the rules sit on top

@@ -193,14 +193,29 @@ function linesFor(c, lang) {
     out.push({ t: String(lbl), ur: lang === "ur" || hasUrdu(String(lbl)) });
   const val = c.value;
   if (val !== undefined && val !== null && String(val) !== "")
-    out.push({ t: String(val), ur: false });
+    // `ur` here is LAYOUT ARITHMETIC, not a translation policy: it decides how much
+    // vertical room this line is given (ADV/clearUp/clearDown below). svg.text() sends
+    // ANY Arabic-script string down the tall foreignObject path regardless of the
+    // caller's lang, so hardcoding `false` gave an Urdu value a Latin-sized slot and it
+    // landed on the label above it — a DIAGRAM_OVERLAP hard fail on a legal spec.
+    // The house style is still an LTR value ("6 V", "10 Ω"); those are not Urdu, so
+    // hasUrdu() is false for them and every existing English circuit is byte-identical.
+    // Note this deliberately does NOT read `lang`, unlike the label line above: an Urdu
+    // page's values stay Latin, and only the string's own script may say otherwise.
+    out.push({ t: String(val), ur: hasUrdu(String(val)) });
   return out;
 }
 const ADV = (l) => (l.ur ? 30 : 17);
+// The advance also has to CLEAR the current line's own box whenever the NEXT line
+// occupies a box of its own. A Nastaliq foreignObject at SIZE.small measures 34.45
+// units tall, so the 30-unit Urdu advance left two stacked Urdu lines overlapping by
+// ~4 — invisible to the eye, fatal to checkOverlaps. Only the Urdu→Urdu pair changes;
+// every other combination keeps its old advance, so no existing figure moves.
+const advance = (cur, next) => (cur.ur && next && next.ur ? 38 : ADV(cur));
 
 function stackSum(lines) {
   let s = 0;
-  for (let i = 0; i < lines.length - 1; i++) s += ADV(lines[i]);
+  for (let i = 0; i < lines.length - 1; i++) s += advance(lines[i], lines[i + 1]);
   return s;
 }
 /** Baseline gap between the wire and the label line nearest to it. */
@@ -224,15 +239,16 @@ function needBelow(lines, p) {
 
 function drawStack(svg, x, y0, lines, opt) {
   let y = y0;
-  for (const l of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
     svg.text(x, y, l.t, {
       size: SIZE.small,
       fill: C.text,
-      weight: l === lines[0] ? 700 : undefined,
+      weight: i === 0 ? 700 : undefined,
       ...opt,
       lang: l.ur ? "ur" : "en",
     });
-    y += ADV(l);
+    y += advance(l, lines[i + 1]);
   }
 }
 const stackUp = (svg, x, wireY, lines, opt, p = 4) =>

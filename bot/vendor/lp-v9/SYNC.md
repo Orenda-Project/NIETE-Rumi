@@ -28,11 +28,71 @@ outside this repo and not in this repo's git history:
 | `lib/*.js`, `lib/clean_figure.py` | `lp_html/lib/` |
 | `schema/lp_doc.schema.json` | `lp_html/schema/lp_doc.schema.json` (v3.0 — current) |
 | `schema/lp_doc.v2.schema.json` | `lp_html/schema/lp_doc.v2.schema.json` (v2.0 — frozen) |
-| `diagrams/index.js`, `diagrams/lib/*.js`, `diagrams/types/*.js` | `lp_html/diagrams/` |
+| `diagrams/index.js`, `diagrams/lib/*.js`, `diagrams/types/*.js`, `diagrams/types_manifest.json`, `diagrams/assets/*` | `lp_html/diagrams/` |
 | `brief_author_v3.md` | `lp_author/brief_author_v3.md` |
 | `brief_author_v3_flash_{maths,sci,prose}.md` | `lp_author/brief_author_v3_flash_{maths,sci,prose}.md` |
 | `fonts/Inter-{Regular,SemiBold,Bold}.ttf` | workspace `06_Logs & Misc/Reports/Active/Tanzania Expansion/02_Coaching_MEWAKA/mewaka-sample-report/` |
 | `fonts/NotoNastaliqUrdu.ttf` | workspace `02_Main Rumi Bot/fonts/` |
+
+> **Upstream cap mirror, 2026-09-04 (bd-09m6a).** The bd-vjk68 raise above was applied to the
+> VENDORED tree first. The skill copy has now been brought level in the same change: `MAX_PAGES`,
+> `WARN_PAGES`, `MAX_PAGES_UR`, `WARN_PAGES_UR` and their reasoning comments, §8 of
+> `brief_author_v3.md`, all four regenerated flash briefs (`build_flash_brief.py --check` clean),
+> and the six cap assertions in upstream's `test/run_tests.js` (149/149 green after). The stale
+> normative statements in the skill's own docs went with them — the README capacity table and its
+> "5+4 is what the code enforces today" lines, `reference/lp_v9_render_pipeline.md`'s two "do not
+> state a new cap" notes, and `SKILL.md`'s summary line. **The soft-page-count ladder was NOT
+> touched: it lives in `lp612-author.service.js`, not in `lp_html`.** `render_lp.js` is not
+> re-copied here — its §3.2/3.3/3.4/3.7 divergences stand and the vendored caps were already right.
+>
+> **Partial re-vendor 2026-09-04 (bd-09m6a): five `diagrams/types/*.js`, plus the NEW
+> `diagrams/types_manifest.json` and `diagrams/assets/`.** Fixed upstream first and copied
+> byte-for-byte; the §6 pre-copy diff showed **exactly** these five files and nothing else, so
+> `lint_lp.js`, both schemas, `diagrams/index.js` and all of `diagrams/lib/` remain byte-identical
+> to upstream and §3 is unchanged — **no new divergence**. Upstream's own suites were run there:
+> `test/diagram_roster.js` 137/137 (new), `test/diagram_ports.js` 25/25, `test/run_tests.js`
+> 149/149, `test/packing.js` 4/4, and `diagrams/test.js` now **PASSES** at 65 examples / 20 types
+> (it had been red on two `labelled_figure` examples for months). `diagram_overlap_gate`'s corpus
+> sweep fails on exactly the one already-rejected candidate it failed on before the change.
+>
+> What changed, and why each one mattered **here** rather than only upstream — three of the five
+> are Urdu defects, and NIETE is the deployment that serves Urdu:
+>
+> * **`circuit.js`** — `linesFor()` hardcoded `ur:false` on the component VALUE line while
+>   `svg.text()` sends any Arabic-script string down the tall `foreignObject` path regardless of
+>   the caller's `lang`. Layout arithmetic and render path disagreed, so an Urdu value got a
+>   Latin-sized slot and landed on its own label. Separately, the 30-unit Urdu advance is shorter
+>   than a Nastaliq box (34.45 units), so **any** two stacked Urdu lines overlapped by ~4. Both are
+>   `DIAGRAM_OVERLAP`, which is a **hard lint fail** — one Urdu switch value cost the whole lesson.
+> * **`molecule.js`** — the canvas already reserved 2.9× height for a Nastaliq name, but the
+>   baseline offset was a flat 1.05× and a `foreignObject` box grows UPWARD from it, into the
+>   formula's subscript. Same hard fail, same cause class.
+> * **`free_body.js`** — the body chip is one string handed to an RTL `foreignObject`, so bidi
+>   reordered the trailing Latin run and **`"ڈبہ 5 kg"` printed as `"kg 5 ڈبہ"`** on the page. No
+>   gate could see it: the SVG string is correct and the reversal happens in the browser's text
+>   layout. Fixed with the LRI…PDI isolate this vendor tree already uses for the resources-line URL
+>   (§3.6) and the coaching-corner phone number.
+> * **`atom.js`** — `render()` selected the bonding picture on `mode === "dot_cross"` only, so
+>   `{"type":"dot_and_cross", …}` reached the module through its OWN registered alias and then
+>   silently drew a **Bohr diagram of the first element**. Mode now resolves explicit `mode` → the
+>   alias used → default, the order `dna_helix` already uses for its `kind`.
+> * **`labelled_figure.js`** — its two gallery examples resolved their image seven levels up, out
+>   of the skill and into an operator investigation folder **that does not exist in this repo**, so
+>   the vendored copy could only ever render an "image not found" card. The crop is now vendored at
+>   `diagrams/assets/fig_1_11_leaf.jpg` and the module resolves it from `__dirname`.
+>
+> **`diagrams/types_manifest.json` is new and is now part of the vendor contract.** It is the
+> machine-readable roster of all 20 kinds — aliases, required and optional fields, a minimal
+> renderable spec, known limits — so the `lp_doc` schema enum, the lint and the author brief can
+> each be checked against what the renderer actually supports. `tests/lp612/diagram-roster.test.js`
+> (31 assertions, red-first against `origin/develop`'s vendored tree) asserts it against the
+> **serving** copy: every kind present, every alias resolving through `renderDiagram`, every
+> minimal spec rendering, plus a pin on each of the five fixes above. **This partly closes §5's
+> first coverage gap** — upstream's suites still do not run here, but the diagram engine now has
+> assertions on this side of the copy rather than none.
+>
+> Prose rendering of the roster, with a render of every type in both languages:
+> the skill's `reference/diagram_roster.md`.
 
 > **Partial re-vendor 2026-09-03 (third, night — bd-u6za9): the three FAMILY FLASH BRIEFS,
 > byte-for-byte.** `brief_author_v3_flash_{maths,sci,prose}.md` copied from `lp_author/`
@@ -71,7 +131,10 @@ outside this repo and not in this repo's git history:
 > * **Per-language page caps** (`render_lp.js`): `pageCapsFor(lang)` — English **6/4** (warn 5/3);
 >   Urdu **7/6** (warn 6/5). *(Raised one sheet per language on 2026-09-04, bd-vjk68: EN teach
 >   5→6, UR support 5→6, aimed at where the 9 live overflows actually were — 6 EN teach, 3 UR
->   support. Was EN 5/4 warn 4/3, UR 7/5 warn 6/4.)* Word budgets in
+>   support. Was EN 5/4 warn 4/3, UR 7/5 warn 6/4. That raise landed HERE FIRST and left the skill
+>   behind for a few hours; it was **mirrored upstream on 2026-09-04 under bd-09m6a** — the four
+>   constants, §8 of the brief, the regenerated flash briefs and upstream's own cap assertions —
+>   so the two homes agree again and this is NOT a divergence.)* Word budgets in
 >   `lint_lp.js` are deliberately untouched: identical content volume, more paper. The caps
 >   hunks were applied to the vendored file BY HAND around the §3.2/3.3/3.4 divergences — never
 >   blind-copied.
