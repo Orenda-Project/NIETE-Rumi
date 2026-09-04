@@ -248,9 +248,12 @@ function pickScreen({ items, selected }) {
 
 function pickDoneScreen({ items, selected, error = '' }) {
   const t = totalsOf(items, selected);
+  const summary = `${t.count} question${t.count === 1 ? '' : 's'} · ${t.marks} marks`;
   return screen('PICK_DONE', {
-    summary: `${t.count} question${t.count === 1 ? '' : 's'} · ${t.marks} marks`,
+    summary,
     note: 'Nothing to fix? Just rebuild.',
+    // Same rule as CONFIRM: drawn with the payload it will send back.
+    extension_message_response: completionPayload('rebuilt', summary),
     error,
   });
 }
@@ -558,12 +561,33 @@ async function handleEditSave(userId, screenId, data, flowToken) {
  * matches on `assessment_action` and sends the acknowledgement as a message.
  */
 function done(action, summary) {
-  return {
-    screen: 'SUCCESS',
-    data: {
-      extension_message_response: { params: { assessment_action: action, summary: summary || '' } },
-    },
-  };
+  // PICK_DONE, not a 'SUCCESS' screen: SUCCESS went with SUBMITTED, and naming
+  // a screen the Flow does not have leaves the client with nothing to render.
+  // PICK_DONE is terminal and real, so returning it here both ends the journey
+  // and carries the payload the completion needs.
+  return screen('PICK_DONE', {
+    summary: summary || '',
+    note: '',
+    extension_message_response: { params: { assessment_action: action, summary: summary || '' } },
+    error: '',
+  });
+}
+
+/**
+ * The payload a terminal screen's Footer sends back when it completes.
+ *
+ * This has to be supplied when the screen is DRAWN, not in the reply to its
+ * submit. A Flow interpolates `${data.extension_message_response}` from the
+ * data the screen already holds; by the time the endpoint answers the submit,
+ * the completion has been built and sent.
+ *
+ * Getting that backwards shipped a Flow that closed correctly and told the
+ * teacher nothing: the completion arrived carrying only the form fields, the
+ * detector could not recognise it, and it fell through to the loose attendance
+ * fallback — which acknowledged nothing and logged no error.
+ */
+function completionPayload(action, summary) {
+  return { params: { assessment_action: action, summary: summary || '' } };
 }
 
 async function handleInit(userId, flowToken) {
@@ -798,6 +822,9 @@ function confirmScreen(state) {
   }[state.contentSource] || 'New questions';
   return screen('CONFIRM', {
     recap: [summaryOf(state), `${source} · ${state.questionCount} questions`].join('\n'),
+    // Supplied HERE, on the render — the Footer can only send back data the
+    // screen was drawn with.
+    extension_message_response: completionPayload('queued', summaryOf(state)),
     error: '',
   });
 }

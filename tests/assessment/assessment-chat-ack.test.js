@@ -245,3 +245,90 @@ describe('what she actually reads in the chat', () => {
     expect(text.trim()).toMatch(/minute\.$/);
   });
 });
+
+describe('the completion payload must actually CARRY the tag (bd-60029)', () => {
+  // What went wrong live: CONFIRM's Footer asks for
+  // `${data.extension_message_response}`, but the server rendered CONFIRM with
+  // only { recap, error }. A Flow interpolates from the data the screen was
+  // DRAWN with — the endpoint's reply to the submit is far too late. So the
+  // completion arrived carrying only the form fields, `assessment_action` was
+  // absent, the detector's new rule never fired, and the payload fell through
+  // to the loose attendance fallback:
+  //
+  //   flowType: "attendance_marking"
+  //   📋 Attendance marking flow completion (register already written by endpoint)
+  //
+  // She got no acknowledgement and no paper, and nothing logged an error.
+  //
+  // Asserted on the SCREEN DATA rather than the endpoint's return value,
+  // because the return value was right all along — that is exactly why the
+  // earlier tests passed while the feature was broken.
+  const Endpoint2 = require('../../bot/shared/routes/assessment-gen-endpoint');
+
+  test('CONFIRM is rendered WITH the completion payload it will send back', async () => {
+    mockRedis.get.mockResolvedValue({
+      userId: 'user-1', grade: 4, subject: 'science', chapterNumber: 3,
+      pageRanges: '34-41', questionCount: 10, questionTypes: [], contentSource: 'unseen',
+    });
+    const res = await Endpoint2.handleAssessmentGenDataExchange(
+      'user-1', 'QUESTIONS',
+      { content_source: 'unseen', question_count: '10', pick_types: false },
+      'user-1:assessment-gen:1');
+
+    expect(res.screen).toBe('CONFIRM');
+    const emr = res.data.extension_message_response;
+    expect(emr).toBeDefined();
+    expect(emr.params.assessment_action).toBe('queued');
+  });
+
+  test('every terminal screen carries one — a Footer cannot interpolate what is not there', async () => {
+    // PICK_DONE is the other terminal screen and has the identical exposure.
+    mockRedis.get.mockResolvedValue({
+      userId: 'user-1', paperId: 'paper-1', page: 0, selected: ['a.b.MCQs.0'],
+    });
+    const res = await Endpoint2.handleAssessmentGenDataExchange(
+      'user-1', 'PICK', { _action: 'summary' }, TOKEN);
+
+    expect(res.screen).toBe('PICK_DONE');
+    expect(res.data.extension_message_response?.params?.assessment_action).toBeDefined();
+  });
+});
+
+describe('no handler may return a screen the Flow does not have (bd-60029)', () => {
+  const fs = require('fs');
+  const path = require('path');
+
+  test('every screen id the endpoint returns exists in the published Flow', () => {
+    // `done()` returned `screen: 'SUCCESS'` — a screen deleted along with
+    // SUBMITTED. The client cannot render it, so with editing off KEEP's Next
+    // led nowhere. Nothing in the endpoint's own tests would catch that,
+    // because the endpoint is perfectly happy naming a screen that is gone.
+    const src = fs.readFileSync(path.join(__dirname, '../..',
+      'bot/shared/routes/assessment-gen-endpoint.js'), 'utf8');
+    const flow = JSON.parse(fs.readFileSync(path.join(__dirname, '../..',
+      'docs/flows/assessment-gen-flow.json'), 'utf8'));
+
+    const real = new Set(flow.screens.map((s) => s.id));
+    const named = new Set(
+      [...src.matchAll(/screen:\s*'([A-Z_]+)'/g)].map((m) => m[1])
+        .concat([...src.matchAll(/screen\('([A-Z_]+)'/g)].map((m) => m[1])),
+    );
+    expect([...named].filter((id) => !real.has(id))).toEqual([]);
+  });
+
+  test('with editing off, KEEP completes through a screen that really exists', async () => {
+    const flags = require('../../bot/shared/config/feature-flags');
+    flags.isAssessmentEditingEnabled.mockResolvedValue(false);
+    mockRedis.get.mockResolvedValue({
+      userId: 'user-1', paperId: 'paper-1', page: 0, selected: ['a.b.MCQs.0'],
+    });
+    const res = await exchange('user-1', 'KEEP',
+      { keep: ['a.b.MCQs.0'], page: '0', _action: 'done' }, TOKEN);
+
+    const flow = JSON.parse(require('fs').readFileSync(
+      require('path').join(__dirname, '../..', 'docs/flows/assessment-gen-flow.json'), 'utf8'));
+    const real = flow.screens.map((s) => s.id);
+    expect(real).toContain(res.screen);
+    expect(res.data.extension_message_response.params.assessment_action).toBe('rebuilt');
+  });
+});
