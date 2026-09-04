@@ -961,7 +961,16 @@ async function handleStatusFlowCompletion(responseJson, from, user) {
  * act on: wait, or send /assessment again.
  */
 async function handleAssessmentFlowCompletion(responseJson, from, user) {
-  const action = String(responseJson?.assessment_action || '');
+  // The tag when we get one — but Meta DROPS `extension_message_response` from
+  // a completion, so the usual case is that it is absent and the token is all
+  // we have. Routing on the token without deriving the ACTION from it too would
+  // just move the silence one step later: the handler would fall to its
+  // unrecognised branch and say nothing, which is identical from her side.
+  const token = String(responseJson?.flow_token || '');
+  const fromToken = token.includes(':assessment-review:') ? 'rebuilt'
+    : token.includes(':assessment-gen:') ? 'queued'
+      : '';
+  const action = String(responseJson?.assessment_action || fromToken);
   const summary = String(responseJson?.summary || '').trim();
 
   const MESSAGES = {

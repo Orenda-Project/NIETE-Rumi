@@ -111,7 +111,26 @@ function detectFlowType(responseJson) {
   //     `<userId>:assessment-gen:<ts>` is full of colons and would otherwise be
   //     misrouted to attendance, the exact bug that hit the exam generator,
   //     observe, and training-msq before it.
+  // The TAG is checked first because it is the clearest signal when present —
+  // but it is not reliable. Meta DROPS `extension_message_response` from a
+  // completion: verified on a live payload where the Footer requested it, the
+  // screen declared it and the server supplied it on the render, and what
+  // arrived was only the form fields plus the token.
+  //
+  // The FLOW TOKEN is the discriminator that survives. We set it ourselves when
+  // sending the Flow, and it always comes back:
+  //   `<userId>:assessment-gen:<ts>`     — a new paper
+  //   `<userId>:assessment-review:<id>`  — a rebuild of one she already has
+  //
+  // Matched on the marker rather than a bare colon, so it cannot swallow the
+  // other colon-bearing tokens (attendance, observe, training-msq) that share
+  // the loose fallback below.
   if (responseJson.assessment_action !== undefined) {
+    return 'assessment_gen';
+  }
+  const assessmentToken = String(responseJson.flow_token || '');
+  if (assessmentToken.includes(':assessment-gen:')
+      || assessmentToken.includes(':assessment-review:')) {
     return 'assessment_gen';
   }
 
