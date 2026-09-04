@@ -51,7 +51,9 @@ const PAPER = {
   selected_question_ids: null,
   request_id: 'req-1',
   assessment_requests: {
-    id: 'req-1', user_id: 'user-1', grade: 4, subject: 'science',
+    // Real column names, real value shape: the live row stores 'grade_4',
+    // not 4. A fixture using `grade` kept 10 tests green through an outage.
+    id: 'req-1', user_id: 'user-1', grade_code: 'grade_4', subject_code: 'science',
     chapter_number: 3, page_ranges: '34-41', output_format: 'pdf',
   },
 };
@@ -161,5 +163,70 @@ describe('rerender — an edit becomes a document', () => {
     expect(res.status).toBe('failed');
     expect(res.code).toBe('RENDER_FAILED');
     expect(mockSendMessage).toHaveBeenCalled();
+  });
+});
+
+describe('the columns it asks the database for must exist (bd-60024)', () => {
+  // The review screen opened EMPTY on staging and the client refused it:
+  //   "CheckboxGroup 'keep' dataSource array must contain at least 1 options."
+  // The select named `grade` and `subject`. The live table has `grade_code`
+  // ('grade_4') and `subject_code`. PostgREST rejects the whole query for one
+  // unknown column, so listQuestions returned NOT_FOUND and the screen rendered
+  // with nothing on it — the paper was fine the entire time.
+  //
+  // Asserted against the migration rather than a mock, because a mock answers
+  // whatever it is asked and would have stayed green through this.
+  const fs = require('fs');
+  const path = require('path');
+
+  /** The select is written as concatenated string literals; join them first. */
+  function selectText(src) {
+    const m = src.match(/\.select\(([\s\S]*?)\)\s*\n\s*\.eq\(/);
+    if (!m) throw new Error('could not find the .select( ... ) call');
+    return (m[1].match(/'([^']*)'/g) || []).map((q) => q.slice(1, -1)).join('');
+  }
+
+  const migration = fs.readFileSync(path.join(__dirname, '../..',
+    'infrastructure/supabase/migrations/V1.2.6__assessment_generator.sql'), 'utf8');
+
+  function columnsOf(table) {
+    const m = migration.match(
+      new RegExp(`CREATE TABLE IF NOT EXISTS ${table}\\s*\\(([\\s\\S]*?)\\n\\);`));
+    if (!m) throw new Error(`no CREATE TABLE for ${table}`);
+    return new Set(m[1].split('\n')
+      .map((l) => (l.trim().match(/^([a-z_][a-z0-9_]*)\s+[A-Z]/) || [])[1])
+      .filter(Boolean));
+  }
+
+  test('every column the revision service selects from assessment_requests is real', () => {
+    const src = fs.readFileSync(path.join(__dirname, '../..',
+      'bot/shared/services/assessment/assessment-revision.service.js'), 'utf8');
+    const embed = selectText(src).match(/assessment_requests!inner\(([^)]*)\)/);
+    expect(embed).toBeTruthy();
+
+    const asked = embed[1].split(',').map((s) => s.trim()).filter(Boolean);
+    const real = columnsOf('assessment_requests');
+    expect([...asked].filter((c) => !real.has(c))).toEqual([]);
+  });
+
+  test('and from assessment_papers', () => {
+    const src = fs.readFileSync(path.join(__dirname, '../..',
+      'bot/shared/services/assessment/assessment-revision.service.js'), 'utf8');
+    const top = selectText(src).replace(/assessment_requests!inner\([^)]*\)/, '')
+      .split(',').map((s) => s.trim()).filter(Boolean);
+    const real = columnsOf('assessment_papers');
+    expect(top.filter((c) => !real.has(c))).toEqual([]);
+  });
+});
+
+describe('grade_code is decoded before it reaches a teacher (bd-60024)', () => {
+  test("'grade_4' becomes 4 on the paper, the filename and the caption", async () => {
+    await Revision.rerender({ paperId: 'paper-1', userId: 'user-1', selectedIds: ['seen.objective.MCQs.0'] });
+    const [, , filename, caption] = mockSendDocumentByLink.mock.calls[0];
+    expect(filename).toBe('Grade4_Science_Edited.pdf');
+    expect(caption).toContain('Grade 4 Science');
+    // The literal code must never reach her.
+    expect(filename).not.toContain('grade_4');
+    expect(caption).not.toContain('grade_4');
   });
 });
