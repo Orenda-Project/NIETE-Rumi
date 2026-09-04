@@ -68,14 +68,24 @@ railway logs --service bot --num 100
 After making code changes locally:
 
 ```bash
-# Navigate to your bot directory
-cd rumi-platform/bot
+# Run from the REPOSITORY ROOT — not from bot/
+cd rumi-platform
 
 # Deploy to Railway (always specify --service bot)
 railway up --service bot
 ```
 
 This pushes your local code to Railway and triggers a rebuild.
+
+> ⚠️ **Run `railway up` from the repository root.** It uploads the CURRENT
+> DIRECTORY as the build context, so running it from `bot/` uploads only `bot/`.
+> The service's build command is `npm install && cd bot && npm install`, which
+> then fails with `cd: bot: No such file or directory` — and the root
+> `railpack.json` is missing from the upload too, so the native build deps
+> (`libcairo2-dev`, `pkg-config`, …) are never installed and Railway silently
+> falls back from RAILPACK to NIXPACKS. This is not hypothetical: a
+> `cd bot && railway up` step in CI failed 24 times out of 24 before it was
+> removed on 2026-08-18.
 
 **Why `--service bot`?** Your Railway project has multiple services (bot, redis). Without specifying the service, Railway CLI doesn't know which one to deploy to.
 
@@ -98,29 +108,49 @@ Connect your GitHub repository for automatic deployments on every push:
 
 3. **Configure auto-deploy:**
    - Enable **Automatic Deployments**
-   - Set the **Root Directory** to `bot`
+   - Leave the **Root Directory** EMPTY (the repository root)
    - Railway will now deploy automatically on every `git push`
+
+   > ⚠️ Do **not** set Root Directory to `bot`. The `bot` and `sqs-worker`
+   > services both build with `npm install && cd bot && npm install` and rely on
+   > the root `railpack.json` for their native build deps, so both need the whole
+   > repo in the build context. Setting it to `bot` breaks the build in exactly
+   > the way described under Method 1.
 
 **Note:** GitHub connection cannot be done via API. This is a one-time UI setup.
 
 ### Method 3: Redeploy Without Changes
 
-To restart your bot (e.g., after changing env vars):
+To pick up new env vars, rebuild the current source rather than re-uploading:
 
 ```bash
-cd bot
-railway up --service bot --force
+# Rebuilds from the configured GitHub source — the safe default
+railway redeploy --from-source --service bot
 ```
+
+**Use `--from-source`, not a bare `railway redeploy`.** A bare redeploy replays
+the *latest* deployment's build manifest — so if the most recent attempt failed,
+the retry faithfully reproduces the failure. `--from-source` pulls the latest
+commit from GitHub instead. (On 2026-08-18 a bare redeploy of `bot` failed for
+exactly this reason: it replayed a broken NIXPACKS upload manifest.)
 
 ### Method 4: GitHub Actions (No UI Required)
 
-If you don't have Railway UI access, use GitHub Actions for auto-deploy:
+**Removed.** A `.github/workflows/deploy.yml` used to run
+`cd bot && railway up --service bot`, and it **never worked** — 24 deployments,
+0 successes, from the day the `RAILWAY_TOKEN` secret was added (2026-07-13) until
+it was deleted on 2026-08-18. Each push touching `bot/**` produced a good
+Railway git-integration build followed ~14s later by a failed upload build, so
+the newest deployment was permanently `FAILED` while the service quietly ran the
+older good one. That masked a genuine outage: after the `bot` service's last
+successful build on 2026-08-17, nothing it deployed could take effect, and a
+corrected env var sat unapplied for 13 hours.
 
-1. Add `RAILWAY_TOKEN` to GitHub repo secrets (Settings > Secrets > Actions)
-2. Copy `.github/workflows/deploy.yml` from the rumi-platform repo
-3. Push to main branch — deploys automatically
-
-See `.github/workflows/deploy.yml` for the workflow file.
+Use **Method 2** (Railway's native GitHub integration) — it is connected for this
+project and deploys reliably on every push. If you ever genuinely need CI-driven
+deploys, run `railway up` from the **repository root** (see Method 1) and make
+sure Railway's own automatic deployments are turned OFF first, or every push
+triggers two racing builds.
 
 ## Managing Environment Variables
 
