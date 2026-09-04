@@ -856,12 +856,27 @@ function applyVideo(doc, video) {
  *
  * A renderer that BLOWS UP is not the document's fault (a browser that would not launch), so it
  * is swallowed: the run falls back to exactly the old behaviour rather than losing the lesson.
+ *
+ * `meta` is optional context (correlationId/segmentId/round) for the telemetry line below — it
+ * changes nothing about the gate decision, only what a schema failure can be traced back to.
  */
-async function runGates(doc, renderCheck) {
+async function runGates(doc, renderCheck, meta = {}) {
   const v = validateDoc(doc);
   // The `SCHEMA:` prefix is the lint's own vocabulary for the same finding — worth matching so
   // a caller (and the revision prompt) reads one consistent list of coded defects.
-  if (!v.ok) return { schema: v.errors.map((e) => `SCHEMA: ${e}`), lint: [], render: [], warns: [] };
+  if (!v.ok) {
+    // Visibility on how often the model hands back a document that cannot even be lint-checked,
+    // let alone rendered — bd-jddcu was found only because a human read one render-service log
+    // line by hand. This is the counter that answers "how often" without that.
+    logEvent('lp612.author.schema_invalid', {
+      correlationId: meta.correlationId || null,
+      segmentId: meta.segmentId || null,
+      round: typeof meta.round === 'number' ? meta.round : null,
+      errorCount: v.errors.length,
+      errors: v.errors.slice(0, 5),
+    });
+    return { schema: v.errors.map((e) => `SCHEMA: ${e}`), lint: [], render: [], warns: [] };
+  }
   // `docPath` is unused by lint() — it takes it for its CLI's sake. Nothing here writes.
   const r = lint(doc, null, {});
 
@@ -924,16 +939,42 @@ const blockingFails = (g) => gateFails(g).filter((d) => !isAdvisory(d));
 const blockingCost = (g) => blockingFails(g).length;
 
 /**
- * Is `a` an acceptable replacement for `b`? Lexicographic: fewer BLOCKING defects always wins,
- * and only on a tie there does total defect count decide (`<=`, so an equal-cost candidate is
- * still taken, which is the long-standing behaviour).
- *
- * The ordering matters. Under a flat count a candidate carrying one PAGE COUNT defect and no
- * BUDGET (cost 1) would displace a kept document that renders inside both caps and merely runs
- * long (cost 2) — trading a lesson that ships for one that does not.
+ * Did this candidate even reach lint/render? See `runGates`: a schema failure short-circuits,
+ * so `g.schema` is non-empty ONLY on that path — a schema-valid document always has `schema: []`
+ * (its findings, if any, live in `lint`/`render` instead).
  */
-const notWorse = (a, b) =>
-  (blockingCost(a) !== blockingCost(b) ? blockingCost(a) < blockingCost(b) : gateCost(a) <= gateCost(b));
+const schemaOk = (g) => g.schema.length === 0;
+
+/**
+ * Is `a` an acceptable replacement for `b`?
+ *
+ * SCHEMA VALIDITY IS A HARD TIER, ABOVE THE DEFECT COUNT — bd-jddcu. `runGates` short-circuits
+ * on a schema failure, so a schema-invalid gate result carries ONLY schema errors: lint and the
+ * render probe never ran on it, and never got the chance to add their own defects to its count.
+ * A schema-valid candidate, by contrast, has been scored on the FULL gate set. Comparing the two
+ * on raw defect count is therefore comparing an undercount to a real count, and it can only ever
+ * favour the broken document — which is exactly what happened: a candidate that failed schema
+ * with one error read as "cheaper" than a valid candidate carrying three lint/render defects, so
+ * `notWorse` preferred it, and a document the renderer cannot even open reached the renderer.
+ *
+ * A schema-invalid document is not "a bit worse" than a valid one — it cannot be turned into a
+ * PDF at all, regardless of how few nominal defects it lists. So this is not a matter of
+ * reweighting the count (there is no number of lint/render defects that should make a broken
+ * document win); it is a categorical ordering. Hence a tier check ahead of the existing
+ * lexicographic comparison, rather than folding schema into `gateCost`/`blockingCost` — doing the
+ * latter would let a valid document with enough accumulated lint noise still lose to a
+ * schema-invalid one on the numbers, which is the same bug with extra steps.
+ *
+ * Only once both sides are on the same side of that line does the existing rule decide: fewer
+ * BLOCKING defects wins, and only on a tie there does total defect count decide (`<=`, so an
+ * equal-cost candidate is still taken — long-standing behaviour, unchanged).
+ */
+const notWorse = (a, b) => {
+  const aOk = schemaOk(a);
+  const bOk = schemaOk(b);
+  if (aOk !== bOk) return aOk; // valid beats invalid outright; invalid never beats valid
+  return (blockingCost(a) !== blockingCost(b) ? blockingCost(a) < blockingCost(b) : gateCost(a) <= gateCost(b));
+};
 
 /**
  * How many consecutive rounds may reduce no blocking defect before the ladder gives up.
@@ -1041,7 +1082,7 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
   sanitizeOverlay(doc);
   sanitizeSequence(doc, segment);
 
-  let gates = await runGates(doc, renderCheck);
+  let gates = await runGates(doc, renderCheck, { correlationId, segmentId: segment.segment_id, round: 0 });
   let spent = 0;
   // Consecutive rounds that have reduced no BLOCKING defect. See STALE_ROUNDS.
   let stale = 0;
@@ -1088,7 +1129,7 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
     sanitizeUnknownTopLevel(candidate);
     sanitizeOverlay(candidate);
     sanitizeSequence(candidate, segment);
-    const g2 = await runGates(candidate, renderCheck);
+    const g2 = await runGates(candidate, renderCheck, { correlationId, segmentId: segment.segment_id, round: spent });
     if (notWorse(g2, gates)) {
       doc = candidate;
       gates = g2;
@@ -1096,12 +1137,30 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
       // Upstream keeps the rejected candidate on disk — "was worse" with no numbers and no
       // artefact is unreviewable. A worker has nowhere to put it, so the numbers go to the log
       // and the document itself is dropped. Then CONTINUE, not break.
+      const schemaTiered = !schemaOk(g2) && schemaOk(gates);
       logToFile('lp612 author revision was worse — kept previous, continuing', {
         correlationId, segmentId: segment.segment_id, round: spent,
         defectsCandidate: gateCost(g2), defectsKept: gateCost(gates),
         blockingCandidate: blockingCost(g2), blockingKept: blockingCost(gates),
         candidateFails: gateFails(g2).slice(0, 10),
+        // Distinguishes "lost on the numbers" from "discarded outright for being unrenderable" —
+        // the latter would otherwise look like an ordinary defect-count loss in this log line.
+        reason: schemaTiered ? 'schema_invalid' : 'higher_cost',
       }, 'warn');
+      if (schemaTiered) {
+        // bd-jddcu's specific case: the candidate that came back could not even be lint-checked,
+        // while the document we already had could. Counted separately from the generic
+        // schema_invalid line above (which fires on every schema failure, kept or not) so this
+        // one answers "how often did that failure actually cost a round", not just "how often did
+        // it happen".
+        logEvent('lp612.author.schema_candidate_rejected', {
+          correlationId: correlationId || null,
+          segmentId: segment.segment_id || null,
+          round: spent,
+          errorCount: g2.schema.length,
+          lane: 'author',
+        });
+      }
     }
 
     // Progress is measured on the BLOCKING list only. A round that shaved a word off an
@@ -1263,8 +1322,14 @@ async function reviseLessonPlan({
   };
 
   // The bar. Her document's own defect count — an edit may not raise it.
-  const gatesBefore = await runGates(original, renderCheck);
+  const gatesBefore = await runGates(original, renderCheck, { correlationId, segmentId: segment.segment_id, round: 0 });
   const bar = blockingCost(gatesBefore);
+  // bd-jddcu applies here too: her document already renders (schemaOk is true in the only case
+  // this lane is called for), so a defect-count comparison ALONE could accept an edit that comes
+  // back schema-invalid — undercounted for the same reason `notWorse` was, because a schema
+  // failure short-circuits lint/render (see `runGates`). An edit is never allowed to trade a
+  // working lesson for one the renderer would refuse, no matter how low its nominal count reads.
+  const beforeSchemaOk = schemaOk(gatesBefore);
 
   let current = original;
   let gates = gatesBefore;
@@ -1296,9 +1361,10 @@ async function reviseLessonPlan({
     sanitizeOverlay(candidate);
     sanitizeSequence(candidate, segment);
 
-    const g2 = await runGates(candidate, renderCheck);
+    const g2 = await runGates(candidate, renderCheck, { correlationId, segmentId: segment.segment_id, round: spent });
+    const schemaTiered = beforeSchemaOk && !schemaOk(g2);
 
-    if (blockingCost(g2) <= bar) {
+    if (!schemaTiered && blockingCost(g2) <= bar) {
       current = candidate;
       gates = g2;
       accepted = true;
@@ -1311,7 +1377,17 @@ async function reviseLessonPlan({
     logToFile('lp612 edit: candidate introduced blocking defects', {
       correlationId, segmentId: segment.segment_id, round: spent,
       bar, candidate: blockingCost(g2), fails: blockingFails(g2).slice(0, 5),
+      reason: schemaTiered ? 'schema_invalid' : 'higher_cost',
     }, 'warn');
+    if (schemaTiered) {
+      logEvent('lp612.author.schema_candidate_rejected', {
+        correlationId: correlationId || null,
+        segmentId: segment.segment_id || null,
+        round: spent,
+        errorCount: g2.schema.length,
+        lane: 'edit',
+      });
+    }
     current = candidate;
     gates = g2;
     accepted = false;
