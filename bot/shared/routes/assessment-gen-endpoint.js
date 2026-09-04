@@ -128,6 +128,37 @@ const revision = () => require('../services/assessment/assessment-revision.servi
 
 const REVIEW_MARKER = ':assessment-review:';
 
+/**
+ * A NavigationList row's title, description and metadata are each capped at 20
+ * characters — CLIENT-SIDE. The Flow JSON uploads and publishes clean because
+ * these are data, not literals, so nothing catches an over-long value until a
+ * teacher taps and the screen refuses to render. "1 mark · MCQs" fits;
+ * "4 marks · Match the Column" does not, and it took the PICK screen down.
+ */
+const NAV_MAX = 20;
+
+/** Fit a row field to the cap, cutting at a word boundary where one is close. */
+function navFit(text) {
+  const t = String(text || '').replace(/\s+/g, ' ').trim();
+  if (t.length <= NAV_MAX) return t;
+  const cut = t.slice(0, NAV_MAX);
+  const space = cut.lastIndexOf(' ');
+  return (space > NAV_MAX * 0.5 ? cut.slice(0, space) : cut).replace(/[\s\W]+$/, '');
+}
+
+/**
+ * What a question says on a list row.
+ *
+ * The MARKS lead, because they are the thing she is weighing when she decides
+ * what to fix, and they are what survives the cap. The type follows only if
+ * there is room left for it to be read.
+ */
+function navDescription(q) {
+  const marks = `${q.marks} mark${q.marks === 1 ? '' : 's'}`;
+  const withType = `${marks} · ${q.type || ''}`.trim();
+  return withType.length <= NAV_MAX ? withType : marks;
+}
+
 /** Which screen each question shape is edited on. */
 const SHAPE_SCREEN = {
   standard: 'EDIT_STANDARD',
@@ -200,8 +231,8 @@ function pickScreen({ items, selected }) {
     items: kept.map((q) => ({
       id: q.id,
       'main-content': {
-        title: Selection.optionTitle(q),
-        description: `${q.marks} mark${q.marks === 1 ? '' : 's'}${q.type ? ` · ${q.type}` : ''}`,
+        title: navFit(Selection.optionTitle(q)),
+        description: navDescription(q),
         metadata: '',
       },
       'on-click-action': {
@@ -260,8 +291,8 @@ function editScreen(item, { error = '', overrides = null } = {}) {
     data.subs = f.subs.map((sub) => ({
       id: `sub-${sub.index}`,
       'main-content': {
-        title: `${String.fromCharCode(97 + sub.index)}) ${sub.text}`.slice(0, 30),
-        description: sub.marks == null ? '' : `${sub.marks} marks`,
+        title: navFit(`${String.fromCharCode(97 + sub.index)}) ${sub.text}`),
+        description: sub.marks == null ? '' : navFit(`${sub.marks} marks`),
         metadata: '',
       },
       'on-click-action': {
@@ -864,5 +895,5 @@ module.exports = {
   handleAssessmentGenBack: handleBack,
   // exported for tests
   _internal: { summaryOf, submit, chapterPageRange, GRADE_BANDS, COUNT_CHOICES,
-    paperIdFromToken, mergePageTicks, REVIEW_MARKER, SHAPE_SCREEN },
+    paperIdFromToken, mergePageTicks, REVIEW_MARKER, SHAPE_SCREEN, navFit, NAV_MAX },
 };

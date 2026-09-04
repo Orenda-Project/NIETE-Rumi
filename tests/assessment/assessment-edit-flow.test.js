@@ -99,9 +99,12 @@ describe('PICK — the list only offers what survived KEEP', () => {
     const res = await exchange('user-1', 'KEEP',
       { keep: ['a.b.MCQs.0', 'a.b.Match.0'], page: '0', _action: 'done' }, TOKEN);
 
-    const titles = JSON.stringify(res.data.items);
-    expect(titles).toContain('Which is a living thing?');
-    expect(titles).not.toContain('Plants make food using');
+    // Asserted on the ids, not the titles: a row title is trimmed to the 20-char
+    // NavigationList cap, so matching on full question text would break for a
+    // reason that has nothing to do with what this test is about.
+    const offered = res.data.items.map((r) => r.id);
+    expect(offered).toEqual(['a.b.MCQs.0', 'a.b.Match.0']);
+    expect(offered).not.toContain('a.b.Fill.0');
   });
 
   test('the running total reflects what she dropped, before she rebuilds', async () => {
@@ -308,5 +311,58 @@ describe('editing individual questions is its own flag (bd-60025)', () => {
       { keep: ['a.b.MCQs.0'], page: '0', _action: 'done' }, TOKEN);
     expect(res.screen).toBe('SUBMITTED');
     expect(mockRerender.mock.calls[0][0].selectedIds).toEqual(['a.b.MCQs.0']);
+  });
+});
+
+describe('NavigationList rows must fit what the device will draw (bd-60026)', () => {
+  // The PICK screen died on a real phone with:
+  //   NavigationList 'pick_list' option 'listItems[0]['main-content'].description'
+  //   must be 20 characters or less.
+  // A cap of 20 on `description`, enforced CLIENT-SIDE — the Flow JSON uploads
+  // and publishes clean because the values are data, so nothing catches it until
+  // a teacher taps. "1 mark · MCQs" fits; "4 marks · Match the Column" does not.
+  const NAV_MAX = 20;
+
+  const LONG = [
+    { id: 'a.b.Match the Column.0', number: 1, marks: 4, type: 'Match the Column',
+      text: 'Match each animal to its home and write the letter.', selected: true,
+      shape: 'columns',
+      question: { question: 'Match.', column_a: ['Dog'], column_b: ['Kennel'], marks: 4 } },
+    { id: 'a.b.Comprehension Passage.0', number: 2, marks: 10, type: 'Comprehension Passage',
+      text: 'Read the passage and answer the questions that follow.', selected: true,
+      shape: 'comprehension',
+      question: { passage: 'Ali went to the market.', questions: [{ question: 'Who?', marks: 2 }] } },
+  ];
+
+  const overCap = (rows) => rows
+    .flatMap((r) => Object.entries(r['main-content'] || {}))
+    .filter(([, v]) => String(v || '').length > NAV_MAX);
+
+  test('PICK rows fit, even with the longest question type we generate', async () => {
+    mockListQuestions.mockResolvedValue({ items: LONG, paper: { id: 'paper-1' } });
+    session({ selected: LONG.map((q) => q.id) });
+    const res = await exchange('user-1', 'KEEP',
+      { keep: LONG.map((q) => q.id), page: '0', _action: 'done' }, TOKEN);
+
+    expect(res.screen).toBe('PICK');
+    expect(overCap(res.data.items)).toEqual([]);
+  });
+
+  test('the sub-question list fits too — same component, same cap', async () => {
+    mockListQuestions.mockResolvedValue({ items: LONG, paper: { id: 'paper-1' } });
+    session({ selected: LONG.map((q) => q.id) });
+    const res = await exchange('user-1', 'PICK',
+      { _action: 'open', question_id: 'a.b.Comprehension Passage.0' }, TOKEN);
+
+    expect(res.screen).toBe('EDIT_COMPREHENSION');
+    expect(overCap(res.data.subs)).toEqual([]);
+  });
+
+  test('the marks are still legible after the trim — that is the point of the row', async () => {
+    mockListQuestions.mockResolvedValue({ items: LONG, paper: { id: 'paper-1' } });
+    session({ selected: LONG.map((q) => q.id) });
+    const res = await exchange('user-1', 'KEEP',
+      { keep: LONG.map((q) => q.id), page: '0', _action: 'done' }, TOKEN);
+    expect(res.data.items[0]['main-content'].description).toContain('4 marks');
   });
 });
