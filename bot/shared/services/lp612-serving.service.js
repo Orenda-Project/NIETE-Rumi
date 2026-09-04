@@ -365,7 +365,92 @@ async function recordDelivery({ userId, segment, lang, oneScreen }) {
   }
 }
 
-async function deliverRender({ phone, userId, r2Key, segment, lang, oneScreen, overlayDropped }) {
+/**
+ * bd-m1xyt — the retry budget for the one WhatsApp call that decides whether `deliverRender`
+ * succeeded, or lied about it.
+ *
+ * `sendDocumentByLink` never throws (whatsapp.service.js:785) — it catches every failure itself
+ * and hands back `false`, so a caller that ignores the return has no way to know the send failed.
+ * That is exactly bd-m1xyt: recordDelivery ran, the feedback prompt fired, and the worker counted
+ * a `delivered` for a teacher who received nothing.
+ *
+ * PRODUCTION EVIDENCE (Axiom, `niete-logs`, 14-day window): ~30-50 failures every single day, not
+ * an incident. Sampling three days, 97% of failures carry Meta error 131056 — the (Business
+ * Account, Consumer Account) PAIR RATE LIMIT, not a broken token or an expired 24h window; the
+ * same recipient was seen hit four times inside forty seconds. A fast, tight retry does not clear
+ * a rate limit — it deepens it for the teacher it is supposed to help. So the backoff below is
+ * SECONDS, not milliseconds (the gap is the actual remedy), and the attempt count stays low: a
+ * pair rate limit does not clear inside the lifetime of one job, so more attempts only spend the
+ * budget below without buying a better outcome.
+ *
+ * THE CLASSIFICATION GAP. A boolean return cannot distinguish "131056, try again later" from "the
+ * token is dead, never retry" — that needs `sendDocumentByLink` to surface Meta's error code,
+ * which it does not today. Improvising that distinction under a P0 clock would be a guess dressed
+ * up as logic; the honest, conservative choice is a small FIXED attempt count instead. Teaching
+ * `sendDocumentByLink` to return the failure reason (not just a boolean) is a real follow-up.
+ *
+ * THE SHARED DEADLINE. This call sits AFTER the worker's `withTimeout(...)` (see
+ * lp612-author.worker.js), so it is NOT bounded by LP612_AUTHOR_TIMEOUT_MS, and the worker calls
+ * it once PER WAITER in a loop. Without a shared cap, N waiters all hitting 131056 could each burn
+ * the full (3s + 9s) backoff, stack past the job's SQS visibility window, and get the message —
+ * and every already-delivered waiter with it — redelivered. `deadlineAt` is one wall-clock value
+ * the WHOLE delivery loop is handed once (not reset per waiter, see the worker's call site): once
+ * it passes, remaining waiters still get their first attempt — nobody is skipped outright — but
+ * skip the wait for a retry that the job may not survive to make.
+ */
+const SEND_MAX_ATTEMPTS = 3; // 1 initial attempt + 2 retries
+const SEND_RETRY_DELAYS_MS = [3000, 9000]; // seconds-scale, sized for a pair rate limit
+const SEND_TOTAL_BUDGET_MS = 60 * 1000; // shared across one job's whole delivery loop
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function sendDocumentWithRetry({
+  phone, url, filename, caption,
+  maxAttempts = SEND_MAX_ATTEMPTS,
+  retryDelaysMs = SEND_RETRY_DELAYS_MS,
+  deadlineAt = Date.now() + SEND_TOTAL_BUDGET_MS,
+}) {
+  let lastError = null;
+  let attemptsMade = 0;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    attemptsMade = attempt;
+    let ok = false;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const resp = await WhatsAppService.sendDocumentByLink(phone, url, filename, caption);
+      ok = !!resp;
+      if (!ok) lastError = 'sendDocumentByLink returned falsy';
+    } catch (err) {
+      // Documented never to throw, but a caller here must not depend on that holding forever.
+      lastError = err.message;
+    }
+
+    if (ok) return { ok: true, attempts: attemptsMade };
+
+    if (attempt < maxAttempts) {
+      const delay = retryDelaysMs[attempt - 1] || 0;
+      if (Date.now() + delay > deadlineAt) {
+        logToFile('LP 6-12: document send failed, shared retry budget is gone, giving up early', {
+          attempt, maxAttempts, error: lastError,
+        });
+        break;
+      }
+      logToFile('LP 6-12: document send failed, retrying', {
+        attempt, maxAttempts, delayMs: delay, error: lastError,
+      });
+      // eslint-disable-next-line no-await-in-loop
+      await sleep(delay);
+    }
+  }
+  return { ok: false, attempts: attemptsMade, error: lastError };
+}
+
+async function deliverRender({
+  phone, userId, r2Key, segment, lang, oneScreen, overlayDropped, renderId = null,
+  sendMaxAttempts, sendRetryDelaysMs, sendDeadlineAt,
+}) {
   const url = await getPresignedUrl(buildR2PublicUrl(r2Key));
 
   // The body goes FIRST: she is on a phone, and the summary is readable in the
@@ -385,14 +470,48 @@ async function deliverRender({ phone, userId, r2Key, segment, lang, oneScreen, o
     }
   }
 
-  await WhatsAppService.sendDocumentByLink(
+  // bd-m1xyt: THE DOCUMENT SEND IS THE ONE CALL IN THIS FUNCTION THAT MUST NOT LIE.
+  //
+  // `WhatsAppService.sendDocumentByLink` never throws — it catches every failure internally
+  // (Meta 5xx, rate limit, an expired 24h window, a bad token) and hands back a plain `false`.
+  // This used to be a bare `await` whose return was discarded: a failed send looked identical
+  // to a successful one to everything downstream — recordDelivery ran, the feedback prompt was
+  // scheduled, and the worker's per-waiter loop counted her as `delivered`. A teacher who got
+  // nothing was told, on every surface, that she had been served.
+  const sent = await sendDocumentWithRetry({
     phone,
     url,
-    buildFilename(segment, lang),
-    buildCaption(segment, lang, { overlayDropped: overlayDropped === true }),
-  );
+    filename: buildFilename(segment, lang),
+    caption: buildCaption(segment, lang, { overlayDropped: overlayDropped === true }),
+    maxAttempts: sendMaxAttempts,
+    retryDelaysMs: sendRetryDelaysMs,
+    deadlineAt: sendDeadlineAt,
+  });
 
-  // AFTER the document, never before: recording is for us, the PDF is for her.
+  if (!sent.ok) {
+    // The ONE structured, queryable trace of "she is owed a lesson" — see the constants above
+    // for why this is a distinct event and not folded into the worker's aggregate counters.
+    logEvent('lp612.send.failed', {
+      outcome: 'failed',
+      renderId,
+      segmentId: segment && segment.segment_id,
+      lang,
+      phone,
+      userId: userId || null,
+      attempts: sent.attempts,
+      error: sent.error,
+    });
+    // THROW, deliberately. Both existing callers already have a catch around this call:
+    // `requestLessonImpl`'s cache-hit branch turns it into `outcome: 'deliver_failed'` (and the
+    // wrapping `requestLesson` emits `lp612.serve.deliver_failed`); the worker's per-waiter loop
+    // turns it into `deliveryFailures += 1` instead of `delivered += 1`. Returning normally here —
+    // the bug this closes — is what let a failed send read as a success on every surface below.
+    throw new Error(`LP 6-12: document send failed after ${sent.attempts} attempt(s): ${sent.error}`);
+  }
+
+  // AFTER the document, never before, and ONLY on a send that actually succeeded: recording is
+  // for us, the PDF is for her, and a record of a lesson she never received is worse than no
+  // record at all.
   await recordDelivery({ userId, segment, lang, oneScreen });
 
   // "Was that useful?", a short while from now.
@@ -631,6 +750,7 @@ async function requestLessonImpl({ segmentId, userId, phone, lang, uiLang, corre
         lang: language,
         oneScreen: existing.one_screen,
         overlayDropped: existing.overlay_dropped === true,
+        renderId: existing.id,
       });
       logToFile('LP 6-12: served from cache', { segmentId, lang: language, tv, correlationId });
       return { outcome: 'cache_hit', renderId: existing.id };
@@ -826,4 +946,8 @@ module.exports = {
   R2_KEY_PREFIX,
   RENDERS,
   JOB_TYPE,
+  // bd-m1xyt: the worker's per-waiter delivery loop shares ONE deadline across all of its calls
+  // to deliverRender — see the comment above sendDocumentWithRetry for why a per-waiter reset
+  // would be dangerous.
+  SEND_TOTAL_BUDGET_MS,
 };

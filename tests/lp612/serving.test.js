@@ -16,7 +16,10 @@
  */
 
 const mockSendMessage = jest.fn();
-const mockSendDocumentByLink = jest.fn();
+// bd-m1xyt: deliverRender now checks this return value and retries/throws on a falsy one, so
+// every test that does not specifically care about a failed send needs a truthy default —
+// `undefined` used to pass silently because the return was ignored.
+const mockSendDocumentByLink = jest.fn().mockResolvedValue(true);
 const mockQueueJob = jest.fn();
 const mockGetPresignedUrl = jest.fn();
 const mockBuildR2PublicUrl = jest.fn((k) => `https://r2.example/${k}`);
@@ -327,7 +330,9 @@ describe('nothing fails silently', () => {
 
     expect(out.outcome).toBe('deliver_failed');
     expect(out.error).toMatch(/Meta 400/);
-  });
+    // bd-m1xyt: this now retries with the PRODUCTION backoff (no override is threaded through
+    // requestLesson) before giving up — real seconds, not the jest default 5s timeout.
+  }, 15000);
 });
 
 // ── language ────────────────────────────────────────────────────────────────
@@ -383,7 +388,7 @@ describe('the lesson body that goes out with the PDF', () => {
   // send. Without this the whole block inherits a WhatsApp that always 400s.
   beforeEach(() => {
     mockSendMessage.mockReset();
-    mockSendDocumentByLink.mockReset();
+    mockSendDocumentByLink.mockReset().mockResolvedValue(true);
   });
 
   it('sends the one_screen body before the document', async () => {
