@@ -186,7 +186,9 @@
       "limits": [
         "`shaded` is a COUNT of cells, filled in reading order -- not a list of coordinates.",
         "majorEvery draws the heavier rule every N cells; 5 is what makes a hundred square countable.",
-        "A grid much past 10x10 stops being countable at a 750px column."
+        "A grid much past 10x10 stops being countable at a 750px column.",
+        "It GENERATES its own readout (\"1/4 = 25% = 0.25\") from rows/cols/shaded unless you pass `legend`. On a grid smaller than about 5x5 that line is wider than the grid, so the canvas is sized to the READOUT and the grid is centred in it -- a 2x2 is 132 units wide for a 60-unit grid. Expect a small grid to arrive with generous side margins; that is the type doing the right thing, not a layout bug.",
+        "The generated readout keeps Latin numerals even under lang:\"ur\", while the title and caption use U+06F0-06F9. Pass `legend` yourself for an all-Urdu figure."
       ]
     },
     {

@@ -34,6 +34,17 @@ outside this repo and not in this repo's git history:
 | `fonts/Inter-{Regular,SemiBold,Bold}.ttf` | workspace `06_Logs & Misc/Reports/Active/Tanzania Expansion/02_Coaching_MEWAKA/mewaka-sample-report/` |
 | `fonts/NotoNastaliqUrdu.ttf` | workspace `02_Main Rumi Bot/fonts/` |
 
+> **Upstream cap mirror, 2026-09-04 (bd-09m6a).** The bd-vjk68 raise above was applied to the
+> VENDORED tree first. The skill copy has now been brought level in the same change: `MAX_PAGES`,
+> `WARN_PAGES`, `MAX_PAGES_UR`, `WARN_PAGES_UR` and their reasoning comments, §8 of
+> `brief_author_v3.md`, all four regenerated flash briefs (`build_flash_brief.py --check` clean),
+> and the six cap assertions in upstream's `test/run_tests.js` (149/149 green after). The stale
+> normative statements in the skill's own docs went with them — the README capacity table and its
+> "5+4 is what the code enforces today" lines, `reference/lp_v9_render_pipeline.md`'s two "do not
+> state a new cap" notes, and `SKILL.md`'s summary line. **The soft-page-count ladder was NOT
+> touched: it lives in `lp612-author.service.js`, not in `lp_html`.** `render_lp.js` is not
+> re-copied here — its §3.2/3.3/3.4/3.7 divergences stand and the vendored caps were already right.
+>
 > **Partial re-vendor 2026-09-04 (bd-09m6a): five `diagrams/types/*.js`, plus the NEW
 > `diagrams/types_manifest.json` and `diagrams/assets/`.** Fixed upstream first and copied
 > byte-for-byte; the §6 pre-copy diff showed **exactly** these five files and nothing else, so
@@ -120,7 +131,10 @@ outside this repo and not in this repo's git history:
 > * **Per-language page caps** (`render_lp.js`): `pageCapsFor(lang)` — English **6/4** (warn 5/3);
 >   Urdu **7/6** (warn 6/5). *(Raised one sheet per language on 2026-09-04, bd-vjk68: EN teach
 >   5→6, UR support 5→6, aimed at where the 9 live overflows actually were — 6 EN teach, 3 UR
->   support. Was EN 5/4 warn 4/3, UR 7/5 warn 6/4.)* Word budgets in
+>   support. Was EN 5/4 warn 4/3, UR 7/5 warn 6/4. That raise landed HERE FIRST and left the skill
+>   behind for a few hours; it was **mirrored upstream on 2026-09-04 under bd-09m6a** — the four
+>   constants, §8 of the brief, the regenerated flash briefs and upstream's own cap assertions —
+>   so the two homes agree again and this is NOT a divergence.)* Word budgets in
 >   `lint_lp.js` are deliberately untouched: identical content volume, more paper. The caps
 >   hunks were applied to the vendored file BY HAND around the §3.2/3.3/3.4 divergences — never
 >   blind-copied.

@@ -64,6 +64,27 @@ describe('the Urdu defects that made a legal spec fail the DIAGRAM_OVERLAP gate'
   });
 });
 
+describe('a minimal grid does not fail the lint for being a grid', () => {
+  // grid GENERATES its own readout from rows/cols/shaded but used to size the canvas from the
+  // grid alone, so a 2x2 carried a readout wider than itself: the text ran edge to edge and
+  // DIAGRAM_OVERLAP — a hard lint fail — rejected a correct, minimal spec. Only below ~5x5,
+  // which is why the 10x10 hundred square never showed it. The worst shape of the failure this
+  // lane exists to remove: a lesson fails BECAUSE it carries a diagram.
+  it.each([
+    [2, 2, 1], [3, 3, 4], [4, 4, 7], [1, 3, 2],
+    [5, 5, 9], [10, 10, 37],
+  ])('%ix%i with %i shaded renders without a collision', (rows, cols, shaded) => {
+    expect(checkOverlaps(renderDiagram({ type: 'grid', rows, cols, shaded }))).toEqual([]);
+  });
+
+  it('holds for an Urdu grid and for a supplied over-long legend', () => {
+    expect(checkOverlaps(renderDiagram({ type: 'grid', rows: 2, cols: 2, shaded: 1, lang: 'ur' }))).toEqual([]);
+    expect(checkOverlaps(renderDiagram({
+      type: 'grid', rows: 2, cols: 2, shaded: 1, legend: 'one quarter of the whole square',
+    }))).toEqual([]);
+  });
+});
+
 describe('a Latin mass inside an Urdu free-body chip is bidi-isolated', () => {
   // Invisible to every gate: the SVG string is correct and the reversal happens in the
   // browser's text layout, so "ڈبہ 5 kg" printed as "kg 5 ڈبہ" on a real teacher's PDF.
