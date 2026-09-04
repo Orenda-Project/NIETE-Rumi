@@ -22,9 +22,8 @@
       "CONFIRM"
     ],
     "CONFIRM": [
-      "SUBMITTED"
+      "KEEP"
     ],
-    "SUBMITTED": [],
     "KEEP": [
       "PICK",
       "PICK_DONE"
@@ -38,9 +37,7 @@
       "EDIT_COMPREHENSION",
       "PICK_DONE"
     ],
-    "PICK_DONE": [
-      "SUBMITTED"
-    ],
+    "PICK_DONE": [],
     "EDIT_STANDARD": [
       "PICK_DONE"
     ],
@@ -531,6 +528,28 @@
         "has_error": {
           "type": "boolean",
           "__example__": false
+        },
+        "extension_message_response": {
+          "type": "object",
+          "properties": {
+            "params": {
+              "type": "object",
+              "properties": {
+                "assessment_action": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "__example__": {
+            "params": {
+              "assessment_action": "queued",
+              "summary": "Grade 4 Science · 20 questions"
+            }
+          }
         }
       },
       "layout": {
@@ -539,6 +558,9 @@
           {
             "type": "Form",
             "name": "confirm_form",
+            "init-values": {
+              "output_format": "pdf"
+            },
             "children": [
               {
                 "type": "TextHeading",
@@ -557,6 +579,10 @@
                   {
                     "id": "pdf",
                     "title": "PDF — ready to print"
+                  },
+                  {
+                    "id": "docx",
+                    "title": "Word — you can edit it"
                   }
                 ]
               },
@@ -574,18 +600,21 @@
                 "type": "Footer",
                 "label": "Make my paper",
                 "on-click-action": {
-                  "name": "data_exchange",
+                  "name": "complete",
                   "payload": {
                     "output_format": "${form.output_format}",
                     "answer_lines": "${form.answer_lines}",
-                    "answer_key": "${form.answer_key}"
+                    "answer_key": "${form.answer_key}",
+                    "extension_message_response": "${data.extension_message_response}"
                   }
                 }
               }
             ]
           }
         ]
-      }
+      },
+      "terminal": true,
+      "success": true
     },
     {
       "id": "KEEP",
@@ -824,6 +853,28 @@
         "has_error": {
           "type": "boolean",
           "__example__": false
+        },
+        "extension_message_response": {
+          "type": "object",
+          "properties": {
+            "params": {
+              "type": "object",
+              "properties": {
+                "assessment_action": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "__example__": {
+            "params": {
+              "assessment_action": "queued",
+              "summary": "Grade 4 Science · 20 questions"
+            }
+          }
         }
       },
       "layout": {
@@ -860,14 +911,17 @@
             "type": "Footer",
             "label": "دوبارہ بنائیں · Rebuild paper",
             "on-click-action": {
-              "name": "data_exchange",
+              "name": "complete",
               "payload": {
-                "_action": "rebuild"
+                "_action": "rebuild",
+                "extension_message_response": "${data.extension_message_response}"
               }
             }
           }
         ]
-      }
+      },
+      "terminal": true,
+      "success": true
     },
     {
       "id": "EDIT_STANDARD",
@@ -2110,50 +2164,6 @@
                 }
               }
             ]
-          }
-        ]
-      }
-    },
-    {
-      "id": "SUBMITTED",
-      "title": "New assessment",
-      "terminal": true,
-      "data": {
-        "heading": {
-          "type": "string",
-          "__example__": "Making your paper"
-        },
-        "message": {
-          "type": "string",
-          "__example__": "About a minute. It will arrive in this chat."
-        },
-        "caption": {
-          "type": "string",
-          "__example__": "You can close this."
-        }
-      },
-      "layout": {
-        "type": "SingleColumnLayout",
-        "children": [
-          {
-            "type": "TextHeading",
-            "text": "${data.heading}"
-          },
-          {
-            "type": "TextBody",
-            "text": "${data.message}"
-          },
-          {
-            "type": "TextCaption",
-            "text": "${data.caption}"
-          },
-          {
-            "type": "Footer",
-            "label": "Close",
-            "on-click-action": {
-              "name": "complete",
-              "payload": {}
-            }
           }
         ]
       }

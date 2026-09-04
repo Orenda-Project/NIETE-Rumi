@@ -18,7 +18,10 @@ const { logToFile } = require('../../utils/logger');
 const BookContent = require('./book-content.service');
 const Generation = require('./assessment-generation.service');
 const Renderer = require('./assessment-paper.renderer');
-const { htmlToPdf } = require('../../utils/html-to-pdf');
+// The renderer is chosen by the requested format, in one place, so the bytes
+// and the filename can never disagree. Requiring htmlToPdf directly here is
+// what let a Word request produce a PDF named .docx.
+const { rendererFor } = require('./assessment-format');
 const r2 = require('../../storage/r2');
 const WhatsAppService = require('../whatsapp.service');
 
@@ -162,14 +165,16 @@ async function process(job) {
       answerLines,
     });
 
+    const renderer = rendererFor(outputFormat);
     let buffer;
     try {
-      buffer = await htmlToPdf(html, { timeout: 60000 });
+      buffer = await renderer.render(html);
     } catch (err) {
       throw Object.assign(err, { code: 'RENDER_FAILED' });
     }
 
-    const name = fileName({ grade, subject, chapterTitle: source.chapterTitle, format: outputFormat });
+    // The extension comes off the SAME object as the renderer.
+    const name = fileName({ grade, subject, chapterTitle: source.chapterTitle, format: renderer.ext });
     let key;
     try {
       key = await r2.uploadExamBuffer({
@@ -223,8 +228,8 @@ async function process(job) {
           schoolName: user.school_name || null,
           pageReference: source.pageReference, chapterTitle: source.chapterTitle || null,
         });
-        const keyBuffer = await htmlToPdf(keyHtml, { timeout: 60000 });
-        const keyName = fileName({ grade, subject, chapterTitle: source.chapterTitle, format: outputFormat, suffix: '_AnswerKey' });
+        const keyBuffer = await renderer.render(keyHtml);
+        const keyName = fileName({ grade, subject, chapterTitle: source.chapterTitle, format: renderer.ext, suffix: '_AnswerKey' });
         const keyKey = await r2.uploadExamBuffer({
           buffer: keyBuffer, userId, examId: paperId || requestId, filename: keyName,
         });

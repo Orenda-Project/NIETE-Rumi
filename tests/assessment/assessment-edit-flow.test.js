@@ -119,7 +119,8 @@ describe('PICK — the list only offers what survived KEEP', () => {
   test('rebuilding from PICK_DONE sends only what is ticked', async () => {
     session({ selected: ['a.b.MCQs.0'] });
     const res = await exchange('user-1', 'PICK_DONE', { _action: 'rebuild' }, TOKEN);
-    expect(res.screen).toBe('SUBMITTED');
+    // The Flow closes here now; the acknowledgement goes to the chat.
+    expect(res.data.extension_message_response.params.assessment_action).toBe('rebuilt');
     expect(mockRerender.mock.calls[0][0].selectedIds).toEqual(['a.b.MCQs.0']);
   });
 });
@@ -273,7 +274,7 @@ describe('editing individual questions is its own flag (bd-60025)', () => {
     session();
     const res = await exchange('user-1', 'KEEP',
       { keep: ITEMS.map((q) => q.id), page: '0', _action: 'done' }, TOKEN);
-    expect(res.screen).toBe('SUBMITTED');
+    expect(res.data.extension_message_response.params.assessment_action).toBe('rebuilt');
     expect(mockRerender).toHaveBeenCalled();
   });
 
@@ -309,7 +310,7 @@ describe('editing individual questions is its own flag (bd-60025)', () => {
     session({ selected: ITEMS.map((q) => q.id) });
     const res = await exchange('user-1', 'KEEP',
       { keep: ['a.b.MCQs.0'], page: '0', _action: 'done' }, TOKEN);
-    expect(res.screen).toBe('SUBMITTED');
+    expect(res.data.extension_message_response.params.assessment_action).toBe('rebuilt');
     expect(mockRerender.mock.calls[0][0].selectedIds).toEqual(['a.b.MCQs.0']);
   });
 });

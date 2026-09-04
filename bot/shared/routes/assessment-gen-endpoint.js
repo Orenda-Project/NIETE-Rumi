@@ -2,8 +2,11 @@
 /**
  * The Assessment Generator Flow, driven from the server.
  *
- *   CLASS ──▶ COVERAGE ──┬─▶ QUESTIONS ──┬─▶ CONFIRM ──▶ SUBMITTED
+ *   CLASS ──▶ COVERAGE ──┬─▶ QUESTIONS ──┬─▶ CONFIRM ──▶ (Flow closes)
  *                        └─▶ PAGES ──────┘   (via TYPES if she asks)
+ *
+ * CONFIRM is the terminal screen: it submits AND closes. The acknowledgement
+ * arrives as a chat message rather than on a screen she has to dismiss.
  *
  * Every list she sees is built here as the screen is requested, rather than
  * published into the Flow and left to drift: the subjects offered are the books
@@ -446,20 +449,11 @@ async function rebuildAndClose({ paperId, owner, selected, flowToken }) {
   const result = await revision().rerender({ paperId, userId: owner, selectedIds: selected });
   await clearSession(flowToken);
 
-  if (result.status !== 'ready') {
-    return screen('SUBMITTED', {
-      heading: "That didn't work",
-      message: revision().TEACHER_MESSAGE?.[result.code]
-        || 'Sorry — something went wrong making your paper. Please try again.',
-      caption: 'You can close this.',
-    });
-  }
-  return screen('SUBMITTED', {
-    heading: 'Your paper is on its way',
-    message: `${result.questionCount} question${result.questionCount === 1 ? '' : 's'}`
-      + `${result.marks ? ` · ${result.marks} marks` : ''}. It will arrive in this chat.`,
-    caption: 'You can close this.',
-  });
+  if (result.status !== 'ready') return done('rebuild_failed', result.code || '');
+
+  const n = result.questionCount;
+  return done('rebuilt', `${n} question${n === 1 ? '' : 's'}`
+    + `${result.marks ? ` · ${result.marks} marks` : ''}`);
 }
 
 async function handlePickDone(userId, data, flowToken) {
@@ -548,6 +542,28 @@ async function handleEditSave(userId, screenId, data, flowToken) {
   }
   await writeSession(flowToken, { ...state, editing: null, editingSub: null });
   return pickDoneScreen({ items: nextItems, selected });
+}
+
+/**
+ * Finish the Flow.
+ *
+ * There is no closing screen. "Making your paper — about a minute, it will
+ * arrive in this chat" is a sentence ABOUT the chat, so the chat is where it
+ * belongs; a screen carrying it cost the teacher a tap to dismiss and told her
+ * nothing she could act on.
+ *
+ * Meta only allows `complete` on a terminal screen, so CONFIRM and PICK_DONE
+ * ARE the terminal screens — their Footer completes and the Flow closes. What
+ * comes back here is the payload that rides out with the completion: the router
+ * matches on `assessment_action` and sends the acknowledgement as a message.
+ */
+function done(action, summary) {
+  return {
+    screen: 'SUCCESS',
+    data: {
+      extension_message_response: { params: { assessment_action: action, summary: summary || '' } },
+    },
+  };
 }
 
 async function handleInit(userId, flowToken) {
@@ -722,7 +738,7 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
     return confirmScreen(state);
   }
 
-  // ── CONFIRM → SUBMITTED ──────────────────────────────────────────────────
+  // ── CONFIRM → queue the job, then close the Flow ─────────────────────────
   if (screenId === 'CONFIRM') {
     Object.assign(state, {
       outputFormat: String(data.output_format || 'pdf'),
@@ -737,19 +753,11 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
       // The terminal screen is shared, so every line of it has to change on the
       // failure path. Leaving the heading and caption saying a paper is coming
       // is worse than the failure: she waits for something nobody is making.
-      return screen('SUBMITTED', {
-        heading: "That didn't start",
-        message: "Something went wrong starting your paper. Nothing is being made.",
-        caption: 'Send /assessment to try again.',
-      });
+      return done('queue_failed');
     }
 
     await clearSession(flowToken);
-    return screen('SUBMITTED', {
-      heading: 'Making your paper',
-      message: 'About a minute.',
-      caption: 'It will arrive in this chat. You can close this.',
-    });
+    return done('queued', summaryOf(state));
   }
 
   logToFile('[assessment-flow] unknown screen', { screenId });

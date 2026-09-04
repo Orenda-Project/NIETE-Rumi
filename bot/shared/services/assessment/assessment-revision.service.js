@@ -20,7 +20,7 @@ const { logToFile } = require('../../utils/logger');
 const Renderer = require('./assessment-paper.renderer');
 const Selection = require('./assessment-selection');
 const Edit = require('./assessment-edit');
-const { htmlToPdf } = require('../../utils/html-to-pdf');
+const { rendererFor } = require('./assessment-format');
 const r2 = require('../../storage/r2');
 const WhatsAppService = require('../whatsapp.service');
 
@@ -178,14 +178,15 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone }) {
       answerLines: true,
     });
 
+    const renderer = rendererFor(format);
     let buffer;
     try {
-      buffer = await htmlToPdf(html, { timeout: 60000 });
+      buffer = await renderer.render(html);
     } catch (err) {
       throw Object.assign(err, { code: 'RENDER_FAILED' });
     }
 
-    const name = fileName({ grade, subject, format, suffix: '_Edited' });
+    const name = fileName({ grade, subject, format: renderer.ext, suffix: '_Edited' });
 
     let key;
     try {
