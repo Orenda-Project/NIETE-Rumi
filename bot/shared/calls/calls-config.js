@@ -46,6 +46,11 @@ const DEFAULTS = {
   voiceProvider: 'openai',
   upliftVoiceId: 'v_meklc281',                 // Urdu female; override per env
   upliftWsUrl: 'wss://api.upliftai.org/text-to-speech/multi-stream',
+  // Which call languages the external voice may speak. Urdu only by default —
+  // Uplift models Urdu/Sindhi/Balochi. This is a LIST rather than an `if`
+  // because it is data: a deployment widens it with UPLIFT_LANGUAGES=ur,en to
+  // hear English through the Urdu voice and judge it, with no code change.
+  upliftLanguages: ['ur'],
 
   maxConcurrent: 5,
   maxSeconds: 300,
@@ -55,6 +60,21 @@ const DEFAULTS = {
   drainGraceMs: 60000,
   silenceTimeoutMs: 60000,
 };
+
+/**
+ * Parse a comma-separated language list, normalised to lowercase.
+ *
+ * An empty or whitespace-only value falls back to the default rather than
+ * yielding an empty list — "UPLIFT_LANGUAGES=" should not silently mean "no
+ * language qualifies", which would disable the voice while looking configured.
+ */
+function parseLanguages(raw, fallback) {
+  const parts = String(raw || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  return parts.length ? parts : fallback;
+}
 
 /** Parse a positive number from the env, falling back on anything unusable. */
 function num(name, fallback) {
@@ -100,6 +120,7 @@ function getCallsConfig() {
       apiKey: process.env.UPLIFT_API_KEY || '',
       voiceId: process.env.UPLIFT_VOICE_ID || DEFAULTS.upliftVoiceId,
       wsUrl: process.env.UPLIFT_WS_URL || DEFAULTS.upliftWsUrl,
+      languages: parseLanguages(process.env.UPLIFT_LANGUAGES, DEFAULTS.upliftLanguages),
     },
   };
 }

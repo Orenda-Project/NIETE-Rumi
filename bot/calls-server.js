@@ -265,6 +265,7 @@ function buildEngine() {
           maxSeconds: config.maxSeconds,
           wrapUpSeconds: config.wrapUpSeconds,
           silenceTimeoutMs: config.silenceTimeoutMs,
+          upliftLanguages: config.uplift.languages,
         },
       });
       return session;
