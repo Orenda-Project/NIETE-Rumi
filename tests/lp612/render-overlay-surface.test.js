@@ -9,7 +9,11 @@
  */
 
 const mockRenderDoc = jest.fn();
-jest.mock('../../bot/vendor/lp-v9/render_lp.js', () => ({ renderDoc: mockRenderDoc }));
+// See telemetry-stages.test.js: spread the real module, override one export (bd-vjk68).
+jest.mock('../../bot/vendor/lp-v9/render_lp.js', () => ({
+  ...jest.requireActual('../../bot/vendor/lp-v9/render_lp.js'),
+  renderDoc: mockRenderDoc,
+}));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 
 const os = require('os');

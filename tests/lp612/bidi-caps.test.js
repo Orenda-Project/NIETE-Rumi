@@ -39,16 +39,28 @@ afterEach(() => setRtlProse(false));
 // ── per-language page caps ──────────────────────────────────────────────────
 
 describe('page caps are language-aware; word budgets are not', () => {
-  test('English caps are unchanged: teach 5/support 4, warn 4/3', () => {
-    expect(pageCapsFor('en')).toEqual({ max: { teach: 5, support: 4 }, warn: { teach: 4, support: 3 } });
+  // Both caps moved one sheet on 2026-09-04 (bd-vjk68), each toward the part that was actually
+  // overflowing on staging: 6 of the 9 live failures were EN *teach*, 3 were UR *support*.
+  // The per-language SHAPE — which this suite exists to protect — is unchanged.
+  test('English: teach 6/support 4, warn 5/3', () => {
+    expect(pageCapsFor('en')).toEqual({ max: { teach: 6, support: 4 }, warn: { teach: 5, support: 3 } });
     expect(pageCapsFor('en').max).toBe(MAX_PAGES);
     expect(pageCapsFor('en').warn).toBe(WARN_PAGES);
   });
 
-  test('Urdu carries the measured +33% footprint: teach 7/support 5, warn 6/4', () => {
-    expect(pageCapsFor('ur')).toEqual({ max: { teach: 7, support: 5 }, warn: { teach: 6, support: 4 } });
+  test('Urdu carries the measured +33% footprint: teach 7/support 6, warn 6/5', () => {
+    expect(pageCapsFor('ur')).toEqual({ max: { teach: 7, support: 6 }, warn: { teach: 6, support: 5 } });
     expect(pageCapsFor('ur').max).toBe(MAX_PAGES_UR);
     expect(pageCapsFor('ur').warn).toBe(WARN_PAGES_UR);
+  });
+
+  test('and Urdu is still never TIGHTER than English on any part', () => {
+    // The property the two constants must always satisfy, whatever the numbers become: an
+    // Urdu page carries ~2/3 the lines of an English one, so an Urdu cap below the English
+    // one would fail every Urdu render of a document English delivers.
+    for (const part of ['teach', 'support']) {
+      expect(MAX_PAGES_UR[part]).toBeGreaterThanOrEqual(MAX_PAGES[part]);
+    }
   });
 
   test('no language / junk falls back to the English caps', () => {

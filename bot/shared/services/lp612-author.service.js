@@ -44,6 +44,11 @@ const { familyForBook } = require('../config/lp612-families');
 // stopped existing would reach production as a runtime crash instead of a red gate.
 const { lint } = require('../../vendor/lp-v9/lint_lp.js');
 const { validateDoc } = require('../../vendor/lp-v9/lib/validate.js');
+// The page caps the RENDERER will actually gate on, so the budget card in the prompt and the
+// gate can never state different numbers (bd-vjk68). This module's top-level cost is `fs`,
+// `path` and its own libs — `playwright-core` is required lazily inside the launch path — so
+// pulling it in here does not drag a browser into the author process.
+const { pageCapsFor } = require('../../vendor/lp-v9/render_lp.js');
 // The schema itself, for the ONE repair that needs to know which top-level keys exist. Read from
 // the schema rather than copied into a list here, so a field added upstream is never silently
 // deleted by this file.
@@ -537,6 +542,75 @@ function languageDirective(want, medium) {
   return `Author in the book's own medium: ${medium}.`;
 }
 
+// ── the budget card ─────────────────────────────────────────────────────────
+//
+// bd-vjk68. THE AUTHOR IS TOLD ITS BUDGET UP FRONT, WHERE IT WILL BE READ.
+//
+// The operator's complaint, verbatim: *"please make sure author is also aware of page/word
+// budget etc, its weird that it only finds out later"*. It was half right and the half that was
+// wrong matters. §8 of `brief_author_v3.md` DOES carry the caps on the first pass, in pages —
+// but it sits at line ~890 of a 70KB system prompt, and the one sentence that says HOW to spend
+// a page ("pages are spent on CARD COUNT… REMOVE WHOLE ITEMS") appears only in the revision
+// prompt. So the first draft is written by a model that has been told a number it cannot
+// measure and not told the quantity it can.
+//
+// This card is the fix, and it is deliberately three things and no more:
+//
+//   1. THE CAPS FOR THIS RENDER'S LANGUAGE, read from the renderer's own `pageCapsFor` — never
+//      retyped here. A cap the prompt states and the gate does not enforce (or vice versa) is
+//      the contradiction bd-owx8t was: two orders in one prompt, and the wrong one first.
+//   2. AIMS IN UNITS THE MODEL CAN COUNT, derived from the corpus rather than invented:
+//      `cap_policy_2026-09-04/derive_budget_card.py` over the 62 re-rendered documents (39
+//      delivered off staging + the n=24 study's cells). Exam answerables median 6 (p25 6, p75 7);
+//      model_answers median 4 (p25 2, p75 5); homework 3-4 with 5 the lint's existing hard stop;
+//      whole document median 16,550 minified chars = the measured p50 of 7,690 completion tokens,
+//      p90 ~8,300.
+//   3. THE HONEST TERMS. Pages are measured after rendering, the model cannot see them, and a
+//      long lesson is DELIVERED. Without that last sentence a length note reads as a gate and
+//      the model cuts real pedagogy to clear it — which is the exact own-goal PR #597 removed.
+//
+// WHAT IT IS NOT: a ceiling. FINDING.md swept every candidate card-count ceiling over the whole
+// corpus and the best trade anywhere catches 2 over-cap parts and blocks 33 good ones; the
+// over-cap documents sit at or BELOW the median on every countable. So nothing here is linted,
+// nothing here fails a document, and the numbers are stated as aims from lessons that fit.
+//
+// EXPECTED EFFECT, STATED HONESTLY SO NOBODY LATER READS MORE INTO IT: small. The one previous
+// brief-side volume experiment on this pipeline (bake-off round 4) tightened every aim in §8 and
+// measured no reduction at all. This is a change of POSITION and CONTENT, not just wording — it
+// moves the budget from line 890 of the system prompt to line 1 of the user turn, and adds the
+// countable the model was never given — but the honest prior is that it moves page counts a
+// little, and the delivery policy above is what actually removes the failure class.
+function budgetCard(lang) {
+  const caps = pageCapsFor(lang).max;
+  return [
+    '## YOUR PAGE BUDGET FOR THIS LESSON — read this before you write anything',
+    '',
+    `This lesson is laid out on A4 and MEASURED after you write it. For this render the caps are `
+      + `**TEACH ≤ ${caps.teach} pages, SUPPORT ≤ ${caps.support} pages**.`,
+    '',
+    'You cannot count pages — you never see the layout. These you CAN count, and they are what',
+    'the paper is actually spent on. Measured over 62 rendered lessons, the ones that FIT carry:',
+    '',
+    '  · exam_bank — about 6 answerables in total (MCQs + short response + each extended-response',
+    '    part counted separately); 7 is the high end.',
+    '  · model_answers — about 4 entries; 2 is common and perfectly acceptable.',
+    '  · homework — 3 to 4 items (5 is the lint\'s hard stop).',
+    '  · the whole lp_doc — a lesson that fits is roughly 7,700 tokens of JSON, and about 8,300',
+    '    at the long end. Past that you are writing paper this lesson does not have.',
+    '',
+    'Those are AIMS taken from lessons that fit, not gates: nothing above is checked, and no',
+    'count of items has ever been the difference between a lesson that fits and one that does',
+    'not. Write the COMPLETE lesson — completeness beats page count, and cutting a required',
+    'property to save space fails the whole document.',
+    '',
+    'And the honest terms, so you aim rather than fear: the pages are measured after rendering,',
+    'a lesson over the cap is STILL DELIVERED to the teacher, and if it runs long it costs one',
+    'revision round — never the lesson. Do not compress by writing denser prose, and never drop',
+    'the body size.',
+    '',
+  ].join('\n');
+}
+
 /** Printed learning outcomes the page-truth found, for the verbatim SLO quote. */
 function printedOutcomes(pages) {
   const hits = [];
@@ -571,7 +645,11 @@ function buildUserPrompt({ segment, bundle, lang, video }) {
     : 'No video is available for this lesson. Emit NO "video" key — an unvalidated link must ' +
       'never reach a teacher, so anything you write there is discarded.';
 
-  return `# LESSON TO AUTHOR
+  // THE BUDGET CARD IS THE FIRST THING IN THE TURN, above even the lesson's identity. It is
+  // here rather than appended to the brief because §8 of the brief is line ~890 of a 70KB
+  // system prompt, and "it only finds out later" is the operator's whole complaint.
+  return `${budgetCard(lang)}
+# LESSON TO AUTHOR
 
 ## LANGUAGE
 ${languageDirective(lang, medium)}
@@ -640,13 +718,18 @@ const REVISION_PREAMBLE =
   'Fix EVERY listed defect. Change nothing else. Keep every fact traceable to the same ' +
   'page-truth.\n\n';
 
-function buildRevisionPrompt({ doc, gates, originalUser, notes }) {
+function buildRevisionPrompt({ doc, gates, originalUser, notes, lang }) {
   // ADVISORY defects are recorded, not chased (see ADVISORY_CODES). A defect the ladder will not
   // spend a round on must not spend the model's attention either: showing it under "Fix EVERY
   // listed defect" is an order to act on something we have decided does not matter.
   const lint = gates.lint.filter((d) => !isAdvisory(d));
   const warns = gates.warns.filter((d) => !isAdvisory(d));
-  return REVISION_PREAMBLE +
+  // The SAME card the first pass opened with, first again — above the defect lists, not buried
+  // under them. `originalUser` carries a copy too, but it is appended LAST, ~40k tokens down,
+  // which is exactly the position the operator objected to. Restating it costs ~250 tokens
+  // against a 40,211-token revision prompt whose duration is explained (R² 0.91) by OUTPUT
+  // volume alone, with a NEGATIVE input coefficient — so this is free in latency terms.
+  return budgetCard(clampLanguage(lang)) + '\n' + REVISION_PREAMBLE +
     (notes ? `=== THE OPERATOR'S NAMED DEFECTS — THESE OUTRANK EVERYTHING BELOW ===\n${notes}\n\n` : '') +
     '=== PREVIOUS lp_doc ===\n' + JSON.stringify(doc, null, 1) +
     '\n\n=== SCHEMA ERRORS ===\n' + (gates.schema.join('\n') || '(none)') +
@@ -1026,6 +1109,54 @@ const notWorse = (a, b) => {
  */
 const STALE_ROUNDS = 4;
 
+/**
+ * PAGE-COUNT OVERFLOW BUYS AT MOST ONE REVISION ROUND (bd-vjk68).
+ *
+ * Operator, 2026-09-04: *"we will stop cancelling or delaying lesson plans now because of the
+ * length issue"*. This is the "delaying" half; the worker owns the "cancelling" half.
+ *
+ * THE ARITHMETIC. A round costs ~60s and that is essentially all of it —
+ * `latency_breakdown_2026-09-04/BREAKDOWN.md` measures authoring as (1 + rounds) × ~60s + 15s,
+ * with 99.0% of the wall clock inside LLM calls, because every revision re-emits the WHOLE
+ * ~7,900-token document ("the COMPLETE corrected lp_doc JSON — not a patch"), and duration is
+ * 6.3s per 1k OUTPUT tokens at R² 0.91. Against that, a page-count-only round succeeds 92% of
+ * the time on the first attempt, 50% on the second and 18% on the third. Rounds 3-5 therefore
+ * spend three minutes of a teacher's wait buying a coin-flip that is already losing — and,
+ * since bd-vjk68, buying it for a document that will be DELIVERED either way.
+ *
+ * WHAT THIS COSTS, NAMED RATHER THAN HIDDEN: the study's cell c09 (see STALE_ROUNDS above) came
+ * inside its cap only at round 5, after four rounds whose defect list never moved. Under this
+ * rule c09 stops at round 1 and prints one page over. That is not a lost lesson any more — it
+ * is a delivered lesson with `over_cap` on its row. Trading a 6-page lesson she gets in two
+ * minutes against a 5-page lesson she gets in six is the trade the operator made.
+ *
+ * SCOPED TO LENGTH, DELIBERATELY. Every other blocking defect — schema, lint, OVERFLOW,
+ * TRUNCATION, RENDER_INFRA — keeps today's behaviour exactly, bounded by `STALE_ROUNDS` and the
+ * round cap. Those are broken documents; this one is only a long one.
+ */
+const PAGE_COUNT_ROUND_BUDGET = 1;
+
+/**
+ * Is this defect the renderer's page-cap finding?
+ *
+ * Matched on the renderer's own emitted prefix (`render_lp.js`: `PAGE COUNT: ${part} needs ...`),
+ * the same way `isAdvisory` matches the lint's `CODE: message` shape — not on a substring search
+ * that could catch the words "page count" inside someone's prose, and not on a paraphrase this
+ * file would have to keep in sync by hand.
+ *
+ * NOTE what this deliberately does NOT match: `TRUNCATION:` (the PDF is SHORTER than the layout
+ * — pages of the lesson are missing from the file, the most expensive defect the renderer can
+ * ship) and `OVERFLOW on ...` (content clipped off the bottom of a page). Both are broken
+ * documents, not long ones, and neither may ever be delivered under this policy.
+ */
+const isPageCountDefect = (d) => String(d).startsWith('PAGE COUNT:');
+
+/** True when the ONLY things standing between this document and a teacher are page counts. */
+const isPageCountOnly = (g) => {
+  const blocking = blockingFails(g);
+  return blocking.length > 0 && blocking.every(isPageCountDefect);
+};
+
 // ── the ladder ──────────────────────────────────────────────────────────────
 
 /**
@@ -1108,11 +1239,39 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
   let spent = 0;
   // Consecutive rounds that have reduced no BLOCKING defect. See STALE_ROUNDS.
   let stale = 0;
+  // Rounds ENTERED with nothing blocking but page counts. See PAGE_COUNT_ROUND_BUDGET.
+  let pageOnlyRounds = 0;
 
   for (let rnd = 0; rnd < maxRounds; rnd++) {
     // The climb ends when nothing that gates delivery is left — NOT when the defect list is
     // empty. An advisory defect (today: BUDGET) is reported and served, never chased.
     if (blockingCost(gates) === 0) break;
+    // ▶ THE DECISION POINT: page-count-only defect set → ≤1 revision round, then deliver.
+    //   (Length is the ONLY soft defect. Everything else — schema, lint, the visual contract,
+    //   OVERFLOW, TRUNCATION — is hard and unchanged; see PAGE_COUNT_ROUND_BUDGET.)
+    //
+    // LENGTH IS NOT WORTH A SECOND ROUND (bd-vjk68). The document is delivered over cap by the
+    // worker, so every round past the first is pure wait for a diminishing chance — and this
+    // exit is what makes "we will stop DELAYING lesson plans because of the length issue" true
+    // rather than aspirational. Note it is checked BEFORE the stale guard on purpose: a
+    // page-count-only ladder is the exact shape that used to reach `stale >= 4`, four rounds
+    // and ~four minutes later.
+    if (isPageCountOnly(gates) && pageOnlyRounds >= PAGE_COUNT_ROUND_BUDGET) {
+      logToFile('lp612 author ladder stopped — page count only, budget spent', {
+        correlationId, segmentId: segment.segment_id, roundsUsed: spent, of: maxRounds,
+        pageOnlyRounds, blockingFails: blockingFails(gates).slice(0, 5),
+      });
+      logEvent('lp612.author.page_budget_spent', {
+        correlationId: correlationId || null,
+        segmentId: segment.segment_id || null,
+        lang: language,
+        roundsUsed: spent,
+        of: maxRounds,
+        fails: blockingFails(gates).slice(0, 4),
+      });
+      break;
+    }
+    if (isPageCountOnly(gates)) pageOnlyRounds += 1;
     if (stale >= STALE_ROUNDS) {
       logToFile('lp612 author ladder stopped — no blocking progress', {
         correlationId, segmentId: segment.segment_id, roundsUsed: spent, of: maxRounds,
@@ -1128,7 +1287,7 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
       defects: gateCost(gates), blocking: blockingBefore,
     });
 
-    const fixUser = buildRevisionPrompt({ doc, gates, originalUser: user, notes: segment.notes });
+    const fixUser = buildRevisionPrompt({ doc, gates, originalUser: user, notes: segment.notes, lang: language });
     let candidate;
     try {
       candidate = await callWithRetry({
@@ -1361,7 +1520,7 @@ async function reviseLessonPlan({
   for (let rnd = 0; rnd < Math.max(1, rounds); rnd++) {
     spent = rnd + 1;
     const notes = rnd === 0 ? teacherInstructionNote(instruction) : REPAIR_NOTE;
-    const fixUser = buildRevisionPrompt({ doc: current, gates, originalUser, notes });
+    const fixUser = buildRevisionPrompt({ doc: current, gates, originalUser, notes, lang: language });
 
     let candidate;
     try {
@@ -1452,6 +1611,10 @@ module.exports = {
   sanitizeSequence,
   sanitizeUnknownTopLevel,
   buildUserPrompt,
+  // Exported for the suite: the budget card's POSITION is the whole point of bd-vjk68, and a
+  // test that cannot see the assembled revision prompt cannot assert it is above the defects.
+  buildRevisionPrompt,
+  budgetCard,
   pythonDictToJson,
   __extractJsonForTests: extractJson,
   authorLessonPlan,

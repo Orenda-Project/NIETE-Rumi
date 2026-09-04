@@ -68,8 +68,10 @@ outside this repo and not in this repo's git history:
 >   `printed_pages` and the outcome box's Latin citation atoms; sequence/answer arrows flip to
 >   `&larr;` under RTL; prose blocks carry `unicode-bidi:plaintext` (RTL stylesheet only — the
 >   English render is byte-identical, asserted upstream and in `tests/lp612/bidi-caps.test.js`).
-> * **Per-language page caps** (`render_lp.js`): `pageCapsFor(lang)` — English unchanged at
->   5/4 (warn 4/3); Urdu 7/5 (warn 6/4), the measured ~+33% footprint. Word budgets in
+> * **Per-language page caps** (`render_lp.js`): `pageCapsFor(lang)` — English **6/4** (warn 5/3);
+>   Urdu **7/6** (warn 6/5). *(Raised one sheet per language on 2026-09-04, bd-vjk68: EN teach
+>   5→6, UR support 5→6, aimed at where the 9 live overflows actually were — 6 EN teach, 3 UR
+>   support. Was EN 5/4 warn 4/3, UR 7/5 warn 6/4.)* Word budgets in
 >   `lint_lp.js` are deliberately untouched: identical content volume, more paper. The caps
 >   hunks were applied to the vendored file BY HAND around the §3.2/3.3/3.4 divergences — never
 >   blind-copied.
