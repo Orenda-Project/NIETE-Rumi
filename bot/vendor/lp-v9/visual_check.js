@@ -285,7 +285,22 @@ function diagramFamilies(doc) {
         placed.push([sec, fam]);
       }
     } else if (t === "textbook_figure") {
+      // A BOOK FIGURE IS A VISUAL, and it is PLACED — it counts toward V1's two and satisfies
+      // V2 at the point of use, exactly as a drawn `diagram` does.
+      //
+      // It did not, until 2026-09-04, and the cost was measured on a live Biology E2E
+      // (`grade_11_biology.c01.p010-013`): Fig 1.10, the fluid-mosaic model, was staged in R2 and
+      // named in the segment's own notes, and the model emitted two `panels` text boxes and a
+      // `flow` instead — then wrote an Activity telling the teacher to "label the two ends of a
+      // phospholipid molecule" with NO picture on the page to label. Every link below the model
+      // was working; the rule was telling it the real figure bought nothing.
+      //
+      // Where the book has the picture and this engine cannot draw it — a photograph, an
+      // anatomical illustration, a map — the crop is the BETTER artefact, not the fallback: it is
+      // the exact image the pupil has in front of her. It folds to `labelled_figure` through
+      // CANON, so it satisfies a §4b.2 "real figure" requirement on the same footing.
       fams.push("labelled_figure");
+      placed.push([sec, "labelled_figure"]);
     }
   }
   const bf = ((doc.page2 || {}).board_final || {}).diagram;
@@ -367,8 +382,8 @@ function check(doc) {
   const hasBoardDia = isObj(boardDia) && Boolean(boardDia.type);
   const totalDia = bodyDiagrams.length + (hasBoardDia ? 1 : 0);
   if (totalDia < 2) {
-    errs.push(`V1 the lesson carries ${bodyDiagrams.length} in-body typed \`diagram\` block(s) `
-      + `and ${hasBoardDia ? "a" : "no"} board_final diagram = ${totalDia}; `
+    errs.push(`V1 the lesson carries ${bodyDiagrams.length} in-body figure(s) (\`diagram\` or `
+      + `\`textbook_figure\`) and ${hasBoardDia ? "a" : "no"} board_final diagram = ${totalDia}; `
       + "brief v3 §4b.1 requires at least 2");
   }
   if (!bodyDiagrams.some(([sec]) => sec === "development" || sec === "activity")) {

@@ -1042,11 +1042,30 @@ exactly like a schema error, and its defects are listed FIRST in that round.
 
 ### 4b.1 · The floor every lesson must clear
 
-1. **≥2 `diagram` blocks** (the typed engine — `textbook_figure` does NOT count toward this two;
-   `latex`/`chem` do not either). One of them lives **inside `development` or `activity`, at the
-   point of use** — beside the sentence it explains, never parked at the end. The other may be the
+1. **≥2 FIGURES — a `diagram` block or a `textbook_figure` block; `latex`/`chem` are not
+   figures.** One of them lives **inside `development` or `activity`, at the point of use** —
+   beside the sentence it explains, never parked at the end. The other may be the
    `page2.board_final.diagram`, which is the **final state of the board** and is the single most
    requested artefact a teacher asked for.
+
+   > **A BOOK FIGURE COUNTS. This changed on 2026-09-04, and it changed because of a real
+   > lesson.** The rule used to read *"`textbook_figure` does NOT count toward this two"*. On a
+   > Grade 11 Biology lesson on the cell membrane, the book's own Figure 1.10 — the fluid mosaic
+   > model — was cropped, staged, and named in that segment's notes. The lesson emitted two
+   > `panels` text boxes and a `flow` instead, and then wrote an Activity telling the teacher to
+   > *"label the two ends of a phospholipid molecule"* **with no picture on the page to label**.
+   > Nothing was broken; the rule was telling the model that the real figure bought it nothing.
+   >
+   > So: where the book has the picture and this engine cannot draw it — a photograph, an
+   > anatomical illustration, a map, a micrograph — **the book's figure is the better answer, not
+   > the fallback.** It is the exact image the pupil is looking at in her own copy. It counts
+   > toward these two, it satisfies the point-of-use requirement, and in §4b.2 it satisfies any
+   > requirement that lists `labelled_figure`.
+   >
+   > What has not changed: **use it where it is genuinely better.** If the idea is one of the
+   > twenty types this engine draws — a circuit, a graph, a punnett square, a free-body diagram —
+   > draw it. A clean drawn circuit teaches the circuit; a photograph of one tells the pupil what
+   > to expect on the bench. Ours leads where ours is good.
 2. **`page2.board_final.diagram` is required**, not optional. `draw_order` alone is prose about a
    picture; the picture itself is the deliverable.
 3. **At point of use** means: the block sits immediately after the `key_points` / `paragraph` /
@@ -1084,8 +1103,8 @@ one the corpus proves does not happen on its own.
 | **Mathematics** | `latex` on **every** expression, equation, matrix and result — inline `$…$` in prose, a `latex` block for anything displayed. **≥1** of `graph` · `numberline` · `geometry` · `grid` · `fraction_bar`. **A marked incorrect example**: one worked or faded example that shows the wrong step with the error **explicitly marked and named** (R5 — never make pupils hunt for it), plus the correct line beside it. | Every listed type is one this engine DRAWS, deliberately: 88% of maths pages carry a third-party watermark, so the book's own figure is not a clean fallback in this subject. |
 | **Chemistry** | **≥1 `chem_equation` diagram** AND **≥1 `molecule` or `atom` diagram**. A **mole-ratio worked example in LaTeX** — the ratio written as `$\frac{n(\text{X})}{n(\text{Y})}$` or an equivalent display, with the arithmetic shown, not described. Every formula in `\ce{}`. | A reaction and the species in it are two different pictures; a lesson that shows only the equation never shows the pupil what a molecule *is*. |
 | **Physics** | **≥1** of `circuit` · `ray_diagram` · `free_body` · `graph`, chosen to match the topic (a motion lesson gets `free_body` or a `graph`; an optics lesson gets `ray_diagram`; an electricity lesson gets `circuit`). **The governing formula as a `latex` block**, with its symbols defined, and the substitution shown in LaTeX. | Same as Mathematics: 80% of physics pages are watermarked, so these four drawn types are the clean route, and each is the standard figure of its own topic. |
-| **Biology** | **≥1** of `cell` · `leaf_cross_section` · `heart_loop` · `labelled_figure` · `dna_helix` · `punnett` · `graph` — **a real biological figure**. **AND ≥1** of `flow` (a process: photosynthesis, digestion, the biological method) or `mindmap` (classification, concept relations). Use a `punnett` wherever inheritance is in scope. | Two requirements because one was satisfiable by the other. The old row was a single list containing `flow`, so a flow chart alone passed it — which is how thirteen delivered Biology diagrams contained **zero** labelled structures while the gate reported nothing. |
-| **General Science** | **≥1** of `cell` · `leaf_cross_section` · `heart_loop` · `labelled_figure` · `dna_helix` · `punnett` · `atom` · `molecule` · `chem_equation` · `circuit` · `free_body` · `ray_diagram` · `graph`. **AND ≥1** of `flow` or `mindmap`. | General Science 6–8 is biology AND chemistry AND physics in one cover — "push and pull", "signs of a chemical reaction" and "the plant cell" are all in it — so the first requirement is the science-specific set across all three, not the biology one. What it excludes is the point: `flow`, `mindmap` and `panels`. |
+| **Biology** | **≥1** of `cell` · `leaf_cross_section` · `heart_loop` · `labelled_figure` · `dna_helix` · `punnett` · `graph` — **a real biological figure**, drawn by this engine **or** the book's own crop as a `textbook_figure` (§4b.1.1). **AND ≥1** of `flow` (a process: photosynthesis, digestion, the biological method) or `mindmap` (classification, concept relations). Use a `punnett` wherever inheritance is in scope. | Two requirements because one was satisfiable by the other. The old row was a single list containing `flow`, so a flow chart alone passed it — which is how thirteen delivered Biology diagrams contained **zero** labelled structures while the gate reported nothing. |
+| **General Science** | **≥1** of `cell` · `leaf_cross_section` · `heart_loop` · `labelled_figure` · `dna_helix` · `punnett` · `atom` · `molecule` · `chem_equation` · `circuit` · `free_body` · `ray_diagram` · `graph` — a `textbook_figure` counts here too (§4b.1.1). **AND ≥1** of `flow` or `mindmap`. | General Science 6–8 is biology AND chemistry AND physics in one cover — "push and pull", "signs of a chemical reaction" and "the plant cell" are all in it — so the first requirement is the science-specific set across all three, not the biology one. What it excludes is the point: `flow`, `mindmap` and `panels`. |
 | **Computer Science / IT** | **≥1** of `flow` (an algorithm, a process) or `mindmap` (a classification: hardware/software, input/output/storage). **AND ≥1** of `panels` · `grid` · `graph` · `timeline` · `labelled_figure` — the contrast, the place-value table, the data chart or the labelled device the page actually shows. | Read off the CS pages themselves: of their printed figures, 702 are screenshots or interfaces, 414 tables and grids, 400 charts, 364 labelled devices, 88 side-by-side comparisons — and only **54** are flowcharts. `flow` is right for an algorithm chapter and stays first-class; it is not what this book is mostly made of. |
 | **English / Urdu (LL-\*)** | **≥1 `mindmap`** for the devices, themes or characters at stake, **and ≥1 `flow`** running the **notice → name → explain-effect** sequence as three labelled steps. A narrative or a set text with a sequence gets a **`timeline`**. Poetry: the mindmap carries the devices actually taught, nothing else. | A literature lesson has no physical object to draw, so both requirements are relation maps — but they are two DIFFERENT maps: what the text contains, and what the reader does with it. |
 | **Pakistan Studies / History / Geography** | **≥1 `timeline`** (dated spine, 4–6 events, never more) **and ≥1 `panels`** set as **evidence vs claim** — one panel holds what the source says, the other what someone concluded from it. Geography data lessons may substitute a `graph` for the timeline. | Chronology and interpretation are the two things this subject assesses, and neither shows up in the other's picture. |
@@ -1184,7 +1203,9 @@ If you want a second and third hue, use `var(--amber)` and `var(--leaf)` against
 // graph — a Cartesian plot; expr is a safe expression in x
 {"type":"graph","xMin":-3,"xMax":5,"yMin":-6,"yMax":8,"xStep":1,"yStep":2,
  "functions":[{"expr":"x*x - 2*x - 3","label":"y = x² − 2x − 3","color":"var(--navy)"}],
- "points":[{"x":3,"y":0,"label":"(3, 0)","color":"var(--warn)","dx":13,"dy":17}]}
+ "points":[{"x":3,"y":0,"label":"(3, 0)","color":"var(--warn)"}]}
+// `dx`/`dy` on a point are MANUAL label offsets and they are a trap: they can push a label onto
+// an axis-tick plate and fail DIAGRAM_OVERLAP. Omit them unless you have looked at the render.
 // AN INEQUALITY is a graph too: a function may set "shade":"above" or "shade":"below" to fill
 // the half-plane on one side of itself. Dash the line when the inequality is STRICT — points on
 // it do not count. Two shaded functions overlap into a visibly darker region, which is exactly

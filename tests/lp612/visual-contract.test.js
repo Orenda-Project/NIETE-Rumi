@@ -153,6 +153,98 @@ describe('V1-V5 · the floor every lesson must clear', () => {
   });
 });
 
+describe('a book figure is a visual — it counts toward the floor and at the point of use', () => {
+  // Measured on a live Biology E2E (`grade_11_biology.c01.p010-013`): the book's own Fig 1.10,
+  // the fluid mosaic model, was cropped, staged in R2 and named in that segment's notes — and
+  // the lesson emitted two `panels` text boxes and a `flow` instead, then wrote an Activity
+  // telling the teacher to "label the two ends of a phospholipid molecule" with no picture on
+  // the page to label. Every link below the model worked. §4b.1.1 was telling it the real
+  // figure bought nothing: "textbook_figure does NOT count toward this two".
+  const bookFig = (extra = {}) => ({
+    type: 'textbook_figure', id: 'fig-1-10', ref: 'grade_11_biology/pg_012_f0',
+    figure_label: 'Fig. 1.10', page: '12',
+    legend: 'Phosphate heads face the water; the fatty-acid tails face each other.', ...extra,
+  });
+
+  test('two book figures clear V1 — the ≥2 floor', () => {
+    const d = doc({ subject: 'Biology', specs: [] });
+    const dev = d.sections.find((s) => s.id === 'development');
+    dev.blocks.push(bookFig(), bookFig({ id: 'fig-1-11', ref: 'grade_11_biology/pg_013_f0' }));
+    expect(has(d, 'V1')).toBe(false);
+  });
+
+  test('a book figure in `development` satisfies V2, the point-of-use rule', () => {
+    const d = doc({ subject: 'Biology', specs: [] });
+    d.sections.find((s) => s.id === 'development').blocks.push(bookFig());
+    expect(has(d, 'V2')).toBe(false);
+  });
+
+  test('a book figure parked in `homework` still fails the point-of-use rule', () => {
+    const d = doc({ subject: 'Biology', specs: [] });
+    d.sections.find((s) => s.id === 'homework').blocks.push(bookFig());
+    expect(has(d, 'V2')).toBe(true);
+  });
+
+  test('and it satisfies the Biology structure requirement, as §4b.2 now says', () => {
+    const d = doc({
+      subject: 'Biology',
+      specs: [{ type: 'flow', steps: [{ title: 'a' }] }],
+      board: { type: 'flow', steps: [{ title: 'b' }] },
+    });
+    d.sections.find((s) => s.id === 'development').blocks.push(bookFig());
+    expect(has(d, 'V6')).toBe(false);
+  });
+
+  test('the brief no longer tells the model the opposite', () => {
+    const brief = fs.readFileSync(
+      path.join(__dirname, '..', '..', 'bot', 'vendor', 'lp-v9', 'brief_author_v3.md'), 'utf8');
+    // The old sentence survives ONCE, quoted inside the explanation of why it changed. What must
+    // not survive is the NORMATIVE bullet — §4b.1 item 1, the line the model reads as the rule.
+    const item1 = brief.slice(brief.indexOf('### 4b.1'), brief.indexOf('2. **`page2.board_final'));
+    expect(item1).toContain('\u22652 FIGURES');
+    expect(item1).not.toMatch(/^1\..*does NOT count/m);
+    expect(brief).toContain('A BOOK FIGURE COUNTS');
+    expect(brief.split('does NOT count toward this two').length - 1).toBe(1);
+  });
+});
+
+describe('the checker and the engine roster can never drift', () => {
+  // The manifest's own $comment: "Anything that consumes the type list — the lp_doc schema enum,
+  // lint_lp.js, the author brief's §4b.4 — checks itself against THIS file." This is that check
+  // for the visual contract's V5.
+  const MANIFEST = require('../../bot/vendor/lp-v9/diagrams/types_manifest.json');
+
+  test('every kind and alias the engine registers is legal to V5, and nothing else is', () => {
+    const legal = new Set();
+    for (const t of MANIFEST.types) {
+      legal.add(t.type);
+      for (const a of t.aliases || []) legal.add(a);
+    }
+    expect([...legal].filter((x) => !VC.DIAGRAM_TYPES.has(x))).toEqual([]); // V5 would reject a legal type
+    expect([...VC.DIAGRAM_TYPES].filter((x) => !legal.has(x))).toEqual([]); // V5 would allow an unknown one
+  });
+
+  test('every type named in a §4b.2 row is one the engine actually renders', () => {
+    // kinds AND aliases: `heart_loop` and `leaf_cross_section` are aliases of `cell`, and a row
+    // is entitled to name the alias — that is how a biology row asks for the circulatory loop
+    // rather than "a bio_schematic, kind unspecified".
+    const legal = new Set();
+    for (const t of MANIFEST.types) {
+      legal.add(t.type);
+      for (const a of t.aliases || []) legal.add(a);
+    }
+    for (const [subject, rule] of Object.entries(VC.SUBJECT_RULES)) {
+      if (rule.alias) continue;
+      for (const group of rule.one_of || []) {
+        for (const kind of group) {
+          expect({ subject, kind, renders: legal.has(VC.CANON[kind] || kind) })
+            .toEqual({ subject, kind, renders: true });
+        }
+      }
+    }
+  });
+});
+
 describe('V6 · the per-subject minimum', () => {
   const board = { type: 'panels', panels: [{ title: 'A' }, { title: 'B' }] };
 
