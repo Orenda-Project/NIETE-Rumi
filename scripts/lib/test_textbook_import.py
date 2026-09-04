@@ -10,6 +10,7 @@ import unittest
 
 from textbook_import import (
     clean_page_text, normalise_pages, dominant_offset, chapters_to_printed,
+    select_chapters,
 )
 
 
@@ -121,6 +122,73 @@ class EmptyChapterRanges(unittest.TestCase):
             [{"chapter_number": 3, "title": "T", "start_page": None, "end_page": 9}],
             offset=0, max_printed=130)
         self.assertTrue(out[0]["empty"])
+
+
+def C(n, title="T", sp=1, ep=9, deleted=False, active=None, status=None):
+    """A source chapter row as `select_chapters` receives it."""
+    return {"chapter_number": n, "title": title, "start_page": sp, "end_page": ep,
+            "deleted_at": "2025-07-31T00:00:00Z" if deleted else None,
+            "is_active": (not deleted) if active is None else active,
+            "status": status or ("ReadyForReview" if deleted else "OnProd")}
+
+
+class SoftDeletedChaptersAreStillChaptersOfTheBook(unittest.TestCase):
+    """bd-60028. The first import kept only `deleted_at IS NULL AND is_active`,
+    which dropped 77 of the 383 source chapters across 21 of the 27 ICT books and
+    left the teacher's chapter dropdown with holes in it — G1 English offered
+    1, 3, 4, 6, 8, 9, 11, 12.
+
+    Those rows are not deletions of the book's content. Every one of them holds a
+    real, non-overlapping page range that interlocks exactly with the chapters
+    either side of it: G1 English's soft-deleted chapter 2 is pages 15-27, which
+    is precisely the gap between chapter 1 (4-14) and chapter 3 (28-40). The
+    flag tracks Taleemabad's own editorial review state — all 77 sit at status
+    'ReadyForReview' and none at 'OnProd' — and says nothing about whether the
+    chapter is in the printed textbook. The pages are already imported either
+    way, so excluding the row only hides content the teacher can see in her hand.
+
+    What still disqualifies a chapter is what always did: no usable page range.
+    """
+
+    def test_soft_deleted_chapter_is_kept(self):
+        rows = [C(1, "Hello World!", 4, 14),
+                C(2, "chapter 2.", 15, 27, deleted=True),
+                C(3, "Pinky's Yummy Tummy Team-Up!", 28, 40)]
+        self.assertEqual([c["chapter_number"] for c in select_chapters(rows)], [1, 2, 3])
+
+    def test_the_kept_row_carries_its_real_page_range(self):
+        kept = select_chapters([C(2, "chapter 2.", 15, 27, deleted=True)])
+        self.assertEqual((kept[0]["start_page"], kept[0]["end_page"]), (15, 27))
+
+    def test_g1_english_offers_every_chapter_one_to_twelve(self):
+        """The whole book, as the source actually holds it."""
+        live = {1: (4, 14), 3: (28, 40), 4: (41, 53), 6: (70, 81), 8: (98, 112),
+                9: (113, 125), 11: (142, 155), 12: (156, 166)}
+        gone = {2: (15, 27), 5: (54, 69), 7: (82, 97), 10: (126, 141)}
+        rows = ([C(n, f"ch{n}", sp, ep) for n, (sp, ep) in live.items()]
+                + [C(n, f"chapter {n}", sp, ep, deleted=True) for n, (sp, ep) in gone.items()])
+        got = [c["chapter_number"] for c in select_chapters(rows)]
+        self.assertEqual(got, list(range(1, 13)))
+
+    def test_a_chapter_with_no_page_range_is_still_excluded(self):
+        """The one disqualification that survives: GK G3's chapter 1 is 0-0 and
+        Islamiat G5 has no chapter 1 row at all. A range that cannot be read from
+        is not made available just because the row exists."""
+        rows = [C(1, "Changing World", 0, 0), C(2, "Safety", 5, 19),
+                C(3, "No end", 20, None)]
+        self.assertEqual([c["chapter_number"] for c in select_chapters(rows)], [2])
+
+    def test_selection_is_ordered_by_chapter_number(self):
+        rows = [C(3, "c", 20, 30), C(1, "a", 1, 9, deleted=True), C(2, "b", 10, 19)]
+        self.assertEqual([c["chapter_number"] for c in select_chapters(rows)], [1, 2, 3])
+
+    def test_a_duplicated_chapter_number_keeps_the_live_row(self):
+        """If the source ever carries the same chapter number twice, the row that
+        is not soft-deleted is the one Taleemabad is standing behind."""
+        rows = [C(4, "superseded", 40, 50, deleted=True), C(4, "current", 41, 52)]
+        kept = select_chapters(rows)
+        self.assertEqual(len(kept), 1)
+        self.assertEqual(kept[0]["title"], "current")
 
 
 class CleanPageStillByteIdentical(unittest.TestCase):

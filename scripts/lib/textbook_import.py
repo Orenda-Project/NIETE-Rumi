@@ -63,6 +63,23 @@ WHAT THE 27 ICT BOOKS TAUGHT US (2026-09-02, bd-60012)
       chapter was three pages late.
     * `buffer_pages` on the book row is not a reliable offset (Maths G4 says 1,
       the pages say 4). The offset is measured from the pages themselves.
+
+WHAT THE MISSING CHAPTERS TAUGHT US (2026-09-04, bd-60028)
+    * `deleted_at`/`is_active` ON A CHAPTER IS NOT A DELETION OF THE CHAPTER.
+      They carry Taleemabad's editorial review state. Filtering on them cost the
+      first import 77 of the 383 source chapters across 21 of the 27 books, and
+      the teacher's chapter dropdown showed the holes: G1 English offered 1, 3,
+      4, 6, 8, 9, 11, 12. The hidden rows are real chapters — each one's page
+      range interlocks exactly with the chapters either side of it, and all 77
+      sit at status 'ReadyForReview' with none at 'OnProd'. Their pages were
+      being imported the whole time (pages are keyed by number, not by chapter),
+      so the filter removed only the teacher's way of asking for content we
+      already had. `select_chapters` now keeps them.
+    * WHAT WE STILL CANNOT OFFER, and why it is not a bug to fix in code:
+      GK G3 chapter 1 is 0-0 in the source — a range naming no pages — and
+      Islamiat G5 has no chapter 1 row at all (its rows start at 2). Both books
+      therefore start their dropdown at chapter 2. Inventing a range for either
+      would point the generator at pages that are not the chapter's.
 """
 from __future__ import annotations
 
@@ -106,6 +123,48 @@ def source_connection():
     )
 
 
+def _has_page_range(row: dict) -> bool:
+    """A chapter we can generate questions from has both bounds, and they run
+    forwards. GK G3 lists chapter 1 as 0-0; a range like that names no pages."""
+    sp, ep = row.get("start_page"), row.get("end_page")
+    return sp is not None and ep is not None and ep >= sp and ep > 0
+
+
+def select_chapters(rows: list[dict]) -> list[dict]:
+    """Which of the source's chapter rows are chapters of the book.
+
+    `deleted_at`/`is_active` are NOT a filter here, and that is the whole point
+    of bd-60028. Taleemabad uses them for its own editorial review state — every
+    one of the 77 rows they hide across the 27 ICT books sits at status
+    'ReadyForReview' and not one at 'OnProd' — but the chapters themselves are
+    real: each holds a non-overlapping page range that interlocks exactly with
+    its neighbours (G1 English's hidden chapter 2 is pages 15-27, precisely the
+    gap between chapter 1 at 4-14 and chapter 3 at 28-40). Their pages are
+    imported regardless, because pages are keyed by number and not by chapter.
+    Dropping the row only removed the teacher's way of ASKING for content that
+    was already sitting in our database, and left the chapter dropdown with
+    holes in it.
+
+    The disqualification that does apply is having no usable page range.
+
+    Where a chapter number appears twice, the row that is not soft-deleted wins:
+    that is the one the source is currently standing behind.
+    """
+    best: dict[int, dict] = {}
+    for r in rows:
+        if not _has_page_range(r):
+            continue
+        n = r["chapter_number"]
+        current = best.get(n)
+        if current is None:
+            best[n] = r
+            continue
+        # A live row supersedes a soft-deleted one with the same number.
+        if current.get("deleted_at") is not None and r.get("deleted_at") is None:
+            best[n] = r
+    return [best[n] for n in sorted(best)]
+
+
 def fetch_book(conn, book_id: int, schema: str) -> dict:
     """The book row, its pages and its chapters, straight from the source."""
     cur = conn.cursor()
@@ -123,17 +182,21 @@ def fetch_book(conn, book_id: int, schema: str) -> dict:
             f"book_text is {type(book_text).__name__}. Wrong tenant?"
         )
 
+    # Every chapter row, soft-deleted ones included; `select_chapters` decides.
+    # The old `WHERE deleted_at IS NULL AND is_active` here is what cost the
+    # first import 77 of 383 chapters — see that function for why (bd-60028).
     cur.execute(
-        f"""SELECT chapter_number, title, start_page, end_page
+        f"""SELECT chapter_number, title, start_page, end_page, deleted_at, is_active, status
             FROM {schema}.book_library_bookchapter
-            WHERE book_id = %s AND deleted_at IS NULL AND is_active
+            WHERE book_id = %s
             ORDER BY chapter_number""",
         (book_id,),
     )
-    chapters = [
-        {"chapter_number": cn, "title": t, "start_page": sp, "end_page": ep}
-        for cn, t, sp, ep in cur.fetchall()
-    ]
+    chapters = select_chapters([
+        {"chapter_number": cn, "title": t, "start_page": sp, "end_page": ep,
+         "deleted_at": da, "is_active": act, "status": st}
+        for cn, t, sp, ep, da, act, st in cur.fetchall()
+    ])
     cur.close()
     return {"title": title, "pages": book_text, "chapters": chapters,
             "buffer_pages": buffer_pages}
