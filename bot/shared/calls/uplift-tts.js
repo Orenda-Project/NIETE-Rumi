@@ -33,6 +33,10 @@ const DEFAULT_WS_URL = 'wss://api.upliftai.org/text-to-speech/multi-stream';
 // session. NOT v_8eelc901 — that is the retired Urdu voice-note voice (bd-2375).
 const DEFAULT_VOICE_ID = 'v_meklc281';
 const CONNECT_TIMEOUT_MS = 5000;
+// How long a synthesis request may produce NO audio before we call it failed.
+// Documented first-chunk latency is ~300ms, so this is generous by an order of
+// magnitude — it is a liveness check, not a latency budget.
+const FIRST_AUDIO_TIMEOUT_MS = 4000;
 const MAX_TEXT_CHARS = 10000; // documented hard limit; over it the request errors
 
 class UpliftTtsSession {
@@ -44,8 +48,12 @@ class UpliftTtsSession {
    * @param {object}   opts.callbacks  { onPcm(Int16Array@22050), onError }
    * @param {Function} [opts.ioFactory] (url, opts) => socket — injectable for tests
    */
-  constructor({ apiKey, voiceId, wsUrl, callbacks = {}, ioFactory } = {}) {
+  constructor({
+    apiKey, voiceId, wsUrl, callbacks = {}, ioFactory,
+    firstAudioTimeoutMs = FIRST_AUDIO_TIMEOUT_MS,
+  } = {}) {
     this.apiKey = apiKey;
+    this.firstAudioTimeoutMs = firstAudioTimeoutMs;
     this.voiceId = voiceId || DEFAULT_VOICE_ID;
     this.wsUrl = wsUrl || DEFAULT_WS_URL;
     this.cb = callbacks;
@@ -66,6 +74,44 @@ class UpliftTtsSession {
     this._head = 0;                // index in _order currently playing
     this._buffed = new Map();      // chunks buffered for not-yet-head reqs
     this._ended = new Set();       // requestIds that received audio_end
+    this._watchdogs = new Map();   // requestId → timer awaiting its first audio
+  }
+
+  /**
+   * Fail a request that produced no audio at all.
+   *
+   * PROBED AGAINST THE LIVE API 2026-09-04: an unknown voiceId does NOT come back
+   * as {type:'error'}. The server accepts `synthesize` and simply never sends
+   * audio — `ready=yes, 0 bytes, no error`. So the protocol-error branch does not
+   * cover the single most likely misconfiguration, and without this a wrong
+   * UPLIFT_VOICE_ID is a completely silent assistant with a clean log: the caller
+   * hears a dead line, and every signal we have says the call is fine.
+   */
+  _armFirstAudioWatchdog(requestId) {
+    const t = setTimeout(() => {
+      this._watchdogs.delete(requestId);
+      if (this._ended.has(requestId) || !this._active.has(requestId)) return;
+      // Advance playout — the sentences behind this one must not wait forever.
+      this._ended.add(requestId);
+      this._active.delete(requestId);
+      this._drain();
+      if (this.cb.onError) {
+        const err = new Error(
+          `uplift produced no audio for ${this.firstAudioTimeoutMs}ms `
+          + `(voiceId ${this.voiceId} — check it is a real voice)`,
+        );
+        err.code = 'no_audio';
+        err.requestId = requestId;
+        this.cb.onError(err);
+      }
+    }, this.firstAudioTimeoutMs);
+    if (t.unref) t.unref();
+    this._watchdogs.set(requestId, t);
+  }
+
+  _clearWatchdog(requestId) {
+    const t = this._watchdogs.get(requestId);
+    if (t) { clearTimeout(t); this._watchdogs.delete(requestId); }
   }
 
   get ready() {
@@ -120,6 +166,7 @@ class UpliftTtsSession {
       // Stop waiting on a request that will never produce audio, or in-order
       // playout would stall behind it for the rest of the call.
       if (m.requestId) {
+        this._clearWatchdog(m.requestId);
         this._ended.add(m.requestId);
         this._active.delete(m.requestId);
         this._drain();
@@ -129,6 +176,7 @@ class UpliftTtsSession {
     }
 
     if (m.type === 'audio' && m.audio && m.requestId && this._active.has(m.requestId)) {
+      this._clearWatchdog(m.requestId);
       const buf = Buffer.from(m.audio, 'base64');
       if (buf.length < 2) return;
       const pcm = new Int16Array(buf.length >> 1);
@@ -142,6 +190,7 @@ class UpliftTtsSession {
         this._buffed.set(m.requestId, arr);
       }
     } else if (m.type === 'audio_end' && m.requestId) {
+      this._clearWatchdog(m.requestId);
       this._ended.add(m.requestId);
       this._drain();
     }
@@ -162,6 +211,7 @@ class UpliftTtsSession {
       voiceId: this.voiceId,
       outputFormat: 'PCM_22050_16',
     });
+    this._armFirstAudioWatchdog(requestId);
   }
 
   /** Advance playback in send order, flushing buffered audio for the new head. */
@@ -192,6 +242,7 @@ class UpliftTtsSession {
    * any chunk that races the cancel is ignored by requestId anyway.
    */
   cancel() {
+    for (const id of this._watchdogs.keys()) this._clearWatchdog(id);
     if (this._socket) {
       for (const requestId of this._active) {
         if (this._ended.has(requestId)) continue;
@@ -209,6 +260,7 @@ class UpliftTtsSession {
   }
 
   close() {
+    for (const id of [...this._watchdogs.keys()]) this._clearWatchdog(id);
     try { if (this._socket) this._socket.close(); } catch (_) { /* noop */ }
     this._socket = null;
     this._ready = false;
@@ -216,5 +268,5 @@ class UpliftTtsSession {
 }
 
 module.exports = {
-  UpliftTtsSession, UPLIFT_RATE, DEFAULT_VOICE_ID, MAX_TEXT_CHARS,
+  UpliftTtsSession, UPLIFT_RATE, DEFAULT_VOICE_ID, MAX_TEXT_CHARS, FIRST_AUDIO_TIMEOUT_MS,
 };
