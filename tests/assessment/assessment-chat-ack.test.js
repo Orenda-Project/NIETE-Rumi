@@ -244,6 +244,36 @@ describe('what she actually reads in the chat', () => {
     const [, text] = mockSend.mock.calls[0];
     expect(text.trim()).toMatch(/minute\.$/);
   });
+
+
+  test('the REAL live payload still produces the right message', async () => {
+    // Routing it is only half the job: with no `assessment_action` the handler
+    // used to fall to its "unrecognised tag" branch and stay silent, which is
+    // the same silence from the teacher's side.
+    await handle({
+      output_format: 'pdf', answer_lines: true, answer_key: true,
+      flow_token: 'u1:assessment-gen:1788534348744',
+    }, '92300', { id: 'u1' });
+
+    expect(mockSend).toHaveBeenCalled();
+    const [, text] = mockSend.mock.calls[0];
+    expect(text).toMatch(/about a minute/i);
+  });
+
+  test('a review token produces the rebuild wording, not the generation one', async () => {
+    await handle({ keep: ['a.0'], flow_token: 'u1:assessment-review:paper-1' },
+      '92300', { id: 'u1' });
+    const [, text] = mockSend.mock.calls[0];
+    expect(text).toMatch(/seconds/i);
+    expect(text).not.toMatch(/about a minute/i);
+  });
+
+  test('an explicit tag still wins over the token', async () => {
+    await handle({ assessment_action: 'queue_failed', flow_token: 'u1:assessment-gen:1' },
+      '92300', { id: 'u1' });
+    const [, text] = mockSend.mock.calls[0];
+    expect(text).toMatch(/nothing is being made/i);
+  });
 });
 
 describe('the completion payload must actually CARRY the tag (bd-60029)', () => {
@@ -330,5 +360,48 @@ describe('no handler may return a screen the Flow does not have (bd-60029)', () 
     const real = flow.screens.map((s) => s.id);
     expect(real).toContain(res.screen);
     expect(res.data.extension_message_response.params.assessment_action).toBe('rebuilt');
+  });
+});
+
+describe('the token is the discriminator that actually survives (bd-60029)', () => {
+  // Meta DROPS `extension_message_response` from the completion. Verified on the
+  // live payload, not inferred — the Footer requested it, the screen declared
+  // it, the server supplied it on the render, and what arrived was:
+  //
+  //   {"output_format":"pdf","answer_lines":true,"answer_key":true,
+  //    "flow_token":"<userId>:assessment-gen:<ts>"}
+  //
+  // So routing cannot depend on that field. The FLOW TOKEN is ours, we set it
+  // when we send the Flow, and it always comes back — `:assessment-gen:` for a
+  // new paper and `:assessment-review:` for a rebuild.
+  const detect = require('../../bot/shared/utils/flow-type-detector');
+  const fn = typeof detect === 'function' ? detect : detect.detectFlowType;
+
+  test('the REAL live payload routes to the assessment handler', () => {
+    expect(fn({
+      output_format: 'pdf', answer_lines: true, answer_key: true,
+      flow_token: '60530046-7ac3-4ea3-a976-b43c37c23213:assessment-gen:1788534348744',
+    })).toBe('assessment_gen');
+  });
+
+  test('a review-token completion routes there too', () => {
+    expect(fn({ keep: ['a.0'], flow_token: 'u1:assessment-review:paper-1' }))
+      .toBe('assessment_gen');
+  });
+
+  test('it still works if Meta ever DOES send the tag', () => {
+    expect(fn({ assessment_action: 'queued', flow_token: 'u1:assessment-gen:1' }))
+      .toBe('assessment_gen');
+  });
+
+  test('an attendance completion is NOT captured — the token marker is specific', () => {
+    // The failure being prevented in reverse: this rule sits above the loose
+    // attendance fallback, so it must not swallow attendance's own traffic.
+    expect(fn({ flow_token: 'u1:attendance:123', some_field: 'x' }))
+      .not.toBe('assessment_gen');
+  });
+
+  test('a token-less submission is not claimed by us', () => {
+    expect(fn({ Student_Full_Name: 'x', Assessment_Mode: 'y' })).not.toBe('assessment_gen');
   });
 });
