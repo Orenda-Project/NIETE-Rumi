@@ -861,9 +861,19 @@ async function serveLp612Segment(flowToken, d) {
 
   serveLp612(segmentId, userId, who, d.lang);
 
+  // Her UI language, NOT `d.lang`. `d.lang` is the DOCUMENT she just ordered;
+  // this screen is addressed TO her, and the two territories diverge the moment
+  // an Urdu-reading teacher orders an English physics plan. Same catalog string
+  // as the flag-off segment tap above, so both taps say the same thing.
+  //
+  // It was a hardcoded English sentence, which is what rule 20 forbids: an Urdu
+  // teacher who had just tapped «اردو» was answered in English on the last
+  // screen before the Flow closed. It also promised "in a moment" — the stale
+  // timing bd-2ym0h removed everywhere else, and untrue on a lane whose first
+  // hit is minutes.
   return {
     screen: 'SUCCESS',
-    data: { message: 'Your lesson plan is on its way — check this chat in a moment.' },
+    data: { message: resolveUx('lp612FlowAck', { language: who.preferred_language }) },
   };
 }
 
