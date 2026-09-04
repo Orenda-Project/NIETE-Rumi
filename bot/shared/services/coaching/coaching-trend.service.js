@@ -165,4 +165,42 @@ async function loadPriorAction(userId, opts = {}) {
   }
 }
 
-module.exports = { loadTrendData, loadPriorAction, shortLabel };
+/**
+ * Which Section B measurement her recent lessons used — 'derived' when a plan
+ * resolved to graded moves, 'proxy' otherwise. Newest first.
+ *
+ * Selects the nested flag ONLY. analysis_data is a large JSONB blob and pulling
+ * three of them to read one boolean is the unbounded-JSONB pattern that has
+ * bitten this codebase before.
+ *
+ * Used to keep a fresh Section B target off a teacher who always attaches a
+ * plan — such a target would be bridged almost every lesson. Never throws: an
+ * empty array simply means "no preference".
+ *
+ * @param {string} userId
+ * @param {object} [opts] - { limit = 3, excludeSessionId }
+ * @returns {Promise<Array<'derived'|'proxy'>>}
+ */
+async function loadRecentSectionBModes(userId, opts = {}) {
+  const { limit = 3, excludeSessionId = null } = opts;
+  try {
+    if (!userId) return [];
+    let q = supabase
+      .from('coaching_sessions')
+      .select('id, created_at, mode:analysis_data->domains->lesson_plan_fidelity->fidelity_derived')
+      .eq('user_id', userId)
+      .eq('status', 'completed');
+    if (excludeSessionId) q = q.neq('id', excludeSessionId);
+    const { data, error } = await q.order('created_at', { ascending: false }).limit(limit);
+    if (error) {
+      logToFile('[uptake-loop] loadRecentSectionBModes error', { userId, error: error.message });
+      return [];
+    }
+    return (Array.isArray(data) ? data : []).map((r) => (r && r.mode === true ? 'derived' : 'proxy'));
+  } catch (err) {
+    logToFile('[uptake-loop] loadRecentSectionBModes unexpected error', { userId, error: err.message });
+    return [];
+  }
+}
+
+module.exports = { loadTrendData, loadPriorAction, loadRecentSectionBModes, shortLabel };

@@ -81,14 +81,21 @@ run('feedback-uptake loop — acceptance', () => {
     expect(checked).toBeGreaterThan(0);
   });
 
-  test('2 · applicability — no chosen target, card target or prompt target is flagged not applicable; never Section B; never the top rung', () => {
+  test('2 · applicability — no chosen target, card target or prompt target is flagged not applicable; never Section B WHEN DERIVED; never the top rung', () => {
     const counts = {};
     for (const s of sessions) {
+      // bd-nl4vi.15: the fixture carries no fidelity_derived flag, so every
+      // session is PROXY and a B row is a legitimate target. The guarantee that
+      // still holds absolutely is the derived one — assert it on a flagged copy.
+      const derived = JSON.parse(JSON.stringify(s.analysis));
+      if (derived.domains.lesson_plan_fidelity) derived.domains.lesson_plan_fidelity.fidelity_derived = true;
+      const td = loop.chooseTarget(derived, null);
+      if (td) expect(td.indicator[0]).not.toBe('B');
+
       const t = loop.chooseTarget(s.analysis, null);
       if (!t) continue;
       counts[t.indicator] = (counts[t.indicator] || 0) + 1;
       expect(applicable(s.analysis, t.indicator)).toBe(true);
-      expect(t.indicator[0]).not.toBe('B');
       expect(rowOf(s.analysis, t.indicator).score).toBeLessThan(fico.getScoringConstants().scaleMax);
       const c = cardTarget(s.analysis, { prior: null, status: 'no_prior', state: loop.nextTarget(null, 'no_prior', s.analysis) });
       expect(applicable(s.analysis, c.indicator)).toBe(true);

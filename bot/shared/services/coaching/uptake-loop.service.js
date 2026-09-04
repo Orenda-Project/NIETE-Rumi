@@ -38,6 +38,16 @@ const LOOP_VERSION = 1;
  * Keys double as the tally keys the model fills in `uptake.count`.
  */
 const COUNT_BARS = {
+  // Section B — the SEVEN GENERIC indicators, countable only when Section B is
+  // in PROXY mode (see sectionBIsProxy). B3 has no entry on purpose: its rung-2
+  // bar is "EVERY activity serves the objective", a universal rather than a
+  // count, and a >= comparison against it would pass vacuously.
+  B1: { objective_stated: 1, objective_referred_back: 1 },
+  B2: { spoken_transitions: 2 },
+  B4: { named_prior_concepts_recalled: 2 },
+  B5: { developed_connections: 1 },
+  B6: { distinct_tasks_or_supports: 2 },
+  B7: { closure_moves_that_check_learning: 1 },
   C1: { open_questions: 3, followups_on_a_student_answer: 1 },
   C2: { different_representation_reexplanations: 1 },
   C3: { specific_feedback_moves: 3, next_step_feedback: 1 },
@@ -76,10 +86,17 @@ function findRow(analysis, indicatorId) {
   return null;
 }
 
-/** Applicable AND scored in this very lesson. */
+/**
+ * Applicable AND scored in this very lesson. A carried B target additionally
+ * dies the moment she attaches a plan: Section B flips to fidelity-derived and
+ * that indicator stops driving anything, so the loop bridges (attempt frozen)
+ * exactly as it does for a subject-gated F row in the wrong subject.
+ */
 function applicableToday(analysis, indicatorId) {
   const row = findRow(analysis, indicatorId);
-  return !!row && row.applicable !== false && row.score !== null && row.score !== undefined;
+  if (!row || row.applicable === false || row.score === null || row.score === undefined) return false;
+  if (String(indicatorId || '')[0] === 'B' && !sectionBIsProxy(analysis)) return false;
+  return true;
 }
 
 /** The indicator's rung in this lesson, or null. */
@@ -92,6 +109,37 @@ function rungOf(analysis, indicatorId) {
 
 function isLoopSection(indicatorId) {
   return LOOP_SECTIONS.has(String(indicatorId || '')[0]);
+}
+
+/**
+ * Which of the two Section B measurements this lesson used.
+ *
+ * DERIVED — a lesson plan resolved to graded moves, so applyLpFidelity replaced
+ * domain_score with executed÷prescribed and stamped `fidelity_derived`. It does
+ * NOT touch indicators[], so the seven B scores still sit there driving nothing
+ * and shown to nobody: coaching one of them would move her score by zero.
+ *
+ * PROXY — no moves resolved (45% of prod sessions), so computeScores summed the
+ * seven and they ARE the section. They are stable, generic teacher behaviours,
+ * and each maps onto a plan phase the fidelity grader scores (B1→announce,
+ * B4→recall, B5→hook, B6→grouping, B7→exit) — so the habit built here is the
+ * one that lifts fidelity once she does attach a plan.
+ */
+function sectionBIsProxy(analysis) {
+  const b = ((analysis && analysis.domains) || {}).lesson_plan_fidelity;
+  return !(b && b.fidelity_derived === true);
+}
+
+/**
+ * Is this indicator a legitimate loop target IN THIS LESSON? C/D/F always;
+ * a B row only while Section B is the proxy; nothing without a COUNT bar
+ * (which excludes B3 and any id the rubric does not define).
+ */
+function isLoopTarget(analysis, indicatorId) {
+  const id = String(indicatorId || '');
+  if (!countBarFor(id)) return false;
+  if (id[0] === 'B') return sectionBIsProxy(analysis);
+  return isLoopSection(id);
 }
 
 function indicatorName(analysis, domainKey, id) {
@@ -119,26 +167,63 @@ function indicatorName(analysis, domainKey, id) {
 function chooseTarget(analysis, prior, opts = {}) {
   const avoid = new Set(opts.avoid || []);
   const top = scaleMax();
+  // An OPEN target is sticky wherever it is still measurable today — including
+  // a B row on a teacher who usually attaches plans. Only NEW choices consult
+  // the history below.
   if (prior && prior.target_status === 'open' && prior.target && prior.target.indicator
-      && applicableToday(analysis, prior.target.indicator) && isLoopSection(prior.target.indicator)) {
+      && applicableToday(analysis, prior.target.indicator) && isLoopTarget(analysis, prior.target.indicator)) {
     return { ...prior.target, carried: true };
   }
+  // If her recent lessons all came with a plan, a fresh B target would spend
+  // most of its life bridged — prefer C/D/F, which are measured either way.
+  const recent = Array.isArray(opts.recentModes) ? opts.recentModes : [];
+  const preferNonB = recent.length >= 2 && recent.every((m) => m === 'derived');
+  const eligible = (id) => isLoopTarget(analysis, id) && !(preferNonB && String(id)[0] === 'B');
+
   const fa = resolveTarget(analysis);
-  if (fa && isLoopSection(fa.indicator) && fa.rung < top && !avoid.has(fa.indicator)) {
-    return { indicator: fa.indicator, domain: fa.domain, name: fa.name, carried: false };
-  }
+  const faId = fa && eligible(fa.indicator) && fa.rung < top && !avoid.has(fa.indicator) ? fa.indicator : null;
+  const asTarget = (x) => ({ indicator: x.indicator, domain: x.domain, name: x.name, carried: false });
+
   const cands = [];
   for (const [domainKey, d] of Object.entries((analysis && analysis.domains) || {})) {
     for (const ind of (d && Array.isArray(d.indicators) ? d.indicators : [])) {
-      if (!ind || !isLoopSection(ind.id) || !applicableToday(analysis, ind.id)) continue;
+      if (!ind || !eligible(ind.id) || !applicableToday(analysis, ind.id)) continue;
       const rung = Number(ind.score);
       if (!Number.isFinite(rung) || rung >= top) continue;
       cands.push({ indicator: String(ind.id), domain: domainKey, name: indicatorName(analysis, domainKey, ind.id), rung, carried: false });
     }
   }
   if (!cands.length) return null;
-  // stable sort: lowest rung first, rubric order preserved among equals
-  const sorted = cands.map((c, i) => ({ c, i })).sort((a, b) => (a.c.rung - b.c.rung) || (a.i - b.i)).map((x) => x.c);
+
+  // The scorer's own pick wins outright — it chose the lowest applicable rung
+  // with the most quotable evidence, and discarding that is what started this
+  // work. ONE exception: a Section B pick that merely TIES with the lowest
+  // C/D/F row (see the section rank below for why).
+  if (faId) {
+    if (String(faId)[0] !== 'B') return asTarget(fa);
+    const lowestCDF = cands.filter((c) => String(c.indicator)[0] !== 'B')
+      .reduce((m, c) => Math.min(m, c.rung), Infinity);
+    if (fa.rung < lowestCDF) return asTarget(fa);
+  }
+
+  // Order: lowest rung → C/D/F before B → the scorer's own pick → rubric order.
+  //
+  // The section rank is load-bearing, not cosmetic. B6 (differentiation) sits at
+  // the floor for nearly every teacher: on the real staging fixture it TIED with
+  // the lowest C/D/F row in 16 of 21 sessions and won outright only 4 times, yet
+  // it took 62% of all targets purely because B sorts first — the C1 treadmill
+  // re-forming on the B side. And a B target is only measurable while Section B
+  // is the proxy, so it bridges the moment she attaches a plan, where C/D/F are
+  // measured either way. On equal evidence, carry the durable one. A B row that
+  // is STRICTLY her lowest still wins, which is the case worth having.
+  const sectionRank = (id) => (String(id)[0] === 'B' ? 1 : 0);
+  const sorted = cands
+    .map((c, i) => ({ c, i }))
+    .sort((a, b) => (a.c.rung - b.c.rung)
+      || (sectionRank(a.c.indicator) - sectionRank(b.c.indicator))
+      || ((a.c.indicator === faId ? 0 : 1) - (b.c.indicator === faId ? 0 : 1))
+      || (a.i - b.i))
+    .map((x) => x.c);
   const pick = sorted.find((c) => !avoid.has(c.indicator)) || sorted[0];
   const { rung, ...target } = pick;
   return target;
@@ -173,9 +258,13 @@ function deriveUptakeStatus(uptake, prior, analysis) {
  * The next loop state from the prior record and this lesson's verdict.
  * Deterministic for the same inputs, so a report re-run writes the same record.
  */
-function nextTarget(prior, uptakeStatus, analysis) {
+function nextTarget(prior, uptakeStatus, analysis, opts = {}) {
+  const recentModes = Array.isArray(opts.recentModes) ? opts.recentModes : undefined;
   const fresh = (reason, extra = {}) => {
-    const target = chooseTarget(analysis, null, extra.avoid ? { avoid: extra.avoid } : {});
+    const target = chooseTarget(analysis, null, {
+      ...(extra.avoid ? { avoid: extra.avoid } : {}),
+      ...(recentModes ? { recentModes } : {}),
+    });
     return {
       target,
       attempt: target ? 1 : 0,
@@ -306,6 +395,6 @@ function describeCount(obj) {
 
 module.exports = {
   chooseTarget, nextTarget, tooSimilar, applicableToday, rungOf, deriveUptakeStatus, buildRecord,
-  countBarFor, describeCount, isLoopSection, rubricAsk,
+  countBarFor, describeCount, isLoopSection, isLoopTarget, sectionBIsProxy, rubricAsk,
   LADDER, MAX_ATTEMPTS, CLOSE_AFTER, COUNT_BARS, LOOP_VERSION,
 };
