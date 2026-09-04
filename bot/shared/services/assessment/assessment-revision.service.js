@@ -39,6 +39,23 @@ const TEACHER_MESSAGE = {
 };
 const FALLBACK_MESSAGE = 'Sorry — something went wrong making your paper. Please try again.';
 
+/**
+ * The request row stores `grade_code` as 'grade_4' and `subject_code` as the bare
+ * subject. Everything downstream — the renderer, the filename, the caption —
+ * wants a number and a plain subject, so the conversion happens once here rather
+ * than at each of the six call sites that would otherwise each get it slightly
+ * wrong.
+ */
+function coverageOf(req) {
+  const g = String(req?.grade_code || '').match(/(\d+)/);
+  return {
+    grade: g ? Number(g[1]) : null,
+    subject: req?.subject_code || null,
+    pageRanges: req?.page_ranges || null,
+    format: req?.output_format || 'pdf',
+  };
+}
+
 function fileName({ grade, subject, chapterTitle, format = 'pdf', suffix = '' }) {
   const label = (SUBJECT_LABEL[subject] || subject || 'Subject').replace(/[^A-Za-z0-9]/g, '');
   const chapter = chapterTitle
@@ -56,12 +73,23 @@ function fileName({ grade, subject, chapterTitle, format = 'pdf', suffix = '' })
 async function _loadOwnedPaper(paperId, userId) {
   const { data, error } = await supabase
     .from('assessment_papers')
+    // The columns are grade_code ('grade_4') and subject_code — NOT grade and
+    // subject. PostgREST rejects the whole query for one unknown column, so
+    // naming them wrong does not degrade the result, it erases it: the screen
+    // rendered with an empty question list and the client refused to draw a
+    // CheckboxGroup with no options, while the paper itself was fine.
     .select('id, status, exam_json, selected_question_ids, request_id, '
-      + 'assessment_requests!inner(id, user_id, grade, subject, chapter_number, page_ranges, output_format)')
+      + 'assessment_requests!inner(id, user_id, grade_code, subject_code, '
+      + 'chapter_number, page_ranges, output_format)')
     .eq('id', paperId)
     .maybeSingle();
 
-  if (error || !data) return { code: 'NOT_FOUND' };
+  if (error || !data) {
+    // Logged rather than swallowed: this returned NOT_FOUND for a paper that
+    // existed, and without the reason the screen looks merely empty.
+    if (error) logToFile('[assessment-revision] paper lookup failed', { paperId, error: error.message });
+    return { code: 'NOT_FOUND' };
+  }
   if (data.assessment_requests?.user_id !== userId) return { code: 'NOT_FOUND' };
   if (data.status !== 'ready') return { code: 'NOT_READY' };
   return { paper: data };
@@ -107,6 +135,7 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone }) {
   }
   const { paper } = loaded;
   const req = paper.assessment_requests || {};
+  const { grade, subject, pageRanges, format } = coverageOf(req);
 
   let phone = knownPhone || null;
   let schoolName = null;
@@ -140,10 +169,10 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone }) {
 
     const html = Renderer.renderPaper({
       examJson,
-      grade: req.grade,
-      subject: req.subject,
+      grade,
+      subject,
       schoolName,
-      pageReference: req.page_ranges || null,
+      pageReference: pageRanges,
       chapterTitle: null,
       answerLines: true,
     });
@@ -155,8 +184,7 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone }) {
       throw Object.assign(err, { code: 'RENDER_FAILED' });
     }
 
-    const format = req.output_format || 'pdf';
-    const name = fileName({ grade: req.grade, subject: req.subject, format, suffix: '_Edited' });
+    const name = fileName({ grade, subject, format, suffix: '_Edited' });
 
     let key;
     try {
@@ -167,7 +195,7 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone }) {
 
     const url = await r2.getPresignedUrl(r2.buildR2PublicUrl(key), 3600);
     const caption = [
-      `Grade ${req.grade} ${SUBJECT_LABEL[req.subject] || req.subject}`,
+      `Grade ${grade} ${SUBJECT_LABEL[subject] || subject}`,
       `${questions.length} questions`,
       Number.isFinite(marks) && marks > 0 ? `${marks} marks` : null,
     ].filter(Boolean).join(' · ');
