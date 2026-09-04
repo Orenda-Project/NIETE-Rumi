@@ -274,10 +274,80 @@ absence. Upstream does not carry them because upstream renders on a workstation.
 Asserted at the launch boundary in `tests/lp612/render.test.js` — there is no way to observe this
 from outside the process, so the launch call is the only place the requirement can be recorded.
 
+### 3.9 `render_lp.js` + `lib/template.js` — the page packer is EXACT, not greedy (2026-09-04)
+
+Upstream `packAtoms()` is greedy first-fit: fill until the next atom does not fit, break, then walk
+backwards over `glue`. It is kept, renamed `packAtomsGreedy`, exported, and still tested — it is the
+baseline every claim below is measured against, and it is what produced every lesson delivered
+before this date. `packAtoms` is now an exact O(n²) dynamic program over the same atom model, the
+same capacity and the same two legality rules.
+
+**Why a search is needed at all.** Over a UNIFORM page box greedy first-fit is already optimal for
+ordered items, so a cleverer search would buy nothing. The box is not uniform: a continuation page
+pays the "…continued" strip, and one that opens MID-section also pays that section's repeated bar —
+so the box of page k+1 depends on which atom opens it, and greedy picks that opener blindly. That is
+the only place a page can be won, and the DP models it exactly by keying its state on "a page starts
+at atom i" (page 1 is exactly the page starting at atom 0, so the furniture is fully determined
+without carrying a page index).
+
+Objective, lexicographic: **pages**, then **orphans** (a break right after a `glue` atom, allowed
+only on a page holding that one atom — greedy's own escape hatch), then **front-loading** (the
+fullest page here, which is greedy's rule).
+
+**Measured on 62 real lesson documents** (39 delivered off staging + the 23-cell n=24 study),
+re-rendered with both packers on the same machine:
+
+```
+pages          582 -> 582   (0 saved)
+parts over cap   4 ->   4   (0 rescued)
+documents whose pagination changed at all: 0 of 62
+```
+
+Greedy was already page-optimal on every part of every document in the corpus, and the DP proves it
+rather than assuming it. **This change is therefore not a page saving** — see the packer's own
+doc-comment for why the −4.6% / "5 over cap → 0" figure it was commissioned against is a continuous
+lower bound (Σ ceil(content px ÷ capacity px)) that ignores atom indivisibility and per-page
+furniture, and is not reachable by any packer. What it does buy:
+
+* **optimality is now guaranteed, not incidental** — a future document where greedy leaves a page on
+  the table cannot silently cost one;
+* **a latent overflow defect is gone.** After its backwards walk over glue, greedy re-accumulates the
+  page's atoms *without re-checking the cap*, so the page can paint past its own bottom edge. On 300
+  randomised atom shapes greedy beat the DP on page count 58 times and in **all 58** it was because
+  greedy had overflowed. The DP never does.
+
+The brief also asked for an even-fill tie-break ("avoid a near-empty final page"). Two variants were
+built and run over the whole corpus, and **both were rejected on the measurement**: Σ slack² levels
+the document and dropped teach page 1 of `grade_11_physics` from 1064px (full) to 741px for zero
+pages saved — the exact "way too much open space" defect the atom packer was built to remove; and
+counting pages under 70% full re-broke 33 of 62 documents and, on `c11`, moved the stranded page out
+of the end of the support part into a 314px hole in the middle. Front-loading was chosen instead
+precisely because it reproduces greedy's breaks wherever greedy was optimal, so no break lands
+anywhere the shipped packer would not have put one. The even-fill question is real (43 final pages in
+the corpus are under half full) but it is a product decision with its own evidence.
+
+`lib/template.js` gains four `glue` marks, for adjacencies greedy preserved only by ACCIDENT — it
+breaks as late as it can, so it separated them only when the second atom genuinely did not fit,
+whereas an exact packer chooses freely and would find those breaks:
+
+* `page2` section A — the board diagram is glued to its draw-order card. They are one instruction in
+  two atoms; split across a page the teacher gets a finished board on one sheet and the order to draw
+  it on another.
+* the teach `hero` and the `seq` strip, and the support `p2head` — a break under a masthead prints a
+  sheet carrying a title and nothing else.
+* `sectionAtoms` now forwards `glue` from `after(s)` exactly as it already did from `before(s)`. No
+  atom from `after()` sets it today, so this changes nothing — but the asymmetry silently dropped any
+  glue such an atom declared, and a dropped glue is now a split a reader sees.
+
+Tests: `tests/lp612/page-packer.test.js` (18) — the mid-section headline case, glue chains and the
+single-atom escape, per-page overhead for a mid-section vs own-bar opener, both top-margin rules, the
+front-loading equivalence, and the invariants against greedy.
+
 ### 3.8 Nothing else
 
 `lint_lp.js`, both schemas, every other file in `lib/`, and the whole `diagrams/` tree are
-**byte-identical to upstream**. In particular the lint's gate list, thresholds, word budgets and
+**byte-identical to upstream**, with the single exception of the four `glue` marks in
+`lib/template.js` recorded in §3.9. In particular the lint's gate list, thresholds, word budgets and
 the renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` / `CHIP_FLOOR_PX` were not touched.
 Verify with §6's diff command.
 

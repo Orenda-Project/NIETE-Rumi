@@ -172,6 +172,11 @@ const MEASURE = `() => {
 /**
  * Greedy first-fit over ATOMS, with the two constraints v8 did not have.
  *
+ * SUPERSEDED as the shipping packer by `packAtoms` below (VENDOR DIVERGENCE §3.7). Kept,
+ * exported and still tested because it is the baseline every claim about the new packer is
+ * measured against, and because it is the honest description of what produced every lesson
+ * delivered before 2026-09-04.
+ *
  * 1. GLUE — a break may not fall immediately after an atom marked `glue`. That is what keeps
  *    a section bar with its first block and a practice tag with its first item. When the
  *    natural break lands on a glued boundary the packer walks BACKWARDS to the last legal
@@ -187,7 +192,7 @@ const MEASURE = `() => {
  * @param furn  { strip, contBar: {sectionKey: px} } — heights measured in the probe page
  * @returns { breaks:[atom index that starts each page after the first], pages:[{start, contBarSec}] }
  */
-function packAtoms(atoms, capacity, furn = {}) {
+function packAtomsGreedy(atoms, capacity, furn = {}) {
   const strip = furn.strip || 0;
   const contBar = furn.contBar || {};
   const breaks = [];
@@ -223,6 +228,129 @@ function packAtoms(atoms, capacity, furn = {}) {
     for (let k = j + 1; k <= i; k++) used += atoms[k].h + (atoms[k].mt || 0);
   }
   return { breaks, pages };
+}
+
+/**
+ * VENDOR DIVERGENCE (SYNC.md §3.7) — THE EXACT PACKER. Replaces greedy first-fit as the
+ * shipping packer; `packAtomsGreedy` above is retained as the measurement baseline.
+ *
+ * WHY a search at all — the part that is easy to get wrong in both directions.
+ *
+ * With a UNIFORM page box, greedy first-fit is ALREADY optimal for ordered items: taking the
+ * latest feasible break is a straight exchange argument, and greedy's backwards walk over
+ * `glue` lands on the latest LEGAL break, which is still optimal. A "cleverer search" over a
+ * uniform box would buy exactly nothing, and saying otherwise would be the kind of claim
+ * this pipeline has been burned by.
+ *
+ * The box is not uniform. A continuation page pays the "…continued" strip, and a page that
+ * opens in the MIDDLE of a section also pays that section's repeated bar — so the box of the
+ * NEXT page is a function of WHICH atom opens it. Greedy chooses that opener blindly, as a
+ * side effect of stuffing the current page. Stopping one atom earlier, so the next page opens
+ * on a section's own bar, can buy back the entire repeated bar. Measured over 62 real lesson
+ * documents (2026-09-04): 582 pages printed where 555 suffice, and 5 parts over cap where an
+ * exact pack leaves 0 — every one of those five already carrying 89-96% of the paper its cap
+ * allows.
+ *
+ * THE MODEL. `best[i]` is the optimal packing of atoms[i..] given that a page STARTS at atom
+ * i. Page 1 is exactly the page that starts at atom 0 and no other page can, so "starts at
+ * atom i" already fixes the furniture and the DP needs no page index in its state — which is
+ * what makes it exact rather than merely thorough. O(n²) over tens of atoms per part.
+ *
+ * THE OBJECTIVE, in order:
+ *   1. PAGES — the failure class this exists to kill.
+ *   2. ORPHANS — a break immediately after a `glue` atom, legal only on a page holding that
+ *      one atom (greedy's own escape hatch for a glued atom taller than its page). Because
+ *      greedy's packing is always in this DP's feasible set, the page count can never come
+ *      out worse than greedy's, and minimising orphans after it means the packer can never
+ *      buy a page by orphaning a heading — the one change that would make this a regression
+ *      rather than a fix.
+ *   3. FRONT-LOADING — with both of the above equal, the fullest possible page here. That is
+ *      greedy's own rule, and choosing it is deliberate: it means that on any part where
+ *      greedy was ALREADY page-optimal, this packer reproduces greedy's breaks exactly, so
+ *      no break ever lands anywhere the shipped packer would not have put one. The change is
+ *      then strictly "the same pagination, except where greedy was leaving a page on the
+ *      table". On the 62-document corpus that is every part: pagination is unchanged.
+ *
+ * THE TIE-BREAK WAS SUPPOSED TO BE "fill pages evenly / avoid a near-empty final page", and
+ * it is NOT, because the measurement argued against it. Two even-fill variants were built and
+ * run over all 62 documents first:
+ *
+ *   • Σ slack² over every page. It levels the whole document. It pulled teach page 1 of
+ *     grade_11_physics from 1064px (full) down to 741px, pushing the first teaching section
+ *     off the opening page and leaving its bottom third white — for ZERO pages saved. That is
+ *     the exact defect the atom packer was built to remove ("this should be fixed and dynamic,
+ *     there's way too much open space", operator 2026-08-30).
+ *   • The COUNT of pages under 70% full, then front-loading. Better — it leaves a full page
+ *     alone — but on c11 it removed the stranded page at the END of the support part by
+ *     opening a 314px hole in the MIDDLE of it, which reads worse, and it still re-broke 33
+ *     of 62 documents.
+ *
+ * Neither buys a single page. Re-paginating every teacher's lesson plan for a contested
+ * aesthetic, with no page saved and a measured way to make some documents worse, is not a
+ * trade worth making inside a packer change. The even-fill question is real — the corpus has
+ * 43 final pages under half full — but it is a product decision with its own evidence, and it
+ * should be taken on its own rather than smuggled in here.
+ *
+ * Same signature and same return shape as the greedy packer it replaces, so nothing
+ * downstream changes.
+ */
+function packAtoms(atoms, capacity, furn = {}) {
+  const n = atoms.length;
+  if (!n) return { breaks: [], pages: [] };
+  const strip = furn.strip || 0;
+  const contBar = furn.contBar || {};
+
+  // Which section's bar a page opening at atom i has to repeat — null when it opens on that
+  // section's OWN bar, or when it is page 1.
+  const contBarSecOf = (i) => {
+    const a = atoms[i] || {};
+    return i > 0 && a.sec && !a.first ? a.sec : null;
+  };
+  const boxOf = (i) => {
+    if (i === 0) return capacity;
+    const sec = contBarSecOf(i);
+    return capacity - strip - (sec ? (contBar[sec] || 0) : 0);
+  };
+  // The first atom of page 1 has its top margin suppressed by CSS (`.pad > :first-child`);
+  // a continuation page's first atom follows the strip and keeps it. Atom 0 is the only atom
+  // that can ever open page 1, so the suppression is a property of the ATOM and not of where
+  // the breaks fall — which is why a page's content total does not depend on the packing.
+  const costOf = (j) => atoms[j].h + (j === 0 ? 0 : atoms[j].mt || 0);
+
+  const better = (a, b) =>
+    a.pages !== b.pages ? a.pages < b.pages
+      : a.orphans !== b.orphans ? a.orphans < b.orphans
+        : a.used > b.used;
+
+  const best = new Array(n + 1).fill(null);
+  best[n] = { pages: 0, orphans: 0, used: 0, next: n };
+
+  for (let i = n - 1; i >= 0; i--) {
+    const box = boxOf(i);
+    let used = 0;
+    let pick = null;
+    for (let j = i; j < n; j++) {
+      used += costOf(j);
+      // A page carrying more than one atom may not exceed its box. A single atom taller than
+      // its own page still gets that page: losing content is never an option.
+      if (used > box && j > i) break;
+      const orphan = j + 1 < n && atoms[j].glue ? 1 : 0;
+      if (orphan && j !== i) continue;      // glue may only be broken to stand alone on a page
+      const rest = best[j + 1];
+      const cand = {
+        pages: rest.pages + 1,
+        orphans: rest.orphans + orphan,
+        used,
+        next: j + 1,
+      };
+      if (!pick || better(cand, pick)) pick = cand;
+    }
+    best[i] = pick;
+  }
+
+  const pages = [];
+  for (let i = 0; i < n; i = best[i].next) pages.push({ start: i, contBarSec: contBarSecOf(i) });
+  return { breaks: pages.slice(1).map((p) => p.start), pages };
 }
 
 /**
@@ -604,6 +732,6 @@ if (require.main === module) {
 
 // Exported for test/run_tests.js — the packer is the new core logic and needs its own cover.
 // `renderDoc` and `chromeChannel` are vendor additions (see SYNC.md).
-module.exports = { renderDoc, chromeChannel, computeBreaks, packAtoms,
+module.exports = { renderDoc, chromeChannel, computeBreaks, packAtoms, packAtomsGreedy,
   MAX_PAGES, WARN_PAGES, MAX_PAGES_UR, WARN_PAGES_UR, pageCapsFor,
   BODY_FLOOR_PX, CHIP_FLOOR_PX };
