@@ -32,6 +32,21 @@ const DEFAULTS = {
   // window with CALLS_VAD_SILENCE_MS (see realtime-client.js — we ship 500 ms,
   // NOT the 5 ms the Noor tuning uses).
   vad: 'server_vad',
+
+  // Voice engine (bd-oxu2q). 'openai' = the native realtime voice, which is what
+  // every call has run on to date. 'uplift' = OpenAI reasons and emits TEXT and
+  // Uplift speaks it, which is markedly more natural in Urdu.
+  //
+  // The DEFAULT IS DELIBERATELY 'openai'. Uplift is opt-in per environment via
+  // VOICE_PROVIDER, so turning it on is a decision someone makes for one
+  // deployment at a time rather than something a deploy does to every call at
+  // once. (The upstream implementation defaulted to 'uplift'; we do not.)
+  // Selection is also not final: if Uplift is selected but cannot connect, that
+  // CALL falls back to the OpenAI voice — see call-session.
+  voiceProvider: 'openai',
+  upliftVoiceId: 'v_meklc281',                 // Urdu female; override per env
+  upliftWsUrl: 'wss://api.upliftai.org/text-to-speech/multi-stream',
+
   maxConcurrent: 5,
   maxSeconds: 300,
   wrapUpSeconds: 270,
@@ -76,6 +91,16 @@ function getCallsConfig() {
 
     forwardSecret: process.env.CALLS_FORWARD_SECRET || '',
     serviceUrl: process.env.CALLS_SERVICE_URL || '',
+
+    // Voice engine (see DEFAULTS). Uplift is used only when selected AND a key
+    // is present; the session then decides per-call and falls back to the OpenAI
+    // voice if the TTS socket is not ready in time.
+    voiceProvider: String(process.env.VOICE_PROVIDER || DEFAULTS.voiceProvider).toLowerCase(),
+    uplift: {
+      apiKey: process.env.UPLIFT_API_KEY || '',
+      voiceId: process.env.UPLIFT_VOICE_ID || DEFAULTS.upliftVoiceId,
+      wsUrl: process.env.UPLIFT_WS_URL || DEFAULTS.upliftWsUrl,
+    },
   };
 }
 

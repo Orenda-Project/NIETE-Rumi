@@ -28,6 +28,7 @@ const CallEngine = require('./shared/calls/call-engine');
 const CallSession = require('./shared/calls/call-session');
 const RtcPeer = require('./shared/calls/rtc-peer');
 const RealtimeClient = require('./shared/calls/realtime-client');
+const { UpliftTtsSession } = require('./shared/calls/uplift-tts');
 const callsApi = require('./shared/calls/graph-calls-api');
 const { loadAmbience } = require('./shared/calls/ambience');
 const { buildCallPrompt } = require('./shared/calls/call-prompt.service');
@@ -104,6 +105,37 @@ const OVERFLOW_KEY = {
   per_caller_daily: 'callDailyLimitOverflow',
 };
 
+/**
+ * The external-TTS factory, or null (bd-oxu2q).
+ *
+ * Returning null is what keeps the OpenAI voice path completely untouched: the
+ * session only takes the text path when it is handed a factory AND the socket
+ * comes up AND the caller's language is one this voice speaks. Two gates here,
+ * both deliberate: the provider must be SELECTED (VOICE_PROVIDER=uplift) and a
+ * key must be PRESENT — a half-configured deployment gets the known-good voice
+ * rather than a broken one.
+ */
+function makeTtsFactory(cfg, logger) {
+  const enabled = cfg.voiceProvider === 'uplift' && Boolean(cfg.uplift && cfg.uplift.apiKey);
+  if (!enabled) {
+    if (cfg.voiceProvider === 'uplift') {
+      logger.warn('[calls] VOICE_PROVIDER=uplift but UPLIFT_API_KEY is missing — OpenAI voice');
+    }
+    return null;
+  }
+  logger.info('[calls] voice engine: uplift', { voiceId: cfg.uplift.voiceId });
+  return ({ callbacks }) => new UpliftTtsSession({
+    apiKey: cfg.uplift.apiKey,
+    voiceId: cfg.uplift.voiceId,
+    wsUrl: cfg.uplift.wsUrl,
+    callbacks,
+  });
+}
+
+// Resolved ONCE at boot, not per call: the decision is configuration, and the
+// log line above should say "this deployment speaks with X" a single time.
+const ttsFactory = makeTtsFactory(config, logger);
+
 function buildEngine() {
   return new CallEngine({
     callsApi,
@@ -146,8 +178,10 @@ function buildEngine() {
         callsApi,
         logger,
         createPeer: (peerCtx) => new RtcPeer({ ...peerCtx, logger }),
-        createRealtime: ({ instructions, callbacks }) => new RealtimeClient({
+        createTts: ttsFactory,
+        createRealtime: ({ instructions, outputMode, callbacks }) => new RealtimeClient({
           instructions,
+          outputMode,
           apiKey: config.apiKey,
           model: config.model,
           voice: config.voice,
@@ -200,7 +234,11 @@ function buildEngine() {
             model: config.model, voice: config.voice,
             contextSnapshot: { instructions, ...snapshot },
           });
-          return instructions;
+          // The language rides along so the session can decide whether the
+          // external TTS is the right voice for THIS caller (bd-oxu2q). A bare
+          // string is still accepted by CallSession; it just means "no external
+          // voice", which is the safe default.
+          return { instructions, language };
         },
         hooks: {
           // Rewrite the transcript as each line finalises, so a crash cannot
