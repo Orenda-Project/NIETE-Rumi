@@ -117,7 +117,7 @@ describe('the session honours the configured language set', () => {
   });
 });
 
-describe('one Rumi voice — the calls voice defaults to the product voice', () => {
+describe('the calls voice — v_meklc281, and NOT the retired voice-note one', () => {
   const { getCallsConfig } = require('../../shared/calls/calls-config');
 
   afterEach(() => {
@@ -125,21 +125,22 @@ describe('one Rumi voice — the calls voice defaults to the product voice', () 
     delete process.env.UPLIFT_VOICE_ID_UR;
   });
 
-  test('with nothing set, calls use the same Urdu voice as voice notes', () => {
-    // constants.js already speaks Sindhi/Balochi voice notes through Uplift and
-    // uses v_8eelc901 for Urdu. A teacher should hear ONE Rumi whether she plays
-    // a voice note or rings up, so the two must not drift apart by default.
-    expect(getCallsConfig().uplift.voiceId).toBe('v_8eelc901');
-  });
-
-  test('the product-wide Urdu voice is honoured when it is configured', () => {
-    process.env.UPLIFT_VOICE_ID_UR = 'v_product';
-    expect(getCallsConfig().uplift.voiceId).toBe('v_product');
-  });
-
-  test('UPLIFT_VOICE_ID gives calls a different voice when that is wanted', () => {
-    process.env.UPLIFT_VOICE_ID_UR = 'v_product';
-    process.env.UPLIFT_VOICE_ID = 'v_meklc281';
+  test('defaults to v_meklc281 — the conversational voice, chosen by ear', () => {
     expect(getCallsConfig().uplift.voiceId).toBe('v_meklc281');
+  });
+
+  test('IGNORES UPLIFT_VOICE_ID_UR — that variable is the retired Urdu voice', () => {
+    // bd-2375 moved Urdu voice notes off Uplift onto ElevenLabs (Sara), so
+    // UPLIFT_VOICE_ID_UR / v_8eelc901 is what the product STOPPED using. An
+    // earlier version of this file chained onto it in the name of consistency;
+    // honouring it would hand calls a voice nobody chose.
+    process.env.UPLIFT_VOICE_ID_UR = 'v_8eelc901';
+    expect(getCallsConfig().uplift.voiceId).toBe('v_meklc281');
+  });
+
+  test('UPLIFT_VOICE_ID is the one lever that changes the calls voice', () => {
+    process.env.UPLIFT_VOICE_ID_UR = 'v_retired';
+    process.env.UPLIFT_VOICE_ID = 'v_other';
+    expect(getCallsConfig().uplift.voiceId).toBe('v_other');
   });
 });

@@ -44,12 +44,16 @@ const DEFAULTS = {
   // Selection is also not final: if Uplift is selected but cannot connect, that
   // CALL falls back to the OpenAI voice — see call-session.
   voiceProvider: 'openai',
-  // The product ALREADY speaks with Uplift: `constants.js` uses it for Sindhi and
-  // Balochi voice notes, with UPLIFT_VOICE_ID_UR ('v_8eelc901') as its Urdu voice.
-  // Calls default to that same voice so a teacher hears one Rumi whether she plays
-  // a voice note or rings up. UPLIFT_VOICE_ID overrides it for calls only — e.g.
-  // 'v_meklc281', the conversational voice the calls prototype used.
-  upliftVoiceId: 'v_8eelc901',
+  // The conversational Urdu voice, chosen by ear for phone calls (operator,
+  // 2026-09-04).
+  //
+  // Do NOT "align" this with UPLIFT_VOICE_ID_UR / v_8eelc901. That is the RETIRED
+  // Urdu Uplift voice: bd-2375 moved Urdu voice notes off Uplift onto ElevenLabs
+  // (Sara, eleven_v3), so v_8eelc901 is what the product stopped using. Uplift
+  // still serves Sindhi and Balochi voice notes, and in NIETE — whose offer is
+  // exactly ['ur','en'] — it serves nothing but calls. So this value IS the NIETE
+  // Uplift voice, and there is no second surface to stay consistent with.
+  upliftVoiceId: 'v_meklc281',
   upliftWsUrl: 'wss://api.upliftai.org/text-to-speech/multi-stream',
   // Which call languages the external voice may speak. Urdu only by default —
   // Uplift models Urdu/Sindhi/Balochi. This is a LIST rather than an `if`
@@ -123,10 +127,10 @@ function getCallsConfig() {
     voiceProvider: String(process.env.VOICE_PROVIDER || DEFAULTS.voiceProvider).toLowerCase(),
     uplift: {
       apiKey: process.env.UPLIFT_API_KEY || '',
-      // calls-specific override → the product-wide Urdu voice → the shared default.
-      voiceId: process.env.UPLIFT_VOICE_ID
-        || process.env.UPLIFT_VOICE_ID_UR
-        || DEFAULTS.upliftVoiceId,
+      // UPLIFT_VOICE_ID only. Deliberately does NOT fall back to
+      // UPLIFT_VOICE_ID_UR — that variable belongs to the retired Urdu voice-note
+      // path, so honouring it here would hand calls a voice nobody chose.
+      voiceId: process.env.UPLIFT_VOICE_ID || DEFAULTS.upliftVoiceId,
       wsUrl: process.env.UPLIFT_WS_URL || DEFAULTS.upliftWsUrl,
       languages: parseLanguages(process.env.UPLIFT_LANGUAGES, DEFAULTS.upliftLanguages),
     },
