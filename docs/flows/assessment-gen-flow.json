@@ -25,9 +25,42 @@
       "SUBMITTED"
     ],
     "SUBMITTED": [],
-    "REVIEW": [
+    "KEEP": [
+      "PICK",
+      "PICK_DONE"
+    ],
+    "PICK": [
+      "EDIT_STANDARD",
+      "EDIT_OPTIONS",
+      "EDIT_COLUMNS",
+      "EDIT_WORDS",
+      "EDIT_PASSAGE",
+      "EDIT_COMPREHENSION",
+      "PICK_DONE"
+    ],
+    "PICK_DONE": [
       "SUBMITTED"
-    ]
+    ],
+    "EDIT_STANDARD": [
+      "PICK_DONE"
+    ],
+    "EDIT_OPTIONS": [
+      "PICK_DONE"
+    ],
+    "EDIT_COLUMNS": [
+      "PICK_DONE"
+    ],
+    "EDIT_WORDS": [
+      "PICK_DONE"
+    ],
+    "EDIT_PASSAGE": [
+      "PICK_DONE"
+    ],
+    "EDIT_COMPREHENSION": [
+      "EDIT_SUB",
+      "PICK_DONE"
+    ],
+    "EDIT_SUB": []
   },
   "screens": [
     {
@@ -555,16 +588,16 @@
       }
     },
     {
-      "id": "REVIEW",
-      "title": "New assessment",
+      "id": "KEEP",
+      "title": "پرچہ درست کریں",
       "data": {
         "summary": {
           "type": "string",
-          "__example__": "Grade 4 Science · 28 questions · 50 marks"
+          "__example__": "20 questions · 20 marks"
         },
         "progress": {
           "type": "string",
-          "__example__": "Questions 1-20 of 28"
+          "__example__": "Questions 1-20 of 20"
         },
         "questions": {
           "type": "array",
@@ -584,8 +617,8 @@
           },
           "__example__": [
             {
-              "id": "seen.objective.MCQs.0",
-              "title": "1. Name three living things",
+              "id": "unseen.objective.MCQs.0",
+              "title": "1. Which is a living thing?",
               "description": "1 mark · MCQs"
             }
           ]
@@ -596,7 +629,7 @@
             "type": "string"
           },
           "__example__": [
-            "seen.objective.MCQs.0"
+            "unseen.objective.MCQs.0"
           ]
         },
         "page": {
@@ -618,6 +651,14 @@
         "has_error": {
           "type": "boolean",
           "__example__": false
+        },
+        "keep": {
+          "type": "string",
+          "__example__": ""
+        },
+        "marks": {
+          "type": "string",
+          "__example__": ""
         }
       },
       "layout": {
@@ -625,14 +666,14 @@
         "children": [
           {
             "type": "Form",
-            "name": "review_form",
+            "name": "keep_form",
             "init-values": {
               "keep": "${data.selected}"
             },
             "children": [
               {
                 "type": "TextHeading",
-                "text": "Which questions should stay?"
+                "text": "کون سے سوال رکھنے ہیں؟"
               },
               {
                 "type": "TextCaption",
@@ -656,39 +697,1415 @@
               },
               {
                 "type": "EmbeddedLink",
-                "text": "← Previous questions",
+                "text": "← پچھلے سوال",
                 "visible": "${data.has_prev}",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
                     "keep": "${form.keep}",
                     "page": "${data.page}",
-                    "action": "prev"
+                    "_action": "prev"
                   }
                 }
               },
               {
                 "type": "EmbeddedLink",
-                "text": "More questions →",
+                "text": "مزید سوال →",
                 "visible": "${data.has_next}",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
                     "keep": "${form.keep}",
                     "page": "${data.page}",
-                    "action": "next"
+                    "_action": "next"
                   }
                 }
               },
               {
                 "type": "Footer",
-                "label": "Make the paper",
+                "label": "آگے بڑھیں · Next",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
                     "keep": "${form.keep}",
                     "page": "${data.page}",
-                    "action": "done"
+                    "_action": "done"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "PICK",
+      "title": "پرچہ درست کریں",
+      "data": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "main-content": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "string"
+                  }
+                }
+              },
+              "on-click-action": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "payload": {
+                    "type": "object",
+                    "properties": {}
+                  }
+                }
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "q0",
+              "main-content": {
+                "title": "1. Which is a living thing?",
+                "description": "MCQ · 1 mark",
+                "metadata": ""
+              },
+              "on-click-action": {
+                "name": "data_exchange",
+                "payload": {}
+              }
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "NavigationList",
+            "name": "pick_list",
+            "list-items": "${data.items}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "PICK_DONE",
+      "title": "پرچہ درست کریں",
+      "data": {
+        "summary": {
+          "type": "string",
+          "__example__": "19 questions · 18 marks"
+        },
+        "note": {
+          "type": "string",
+          "__example__": "Nothing to fix? Just rebuild."
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "کوئی سوال درست کرنا ہے؟"
+          },
+          {
+            "type": "TextCaption",
+            "text": "${data.summary}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.note}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.error}",
+            "visible": "${data.has_error}"
+          },
+          {
+            "type": "EmbeddedLink",
+            "text": "سوال منتخب کریں · Choose a question",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "_action": "pick"
+              }
+            }
+          },
+          {
+            "type": "Footer",
+            "label": "دوبارہ بنائیں · Rebuild paper",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "_action": "rebuild"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "EDIT_STANDARD",
+      "title": "سوال درست کریں",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "سوال 3"
+        },
+        "subheading": {
+          "type": "string",
+          "__example__": "Short question · 2 marks"
+        },
+        "marks_hint": {
+          "type": "string",
+          "__example__": "A whole number, 1 or more."
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "question": {
+          "type": "string",
+          "__example__": ""
+        },
+        "marks": {
+          "type": "number",
+          "__example__": 2
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "edit_standard_form",
+            "init-values": {
+              "question": "${data.question}",
+              "marks": "${data.marks}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.subheading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "TextArea",
+                "name": "question",
+                "label": "سوال · Question",
+                "required": true
+              },
+              {
+                "type": "TextInput",
+                "name": "marks",
+                "label": "نمبر · Marks",
+                "input-type": "number",
+                "required": false,
+                "helper-text": "${data.marks_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "محفوظ کریں · Save",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "save",
+                    "marks": "${form.marks}",
+                    "question": "${form.question}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "EDIT_OPTIONS",
+      "title": "سوال درست کریں",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "سوال 3"
+        },
+        "subheading": {
+          "type": "string",
+          "__example__": "Short question · 2 marks"
+        },
+        "marks_hint": {
+          "type": "string",
+          "__example__": "A whole number, 1 or more."
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "slot_label_0": {
+          "type": "string",
+          "__example__": "جواب 1"
+        },
+        "slot_show_0": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "slot_label_1": {
+          "type": "string",
+          "__example__": "جواب 2"
+        },
+        "slot_show_1": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "slot_label_2": {
+          "type": "string",
+          "__example__": "جواب 3"
+        },
+        "slot_show_2": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "slot_label_3": {
+          "type": "string",
+          "__example__": "جواب 4"
+        },
+        "slot_show_3": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "slot_label_4": {
+          "type": "string",
+          "__example__": "جواب 5"
+        },
+        "slot_show_4": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "slot_label_5": {
+          "type": "string",
+          "__example__": "جواب 6"
+        },
+        "slot_show_5": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "question": {
+          "type": "string",
+          "__example__": ""
+        },
+        "slot_0": {
+          "type": "string",
+          "__example__": ""
+        },
+        "slot_1": {
+          "type": "string",
+          "__example__": ""
+        },
+        "slot_2": {
+          "type": "string",
+          "__example__": ""
+        },
+        "slot_3": {
+          "type": "string",
+          "__example__": ""
+        },
+        "slot_4": {
+          "type": "string",
+          "__example__": ""
+        },
+        "slot_5": {
+          "type": "string",
+          "__example__": ""
+        },
+        "marks": {
+          "type": "number",
+          "__example__": 2
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "edit_options_form",
+            "init-values": {
+              "question": "${data.question}",
+              "slot_0": "${data.slot_0}",
+              "slot_1": "${data.slot_1}",
+              "slot_2": "${data.slot_2}",
+              "slot_3": "${data.slot_3}",
+              "slot_4": "${data.slot_4}",
+              "slot_5": "${data.slot_5}",
+              "marks": "${data.marks}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.subheading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "TextArea",
+                "name": "question",
+                "label": "سوال · Question",
+                "required": true
+              },
+              {
+                "type": "TextCaption",
+                "text": "جوابات — خالی کریں تو ہٹ جائے گا · clear to remove, fill a blank to add"
+              },
+              {
+                "type": "TextInput",
+                "name": "slot_0",
+                "label": "${data.slot_label_0}",
+                "required": false,
+                "visible": "${data.slot_show_0}"
+              },
+              {
+                "type": "TextInput",
+                "name": "slot_1",
+                "label": "${data.slot_label_1}",
+                "required": false,
+                "visible": "${data.slot_show_1}"
+              },
+              {
+                "type": "TextInput",
+                "name": "slot_2",
+                "label": "${data.slot_label_2}",
+                "required": false,
+                "visible": "${data.slot_show_2}"
+              },
+              {
+                "type": "TextInput",
+                "name": "slot_3",
+                "label": "${data.slot_label_3}",
+                "required": false,
+                "visible": "${data.slot_show_3}"
+              },
+              {
+                "type": "TextInput",
+                "name": "slot_4",
+                "label": "${data.slot_label_4}",
+                "required": false,
+                "visible": "${data.slot_show_4}"
+              },
+              {
+                "type": "TextInput",
+                "name": "slot_5",
+                "label": "${data.slot_label_5}",
+                "required": false,
+                "visible": "${data.slot_show_5}"
+              },
+              {
+                "type": "TextInput",
+                "name": "marks",
+                "label": "نمبر · Marks",
+                "input-type": "number",
+                "required": false,
+                "helper-text": "${data.marks_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "محفوظ کریں · Save",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "save",
+                    "marks": "${form.marks}",
+                    "question": "${form.question}",
+                    "slot_0": "${form.slot_0}",
+                    "slot_1": "${form.slot_1}",
+                    "slot_2": "${form.slot_2}",
+                    "slot_3": "${form.slot_3}",
+                    "slot_4": "${form.slot_4}",
+                    "slot_5": "${form.slot_5}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "EDIT_COLUMNS",
+      "title": "سوال درست کریں",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "سوال 3"
+        },
+        "subheading": {
+          "type": "string",
+          "__example__": "Short question · 2 marks"
+        },
+        "marks_hint": {
+          "type": "string",
+          "__example__": "A whole number, 1 or more."
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "left_label_0": {
+          "type": "string",
+          "__example__": "جوڑا 1 — بائیں · Pair 1 left"
+        },
+        "right_label_0": {
+          "type": "string",
+          "__example__": "جوڑا 1 — دائیں · Pair 1 right"
+        },
+        "pair_show_0": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "left_label_1": {
+          "type": "string",
+          "__example__": "جوڑا 2 — بائیں · Pair 2 left"
+        },
+        "right_label_1": {
+          "type": "string",
+          "__example__": "جوڑا 2 — دائیں · Pair 2 right"
+        },
+        "pair_show_1": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "left_label_2": {
+          "type": "string",
+          "__example__": "جوڑا 3 — بائیں · Pair 3 left"
+        },
+        "right_label_2": {
+          "type": "string",
+          "__example__": "جوڑا 3 — دائیں · Pair 3 right"
+        },
+        "pair_show_2": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "left_label_3": {
+          "type": "string",
+          "__example__": "جوڑا 4 — بائیں · Pair 4 left"
+        },
+        "right_label_3": {
+          "type": "string",
+          "__example__": "جوڑا 4 — دائیں · Pair 4 right"
+        },
+        "pair_show_3": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "left_label_4": {
+          "type": "string",
+          "__example__": "جوڑا 5 — بائیں · Pair 5 left"
+        },
+        "right_label_4": {
+          "type": "string",
+          "__example__": "جوڑا 5 — دائیں · Pair 5 right"
+        },
+        "pair_show_4": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "left_label_5": {
+          "type": "string",
+          "__example__": "جوڑا 6 — بائیں · Pair 6 left"
+        },
+        "right_label_5": {
+          "type": "string",
+          "__example__": "جوڑا 6 — دائیں · Pair 6 right"
+        },
+        "pair_show_5": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "question": {
+          "type": "string",
+          "__example__": ""
+        },
+        "left_0": {
+          "type": "string",
+          "__example__": ""
+        },
+        "right_0": {
+          "type": "string",
+          "__example__": ""
+        },
+        "left_1": {
+          "type": "string",
+          "__example__": ""
+        },
+        "right_1": {
+          "type": "string",
+          "__example__": ""
+        },
+        "left_2": {
+          "type": "string",
+          "__example__": ""
+        },
+        "right_2": {
+          "type": "string",
+          "__example__": ""
+        },
+        "left_3": {
+          "type": "string",
+          "__example__": ""
+        },
+        "right_3": {
+          "type": "string",
+          "__example__": ""
+        },
+        "left_4": {
+          "type": "string",
+          "__example__": ""
+        },
+        "right_4": {
+          "type": "string",
+          "__example__": ""
+        },
+        "left_5": {
+          "type": "string",
+          "__example__": ""
+        },
+        "right_5": {
+          "type": "string",
+          "__example__": ""
+        },
+        "marks": {
+          "type": "number",
+          "__example__": 2
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "edit_columns_form",
+            "init-values": {
+              "question": "${data.question}",
+              "left_0": "${data.left_0}",
+              "right_0": "${data.right_0}",
+              "left_1": "${data.left_1}",
+              "right_1": "${data.right_1}",
+              "left_2": "${data.left_2}",
+              "right_2": "${data.right_2}",
+              "left_3": "${data.left_3}",
+              "right_3": "${data.right_3}",
+              "left_4": "${data.left_4}",
+              "right_4": "${data.right_4}",
+              "left_5": "${data.left_5}",
+              "right_5": "${data.right_5}",
+              "marks": "${data.marks}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.subheading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "TextArea",
+                "name": "question",
+                "label": "ہدایت · Instruction",
+                "required": true
+              },
+              {
+                "type": "TextCaption",
+                "text": "دونوں خانے خالی کریں تو جوڑا ہٹ جائے گا · clear both to remove a pair"
+              },
+              {
+                "type": "TextInput",
+                "name": "left_0",
+                "label": "${data.left_label_0}",
+                "required": false,
+                "visible": "${data.pair_show_0}"
+              },
+              {
+                "type": "TextInput",
+                "name": "right_0",
+                "label": "${data.right_label_0}",
+                "required": false,
+                "visible": "${data.pair_show_0}"
+              },
+              {
+                "type": "TextInput",
+                "name": "left_1",
+                "label": "${data.left_label_1}",
+                "required": false,
+                "visible": "${data.pair_show_1}"
+              },
+              {
+                "type": "TextInput",
+                "name": "right_1",
+                "label": "${data.right_label_1}",
+                "required": false,
+                "visible": "${data.pair_show_1}"
+              },
+              {
+                "type": "TextInput",
+                "name": "left_2",
+                "label": "${data.left_label_2}",
+                "required": false,
+                "visible": "${data.pair_show_2}"
+              },
+              {
+                "type": "TextInput",
+                "name": "right_2",
+                "label": "${data.right_label_2}",
+                "required": false,
+                "visible": "${data.pair_show_2}"
+              },
+              {
+                "type": "TextInput",
+                "name": "left_3",
+                "label": "${data.left_label_3}",
+                "required": false,
+                "visible": "${data.pair_show_3}"
+              },
+              {
+                "type": "TextInput",
+                "name": "right_3",
+                "label": "${data.right_label_3}",
+                "required": false,
+                "visible": "${data.pair_show_3}"
+              },
+              {
+                "type": "TextInput",
+                "name": "left_4",
+                "label": "${data.left_label_4}",
+                "required": false,
+                "visible": "${data.pair_show_4}"
+              },
+              {
+                "type": "TextInput",
+                "name": "right_4",
+                "label": "${data.right_label_4}",
+                "required": false,
+                "visible": "${data.pair_show_4}"
+              },
+              {
+                "type": "TextInput",
+                "name": "left_5",
+                "label": "${data.left_label_5}",
+                "required": false,
+                "visible": "${data.pair_show_5}"
+              },
+              {
+                "type": "TextInput",
+                "name": "right_5",
+                "label": "${data.right_label_5}",
+                "required": false,
+                "visible": "${data.pair_show_5}"
+              },
+              {
+                "type": "TextInput",
+                "name": "marks",
+                "label": "نمبر · Marks",
+                "input-type": "number",
+                "required": false,
+                "helper-text": "${data.marks_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "محفوظ کریں · Save",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "save",
+                    "marks": "${form.marks}",
+                    "question": "${form.question}",
+                    "left_0": "${form.left_0}",
+                    "right_0": "${form.right_0}",
+                    "left_1": "${form.left_1}",
+                    "right_1": "${form.right_1}",
+                    "left_2": "${form.left_2}",
+                    "right_2": "${form.right_2}",
+                    "left_3": "${form.left_3}",
+                    "right_3": "${form.right_3}",
+                    "left_4": "${form.left_4}",
+                    "right_4": "${form.right_4}",
+                    "left_5": "${form.left_5}",
+                    "right_5": "${form.right_5}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "EDIT_WORDS",
+      "title": "سوال درست کریں",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "سوال 3"
+        },
+        "subheading": {
+          "type": "string",
+          "__example__": "Short question · 2 marks"
+        },
+        "marks_hint": {
+          "type": "string",
+          "__example__": "A whole number, 1 or more."
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "slot_label_0": {
+          "type": "string",
+          "__example__": "لفظ 1"
+        },
+        "slot_show_0": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "slot_label_1": {
+          "type": "string",
+          "__example__": "لفظ 2"
+        },
+        "slot_show_1": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "slot_label_2": {
+          "type": "string",
+          "__example__": "لفظ 3"
+        },
+        "slot_show_2": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "slot_label_3": {
+          "type": "string",
+          "__example__": "لفظ 4"
+        },
+        "slot_show_3": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "slot_label_4": {
+          "type": "string",
+          "__example__": "لفظ 5"
+        },
+        "slot_show_4": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "slot_label_5": {
+          "type": "string",
+          "__example__": "لفظ 6"
+        },
+        "slot_show_5": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "question": {
+          "type": "string",
+          "__example__": ""
+        },
+        "slot_0": {
+          "type": "string",
+          "__example__": ""
+        },
+        "slot_1": {
+          "type": "string",
+          "__example__": ""
+        },
+        "slot_2": {
+          "type": "string",
+          "__example__": ""
+        },
+        "slot_3": {
+          "type": "string",
+          "__example__": ""
+        },
+        "slot_4": {
+          "type": "string",
+          "__example__": ""
+        },
+        "slot_5": {
+          "type": "string",
+          "__example__": ""
+        },
+        "marks": {
+          "type": "number",
+          "__example__": 2
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "edit_words_form",
+            "init-values": {
+              "question": "${data.question}",
+              "slot_0": "${data.slot_0}",
+              "slot_1": "${data.slot_1}",
+              "slot_2": "${data.slot_2}",
+              "slot_3": "${data.slot_3}",
+              "slot_4": "${data.slot_4}",
+              "slot_5": "${data.slot_5}",
+              "marks": "${data.marks}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.subheading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "TextArea",
+                "name": "question",
+                "label": "ہدایت · Instruction",
+                "required": true
+              },
+              {
+                "type": "TextCaption",
+                "text": "الفاظ — خالی کریں تو ہٹ جائے گا"
+              },
+              {
+                "type": "TextInput",
+                "name": "slot_0",
+                "label": "${data.slot_label_0}",
+                "required": false,
+                "visible": "${data.slot_show_0}"
+              },
+              {
+                "type": "TextInput",
+                "name": "slot_1",
+                "label": "${data.slot_label_1}",
+                "required": false,
+                "visible": "${data.slot_show_1}"
+              },
+              {
+                "type": "TextInput",
+                "name": "slot_2",
+                "label": "${data.slot_label_2}",
+                "required": false,
+                "visible": "${data.slot_show_2}"
+              },
+              {
+                "type": "TextInput",
+                "name": "slot_3",
+                "label": "${data.slot_label_3}",
+                "required": false,
+                "visible": "${data.slot_show_3}"
+              },
+              {
+                "type": "TextInput",
+                "name": "slot_4",
+                "label": "${data.slot_label_4}",
+                "required": false,
+                "visible": "${data.slot_show_4}"
+              },
+              {
+                "type": "TextInput",
+                "name": "slot_5",
+                "label": "${data.slot_label_5}",
+                "required": false,
+                "visible": "${data.slot_show_5}"
+              },
+              {
+                "type": "TextInput",
+                "name": "marks",
+                "label": "نمبر · Marks",
+                "input-type": "number",
+                "required": false,
+                "helper-text": "${data.marks_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "محفوظ کریں · Save",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "save",
+                    "marks": "${form.marks}",
+                    "question": "${form.question}",
+                    "slot_0": "${form.slot_0}",
+                    "slot_1": "${form.slot_1}",
+                    "slot_2": "${form.slot_2}",
+                    "slot_3": "${form.slot_3}",
+                    "slot_4": "${form.slot_4}",
+                    "slot_5": "${form.slot_5}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "EDIT_PASSAGE",
+      "title": "سوال درست کریں",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "سوال 3"
+        },
+        "subheading": {
+          "type": "string",
+          "__example__": "Short question · 2 marks"
+        },
+        "marks_hint": {
+          "type": "string",
+          "__example__": "A whole number, 1 or more."
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "section": {
+          "type": "string",
+          "__example__": "Listening"
+        },
+        "passage": {
+          "type": "string",
+          "__example__": "Birds fly south in winter."
+        },
+        "marks": {
+          "type": "number",
+          "__example__": 2
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "edit_passage_form",
+            "init-values": {
+              "passage": "${data.passage}",
+              "marks": "${data.marks}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.subheading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.section}"
+              },
+              {
+                "type": "TextArea",
+                "name": "passage",
+                "label": "اقتباس · Passage",
+                "required": true
+              },
+              {
+                "type": "TextInput",
+                "name": "marks",
+                "label": "نمبر · Marks",
+                "input-type": "number",
+                "required": false,
+                "helper-text": "${data.marks_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "محفوظ کریں · Save",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "save",
+                    "marks": "${form.marks}",
+                    "passage": "${form.passage}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "EDIT_COMPREHENSION",
+      "title": "سوال درست کریں",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "سوال 15"
+        },
+        "subheading": {
+          "type": "string",
+          "__example__": "Comprehension · 5 marks"
+        },
+        "passage": {
+          "type": "string",
+          "__example__": "Ali went to the market."
+        },
+        "subs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "main-content": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "string"
+                  }
+                }
+              },
+              "on-click-action": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "payload": {
+                    "type": "object",
+                    "properties": {}
+                  }
+                }
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "s0",
+              "main-content": {
+                "title": "a) Who went?",
+                "description": "2 marks",
+                "metadata": ""
+              },
+              "on-click-action": {
+                "name": "data_exchange",
+                "payload": {}
+              }
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "NavigationList",
+            "name": "sub_list",
+            "list-items": "${data.subs}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "EDIT_SUB",
+      "title": "سوال درست کریں",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "سوال 3"
+        },
+        "subheading": {
+          "type": "string",
+          "__example__": "Short question · 2 marks"
+        },
+        "marks_hint": {
+          "type": "string",
+          "__example__": "A whole number, 1 or more."
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "slot_label_0": {
+          "type": "string",
+          "__example__": "جواب 1"
+        },
+        "slot_show_0": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "slot_label_1": {
+          "type": "string",
+          "__example__": "جواب 2"
+        },
+        "slot_show_1": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "slot_label_2": {
+          "type": "string",
+          "__example__": "جواب 3"
+        },
+        "slot_show_2": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "slot_label_3": {
+          "type": "string",
+          "__example__": "جواب 4"
+        },
+        "slot_show_3": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "slot_label_4": {
+          "type": "string",
+          "__example__": "جواب 5"
+        },
+        "slot_show_4": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "slot_label_5": {
+          "type": "string",
+          "__example__": "جواب 6"
+        },
+        "slot_show_5": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "passage_hint": {
+          "type": "string",
+          "__example__": "Passage: \"Ali went to the market…\""
+        },
+        "question": {
+          "type": "string",
+          "__example__": ""
+        },
+        "slot_0": {
+          "type": "string",
+          "__example__": ""
+        },
+        "slot_1": {
+          "type": "string",
+          "__example__": ""
+        },
+        "slot_2": {
+          "type": "string",
+          "__example__": ""
+        },
+        "slot_3": {
+          "type": "string",
+          "__example__": ""
+        },
+        "slot_4": {
+          "type": "string",
+          "__example__": ""
+        },
+        "slot_5": {
+          "type": "string",
+          "__example__": ""
+        },
+        "marks": {
+          "type": "number",
+          "__example__": 2
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "edit_sub_form",
+            "init-values": {
+              "question": "${data.question}",
+              "slot_0": "${data.slot_0}",
+              "slot_1": "${data.slot_1}",
+              "slot_2": "${data.slot_2}",
+              "slot_3": "${data.slot_3}",
+              "slot_4": "${data.slot_4}",
+              "slot_5": "${data.slot_5}",
+              "marks": "${data.marks}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.subheading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.passage_hint}"
+              },
+              {
+                "type": "TextArea",
+                "name": "question",
+                "label": "ذیلی سوال · Sub-question",
+                "required": true
+              },
+              {
+                "type": "TextCaption",
+                "text": "جوابات · Options — optional"
+              },
+              {
+                "type": "TextInput",
+                "name": "slot_0",
+                "label": "${data.slot_label_0}",
+                "required": false,
+                "visible": "${data.slot_show_0}"
+              },
+              {
+                "type": "TextInput",
+                "name": "slot_1",
+                "label": "${data.slot_label_1}",
+                "required": false,
+                "visible": "${data.slot_show_1}"
+              },
+              {
+                "type": "TextInput",
+                "name": "slot_2",
+                "label": "${data.slot_label_2}",
+                "required": false,
+                "visible": "${data.slot_show_2}"
+              },
+              {
+                "type": "TextInput",
+                "name": "slot_3",
+                "label": "${data.slot_label_3}",
+                "required": false,
+                "visible": "${data.slot_show_3}"
+              },
+              {
+                "type": "TextInput",
+                "name": "slot_4",
+                "label": "${data.slot_label_4}",
+                "required": false,
+                "visible": "${data.slot_show_4}"
+              },
+              {
+                "type": "TextInput",
+                "name": "slot_5",
+                "label": "${data.slot_label_5}",
+                "required": false,
+                "visible": "${data.slot_show_5}"
+              },
+              {
+                "type": "TextInput",
+                "name": "marks",
+                "label": "نمبر · Marks",
+                "input-type": "number",
+                "required": false,
+                "helper-text": "${data.marks_hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "محفوظ کریں · Save",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "save",
+                    "marks": "${form.marks}",
+                    "question": "${form.question}",
+                    "slot_0": "${form.slot_0}",
+                    "slot_1": "${form.slot_1}",
+                    "slot_2": "${form.slot_2}",
+                    "slot_3": "${form.slot_3}",
+                    "slot_4": "${form.slot_4}",
+                    "slot_5": "${form.slot_5}"
                   }
                 }
               }

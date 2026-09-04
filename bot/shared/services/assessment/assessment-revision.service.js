@@ -19,6 +19,7 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const Renderer = require('./assessment-paper.renderer');
 const Selection = require('./assessment-selection');
+const Edit = require('./assessment-edit');
 const { htmlToPdf } = require('../../utils/html-to-pdf');
 const r2 = require('../../storage/r2');
 const WhatsAppService = require('../whatsapp.service');
@@ -230,4 +231,55 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone }) {
   }
 }
 
-module.exports = { rerender, listQuestions, fileName, TEACHER_MESSAGE };
+/**
+ * Write one edited question back into the stored paper.
+ *
+ * The path id says exactly where it belongs, so there is no diffing and no way
+ * for an edit to land on the wrong question. `original_exam_json` is never
+ * touched: the gap between the model's first answer and what she actually kept
+ * is the only unprompted signal we get on whether the prompts are any good, and
+ * an edit is precisely the moment that signal is created.
+ *
+ * A rejection is a RESULT, not a throw — the caller is a Flow screen that has to
+ * put the reason in front of her and keep her typing.
+ */
+async function saveEdit({ paperId, userId, questionId, edit }) {
+  const { paper, code } = await _loadOwnedPaper(paperId, userId);
+  if (!paper) {
+    return { status: 'rejected', code, message: TEACHER_MESSAGE[code] || FALLBACK_MESSAGE };
+  }
+
+  const tree = paper.exam_json;
+  const target = Selection.indexQuestions(tree).find((q) => q.id === questionId);
+  if (!target) {
+    return { status: 'rejected', code: 'GONE', message: 'That question is no longer on the paper.' };
+  }
+
+  let updated;
+  try {
+    updated = Edit.applyEdit(target.question, edit);
+  } catch (err) {
+    // Her mistake, not ours: an empty question, one option, a half-cleared pair.
+    return { status: 'rejected', code: err.code || 'EDIT_REJECTED', message: err.message };
+  }
+
+  const next = Selection.replaceAt(tree, questionId, updated);
+  if (!next) {
+    return { status: 'rejected', code: 'GONE', message: 'That question is no longer on the paper.' };
+  }
+
+  const questions = Renderer.collectQuestions(next);
+  const marks = Renderer.totalMarks(questions);
+
+  await _patch(paperId, {
+    exam_json: next,
+    question_count: questions.length,
+    total_marks: Number.isFinite(marks) ? marks : null,
+    edited_at: new Date().toISOString(),
+  });
+
+  logToFile('[assessment-revision] question edited', { userId, paperId, questionId });
+  return { status: 'ok', questionId };
+}
+
+module.exports = { rerender, listQuestions, saveEdit, fileName, TEACHER_MESSAGE };

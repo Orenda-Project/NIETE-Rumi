@@ -1,5 +1,10 @@
 /**
- * The REVIEW screen — where she unticks questions.
+ * The KEEP screen — where she unticks questions.
+ *
+ * Was a single REVIEW screen that both ticked and rebuilt. It is now KEEP → PICK
+ * (see assessment-edit-flow.test.js) because unticking a question and editing it
+ * are contradictory actions on one screen. Every behaviour this suite pinned
+ * still holds; only the screen name and the "done" destination changed.
  *
  * She reaches this screen holding a finished paper, so the token that opens it
  * names a PAPER, not a half-built request. That is the difference from every
@@ -22,9 +27,16 @@ jest.mock('../../bot/shared/services/cache/railway-redis.service', () => mockRed
 jest.mock('../../bot/shared/config/supabase', () => mockSupabase);
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../bot/shared/services/queue', () => ({ queueJob: jest.fn() }));
+jest.mock('../../bot/shared/config/feature-flags', () => ({
+  isAssessmentGeneratorEnabled: jest.fn().mockResolvedValue(true),
+  isAssessmentEditingEnabled: () => mockEditFlag(),
+  ASSESSMENT_GENERATOR_KEY: 'assessment_generator_enabled',
+  ASSESSMENT_EDITING_KEY: 'assessment_editing_enabled',
+}));
 jest.mock('../../bot/shared/services/assessment/assessment-revision.service', () => ({
   rerender: (...a) => mockRerender(...a),
   listQuestions: (...a) => mockListQuestions(...a),
+  saveEdit: jest.fn().mockResolvedValue({ status: 'ok' }),
 }));
 
 const Endpoint = require('../../bot/shared/routes/assessment-gen-endpoint');
@@ -41,18 +53,23 @@ const ITEMS = Array.from({ length: 28 }, (_, i) => ({
 
 const REVIEW_TOKEN = 'user-1:assessment-review:paper-1';
 
+// Editing off, so KEEP's Next rebuilds directly — which is exactly the journey
+// this suite was written against.
+const mockEditFlag = jest.fn().mockResolvedValue(false);
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockRedis.get.mockResolvedValue(null);
   mockRedis.set.mockResolvedValue(true);
   mockListQuestions.mockResolvedValue({ items: ITEMS, paper: { id: 'paper-1' } });
   mockRerender.mockResolvedValue({ status: 'ready', questionCount: 3, marks: 3 });
+  mockEditFlag.mockResolvedValue(false);
 });
 
 describe('opening the review', () => {
-  test('a review token lands on REVIEW, not on CLASS', async () => {
+  test('a review token lands on the tick list, not on CLASS', async () => {
     const res = await init('user-1', REVIEW_TOKEN);
-    expect(res.screen).toBe('REVIEW');
+    expect(res.screen).toBe('KEEP');
   });
 
   test('a normal token still starts a new paper', async () => {
@@ -89,7 +106,7 @@ describe('opening the review', () => {
   test("a paper that is not hers does not open", async () => {
     mockListQuestions.mockResolvedValue({ code: 'NOT_FOUND' });
     const res = await init('user-2', REVIEW_TOKEN);
-    expect(res.screen).toBe('REVIEW');
+    expect(res.screen).toBe('KEEP');
     expect(res.data.has_error).toBe(true);
     expect(res.data.questions).toEqual([]);
   });
@@ -101,10 +118,10 @@ describe('paging keeps her ticks', () => {
     // She unticks Q1 and Q2, then pages forward.
     const kept = ITEMS.slice(0, 20).map((q) => q.id).filter(
       (id) => !['seen.objective.MCQs.0', 'seen.objective.MCQs.1'].includes(id));
-    const res = await exchange('user-1', 'REVIEW',
-      { keep: kept, page: '0', action: 'next' }, REVIEW_TOKEN);
+    const res = await exchange('user-1', 'KEEP',
+      { keep: kept, page: '0', _action: 'next' }, REVIEW_TOKEN);
 
-    expect(res.screen).toBe('REVIEW');
+    expect(res.screen).toBe('KEEP');
     expect(res.data.progress).toContain('21');
     const saved = JSON.parse(JSON.stringify(mockRedis.set.mock.calls.at(-1)[1]));
     expect(saved.selected).not.toContain('seen.objective.MCQs.0');
@@ -117,8 +134,8 @@ describe('paging keeps her ticks', () => {
       userId: 'user-1', paperId: 'paper-1', page: 1,
       selected: ITEMS.map((q) => q.id).filter((id) => id !== 'seen.objective.MCQs.0'),
     });
-    const res = await exchange('user-1', 'REVIEW',
-      { keep: ITEMS.slice(20).map((q) => q.id), page: '1', action: 'prev' }, REVIEW_TOKEN);
+    const res = await exchange('user-1', 'KEEP',
+      { keep: ITEMS.slice(20).map((q) => q.id), page: '1', _action: 'prev' }, REVIEW_TOKEN);
     expect(res.data.selected).not.toContain('seen.objective.MCQs.0');
     expect(res.data.progress).toContain('1');
   });
@@ -131,8 +148,8 @@ describe('paging keeps her ticks', () => {
       userId: 'user-1', paperId: 'paper-1', page: 0,
       selected: ITEMS.map((q) => q.id),
     });
-    await exchange('user-1', 'REVIEW',
-      { keep: ITEMS.slice(0, 20).map((q) => q.id), page: '0', action: 'done' }, REVIEW_TOKEN);
+    await exchange('user-1', 'KEEP',
+      { keep: ITEMS.slice(0, 20).map((q) => q.id), page: '0', _action: 'done' }, REVIEW_TOKEN);
     const sent = mockRerender.mock.calls[0][0].selectedIds;
     expect(sent).toHaveLength(28);
   });
@@ -144,8 +161,8 @@ describe('submitting', () => {
       userId: 'user-1', paperId: 'paper-1', page: 0, selected: ITEMS.map((q) => q.id),
     });
     const keep = ITEMS.slice(0, 20).map((q) => q.id).slice(0, 3);
-    const res = await exchange('user-1', 'REVIEW',
-      { keep, page: '0', action: 'done' }, REVIEW_TOKEN);
+    const res = await exchange('user-1', 'KEEP',
+      { keep, page: '0', _action: 'done' }, REVIEW_TOKEN);
 
     expect(res.screen).toBe('SUBMITTED');
     const sent = mockRerender.mock.calls[0][0];
@@ -159,10 +176,10 @@ describe('submitting', () => {
     mockRedis.get.mockResolvedValue({
       userId: 'user-1', paperId: 'paper-1', page: 0, selected: [],
     });
-    const res = await exchange('user-1', 'REVIEW',
-      { keep: [], page: '0', action: 'done' }, REVIEW_TOKEN);
+    const res = await exchange('user-1', 'KEEP',
+      { keep: [], page: '0', _action: 'done' }, REVIEW_TOKEN);
 
-    expect(res.screen).toBe('REVIEW');
+    expect(res.screen).toBe('KEEP');
     expect(res.data.has_error).toBe(true);
     expect(mockRerender).not.toHaveBeenCalled();
   });
@@ -172,8 +189,8 @@ describe('submitting', () => {
       userId: 'user-1', paperId: 'paper-1', page: 0, selected: ITEMS.map((q) => q.id),
     });
     mockRerender.mockResolvedValue({ status: 'failed', code: 'RENDER_FAILED' });
-    const res = await exchange('user-1', 'REVIEW',
-      { keep: ITEMS.slice(0, 20).map((q) => q.id), page: '0', action: 'done' }, REVIEW_TOKEN);
+    const res = await exchange('user-1', 'KEEP',
+      { keep: ITEMS.slice(0, 20).map((q) => q.id), page: '0', _action: 'done' }, REVIEW_TOKEN);
 
     // The terminal screen is shared between success and failure, so all three
     // lines must be data — a half-bound screen once showed a success heading
