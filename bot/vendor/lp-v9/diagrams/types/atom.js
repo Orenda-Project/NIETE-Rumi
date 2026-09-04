@@ -407,10 +407,28 @@ function renderDotCross(sp) {
 }
 
 /* ------------------------------------------------------------------ */
+// Mode resolution, in the same order dna_helix resolves its kind: an explicit
+// spec.mode wins, else the ALIAS the caller reached this module through, else the
+// default. Before this, only `mode:"dot_cross"` selected the bonding picture — so
+// `{"type":"dot_and_cross", …}` resolved to this module through its own alias and
+// then silently drew a BOHR diagram of the first element, and `mode:"dot_and_cross"`
+// (the spelling the type alias uses, and the one an author naturally writes) did the
+// same. A registered alias that renders the other mode is worse than no alias.
+const DOT_CROSS_MODES = new Set(["dot_cross", "dot_and_cross", "dotcross"]);
+const BOHR_MODES = new Set(["bohr", "electron_shells", "shells"]);
+
+function resolveMode(sp) {
+  const m = String(sp.mode ?? "").trim().toLowerCase();
+  if (DOT_CROSS_MODES.has(m)) return "dot_cross";
+  if (BOHR_MODES.has(m)) return "bohr";
+  const t = String(sp.type ?? "").trim().toLowerCase();
+  if (DOT_CROSS_MODES.has(t)) return "dot_cross";
+  return "bohr";
+}
+
 function render(spec) {
   const sp = spec && typeof spec === "object" ? spec : {};
-  const mode = sp.mode === "dot_cross" ? "dot_cross" : "bohr";
-  return mode === "dot_cross" ? renderDotCross(sp) : renderBohr(sp);
+  return resolveMode(sp) === "dot_cross" ? renderDotCross(sp) : renderBohr(sp);
 }
 
 module.exports = {
