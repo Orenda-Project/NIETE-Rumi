@@ -39,6 +39,7 @@ const { renderLessonPlan } = require('../shared/services/lp612-render.service');
 // The caps the renderer gated on, read from the renderer itself so the over-cap event can never
 // quote a number the gate did not use (bd-vjk68). Never retyped here — see `pageCapsFor`.
 const { pageCapsFor } = require('../vendor/lp-v9/render_lp.js');
+const { refsFromDoc, stageFigures } = require('../shared/services/lp612-pagetruth.service');
 const Serving = require('../shared/services/lp612-serving.service');
 const {
   resolveAuthorModel, authorTierFor, authorRounds, authorTimeoutMs, followupAfterMs,
@@ -465,6 +466,17 @@ async function process(payload) {
       });
       // Recorded the moment it exists, so a render that refuses it below is still explicable.
       authoredDoc = authored.lpDoc;
+
+      // bd-17mht: pull down the book crops this document actually references,
+      // into the same directory the renderer inlines from. Deliberately here —
+      // after the LLM call that just cost minutes, before the render — so the
+      // one or two small downloads never sit on the critical path. A crop that
+      // fails to arrive is logged and the page degrades to its book-reference
+      // card, exactly as it does today.
+      const figRefs = refsFromDoc(authored.lpDoc);
+      if (figRefs.length) {
+        await stageFigures({ refs: figRefs, outDir: tmpDir, correlationId });
+      }
 
       let rendered;
       let overCap = false;
