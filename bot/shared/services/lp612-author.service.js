@@ -583,7 +583,12 @@ printed pages: ${bundle.pages.map((p) => p.printed_page_number).join(', ')}   (p
 period: ${segment.period_minutes || 40} minutes
 suggested lp_type: ${segment.lp_type || '(unset)'}  — confirm or override, and say why
 skill type: ${segment.skill_type || '(unset)'}  ·  day ${segment.day_number != null ? segment.day_number : '(unset)'} of the chapter
-where this sits: previous ${segment.prev_segment_id || '(none)'} · next ${segment.next_segment_id || '(none)'}
+position in the chapter (INTERNAL corpus ids — ordering context only; these are NOT
+titles and must NEVER appear in your output, least of all in \`sequence\`, which a
+teacher reads on page 1): comes after [${segment.prev_segment_id || 'nothing'}], comes
+before [${segment.next_segment_id || 'nothing'}]. In \`sequence.previous\` and
+\`sequence.next\` write the TOPIC NAME of those lessons in the teacher's language, or
+null if you do not know it.
 
 ## THE SLO THIS SEGMENT CARRIES (quote it verbatim into slo.text_verbatim)
 ${segment.slo_text || '(none recorded on the segment — take one verbatim from the page-truth below)'}
@@ -742,6 +747,64 @@ function sanitizeOverlay(doc) {
  * The allowed set is read FROM THE SCHEMA. A hardcoded list would silently start deleting real
  * fields the day someone adds one.
  */
+/**
+ * Internal corpus ids must never reach the sequence strip (bd-w56zx).
+ *
+ * The strip is rendered verbatim under the masthead on page 1, so a leaked id is
+ * printed on a lesson a teacher carries into a classroom. It happened on the first
+ * native-Urdu render: `sequence.previous = "grade_10_urdu.p1c01.r990"`.
+ *
+ * The prompt has been fixed to stop labelling internal ids with the output field's
+ * own names, which is what invited the copy-through. This is the half that does not
+ * depend on the model obeying: a prompt instruction is not an input contract (root
+ * CLAUDE.md rule 24c), so the check runs in CODE, before the gates, on the first
+ * parse and on every revision round — exactly where sanitizeOverlay runs.
+ *
+ * It never invents. The three NULLABLE fields are dropped. `this` is required with
+ * minLength 3, so nulling it would make the document schema-invalid and cost the
+ * whole round — a worse outcome than the leak — and it is instead replaced with the
+ * segment's own human title, which we already hold on the row.
+ *
+ * @returns {string[]} notes, empty when the document was already clean
+ */
+function sanitizeSequence(doc, segment = {}) {
+  const notes = [];
+  const seq = doc && doc.sequence;
+  if (!seq || typeof seq !== 'object') return notes;
+
+  // The ids we actually handed the model. Exact matches need no heuristic.
+  const known = [segment.segment_id, segment.prev_segment_id, segment.next_segment_id]
+    .filter((v) => typeof v === 'string' && v.length > 0);
+
+  // Backstop for an id the model INVENTED, which a teacher cannot tell from a real
+  // one. Deliberately tight: <book_stem>.<chapter_key>.<locator>, all lowercase,
+  // no spaces. A human title has spaces or capitals or non-Latin script, so
+  // "Section 1.2 — Physical quantities" and "Ch. 3 assessment (day 12)" do not match.
+  const ID_SHAPE = /\b[a-z][a-z0-9_]*\.[a-z0-9_]+\.[a-z0-9_-]+\b/;
+
+  const looksLikeId = (v) =>
+    typeof v === 'string' && (known.some((id) => v.includes(id)) || ID_SHAPE.test(v));
+
+  for (const field of ['previous', 'next', 'checkpoint']) {
+    if (looksLikeId(seq[field])) {
+      notes.push(`sequence.${field}: dropped an internal segment id (${seq[field]})`);
+      seq[field] = null;
+    }
+  }
+
+  if (looksLikeId(seq.this)) {
+    const title = segment.subtopic_title || segment.menu_title || segment.chapter_title;
+    if (title) {
+      notes.push(`sequence.this: replaced an internal segment id with the segment title`);
+      seq.this = title;
+    }
+    // With no title on the row there is nothing truthful to substitute, so the id
+    // stays and the schema gate reports it. Inventing a lesson name would be worse.
+  }
+
+  return notes;
+}
+
 function sanitizeUnknownTopLevel(doc) {
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return doc;
   const allowed = (docSchema && docSchema.properties) ? Object.keys(docSchema.properties) : null;
@@ -972,6 +1035,7 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
   applyVideo(doc, video);
   sanitizeUnknownTopLevel(doc);
   sanitizeOverlay(doc);
+  sanitizeSequence(doc, segment);
 
   let gates = await runGates(doc, renderCheck);
   let spent = 0;
@@ -1019,6 +1083,7 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
     applyVideo(candidate, video);
     sanitizeUnknownTopLevel(candidate);
     sanitizeOverlay(candidate);
+    sanitizeSequence(candidate, segment);
     const g2 = await runGates(candidate, renderCheck);
     if (notWorse(g2, gates)) {
       doc = candidate;
@@ -1208,6 +1273,7 @@ async function reviseLessonPlan({
     applyVideo(candidate, video);
     sanitizeUnknownTopLevel(candidate);
     sanitizeOverlay(candidate);
+    sanitizeSequence(candidate, segment);
 
     const g2 = await runGates(candidate, renderCheck);
 
@@ -1264,7 +1330,9 @@ module.exports = {
   compactPageTruth,
   PAGE_TRUTH_MAX_CHARS,
   sanitizeOverlay,
+  sanitizeSequence,
   sanitizeUnknownTopLevel,
+  buildUserPrompt,
   pythonDictToJson,
   __extractJsonForTests: extractJson,
   authorLessonPlan,
