@@ -60,9 +60,18 @@ function mockBuilder(table) {
   };
   return b;
 }
-jest.mock('../../bot/shared/config/supabase', () => ({ from: jest.fn((t) => mockBuilder(t)) }));
+// The audience is CLAIMED through an RPC, not read from a pre-authoring snapshot — see
+// "the audience is whoever is waiting WHEN IT FINISHES" below. Defaults to the two waiters the
+// row was seeded with; a test that cares about a late joiner overrides it.
+const mockRpc = jest.fn(() => Promise.resolve({ data: TWO_WAITERS, error: null }));
+jest.mock('../../bot/shared/config/supabase', () => ({
+  from: jest.fn((t) => mockBuilder(t)),
+  rpc: (...a) => mockRpc(...a),
+}));
 
 const Worker = require('../../bot/workers/lp612-author.worker');
+
+const claimCalls = () => mockRpc.mock.calls.filter((c) => c[0] === 'lp612_claim_waiters');
 
 const JOB = {
   renderId: 'render-1',
@@ -101,6 +110,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockDbCalls.length = 0;
   mockDbResults.length = 0;
+  mockRpc.mockReset().mockImplementation(() => Promise.resolve({ data: TWO_WAITERS, error: null }));
   mockReadFile.mockResolvedValue(Buffer.from('%PDF-1.7 fake'));
   mockUploadBuffer.mockResolvedValue('lp612/v9.1/en/seg.pdf');
   mockAuthorLessonPlan.mockResolvedValue({
@@ -148,7 +158,7 @@ describe('the happy path', () => {
     delete process.env.LP_AUTHOR_MODEL;
   });
 
-  test('the render row records provenance and clears the waiter list', async () => {
+  test('the render row records provenance, and the waiter list is CLAIMED not blind-cleared', async () => {
     seed();
     await Worker.process(JOB);
     const done = mockDbCalls.filter((c) => c.op === 'update').pop();
@@ -162,9 +172,18 @@ describe('the happy path', () => {
       lint_clean: true,
       rounds_used: 1,
       model_used: 'anthropic/claude-sonnet-5',
-      waiters: [],
     });
     expect(done.payload.completed_at).toBeTruthy();
+
+    // THIS ASSERTION WAS `waiters: []`, AND IT ENCODED THE BUG.
+    //
+    // A blind `waiters: []` on the status patch erases every teacher who joined during the two-to-
+    // ten minutes of authoring — appended correctly by the atomic RPC, never read, then deleted.
+    // Clearing the list and LEARNING WHO WAS ON IT are the same operation, so they have to be the
+    // same statement: `lp612_claim_waiters` returns the list and empties it under one row lock.
+    expect(done.payload).not.toHaveProperty('waiters');
+    expect(claimCalls().length).toBe(1);
+    expect(claimCalls()[0][1]).toEqual({ p_render_id: 'render-1' });
   });
 
   test('the PDF is stored under the version-first cache key', async () => {
@@ -189,6 +208,111 @@ describe('the happy path', () => {
     const done = mockDbCalls.filter((c) => c.op === 'update').pop();
     expect(done.payload.lint_clean).toBe(false);
     expect(done.payload.lint_fails).toEqual(['PACING_SUM']);
+  });
+});
+
+/**
+ * THE HEADLINE DEFECT: the audience was read BEFORE the work, and delivered to AFTER it.
+ *
+ * `const waiters = waitersOf(render)` ran at the top of the job, two to ten minutes before the
+ * PDF existed. Every teacher who tapped that lesson while it was being written was appended to
+ * `waiters` by V1.3.2's atomic RPC — correctly, and provably, and for nothing: the worker
+ * delivered to its stale snapshot and then wrote `waiters: []` over the real list.
+ *
+ * So V1.3.2 fixed the APPEND and the drop moved one step downstream. The staffroom case is the
+ * whole point of this feature — one teacher taps, five more tap the same lesson in the next
+ * ninety seconds — and exactly one of them was getting a lesson.
+ *
+ * The fix is to make the read and the clear ONE operation at the END: `lp612_claim_waiters`
+ * takes the row lock, returns `waiters` as they stand, and empties them. A teacher who joins
+ * after that point cannot be appended at all — `lp612_join_waiters` refuses a row that is no
+ * longer `authoring` — and the serving path re-decides her into a cache hit off the row that
+ * was just marked ready.
+ */
+describe('the audience is whoever is waiting WHEN IT FINISHES', () => {
+  const ONE = [{ user_id: 'u1', phone: '923001111111' }];
+  const LATE = { user_id: 'u9', phone: '923009999999' };
+
+  test('a teacher who joined DURING authoring is delivered to', async () => {
+    seed({ waiters: ONE });
+    mockRpc.mockResolvedValue({ data: [...ONE, LATE], error: null });
+
+    const out = await Worker.process(JOB);
+
+    expect(out.status).toBe('ready');
+    expect(mockDeliverRender.mock.calls.map((c) => c[0].phone))
+      .toEqual(['923001111111', '923009999999']);
+    expect(out.delivered).toBe(2);
+  });
+
+  test('the claim happens AFTER the row is marked ready, so a later joiner is refused not lost', async () => {
+    // Ordering is the whole guarantee. The status flip is the barrier: a join that beats it is
+    // returned by the claim; a join that misses it gets 'not_authoring' and is re-decided into a
+    // cache hit. Reverse the two and there is a window where a waiter is appended to a row that
+    // nobody will ever read again.
+    seed({ waiters: ONE });
+    await Worker.process(JOB);
+
+    const readyPatchIndex = mockDbCalls.findIndex(
+      (c) => c.op === 'update' && c.payload && c.payload.status === 'ready',
+    );
+    expect(readyPatchIndex).toBeGreaterThanOrEqual(0);
+    expect(mockRpc).toHaveBeenCalled();
+    // The claim is the LAST thing that touches the row.
+    expect(mockDbCalls.slice(readyPatchIndex + 1).filter((c) => c.op === 'update')).toEqual([]);
+  });
+
+  test('a teacher who joined during a run that then FAILS is told it failed', async () => {
+    // The failure path read the same stale snapshot, so a late joiner got no message at all —
+    // she was simply left waiting on a lesson that had already given up.
+    const err = new Error('openrouter 502');
+    err.code = 'AUTHOR_LLM_FAILED';
+    mockAuthorLessonPlan.mockRejectedValue(err);
+    seed({ waiters: ONE });
+    mockRpc.mockResolvedValue({ data: [...ONE, LATE], error: null });
+
+    const out = await Worker.process(JOB);
+
+    expect(out.status).toBe('failed');
+    expect(mockSendMessage.mock.calls.map((c) => c[0]))
+      .toEqual(['923001111111', '923009999999']);
+  });
+
+  test('the still-working message reaches a teacher who joined after the job started', async () => {
+    jest.useFakeTimers();
+    process.env.LP612_FOLLOWUP_MS = '1000';
+    seed({ waiters: ONE });
+    // The follow-up re-reads the row rather than consoling the snapshot.
+    mockDbResults.push({ data: { waiters: [...ONE, LATE] }, error: null });
+    let release;
+    mockAuthorLessonPlan.mockReturnValue(new Promise((r) => { release = r; }));
+
+    const running = Worker.process(JOB);
+    const flush = async () => { for (let i = 0; i < 30; i += 1) await Promise.resolve(); };
+    await flush();
+    jest.advanceTimersByTime(1500);
+    await flush();
+
+    expect(mockSendMessage.mock.calls.map((c) => c[0]))
+      .toEqual(['923001111111', '923009999999']);
+
+    release({ lpDoc: {}, lintClean: true, fails: [], warns: [], rounds: 1, model: 'm' });
+    jest.useRealTimers();
+    await running;
+    delete process.env.LP612_FOLLOWUP_MS;
+  });
+
+  test('a claim that errors still delivers to the snapshot rather than to nobody', async () => {
+    // No silent failure. If the RPC cannot answer, the teachers we KNOW about still get the
+    // lesson, and the row is still moved off `authoring` so the next tap is not told a run is
+    // in flight for ever.
+    seed({ waiters: ONE });
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'statement timeout' } });
+
+    const out = await Worker.process(JOB);
+
+    expect(out.status).toBe('ready');
+    expect(mockDeliverRender.mock.calls.map((c) => c[0].phone)).toEqual(['923001111111']);
   });
 });
 

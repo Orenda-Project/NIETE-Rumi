@@ -58,7 +58,16 @@ function mockBuilder(table) {
   };
   return b;
 }
-jest.mock('../../bot/shared/config/supabase', () => ({ from: jest.fn((t) => mockBuilder(t)) }));
+// The delivery audience is CLAIMED at the end of the job through `lp612_claim_waiters`, rather
+// than read from a snapshot taken before authoring — see tests/lp612/author-worker.test.js,
+// "the audience is whoever is waiting WHEN IT FINISHES". `seed()` records the list it seeded so
+// the claim returns it, which is what these language tests have always assumed happens.
+let seededWaiters = [];
+const mockRpc = jest.fn(() => Promise.resolve({ data: seededWaiters, error: null }));
+jest.mock('../../bot/shared/config/supabase', () => ({
+  from: jest.fn((t) => mockBuilder(t)),
+  rpc: (...a) => mockRpc(...a),
+}));
 
 const Worker = require('../../bot/workers/lp612-author.worker');
 const { UX_STRINGS } = require('../../bot/shared/config/ux-strings');
@@ -85,6 +94,7 @@ const jobFor = (lang) => ({
 });
 
 function seed(waiters, segment) {
+  seededWaiters = waiters;
   mockDbResults.push({
     data: { id: 'render-1', status: 'authoring', waiters },
     error: null,

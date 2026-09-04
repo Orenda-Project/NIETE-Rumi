@@ -73,7 +73,17 @@ function mockBuilder(table) {
   };
   return b;
 }
-jest.mock('../../bot/shared/config/supabase', () => ({ from: jest.fn((t) => mockBuilder(t)) }));
+// `rpc` is on the DB boundary because the worker claims its delivery audience
+// through lp612_claim_waiters (bd-pfest). This suite is about MODEL routing, so
+// the claim just returns the seeded waiter list.
+const mockRpc = jest.fn(async () => ({
+  data: [{ user_id: 'u1', phone: '923001111111' }],
+  error: null,
+}));
+jest.mock('../../bot/shared/config/supabase', () => ({
+  from: jest.fn((t) => mockBuilder(t)),
+  rpc: (...a) => mockRpc(...a),
+}));
 
 const Worker = require('../../bot/workers/lp612-author.worker');
 

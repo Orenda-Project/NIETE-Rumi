@@ -290,7 +290,11 @@ describe('nothing fails silently', () => {
     mockDbResults.push({
       data: { id: 'r1', status: 'failed', error_code: 'AUTHOR_LLM_FAILED' }, error: null,
     });
-    mockDbResults.push({ data: { id: 'r1' }, error: null });   // reset to authoring
+    // The reset is a compare-and-swap now: it is guarded on the status/started_at it read and
+    // SELECTs the rows it matched, so exactly one of two concurrent taps can win. A matched row
+    // means this tap won it. (See "restarting a failed or stranded render" in
+    // tests/lp612/golden-path-races.test.js.)
+    mockDbResults.push({ data: [{ id: 'r1' }], error: null });   // reset to authoring, CAS won
 
     const out = await Serving.requestLesson({ segmentId: SEGMENT.segment_id, ...REQ });
 
