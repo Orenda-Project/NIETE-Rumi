@@ -101,6 +101,34 @@ describe('the revision prompt states the visual contract first, as a thing to ad
   });
 });
 
+describe('the two lanes compose · a visual defect is not a length defect', () => {
+  // bd-vjk68 made a PAGE-COUNT-ONLY defect set buy at most ONE revision round and then deliver.
+  // That is the right call for length and the wrong call for a missing figure, and the two meet
+  // in the same defect list. `isPageCountOnly` requires EVERY blocking defect to be a page-count
+  // line, so a VISUAL line keeps the ladder's full budget — but that is a property of two
+  // separately-authored predicates, so it is asserted rather than assumed.
+  const svcSrc = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'bot', 'shared', 'services', 'lp612-author.service.js'), 'utf8');
+
+  test('the page-count round budget is scoped by `every`, not by `some`', () => {
+    expect(svcSrc).toMatch(/blocking\.length > 0 && blocking\.every\(isPageCountDefect\)/);
+  });
+
+  test('a mixed page-count + visual round still reads as a real revision', () => {
+    // the assembled prompt carries BOTH instructions, and the visual one comes first
+    const both = svc.buildRevisionPrompt({
+      doc: chemDoc([]),
+      gates: gate({
+        lint: ['VISUAL: V6 [Chemistry] none of [\'chem_equation\'] is present; §4b.2 requires one of them.'],
+        render: ['PAGE COUNT: teach needs 7 pages; the cap is 6'],
+      }),
+      originalUser: 'x', notes: null, lang: 'en',
+    });
+    expect(both.indexOf('THE VISUAL CONTRACT')).toBeLessThan(both.indexOf('HOW TO FIX A PAGE-COUNT ERROR'));
+    expect(both).toContain('DO NOT REMOVE A DIAGRAM');
+  });
+});
+
 describe('acceptance · meeting the subject minimum is a tier, not a tie-break', () => {
   const met = chemDoc([
     { type: 'chem_equation', equation: '2H2 + O2 -> 2H2O' },
