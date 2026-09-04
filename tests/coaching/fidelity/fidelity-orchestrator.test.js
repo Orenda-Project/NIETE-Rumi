@@ -81,3 +81,37 @@ describe('fidelity-orchestrator · computeLpFidelity (deps injected)', () => {
     expect(await computeLpFidelity({ corpusKey: { lesson_id: 'L' } }, deps())).toBeNull();
   });
 });
+
+/**
+ * bd-2kxxa.4 — the recompute gate needs to know WHICH upload a blob was graded
+ * from, so a re-upload of a different document re-grades and the same document
+ * does not. The corpus path already names its lesson_id; the upload path now
+ * stamps a content hash. Top-level on the result, NOT in meta — meta is the
+ * grader's prompt input and must not change.
+ */
+describe('fidelity-orchestrator · upload_hash (bd-2kxxa.4)', () => {
+  const { uploadTextHash, UPLOAD_TEXT_CAP } = require('../../../bot/shared/services/coaching/fidelity/fidelity-orchestrator');
+
+  test('uploaded path stamps upload_hash = hash of the (capped) text it graded, and keeps it out of meta', async () => {
+    let promptMeta = null;
+    const r = await computeLpFidelity(
+      { uploadedText: 'a long uploaded lesson plan text', transcript: 't' },
+      deps({ analyzeFidelity: async (m, t, meta) => { promptMeta = meta; return goodVerdicts; } }),
+    );
+    expect(r.status).toBe('ok');
+    expect(r.upload_hash).toBe(uploadTextHash('a long uploaded lesson plan text'));
+    expect(r.upload_hash).toMatch(/^[0-9a-f]{40}$/);
+    expect(promptMeta).not.toHaveProperty('upload_hash');
+  });
+
+  test('uploadTextHash caps the same way the extractor input is capped', () => {
+    const big = 'x'.repeat(UPLOAD_TEXT_CAP + 500);
+    expect(uploadTextHash(big)).toBe(uploadTextHash(big.slice(0, UPLOAD_TEXT_CAP)));
+    expect(uploadTextHash(null)).toBeNull();
+  });
+
+  test('corpus path has no upload_hash', async () => {
+    const r = await computeLpFidelity({ corpusKey: { lesson_id: 'L', version_stamp: 'v', content_hash: 'h' }, transcript: 't' }, deps());
+    expect(r.upload_hash).toBeNull();
+  });
+});

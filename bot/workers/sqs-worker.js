@@ -993,6 +993,98 @@ async function recoverStaleVideoRequests() {
 }
 
 // ============================================================================
+// bd-2kxxa.3 — DEBRIEF SELF-HEAL SWEEP
+// ============================================================================
+/**
+ * Re-queue debrief recordings whose transcription failed. processDebriefRecording
+ * now catches a transcription-stage throw, records it on the row
+ * (analysis_data.observer_debrief.{transcription_error,failed_at,attempts}) and
+ * returns — so nothing retries unless this does. Rules, per database-engineering §2:
+ *
+ *   J1 single-flight   per-row Redis setNX `debrief:retry:<id>` (30 min) — six
+ *                      replicas ticking in the same minute queue ONE job; and the
+ *                      queue layer dedups the same audioId for 1h on top
+ *   J2 per-tick cap    .limit(20), oldest first — a backlog drips, never bursts
+ *   J3 narrow reads    id, debrief_status, created_at and the debrief blob via a
+ *                      JSON path — NEVER analysis_data whole (it carries the full
+ *                      FICO analysis). DB-side filters keep rows that can never be
+ *                      retried (no audio, already transcribed, past the media
+ *                      ceiling) out of the 20-row window so they cannot starve it.
+ *   J4 kill switch     OBSERVE_DEBRIEF_RETRY_OFF=1 → no query, no lock, no queue.
+ *                      unset = ON.
+ *   J5 idempotent      the re-queued job reads audio_id from the row, skips
+ *                      re-transcription when a transcript exists, delivers-only
+ *                      when feedback exists; the coach is told once (row flag)
+ *   J6 age ceiling     28 days — Meta media ids expire ~30 days; the selector
+ *                      also caps attempts at 6
+ *   J7 log line        one per tick: {scanned, eligible, queued, skipped}
+ *
+ * Class P: this worker redeploys on every merge to develop, so a 15-minute
+ * setInterval can starve; the sweep also runs once ~2 minutes after boot. The
+ * per-row lock makes the extra run harmless.
+ */
+const DEBRIEF_RETRY_INTERVAL_MS = 15 * 60 * 1000;
+const DEBRIEF_RETRY_LOCK_TTL_S = 30 * 60;
+const DEBRIEF_RETRY_TICK_CAP = 20;
+
+async function runDebriefRetrySweep({ now = Date.now() } = {}) {
+  if (process.env.OBSERVE_DEBRIEF_RETRY_OFF === '1') {
+    return { off: true, scanned: 0, eligible: 0, queued: 0, skipped: 0 };
+  }
+  const { selectDebriefsToRetry, MAX_AGE_DAYS } = require('../shared/services/observe/debrief-retry-sweep');
+  const redisService = require('../shared/services/cache/railway-redis.service');
+  const CoachingJobQueueService = require('../shared/services/coaching/coaching-job-queue.service');
+
+  const cutoffIso = new Date(now - MAX_AGE_DAYS * 24 * 3600 * 1000).toISOString();
+  // Verified against the live NIETE DB on 2026-09-03: this exact filter shape
+  // returned the 11 stuck rows and nothing else (PostgREST JSON-path filters).
+  const { data: rows, error } = await supabase
+    .from('coaching_sessions')
+    .select('id, debrief_status, created_at, observer_debrief:analysis_data->observer_debrief')
+    .eq('debrief_status', 'pending')
+    .not('observer_user_id', 'is', null)
+    .not('analysis_data->observer_debrief->>audio_id', 'is', null)
+    .is('analysis_data->observer_debrief->>transcript', null)
+    .gte('created_at', cutoffIso)
+    .order('created_at', { ascending: true })
+    .limit(DEBRIEF_RETRY_TICK_CAP);
+  if (error) {
+    logToFile('❌ debrief retry sweep: query failed', { error: error.message }, 'error');
+    return { scanned: 0, eligible: 0, queued: 0, skipped: 0, error: error.message };
+  }
+
+  const scanned = (rows || []).length;
+  const eligible = selectDebriefsToRetry(rows || [], now);
+  let queued = 0;
+  let skipped = 0;
+  for (const row of eligible) {
+    const lock = await redisService.setNX(`debrief:retry:${row.id}`, String(now), DEBRIEF_RETRY_LOCK_TTL_S);
+    if (!lock) { skipped++; continue; }   // another replica (or the previous tick) owns this retry
+    try {
+      const attempt = (Number(row.observer_debrief.attempts) || 0) + 1;
+      await CoachingJobQueueService.queueObserveDebrief(row.id, {
+        audioId: row.observer_debrief.audio_id,
+        trigger: 'debrief_retry_sweep',
+        attempt,
+        // The queue layer dedups sessionId:jobType[:phase][:nonce] for 1h and the
+        // nonce is sha1(audioId) — the SAME for every retry of this recording. A
+        // per-attempt phase makes each retry its own job while replicas issuing
+        // the same attempt still dedup. Nothing in the observe_debrief path
+        // reads phase (only observe_teacher_report does).
+        phase: `retry-${attempt}`,
+      });
+      queued++;
+    } catch (err) {
+      skipped++;
+      logToFile('❌ debrief retry sweep: queue failed for one row', { sessionId: row.id, error: err.message }, 'error');
+    }
+  }
+  const summary = { scanned, eligible: eligible.length, queued, skipped };
+  logToFile('🔁 debrief retry sweep', summary);
+  return summary;
+}
+
+// ============================================================================
 // START WORKER
 // ============================================================================
 
@@ -1115,6 +1207,24 @@ function startWorker() {
     }, RESUME_OFFER_INTERVAL_MS);
 
     logToFile('Interrupted-task resume offers enabled (every 30 minutes)');
+
+    // bd-2kxxa.3: debrief recordings whose transcription failed get re-queued.
+    // Once shortly after boot (Class P — this service redeploys faster than a
+    // 15-minute interval fires), then every 15 minutes. Never throws by
+    // contract; wrapped anyway.
+    const runDebriefRetry = async () => {
+      if (worker.isShuttingDown) return;
+      try {
+        await runDebriefRetrySweep();
+      } catch (error) {
+        logToFile('Error in debrief retry sweep (non-fatal)', { error: error.message }, 'error');
+      }
+    };
+    setTimeout(runDebriefRetry, 2 * 60 * 1000);
+    setInterval(runDebriefRetry, DEBRIEF_RETRY_INTERVAL_MS);
+    logToFile('Debrief retry sweep enabled (boot + every 15 minutes; OBSERVE_DEBRIEF_RETRY_OFF=1 disables)', {
+      enabled: process.env.OBSERVE_DEBRIEF_RETRY_OFF !== '1',
+    });
   });
 }
 
@@ -1123,4 +1233,4 @@ if (require.main === module) {
 }
 
 // Export for testing
-module.exports = { SQSCoachingWorker, WORKER_ID, startWorker };
+module.exports = { SQSCoachingWorker, WORKER_ID, startWorker, runDebriefRetrySweep };

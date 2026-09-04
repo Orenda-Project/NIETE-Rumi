@@ -100,6 +100,10 @@ const STRINGS = {
       'Samahani — sikuweza kusikia mazungumzo ya kutosha kwenye rekodi hiyo. Kama debrief bado inaendelea, rekodi tena sehemu ndefu zaidi na unitumie — mwongozo bado uko hapa juu.',
     debrief_feedback_failed:
       'Nimeipokea rekodi yako, lakini nimeshindwa kuichambua sasa hivi. Andika /observe, chagua uchunguzi huo kwenye orodha, na urekodi tena — nitaisikiliza upya.',
+    // bd-2kxxa.3 — transcription failed (provider outage etc.). Honest, and told
+    // ONCE: the worker sweep retries by itself, so she must NOT re-record.
+    debrief_processing_failed:
+      'Sikuweza kuchakata rekodi hii ya debrief bado. Nitaendelea kujaribu tena mwenyewe — hakuna haja ya kurekodi upya. Kama hakuna kitu kitakachofika ndani ya saa moja, andika /observe na uchague debrief hiyo tena.',
     // bd-jrxo3 — nothing bound: start from the school, then re-send the recording.
     redirect_pick_teacher:
       'Tuanze na shule ili rekodi hii imfikie mwalimu sahihi. Chagua shule, kisha mwalimu — kisha nitumie rekodi tena.',
@@ -275,6 +279,9 @@ const STRINGS = {
     debrief_audio_received: '🎧 ڈی بریف کی ریکارڈنگ مل گئی — بھروسے کا شکریہ! سن کر چند منٹ میں آپ کو رائے بھیجوں گی۔ یہ صرف میرے اور آپ کے درمیان ہے۔',
     debrief_too_short: 'ریکارڈنگ بہت مختصر لگی۔ پوری گفتگو ریکارڈ کر کے دوبارہ بھیجیں۔',
     debrief_feedback_failed: 'معاف کیجیے، رائے تیار نہیں ہو سکی۔ ریکارڈنگ محفوظ ہے — تھوڑی دیر بعد دوبارہ کوشش ہو گی۔',
+    // bd-2kxxa.3 — gender-agnostic when addressing the coach (imperatives only).
+    debrief_processing_failed:
+      'ڈی بریف کی ریکارڈنگ ابھی پروسیس نہیں ہو سکی۔ میں خود بخود دوبارہ کوشش کرتی رہوں گی — دوبارہ ریکارڈ کرنے کی ضرورت نہیں۔ اگر ایک گھنٹے میں رائے نہ آئے تو /observe لکھ کر یہ ڈی بریف دوبارہ چنیں۔',
     // bd-jrxo3 — gender-agnostic when addressing the coach (imperatives only).
     redirect_pick_teacher:
       'آئیے اسکول سے شروع کرتے ہیں تاکہ یہ ریکارڈنگ صحیح استاد تک پہنچے۔ پہلے اسکول چنیں، پھر استاد — اور اس کے بعد ریکارڈنگ دوبارہ بھیج دیں۔',
@@ -462,6 +469,10 @@ const STRINGS = {
       "Sorry — I couldn't hear enough of the conversation in that recording. If the debrief is still going, record a longer stretch and send it over — the guide is still right above.",
     debrief_feedback_failed:
       "I received your recording but couldn't analyze it just now. Type /observe, pick that observation from the list, and record again — I'll listen fresh.",
+    // bd-2kxxa.3 — transcription failed (provider outage etc.). Honest, and told
+    // ONCE: the worker sweep retries by itself, so she must NOT re-record.
+    debrief_processing_failed:
+      "I couldn't process this debrief recording yet. I'll keep retrying automatically — you don't need to re-record. If nothing arrives within an hour, open /observe and pick that debrief again.",
     // bd-jrxo3 — the accepted cost is stated plainly: she sends it again.
     redirect_pick_teacher:
       "Let's start from the school so this reaches the right teacher. Pick the school, then the teacher — then send me the recording again.",
@@ -698,7 +709,82 @@ function buildVisitRescheduledAck(lang, opts = {}) {
     .replace('{slot}', slot);
 }
 
+// ── R165 — "which teacher is this for?" ────────────────────────────────
+// Sent when a photo / lesson plan arrives while MORE THAN ONE of the coach's
+// observations is waiting at that gate and no tap named the target. One row per
+// candidate (`mediatarget_<sessionId>`), titled with the observed teacher's
+// name, falling back to the recording time. en/ur only (NIETE market, Rule 20);
+// the Urdu addresses the coach with neutral imperatives (gender-neutral Urdu guard).
+const MEDIA_TARGET_TEMPLATES = {
+  en: {
+    photo_body: "📎 Got your photo. Which teacher's observation is it for?",
+    lp_body: "📎 Got the lesson plan. Which teacher's observation is it for?",
+    button: 'Choose teacher',
+    section: 'Waiting observations',
+    row_fallback: 'Observation',
+    row_desc: 'Recorded {time}',
+    resend: "👍 Noted. Please send that photo or lesson plan again — it will go to this teacher's observation.",
+    stale: 'That observation has already moved past this step, so I could not add the file. If it belongs to another teacher, send it again and pick them.',
+  },
+  ur: {
+    photo_body: '📎 تصویر مل گئی۔ یہ کس استاد کے مشاہدے کے لیے ہے؟',
+    lp_body: '📎 لیسن پلان مل گیا۔ یہ کس استاد کے مشاہدے کے لیے ہے؟',
+    button: 'استاد چنیں',
+    section: 'زیرِ التوا مشاہدے',
+    row_fallback: 'مشاہدہ',
+    row_desc: 'ریکارڈ: {time}',
+    resend: '👍 ٹھیک ہے۔ براہ کرم وہ تصویر یا لیسن پلان دوبارہ بھیجیں — یہ اسی استاد کے مشاہدے میں شامل ہوگا۔',
+    stale: 'وہ مشاہدہ اس مرحلے سے آگے بڑھ چکا ہے، اس لیے فائل شامل نہیں ہو سکی۔ اگر یہ کسی اور استاد کی ہے تو دوبارہ بھیج کر انہیں منتخب کریں۔',
+  },
+};
+
+// WhatsApp list caps, measured in CODE POINTS (Rule 20): row title 24,
+// row description 72, section title 24, button 20.
+function _truncateCp(str, max) {
+  const cp = [...String(str || '')];
+  return cp.length <= max ? cp.join('') : `${cp.slice(0, max - 1).join('')}…`;
+}
+
+// NIETE serves ICT Islamabad only — one display timezone.
+const MEDIA_TARGET_TZ = 'Asia/Karachi';
+function _timeLabel(iso) {
+  const ms = Date.parse(iso || '');
+  if (!Number.isFinite(ms)) return '';
+  return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: MEDIA_TARGET_TZ })
+    .format(new Date(ms));
+}
+
+/**
+ * @param {string} lang  coach language ('ur' | anything-else→en)
+ * @param {{ kind: 'photo'|'lp', candidates: Array<{id:string, teacherName?:string|null, created_at?:string}> }} opts
+ * @returns {object} listData for WhatsAppService.sendInteractiveMessage
+ */
+function buildMediaTargetPrompt(lang, { kind, candidates } = {}) {
+  const l = clampLanguage(lang);
+  const T = MEDIA_TARGET_TEMPLATES[l] || MEDIA_TARGET_TEMPLATES.en;
+  const rows = (candidates || []).slice(0, 10).map((c) => {
+    const time = _timeLabel(c.created_at);
+    const name = String(c.teacherName || '').trim();
+    const title = name || `${T.row_fallback}${time ? ` · ${time}` : ''}`;
+    const row = { id: `mediatarget_${c.id}`, title: _truncateCp(title, 24) };
+    if (name && time) row.description = _truncateCp(T.row_desc.replace('{time}', time), 72);
+    return row;
+  });
+  return {
+    body: { text: kind === 'lp' ? T.lp_body : T.photo_body },
+    action: { button: _truncateCp(T.button, 20), sections: [{ title: _truncateCp(T.section, 24), rows }] },
+  };
+}
+
+/** R165 — a single media-target string ('resend' | 'stale' | …) in the coach's language. */
+function mediaTargetString(lang, key) {
+  const l = clampLanguage(lang);
+  const T = MEDIA_TARGET_TEMPLATES[l] || MEDIA_TARGET_TEMPLATES.en;
+  return T[key] || MEDIA_TARGET_TEMPLATES.en[key] || '';
+}
+
 module.exports = {
   observeStrings, observeLang, buildVisitCapturePrompt, buildScheduleDoneAck,
   buildVisitCancelledAck, buildVisitRescheduledAck,
+  buildMediaTargetPrompt, mediaTargetString,
 };

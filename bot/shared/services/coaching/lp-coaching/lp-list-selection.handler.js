@@ -15,6 +15,7 @@
  * hung at awaiting_lesson_plan.
  */
 const { logToFile } = require('../../../utils/logger');
+const { REVIEW_SUBMITTED_STATUSES } = require('../fidelity/fidelity-recompute.service');
 
 const LP_ID_RE = /^lp_(select|upload|none)_/;
 
@@ -58,6 +59,11 @@ async function handleLpListSelection(listId, from, deps = {}) {
   const { getCoachingMessage } = deps.messages || require('../../../config/coaching-messages');
   const recomputeFidelity = deps.recomputeFidelity
     || ((sid) => require('../fidelity/fidelity-recompute.service').recomputeFidelityForSession(sid));
+  // R165: remember WHICH observation the upload is for (deps.userId =
+  // the tapper), so the document that follows binds here — not to the newest
+  // session at awaiting_lesson_plan.
+  const setMediaTarget = deps.setMediaTarget
+    || ((uid, sid, kind) => require('../media-target.service').setTarget(uid, sid, kind));
   const sessionStatus = deps.sessionStatus
     || (async (sid) => {
       try {
@@ -75,6 +81,20 @@ async function handleLpListSelection(listId, from, deps = {}) {
   }
   const lang = await resolveLanguage(sessionId);
 
+  // bd-2kxxa.4: the list stays in the chat, so a tap can land AFTER the observer's
+  // review was submitted. Check FIRST — a submitted session gets an honest reply
+  // and NO write; the old path wrote the ref, said "linked", then the recompute
+  // refused silently (review_submitted) and nothing changed.
+  let status = null;
+  if (listId.startsWith('lp_select_')) {
+    status = await sessionStatus(sessionId);
+    if (REVIEW_SUBMITTED_STATUSES.includes(status)) {
+      logToFile('[lp-list] late tap after review submitted — not linking', { sessionId, status });
+      await sendMessage(from, getCoachingMessage('lessonPlan_review_submitted', lang));
+      return true;
+    }
+  }
+
   let result = null;
   try {
     result = await linker.handleLPSelection(sessionId, listId);
@@ -88,18 +108,32 @@ async function handleLpListSelection(listId, from, deps = {}) {
 
   if (result && result.awaiting_upload) {
     // "Upload new": ask for the document; the document handler continues the flow.
+    if (deps.userId) {
+      try {
+        await setMediaTarget(deps.userId, sessionId, 'lp');
+      } catch (err) {
+        logToFile('[lp-list] could not record lp media target (non-fatal)', { sessionId, error: err.message });
+      }
+    }
     await sendMessage(from, getCoachingMessage('lessonPlan_request', lang));
     return true;
   }
 
   if (result && result.lesson_plan_link_method === 'selected_recent') {
+    // "linked" only once the linker has actually written the ref.
     await sendMessage(from, getCoachingMessage('lessonPlan_linked', lang));
     // bd-5knlj: a LATE tap — the session already analyzed — must not re-run the
     // whole analysis; recompute ONLY the fidelity section so Section B fills in
     // for the still-unsubmitted review.
-    const status = await sessionStatus(sessionId);
+    if (status == null) status = await sessionStatus(sessionId);
     if (status && status !== 'awaiting_lesson_plan') {
-      await recomputeFidelity(sessionId);
+      const r = await recomputeFidelity(sessionId);
+      // bd-2kxxa.4: race — the review was submitted between our status check and
+      // the write. The CAS persist refused; tell the coach instead of leaving
+      // "linked" as the last word.
+      if (r && r.recomputed === false && r.reason === 'review_submitted') {
+        await sendMessage(from, getCoachingMessage('lessonPlan_review_submitted', lang));
+      }
       return true;
     }
     await queueAnalysis(sessionId, { from });

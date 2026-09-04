@@ -78,7 +78,23 @@ describe('routeLeaderAudio — armed states (the bug: these never fired for file
     const st = { state: 'awaiting_debrief_audio', sessionId: 'obs-9' };
     ObserveState.getState.mockResolvedValue(st);
     expect(await call()).toBe(true);
-    expect(ObserveDebrief.startDebriefFromAudio).toHaveBeenCalledWith(LEADER, FROM, AUDIO, st);
+    // bd-2kxxa.3: the webhook MIME rides along (null for a caller that has none)
+    expect(ObserveDebrief.startDebriefFromAudio).toHaveBeenCalledWith(LEADER, FROM, AUDIO, st, { mimeType: null });
+  });
+
+  test('bd-2kxxa.3: the document MIME reaches the debrief capture (an AAC file is stored as AAC, not .ogg)', async () => {
+    const st = { state: 'awaiting_debrief_audio', sessionId: 'obs-9' };
+    ObserveState.getState.mockResolvedValue(st);
+    expect(await call({ mimeType: 'audio/aac' })).toBe(true);
+    expect(ObserveDebrief.startDebriefFromAudio).toHaveBeenCalledWith(LEADER, FROM, AUDIO, st, { mimeType: 'audio/aac' });
+  });
+
+  test('bd-2kxxa.3: an UNBOUND recording parks with its MIME so a later debrief pick keeps the container', async () => {
+    const ObserveBinding = require('../../shared/services/observe/observe-binding.service');
+    ObserveState.getState.mockResolvedValue(null);
+    expect(await call({ mimeType: 'audio/aac' })).toBe(true);
+    expect(ObserveBinding.parkAndAsk).toHaveBeenCalledWith(LEADER, FROM,
+      expect.objectContaining({ audioId: AUDIO, mimeType: 'audio/aac' }));
   });
 
   test('armed state is honoured even for SHORT audio (intent was declared by /observe, D14)', async () => {

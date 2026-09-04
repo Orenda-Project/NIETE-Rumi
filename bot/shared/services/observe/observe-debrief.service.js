@@ -529,7 +529,7 @@ async function _mergeObserverDebrief(sessionId, patch, extraColumns = {}) {
  * queueTranscription (its processor writes transcript_text and would
  * overwrite the LESSON transcript on this same row) — ack, clear state.
  */
-async function startDebriefFromAudio(user, from, audioId, observeState) {
+async function startDebriefFromAudio(user, from, audioId, observeState, opts = {}) {
   const lang = observeLang(user);
   const S = observeStrings(lang);
   const sessionId = observeState && observeState.sessionId;
@@ -545,14 +545,24 @@ async function startDebriefFromAudio(user, from, audioId, observeState) {
     // retries of the same audio) — so a stale transcript/feedback from a
     // previous attempt must be cleared here, or every retry re-coaches the
     // OLD recording and the FO can never recover from a bad first attempt.
+    // bd-2kxxa.3: same for the failure counters — a new recording starts at
+    // zero attempts and may be told once again if it, too, fails. audio_mime
+    // is the webhook's container (a phone-recorder AAC arrives as a
+    // DOCUMENT); the worker names the temp file from it so the transcription
+    // fallback is never handed an AAC labelled .ogg.
     await _mergeObserverDebrief(sessionId, {
       audio_id: audioId,
+      audio_mime: (opts && opts.mimeType) || null,
       guide_snapshot: observeState.guide_snapshot || null,
       recorded_at: new Date().toISOString(),
       transcript: null,
       transcript_language: null,
       diarization_confidence: null,
       feedback: null,
+      attempts: 0,
+      transcription_error: null,
+      failed_at: null,
+      failure_notified_at: null,
     });
     await CoachingJobQueueService.queueObserveDebrief(sessionId, { from, audioId });
     await WhatsAppService.sendMessage(from, S.debrief_audio_received);
@@ -655,6 +665,68 @@ async function coachFeedbackWithRepair(prompt, sessionId) {
   }
 }
 
+// bd-2kxxa.3 — the temp-file extension for a debrief download, from the
+// webhook's MIME. Whisper (the last-resort transcription fallback) sniffs the
+// extension; a mislabelled container is a 400. Unknown/absent → .ogg, which is
+// what every voice note is and what the file was always called before.
+const _MIME_EXTENSIONS = [
+  [/aac/i, '.aac'],
+  [/mp4|m4a/i, '.m4a'],
+  [/mpeg|mp3|mpga/i, '.mp3'],
+  [/ogg|opus|oga/i, '.ogg'],
+  [/wav/i, '.wav'],
+  [/webm/i, '.webm'],
+  [/flac/i, '.flac'],
+  [/amr/i, '.amr'],
+];
+function tempExtensionFor(mime) {
+  if (!mime || typeof mime !== 'string') return '.ogg';
+  const hit = _MIME_EXTENSIONS.find(([re]) => re.test(mime));
+  return hit ? hit[1] : '.ogg';
+}
+
+/**
+ * bd-2kxxa.3 — persist a transcription-stage failure on the row and tell the
+ * coach ONCE. Never throws: a failure to record the failure must not turn back
+ * into the unhandled throw this exists to remove.
+ */
+async function _recordTranscriptionFailure(sessionId, from, observerDebrief, err, S) {
+  const now = new Date().toISOString();
+  const attempts = (Number(observerDebrief.attempts) || 0) + 1;
+  const alreadyNotified = !!observerDebrief.failure_notified_at;
+  const patch = {
+    transcription_error: String((err && err.message) || err).slice(0, 500),
+    failed_at: now,
+    attempts,
+  };
+  if (!alreadyNotified) patch.failure_notified_at = now;
+
+  // Class N: a terminal-for-this-attempt failure logs at error level so the
+  // monitor sees it — the old path logged nothing at all from here.
+  logToFile('❌ observe debrief: transcription failed — recorded for the retry sweep', {
+    sessionId, attempts, error: patch.transcription_error, notify: !alreadyNotified,
+  }, 'error');
+
+  let persisted = false;
+  try {
+    await _mergeObserverDebrief(sessionId, patch);
+    persisted = true;
+  } catch (mergeErr) {
+    logToFile('❌ observe debrief: could not persist transcription failure', {
+      sessionId, error: mergeErr.message,
+    }, 'error');
+  }
+  // Notify-once. Merge FIRST so the flag is durable before the send: a send
+  // after an unpersisted flag would repeat on the next attempt.
+  if (!alreadyNotified && persisted && from) {
+    try {
+      await WhatsAppService.sendMessage(from, S.debrief_processing_failed);
+    } catch (sendErr) {
+      logToFile('⚠️ observe debrief: failure notice send threw', { sessionId, error: sendErr.message });
+    }
+  }
+}
+
 /**
  * bd-28 (worker side) — transcribe the debrief recording and coach the coach.
  * Success: praise line + 2-wins-1-try card, debrief_status → 'done', rubric
@@ -709,16 +781,16 @@ async function processDebriefRecording(sessionId, payload = {}) {
   const audioId = payload.audioId || observerDebrief.audio_id;
   if (!audioId) throw new Error('observe debrief: no audio id in payload or row');
 
-  const tempAudioPath = path.join(TEMP_DIR, `observe_debrief_${sessionId}_${Date.now()}.ogg`);
+  // bd-2kxxa.3: the temp file carries the recording's REAL container. It used
+  // to be `.ogg` whatever arrived; an AAC sent as a WhatsApp document reached
+  // the Whisper fallback mislabelled and was answered "400 invalid format".
+  const tempAudioPath = path.join(TEMP_DIR,
+    `observe_debrief_${sessionId}_${Date.now()}${tempExtensionFor(observerDebrief.audio_mime)}`);
   try {
     let transcript = observerDebrief.transcript || '';
     let diarization = null;
 
     if (!transcript) {
-      if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
-      const audioData = await WhatsAppService.downloadMedia(audioId);
-      fs.writeFileSync(tempAudioPath, audioData);
-
       // bd-ri5o9.2 — a debrief is the COACH and the TEACHER, not a lesson. Without
       // these roles the classroom schema applies and one of the two adults is
       // announced as "Student" — and because the label follows word count, WHICH
@@ -726,8 +798,27 @@ async function processDebriefRecording(sessionId, payload = {}) {
       // downstream pass reads this transcript, so a report could quote the coach
       // as the teacher (reported by a coach, 2026-08-25).
       const { DEBRIEF_ROLES } = require('../speaker-roles');
-      const transcription = await TranscriptionProcessorService.transcribeWithDiarization(
-        tempAudioPath, { roles: DEBRIEF_ROLES });
+      let transcription;
+      try {
+        if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
+        const audioData = await WhatsAppService.downloadMedia(audioId);
+        fs.writeFileSync(tempAudioPath, audioData);
+        transcription = await TranscriptionProcessorService.transcribeWithDiarization(
+          tempAudioPath, { roles: DEBRIEF_ROLES });
+      } catch (txErr) {
+        // bd-2kxxa.3 — THE bug. There was no catch here: the throw reached
+        // handleJobFailure (a deliberate no-op for observe jobs), SQS retried
+        // 3x inside ~45 minutes — all inside a 17-hour provider outage — and
+        // dead-lettered. The row sat 'pending' with audio_id and no transcript,
+        // the coach had only heard "feedback in a few minutes", nothing retried
+        // (11 debriefs, 6 coaches, 1 Sep 2026). Now: record the failure on the
+        // row, tell her ONCE, and return without rethrowing — the worker's
+        // debrief-retry sweep owns retries (30-min spacing, 6 attempts, 28-day
+        // ceiling). SQS's three blind retries within minutes are useless in an
+        // outage and would only re-send messages.
+        await _recordTranscriptionFailure(sessionId, from, observerDebrief, txErr, S);
+        return; // debrief_status stays 'pending' (closed vocabulary — list filters read it)
+      }
       transcript = (transcription && transcription.transcript) || '';
       diarization = transcription && transcription.diarization;
 
@@ -799,6 +890,7 @@ module.exports = {
   armDebriefAudio,
   startDebrief,
   startDebriefFromAudio,
+  tempExtensionFor,
   processDebriefRecording,
   coachFeedbackWithRepair,
 };

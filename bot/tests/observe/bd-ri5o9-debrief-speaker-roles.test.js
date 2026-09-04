@@ -113,6 +113,9 @@ describe('bd-ri5o9.2 · the wiring — both hardcoded sites, and only the debrie
   const audio = read('../../shared/services/audio.service.js');
   const debrief = read('../../shared/services/observe/observe-debrief.service.js');
   const classroom = read('../../shared/services/coaching/transcription-processor.service.js');
+  // bd-2kxxa.5: the token→diarization assembly (and with it the Whisper fallback)
+  // moved to diarization-from-tokens.js so the Section B backfill can share it.
+  const fallbackSite = read('../../shared/services/coaching/diarization-from-tokens.js');
 
   test('audio.service.js labels through the shared helper, not its own inline loop', () => {
     expect(audio).toMatch(/assignSpeakerLabels/);
@@ -134,9 +137,14 @@ describe('bd-ri5o9.2 · the wiring — both hardcoded sites, and only the debrie
     // The SECOND hardcoded site — transcribeWithDiarization builds a fallback
     // diarization with label:'Teacher' when Soniox returns no tokens. A one-site
     // fix silently leaves this one wrong.
-    const idx = classroom.indexOf('Fallback for Whisper');
+    // The processor must delegate here (no second copy left behind to drift)…
+    expect(classroom).not.toMatch(/Fallback for Whisper/);
+    expect(classroom).toMatch(/assembleDiarizedTranscription\(transcriptionResult, roles\)/);
+    // …and the one remaining fallback site must respect `roles`.
+    const idx = fallbackSite.indexOf('Fallback for Whisper');
     expect(idx).toBeGreaterThan(-1);
-    const window = classroom.slice(idx, idx + 700);
+    const window = fallbackSite.slice(idx, idx + 700);
     expect(window).not.toMatch(/label:\s*'Teacher'/);
+    expect(window).toMatch(/roles\s*\?/);
   });
 });
