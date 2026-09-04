@@ -294,6 +294,26 @@ function parseCliArgs(argv) {
  * three levels the gate itself compares, for the same reason: a new offender inside
  * an already-accepted suite is the level the real incident lived at.
  */
+/**
+ * Collapse an offender to the violation, dropping WHERE it currently sits.
+ *
+ * The tests/setup/ guards report `path:line`, sometimes with the offending source
+ * appended. Line numbers move whenever anything above them is edited, so comparing raw
+ * strings reports the same violation at a new line as a brand-new offender.
+ *
+ * Measured on the staging sync, 2026-09-04: 70 additions reported, 2 real. The other 68
+ * had simply moved — `no-hardcoded-bot-name` reported +3 for three byte-identical
+ * strings that shifted from lines 198/365/572 to 202/372/575. A gate that cries wolf
+ * 70-for-2 gets switched off, which is the failure this whole system exists to avoid.
+ *
+ * Only the FIRST `:<digits>` is dropped, and only where it follows a path. Everything
+ * after it is kept, so two different violations in the same file stay distinct and a
+ * non-positional offender (`video_requests.observer_debrief`) is untouched.
+ */
+function normaliseOffender(s) {
+  return String(s).replace(/^([^\s:]+):\d+/, '$1:L');
+}
+
 function snapshotGrowth(before, after) {
   const list = (o, k, f) => (o[k] ? o[k][f] || [] : []);
   const addedSuites = Object.keys(after).filter((s) => !(s in before)).sort();
@@ -314,7 +334,20 @@ function snapshotGrowth(before, after) {
   };
 
   const addedTests = grown('failing', 'tests');
-  const addedOffenders = grown('offenders', 'offenders');
+
+  // Offenders are compared on their normalised form so a violation that merely moved
+  // line is not reported as new. The RAW string is what gets reported, because a human
+  // chasing the finding needs the real line number.
+  const addedOffenders = [];
+  for (const suite of Object.keys(after)) {
+    if (!(suite in before)) continue;
+    const wasRaw = list(before, suite, 'offenders');
+    const nowRaw = list(after, suite, 'offenders');
+    const wasNorm = new Set(wasRaw.map(normaliseOffender));
+    const added = nowRaw.filter((x) => !wasNorm.has(normaliseOffender(x)));
+    if (added.length) addedOffenders.push({ suite, offenders: added.sort() });
+  }
+  addedOffenders.sort((a, b) => a.suite.localeCompare(b.suite));
   return {
     grew: !!(addedSuites.length || addedTests.length || addedOffenders.length),
     addedSuites,
@@ -449,5 +482,6 @@ module.exports = {
   confirmRegressions,
   parseCliArgs,
   snapshotGrowth,
+  normaliseOffender,
   relSuite,
 };

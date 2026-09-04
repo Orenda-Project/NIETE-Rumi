@@ -2,7 +2,7 @@
  * bd-wwcgf — who DRIVES a coaching session's conversation?
  *
  * A leader_observation row is owned by the observed TEACHER (user_id) but its
- * conversation is driven by the COACH (observer_user_id) — FEAT-102's design.
+ * conversation is driven by the COACH (observer_user_id) — by design.
  * Every inbound-message matcher that resolves "the sender's active session" via
  * or(user_id.eq, observer_user_id.eq) therefore over-matches: the observed
  * teacher's own texts/photos hijack the coach's observation (3 Sep 2026 —

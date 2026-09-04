@@ -140,10 +140,15 @@ failure as inconclusive and re-run before investigating.
 
 ```
 tests/queue/sqs-cancel-by-group.test.js
+tests/training/certificate-pdf-delivery.test.js
 tests/training/certificate-pdf-issuance.test.js
 tests/training/portal-capstone-submit.test.js
 tests/training/portal-grand-quiz.test.js
 ```
+
+`certificate-pdf-delivery` joined the family on 2026-09-04: 8/8 passing in three
+isolated runs, red inside the full suite. Same lazy-require mock race as the three
+below it. Fixing that one seam retires four lines, not three.
 
 `sqs-cancel-by-group` is its own thing: its Redis cancel-flag mock intermittently does
 not observe the expected `setex`.
