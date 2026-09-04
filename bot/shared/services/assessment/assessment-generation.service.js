@@ -121,7 +121,7 @@ function _rescale(types, target) {
 
 /**
  * The number a teacher types is the size of her paper — all of it. Until
- * bd-60015 it sized only the unseen half, and "a mix of both" then added every
+ * It once sized only the unseen half, and "a mix of both" then added every
  * exercise in the chapter on top, so a request for 20 came back as 64.
  *
  *   unseen  → all `total` are new questions, types as given.

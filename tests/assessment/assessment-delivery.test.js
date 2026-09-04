@@ -21,6 +21,7 @@
 const mockSupabase = { from: jest.fn() };
 const mockSendMessage = jest.fn().mockResolvedValue(true);
 const mockSendDocumentByLink = jest.fn().mockResolvedValue(true);
+const mockSendFlow = jest.fn().mockResolvedValue(true);
 const mockGetPresignedUrl = jest.fn()
   .mockResolvedValue('https://bucket.acct.r2.cloudflarestorage.com/exams/u/p/f.pdf?X-Amz-Signature=x');
 
@@ -30,6 +31,7 @@ jest.mock('../../bot/shared/services/whatsapp.service', () => ({
   sendMessage: mockSendMessage,
   sendDocumentByLink: mockSendDocumentByLink,
   sendDocumentFromUrl: jest.fn().mockResolvedValue(true),
+  sendFlow: (...a) => mockSendFlow(...a),
 }));
 jest.mock('../../bot/shared/storage/r2', () => ({
   uploadExamBuffer: jest.fn().mockResolvedValue('exams/u/p/f.pdf'),
@@ -116,5 +118,60 @@ describe('a paper is only ready once it has actually been sent', () => {
 
     const said = mockSendMessage.mock.calls.map((c) => c[1]).join(' | ');
     expect(said).toMatch(/could not send|couldn't send/i);
+  });
+});
+
+
+describe('the offer to trim the paper (bd-60023)', () => {
+  // A paper she cannot edit is one she must re-request from scratch to change.
+  // The offer rides AFTER the document, never before: a prompt sent ahead of the
+  // send is a promise made by a step that has not run yet, which is exactly what
+  // left her holding "your paper is ready" and no paper.
+  // Set here, not inherited from the shell: without an id the offer is skipped
+  // entirely and every assertion below would pass by not running.
+  const PREV = process.env.ASSESSMENT_GEN_FLOW_ID;
+  beforeEach(() => {
+    jest.clearAllMocks(); wireDb();
+    process.env.ASSESSMENT_GEN_FLOW_ID = '1789313642053401';
+    // clearAllMocks wipes the resolved values set where these were declared.
+    mockSendDocumentByLink.mockResolvedValue(true);
+    mockSendFlow.mockResolvedValue(true);
+  });
+  afterAll(() => {
+    if (PREV === undefined) delete process.env.ASSESSMENT_GEN_FLOW_ID;
+    else process.env.ASSESSMENT_GEN_FLOW_ID = PREV;
+  });
+
+  test('no flow id configured means no offer, and still a delivered paper', async () => {
+    delete process.env.ASSESSMENT_GEN_FLOW_ID;
+    const res = await orch().process(JOB);
+    expect(res.status).toBe('ready');
+    expect(mockSendFlow).not.toHaveBeenCalled();
+  });
+
+  const orch = () => require('../../bot/shared/services/assessment/assessment-orchestrator.service');
+
+  test('is sent after the document, carrying a token that names the paper', async () => {
+    const res = await orch().process(JOB);
+    expect(res.status).toBe('ready');
+    expect(mockSendFlow).toHaveBeenCalledTimes(1);
+    const [to, opts] = mockSendFlow.mock.calls[0];
+    expect(to).toBe('923001234567');
+    expect(opts.flowToken).toBe('u1:assessment-review:paper-1');
+    // No `screen`, so sendFlow uses data_exchange and our INIT reads the token.
+    expect(opts.screen).toBeUndefined();
+  });
+
+  test('is NOT offered when the paper never reached her', async () => {
+    mockSendDocumentByLink.mockResolvedValue(false);
+    const res = await orch().process(JOB);
+    expect(res.status).toBe('failed');
+    expect(mockSendFlow).not.toHaveBeenCalled();
+  });
+
+  test('a failed offer never turns a delivered paper into a failure', async () => {
+    mockSendFlow.mockRejectedValue(new Error('flow send exploded'));
+    const res = await orch().process(JOB);
+    expect(res.status).toBe('ready');
   });
 });

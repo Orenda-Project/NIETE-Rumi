@@ -24,7 +24,10 @@
     "CONFIRM": [
       "SUBMITTED"
     ],
-    "SUBMITTED": []
+    "SUBMITTED": [],
+    "REVIEW": [
+      "SUBMITTED"
+    ]
   },
   "screens": [
     {
@@ -543,6 +546,149 @@
                     "output_format": "${form.output_format}",
                     "answer_lines": "${form.answer_lines}",
                     "answer_key": "${form.answer_key}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "REVIEW",
+      "title": "New assessment",
+      "data": {
+        "summary": {
+          "type": "string",
+          "__example__": "Grade 4 Science · 28 questions · 50 marks"
+        },
+        "progress": {
+          "type": "string",
+          "__example__": "Questions 1-20 of 28"
+        },
+        "questions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "seen.objective.MCQs.0",
+              "title": "1. Name three living things",
+              "description": "1 mark · MCQs"
+            }
+          ]
+        },
+        "selected": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "__example__": [
+            "seen.objective.MCQs.0"
+          ]
+        },
+        "page": {
+          "type": "string",
+          "__example__": "0"
+        },
+        "has_prev": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "has_next": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "review_form",
+            "init-values": {
+              "keep": "${data.selected}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Which questions should stay?"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.summary}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "keep",
+                "label": "Keep these",
+                "required": false,
+                "data-source": "${data.questions}"
+              },
+              {
+                "type": "EmbeddedLink",
+                "text": "← Previous questions",
+                "visible": "${data.has_prev}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "keep": "${form.keep}",
+                    "page": "${data.page}",
+                    "action": "prev"
+                  }
+                }
+              },
+              {
+                "type": "EmbeddedLink",
+                "text": "More questions →",
+                "visible": "${data.has_next}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "keep": "${form.keep}",
+                    "page": "${data.page}",
+                    "action": "next"
+                  }
+                }
+              },
+              {
+                "type": "Footer",
+                "label": "Make the paper",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "keep": "${form.keep}",
+                    "page": "${data.page}",
+                    "action": "done"
                   }
                 }
               }
