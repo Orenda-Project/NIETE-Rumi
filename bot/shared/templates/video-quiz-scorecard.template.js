@@ -362,7 +362,12 @@ function renderScorecardHtml(d) {
      and the part she is being congratulated with. It starts on the same edge
      as every other block; centring it was the last thing on the card that did
      not line up with anything else. */
-  .stars { display:flex; align-items:center; gap:11px; flex:0 0 auto; }
+  .stars { display:flex; align-items:center; gap:11px; flex:0 0 auto;
+    /* The star path is inset ~2/24 of its own box, so a star row set flush to
+       the padding edge LOOKS indented next to the fraction and the subject
+       line, which have almost no side bearing. Pulled back by that much, in
+       the logical direction so it mirrors. */
+    margin-inline-start:-3.5px; }
   .star--filled { filter:drop-shadow(0 0 10px ${palette.glow}); }
   .foot { display:flex; justify-content:space-between; align-items:center; gap:12px; flex:0 0 auto; }
   .subj { font-size:16px; opacity:.78; min-width:0; overflow:hidden;
