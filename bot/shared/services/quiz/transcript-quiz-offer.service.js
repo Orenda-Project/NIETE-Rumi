@@ -30,7 +30,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
 const FeatureIntro = require('../feature-intro.service');
 const Digest = require('./transcript-quiz-digest.service');
-const { quizLanguageFor, teacherLanguageFor, canonicalSubject, formatLessonDate, topicFor } = require('./transcript-quiz-language');
+const { quizLanguageFor, teacherLanguageFor, canonicalSubject, formatLessonDate, topicFor, lessonLabel } = require('./transcript-quiz-language');
 
 const OFFER_YES = 'tq_yes_';
 const OFFER_NO = 'tq_no_';
@@ -196,7 +196,6 @@ async function processOffer(coachingSessionId, payload = {}) {
   const language = quizLanguageFor(digest.subject, session.transcript_language);
   const teacherLang = teacherLanguageFor({ preferredLanguage: user.preferred_language, transcriptLanguage: session.transcript_language });
   const topic = topicFor(digest, language);
-  const teacherTopic = topicFor(digest, teacherLang);
 
   await supabase.from('quizzes').update({
     status: 'offered',
@@ -215,7 +214,10 @@ async function processOffer(coachingSessionId, payload = {}) {
   // The offer itself. Video header the first time (when a video is
   // configured), plain buttons after.
   const phone = payload.phone || user.phone_number;
-  const params = { topic: teacherTopic || resolveUx('tqTodaysLesson', { language: teacherLang }), date: formatLessonDate(session.created_at, teacherLang) };
+  const params = {
+    lesson: lessonLabel({ digest, quizLanguage: language, teacherLanguage: teacherLang }),
+    date: formatLessonDate(session.created_at, teacherLang),
+  };
   const body = resolveUx('tqOffer', { language: teacherLang, params });
   const buttons = [
     { id: `${OFFER_YES}${quizId}`, title: resolveUx('tqOfferYes', { language: teacherLang }) },

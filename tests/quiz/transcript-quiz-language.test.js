@@ -54,3 +54,47 @@ describe('teacherLanguageFor — teacher-facing copy', () => {
     expect(L.teacherLanguageFor({ preferredLanguage: 'pa-PK', transcriptLanguage: 'ur' })).toBe('ur');
   });
 });
+
+describe('lessonLabel — the subject and the topic as it was taught', () => {
+  const URDU_GRAMMAR = { topic: 'singular and plural', topic_as_taught: 'واحد اور جمع', subject: 'urdu' };
+
+  test('an English-reading teacher gets the subject in English, the topic as taught, and an English gloss', () => {
+    const s = L.lessonLabel({ digest: URDU_GRAMMAR, quizLanguage: 'ur', teacherLanguage: 'en' });
+    expect(s).toMatch(/Urdu lesson/);
+    expect(s).toMatch(/واحد اور جمع/);
+    expect(s).toMatch(/\(.*singular and plural.*\)/);
+  });
+
+  test('an Urdu-reading teacher whose quiz is Urdu too gets no gloss', () => {
+    const s = L.lessonLabel({ digest: URDU_GRAMMAR, quizLanguage: 'ur', teacherLanguage: 'ur' });
+    expect(s).toMatch(/اردو/);
+    expect(s).toMatch(/واحد اور جمع/);
+    expect(s).not.toMatch(/singular and plural/);
+  });
+
+  test('Islamiyat has a label of its own in both languages — never a raw key', () => {
+    const d = { topic: 'The five pillars', topic_as_taught: 'ارکانِ اسلام', subject: 'islamiat' };
+    expect(L.lessonLabel({ digest: d, quizLanguage: 'ur', teacherLanguage: 'en' })).toMatch(/Islamiyat/);
+    expect(L.lessonLabel({ digest: d, quizLanguage: 'ur', teacherLanguage: 'ur' })).toMatch(/اسلامیات/);
+  });
+
+  test('the digest keys sst and genk map to their catalog labels', () => {
+    expect(L.lessonLabel({ digest: { topic: 'Provinces', topic_as_taught: 'صوبے', subject: 'sst' }, quizLanguage: 'ur', teacherLanguage: 'en' })).toMatch(/Social Studies/);
+    expect(L.lessonLabel({ digest: { topic: 'Our flag', topic_as_taught: 'ہمارا پرچم', subject: 'genk' }, quizLanguage: 'ur', teacherLanguage: 'en' })).toMatch(/General Knowledge/);
+  });
+
+  test('an unmapped subject falls back to the catalog word for a lesson, never "other"', () => {
+    const s = L.lessonLabel({ digest: { topic: 'Shapes we drew', subject: 'art' }, quizLanguage: 'en', teacherLanguage: 'en' });
+    expect(s).toMatch(/^lesson on /);
+    expect(s).not.toMatch(/other/i);
+    const ur = L.lessonLabel({ digest: { topic: 'Shapes', topic_as_taught: 'شکلیں', subject: 'art' }, quizLanguage: 'ur', teacherLanguage: 'ur' });
+    expect(ur).toMatch(/سبق/);
+    expect(ur).not.toMatch(/other/i);
+  });
+
+  test('the topic is isolated so a script switch cannot reorder the sentence around it', () => {
+    const s = L.lessonLabel({ digest: URDU_GRAMMAR, quizLanguage: 'ur', teacherLanguage: 'en' });
+    expect(s).toMatch(/⁨/);
+    expect(s).toMatch(/⁩/);
+  });
+});

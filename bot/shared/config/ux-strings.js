@@ -758,9 +758,12 @@ const UX_STRINGS = {
   // constructions, passives) because the teacher's gender is unknown and the
   // cohort is mixed. English technical terms (quiz, link, PDF, WhatsApp,
   // forward, group) stay in English inside Urdu, as teachers write them.
+  // {lesson} is built by transcript-quiz-language.lessonLabel(): the subject in
+  // the TEACHER's language, the topic as the class actually heard it (the quiz
+  // language), and a teacher-language gloss in brackets when the two differ.
   tqOffer: {
-    en: 'From today’s lesson on *{topic}* ({date}) I can make a short 8-question quiz your students take on WhatsApp — it checks what they learnt, and you get a report on what to reteach.\n\nWant it?\n\nYou can make one for any lesson anytime by sending /quiz.',
-    ur: 'آج کے سبق *{topic}* ({date}) سے طلبہ کے لیے 8 سوالوں کا مختصر quiz تیار ہو سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا سمجھ آیا اور کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟\n\nکسی بھی سبق کا quiz کبھی بھی /quiz بھیج کر بنایا جا سکتا ہے۔',
+    en: 'Your {lesson}, {date}. I can make a short 8-question quiz your students take on WhatsApp — it checks what they learnt, and you get a report on what to reteach.\n\nWant it?\n\nYou can make one for any lesson anytime by sending /quiz.',
+    ur: 'آپ کا {lesson}، {date}۔ طلبہ کے لیے 8 سوالوں کا مختصر quiz تیار ہو سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا سمجھ آیا اور کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟\n\nکسی بھی سبق کا quiz کبھی بھی /quiz بھیج کر بنایا جا سکتا ہے۔',
   },
   tqOfferYes: { en: 'Yes, make it', ur: 'جی، بنائیں' },
   tqOfferNo: { en: 'Not now', ur: 'ابھی نہیں' },
@@ -797,8 +800,8 @@ const UX_STRINGS = {
     ur: 'آپ کا quiz تیار ہے لیکن کلاس کا link ابھی نہیں بن سکا۔ تھوڑی دیر بعد /quiz بھیج کر حاصل کریں۔',
   },
   tqHandoffIntro: {
-    en: '📝 Your quiz on *{topic}* — {n} questions.\n\nThis PDF is for you: each question, why it is asked, what each wrong answer reveals, and what students are told.\n\nThe NEXT message is for your students — forward it to the class group.',
-    ur: '\u200F📝 آپ کا quiz — *{topic}* — {n} سوالات۔\n\nیہ PDF آپ کے لیے ہے: ہر سوال، اس کی وجہ، ہر غلط جواب کیا ظاہر کرتا ہے، اور طلبہ کو کیا بتایا جائے گا۔\n\nاگلا پیغام طلبہ کے لیے ہے — اسے class group میں forward کریں۔',
+    en: '📝 Your quiz — {lesson}, {n} questions.\n\nThis PDF is for you: each question, why it is asked, what each wrong answer reveals, and what students are told.\n\nThe NEXT message is for your students — forward it to the class group.',
+    ur: '\u200F📝 آپ کا quiz — {lesson}، {n} سوالات۔\n\nیہ PDF آپ کے لیے ہے: ہر سوال، اس کی وجہ، ہر غلط جواب کیا ظاہر کرتا ہے، اور طلبہ کو کیا بتایا جائے گا۔\n\nاگلا پیغام طلبہ کے لیے ہے — اسے class group میں forward کریں۔',
   },
   tqForwardThis: {
     en: 'Forward THIS message to your students:',
@@ -1159,6 +1162,25 @@ const CLASS_FLOW_STRINGS = {
 // Folded into the one catalog so resolveUx() is still the single lookup — the
 // block above is kept separate only so this Flow's copy reads as a unit.
 Object.assign(UX_STRINGS, CLASS_FLOW_STRINGS);
+
+/**
+ * Transcript quiz, round 2 — the lesson label the offer and the hand-off are
+ * built from. Kept as one block at the end of the catalog so the three
+ * round-2 workstreams can each append without colliding.
+ *
+ * These four are FRAGMENTS, not messages: lessonLabel() composes one of them
+ * and the result is substituted into {lesson}. The topic arrives already
+ * wrapped in a first-strong isolate, so an Urdu topic inside an English
+ * sentence (or the reverse) cannot drag the punctuation around it.
+ */
+const TRANSCRIPT_QUIZ_R2_STRINGS = {
+  tqLessonOnSubject: { en: '{subject} lesson on {topic}', ur: '\u200F{subject} کا سبق — {topic}' },
+  tqLessonNoTopic:   { en: '{subject} lesson',            ur: '\u200F{subject} کا سبق' },
+  tqLessonOnTopic:   { en: 'lesson on {topic}',           ur: 'سبق — {topic}' },
+  tqLessonPlain:     { en: 'lesson',                      ur: 'سبق' },
+};
+
+Object.assign(UX_STRINGS, TRANSCRIPT_QUIZ_R2_STRINGS);
 
 /**
  * Grade and subject display labels, keyed by the canonical codes in the

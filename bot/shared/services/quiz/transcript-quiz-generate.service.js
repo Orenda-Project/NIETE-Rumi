@@ -23,7 +23,7 @@ const { resolveUx } = require('../../config/ux-strings');
 const Digest = require('./transcript-quiz-digest.service');
 const Author = require('./transcript-quiz-author.service');
 const { validate } = require('./transcript-quiz-validator');
-const { teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor } = require('./transcript-quiz-language');
+const { teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel } = require('./transcript-quiz-language');
 const { SESSION_SELECT } = require('./transcript-quiz-offer.service');
 
 const N_QUESTIONS = 8;
@@ -264,7 +264,10 @@ async function process(quizId, payload = {}) {
     logToFile('⚠️ transcript quiz: PDF render failed (sending the link without it)', { quizId, error: err.message });
   }
 
-  const caption = resolveUx('tqHandoffIntro', { language: teacherLang, params: { topic: quiz.topic, n: qRows.length } });
+  const caption = resolveUx('tqHandoffIntro', {
+    language: teacherLang,
+    params: { lesson: lessonLabel({ digest, quizLanguage: language, teacherLanguage: teacherLang }), n: qRows.length },
+  });
   let pdfSent = false;
   if (tempPath) {
     pdfSent = await WhatsAppService.sendDocument(phone, tempPath, pdfFilename(quiz.topic), caption);

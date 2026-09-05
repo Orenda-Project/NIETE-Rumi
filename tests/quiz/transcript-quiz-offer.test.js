@@ -168,6 +168,29 @@ describe('processOffer (worker)', () => {
     const r = await Offer.processOffer(SID, {});
     expect(r.skipped).toBe('not_self_coaching');
   });
+
+  test('the offer names the SUBJECT and the topic as the class heard it', async () => {
+    Digest.run.mockResolvedValue(GOOD_DIGEST);
+    installFrom(supabase.from, ({ coaching_sessions: { data: [SESSION] }, quizzes: { data: [{ id: QID }] } }));
+    await Offer.processOffer(SID, {});
+    const body = WhatsAppService.sendInteractiveButtons.mock.calls[0][1].body;
+    expect(body).toMatch(/ریاضی/);        // subject, in the teacher's language
+    expect(body).toMatch(/کسریں/);        // the topic as taught, in the quiz language
+    expect(body).not.toMatch(/Fractions/); // no English gloss: both languages are Urdu here
+  });
+
+  test('an English-reading teacher whose quiz is Urdu gets the subject in English and the topic glossed', async () => {
+    Digest.run.mockResolvedValue(GOOD_DIGEST);
+    installFrom(supabase.from, ({
+      coaching_sessions: { data: [{ ...SESSION, users: { ...SESSION.users, preferred_language: 'en' } }] },
+      quizzes: { data: [{ id: QID }] },
+    }));
+    await Offer.processOffer(SID, {});
+    const body = WhatsAppService.sendInteractiveButtons.mock.calls[0][1].body;
+    expect(body).toMatch(/Mathematics lesson/);
+    expect(body).toMatch(/کسریں/);
+    expect(body).toMatch(/Fractions/);
+  });
 });
 
 describe('handleOfferButton', () => {

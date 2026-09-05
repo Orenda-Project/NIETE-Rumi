@@ -54,6 +54,22 @@ describe('buildRows', () => {
     expect(rows[3].description).toMatch(/[؀-ۿ]/);   // no quiz yet, in Urdu
   });
 
+  test('the row description names the subject so the list is not eight identical dates', () => {
+    const sessions = [S(1, { analysis_data: { topic: 'Fractions', subject: 'Maths' } })];
+    const quizzes = [{ id: 'q1', coaching_session_id: 'sess-1', status: 'sent', subject: 'maths', topic: 'کسریں', meta: { started: 2, finished: 1 } }];
+    const rows = List.buildRows(sessions, quizzes, 'en');
+    expect(rows[0].description).toMatch(/Mathematics/);
+    expect(cp(rows[0].description)).toBeLessThanOrEqual(72);
+    const ur = List.buildRows(sessions, quizzes, 'ur');
+    expect(ur[0].description).toMatch(/ریاضی/);
+    expect(cp(ur[0].description)).toBeLessThanOrEqual(72);
+  });
+
+  test('a lesson whose subject is unknown still gets a clean description', () => {
+    const rows = List.buildRows([S(1, { analysis_data: { topic: 'Shapes' } })], [], 'en');
+    expect(rows[0].description).not.toMatch(/other|undefined|null/i);
+  });
+
   test('a lesson with a thin transcript is left out', () => {
     const rows = List.buildRows([S(1, { transcript_text: 'short' }), S(2)], [], 'en');
     expect(rows).toHaveLength(1);

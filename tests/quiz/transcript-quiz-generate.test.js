@@ -106,6 +106,15 @@ describe('process — happy path', () => {
     expect(SQS.queueJob).toHaveBeenCalledWith(QID, 'quiz_nudge_teacher', expect.any(Object), expect.any(Object));
   });
 
+  test('the PDF caption names the subject and the topic as it was taught', async () => {
+    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100 });
+    wire();
+    await Gen.process(QID, {});
+    const caption = WhatsAppService.sendDocument.mock.calls[0][3];
+    expect(caption).toMatch(/ریاضی/);   // the subject, in the teacher's language
+    expect(caption).toMatch(/کسریں/);   // the topic as the class heard it
+  });
+
   test('is idempotent: a quiz already sent does nothing', async () => {
     wire({ quiz: { ...QUIZ, status: 'sent' } });
     const r = await Gen.process(QID, {});

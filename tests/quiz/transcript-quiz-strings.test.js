@@ -62,12 +62,29 @@ describe('transcript-quiz catalog', () => {
     expect(UX_STRINGS[key].ur).not.toMatch(FEM);
   });
 
-  test('the offer copy names the topic and the date, and mentions /quiz', () => {
+  test('the offer copy names the lesson and the date, and mentions /quiz', () => {
     for (const lang of LANGUAGE_OFFER) {
-      const s = resolveUx('tqOffer', { language: lang, params: { topic: 'Fractions', date: '5 Sep' } });
+      const s = resolveUx('tqOffer', { language: lang, params: { lesson: 'Urdu lesson on Fractions', date: '5 Sep' } });
       expect(s).toMatch(/Fractions/);
       expect(s).toMatch(/5 Sep/);
       expect(s).toMatch(/\/quiz/);
+    }
+  });
+
+  test('the hand-off caption names the lesson and the question count', () => {
+    for (const lang of LANGUAGE_OFFER) {
+      const s = resolveUx('tqHandoffIntro', { language: lang, params: { lesson: 'Urdu lesson on Fractions', n: 8 } });
+      expect(s).toMatch(/Fractions/);
+      expect(s).toMatch(/8/);
+    }
+  });
+
+  test('the lesson-label fragments render in both languages and never leak a placeholder', () => {
+    for (const lang of LANGUAGE_OFFER) {
+      expect(resolveUx('tqLessonOnSubject', { language: lang, params: { subject: 'Urdu', topic: 'X' } })).not.toMatch(/[{}]/);
+      expect(resolveUx('tqLessonNoTopic', { language: lang, params: { subject: 'Urdu' } })).not.toMatch(/[{}]/);
+      expect(resolveUx('tqLessonOnTopic', { language: lang, params: { topic: 'X' } })).not.toMatch(/[{}]/);
+      expect(resolveUx('tqLessonPlain', { language: lang })).toMatch(/\S/);
     }
   });
 

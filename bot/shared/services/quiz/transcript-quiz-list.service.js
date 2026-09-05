@@ -19,7 +19,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
 const { truncateCodePoints } = require('./religious-marks');
-const { teacherLanguageFor, formatLessonDate } = require('./transcript-quiz-language');
+const { teacherLanguageFor, formatLessonDate, subjectLabel } = require('./transcript-quiz-language');
 const { MIN_TRANSCRIPT_CHARS } = require('./transcript-quiz-offer.service');
 
 const PICK_PREFIX = 'tq_pick_';
@@ -63,10 +63,15 @@ function buildRows(sessions, quizzes, language) {
       const quiz = byId.get(s.id) || null;
       const topic = quiz?.topic || s.analysis_data?.topic || resolveUx('tqLessonWord', { language });
       const title = truncateCodePoints(`${formatLessonDate(s.created_at, language)} · ${topic}`, TITLE_MAX);
+      // The title is capped at 24 code points, which a date and a topic already
+      // fill, so the SUBJECT goes in the description — otherwise a teacher who
+      // taught three lessons the same week reads three near-identical rows.
+      const subject = subjectLabel(quiz?.subject || s.analysis_data?.subject, language);
+      const status = statusLine(quiz, language);
       return {
         id: `${PICK_PREFIX}${s.id}`,
         title,
-        description: truncateCodePoints(statusLine(quiz, language), DESC_MAX),
+        description: truncateCodePoints(subject ? `${subject} · ${status}` : status, DESC_MAX),
       };
     });
 }
@@ -98,7 +103,7 @@ async function showList(user, phone, language) {
   let quizzes = [];
   if (ids.length) {
     const { data } = await supabase.from('quizzes')
-      .select('id, coaching_session_id, status, topic, meta')
+      .select('id, coaching_session_id, status, topic, subject, meta')
       .eq('teacher_id', user.id).eq('quiz_source', 'transcript').in('coaching_session_id', ids);
     quizzes = data || [];
   }
