@@ -217,7 +217,8 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   }
 
   // Transcript quizzes carry the lesson digest on the quiz row; the SLO each
-  // question checks is stored in the question's external_id ("tq:S2:5").
+  // question checks is stored in the question's external_id ("tq:<quizId>:S2:5";
+  // older rows are "tq:S2:5" — the SLO is the second-to-last segment either way).
   let sloOf = () => null;
   try {
     const { data: quizRow } = await supabase.from('quizzes')
@@ -225,7 +226,10 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     const slos = quizRow?.meta?.digest?.slos;
     if (quizRow?.quiz_source === 'transcript' && Array.isArray(slos)) {
       const byId = new Map(slos.map((s) => [s.id, s.statement]));
-      sloOf = (externalId) => byId.get(String(externalId || '').split(':')[1]) || null;
+      sloOf = (externalId) => {
+        const parts = String(externalId || '').split(':');
+        return byId.get(parts[parts.length - 2]) || null;
+      };
     }
   } catch (e) {
     logToFile('⚠️ video-quiz report: could not read quiz digest (non-fatal)', { error: e.message });

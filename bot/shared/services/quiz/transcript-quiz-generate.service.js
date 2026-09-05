@@ -78,7 +78,10 @@ function toRows(quizId, questions, { rng = Math.random, figureUrls = {} } = {}) 
       distractor_misconceptions: Object.keys(misc).length ? misc : null,
       option_feedback: { correct: String(q.option_feedback?.correct || '').trim(), wrong },
       difficulty_level: LEVEL_DIFFICULTY[q.level] || 3,
-      external_id: `tq:${q.slo_id || 'S?'}:${i + 1}`,
+      // quiz_questions.external_id is unique across ALL quizzes (partial unique
+      // index), so the quiz id is part of it; the report reads the SLO as the
+      // second-to-last segment.
+      external_id: `tq:${quizId}:${q.slo_id || 'S?'}:${i + 1}`,
       render_pattern: media ? 'P3' : 'P1',
       ...(media ? { media } : {}),
       sort_order: i,
