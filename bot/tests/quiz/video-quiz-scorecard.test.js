@@ -21,16 +21,22 @@ const scorecard = require('../../shared/services/quiz/video-quiz-scorecard.servi
 
 beforeEach(() => jest.clearAllMocks());
 
-describe('bd-2474 — starsAndBadge (score -> stars/badge mapping)', () => {
-  test('12/15 = 80% reproduces the approved mockup: 4 stars, SUPER!', () => {
-    expect(renderHtml.starsAndBadge(80)).toEqual({ stars: 4, badge: 'SUPER!' });
+describe('starsAndBadge (score -> stars/badge mapping)', () => {
+  test('12/15 = 80% reproduces the approved mockup: 4 stars', () => {
+    expect(renderHtml.starsAndBadge(80).stars).toBe(4);
   });
-  test('a mid score gets a mid badge, never a defeat framing', () => {
-    expect(renderHtml.starsAndBadge(65)).toEqual({ stars: 3, badge: 'NICE!' });
+  test('the badge word comes from the string catalog, in the quiz language', () => {
+    // bd-mg9c7.28 — an Urdu quiz used to end on an English card. The words
+    // come from the same catalog the caption underneath it is built from, so
+    // the two can never say different things in different languages.
+    const { UX_STRINGS } = require('../../shared/config/ux-strings');
+    expect(renderHtml.starsAndBadge(90, 'en').badge).toBe(UX_STRINGS.vqBadgeMastered.en);
+    expect(renderHtml.starsAndBadge(90, 'ur').badge).toBe(UX_STRINGS.vqBadgeMastered.ur);
+    expect(renderHtml.starsAndBadge(65, 'ur').badge).toBe(UX_STRINGS.vqBadgeDeveloping.ur);
+    expect(renderHtml.starsAndBadge(20, 'ur').badge).toBe(UX_STRINGS.vqBadgeNeedsPractice.ur);
   });
-  test('a low score still gets a positive badge, never "FAILED" or similar', () => {
-    const { badge } = renderHtml.starsAndBadge(20);
-    expect(badge).toBe('KEEP GOING!');
+  test('a low score still gets a positive badge, never a defeat framing', () => {
+    const { badge } = renderHtml.starsAndBadge(20, 'en');
     expect(badge).not.toMatch(/fail|wrong|bad/i);
   });
   test('stars is clamped to [0,5] even at the extremes', () => {
@@ -132,65 +138,98 @@ function bgOf(html) {
   return html.match(/\.card \{[^}]*background:([^;]+);/)[1];
 }
 
-describe('bd-2477 #4 / bd-2480 — score-tier background as the lightweight GIF fallback', () => {
-  test('a mastered score (>=80%) gets the most vivid, most celebratory palette', () => {
+describe('bd-mg9c7.28 — the three tiers are NIETE grounds, not another product\'s', () => {
+  test('mastered (>=80%) is the brand green gradient', () => {
     const html = renderHtml({ topic: 'x', correct: 9, total: 10, pct: 90 });
-    expect(html).toMatch(/#F5B301/); // full-saturation brand gold
+    expect(bgOf(html)).toMatch(/#2F9C66/i);
+    expect(bgOf(html)).toMatch(/#47BA7D/i);
   });
 
-  test('a developing score (60-79%) gets a visibly different, calmer accent than mastered', () => {
-    const masteredBg = bgOf(renderHtml({ topic: 'x', correct: 9, total: 10, pct: 90 }));
-    const developingBg = bgOf(renderHtml({ topic: 'x', correct: 6, total: 10, pct: 65 }));
-    expect(developingBg).not.toBe(masteredBg);
+  test('developing (60-79%) is the brand navy-slate gradient', () => {
+    const html = renderHtml({ topic: 'x', correct: 6, total: 10, pct: 65 });
+    expect(bgOf(html)).toMatch(/#333748/i);
+    expect(bgOf(html)).toMatch(/#4B5168/i);
   });
 
-  test('a needs_practice score (<60%) gets the calmest palette — still gold-family accent, never red/green', () => {
-    const needsPractice = renderHtml({ topic: 'x', correct: 2, total: 10, pct: 20 });
-    const masteredBg = bgOf(renderHtml({ topic: 'x', correct: 9, total: 10, pct: 90 }));
-    const needsPracticeBg = bgOf(needsPractice);
-    expect(needsPracticeBg).not.toBe(masteredBg);
-    // The accent (badge/stars) stays in the gold family even as the canvas
-    // itself moves toward neutral — never introduces a red/green hue.
-    expect(needsPractice).toMatch(/#B98B3D/);
+  test('needs practice (<60%) is the calm charcoal gradient with a muted green accent', () => {
+    const html = renderHtml({ topic: 'x', correct: 2, total: 10, pct: 20 });
+    expect(bgOf(html)).toMatch(/#2A2C31/i);
+    expect(bgOf(html)).toMatch(/#45484F/i);
+    expect(html).toMatch(/#3E8F63/i);
   });
 
-  // bd-2480: caught in review — the first pass put all three backgrounds
-  // within a ~15-value navy hue band, imperceptible at a glance ("I dont see
-  // any real background color change?"). A string-inequality check alone
-  // would never catch that regression, so this measures the ACTUAL visual
-  // gap: the first gradient stop's luminance must jump meaningfully tier to
-  // tier, not just differ by a rounding error.
+  test('no gold, no coral, no other product\'s navy anywhere on the card', () => {
+    [90, 65, 20].forEach((pct) => {
+      const html = renderHtml({ topic: 'x', correct: 1, total: 1, pct });
+      expect(html).not.toMatch(/#F5B301|#D9A233|#B98B3D|#001F3F|#1D57A6/i);
+    });
+  });
+
+  // bd-2480's lesson, kept: three backgrounds inside one narrow hue band read
+  // as the same card at a glance. A string-inequality check cannot see that,
+  // so this measures the actual brightness step between tiers.
   test('each tier is a REAL visible jump in brightness, not an imperceptible shade', () => {
-    const masteredFrom = bgOf(renderHtml({ topic: 'x', correct: 9, total: 10, pct: 90 }))
-      .match(/#[0-9A-Fa-f]{6}/)[0];
-    const developingFrom = bgOf(renderHtml({ topic: 'x', correct: 6, total: 10, pct: 65 }))
-      .match(/#[0-9A-Fa-f]{6}/)[0];
-    const needsPracticeFrom = bgOf(renderHtml({ topic: 'x', correct: 2, total: 10, pct: 20 }))
-      .match(/#[0-9A-Fa-f]{6}/)[0];
+    const first = (pct) => bgOf(renderHtml({ topic: 'x', correct: 1, total: 1, pct })).match(/#[0-9A-Fa-f]{6}/)[0];
+    const lumMastered = luminance(first(90));
+    const lumDeveloping = luminance(first(65));
+    const lumNeedsPractice = luminance(first(20));
 
-    const lumMastered = luminance(masteredFrom);
-    const lumDeveloping = luminance(developingFrom);
-    const lumNeedsPractice = luminance(needsPracticeFrom);
-
-    // A gap under ~0.03 reads as "the same card" on a phone screen — the
-    // exact bug bd-2480 fixes. Require each step to clear that bar.
     const MIN_PERCEPTIBLE_GAP = 0.03;
     expect(Math.abs(lumMastered - lumDeveloping)).toBeGreaterThan(MIN_PERCEPTIBLE_GAP);
     expect(Math.abs(lumDeveloping - lumNeedsPractice)).toBeGreaterThan(MIN_PERCEPTIBLE_GAP);
     expect(Math.abs(lumMastered - lumNeedsPractice)).toBeGreaterThan(MIN_PERCEPTIBLE_GAP * 2);
   });
 
-  test('all three tiers still render as valid on-brand hex colors', () => {
+  test('white text on every tier — the score must stay legible on all three', () => {
     [90, 65, 20].forEach((pct) => {
       const html = renderHtml({ topic: 'x', correct: 1, total: 1, pct });
-      const bg = bgOf(html);
-      const hexes = bg.match(/#[0-9A-Fa-f]{6}/g) || [];
-      expect(hexes.length).toBeGreaterThan(0);
+      expect(html).toMatch(/\.card \{[^}]*color:#fff/);
     });
   });
 });
 
-describe('bd-2477 #2 — the Rumi mark appears white-on-transparent, top right', () => {
+describe('bd-mg9c7.28 — the child\'s own language on her own card', () => {
+  const { UX_STRINGS } = require('../../shared/config/ux-strings');
+
+  test('an Urdu name renders inside an RTL element led by the Nastaliq face', () => {
+    const html = renderHtml({ topic: 'کسریں', correct: 6, total: 8, pct: 75, takerName: 'علی', language: 'ur' });
+    expect(html).toMatch(/class='name content' dir='rtl'>علی</);
+    const css = html.match(/<style>([\s\S]*?)<\/style>/)[1].replace(/@font-face\{[^}]*\}/g, '');
+    expect(css).toMatch(/\.content\[dir="rtl"\]\{[^}]*font-family:'NastaliqUrdu'/);
+  });
+
+  test('embeds Nastaliq as a non-empty base64 face alongside Lexend', () => {
+    const html = renderHtml({ topic: 'x', correct: 1, total: 1, pct: 100, language: 'ur' });
+    expect(html).toMatch(/@font-face\{font-family:'NastaliqUrdu';font-weight:400;src:url\(data:font\/ttf;base64,[A-Za-z0-9+/=]{100,}/);
+  });
+
+  test('every font-family declaration names both families', () => {
+    const html = renderHtml({ topic: 'x', correct: 1, total: 1, pct: 100, language: 'ur' });
+    const css = html.match(/<style>([\s\S]*?)<\/style>/)[1].replace(/@font-face\{[^}]*\}/g, '');
+    const decls = css.match(/font-family:[^;}]+/g) || [];
+    expect(decls.length).toBeGreaterThan(1);
+    decls.forEach((d) => {
+      expect(d).toMatch(/NastaliqUrdu/);
+      expect(d).toMatch(/Lexend/);
+    });
+  });
+
+  test('the eyebrow and the badge are the catalog words for that language', () => {
+    const html = renderHtml({ topic: 'کسریں', correct: 8, total: 8, pct: 100, language: 'ur' });
+    expect(html).toMatch(new RegExp(UX_STRINGS.vqScorecardEyebrow.ur));
+    expect(html).toMatch(new RegExp(UX_STRINGS.vqBadgeMastered.ur));
+    expect(html).not.toMatch(/QUIZ COMPLETE/);
+  });
+
+  test('the foot names the subject only — never a grade, never another org', () => {
+    const html = renderHtml({ topic: 'Fractions', correct: 1, total: 1, pct: 100, grade: 'Grade 4', subject: 'Maths' });
+    expect(html).not.toMatch(/Taleemabad/);
+    expect(html).not.toMatch(/Grade 4/);
+    expect(html).toMatch(/Maths/);
+  });
+});
+
+describe('the NIETE mark appears white-on-transparent, top right', () => {
   test('embeds the canonical white-on-transparent mark as base64, never redrawn', () => {
     const html = renderHtml({ topic: 'x', correct: 1, total: 1, pct: 100 });
     expect(html).toMatch(/<img[^>]*class=["']logo["'][^>]*src=["']data:image\/png;base64,[A-Za-z0-9+/=]+["']/);
@@ -215,6 +254,14 @@ describe('bd-2474 — renderScorecardImage', () => {
     htmlToImage.mockRejectedValueOnce(new Error('playwright timeout'));
     const png = await scorecard.renderScorecardImage({ topic: 'x', correct: 1, total: 1, pct: 100 });
     expect(png).toBeNull();
+  });
+
+  test('bd-mg9c7.28: forwards the quiz language into the rendered HTML', async () => {
+    await scorecard.renderScorecardImage({
+      topic: 'کسریں', correct: 1, total: 1, pct: 100, takerName: 'علی', language: 'ur',
+    });
+    const [html] = htmlToImage.mock.calls[0];
+    expect(html).toMatch(/class='name content' dir='rtl'>علی</);
   });
 
   test('bd-2481: forwards takerName into the rendered HTML', async () => {

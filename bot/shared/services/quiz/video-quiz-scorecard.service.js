@@ -45,11 +45,13 @@ function buildCaption({ correct, total, pct, stars, language = 'en' }) {
 }
 
 /** Pure render step — a PNG buffer, or null on failure. Testable without WhatsApp. */
-async function renderScorecardImage({ topic, correct, total, pct, grade, subject, takerName }) {
+async function renderScorecardImage({ topic, correct, total, pct, subject, takerName, language = 'en' }) {
   try {
     const renderHtml = require('../../templates/video-quiz-scorecard.template');
     const { htmlToImage } = require('../../utils/html-to-pdf');
-    const html = renderHtml({ topic, correct, total, pct, grade, subject, takerName });
+    // `language` is the QUIZ's — a child reads her card in whatever language
+    // she just answered in, and her name has to render in its own script.
+    const html = renderHtml({ topic, correct, total, pct, subject, takerName, language });
     const png = await htmlToImage(html, { width: 540, deviceScaleFactor: 2, selector: '.card' });
     return png || null;
   } catch (err) {
@@ -63,12 +65,12 @@ async function renderScorecardImage({ topic, correct, total, pct, grade, subject
  * fell back (caller is expected to have already sent, or to send, the plain
  * text version — see finish() in video-quiz.service.js).
  */
-async function sendScorecard(phone, { topic, correct, total, pct, grade, subject, takerName, language = 'en' }) {
+async function sendScorecard(phone, { topic, correct, total, pct, subject, takerName, language = 'en' }) {
   const { starsAndBadge } = require('../../templates/video-quiz-scorecard.template');
-  const { stars } = starsAndBadge(pct);
+  const { stars } = starsAndBadge(pct, language);
   const caption = buildCaption({ correct, total, pct, stars, language });
 
-  const png = await renderScorecardImage({ topic, correct, total, pct, grade, subject, takerName });
+  const png = await renderScorecardImage({ topic, correct, total, pct, subject, takerName, language });
   if (!png) return false;
 
   try {
