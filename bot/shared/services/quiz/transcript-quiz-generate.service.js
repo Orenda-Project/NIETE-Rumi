@@ -28,6 +28,25 @@ const { SESSION_SELECT } = require('./transcript-quiz-offer.service');
 
 const N_QUESTIONS = 8;
 const MAX_ATTEMPTS = 2;
+
+/** Subjects where a lesson can nearly always be drawn with the allowed types. */
+const DRAWABLE_SUBJECTS = new Set(['maths', 'science', 'genk']);
+
+/**
+ * "Write at least ONE picture question" was advisory: the first live science
+ * lesson of round 4 (Structure of an Atom — the class was asked to draw atoms)
+ * came back as eight text questions and nothing sent it back. A drawable
+ * lesson with zero figures now fails every attempt but the last, with the
+ * reason in the retry note; the last attempt is never failed for it — a quiz
+ * without a picture beats no quiz.
+ */
+function figureRequiredError({ questions, subject, attempt, maxAttempts }) {
+  if (!DRAWABLE_SUBJECTS.has(String(subject || '').toLowerCase())) return null;
+  if (attempt >= maxAttempts) return null;
+  const drawn = (Array.isArray(questions) ? questions : []).some((q) => q && q.figure && typeof q.figure === 'object');
+  if (drawn) return null;
+  return `quiz: FIGURE_REQUIRED — this ${subject} lesson is drawable but none of the questions carries a "figure". Decide the drawing FIRST (what the class was shown or asked to draw), then write one or two questions the child answers by reading the picture.`;
+}
 const GAP_MS = 1200;
 const NUDGE_AFTER_MS = 3 * 60 * 60 * 1000;
 const LEVEL_DIFFICULTY = { recall: 2, understand: 3, apply: 4 };
@@ -382,6 +401,15 @@ async function process(quizId, payload = {}) {
       attempts.push({ attempt, model: out.model, cost_usd: out.costUsd, latency_ms: out.latencyMs, errors: v.errors });
       meta.cost_usd = (meta.cost_usd || 0) + (out.costUsd || 0);
       if (v.ok) {
+        const needFig = figureRequiredError({ questions: v.questions, subject: digest.subject, attempt, maxAttempts: MAX_ATTEMPTS });
+        if (needFig) {
+          attempts[attempts.length - 1].errors = [needFig];
+          logToFile('⚠️ transcript quiz: drawable lesson came back without a picture', { quizId, attempt });
+          previousErrors = [needFig];
+          lastRejected = out.questions;
+          lastErrors = [needFig];
+          continue;
+        }
         // The pictures are made BEFORE any row is stored: a figure that cannot
         // be drawn, screenshotted or uploaded fails this attempt exactly as a
         // validator complaint does, and the model is told which question and why.
@@ -536,6 +564,7 @@ async function process(quizId, payload = {}) {
 
 module.exports = {
   salvageWithoutBadFigures,
+  figureRequiredError,
   process, toRows, renderFigures, renderCards, applyMedia, withFigureSvgs, studentMessage, teacherLabel, renderPdf, pdfFilename,
   sleep, N_QUESTIONS, MAX_ATTEMPTS, NUDGE_AFTER_MS,
 };

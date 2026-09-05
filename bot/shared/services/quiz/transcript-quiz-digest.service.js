@@ -42,7 +42,7 @@ ${hintLine}
 
 RULES
 - Use ONLY the transcript. If the transcript is too thin or garbled to identify what was taught, say so via confidence < 0.5.
-- "slos" = the specific learning objectives the teacher ACTUALLY taught, 2–6 of them, each with a short verbatim evidence quote from the transcript (in its original language) and the level the teacher pitched it at: "recall" (name/repeat/identify), "understand" (explain/compare/give own example), "apply" (solve/use in a new case). Write each SLO statement in the lesson's own language (Urdu in Urdu script for an Urdu lesson). In an Urdu statement, English technical terms stay in English letters (the same rule as topic_as_taught).
+- "slos" = the specific learning objectives the teacher ACTUALLY taught, 2–6 of them, each with a short verbatim evidence quote from the transcript (in its original language) and the level the teacher pitched it at: "recall" (name/repeat/identify), "understand" (explain/compare/give own example), "apply" (solve/use in a new case). Write each SLO statement in the lesson's own language (Urdu in Urdu script for an Urdu lesson). In an Urdu statement, English technical terms stay in English letters (the same rule as topic_as_taught). Every SLO ALSO carries "statement_en" (the same objective in English) and "statement_ur" (the same objective in Urdu script, English technical terms in English letters) — the teacher may ask for the quiz in either language and her document must read in one language only.
 - "topic_as_taught" = the topic label the way the teacher named it in class, in the lesson's own language (Urdu in Urdu script, never Roman Urdu). ENGLISH TECHNICAL TERMS ARE WRITTEN IN ENGLISH LETTERS, never transliterated into Urdu script: write "Proper Fraction", "numerator", "photosynthesis" — not "پروپر فیکشن", "نیومریٹر". A transcript that spells such a term in Urdu letters is the speech-to-text's doing; you write the term itself. For Urdu, Islamiyat, Social Studies and General Knowledge lessons the label is Urdu (with any English term in English letters). "topic" = a clean short label in English.
 - "subject" must be one of: urdu | english | maths | science | sst | genk | islamiat | other.
 - "grade_band" from content difficulty and any grade mentioned: "1-2" | "3-5" | "6-8" | "9-10".
@@ -57,7 +57,7 @@ Return ONLY this JSON object:
 {
   "topic": "", "topic_as_taught": "", "subject": "urdu|english|maths|science|sst|genk|islamiat|other", "subject_conflict": false,
   "grade_band": "", "language_of_instruction": "", "confidence": 0.0,
-  "slos": [ { "id": "S1", "statement": "", "evidence_quote": "", "taught_level": "recall|understand|apply" } ],
+  "slos": [ { "id": "S1", "statement": "", "statement_en": "", "statement_ur": "", "evidence_quote": "", "taught_level": "recall|understand|apply" } ],
   "key_terms": [ { "term": "", "as_spoken": "" } ],
   "examples_used": [ "" ],
   "misconceptions_surfaced": [ "" ]
@@ -93,6 +93,10 @@ function normaliseDigest(raw, { storedSubject } = {}) {
     slos: slos.filter((s) => s && (s.statement || s.id)).slice(0, 6).map((s, i) => ({
       id: String(s.id || `S${i + 1}`).trim(),
       statement: fixTransliterations(String(s.statement || '').trim()),
+      // One document, one language (PLAN_R4 D1): the PDF and the report pick
+      // the statement in THEIR language, whatever language the lesson was in.
+      statement_en: fixTransliterations(String(s.statement_en || s.statement || '').trim()),
+      statement_ur: fixTransliterations(String(s.statement_ur || s.statement || '').trim()),
       evidence_quote: String(s.evidence_quote || '').trim(),
       taught_level: ['recall', 'understand', 'apply'].includes(s.taught_level) ? s.taught_level : 'understand',
     })),

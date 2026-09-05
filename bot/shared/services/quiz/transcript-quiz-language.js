@@ -198,6 +198,13 @@ function fixTransliterations(text) {
  */
 const ENGLISH_CONNECTOR_IN_URDU = new RegExp(`(^|[^${WORD_CHAR}])(آف|اینڈ)(?![${WORD_CHAR}])`, 'u');
 
+/** The SLO statement in the DOCUMENT's language (D1); falls back to the lesson-language one. */
+function sloStatement(slo, language) {
+  if (!slo) return '';
+  const pick = language === 'ur' ? slo.statement_ur : slo.statement_en;
+  return String(pick || slo.statement || '').trim();
+}
+
 function isTransliteratedEnglishPhrase(label) {
   return ENGLISH_CONNECTOR_IN_URDU.test(String(label || ''));
 }
@@ -332,6 +339,7 @@ module.exports = {
   fixTransliterations,
   fixQuestionTransliterations,
   isTransliteratedEnglishPhrase,
+  sloStatement,
   TRANSLITERATIONS,
   URDU_MEDIUM,
   LANG_NAME,
