@@ -548,19 +548,32 @@ async function handleAnswer(phone, inputId) {
  * Rebuild a session's progress from quiz_answers and continue. Idempotent:
  * a second call after the finish finds no state and does nothing.
  */
-async function reconcileFromAnswers(phone, state) {
+/**
+ * What the answers table says about a session — the truth the card and the
+ * report are built from. Round 4 live run 2: the session row had drifted to 5
+ * while eight answers were stored, and a reconcile that intersected the
+ * state's question list with the table counted six. Count the table itself.
+ */
+async function truthFromAnswers(sessionId) {
   const { data: rows } = await supabase
     .from('quiz_answers')
     .select('question_id, is_correct')
-    .eq('session_id', state.sessionId);
+    .eq('session_id', sessionId);
   const byQ = new Map((rows || []).map((r) => [r.question_id, !!r.is_correct]));
+  let correct = 0;
+  for (const v of byQ.values()) if (v) correct += 1;
+  return { byQ, answered: byQ.size, correct };
+}
+
+async function reconcileFromAnswers(phone, state) {
+  const truth = await truthFromAnswers(state.sessionId);
   const ids = state.questionIds || [];
-  const answeredIds = ids.filter((id) => byQ.has(id));
-  state.answered = answeredIds.length;
-  state.correct = answeredIds.filter((id) => byQ.get(id)).length;
-  // The first unanswered question is where the child continues.
-  const firstOpen = ids.findIndex((id) => !byQ.has(id));
-  state.index = firstOpen < 0 ? ids.length : firstOpen;
+  state.answered = truth.answered;
+  state.correct = truth.correct;
+  // The first unanswered question is where the child continues; a stale
+  // question list that is shorter than the answers means the quiz is over.
+  const firstOpen = ids.findIndex((id) => !truth.byQ.has(id));
+  state.index = (firstOpen < 0 || truth.answered >= ids.length) ? ids.length : firstOpen;
   state.currentQuestionId = null;
   await redisService.set(STATE_KEY(phone), state, STATE_TTL_SECS);
   await supabase.from('quiz_sessions').update({
@@ -573,8 +586,19 @@ async function reconcileFromAnswers(phone, state) {
 }
 
 async function finish(phone, state) {
-  const total = state.answered || 0;
-  const pct = total ? Math.round((state.correct / total) * 100) : 0;
+  // The answers table is the truth; the in-memory counters are a cache that
+  // has been seen to drift (round 4 live run 2: 6/5 in the state, 8/7 stored).
+  let total = state.answered || 0;
+  let correct = state.correct || 0;
+  try {
+    const truth = await truthFromAnswers(state.sessionId);
+    if (truth.answered > 0) { total = truth.answered; correct = truth.correct; }
+  } catch (e) {
+    logToFile('⚠️ video-quiz: could not read the answers table at finish (using the state)', { error: e.message });
+  }
+  state.answered = total;
+  state.correct = correct;
+  const pct = total ? Math.round((correct / total) * 100) : 0;
   const level = pct >= 80 ? 'mastered' : pct >= 60 ? 'developing' : 'needs_practice';
 
   await supabase.from('quiz_sessions').update({
