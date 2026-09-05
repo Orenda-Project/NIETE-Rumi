@@ -42,12 +42,12 @@ const { familyForBook } = require('../config/lp612-families');
 // Static, literal requires on purpose: the repo's unresolved-require audit reads the source
 // text, and a `require(path.join(...))` is invisible to it — which is how a vendored file that
 // stopped existing would reach production as a runtime crash instead of a red gate.
-const { lint } = require('../../vendor/lp-v9/lint_lp.js');
+const { lint, overlayDefects, OVERLAY_MIN_COVERAGE } = require('../../vendor/lp-v9/lint_lp.js');
 const { meetsSubjectMinimum } = require('../../vendor/lp-v9/visual_check.js');
 const { validateDoc } = require('../../vendor/lp-v9/lib/validate.js');
 // The renderer's OWN pointer resolver and frozen-slot list, so `sanitizeOverlay` cannot
 // disagree with `applyOverlay` about what is applicable — one implementation, not two.
-const { pointerParent, frozenReason } = require('../../vendor/lp-v9/lib/overlay.js');
+const { pointerParent, pointerGet, frozenReason } = require('../../vendor/lp-v9/lib/overlay.js');
 // The page caps the RENDERER will actually gate on, so the budget card in the prompt and the
 // gate can never state different numbers (bd-vjk68). This module's top-level cost is `fs`,
 // `path` and its own libs — `playwright-core` is required lazily inside the launch path — so
@@ -345,11 +345,13 @@ function extractJson(text) {
  *
  * @throws Error with .code 'LLM_FAILED'
  */
-async function callLlm({ system, user, model, correlationId, stage }) {
+async function callLlm({ system, user, model, correlationId, stage, maxTokens }) {
   const payload = {
     model,
     temperature: TEMPERATURE,
-    max_tokens: MAX_TOKENS,
+    // The overlay pass asks for a smaller ceiling than an lp_doc needs (bd-zle0u). Defaulted,
+    // never required, so every existing caller is byte-identical.
+    max_tokens: maxTokens || MAX_TOKENS,
     reasoning: { enabled: false },
     messages: [
       { role: 'system', content: system },
@@ -434,11 +436,11 @@ async function callLlm({ system, user, model, correlationId, stage }) {
  * @throws Error with .code 'UNPARSEABLE' | 'LLM_FAILED' — the CALLER decides what that costs,
  *         and for a revision round the answer is: that round, never the ladder.
  */
-async function callWithRetry({ system, user, model, correlationId, stage, usageSink }) {
+async function callWithRetry({ system, user, model, correlationId, stage, usageSink, maxTokens }) {
   let lastErr = null;
   for (const attempt of [1, 2]) {
     try {
-      const { text, usage } = await callLlm({ system, user, model, correlationId, stage: `${stage}.a${attempt}` });
+      const { text, usage } = await callLlm({ system, user, model, correlationId, stage: `${stage}.a${attempt}`, maxTokens });
       usageSink(usage);
       try {
         return extractJson(text);
@@ -1671,6 +1673,249 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
   };
 }
 
+// ── the Urdu overlay pass (bd-zle0u) ────────────────────────────────────────
+//
+// THE SEPARATE PASS OVER THE FINISHED DOCUMENT. It is written down here because for the whole
+// life of this lane a per-request prompt line claimed this function existed, and it did not: a
+// grep for `ur_overlay` found only readers, so every English-medium book asked for in Urdu was
+// delivered in English, six times out of six, with no error at any layer (bd-vnyuw).
+//
+// The two numbers that decide its shape. The overlay is ~7,000 output tokens. Inside the
+// revision ladder that is paid on EVERY round — measured 18-21k completion tokens against 9-14k
+// without it — and five rounds of that blew the 840s author timeout on all three Urdu cells,
+// replacing a wrong-language lesson with no lesson at all. Once, at the end, on the document the
+// ladder has already accepted, is ONE call: ~45-60s at the measured 142 tok/s.
+//
+// THREE DESIGN CHOICES, each one a bug that has already happened here:
+//
+//   1. IT IS NOT SENT THE DOCUMENT. It is sent the exact pointer -> English map, and only keys
+//      from that map are kept. The first real overlay this lane ever produced wrote eight
+//      pointers into blocks the model had not written, and `render_lp.js` refuses the WHOLE
+//      document on any `OVERLAY_INVALID` — so the fix for "she gets an English lesson"
+//      manufactured "she gets NO lesson". `sanitizeOverlay` repairs that afterwards; not
+//      offering the model the opportunity is better than repairing it.
+//   2. IT GATES ITS OWN OUTPUT, IN CODE, BEFORE ANYONE TRUSTS IT (rule 24(c)). Coverage against
+//      `overlayDefects` at `expected: true` — the same computation the linter runs, never a
+//      second one that can drift — AND that the values are actually Urdu script. Every
+//      structural gate in this repo passes on an overlay written in English: the pointers
+//      resolve, the coverage clears, the render succeeds, and the row records
+//      `overlay_dropped = false` on the same English page she has always received. That row
+//      would be worse than the bug, because it asserts the bug is fixed.
+//   3. IT THROWS RATHER THAN DEGRADES. The caller (the worker) holds a rendered English PDF and
+//      falls back to it. A pass that returned a thin overlay "to be helpful" would put half-Urdu
+//      prose in front of a teacher; a pass that returned `{}` would be indistinguishable from
+//      the bug. Failure here is loud and its cost is bounded and known.
+
+/** Output cap for the overlay call. Measured need is ~7k; this is headroom, not an expectation. */
+const OVERLAY_MAX_TOKENS = 16000;
+
+/**
+ * How much of the overlay's own text must be Urdu script before we believe it is a translation.
+ *
+ * Not 100%, and not by accident: a correct Urdu instruction keeps its terms of record in English
+ * («صحیح (integer)»), keeps `\ce{}` and maths as Latin atoms, and keeps codes and URLs verbatim
+ * (§7b, language-protocol §9.5). A threshold of 1.0 would reject the best output this pass can
+ * produce. Half is the same line `OVERLAY_MIN_COVERAGE` draws for a different axis: below it the
+ * page is not an Urdu lesson, it is an English one with Urdu decoration.
+ */
+const OVERLAY_MIN_URDU = 0.5;
+
+/** Urdu/Arabic script, the block the renderer sets in Nastaliq. */
+const URDU_RE = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/g;
+
+/** The share of a string's LETTERS that are Urdu script. Punctuation and digits are ignored. */
+function urduShare(text) {
+  const s = String(text || '');
+  const urdu = (s.match(URDU_RE) || []).length;
+  const latin = (s.match(/[A-Za-z]/g) || []).length;
+  const total = urdu + latin;
+  return total ? urdu / total : 0;
+}
+
+/**
+ * The pass's system prompt. Deliberately SHORT — this is a translation job on strings that have
+ * already passed every pedagogical gate, so none of the ~95KB author brief applies, and paying
+ * for it again on every Urdu lesson would be most of the cost this bead exists to remove.
+ *
+ * What it must carry is only what the renderer cannot repair afterwards: the script, the digits,
+ * the terms of record, and the atoms that must survive byte-for-byte. Those come straight from
+ * brief §7b/§7c.7 and the language-protocol skill §9, and each line below is a defect that was
+ * found on a rendered page rather than a rule invented at a desk.
+ */
+function overlayBrief() {
+  return [
+    'You translate the INSTRUCTION STRINGS of a finished lesson plan into Urdu. The lesson itself',
+    'is complete and correct; you are not rewriting it, reordering it, shortening it, or improving',
+    'it. You are producing the Urdu the teacher reads in place of each English string.',
+    '',
+    'INPUT: a JSON object mapping RFC-6901 JSON Pointers to the English string at that pointer.',
+    'OUTPUT: ONE JSON object with EXACTLY THE SAME KEYS, each mapped to its Urdu replacement.',
+    'No prose, no markdown fence, no commentary, no extra keys, no omitted keys.',
+    '',
+    'RULES, in the order they get broken:',
+    '',
+    '1. URDU SCRIPT, always. Never Roman Urdu, never a transliteration.',
+    '2. DIGITS ARE URDU DIGITS ۰۱۲۳۴۵۶۷۸۹ in prose — never the Arabic set ٠١٢٣, never ASCII.',
+    '   ASCII digits stay ONLY inside an atom that must remain machine-Latin: a code, a phone',
+    '   number as dialled, a URL, or mathematics.',
+    '3. TERMS OF RECORD STAY ENGLISH, IN PLACE. A technical term the textbook prints in English',
+    '   keeps its English form, sitting exactly where the word belongs in the Urdu sentence, with',
+    '   an Urdu gloss on first mention: «نباتاتی افزائش (Vegetative Propagation)». Do not',
+    '   translate it away and do not move it to the end of the sentence.',
+    '4. MATHEMATICS, CHEMISTRY AND CODE ARE COPIED BYTE FOR BYTE. Anything in $...$, any',
+    '   \\ce{...}, any formula, any URL, any SLO code, any file or figure reference. Translating',
+    '   the words around them is the job; touching them is not.',
+    '5. A TEXTBOOK QUOTATION STAYS IN THE BOOK\'S LANGUAGE. Translate the instruction around the',
+    '   quote, never the quote.',
+    '6. THE STRING KEEPS ITS KIND. A question stays a question, an imperative stays an imperative,',
+    '   a label stays a label of the same length class. These strings are laid out in fixed boxes',
+    '   on a printed page, so a two-word English label that becomes a twelve-word Urdu sentence',
+    '   breaks the page it sits on.',
+    '7. ADDRESS THE TEACHER GENDER-NEUTRALLY. Urdu second-person verb forms are gendered; use',
+    '   imperatives («کریں», «پوچھیں») or let the verb agree with a NOUN. A mixed-gender cohort',
+    '   reads every one of these lines.',
+    '8. URDU PUNCTUATION FOR URDU SENTENCES: ۔ ، ؟ — not . , ?',
+  ].join('\n');
+}
+
+/**
+ * The user message: the pointer -> English map, plus the little context that decides register.
+ *
+ * The document is NOT included. It would cost ~8k input tokens to say nothing this map does not
+ * already say, and — the reason that matters — a model that can see the document's shape can
+ * address a pointer that is not in the map. That is precisely how the first overlay this lane
+ * produced took the whole lesson down.
+ */
+function buildOverlayPrompt({ lpDoc, segment, targets }) {
+  const prov = (lpDoc && lpDoc.provenance) || {};
+  const seg = segment || {};
+  const map = {};
+  for (const ptr of targets) map[ptr] = pointerGet(lpDoc, ptr);
+  return [
+    `SUBJECT: ${seg.subject || prov.subject || 'unknown'}`,
+    `GRADE: ${seg.grade || prov.grade || 'unknown'}`,
+    `TOPIC: ${seg.subtopic_title || seg.menu_title || prov.topic || ''}`,
+    '',
+    `Translate all ${targets.length} strings below into Urdu. Return ONE JSON object with these`,
+    'exact keys and no others.',
+    '',
+    JSON.stringify(map, null, 1),
+  ].join('\n');
+}
+
+/**
+ * Translate an accepted lesson plan's instruction strings into Urdu. ONE model call.
+ *
+ * @param {object}  args.lpDoc    the ACCEPTED document — already lint-clean and renderable
+ * @param {object}  args.segment  for subject/grade/topic context and telemetry only
+ * @param {string} [args.model]
+ * @param {string} [args.correlationId]
+ * @returns {Promise<{overlay:object, usage:object, model:string, coverage:number,
+ *                    targets:number, elapsedMs:number}>}
+ * @throws  Error with .code in {'OVERLAY_NO_TARGETS','OVERLAY_LLM_FAILED','OVERLAY_UNPARSEABLE',
+ *          'OVERLAY_NOT_URDU','OVERLAY_TOO_THIN'} — the CALLER decides what that costs, and the
+ *          answer is always "this lesson is delivered in English", never "this lesson is lost".
+ */
+async function overlayLessonPlan({ lpDoc, segment, model, correlationId } = {}) {
+  const startedAt = Date.now();
+  const seg = segment || {};
+  const targets = overlayDefects.targets(lpDoc);
+  if (!targets.length) {
+    throw fail('OVERLAY_NO_TARGETS',
+      'this document carries no overlayable instruction string — nothing to translate');
+  }
+
+  const chosenModel = model || resolveAuthorModel(familyForBook(seg.book_stem || ''));
+  const usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, calls: 0 };
+  const addUsage = (u) => {
+    usage.calls += 1;
+    usage.prompt_tokens += (u && u.prompt_tokens) || 0;
+    usage.completion_tokens += (u && u.completion_tokens) || 0;
+    usage.total_tokens += (u && u.total_tokens) || 0;
+  };
+
+  let raw;
+  try {
+    raw = await callWithRetry({
+      system: overlayBrief(),
+      user: buildOverlayPrompt({ lpDoc, segment: seg, targets }),
+      model: chosenModel,
+      correlationId,
+      stage: 'overlay',
+      usageSink: addUsage,
+      maxTokens: OVERLAY_MAX_TOKENS,
+    });
+  } catch (e) {
+    throw fail(
+      e.code === 'UNPARSEABLE' ? 'OVERLAY_UNPARSEABLE' : 'OVERLAY_LLM_FAILED',
+      `overlay for ${seg.segment_id || 'this lesson'} failed: ${e.message}`,
+      { cause: e },
+    );
+  }
+
+  // ONLY the keys we asked for, only non-empty strings. An invented pointer is not repaired
+  // downstream — it is never accepted here.
+  const wanted = new Set(targets);
+  const overlay = {};
+  let invented = 0;
+  for (const [ptr, value] of Object.entries(raw || {})) {
+    if (!wanted.has(ptr)) { invented += 1; continue; }
+    if (typeof value !== 'string' || !value.trim()) continue;
+    overlay[ptr] = value;
+  }
+
+  // Then the renderer's own applicability rules, so nothing that survives here can ever produce
+  // an OVERLAY_INVALID and cost the whole lesson.
+  const probe = JSON.parse(JSON.stringify(lpDoc));
+  probe.ur_overlay = overlay;
+  sanitizeOverlay(probe);
+  const kept = probe.ur_overlay || {};
+
+  // GATE 1 — is it Urdu at all? Measured over the overlay's own text, because the DOCUMENT is
+  // English by construction and would drown the signal.
+  const joined = Object.values(kept).join(' ');
+  const share = urduShare(joined);
+  if (share < OVERLAY_MIN_URDU) {
+    throw fail('OVERLAY_NOT_URDU',
+      `the overlay is not Urdu — ${(share * 100).toFixed(1)}% of its letters are Urdu script, `
+      + `and at least ${OVERLAY_MIN_URDU * 100}% is required. An English "translation" renders as `
+      + `the same English page with the row claiming it worked.`,
+      { urduShare: share });
+  }
+
+  // GATE 2 — coverage, from the linter's own function at expected:true. One computation, so the
+  // gate the pass answers to and the gate that measures the delivered document cannot disagree.
+  probe.ur_overlay = kept;
+  const defects = overlayDefects(probe, 'ur', { expected: true });
+  const coverage = targets.length ? Object.keys(kept).length / targets.length : 0;
+  if (defects.length) {
+    throw fail('OVERLAY_TOO_THIN',
+      `the overlay covers ${Object.keys(kept).length} of ${targets.length} strings `
+      + `(${(coverage * 100).toFixed(1)}%); the floor is ${OVERLAY_MIN_COVERAGE * 100}%. `
+      + defects[0].msg,
+      { coverage });
+  }
+
+  const elapsedMs = Date.now() - startedAt;
+  logToFile('lp612 overlay pass complete', {
+    correlationId, segmentId: seg.segment_id, model: chosenModel,
+    targets: targets.length, applied: Object.keys(kept).length,
+    coverage: Number(coverage.toFixed(3)), urduShare: Number(share.toFixed(3)),
+    invented, elapsedMs, usage,
+  });
+
+  return {
+    overlay: kept,
+    usage,
+    model: chosenModel,
+    coverage,
+    urduShare: share,
+    targets: targets.length,
+    invented,
+    elapsedMs,
+  };
+}
+
 // ── the edit lane ───────────────────────────────────────────────────────────
 
 /**
@@ -1901,6 +2146,7 @@ module.exports = {
   pythonDictToJson,
   __extractJsonForTests: extractJson,
   authorLessonPlan,
+  overlayLessonPlan,
   reviseLessonPlan,
   resolveAuthorModel,
   // exported for the suite and for anyone porting a fix back upstream

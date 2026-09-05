@@ -34,7 +34,7 @@ const { logEvent } = require('../shared/utils/structured-logger');
 const WhatsAppService = require('../shared/services/whatsapp.service');
 const { uploadBuffer } = require('../shared/storage/r2');
 const { resolveUx } = require('../shared/config/ux-strings');
-const { authorLessonPlan } = require('../shared/services/lp612-author.service');
+const { authorLessonPlan, overlayLessonPlan } = require('../shared/services/lp612-author.service');
 const { renderLessonPlan } = require('../shared/services/lp612-render.service');
 // The caps the renderer gated on, read from the renderer itself so the over-cap event can never
 // quote a number the gate did not use (bd-vjk68). Never retyped here — see `pageCapsFor`.
@@ -42,7 +42,9 @@ const { pageCapsFor } = require('../vendor/lp-v9/render_lp.js');
 const { refsFromDoc, stageFigures } = require('../shared/services/lp612-pagetruth.service');
 const Serving = require('../shared/services/lp612-serving.service');
 const {
-  resolveAuthorModel, authorTierFor, authorRounds, authorTimeoutMs, followupAfterMs,
+  resolveAuthorModel, authorTierFor, authorRounds, authorTimeoutMs, overlayTimeoutMs,
+  overlayPassOff,
+  followupAfterMs,
 } = require('../shared/config/lp612-flags');
 const { familyForBook } = require('../shared/config/lp612-families');
 
@@ -287,6 +289,13 @@ async function fail(renderId, snapshot, lang, code, detail, model = null) {
   return { status: 'failed', errorCode: code || 'UNKNOWN' };
 }
 
+/** A coded Error, with no side effects. `fail()` above WRITES A ROW; this one does not. */
+function fail0(code, message) {
+  const e = new Error(message);
+  e.code = code;
+  return e;
+}
+
 function withTimeout(promise, ms, code) {
   let timer;
   const timeout = new Promise((_, reject) => {
@@ -390,6 +399,82 @@ async function process(payload) {
    */
   let overlayOutcome = null;
 
+  /**
+   * Render a document for DELIVERY, and accept it when the only thing wrong with it is length.
+   *
+   * Factored out of the inline final render (bd-zle0u) so the ENGLISH document and the OVERLAID
+   * one are judged by exactly the same rule. They must be: an Urdu overlay makes a page longer
+   * far more often than it makes one shorter, so a second copy of this policy that quietly
+   * omitted the page-count clause would fail every Urdu lesson for being long — the precise
+   * outcome bd-vjk68 exists to forbid — while the English one sailed through.
+   *
+   * @param {object} lpDoc  the document to draw
+   * @param {'final'|'overlay'} phase  which pass this is, for the render service's telemetry
+   * @returns {Promise<{rendered:object, overCap:boolean}>}
+   */
+  const renderFinal = async (lpDoc, phase) => {
+    try {
+      const out = await renderLessonPlan({
+        lpDoc,
+        lang,
+        stem: `${segmentId.replace(/[^A-Za-z0-9._-]/g, '_')}${phase === 'overlay' ? '_ur' : ''}`,
+        outDir: tmpDir,
+        correlationId,
+        segmentId,
+        renderId,
+        phase,
+      });
+      return { rendered: out, overCap: false };
+    } catch (e) {
+      // ── bd-vjk68: A LESSON IS NEVER LOST FOR BEING LONG ──────────────────
+      //
+      // Operator, 2026-09-04: *"we will stop cancelling or delaying lesson plans now because
+      // of the length issue"*. 9 of the 20 failures in the 59-lesson live window were page
+      // count — 6 of them the identical "teach needs 6; the cap is 5" — and every one of them
+      // was a lesson that had already been authored, drawn, and written to disk, then thrown
+      // away and replaced with an apology.
+      //
+      // The PDF EXISTS at this point. `lp612-render.service` writes the file and only then
+      // inspects the report, so `e.pdfPath` on a defect throw points at a complete, correct,
+      // merely-longer-than-we-wanted document. Delivering it costs one file read.
+      //
+      // THE CONDITION IS DELIBERATELY NARROW, and each clause earns its place:
+      //   • `infra === false` — a Chromium that never launched produced no PDF at all; there
+      //     is nothing to deliver and `e.problems` is a crash message, not a defect list.
+      //   • EVERY problem is `PAGE COUNT:` — not merely "at least one is". `OVERFLOW` means
+      //     content is clipped off the bottom of a page and `TRUNCATION` means pages of the
+      //     lesson are missing from the file. Those are broken documents, not long ones, and
+      //     a teacher must never be sent one. A mixed set fails, exactly as it does today.
+      //     `OVERLAY_INVALID` lands here too, and must: an overlaid document the drawer
+      //     refuses is not a long document, and its caller falls back to the English one.
+      //   • a non-empty `pdfPath` — the belt to the braces above.
+      //
+      // Rule 24(a)/(b): this is a distinct persisted state, not a silent fallback. The row
+      // carries `over_cap`, the event `lp612.deliver.over_cap` carries the pages AND the caps
+      // they were measured against, and both exist so the question the raised caps opened —
+      // does the distribution simply refill to the new ceiling? — is answerable from data
+      // after ~40 lessons rather than argued about.
+      const pageOnly = e && e.infra === false
+        && Array.isArray(e.problems) && e.problems.length > 0
+        && e.problems.every((x) => String(x).startsWith('PAGE COUNT:'))
+        && typeof e.pdfPath === 'string' && e.pdfPath.length > 0;
+      if (!pageOnly) throw e;
+
+      return {
+        overCap: true,
+        rendered: {
+          pdfPath: e.pdfPath,
+          htmlPath: e.htmlPath,
+          pageCount: e.pageCount ?? null,
+          pagesByPart: e.pagesByPart || {},
+          overlayApplied: e.overlayApplied || [],
+          warnings: e.warnings || [],
+          problems: e.problems,
+        },
+      };
+    }
+  };
+
   try {
     const result = await withTimeout((async () => {
       tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'lp612-'));
@@ -485,68 +570,97 @@ async function process(payload) {
         await stageFigures({ refs: figRefs, outDir: tmpDir, correlationId });
       }
 
-      let rendered;
-      let overCap = false;
-      try {
-        rendered = await renderLessonPlan({
-          lpDoc: authored.lpDoc,
-          lang,
-          stem: segmentId.replace(/[^A-Za-z0-9._-]/g, '_'),
-          outDir: tmpDir,
-          correlationId,
-          segmentId,
-          renderId,
-          phase: 'final',
-        });
-      } catch (e) {
-        // ── bd-vjk68: A LESSON IS NEVER LOST FOR BEING LONG ──────────────────
-        //
-        // Operator, 2026-09-04: *"we will stop cancelling or delaying lesson plans now because
-        // of the length issue"*. 9 of the 20 failures in the 59-lesson live window were page
-        // count — 6 of them the identical "teach needs 6; the cap is 5" — and every one of them
-        // was a lesson that had already been authored, rendered, and written to disk, then
-        // thrown away and replaced with an apology.
-        //
-        // The PDF EXISTS at this point. `lp612-render.service` writes the file and only then
-        // inspects the report, so `e.pdfPath` on a defect throw points at a complete, correct,
-        // merely-longer-than-we-wanted document. Delivering it costs one file read.
-        //
-        // THE CONDITION IS DELIBERATELY NARROW, and each clause earns its place:
-        //   • `infra === false` — a Chromium that never launched produced no PDF at all; there
-        //     is nothing to deliver and `e.problems` is a crash message, not a defect list.
-        //   • EVERY problem is `PAGE COUNT:` — not merely "at least one is". `OVERFLOW` means
-        //     content is clipped off the bottom of a page and `TRUNCATION` means pages of the
-        //     lesson are missing from the file. Those are broken documents, not long ones, and
-        //     a teacher must never be sent one. A mixed set fails, exactly as it does today.
-        //   • a non-empty `pdfPath` — the belt to the braces above.
-        //
-        // Rule 24(a)/(b): this is a distinct persisted state, not a silent fallback. The row
-        // carries `over_cap`, the event `lp612.deliver.over_cap` carries the pages AND the caps
-        // they were measured against, and both exist so the question the raised caps opened —
-        // does the distribution simply refill to the new ceiling? — is answerable from data
-        // after ~40 lessons rather than argued about.
-        const pageOnly = e && e.infra === false
-          && Array.isArray(e.problems) && e.problems.length > 0
-          && e.problems.every((p) => String(p).startsWith('PAGE COUNT:'))
-          && typeof e.pdfPath === 'string' && e.pdfPath.length > 0;
-        if (!pageOnly) throw e;
-
-        overCap = true;
-        rendered = {
-          pdfPath: e.pdfPath,
-          htmlPath: e.htmlPath,
-          pageCount: e.pageCount ?? null,
-          pagesByPart: e.pagesByPart || {},
-          overlayApplied: e.overlayApplied || [],
-          warnings: e.warnings || [],
-          problems: e.problems,
-        };
-      }
+      const { rendered, overCap } = await renderFinal(authored.lpDoc, 'final');
 
       return { authored, rendered, overCap };
     })(), authorTimeoutMs(), 'AUTHOR_TIMEOUT');
 
-    const { authored, rendered, overCap } = result;
+    const { authored } = result;
+    // `let`, because the Urdu overlay pass below may replace BOTH with the overlaid document and
+    // its render. Everything downstream — the R2 put, the row, the caption — reads these, so the
+    // swap happens exactly once, here, and nothing after it needs to know which one it got.
+    let { rendered, overCap } = result;
+    let deliveredDoc = authored.lpDoc;
+
+    // ── THE URDU OVERLAY PASS (bd-zle0u) ────────────────────────────────────
+    //
+    // The separate pass over the finished document — the one a per-request prompt line claimed
+    // existed for the whole life of this lane while `git grep ur_overlay` found only readers,
+    // and every English-medium book asked for in Urdu was delivered in English (bd-vnyuw).
+    //
+    // IT RUNS HERE, AND HERE IS THE WHOLE POINT. Above this line the ladder has finished and the
+    // English PDF exists on disk; `withTimeout(..., authorTimeoutMs(), 'AUTHOR_TIMEOUT')` has
+    // already been raced and won. Putting the overlay inside that race — which is what emitting
+    // it inline amounted to — cost ~+7,000 completion tokens on EVERY one of five rounds and
+    // timed out all three Urdu cells at 840s. One call, at the end, on a document nobody is
+    // going to revise again, is ~50s.
+    //
+    // AND IT CANNOT LOSE THE LESSON. Every failure path below — a call that fails, an overlay
+    // that is thin or not actually Urdu, a renderer that refuses the overlaid document, the
+    // pass's own clock — falls back to the English PDF this worker is already holding, with the
+    // honest caption. That is the one rule this week has taught twice: the previous two attempts
+    // each replaced a wrong-language lesson with NO lesson, and both were worse than the bug.
+    if (lang === 'ur' && segment.language !== 'ur' && !overlayPassOff()) {
+      const passStartedAt = Date.now();
+      let pointers = 0;
+      let coverage = null;
+      let usage = null;
+      try {
+        const pass = await withTimeout((async () => {
+          const out = await overlayLessonPlan({
+            lpDoc: authored.lpDoc, segment, model, correlationId,
+          });
+          // A CLONE. The English document stays intact and renderable on this variable, because
+          // it is the fallback — mutating it here would destroy the thing we fall back to.
+          const overlaid = JSON.parse(JSON.stringify(authored.lpDoc));
+          overlaid.ur_overlay = out.overlay;
+          const render = await renderFinal(overlaid, 'overlay');
+          return { out, overlaid, render };
+        })(), overlayTimeoutMs(), 'OVERLAY_TIMEOUT');
+
+        pointers = Array.isArray(pass.render.rendered.overlayApplied)
+          ? pass.render.rendered.overlayApplied.length : 0;
+        coverage = pass.out.coverage;
+        usage = pass.out.usage;
+
+        // A render that applied NOTHING is not a success with zero pointers — it is the failure
+        // this whole bead is about, wearing a success's clothes. Treated as a drop so the
+        // fallback runs and the caption stays honest (rule 24(a): the status is a claim; the
+        // payload is the evidence).
+        if (!pointers) throw fail0('OVERLAY_APPLIED_NONE', 'the overlaid render applied no pointers');
+
+        rendered = pass.render.rendered;
+        overCap = pass.render.overCap;
+        deliveredDoc = pass.overlaid;
+        overlayOutcome = 'applied';
+      } catch (e) {
+        overlayOutcome = 'failed';
+        logToFile('LP 6-12 worker: the Urdu overlay pass did not land — delivering the English lesson', {
+          renderId, segmentId, correlationId, code: e.code || null, error: e.message,
+          elapsedMs: Date.now() - passStartedAt,
+        }, 'warn');
+      }
+
+      // Emitted on BOTH paths, always, because a denominator that only exists when things go
+      // wrong is not a denominator (rule 24(b)). This is the event that answers "what does the
+      // pass cost, and how often does it land" — the two questions the inline overlay could
+      // never be asked, since its cost was buried inside the authoring total.
+      logEvent('lp612.overlay.pass', {
+        renderId,
+        segmentId,
+        correlationId: correlationId || null,
+        lang,
+        medium: segment.language || null,
+        outcome: overlayOutcome,
+        pointers,
+        coverage,
+        elapsedMs: Date.now() - passStartedAt,
+        tokens: usage ? usage.total_tokens : null,
+        completionTokens: usage ? usage.completion_tokens : null,
+        calls: usage ? usage.calls : null,
+        model: authored.model || model,
+      });
+    }
 
     const pdf = await fs.promises.readFile(rendered.pdfPath);
     // Guarded, not merely well-named: NIETE shares this bucket with PK production and `lp612/`
@@ -571,7 +685,9 @@ async function process(payload) {
     // and it must never turn a finished lesson into a failed one.
     try {
       await uploadBuffer(
-        Buffer.from(JSON.stringify(authored.lpDoc, null, 1), 'utf8'),
+        // The document that MADE THIS PDF — the overlaid one when the Urdu pass landed. Keeping
+        // the English original here would make every Urdu diagnosis start from the wrong file.
+        Buffer.from(JSON.stringify(deliveredDoc, null, 1), 'utf8'),
         Serving.assertKeyInPrefix(r2Key.replace(/\.pdf$/, '.lp.json')),
         'application/json',
       );

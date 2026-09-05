@@ -224,6 +224,13 @@ describe('the teacher is told, in her own language, that this copy is English', 
 });
 
 // ── 5 · the worker's distinct state ─────────────────────────────────────────
+//
+// STEP 2 GAVE THIS PATH A NAME. Once the overlay pass exists, an EN-medium book asked for in Urdu
+// ALWAYS attempts a translation, so a DEFERRAL is no longer "we have not built it yet" — it is
+// `LP612_OVERLAY_PASS_OFF`, the kill switch. That switch is why the distinction earns its keep:
+// it returns every teacher to a delivered English lesson with one Railway variable and no deploy,
+// and the events have to say which of the two states produced the English page she is holding.
+// So this suite sets the switch, and in doing so tests the rollback path as well.
 
 describe('a deferred overlay is its own event, not the failure counter', () => {
   const mockAuthorLessonPlan = jest.fn();
@@ -309,6 +316,8 @@ describe('a deferred overlay is its own event, not the failure counter', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // The kill switch ON: this whole describe is the deferral path.
+    process.env.LP612_OVERLAY_PASS_OFF = 'true';
     mockDbCalls.length = 0;
     mockDbResults.length = 0;
     mockRpc.mockReset().mockImplementation(() => Promise.resolve({ data: WAITERS, error: null }));
@@ -323,6 +332,8 @@ describe('a deferred overlay is its own event, not the failure counter', () => {
       pagesByPart: { teach: 6, support: 5 }, overlayApplied: [],
     });
   });
+
+  afterEach(() => { delete process.env.LP612_OVERLAY_PASS_OFF; });
 
   const readyPatch = () => mockDbCalls.filter((c) => c.op === 'update' && c.payload && c.payload.status === 'ready').pop();
 
