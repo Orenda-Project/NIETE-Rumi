@@ -210,3 +210,28 @@ describe('process — after the last attempt, a bad PICTURE costs its question, 
     expect(rows.some((row) => /flowers/.test(row.question_text))).toBe(false);
   });
 });
+
+describe('process — question cards and speed', () => {
+  test('a question whose options do not fit a button is stored with a card image (rendered once, uploaded) and letters', async () => {
+    const long = EIGHT.map((x, i) => (i === 3 ? { ...x, question: 'Which is water?', options: ['H2O', 'CO2', 'NaCl'], figure: undefined } : x));
+    Author.author.mockResolvedValue({ questions: long, model: 'm', costUsd: 0.01, latencyMs: 10 });
+    wire();
+    const r = await Gen.process(QID, {});
+    expect(r.ok).toBe(true);
+    const rows = insertedRows();
+    const card = rows.find((row) => row.media && row.media.question_card);
+    expect(card).toBeDefined();
+    expect(card.media.question_card).toMatch(/\/card4\.png$/);
+    expect(card.media.language).toBe('en');
+    expect(card.render_pattern).toBe('P1');
+    expect(uploadBuffer.mock.calls.some((c) => /\/card\d+\.png$/.test(c[1]))).toBe(true);
+  });
+  test('figures and cards are rendered in parallel (not one after the other)', async () => {
+    let inFlight = 0; let peak = 0;
+    htmlToImage.mockImplementation(() => new Promise((res) => { inFlight += 1; peak = Math.max(peak, inFlight); setTimeout(() => { inFlight -= 1; res(Buffer.from('png')); }, 30); }));
+    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 10 });
+    wire();
+    await Gen.process(QID, {});
+    expect(peak).toBeGreaterThan(1);
+  });
+});

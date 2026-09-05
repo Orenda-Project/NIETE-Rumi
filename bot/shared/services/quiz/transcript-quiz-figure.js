@@ -80,6 +80,11 @@ const STRUCTURAL_KEYS = new Set([
 
 const R2_PREFIX = 'transcript_quizzes';
 const PNG_WIDTH = 1080;
+// WhatsApp shows an interactive message's image header at about 1.91:1 and
+// crops whatever does not fit (a 1080x158 bar lost its right end on the
+// operator's phone). A canvas of exactly that shape is never cropped; the
+// drawing is centred inside it.
+const PNG_HEIGHT = 565;
 
 /** NIETE tokens, mapped onto the engine's palette slots. No Rumi navy, no gold. */
 const NIETE_TOKENS = {
@@ -487,10 +492,11 @@ ${css}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:#FFFFFF}
 .fig{${tokenCss()}
-  width:${PNG_WIDTH}px;background:#FFFFFF;padding:36px 32px;
+  width:${PNG_WIDTH}px;height:${PNG_HEIGHT}px;background:#FFFFFF;padding:36px 32px;
+  display:flex;align-items:center;justify-content:center;
   font-family:'Inter','Helvetica Neue',Arial,sans-serif;color:var(--ink);
   direction:ltr;unicode-bidi:isolate;}
-.fig svg{display:block;width:100%;height:auto}
+.fig svg{display:block;width:auto;height:auto;max-width:100%;max-height:100%}
 .fig [lang="ur"]{font-family:'Noto Nastaliq Urdu','Noto Naskh Arabic',serif;line-height:normal}
 </style></head><body><div class="fig">${svg}</div></body></html>`;
 }
@@ -547,5 +553,6 @@ module.exports = {
   renderFigurePng,
   uploadFigure,
   PNG_WIDTH,
+  PNG_HEIGHT,
   R2_PREFIX,
 };

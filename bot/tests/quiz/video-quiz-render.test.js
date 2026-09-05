@@ -517,3 +517,22 @@ describe('picture Flow carries base64, not URLs (bd-2309)', () => {
     expect(msgs.some((m) => m.kind === 'flow')).toBe(true);
   });
 });
+
+describe('a question CARD: the image carries the question, the buttons carry letters', () => {
+  const render = require('../../shared/services/quiz/video-quiz-render.service');
+  test('build() sends the card image first, then A/B/C buttons in the same display order', () => {
+    const q = {
+      id: 'q1', external_id: 'tq:z:S1:1', question_text: 'What is x^2 when x = 3?',
+      option_a: '9', option_b: '6', option_c: '3', correct_option: 'A', render_pattern: 'P1',
+      media: { question_card: 'https://r2/card.png' },
+    };
+    const msgs = render.build(q);
+    const kinds = msgs.map((m) => `${m.phase}:${m.kind}`);
+    expect(kinds.indexOf('question:image')).toBeGreaterThan(-1);
+    expect(kinds.indexOf('question:image')).toBeLessThan(kinds.indexOf('interaction:buttons'));
+    const ask = msgs.find((m) => m.phase === 'interaction');
+    expect(ask.letterTitles).toBe(true);
+    expect(ask.optionIndices).toHaveLength(3);
+    expect(msgs.find((m) => m.kind === 'image').url).toBe('https://r2/card.png');
+  });
+});

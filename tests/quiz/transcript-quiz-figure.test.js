@@ -255,3 +255,15 @@ describe('minimalSpecBlock', () => {
     });
   });
 });
+
+describe('the picture a child receives is a fixed 1.91:1 canvas (WhatsApp crops image headers to that shape)', () => {
+  const Fig = require('../../bot/shared/services/quiz/transcript-quiz-figure');
+  test('figureHtml sizes the canvas 1080 x 565 and centres the drawing inside it', () => {
+    const html = Fig.figureHtml('<svg viewBox="0 0 600 100"></svg>', 'en');
+    const css = html.match(/\.fig\{([^}]*)\}/)[1];
+    expect(css).toMatch(/width:1080px/);
+    expect(css).toMatch(/height:565px/);
+    expect(css).toMatch(/display:flex/);
+    expect(html).toMatch(/\.fig svg\{[^}]*max-height:100%/);
+  });
+});
