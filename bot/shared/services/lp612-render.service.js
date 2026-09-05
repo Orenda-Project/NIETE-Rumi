@@ -262,6 +262,27 @@ async function renderLessonPlan({
   const problems = out.problems || [];
   const warnings = out.warnings || [];
   const byPart = out.pagesByPart || {};
+  // bd-c3le6: which pages had a furniture-sized overflow taken out of their own bottom
+  // whitespace so the lesson could ship. ALWAYS a list — `[]` means "we looked and there was
+  // nothing", which is a different fact from "we did not look", and a fallback that leaves no
+  // trace is a regression mask (rule 24(b)). If this starts firing across the corpus rather
+  // than on the odd Urdu footer, the packer has drifted and this number is what says so.
+  const absorbed = (out.report && out.report.overflow_absorbed) || [];
+  if (absorbed.length) {
+    logEvent('lp612.render.overflow_absorbed', {
+      ...trace,
+      stem,
+      lang: lang || null,
+      maxPx: (out.report && out.report.overflow_absorb_max_px) != null
+        ? out.report.overflow_absorb_max_px
+        : null,
+      pages: absorbed,
+      worstPx: absorbed.reduce((m, a) => Math.max(m, a.px || 0), 0),
+    });
+    logToFile('lp612 render: absorbed a furniture-sized overflow rather than discarding the lesson', {
+      correlationId, stem, lang: lang || null, absorbed,
+    }, 'warn');
+  }
   // `pdfPages` counts the REAL file; `pagesByPart` counts what the packer laid out. They can
   // disagree, and when they do the renderer has already said so in `problems` — prefer the
   // file, because the file is what the teacher opens.
@@ -302,6 +323,7 @@ async function renderLessonPlan({
         pageCount,
         pagesByPart: byPart,
         overlayApplied: (out.report && out.report.overlay_applied) || [],
+        overflowAbsorbed: absorbed,
       }
     );
   }
@@ -330,6 +352,8 @@ async function renderLessonPlan({
     // essentially-English document in RTL chrome, and the row must say so.
     // Always a list, never undefined: absence of a record is "nothing applied".
     overlayApplied: (out.report && out.report.overlay_applied) || [],
+    // Same contract for the absorber (bd-c3le6): `[]` on a clean render, never undefined.
+    overflowAbsorbed: absorbed,
   };
 }
 

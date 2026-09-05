@@ -239,9 +239,16 @@ body{ background:#fff; }
    live [132,182,100,255,449] vs block-mode [132,182,97,250,444] on the G10 maths page. */
 body.measuring .page{ height:auto; overflow:visible; }
 body.measuring .pad{ height:auto; }
-/* margin-top:auto on .mats/.foot is SLACK, not height: in the live layout it absorbs whatever
-   the page has left over. So the packer must charge zero for it, not a guessed 8px. */
-body.measuring .mats, body.measuring .foot{ margin-top:0; }
+/* margin-top:auto on .foot is SLACK, not height: in the live layout it absorbs whatever the
+   page has left over. So the packer must charge zero for it, not a guessed 8px.
+   .mats WAS IN THIS RULE AND HAD NO BUSINESS BEING HERE (bd-c3le6). It carries no auto margin
+   — grep it: its only margin-top is the sp-4 spacing class, 16px, applied like every other
+   atom's. Releasing it did not cancel slack; it cancelled a real 16px the live layout charges,
+   so the packer believed the materials strip was 16px shorter than it prints and any page that
+   ended on it overflowed by up to one spacing step. That is d15's 3px, d10's 9px and d03's
+   11px — three whole lessons discarded after five revision rounds each. Measured on d10's t6:
+   +16 on this one atom, 0 on the other fifteen. */
+body.measuring .foot{ margin-top:0; }
 .sec{ break-inside:avoid; display:flex; flex-direction:column; gap:var(--sp-2); }
 .split{ display:flex; gap:var(--sp-3); align-items:flex-start; }
 .split > div{ display:flex; flex-direction:column; gap:var(--sp-2); }

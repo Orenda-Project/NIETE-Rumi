@@ -369,14 +369,36 @@ const UX_STRINGS = {
   },
 
   // Appended to the Urdu caption when the document is an English-medium book
-  // whose ur_overlay did not survive sanitizeOverlay: what she receives is an
+  // whose ur_overlay did not survive: what she receives is an
   // essentially-English document in RTL chrome, and saying so beats a silent
   // fallback (rule 24(c)/(d)). English variant exists so the catalog is never
   // a partial map (language-protocol §6.3); the line itself is only ever
   // APPENDED on Urdu deliveries.
+  //
+  // REWRITTEN 2026-09-05 (bd-vnyuw). It used to read "instructions partly in
+  // Urdu" — which was never true of a single delivery. Every one of the six
+  // overlay-dropped lessons on staging was English END TO END; the only Urdu on
+  // the page was the template's own headings. "Partly" told a teacher the
+  // translation was thin when it was absent, so the field reports that came back
+  // read as a quality complaint rather than as a broken toggle, and rule 24(d)
+  // is exactly that: failure copy that does not name the actual state misdirects
+  // every report and every engineer who reads them.
+  //
+  // Three things it must do and one it must not:
+  //   • name the state — the Urdu version is MISSING, not thin;
+  //   • say the lesson is still whole, because it is: the overlay swaps strings
+  //     on a complete document and nothing is lost when it is absent;
+  //   • carry no blame and no jargon — "overlay" is our word, not hers.
+  //   • promise NO retry. The render is cached on (segment, lang,
+  //     template_version) and every cache hit re-serves this same file, so
+  //     "ask again" would be a lie until the row is re-authored.
+  //
+  // Urdu voice: every verb agrees with a NOUN (ترجمہ, سبق, ہدایات), never with
+  // the teacher, so a mixed-gender cohort is addressed correctly.
   lp612OverlayDropped: {
-    en: 'This lesson is from the English textbook — instructions partly in Urdu.',
-    ur: 'یہ سبق انگریزی کتاب سے ہے — ہدایات جزوی اردو میں',
+    en: 'The Urdu version of this lesson did not come through — the lesson is complete, '
+      + 'but its instructions are in English.',
+    ur: 'اس سبق کا اردو ترجمہ تیار نہیں ہو سکا — سبق مکمل ہے، لیکن اس کی ہدایات انگریزی میں ہیں۔',
   },
 
   // ── the 6-12 post-delivery survey (bd-86ivw) ─────────────────────────────

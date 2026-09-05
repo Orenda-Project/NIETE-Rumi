@@ -12,7 +12,10 @@
  *    language, identically.
  *  - An Urdu render whose ur_overlay was dropped is an essentially-English
  *    document in RTL chrome. The render row says so (`overlay_dropped`) and the
- *    caption tells HER so («یہ سبق انگریزی کتاب سے ہے…») — rule 24(c)/(d), not
+ *    caption tells HER so (`lp612OverlayDropped`, read from the catalog rather than
+ *    copied here — the WORDING is pinned by tests/lp612/overlay-contract.test.js, which is
+ *    where the rule "it must name the actual state" belongs; this file pins only that the
+ *    line is APPENDED, and on which deliveries) — rule 24(c)/(d), not
  *    a silent fallback.
  *  - The Urdu caption's {subject} and {pages} placeholders are wrapped in
  *    LRI…PDI isolates in the catalog string itself, because «صفحات 7-8» after
@@ -192,18 +195,18 @@ describe('the Urdu caption', () => {
 
   test('an overlay-dropped Urdu render says so, honestly, in the caption', () => {
     const caption = Serving.buildCaption(SEGMENT, 'ur', { overlayDropped: true });
-    expect(caption).toContain('یہ سبق انگریزی کتاب سے ہے');
+    expect(caption).toContain(UX_STRINGS.lp612OverlayDropped.ur);
   });
 
   test('a clean Urdu render carries no such line', () => {
     const caption = Serving.buildCaption(SEGMENT, 'ur', { overlayDropped: false });
-    expect(caption).not.toContain('یہ سبق انگریزی کتاب سے ہے');
+    expect(caption).not.toContain(UX_STRINGS.lp612OverlayDropped.ur);
   });
 
   test('the honesty line is Urdu-territory: an English document does not carry it', () => {
     // An EN render of an EN book is the native path — nothing was dropped.
     const caption = Serving.buildCaption(SEGMENT, 'en', { overlayDropped: true });
-    expect(caption).not.toContain('یہ سبق انگریزی کتاب سے ہے');
+    expect(caption).not.toContain(UX_STRINGS.lp612OverlayDropped.ur);
   });
 });
 
@@ -222,7 +225,7 @@ describe('a cache hit carries the overlay honesty through', () => {
 
     expect(mockSendDocumentByLink).toHaveBeenCalledTimes(1);
     const caption = mockSendDocumentByLink.mock.calls[0][3];
-    expect(caption).toContain('یہ سبق انگریزی کتاب سے ہے');
+    expect(caption).toContain(UX_STRINGS.lp612OverlayDropped.ur);
   });
 
   test('a clean ready row captions without the line', async () => {
@@ -238,6 +241,6 @@ describe('a cache hit carries the overlay honesty through', () => {
     });
 
     const caption = mockSendDocumentByLink.mock.calls[0][3];
-    expect(caption).not.toContain('یہ سبق انگریزی کتاب سے ہے');
+    expect(caption).not.toContain(UX_STRINGS.lp612OverlayDropped.ur);
   });
 });

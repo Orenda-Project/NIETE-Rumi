@@ -35,6 +35,73 @@ outside this repo and not in this repo's git history:
 | `fonts/Inter-{Regular,SemiBold,Bold}.ttf` | workspace `06_Logs & Misc/Reports/Active/Tanzania Expansion/02_Coaching_MEWAKA/mewaka-sample-report/` |
 | `fonts/NotoNastaliqUrdu.ttf` | workspace `02_Main Rumi Bot/fonts/` |
 
+> **Partial re-vendor 2026-09-05 (bd-vnyuw + bd-c3le6): `lint_lp.js`, `render_lp.js` and
+> `lib/template.js`.** Fixed upstream first, in both homes, and the SAME patch applied to each
+> rather than the file overwritten (`render_lp.js` and `lib/template.js` carry pre-existing
+> divergences — see §3 — and `lint_lp.js` still carries upstream's 21-line BUDGET-policy header
+> that this copy does not, exactly as the bd-gel97 note below records). **No new §3 divergence:
+> the three added regions are byte-identical in both homes.** A fourth file is upstream-only:
+> `lp_author/author_lp.py` carried the identical language directive and is fixed there too.
+>
+> **bd-vnyuw — the Urdu toggle had never once fired.** Measured on the staging ledger: of the
+> nine English-medium books ever requested in Urdu, ALL SIX that reached `ready` carry
+> `overlay_dropped = true`. Every one. A teacher who chose «اردو» received an English lesson under
+> Urdu headings, silently, with no error at any layer.
+>
+> The cause was two prompts in one call giving opposite orders. The SYSTEM prompt
+> (`brief_author_v3.md` §7b, §7c.7) says of an English-medium book *"Then add an `ur_overlay` …
+> overlay EVERY instruction string you are allowed to"*. The USER prompt — `languageDirective`
+> in `lp612-author.service.js` here, `author_lp.py:827` upstream — said *"the Urdu toggle is built
+> by a separate pass over the finished document. Do NOT emit ur_overlay yourself."* **That separate
+> pass does not exist in either home.** A repo-wide grep for `ur_overlay` finds only readers:
+> `applyOverlay`, `lint`, `visual_check`, and `sanitizeOverlay`, which can only DROP one. So the
+> document never had a toggle, the renderer had nothing to apply, and every such render came back
+> dropped.
+>
+> | file | what changed |
+> |---|---|
+> | `lint_lp.js` | new exported `overlayDefects(doc, lang)` + `overlayDefects.targets(doc)`, and one wiring line at §13b. One blocking code: **`OVERLAY_MISSING`** — an Urdu render of an EN-medium book whose `ur_overlay` covers fewer than half the overlayable instruction strings. `lint()` now reads `opts.lang`, the language THE TEACHER ASKED FOR: the document cannot state it (an EN-medium book authored in English looks identical either way), which is exactly why this was invisible to every gate for the whole life of the lane. |
+>
+> It is a lint fail, not a render refusal, on purpose: a defect the revision ladder is handed gets
+> repaired next round; a refusal throws away a finished lesson, which is the failure this whole
+> lane has been unpicking.
+>
+> **bd-c3le6 — three lessons discarded for 3px, 9px and 11px.** All three had `overflowingSections`
+> EMPTY: no `data-sec` element past the page's inner bottom edge, so no lesson content was clipped.
+> The only thing over the line was the FOOTER. Two measured causes, both found by rendering the
+> three failing documents rather than by reading the code:
+>
+> | file | what changed |
+> |---|---|
+> | `lib/template.js` | `.mats` REMOVED from `body.measuring{ margin-top:0 }`. That rule was written on the belief that `.mats` carries `margin-top:auto` the way `.foot` does; it never has — its only margin-top is the `sp-4` spacing class, 16px. Releasing it cancelled a real 16px the live layout charges, so the packer believed the materials strip was 16px shorter than it prints. Measured on d10's t6: **+16 on that one atom, 0 on the other fifteen.** |
+> | `render_lp.js` | new exported `absorbPlan(pages, maxPx)` + an in-page `ABSORB` pass between the probe and the print, and `overflow_absorbed` / `overflow_absorb_max_px` on the report. A page whose overflow is **≤ 12px AND has no section over the line** has that many pixels taken out of its own bottom whitespace, and is then RE-PROBED — the re-probe, not the plan, decides. 12 is not a tolerance chosen to fit the failures: it is `.pad`'s 4px bottom padding plus `.foot`'s 8px top padding, the whitespace between the last content pixel and the paper edge, the same number in both languages. `.foot`'s own padding-bottom (1px LTR / 7px RTL) is deliberately not reclaimed — Nastaliq descenders need it. **Clipping still fails at any size.** |
+>
+> **One half of bd-c3le6 is divergence-local and stays here.** `packAtoms` upstream is still
+> GREEDY first-fit; the exact DP packer is §3.7's own divergence and exists only in this copy.
+> The DP now takes an `opts.slack` — px a page may be overfilled by, ranked BELOW page count and
+> orphans and ABOVE front-loading, so it can only ever REMOVE a page and never buy a fuller one
+> — and the renderer passes it the same `OVERFLOW_ABSORB_MAX_PX` the absorber reclaims. The two
+> numbers are one constant deliberately: a packer allowed more slack than the absorber can pay
+> for would manufacture the very OVERFLOW this exists to stop. **Upstream gets the absorber but
+> not the slack**, because there is no DP there to put it in; the absorber alone is the general
+> mechanism and the slack is an optimisation inside the divergent packer.
+>
+> This mattered: fixing `.mats` ALONE pushed d10's teach part from 6 pages to 7, and page 7
+> carried the 52px Materials strip and nothing else — a blank page in a teacher's printout,
+> because the packer was ELEVEN pixels short while twelve pixels of reclaimable furniture sat
+> unused at the bottom of that page. Correct arithmetic that produces a blank page is not a fix.
+> With the two composed, d10 renders **6 teach pages with no defect at all** — better than the
+> base, which failed it outright.
+>
+> **Corpus replay — 134 documents** (the 103 bd-gel97 used, plus the 31 lessons the diagram review
+> delivered across its two rounds), base vs fixed, same crops, same engine:
+> **0 overflows before, 0 after, 0 errors, 0 new OVERFLOW and 0 new PAGE COUNT.** Page count grew
+> by one page on **2 of 134** documents — the honest cost of charging the materials margin — and
+> neither crossed its cap. Separately, the three documents that actually failed: d15 now renders
+> fully clean, d10's 9px is gone (the `.mats` fix alone; teach 6→7 pages, PAGE COUNT only, which
+> bd-vjk68 delivers), and d03's 11px is absorbed (`padPx: 4, footPx: 7, unabsorbed: 0`) leaving
+> PAGE COUNT only. All three now reach a teacher.
+
 > **Partial re-vendor 2026-09-05 (bd-gel97): `lint_lp.js`, `diagrams/types/graph.js`,
 > `diagrams/types_manifest.json`, `brief_author_v3.md` and all three flash briefs.** Fixed
 > upstream first, in both upstream homes, and copied byte-for-byte. **No new §3 divergence.**
