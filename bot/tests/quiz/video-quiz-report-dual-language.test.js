@@ -9,6 +9,14 @@
  * her class happened to take in Urdu. Rawalpindi's /videos flow hits this
  * every time.
  *
+ * PLAN_R4 D1 (bd-mg9c7.48) REVERSES the split for the DOCUMENT specifically:
+ * the operator's staging report mixed English chrome with Urdu question
+ * content and read as broken ("if it is in English why does it have Urdu in
+ * it"). The PDF and its plain-text substitute now render ENTIRELY in the
+ * quiz's own content language. Only the WhatsApp CAPTION that carries the
+ * PDF still follows her stored preference — a caption is an interstitial,
+ * not part of the document (Tariq's rule, unchanged).
+ *
  * Driven through the real generate() so the parameter is proved to reach the
  * template and the model prompt, not merely to be passed one hop.
  */
@@ -27,14 +35,26 @@ jest.mock('../../shared/utils/html-to-pdf', () => ({
   htmlToPdf: jest.fn().mockResolvedValue(Buffer.from('%PDF-1.4 fake')),
 }));
 
-// The one network boundary the guidance paragraph crosses.
+// The one network boundary the guidance box crosses. generateGuidance now
+// asks for (and parses) JSON — {muddled, board, check} in the reteach mode
+// every test here exercises — so the fixture reply is JSON, not prose.
 const captured = { prompts: [] };
 jest.mock('openai', () => jest.fn().mockImplementation(() => ({
   chat: {
     completions: {
       create: jest.fn(async ({ messages }) => {
         captured.prompts.push(messages[0].content);
-        return { choices: [{ message: { content: 'They think a half is any small piece.' } }] };
+        return {
+          choices: [{
+            message: {
+              content: JSON.stringify({
+                muddled: 'They think a half is any small piece.',
+                board: 'Draw a half and a third on the board.',
+                check: 'What is a half?',
+              }),
+            },
+          }],
+        };
       }),
     },
   },
@@ -94,8 +114,8 @@ const QUESTIONS = [{
 
 beforeEach(() => { jest.clearAllMocks(); captured.prompts = []; });
 
-describe('teacher en + quiz ur', () => {
-  test('the PDF gets her language as chrome and the quiz language as content', async () => {
+describe('D1 — teacher en + quiz ur: the DOCUMENT follows the quiz, not her', () => {
+  test('the PDF is entirely in the quiz\'s content language, chrome included', async () => {
     stubSupabase({
       shareCode: SHARE_CODE,
       teacher: { phone_number: '923001234567', preferred_language: 'en' },
@@ -106,12 +126,14 @@ describe('teacher en + quiz ur', () => {
 
     expect(htmlToPdf).toHaveBeenCalled();
     const html = htmlToPdf.mock.calls[0][0];
-    expect(html).toMatch(/<html dir="ltr" lang="en">/);
-    expect(html).toMatch(/Worth reteaching/);
-    expect(html).toMatch(/class="m-q content" dir="rtl"/);
+    // Both `language` (chrome) and `contentLanguage` reach the template as
+    // the SAME value now — the quiz's own language — not her preference.
+    expect(html).toMatch(/<html dir="rtl" lang="ur">/);
+    expect(html).toMatch(/دوبارہ پڑھانے کے قابل/);
+    expect(html).not.toMatch(/Worth reteaching/);
   });
 
-  test('the "for tomorrow" paragraph is asked for in HER language', async () => {
+  test('the "for tomorrow" box is asked for in the DOCUMENT\'s (content) language, not hers', async () => {
     stubSupabase({
       shareCode: SHARE_CODE,
       teacher: { phone_number: '923001234567', preferred_language: 'en' },
@@ -121,12 +143,14 @@ describe('teacher en + quiz ur', () => {
     await report.generate(SHARE_CODE_ID, { reason: 'scheduled' });
 
     expect(captured.prompts).toHaveLength(1);
-    expect(captured.prompts[0]).toMatch(/Write EXACTLY three sentences/);
-    // The evidence itself stays in the language the class answered in.
+    // The JSON schema keys are language-agnostic; the instruction PROSE and
+    // the evidence both come through in Urdu because the quiz is Urdu.
+    expect(captured.prompts[0]).toMatch(/"muddled"/);
+    expect(captured.prompts[0]).toMatch(/رومن اردو میں ہرگز نہیں/);
     expect(captured.prompts[0]).toMatch(/آدھی روٹی/);
   });
 
-  test('the plain-text fallback chrome is hers too when the PDF cannot render', async () => {
+  test('the plain-text fallback stays in the DOCUMENT language even though her preference is English', async () => {
     htmlToPdf.mockResolvedValueOnce(null);
     const WhatsAppService = require('../../shared/services/whatsapp.service');
     stubSupabase({
@@ -138,12 +162,67 @@ describe('teacher en + quiz ur', () => {
     await report.generate(SHARE_CODE_ID, { reason: 'scheduled' });
 
     const body = WhatsAppService.sendMessage.mock.calls.map((c) => c[1]).join('\n');
-    expect(body).toMatch(/Quiz results/);
-    expect(body).toMatch(/students finished/);
+    expect(body).toMatch(/کوئز کے نتائج/);
+    expect(body).toMatch(/طلبہ نے مکمل کیا/);
+    expect(body).not.toMatch(/Quiz results/);
+  });
+
+  test('the WhatsApp CAPTION still follows HER preference — the one part of the send that stays hers', async () => {
+    const WhatsAppService = require('../../shared/services/whatsapp.service');
+    stubSupabase({
+      shareCode: SHARE_CODE,
+      teacher: { phone_number: '923001234567', preferred_language: 'en' },
+      sessions: SESSIONS, answers: ANSWERS, questions: QUESTIONS,
+    });
+
+    await report.generate(SHARE_CODE_ID, { reason: 'scheduled' });
+
+    const caption = WhatsAppService.sendDocument.mock.calls[0][3];
+    expect(caption).toMatch(/Class results/);
+    expect(caption).not.toMatch(/کلاس کے نتائج/);
   });
 });
 
-describe('teacher ur + quiz ur', () => {
+describe('D1 — the footer stamp is part of the document, so it is dated in the document language', () => {
+  test('an Urdu quiz gets an Urdu-month stamp, never the en-GB one', async () => {
+    stubSupabase({
+      shareCode: SHARE_CODE,
+      teacher: { phone_number: '923001234567', preferred_language: 'en' },
+      sessions: SESSIONS, answers: ANSWERS, questions: QUESTIONS,
+    });
+
+    await report.generate(SHARE_CODE_ID, { reason: 'scheduled' });
+
+    const html = htmlToPdf.mock.calls[0][0];
+    const stamp = (html.match(/<div class="stamp content" dir="[a-z]+">([^<]*(?:<span[^>]*>[^<]*<\/span>[^<]*)*)<\/div>/) || [])[1] || '';
+    // The Urdu month names formatLessonDate() ships; one of them must be the
+    // one in this stamp, and no English three-letter month may be.
+    expect(stamp).toMatch(/[\u0600-\u06FF]/);
+    expect(stamp).not.toMatch(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b/);
+  });
+
+  test('the roster prints the class label in the document language', async () => {
+    stubSupabase({
+      shareCode: SHARE_CODE,
+      teacher: { phone_number: '923001234567', preferred_language: 'en' },
+      sessions: SESSIONS, answers: ANSWERS, questions: QUESTIONS,
+    });
+
+    await report.generate(SHARE_CODE_ID, { reason: 'scheduled' });
+
+    const html = htmlToPdf.mock.calls[0][0];
+    // The label is isolated in its own .ltr span under RTL, so match the cell
+    // and then look inside it rather than assuming the text sits bare.
+    const cells = html.match(/<div class="cls">[\s\S]*?<\/div>/g) || [];
+    expect(cells.length).toBeGreaterThan(0);
+    cells.forEach((cell) => {
+      expect(cell).not.toMatch(/Grade/);
+      expect(cell).toMatch(/جماعت/);
+    });
+  });
+});
+
+describe('teacher ur + quiz ur (both sides the same, unaffected by D1)', () => {
   test('everything stays Urdu', async () => {
     stubSupabase({
       shareCode: SHARE_CODE,
@@ -155,12 +234,14 @@ describe('teacher ur + quiz ur', () => {
 
     const html = htmlToPdf.mock.calls[0][0];
     expect(html).toMatch(/<html dir="rtl" lang="ur">/);
-    expect(captured.prompts[0]).toMatch(/بالکل تین جملے لکھیں/);
+    expect(captured.prompts[0]).toMatch(/"muddled"/);
+    expect(captured.prompts[0]).toMatch(/رومن اردو میں ہرگز نہیں/);
   });
 });
 
-describe('an unreadable stored preference falls back to the offer floor', () => {
-  test('a null preferred_language does not put the report in the quiz language by accident', async () => {
+describe('D1 — the CAPTION falls back to the offer floor on an unreadable preference; the DOCUMENT does not care', () => {
+  test('a null preferred_language leaves the document in the quiz language and floors only the caption', async () => {
+    const WhatsAppService = require('../../shared/services/whatsapp.service');
     stubSupabase({
       shareCode: SHARE_CODE,
       teacher: { phone_number: '923001234567', preferred_language: null },
@@ -168,8 +249,11 @@ describe('an unreadable stored preference falls back to the offer floor', () => 
     });
 
     await report.generate(SHARE_CODE_ID, { reason: 'scheduled' });
+
     const html = htmlToPdf.mock.calls[0][0];
-    expect(html).toMatch(/<html dir="ltr" lang="en">/);
+    expect(html).toMatch(/<html dir="rtl" lang="ur">/);
+    const caption = WhatsAppService.sendDocument.mock.calls[0][3];
+    expect(caption).toMatch(/Class results/);   // floored to English, not guessed Urdu
   });
 });
 
@@ -226,5 +310,40 @@ describe('after the report, /quiz says so', () => {
     });
     await report.generate(SHARE_CODE_ID, { reason: 'scheduled' });
     expect(updates.some((p) => p.status === 'report_sent')).toBe(true);
+  });
+});
+
+/**
+ * bd-mg9c7.48 (lane C manager pass) — the PDF and the WhatsApp text fallback
+ * are the SAME document on two surfaces. They were shipping two different
+ * vocabularies for the same three parts ("Check question" in the PDF,
+ * "چیک سوال" in the fallback; "Secure" vs "کیا پکا ہوا ہے"), which is exactly
+ * the drift a teacher notices and we do not.
+ */
+describe('bd-mg9c7.48 — the fallback and the PDF name the reteach parts identically', () => {
+  const LABELS = {
+    en: ['What they muddled', 'On the board', 'Check question', 'Secure', 'One to stretch them'],
+    ur: ['کیا الجھن ہوئی', 'بورڈ پر', 'جانچ کا سوال', 'یہ پکا ہو گیا', 'ایک اور آگے کا سوال'],
+  };
+
+  ['en', 'ur'].forEach((lang) => {
+    test(`every ${lang} guidance label in the template's CHROME also appears in the text fallback`, async () => {
+      htmlToPdf.mockResolvedValueOnce(null);
+      const WhatsAppService = require('../../shared/services/whatsapp.service');
+      stubSupabase({
+        shareCode: { ...SHARE_CODE, language: lang },
+        teacher: { phone_number: '923001234567', preferred_language: lang },
+        sessions: SESSIONS, answers: ANSWERS, questions: QUESTIONS,
+      });
+
+      await report.generate(SHARE_CODE_ID, { reason: 'scheduled' });
+
+      const body = WhatsAppService.sendMessage.mock.calls.map((c) => c[1]).join('\n');
+      // The reteach shape is the one this fixture exercises; its three labels
+      // must be the template's, character for character.
+      LABELS[lang].slice(0, 3).forEach((label) => expect(body).toContain(label));
+      // and none of the other language's labels leaked in with them
+      LABELS[lang === 'en' ? 'ur' : 'en'].forEach((label) => expect(body).not.toContain(label));
+    });
   });
 });

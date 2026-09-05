@@ -47,10 +47,9 @@ describe('bd-2473 — hero header (navy, Fraunces headline, hero score)', () => 
     expect(html).toMatch(/74%/);
   });
 
-  test('teacher name and grade appear in the "who" line', () => {
+  test('teacher name and grade appear in the "who" line, exactly "Razia · Grade 5"', () => {
     const html = renderHtml(BASE);
-    expect(html).toMatch(/Razia/);
-    expect(html).toMatch(/Grade 5/);
+    expect(html).toMatch(/<span class="nm content" dir="ltr">Razia<\/span> &middot; Grade 5/);
   });
 
   test('started/finished/worth-reteaching stat chips carry the real counts', () => {
@@ -138,6 +137,137 @@ describe('bd-2473 — HTML escaping (unchanged contract)', () => {
     expect(html).toMatch(/&lt;script&gt;/);
   });
 });
+
+// bd-mg9c7.48/D6 — the operator's own words: "the report I got on staging
+// says 'for teachers' and then says 'for Haroon' — there should be no such
+// duplication, should just say my name." The lockup and the "For"/"forTeacher"
+// wording are removed from this document entirely.
+describe('bd-mg9c7.48 — D6 header: no lockup, no "For", name · grade only', () => {
+  test('the hero never emits the lockup chrome or the word "For"', () => {
+    const html = renderHtml(BASE);
+    expect(html).not.toMatch(/class="lockup"/);
+    expect(html).not.toMatch(/FOR TEACHERS/);
+    expect(html).not.toMatch(/>For </);
+    expect(html).not.toMatch(/For <b>/);
+  });
+
+  test('an empty teacherName falls back to the class-results string, not a blank "For"', () => {
+    const html = renderHtml({ ...BASE, teacherName: '' });
+    expect(html).toMatch(/<div class="who">Class results/);
+    // the "who" line itself carries no name span (a roster/unfinished name
+    // span elsewhere in the document is a separate, expected thing).
+    expect(html).toMatch(/<div class="who">Class results &middot; Grade 5<\/div>/);
+  });
+
+  test('an empty grade drops the " · Grade N" half entirely — no trailing separator', () => {
+    const html = renderHtml({ ...BASE, grade: '' });
+    expect(html).toMatch(/<span class="nm content" dir="ltr">Razia<\/span><\/div>/);
+    expect(html).not.toMatch(/Grade\s*<\/div>/);
+    expect(html).not.toMatch(/&middot;\s*<\/div>/);
+  });
+});
+
+describe('bd-mg9c7.48 — three-part "For tomorrow" guidance', () => {
+  const MISSED_GUIDANCE = {
+    muddled: 'They think a half means any small piece.',
+    board: 'Draw a circle, shade one half, ask what fraction is shaded.',
+    check: 'If I shade 3 of 4 parts, what fraction is that?',
+  };
+  const ZERO_MISSED_GUIDANCE = {
+    secure: 'The class has this cold — halves and quarters are solid.',
+    stretch: 'What would three quarters look like on the same circle?',
+  };
+
+  test('renders three labelled parts for the "something missed" shape', () => {
+    const html = renderHtml({ ...BASE, guidance: MISSED_GUIDANCE });
+    expect(html).toMatch(/What they muddled/);
+    expect(html).toMatch(/They think a half means any small piece\./);
+    expect(html).toMatch(/On the board/);
+    expect(html).toMatch(/Draw a circle, shade one half/);
+    expect(html).toMatch(/Check question/);
+    expect(html).toMatch(/If I shade 3 of 4 parts/);
+    expect(html).not.toMatch(/Secure/);
+    expect(html).not.toMatch(/One to stretch them/);
+  });
+
+  test('renders only the secure + stretch pair for the "nothing missed" shape', () => {
+    const html = renderHtml({ ...BASE, guidance: ZERO_MISSED_GUIDANCE });
+    expect(html).toMatch(/Secure/);
+    expect(html).toMatch(/The class has this cold/);
+    expect(html).toMatch(/One to stretch them/);
+    expect(html).toMatch(/What would three quarters look like/);
+    expect(html).not.toMatch(/What they muddled/);
+    expect(html).not.toMatch(/Check question/);
+  });
+
+  test('a legacy plain string still renders as one unlabelled paragraph', () => {
+    const html = renderHtml({ ...BASE, guidance: 'Start by counting legs together before naming any animal.' });
+    expect(html).toMatch(/class="try"/);
+    expect(html).toMatch(/Start by counting legs together/);
+    expect(html).not.toMatch(/class="try-label"/);
+  });
+
+  test('guidance = null omits the card entirely, same as today', () => {
+    const html = renderHtml({ ...BASE, guidance: null });
+    expect(html).not.toMatch(/class="try"/);
+  });
+});
+
+describe('bd-mg9c7.48 — most-missed card: explanation + misconception as two distinct lines', () => {
+  test('both present render two lines, never both labelled "Explanation"', () => {
+    const html = renderHtml({
+      ...BASE,
+      hardest: [{
+        question_text: 'Which is an example of an insect?', wrong: 6, total: 7,
+        top_wrong_text: 'snake', correct_text: 'bees',
+        explanation: 'Bees have six legs and a segmented body, the definition of an insect.',
+        misconception: 'They picked snake because it moves close to the ground like some insects do.',
+      }],
+    });
+    expect(html).toMatch(/Explanation:<\/b> <span[^>]*>Bees have six legs/);
+    expect(html).toMatch(/Why they picked it:<\/b> <span[^>]*>They picked snake because/);
+  });
+
+  test('only explanation present renders just that one line', () => {
+    const html = renderHtml({
+      ...BASE,
+      hardest: [{
+        question_text: 'Which is an example of an insect?', wrong: 6, total: 7,
+        top_wrong_text: 'snake', correct_text: 'bees',
+        explanation: 'Bees have six legs and a segmented body, the definition of an insect.',
+        misconception: null,
+      }],
+    });
+    expect(html).toMatch(/Explanation:<\/b> <span[^>]*>Bees have six legs/);
+    expect(html).not.toMatch(/Why they picked it:/);
+  });
+
+  test('only misconception present renders just that one line, still labelled "Explanation:" (legacy shape)', () => {
+    const html = renderHtml(BASE); // BASE's only hardest entry has misconception: null — use a variant with one set
+    const withMisconception = renderHtml({
+      ...BASE,
+      hardest: [{
+        question_text: 'Which is an example of an insect?', wrong: 6, total: 7,
+        top_wrong_text: 'snake', correct_text: 'bees',
+        misconception: 'They picked snake because it moves close to the ground like some insects do.',
+      }],
+    });
+    expect(withMisconception).toMatch(/Explanation:<\/b> <span[^>]*>They picked snake because/);
+    expect(withMisconception).not.toMatch(/Why they picked it:/);
+    expect(html).not.toMatch(/Why they picked it:/);
+  });
+});
+
+describe('bd-mg9c7.48 — unfinished names render one span each', () => {
+  test('a mixed-script roster gets one nameCell-style span per child, joined by a plain separator', () => {
+    const html = renderHtml({ ...BASE, unfinished: ['Faizan waseem', 'عائشہ بی بی', 'Hassan ali'] });
+    expect(html).toMatch(/<span class="nm content" dir="ltr">Faizan waseem<\/span>/);
+    expect(html).toMatch(/<span class="nm content" dir="rtl">عائشہ بی بی<\/span>/);
+    expect(html).toMatch(/<span class="nm content" dir="ltr">Hassan ali<\/span>/);
+    // separator sits OUTSIDE the spans, not inside either one
+    expect(html).toMatch(/<\/span>, <span class="nm content"/);
+  });
+});
 // bd-2664 — Urdu quizzes (270 of ~440 real share codes) rendered as tofu
 // boxes: no Nastaliq @font-face was embedded, and every chrome label stayed
 // English regardless of the quiz's own language. Fixed by porting the
@@ -190,10 +320,22 @@ describe('bd-2664 — Urdu report is fully localised + RTL', () => {
     expect(html).not.toMatch(/&amp;mdash;/);
   });
 
-  test('the teacher-name lockup keeps its real <b> tag, not an escaped one', () => {
+  // bd-mg9c7.48/D6 — the staging report the operator saw said "FOR TEACHERS"
+  // then "For Haroon"; he asked for just his name. The lockup and the "for"
+  // wording are gone from this document entirely (the name still needs its
+  // own <span> — dropping HTML escaping is not this test's concern, kept in
+  // the escaping-in-RTL-mode test below).
+  test('the who line is "name · جماعت N" — no lockup, no "کے لیے"/"for" wording', () => {
     const html = renderHtml(UR_BASE);
-    expect(html).toMatch(/مہام <b>کے لیے<\/b>/);
-    expect(html).not.toMatch(/&lt;b&gt;/);
+    // "Prep" is a Latin run inside Urdu chrome, so it is isolated in its own
+    // .ltr span (same bidi rule as everywhere else in this document).
+    expect(html).toMatch(/<span class="nm content" dir="rtl">مہام<\/span> &middot; جماعت <span class="ltr">Prep<\/span>/);
+    // the OLD forTeacher() output was literally "مہام <b>کے لیے</b>" — that
+    // exact "name کے لیے" shape must be gone (the unrelated "کل کے لیے" /
+    // "For tomorrow" section header legitimately contains the same two words
+    // and is not what this asserts against).
+    expect(html).not.toMatch(/مہام <b>کے لیے/);
+    expect(html).not.toMatch(/class="lockup"/);
   });
 
   test('real Urdu question/option/explanation content passes through verbatim', () => {
@@ -249,15 +391,69 @@ describe('bd-2664 — Urdu report is fully localised + RTL', () => {
     expect(html).toMatch(/\.ltr\{[^}]*direction:ltr/);
   });
 
-  test('the footer date is wrapped in the LTR-forcing class, not a bare isolate', () => {
+  // bd-mg9c7.48/D1 — the footer stamp is faced by ITS OWN script, not by a
+  // hardcoded LTR class. A Latin date in an Urdu report still needs the LTR
+  // isolate (otherwise "5 Sep 2026" paints as "Sep 2026 5"), but an Urdu date
+  // in an Urdu report must NOT be forced LTR: direction:ltr splits the two
+  // numeric runs around the Urdu month and reorders them ("5 ستمبر 2026"
+  // printed as "5 2026 ستمبر" — seen in renders/round4/report before the fix).
+  test('a Latin footer date in an Urdu report is faced LTR', () => {
     const html = renderHtml(UR_BASE);
-    expect(html).toMatch(/<div class="ltr">5 Aug 2026<\/div>/);
+    expect(html).toMatch(/<div class="stamp content" dir="ltr">5 Aug 2026<\/div>/);
+    // and it keeps the Latin face rather than inheriting the document's Nastaliq
+    expect(html).toMatch(/\.stamp\[dir="ltr"\]\{[^}]*Lexend/);
+  });
+
+  test('an Urdu footer date in an Urdu report keeps its own RTL direction', () => {
+    const html = renderHtml({ ...UR_BASE, generatedAt: '5 ستمبر 2026' });
+    expect(html).toMatch(/<div class="stamp content" dir="rtl">/);
+    expect(html).not.toMatch(/<div class="stamp content" dir="rtl">\s*<span class="ltr">5 ستمبر 2026/);
   });
 
   test('default language (no field passed) stays English/LTR — no regression', () => {
     const html = renderHtml(BASE);
     expect(html).toMatch(/<html dir="ltr" lang="en">/);
     expect(html).toMatch(/Worth reteaching/);
+  });
+});
+
+// bd-mg9c7.48/D1 — the document is single-language: every chrome label,
+// including the new D6 who-line and the new three-part guidance labels, must
+// come out in the quiz's language with NO sibling-language chrome word
+// anywhere — the two exceptions being a person's own typed-script name and
+// genuine quiz content (both of which legitimately carry either script).
+describe('bd-mg9c7.48/D1 — full single-language chrome, both directions', () => {
+  const FULL = {
+    ...BASE,
+    students: [{ student_name: 'Anum shazadi', student_class: '5', correct_answers: 11, total_questions_answered: 15, mastery_percentage: 73 }],
+    hardest: [{
+      question_text: 'Which is an example of an insect?', wrong: 6, total: 7,
+      top_wrong_text: 'snake', correct_text: 'bees',
+      explanation: 'Bees have six legs and a segmented body.',
+      misconception: 'Snakes move low to the ground like some insects.',
+    }],
+    guidance: { muddled: 'placeholder', board: 'placeholder', check: 'placeholder' },
+  };
+
+  test('language+contentLanguage both "ur": no English chrome word anywhere', () => {
+    const html = renderHtml({ ...FULL, language: 'ur', contentLanguage: 'ur' });
+    ['Class quiz results', 'Class results', 'Class average', 'Started', 'Finished',
+      'Worth reteaching', 'Most chose', 'correct answer', 'Explanation:', 'Why they picked it:',
+      'How each student did', 'Not finished yet:', 'For tomorrow',
+      'What they muddled', 'On the board', 'Check question', 'Secure', 'One to stretch them',
+      // The roster's class label is chrome too — classLabel() prefixed "Grade "
+      // unconditionally, so every row of an Urdu roster printed an English word.
+      'Grade ',
+    ].forEach((chrome) => expect(html).not.toContain(chrome));
+  });
+
+  test('language+contentLanguage both "en": no Urdu chrome word anywhere', () => {
+    const html = renderHtml({ ...FULL, language: 'en', contentLanguage: 'en' });
+    ['کلاس کوئز کے نتائج', 'کلاس کے نتائج', 'کلاس اوسط', 'شروع کیا', 'مکمل کیا',
+      'دوبارہ پڑھانا', 'زیادہ تر نے چنا', 'درست جواب', 'وضاحت:', 'انہوں نے یہ کیوں چنا:',
+      'ہر طالب علم کی کارکردگی', 'ابھی مکمل نہیں کیا:', 'کل کے لیے',
+      'کیا الجھن ہوئی', 'بورڈ پر', 'جانچ کا سوال', 'یہ پکا ہو گیا', 'ایک اور آگے کا سوال',
+    ].forEach((chrome) => expect(html).not.toContain(chrome));
   });
 });
 
@@ -372,5 +568,87 @@ describe('bd-2679 — English question content inside an Urdu report is not bidi
       }],
     });
     expect(html).toMatch(/<span class="ltr">Which word means "big"\?<\/span>/);
+  });
+});
+
+/**
+ * bd-mg9c7.48 (lane C manager pass) — the four things the round-4 renders
+ * showed once the D6 header and the three-part guidance were in place. Every
+ * one of these was READ off a rasterised PDF page in
+ * renders/round4/report/ before it was written down here.
+ */
+describe('bd-mg9c7.48 — what the round-4 renders showed', () => {
+  const { classLabel } = require('../../shared/utils/text-format');
+
+  describe('the roster class label follows the document language (D1)', () => {
+    test('classLabel labels the unit in Urdu for an Urdu document', () => {
+      expect(classLabel('5', 'ur')).toBe('جماعت 5');
+      expect(classLabel('5', 'en')).toBe('Grade 5');
+      expect(classLabel('5')).toBe('Grade 5');           // unchanged default
+    });
+
+    test('a class the child already named keeps what they typed, in either language', () => {
+      expect(classLabel('Class 3', 'ur')).toBe('Class 3');
+      expect(classLabel('جماعت 4', 'ur')).toBe('جماعت 4');
+      expect(classLabel('جماعت 4', 'en')).toBe('جماعت 4');
+      expect(classLabel('', 'ur')).toBe('');
+    });
+
+    test('the Urdu report renders the Urdu label on the roster row', () => {
+      const html = renderHtml({
+        ...BASE, language: 'ur', contentLanguage: 'ur',
+        students: [{ student_name: 'عائشہ', student_class: '5', correct_answers: 7, total_questions_answered: 8, mastery_percentage: 88 }],
+      });
+      expect(html).toMatch(/class="cls">[^<]*جماعت/);
+    });
+  });
+
+  describe('the who-line carries the emphasis the removed bold used to carry (D6)', () => {
+    test('the name span is white and bold in the hero', () => {
+      const html = renderHtml(BASE);
+      const rule = (html.match(/\.who \.nm\{([^}]*)\}/) || [])[1];
+      expect(rule).toBeTruthy();
+      expect(rule).toMatch(/color:#fff/);
+      expect(rule).toMatch(/font-weight:700/);
+    });
+  });
+
+  describe('the footer stamp is faced by its own script, not forced LTR', () => {
+    test('an Urdu date is not dragged into an LTR run', () => {
+      const html = renderHtml({ ...BASE, language: 'ur', contentLanguage: 'ur', generatedAt: '5 ستمبر 2026' });
+      expect(html).toMatch(/<div class="stamp content" dir="rtl">/);
+      expect(html).not.toMatch(/<div class="ltr">5 ستمبر 2026<\/div>/);
+    });
+  });
+
+  describe('print pagination', () => {
+    const html = renderHtml(BASE);
+
+    test('nothing that reads as one unit may split across a page break', () => {
+      const rule = (html.match(/\.moment,\.try,\.unfin,\.r-row\{([^}]*)\}/) || [])[1];
+      expect(rule).toBeTruthy();
+      expect(rule).toMatch(/break-inside:avoid/);
+      expect(rule).toMatch(/page-break-inside:avoid/);
+    });
+
+    test('a section label may not be orphaned at the foot of a page', () => {
+      // ONE .label rule, carrying the break control — a second rule of the same
+      // name would win or lose by source order depending on where it landed.
+      const rules = html.match(/\n\.label\{[^}]*\}/g) || [];
+      expect(rules).toHaveLength(1);
+      expect(rules[0]).toMatch(/break-after:avoid/);
+      expect(rules[0]).toMatch(/page-break-after:avoid/);
+    });
+
+    test('the gap above the guidance box is padding on a wrapper, not a margin that a break drops', () => {
+      const withGuidance = renderHtml({ ...BASE, guidance: { muddled: 'a', board: 'b', check: 'c' } });
+      expect(withGuidance).toMatch(/<div class="trywrap">/);
+      expect((withGuidance.match(/\.trywrap\{([^}]*)\}/) || [])[1]).toMatch(/padding:/);
+      expect((withGuidance.match(/\n\.try\{([^}]*)\}/) || [])[1]).not.toMatch(/margin:/);
+    });
+
+    test('no guidance means no empty wrapper element', () => {
+      expect(renderHtml({ ...BASE, guidance: null })).not.toMatch(/<div class="trywrap">/);
+    });
   });
 });

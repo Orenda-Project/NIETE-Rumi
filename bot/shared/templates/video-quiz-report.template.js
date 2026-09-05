@@ -29,7 +29,7 @@
 const fs = require('fs');
 const path = require('path');
 const { stripEmphasis, classLabel } = require('../utils/text-format');
-const { PALETTE, FONTS, headFamily, bodyFamily, latticeSvg, lockup, dirOf } = require('./niete-brand');
+const { PALETTE, FONTS, headFamily, bodyFamily, latticeSvg, dirOf } = require('./niete-brand');
 
 let _assets = null;
 
@@ -88,8 +88,6 @@ const RTL_LANGS = new Set(['ur']);
 const CHROME = {
   en: {
     eyebrow: 'Class quiz results',
-    lockup: 'FOR TEACHERS',
-    forTeacher: (n) => `For <b>${esc(n)}</b>`,
     classResults: 'Class results',
     gradeLine: (g) => ` &middot; Grade ${esc(g)}`,
     classAverage: 'Class average',
@@ -98,14 +96,21 @@ const CHROME = {
     gotWrong: (n, t) => `${n} of ${t} got this wrong`,
     mostChose: 'Most chose', correctAnswer: 'correct answer',
     explanation: 'Explanation:',
+    // The distractor's own authored feedback, shown as a SECOND line only
+    // when the question's own `explanation` is also present — two distinct
+    // labels so neither ever reads as a duplicate "Explanation".
+    whyPicked: 'Why they picked it:',
     howEachStudentDid: 'How each student did',
     notFinishedYet: 'Not finished yet:',
     forTomorrow: 'For tomorrow',
+    guidanceMuddled: 'What they muddled',
+    guidanceBoard: 'On the board',
+    guidanceCheck: 'Check question',
+    guidanceSecure: 'Secure',
+    guidanceStretch: 'One to stretch them',
   },
   ur: {
     eyebrow: 'کلاس کوئز کے نتائج',
-    lockup: 'اساتذہ کے لیے',
-    forTeacher: (n) => `${esc(n)} <b>کے لیے</b>`,
     classResults: 'کلاس کے نتائج',
     gradeLine: (g) => ` &middot; جماعت ${esc(g)}`,
     classAverage: 'کلاس اوسط',
@@ -114,10 +119,30 @@ const CHROME = {
     gotWrong: (n, t) => `${t} میں سے ${n} نے غلط جواب دیا`,
     mostChose: 'زیادہ تر نے چنا', correctAnswer: 'درست جواب',
     explanation: 'وضاحت:',
+    whyPicked: 'انہوں نے یہ کیوں چنا:',
     howEachStudentDid: 'ہر طالب علم کی کارکردگی',
     notFinishedYet: 'ابھی مکمل نہیں کیا:',
     forTomorrow: 'کل کے لیے',
+    guidanceMuddled: 'کیا الجھن ہوئی',
+    guidanceBoard: 'بورڈ پر',
+    guidanceCheck: 'جانچ کا سوال',
+    guidanceSecure: 'یہ پکا ہو گیا',
+    guidanceStretch: 'ایک اور آگے کا سوال',
   },
+};
+
+/**
+ * PLAN_R4 D6 — the guidance object's shape decides which three chrome
+ * labels apply. "Something missed" carries muddled/board/check; "nothing
+ * missed" carries secure/stretch. Checked by KEY PRESENCE (not truthiness of
+ * every key) so a shape with one blank part still renders the right label
+ * set rather than falling through to the other one.
+ */
+const GUIDANCE_MISSED_KEYS = ['muddled', 'board', 'check'];
+const GUIDANCE_ZERO_KEYS = ['secure', 'stretch'];
+const GUIDANCE_LABEL_KEYS = {
+  muddled: 'guidanceMuddled', board: 'guidanceBoard', check: 'guidanceCheck',
+  secure: 'guidanceSecure', stretch: 'guidanceStretch',
 };
 
 /**
@@ -189,8 +214,17 @@ function renderVideoQuizReportHtml(d) {
         <span class="arrow">${RTL ? '&larr;' : '&rarr;'}</span>
         <span class="lbl">${L(C.correctAnswer)}</span>
         <span ${cls('rightpill')}>${K(h.correct_text || '')}</span></div>` : '';
-    const why = h.misconception ? `
-      <div class="why"><b>${L(C.explanation)}</b> <span ${cls('whytext')}>${K(h.misconception)}</span></div>` : '';
+    // The question's own "why the correct answer is correct" (`explanation`)
+    // and the distractor's own authored feedback (`misconception`) are two
+    // independent facts. Both present -> two distinctly labelled lines,
+    // never both saying "Explanation". Only one present -> that one line,
+    // under the same "Explanation:" label the legacy misconception-only
+    // shape has always used.
+    const why = (h.explanation && h.misconception) ? `
+      <div class="why"><b>${L(C.explanation)}</b> <span ${cls('whytext')}>${K(h.explanation)}</span></div>
+      <div class="why"><b>${L(C.whyPicked)}</b> <span ${cls('whytext')}>${K(h.misconception)}</span></div>`
+      : (h.explanation || h.misconception) ? `
+      <div class="why"><b>${L(C.explanation)}</b> <span ${cls('whytext')}>${K(h.explanation || h.misconception)}</span></div>` : '';
     // Transcript quizzes tag each question with the learning goal it checks;
     // naming it here tells her WHAT to reteach, not just which question.
     const slo = h.slo ? `
@@ -219,7 +253,7 @@ function renderVideoQuizReportHtml(d) {
     const pct = s.mastery_percentage || 0;
     return `
       <div class="r-row">
-        <div class="r-name">${nameCell(s.student_name)}<div class="cls">${T(classLabel(s.student_class))}</div></div>
+        <div class="r-name">${nameCell(s.student_name)}<div class="cls">${T(classLabel(s.student_class, language))}</div></div>
         <div class="pbar"><div class="pfill ${band(pct)}" style="width:${pct}%"></div></div>
         <div class="r-score">${s.correct_answers || 0}/${s.total_questions_answered || 0} &middot; ${pct}%</div>
       </div>`;
@@ -230,14 +264,33 @@ function renderVideoQuizReportHtml(d) {
   const heroMark = a.markOnDark
     ? `<img class="hero-mark" src="data:image/png;base64,${a.markOnDark}" alt="NIETE">` : '';
 
+  // Each unfinished child is a name someone typed themselves, exactly like a
+  // roster row — rendered as its own nameCell()-style span so a mixed roster
+  // doesn't force half its names into the wrong script. The separator sits
+  // OUTSIDE the spans, in plain (unescaped, chrome-neutral) punctuation.
   const notFinished = unfinished.length ? `
-    <div class="unfin"><b>${L(C.notFinishedYet)}</b> <span ${cls('inline')}>${K(unfinished.join(CRTL ? '، ' : ', '))}</span></div>` : '';
+    <div class="unfin"><b>${L(C.notFinishedYet)}</b> ${unfinished.map(nameCell).join(CRTL ? '، ' : ', ')}</div>` : '';
+
+  // guidance is one of: a legacy plain string (one unlabelled paragraph), an
+  // object shaped either {muddled,board,check} or {secure,stretch} (three/two
+  // labelled parts), or null/falsy (card omitted entirely).
+  let guidanceInner = '';
+  if (typeof guidance === 'string') {
+    guidanceInner = `<div class="try-text">${T(stripEmphasis(guidance))}</div>`;
+  } else if (guidance && typeof guidance === 'object') {
+    const keys = GUIDANCE_MISSED_KEYS.some((k) => k in guidance) ? GUIDANCE_MISSED_KEYS : GUIDANCE_ZERO_KEYS;
+    guidanceInner = keys.filter((k) => guidance[k]).map((k) => `
+      <div class="try-part">
+        <div class="try-label">${L(C[GUIDANCE_LABEL_KEYS[k]])}</div>
+        <div class="try-text">${T(stripEmphasis(guidance[k]))}</div>
+      </div>`).join('');
+  }
 
   const guidanceBlock = guidance ? `
     <div class="try">
       ${latticeSvg({ id: 'niete-lattice-try', line: '#ffffff', opacity: 0.14 })}
       <div class="label">${L(C.forTomorrow)}</div>
-      <div class="try-text">${T(stripEmphasis(guidance))}</div>
+      ${guidanceInner}
     </div>` : '';
 
   // Both stacks always name both families — see niete-brand.js.
@@ -276,8 +329,6 @@ body{background:#eef1f0;font-family:${bodyFam}}
 .hero .lattice{position:absolute;inset:0;width:100%;height:100%;z-index:0}
 .hero>*:not(.lattice){position:relative;z-index:1}
 .eyebrow{font-family:${bodyFam};font-size:12px;letter-spacing:${RTL ? '0' : '.2em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.greenPale};font-weight:700}
-.lockup{display:flex;align-items:center;gap:5px;margin-top:12px;font-family:${bodyFam};font-size:${RTL ? '12px' : '10.5px'};letter-spacing:${RTL ? '0' : '.26em'};color:#dfe3ea;font-weight:700}
-.lockup .nuqta{display:block}
 .hero-mark{width:46px;height:46px;object-fit:contain;flex-shrink:0;display:block}
 .eyerow{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
 .herotop{display:flex;justify-content:space-between;align-items:flex-start;margin-top:10px;gap:16px}
@@ -286,6 +337,10 @@ body{background:#eef1f0;font-family:${bodyFam}}
 .hscore .p{font-family:${FONTS.bodyLatin};font-weight:700;font-size:46px;color:#fff;letter-spacing:-.02em;line-height:1;direction:ltr}
 .hscore .s{font-family:${bodyFam};font-size:11.5px;color:#c6e9d5;margin-top:5px;letter-spacing:.05em;${RTL ? '' : 'text-transform:uppercase;'}}
 .who{font-family:${bodyFam};margin-top:16px;font-size:14px;color:#e2e5ea;${RTL ? 'line-height:2;' : ''}}
+/* D6 — the who-line is the name followed by the class, with no possessive
+   preposition in front of it, so the NAME carries the emphasis the removed
+   bold used to carry. */
+.who .nm{color:#fff;font-weight:700;font-size:15px}
 .who b{color:#fff}
 .statrow{display:flex;gap:10px;margin-top:18px}
 .stchip{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);border-radius:11px;padding:9px 14px}
@@ -293,7 +348,7 @@ body{background:#eef1f0;font-family:${bodyFam}}
 .stchip .l{font-family:${bodyFam};font-size:${RTL ? '11.5px' : '10.5px'};color:${PALETTE.greenPale};${RTL ? '' : 'text-transform:uppercase;'}letter-spacing:.08em;margin-top:1px}
 
 .body{padding:26px 42px 6px}
-.label{font-family:${bodyFam};font-size:${RTL ? '12.5px' : '11px'};letter-spacing:${RTL ? '0' : '.14em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.slate};opacity:.55;font-weight:700;margin-bottom:14px}
+.label{font-family:${bodyFam};font-size:${RTL ? '12.5px' : '11px'};letter-spacing:${RTL ? '0' : '.14em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.slate};opacity:.55;font-weight:700;margin-bottom:14px;break-after:avoid;page-break-after:avoid}
 
 .moment{background:#f7f9ff;border-radius:14px;padding:16px 18px;margin-bottom:12px}
 .mhead{display:flex;gap:10px;align-items:flex-start}
@@ -325,16 +380,37 @@ body{background:#eef1f0;font-family:${bodyFam}}
 .unfin{font-family:${bodyFam};margin-top:16px;background:#f5f6f8;border:1px dashed #d9dde4;border-radius:10px;padding:12px 16px;font-size:12.5px;color:${PALETTE.muted};line-height:${RTL ? '1.9' : 'normal'}}
 .unfin b{color:${PALETTE.slate}}
 
-.try{position:relative;overflow:hidden;margin:24px 42px 0;background:linear-gradient(135deg,${PALETTE.slate},${PALETTE.green});color:#fff;border-radius:16px;padding:20px 24px}
+/* The gap above the guidance box is PADDING on a wrapper, not a margin on
+   the box: a top margin is dropped at a page break, so when the box moves
+   to its own page it lands flush against the paper edge. */
+.trywrap{padding:24px 42px 0}
+.try{position:relative;overflow:hidden;background:linear-gradient(135deg,${PALETTE.slate},${PALETTE.green});color:#fff;border-radius:16px;padding:20px 24px}
 .try .lattice{position:absolute;inset:0;width:100%;height:100%;z-index:0}
 .try>*:not(.lattice){position:relative;z-index:1}
 .try .label{color:${PALETTE.greenPale};opacity:1;margin-bottom:7px}
 /* The guidance is written FOR HER, so it is set in her language's face. */
 .try-text{font-family:${headFam};font-size:16.5px;line-height:${RTL ? '1.9' : '1.5'}}
+/* Three-part guidance (D6): each part's own label is visually subordinate to
+   the section header above it (.try .label) — smaller, the same green-pale
+   tone, letterspaced in en only (Urdu has no case and letterspacing breaks
+   its joining, matching what .label already does elsewhere in this file). */
+.try-part{margin-top:14px}
+.try-part:first-child{margin-top:2px}
+.try-label{font-family:${bodyFam};font-size:${RTL ? '11px' : '10px'};letter-spacing:${RTL ? '0' : '.12em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.greenPale};opacity:.8;font-weight:700;margin-bottom:4px}
+
+/* Print pagination. A4 is 1123px tall and this document is 2-3 pages: without
+   these, a missed-question card, a roster row or the whole guidance box
+   splits across the break (observed: the guidance header landing alone at the
+   foot of page 2 with its first sentence sliced in half at the top of page 3),
+   and the roster's own section label is orphaned under nothing. break-* is the
+   standard property; page-break-* is kept beside it because Chromium print
+   path still honours the legacy alias on some element types. */
+.moment,.try,.unfin,.r-row{break-inside:avoid;page-break-inside:avoid}
 
 .foot{font-family:${bodyFam};display:flex;align-items:center;justify-content:space-between;padding:20px 42px 28px;margin-top:20px;border-top:1px solid #eef0f6;color:#8a93ad;font-size:12px}
 .brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${PALETTE.slate};font-size:14px;font-family:${FONTS.bodyLatin}}
 .brand .mark{width:20px;height:20px;object-fit:contain;display:block}
+.stamp[dir="ltr"]{font-family:${FONTS.bodyLatin};font-weight:600}
 </style></head><body>
 <div class="report">
 
@@ -345,8 +421,7 @@ body{background:#eef1f0;font-family:${bodyFam}}
       <h1 class="content" dir="${cdir}">${K(topic)}</h1>
       <div class="hscore"><div class="p">${average}%</div><div class="s">${L(C.classAverage)}</div></div>
     </div>
-    ${lockup(L(C.lockup))}
-    <div class="who">${teacherName ? L(C.forTeacher(teacherName)) : L(C.classResults)}${grade ? L(C.gradeLine(grade)) : ''}</div>
+    <div class="who">${teacherName ? nameCell(teacherName) : L(C.classResults)}${grade ? L(C.gradeLine(grade)) : ''}</div>
     <div class="statrow">
       <div class="stchip"><div class="n">${started}</div><div class="l">${L(C.started)}</div></div>
       <div class="stchip"><div class="n">${finished}</div><div class="l">${L(C.finished)}</div></div>
@@ -365,11 +440,11 @@ body{background:#eef1f0;font-family:${bodyFam}}
     ${notFinished}
   </div>
 
-  ${guidanceBlock}
+  ${guidanceBlock ? `<div class="trywrap">${guidanceBlock}</div>` : ''}
 
   <div class="foot">
     <div class="brand">${brandMarkImg}NIETE</div>
-    <div class="ltr">${esc(generatedAt)}</div>
+    <div class="stamp content" dir="${dirOf(generatedAt) }">${wrapLatin(esc(generatedAt), dirOf(generatedAt) === 'rtl')}</div>
   </div>
 
 </div>

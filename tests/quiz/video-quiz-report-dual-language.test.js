@@ -83,8 +83,14 @@ describe('NIETE brand on the report hero', () => {
     expect(html).toMatch(/pattern id="niete-lattice/);
   });
 
-  test('badges the audience with the brand-book lockup', () => {
-    expect(html).toMatch(/FOR TEACHERS/);
+  // UPDATED bd-mg9c7.48/D6 — the operator's own words: the staging report
+  // said "FOR TEACHERS" then "For Haroon"; he asked for just his name, no
+  // duplication. The lockup chrome is gone from this document entirely; the
+  // "who" line now reads "<name> · Grade N" with the name in its own span.
+  test('no lockup chrome — the who line is the teacher\'s name, not "FOR TEACHERS"', () => {
+    expect(html).not.toMatch(/FOR TEACHERS/);
+    expect(html).not.toMatch(/class="lockup"/);
+    expect(html).toMatch(/<span class="nm content" dir="ltr">Rifat Noor<\/span>/);
   });
 
   test('the score bands are NIETE colours — no gold, no coral, no other navy', () => {
