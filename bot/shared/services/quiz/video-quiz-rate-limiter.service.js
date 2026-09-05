@@ -75,6 +75,38 @@ const rateKey = (phone) => `videoquiz:${stripPlus(phone)}:sendrate`;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// ─── process-wide outbound bucket ──────────────────────────────────────────
+// The per-recipient window above protects one child. A CLASS tapping a
+// forwarded link together is 30 children × 3 messages per question, and
+// Meta's throughput limit (#130429) is per business, not per pair. This is
+// a plain token bucket: OUTBOUND_MAX_MPS sends per second across the whole
+// process, refilled continuously. Default 40, well under the smallest tier.
+// Read at call time so an env change on Railway takes effect on restart
+// without a code change.
+let _bucket = { tokens: null, at: 0 };
+function outboundMaxPerSecond() {
+  const n = parseInt(process.env.OUTBOUND_MAX_MPS || '40', 10);
+  return Number.isFinite(n) && n > 0 ? n : 40;
+}
+async function takeGlobalToken() {
+  const max = outboundMaxPerSecond();
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const now = Date.now();
+    if (_bucket.tokens === null) _bucket = { tokens: max, at: now };
+    const refill = ((now - _bucket.at) / 1000) * max;
+    _bucket.tokens = Math.min(max, _bucket.tokens + refill);
+    _bucket.at = now;
+    if (_bucket.tokens >= 1) {
+      _bucket.tokens -= 1;
+      return;
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await sleep(Math.ceil(((1 - _bucket.tokens) / max) * 1000));
+  }
+}
+function resetGlobalBucket() { _bucket = { tokens: null, at: 0 }; }
+
 /**
  * Load this phone's send timestamps, pruned to the current window.
  * @param {string} phone
@@ -101,6 +133,7 @@ async function saveWindow(phone, timestamps) {
  * @returns {Promise<void>}
  */
 async function throttle(phone) {
+  await takeGlobalToken();
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const now = Date.now();
@@ -133,6 +166,9 @@ async function throttle(phone) {
 
 module.exports = {
   throttle,
+  takeGlobalToken,
+  resetGlobalBucket,
+  outboundMaxPerSecond,
   WINDOW_MS,
   MAX_SENDS_PER_WINDOW,
   KEY_TTL_SECS,

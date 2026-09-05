@@ -24,10 +24,19 @@
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const render = require('./video-quiz-render.service');
+// Every send in this file spends the recipient's Meta per-pair budget, so
+// every send waits on the proactive throttle first (the per-recipient rule; this
+// port had it only on the two "side door" sends in video-quiz.service).
+const rateLimiter = require('./video-quiz-rate-limiter.service');
+const { resolveUx } = require('../../config/ux-strings');
+const { truncateCodePoints } = require('./religious-marks');
 
 // Enough for WhatsApp to preserve order without making a child wait.
 const GAP_TEXT_MS = 700;
 const GAP_MEDIA_MS = 1200;
+
+/** Picker chrome in the quiz language ('en' when the context carries none). */
+const chrome = (key, ctx) => resolveUx(key, { language: (ctx && ctx.language) || 'en' });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -54,14 +63,16 @@ function listRows(options, ctx, optionIndices) {
   // bd-2359: display position is NOT the option's identity. The id must carry
   // the ORIGINAL index or every shuffled question mis-scores.
   const idx = optionIndices || shown.map((_, i) => i);
-  const handled = shown.some((t) => t.length > render.LIST_ROW_TITLE_MAX);
+  const handled = shown.some((t) => [...t].length > render.LIST_ROW_TITLE_MAX);
   return shown.map((title, i) => {
     const row = {
       id: render.answerId(ctx.questionId, idx[i]),
       title: handled ? render.optionLetter(i) : title,
     };
     if (handled) {
-      row.description = title.slice(0, render.LIST_ROW_DESCRIPTION_MAX);
+      // Code-point cap, and never a cut that strands a sacred name from its
+      // honorific (an Islamiyat option ending "…نبی کریم" with the ﷺ dropped).
+      row.description = truncateCodePoints(title, render.LIST_ROW_DESCRIPTION_MAX);
     }
     return row;
   });
@@ -94,6 +105,7 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
 
     let ok = false;
     try {
+      await rateLimiter.throttle(phone);
       switch (m.kind) {
         case 'text': {
           if (m.anchoredToPrevious && lastMessageId) {
@@ -124,8 +136,8 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
           ok = await WhatsAppService.sendInteractiveMessage(phone, {
             body: { text: m.body },
             action: {
-              button: 'Choose answer',
-              sections: [{ title: 'Options', rows: listRows(m.options, ctx, m.optionIndices) }],
+              button: chrome('vqChooseAnswer', ctx),
+              sections: [{ title: chrome('vqOptions', ctx), rows: listRows(m.options, ctx, m.optionIndices) }],
             },
           });
           break;
@@ -169,7 +181,7 @@ async function sendButtons(phone, m, ctx) {
   const bIdx = m.optionIndices || m.options.map((_, i) => i);   // bd-2359
   const buttons = m.options.slice(0, 3).map((title, i) => ({
     id: render.answerId(ctx.questionId, bIdx[i]),
-    title: title.slice(0, render.BUTTON_TITLE_MAX),
+    title: truncateCodePoints(title, render.BUTTON_TITLE_MAX),
   }));
   if (m.headerImage) {
     return WhatsAppService.sendImageWithButtons(phone, m.headerImage, m.body, buttons);
@@ -216,10 +228,10 @@ async function sendPictureFlow(phone, m, ctx) {
   return WhatsAppService.sendInteractiveMessage(phone, {
     body: { text: 'Which picture is right?' },
     action: {
-      button: 'Choose answer',
-      sections: [{ title: 'Options', rows: listRows(m.options, ctx, m.optionIndices) }],
+      button: chrome('vqChooseAnswer', ctx),
+      sections: [{ title: chrome('vqOptions', ctx), rows: listRows(m.options, ctx, m.optionIndices) }],
     },
   });
 }
 
-module.exports = { sendPhase, GAP_TEXT_MS, GAP_MEDIA_MS };
+module.exports = { sendPhase, listRows, GAP_TEXT_MS, GAP_MEDIA_MS };

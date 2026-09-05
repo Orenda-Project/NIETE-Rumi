@@ -184,6 +184,18 @@ async function handleFeedbackButton(buttonId, phone) {
 
   logToFile('Coaching Feedback: button tapped', { coachingSessionId, userId, useful });
 
+  // Transcript quiz: the survey is answered, so the quiz offer no longer has
+  // to wait out its window — bring it forward. Idempotent with the delayed
+  // job (one claim per session); best-effort, never blocks the survey.
+  try {
+    const TranscriptQuizOffer = require('../quiz/transcript-quiz-offer.service');
+    await TranscriptQuizOffer.triggerEarly(coachingSessionId);
+  } catch (tqErr) {
+    logToFile('Coaching Feedback: transcript quiz early trigger failed (non-fatal)', {
+      coachingSessionId, error: tqErr.message,
+    });
+  }
+
   if (useful) {
     await WhatsAppService.sendMessage(phone, ux('coachingSurveyThanks', language));
     return true;

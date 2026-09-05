@@ -5,7 +5,7 @@
  * English-only v1 layout: no Nastaliq font, no RTL, no per-language chrome.
  *
  * The teacher's copy of "how did my class do, and what do I do about it".
- * v2 (bd-2473) adopts the coaching hero-report visual system (navy hero,
+ * v2 adopts the coaching hero-report visual system (NIETE slate hero — retokened from the earlier navy by the transcript-quiz work,
  * Fraunces/Lexend, jewel-tone cards, gold accents — see the main bot's
  * shared/services/coaching/report-v2/hero-report.template.js) instead of the
  * v1 flat white layout, so the report family reads as one product.
@@ -178,9 +178,14 @@ function renderVideoQuizReportHtml(d) {
         <span class="rightpill">${T(h.correct_text || '')}</span></div>` : '';
     const why = h.misconception ? `
       <div class="why"><b>${L(C.explanation)}</b> ${T(h.misconception)}</div>` : '';
+    // Transcript quizzes tag each question with the learning goal it checks;
+    // naming it here tells her WHAT to reteach, not just which question.
+    const slo = h.slo ? `
+      <div class="slo">${T(h.slo)}</div>` : '';
     return `
       <div class="moment">
         <div class="mhead"><div class="num">${i + 1}</div><div class="m-q">${T(h.question_text)}</div></div>
+        ${slo}
         <div class="mstat">${L(C.gotWrong(h.wrong, h.total))}</div>
         ${chose}${why}
       </div>`;
@@ -220,7 +225,7 @@ function renderVideoQuizReportHtml(d) {
 @font-face{font-family:'Fraunces';font-weight:600;src:url(data:font/ttf;base64,${a.frauncesSemi}) format('truetype')}
 @font-face{font-family:'NastaliqUrdu';font-weight:400;src:url(data:font/ttf;base64,${a.nastaliq}) format('truetype')}
 @font-face{font-family:'NastaliqUrdu';font-weight:700;src:url(data:font/ttf;base64,${a.nastaliqBold}) format('truetype')}
-body{background:#eef1f7;font-family:${bodyFam}}
+body{background:#eef1f0;font-family:${bodyFam}}
 .report{width:794px;margin:0 auto;background:#fff;color:#1c2438}
 /* Latin runs isolated inside RTL text (proper nouns, stray English words)
    render in their own script + direction, matching hero-report. */
@@ -233,31 +238,32 @@ body{background:#eef1f7;font-family:${bodyFam}}
    of the RTL ancestor. */
 .ltr{font-family:'Lexend',sans-serif;font-weight:600;unicode-bidi:isolate;direction:ltr}
 
-.hero{position:relative;min-height:230px;overflow:hidden;background:#0c1a4e;padding:30px 42px 26px}
-.hero::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(12,26,78,.5),rgba(12,26,78,.45) 45%,rgba(12,26,78,.92))}
+.hero{position:relative;min-height:230px;overflow:hidden;background:#333748;padding:30px 42px 26px}
+.hero::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(51,55,72,.5),rgba(51,55,72,.45) 45%,rgba(51,55,72,.92))}
 .hero>*{position:relative;z-index:1}
-.eyebrow{font-size:12px;letter-spacing:${RTL ? '0' : '.2em'};${RTL ? '' : 'text-transform:uppercase;'}color:#9db0ff;font-weight:700}
+.eyebrow{font-size:12px;letter-spacing:${RTL ? '0' : '.2em'};${RTL ? '' : 'text-transform:uppercase;'}color:#a9e3c4;font-weight:700}
 .herotop{display:flex;justify-content:space-between;align-items:flex-start;margin-top:10px}
 .hero h1{font-family:${headFam};font-size:${RTL ? '24px' : '26px'};line-height:${RTL ? '1.9' : '1.2'};font-weight:600;color:#fff;max-width:490px}
 .hscore{text-align:${RTL ? 'left' : 'right'};flex-shrink:0;margin-${RTL ? 'right' : 'left'}:20px}
 .hscore .p{font-family:'Lexend';font-weight:700;font-size:46px;color:#fff;letter-spacing:-.02em;line-height:1;direction:ltr}
-.hscore .s{font-family:${RTL ? bodyFam : `'Lexend'`};font-size:11.5px;color:#bcc8ff;margin-top:5px;letter-spacing:.05em;${RTL ? '' : 'text-transform:uppercase;'}}
-.who{margin-top:16px;font-size:14px;color:#dfe5ff;${RTL ? 'line-height:2;' : ''}}
+.hscore .s{font-family:${RTL ? bodyFam : `'Lexend'`};font-size:11.5px;color:#c6e9d5;margin-top:5px;letter-spacing:.05em;${RTL ? '' : 'text-transform:uppercase;'}}
+.who{margin-top:16px;font-size:14px;color:#e2e5ea;${RTL ? 'line-height:2;' : ''}}
 .who b{color:#fff}
 .statrow{display:flex;gap:10px;margin-top:18px}
 .stchip{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);border-radius:11px;padding:9px 14px}
 .stchip .n{font-family:'Lexend';font-weight:700;font-size:19px;color:#fff;direction:ltr}
-.stchip .l{font-family:${RTL ? bodyFam : `'Lexend'`};font-size:${RTL ? '11.5px' : '10.5px'};color:#9db0ff;${RTL ? '' : 'text-transform:uppercase;'}letter-spacing:.08em;margin-top:1px}
+.stchip .l{font-family:${RTL ? bodyFam : `'Lexend'`};font-size:${RTL ? '11.5px' : '10.5px'};color:#a9e3c4;${RTL ? '' : 'text-transform:uppercase;'}letter-spacing:.08em;margin-top:1px}
 
 .body{padding:26px 42px 6px}
-.label{font-size:${RTL ? '12.5px' : '11px'};letter-spacing:${RTL ? '0' : '.14em'};${RTL ? '' : 'text-transform:uppercase;'}color:#0c1a4e;opacity:.55;font-weight:700;margin-bottom:14px}
+.label{font-size:${RTL ? '12.5px' : '11px'};letter-spacing:${RTL ? '0' : '.14em'};${RTL ? '' : 'text-transform:uppercase;'}color:#333748;opacity:.55;font-weight:700;margin-bottom:14px}
 
 .moment{background:#f7f9ff;border-radius:14px;padding:16px 18px;margin-bottom:12px}
 .mhead{display:flex;gap:10px;align-items:flex-start}
-.num{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:#0c1a4e;color:#fff;font-size:12px;font-weight:700;
+.num{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:#333748;color:#fff;font-size:12px;font-weight:700;
      display:flex;align-items:center;justify-content:center;font-family:'Lexend'}
 .m-q{font-family:${headFam};font-size:16px;line-height:${RTL ? '1.9' : '1.4'};color:#26304d;font-weight:600}
 .mstat{font-size:12px;color:#6a748f;margin:8px 34px 10px}
+.slo{font-size:12px;color:#1f7a4b;background:#e4f5ec;border-radius:10px;display:inline-block;padding:2px 10px;margin:8px 34px 0}
 .chose{margin:0 34px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px}
 .lbl{color:#6a748f}
 .wrongpill{background:#fff4d6;color:#9a6b00;font-weight:700;padding:3px 10px;border-radius:12px}
@@ -272,18 +278,18 @@ body{background:#eef1f7;font-family:${bodyFam}}
 .r-name .cls{font-weight:400;color:#8a93ad;font-size:11.5px}
 .pbar{flex:1;height:8px;border-radius:5px;background:#e7ebf3;overflow:hidden}
 .pfill{height:100%;border-radius:5px}
-.r-score{width:110px;text-align:${RTL ? 'left' : 'right'};font-family:'Lexend';font-weight:700;font-size:13px;color:#0c1a4e;direction:ltr}
-.band-strong{background:#3aa775}.band-mid{background:#e0a52e}.band-low{background:#dd7a5c}
+.r-score{width:110px;text-align:${RTL ? 'left' : 'right'};font-family:'Lexend';font-weight:700;font-size:13px;color:#333748;direction:ltr}
+.band-strong{background:#47BA7D}.band-mid{background:#e0a52e}.band-low{background:#dd7a5c}
 
 .unfin{margin-top:16px;background:#faf9f7;border:1px dashed #e2e0d8;border-radius:10px;padding:12px 16px;font-size:12.5px;color:#7a7360;line-height:${RTL ? '1.9' : 'normal'}}
 .unfin b{color:#4a4636}
 
-.try{margin:24px 42px 0;background:linear-gradient(135deg,#0c1a4e,#1b2f7a);color:#fff;border-radius:16px;padding:20px 24px}
-.try .label{color:#9db0ff;opacity:1;margin-bottom:7px}
+.try{margin:24px 42px 0;background:linear-gradient(135deg,#333748,#47BA7D);color:#fff;border-radius:16px;padding:20px 24px}
+.try .label{color:#a9e3c4;opacity:1;margin-bottom:7px}
 .try-text{font-family:${headFam};font-size:16.5px;line-height:${RTL ? '1.9' : '1.5'}}
 
 .foot{display:flex;align-items:center;justify-content:space-between;padding:20px 42px 28px;margin-top:20px;border-top:1px solid #eef0f6;color:#8a93ad;font-size:12px}
-.brand{display:flex;align-items:center;gap:8px;font-weight:700;color:#0c1a4e;font-size:14px;font-family:'Lexend'}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;color:#333748;font-size:14px;font-family:'Lexend'}
 .brand .mark{width:20px;height:20px;object-fit:contain;display:block}
 </style></head><body>
 <div class="report">

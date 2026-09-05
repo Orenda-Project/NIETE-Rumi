@@ -160,7 +160,7 @@ async function maybeSendEarly(shareCodeId) {
  * `report_sent_at` (bd-2334; the previous version of this comment claimed a
  * guard that was never implemented and no column that existed).
  */
-async function generate(shareCodeId, { reason = 'scheduled' } = {}) {
+async function generate(shareCodeId, { reason = 'scheduled', force = false } = {}) {
   const { data: sc } = await supabase
     .from('quiz_share_codes')
     .select('id, code, quiz_id, teacher_user_id, teacher_name, topic, language, '
@@ -172,7 +172,8 @@ async function generate(shareCodeId, { reason = 'scheduled' } = {}) {
   // ONE report per share code. A teacher who has already been told how her
   // class did should never be told again — and both trigger paths (the morning
   // job and the all-finished early send) can legitimately fire for the same code.
-  if (sc.report_sent_at) {
+  // `force` is the one exception: she asked for it herself from /quiz.
+  if (sc.report_sent_at && !force) {
     logEvent('video_quiz.report_suppressed', {
       shareCodeId, reason, why: 'already_sent', sentAt: sc.report_sent_at,
     });
@@ -214,6 +215,21 @@ async function generate(shareCodeId, { reason = 'scheduled' } = {}) {
     return false;
   }
 
+  // Transcript quizzes carry the lesson digest on the quiz row; the SLO each
+  // question checks is stored in the question's external_id ("tq:S2:5").
+  let sloOf = () => null;
+  try {
+    const { data: quizRow } = await supabase.from('quizzes')
+      .select('quiz_source, meta').eq('id', sc.quiz_id).maybeSingle();
+    const slos = quizRow?.meta?.digest?.slos;
+    if (quizRow?.quiz_source === 'transcript' && Array.isArray(slos)) {
+      const byId = new Map(slos.map((s) => [s.id, s.statement]));
+      sloOf = (externalId) => byId.get(String(externalId || '').split(':')[1]) || null;
+    }
+  } catch (e) {
+    logToFile('⚠️ video-quiz report: could not read quiz digest (non-fatal)', { error: e.message });
+  }
+
   if (!all.length) {
     await WhatsAppService.sendMessage(teacher.phone_number,
       `No one has opened your quiz on “${sc.topic}” yet. The link stays live for `
@@ -226,7 +242,8 @@ async function generate(shareCodeId, { reason = 'scheduled' } = {}) {
     ? Math.round(done.reduce((s, x) => s + (x.mastery_percentage || 0), 0) / done.length)
     : 0;
 
-  const hardest = await hardestQuestions(shareCodeId);
+  const hardest = (await hardestQuestions(shareCodeId))
+    .map((h) => ({ ...h, slo: sloOf(h.external_id) }));
   const unfinished = all.filter((s) => s.status !== 'completed');
 
   // bd-2664 — the WhatsApp text fallback (only used when the PDF render
@@ -530,7 +547,7 @@ async function hardestQuestions(shareCodeId, limit = 3) {
 
   const { data: qs } = await supabase
     .from('quiz_questions')
-    .select('id, question_text, option_a, option_b, option_c, option_d, '
+    .select('id, external_id, question_text, option_a, option_b, option_c, option_d, '
             + 'correct_option, option_feedback')
     .in('id', ranked.map(([id]) => id));
   const byId = new Map((qs || []).map((q) => [q.id, q]));
@@ -566,6 +583,7 @@ async function hardestQuestions(shareCodeId, limit = 3) {
 
     return {
       question_text: q.question_text || '(question unavailable)',
+      external_id: q.external_id || null,
       wrong: t.wrong,
       total: t.total,
       top_wrong_option: clustered ? topWrong : null,
@@ -610,6 +628,9 @@ function buildGuidancePrompt({ topic, grade, average, finished, started, hardest
     }
     if (h.misconception) {
       lines.push(`   Explanation: ${h.misconception}`);
+    }
+    if (h.slo) {
+      lines.push(`   Learning goal this checks: ${h.slo}`);
     }
     return lines.join('\n');
   }).join('\n\n');
