@@ -23,7 +23,7 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { completeJson } = require('./transcript-quiz-llm');
-const { canonicalSubject } = require('./transcript-quiz-language');
+const { canonicalSubject, fixTransliterations } = require('./transcript-quiz-language');
 
 const MAX_TRANSCRIPT_CHARS = 60000;   // p90 is 26k; a runaway transcript is cut, not refused
 
@@ -73,7 +73,10 @@ function normaliseDigest(raw, { storedSubject } = {}) {
   const slos = Array.isArray(d.slos) ? d.slos : [];
   const out = {
     topic: String(d.topic || '').trim(),
-    topic_as_taught: String(d.topic_as_taught || d.topic || '').trim(),
+    // The goal lines and the as-taught topic are printed on the teacher's PDF
+    // and the report; a transliterated term there ('فیکشن') contradicts every
+    // question under it. What was SPOKEN (key_terms.as_spoken) stays as spoken.
+    topic_as_taught: fixTransliterations(String(d.topic_as_taught || d.topic || '').trim()),
     subject: canonicalSubject(d.subject) !== 'other' ? canonicalSubject(d.subject) : canonicalSubject(storedSubject),
     subject_conflict: Boolean(d.subject_conflict),
     grade_band: String(d.grade_band || '').trim() || null,
@@ -81,7 +84,7 @@ function normaliseDigest(raw, { storedSubject } = {}) {
     confidence: Number.isFinite(Number(d.confidence)) ? Number(d.confidence) : 0,
     slos: slos.filter((s) => s && (s.statement || s.id)).slice(0, 6).map((s, i) => ({
       id: String(s.id || `S${i + 1}`).trim(),
-      statement: String(s.statement || '').trim(),
+      statement: fixTransliterations(String(s.statement || '').trim()),
       evidence_quote: String(s.evidence_quote || '').trim(),
       taught_level: ['recall', 'understand', 'apply'].includes(s.taught_level) ? s.taught_level : 'understand',
     })),
