@@ -66,6 +66,23 @@ outside this repo and not in this repo's git history:
 > repaired next round; a refusal throws away a finished lesson, which is the failure this whole
 > lane has been unpicking.
 >
+> **bd-zle0u, hours later — `OVERLAY_MISSING` GAINED A SWITCH, because the fix above was right
+> about the diagnosis and wrong about the layer.** Handing the defect to the revision ladder made
+> the model re-emit the whole overlay alongside the whole document on EVERY round: measured on the
+> 2026-09-05 staging re-run, 18–21k completion tokens for the three Urdu cells against 9–14k for
+> the two English ones, roughly **+7,000 output tokens per round**. Five rounds of that does not
+> fit the author timeout, and all three cells came back `AUTHOR_TIMEOUT` — a teacher who chose
+> «اردو» now waited fourteen minutes and received NOTHING, where the original bug at least gave
+> her an English lesson. Strictly worse, and live.
+>
+> The overlay therefore moves OUT of the ladder and into its own pass over the ACCEPTED document
+> — one ~7k call instead of five, which is the "separate pass over the finished document" the
+> deleted directive always claimed existed. Same patch in both homes, no new §3 divergence:
+>
+> | file | what changed |
+> |---|---|
+> | `lint_lp.js` | `overlayDefects(doc, lang, opts)` takes `opts.expected`; `lint()` reads `opts.overlayExpected` (default **true**, so every existing caller is unchanged) and passes it through. The authoring ladder passes `false` — it is not the caller writing the overlay — and the overlay pass passes `true` to check its own output. The gate is not weakened; it is asked of the caller that can satisfy it in one step. |
+>
 > **bd-c3le6 — three lessons discarded for 3px, 9px and 11px.** All three had `overflowingSections`
 > EMPTY: no `data-sec` element past the page's inner bottom edge, so no lesson content was clipped.
 > The only thing over the line was the FOOTER. Two measured causes, both found by rendering the

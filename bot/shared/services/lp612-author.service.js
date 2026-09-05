@@ -532,35 +532,39 @@ function compactPageTruth(pages, maxChars = PAGE_TRUTH_MAX_CHARS) {
  * banned — and a request for Urdu against an English-medium book is authored in English and
  * carries its Urdu toggle as an `ur_overlay` on the same document.
  *
- * THIS FUNCTION USED TO SAY THE OPPOSITE, AND IT COST EVERY URDU LESSON ITS LANGUAGE (bd-vnyuw).
+ * THE OVERLAY IS DEFERRED, AND THIS TIME THE SENTENCE THAT SAYS SO IS TRUE (bd-zle0u).
  *
- * It read: *"the Urdu toggle is built by a separate pass over the finished document. Do NOT emit
- * ur_overlay yourself."* **There is no separate pass.** `git grep ur_overlay` across the repo
- * finds only readers — `applyOverlay`, `lint`, `visual_check`, and `sanitizeOverlay`, which can
- * only DROP one. Nothing has ever written one. So `doc.ur_overlay` was always absent,
- * `applyOverlay` always returned `applied: []`, and the worker always set `overlay_dropped`.
+ * The full arc, because both halves of it shipped and both hurt:
  *
- * Measured on staging 2026-09-05: of the nine English-medium books ever requested in Urdu, ALL
- * SIX that reached `ready` carry `overlay_dropped = true`. Not most — all. A teacher who chose
- * «اردو» received an English lesson under Urdu headings, every time, with no error at any layer.
+ * 1. For the lane's whole life this directive read *"the Urdu toggle is built by a separate pass
+ *    over the finished document. Do NOT emit ur_overlay yourself."* **That pass did not exist.**
+ *    `git grep ur_overlay` found only readers. So `doc.ur_overlay` was always absent and every
+ *    English-medium book requested in Urdu shipped in ENGLISH — all six that ever reached
+ *    `ready`, `overlay_dropped = true`, with no error at any layer (bd-vnyuw).
+ * 2. bd-vnyuw removed the directive, so the model wrote the overlay INLINE, in the same response
+ *    as the lesson, on every round of the revision ladder. It works — 89 pointers, 89 applied, a
+ *    68.4 % Urdu PDF — and it costs **~+7,000 completion tokens per round** (measured: 9–14k for
+ *    the non-overlay cells against 18–21k for the three overlay cells). Five rounds of that does
+ *    not fit the author timeout, and all three cells came back `AUTHOR_TIMEOUT`. She waited 14
+ *    minutes for nothing, where the bug had at least been giving her an English lesson.
  *
- * The system prompt was right all along: brief §7b says "Then add an `ur_overlay`" and §7c.7 says
- * "overlay EVERY instruction string you are allowed to". This per-request directive was the one
- * thing contradicting it, and the model obeyed the later, more specific instruction — as it
- * should have. The directive now agrees with the brief and points at it, and
- * `lint_lp.js`'s `OVERLAY_MISSING` asserts the result in code rather than trusting compliance.
+ * The answer to both is the architecture the original sentence only claimed: translate ONCE, at
+ * the end, on the accepted document — one ~7k call instead of five. So the directive says "no
+ * overlay here" again, and the three things that make it honest this time are all in code, not in
+ * a prompt: `overlayPass()` below actually writes the overlay, `authorLessonPlan` STRIPS any
+ * overlay the model emits anyway (so a half-overlaid document can never reach a renderer), and
+ * `lint_lp.js`'s `OVERLAY_MISSING` — passed `overlayExpected: false` by the ladder — is the gate
+ * the pass answers to. Rule 24(c): the contract is asserted in code, never trusted to compliance.
  */
 function languageDirective(want, medium) {
   if (want === 'ur' && medium !== 'ur') {
     return 'The teacher asked for URDU. This is an English-medium book, so author the lp_doc in ' +
-      'ENGLISH exactly as §7 requires, and THEN add the `ur_overlay` that §7b defines: a flat map ' +
-      'of RFC-6901 JSON Pointer into this same document -> the Urdu string that replaces the ' +
-      'English one at render time. The structure never changes; only instruction strings swap. ' +
-      'Overlay EVERY instruction string you are allowed to (§7c.7) — a half-overlaid document ' +
-      'serves half-English prose under an Urdu label, and the renderer cannot fix a missing ' +
-      'translation. Do NOT overlay /slo/text_verbatim, anything under /page2/exam_bank, or the ' +
-      '`text` of any `board` block: those follow the book\'s and the exam\'s language. Without ' +
-      'the overlay this teacher receives an English lesson under Urdu headings.';
+      'ENGLISH exactly as §7 requires, and emit NO `ur_overlay` in this response. The Urdu layer ' +
+      'is not part of this call: it is added by a separate pass that runs AFTER this document is ' +
+      'accepted and is given the finished document to translate (§7b describes what that pass ' +
+      'produces). An overlay written here is discarded before the gates run, so it buys nothing ' +
+      'and costs you output you should be spending on the lesson. Write the best English lesson ' +
+      'you can; the Urdu is handled.';
   }
   if (want === 'en' && medium === 'ur') {
     return 'The teacher asked for ENGLISH, but this is an URDU-MEDIUM book: author the whole ' +
@@ -1001,6 +1005,33 @@ function sanitizeOverlay(doc) {
 }
 
 /**
+ * THE LADDER'S DOCUMENT CARRIES NO OVERLAY — bd-zle0u.
+ *
+ * `languageDirective` tells the model not to write one, and this is the code that makes the
+ * sentence true rather than hopeful. It matters for a reason that is not cost: a model that
+ * writes a PARTIAL overlay while being told not to bother produces a document the renderer will
+ * happily apply, and the teacher gets a page of half-Urdu prose under an Urdu label — the exact
+ * shape of bd-vnyuw's second half, arrived at from the other direction. The overlay pass writes
+ * the overlay, checks its coverage against `OVERLAY_MISSING`, and only then may one exist.
+ *
+ * Deliberately silent about frozen pointers and validity: nothing here is being repaired, the
+ * whole key is being removed, and `sanitizeOverlay` (which runs first) still owns the repair
+ * semantics for every caller that legitimately has an overlay.
+ *
+ * @returns {number} how many pointers were discarded — 0 on the compliant path, which is what
+ *   the caller logs. A non-zero count is the measure of how often the directive is ignored, and
+ *   it is worth knowing before anyone trusts a prompt sentence again.
+ */
+function stripOverlay(doc) {
+  if (!doc || typeof doc !== 'object') return 0;
+  if (!Object.prototype.hasOwnProperty.call(doc, 'ur_overlay')) return 0;
+  const ov = doc.ur_overlay;
+  const n = ov && typeof ov === 'object' ? Object.keys(ov).length : 0;
+  delete doc.ur_overlay;
+  return n;
+}
+
+/**
  * Drop top-level keys `lp_doc` does not define.
  *
  * Measured on staging twice in one morning, on two different segments:
@@ -1156,7 +1187,14 @@ async function runGates(doc, renderCheck, meta = {}) {
   // cannot state it: an English-medium book authored in English looks identical whether it was
   // requested in English or in Urdu. That is precisely why a missing `ur_overlay` was invisible
   // to every gate for the whole life of this lane (bd-vnyuw).
-  const r = lint(doc, null, { lang: meta.lang || null });
+  // `overlayExpected` (bd-zle0u): the ladder does NOT author the Urdu overlay, so it is not held
+  // to OVERLAY_MISSING. The overlay pass sets it back to true when it checks its own output —
+  // which is the only caller that was ever able to satisfy the defect in one step. Defaulting to
+  // true keeps every other caller (scripts, the edit lane, tests) exactly as it was.
+  const r = lint(doc, null, {
+    lang: meta.lang || null,
+    overlayExpected: meta.overlayExpected !== false,
+  });
 
   let render = [];
   if (typeof renderCheck === 'function') {
@@ -1445,12 +1483,39 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
       { cause: e }
     );
   }
+  /**
+   * How often does the model write an overlay it was told not to write? Measured, not assumed —
+   * a prompt sentence is a request, and the last time one was trusted this lane spent its whole
+   * life delivering the wrong language (bd-vnyuw). If this fires often, the directive needs work;
+   * if it never fires, the strip is cheap insurance. Either way it is answerable from data.
+   */
+  const noteStrippedOverlay = (n, round) => {
+    if (!n) return;
+    logToFile('lp612 author: model emitted an ur_overlay it was told to omit — stripped', {
+      correlationId, segmentId: segment.segment_id, round, pointers: n, lang: language,
+    }, 'warn');
+    logEvent('lp612.author.overlay_stripped', {
+      correlationId: correlationId || null,
+      segmentId: segment.segment_id || null,
+      round,
+      pointers: n,
+      lang: language,
+    });
+  };
+
   applyVideo(doc, video);
   sanitizeUnknownTopLevel(doc);
   sanitizeOverlay(doc);
+  // bd-zle0u: the ladder's document is overlay-free BY CONTRACT. See `stripOverlay`.
+  noteStrippedOverlay(stripOverlay(doc), 0);
   sanitizeSequence(doc, segment);
 
-  let gates = await runGates(doc, renderCheck, { correlationId, segmentId: segment.segment_id, round: 0, lang: language });
+  // `overlayExpected: false` — bd-zle0u. The ladder is not writing the Urdu overlay, so it is
+  // not held to OVERLAY_MISSING. See `languageDirective` and `overlayPass`.
+  const ladderGateMeta = {
+    correlationId, segmentId: segment.segment_id, lang: language, overlayExpected: false,
+  };
+  let gates = await runGates(doc, renderCheck, { ...ladderGateMeta, round: 0 });
   let spent = 0;
   // Consecutive rounds that have reduced no BLOCKING defect. See STALE_ROUNDS.
   let stale = 0;
@@ -1524,8 +1589,9 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
     applyVideo(candidate, video);
     sanitizeUnknownTopLevel(candidate);
     sanitizeOverlay(candidate);
+    noteStrippedOverlay(stripOverlay(candidate), spent);
     sanitizeSequence(candidate, segment);
-    const g2 = await runGates(candidate, renderCheck, { correlationId, segmentId: segment.segment_id, round: spent, lang: language });
+    const g2 = await runGates(candidate, renderCheck, { ...ladderGateMeta, round: spent });
     if (notWorseVisual(g2, gates, candidate, doc)) {
       doc = candidate;
       gates = g2;

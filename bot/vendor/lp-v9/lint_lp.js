@@ -514,7 +514,12 @@ function lint(doc, docPath, opts = {}) {
   // 13b — …and it must EXIST when the teacher asked for Urdu against an English book (bd-vnyuw).
   //       `opts.lang` is the REQUESTED language; the doc alone cannot say what was asked for,
   //       which is exactly why this went unnoticed for the whole life of the lane.
-  for (const d of overlayDefects(doc, opts.lang)) fail(d.code, d.msg);
+  // bd-zle0u: `overlayExpected: false` says the caller is NOT authoring the overlay in this
+  //       call — the Urdu layer is built by its own pass over the ACCEPTED document. Chasing
+  //       OVERLAY_MISSING inside the revision ladder cost ~+7k completion tokens on every one of
+  //       five rounds and timed the lesson out entirely. The gate is not weakened; it moves to
+  //       the pass that can actually satisfy it.
+  for (const d of overlayDefects(doc, opts.lang, { expected: opts.overlayExpected !== false })) fail(d.code, d.msg);
 
   // 14 — visuals are mandatory (M5/R1); a bare-bones LP was named as a failure
   const visuals = doc.sections.reduce(
@@ -1751,9 +1756,20 @@ function overlayTargets(doc) {
  * The blocking defects for an Urdu render of an English-medium book.
  * @param doc   the lp_doc
  * @param lang  the language THE TEACHER ASKED FOR (not the book's medium)
+ * @param opts.expected  false when the CALLER is not the one writing the overlay (bd-zle0u).
+ *
+ * WHY THE SWITCH EXISTS, AND WHY IT IS NOT A WEAKENING. This defect used to be handed to the
+ * revision ladder, so every round re-emitted the whole document AND the whole overlay: measured
+ * 2026-09-05, 18-21k completion tokens against 9-14k without it, and all three Urdu cells then
+ * blew the 840s author timeout and delivered NOTHING. The overlay is now written ONCE, by its own
+ * pass over the document the ladder accepted, and that pass checks its own output with exactly
+ * this function at `expected: true`. The ladder passes false because it is not being asked for an
+ * overlay — asserting a contract on a caller that was never given it is how a gate turns into a
+ * timeout.
  */
-function overlayDefects(doc, lang) {
+function overlayDefects(doc, lang, opts = {}) {
   const out = [];
+  if (opts.expected === false) return out;                         // not this caller's contract
   if (lang !== "ur") return out;                                   // nothing to toggle
   const medium = (doc.provenance || {}).medium;
   if (medium === "ur") return out;                                 // authored in Urdu already

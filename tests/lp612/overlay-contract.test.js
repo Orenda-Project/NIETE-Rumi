@@ -68,11 +68,19 @@ describe('the LANGUAGE directive stops contradicting the brief', () => {
     return p.slice(p.indexOf('## LANGUAGE'), p.indexOf('lesson_id:'));
   };
 
-  it('EN-medium book asked for in Urdu: the model is TOLD to write the overlay', () => {
+  // bd-zle0u REVERSED THIS ONE, deliberately, and it is worth saying why here rather than only
+  // in the new suite. bd-vnyuw's fix was right about the diagnosis and wrong about the layer:
+  // telling the model to write the overlay INLINE made it re-emit the whole overlay on every
+  // revision round (+~7k completion tokens each), and all three Urdu cells then blew the author
+  // timeout and delivered nothing at all. The overlay now has its own pass over the ACCEPTED
+  // document — the architecture the original directive falsely claimed already existed. What
+  // makes the sentence true this time is code, not a promise: `stripOverlay` enforces it and
+  // `overlayPass` performs it. Pinned in overlay-deferred.test.js.
+  it('EN-medium book asked for in Urdu: the model is told to author ENGLISH and defer the overlay', () => {
     const s = langSection('ur', 'en');
+    expect(s).toMatch(/ENGLISH/);
     expect(s).toMatch(/ur_overlay/);
-    expect(s).not.toMatch(/Do NOT emit ur_overlay/i);
-    expect(s).not.toMatch(/separate pass/i);
+    expect(s).toMatch(/separate/i);
   });
 
   it('and is pointed at the brief section that defines the overlay, not left to invent one', () => {

@@ -389,16 +389,32 @@ const UX_STRINGS = {
   //   • say the lesson is still whole, because it is: the overlay swaps strings
   //     on a complete document and nothing is lost when it is absent;
   //   • carry no blame and no jargon — "overlay" is our word, not hers.
-  //   • promise NO retry. The render is cached on (segment, lang,
-  //     template_version) and every cache hit re-serves this same file, so
-  //     "ask again" would be a lie until the row is re-authored.
+  //   • promise NO retry SHE MUST PERFORM. The render is cached on (segment,
+  //     lang, template_version) and every cache hit re-serves this same file, so
+  //     "ask again" is a lie until that row is re-authored. Saying the Urdu is
+  //     being prepared is not the same promise: it is a statement about the
+  //     lesson, not an instruction she can follow and be let down by.
   //
-  // Urdu voice: every verb agrees with a NOUN (ترجمہ, سبق, ہدایات), never with
-  // the teacher, so a mixed-gender cohort is addressed correctly.
+  // REWRITTEN AGAIN 2026-09-05 (bd-zle0u), because the STATE changed. The first
+  // rewrite described a translation that had been attempted and lost — "did not
+  // come through". That was accurate for bd-vnyuw. It is not accurate now: the
+  // overlay is DEFERRED to a pass that runs after the lesson is accepted, so
+  // nothing was attempted and nothing was lost, and "did not come through" would
+  // read as a fault where there is none. Rule 24(d) cuts both ways — copy that
+  // over-states a failure misdirects a field report exactly as copy that
+  // under-states one does. What she needs is the present tense: this copy is
+  // English, the Urdu is being prepared.
+  //
+  // Urdu voice: every verb agrees with a NOUN (ترجمہ, نسخہ) or with US (ہم),
+  // never with the teacher, so a mixed-gender cohort is addressed correctly.
+  //
+  // Caps (language-protocol §3): this line is APPENDED to `lp612Caption` on a
+  // document send, so it is charged against body.text (1024), not the 60-code-point
+  // footer. Measured in CODE POINTS — en 104, ur 91.
   lp612OverlayDropped: {
-    en: 'The Urdu version of this lesson did not come through — the lesson is complete, '
-      + 'but its instructions are in English.',
-    ur: 'اس سبق کا اردو ترجمہ تیار نہیں ہو سکا — سبق مکمل ہے، لیکن اس کی ہدایات انگریزی میں ہیں۔',
+    en: 'This copy is in English. The Urdu version of this lesson is still being prepared '
+      + '— we are working on it.',
+    ur: 'یہ نسخہ انگریزی میں ہے۔ اس سبق کا اردو ترجمہ ابھی تیار ہو رہا ہے — ہم اس پر کام کر رہے ہیں۔',
   },
 
   // ── the 6-12 post-delivery survey (bd-86ivw) ─────────────────────────────
