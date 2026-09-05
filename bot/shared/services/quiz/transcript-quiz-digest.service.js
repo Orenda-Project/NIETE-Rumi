@@ -68,6 +68,18 @@ ${String(transcript || '').slice(0, MAX_TRANSCRIPT_CHARS)}`;
 }
 
 /** Coerce the model's JSON into the shape the rest of the pipeline trusts. */
+/**
+ * "الیکٹرک سرکٹ" → the fixer's "electric circuit" → this is the PDF hero, the
+ * offer and the /quiz row. A label that is entirely Latin gets each word
+ * capitalised; anything with Urdu in it is left exactly as written.
+ */
+function titleCaseLatin(label) {
+  const s = String(label || '');
+  if (!s || /\p{Script=Arabic}/u.test(s) || !/[a-z]/.test(s)) return s;
+  if (/[A-Z]/.test(s)) return s;   // the author already cased it
+  return s.replace(/\b[a-z]/g, (c) => c.toUpperCase());
+}
+
 function normaliseDigest(raw, { storedSubject } = {}) {
   const d = raw && typeof raw === 'object' ? raw : {};
   const slos = Array.isArray(d.slos) ? d.slos : [];
@@ -83,7 +95,7 @@ function normaliseDigest(raw, { storedSubject } = {}) {
     // The goal lines and the as-taught topic are printed on the teacher's PDF
     // and the report; a transliterated term there ('فیکشن') contradicts every
     // question under it. What was SPOKEN (key_terms.as_spoken) stays as spoken.
-    topic_as_taught: transliteratedPhrase ? topic : fixTransliterations(rawAsTaught),
+    topic_as_taught: titleCaseLatin(transliteratedPhrase ? topic : fixTransliterations(rawAsTaught)),
     topic_transliteration_fixed: transliteratedPhrase || undefined,
     subject: canonicalSubject(d.subject) !== 'other' ? canonicalSubject(d.subject) : canonicalSubject(storedSubject),
     subject_conflict: Boolean(d.subject_conflict),

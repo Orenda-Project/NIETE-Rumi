@@ -19,7 +19,7 @@ function q(overrides = {}) {
     question: 'Which part of the plant is under the soil?',
     options: ['root', 'leaf', 'flower'], correct_index: 0,
     explanation: 'The root grows down into the soil.',
-    distractor_misconceptions: { 1: 'leaves are the base', 2: 'flowers anchor' },
+    distractor_misconceptions: { 1: 'پتوں کو جڑ سمجھنا', 2: 'پھولوں کو جڑ سمجھنا' },
     option_feedback: {
       correct: 'Yes — the root is under the soil, holding the plant and drinking water.',
       wrong: { 1: 'Leaves are up in the air making food; the part under the soil is the root.',
