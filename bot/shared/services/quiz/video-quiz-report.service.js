@@ -238,7 +238,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   if (!all.length) {
     await WhatsAppService.sendMessage(teacher.phone_number,
       resolveUx('vqReportNoOne', { language: clampLanguage(teacher.preferred_language), params: { topic: sc.topic } }));
-    await markReportSent(shareCodeId);
+    await markReportSent(shareCodeId, sc.quiz_id);
     return true;
   }
 
@@ -355,7 +355,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     }
   }
 
-  await markReportSent(shareCodeId);
+  await markReportSent(shareCodeId, sc.quiz_id);
 
   logEvent('video_quiz.report_sent', {
     shareCodeId, quizId: sc.quiz_id, started: all.length,
@@ -474,11 +474,18 @@ async function generateGuidance(context) {
  * ordering is a possible double-send if the stamp itself fails, which is the
  * better failure — a teacher seeing one report twice beats her seeing none.
  */
-async function markReportSent(shareCodeId) {
+async function markReportSent(shareCodeId, quizId = null) {
   try {
     await supabase.from('quiz_share_codes')
       .update({ report_sent_at: new Date().toISOString() })
       .eq('id', shareCodeId);
+    // A transcript quiz's /quiz row reads quizzes.status; "Report sent" is a
+    // state of the quiz, not only of its share code.
+    if (quizId) {
+      await supabase.from('quizzes')
+        .update({ status: 'report_sent' })
+        .eq('id', quizId).eq('quiz_source', 'transcript');
+    }
   } catch (err) {
     logToFile('⚠️ video-quiz: could not stamp report_sent_at', {
       shareCodeId, error: err.message,
