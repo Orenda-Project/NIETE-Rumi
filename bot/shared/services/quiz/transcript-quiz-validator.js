@@ -221,6 +221,23 @@ function validate(rawQuestions, ctx = {}) {
         errs.push(`q${i}: an English quiz must be written in English — the stem and options are mostly not Latin script`);
       }
     }
+    if (language === 'ur') {
+      // The teacher's PDF is one language (PLAN_R4 D1): the "from your lesson"
+      // line and the distractor meanings are printed on it, and the second
+      // live run of round 4 had every one of them in English on an all-Urdu
+      // page. English technical terms in Latin letters are expected inside an
+      // Urdu phrase, so the bar is "some Urdu", not "no Latin".
+      const misc = q.distractor_misconceptions || {};
+      const teacherFields = [['selected_because', q.selected_because], ...Object.values(misc).map((m) => ['distractor_misconceptions', m])];
+      for (const [field, value] of teacherFields) {
+        const letters = [...String(value || '')].filter((c) => /\p{L}/u.test(c));
+        const arabic = letters.filter((c) => /\p{Script=Arabic}/u.test(c)).length;
+        if (letters.length >= 4 && arabic / letters.length < 0.3) {
+          errs.push(`q${i}: URDU_TEACHER_FIELDS — ${field} must be written in Urdu (English technical terms in Latin letters are fine); got "${String(value).slice(0, 40)}"`);
+          break;
+        }
+      }
+    }
     allText.push(...texts);
     if (texts.some((t) => LETTER_REF.test(t))) errs.push(`q${i}: letter reference`);
 
