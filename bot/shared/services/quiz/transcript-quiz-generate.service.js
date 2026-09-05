@@ -207,6 +207,25 @@ async function tellTeacherFailed(phone, lang, quizId, reason) {
 
 // ─── the step ────────────────────────────────────────────────────────────────
 
+/**
+ * Drop the questions whose ONLY complaints are picture rules, and re-validate.
+ * Returns { questions, dropped } when the rest still make a valid quiz, else null.
+ */
+function salvageWithoutBadFigures(questions, errors, ctx) {
+  const figureErr = /^q(\d+): FIGURE_/;
+  const bad = new Set();
+  let other = false;
+  errors.forEach((e) => {
+    const m = figureErr.exec(e);
+    if (m) bad.add(Number(m[1]));
+    else if (!/^FIGURE_SHARE/.test(e)) other = true;
+  });
+  if (other || !bad.size || bad.size > 2) return null;
+  const kept = questions.filter((_, i) => !bad.has(i));
+  const v = validate(kept, { ...ctx, nExpected: kept.length });
+  return v.ok ? { questions: v.questions, dropped: [...bad] } : null;
+}
+
 async function process(quizId, payload = {}) {
   const api = module.exports;
   const { data: quiz, error } = await supabase.from('quizzes')
@@ -261,6 +280,8 @@ async function process(quizId, payload = {}) {
   let figureUrls = {};
   if (quiz.status !== 'ready' || meta.step !== 'ready') {
     let previousErrors = null;
+    let lastRejected = null;
+    let lastErrors = null;
     const attempts = [];
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
       let out;
@@ -296,6 +317,25 @@ async function process(quizId, payload = {}) {
       }
       logToFile('⚠️ transcript quiz: validator rejected attempt', { quizId, attempt, errors: v.errors.slice(0, 8) });
       previousErrors = v.errors;
+      lastRejected = out.questions;
+      lastErrors = v.errors;
+    }
+    // The last attempt failed. If every remaining complaint is about a PICTURE
+    // on a few questions, the quiz is good without those questions: drop them
+    // and re-validate, rather than telling the teacher nothing could be made
+    // over one drawing (corpus round 3 rejected 9 of 13 first-attempt figures).
+    if (!questions && lastRejected && lastErrors) {
+      const salvaged = salvageWithoutBadFigures(lastRejected, lastErrors, { language, subject: digest.subject, digest });
+      if (salvaged) {
+        try {
+          figureUrls = await api.renderFigures({ questions: salvaged.questions, language, teacherId: quiz.teacher_id, quizId });
+          questions = salvaged.questions;
+          attempts.push({ attempt: 'salvage', dropped: salvaged.dropped, errors: [] });
+          logEvent('transcript_quiz.figure_salvage', { quizId, dropped: salvaged.dropped, kept: questions.length });
+        } catch (figErr) {
+          logToFile('⚠️ transcript quiz: salvage could not render the remaining figures', { quizId, error: figErr.message });
+        }
+      }
     }
     meta.author_attempts = attempts;
     if (!questions) {
@@ -390,6 +430,7 @@ async function process(quizId, payload = {}) {
 }
 
 module.exports = {
+  salvageWithoutBadFigures,
   process, toRows, renderFigures, withFigureSvgs, studentMessage, teacherLabel, renderPdf, pdfFilename,
   sleep, N_QUESTIONS, MAX_ATTEMPTS, NUDGE_AFTER_MS,
 };

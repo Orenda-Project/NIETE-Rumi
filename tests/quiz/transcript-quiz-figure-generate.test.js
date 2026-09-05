@@ -187,3 +187,26 @@ describe('the teacher PDF', () => {
     expect(passed[2].figureSvg).toBeUndefined();
   });
 });
+
+describe('process — after the last attempt, a bad PICTURE costs its question, not the whole quiz', () => {
+  // Corpus round 3: on attempt 1 the validator rejected 9 of 13 figures (a stem
+  // that restates the picture, a scene drawn with geometry, a leak). If attempt 2
+  // trips one of those again, failing the whole quiz would send the teacher
+  // "could not make it" over one picture. Drop that question when the rest
+  // still make a valid quiz (>= 6, every SLO covered); fail only otherwise.
+  test('a quiz whose only remaining error is one figure ships without that question', async () => {
+    const leaky = { type: 'grid', rows: 3, cols: 4, shaded: 12 };
+    const withLeak = EIGHT.map((x, i) => (i === 1
+      ? { ...x, figure: leaky, question: 'Share 12 flowers among 3 vases. How many in each? See the picture.', options: ['4', '3', '12'], correct_index: 0,
+          option_feedback: { correct: 'Yes.', wrong: { 1: 'no', 2: 'no' } } }
+      : x));
+    Author.author.mockResolvedValue({ questions: withLeak, model: 'm', costUsd: 0.01, latencyMs: 10 });
+    wire();
+    const r = await Gen.process(QID, {});
+    expect(r.failed).not.toBe(true);
+    expect(Author.author).toHaveBeenCalledTimes(2);
+    const rows = insertedRows();
+    expect(rows).toHaveLength(7);
+    expect(rows.some((row) => /flowers/.test(row.question_text))).toBe(false);
+  });
+});
