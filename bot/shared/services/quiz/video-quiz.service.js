@@ -508,8 +508,12 @@ async function handleAnswer(phone, inputId) {
       ? Math.round((Date.now() - state.sentAt) / 1000) : null,
   });
   if (aErr && aErr.code === '23505') {
-    // UNIQUE(session_id, question_id) — a double tap, already recorded.
-    return true;
+    // UNIQUE(session_id, question_id): either a double tap, or the answer was
+    // recorded and the process died before the state advanced (a deploy landed
+    // mid-quiz on staging: all eight answers stored, the session stuck at 5/8,
+    // every later tap swallowed here). Rebuild the state from the answers table
+    // and carry on — the next question, or the finish.
+    return reconcileFromAnswers(phone, state);
   }
   if (aErr) logToFile('⚠️ video-quiz: answer insert failed', { error: aErr.message });
 
@@ -536,6 +540,34 @@ async function handleAnswer(phone, inputId) {
   }).eq('id', state.sessionId);
 
   await new Promise((r) => setTimeout(r, 1200));
+  await sendNextQuestion(phone, state);
+  return true;
+}
+
+/**
+ * Rebuild a session's progress from quiz_answers and continue. Idempotent:
+ * a second call after the finish finds no state and does nothing.
+ */
+async function reconcileFromAnswers(phone, state) {
+  const { data: rows } = await supabase
+    .from('quiz_answers')
+    .select('question_id, is_correct')
+    .eq('session_id', state.sessionId);
+  const byQ = new Map((rows || []).map((r) => [r.question_id, !!r.is_correct]));
+  const ids = state.questionIds || [];
+  const answeredIds = ids.filter((id) => byQ.has(id));
+  state.answered = answeredIds.length;
+  state.correct = answeredIds.filter((id) => byQ.get(id)).length;
+  // The first unanswered question is where the child continues.
+  const firstOpen = ids.findIndex((id) => !byQ.has(id));
+  state.index = firstOpen < 0 ? ids.length : firstOpen;
+  state.currentQuestionId = null;
+  await redisService.set(STATE_KEY(phone), state, STATE_TTL_SECS);
+  await supabase.from('quiz_sessions').update({
+    total_questions_answered: state.answered,
+    correct_answers: state.correct,
+  }).eq('id', state.sessionId);
+  logEvent('video_quiz.reconciled', { sessionId: state.sessionId, answered: state.answered, index: state.index });
   await sendNextQuestion(phone, state);
   return true;
 }
