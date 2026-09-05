@@ -35,7 +35,7 @@ describe('the figure contract', () => {
     const p = prompt();
     expect(p).toContain(Figure.minimalSpecBlock());
     Figure.ALLOWED_TYPES.forEach((t) => expect(p).toContain(`"type":"${t}"`));
-    ['mindmap', 'molecule', 'illustrative', 'panels', 'dna_helix', 'labelled_figure']
+    ['mindmap', 'illustrative', 'panels', 'dna_helix', 'labelled_figure']
       .forEach((t) => expect(p).not.toContain(`"type":"${t}"`));
   });
 

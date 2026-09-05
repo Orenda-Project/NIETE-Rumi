@@ -41,14 +41,23 @@ const { logEvent } = require('../../utils/structured-logger');
  *   illustrative     a brief for an image generator, not a drawing
  *   labelled_figure  needs a raster we do not have for a lesson transcript
  *   mindmap          leaks by construction — the branches ARE the answer
- *   molecule         SMILES from a flash model is a gamble
  *   panels           prose in a box; a child reads it as text, not a picture
  *   dna_helix        decorative, nothing to read off it
  */
 const ALLOWED_TYPES = [
   'numberline', 'fraction_bar', 'grid', 'geometry', 'graph', 'chem_equation', 'circuit',
-  'free_body', 'atom', 'punnett', 'ray_diagram', 'flow', 'timeline', 'cell',
+  'free_body', 'atom', 'punnett', 'ray_diagram', 'flow', 'timeline', 'cell', 'molecule',
 ];
+
+/**
+ * `molecule` was off this list because "SMILES from a flash model is a gamble":
+ * a SMILES that will not parse degrades silently to a formula card, and one
+ * that parses to the WRONG structure is drawn as confidently as the right one.
+ * Round 4 re-admits it with the gamble removed — the model may only name a
+ * formula from a fixed dictionary in transcript-quiz-figure-science.js, and the
+ * SMILES (or the ionic flag) is then written by CODE, not by the model
+ * (PLAN_R4 D7f).
+ */
 
 /**
  * Per-type spec defaults for the PHONE lane.

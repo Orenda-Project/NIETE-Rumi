@@ -93,5 +93,12 @@ exports[`round 4 — the roster the author reads is the engine manifest, limits 
   minimal: {"type":"cell","kind":"plant"}
   limits:
     · kind is "plant" | "animal" and applies to type "cell" only; the leaf_cross_section and heart_loop aliases take no kind.
-    · The structures are PARAMETRIC, not free-form -- you choose which parts are labelled, not what the drawing is. Anything else biological is a labelled_figure."
+    · The structures are PARAMETRIC, not free-form -- you choose which parts are labelled, not what the drawing is. Anything else biological is a labelled_figure.
+- molecule — A 2D structural formula from SMILES, with explicit-hydrogen sketches for the small hydrides and a formula card plus lattice for ionic compounds.
+  required: formula
+  minimal: {"type":"molecule","smiles":"O","formula":"H2O","name":"water"}
+  limits:
+    · A SMILES that will not parse degrades to the formula card; it never throws.
+    · ionic:true (or a known ionic formula) draws the lattice instead of a structure -- NaCl is not a molecule and the drawing says so.
+    · Give \`formula\` and \`name\` as well as \`smiles\`: the formula is what the pupil is examined on."
 `;

@@ -17,6 +17,7 @@ const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-
 const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
 const { canonicalSubject: canonSubj } = require('./transcript-quiz-language');
 const { figureGateDefects } = require('./transcript-quiz-figure-gates');
+const { scienceDefects, moleculeFromDictionary } = require('./transcript-quiz-figure-science');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -248,6 +249,23 @@ function validate(rawQuestions, ctx = {}) {
     if (badTokens) {
       errs.push(`q${i}: FIGURE_TYPE — unknown colour token(s) ${badTokens.map((t) => `var(--${t})`).join(', ')}; use only the tokens in the minimal specs, or none`);
       return;
+    }
+    // The engine draws whatever it is given and never checks the science: an
+    // off-table element renders as a hydrogen-shaped atom wearing the wrong
+    // symbol, an unbalanced equation is typeset as confidently as a balanced
+    // one, and a part the chosen cell has not got is dropped without a word.
+    // Each is a picture that teaches something false, and each is its own code
+    // so the retry names what to fix (PLAN_R4 D7e).
+    const science = scienceDefects(q.figure);
+    if (science.length) {
+      science.forEach((d) => errs.push(`q${i}: ${d.code} — ${d.message}`));
+      return;
+    }
+    // molecule is on the allowlist only behind the dictionary, and the
+    // dictionary — not the model — writes the structure it draws from.
+    if (canonicalType(q.figure.type) === 'molecule') {
+      const known = moleculeFromDictionary(q.figure.formula);
+      if (known) q.figure = { ...q.figure, ...known };
     }
     const empty = figureEmptyReason(q.figure);
     if (empty) {

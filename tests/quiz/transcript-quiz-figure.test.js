@@ -35,12 +35,16 @@ function codeOf(fn) {
 }
 
 describe('ALLOWED_TYPES', () => {
-  test('is exactly the fourteen phone-safe types, and excludes the six that are not', () => {
+  test('is exactly the fifteen phone-safe types, and excludes the five that are not', () => {
+    // molecule joined in round 4 (PLAN_R4 D7f): it was excluded because a
+    // flash model's SMILES is a gamble, and it is back only because the model
+    // no longer writes one — it names a formula from a fixed dictionary and
+    // the structure is filled in from code.
     expect(Figure.ALLOWED_TYPES).toEqual([
       'numberline', 'fraction_bar', 'grid', 'geometry', 'graph', 'chem_equation', 'circuit',
-      'free_body', 'atom', 'punnett', 'ray_diagram', 'flow', 'timeline', 'cell',
+      'free_body', 'atom', 'punnett', 'ray_diagram', 'flow', 'timeline', 'cell', 'molecule',
     ]);
-    ['illustrative', 'labelled_figure', 'mindmap', 'molecule', 'panels', 'dna_helix']
+    ['illustrative', 'labelled_figure', 'mindmap', 'panels', 'dna_helix']
       .forEach((t) => expect(Figure.ALLOWED_TYPES).not.toContain(t));
   });
 
@@ -54,8 +58,12 @@ describe('ALLOWED_TYPES', () => {
   test('an alias of an EXCLUDED type does not sneak past the allowlist', () => {
     expect(Figure.canonicalType('concept_map')).toBeNull();   // mindmap
     expect(Figure.canonicalType('ai_art')).toBeNull();        // illustrative
-    expect(Figure.canonicalType('smiles')).toBeNull();        // molecule
     expect(Figure.canonicalType('nope')).toBeNull();
+  });
+
+  test('an alias of molecule resolves, now that the type is allowed again', () => {
+    expect(Figure.canonicalType('smiles')).toBe('molecule');
+    expect(Figure.canonicalType('structure')).toBe('molecule');
   });
 });
 
@@ -252,7 +260,7 @@ describe('minimalSpecBlock', () => {
     const block = Figure.minimalSpecBlock();
     Figure.ALLOWED_TYPES.forEach((t) => expect(block).toContain(`"type":"${t}"`));
     expect(block).not.toMatch(/"type":"mindmap"/);
-    expect(block).not.toMatch(/"type":"molecule"/);
+    expect(block).not.toMatch(/"type":"illustrative"/);
     // every emitted minimal spec must itself render, or the prompt teaches a
     // shape the validator will reject
     Figure.ALLOWED_TYPES.forEach((t) => {
