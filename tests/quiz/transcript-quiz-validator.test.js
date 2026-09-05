@@ -138,6 +138,13 @@ describe('validate — Urdu', () => {
     expect(V.validate(qs2, urCtx).errors.some((e) => /transliterated English term/.test(e))).toBe(true);
   });
 
+  test('an Urdu stem or feedback that opens with an English word is rejected; an English option is fine', () => {
+    const qs = urEight(); qs[0].question = 'fraction میں اوپر والے نمبر کو کیا کہتے ہیں؟';
+    expect(V.validate(qs, urCtx).errors.some((e) => /starts with an English word/.test(e))).toBe(true);
+    const qs2 = urEight(); qs2[0].question = 'ایک fraction میں اوپر والے نمبر کو کیا کہتے ہیں؟'; qs2[0].options = ['numerator', 'پتا', 'پھول'];
+    expect(V.validate(qs2, urCtx).errors.some((e) => /starts with an English word/.test(e))).toBe(false);
+  });
+
   test('feminine-stem address is rejected', () => {
     const qs = urEight(); qs[0].option_feedback.correct = 'آپ سمجھ سکتی ہیں کہ جڑ نیچے ہوتی ہے۔';
     expect(V.validate(qs, urCtx).errors.some((e) => /feminine-stem/.test(e))).toBe(true);

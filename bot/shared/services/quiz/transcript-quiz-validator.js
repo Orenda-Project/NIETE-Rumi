@@ -37,6 +37,12 @@ const FEM_STEMS = /(کرتی ہیں|چاہتی ہیں|کریں گی|رہی ہو�
 // grammar ones are listed; a hit sends the quiz back for a rewrite.
 const TRANSLIT_TERMS = /(فیکشن|فریکشن|نیومریٹر|نمبریٹر|ڈینومینیٹر|ڈینامینیٹر|پروپر\s|امپروپر|ٹائپس|سبٹریکشن|ایڈیشن|ملٹیپلیکیشن|ملٹی\s*پلیکیشن|ڈویژن|فوٹو\s*سنتھیسز|ایکو\s*سسٹم|نائون|پروناؤن|ایڈجیکٹو|سینٹینس|ورب\b|ٹرائی\s*اینگل|ریکٹینگل|سرکل\b|ایریا\b|پیری\s*میٹر|ڈیجٹ|پلیس\s*ویلیو|ایون\b|آڈ\b|میٹر\b|کلوگرام|ٹمپریچر|انرجی|میٹیریل|سالڈ\b|لیکوئڈ|گیس\b)/;
 
+// WhatsApp picks a message's direction from its FIRST strong character. An
+// Urdu stem, explanation or feedback that opens with an English word is laid
+// out left-to-right and reads scrambled on the phone. Options are exempt: a
+// one-word English option ("numerator") is a button title.
+const LATIN_FIRST = /^[\s"'«(]*[A-Za-z]/;
+
 // Letters are shuffled before display, so any letter reference is wrong by
 // the time a child reads it.
 const LETTER_REF = /\b[A-D]\)|\b(answer|option)\s+(is\s+)?[A-D]\b|آپشن\s*[A-D]\b|جواب\s*[A-D]\b/i;
@@ -131,6 +137,10 @@ function validate(rawQuestions, { language, subject, digest, nExpected } = {}) {
     if (lv > tl + 1) errs.push(`q${i}: level ${q.level} > taught ${slos.find((s) => s.id === q.slo_id)?.taught_level || 'understand'}+1`);
 
     const texts = [stem, String(q.explanation || ''), String(fb.correct || ''), ...opts, ...Object.values(fb.wrong || {}).map(String)];
+    if (language === 'ur') {
+      const prose = [stem, String(q.explanation || ''), String(fb.correct || ''), ...Object.values(fb.wrong || {}).map(String)];
+      if (prose.some((t) => t.trim() && LATIN_FIRST.test(t) && /[؀-ۿ]/.test(t))) errs.push(`q${i}: an Urdu sentence starts with an English word (it would render left-to-right) — begin with an Urdu word`);
+    }
     allText.push(...texts);
     if (texts.some((t) => LETTER_REF.test(t))) errs.push(`q${i}: letter reference`);
   });
@@ -172,6 +182,7 @@ module.exports = {
   LEVELS,
   FEM_STEMS,
   TRANSLIT_TERMS,
+  LATIN_FIRST,
   LETTER_REF,
   ROMAN_URDU,
 };
