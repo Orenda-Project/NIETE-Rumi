@@ -124,10 +124,16 @@ describe('beginFromCodeLocked', () => {
 
 // ─── 6. report: NIETE palette + SLO on the hardest cards ─────────────────────
 describe('class report', () => {
-  test('template uses the NIETE palette and never the Rumi navy', () => {
-    const s = src('shared/templates/video-quiz-report.template.js');
-    expect(s).toMatch(/#333748/);
-    expect(s).not.toMatch(/#0c1a4e/);
+  // Asserted against what the template actually EMITS. The colours now come
+  // from the shared brand module, so grepping this file's own source for a hex
+  // would pass on a file that renders another palette entirely.
+  test('the rendered report uses the NIETE palette and no other product\'s', () => {
+    jest.resetModules();
+    const render = require('../../bot/shared/templates/video-quiz-report.template');
+    const html = render({ topic: 'x', language: 'en', started: 1, finished: 1, average: 50, students: [], hardest: [], unfinished: [] });
+    expect(html).toMatch(/#333748/);
+    expect(html).toMatch(/#47BA7D/i);
+    expect(html).not.toMatch(/#0c1a4e|#001F3F/i);
   });
 
   test('the hardest-question card carries the SLO statement when the quiz has a digest', () => {

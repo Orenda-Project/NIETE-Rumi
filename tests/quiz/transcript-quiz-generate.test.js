@@ -133,6 +133,40 @@ describe('process — validator failure', () => {
   });
 });
 
+/**
+ * bd-mg9c7.26 — the teacher's PDF carries TWO languages: her chrome and the
+ * quiz's content. Staging shipped a teacher whose preference is English an
+ * all-Urdu quiz, and because the whole document was keyed on her preference
+ * every Urdu question landed on a Latin-only face and printed as boxes.
+ *
+ * Driven through the real process() -> renderPdf -> template chain (only the
+ * network boundary, htmlToPdf, is mocked) so the parameter is proved to reach
+ * its use site, not merely to be passed one hop.
+ */
+describe('process — the PDF follows both languages', () => {
+  const { htmlToPdf } = require('../../bot/shared/utils/html-to-pdf');
+
+  test('an English-preferring teacher with an Urdu quiz gets English chrome around RTL Urdu questions', async () => {
+    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100 });
+    wire({ quiz: { ...QUIZ, language: 'ur' } });
+    installFrom(supabase.from, {
+      quizzes: (calls) => (calls.some((c) => c[0] === 'update') ? { data: [{ id: QID }] } : { data: [{ ...QUIZ, language: 'ur' }] }),
+      coaching_sessions: { data: [{ ...SESSION, users: { ...SESSION.users, preferred_language: 'en' } }] },
+      quiz_questions: (calls) => (calls.some((c) => c[0] === 'insert') ? { data: null, error: null } : { data: [] }),
+      users: { data: [{ ...SESSION.users, preferred_language: 'en' }] },
+    });
+
+    const r = await Gen.process(QID, {});
+    expect(r.ok).toBe(true);
+
+    const html = htmlToPdf.mock.calls[0][0];
+    expect(html).toMatch(/<html dir="ltr" lang="en">/);        // her chrome
+    expect(html).toMatch(/How to send it/);
+    expect(html).toMatch(/<div class="stem content" dir="rtl">/); // the quiz
+    expect(html).toMatch(/[؀-ۿ]/);
+  });
+});
+
 describe('studentMessage', () => {
   test('is written in the QUIZ language and names teacher, topic, date, link', () => {
     const ur = Gen.studentMessage({ teacherName: 'Rifat', topic: 'کسریں', date: '5 ستمبر', link: 'https://wa.me/1?text=QUIZ-X', language: 'ur' });

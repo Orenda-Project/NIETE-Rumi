@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-2474 — the scorecard was designed (mockups/out/scorecard_src.html,
+ * The scorecard was designed (mockups/out/scorecard_src.html,
  * 09_scorecard.png showing the full intended WhatsApp sequence) but never
  * wired into finish() — a child who completes a video quiz has only ever
  * gotten a plain text summary. This renders the designed navy/gold card and
@@ -15,7 +15,7 @@
 
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
-// bd-2681 — this send never went through bd-2666's throttle at all (it isn't
+// This send never went through the pacing throttle at all (it isn't
 // routed through video-quiz-sender.service.js's sendPhase()). It's the last
 // message a completing quiz sends to the phone, so it can land right on top
 // of an already-near-full window from the questions that preceded it.
@@ -45,11 +45,13 @@ function buildCaption({ correct, total, pct, stars, language = 'en' }) {
 }
 
 /** Pure render step — a PNG buffer, or null on failure. Testable without WhatsApp. */
-async function renderScorecardImage({ topic, correct, total, pct, grade, subject, takerName }) {
+async function renderScorecardImage({ topic, correct, total, pct, subject, takerName, language = 'en' }) {
   try {
     const renderHtml = require('../../templates/video-quiz-scorecard.template');
     const { htmlToImage } = require('../../utils/html-to-pdf');
-    const html = renderHtml({ topic, correct, total, pct, grade, subject, takerName });
+    // `language` is the QUIZ's — a child reads her card in whatever language
+    // she just answered in, and her name has to render in its own script.
+    const html = renderHtml({ topic, correct, total, pct, subject, takerName, language });
     const png = await htmlToImage(html, { width: 540, deviceScaleFactor: 2, selector: '.card' });
     return png || null;
   } catch (err) {
@@ -63,12 +65,12 @@ async function renderScorecardImage({ topic, correct, total, pct, grade, subject
  * fell back (caller is expected to have already sent, or to send, the plain
  * text version — see finish() in video-quiz.service.js).
  */
-async function sendScorecard(phone, { topic, correct, total, pct, grade, subject, takerName, language = 'en' }) {
+async function sendScorecard(phone, { topic, correct, total, pct, subject, takerName, language = 'en' }) {
   const { starsAndBadge } = require('../../templates/video-quiz-scorecard.template');
-  const { stars } = starsAndBadge(pct);
+  const { stars } = starsAndBadge(pct, language);
   const caption = buildCaption({ correct, total, pct, stars, language });
 
-  const png = await renderScorecardImage({ topic, correct, total, pct, grade, subject, takerName });
+  const png = await renderScorecardImage({ topic, correct, total, pct, subject, takerName, language });
   if (!png) return false;
 
   try {

@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-2317 — the class report a teacher gets after sharing a video quiz.
+ * The class report a teacher gets after sharing a video quiz.
  *
  * Fires the NEXT MORNING, or early once every child who started has finished —
  * whichever comes first. Same promise as the /quiz report, and deliberately the
@@ -24,9 +24,10 @@ const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { stripEmphasis, classLabel } = require('../../utils/text-format');
+const { clampLanguage } = require('../../config/ux-strings');
 
 /**
- * bd-2334 — the prefix is load-bearing, not cosmetic.
+ * The job-type prefix is load-bearing, not cosmetic.
  *
  * queueJob routes by it: only `quiz_*` reaches SQS_QUIZ_QUEUE_URL, a STANDARD
  * queue that honours per-message DelaySeconds. Everything else lands on
@@ -36,11 +37,11 @@ const { stripEmphasis, classLabel } = require('../../utils/text-format');
  * report was delivered within seconds of the first child joining.
  *
  * Still distinct from the parent quiz's `quiz_report`, so the two can never
- * dedupe against each other (the bd-41 class of bug).
+ * dedupe against each other.
  */
 const JOB_TYPE = 'quiz_video_report';
 
-/** The name this job shipped under before bd-2334. Still consumed so any
+/** The name this job shipped under before the rename. Still consumed so any
  *  message already sitting in the queue is not dropped on deploy. */
 const LEGACY_JOB_TYPE = 'video_quiz_report';
 
@@ -48,21 +49,21 @@ const LEGACY_JOB_TYPE = 'video_quiz_report';
  * RTL (Perso-Arabic-script) quiz languages this report localises for.
  * NIETE is flat en/ur (root CLAUDE.md language-protocol) — no pa-PK/sd-PK
  * concept here, unlike the main bot's 5-market region-keyed offer. Ported
- * from the main bot's bd-2664/bd-2679. See the PlayWriteReports skill.
+ * from the main bot. See the PlayWriteReports skill.
  */
 const RTL_LANGS = new Set(['ur']);
 
 const PKT_OFFSET_MIN = 5 * 60;
 
-/** Nothing new may start for this long before an early send is allowed (bd-2404). */
+/** Nothing new may start for this long before an early send is allowed. */
 const QUIET_PERIOD_MS = 2 * 60 * 60 * 1000;
 
-/** Scheduled fallback: this far after the first child joins (bd-2404). */
+/** Scheduled fallback: this far after the first child joins. */
 const REPORT_DELAY_MS = 12 * 60 * 60 * 1000;
 
 /**
  * When the scheduled report should land: 12 hours after the first child joins
- * (bd-2404, operator). Was "07:00 PKT next morning", which for a 9am share meant
+ * (operator call). Was "07:00 PKT next morning", which for a 9am share meant
  * a 22-hour wait — the teacher had already taught the follow-up lesson.
  *
  * CIVIL-HOURS GUARD: a plain +12h from an afternoon share lands at 2-4am. A
@@ -85,7 +86,7 @@ function reportTargetUtc(now = new Date()) {
 }
 
 /**
- * Is this share code finished enough to report on NOW? (bd-2404)
+ * Is this share code finished enough to report on NOW?
  *
  * Pure so it can be asserted directly — routing it through maybeSendEarly()
  * would let a stubbed share-code lookup produce a green that never touched the
@@ -119,7 +120,7 @@ async function scheduleForShareCode(shareCodeId) {
     const delaySeconds = Math.max(60, Math.floor((when - Date.now()) / 1000));
     await SQSQueueService.queueJob(shareCodeId, JOB_TYPE, {
       shareCodeId,
-      // bd-2334: targetAt MUST live in the payload. queueJob builds its message
+      // targetAt MUST live in the payload. queueJob builds its message
       // body from {groupId, jobType, payload, ...} and drops the options object,
       // so an options-only targetAt never reached the worker — the "not morning
       // yet, re-queue" cascade read undefined and generated the report on the
@@ -150,14 +151,14 @@ async function maybeSendEarly(shareCodeId) {
     .from('quiz_sessions')
     .select('status, created_at')
     .eq('share_code_id', shareCodeId)
-    .is('invited_by_student_id', null);   // bd-2472 — a friend's session is not this teacher's class
+    .is('invited_by_student_id', null);   // a friend's session is not this teacher's class
   if (!shouldSendEarly(sessions || [])) return false;
   return generate(shareCodeId, { reason: 'all_finished' });
 }
 
 /**
  * Build and send the report. Safe to call twice — genuinely guarded on
- * `report_sent_at` (bd-2334; the previous version of this comment claimed a
+ * `report_sent_at` (the previous version of this comment claimed a
  * guard that was never implemented and no column that existed).
  */
 async function generate(shareCodeId, { reason = 'scheduled', force = false } = {}) {
@@ -193,12 +194,12 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     .select('id, student_name, student_class, status, total_questions_answered, '
             + 'correct_answers, mastery_percentage')
     .eq('share_code_id', shareCodeId)
-    .is('invited_by_student_id', null);   // bd-2472 — a friend's session is not this teacher's class
+    .is('invited_by_student_id', null);   // a friend's session is not this teacher's class
 
   const all = sessions || [];
   const done = all.filter((s) => s.status === 'completed');
 
-  // bd-2334 — never send a results message with no results in it.
+  // Never send a results message with no results in it.
   //
   // The operator received "0 of 1 students finished" seconds after the first
   // child opened the link. An EARLY trigger only earns a send once somebody has
@@ -246,11 +247,22 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     .map((h) => ({ ...h, slo: sloOf(h.external_id) }));
   const unfinished = all.filter((s) => s.status !== 'completed');
 
-  // bd-2664 — the WhatsApp text fallback (only used when the PDF render
+  // The WhatsApp text fallback (only used when the PDF render
   // fails) previously stayed English even for an Urdu quiz. TX is the same
   // small chrome-string lookup the PDF template uses (see PlayWriteReports
   // skill), scoped down to what this plain-text path needs.
-  const TX = RTL_LANGS.has(sc.language) ? {
+  // ── the two languages ──────────────────────────────────────────────────
+  // Everything the TEACHER reads — labels, the plain-text fallback, the
+  // caption, the "for tomorrow" paragraph — follows her stored preference,
+  // clamped to what this deployment actually serves. Everything her CLASS
+  // read — the questions, their options, the misconception — stays in the
+  // language the quiz was written in. Taking both from the quiz shipped an
+  // all-Urdu report to an English-reading teacher; taking both from her
+  // preference would print those Urdu questions as empty boxes instead.
+  const chromeLang = clampLanguage(teacher.preferred_language);
+  const contentLang = sc.language;
+
+  const TX = RTL_LANGS.has(chromeLang) ? {
     results: (t) => `📊 *کوئز کے نتائج — ${t || 'آپ کا ویڈیو کوئز'}*`,
     finished: (d, a) => `${a} میں سے ${d} طلبہ نے مکمل کیا۔`,
     average: (n) => `کلاس اوسط: *${n}%*`,
@@ -259,6 +271,8 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     gotWrong: (n, t) => `${t} میں سے ${n} نے غلط جواب دیا`,
     notFinished: (names) => `ابھی مکمل نہیں کیا: ${names}`,
     forTomorrow: '💡 *کل کے لیے*',
+    caption: (t, d, a, n) => `📊 کلاس کے نتائج — *${t}*\n\n`
+      + `${a} میں سے ${d} نے مکمل کیا${n ? ` · دوبارہ پڑھانے کے قابل ${n} سوال — اندر` : ''}`,
   } : {
     results: (t) => `📊 *Quiz results — ${t || 'your video quiz'}*`,
     finished: (d, a) => `${d} of ${a} students finished.`,
@@ -268,6 +282,8 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     gotWrong: (n, t) => `${n} of ${t} got this wrong`,
     notFinished: (names) => `*Not finished yet:* ${names}`,
     forTomorrow: '💡 *For tomorrow*',
+    caption: (t, d, a, n) => `📊 Class results — *${t}*\n\n`
+      + `${d} of ${a} finished${n ? ` · ${n} question${n > 1 ? 's' : ''} worth reteaching — inside` : ''}`,
   };
 
   const lines = [
@@ -302,14 +318,14 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     lines.push(TX.notFinished(unfinished.map((s) => s.student_name || 'Unnamed').join(', ')));
   }
 
-  // bd-2335 — the coaching paragraph, grounded in what this class actually got
+  // The coaching paragraph, grounded in what this class actually got
   // wrong. Generated once and used in both the PDF and the chat message.
-  // bd-2664: language threaded through so a teacher who ran an Urdu quiz
+  // Language is threaded through so a teacher who ran an Urdu quiz
   // gets Urdu guidance, not an English paragraph glued onto a Urdu report.
   const guidance = done.length
     ? await generateGuidance({
       topic: sc.topic, grade: sc.grade, average: avg,
-      finished: done.length, started: all.length, hardest, language: sc.language,
+      finished: done.length, started: all.length, hardest, language: chromeLang,
     })
     : null;
 
@@ -322,7 +338,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     phone: teacher.phone_number, shareCode: sc, students: done, hardest,
     guidance, started: all.length, finished: done.length, average: avg,
     unfinished: unfinished.map((s) => s.student_name || 'Unnamed'),
-    language: sc.language,
+    language: chromeLang, contentLanguage: contentLang, caption: TX.caption,
   });
 
   if (!sentAsPdf) {
@@ -351,7 +367,8 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
  * caller falls back to the text summary rather than the teacher getting nothing.
  */
 async function sendAsPdf({ phone, shareCode, students, hardest, guidance,
-                           started, finished, average, unfinished, language }) {
+                           started, finished, average, unfinished,
+                           language, contentLanguage, caption: captionFor }) {
   const fs = require('fs');
   const os = require('os');
   const path = require('path');
@@ -364,7 +381,7 @@ async function sendAsPdf({ phone, shareCode, students, hardest, guidance,
       topic: shareCode.topic || 'Video quiz',
       teacherName: shareCode.teacher_name,
       started, finished, average,
-      students, hardest, guidance, unfinished, language,
+      students, hardest, guidance, unfinished, language, contentLanguage,
       generatedAt: new Date().toLocaleDateString('en-GB', {
         day: 'numeric', month: 'short', year: 'numeric',
       }),
@@ -385,10 +402,10 @@ async function sendAsPdf({ phone, shareCode, students, hardest, guidance,
     tempPath = path.join(os.tmpdir(), `class-quiz-${shareCode.id}.pdf`);
     fs.writeFileSync(tempPath, buffer);
 
-    const caption = finished
-      ? `📊 Class results — *${shareCode.topic}*\n\n`
-        + `${finished} of ${started} finished · class average ${average}%`
-        + (hardest.length ? `\n\n${hardest.length} question${hardest.length > 1 ? 's' : ''} worth reteaching — inside.` : '')
+    // The caption is chrome, so it comes from the caller's teacher-language
+    // table rather than being written inline in English.
+    const caption = captionFor
+      ? captionFor(shareCode.topic, finished, started, hardest.length)
       : `📊 Class results — *${shareCode.topic}*`;
 
     const ok = await WhatsAppService.sendDocument(
@@ -432,7 +449,7 @@ async function generateGuidance(context) {
       // see — the call just rejects and the teacher silently loses the tip.
       max_completion_tokens: 260,
     });
-    // bd-2611 — strip markdown here, at the single point guidance is created,
+    // Strip markdown here, at the single point guidance is created,
     // so BOTH surfaces are covered: the PDF and the WhatsApp text fallback.
     // (In the fallback "**the**" is not even bold — WhatsApp bold is one
     // asterisk — so the teacher just saw the asterisks.)
@@ -476,7 +493,7 @@ const optionText = (q, letter) => q[`option_${String(letter).toLowerCase()}`] ||
  * The three questions this class got wrong most often — and, where the class
  * agreed on a wrong answer, WHICH one and why that mistake happens.
  *
- * bd-2335. "16 of 22 missed this" tells a teacher to reteach something. "16 of
+ * "16 of 22 missed this" tells a teacher to reteach something. "16 of
  * 22 chose Dicot, because they flipped the vein rule" tells her what to say. The
  * second sentence is available because these questions ship with an explanation
  * authored per wrong option — 9,150 of them do.
@@ -487,7 +504,7 @@ const optionText = (q, letter) => q[`option_${String(letter).toLowerCase()}`] ||
  * wrong answers landed on it.
  */
 /**
- * Turn authored CHILD feedback into something a teacher can read (bd-2405).
+ * Turn authored CHILD feedback into something a teacher can read.
  *
  * The wrong-option copy is written to the child who just got it wrong:
  *   "A) Nice effort! Milk and meat are products, not groups. Keep learning!"
@@ -513,7 +530,7 @@ function teacherFacing(raw) {
 async function hardestQuestions(shareCodeId, limit = 3) {
   const { data: sessions } = await supabase
     .from('quiz_sessions').select('id').eq('share_code_id', shareCodeId)
-    .is('invited_by_student_id', null);   // bd-2472 — a friend's session is not this teacher's class
+    .is('invited_by_student_id', null);   // a friend's session is not this teacher's class
   const ids = (sessions || []).map((s) => s.id);
   if (!ids.length) return [];
 

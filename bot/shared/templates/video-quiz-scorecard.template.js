@@ -1,18 +1,28 @@
 'use strict';
 /**
- * Video-quiz child scorecard — bd-2474.
+ * The child's scorecard — the picture that arrives when she finishes a quiz.
  *
- * Designed in mockups/out/scorecard_src.html against a system font stack,
- * which only renders correctly on a machine that HAS "-apple-system"/"Segoe
- * UI" installed. Playwright runs headless on the Railway container (Linux),
- * where neither exists — same trap the class-report template already solves
- * by embedding Lexend as base64 @font-face rather than trusting the system.
- * This template follows that exact precedent instead of the mockup's raw
- * font stack, so what a child sees in production matches what was reviewed.
+ * Two things this file exists to get right, both learned the hard way:
+ *
+ *  1. NOTHING MAY DEPEND ON A SYSTEM FONT OR A SYMBOL GLYPH. The card is
+ *     rendered headless on a Linux container with no fonts installed. Every
+ *     face is embedded as base64, and the stars are drawn as SVG paths rather
+ *     than typed as star characters — a font that has no glyph for a character
+ *     paints an empty box, and the machine this was designed on quietly hid
+ *     that by substituting one of its own fonts.
+ *  2. THE CARD SPEAKS THE QUIZ'S LANGUAGE. An Urdu quiz has to end on an Urdu
+ *     card, with the child's own name in her own script. Both font families
+ *     are therefore always named, and the name and topic carry their own
+ *     direction.
+ *
+ * Brand: NIETE (niete-brand skill) — the tier grounds are the brand's own two
+ * colours, the mark is the file, never a redrawing.
  */
 
 const fs = require('fs');
 const path = require('path');
+const { PALETTE, FONTS, diamondPath } = require('./niete-brand');
+const { resolveUx, clampLanguage } = require('../config/ux-strings');
 
 let _assets = null;
 
@@ -28,11 +38,11 @@ function assets() {
     _assets = {
       lexend: readBase64('fonts/Lexend-Regular.ttf'),
       lexendBold: readBase64('fonts/Lexend-Bold.ttf'),
-      // NIETE branding (2026-08-04): the white-on-transparent N/ن monogram
-      // from the niete-brand skill, replacing the Rumi mark for this fork.
-      // Never AI-generate or redraw the brand mark (short-video skill rule
-      // 9b — Omni fuses the two dots into a face every time; same risk
-      // applies to redrawing the NIETE monogram).
+      nastaliq: readBase64('fonts/NotoNastaliqUrdu-Regular.ttf'),
+      nastaliqBold: readBase64('fonts/NotoNastaliqUrdu-Bold.ttf'),
+      // The white-on-transparent N/ن monogram from the brand assets. Never
+      // AI-generated and never redrawn — image models reliably mangle a mark
+      // they are asked to reproduce from a description.
       nieteMark: readBase64('assets/niete-mark-white-transparent.png'),
     };
   }
@@ -46,50 +56,53 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+const RTL_LANGS = new Set(['ur']);
+
+const BADGE_KEY = {
+  mastered: 'vqBadgeMastered',
+  developing: 'vqBadgeDeveloping',
+  needs_practice: 'vqBadgeNeedsPractice',
+};
+
+function tierFor(pct) {
+  return pct >= 80 ? 'mastered' : pct >= 60 ? 'developing' : 'needs_practice';
+}
+
 /**
- * pct -> (stars out of 5, badge label). round(pct/20) reproduces the
- * approved mockup exactly (12/15 = 80% -> 4 stars, "SUPER!"). Badge tier
- * reuses the same 80/60 split finish() already computes for its text
- * message (mastered/developing/needs_practice) rather than inventing a
- * second scale.
+ * pct -> (stars out of 5, badge word). round(pct/20) reproduces the approved
+ * mockup exactly (12/15 = 80% -> 4 stars). The badge comes from the shared
+ * string catalog in the quiz's language, so the card and the caption sent with
+ * it can never end up saying different things.
  */
-function starsAndBadge(pct) {
+function starsAndBadge(pct, language = 'en') {
   const stars = Math.max(0, Math.min(5, Math.round(pct / 20)));
-  const badge = pct >= 80 ? 'SUPER!' : pct >= 60 ? 'NICE!' : 'KEEP GOING!';
+  const badge = resolveUx(BADGE_KEY[tierFor(pct)], { language: clampLanguage(language) });
   return { stars, badge };
 }
 
 /**
- * bd-2477 #4 / bd-2480 — the operator's own fallback for "GIF might be too
- * heavy": vary the card's palette by score tier instead of animating. Same
- * single static-frame render as today (zero new RAM/CPU cost).
+ * The card's ground, by how she did.
  *
- * bd-2480: the first pass (mastered/developing/needs_practice all within a
- * ~15-value navy hue band, #001F3F/#001730/#001325) was imperceptible at a
- * glance — operator: "I dont see any real background color change?" Widened
- * the jump so each tier reads as a genuinely different card, not a shade of
- * the same one: mastered stays a vivid, saturated blue (the celebratory
- * default); developing drops to a flatter slate blue-gray; needs_practice
- * drops further to a near-charcoal neutral — visibly calmer, never harsh
- * (no red). The accent stays gold-family throughout (rumi-brand's "ONE warm
- * accent" rule) even as the canvas itself moves further from navy.
+ * Three tiers, three genuinely different cards — the operator's own fallback
+ * for "an animated card would be too heavy": vary the colour instead. Within
+ * the NIETE palette that is green for mastered, navy-slate for developing and
+ * a calm charcoal for needs-practice. Never red, never harsh: a child who
+ * scored low gets a quieter card, not a warning.
+ *
+ * The steps are deliberately far apart in brightness. A first attempt at this
+ * idea on another product kept all three inside one narrow hue band and read
+ * as the same card at a glance.
  */
 function tierPalette(pct) {
   if (pct >= 80) {
-    return { bgFrom: '#1D57A6', bgTo: '#3B7FD1', accent: '#F5B301', star: '#9fb8db' };
+    return { bgFrom: PALETTE.greenDeep, bgTo: PALETTE.green, accent: '#FFFFFF', star: 'rgba(255,255,255,.45)', badgeInk: '#1F5F3E' };
   }
   if (pct >= 60) {
-    return { bgFrom: '#2C3E52', bgTo: '#44586D', accent: '#D9A233', star: '#7e8fa0' };
+    return { bgFrom: PALETTE.slate, bgTo: PALETTE.slateLight, accent: PALETTE.green, star: 'rgba(255,255,255,.35)', badgeInk: '#123D28' };
   }
-  return { bgFrom: '#16181D', bgTo: '#2B2F38', accent: '#B98B3D', star: '#4a4f57' };
+  return { bgFrom: PALETTE.charcoal, bgTo: PALETTE.charcoalLight, accent: PALETTE.greenMuted, star: 'rgba(255,255,255,.3)', badgeInk: '#0E3320' };
 }
 
-// bd-2477 #2: the Unicode star characters (&#9733;/&#9734;) rendered as
-// tofu/missing-glyph boxes in production. Lexend has no coverage for the
-// Miscellaneous Symbols block, so the browser fell back to a system symbol
-// font that exists on macOS (where this was first verified) but not on the
-// Railway Linux container that actually renders it. An inline SVG shape has
-// no font dependency at all, so it can never hit this trap again.
 const STAR_PATH = 'M12 2.6l2.95 6.28 6.9.86-5.05 4.78 1.33 6.82L12 17.86l-6.13 3.38 '
   + '1.33-6.82L2.15 9.74l6.9-.86z';
 
@@ -105,60 +118,87 @@ function starsHtml(stars, palette) {
 
 /**
  * @param {object} d
- * @param {string} d.topic - quiz topic (the video's title)
+ * @param {string} d.topic - the lesson the quiz came from
  * @param {number} d.correct
  * @param {number} d.total
  * @param {number} d.pct
- * @param {string} [d.grade]
- * @param {string} [d.subject]
- * @param {string} [d.takerName] - bd-2481: the quiz-taker's name (a teacher's
- *   own name for a video_solo attempt, or the name a child gave when joining
- *   a shared class link). Omitted entirely when unknown — never renders a
- *   literal "undefined"/"null".
+ * @param {string} [d.subject] - printed small at the foot; the grade is
+ *        deliberately never printed, since a shared class link can reach a
+ *        child in any year.
+ * @param {string} [d.takerName] - omitted entirely when unknown, never
+ *        rendered as a literal "undefined"/"null".
+ * @param {string} [d.language] - the QUIZ's language: the child reads the card
+ *        in whatever language she just answered in.
  * @returns {string} HTML for htmlToImage (selector '.card', width 540)
  */
 function renderScorecardHtml(d) {
   const a = assets();
   const {
-    topic = 'Quiz', correct = 0, total = 0, pct = 0, grade = '', subject = '', takerName = null,
+    topic = 'Quiz', correct = 0, total = 0, pct = 0, subject = '', takerName = null,
   } = d || {};
-  const { stars, badge } = starsAndBadge(pct);
+  const language = clampLanguage((d && d.language) || 'en');
+  const RTL = RTL_LANGS.has(language);
+  const dir = RTL ? 'rtl' : 'ltr';
+  const { stars, badge } = starsAndBadge(pct, language);
   const palette = tierPalette(pct);
-  const footLabel = [grade, subject].filter(Boolean).join(' ') || 'Taleemabad';
+  const eyebrow = resolveUx('vqScorecardEyebrow', { language });
 
   const logoImg = a.nieteMark
     ? `<img class='logo' src='data:image/png;base64,${a.nieteMark}' alt='NIETE'>` : '';
-  const nameHtml = takerName ? `<div class='name'>${esc(takerName)}</div>` : '';
+  const nameHtml = takerName ? `<div class='name content' dir='${dir}'>${esc(takerName)}</div>` : '';
+  const footHtml = subject ? `<div class='n content' dir='${dir}'>${esc(subject)}</div>` : `<div class='n'></div>`;
+  // A diamond, the brand's nuqta, sits behind the score as a quiet ground mark.
+  const ghost = `<svg class='ghost' viewBox='0 0 200 200' aria-hidden='true'>`
+    + `<path d='${diamondPath(100, 100, 96)}' fill='none' stroke='rgba(255,255,255,.13)' stroke-width='2'/></svg>`;
 
-  return `<!DOCTYPE html><html><head><meta charset='utf-8'><style>
+  return `<!DOCTYPE html><html lang='${language}'><head><meta charset='utf-8'><style>
   @font-face{font-family:'Lexend';font-weight:400;src:url(data:font/ttf;base64,${a.lexend})}
   @font-face{font-family:'Lexend';font-weight:800;src:url(data:font/ttf;base64,${a.lexendBold})}
-  * { margin:0; box-sizing:border-box; font-family:'Lexend',sans-serif; }
+  @font-face{font-family:'NastaliqUrdu';font-weight:400;src:url(data:font/ttf;base64,${a.nastaliq})}
+  @font-face{font-family:'NastaliqUrdu';font-weight:700;src:url(data:font/ttf;base64,${a.nastaliqBold})}
+  * { margin:0; box-sizing:border-box; font-family:${FONTS.bodyLatin}; }
+  /* Anything a child wrote or was taught follows the quiz's own script. The
+     card is a poster with one anchor — mark and badge on the right, everything
+     read on the left — so an Urdu line still SHAPES right-to-left but is set
+     flush left with the score and the stars. Right-aligning it instead left
+     the name and topic floating away from every other element on the card. */
+  .content[dir="rtl"]{font-family:${FONTS.bodyUrdu};line-height:1.85;text-align:left}
+  .content[dir="ltr"]{font-family:${FONTS.bodyLatin}}
   body { width:540px; height:400px; }
   .card { width:100%; height:100%; background:linear-gradient(160deg,${palette.bgFrom} 0%,${palette.bgTo} 100%);
-    color:#fff; padding:34px 38px; display:flex; flex-direction:column; }
+    color:#fff; padding:28px 34px; display:flex; flex-direction:column; position:relative; overflow:hidden; }
+  .ghost { position:absolute; width:250px; height:250px; right:-40px; bottom:-60px; }
+  .card > *:not(.ghost) { position:relative; z-index:1; }
   .hdr { display:flex; justify-content:space-between; align-items:flex-start; }
-  .t1 { font-size:15px; letter-spacing:2.5px; color:${palette.accent}; font-weight:800; }
+  .t1 { font-size:15px; letter-spacing:${RTL ? '0' : '2.5px'}; color:#fff; font-weight:800; opacity:.85;
+    font-family:${RTL ? FONTS.bodyUrdu : FONTS.bodyLatin}; }
   .logo { width:56px; height:auto; opacity:.96; display:block; }
-  .name { font-size:16px; font-weight:600; color:#cfe0ee; margin-top:10px; }
-  .t2 { font-size:30px; font-weight:800; margin-top:8px; }
-  .score { font-size:76px; font-weight:800; margin:14px 0 2px; }
-  .score span { font-size:30px; font-weight:400; color:#9fb3c8; }
+  /* Nastaliq needs vertical room, but a display line is not a paragraph:
+     the shared 1.85 overflowed this fixed 540x400 frame and clipped the badge. */
+  .name { font-size:${RTL ? '18px' : '16px'}; line-height:${RTL ? '1.6' : '1.3'}; font-weight:600; color:#EAF3EE; margin-top:8px; }
+  .t2 { font-size:${RTL ? '24px' : '30px'}; line-height:${RTL ? '1.65' : '1.2'}; font-weight:800; margin-top:6px; }
+  /* A fraction reads left-to-right in every language — never mirror it. */
+  .score { font-size:72px; line-height:1.05; font-weight:800; margin:12px 0 2px; direction:ltr; unicode-bidi:isolate;
+    font-family:${FONTS.bodyLatin}; }
+  .score span { font-size:30px; font-weight:400; color:rgba(255,255,255,.62); }
   .stars { display:flex; gap:6px; margin-bottom:10px; }
-  .foot { margin-top:auto; display:flex; justify-content:space-between; align-items:flex-end; }
-  .foot .n { font-size:15px; color:#cfe0ee; }
-  .badge { background:${palette.accent}; color:#3b2b00; font-weight:800; font-size:14px;
-    padding:7px 16px; border-radius:18px; }
+  .foot { margin-top:auto; display:flex; justify-content:space-between; align-items:flex-end; gap:12px; }
+  .foot .n { font-size:15px; line-height:${RTL ? '1.6' : '1.3'}; color:#EAF3EE; opacity:.85; }
+  .badge { background:${palette.accent}; color:${palette.badgeInk}; font-weight:800; font-size:15px;
+    padding:7px 16px; border-radius:18px; white-space:nowrap;
+    font-family:${RTL ? FONTS.bodyUrdu : FONTS.bodyLatin}; }
   </style></head><body><div class='card'>
-  <div class='hdr'><div class='t1'>QUIZ COMPLETE</div>${logoImg}</div>
+  ${ghost}
+  <div class='hdr'><div class='t1'>${esc(eyebrow)}</div>${logoImg}</div>
   ${nameHtml}
-  <div class='t2'>${esc(topic)}</div>
+  <div class='t2 content' dir='${dir}'>${esc(topic)}</div>
   <div class='score'>${correct}<span>/${total}</span></div>
   <div class='stars'>${starsHtml(stars, palette)}</div>
-  <div class='foot'><div class='n'>${esc(footLabel)}</div>
+  <div class='foot'>${footHtml}
   <div class='badge'>${esc(badge)}</div></div></div></body></html>`;
 }
 
 module.exports = renderScorecardHtml;
 module.exports.starsAndBadge = starsAndBadge;
 module.exports.tierPalette = tierPalette;
+module.exports.tierFor = tierFor;

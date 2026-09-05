@@ -51,6 +51,17 @@ describe('transcript-quiz catalog', () => {
     if (opensLatinOrParam) expect(ur.startsWith('\u200F')).toBe(true);
   });
 
+  // The scorecard's words are painted into a 540x400 image, so their cap is
+  // the badge they sit in, not WhatsApp's message body.
+  const CARD = ['vqScorecardEyebrow', 'vqBadgeMastered', 'vqBadgeDeveloping', 'vqBadgeNeedsPractice'];
+  test.each(CARD)('%s fits the scorecard badge it is painted into', (key) => {
+    expect(UX_STRINGS[key]).toBeDefined();
+    for (const lang of LANGUAGE_OFFER) expect(cp(UX_STRINGS[key][lang])).toBeLessThanOrEqual(18);
+  });
+  test.each(CARD)('%s is gender-neutral in Urdu', (key) => {
+    expect(UX_STRINGS[key].ur).not.toMatch(FEM);
+  });
+
   test('the offer copy names the topic and the date, and mentions /quiz', () => {
     for (const lang of LANGUAGE_OFFER) {
       const s = resolveUx('tqOffer', { language: lang, params: { topic: 'Fractions', date: '5 Sep' } });

@@ -925,6 +925,17 @@ const UX_STRINGS = {
   },
   vqInviteYes: { en: 'Invite a friend', ur: 'دوست کو بھیجیں' },
   vqInviteNo: { en: 'No thanks', ur: 'نہیں، شکریہ' },
+
+  // ─── the child's scorecard image ────────────────────────────────────────
+  // These are painted INTO a 540x400 card, not sent as a message, so they are
+  // held to a badge's width rather than a message's. The vqTier* lines above
+  // stay the caption's full sentence; these are the two or three words that
+  // fit on the card itself. Both sets say the same thing, so a child hears one
+  // voice whether she reads the picture or the text under it.
+  vqScorecardEyebrow: { en: 'QUIZ COMPLETE', ur: 'کوئز مکمل' },
+  vqBadgeMastered: { en: 'Brilliant!', ur: 'زبردست!' },
+  vqBadgeDeveloping: { en: 'Nicely done', ur: 'بہت اچھا' },
+  vqBadgeNeedsPractice: { en: 'Good effort', ur: 'اچھی کوشش' },
 };
 
 /**
