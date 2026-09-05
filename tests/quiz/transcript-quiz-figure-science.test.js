@@ -24,6 +24,7 @@ const {
   ATOM_TABLE_SYMBOLS,
   CELL_PARTS,
 } = require('../../bot/shared/services/quiz/transcript-quiz-figure-science');
+const Science = require('../../bot/shared/services/quiz/transcript-quiz-figure-science');
 
 const { renderFigureSvg, svgText } = require('../../bot/shared/services/quiz/transcript-quiz-figure');
 
@@ -256,5 +257,70 @@ describe('the wrong-science drawings, proven from the live rendered SVG', () => 
     const texts = svgText(svg);
     expect(texts).toEqual(['nucleus']);
     expect(texts).not.toContain('chloroplast');
+  });
+});
+
+describe('round 5 — the dot-and-cross the corpus actually produced (out_v5, a grade 6-8 physics lesson)', () => {
+  // The verbatim spec a live author run emitted. It passed every rule this
+  // lane had, including the round-4 ones, and the picture a child would have
+  // received says "Fe gives 1 outer electron to Cl". Three things are wrong
+  // with it and the engine reports none of them:
+  //
+  //   partner: "Mg"          a STRING. atom.js reads `partner` only when it is
+  //                          an object, so the drawing quietly uses its default
+  //                          partner, chlorine — the spec says magnesium and
+  //                          the picture says chlorine.
+  //   transfer: "Mg_to_Fe"   not a number. Number(...) is NaN, so the engine
+  //                          falls back to min(vA, 8-vB) = 1 and draws Fe+,
+  //                          an ion iron does not form.
+  //   element: "Fe"          a transition metal. Its [2,8,14,2] shells are the
+  //                          engine's own simplification and no school
+  //                          dot-and-cross follows from them.
+  const EMITTED = { type: 'atom', element: 'Fe', mode: 'dot_cross', partner: 'Mg', bond: 'ionic', transfer: 'Mg_to_Fe' };
+
+  test('it is rejected', () => {
+    expect(Science.atomDefect(EMITTED)).not.toBeNull();
+  });
+
+  test('a string partner is named as the fault, because the drawing silently uses a different element', () => {
+    const d = Science.atomDefect({ type: 'atom', mode: 'dot_cross', element: 'Na', partner: 'Cl', transfer: 1 });
+    expect(d).not.toBeNull();
+    expect(d.message).toMatch(/partner/i);
+    expect(d.message).toMatch(/object/i);
+  });
+
+  test('a non-numeric transfer is named as the fault', () => {
+    const d = Science.atomDefect({ type: 'atom', mode: 'dot_cross', element: 'Na', partner: { element: 'Cl' }, transfer: 'one' });
+    expect(d).not.toBeNull();
+    expect(d.message).toMatch(/transfer/i);
+  });
+
+  test('a transition metal has no school dot-and-cross', () => {
+    ['Fe', 'Cu', 'Zn'].forEach((el) => {
+      const d = Science.atomDefect({ type: 'atom', mode: 'dot_cross', element: el, partner: { element: 'Cl' }, transfer: 1 });
+      expect(d).not.toBeNull();
+      expect(d.message).toMatch(/main-group|transition/i);
+    });
+    // and the same element is fine as an ordinary Bohr picture, where the
+    // engine's own table is the source of truth
+    expect(Science.atomDefect({ type: 'atom', element: 'Fe' })).toBeNull();
+  });
+
+  test('the transfer must be the donor\'s valence AND fill the acceptor to eight', () => {
+    expect(Science.atomDefect({ type: 'atom', mode: 'dot_cross', element: 'Na', partner: { element: 'Cl' }, transfer: 1 })).toBeNull();
+    expect(Science.atomDefect({ type: 'atom', mode: 'dot_cross', element: 'Mg', partner: { element: 'O' }, transfer: 2 })).toBeNull();
+    const wrong = Science.atomDefect({ type: 'atom', mode: 'dot_cross', element: 'Na', partner: { element: 'Cl' }, transfer: 2 });
+    expect(wrong).not.toBeNull();
+    expect(wrong.message).toMatch(/2/);
+  });
+
+  test('a covalent dot-and-cross is not judged on ionic transfer', () => {
+    expect(Science.atomDefect({ type: 'atom', mode: 'dot_cross', element: 'H', partner: { element: 'Cl' }, bond: 'covalent' })).toBeNull();
+  });
+
+  test('a dot-and-cross with no partner at all is rejected — the engine silently draws chlorine', () => {
+    const d = Science.atomDefect({ type: 'atom', mode: 'dot_cross', element: 'Na' });
+    expect(d).not.toBeNull();
+    expect(d.message).toMatch(/partner/i);
   });
 });

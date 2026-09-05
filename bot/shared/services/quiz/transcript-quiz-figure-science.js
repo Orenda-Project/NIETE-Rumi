@@ -129,6 +129,95 @@ function checkOneAtom(raw, explicitZRaw, shellsRaw, label) {
 }
 
 /**
+ * The three symbols in the engine's table that are TRANSITION metals. Their
+ * shells there ([2,8,14,2] for iron) are the engine's own simplification of a
+ * d-block configuration, and no school dot-and-cross follows from them: iron
+ * forms Fe2+ and Fe3+, and neither is derivable from "two outer electrons".
+ * A Bohr picture of them is fine — the engine's table IS the source of truth
+ * there — but a bonding picture is not.
+ */
+const TRANSITION_METALS = new Set(['Fe', 'Cu', 'Zn']);
+
+/** atom.js's own METALS set — what makes it choose the ionic drawing. */
+const METALS = new Set(['Li', 'Be', 'Na', 'Mg', 'Al', 'K', 'Ca', 'Fe', 'Cu', 'Zn']);
+
+/** Valence electrons per the engine's own table, for the main-group elements. */
+const VALENCE = {
+  H: 1, He: 2, Li: 1, Be: 2, B: 3, C: 4, N: 5, O: 6, F: 7, Ne: 8,
+  Na: 1, Mg: 2, Al: 3, Si: 4, P: 5, S: 6, Cl: 7, Ar: 8, K: 1, Ca: 2, Br: 7, I: 7,
+};
+
+/**
+ * The dot-and-cross picture, which is where an atom spec goes wrong silently.
+ *
+ * Found by the round-5 corpus run: a grade 6-8 physics lesson emitted
+ * {element:'Fe', mode:'dot_cross', partner:'Mg', bond:'ionic',
+ *  transfer:'Mg_to_Fe'} and the child would have been shown "Fe gives 1 outer
+ * electron to Cl". atom.js reads `partner` ONLY when it is an object, so a
+ * string partner is dropped and its default (chlorine) is drawn instead; and
+ * `transfer` goes through Number(), so a non-numeric one becomes NaN and falls
+ * back to min(donor valence, 8 - acceptor valence). Both substitutions are
+ * silent, and both change what the picture claims about the world.
+ */
+function dotCrossDefect(spec) {
+  if (spec.partner !== undefined && (typeof spec.partner !== 'object' || spec.partner === null || Array.isArray(spec.partner))) {
+    return {
+      message: `"partner" is ${JSON.stringify(spec.partner)} — it must be an OBJECT like {"element":"Cl"}; ` +
+        'anything else is ignored and the picture draws the default partner (chlorine) instead of the one named',
+    };
+  }
+  if (spec.partner === undefined) {
+    return {
+      message: 'a dot-and-cross picture needs a "partner" object like {"element":"Cl"} — ' +
+        'without one the engine silently draws chlorine, whichever element the question is about',
+    };
+  }
+  if (spec.transfer !== undefined && !Number.isFinite(Number(spec.transfer))) {
+    return {
+      message: `"transfer" is ${JSON.stringify(spec.transfer)} — it must be a NUMBER of electrons; ` +
+        'a non-numeric one is dropped and the engine invents a count, drawing a charge nobody chose',
+    };
+  }
+
+  const a = normalizeSymbol(spec.element != null ? spec.element : spec.symbol);
+  const b = normalizeSymbol(spec.partner.element != null ? spec.partner.element : spec.partner.symbol);
+  const metal = [a, b].find((sym) => TRANSITION_METALS.has(sym));
+  if (metal) {
+    return {
+      message: `"${metal}" is a transition metal — a dot-and-cross picture is for MAIN-GROUP elements; ` +
+        `${metal}'s shells in the drawing engine are a simplification and its real ion charge does not follow from them. ` +
+        'Use a plain Bohr picture, or a main-group pair.',
+    };
+  }
+
+  // Ionic transfer: the donor gives its whole outer shell and the acceptor is
+  // filled to eight. When both are known, those two numbers must agree with
+  // each other and with the spec.
+  //
+  // Which bond is DRAWN is decided the way atom.js decides it — an explicit
+  // `bond` wins, otherwise a metal on either side makes it ionic — so the rule
+  // judges the picture the child would actually see, not the one the spec
+  // half-declared.
+  const bond = spec.bond === 'covalent' || spec.bond === 'ionic'
+    ? spec.bond
+    : (METALS.has(a) || METALS.has(b) ? 'ionic' : 'covalent');
+  if (bond !== 'ionic') return null;
+  const vA = VALENCE[a];
+  const vB = VALENCE[b];
+  if (vA === undefined || vB === undefined) return null;
+  const given = Number(spec.transfer);
+  if (!Number.isFinite(given)) return null;
+  const needed = 8 - vB;
+  if (given !== vA || given !== needed) {
+    return {
+      message: `the transfer of ${given} electron(s) does not balance: "${a}" has ${vA} outer electron(s) to give ` +
+        `and "${b}" needs ${needed} to reach eight — an ionic pair transfers the same number both ways`,
+    };
+  }
+  return null;
+}
+
+/**
  * @param {object} spec a figure spec
  * @returns {null|{message:string}}
  */
@@ -138,11 +227,14 @@ function atomDefect(spec) {
   const primary = checkOneAtom(spec.element != null ? spec.element : spec.symbol, spec.Z, spec.shells, 'the atom');
   if (primary) return primary;
 
-  if (atomMode(spec) === 'dot_cross' && spec.partner && typeof spec.partner === 'object') {
+  if (atomMode(spec) !== 'dot_cross') return null;
+
+  if (spec.partner && typeof spec.partner === 'object' && !Array.isArray(spec.partner)) {
     const p = spec.partner;
-    return checkOneAtom(p.element != null ? p.element : p.symbol, p.Z, p.shells, 'the partner atom');
+    const partnerDefect = checkOneAtom(p.element != null ? p.element : p.symbol, p.Z, p.shells, 'the partner atom');
+    if (partnerDefect) return partnerDefect;
   }
-  return null;
+  return dotCrossDefect(spec);
 }
 
 // ─── chem_equation ───────────────────────────────────────────────────────────
@@ -434,6 +526,8 @@ function scienceDefects(spec) {
 
 module.exports = {
   chemBalanceDefect,
+  dotCrossDefect,
+  TRANSITION_METALS,
   atomDefect,
   cellPartsDefect,
   moleculeDefect,
