@@ -55,3 +55,14 @@ describe('renderQuestionCardHtml', () => {
     expect(html).toMatch(/#47BA7D/i);
   });
 });
+
+describe('every text on the card has Urdu glyphs available (the Railway container has no system fonts)', () => {
+  test('the counter and the footer line carry a Nastaliq family in their font stack', () => {
+    const html = Card.renderQuestionCardHtml({ stem: 'x', options: ['a', 'b', 'c'], displayOrder: [0, 1, 2], language: 'ur', questionNumber: 5, total: 8 });
+    const css = html.match(/<style>([\s\S]*?)<\/style>/)[1];
+    const counter = css.match(/\.counter\{([^}]*)\}/)[1];
+    const foot = css.match(/\.foot\{([^}]*)\}/)[1];
+    expect(counter).toMatch(/Nastaliq/);
+    expect(foot).toMatch(/Nastaliq/);
+  });
+});

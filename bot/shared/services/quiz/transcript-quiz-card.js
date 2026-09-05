@@ -66,7 +66,7 @@ html,body{background:#FFFFFF}
   font-family:${fam};color:#232735;direction:${dir}}
 .lattice{position:absolute;inset:0;opacity:.07;pointer-events:none}
 .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;position:relative}
-.counter{font-family:'Inter',sans-serif;font-size:26px;font-weight:600;color:#47BA7D;letter-spacing:.08em;text-transform:uppercase;direction:ltr}
+.counter{font-family:'Inter','Noto Nastaliq Urdu','Noto Naskh Arabic',sans-serif;font-size:${ur ? '30px' : '26px'};font-weight:600;color:#47BA7D;letter-spacing:${ur ? '0' : '.08em'};${ur ? '' : 'text-transform:uppercase;'}direction:${dir};line-height:1.8}
 .mark{width:60px;height:60px;background:#333748;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .mark img{width:52px;height:52px;display:block}
 .figure{background:#F5F7F6;border-radius:18px;padding:26px 30px;margin-bottom:26px;position:relative;direction:ltr}
@@ -79,7 +79,7 @@ html,body{background:#FFFFFF}
 .dia::before{content:'';position:absolute;inset:6px;background:#47BA7D;transform:rotate(45deg);border-radius:6px}
 .dia span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#0B1A12;font-family:'Inter',sans-serif;font-weight:800;font-size:26px}
 .opt-text{font-size:${ur ? '38px' : '36px'};line-height:${ur ? '1.9' : '1.35'};flex:1;text-align:start;unicode-bidi:isolate}
-.foot{margin-top:18px;font-family:'Inter',sans-serif;font-size:22px;color:#6B7280;direction:${dir};text-align:start;position:relative}
+.foot{margin-top:18px;font-family:'Inter','Noto Nastaliq Urdu','Noto Naskh Arabic',sans-serif;font-size:${ur ? '26px' : '22px'};line-height:1.8;color:#6B7280;direction:${dir};text-align:start;position:relative}
 </style></head><body><div class="card">
 <svg class="lattice" viewBox="0 0 1080 1400" preserveAspectRatio="xMidYMid slice"><g fill="none" stroke="#47BA7D" stroke-width="1.5">${latticePaths()}</g></svg>
 <div class="top">${counter}<div class="mark">${markB64() ? `<img src="data:image/png;base64,${markB64()}">` : ''}</div></div>
