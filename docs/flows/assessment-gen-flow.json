@@ -1,6 +1,4 @@
 {
-  "_comment": "Assessment Generator. Endpoint flow: every screen is served by the server so what she sees is always valid for the book we actually hold. Screens: CLASS -> COVERAGE (-> PAGES) -> QUESTIONS (-> TYPES) -> CONFIRM -> SUBMITTED.",
-  "_instructions": "Publish via scripts/setup/register-all-flows.js. The endpoint is /api/flows/assessment-gen.",
   "version": "7.0",
   "data_api_version": "3.0",
   "routing_model": {
