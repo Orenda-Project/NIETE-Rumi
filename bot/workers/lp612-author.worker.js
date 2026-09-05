@@ -382,6 +382,13 @@ async function process(payload) {
   // Hoisted out of the IIFE below ON PURPOSE: the catch needs the document the renderer refused,
   // and inside the closure it is unreachable from there. See `keepFailedDoc`.
   let authoredDoc = null;
+  /**
+   * The Urdu overlay pass's verdict for this render, or `null` when no pass was attempted
+   * (bd-zle0u). Hoisted here for the same reason `authoredDoc` is: the delivery block below has
+   * to tell a DEFERRAL apart from a FAILURE, and the only place that distinction is knowable is
+   * where the pass either ran or did not.
+   */
+  let overlayOutcome = null;
 
   try {
     const result = await withTimeout((async () => {
@@ -619,14 +626,39 @@ async function process(payload) {
       && segment.language !== 'ur'
       && !(Array.isArray(rendered.overlayApplied) && rendered.overlayApplied.length > 0);
 
+    // Was an overlay ever ATTEMPTED for this render? Today: never — the overlay pass (bd-zle0u
+    // step 2) is what will set this, and until it lands every Urdu request against an
+    // English-medium book is a deliberate DEFERRAL, not a failure. Kept as an explicit variable
+    // rather than inlined `false` so the two states are named where they are decided, and so the
+    // pass has one place to plug into.
+    const overlayAttempted = overlayOutcome !== null;
+
     // …AND IT IS AN EVENT, NOT ONLY A COLUMN (bd-vnyuw). The column answers "was this row's
     // lesson in the wrong language"; it cannot answer "how often, and did the fix hold" without
     // someone thinking to run that query. This lane went its whole life at 6-of-6 dropped with
     // nobody noticing, because the only trace was a boolean on a row nothing alerted on. The
     // event is the rate. `overlay.applied` is emitted on the good path for the same reason: a
     // denominator that only exists when things go wrong is not a denominator (rule 24(b)).
+    //
+    // AND A DEFERRAL IS NOT A FAILURE — bd-zle0u, rule 24(b)/(d). There are now THREE states
+    // here, not two, and collapsing any pair of them makes the rate of each unreadable:
+    //
+    //   applied   — the overlay pass ran and its pointers reached the page. She has Urdu.
+    //   deferred  — no overlay was attempted for this render. This is a POLICY outcome, not a
+    //               fault, and it is the state every delivery is in until the overlay pass is
+    //               live. It must not be counted as breakage, or the breakage rate is noise.
+    //   dropped   — an overlay WAS attempted and did not survive. That is a fault, it is rare,
+    //               and it is the number anyone debugging the pass actually wants.
+    //
+    // The row still records `overlay_dropped = true` for both of the last two, because the row's
+    // column answers the teacher-facing question — "is this document in the language she asked
+    // for?" — and for her the two are the same disappointment. The EVENTS are what separate a
+    // deliberate deferral from a translation that broke.
     if (lang === 'ur' && segment.language !== 'ur') {
-      logEvent(overlayDropped ? 'lp612.overlay.dropped' : 'lp612.overlay.applied', {
+      const overlayEvent = !overlayDropped
+        ? 'lp612.overlay.applied'
+        : (overlayAttempted ? 'lp612.overlay.dropped' : 'lp612.overlay.deferred');
+      logEvent(overlayEvent, {
         renderId,
         segmentId,
         correlationId,
@@ -637,9 +669,13 @@ async function process(payload) {
         model: authored.model || model,
       });
       if (overlayDropped) {
-        logToFile('LP 6-12 worker: an Urdu request is being served an English document', {
-          renderId, segmentId, lang, medium: segment.language || null, correlationId,
-        }, 'error');
+        logToFile(
+          overlayAttempted
+            ? 'LP 6-12 worker: the Urdu overlay was attempted and did not survive — serving English'
+            : 'LP 6-12 worker: no Urdu overlay was attempted — serving English, and saying so',
+          { renderId, segmentId, lang, medium: segment.language || null, correlationId },
+          overlayAttempted ? 'error' : 'warn',
+        );
       }
     }
 

@@ -126,12 +126,17 @@ beforeEach(() => {
 });
 
 describe('the worker emits the overlay RATE, not just a boolean on a row', () => {
-  it('a dropped toggle emits lp612.overlay.dropped, naming the segment and the media', async () => {
+  // bd-zle0u SPLIT THIS EVENT IN TWO. A render that never attempted an overlay is DEFERRED,
+  // not dropped; `lp612.overlay.dropped` is reserved for a pass that ran and lost its pointers.
+  // The fields are identical, so a query can still union the two when it wants the "she got
+  // English" rate — but only ONE of them is a fault, and a single counter for both made the
+  // fault rate unreadable (rule 24(b)). The deferred half is pinned in overlay-deferred.test.js.
+  it('a toggle that was never attempted emits lp612.overlay.deferred, naming the segment and the media', async () => {
     seed(EN_SEGMENT);
     await Worker.process(jobFor('ur'));
 
-    expect(events('lp612.overlay.dropped')).toHaveLength(1);
-    expect(events('lp612.overlay.dropped')[0][1]).toEqual(expect.objectContaining({
+    expect(events('lp612.overlay.deferred')).toHaveLength(1);
+    expect(events('lp612.overlay.deferred')[0][1]).toEqual(expect.objectContaining({
       renderId: 'render-1',
       segmentId: EN_SEGMENT.segment_id,
       correlationId: 'corr-1',
@@ -140,6 +145,7 @@ describe('the worker emits the overlay RATE, not just a boolean on a row', () =>
       pointers: 0,
     }));
     expect(events('lp612.overlay.applied')).toHaveLength(0);
+    expect(events('lp612.overlay.dropped')).toHaveLength(0);
   });
 
   it('an applied toggle emits lp612.overlay.applied with the pointer count — the denominator', async () => {
@@ -152,6 +158,7 @@ describe('the worker emits the overlay RATE, not just a boolean on a row', () =>
     await Worker.process(jobFor('ur'));
 
     expect(events('lp612.overlay.dropped')).toHaveLength(0);
+    expect(events('lp612.overlay.deferred')).toHaveLength(0);
     expect(events('lp612.overlay.applied')).toHaveLength(1);
     expect(events('lp612.overlay.applied')[0][1]).toEqual(expect.objectContaining({ pointers: 2 }));
   });
@@ -160,6 +167,7 @@ describe('the worker emits the overlay RATE, not just a boolean on a row', () =>
     seed(UR_SEGMENT);
     await Worker.process(jobFor('ur'));
     expect(events('lp612.overlay.dropped')).toHaveLength(0);
+    expect(events('lp612.overlay.deferred')).toHaveLength(0);
     expect(events('lp612.overlay.applied')).toHaveLength(0);
   });
 
@@ -167,14 +175,19 @@ describe('the worker emits the overlay RATE, not just a boolean on a row', () =>
     seed(EN_SEGMENT);
     await Worker.process(jobFor('en'));
     expect(events('lp612.overlay.dropped')).toHaveLength(0);
+    expect(events('lp612.overlay.deferred')).toHaveLength(0);
     expect(events('lp612.overlay.applied')).toHaveLength(0);
   });
 
   it('the event and the column can never disagree — both come from the same decision', async () => {
+    // The COLUMN is the teacher-facing question ("is this in the language she asked for?") and
+    // stays true for a deferral as well as a drop — she is looking at an English page either
+    // way, and the caption must say so on every cache hit. The EVENT is the one that has to
+    // distinguish them.
     seed(EN_SEGMENT);
     await Worker.process(jobFor('ur'));
     const ready = mockDbCalls.find((c) => c.op === 'update' && c.payload && c.payload.status === 'ready');
     expect(ready.payload.overlay_dropped).toBe(true);
-    expect(events('lp612.overlay.dropped')).toHaveLength(1);
+    expect(events('lp612.overlay.deferred')).toHaveLength(1);
   });
 });
