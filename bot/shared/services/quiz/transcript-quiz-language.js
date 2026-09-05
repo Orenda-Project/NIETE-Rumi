@@ -153,6 +153,18 @@ function fixTransliterations(text) {
 }
 
 /** Apply the fixer to every child-facing field of an authored question. */
+/** Walk a diagram spec and fix every string field (labels, titles, captions, notes). */
+function fixSpecStrings(node) {
+  if (typeof node === 'string') return fixTransliterations(node);
+  if (Array.isArray(node)) return node.map(fixSpecStrings);
+  if (node && typeof node === 'object') {
+    const out = {};
+    Object.entries(node).forEach(([k, v]) => { out[k] = k === 'type' || k === 'kind' ? v : fixSpecStrings(v); });
+    return out;
+  }
+  return node;
+}
+
 function fixQuestionTransliterations(q) {
   if (!q || typeof q !== 'object') return q;
   const fb = q.option_feedback || {};
@@ -167,6 +179,8 @@ function fixQuestionTransliterations(q) {
     explanation: fixTransliterations(q.explanation),
     distractor_misconceptions: Object.keys(misc).length ? misc : q.distractor_misconceptions,
     option_feedback: { ...fb, correct: fixTransliterations(fb.correct), wrong },
+    // A figure's labels/titles/captions are read by the child too.
+    figure: q.figure && typeof q.figure === 'object' ? fixSpecStrings(q.figure) : q.figure,
   };
 }
 

@@ -282,3 +282,12 @@ describe('calibration round 4 — reviewer regrade of v3', () => {
     expect(sci.errors.join(' | ')).toMatch(/q0: FIGURE_TYPE[^|]*mathematics/);
   });
 });
+
+describe('figure labels get the transliteration fixer too (a live bar was labelled سرکل)', () => {
+  test('an Urdu quiz figure label written as a transliteration is rewritten in English letters', () => {
+    const qs = six({ figure: { type: 'fraction_bar', bars: [{ parts: 4, shaded: 1, label: 'سرکل' }] }, question: 'تصویر میں کتنا حصہ رنگا ہوا ہے؟' });
+    const r = validate(qs, { language: 'ur', subject: 'maths', digest: DIGEST, nExpected: 6 });
+    expect(JSON.stringify(r.questions[0].figure)).toMatch(/circle/);
+    expect(JSON.stringify(r.questions[0].figure)).not.toMatch(/سرکل/);
+  });
+});
