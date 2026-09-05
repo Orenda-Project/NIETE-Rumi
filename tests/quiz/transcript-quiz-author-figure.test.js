@@ -127,3 +127,47 @@ describe('an English quiz on an Urdu-taught lesson', () => {
     expect(prompt).toMatch(/even (though|if) the lesson was taught in Urdu/i);
   });
 });
+
+describe('round 4 — the roster the author reads is the engine manifest, limits included (D7b)', () => {
+  const block = Figure.minimalSpecBlock();
+
+  test('every allowed type carries its purpose, its required keys, a minimal spec AND the engine limits', () => {
+    Figure.ALLOWED_TYPES.forEach((type) => {
+      const entry = block.split('\n- ').find((chunk) => chunk.startsWith(`${type} —`) || chunk.startsWith(`- ${type} —`));
+      expect(entry).toBeTruthy();
+      expect(entry).toContain('required:');
+      expect(entry).toContain('minimal:');
+      // Every allowed type documents at least one limit in the manifest that
+      // survives the LP-only filter; a type with none would mean the filter ate
+      // the lot and the model is back to guessing.
+      expect(Figure.limitsFor(type).length).toBeGreaterThan(0);
+      expect(entry).toContain('limits:');
+    });
+  });
+
+  test('the limits the model most needs are the ones the engine actually states', () => {
+    // Each of these is a documented way to emit a spec that RENDERS and is
+    // silently wrong — the class of defect round 4 exists to close.
+    expect(block).toContain('The built-in element table is H-Ca plus Fe/Cu/Zn/Br/I; anything else needs explicit Z/shells.');
+    expect(block).toContain('It does not check that the equation balances');
+    expect(block).toContain('`shaded` is a COUNT of cells, filled in reading order -- not a list of coordinates.');
+    expect(block).toContain('There is NO top-level `above`/`below` field');
+  });
+
+  test('lesson-plan-page machinery is filtered out — the quiz author cannot act on it', () => {
+    expect(block).not.toMatch(/lint_lp\.js/);
+    expect(block).not.toMatch(/visual_check/);
+    expect(block).not.toMatch(/A4/);
+    expect(block).not.toMatch(/author brief/i);
+    expect(block).not.toMatch(/\bPR #\d/);
+  });
+
+  test('the circle model is offered, and the prompt says which lesson draws it', () => {
+    expect(block).toMatch(/model is "fraction" \(default\), "unit"[^\n]*or "circle"/);
+    expect(prompt()).toMatch(/roti\/pizza\/circle/);
+  });
+
+  test('the generated roster is stable — a manifest re-vendor is a visible prompt change, never a silent one', () => {
+    expect(block).toMatchSnapshot();
+  });
+});

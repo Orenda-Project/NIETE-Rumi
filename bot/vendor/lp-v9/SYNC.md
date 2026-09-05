@@ -35,6 +35,33 @@ outside this repo and not in this repo's git history:
 | `fonts/Inter-{Regular,SemiBold,Bold}.ttf` | workspace `06_Logs & Misc/Reports/Active/Tanzania Expansion/02_Coaching_MEWAKA/mewaka-sample-report/` |
 | `fonts/NotoNastaliqUrdu.ttf` | workspace `02_Main Rumi Bot/fonts/` |
 
+> **Partial re-vendor 2026-09-06 (bd-mg9c7.49, TQ-R4 lane D): `diagrams/types/fraction_bar.js`
+> and `diagrams/types_manifest.json` (the `fraction_bar` entry only).** Fixed upstream first
+> (`.claude/skills/curriculum-baked-lesson-plans/scripts/lp_html/diagrams/`), then copied
+> byte-for-byte; `diff` against the upstream copy is empty for both files. **No new §3
+> divergence.**
+>
+> **What changed.** `fraction_bar` gains a third mode, `model: "circle"` — n equal sectors of a
+> disc, k shaded, same `bars[].parts`/`shaded`/`label`/`value`/`color` tokens the bar modes already
+> use (`shadedSet()` is reused verbatim). Sectors start at 12 o'clock and sweep clockwise (`en`) or
+> anticlockwise (`ur`); every circle in one spec shares one radius, the bar mode's shared-width rule
+> carried into a disc; `parts: 1` draws a whole disc with no radius line; a label and the k/n
+> readout sit centred under each circle. Why: a teacher taught proper fractions with a roti — a
+> circle cut into four, one part shaded — and the engine only had bars, so the delivered picture was
+> a four-part bar with the word "circle" written beside it to paper over the mismatch.
+> `types_manifest.json`'s `fraction_bar` entry gains the mode in its `for` line and a `limits` line
+> naming all three modes.
+>
+> Tests: `tests/quiz/transcript-quiz-figure-circle.test.js` (new, root suite), through the quiz
+> lane's own `renderFigureSvg` entry point rather than the engine directly, so a red run proves the
+> **vendored** copy is what changed. Red confirmed by temporarily restoring the pre-patch vendored
+> file and re-running (3 of 7 assertions fail — the circle-specific ones; the other 4 pass
+> trivially because an unrecognised `model` falls through to the ordinary bar render, which is
+> itself evidence the fallback is silent rather than a hard error). Green after re-applying the
+> patch. `checkOverlaps` and `checkDegenerate` are both asserted zero-rows on every circle case.
+>
+> **Not touched**: `bot/shared/services/quiz/` (another lane's files at the time of this change).
+
 > **Partial re-vendor 2026-09-05 (bd-vnyuw + bd-c3le6): `lint_lp.js`, `render_lp.js` and
 > `lib/template.js`.** Fixed upstream first, in both homes, and the SAME patch applied to each
 > rather than the file overwritten (`render_lp.js` and `lib/template.js` carry pre-existing

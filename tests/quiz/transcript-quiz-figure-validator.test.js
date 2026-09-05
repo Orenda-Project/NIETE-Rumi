@@ -65,11 +65,15 @@ describe('FIGURE_TYPE', () => {
   });
 });
 
-describe('FIGURE_RENDER', () => {
+describe('FIGURE_OVERLAP', () => {
+  // Round 4 (PLAN_R4 D7c) split the collision case out of FIGURE_RENDER into
+  // its own code, the one the lesson-plan lane's lint already uses. The retry
+  // prompt quotes the code back to the model, and a collision is fixed by
+  // simplifying the spec while a render failure is fixed by changing the type.
   test('a spec whose labels collide is rejected', () => {
     const r = run(six({ figure: { type: 'numberline', from: -50, to: 50, step: 1, labelFormat: 'integer', points: [{ at: 3 }] } }));
     expect(r.ok).toBe(false);
-    expect(errorsOf(r)).toMatch(/q0: FIGURE_RENDER/);
+    expect(errorsOf(r)).toMatch(/q0: FIGURE_OVERLAP/);
   });
 });
 
@@ -164,8 +168,16 @@ describe('the rendered SVG rides back on the question', () => {
   });
 
   test('an Urdu quiz renders its figure in Urdu', () => {
+    // The title's words (a) name no shape ("bar"/"strip" etc — the label gate
+    // strips those, see transcript-quiz-figure-labels.test.js) and (b) are the
+    // same words the Urdu stem uses, so it survives the label gate to be
+    // rendered.
     const qs = [0, 1, 2, 3, 4, 5].map((i) => q(i, i === 0
-      ? { figure: { ...FRACTION, title: 'کسر کی پٹی' } } : {}));
+      ? {
+        figure: { ...FRACTION, title: 'چار برابر حصے' },
+        question: 'اس تصویر میں چار برابر حصے ہیں — کتنا حصہ رنگا ہوا ہے؟',
+        options: ['ایک چوتھائی', 'تین چوتھائی', 'آدھا'],
+      } : {}));
     const r = validate(qs, { language: 'ur', subject: 'maths', digest: DIGEST, nExpected: 6 });
     expect(r.questions[0].figureSvg).toMatch(/<foreignObject/);
   });
@@ -284,10 +296,16 @@ describe('calibration round 4 — reviewer regrade of v3', () => {
 });
 
 describe('figure labels get the transliteration fixer too (a live bar was labelled سرکل)', () => {
-  test('an Urdu quiz figure label written as a transliteration is rewritten in English letters', () => {
+  // The original production bug: سرکل (circle) survived the transliteration
+  // fixer as "circle" and was PRINTED on the bar — a shape name has no
+  // business on a fraction_bar either way. PLAN_R4 D7a (transcript-quiz-figure-labels.test.js)
+  // closes the gap the fixer alone left open: the label gate strips the
+  // shape name, in either script, instead of merely translating it.
+  test('an Urdu quiz figure label written as a transliteration is stripped, not merely translated', () => {
     const qs = six({ figure: { type: 'fraction_bar', bars: [{ parts: 4, shaded: 1, label: 'سرکل' }] }, question: 'تصویر میں کتنا حصہ رنگا ہوا ہے؟' });
     const r = validate(qs, { language: 'ur', subject: 'maths', digest: DIGEST, nExpected: 6 });
-    expect(JSON.stringify(r.questions[0].figure)).toMatch(/circle/);
+    expect(JSON.stringify(r.questions[0].figure)).not.toMatch(/circle/i);
     expect(JSON.stringify(r.questions[0].figure)).not.toMatch(/سرکل/);
+    expect(r.questions[0].figureStripped).toEqual([{ key: 'bars[0].label', value: 'circle', reason: 'shape_name' }]);
   });
 });

@@ -1,0 +1,97 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`round 4 — the roster the author reads is the engine manifest, limits included (D7b) the generated roster is stable — a manifest re-vendor is a visible prompt change, never a silent one 1`] = `
+"- numberline — A position, an interval, a jump, or an inequality -- integers across zero, stacked fraction ticks, arcs for +/-, rays with open or closed ends.
+  required: from, to
+  minimal: {"type":"numberline","from":-5,"to":5,"step":1,"labelFormat":"integer","points":[{"at":-3,"style":"dot"}],"arcs":[{"from":-3,"to":1,"label":"+ 4","above":true}]}
+  limits:
+    · labelFormat is "integer" | "fraction" | "decimal"; a fraction line also wants \`denominator\`.
+    · points[].style "dot" (closed, included) vs "open" (excluded) is the whole grammar of an inequality -- get it the right way round.
+    · Too many ticks between \`from\` and \`to\` drives the labels under the 13.5px floor; raise \`step\` or \`labelEvery\`.
+- fraction_bar — Part of a whole as a bar or a circle -- one fraction, an equivalence comparison on a shared whole, a Singapore unit bar model with a total brace, or (model:"circle") n equal sectors of a disc, k shaded.
+  required: bars
+  minimal: {"showLabels":false,"type":"fraction_bar","bars":[{"parts":3,"shaded":2,"label":"2/3"}]}
+  limits:
+    · Every bar is drawn to the SAME total width -- that is what makes a comparison honest, and it is why two bars with different \`parts\` are the right way to show equivalence.
+    · Set urduDigits:true (or lang:"ur") for Urdu numerals in the labels.
+    · model is "fraction" (default), "unit" (Singapore bar, needs unitLabel) or "circle" (n equal sectors, k shaded). A lesson taught with a roti/pizza/circle draws the circle model; a strip or a chocolate bar draws bars.
+- grid — A percentage, a decimal, a fraction of a hundred square, or a multiplication area model.
+  required: rows, cols
+  minimal: {"legend":"","type":"grid","rows":10,"cols":10,"shaded":37,"majorEvery":5}
+  limits:
+    · \`cellText\` is a list of [row, col, text] TRIPLES with 0-based row/col -- NOT a 2-D array of rows. A row-shaped entry destructures to a NaN position with undefined text and prints NOTHING, silently.
+    · \`shaded\` is a COUNT of cells, filled in reading order -- not a list of coordinates.
+    · majorEvery draws the heavier rule every N cells; 5 is what makes a hundred square countable.
+    · It GENERATES its own readout ("1/4 = 25% = 0.25") from rows/cols/shaded unless you pass \`legend\`. On a grid smaller than about 5x5 that line is wider than the grid, so the canvas is sized to the READOUT and the grid is centred in it -- a 2x2 is 132 units wide for a 60-unit grid. Expect a small grid to arrive with generous side margins; that is the type doing the right thing, not a layout bug.
+    · The generated readout keeps Latin numerals even under lang:"ur", while the title and caption use U+06F0-06F9. Pass \`legend\` yourself for an all-Urdu figure.
+- geometry — A shape, an angle or a construction -- triangles, polygons, circles with radius/diameter/chord/tangent, angle arcs, right-angle markers.
+  required: shapes
+  minimal: {"height":340,"type":"geometry","shapes":[{"kind":"triangle","points":[[0,0],[4,0],[0,3]],"labels":["A","B","C"],"sides":["4 cm","5 cm","3 cm"]}]}
+  limits:
+    · The canvas AUTO-FITS the shapes; \`height\` is a hint, not a frame.
+    · checkDegenerate() rejects a near-flat polygon, so give a triangle real area -- a 1-unit-tall 'triangle' fails the build even though it draws.
+- graph — A relationship between two quantities -- sampled curves from a safe expression in x, plotted points, straight segments, and shaded half-planes for inequalities.
+  required: xMin, xMax, yMin, yMax, xLabel, yLabel
+  minimal: {"type":"graph","xMin":-3,"xMax":5,"yMin":-6,"yMax":8,"xStep":1,"yStep":2,"xLabel":"x","yLabel":"y","functions":[{"expr":"x*x - 2*x - 3","label":"y = x2 - 2x - 3","color":"var(--navy)"}]}
+  limits:
+    · functions[].expr is a SAFE expression string in x -- not JavaScript, not a lambda.
+    · Shading covers only the curve's own VISIBLE x-range: if the curve leaves the window on the side opposite the shading, the region past that point is left blank.
+    · points[].dx/dy are MANUAL label offsets. They can push a label onto an axis-tick plate and fail DIAGRAM_OVERLAP -- omit them unless you have looked at the render.
+- chem_equation — A balanced chemical equation typeset with real subscripts, charges, state symbols and arrow conditions.
+  required: equation
+  minimal: {"type":"chem_equation","equation":"CaCO3 ->[Δ] CaO + CO2"}
+  limits:
+    · The equation is PLAIN TEXT, never \\ce{}. Put spaces around any + that is an operator.
+    · Arrows: -> <- <=> <-> = . A condition rides INSIDE the string as ->[Δ], and an equilibrium takes both: <=>[Fe][450 C]. There is NO top-level \`above\`/\`below\` field -- one written there is SILENTLY DROPPED and the arrow prints bare. The object form is conditions:{above,below}.
+    · It does not check that the equation balances -- \`balanced:false\` only changes how it is drawn.
+- circuit — An IEC-symbol series or parallel circuit: battery, resistor, lamp, switch, ammeter, voltmeter.
+  required: layout, cells
+  minimal: {"type":"circuit","layout":"series","cells":[{"kind":"battery","label":"Battery","value":"6 V"},{"kind":"lamp","label":"Lamp"}]}
+  limits:
+    · cells[].kind is battery | resistor | lamp | switch | ammeter | voltmeter. A voltmeter takes \`across\`.
+    · Component VALUES stay LTR even on an Urdu page ("6 V", "10 O") -- that is how Pakistani textbooks set them. An Urdu value is now laid out correctly, but it is not the house style.
+- free_body — The forces acting on one body, arrow lengths scaled by magnitude -- flat, or on an inclined plane.
+  required: body, forces
+  minimal: {"type":"free_body","body":{"shape":"box","label":"Box","mass":"5 kg"},"forces":[{"name":"W","label":"weight","angle":270,"magnitude":50,"color":"warn"},{"name":"N","label":"normal","angle":90,"magnitude":50,"color":"cool"}]}
+  limits:
+    · angle is in DEGREES with 90 = up.
+    · forces[].color is a SHORT NAME (ink|accent|leaf|warn|cool|clay), not a colour string -- the one place in the engine where that is true.
+    · body.shape "block_on_incline" plus incline.angle switches to the incline layout; decompose:true on a force splits it into components.
+- atom — One atom's electron shells, or the electron transfer/sharing between two atoms in a bond.
+  required: element
+  minimal: {"type":"atom","element":"Na"}
+  limits:
+    · mode is "bohr" (default) or "dot_cross" / "dot_and_cross"; using the dot_and_cross ALIAS as the type also selects that mode.
+    · There is NO \`compound\` field. A bonding picture is element + partner + bond + transfer.
+    · The built-in element table is H-Ca plus Fe/Cu/Zn/Br/I; anything else needs explicit Z/shells.
+- punnett — A monohybrid or dihybrid cross -- gametes, offspring and the genotype/phenotype ratios all COMPUTED from the two parental genotypes.
+  required: p1, p2
+  minimal: {"type":"punnett","p1":"Rr","p2":"Rr","trait":{"dominant":"R","recessive":"r","dominantName":"tall","recessiveName":"short"}}
+  limits:
+    · DO NOT PRE-FILL THE SQUARE. The offspring cells and both ratios are derived; anything you type would be a second, disagreeing source of truth.
+    · trait.dominantName / recessiveName may be Urdu; the allele letters stay Latin.
+- ray_diagram — A lens or mirror construction SOLVED from the thin-lens/mirror equation -- F, 2F, the three standard rays, and the real or virtual image where it actually falls.
+  required: element, f, u, hObject
+  minimal: {"type":"ray_diagram","element":"convex_lens","f":20,"u":60,"hObject":14}
+  limits:
+    · element is convex_lens | concave_lens | concave_mirror | convex_mirror.
+    · The image position, size and nature are COMPUTED -- you give the object, not the answer. u inside f gives the virtual case, and it draws that correctly.
+- flow — A SEQUENCE -- steps of a process, a chain of reasoning, a decision. If nothing happens first or last, it is a mindmap, not a flow.
+  required: steps
+  minimal: {"type":"flow","direction":"lr","steps":[{"title":"v = u + gt","lines":["no mass in this equation"]},{"title":"SAME TIME","lines":["mass never appears"]}]}
+  limits:
+    · Two short \`lines\` per step read; a paragraph in a step does not.
+- timeline — Things that happened over time on a dated spine -- horizontal, or vertical chip-and-label for longer entries.
+  required: events
+  minimal: {"type":"timeline","orientation":"horizontal","events":[{"date":"1906","label":"Muslim League founded, Dhaka"},{"date":"1947","label":"Independence"}]}
+  limits:
+    · FOUR TO SIX events, never more -- the brief's own rule, and past six the horizontal spine crowds its labels.
+    · orientation "vertical" is the one to use when the labels are long; horizontal wants short ones.
+    · The spine is EVENLY spaced, not scaled to the real intervals -- it shows order, not duration.
+- cell — Three fixed biology schematics with leader-line labels: the plant/animal cell, the leaf cross-section, and the circulatory loop.
+  required: kind
+  minimal: {"type":"cell","kind":"plant"}
+  limits:
+    · kind is "plant" | "animal" and applies to type "cell" only; the leaf_cross_section and heart_loop aliases take no kind.
+    · The structures are PARAMETRIC, not free-form -- you choose which parts are labelled, not what the drawing is. Anything else biological is a labelled_figure."
+`;

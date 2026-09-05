@@ -242,7 +242,7 @@
         "bar_model",
         "tape_diagram"
       ],
-      "for": "Part of a whole as a bar -- one fraction, an equivalence comparison on a shared whole, or a Singapore unit bar model with a total brace.",
+      "for": "Part of a whole as a bar or a circle -- one fraction, an equivalence comparison on a shared whole, a Singapore unit bar model with a total brace, or (model:\"circle\") n equal sectors of a disc, k shaded.",
       "required": [
         "bars"
       ],
@@ -274,7 +274,8 @@
       ],
       "limits": [
         "Every bar is drawn to the SAME total width -- that is what makes a comparison honest, and it is why two bars with different `parts` are the right way to show equivalence.",
-        "Set urduDigits:true (or lang:\"ur\") for Urdu numerals in the labels."
+        "Set urduDigits:true (or lang:\"ur\") for Urdu numerals in the labels.",
+        "model is \"fraction\" (default), \"unit\" (Singapore bar, needs unitLabel) or \"circle\" (n equal sectors, k shaded). A lesson taught with a roti/pizza/circle draws the circle model; a strip or a chocolate bar draws bars."
       ]
     },
     {

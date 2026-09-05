@@ -31,6 +31,7 @@ const { renderDiagram, checkOverlaps } = require('../../../vendor/lp-v9/diagrams
 const MANIFEST = require('../../../vendor/lp-v9/diagrams/types_manifest.json');
 const { fontCss } = require('../../../vendor/lp-v9/lib/fonts');
 const { logToFile } = require('../../utils/logger');
+const { logEvent } = require('../../utils/structured-logger');
 
 /**
  * The types that survive a 1080px-wide picture on a mid-range Android phone AND
@@ -141,17 +142,50 @@ function minimalSpecFor(type) {
 }
 
 /**
- * The allowlist block the author prompt carries: one line per type, its
- * one-line purpose, and a minimal spec that is GENERATED from the engine
- * manifest rather than hand-copied, so the prompt can never teach a shape the
- * engine no longer accepts.
+ * A manifest `limits` line written for the LESSON-PLAN lane, not for this one.
+ *
+ * The manifest is one document serving two renderers. Its limits mix two kinds
+ * of sentence: facts about the ENGINE ("`shaded` is a COUNT of cells, not a
+ * list of coordinates"; "the built-in element table is H-Ca plus Fe/Cu/Zn/Br/I,
+ * anything else needs explicit Z/shells") — which are exactly what stops a
+ * model drawing something silently wrong — and facts about the LP PAGE (a lint
+ * rule's code, an A4 column width, a PR number, the LP author brief's own
+ * section numbering). The second kind is noise in a WhatsApp quiz prompt: it
+ * costs tokens and names machinery the model cannot act on.
+ */
+const LP_ONLY_LIMIT = /lint_lp\.js|visual_check|author brief|A4|750px|794|column|PR #|bd-[a-z0-9]|blocking defect|serving repo|SS\d|§\d/i;
+
+/** The manifest's limits for a type, minus the lines that are about the LP page. */
+function limitsFor(type) {
+  const entry = MANIFEST.types.find((m) => m.type === type);
+  return ((entry && entry.limits) || []).filter((l) => !LP_ONLY_LIMIT.test(String(l)));
+}
+
+/**
+ * The allowlist block the author prompt carries: one entry per allowed type —
+ * what it is FOR, its REQUIRED keys, a MINIMAL spec, and the engine's own
+ * LIMITS — every field GENERATED from the engine manifest rather than
+ * hand-copied, so the prompt can never teach a shape the engine no longer
+ * accepts, and can never omit a gotcha the engine documents.
+ *
+ * The limits are the half that was missing before round 4: they are where the
+ * engine says `shaded` is a count and not a coordinate list, that an off-table
+ * element silently draws as a different atom, and that a `+` welded to a
+ * species is read as a charge. A model that is not told those writes a spec
+ * that renders happily and teaches the wrong thing.
+ *
+ * Locked by a snapshot test (tests/quiz/transcript-quiz-author-figure.test.js)
+ * so a manifest re-vendor shows up as a visible prompt change, never a silent
+ * one.
  * @returns {string}
  */
 function minimalSpecBlock() {
   return ALLOWED_TYPES.map((type) => {
     const entry = MANIFEST.types.find((m) => m.type === type);
     const req = (entry.required || []).join(', ') || '—';
-    return `- ${type} — ${entry.for}\n  required: ${req}\n  minimal: ${JSON.stringify(minimalSpecFor(type))}`;
+    const limits = limitsFor(type).map((l) => `\n    · ${l}`).join('');
+    return `- ${type} — ${entry.for}\n  required: ${req}\n  minimal: ${JSON.stringify(minimalSpecFor(type))}`
+      + (limits ? `\n  limits:${limits}` : '');
   }).join('\n');
 }
 
@@ -185,10 +219,15 @@ function renderFigureSvg(spec, language) {
     throw new FigureError('FIGURE_RENDER',
       `the ${type} figure could not be drawn: ${String(err.message).split('\n')[0]}`);
   }
+  // Named FIGURE_OVERLAP, not FIGURE_RENDER: the retry prompt quotes these
+  // codes back to the model, and "the engine threw" and "the engine drew it
+  // with two labels on top of each other" are different things to fix. Same
+  // gate the LP lane runs as DIAGRAM_OVERLAP; transcript-quiz-figure-gates.js
+  // exposes it as a defect object for callers that do not want the throw.
   const overlaps = checkOverlaps(svg);
   if (overlaps.length) {
     const pair = overlaps[0];
-    throw new FigureError('FIGURE_RENDER',
+    throw new FigureError('FIGURE_OVERLAP',
       `the ${type} figure has ${overlaps.length} unreadable label(s) — ${pair.kind} between ${pair.a} and ${pair.b}; simplify it or shorten the labels`);
   }
   return svg;
@@ -471,6 +510,141 @@ function figureIsRedundant(spec, stem) {
   return inStem.length >= need;
 }
 
+// ─── the label gate ──────────────────────────────────────────────────────────
+
+/**
+ * A shape name is never a legitimate label on a bar or a grid — the type
+ * already draws the shape, so the word can only be a stray leftover from an
+ * author who wrote what a hand-drawn diagram would have been called on the
+ * board. Both scripts; `fixTransliterations` maps سرکل→circle, and the
+ * stripper runs on either side of that fixer depending on language, so both
+ * forms must be caught.
+ */
+const SHAPE_NAMES = new Set([
+  'circle', 'circles', 'bar', 'bars', 'strip', 'square', 'rectangle', 'triangle', 'pizza', 'roti',
+  'chapati', 'cake', 'chocolate', 'apple', 'orange', 'shape', 'whole',
+  'دائرہ', 'دائرے', 'سرکل', 'بار', 'پٹی', 'مربع', 'مستطیل', 'مثلث', 'پیزا', 'روٹی', 'چپاتی', 'کیک',
+  'چاکلیٹ', 'سیب', 'شکل', 'ہول',
+].map(norm));
+
+/** Single-letter handles and the units a label is allowed to carry bare. */
+const UNITS = new Set(['cm', 'm', 'km', 'mm', 'kg', 'g', 's', 'min', 'hr', 'ml', 'l', '%', 'v', 'ω', '°c']);
+
+/** Whitespace-separated content words, punctuation trimmed off each end. */
+function contentTokens(str) {
+  return String(str)
+    .split(/\s+/)
+    .map((t) => t.replace(/^["'“”‘’(),.:;!?]+|["'“”‘’(),.:;!?]+$/g, ''))
+    .filter(Boolean);
+}
+
+function isNumericToken(tok) {
+  const t = norm(tok);
+  return /^-?\d+(\.\d+)?%?$/.test(t) || /^\d+\s*\/\s*\d+$/.test(t);
+}
+
+function isHandleOrUnit(tok) {
+  const t = norm(tok);
+  return /^[a-z]$/.test(t) || UNITS.has(t);
+}
+
+/** Is `tok` present, on a word boundary, in the question the child reads? */
+function inQuestion(tok, haystack) {
+  const t = norm(tok);
+  if (!t) return true;
+  const esc = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^\\p{L}\\p{N}])${esc}([^\\p{L}\\p{N}]|$)`, 'u').test(haystack);
+}
+
+/**
+ * Judge one label string against the question it belongs to.
+ * @returns {{keep: true} | {keep: false, reason: 'shape_name'|'not_in_question'}}
+ */
+function judgeLabel(str, { haystack, blockShapeNames }) {
+  const toks = contentTokens(str);
+  if (!toks.length) return { keep: true }; // '' is a deliberate suppression, not a stray word
+  if (blockShapeNames && toks.some((t) => SHAPE_NAMES.has(norm(t)))) {
+    return { keep: false, reason: 'shape_name' };
+  }
+  const allPass = toks.every((t) => isNumericToken(t) || isHandleOrUnit(t) || inQuestion(t, haystack));
+  return allPass ? { keep: true } : { keep: false, reason: 'not_in_question' };
+}
+
+/**
+ * Strip a figure spec of any label that is neither a value the type computes
+ * nor a word the question itself uses (PLAN_R4 D7a). A shape name is stripped
+ * from a `fraction_bar` or a `grid` unconditionally — the operator's case was
+ * a stem that named the shape ("روٹی") and STILL got a labelled bar back, so
+ * the in-question exemption never applies to a shape word on those two types.
+ *
+ * Scoped to an explicit per-type key list, not a blanket walk: a `numberline`,
+ * `timeline`, `flow`, `circuit`, `free_body`, `punnett`, `atom`, `ray_diagram`,
+ * `cell`, `chem_equation` or `graph`'s point/step/cell/force labels ARE the
+ * drawing's content and are left untouched.
+ *
+ * @param {object} spec
+ * @param {{stem: string, options: string[]}} ctx
+ * @returns {{spec: object, stripped: {key: string, value: string, reason: string}[]}}
+ */
+function stripStrayLabels(spec, { stem, options } = {}) {
+  if (!spec || typeof spec !== 'object') return { spec, stripped: [] };
+  const type = canonicalType(spec.type) || spec.type;
+  const haystack = norm([stem, ...(Array.isArray(options) ? options : [])].join(' '));
+  const blockShapeNames = type === 'fraction_bar' || type === 'grid';
+  const stripped = [];
+  const cleaned = JSON.parse(JSON.stringify(spec));
+
+  const consider = (holder, key, pathKey) => {
+    const value = holder[key];
+    if (typeof value !== 'string') return;
+    const verdict = judgeLabel(value, { haystack, blockShapeNames });
+    if (verdict.keep) return;
+    stripped.push({ key: pathKey || key, value, reason: verdict.reason });
+    logEvent('transcript_quiz.figure_label_stripped', { type, key: pathKey || key, value, reason: verdict.reason });
+    delete holder[key];
+  };
+
+  ['title', 'caption', 'note'].forEach((key) => consider(cleaned, key, key));
+
+  if (type === 'fraction_bar') {
+    ['totalLabel', 'unitLabel'].forEach((key) => consider(cleaned, key, key));
+    if (Array.isArray(cleaned.bars)) {
+      cleaned.bars.forEach((bar, i) => {
+        if (!bar || typeof bar !== 'object') return;
+        ['label', 'value'].forEach((key) => consider(bar, key, `bars[${i}].${key}`));
+        if (Array.isArray(bar.partLabels)) {
+          bar.partLabels.forEach((pl, j) => {
+            if (typeof pl !== 'string') return;
+            const verdict = judgeLabel(pl, { haystack, blockShapeNames });
+            if (verdict.keep) return;
+            const pathKey = `bars[${i}].partLabels[${j}]`;
+            stripped.push({ key: pathKey, value: pl, reason: verdict.reason });
+            logEvent('transcript_quiz.figure_label_stripped', { type, key: pathKey, value: pl, reason: verdict.reason });
+            bar.partLabels[j] = ''; // blank in place — position maps to a bar segment
+          });
+        }
+      });
+    }
+  }
+
+  if (type === 'grid') {
+    if (cleaned.legend !== '') consider(cleaned, 'legend', 'legend');
+    if (Array.isArray(cleaned.cellText)) {
+      cleaned.cellText.forEach((entry, i) => {
+        if (!Array.isArray(entry) || typeof entry[2] !== 'string') return;
+        const verdict = judgeLabel(entry[2], { haystack, blockShapeNames });
+        if (verdict.keep) return;
+        const pathKey = `cellText[${i}]`;
+        stripped.push({ key: pathKey, value: entry[2], reason: verdict.reason });
+        logEvent('transcript_quiz.figure_label_stripped', { type, key: pathKey, value: entry[2], reason: verdict.reason });
+        entry[2] = ''; // blank in place — [row, col] still address the cell
+      });
+    }
+  }
+
+  return { spec: cleaned, stripped };
+}
+
 // ─── picture ─────────────────────────────────────────────────────────────────
 
 const tokenCss = () => Object.entries(NIETE_TOKENS).map(([k, v]) => `--${k}:${v};`).join('');
@@ -546,7 +720,9 @@ module.exports = {
   canonicalType,
   minimalSpecFor,
   minimalSpecBlock,
+  limitsFor,
   renderFigureSvg,
+  stripStrayLabels,
   figureLeaksAnswer,
   svgText,
   figureHtml,

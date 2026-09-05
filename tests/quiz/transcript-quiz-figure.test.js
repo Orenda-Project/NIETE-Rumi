@@ -119,11 +119,16 @@ describe('renderFigureSvg', () => {
     expect(err.message.split('\n')).toHaveLength(1);
   });
 
-  test('throws FIGURE_RENDER when labels collide (checkOverlaps is a hard gate)', () => {
+  test('throws FIGURE_OVERLAP when labels collide (checkOverlaps is a hard gate)', () => {
     // A hundred ticks on a phone-width line: the engine draws it happily and
     // every label sits on its neighbour. Unreadable is a failure, not a warning.
+    //
+    // The code is FIGURE_OVERLAP, not FIGURE_RENDER (round 4, PLAN_R4 D7c):
+    // the retry prompt quotes these codes back to the model, and "the engine
+    // threw" and "the engine drew two labels on top of each other" need
+    // different fixes. Same name the lesson-plan lane's lint uses.
     const crowded = { type: 'numberline', from: -50, to: 50, step: 1, labelFormat: 'integer' };
-    expect(codeOf(() => Figure.renderFigureSvg(crowded, 'en'))).toBe('FIGURE_RENDER');
+    expect(codeOf(() => Figure.renderFigureSvg(crowded, 'en'))).toBe('FIGURE_OVERLAP');
   });
 
   test('applies the phone-lane default that stops geometry clipping its side label', () => {
