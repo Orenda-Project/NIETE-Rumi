@@ -43,6 +43,31 @@ const FONTS = {
   bodyUrdu: "'NastaliqUrdu','Lexend',sans-serif",
 };
 
+/**
+ * The script a piece of text is WRITTEN in — not the language it was chosen
+ * in. `'ur'` when any Perso-Arabic letter is present, `'en'` otherwise.
+ *
+ * The two are independent facts and conflating them is the bug this exists to
+ * kill: a child types "Ali" into an Urdu quiz and a child types "عائشہ" into
+ * an English one, and both are ordinary. Keying a name's font and direction
+ * off the quiz's language puts Latin letters through Nastaliq metrics (which
+ * lays them out as if they joined) and Perso-Arabic through a Latin-first
+ * stack, which on the render container has no glyphs for it at all.
+ *
+ * The class is deliberately LETTERS only. The Arabic block also carries
+ * punctuation (، ؛ ؟) and Eastern-Arabic digits (۰۱۲۳), and those turn up
+ * inside otherwise-Latin strings — a date or a score should not flip a whole
+ * element into Nastaliq.
+ */
+const PERSO_ARABIC_LETTER = /[\u0620-\u064A\u066E-\u06D3\u06D5\u06E5\u06E6\u06EE\u06EF\u06FA-\u06FF\u0750-\u077F\u08A0-\u08BD\uFB50-\uFDFB\uFE70-\uFEFC]/;
+
+function scriptOf(text) {
+  return PERSO_ARABIC_LETTER.test(String(text === null || text === undefined ? '' : text)) ? 'ur' : 'en';
+}
+
+/** The writing direction that follows from scriptOf(). */
+function dirOf(text) { return scriptOf(text) === 'ur' ? 'rtl' : 'ltr'; }
+
 function headFamily(rtl) { return rtl ? FONTS.headUrdu : FONTS.headLatin; }
 function bodyFamily(rtl) { return rtl ? FONTS.bodyUrdu : FONTS.bodyLatin; }
 
@@ -103,4 +128,7 @@ function lockup(text, { className = 'lockup', dotColor = PALETTE.green } = {}) {
   return `<div class="${className}"><span>${text}</span>${dots}</div>`;
 }
 
-module.exports = { PALETTE, FONTS, headFamily, bodyFamily, latticeSvg, diamondSvg, diamondPath, lockup };
+module.exports = {
+  PALETTE, FONTS, headFamily, bodyFamily, scriptOf, dirOf,
+  latticeSvg, diamondSvg, diamondPath, lockup,
+};

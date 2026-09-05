@@ -108,3 +108,41 @@ describe('contentLanguage defaults to the chrome language', () => {
     expect(html).toMatch(/<div class="m-q content" dir="rtl">/);
   });
 });
+
+/**
+ * bd-mg9c7.44 — a roster is a list of names people wrote themselves, so the
+ * quiz's language does not decide any of their scripts.
+ *
+ * The roster took its direction and its face from `contentLanguage`, which is
+ * right for the questions (one quiz, one language) and wrong for the names: in
+ * an Urdu class "Ali" is still Latin, and in an English one "عائشہ" is still
+ * Perso-Arabic. Keyed off the quiz, half of a real roster is set in the wrong
+ * face — Latin letters through Nastaliq metrics, or Urdu through a Latin-first
+ * stack that has no glyphs for it at all.
+ */
+describe('bd-mg9c7.44 — each roster name follows its own script', () => {
+  const roster = [
+    { student_name: 'علی', student_class: '4', correct_answers: 6, total_questions_answered: 8, mastery_percentage: 75 },
+    { student_name: 'Ali', student_class: '4', correct_answers: 7, total_questions_answered: 8, mastery_percentage: 88 },
+  ];
+
+  test('an Urdu quiz still sets a Latin name LTR', () => {
+    const html = renderHtml({ ...BASE, language: 'en', contentLanguage: 'ur', students: roster });
+    expect(html).toMatch(/<span class="nm content" dir="rtl">علی<\/span>/);
+    expect(html).toMatch(/<span class="nm content" dir="ltr">Ali<\/span>/);
+  });
+
+  test('an English quiz still sets a Perso-Arabic name RTL', () => {
+    const html = renderHtml({
+      ...BASE, topic: 'Fractions', language: 'en', contentLanguage: 'en', students: roster,
+    });
+    expect(html).toMatch(/<span class="nm content" dir="rtl">علی<\/span>/);
+    expect(html).toMatch(/<span class="nm content" dir="ltr">Ali<\/span>/);
+  });
+
+  test('the two content rules give each script its own face', () => {
+    const html = renderHtml({ ...BASE, language: 'en', contentLanguage: 'en', students: roster });
+    expect(ruleFor(html, '.content[dir="rtl"]')).toMatch(/font-family:'NastaliqUrdu'/);
+    expect(ruleFor(html, '.content[dir="ltr"]')).toMatch(/font-family:'Lexend'/);
+  });
+});
