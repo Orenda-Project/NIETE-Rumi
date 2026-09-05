@@ -301,3 +301,132 @@ describe('bd-2474 — sendScorecard', () => {
     expect(ok).toBe(false);
   });
 });
+
+/**
+ * bd-mg9c7.44 — the card a child would screenshot, and a name in the script
+ * it was written in.
+ *
+ * Two separate asks in one pass:
+ *
+ *  1. The card was correct but flat: a fraction, five stars and a badge on a
+ *     flat gradient. It is the only artefact of the whole quiz a child keeps,
+ *     so the score gets a real treatment (a ring filled to the percentage),
+ *     the stars become the hero row, her name gets the size, and the single
+ *     large outline diamond gives way to the brand book's lattice.
+ *  2. A child who types "Ali" into an Urdu quiz is not writing Urdu, and a
+ *     child who types "عائشہ" into an English quiz is not writing English.
+ *     The card's language is the QUIZ's; the SCRIPT of a name or a topic is
+ *     the text's own. Keying the name's font off the quiz language put Latin
+ *     letters through Nastaliq metrics and Perso-Arabic through a Latin-first
+ *     stack — the same "no glyphs" trap the file's docstring already names,
+ *     just triggered by the wrong axis.
+ */
+describe('bd-mg9c7.44 — scriptOf: a text names its own script', () => {
+  const { scriptOf } = require('../../shared/templates/niete-brand');
+
+  test('Perso-Arabic letters make it Urdu, Latin letters make it English', () => {
+    expect(scriptOf('عائشہ')).toBe('ur');
+    expect(scriptOf('علی')).toBe('ur');
+    expect(scriptOf('Ali')).toBe('en');
+    expect(scriptOf('Ayesha Khan')).toBe('en');
+  });
+
+  test('a single Perso-Arabic letter anywhere wins — a mixed string is set in Nastaliq', () => {
+    expect(scriptOf('Ali علی')).toBe('ur');
+  });
+
+  test('digits and punctuation alone are not a script', () => {
+    expect(scriptOf('')).toBe('en');
+    expect(scriptOf(null)).toBe('en');
+    expect(scriptOf('12/15')).toBe('en');
+    // U+060C/U+061F/U+06F1 are Arabic-block punctuation and digits, not letters.
+    expect(scriptOf('، ؟ ۱۲')).toBe('en');
+  });
+});
+
+describe('bd-mg9c7.44 — the name renders in the script it was written in', () => {
+  test('an English name inside an Urdu quiz card is LTR and Latin-first', () => {
+    const html = renderHtml({
+      topic: 'کسریں', correct: 6, total: 8, pct: 75, takerName: 'Ali', language: 'ur',
+    });
+    expect(html).toMatch(/class='name content' dir='ltr'>Ali</);
+    const css = html.match(/<style>([\s\S]*?)<\/style>/)[1].replace(/@font-face\{[^}]*\}/g, '');
+    expect(css).toMatch(/\.content\[dir="ltr"\]\{[^}]*font-family:'Lexend'/);
+  });
+
+  test('an Urdu name inside an English quiz card is RTL and Nastaliq-first', () => {
+    const html = renderHtml({
+      topic: 'Proper Fraction', correct: 6, total: 8, pct: 75, takerName: 'عائشہ', language: 'en',
+    });
+    expect(html).toMatch(/class='name content' dir='rtl'>عائشہ</);
+    const css = html.match(/<style>([\s\S]*?)<\/style>/)[1].replace(/@font-face\{[^}]*\}/g, '');
+    expect(css).toMatch(/\.content\[dir="rtl"\]\{[^}]*font-family:'NastaliqUrdu'/);
+  });
+
+  test('the topic follows its own script too, independently of the quiz language', () => {
+    const urTopicEnQuiz = renderHtml({ topic: 'کسریں', correct: 1, total: 1, pct: 100, language: 'en' });
+    expect(urTopicEnQuiz).toMatch(/class='topic content' dir='rtl'>کسریں</);
+
+    const enTopicUrQuiz = renderHtml({ topic: 'Proper Fraction', correct: 1, total: 1, pct: 100, language: 'ur' });
+    expect(enTopicUrQuiz).toMatch(/class='topic content' dir='ltr'>Proper Fraction</);
+  });
+
+  test('the tier message stays in the QUIZ language even when the name is the other script', () => {
+    const { UX_STRINGS } = require('../../shared/config/ux-strings');
+    const html = renderHtml({
+      topic: 'Proper Fraction', correct: 6, total: 8, pct: 75, takerName: 'Ali', language: 'ur',
+    });
+    // vqTierDeveloping.ur, minus the badge clause the pill already carries.
+    const tail = UX_STRINGS.vqTierDeveloping.ur.split(/\s*[—–]\s*/).pop();
+    expect(html).toMatch(new RegExp(tail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    expect(html).not.toMatch(/a little more practice/);
+  });
+});
+
+describe('bd-mg9c7.44 — the redesign: gauge, hero stars, lattice', () => {
+  function ring(html) {
+    const m = html.match(/class=['"]ring-fill['"][^>]*stroke-dasharray=['"]([\d.]+)['"][^>]*stroke-dashoffset=['"]([\d.]+)['"]/);
+    return m ? { dash: Number(m[1]), off: Number(m[2]) } : null;
+  }
+
+  test('the score is a ring gauge filled to the percentage, not a bare number', () => {
+    const r = ring(renderHtml({ topic: 'x', correct: 6, total: 8, pct: 75 }));
+    expect(r).not.toBeNull();
+    expect(1 - r.off / r.dash).toBeCloseTo(0.75, 2);
+  });
+
+  test('a full score closes the ring and a zero score leaves it empty', () => {
+    expect(1 - ring(renderHtml({ topic: 'x', correct: 8, total: 8, pct: 100 })).off
+      / ring(renderHtml({ topic: 'x', correct: 8, total: 8, pct: 100 })).dash).toBeCloseTo(1, 2);
+    const empty = ring(renderHtml({ topic: 'x', correct: 0, total: 8, pct: 0 }));
+    expect(empty.off / empty.dash).toBeCloseTo(1, 2);
+  });
+
+  test('the fraction still reads verbatim inside the ring', () => {
+    const html = renderHtml({ topic: 'x', correct: 12, total: 15, pct: 80 });
+    expect(html).toMatch(/class='score'>12<span>\/15<\/span>/);
+  });
+
+  test('the stars are the hero row — bigger, and lit with a glow', () => {
+    const html = renderHtml({ topic: 'x', correct: 4, total: 5, pct: 80 });
+    const size = Number(html.match(/class="star star--filled"[^>]*width="(\d+)"/)[1]);
+    expect(size).toBeGreaterThanOrEqual(34);
+    const css = html.match(/<style>([\s\S]*?)<\/style>/)[1];
+    expect(css).toMatch(/\.star--filled\s*\{[^}]*drop-shadow/);
+  });
+
+  test('the ground carries the brand lattice, not one large outline diamond', () => {
+    const html = renderHtml({ topic: 'x', correct: 1, total: 1, pct: 100 });
+    expect(html).toMatch(/<svg class="lattice"/);
+    expect(html).toMatch(/pattern id="niete-lattice/);
+    expect(html).not.toMatch(/class='ghost'/);
+  });
+
+  test('the three tier grounds survive the redesign, still visibly apart', () => {
+    const grounds = [90, 65, 20].map((pct) => bgOf(renderHtml({ topic: 'x', correct: 1, total: 1, pct })));
+    expect(new Set(grounds).size).toBe(3);
+    expect(grounds[0]).toMatch(/#2F9C66/i);
+    expect(grounds[1]).toMatch(/#333748/i);
+    expect(grounds[2]).toMatch(/#2A2C31/i);
+  });
+});
