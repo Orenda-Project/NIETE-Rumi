@@ -35,6 +35,42 @@ outside this repo and not in this repo's git history:
 | `fonts/Inter-{Regular,SemiBold,Bold}.ttf` | workspace `06_Logs & Misc/Reports/Active/Tanzania Expansion/02_Coaching_MEWAKA/mewaka-sample-report/` |
 | `fonts/NotoNastaliqUrdu.ttf` | workspace `02_Main Rumi Bot/fonts/` |
 
+> **Partial re-vendor 2026-09-05 (bd-gel97): `lint_lp.js`, `diagrams/types/graph.js`,
+> `diagrams/types_manifest.json`, `brief_author_v3.md` and all three flash briefs.** Fixed
+> upstream first, in both upstream homes, and copied byte-for-byte. **No new §3 divergence.**
+> `lint_lp.js` is the one exception to "copied": upstream carries a 21-line BUDGET-policy header
+> that this copy does not (pre-existing, from the bd-az9t4 re-vendor), so the identical patch was
+> applied to each rather than the file being overwritten — `graphDefects` and its wiring are
+> byte-identical in both.
+>
+> **What this closes.** The first gated Physics lesson (`grade_9_physics.c05.p123-124`, board
+> figure, `visual_gate_2026-09-04/e2e/page-08.png`) drew a `graph` captioned *"pressure decreases
+> as altitude increases"* whose two book values were written `"Mount Everest (8.8 km, 33 kPa)"`
+> and `"Boeing 747 (11 km, 23 kPa)"` and **plotted at (33, 8.8) and (23, 11)** — the numbers the
+> other way round — on axes carrying **no labels at all**. The visual gate asks *is there a graph*,
+> not *is the graph true*: `visual_check.js`'s own docstring says it "cannot tell whether a diagram
+> is good, whether its labels are right". Three deterministic gates now cover the mechanical part
+> of "is it true", with no LLM call added.
+>
+> | file | what changed |
+> |---|---|
+> | `lint_lp.js` | a new `graphDefects(spec, where)` (exported, so a corpus can be replayed against it) and one wiring block after `DIAGRAM_DEGENERATE`. Three codes: **`GRAPH_AXES`** — `xLabel`/`yLabel` are now REQUIRED on every `graph`; **`GRAPH_POINT_ORDER`** — a point label whose stated pair is the plotted pair reversed, or whose number carries the other axis's unit; **`GRAPH_ORIENTATION`** — a point far off the curve's drawn extent whose swap `(y, x)` lands inside it. Not gated on `full`: they read the spec only. The exact thresholds and every silence condition are written down in the roster doc so they are arguable rather than magic. |
+> | `diagrams/types/graph.js` | adds an exported `drawnExtent(spec)` — the x/y extent the curves and segments ACTUALLY cover after window clipping, computed with **this file's own sampler and expression sandbox** so the lint measures the same curve the page draws rather than a second implementation of it. Two gallery examples gain the axis labels the rule now requires; the `summary` states the rule. No render-path change. |
+> | `diagrams/types_manifest.json` | `xLabel`/`yLabel` moved `optional` → `required`; `minimal_spec` gains them; two `limits` entries state the axis rule and the point-order rule. |
+> | `brief_author_v3.md` | §4b.3's two-second test now says a graph is *(x-quantity with unit) → (y-quantity with unit)*; §4b.4's graph entry gains the labels on both copyable specs plus the shipped defect shown as a worked WRONG/right pair. |
+> | the three flash briefs | REGENERATED with `build_flash_brief.py`, `--check` re-run green, then copied. |
+>
+> **The renderer was NOT the bug.** `graph.js` already drew both axis titles when the spec carried
+> them (`if (spec.xLabel) …`, `if (spec.yLabel) …` with the rotate transform), and
+> `tests/lp612/graph-axes.test.js` now asserts both strings reach the SVG. The lesson shipped
+> unlabelled because the spec had no labels and nothing required them.
+>
+> **Corpus replay, for calibration not celebration.** Over 103 lp_docs on disk (the 62-document
+> visual-gate corpus, the 39 card-ceilings documents, the 2 operator/E2E documents): 188 diagrams,
+> of which **5** are graphs. All 5 fail `GRAPH_AXES` — the rule did not exist when they were
+> authored — and 2 `GRAPH_POINT_ORDER` lines, both the barometer's own points. `GRAPH_ORIENTATION`
+> fires nowhere, and there are **no false positives**. 3 documents of 103 gain a blocking defect.
+
 > **Partial re-vendor 2026-09-04 (bd-q2jr1): a NEW FILE — `visual_check.js` — plus `lint_lp.js`,
 > `brief_author_v3.md` and all three flash briefs.** Fixed upstream first, in both upstream homes,
 > and copied byte-for-byte. **No new §3 divergence.**

@@ -1094,6 +1094,20 @@ function v9Gates(doc, ctx) {
     }
   }
 
+  // ── GRAPH_AXES / GRAPH_POINT_ORDER / GRAPH_ORIENTATION (bd-gel97) ────────
+  // Not gated on `full`: these read the spec only, cost nothing, and a graph
+  // is as wrong in a part-lint as in a whole-document one.
+  {
+    const gSpecs = [];
+    for (const s of doc.sections || []) {
+      for (const b of allBlocks(s.blocks)) if (b.type === "diagram" && b.spec) gSpecs.push({ where: b.id || s.id, spec: b.spec });
+    }
+    if (doc.page2 && doc.page2.board_final && doc.page2.board_final.diagram) {
+      gSpecs.push({ where: "reference A", spec: doc.page2.board_final.diagram });
+    }
+    for (const { where, spec } of gSpecs) for (const d of graphDefects(spec, where)) fail(d.code, d.msg);
+  }
+
   // ── the rest of the closed heading system ────────────────────────────────
   if (full) {
     if (!doc.sequence) fail("SEQUENCE", "no sequence strip. Spec §5 wants a strip near the masthead saying where this LP sits, what comes next, and the next checkpoint.");
@@ -1335,6 +1349,183 @@ if (require.main === module) {
   process.exit(bad ? 1 : 0);
 }
 
-module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates,
+/* ══════════════════════════════════════════════════════════════════════════
+   GRAPH AXES + POINT/CURVE ORIENTATION — bd-gel97
+   ═════════════════════════════════════════════════════════════════════════
+
+   The first gated Physics lesson shipped a board `graph` captioned
+   "pressure falls as altitude rises" whose two marked points were written
+   "(8.8 km, 33 kPa)" and PLOTTED at (33, 8.8) — the reverse — on axes that
+   carried no labels at all, so a teacher could not tell which reading was
+   meant. The visual gate asks "is there a graph", not "is the graph true".
+   These three checks are the deterministic part of "is it true". No LLM.
+
+   R1 · GRAPH_AXES — a graph names both of its axes.
+        `xLabel` and `yLabel` are REQUIRED on every `graph` spec, with the
+        unit in the label where the quantity has one ("Altitude (km)"). For a
+        pure-maths curve they are literally "x" and "y" — cheap, and it keeps
+        the rule with no exception to argue about.
+
+   R2 · GRAPH_POINT_ORDER — a point's own annotation agrees with where it sits.
+        Two sub-tests, both fire ONLY on an unambiguous contradiction:
+        (a) the label states a coordinate PAIR — "(8.8 km, 33 kPa)", "(3, 0)" —
+            and those two numbers match the plotted (x, y) SWAPPED but not
+            straight. Silent when they match straight, when either number
+            matches neither coordinate, or when the two numbers are equal.
+        (b) the axis labels carry DISTINCT units and the point's label carries
+            "<number> <unit>" for one of them; that number must be the
+            coordinate on THAT axis. Fires only when the number is instead
+            exactly the coordinate on the OTHER axis. A number matching
+            neither is left alone — it may be a third quantity.
+
+   R3 · GRAPH_ORIENTATION — a point agrees with the curve's orientation.
+        Measured against the extent the plot ACTUALLY draws (graph.js
+        `drawnExtent`, the same sampler the page uses), never the declared
+        window. A point is flagged only when it is FAR outside that extent
+        (> 35% of the extent's own span on some axis) AND its swap (y, x)
+        lands INSIDE it (within 5%). A legitimate outlier is out on one axis
+        and its swap is out too, because the two axes carry different scales;
+        when the extent happens to be square the two measurements are
+        identical by construction and nothing is ever flagged. Needs a curve
+        or segment — a points-only scatter has nothing to disagree with.
+   ══════════════════════════════════════════════════════════════════════════ */
+const GRAPH_TYPES = new Set(["graph", "plot", "function_plot"]);
+const GRAPH_OUT_TOL = 0.35;   // "far outside the locus", as a share of its own span
+const GRAPH_IN_TOL = 0.05;    // "inside the locus" for the swapped reading
+const GRAPH_NUM_TOL = 0.005;  // 0.5% — a label rounds, it does not re-derive
+
+const gNum = (v) => (typeof v === "number" && isFinite(v) ? v : null);
+const gClose = (a, b) => Math.abs(a - b) <= 1e-9 + GRAPH_NUM_TOL * Math.max(Math.abs(a), Math.abs(b), 1);
+/** U+2212 MINUS and U+2013 EN DASH are what a maths author actually types. */
+const gNormNums = (t) => String(t).replace(/[−–‒]/g, "-");
+/** every "<number><unit?>" in a string, in order. Latin digits only — an Urdu-digit label is left alone. */
+function gTokens(text) {
+  const out = [];
+  const re = /(-?\d+(?:\.\d+)?)\s*([A-Za-z°%][A-Za-z°%\/²³]*)?/g;
+  let m;
+  while ((m = re.exec(gNormNums(text)))) out.push({ n: Number(m[1]), unit: (m[2] || "").trim() });
+  return out;
+}
+/** the coordinate pair a label states, if it states one: prefer a parenthesised group. */
+function gPair(text) {
+  const src = gNormNums(text);
+  for (const grp of src.match(/\([^()]*\)/g) || []) {
+    const t = gTokens(grp);
+    if (t.length === 2) return t;
+  }
+  const t = gTokens(src);
+  return t.length === 2 ? t : null;
+}
+/** the unit an axis label declares: "Pressure (kPa)" -> kpa, "Time in hours" -> hours. */
+function gAxisUnit(label) {
+  const s = String(label || "");
+  const par = s.match(/\(([^()]{1,14})\)\s*$/);
+  const raw = par ? par[1] : (s.match(/\b(?:in|per)\s+([A-Za-z°%\/]{1,10})\s*$/i) || [])[1];
+  const u = String(raw || "").trim().toLowerCase();
+  return /^[a-z°%\/²³]{1,10}$/.test(u) ? u : "";
+}
+function gExcess(v, lo, hi) { return v < lo ? lo - v : v > hi ? v - hi : 0; }
+function gOutNorm(x, y, ext) {
+  const sx = ext.x[1] - ext.x[0];
+  const sy = ext.y[1] - ext.y[0];
+  return Math.max(gExcess(x, ext.x[0], ext.x[1]) / sx, gExcess(y, ext.y[0], ext.y[1]) / sy);
+}
+
+/**
+ * Every graph defect in one spec, as {code, msg} — pure, so it is testable
+ * without a document and so the same rules can be replayed over a corpus.
+ */
+function graphDefects(spec, where) {
+  const out = [];
+  if (!spec || typeof spec !== "object" || !GRAPH_TYPES.has(spec.type)) return out;
+  const at = where ? `${where}: ` : "";
+  const name = String(spec.title || spec.caption || "").trim().slice(0, 60) || "untitled";
+
+  // R1 ─ both axes named.
+  const missing = [];
+  if (!String(spec.xLabel || "").trim()) missing.push("xLabel");
+  if (!String(spec.yLabel || "").trim()) missing.push("yLabel");
+  if (missing.length) {
+    out.push({
+      code: "GRAPH_AXES",
+      msg: `${at}graph "${name}" has no ${missing.join("/")} — a teaching graph names both axes with units. ` +
+        `Add "xLabel" and "yLabel" to the spec, each naming the quantity and its unit ` +
+        `("Altitude (km)", "Pressure (kPa)"); for a pure-maths curve they are "x" and "y". ` +
+        `Without them the reader cannot tell which quantity is which, and the plot cannot be checked against its own points.`,
+    });
+  }
+
+  const pts = (Array.isArray(spec.points) ? spec.points : [])
+    .filter((p) => p && gNum(p.x) !== null && gNum(p.y) !== null);
+  const ux = gAxisUnit(spec.xLabel);
+  const uy = gAxisUnit(spec.yLabel);
+
+  for (const p of pts) {
+    const label = String(p.label || "").trim();
+    if (!label) continue;
+    const tag = `"${label.slice(0, 48)}" plotted at (${p.x}, ${p.y})`;
+
+    // R2a ─ the stated pair is the plotted pair, reversed.
+    const pair = gPair(label);
+    if (pair && !gClose(pair[0].n, pair[1].n)) {
+      const direct = gClose(pair[0].n, p.x) && gClose(pair[1].n, p.y);
+      const flipped = gClose(pair[0].n, p.y) && gClose(pair[1].n, p.x);
+      if (flipped && !direct) {
+        out.push({
+          code: "GRAPH_POINT_ORDER",
+          msg: `${at}graph "${name}": the point ${tag} is annotated (${pair[0].n}${pair[0].unit ? " " + pair[0].unit : ""}, ${pair[1].n}${pair[1].unit ? " " + pair[1].unit : ""}) — the same two numbers the OTHER way round. ` +
+            `A point is written in the axis order it is plotted in: (x-quantity, y-quantity). Either swap "x" and "y" on the point, or rewrite the label.`,
+        });
+        continue;
+      }
+    }
+
+    // R2b ─ a number carrying an axis's unit sits on the other axis.
+    if (ux && uy && ux !== uy) {
+      for (const t of gTokens(label)) {
+        if (!t.unit) continue;
+        const u = t.unit.toLowerCase();
+        if (u === ux && !gClose(t.n, p.x) && gClose(t.n, p.y)) {
+          out.push({
+            code: "GRAPH_POINT_ORDER",
+            msg: `${at}graph "${name}": the point ${tag} says "${t.n} ${t.unit}", and "${t.unit}" is the unit of the X axis ("${spec.xLabel}") — but ${t.n} is this point's Y value. It is plotted on the wrong axis.`,
+          });
+          break;
+        }
+        if (u === uy && !gClose(t.n, p.y) && gClose(t.n, p.x)) {
+          out.push({
+            code: "GRAPH_POINT_ORDER",
+            msg: `${at}graph "${name}": the point ${tag} says "${t.n} ${t.unit}", and "${t.unit}" is the unit of the Y axis ("${spec.yLabel}") — but ${t.n} is this point's X value. It is plotted on the wrong axis.`,
+          });
+          break;
+        }
+      }
+    }
+  }
+
+  // R3 ─ the points agree with the orientation of the curve they sit on.
+  if (pts.length) {
+    let ext = null;
+    try { ext = require("./diagrams/types/graph").drawnExtent(spec); } catch (_) { ext = null; }
+    if (ext && ext.x[1] > ext.x[0] && ext.y[1] > ext.y[0]) {
+      for (const p of pts) {
+        const outN = gOutNorm(p.x, p.y, ext);
+        const swapN = gOutNorm(p.y, p.x, ext);
+        if (outN >= GRAPH_OUT_TOL && swapN <= GRAPH_IN_TOL) {
+          out.push({
+            code: "GRAPH_ORIENTATION",
+            msg: `${at}graph "${name}": the point (${p.x}, ${p.y})${p.label ? ` "${String(p.label).slice(0, 40)}"` : ""} lies far off the curve's own extent ` +
+              `(x ${round2(ext.x[0])}…${round2(ext.x[1])}, y ${round2(ext.y[0])}…${round2(ext.y[1])}), while (${p.y}, ${p.x}) lands inside it. ` +
+              `The point is plotted in the opposite axis order to the curve. Pick ONE orientation — (x-quantity, y-quantity) — and write the curve, the points and the axis labels in it.`,
+          });
+        }
+      }
+    }
+  }
+  return out;
+}
+function round2(v) { return Math.round(v * 100) / 100; }
+
+module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates, graphDefects,
   SECTION_BUDGET, SECTION_BUDGET_V9, DOC_BUDGET, DOC_BUDGET_V9, OUTCOME_BOX_V9,
   MAX_HOMEWORK_ITEMS, MAX_BOARD_WEIGHT, MAX_ACTIVITIES, PLACEHOLDERS, FOREIGN_BRANDS };

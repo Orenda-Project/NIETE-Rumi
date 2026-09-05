@@ -1125,7 +1125,7 @@ Ask what the *shape of the idea* is, and pick the type that has that shape:
 | a whole broken into named parts / a classification | `mindmap` |
 | two things set against each other | `panels` |
 | something that happened over time | `timeline` |
-| a relationship between two quantities | `graph` |
+| a relationship between two quantities | `graph` — **and a graph is (x-quantity with unit) → (y-quantity with unit). Name both axes, and state every point in that same order.** |
 | a physical structure with named parts | `cell` / `leaf_cross_section` / `heart_loop` / `labelled_figure` |
 | forces on a body | `free_body` |
 | a reaction | `chem_equation`, then `molecule` / `atom` for the species |
@@ -1200,9 +1200,23 @@ If you want a second and third hue, use `var(--amber)` and `var(--leaf)` against
            {"date":"1940","label":"Lahore Resolution"}]}
 
 // graph — a Cartesian plot; expr is a safe expression in x
+// A GRAPH IS (x-quantity with unit) → (y-quantity with unit). "xLabel" and "yLabel" are
+// REQUIRED — name the quantity AND its unit ("Altitude (km)", "Pressure (kPa)"); on a pure-maths
+// curve they are literally "x" and "y". A graph with an unnamed axis is a BLOCKING defect
+// (GRAPH_AXES): a teacher cannot tell which reading is meant, and neither can the gate.
 {"type":"graph","xMin":-3,"xMax":5,"yMin":-6,"yMax":8,"xStep":1,"yStep":2,
+ "xLabel":"x","yLabel":"y",
  "functions":[{"expr":"x*x - 2*x - 3","label":"y = x² − 2x − 3","color":"var(--navy)"}],
  "points":[{"x":3,"y":0,"label":"(3, 0)","color":"var(--warn)"}]}
+// EVERY POINT IS WRITTEN IN THE SAME ORDER IT IS PLOTTED IN — (x, y), matching the axes.
+// This shipped on a real Physics board (2026-09-04) and is the defect to avoid:
+//   xLabel absent, curve drawn against altitude, and the points written the other way round —
+//   {"x":33,"y":8.8,"label":"Mount Everest (8.8 km, 33 kPa)"}   ← WRONG: 8.8 km is the X value
+// With "xLabel":"Altitude (km)" and "yLabel":"Pressure (kPa)" the same point is
+//   {"x":8.8,"y":33,"label":"Mount Everest (8.8 km, 33 kPa)"}   ← right
+// GRAPH_POINT_ORDER blocks a label whose two numbers are the plotted pair reversed, or whose
+// number carries the other axis's unit. GRAPH_ORIENTATION blocks a point that sits far off the
+// curve's own drawn extent while its swap (y, x) lands inside it.
 // `dx`/`dy` on a point are MANUAL label offsets and they are a trap: they can push a label onto
 // an axis-tick plate and fail DIAGRAM_OVERLAP. Omit them unless you have looked at the render.
 // AN INEQUALITY is a graph too: a function may set "shade":"above" or "shade":"below" to fill
@@ -1210,6 +1224,7 @@ If you want a second and third hue, use `var(--amber)` and `var(--leaf)` against
 // it do not count. Two shaded functions overlap into a visibly darker region, which is exactly
 // how a system of inequalities should read, and it needs no extra field.
 {"type":"graph","xMin":-3,"xMax":5,"yMin":-8,"yMax":10,"xStep":1,"yStep":2,"title":"y > 2x − 1",
+ "xLabel":"x","yLabel":"y",
  "functions":[{"expr":"2*x - 1","label":"y = 2x − 1","color":"var(--navy)","dash":"6 4",
                "shade":"above"}],
  "caption":"The line is dashed because the inequality is strict — points ON it don't count."}
