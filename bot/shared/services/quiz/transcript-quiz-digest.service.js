@@ -153,11 +153,43 @@ async function lpHintFor({ userId, sessionCreatedAt, subject }) {
 }
 
 /** Profile → LP download → digest band. Returns { grade, source }. */
+/**
+ * Parse "6-8", "6 - 8" or "9" into [lo, hi]; null when the band is not numeric.
+ */
+function gradeBandRange(band) {
+  const m = String(band || '').match(/(\d+)\s*(?:[-–]\s*(\d+))?/);
+  if (!m) return null;
+  const lo = Number(m[1]); const hi = m[2] ? Number(m[2]) : lo;
+  return [Math.min(lo, hi), Math.max(lo, hi)];
+}
+
+function insideBand(grade, range) {
+  const n = Number(String(grade).match(/\d+/)?.[0]);
+  return Number.isFinite(n) && range && n >= range[0] && n <= range[1];
+}
+
+/**
+ * A grade hint is a HINT. The profile and the lesson-plan download say what the
+ * teacher usually does; the digest says what THIS lesson was. When the digest
+ * carries a grade band, a hint is used only if it sits inside that band — a
+ * grade-4 plan downloaded the same morning as a grade 6–8 atom lesson must not
+ * turn it into a grade-4 quiz (round 4, first seeded real lesson). With no
+ * band, the old precedence stands: profile, then the download, then nothing.
+ */
 function resolveGrade({ user, lpHint, digest }) {
+  const range = gradeBandRange(digest?.grade_band);
   const taught = Array.isArray(user?.grades_taught) ? user.grades_taught.filter(Boolean) : [];
-  if (taught.length) return { grade: String(taught[0]), source: 'profile' };
-  if (user?.grade) return { grade: String(user.grade), source: 'profile' };
-  if (lpHint?.grade) return { grade: String(lpHint.grade), source: 'lp_download' };
+  const profile = taught.length ? taught : (user?.grade ? [user.grade] : []);
+  if (profile.length) {
+    if (!range) return { grade: String(profile[0]), source: 'profile' };
+    const hit = profile.find((g) => insideBand(g, range));
+    if (hit) return { grade: String(hit), source: 'profile' };
+    return { grade: String(digest.grade_band), source: 'digest_over_profile' };
+  }
+  if (lpHint?.grade) {
+    if (!range || insideBand(lpHint.grade, range)) return { grade: String(lpHint.grade), source: 'lp_download' };
+    return { grade: String(digest.grade_band), source: 'digest_over_lp_download' };
+  }
   if (digest?.grade_band) return { grade: String(digest.grade_band), source: 'digest' };
   return { grade: null, source: 'none' };
 }
