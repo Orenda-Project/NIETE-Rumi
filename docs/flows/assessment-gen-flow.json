@@ -550,6 +550,26 @@
               "summary": "Grade 4 Science · 20 questions"
             }
           }
+        },
+        "formats": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "pdf",
+              "title": "PDF — ready to print"
+            }
+          ]
         }
       },
       "layout": {
@@ -575,16 +595,7 @@
                 "name": "output_format",
                 "label": "File type",
                 "required": true,
-                "data-source": [
-                  {
-                    "id": "pdf",
-                    "title": "PDF — ready to print"
-                  },
-                  {
-                    "id": "docx",
-                    "title": "Word — you can edit it"
-                  }
-                ]
+                "data-source": "${data.formats}"
               },
               {
                 "type": "OptIn",

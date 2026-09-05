@@ -816,9 +816,12 @@ async function submitFromCompletion({ flowToken, userId, outputFormat, answerKey
     return { status: 'failed', code: 'NO_SESSION' };
   }
 
+  // The GATE, distinct from hiding the option: a stale client still carries the
+  // old screen and will post output_format=docx happily.
+  const { resolveFormat } = require('../services/assessment/assessment-format');
   Object.assign(state, {
     userId: state.userId || userId,
-    outputFormat: String(outputFormat || 'pdf'),
+    outputFormat: await resolveFormat(outputFormat),
     answerLines: answerLines !== false && answerLines !== 'false',
     answerKey: answerKey === true || answerKey === 'true',
   });
@@ -862,14 +865,17 @@ function questionsScreen(state) {
   });
 }
 
-function confirmScreen(state) {
+async function confirmScreen(state) {
   const source = {
     seen: 'Questions from the book',
     unseen: 'New questions',
     both: 'A mix',
   }[state.contentSource] || 'New questions';
+  // Server-driven so the docx flag can hide Word without republishing the Flow.
+  const { formatsOnOffer } = require('../services/assessment/assessment-format');
   return screen('CONFIRM', {
     recap: [summaryOf(state), `${source} · ${state.questionCount} questions`].join('\n'),
+    formats: await formatsOnOffer(),
     // Supplied HERE, on the render — the Footer can only send back data the
     // screen was drawn with.
     extension_message_response: completionPayload('queued', summaryOf(state)),
