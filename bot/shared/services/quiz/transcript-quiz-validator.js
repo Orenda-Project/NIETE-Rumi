@@ -14,7 +14,7 @@
 
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
-const { renderFigureSvg, figureLeaksAnswer } = require('./transcript-quiz-figure');
+const { renderFigureSvg, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant } = require('./transcript-quiz-figure');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -43,6 +43,35 @@ const TRANSLIT_TERMS = /(فیکشن|فریکشن|نیومریٹر|نمبریٹر
 // out left-to-right and reads scrambled on the phone. Options are exempt: a
 // one-word English option ("numerator") is a button title.
 const LATIN_FIRST = /^[\s"'«(]*[A-Za-z]/;
+
+/**
+ * An Urdu sentence that opens with an English word is laid out LEFT-to-right
+ * by the phone: the Unicode bidi algorithm takes the paragraph direction from
+ * the first strong character. Rejecting such sentences failed both attempts
+ * on every "Types of Fractions" lesson — the English term IS the subject and
+ * the model keeps leading with it. A RIGHT-TO-LEFT MARK (U+200F) as the first
+ * character is a strong RTL character with no width, so the paragraph is laid
+ * out RTL and the English run sits inside it in reading order. Same fix the
+ * catalog uses for strings that open with a placeholder.
+ */
+const RLM = '\u200F';
+function rtlOpen(t) {
+  const str = String(t ?? '');
+  if (!str.trim() || str.startsWith(RLM)) return str;
+  return LATIN_FIRST.test(str) && /[؀-ۿ]/.test(str) ? RLM + str : str;
+}
+function rtlOpenQuestion(q) {
+  const fb = q.option_feedback || { correct: '', wrong: {} };
+  const wrong = {};
+  Object.entries(fb.wrong || {}).forEach(([k, v]) => { wrong[k] = rtlOpen(v); });
+  return {
+    ...q,
+    question: rtlOpen(q.question),
+    options: Array.isArray(q.options) ? q.options.map(rtlOpen) : q.options,
+    explanation: rtlOpen(q.explanation),
+    option_feedback: { ...fb, correct: rtlOpen(fb.correct), wrong },
+  };
+}
 
 // Letters are shuffled before display, so any letter reference is wrong by
 // the time a child reads it.
@@ -110,7 +139,8 @@ function validate(rawQuestions, { language, subject, digest, nExpected } = {}) {
   if (!Array.isArray(rawQuestions) || !rawQuestions.length) {
     return { ok: false, errors: ['no questions'], questions: [] };
   }
-  const qs = rawQuestions.map(normaliseFeedback).map((q) => (language === 'ur' ? fixQuestionTransliterations(q) : q));
+  const qs = rawQuestions.map(normaliseFeedback)
+    .map((q) => (language === 'ur' ? rtlOpenQuestion(fixQuestionTransliterations(q)) : q));
   if (qs.length < MIN_QUESTIONS || qs.length > MAX_QUESTIONS) {
     errs.push(`count ${qs.length} outside ${MIN_QUESTIONS}..${MAX_QUESTIONS}${nExpected ? ` (asked for ${nExpected})` : ''}`);
   }
@@ -149,10 +179,6 @@ function validate(rawQuestions, { language, subject, digest, nExpected } = {}) {
     if (lv > tl + 1) errs.push(`q${i}: level ${q.level} > taught ${slos.find((s) => s.id === q.slo_id)?.taught_level || 'understand'}+1`);
 
     const texts = [stem, String(q.explanation || ''), String(fb.correct || ''), ...opts, ...Object.values(fb.wrong || {}).map(String)];
-    if (language === 'ur') {
-      const prose = [stem, String(q.explanation || ''), String(fb.correct || ''), ...Object.values(fb.wrong || {}).map(String)];
-      if (prose.some((t) => t.trim() && LATIN_FIRST.test(t) && /[؀-ۿ]/.test(t))) errs.push(`q${i}: an Urdu sentence starts with an English word (it would render left-to-right) — begin with an Urdu word`);
-    }
     allText.push(...texts);
     if (texts.some((t) => LETTER_REF.test(t))) errs.push(`q${i}: letter reference`);
 
@@ -170,6 +196,11 @@ function validate(rawQuestions, { language, subject, digest, nExpected } = {}) {
       errs.push(`q${i}: FIGURE_TYPE — "figure" must be a spec object with a "type", not ${typeof q.figure}`);
       return;
     }
+    const empty = figureEmptyReason(q.figure);
+    if (empty) {
+      errs.push(`q${i}: FIGURE_EMPTY — ${empty}; give the picture something to read off, or drop it`);
+      return;
+    }
     let svg = null;
     try {
       svg = renderFigureSvg(q.figure, language);
@@ -177,6 +208,13 @@ function validate(rawQuestions, { language, subject, digest, nExpected } = {}) {
       errs.push(`q${i}: ${err.code || 'FIGURE_RENDER'} — ${err.message}`);
     }
     if (!svg) return;
+    if (svgInkCount(svg) < 3) {
+      errs.push(`q${i}: FIGURE_BLANK — the drawing paints almost nothing (the engine skipped shapes it does not know); use a shape from the minimal specs`);
+      return;
+    }
+    if (figureIsRedundant(q.figure, stem)) {
+      errs.push(`q${i}: FIGURE_REDUNDANT — the stem already states the numbers the picture shows; ask the child to READ them from the picture instead`);
+    }
     // The DRAWING is checked, not only the spec: several types compute a label
     // the spec never mentions, and a fraction bar's "3/4" is the whole answer.
     if (figureLeaksAnswer(q.figure, opts, ci, svg)) {
@@ -231,6 +269,7 @@ module.exports = {
   FEM_STEMS,
   TRANSLIT_TERMS,
   LATIN_FIRST,
+  rtlOpen,
   LETTER_REF,
   ROMAN_URDU,
 };

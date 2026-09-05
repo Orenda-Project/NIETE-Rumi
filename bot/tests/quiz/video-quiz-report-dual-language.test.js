@@ -172,3 +172,20 @@ describe('an unreadable stored preference falls back to the offer floor', () => 
     expect(html).toMatch(/<html dir="ltr" lang="en">/);
   });
 });
+
+describe('nobody opened the link yet', () => {
+  test('the "no one has opened" note is in HER language, from the catalog', async () => {
+    const WhatsAppService = require('../../shared/services/whatsapp.service');
+    const { resolveUx } = require('../../shared/config/ux-strings');
+    WhatsAppService.sendMessage.mockClear();
+    stubSupabase({
+      shareCode: SHARE_CODE, teacher: { phone_number: '923000000000', preferred_language: 'ur' },
+      sessions: [], answers: [], questions: QUESTIONS,
+    });
+    await report.generate(SHARE_CODE_ID, { reason: 'scheduled' });
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
+    const body = WhatsAppService.sendMessage.mock.calls[0][1];
+    expect(body).toBe(resolveUx('vqReportNoOne', { language: 'ur', params: { topic: SHARE_CODE.topic } }));
+    expect(body).not.toMatch(/No one has opened/);
+  });
+});
