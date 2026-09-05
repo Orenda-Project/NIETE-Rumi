@@ -44,12 +44,12 @@ describe('the figure contract', () => {
     expect(p).toMatch(/READ[^\n]*off (a|the) picture/i);
     ['a position', 'a shaded part', 'a shape', 'a plotted point', 'a circuit', 'a sequence of steps']
       .forEach((clue) => expect(p).toContain(clue));
-    expect(p).toMatch(/grade band[^\n]*1[–-]5/i);
+    expect(p).toMatch(/grade 1[–-]5[^\n]*count/i);
     expect(p).toMatch(/count|compar/i);
   });
 
   test('states WHEN a figure is banned — definitions and word recall', () => {
-    expect(prompt()).toMatch(/never[^\n]*definition[^\n]*recall|never[^\n]*recall of words/i);
+    expect(prompt()).toMatch(/WHEN a figure is wrong[^\n]*definition[^\n]*recall/i);
   });
 
   test('bans the answer from the picture, caps the share at half, and pins the script rules', () => {
@@ -85,5 +85,23 @@ describe('nothing already asked for is lost', () => {
   test('the retry still quotes the validator back, figure errors included', () => {
     const p = prompt({ previousErrors: ['q2: FIGURE_LEAK the picture names the answer'] });
     expect(p).toContain('FIGURE_LEAK the picture names the answer');
+  });
+});
+
+describe('the author is TOLD to draw when the lesson is drawable (calibration after the corpus run showed 0 figures in 40 quizzes)', () => {
+  const { buildAuthorPrompt } = require('../../bot/shared/services/quiz/transcript-quiz-author.service');
+  const digest = { topic: 'Types of fractions', subject: 'maths', grade_band: '3-5', slos: [{ id: 'S1', statement: 'x', taught_level: 'recall', evidence_quote: 'q' }] };
+  const prompt = buildAuthorPrompt({ digest, excerpts: '', language: 'ur', n: 8, gradeBand: '3-5' });
+  test('maths/science lessons are required to carry at least one picture question', () => {
+    expect(prompt).toMatch(/at least ONE picture question/i);
+  });
+  test('three worked examples show a figure spec next to its stem and options', () => {
+    expect(prompt).toMatch(/WORKED EXAMPLES/);
+    expect(prompt).toMatch(/"type":"fraction_bar"/);
+    expect(prompt).toMatch(/"type":"numberline"/);
+    expect(prompt).toMatch(/"type":"grid"/);
+  });
+  test('the JSON skeleton shows a question WITH a figure, not only null', () => {
+    expect(prompt).toMatch(/"figure":\s*\{\s*"type"/);
   });
 });

@@ -31,21 +31,36 @@ const DEFAULT_QUESTIONS = 8;
  * Every rule here is also enforced deterministically in
  * transcript-quiz-validator.js. The prompt exists to make attempt 1 pass.
  */
-function figureContract() {
-  return `PICTURES (optional, and often the right answer is "no picture").
-A question may carry a "figure": a diagram SPEC that a deterministic drawing engine renders into the picture the child sees above the stem. You are choosing a shape and its numbers, not describing an image.
+function figureContract({ subject, gradeBand } = {}) {
+  const drawable = ['maths', 'science', 'genk', 'other'].includes(String(subject || '').toLowerCase());
+  const young = /^(1|2|3)/.test(String(gradeBand || ''));
+  const requirement = drawable
+    ? `THIS LESSON IS DRAWABLE (${subject}). Write at least ONE picture question — two or three when the lesson has fractions, a number line, shapes, measurement, a graph, a circuit, counting, a sequence of steps, parts of a cell, atoms or an equation. Build the question AROUND the picture: decide the drawing first, then ask what it shows. Zero pictures is acceptable only when nothing in the lesson can be drawn with the allowed types.`
+    : `This subject (${subject || 'language'}) rarely needs a picture; ${young ? 'for a young class a counting or comparing picture is welcome when the lesson counted real objects, otherwise ' : ''}leave "figure" null.`;
+  return `PICTURE QUESTIONS.
+A question may carry a "figure": a diagram SPEC that a deterministic drawing engine renders into the picture the child sees ABOVE the stem, with the options under it. You are choosing a shape and its numbers, not describing an image.
 
-WHEN a figure is allowed — only these two cases:
-  (a) the SLO needs the child to READ something off a picture: a position, a shaded part, a shape, a plotted point, a circuit, a sequence of steps. Use "figure_role": "read_off".
-  (b) the grade band is 1–5 and the question asks the child to count or compare objects. Use "figure_role": "count_compare".
-WHEN a figure is banned: never for a definition, never for recall of words or terms, never as decoration. If the question can be answered without looking at the picture, there is no figure.
+${requirement}
+
+WHEN a figure is right:
+  (a) the child must READ something off the picture to answer: a position, a shaded part, a shape, a plotted point, a circuit, a sequence of steps. Use "figure_role": "read_off".
+  (b) the class is grade 1–5 and the question asks the child to count or compare objects. Use "figure_role": "count_compare".
+WHEN a figure is wrong: a definition, recall of a word or term, or decoration. If the question can be answered without looking at the picture, there is no figure.
 
 HARD RULES
-- The figure must NOT contain the answer. No option's text may appear as a label in the spec — UNLESS every option's text appears (a "which point is at −3? A / B / C" number line is fine, because naming all three gives nothing away).
-- At most half of the questions may carry a figure. Most lessons need one or two.
+- The figure must NOT contain the answer. No option's text may appear in the picture — UNLESS every option's appears (a "which point is at −3? A / B / C" number line is fine, because naming all three gives nothing away). Do not write the fraction, the total, the percentage or the result anywhere in the spec (no "title" or "caption" that states it).
+- At most half of the questions may carry a figure.
 - Labels are written in the quiz language; numerals, units, formulae and chemical species stay in English letters and read left-to-right (LTR) even in an Urdu figure.
 - A stem that promises a picture must carry one. If the stem says "in the picture" or "تصویر میں", the question needs a "figure".
 - Use the SIMPLEST spec that answers the question. Long labels and crowded scales collide and the whole question is thrown away.
+
+WORKED EXAMPLES (spec next to the question it serves):
+1. fraction_bar, read_off — stem "تصویر میں روٹی کا کتنا حصہ رنگا ہوا ہے؟", options ["3/4", "1/4", "4/3"], correct 0,
+   "figure": {"type":"fraction_bar","bars":[{"parts":4,"shaded":3}]}   (no label on the bar — the label would be the answer)
+2. numberline, read_off — stem "Which point is at −3?", options ["A", "B", "C"], correct 0,
+   "figure": {"type":"numberline","from":-5,"to":5,"step":1,"points":[{"at":-3,"label":"A"},{"at":1,"label":"B"},{"at":4,"label":"C"}]}
+3. grid, count_compare — stem "تصویر میں کتنے خانے رنگے ہوئے ہیں؟", options ["12", "8", "20"], correct 0,
+   "figure": {"type":"grid","rows":4,"cols":5,"shaded":12}
 
 ALLOWED TYPES — nothing else is accepted (${ALLOWED_TYPES.join(', ')}):
 ${minimalSpecBlock()}`;
@@ -93,13 +108,18 @@ STYLE RULES FOR URDU (when quiz language is Urdu): proper, well-written Urdu in 
 STYLE RULES FOR ENGLISH: short sentences a Grade ${gradeBand || '3-5'} child in Pakistan reads comfortably; no idioms.
 RELIGIOUS CONTENT (Islamiyat / سیرت / any mention of the Prophet, companions, Qur'an): every mention of the Prophet carries ﷺ immediately after the name; companions carry رضی اللہ عنہ / عنہا; اللہ and all sacred names in Urdu/Arabic script only; NEVER invent or paraphrase a hadith or an ayah — quote only what the lesson quoted, and only with the reference the teacher gave; no question may ask a child to guess what the Prophet ﷺ "would say".
 
-${figureContract()}${retry}
+${figureContract({ subject: digest && digest.subject, gradeBand })}${retry}
 
 Return ONLY this JSON object:
-{ "questions": [ { "slo_id": "S1", "level": "recall|understand|apply", "question": "", "options": ["", "", ""], "correct_index": 0,
+{ "questions": [
+  { "slo_id": "S1", "level": "recall|understand|apply", "question": "", "options": ["", "", ""], "correct_index": 0,
     "explanation": "", "distractor_misconceptions": { "1": "", "2": "" },
     "option_feedback": { "correct": "", "wrong": { "1": "", "2": "" } },
-    "figure": null, "figure_role": null } ] }
+    "figure": null, "figure_role": null },
+  { "slo_id": "S2", "level": "understand", "question": "…تصویر میں…", "options": ["", "", ""], "correct_index": 1,
+    "explanation": "", "distractor_misconceptions": { "0": "", "2": "" },
+    "option_feedback": { "correct": "", "wrong": { "0": "", "2": "" } },
+    "figure": { "type": "fraction_bar", "bars": [ { "parts": 4, "shaded": 3 } ] }, "figure_role": "read_off" } ] }
 (In this example the correct option is index 0, so the wrong keys are "1" and "2". If correct_index is 1 the keys are "0" and "2"; if it is 2 the keys are "0" and "1".)
 Omit "figure" and "figure_role", or leave them null, on every question that does not need a picture. When a question does carry one, "figure" is a spec object of the form shown in ALLOWED TYPES — e.g. "figure": {"type":"fraction_bar","bars":[{"parts":4,"shaded":3}]}, "figure_role": "read_off".
 

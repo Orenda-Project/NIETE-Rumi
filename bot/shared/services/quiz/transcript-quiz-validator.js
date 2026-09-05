@@ -44,6 +44,35 @@ const TRANSLIT_TERMS = /(فیکشن|فریکشن|نیومریٹر|نمبریٹر
 // one-word English option ("numerator") is a button title.
 const LATIN_FIRST = /^[\s"'«(]*[A-Za-z]/;
 
+/**
+ * An Urdu sentence that opens with an English word is laid out LEFT-to-right
+ * by the phone: the Unicode bidi algorithm takes the paragraph direction from
+ * the first strong character. Rejecting such sentences failed both attempts
+ * on every "Types of Fractions" lesson — the English term IS the subject and
+ * the model keeps leading with it. A RIGHT-TO-LEFT MARK (U+200F) as the first
+ * character is a strong RTL character with no width, so the paragraph is laid
+ * out RTL and the English run sits inside it in reading order. Same fix the
+ * catalog uses for strings that open with a placeholder.
+ */
+const RLM = '\u200F';
+function rtlOpen(t) {
+  const str = String(t ?? '');
+  if (!str.trim() || str.startsWith(RLM)) return str;
+  return LATIN_FIRST.test(str) && /[؀-ۿ]/.test(str) ? RLM + str : str;
+}
+function rtlOpenQuestion(q) {
+  const fb = q.option_feedback || { correct: '', wrong: {} };
+  const wrong = {};
+  Object.entries(fb.wrong || {}).forEach(([k, v]) => { wrong[k] = rtlOpen(v); });
+  return {
+    ...q,
+    question: rtlOpen(q.question),
+    options: Array.isArray(q.options) ? q.options.map(rtlOpen) : q.options,
+    explanation: rtlOpen(q.explanation),
+    option_feedback: { ...fb, correct: rtlOpen(fb.correct), wrong },
+  };
+}
+
 // Letters are shuffled before display, so any letter reference is wrong by
 // the time a child reads it.
 const LETTER_REF = /\b[A-D]\)|\b(answer|option)\s+(is\s+)?[A-D]\b|آپشن\s*[A-D]\b|جواب\s*[A-D]\b/i;
@@ -110,7 +139,8 @@ function validate(rawQuestions, { language, subject, digest, nExpected } = {}) {
   if (!Array.isArray(rawQuestions) || !rawQuestions.length) {
     return { ok: false, errors: ['no questions'], questions: [] };
   }
-  const qs = rawQuestions.map(normaliseFeedback).map((q) => (language === 'ur' ? fixQuestionTransliterations(q) : q));
+  const qs = rawQuestions.map(normaliseFeedback)
+    .map((q) => (language === 'ur' ? rtlOpenQuestion(fixQuestionTransliterations(q)) : q));
   if (qs.length < MIN_QUESTIONS || qs.length > MAX_QUESTIONS) {
     errs.push(`count ${qs.length} outside ${MIN_QUESTIONS}..${MAX_QUESTIONS}${nExpected ? ` (asked for ${nExpected})` : ''}`);
   }
@@ -149,10 +179,6 @@ function validate(rawQuestions, { language, subject, digest, nExpected } = {}) {
     if (lv > tl + 1) errs.push(`q${i}: level ${q.level} > taught ${slos.find((s) => s.id === q.slo_id)?.taught_level || 'understand'}+1`);
 
     const texts = [stem, String(q.explanation || ''), String(fb.correct || ''), ...opts, ...Object.values(fb.wrong || {}).map(String)];
-    if (language === 'ur') {
-      const prose = [stem, String(q.explanation || ''), String(fb.correct || ''), ...Object.values(fb.wrong || {}).map(String)];
-      if (prose.some((t) => t.trim() && LATIN_FIRST.test(t) && /[؀-ۿ]/.test(t))) errs.push(`q${i}: an Urdu sentence starts with an English word (it would render left-to-right) — begin with an Urdu word`);
-    }
     allText.push(...texts);
     if (texts.some((t) => LETTER_REF.test(t))) errs.push(`q${i}: letter reference`);
 
@@ -231,6 +257,7 @@ module.exports = {
   FEM_STEMS,
   TRANSLIT_TERMS,
   LATIN_FIRST,
+  rtlOpen,
   LETTER_REF,
   ROMAN_URDU,
 };

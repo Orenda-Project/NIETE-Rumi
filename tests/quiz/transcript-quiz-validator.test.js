@@ -133,16 +133,31 @@ describe('validate — Urdu', () => {
     const r = V.validate(qs, urCtx);
     expect(r.errors.some((e) => /transliterated English term/.test(e))).toBe(false);
     expect(r.questions[0].options[0]).toBe('numerator');
-    expect(r.questions[0].question).toMatch(/^fraction /);
+    // The rewritten stem opens with the English term, so it also gets the RTL mark.
+    expect(r.questions[0].question).toMatch(/^\u200Ffraction /);
     const qs2 = urEight(); qs2[0].options = ['ریکٹینگل کا ایریا', 'پتا', 'پھول']; qs2[0].explanation = 'ٹائپس دیکھیں';
     expect(V.validate(qs2, urCtx).errors.some((e) => /transliterated English term/.test(e))).toBe(true);
   });
 
-  test('an Urdu stem or feedback that opens with an English word is rejected; an English option is fine', () => {
+  test('an Urdu sentence that opens with an English word is accepted and given a leading right-to-left mark', () => {
+    // A Latin-first paragraph is laid out left-to-right by the phone. Rejecting it
+    // failed both attempts on every "Types of Fractions" lesson (the term IS the
+    // subject); U+200F as the first strong character fixes the layout instead.
     const qs = urEight(); qs[0].question = 'fraction میں اوپر والے نمبر کو کیا کہتے ہیں؟';
-    expect(V.validate(qs, urCtx).errors.some((e) => /starts with an English word/.test(e))).toBe(true);
+    qs[0].options = ['Proper fraction والا', 'پتا', 'پھول'];
+    qs[0].option_feedback.correct = 'Numerator اوپر ہوتا ہے۔';
+    const out = V.validate(qs, urCtx);
+    expect(out.errors.some((e) => /starts with an English word/.test(e))).toBe(false);
+    expect(out.questions[0].question.startsWith('\u200F')).toBe(true);
+    expect(out.questions[0].options[0].startsWith('\u200F')).toBe(true);
+    expect(out.questions[0].option_feedback.correct.startsWith('\u200F')).toBe(true);
+    // A pure-English option has no Urdu to protect and stays untouched; an
+    // Urdu-first sentence is never marked.
+    expect(out.questions[0].options[1]).toBe('پتا');
     const qs2 = urEight(); qs2[0].question = 'ایک fraction میں اوپر والے نمبر کو کیا کہتے ہیں؟'; qs2[0].options = ['numerator', 'پتا', 'پھول'];
-    expect(V.validate(qs2, urCtx).errors.some((e) => /starts with an English word/.test(e))).toBe(false);
+    const out2 = V.validate(qs2, urCtx);
+    expect(out2.questions[0].question.startsWith('\u200F')).toBe(false);
+    expect(out2.questions[0].options[0]).toBe('numerator');
   });
 
   test('feminine-stem address is rejected', () => {
