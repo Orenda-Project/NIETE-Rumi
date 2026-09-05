@@ -220,14 +220,16 @@ describe('bd-2664 — Urdu report is fully localised + RTL', () => {
       ...UR_BASE,
       students: [{ student_name: '<script>x</script>', student_class: 'Nursery', correct_answers: 1, total_questions_answered: 1, mastery_percentage: 100 }],
     });
-    // wrapLatin() correctly isolates "script"/"x" as Latin runs (each becomes
-    // its own <span class="ltr">), so the entities are no longer contiguous —
-    // assert the dangerous raw tag is gone and both escaped entities exist,
-    // rather than requiring an exact adjacent substring.
+    // UPDATED bd-mg9c7.44 (deliberate, escaping unchanged): a roster name is
+    // now isolated by ITS OWN script rather than the quiz's, so a Latin name
+    // in an Urdu report is one dir="ltr" element instead of a Nastaliq-faced
+    // RTL one that wrapLatin() then had to fragment into per-run .ltr spans.
+    // The safety property under test — the raw tag never survives — is the
+    // same, and asserted here on the whole, now-contiguous escaped string.
     expect(html).not.toMatch(/<script>x</);
     expect(html).toMatch(/&lt;/);
     expect(html).toMatch(/&gt;/);
-    expect(html).toMatch(/<span class="ltr">script<\/span>/);
+    expect(html).toMatch(/<span class="nm content" dir="ltr">&lt;script&gt;x&lt;\/script&gt;<\/span>/);
   });
 
   test('a stray Latin word inside Urdu content is isolated in an .ltr span', () => {

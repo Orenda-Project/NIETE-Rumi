@@ -29,7 +29,7 @@
 const fs = require('fs');
 const path = require('path');
 const { stripEmphasis, classLabel } = require('../utils/text-format');
-const { PALETTE, FONTS, headFamily, bodyFamily, latticeSvg, lockup } = require('./niete-brand');
+const { PALETTE, FONTS, headFamily, bodyFamily, latticeSvg, lockup, dirOf } = require('./niete-brand');
 
 let _assets = null;
 
@@ -204,11 +204,22 @@ function renderVideoQuizReportHtml(d) {
       </div>`;
   }).join('');
 
+  // A roster is a list of names people wrote themselves, so the quiz's
+  // language decides none of their scripts: in an Urdu class "Ali" is still
+  // Latin, and in an English one "عائشہ" is still Perso-Arabic. Each name is
+  // therefore isolated and faced by ITS OWN script, not by contentLanguage —
+  // keyed off the quiz, half of a real roster is set in the wrong face.
+  const nameCell = (raw) => {
+    const name = raw || 'Unnamed';
+    const nrtl = dirOf(name) === 'rtl';
+    return `<span class="nm content" dir="${nrtl ? 'rtl' : 'ltr'}">${wrapLatin(esc(name), nrtl)}</span>`;
+  };
+
   const rosterRows = students.map((s) => {
     const pct = s.mastery_percentage || 0;
     return `
       <div class="r-row">
-        <div class="r-name"><span ${cls('nm')}>${K(s.student_name || 'Unnamed')}</span><div class="cls">${T(classLabel(s.student_class))}</div></div>
+        <div class="r-name">${nameCell(s.student_name)}<div class="cls">${T(classLabel(s.student_class))}</div></div>
         <div class="pbar"><div class="pfill ${band(pct)}" style="width:${pct}%"></div></div>
         <div class="r-score">${s.correct_answers || 0}/${s.total_questions_answered || 0} &middot; ${pct}%</div>
       </div>`;
