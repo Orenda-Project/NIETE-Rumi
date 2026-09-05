@@ -670,14 +670,6 @@
         "has_error": {
           "type": "boolean",
           "__example__": false
-        },
-        "keep": {
-          "type": "string",
-          "__example__": ""
-        },
-        "marks": {
-          "type": "string",
-          "__example__": ""
         }
       },
       "layout": {
