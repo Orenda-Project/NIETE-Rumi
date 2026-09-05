@@ -104,10 +104,20 @@ function pdfFilename(topic) {
   return `Quiz_${safe}.pdf`;
 }
 
-async function renderPdf({ quiz, questions, digest, teacherName, language, date, link }) {
+/**
+ * `language` is the TEACHER's — labels, instructions, the footer.
+ * `contentLanguage` is the QUIZ's — stems, options, explanations, the topic.
+ * They differ whenever an English-preferring teacher teaches an Urdu-medium
+ * lesson, which is the common case here; passing only one of them puts the
+ * quiz's script on a font that has no glyphs for it.
+ */
+async function renderPdf({ quiz, questions, digest, teacherName, language, contentLanguage, date, link }) {
   const { htmlToPdf } = require('../../utils/html-to-pdf');
   const render = require('../../templates/transcript-quiz-teacher.template');
-  const html = render({ topic: quiz.topic, teacherName, date, link, digest, questions, language });
+  const html = render({
+    topic: quiz.topic, teacherName, date, link, digest, questions,
+    language, contentLanguage: contentLanguage || quiz.language || language,
+  });
   const buffer = await htmlToPdf(html, {
     timeout: 45000,
     pdfOptions: { format: 'A4', printBackground: true, margin: { top: '0', right: '0', bottom: '0', left: '0' } },
@@ -236,7 +246,8 @@ async function process(quizId, payload = {}) {
   let tempPath = null;
   try {
     const buffer = await renderPdf({
-      quiz, questions: qRows, digest, teacherName, language: teacherLang,
+      quiz, questions: qRows, digest, teacherName,
+      language: teacherLang, contentLanguage: language,
       date: formatLessonDate(session.created_at, teacherLang, { year: true }), link,
     });
     try {
