@@ -2,7 +2,7 @@
 /**
  * The child's scorecard — the picture that arrives when she finishes a quiz.
  *
- * Three things this file exists to get right, all learned the hard way:
+ * Four things this file exists to get right, all learned the hard way:
  *
  *  1. NOTHING MAY DEPEND ON A SYSTEM FONT OR A SYMBOL GLYPH. The card is
  *     rendered headless on a Linux container with no fonts installed. Every
@@ -18,14 +18,31 @@
  *     Nastaliq and right-to-left. Keying either off the quiz language runs
  *     Latin letters through Nastaliq metrics or Perso-Arabic through a
  *     Latin-first stack that has no glyphs for it.
- *  3. IT IS THE ONE THING SHE KEEPS. Everything else the quiz sends is a
+ *  3. THE GROUND IS NOT A SECOND SCORE. Every child gets the same card. An
+ *     earlier version gave each tier its own background — green at the top,
+ *     charcoal at the bottom — and side by side the charcoal card reads as
+ *     switched off: the child who did least well receives the least
+ *     attractive picture, which is a punishment wearing a design's clothes.
+ *     How she did lives in the three places she can actually read it and the
+ *     caption can repeat: how many stars are lit, which word is in the chip,
+ *     and how far round the ring is filled.
+ *  4. IT IS THE ONE THING SHE KEEPS. Everything else the quiz sends is a
  *     message that scrolls away; this is a picture. So the score gets a real
- *     treatment (a ring filled to the percentage), the stars get to be the
- *     hero row rather than a footnote, and her name gets the size.
+ *     treatment, the stars get to be the hero row rather than a footnote, and
+ *     her name gets the size.
  *
- * Brand: NIETE (niete-brand skill) — the tier grounds are the brand's own two
- * colours, the ground texture is the book's diamond lattice at whisper
- * density, and the mark is the file, never a redrawing.
+ * LAYOUT. One edge, and two exceptions. Every block — eyebrow, name, topic,
+ * score, stars, subject — sits on the card's start edge, in one column, in
+ * reading order. Exactly two things hang off the far edge: the mark at the top
+ * and the badge chip at the bottom. Urdu is not "the same card with the text
+ * pushed left"; it is the exact mirror, so the CARD carries `dir` and every
+ * row flips with it. An earlier version force-aligned every block left in both
+ * languages and split the card down the middle besides — name left, ring
+ * right, stars centred, chip bottom-left — so no two elements shared an edge.
+ *
+ * Brand: NIETE (niete-brand skill) — the ground is the book's two colours in
+ * one gradient, the texture is its diamond lattice at whisper density, and the
+ * mark is the file, never a redrawing.
  */
 
 const fs = require('fs');
@@ -100,18 +117,15 @@ function starsAndBadge(pct, language = 'en') {
 const TRAILING_STOPS = /[!?.,؟۔،\s]+$/;
 
 /**
- * The one line of encouragement, from the catalog, in the quiz's language.
+ * The one line of encouragement, from the catalog, in the quiz's language —
+ * the badge's clause removed so the two do not stutter.
  *
- * The card carries BOTH the short badge word and the full tier sentence, and
- * the catalog builds the sentence by extending the badge ("Nicely done" ->
- * "Nicely done — a little more practice and you'll have it."). Printing both
- * verbatim stutters, so where the sentence opens with exactly the badge the
- * pill keeps that clause and the line takes the rest — the two read as one
- * sentence with its opening set in a pill. Where the two say the same thing
- * outright (Urdu "زبردست!"), the line is dropped and the pill speaks alone.
- *
- * No new catalog keys: this is a presentation rule over the strings the
- * caption already uses, so the picture and the text under it stay in step.
+ * The card itself no longer prints this line: the chip carries the word and
+ * the WhatsApp caption directly under the picture carries the whole sentence
+ * (vqScoreCaption interpolates the same vqTier* string), so printing it a
+ * third time inside the card said one thing three ways in 400 pixels. The
+ * rule is kept and exported because it is the de-duplication the caption side
+ * needs and the only place the badge/sentence relationship is written down.
  */
 function tierMessage(pct, language = 'en') {
   const lang = clampLanguage(language);
@@ -132,56 +146,77 @@ function tierMessage(pct, language = 'en') {
 }
 
 /**
- * The card's ground, by how she did.
+ * The card's colours. One set, for every score.
  *
- * Three tiers, three genuinely different cards — the operator's own fallback
- * for "an animated card would be too heavy": vary the colour instead. Within
- * the NIETE palette that is green for mastered, navy-slate for developing and
- * a calm charcoal for needs-practice. Never red, never harsh: a child who
- * scored low gets a quieter card, not a warning.
+ * GROUND — the book's navy-slate held across the top 28% and then run into the
+ * book's green, mirrored with the card so the navy always sits under the
+ * eyebrow, the name and the mark and the green always arrives under the score,
+ * the stars and the chip. (A CSS gradient does not follow `dir`, so an Urdu
+ * card without the mirrored angle got the two ends the wrong way round.)
  *
- * The steps are deliberately far apart in brightness. A first attempt at this
- * idea on another product kept all three inside one narrow hue band and read
- * as the same card at a glance.
+ * Three grounds were rendered on this layout and looked at before this one was
+ * picked — see renders/round4/scorecard/v4_ground_{a,b,c}.png in the project
+ * folder. Green alone is louder and gives a low score a card that reads as
+ * over-praise. Navy alone, with the green arriving only as the bloom, splits
+ * into a grey half and a green half with a visible seam down the middle, and
+ * at any score reads as the lights being off — which is what the charcoal tier
+ * was rejected for. Navy into green is the one that is calm at 1/8 and still
+ * celebratory at 8/8, which is the whole point of having one ground.
  *
- * `ring`/`glow`/the filled stars are separate from `accent` on purpose. The lowest tier's badge
- * is the calm muted green, but a muted green ring and muted green stars on a
- * charcoal ground read as switched-off — the celebration is the part a child
- * who scored 4/10 needs most, so the ring and the stars take the pale green instead; only the badge pill,
- * which carries dark ink, stays the muted green.
+ * ACCENT — one warm amber, used for the lit stars and the badge chip. The
+ * NIETE book has no warm colour at all, which is exactly why this one is
+ * declared here as an accent and nowhere near the brand module: the ground,
+ * the lattice, the ring and the mark are the brand, and the amber is the
+ * two-percent of the card that says "well done" in a way that green sitting on
+ * green cannot. It is deliberately not the Rumi card's #F5B301 — that card is
+ * another product's and borrowing its hex is how this one quietly becomes it.
+ *
+ * RING — white. The ring is the measurement, the stars are the celebration;
+ * giving them the same colour made the score row and the star row read as one
+ * undifferentiated band of amber.
  */
-function tierPalette(pct) {
-  if (pct >= 80) {
-    return {
-      bgFrom: PALETTE.greenDeep, bgTo: PALETTE.green, accent: '#FFFFFF',
-      ring: '#FFFFFF', glow: 'rgba(255,255,255,.6)',
-      star: 'rgba(255,255,255,.45)', badgeInk: '#1F5F3E',
-    };
-  }
-  if (pct >= 60) {
-    return {
-      bgFrom: PALETTE.slate, bgTo: PALETTE.slateLight, accent: PALETTE.green,
-      ring: PALETTE.green, glow: 'rgba(71,186,125,.65)',
-      star: 'rgba(255,255,255,.35)', badgeInk: '#123D28',
-    };
-  }
+const ACCENT = '#FFC94A';
+
+function cardPalette() {
   return {
-    bgFrom: PALETTE.charcoal, bgTo: PALETTE.charcoalLight, accent: PALETTE.greenMuted,
-    ring: PALETTE.greenPale, glow: 'rgba(169,227,196,.5)',
-    star: 'rgba(255,255,255,.3)', badgeInk: '#0E3320',
+    bgFrom: PALETTE.slate,
+    bgTo: PALETTE.greenDeep,
+    bgEnd: PALETTE.green,
+    accent: ACCENT,
+    ring: '#FFFFFF',
+    glow: 'rgba(255,201,74,.62)',
+    bloom: 'rgba(71,186,125,.55)',
+    star: 'rgba(255,255,255,.42)',
+    badgeInk: PALETTE.slate,
   };
+}
+
+/**
+ * The hero size for a name, stepped down by how long it is.
+ *
+ * "Muhammad Abdul Rehman" at 38 px overran the card and rendered as "Muhammad
+ * Abdul Reh…". A child's own name is the one thing here that must not be cut
+ * off — it is the reason she keeps the picture — so the type gets smaller
+ * instead. Measured in CODE POINTS and against the NAME's own script: Nastaliq
+ * runs wider per character than Lexend at the same px, and a name's script is
+ * not necessarily the quiz's.
+ */
+function nameFontPx(name, scriptRtl) {
+  const n = Array.from(String(name === null || name === undefined ? '' : name)).length;
+  if (scriptRtl) return n > 18 ? 26 : n > 12 ? 30 : 34;
+  return n > 20 ? 28 : n > 15 ? 33 : 38;
 }
 
 const STAR_PATH = 'M12 2.6l2.95 6.28 6.9.86-5.05 4.78 1.33 6.82L12 17.86l-6.13 3.38 '
   + '1.33-6.82L2.15 9.74l6.9-.86z';
 
-const STAR_SIZE = 44;
+const STAR_SIZE = 42;
 
 function starSvg(filled, palette) {
   return `<svg class="star${filled ? ' star--filled' : ''}" viewBox="0 0 24 24" `
     + `width="${STAR_SIZE}" height="${STAR_SIZE}">`
-    + `<path d="${STAR_PATH}" fill="${filled ? palette.ring : 'none'}" `
-    + `stroke="${filled ? palette.ring : palette.star}" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
+    + `<path d="${STAR_PATH}" fill="${filled ? palette.accent : 'none'}" `
+    + `stroke="${filled ? palette.accent : palette.star}" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
 }
 
 function starsHtml(stars, palette) {
@@ -194,19 +229,19 @@ function starsHtml(stars, palette) {
  * dash offset rather than an arc path so the geometry stays exact at any
  * percentage and there is no large-arc-flag branch to get wrong at 50%.
  */
-const RING_R = 60;
+const RING_R = 42;
 const RING_C = 2 * Math.PI * RING_R;
 
 function gaugeSvg(pct, palette) {
   const shown = Math.max(0, Math.min(100, Number(pct) || 0));
   const offset = RING_C * (1 - shown / 100);
-  return `<svg class='gauge' viewBox='0 0 140 140' aria-hidden='true'>`
-    + `<circle class='ring-track' cx='70' cy='70' r='${RING_R}' fill='none' `
-    + `stroke='rgba(255,255,255,.17)' stroke-width='10'/>`
-    + `<circle class='ring-fill' cx='70' cy='70' r='${RING_R}' fill='none' `
-    + `stroke='${palette.ring}' stroke-width='10' stroke-linecap='round' `
+  return `<svg class='gauge' viewBox='0 0 100 100' aria-hidden='true'>`
+    + `<circle class='ring-track' cx='50' cy='50' r='${RING_R}' fill='none' `
+    + `stroke='rgba(255,255,255,.22)' stroke-width='8'/>`
+    + `<circle class='ring-fill' cx='50' cy='50' r='${RING_R}' fill='none' `
+    + `stroke='${palette.ring}' stroke-width='8' stroke-linecap='round' `
     + `stroke-dasharray='${RING_C.toFixed(2)}' stroke-dashoffset='${offset.toFixed(2)}' `
-    + `transform='rotate(-90 70 70)'/></svg>`;
+    + `transform='rotate(-90 50 50)'/></svg>`;
 }
 
 /**
@@ -215,14 +250,15 @@ function gaugeSvg(pct, palette) {
  * @param {number} d.correct
  * @param {number} d.total
  * @param {number} d.pct
- * @param {string} [d.subject] - printed in the caption under the topic; the
+ * @param {string} [d.subject] - printed at the foot under the stars; the
  *        grade is deliberately never printed, since a shared class link can
  *        reach a child in any year.
  * @param {string} [d.takerName] - omitted entirely when unknown, never
  *        rendered as a literal "undefined"/"null".
  * @param {string} [d.language] - the QUIZ's language: the child reads the card
- *        in whatever language she just answered in. It does NOT decide the
- *        script of her name or of the topic — see scriptOf().
+ *        in whatever language she just answered in. It decides which edge the
+ *        card is built on. It does NOT decide the script of her name or of the
+ *        topic — see scriptOf().
  * @returns {string} HTML for htmlToImage (selector '.card', width 540)
  */
 function renderScorecardHtml(d) {
@@ -233,29 +269,36 @@ function renderScorecardHtml(d) {
   const language = clampLanguage((d && d.language) || 'en');
   const RTL = RTL_LANGS.has(language);
   const dir = RTL ? 'rtl' : 'ltr';
+  const edge = RTL ? 'right' : 'left';
   const { stars, badge } = starsAndBadge(pct, language);
-  const message = tierMessage(pct, language);
-  const palette = tierPalette(pct);
+  const nameDir = dirOf(takerName);
+  const namePx = nameFontPx(takerName, nameDir === 'rtl');
+  const palette = cardPalette();
   const eyebrow = resolveUx('vqScorecardEyebrow', { language });
   const shownPct = Math.max(0, Math.min(100, Math.round(Number(pct) || 0)));
 
   const logoImg = a.nieteMark
     ? `<img class='logo' src='data:image/png;base64,${a.nieteMark}' alt='NIETE'>` : '';
-  // Her own script, not the quiz's.
+  // Her own script, not the quiz's — but the card's edge, not the script's.
   const nameHtml = takerName
-    ? `<div class='name content' dir='${dirOf(takerName)}'>${esc(takerName)}</div>` : '';
-  const topicHtml = `<span class='topic content' dir='${dirOf(topic)}'>${esc(topic)}</span>`;
+    ? `<div class='name content align' dir='${nameDir}'>${esc(takerName)}</div>` : '';
+  const topicHtml = `<div class='topic content align' dir='${dirOf(topic)}'>${esc(topic)}</div>`;
   const subjectHtml = subject
-    ? `<span class='sep'>&middot;</span><span class='subj content' dir='${dirOf(subject)}'>${esc(subject)}</span>`
-    : '';
-  const messageHtml = message
-    ? `<div class='msg content' dir='${dir}'>${esc(message)}</div>` : '';
+    ? `<span class='subj content' dir='${dirOf(subject)}'>${esc(subject)}</span>`
+    : `<span class='subj'></span>`;
   // The brand book's lattice, at the whisper density it uses behind content —
   // drawn, so it stays crisp, rather than a stretched crop of a page raster.
   const lattice = latticeSvg({ id: 'niete-lattice-card', line: '#ffffff', opacity: 0.085 });
   // The nuqta pair from the book's audience lockups, as the eyebrow's rule.
-  const nuqtas = diamondSvg({ size: 6, fill: 'rgba(255,255,255,.75)', stroke: 'rgba(255,255,255,.75)', width: 0 })
-    + diamondSvg({ size: 6, fill: 'rgba(255,255,255,.45)', stroke: 'rgba(255,255,255,.45)', width: 0 });
+  // They are emitted AFTER the words and the row carries the card's direction,
+  // so they trail the words in both scripts. Laid out left-to-right regardless
+  // of language, they arrived first in Urdu and read as two specks of dirt in
+  // front of the sentence.
+  const nuqtas = diamondSvg({
+    size: 7, fill: PALETTE.greenPale, stroke: PALETTE.greenPale, width: 0, className: 'dia nuqta',
+  }) + diamondSvg({
+    size: 7, fill: PALETTE.greenPale, stroke: PALETTE.greenPale, width: 0, className: 'dia nuqta faint',
+  });
 
   return `<!DOCTYPE html><html lang='${language}'><head><meta charset='utf-8'><style>
   @font-face{font-family:'Lexend';font-weight:400;src:url(data:font/ttf;base64,${a.lexend})}
@@ -264,78 +307,99 @@ function renderScorecardHtml(d) {
   @font-face{font-family:'NastaliqUrdu';font-weight:700;src:url(data:font/ttf;base64,${a.nastaliqBold})}
   * { margin:0; box-sizing:border-box; font-family:${FONTS.bodyLatin}; }
   /* Anything a child wrote or was taught follows the script it was WRITTEN in,
-     which is not always the quiz's language. The card is a poster with one
-     anchor — mark on the right, everything read on the left — so an Urdu line
-     still SHAPES right-to-left but is set flush left with the score and the
-     stars. Right-aligning it instead left the name and topic floating away
-     from every other element on the card. */
-  .content[dir="rtl"]{font-family:${FONTS.bodyUrdu};line-height:1.85;text-align:left}
-  .content[dir="ltr"]{font-family:${FONTS.bodyLatin};line-height:1.35;text-align:left}
+     which is not always the quiz's language: that decides the font and the
+     bidi direction. Which EDGE the block hangs off is the card's, not the
+     text's — otherwise a Latin name inside an Urdu card floats away from every
+     other element on it. So .content sets the face, .align sets the edge, and
+     a name carries both. */
+  .content[dir="rtl"]{font-family:${FONTS.bodyUrdu};line-height:1.8}
+  .content[dir="ltr"]{font-family:${FONTS.bodyLatin};line-height:1.3}
+  .card .align { text-align:${edge}; }
   body { width:540px; height:400px; }
-  .card { width:100%; height:100%; background:linear-gradient(158deg,${palette.bgFrom} 0%,${palette.bgTo} 100%);
-    color:#fff; padding:24px 30px 26px; display:flex; flex-direction:column; position:relative; overflow:hidden; }
-  /* A soft light from behind the gauge — the only non-flat thing on the card,
-     and the reason the ring reads as lit rather than printed. */
-  .card::after { content:''; position:absolute; width:340px; height:340px; right:-90px; top:-110px;
-    border-radius:50%; background:radial-gradient(circle,rgba(255,255,255,.13) 0%,rgba(255,255,255,0) 70%); }
+  .card { width:100%; height:100%; background:linear-gradient(${RTL ? '203deg' : '157deg'},${palette.bgFrom} 0%,${palette.bgFrom} 28%,${palette.bgTo} 86%,${palette.bgEnd} 100%);
+    color:#fff; padding:24px 30px 22px; display:flex; flex-direction:column; position:relative; overflow:hidden; }
+  /* Two lights, and the reason the ground is not flat.
+     The GREEN one sits on the far side, low: it is what fills the half of the
+     card the single column of text does not use, and it turns the navy-to-green
+     run from a muddy interpolation into light arriving over a dark ground.
+     The WHITE one is small and sits behind the score and the stars, on the
+     content's own side. Both are placed with logical insets, so they mirror
+     with the card rather than staying on a fixed physical corner. */
+  .card::before { content:''; position:absolute; width:560px; height:560px;
+    inset-inline-end:-170px; bottom:-250px;
+    border-radius:50%; background:radial-gradient(circle,${palette.bloom} 0%,rgba(71,186,125,0) 70%); }
+  .card::after { content:''; position:absolute; width:360px; height:360px;
+    inset-inline-start:-120px; bottom:-140px;
+    border-radius:50%; background:radial-gradient(circle,rgba(255,255,255,.14) 0%,rgba(255,255,255,0) 68%); }
   .lattice { position:absolute; left:0; top:0; width:100%; height:100%; }
   .card > *:not(.lattice) { position:relative; z-index:1; }
-  .hdr { display:flex; justify-content:space-between; align-items:center; }
-  .t1 { font-size:${RTL ? '13px' : '11.5px'}; letter-spacing:${RTL ? '0' : '2.6px'}; color:#fff; font-weight:800; opacity:.78;
-    display:flex; align-items:center; gap:5px;
-    font-family:${RTL ? FONTS.bodyUrdu : FONTS.bodyLatin}; }
-  .t1 .dia { margin-top:1px; }
-  .logo { width:46px; height:auto; opacity:.96; display:block; }
-  .main { display:flex; align-items:center; gap:16px; margin-top:14px; }
-  .who { flex:1 1 auto; min-width:0; }
-  .name { font-size:36px; line-height:1.12; font-weight:800; letter-spacing:-.6px; color:#fff; }
-  .name[dir="rtl"] { font-size:31px; line-height:1.5; letter-spacing:0; }
-  .cap { margin-top:12px; font-size:13px; opacity:.72; display:flex; flex-wrap:wrap;
-    align-items:baseline; gap:6px; }
-  .cap .sep { opacity:.55; }
-  .cap .content[dir="rtl"] { line-height:1.7; }
-  .gauge-col { flex:0 0 140px; position:relative; width:140px; height:140px;
-    display:flex; align-items:center; justify-content:center; }
-  .gauge { position:absolute; left:0; top:0; width:140px; height:140px; }
-  .gnum { position:relative; text-align:center; }
+  .hdr { display:flex; justify-content:space-between; align-items:center; flex:0 0 auto; }
+  .t1 { direction:${dir}; font-size:${RTL ? '20px' : '16px'}; letter-spacing:${RTL ? '0' : '2.4px'};
+    color:${PALETTE.greenPale}; font-weight:800; display:flex; align-items:center; gap:6px;
+    font-family:${RTL ? FONTS.bodyUrdu : FONTS.bodyLatin}; line-height:1.5; }
+  .t1 .nuqta { flex:0 0 auto; margin-bottom:${RTL ? '5px' : '1px'}; }
+  .t1 .faint { opacity:.55; }
+  .logo { width:44px; height:auto; opacity:.96; display:block; flex:0 0 auto; }
+  .name { font-size:${namePx}px; line-height:1.1; font-weight:800; letter-spacing:-.7px; color:#fff;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .name[dir="rtl"] { line-height:1.4; letter-spacing:0; }
+  .topic { font-size:20px; opacity:.85; margin-top:5px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .topic[dir="rtl"] { font-size:22px; }
+  /* The score row: the fraction at the size it deserves, the percentage beside
+     it inside a ring filled to the same number. */
+  .scorerow { display:flex; align-items:center; gap:20px; flex:0 0 auto; }
   /* A fraction reads left-to-right in every language — never mirror it. */
-  .score { font-size:38px; line-height:1; font-weight:800; direction:ltr; unicode-bidi:isolate;
-    font-family:${FONTS.bodyLatin}; }
-  .score span { font-size:18px; font-weight:400; color:rgba(255,255,255,.6); }
-  .pct { margin-top:5px; font-size:11.5px; letter-spacing:1.6px; font-weight:800; opacity:.62;
+  .score { font-size:62px; line-height:1; font-weight:800; direction:ltr; unicode-bidi:isolate;
+    font-family:${FONTS.bodyLatin}; letter-spacing:-1.5px; }
+  .score span { font-size:27px; font-weight:400; color:rgba(255,255,255,.7); letter-spacing:-.5px; }
+  .gauge-col { flex:0 0 100px; position:relative; width:100px; height:100px;
+    display:flex; align-items:center; justify-content:center; }
+  .gauge { position:absolute; left:0; top:0; width:100px; height:100px; }
+  .pct { position:relative; font-size:18px; letter-spacing:.4px; font-weight:800; opacity:.9;
     direction:ltr; unicode-bidi:isolate; font-family:${FONTS.bodyLatin}; }
   /* The hero row. Five shapes, lit — the part of the card a child reads first
-     and the part she is being congratulated with. */
-  /* Centred in whatever room is left between the score block and the
-     foot, so the card breathes evenly instead of stranding a hole. */
-  .stars { display:flex; justify-content:center; align-items:center; gap:12px;
-    margin:auto 0; }
-  .star--filled { filter:drop-shadow(0 0 9px ${palette.glow}); }
-  .foot { padding-top:4px; display:flex; align-items:center; gap:11px; }
-  .badge { background:${palette.accent}; color:${palette.badgeInk}; font-weight:800; font-size:${RTL ? '15px' : '14px'};
-    padding:7px 15px; border-radius:16px; white-space:nowrap; flex:0 0 auto;
-    font-family:${RTL ? FONTS.bodyUrdu : FONTS.bodyLatin}; }
-  .msg { font-size:${RTL ? '14.5px' : '13.5px'}; color:#fff; opacity:.86; flex:1 1 auto; min-width:0; }
-  .msg[dir="rtl"] { line-height:1.7; }
-  </style></head><body><div class='card'>
+     and the part she is being congratulated with. It starts on the same edge
+     as every other block; centring it was the last thing on the card that did
+     not line up with anything else. */
+  .stars { display:flex; align-items:center; gap:11px; flex:0 0 auto;
+    /* The star path is inset ~2/24 of its own box, so a star row set flush to
+       the padding edge LOOKS indented next to the fraction and the subject
+       line, which have almost no side bearing. Pulled back by that much, in
+       the logical direction so it mirrors. */
+    margin-inline-start:-3.5px; }
+  .star--filled { filter:drop-shadow(0 0 10px ${palette.glow}); }
+  .foot { display:flex; justify-content:space-between; align-items:center; gap:12px; flex:0 0 auto; }
+  .subj { font-size:16px; opacity:.78; min-width:0; overflow:hidden;
+    white-space:nowrap; text-overflow:ellipsis; }
+  .subj[dir="rtl"] { font-size:19.5px; }
+  .badge { background:${palette.accent}; color:${palette.badgeInk}; font-weight:800;
+    font-size:${RTL ? '19.5px' : '16px'};
+    padding:${RTL ? '4px 18px 7px' : '8px 17px'}; border-radius:17px; white-space:nowrap; flex:0 0 auto;
+    font-family:${RTL ? FONTS.bodyUrdu : FONTS.bodyLatin}; line-height:1.45; }
+  /* The gaps between the six blocks, shared out by the column itself, so the
+     card breathes the same whether the name is one short Latin word or a long
+     Nastaliq one. */
+  .gap { flex:1 1 auto; min-height:6px; }
+  </style></head><body><div class='card' dir='${dir}'>
   ${lattice}
   <div class='hdr'><div class='t1'>${esc(eyebrow)}${nuqtas}</div>${logoImg}</div>
-  <div class='main'>
-    <div class='who'>${nameHtml}
-      <div class='cap'>${topicHtml}${subjectHtml}</div>
-    </div>
-    <div class='gauge-col'>${gaugeSvg(pct, palette)}
-      <div class='gnum'><div class='score'>${correct}<span>/${total}</span></div>
-      <div class='pct'>${shownPct}%</div></div>
-    </div>
+  <div class='gap'></div>
+  ${nameHtml}${topicHtml}
+  <div class='gap'></div>
+  <div class='scorerow'><div class='score'>${correct}<span>/${total}</span></div>
+    <div class='gauge-col'>${gaugeSvg(pct, palette)}<div class='pct'>${shownPct}%</div></div>
   </div>
+  <div class='gap'></div>
   <div class='stars'>${starsHtml(stars, palette)}</div>
-  <div class='foot'><div class='badge'>${esc(badge)}</div>${messageHtml}</div>
+  <div class='gap'></div>
+  <div class='foot'>${subjectHtml}<div class='badge'>${esc(badge)}</div></div>
   </div></body></html>`;
 }
 
 module.exports = renderScorecardHtml;
 module.exports.starsAndBadge = starsAndBadge;
 module.exports.tierMessage = tierMessage;
-module.exports.tierPalette = tierPalette;
+module.exports.cardPalette = cardPalette;
 module.exports.tierFor = tierFor;
+module.exports.nameFontPx = nameFontPx;
