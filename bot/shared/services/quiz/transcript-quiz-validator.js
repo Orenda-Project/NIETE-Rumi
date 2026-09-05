@@ -16,7 +16,7 @@ const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
 const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
 const { canonicalSubject: canonSubj } = require('./transcript-quiz-language');
-const { figureGateDefects } = require('./transcript-quiz-figure-gates');
+const { figureGateDefects, droppedTextDefect } = require('./transcript-quiz-figure-gates');
 const { scienceDefects, moleculeFromDictionary } = require('./transcript-quiz-figure-science');
 
 const MIN_QUESTIONS = 6;
@@ -293,6 +293,8 @@ function validate(rawQuestions, ctx = {}) {
     // can drop the question rather than the quiz.
     figureGateDefects(svg, canonicalType(q.figure.type) || 'figure')
       .forEach((d) => errs.push(`q${i}: ${d.code} — ${d.message}`));
+    const dropped = droppedTextDefect(q.figure, svg, canonicalType(q.figure.type) || 'figure');
+    if (dropped) errs.push(`q${i}: FIGURE_TEXT_DROPPED — ${dropped.message}`);
     const mismatch = figureMismatch(q.figure, opts, ci);
     if (mismatch) {
       errs.push(`q${i}: FIGURE_MISMATCH — ${mismatch}; draw the quantities the question is about`);

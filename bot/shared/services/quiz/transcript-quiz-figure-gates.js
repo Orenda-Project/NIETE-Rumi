@@ -16,7 +16,7 @@
 
 const { requiredBox } = require('../../../vendor/lp-v9/diagrams/lib/svg');
 const { checkOverlaps, checkDegenerate } = require('../../../vendor/lp-v9/diagrams');
-const { PNG_WIDTH, PNG_HEIGHT } = require('./transcript-quiz-figure');
+const { PNG_WIDTH, PNG_HEIGHT, svgText, specStrings } = require('./transcript-quiz-figure');
 
 // The `.fig` box in transcript-quiz-figure.js's figureHtml(): 1080x565 with
 // `padding: 36px 32px`. The SVG is centred inside what padding leaves.
@@ -114,6 +114,39 @@ function degenerateDefect(svg, type = 'figure') {
 }
 
 /**
+ * The engine draws the keys it recognises and drops the rest without a word.
+ * A `flow` whose steps are written `{label: …}` instead of `{title: …}` paints
+ * the boxes and the arrows and not one letter — eight primitives, so the ink
+ * count passes it, and both round-5 reviewers reported the same three empty
+ * rectangles.
+ *
+ * figureEmptyReason() names the key for the types whose vocabulary we know.
+ * This is the backstop for the ones nobody has thought about yet, and it is
+ * deliberately all-or-nothing: the author wrote words for a child to read and
+ * the drawing has NO text on it at all. A partial drop is not judged here —
+ * matching spec strings to drawn glyphs would false-positive on every type
+ * that reformats what it is given.
+ *
+ * @param {object} spec
+ * @param {string} svg
+ * @param {string} [type]
+ * @returns {?{strings:string[], message:string}}
+ */
+function droppedTextDefect(spec, svg, type = 'figure') {
+  const wanted = specStrings(spec || {})
+    .map((t) => String(t == null ? '' : t).trim())
+    .filter((t) => t.length >= 2);
+  if (!wanted.length) return null;
+  const drawn = svgText(svg).join('').replace(/\s+/g, '');
+  if (drawn) return null;
+  return {
+    strings: wanted,
+    message: `the ${type} figure was given ${wanted.length} label(s) and the drawing shows no text at all — `
+      + 'the engine drew none of them, because they are under keys it does not read; use the keys in this type\'s minimal spec',
+  };
+}
+
+/**
  * Every gate defect a figure carries, in the fixed order label-floor →
  * overlap → degenerate. The validator decides what to do with what comes
  * back (fail, retry, log).
@@ -139,6 +172,7 @@ module.exports = {
   LABEL_FLOOR_PX,
   PHONE_CSS_WIDTH,
   labelFloorDefect,
+  droppedTextDefect,
   overlapDefect,
   degenerateDefect,
   figureGateDefects,

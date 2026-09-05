@@ -407,10 +407,27 @@ function figureEmptyReason(spec) {
     }
     case 'numberline':
       return n(spec.points) + n(spec.arcs) + n(spec.intervals) + n(spec.rays) ? null : 'a number line needs at least one point, arc, interval or ray';
-    case 'timeline':
-      return n(spec.events) >= 2 ? null : 'a timeline needs at least 2 events';
-    case 'flow':
-      return n(spec.steps) >= 2 ? null : 'a flow needs at least 2 steps';
+    case 'timeline': {
+      if (n(spec.events) < 2) return 'a timeline needs at least 2 events';
+      // An event's words live in `label`. Written as `title` — the key `flow`
+      // uses for the same idea — the dates still draw and the events vanish,
+      // which looks finished and says nothing (both round-5 reviewers).
+      const wordless = (spec.events || []).filter((e) => !String((e && e.label) ?? '').trim()).length;
+      return wordless ? `${wordless} timeline event(s) have no "label" — that is the key the event's words go in; a "title" on an event is dropped and the date is drawn alone` : null;
+    }
+    case 'flow': {
+      if (n(spec.steps) < 2) return 'a flow needs at least 2 steps';
+      // A step's words live in `title` (with optional `lines`). Written as
+      // `label`, the engine draws the box and drops every word: three empty
+      // rectangles joined by arrows, and eight painted primitives, so even the
+      // ink count passes it.
+      const wordless = (spec.steps || []).filter((st) => {
+        const t = String((st && st.title) ?? '').trim();
+        const lines = Array.isArray(st && st.lines) ? st.lines.filter((l) => String(l ?? '').trim()) : [];
+        return !t && !lines.length;
+      }).length;
+      return wordless ? `${wordless} flow step(s) have no "title" — that is the key the step's words go in; a "label" on a step is dropped and the box is drawn empty` : null;
+    }
     case 'circuit':
       return n(spec.cells) >= 2 ? null : 'a circuit needs at least 2 components';
     case 'geometry': {
@@ -734,6 +751,7 @@ module.exports = {
   stripStrayLabels,
   figureLeaksAnswer,
   svgText,
+  specStrings,
   figureHtml,
   renderFigurePng,
   uploadFigure,
