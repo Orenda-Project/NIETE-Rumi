@@ -43,6 +43,7 @@
 const fs = require('fs');
 const path = require('path');
 const { richNotation } = require('../services/quiz/quiz-notation');
+const { sloStatement } = require('../services/quiz/transcript-quiz-language');
 const { PALETTE, FONTS, headFamily, bodyFamily, latticeSvg, diamondSvg, scriptOf } = require('./niete-brand');
 
 let _assets = null;
@@ -228,7 +229,7 @@ function renderTranscriptQuizTeacherHtml(d) {
   const missMark = diamondSvg({ size: 7, fill: '#B9C2CC', stroke: '#B9C2CC', width: 0 });
 
   const sloList = slos.map((s) => `
-      <li>${bullet}<span class="pill">${L(C.level[s.taught_level] || esc(s.taught_level || ''))}</span> <span ${cls('sloline')}>${K(s.statement)}</span></li>`).join('');
+      <li>${bullet}<span class="pill">${L(C.level[s.taught_level] || esc(s.taught_level || ''))}</span> <span ${cls('sloline')}>${K(sloStatement(s, docLang))}</span></li>`).join('');
 
   const cards = questions.map((q, i) => {
     // external_id is `tq:<quizId>:<sloId>:<n>` in production and `tq:<sloId>:<n>`
@@ -267,7 +268,7 @@ function renderTranscriptQuizTeacherHtml(d) {
     return `
       <div class="card${q.figureSvg ? ' hasfig' : ''}">
         <div class="chead"><div class="num"><span>${i + 1}</span></div>
-          <div class="cmeta">${slo ? `<span ${cls('slo')}>${K(slo.statement)}</span> <span class="pill">${L(C.level[slo.taught_level] || '')}</span>` : ''}</div></div>
+          <div class="cmeta">${slo ? `<span ${cls('slo')}>${K(sloStatement(slo, docLang))}</span> <span class="pill">${L(C.level[slo.taught_level] || '')}</span>` : ''}</div></div>
         ${wide ? figure : ''}
         <div class="cmain">${wide ? '' : figure}
           <div class="cbody">

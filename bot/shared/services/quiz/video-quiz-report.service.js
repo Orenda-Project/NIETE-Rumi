@@ -25,7 +25,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { stripEmphasis, classLabel } = require('../../utils/text-format');
 const { clampLanguage, resolveUx } = require('../../config/ux-strings');
-const { formatLessonDate } = require('./transcript-quiz-language');
+const { formatLessonDate , sloStatement } = require('./transcript-quiz-language');
 
 /**
  * The job-type prefix is load-bearing, not cosmetic.
@@ -233,18 +233,20 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   let digest = null;
   try {
     const { data: quizRow } = await supabase.from('quizzes')
-      .select('quiz_source, meta').eq('id', sc.quiz_id).maybeSingle();
+      .select('quiz_source, meta, language').eq('id', sc.quiz_id).maybeSingle();
     const rawDigest = quizRow?.quiz_source === 'transcript' ? (quizRow?.meta?.digest || null) : null;
     if (rawDigest) {
       const slos = Array.isArray(rawDigest.slos) ? rawDigest.slos : [];
-      const byId = new Map(slos.map((s) => [s.id, s.statement]));
+      // D1: the report reads in the quiz's language, so its goal lines do too.
+      const sloLang = quizRow?.language || quizRow?.meta?.content_language || 'en';
+      const byId = new Map(slos.map((s) => [s.id, sloStatement(s, sloLang)]));
       sloOf = (externalId) => {
         const parts = String(externalId || '').split(':');
         return byId.get(parts[parts.length - 2]) || null;
       };
       digest = {
         topic_as_taught: rawDigest.topic_as_taught || null,
-        slos: slos.map((s) => ({ id: s.id, statement: s.statement, taught_level: s.taught_level })),
+        slos: slos.map((s) => ({ id: s.id, statement: sloStatement(s, sloLang), taught_level: s.taught_level })),
         misconceptions_surfaced: Array.isArray(rawDigest.misconceptions_surfaced)
           ? rawDigest.misconceptions_surfaced : [],
         lesson_summary: rawDigest.lesson_summary || quizRow?.meta?.lesson_summary || null,
