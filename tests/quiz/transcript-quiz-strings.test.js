@@ -42,6 +42,15 @@ describe('transcript-quiz catalog', () => {
     expect(UX_STRINGS[key].ur).not.toMatch(FEM);
   });
 
+  test.each(TQ_KEYS)('%s: an Urdu body that could open with Latin carries a right-to-left mark', (key) => {
+    const ur = UX_STRINGS[key].ur;
+    if (/Button$|Yes$|No$|Btn$|ListButton$|ListSection$|Word$/.test(key)) return;   // titles, not paragraphs
+    // Skip leading whitespace, emoji, punctuation and WhatsApp bold stars; look at the first real character.
+    const body = ur.replace(/^[\s\u200F*"'«»(\p{Extended_Pictographic}\uFE0F]+/u, '');
+    const opensLatinOrParam = /^[A-Za-z{]/.test(body);
+    if (opensLatinOrParam) expect(ur.startsWith('\u200F')).toBe(true);
+  });
+
   test('the offer copy names the topic and the date, and mentions /quiz', () => {
     for (const lang of LANGUAGE_OFFER) {
       const s = resolveUx('tqOffer', { language: lang, params: { topic: 'Fractions', date: '5 Sep' } });
