@@ -10,6 +10,43 @@ const { resolveUx } = require('../config/ux-strings');
 // Prefer ASSET_BASE_URL; fall back to legacy ASSETS_BASE_URL. Empty when
 // neither is set — the carousel template builder below guards against that.
 const ASSETS_BASE_URL = (process.env.ASSET_BASE_URL || process.env.ASSETS_BASE_URL || '').replace(/\/$/, '');
+
+// ─── WhatsApp media-id cache ────────────────────────────────────────────────
+// An R2 object cannot be handed to Meta as a link, so every send downloads it
+// and re-uploads it to the Media API for an id. The same picture sent to a
+// class of forty children was forty downloads and forty uploads of identical
+// bytes. Meta keeps an uploaded media id usable for 30 days, so the id is
+// remembered for 25, keyed on the R2 key.
+//
+// Redis is a CONVENIENCE here, never a dependency: every helper swallows its
+// own failure and returns the value that makes the caller do what it did
+// before the cache existed.
+const MEDIA_ID_TTL_SECONDS = 25 * 24 * 60 * 60;
+
+function mediaCacheKey(r2Key) {
+  return `wa:media:${require('crypto').createHash('sha1').update(String(r2Key)).digest('hex')}`;
+}
+
+async function getCachedMediaId(r2Key) {
+  try {
+    const redis = require('./cache/railway-redis.service');
+    const id = await redis.get(mediaCacheKey(r2Key));
+    return typeof id === 'string' && id ? id : null;
+  } catch (error) {
+    logToFile('⚠️ media-id cache read failed (continuing without it)', { error: error.message });
+    return null;
+  }
+}
+
+async function cacheMediaId(r2Key, mediaId) {
+  if (!mediaId) return;
+  try {
+    const redis = require('./cache/railway-redis.service');
+    await redis.set(mediaCacheKey(r2Key), mediaId, MEDIA_ID_TTL_SECONDS);
+  } catch (error) {
+    logToFile('⚠️ media-id cache write failed (continuing)', { error: error.message });
+  }
+}
 const GRAPH_API_VERSION = process.env.GRAPH_API_VERSION || 'v21.0';
 const GRAPH_API_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
@@ -1122,50 +1159,61 @@ class WhatsAppService {
       let imageHeader;
 
       if (isR2Url) {
-        logToFile('📥 Downloading image from R2 (private URL)', { imageUrl });
-
         // Extract R2 key and download using credentials
         const key = extractKeyFromUrl(imageUrl);
-        const imageBuffer = await downloadFromR2(key);
 
-        // Save to temp file
-        if (!fs.existsSync(tempDir)) {
-          fs.mkdirSync(tempDir, { recursive: true });
-        }
-        const tempFilePath = path.join(tempDir, `vocab_${Date.now()}.png`);
-        fs.writeFileSync(tempFilePath, imageBuffer);
+        // Meta keeps an uploaded media id for 30 days, so the same picture sent
+        // to a whole class does not need a download and an upload per child.
+        // Cached for 25 days, keyed on the R2 key. Redis is a convenience, not
+        // a dependency: any failure here falls through to the original path.
+        const cachedId = await getCachedMediaId(key);
+        if (cachedId) {
+          logToFile('♻️ Reusing cached WhatsApp media id', { key, mediaId: cachedId });
+          imageHeader = { id: cachedId };
+        } else {
+          logToFile('📥 Downloading image from R2 (private URL)', { imageUrl });
+          const imageBuffer = await downloadFromR2(key);
 
-        logToFile('📤 Uploading image to WhatsApp Media API', { size: imageBuffer.length });
-
-        // Upload to WhatsApp Media API
-        const formData = new FormData();
-        formData.append('file', fs.createReadStream(tempFilePath), {
-          contentType: 'image/png',
-          filename: 'vocabulary.png',
-        });
-        formData.append('messaging_product', 'whatsapp');
-
-        const uploadResponse = await axios.post(
-          `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/media`,
-          formData,
-          {
-            headers: {
-              'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
-              ...formData.getHeaders(),
-            },
+          // Save to temp file
+          if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
           }
-        );
+          const tempFilePath = path.join(tempDir, `vocab_${Date.now()}.png`);
+          fs.writeFileSync(tempFilePath, imageBuffer);
 
-        const mediaId = uploadResponse.data.id;
-        logToFile('✅ Image uploaded to WhatsApp', { mediaId });
+          logToFile('📤 Uploading image to WhatsApp Media API', { size: imageBuffer.length });
 
-        // Clean up temp file
-        if (fs.existsSync(tempFilePath)) {
-          fs.unlinkSync(tempFilePath);
+          // Upload to WhatsApp Media API
+          const formData = new FormData();
+          formData.append('file', fs.createReadStream(tempFilePath), {
+            contentType: 'image/png',
+            filename: 'vocabulary.png',
+          });
+          formData.append('messaging_product', 'whatsapp');
+
+          const uploadResponse = await axios.post(
+            `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/media`,
+            formData,
+            {
+              headers: {
+                'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+                ...formData.getHeaders(),
+              },
+            }
+          );
+
+          const mediaId = uploadResponse.data.id;
+          logToFile('✅ Image uploaded to WhatsApp', { mediaId });
+
+          // Clean up temp file
+          if (fs.existsSync(tempFilePath)) {
+            fs.unlinkSync(tempFilePath);
+          }
+
+          // Use media ID instead of link
+          imageHeader = { id: mediaId };
+          await cacheMediaId(key, mediaId);
         }
-
-        // Use media ID instead of link
-        imageHeader = { id: mediaId };
       } else {
         // Public URL - WhatsApp can download directly
         imageHeader = { link: imageUrl };
