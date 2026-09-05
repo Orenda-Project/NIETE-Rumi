@@ -60,6 +60,12 @@ const ALLOWED_TYPES = [
  */
 const TYPE_DEFAULTS = {
   geometry: { height: 340 },
+  // A fraction bar prints "3/4" beside itself, computed from shaded/parts, with
+  // no label anywhere in the spec. On a quiz that IS the answer, and reading
+  // only the spec would certify it as hidden. Off by default here; an author
+  // who genuinely wants the value shown can set showLabels back on, and the
+  // leak check then reads it off the drawing.
+  fraction_bar: { showLabels: false },
 };
 
 /** Keys whose value is a structural enum, not label text a child reads. */
@@ -184,6 +190,18 @@ function renderFigureSvg(spec, language) {
 const DIGITS = { '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4', '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9',
   '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4', '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9' };
 
+/** Every string a reader actually SEES in the rendered SVG. */
+function svgText(svg) {
+  const out = [];
+  const re = /<text\b[^>]*>([\s\S]*?)<\/text>|<foreignObject\b[^>]*>([\s\S]*?)<\/foreignObject>/g;
+  let m = re.exec(String(svg || ''));
+  while (m) {
+    out.push(String(m[1] ?? m[2] ?? '').replace(/<[^>]*>/g, ' '));
+    m = re.exec(String(svg || ''));
+  }
+  return out;
+}
+
 /** trim + lowercase + one alphabet for digits + one run of whitespace. */
 function norm(s) {
   return String(s == null ? '' : s)
@@ -217,19 +235,32 @@ function specStrings(node, key = null, out = []) {
  * −3? A / B / C" needs A, B and C on the number line, and naming all three
  * gives nothing away.
  *
+ * Reads the SPEC and, when the rendered SVG is passed, the DRAWING. Several
+ * types compute a label the spec never mentions (a fraction bar prints "3/4"
+ * from shaded/parts), so a spec-only check certifies an answer as hidden while
+ * the picture says it out loud.
+ *
+ * A short option (under four characters — "3", "A", "½") must match a WHOLE
+ * label; a longer one may appear anywhere. Without that, the option "3" leaked
+ * against a "30" on a graph axis. Deliberately conservative in the other
+ * direction: a false leak costs one retry, a missed one costs the question.
+ *
  * @param {object} spec
  * @param {string[]} options  the three option texts, in stored order
  * @param {number} correctIndex
+ * @param {string} [svg]  the rendered figure, when it is already drawn
  * @returns {boolean}
  */
-function figureLeaksAnswer(spec, options, correctIndex) {
+function figureLeaksAnswer(spec, options, correctIndex, svg = null) {
   if (!spec || typeof spec !== 'object') return false;
   const opts = (Array.isArray(options) ? options : []).map(norm);
   const correct = opts[Number(correctIndex)];
   if (!correct) return false;
 
-  const haystack = specStrings(spec).map(norm).filter(Boolean);
-  const shows = (text) => !!text && haystack.some((h) => h.includes(text));
+  const visible = [...specStrings(spec), ...(svg ? svgText(svg) : [])].map(norm).filter(Boolean);
+  const joined = visible.join(' | ');
+  const tokens = new Set(joined.split(/[\s|,;:()[\]"'’“”]+/).filter(Boolean));
+  const shows = (text) => !!text && (text.length >= 4 ? joined.includes(text) : tokens.has(text));
 
   if (!shows(correct)) return false;
   return !opts.every((o) => shows(o));
@@ -302,6 +333,7 @@ module.exports = {
   minimalSpecBlock,
   renderFigureSvg,
   figureLeaksAnswer,
+  svgText,
   figureHtml,
   renderFigurePng,
   uploadFigure,

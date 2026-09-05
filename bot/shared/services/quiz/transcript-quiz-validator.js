@@ -177,7 +177,9 @@ function validate(rawQuestions, { language, subject, digest, nExpected } = {}) {
       errs.push(`q${i}: ${err.code || 'FIGURE_RENDER'} — ${err.message}`);
     }
     if (!svg) return;
-    if (figureLeaksAnswer(q.figure, opts, ci)) {
+    // The DRAWING is checked, not only the spec: several types compute a label
+    // the spec never mentions, and a fraction bar's "3/4" is the whole answer.
+    if (figureLeaksAnswer(q.figure, opts, ci, svg)) {
       errs.push(`q${i}: FIGURE_LEAK — the picture already names the correct answer; label every option or none`);
     }
     // Rendered once, here, and carried on the question: generate uploads this

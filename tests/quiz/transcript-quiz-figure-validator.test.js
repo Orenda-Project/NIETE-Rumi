@@ -90,6 +90,21 @@ describe('FIGURE_LEAK', () => {
     expect(errorsOf(r)).toMatch(/q0: FIGURE_LEAK/);
   });
 
+  test('a label the ENGINE draws leaks too, not just one in the spec', () => {
+    // showLabels re-enables the computed "3/4" beside the bar — which is the
+    // answer, and appears nowhere in the spec.
+    const qs = [0, 1, 2, 3, 4, 5].map((i) => q(i, i === 0 ? {
+      options: ['1/2', '3/4', '2/3'], correct_index: 1,
+      distractor_misconceptions: { 0: 'counted two parts', 2: 'counted three of three' },
+      option_feedback: {
+        correct: 'Yes — three of four parts.',
+        wrong: { 0: 'That is two of four.', 2: 'That would be three of three.' },
+      },
+      figure: { type: 'fraction_bar', showLabels: true, bars: [{ parts: 4, shaded: 3 }] },
+    } : {}));
+    expect(errorsOf(run(qs))).toMatch(/q0: FIGURE_LEAK/);
+  });
+
   test('a figure that labels every option is legal', () => {
     const r = run(six({
       question: 'Which point is at −3?',

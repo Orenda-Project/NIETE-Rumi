@@ -60,6 +60,12 @@ describe('ALLOWED_TYPES', () => {
 });
 
 describe('renderFigureSvg', () => {
+  test('a bare fraction bar does not print the fraction that is the answer', () => {
+    const svg = Figure.renderFigureSvg({ type: 'fraction_bar', bars: [{ parts: 4, shaded: 3 }] }, 'ur');
+    expect(svg).not.toMatch(/۳\s*\/\s*۴/);
+    expect(svg).not.toMatch(/3\s*\/\s*4/);
+  });
+
   test('returns an SVG for an allowlisted spec', () => {
     const svg = Figure.renderFigureSvg(NUMBERLINE, 'en');
     expect(svg.startsWith('<svg')).toBe(true);
@@ -149,6 +155,23 @@ describe('figureLeaksAnswer', () => {
   test('structural enum values are not label text (a plant cell picture is the question, not the answer)', () => {
     const spec = { type: 'cell', kind: 'plant' };
     expect(Figure.figureLeaksAnswer(spec, ['plant', 'animal', 'bacteria'], 0)).toBe(false);
+  });
+
+  test('the DRAWN text is checked too, not just the spec', () => {
+    // A fraction bar prints "3/4" beside itself from `shaded`/`parts` — no
+    // label in the spec anywhere. Reading only the spec certified the answer
+    // as hidden while the picture said it out loud.
+    const spec = { type: 'fraction_bar', showLabels: true, bars: [{ parts: 4, shaded: 3 }] };
+    const svg = Figure.renderFigureSvg(spec, 'en');
+    expect(Figure.figureLeaksAnswer(spec, ['1/2', '3/4', '2/3'], 1)).toBe(false);
+    expect(Figure.figureLeaksAnswer(spec, ['1/2', '3/4', '2/3'], 1, svg)).toBe(true);
+  });
+
+  test('a short numeric option matches a whole label, never a fragment of one', () => {
+    const spec = { type: 'graph', xMin: 0, xMax: 40, yMin: 0, yMax: 40, xStep: 10, yStep: 10, xLabel: 'x', yLabel: 'y' };
+    const svg = Figure.renderFigureSvg(spec, 'en');
+    // the axis prints "30"; the option "3" is not that label
+    expect(Figure.figureLeaksAnswer(spec, ['3', '7', '9'], 0, svg)).toBe(false);
   });
 
   test('an empty or missing correct option never counts as a leak', () => {
