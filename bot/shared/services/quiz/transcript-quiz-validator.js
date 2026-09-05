@@ -14,6 +14,7 @@
 
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
+const { renderFigureSvg, figureLeaksAnswer } = require('./transcript-quiz-figure');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -46,6 +47,16 @@ const LATIN_FIRST = /^[\s"'«(]*[A-Za-z]/;
 // Letters are shuffled before display, so any letter reference is wrong by
 // the time a child reads it.
 const LETTER_REF = /\b[A-D]\)|\b(answer|option)\s+(is\s+)?[A-D]\b|آپشن\s*[A-D]\b|جواب\s*[A-D]\b/i;
+
+// A stem that promises a picture and does not carry one asks a child to read
+// something that is not there. Both scripts, because the quiz language and the
+// teacher's language are decided separately.
+const STEM_PROMISES_PICTURE =
+  /\b(in|on|from) the (picture|image|diagram|figure|graph|chart|number ?line)\b|\bshown (above|below|here)\b|\bpictured\b|تصویر|خاکہ|خاکے|شکل میں/i;
+
+// No more than half the questions may carry a figure. A quiz that is mostly
+// pictures stops testing the lesson and starts testing picture-reading.
+const FIGURE_MAX_SHARE = 0.5;
 
 function scriptRatio(s) {
   const letters = [...String(s || '')].filter((c) => /\p{L}/u.test(c));
@@ -109,6 +120,7 @@ function validate(rawQuestions, { language, subject, digest, nExpected } = {}) {
   const taught = new Map(slos.map((s) => [s.id, LEVELS[s.taught_level] ?? 1]));
   const covered = new Set();
   let atOrBelow = 0;
+  let figured = 0;
   const allText = [];
 
   qs.forEach((q, i) => {
@@ -143,7 +155,39 @@ function validate(rawQuestions, { language, subject, digest, nExpected } = {}) {
     }
     allText.push(...texts);
     if (texts.some((t) => LETTER_REF.test(t))) errs.push(`q${i}: letter reference`);
+
+    // ── the figure, if this question carries one ────────────────────────────
+    // Each check gets its OWN error string: the retry prompt quotes these back
+    // verbatim, and "bad figure" would send the model re-rolling blind.
+    if (q.figure == null) {
+      if (STEM_PROMISES_PICTURE.test(stem)) {
+        errs.push(`q${i}: FIGURE_MISSING — the stem talks about a picture but the question has no "figure"`);
+      }
+      return;
+    }
+    figured += 1;
+    if (typeof q.figure !== 'object' || Array.isArray(q.figure)) {
+      errs.push(`q${i}: FIGURE_TYPE — "figure" must be a spec object with a "type", not ${typeof q.figure}`);
+      return;
+    }
+    let svg = null;
+    try {
+      svg = renderFigureSvg(q.figure, language);
+    } catch (err) {
+      errs.push(`q${i}: ${err.code || 'FIGURE_RENDER'} — ${err.message}`);
+    }
+    if (!svg) return;
+    if (figureLeaksAnswer(q.figure, opts, ci)) {
+      errs.push(`q${i}: FIGURE_LEAK — the picture already names the correct answer; label every option or none`);
+    }
+    // Rendered once, here, and carried on the question: generate uploads this
+    // SVG's PNG and the teacher PDF inlines the same vector.
+    q.figureSvg = svg;
   });
+
+  if (figured / qs.length > FIGURE_MAX_SHARE) {
+    errs.push(`FIGURE_SHARE — ${figured}/${qs.length} questions carry a picture; at most half may`);
+  }
 
   if (sloIds.size && covered.size !== sloIds.size) {
     errs.push(`SLOs uncovered: ${[...sloIds].filter((id) => !covered.has(id)).join(', ')}`);
@@ -174,6 +218,8 @@ function validate(rawQuestions, { language, subject, digest, nExpected } = {}) {
 module.exports = {
   validate,
   normaliseFeedback,
+  STEM_PROMISES_PICTURE,
+  FIGURE_MAX_SHARE,
   scriptRatio,
   MIN_QUESTIONS,
   MAX_QUESTIONS,
