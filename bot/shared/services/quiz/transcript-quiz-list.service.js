@@ -61,7 +61,7 @@ function buildRows(sessions, quizzes, language) {
     .slice(0, MAX_ROWS)
     .map((s) => {
       const quiz = byId.get(s.id) || null;
-      const topic = quiz?.topic || s.analysis_data?.topic || (language === 'ur' ? 'سبق' : 'Lesson');
+      const topic = quiz?.topic || s.analysis_data?.topic || resolveUx('tqLessonWord', { language });
       const title = truncateCodePoints(`${formatLessonDate(s.created_at, language)} · ${topic}`, TITLE_MAX);
       return {
         id: `${PICK_PREFIX}${s.id}`,

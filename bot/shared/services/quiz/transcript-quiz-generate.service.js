@@ -23,7 +23,7 @@ const { resolveUx } = require('../../config/ux-strings');
 const Digest = require('./transcript-quiz-digest.service');
 const Author = require('./transcript-quiz-author.service');
 const { validate } = require('./transcript-quiz-validator');
-const { teacherLanguageFor, quizLanguageFor, formatLessonDate } = require('./transcript-quiz-language');
+const { teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor } = require('./transcript-quiz-language');
 const { SESSION_SELECT } = require('./transcript-quiz-offer.service');
 
 const N_QUESTIONS = 8;
@@ -83,9 +83,9 @@ function toRows(quizId, questions, { rng = Math.random } = {}) {
 /** "Teacher Rifat" / "استاد رفعت", or a language-appropriate "your teacher" when no name is stored. */
 function teacherLabel(teacherName, language) {
   const name = String(teacherName || '').trim();
-  const generic = /^(your teacher|teacher)$/i.test(name);
-  if (!name || generic) return language === 'ur' ? 'آپ کے استاد' : 'Your teacher';
-  return language === 'ur' ? `استاد ${name}` : `Teacher ${name}`;
+  const generic = /^(your teacher|teacher|آپ کے استاد)$/i.test(name);
+  if (!name || generic) return resolveUx('tqYourTeacher', { language });
+  return resolveUx('tqTeacherNamed', { language, params: { name } });
 }
 
 function studentMessage({ teacherName, topic, date, link, language }) {
@@ -93,15 +93,15 @@ function studentMessage({ teacherName, topic, date, link, language }) {
     language,
     params: {
       teacher: teacherLabel(teacherName, language),
-      topic: topic || (language === 'ur' ? 'آج کا سبق' : 'today’s lesson'),
+      topic: topic || resolveUx('tqTodaysLesson', { language }),
       date, link,
     },
   });
 }
 
-function pdfFilename(topic, language) {
+function pdfFilename(topic) {
   const safe = String(topic || 'quiz').replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'quiz';
-  return language === 'ur' ? `Quiz_${safe}.pdf` : `Quiz_${safe}.pdf`;
+  return `Quiz_${safe}.pdf`;
 }
 
 async function renderPdf({ quiz, questions, digest, teacherName, language, date, link }) {
@@ -161,7 +161,7 @@ async function process(quizId, payload = {}) {
       const language = quizLanguageFor(r.digest.subject, session.transcript_language);
       quiz.language = language;
       quiz.subject = r.digest.subject;
-      quiz.topic = language === 'ur' ? (r.digest.topic_as_taught || r.digest.topic) : (r.digest.topic || r.digest.topic_as_taught);
+      quiz.topic = topicFor(r.digest, language);
       quiz.grade = r.grade;
       await updateQuiz(quizId, { topic: quiz.topic || 'Lesson', subject: quiz.subject, language, grade: r.grade || null, meta: { ...meta, step: 'author' } });
     } catch (err) {
@@ -256,7 +256,7 @@ async function process(quizId, payload = {}) {
   const caption = resolveUx('tqHandoffIntro', { language: teacherLang, params: { topic: quiz.topic, n: qRows.length } });
   let pdfSent = false;
   if (tempPath) {
-    pdfSent = await WhatsAppService.sendDocument(phone, tempPath, pdfFilename(quiz.topic, teacherLang), caption);
+    pdfSent = await WhatsAppService.sendDocument(phone, tempPath, pdfFilename(quiz.topic), caption);
     try { fs.unlinkSync(tempPath); } catch { /* not worth failing over */ }
   }
   if (!pdfSent) {

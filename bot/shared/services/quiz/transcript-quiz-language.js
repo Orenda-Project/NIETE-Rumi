@@ -128,7 +128,14 @@ function fixQuestionTransliterations(q) {
   };
 }
 
+/** The topic label in a given language: the lesson's own name for Urdu, the clean English label otherwise. */
+function topicFor(digest, language) {
+  const d = digest || {};
+  return language === 'ur' ? (d.topic_as_taught || d.topic || '') : (d.topic || d.topic_as_taught || '');
+}
+
 module.exports = {
+  topicFor,
   fixTransliterations,
   fixQuestionTransliterations,
   TRANSLITERATIONS,

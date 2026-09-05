@@ -36,7 +36,7 @@ const GAP_TEXT_MS = 700;
 const GAP_MEDIA_MS = 1200;
 
 /** Picker chrome in the quiz language ('en' when the context carries none). */
-const chrome = (key, ctx) => resolveUx(key, { language: (ctx && ctx.language) || 'en' });
+const chrome = (key, ctx) => resolveUx(key, { language: ctx && ctx.language });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

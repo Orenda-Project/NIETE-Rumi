@@ -512,6 +512,26 @@ class SQSCoachingWorker {
       // silently swallow the other. Keyed on the share code, not the quiz.
       // The legacy 'video_quiz_report' name is also consumed so messages
       // already in flight at deploy time still land.
+      case 'quiz_video_report':
+      case 'video_quiz_report': {
+        const VideoQuizReport = require('../shared/services/quiz/video-quiz-report.service');
+        const jobPayload = (body && body.payload) ? body.payload : (payload || {});
+        const shareCodeId = jobPayload.shareCodeId || body.referenceId || body.groupId;
+        const targetAt = jobPayload.targetAt ? new Date(jobPayload.targetAt) : null;
+        if (targetAt && targetAt > new Date()) {
+          const wait = Math.min(900, Math.max(60,
+            Math.floor((targetAt - Date.now()) / 1000)));
+          await SQSQueueService.queueJob(shareCodeId, 'quiz_video_report',
+            { shareCodeId, targetAt: jobPayload.targetAt }, {
+              delaySeconds: wait,
+              deduplicationId: `${shareCodeId}-quiz_video_report-${Date.now()}`,
+            });
+          break;
+        }
+        await VideoQuizReport.generate(shareCodeId, { reason: 'scheduled' });
+        break;
+      }
+
       // Transcript quiz (the post-coaching quiz written from the lesson
       // recording). Three job types on the quiz queue; each handler re-reads
       // the quizzes row and is a no-op when its step already happened, so an
@@ -552,26 +572,6 @@ class SQSCoachingWorker {
         }
         const TranscriptQuizNudge = require('../shared/services/quiz/transcript-quiz-nudge.service');
         await TranscriptQuizNudge.process(quizId);
-        break;
-      }
-
-      case 'quiz_video_report':
-      case 'video_quiz_report': {
-        const VideoQuizReport = require('../shared/services/quiz/video-quiz-report.service');
-        const jobPayload = (body && body.payload) ? body.payload : (payload || {});
-        const shareCodeId = jobPayload.shareCodeId || body.referenceId || body.groupId;
-        const targetAt = jobPayload.targetAt ? new Date(jobPayload.targetAt) : null;
-        if (targetAt && targetAt > new Date()) {
-          const wait = Math.min(900, Math.max(60,
-            Math.floor((targetAt - Date.now()) / 1000)));
-          await SQSQueueService.queueJob(shareCodeId, 'quiz_video_report',
-            { shareCodeId, targetAt: jobPayload.targetAt }, {
-              delaySeconds: wait,
-              deduplicationId: `${shareCodeId}-quiz_video_report-${Date.now()}`,
-            });
-          break;
-        }
-        await VideoQuizReport.generate(shareCodeId, { reason: 'scheduled' });
         break;
       }
 

@@ -25,7 +25,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const StudentIdentity = require('./student-identity.service');
 
-const { resolveUx } = require('../../config/ux-strings');
+const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 
 const JOIN_TTL_SECS = 60 * 60;
 const stripPlus = (p) => (p && p.startsWith('+') ? p.slice(1) : p);
@@ -90,7 +90,7 @@ async function mintCode({ quizId, userId, videoId, language = 'en' }) {
   // The fallback is read by CHILDREN in the quiz language ("*your teacher* نے…" was
   // what an Urdu child got when a teacher had no stored name).
   const teacherName = [user?.first_name, user?.last_name].filter(Boolean).join(' ')
-    || (language === 'ur' ? 'آپ کے استاد' : 'your teacher');
+    || resolveUx('tqYourTeacher', { language });
   const { data: quiz } = await supabase
     .from('quizzes').select('topic').eq('id', quizId).maybeSingle();
 
@@ -226,7 +226,7 @@ async function beginFromCode(phone, code) {
   const sc = await Invite.resolveInvite(code);
 
   if (!sc || !sc.active || (sc.expires_at && new Date(sc.expires_at) < new Date())) {
-    await WhatsAppService.sendMessage(phone, ux('vqExpired', (sc && sc.language) || 'en'));
+    await WhatsAppService.sendMessage(phone, ux('vqExpired', clampLanguage(sc && sc.language)));
     return true;
   }
 
@@ -235,7 +235,7 @@ async function beginFromCode(phone, code) {
     // teacher's report exactly like anyone she sent it to directly.
     shareCodeId: sc.shareCodeId,
     quizId: sc.quiz_id, videoId: sc.video_id,
-    language: sc.language || 'en', topic: sc.topic, teacherName: sc.teacher_name,
+    language: clampLanguage(sc.language), topic: sc.topic, teacherName: sc.teacher_name,
     invitedByStudentId: sc.invitedByStudentId,
     // bd-2340: whose quiz this is, so a new child is filed under her.
     teacherUserId: sc.teacher_user_id || null,
@@ -243,8 +243,8 @@ async function beginFromCode(phone, code) {
   const lang = ctx.language;
 
   const greeting = ux('vqGreeting', lang, {
-    teacher: sc.teacher_name || (lang === 'ur' ? 'آپ کے استاد' : 'Your teacher'),
-    topic: sc.topic || (lang === 'ur' ? 'آج کا سبق' : 'today’s lesson'),
+    teacher: sc.teacher_name || resolveUx('tqYourTeacher', { language: lang }),
+    topic: sc.topic || resolveUx('tqTodaysLesson', { language: lang }),
   });
 
   // bd-2337 — do we already know who is on this handset?
@@ -339,7 +339,7 @@ async function handleJoinFlowReply(phone, flowToken, payload = {}) {
     // Ours, so we consume it — but there is nothing to store. Ask rather than
     // writing a blank child into the teacher's report.
     const pending = await redisService.get(JOIN_KEY(phone));
-    await WhatsAppService.sendMessage(phone, ux('vqAskNameMissed', (pending && pending.language) || 'en'));
+    await WhatsAppService.sendMessage(phone, ux('vqAskNameMissed', clampLanguage(pending && pending.language)));
     await redisService.set(JOIN_KEY(phone), { ...(pending || {}), shareCodeId, step: 'name' }, JOIN_TTL_SECS);
     return true;
   }
@@ -352,10 +352,10 @@ async function handleJoinFlowReply(phone, flowToken, payload = {}) {
     .eq('id', shareCodeId)
     .maybeSingle();
   if (!sc) {
-    await WhatsAppService.sendMessage(phone, ux('vqExpired', 'en'));
+    await WhatsAppService.sendMessage(phone, ux('vqExpired', clampLanguage(null)));
     return true;
   }
-  const lang = sc.language || 'en';
+  const lang = clampLanguage(sc.language);
 
   await redisService.delete(JOIN_KEY(phone));
   const student = await StudentIdentity.remember({
@@ -404,7 +404,7 @@ async function consumeJoinReply(phone, text) {
   if (!st) return false;
   const value = (text || '').trim();
   if (!value) return false;
-  const lang = st.language || 'en';
+  const lang = clampLanguage(st.language);
 
   // bd-2337 — siblings on one handset picked which of them is playing.
   if (st.step === 'whoami') {

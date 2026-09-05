@@ -5276,15 +5276,9 @@ CREATE INDEX IF NOT EXISTS idx_lp_feedback_lp612_segment
 -- 2026-09-05); lives here too so a fresh bootstrap sees the columns.
 -- =============================================================================
 
-ALTER TABLE quizzes
-  ADD COLUMN IF NOT EXISTS coaching_session_id UUID
-  REFERENCES coaching_sessions(id) ON DELETE SET NULL;
-
-ALTER TABLE quizzes
-  ADD COLUMN IF NOT EXISTS language TEXT;
-
-ALTER TABLE quizzes
-  ADD COLUMN IF NOT EXISTS meta JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS coaching_session_id UUID REFERENCES coaching_sessions(id) ON DELETE SET NULL;
+ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS language TEXT;
+ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS meta JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 ALTER TABLE quizzes DROP CONSTRAINT IF EXISTS quizzes_status_check;
 ALTER TABLE quizzes ADD CONSTRAINT quizzes_status_check CHECK (

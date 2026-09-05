@@ -30,7 +30,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
 const FeatureIntro = require('../feature-intro.service');
 const Digest = require('./transcript-quiz-digest.service');
-const { quizLanguageFor, teacherLanguageFor, canonicalSubject, formatLessonDate } = require('./transcript-quiz-language');
+const { quizLanguageFor, teacherLanguageFor, canonicalSubject, formatLessonDate, topicFor } = require('./transcript-quiz-language');
 
 const OFFER_YES = 'tq_yes_';
 const OFFER_NO = 'tq_no_';
@@ -195,8 +195,8 @@ async function processOffer(coachingSessionId, payload = {}) {
 
   const language = quizLanguageFor(digest.subject, session.transcript_language);
   const teacherLang = teacherLanguageFor({ preferredLanguage: user.preferred_language, transcriptLanguage: session.transcript_language });
-  const topic = language === 'ur' ? (digest.topic_as_taught || digest.topic) : (digest.topic || digest.topic_as_taught);
-  const teacherTopic = teacherLang === 'ur' ? (digest.topic_as_taught || digest.topic) : (digest.topic || digest.topic_as_taught);
+  const topic = topicFor(digest, language);
+  const teacherTopic = topicFor(digest, teacherLang);
 
   await supabase.from('quizzes').update({
     status: 'offered',
@@ -215,7 +215,7 @@ async function processOffer(coachingSessionId, payload = {}) {
   // The offer itself. Video header the first time (when a video is
   // configured), plain buttons after.
   const phone = payload.phone || user.phone_number;
-  const params = { topic: teacherTopic || 'today’s lesson', date: formatLessonDate(session.created_at, teacherLang) };
+  const params = { topic: teacherTopic || resolveUx('tqTodaysLesson', { language: teacherLang }), date: formatLessonDate(session.created_at, teacherLang) };
   const body = resolveUx('tqOffer', { language: teacherLang, params });
   const buttons = [
     { id: `${OFFER_YES}${quizId}`, title: resolveUx('tqOfferYes', { language: teacherLang }) },
@@ -257,7 +257,7 @@ async function handleOfferButton(buttonId, phone) {
     .select('id, teacher_id, status, language, topic, meta, coaching_session_id')
     .eq('id', quizId).maybeSingle();
   if (!quiz) {
-    await WhatsAppService.sendMessage(phone, resolveUx('tqOfferExpired', { language: 'ur' }));
+    await WhatsAppService.sendMessage(phone, resolveUx('tqOfferExpired', { language: teacherLanguageFor({}) }));
     return true;
   }
   const teacher = await teacherFor(quiz);
