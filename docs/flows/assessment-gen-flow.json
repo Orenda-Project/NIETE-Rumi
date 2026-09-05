@@ -333,30 +333,6 @@
           "type": "string",
           "__example__": "Grade 1 · English · Chapter 1"
         },
-        "counts": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "title": {
-                "type": "string"
-              }
-            }
-          },
-          "__example__": [
-            {
-              "id": "10",
-              "title": "10 questions"
-            },
-            {
-              "id": "20",
-              "title": "20 questions"
-            }
-          ]
-        },
         "error": {
           "type": "string",
           "__example__": ""
@@ -364,6 +340,10 @@
         "has_error": {
           "type": "boolean",
           "__example__": false
+        },
+        "count_hint": {
+          "type": "string",
+          "__example__": "Between 1 and 25."
         }
       },
       "layout": {
@@ -402,11 +382,12 @@
                 ]
               },
               {
-                "type": "Dropdown",
+                "type": "TextInput",
                 "name": "question_count",
                 "label": "How many questions",
                 "required": true,
-                "data-source": "${data.counts}"
+                "input-type": "number",
+                "helper-text": "${data.count_hint}"
               },
               {
                 "type": "OptIn",
