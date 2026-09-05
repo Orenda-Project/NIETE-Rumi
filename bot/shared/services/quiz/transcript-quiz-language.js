@@ -144,12 +144,62 @@ const TRANSLITERATIONS = [
   ['فوٹو سنتھیسز', 'photosynthesis'], ['فوٹوسنتھیسز', 'photosynthesis'], ['ایکو سسٹم', 'ecosystem'], ['ایکوسسٹم', 'ecosystem'],
   ['کلوگرام', 'kilogram'], ['ٹمپریچر', 'temperature'], ['میٹیریل', 'material'], ['لیکوئڈ', 'liquid'],
   ['پروناؤن', 'pronoun'], ['ایڈجیکٹو', 'adjective'], ['سینٹینس', 'sentence'], ['نائون', 'noun'],
+  // Science and geometry, from ten real prod lessons seeded onto staging on
+  // 2026-09-06: the round-3 table was written from a maths-only corpus, so a
+  // circuit, an atom and a radius all reached the teacher in Urdu letters.
+  ['الیکٹرک سرکٹس', 'electric circuits'], ['الیکٹرک سرکٹ', 'electric circuit'], ['سرکٹس', 'circuits'], ['سرکٹ', 'circuit'],
+  ['اسٹرکچر', 'structure'], ['سٹرکچر', 'structure'],
+  ['ایٹمز', 'atoms'], ['ایٹم', 'atom'],
+  ['الیکٹرانز', 'electrons'], ['الیکٹران', 'electron'],
+  ['پروٹونز', 'protons'], ['پروٹون', 'proton'],
+  ['نیوٹرانز', 'neutrons'], ['نیوٹران', 'neutron'],
+  ['نیوکلیئس', 'nucleus'], ['نیوکلئس', 'nucleus'], ['نیوکلیس', 'nucleus'],
+  ['ڈائی میٹر', 'diameter'], ['ڈایا میٹر', 'diameter'], ['ڈایامیٹر', 'diameter'], ['ڈائیامیٹر', 'diameter'],
+  ['ریڈیئس', 'radius'], ['ریڈیس', 'radius'], ['ریڈئس', 'radius'],
+  ['سرکمفرنس', 'circumference'],
+  ['امپراپر', 'improper'], ['پراپر', 'proper'], ['مکسچر', 'mixture'], ['مکس', 'mixed'],
 ];
+
+// A word character in ANY script: letter, combining mark or digit. Everything
+// else — a space, a Latin comma, an Urdu comma (،), an Urdu full stop (۔), a
+// bracket, the string edge — is a word boundary. Written with Unicode property
+// escapes rather than a hand-listed Arabic range, because the Arabic block puts
+// ، ۔ ؟ ؛ in among its letters, and a hand-listed range therefore treats
+// "circle، ریڈیس، اور ڈائی میٹر" as ONE word and rewrites none of it.
+const WORD_CHAR = '\\p{L}\\p{M}\\p{N}';
+
+/**
+ * Compiled once, and matched at URDU WORD BOUNDARIES rather than as a raw
+ * substring. The substring form was safe only while every entry was long: the
+ * moment a three-letter one is needed (`مکس` → mixed, from a real lesson) it
+ * eats the middle of an unrelated word — `مکسچر` (mixture) came back as
+ * "mixedچر" on the first pass over the seeded corpus. A boundary is any
+ * non-Urdu character or the edge of the string, so `مکس fraction` is rewritten
+ * and `مکسچر` is not, and `سٹرکچر` no longer fires inside `اسٹرکچر`.
+ */
+const TRANSLITERATION_RULES = TRANSLITERATIONS.map(([ur, en]) => [
+  new RegExp(`(^|[^${WORD_CHAR}])(${ur.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})(?![${WORD_CHAR}])`, 'gu'),
+  en,
+]);
 
 function fixTransliterations(text) {
   let out = String(text || '');
-  for (const [ur, en] of TRANSLITERATIONS) out = out.split(ur).join(en);
+  for (const [rx, en] of TRANSLITERATION_RULES) out = out.replace(rx, (_m, pre) => pre + en);
   return out;
+}
+
+/**
+ * A whole English phrase spelled out in Urdu letters, e.g. "اسٹرکچر آف این
+ * ایٹم". No table can hold these — the giveaway is the GRAMMAR, not the terms:
+ * `آف` and `اینڈ` standing alone are never Urdu words, they are how a
+ * speech-to-text writes "of" and "and" inside an English phrase. When one
+ * appears, the label is a transliteration rather than the Urdu the prompt asked
+ * for, and the digest has already produced the clean English label alongside it.
+ */
+const ENGLISH_CONNECTOR_IN_URDU = new RegExp(`(^|[^${WORD_CHAR}])(آف|اینڈ)(?![${WORD_CHAR}])`, 'u');
+
+function isTransliteratedEnglishPhrase(label) {
+  return ENGLISH_CONNECTOR_IN_URDU.test(String(label || ''));
 }
 
 /** Apply the fixer to every child-facing field of an authored question. */
@@ -281,6 +331,7 @@ module.exports = {
   EXTRA_SUBJECT_LABELS,
   fixTransliterations,
   fixQuestionTransliterations,
+  isTransliteratedEnglishPhrase,
   TRANSLITERATIONS,
   URDU_MEDIUM,
   LANG_NAME,

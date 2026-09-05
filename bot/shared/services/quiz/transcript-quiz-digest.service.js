@@ -23,7 +23,7 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { completeJson } = require('./transcript-quiz-llm');
-const { canonicalSubject, fixTransliterations } = require('./transcript-quiz-language');
+const { canonicalSubject, fixTransliterations, isTransliteratedEnglishPhrase } = require('./transcript-quiz-language');
 
 const MAX_TRANSCRIPT_CHARS = 60000;   // p90 is 26k; a runaway transcript is cut, not refused
 
@@ -71,12 +71,20 @@ ${String(transcript || '').slice(0, MAX_TRANSCRIPT_CHARS)}`;
 function normaliseDigest(raw, { storedSubject } = {}) {
   const d = raw && typeof raw === 'object' ? raw : {};
   const slos = Array.isArray(d.slos) ? d.slos : [];
+  const topic = String(d.topic || '').trim();
+  const rawAsTaught = String(d.topic_as_taught || d.topic || '').trim();
+  // A whole English phrase in Urdu letters ("اسٹرکچر آف این ایٹم") is not a term
+  // the fixer's table can ever hold, and rewriting half of it is worse than not
+  // rewriting it at all. The clean English label is sitting right there in
+  // `topic`, so use it and record that we did.
+  const transliteratedPhrase = Boolean(topic) && isTransliteratedEnglishPhrase(rawAsTaught);
   const out = {
-    topic: String(d.topic || '').trim(),
+    topic,
     // The goal lines and the as-taught topic are printed on the teacher's PDF
     // and the report; a transliterated term there ('فیکشن') contradicts every
     // question under it. What was SPOKEN (key_terms.as_spoken) stays as spoken.
-    topic_as_taught: fixTransliterations(String(d.topic_as_taught || d.topic || '').trim()),
+    topic_as_taught: transliteratedPhrase ? topic : fixTransliterations(rawAsTaught),
+    topic_transliteration_fixed: transliteratedPhrase || undefined,
     subject: canonicalSubject(d.subject) !== 'other' ? canonicalSubject(d.subject) : canonicalSubject(storedSubject),
     subject_conflict: Boolean(d.subject_conflict),
     grade_band: String(d.grade_band || '').trim() || null,
