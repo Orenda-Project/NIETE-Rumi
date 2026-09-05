@@ -131,9 +131,10 @@ function pageCapsFor(lang) {
 // furniture-derived ceiling also clears every case on record; a 13px overflow still fails,
 // because absorbing it would mean eating content.
 //
-// AND CLIPPING STILL FAILS AT ANY SIZE. `overflowingSections` non-empty means a real section
-// is being cut off, and no number of pixels makes that absorbable. That guard is what keeps
-// this from quietly becoming "OVERFLOW is a warning now".
+// AND CLIPPING STILL FAILS AT ANY SIZE. If any of the lesson is past the line, no number of
+// pixels makes it absorbable — that is what keeps this from quietly becoming "OVERFLOW is a
+// warning now". See `absorbPlan` for WHICH measurement decides that, and why the obvious one
+// is not enough on its own.
 const OVERFLOW_ABSORB_MAX_PX = 12;
 
 /**
@@ -153,7 +154,30 @@ function absorbPlan(pages, maxPx = OVERFLOW_ABSORB_MAX_PX) {
     const px = p.overflowPx;
     if (!(px > 1)) continue;                                    // 1px is already tolerated below
     if (px > maxPx) continue;                                   // past the furniture: real length
-    if ((p.overflowingSections || []).length) continue;         // content over the line = clipping
+
+    // A SECTION BAR OVER THE LINE IS THE LOUD CASE, AND IT IS NOT THE ONE THAT MATTERS.
+    //
+    // This check was written first, on the reasoning "no `data-sec` element is past the line,
+    // therefore no content is". That did not survive being checked. `data-sec` is emitted on
+    // exactly four elements in lib/template.js and every one of them is a section BAR — no
+    // block, card, list item, figure or table carries it. So `overflowingSections` is empty on
+    // nearly every page, including pages where real content IS past the edge, and a guard that
+    // is almost never false is not a guard. Kept because it is free and catches the loudest
+    // case; the next check is the load-bearing one.
+    if ((p.overflowingSections || []).length) continue;
+
+    // THE ONE THAT DECIDES IT. `contentBottomPx` is the last painted pixel EXCLUDING `.foot` —
+    // the probe skips anything inside the footer explicitly, so that a page whose footer is
+    // pinned to the floor does not read as 100% full. If the content ends at or inside
+    // `innerBottomPx`, every pixel of the LESSON is on the paper and the only thing over the
+    // line is furniture, which is precisely what this absorbs. If it ends past it, that is the
+    // lesson being cut off and it must keep failing at any size.
+    //
+    // `undefined` is not "past": a probe shape without these fields predates them, and absent
+    // evidence must not silently deny a lesson the absorption it qualifies for.
+    if (typeof p.contentBottomPx === 'number' && typeof p.innerBottomPx === 'number'
+        && p.contentBottomPx > p.innerBottomPx) continue;
+
     out.push({ id: p.id, px });
   }
   return out;
