@@ -345,9 +345,18 @@ figure.dg .fsrc{ color:var(--leaf); font-weight:800; font-size:14px; }
    to whatever fraction 118px was of its natural height. That is what put mindmap, punnett and
    grid labels at ~3px on a phone: the clamp, not the diagram types' own font sizes. Each
    figure now carries its OWN computed max-height (the slot in which its smallest label still
-   renders >= 13.5px). A raster book crop has no vector type to crush, so it keeps a clamp. */
+   renders >= 13.5px).
+
+   A raster book crop cannot be measured that way -- its labels are baked pixels, not text nodes
+   the sizer can find -- so it keeps a flat clamp. But the clamp was 200px on the reasoning that
+   "a raster has no vector type to crush", and that reasoning was wrong: downscaling crushes a
+   crop's printed labels exactly as it crushed the vector ones. Measured on the 2026-09-05
+   representative batch (bd-8lifl), six crops across five lessons were unreadable at their own
+   labels -- the Grade 6 Geography world map printed at under half the column with ~2.5pt
+   labels, on a figure whose content was otherwise correct. CROP_MAX_H is the lever; raising it
+   costs paper, not lessons (an over-cap document still delivers, bd-vjk68). */
 figure.dg svg{ display:block; width:100%; height:auto; max-height:var(--fig-h, none); margin:0 auto; }
-figure.dg img{ display:block; width:100%; height:auto; max-height:200px;
+figure.dg img{ display:block; width:100%; height:auto; max-height:${CROP_MAX_H}px;
       object-fit:contain; margin:0 auto; }
 figure.dg figcaption{ text-align:center; font-size:15.5px; color:var(--mut); font-weight:600; margin-top:var(--sp-1);
       line-height:${rtl ? "1.9" : "1.5"}; }
@@ -541,6 +550,9 @@ p, li, figcaption,
 // .pad is padded 22px each side inside a 794px page; figure.dg adds 10px padding either
 // side plus a 1.5px border. So a full-width diagram's own drawing box is 727px.
 const PAGE_INNER_W = 794 - 21 * 2;      // 752
+/* The flat height clamp on a raster book crop. See the note above `figure.dg img`. */
+const CROP_MAX_H = 320;
+
 const FIG_CHROME = 10 * 2 + 3;          // figure.dg padding + border
 const FULL_COL = PAGE_INNER_W - FIG_CHROME;  // 727
 const SPLIT_GAP = 9;

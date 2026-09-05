@@ -71,6 +71,35 @@ outside this repo and not in this repo's git history:
 > authored — and 2 `GRAPH_POINT_ORDER` lines, both the barometer's own points. `GRAPH_ORIENTATION`
 > fires nowhere, and there are **no false positives**. 3 documents of 103 gain a blocking defect.
 
+> **Partial re-vendor 2026-09-05 (bd-8lifl): `lint_lp.js`, `lib/template.js`, `brief_author_v3.md`
+> and all three flash briefs.** Fixed upstream first and copied byte-for-byte. **No new §3
+> divergence.**
+>
+> Four fixes, from the 2026-09-05 representative diagram batch — 16 lessons, 56 diagrams, and only
+> **4 ship-quality before the fixes**. Full evidence in the workspace under
+> `FEAT-080 6-12 Lesson Plans/diagram_review_2026-09-05/FIXES.md`:
+>
+> 1. **§4b.4 stopped contradicting §4b.1** about whether a `textbook_figure` counts toward the ≥2
+>    floor. PR #622 changed the checker and §4b.1; §4b.4 still said the opposite, inside the section
+>    headed "COPY THESE, do not invent fields". Eight lessons drew something else while the
+>    planner's crop sat verified in R2 — one with the Activity heading "LABELLING FIG. 6.9" and four
+>    exam marks riding on it.
+> 2. **New generated §4b.5** — the complete per-type field list, spliced from
+>    `diagrams/types_manifest.json` between `<!-- 4b.5:begin -->` markers by the new upstream
+>    `lp_author/build_field_appendix.py`. The hand-written brief named **57 fewer fields than the
+>    engine reads**, across 17 of the 20 types; `grid.cellText`, `atom.Z`, `graph.segments`,
+>    `dna_helix.rungCount` and `punnett.showRatio` each caused a delivered defect. The drift guard
+>    now runs in both directions.
+> 3. **New blocking `ATOM_UNKNOWN_ELEMENT`** in `lint_lp.js`. `atom.js`'s table is H–Ca plus
+>    Fe/Cu/Zn/Br/I; anything else falls through to Z=1, so a figure titled "WHY THE CHROMIUM ION IS
+>    Cr3+" drew a hydrogen atom labelled Cr. The renderer is deliberately unchanged — a throw would
+>    turn a repairable defect into a lost lesson.
+> 4. **`CROP_MAX_H = 320`** replaces the hard-coded `max-height:200px` on `figure.dg img` in
+>    `template.js`. Every SVG already gets a slot computed so its smallest label clears the 13.5 px
+>    floor; a raster crop kept a flat clamp on the reasoning that it "has no vector type to crush",
+>    which is wrong — its labels are baked pixels and are crushed the same way. Six crops across
+>    five lessons were printed too small to read their own labels. Costs paper, not lessons.
+
 > **Partial re-vendor 2026-09-04 (bd-q2jr1): a NEW FILE — `visual_check.js` — plus `lint_lp.js`,
 > `brief_author_v3.md` and all three flash briefs.** Fixed upstream first, in both upstream homes,
 > and copied byte-for-byte. **No new §3 divergence.**
