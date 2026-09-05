@@ -128,11 +128,14 @@ describe('validate — Urdu', () => {
     expect(V.validate(qs, urCtx).errors.some((e) => /urdu script ratio/.test(e))).toBe(true);
   });
 
-  test('an English technical term transliterated into Urdu script is rejected', () => {
-    const qs = urEight(); qs[0].options = ['نمبریٹر', 'پتا', 'پھول'];
-    expect(V.validate(qs, urCtx).errors.some((e) => /transliterated English term/.test(e))).toBe(true);
-    qs[0].options = ['numerator', 'پتا', 'پھول'];
-    expect(V.validate(qs, urCtx).errors.some((e) => /transliterated English term/.test(e))).toBe(false);
+  test('a known transliterated English term is rewritten in English letters; an unmapped one is rejected', () => {
+    const qs = urEight(); qs[0].options = ['نمبریٹر', 'پتا', 'پھول']; qs[0].question = 'فیکشن کے اوپر والے نمبر کو کیا کہتے ہیں؟';
+    const r = V.validate(qs, urCtx);
+    expect(r.errors.some((e) => /transliterated English term/.test(e))).toBe(false);
+    expect(r.questions[0].options[0]).toBe('numerator');
+    expect(r.questions[0].question).toMatch(/^fraction /);
+    const qs2 = urEight(); qs2[0].options = ['ریکٹینگل کا ایریا', 'پتا', 'پھول']; qs2[0].explanation = 'ٹائپس دیکھیں';
+    expect(V.validate(qs2, urCtx).errors.some((e) => /transliterated English term/.test(e))).toBe(true);
   });
 
   test('feminine-stem address is rejected', () => {

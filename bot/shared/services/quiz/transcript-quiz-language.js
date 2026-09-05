@@ -82,7 +82,56 @@ function formatLessonDate(iso, language, { year = false } = {}) {
   return year ? `${day} ${month} ${y}` : `${day} ${month}`;
 }
 
+/**
+ * Speech-to-text writes English technical terms in Urdu letters ("فیکشن") and a
+ * model mirrors the transcript. The operator's rule is the other way round —
+ * Urdu written well, English terms in English letters — so the known ones are
+ * rewritten deterministically before validation. Longest first so a plural or
+ * a compound wins over its stem. Case is the English convention (lower-case
+ * common nouns).
+ */
+const TRANSLITERATIONS = [
+  ['پروپر فیکشنز', 'proper fractions'], ['پروپر فیکشن', 'proper fraction'], ['پراپر فیکشن', 'proper fraction'],
+  ['امپروپر فیکشن', 'improper fraction'], ['مکسڈ فیکشن', 'mixed fraction'],
+  ['فیکشنز', 'fractions'], ['فیکشن', 'fraction'], ['فریکشنز', 'fractions'], ['فریکشن', 'fraction'],
+  ['نیومریٹر', 'numerator'], ['نمبریٹر', 'numerator'], ['نیومیریٹر', 'numerator'],
+  ['ڈینومینیٹر', 'denominator'], ['ڈینامینیٹر', 'denominator'], ['ڈی نومینیٹر', 'denominator'],
+  ['سبٹریکشن', 'subtraction'], ['ایڈیشن', 'addition'], ['ملٹی پلیکیشن', 'multiplication'], ['ملٹیپلیکیشن', 'multiplication'], ['ڈویژن', 'division'],
+  ['پلیس ویلیو', 'place value'], ['ڈیجٹس', 'digits'], ['ڈیجٹ', 'digit'],
+  ['ٹرائی اینگل', 'triangle'], ['ریکٹینگل', 'rectangle'], ['پیری میٹر', 'perimeter'],
+  ['فوٹو سنتھیسز', 'photosynthesis'], ['فوٹوسنتھیسز', 'photosynthesis'], ['ایکو سسٹم', 'ecosystem'], ['ایکوسسٹم', 'ecosystem'],
+  ['کلوگرام', 'kilogram'], ['ٹمپریچر', 'temperature'], ['میٹیریل', 'material'], ['لیکوئڈ', 'liquid'],
+  ['پروناؤن', 'pronoun'], ['ایڈجیکٹو', 'adjective'], ['سینٹینس', 'sentence'], ['نائون', 'noun'],
+];
+
+function fixTransliterations(text) {
+  let out = String(text || '');
+  for (const [ur, en] of TRANSLITERATIONS) out = out.split(ur).join(en);
+  return out;
+}
+
+/** Apply the fixer to every child-facing field of an authored question. */
+function fixQuestionTransliterations(q) {
+  if (!q || typeof q !== 'object') return q;
+  const fb = q.option_feedback || {};
+  const wrong = {};
+  Object.entries(fb.wrong || {}).forEach(([k, v]) => { wrong[k] = fixTransliterations(v); });
+  const misc = {};
+  Object.entries(q.distractor_misconceptions || {}).forEach(([k, v]) => { misc[k] = fixTransliterations(v); });
+  return {
+    ...q,
+    question: fixTransliterations(q.question),
+    options: Array.isArray(q.options) ? q.options.map(fixTransliterations) : q.options,
+    explanation: fixTransliterations(q.explanation),
+    distractor_misconceptions: Object.keys(misc).length ? misc : q.distractor_misconceptions,
+    option_feedback: { ...fb, correct: fixTransliterations(fb.correct), wrong },
+  };
+}
+
 module.exports = {
+  fixTransliterations,
+  fixQuestionTransliterations,
+  TRANSLITERATIONS,
   URDU_MEDIUM,
   LANG_NAME,
   canonicalSubject,

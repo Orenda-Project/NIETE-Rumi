@@ -13,7 +13,7 @@
  */
 
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
-const { canonicalSubject } = require('./transcript-quiz-language');
+const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -93,7 +93,7 @@ function validate(rawQuestions, { language, subject, digest, nExpected } = {}) {
   if (!Array.isArray(rawQuestions) || !rawQuestions.length) {
     return { ok: false, errors: ['no questions'], questions: [] };
   }
-  const qs = rawQuestions.map(normaliseFeedback);
+  const qs = rawQuestions.map(normaliseFeedback).map((q) => (language === 'ur' ? fixQuestionTransliterations(q) : q));
   if (qs.length < MIN_QUESTIONS || qs.length > MAX_QUESTIONS) {
     errs.push(`count ${qs.length} outside ${MIN_QUESTIONS}..${MAX_QUESTIONS}${nExpected ? ` (asked for ${nExpected})` : ''}`);
   }
