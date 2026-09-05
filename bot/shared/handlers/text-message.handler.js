@@ -307,8 +307,15 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         const VideoQuizShare = require('../services/quiz/video-quiz-share.service');
         const code = VideoQuizShare.parseShareCode(messageBody);
         if (code) {
-          await VideoQuizShare.beginFromCode(from, code);
+          // ACK FIRST. Thirty children tapping a forwarded link within the
+          // same minute used to run thirty joins (identity lookup, share-code
+          // resolution, a Flow send) inline before this webhook answered
+          // 200; Meta retried the slow ones and the retries collided. The
+          // join now runs after the handler returns, under a per-phone+code
+          // lock so a retry cannot start a second session.
           typingController.stop();
+          setImmediate(() => VideoQuizShare.beginFromCodeLocked(from, code)
+            .catch((err) => logToFile('❌ video-quiz join failed', { from, code, error: err.message }, 'error')));
           return;
         }
         if (await VideoQuizShare.consumeJoinReply(from, messageBody)) {
@@ -1031,7 +1038,10 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // Direct path (QuizOrchestrator). A Quiz Manager Flow can be layered later
   // via QUIZ_FLOW_ID, but the direct path needs no Meta-flow registration.
   // ============================================================
-  if (trimmedMessage === '/quiz' || trimmedMessage.startsWith('/quiz ')) {
+  const TranscriptQuizList = require('../services/quiz/transcript-quiz-list.service');
+  const TranscriptQuizOffer = require('../services/quiz/transcript-quiz-offer.service');
+  if (TranscriptQuizList.isQuizCommand(trimmedMessage)
+      && !(TranscriptQuizOffer.enabled() === false && !/^\/quiz(\s|$)/i.test(trimmedMessage))) {
     logToFile('📝 /quiz command detected', { userId: user?.id, phoneNumber: from });
     if (!user) {
       typingController.stop();
@@ -1039,6 +1049,19 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         from,
         'Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔'
       );
+      return;
+    }
+    // Transcript quiz (flag-gated): /quiz lists the teacher's own lessons and
+    // makes a quiz from the recording — replacing the parent-quiz path that
+    // needed parents' phone numbers and produced zero quizzes on NIETE.
+    if (TranscriptQuizOffer.enabled()) {
+      typingController.stop();
+      try {
+        const responseLanguage = await getUserLanguage(user.id) || null;
+        await TranscriptQuizList.showList({ ...user, preferred_language: responseLanguage || user.preferred_language }, from, responseLanguage);
+      } catch (error) {
+        logToFile('❌ transcript quiz: /quiz list failed', { userId: user.id, error: error.message }, 'error');
+      }
       return;
     }
     try {

@@ -39,6 +39,9 @@ const { logToFile } = require('../../shared/utils/logger');
 beforeEach(() => {
   mockStore.clear();
   jest.useFakeTimers();
+  // The process-wide outbound bucket does not refill under fake time; each test
+  // starts with a full one so only the per-recipient window is under test here.
+  rateLimiter.resetGlobalBucket();
   logToFile.mockClear();
 });
 

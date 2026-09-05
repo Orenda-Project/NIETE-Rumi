@@ -532,6 +532,49 @@ class SQSCoachingWorker {
         break;
       }
 
+      // Transcript quiz (the post-coaching quiz written from the lesson
+      // recording). Three job types on the quiz queue; each handler re-reads
+      // the quizzes row and is a no-op when its step already happened, so an
+      // at-least-once redelivery is harmless.
+      case 'quiz_offer': {
+        if (sourceQueue === 'quiz') {
+          await SQSQueueService.extendQuizJobTimeout(receiptHandle, 300);
+        } else {
+          await SQSQueueService.extendJobTimeout(receiptHandle, 300);
+        }
+        const TranscriptQuizOffer = require('../shared/services/quiz/transcript-quiz-offer.service');
+        const p = (body && body.payload) ? body.payload : (payload || {});
+        await TranscriptQuizOffer.processOffer(p.coachingSessionId || body.groupId, p);
+        break;
+      }
+      case 'quiz_generate': {
+        // Two model calls + a PDF render + three sends: give it room.
+        if (sourceQueue === 'quiz') {
+          await SQSQueueService.extendQuizJobTimeout(receiptHandle, 600);
+        } else {
+          await SQSQueueService.extendJobTimeout(receiptHandle, 600);
+        }
+        const TranscriptQuizGenerate = require('../shared/services/quiz/transcript-quiz-generate.service');
+        const p = (body && body.payload) ? body.payload : (payload || {});
+        await TranscriptQuizGenerate.process(p.quizId || body.groupId, p);
+        break;
+      }
+      case 'quiz_nudge_teacher': {
+        const p = (body && body.payload) ? body.payload : (payload || {});
+        const quizId = p.quizId || body.groupId;
+        const targetAt = p.targetAt ? new Date(p.targetAt) : null;
+        if (targetAt && targetAt > new Date()) {
+          const wait = Math.min(900, Math.max(60, Math.floor((targetAt - Date.now()) / 1000)));
+          await SQSQueueService.queueJob(quizId, 'quiz_nudge_teacher', { quizId, targetAt: p.targetAt }, {
+            delaySeconds: wait, deduplicationId: `${quizId}-quiz_nudge_teacher-${Date.now()}`,
+          });
+          break;
+        }
+        const TranscriptQuizNudge = require('../shared/services/quiz/transcript-quiz-nudge.service');
+        await TranscriptQuizNudge.process(quizId);
+        break;
+      }
+
       default:
         throw new Error(`Unknown job type: ${jobType}`);
     }

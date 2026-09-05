@@ -451,46 +451,27 @@ class ReportGeneratorService {
 
       logToFile('✅ Report generation complete', { coachingSessionId });
 
-      // Trigger 3: Offer quiz to teacher's students after coaching report
-      try {
-        const language = outputLanguage; // bd-3b0co: unified resolver
-        const quizTopic = enhancedAnalysis?.topic;
-        if (quizTopic) {
-          // Find the most recent lesson plan for this teacher to anchor the quiz
-          const { data: recentLP } = await supabase
-            .from('lesson_plans')
-            .select('id, topic')
-            .eq('user_id', session.user_id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
+      // Transcript quiz: schedule the offer AFTER the survey's reply window.
+      // Replaces the dead "Trigger 3" (it needed a lesson plan, a class and
+      // parents' phone numbers, and its buttons were never routed).
+      // Framework-independent — reads the transcript, never enhancedAnalysis.
+      const skipFeatureLink = await this.scheduleTranscriptQuiz(session, coachingSessionId, from, outputLanguage);
 
-          if (recentLP) {
-            await this.offerQuizAfterReport(
-              { id: session.user_id },
-              from,
-              recentLP.id,
-              recentLP.topic || quizTopic,
-              language
-            );
-          }
+      // Suggest next feature after coaching completion — unless a quiz offer
+      // is on its way: one ask at a time, so the offer is the only ask.
+      if (!skipFeatureLink) {
+        try {
+          const language = outputLanguage; // unified resolver
+          await FeatureLinkerService.suggestNext(
+            'coaching',
+            session.user_id,
+            from,
+            language,
+            { coachingSessionId }
+          );
+        } catch (error) {
+          logToFile('⚠️ Error in feature linker after coaching', { error: error.message });
         }
-      } catch (error) {
-        logToFile('⚠️ Trigger 3: Error offering quiz after coaching', { error: error.message });
-      }
-
-      // Suggest next feature after coaching completion
-      try {
-        const language = outputLanguage; // bd-3b0co: unified resolver
-        await FeatureLinkerService.suggestNext(
-          'coaching',
-          session.user_id,
-          from,
-          language,
-          { coachingSessionId }
-        );
-      } catch (error) {
-        logToFile('⚠️ Error in feature linker after coaching', { error: error.message });
       }
     } catch (error) {
       await this.handleReportError(coachingSessionId, error, payload?.from);
@@ -1686,58 +1667,37 @@ class ReportGeneratorService {
   }
 
   /**
-   * Trigger 3: Offer quiz after coaching report PDF is sent.
-   * Sends interactive buttons if teacher has a class with student phone numbers.
-   * Called from generateReport after PDF delivery.
+   * Transcript quiz: hand the finished self-coaching session to the offer
+   * service, which decides (flag, once-per-teacher, transcript length) and
+   * enqueues the delayed offer. Returns true when an offer WILL go out, so
+   * the caller suppresses the feature-link ask — one ask at a time.
    *
-   * @param {Object} user         - { id: userId }
-   * @param {string} phoneNumber  - Teacher's phone number
-   * @param {string} lessonPlanId - LP UUID to base the quiz on
-   * @param {string} topic        - Lesson topic for display in message
-   * @param {string} language     - Preferred language ('en', 'ur', etc.)
+   * Never throws into the report: a quiz offer is not worth failing a
+   * session over.
+   *
+   * @param {object} session           coaching_sessions row (with users join)
+   * @param {string} coachingSessionId
+   * @param {string} from              teacher phone
+   * @param {string} outputLanguage    the report's language
+   * @returns {Promise<boolean>}
    */
-  static async offerQuizAfterReport(user, phoneNumber, lessonPlanId, topic, language = 'en') {
+  static async scheduleTranscriptQuiz(session, coachingSessionId, from, outputLanguage) {
     try {
-      logToFile('📝 Trigger 3: Offering quiz after coaching report', { userId: user.id, lessonPlanId, topic });
-
-      // Check if teacher has a class
-      const { data: classes } = await supabase
-        .from('student_lists')
-        .select('id')
-        .eq('user_id', user.id)
-        .limit(1);
-
-      if (!classes || classes.length === 0) {
-        return; // No class — skip silently
-      }
-
-      // Check if any students in that class have phone numbers
-      const { data: studentsWithPhones } = await supabase
-        .from('students')
-        .select('id')
-        .eq('list_id', classes[0].id)
-        .not('parent_phone', 'is', null)
-        .limit(1);
-
-      if (!studentsWithPhones || studentsWithPhones.length === 0) {
-        return; // No student phones — skip silently
-      }
-
-      const bodyText = language === 'ur'
-        ? `کیا آپ اپنے طلباء کو "${topic}" پر ایک کوئز بھیجنا چاہتے ہیں؟ 📝`
-        : `Would you like to send a quiz on "${topic}" to your students? 📝`;
-
-      await WhatsAppService.sendInteractiveButtons(phoneNumber, {
-        body: bodyText,
-        buttons: [
-          { id: `quiz_yes_send_${lessonPlanId}`, title: 'Yes, send quiz ✓' },
-          { id: 'quiz_not_now', title: 'Not right now' }
-        ]
+      const TranscriptQuizOffer = require('../quiz/transcript-quiz-offer.service');
+      const scheduled = await TranscriptQuizOffer.scheduleOffer({
+        coachingSessionId,
+        userId: session.user_id,
+        phone: from || session?.users?.phone_number,
+        language: outputLanguage,
+        transcriptChars: String(session.transcript_text || '').length,
+        source: 'self',
       });
-
-      logToFile('✅ Trigger 3: Quiz offer sent', { userId: user.id, lessonPlanId });
-    } catch (err) {
-      logToFile('⚠️ Trigger 3: offerQuizAfterReport error', { error: err.message });
+      return Boolean(scheduled);
+    } catch (error) {
+      logToFile('⚠️ transcript quiz: offer scheduling failed (non-fatal)', {
+        coachingSessionId, error: error.message,
+      });
+      return false;
     }
   }
 }

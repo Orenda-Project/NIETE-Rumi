@@ -1367,6 +1367,18 @@ app.post('/webhook', async (req, res) => {
           logToFile('⚠️ unrouted vq_ button', { buttonId, from });
         }
       }
+      // Transcript quiz: the post-coaching offer (tq_yes_/tq_no_) and the
+      // /quiz actions (tq_link_/tq_report_). Its own prefix on purpose —
+      // never `quiz_` (parent quiz) or `vq_` (video quiz).
+      else if (buttonId.startsWith('tq_')) {
+        const TranscriptQuizOffer = require('./shared/services/quiz/transcript-quiz-offer.service');
+        const TranscriptQuizList = require('./shared/services/quiz/transcript-quiz-list.service');
+        const handled = await TranscriptQuizOffer.handleOfferButton(buttonId, from)
+          || await TranscriptQuizList.handleActionButton(buttonId, from);
+        if (!handled) {
+          logToFile('⚠️ unrouted tq_ button', { buttonId, from });
+        }
+      }
       // Edit-class multi-class picker: open the edit-class flow for the chosen class.
       else if (buttonId.startsWith('edit_class_')) {
         const listId = buttonId.replace('edit_class_', '');
@@ -1876,6 +1888,14 @@ app.post('/webhook', async (req, res) => {
       if (listId.startsWith('att_class_') || listId.startsWith('att_method_')
           || listId.startsWith('att_voice_')) {
         if (user?.id && await handleAttendanceTap(listId, from, user)) return;
+      }
+
+      // Transcript quiz: a row tapped in the /quiz lesson list.
+      if (listId.startsWith('tq_pick_')) {
+        const TranscriptQuizList = require('./shared/services/quiz/transcript-quiz-list.service');
+        await TranscriptQuizList.handleListPick(listId, from, user);
+        res.status(200).send('EVENT_RECEIVED');
+        return;
       }
 
       if (listId.startsWith('vq_')) {

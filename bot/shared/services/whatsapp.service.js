@@ -1218,6 +1218,80 @@ class WhatsAppService {
   }
 
   /**
+   * Interactive reply buttons with a VIDEO header (Meta: header.type='video').
+   * Mirrors sendImageWithButtons: an R2 key/private URL is downloaded and
+   * uploaded to the Media API for an id; a public URL is passed as a link.
+   * Used for the once-per-teacher transcript-quiz offer that rides the intro
+   * video. Returns false on any failure so the caller can fall back to plain
+   * buttons — a teacher must never miss the offer because a video did not load.
+   *
+   * @param {string} to
+   * @param {string} videoUrl   R2 key, R2 URL, or public https URL (mp4, ≤16 MB)
+   * @param {string} bodyText
+   * @param {Array<{id:string,title:string}>} buttons  max 3
+   * @returns {Promise<boolean>}
+   */
+  static async sendVideoWithButtons(to, videoUrl, bodyText, buttons) {
+    const path = require('path');
+    const tempDir = path.join(__dirname, '../../temp');
+    try {
+      if (!videoUrl || !Array.isArray(buttons) || !buttons.length || buttons.length > 3) {
+        logToFile('⚠️ sendVideoWithButtons: bad arguments', { hasVideo: Boolean(videoUrl), count: buttons?.length });
+        return false;
+      }
+      const formattedButtons = buttons.map((btn) => ({
+        type: 'reply',
+        reply: { id: btn.id, title: [...String(btn.title)].slice(0, 20).join('') },
+      }));
+
+      const isPublic = /^https?:\/\//i.test(videoUrl) && !videoUrl.includes('r2.cloudflarestorage.com');
+      let videoHeader;
+      if (isPublic) {
+        videoHeader = { link: videoUrl };
+      } else {
+        const key = extractKeyFromUrl(videoUrl);
+        const buffer = await downloadFromR2(key);
+        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+        const tempFilePath = path.join(tempDir, `hdr_${Date.now()}.mp4`);
+        fs.writeFileSync(tempFilePath, buffer);
+        const formData = new FormData();
+        formData.append('file', fs.createReadStream(tempFilePath), { contentType: 'video/mp4', filename: 'intro.mp4' });
+        formData.append('messaging_product', 'whatsapp');
+        const uploadResponse = await axios.post(
+          `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/media`, formData,
+          { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, ...formData.getHeaders() } },
+        );
+        try { fs.unlinkSync(tempFilePath); } catch { /* best effort */ }
+        videoHeader = { id: uploadResponse.data.id };
+      }
+
+      const payload = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to,
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          header: { type: 'video', video: videoHeader },
+          body: { text: bodyText },
+          action: { buttons: formattedButtons },
+        },
+      };
+      const response = await axios.post(
+        `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/messages`, payload,
+        { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } },
+      );
+      logToFile('✅ Video with buttons sent', { response: response.data, buttonCount: buttons.length, usedMediaId: !isPublic });
+      return true;
+    } catch (error) {
+      logToFile('❌ Error sending video with buttons', {
+        error: error.message, errorDetails: error.response?.data, videoUrl,
+      }, 'error');
+      return false;
+    }
+  }
+
+  /**
    * Send interactive list message (used for Reading Assessment)
    * Supports WhatsApp Interactive Lists with sections and rows
    * @param {string} to - WhatsApp phone number (with country code)

@@ -20,20 +20,28 @@ const { logToFile } = require('../../utils/logger');
 // message a completing quiz sends to the phone, so it can land right on top
 // of an already-near-full window from the questions that preceded it.
 const rateLimiter = require('./video-quiz-rate-limiter.service');
+const { resolveUx } = require('../../config/ux-strings');
 
-const TIER_LINE = {
-  mastered: 'Brilliant work!',
-  developing: "Nicely done — a little more practice and you'll have it.",
-  needs_practice: 'Good effort — this one is worth another go.',
+const TIER_KEY = {
+  mastered: 'vqTierMastered',
+  developing: 'vqTierDeveloping',
+  needs_practice: 'vqTierNeedsPractice',
 };
 
 function tierFor(pct) {
   return pct >= 80 ? 'mastered' : pct >= 60 ? 'developing' : 'needs_practice';
 }
 
-function buildCaption({ correct, total, pct, stars }) {
-  return `🎉 All done!\n\nYou got *${correct} out of ${total}* right (${pct}%). `
-    + `You've earned ${stars} star${stars === 1 ? '' : 's'}!\n\n${TIER_LINE[tierFor(pct)]}`;
+/** The caption, in the QUIZ language (an Urdu quiz ends in Urdu). */
+function buildCaption({ correct, total, pct, stars, language = 'en' }) {
+  return resolveUx('vqScoreCaption', {
+    language,
+    params: {
+      correct, total, pct, stars,
+      starWord: language === 'ur' ? (stars === 1 ? 'ستارہ' : 'ستارے') : (stars === 1 ? 'star' : 'stars'),
+      tier: resolveUx(TIER_KEY[tierFor(pct)], { language }),
+    },
+  });
 }
 
 /** Pure render step — a PNG buffer, or null on failure. Testable without WhatsApp. */
@@ -55,10 +63,10 @@ async function renderScorecardImage({ topic, correct, total, pct, grade, subject
  * fell back (caller is expected to have already sent, or to send, the plain
  * text version — see finish() in video-quiz.service.js).
  */
-async function sendScorecard(phone, { topic, correct, total, pct, grade, subject, takerName }) {
+async function sendScorecard(phone, { topic, correct, total, pct, grade, subject, takerName, language = 'en' }) {
   const { starsAndBadge } = require('../../templates/video-quiz-scorecard.template');
   const { stars } = starsAndBadge(pct);
-  const caption = buildCaption({ correct, total, pct, stars });
+  const caption = buildCaption({ correct, total, pct, stars, language });
 
   const png = await renderScorecardImage({ topic, correct, total, pct, grade, subject, takerName });
   if (!png) return false;

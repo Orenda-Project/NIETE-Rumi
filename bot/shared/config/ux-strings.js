@@ -730,6 +730,180 @@ const UX_STRINGS = {
     en: 'Start',
     ur: 'شروع کریں',
   },
+
+  // ─── transcript quiz (teacher side) ──────────────────────────────────────
+  // The post-coaching quiz offer, the hand-off, /quiz. Every string here is
+  // gender-neutral in Urdu by construction (imperatives, impersonal
+  // constructions, passives) because the teacher's gender is unknown and the
+  // cohort is mixed. English technical terms (quiz, link, PDF, WhatsApp,
+  // forward, group) stay in English inside Urdu, as teachers write them.
+  tqOffer: {
+    en: 'From today’s lesson on *{topic}* ({date}) I can make a short 8-question quiz your students take on WhatsApp — it checks what they learnt, and you get a report on what to reteach.\n\nWant it?\n\nYou can make one for any lesson anytime by sending /quiz.',
+    ur: 'آج کے سبق *{topic}* ({date}) سے طلبہ کے لیے 8 سوالوں کا مختصر quiz تیار ہو سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا سمجھ آیا اور کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟\n\nکسی بھی سبق کا quiz کبھی بھی /quiz بھیج کر بنایا جا سکتا ہے۔',
+  },
+  tqOfferYes: { en: 'Yes, make it', ur: 'جی، بنائیں' },
+  tqOfferNo: { en: 'Not now', ur: 'ابھی نہیں' },
+  tqDeclined: {
+    en: 'No problem. You can make a quiz for any of your lessons anytime — just send /quiz.',
+    ur: 'کوئی بات نہیں۔ کسی بھی سبق کا quiz کبھی بھی بنایا جا سکتا ہے — بس /quiz بھیجیں۔',
+  },
+  tqOfferExpired: {
+    en: 'That offer is no longer available — send /quiz to make a quiz for any lesson.',
+    ur: 'وہ پیشکش اب دستیاب نہیں — کسی بھی سبق کا quiz بنانے کے لیے /quiz بھیجیں۔',
+  },
+  tqMaking: {
+    en: 'Making it now — about a minute. The quiz will arrive here with the message to forward.',
+    ur: 'quiz تیار ہو رہا ہے — تقریباً ایک منٹ۔ پھر یہیں quiz اور آگے بھیجنے والا پیغام آئے گا۔',
+  },
+  tqAlreadyMaking: {
+    en: 'Already on it — the quiz is coming.',
+    ur: 'پہلے ہی تیار ہو رہا ہے — بس آ رہا ہے۔',
+  },
+  tqAlreadySent: {
+    en: 'That quiz has already been sent — send /quiz to resend its link or get the report.',
+    ur: 'وہ quiz پہلے ہی بھیجا جا چکا ہے — link دوبارہ لینے یا رپورٹ کے لیے /quiz بھیجیں۔',
+  },
+  tqStillMaking: {
+    en: 'That quiz is still being made — it will arrive here shortly.',
+    ur: 'وہ quiz ابھی تیار ہو رہا ہے — تھوڑی دیر میں یہیں آئے گا۔',
+  },
+  tqCouldNotMake: {
+    en: 'I couldn’t make a good quiz from this lesson’s recording — the transcript didn’t carry enough of what was taught clearly. Try /quiz after your next lesson.',
+    ur: 'اس سبق کی ریکارڈنگ سے اچھا quiz نہیں بن سکا — transcript میں پڑھایا ہوا مواد کافی واضح نہیں تھا۔ اگلے سبق کے بعد /quiz آزمائیں۔',
+  },
+  tqCouldNotSend: {
+    en: 'The quiz is ready but the class link could not be created just now. Send /quiz in a moment to get it.',
+    ur: 'quiz تیار ہے لیکن کلاس کا link ابھی نہیں بن سکا۔ تھوڑی دیر بعد /quiz بھیج کر حاصل کریں۔',
+  },
+  tqHandoffIntro: {
+    en: '📝 Your quiz on *{topic}* — {n} questions.\n\nThis PDF is for you: each question, why it is asked, what each wrong answer reveals, and what students are told.\n\nThe NEXT message is for your students — forward it to the class group.',
+    ur: '📝 *{topic}* پر آپ کا quiz — {n} سوالات۔\n\nیہ PDF آپ کے لیے ہے: ہر سوال، اس کی وجہ، ہر غلط جواب کیا ظاہر کرتا ہے، اور طلبہ کو کیا بتایا جائے گا۔\n\nاگلا پیغام طلبہ کے لیے ہے — اسے class group میں forward کریں۔',
+  },
+  tqForwardThis: {
+    en: 'Forward THIS message to your students:',
+    ur: 'یہ پیغام طلبہ کو forward کریں:',
+  },
+  // Read by CHILDREN, in the quiz language. Names the teacher, the topic and
+  // the date of the lesson, and carries the link. Never a phone number.
+  tqStudentMessage: {
+    en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}* — what we studied on {date}.\n\nTap here to start:\n{link}\n\nIt takes about 5 minutes. You will be asked your name and class first.',
+    ur: '📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 5 منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
+  },
+  tqReportPromise: {
+    en: 'You will get a report on how the class did about 12 hours after the first student starts — or sooner if everyone finishes. Send /quiz anytime to see your quizzes or fetch a report.',
+    ur: 'پہلے طالب علم کے شروع کرنے کے تقریباً 12 گھنٹے بعد — یا سب کے مکمل کرتے ہی — رپورٹ آئے گی۔ اپنے quizzes دیکھنے یا رپورٹ منگوانے کے لیے کبھی بھی /quiz بھیجیں۔',
+  },
+  tqListBody: {
+    en: 'Your recent lessons. Pick one to make a quiz, resend its link, or get its report.',
+    ur: 'آپ کے حالیہ اسباق۔ کوئی ایک چنیں — quiz بنانے، link دوبارہ بھیجنے یا رپورٹ لینے کے لیے۔',
+  },
+  tqListButton: { en: 'Choose lesson', ur: 'سبق چنیں' },
+  tqListSection: { en: 'Recent lessons', ur: 'حالیہ اسباق' },
+  tqListEmpty: {
+    en: 'No lessons yet. Record a lesson for coaching first — then /quiz can turn it into a quiz for your students.',
+    ur: 'ابھی کوئی سبق نہیں۔ پہلے coaching کے لیے سبق ریکارڈ کریں — پھر /quiz اسے طلبہ کے لیے quiz بنا دے گا۔',
+  },
+  tqRowNoQuiz: { en: 'No quiz yet — tap to make one', ur: 'ابھی quiz نہیں — بنانے کے لیے tap کریں' },
+  tqRowOffered: { en: 'Offered — tap to make it', ur: 'پیشکش کی گئی — بنانے کے لیے tap کریں' },
+  tqRowMaking: { en: 'Being made…', ur: 'تیار ہو رہا ہے…' },
+  tqRowSent: { en: 'Sent · {started} started · {finished} finished', ur: 'بھیجا گیا · {started} نے شروع کیا · {finished} مکمل' },
+  tqRowReportSent: { en: 'Report sent · {finished} finished', ur: 'رپورٹ بھیج دی گئی · {finished} مکمل' },
+  tqRowFailed: { en: 'Could not be made — tap to retry', ur: 'نہیں بن سکا — دوبارہ کوشش کے لیے tap کریں' },
+  tqQuizStatus: {
+    en: '*{topic}*\n{started} started · {finished} finished.\n\nResend the link, or get the report now?',
+    ur: '*{topic}*\n{started} نے شروع کیا · {finished} مکمل۔\n\nlink دوبارہ بھیجیں، یا ابھی رپورٹ لیں؟',
+  },
+  tqLinkButton: { en: 'Resend link', ur: 'link دوبارہ بھیجیں' },
+  tqReportButton: { en: 'Report now', ur: 'رپورٹ ابھی' },
+  tqNoReportYet: {
+    en: 'No one has finished this quiz yet, so there is nothing to report. Resend the link?',
+    ur: 'ابھی کسی نے یہ quiz مکمل نہیں کیا، اس لیے رپورٹ کے لیے کچھ نہیں۔ link دوبارہ بھیجیں؟',
+  },
+  tqReportComing: { en: 'Preparing the report now…', ur: 'رپورٹ تیار ہو رہی ہے…' },
+  tqNotYours: {
+    en: 'I couldn’t find that lesson. Send /quiz to see your lessons.',
+    ur: 'وہ سبق نہیں ملا۔ اپنے اسباق دیکھنے کے لیے /quiz بھیجیں۔',
+  },
+  tqYourTeacher: { en: 'Your teacher', ur: 'آپ کے استاد' },
+  tqTeacherNamed: { en: 'Teacher {name}', ur: 'استاد {name}' },
+  tqTodaysLesson: { en: 'today’s lesson', ur: 'آج کا سبق' },
+  tqLessonWord: { en: 'Lesson', ur: 'سبق' },
+  tqNudge: {
+    en: '{started} student(s) have started your quiz on *{topic}* so far. Worth forwarding the link to the class group again?',
+    ur: '*{topic}* پر آپ کے quiz کو اب تک {started} طلبہ نے شروع کیا ہے۔ link دوبارہ class group میں forward کر دیں؟',
+  },
+
+  // ─── quiz chrome read by CHILDREN, in the quiz language ─────────────────
+  // The share-link chain was English-only; a child taking an Urdu quiz now
+  // reads Urdu around the questions too. A child is "آپ" with respectful
+  // plural verbs — never a gendered guess.
+  vqGreeting: {
+    en: '👋 Assalam o Alaikum!\n\n*{teacher}* has sent you a quiz on *{topic}*.',
+    ur: '👋 السلام علیکم!\n\n*{teacher}* نے آپ کو *{topic}* پر quiz بھیجا ہے۔',
+  },
+  vqWelcomeBack: {
+    en: 'Good to see you again, {name} — let’s begin!',
+    ur: '{name}، آپ کو دوبارہ دیکھ کر خوشی ہوئی — چلیں شروع کریں!',
+  },
+  vqWhoIsTaking: {
+    en: 'Who is taking it today?\n\n{names}\n{n}. Someone else\n\nReply with the number.',
+    ur: 'آج کون quiz دے رہا ہے؟\n\n{names}\n{n}. کوئی اور\n\nنمبر لکھ کر جواب دیں۔',
+  },
+  vqReplyNumber: {
+    en: 'Please reply with just the number — 1 to {n}.',
+    ur: 'براہِ کرم صرف نمبر لکھیں — 1 سے {n} تک۔',
+  },
+  vqAskName: { en: 'First — what is your name?', ur: 'پہلے — آپ کا نام کیا ہے؟' },
+  vqAskNameAgain: { en: 'No problem — what is your name?', ur: 'کوئی بات نہیں — آپ کا نام کیا ہے؟' },
+  vqAskNameMissed: {
+    en: 'I didn’t catch your name — what should I call you?',
+    ur: 'نام سمجھ نہیں آیا — آپ کو کیا کہہ کر پکاریں؟',
+  },
+  vqAskClass: {
+    en: 'Thanks {name}! And which class are you in? (for example: Grade 4)',
+    ur: 'شکریہ {name}! آپ کس جماعت میں ہیں؟ (مثلاً: جماعت 4)',
+  },
+  vqLetsBegin: { en: 'Great — {who}. Let’s begin!', ur: 'بہت خوب — {who}۔ چلیں شروع کریں!' },
+  vqLetsBeginName: { en: 'Let’s begin, {name}!', ur: '{name}، چلیں شروع کریں!' },
+  vqExpired: {
+    en: 'That quiz link has expired. Ask your teacher for a new one!',
+    ur: 'یہ quiz link ختم ہو چکا ہے۔ اپنے استاد سے نیا link لیں!',
+  },
+  vqHereWeGo: { en: 'Here we go — {n} questions. Take your time!', ur: 'چلیں — {n} سوال ہیں۔ آرام سے کریں!' },
+  vqQuestionOf: { en: '*Question {i} of {n}*', ur: '*سوال {i} از {n}*' },
+  vqChooseAnswer: { en: 'Choose answer', ur: 'جواب چنیں' },
+  vqOptions: { en: 'Options', ur: 'جوابات' },
+  vqDoneFallback: {
+    en: '🎉 All done!\n\nYou got *{correct} out of {total}* right ({pct}%).\n\n{tier}',
+    ur: '🎉 مکمل!\n\nآپ نے *{total} میں سے {correct}* صحیح کیے ({pct}%)۔\n\n{tier}',
+  },
+  vqScoreCaption: {
+    en: '🎉 All done!\n\nYou got *{correct} out of {total}* right ({pct}%). You’ve earned {stars} {starWord}!\n\n{tier}',
+    ur: '🎉 مکمل!\n\nآپ نے *{total} میں سے {correct}* صحیح کیے ({pct}%)۔ آپ کو {stars} {starWord} ملے!\n\n{tier}',
+  },
+  vqTierMastered: { en: 'Brilliant work!', ur: 'زبردست!' },
+  vqTierDeveloping: {
+    en: 'Nicely done — a little more practice and you’ll have it.',
+    ur: 'بہت اچھا — تھوڑی اور مشق سے یہ پکا ہو جائے گا۔',
+  },
+  vqTierNeedsPractice: {
+    en: 'Good effort — this one is worth another go.',
+    ur: 'اچھی کوشش — یہ دوبارہ کرنے کے قابل ہے۔',
+  },
+  vqTrouble: {
+    en: 'We’re having trouble sending more questions right now — here’s how you did on the ones you got!',
+    ur: 'ابھی مزید سوال بھیجنے میں مسئلہ ہو رہا ہے — جو سوال ملے، ان کا نتیجہ یہ رہا!',
+  },
+  vqNoQuestions: {
+    en: 'Sorry — I couldn’t load that quiz just now. Please try again later.',
+    ur: 'معذرت — ابھی یہ quiz لوڈ نہیں ہو سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
+  },
+  vqInviteAsk: {
+    en: 'Want to send this quiz to a friend?\n\nI’ll tell you how they did once they finish.',
+    ur: 'یہ quiz کسی دوست کو بھیجیں؟\n\nجب وہ مکمل کر لیں تو آپ کو بتایا جائے گا کہ انہوں نے کیسا کیا۔',
+  },
+  vqInviteYes: { en: 'Invite a friend', ur: 'دوست کو بھیجیں' },
+  vqInviteNo: { en: 'No thanks', ur: 'نہیں، شکریہ' },
 };
 
 /**

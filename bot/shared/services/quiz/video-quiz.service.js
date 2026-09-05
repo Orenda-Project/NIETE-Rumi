@@ -34,6 +34,10 @@ const sender = require('./video-quiz-sender.service');
 // never learned about them — a real production incident (phone ending 6989,
 // 2026-08-13, 80 minutes after bd-2666 shipped) hit exactly this gap.
 const rateLimiter = require('./video-quiz-rate-limiter.service');
+const { resolveUx } = require('../../config/ux-strings');
+
+// Chrome a CHILD reads around the questions, in the quiz language.
+const ux = (key, language, params) => resolveUx(key, { language, params });
 
 const QUESTIONS_PER_SESSION = 15;
 const OFFER_DELAY_MS = 3000;          // operator spec: 3 s after the video
@@ -292,8 +296,7 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
 
   if (error || !questions || !questions.length) {
     logToFile('❌ video-quiz: no questions for quiz', { quizId, error: error?.message });
-    await WhatsAppService.sendMessage(phone,
-      "Sorry — I couldn't load that quiz just now. Please try again later.");
+    await WhatsAppService.sendMessage(phone, ux('vqNoQuestions', language));
     return null;
   }
 
@@ -405,13 +408,15 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
   // AWAITED deliberately. WhatsApp does not guarantee ordering for rapid
   // sends, so question 1 firing during a 5-15 s upload is the same class of bug
   // as the R18 out-of-order clip: a race, not a layout problem.
+  //
+  // A TRANSCRIPT quiz has no lesson video (video_id null): the lesson was
+  // the teacher's own class, so there is nothing to send first.
   if (source === 'share_link' && videoId) {
     await sendLessonFirst(phone, videoId, language);
   }
 
   await rateLimiter.throttle(phone);
-  await WhatsAppService.sendMessage(phone,
-    `Here we go — ${chosen.length} questions. Take your time!`);
+  await WhatsAppService.sendMessage(phone, ux('vqHereWeGo', language, { n: chosen.length }));
   await sendNextQuestion(phone, state);
   return state;
 }
@@ -434,11 +439,11 @@ async function sendNextQuestion(phone, state) {
   }
 
   const msgs = render.build(q);
-  const ctx = { questionId: q.id, sessionId: state.sessionId };
+  const ctx = { questionId: q.id, sessionId: state.sessionId, language: state.language };
 
   await rateLimiter.throttle(phone);
   await WhatsAppService.sendMessage(phone,
-    `*Question ${state.index + 1} of ${state.questionIds.length}*`);
+    ux('vqQuestionOf', state.language, { i: state.index + 1, n: state.questionIds.length }));
   await sender.sendPhase(phone, msgs, 'question', ctx);
   const res = await sender.sendPhase(phone, msgs, 'interaction', ctx);
 
@@ -454,8 +459,7 @@ async function sendNextQuestion(phone, state) {
       logToFile('⚠️ video-quiz: giving up after repeated send failures', {
         phone: phone.slice(-4), sessionId: state.sessionId, atIndex: state.index,
       });
-      await WhatsAppService.sendMessage(phone,
-        "We're having trouble sending more questions right now — here's how you did on the ones you got!");
+      await WhatsAppService.sendMessage(phone, ux('vqTrouble', state.language));
       return finish(phone, state);
     }
 
@@ -516,7 +520,7 @@ async function handleAnswer(phone, inputId) {
   // anyway, so the feedback is not lost.
   const msgs = render.build(q);
   await sender.sendPhase(phone, msgs, 'answer', {
-    questionId: q.id, sessionId: state.sessionId,
+    questionId: q.id, sessionId: state.sessionId, language: state.language,
     isCorrect, selectedIndex: parsed.index,
   });
 
@@ -561,17 +565,16 @@ async function finish(phone, state) {
   const Scorecard = require('./video-quiz-scorecard.service');
   const sentScorecard = await Scorecard.sendScorecard(phone, {
     topic: quizMeta?.topic, grade: quizMeta?.grade, subject: quizMeta?.subject,
-    correct: state.correct, total, pct, takerName: state.takerName,
+    correct: state.correct, total, pct, takerName: state.takerName, language: state.language,
   }).catch((err) => {
     logToFile('⚠️ video-quiz: scorecard send threw', { error: err.message });
     return false;
   });
   if (!sentScorecard) {
-    await WhatsAppService.sendMessage(phone,
-      `🎉 All done!\n\nYou got *${state.correct} out of ${total}* right (${pct}%).\n\n`
-      + (pct >= 80 ? 'Brilliant work!' : pct >= 60
-        ? "Nicely done — a little more practice and you'll have it."
-        : 'Good effort — this one is worth another go.'));
+    const tierKey = level === 'mastered' ? 'vqTierMastered' : level === 'developing' ? 'vqTierDeveloping' : 'vqTierNeedsPractice';
+    await WhatsAppService.sendMessage(phone, ux('vqDoneFallback', state.language, {
+      correct: state.correct, total, pct, tier: ux(tierKey, state.language),
+    }));
   }
 
   logEvent('video_quiz.completed', {

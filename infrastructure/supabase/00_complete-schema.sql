@@ -5265,6 +5265,41 @@ CREATE INDEX IF NOT EXISTS idx_lp_feedback_lp612_segment
   ON lp_feedback (lp612_segment_id, created_at DESC)
   WHERE lp612_segment_id IS NOT NULL;
 
+-- =============================================================================
+-- Transcript quiz (post-coaching quiz written from the lesson recording).
+-- Additive reconcile on `quizzes`: the coaching session a quiz was written
+-- from, the language its questions are in, and a jsonb bag for the lesson
+-- digest / model / cost / PDF key. Three new lifecycle statuses (offered,
+-- declined, skipped). One transcript quiz per coaching session, enforced by a
+-- unique partial index that is also the pipeline's idempotency anchor.
+-- Mirrors bot/database/migrations/transcript_quiz.sql (applied to staging
+-- 2026-09-05); lives here too so a fresh bootstrap sees the columns.
+-- =============================================================================
+
+ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS coaching_session_id UUID REFERENCES coaching_sessions(id) ON DELETE SET NULL;
+ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS language TEXT;
+ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS meta JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+ALTER TABLE quizzes DROP CONSTRAINT IF EXISTS quizzes_status_check;
+ALTER TABLE quizzes ADD CONSTRAINT quizzes_status_check CHECK (
+  status = ANY (ARRAY['generating','ready','sent','report_sent','failed','cancelled',
+                      'offered','declined','skipped'])
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS quizzes_one_transcript_quiz_per_session
+  ON quizzes (coaching_session_id) WHERE quiz_source = 'transcript';
+
+CREATE INDEX IF NOT EXISTS quizzes_teacher_recent
+  ON quizzes (teacher_id, created_at DESC);
+
+COMMENT ON COLUMN quizzes.coaching_session_id IS
+  'The self-coaching session this quiz was written from (quiz_source = ''transcript''). NULL for lesson_plan and video quizzes.';
+COMMENT ON COLUMN quizzes.language IS
+  'Language of the QUESTIONS (''ur'' | ''en''), decided by the subject rule in code, never by the market default.';
+COMMENT ON COLUMN quizzes.meta IS
+  'Transcript-quiz state that is not a column: the lesson digest (SLOs, taught level, key terms), resolved grade + source, model + cost, share code, PDF R2 key, offer/decline/nudge timestamps.';
+
+
 -- And the cache reload LAST, per infrastructure/CLAUDE.md: the NOTIFY several hundred lines above
 -- predates this DDL, so without one here a fresh bootstrap would create the column and leave
 -- PostgREST unable to see it — which is a 400 on the first insert, not an obvious schema error.
