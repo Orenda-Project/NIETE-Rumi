@@ -338,3 +338,65 @@ describe('packAtoms may overfill by the absorbable furniture, and only to save a
     expect(packAtoms(atoms, 1059, {}).breaks).toEqual(packAtoms(atoms, 1059, {}, {}).breaks);
   });
 });
+
+// ── the guard that actually decides it, checked rather than assumed ─────────
+//
+// The first version of this leaned on `overflowingSections` alone: "no `data-sec` element is
+// past the line, therefore no content is". That claim did not survive being checked.
+// `data-sec` is emitted on FOUR elements in `lib/template.js` and every one of them is a
+// section BAR — the coloured heading strip. No block, card, list item, figure or table carries
+// it. So `overflowingSections` is empty on almost every page, including pages where real
+// content IS past the edge, and a guard that is almost never false is not a guard.
+//
+// The probe already measures the right quantity and it was sitting unused: `contentBottomPx`
+// is the last painted pixel EXCLUDING `.foot` (the probe skips anything inside `.foot`
+// explicitly, so that a page whose footer is pinned to the floor does not read as 100% full).
+// If `contentBottomPx` is at or inside `innerBottomPx`, every pixel of the lesson is on the
+// paper and the only thing over the line is furniture. If it is past, that is content being
+// cut off, and no number of pixels makes it absorbable.
+//
+// Both checks are kept: the section-bar one is cheap and catches the loudest case, and the
+// content one is the one that is actually load-bearing.
+
+describe('absorbPlan refuses a page whose CONTENT is past the line, not just its furniture', () => {
+  const page = (over) => ({
+    id: 't6',
+    overflowPx: 9,
+    lastElement: 'foot',
+    overflowingSections: [],
+    innerBottomPx: 1119,
+    contentBottomPx: 1119 - over,
+    footTopPx: 1119 - over,
+  });
+
+  it('absorbs when the content ends exactly on the line — the footer is the whole overflow', () => {
+    expect(absorbPlan([page(0)])).toEqual([{ id: 't6', px: 9 }]);
+  });
+
+  it('absorbs when the content ends well inside it', () => {
+    expect(absorbPlan([page(40)])).toEqual([{ id: 't6', px: 9 }]);
+  });
+
+  it('REFUSES when one pixel of content is past the line, however small the overflow', () => {
+    expect(absorbPlan([{ ...page(-1), overflowPx: 2 }])).toEqual([]);
+    expect(absorbPlan([{ ...page(-1), overflowPx: 9 }])).toEqual([]);
+  });
+
+  it('refuses a badly clipped page outright', () => {
+    expect(absorbPlan([{ ...page(-120), overflowPx: 11 }])).toEqual([]);
+  });
+
+  it('still absorbs when the probe records no content measurement at all', () => {
+    // A probe shape without `contentBottomPx` predates this field; absent is not "past".
+    expect(absorbPlan([{ id: 't6', overflowPx: 9, overflowingSections: [] }]))
+      .toEqual([{ id: 't6', px: 9 }]);
+  });
+
+  it('the three real failures all pass the content guard', () => {
+    // Measured from the actual probes: content ends 40px (d10 t6), 78px (d03 s4) and
+    // 49px (d15 t6) inside the line; only the footer crossed it.
+    expect(absorbPlan([page(40)])).toHaveLength(1);
+    expect(absorbPlan([{ ...page(78), overflowPx: 11 }])).toHaveLength(1);
+    expect(absorbPlan([{ ...page(49), overflowPx: 3 }])).toHaveLength(1);
+  });
+});
