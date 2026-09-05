@@ -13,9 +13,43 @@
 
 const { completeJson } = require('./transcript-quiz-llm');
 const { LANG_NAME } = require('./transcript-quiz-language');
+const { ALLOWED_TYPES, minimalSpecBlock } = require('./transcript-quiz-figure');
 const { logEvent } = require('../../utils/structured-logger');
 
 const DEFAULT_QUESTIONS = 8;
+
+/**
+ * The FIGURE contract.
+ *
+ * A figure is a diagram SPEC, not a picture: the model picks a type from the
+ * allowlist and fills its numbers, and a deterministic engine draws it. The
+ * allowlist and every minimal spec below are GENERATED from the engine's own
+ * manifest at require time — a hand-copied list drifts the day a type changes
+ * its required fields, and the model is then taught a shape the validator
+ * rejects on every attempt.
+ *
+ * Every rule here is also enforced deterministically in
+ * transcript-quiz-validator.js. The prompt exists to make attempt 1 pass.
+ */
+function figureContract() {
+  return `PICTURES (optional, and often the right answer is "no picture").
+A question may carry a "figure": a diagram SPEC that a deterministic drawing engine renders into the picture the child sees above the stem. You are choosing a shape and its numbers, not describing an image.
+
+WHEN a figure is allowed — only these two cases:
+  (a) the SLO needs the child to READ something off a picture: a position, a shaded part, a shape, a plotted point, a circuit, a sequence of steps. Use "figure_role": "read_off".
+  (b) the grade band is 1–5 and the question asks the child to count or compare objects. Use "figure_role": "count_compare".
+WHEN a figure is banned: never for a definition, never for recall of words or terms, never as decoration. If the question can be answered without looking at the picture, there is no figure.
+
+HARD RULES
+- The figure must NOT contain the answer. No option's text may appear as a label in the spec — UNLESS every option's text appears (a "which point is at −3? A / B / C" number line is fine, because naming all three gives nothing away).
+- At most half of the questions may carry a figure. Most lessons need one or two.
+- Labels are written in the quiz language; numerals, units, formulae and chemical species stay in English letters and read left-to-right (LTR) even in an Urdu figure.
+- A stem that promises a picture must carry one. If the stem says "in the picture" or "تصویر میں", the question needs a "figure".
+- Use the SIMPLEST spec that answers the question. Long labels and crowded scales collide and the whole question is thrown away.
+
+ALLOWED TYPES — nothing else is accepted (${ALLOWED_TYPES.join(', ')}):
+${minimalSpecBlock()}`;
+}
 
 /** The opening, the passages around each SLO's evidence, and the close. */
 function excerptsFor(transcript, digest, width = 1200) {
@@ -57,13 +91,17 @@ WHAT TO WRITE — exactly ${n} questions.
 
 STYLE RULES FOR URDU (when quiz language is Urdu): proper, well-written Urdu in Urdu script — never Roman Urdu; English technical/subject terms are written IN ENGLISH LETTERS inside the Urdu sentence (e.g. "proper fraction", "numerator", "denominator", "noun", "photosynthesis") — NEVER transliterated into Urdu script ("فیکشن", "نیومریٹر", "ڈینومینیٹر" are wrong even if the transcript spells them that way); use the SAME spelling of a term in every question; NEVER begin a question, explanation or feedback sentence with the English word — start with an Urdu word ("ایک fraction میں…", not "fraction میں…") because a sentence that opens with English is displayed left-to-right on the phone; simple, spoken, child-level Urdu; gender-neutral throughout: address the child as "آپ" with plural-respectful verbs (کریں، دیکھیں، سوچیں), NEVER a feminine or masculine singular guess (no "کرتی ہیں", "سکتی ہیں", "کریں گی", "کرتے ہو").
 STYLE RULES FOR ENGLISH: short sentences a Grade ${gradeBand || '3-5'} child in Pakistan reads comfortably; no idioms.
-RELIGIOUS CONTENT (Islamiyat / سیرت / any mention of the Prophet, companions, Qur'an): every mention of the Prophet carries ﷺ immediately after the name; companions carry رضی اللہ عنہ / عنہا; اللہ and all sacred names in Urdu/Arabic script only; NEVER invent or paraphrase a hadith or an ayah — quote only what the lesson quoted, and only with the reference the teacher gave; no question may ask a child to guess what the Prophet ﷺ "would say".${retry}
+RELIGIOUS CONTENT (Islamiyat / سیرت / any mention of the Prophet, companions, Qur'an): every mention of the Prophet carries ﷺ immediately after the name; companions carry رضی اللہ عنہ / عنہا; اللہ and all sacred names in Urdu/Arabic script only; NEVER invent or paraphrase a hadith or an ayah — quote only what the lesson quoted, and only with the reference the teacher gave; no question may ask a child to guess what the Prophet ﷺ "would say".
+
+${figureContract()}${retry}
 
 Return ONLY this JSON object:
 { "questions": [ { "slo_id": "S1", "level": "recall|understand|apply", "question": "", "options": ["", "", ""], "correct_index": 0,
     "explanation": "", "distractor_misconceptions": { "1": "", "2": "" },
-    "option_feedback": { "correct": "", "wrong": { "1": "", "2": "" } } } ] }
+    "option_feedback": { "correct": "", "wrong": { "1": "", "2": "" } },
+    "figure": null, "figure_role": null } ] }
 (In this example the correct option is index 0, so the wrong keys are "1" and "2". If correct_index is 1 the keys are "0" and "2"; if it is 2 the keys are "0" and "1".)
+Omit "figure" and "figure_role", or leave them null, on every question that does not need a picture. When a question does carry one, "figure" is a spec object of the form shown in ALLOWED TYPES — e.g. "figure": {"type":"fraction_bar","bars":[{"parts":4,"shaded":3}]}, "figure_role": "read_off".
 
 LESSON DIGEST:
 ${JSON.stringify(digest, null, 0)}
