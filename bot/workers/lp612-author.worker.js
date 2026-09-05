@@ -619,6 +619,30 @@ async function process(payload) {
       && segment.language !== 'ur'
       && !(Array.isArray(rendered.overlayApplied) && rendered.overlayApplied.length > 0);
 
+    // …AND IT IS AN EVENT, NOT ONLY A COLUMN (bd-vnyuw). The column answers "was this row's
+    // lesson in the wrong language"; it cannot answer "how often, and did the fix hold" without
+    // someone thinking to run that query. This lane went its whole life at 6-of-6 dropped with
+    // nobody noticing, because the only trace was a boolean on a row nothing alerted on. The
+    // event is the rate. `overlay.applied` is emitted on the good path for the same reason: a
+    // denominator that only exists when things go wrong is not a denominator (rule 24(b)).
+    if (lang === 'ur' && segment.language !== 'ur') {
+      logEvent(overlayDropped ? 'lp612.overlay.dropped' : 'lp612.overlay.applied', {
+        renderId,
+        segmentId,
+        correlationId,
+        lang,
+        medium: segment.language || null,
+        pointers: Array.isArray(rendered.overlayApplied) ? rendered.overlayApplied.length : 0,
+        rounds: authored.rounds ?? null,
+        model: authored.model || model,
+      });
+      if (overlayDropped) {
+        logToFile('LP 6-12 worker: an Urdu request is being served an English document', {
+          renderId, segmentId, lang, medium: segment.language || null, correlationId,
+        }, 'error');
+      }
+    }
+
     await patch(renderId, {
       status: 'ready',
       // bd-7yxsu: STATUS AND ERROR CODE MAY NEVER DISAGREE.

@@ -526,19 +526,51 @@ function compactPageTruth(pages, maxChars = PAGE_TRUTH_MAX_CHARS) {
 /**
  * `--lang` states the language of instruction, BUT THE BOOK'S OWN MEDIUM ALWAYS WINS. An
  * Urdu-medium book is authored in Urdu whatever the caller asks for — self-translation is
- * banned — and a request for Urdu against an English-medium book authors in English and leaves
- * the toggle to a separate pass over the finished document.
+ * banned — and a request for Urdu against an English-medium book is authored in English and
+ * carries its Urdu toggle as an `ur_overlay` on the same document.
+ *
+ * THIS FUNCTION USED TO SAY THE OPPOSITE, AND IT COST EVERY URDU LESSON ITS LANGUAGE (bd-vnyuw).
+ *
+ * It read: *"the Urdu toggle is built by a separate pass over the finished document. Do NOT emit
+ * ur_overlay yourself."* **There is no separate pass.** `git grep ur_overlay` across the repo
+ * finds only readers — `applyOverlay`, `lint`, `visual_check`, and `sanitizeOverlay`, which can
+ * only DROP one. Nothing has ever written one. So `doc.ur_overlay` was always absent,
+ * `applyOverlay` always returned `applied: []`, and the worker always set `overlay_dropped`.
+ *
+ * Measured on staging 2026-09-05: of the nine English-medium books ever requested in Urdu, ALL
+ * SIX that reached `ready` carry `overlay_dropped = true`. Not most — all. A teacher who chose
+ * «اردو» received an English lesson under Urdu headings, every time, with no error at any layer.
+ *
+ * The system prompt was right all along: brief §7b says "Then add an `ur_overlay`" and §7c.7 says
+ * "overlay EVERY instruction string you are allowed to". This per-request directive was the one
+ * thing contradicting it, and the model obeyed the later, more specific instruction — as it
+ * should have. The directive now agrees with the brief and points at it, and
+ * `lint_lp.js`'s `OVERLAY_MISSING` asserts the result in code rather than trusting compliance.
  */
 function languageDirective(want, medium) {
   if (want === 'ur' && medium !== 'ur') {
     return 'The teacher asked for URDU. This is an English-medium book, so author the lp_doc in ' +
-      'ENGLISH exactly as §7 requires — the Urdu toggle is built by a separate pass over the ' +
-      'finished document. Do NOT emit ur_overlay yourself.';
+      'ENGLISH exactly as §7 requires, and THEN add the `ur_overlay` that §7b defines: a flat map ' +
+      'of RFC-6901 JSON Pointer into this same document -> the Urdu string that replaces the ' +
+      'English one at render time. The structure never changes; only instruction strings swap. ' +
+      'Overlay EVERY instruction string you are allowed to (§7c.7) — a half-overlaid document ' +
+      'serves half-English prose under an Urdu label, and the renderer cannot fix a missing ' +
+      'translation. Do NOT overlay /slo/text_verbatim, anything under /page2/exam_bank, or the ' +
+      '`text` of any `board` block: those follow the book\'s and the exam\'s language. Without ' +
+      'the overlay this teacher receives an English lesson under Urdu headings.';
   }
   if (want === 'en' && medium === 'ur') {
     return 'The teacher asked for ENGLISH, but this is an URDU-MEDIUM book: author the whole ' +
       'lp_doc in Urdu (§7). The book\'s language of instruction wins; a self-translated Urdu ' +
       'lesson in English is law L1d\'s exact failure.';
+  }
+  // An Urdu-MEDIUM book asked for in Urdu is authored in Urdu ONCE and carries no toggle. Said
+  // out loud, because the branch above now demands an overlay in as many words and a model that
+  // generalises the wrong way would translate an Urdu lesson into an Urdu lesson (brief §7b, and
+  // visual_check V12 fails an Urdu-medium document that carries an ur_overlay at all).
+  if (medium === 'ur') {
+    return 'Author the whole lp_doc in Urdu — the book\'s own medium (§7b) — and emit NO '
+      + 'ur_overlay: an Urdu-medium document has nothing to toggle.';
   }
   return `Author in the book's own medium: ${medium}.`;
 }
@@ -628,12 +660,58 @@ function printedOutcomes(pages) {
   return hits;
 }
 
+/**
+ * THE BOOK'S MEDIUM, AS A LANGUAGE CODE — bd-xrv72.
+ *
+ * `_book.json` and `niete_lp612_segments.medium` both store the human LABEL: `"Urdu"` /
+ * `"English"`, never `ur` / `en`. (Measured on staging: 1,000 segments, 694 `medium:"English"`
+ * and 306 `medium:"Urdu"`, and not one ISO code among them.) `clampLanguage` is a CODE clamp
+ * over `LANGUAGE_OFFER` and returns the `en` FLOOR for anything it does not recognise — so
+ * `clampLanguage("Urdu") === "en"`, and every Urdu-medium book in the corpus was handed a
+ * prompt opening with, verbatim:
+ *
+ *     "The teacher asked for URDU. This is an English-medium book, so author the lp_doc in
+ *      ENGLISH…"
+ *
+ * under an identity line that contradicted itself in place: `medium: ur (en)`.
+ *
+ * The model usually overrode it, because the page-truth in front of it is visibly Urdu — d01
+ * came back 77% Urdu and d02 73% — which is exactly why this survived: it looked like
+ * "run-to-run variance" rather than a directive. It is a coin flip on a teacher's language, and
+ * on d03 (`grade_7_zari_taleem`, a PCTB Urdu book) the coin came up English: an English lesson
+ * under Urdu headings, `provenance.medium: "en"`, and `overlay_dropped = FALSE` — because the
+ * worker reads the segment's own `language` column and THAT column was right. A clean-looking
+ * row on a wrong-language lesson (rule 24(a): a status field is a claim).
+ *
+ * The fix is a translation at the boundary, not a widening of `clampLanguage`: that function is
+ * the shared code clamp for the whole bot and must keep rejecting non-codes. The ISO `language`
+ * column is preferred where it exists, because it is already a code; the label is mapped only as
+ * the fallback. An unrecognised label still floors to English rather than throwing — this sits
+ * on the authoring path and must not fail closed.
+ */
+const MEDIUM_LABELS = { urdu: 'ur', english: 'en' };
+function mediumCode(...candidates) {
+  for (const raw of candidates) {
+    if (typeof raw !== 'string') continue;
+    const v = raw.trim();
+    if (!v) continue;
+    const mapped = MEDIUM_LABELS[v.toLowerCase()] || v;
+    // clampLanguage still owns the decision — this only speaks its language.
+    const code = clampLanguage(mapped);
+    // A recognised value wins outright; an unrecognised one falls through to the next
+    // candidate rather than silently claiming the floor on the first junk field it meets.
+    if (code === mapped) return code;
+  }
+  return clampLanguage(null); // the floor, from the one function that owns it
+}
+
 function buildUserPrompt({ segment, bundle, lang, video }) {
   const book = bundle.book || {};
-  // clampLanguage rather than an inline `|| 'en'` floor: the book's medium is a
-  // language decision like any other, and every one of them belongs to the one
-  // function that owns them.
-  const medium = clampLanguage(book.medium || segment.medium);
+  // The book's medium is a language decision like any other, so it goes through the one
+  // function that owns them — via `mediumCode`, which speaks the corpus's labels as well as
+  // its codes (bd-xrv72). Order: the book record's own code, then its label, then the
+  // segment's.
+  const medium = mediumCode(book.language, book.medium, segment.language, segment.medium);
   const outcomes = printedOutcomes(bundle.pages);
   const ocTxt = outcomes.length
     ? outcomes.map((o) => `- (p.${o.printed_page}) ${o.text}`).join('\n')
@@ -657,7 +735,7 @@ ${languageDirective(lang, medium)}
 
 lesson_id: ${segment.segment_id}
 book_stem: ${segment.book_stem}  ·  ${book.title || ''}
-grade: ${book.grade != null ? book.grade : segment.grade}  ·  subject: ${book.subject || segment.subject}  ·  medium: ${book.language || segment.language} (${medium})
+grade: ${book.grade != null ? book.grade : segment.grade}  ·  subject: ${book.subject || segment.subject}  ·  medium: ${book.medium || segment.medium || medium} (${medium})
 chapter: ${segment.chapter_number != null ? `${segment.chapter_number} — ${segment.chapter_title || ''}` : '(none)'}
 section: ${segment.section_ref || '(none)'}
 topic: ${segment.subtopic_title || segment.menu_title || segment.chapter_title || ''}
@@ -1026,7 +1104,12 @@ async function runGates(doc, renderCheck, meta = {}) {
     return { schema: v.errors.map((e) => `SCHEMA: ${e}`), lint: [], render: [], warns: [] };
   }
   // `docPath` is unused by lint() — it takes it for its CLI's sake. Nothing here writes.
-  const r = lint(doc, null, {});
+  //
+  // `lang` is the language THE TEACHER ASKED FOR, and it has to be passed because the document
+  // cannot state it: an English-medium book authored in English looks identical whether it was
+  // requested in English or in Urdu. That is precisely why a missing `ur_overlay` was invisible
+  // to every gate for the whole life of this lane (bd-vnyuw).
+  const r = lint(doc, null, { lang: meta.lang || null });
 
   let render = [];
   if (typeof renderCheck === 'function') {
@@ -1320,7 +1403,7 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
   sanitizeOverlay(doc);
   sanitizeSequence(doc, segment);
 
-  let gates = await runGates(doc, renderCheck, { correlationId, segmentId: segment.segment_id, round: 0 });
+  let gates = await runGates(doc, renderCheck, { correlationId, segmentId: segment.segment_id, round: 0, lang: language });
   let spent = 0;
   // Consecutive rounds that have reduced no BLOCKING defect. See STALE_ROUNDS.
   let stale = 0;
@@ -1395,7 +1478,7 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
     sanitizeUnknownTopLevel(candidate);
     sanitizeOverlay(candidate);
     sanitizeSequence(candidate, segment);
-    const g2 = await runGates(candidate, renderCheck, { correlationId, segmentId: segment.segment_id, round: spent });
+    const g2 = await runGates(candidate, renderCheck, { correlationId, segmentId: segment.segment_id, round: spent, lang: language });
     if (notWorseVisual(g2, gates, candidate, doc)) {
       doc = candidate;
       gates = g2;
@@ -1588,7 +1671,7 @@ async function reviseLessonPlan({
   };
 
   // The bar. Her document's own defect count — an edit may not raise it.
-  const gatesBefore = await runGates(original, renderCheck, { correlationId, segmentId: segment.segment_id, round: 0 });
+  const gatesBefore = await runGates(original, renderCheck, { correlationId, segmentId: segment.segment_id, round: 0, lang: language });
   const bar = blockingCost(gatesBefore);
   // bd-jddcu applies here too: her document already renders (schemaOk is true in the only case
   // this lane is called for), so a defect-count comparison ALONE could accept an edit that comes
@@ -1627,7 +1710,7 @@ async function reviseLessonPlan({
     sanitizeOverlay(candidate);
     sanitizeSequence(candidate, segment);
 
-    const g2 = await runGates(candidate, renderCheck, { correlationId, segmentId: segment.segment_id, round: spent });
+    const g2 = await runGates(candidate, renderCheck, { correlationId, segmentId: segment.segment_id, round: spent, lang: language });
     const schemaTiered = beforeSchemaOk && !schemaOk(g2);
 
     if (!schemaTiered && blockingCost(g2) <= bar) {

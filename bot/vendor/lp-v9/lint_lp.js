@@ -511,6 +511,10 @@ function lint(doc, docPath, opts = {}) {
     const why = frozenReason(doc, ptr);
     if (why) fail("OVERLAY", `${ptr} may not be overlaid — ${why}.`);
   }
+  // 13b — …and it must EXIST when the teacher asked for Urdu against an English book (bd-vnyuw).
+  //       `opts.lang` is the REQUESTED language; the doc alone cannot say what was asked for,
+  //       which is exactly why this went unnoticed for the whole life of the lane.
+  for (const d of overlayDefects(doc, opts.lang)) fail(d.code, d.msg);
 
   // 14 — visuals are mandatory (M5/R1); a bare-bones LP was named as a failure
   const visuals = doc.sections.reduce(
@@ -1668,6 +1672,116 @@ function graphDefects(spec, where) {
 }
 function round2(v) { return Math.round(v * 100) / 100; }
 
+// ── THE URDU TOGGLE MUST EXIST WHEN IT IS ASKED FOR (bd-vnyuw) ───────────────
+//
+// Measured on staging 2026-09-05: of the nine EN-medium books ever requested in Urdu, all six
+// that reached `ready` carried `overlay_dropped = true`. Every single one. A teacher who chose
+// «اردو» got an English lesson under Urdu headings, silently, with no error anywhere.
+//
+// The cause was two prompts in one call giving opposite orders — brief §7b said "add an
+// `ur_overlay`", the runtime language directive said "Do NOT emit ur_overlay yourself … a
+// separate pass builds it", and that separate pass has never existed. The directive is fixed at
+// source; THIS is the code assertion that keeps it fixed (rule 24(c): a prompt's input contract
+// is checked in code before the model's output is trusted, because the model complies most of
+// the time and freestyles the rest).
+//
+// It is DELIBERATELY a lint fail rather than a render refusal: a defect the revision ladder is
+// handed gets repaired in the next round, while a refusal throws away a finished lesson — which
+// is the failure this whole lane has been unpicking.
+
+/** Keys whose values are machine data, an identifier, or an atom — never instruction prose. */
+const OVERLAY_SKIP_KEYS = new Set([
+  "id", "type", "ref", "src", "kind", "tier", "direction", "mode", "shape", "element",
+  "lesson_id", "book_stem", "schema_version", "template_version", "lint_profile", "lp_type",
+  "slo_code", "code", "url", "channel", "checked_at", "duration", "medium", "language",
+  "version", "brand", "name", "color", "colour", "fill", "stroke", "font", "align", "anchor",
+  "at", "sec", "sequence_id", "segment_id",
+]);
+/** Subtrees that are citation metadata or a third party's own text, not our instructions. */
+const OVERLAY_SKIP_ROOTS = ["/provenance", "/video", "/revisions", "/ur_overlay"];
+
+/**
+ * At least HALF the instruction prose must carry an Urdu replacement.
+ *
+ * Half is the line at which the page stops being an English lesson with Urdu chrome and starts
+ * being an Urdu lesson — which is the whole defect. It is not a quality target: the brief asks
+ * for EVERY allowed string (§7c.7) and a good draft covers nearly all of them. This is the floor
+ * under which the document is not what the teacher asked for at all.
+ */
+const OVERLAY_MIN_COVERAGE = 0.5;
+
+/** Is this string teacher-facing instruction prose, rather than a code or an atom? */
+function isInstructionProse(s) {
+  if (typeof s !== "string" || s.length < 8) return false;
+  const words = s.match(/[A-Za-z]{2,}/g) || [];
+  return words.length >= 2;
+}
+
+/**
+ * Every JSON Pointer in `doc` that the Urdu toggle is ALLOWED to replace and OUGHT to.
+ * Exported through `overlayDefects.targets` so the count in the message and the count a test
+ * asserts are the same computation, not two that can drift.
+ */
+function overlayTargets(doc) {
+  const out = [];
+  const esc = (k) => String(k).replace(/~/g, "~0").replace(/\//g, "~1");
+  const walk = (node, ptr) => {
+    if (typeof node === "string") {
+      if (!isInstructionProse(node)) return;
+      if (OVERLAY_SKIP_ROOTS.some((r) => ptr === r || ptr.startsWith(r + "/"))) return;
+      const key = ptr.slice(ptr.lastIndexOf("/") + 1);
+      if (OVERLAY_SKIP_KEYS.has(key)) return;
+      if (frozenReason(doc, ptr)) return;
+      out.push(ptr);
+      return;
+    }
+    if (Array.isArray(node)) { node.forEach((v, i) => walk(v, `${ptr}/${i}`)); return; }
+    if (node && typeof node === "object") {
+      for (const [k, v] of Object.entries(node)) {
+        if (OVERLAY_SKIP_KEYS.has(k) && typeof v === "string") continue;
+        walk(v, `${ptr}/${esc(k)}`);
+      }
+    }
+  };
+  walk(doc, "");
+  return out;
+}
+
+/**
+ * The blocking defects for an Urdu render of an English-medium book.
+ * @param doc   the lp_doc
+ * @param lang  the language THE TEACHER ASKED FOR (not the book's medium)
+ */
+function overlayDefects(doc, lang) {
+  const out = [];
+  if (lang !== "ur") return out;                                   // nothing to toggle
+  const medium = (doc.provenance || {}).medium;
+  if (medium === "ur") return out;                                 // authored in Urdu already
+  const targets = overlayTargets(doc);
+  if (!targets.length) return out;                                 // nothing overlayable: silent
+  const ov = doc.ur_overlay && typeof doc.ur_overlay === "object" ? doc.ur_overlay : {};
+  const covered = targets.filter(
+    (p) => typeof ov[p] === "string" && ov[p].trim().length > 0,
+  ).length;
+  const need = Math.ceil(targets.length * OVERLAY_MIN_COVERAGE);
+  if (covered >= need) return out;
+  const missing = targets.filter((p) => typeof ov[p] !== "string").slice(0, 6);
+  out.push({
+    code: "OVERLAY_MISSING",
+    msg:
+      `the teacher asked for URDU and this is an English-medium book, so the document must carry an `
+      + `\`ur_overlay\`: a flat map of JSON Pointer -> the Urdu string that replaces the English one at `
+      + `render time (brief §7b, §7c.7). It covers ${covered} of ${targets.length} overlayable `
+      + `instruction strings; at least ${need} are required. Without it she receives an ENGLISH lesson `
+      + `under Urdu headings. Add the missing pointers, e.g. ${missing.join(", ")}. `
+      + `Do NOT overlay /slo/text_verbatim, anything under /page2/exam_bank, or a \`board\` block's text.`,
+  });
+  return out;
+}
+overlayDefects.targets = overlayTargets;
+overlayDefects.MIN_COVERAGE = OVERLAY_MIN_COVERAGE;
+
 module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates, graphDefects, atomDefects, specContractDefects,
+  overlayDefects, OVERLAY_MIN_COVERAGE,
   SECTION_BUDGET, SECTION_BUDGET_V9, DOC_BUDGET, DOC_BUDGET_V9, OUTCOME_BOX_V9,
   MAX_HOMEWORK_ITEMS, MAX_BOARD_WEIGHT, MAX_ACTIVITIES, PLACEHOLDERS, FOREIGN_BRANDS };
