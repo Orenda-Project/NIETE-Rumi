@@ -112,3 +112,10 @@ describe('calibration round 2 — the prompt names the two misuses the corpus pr
   test('never a scene of real things', () => { expect(prompt).toMatch(/never draw a scene/i); });
   test('a jump arc must not land on the answer', () => { expect(prompt).toMatch(/arc[^\n]*land[^\n]*answer/i); });
 });
+
+describe('calibration round 3 — earn the figure', () => {
+  const { buildAuthorPrompt } = require('../../bot/shared/services/quiz/transcript-quiz-author.service');
+  const prompt = buildAuthorPrompt({ digest: { subject: 'maths', slos: [] }, excerpts: '', language: 'ur', n: 8, gradeBand: '3-5' });
+  test('the stem must not restate the numbers the picture shows', () => { expect(prompt).toMatch(/must not (re)?state the numbers/i); });
+  test('geometry kinds are named', () => { expect(prompt).toMatch(/triangle, polygon, circle, angle, rightangle, line, segment, point/); });
+});

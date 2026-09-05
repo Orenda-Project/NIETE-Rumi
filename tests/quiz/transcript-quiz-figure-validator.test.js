@@ -213,3 +213,38 @@ describe('calibration round 2 — what the corpus run drew wrong', () => {
       option_feedback: { correct: 'Yes.', wrong: { 1: 'no', 2: 'no' } } })))).not.toMatch(/FIGURE_LEAK/);
   });
 });
+
+describe('calibration round 3 — what two reviewers found in the 12 corpus figures (3/12 clean)', () => {
+  const FB = { correct: 'Yes.', wrong: { 1: 'no', 2: 'no' } };
+  test('FIGURE_BLANK: a drawing with fewer than three visible primitives is rejected even when the engine did not throw', () => {
+    // A geometry "scene" of text nodes and unknown kinds rendered as a 100%-white PNG with svg_ok=true.
+    const r = run(six({ figure: { type: 'geometry', shapes: [{ kind: 'text', at: [0, 0], label: 'x', labels: ['x'] }] }, question: 'In the picture, what is drawn?' }));
+    expect(errorsOf(r)).toMatch(/q0: FIGURE_(EMPTY|BLANK)/);
+  });
+  test('an unknown geometry shape kind is a hard error, never a silently skipped shape', () => {
+    const r = run(six({ figure: { type: 'geometry', shapes: [{ kind: 'rocket', points: [[0, 0], [1, 1]], labels: ['A', 'B'] }] }, question: 'In the picture, which point is higher?' }));
+    expect(errorsOf(r)).toMatch(/q0: FIGURE_EMPTY[^|]*kind/);
+  });
+  test('FIGURE_LEAK: the "every option appears" exemption is only for letter handles, not for options filed inside the drawing', () => {
+    // A flow chart printed the correct option under one heading and both distractors under the other.
+    const flow = { type: 'flow', direction: 'lr', steps: [{ title: 'سست رفتار', lines: ['تانگا'] }, { title: 'تیز رفتار', lines: ['کار', 'جہاز'] }] };
+    const r = run(six({ figure: flow, question: 'تصویر میں سست رفتار سواری کون سی ہے؟', options: ['تانگا', 'کار', 'جہاز'], correct_index: 0, option_feedback: FB }));
+    expect(errorsOf(r)).toMatch(/q0: FIGURE_LEAK/);
+    const nl = { type: 'numberline', from: -5, to: 5, step: 1, points: [{ at: -3, label: 'A' }, { at: 1, label: 'B' }, { at: 4, label: 'C' }] };
+    expect(errorsOf(run(six({ figure: nl, question: 'Which point is at −3?', options: ['A', 'B', 'C'], correct_index: 0, option_feedback: FB })))).not.toMatch(/FIGURE_LEAK/);
+  });
+  test('FIGURE_LEAK: a grid whose rows or columns equal the answer pre-partitions a sharing problem', () => {
+    const grid = { type: 'grid', rows: 3, cols: 4, shaded: 12 };
+    const r = run(six({ figure: grid, question: 'Share 12 flowers equally among 3 vases. How many in each?', options: ['4', '3', '12'], correct_index: 0, option_feedback: FB }));
+    expect(errorsOf(r)).toMatch(/q0: FIGURE_LEAK/);
+  });
+  test('FIGURE_REDUNDANT: a stem that already states the numbers the picture shows does not need the picture', () => {
+    const bar = { type: 'fraction_bar', bars: [{ parts: 4, shaded: 1 }] };
+    const r = run(six({ figure: bar, question: 'A bar has 4 equal parts and 1 is shaded. Look at the picture. Which fraction is shaded?', options: ['1/4', '3/4', '4/1'], correct_index: 0, option_feedback: FB }));
+    expect(errorsOf(r)).toMatch(/q0: FIGURE_REDUNDANT/);
+    const ok = run(six({ figure: bar, question: 'In the picture, which fraction of the bar is shaded?', options: ['1/4', '3/4', '4/1'], correct_index: 0, option_feedback: FB }));
+    expect(errorsOf(ok)).not.toMatch(/FIGURE_REDUNDANT/);
+    const arc = { type: 'numberline', from: 0, to: 10, step: 1, points: [{ at: 3 }], arcs: [{ from: 3, to: 7, label: '+ 4' }] };
+    expect(errorsOf(run(six({ figure: arc, question: 'Start at 3 and add 4. What is 3 + 4?', options: ['8', '4', '9'], correct_index: 0, option_feedback: FB })))).toMatch(/FIGURE_REDUNDANT/);
+  });
+});

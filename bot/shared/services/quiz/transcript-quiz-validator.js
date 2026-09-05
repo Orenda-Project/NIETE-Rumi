@@ -14,7 +14,7 @@
 
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
-const { renderFigureSvg, figureLeaksAnswer, figureEmptyReason } = require('./transcript-quiz-figure');
+const { renderFigureSvg, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant } = require('./transcript-quiz-figure');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -208,6 +208,13 @@ function validate(rawQuestions, { language, subject, digest, nExpected } = {}) {
       errs.push(`q${i}: ${err.code || 'FIGURE_RENDER'} — ${err.message}`);
     }
     if (!svg) return;
+    if (svgInkCount(svg) < 3) {
+      errs.push(`q${i}: FIGURE_BLANK — the drawing paints almost nothing (the engine skipped shapes it does not know); use a shape from the minimal specs`);
+      return;
+    }
+    if (figureIsRedundant(q.figure, stem)) {
+      errs.push(`q${i}: FIGURE_REDUNDANT — the stem already states the numbers the picture shows; ask the child to READ them from the picture instead`);
+    }
     // The DRAWING is checked, not only the spec: several types compute a label
     // the spec never mentions, and a fraction bar's "3/4" is the whole answer.
     if (figureLeaksAnswer(q.figure, opts, ci, svg)) {

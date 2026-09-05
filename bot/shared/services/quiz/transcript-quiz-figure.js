@@ -261,6 +261,26 @@ function specStrings(node, key = null, out = []) {
  * numbers": three empty boxes over a whole page, telling the child nothing.
  * Returns null when the spec is informative, otherwise a one-line reason.
  */
+const GEOMETRY_KINDS = new Set(['triangle', 'polygon', 'circle', 'angle', 'rightangle', 'line', 'segment', 'point']);
+
+/**
+ * How many things the drawing actually paints. The engine skips shapes it
+ * does not know and text nodes it cannot place without throwing, so a spec can
+ * "render" to a white rectangle. Counts drawn primitives that carry a fill or
+ * a stroke, ignoring the paper.
+ */
+function svgInkCount(svg) {
+  const str = String(svg || '');
+  const tags = str.match(/<(rect|circle|ellipse|line|polyline|polygon|path|text|foreignObject)\b[^>]*>/g) || [];
+  let count = 0;
+  tags.forEach((t) => {
+    if (/(fill|stroke)="none"/.test(t) && !/stroke="(?!none)/.test(t) && !/fill="(?!none)/.test(t)) return;
+    if (/<rect\b/.test(t) && /width="100%"/.test(t)) return; // the paper
+    count += 1;
+  });
+  return count;
+}
+
 function figureEmptyReason(spec) {
   if (!spec || typeof spec !== 'object') return null;
   const type = canonicalType(spec.type);
@@ -294,7 +314,9 @@ function figureEmptyReason(spec) {
       if (!shapes.length) return 'a geometry figure needs at least one shape';
       // The engine draws MATHEMATICS. A rectangle-plus-circles "scene" of real
       // things, with colour tokens the page never defines, rendered blank.
-      const mathematical = shapes.some((sh) => n(sh.labels) || n(sh.sides) || n(sh.angles) || sh.radius !== undefined && (sh.label || sh.radiusLabel));
+      const bad = shapes.find((sh) => !GEOMETRY_KINDS.has(String(sh && sh.kind || '').toLowerCase()));
+      if (bad) return `unknown geometry shape kind "${bad && bad.kind}" — only ${[...GEOMETRY_KINDS].join(', ')} are drawn`;
+      const mathematical = shapes.some((sh) => n(sh.labels) || n(sh.sides) || n(sh.angles) || sh.label || (sh.radius !== undefined && (sh.label || sh.radiusLabel)));
       return mathematical ? null : 'geometry must carry labelled points, sides or angles — it draws mathematics, never a scene of objects';
     }
     case 'graph':
@@ -325,13 +347,63 @@ function figureLeaksAnswer(spec, options, correctIndex, svg = null) {
 
   // A jump arc that LANDS on the answer shows it by geometry, not by text:
   // "3 + 4 = ?" with an arc from 3 to 7 is answered by the arrowhead.
-  if (canonicalType(spec.type) === 'numberline' && Array.isArray(spec.arcs)) {
+  const type = canonicalType(spec.type);
+  if (type === 'numberline' && Array.isArray(spec.arcs)) {
     const lands = spec.arcs.map((a) => norm(String(a && a.to)));
     if (lands.includes(correct)) return true;
   }
+  // A grid whose row or column count IS the answer has already done the
+  // sharing for the child ("12 flowers in 3 vases" drawn as 3 rows of 4).
+  if (type === 'grid' && /^\d+$/.test(correct)) {
+    if ([spec.rows, spec.cols].map((v) => norm(String(v))).includes(correct)) return true;
+  }
 
   if (!shows(correct)) return false;
-  return !opts.every((o) => shows(o));
+  // "Every option appears" is an exemption for LETTER HANDLES (a labelled
+  // A/B/C choice), never for options filed inside the drawing — a flow chart
+  // that prints the answer under one heading and the distractors under the
+  // other is an answer key, even though all three words are on it.
+  const handles = opts.every((o) => [...o].length <= 3);
+  return !(handles && opts.every((o) => shows(o)));
+}
+
+/**
+ * The numbers a figure is MADE of. A stem that already states them does not
+ * need the picture (nine of twelve corpus figures were decorative for exactly
+ * this reason): "a bar has 4 parts and 1 is shaded — which fraction?" asks
+ * the child to read nothing.
+ */
+function figureDefiningNumbers(spec) {
+  const type = canonicalType(spec && spec.type);
+  const nums = [];
+  const push = (v) => { if (v !== undefined && v !== null && String(v).trim() !== '' && Number.isFinite(Number(v))) nums.push(String(Number(v))); };
+  const fromLabel = (label) => (String(label || '').match(/-?\d+(?:\.\d+)?/g) || []).forEach(push);
+  switch (type) {
+    case 'fraction_bar': (spec.bars || []).forEach((b) => { push(b.parts); push(b.shaded); }); break;
+    case 'grid': push(spec.shaded); break;
+    case 'numberline':
+      (spec.points || []).forEach((p) => push(p && p.at));
+      (spec.arcs || []).forEach((a) => { push(a && a.from); push(a && a.to); fromLabel(a && a.label); });
+      break;
+    case 'geometry': (spec.shapes || []).forEach((sh) => (sh.sides || []).forEach(fromLabel)); break;
+    case 'timeline': (spec.events || []).forEach((e) => fromLabel(e && e.date)); break;
+    default: break;
+  }
+  return [...new Set(nums)];
+}
+
+/**
+ * True when the stem restates enough of the figure's defining numbers that
+ * the picture adds nothing: all of them for a one-bar fraction, otherwise two
+ * or more.
+ */
+function figureIsRedundant(spec, stem) {
+  const nums = figureDefiningNumbers(spec);
+  if (!nums.length) return false;
+  const text = norm(stem);
+  const inStem = nums.filter((v) => new RegExp(`(^|[^\\d.])${v.replace('.', '\\.')}(?![\\d.])`).test(text));
+  const need = canonicalType(spec.type) === 'fraction_bar' ? nums.length : Math.min(2, nums.length);
+  return inStem.length >= need;
 }
 
 // ─── picture ─────────────────────────────────────────────────────────────────
@@ -394,6 +466,10 @@ async function uploadFigure({ teacherId, quizId, index, png }) {
 
 module.exports = {
   NIETE_TOKENS,
+  svgInkCount,
+  figureIsRedundant,
+  figureDefiningNumbers,
+  GEOMETRY_KINDS,
   figureEmptyReason,
   ALLOWED_TYPES,
   TYPE_DEFAULTS,

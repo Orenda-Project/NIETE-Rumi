@@ -55,7 +55,8 @@ HARD RULES
 - Use the SIMPLEST spec that answers the question. Long labels and crowded scales collide and the whole question is thrown away.
 - The engine draws MATHEMATICS AND SCIENCE, never pictures of things: never draw a scene, an object, an animal, a person or a place with geometry shapes (a "farm" of rectangles and circles renders as a blank). If the question needs a photo of a real thing, there is no figure.
 - A jump arc must not land on the answer: "3 + 4 = ?" with an arc from 3 to 7 shows the child the 7. Draw the dot at 3 and ask where a jump of 4 lands, with no arc — or draw the arc and ask how long the jump was.
-- geometry is for triangles, polygons, circles, angles and labelled sides ONLY. A science process is a flow; a sequence in time is a timeline; a comparison of amounts is a fraction_bar or a grid.
+- EARN THE FIGURE: the stem must not state the numbers the picture shows. "A bar has 4 parts and 1 is shaded — which fraction?" needs no picture; "تصویر میں کتنا حصہ رنگا ہوا ہے؟" does. The child must READ the picture to answer.
+- geometry kinds are exactly: triangle, polygon, circle, angle, rightangle, line, segment, point — for triangles, polygons, circles, angles and labelled sides ONLY. A science process is a flow; a sequence in time is a timeline; a comparison of amounts is a fraction_bar or a grid.
 - Colours: use only the tokens named in the minimal specs; never invent one (var(--sand), var(--brown) do not exist and render as nothing).
 
 WORKED EXAMPLES (spec next to the question it serves):
