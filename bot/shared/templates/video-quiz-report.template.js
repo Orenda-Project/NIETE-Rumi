@@ -1,8 +1,8 @@
 'use strict';
 /**
- * Video-quiz class report — bd-2335, redesigned bd-2473, i18n foundation
- * ported from the main bot (bd-2664/bd-2679) — NIETE's copy was still the
- * English-only v1 layout: no Nastaliq font, no RTL, no per-language chrome.
+ * Video-quiz class report — redesigned, with the i18n foundation ported
+ * from the main bot. NIETE's copy was still the English-only v1 layout:
+ * no Nastaliq font, no RTL, no per-language chrome.
  *
  * The teacher's copy of "how did my class do, and what do I do about it".
  * v2 adopts the coaching hero-report visual system (NIETE slate hero — retokened from the earlier navy by the transcript-quiz work,
@@ -67,7 +67,7 @@ function assets() {
  * this file interpolates into element TEXT CONTENT, never an HTML attribute
  * value (checked every call site) — a literal `'`/`"` is markup-safe there.
  * Escaping them to &#39;/&quot; used to actively cause a bug on the main bot
- * (bd-2679): wrapLatin()'s tag/entity pre-split pulls any HTML entity out as
+ * wrapLatin()'s tag/entity pre-split pulls any HTML entity out as
  * its own opaque, unwrappable segment, so an escaped apostrophe tore an
  * English contraction/possessive ("cat's", "don't") into two separate
  * isolated .ltr spans with a bare entity between them, mid-word. Building
@@ -133,7 +133,7 @@ const CHROME = {
  * built already in this shape rather than the main bot's original narrower
  * class, which excluded them and fragmented English clauses inside RTL text
  * into several separate isolated spans with bare, un-isolated characters
- * between them (bd-2679 on the main bot: isolation only preserves order
+ * between them (seen on the main bot: isolation only preserves order
  * WITHIN a span — the browser's bidi algorithm still reorders adjacent
  * isolated islands per the surrounding dir="rtl" paragraph, scrambling
  * clause order even though no individual span's own text was corrupted).

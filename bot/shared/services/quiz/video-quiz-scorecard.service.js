@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-2474 — the scorecard was designed (mockups/out/scorecard_src.html,
+ * The scorecard was designed (mockups/out/scorecard_src.html,
  * 09_scorecard.png showing the full intended WhatsApp sequence) but never
  * wired into finish() — a child who completes a video quiz has only ever
  * gotten a plain text summary. This renders the designed navy/gold card and
@@ -15,7 +15,7 @@
 
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
-// bd-2681 — this send never went through bd-2666's throttle at all (it isn't
+// This send never went through the pacing throttle at all (it isn't
 // routed through video-quiz-sender.service.js's sendPhase()). It's the last
 // message a completing quiz sends to the phone, so it can land right on top
 // of an already-near-full window from the questions that preceded it.
