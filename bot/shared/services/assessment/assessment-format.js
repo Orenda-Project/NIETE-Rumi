@@ -49,4 +49,45 @@ function rendererFor(format) {
   };
 }
 
-module.exports = { rendererFor, FORMATS, ALIASES };
+/**
+ * The file types the confirm screen may offer.
+ *
+ * PDF is always first, so it stays the pre-selected default whether or not Word
+ * is on. Word appears only when its flag is on — the layout is not yet worth
+ * offering (see ASSESSMENT_DOCX_KEY).
+ */
+async function formatsOnOffer() {
+  const offered = [{ id: 'pdf', title: 'PDF — ready to print' }];
+  try {
+    const { isAssessmentDocxEnabled } = require('../../config/feature-flags');
+    if (await isAssessmentDocxEnabled()) {
+      offered.push({ id: 'docx', title: 'Word — you can edit it' });
+    }
+  } catch (err) {
+    // Fail closed: a flag we cannot read means PDF, never a paper we would not
+    // stand behind.
+  }
+  return offered;
+}
+
+/**
+ * The format the server will ACTUALLY render, after the gate.
+ *
+ * Separate from hiding the option, which is only a courtesy: a stale client
+ * still carries the old screen and will post `output_format=docx` happily, and
+ * a completion payload can be replayed by hand. This is where a switched-off
+ * format is genuinely refused, and the refusal is a fallback to PDF rather than
+ * an error — she gets a paper she can print instead of nothing at all.
+ */
+async function resolveFormat(requested) {
+  const key = ALIASES[String(requested || '').trim().toLowerCase()] || 'pdf';
+  if (key !== 'docx') return 'pdf';
+  try {
+    const { isAssessmentDocxEnabled } = require('../../config/feature-flags');
+    return (await isAssessmentDocxEnabled()) ? 'docx' : 'pdf';
+  } catch (err) {
+    return 'pdf';
+  }
+}
+
+module.exports = { rendererFor, formatsOnOffer, resolveFormat, FORMATS, ALIASES };

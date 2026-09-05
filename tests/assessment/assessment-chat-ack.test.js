@@ -490,9 +490,12 @@ describe('the submit must still happen after the Flow closes (bd-60030)', () => 
     expect(mockQueueJob).toHaveBeenCalled();
     // CONFIRM's fields survive the close via the payload — CONFIRM never
     // reached the endpoint to store them in the session.
-    expect(inserted.output_format).toBe('docx');
     expect(inserted.has_answer_key).toBe(true);
     expect(inserted.grade_code).toBe('grade_4');
+    // docx is gated (bd-60031) and the flag is off by default, so the format
+    // resolves to pdf. That the REQUEST is written at all is what this test is
+    // about; the gate has its own suite.
+    expect(inserted.output_format).toBe('pdf');
   });
 
   test('a stale or missing session is refused, not submitted as a half-request', async () => {
