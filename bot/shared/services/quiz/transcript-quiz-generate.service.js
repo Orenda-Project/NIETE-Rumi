@@ -168,7 +168,10 @@ async function process(quizId, payload = {}) {
       const r = await Digest.run({ session, user });
       meta = { ...meta, digest: r.digest, grade: r.grade, grade_source: r.gradeSource, lp_hint: r.lpHint,
         digest_model: r.model, cost_usd: (meta.cost_usd || 0) + (r.costUsd || 0) };
-      const language = quizLanguageFor(r.digest.subject, session.transcript_language);
+      // The teacher's own choice, stored on the row when she answered the
+      // language ask, outranks the subject rule. The rule is what a legacy
+      // row (or a skipped ask) falls back to.
+      const language = quiz.language || quizLanguageFor(r.digest.subject, session.transcript_language);
       quiz.language = language;
       quiz.subject = r.digest.subject;
       quiz.topic = topicFor(r.digest, language);

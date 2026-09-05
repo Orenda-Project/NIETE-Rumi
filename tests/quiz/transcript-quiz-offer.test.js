@@ -196,7 +196,10 @@ describe('processOffer (worker)', () => {
 describe('handleOfferButton', () => {
   const TEACHER = { data: [{ id: UID, phone_number: '923001234567', preferred_language: 'ur' }] };
 
-  test('tq_yes flips offered→generating exactly once and enqueues quiz_generate', async () => {
+  test('tq_yes on an Urdu lesson flips offered→generating exactly once and enqueues quiz_generate', async () => {
+    // Urdu is the one subject the language ask is skipped for, so this is
+    // still the straight-to-generate path. Everything else asks first —
+    // transcript-quiz-language-ask.test.js.
     let flips = 0;
     installFrom(supabase.from, ({
       quizzes: (calls) => {
@@ -204,7 +207,7 @@ describe('handleOfferButton', () => {
           flips += 1;
           return flips === 1 ? { data: [{ id: QID }] } : { data: [] };   // second tap: no row matched
         }
-        return { data: [{ id: QID, teacher_id: UID, status: 'offered', language: 'ur', topic: 'کسریں' }] };
+        return { data: [{ id: QID, teacher_id: UID, status: 'offered', language: 'ur', subject: 'urdu', topic: 'واحد اور جمع' }] };
       },
       users: TEACHER,
     }));

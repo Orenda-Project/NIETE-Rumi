@@ -13,7 +13,7 @@
  * preference was never stored should not get an English offer.
  */
 
-const { LANGUAGE_OFFER } = require('../../config/languages');
+const { LANGUAGE_OFFER, getLanguage } = require('../../config/languages');
 const { resolveUx, clampLanguage, subjectLabelFor } = require('../../config/ux-strings');
 
 const URDU_MEDIUM = new Set(['urdu', 'islamiat', 'sst', 'genk']);
@@ -62,6 +62,36 @@ function teacherLanguageFor({ preferredLanguage, transcriptLanguage } = {}) {
   if (pref && LANGUAGE_OFFER.includes(pref)) return pref;
   if (transcriptLanguage) return isEnglishCode(transcriptLanguage) ? 'en' : 'ur';
   return 'ur';
+}
+
+/**
+ * The two subjects where the quiz language is not a real choice: an
+ * Urdu-grammar or an Islamiyat lesson taught in Urdu, quizzed in English, is
+ * not a quiz about that lesson. Everything else is asked.
+ */
+const LANGUAGE_ASK_SKIPPED = new Set(['urdu', 'islamiat']);
+
+function needsLanguageAsk(subject) {
+  return !LANGUAGE_ASK_SKIPPED.has(canonicalSubject(subject));
+}
+
+const LANGUAGE_BUTTON_PREFIX = 'tq_lang_';
+
+/**
+ * The two reply buttons for the ask, the subject-rule language first — the
+ * one she would have been given silently before, still the easy tap.
+ *
+ * Each title is the language's own name from the registry, so it cannot drift
+ * from what /language and /settings show, and neither is translated: a
+ * language names itself the same way whichever language you are reading in.
+ */
+function languageAskButtons(quizId, ruleLanguage) {
+  const first = LANGUAGE_OFFER.includes(ruleLanguage) ? ruleLanguage : LANGUAGE_OFFER[0];
+  const order = [first, ...LANGUAGE_OFFER.filter((c) => c !== first)];
+  return order.map((code) => ({
+    id: `${LANGUAGE_BUTTON_PREFIX}${code}_${quizId}`,
+    title: getLanguage(code).languageTitle,
+  }));
 }
 
 const UR_MONTHS = ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'];
@@ -216,6 +246,10 @@ function topicFor(digest, language) {
 
 module.exports = {
   topicFor,
+  needsLanguageAsk,
+  languageAskButtons,
+  LANGUAGE_ASK_SKIPPED,
+  LANGUAGE_BUTTON_PREFIX,
   lessonLabel,
   subjectLabel,
   SUBJECT_LABEL_CODES,

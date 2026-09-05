@@ -19,8 +19,8 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
 const { truncateCodePoints } = require('./religious-marks');
-const { teacherLanguageFor, formatLessonDate, subjectLabel } = require('./transcript-quiz-language');
-const { MIN_TRANSCRIPT_CHARS } = require('./transcript-quiz-offer.service');
+const { teacherLanguageFor, formatLessonDate, subjectLabel, quizLanguageFor, needsLanguageAsk } = require('./transcript-quiz-language');
+const { MIN_TRANSCRIPT_CHARS, sendLanguageAsk } = require('./transcript-quiz-offer.service');
 
 const PICK_PREFIX = 'tq_pick_';
 const LINK_PREFIX = 'tq_link_';
@@ -142,25 +142,42 @@ async function handleListPick(listId, phone, user) {
     return true;
   }
   const { data: session } = await supabase.from('coaching_sessions')
-    .select('id, user_id, created_at, transcript_text, analysis_data')
+    .select('id, user_id, created_at, transcript_text, transcript_language, analysis_data')
     .eq('id', sessionId).eq('user_id', user.id).maybeSingle();
   if (!session) {
     await WhatsAppService.sendMessage(phone, resolveUx('tqNotYours', { language: lang }));
     return true;
   }
   const { data: quiz } = await supabase.from('quizzes')
-    .select('id, status, topic, language, meta, coaching_session_id')
+    .select('id, status, topic, subject, language, meta, coaching_session_id')
     .eq('coaching_session_id', sessionId).eq('quiz_source', 'transcript').maybeSingle();
+
+  // The quiz language is hers to choose here too — a lesson picked from /quiz
+  // reaches exactly the same decision as a "yes" on the offer. The subject
+  // rule seeds the button order; only Urdu and Islamiyat skip the ask.
+  const subject = quiz?.subject || session.analysis_data?.subject || null;
+  const ruleLanguage = quiz?.language || quizLanguageFor(subject, session.transcript_language);
+  const ask = needsLanguageAsk(subject);
 
   if (!quiz) {
     const { data: created, error } = await supabase.from('quizzes').insert({
       teacher_id: user.id, quiz_source: 'transcript', coaching_session_id: sessionId,
       topic: session.analysis_data?.topic || 'Lesson', subject: session.analysis_data?.subject || null,
-      status: 'generating', meta: { step: 'digest', source: 'list', claimed_at: new Date().toISOString() },
+      language: ask ? null : ruleLanguage,
+      status: ask ? 'offered' : 'generating',
+      meta: {
+        step: ask ? 'awaiting_language' : 'digest', awaiting_language: ask,
+        source: 'list', claimed_at: new Date().toISOString(),
+      },
     }).select('id').single();
     if (error || !created) {
       logToFile('⚠️ transcript quiz: list claim failed', { sessionId, error: error?.message });
       await WhatsAppService.sendMessage(phone, resolveUx('tqStillMaking', { language: lang }));
+      return true;
+    }
+    if (ask) {
+      await sendLanguageAsk(created.id, phone, lang, ruleLanguage);
+      logEvent('transcript_quiz.language_asked', { userId: user.id, quizId: created.id, ruleLanguage, from: 'list' });
       return true;
     }
     await enqueueGenerate(created.id, phone, lang);
@@ -187,9 +204,27 @@ async function handleListPick(listId, phone, user) {
       return true;
     }
     default: {
-      // offered / declined / skipped / failed / cancelled → (re)make it.
+      // offered / declined / skipped / failed / cancelled → (re)make it, after
+      // the language ask where the subject leaves a real choice.
+      if (ask) {
+        await supabase.from('quizzes')
+          .update({
+            status: 'offered',
+            meta: {
+              ...(quiz.meta || {}), step: 'awaiting_language', awaiting_language: true,
+              source: 'list', retried_at: new Date().toISOString(),
+            },
+          })
+          .eq('id', quiz.id);
+        await sendLanguageAsk(quiz.id, phone, lang, ruleLanguage);
+        logEvent('transcript_quiz.language_asked', { userId: user.id, quizId: quiz.id, ruleLanguage, from: 'list' });
+        return true;
+      }
       await supabase.from('quizzes')
-        .update({ status: 'generating', meta: { ...(quiz.meta || {}), step: quiz.meta?.digest ? 'author' : 'digest', source: 'list', retried_at: new Date().toISOString() } })
+        .update({
+          status: 'generating', language: ruleLanguage,
+          meta: { ...(quiz.meta || {}), step: quiz.meta?.digest ? 'author' : 'digest', awaiting_language: false, source: 'list', retried_at: new Date().toISOString() },
+        })
         .eq('id', quiz.id);
       await enqueueGenerate(quiz.id, phone, lang);
       logEvent('transcript_quiz.list_generate', { userId: user.id, quizId: quiz.id, from: quiz.status });

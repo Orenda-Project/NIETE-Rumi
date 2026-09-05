@@ -30,11 +30,13 @@ const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
 const FeatureIntro = require('../feature-intro.service');
 const Digest = require('./transcript-quiz-digest.service');
-const { quizLanguageFor, teacherLanguageFor, canonicalSubject, formatLessonDate, topicFor, lessonLabel } = require('./transcript-quiz-language');
+const { quizLanguageFor, teacherLanguageFor, canonicalSubject, formatLessonDate, topicFor, lessonLabel,
+  needsLanguageAsk, languageAskButtons } = require('./transcript-quiz-language');
 
 const OFFER_YES = 'tq_yes_';
 const OFFER_NO = 'tq_no_';
 const BUTTON_RX = /^tq_(yes|no)_([0-9a-fA-F-]{36})$/;
+const LANGUAGE_RX = /^tq_lang_(ur|en)_([0-9a-fA-F-]{36})$/;
 const MIN_TRANSCRIPT_CHARS = 1500;
 const OFFER_DELAY_SECONDS = 240;
 const MIN_CONFIDENCE = 0.6;
@@ -250,6 +252,7 @@ async function teacherFor(quiz) {
 }
 
 async function handleOfferButton(buttonId, phone) {
+  const api = module.exports;
   const m = BUTTON_RX.exec(buttonId || '');
   if (!m) return false;
   const yes = m[1] === 'yes';
@@ -274,24 +277,94 @@ async function handleOfferButton(buttonId, phone) {
     return true;
   }
 
-  const { data: flipped } = await supabase.from('quizzes')
-    .update({ status: 'generating', meta: { ...(quiz.meta || {}), step: 'author', accepted_at: new Date().toISOString() } })
-    .eq('id', quizId).eq('status', 'offered').select('id');
-  if (!flipped || !flipped.length) {
-    // Tapped twice, or already sent. Never a second generation.
-    const done = ['sent', 'report_sent', 'ready'].includes(quiz.status);
-    await WhatsAppService.sendMessage(phone, resolveUx(done ? 'tqAlreadySent' : 'tqAlreadyMaking', { language: lang }));
+  // The rule language is what she would have been handed silently in round 1.
+  // It is now the first button, not the decision.
+  const ruleLanguage = quiz.language || quizLanguageFor(quiz.subject, null);
+
+  if (needsLanguageAsk(quiz.subject)) {
+    // The row stays 'offered' until she answers, so an unanswered ask expires
+    // exactly as an unanswered offer does.
+    const { data: marked } = await supabase.from('quizzes')
+      .update({
+        meta: {
+          ...(quiz.meta || {}), step: 'awaiting_language', awaiting_language: true,
+          accepted_at: new Date().toISOString(), asked_language_at: new Date().toISOString(),
+        },
+      })
+      .eq('id', quizId).eq('status', 'offered').select('id');
+    if (!marked || !marked.length) return api.tellAlready(phone, quiz, lang);
+    await api.sendLanguageAsk(quizId, phone, lang, ruleLanguage);
+    logEvent('transcript_quiz.language_asked', { quizId, userId: quiz.teacher_id, ruleLanguage, from: 'offer' });
     return true;
   }
-  const SQSQueueService = require('../queue/sqs-queue.service');
-  await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone, language: lang }, { delaySeconds: 0 });
-  await WhatsAppService.sendMessage(phone, resolveUx('tqMaking', { language: lang }));
-  logEvent('transcript_quiz.accepted', { quizId, userId: quiz.teacher_id });
+
+  return api.startGenerating({ quizId, quiz, phone, teacherLang: lang, language: ruleLanguage, source: 'offer' });
+}
+
+/** Tapped twice, or already sent. Never a second generation. */
+async function tellAlready(phone, quiz, lang) {
+  const done = ['sent', 'report_sent', 'ready'].includes(quiz.status);
+  await WhatsAppService.sendMessage(phone, resolveUx(done ? 'tqAlreadySent' : 'tqAlreadyMaking', { language: lang }));
   return true;
+}
+
+/** The ask itself — shared with /quiz, which reaches the same decision. */
+async function sendLanguageAsk(quizId, phone, teacherLang, ruleLanguage) {
+  await WhatsAppService.sendInteractiveButtons(phone, {
+    body: resolveUx('tqAskLanguage', { language: teacherLang }),
+    buttons: languageAskButtons(quizId, ruleLanguage),
+  });
+}
+
+/**
+ * offered → generating, once, with the language that will be written. The
+ * atomic status filter is what makes a double tap a no-op.
+ */
+async function startGenerating({ quizId, quiz, phone, teacherLang, language, source }) {
+  const api = module.exports;
+  const { data: flipped } = await supabase.from('quizzes')
+    .update({
+      status: 'generating', language,
+      meta: { ...(quiz.meta || {}), step: 'author', awaiting_language: false, language_choice: language, accepted_at: new Date().toISOString() },
+    })
+    .eq('id', quizId).eq('status', 'offered').select('id');
+  if (!flipped || !flipped.length) return api.tellAlready(phone, quiz, teacherLang);
+
+  const SQSQueueService = require('../queue/sqs-queue.service');
+  await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone, language: teacherLang }, { delaySeconds: 0 });
+  await WhatsAppService.sendMessage(phone, resolveUx('tqMaking', { language: teacherLang }));
+  logEvent('transcript_quiz.accepted', { quizId, userId: quiz.teacher_id, language, source });
+  return true;
+}
+
+/**
+ * Her answer to the ask. The language she chose is written to `quizzes.language`
+ * — the generate step reads that ahead of the subject rule — and the same
+ * atomic flip guards a double tap.
+ */
+async function handleLanguageButton(buttonId, phone, user) {
+  const api = module.exports;
+  const m = LANGUAGE_RX.exec(buttonId || '');
+  if (!m) return false;
+  const language = m[1];
+  const quizId = m[2];
+
+  const { data: quiz } = await supabase.from('quizzes')
+    .select('id, teacher_id, status, language, subject, topic, meta, coaching_session_id')
+    .eq('id', quizId).maybeSingle();
+  if (!quiz) {
+    await WhatsAppService.sendMessage(phone, resolveUx('tqOfferExpired', { language: teacherLanguageFor({ preferredLanguage: user?.preferred_language }) }));
+    return true;
+  }
+  const teacher = await teacherFor(quiz);
+  const lang = teacherLanguageFor({ preferredLanguage: teacher.preferred_language || user?.preferred_language });
+  logEvent('transcript_quiz.language_chosen', { quizId, userId: quiz.teacher_id, language });
+  return api.startGenerating({ quizId, quiz, phone, teacherLang: lang, language, source: 'ask' });
 }
 
 module.exports = {
   enabled, offerMode, subjectAllowed, alreadyOffered, introVideo,
-  scheduleOffer, triggerEarly, processOffer, handleOfferButton, claimRow,
+  scheduleOffer, triggerEarly, processOffer, handleOfferButton, handleLanguageButton, claimRow,
+  sendLanguageAsk, startGenerating, tellAlready,
   OFFER_YES, OFFER_NO, MIN_TRANSCRIPT_CHARS, OFFER_DELAY_SECONDS, MIN_CONFIDENCE, MIN_SLOS, FEATURE_KEY, SESSION_SELECT,
 };

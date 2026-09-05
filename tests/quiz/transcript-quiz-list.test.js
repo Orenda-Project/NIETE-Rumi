@@ -99,15 +99,17 @@ describe('showList', () => {
 });
 
 describe('handleListPick', () => {
-  test('a lesson with no quiz yet: claims a row and enqueues generation', async () => {
+  test('a lesson with no quiz yet: claims a row and asks which language before generating', async () => {
     installFrom(supabase.from, ({
       coaching_sessions: { data: [S(1, { user_id: 'u-1', observation_type: null, status: 'completed' })] },
       quizzes: (calls) => (calls.some((c) => c[0] === 'insert') ? { data: [{ id: 'q-new' }] } : { data: [] }),
       users: { data: [USER] },
     }));
     expect(await List.handleListPick('tq_pick_sess-1', '923001234567', USER)).toBe(true);
-    expect(SQS.queueJob).toHaveBeenCalledWith('q-new', 'quiz_generate', expect.any(Object), expect.any(Object));
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
+    // Generation waits for her answer — see transcript-quiz-language-ask.test.js.
+    expect(SQS.queueJob).not.toHaveBeenCalled();
+    const [, payload] = WhatsAppService.sendInteractiveButtons.mock.calls[0];
+    expect(payload.buttons.map((b) => b.id)).toEqual(['tq_lang_ur_q-new', 'tq_lang_en_q-new']);
   });
 
   test('a quiz already sent: offers resend-link and report buttons', async () => {

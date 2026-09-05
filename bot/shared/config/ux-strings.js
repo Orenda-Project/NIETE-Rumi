@@ -1174,6 +1174,14 @@ Object.assign(UX_STRINGS, CLASS_FLOW_STRINGS);
  * sentence (or the reverse) cannot drag the punctuation around it.
  */
 const TRANSCRIPT_QUIZ_R2_STRINGS = {
+  // The quiz language is hers to choose. The two button titles come from the
+  // language registry (اردو / English), not from here — a language names itself
+  // the same way in both catalogs, and the registry is what the /language and
+  // /settings pickers already render.
+  tqAskLanguage: {
+    en: 'Which language should the quiz be in?\n\nUrdu — English terms stay in English letters (fraction, numerator).\nEnglish — the whole quiz in English.\n\nTap one.',
+    ur: '\u200Fquiz کس زبان میں ہو؟\n\nاردو — English اصطلاحات انگریزی حروف میں (fraction، numerator)۔\nEnglish — پورا quiz انگریزی میں۔\n\nایک کو tap کریں۔',
+  },
   tqLessonOnSubject: { en: '{subject} lesson on {topic}', ur: '\u200F{subject} کا سبق — {topic}' },
   tqLessonNoTopic:   { en: '{subject} lesson',            ur: '\u200F{subject} کا سبق' },
   tqLessonOnTopic:   { en: 'lesson on {topic}',           ur: 'سبق — {topic}' },
