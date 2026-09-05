@@ -14,7 +14,13 @@
 
 const { Svg, C, SIZE, measure, hasUrdu } = require("../lib/svg");
 
-const LSIZE = SIZE.small;
+// SIZE.small is read live at each use site below, not snapshotted into a
+// module-level const: every other type in this engine reads SIZE.xxx as a
+// property lookup at call time, which lets a caller scale the shared SIZE
+// object around a render (see the quiz lane's withFontScale). A module-level
+// `const LSIZE = SIZE.small` here used to be the one place that broke that —
+// bio_schematic is required once by index.js's registry scan, so LSIZE was
+// frozen forever at whatever SIZE.small was at that one moment.
 
 /* ------------------------------------------------------------------ */
 /* leader-line label engine                                            */
@@ -42,7 +48,7 @@ function slotYs(group, top, bottom, spacing) {
 }
 
 function drawLeaders(svg, items, o) {
-  const size = o.size ?? LSIZE;
+  const size = o.size ?? SIZE.small;
   const spacing = o.spacing ?? (o.lang === "ur" ? 36 : 26);
   for (const side of ["left", "right"]) {
     const group = items.filter((it) => it.side === side).sort((a, b) => a.y - b.y);
@@ -472,7 +478,7 @@ function renderLeaf(spec, L) {
       const gb = Y(yCutB) + H.cuticle + 14;
       svg.arrow(stomaCx - 34, gb + 44, stomaCx - 8, gb + 4, { stroke: C.cool, sw: 2 });
       svg.text(stomaCx - 40, gb + 58, "CO₂ in", {
-        size: LSIZE,
+        size: SIZE.small,
         anchor: "middle",
         fill: C.cool,
         weight: 600,
@@ -480,7 +486,7 @@ function renderLeaf(spec, L) {
       });
       svg.arrow(stomaCx + 8, gb + 4, stomaCx + 34, gb + 44, { stroke: C.leaf, sw: 2 });
       svg.text(stomaCx + 44, gb + 58, "O₂ out", {
-        size: LSIZE,
+        size: SIZE.small,
         anchor: "middle",
         fill: C.leaf,
         weight: 600,
@@ -488,7 +494,7 @@ function renderLeaf(spec, L) {
       });
       svg.arrow(stomaCx + 22, gb + 2, stomaCx + 86, gb + 26, { stroke: C.accent, sw: 2, dash: "5 4" });
       svg.text(stomaCx + 108, gb + 32, "H₂O", {
-        size: LSIZE,
+        size: SIZE.small,
         anchor: "middle",
         fill: C.clay,
         weight: 600,
@@ -623,8 +629,8 @@ function renderHeartLoop(spec, L) {
   /* ---- gas exchange at the bed ---- */
   svg.arrow(cx - 26, bedY - 34, cx - 26, bedY - 62, { stroke: C.leaf, sw: 1.8, size: 9 });
   svg.arrow(cx + 26, bedY - 62, cx + 26, bedY - 34, { stroke: C.plum, sw: 1.8, size: 9 });
-  svg.text(cx - 26, bedY - 70, "O₂", { size: LSIZE, anchor: "middle", weight: 700, fill: C.leaf, lang: "en" });
-  svg.text(cx + 26, bedY - 70, "CO₂", { size: LSIZE, anchor: "middle", weight: 700, fill: C.plum, lang: "en" });
+  svg.text(cx - 26, bedY - 70, "O₂", { size: SIZE.small, anchor: "middle", weight: 700, fill: C.leaf, lang: "en" });
+  svg.text(cx + 26, bedY - 70, "CO₂", { size: SIZE.small, anchor: "middle", weight: 700, fill: C.plum, lang: "en" });
 
   /* ---- labels, placed beside their own segment ---- */
   if (showLabels) {
@@ -635,7 +641,7 @@ function renderHeartLoop(spec, L) {
     // a page-level colour override) — see lib/svg.js's plateText doc.
     const lab = (x, y, s, anchor) =>
       svg.plateText(x, y, s, {
-        size: LSIZE,
+        size: SIZE.small,
         anchor,
         baseline: "middle",
         weight: 600,

@@ -13,7 +13,22 @@ const NOTATION_RE = /[\^_]|[²³¹⁰⁴-⁹₀-₉]|[√∑∫π≤≥≠∈∉
 
 const cp = (s) => [...String(s || '')].length;
 
+/**
+ * Figure types whose drawing is square-ish. In the 1080×565 image header they
+ * are height-bound to ~493 px and their labels land at 5–7 dp on a 360 dp
+ * phone even after the per-type font scale; on the question card the same
+ * drawing may be ~1000 px tall, which doubles every label. So these always go
+ * through the card (renders/round4/figures/phone_scale/RESULTS.md).
+ */
+const TALL_FIGURE_TYPES = new Set(['atom', 'cell', 'circuit', 'ray_diagram', 'punnett', 'free_body', 'graph', 'timeline']);
+
+function figureTypeOf(q) {
+  const f = (q && q.media && q.media.figure) || (q && q.figure) || null;
+  return f && typeof f === 'object' ? String(f.type || '') : '';
+}
+
 function needsQuestionCard(q) {
+  if (TALL_FIGURE_TYPES.has(figureTypeOf(q))) return true;
   const stem = String(q.question || q.question_text || '');
   const options = Array.isArray(q.options) ? q.options : [q.option_a, q.option_b, q.option_c, q.option_d].filter((o) => o != null && o !== '');
   if (NOTATION_RE.test(stem) || options.some((o) => NOTATION_RE.test(String(o)))) return true;
@@ -48,4 +63,6 @@ function unicodeNotation(text) {
 }
 
 
-module.exports = { needsQuestionCard, richNotation, unicodeNotation, esc, NOTATION_RE, BUTTON_TITLE_MAX };
+module.exports = {
+  TALL_FIGURE_TYPES,
+  figureTypeOf, needsQuestionCard, richNotation, unicodeNotation, esc, NOTATION_RE, BUTTON_TITLE_MAX };

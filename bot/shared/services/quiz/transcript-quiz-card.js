@@ -47,6 +47,15 @@ const tokenCss = () => {
  * @param {number} [d.questionNumber]
  * @param {number} [d.total]
  */
+/** width/height ratio of an SVG from its viewBox (or width/height attrs); Infinity when unknown. */
+function svgAspect(svg) {
+  const m = String(svg || '').match(/viewBox="\s*[-\d.]+\s+[-\d.]+\s+([\d.]+)\s+([\d.]+)/);
+  if (m && Number(m[2]) > 0) return Number(m[1]) / Number(m[2]);
+  const w = String(svg || '').match(/\swidth="([\d.]+)/); const h = String(svg || '').match(/\sheight="([\d.]+)/);
+  if (w && h && Number(h[1]) > 0) return Number(w[1]) / Number(h[1]);
+  return Infinity;
+}
+
 function renderQuestionCardHtml({ stem, options, displayOrder, figureSvg = null, language = 'en', questionNumber = null, total = null }) {
   const { css, missing } = fontCss({ urdu: true });
   if (missing.length) logToFile('⚠️ transcript quiz card: font face missing', { missing });
@@ -58,6 +67,9 @@ function renderQuestionCardHtml({ stem, options, displayOrder, figureSvg = null,
       <div class="opt" data-letter="${LETTERS[pos]}"><div class="dia"><span>${LETTERS[pos]}</span></div><div class="opt-text" dir="auto">${richNotation(esc(options[stored]))}</div></div>`).join('');
   const counter = questionNumber && total ? `<div class="counter">${ur ? `سوال ${questionNumber} از ${total}` : `Question ${questionNumber} of ${total}`}</div>` : '';
   const fig = figureSvg ? `<div class="figure">${figureSvg}</div>` : '';
+  // A tall (square-ish) figure is the reason this question is a card at all:
+  // let it be tall. A wide one keeps the cap so the options stay on the card.
+  const figMax = svgAspect(figureSvg) < 1.5 ? 980 : 520;
   return `<html lang="${ur ? 'ur' : 'en'}" dir="${dir}"><head><meta charset="utf-8"><style>
 ${css}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -70,7 +82,7 @@ html,body{background:#FFFFFF}
 .mark{width:60px;height:60px;background:#333748;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .mark img{width:52px;height:52px;display:block}
 .figure{background:#F5F7F6;border-radius:18px;padding:26px 30px;margin-bottom:26px;position:relative;direction:ltr}
-.figure svg{display:block;width:100%;height:auto;max-height:520px}
+.figure svg{display:block;width:100%;height:auto;max-height:${figMax}px}
 .stem{font-size:${ur ? '44px' : '42px'};line-height:${ur ? '2' : '1.35'};font-weight:${ur ? '400' : '600'};margin-bottom:26px;position:relative;text-align:start}
 .stem sup,.opt-text sup{font-size:.62em;vertical-align:super;line-height:0}
 .stem sub,.opt-text sub{font-size:.62em;vertical-align:sub;line-height:0}
