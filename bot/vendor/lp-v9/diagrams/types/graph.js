@@ -150,6 +150,52 @@ function sample(f, xMin, xMax, yMin, yMax, n) {
   return segs;
 }
 
+/* ------------------------------------------------------------------ */
+/* the drawn extent — what the lint's orientation check reads          */
+/* ------------------------------------------------------------------ */
+/**
+ * The box the plot ACTUALLY draws inside its own window: the x-range and the
+ * y-range covered by the curves and straight segments, after window clipping.
+ * Points are deliberately EXCLUDED — the whole purpose is to ask whether a
+ * point agrees with the locus it is supposed to sit on.
+ *
+ * Returns null when there is no locus (a points-only scatter), because then
+ * there is nothing for a point to disagree with. Shares this file's expression
+ * sandbox and sampler on purpose: the lint must measure the same curve the
+ * page draws, not a second implementation of it.
+ *
+ * bd-gel97.
+ */
+function drawnExtent(spec) {
+  if (!spec || typeof spec !== "object") return null;
+  const xMin = fin(spec.xMin, -5);
+  const xMax = fin(spec.xMax, xMin + 10);
+  const yMin = fin(spec.yMin, -5);
+  const yMax = fin(spec.yMax, yMin + 10);
+  let lo = [Infinity, Infinity];
+  let hi = [-Infinity, -Infinity];
+  let n = 0;
+  const take = (x, y) => {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    lo[0] = Math.min(lo[0], x); hi[0] = Math.max(hi[0], x);
+    lo[1] = Math.min(lo[1], y); hi[1] = Math.max(hi[1], y);
+    n++;
+  };
+  for (const f of Array.isArray(spec.functions) ? spec.functions : []) {
+    if (!f) continue;
+    const fn = typeof f.fn === "function" ? f.fn : compile(f.expr);
+    if (!fn) continue;
+    for (const seg of sample(fn, xMin, xMax, yMin, yMax, 200)) for (const [x, y] of seg) take(x, y);
+  }
+  for (const s of Array.isArray(spec.segments) ? spec.segments : []) {
+    if (!s || !Array.isArray(s.from) || !Array.isArray(s.to)) continue;
+    take(Number(s.from[0]), Number(s.from[1]));
+    take(Number(s.to[0]), Number(s.to[1]));
+  }
+  if (!n) return null;
+  return { x: [lo[0], hi[0]], y: [lo[1], hi[1]], samples: n };
+}
+
 function render(spec) {
   const xMin = fin(spec.xMin, -5);
   const xMax = fin(spec.xMax, xMin + 10);
@@ -450,9 +496,10 @@ function render(spec) {
 
 module.exports = {
   type: "graph",
+  drawnExtent,
   aliases: ["plot", "function_plot"],
   summary:
-    "Cartesian plot — sampled function curves (safe expression strings), plotted points, straight segments, gridlines and labelled axes. A function can set shade:'above'|'below' to fill the half-plane on one side of it, for inequality diagrams; two shaded functions overlap into a visibly darker region, which is the right convention for a system of inequalities.",
+    "Cartesian plot, ALWAYS with both axes named (xLabel + yLabel are required by lint_lp.js GRAPH_AXES; give the quantity and its unit, or \"x\"/\"y\" for a pure-maths curve). A graph reads (x-quantity) -> (y-quantity) and every plotted point is stated in that same order — sampled function curves (safe expression strings), plotted points, straight segments, gridlines and labelled axes. A function can set shade:'above'|'below' to fill the half-plane on one side of it, for inequality diagrams; two shaded functions overlap into a visibly darker region, which is the right convention for a system of inequalities.",
   render,
   examples: [
     {
@@ -465,6 +512,8 @@ module.exports = {
         yMax: 8,
         xStep: 1,
         yStep: 2,
+        xLabel: "x",
+        yLabel: "y",
         functions: [{ expr: "x*x - 2*x - 3", label: "y = x² − 2x − 3", color: C.ink }],
         points: [
           { x: -1, y: 0, label: "(−1, 0)", color: C.warn, dx: -10, dy: -12 },
@@ -523,6 +572,7 @@ module.exports = {
           { expr: "cos(x)", label: "y = cos x", color: C.warn, dash: "6 4" },
         ],
         xLabel: "x (radians)",
+        yLabel: "y",
         title: "y = sin x and y = cos x over one full turn",
         caption: "The two curves are the same shape, a quarter turn apart.",
       },

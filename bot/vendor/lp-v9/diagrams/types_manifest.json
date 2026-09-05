@@ -160,15 +160,18 @@
       "type": "graph",
       "aliases": ["plot", "function_plot"],
       "for": "A relationship between two quantities -- sampled curves from a safe expression in x, plotted points, straight segments, and shaded half-planes for inequalities.",
-      "required": ["xMin", "xMax", "yMin", "yMax"],
-      "optional": ["xStep", "yStep", "xTicks", "yTicks", "xLabel", "yLabel", "functions", "points", "segments", "grid", "legend", "samples", "aspect"],
+      "required": ["xMin", "xMax", "yMin", "yMax", "xLabel", "yLabel"],
+      "optional": ["xStep", "yStep", "xTicks", "yTicks", "functions", "points", "segments", "grid", "legend", "samples", "aspect"],
       "minimal_spec": {
         "type": "graph",
         "xMin": -3, "xMax": 5, "yMin": -6, "yMax": 8, "xStep": 1, "yStep": 2,
+        "xLabel": "x", "yLabel": "y",
         "functions": [{ "expr": "x*x - 2*x - 3", "label": "y = x2 - 2x - 3", "color": "var(--navy)" }]
       },
       "png": ["graph_en.png", "graph_ur.png"],
       "limits": [
+        "xLabel and yLabel are REQUIRED (bd-gel97). Name the QUANTITY and its UNIT -- \"Altitude (km)\", \"Pressure (kPa)\"; for a pure-maths curve they are literally \"x\" and \"y\". lint_lp.js GRAPH_AXES is a blocking defect: an unlabelled graph cannot be read by a teacher and cannot be checked against its own points.",
+        "A graph is (x-quantity with unit) -> (y-quantity with unit), and a point label states its coordinates in that SAME order. \"Mount Everest (8.8 km, 33 kPa)\" belongs at x = 8.8, y = 33 when x is the altitude axis. lint_lp.js GRAPH_POINT_ORDER blocks a point whose label states the plotted pair REVERSED, or whose number carries the OTHER axis's unit; GRAPH_ORIENTATION blocks a point sitting far off the curve's drawn extent when its swap (y, x) lands inside it.",
         "functions[].expr is a SAFE expression string in x -- not JavaScript, not a lambda.",
         "functions[].shade:\"above\"|\"below\" fills the half-plane on one side of the curve (PR #56). Two shaded functions overlap into a visibly darker region -- the right convention for a system of inequalities. Pair a strict inequality with dash:\"6 4\".",
         "Shading covers only the curve's own VISIBLE x-range: if the curve leaves the window on the side opposite the shading, the region past that point is left blank.",
