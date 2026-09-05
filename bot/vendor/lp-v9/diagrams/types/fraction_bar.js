@@ -1,7 +1,9 @@
-// fraction_bar — horizontal part-whole bars.
+// fraction_bar — horizontal part-whole bars, or (model:"circle") equal sectors
+// of a disc.
 //
-// Two modes, one module, because they are the same picture with a different
-// rule for how wide a bar gets:
+// Three modes, one module, because they share the same tokens (`parts`,
+// `shaded`, `label`, `value`, `color`) and the same shared-whole rule — only
+// the shape of the whole differs:
 //
 //   fraction mode (default) — every bar spans the SAME total width and is cut
 //     into `parts` equal segments. That shared width is the whole pedagogical
@@ -11,9 +13,16 @@
 //     unit is a fixed width, so Ali's 5 units is visibly longer than Sara's 3,
 //     and a brace on the outside carries the total.
 //
-// Urdu mirrors: the name gutter, the value gutter and the brace all swap sides,
-// because a labelled bar is read the way the sentence is read. (A number line
-// does not mirror; maths stays LTR. A labelled bar does.)
+//   circle mode (`model:'circle'`) — a roti/pizza: every circle in the spec is
+//     drawn at the SAME radius (the bar mode's shared-width rule, in a disc),
+//     cut into `parts` equal sectors starting at 12 o'clock. A label and the
+//     k/n readout sit centred underneath, not beside — a bar's name gutter has
+//     nowhere to go on a circle.
+//
+// Urdu mirrors: the name gutter, the value gutter and the brace all swap sides
+// in bar mode, and the circle's sectors sweep anticlockwise instead of
+// clockwise, because a labelled figure is read the way the sentence is read.
+// (A number line does not mirror; maths stays LTR. A labelled bar or circle does.)
 
 const { Svg, C, SIZE, measure, hasUrdu } = require("../lib/svg");
 
@@ -108,6 +117,8 @@ function render(spec) {
       i,
     };
   });
+
+  if (spec.model === "circle") return renderCircle(spec, bars, lang, rtl, nf);
 
   const unitMode = spec.model === "unit" || !!spec.unitLabel;
   const anyName = bars.some((b) => b.label);
@@ -248,6 +259,111 @@ function render(spec) {
       fill: C.muted,
     });
   }
+
+  return svg.toString();
+}
+
+/** model:"circle" — n equal sectors, k shaded, per bar entry. Every circle in
+ *  the spec shares one radius (the bar mode's shared-width rule, in a disc);
+ *  sectors start at 12 o'clock and sweep clockwise (en) or anticlockwise (ur)
+ *  — a fraction circle is read the way the page is read. `parts === 1` draws
+ *  a whole disc with no radius line. A label and the k/n readout sit centred
+ *  under each circle, in that order, the same showLabels/nf() rule bar mode
+ *  uses. */
+function renderCircle(spec, bars, lang, rtl, nf) {
+  const anyName = bars.some((b) => b.label);
+  const showValues = spec.showLabels === true ? true : spec.showLabels === false ? false : true;
+
+  const count = bars.length;
+  // Shared radius across the whole spec; smaller once 3+ circles have to
+  // share the row, same idea as the bar mode's shared bar width.
+  const r = count <= 2 ? 78 : count === 3 ? 62 : 50;
+  const d = 2 * r;
+  const gap = fin(spec.gap, 26);
+  const pad = 10;
+  const rowW = count * d + (count - 1) * gap;
+  // A single circle is only ~176 units wide, and a title set over a body that
+  // narrow wraps into a two-word orphan line. Chrome (title / caption / note /
+  // source) therefore floors the body at the same width the bar mode uses, and
+  // the row of circles is centred inside whatever width we end up with.
+  const hasChrome = Boolean(spec.title || spec.caption || spec.note || spec.source);
+  const bodyW = fin(spec.width, Math.max(pad * 2 + rowW, hasChrome ? 560 : 0));
+  const rowX = (bodyW - rowW) / 2;
+
+  const labelH = anyName ? SIZE.label * 1.4 + 8 : 0;
+  const valueH = showValues ? SIZE.label * 1.4 + 4 : 0;
+  const topPad = 6;
+  const row0 = topPad + d + 6; // gap under the ring before any label starts
+  const bodyH = row0 + labelH + valueH + 6;
+
+  const svg = new Svg(bodyW, bodyH, {
+    title: spec.title,
+    caption: spec.caption,
+    source: spec.source,
+    note: spec.note,
+    lang,
+    spec,
+  });
+
+  const palette = [C.accent, C.cool, C.leaf, C.plum, C.clay, C.teal];
+  const dir = rtl ? -1 : 1; // clockwise (en) vs anticlockwise (ur) from 12 o'clock
+  const sweep = rtl ? 0 : 1;
+  const cy = topPad + r;
+  const labW = Math.max(d + 10, 60);
+
+  bars.forEach((b, i) => {
+    const cx = rtl ? bodyW - rowX - r - i * (d + gap) : rowX + r + i * (d + gap);
+    const color = b.color || palette[b.i % palette.length];
+
+    if (b.parts <= 1) {
+      const isOn = b.shaded.has(0);
+      svg.circle(cx, cy, r, {
+        fill: isOn ? color : C.panel,
+        opacity: isOn ? 0.88 : 1,
+        stroke: C.ink,
+        sw: 1.9,
+      });
+    } else {
+      const step = (2 * Math.PI) / b.parts;
+      for (let k = 0; k < b.parts; k++) {
+        const isOn = b.shaded.has(k);
+        const a0 = dir * k * step;
+        const a1 = dir * (k + 1) * step;
+        const p0x = cx + r * Math.sin(a0), p0y = cy - r * Math.cos(a0);
+        const p1x = cx + r * Math.sin(a1), p1y = cy - r * Math.cos(a1);
+        const large = step > Math.PI ? 1 : 0;
+        svg.path(
+          `M${r2(cx)},${r2(cy)} L${r2(p0x)},${r2(p0y)} A${r2(r)},${r2(r)} 0 ${large},${sweep} ${r2(p1x)},${r2(p1y)} Z`,
+          { fill: isOn ? color : C.panel, opacity: isOn ? 0.88 : 1, stroke: C.ink, sw: 1.1 }
+        );
+      }
+      svg.circle(cx, cy, r, { fill: "none", stroke: C.ink, sw: 1.9 });
+    }
+
+    let cursor = row0;
+    if (b.label) {
+      lab(svg, cx, cursor + labelH / 2, b.label, {
+        size: SIZE.label,
+        align: "center",
+        baseline: "middle",
+        weight: 700,
+        fill: C.ink,
+        w: labW,
+      });
+      cursor += labelH;
+    }
+    if (showValues) {
+      const val = b.value !== undefined ? b.value : `${nf(b.shaded.size)}/${nf(b.parts)}`;
+      lab(svg, cx, cursor + valueH / 2, val, {
+        size: SIZE.label,
+        align: "center",
+        baseline: "middle",
+        weight: 700,
+        fill: C.ink,
+        w: labW,
+      });
+    }
+  });
 
   return svg.toString();
 }

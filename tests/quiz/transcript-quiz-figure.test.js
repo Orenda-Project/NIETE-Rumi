@@ -35,12 +35,16 @@ function codeOf(fn) {
 }
 
 describe('ALLOWED_TYPES', () => {
-  test('is exactly the fourteen phone-safe types, and excludes the six that are not', () => {
+  test('is exactly the fifteen phone-safe types, and excludes the five that are not', () => {
+    // molecule joined in round 4 (PLAN_R4 D7f): it was excluded because a
+    // flash model's SMILES is a gamble, and it is back only because the model
+    // no longer writes one — it names a formula from a fixed dictionary and
+    // the structure is filled in from code.
     expect(Figure.ALLOWED_TYPES).toEqual([
       'numberline', 'fraction_bar', 'grid', 'geometry', 'graph', 'chem_equation', 'circuit',
-      'free_body', 'atom', 'punnett', 'ray_diagram', 'flow', 'timeline', 'cell',
+      'free_body', 'atom', 'punnett', 'ray_diagram', 'flow', 'timeline', 'cell', 'molecule',
     ]);
-    ['illustrative', 'labelled_figure', 'mindmap', 'molecule', 'panels', 'dna_helix']
+    ['illustrative', 'labelled_figure', 'mindmap', 'panels', 'dna_helix']
       .forEach((t) => expect(Figure.ALLOWED_TYPES).not.toContain(t));
   });
 
@@ -54,8 +58,12 @@ describe('ALLOWED_TYPES', () => {
   test('an alias of an EXCLUDED type does not sneak past the allowlist', () => {
     expect(Figure.canonicalType('concept_map')).toBeNull();   // mindmap
     expect(Figure.canonicalType('ai_art')).toBeNull();        // illustrative
-    expect(Figure.canonicalType('smiles')).toBeNull();        // molecule
     expect(Figure.canonicalType('nope')).toBeNull();
+  });
+
+  test('an alias of molecule resolves, now that the type is allowed again', () => {
+    expect(Figure.canonicalType('smiles')).toBe('molecule');
+    expect(Figure.canonicalType('structure')).toBe('molecule');
   });
 });
 
@@ -119,11 +127,16 @@ describe('renderFigureSvg', () => {
     expect(err.message.split('\n')).toHaveLength(1);
   });
 
-  test('throws FIGURE_RENDER when labels collide (checkOverlaps is a hard gate)', () => {
+  test('throws FIGURE_OVERLAP when labels collide (checkOverlaps is a hard gate)', () => {
     // A hundred ticks on a phone-width line: the engine draws it happily and
     // every label sits on its neighbour. Unreadable is a failure, not a warning.
+    //
+    // The code is FIGURE_OVERLAP, not FIGURE_RENDER (round 4, PLAN_R4 D7c):
+    // the retry prompt quotes these codes back to the model, and "the engine
+    // threw" and "the engine drew two labels on top of each other" need
+    // different fixes. Same name the lesson-plan lane's lint uses.
     const crowded = { type: 'numberline', from: -50, to: 50, step: 1, labelFormat: 'integer' };
-    expect(codeOf(() => Figure.renderFigureSvg(crowded, 'en'))).toBe('FIGURE_RENDER');
+    expect(codeOf(() => Figure.renderFigureSvg(crowded, 'en'))).toBe('FIGURE_OVERLAP');
   });
 
   test('applies the phone-lane default that stops geometry clipping its side label', () => {
@@ -247,7 +260,7 @@ describe('minimalSpecBlock', () => {
     const block = Figure.minimalSpecBlock();
     Figure.ALLOWED_TYPES.forEach((t) => expect(block).toContain(`"type":"${t}"`));
     expect(block).not.toMatch(/"type":"mindmap"/);
-    expect(block).not.toMatch(/"type":"molecule"/);
+    expect(block).not.toMatch(/"type":"illustrative"/);
     // every emitted minimal spec must itself render, or the prompt teaches a
     // shape the validator will reject
     Figure.ALLOWED_TYPES.forEach((t) => {

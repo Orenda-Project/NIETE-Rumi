@@ -14,8 +14,10 @@
 
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
-const { renderFigureSvg, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
+const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
 const { canonicalSubject: canonSubj } = require('./transcript-quiz-language');
+const { figureGateDefects, droppedTextDefect } = require('./transcript-quiz-figure-gates');
+const { scienceDefects, moleculeFromDictionary } = require('./transcript-quiz-figure-science');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -236,6 +238,9 @@ function validate(rawQuestions, ctx = {}) {
       errs.push(`q${i}: FIGURE_TYPE — "figure" must be a spec object with a "type", not ${typeof q.figure}`);
       return;
     }
+    const { spec: cleanedFigure, stripped } = stripStrayLabels(q.figure, { stem, options: opts });
+    if (stripped.length) q.figureStripped = stripped;
+    q.figure = cleanedFigure;
     if (MATHS_ONLY_TYPES.has(String(q.figure.type || '').toLowerCase()) && canonSubj(subject) !== 'maths') {
       errs.push(`q${i}: FIGURE_TYPE — "${q.figure.type}" draws mathematics only; for this subject use flow, timeline, fraction_bar, grid, numberline, or no picture`);
       return;
@@ -244,6 +249,23 @@ function validate(rawQuestions, ctx = {}) {
     if (badTokens) {
       errs.push(`q${i}: FIGURE_TYPE — unknown colour token(s) ${badTokens.map((t) => `var(--${t})`).join(', ')}; use only the tokens in the minimal specs, or none`);
       return;
+    }
+    // The engine draws whatever it is given and never checks the science: an
+    // off-table element renders as a hydrogen-shaped atom wearing the wrong
+    // symbol, an unbalanced equation is typeset as confidently as a balanced
+    // one, and a part the chosen cell has not got is dropped without a word.
+    // Each is a picture that teaches something false, and each is its own code
+    // so the retry names what to fix (PLAN_R4 D7e).
+    const science = scienceDefects(q.figure);
+    if (science.length) {
+      science.forEach((d) => errs.push(`q${i}: ${d.code} — ${d.message}`));
+      return;
+    }
+    // molecule is on the allowlist only behind the dictionary, and the
+    // dictionary — not the model — writes the structure it draws from.
+    if (canonicalType(q.figure.type) === 'molecule') {
+      const known = moleculeFromDictionary(q.figure.formula);
+      if (known) q.figure = { ...q.figure, ...known };
     }
     const empty = figureEmptyReason(q.figure);
     if (empty) {
@@ -261,6 +283,18 @@ function validate(rawQuestions, ctx = {}) {
       errs.push(`q${i}: FIGURE_BLANK — the drawing paints almost nothing (the engine skipped shapes it does not know); use a shape from the minimal specs`);
       return;
     }
+    // The three gates the 6-12 lesson-plan lane runs on every diagram
+    // (lint_lp.js FIGURE / DIAGRAM_OVERLAP / DIAGRAM_DEGENERATE), measured on
+    // THIS lane's canvas: 1080x565 less the .fig padding, scaled by
+    // min(boxW/vbW, boxH/vbH) because a tall figure is height-bound here and
+    // the LP lane's column-only formula would report a label twice its real
+    // size. Each defect keeps its own code so the retry prompt names what to
+    // fix, and each is a q-prefixed FIGURE_ error so salvageWithoutBadFigures
+    // can drop the question rather than the quiz.
+    figureGateDefects(svg, canonicalType(q.figure.type) || 'figure')
+      .forEach((d) => errs.push(`q${i}: ${d.code} — ${d.message}`));
+    const dropped = droppedTextDefect(q.figure, svg, canonicalType(q.figure.type) || 'figure');
+    if (dropped) errs.push(`q${i}: FIGURE_TEXT_DROPPED — ${dropped.message}`);
     const mismatch = figureMismatch(q.figure, opts, ci);
     if (mismatch) {
       errs.push(`q${i}: FIGURE_MISMATCH — ${mismatch}; draw the quantities the question is about`);
