@@ -206,3 +206,25 @@ describe('the SLO line survives the globally-unique external id', () => {
     }
   });
 });
+
+describe('after the report, /quiz says so', () => {
+  test('a transcript quiz flips to report_sent when its report goes out', async () => {
+    stubSupabase({
+      shareCode: SHARE_CODE, teacher: { phone_number: '923001234567', preferred_language: 'en' },
+      sessions: SESSIONS, answers: ANSWERS, questions: QUESTIONS,
+      quiz: { quiz_source: 'transcript', meta: { digest: { slos: [] } } },
+    });
+    const updates = [];
+    const orig = supabase.from.getMockImplementation();
+    supabase.from.mockImplementation((table) => {
+      const chain = orig(table);
+      if (table === 'quizzes') {
+        const u = chain.update;
+        chain.update = (patch) => { updates.push(patch); return chain; };
+      }
+      return chain;
+    });
+    await report.generate(SHARE_CODE_ID, { reason: 'scheduled' });
+    expect(updates.some((p) => p.status === 'report_sent')).toBe(true);
+  });
+});
