@@ -14,7 +14,8 @@
 
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
-const { renderFigureSvg, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant } = require('./transcript-quiz-figure');
+const { renderFigureSvg, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
+const { canonicalSubject: canonSubj } = require('./transcript-quiz-language');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -196,6 +197,15 @@ function validate(rawQuestions, { language, subject, digest, nExpected } = {}) {
       errs.push(`q${i}: FIGURE_TYPE — "figure" must be a spec object with a "type", not ${typeof q.figure}`);
       return;
     }
+    if (MATHS_ONLY_TYPES.has(String(q.figure.type || '').toLowerCase()) && canonSubj(subject) !== 'maths') {
+      errs.push(`q${i}: FIGURE_TYPE — "${q.figure.type}" draws mathematics only; for this subject use flow, timeline, fraction_bar, grid, numberline, or no picture`);
+      return;
+    }
+    const badTokens = unknownColourToken(q.figure);
+    if (badTokens) {
+      errs.push(`q${i}: FIGURE_TYPE — unknown colour token(s) ${badTokens.map((t) => `var(--${t})`).join(', ')}; use only the tokens in the minimal specs, or none`);
+      return;
+    }
     const empty = figureEmptyReason(q.figure);
     if (empty) {
       errs.push(`q${i}: FIGURE_EMPTY — ${empty}; give the picture something to read off, or drop it`);
@@ -212,13 +222,17 @@ function validate(rawQuestions, { language, subject, digest, nExpected } = {}) {
       errs.push(`q${i}: FIGURE_BLANK — the drawing paints almost nothing (the engine skipped shapes it does not know); use a shape from the minimal specs`);
       return;
     }
+    const mismatch = figureMismatch(q.figure, opts, ci);
+    if (mismatch) {
+      errs.push(`q${i}: FIGURE_MISMATCH — ${mismatch}; draw the quantities the question is about`);
+    }
     if (figureIsRedundant(q.figure, stem)) {
       errs.push(`q${i}: FIGURE_REDUNDANT — the stem already states the numbers the picture shows; ask the child to READ them from the picture instead`);
     }
     // The DRAWING is checked, not only the spec: several types compute a label
     // the spec never mentions, and a fraction bar's "3/4" is the whole answer.
     if (figureLeaksAnswer(q.figure, opts, ci, svg)) {
-      errs.push(`q${i}: FIGURE_LEAK — the picture already names the correct answer; label every option or none`);
+      errs.push(`q${i}: FIGURE_LEAK — the picture gives the answer away (it names it, files it under a heading that decides it, or lands on it); a figure may show the situation, never the result`);
     }
     // Rendered once, here, and carried on the question: generate uploads this
     // SVG's PNG and the teacher PDF inlines the same vector.

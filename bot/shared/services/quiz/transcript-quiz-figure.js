@@ -262,6 +262,57 @@ function specStrings(node, key = null, out = []) {
  * Returns null when the spec is informative, otherwise a one-line reason.
  */
 const GEOMETRY_KINDS = new Set(['triangle', 'polygon', 'circle', 'angle', 'rightangle', 'line', 'segment', 'point']);
+const GEOMETRY_KEYS = {
+  triangle: ['points'], polygon: ['points'], circle: ['c', 'r'], angle: ['vertex', 'a', 'b'],
+  rightangle: ['vertex', 'a', 'b'], line: ['from', 'to'], segment: ['from', 'to'], point: ['at'],
+};
+/** Only mathematics draws shapes; every other subject that reached for geometry drew a scene. */
+const MATHS_ONLY_TYPES = new Set(['geometry']);
+
+/** A colour token the page never defines paints grey (or nothing). */
+function unknownColourToken(spec) {
+  const found = new Set();
+  JSON.stringify(spec).replace(/var\(--([a-z0-9-]+)/gi, (m, name) => { if (!(name in NIETE_TOKENS)) found.add(name); return m; });
+  return found.size ? [...found] : null;
+}
+
+/**
+ * Can the drawing PRODUCE the correct option? A grid of 9 cells with 3 shaded
+ * cannot answer "12 shared into 3" (4); a bar of 4 parts with 3 shaded cannot
+ * answer "1/2". Returns a one-line reason when it cannot, else null.
+ */
+function figureMismatch(spec, options, correctIndex) {
+  const type = canonicalType(spec && spec.type);
+  const correct = norm((Array.isArray(options) ? options : [])[Number(correctIndex)]);
+  if (!correct) return null;
+  const frac = /^(\d+)\s*\/\s*(\d+)$/.exec(correct);
+  const whole = /^\d+$/.test(correct) ? Number(correct) : null;
+  if (frac === null && whole === null) return null; // a word answer is not checked here
+  if (type === 'fraction_bar') {
+    const bars = Array.isArray(spec.bars) ? spec.bars : [];
+    const shaded = bars.reduce((a, b) => a + (Number(b.shaded) || 0), 0);
+    const parts = bars.reduce((a, b) => a + (Number(b.parts) || 0), 0);
+    const per = bars.map((b) => [Number(b.parts), Number(b.shaded)]);
+    const reachable = new Set();
+    per.forEach(([p, sh]) => { reachable.add(`${sh}/${p}`); reachable.add(`${p - sh}/${p}`); reachable.add(String(sh)); reachable.add(String(p)); reachable.add(String(p - sh)); });
+    reachable.add(`${shaded}/${parts}`); reachable.add(String(shaded)); reachable.add(String(parts)); reachable.add(String(bars.length));
+    if (bars.length > 1 && per.every(([p]) => p === per[0][0])) reachable.add(`${shaded}/${per[0][0]}`);
+    const key = frac ? `${Number(frac[1])}/${Number(frac[2])}` : String(whole);
+    return reachable.has(key) ? null : `the picture cannot produce the answer "${correct}" (it shows ${shaded} of ${parts} parts)`;
+  }
+  if (type === 'grid') {
+    const rows = Number(spec.rows) || 0; const cols = Number(spec.cols) || 0;
+    const shaded = Array.isArray(spec.shaded) ? spec.shaded.length : (Number(spec.shaded) || 0);
+    const total = rows * cols;
+    const reachable = new Set([String(shaded), String(total), String(total - shaded), String(rows), String(cols),
+      `${shaded}/${total}`, `${total - shaded}/${total}`, `${shaded}/${rows}`, `${shaded}/${cols}`]);
+    if (total) reachable.add(String(Math.round((shaded / total) * 100)));
+    const key = frac ? `${Number(frac[1])}/${Number(frac[2])}` : String(whole);
+    return reachable.has(key) ? null : `the picture cannot produce the answer "${correct}" (a ${rows} x ${cols} grid with ${shaded} shaded)`;
+  }
+  return null;
+}
+
 
 /**
  * How many things the drawing actually paints. The engine skips shapes it
@@ -316,6 +367,15 @@ function figureEmptyReason(spec) {
       // things, with colour tokens the page never defines, rendered blank.
       const bad = shapes.find((sh) => !GEOMETRY_KINDS.has(String(sh && sh.kind || '').toLowerCase()));
       if (bad) return `unknown geometry shape kind "${bad && bad.kind}" — only ${[...GEOMETRY_KINDS].join(', ')} are drawn`;
+      // The engine drops a shape that lacks the keys its kind reads (a circle
+      // given center/radius instead of c/r vanishes) — say so instead.
+      const missing = shapes.map((sh) => {
+        const kind = String(sh.kind).toLowerCase();
+        const need = GEOMETRY_KEYS[kind] || [];
+        const lack = need.filter((k) => sh[k] === undefined);
+        return lack.length ? `${kind} needs ${need.join(' + ')}` : null;
+      }).filter(Boolean);
+      if (missing.length) return `a shape is missing the keys its kind needs: ${missing.join('; ')}`;
       const mathematical = shapes.some((sh) => n(sh.labels) || n(sh.sides) || n(sh.angles) || sh.label || (sh.radius !== undefined && (sh.label || sh.radiusLabel)));
       return mathematical ? null : 'geometry must carry labelled points, sides or angles — it draws mathematics, never a scene of objects';
     }
@@ -466,6 +526,9 @@ async function uploadFigure({ teacherId, quizId, index, png }) {
 
 module.exports = {
   NIETE_TOKENS,
+  MATHS_ONLY_TYPES,
+  unknownColourToken,
+  figureMismatch,
   svgInkCount,
   figureIsRedundant,
   figureDefiningNumbers,

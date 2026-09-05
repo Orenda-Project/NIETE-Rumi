@@ -199,7 +199,10 @@ describe('calibration round 2 — what the corpus run drew wrong', () => {
       { kind: 'circle', center: [15, 15], radius: 5, fill: 'var(--brown)' },
     ] };
     const r = run(six({ figure: scene, question: 'Look at the picture. What are the farmers doing?' }));
-    expect(errorsOf(r)).toMatch(/q0: FIGURE_EMPTY/);
+    // Round 4 rejects the undefined colour tokens even earlier; either way the scene never ships.
+    expect(errorsOf(r)).toMatch(/q0: FIGURE_(EMPTY|TYPE)/);
+    const sceneNoColour = { type: 'geometry', shapes: [{ kind: 'polygon', points: [[0, 0], [100, 0], [100, 50], [0, 50]] }, { kind: 'circle', c: [15, 15], r: 5 }] };
+    expect(errorsOf(run(six({ figure: sceneNoColour, question: 'Look at the picture. What are the farmers doing?' })))).toMatch(/q0: FIGURE_EMPTY/);
     const maths = { type: 'geometry', shapes: [{ kind: 'triangle', points: [[0, 0], [4, 0], [0, 3]], labels: ['A', 'B', 'C'], sides: ['4 cm', '5 cm', '3 cm'] }] };
     expect(errorsOf(run(six({ figure: maths, question: 'In the picture, which side is the longest?' })))).not.toMatch(/FIGURE_EMPTY/);
   });
@@ -246,5 +249,36 @@ describe('calibration round 3 — what two reviewers found in the 12 corpus figu
     expect(errorsOf(ok)).not.toMatch(/FIGURE_REDUNDANT/);
     const arc = { type: 'numberline', from: 0, to: 10, step: 1, points: [{ at: 3 }], arcs: [{ from: 3, to: 7, label: '+ 4' }] };
     expect(errorsOf(run(six({ figure: arc, question: 'Start at 3 and add 4. What is 3 + 4?', options: ['8', '4', '9'], correct_index: 0, option_feedback: FB })))).toMatch(/FIGURE_REDUNDANT/);
+  });
+});
+
+describe('calibration round 4 — reviewer regrade of v3', () => {
+  const FB = { correct: 'Yes.', wrong: { 1: 'no', 2: 'no' } };
+  test('a geometry shape missing the keys its kind needs is FIGURE_EMPTY (the engine drops it silently)', () => {
+    const r = run(six({ figure: { type: 'geometry', shapes: [{ kind: 'circle', center: [0, 0], radius: 3, label: 'wheel' }, { kind: 'line', points: [[0, 0], [1, 1]], label: 'x' }] }, question: 'In the picture, which is bigger?' }));
+    expect(errorsOf(r)).toMatch(/q0: FIGURE_EMPTY[^|]*(keys|needs)/);
+    const ok = run(six({ figure: { type: 'geometry', shapes: [{ kind: 'circle', c: [0, 0], r: 3, label: 'O' }, { kind: 'segment', from: [0, 0], to: [3, 0], label: 'r' }] }, question: 'In the picture, what is the segment from O called?' }));
+    expect(errorsOf(ok)).not.toMatch(/FIGURE_EMPTY/);
+  });
+  test('a colour token the page never defines is rejected instead of painting grey', () => {
+    const r = run(six({ figure: { type: 'fraction_bar', bars: [{ parts: 4, shaded: 3, color: 'var(--brown)' }] }, question: 'In the picture, what part is shaded?' }));
+    expect(errorsOf(r)).toMatch(/q0: FIGURE_(EMPTY|TYPE)[^|]*token/);
+  });
+  test('FIGURE_MISMATCH: the picture must be able to produce the correct option', () => {
+    // "12 shared into 3 parts" (answer 4) drawn as three bars each 1/3 shaded — no reading yields 4.
+    const bars = { type: 'fraction_bar', bars: [{ parts: 3, shaded: 1 }, { parts: 3, shaded: 1 }, { parts: 3, shaded: 1 }] };
+    const r = run(six({ figure: bars, question: 'In the picture, how many in each part?', options: ['4', '3', '12'], correct_index: 0, option_feedback: FB }));
+    expect(errorsOf(r)).toMatch(/q0: FIGURE_MISMATCH/);
+    const good = run(six({ figure: { type: 'fraction_bar', bars: [{ parts: 4, shaded: 3 }] }, question: 'In the picture, what fraction is shaded?', options: ['3/4', '1/4', '4/3'], correct_index: 0, option_feedback: FB }));
+    expect(errorsOf(good)).not.toMatch(/FIGURE_MISMATCH/);
+    const grid = run(six({ figure: { type: 'grid', rows: 4, cols: 5, shaded: 12 }, question: 'In the picture, how many cells are shaded?', options: ['12', '8', '20'], correct_index: 0, option_feedback: FB }));
+    expect(errorsOf(grid)).not.toMatch(/FIGURE_MISMATCH/);
+    const gridBad = run(six({ figure: { type: 'grid', rows: 4, cols: 5, shaded: 12 }, question: 'In the picture, how many cells are shaded?', options: ['7', '8', '20'], correct_index: 0, option_feedback: FB }));
+    expect(errorsOf(gridBad)).toMatch(/q0: FIGURE_MISMATCH/);
+  });
+  test('geometry is not offered outside mathematics', () => {
+    const sci = validate(six({ figure: { type: 'geometry', shapes: [{ kind: 'triangle', points: [[0, 0], [4, 0], [0, 3]], labels: ['A', 'B', 'C'] }] }, question: 'In the picture, which side is longest?' }),
+      { language: 'en', subject: 'science', digest: DIGEST, nExpected: 6 });
+    expect(sci.errors.join(' | ')).toMatch(/q0: FIGURE_TYPE[^|]*mathematics/);
   });
 });

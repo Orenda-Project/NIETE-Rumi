@@ -56,7 +56,9 @@ HARD RULES
 - The engine draws MATHEMATICS AND SCIENCE, never pictures of things: never draw a scene, an object, an animal, a person or a place with geometry shapes (a "farm" of rectangles and circles renders as a blank). If the question needs a photo of a real thing, there is no figure.
 - A jump arc must not land on the answer: "3 + 4 = ?" with an arc from 3 to 7 shows the child the 7. Draw the dot at 3 and ask where a jump of 4 lands, with no arc — or draw the arc and ask how long the jump was.
 - EARN THE FIGURE: the stem must not state the numbers the picture shows. "A bar has 4 parts and 1 is shaded — which fraction?" needs no picture; "تصویر میں کتنا حصہ رنگا ہوا ہے؟" does. The child must READ the picture to answer.
-- geometry kinds are exactly: triangle, polygon, circle, angle, rightangle, line, segment, point — for triangles, polygons, circles, angles and labelled sides ONLY. A science process is a flow; a sequence in time is a timeline; a comparison of amounts is a fraction_bar or a grid.
+- geometry is for MATHEMATICS lessons only, and its kinds are exactly: triangle, polygon, circle (keys c, r), angle/rightangle (vertex, a, b), line/segment (from, to), point (at) — there is no "text", "rectangle" or "arrow" kind; a shape with the wrong keys vanishes.
+- Column arithmetic, long division, a written sum: NO picture — write it in the stem with digits.
+- A figure must be able to PRODUCE the answer: if the answer is 4 (12 shared into 3), the drawing shows 12 things in 3 equal groups, not 9 cells with 3 shaded. A science process is a flow; a sequence in time is a timeline; a comparison of amounts is a fraction_bar or a grid.
 - Colours: use only the tokens named in the minimal specs; never invent one (var(--sand), var(--brown) do not exist and render as nothing).
 
 WORKED EXAMPLES (spec next to the question it serves):
@@ -90,7 +92,7 @@ function buildAuthorPrompt({ digest, excerpts, language, n = DEFAULT_QUESTIONS, 
     ? 'Write EVERYTHING in Urdu script; keep English technical terms in English letters exactly as the teacher used them.'
     : 'Write everything in English.';
   const retry = previousErrors && previousErrors.length
-    ? `\n\nA PREVIOUS ATTEMPT FAILED THESE CHECKS — fix every one of them this time:\n- ${previousErrors.slice(0, 12).join('\n- ')}\n`
+    ? `\n\nA PREVIOUS ATTEMPT FAILED THESE CHECKS — fix every one of them this time (q0 is your FIRST question, q1 the second, and so on):\n- ${previousErrors.slice(0, 12).join('\n- ')}\n`
     : '';
   return `You are writing a short WhatsApp quiz for the children who sat in ONE real lesson. You have the lesson digest and excerpts of the transcript. The quiz is taken one question at a time on a phone: a stem, three tappable options, then feedback.
 
