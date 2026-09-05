@@ -42,7 +42,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * The render-time shuffle (seeded on external_id) happens on top; feedbackFor
  * remaps by stored index so both are safe together.
  */
-function toRows(quizId, questions, { rng = Math.random } = {}) {
+function toRows(quizId, questions, { rng = Math.random, figureUrls = {} } = {}) {
   return questions.map((q, i) => {
     const order = [0, 1, 2];
     for (let k = order.length - 1; k > 0; k -= 1) {
@@ -61,6 +61,13 @@ function toRows(quizId, questions, { rng = Math.random } = {}) {
       const m = q.distractor_misconceptions?.[String(old)];
       if (m) misc['ABC'[pos]] = String(m).trim();
     });
+    // A picture question is P3: the child gets ONE interactive message —
+    // image header, stem body, three reply buttons. The URL is keyed on the
+    // question's index, so a figure whose PNG never uploaded degrades to a
+    // plain P1 question rather than to a row pointing at nothing.
+    const figureUrl = figureUrls[i];
+    const media = (q.figure && figureUrl) ? { question_image: figureUrl, figure: q.figure } : null;
+
     return {
       quiz_id: quizId,
       question_text: String(q.question).trim(),
@@ -72,9 +79,71 @@ function toRows(quizId, questions, { rng = Math.random } = {}) {
       option_feedback: { correct: String(q.option_feedback?.correct || '').trim(), wrong },
       difficulty_level: LEVEL_DIFFICULTY[q.level] || 3,
       external_id: `tq:${q.slo_id || 'S?'}:${i + 1}`,
-      render_pattern: 'P1',
+      render_pattern: media ? 'P3' : 'P1',
+      ...(media ? { media } : {}),
       sort_order: i,
     };
+  });
+}
+
+/**
+ * Draw, screenshot and upload every figure in the quiz, in order.
+ *
+ * Sequential on purpose: Playwright pages are the expensive resource and a
+ * quiz carries at most four figures. Any failure throws — an attempt that
+ * cannot produce a picture is a FAILED attempt, retried with the reason, never
+ * a stored row whose media.question_image points at an object that does not
+ * exist.
+ *
+ * @returns {Promise<Object<number,string>>} question index → public URL
+ */
+async function renderFigures({ questions, language, teacherId, quizId }) {
+  const Figure = require('./transcript-quiz-figure');
+  const urls = {};
+  for (let i = 0; i < questions.length; i += 1) {
+    const q = questions[i];
+    if (!q || !q.figure) continue;
+    const startedAt = Date.now();
+    try {
+      // The validator already drew this one; redrawing it would be a second
+      // chance for the two copies to differ.
+      const svg = q.figureSvg || Figure.renderFigureSvg(q.figure, language);
+      // eslint-disable-next-line no-await-in-loop
+      const png = await Figure.renderFigurePng(svg, language);
+      // eslint-disable-next-line no-await-in-loop
+      urls[i] = await Figure.uploadFigure({ teacherId, quizId, index: i, png });
+      logEvent('transcript_quiz.figure_ready', {
+        quizId, index: i, figureType: q.figure.type, bytes: png.length, latencyMs: Date.now() - startedAt,
+      });
+    } catch (err) {
+      logToFile('⚠️ transcript quiz: figure could not be made', { quizId, index: i, error: err.message });
+      throw new Error(`q${i}: FIGURE_RENDER — the picture could not be made (${err.message}); write this question without a "figure"`);
+    }
+  }
+  return urls;
+}
+
+/**
+ * The questions the teacher PDF sees: the stored rows, each with the vector
+ * for its figure so the template can inline it above the stem. Best effort —
+ * a figure that will not re-draw costs the PDF a picture, never the PDF.
+ */
+function withFigureSvgs(rows, questions, language) {
+  const Figure = require('./transcript-quiz-figure');
+  return rows.map((row, i) => {
+    const authored = questions && questions[i];
+    const spec = (row.media && row.media.figure) || (authored && authored.figure);
+    if (!spec) return row;
+    let svg = authored && authored.figureSvg;
+    if (!svg) {
+      try {
+        svg = Figure.renderFigureSvg(spec, language);
+      } catch (err) {
+        logToFile('⚠️ transcript quiz: figure not re-drawn for the PDF', { index: i, error: err.message });
+        return row;
+      }
+    }
+    return { ...row, figureSvg: svg };
   });
 }
 
@@ -189,6 +258,7 @@ async function process(quizId, payload = {}) {
 
   // ── author + validate + store
   let questions = null;
+  let figureUrls = {};
   if (quiz.status !== 'ready' || meta.step !== 'ready') {
     let previousErrors = null;
     const attempts = [];
@@ -207,7 +277,23 @@ async function process(quizId, payload = {}) {
       const v = validate(out.questions, { language, subject: digest.subject, digest, nExpected: N_QUESTIONS });
       attempts.push({ attempt, model: out.model, cost_usd: out.costUsd, latency_ms: out.latencyMs, errors: v.errors });
       meta.cost_usd = (meta.cost_usd || 0) + (out.costUsd || 0);
-      if (v.ok) { questions = v.questions; break; }
+      if (v.ok) {
+        // The pictures are made BEFORE any row is stored: a figure that cannot
+        // be drawn, screenshotted or uploaded fails this attempt exactly as a
+        // validator complaint does, and the model is told which question and why.
+        try {
+          figureUrls = await api.renderFigures({
+            questions: v.questions, language, teacherId: quiz.teacher_id, quizId,
+          });
+        } catch (figErr) {
+          attempts[attempts.length - 1].errors = [figErr.message];
+          logToFile('⚠️ transcript quiz: attempt failed on a figure', { quizId, attempt, error: figErr.message });
+          previousErrors = [figErr.message];
+          continue;
+        }
+        questions = v.questions;
+        break;
+      }
       logToFile('⚠️ transcript quiz: validator rejected attempt', { quizId, attempt, errors: v.errors.slice(0, 8) });
       previousErrors = v.errors;
     }
@@ -217,7 +303,7 @@ async function process(quizId, payload = {}) {
       await tellTeacherFailed(phone, teacherLang, quizId, 'validator_failed');
       return { failed: true, reason: 'validator_failed', attempts };
     }
-    const rows = toRows(quizId, questions);
+    const rows = toRows(quizId, questions, { figureUrls });
     await supabase.from('quiz_questions').delete().eq('quiz_id', quizId);
     const { error: insErr } = await supabase.from('quiz_questions').insert(rows);
     if (insErr) throw new Error(`quiz_questions insert failed: ${insErr.message}`);
@@ -228,9 +314,9 @@ async function process(quizId, payload = {}) {
 
   // ── hand-off
   const { data: storedQs } = await supabase.from('quiz_questions')
-    .select('external_id, question_text, option_a, option_b, option_c, correct_option, explanation, distractor_misconceptions, option_feedback, sort_order')
+    .select('external_id, question_text, option_a, option_b, option_c, correct_option, explanation, distractor_misconceptions, option_feedback, media, render_pattern, sort_order')
     .eq('quiz_id', quizId).order('sort_order', { ascending: true });
-  const qRows = storedQs && storedQs.length ? storedQs : toRows(quizId, questions || []);
+  const qRows = storedQs && storedQs.length ? storedQs : toRows(quizId, questions || [], { figureUrls });
 
   const share = require('./video-quiz-share.service');
   const minted = await share.mintCode({ quizId, userId: quiz.teacher_id, videoId: null, language });
@@ -249,7 +335,7 @@ async function process(quizId, payload = {}) {
   let tempPath = null;
   try {
     const buffer = await renderPdf({
-      quiz, questions: qRows, digest, teacherName,
+      quiz, questions: withFigureSvgs(qRows, questions, language), digest, teacherName,
       language: teacherLang, contentLanguage: language,
       date: formatLessonDate(session.created_at, teacherLang, { year: true }), link,
     });
@@ -303,4 +389,7 @@ async function process(quizId, payload = {}) {
   return { ok: true, quizId, code: minted.code };
 }
 
-module.exports = { process, toRows, studentMessage, teacherLabel, renderPdf, pdfFilename, sleep, N_QUESTIONS, MAX_ATTEMPTS, NUDGE_AFTER_MS };
+module.exports = {
+  process, toRows, renderFigures, withFigureSvgs, studentMessage, teacherLabel, renderPdf, pdfFilename,
+  sleep, N_QUESTIONS, MAX_ATTEMPTS, NUDGE_AFTER_MS,
+};
