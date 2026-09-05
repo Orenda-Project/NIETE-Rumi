@@ -1107,6 +1107,7 @@ function v9Gates(doc, ctx) {
     }
     for (const { where, spec } of gSpecs) for (const d of graphDefects(spec, where)) fail(d.code, d.msg);
     for (const { where, spec } of gSpecs) for (const d of atomDefects(spec, where)) fail(d.code, d.msg);
+    for (const { where, spec } of gSpecs) for (const d of specContractDefects(spec, where)) fail(d.code, d.msg);
   }
 
   // ── the rest of the closed heading system ────────────────────────────────
@@ -1470,6 +1471,82 @@ function atomKey(raw) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "Na";
 }
 
+
+/* ---------------------------------------------------------------------------
+   SPEC_CONTRACT / GRID_CELLTEXT_SHAPE — bd-8lifl round 2
+
+   Three defects in the 2026-09-05 batch were one root cause: a module handed a
+   spec it cannot use paints a confident DEFAULT rather than saying so.
+
+     atom -> hydrogen     (closed by ATOM_UNKNOWN_ELEMENT)
+     cell -> plant cell   `cell.js` reads `(spec.kind || "plant") === "plant"`, so a
+                          `bio_schematic` with no `kind` drew a labelled generic plant
+                          cell under the title "COMPLEMENT SYSTEM ATTACKS A BACTERIUM".
+     grid -> empty        `grid.js` reads `cellText` as [row, col, text] TRIPLES. Told
+                          only the field's NAME, the author wrote a 2-D array of rows;
+                          destructuring a row of strings gives a NaN position and
+                          undefined text, and FOUR grids printed as empty boxes.
+
+   The required-field list is read from `types_manifest.json`, resolved through
+   aliases, so this cannot drift from the engine.
+--------------------------------------------------------------------------- */
+
+let _REQUIRED_BY_TYPE = null;
+function requiredByType() {
+  if (_REQUIRED_BY_TYPE) return _REQUIRED_BY_TYPE;
+  const m = new Map();
+  try {
+    const man = require("./diagrams/types_manifest.json");
+    for (const t of man.types || []) {
+      const req = Array.isArray(t.required) ? t.required : [];
+      for (const name of [t.type, ...(t.aliases || [])]) m.set(String(name).toLowerCase(), req);
+    }
+  } catch (_) { /* no manifest: the rule simply does not fire */ }
+  _REQUIRED_BY_TYPE = m;
+  return m;
+}
+
+function specContractDefects(spec, where) {
+  const out = [];
+  if (!spec || typeof spec !== "object") return out;
+  const type = String(spec.type || "").trim().toLowerCase();
+  if (!type) return out;
+
+  const req = requiredByType().get(type);
+  if (req && req.length) {
+    const missing = req.filter((f) => {
+      const v = spec[f];
+      return v === undefined || v === null || v === ""
+        || (Array.isArray(v) && v.length === 0);
+    });
+    if (missing.length) {
+      out.push({
+        code: "SPEC_CONTRACT",
+        msg: `${where}: \`${type}\` is missing required field(s) `
+          + `${missing.map((f) => "`" + f + "`").join(", ")}. The module does not fail on this -- `
+          + `it falls back to a default and draws a confident wrong picture. Supply the field, or `
+          + `use a type that carries this idea.`,
+      });
+    }
+  }
+
+  // The one field whose SHAPE has silently eaten a figure.
+  if ((type === "grid" || type === "area_model" || type === "hundred_square")
+      && Array.isArray(spec.cellText) && spec.cellText.length) {
+    const bad = spec.cellText.filter((t) => !(Array.isArray(t) && t.length === 3
+      && Number.isFinite(Number(t[0])) && Number.isFinite(Number(t[1]))));
+    if (bad.length) {
+      out.push({
+        code: "GRID_CELLTEXT_SHAPE",
+        msg: `${where}: \`grid.cellText\` must be a list of [row, col, text] triples with `
+          + `0-based row/col -- not a 2-D array of rows. ${bad.length} of ${spec.cellText.length} `
+          + `entries are the wrong shape, and a wrong-shaped entry prints NOTHING, silently.`,
+      });
+    }
+  }
+  return out;
+}
+
 function atomDefects(spec, where) {
   const out = [];
   if (!spec || typeof spec !== "object") return out;
@@ -1591,6 +1668,6 @@ function graphDefects(spec, where) {
 }
 function round2(v) { return Math.round(v * 100) / 100; }
 
-module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates, graphDefects, atomDefects,
+module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates, graphDefects, atomDefects, specContractDefects,
   SECTION_BUDGET, SECTION_BUDGET_V9, DOC_BUDGET, DOC_BUDGET_V9, OUTCOME_BOX_V9,
   MAX_HOMEWORK_ITEMS, MAX_BOARD_WEIGHT, MAX_ACTIVITIES, PLACEHOLDERS, FOREIGN_BRANDS };

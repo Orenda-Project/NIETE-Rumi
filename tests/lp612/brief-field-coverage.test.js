@@ -80,9 +80,40 @@ describe('the brief names every field the engine reads — reverse drift guard',
     }
   });
 
-  it('the appendix does NOT invent a field no module reads (the bd-09m6a direction still holds)', () => {
+  it('the appendix carries each type\'s LIMITS, not just its field names', () => {
+    // Round 2 of bd-8lifl. Publishing `grid.cellText` as a bare name was not enough: the model
+    // wrote it as a 2-D array of rows, the code reads `[row, col, text]` TRIPLES, and
+    // `const [r, c, txt] = t` then destructured a row of strings into a NaN position with
+    // undefined text. d01's board grid went from "answers in the caption" to "answers nowhere".
+    // A field name without its shape is a trap, and the manifest already holds the shapes.
     const src = fs.readFileSync(path.join(V, 'brief_author_v3.md'), 'utf8');
     const app = appendix(src);
+    for (const t of MANIFEST.types) {
+      for (const lim of (t.limits || [])) {
+        // the first clause of each limit is enough to prove the limit travelled
+        const head = lim.split(/[.;]/)[0].trim().slice(0, 40);
+        if (head.length >= 15) expect(app).toContain(head);
+      }
+    }
+  });
+
+  it('grid.cellText documents its [row, col, text] shape somewhere the model will see it', () => {
+    const g = MANIFEST.types.find((t) => t.type === 'grid');
+    expect(g.limits.join(' ')).toMatch(/cellText/);
+    expect(g.limits.join(' ')).toMatch(/\[\s*row\s*,\s*col\s*,\s*text\s*\]|row.*col.*text/i);
+    const src = fs.readFileSync(path.join(V, 'brief_author_v3.md'), 'utf8');
+    expect(appendix(src)).toMatch(/cellText/);
+  });
+
+  it('the appendix TABLE does not invent a field no module reads (bd-09m6a direction still holds)', () => {
+    const src = fs.readFileSync(path.join(V, 'brief_author_v3.md'), 'utf8');
+    // Scoped to the field TABLE. The limits prose below it legitimately names things the
+    // top-level field list does not: the manifest's own negative warnings ("There is NO
+    // `compound` field", "no top-level `above`/`below`") and nested sub-fields of an array
+    // member (`cells[].across`, `steps[].lines`, `panels[].glyph`).
+    const full = appendix(src);
+    const app = full.slice(0, full.indexOf('**What each type will not do'));
+    expect(app.length).toBeGreaterThan(200);
     const legal = new Set(MANIFEST.types.flatMap(fieldsOf).concat(
       MANIFEST.types.map((t) => t.type),
       MANIFEST.types.flatMap((t) => t.aliases || []),
