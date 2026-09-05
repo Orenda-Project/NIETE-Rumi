@@ -132,6 +132,8 @@ describe('the worker emits the overlay RATE, not just a boolean on a row', () =>
   // English" rate — but only ONE of them is a fault, and a single counter for both made the
   // fault rate unreadable (rule 24(b)). The deferred half is pinned in overlay-deferred.test.js.
   it('a toggle that was never attempted emits lp612.overlay.deferred, naming the segment and the media', async () => {
+    // "never attempted" now means the kill switch, `LP612_OVERLAY_PASS_OFF` (bd-zle0u step 2).
+    process.env.LP612_OVERLAY_PASS_OFF = 'true';
     seed(EN_SEGMENT);
     await Worker.process(jobFor('ur'));
 
@@ -146,9 +148,11 @@ describe('the worker emits the overlay RATE, not just a boolean on a row', () =>
     }));
     expect(events('lp612.overlay.applied')).toHaveLength(0);
     expect(events('lp612.overlay.dropped')).toHaveLength(0);
+    delete process.env.LP612_OVERLAY_PASS_OFF;
   });
 
   it('an applied toggle emits lp612.overlay.applied with the pointer count — the denominator', async () => {
+    process.env.LP612_OVERLAY_PASS_OFF = 'true';   // the render already carries an overlay here
     seed(EN_SEGMENT);
     mockRenderLessonPlan.mockResolvedValue({
       pdfPath: '/tmp/x.pdf', htmlPath: '/tmp/x.html', pageCount: 12, warnings: [],
@@ -161,6 +165,7 @@ describe('the worker emits the overlay RATE, not just a boolean on a row', () =>
     expect(events('lp612.overlay.deferred')).toHaveLength(0);
     expect(events('lp612.overlay.applied')).toHaveLength(1);
     expect(events('lp612.overlay.applied')[0][1]).toEqual(expect.objectContaining({ pointers: 2 }));
+    delete process.env.LP612_OVERLAY_PASS_OFF;
   });
 
   it('says nothing at all for an Urdu-MEDIUM book — there is no toggle to lose', async () => {
@@ -184,10 +189,12 @@ describe('the worker emits the overlay RATE, not just a boolean on a row', () =>
     // stays true for a deferral as well as a drop — she is looking at an English page either
     // way, and the caption must say so on every cache hit. The EVENT is the one that has to
     // distinguish them.
+    process.env.LP612_OVERLAY_PASS_OFF = 'true';
     seed(EN_SEGMENT);
     await Worker.process(jobFor('ur'));
     const ready = mockDbCalls.find((c) => c.op === 'update' && c.payload && c.payload.status === 'ready');
     expect(ready.payload.overlay_dropped).toBe(true);
     expect(events('lp612.overlay.deferred')).toHaveLength(1);
+    delete process.env.LP612_OVERLAY_PASS_OFF;
   });
 });

@@ -159,6 +159,45 @@ function authorTimeoutMs() {
   return num(process.env.LP612_AUTHOR_TIMEOUT_MS, DEFAULT_TIMEOUT_MS);
 }
 
+/**
+ * THE URDU OVERLAY PASS'S OWN CLOCK — bd-zle0u.
+ *
+ * Deliberately NOT `authorTimeoutMs()`. The pass runs after the author timeout has already been
+ * raced and won, on a document that is finished and rendered; giving it the author's clock would
+ * hand it whatever seconds happened to be left, which is the exact failure this bead removes.
+ *
+ * Sized from the measured parts, not guessed: ONE ~7k-token call at the measured 142 tok/s is
+ * ~50s, `callWithRetry` may spend a second attempt, and the overlaid render is ~30-40s. So the
+ * expectation is ~100-150s and this is the HARD STOP well above it. Blowing it is not a lost
+ * lesson — the worker already holds the rendered English PDF and delivers that.
+ */
+const DEFAULT_OVERLAY_TIMEOUT_MS = 4 * 60 * 1000;
+
+/**
+ * THE OVERLAY PASS'S KILL SWITCH — bd-zle0u. Opt-OUT, never opt-in.
+ *
+ * `LP612_OVERLAY_PASS_OFF=true` skips the pass, and an Urdu request against an English-medium
+ * book falls back to exactly the behaviour of step 1: the English lesson, `overlay_dropped` on
+ * the row, the honest caption, and `lp612.overlay.deferred` rather than `.dropped` — because
+ * skipping deliberately is not the same event as trying and failing (rule 24(b)).
+ *
+ * It is OPT-OUT because the default has to be the fix. A presence-gated opt-in would leave the
+ * P0 unfixed on any service where nobody remembered to set the variable, which is the shape of
+ * half the "defined != live" failures in this programme.
+ *
+ * It exists because this lane has now shipped two fixes in one week that each replaced a
+ * wrong-language lesson with NO lesson. If the pass misbehaves on real traffic, this returns
+ * every teacher to a delivered English lesson with ONE Railway variable and no deploy — which is
+ * minutes instead of the ~15 a revert-and-redeploy costs, on a path a teacher is waiting on.
+ */
+function overlayPassOff() {
+  return isTrue(process.env.LP612_OVERLAY_PASS_OFF);
+}
+
+function overlayTimeoutMs() {
+  return num(process.env.LP612_OVERLAY_TIMEOUT_MS, DEFAULT_OVERLAY_TIMEOUT_MS);
+}
+
 function followupAfterMs() {
   return num(process.env.LP612_FOLLOWUP_MS, DEFAULT_FOLLOWUP_MS);
 }
@@ -227,6 +266,8 @@ module.exports = {
   AUTHOR_TIERS,
   authorRounds,
   authorTimeoutMs,
+  overlayTimeoutMs,
+  overlayPassOff,
   followupAfterMs,
   heartbeatCeilingMs,
   queueAbandonMs,
