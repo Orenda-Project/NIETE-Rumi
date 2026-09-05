@@ -101,3 +101,11 @@ describe('lessonLabel — the subject and the topic as it was taught', () => {
     expect(s).toMatch(/⁩/);
   });
 });
+
+describe('transliterations seen on the live cards (2026-09-05 evening)', () => {
+  test('ہول / پارٹس / ٹیسٹ / سرکل are written in English letters', () => {
+    const out = L.fixTransliterations('یہ ایک ہول (whole) کے پارٹس کو دکھاتا ہے، ٹیسٹ میں سرکل کی شکل');
+    expect(out).not.toMatch(/ہول|پارٹس|ٹیسٹ|سرکل/);
+    expect(out).toMatch(/whole/); expect(out).toMatch(/parts/); expect(out).toMatch(/test/); expect(out).toMatch(/circle/);
+  });
+});

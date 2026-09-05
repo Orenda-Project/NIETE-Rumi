@@ -137,6 +137,7 @@ const TRANSLITERATIONS = [
   ['فیکشنز', 'fractions'], ['فیکشن', 'fraction'], ['فریکشنز', 'fractions'], ['فریکشن', 'fraction'],
   ['نیومریٹر', 'numerator'], ['نمبریٹر', 'numerator'], ['نیومیریٹر', 'numerator'],
   ['ڈینومینیٹر', 'denominator'], ['ڈینامینیٹر', 'denominator'], ['ڈی نومینیٹر', 'denominator'],
+  ['ہول', 'whole'], ['پارٹس', 'parts'], ['پارٹ', 'part'], ['ٹیسٹ', 'test'], ['سرکل', 'circle'], ['ہاف', 'half'], ['کوارٹر', 'quarter'], ['ایریا', 'area'], ['پیریمیٹر', 'perimeter'], ['شیپ', 'shape'], ['ٹرائی اینگل', 'triangle'], ['سکوائر', 'square'], ['ریکٹینگل', 'rectangle'],
   ['سبٹریکشن', 'subtraction'], ['ایڈیشن', 'addition'], ['ملٹی پلیکیشن', 'multiplication'], ['ملٹیپلیکیشن', 'multiplication'], ['ڈویژن', 'division'],
   ['پلیس ویلیو', 'place value'], ['ڈیجٹس', 'digits'], ['ڈیجٹ', 'digit'],
   ['ٹرائی اینگل', 'triangle'], ['ریکٹینگل', 'rectangle'], ['پیری میٹر', 'perimeter'],
