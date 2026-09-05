@@ -116,21 +116,20 @@ describe('bd-2477 #2 — stars must not depend on ANY font (system or embedded)'
 });
 
 /**
- * bd-2477 #4 — GIF feasibility. Full write-up: the animated star-reveal +
- * confetti GIF is NOT built (see bead notes — WhatsApp rejects GIF outright,
- * and finish() renders synchronously inside the shared webhook process, so a
- * 10-15 frame animation would add real backlog risk at peak hour). This is
- * the fallback the operator offered in the same message: "if [GIF] would be
- * too heavy... then we simply just change the background color based on how
- * you did" — same one-frame render cost as today, tier-differentiated look.
+ * The animated star-reveal is still not built, and for the same two reasons:
+ * WhatsApp rejects GIF outright, and finish() renders synchronously inside the
+ * shared webhook process, so a 10-15 frame animation would add real backlog
+ * risk at peak hour.
+ *
+ * The fallback taken instead — "then we simply just change the background
+ * colour based on how you did" — has since been REVERSED. Varying the ground
+ * by score turned the background into a second, silent score, and the low
+ * tier's ground read as switched off. One ground, for every score; the tier
+ * moved to the stars, the badge word and the ring fill. See
+ * video-quiz-scorecard-v4.test.js. What is left in this describe is the pair
+ * of invariants that were never about the tiers at all.
  */
 describe('bd-mg9c7.28 / v4 D2 — the card is NIETE, and one card for every score', () => {
-  // The three per-tier grounds this describe used to lock (green >=80,
-  // navy-slate 60-79, charcoal below) are GONE — see
-  // video-quiz-scorecard-v4.test.js, which locks the single ground that
-  // replaced them and the three places the tier moved to. What survives from
-  // here is the pair of invariants that were never about the tiers: the ground
-  // is drawn from the NIETE book, and the ink on it stays white.
   test('no gold, no coral, no other product\'s navy anywhere on the card', () => {
     [90, 65, 20].forEach((pct) => {
       const html = renderHtml({ topic: 'x', correct: 1, total: 1, pct });
