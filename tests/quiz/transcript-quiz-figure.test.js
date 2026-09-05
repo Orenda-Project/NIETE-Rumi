@@ -60,6 +60,11 @@ describe('ALLOWED_TYPES', () => {
 });
 
 describe('renderFigureSvg', () => {
+  test('a bare hundred square does not print the count that is the answer', () => {
+    const svg = Figure.renderFigureSvg({ type: 'grid', rows: 10, cols: 10, shaded: 37, majorEvery: 5 }, 'en');
+    expect(Figure.svgText(svg).join(' ')).not.toMatch(/37/);
+  });
+
   test('a bare fraction bar does not print the fraction that is the answer', () => {
     const svg = Figure.renderFigureSvg({ type: 'fraction_bar', bars: [{ parts: 4, shaded: 3 }] }, 'ur');
     expect(svg).not.toMatch(/۳\s*\/\s*۴/);
@@ -165,6 +170,16 @@ describe('figureLeaksAnswer', () => {
     const svg = Figure.renderFigureSvg(spec, 'en');
     expect(Figure.figureLeaksAnswer(spec, ['1/2', '3/4', '2/3'], 1)).toBe(false);
     expect(Figure.figureLeaksAnswer(spec, ['1/2', '3/4', '2/3'], 1, svg)).toBe(true);
+  });
+
+  test('a value inside a compound readout still leaks ("37/100" says 37)', () => {
+    const spec = { type: 'grid', rows: 10, cols: 10, shaded: 37, legend: undefined, majorEvery: 5 };
+    const svg = Figure.renderFigureSvg({ ...spec, legend: null }, 'en');
+    // legend:null opts back into a drawn readout being possible; assert on the
+    // engine's own compound string rather than on how it was produced
+    const withReadout = '<svg><text>37/100 = 37% = 0.37</text></svg>';
+    expect(Figure.figureLeaksAnswer(spec, ['37', '73', '3'], 0, withReadout)).toBe(true);
+    expect(svg.startsWith('<svg')).toBe(true);
   });
 
   test('a short numeric option matches a whole label, never a fragment of one', () => {

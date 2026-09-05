@@ -66,6 +66,10 @@ const TYPE_DEFAULTS = {
   // who genuinely wants the value shown can set showLabels back on, and the
   // leak check then reads it off the drawing.
   fraction_bar: { showLabels: false },
+  // Same story for a hundred square: it builds its own readout
+  // ("37/100 = 37% = 0.37") from rows/cols/shaded. An empty legend suppresses
+  // it; an author who wants it can pass one.
+  grid: { legend: '' },
 };
 
 /** Keys whose value is a structural enum, not label text a child reads. */
@@ -259,7 +263,13 @@ function figureLeaksAnswer(spec, options, correctIndex, svg = null) {
 
   const visible = [...specStrings(spec), ...(svg ? svgText(svg) : [])].map(norm).filter(Boolean);
   const joined = visible.join(' | ');
-  const tokens = new Set(joined.split(/[\s|,;:()[\]"'’“”]+/).filter(Boolean));
+  // Two splits, unioned. The coarse one keeps "3/4" whole, so a fraction option
+  // still matches its own label; the fine one also breaks on / = %, so the 37
+  // inside a grid's "37/100 = 37% = 0.37" readout is found as well.
+  const tokens = new Set([
+    ...joined.split(/[\s|,;:()[\]"'’“”]+/),
+    ...joined.split(/[\s|,;:/=%()[\]"'’“”]+/),
+  ].filter(Boolean));
   const shows = (text) => !!text && (text.length >= 4 ? joined.includes(text) : tokens.has(text));
 
   if (!shows(correct)) return false;
