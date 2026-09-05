@@ -58,6 +58,7 @@ const SESSION = {
   users: { phone_number: '923001234567', preferred_language: 'en', first_name: 'Rifat', last_name: 'Noor' },
 };
 const FRACTION = { type: 'fraction_bar', bars: [{ parts: 4, shaded: 3 }] };
+const LESSON_SUMMARY = 'The class read fraction bars together, shading parts and naming each one out loud.';
 
 function q(i, over = {}) {
   return {
@@ -75,7 +76,9 @@ function q(i, over = {}) {
   };
 }
 /** Eight questions; the first two carry a figure (2/8 is under the half cap). */
-const EIGHT = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => q(i, i < 2 ? { figure: FRACTION } : {}));
+const EIGHT = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => q(i, {
+  ...(i < 2 ? { figure: FRACTION } : {}), selected_because: `question ${i} came from the fraction bar she drew on the board`,
+}));
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -123,7 +126,7 @@ describe('toRows', () => {
 
 describe('process — figures are rendered, uploaded, then stored', () => {
   test('one PNG and one upload per figure, and the stored rows are P3', async () => {
-    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 10 });
+    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 10 , lessonSummary: LESSON_SUMMARY });
     wire();
     const r = await Gen.process(QID, {});
     expect(r.ok).toBe(true);
@@ -143,7 +146,7 @@ describe('process — figures are rendered, uploaded, then stored', () => {
   });
 
   test('the SVG is rendered once — the validator\'s copy is reused, not redrawn', async () => {
-    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 10 });
+    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 10 , lessonSummary: LESSON_SUMMARY });
     wire();
     await Gen.process(QID, {});
     // Each screenshot is handed one already-rendered SVG; the count matches the
@@ -156,7 +159,7 @@ describe('process — figures are rendered, uploaded, then stored', () => {
 describe('process — a figure that cannot be made fails the attempt', () => {
   test('retries once with the error text and stores no row pointing at nothing', async () => {
     htmlToImage.mockRejectedValue(new Error('browser died'));
-    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 10 });
+    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 10 , lessonSummary: LESSON_SUMMARY });
     wire();
     const r = await Gen.process(QID, {});
 
@@ -168,7 +171,7 @@ describe('process — a figure that cannot be made fails the attempt', () => {
 
   test('an upload failure is treated the same way', async () => {
     uploadBuffer.mockRejectedValue(new Error('R2 refused'));
-    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 10 });
+    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 10 , lessonSummary: LESSON_SUMMARY });
     wire();
     const r = await Gen.process(QID, {});
     expect(r.failed).toBe(true);
@@ -178,7 +181,7 @@ describe('process — a figure that cannot be made fails the attempt', () => {
 
 describe('the teacher PDF', () => {
   test('is handed the figure SVG per question, so the template can inline it', async () => {
-    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 10 });
+    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 10 , lessonSummary: LESSON_SUMMARY });
     wire();
     await Gen.process(QID, {});
     const passed = teacherTemplate.mock.calls[0][0].questions;
@@ -200,7 +203,7 @@ describe('process — after the last attempt, a bad PICTURE costs its question, 
       ? { ...x, figure: leaky, question: 'Share 12 flowers among 3 vases. How many in each? See the picture.', options: ['4', '3', '12'], correct_index: 0,
           option_feedback: { correct: 'Yes.', wrong: { 1: 'no', 2: 'no' } } }
       : x));
-    Author.author.mockResolvedValue({ questions: withLeak, model: 'm', costUsd: 0.01, latencyMs: 10 });
+    Author.author.mockResolvedValue({ questions: withLeak, model: 'm', costUsd: 0.01, latencyMs: 10 , lessonSummary: LESSON_SUMMARY });
     wire();
     const r = await Gen.process(QID, {});
     expect(r.failed).not.toBe(true);
@@ -214,7 +217,7 @@ describe('process — after the last attempt, a bad PICTURE costs its question, 
 describe('process — question cards and speed', () => {
   test('a question whose options do not fit a button is stored with a card image (rendered once, uploaded) and letters', async () => {
     const long = EIGHT.map((x, i) => (i === 3 ? { ...x, question: 'Which is water?', options: ['H2O', 'CO2', 'NaCl'], figure: undefined } : x));
-    Author.author.mockResolvedValue({ questions: long, model: 'm', costUsd: 0.01, latencyMs: 10 });
+    Author.author.mockResolvedValue({ questions: long, model: 'm', costUsd: 0.01, latencyMs: 10 , lessonSummary: LESSON_SUMMARY });
     wire();
     const r = await Gen.process(QID, {});
     expect(r.ok).toBe(true);
@@ -229,7 +232,7 @@ describe('process — question cards and speed', () => {
   test('figures and cards are rendered in parallel (not one after the other)', async () => {
     let inFlight = 0; let peak = 0;
     htmlToImage.mockImplementation(() => new Promise((res) => { inFlight += 1; peak = Math.max(peak, inFlight); setTimeout(() => { inFlight -= 1; res(Buffer.from('png')); }, 30); }));
-    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 10 });
+    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 10 , lessonSummary: LESSON_SUMMARY });
     wire();
     await Gen.process(QID, {});
     expect(peak).toBeGreaterThan(1);

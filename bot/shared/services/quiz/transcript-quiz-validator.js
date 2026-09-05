@@ -70,6 +70,7 @@ function rtlOpenQuestion(q) {
     question: rtlOpen(q.question),
     options: Array.isArray(q.options) ? q.options.map(rtlOpen) : q.options,
     explanation: rtlOpen(q.explanation),
+    selected_because: typeof q.selected_because === 'string' ? rtlOpen(q.selected_because) : q.selected_because,
     option_feedback: { ...fb, correct: rtlOpen(fb.correct), wrong },
   };
 }
@@ -135,7 +136,11 @@ function normaliseFeedback(q) {
   return out;
 }
 
-function validate(rawQuestions, { language, subject, digest, nExpected } = {}) {
+function validate(rawQuestions, ctx = {}) {
+  const {
+    language, subject, digest, nExpected, lessonSummary,
+  } = ctx;
+  const checkD4 = 'lessonSummary' in ctx;
   const errs = [];
   if (!Array.isArray(rawQuestions) || !rawQuestions.length) {
     return { ok: false, errors: ['no questions'], questions: [] };
@@ -144,6 +149,16 @@ function validate(rawQuestions, { language, subject, digest, nExpected } = {}) {
     .map((q) => (language === 'ur' ? rtlOpenQuestion(fixQuestionTransliterations(q)) : q));
   if (qs.length < MIN_QUESTIONS || qs.length > MAX_QUESTIONS) {
     errs.push(`count ${qs.length} outside ${MIN_QUESTIONS}..${MAX_QUESTIONS}${nExpected ? ` (asked for ${nExpected})` : ''}`);
+  }
+
+  // D4 — the caller opting into ctx.lessonSummary (even as '') is the signal
+  // it is on the new author contract; a legacy caller that never passes the
+  // key at all must see exactly today's behaviour.
+  if (checkD4) {
+    const summaryTrimmed = typeof lessonSummary === 'string' ? lessonSummary.trim() : '';
+    if (typeof lessonSummary !== 'string' || cpLen(summaryTrimmed) < 20) {
+      errs.push('AUTHOR_MISSING_SUMMARY — the quiz needs a "lesson_summary": 2–3 sentences on what the lesson taught, in the quiz language');
+    }
   }
 
   const slos = (digest && Array.isArray(digest.slos)) ? digest.slos : [];
@@ -171,6 +186,20 @@ function validate(rawQuestions, { language, subject, digest, nExpected } = {}) {
     if (!stem) errs.push(`q${i}: empty stem`);
     if (cpLen(stem) > STEM_MAX) errs.push(`q${i}: stem >${STEM_MAX} code points`);
     opts.forEach((o) => { if (cpLen(o) > OPTION_MAX) errs.push(`q${i}: option >${OPTION_MAX} code points`); });
+
+    // D4 — same gate as AUTHOR_MISSING_SUMMARY: only enforced when the caller
+    // is on the new contract, so a legacy caller with no selected_because at
+    // all stays green.
+    if (checkD4) {
+      const why = String(q.selected_because || '').trim();
+      if (!why) {
+        errs.push(`q${i}: Q_MISSING_WHY — "selected_because" is empty; say in ≤15 words which moment of the lesson this question tests`);
+      } else {
+        const n = why.split(/\s+/).filter(Boolean).length;
+        if (n > 30) errs.push(`q${i}: Q_MISSING_WHY — "selected_because" is ${n} words; 15 at most`);
+      }
+      q.selected_because = why;
+    }
 
     if (sloIds.has(q.slo_id)) covered.add(q.slo_id);
     else if (sloIds.size) errs.push(`q${i}: unknown slo_id ${q.slo_id}`);

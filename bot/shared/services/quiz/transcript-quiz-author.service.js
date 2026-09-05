@@ -105,6 +105,7 @@ WHAT TO WRITE — exactly ${n} questions.
 - Use the lesson's OWN examples, numbers, words, objects and stories (from "examples_used" and the excerpts). A child should recognise the class in the quiz.
 - Exactly 3 options. One correct. The two wrong options are DISTRACTORS: each must look right to a child holding a specific, named misconception (the ones surfaced in the lesson first, then the classic ones for this topic). The two misconceptions must be different. No silly options. The three options must be different from each other.
 - Stem ≤ 160 characters; each option ≤ 60 characters (they render as tappable rows).
+- "distractor_misconceptions": for each wrong option, the confusion it catches in AT MOST 10 words, as a phrase ("counts the unshaded parts instead of the shaded"), not a sentence about the child.
 - "explanation": one sentence, why the correct answer is correct — tied to how the teacher explained it.
 - "option_feedback.correct": one warm sentence that says WHY it is right (never just "correct!" — name the idea).
 - "option_feedback.wrong": an object whose KEYS are the two indices that are NOT "correct_index" (as strings), each with one or two sentences that (a) name the confusion that option represents, in plain child language, (b) point back to the lesson's own example, (c) end with the correct idea. Never say "wrong", never scold.
@@ -113,18 +114,23 @@ WHAT TO WRITE — exactly ${n} questions.
 
 STYLE RULES FOR URDU (when quiz language is Urdu): proper, well-written Urdu in Urdu script — never Roman Urdu; English technical/subject terms are written IN ENGLISH LETTERS inside the Urdu sentence (e.g. "proper fraction", "numerator", "denominator", "noun", "photosynthesis") — NEVER transliterated into Urdu script ("فیکشن", "نیومریٹر", "ڈینومینیٹر" are wrong even if the transcript spells them that way); use the SAME spelling of a term in every question; NEVER begin a question, explanation or feedback sentence with the English word — start with an Urdu word ("ایک fraction میں…", not "fraction میں…") because a sentence that opens with English is displayed left-to-right on the phone; simple, spoken, child-level Urdu; gender-neutral throughout: address the child as "آپ" with plural-respectful verbs (کریں، دیکھیں، سوچیں), NEVER a feminine or masculine singular guess (no "کرتی ہیں", "سکتی ہیں", "کریں گی", "کرتے ہو").
 STYLE RULES FOR ENGLISH: short sentences a Grade ${gradeBand || '3-5'} child in Pakistan reads comfortably; no idioms.
+
+LESSON SUMMARY. Also return a top-level "lesson_summary": 2-3 sentences, in the quiz language (follow the same Urdu/English style rules above), written TO THE TEACHER (not the child), saying what she taught and in the order she taught it, naming her own examples and numbers from the lesson. Do not summarise the quiz — summarise the LESSON.
+
+SELECTED BECAUSE. Every question also carries a "selected_because": at most 15 words, naming the specific moment in the lesson this question was chosen from (e.g. "she counted 26 to 30 aloud with the class", "the fraction of the roti she drew on the board"). This is WHY the question was picked from the transcript, not why the answer is correct — never restate the answer and never repeat "explanation".
 RELIGIOUS CONTENT (Islamiyat / سیرت / any mention of the Prophet, companions, Qur'an): every mention of the Prophet carries ﷺ immediately after the name; companions carry رضی اللہ عنہ / عنہا; اللہ and all sacred names in Urdu/Arabic script only; NEVER invent or paraphrase a hadith or an ayah — quote only what the lesson quoted, and only with the reference the teacher gave; no question may ask a child to guess what the Prophet ﷺ "would say".
 
 ${figureContract({ subject: digest && digest.subject, gradeBand })}${retry}
 
 Return ONLY this JSON object:
-{ "questions": [
+{ "lesson_summary": "",
+  "questions": [
   { "slo_id": "S1", "level": "recall|understand|apply", "question": "", "options": ["", "", ""], "correct_index": 0,
-    "explanation": "", "distractor_misconceptions": { "1": "", "2": "" },
+    "explanation": "", "selected_because": "", "distractor_misconceptions": { "1": "", "2": "" },
     "option_feedback": { "correct": "", "wrong": { "1": "", "2": "" } },
     "figure": null, "figure_role": null },
   { "slo_id": "S2", "level": "understand", "question": "…تصویر میں…", "options": ["", "", ""], "correct_index": 1,
-    "explanation": "", "distractor_misconceptions": { "0": "", "2": "" },
+    "explanation": "", "selected_because": "", "distractor_misconceptions": { "0": "", "2": "" },
     "option_feedback": { "correct": "", "wrong": { "0": "", "2": "" } },
     "figure": { "type": "fraction_bar", "bars": [ { "parts": 4, "shaded": 3 } ] }, "figure_role": "read_off" } ] }
 (In this example the correct option is index 0, so the wrong keys are "1" and "2". If correct_index is 1 the keys are "0" and "2"; if it is 2 the keys are "0" and "1".)
@@ -145,10 +151,14 @@ async function author({ digest, transcript, language, n = DEFAULT_QUESTIONS, gra
   const prompt = buildAuthorPrompt({ digest, excerpts, language, n, gradeBand, previousErrors });
   const { json, model, costUsd, latencyMs } = await completeJson({ prompt, label: 'transcript_quiz.author' });
   const questions = Array.isArray(json?.questions) ? json.questions : [];
+  const lessonSummary = typeof json?.lesson_summary === 'string' ? json.lesson_summary : '';
   logEvent('transcript_quiz.author_done', {
     quizId, model, costUsd, latencyMs, questions: questions.length, language, retry: Boolean(previousErrors),
+    lessonSummary: Boolean(lessonSummary),
   });
-  return { questions, model, costUsd, latencyMs };
+  return {
+    questions, model, costUsd, latencyMs, lessonSummary,
+  };
 }
 
 module.exports = { author, buildAuthorPrompt, excerptsFor, DEFAULT_QUESTIONS };
