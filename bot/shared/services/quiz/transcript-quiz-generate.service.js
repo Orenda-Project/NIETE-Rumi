@@ -66,7 +66,10 @@ function toRows(quizId, questions, { rng = Math.random, figureUrls = {} } = {}) 
     // question's index, so a figure whose PNG never uploaded degrades to a
     // plain P1 question rather than to a row pointing at nothing.
     const figureUrl = figureUrls[i];
-    const media = (q.figure && figureUrl) ? { question_image: figureUrl, figure: q.figure } : null;
+    const selectedBecause = String(q.selected_because || '').trim();
+    const media = (q.figure && figureUrl)
+      ? { question_image: figureUrl, figure: q.figure, ...(selectedBecause ? { selected_because: selectedBecause } : {}) }
+      : (selectedBecause ? { selected_because: selectedBecause } : null);
 
     return {
       quiz_id: quizId,
@@ -82,7 +85,11 @@ function toRows(quizId, questions, { rng = Math.random, figureUrls = {} } = {}) 
       // index), so the quiz id is part of it; the report reads the SLO as the
       // second-to-last segment.
       external_id: `tq:${quizId}:${q.slo_id || 'S?'}:${i + 1}`,
-      render_pattern: media ? 'P3' : 'P1',
+      // "media" now also carries selected_because on a question with no
+      // figure, so the pattern is keyed on question_image specifically —
+      // not on media's mere presence — exactly as it reads once applyMedia
+      // recomputes it below.
+      render_pattern: (media && media.question_image) ? 'P3' : 'P1',
       ...(media ? { media } : {}),
       sort_order: i,
     };
@@ -237,17 +244,23 @@ function pdfFilename(topic) {
 }
 
 /**
- * `language` is the TEACHER's — labels, instructions, the footer.
- * `contentLanguage` is the QUIZ's — stems, options, explanations, the topic.
- * They differ whenever an English-preferring teacher teaches an Urdu-medium
- * lesson, which is the common case here; passing only one of them puts the
- * quiz's script on a font that has no glyphs for it.
+ * THE DOCUMENT IS SINGLE-LANGUAGE, and the language is the QUIZ's (PLAN_R4 D1).
+ *
+ * Round 2 gave the sheet two languages at once: her stored preference for the
+ * labels, the quiz's language for the questions. It reads as a defect — an
+ * English PDF with Urdu down its side — so both arguments are now the quiz's
+ * language, which is the one she chose for this quiz and the one her class
+ * will read. Her stored preference still decides every WhatsApp message
+ * around the document: the caption, the report promise, the nudge.
+ *
+ * Both parameters stay in the signature because the template still honours
+ * them; passing them the same value is the decision, not a simplification.
  */
-async function renderPdf({ quiz, questions, digest, teacherName, language, contentLanguage, date, link }) {
+async function renderPdf({ quiz, questions, digest, teacherName, grade, lessonSummary, language, contentLanguage, date, link }) {
   const { htmlToPdf } = require('../../utils/html-to-pdf');
   const render = require('../../templates/transcript-quiz-teacher.template');
   const html = render({
-    topic: quiz.topic, teacherName, date, link, digest, questions,
+    topic: quiz.topic, teacherName, grade, date, link, digest, questions, lessonSummary,
     language, contentLanguage: contentLanguage || quiz.language || language,
   });
   const buffer = await htmlToPdf(html, {
@@ -347,6 +360,8 @@ async function process(quizId, payload = {}) {
     let previousErrors = null;
     let lastRejected = null;
     let lastErrors = null;
+    let lastLessonSummary = null;
+    let readyLessonSummary = null;
     const attempts = [];
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
       let out;
@@ -360,7 +375,10 @@ async function process(quizId, payload = {}) {
         previousErrors = [`the previous reply was not valid JSON (${err.code || err.message})`];
         continue;
       }
-      const v = validate(out.questions, { language, subject: digest.subject, digest, nExpected: N_QUESTIONS });
+      lastLessonSummary = out.lessonSummary;
+      const v = validate(out.questions, {
+        language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary: out.lessonSummary,
+      });
       attempts.push({ attempt, model: out.model, cost_usd: out.costUsd, latency_ms: out.latencyMs, errors: v.errors });
       meta.cost_usd = (meta.cost_usd || 0) + (out.costUsd || 0);
       if (v.ok) {
@@ -381,6 +399,7 @@ async function process(quizId, payload = {}) {
           continue;
         }
         questions = v.questions;
+        readyLessonSummary = out.lessonSummary;
         break;
       }
       logToFile('⚠️ transcript quiz: validator rejected attempt', { quizId, attempt, errors: v.errors.slice(0, 8) });
@@ -393,7 +412,9 @@ async function process(quizId, payload = {}) {
     // and re-validate, rather than telling the teacher nothing could be made
     // over one drawing (corpus round 3 rejected 9 of 13 first-attempt figures).
     if (!questions && lastRejected && lastErrors) {
-      const salvaged = salvageWithoutBadFigures(lastRejected, lastErrors, { language, subject: digest.subject, digest });
+      const salvaged = salvageWithoutBadFigures(lastRejected, lastErrors, {
+        language, subject: digest.subject, digest, lessonSummary: lastLessonSummary,
+      });
       if (salvaged) {
         try {
           const drafted = toRows(quizId, salvaged.questions);
@@ -403,6 +424,7 @@ async function process(quizId, payload = {}) {
           ]);
           draftedRows = drafted;
           questions = salvaged.questions;
+          readyLessonSummary = lastLessonSummary;
           attempts.push({ attempt: 'salvage', dropped: salvaged.dropped, errors: [] });
           logEvent('transcript_quiz.figure_salvage', { quizId, dropped: salvaged.dropped, kept: questions.length });
         } catch (figErr) {
@@ -420,7 +442,13 @@ async function process(quizId, payload = {}) {
     await supabase.from('quiz_questions').delete().eq('quiz_id', quizId);
     const { error: insErr } = await supabase.from('quiz_questions').insert(rows);
     if (insErr) throw new Error(`quiz_questions insert failed: ${insErr.message}`);
-    meta = { ...meta, step: 'ready', question_count: rows.length, ready_at: new Date().toISOString() };
+    meta = {
+      ...meta,
+      step: 'ready',
+      question_count: rows.length,
+      ready_at: new Date().toISOString(),
+      ...(readyLessonSummary ? { lesson_summary: readyLessonSummary } : {}),
+    };
     await updateQuiz(quizId, { status: 'ready', meta });
     logEvent('transcript_quiz.ready', { quizId, questions: rows.length, language, attempts: attempts.length, costUsd: meta.cost_usd });
   }
@@ -449,8 +477,12 @@ async function process(quizId, payload = {}) {
   try {
     const buffer = await renderPdf({
       quiz, questions: withFigureSvgs(qRows, questions, language), digest, teacherName,
-      language: teacherLang, contentLanguage: language,
-      date: formatLessonDate(session.created_at, teacherLang, { year: true }), link,
+      grade: quiz.grade || meta.grade || null,
+      lessonSummary: meta.lesson_summary || '',
+      // D1: one language for the whole document, and it is the quiz's — not
+      // `teacherLang`, which still owns the messages either side of it.
+      language, contentLanguage: language,
+      date: formatLessonDate(session.created_at, language, { year: true }), link,
     });
     try {
       const { uploadBuffer } = require('../../storage/r2');

@@ -50,11 +50,13 @@ function goodQuestion(i, slo = 'S1', level = 'recall') {
   return {
     slo_id: slo, level, question: `سوال ${i}: آدھی روٹی کا کسر کیا ہے؟`, options: [`½ ${i}`, `⅓ ${i}`, `¼ ${i}`], correct_index: 0,
     explanation: 'آدھی روٹی یعنی ایک بٹا دو۔',
+    selected_because: `سوال ${i} روٹی کے ٹکڑوں والے حصے سے لیا گیا`,
     distractor_misconceptions: { 1: 'تین حصے', 2: 'چار حصے' },
     option_feedback: { correct: 'بالکل — آدھی روٹی ایک بٹا دو ہوتی ہے۔', wrong: { 1: 'تین حصے نہیں، روٹی دو حصوں میں کٹی تھی۔', 2: 'چار حصے نہیں، روٹی دو حصوں میں کٹی تھی۔' } },
   };
 }
 const EIGHT = [1, 2, 3, 4, 5, 6, 7, 8].map((i) => goodQuestion(i, i % 2 ? 'S1' : 'S2', i % 2 ? 'recall' : 'understand'));
+const LESSON_SUMMARY = 'استاد نے آدھی روٹی کی مثال سے کسر پڑھایا اور بورڈ پر ٹکڑے بنا کر دکھائے۔';
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -73,7 +75,7 @@ function wire({ quiz = QUIZ, insertError = null } = {}) {
 
 describe('process — happy path', () => {
   test('authors, validates, stores 8 rows, renders the PDF, mints a code, sends three paced messages, marks sent', async () => {
-    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100 });
+    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100, lessonSummary: LESSON_SUMMARY });
     wire();
     const r = await Gen.process(QID, {});
     expect(r.ok).toBe(true);
@@ -111,7 +113,7 @@ describe('process — happy path', () => {
   });
 
   test('the PDF caption names the subject and the topic as it was taught', async () => {
-    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100 });
+    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100, lessonSummary: LESSON_SUMMARY });
     wire();
     await Gen.process(QID, {});
     const caption = WhatsAppService.sendDocument.mock.calls[0][3];
@@ -126,7 +128,7 @@ describe('process — happy path', () => {
     Digest.run.mockResolvedValue({
       digest: { ...DIGEST, subject: 'urdu' }, grade: '4', gradeSource: 'profile', lpHint: null, model: 'm', costUsd: 0.001,
     });
-    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100 });
+    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100, lessonSummary: LESSON_SUMMARY });
     wire({ quiz: { ...QUIZ, subject: 'urdu', language: 'en', meta: { grade: '4', step: 'digest' } } });
 
     await Gen.process(QID, {});
@@ -147,7 +149,7 @@ describe('process — happy path', () => {
 describe('process — validator failure', () => {
   test('regenerates once, then marks failed and tells the teacher honestly', async () => {
     const bad = EIGHT.map((q) => ({ ...q, slo_id: 'S1' }));   // S2 never covered
-    Author.author.mockResolvedValue({ questions: bad, model: 'm', costUsd: 0.01 });
+    Author.author.mockResolvedValue({ questions: bad, model: 'm', costUsd: 0.01, lessonSummary: LESSON_SUMMARY });
     wire();
     const r = await Gen.process(QID, {});
     expect(r.failed).toBe(true);
@@ -163,20 +165,23 @@ describe('process — validator failure', () => {
 });
 
 /**
- * bd-mg9c7.26 — the teacher's PDF carries TWO languages: her chrome and the
- * quiz's content. Staging shipped a teacher whose preference is English an
- * all-Urdu quiz, and because the whole document was keyed on her preference
- * every Urdu question landed on a Latin-only face and printed as boxes.
+ * PLAN_R4 D1 — the teacher's PDF speaks ONE language, and it is the QUIZ's.
+ *
+ * Round 2 gave it two: her stored preference for the labels, the quiz's
+ * language for the questions. The operator opened an English PDF and asked
+ * why it had Urdu in it. Her preference still owns every WhatsApp message
+ * around the document; the document follows the quiz she chose the language
+ * for, and which her class will read.
  *
  * Driven through the real process() -> renderPdf -> template chain (only the
- * network boundary, htmlToPdf, is mocked) so the parameter is proved to reach
- * its use site, not merely to be passed one hop.
+ * network boundary, htmlToPdf, is mocked) so each parameter is proved to
+ * reach its use site, not merely to be passed one hop.
  */
-describe('process — the PDF follows both languages', () => {
+describe('process — the PDF is written in the quiz language, whole', () => {
   const { htmlToPdf } = require('../../bot/shared/utils/html-to-pdf');
 
-  test('an English-preferring teacher with an Urdu quiz gets English chrome around RTL Urdu questions', async () => {
-    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100 });
+  async function runWithUrduQuizForEnglishTeacher() {
+    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100, lessonSummary: LESSON_SUMMARY });
     wire({ quiz: { ...QUIZ, language: 'ur' } });
     installFrom(supabase.from, {
       quizzes: (calls) => (calls.some((c) => c[0] === 'update') ? { data: [{ id: QID }] } : { data: [{ ...QUIZ, language: 'ur' }] }),
@@ -184,15 +189,49 @@ describe('process — the PDF follows both languages', () => {
       quiz_questions: (calls) => (calls.some((c) => c[0] === 'insert') ? { data: null, error: null } : { data: [] }),
       users: { data: [{ ...SESSION.users, preferred_language: 'en' }] },
     });
-
     const r = await Gen.process(QID, {});
     expect(r.ok).toBe(true);
+    return htmlToPdf.mock.calls[0][0];
+  }
 
-    const html = htmlToPdf.mock.calls[0][0];
-    expect(html).toMatch(/<html dir="ltr" lang="en">/);        // her chrome
-    expect(html).toMatch(/How to send it/);
-    expect(html).toMatch(/<div class="stem content" dir="rtl">/); // the quiz
-    expect(html).toMatch(/[؀-ۿ]/);
+  test('an English-preferring teacher with an Urdu quiz gets an ENTIRELY Urdu document', async () => {
+    const html = await runWithUrduQuizForEnglishTeacher();
+    expect(html).toMatch(/<html dir="rtl" lang="ur">/);
+    expect(html).toMatch(/یہ کوئز کیا جانچتا ہے/);          // the quiz's chrome
+    expect(html).not.toMatch(/How to send it/);              // not hers
+    expect(html).not.toMatch(/What you taught/);
+    expect(html).toMatch(/<div class="stem content" dir="rtl">/);
+  });
+
+  test('but her WhatsApp messages around it stay in HER language', async () => {
+    await runWithUrduQuizForEnglishTeacher();
+    const caption = WhatsAppService.sendDocument.mock.calls[0][3];
+    expect(caption).toMatch(/Your quiz/);                     // English, hers
+    expect(caption).toMatch(/forward it to the class group/);
+    expect(WhatsAppService.sendMessage.mock.calls[1][1]).toMatch(/^You will get a report/);   // the report promise
+  });
+
+  test('and the caption describes the sheet she actually gets, not the round-2 one', async () => {
+    await runWithUrduQuizForEnglishTeacher();
+    const caption = WhatsAppService.sendDocument.mock.calls[0][3];
+    // The PDF no longer carries the child-facing feedback prose (D5); a
+    // caption that still promises it sends her looking for a section that is
+    // not there.
+    expect(caption).not.toMatch(/what students are told/i);
+    expect(caption).toMatch(/what you taught/i);
+  });
+
+  test('the lesson summary and her class reach the page, from the quiz row', async () => {
+    const html = await runWithUrduQuizForEnglishTeacher();
+    expect(html).toMatch(/آپ نے کیا پڑھایا/);                                  // the panel label
+    expect(html).toMatch(/استاد نے آدھی روٹی کی مثال سے کسر پڑھایا/);          // meta.lesson_summary
+    expect(html).toMatch(/جماعت/);                                             // grade, in the quiz language
+  });
+
+  test('every question carries its one-line "from your lesson" out of media.selected_because', async () => {
+    const html = await runWithUrduQuizForEnglishTeacher();
+    expect(html).toMatch(/آپ کے سبق سے/);
+    expect(html).toMatch(/روٹی کے ٹکڑوں والے حصے سے لیا گیا/);
   });
 });
 

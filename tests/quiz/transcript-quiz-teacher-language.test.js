@@ -79,11 +79,13 @@ function question(i) {
     slo_id: i % 2 ? 'S1' : 'S2', level: i % 2 ? 'recall' : 'understand',
     question: `سوال ${i}: آدھی روٹی کا کسر کیا ہے؟`, options: [`½ ${i}`, `⅓ ${i}`, `¼ ${i}`], correct_index: 0,
     explanation: 'آدھی روٹی یعنی ایک بٹا دو۔',
+    selected_because: `سوال ${i} روٹی کے ٹکڑوں والے حصے سے لیا گیا`,
     distractor_misconceptions: { 1: 'تین حصے', 2: 'چار حصے' },
     option_feedback: { correct: 'بالکل۔', wrong: { 1: 'نہیں۔', 2: 'نہیں۔' } },
   };
 }
 const EIGHT = [1, 2, 3, 4, 5, 6, 7, 8].map(question);
+const LESSON_SUMMARY = 'استاد نے آدھی روٹی کی مثال سے کسر پڑھایا اور بورڈ پر ٹکڑے بنا کر دکھائے۔';
 
 const bodies = () => [
   ...WA.sendMessage.mock.calls.map((c) => c[1]),
@@ -155,7 +157,7 @@ describe('every teacher-facing surface answers in her stored language', () => {
   });
 
   test('the three hand-off messages, and the PDF chrome', async () => {
-    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100 });
+    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100, lessonSummary: LESSON_SUMMARY });
     installFrom(supabase.from, {
       quizzes: (calls) => (calls.some((c) => c[0] === 'update') ? { data: [{ id: QID }] } : { data: [QUIZ] }),
       coaching_sessions: { data: [SESSION] },
@@ -171,12 +173,16 @@ describe('every teacher-facing surface answers in her stored language', () => {
     // read by children, not by her, so it is deliberately not English here.
     expect(WA.sendMessage.mock.calls[0][1]).toMatch(/[؀-ۿ]/);
     expect(WA.sendMessage.mock.calls[1][1]).toBe(en('tqReportPromise'));
-    // The document's chrome is hers; its questions are the quiz's.
-    expect(teacherTemplate).toHaveBeenCalledWith(expect.objectContaining({ language: 'en', contentLanguage: 'ur' }));
+    // The DOCUMENT is not one of her surfaces in that sense: PLAN_R4 D1 makes
+    // the PDF single-language, and the language it speaks is the QUIZ's — she
+    // chose it for this quiz, and it is what her class will read. Her stored
+    // preference still decides everything above: the caption, the report
+    // promise, the nudge. So both template arguments are the quiz language.
+    expect(teacherTemplate).toHaveBeenCalledWith(expect.objectContaining({ language: 'ur', contentLanguage: 'ur' }));
   });
 
   test('the honest failure', async () => {
-    Author.author.mockResolvedValue({ questions: EIGHT.map((q) => ({ ...q, slo_id: 'S1' })), model: 'm', costUsd: 0.01, latencyMs: 10 });
+    Author.author.mockResolvedValue({ questions: EIGHT.map((q) => ({ ...q, slo_id: 'S1' })), model: 'm', costUsd: 0.01, latencyMs: 10, lessonSummary: LESSON_SUMMARY });
     installFrom(supabase.from, {
       quizzes: (calls) => (calls.some((c) => c[0] === 'update') ? { data: [{ id: QID }] } : { data: [QUIZ] }),
       coaching_sessions: { data: [SESSION] },

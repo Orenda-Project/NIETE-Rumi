@@ -800,8 +800,8 @@ const UX_STRINGS = {
     ur: 'آپ کا quiz تیار ہے لیکن کلاس کا link ابھی نہیں بن سکا۔ تھوڑی دیر بعد /quiz بھیج کر حاصل کریں۔',
   },
   tqHandoffIntro: {
-    en: '📝 Your quiz: {lesson} — {n} questions.\n\nThis PDF is for you: each question, why it is asked, what each wrong answer reveals, and what students are told.\n\nThe NEXT message is for your students — forward it to the class group.',
-    ur: '\u200F📝 آپ کا quiz: {lesson}، {n} سوالات۔\n\nیہ PDF آپ کے لیے ہے: ہر سوال، اس کی وجہ، ہر غلط جواب کیا ظاہر کرتا ہے، اور طلبہ کو کیا بتایا جائے گا۔\n\nاگلا پیغام طلبہ کے لیے ہے — اسے class group میں forward کریں۔',
+    en: '📝 Your quiz: {lesson} — {n} questions.\n\nThis PDF is for you: what you taught, what the quiz checks, and every question with its correct answer marked.\n\nThe NEXT message is for your students — forward it to the class group.',
+    ur: '\u200F📝 آپ کا quiz: {lesson}، {n} سوالات۔\n\nیہ PDF آپ کے لیے ہے: آپ نے کیا پڑھایا، کوئز کیا جانچتا ہے، اور ہر سوال کے ساتھ درست جواب نشان زد۔\n\nاگلا پیغام طلبہ کے لیے ہے — اسے class group میں forward کریں۔',
   },
   tqForwardThis: {
     en: 'Forward THIS message to your students:',
