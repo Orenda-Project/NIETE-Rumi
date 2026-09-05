@@ -1,749 +1,1000 @@
 'use strict';
 /**
- * Assessment Generator Flow endpoint.
+ * The Assessment Generator Flow, driven from the server.
  *
- * WhatsApp Flow that collects the spec for an assessment (exam OR classroom
- * practice), then submits it to the external UG_EG service (Orenda-Project/UG_EG)
- * via assessment-generator-client.service. Result comes back on the callback
- * endpoint (POST /webhooks/assessment-generator) and is rendered + delivered.
+ *   CLASS ──▶ COVERAGE ──┬─▶ QUESTIONS ──┬─▶ CONFIRM ──▶ (Flow closes)
+ *                        └─▶ PAGES ──────┘   (via TYPES if she asks)
  *
- * Screens (see docs/flows/assessment-gen-flow.json) — dynamic state machine:
+ * CONFIRM is the terminal screen: it submits AND closes. The acknowledgement
+ * arrives as a chat message rather than on a screen she has to dismiss.
  *
- *   SPEC              → generation_type, grade, subject, chapter (opt), page_ranges
- *   SEEN_UNSEEN       → radio: Seen / Unseen / Both
- *      ├─ Seen        → submit straight to UG_EG with full default type coverage,
- *      │                land on SUCCESS
- *      └─ Unseen/Both → OBJ_SUBJ CheckboxGroup: Objective and/or Subjective
- *                        (FEAT-092 rev3: was a mutually-exclusive Radio; Alishba
- *                        asked for both to be independently selectable so a
- *                        single paper can mix objective + subjective types.)
- *                        └─ QUESTION_TYPES (union of types for the picked
- *                            categories) with per-type counts
- *                            → submit, land on SUCCESS
+ * Every list she sees is built here as the screen is requested, rather than
+ * published into the Flow and left to drift: the subjects offered are the books
+ * we actually hold for her grade, the chapters are that book's real contents
+ * page, and the question types are the ones valid for that subject. A teacher
+ * cannot pick something we then have to refuse.
  *
- * State between screens is stored in Redis keyed by flow_token.
- * The next-screen decision is made server-side in this endpoint — Meta's
- * `data_exchange` action lets us return `{ screen, data }` dynamically.
+ * State between screens lives in Redis under the flow token. Flows are
+ * stateless by design — what she chose two screens ago is only knowable because
+ * we wrote it down.
  */
 
-const { logToFile } = require('../utils/logger');
 const redis = require('../services/cache/railway-redis.service');
-const AssessmentGenClient = require('../services/assessment-generator-client.service');
-const QuestionConfig = require('../services/assessment-question-config.service');
-const WhatsAppService = require('../services/whatsapp.service');
 const supabase = require('../config/supabase');
+const { logToFile } = require('../utils/logger');
+const BookContent = require('../services/assessment/book-content.service');
+const QuestionTypes = require('../services/assessment/question-types');
+const SQSQueueService = require('../services/queue');
 
 const SESSION_TTL_SECONDS = 15 * 60;
 
-// Output formats the teacher can pick on the SPEC screen. PDF is the legacy
-// default (what the callback renders via Chromium); DOCX routes the same
-// HTML through the html-to-docx converter and ships a Word-editable file.
-const VALID_OUTPUT_FORMATS = ['pdf', 'docx'];
-const DEFAULT_OUTPUT_FORMAT = 'pdf';
+const SUBJECT_TITLE = {
+  english: 'English', urdu: 'Urdu', maths: 'Maths', islamiat: 'Islamiat',
+  science: 'Science', general_knowledge: 'General Knowledge', social_studies: 'Social Studies',
+};
 
-// Default question-type coverage for the SEEN fast-path (Umama's spec:
-// "if Seen, show the Generate Exam option directly" — no type picker).
-// We default to a small, universally-safe subset (each type is available for
-// every subject in UG_EG's doc). Categories are stamped explicitly so the
-// client doesn't have to guess.
-const SEEN_FAST_PATH_DEFAULT_TYPES = () => ([
-  { id: 'MCQs',                 count: QuestionConfig.DEFAULT_COUNT_PER_TYPE, category: 'objective' },
-  { id: 'Fill in the Blanks',   count: QuestionConfig.DEFAULT_COUNT_PER_TYPE, category: 'objective' },
-  { id: 'True/False',           count: QuestionConfig.DEFAULT_COUNT_PER_TYPE, category: 'objective' },
-]);
+// Which subjects a grade is actually taught. Science and Social Studies start at
+// Grade 4; General Knowledge stops at Grade 3. Offering one outside its band
+// produces a book we do not have and a refusal she cannot act on.
+const GRADE_BANDS = {
+  science: [4, 5],
+  social_studies: [4, 5],
+  general_knowledge: [1, 2, 3],
+};
 
-function sessionKey(flowToken) {
-  return `assessment_gen_flow:${flowToken || 'no-token'}`;
-}
+const COUNT_CHOICES = [10, 15, 20, 25, 30];
 
-async function readSession(flowToken) {
+function sessionKey(token) { return `assessment_gen:${token || 'no-token'}`; }
+
+async function readSession(token) {
   try {
-    const parsed = await redis.get(sessionKey(flowToken));
-    if (!parsed || typeof parsed !== 'object') return {};
-    return parsed;
-  } catch (e) {
-    logToFile('[assessment-gen-flow] session read failed', { err: e.message });
+    const s = await redis.get(sessionKey(token));
+    return (s && typeof s === 'object') ? s : {};
+  } catch (err) {
+    logToFile('[assessment-flow] session read failed', { error: err.message });
     return {};
   }
 }
 
-async function writeSession(flowToken, state) {
+async function writeSession(token, state) {
   try {
-    await redis.set(sessionKey(flowToken), state, SESSION_TTL_SECONDS);
-  } catch (e) {
-    logToFile('[assessment-gen-flow] session write failed', { err: e.message });
-  }
-}
-
-async function clearSession(flowToken) {
-  try {
-    await redis.delete(sessionKey(flowToken));
-  } catch (_e) { /* not fatal */ }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen builders
-// ─────────────────────────────────────────────────────────────────────────────
-
-const GRADE_OPTIONS = [
-  { id: '1', title: 'Grade 1' },
-  { id: '2', title: 'Grade 2' },
-  { id: '3', title: 'Grade 3' },
-  { id: '4', title: 'Grade 4' },
-  { id: '5', title: 'Grade 5' },
-];
-
-// bd-2246 (Umama, 2026-07-20): the subject list is per-grade, not global. The
-// primary grades and the middle grades teach different subject sets, and the
-// SAME subject is named differently across them ("Maths" in 1-3 vs
-// "Mathematics" in 4-5; "Science" vs "General Science"), so the titles are part
-// of the spec — not cosmetic. Ids stay stable so downstream generation and any
-// stored request is unaffected by the relabelling.
-const SUBJECTS_BY_GRADE = {
-  1: [
-    { id: 'Eng', title: 'English' },
-    { id: 'Urdu', title: 'Urdu' },
-    { id: 'Maths', title: 'Maths' },
-    { id: 'Islamiat', title: 'Islamiyat' },
-    { id: 'GenK', title: 'General Knowledge (Waqfiyat-e-Aama)' },
-  ],
-  4: [
-    { id: 'Eng', title: 'English' },
-    { id: 'Maths', title: 'Mathematics' },
-    { id: 'Urdu', title: 'Urdu' },
-    { id: 'Islamiat', title: 'Islamiyat' },
-    { id: 'SST', title: 'Social Studies' },
-    { id: 'Science', title: 'General Science' },
-  ],
-};
-SUBJECTS_BY_GRADE[2] = SUBJECTS_BY_GRADE[1];
-SUBJECTS_BY_GRADE[3] = SUBJECTS_BY_GRADE[1];
-SUBJECTS_BY_GRADE[5] = SUBJECTS_BY_GRADE[4];
-
-/**
- * Subjects offered for a grade. Unknown/blank grade → the union, so the very
- * first render (before a grade is picked) still shows a usable list rather than
- * an empty dropdown.
- */
-function subjectsForGrade(grade) {
-  const g = parseInt(String(grade || '').trim(), 10);
-  if (SUBJECTS_BY_GRADE[g]) return SUBJECTS_BY_GRADE[g];
-  const seen = new Set();
-  const union = [];
-  for (const list of [SUBJECTS_BY_GRADE[1], SUBJECTS_BY_GRADE[4]]) {
-    for (const s of list) {
-      if (!seen.has(s.id)) { seen.add(s.id); union.push(s); }
-    }
-  }
-  return union;
-}
-
-/** bd-2246: server-side gate. The Flow filters the dropdown, but a replayed or
- *  hand-crafted payload must not be able to generate a paper for a subject the
- *  grade doesn't teach — the team asked for this explicitly, not frontend-only. */
-function isSubjectValidForGrade(subject, grade) {
-  const g = parseInt(String(grade || '').trim(), 10);
-  const list = SUBJECTS_BY_GRADE[g];
-  if (!list) return true; // unknown grade — don't block; upstream validates grade
-  return list.some((s) => s.id === String(subject || '').trim());
-}
-
-function specScreen(grade) {
-  return {
-    screen: 'SPEC',
-    data: {
-      grade_options: GRADE_OPTIONS,
-      subject_options: subjectsForGrade(grade),
-      output_format_options: [
-        { id: 'pdf',  title: 'PDF',  description: 'Print-ready. Best for printing straight to a class set.' },
-        { id: 'docx', title: 'Word', description: 'Editable. Tweak questions or scoring before printing.' },
-      ],
-    },
-  };
-}
-
-function seenUnseenScreen(specSummary) {
-  return {
-    screen: 'SEEN_UNSEEN',
-    data: {
-      spec_summary: specSummary || '',
-    },
-  };
-}
-
-function objSubjScreen(specSummary) {
-  return {
-    screen: 'OBJ_SUBJ',
-    data: {
-      spec_summary: specSummary || '',
-    },
-  };
-}
-
-// bd-2247 — the QUESTION_TYPES screen used to carry the checkbox list AND a
-// static stack of ~34 count inputs, one per possible type. Ticking 3 types left
-// the 3 fields you needed buried among 30 you didn't. Umama asked four times for
-// the split we ourselves proposed: pick the types, THEN name counts for only
-// those types, in the order picked.
-//
-// WhatsApp Flows have no in-screen reactivity, so "only those types" is done
-// with a fixed bank of slots whose label + visibility are data-bound and
-// resolved server-side. Same technique already in production on the
-// teacher-training Flow at this schema version.
-const MAX_TYPE_SLOTS = 10;
-
-function pickTypesScreen(specSummary, typeOptions) {
-  return {
-    screen: 'PICK_TYPES',
-    data: {
-      spec_summary: specSummary || '',
-      type_options: typeOptions || [],
-    },
-  };
-}
-
-/**
- * Count fields for exactly the picked types, in pick order.
- * Slots beyond the pick count are hidden (`show_N: false`) and carry an empty
- * label so a hidden field can never render a stale name from a prior pass.
- */
-function setCountsScreen(specSummary, pickedTypes) {
-  const picked = (pickedTypes || []).slice(0, MAX_TYPE_SLOTS);
-  const data = {
-    spec_summary: specSummary || '',
-    default_count: String(QuestionConfig.DEFAULT_COUNT_PER_TYPE),
-    picked_summary: picked.length
-      ? `${picked.length} type${picked.length === 1 ? '' : 's'}: ${picked.join(', ')}`
-      : '',
-  };
-  for (let i = 1; i <= MAX_TYPE_SLOTS; i += 1) {
-    const title = picked[i - 1];
-    data[`show_${i}`] = !!title;
-    data[`label_${i}`] = title ? `${title} — how many?` : '';
-  }
-  return { screen: 'SET_COUNTS', data };
-}
-
-function successScreen(message, flowToken) {
-  return {
-    screen: 'SUCCESS',
-    data: {
-      extension_message_response: {
-        params: { flow_token: flowToken || 'assessment-gen' },
-      },
-      message,
-    },
-  };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Submit helper (shared by SEEN fast-path and QUESTION_TYPES full path)
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function _submitAndBuildSuccess({ state, userId, flowToken, contentSource, questionTypes }) {
-  let jobId = null;
-  try {
-    const submit = await AssessmentGenClient.submitJob({
-      generationType: state.generation_type,
-      grade: state.grade,
-      subject: state.subject,
-      pageRanges: state.page_ranges,
-      contentSource,
-      questionTypes,
-      curriculum: 'ICT',
-    });
-    jobId = submit.jobId;
-    logToFile('[assessment-gen-flow] job submitted', {
-      userId, jobId, generationType: state.generation_type, contentSource,
-    });
+    await redis.set(sessionKey(token), state, SESSION_TTL_SECONDS);
   } catch (err) {
-    logToFile('[assessment-gen-flow] submitJob failed', { err: err.message });
-    return successScreen(
-      "Something went wrong queueing your assessment. Please try again in a minute.",
-      flowToken,
-    );
+    logToFile('[assessment-flow] session write failed', { error: err.message });
   }
-
-  // Format picked on SPEC (Alishba ask 3). Default preserves legacy PDF path.
-  const outputFormat = VALID_OUTPUT_FORMATS.includes(state.output_format)
-    ? state.output_format
-    : DEFAULT_OUTPUT_FORMAT;
-
-  try {
-    await _persistJobLink({
-      jobId,
-      userId,
-      generationType: state.generation_type,
-      grade: state.grade,
-      subject: state.subject,
-      pageRanges: state.page_ranges,
-      contentSource,
-      questionTypes,
-      outputFormat,
-    });
-  } catch (err) {
-    logToFile('[assessment-gen-flow] persist job link failed', { err: err.message });
-  }
-
-  // Immediate WhatsApp ack (Alishba ask 4). Fire-and-forget so the Flow
-  // SUCCESS screen returns without waiting on network. We don't fail the
-  // flow if the ack can't be sent — the SUCCESS screen already tells the
-  // teacher we've queued the paper, and the callback will deliver either
-  // way.
-  setImmediate(() => {
-    _sendGenerationStartedAck(userId).catch((err) => {
-      logToFile('[assessment-gen-flow] ack send failed', { err: err.message, userId });
-    });
-  });
-
-  await clearSession(flowToken);
-
-  const typeLabel = state.generation_type === 'class_assessment'
-    ? 'classroom practice'
-    : 'exam';
-  const fileLabel = outputFormat === 'docx' ? 'Word file' : 'PDF';
-  return successScreen(
-    `Making your Grade ${state.grade} ${_subjectLabel(state.subject)} ${typeLabel} on pages ${state.page_ranges}. We'll send the ${fileLabel} when it's ready.`,
-    flowToken,
-  );
 }
 
-/**
- * Send the "generation started" text to the teacher (Alishba ask 4). Kept as
- * a separate function so the Flow SUCCESS return doesn't wait on it and so
- * tests can spy on it. Looks up the teacher's phone from Supabase using the
- * userId that Meta passes into the Flow endpoint.
- */
-async function _sendGenerationStartedAck(userId) {
-  if (!userId) return;
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('phone_number')
-    .eq('id', userId)
-    .single();
-  if (error || !user || !user.phone_number) {
-    logToFile('[assessment-gen-flow] ack: user lookup failed', {
-      userId, err: error?.message,
-    });
-    return;
-  }
-  await WhatsAppService.sendMessage(
-    user.phone_number,
-    "Your exam is being generated. This may take a few moments. We'll send it here as soon as it's ready.",
-  );
+async function clearSession(token) {
+  try { await redis.delete(sessionKey(token)); } catch { /* best effort */ }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Public handlers
-// ─────────────────────────────────────────────────────────────────────────────
+// Meta requires a component's `visible` to be a boolean, not a truthy string,
+// so the error TEXT and the decision to SHOW it are two fields. Deriving the
+// flag here means no caller can set one and forget the other.
+const screen = (id, data) => ({
+  screen: id,
+  data: ('error' in (data || {})) ? { ...data, has_error: Boolean(data.error) } : data,
+});
 
-async function handleAssessmentGenInit(userId, flowToken) {
-  logToFile('📝 Assessment Gen Flow INIT', { userId, flowToken });
-  await clearSession(flowToken);
-  return specScreen();
+/** Which grades we hold any book for. */
+async function gradesOnOffer() {
+  const { data } = await supabase
+    .from('textbooks').select('grade').eq('curriculum', 'ict');
+  const grades = [...new Set((data || []).map((r) => r.grade))].filter(Boolean).sort();
+  return grades.map((g) => ({ id: String(g), title: `Grade ${g}` }));
 }
 
-async function handleAssessmentGenDataExchange(userId, screen, screenData, flowToken) {
-  logToFile('📝 Assessment Gen Flow data_exchange', {
-    userId, screen, action: screenData?._action, flowToken,
-  });
-  const state = await readSession(flowToken);
-
-  // ───────────────────────── SPEC → SEEN_UNSEEN ─────────────────────────
-  if (screen === 'SPEC') {
-    // bd-2246: the grade Dropdown fires data_exchange on select, so the subject
-    // list can be re-rendered for that grade. WhatsApp Flows have no in-screen
-    // reactivity — a screen re-render from the server is the only way to make
-    // one field depend on another.
-    if (screenData._action === 'grade_changed') {
-      return specScreen(screenData.grade);
-    }
-    if (screenData._action !== 'spec_submit') return specScreen(screenData?.grade);
-    state.generation_type = screenData.generation_type === 'class_assessment'
-      ? 'class_assessment'
-      : 'exam';
-    state.grade = String(screenData.grade || '').trim();
-    state.subject = String(screenData.subject || '').trim();
-    state.chapter = String(screenData.chapter || '').trim();
-    state.page_ranges = String(screenData.page_ranges || '').trim();
-
-    // Output format (Alishba ask 3). Default 'pdf' preserves legacy behaviour
-    // for any client that doesn't send the field (old Flow JSON, tests, curl).
-    const rawFormat = String(screenData.output_format || '').trim().toLowerCase();
-    state.output_format = VALID_OUTPUT_FORMATS.includes(rawFormat)
-      ? rawFormat
-      : DEFAULT_OUTPUT_FORMAT;
-
-    if (!state.grade || !state.subject || !state.page_ranges) {
-      return specScreen(state.grade);
-    }
-
-    // bd-2246: server-side gate (acceptance criterion — "do not rely solely on
-    // frontend validation"). Re-render the SPEC screen with the correct list
-    // rather than generating a paper for a subject this grade doesn't teach.
-    if (!isSubjectValidForGrade(state.subject, state.grade)) {
-      logToFile('[assessment-gen-flow] subject not offered for grade — re-rendering SPEC', {
-        userId, grade: state.grade, subject: state.subject,
-      });
-      return specScreen(state.grade);
-    }
-
-    await writeSession(flowToken, state);
-    return seenUnseenScreen(_summaryFromState(state));
-  }
-
-  // ─────────────── SEEN_UNSEEN → (SUCCESS | OBJ_SUBJ) ───────────────
-  if (screen === 'SEEN_UNSEEN') {
-    if (screenData._action !== 'pick_source') return seenUnseenScreen(_summaryFromState(state));
-
-    // Guard: if state missing (session expired) — reset to SPEC.
-    if (!state.grade || !state.subject || !state.page_ranges) return specScreen();
-
-    const rawChoice = String(screenData.content_source || '').trim();
-    const contentSource = ['seen', 'unseen', 'both'].includes(rawChoice) ? rawChoice : 'unseen';
-    state.content_source = contentSource;
-    await writeSession(flowToken, state);
-
-    if (contentSource === 'seen') {
-      // Fast-path per Umama's spec: go straight to submit with default type coverage.
-      return _submitAndBuildSuccess({
-        state,
-        userId,
-        flowToken,
-        contentSource: 'seen',
-        questionTypes: SEEN_FAST_PATH_DEFAULT_TYPES(),
-      });
-    }
-
-    // 'unseen' or 'both' → collect objective/subjective next.
-    // For 'both': UG_EG's client currently only accepts one contentSource per
-    // job (`['seen']` OR `['unseen']`), so we treat 'both' as 'unseen' at
-    // submit time and let the teacher pick from the full type list.
-    return objSubjScreen(_summaryFromState(state));
-  }
-
-  // ─────────────── OBJ_SUBJ → QUESTION_TYPES (dynamic) ───────────────
-  //
-  // FEAT-092 rev3 (Alishba fix #1 + #2): OBJ_SUBJ is now a CheckboxGroup so
-  // Objective and Subjective can be picked independently OR together. The
-  // Flow submits `categories` as an array (WhatsApp Flows sends it as either
-  // ['objective','subjective'] or the comma-separated string form). We also
-  // accept the legacy scalar `category` field for backward-compat with the
-  // currently-published Flow (radio version) during rollout.
-  if (screen === 'OBJ_SUBJ') {
-    if (screenData._action !== 'pick_category') return objSubjScreen(_summaryFromState(state));
-    if (!state.grade || !state.subject) return specScreen();
-
-    const categories = _parseCategories(screenData);
-    state.categories = categories;
-    // Legacy mirror: keep `state.category` for old code paths / tests that
-    // read it. When only one category is picked it's that one; when both,
-    // default to 'objective' so any pre-rev3 QUESTION_TYPES handler still
-    // sees a sensible scalar.
-    state.category = categories.length === 1 ? categories[0] : 'objective';
-    await writeSession(flowToken, state);
-
-    const typeOptions = _unionTypeOptions({
-      subject: state.subject,
-      grade: state.grade,
-      categories,
-    });
-    if (typeOptions.length === 0) {
-      // Config-level failure — surface a friendly error rather than crash.
-      logToFile('[assessment-gen-flow] no question types for combo', {
-        subject: state.subject, grade: state.grade, categories,
-      });
-      return successScreen(
-        "We couldn't find any question types for that combination right now. Please try a different subject.",
-        flowToken,
-      );
-    }
-    // Also stash the per-id → category map on session so the QUESTION_TYPES
-    // handler can stamp the right category on each picked type at submit
-    // time (needed for ids like 'Brief Answers' that are OBJECTIVE for
-    // Eng/Urdu but SUBJECTIVE for Science, when both categories are picked).
-    state._id_to_category = _idCategoryMap({
-      subject: state.subject,
-      grade: state.grade,
-      categories,
-    });
-    await writeSession(flowToken, state);
-    return pickTypesScreen(_summaryFromState(state), typeOptions);
-  }
-
-  // ─────────────── PICK_TYPES → SET_COUNTS ───────────────
-  // bd-2247: the picker no longer submits. It records the picks (ORDER MATTERS —
-  // the counts screen labels its slots in the order the teacher ticked) and
-  // hands over to SET_COUNTS.
-  if (screen === 'PICK_TYPES') {
-    const categories = _categoriesFromState(state);
-    const reRender = () => pickTypesScreen(
-      _summaryFromState(state),
-      _unionTypeOptions({ subject: state.subject, grade: state.grade, categories }),
-    );
-    if (screenData._action !== 'pick_types') return reRender();
-    if (!state.grade || !state.subject || !state.page_ranges) return specScreen(state.grade);
-
-    let picked = screenData.question_types;
-    if (typeof picked === 'string') picked = picked.split(',').map((s) => s.trim()).filter(Boolean);
-    if (!Array.isArray(picked)) picked = [];
-    picked = picked.filter((id) => QuestionConfig.isSupported(id)).slice(0, MAX_TYPE_SLOTS);
-
-    if (picked.length === 0) return reRender();
-
-    state.picked_types = picked;
-    await writeSession(flowToken, state);
-    return setCountsScreen(_summaryFromState(state), picked);
-  }
-
-  // ─────────────── SET_COUNTS → SUCCESS (submit) ───────────────
-  // QUESTION_TYPES is accepted as an alias so a Flow client still on the
-  // pre-split published version keeps working through the republish window.
-  if (screen === 'SET_COUNTS' || screen === 'QUESTION_TYPES') {
-    const categories = _categoriesFromState(state);
-    const idCatMap = state._id_to_category && typeof state._id_to_category === 'object'
-      ? state._id_to_category
-      : _idCategoryMap({
-          subject: state.subject,
-          grade: state.grade,
-          categories,
-        });
-
-    if (screenData._action !== 'generate') {
-      // Non-submit ping — re-render whichever screen the client is on.
-      if (screen === 'SET_COUNTS') {
-        return setCountsScreen(_summaryFromState(state), state.picked_types || []);
-      }
-      const typeOptions = _unionTypeOptions({
-        subject: state.subject,
-        grade: state.grade,
-        categories,
-      });
-      return pickTypesScreen(_summaryFromState(state), typeOptions);
-    }
-    if (!state.grade || !state.subject || !state.page_ranges) return specScreen(state.grade);
-
-    // Picks come from the session on the split path (SET_COUNTS carries only
-    // counts). The legacy path still submits question_types on the payload.
-    let picked = Array.isArray(state.picked_types) && state.picked_types.length
-      ? state.picked_types
-      : screenData.question_types;
-    if (typeof picked === 'string') {
-      picked = picked.split(',').map((s) => s.trim()).filter(Boolean);
-    }
-    if (!Array.isArray(picked)) picked = [];
-
-    // Per-type counts. Payload uses `count_<slug>` keys where <slug> is the
-    // type id lowercased with non-alphanum → underscore.
-    //
-    // Category stamping (FEAT-092 rev3): when both categories were picked at
-    // OBJ_SUBJ, each id gets its correct category from the union map. When
-    // only one category was picked (or we're on the legacy Flow that sends
-    // scalar `category`), fall back to that.
-    const legacyCategory = state.category === 'subjective' ? 'subjective' : 'objective';
-    const questionTypes = picked
-      .filter((id) => QuestionConfig.isSupported(id))
-      .map((id, idx) => {
-        // bd-2247: SET_COUNTS submits positional slots (count_1..count_N) in the
-        // order the types were picked. Fall back to the legacy per-slug key so a
-        // client still on the pre-split Flow submits correctly.
-        const slug = _slugForCountKey(id);
-        const raw = screenData[`count_${idx + 1}`] !== undefined
-          ? screenData[`count_${idx + 1}`]
-          : screenData[`count_${slug}`];
-        const parsed = _parseCount(raw);
-        const capped = Math.min(parsed || QuestionConfig.DEFAULT_COUNT_PER_TYPE, QuestionConfig.MAX_COUNT_PER_TYPE);
-        const category = idCatMap[id] || legacyCategory;
-        return { id, count: capped, category };
-      })
-      .filter((qt) => qt.count > 0);
-
-    if (questionTypes.length === 0) {
-      const typeOptions = _unionTypeOptions({
-        subject: state.subject,
-        grade: state.grade,
-        categories,
-      });
-      const out = pickTypesScreen(_summaryFromState(state) + '  ·  Please pick a question type.', typeOptions);
-      return out;
-    }
-
-    // 'both' → send as 'unseen' at UG_EG (single-source constraint).
-    const contentSource = state.content_source === 'seen' ? 'seen' : 'unseen';
-
-    return _submitAndBuildSuccess({
-      state,
-      userId,
-      flowToken,
-      contentSource,
-      questionTypes,
-    });
-  }
-
-  logToFile('⚠️ Unknown screen in assessment-gen flow', { screen });
-  return specScreen();
+/** Which subjects we hold a book for, in this grade. */
+async function subjectsOnOffer(grade) {
+  const { data } = await supabase
+    .from('textbooks').select('subject').eq('curriculum', 'ict').eq('grade', Number(grade));
+  return (data || [])
+    .map((r) => r.subject)
+    .filter((s) => {
+      const band = GRADE_BANDS[s];
+      return !band || band.includes(Number(grade));
+    })
+    .map((s) => ({ id: s, title: SUBJECT_TITLE[s] || s }));
 }
 
-async function handleAssessmentGenBack(userId, flowToken /*, screen */) {
-  logToFile('📝 Assessment Gen Flow BACK', { userId, flowToken });
-  return specScreen();
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-function _parseCount(v) {
-  if (v === null || v === undefined || v === '') return 0;
-  const n = parseInt(String(v).trim(), 10);
-  return Number.isFinite(n) && n > 0 ? n : 0;
-}
-
-/**
- * Parse the OBJ_SUBJ screen submission's category selection.
- *
- * The FEAT-092 rev3 Flow sends `categories` (array or CSV string) because the
- * screen is now a CheckboxGroup allowing objective, subjective, or both.
- * The rev2 Flow sent `category` (scalar) from a RadioButtonsGroup — we still
- * accept that shape so the endpoint works against either published version
- * during rollout.
- *
- * Returns a de-duped array of at least one of ['objective', 'subjective'].
- * Defaults to ['objective'] on anything unparseable rather than throwing.
- */
-function _parseCategories(screenData) {
-  let raw = screenData && (screenData.categories !== undefined ? screenData.categories : screenData.category);
-  if (raw === undefined || raw === null) return ['objective'];
-  if (typeof raw === 'string') {
-    raw = raw.split(',').map((s) => s.trim()).filter(Boolean);
-  }
-  if (!Array.isArray(raw)) raw = [raw];
-  const valid = raw
-    .map((v) => String(v || '').trim().toLowerCase())
-    .filter((v) => v === 'objective' || v === 'subjective');
-  const uniq = [...new Set(valid)];
-  return uniq.length > 0 ? uniq : ['objective'];
-}
-
-/**
- * Session-shape accessor. Prefers the new `categories` array; falls back to
- * the legacy scalar `category`. Always returns a non-empty array.
- */
-function _categoriesFromState(state) {
-  if (Array.isArray(state && state.categories) && state.categories.length > 0) {
-    return state.categories;
-  }
-  const legacy = state && state.category === 'subjective' ? 'subjective' : 'objective';
-  return [legacy];
-}
-
-/**
- * Build the ordered union of `{id, title}` question-type options across all
- * picked categories. Preserves category ordering (Objective first, then
- * Subjective) so the WhatsApp checkbox list reads objective-then-subjective.
- * De-dupes by id (an id can only appear once in a CheckboxGroup); when a type
- * exists in both categories for the {subject, grade} the objective category
- * wins the display slot — the per-id → category map recorded separately
- * still lets us round-trip the *correct* category at submit time.
- */
-function _unionTypeOptions({ subject, grade, categories }) {
-  const cats = Array.isArray(categories) && categories.length > 0
-    ? categories
-    : ['objective'];
-  const seen = new Set();
-  const out = [];
-  const ordered = ['objective', 'subjective'].filter((c) => cats.includes(c));
-  for (const cat of ordered) {
-    const opts = QuestionConfig.getQuestionTypes({ subject, grade, category: cat });
-    for (const o of opts) {
-      if (seen.has(o.id)) continue;
-      seen.add(o.id);
-      out.push(o);
-    }
-  }
-  return out;
-}
-
-/**
- * Map every type id in the union → the category we should stamp on it when it
- * survives the QUESTION_TYPES submit. For any id that exists in only one of
- * the picked categories, use that. For an id that exists in both, prefer the
- * one the teacher expects for that subject — mirrors UG_EG's
- * question-types-ict.md placement (e.g. 'Brief Answers' → OBJECTIVE for
- * Eng/Urdu/Islamiat, SUBJECTIVE for Science).
- */
-function _idCategoryMap({ subject, grade, categories }) {
-  const cats = Array.isArray(categories) && categories.length > 0
-    ? categories
-    : ['objective'];
-  const map = {};
-  // Fill objective first, then subjective — later writes only happen for ids
-  // that aren't already tagged, so first-write-wins matches the display order
-  // in _unionTypeOptions.
-  const ordered = ['objective', 'subjective'].filter((c) => cats.includes(c));
-  for (const cat of ordered) {
-    const opts = QuestionConfig.getQuestionTypes({ subject, grade, category: cat });
-    for (const o of opts) {
-      if (!map[o.id]) map[o.id] = cat;
-    }
-  }
-  return map;
-}
-
-/**
- * Turn a type id (e.g. 'Fill in the Blanks') into the count field slug
- * used in the Flow payload: 'fill_in_the_blanks'.
- * Kept in sync with the Flow JSON `on-click-action.payload` keys.
- */
-function _slugForCountKey(id) {
-  return String(id).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-}
-
-const SUBJECT_LABELS = {
-  Eng: 'English',
-  Maths: 'Maths',
-  Urdu: 'Urdu',
-  Science: 'Science',
-  Islamiat: 'Islamiat',
-  SST: 'Social Studies',
-  GenK: 'General Knowledge',
-};
-function _subjectLabel(id) {
-  return SUBJECT_LABELS[id] || String(id || '');
-}
-
-function _summaryFromState(state) {
+function summaryOf(state) {
   return [
     state.grade ? `Grade ${state.grade}` : null,
-    state.subject ? _subjectLabel(state.subject) : null,
-    state.chapter || null,
-    state.page_ranges ? `Pages ${state.page_ranges}` : null,
+    SUBJECT_TITLE[state.subject] || state.subject,
+    state.chapterTitle ? `Chapter ${state.chapterNumber} · ${state.chapterTitle}` : null,
+    (!state.chapterNumber && state.pageRanges) ? `Pages ${state.pageRanges}` : null,
   ].filter(Boolean).join(' · ');
 }
 
+// ── The review journey ──────────────────────────────────────────────────────
+//
+// She comes back to this Flow already holding a paper, so her token names a
+// PAPER rather than a half-built request: `<userId>:assessment-review:<paperId>`.
+// Same Flow, same endpoint, different entry point — which is why the token, not
+// a screen id, decides where INIT lands.
+//
+//   KEEP ──▶ PICK ──▶ one of six screens, by question shape ──▶ PICK_DONE
+//
+// Removing and editing are two jobs, so they are two screens. On one screen,
+// unticking a question and then editing it are contradictory actions taken in
+// the same breath; ordered, the second list never offers a question she already
+// dropped.
+
+// Required lazily, at call time, NOT at module scope. The revision service
+// reaches R2 and so pulls in `@aws-sdk/client-s3`, which lives in bot/ — and CI
+// runs the root suite before bot's deps are installed. A top-level require here
+// kills every root suite that loads this endpoint for an unrelated reason.
+const Selection = require('../services/assessment/assessment-selection');
+const Edit = require('../services/assessment/assessment-edit');
+const { isAssessmentEditingEnabled } = require('../config/feature-flags');
+const revision = () => require('../services/assessment/assessment-revision.service');
+
+const REVIEW_MARKER = ':assessment-review:';
+
 /**
- * Store the job → user link so the callback endpoint can deliver to the right
- * teacher. Uses Redis (same TTL as the UG_EG 24h job TTL).
+ * A NavigationList row's title, description and metadata are each capped at 20
+ * characters — CLIENT-SIDE. The Flow JSON uploads and publishes clean because
+ * these are data, not literals, so nothing catches an over-long value until a
+ * teacher taps and the screen refuses to render. "1 mark · MCQs" fits;
+ * "4 marks · Match the Column" does not, and it took the PICK screen down.
  */
-async function _persistJobLink(link) {
-  const ttlSeconds = 24 * 60 * 60;
-  await redis.set(`assessment_gen_job:${link.jobId}`, link, ttlSeconds);
+const NAV_MAX = 20;
+
+/** Fit a row field to the cap, cutting at a word boundary where one is close. */
+function navFit(text) {
+  const t = String(text || '').replace(/\s+/g, ' ').trim();
+  if (t.length <= NAV_MAX) return t;
+  const cut = t.slice(0, NAV_MAX);
+  const space = cut.lastIndexOf(' ');
+  return (space > NAV_MAX * 0.5 ? cut.slice(0, space) : cut).replace(/[\s\W]+$/, '');
+}
+
+/**
+ * What a question says on a list row.
+ *
+ * The MARKS lead, because they are the thing she is weighing when she decides
+ * what to fix, and they are what survives the cap. The type follows only if
+ * there is room left for it to be read.
+ */
+function navDescription(q) {
+  const marks = `${q.marks} mark${q.marks === 1 ? '' : 's'}`;
+  const withType = `${marks} · ${q.type || ''}`.trim();
+  return withType.length <= NAV_MAX ? withType : marks;
+}
+
+/** Which screen each question shape is edited on. */
+const SHAPE_SCREEN = {
+  standard: 'EDIT_STANDARD',
+  options: 'EDIT_OPTIONS',
+  columns: 'EDIT_COLUMNS',
+  words: 'EDIT_WORDS',
+  passage: 'EDIT_PASSAGE',
+  comprehension: 'EDIT_COMPREHENSION',
+};
+
+/** The paper id a review token names, or null for an ordinary session. */
+function paperIdFromToken(flowToken) {
+  const i = String(flowToken || '').indexOf(REVIEW_MARKER);
+  return i === -1 ? null : String(flowToken).slice(i + REVIEW_MARKER.length) || null;
+}
+
+function totalsOf(items, selected) {
+  const keep = new Set(selected);
+  const kept = items.filter((q) => keep.has(q.id));
+  const marks = kept.reduce((s, q) => s + (Number(q.marks) || 0), 0);
+  return { count: kept.length, marks, kept };
+}
+
+/**
+ * One page of the tick list.
+ *
+ * `selected` is the running answer for the WHOLE paper and lives in the session,
+ * not in the form: the form only knows the twenty rows on screen, so trusting it
+ * alone would drop every question she never scrolled to.
+ */
+function keepScreen({ items, selected, page, error = '' }) {
+  const view = Selection.pageOf(items, page);
+  const keep = new Set(selected);
+  const t = totalsOf(items, selected);
+  return screen('KEEP', {
+    summary: `${t.count} question${t.count === 1 ? '' : 's'} · ${t.marks} marks`,
+    progress: view.total > view.items.length
+      ? `Questions ${view.from}-${view.to} of ${view.total}` : '',
+    questions: view.items.map((q) => ({
+      id: q.id,
+      title: Selection.optionTitle(q),
+      description: `${q.marks} mark${q.marks === 1 ? '' : 's'}${q.type ? ` · ${q.type}` : ''}`,
+    })),
+    selected: view.items.filter((q) => keep.has(q.id)).map((q) => q.id),
+    page: String(view.index),
+    has_prev: view.hasPrev,
+    has_next: view.hasNext,
+    error,
+  });
+}
+
+/** An empty tick list that explains itself, for when there is no paper. */
+function reviewError(message) {
+  return screen('KEEP', {
+    summary: '', progress: '', questions: [], selected: [],
+    page: '0', has_prev: false, has_next: false, error: message,
+  });
+}
+
+/**
+ * The picker — built from what survived KEEP.
+ *
+ * A NavigationList must be the only component on its screen (the repo's own
+ * guard enforces it), so the rebuild button lives on PICK_DONE next door rather
+ * than under the list.
+ */
+function pickScreen({ items, selected }) {
+  const { kept } = totalsOf(items, selected);
+  return screen('PICK', {
+    items: kept.map((q) => ({
+      id: q.id,
+      'main-content': {
+        title: navFit(Selection.optionTitle(q)),
+        description: navDescription(q),
+        metadata: '',
+      },
+      'on-click-action': {
+        name: 'data_exchange',
+        payload: { _action: 'open', question_id: q.id },
+      },
+    })),
+  });
+}
+
+function pickDoneScreen({ items, selected, error = '' }) {
+  const t = totalsOf(items, selected);
+  const summary = `${t.count} question${t.count === 1 ? '' : 's'} · ${t.marks} marks`;
+  return screen('PICK_DONE', {
+    summary,
+    note: 'Nothing to fix? Just rebuild.',
+    // Same rule as CONFIRM: drawn with the payload it will send back.
+    extension_message_response: completionPayload('rebuilt', summary),
+    error,
+  });
+}
+
+/** The edit screen for one question, pre-filled with what it currently says. */
+function editScreen(item, { error = '', overrides = null } = {}) {
+  const shape = item.shape || Edit.shapeOf(item.question);
+  const f = Edit.fieldsFor(item.question);
+  const data = {
+    heading: `سوال ${item.number} · Question ${item.number}`,
+    subheading: `${item.type || ''} · ${item.marks} mark${item.marks === 1 ? '' : 's'}`.trim(),
+    marks_hint: 'A whole number, 1 or more.',
+    question: f.question,
+    marks: Number(f.marks) || 1,
+    error,
+  };
+
+  if (shape === 'options' || shape === 'words') {
+    const label = shape === 'words' ? 'لفظ' : 'جواب';
+    f.slots.forEach((v, i) => {
+      data[`slot_${i}`] = v;
+      data[`slot_label_${i}`] = `${label} ${i + 1}`;
+      // A blank beyond the first free one is hidden: showing six empty boxes on
+      // a question that has two options is noise, not affordance.
+      data[`slot_show_${i}`] = i < f.slots.filter((x) => x !== '').length + 1;
+    });
+  } else if (shape === 'columns') {
+    const filled = f.pairs.filter((p) => p.left || p.right).length;
+    f.pairs.forEach((p, i) => {
+      data[`left_${i}`] = p.left;
+      data[`right_${i}`] = p.right;
+      data[`left_label_${i}`] = `جوڑا ${i + 1} — بائیں · Pair ${i + 1} left`;
+      data[`right_label_${i}`] = `جوڑا ${i + 1} — دائیں · Pair ${i + 1} right`;
+      data[`pair_show_${i}`] = i < filled + 1;
+    });
+  } else if (shape === 'passage') {
+    data.passage = f.passage;
+    data.section = f.section || '';
+  } else if (shape === 'comprehension') {
+    data.passage = f.passage;
+    data.subs = f.subs.map((sub) => ({
+      id: `sub-${sub.index}`,
+      'main-content': {
+        title: navFit(`${String.fromCharCode(97 + sub.index)}) ${sub.text}`),
+        description: sub.marks == null ? '' : navFit(`${sub.marks} marks`),
+        metadata: '',
+      },
+      'on-click-action': {
+        name: 'data_exchange',
+        payload: { _action: 'open_sub', question_id: item.id, sub_index: String(sub.index) },
+      },
+    }));
+  }
+
+  // On a refusal her typing must survive, or she retypes the whole question.
+  if (overrides) Object.assign(data, overrides);
+  return screen(SHAPE_SCREEN[shape] || 'EDIT_STANDARD', data);
+}
+
+/** The sub-question screen, carrying its passage as context. */
+function subScreen(item, subIndex, { error = '', overrides = null } = {}) {
+  const f = Edit.fieldsFor(item.question);
+  const sub = f.subs[subIndex] || { text: '', marks: null };
+  const raw = (item.question.questions || [])[subIndex] || {};
+  const options = Array.isArray(raw.options) ? raw.options : [];
+  const data = {
+    heading: `سوال ${item.number} · ${String.fromCharCode(97 + subIndex)}`,
+    subheading: sub.marks == null ? '' : `${sub.marks} marks`,
+    marks_hint: 'A whole number, 1 or more.',
+    passage_hint: `Passage: "${String(f.passage).slice(0, 60)}…"`,
+    question: sub.text,
+    marks: Number(sub.marks) || 1,
+    error,
+  };
+  const slots = [...options.map(String)];
+  while (slots.length < Edit.SLOT_CAP) slots.push('');
+  slots.forEach((v, i) => {
+    data[`slot_${i}`] = v;
+    data[`slot_label_${i}`] = `جواب ${i + 1}`;
+    data[`slot_show_${i}`] = i < options.length + 1;
+  });
+  if (overrides) Object.assign(data, overrides);
+  return screen('EDIT_SUB', data);
+}
+
+/** Collect slot_0..slot_N off a submitted form, in order. */
+function slotsFrom(data, prefix = 'slot_') {
+  const out = [];
+  for (let i = 0; i < Edit.SLOT_CAP; i += 1) out.push(String(data[`${prefix}${i}`] ?? ''));
+  return out;
+}
+
+async function loadItems(state, flowToken, userId) {
+  const paperId = state.paperId || paperIdFromToken(flowToken);
+  const owner = state.userId || userId;
+  const { items, code } = await revision().listQuestions({ paperId, userId: owner });
+  return { items, code, paperId, owner };
+}
+
+async function openReview(userId, paperId, flowToken) {
+  const { items, code } = await revision().listQuestions({ paperId, userId });
+  if (!items) {
+    return reviewError(code === 'NOT_READY'
+      ? 'That paper is still being made. I will send it here when it is done.'
+      : "I couldn't find that paper. Send /assessment to make a new one.");
+  }
+  const selected = items.filter((q) => q.selected).map((q) => q.id);
+  await writeSession(flowToken, { userId, paperId, page: 0, selected });
+  return keepScreen({ items, selected, page: 0 });
+}
+
+/**
+ * Fold this page's ticks into the answer for the whole paper.
+ *
+ * Only the ids ON THIS PAGE are decided by `keep`; everything else keeps what it
+ * had. Replacing the whole set would untick every question she has not scrolled
+ * to — the paper would quietly shrink to one screenful.
+ */
+function mergePageTicks({ selected, pageIds, keep }) {
+  const onPage = new Set(pageIds);
+  const ticked = new Set(Array.isArray(keep) ? keep : []);
+  const out = new Set((selected || []).filter((id) => !onPage.has(id)));
+  for (const id of pageIds) if (ticked.has(id)) out.add(id);
+  return out;
+}
+
+async function handleKeep(userId, data, flowToken) {
+  const state = await readSession(flowToken);
+  const { items, paperId, owner } = await loadItems(state, flowToken, userId);
+  if (!items) return reviewError("I couldn't find that paper. Send /assessment to make a new one.");
+
+  const page = Number.parseInt(data.page, 10) || 0;
+  const view = Selection.pageOf(items, page);
+  const selected = [...mergePageTicks({
+    selected: state.selected ?? items.map((q) => q.id),
+    pageIds: view.items.map((q) => q.id),
+    keep: data.keep,
+  })];
+
+  const action = String(data._action || 'done');
+  const save = (extra) => writeSession(flowToken, { ...state, userId: owner, paperId, ...extra });
+
+  if (action === 'next' || action === 'prev') {
+    const nextPage = action === 'next' ? view.index + 1 : view.index - 1;
+    await save({ page: nextPage, selected });
+    return keepScreen({ items, selected, page: nextPage });
+  }
+
+  // She can untick everything; it is a real state and it means something. Saying
+  // so here keeps her one tap from a paper.
+  if (selected.length === 0) {
+    await save({ page: view.index, selected });
+    return keepScreen({
+      items, selected, page: view.index,
+      error: 'Keep at least one question, then tap Next.',
+    });
+  }
+
+  await save({ page: view.index, selected });
+
+  // Editing off: ticking is the whole journey, so Next rebuilds rather than
+  // handing her a picker whose every row leads to a screen she cannot open.
+  if (!(await isAssessmentEditingEnabled())) {
+    return rebuildAndClose({ paperId, owner, selected, flowToken });
+  }
+  return pickScreen({ items, selected });
+}
+
+async function handlePick(userId, data, flowToken) {
+  const state = await readSession(flowToken);
+  const { items } = await loadItems(state, flowToken, userId);
+  if (!items) return reviewError("I couldn't find that paper. Send /assessment to make a new one.");
+  const selected = state.selected ?? items.map((q) => q.id);
+
+  const action = String(data._action || 'summary');
+  if (action === 'open') {
+    // A gate, not a UI hint: a stale or hand-built client must not be able to
+    // walk into a screen the deployment has switched off.
+    if (!(await isAssessmentEditingEnabled())) {
+      return pickDoneScreen({ items, selected });
+    }
+    const item = items.find((q) => q.id === data.question_id);
+    if (!item) {
+      return pickDoneScreen({
+        items, selected, error: 'That question is no longer on the paper.',
+      });
+    }
+    await writeSession(flowToken, { ...state, editing: item.id, editingSub: null });
+    return editScreen(item);
+  }
+  return pickDoneScreen({ items, selected });
+}
+
+/** Rebuild the paper from her ticks and end the Flow. Shared by two paths. */
+async function rebuildAndClose({ paperId, owner, selected, flowToken }) {
+  const result = await revision().rerender({ paperId, userId: owner, selectedIds: selected });
+  await clearSession(flowToken);
+
+  if (result.status !== 'ready') return done('rebuild_failed', result.code || '');
+
+  const n = result.questionCount;
+  return done('rebuilt', `${n} question${n === 1 ? '' : 's'}`
+    + `${result.marks ? ` · ${result.marks} marks` : ''}`);
+}
+
+async function handlePickDone(userId, data, flowToken) {
+  const state = await readSession(flowToken);
+  const { items, paperId, owner } = await loadItems(state, flowToken, userId);
+  if (!items) return reviewError("I couldn't find that paper. Send /assessment to make a new one.");
+  const selected = state.selected ?? items.map((q) => q.id);
+
+  if (String(data._action) === 'pick') return pickScreen({ items, selected });
+
+  if (!selected.length) {
+    return pickDoneScreen({ items, selected, error: 'Keep at least one question.' });
+  }
+
+  return rebuildAndClose({ paperId, owner, selected, flowToken });
+}
+
+async function handleEditSave(userId, screenId, data, flowToken) {
+  const state = await readSession(flowToken);
+  const { items, paperId, owner } = await loadItems(state, flowToken, userId);
+  if (!items) return reviewError("I couldn't find that paper. Send /assessment to make a new one.");
+  const selected = state.selected ?? items.map((q) => q.id);
+
+  // Checked here too, and before anything is written: the screen is only one of
+  // three ways into this handler, and the other two do not pass through PICK.
+  if (!(await isAssessmentEditingEnabled())) {
+    return pickDoneScreen({ items, selected });
+  }
+
+  // The payload names the question wherever it can — a NavigationList row
+  // carries its own id, and trusting only the session breaks when she reopens
+  // the Flow or the session has rolled.
+  const wantedId = data.question_id || state.editing;
+  const item = items.find((q) => q.id === wantedId);
+  if (!item) return pickDoneScreen({ items, selected, error: 'That question is no longer there.' });
+
+  // A comprehension screen is a list, not a form: its only action is opening a
+  // sub-question.
+  if (screenId === 'EDIT_COMPREHENSION') {
+    if (String(data._action) === 'open_sub') {
+      const idx = Number.parseInt(data.sub_index, 10) || 0;
+      await writeSession(flowToken, { ...state, editing: item.id, editingSub: idx });
+      return subScreen(item, idx);
+    }
+    return pickDoneScreen({ items, selected });
+  }
+
+  const shape = item.shape || Edit.shapeOf(item.question);
+  const edit = {};
+  if (data.question !== undefined) edit.question = data.question;
+  if (data.passage !== undefined) edit.passage = data.passage;
+  if (data.marks !== undefined) edit.marks = data.marks;
+
+  const isSub = screenId === 'EDIT_SUB';
+  if (isSub) edit.subIndex = state.editingSub ?? 0;
+
+  if (isSub || shape === 'options' || shape === 'words') edit.slots = slotsFrom(data);
+  if (shape === 'columns') {
+    edit.pairs = [];
+    for (let i = 0; i < Edit.SLOT_CAP; i += 1) {
+      edit.pairs.push({ left: String(data[`left_${i}`] ?? ''), right: String(data[`right_${i}`] ?? '') });
+    }
+  }
+
+  const res = await revision().saveEdit({ paperId, userId: owner, questionId: item.id, edit });
+
+  if (res.status !== 'ok') {
+    // Back to the SAME screen, carrying what she typed — a refusal that clears
+    // the form makes her retype the whole question to fix one field.
+    const overrides = { question: data.question ?? undefined };
+    if (edit.slots) edit.slots.forEach((v, i) => { overrides[`slot_${i}`] = v; });
+    if (edit.pairs) {
+      edit.pairs.forEach((p, i) => { overrides[`left_${i}`] = p.left; overrides[`right_${i}`] = p.right; });
+    }
+    return isSub
+      ? subScreen(item, edit.subIndex, { error: res.message, overrides })
+      : editScreen(item, { error: res.message, overrides });
+  }
+
+  const fresh = await revision().listQuestions({ paperId, userId: owner });
+  const nextItems = fresh.items || items;
+  if (isSub) {
+    const parent = nextItems.find((q) => q.id === item.id) || item;
+    await writeSession(flowToken, { ...state, editingSub: null });
+    return editScreen(parent);
+  }
+  await writeSession(flowToken, { ...state, editing: null, editingSub: null });
+  return pickDoneScreen({ items: nextItems, selected });
+}
+
+/**
+ * Finish the Flow.
+ *
+ * There is no closing screen. "Making your paper — about a minute, it will
+ * arrive in this chat" is a sentence ABOUT the chat, so the chat is where it
+ * belongs; a screen carrying it cost the teacher a tap to dismiss and told her
+ * nothing she could act on.
+ *
+ * Meta only allows `complete` on a terminal screen, so CONFIRM and PICK_DONE
+ * ARE the terminal screens — their Footer completes and the Flow closes. What
+ * comes back here is the payload that rides out with the completion: the router
+ * matches on `assessment_action` and sends the acknowledgement as a message.
+ */
+function done(action, summary) {
+  // PICK_DONE, not a 'SUCCESS' screen: SUCCESS went with SUBMITTED, and naming
+  // a screen the Flow does not have leaves the client with nothing to render.
+  // PICK_DONE is terminal and real, so returning it here both ends the journey
+  // and carries the payload the completion needs.
+  return screen('PICK_DONE', {
+    summary: summary || '',
+    note: '',
+    extension_message_response: { params: { assessment_action: action, summary: summary || '' } },
+    error: '',
+  });
+}
+
+/**
+ * The payload a terminal screen's Footer sends back when it completes.
+ *
+ * This has to be supplied when the screen is DRAWN, not in the reply to its
+ * submit. A Flow interpolates `${data.extension_message_response}` from the
+ * data the screen already holds; by the time the endpoint answers the submit,
+ * the completion has been built and sent.
+ *
+ * Getting that backwards shipped a Flow that closed correctly and told the
+ * teacher nothing: the completion arrived carrying only the form fields, the
+ * detector could not recognise it, and it fell through to the loose attendance
+ * fallback — which acknowledged nothing and logged no error.
+ */
+function completionPayload(action, summary) {
+  return { params: { assessment_action: action, summary: summary || '' } };
+}
+
+async function handleInit(userId, flowToken) {
+  // A review token means she already has a paper and wants to trim it. Checked
+  // before anything else, because every screen below assumes a fresh request.
+  const reviewPaperId = paperIdFromToken(flowToken);
+  if (reviewPaperId) return openReview(userId, reviewPaperId, flowToken);
+
+  await writeSession(flowToken, { userId });
+  const grades = await gradesOnOffer();
+  if (grades.length === 0) {
+    // Nothing imported yet. Say so rather than showing an empty dropdown.
+    return screen('CLASS', {
+      grades: [], subjects: [],
+      error: 'No books are loaded yet. Please try again later.',
+    });
+  }
+  // Subjects are filled in properly once she picks a grade; the first render
+  // needs a non-empty list because the component requires one.
+  const subjects = await subjectsOnOffer(grades[0].id);
+  return screen('CLASS', { grades, subjects, error: '' });
+}
+
+async function handleDataExchange(userId, screenId, formData, flowToken) {
+  const state = await readSession(flowToken);
+  state.userId = state.userId || userId;
+  const data = formData || {};
+
+  // ── The review journey ───────────────────────────────────────────────────
+  // Its own path, entered by token rather than by walking the screens above.
+  if (screenId === 'KEEP') return handleKeep(userId, data, flowToken);
+  if (screenId === 'PICK') return handlePick(userId, data, flowToken);
+  if (screenId === 'PICK_DONE') return handlePickDone(userId, data, flowToken);
+  if (String(screenId).startsWith('EDIT_')) {
+    return handleEditSave(userId, screenId, data, flowToken);
+  }
+
+  // ── CLASS → COVERAGE ─────────────────────────────────────────────────────
+  if (screenId === 'CLASS') {
+    const grade = Number(data.grade);
+    const subject = String(data.subject || '');
+    const subjects = await subjectsOnOffer(grade);
+
+    // A stale client can submit a pair that is not on offer. Re-render rather
+    // than accept it — the next screen would only fail on a missing book.
+    if (!subjects.some((s) => s.id === subject)) {
+      return screen('CLASS', {
+        grades: await gradesOnOffer(), subjects,
+        error: `We don't have that subject for Grade ${grade}. Please pick another.`,
+      });
+    }
+
+    Object.assign(state, { grade, subject, chapterNumber: null, chapterTitle: null, pageRanges: null });
+    await writeSession(flowToken, state);
+
+    let chapters = [];
+    try {
+      chapters = await BookContent.listChapters({ grade, subject });
+    } catch (err) {
+      logToFile('[assessment-flow] chapter list failed', { grade, subject, error: err.message });
+    }
+
+    if (chapters.length === 0) {
+      // No contents page for this book — page numbers are the only way in.
+      return screen('PAGES', {
+        summary: summaryOf(state),
+        hint: 'Type the pages you want, for example 4-14.',
+        error: '',
+      });
+    }
+
+    return screen('COVERAGE', {
+      summary: summaryOf(state),
+      has_chapters: true,
+      chapters: chapters.map((c) => ({
+        id: String(c.chapterNumber),
+        title: `${c.chapterNumber} · ${c.title}`
+          + (c.pageStart ? ` (pages ${c.pageStart}-${c.pageEnd})` : ''),
+      })),
+      error: '',
+    });
+  }
+
+  // ── COVERAGE → PAGES | QUESTIONS ─────────────────────────────────────────
+  if (screenId === 'COVERAGE') {
+    const wantsPages = data.use_pages === true || data.use_pages === 'true';
+    if (wantsPages) {
+      const book = await bookFacts(state);
+      return screen('PAGES', {
+        summary: summaryOf(state),
+        hint: book.totalPages
+          ? `This book has pages 1-${book.totalPages}.`
+          : 'Type the pages you want, for example 4-14.',
+        error: '',
+      });
+    }
+
+    const chapterNumber = Number(data.chapter);
+    if (!chapterNumber) {
+      return screen('COVERAGE', {
+        summary: summaryOf(state), has_chapters: true,
+        chapters: await chapterOptions(state),
+        error: 'Please choose a chapter, or tick the box to type page numbers.',
+      });
+    }
+
+    const chapters = await BookContent.listChapters({ grade: state.grade, subject: state.subject });
+    const chosen = chapters.find((c) => c.chapterNumber === chapterNumber);
+    Object.assign(state, { chapterNumber, chapterTitle: chosen ? chosen.title : null, pageRanges: null });
+    await writeSession(flowToken, state);
+    return questionsScreen(state);
+  }
+
+  // ── PAGES → QUESTIONS ────────────────────────────────────────────────────
+  if (screenId === 'PAGES') {
+    const pageRanges = String(data.page_ranges || '').trim();
+    const book = await bookFacts(state);
+    try {
+      const pages = BookContent.parsePageRanges(pageRanges);
+      const beyond = book.totalPages ? pages.filter((p) => p > book.totalPages) : [];
+      if (beyond.length) {
+        return screen('PAGES', {
+          summary: summaryOf(state),
+          hint: `This book has pages 1-${book.totalPages}.`,
+          error: `This book has pages 1-${book.totalPages}. You asked for ${beyond.join(', ')}.`,
+        });
+      }
+    } catch (err) {
+      return screen('PAGES', {
+        summary: summaryOf(state),
+        hint: book.totalPages ? `This book has pages 1-${book.totalPages}.` : '',
+        error: 'Try something like 4-14, or 4, 9, 12.',
+      });
+    }
+    Object.assign(state, { pageRanges, chapterNumber: null, chapterTitle: null });
+    await writeSession(flowToken, state);
+    return questionsScreen(state);
+  }
+
+  // ── QUESTIONS → TYPES | CONFIRM ──────────────────────────────────────────
+  if (screenId === 'QUESTIONS') {
+    // She types the number now, and a Flow TextInput enforces no bounds at all,
+    // so this is the only thing standing between "999" and a request for 999
+    // questions. Refused on the screen rather than clamped: quietly turning 40
+    // into 25 gives her a paper she never asked for and never says so.
+    const parsed = QuestionTypes.parseQuestionCount(data.question_count);
+    if (!parsed.ok) {
+      Object.assign(state, { contentSource: String(data.content_source || 'unseen') });
+      await writeSession(flowToken, state);
+      return questionsScreen(state, parsed.message);
+    }
+
+    Object.assign(state, {
+      contentSource: String(data.content_source || 'unseen'),
+      questionCount: parsed.count,
+    });
+    await writeSession(flowToken, state);
+
+    const wantsTypes = data.pick_types === true || data.pick_types === 'true';
+    if (wantsTypes) {
+      return screen('TYPES', {
+        summary: summaryOf(state),
+        types: QuestionTypes.forSubject(state.subject, state.grade)
+          .map((t) => ({ id: t.id, title: t.id })),
+        error: '',
+      });
+    }
+    return confirmScreen(state);
+  }
+
+  // ── TYPES → CONFIRM ──────────────────────────────────────────────────────
+  if (screenId === 'TYPES') {
+    const picked = Array.isArray(data.question_types) ? data.question_types : [];
+    if (picked.length === 0) {
+      return screen('TYPES', {
+        summary: summaryOf(state),
+        types: QuestionTypes.forSubject(state.subject, state.grade).map((t) => ({ id: t.id, title: t.id })),
+        error: 'Please choose at least one kind of question.',
+      });
+    }
+    state.pickedTypes = picked;
+    await writeSession(flowToken, state);
+    return confirmScreen(state);
+  }
+
+  // ── CONFIRM → queue the job, then close the Flow ─────────────────────────
+  if (screenId === 'CONFIRM') {
+    Object.assign(state, {
+      outputFormat: String(data.output_format || 'pdf'),
+      answerLines: data.answer_lines !== false && data.answer_lines !== 'false',
+      answerKey: data.answer_key === true || data.answer_key === 'true',
+    });
+
+    try {
+      await submit(state);
+    } catch (err) {
+      logToFile('[assessment-flow] submit failed', { error: err.message, userId: state.userId });
+      // The terminal screen is shared, so every line of it has to change on the
+      // failure path. Leaving the heading and caption saying a paper is coming
+      // is worse than the failure: she waits for something nobody is making.
+      return done('queue_failed');
+    }
+
+    await clearSession(flowToken);
+    return done('queued', summaryOf(state));
+  }
+
+  logToFile('[assessment-flow] unknown screen', { screenId });
+  return screen('CLASS', { grades: await gradesOnOffer(), subjects: [], error: '' });
+}
+
+/**
+ * Submit the request AFTER the Flow has closed.
+ *
+ * CONFIRM is a terminal screen now, and a Footer can either `data_exchange`
+ * (the endpoint runs, but a screen has to come back) or `complete` (the Flow
+ * closes, but the endpoint never runs). It cannot do both on one tap. So making
+ * CONFIRM terminal took the submit out of the journey with it: the branch that
+ * writes the request row and queues the job stopped being reachable, and the
+ * teacher got an acknowledgement for a paper nobody was making.
+ *
+ * The work moves here, to the completion. Everything needed survives the close:
+ * the session is in Redis under the flow token for fifteen minutes, and
+ * CONFIRM's own three fields arrive in the completion payload — they have to,
+ * because CONFIRM never reached the endpoint to store them.
+ */
+async function submitFromCompletion({ flowToken, userId, outputFormat, answerKey, answerLines }) {
+  const state = await readSession(flowToken);
+
+  // A session that has expired or was never written cannot be completed into a
+  // half-request: `submit()` would insert a row with no grade and no book, and
+  // the worker would fail on it later, far from the cause.
+  if (!state || !state.grade || !state.subject) {
+    logToFile('[assessment-flow] completion with no usable session', {
+      userId, hasState: !!state && Object.keys(state).length > 0,
+    });
+    return { status: 'failed', code: 'NO_SESSION' };
+  }
+
+  // The GATE, distinct from hiding the option: a stale client still carries the
+  // old screen and will post output_format=docx happily.
+  const { resolveFormat } = require('../services/assessment/assessment-format');
+  Object.assign(state, {
+    userId: state.userId || userId,
+    outputFormat: await resolveFormat(outputFormat),
+    answerLines: answerLines !== false && answerLines !== 'false',
+    answerKey: answerKey === true || answerKey === 'true',
+  });
+
+  try {
+    await submit(state);
+  } catch (err) {
+    logToFile('[assessment-flow] submit failed', { error: err.message, userId: state.userId });
+    return { status: 'failed', code: 'SUBMIT_FAILED' };
+  }
+
+  // Cleared so a replayed or duplicated completion cannot queue a second job
+  // for the same request.
+  await clearSession(flowToken);
+  return { status: 'queued', summary: summaryOf(state) };
+}
+
+async function chapterOptions(state) {
+  try {
+    const chapters = await BookContent.listChapters({ grade: state.grade, subject: state.subject });
+    return chapters.map((c) => ({
+      id: String(c.chapterNumber),
+      title: `${c.chapterNumber} · ${c.title}${c.pageStart ? ` (pages ${c.pageStart}-${c.pageEnd})` : ''}`,
+    }));
+  } catch { return []; }
+}
+
+async function bookFacts(state) {
+  const { data } = await supabase
+    .from('textbooks').select('id, total_pages')
+    .eq('curriculum', 'ict').eq('grade', Number(state.grade)).eq('subject', state.subject)
+    .maybeSingle();
+  return { id: data?.id || null, totalPages: data?.total_pages || null };
+}
+
+function questionsScreen(state, error = '') {
+  return screen('QUESTIONS', {
+    summary: summaryOf(state),
+    count_hint: `Between 1 and ${QuestionTypes.MAX_QUESTIONS}.`,
+    error,
+  });
+}
+
+async function confirmScreen(state) {
+  const source = {
+    seen: 'Questions from the book',
+    unseen: 'New questions',
+    both: 'A mix',
+  }[state.contentSource] || 'New questions';
+  // Server-driven so the docx flag can hide Word without republishing the Flow.
+  const { formatsOnOffer } = require('../services/assessment/assessment-format');
+  return screen('CONFIRM', {
+    recap: [summaryOf(state), `${source} · ${state.questionCount} questions`].join('\n'),
+    formats: await formatsOnOffer(),
+    // Supplied HERE, on the render — the Footer can only send back data the
+    // screen was drawn with.
+    extension_message_response: completionPayload('queued', summaryOf(state)),
+    error: '',
+  });
+}
+
+/**
+ * Write the request down, then queue the work. In that order: the row is what
+ * the worker is handed and what the watchdog looks for, so a queued job that
+ * refers to nothing is worse than a row with no job.
+ */
+/**
+ * The pages a chapter covers, or null when the contents page never said.
+ * Best-effort: a request whose coverage cannot be named is still a request,
+ * and the generator works from the chapter number regardless.
+ */
+async function chapterPageRange(state) {
+  try {
+    const chapters = await BookContent.listChapters({
+      grade: state.grade, subject: state.subject,
+    });
+    const c = chapters.find((x) => x.chapterNumber === Number(state.chapterNumber));
+    return (c && c.pageStart != null && c.pageEnd != null)
+      ? `${c.pageStart}-${c.pageEnd}` : null;
+  } catch (err) {
+    logToFile('[assessment-flow] could not resolve chapter pages', {
+      grade: state.grade, subject: state.subject,
+      chapter: state.chapterNumber, error: err.message,
+    });
+    return null;
+  }
+}
+
+async function submit(state) {
+  const book = await bookFacts(state);
+
+  // She chose a chapter, not pages — but the row should still say which pages
+  // it covers, so a request is readable later without re-reading the contents
+  // page (which can change under a re-import).
+  const pageRanges = state.pageRanges
+    || (state.chapterNumber != null ? await chapterPageRange(state) : null);
+
+  const types = (state.pickedTypes && state.pickedTypes.length)
+    ? QuestionTypes.withCounts(state.pickedTypes, state.questionCount, state.subject, state.grade)
+    : QuestionTypes.defaultMix(state.subject, state.grade, state.questionCount);
+
+  const { data: request, error } = await supabase
+    .from('assessment_requests')
+    .insert({
+      user_id: state.userId,
+      surface: 'whatsapp',
+      grade_code: `grade_${state.grade}`,
+      subject_code: state.subject,
+      textbook_id: book.id,
+      chapter_number: state.chapterNumber || null,
+      page_ranges: pageRanges,
+      content_source: state.contentSource || 'unseen',
+      question_count: state.questionCount || 20,
+      question_types: types,
+      has_answer_key: !!state.answerKey,
+      has_answer_lines: state.answerLines !== false,
+      output_format: state.outputFormat || 'pdf',
+    })
+    .select('id')
+    .single();
+
+  if (error || !request) throw new Error(`could not record the request: ${error?.message}`);
+
+  await SQSQueueService.queueJob(state.userId, 'assessment_generate', {
+    userId: state.userId,
+    requestId: request.id,
+    grade: state.grade,
+    subject: state.subject,
+    chapterNumber: state.chapterNumber || null,
+    pageRanges,
+    contentSource: state.contentSource || 'unseen',
+    questionCount: state.questionCount || 20,
+    questionTypes: types,
+    includeAnswerKey: !!state.answerKey,
+    answerLines: state.answerLines !== false,
+    outputFormat: state.outputFormat || 'pdf',
+  });
+
+  logToFile('[assessment-flow] queued', {
+    userId: state.userId, requestId: request.id,
+    grade: state.grade, subject: state.subject, chapter: state.chapterNumber,
+  });
+}
+
+async function handleBack(userId, screenId, flowToken) {
+  const state = await readSession(flowToken);
+  if (screenId === 'CONFIRM' || screenId === 'TYPES') return questionsScreen(state);
+  if (screenId === 'QUESTIONS' || screenId === 'PAGES') {
+    return screen('COVERAGE', {
+      summary: summaryOf(state), has_chapters: true,
+      chapters: await chapterOptions(state), error: '',
+    });
+  }
+  return handleInit(userId, flowToken);
 }
 
 module.exports = {
-  handleAssessmentGenInit,
-  handleAssessmentGenDataExchange,
-  handleAssessmentGenBack,
-  // exported for the callback endpoint
-  _readJobLink: async (jobId) => redis.get(`assessment_gen_job:${jobId}`),
-  _clearJobLink: async (jobId) => redis.delete(`assessment_gen_job:${jobId}`),
+  handleAssessmentGenInit: handleInit,
+  handleAssessmentGenDataExchange: handleDataExchange,
+  handleAssessmentGenBack: handleBack,
+  submitFromCompletion,
   // exported for tests
-  _subjectLabel,
-  _parseCount,
-  _parseCategories,
-  _categoriesFromState,
-  _unionTypeOptions,
-  _idCategoryMap,
-  _slugForCountKey,
-  _sendGenerationStartedAck,
+  _internal: { summaryOf, submit, chapterPageRange, GRADE_BANDS, COUNT_CHOICES,
+    paperIdFromToken, mergePageTicks, REVIEW_MARKER, SHAPE_SCREEN, navFit, NAV_MAX },
 };

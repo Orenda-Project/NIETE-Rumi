@@ -163,11 +163,8 @@ const FLOW_CONFIGS = [
     categories: ['OTHER'],
   },
   {
-    // Assessment Generator (external UG_EG / EG_Pipeline service). 2-screen
-    // data_exchange Flow: SPEC → QUESTIONS → SUCCESS. The endpoint submits
-    // the collected spec to UG_EG as an async job; UG_EG posts the completed
-    // exam back to POST /webhooks/assessment-generator, which renders the
-    // HTML → PDF and delivers via WhatsApp.
+    // Assessment Generator. Endpoint flow: every list is served from the books
+    // we hold, so the screens cannot drift from the content.
     name: 'Assessment Generator',
     jsonPath: path.join(FLOWS_DIR, 'assessment-gen-flow.json'),
     type: 'endpoint',
