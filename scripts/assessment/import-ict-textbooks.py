@@ -22,6 +22,23 @@ HISTORY
                 misread page numbers, a doubled OCR run in Maths G4) are the
                 rules the importer now carries. A book that imports cleanly is
                 still not the same as a book that generates good questions.
+    2026-09-05  All 27 books imported to PRODUCTION with `--all --target prod`
+                (bd-60033): 4,288 pages, 381 chapters, zero interior chapter
+                gaps. Five books carry a single dropped PAGE (OCR), which is not
+                the chapter-level gap bd-60012 fixed.
+
+SOURCE CONNECTION
+    The OCR'd book text lives ONLY on the Taleemabad STAGING tenant. On the
+    production tenant `book_text` is NULL for all 27 books — verified, not
+    assumed — so importing from there would write books and chapters with no
+    page text and every generation would fail NO_CONTENT.
+
+    The importer reads TALEEMABAD_STAGING_DB_* from .env. Two things bite:
+      * the DATABASE is `tbstagedb`, NOT `taleemabad_core` (that is the
+        production tenant's name, and using it fails with "database does not
+        exist" AFTER a successful auth, which reads like a network problem);
+      * the SCHEMA is `fde_staging`, which exists only on that server.
+    Credentials are not in this repo. Ask the operator.
 """
 from __future__ import annotations
 
