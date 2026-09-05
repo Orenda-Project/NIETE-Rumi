@@ -40,6 +40,7 @@ const Endpoint = require('../../bot/shared/routes/assessment-gen-endpoint');
 const { handleAssessmentGenDataExchange: exchange } = Endpoint;
 
 const TOKEN = 'user-1:assessment-review:paper-1';
+let inserted;
 const ITEMS = [
   { id: 'a.b.MCQs.0', number: 1, marks: 1, type: 'MCQs', text: 'Q1', selected: true,
     shape: 'options', question: { question: 'Q1', options: ['a', 'b'], marks: 1 } },
@@ -211,9 +212,35 @@ describe('what she actually reads in the chat', () => {
   });
   beforeEach(() => mockSend.mockClear());
 
+  // A `queued` completion now really submits, so these need a session to submit
+  // FROM — that is the behaviour under test everywhere below.
+  const withSession = () => mockRedis.get.mockResolvedValue({
+    userId: 'u1', grade: 4, subject: 'science', chapterNumber: 3,
+    pageRanges: '34-41', questionCount: 10, questionTypes: [], contentSource: 'unseen',
+  });
+  const wireBook = () => mockSupabase.from.mockImplementation((table) => {
+    const node = (rows, one) => ({
+      eq: () => node(rows, one), gte: () => node(rows, one), lte: () => node(rows, one),
+      order: () => node(rows, one), limit: () => node(rows, one),
+      maybeSingle: () => Promise.resolve({ data: one, error: null }),
+      single: () => Promise.resolve({ data: one, error: null }),
+      then: (r) => Promise.resolve({ data: rows, error: null }).then(r),
+    });
+    if (table === 'textbooks') {
+      const b = { id: 'book-1', grade: 4, subject: 'science', total_pages: 100 };
+      return { select: () => node([b], b) };
+    }
+    if (table === 'assessment_requests') {
+      return { insert: (row) => { inserted = row; return { select: () => ({ single: () =>
+        Promise.resolve({ data: { id: 'req-1' }, error: null }) }) }; } };
+    }
+    return { select: () => node([], null) };
+  });
+
   test('a queued paper tells her how long and what it is', async () => {
-    await handle({ assessment_action: 'queued', summary: 'Grade 4 Science · Chapter 3' },
-      '92300', { id: 'u1' });
+    withSession(); wireBook();
+    await handle({ assessment_action: 'queued', summary: 'Grade 4 Science · Chapter 3',
+      flow_token: 'u1:assessment-gen:1' }, '92300', { id: 'u1' });
     const [, text] = mockSend.mock.calls[0];
     expect(text).toMatch(/about a minute/i);
     expect(text).toContain('Grade 4 Science');
@@ -239,10 +266,17 @@ describe('what she actually reads in the chat', () => {
     expect(mockSend).not.toHaveBeenCalled();
   });
 
-  test('a missing summary still produces a sentence, not a dangling one', async () => {
-    await handle({ assessment_action: 'queued' }, '92300', { id: 'u1' });
+  test('a payload with no summary still gets one, from the session', async () => {
+    // The completion carries no summary of its own, but the session knows what
+    // she asked for — so she reads what is being made rather than a bare
+    // "about a minute" with no subject attached.
+    withSession(); wireBook();
+    await handle({ assessment_action: 'queued', flow_token: 'u1:assessment-gen:1' },
+      '92300', { id: 'u1' });
     const [, text] = mockSend.mock.calls[0];
-    expect(text.trim()).toMatch(/minute\.$/);
+    expect(text).toMatch(/about a minute\./);
+    expect(text).toContain('Grade 4');
+    expect(text).toContain('Science');
   });
 
 
@@ -250,6 +284,7 @@ describe('what she actually reads in the chat', () => {
     // Routing it is only half the job: with no `assessment_action` the handler
     // used to fall to its "unrecognised tag" branch and stay silent, which is
     // the same silence from the teacher's side.
+    withSession(); wireBook();
     await handle({
       output_format: 'pdf', answer_lines: true, answer_key: true,
       flow_token: 'u1:assessment-gen:1788534348744',
@@ -403,5 +438,79 @@ describe('the token is the discriminator that actually survives (bd-60029)', () 
 
   test('a token-less submission is not claimed by us', () => {
     expect(fn({ Student_Full_Name: 'x', Assessment_Mode: 'y' })).not.toBe('assessment_gen');
+  });
+});
+
+describe('the submit must still happen after the Flow closes (bd-60030)', () => {
+  // CONFIRM is terminal, so its Footer closes the Flow instead of calling the
+  // endpoint — `screenId === 'CONFIRM'` became unreachable and `submit()` went
+  // with it. Live: routing worked, the ack was sent, and there was no
+  // `[assessment-flow] queued` line and no row in assessment_requests.
+  //
+  // No jest.mock of the endpoint here on purpose: a duplicate registration is
+  // what let an earlier version of this block pass while testing nothing.
+  const Endpoint3 = require('../../bot/shared/routes/assessment-gen-endpoint');
+
+  const wire = () => mockSupabase.from.mockImplementation((table) => {
+    const node = (rows, one) => ({
+      eq: () => node(rows, one), gte: () => node(rows, one), lte: () => node(rows, one),
+      order: () => node(rows, one), limit: () => node(rows, one),
+      maybeSingle: () => Promise.resolve({ data: one, error: null }),
+      single: () => Promise.resolve({ data: one, error: null }),
+      then: (r) => Promise.resolve({ data: rows, error: null }).then(r),
+    });
+    if (table === 'textbooks') {
+      const b = { id: 'book-1', grade: 4, subject: 'science', total_pages: 100 };
+      return { select: () => node([b], b) };
+    }
+    if (table === 'assessment_requests') {
+      return { insert: (row) => { inserted = row; return { select: () => ({ single: () =>
+        Promise.resolve({ data: { id: 'req-1' }, error: null }) }) }; } };
+    }
+    return { select: () => node([], null) };
+  });
+
+  const SESSION = {
+    userId: 'user-1', grade: 4, subject: 'science', chapterNumber: 3,
+    pageRanges: '34-41', questionCount: 10, questionTypes: [], contentSource: 'unseen',
+  };
+
+  test('it is a real export, not a stub', () => {
+    expect(typeof Endpoint3.submitFromCompletion).toBe('function');
+  });
+
+  test('the REAL live payload writes the request and queues the job', async () => {
+    mockRedis.get.mockResolvedValue(SESSION);
+    wire();
+    const res = await Endpoint3.submitFromCompletion({
+      flowToken: 'user-1:assessment-gen:1788534348744',
+      userId: 'user-1', outputFormat: 'docx', answerKey: true, answerLines: true,
+    });
+    expect(res.status).toBe('queued');
+    expect(mockQueueJob).toHaveBeenCalled();
+    // CONFIRM's fields survive the close via the payload — CONFIRM never
+    // reached the endpoint to store them in the session.
+    expect(inserted.output_format).toBe('docx');
+    expect(inserted.has_answer_key).toBe(true);
+    expect(inserted.grade_code).toBe('grade_4');
+  });
+
+  test('a stale or missing session is refused, not submitted as a half-request', async () => {
+    mockRedis.get.mockResolvedValue(null);
+    wire();
+    const res = await Endpoint3.submitFromCompletion({
+      flowToken: 'user-1:assessment-gen:1', userId: 'user-1', outputFormat: 'pdf',
+    });
+    expect(res.status).toBe('failed');
+    expect(mockQueueJob).not.toHaveBeenCalled();
+  });
+
+  test('the session is cleared, so a replayed completion cannot double-submit', async () => {
+    mockRedis.get.mockResolvedValue(SESSION);
+    wire();
+    await Endpoint3.submitFromCompletion({
+      flowToken: 'user-1:assessment-gen:1', userId: 'user-1', outputFormat: 'pdf',
+    });
+    expect(mockRedis.delete).toHaveBeenCalled();
   });
 });

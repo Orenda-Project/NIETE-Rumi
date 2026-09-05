@@ -788,6 +788,54 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
   return screen('CLASS', { grades: await gradesOnOffer(), subjects: [], error: '' });
 }
 
+/**
+ * Submit the request AFTER the Flow has closed.
+ *
+ * CONFIRM is a terminal screen now, and a Footer can either `data_exchange`
+ * (the endpoint runs, but a screen has to come back) or `complete` (the Flow
+ * closes, but the endpoint never runs). It cannot do both on one tap. So making
+ * CONFIRM terminal took the submit out of the journey with it: the branch that
+ * writes the request row and queues the job stopped being reachable, and the
+ * teacher got an acknowledgement for a paper nobody was making.
+ *
+ * The work moves here, to the completion. Everything needed survives the close:
+ * the session is in Redis under the flow token for fifteen minutes, and
+ * CONFIRM's own three fields arrive in the completion payload — they have to,
+ * because CONFIRM never reached the endpoint to store them.
+ */
+async function submitFromCompletion({ flowToken, userId, outputFormat, answerKey, answerLines }) {
+  const state = await readSession(flowToken);
+
+  // A session that has expired or was never written cannot be completed into a
+  // half-request: `submit()` would insert a row with no grade and no book, and
+  // the worker would fail on it later, far from the cause.
+  if (!state || !state.grade || !state.subject) {
+    logToFile('[assessment-flow] completion with no usable session', {
+      userId, hasState: !!state && Object.keys(state).length > 0,
+    });
+    return { status: 'failed', code: 'NO_SESSION' };
+  }
+
+  Object.assign(state, {
+    userId: state.userId || userId,
+    outputFormat: String(outputFormat || 'pdf'),
+    answerLines: answerLines !== false && answerLines !== 'false',
+    answerKey: answerKey === true || answerKey === 'true',
+  });
+
+  try {
+    await submit(state);
+  } catch (err) {
+    logToFile('[assessment-flow] submit failed', { error: err.message, userId: state.userId });
+    return { status: 'failed', code: 'SUBMIT_FAILED' };
+  }
+
+  // Cleared so a replayed or duplicated completion cannot queue a second job
+  // for the same request.
+  await clearSession(flowToken);
+  return { status: 'queued', summary: summaryOf(state) };
+}
+
 async function chapterOptions(state) {
   try {
     const chapters = await BookContent.listChapters({ grade: state.grade, subject: state.subject });
@@ -928,6 +976,7 @@ module.exports = {
   handleAssessmentGenInit: handleInit,
   handleAssessmentGenDataExchange: handleDataExchange,
   handleAssessmentGenBack: handleBack,
+  submitFromCompletion,
   // exported for tests
   _internal: { summaryOf, submit, chapterPageRange, GRADE_BANDS, COUNT_CHOICES,
     paperIdFromToken, mergePageTicks, REVIEW_MARKER, SHAPE_SCREEN, navFit, NAV_MAX },
