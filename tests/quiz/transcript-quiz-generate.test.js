@@ -83,7 +83,11 @@ describe('process — happy path', () => {
     const rows = qInserts[0][1];
     expect(rows).toHaveLength(8);
     expect(rows[0]).toEqual(expect.objectContaining({ quiz_id: QID, render_pattern: 'P1', sort_order: 0 }));
-    expect(rows[0].external_id).toMatch(/^tq:S1:/);
+    // quiz_questions.external_id is GLOBALLY unique (idx_quiz_questions_external_id):
+    // the second live quiz on staging died on "tq:S1:1" already taken by the first.
+    expect(rows[0].external_id).toMatch(new RegExp(`^tq:${QID}:S1:1$`));
+    const other = Gen.toRows("33333333-3333-4333-8333-333333333333", EIGHT, { rng: () => 0 });
+    expect(new Set([...rows, ...other].map((r) => r.external_id)).size).toBe(rows.length + other.length);
     // Stored feedback keys follow the SHUFFLED layout: the wrong keys are the non-correct indices.
     rows.forEach((row) => {
       const correctIdx = 'ABC'.indexOf(row.correct_option);

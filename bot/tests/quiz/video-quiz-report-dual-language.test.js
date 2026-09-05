@@ -189,3 +189,20 @@ describe('nobody opened the link yet', () => {
     expect(body).not.toMatch(/No one has opened/);
   });
 });
+
+describe('the SLO line survives the globally-unique external id', () => {
+  test('tq:<quizId>:S1:1 still resolves to the digest statement (and the old tq:S1:1 shape still does too)', async () => {
+    const digest = { slos: [{ id: 'S1', statement: 'آدھے کو کسر میں لکھنا' }] };
+    for (const ext of ['tq:22222222-2222-4222-8222-222222222222:S1:1', 'tq:S1:1']) {
+      htmlToPdf.mockClear();
+      stubSupabase({
+        shareCode: SHARE_CODE, teacher: { phone_number: '923001234567', preferred_language: 'en' },
+        sessions: SESSIONS, answers: ANSWERS, questions: [{ ...QUESTIONS[0], external_id: ext }],
+        quiz: { quiz_source: 'transcript', meta: { digest } },
+      });
+      await report.generate(SHARE_CODE_ID, { reason: 'scheduled' });
+      const html = htmlToPdf.mock.calls[0][0];
+      expect(html).toMatch(/آدھے کو کسر میں لکھنا/);
+    }
+  });
+});
