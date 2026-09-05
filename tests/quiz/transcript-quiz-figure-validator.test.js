@@ -67,7 +67,7 @@ describe('FIGURE_TYPE', () => {
 
 describe('FIGURE_RENDER', () => {
   test('a spec whose labels collide is rejected', () => {
-    const r = run(six({ figure: { type: 'numberline', from: -50, to: 50, step: 1, labelFormat: 'integer' } }));
+    const r = run(six({ figure: { type: 'numberline', from: -50, to: 50, step: 1, labelFormat: 'integer', points: [{ at: 3 }] } }));
     expect(r.ok).toBe(false);
     expect(errorsOf(r)).toMatch(/q0: FIGURE_RENDER/);
   });
@@ -168,5 +168,48 @@ describe('the rendered SVG rides back on the question', () => {
       ? { figure: { ...FRACTION, title: 'کسر کی پٹی' } } : {}));
     const r = validate(qs, { language: 'ur', subject: 'maths', digest: DIGEST, nExpected: 6 });
     expect(r.questions[0].figureSvg).toMatch(/<foreignObject/);
+  });
+});
+
+describe('FIGURE_EMPTY — a picture with nothing to read off', () => {
+  // A real generation drew a 3x1 "grid" with no shaded cell to show "rows of
+  // numbers": three empty boxes that ran over a whole PDF page and told the
+  // child nothing. A figure must carry information before it earns a slot.
+  test('a grid with no shaded cell, or a single column, is rejected', () => {
+    const r1 = run(six({ figure: { type: 'grid', rows: 3, cols: 1 }, question: 'Look at the picture. Which row is right?' }));
+    expect(errorsOf(r1)).toMatch(/q0: FIGURE_EMPTY/);
+    const r2 = run(six({ figure: { type: 'grid', rows: 4, cols: 5 }, question: 'In the picture, how many cells are shaded?' }));
+    expect(errorsOf(r2)).toMatch(/q0: FIGURE_EMPTY/);
+    const ok = run(six({ figure: { type: 'grid', rows: 4, cols: 5, shaded: 12 }, question: 'In the picture, how many cells are shaded?' }));
+    expect(errorsOf(ok)).not.toMatch(/FIGURE_EMPTY/);
+  });
+  test('a fraction bar with one part, a number line with no point, a timeline with one event are rejected', () => {
+    expect(errorsOf(run(six({ figure: { type: 'fraction_bar', bars: [{ parts: 1, shaded: 1 }] }, question: 'In the picture, what part is shaded?' })))).toMatch(/FIGURE_EMPTY/);
+    expect(errorsOf(run(six({ figure: { type: 'numberline', from: 0, to: 10, step: 1 }, question: 'In the picture, which point is at 3?' })))).toMatch(/FIGURE_EMPTY/);
+    expect(errorsOf(run(six({ figure: { type: 'timeline', events: [{ date: '1947', label: 'Independence' }] }, question: 'In the picture, what came first?' })))).toMatch(/FIGURE_EMPTY/);
+  });
+});
+
+describe('calibration round 2 — what the corpus run drew wrong', () => {
+  test('geometry used as a picture of things (shapes with no labels, sides or angles) is FIGURE_EMPTY', () => {
+    // A real generation drew "farmers drying cocoa beans" as a sand rectangle
+    // and brown circles with page tokens the engine does not define — a blank.
+    const scene = { type: 'geometry', shapes: [
+      { kind: 'rectangle', points: [[0, 0], [100, 0], [100, 50], [0, 50]], fill: 'var(--sand)' },
+      { kind: 'circle', center: [15, 15], radius: 5, fill: 'var(--brown)' },
+    ] };
+    const r = run(six({ figure: scene, question: 'Look at the picture. What are the farmers doing?' }));
+    expect(errorsOf(r)).toMatch(/q0: FIGURE_EMPTY/);
+    const maths = { type: 'geometry', shapes: [{ kind: 'triangle', points: [[0, 0], [4, 0], [0, 3]], labels: ['A', 'B', 'C'], sides: ['4 cm', '5 cm', '3 cm'] }] };
+    expect(errorsOf(run(six({ figure: maths, question: 'In the picture, which side is the longest?' })))).not.toMatch(/FIGURE_EMPTY/);
+  });
+  test('a number-line jump arc that lands on the correct answer is FIGURE_LEAK', () => {
+    const jump = { type: 'numberline', from: 0, to: 10, step: 1, points: [{ at: 3, style: 'dot' }], arcs: [{ from: 3, to: 7, label: '+ 4' }] };
+    const r = run(six({ figure: jump, question: 'On the number line in the picture, what is 3 + 4?', options: ['7', '4', '3'], correct_index: 0,
+      option_feedback: { correct: 'Yes, three and four more is seven.', wrong: { 1: 'Four is how far we jumped, not where we land.', 2: 'Three is where we started.' } } }));
+    expect(errorsOf(r)).toMatch(/q0: FIGURE_LEAK/);
+    const ask = { type: 'numberline', from: 0, to: 10, step: 1, points: [{ at: 3, style: 'dot' }] };
+    expect(errorsOf(run(six({ figure: ask, question: 'Start at the dot in the picture and jump 4 to the right. Where do you land?', options: ['7', '4', '3'], correct_index: 0,
+      option_feedback: { correct: 'Yes.', wrong: { 1: 'no', 2: 'no' } } })))).not.toMatch(/FIGURE_LEAK/);
   });
 });

@@ -14,7 +14,7 @@
 
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
-const { renderFigureSvg, figureLeaksAnswer } = require('./transcript-quiz-figure');
+const { renderFigureSvg, figureLeaksAnswer, figureEmptyReason } = require('./transcript-quiz-figure');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -194,6 +194,11 @@ function validate(rawQuestions, { language, subject, digest, nExpected } = {}) {
     figured += 1;
     if (typeof q.figure !== 'object' || Array.isArray(q.figure)) {
       errs.push(`q${i}: FIGURE_TYPE — "figure" must be a spec object with a "type", not ${typeof q.figure}`);
+      return;
+    }
+    const empty = figureEmptyReason(q.figure);
+    if (empty) {
+      errs.push(`q${i}: FIGURE_EMPTY — ${empty}; give the picture something to read off, or drop it`);
       return;
     }
     let svg = null;

@@ -105,3 +105,10 @@ describe('the author is TOLD to draw when the lesson is drawable (calibration af
     expect(prompt).toMatch(/"figure":\s*\{\s*"type"/);
   });
 });
+
+describe('calibration round 2 — the prompt names the two misuses the corpus produced', () => {
+  const { buildAuthorPrompt } = require('../../bot/shared/services/quiz/transcript-quiz-author.service');
+  const prompt = buildAuthorPrompt({ digest: { subject: 'maths', slos: [] }, excerpts: '', language: 'en', n: 8, gradeBand: '3-5' });
+  test('never a scene of real things', () => { expect(prompt).toMatch(/never draw a scene/i); });
+  test('a jump arc must not land on the answer', () => { expect(prompt).toMatch(/arc[^\n]*land[^\n]*answer/i); });
+});
