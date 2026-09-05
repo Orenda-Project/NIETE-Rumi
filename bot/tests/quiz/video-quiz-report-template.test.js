@@ -66,8 +66,8 @@ describe('bd-2473 — worth-reteaching moment cards', () => {
     const html = renderHtml(BASE);
     expect(html).toMatch(/class="moment"/);
     expect(html).toMatch(/Which is an example of an insect\?/);
-    expect(html).toMatch(/class="wrongpill">snake/);
-    expect(html).toMatch(/class="rightpill">bees/);
+    expect(html).toMatch(/class="wrongpill content" dir="ltr">snake/);
+    expect(html).toMatch(/class="rightpill content" dir="ltr">bees/);
   });
 
   test('with no hardest questions, no moment cards render (never an empty section)', () => {
@@ -204,8 +204,8 @@ describe('bd-2664 — Urdu report is fully localised + RTL', () => {
     // fragmenting mixed-script sentences at the entity boundary — see esc()'s
     // own comment). The source " now passes through as a literal character.
     expect(html).toMatch(/لفظ "آزادی" میں یے کی آواز کیا بتائی گئی؟/);
-    expect(html).toMatch(/class="wrongpill">ی</);
-    expect(html).toMatch(/class="rightpill">ای</);
+    expect(html).toMatch(/class="wrongpill content" dir="rtl">ی</);
+    expect(html).toMatch(/class="rightpill content" dir="rtl">ای</);
     expect(html).toMatch(/بچے آخر کی آواز الجھا دیتے ہیں۔/);
   });
 
@@ -249,7 +249,7 @@ describe('bd-2664 — Urdu report is fully localised + RTL', () => {
 
   test('the footer date is wrapped in the LTR-forcing class, not a bare isolate', () => {
     const html = renderHtml(UR_BASE);
-    expect(html).toMatch(/<div class="ltr" style="font-family:'Lexend',sans-serif">5 Aug 2026<\/div>/);
+    expect(html).toMatch(/<div class="ltr">5 Aug 2026<\/div>/);
   });
 
   test('default language (no field passed) stays English/LTR — no regression', () => {
@@ -305,8 +305,8 @@ describe('bd-2679 — English question content inside an Urdu report is not bidi
 
   test('the wrong/correct answer pills (bare digits) still render, isolated', () => {
     const html = renderHtml(ENGLISH_SUBJECT_UR_BASE);
-    expect(html).toMatch(/class="wrongpill"><span class="ltr">2<\/span>/);
-    expect(html).toMatch(/class="rightpill"><span class="ltr">3<\/span>/);
+    expect(html).toMatch(/class="wrongpill content" dir="rtl"><span class="ltr">2<\/span>/);
+    expect(html).toMatch(/class="rightpill content" dir="rtl"><span class="ltr">3<\/span>/);
   });
 
   test('the misconception explanation (English, multiple sentences with commas/periods) is not fragmented either', () => {

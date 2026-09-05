@@ -24,6 +24,7 @@ const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { stripEmphasis, classLabel } = require('../../utils/text-format');
+const { clampLanguage } = require('../../config/ux-strings');
 
 /**
  * bd-2334 — the prefix is load-bearing, not cosmetic.
@@ -250,7 +251,18 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   // fails) previously stayed English even for an Urdu quiz. TX is the same
   // small chrome-string lookup the PDF template uses (see PlayWriteReports
   // skill), scoped down to what this plain-text path needs.
-  const TX = RTL_LANGS.has(sc.language) ? {
+  // ── the two languages ──────────────────────────────────────────────────
+  // Everything the TEACHER reads — labels, the plain-text fallback, the
+  // caption, the "for tomorrow" paragraph — follows her stored preference,
+  // clamped to what this deployment actually serves. Everything her CLASS
+  // read — the questions, their options, the misconception — stays in the
+  // language the quiz was written in. Taking both from the quiz shipped an
+  // all-Urdu report to an English-reading teacher; taking both from her
+  // preference would print those Urdu questions as empty boxes instead.
+  const chromeLang = clampLanguage(teacher.preferred_language);
+  const contentLang = sc.language;
+
+  const TX = RTL_LANGS.has(chromeLang) ? {
     results: (t) => `📊 *کوئز کے نتائج — ${t || 'آپ کا ویڈیو کوئز'}*`,
     finished: (d, a) => `${a} میں سے ${d} طلبہ نے مکمل کیا۔`,
     average: (n) => `کلاس اوسط: *${n}%*`,
@@ -259,6 +271,8 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     gotWrong: (n, t) => `${t} میں سے ${n} نے غلط جواب دیا`,
     notFinished: (names) => `ابھی مکمل نہیں کیا: ${names}`,
     forTomorrow: '💡 *کل کے لیے*',
+    caption: (t, d, a, n) => `📊 کلاس کے نتائج — *${t}*\n\n`
+      + `${a} میں سے ${d} نے مکمل کیا${n ? ` · دوبارہ پڑھانے کے قابل ${n} سوال — اندر` : ''}`,
   } : {
     results: (t) => `📊 *Quiz results — ${t || 'your video quiz'}*`,
     finished: (d, a) => `${d} of ${a} students finished.`,
@@ -268,6 +282,8 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     gotWrong: (n, t) => `${n} of ${t} got this wrong`,
     notFinished: (names) => `*Not finished yet:* ${names}`,
     forTomorrow: '💡 *For tomorrow*',
+    caption: (t, d, a, n) => `📊 Class results — *${t}*\n\n`
+      + `${d} of ${a} finished${n ? ` · ${n} question${n > 1 ? 's' : ''} worth reteaching — inside` : ''}`,
   };
 
   const lines = [
@@ -309,7 +325,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   const guidance = done.length
     ? await generateGuidance({
       topic: sc.topic, grade: sc.grade, average: avg,
-      finished: done.length, started: all.length, hardest, language: sc.language,
+      finished: done.length, started: all.length, hardest, language: chromeLang,
     })
     : null;
 
@@ -322,7 +338,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     phone: teacher.phone_number, shareCode: sc, students: done, hardest,
     guidance, started: all.length, finished: done.length, average: avg,
     unfinished: unfinished.map((s) => s.student_name || 'Unnamed'),
-    language: sc.language,
+    language: chromeLang, contentLanguage: contentLang, caption: TX.caption,
   });
 
   if (!sentAsPdf) {
@@ -351,7 +367,8 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
  * caller falls back to the text summary rather than the teacher getting nothing.
  */
 async function sendAsPdf({ phone, shareCode, students, hardest, guidance,
-                           started, finished, average, unfinished, language }) {
+                           started, finished, average, unfinished,
+                           language, contentLanguage, caption: captionFor }) {
   const fs = require('fs');
   const os = require('os');
   const path = require('path');
@@ -364,7 +381,7 @@ async function sendAsPdf({ phone, shareCode, students, hardest, guidance,
       topic: shareCode.topic || 'Video quiz',
       teacherName: shareCode.teacher_name,
       started, finished, average,
-      students, hardest, guidance, unfinished, language,
+      students, hardest, guidance, unfinished, language, contentLanguage,
       generatedAt: new Date().toLocaleDateString('en-GB', {
         day: 'numeric', month: 'short', year: 'numeric',
       }),
@@ -385,10 +402,10 @@ async function sendAsPdf({ phone, shareCode, students, hardest, guidance,
     tempPath = path.join(os.tmpdir(), `class-quiz-${shareCode.id}.pdf`);
     fs.writeFileSync(tempPath, buffer);
 
-    const caption = finished
-      ? `📊 Class results — *${shareCode.topic}*\n\n`
-        + `${finished} of ${started} finished · class average ${average}%`
-        + (hardest.length ? `\n\n${hardest.length} question${hardest.length > 1 ? 's' : ''} worth reteaching — inside.` : '')
+    // The caption is chrome, so it comes from the caller's teacher-language
+    // table rather than being written inline in English.
+    const caption = captionFor
+      ? captionFor(shareCode.topic, finished, started, hardest.length)
       : `📊 Class results — *${shareCode.topic}*`;
 
     const ok = await WhatsAppService.sendDocument(
