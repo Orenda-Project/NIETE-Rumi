@@ -29,7 +29,7 @@ async function process(quizId) {
   const { data: teacher } = await supabase.from('users')
     .select('phone_number, preferred_language').eq('id', quiz.teacher_id).maybeSingle();
   if (!teacher?.phone_number) return { skipped: 'no_phone' };
-  const lang = teacherLanguageFor({ preferredLanguage: teacher.preferred_language || quiz.meta?.teacher_language, transcriptLanguage: quiz.language });
+  const lang = teacherLanguageFor({ preferredLanguage: teacher.preferred_language });
 
   const ok = await WhatsAppService.sendMessage(teacher.phone_number,
     resolveUx('tqNudge', { language: lang, params: { started, topic: quiz.topic || '' } }));

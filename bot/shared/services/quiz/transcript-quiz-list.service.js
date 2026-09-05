@@ -243,7 +243,7 @@ async function handleActionButton(buttonId, phone) {
   if (!quiz) return true;
   const { data: teacher } = await supabase.from('users')
     .select('phone_number, preferred_language').eq('id', quiz.teacher_id).maybeSingle();
-  const lang = teacherLanguageFor({ preferredLanguage: teacher?.preferred_language || quiz.meta?.teacher_language, transcriptLanguage: quiz.language });
+  const lang = teacherLanguageFor({ preferredLanguage: teacher?.preferred_language });
 
   if (isLink) {
     const msg = quiz.meta?.student_message;

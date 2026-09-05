@@ -196,7 +196,7 @@ async function processOffer(coachingSessionId, payload = {}) {
   }
 
   const language = quizLanguageFor(digest.subject, session.transcript_language);
-  const teacherLang = teacherLanguageFor({ preferredLanguage: user.preferred_language, transcriptLanguage: session.transcript_language });
+  const teacherLang = teacherLanguageFor({ preferredLanguage: user.preferred_language });
   const topic = topicFor(digest, language);
 
   await supabase.from('quizzes').update({
@@ -244,6 +244,18 @@ async function processOffer(coachingSessionId, payload = {}) {
 
 // ─── 3. The buttons (on the web service) ─────────────────────────────────────
 
+/**
+ * Her language when the quiz row is gone: there is nothing to join on, so she
+ * is looked up by the number she just tapped from. Without this the one
+ * surface a teacher meets when an offer has expired answers in the floor
+ * language rather than hers.
+ */
+async function languageByPhone(phone) {
+  const { data } = await supabase.from('users')
+    .select('preferred_language').eq('phone_number', phone).maybeSingle();
+  return teacherLanguageFor({ preferredLanguage: data?.preferred_language });
+}
+
 async function teacherFor(quiz) {
   const { data } = await supabase.from('users')
     .select('id, phone_number, preferred_language')
@@ -262,11 +274,11 @@ async function handleOfferButton(buttonId, phone) {
     .select('id, teacher_id, status, language, topic, meta, coaching_session_id')
     .eq('id', quizId).maybeSingle();
   if (!quiz) {
-    await WhatsAppService.sendMessage(phone, resolveUx('tqOfferExpired', { language: teacherLanguageFor({}) }));
+    await WhatsAppService.sendMessage(phone, resolveUx('tqOfferExpired', { language: await api.languageByPhone(phone) }));
     return true;
   }
   const teacher = await teacherFor(quiz);
-  const lang = teacherLanguageFor({ preferredLanguage: teacher.preferred_language || quiz.meta?.teacher_language, transcriptLanguage: quiz.language });
+  const lang = teacherLanguageFor({ preferredLanguage: teacher.preferred_language });
 
   if (!yes) {
     const { data: flipped } = await supabase.from('quizzes')
@@ -353,7 +365,9 @@ async function handleLanguageButton(buttonId, phone, user) {
     .select('id, teacher_id, status, language, subject, topic, meta, coaching_session_id')
     .eq('id', quizId).maybeSingle();
   if (!quiz) {
-    await WhatsAppService.sendMessage(phone, resolveUx('tqOfferExpired', { language: teacherLanguageFor({ preferredLanguage: user?.preferred_language }) }));
+    await WhatsAppService.sendMessage(phone, resolveUx('tqOfferExpired', {
+      language: user?.preferred_language ? teacherLanguageFor({ preferredLanguage: user.preferred_language }) : await api.languageByPhone(phone),
+    }));
     return true;
   }
   const teacher = await teacherFor(quiz);
@@ -364,7 +378,7 @@ async function handleLanguageButton(buttonId, phone, user) {
 
 module.exports = {
   enabled, offerMode, subjectAllowed, alreadyOffered, introVideo,
-  scheduleOffer, triggerEarly, processOffer, handleOfferButton, handleLanguageButton, claimRow,
+  scheduleOffer, triggerEarly, processOffer, handleOfferButton, handleLanguageButton, claimRow, languageByPhone,
   sendLanguageAsk, startGenerating, tellAlready,
   OFFER_YES, OFFER_NO, MIN_TRANSCRIPT_CHARS, OFFER_DELAY_SECONDS, MIN_CONFIDENCE, MIN_SLOS, FEATURE_KEY, SESSION_SELECT,
 };

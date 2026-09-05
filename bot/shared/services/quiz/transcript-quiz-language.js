@@ -8,9 +8,8 @@
  *   anything else (maths, science, other)  → the lesson's language ('ur' when mixed)
  *
  * Teacher-facing language (offer, PDF caption, report):
- *   users.preferred_language → transcript language → 'ur'
- * Deliberately NOT the English market floor: an Urdu-speaking teacher whose
- * preference was never stored should not get an English offer.
+ *   users.preferred_language, clamped to the offer. Nothing else — not the
+ *   transcript, not the quiz. See teacherLanguageFor().
  */
 
 const { LANGUAGE_OFFER, getLanguage } = require('../../config/languages');
@@ -57,11 +56,22 @@ function quizLanguageFor(subject, transcriptLanguage) {
   return isEnglishCode(transcriptLanguage) ? 'en' : 'ur';
 }
 
-function teacherLanguageFor({ preferredLanguage, transcriptLanguage } = {}) {
-  const pref = String(preferredLanguage || '').trim();
-  if (pref && LANGUAGE_OFFER.includes(pref)) return pref;
-  if (transcriptLanguage) return isEnglishCode(transcriptLanguage) ? 'en' : 'ur';
-  return 'ur';
+/**
+ * What the TEACHER reads. The language she stored, clamped to the offer, and
+ * nothing else.
+ *
+ * A recording never changes her language; neither does a transcript. The
+ * earlier version fell back to the detected transcript language when she had
+ * stored nothing, which meant the same teacher could be addressed in Urdu on
+ * one surface and English on the next depending on which lesson she had just
+ * recorded. clampLanguage's floor is the one answer for "nothing is known",
+ * shared with the rest of the deployment.
+ *
+ * `transcriptLanguage` is still accepted and ignored so a stale caller cannot
+ * quietly change the answer.
+ */
+function teacherLanguageFor({ preferredLanguage } = {}) {
+  return clampLanguage(preferredLanguage);
 }
 
 /**

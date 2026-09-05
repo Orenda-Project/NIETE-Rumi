@@ -158,7 +158,7 @@ async function process(quizId, payload = {}) {
   }
   const user = session.users || {};
   const phone = payload.phone || user.phone_number;
-  const teacherLang = teacherLanguageFor({ preferredLanguage: user.preferred_language, transcriptLanguage: session.transcript_language });
+  const teacherLang = teacherLanguageFor({ preferredLanguage: user.preferred_language });
   const teacherName = [user.first_name, user.last_name].filter(Boolean).join(' ') || null;
   let meta = { ...(quiz.meta || {}) };
 

@@ -44,14 +44,17 @@ describe('teacherLanguageFor — teacher-facing copy', () => {
     expect(L.teacherLanguageFor({ preferredLanguage: 'ur', transcriptLanguage: 'en' })).toBe('ur');
   });
 
-  test('falls back to the transcript language, then Urdu — never the English market floor', () => {
-    expect(L.teacherLanguageFor({ preferredLanguage: null, transcriptLanguage: 'en' })).toBe('en');
-    expect(L.teacherLanguageFor({ preferredLanguage: null, transcriptLanguage: 'mixed' })).toBe('ur');
-    expect(L.teacherLanguageFor({})).toBe('ur');
+  test('nothing detected or transcribed may answer for her', () => {
+    // The clamp's floor is the ONE answer to "nothing is known" across this
+    // deployment. Falling back to the transcript meant the same teacher was
+    // addressed differently depending on the lesson she had just recorded.
+    expect(L.teacherLanguageFor({ preferredLanguage: null, transcriptLanguage: 'ur' })).toBe('en');
+    expect(L.teacherLanguageFor({ preferredLanguage: null, transcriptLanguage: 'mixed' })).toBe('en');
+    expect(L.teacherLanguageFor({})).toBe('en');
   });
 
-  test('an off-offer preference (pa-PK) is treated as unset', () => {
-    expect(L.teacherLanguageFor({ preferredLanguage: 'pa-PK', transcriptLanguage: 'ur' })).toBe('ur');
+  test('an off-offer preference (pa-PK) is clamped, not stored-through', () => {
+    expect(L.teacherLanguageFor({ preferredLanguage: 'pa-PK', transcriptLanguage: 'ur' })).toBe('en');
   });
 });
 
