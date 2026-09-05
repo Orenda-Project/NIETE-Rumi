@@ -1357,6 +1357,93 @@ one is silently dropped and you will get a confident wrong picture.
 | `ray_diagram` | `element` · `f` · `u` · `hObject` | `showRays` · `labels` · `unit` |
 | `timeline` | `events` | `orientation` · `eras` |
 
+**What each type will not do, and the shapes that bite.** These are the engine's own
+recorded limits — a field written in the wrong shape is silently dropped and you get a
+confident wrong picture, so read the row for any type you are about to emit.
+
+- **`atom`**
+  - mode is "bohr" (default) or "dot_cross" / "dot_and_cross"; using the dot_and_cross ALIAS as the type also selects that mode.
+  - There is NO `compound` field. A bonding picture is element + partner + bond + transfer.
+  - The built-in element table is H-Ca plus Fe/Cu/Zn/Br/I; anything else needs explicit Z/shells.
+- **`cell`**
+  - kind is "plant" | "animal" and applies to type "cell" only; the leaf_cross_section and heart_loop aliases take no kind.
+  - The structures are PARAMETRIC, not free-form -- you choose which parts are labelled, not what the drawing is. Anything else biological is a labelled_figure.
+- **`chem_equation`**
+  - The equation is PLAIN TEXT, never \ce{}. Put spaces around any + that is an operator.
+  - Arrows: -> <- <=> <-> = . A condition rides INSIDE the string as ->[Δ], and an equilibrium takes both: <=>[Fe][450 C]. There is NO top-level `above`/`below` field -- one written there is SILENTLY DROPPED and the arrow prints bare. The object form is conditions:{above,below}.
+  - It does not check that the equation balances -- `balanced:false` only changes how it is drawn.
+- **`circuit`**
+  - cells[].kind is battery | resistor | lamp | switch | ammeter | voltmeter. A voltmeter takes `across`.
+  - Component VALUES stay LTR even on an Urdu page ("6 V", "10 O") -- that is how Pakistani textbooks set them. An Urdu value is now laid out correctly, but it is not the house style.
+  - engine:"schemdraw" shells out to a Python venv that is NOT vendored into the serving repo; there it returns null and the built-in drawing is used, so a circuit looks different in NIETE than in an authoring run.
+- **`dna_helix`**
+  - kind resolves from spec.kind, else the alias used, else sniffed from the sequence (a U and no T reads as RNA), else "dna".
+  - It is the HEAVIEST type on the page: ~30-45 kB of SVG against ~2-8 kB for everything else.
+  - Two deliberate simplifications: no A-T(2) vs G-C(3) hydrogen-bond distinction, and the antiparallel 5'/3' property is named in the caption, not drawn.
+  - NOT documented in the author brief SS4b.4 as of 2026-09-04, so a model working from the brief alone cannot choose it.
+- **`flow`**
+  - direction "lr" is the default and WRAPS into rows. "tb" stacks one column at ~150px a step: six tb steps measured 935px, 86% of an A4 page. visual_check V14 fails a tb flow of four or more steps.
+  - Two short `lines` per step read; a paragraph in a step does not.
+- **`fraction_bar`**
+  - Every bar is drawn to the SAME total width -- that is what makes a comparison honest, and it is why two bars with different `parts` are the right way to show equivalence.
+  - Set urduDigits:true (or lang:"ur") for Urdu numerals in the labels.
+- **`free_body`**
+  - angle is in DEGREES with 90 = up.
+  - forces[].color is a SHORT NAME (ink|accent|leaf|warn|cool|clay), not a colour string -- the one place in the engine where that is true.
+  - body.shape "block_on_incline" plus incline.angle switches to the incline layout; decompose:true on a force splits it into components.
+- **`geometry`**
+  - The canvas AUTO-FITS the shapes; `height` is a hint, not a frame.
+  - checkDegenerate() rejects a near-flat polygon, so give a triangle real area -- a 1-unit-tall 'triangle' fails the build even though it draws.
+- **`graph`**
+  - xLabel and yLabel are REQUIRED (bd-gel97). Name the QUANTITY and its UNIT -- "Altitude (km)", "Pressure (kPa)"; for a pure-maths curve they are literally "x" and "y". lint_lp.js GRAPH_AXES is a blocking defect: an unlabelled graph cannot be read by a teacher and cannot be checked against its own points.
+  - A graph is (x-quantity with unit) -> (y-quantity with unit), and a point label states its coordinates in that SAME order. "Mount Everest (8.8 km, 33 kPa)" belongs at x = 8.8, y = 33 when x is the altitude axis. lint_lp.js GRAPH_POINT_ORDER blocks a point whose label states the plotted pair REVERSED, or whose number carries the OTHER axis's unit; GRAPH_ORIENTATION blocks a point sitting far off the curve's drawn extent when its swap (y, x) lands inside it.
+  - functions[].expr is a SAFE expression string in x -- not JavaScript, not a lambda.
+  - functions[].shade:"above"|"below" fills the half-plane on one side of the curve (PR #56). Two shaded functions overlap into a visibly darker region -- the right convention for a system of inequalities. Pair a strict inequality with dash:"6 4".
+  - Shading covers only the curve's own VISIBLE x-range: if the curve leaves the window on the side opposite the shading, the region past that point is left blank.
+  - points[].dx/dy are MANUAL label offsets. They can push a label onto an axis-tick plate and fail DIAGRAM_OVERLAP -- omit them unless you have looked at the render.
+- **`grid`**
+  - `cellText` is a list of [row, col, text] TRIPLES with 0-based row/col -- NOT a 2-D array of rows. A row-shaped entry destructures to a NaN position with undefined text and prints NOTHING, silently.
+  - `shaded` is a COUNT of cells, filled in reading order -- not a list of coordinates.
+  - majorEvery draws the heavier rule every N cells; 5 is what makes a hundred square countable.
+  - A grid much past 10x10 stops being countable at a 750px column.
+  - It GENERATES its own readout ("1/4 = 25% = 0.25") from rows/cols/shaded unless you pass `legend`. On a grid smaller than about 5x5 that line is wider than the grid, so the canvas is sized to the READOUT and the grid is centred in it -- a 2x2 is 132 units wide for a 60-unit grid. Expect a small grid to arrive with generous side margins; that is the type doing the right thing, not a layout bug.
+  - The generated readout keeps Latin numerals even under lang:"ur", while the title and caption use U+06F0-06F9. Pass `legend` yourself for an all-Urdu figure.
+- **`illustrative`**
+  - NEVER emit this inside a lesson plan. The author brief SS4b.1 rule 7 forbids it and it counts as ZERO toward the two-diagram floor -- it is a slot for a later art pass, not a visual.
+  - Listed here only so the roster matches the registry.
+- **`labelled_figure`**
+  - labels[].at is [0-1, 0-1] in the IMAGE's own coordinates, origin top-left.
+  - `image` is a data: URI or a filesystem path. It is the ONLY type that touches the filesystem; a path that does not resolve renders an error card that then fails DIAGRAM_OVERLAP.
+  - The image is base64-embedded, so it dominates the SVG's weight (~120 kB for a 400px crop).
+- **`mindmap`**
+  - Six branches read; twelve do not -- the canvas widens and every label shrinks toward the 13.5px floor.
+  - Leaves are plain strings, not nested branches: this is one level deep by design.
+  - Count the parts your objective names, then count the leaves. An objective saying THREE with a two-leaf branch is blocking defect B11.
+- **`molecule`**
+  - A SMILES that will not parse degrades to the formula card; it never throws.
+  - ionic:true (or a known ionic formula) draws the lattice instead of a structure -- NaCl is not a molecule and the drawing says so.
+  - Give `formula` and `name` as well as `smiles`: the formula is what the pupil is examined on.
+- **`numberline`**
+  - labelFormat is "integer" | "fraction" | "decimal"; a fraction line also wants `denominator`.
+  - points[].style "dot" (closed, included) vs "open" (excluded) is the whole grammar of an inequality -- get it the right way round.
+  - Too many ticks between `from` and `to` drives the labels under the 13.5px floor; raise `step` or `labelEvery`.
+- **`panels`**
+  - TWO or THREE panels. A fourth squeezes every column under the legibility floor.
+  - The panels are EQUAL width by design -- the point is that neither side is privileged.
+  - `glyph` is one short symbol, not a sentence.
+- **`punnett`**
+  - DO NOT PRE-FILL THE SQUARE. The offspring cells and both ratios are derived; anything you type would be a second, disagreeing source of truth.
+  - A dihybrid ("RrYy") gives a 4x4 grid -- readable, but it is the practical ceiling at a 750px column.
+  - trait.dominantName / recessiveName may be Urdu; the allele letters stay Latin.
+- **`ray_diagram`**
+  - element is convex_lens | concave_lens | concave_mirror | convex_mirror.
+  - The image position, size and nature are COMPUTED -- you give the object, not the answer. u inside f gives the virtual case, and it draws that correctly.
+  - It is the type that runs closest to the 13.5px floor (13.6px measured at full width): do not shrink its column.
+- **`timeline`**
+  - FOUR TO SIX events, never more -- the brief's own rule, and past six the horizontal spine crowds its labels.
+  - orientation "vertical" is the one to use when the labels are long; horizontal wants short ones.
+  - The spine is EVENLY spaced, not scaled to the real intervals -- it shows order, not duration.
+
 Aliases you may use as `type` instead: `bohr` · `electron_shells` · `dot_and_cross` · `leaf_cross_section` · `heart_loop` · `bio_schematic` · `equation` · `reaction` · `circuit_diagram` · `rna_helix` · `nucleic_acid_helix` · `helix` · `process` · `chain` · `bar_model` · `tape_diagram` · `fbd` · `force_diagram` · `vector` · `construction` · `plot` · `function_plot` · `area_model` · `hundred_square` · `ai_art` · `placeholder` · `textbook_figure` · `photo_labels` · `concept_map` · `smiles` · `structure` · `number_line` · `comparison` · `compare` · `genetics` · `cross` · `optics` · `lens` · `mirror` · `chronology`.
 
 <!-- 4b.5:end -->
