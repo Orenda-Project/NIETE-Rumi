@@ -175,7 +175,8 @@ async function renderCards({ rows, questions, language, teacherId, quizId }) {
   const Card = require('./transcript-quiz-card');
   const render = require('./video-quiz-render.service');
   const urls = {};
-  const jobs = rows.map((row, i) => ({ row, i })).filter(({ row }) => Card.needsQuestionCard(row));
+  // A tall figure makes a card too (the row may not carry the spec yet; the authored question does).
+  const jobs = rows.map((row, i) => ({ row, i })).filter(({ row, i }) => Card.needsQuestionCard(row) || Card.needsQuestionCard(questions[i]));
   await runPool(jobs, 3, async ({ row, i }) => {
     const startedAt = Date.now();
     try {

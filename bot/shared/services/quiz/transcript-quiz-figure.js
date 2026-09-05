@@ -28,6 +28,7 @@
 
 const path = require('path');
 const { renderDiagram, checkOverlaps } = require('../../../vendor/lp-v9/diagrams');
+const { SIZE } = require('../../../vendor/lp-v9/diagrams/lib/tokens');
 const MANIFEST = require('../../../vendor/lp-v9/diagrams/types_manifest.json');
 const { fontCss } = require('../../../vendor/lp-v9/lib/fonts');
 const { logToFile } = require('../../utils/logger');
@@ -198,6 +199,102 @@ function minimalSpecBlock() {
   }).join('\n');
 }
 
+// ─── phone font scale ────────────────────────────────────────────────────────
+
+/**
+ * Run `fn` (synchronous) with every `SIZE.*` entry temporarily multiplied by
+ * `k`, restoring the originals in `finally` — even if `fn` throws.
+ *
+ * Every diagram type reads `SIZE.xxx` as a live property lookup on the one
+ * object `lib/tokens.js` exports (confirmed by reading every type file: e.g.
+ * `atom.js`/`free_body.js`/`circuit.js` do `o.size ?? SIZE.small` at call
+ * time, and `lib/svg.js`'s `text()`/`toString()` read `SIZE.label`/`SIZE.title`
+ * the same way). `bio_schematic.js` (the `cell` type) was the one exception —
+ * it snapshotted `SIZE.small` into a module-level `const LSIZE` the first time
+ * the engine's type registry required it, which no runtime mutation of `SIZE`
+ * could ever reach; fixed in this round to read `SIZE.small` live like every
+ * other type (see the comment there).
+ *
+ * `renderDiagram` is documented "Pure and SYNCHRONOUS: no network, no async"
+ * (bot/vendor/lp-v9/diagrams/index.js), so the mutation window never spans an
+ * await and never leaks across a concurrent render — this module has no other
+ * caller of `renderDiagram` that could interleave with it.
+ *
+ * @param {number} k
+ * @param {() => any} fn synchronous
+ * @returns {any} fn()'s return value
+ */
+function withFontScale(k, fn) {
+  const keys = Object.keys(SIZE);
+  const orig = {};
+  keys.forEach((key) => { orig[key] = SIZE[key]; });
+  try {
+    keys.forEach((key) => { SIZE[key] = orig[key] * k; });
+    return fn();
+  } finally {
+    keys.forEach((key) => { SIZE[key] = orig[key]; });
+  }
+}
+
+/**
+ * Per-type label-size multiplier applied automatically by `renderFigureSvg`,
+ * quiz lane only — never touches the LP lane, which never calls
+ * `withFontScale`. A type not listed here (any LP-only type outside
+ * `ALLOWED_TYPES`) gets `1`, i.e. unscaled.
+ *
+ * Chosen from the k-sweep at {1.0, 1.6, 2.0, 2.4} in
+ * `renders/round4/figures/phone_scale/RESULTS.md` (gitignored project-folder
+ * evidence, not shipped): the largest k with zero `checkOverlaps` pairs and
+ * zero `checkDegenerate` rows on the 1080x565 quiz canvas. The gates in
+ * transcript-quiz-figure-gates.js run on the SCALED svg, so a k this table
+ * got wrong still fails loudly instead of shipping quietly.
+ *
+ * Five types (`atom`, `cell`, `circuit`, `ray_diagram`, `graph`) already fail
+ * `checkOverlaps` at the very next step, k=1.6, on the manifest's own minimal
+ * spec — their labels sit close enough to their own lines/plates that ANY
+ * growth collides. They are 1 here (unscaled) and stay at their pre-round-4
+ * phone size (roughly 5-7dp); RESULTS.md lists them as unsolved and open for
+ * lane F to decide whether they leave the phone allowlist.
+ *
+ * `fraction_bar` swept clean to 2.4 on the manifest's minimal spec (and its
+ * circle model with no per-bar label), but existing shipped content broke
+ * that at k=1.6: a circle-model bar with a per-bar NAME label in Urdu
+ * (transcript-quiz-figure-circle.test.js's "علی" case) collides at 1.6 and
+ * above — the sweep only ever tried one spec per type, and this type's own
+ * test suite has a denser one. Left at 1 (unscaled) rather than risk bouncing
+ * that legitimate content with a fresh FIGURE_OVERLAP.
+ *
+ * `geometry` swept clean to 2.4 on its minimal spec but the shipped
+ * degenerate-sliver fixture (transcript-quiz-figure-gate-wiring.test.js, a
+ * near-flat triangle with 3 side labels) picks up a NEW overlap at 2.4 that
+ * it does not have at 2.0 — dialled back to 2.0 (still 12.57dp, comfortably
+ * over the 10dp target) once that was found.
+ *
+ * `free_body` (1.6→9.0dp), `punnett` (2.0→9.4dp) and `timeline` (2.4→7.0dp,
+ * flat past k=1.6 — its viewBox grows with the scale as fast as its font
+ * does) are improved but still under the 10dp target; every other listed
+ * type clears 10dp.
+ *
+ * @see PLAN_R4 D7 / bd-mg9c7.52
+ */
+const PHONE_FONT_SCALE = {
+  numberline: 2.0,
+  fraction_bar: 1.0, // unsolved — a per-bar Urdu label on the circle model collides above k=1
+  grid: 2.4,
+  geometry: 2.0, // dialled back from the sweep's 2.4 — see the comment above
+  graph: 1.0, // unsolved
+  chem_equation: 2.4,
+  circuit: 1.0, // unsolved
+  free_body: 1.6, // improved, still under 10dp
+  atom: 1.0, // unsolved
+  punnett: 2.0, // improved, still under 10dp
+  ray_diagram: 1.0, // unsolved
+  flow: 2.4,
+  timeline: 2.4, // improved, still under 10dp
+  cell: 1.0, // unsolved
+  molecule: 2.4,
+};
+
 // ─── render ──────────────────────────────────────────────────────────────────
 
 /**
@@ -220,10 +317,11 @@ function renderFigureSvg(spec, language) {
       `figure type "${spec.type}" is not allowed — use one of: ${ALLOWED_TYPES.join(', ')}`);
   }
   const merged = { ...(TYPE_DEFAULTS[type] || {}), ...spec, type, lang: language === 'ur' ? 'ur' : 'en' };
+  const scale = PHONE_FONT_SCALE[type] || 1;
 
   let svg;
   try {
-    svg = renderDiagram(merged);
+    svg = scale === 1 ? renderDiagram(merged) : withFontScale(scale, () => renderDiagram(merged));
   } catch (err) {
     throw new FigureError('FIGURE_RENDER',
       `the ${type} figure could not be drawn: ${String(err.message).split('\n')[0]}`);
@@ -748,6 +846,8 @@ module.exports = {
   minimalSpecBlock,
   limitsFor,
   renderFigureSvg,
+  withFontScale,
+  PHONE_FONT_SCALE,
   stripStrayLabels,
   figureLeaksAnswer,
   svgText,
