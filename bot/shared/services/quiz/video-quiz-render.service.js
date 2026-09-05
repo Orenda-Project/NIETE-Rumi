@@ -25,6 +25,7 @@
  */
 
 const BUTTON_TITLE_MAX = 20;   // Meta hard limit; longer titles truncate silently
+const { unicodeNotation } = require('./quiz-notation');
 const LIST_ROW_TITLE_MAX = 24;
 const LIST_ROW_DESCRIPTION_MAX = 72;  // Meta's row description cap
 const MAX_BUTTONS = 3;
@@ -332,6 +333,19 @@ function build(q, opts = {}) {
     if (stimulus) add('question', 'audio', { url: stimulus, role: 'stimulus' });
   }
 
+  // A QUESTION CARD: the whole question is the picture (figure, stem, lettered
+  // options in THIS display order) because WhatsApp text cannot draw the
+  // notation or the options do not fit a button. The image goes first, then a
+  // three-letter picker; the feedback phase still names the option by its text.
+  if (media.question_card) {
+    add('question', 'image', { url: media.question_card, caption: '', role: 'question_card' });
+    add('interaction', 'buttons', {
+      body: '', options: shown, optionIndices: order, letterTitles: true, role: 'ask',
+    });
+    // ── PHASE 3 — THE ANSWER ── (shared below)
+    return finishAnswerPhase(q, msgs, labels, order, media, answerClip);
+  }
+
   // The question image belongs to the QUESTION whatever the pattern — except
   // P3/P4, where it rides as the header of the interactive message itself.
   // Branching on pattern instead of on what the question HOLDS silently dropped
@@ -425,25 +439,31 @@ function build(q, opts = {}) {
     });
   }
 
+  return finishAnswerPhase(q, msgs, labels, order, media, answerClip);
+}
+
+/** PHASE 3 — THE ANSWER, shared by every pattern including the question card. */
+function finishAnswerPhase(q, msgs, labels, order, media, answerClip) {
+  const add = (phase, kind, extra) => msgs.push({ phase, kind, ...extra });
   // ── PHASE 3 — THE ANSWER ─────────────────────────────────────────────────
   // §4b invariant: every question, every pattern, both outcomes — and the
   // verdict names the option using the SAME label the picker showed.
   const idx = correctIndices(q);
   const rightLabels = idx.map((i) => labels[i]).filter(Boolean);
-  const rightText = rightLabels.map(nameAnswer).join(' and ');
+  const rightText = unicodeNotation(rightLabels.map(nameAnswer).join(' and '));
   const expl = (q.explanation || '').trim();
   const fb = feedbackFor(q, labels, order);
 
   add('answer', 'text', {
-    body: fb.correct || `✅ Correct! The answer is ${rightText}.${expl ? `\n\n${expl}` : ''}`,
+    body: unicodeNotation(fb.correct || `✅ Correct! The answer is ${rightText}.${expl ? `\n\n${expl}` : ''}`),
     role: 'feedback_correct',
   });
   labels.forEach((label, i) => {
     if (idx.includes(i)) return;
     add('answer', 'text', {
-      body: fb.wrong[i]
+      body: unicodeNotation(fb.wrong[i]
         || `Not quite — the answer is ${rightText}.${expl ? `\n\n${expl}` : ''}`
-           + '\n\nKeep going, mistakes help you learn!',
+           + '\n\nKeep going, mistakes help you learn!'),
       role: 'feedback_incorrect', optionIndex: i,
     });
   });
@@ -486,6 +506,7 @@ function parseAnswer(id) {
 
 module.exports = {
   build,
+  displayOrder,
   optionLabels,
   correctIndices,
   answerId,

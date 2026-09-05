@@ -181,12 +181,14 @@ async function sendButtons(phone, m, ctx) {
   const bIdx = m.optionIndices || m.options.map((_, i) => i);   // bd-2359
   const buttons = m.options.slice(0, 3).map((title, i) => ({
     id: render.answerId(ctx.questionId, bIdx[i]),
-    title: truncateCodePoints(title, render.BUTTON_TITLE_MAX),
+    // A question card carries the options in the picture; the buttons are letters.
+    title: m.letterTitles ? render.optionLetter(i) : truncateCodePoints(title, render.BUTTON_TITLE_MAX),
   }));
+  const body = m.letterTitles ? chrome('vqCardAsk', ctx) : m.body;
   if (m.headerImage) {
-    return WhatsAppService.sendImageWithButtons(phone, m.headerImage, m.body, buttons);
+    return WhatsAppService.sendImageWithButtons(phone, m.headerImage, body, buttons);
   }
-  return WhatsAppService.sendInteractiveButtons(phone, { body: m.body, buttons });
+  return WhatsAppService.sendInteractiveButtons(phone, { body, buttons });
 }
 
 /**

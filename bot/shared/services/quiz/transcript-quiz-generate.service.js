@@ -103,17 +103,16 @@ function toRows(quizId, questions, { rng = Math.random, figureUrls = {} } = {}) 
 async function renderFigures({ questions, language, teacherId, quizId }) {
   const Figure = require('./transcript-quiz-figure');
   const urls = {};
-  for (let i = 0; i < questions.length; i += 1) {
-    const q = questions[i];
-    if (!q || !q.figure) continue;
+  const jobs = questions.map((q, i) => ({ q, i })).filter(({ q }) => q && q.figure);
+  // Three at a time: one Chromium, three pages — the whole set lands in the
+  // time one used to take, without starving the PDF render that follows.
+  await runPool(jobs, 3, async ({ q, i }) => {
     const startedAt = Date.now();
     try {
       // The validator already drew this one; redrawing it would be a second
       // chance for the two copies to differ.
       const svg = q.figureSvg || Figure.renderFigureSvg(q.figure, language);
-      // eslint-disable-next-line no-await-in-loop
       const png = await Figure.renderFigurePng(svg, language);
-      // eslint-disable-next-line no-await-in-loop
       urls[i] = await Figure.uploadFigure({ teacherId, quizId, index: i, png });
       logEvent('transcript_quiz.figure_ready', {
         quizId, index: i, figureType: q.figure.type, bytes: png.length, latencyMs: Date.now() - startedAt,
@@ -122,8 +121,69 @@ async function renderFigures({ questions, language, teacherId, quizId }) {
       logToFile('⚠️ transcript quiz: figure could not be made', { quizId, index: i, error: err.message });
       throw new Error(`q${i}: FIGURE_RENDER — the picture could not be made (${err.message}); write this question without a "figure"`);
     }
-  }
+  });
   return urls;
+}
+
+/** Run `fn` over `items` with at most `limit` in flight; the first rejection wins. */
+async function runPool(items, limit, fn) {
+  const queue = items.slice();
+  const workers = Array.from({ length: Math.min(limit, queue.length) }, async () => {
+    while (queue.length) {
+      const item = queue.shift();
+      // eslint-disable-next-line no-await-in-loop
+      await fn(item);
+    }
+  });
+  await Promise.all(workers);
+}
+
+/**
+ * QUESTION CARDS — one image for each question whose stem or options carry
+ * notation WhatsApp cannot draw, or options too long for a reply button. The
+ * card shows the figure, the stem and the options in the SAME display order
+ * the sender will use (seeded on the row's external id), with A/B/C handles;
+ * the sender then offers letter buttons. Returns { rowIndex: url }.
+ */
+async function renderCards({ rows, questions, language, teacherId, quizId }) {
+  const Card = require('./transcript-quiz-card');
+  const render = require('./video-quiz-render.service');
+  const urls = {};
+  const jobs = rows.map((row, i) => ({ row, i })).filter(({ row }) => Card.needsQuestionCard(row));
+  await runPool(jobs, 3, async ({ row, i }) => {
+    const startedAt = Date.now();
+    try {
+      const labels = render.optionLabels(row);
+      const displayOrder = render.displayOrder(row, labels);
+      const authored = questions && questions[i];
+      const figureSvg = (authored && authored.figureSvg) || null;
+      const png = await Card.renderQuestionCardPng({
+        stem: row.question_text, options: labels, displayOrder, figureSvg, language,
+        questionNumber: i + 1, total: rows.length,
+      });
+      urls[i] = await Card.uploadCard({ teacherId, quizId, index: i, png });
+      logEvent('transcript_quiz.card_ready', { quizId, index: i, bytes: png.length, latencyMs: Date.now() - startedAt });
+    } catch (err) {
+      logToFile('⚠️ transcript quiz: question card could not be made', { quizId, index: i, error: err.message });
+      throw new Error(`q${i}: CARD_RENDER — the question card could not be made (${err.message})`);
+    }
+  });
+  return urls;
+}
+
+/** Stamp the rows with what the renders produced: the figure URL, the card URL, the pattern. */
+function applyMedia(rows, questions, { figureUrls = {}, cardUrls = {}, language } = {}) {
+  rows.forEach((row, i) => {
+    const q = questions && questions[i];
+    const media = { ...(row.media || {}), language };
+    if (q && q.figure && figureUrls[i]) { media.question_image = figureUrls[i]; media.figure = q.figure; }
+    if (cardUrls[i]) media.question_card = cardUrls[i];
+    row.media = media;
+    // A card carries the figure inside it; the header-image pattern is for a
+    // figure with short text options.
+    row.render_pattern = (media.question_image && !media.question_card) ? 'P3' : 'P1';
+  });
+  return rows;
 }
 
 /**
@@ -281,6 +341,8 @@ async function process(quizId, payload = {}) {
   // ── author + validate + store
   let questions = null;
   let figureUrls = {};
+  let cardUrls = {};
+  let draftedRows = null;
   if (quiz.status !== 'ready' || meta.step !== 'ready') {
     let previousErrors = null;
     let lastRejected = null;
@@ -306,9 +368,12 @@ async function process(quizId, payload = {}) {
         // be drawn, screenshotted or uploaded fails this attempt exactly as a
         // validator complaint does, and the model is told which question and why.
         try {
-          figureUrls = await api.renderFigures({
-            questions: v.questions, language, teacherId: quiz.teacher_id, quizId,
-          });
+          const drafted = toRows(quizId, v.questions);
+          [figureUrls, cardUrls] = await Promise.all([
+            api.renderFigures({ questions: v.questions, language, teacherId: quiz.teacher_id, quizId }),
+            api.renderCards({ rows: drafted, questions: v.questions, language, teacherId: quiz.teacher_id, quizId }),
+          ]);
+          draftedRows = drafted;
         } catch (figErr) {
           attempts[attempts.length - 1].errors = [figErr.message];
           logToFile('⚠️ transcript quiz: attempt failed on a figure', { quizId, attempt, error: figErr.message });
@@ -331,7 +396,12 @@ async function process(quizId, payload = {}) {
       const salvaged = salvageWithoutBadFigures(lastRejected, lastErrors, { language, subject: digest.subject, digest });
       if (salvaged) {
         try {
-          figureUrls = await api.renderFigures({ questions: salvaged.questions, language, teacherId: quiz.teacher_id, quizId });
+          const drafted = toRows(quizId, salvaged.questions);
+          [figureUrls, cardUrls] = await Promise.all([
+            api.renderFigures({ questions: salvaged.questions, language, teacherId: quiz.teacher_id, quizId }),
+            api.renderCards({ rows: drafted, questions: salvaged.questions, language, teacherId: quiz.teacher_id, quizId }),
+          ]);
+          draftedRows = drafted;
           questions = salvaged.questions;
           attempts.push({ attempt: 'salvage', dropped: salvaged.dropped, errors: [] });
           logEvent('transcript_quiz.figure_salvage', { quizId, dropped: salvaged.dropped, kept: questions.length });
@@ -346,7 +416,7 @@ async function process(quizId, payload = {}) {
       await tellTeacherFailed(phone, teacherLang, quizId, 'validator_failed');
       return { failed: true, reason: 'validator_failed', attempts };
     }
-    const rows = toRows(quizId, questions, { figureUrls });
+    const rows = applyMedia(draftedRows || toRows(quizId, questions), questions, { figureUrls, cardUrls, language });
     await supabase.from('quiz_questions').delete().eq('quiz_id', quizId);
     const { error: insErr } = await supabase.from('quiz_questions').insert(rows);
     if (insErr) throw new Error(`quiz_questions insert failed: ${insErr.message}`);
@@ -359,7 +429,7 @@ async function process(quizId, payload = {}) {
   const { data: storedQs } = await supabase.from('quiz_questions')
     .select('external_id, question_text, option_a, option_b, option_c, correct_option, explanation, distractor_misconceptions, option_feedback, media, render_pattern, sort_order')
     .eq('quiz_id', quizId).order('sort_order', { ascending: true });
-  const qRows = storedQs && storedQs.length ? storedQs : toRows(quizId, questions || [], { figureUrls });
+  const qRows = storedQs && storedQs.length ? storedQs : applyMedia(toRows(quizId, questions || []), questions || [], { figureUrls, cardUrls, language });
 
   const share = require('./video-quiz-share.service');
   const minted = await share.mintCode({ quizId, userId: quiz.teacher_id, videoId: null, language });
@@ -434,6 +504,6 @@ async function process(quizId, payload = {}) {
 
 module.exports = {
   salvageWithoutBadFigures,
-  process, toRows, renderFigures, withFigureSvgs, studentMessage, teacherLabel, renderPdf, pdfFilename,
+  process, toRows, renderFigures, renderCards, applyMedia, withFigureSvgs, studentMessage, teacherLabel, renderPdf, pdfFilename,
   sleep, N_QUESTIONS, MAX_ATTEMPTS, NUDGE_AFTER_MS,
 };

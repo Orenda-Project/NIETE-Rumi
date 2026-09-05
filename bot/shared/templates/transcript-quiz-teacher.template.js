@@ -34,6 +34,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { richNotation } = require('../services/quiz/quiz-notation');
 const { PALETTE, FONTS, headFamily, bodyFamily, latticeSvg, diamondSvg, lockup } = require('./niete-brand');
 
 let _assets = null;
@@ -143,7 +144,9 @@ function renderTranscriptQuizTeacherHtml(d) {
   // Content helpers — isolation follows the CONTENT's direction, not the
   // teacher's. An English word inside an Urdu stem still needs isolating even
   // when the surrounding document is English.
-  const K = (s) => wrapLatin(esc(s), CRTL);
+  // Notation (x^2, H2O) becomes real super/subscripts: richNotation runs on
+  // the escaped text and only adds tags, which wrapLatin already skips.
+  const K = (s) => wrapLatin(richNotation(esc(s)), CRTL);
   const cdir = CRTL ? 'rtl' : 'ltr';
   /** Open a quiz-content block: its own direction and its own font order. */
   const cls = (extra) => `class="${extra} content" dir="${cdir}"`;

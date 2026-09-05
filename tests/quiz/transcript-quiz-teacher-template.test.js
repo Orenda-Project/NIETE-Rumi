@@ -208,3 +208,13 @@ describe('figures in the PDF use the NIETE palette', () => {
     expect(html).toMatch(/\.figure\{[^}]*--navy:#333748/);
   });
 });
+
+describe('notation in the PDF', () => {
+  test('x^2 and H2O render as real superscripts/subscripts in stems and options', () => {
+    const html = render({ topic: 'x', teacherName: 'T', date: '5 Sep', link: 'https://wa.me/1', digest: { slos: [] },
+      questions: [{ question_text: 'What is x^2 when x = 3?', option_a: 'H2O', option_b: '9', option_c: '3', correct_option: 'B' }],
+      language: 'en', contentLanguage: 'en' });
+    expect(html).toMatch(/x<sup>2<\/sup>/);
+    expect(html).toMatch(/H<sub>2<\/sub>O/);
+  });
+});
