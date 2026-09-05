@@ -119,3 +119,11 @@ describe('calibration round 3 — earn the figure', () => {
   test('the stem must not restate the numbers the picture shows', () => { expect(prompt).toMatch(/must not (re)?state the numbers/i); });
   test('geometry kinds are named', () => { expect(prompt).toMatch(/triangle, polygon, circle[^\n]*angle\/rightangle[^\n]*line\/segment[^\n]*point/); });
 });
+
+describe('an English quiz on an Urdu-taught lesson', () => {
+  const { buildAuthorPrompt } = require('../../bot/shared/services/quiz/transcript-quiz-author.service');
+  const prompt = buildAuthorPrompt({ digest: { subject: 'maths', slos: [] }, excerpts: 'استاد: fraction کا مطلب', language: 'en', n: 8, gradeBand: '3-5' });
+  test('the prompt says every field is English even though the lesson was taught in Urdu', () => {
+    expect(prompt).toMatch(/even (though|if) the lesson was taught in Urdu/i);
+  });
+});

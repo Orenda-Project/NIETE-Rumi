@@ -90,7 +90,7 @@ function excerptsFor(transcript, digest, width = 1200) {
 function buildAuthorPrompt({ digest, excerpts, language, n = DEFAULT_QUESTIONS, gradeBand, previousErrors = null }) {
   const rule = language === 'ur'
     ? 'Write EVERYTHING in Urdu script; keep English technical terms in English letters exactly as the teacher used them.'
-    : 'Write everything in English.';
+    : 'Write EVERYTHING in English — every stem, option, explanation and feedback — even though the lesson was taught in Urdu: translate the teacher\'s own words and keep her examples, numbers and names. An Urdu word may appear only when quoting a term the class used, in quotation marks.';
   const retry = previousErrors && previousErrors.length
     ? `\n\nA PREVIOUS ATTEMPT FAILED THESE CHECKS — fix every one of them this time (q0 is your FIRST question, q1 the second, and so on):\n- ${previousErrors.slice(0, 12).join('\n- ')}\n`
     : '';

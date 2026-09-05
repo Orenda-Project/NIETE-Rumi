@@ -192,3 +192,21 @@ describe('normaliseFeedback — the shapes models actually emit', () => {
     expect(Object.keys(n.option_feedback.wrong)).toEqual(['1', '2']);
   });
 });
+
+describe('an ENGLISH quiz must be written in English (live bug: the teacher chose English, the model wrote Urdu, nothing objected)', () => {
+  const enCtx = { language: 'en', subject: 'maths', digest: { slos: [{ id: 'S1', statement: 'x', taught_level: 'recall' }] }, nExpected: 8 };
+  const enEight = () => [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({
+    slo_id: 'S1', level: 'recall', question: `What is question ${i}?`, options: ['one', 'two', 'three'], correct_index: 0,
+    explanation: 'Because.', option_feedback: { correct: 'Yes, because.', wrong: { 1: 'Not two.', 2: 'Not three.' } },
+  }));
+  test('Urdu-script stems and options in an English quiz fail the script ratio', () => {
+    const qs = enEight();
+    qs.forEach((q) => { q.question = 'ایک Fraction کیا ہوتا ہے؟'; q.options = ['حصہ', 'پورا', 'نمبر']; });
+    const r = V.validate(qs, enCtx);
+    expect(r.errors.some((e) => /English quiz/.test(e))).toBe(true);
+  });
+  test('an English quiz that keeps a few Urdu words the lesson used passes', () => {
+    const qs = enEight(); qs[0].question = 'The teacher called the top number the "شمار کنندہ". What is it in English?';
+    expect(V.validate(qs, enCtx).errors.some((e) => /English quiz/.test(e))).toBe(false);
+  });
+});
