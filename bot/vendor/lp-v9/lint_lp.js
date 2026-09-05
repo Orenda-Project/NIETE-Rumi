@@ -1106,6 +1106,7 @@ function v9Gates(doc, ctx) {
       gSpecs.push({ where: "reference A", spec: doc.page2.board_final.diagram });
     }
     for (const { where, spec } of gSpecs) for (const d of graphDefects(spec, where)) fail(d.code, d.msg);
+    for (const { where, spec } of gSpecs) for (const d of atomDefects(spec, where)) fail(d.code, d.msg);
   }
 
   // ── the rest of the closed heading system ────────────────────────────────
@@ -1435,6 +1436,70 @@ function gOutNorm(x, y, ext) {
  * Every graph defect in one spec, as {code, msg} — pure, so it is testable
  * without a document and so the same rules can be replayed over a corpus.
  */
+
+/* ---------------------------------------------------------------------------
+   ATOM_UNKNOWN_ELEMENT — bd-8lifl
+
+   `atom.js` carries a built-in table of H-Ca plus Fe/Cu/Zn/Br/I. For anything
+   else, its resolver falls through to `givenSum || 1` and draws a ONE-ELECTRON
+   atom -- hydrogen -- under whatever label the author wrote.
+
+   Seen on a delivered Grade 10 Chemistry lesson (2026-09-05): a figure titled
+   "WHY THE CHROMIUM ION IS Cr3+" drawing 1p+ 1n0 and a single K-shell electron.
+   An atom with one electron cannot lose three, so the picture refuted its own
+   caption, and every structural gate passed it.
+
+   The engine is not wrong to have a small table; it is wrong to draw a
+   confident substitute in silence. `Z` and `shells` are the documented way out
+   (published in the brief's SS4b.5 since bd-8lifl), so the ladder can repair it.
+   The renderer is deliberately left alone -- a throw would turn a repairable
+   defect into a lost lesson.
+--------------------------------------------------------------------------- */
+
+/** Elements `atom.js` can draw unaided. Kept in step by atom-unknown-element.test.js. */
+const ATOM_TABLE = new Set([
+  "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne",
+  "Na", "Mg", "Al", "Si", "P", "S", "Cl", "Ar", "K", "Ca",
+  "Fe", "Cu", "Zn", "Br", "I",
+]);
+const ATOM_TYPES = new Set(["atom", "bohr", "electron_shells", "dot_and_cross"]);
+
+/** `atom.js` normalises "cr"/"CR" to "Cr" before the lookup; mirror that exactly. */
+function atomKey(raw) {
+  const s = String(raw == null ? "" : raw).trim();
+  return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "Na";
+}
+
+function atomDefects(spec, where) {
+  const out = [];
+  if (!spec || typeof spec !== "object") return out;
+  if (!ATOM_TYPES.has(String(spec.type || "").trim().toLowerCase())) return out;
+
+  // Each side of a bonding picture resolves through the same table.
+  const parties = [{ o: spec, what: "element" }];
+  if (spec.partner && typeof spec.partner === "object") {
+    parties.push({ o: spec.partner, what: "partner.element" });
+  }
+
+  for (const { o, what } of parties) {
+    const raw = o.element || o.symbol;
+    if (!raw) continue;
+    const key = atomKey(raw);
+    if (ATOM_TABLE.has(key)) continue;
+    const hasZ = Number.isFinite(Number(o.Z)) && Number(o.Z) >= 1;
+    const hasShells = Array.isArray(o.shells) && o.shells.some((v) => Number(v) > 0);
+    if (hasZ || hasShells) continue;
+    out.push({
+      code: "ATOM_UNKNOWN_ELEMENT",
+      msg: `${where}: \`atom\` ${what} ${JSON.stringify(String(raw))} is not one of the elements this `
+        + `engine draws unaided (H-Ca plus Fe, Cu, Zn, Br, I), and neither \`Z\` nor \`shells\` `
+        + `was given -- so it would draw a ONE-ELECTRON atom carrying that label. Give \`Z\` and `
+        + `\`shells\` (and \`neutrons\`), or use a type that can carry the idea.`,
+    });
+  }
+  return out;
+}
+
 function graphDefects(spec, where) {
   const out = [];
   if (!spec || typeof spec !== "object" || !GRAPH_TYPES.has(spec.type)) return out;
@@ -1526,6 +1591,6 @@ function graphDefects(spec, where) {
 }
 function round2(v) { return Math.round(v * 100) / 100; }
 
-module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates, graphDefects,
+module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates, graphDefects, atomDefects,
   SECTION_BUDGET, SECTION_BUDGET_V9, DOC_BUDGET, DOC_BUDGET_V9, OUTCOME_BOX_V9,
   MAX_HOMEWORK_ITEMS, MAX_BOARD_WEIGHT, MAX_ACTIVITIES, PLACEHOLDERS, FOREIGN_BRANDS };
