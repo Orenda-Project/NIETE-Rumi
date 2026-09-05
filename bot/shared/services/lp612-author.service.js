@@ -45,6 +45,9 @@ const { familyForBook } = require('../config/lp612-families');
 const { lint } = require('../../vendor/lp-v9/lint_lp.js');
 const { meetsSubjectMinimum } = require('../../vendor/lp-v9/visual_check.js');
 const { validateDoc } = require('../../vendor/lp-v9/lib/validate.js');
+// The renderer's OWN pointer resolver and frozen-slot list, so `sanitizeOverlay` cannot
+// disagree with `applyOverlay` about what is applicable — one implementation, not two.
+const { pointerParent, frozenReason } = require('../../vendor/lp-v9/lib/overlay.js');
 // The page caps the RENDERER will actually gate on, so the budget card in the prompt and the
 // gate can never state different numbers (bd-vjk68). This module's top-level cost is `fs`,
 // `path` and its own libs — `playwright-core` is required lazily inside the launch path — so
@@ -933,6 +936,34 @@ function parseYt(yt) {
  * map of JSON-Pointer (`^/`) to replacement STRING; anything else is not a lossy overlay, it is
  * not an overlay, and every document renders correctly without one. An overlay left with nothing
  * valid is removed rather than left as `{}`, so that "did the model write one?" stays answerable.
+ *
+ * ── AND A POINTER THAT CANNOT BE APPLIED IS DROPPED TOO (bd-vnyuw, 2026-09-05) ──────────────
+ *
+ * Found by running the fix rather than by reading it. Once `languageDirective` stopped
+ * forbidding the overlay, the very first authoring call for `grade_8_mathematics.c01.p006-009`
+ * came back with 55 pointers — and EIGHT of them addressed blocks the model had not written:
+ *
+ *   ur_overlay: pointer targets nothing: /sections/1/blocks/2/legend
+ *   ur_overlay: pointer does not resolve: /sections/1/blocks/3/steps/0
+ *
+ * `applyOverlay` collects those as `errors`, and `render_lp.js` **throws `OVERLAY_INVALID` and
+ * refuses the whole document** the moment `errors` is non-empty. So the fix for "she receives an
+ * English lesson" had, on its own, manufactured "she receives NO lesson" — the exact failure
+ * class this lane exists to remove, and the same shape as the `SCHEMA INVALID … /ur_overlay must
+ * be object` incident this function was written for in the first place.
+ *
+ * A pointer that resolves to nothing replaces nothing: dropping it cannot lose one character,
+ * and keeping it loses the lesson. A FROZEN pointer is dropped for the same reason — it is an
+ * error in the same list and equally fatal. Both are mechanically decidable, which is the whole
+ * test for whether a repair belongs here.
+ *
+ * The signal is NOT lost, which is what makes this a repair rather than a cover-up: every
+ * dropped pointer lowers the overlay's coverage, and `lint_lp.js`'s `OVERLAY_MISSING` blocks
+ * below half and names the pointers still missing. The ladder is told to write them properly;
+ * the teacher is not told nothing.
+ *
+ * The resolver and the frozen list are imported from `lib/overlay.js` — the renderer's own —
+ * so this function and `applyOverlay` cannot drift apart about what "applicable" means.
  */
 function sanitizeOverlay(doc) {
   if (!doc || !Object.prototype.hasOwnProperty.call(doc, 'ur_overlay')) return doc;
@@ -944,9 +975,25 @@ function sanitizeOverlay(doc) {
     return doc;
   }
 
+  /** Exactly `pointerSet`'s precondition, and `frozenReason`'s veto, asked without mutating. */
+  const applicable = (pointer) => {
+    if (frozenReason(doc, pointer)) return false;
+    let loc;
+    try {
+      loc = pointerParent(doc, pointer);
+    } catch (_) {
+      return false; // not a well-formed pointer at all
+    }
+    if (!loc) return false;
+    const k = Array.isArray(loc.parent) ? Number(loc.key) : loc.key;
+    return loc.parent[k] !== undefined;
+  };
+
   const kept = {};
   for (const [pointer, value] of Object.entries(ov)) {
-    if (pointer.startsWith('/') && typeof value === 'string') kept[pointer] = value;
+    if (!pointer.startsWith('/') || typeof value !== 'string') continue;
+    if (!applicable(pointer)) continue;
+    kept[pointer] = value;
   }
   if (Object.keys(kept).length) doc.ur_overlay = kept;
   else delete doc.ur_overlay;

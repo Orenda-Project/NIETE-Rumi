@@ -253,3 +253,95 @@ describe('the book medium is read as a language, not clamped away', () => {
     expect(langSection(promptFor('Klingon', 'kl', 'ur'))).toMatch(/English-medium book/);
   });
 });
+
+// ── 5 · an imperfect overlay must not destroy the lesson ────────────────────
+//
+// FOUND BY RUNNING THE FIX, NOT BY READING IT (bd-vnyuw, 2026-09-05).
+//
+// With the directive corrected the model does emit an overlay — 55 pointers, 90.5% Urdu, on
+// the first authoring call for `grade_8_mathematics.c01.p006-009`. Eight of those 55 pointed
+// at blocks that do not exist in the document it wrote:
+//
+//   ur_overlay: pointer targets nothing: /sections/1/blocks/2/legend
+//   ur_overlay: pointer does not resolve: /sections/1/blocks/3/steps/0
+//   …
+//
+// `applyOverlay` collects those as `errors`, and `renderDoc` **throws `OVERLAY_INVALID` and
+// refuses the whole document** the moment `errors` is non-empty. So the fix for "she gets an
+// English lesson" had, on its own, created "she gets NO lesson" — the exact failure class this
+// lane exists to remove, and the same shape as the `SCHEMA INVALID … /ur_overlay must be
+// object` incident that `sanitizeOverlay` was written for in the first place.
+//
+// A pointer that resolves to nothing replaces nothing. Dropping it cannot lose a single
+// character; keeping it loses the lesson. That is a mechanically-decidable repair of a
+// mechanically-decidable defect — `sanitizeOverlay`'s stated remit, and the same routing rule
+// `parseYt` and `sanitizeUnknownTopLevel` follow. A FROZEN pointer is dropped for the same
+// reason: `applyOverlay` reports it as an error too, so leaving it in is equally fatal.
+//
+// The signal is not lost. Every dropped pointer lowers the overlay's coverage, and
+// `OVERLAY_MISSING` blocks below half and names the pointers still missing — so the ladder is
+// told to write them properly instead of the teacher being told nothing.
+
+describe('sanitizeOverlay drops a pointer that cannot be applied', () => {
+  const { sanitizeOverlay } = require('../../bot/shared/services/lp612-author.service');
+  const withOverlay = (ov) => { const d = doc(); d.ur_overlay = ov; return d; };
+  const keys = (d) => Object.keys(sanitizeOverlay(d).ur_overlay || {});
+
+  it('keeps a pointer that resolves to a real string', () => {
+    const good = overlayDefects.targets(doc())[0];
+    expect(keys(withOverlay({ [good]: 'اردو' }))).toEqual([good]);
+  });
+
+  it('drops the exact shapes the first live overlay emitted', () => {
+    // These are three of the eight the live overlay wrote. `/sections/1/blocks/2/legend` and
+    // `/sections/1/blocks/3/steps/0` are verbatim from that run; the shared fixture happens to
+    // HAVE a `steps/0` at that path, so the third is the same shape against a section index the
+    // fixture does not reach — the point is the resolution, not the string.
+    const d = withOverlay({
+      '/sections/1/blocks/2/legend': 'اردو',
+      '/sections/1/blocks/3/steps/99': 'اردو',
+      '/sections/99/blocks/0/text': 'اردو',
+    });
+    expect(keys(d)).toEqual([]);
+    expect('ur_overlay' in sanitizeOverlay(d)).toBe(false);
+  });
+
+  it('keeps the good pointers and drops only the unusable ones', () => {
+    const good = overlayDefects.targets(doc()).slice(0, 3);
+    const d = withOverlay({
+      ...Object.fromEntries(good.map((p) => [p, 'اردو'])),
+      '/sections/1/blocks/2/legend': 'اردو',
+    });
+    expect(keys(d).sort()).toEqual(good.sort());
+  });
+
+  it('drops a FROZEN pointer — applyOverlay reports it as an error, which is equally fatal', () => {
+    expect(keys(withOverlay({ '/slo/text_verbatim': 'اردو' }))).toEqual([]);
+    const d = doc();
+    const examBank = (d.page2.exam_bank || [])[0];
+    if (examBank) {
+      expect(keys(withOverlay({ '/page2/exam_bank/0/q': 'اردو' }))).toEqual([]);
+    }
+  });
+
+  it('what survives sanitising can ALWAYS be applied — no OVERLAY_INVALID is reachable', () => {
+    const { applyOverlay } = require(path.join(V, 'lib', 'overlay.js'));
+    const targets = overlayDefects.targets(doc());
+    const d = withOverlay({
+      ...Object.fromEntries(targets.map((p) => [p, 'اردو'])),
+      '/slo/text_verbatim': 'اردو',
+      '/sections/1/blocks/2/legend': 'اردو',
+      '/nope/nothing/here': 'اردو',
+    });
+    const clean = sanitizeOverlay(d);
+    const { applied, errors } = applyOverlay(clean, 'ur');
+    expect(errors).toEqual([]);
+    expect(applied.length).toBe(Object.keys(clean.ur_overlay).length);
+  });
+
+  it('still drops a non-string value and a pointer that is not a pointer', () => {
+    const good = overlayDefects.targets(doc())[0];
+    expect(keys(withOverlay({ [good]: 'اردو', notAPointer: 'x', '/slo/text_verbatim': 5 })))
+      .toEqual([good]);
+  });
+});
