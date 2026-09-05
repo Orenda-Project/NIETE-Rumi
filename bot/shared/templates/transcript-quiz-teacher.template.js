@@ -61,6 +61,16 @@ function assets() {
   return _assets;
 }
 
+// The diagram engine paints with page tokens (var(--navy), var(--amber)…);
+// unbound they fall back to the lesson-plan palette, so the PDF's figures are
+// bound to the same NIETE tokens the child's PNG uses.
+function figureTokens() {
+  try {
+    const { NIETE_TOKENS } = require('../services/quiz/transcript-quiz-figure');
+    return Object.entries(NIETE_TOKENS).map(([k, v]) => `--${k}:${v}`).join(';');
+  } catch { return '--navy:#333748;--amber:#47BA7D;--ink:#232735'; }
+}
+
 function esc(s) {
   if (s === null || s === undefined) return '';
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -222,7 +232,7 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
 .content{font-family:${cBodyFam}}
 .content[dir="rtl"]{font-family:${FONTS.bodyUrdu};line-height:1.9}
 .content[dir="ltr"]{font-family:${FONTS.bodyLatin};line-height:1.45}
-.figure{margin:10px 0 4px;text-align:center}
+.figure{margin:10px 0 4px;text-align:center;${figureTokens()}}
 .figure svg,.figure img{max-width:100%;max-height:260px;width:auto;height:auto;display:inline-block}
 .hero{position:relative;overflow:hidden;background:${PALETTE.slate};padding:30px 42px 26px;color:#fff}
 .hero .lattice{position:absolute;inset:0;width:100%;height:100%;z-index:0}

@@ -198,3 +198,13 @@ describe('a figure never takes over the page', () => {
     expect(css).toMatch(/\.figure svg[^{]*\{[^}]*max-height:\s*2[0-9]{2}px/);
   });
 });
+
+describe('figures in the PDF use the NIETE palette', () => {
+  test('the figure box binds the diagram tokens to NIETE green/navy', () => {
+    const html = render({ topic: 'x', teacherName: 'T', date: '5 Sep', link: 'https://wa.me/1', digest: { slos: [] },
+      questions: [{ question_text: 'q', option_a: 'a', option_b: 'b', option_c: 'c', correct_option: 'A', figureSvg: '<svg viewBox="0 0 10 10"></svg>' }],
+      language: 'en', contentLanguage: 'en' });
+    expect(html).toMatch(/\.figure\{[^}]*--amber:#47BA7D/);
+    expect(html).toMatch(/\.figure\{[^}]*--navy:#333748/);
+  });
+});

@@ -393,6 +393,7 @@ async function uploadFigure({ teacherId, quizId, index, png }) {
 }
 
 module.exports = {
+  NIETE_TOKENS,
   figureEmptyReason,
   ALLOWED_TYPES,
   TYPE_DEFAULTS,
