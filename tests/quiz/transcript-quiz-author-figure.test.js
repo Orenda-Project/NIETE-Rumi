@@ -117,5 +117,5 @@ describe('calibration round 3 — earn the figure', () => {
   const { buildAuthorPrompt } = require('../../bot/shared/services/quiz/transcript-quiz-author.service');
   const prompt = buildAuthorPrompt({ digest: { subject: 'maths', slos: [] }, excerpts: '', language: 'ur', n: 8, gradeBand: '3-5' });
   test('the stem must not restate the numbers the picture shows', () => { expect(prompt).toMatch(/must not (re)?state the numbers/i); });
-  test('geometry kinds are named', () => { expect(prompt).toMatch(/triangle, polygon, circle, angle, rightangle, line, segment, point/); });
+  test('geometry kinds are named', () => { expect(prompt).toMatch(/triangle, polygon, circle[^\n]*angle\/rightangle[^\n]*line\/segment[^\n]*point/); });
 });
