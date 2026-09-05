@@ -124,7 +124,7 @@ function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/** A distractor's meaning is a caption, not a paragraph — eight words of it. */
+/** A distractor's meaning is a caption, not a paragraph: a short sentence prints whole, a long one is cut at 14 words. */
 function clampWords(s, max) {
   const words = String(s === null || s === undefined ? '' : s).trim().split(/\s+/).filter(Boolean);
   if (words.length <= max) return words.join(' ');
@@ -253,7 +253,7 @@ function renderTranscriptQuizTeacherHtml(d) {
     // here — she reads that on her phone with the child, not on paper.
     const misses = order.map((stored, pos) => {
       if (pos === correctPos) return '';
-      const m = clampWords(misc[LETTERS[stored]] || misc[String(stored)] || '', 8);
+      const m = clampWords(misc[LETTERS[stored]] || misc[String(stored)] || '', 14);
       if (!m) return '';
       return `
           <div class="miss"><span ${cls('wrongpill')}>${K(labels[stored])}</span>${missMark}<span ${cls('misstext')}>${K(m)}</span></div>`;

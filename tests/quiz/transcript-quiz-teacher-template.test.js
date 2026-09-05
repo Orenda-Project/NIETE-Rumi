@@ -205,11 +205,15 @@ describe('PLAN_R4 D5 — the sheet is scannable', () => {
     expect(html).not.toMatch(/بالکل — ایک بٹا دو/);
   });
 
-  test('each wrong option is ONE compressed line: the option, then ≤8 words of meaning', () => {
-    const long = { ...QUESTIONS[0], distractor_misconceptions: { B: 'the child is counting every single piece on the board instead of the shaded ones' } };
-    const out = render({ ...BASE, language: 'en', contentLanguage: 'en', questions: [long] });
-    expect(out).toMatch(/the child is counting every single piece on…/);
-    expect(out).not.toMatch(/instead of the shaded ones/);
+  test('each wrong option is ONE compressed line: a short misconception prints whole, a long one is cut at 14 words', () => {
+    const short = { ...QUESTIONS[0], distractor_misconceptions: { B: 'counting every single piece on the board instead of the shaded ones' } };
+    let out = render({ ...BASE, language: 'en', contentLanguage: 'en', questions: [short] });
+    expect(out).toMatch(/counting every single piece on the board instead of the shaded ones/);
+    expect(out).not.toMatch(/shaded ones…/);
+    const long = { ...QUESTIONS[0], distractor_misconceptions: { B: 'one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen' } };
+    out = render({ ...BASE, language: 'en', contentLanguage: 'en', questions: [long] });
+    expect(out).toMatch(/thirteen fourteen…/);
+    expect(out).not.toMatch(/fifteen sixteen/);
   });
 
   test('cards never break across a page', () => {

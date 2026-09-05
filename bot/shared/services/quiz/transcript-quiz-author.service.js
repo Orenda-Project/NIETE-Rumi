@@ -105,6 +105,7 @@ WHAT TO WRITE — exactly ${n} questions.
 - Use the lesson's OWN examples, numbers, words, objects and stories (from "examples_used" and the excerpts). A child should recognise the class in the quiz.
 - Exactly 3 options. One correct. The two wrong options are DISTRACTORS: each must look right to a child holding a specific, named misconception (the ones surfaced in the lesson first, then the classic ones for this topic). The two misconceptions must be different. No silly options. The three options must be different from each other.
 - Stem ≤ 160 characters; each option ≤ 60 characters (they render as tappable rows).
+- "distractor_misconceptions": for each wrong option, the confusion it catches in AT MOST 10 words, as a phrase ("counts the unshaded parts instead of the shaded"), not a sentence about the child.
 - "explanation": one sentence, why the correct answer is correct — tied to how the teacher explained it.
 - "option_feedback.correct": one warm sentence that says WHY it is right (never just "correct!" — name the idea).
 - "option_feedback.wrong": an object whose KEYS are the two indices that are NOT "correct_index" (as strings), each with one or two sentences that (a) name the confusion that option represents, in plain child language, (b) point back to the lesson's own example, (c) end with the correct idea. Never say "wrong", never scold.
