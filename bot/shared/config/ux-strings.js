@@ -731,6 +731,11 @@ const UX_STRINGS = {
     ur: 'شروع کریں',
   },
 
+  // A \u200F (RIGHT-TO-LEFT MARK) opens any Urdu string whose first strong
+  // character could be Latin — an English topic placeholder, a name, an
+  // emoji-then-English opener. WhatsApp lays a message out from its first
+  // strong character, so without the mark such a message renders left-to-
+  // right and reads scrambled. Enforced by tests/quiz/transcript-quiz-strings.
   // ─── transcript quiz (teacher side) ──────────────────────────────────────
   // The post-coaching quiz offer, the hand-off, /quiz. Every string here is
   // gender-neutral in Urdu by construction (imperatives, impersonal
@@ -753,7 +758,7 @@ const UX_STRINGS = {
   },
   tqMaking: {
     en: 'Making it now — about a minute. The quiz will arrive here with the message to forward.',
-    ur: 'quiz تیار ہو رہا ہے — تقریباً ایک منٹ۔ پھر یہیں quiz اور آگے بھیجنے والا پیغام آئے گا۔',
+    ur: 'آپ کا quiz تیار ہو رہا ہے — تقریباً ایک منٹ۔ پھر یہیں quiz اور آگے بھیجنے والا پیغام آئے گا۔',
   },
   tqAlreadyMaking: {
     en: 'Already on it — the quiz is coming.',
@@ -773,11 +778,11 @@ const UX_STRINGS = {
   },
   tqCouldNotSend: {
     en: 'The quiz is ready but the class link could not be created just now. Send /quiz in a moment to get it.',
-    ur: 'quiz تیار ہے لیکن کلاس کا link ابھی نہیں بن سکا۔ تھوڑی دیر بعد /quiz بھیج کر حاصل کریں۔',
+    ur: 'آپ کا quiz تیار ہے لیکن کلاس کا link ابھی نہیں بن سکا۔ تھوڑی دیر بعد /quiz بھیج کر حاصل کریں۔',
   },
   tqHandoffIntro: {
     en: '📝 Your quiz on *{topic}* — {n} questions.\n\nThis PDF is for you: each question, why it is asked, what each wrong answer reveals, and what students are told.\n\nThe NEXT message is for your students — forward it to the class group.',
-    ur: '📝 *{topic}* پر آپ کا quiz — {n} سوالات۔\n\nیہ PDF آپ کے لیے ہے: ہر سوال، اس کی وجہ، ہر غلط جواب کیا ظاہر کرتا ہے، اور طلبہ کو کیا بتایا جائے گا۔\n\nاگلا پیغام طلبہ کے لیے ہے — اسے class group میں forward کریں۔',
+    ur: '\u200F📝 آپ کا quiz — *{topic}* — {n} سوالات۔\n\nیہ PDF آپ کے لیے ہے: ہر سوال، اس کی وجہ، ہر غلط جواب کیا ظاہر کرتا ہے، اور طلبہ کو کیا بتایا جائے گا۔\n\nاگلا پیغام طلبہ کے لیے ہے — اسے class group میں forward کریں۔',
   },
   tqForwardThis: {
     en: 'Forward THIS message to your students:',
@@ -787,7 +792,7 @@ const UX_STRINGS = {
   // the date of the lesson, and carries the link. Never a phone number.
   tqStudentMessage: {
     en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}* — what we studied on {date}.\n\nTap here to start:\n{link}\n\nIt takes about 5 minutes. You will be asked your name and class first.',
-    ur: '📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 5 منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
+    ur: '\u200F📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 5 منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
   },
   tqReportPromise: {
     en: 'You will get a report on how the class did about 12 hours after the first student starts — or sooner if everyone finishes. Send /quiz anytime to see your quizzes or fetch a report.',
@@ -811,9 +816,9 @@ const UX_STRINGS = {
   tqRowFailed: { en: 'Could not be made — tap to retry', ur: 'نہیں بن سکا — دوبارہ کوشش کے لیے tap کریں' },
   tqQuizStatus: {
     en: '*{topic}*\n{started} started · {finished} finished.\n\nResend the link, or get the report now?',
-    ur: '*{topic}*\n{started} نے شروع کیا · {finished} مکمل۔\n\nlink دوبارہ بھیجیں، یا ابھی رپورٹ لیں؟',
+    ur: '\u200F*{topic}*\n{started} نے شروع کیا · {finished} مکمل۔\n\nlink دوبارہ بھیجیں، یا ابھی رپورٹ لیں؟',
   },
-  tqLinkButton: { en: 'Resend link', ur: 'link دوبارہ بھیجیں' },
+  tqLinkButton: { en: 'Resend link', ur: 'دوبارہ link بھیجیں' },
   tqReportButton: { en: 'Report now', ur: 'رپورٹ ابھی' },
   tqNoReportYet: {
     en: 'No one has finished this quiz yet, so there is nothing to report. Resend the link?',
@@ -830,7 +835,7 @@ const UX_STRINGS = {
   tqLessonWord: { en: 'Lesson', ur: 'سبق' },
   tqNudge: {
     en: '{started} student(s) have started your quiz on *{topic}* so far. Worth forwarding the link to the class group again?',
-    ur: '*{topic}* پر آپ کے quiz کو اب تک {started} طلبہ نے شروع کیا ہے۔ link دوبارہ class group میں forward کر دیں؟',
+    ur: '\u200F*{topic}* پر آپ کے quiz کو اب تک {started} طلبہ نے شروع کیا ہے۔ link دوبارہ class group میں forward کر دیں؟',
   },
 
   // ─── quiz chrome read by CHILDREN, in the quiz language ─────────────────
@@ -839,11 +844,11 @@ const UX_STRINGS = {
   // plural verbs — never a gendered guess.
   vqGreeting: {
     en: '👋 Assalam o Alaikum!\n\n*{teacher}* has sent you a quiz on *{topic}*.',
-    ur: '👋 السلام علیکم!\n\n*{teacher}* نے آپ کو *{topic}* پر quiz بھیجا ہے۔',
+    ur: '\u200F👋 السلام علیکم!\n\n*{teacher}* نے آپ کو *{topic}* پر quiz بھیجا ہے۔',
   },
   vqWelcomeBack: {
     en: 'Good to see you again, {name} — let’s begin!',
-    ur: '{name}، آپ کو دوبارہ دیکھ کر خوشی ہوئی — چلیں شروع کریں!',
+    ur: '\u200F{name}، آپ کو دوبارہ دیکھ کر خوشی ہوئی — چلیں شروع کریں!',
   },
   vqWhoIsTaking: {
     en: 'Who is taking it today?\n\n{names}\n{n}. Someone else\n\nReply with the number.',
@@ -864,7 +869,7 @@ const UX_STRINGS = {
     ur: 'شکریہ {name}! آپ کس جماعت میں ہیں؟ (مثلاً: جماعت 4)',
   },
   vqLetsBegin: { en: 'Great — {who}. Let’s begin!', ur: 'بہت خوب — {who}۔ چلیں شروع کریں!' },
-  vqLetsBeginName: { en: 'Let’s begin, {name}!', ur: '{name}، چلیں شروع کریں!' },
+  vqLetsBeginName: { en: 'Let’s begin, {name}!', ur: '\u200F{name}، چلیں شروع کریں!' },
   vqExpired: {
     en: 'That quiz link has expired. Ask your teacher for a new one!',
     ur: 'یہ quiz link ختم ہو چکا ہے۔ اپنے استاد سے نیا link لیں!',
