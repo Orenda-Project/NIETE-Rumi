@@ -398,6 +398,16 @@ async function process(payload) {
    * where the pass either ran or did not.
    */
   let overlayOutcome = null;
+  /**
+   * The best document the ladder has published so far (bd-0cdug), or `null`. Hoisted for exactly
+   * the same reason `authoredDoc` is: `withTimeout` RACES the authoring closure and cannot cancel
+   * it, so when the clock wins, everything still inside that closure is unreachable — including a
+   * finished lesson. On 2026-09-05 two of three timed-out cells were holding renderable documents
+   * when they were thrown away.
+   */
+  let bestSoFar = null;
+  /** True when this lesson is being delivered off that recovery path rather than normally. */
+  let overTime = false;
 
   /**
    * Render a document for DELIVERY, and accept it when the only thing wrong with it is length.
@@ -555,6 +565,10 @@ async function process(payload) {
 
       const authored = await authorLessonPlan({
         segment, lang, model, rounds: authorRounds(), correlationId, renderCheck,
+        // bd-0cdug. The ladder hands out its best document as it goes, so a timeout has something
+        // to deliver. Keeping only the DELIVERABLE ones means the catch below never has to
+        // re-derive the delivery bar, and the two cannot drift apart.
+        onCandidate: (c) => { if (c && c.deliverable) bestSoFar = c; },
       });
       // Recorded the moment it exists, so a render that refuses it below is still explicable.
       authoredDoc = authored.lpDoc;
@@ -573,7 +587,55 @@ async function process(payload) {
       const { rendered, overCap } = await renderFinal(authored.lpDoc, 'final');
 
       return { authored, rendered, overCap };
-    })(), authorTimeoutMs(), 'AUTHOR_TIMEOUT');
+    })(), authorTimeoutMs(), 'AUTHOR_TIMEOUT')
+      // ── bd-0cdug: A LESSON IS NEVER LOST FOR TAKING TOO LONG ──────────────
+      //
+      // bd-vjk68 settled this for LENGTH — *a lesson is never lost for being long*. This is the
+      // same rule applied to TIME, and it is here because the same waste was measured: on
+      // 2026-09-05 three Urdu cells hit AUTHOR_TIMEOUT at 840s and two of them were still holding
+      // renderable documents. d05's round-3 render had logged `lp612 render ok`, 11 pages. The
+      // teacher got an apology for a lesson that existed.
+      //
+      // Deliberately narrow, each clause earning its place exactly as the over-cap one does:
+      //   • ONLY on AUTHOR_TIMEOUT. Every other failure re-throws untouched — a recovery that
+      //     swallowed PAGE_TRUTH_MISSING would turn a named fault into a mystery.
+      //   • ONLY a DELIVERABLE candidate, and the service owns that word (`isDeliverable`):
+      //     schema valid, nothing blocking but page count. OVERFLOW clips content off a page and
+      //     TRUNCATION drops pages out of the file; however long she has waited, she must not be
+      //     sent either.
+      //   • the recovery DRAW is itself bounded, and if it fails the lesson fails as
+      //     AUTHOR_TIMEOUT — the code it would have had anyway, not a new one nobody can read.
+      .catch(async (e) => {
+        if (e.code !== 'AUTHOR_TIMEOUT' || !bestSoFar) throw e;
+        logToFile('LP 6-12 worker: the clock ran out on a lesson that already renders — delivering it', {
+          renderId, segmentId, lang, correlationId,
+          rounds: bestSoFar.rounds, fails: (bestSoFar.fails || []).slice(0, 5),
+        }, 'warn');
+        let recovered;
+        try {
+          recovered = await withTimeout(
+            renderFinal(bestSoFar.lpDoc, 'final'), overlayTimeoutMs(), 'AUTHOR_TIMEOUT',
+          );
+        } catch (_) {
+          throw e;   // the ORIGINAL timeout, not a second code for the same lost lesson
+        }
+        overTime = true;
+        authoredDoc = bestSoFar.lpDoc;
+        return {
+          authored: {
+            lpDoc: bestSoFar.lpDoc,
+            rounds: bestSoFar.rounds,
+            fails: bestSoFar.fails || [],
+            lintClean: bestSoFar.lintClean === true,
+            warns: [],
+            model: bestSoFar.model || model,
+            family: bestSoFar.family || family,
+            tier: bestSoFar.tier || tier,
+          },
+          rendered: recovered.rendered,
+          overCap: recovered.overCap,
+        };
+      });
 
     const { authored } = result;
     // `let`, because the Urdu overlay pass below may replace BOTH with the overlaid document and
@@ -600,7 +662,10 @@ async function process(payload) {
     // pass's own clock — falls back to the English PDF this worker is already holding, with the
     // honest caption. That is the one rule this week has taught twice: the previous two attempts
     // each replaced a wrong-language lesson with NO lesson, and both were worse than the bug.
-    if (lang === 'ur' && segment.language !== 'ur' && !overlayPassOff()) {
+    // `!overTime` (bd-0cdug): she has already waited past the author timeout. Spending another
+    // ~150s translating is the wrong trade — she gets the English lesson and the honest caption
+    // that exists for exactly this, and the row records BOTH facts.
+    if (lang === 'ur' && segment.language !== 'ur' && !overlayPassOff() && !overTime) {
       const passStartedAt = Date.now();
       let pointers = 0;
       let coverage = null;
@@ -709,6 +774,27 @@ async function process(payload) {
     // precisely what this bead did, so a reader who assumes today's constants will misread every
     // row written before the next change. Same failure shape as reading `status` without the
     // payload (rule 24(a)).
+    // THE OVER-TIME EVENT — bd-0cdug, and the same shape as over_cap for the same reason. This
+    // is a fact about the RUN, so it is emitted before the row patch and the sends: it must exist
+    // even if delivery then fails. `timeoutMs` travels with it because the clock is an env var
+    // that moves (staging runs 840000 against a code default of 720000), and a `rounds: 4` six
+    // weeks from now is uninterpretable unless the row also says what it was racing.
+    if (overTime) {
+      logEvent('lp612.deliver.over_time', {
+        renderId,
+        segmentId,
+        correlationId: correlationId || null,
+        lang,
+        templateVersion,
+        rounds: authored.rounds ?? null,
+        timeoutMs: authorTimeoutMs(),
+        page_count: rendered.pageCount ?? null,
+        lintClean: authored.lintClean === true,
+        fails: (authored.fails || []).slice(0, 4),
+        elapsedMs: Date.now() - startedAt,
+      });
+    }
+
     if (overCap) {
       const caps = pageCapsFor(lang).max;
       const byPart = rendered.pagesByPart || {};
@@ -818,6 +904,11 @@ async function process(payload) {
       // reasoning as `error_code: null` two lines up (bd-7yxsu) — a column an UPDATE does not
       // name keeps its old value, and a retry after an over-cap attempt would inherit `true`.
       over_cap: overCap === true,
+      // bd-0cdug. ALWAYS written, never left to whatever was in the column — same reasoning as
+      // `over_cap` above and `error_code: null` below it. A NULL that means "we did not look" is
+      // indistinguishable from a false in every query anyone will run, and a retry after a
+      // recovered attempt would otherwise inherit `true`.
+      over_time: overTime === true,
       page_count: rendered.pageCount ?? null,
       model_used: authored.model || model,
       rounds_used: authored.rounds ?? null,
@@ -912,6 +1003,7 @@ async function process(payload) {
       // sample of only the ones that spilled cannot answer it.
       pagesByPart: rendered.pagesByPart || null,
       overCap: overCap === true,
+      overTime: overTime === true,
       overlayDropped,
       delivered,
       deliveryFailures,

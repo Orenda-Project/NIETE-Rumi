@@ -1407,6 +1407,23 @@ const PAGE_COUNT_ROUND_BUDGET = 1;
 const isPageCountDefect = (d) => String(d).startsWith('PAGE COUNT:');
 
 /** True when the ONLY things standing between this document and a teacher are page counts. */
+/**
+ * COULD THIS CANDIDATE BE SENT TO A TEACHER, RIGHT NOW, IF THE CLOCK RAN OUT? — bd-0cdug.
+ *
+ * The bar is the DELIVERY bar, not the ladder's. The ladder keeps climbing while any blocking
+ * defect remains; delivery has always been allowed to ship one class of defect and no other —
+ * LENGTH. `PAGE COUNT` means the lesson is complete and longer than we wanted (bd-vjk68, and the
+ * worker already delivers those with `over_cap` on the row). `OVERFLOW` means content is clipped
+ * off the bottom of a page. `TRUNCATION` means pages of the lesson are missing from the file.
+ * Those are broken documents, not long ones, and however long she has waited a teacher must
+ * never be sent one.
+ *
+ * Schema validity is a hard tier above the count, for the same reason `notWorse` treats it that
+ * way (bd-jddcu): a document that cannot be validated was never lint-checked or rendered, so the
+ * empty defect list on it means "unexamined", not "clean".
+ */
+const isDeliverable = (g) => schemaOk(g) && (blockingCost(g) === 0 || isPageCountOnly(g));
+
 const isPageCountOnly = (g) => {
   const blocking = blockingFails(g);
   return blocking.length > 0 && blocking.every(isPageCountDefect);
@@ -1430,8 +1447,22 @@ const isPageCountOnly = (g) => {
  *   optional on purpose: the pure-authoring callers (scripts, tests) have no browser. When it is
  *   supplied the ladder gates on it too, which is the only way a page-count defect can ever be
  *   fixed — see runGates.
+ * @param {function} [args.onCandidate] called with the BEST DOCUMENT SO FAR each time the ladder
+ *   accepts one — at round 0 and on every round that keeps a new candidate (bd-0cdug).
+ *
+ *   IT EXISTS BECAUSE A TIMEOUT USED TO DESTROY A FINISHED LESSON. `withTimeout` in the worker
+ *   RACES this function; it cannot cancel it. So when the clock won, the document the ladder was
+ *   holding stayed inside this closure, unreachable, and the teacher got an apology for a lesson
+ *   that existed — measured on 2026-09-05, when d05's round-3 render had already logged
+ *   `lp612 render ok`, 11 pages. Publishing it costs one function call per round and makes the
+ *   race survivable.
+ *
+ *   The payload carries `deliverable` — see `isDeliverable` — so the caller never has to
+ *   re-derive the delivery bar and the two cannot drift.
  */
-async function authorLessonPlan({ segment, lang, model, rounds, correlationId, renderCheck } = {}) {
+async function authorLessonPlan({
+  segment, lang, model, rounds, correlationId, renderCheck, onCandidate,
+} = {}) {
   if (!segment || !segment.book_stem) {
     throw fail('AUTHOR_LLM_FAILED', 'authorLessonPlan needs a segment with a book_stem');
   }
@@ -1517,7 +1548,33 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
   const ladderGateMeta = {
     correlationId, segmentId: segment.segment_id, lang: language, overlayExpected: false,
   };
+  /**
+   * Hand the caller the document we are holding. Its failure is swallowed on purpose: a
+   * telemetry-shaped side channel must never be able to kill the authoring run it observes.
+   */
+  const publish = (d, g, roundsSoFar) => {
+    if (typeof onCandidate !== 'function') return;
+    try {
+      onCandidate({
+        lpDoc: d,
+        gates: g,
+        rounds: roundsSoFar,
+        deliverable: isDeliverable(g),
+        fails: gateFails(g),
+        lintClean: gateFails(g).length === 0,
+        model: chosenModel,
+        family,
+        tier,
+      });
+    } catch (e) {
+      logToFile('lp612 author: onCandidate threw — ignored', {
+        correlationId, segmentId: segment.segment_id, error: e.message,
+      }, 'warn');
+    }
+  };
+
   let gates = await runGates(doc, renderCheck, { ...ladderGateMeta, round: 0 });
+  publish(doc, gates, 0);
   let spent = 0;
   // Consecutive rounds that have reduced no BLOCKING defect. See STALE_ROUNDS.
   let stale = 0;
@@ -1597,6 +1654,8 @@ async function authorLessonPlan({ segment, lang, model, rounds, correlationId, r
     if (notWorseVisual(g2, gates, candidate, doc)) {
       doc = candidate;
       gates = g2;
+      // Published the moment it is KEPT, not at the end — the end may never come (bd-0cdug).
+      publish(doc, gates, spent);
     } else {
       // Upstream keeps the rejected candidate on disk — "was worse" with no numbers and no
       // artefact is unreviewable. A worker has nowhere to put it, so the numbers go to the log
