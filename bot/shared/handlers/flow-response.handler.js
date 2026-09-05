@@ -933,7 +933,85 @@ async function handleStatusFlowCompletion(responseJson, from, user) {
   return true;
 }
 
+/**
+ * What she reads instead of a closing screen.
+ *
+ * The Flow used to end on a SUBMITTED screen whose whole content was one
+ * sentence and a Close button — a message ABOUT the chat, shown anywhere but
+ * the chat, costing a tap to dismiss. The Flow now closes on submit and the
+ * sentence arrives here.
+ *
+ * Every branch says what happens next, because that is the only thing she can
+ * act on: wait, or send /assessment again.
+ */
+async function handleAssessmentFlowCompletion(responseJson, from, user) {
+  // The tag when we get one — but Meta DROPS `extension_message_response` from
+  // a completion, so the usual case is that it is absent and the token is all
+  // we have. Routing on the token without deriving the ACTION from it too would
+  // just move the silence one step later: the handler would fall to its
+  // unrecognised branch and say nothing, which is identical from her side.
+  const token = String(responseJson?.flow_token || '');
+  const fromToken = token.includes(':assessment-review:') ? 'rebuilt'
+    : token.includes(':assessment-gen:') ? 'queued'
+      : '';
+  let action = String(responseJson?.assessment_action || fromToken);
+  let summary = String(responseJson?.summary || '').trim();
+
+  // A NEW paper is submitted HERE, not on the screen. CONFIRM is terminal, so
+  // its Footer closes the Flow instead of calling the endpoint — the request
+  // row and the queued job would never exist otherwise, and the message below
+  // would promise a paper nobody was making.
+  //
+  // Done BEFORE the acknowledgement so a failure changes what she is told,
+  // rather than following a cheerful "about a minute" with silence.
+  if (action === 'queued') {
+    let result;
+    try {
+      const { submitFromCompletion } = require('../routes/assessment-gen-endpoint');
+      result = await submitFromCompletion({
+        flowToken: token,
+        userId: user?.id,
+        outputFormat: responseJson?.output_format,
+        answerKey: responseJson?.answer_key,
+        answerLines: responseJson?.answer_lines,
+      });
+    } catch (err) {
+      logToFile('[assessment] submit from completion threw', { error: err?.message });
+    }
+    if (result?.status !== 'queued') {
+      action = 'queue_failed';
+    } else if (!summary) {
+      summary = result.summary || '';
+    }
+  }
+
+  const MESSAGES = {
+    queued: summary
+      ? `📝 Making your paper — about a minute.\n\n${summary}`
+      : '📝 Making your paper — about a minute.',
+    rebuilt: summary
+      ? `📝 Making your paper again — a few seconds.\n\n${summary}`
+      : '📝 Making your paper again — a few seconds.',
+    queue_failed: "Something went wrong starting your paper, so nothing is being made. "
+      + 'Send /assessment to try again.',
+    rebuild_failed: "Sorry — we couldn't rebuild that paper. "
+      + 'Send /assessment to make a new one.',
+  };
+
+  const text = MESSAGES[action];
+  if (!text) {
+    // An unrecognised tag is ours to notice, not hers to puzzle over: stay
+    // silent rather than send something that does not fit what she just did.
+    logToFile('[assessment] unrecognised completion tag — no ack sent', { from, action });
+    return;
+  }
+
+  await WhatsAppService.sendMessage(from, text);
+  logToFile('[assessment] completion acknowledged in chat', { userId: user?.id, action });
+}
+
 module.exports = {
+  handleAssessmentFlowCompletion,
   handleFlowResponse,
   handleReadingAssessmentFlow,
   handleRegistrationFlow,

@@ -400,13 +400,14 @@ class SQSCoachingWorker {
         break;
       }
 
-      case 'exam_generate': {
-        // Compose from imported question bank → build .docx → upload R2 → WhatsApp send.
-        // Bank-only composition is fast (~5s end-to-end); 3-min extension is
-        // generous headroom for network jitter on media fetches during render.
-        await SQSQueueService.extendJobTimeout(receiptHandle, 180);
-        const ExamOrchestrator = require('../shared/services/exam/exam-orchestrator.service');
-        await ExamOrchestrator.generateExam(payload);
+      case 'assessment_generate': {
+        // Load the chapter, write the questions, render the paper, send it.
+        // The model call alone runs ~25s and the print adds a few more, so five
+        // minutes is headroom rather than an estimate: a job that times out
+        // mid-flight sends the teacher nothing at all.
+        await SQSQueueService.extendJobTimeout(receiptHandle, 300);
+        const AssessmentOrchestrator = require('../shared/services/assessment/assessment-orchestrator.service');
+        await AssessmentOrchestrator.process(payload);
         break;
       }
 

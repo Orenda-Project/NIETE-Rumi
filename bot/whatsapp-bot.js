@@ -56,8 +56,6 @@ const railwayRedis = require('./shared/services/cache/railway-redis.service');
 
 // Import Routes (Flow encryption endpoints)
 const flowEndpointRoutes = require('./shared/routes/flow-endpoint.routes');
-// Assessment Generator callback receiver — POST /webhooks/assessment-generator
-const assessmentGenCallbackRoutes = require('./shared/routes/assessment-gen-callback.routes');
 
 // Create Express app
 const app = express();
@@ -65,8 +63,6 @@ app.use(express.json());
 
 // Mount routes (Flow encryption endpoints)
 app.use('/api/flows', flowEndpointRoutes);
-// Async result callbacks from external services (UG_EG assessment generator, …)
-app.use('/webhooks', assessmentGenCallbackRoutes);
 // service-to-service API (portal → bot). Shared-secret auth lives
 // inside the router. Mounted before the inline /api/internal/send-password-reset
 // route below; Express falls through when no route in the router matches.
@@ -1719,27 +1715,6 @@ app.post('/webhook', async (req, res) => {
             ? `📋 ${cls} saved — ${n} students on the roster. Send /roster again for the next class.`
             : `📋 ${cls} saved. Send /roster again for the next class.`
         );
-      } else if (flowType === 'exam_generator') {
-        // Exam Generator — endpoint flow's terminal ack. The endpoint at
-        // /api/flows/exam-generator already queued the SQS `exam_generate` job
-        // and rendered the "Making your Grade X..." message in the SUCCESS
-        // modal. The SQS worker's orchestrator sends follow-up chat messages
-        // + the .docx. Nothing to do here except log completion.
-        logToFile('📝 Exam Generator flow completion (SQS job already queued by endpoint)', {
-          from,
-          responseFields: Object.keys(responseJson)
-        });
-      } else if (flowType === 'assessment_generator') {
-        // Assessment Generator — endpoint flow's terminal ack. The
-        // endpoint at /api/flows/assessment-gen has already submitted the job
-        // to the external UG_EG service and rendered the "Making your Grade X …"
-        // message in the SUCCESS modal. The result comes back via POST
-        // /webhooks/assessment-generator and is delivered from there. Nothing
-        // to do here except log completion.
-        logToFile('📝 Assessment Generator flow completion (UG_EG job submitted by endpoint)', {
-          from,
-          responseFields: Object.keys(responseJson)
-        });
       } else if (flowType === 'remark') {
         // Supervisor Remark (bd-2712). The endpoint already did every write
         // before the Flow closed, so this branch ONLY acknowledges — it must not
@@ -1870,6 +1845,19 @@ app.post('/webhook', async (req, res) => {
           await FlowResponseHandler.handleStatusFlowCompletion(responseJson, from, user);
         } catch (statusAckErr) {
           logToFile('❌ status completion handler failed', { from, error: statusAckErr.message }, 'error');
+        }
+      } else if (flowType === 'assessment_gen') {
+        // The assessment Flow CLOSES on submit rather than ending on a screen,
+        // so the "making your paper" line she used to read there arrives here
+        // as a message. Without this branch the completion falls to the
+        // catch-all below and she is told "Type /menu" — the bd-1249 failure.
+        logToFile('📝 Detected assessment flow submission', {
+          from, action: responseJson.assessment_action,
+        });
+        try {
+          await FlowResponseHandler.handleAssessmentFlowCompletion(responseJson, from, user);
+        } catch (ackErr) {
+          logToFile('❌ assessment completion handler failed', { from, error: ackErr.message }, 'error');
         }
       } else {
         // Unknown flow type
