@@ -8,12 +8,12 @@
  *   anything else (maths, science, other)  → the lesson's language ('ur' when mixed)
  *
  * Teacher-facing language (offer, PDF caption, report):
- *   users.preferred_language → transcript language → 'ur'
- * Deliberately NOT the English market floor: an Urdu-speaking teacher whose
- * preference was never stored should not get an English offer.
+ *   users.preferred_language, clamped to the offer. Nothing else — not the
+ *   transcript, not the quiz. See teacherLanguageFor().
  */
 
-const { LANGUAGE_OFFER } = require('../../config/languages');
+const { LANGUAGE_OFFER, getLanguage } = require('../../config/languages');
+const { resolveUx, clampLanguage, subjectLabelFor } = require('../../config/ux-strings');
 
 const URDU_MEDIUM = new Set(['urdu', 'islamiat', 'sst', 'genk']);
 
@@ -56,11 +56,52 @@ function quizLanguageFor(subject, transcriptLanguage) {
   return isEnglishCode(transcriptLanguage) ? 'en' : 'ur';
 }
 
-function teacherLanguageFor({ preferredLanguage, transcriptLanguage } = {}) {
-  const pref = String(preferredLanguage || '').trim();
-  if (pref && LANGUAGE_OFFER.includes(pref)) return pref;
-  if (transcriptLanguage) return isEnglishCode(transcriptLanguage) ? 'en' : 'ur';
-  return 'ur';
+/**
+ * What the TEACHER reads. The language she stored, clamped to the offer, and
+ * nothing else.
+ *
+ * A recording never changes her language; neither does a transcript. The
+ * earlier version fell back to the detected transcript language when she had
+ * stored nothing, which meant the same teacher could be addressed in Urdu on
+ * one surface and English on the next depending on which lesson she had just
+ * recorded. clampLanguage's floor is the one answer for "nothing is known",
+ * shared with the rest of the deployment.
+ *
+ * `transcriptLanguage` is still accepted and ignored so a stale caller cannot
+ * quietly change the answer.
+ */
+function teacherLanguageFor({ preferredLanguage } = {}) {
+  return clampLanguage(preferredLanguage);
+}
+
+/**
+ * The two subjects where the quiz language is not a real choice: an
+ * Urdu-grammar or an Islamiyat lesson taught in Urdu, quizzed in English, is
+ * not a quiz about that lesson. Everything else is asked.
+ */
+const LANGUAGE_ASK_SKIPPED = new Set(['urdu', 'islamiat']);
+
+function needsLanguageAsk(subject) {
+  return !LANGUAGE_ASK_SKIPPED.has(canonicalSubject(subject));
+}
+
+const LANGUAGE_BUTTON_PREFIX = 'tq_lang_';
+
+/**
+ * The two reply buttons for the ask, the subject-rule language first — the
+ * one she would have been given silently before, still the easy tap.
+ *
+ * Each title is the language's own name from the registry, so it cannot drift
+ * from what /language and /settings show, and neither is translated: a
+ * language names itself the same way whichever language you are reading in.
+ */
+function languageAskButtons(quizId, ruleLanguage) {
+  const first = LANGUAGE_OFFER.includes(ruleLanguage) ? ruleLanguage : LANGUAGE_OFFER[0];
+  const order = [first, ...LANGUAGE_OFFER.filter((c) => c !== first)];
+  return order.map((code) => ({
+    id: `${LANGUAGE_BUTTON_PREFIX}${code}_${quizId}`,
+    title: getLanguage(code).languageTitle,
+  }));
 }
 
 const UR_MONTHS = ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'];
@@ -128,6 +169,85 @@ function fixQuestionTransliterations(q) {
   };
 }
 
+/**
+ * The digest's canonical subject → the display code in the class reference
+ * table, whose labels SUBJECT_LABELS mirrors. `sst` and `genk` are the
+ * digest's own short names for the two the table spells out.
+ */
+const SUBJECT_LABEL_CODES = {
+  urdu: 'urdu',
+  english: 'english',
+  maths: 'maths',
+  science: 'science',
+  sst: 'social_studies',
+  genk: 'general_knowledge',
+};
+
+/**
+ * Islamiyat is taught in these classrooms and the digest emits it, but it is
+ * NOT one of the six codes seeded in the `subjects` reference table — and
+ * SUBJECT_LABELS is that table's display mirror: the class-manager Flow builds
+ * its subject picker from those keys and validates a teacher's selection
+ * against them (class-manager-endpoint.js normalizeSubjectSelection). A
+ * seventh key there would offer teachers a subject the table has never heard
+ * of, so the quiz carries its own label and the mirror stays exact.
+ */
+const EXTRA_SUBJECT_LABELS = {
+  islamiat: { en: 'Islamiyat', ur: 'اسلامیات' },
+};
+
+/** The subject's name in the reader's language, or null when we cannot name it. */
+function subjectLabel(subject, language) {
+  const canon = canonicalSubject(subject);
+  const lang = clampLanguage(language);
+  const extra = EXTRA_SUBJECT_LABELS[canon];
+  if (extra) return extra[lang] || extra.en;
+  const code = SUBJECT_LABEL_CODES[canon];
+  return code ? subjectLabelFor(code, lang) : null;
+}
+
+// FIRST STRONG ISOLATE / POP DIRECTIONAL ISOLATE. The topic's script is not
+// knowable when the catalog string is written — an Urdu topic sits inside an
+// English sentence and vice versa — and an un-isolated atom drags the
+// punctuation and the brackets around it (language-protocol §9.2).
+const FSI = '\u2068';
+const PDI = '\u2069';
+
+function isolate(text) {
+  return `${FSI}${text}${PDI}`;
+}
+
+/**
+ * "Urdu lesson on *واحد اور جمع* (singular and plural)" — the one phrase the
+ * offer, the hand-off and the /quiz rows all name the lesson by.
+ *
+ * The subject is in the TEACHER's language; the topic is the one the class
+ * actually heard (the quiz language); the gloss in brackets is the teacher's
+ * language and appears only when the two differ. The teacher taps "yes" on a
+ * lesson she recognises, and then reads a quiz in the language her children
+ * were taught in — round 1 named neither, and an English offer arriving before
+ * an Urdu quiz read as two different lessons.
+ */
+function lessonLabel({ digest, quizLanguage, teacherLanguage } = {}) {
+  const quizLang = clampLanguage(quizLanguage);
+  const teacherLang = clampLanguage(teacherLanguage);
+  const taught = topicFor(digest, quizLang);
+  const inTeacherLanguage = topicFor(digest, teacherLang);
+  const gloss = quizLang !== teacherLang && inTeacherLanguage && inTeacherLanguage !== taught
+    ? inTeacherLanguage : '';
+  const subject = subjectLabel(digest && digest.subject, teacherLang);
+
+  if (!taught) {
+    return subject
+      ? resolveUx('tqLessonNoTopic', { language: teacherLang, params: { subject } })
+      : resolveUx('tqLessonPlain', { language: teacherLang });
+  }
+  const topic = gloss ? `${isolate(`*${taught}*`)} (${isolate(gloss)})` : isolate(`*${taught}*`);
+  return subject
+    ? resolveUx('tqLessonOnSubject', { language: teacherLang, params: { subject, topic } })
+    : resolveUx('tqLessonOnTopic', { language: teacherLang, params: { topic } });
+}
+
 /** The topic label in a given language: the lesson's own name for Urdu, the clean English label otherwise. */
 function topicFor(digest, language) {
   const d = digest || {};
@@ -136,6 +256,14 @@ function topicFor(digest, language) {
 
 module.exports = {
   topicFor,
+  needsLanguageAsk,
+  languageAskButtons,
+  LANGUAGE_ASK_SKIPPED,
+  LANGUAGE_BUTTON_PREFIX,
+  lessonLabel,
+  subjectLabel,
+  SUBJECT_LABEL_CODES,
+  EXTRA_SUBJECT_LABELS,
   fixTransliterations,
   fixQuestionTransliterations,
   TRANSLITERATIONS,

@@ -54,6 +54,50 @@ describe('buildRows', () => {
     expect(rows[3].description).toMatch(/[؀-ۿ]/);   // no quiz yet, in Urdu
   });
 
+  test('a thin transcript is left out even when a quiz row already points at it', () => {
+    // The offer gate is 1,500 characters; a shorter lesson can only fail at
+    // generate, so listing it sells the teacher a tap that cannot work.
+    const rows = List.buildRows(
+      [S(1, { transcript_text: 'short' }), S(2)],
+      [{ id: 'q1', coaching_session_id: 'sess-1', status: 'failed' }],
+      'en',
+    );
+    expect(rows.map((r) => r.id)).toEqual(['tq_pick_sess-2']);
+  });
+
+  test('the rows are newest first whatever order the query returned them in', () => {
+    const rows = List.buildRows([S(3), S(1), S(5), S(2)], [], 'en');
+    expect(rows.map((r) => r.id)).toEqual(['tq_pick_sess-5', 'tq_pick_sess-3', 'tq_pick_sess-2', 'tq_pick_sess-1']);
+  });
+
+  test('never more than the 10 WhatsApp allows, and it is the 10 most recent', () => {
+    const rows = List.buildRows([1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => S(i)), [], 'en');
+    expect(rows).toHaveLength(9);
+    const many = List.buildRows(
+      Array.from({ length: 14 }, (_, i) => ({ ...S(1), id: `sess-${i}`, created_at: `2026-09-${String(i + 1).padStart(2, '0')}T05:00:00Z` })),
+      [], 'en',
+    );
+    expect(many).toHaveLength(10);
+    expect(many[0].id).toBe('tq_pick_sess-13');
+    expect(many[9].id).toBe('tq_pick_sess-4');
+  });
+
+  test('the row description names the subject so the list is not eight identical dates', () => {
+    const sessions = [S(1, { analysis_data: { topic: 'Fractions', subject: 'Maths' } })];
+    const quizzes = [{ id: 'q1', coaching_session_id: 'sess-1', status: 'sent', subject: 'maths', topic: 'کسریں', meta: { started: 2, finished: 1 } }];
+    const rows = List.buildRows(sessions, quizzes, 'en');
+    expect(rows[0].description).toMatch(/Mathematics/);
+    expect(cp(rows[0].description)).toBeLessThanOrEqual(72);
+    const ur = List.buildRows(sessions, quizzes, 'ur');
+    expect(ur[0].description).toMatch(/ریاضی/);
+    expect(cp(ur[0].description)).toBeLessThanOrEqual(72);
+  });
+
+  test('a lesson whose subject is unknown still gets a clean description', () => {
+    const rows = List.buildRows([S(1, { analysis_data: { topic: 'Shapes' } })], [], 'en');
+    expect(rows[0].description).not.toMatch(/other|undefined|null/i);
+  });
+
   test('a lesson with a thin transcript is left out', () => {
     const rows = List.buildRows([S(1, { transcript_text: 'short' }), S(2)], [], 'en');
     expect(rows).toHaveLength(1);
@@ -72,6 +116,9 @@ describe('showList', () => {
     expect(payload.action.sections[0].rows).toHaveLength(2);
     expect(payload.body.text).toMatch(/[؀-ۿ]/);
     expect(cp(payload.action.button)).toBeLessThanOrEqual(20);
+    // She is told these are the most recent ones, so a missing older lesson
+    // reads as the list being capped rather than the lesson being lost.
+    expect(payload.body.text).toMatch(/10/);
   });
 
   test('with no lessons yet, explains in the teacher language', async () => {
@@ -83,15 +130,17 @@ describe('showList', () => {
 });
 
 describe('handleListPick', () => {
-  test('a lesson with no quiz yet: claims a row and enqueues generation', async () => {
+  test('a lesson with no quiz yet: claims a row and asks which language before generating', async () => {
     installFrom(supabase.from, ({
       coaching_sessions: { data: [S(1, { user_id: 'u-1', observation_type: null, status: 'completed' })] },
       quizzes: (calls) => (calls.some((c) => c[0] === 'insert') ? { data: [{ id: 'q-new' }] } : { data: [] }),
       users: { data: [USER] },
     }));
     expect(await List.handleListPick('tq_pick_sess-1', '923001234567', USER)).toBe(true);
-    expect(SQS.queueJob).toHaveBeenCalledWith('q-new', 'quiz_generate', expect.any(Object), expect.any(Object));
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
+    // Generation waits for her answer — see transcript-quiz-language-ask.test.js.
+    expect(SQS.queueJob).not.toHaveBeenCalled();
+    const [, payload] = WhatsAppService.sendInteractiveButtons.mock.calls[0];
+    expect(payload.buttons.map((b) => b.id)).toEqual(['tq_lang_ur_q-new', 'tq_lang_en_q-new']);
   });
 
   test('a quiz already sent: offers resend-link and report buttons', async () => {

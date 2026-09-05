@@ -1367,6 +1367,15 @@ app.post('/webhook', async (req, res) => {
           logToFile('⚠️ unrouted vq_ button', { buttonId, from });
         }
       }
+      // Transcript quiz: which language the quiz should be written in
+      // (tq_lang_ur_/tq_lang_en_). Matched BEFORE the generic `tq_` branch —
+      // its own block so the two can be reviewed and merged independently.
+      else if (buttonId.startsWith('tq_lang_')) {
+        const TranscriptQuizOffer = require('./shared/services/quiz/transcript-quiz-offer.service');
+        if (!(await TranscriptQuizOffer.handleLanguageButton(buttonId, from, user))) {
+          logToFile('⚠️ unrouted tq_lang_ button', { buttonId, from });
+        }
+      }
       // Transcript quiz: the post-coaching offer (tq_yes_/tq_no_) and the
       // /quiz actions (tq_link_/tq_report_). Its own prefix on purpose —
       // never `quiz_` (parent quiz) or `vq_` (video quiz).

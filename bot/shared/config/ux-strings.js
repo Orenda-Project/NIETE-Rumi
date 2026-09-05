@@ -758,9 +758,12 @@ const UX_STRINGS = {
   // constructions, passives) because the teacher's gender is unknown and the
   // cohort is mixed. English technical terms (quiz, link, PDF, WhatsApp,
   // forward, group) stay in English inside Urdu, as teachers write them.
+  // {lesson} is built by transcript-quiz-language.lessonLabel(): the subject in
+  // the TEACHER's language, the topic as the class actually heard it (the quiz
+  // language), and a teacher-language gloss in brackets when the two differ.
   tqOffer: {
-    en: 'From today’s lesson on *{topic}* ({date}) I can make a short 8-question quiz your students take on WhatsApp — it checks what they learnt, and you get a report on what to reteach.\n\nWant it?\n\nYou can make one for any lesson anytime by sending /quiz.',
-    ur: 'آج کے سبق *{topic}* ({date}) سے طلبہ کے لیے 8 سوالوں کا مختصر quiz تیار ہو سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا سمجھ آیا اور کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟\n\nکسی بھی سبق کا quiz کبھی بھی /quiz بھیج کر بنایا جا سکتا ہے۔',
+    en: 'Your {lesson}, {date}. I can make a short 8-question quiz your students take on WhatsApp — it checks what they learnt, and you get a report on what to reteach.\n\nWant it?\n\nYou can make one for any lesson anytime by sending /quiz.',
+    ur: 'آپ کا {lesson}، {date}۔ طلبہ کے لیے 8 سوالوں کا مختصر quiz تیار ہو سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا سمجھ آیا اور کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟\n\nکسی بھی سبق کا quiz کبھی بھی /quiz بھیج کر بنایا جا سکتا ہے۔',
   },
   tqOfferYes: { en: 'Yes, make it', ur: 'جی، بنائیں' },
   tqOfferNo: { en: 'Not now', ur: 'ابھی نہیں' },
@@ -797,8 +800,8 @@ const UX_STRINGS = {
     ur: 'آپ کا quiz تیار ہے لیکن کلاس کا link ابھی نہیں بن سکا۔ تھوڑی دیر بعد /quiz بھیج کر حاصل کریں۔',
   },
   tqHandoffIntro: {
-    en: '📝 Your quiz on *{topic}* — {n} questions.\n\nThis PDF is for you: each question, why it is asked, what each wrong answer reveals, and what students are told.\n\nThe NEXT message is for your students — forward it to the class group.',
-    ur: '\u200F📝 آپ کا quiz — *{topic}* — {n} سوالات۔\n\nیہ PDF آپ کے لیے ہے: ہر سوال، اس کی وجہ، ہر غلط جواب کیا ظاہر کرتا ہے، اور طلبہ کو کیا بتایا جائے گا۔\n\nاگلا پیغام طلبہ کے لیے ہے — اسے class group میں forward کریں۔',
+    en: '📝 Your quiz: {lesson} — {n} questions.\n\nThis PDF is for you: each question, why it is asked, what each wrong answer reveals, and what students are told.\n\nThe NEXT message is for your students — forward it to the class group.',
+    ur: '\u200F📝 آپ کا quiz: {lesson}، {n} سوالات۔\n\nیہ PDF آپ کے لیے ہے: ہر سوال، اس کی وجہ، ہر غلط جواب کیا ظاہر کرتا ہے، اور طلبہ کو کیا بتایا جائے گا۔\n\nاگلا پیغام طلبہ کے لیے ہے — اسے class group میں forward کریں۔',
   },
   tqForwardThis: {
     en: 'Forward THIS message to your students:',
@@ -815,8 +818,8 @@ const UX_STRINGS = {
     ur: 'پہلے طالب علم کے شروع کرنے کے تقریباً 12 گھنٹے بعد — یا سب کے مکمل کرتے ہی — رپورٹ آئے گی۔ اپنے quizzes دیکھنے یا رپورٹ منگوانے کے لیے کبھی بھی /quiz بھیجیں۔',
   },
   tqListBody: {
-    en: 'Your recent lessons. Pick one to make a quiz, resend its link, or get its report.',
-    ur: 'آپ کے حالیہ اسباق۔ کوئی ایک چنیں — quiz بنانے، link دوبارہ بھیجنے یا رپورٹ لینے کے لیے۔',
+    en: 'Your most recent lessons — up to 10, newest first. Pick one to make a quiz, resend its link, or get its report.',
+    ur: 'آپ کے حالیہ اسباق — زیادہ سے زیادہ 10، نئے سے پرانے۔ کوئی ایک چنیں — quiz بنانے، link دوبارہ بھیجنے یا رپورٹ لینے کے لیے۔',
   },
   tqListButton: { en: 'Choose lesson', ur: 'سبق چنیں' },
   tqListSection: { en: 'Recent lessons', ur: 'حالیہ اسباق' },
@@ -1159,6 +1162,33 @@ const CLASS_FLOW_STRINGS = {
 // Folded into the one catalog so resolveUx() is still the single lookup — the
 // block above is kept separate only so this Flow's copy reads as a unit.
 Object.assign(UX_STRINGS, CLASS_FLOW_STRINGS);
+
+/**
+ * Transcript quiz, round 2 — the lesson label the offer and the hand-off are
+ * built from. Kept as one block at the end of the catalog so the three
+ * round-2 workstreams can each append without colliding.
+ *
+ * These four are FRAGMENTS, not messages: lessonLabel() composes one of them
+ * and the result is substituted into {lesson}. The topic arrives already
+ * wrapped in a first-strong isolate, so an Urdu topic inside an English
+ * sentence (or the reverse) cannot drag the punctuation around it.
+ */
+const TRANSCRIPT_QUIZ_R2_STRINGS = {
+  // The quiz language is hers to choose. The two button titles come from the
+  // language registry (اردو / English), not from here — a language names itself
+  // the same way in both catalogs, and the registry is what the /language and
+  // /settings pickers already render.
+  tqAskLanguage: {
+    en: 'Which language should the quiz be in?\n\nUrdu — English terms stay in English letters (fraction, numerator).\nEnglish — the whole quiz in English.\n\nTap one.',
+    ur: '\u200Fquiz کس زبان میں ہو؟\n\nاردو — English اصطلاحات انگریزی حروف میں (fraction، numerator)۔\nEnglish — پورا quiz انگریزی میں۔\n\nایک کو tap کریں۔',
+  },
+  tqLessonOnSubject: { en: '{subject} lesson on {topic}', ur: '\u200F{subject} کا سبق — {topic}' },
+  tqLessonNoTopic:   { en: '{subject} lesson',            ur: '\u200F{subject} کا سبق' },
+  tqLessonOnTopic:   { en: 'lesson on {topic}',           ur: 'سبق — {topic}' },
+  tqLessonPlain:     { en: 'lesson',                      ur: 'سبق' },
+};
+
+Object.assign(UX_STRINGS, TRANSCRIPT_QUIZ_R2_STRINGS);
 
 /**
  * Grade and subject display labels, keyed by the canonical codes in the

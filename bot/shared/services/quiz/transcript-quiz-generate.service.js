@@ -23,7 +23,7 @@ const { resolveUx } = require('../../config/ux-strings');
 const Digest = require('./transcript-quiz-digest.service');
 const Author = require('./transcript-quiz-author.service');
 const { validate } = require('./transcript-quiz-validator');
-const { teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor } = require('./transcript-quiz-language');
+const { teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel } = require('./transcript-quiz-language');
 const { SESSION_SELECT } = require('./transcript-quiz-offer.service');
 
 const N_QUESTIONS = 8;
@@ -158,7 +158,7 @@ async function process(quizId, payload = {}) {
   }
   const user = session.users || {};
   const phone = payload.phone || user.phone_number;
-  const teacherLang = teacherLanguageFor({ preferredLanguage: user.preferred_language, transcriptLanguage: session.transcript_language });
+  const teacherLang = teacherLanguageFor({ preferredLanguage: user.preferred_language });
   const teacherName = [user.first_name, user.last_name].filter(Boolean).join(' ') || null;
   let meta = { ...(quiz.meta || {}) };
 
@@ -168,7 +168,10 @@ async function process(quizId, payload = {}) {
       const r = await Digest.run({ session, user });
       meta = { ...meta, digest: r.digest, grade: r.grade, grade_source: r.gradeSource, lp_hint: r.lpHint,
         digest_model: r.model, cost_usd: (meta.cost_usd || 0) + (r.costUsd || 0) };
-      const language = quizLanguageFor(r.digest.subject, session.transcript_language);
+      // The teacher's own choice, stored on the row when she answered the
+      // language ask, outranks the subject rule. The rule is what a legacy
+      // row (or a skipped ask) falls back to.
+      const language = quiz.language || quizLanguageFor(r.digest.subject, session.transcript_language);
       quiz.language = language;
       quiz.subject = r.digest.subject;
       quiz.topic = topicFor(r.digest, language);
@@ -264,7 +267,10 @@ async function process(quizId, payload = {}) {
     logToFile('⚠️ transcript quiz: PDF render failed (sending the link without it)', { quizId, error: err.message });
   }
 
-  const caption = resolveUx('tqHandoffIntro', { language: teacherLang, params: { topic: quiz.topic, n: qRows.length } });
+  const caption = resolveUx('tqHandoffIntro', {
+    language: teacherLang,
+    params: { lesson: lessonLabel({ digest, quizLanguage: language, teacherLanguage: teacherLang }), n: qRows.length },
+  });
   let pdfSent = false;
   if (tempPath) {
     pdfSent = await WhatsAppService.sendDocument(phone, tempPath, pdfFilename(quiz.topic), caption);

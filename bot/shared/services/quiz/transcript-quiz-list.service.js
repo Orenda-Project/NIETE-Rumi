@@ -19,13 +19,13 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
 const { truncateCodePoints } = require('./religious-marks');
-const { teacherLanguageFor, formatLessonDate } = require('./transcript-quiz-language');
-const { MIN_TRANSCRIPT_CHARS } = require('./transcript-quiz-offer.service');
+const { teacherLanguageFor, formatLessonDate, subjectLabel, quizLanguageFor, needsLanguageAsk } = require('./transcript-quiz-language');
+const { MIN_TRANSCRIPT_CHARS, sendLanguageAsk } = require('./transcript-quiz-offer.service');
 
 const PICK_PREFIX = 'tq_pick_';
 const LINK_PREFIX = 'tq_link_';
 const REPORT_PREFIX = 'tq_report_';
-const MAX_ROWS = 10;
+const MAX_ROWS = 10;            // WhatsApp's list cap, and the 10 tqListBody names
 const TITLE_MAX = 24;
 const DESC_MAX = 72;
 
@@ -52,21 +52,35 @@ function statusLine(quiz, language) {
   }
 }
 
-/** Pure: sessions + quizzes → list rows. */
+/**
+ * Pure: sessions + quizzes → list rows, newest first, capped at what WhatsApp
+ * will render.
+ *
+ * A lesson whose recording is thinner than the offer gate is left out even if
+ * a quiz row already points at it: the author cannot write eight questions
+ * from it, so the row could only ever end at "I couldn't make a good quiz".
+ * tqListBody says these are the most recent lessons, so a lesson that is not
+ * here reads as the list being capped rather than the lesson being lost.
+ */
 function buildRows(sessions, quizzes, language) {
   const byId = new Map((quizzes || []).map((q) => [q.coaching_session_id, q]));
   return (sessions || [])
-    .filter((s) => String(s.transcript_text || '').length >= MIN_TRANSCRIPT_CHARS || byId.has(s.id))
+    .filter((s) => String(s.transcript_text || '').length >= MIN_TRANSCRIPT_CHARS)
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     .slice(0, MAX_ROWS)
     .map((s) => {
       const quiz = byId.get(s.id) || null;
       const topic = quiz?.topic || s.analysis_data?.topic || resolveUx('tqLessonWord', { language });
       const title = truncateCodePoints(`${formatLessonDate(s.created_at, language)} · ${topic}`, TITLE_MAX);
+      // The title is capped at 24 code points, which a date and a topic already
+      // fill, so the SUBJECT goes in the description — otherwise a teacher who
+      // taught three lessons the same week reads three near-identical rows.
+      const subject = subjectLabel(quiz?.subject || s.analysis_data?.subject, language);
+      const status = statusLine(quiz, language);
       return {
         id: `${PICK_PREFIX}${s.id}`,
         title,
-        description: truncateCodePoints(statusLine(quiz, language), DESC_MAX),
+        description: truncateCodePoints(subject ? `${subject} · ${status}` : status, DESC_MAX),
       };
     });
 }
@@ -98,7 +112,7 @@ async function showList(user, phone, language) {
   let quizzes = [];
   if (ids.length) {
     const { data } = await supabase.from('quizzes')
-      .select('id, coaching_session_id, status, topic, meta')
+      .select('id, coaching_session_id, status, topic, subject, meta')
       .eq('teacher_id', user.id).eq('quiz_source', 'transcript').in('coaching_session_id', ids);
     quizzes = data || [];
   }
@@ -137,25 +151,42 @@ async function handleListPick(listId, phone, user) {
     return true;
   }
   const { data: session } = await supabase.from('coaching_sessions')
-    .select('id, user_id, created_at, transcript_text, analysis_data')
+    .select('id, user_id, created_at, transcript_text, transcript_language, analysis_data')
     .eq('id', sessionId).eq('user_id', user.id).maybeSingle();
   if (!session) {
     await WhatsAppService.sendMessage(phone, resolveUx('tqNotYours', { language: lang }));
     return true;
   }
   const { data: quiz } = await supabase.from('quizzes')
-    .select('id, status, topic, language, meta, coaching_session_id')
+    .select('id, status, topic, subject, language, meta, coaching_session_id')
     .eq('coaching_session_id', sessionId).eq('quiz_source', 'transcript').maybeSingle();
+
+  // The quiz language is hers to choose here too — a lesson picked from /quiz
+  // reaches exactly the same decision as a "yes" on the offer. The subject
+  // rule seeds the button order; only Urdu and Islamiyat skip the ask.
+  const subject = quiz?.subject || session.analysis_data?.subject || null;
+  const ruleLanguage = quiz?.language || quizLanguageFor(subject, session.transcript_language);
+  const ask = needsLanguageAsk(subject);
 
   if (!quiz) {
     const { data: created, error } = await supabase.from('quizzes').insert({
       teacher_id: user.id, quiz_source: 'transcript', coaching_session_id: sessionId,
       topic: session.analysis_data?.topic || 'Lesson', subject: session.analysis_data?.subject || null,
-      status: 'generating', meta: { step: 'digest', source: 'list', claimed_at: new Date().toISOString() },
+      language: ask ? null : ruleLanguage,
+      status: ask ? 'offered' : 'generating',
+      meta: {
+        step: ask ? 'awaiting_language' : 'digest', awaiting_language: ask,
+        source: 'list', claimed_at: new Date().toISOString(),
+      },
     }).select('id').single();
     if (error || !created) {
       logToFile('⚠️ transcript quiz: list claim failed', { sessionId, error: error?.message });
       await WhatsAppService.sendMessage(phone, resolveUx('tqStillMaking', { language: lang }));
+      return true;
+    }
+    if (ask) {
+      await sendLanguageAsk(created.id, phone, lang, ruleLanguage);
+      logEvent('transcript_quiz.language_asked', { userId: user.id, quizId: created.id, ruleLanguage, from: 'list' });
       return true;
     }
     await enqueueGenerate(created.id, phone, lang);
@@ -182,9 +213,27 @@ async function handleListPick(listId, phone, user) {
       return true;
     }
     default: {
-      // offered / declined / skipped / failed / cancelled → (re)make it.
+      // offered / declined / skipped / failed / cancelled → (re)make it, after
+      // the language ask where the subject leaves a real choice.
+      if (ask) {
+        await supabase.from('quizzes')
+          .update({
+            status: 'offered',
+            meta: {
+              ...(quiz.meta || {}), step: 'awaiting_language', awaiting_language: true,
+              source: 'list', retried_at: new Date().toISOString(),
+            },
+          })
+          .eq('id', quiz.id);
+        await sendLanguageAsk(quiz.id, phone, lang, ruleLanguage);
+        logEvent('transcript_quiz.language_asked', { userId: user.id, quizId: quiz.id, ruleLanguage, from: 'list' });
+        return true;
+      }
       await supabase.from('quizzes')
-        .update({ status: 'generating', meta: { ...(quiz.meta || {}), step: quiz.meta?.digest ? 'author' : 'digest', source: 'list', retried_at: new Date().toISOString() } })
+        .update({
+          status: 'generating', language: ruleLanguage,
+          meta: { ...(quiz.meta || {}), step: quiz.meta?.digest ? 'author' : 'digest', awaiting_language: false, source: 'list', retried_at: new Date().toISOString() },
+        })
         .eq('id', quiz.id);
       await enqueueGenerate(quiz.id, phone, lang);
       logEvent('transcript_quiz.list_generate', { userId: user.id, quizId: quiz.id, from: quiz.status });
@@ -203,7 +252,7 @@ async function handleActionButton(buttonId, phone) {
   if (!quiz) return true;
   const { data: teacher } = await supabase.from('users')
     .select('phone_number, preferred_language').eq('id', quiz.teacher_id).maybeSingle();
-  const lang = teacherLanguageFor({ preferredLanguage: teacher?.preferred_language || quiz.meta?.teacher_language, transcriptLanguage: quiz.language });
+  const lang = teacherLanguageFor({ preferredLanguage: teacher?.preferred_language });
 
   if (isLink) {
     const msg = quiz.meta?.student_message;

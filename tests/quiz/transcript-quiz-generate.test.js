@@ -106,6 +106,31 @@ describe('process — happy path', () => {
     expect(SQS.queueJob).toHaveBeenCalledWith(QID, 'quiz_nudge_teacher', expect.any(Object), expect.any(Object));
   });
 
+  test('the PDF caption names the subject and the topic as it was taught', async () => {
+    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100 });
+    wire();
+    await Gen.process(QID, {});
+    const caption = WhatsAppService.sendDocument.mock.calls[0][3];
+    expect(caption).toMatch(/ریاضی/);   // the subject, in the teacher's language
+    expect(caption).toMatch(/کسریں/);   // the topic as the class heard it
+  });
+
+  test('the language SHE chose outranks the subject rule', async () => {
+    // An Urdu-subject lesson: the rule says 'ur'. She asked for English on the
+    // language ask, and that is what the row carries.
+    const Digest = require('../../bot/shared/services/quiz/transcript-quiz-digest.service');
+    Digest.run.mockResolvedValue({
+      digest: { ...DIGEST, subject: 'urdu' }, grade: '4', gradeSource: 'profile', lpHint: null, model: 'm', costUsd: 0.001,
+    });
+    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100 });
+    wire({ quiz: { ...QUIZ, subject: 'urdu', language: 'en', meta: { grade: '4', step: 'digest' } } });
+
+    await Gen.process(QID, {});
+    expect(Author.author).toHaveBeenCalledWith(expect.objectContaining({ language: 'en' }));
+    const updates = supabase.from.callsFor('quizzes').flat().filter((c) => c[0] === 'update').map((u) => u[1]);
+    expect(updates.find((u) => 'language' in u).language).toBe('en');
+  });
+
   test('is idempotent: a quiz already sent does nothing', async () => {
     wire({ quiz: { ...QUIZ, status: 'sent' } });
     const r = await Gen.process(QID, {});
