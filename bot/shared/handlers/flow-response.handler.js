@@ -970,8 +970,36 @@ async function handleAssessmentFlowCompletion(responseJson, from, user) {
   const fromToken = token.includes(':assessment-review:') ? 'rebuilt'
     : token.includes(':assessment-gen:') ? 'queued'
       : '';
-  const action = String(responseJson?.assessment_action || fromToken);
-  const summary = String(responseJson?.summary || '').trim();
+  let action = String(responseJson?.assessment_action || fromToken);
+  let summary = String(responseJson?.summary || '').trim();
+
+  // A NEW paper is submitted HERE, not on the screen. CONFIRM is terminal, so
+  // its Footer closes the Flow instead of calling the endpoint — the request
+  // row and the queued job would never exist otherwise, and the message below
+  // would promise a paper nobody was making.
+  //
+  // Done BEFORE the acknowledgement so a failure changes what she is told,
+  // rather than following a cheerful "about a minute" with silence.
+  if (action === 'queued') {
+    let result;
+    try {
+      const { submitFromCompletion } = require('../routes/assessment-gen-endpoint');
+      result = await submitFromCompletion({
+        flowToken: token,
+        userId: user?.id,
+        outputFormat: responseJson?.output_format,
+        answerKey: responseJson?.answer_key,
+        answerLines: responseJson?.answer_lines,
+      });
+    } catch (err) {
+      logToFile('[assessment] submit from completion threw', { error: err?.message });
+    }
+    if (result?.status !== 'queued') {
+      action = 'queue_failed';
+    } else if (!summary) {
+      summary = result.summary || '';
+    }
+  }
 
   const MESSAGES = {
     queued: summary
