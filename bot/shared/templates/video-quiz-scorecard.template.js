@@ -100,7 +100,7 @@ function tierPalette(pct) {
   if (pct >= 60) {
     return { bgFrom: PALETTE.slate, bgTo: PALETTE.slateLight, accent: PALETTE.green, star: 'rgba(255,255,255,.35)', badgeInk: '#123D28' };
   }
-  return { bgFrom: PALETTE.charcoal, bgTo: PALETTE.charcoalLight, accent: PALETTE.greenMuted, star: 'rgba(255,255,255,.3)', badgeInk: '#F2F5F3' };
+  return { bgFrom: PALETTE.charcoal, bgTo: PALETTE.charcoalLight, accent: PALETTE.greenMuted, star: 'rgba(255,255,255,.3)', badgeInk: '#0E3320' };
 }
 
 const STAR_PATH = 'M12 2.6l2.95 6.28 6.9.86-5.05 4.78 1.33 6.82L12 17.86l-6.13 3.38 '
@@ -157,27 +157,33 @@ function renderScorecardHtml(d) {
   @font-face{font-family:'NastaliqUrdu';font-weight:400;src:url(data:font/ttf;base64,${a.nastaliq})}
   @font-face{font-family:'NastaliqUrdu';font-weight:700;src:url(data:font/ttf;base64,${a.nastaliqBold})}
   * { margin:0; box-sizing:border-box; font-family:${FONTS.bodyLatin}; }
-  /* Anything a child wrote or was taught follows the quiz's own script. */
-  .content[dir="rtl"]{font-family:${FONTS.bodyUrdu};line-height:1.85}
+  /* Anything a child wrote or was taught follows the quiz's own script. The
+     card is a poster with one anchor — mark and badge on the right, everything
+     read on the left — so an Urdu line still SHAPES right-to-left but is set
+     flush left with the score and the stars. Right-aligning it instead left
+     the name and topic floating away from every other element on the card. */
+  .content[dir="rtl"]{font-family:${FONTS.bodyUrdu};line-height:1.85;text-align:left}
   .content[dir="ltr"]{font-family:${FONTS.bodyLatin}}
   body { width:540px; height:400px; }
   .card { width:100%; height:100%; background:linear-gradient(160deg,${palette.bgFrom} 0%,${palette.bgTo} 100%);
-    color:#fff; padding:34px 38px; display:flex; flex-direction:column; position:relative; overflow:hidden; }
+    color:#fff; padding:28px 34px; display:flex; flex-direction:column; position:relative; overflow:hidden; }
   .ghost { position:absolute; width:250px; height:250px; right:-40px; bottom:-60px; }
   .card > *:not(.ghost) { position:relative; z-index:1; }
   .hdr { display:flex; justify-content:space-between; align-items:flex-start; }
   .t1 { font-size:15px; letter-spacing:${RTL ? '0' : '2.5px'}; color:#fff; font-weight:800; opacity:.85;
     font-family:${RTL ? FONTS.bodyUrdu : FONTS.bodyLatin}; }
   .logo { width:56px; height:auto; opacity:.96; display:block; }
-  .name { font-size:${RTL ? '19px' : '16px'}; font-weight:600; color:#EAF3EE; margin-top:10px; }
-  .t2 { font-size:${RTL ? '26px' : '30px'}; font-weight:800; margin-top:8px; }
+  /* Nastaliq needs vertical room, but a display line is not a paragraph:
+     the shared 1.85 overflowed this fixed 540x400 frame and clipped the badge. */
+  .name { font-size:${RTL ? '18px' : '16px'}; line-height:${RTL ? '1.6' : '1.3'}; font-weight:600; color:#EAF3EE; margin-top:8px; }
+  .t2 { font-size:${RTL ? '24px' : '30px'}; line-height:${RTL ? '1.65' : '1.2'}; font-weight:800; margin-top:6px; }
   /* A fraction reads left-to-right in every language — never mirror it. */
-  .score { font-size:76px; font-weight:800; margin:14px 0 2px; direction:ltr; unicode-bidi:isolate;
+  .score { font-size:72px; line-height:1.05; font-weight:800; margin:12px 0 2px; direction:ltr; unicode-bidi:isolate;
     font-family:${FONTS.bodyLatin}; }
   .score span { font-size:30px; font-weight:400; color:rgba(255,255,255,.62); }
   .stars { display:flex; gap:6px; margin-bottom:10px; }
   .foot { margin-top:auto; display:flex; justify-content:space-between; align-items:flex-end; gap:12px; }
-  .foot .n { font-size:15px; color:#EAF3EE; opacity:.85; }
+  .foot .n { font-size:15px; line-height:${RTL ? '1.6' : '1.3'}; color:#EAF3EE; opacity:.85; }
   .badge { background:${palette.accent}; color:${palette.badgeInk}; font-weight:800; font-size:15px;
     padding:7px 16px; border-radius:18px; white-space:nowrap;
     font-family:${RTL ? FONTS.bodyUrdu : FONTS.bodyLatin}; }

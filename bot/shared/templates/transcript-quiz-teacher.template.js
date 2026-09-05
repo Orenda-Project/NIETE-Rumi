@@ -232,7 +232,7 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
 .eyebrow{font-size:12px;letter-spacing:${RTL ? '0' : '.18em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.greenPale};font-weight:700;font-family:${bodyFam}}
 .lockup{display:flex;align-items:center;gap:5px;margin-top:14px;font-family:${bodyFam};font-size:${RTL ? '12px' : '10.5px'};letter-spacing:${RTL ? '0' : '.26em'};color:#dfe3ea;font-weight:700}
 .lockup .nuqta{display:block}
-.hero h1{font-family:${cHeadFam};font-size:${CRTL ? '24px' : '27px'};line-height:${CRTL ? '1.9' : '1.2'};font-weight:600;margin-top:10px;max-width:560px}
+.hero h1{font-family:${cHeadFam};font-size:${CRTL ? '24px' : '27px'};line-height:${CRTL ? '1.9' : '1.2'};font-weight:600;margin-top:10px;max-width:560px;text-align:${RTL ? 'right' : 'left'}}
 .who{margin-top:12px;font-size:14px;color:#e2e5ea;line-height:${lh};font-family:${bodyFam}}
 .who b{color:#fff}
 .statrow{display:flex;gap:10px;margin-top:16px}

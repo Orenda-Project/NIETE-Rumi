@@ -267,9 +267,10 @@ body{background:#eef1f0;font-family:${bodyFam}}
 .eyebrow{font-family:${bodyFam};font-size:12px;letter-spacing:${RTL ? '0' : '.2em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.greenPale};font-weight:700}
 .lockup{display:flex;align-items:center;gap:5px;margin-top:12px;font-family:${bodyFam};font-size:${RTL ? '12px' : '10.5px'};letter-spacing:${RTL ? '0' : '.26em'};color:#dfe3ea;font-weight:700}
 .lockup .nuqta{display:block}
-.hero-mark{width:48px;height:48px;object-fit:contain;flex-shrink:0;display:block;margin-${RTL ? 'right' : 'left'}:18px}
+.hero-mark{width:46px;height:46px;object-fit:contain;flex-shrink:0;display:block}
+.eyerow{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
 .herotop{display:flex;justify-content:space-between;align-items:flex-start;margin-top:10px;gap:16px}
-.hero h1{font-family:${cHeadFam};font-size:${CRTL ? '24px' : '26px'};line-height:${CRTL ? '1.9' : '1.2'};font-weight:600;color:#fff;max-width:430px}
+.hero h1{font-family:${cHeadFam};font-size:${CRTL ? '24px' : '26px'};line-height:${CRTL ? '1.9' : '1.2'};font-weight:600;color:#fff;max-width:470px;text-align:${RTL ? 'right' : 'left'}}
 .hscore{text-align:${RTL ? 'left' : 'right'};flex-shrink:0;margin-${RTL ? 'right' : 'left'}:20px}
 .hscore .p{font-family:${FONTS.bodyLatin};font-weight:700;font-size:46px;color:#fff;letter-spacing:-.02em;line-height:1;direction:ltr}
 .hscore .s{font-family:${bodyFam};font-size:11.5px;color:#c6e9d5;margin-top:5px;letter-spacing:.05em;${RTL ? '' : 'text-transform:uppercase;'}}
@@ -328,10 +329,9 @@ body{background:#eef1f0;font-family:${bodyFam}}
 
   <div class="hero">
     ${latticeSvg({ id: 'niete-lattice-hero', line: PALETTE.green, opacity: 0.16 })}
-    <div class="eyebrow">${L(C.eyebrow)}</div>
+    <div class="eyerow"><div class="eyebrow">${L(C.eyebrow)}</div>${heroMark}</div>
     <div class="herotop">
       <h1 class="content" dir="${cdir}">${K(topic)}</h1>
-      ${heroMark}
       <div class="hscore"><div class="p">${average}%</div><div class="s">${L(C.classAverage)}</div></div>
     </div>
     ${lockup(L(C.lockup))}
