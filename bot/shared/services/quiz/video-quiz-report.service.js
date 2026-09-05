@@ -24,7 +24,7 @@ const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { stripEmphasis, classLabel } = require('../../utils/text-format');
-const { clampLanguage } = require('../../config/ux-strings');
+const { clampLanguage, resolveUx } = require('../../config/ux-strings');
 
 /**
  * The job-type prefix is load-bearing, not cosmetic.
@@ -233,8 +233,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
 
   if (!all.length) {
     await WhatsAppService.sendMessage(teacher.phone_number,
-      `No one has opened your quiz on “${sc.topic}” yet. The link stays live for `
-      + `30 days — worth a nudge in the class group.`);
+      resolveUx('vqReportNoOne', { language: clampLanguage(teacher.preferred_language), params: { topic: sc.topic } }));
     await markReportSent(shareCodeId);
     return true;
   }

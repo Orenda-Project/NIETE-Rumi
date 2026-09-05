@@ -939,6 +939,13 @@ const UX_STRINGS = {
   vqBadgeMastered: { en: 'Brilliant!', ur: 'زبردست!' },
   vqBadgeDeveloping: { en: 'Nicely done', ur: 'بہت اچھا' },
   vqBadgeNeedsPractice: { en: 'Good effort', ur: 'اچھی کوشش' },
+
+  // The report's one "nothing to report" branch: the link was never opened.
+  // Sent instead of the PDF, in the teacher's own language.
+  vqReportNoOne: {
+    en: 'No one has opened your quiz on \u201c{topic}\u201d yet. The link stays live for 30 days \u2014 worth a nudge in the class group.',
+    ur: '\u200Fآپ کے quiz «{topic}» کو ابھی تک کسی نے نہیں کھولا۔ link 30 دن تک چلتا رہے گا — class group میں ایک بار پھر یاد دہانی کرا دیں۔',
+  },
 };
 
 /**
