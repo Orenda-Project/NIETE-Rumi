@@ -124,40 +124,13 @@ describe('bd-2477 #2 — stars must not depend on ANY font (system or embedded)'
  * too heavy... then we simply just change the background color based on how
  * you did" — same one-frame render cost as today, tier-differentiated look.
  */
-/** Relative luminance (0-1) of a #RRGGBB hex string — for measuring whether
- * two backgrounds are ACTUALLY visually distinct, not just different strings. */
-function luminance(hex) {
-  const n = parseInt(hex.slice(1), 16);
-  const r = (n >> 16) & 255;
-  const g = (n >> 8) & 255;
-  const b = n & 255;
-  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-}
-
-function bgOf(html) {
-  return html.match(/\.card \{[^}]*background:([^;]+);/)[1];
-}
-
-describe('bd-mg9c7.28 — the three tiers are NIETE grounds, not another product\'s', () => {
-  test('mastered (>=80%) is the brand green gradient', () => {
-    const html = renderHtml({ topic: 'x', correct: 9, total: 10, pct: 90 });
-    expect(bgOf(html)).toMatch(/#2F9C66/i);
-    expect(bgOf(html)).toMatch(/#47BA7D/i);
-  });
-
-  test('developing (60-79%) is the brand navy-slate gradient', () => {
-    const html = renderHtml({ topic: 'x', correct: 6, total: 10, pct: 65 });
-    expect(bgOf(html)).toMatch(/#333748/i);
-    expect(bgOf(html)).toMatch(/#4B5168/i);
-  });
-
-  test('needs practice (<60%) is the calm charcoal gradient with a muted green accent', () => {
-    const html = renderHtml({ topic: 'x', correct: 2, total: 10, pct: 20 });
-    expect(bgOf(html)).toMatch(/#2A2C31/i);
-    expect(bgOf(html)).toMatch(/#45484F/i);
-    expect(html).toMatch(/#3E8F63/i);
-  });
-
+describe('bd-mg9c7.28 / v4 D2 — the card is NIETE, and one card for every score', () => {
+  // The three per-tier grounds this describe used to lock (green >=80,
+  // navy-slate 60-79, charcoal below) are GONE — see
+  // video-quiz-scorecard-v4.test.js, which locks the single ground that
+  // replaced them and the three places the tier moved to. What survives from
+  // here is the pair of invariants that were never about the tiers: the ground
+  // is drawn from the NIETE book, and the ink on it stays white.
   test('no gold, no coral, no other product\'s navy anywhere on the card', () => {
     [90, 65, 20].forEach((pct) => {
       const html = renderHtml({ topic: 'x', correct: 1, total: 1, pct });
@@ -165,22 +138,7 @@ describe('bd-mg9c7.28 — the three tiers are NIETE grounds, not another product
     });
   });
 
-  // bd-2480's lesson, kept: three backgrounds inside one narrow hue band read
-  // as the same card at a glance. A string-inequality check cannot see that,
-  // so this measures the actual brightness step between tiers.
-  test('each tier is a REAL visible jump in brightness, not an imperceptible shade', () => {
-    const first = (pct) => bgOf(renderHtml({ topic: 'x', correct: 1, total: 1, pct })).match(/#[0-9A-Fa-f]{6}/)[0];
-    const lumMastered = luminance(first(90));
-    const lumDeveloping = luminance(first(65));
-    const lumNeedsPractice = luminance(first(20));
-
-    const MIN_PERCEPTIBLE_GAP = 0.03;
-    expect(Math.abs(lumMastered - lumDeveloping)).toBeGreaterThan(MIN_PERCEPTIBLE_GAP);
-    expect(Math.abs(lumDeveloping - lumNeedsPractice)).toBeGreaterThan(MIN_PERCEPTIBLE_GAP);
-    expect(Math.abs(lumMastered - lumNeedsPractice)).toBeGreaterThan(MIN_PERCEPTIBLE_GAP * 2);
-  });
-
-  test('white text on every tier — the score must stay legible on all three', () => {
+  test('white text at every score — the score must stay legible on the ground', () => {
     [90, 65, 20].forEach((pct) => {
       const html = renderHtml({ topic: 'x', correct: 1, total: 1, pct });
       expect(html).toMatch(/\.card \{[^}]*color:#fff/);
@@ -193,7 +151,7 @@ describe('bd-mg9c7.28 — the child\'s own language on her own card', () => {
 
   test('an Urdu name renders inside an RTL element led by the Nastaliq face', () => {
     const html = renderHtml({ topic: 'کسریں', correct: 6, total: 8, pct: 75, takerName: 'علی', language: 'ur' });
-    expect(html).toMatch(/class='name content' dir='rtl'>علی</);
+    expect(html).toMatch(/class='name content align' dir='rtl'>علی</);
     const css = html.match(/<style>([\s\S]*?)<\/style>/)[1].replace(/@font-face\{[^}]*\}/g, '');
     expect(css).toMatch(/\.content\[dir="rtl"\]\{[^}]*font-family:'NastaliqUrdu'/);
   });
@@ -261,7 +219,7 @@ describe('bd-2474 — renderScorecardImage', () => {
       topic: 'کسریں', correct: 1, total: 1, pct: 100, takerName: 'علی', language: 'ur',
     });
     const [html] = htmlToImage.mock.calls[0];
-    expect(html).toMatch(/class='name content' dir='rtl'>علی</);
+    expect(html).toMatch(/class='name content align' dir='rtl'>علی</);
   });
 
   test('bd-2481: forwards takerName into the rendered HTML', async () => {
@@ -349,7 +307,7 @@ describe('bd-mg9c7.44 — the name renders in the script it was written in', () 
     const html = renderHtml({
       topic: 'کسریں', correct: 6, total: 8, pct: 75, takerName: 'Ali', language: 'ur',
     });
-    expect(html).toMatch(/class='name content' dir='ltr'>Ali</);
+    expect(html).toMatch(/class='name content align' dir='ltr'>Ali</);
     const css = html.match(/<style>([\s\S]*?)<\/style>/)[1].replace(/@font-face\{[^}]*\}/g, '');
     expect(css).toMatch(/\.content\[dir="ltr"\]\{[^}]*font-family:'Lexend'/);
   });
@@ -358,28 +316,38 @@ describe('bd-mg9c7.44 — the name renders in the script it was written in', () 
     const html = renderHtml({
       topic: 'Proper Fraction', correct: 6, total: 8, pct: 75, takerName: 'عائشہ', language: 'en',
     });
-    expect(html).toMatch(/class='name content' dir='rtl'>عائشہ</);
+    expect(html).toMatch(/class='name content align' dir='rtl'>عائشہ</);
     const css = html.match(/<style>([\s\S]*?)<\/style>/)[1].replace(/@font-face\{[^}]*\}/g, '');
     expect(css).toMatch(/\.content\[dir="rtl"\]\{[^}]*font-family:'NastaliqUrdu'/);
   });
 
   test('the topic follows its own script too, independently of the quiz language', () => {
     const urTopicEnQuiz = renderHtml({ topic: 'کسریں', correct: 1, total: 1, pct: 100, language: 'en' });
-    expect(urTopicEnQuiz).toMatch(/class='topic content' dir='rtl'>کسریں</);
+    expect(urTopicEnQuiz).toMatch(/class='topic content align' dir='rtl'>کسریں</);
 
     const enTopicUrQuiz = renderHtml({ topic: 'Proper Fraction', correct: 1, total: 1, pct: 100, language: 'ur' });
-    expect(enTopicUrQuiz).toMatch(/class='topic content' dir='ltr'>Proper Fraction</);
+    expect(enTopicUrQuiz).toMatch(/class='topic content align' dir='ltr'>Proper Fraction</);
   });
 
-  test('the tier message stays in the QUIZ language even when the name is the other script', () => {
+  test('the catalog words stay in the QUIZ language even when the name is the other script', () => {
     const { UX_STRINGS } = require('../../shared/config/ux-strings');
     const html = renderHtml({
       topic: 'Proper Fraction', correct: 6, total: 8, pct: 75, takerName: 'Ali', language: 'ur',
     });
-    // vqTierDeveloping.ur, minus the badge clause the pill already carries.
-    const tail = UX_STRINGS.vqTierDeveloping.ur.split(/\s*[—–]\s*/).pop();
-    expect(html).toMatch(new RegExp(tail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-    expect(html).not.toMatch(/a little more practice/);
+    expect(html).toMatch(new RegExp(UX_STRINGS.vqBadgeDeveloping.ur));
+    expect(html).toMatch(new RegExp(UX_STRINGS.vqScorecardEyebrow.ur));
+    expect(html).not.toMatch(/Nicely done|QUIZ COMPLETE/);
+  });
+
+  // v4: the sentence itself is no longer printed ON the card — the chip carries
+  // the word, and vqScoreCaption carries the whole sentence in the message
+  // directly under the picture. The de-duplication rule is still the caption
+  // side's, so it is still exported and still tested.
+  test('tierMessage strips the clause the badge already says, in both languages', () => {
+    expect(renderHtml.tierMessage(75, 'en')).toBe('A little more practice and you\u2019ll have it.');
+    expect(renderHtml.tierMessage(100, 'en')).toBe('');
+    expect(renderHtml.tierMessage(100, 'ur')).toBe('');
+    expect(renderHtml.tierMessage(75, 'ur')).not.toMatch(/بہت اچھا/);
   });
 });
 
@@ -402,7 +370,7 @@ describe('bd-mg9c7.44 — the redesign: gauge, hero stars, lattice', () => {
     expect(empty.off / empty.dash).toBeCloseTo(1, 2);
   });
 
-  test('the fraction still reads verbatim inside the ring', () => {
+  test('the fraction still reads verbatim beside the ring', () => {
     const html = renderHtml({ topic: 'x', correct: 12, total: 15, pct: 80 });
     expect(html).toMatch(/class='score'>12<span>\/15<\/span>/);
   });
@@ -420,13 +388,5 @@ describe('bd-mg9c7.44 — the redesign: gauge, hero stars, lattice', () => {
     expect(html).toMatch(/<svg class="lattice"/);
     expect(html).toMatch(/pattern id="niete-lattice/);
     expect(html).not.toMatch(/class='ghost'/);
-  });
-
-  test('the three tier grounds survive the redesign, still visibly apart', () => {
-    const grounds = [90, 65, 20].map((pct) => bgOf(renderHtml({ topic: 'x', correct: 1, total: 1, pct })));
-    expect(new Set(grounds).size).toBe(3);
-    expect(grounds[0]).toMatch(/#2F9C66/i);
-    expect(grounds[1]).toMatch(/#333748/i);
-    expect(grounds[2]).toMatch(/#2A2C31/i);
   });
 });
