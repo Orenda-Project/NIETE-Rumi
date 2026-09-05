@@ -25,7 +25,7 @@ const { MIN_TRANSCRIPT_CHARS, sendLanguageAsk } = require('./transcript-quiz-off
 const PICK_PREFIX = 'tq_pick_';
 const LINK_PREFIX = 'tq_link_';
 const REPORT_PREFIX = 'tq_report_';
-const MAX_ROWS = 10;
+const MAX_ROWS = 10;            // WhatsApp's list cap, and the 10 tqListBody names
 const TITLE_MAX = 24;
 const DESC_MAX = 72;
 
@@ -52,11 +52,20 @@ function statusLine(quiz, language) {
   }
 }
 
-/** Pure: sessions + quizzes → list rows. */
+/**
+ * Pure: sessions + quizzes → list rows, newest first, capped at what WhatsApp
+ * will render.
+ *
+ * A lesson whose recording is thinner than the offer gate is left out even if
+ * a quiz row already points at it: the author cannot write eight questions
+ * from it, so the row could only ever end at "I couldn't make a good quiz".
+ * tqListBody says these are the most recent lessons, so a lesson that is not
+ * here reads as the list being capped rather than the lesson being lost.
+ */
 function buildRows(sessions, quizzes, language) {
   const byId = new Map((quizzes || []).map((q) => [q.coaching_session_id, q]));
   return (sessions || [])
-    .filter((s) => String(s.transcript_text || '').length >= MIN_TRANSCRIPT_CHARS || byId.has(s.id))
+    .filter((s) => String(s.transcript_text || '').length >= MIN_TRANSCRIPT_CHARS)
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     .slice(0, MAX_ROWS)
     .map((s) => {

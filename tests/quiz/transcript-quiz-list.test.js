@@ -54,6 +54,34 @@ describe('buildRows', () => {
     expect(rows[3].description).toMatch(/[؀-ۿ]/);   // no quiz yet, in Urdu
   });
 
+  test('a thin transcript is left out even when a quiz row already points at it', () => {
+    // The offer gate is 1,500 characters; a shorter lesson can only fail at
+    // generate, so listing it sells the teacher a tap that cannot work.
+    const rows = List.buildRows(
+      [S(1, { transcript_text: 'short' }), S(2)],
+      [{ id: 'q1', coaching_session_id: 'sess-1', status: 'failed' }],
+      'en',
+    );
+    expect(rows.map((r) => r.id)).toEqual(['tq_pick_sess-2']);
+  });
+
+  test('the rows are newest first whatever order the query returned them in', () => {
+    const rows = List.buildRows([S(3), S(1), S(5), S(2)], [], 'en');
+    expect(rows.map((r) => r.id)).toEqual(['tq_pick_sess-5', 'tq_pick_sess-3', 'tq_pick_sess-2', 'tq_pick_sess-1']);
+  });
+
+  test('never more than the 10 WhatsApp allows, and it is the 10 most recent', () => {
+    const rows = List.buildRows([1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => S(i)), [], 'en');
+    expect(rows).toHaveLength(9);
+    const many = List.buildRows(
+      Array.from({ length: 14 }, (_, i) => ({ ...S(1), id: `sess-${i}`, created_at: `2026-09-${String(i + 1).padStart(2, '0')}T05:00:00Z` })),
+      [], 'en',
+    );
+    expect(many).toHaveLength(10);
+    expect(many[0].id).toBe('tq_pick_sess-13');
+    expect(many[9].id).toBe('tq_pick_sess-4');
+  });
+
   test('the row description names the subject so the list is not eight identical dates', () => {
     const sessions = [S(1, { analysis_data: { topic: 'Fractions', subject: 'Maths' } })];
     const quizzes = [{ id: 'q1', coaching_session_id: 'sess-1', status: 'sent', subject: 'maths', topic: 'کسریں', meta: { started: 2, finished: 1 } }];
@@ -88,6 +116,9 @@ describe('showList', () => {
     expect(payload.action.sections[0].rows).toHaveLength(2);
     expect(payload.body.text).toMatch(/[؀-ۿ]/);
     expect(cp(payload.action.button)).toBeLessThanOrEqual(20);
+    // She is told these are the most recent ones, so a missing older lesson
+    // reads as the list being capped rather than the lesson being lost.
+    expect(payload.body.text).toMatch(/10/);
   });
 
   test('with no lessons yet, explains in the teacher language', async () => {

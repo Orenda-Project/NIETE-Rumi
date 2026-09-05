@@ -818,8 +818,8 @@ const UX_STRINGS = {
     ur: 'پہلے طالب علم کے شروع کرنے کے تقریباً 12 گھنٹے بعد — یا سب کے مکمل کرتے ہی — رپورٹ آئے گی۔ اپنے quizzes دیکھنے یا رپورٹ منگوانے کے لیے کبھی بھی /quiz بھیجیں۔',
   },
   tqListBody: {
-    en: 'Your recent lessons. Pick one to make a quiz, resend its link, or get its report.',
-    ur: 'آپ کے حالیہ اسباق۔ کوئی ایک چنیں — quiz بنانے، link دوبارہ بھیجنے یا رپورٹ لینے کے لیے۔',
+    en: 'Your most recent lessons — up to 10, newest first. Pick one to make a quiz, resend its link, or get its report.',
+    ur: 'آپ کے حالیہ اسباق — زیادہ سے زیادہ 10، نئے سے پرانے۔ کوئی ایک چنیں — quiz بنانے، link دوبارہ بھیجنے یا رپورٹ لینے کے لیے۔',
   },
   tqListButton: { en: 'Choose lesson', ur: 'سبق چنیں' },
   tqListSection: { en: 'Recent lessons', ur: 'حالیہ اسباق' },

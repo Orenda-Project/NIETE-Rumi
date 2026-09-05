@@ -88,6 +88,10 @@ describe('transcript-quiz catalog', () => {
     }
   });
 
+  test('the list body says these are the most recent lessons, in both languages', () => {
+    for (const lang of LANGUAGE_OFFER) expect(resolveUx('tqListBody', { language: lang })).toMatch(/10/);
+  });
+
   test('the decline copy points at /quiz', () => {
     for (const lang of LANGUAGE_OFFER) expect(resolveUx('tqDeclined', { language: lang })).toMatch(/\/quiz/);
   });
