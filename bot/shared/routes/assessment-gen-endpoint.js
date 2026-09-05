@@ -729,9 +729,20 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
 
   // ── QUESTIONS → TYPES | CONFIRM ──────────────────────────────────────────
   if (screenId === 'QUESTIONS') {
+    // She types the number now, and a Flow TextInput enforces no bounds at all,
+    // so this is the only thing standing between "999" and a request for 999
+    // questions. Refused on the screen rather than clamped: quietly turning 40
+    // into 25 gives her a paper she never asked for and never says so.
+    const parsed = QuestionTypes.parseQuestionCount(data.question_count);
+    if (!parsed.ok) {
+      Object.assign(state, { contentSource: String(data.content_source || 'unseen') });
+      await writeSession(flowToken, state);
+      return questionsScreen(state, parsed.message);
+    }
+
     Object.assign(state, {
       contentSource: String(data.content_source || 'unseen'),
-      questionCount: Number(data.question_count) || 20,
+      questionCount: parsed.count,
     });
     await writeSession(flowToken, state);
 
@@ -857,11 +868,11 @@ async function bookFacts(state) {
   return { id: data?.id || null, totalPages: data?.total_pages || null };
 }
 
-function questionsScreen(state) {
+function questionsScreen(state, error = '') {
   return screen('QUESTIONS', {
     summary: summaryOf(state),
-    counts: COUNT_CHOICES.map((n) => ({ id: String(n), title: `${n} questions` })),
-    error: '',
+    count_hint: `Between 1 and ${QuestionTypes.MAX_QUESTIONS}.`,
+    error,
   });
 }
 
