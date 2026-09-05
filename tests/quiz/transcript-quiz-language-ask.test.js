@@ -76,6 +76,16 @@ describe('yes → the language ask', () => {
     expect(updates[0][1].status).toBeUndefined();     // still 'offered' until she answers
   });
 
+  test('the row it decides on is actually read with its subject', async () => {
+    // The ask is skipped by SUBJECT. The stub answers every select with the
+    // whole row, so a column missing from the real query would still pass the
+    // behavioural tests above and then read `undefined` in production.
+    wireQuiz(quizRow());
+    await Offer.handleOfferButton(`tq_yes_${QID}`, PHONE);
+    const select = supabase.from.callsFor('quizzes').flat().find((c) => c[0] === 'select');
+    expect(select[1]).toMatch(/\bsubject\b/);
+  });
+
   test('an English-rule subject lists English first', async () => {
     wireQuiz(quizRow({ subject: 'english', language: 'en' }));
     await Offer.handleOfferButton(`tq_yes_${QID}`, PHONE);

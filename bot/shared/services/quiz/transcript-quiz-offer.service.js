@@ -271,7 +271,7 @@ async function handleOfferButton(buttonId, phone) {
   const quizId = m[2];
 
   const { data: quiz } = await supabase.from('quizzes')
-    .select('id, teacher_id, status, language, topic, meta, coaching_session_id')
+    .select('id, teacher_id, status, language, subject, topic, meta, coaching_session_id')
     .eq('id', quizId).maybeSingle();
   if (!quiz) {
     await WhatsAppService.sendMessage(phone, resolveUx('tqOfferExpired', { language: await api.languageByPhone(phone) }));
