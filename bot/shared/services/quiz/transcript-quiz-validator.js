@@ -180,6 +180,16 @@ function validate(rawQuestions, { language, subject, digest, nExpected } = {}) {
     if (lv > tl + 1) errs.push(`q${i}: level ${q.level} > taught ${slos.find((s) => s.id === q.slo_id)?.taught_level || 'understand'}+1`);
 
     const texts = [stem, String(q.explanation || ''), String(fb.correct || ''), ...opts, ...Object.values(fb.wrong || {}).map(String)];
+    if (language === 'en') {
+      // The mirror of the Urdu script check. The teacher chose English on a
+      // lesson taught in Urdu and the model answered in Urdu — nothing objected.
+      const stemAndOptions = [stem, ...opts].join(' ');
+      const letters = [...stemAndOptions].filter((c) => /\p{L}/u.test(c));
+      const latin = letters.filter((c) => /[A-Za-z]/.test(c)).length;
+      if (letters.length && latin / letters.length < 0.7) {
+        errs.push(`q${i}: an English quiz must be written in English — the stem and options are mostly not Latin script`);
+      }
+    }
     allText.push(...texts);
     if (texts.some((t) => LETTER_REF.test(t))) errs.push(`q${i}: letter reference`);
 
