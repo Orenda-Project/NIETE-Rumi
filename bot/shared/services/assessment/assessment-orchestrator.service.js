@@ -85,7 +85,21 @@ function fileName({ grade, subject, chapterTitle, format, suffix = '' }) {
  * into a silent no-op, caught only because a test asserted the send.
  */
 function reviewFlowId() {
-  return (ENV && ENV.ASSESSMENT_GEN_FLOW_ID) || '';
+  // The review layer is its OWN Flow, and it has to be.
+  //
+  // A WhatsApp Flow opens on screens[0]. The review screens used to live in the
+  // generator Flow, where KEEP sat at index 6 and was reachable only from
+  // CONFIRM — which is terminal, so it never routes onward. Opening straight
+  // onto KEEP therefore asked the client to enter a screen with no reachable
+  // predecessor: it painted for an instant and died with "Something went
+  // wrong", while our endpoint logged a clean INIT and a valid 1068-byte
+  // response. Proven by publishing KEEP alone as a one-screen Flow with the
+  // exact same payload — it rendered perfectly.
+  //
+  // Falls back to the generator id so a deployment that has not been given the
+  // new variable yet keeps its previous behaviour rather than silently sending
+  // nothing at all.
+  return (ENV && (ENV.ASSESSMENT_REVIEW_FLOW_ID || ENV.ASSESSMENT_GEN_FLOW_ID)) || '';
 }
 
 async function _patchPaper(paperId, patch) {
