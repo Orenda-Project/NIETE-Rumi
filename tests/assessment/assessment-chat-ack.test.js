@@ -247,11 +247,25 @@ describe('what she actually reads in the chat', () => {
   });
 
   test('a rebuild says seconds, not a minute — it makes no model call', async () => {
-    await handle({ assessment_action: 'rebuilt', summary: '12 questions · 25 marks' },
-      '92300', { id: 'u1' });
+    // A rebuild needs its paper: PICK_DONE is terminal, so the rebuild now runs
+    // from the completion (like the new-paper submit before it) and the paper id
+    // comes from the token. Without one there is nothing to rebuild, and the
+    // handler correctly says so instead of promising a paper.
+    await handle({ assessment_action: 'rebuilt', summary: '12 questions · 25 marks',
+      flow_token: 'u1:assessment-review:paper-1' }, '92300', { id: 'u1' });
     const [, text] = mockSend.mock.calls[0];
     expect(text).toMatch(/seconds/i);
     expect(text).not.toMatch(/about a minute/i);
+  });
+
+  test('a rebuild with no paper in the token promises nothing', async () => {
+    // The failure this pairs with: telling her a paper is being remade when no
+    // rebuild was even attempted is what shipped to staging.
+    await handle({ assessment_action: 'rebuilt', flow_token: 'u1:assessment-gen:1' },
+      '92300', { id: 'u1' });
+    const [, text] = mockSend.mock.calls[0];
+    expect(text).not.toMatch(/seconds/i);
+    expect(text).toMatch(/\/assessment/);
   });
 
   test('a failure says nothing is being made, and what to do', async () => {

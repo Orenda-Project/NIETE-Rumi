@@ -1001,6 +1001,25 @@ async function handleAssessmentFlowCompletion(responseJson, from, user) {
     }
   }
 
+  // The SAME trap, one screen along: PICK_DONE is terminal too, so its Footer
+  // closes the review Flow instead of calling the endpoint. Without this she is
+  // told "Making your paper again" by a step that never runs — which is exactly
+  // what happened on staging: a clean "rebuilt" ack, then silence.
+  if (action === 'rebuilt') {
+    let result;
+    try {
+      const { rebuildFromCompletion } = require('../routes/assessment-gen-endpoint');
+      result = await rebuildFromCompletion({ flowToken: token, userId: user?.id });
+    } catch (err) {
+      logToFile('[assessment] rebuild from completion threw', { error: err?.message });
+    }
+    if (result?.status !== 'rebuilt') {
+      action = 'rebuild_failed';
+    } else if (!summary) {
+      summary = result.summary || '';
+    }
+  }
+
   const MESSAGES = {
     queued: summary
       ? `📝 Making your paper — about a minute.\n\n${summary}`
