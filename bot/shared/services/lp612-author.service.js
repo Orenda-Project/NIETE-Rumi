@@ -1639,6 +1639,7 @@ const isPageCountOnly = (g) => {
  */
 async function authorLessonPlan({
   segment, lang, model, rounds, correlationId, renderCheck, onCandidate, targetedRevision,
+  resumeFrom,
 } = {}) {
   if (!segment || !segment.book_stem) {
     throw fail('AUTHOR_LLM_FAILED', 'authorLessonPlan needs a segment with a book_stem');
@@ -1688,17 +1689,50 @@ async function authorLessonPlan({
     usage.total_tokens += (u && u.total_tokens) || 0;
   };
 
+  /**
+   * THE ROUNDS A PREVIOUS ATTEMPT ALREADY PAID FOR — bd-oak77.11.
+   *
+   * A checkpoint is only a checkpoint if resuming from it is CHEAPER than starting again. The
+   * expensive step is right below: the round-0 authoring call, ~60-90s and the bulk of the tokens
+   * in a job whose whole budget is 2.5-7 minutes. Handed a document, we skip it.
+   *
+   * `0` for every first attempt, which is the overwhelming majority of runs — their behaviour is
+   * byte-for-byte what it was.
+   */
+  const resumedDoc = resumeFrom && resumeFrom.lpDoc && typeof resumeFrom.lpDoc === 'object'
+    ? resumeFrom.lpDoc
+    : null;
+  const resumedRounds = resumedDoc && Number.isFinite(resumeFrom.rounds)
+    ? Math.max(0, resumeFrom.rounds)
+    : 0;
+
   let doc;
-  try {
-    doc = await callWithRetry({
-      system, user, model: chosenModel, correlationId, stage: 'author', usageSink: addUsage,
+  if (resumedDoc) {
+    // A COPY. The caller's object came off a database row and may be handed to something else
+    // (the worker's `bestSoFar`, a log payload); the ladder mutates its document in place.
+    doc = JSON.parse(JSON.stringify(resumedDoc));
+    logToFile('lp612 author: resuming from a checkpointed document — round 0 not re-authored', {
+      correlationId, segmentId: segment.segment_id, resumedRounds, of: maxRounds,
     });
-  } catch (e) {
-    throw fail(
-      e.code === 'UNPARSEABLE' ? 'AUTHOR_UNPARSEABLE' : 'AUTHOR_LLM_FAILED',
-      `authoring ${segment.segment_id || segment.book_stem} failed: ${e.message}`,
-      { cause: e }
-    );
+    logEvent('lp612.author.resumed', {
+      correlationId: correlationId || null,
+      segmentId: segment.segment_id || null,
+      lang: language,
+      resumedRounds,
+      of: maxRounds,
+    });
+  } else {
+    try {
+      doc = await callWithRetry({
+        system, user, model: chosenModel, correlationId, stage: 'author', usageSink: addUsage,
+      });
+    } catch (e) {
+      throw fail(
+        e.code === 'UNPARSEABLE' ? 'AUTHOR_UNPARSEABLE' : 'AUTHOR_LLM_FAILED',
+        `authoring ${segment.segment_id || segment.book_stem} failed: ${e.message}`,
+        { cause: e }
+      );
+    }
   }
   /**
    * How often does the model write an overlay it was told not to write? Measured, not assumed —
@@ -1757,9 +1791,12 @@ async function authorLessonPlan({
     }
   };
 
-  let gates = await runGates(doc, renderCheck, { ...ladderGateMeta, round: 0 });
-  publish(doc, gates, 0);
-  let spent = 0;
+  // GATED EVEN WHEN RESUMED. A checkpointed document is a document the previous attempt had not
+  // finished judging — the render check is where a page-cap defect is found, and skipping it here
+  // to save 30 seconds would deliver a document nobody ever gated.
+  let gates = await runGates(doc, renderCheck, { ...ladderGateMeta, round: resumedRounds });
+  publish(doc, gates, resumedRounds);
+  let spent = resumedRounds;
   // Consecutive rounds that have reduced no BLOCKING defect. See STALE_ROUNDS.
   let stale = 0;
   // Rounds ENTERED with nothing blocking but page counts. See PAGE_COUNT_ROUND_BUDGET.
@@ -1770,7 +1807,18 @@ async function authorLessonPlan({
   // queryable event instead of something only visible by diffing two ~40k-token log payloads.
   let lastRevisionPromptSha = null;
 
-  for (let rnd = 0; rnd < maxRounds; rnd++) {
+  /**
+   * What is LEFT of the budget — bd-oak77.11.
+   *
+   * The round budget is a latency and cost ceiling for the LESSON, not per attempt: granting a
+   * resumed run a fresh `maxRounds` would let a lesson that has already been killed once cost twice
+   * the budget the operator set, on a teacher who has already waited through both. `Math.max(1, …)`
+   * because a resumed document with a blocking defect and no rounds left would otherwise be
+   * delivered without anyone ever trying to fix it.
+   */
+  const roundBudget = resumedRounds ? Math.max(1, maxRounds - resumedRounds) : maxRounds;
+
+  for (let rnd = 0; rnd < roundBudget; rnd++) {
     // The climb ends when nothing that gates delivery is left — NOT when the defect list is
     // empty. An advisory defect (today: BUDGET) is reported and served, never chased.
     if (blockingCost(gates) === 0) break;
@@ -1808,7 +1856,10 @@ async function authorLessonPlan({
       });
       break;
     }
-    spent = rnd + 1;
+    // bd-oak77.11: `resumedRounds` is 0 on every first attempt, so this is `rnd + 1` exactly as it
+    // has always been; on a resumed run it makes `rounds_used` on the row the TOTAL cost of the
+    // lesson across attempts, which is the number "how much did this lesson cost" needs.
+    spent = resumedRounds + rnd + 1;
     const blockingBefore = blockingCost(gates);
     logToFile('lp612 author revision round', {
       correlationId, segmentId: segment.segment_id, round: spent, of: maxRounds,

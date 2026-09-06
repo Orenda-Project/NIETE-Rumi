@@ -277,6 +277,47 @@ function heartbeatCeilingMs() {
 }
 
 /**
+ * HOW LONG A DRAINING WORKER WAITS FOR AN IN-FLIGHT AUTHORING RUN — bd-oak77.11.
+ *
+ * The operator's requirement is that a deploy never kills a lesson that is being written. The
+ * worker's general graceful-shutdown budget (`GRACEFUL_SHUTDOWN_TIMEOUT`, 30s) is sized for
+ * coaching, where a job either finished inside the window or is cheap to redo. An lp612 authoring
+ * run is neither: 2.5-7 minutes and ~$0.30-0.60 of tokens, and releasing its SQS message mid-run
+ * does not help anybody — the row is still `authoring`, so the next replica re-authors the whole
+ * lesson from round 0 at full price and the teacher's clock starts again.
+ *
+ * DERIVED, not chosen. `LP612_AUTHOR_TIMEOUT_MS` (420000 on prod) bounds authoring + the final
+ * render. Everything after it is unbounded by that clock: the Urdu overlay pass (its own
+ * `overlayTimeoutMs`, 240000 default), the PDF read, two R2 uploads, the terminal DB writes and the
+ * per-waiter WhatsApp send. 04_sub5 measured p90 315s and a max of 407s end to end. Ten minutes
+ * covers that with margin and still bounds a pathological job, which is why the drain releases the
+ * message when this expires rather than waiting forever.
+ *
+ * It is NOT `authorTimeoutMs()`-derived on purpose: the two answer different questions ("how long
+ * may one authoring attempt run" vs "how long will a dying process hold the door open"), and the
+ * Railway draining window has to be set from THIS one.
+ */
+const DEFAULT_DRAIN_TIMEOUT_MS = 10 * 60 * 1000;
+
+function lp612DrainTimeoutMs() {
+  return num(process.env.LP612_DRAIN_TIMEOUT_MS, DEFAULT_DRAIN_TIMEOUT_MS);
+}
+
+/**
+ * THE CHECKPOINT KILL SWITCH — bd-oak77.11. Opt-OUT, never opt-in, for the same reason
+ * `overlayPassOff` is: the default has to be the fix, or the P0 stays unfixed on whichever service
+ * nobody remembered to configure.
+ *
+ * `LP612_CHECKPOINT_OFF=true` stops the worker persisting the ladder's best-so-far document on the
+ * render row and stops it resuming from one. Behaviour returns EXACTLY to today's: a process that
+ * dies mid-run costs the whole lesson, and the next pickup starts at round 0. One Railway variable,
+ * no deploy.
+ */
+function checkpointOff() {
+  return isTrue(process.env.LP612_CHECKPOINT_OFF);
+}
+
+/**
  * The visibility window one `extendJobTimeout` call buys.
  *
  * Matches `receiveJobs`'s `VisibilityTimeout: 900` and the `extendSeconds: 900` the lp612 heartbeat
@@ -395,6 +436,9 @@ module.exports = {
   overlayPassOff,
   followupAfterMs,
   heartbeatCeilingMs,
+  lp612DrainTimeoutMs,
+  checkpointOff,
+  DEFAULT_DRAIN_TIMEOUT_MS,
   queueAbandonMs,
   SQS_VISIBILITY_WINDOW_MS,
   DEFAULT_QUEUE_ABANDON_MS,

@@ -46,6 +46,7 @@ const {
   overlayPassOff,
   followupAfterMs,
   previousTemplateVersions,
+  checkpointOff,
 } = require('../shared/config/lp612-flags');
 const { familyForBook } = require('../shared/config/lp612-families');
 
@@ -61,17 +62,126 @@ function oneScreenOf(authored) {
   return v ? String(v) : null;
 }
 
+/** The columns this job has always needed. */
+const RENDER_COLUMNS = 'id, status, waiters, segment_id, lang, template_version';
+
+/**
+ * Does this PostgREST error mean "that column is not there"?
+ *
+ * It has to be answerable, because `V1.3.9__lp612_checkpoint.sql` is applied BY HAND on this
+ * deployment (NIETE deploys do not run migrations, bd-tqkq9) and the code can therefore reach
+ * production before the column does. `loadRender` returning null ABORTS THE JOB, so a hard select
+ * on an unapplied column would not degrade — it would kill every lesson on the service.
+ */
+function isMissingColumn(error) {
+  if (!error) return false;
+  if (error.code === '42703') return true;
+  return /column .*does not exist|could not find the .* column/i.test(String(error.message || ''));
+}
+
 async function loadRender(renderId) {
-  const { data, error } = await supabase
+  // bd-oak77.11: ONE read, not two. A second select for the checkpoint would be safer to reason
+  // about but shifts every fixture in the worker's existing test harness by one, which is the exact
+  // breakage bd-dr216's pickup stamp caused there; and the fallback below already gives the
+  // safety that a separate read was buying.
+  let { data, error } = await supabase
     .from(RENDERS)
-    .select('id, status, waiters, segment_id, lang, template_version')
+    .select(`${RENDER_COLUMNS}, checkpoint`)
     .eq('id', renderId)
     .maybeSingle();
+
+  if (error && isMissingColumn(error)) {
+    logToFile('LP 6-12 worker: no checkpoint column on this database — resuming is unavailable, '
+      + 'authoring proceeds from round 0 (apply V1.3.9__lp612_checkpoint.sql)', { renderId });
+    ({ data, error } = await supabase
+      .from(RENDERS)
+      .select(RENDER_COLUMNS)
+      .eq('id', renderId)
+      .maybeSingle());
+  }
+
   if (error) {
     logToFile('LP 6-12 worker: render lookup failed', { renderId, error: error.message });
     return null;
   }
   return data || null;
+}
+
+/** The only checkpoint shape this worker understands. Bumped when the shape changes. */
+const CHECKPOINT_VERSION = 1;
+
+/**
+ * The document a previous attempt already paid for, or `null`.
+ *
+ * bd-oak77.11. Every guard here is about NOT resuming from a document that is not this lesson: the
+ * cache key is (segment_id, lang, template_version) and a row survives a template bump, so a
+ * checkpoint written under v9.0 must not seed a v9.1 run, and an Urdu document must not seed an
+ * English one. An unrecognised `v` is ignored rather than trusted — a future shape change can then
+ * never make a still-running worker resume from a document it cannot read.
+ */
+function resumeFromOf(render, { lang, templateVersion }) {
+  if (checkpointOff()) return null;
+  const cp = render && render.checkpoint;
+  if (!cp || typeof cp !== 'object') return null;
+  if (cp.v !== CHECKPOINT_VERSION) return null;
+  if (!cp.lp_doc || typeof cp.lp_doc !== 'object') return null;
+  if (cp.lang !== lang) return null;
+  if (cp.template_version !== templateVersion) return null;
+  const rounds = Number.isFinite(cp.round) ? cp.round : 0;
+  return { lpDoc: cp.lp_doc, rounds, blocking: Array.isArray(cp.blocking) ? cp.blocking : [] };
+}
+
+/**
+ * Persist the ladder's best-so-far document, without ever getting in its way.
+ *
+ * SINGLE-FLIGHT, not queued. Rounds are ~60s apart and a write is milliseconds, so a pending write
+ * only exists when the database is slow — and in that case the RIGHT answer is to drop the older
+ * candidate and keep the newer one, never to queue a backlog of 23KB writes behind a struggling
+ * connection on a path a teacher is waiting on.
+ *
+ * FIRE AND FORGET, and every failure swallowed. This rides `onCandidate`, whose contract in
+ * lp612-author.service.js is explicit that a telemetry-shaped side channel must never be able to
+ * kill the authoring run it observes. `patch()` already logs and swallows its own errors; the
+ * catch here is for anything else.
+ */
+function makeCheckpointWriter(renderId, { lang, templateVersion, correlationId }) {
+  let inFlight = false;
+  let pending = null;
+
+  const flush = () => {
+    if (inFlight || !pending) return;
+    const cand = pending;
+    pending = null;
+    inFlight = true;
+    Promise.resolve()
+      .then(() => patch(renderId, {
+        checkpoint: {
+          v: CHECKPOINT_VERSION,
+          round: Number.isFinite(cand.rounds) ? cand.rounds : 0,
+          lp_doc: cand.lpDoc,
+          blocking: Array.isArray(cand.fails) ? cand.fails.slice(0, 20) : [],
+          deliverable: cand.deliverable === true,
+          lint_clean: cand.lintClean === true,
+          model: cand.model || null,
+          family: cand.family || null,
+          tier: cand.tier || null,
+          template_version: templateVersion,
+          lang,
+          at: nowIso(),
+        },
+      }))
+      .catch((e) => logToFile('LP 6-12 worker: checkpoint write failed (non-fatal)', {
+        renderId, correlationId, error: e.message,
+      }))
+      .finally(() => { inFlight = false; flush(); });
+  };
+
+  return (candidate) => {
+    if (checkpointOff()) return;
+    if (!candidate || !candidate.lpDoc) return;
+    pending = candidate;
+    flush();
+  };
 }
 
 async function loadSegment(segmentId) {
@@ -281,6 +391,9 @@ async function fail(renderId, snapshot, lang, code, detail, model = null) {
   // is what she is owed) rather than being parked on a list about to be emptied.
   await patch(renderId, {
     status: 'failed',
+    // bd-oak77.11 — see the `ready` patch. A failed row is RETRIED by the next tap, and that retry
+    // must start clean rather than from a document this run has already judged unusable.
+    checkpoint: null,
     error_code: code || 'UNKNOWN',
     error_detail: String(detail || '').slice(0, 2000),
     ...(model ? { model_used: model } : {}),
@@ -350,6 +463,26 @@ async function process(payload) {
   // this job finishes the real list will have grown by everyone who tapped the same lesson while
   // it was being written.
   const snapshot = waitersOf(render);
+
+  // bd-oak77.11 — TWO HALVES OF ONE THING, both read from the row we just claimed.
+  //
+  // `resumeFrom` is what a previous attempt already paid for: a deploy, an OOM or a host eviction
+  // that killed the owner mid-run leaves the row `authoring` with the ladder's best document on it,
+  // and this is what stops the redelivered job authoring the whole lesson again from round 0
+  // (~$0.30-0.60 and 2.5-7 minutes, on a teacher who has already been waiting for both).
+  //
+  // `writeCheckpoint` is the other half: it keeps that document current for whoever comes next,
+  // including this same process one round from now.
+  const resumeFrom = resumeFromOf(render, { lang, templateVersion });
+  const writeCheckpoint = makeCheckpointWriter(renderId, { lang, templateVersion, correlationId });
+  if (resumeFrom) {
+    logToFile('LP 6-12 worker: resuming from a checkpoint — a previous attempt died mid-run', {
+      renderId, segmentId, lang, round: resumeFrom.rounds, correlationId,
+    });
+    logEvent('lp612.author.resumed', {
+      renderId, segmentId, lang, round: resumeFrom.rounds, correlationId,
+    });
+  }
 
   const segment = await loadSegment(segmentId);
   if (!segment) {
@@ -647,10 +780,20 @@ async function process(payload) {
       const reused = await reuseFromPreviousVersion();
       const authored = reused || await authorLessonPlan({
         segment, lang, model, rounds: authorRounds(), correlationId, renderCheck,
+        // bd-oak77.11. What a previous attempt already paid for, when there was one. `undefined`
+        // when there was not, which is every first attempt and therefore the overwhelming majority
+        // of runs — the ladder's behaviour is unchanged for them.
+        ...(resumeFrom ? { resumeFrom } : {}),
         // bd-0cdug. The ladder hands out its best document as it goes, so a timeout has something
         // to deliver. Keeping only the DELIVERABLE ones means the catch below never has to
         // re-derive the delivery bar, and the two cannot drift apart.
-        onCandidate: (c) => { if (c && c.deliverable) bestSoFar = c; },
+        //
+        // bd-oak77.11 rides the SAME hook: the candidate that makes a timeout survivable is
+        // exactly the candidate that makes a SIGKILL survivable, once it is on the row.
+        onCandidate: (c) => {
+          if (c && c.deliverable) bestSoFar = c;
+          writeCheckpoint(c);
+        },
       });
       // Recorded the moment it exists, so a render that refuses it below is still explicable.
       authoredDoc = authored.lpDoc;
@@ -975,6 +1118,11 @@ async function process(payload) {
 
     await patch(renderId, {
       status: 'ready',
+      // bd-oak77.11: the run is over, so the ladder's working copy is dead weight — and worse, a
+      // redelivery of this same message must never resume from it. Named explicitly for the same
+      // reason `error_code` and `over_cap` are: an UPDATE that does not name a column leaves
+      // whatever was in it.
+      checkpoint: null,
       // bd-7yxsu: STATUS AND ERROR CODE MAY NEVER DISAGREE.
       //
       // A run can legitimately recover — the reaper wrote `failed` on a row this worker was still
