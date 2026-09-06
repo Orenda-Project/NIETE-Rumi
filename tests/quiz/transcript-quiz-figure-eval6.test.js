@@ -92,6 +92,18 @@ describe('the half rule is repeated where the appetite is', () => {
   });
 });
 
+describe('word_blank says what `blanks` is', () => {
+  test('the contract states it is required, 0-based, and counted on the whole word', () => {
+    // A round-6 Urdu session emitted FIVE word_blanks with no `blanks` at all
+    // and every one failed. The retry fixed it — the message did its job — but
+    // an attempt spent on a field the contract never defined is an attempt
+    // wasted, and this quiz then failed on its second fault instead.
+    const p = prompt();
+    expect(p).toMatch(/"blanks" is REQUIRED and is never empty/);
+    expect(p).toMatch(/ک=0, ت=1, ا=2, ب=3/);
+  });
+});
+
 describe('the colour vocabulary is named where a colour is offered', () => {
   test('pattern and compare_size list the legal tokens and rule out the invented ones', () => {
     // A round-6 maths session wrote var(--red), var(--green) and var(--blue)
