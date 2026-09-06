@@ -229,6 +229,19 @@ const FLOW_CONFIGS = [
     envVar: 'QUIZ_MULTI_FLOW_ID',
     categories: ['OTHER'],
   },
+  {
+    // /quiz as ONE Flow: the lesson list with in-Flow paging, the lesson's own
+    // live results, and generate report / resend link / make the quiz, all
+    // inside the same session — no round-trips through the chat. Leaving
+    // TRANSCRIPT_QUIZ_FLOW_ID unset falls /quiz back to the interactive list
+    // message, which is the rollback lever.
+    name: 'Transcript Quiz',
+    jsonPath: path.join(FLOWS_DIR, 'transcript-quiz-flow.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/transcript-quiz',
+    envVar: 'TRANSCRIPT_QUIZ_FLOW_ID',
+    categories: ['OTHER'],
+  },
 ];
 
 /** The flow names that a complete setup must have registered. */

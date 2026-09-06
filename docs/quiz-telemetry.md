@@ -146,6 +146,28 @@ rows are the per-offer shown/answered counts.
 | summarize sent = count(), image_ok = countif(tobool(d.ok) == true), fell_back = countif(tobool(d.fallback) == true)
 ```
 
+## Transcript Quiz Flow telemetry
+
+`/quiz` as one Flow (`bot/shared/routes/transcript-quiz-flow-endpoint.js`) — the
+lesson list with in-Flow paging, a lesson's own live results, and generate
+report / resend link / make the quiz, all inside one Flow session instead of
+round-tripping through the chat. Six `transcript_quiz.*` events cover it.
+
+| Event | Fires | Fields | Question it answers |
+|-------|-------|--------|----------------------|
+| `transcript_quiz.flow_opened` | `handleTranscriptQuizInit` — the Flow's INIT resolves a teacher from the flow token and the lesson list (page 1) is served | `userId` | How many teachers open the Flow? |
+| `transcript_quiz.flow_page` | `handleTranscriptQuizDataExchange`, `step === 'page'` — the teacher pages the lesson list (older/newer) | `userId`, `page` | How deep do teachers page into the list? |
+| `transcript_quiz.flow_lesson` | `stepLesson` — the teacher taps a lesson row and its LESSON screen (live results) is served | `userId`, `quizId`, `status` (the quiz's state — e.g. `sent`, `report_sent`), `started` (students who have started), `finished` (students who have completed) | Which lessons get opened, and what does their live-results state look like at open time? |
+| `transcript_quiz.flow_action` | `stepAction` — the teacher's chosen action (`report` / `link` / `make:<language>`) has passed the availability check and is about to be dispatched | `userId`, `action`, `quizId` | Which action does a teacher pick, on which quiz? |
+| `transcript_quiz.flow_action_done` | `runAfterResponse` — the action's async work (report generation, link resend, quiz creation) finishes, success or failure, AFTER the DONE screen has already been returned (Meta's data_exchange budget is 10s; a report render or a resend would blow it) | `action`, `quizId`, `ok`, and `error` on failure | Did the action the teacher asked for actually happen? |
+| `transcript_quiz.flow_closed` | `doneScreen(kind, ...)` — fires when the DONE/TERMINAL screen is **served to the client**, not when the teacher taps Close (WhatsApp Flows do not report a Close tap; the terminal screen being sent is the closest signal, and closer than none) | `kind` (`report` \| `link` \| `make` \| `wait`) plus per-kind meta: `userId` always; `quizId` for `report`/`link`; `language` (the chosen quiz language) for `make` | How many Flow sessions reach a terminal screen, broken down by which one? |
+
+`flow_action` and `flow_action_done` are two ends of the same async action —
+join them on `action` + `quizId` (not `userId` alone: the same teacher can
+fire the same action twice). A `flow_action` with no matching
+`flow_action_done` within the request window means the background work never
+finished (crash, or a `runAfterResponse` promise still pending at deploy).
+
 ## Latency
 
 Nothing timed a single send, a phase, or the gap between a child's tap and

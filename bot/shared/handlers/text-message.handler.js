@@ -1094,7 +1094,30 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       typingController.stop();
       try {
         const responseLanguage = await getUserLanguage(user.id) || null;
-        await TranscriptQuizList.showList({ ...user, preferred_language: responseLanguage || user.preferred_language }, from, responseLanguage);
+        const teacher = { ...user, preferred_language: responseLanguage || user.preferred_language };
+        // Presence-gated, read at call time like /video: with
+        // TRANSCRIPT_QUIZ_FLOW_ID set, /quiz opens ONE Flow — the lesson list,
+        // its paging, the lesson's live results and the actions all happen
+        // inside it, so the teacher never drops back to chat mid-task. Unset,
+        // /quiz sends the interactive list message exactly as before; that is
+        // the rollback lever, and both paths stay tested.
+        //
+        // A teacher with nothing to list is answered in chat: a NavigationList
+        // needs at least one item, and "no lessons yet" is not a lesson.
+        const transcriptQuizFlowId = process.env.TRANSCRIPT_QUIZ_FLOW_ID || '';
+        if (transcriptQuizFlowId && await TranscriptQuizList.hasEligibleLessons(user.id)) {
+          const uxLanguage = teacher.preferred_language;
+          await WhatsAppService.sendFlow(from, {
+            flowId: transcriptQuizFlowId,
+            header: resolveUx('tqFlowChatHeader', { language: uxLanguage }),
+            body: resolveUx('tqFlowChatBody', { language: uxLanguage }),
+            buttonText: resolveUx('tqFlowChatCta', { language: uxLanguage }),
+            flowToken: `${user.id}:transcript-quiz:${Date.now()}`,
+          });
+          logToFile('📝 sent transcript quiz flow (/quiz)', { userId: user.id });
+          return;
+        }
+        await TranscriptQuizList.showList(teacher, from, responseLanguage);
       } catch (error) {
         logToFile('❌ transcript quiz: /quiz list failed', { userId: user.id, error: error.message }, 'error');
       }
