@@ -99,28 +99,38 @@ function wire({ quiz = QUIZ } = {}) {
 const insertedRows = () => supabase.from.callsFor('quiz_questions').flat().filter((c) => c[0] === 'insert')[0][1];
 
 describe('toRows', () => {
+  // Round-5 D1: EVERY row now carries `media.display_order`, so `media` is never
+  // absent. What these tests are actually about is the PICTURE — a figure that
+  // did not upload must leave no `question_image` behind — so they assert on that
+  // key, not on the blob that happens to hold it.
+  const picture = (row) => {
+    const { display_order: _ignored, ...rest } = row.media || {};
+    return Object.keys(rest).length ? rest : undefined;
+  };
+
   test('a question with a figure becomes a P3 row carrying the image URL and the spec', () => {
     const rows = Gen.toRows(QID, [q(0, { figure: FRACTION }), q(1)], {
       rng: () => 0, figureUrls: { 0: 'https://r2/q0.png' },
     });
     expect(rows[0].render_pattern).toBe('P3');
-    expect(rows[0].media).toEqual({ question_image: 'https://r2/q0.png', figure: FRACTION });
+    expect(picture(rows[0])).toEqual({ question_image: 'https://r2/q0.png', figure: FRACTION });
     expect(rows[1].render_pattern).toBe('P1');
-    expect(rows[1].media).toBeUndefined();
+    expect(picture(rows[1])).toBeUndefined();
   });
 
   test('with no figureUrls at all, every row is exactly what it was before', () => {
     const rows = Gen.toRows(QID, [q(0), q(1)], { rng: () => 0 });
     rows.forEach((r) => {
       expect(r.render_pattern).toBe('P1');
-      expect(r.media).toBeUndefined();
+      expect(picture(r)).toBeUndefined();
+      expect(r.media.display_order).toHaveLength(3);
     });
   });
 
   test('a figure with no uploaded URL never yields a row pointing at nothing', () => {
     const rows = Gen.toRows(QID, [q(0, { figure: FRACTION })], { rng: () => 0, figureUrls: {} });
     expect(rows[0].render_pattern).toBe('P1');
-    expect(rows[0].media).toBeUndefined();
+    expect(picture(rows[0])).toBeUndefined();
   });
 });
 

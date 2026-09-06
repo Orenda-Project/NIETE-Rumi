@@ -29,6 +29,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const { logToFile } = require('../utils/logger');
 // Additive semantic-event channel (feature.action.result). The prose lines stay; this is the
@@ -345,6 +346,21 @@ function extractJson(text) {
  *
  * @throws Error with .code 'LLM_FAILED'
  */
+/**
+ * A prompt fingerprint, cheap enough to put on every LLM-call log line — bd-5w13w.
+ *
+ * `buildRevisionPrompt` is a pure function of `(doc, gates, originalUser, notes)`
+ * (BREAKDOWN.md §3B): when a candidate is rejected as "worse", none of the four change, so the
+ * next round sends a BYTE-IDENTICAL prompt — a full live call for nothing. Twelve hex chars of
+ * sha256(system + ' ' + user) is enough to say so without shipping the ~40k-token prompt itself
+ * into the log line: two consecutive `lp612 author LLM call` rows in one correlationId carrying
+ * the same `promptSha` IS a byte-identical re-issue, queryable with a self-join instead of a
+ * diff-the-payload exercise.
+ */
+function promptSha12(system, user) {
+  return crypto.createHash('sha256').update(`${system} ${user}`).digest('hex').slice(0, 12);
+}
+
 async function callLlm({ system, user, model, correlationId, stage, maxTokens }) {
   const payload = {
     model,
@@ -422,6 +438,15 @@ async function callLlm({ system, user, model, correlationId, stage, maxTokens })
   logToFile('lp612 author LLM call', {
     correlationId, stage, model,
     chars: String(text).length,
+    // bd-5w13w: the fingerprint + the split usage counters, so the byte-identical-reissue rate
+    // can be measured directly against real (cassette-off) traffic instead of assumed from a
+    // replay-contaminated sample. `usage` (the full blob) already carried prompt_tokens/
+    // completion_tokens nested — these are additive top-level copies for a query that should
+    // not have to reach into a sub-object.
+    promptSha: promptSha12(system, user),
+    promptChars: String(system).length + String(user).length,
+    completion_tokens: (res.usage && res.usage.completion_tokens != null) ? res.usage.completion_tokens : null,
+    prompt_tokens: (res.usage && res.usage.prompt_tokens != null) ? res.usage.prompt_tokens : null,
     usage: res.usage || null,
   });
 
@@ -1580,6 +1605,11 @@ async function authorLessonPlan({
   let stale = 0;
   // Rounds ENTERED with nothing blocking but page counts. See PAGE_COUNT_ROUND_BUDGET.
   let pageOnlyRounds = 0;
+  // bd-5w13w: the previous round's revision-prompt fingerprint, so a byte-identical re-issue
+  // (buildRevisionPrompt is pure in doc/gates/notes — a rejected "worse" candidate leaves all
+  // three unchanged, so the NEXT round's prompt is identical to this one's) is a named,
+  // queryable event instead of something only visible by diffing two ~40k-token log payloads.
+  let lastRevisionPromptSha = null;
 
   for (let rnd = 0; rnd < maxRounds; rnd++) {
     // The climb ends when nothing that gates delivery is left — NOT when the defect list is
@@ -1627,6 +1657,20 @@ async function authorLessonPlan({
     });
 
     const fixUser = buildRevisionPrompt({ doc, gates, originalUser: user, notes: segment.notes, lang: language });
+
+    // bd-5w13w: fires the moment THIS round's prompt hashes identically to the last one sent —
+    // i.e. the previous round's candidate was rejected and doc/gates/notes did not move.
+    const fixUserSha = promptSha12(system, fixUser);
+    if (lastRevisionPromptSha && fixUserSha === lastRevisionPromptSha) {
+      logEvent('lp612.author.prompt_reissued', {
+        correlationId: correlationId || null,
+        segmentId: segment.segment_id || null,
+        round: spent,
+        promptSha: fixUserSha,
+      });
+    }
+    lastRevisionPromptSha = fixUserSha;
+
     let candidate;
     try {
       candidate = await callWithRetry({

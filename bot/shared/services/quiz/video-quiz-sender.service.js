@@ -36,7 +36,7 @@ const GAP_TEXT_MS = 700;
 const GAP_MEDIA_MS = 1200;
 
 /** Picker chrome in the quiz language ('en' when the context carries none). */
-const chrome = (key, ctx) => resolveUx(key, { language: ctx && ctx.language });
+const chrome = (key, ctx, params) => resolveUx(key, { language: ctx && ctx.language, params });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -58,12 +58,14 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * bare letters reads as a rendering fault, and the letters line up with
  * askBody()'s lettering on the questions long enough to still need it.
  */
-function listRows(options, ctx, optionIndices) {
+function listRows(options, ctx, optionIndices, letterTitles = false) {
   const shown = options.slice(0, 10);
   // bd-2359: display position is NOT the option's identity. The id must carry
   // the ORIGINAL index or every shuffled question mis-scores.
   const idx = optionIndices || shown.map((_, i) => i);
-  const handled = shown.some((t) => [...t].length > render.LIST_ROW_TITLE_MAX);
+  // A QUESTION CARD already draws each option behind its letter, so its rows are
+  // letters whatever their length — the same rule the letter buttons follow.
+  const handled = letterTitles || shown.some((t) => [...t].length > render.LIST_ROW_TITLE_MAX);
   return shown.map((title, i) => {
     const row = {
       id: render.answerId(ctx.questionId, idx[i]),
@@ -134,10 +136,13 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
           break;
         case 'list':
           ok = await WhatsAppService.sendInteractiveMessage(phone, {
-            body: { text: m.body },
+            body: { text: m.letterTitles ? cardAskBody(m, ctx, m.options.length) : m.body },
             action: {
               button: chrome('vqChooseAnswer', ctx),
-              sections: [{ title: chrome('vqOptions', ctx), rows: listRows(m.options, ctx, m.optionIndices) }],
+              sections: [{
+                title: chrome('vqOptions', ctx),
+                rows: listRows(m.options, ctx, m.optionIndices, m.letterTitles),
+              }],
             },
           });
           break;
@@ -173,18 +178,34 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
 }
 
 /**
+ * The body under a QUESTION CARD, naming exactly the letters THIS send offers.
+ *
+ * It was hardcoded to "A, B or C" whatever the card held, so a two-option card
+ * told the child to tap a C that was never sent (round 5). `count` is what
+ * the picker will actually emit — three for a button row, up to ten for a list.
+ */
+function cardAskBody(m, ctx, count) {
+  const letters = render.letterListLabel(count, {
+    separator: chrome('vqLetterSep', ctx),
+    conjunction: chrome('vqLetterOr', ctx),
+  });
+  return chrome('vqCardAsk', ctx, { letters });
+}
+
+/**
  * <=3 options. sendInteractiveButtons has NO header support, so a question
  * image has to go through sendImageWithButtons instead — verified in
  * whatsapp.service.js, not assumed from the Meta docs.
  */
 async function sendButtons(phone, m, ctx) {
   const bIdx = m.optionIndices || m.options.map((_, i) => i);   // bd-2359
-  const buttons = m.options.slice(0, 3).map((title, i) => ({
+  const shown = m.options.slice(0, 3);
+  const buttons = shown.map((title, i) => ({
     id: render.answerId(ctx.questionId, bIdx[i]),
     // A question card carries the options in the picture; the buttons are letters.
     title: m.letterTitles ? render.optionLetter(i) : truncateCodePoints(title, render.BUTTON_TITLE_MAX),
   }));
-  const body = m.letterTitles ? chrome('vqCardAsk', ctx) : m.body;
+  const body = m.letterTitles ? cardAskBody(m, ctx, shown.length) : m.body;
   if (m.headerImage) {
     return WhatsAppService.sendImageWithButtons(phone, m.headerImage, body, buttons);
   }

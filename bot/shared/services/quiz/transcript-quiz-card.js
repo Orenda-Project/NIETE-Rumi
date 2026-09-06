@@ -27,6 +27,8 @@ function markB64() {
 const { fontCss } = require('../../../vendor/lp-v9/lib/fonts');
 
 const { needsQuestionCard, richNotation, unicodeNotation, esc, NOTATION_RE, BUTTON_TITLE_MAX } = require('./quiz-notation');
+const { letterListLabel } = require('./video-quiz-render.service');
+const { resolveUx } = require('../../config/ux-strings');
 
 const CARD_WIDTH = 1080;
 
@@ -66,6 +68,15 @@ function renderQuestionCardHtml({ stem, options, displayOrder, figureSvg = null,
   const rows = order.map((stored, pos) => `
       <div class="opt" data-letter="${LETTERS[pos]}"><div class="dia"><span>${LETTERS[pos]}</span></div><div class="opt-text" dir="auto">${richNotation(esc(options[stored]))}</div></div>`).join('');
   const counter = questionNumber && total ? `<div class="counter">${ur ? `سوال ${questionNumber} از ${total}` : `Question ${questionNumber} of ${total}`}</div>` : '';
+  // The footer names the letters THIS card actually draws — a two-option card
+  // must never tell the child to tap a C that is not there, and a four-option
+  // card must name D. Built from options.length, not a hardcoded three.
+  const lang = ur ? 'ur' : 'en';
+  const letters = letterListLabel(options.length, {
+    separator: resolveUx('vqLetterSep', { language: lang }),
+    conjunction: resolveUx('vqLetterOr', { language: lang }),
+  });
+  const footer = resolveUx('vqCardTapBelow', { language: lang, params: { letters } });
   const fig = figureSvg ? `<div class="figure">${figureSvg}</div>` : '';
   // A tall (square-ish) figure is the reason this question is a card at all:
   // let it be tall. A wide one keeps the cap so the options stay on the card.
@@ -98,7 +109,7 @@ html,body{background:#FFFFFF}
 ${fig}
 <div class="stem" dir="${dir}">${richNotation(esc(stem))}</div>
 ${rows}
-<div class="foot">${ur ? 'نیچے A، B یا C دبائیں' : 'Tap A, B or C below'}</div>
+<div class="foot">${footer}</div>
 </div></body></html>`;
 }
 
@@ -128,5 +139,5 @@ async function uploadCard({ teacherId, quizId, index, png }) {
 
 module.exports = {
   needsQuestionCard, richNotation, unicodeNotation, renderQuestionCardHtml, renderQuestionCardPng, uploadCard,
-  NOTATION_RE, BUTTON_TITLE_MAX, CARD_WIDTH,
+  NOTATION_RE, BUTTON_TITLE_MAX, CARD_WIDTH, LETTERS,
 };

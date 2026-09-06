@@ -90,7 +90,7 @@ function toRows(quizId, questions, { rng = Math.random, figureUrls = {} } = {}) 
       ? { question_image: figureUrl, figure: q.figure, ...(selectedBecause ? { selected_because: selectedBecause } : {}) }
       : (selectedBecause ? { selected_because: selectedBecause } : null);
 
-    return {
+    return stampDisplayOrder({
       quiz_id: quizId,
       question_text: String(q.question).trim(),
       option_a: opts[0], option_b: opts[1], option_c: opts[2],
@@ -111,8 +111,33 @@ function toRows(quizId, questions, { rng = Math.random, figureUrls = {} } = {}) 
       render_pattern: (media && media.question_image) ? 'P3' : 'P1',
       ...(media ? { media } : {}),
       sort_order: i,
-    };
+    });
   });
+}
+
+/**
+ * ONE ORDER, STORED ONCE (round-5 D1).
+ *
+ * The order the child sees the options in is decided HERE, once, while the row
+ * still has the `external_id` the shuffle is seeded on, and written onto the row
+ * as `media.display_order` (display position -> stored index). Every consumer
+ * reads it back through `render.displayOrder()`: the question card's picture,
+ * the letter buttons, `feedbackFor`'s letter remap, the teacher PDF's answer key.
+ *
+ * WHY THIS AND NOT "REMEMBER TO SELECT external_id". Because the seed lived in a
+ * column any query could omit, and two of them did (`sendNextQuestion` and
+ * `handleAnswer`): the card was drawn from a row that had it, the buttons were
+ * built from the same row without it, the two shuffles disagreed, and a child who
+ * tapped the picture's B was congratulated for the answer at C. A rule that every
+ * future `.select()` must remember a column is not a fix; a value that travels
+ * inside `media` — which every one of those queries already loads — is.
+ */
+function stampDisplayOrder(row) {
+  const render = require('./video-quiz-render.service');
+  const labels = render.optionLabels(row);
+  const order = render.displayOrder(row, labels);
+  row.media = { ...(row.media || {}), display_order: order };
+  return row;
 }
 
 /**
@@ -566,6 +591,6 @@ async function process(quizId, payload = {}) {
 module.exports = {
   salvageWithoutBadFigures,
   figureRequiredError,
-  process, toRows, renderFigures, renderCards, applyMedia, withFigureSvgs, studentMessage, teacherLabel, renderPdf, pdfFilename,
+  process, toRows, stampDisplayOrder, renderFigures, renderCards, applyMedia, withFigureSvgs, studentMessage, teacherLabel, renderPdf, pdfFilename,
   sleep, N_QUESTIONS, MAX_ATTEMPTS, NUDGE_AFTER_MS,
 };

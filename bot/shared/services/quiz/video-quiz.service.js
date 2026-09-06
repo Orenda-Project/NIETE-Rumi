@@ -275,13 +275,46 @@ async function handleOfferButton(buttonId, phone) {
 // ─── Session ────────────────────────────────────────────────────────────────
 
 /**
+ * The order the questions are ASKED in.
+ *
+ * A transcript quiz's `external_id` is `tq:<quizId>:<sloId>:<n>` (see
+ * transcript-quiz-generate.service.js), so the DB's own `order('external_id')`
+ * walks the bank in SLO-id STRING order — which has nothing to do with the
+ * order the cards were numbered in. A transcript card's printed number is its
+ * `sort_order + 1` (renderCards numbers `i + 1` from `sort_order`), so the
+ * chrome counter ("Question N of M") only agrees with the card's own printed
+ * number when the session itself asks questions in `sort_order`.
+ *
+ * The PK video bank has no such mismatch — it is left exactly as before:
+ * `leg:`-prefixed rows first, then the rest, each group in the order the DB
+ * returned it (operator decision — the legacy bank is the media-rich one, so
+ * a child gets the richer items first).
+ *
+ * `Array.prototype.sort` is stable in Node (V8 has guaranteed this since
+ * Node 11), so a tie (missing/equal `sort_order`) keeps the DB's own order,
+ * and a null/undefined `sort_order` sorts last rather than first.
+ */
+function orderForSession(questions) {
+  if (!questions.length) return [];
+  const isTranscriptBank = questions.every((q) => (q.external_id || '').startsWith('tq:'));
+  if (isTranscriptBank) {
+    return [...questions].sort((a, b) => {
+      const an = a.sort_order == null ? Infinity : a.sort_order;
+      const bn = b.sort_order == null ? Infinity : b.sort_order;
+      return an - bn;
+    });
+  }
+  const legacy = questions.filter((q) => (q.external_id || '').startsWith('leg:'));
+  const generated = questions.filter((q) => !(q.external_id || '').startsWith('leg:'));
+  return [...legacy, ...generated];
+}
+
+/**
  * Pick the questions and open a session.
  *
- * SELECTION: legacy first, generated as top-up (operator decision). The legacy
- * bank is the media-rich one — real recorded audio, real illustration — so a
- * child gets the richer items before any generated text MCQ. Ordered within
- * each source by sort_order so a video's questions arrive in their authored
- * sequence rather than shuffled.
+ * SELECTION: legacy first, generated as top-up (operator decision) for the PK
+ * video bank; a transcript bank is ordered by `sort_order` instead — see
+ * `orderForSession` above for why the two banks need different rules.
  */
 async function startSession({ phone, userId, quizId, videoId, language, deliveryId,
                               source = 'video_solo', studentName = null,
@@ -300,9 +333,7 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
     return null;
   }
 
-  const legacy = questions.filter((q) => (q.external_id || '').startsWith('leg:'));
-  const generated = questions.filter((q) => !(q.external_id || '').startsWith('leg:'));
-  const chosen = [...legacy, ...generated].slice(0, QUESTIONS_PER_SESSION);
+  const chosen = orderForSession(questions).slice(0, QUESTIONS_PER_SESSION);
 
   // bd-2481: video_solo (a teacher taking the quiz herself) never collects a
   // name — share_link already has one (the child gave it at join time). For
@@ -427,14 +458,17 @@ async function sendNextQuestion(phone, state) {
   const questionId = state.questionIds[state.index];
   const { data: q, error } = await supabase
     .from('quiz_questions')
-    .select('id, question_text, option_a, option_b, option_c, option_d, correct_option, '
+    // external_id: video-quiz-render.service.js's displayOrder seeds the
+    // shuffle on external_id || id — without it this re-select shuffles the
+    // options differently from the card the child was actually shown.
+    .select('id, external_id, question_text, option_a, option_b, option_c, option_d, correct_option, '
             + 'explanation, option_feedback, media, render_pattern')
     .eq('id', questionId)
     .single();
   if (error || !q) {
     logToFile('⚠️ video-quiz: question missing, skipping', { questionId });
     state.index += 1;
-    await redisService.set(STATE_KEY(phone), state, STATE_TTL_SECS);
+    await saveState(phone, state, 'sendNextQuestion:missingQuestion');
     return sendNextQuestion(phone, state);
   }
 
@@ -453,7 +487,7 @@ async function sendNextQuestion(phone, state) {
     // a backoff rather than skipping it, so a child doesn't lose a real
     // question to a send blip that clears a moment later.
     state.sendFailures = (state.sendFailures || 0) + 1;
-    await redisService.set(STATE_KEY(phone), state, STATE_TTL_SECS);
+    await saveState(phone, state, 'sendNextQuestion:pickerFailed');
 
     if (state.sendFailures >= MAX_CONSECUTIVE_SEND_FAILURES) {
       logToFile('⚠️ video-quiz: giving up after repeated send failures', {
@@ -470,7 +504,7 @@ async function sendNextQuestion(phone, state) {
   state.sendFailures = 0;
   state.currentQuestionId = q.id;
   state.sentAt = Date.now();
-  await redisService.set(STATE_KEY(phone), state, STATE_TTL_SECS);
+  await saveState(phone, state, 'sendNextQuestion:sent');
   return null;
 }
 
@@ -481,6 +515,14 @@ async function handleAnswer(phone, inputId) {
   const parsed = render.parseAnswer(inputId);
   if (!parsed) return false;
   const state = await redisService.get(STATE_KEY(phone));
+  logEvent('video_quiz.state_read', {
+    where: 'handleAnswer', found: !!state,
+    sessionId: state ? state.sessionId : null,
+    index: state ? state.index : null,
+    answered: state ? state.answered : null,
+    questions: state ? (state.questionIds || []).length : 0,
+    questionId: parsed.questionId,
+  });
   if (!state) {
     await WhatsAppService.sendMessage(phone,
       "That quiz has finished. Pick another video and I'll offer you a fresh one!");
@@ -489,7 +531,9 @@ async function handleAnswer(phone, inputId) {
 
   const { data: q } = await supabase
     .from('quiz_questions')
-    .select('id, question_text, option_a, option_b, option_c, option_d, correct_option, '
+    // external_id: same seed reason as sendNextQuestion's select above — the
+    // grading path must reconstruct the SAME shuffle the child was shown.
+    .select('id, external_id, question_text, option_a, option_b, option_c, option_d, correct_option, '
             + 'explanation, option_feedback, media, render_pattern')
     .eq('id', parsed.questionId)
     .single();
@@ -508,6 +552,10 @@ async function handleAnswer(phone, inputId) {
       ? Math.round((Date.now() - state.sentAt) / 1000) : null,
   });
   if (aErr && aErr.code === '23505') {
+    logEvent('video_quiz.answer_duplicate', {
+      sessionId: state.sessionId, questionId: q.id,
+      index: state.index, answered: state.answered,
+    });
     // UNIQUE(session_id, question_id): either a double tap, or the answer was
     // recorded and the process died before the state advanced (a deploy landed
     // mid-quiz on staging: all eight answers stored, the session stuck at 5/8,
@@ -528,16 +576,16 @@ async function handleAnswer(phone, inputId) {
     isCorrect, selectedIndex: parsed.index,
   });
 
-  state.answered += 1;
-  state.correct += isCorrect ? 1 : 0;
+  // The columns come from the table this call has just written to, never from
+  // the counters carried in `state` — see writeCountersFromAnswers. `state` then
+  // MIRRORS that truth rather than accumulating its own, so a stale blob cannot
+  // put a number on a child's scorecard that nothing in the database supports.
+  const truth = await writeCountersFromAnswers(state.sessionId, { reason: 'answer', phone });
+  state.answered = truth.answered;
+  state.correct = truth.correct;
   state.index += 1;
   state.currentQuestionId = null;
-  await redisService.set(STATE_KEY(phone), state, STATE_TTL_SECS);
-
-  await supabase.from('quiz_sessions').update({
-    total_questions_answered: state.answered,
-    correct_answers: state.correct,
-  }).eq('id', state.sessionId);
+  await saveState(phone, state, 'handleAnswer');
 
   await new Promise((r) => setTimeout(r, 1200));
   await sendNextQuestion(phone, state);
@@ -565,6 +613,93 @@ async function truthFromAnswers(sessionId) {
   return { byQ, answered: byQ.size, correct };
 }
 
+/**
+ * Write the session's counters FROM THE ANSWERS TABLE, and never downwards.
+ *
+ * THE BUG THIS EXISTS TO END. A live staging run stored eight answers, one per
+ * question, no duplicates — and `total_questions_answered` sat at five, with no
+ * error and no warning anywhere. The counters were being written from
+ * `state.answered`: a Redis blob, which is a CACHE, while `quiz_answers` is the
+ * record. That cache can lose an update through two doors, and neither raises
+ * anything a caller can see —
+ *
+ *   1. `redisService.set()` swallows every Redis failure, logs a warning and
+ *      returns `false` (railway-redis.service.js). Nothing here checked the
+ *      return value, so a dropped write left `state.answered` behind and every
+ *      later answer counted up from the stale number.
+ *   2. The read-to-write window in `handleAnswer` spans the whole answer-phase
+ *      send — verdict, explanation image, explanation audio, each behind a
+ *      throttle and a 700-1200 ms gap. Two calls overlapping there both read
+ *      `answered = n` and both write `n + 1`.
+ *
+ * Patching either door leaves the other, and leaves the next one. The counters
+ * simply have no business depending on the cache: `truthFromAnswers()` already
+ * fed `finish()` and `reconcileFromAnswers()` from the table, and the per-answer
+ * write was the one place still trusting the blob.
+ *
+ * The `.lte()` guard is the second half. Reads of the table are monotonic, but
+ * two concurrent WRITES can still land out of order, and an out-of-order write
+ * is how a session that has recorded eight answers reports five. The filter
+ * makes a lower number a no-op at the database, so the columns can move up and
+ * never down.
+ *
+ * @returns {Promise<{answered:number, correct:number}>} the truth it wrote from
+ */
+async function writeCountersFromAnswers(sessionId, { reason, phone } = {}) {
+  const truth = await truthFromAnswers(sessionId);
+  const { data: before } = await supabase
+    .from('quiz_sessions')
+    .select('total_questions_answered, correct_answers')
+    .eq('id', sessionId)
+    .maybeSingle();
+
+  // `id=eq.<session> AND (total_questions_answered IS NULL OR <= n)` — verified
+  // against the client, not assumed from the docs. A bare `.lte()` would have
+  // been a trap: the column is nullable, and `NULL <= n` is UNKNOWN in SQL, so
+  // a session whose counter was never set would silently match no rows and
+  // never be written again.
+  const { error } = await supabase.from('quiz_sessions')
+    .update({ total_questions_answered: truth.answered, correct_answers: truth.correct })
+    .eq('id', sessionId)
+    .or(`total_questions_answered.is.null,total_questions_answered.lte.${truth.answered}`);
+
+  logEvent('video_quiz.counters_written', {
+    sessionId, reason,
+    phoneTail: phone ? String(phone).slice(-4) : null,
+    fromAnswered: before ? before.total_questions_answered : null,
+    fromCorrect: before ? before.correct_answers : null,
+    toAnswered: truth.answered,
+    toCorrect: truth.correct,
+    // A guard that fires is not an error: it means a later write already got
+    // there. It IS the signal that two writers overlapped, so it is worth
+    // counting in the logs rather than inferring from a gap.
+    guarded: !!(before && (before.total_questions_answered || 0) > truth.answered),
+    error: error ? error.message : null,
+  });
+  if (error) {
+    logToFile('\u26a0\ufe0f video-quiz: counter write failed', { sessionId, error: error.message });
+  }
+  return truth;
+}
+
+/**
+ * Put the session state back in Redis, and SAY SO when the write is lost.
+ *
+ * `redisService.set()` returns false on any failure and logs it as a warning
+ * nobody reads. A lost state write is not fatal any more — the counters come
+ * from the answers table — but it is exactly the event that has to be visible
+ * when a session behaves oddly, so it gets its own name.
+ */
+async function saveState(phone, state, where) {
+  const ok = await redisService.set(STATE_KEY(phone), state, STATE_TTL_SECS);
+  logEvent('video_quiz.state_written', {
+    sessionId: state.sessionId, where, ok: ok !== false,
+    index: state.index, answered: state.answered, correct: state.correct,
+    questions: (state.questionIds || []).length, ttlSecs: STATE_TTL_SECS,
+  });
+  return ok;
+}
+
 async function reconcileFromAnswers(phone, state) {
   const truth = await truthFromAnswers(state.sessionId);
   const ids = state.questionIds || [];
@@ -575,11 +710,8 @@ async function reconcileFromAnswers(phone, state) {
   const firstOpen = ids.findIndex((id) => !truth.byQ.has(id));
   state.index = (firstOpen < 0 || truth.answered >= ids.length) ? ids.length : firstOpen;
   state.currentQuestionId = null;
-  await redisService.set(STATE_KEY(phone), state, STATE_TTL_SECS);
-  await supabase.from('quiz_sessions').update({
-    total_questions_answered: state.answered,
-    correct_answers: state.correct,
-  }).eq('id', state.sessionId);
+  await saveState(phone, state, 'reconcileFromAnswers');
+  await writeCountersFromAnswers(state.sessionId, { reason: 'reconcile', phone });
   logEvent('video_quiz.reconciled', { sessionId: state.sessionId, answered: state.answered, index: state.index });
   await sendNextQuestion(phone, state);
   return true;
@@ -601,7 +733,7 @@ async function finish(phone, state) {
   const pct = total ? Math.round((correct / total) * 100) : 0;
   const level = pct >= 80 ? 'mastered' : pct >= 60 ? 'developing' : 'needs_practice';
 
-  await supabase.from('quiz_sessions').update({
+  const { error: fErr } = await supabase.from('quiz_sessions').update({
     status: 'completed',
     total_questions_answered: total,
     correct_answers: state.correct,
@@ -609,6 +741,17 @@ async function finish(phone, state) {
     mastery_level: level,
     completed_at: new Date().toISOString(),
   }).eq('id', state.sessionId);
+  // Deliberately NOT guarded by `.lte()`: this write is the session's last word
+  // and it carries `status`, `mastery_percentage` and `completed_at` with it, so
+  // refusing it over a counter would leave a finished quiz marked in_progress.
+  // It is safe unguarded precisely because `total` was read from the answers
+  // table two lines up rather than from the cache.
+  logEvent('video_quiz.counters_written', {
+    sessionId: state.sessionId, reason: 'finish',
+    phoneTail: String(phone).slice(-4),
+    toAnswered: total, toCorrect: state.correct, guarded: false,
+    error: fErr ? fErr.message : null,
+  });
 
   await redisService.delete(STATE_KEY(phone));
 
@@ -726,8 +869,10 @@ module.exports = {
   handleOfferButton,
   handleAnswer,
   startSession,
+  orderForSession,
   sweepIgnoredOffers,
   sendNextQuestion,
+  writeCountersFromAnswers,
   getActiveState,
   quizForVideo,
   QUESTIONS_PER_SESSION,

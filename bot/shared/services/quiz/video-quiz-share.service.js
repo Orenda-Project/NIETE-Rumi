@@ -24,6 +24,7 @@ const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const StudentIdentity = require('./student-identity.service');
+const TeacherSelfTest = require('./teacher-self-test');
 
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 
@@ -242,6 +243,26 @@ async function beginFromCode(phone, code) {
   };
   const lang = ctx.language;
 
+  // PLAN_R5 §1 D8 — is this the teacher testing her own class link? A
+  // self-test is never asked for a name/class and never written into
+  // `students`; the marker is `quiz_sessions.user_id`, no schema change
+  // (see teacher-self-test.js).
+  const selfTest = await TeacherSelfTest.resolveSelfTest({ phone, teacherUserId: ctx.teacherUserId });
+  if (selfTest) {
+    await redisService.delete(JOIN_KEY(phone));
+    await WhatsAppService.sendMessage(phone, ux('vqSelfTestStart', lang));
+    // `id: null` explicitly: startForStudent reads `student.id` for the
+    // `students` FK, and an undefined there is one JSON round-trip away from
+    // becoming a silent surprise. She has no students row, by design.
+    await startForStudent(phone, ctx, { id: null, student_name: selfTest.name || null },
+      { selfTestUserId: selfTest.userId });
+    // The event carries ids only — never the phone and never the name.
+    logEvent('video_quiz.teacher_self_test', {
+      shareCodeId: ctx.shareCodeId, quizId: ctx.quizId, userId: selfTest.userId,
+    });
+    return true;
+  }
+
   const greeting = ux('vqGreeting', lang, {
     teacher: sc.teacher_name || resolveUx('tqYourTeacher', { language: lang }),
     topic: sc.topic || resolveUx('tqTodaysLesson', { language: lang }),
@@ -378,11 +399,19 @@ async function handleJoinFlowReply(phone, flowToken, payload = {}) {
   return true;
 }
 
-/** Begin the quiz for a child we can name, linking the session to them. */
-async function startForStudent(phone, ctx, student) {
+/**
+ * Begin the quiz for a child we can name, linking the session to them.
+ *
+ * `opts.selfTestUserId` is the one exception: set only by the teacher
+ * self-test path above, it names the SESSION as hers (`user_id`) instead of
+ * a `students` row. The two other call sites (`handleJoinFlowReply`,
+ * `consumeJoinReply`) never pass it, so they are unchanged — `userId` stays
+ * `null` for every child, exactly as before.
+ */
+async function startForStudent(phone, ctx, student, opts = {}) {
   const VideoQuizService = require('./video-quiz.service');
   await VideoQuizService.startSession({
-    phone, userId: null, quizId: ctx.quizId, videoId: ctx.videoId,
+    phone, userId: opts.selfTestUserId || null, quizId: ctx.quizId, videoId: ctx.videoId,
     language: ctx.language, source: 'share_link',
     studentName: student.student_name || student.name,
     studentClass: student.self_reported_class || student.className,
