@@ -838,32 +838,44 @@ const UX_STRINGS = {
     ur: 'پہلے طالب علم کے شروع کرنے کے تقریباً 12 گھنٹے بعد — یا سب کے مکمل کرتے ہی — رپورٹ آئے گی۔ اپنے quizzes دیکھنے یا رپورٹ منگوانے کے لیے کبھی بھی /quiz بھیجیں۔',
   },
   tqListBody: {
-    en: 'Your most recent lessons — up to 10, newest first. Pick one to make a quiz, resend its link, or get its report.',
-    ur: 'آپ کے حالیہ اسباق — زیادہ سے زیادہ 10، نئے سے پرانے۔ کوئی ایک چنیں — quiz بنانے، link دوبارہ بھیجنے یا رپورٹ لینے کے لیے۔',
+    en: 'Your lessons, newest first. Pick one to make a quiz, resend its link, or get its report.',
+    ur: 'آپ کے اسباق، نئے سے پرانے۔ کوئی ایک چنیں — quiz بنانے، link دوبارہ بھیجنے یا رپورٹ لینے کے لیے۔',
   },
   tqListButton: { en: 'Choose lesson', ur: 'سبق چنیں' },
   tqListSection: { en: 'Recent lessons', ur: 'حالیہ اسباق' },
+  tqListHeader: { en: 'Lessons {from}–{to}', ur: 'اسباق {from}–{to}' },
   tqListEmpty: {
     en: 'No lessons yet. Record a lesson for coaching first — then /quiz can turn it into a quiz for your students.',
     ur: 'ابھی کوئی سبق نہیں۔ پہلے coaching کے لیے سبق ریکارڈ کریں — پھر /quiz اسے طلبہ کے لیے quiz بنا دے گا۔',
   },
-  tqRowNoQuiz: { en: 'No quiz yet — tap to make one', ur: 'ابھی quiz نہیں — بنانے کے لیے tap کریں' },
-  tqRowOffered: { en: 'Offered — tap to make it', ur: 'پیشکش کی گئی — بنانے کے لیے tap کریں' },
+  tqRowNoQuiz: { en: 'No quiz yet', ur: 'ابھی quiz نہیں' },
+  tqRowOffered: { en: 'Offered — tap to make', ur: 'پیشکش — بنانے کو tap' },
   tqRowMaking: { en: 'Being made…', ur: 'تیار ہو رہا ہے…' },
-  tqRowSent: { en: 'Sent · {started} started · {finished} finished', ur: 'بھیجا گیا · {started} نے شروع کیا · {finished} مکمل' },
-  tqRowReportSent: { en: 'Report sent · {finished} finished', ur: 'رپورٹ بھیج دی گئی · {finished} مکمل' },
-  tqRowFailed: { en: 'Could not be made — tap to retry', ur: 'نہیں بن سکا — دوبارہ کوشش کے لیے tap کریں' },
+  tqRowSent: { en: 'Sent · {started} started · {finished} done', ur: 'بھیجا، {started} نے شروع، {finished} مکمل' },
+  tqRowReportSent: { en: 'Report sent · {finished} done', ur: 'رپورٹ بھیجی، {finished} مکمل' },
+  tqRowFailed: { en: 'Failed — tap to retry', ur: 'نہیں بنا — دوبارہ tap' },
+  tqRowOlder: { en: 'Older lessons…', ur: 'پرانے اسباق…' },
+  tqRowOlderDesc: { en: 'The next 9, going back', ur: 'اگلے 9، اور پیچھے' },
+  // The date is here because she is choosing between lessons, and two lessons
+  // can carry the same topic in one term.
   tqQuizStatus: {
-    en: '*{topic}*\n{started} started · {finished} finished.\n\nResend the link, or get the report now?',
-    ur: '\u200F*{topic}*\n{started} نے شروع کیا · {finished} مکمل۔\n\nlink دوبارہ بھیجیں، یا ابھی رپورٹ لیں؟',
+    en: '*{topic}*\n{date} · {started} started · {finished} finished.\n\nResend the link, or regenerate the report?',
+    ur: '\u200F*{topic}*\n{date}، {started} نے شروع کیا، {finished} مکمل۔\n\nlink دوبارہ بھیجیں، یا رپورٹ دوبارہ بنائیں؟',
   },
   tqLinkButton: { en: 'Resend link', ur: 'دوبارہ link بھیجیں' },
-  tqReportButton: { en: 'Report now', ur: 'رپورٹ ابھی' },
+  // Both ≤ 20 code points in both languages — a WhatsApp button title cap.
+  tqReportButton: { en: 'Regenerate report', ur: 'رپورٹ دوبارہ بنائیں' },
+  tqBackButton: { en: 'Back to lessons', ur: 'اسباق پر واپس' },
   tqNoReportYet: {
     en: 'No one has finished this quiz yet, so there is nothing to report. Resend the link?',
     ur: 'ابھی کسی نے یہ quiz مکمل نہیں کیا، اس لیے رپورٹ کے لیے کچھ نہیں۔ link دوبارہ بھیجیں؟',
   },
-  tqReportComing: { en: 'Preparing the report now…', ur: 'رپورٹ تیار ہو رہی ہے…' },
+  // Names the refetch: the whole point of the button is that a child who
+  // finished since the last report is counted this time.
+  tqReportComing: {
+    en: 'Recounting now — every student who has finished since the last report is included. One moment…',
+    ur: 'ابھی دوبارہ گنا جا رہا ہے — پچھلی رپورٹ کے بعد جس نے بھی مکمل کیا وہ بھی شامل ہے۔ ایک لمحہ…',
+  },
   tqNotYours: {
     en: 'I couldn’t find that lesson. Send /quiz to see your lessons.',
     ur: 'وہ سبق نہیں ملا۔ اپنے اسباق دیکھنے کے لیے /quiz بھیجیں۔',

@@ -507,85 +507,21 @@ async function process(quizId, payload = {}) {
     logEvent('transcript_quiz.ready', { quizId, questions: rows.length, language, attempts: attempts.length, costUsd: meta.cost_usd });
   }
 
-  // ── hand-off
+  // ── hand-off (mint or reuse the share code, PDF, the three paced messages —
+  // owned by transcript-quiz-handoff.service so /quiz "resend the link" can
+  // run the exact same thing on a quiz that already went out).
   const { data: storedQs } = await supabase.from('quiz_questions')
     .select('external_id, question_text, option_a, option_b, option_c, correct_option, explanation, distractor_misconceptions, option_feedback, media, render_pattern, sort_order')
     .eq('quiz_id', quizId).order('sort_order', { ascending: true });
   const qRows = storedQs && storedQs.length ? storedQs : applyMedia(toRows(quizId, questions || []), questions || [], { figureUrls, cardUrls, language });
 
-  const share = require('./video-quiz-share.service');
-  const minted = await share.mintCode({ quizId, userId: quiz.teacher_id, videoId: null, language });
-  if (!minted) {
-    await updateQuiz(quizId, { meta: { ...meta, step: 'ready', handoff_error: 'mint_failed' } });
-    await WhatsAppService.sendMessage(phone, resolveUx('tqCouldNotSend', { language: teacherLang }));
-    return { failed: true, reason: 'mint_failed' };
-  }
-  const link = `https://wa.me/${share.botNumber()}?text=QUIZ-${minted.code}`;
-  const lessonDate = formatLessonDate(session.created_at, language);
-  const forwardable = studentMessage({ teacherName: minted.teacherName || teacherName, topic: quiz.topic, date: lessonDate, link, language });
-
-  // PDF — best effort. A missing PDF is a worse teacher experience, not a
-  // reason to withhold the quiz her class can already take.
-  let pdfKey = null;
-  let tempPath = null;
-  try {
-    const buffer = await renderPdf({
-      quiz, questions: withFigureSvgs(qRows, questions, language), digest, teacherName,
-      grade: quiz.grade || meta.grade || null,
-      lessonSummary: meta.lesson_summary || '',
-      // D1: one language for the whole document, and it is the quiz's — not
-      // `teacherLang`, which still owns the messages either side of it.
-      language, contentLanguage: language,
-      date: formatLessonDate(session.created_at, language, { year: true }), link,
-    });
-    try {
-      const { uploadBuffer } = require('../../storage/r2');
-      pdfKey = `transcript_quizzes/${quiz.teacher_id}/${quizId}.pdf`;
-      await uploadBuffer(buffer, pdfKey, 'application/pdf');
-    } catch (upErr) {
-      pdfKey = null;
-      logToFile('⚠️ transcript quiz: PDF upload to R2 failed (continuing)', { quizId, error: upErr.message });
-    }
-    tempPath = path.join(os.tmpdir(), `transcript-quiz-${quizId}.pdf`);
-    fs.writeFileSync(tempPath, buffer);
-  } catch (err) {
-    logToFile('⚠️ transcript quiz: PDF render failed (sending the link without it)', { quizId, error: err.message });
-  }
-
-  const caption = resolveUx('tqHandoffIntro', {
-    language: teacherLang,
-    params: { lesson: lessonLabel({ digest, quizLanguage: language, teacherLanguage: teacherLang }), n: qRows.length },
+  const Handoff = require('./transcript-quiz-handoff.service');
+  const result = await Handoff.sendHandoff(quizId, phone, {
+    firstSend: true,
+    prepared: { quiz, session, questions, qRows, digest, teacherName, meta, language, teacherLang },
   });
-  let pdfSent = false;
-  if (tempPath) {
-    pdfSent = await WhatsAppService.sendDocument(phone, tempPath, pdfFilename(quiz.topic), caption);
-    try { fs.unlinkSync(tempPath); } catch { /* not worth failing over */ }
-  }
-  if (!pdfSent) {
-    await WhatsAppService.sendMessage(phone, `${caption}\n\n${resolveUx('tqForwardThis', { language: teacherLang })}`);
-  }
-  await api.sleep(GAP_MS);
-  await WhatsAppService.sendMessage(phone, forwardable);      // THE forwardable message, alone
-  await api.sleep(GAP_MS);
-  await WhatsAppService.sendMessage(phone, resolveUx('tqReportPromise', { language: teacherLang }));
-
-  meta = {
-    ...meta, step: 'sent', share_code: minted.code, share_code_id: minted.id, link,
-    student_message: forwardable, pdf_key: pdfKey, pdf_sent: pdfSent, sent_at: new Date().toISOString(),
-  };
-  await updateQuiz(quizId, { status: 'sent', meta });
-  logEvent('transcript_quiz.sent', { quizId, userId: quiz.teacher_id, code: minted.code, language, pdfSent, costUsd: meta.cost_usd });
-
-  try {
-    const SQSQueueService = require('../queue/sqs-queue.service');
-    const targetAt = new Date(Date.now() + NUDGE_AFTER_MS).toISOString();
-    await SQSQueueService.queueJob(quizId, 'quiz_nudge_teacher', { quizId, targetAt }, {
-      delaySeconds: 900, deduplicationId: `${quizId}-quiz_nudge_teacher`,
-    });
-  } catch (err) {
-    logToFile('⚠️ transcript quiz: nudge scheduling failed (non-fatal)', { quizId, error: err.message });
-  }
-  return { ok: true, quizId, code: minted.code };
+  if (!result.ok) return { failed: true, reason: result.reason };
+  return { ok: true, quizId, code: result.code };
 }
 
 module.exports = {
