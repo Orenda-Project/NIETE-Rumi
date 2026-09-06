@@ -58,4 +58,51 @@ function classLabel(v, language = 'en') {
   return language === 'ur' ? `جماعت ${t}` : `Grade ${t}`;
 }
 
-module.exports = { stripEmphasis, classLabel };
+
+/**
+ * PLAN_R5 §0 item 6 — name the class from what the CHILDREN typed.
+ *
+ * The pre-send PDF used to print the DIGEST's grade band, and a band derived
+ * from a transcript reads "Grade 6-8", which the operator correctly called a
+ * wild range: it is the model's guess about a recording, not a fact about a
+ * classroom. By the time the report is written the fact exists — every child
+ * typed a class into the join form — so the report says what they typed and
+ * the PDF, which is written before any of them has, says nothing at all.
+ *
+ * Two children in one class must not read as two classes, so "7", "Class 7"
+ * and " 7 " collapse; the unit word the child typed is stripped for the
+ * comparison and the DOCUMENT's own unit word is put back once, in front.
+ *
+ * Sorted numerically, because a lexical sort puts "10" before "6" and a
+ * teacher reading "Classes 10, 6, 7" assumes the report is broken.
+ */
+const CLASS_UNIT = /^(grade|class|jamaat|jamat)\b[\s.:-]*|^جماعت[\s.:-]*/i;
+
+function classHeading(values, language = 'en') {
+  const seen = new Map();
+  (Array.isArray(values) ? values : []).forEach((v) => {
+    const raw = String(v === null || v === undefined ? '' : v).trim();
+    if (!raw) return;
+    const bare = raw.replace(CLASS_UNIT, '').trim();
+    if (!bare) return;
+    const key = bare.toLowerCase().replace(/\s+/g, ' ');
+    if (!seen.has(key)) seen.set(key, bare);
+  });
+  const classes = [...seen.values()].sort((a, b) => {
+    const na = parseFloat(a);
+    const nb = parseFloat(b);
+    if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
+    if (Number.isFinite(na) !== Number.isFinite(nb)) return Number.isFinite(na) ? -1 : 1;
+    return a.localeCompare(b);
+  });
+  if (!classes.length) return '';
+  const ur = language === 'ur';
+  const unit = classes.length > 1
+    ? (ur ? 'جماعتیں' : 'Classes')
+    : (ur ? 'جماعت' : 'Class');
+  // The list separator belongs to the sentence's language, like every other
+  // piece of punctuation in it (language-protocol §9.6).
+  return `${unit} ${classes.join(ur ? '، ' : ', ')}`;
+}
+
+module.exports = { stripEmphasis, classLabel, classHeading };
