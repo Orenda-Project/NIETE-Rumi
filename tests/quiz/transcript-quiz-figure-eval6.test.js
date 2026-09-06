@@ -80,6 +80,18 @@ describe('the author contract tells the model what to do when the set lacks its 
   });
 });
 
+describe('the half rule is repeated where the appetite is', () => {
+  test('the early-years block states the cap in questions, not as a fraction', () => {
+    // The block visibly raises the model's appetite for pictures: on the first
+    // eval run one Urdu session came back with FIVE figures in eight questions
+    // and the whole quiz was thrown away by FIGURE_SHARE — a rule stated 40
+    // lines earlier, in a paragraph the enthusiasm below it overrode.
+    const p = prompt();
+    expect(p).toMatch(/THE HALF RULE STILL HOLDS HERE/);
+    expect(p).toMatch(/at most half of the 8 questions may carry a picture[\s\S]{0,80}4 at the very most/i);
+  });
+});
+
 describe('count_objects is a counting instrument, not a vocabulary one', () => {
   test('the contract says so, and points at match instead', () => {
     const p = prompt();

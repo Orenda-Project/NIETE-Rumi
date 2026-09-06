@@ -55,7 +55,7 @@ function isEarlyYears(gradeBand) {
  * grade 9 chemistry quiz it would be tokens spent teaching a model shapes it
  * must not use.
  */
-function earlyYearsBlock(pictogramRoster) {
+function earlyYearsBlock(pictogramRoster, n) {
   return `
 EARLY YEARS (this class is grade 1-5, so these types are open to you as well).
 A picture is worth far more to a six-year-old than to a fifteen-year-old: a child who cannot yet read a long stem can still count apples, read a clock, or see which letter is missing. Reach for one of these whenever the lesson counted, sounded out, spelled, timed, compared, sorted or continued something.
@@ -70,10 +70,11 @@ A picture is worth far more to a six-year-old than to a fifteen-year-old: a chil
 PICTOGRAM NAMES — a picture of a thing comes from this fixed set and NOTHING ELSE. NEVER INVENT A PICTOGRAM NAME: a name that is not on this list fails the question outright. The set will not have every word your lesson used. When it does not, choose a word from the lesson that IS on the list, or write that question without a figure — those are the only two options.
 ${pictogramRoster}
 Reuse the older types for a young class too: numberline for before/after and ordering, fraction_bar and grid for part-whole, geometry for naming a shape, flow or timeline for a sequence of steps.
+THE HALF RULE STILL HOLDS HERE. At most half of the ${n} questions may carry a picture — for ${n} questions that is ${Math.floor(n / 2)} at the very most. These types are easy to reach for and a quiz that draws on five of eight is thrown away whole. Pick the ${Math.floor(n / 2)} questions the picture genuinely earns and write the rest as text.
 `;
 }
 
-function figureContract({ subject, gradeBand } = {}) {
+function figureContract({ subject, gradeBand, nQuestions = DEFAULT_QUESTIONS } = {}) {
   const drawable = ['maths', 'science', 'genk', 'other'].includes(String(subject || '').toLowerCase());
   const early = isEarlyYears(gradeBand);
   // A grade 1-5 lesson in ANY subject can now be drawn — the early-years types
@@ -123,7 +124,7 @@ WORKED EXAMPLES (spec next to the question it serves):
 3. grid, count_compare — stem "تصویر میں کتنے خانے رنگے ہوئے ہیں؟", options ["12", "8", "20"], correct 0,
    "figure": {"type":"grid","rows":4,"cols":5,"shaded":12}
 
-${early ? earlyYearsBlock(pictogramNames().join(', ')) : ''}
+${early ? earlyYearsBlock(pictogramNames().join(', '), nQuestions) : ''}
 ALLOWED TYPES — nothing else is accepted (${offered.join(', ')}):
 ${minimalSpecBlock(offered)}`;
 }
@@ -183,7 +184,7 @@ LESSON SUMMARY. Also return a top-level "lesson_summary": 2-3 sentences, in the 
 SELECTED BECAUSE. Every question also carries a "selected_because": at most 15 words, naming the specific moment in the lesson this question was chosen from (e.g. "she counted 26 to 30 aloud with the class", "the fraction of the roti she drew on the board"). This is WHY the question was picked from the transcript, not why the answer is correct — never restate the answer and never repeat "explanation". Write selected_because in the quiz language (the same language as the questions), never in English on an Urdu quiz.
 RELIGIOUS CONTENT (Islamiyat / سیرت / any mention of the Prophet, companions, Qur'an): every mention of the Prophet carries ﷺ immediately after the name; companions carry رضی اللہ عنہ / عنہا; اللہ and all sacred names in Urdu/Arabic script only; NEVER invent or paraphrase a hadith or an ayah — quote only what the lesson quoted, and only with the reference the teacher gave; no question may ask a child to guess what the Prophet ﷺ "would say".
 
-${figureContract({ subject: digest && digest.subject, gradeBand })}
+${figureContract({ subject: digest && digest.subject, gradeBand, nQuestions: n })}
 ${multiContract({ allowMulti, n })}${retry}
 
 Return ONLY this JSON object:
