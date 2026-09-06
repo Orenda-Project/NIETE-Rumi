@@ -46,7 +46,7 @@
 const fs = require("fs");
 const path = require("path");
 const { validateDoc } = require("./lib/validate");
-const { frozenReason } = require("./lib/overlay");
+const { frozenReason, MACHINE_KEYS } = require("./lib/overlay");
 const { wordCount, chemPlusDefects, fixChemPlus } = require("./lib/rich");
 const { buildHtml } = require("./lib/template");
 const { textNodes } = require("./lib/domtext");
@@ -443,7 +443,14 @@ function lint(doc, docPath, opts = {}) {
       checkOverlaps = require("./diagrams").checkOverlaps;
     } catch (_) { /* engine absent — the renderer still checks */ }
     if (renderDiagram && requiredBox) {
-      const FULL_COL = 794 - 22 * 2 - (10 * 2 + 3);   // 727px, per lib/template.js
+      // READ FROM THE RENDERER, never recomputed. This line used to be
+      // `794 - 22 * 2 - (10 * 2 + 3)` = 727 with the comment "per lib/template.js" — and
+      // lib/template.js computes 794 - 21 * 2 - 23 = 729, while ITS comment also said 727. So both
+      // files were wrong about the same number in opposite directions and the two legibility gates
+      // measured different columns: the lint was 2px stricter than the renderer, and could buy the
+      // ladder ~60s revision rounds chasing a FIGURE defect the renderer would never report.
+      // Production settled it on 2026-09-06 ("13.25px in a 729px column"). One definition, imported.
+      const FULL_COL = require("./lib/template.js").FULL_COL;
       for (const s of doc.sections) {
         for (const b of allBlocks(s.blocks)) {
           if (b.type !== "diagram") continue;
@@ -1701,6 +1708,12 @@ const OVERLAY_SKIP_KEYS = new Set([
   "slo_code", "code", "url", "channel", "checked_at", "duration", "medium", "language",
   "version", "brand", "name", "color", "colour", "fill", "stroke", "font", "align", "anchor",
   "at", "sec", "sequence_id", "segment_id",
+  // bd-oak77.23 — the fields the renderer PARSES rather than prints (tex, smiles, equation,
+  // formula), READ FROM lib/overlay.js rather than retyped. They belong here as well as in
+  // `frozenReason` because this set also short-circuits the object walk below, and because a
+  // second HAND-WRITTEN copy is exactly what let `spec.formula` through: `overlayTargets`
+  // consulted this list, `applyOverlay` consulted that one, and neither carried these keys.
+  ...MACHINE_KEYS,
 ]);
 /** Subtrees that are citation metadata or a third party's own text, not our instructions. */
 const OVERLAY_SKIP_ROOTS = ["/provenance", "/video", "/revisions", "/ur_overlay"];
@@ -1800,4 +1813,8 @@ overlayDefects.MIN_COVERAGE = OVERLAY_MIN_COVERAGE;
 module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates, graphDefects, atomDefects, specContractDefects,
   overlayDefects, OVERLAY_MIN_COVERAGE,
   SECTION_BUDGET, SECTION_BUDGET_V9, DOC_BUDGET, DOC_BUDGET_V9, OUTCOME_BOX_V9,
-  MAX_HOMEWORK_ITEMS, MAX_BOARD_WEIGHT, MAX_ACTIVITIES, PLACEHOLDERS, FOREIGN_BRANDS };
+  MAX_HOMEWORK_ITEMS, MAX_BOARD_WEIGHT, MAX_ACTIVITIES, PLACEHOLDERS, FOREIGN_BRANDS,
+  // Exported so a test can assert the frozen set covers every enum/id field the SCHEMA declares
+  // — a hand-maintained list is what let `formula` and `closed_by` through (bd-oak77.23).
+  OVERLAY_SKIP_KEYS,
+};

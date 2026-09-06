@@ -14,9 +14,19 @@
  * The row records `over_cap` and the event carries the pages AND the caps, which is what lets
  * the "does the distribution refill to the new cap?" experiment run after 40 lessons.
  *
- * WHAT IS NOT RELAXED: every other render defect. OVERFLOW clips content off the bottom of a
- * page and TRUNCATION drops pages out of the file — those are broken documents, not long ones,
- * and they still fail.
+ * WHAT IS NOT RELAXED HERE: anything else about LENGTH.
+ *
+ * PARTLY SUPERSEDED, 2026-09-06 (bd-oak77.14). This paragraph used to read "every other render
+ * defect ... still fail", with OVERFLOW as its example. That is no longer true, and the reason is
+ * in tests/lp612/never-fail-delivery.test.js: the first Urdu tap on production lost a complete
+ * 17-page document to `FIGURE TOO SMALL` at 13.25px against a 13.5px floor, in a MIXED set with
+ * two PAGE COUNTs. A defect that leaves the document WHOLE now delivers with `render_degraded` on
+ * the row and an honest line in her caption. TRUNCATION — pages MISSING from the file — still
+ * fails, and is still tested below.
+ *
+ * The over-cap behaviour this file pins is UNCHANGED. Only the "and everything else fails" corner
+ * moved, and it moved into a policy module (lp612-render-policy.service.js) that both suites read,
+ * so the two cannot drift.
  */
 
 describe('the worker delivers an over-cap lesson instead of failing it', () => {
@@ -178,8 +188,11 @@ describe('the worker delivers an over-cap lesson instead of failing it', () => {
     });
   });
 
-  test('a render refused for a NON page-count defect still fails the lesson', async () => {
-    // The policy is about LENGTH. A clipped page is a broken document and must never be sent.
+  test('a render refused for a NON page-count defect ships, but NOT as over_cap', async () => {
+    // bd-oak77.14 changed the verdict; it did not change what this flag MEANS. An OVERFLOW is
+    // delivered now — flagged `render_degraded` — but it is not a LONG lesson, so `over_cap` must
+    // stay false, or the "does the distribution refill to the raised cap?" measurement fills up
+    // with documents that were never over the cap at all.
     mockRenderLessonPlan.mockRejectedValue(overCapError([
       'OVERFLOW on s2: content is 40px taller than the page. Offending: exam_bank (+40px)',
     ]));
@@ -187,11 +200,13 @@ describe('the worker delivers an over-cap lesson instead of failing it', () => {
 
     const out = await Worker.process(JOB);
 
-    expect(out.status).toBe('failed');
-    expect(mockDeliverRender).not.toHaveBeenCalled();
+    expect(out.status).toBe('ready');
+    const done = mockDbCalls.filter((c) => c.op === 'update').pop();
+    expect(done.payload).toMatchObject({ over_cap: false, render_degraded: true });
+    expect(mockLogEvent.mock.calls.find((c) => c[0] === 'lp612.deliver.over_cap')).toBeUndefined();
   });
 
-  test('a MIXED defect set — page count plus a real defect — still fails', async () => {
+  test('a MIXED defect set — page count plus a document-DESTROYING defect — still fails', async () => {
     mockRenderLessonPlan.mockRejectedValue(overCapError([
       OVER,
       'TRUNCATION: the PDF has 6 page(s) but the layout built 11 — 5 page(s) are MISSING.',

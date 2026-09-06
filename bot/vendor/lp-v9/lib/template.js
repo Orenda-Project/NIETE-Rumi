@@ -406,7 +406,21 @@ p{ font-size:18px; }
 .se p{ font-size:18px; margin-top:var(--sp-1); }
 
 /* ── figures ────────────────────────────────────────────────────────────── */
-figure.dg{ border:1.5px solid var(--line); border-radius:10px; padding:9px 11px; break-inside:avoid; }
+/* --fig-wide is the FIGURE-WIDENING REPAIR (bd-oak77.14). A full-width diagram whose smallest
+   label misses the 13.5px floor by a hair used to LOSE THE WHOLE LESSON — on 2026-09-06 the first
+   Urdu tap on production died on 13.25px against 13.5px, on a figure that was already in a
+   full-width row so the renderer's own advice ("give it a full-width row") had nothing left to
+   give. The 14px it wanted was sitting in this rule: the figure's own padding and border, and
+   then the page's 21px side margin.
+
+   So the figure grows symmetrically by the SMALLEST amount that clears the floor, and never past
+   the paper. It is a negative inline margin rather than zeroing the padding and border, because
+   the frame is part of the figure's identity and dropping it is a visible change, where widening
+   the border box is not. The property is absent on every figure that fits, so this rule is a no-op for them.
+
+   NOTE FOR ANYONE EDITING THIS STYLESHEET: it lives inside a JS template literal. No backticks. */
+figure.dg{ border:1.5px solid var(--line); border-radius:10px; padding:9px 11px; break-inside:avoid;
+      margin-left:calc(-1 * var(--fig-wide, 0px)); margin-right:calc(-1 * var(--fig-wide, 0px)); }
 figure.dg.book{ border-color:#CBD8E8; }
 figure.dg .ftop{ display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--sp-1); gap:8px; }
 /* NOT uppercase. The badge carries a human label now ("Equation", "Force diagram"), and
@@ -625,15 +639,36 @@ p, li, figcaption,
 
 // ── geometry the figure sizer needs ─────────────────────────────────────────
 // .pad is padded 22px each side inside a 794px page; figure.dg adds 10px padding either
-// side plus a 1.5px border. So a full-width diagram's own drawing box is 727px.
+// side plus a 1.5px border. So a full-width diagram's own drawing box is 729px — the number the
+// production defect string quotes ("13.25px in a 729px column", 2026-09-06). This comment said 727
+// for as long as the constant existed, and lint_lp.js believed it and recomputed the box from 22px
+// of page padding instead of 21, so the two legibility gates were 2px apart. There is now ONE
+// definition and both read it (bd-oak77.14).
 const PAGE_INNER_W = 794 - 21 * 2;      // 752
 /* The flat height clamp on a raster book crop. See the note above `figure.dg img`. */
 const CROP_MAX_H = 320;
 
 const FIG_CHROME = 10 * 2 + 3;          // figure.dg padding + border
-const FULL_COL = PAGE_INNER_W - FIG_CHROME;  // 727
+const FULL_COL = PAGE_INNER_W - FIG_CHROME;  // 729
 const SPLIT_GAP = 9;
 const DIAGRAM_MIN_PX = 13.5;            // the legibility floor inside a figure
+/**
+ * How far a FULL-WIDTH figure may grow, per side, to rescue its own labels — bd-oak77.14.
+ *
+ * The page is 794px with 21px of padding a side, so 21 is the hard ceiling: one pixel more and
+ * the drawing runs off the paper, which is a worse defect than the one being fixed. The first
+ * 11.5 of it is the figure's own chrome (`FIG_CHROME / 2`); the rest is margin the page can
+ * spare. 18 leaves 3px of true paper margin on each side at full stretch and buys a full-width
+ * figure 765px of drawing box against FULL_COL's 729 — enough for every FIGURE TOO SMALL either
+ * production or staging has ever emitted (worst recorded: 743px needed, 2026-09-06).
+ *
+ * ONLY FULL-WIDTH FIGURES. Inside a `split` the 9px SPLIT_GAP is not ours to spend and anything
+ * past it lands on the neighbouring column, so a narrow-column figure is left as a defect — which
+ * the never-fail delivery policy then ships with a flag rather than losing (see
+ * lp612-render-policy.service.js). That is the same advice the defect string has always given
+ * ("give it a full-width row"), enforced instead of suggested.
+ */
+const FIG_GROW_MAX = 18;
 
 let _requiredBox = null;
 function requiredBoxFn() {
@@ -675,6 +710,47 @@ function figureSlot(svg, colPx) {
     minWidthPx: box.minWidthPx,
     legible: box.renderedPx == null || box.renderedPx >= DIAGRAM_MIN_PX,
     tooTall: maxHeightPx > PAGE_CONTENT_H,
+  };
+}
+
+/**
+ * THE SLOT, AFTER TRYING TO RESCUE IT — bd-oak77.14.
+ *
+ * `figureSlot` answers "does this figure fit legibly in this column". This answers the question
+ * that actually decides whether a teacher gets her lesson: "and if not, can we simply give it
+ * more room?" A full-width figure that misses the floor by a few pixels is a LAYOUT problem with
+ * a layout answer; treating it as a document defect is what threw away a finished 12-page lesson
+ * on 2026-09-06 for a label 0.25px under the line.
+ *
+ * The growth is the SMALLEST that clears the floor, never the maximum available, and it is
+ * re-MEASURED with the same `requiredBox` rather than assumed — "it should fit now" is a
+ * hypothesis (rule 16), and the widened slot is the thing the browser will actually lay out.
+ *
+ * @param {string} svg
+ * @param {number} colPx        the drawing box this figure has today
+ * @param {number} maxGrowPx    how much it may take PER SIDE (0 = not allowed to grow)
+ * @returns the `figureSlot` shape for the box it ends up with, plus:
+ *   `growPx`            what it took per side (0 when it needed nothing, or could not be saved)
+ *   `renderedPxBefore`  the size its smallest label rendered at BEFORE (null when it fitted)
+ *   `neededPx`          the width it asked for
+ *   `triedGrowPx`       set when a rescue was attempted and failed — the message says so
+ */
+function figureFit(svg, colPx, maxGrowPx) {
+  const base = figureSlot(svg, colPx);
+  if (base.legible || !base.minWidthPx || !(maxGrowPx > 0)) return { ...base, growPx: 0 };
+  // Per side, and at least 1px — a sub-pixel deficit still needs a whole pixel of margin.
+  const need = Math.max(1, Math.ceil((base.minWidthPx - colPx) / 2));
+  if (need > maxGrowPx) return { ...base, growPx: 0, triedGrowPx: maxGrowPx };
+  const widened = figureSlot(svg, colPx + 2 * need);
+  // Measured, not assumed. If the widened box still does not clear the floor (it can happen when
+  // `minWidthPx` was rounded down against a viewBox this figure does not honour), report the
+  // ORIGINAL defect rather than shipping a widening that bought nothing.
+  if (!widened.legible) return { ...base, growPx: 0, triedGrowPx: maxGrowPx };
+  return {
+    ...widened,
+    growPx: need,
+    renderedPxBefore: base.renderedPx,
+    neededPx: base.minWidthPx,
   };
 }
 
@@ -788,13 +864,38 @@ function makeBlockRenderer(ctx) {
         svg = ctx.placeholder(b.spec || { type: "?" });
       }
       ctx.vectorFigure = true;   // the phone gate's pixel proxy scores SVG hairlines as type
-      // The slot is COMPUTED, never a magic number. See figureSlot().
-      const slot = figureSlot(svg, colPx || FULL_COL);
+      // The slot is COMPUTED, never a magic number. See figureSlot()/figureFit().
+      const col = colPx == null ? FULL_COL : colPx;
+      // bd-oak77.14: a FULL-WIDTH figure may take up to FIG_GROW_MAX px a side to rescue its own
+      // labels. A figure in a narrower column may not — the space beside it belongs to the other
+      // column (see FIG_GROW_MAX). `col >= FULL_COL` rather than `=== ` so a future wider page
+      // does not silently switch the repair off.
+      const slot = figureFit(svg, col, col >= FULL_COL ? FIG_GROW_MAX : 0);
       const label = `"${(b.spec && b.spec.type) || "?"}"${b.spec && b.spec.caption ? ` (${String(b.spec.caption).slice(0, 40)})` : ""}`;
+      if (slot.growPx) {
+        // RECORDED, always. A repair that leaves no trace is a regression mask (rule 24(b)): if
+        // this starts firing on half the corpus, the diagram engine has drifted and this number
+        // is the thing that says so, not a clean-looking render.
+        ctx.figureRepair({
+          code: "FIGURE_WIDENED",
+          specType: (b.spec && b.spec.type) || null,
+          caption: b.spec && b.spec.caption ? String(b.spec.caption).slice(0, 60) : null,
+          colPx: Math.round(col),
+          growPx: slot.growPx,
+          neededPx: slot.neededPx,
+          renderedPxBefore: slot.renderedPxBefore,
+          renderedPxAfter: slot.renderedPx,
+          floorPx: DIAGRAM_MIN_PX,
+        });
+      }
       if (!slot.legible) {
         ctx.figureProblem(`FIGURE TOO SMALL: diagram ${label} renders its smallest label at ` +
-          `${slot.renderedPx}px in a ${Math.round(colPx || FULL_COL)}px column (floor ${DIAGRAM_MIN_PX}px). ` +
-          `It needs ${slot.minWidthPx}px of width — give it a full-width row, or simplify it.`);
+          `${slot.renderedPx}px in a ${Math.round(col)}px column (floor ${DIAGRAM_MIN_PX}px). ` +
+          `It needs ${slot.minWidthPx}px of width — ` +
+          (slot.triedGrowPx
+            ? `the most the page can give it is +${slot.triedGrowPx}px a side, which is still `
+              + `short. Simplify it, or split it into two smaller figures.`
+            : `give it a full-width row, or simplify it.`));
       } else if (slot.tooTall) {
         ctx.figureProblem(`FIGURE TOO TALL: diagram ${label} needs ${slot.maxHeightPx}px of height to stay ` +
           `readable, which is more than one page (${PAGE_CONTENT_H}px). Split it or simplify it — ` +
@@ -802,7 +903,10 @@ function makeBlockRenderer(ctx) {
       }
       // The clamp rides a custom property so it lands on the SVG itself — a max-height on the
       // <figure> would clip the drawing instead of scaling it.
-      const cap = slot.maxHeightPx ? ` style="--fig-h:${slot.maxHeightPx}px"` : "";
+      const styleBits = [];
+      if (slot.maxHeightPx) styleBits.push(`--fig-h:${slot.maxHeightPx}px`);
+      if (slot.growPx) styleBits.push(`--fig-wide:${slot.growPx}px`);
+      const cap = styleBits.length ? ` style="${styleBits.join(";")}"` : "";
       // NO outer <figcaption>. The diagram engine's builder owns the caption strip
       // (diagrams/lib/svg.js draws spec.caption inside the SVG, and the L1 placeholder
       // prints it too), so wrapping it again printed every caption TWICE — plain from the
@@ -1376,8 +1480,27 @@ function page2(doc, ctx, secIndex) {
       svg = ctx.placeholder(P.board_final.diagram);
     }
     ctx.vectorFigure = true;
-    const slot = figureSlot(svg, FULL_COL);
-    const style = slot.maxHeightPx ? ` style="--fig-h:${slot.maxHeightPx}px"` : "";
+    // Same repair as R.diagram (bd-oak77.14) — this figure is always full-width, so it always
+    // qualifies. A second copy of the sizing rule that silently omitted the widening would fail
+    // support pages for a defect the teach page recovers from.
+    const slot = figureFit(svg, FULL_COL, FIG_GROW_MAX);
+    if (slot.growPx) {
+      ctx.figureRepair({
+        code: "FIGURE_WIDENED",
+        specType: (P.board_final.diagram && P.board_final.diagram.type) || null,
+        caption: null,
+        colPx: FULL_COL,
+        growPx: slot.growPx,
+        neededPx: slot.neededPx,
+        renderedPxBefore: slot.renderedPxBefore,
+        renderedPxAfter: slot.renderedPx,
+        floorPx: DIAGRAM_MIN_PX,
+      });
+    }
+    const styleBits2 = [];
+    if (slot.maxHeightPx) styleBits2.push(`--fig-h:${slot.maxHeightPx}px`);
+    if (slot.growPx) styleBits2.push(`--fig-wide:${slot.growPx}px`);
+    const style = styleBits2.length ? ` style="${styleBits2.join(";")}"` : "";
     // board_final.caption is a SEPARATE authored string from the diagram spec's own caption
     // (which the SVG already prints). Print it only when it says something different.
     const specCap = P.board_final.diagram.caption;
@@ -1567,6 +1690,10 @@ function buildHtml(input, opts = {}) {
   const L = LABELS[rtl ? "ur" : "en"];
   const warnings = [];
   const figureProblems = [];
+  /** bd-oak77.14 — every figure the layout had to WIDEN to keep legible. `[]` on a clean
+   *  document, never absent: "we looked and there was nothing" is a different fact from "we did
+   *  not look" (rule 24(b)). */
+  const figureRepairs = [];
 
   let renderDiagram, stubDiagrams = false;
   try {
@@ -1601,6 +1728,7 @@ function buildHtml(input, opts = {}) {
     stubDiagrams,
     warn: (m) => warnings.push(m),
     figureProblem: (m) => figureProblems.push(m),
+    figureRepair: (r) => figureRepairs.push(r),
     rasterFigure: false,
     vectorFigure: false,
   };
@@ -1645,7 +1773,7 @@ ${paginate("support", support.atoms, breaks.support || [], ctx, doc, secIndex, t
 </html>`;
 
   return {
-    html, warnings, figureProblems, fontReport: fonts,
+    html, warnings, figureProblems, figureRepairs, fontReport: fonts,
     atoms: {
       teach: teach.atoms.map((a) => ({ sec: a.sec, first: a.first, glue: a.glue })),
       support: support.atoms.map((a) => ({ sec: a.sec, first: a.first, glue: a.glue })),
@@ -1658,4 +1786,10 @@ ${paginate("support", support.atoms, breaks.support || [], ctx, doc, secIndex, t
   };
 }
 
-module.exports = { buildHtml, TYPE_SCALE, BODY_PX, BODY_PX_V91, scaledPx, scaleTypeCss, SECTION_META, PAGE_CONTENT_H, SPACING, DIAGRAM_LABELS, diagramLabel };
+module.exports = {
+  buildHtml, TYPE_SCALE, BODY_PX, BODY_PX_V91, scaledPx, scaleTypeCss,
+  SECTION_META, PAGE_CONTENT_H, SPACING, DIAGRAM_LABELS, diagramLabel,
+  // The full-width drawing box and the legibility floor, exported so lint_lp.js can ASK rather
+  // than restate. It restated them and drifted (bd-oak77.14).
+  FULL_COL, DIAGRAM_MIN_PX, FIG_GROW_MAX,
+};

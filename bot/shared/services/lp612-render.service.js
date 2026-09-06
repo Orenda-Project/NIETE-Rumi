@@ -268,6 +268,35 @@ async function renderLessonPlan({
   // trace is a regression mask (rule 24(b)). If this starts firing across the corpus rather
   // than on the odd Urdu footer, the packer has drifted and this number is what says so.
   const absorbed = (out.report && out.report.overflow_absorbed) || [];
+  // bd-oak77.14: the figures the LAYOUT had to widen to keep their labels above the legibility
+  // floor. `figureFit()` in template.js rescues a figure that misses by a few pixels rather than
+  // failing the lesson — and a rescue nobody can count is a regression mask (rule 24(b)). The
+  // render report holds this too, but that file is written into a temp dir the worker deletes in
+  // its `finally`, so the event is the only fleet-visible record. Emitted on EVERY outcome,
+  // because a denominator that exists only when something else went wrong is not a denominator.
+  const figureRepairs = (out.report && out.report.figure_repairs) || [];
+  if (figureRepairs.length) {
+    const shortfall = (r) => (r && r.floorPx != null && r.renderedPxBefore != null
+      ? Math.round((r.floorPx - r.renderedPxBefore) * 100) / 100 : null);
+    logEvent('lp612.render.figure_repaired', {
+      ...trace,
+      stem,
+      lang: lang || null,
+      count: figureRepairs.length,
+      repairs: figureRepairs,
+      // The WORST miss on the page, so a fleet query can rank without unpacking the array. If this
+      // number starts creeping toward the widening budget, the engine has drifted and the next
+      // figure will not be rescuable.
+      worstShortfallPx: figureRepairs.reduce((m, r) => {
+        const d = shortfall(r);
+        return d != null && d > m ? d : m;
+      }, 0),
+      maxGrowPx: figureRepairs.reduce((m, r) => Math.max(m, r.growPx || 0), 0),
+    });
+    logToFile('lp612 render: widened a figure to keep its labels legible rather than failing the lesson', {
+      correlationId, stem, lang: lang || null, repairs: figureRepairs,
+    }, 'warn');
+  }
   if (absorbed.length) {
     logEvent('lp612.render.overflow_absorbed', {
       ...trace,
@@ -324,6 +353,7 @@ async function renderLessonPlan({
         pagesByPart: byPart,
         overlayApplied: (out.report && out.report.overlay_applied) || [],
         overflowAbsorbed: absorbed,
+        figureRepairs,
       }
     );
   }
@@ -354,6 +384,8 @@ async function renderLessonPlan({
     overlayApplied: (out.report && out.report.overlay_applied) || [],
     // Same contract for the absorber (bd-c3le6): `[]` on a clean render, never undefined.
     overflowAbsorbed: absorbed,
+    // …and for the figure rescues (bd-oak77.14), for the same reason.
+    figureRepairs,
   };
 }
 

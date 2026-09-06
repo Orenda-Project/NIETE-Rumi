@@ -10,9 +10,80 @@
 // in the exam bank, and any `board` block. lint_lp.js enforces this list; it lives here
 // so the renderer and the linter cannot disagree about it.
 
+/**
+ * Fields the renderer PARSES rather than PRINTS — bd-oak77.23.
+ *
+ * The distinction the overlay has to make is not English-vs-Urdu, it is PRINTED vs PARSED. A
+ * caption, a label, a paragraph is read by a human and should be translated; these are fed to a
+ * parser or to a fixed geometry:
+ *
+ *   tex       KaTeX source (`lib/rich.js` -> katex.renderToString) on `latex` and `chem` blocks
+ *   smiles    a molecular graph (`diagrams/types/molecule.js` -> OCL.Molecule.fromSmiles)
+ *   equation  the same, for the diagram types that draw one
+ *   formula   the molecule's FORMULA CARD — a large centred LTR slot laid out for about ten Latin
+ *             characters like C7H6N4OS. Not parsed, but just as unable to hold a sentence.
+ *
+ * Found by reading a delivered page. Staging `grade_12_chemistry.c14.p227-230` ur shipped
+ * `status=ready`, 19 pages, with
+ *     /sections/1/blocks/2/spec/formula => "فاسفولپڈ (phospholipid) (بیکٹیریا کی جھلی کا جزو)"
+ * — 49 code points in that card — and the molecule's label block painted on top of itself,
+ * unreadable. `/sections/1/blocks/4/tex`, 184 characters of KaTeX, was selected on the same
+ * document and survived ONLY because the model echoed it byte-identically. Two of 120 pointers
+ * landed on a parsed field; one broke, one got away with it.
+ *
+ * THIS IS THE ONLY DEFINITION. `lint_lp.js` folds it into `OVERLAY_SKIP_KEYS` rather than keeping
+ * its own copy, because a second copy is precisely what let these keys through: `overlayTargets`
+ * consulted one list and this file another, and neither carried them. Same shape as the 727/729
+ * FULL_COL drift.
+ */
+const MACHINE_KEYS = new Set([
+  // PARSED — fed to a parser or a fixed geometry
+  "tex", "smiles", "equation", "formula",
+  // ID CROSS-REFERENCES and ENUMS — resolved or switched on, never read as prose.
+  //
+  // `closed_by` is here because PRODUCTION put it here. The one real Urdu lesson that reached prod
+  // (`grade_9_biology.c04.p057-057`) has no molecule and no equation, so the formula-card failure
+  // could not occur on it — and the class was present anyway:
+  //     /sections/0/blocks/0/closed_by => "close-hook"
+  // That is not a display string. It resolves against `/sections/1/blocks/0/id` and is the link
+  // binding the lesson's hook to the paragraph that closes it. The overlay selected it, and it
+  // survived only because the model echoed it byte-identically. That is STRICTLY WORSE than the
+  // `tex` case: a translated identifier breaks a structural link SILENTLY, with no misdrawn box to
+  // notice. `"close-hook"` clears `isInstructionProse` — ten characters, two Latin words — so
+  // nothing was protecting it.
+  //
+  // The rest are frozen on the same principle rather than because each has been seen to break: a
+  // short enum usually fails the prose heuristic, but that is luck, not a rule. A test derives this
+  // set from `lp_doc.schema.json` and fails if a new enum or id-shaped field is added without being
+  // frozen — because a hand-maintained list is exactly what let `formula` and `closed_by` through.
+  "closed_by", "level", "format", "layout", "cognitive_level", "assessment_status",
+  "textbook_page", "page", "unit", "units",
+]);
+
+/** The four the renderer feeds to a PARSER or a fixed geometry, as opposed to the identifiers. */
+const PARSED_KEYS = new Set(["tex", "smiles", "equation", "formula"]);
+
+/** The last segment of a JSON Pointer, unescaped. */
+function pointerKey(ptr) {
+  const i = String(ptr).lastIndexOf("/");
+  return i < 0 ? "" : unescapeToken(String(ptr).slice(i + 1));
+}
+
 const FROZEN_POINTERS = [
   { test: (p) => p === "/slo/text_verbatim", why: "the printed outcome is quoted verbatim from the book" },
   { test: (p) => p.startsWith("/page2/exam_bank"), why: "the exam is sat in the book's language" },
+  // Two rules, not one, because the two failure modes are different and the message a human reads
+  // should say which one they are looking at (rule 24(d) applies to engineer-facing copy too).
+  {
+    test: (p) => PARSED_KEYS.has(pointerKey(p)),
+    why: "the renderer PARSES this field rather than printing it — a translated formula, SMILES "
+      + "string or KaTeX source does not draw",
+  },
+  {
+    test: (p) => MACHINE_KEYS.has(pointerKey(p)),
+    why: "this is an identifier or an enum the document RESOLVES against, not text anyone reads — "
+      + "translating it breaks the link silently",
+  },
 ];
 
 function unescapeToken(t) {
@@ -187,4 +258,4 @@ const LABELS = {
   },
 };
 
-module.exports = { applyOverlay, frozenReason, pointerGet, pointerParent, pointerParts, LABELS };
+module.exports = { applyOverlay, frozenReason, MACHINE_KEYS, pointerGet, pointerParent, pointerParts, LABELS };

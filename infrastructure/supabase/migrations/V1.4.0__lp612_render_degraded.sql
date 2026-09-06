@@ -1,0 +1,87 @@
+-- ---------------------------------------------------------------------------
+-- V1.4.0 — a lesson delivered WITH a render defect says so on its own row.
+--
+-- bd-oak77.14. One boolean, and the third of exactly three.
+--
+-- WHAT CHANGED ABOVE IT. The worker's final render throws on ANY renderer defect. V1.3.7 made
+-- `PAGE COUNT` stop being a way to lose a lesson; V1.3.8 did the same for the clock. On
+-- 2026-09-06, the FIRST Urdu tap on production died on the remaining class. Row
+-- c41e8fd2-f401-42bc-a177-0897f36a1678, `grade_12_chemistry.c14.p227-230`, tapped 14:30:47Z,
+-- failed 14:35:59Z, final defect set:
+--
+--     FIGURE TOO SMALL: diagram "molecule" renders its smallest label at 13.25px in a 729px
+--       column (floor 13.5px). It needs 743px of width.
+--     PAGE COUNT: teach needs 10 pages; the cap is 7.
+--     PAGE COUNT: support needs 7 pages; the cap is 6.
+--
+-- A MIXED set, so V1.3.7's page-count-only rule could not fire, so a complete 17-page document
+-- already written to disk became a `failed` row and an apology — over a diagram label 0.25px
+-- under a legibility floor, on a figure that was already in a full-width row. The teacher
+-- re-typed "Lesson plan" 43 seconds later; that run delivered. Same code, same cell, a different
+-- roll of the authoring dice. Operator, the same day: *"There should be no failures."*
+--
+-- So a defect that leaves the document WHOLE — FIGURE TOO SMALL/TALL, TYPE FLOOR, OVERFLOW, and
+-- any finding the renderer may learn to emit — now DELIVERS, and this column is the honest record
+-- that it happened. TRUNCATION still fails: pages MISSING from the file is an incomplete lesson,
+-- not an imperfect one.
+--
+-- WHY THE ROW HAS TO CARRY IT. Two reasons, and the second is the one that needs a column rather
+-- than an event.
+--   1. Delivering a degraded document silently would be a fallback that masks itself (rule 24(b)).
+--      This policy can only be JUDGED — is it shipping the odd tight diagram, or is it papering
+--      over a renderer that has drifted? — if "of the lessons we sent, how many carried a defect"
+--      is a query.
+--   2. EVERY TEACHER AFTER THE FIRST IS SERVED FROM THIS ROW. The serving path answers a cache hit
+--      straight out of `r2_key` without going near a renderer, so the honesty line appended to her
+--      caption has nowhere else to come from. An event cannot be read at send time.
+--
+-- ANTI-SPRAWL (rule 15), against the live schema queried fresh:
+--   * `over_cap` cannot hold it. A LONG lesson and a DAMAGED one are different facts and the
+--     2026-09-06 document was both; one column cannot answer both questions, and conflating them
+--     would destroy the very measurement V1.3.7 exists for.
+--   * `over_time` cannot hold it, for the same reason — that column is about the clock.
+--   * `lint_fails` cannot hold it. That column is the canon LINT's defect list and `lint_clean` is
+--     computed from the same gate; a renderer finding written into it corrupts both. (V1.3.7 made
+--     this same argument; it has not changed.)
+--   * `error_code`/`error_detail` MUST NOT hold it. This row is `status='ready'` and the lesson was
+--     DELIVERED. bd-7yxsu was exactly the bug of a delivered lesson reading as errored, and it
+--     inflated every failure count quoted on 2026-09-04. Status and error code may never disagree.
+--   * It cannot be computed. The defect is observed once, by the renderer, at render time; nothing
+--     else in the schema witnesses it.
+--   * NOT a text column holding the defect CLASS, though that was the tempting shape. The class
+--     (`figure` / `page`) is what an ENGINEER wants and it rides on `lp612.deliver.degraded` with
+--     the defect strings themselves. The TEACHER gets one sentence for every class, because the
+--     classes do not differ in anything she would do differently — so the row needs the flag that
+--     makes a degraded delivery FINDABLE and nothing more.
+--   * No new `status` value. A degraded render IS ready and IS served.
+--
+-- NOT NULL DEFAULT FALSE, matching `over_cap` (V1.3.7) and `over_time` (V1.3.8): every row that
+-- exists today was delivered without one, so false is exactly the truth for them. The worker names
+-- this column on EVERY success patch, so a retry after a degraded attempt cannot inherit a stale
+-- `true` (the bd-7yxsu mechanism).
+--
+-- DEPLOYS DO NOT RUN MIGRATIONS ON NIETE (bd-tqkq9). This file must be applied BY HAND to staging
+-- AND to production BEFORE the code that writes the column ships. A merged column that does not
+-- exist is a total lp612 outage.
+--
+-- THE CODE DOES NOT DEPEND ON THIS FILE HAVING BEEN APPLIED FIRST. `patch()` in
+-- bot/workers/lp612-author.worker.js retries once without the column on PostgREST's
+-- undefined-column error (PGRST204 / 42703) and emits `lp612.row.column_missing`. That guard is
+-- deliberately NOT a licence to skip the migration — it converts a total outage into one lost
+-- flag and a loud event, so the ordering above is a requirement and not a landmine.
+-- RENUMBERED 1.3.9 -> 1.4.0 on 2026-09-06, before either PR merged. The graceful-shutdown lane
+-- (bd-oak77.11) had already taken V1.3.9 for `lp612_checkpoint` on `develop`, and `migrate.js`
+-- keys `schema_versions` off the version STRING alone — two files sharing 1.3.9 means the runner
+-- treats whichever ran first as satisfying both and silently skips the second. Both were hand-
+-- applied on staging so nothing was lost there; this rename is what stops it happening on prod.
+-- (While you are here: `schema_versions` on staging tops out at 1.3.6 while 1.3.7, 1.3.8 and both
+-- 1.3.9s are live. Assert `information_schema`, never the ledger — bd-7i0hs.)
+-- ---------------------------------------------------------------------------
+
+ALTER TABLE niete_lp612_renders
+  ADD COLUMN IF NOT EXISTS render_degraded BOOLEAN NOT NULL DEFAULT FALSE;
+
+COMMENT ON COLUMN niete_lp612_renders.render_degraded IS
+  'True when this lesson was DELIVERED carrying a renderer defect that leaves the document whole (a figure under the legibility floor, type under the phone floor, a crowded page). Such defects stopped being a delivery failure on 2026-09-06 (bd-oak77.14); this is the honest record that it happened, the filter behind "how often does the never-fail policy actually fire", and the flag the SERVING path reads on a cache hit to append the honesty line to a later teacher''s caption. The defect class and the defect strings live on the lp612.deliver.degraded event. Distinct from over_cap (long) and over_time (late). Written by the lp612 author worker on every success patch.';
+
+NOTIFY pgrst, 'reload schema';
