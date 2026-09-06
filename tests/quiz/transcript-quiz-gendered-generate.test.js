@@ -143,9 +143,8 @@ beforeEach(() => {
 });
 
 describe('a gendered lesson_summary is repaired, not shipped', () => {
-  test('two gendered attempts, one summary-only rewrite, and the neutral summary is what is stored', async () => {
+  test('one gendered attempt, one summary-only rewrite right after it, and the neutral summary is what is stored', async () => {
     mockCreate
-      .mockResolvedValueOnce(reply({ lesson_summary: GENDERED_SUMMARY, questions: eightGood() }))
       .mockResolvedValueOnce(reply({ lesson_summary: GENDERED_SUMMARY, questions: eightGood() }))
       .mockResolvedValueOnce(reply({ lesson_summary: NEUTRAL_SUMMARY }));
     wire();
@@ -153,9 +152,10 @@ describe('a gendered lesson_summary is repaired, not shipped', () => {
     const r = await Gen.process(QID, {});
     expect(r.ok).toBe(true);
 
-    // two full attempts, then ONE small call that rewrites the summary only
-    expect(mockCreate).toHaveBeenCalledTimes(3);
-    const rewritePrompt = promptOf(mockCreate.mock.calls[2]);
+    // ONE full attempt, then ONE small call that rewrites the summary only —
+    // repair before re-roll: the second full author call is never spent
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    const rewritePrompt = promptOf(mockCreate.mock.calls[1]);
     expect(rewritePrompt).toContain('THE LESSON SUMMARY — rewrite it');
     expect(rewritePrompt).toContain(GENDERED_SUMMARY);
     expect(rewritePrompt).toContain('PEDAGOGY_GENDERED_TEACHER');
