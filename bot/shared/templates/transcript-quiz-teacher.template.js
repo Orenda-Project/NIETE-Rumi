@@ -45,15 +45,22 @@ const path = require('path');
 const { richNotation } = require('../services/quiz/quiz-notation');
 const { sloStatement } = require('../services/quiz/transcript-quiz-language');
 const { resolveUx } = require('../config/ux-strings');
-const { PALETTE, FONTS, TYPE_FLOOR, headFamily, bodyFamily, latticeSvg, diamondSvg, scriptOf } = require('./niete-brand');
+const {
+  PALETTE, FONTS, TYPE_FLOOR, TYPE_FLOOR_UR, TYPE_STEP, TYPE_STEP_UR, HEAD_SCALE, leadingAt,
+  headFamily, bodyFamily, latticeSvg, diamondSvg, scriptOf,
+} = require('./niete-brand');
 
-// PLAN_R5 D6 / operator item 11 — the shared floor, never re-typed as a raw
-// number. Urdu scales UP from it (+15%, niete-brand's TYPE_FLOOR doc) rather
-// than sitting at it, because Nastaliq's low x-height reads smaller at the
-// same nominal size.
-const BODY_UR = Math.round(TYPE_FLOOR.body * 1.15 * 10) / 10;   // 20.7px
-const SMALL_UR = Math.round(TYPE_FLOOR.small * 1.15 * 10) / 10; // 16.1px
-const LABEL_UR = Math.round(TYPE_FLOOR.label * 1.15 * 10) / 10; // 15.5px
+// PLAN_R5 D6 / PLAN_R6 D4 — the Urdu bump is now ONE constant, exported from
+// niete-brand and shared with the class report, not recomputed per template.
+// Round 5 had this file scaling by 1.15 while the class report scaled by
+// 1.055 (19px against an 18px body) and neither file could see the other —
+// the same drift the shared token exists to stop. The local names stay so the
+// ~25 interpolation sites below do not move.
+const BODY_UR = TYPE_FLOOR_UR.body;   // 24.2px
+const SMALL_UR = TYPE_FLOOR_UR.small; // 19px
+const LABEL_UR = TYPE_FLOOR_UR.label; // 17.8px
+
+const round1 = (n) => Math.round(n * 10) / 10;
 
 let _assets = null;
 function readBase64(relPath) {
@@ -314,7 +321,7 @@ function renderTranscriptQuizTeacherHtml(d) {
   const footMark = a.markOnLight ? `<img class="mark-img" src="data:image/png;base64,${a.markOnLight}" alt="NIETE">` : '';
   const headFam = headFamily(RTL);
   const bodyFam = bodyFamily(RTL);
-  const lh = RTL ? '1.85' : '1.42';
+  const lh = RTL ? `${leadingAt(1.85)}` : '1.42';
   // A NAME keeps the script it was typed in, whatever the document's language.
   const nameRtl = scriptOf(teacherName) === 'ur';
   const nameHtml = teacherName
@@ -343,9 +350,9 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
 /* One language per document — but never one FONT: a name, a term or a formula
    in the other script can appear on any page. */
 .content{font-family:${bodyFam}}
-.content[dir="rtl"]{font-family:${FONTS.bodyUrdu};line-height:1.85}
+.content[dir="rtl"]{font-family:${FONTS.bodyUrdu};line-height:${leadingAt(1.85)}}
 .content[dir="ltr"]{font-family:${FONTS.bodyLatin};line-height:1.42}
-.nm{font-family:${bodyFamily(nameRtl)};unicode-bidi:isolate;direction:${nameRtl ? 'rtl' : 'ltr'};font-weight:700;color:#fff;font-size:${nameRtl ? '15px' : 'inherit'}}
+.nm{font-family:${bodyFamily(nameRtl)};unicode-bidi:isolate;direction:${nameRtl ? 'rtl' : 'ltr'};font-weight:700;color:#fff;font-size:${nameRtl ? `${SMALL_UR}px` : 'inherit'}}
 /* ── hero ───────────────────────────────────────────────────────────────── */
 .hero{position:relative;overflow:hidden;background:${PALETTE.slate};padding:22px 40px 18px;color:#fff}
 .hero .lattice{position:absolute;inset:0;width:100%;height:100%;z-index:0}
@@ -353,12 +360,12 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
 .herotop{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}
 .hero-mark{width:48px;height:48px;object-fit:contain;flex-shrink:0;display:block}
 .eyebrow{font-size:${RTL ? `${LABEL_UR}px` : `${TYPE_FLOOR.label}px`};letter-spacing:${RTL ? '0' : '.18em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.greenPale};font-weight:700;font-family:${bodyFam}}
-.hero h1{font-family:${headFam};font-size:${RTL ? '28px' : '30px'};line-height:${RTL ? '1.5' : '1.18'};font-weight:600;margin-top:6px;max-width:580px}
+.hero h1{font-family:${headFam};font-size:${RTL ? round1(28 * HEAD_SCALE) : round1(30 * HEAD_SCALE)}px;line-height:${RTL ? '1.5' : '1.18'};font-weight:600;margin-top:6px;max-width:580px}
 .who{margin-top:10px;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};color:#e2e5ea;line-height:${lh};font-family:${bodyFam}}
 .who .sep{opacity:.5;margin:0 8px}
 .statrow{display:flex;gap:9px;margin-top:11px}
 .stchip{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);border-radius:10px;padding:5px 12px}
-.stchip .n{font-family:${bodyFamily(false)};font-weight:700;font-size:19px;direction:ltr}
+.stchip .n{font-family:${bodyFamily(false)};font-weight:700;font-size:${TYPE_STEP.name}px;direction:ltr}
 .stchip .l{font-family:${bodyFam};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};color:${PALETTE.greenPale};${RTL ? '' : 'text-transform:uppercase;'}letter-spacing:.06em}
 /* ── sheet ──────────────────────────────────────────────────────────────── */
 .body{padding:14px 40px 6px}
@@ -366,21 +373,25 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
 .band{display:flex;gap:18px;align-items:stretch}
 .band>div{flex:1 1 0;min-width:0}
 .band .taught{flex:1.05 1 0}
-.taught .sum{font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${RTL ? '1.72' : lh};background:${PALETTE.greenWash};border-${RTL ? 'right' : 'left'}:3px solid ${PALETTE.green};border-radius:${RTL ? '10px 4px 4px 10px' : '4px 10px 10px 4px'};padding:10px 13px}
+.taught .sum{font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${RTL ? `${leadingAt(1.72)}` : lh};background:${PALETTE.greenWash};border-${RTL ? 'right' : 'left'}:3px solid ${PALETTE.green};border-radius:${RTL ? '10px 4px 4px 10px' : '4px 10px 10px 4px'};padding:10px 13px}
 .checks ul{list-style:none}
-.checks li{padding:3px 0;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${RTL ? '1.72' : lh};border-bottom:1px solid #eaeeeb}
-.checks .content[dir="rtl"],.taught .content[dir="rtl"]{line-height:1.72}
+.checks li{padding:3px 0;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${RTL ? `${leadingAt(1.72)}` : lh};border-bottom:1px solid #eaeeeb}
+.checks .content[dir="rtl"],.taught .content[dir="rtl"]{line-height:${leadingAt(1.72)}}
 .checks li:last-child{border-bottom:0}
 .checks li .dia,.miss .dia{vertical-align:middle;margin-${RTL ? 'left' : 'right'}:7px}
 .pill{display:inline-block;font-family:${bodyFamily(false)};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-weight:700;color:#1f7a4b;background:${PALETTE.greenWash};border-radius:10px;padding:1px 8px;vertical-align:middle;margin-${RTL ? 'left' : 'right'}:6px;letter-spacing:.02em}
-.howto{margin-top:11px;background:#f6f8f7;border:1px solid #e3e8e5;border-radius:12px;padding:10px 14px;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${RTL ? '1.7' : '1.38'};font-family:${bodyFam};display:flex;gap:12px;align-items:flex-start}
+/* A bordered card must never split across a page. At the R6 floor the Urdu
+   version grew past the space left on page 1 and Chromium tore it, leaving the
+   quiz link alone above the next page's first question card with no box around
+   it. break-inside moves the whole card down instead. */
+.howto{break-inside:avoid;page-break-inside:avoid;margin-top:11px;background:#f6f8f7;border:1px solid #e3e8e5;border-radius:12px;padding:10px 14px;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${RTL ? `${leadingAt(1.7)}` : '1.38'};font-family:${bodyFam};display:flex;gap:12px;align-items:flex-start}
 .howto .txt{flex:1}
 .howto .lnk{margin-top:6px;font-family:${bodyFamily(false)};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};color:#1f7a4b;direction:ltr;unicode-bidi:isolate;text-align:${RTL ? 'right' : 'left'}}
 /* ── question cards ─────────────────────────────────────────────────────── */
 .qs{margin-top:13px}
 .card{background:#f6f8f7;border-radius:12px;padding:8px 12px 8px;margin-bottom:6px;page-break-inside:avoid;break-inside:avoid}
 .chead{display:flex;gap:9px;align-items:center;margin-bottom:4px}
-.num{flex-shrink:0;width:26px;height:26px;transform:rotate(45deg);background:${PALETTE.slate};color:#fff;font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-weight:700;display:flex;align-items:center;justify-content:center;font-family:${bodyFamily(false)}}
+.num{flex-shrink:0;width:31px;height:31px;transform:rotate(45deg);background:${PALETTE.slate};color:#fff;font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-weight:700;display:flex;align-items:center;justify-content:center;font-family:${bodyFamily(false)}}
 .num span{display:block;transform:rotate(-45deg)}
 .cmeta{font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};color:${PALETTE.muted};line-height:1.35;font-family:${bodyFam}}
 .slo{color:${PALETTE.slate}}
@@ -390,29 +401,36 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
 .figure.wide{width:auto;margin-bottom:5px;padding:5px 10px}
 .figure.wide svg,.figure.wide img{max-height:100px;width:100%}
 .figure svg,.figure img{max-width:100%;max-height:190px;width:auto;height:auto;display:inline-block}
-.stem{font-family:${headFam};font-size:${RTL ? '24px' : '21px'};line-height:${RTL ? '1.5' : '1.3'};color:${PALETTE.ink};font-weight:600;margin-bottom:5px}
+/* The stem element is one div carrying BOTH classes ("stem content", dir=rtl),
+   so the .content[dir=rtl] rule (0,2,0) has always outranked a bare .stem
+   (0,1,0) and the RTL line-height written here has never once reached the
+   page. Restated at the specificity it needs, so the number in the file is the
+   number that renders. No backticks in a comment inside a template literal —
+   they terminate the string (round-5 failure catalogue). */
+.stem{font-family:${headFam};font-size:${RTL ? TYPE_STEP_UR.headline : TYPE_STEP.headline}px;line-height:${RTL ? `${leadingAt(1.85)}` : '1.3'};color:${PALETTE.ink};font-weight:600;margin-bottom:5px}
+.stem.content[dir="rtl"]{line-height:${leadingAt(1.85)}}
 .multichip{margin-bottom:5px}
 .opts{display:flex;flex-direction:column;gap:2px}
 .opt{display:flex;align-items:center;gap:8px;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};padding:3px 9px;border-radius:7px;background:#fff;border:1px solid #e3e8e5}
 /* An option row and a caption are UI, not prose: Nastaliq's prose leading
    (1.85) over eight of these is a whole extra page. The reading blocks — the
    summary, the goals, the stems — keep it. */
-.opt.content[dir="rtl"],.miss .content[dir="rtl"],.chosen .content[dir="rtl"]{line-height:1.5}
+.opt.content[dir="rtl"],.miss .content[dir="rtl"],.chosen .content[dir="rtl"]{line-height:${leadingAt(1.5)}}
 .opt .otext{flex:1;min-width:0}
 .opt.correct{background:${PALETTE.greenWash};border-color:${PALETTE.green};color:#1f5f3e;font-weight:700}
-.opt .mark{display:inline-flex;align-items:center;justify-content:center;width:22px;flex-shrink:0}
+.opt .mark{display:inline-flex;align-items:center;justify-content:center;width:26px;flex-shrink:0}
 /* The child's question card marks each option with a diamond carrying its
    letter. The same marker here, so "A" on paper is "A" on the phone. Drawn
    with a rotated box, never a glyph — big enough that its own letter clears
-   the 14px small-type floor (operator item 11: "she matches it against her
+   the small-type floor (operator item 11: "she matches it against her
    pupil's phone, it must be readable"). */
-.dia2{width:21px;height:21px;position:relative;display:inline-block}
+.dia2{width:25px;height:25px;position:relative;display:inline-block}
 .dia2::before{content:'';position:absolute;inset:1px;background:#fff;border:1.3px solid #C6CFCA;transform:rotate(45deg);border-radius:3px}
 .opt.correct .dia2::before{background:${PALETTE.green};border-color:${PALETTE.green}}
 .dia2>span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:${bodyFamily(false)};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-weight:700;color:#7b8494;direction:ltr}
 .opt.correct .dia2>span{color:#0B1A12}
 .opt .tag{font-family:${bodyFamily(false)};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-weight:700;letter-spacing:.08em;color:#1f7a4b;flex-shrink:0}
-.chosen{margin-top:5px;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${RTL ? '1.6' : lh};font-family:${bodyFam};color:#3d4454}
+.chosen{margin-top:5px;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${RTL ? `${leadingAt(1.6)}` : lh};font-family:${bodyFam};color:#3d4454}
 .chosen .lbl{font-family:${bodyFamily(false)};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-weight:700;letter-spacing:.1em;${RTL ? '' : 'text-transform:uppercase;'}color:#166341;background:${PALETTE.greenWash};border-radius:4px;padding:2px 7px;margin-${RTL ? 'left' : 'right'}:6px;vertical-align:middle}
 .miss{margin-top:2px;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:1.5;font-family:${bodyFam};color:#6a7284;display:flex;align-items:flex-start;gap:6px}
 /* The chip's own length is controlled in WORDS (clampWords, 5), not by a
@@ -421,11 +439,11 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
    an RTL chip — the truncation cut from the visual left, printing "…roper
    fraction" instead of "Proper fraction…". Wrapping to a second line beats
    either failure. */
-.wrongpill{background:#eceef2;color:${PALETTE.slateLight};font-weight:700;padding:1px 8px;border-radius:9px;flex-shrink:0;max-width:260px}
+.wrongpill{background:#eceef2;color:${PALETTE.slateLight};font-weight:700;padding:1px 8px;border-radius:9px;flex-shrink:0;max-width:300px}
 .misstext{flex:1;min-width:0}
 .foot{display:flex;align-items:center;justify-content:space-between;padding:12px 40px 16px;margin-top:8px;border-top:1px solid #eaeeeb;color:#8a92a0;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${lh};font-family:${bodyFam}}
 .brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${PALETTE.slate};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-family:${bodyFamily(false)}}
-.brand .mark-img{width:19px;height:19px;object-fit:contain;display:block}
+.brand .mark-img{width:22px;height:22px;object-fit:contain;display:block}
 </style></head><body>
 <div class="report">
   <div class="hero">
