@@ -30,10 +30,16 @@ const order = FLOW.screens.map((s) => s.id);
 const pos = Object.fromEntries(order.map((id, i) => [id, i]));
 
 describe('she can leave the edit list, and come back to it', () => {
-  test('the list carries a row that finishes editing', () => {
-    // The row is built server-side, so this is where it can be asserted.
-    expect(SRC).toMatch(/_action:\s*'pick_done'/);
-    expect(SRC).toMatch(/Done editing/);
+  test('Done editing is a real Footer button on both list screens', () => {
+    // Not a row that reads like a fifth question. A Footer needs a screen it can
+    // share, so the list is a RadioButtonsGroup, not a NavigationList.
+    for (const id of ['PICK', 'PICK_MORE']) {
+      const blob = JSON.stringify(FLOW.screens.find((s) => s.id === id));
+      expect(blob).toMatch(/"type":"Footer".{0,80}Done/);
+      expect(blob).toContain('"_action":"pick_done"');
+      expect(blob).toContain('"RadioButtonsGroup"');
+      expect(blob).not.toContain('NavigationList');
+    }
   });
 
   test('the endpoint acts on that row instead of ignoring it', () => {
@@ -63,14 +69,7 @@ describe('she can leave the edit list, and come back to it', () => {
     }
   });
 
-  test('both list screens still carry nothing but their NavigationList', () => {
-    for (const id of ['PICK', 'PICK_MORE']) {
-      const screen = FLOW.screens.find((s) => s.id === id);
-      const types = JSON.stringify(screen.layout).match(/"type":\s*"(\w+)"/g) || [];
-      const others = types
-        .map((t) => t.match(/"(\w+)"$/)[1])
-        .filter((t) => t !== 'NavigationList' && !/Layout$/.test(t));
-      expect(others).toEqual([]);
-    }
+  test('the server no longer builds an exit row into the list', () => {
+    expect(SRC).not.toContain('__done__');
   });
 });

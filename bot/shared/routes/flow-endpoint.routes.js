@@ -844,7 +844,18 @@ async function handleAssessmentGenRequest(data) {
   const { action, screen, data: screenData, flow_token } = data;
   const userId = flow_token ? String(flow_token).split(':')[0] : null;
 
-  logToFile('Handling assessment-gen flow request', { action, screen, userId });
+  // Log the screen data, not just its keys. When a Flow renders and then dies
+  // with "Something went wrong", the CLIENT reports its own failure back as a
+  // data_exchange carrying `error` / `error_message` — that message is the only
+  // description of the fault that exists anywhere, and logging just the key
+  // names discards it. See the whatsapp-flows skill: "Log error_message's value
+  // when chasing a renders-then-dies Flow."
+  const clientError = screenData && (screenData.error_message || screenData.error);
+  logToFile('Handling assessment-gen flow request', {
+    action, screen, userId,
+    screenDataKeys: screenData ? Object.keys(screenData) : [],
+    ...(clientError ? { clientError: String(clientError).slice(0, 500) } : {}),
+  });
 
   if (action === 'ping') return { data: { status: 'active' } };
   if (action === 'INIT' || action === 'init') return await handleAssessmentGenInit(userId, flow_token);
