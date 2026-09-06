@@ -195,7 +195,11 @@ describe('with LP_612_ENABLED on', () => {
     const res = await Endpoint.handlePakistanLpDataExchange('u1:tok', 'SELECT_CHAPTER', {
       step: 'lp612_chapter', grade: '9', subject: 'Chemistry', chapter_key: 'c01',
     });
-    expect(mockBuildSegmentItems).toHaveBeenCalledWith(9, 'Chemistry', 'c01', 1);
+    // 5th argument = the book the tapped row named. `chapter_key` alone matches
+    // BOTH books where two share a (grade, subject), so the lesson list was
+    // pooled across books (bd-oak77.5). null here: this row carries no
+    // book_stem, which is what a row rendered before that shipped looks like.
+    expect(mockBuildSegmentItems).toHaveBeenCalledWith(9, 'Chemistry', 'c01', 1, null);
     expect(res.screen).toBe('SELECT_LESSON');
   });
 
@@ -204,7 +208,7 @@ describe('with LP_612_ENABLED on', () => {
     const res = await Endpoint.handlePakistanLpDataExchange('u1:tok', 'SELECT_LESSON', {
       step: 'lp612_segment_page', grade: '9', subject: 'Chemistry', chapter_key: 'c01', page: '2',
     });
-    expect(mockBuildSegmentItems).toHaveBeenCalledWith(9, 'Chemistry', 'c01', 2);
+    expect(mockBuildSegmentItems).toHaveBeenCalledWith(9, 'Chemistry', 'c01', 2, null);
     expect(res.screen).toBe('SELECT_LESSON_MORE');
   });
 
