@@ -486,25 +486,6 @@ const UX_STRINGS = {
     en: "Let's check {student}'s reading. It takes about 3–5 minutes. First, choose the language for the passage.",
     ur: '{student} کی قرائت جانچتے ہیں۔ اس میں تقریباً 3 سے 5 منٹ لگیں گے۔ پہلے اقتباس کی زبان منتخب کریں۔',
   },
-  lp612RouteRedirect: {
-    en: 'Lesson plans now come straight from your own textbook. Pick the class, subject and chapter below and I will write that lesson for you.',
-    ur: 'اب سبق کے منصوبے آپ کی اپنی درسی کتاب سے بنتے ہیں۔ نیچے جماعت، مضمون اور باب منتخب کریں — وہ سبق تیار کر دیا جائے گا۔',
-  },
-
-  lpBrowseHeader: {
-    en: '📘 Lesson Plans',
-    ur: '📘 سبق کے منصوبے',
-  },
-
-  lpBrowseBody: {
-    en: "Pick your class, subject and chapter, then the day's lesson — the plan lands in your chat.",
-    ur: 'اپنی جماعت، مضمون اور باب چنیں، پھر اُس دن کا سبق — منصوبہ آپ کی چیٹ میں آ جائے گا۔',
-  },
-
-  lpBrowseButton: {
-    en: 'Pick Class',
-    ur: 'جماعت چنیں',
-  },
 
   /**
    * bd-hgwfo — the one door into the lesson-plan catalogue Flow. Every entry
