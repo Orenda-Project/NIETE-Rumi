@@ -35,6 +35,11 @@ const WhatsAppService = require('../shared/services/whatsapp.service');
 const { uploadBuffer } = require('../shared/storage/r2');
 const { resolveUx } = require('../shared/config/ux-strings');
 const { authorLessonPlan, overlayLessonPlan } = require('../shared/services/lp612-author.service');
+// bd-oak77.14 — the ONE predicate deciding whether a rendered document may reach a teacher.
+// Imported rather than restated: three call sites make that judgement (the final render, the
+// timeout recovery, the Urdu overlay fallback) and bd-vjk68 already recorded what happens when a
+// second copy of the rule quietly omits a clause.
+const { deliveryVerdict, degradedNotice } = require('../shared/services/lp612-render-policy.service');
 const { renderLessonPlan } = require('../shared/services/lp612-render.service');
 // The caps the renderer gated on, read from the renderer itself so the over-cap event can never
 // quote a number the gate did not use (bd-vjk68). Never retyped here — see `pageCapsFor`.
@@ -124,13 +129,64 @@ async function claimPickup(renderId) {
   return !!data;
 }
 
+/**
+ * PostgREST's "that column does not exist" — bd-oak77.14.
+ *
+ * `PGRST204` is the schema-cache miss; `42703` is Postgres's own undefined_column, which surfaces
+ * when the cache is warm and the column genuinely is not there. Both name the column in the
+ * message, which is what makes the retry below targeted rather than a blind field-stripping loop.
+ */
+const MISSING_COLUMN_CODES = new Set(['PGRST204', '42703']);
+
+/** The column name PostgREST/Postgres quoted, or null. */
+function missingColumnOf(error, fields) {
+  if (!error || !MISSING_COLUMN_CODES.has(String(error.code))) return null;
+  const m = String(error.message || '').match(/'([^']+)'|"([^"]+)"/);
+  const name = m && (m[1] || m[2]);
+  // Only when it is a column WE sent. Otherwise the retry would resend the identical payload and
+  // loop the same failure.
+  return name && Object.prototype.hasOwnProperty.call(fields, name) ? name : null;
+}
+
+/**
+ * Write to the render row, and SURVIVE A COLUMN THE DATABASE DOES NOT HAVE YET.
+ *
+ * Deploys do not run migrations on NIETE (bd-tqkq9), so every lp612 migration since V1.3.3 carries
+ * the same line in its header: *a merged column that does not exist is a total lp612 outage*. The
+ * mechanism is unforgiving — PostgREST rejects the WHOLE update when it names an unknown column,
+ * so the success patch fails, the row never reaches `ready`, the waiters are never claimed, and
+ * every lesson on the fleet dies at the last step holding a finished document. It has been avoided
+ * three times by remembering to hand-apply first. On a go-live day with four lanes merging,
+ * "remembering" is not a control.
+ *
+ * So the write degrades: retry ONCE without the column it named, and say which one, loudly. The
+ * lesson ships; one flag is lost; `lp612.row.column_missing` makes it impossible to miss.
+ *
+ * This is NOT a licence to skip a migration. It converts a fleet outage into one missing flag.
+ */
 async function patch(renderId, fields) {
-  const { error } = await supabase
-    .from(RENDERS)
-    .update({ ...fields, updated_at: nowIso() })
-    .eq('id', renderId);
-  if (error) {
+  const payload = { ...fields, updated_at: nowIso() };
+  const { error } = await supabase.from(RENDERS).update(payload).eq('id', renderId);
+  if (!error) return;
+
+  const column = missingColumnOf(error, payload);
+  if (!column) {
     logToFile('LP 6-12 worker: render update failed', { renderId, error: error.message });
+    return;
+  }
+
+  const { [column]: _dropped, ...without } = payload;
+  logEvent('lp612.row.column_missing', {
+    renderId, column, code: String(error.code), table: RENDERS,
+  });
+  logToFile('LP 6-12 worker: the renders table is missing a column this build writes — '
+    + 'delivering without it. APPLY THE MIGRATION.', {
+    renderId, column, error: error.message,
+  }, 'error');
+
+  const retry = await supabase.from(RENDERS).update(without).eq('id', renderId);
+  if (retry.error) {
+    logToFile('LP 6-12 worker: render update failed', { renderId, error: retry.error.message });
   }
 }
 
@@ -257,6 +313,21 @@ async function keepFailedDoc({ doc, segmentId, lang, templateVersion, renderId, 
 const NO_RETRY_CODES = new Set(['PAGE_RANGE_TOO_LARGE', 'PAGE_TRUTH_TOO_LARGE']);
 
 /**
+ * Codes for which "I could not finish" is the WRONG SENTENCE — bd-oak77.14.
+ *
+ * The lesson WAS finished; what failed was turning it into pages. Since the never-fail policy
+ * (`lp612-render-policy.service`) now delivers every render defect that leaves the document
+ * whole, what is left under this code is narrow and specific: a renderer that would not start, a
+ * document the schema refused, or a PDF that came out with pages MISSING from the file.
+ *
+ * Rule 24(d). On 2026-09-06 a teacher was told "I could not finish that lesson plan this time"
+ * about a complete 17-page document sitting on disk, in the same words an author timeout and a
+ * stranded worker produce. She re-typed "Lesson plan" 43 seconds later. Four states, one
+ * sentence, and the sentence was false for one of them.
+ */
+const UNRENDERABLE_CODES = new Set(['RENDER_FAILED']);
+
+/**
  * @param {string|null} [model] WHICH MODEL FAILED IT.
  *
  * On 2026-09-03 two rows sat at status='failed', error_code='AUTHOR_TIMEOUT', model_used NULL, and
@@ -285,7 +356,10 @@ async function fail(renderId, snapshot, lang, code, detail, model = null) {
   // joined during a run that then died was getting no message at all, just silence on a lesson
   // that had already given up.
   const waiters = await claimWaiters(renderId, snapshot);
-  await tellAll(waiters, NO_RETRY_CODES.has(code) ? 'lp612TooLong' : 'lp612Failed', lang);
+  const copyKey = NO_RETRY_CODES.has(code)
+    ? 'lp612TooLong'
+    : (UNRENDERABLE_CODES.has(code) ? 'lp612Unrenderable' : 'lp612Failed');
+  await tellAll(waiters, copyKey, lang);
   return { status: 'failed', errorCode: code || 'UNKNOWN' };
 }
 
@@ -434,7 +508,7 @@ async function process(payload) {
         renderId,
         phase,
       });
-      return { rendered: out, overCap: false };
+      return { rendered: out, overCap: false, degraded: false, degradedClasses: [], degradedBy: [] };
     } catch (e) {
       // ── bd-vjk68: A LESSON IS NEVER LOST FOR BEING LONG ──────────────────
       //
@@ -464,14 +538,43 @@ async function process(payload) {
       // they were measured against, and both exist so the question the raised caps opened —
       // does the distribution simply refill to the new ceiling? — is answerable from data
       // after ~40 lessons rather than argued about.
-      const pageOnly = e && e.infra === false
-        && Array.isArray(e.problems) && e.problems.length > 0
-        && e.problems.every((x) => String(x).startsWith('PAGE COUNT:'))
-        && typeof e.pdfPath === 'string' && e.pdfPath.length > 0;
-      if (!pageOnly) throw e;
+      //
+      // ── bd-oak77.14: AND NEVER LOST FOR A DEFECT THAT ONLY MAKES IT UGLIER ──
+      //
+      // Every clause above still holds, word for word. The middle one has only stopped being a
+      // list of ONE code.
+      //
+      // 2026-09-06, the first Urdu tap on production (`grade_12_chemistry.c14.p227-230`, row
+      // c41e8fd2-f401-42bc-a177-0897f36a1678). The final render's defect list was
+      //   [ FIGURE TOO SMALL: … 13.25px in a 729px column (floor 13.5px) …,
+      //     PAGE COUNT: teach needs 10 pages; the cap is 7,
+      //     PAGE COUNT: support needs 7 pages; the cap is 6 ]
+      // — a MIXED set, so `every(PAGE COUNT)` was false, so a finished 17-page document already
+      // written to disk was thrown away over a diagram label 0.25px under a legibility floor. The
+      // teacher re-typed "Lesson plan" 43 seconds later, re-tapped the same lesson, and that run
+      // delivered: same code, same cell, a different roll of the authoring dice. A refusal nobody
+      // can reproduce is not a quality gate, it is a coin toss she pays five minutes for.
+      //
+      // Operator, the same day: *"There should be no failures."*
+      //
+      // `deliveryVerdict` owns the judgement now, in one module, because three call sites make it
+      // (this one, the timeout recovery below, and the Urdu overlay fallback) and bd-vjk68 already
+      // recorded what a second copy of the rule costs. Class by class:
+      //   PAGE COUNT                  -> delivered, `over_cap`      (unchanged)
+      //   FIGURE / TYPE FLOOR / OVERFLOW / anything new
+      //                               -> delivered, `render_degraded`, and she is told which kind
+      //   TRUNCATION                  -> still FAILS. Pages of her lesson are MISSING FROM THE
+      //                                  FILE; the plan just ends. `LP612_DELIVER_TRUNCATED=true`
+      //                                  is the operator's one-variable override.
+      const hasPdf = typeof e.pdfPath === 'string' && e.pdfPath.length > 0;
+      const verdict = deliveryVerdict(e && e.problems, { hasPdf, infra: e && e.infra });
+      if (!verdict.deliverable || !Array.isArray(e.problems) || e.problems.length === 0) throw e;
 
       return {
-        overCap: true,
+        overCap: verdict.overCap,
+        degraded: verdict.degraded,
+        degradedClasses: verdict.classes,
+        degradedBy: verdict.degradedBy,
         rendered: {
           pdfPath: e.pdfPath,
           htmlPath: e.htmlPath,
@@ -584,9 +687,9 @@ async function process(payload) {
         await stageFigures({ refs: figRefs, outDir: tmpDir, correlationId });
       }
 
-      const { rendered, overCap } = await renderFinal(authored.lpDoc, 'final');
+      const final = await renderFinal(authored.lpDoc, 'final');
 
-      return { authored, rendered, overCap };
+      return { authored, ...final };
     })(), authorTimeoutMs(), 'AUTHOR_TIMEOUT')
       // ── bd-0cdug: A LESSON IS NEVER LOST FOR TAKING TOO LONG ──────────────
       //
@@ -634,6 +737,9 @@ async function process(payload) {
           },
           rendered: recovered.rendered,
           overCap: recovered.overCap,
+          degraded: recovered.degraded,
+          degradedClasses: recovered.degradedClasses,
+          degradedBy: recovered.degradedBy,
         };
       });
 
@@ -641,7 +747,9 @@ async function process(payload) {
     // `let`, because the Urdu overlay pass below may replace BOTH with the overlaid document and
     // its render. Everything downstream — the R2 put, the row, the caption — reads these, so the
     // swap happens exactly once, here, and nothing after it needs to know which one it got.
-    let { rendered, overCap } = result;
+    let {
+      rendered, overCap, degraded, degradedClasses, degradedBy,
+    } = result;
     let deliveredDoc = authored.lpDoc;
 
     // ── THE URDU OVERLAY PASS (bd-zle0u) ────────────────────────────────────
@@ -696,6 +804,12 @@ async function process(payload) {
 
         rendered = pass.render.rendered;
         overCap = pass.render.overCap;
+        // The OVERLAID render's verdict replaces the English one wholesale — including a clean
+        // one. An overlay that repaired nothing must not inherit the English render's degradation,
+        // and an overlaid page that came out crowded must not hide behind a clean English render.
+        degraded = pass.render.degraded;
+        degradedClasses = pass.render.degradedClasses;
+        degradedBy = pass.render.degradedBy;
         deliveredDoc = pass.overlaid;
         overlayOutcome = 'applied';
       } catch (e) {
@@ -793,6 +907,33 @@ async function process(payload) {
         fails: (authored.fails || []).slice(0, 4),
         elapsedMs: Date.now() - startedAt,
       });
+    }
+
+    // THE DEGRADED EVENT — bd-oak77.14, and deliberately the same shape as over_cap and over_time
+    // for the same reason. "We shipped one long", "we shipped one late" and "we shipped one with a
+    // small diagram" are three different questions and each needs its own countable answer. The
+    // defect STRINGS ride along because the class alone ("figure") does not say whether the fleet
+    // is drifting toward one diagram type — and finding that out from the render event instead
+    // means joining two streams by renderId for every weekly read.
+    if (degraded) {
+      logEvent('lp612.deliver.degraded', {
+        renderId,
+        segmentId,
+        correlationId: correlationId || null,
+        lang,
+        templateVersion,
+        classes: degradedClasses || [],
+        problems: degradedBy || [],
+        notice: degradedNotice(degradedClasses),
+        page_count: rendered.pageCount ?? null,
+        pagesByPart: rendered.pagesByPart || null,
+        rounds: authored.rounds ?? null,
+        overCap: overCap === true,
+        overTime: overTime === true,
+      });
+      logToFile('LP 6-12 worker: delivering a lesson with a render defect rather than failing it', {
+        renderId, segmentId, lang, classes: degradedClasses, problems: degradedBy, correlationId,
+      }, 'warn');
     }
 
     if (overCap) {
@@ -909,6 +1050,12 @@ async function process(payload) {
       // indistinguishable from a false in every query anyone will run, and a retry after a
       // recovered attempt would otherwise inherit `true`.
       over_time: overTime === true,
+      // bd-oak77.14. ALWAYS written, never left to whatever was in the column — the identical
+      // reasoning as `over_cap` and `over_time` above. This is the flag that makes "of the lessons
+      // we sent, how many carried a render defect" answerable from the table, which is the only
+      // way the never-fail policy can be judged rather than argued about; and a retry after a
+      // degraded attempt must not inherit `true` (the bd-7yxsu mechanism).
+      render_degraded: degraded === true,
       page_count: rendered.pageCount ?? null,
       model_used: authored.model || model,
       rounds_used: authored.rounds ?? null,
@@ -953,6 +1100,8 @@ async function process(payload) {
           lang,
           oneScreen: oneScreenOf(authored),
           overlayDropped,
+          // bd-oak77.14 — the honesty line for a lesson delivered with a layout defect.
+          renderDegraded: degraded === true,
           renderId,
           sendDeadlineAt: deliveryDeadline,
         });
@@ -1004,6 +1153,8 @@ async function process(payload) {
       pagesByPart: rendered.pagesByPart || null,
       overCap: overCap === true,
       overTime: overTime === true,
+      renderDegraded: degraded === true,
+      degradedClasses: degradedClasses || [],
       overlayDropped,
       delivered,
       deliveryFailures,
@@ -1047,4 +1198,10 @@ async function process(payload) {
   }
 }
 
-module.exports = { process };
+module.exports = {
+  process,
+  // Exported for tests only. `patch` is the one write every terminal state goes through, and its
+  // missing-column behaviour cannot be exercised through `process()` without also standing up an
+  // author, a renderer and an R2 (see tests/lp612/missing-column-guard.test.js).
+  patchForTest: patch,
+};
