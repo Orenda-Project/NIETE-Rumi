@@ -4853,3 +4853,437 @@ COMMENT ON COLUMN assessment_papers.error_detail IS
 -- Reload PostgREST's schema cache last, so the reconciled columns + functions
 -- above are immediately visible to the REST API (the earlier NOTIFY predates these DDLs).
 NOTIFY pgrst, 'reload schema';
+
+-- ============================================================
+-- These three tables shipped as migrations (V1.0.9, V1.0.10, V1.1.7) and were
+-- never added here, so `npm run bootstrap:db` produced a database without them.
+-- The bot then failed silently: leaderHasAssignment() catches every error and
+-- returns false, so visit planning simply never appeared. Defined here so a
+-- fresh clone and a migrated database end up with the same shape.
+--
+-- school_id is the identity going forward. school_ext_id ('niete:<EMIS>') came
+-- from the coach roster sheet and is kept as a record of what the sheet said.
+-- Both columns are present on purpose during the transition; see
+-- docs/leader-schools-school-id-migration.md.
+--
+-- RLS: deliberately NOT enabled on these three, which matches the live databases
+-- but differs from schools and the other 69 tables in 01_rls-policies.sql.
+-- leader_teachers holds teacher names and phone numbers, so this is a real gap
+-- and not a considered exemption. It is called out here rather than quietly
+-- reproduced in every new clone. Settling it is its own change, because turning
+-- RLS on without a policy would cut off any anon or authenticated read that the
+-- portal currently depends on.
+
+CREATE TABLE IF NOT EXISTS leader_schools (
+  id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  leader_user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  source             text NOT NULL CHECK (source IN ('niete_ict')),
+  school_ext_id      text,
+  school_id          uuid REFERENCES schools(id),
+  school_name        text NOT NULL,
+  emis               text,
+  name_match_quality text,
+  created_at         timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (leader_user_id, source, school_ext_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_leader_schools_leader
+  ON leader_schools (leader_user_id);
+CREATE INDEX IF NOT EXISTS idx_leader_schools_school_id
+  ON leader_schools (school_id);
+
+-- DEPRECATED (V1.2.4) — do not read, do not add callers.
+--
+-- Stored one row per (coach, school, teacher). It answered "who does this coach
+-- coach?" and, because no school->teacher roster table was ever built, also
+-- "who teaches at this school?" — DISTINCT teachers at a school_ext_id across
+-- whoever held it. A coach-assignment table doing duty as institutional record.
+--
+-- Both questions are now derived:  leader_schools x users.school_id.
+-- The stored answer and the schools disagreed on 230 production rows; a join
+-- cannot disagree with itself.
+--
+-- Still WRITTEN by the school add/remove path, which is also the only thing
+-- that reads the rows back. Populated, indexed, and deciding nothing — which is
+-- precisely why the deprecation is stated here and on the table itself, rather
+-- than left to be inferred from 7,954 healthy-looking rows.
+--
+-- Delete when coach observation has run on the derived patch long enough to
+-- trust it, leader_roster_audit carries real coach-driven rows, and the 7
+-- teachers held by a coach with no users.school_id have been given one.
+-- Ratchet: bot/tests/observe/leader-teachers-deprecated.test.js
+CREATE TABLE IF NOT EXISTS leader_teachers (
+  id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  leader_user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  source             text NOT NULL CHECK (source IN ('niete_ict')),
+  school_ext_id      text,
+  school_id          uuid REFERENCES schools(id),
+  teacher_ext_id     text,
+  teacher_name       text NOT NULL,
+  teacher_phone      text,
+  teacher_phone_e164 text,
+  level              text,
+  created_at         timestamptz NOT NULL DEFAULT now(),
+  -- Soft delete (019). A coach taking a teacher off a school tombstones the
+  -- row; her users row, coaching_sessions and completed observations survive.
+  -- deleted_by is who PERFORMED it, which is not leader_user_id: a removal
+  -- from a school reaches every coach holding that teacher there.
+  deleted_at         timestamptz,
+  deleted_by         uuid REFERENCES users(id)
+);
+
+-- Partial, not a plain UNIQUE: a tombstone must not block re-adding the same
+-- teacher to the same school (23505 against a row the coach cannot see).
+CREATE UNIQUE INDEX IF NOT EXISTS leader_teachers_live_assignment_key
+  ON leader_teachers (leader_user_id, source, school_ext_id, teacher_ext_id)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_leader_teachers_live
+  ON leader_teachers (leader_user_id, school_ext_id)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_leader_teachers_leader_school
+  ON leader_teachers (leader_user_id, school_ext_id);
+CREATE INDEX IF NOT EXISTS idx_leader_teachers_phone_e164
+  ON leader_teachers (teacher_phone_e164);
+-- Append-only history of coach-driven roster changes (019). ONE ROW PER
+-- AFFECTED COACH: a move that reaches 4 coaches writes 4 rows, so each of them
+-- can be told why a teacher left their list.
+--
+-- Deliberately not dashboard_audit_log: that table's user_id is FK'd to
+-- dashboard_users, and the actor here is a coach in `users`.
+CREATE TABLE IF NOT EXISTS leader_roster_audit (
+  id                      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  action                  text NOT NULL CHECK (action IN ('add', 'remove', 'move')),
+  actor_user_id           uuid NOT NULL REFERENCES users(id),
+  affected_leader_user_id uuid REFERENCES users(id),
+  -- The teacher is denormalised on purpose: she may have no users row at all,
+  -- and an audit row must stay readable after the roster row it describes.
+  teacher_ext_id          text,
+  teacher_phone_e164      text,
+  teacher_name            text,
+  -- NULL from_ = an add. NULL to_ = a removal. Both set = a move.
+  from_school_ext_id      text,
+  to_school_ext_id        text,
+  detail                  jsonb,
+  created_at              timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_roster_audit_teacher
+  ON leader_roster_audit (teacher_phone_e164, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_roster_audit_actor
+  ON leader_roster_audit (actor_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_roster_audit_affected
+  ON leader_roster_audit (affected_leader_user_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_leader_teachers_school_id
+  ON leader_teachers (school_id);
+
+CREATE TABLE IF NOT EXISTS observation_schedules (
+  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  leader_user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  school_ext_id     text NOT NULL,
+  school_id         uuid REFERENCES schools(id),
+  teacher_ext_id    text NOT NULL,
+  teacher_name      text,
+  school_name       text,
+  scheduled_for     date NOT NULL,
+  scheduled_slot    text,
+  status            text NOT NULL DEFAULT 'upcoming' CHECK (status IN ('upcoming','done','cancelled')),
+  session_id        uuid,
+  calendar_event_id text,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_obs_sched_leader_status
+  ON observation_schedules (leader_user_id, status, scheduled_for);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_obs_sched_active
+  ON observation_schedules (leader_user_id, school_ext_id, teacher_ext_id)
+  WHERE status = 'upcoming';
+
+-- ── lp_feedback: reserve the voicenote follow-up column ─────────────────────
+-- Voicenotes are NOT live for NIETE, so the post-LP quiz asks about the lesson
+-- plan only. This column is the one piece of schema the later voicenote
+-- follow-up needs, added now so shipping it is code-only.
+
+ALTER TABLE lp_feedback
+  ADD COLUMN IF NOT EXISTS useful_component TEXT
+  CHECK (useful_component IN ('lp_only', 'voicenote_only', 'both'));
+
+COMMENT ON COLUMN lp_feedback.useful_component IS
+  'Reserved: which half the teacher found more useful once voicenotes '
+  'ship alongside the PDF. NULL for every after_pdf_only row.';
+
+-- ── schools: the five columns production grew out of band ───────────────────
+-- The table definition above declares six columns. Production carries eleven: emis,
+-- source_school_id, source_system, is_active and is_probable_test were added
+-- straight to the database and never written down here or in a migration.
+--
+-- So production works and anything built from this file does not. Staging has
+-- exactly the declared six, which is why the portal's leader school-add path
+-- fails there on its FIRST query -- 'niete:' || emis against schools, 42703
+-- column "emis" does not exist -- and why that whole feature has never had a
+-- pre-prod test route. A DR rebuild from this file would have reproduced the
+-- same break on production.
+--
+-- All five are declared, not just the two the code reads today. Leaving three
+-- undeclared keeps the drift alive for whoever hits it next.
+
+ALTER TABLE schools ADD COLUMN IF NOT EXISTS emis             TEXT;
+ALTER TABLE schools ADD COLUMN IF NOT EXISTS source_school_id BIGINT;
+ALTER TABLE schools ADD COLUMN IF NOT EXISTS source_system    TEXT;
+ALTER TABLE schools ADD COLUMN IF NOT EXISTS is_active        BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE schools ADD COLUMN IF NOT EXISTS is_probable_test BOOLEAN NOT NULL DEFAULT false;
+
+COMMENT ON COLUMN schools.emis IS
+  'Official EMIS number. The coach roster keys a school as ''niete:'' || emis, '
+  'so the portal school lookup cannot resolve anything without this column.';
+COMMENT ON COLUMN schools.is_active IS
+  'Soft delete. School search reads WHERE is_active IS NOT FALSE.';
+
+-- ---------------------------------------------------------------------------
+-- 6-12 runtime lesson plans (V1.2.8).
+--
+-- niete_lp612_segments is the menu tree: one row per teaching day, produced by
+-- the segmentation fleet and loaded idempotently by
+-- bot/scripts/import-lp612-segments.js. niete_lp612_renders is the R2 cache
+-- ledger, keyed (segment_id, lang, template_version) -- a UNIQUE constraint
+-- rather than a convention, because it doubles as the lock that stops two
+-- teachers tapping the same lesson from authoring it twice.
+--
+-- Full rationale, column by column, lives in the migration:
+-- infrastructure/supabase/migrations/V1.2.8__lp612_runtime_lesson_plans.sql
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS niete_lp612_segments (
+  segment_id            TEXT PRIMARY KEY,
+  book_stem             TEXT    NOT NULL,
+  grade                 INTEGER NOT NULL CHECK (grade BETWEEN 6 AND 12),
+  subject               TEXT    NOT NULL,
+  medium                TEXT,
+  language              TEXT    NOT NULL DEFAULT 'en' CHECK (language IN ('en', 'ur')),
+  chapter_number        INTEGER,
+  chapter_title         TEXT,
+  chapter_key           TEXT    NOT NULL,
+  part                  TEXT,
+  part_index            INTEGER,
+  subtopic_title        TEXT    NOT NULL,
+  menu_title            TEXT    NOT NULL,
+  section_ref           TEXT,
+  printed_page_start    INTEGER NOT NULL,
+  printed_page_end      INTEGER NOT NULL,
+  pages_covered         INTEGER[] NOT NULL DEFAULT '{}',
+  order_index           INTEGER NOT NULL,
+  day_number            INTEGER,
+  segment_index         INTEGER,
+  lp_type               TEXT    NOT NULL DEFAULT 'content'
+                          CHECK (lp_type IN ('content', 'exercise_review', 'assessment',
+                                             'practical', 'revision')),
+  skill_type            TEXT,
+  slo_text              TEXT,
+
+  -- The deterministic SLO/section enrichment pass (V1.3.0). 100% coverage on the
+  -- 5,482-segment corpus; the curriculum spine the authoring brief quotes from.
+  -- Native arrays match this table's pages_covered / revision_source_segments.
+  -- Extra years this same segment is taught in — the Grade 9-10 shared practicals book. ONE row,
+  -- one segment_id, one cached render, listed in two menus. Menu reads filter
+  -- `grade = N OR also_grades @> {N}`; the column alone leaves the book invisible. (V1.3.1)
+  also_grades           INTEGER[] NOT NULL DEFAULT '{}',
+
+  slo_codes             TEXT[] NOT NULL DEFAULT '{}',
+  slo_descriptions      TEXT[] NOT NULL DEFAULT '{}',
+  slo_source            TEXT,
+  -- `section` is the human label (every segment has one); `section_ref` above is
+  -- the PRINTED section number and is null for ~68% of the corpus.
+  section               TEXT,
+  revision_source_segments TEXT[] NOT NULL DEFAULT '{}',
+  prev_segment_id       TEXT,
+  next_segment_id       TEXT,
+  yt                    JSONB,
+  is_religious          BOOLEAN NOT NULL DEFAULT FALSE,
+  notes                 TEXT,
+  corpus_version        TEXT    NOT NULL DEFAULT 'v1',
+  is_current            BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_lp612_segments_menu
+  ON niete_lp612_segments (grade, subject, chapter_number, order_index)
+  WHERE is_current;
+CREATE INDEX IF NOT EXISTS idx_lp612_segments_book
+  ON niete_lp612_segments (book_stem, chapter_key, order_index);
+
+COMMENT ON COLUMN niete_lp612_segments.is_religious IS
+  'Operator hold: Islamiat + seerah segments are never served on demand unless '
+  'LP_612_RELIGIOUS_ENABLED is on, which is separate from the feature flag so '
+  'that enabling the feature cannot enable these by accident.';
+
+CREATE TABLE IF NOT EXISTS niete_lp612_renders (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  segment_id        TEXT NOT NULL REFERENCES niete_lp612_segments(segment_id),
+  lang              TEXT NOT NULL CHECK (lang IN ('en', 'ur')),
+  template_version  TEXT NOT NULL,
+  status            TEXT NOT NULL DEFAULT 'authoring'
+                      CHECK (status IN ('authoring', 'ready', 'failed')),
+  r2_key            TEXT,
+  page_count        INTEGER,
+  model_used        TEXT,
+  rounds_used       INTEGER,
+  lint_clean        BOOLEAN,
+  lint_fails        JSONB,
+
+  -- The authored one_screen body (150-260 words), sent as the WhatsApp message
+  -- beside the PDF. Stored rather than re-derived because every teacher after
+  -- the first is served entirely from this row. Nullable: renders cached before
+  -- V1.2.9 have none and serve the document alone. (V1.2.9)
+  one_screen        TEXT,
+
+  -- True when an Urdu render of an EN-medium book lost its ur_overlay — the
+  -- document is essentially English in RTL chrome, and every delivery from this
+  -- row appends the honest Urdu caption line instead of silently labelling it
+  -- Urdu. Not a status value: the render IS ready; it is served honestly. (V1.3.3)
+  overlay_dropped   BOOLEAN NOT NULL DEFAULT FALSE,
+
+  -- True when this lesson was DELIVERED while a part ran past its hard page cap.
+  -- Page-count overflow stopped being a delivery failure on 2026-09-04 (bd-vjk68) — a document
+  -- refused ONLY for length is sent at whatever length it is, because the PDF already exists by
+  -- the time the renderer reports the defect. Not a status value and never an error_code: the
+  -- row IS ready and the teacher HAS it (bd-7yxsu — status and error code may never disagree).
+  -- The per-part pages and the caps they were measured against ride the
+  -- `lp612.deliver.over_cap` event; this column is the filter that makes them findable. (V1.3.7)
+  over_cap          BOOLEAN NOT NULL DEFAULT FALSE,
+  error_code        TEXT,
+  error_detail      TEXT,
+  waiters           JSONB NOT NULL DEFAULT '[]'::jsonb,
+  requested_by      UUID REFERENCES users(id),
+  correlation_id    TEXT,
+  started_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- When a WORKER actually took the job off the queue. THE SECOND CLOCK (V1.3.6).
+  -- `started_at` above is the INSERT's own DEFAULT NOW() — it records when the teacher asked, i.e.
+  -- when the job was ENQUEUED. The stranded-render reaper measured a run's age from it and so
+  -- condemned jobs still waiting in the queue, unattempted, at ~17 minutes. NULL means "queued, not
+  -- yet attempted", which is a state this table previously could not express. (V1.3.6)
+  picked_up_at      TIMESTAMPTZ,
+  completed_at      TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT niete_lp612_renders_cache_key UNIQUE (segment_id, lang, template_version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_lp612_renders_lookup
+  ON niete_lp612_renders (segment_id, lang, template_version, status);
+CREATE INDEX IF NOT EXISTS idx_lp612_renders_inflight
+  ON niete_lp612_renders (started_at)
+  WHERE status = 'authoring';
+
+-- ---------------------------------------------------------------------------
+-- The two functions that make `waiters` safe under concurrency.
+--
+-- THEY BELONG IN THIS FILE, and one of them was missing from it. `lp612_join_waiters` shipped in
+-- migrations/V1.3.2 and nowhere else, so a fresh clone bootstrapped with `npm run bootstrap:db`
+-- got the tables WITHOUT the function: every joinWaiters() call returned 'error' and every
+-- waiting teacher was dropped, silently, on a system that looked correctly installed. The
+-- schema↔code guard that exists to catch exactly this could not see the reference, because its
+-- name-matching pattern accepted no digits (fixed in tests/setup/schema-completeness.test.js).
+--
+-- `waiters` is a JSONB list on the render row, and both of its dangerous operations are
+-- read-modify-writes. Each is therefore ONE statement under the row lock rather than a
+-- client-side round trip. See migrations/V1.3.2 and V1.3.4 for the measurements behind them.
+-- ---------------------------------------------------------------------------
+
+-- Append one waiter atomically. Returns joined | duplicate | not_authoring | missing.
+-- Replaces a client-side read-modify-write that dropped 90% of waiters in a 20-way stampede.
+CREATE OR REPLACE FUNCTION lp612_join_waiters(p_render_id UUID, p_entry JSONB)
+RETURNS TEXT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_updated INTEGER;
+  v_status  TEXT;
+BEGIN
+  -- ONE statement: the row lock serialises concurrent callers and `waiters` is re-read under it,
+  -- so an append can never be computed from a stale copy.
+  UPDATE niete_lp612_renders
+     SET waiters    = waiters || jsonb_build_array(p_entry),
+         updated_at = NOW()
+   WHERE id = p_render_id
+     -- Refuse to attach a waiter to a run that is already over: the worker clears `waiters` when
+     -- it delivers, so an append a moment later means waiting for ever. The caller re-decides.
+     AND status = 'authoring'
+     -- Tapping twice must not mean being sent the lesson twice. Deduped on PHONE, because that is
+     -- what delivery actually uses and it is present for every caller; user_id may be null.
+     AND NOT EXISTS (
+       SELECT 1 FROM jsonb_array_elements(waiters) AS w
+        WHERE w->>'phone' IS NOT DISTINCT FROM p_entry->>'phone'
+     );
+
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
+  IF v_updated = 1 THEN
+    RETURN 'joined';
+  END IF;
+
+  SELECT status INTO v_status FROM niete_lp612_renders WHERE id = p_render_id;
+  IF v_status IS NULL        THEN RETURN 'missing';       END IF;
+  IF v_status <> 'authoring' THEN RETURN 'not_authoring'; END IF;
+  RETURN 'duplicate';
+END;
+$$;
+
+COMMENT ON FUNCTION lp612_join_waiters(UUID, JSONB) IS
+  'Atomically append one waiter to niete_lp612_renders.waiters. Returns joined | duplicate | not_authoring | missing. Replaces a client-side read-modify-write that dropped 90% of waiters in a 20-way stampede.';
+
+-- Return the delivery audience and empty it, under one row lock. Called by the authoring worker
+-- AFTER it writes the terminal status, so a concurrent join is either included in what comes back
+-- or refused by the `status = 'authoring'` guard above and re-decided into a cache hit.
+CREATE OR REPLACE FUNCTION lp612_claim_waiters(p_render_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_waiters JSONB;
+BEGIN
+  -- Take the row lock FIRST and read under it. A concurrent lp612_join_waiters() blocks here
+  -- until this transaction commits, so no append can slip between the read and the clear.
+  SELECT waiters INTO v_waiters
+    FROM niete_lp612_renders
+   WHERE id = p_render_id
+     FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN '[]'::jsonb;
+  END IF;
+
+  UPDATE niete_lp612_renders
+     SET waiters    = '[]'::jsonb,
+         updated_at = NOW()
+   WHERE id = p_render_id;
+
+  RETURN COALESCE(v_waiters, '[]'::jsonb);
+END;
+$$;
+
+COMMENT ON FUNCTION lp612_claim_waiters(UUID) IS
+  'Atomically return niete_lp612_renders.waiters and empty it, under one row lock. The delivery audience for a finished (or failed) authoring run. Call it AFTER writing the terminal status, so a concurrent lp612_join_waiters is either included here or refused with not_authoring.';
+
+-- Reload PostgREST's schema cache last, so the reconciled columns + functions
+-- above are immediately visible to the REST API (the earlier NOTIFY predates these DDLs).
+NOTIFY pgrst, 'reload schema';
+
+-- =============================================================================
+
+ALTER TABLE lp_feedback
+  ADD COLUMN IF NOT EXISTS lp612_segment_id TEXT
+  REFERENCES niete_lp612_segments(segment_id) ON DELETE SET NULL;
+
+COMMENT ON COLUMN lp_feedback.lp612_segment_id IS
+  'The 6-12 lesson this verdict is about (niete_lp612_segments.segment_id). NULL for every K-5 '
+  'row, where lesson_plan_id carries the identity instead. Set together with '
+  'lp_variant = ''lp612_en'' | ''lp612_ur'', which is the lane + document-language discriminator.';
+
+CREATE INDEX IF NOT EXISTS idx_lp_feedback_lp612_segment
+  ON lp_feedback (lp612_segment_id, created_at DESC)
+  WHERE lp612_segment_id IS NOT NULL;
+

@@ -41,6 +41,8 @@ const LessonPlanGenerationWorker = require('./lesson-plan-generation.worker');
 const VideoGenerationWorker = require('./video-generation.worker');
 const ExamGradingWorker = require('./exam-grading.worker');
 const { runSonioxCleanup } = require('../shared/services/soniox-cleanup.service');
+const { startVisibilityHeartbeat } = require('../shared/utils/sqs-visibility-heartbeat');
+const { heartbeatCeilingMs } = require('../shared/config/lp612-flags');
 const os = require('os');
 
 // Configuration
@@ -141,6 +143,24 @@ class SQSCoachingWorker {
     if (!raw) return new Set(['main', 'video', 'quiz']);
     const parsed = raw.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
     return parsed.length ? new Set(parsed) : new Set(['main', 'video', 'quiz']);
+  }
+
+  /**
+   * What WORKER_QUEUES resolved to on this boot, for the startup log.
+   *
+   * Two services run this same file — both poll `main` (lp612_author has no dedicated queue; it
+   * rides `main`, see queueJob() in lp612-serving.service.js) and can carry two different
+   * LP612_AUTHOR_TIMEOUT_MS / LP612_AUTHOR_ROUNDS values, silently, for as long as nobody
+   * happens to look. This does not decide correctness — several services legitimately CAN all
+   * poll `main` — it only makes the choice visible in the boot log instead of invisible.
+   */
+  static _workerQueuesBootStatus() {
+    const raw = (process.env.WORKER_QUEUES || '').trim();
+    return {
+      raw: raw || null,
+      enabled: [...SQSCoachingWorker._enabledQueues()],
+      isDefaulted: !raw,
+    };
   }
 
   /**
@@ -397,6 +417,59 @@ class SQSCoachingWorker {
         await SQSQueueService.extendJobTimeout(receiptHandle, 300);
         const HomeworkBundleWorker = require('./homework-bundle.worker');
         await HomeworkBundleWorker.process(payload);
+        break;
+      }
+
+      case 'lp612_author': {
+        // Write a 6-12 lesson plan that has never been asked for
+        // before, render it, cache it in R2 and send it.
+        //
+        // The longest job on this worker. The author call alone is 1-2.5 min and
+        // the revision ladder can triple that; the measured worst case end to
+        // end is around 10 minutes. The comment used to stop there and rely on
+        // ONE 900s extension to outlast the whole job — it didn't.
+        //
+        // bd-awqt3: LP612_AUTHOR_TIMEOUT_MS (lp612-author.worker.js's own hard
+        // stop) only bounds authoring + the final render inside that worker's
+        // withTimeout(). Everything after — the PDF read, both R2 uploads, the
+        // DB writes and the per-waiter WhatsApp delivery loop — runs AFTER that
+        // timeout resolves and is unbounded. Add staging running that timeout at
+        // up to 840s on one worker vs 720s on another and a single 900s
+        // extension can leave as little as 60s of margin for an unbounded tail.
+        // A load test measured jobs running past 936s — 36s past this window —
+        // at which point the message goes visible again, a second worker claims
+        // the same lesson, and duplicate authoring doubles the load exactly when
+        // contention is already why the first run was slow.
+        //
+        // The fix is structural rather than a bigger number: a heartbeat
+        // (shared/utils/sqs-visibility-heartbeat.js) re-extends visibility every
+        // ~60s for as long as this job is ACTUALLY running — however long that
+        // is — and stops the instant it settles, success or failure, via the
+        // finally below. It is bounded by an absolute ceiling (2x the job's own
+        // hard timeout) so a genuinely hung job still becomes visible again
+        // eventually instead of being kept alive forever.
+        await SQSQueueService.extendJobTimeout(receiptHandle, 900);
+        const heartbeat = startVisibilityHeartbeat({
+          extend: (seconds) => SQSQueueService.extendJobTimeout(receiptHandle, seconds),
+          intervalMs: 60 * 1000,
+          extendSeconds: 900,
+          ceilingMs: heartbeatCeilingMs(), // bd-w36m5: shared with the reaper, see lp612-flags.js
+          // No correlationId here: it's not a parameter of executeJob(), and logToFile already
+          // pulls the current one from AsyncLocalStorage (set by runWithCorrelation in
+          // processJob(), which wraps this whole call) — see shared/utils/logger.js.
+          onExtendError: (err) => logToFile('lp612_author heartbeat: extend failed, continuing', {
+            sessionId, error: err.message,
+          }),
+          onCeilingReached: () => logToFile('lp612_author heartbeat: ceiling reached, no longer extending', {
+            sessionId,
+          }),
+        });
+        try {
+          const Lp612AuthorWorker = require('./lp612-author.worker');
+          await Lp612AuthorWorker.process(payload);
+        } finally {
+          heartbeat.stop();
+        }
         break;
       }
 
@@ -1099,6 +1172,29 @@ logToFile('🚀 Starting SQS Coaching Worker', {
   sqsQueueUrl: process.env.SQS_QUEUE_URL
 });
 
+function resolveWorkerQueuesBootStatus() {
+  return SQSCoachingWorker._workerQueuesBootStatus();
+}
+
+// make the WORKER_QUEUES decision visible on every boot, not just inferable after an
+// incident (see _workerQueuesBootStatus() above for why this matters for lp612_author).
+{
+  const queuesBootStatus = resolveWorkerQueuesBootStatus();
+  if (queuesBootStatus.isDefaulted) {
+    logToFile(
+      '⚠️  WORKER_QUEUES is unset on this service — defaulting to ALL queues (main, video, quiz). '
+      + 'If another service running this same file has a DIFFERENT value for a per-job-type '
+      + 'config env var (e.g. LP612_AUTHOR_TIMEOUT_MS, LP612_AUTHOR_ROUNDS) while also polling '
+      + 'one of these queues, a job of that type will silently get different behaviour depending '
+      + 'on which replica happens to claim it. Set WORKER_QUEUES explicitly per '
+      + 'service so each job type has ONE owning worker class.',
+      queuesBootStatus,
+    );
+  } else {
+    logToFile('WORKER_QUEUES resolved', queuesBootStatus);
+  }
+}
+
 // Recover stale requests before starting worker. Gated behind
 // require.main === module so the file can be required as a library without
 // firing the recovery sweep + worker start.
@@ -1177,6 +1273,17 @@ function startWorker() {
       } catch (error) {
         logToFile('Error in stale-session recovery (non-fatal)', { error: error.message });
       }
+
+      // A deploy mid-authoring strands a 6-12 render in `authoring` for ever, and this
+      // deployment redeploys on every merge. Required lazily and in its own try: this
+      // sweep must never be able to take the stale-session recovery above down with it.
+      try {
+        const { reapStrandedRenders } = require('../shared/services/lp612-serving.service');
+        const reaped = await reapStrandedRenders();
+        if (reaped) logToFile('🔄 Reaped stranded 6-12 renders', { count: reaped });
+      } catch (error) {
+        logToFile('Error reaping stranded 6-12 renders (non-fatal)', { error: error.message });
+      }
     }, STALE_RECOVERY_INTERVAL_MS);
 
 
@@ -1234,4 +1341,6 @@ if (require.main === module) {
 }
 
 // Export for testing
-module.exports = { SQSCoachingWorker, WORKER_ID, startWorker, runDebriefRetrySweep };
+module.exports = {
+  SQSCoachingWorker, WORKER_ID, startWorker, runDebriefRetrySweep, resolveWorkerQueuesBootStatus,
+};

@@ -34,6 +34,35 @@
 
 const { logToFile } = require('../utils/logger');
 const redisService = require('../services/cache/railway-redis.service');
+
+/**
+ * Persist a completed screen's fields to the user row AS SOON AS the screen is
+ * submitted — not at SUCCESS. In production the terminal Flow payload arrives with
+ * the earlier screens' values empty (Redis round-trip loses them; verified in
+ * niete-logs 2026-09-03: a real teacher's completion had full_name:"" while the
+ * last screen's role/school survived), so relying on it drops the name and, on the
+ * org="other" path, the role. Writing per screen makes the account correct whatever
+ * the terminal payload loses. Only non-empty values are written, so nothing is ever
+ * blanked; failure is logged and swallowed — a Redis/DB hiccup must not break the
+ * Flow response the teacher is waiting on.
+ */
+async function persistToUser(userId, cols) {
+  const clean = {};
+  for (const [k, v] of Object.entries(cols)) {
+    if (v === undefined || v === null) continue;
+    if (typeof v === 'string' && v.trim() === '') continue;
+    clean[k] = v;
+  }
+  if (!userId || Object.keys(clean).length === 0) return;
+  try {
+    const supabase = require('../config/supabase');   // lazy: importing this module must stay side-effect-free
+    const { error } = await supabase.from('users').update(clean).eq('id', userId);
+    if (error) logToFile('⚠️ registration: per-screen user write failed', { userId, cols: Object.keys(clean), error: error.message });
+    else logToFile('✅ registration: per-screen persisted', { userId, cols: Object.keys(clean) });
+  } catch (e) {
+    logToFile('⚠️ registration: per-screen user write threw', { userId, error: e.message });
+  }
+}
 const { getOfferedLanguages, offerDefaultLanguage } = require('../config/languages');
 const { clampLanguage } = require('../config/ux-strings');
 const {
@@ -56,6 +85,29 @@ const VALID_ROLE_IDS = new Set(ROLES_DROPDOWN.map(r => r.id)); // teacher, coach
 function normalizeRole(raw) {
   const v = String(raw || '').toLowerCase().trim();
   return VALID_ROLE_IDS.has(v) ? v : null;
+}
+
+/**
+ * Mark the account complete AT THE SCREEN THAT ENDS THE FLOW, not at the terminal payload.
+ *
+ * Both SUCCESS branches below tell the teacher "Your registration is
+ * complete." Until now neither wrote `registration_completed` — the flag was set only
+ * when the terminal Flow payload later reached flow-response.handler.js
+ * (handleRegistrationFlow). That is exactly the payload this file's own header documents
+ * as unreliable ("the terminal Flow payload arrives with the earlier screens' values
+ * empty… verified in the logs 2026-09-03"), which is why the NAME write was moved
+ * per screen. The completion flag was never moved with it, so a teacher whose terminal
+ * payload was lost ended registered-in-fact and unregistered-on-the-row.
+ *
+ * On prod that shows as a 76.7% completion rate over the last 7 days: of 30 named users
+ * created in that window, 23 carry the flag. flow-response.handler.js still writes it too
+ * — a second write of `true` is a no-op, and losing it there no longer loses the fact.
+ */
+async function markRegistrationComplete(userId) {
+  await persistToUser(userId, {
+    registration_completed: true,
+    registration_completed_at: new Date().toISOString(),
+  });
 }
 
 /**
@@ -171,6 +223,13 @@ async function handlePersonalInfoSubmit(userId, screenData, flowToken) {
   // onward as undefined and reach a write.
   const language = clampLanguage(screenData.language || offerDefaultLanguage());
 
+  // Persist name + country to the account NOW (the terminal payload loses them — bd-2480).
+  await persistToUser(userId, {
+    first_name: fullName.split(/\s+/)[0] || fullName,
+    name: fullName,
+    country,
+  });
+
   // Store partial registration data in Redis (region not collected yet)
   const regData = {
     full_name: fullName,
@@ -226,6 +285,7 @@ async function handleRegionInfoSubmit(userId, screenData, flowToken) {
   const stored = await getRegData(flowToken);
   stored.region = region;
   await storeRegData(flowToken, stored);
+  await persistToUser(userId, { region });
 
   const response = {
     screen: 'PROFESSIONAL_INFO',
@@ -273,6 +333,21 @@ async function handleProfessionalInfoSubmit(userId, screenData, flowToken) {
     role: normalizeRole(screenData.role)
   };
 
+  // Persist role + professional fields NOW (org="other" adds ORG_DETAILS after this
+  // screen, making it no longer the last screen, so the terminal payload drops the
+  // role — bd-2773). Only the role id is validated; empties are skipped in persistToUser.
+  await persistToUser(userId, {
+    role: allData.role,
+    school_name: allData.school_name,
+    // users columns are grades_taught / subjects_taught (matching flow-response.handler); NOT
+    // grade/subjects — a wrong name makes PostgREST reject the WHOLE update, which dropped the
+    // role again on the org="other" path (bd-2773 verify, 2026-09-03: "Could not find the
+    // 'subjects' column of 'users'").
+    grades_taught: (Array.isArray(allData.grade) ? allData.grade.length : allData.grade) ? allData.grade : undefined,
+    subjects_taught: (allData.subjects && allData.subjects.length) ? allData.subjects : undefined,
+    organization: organization === 'other' ? undefined : organization,
+  });
+
   // If org is "other", navigate to ORG_DETAILS for custom org name
   if (organization === 'other') {
     await storeRegData(flowToken, allData);
@@ -289,7 +364,9 @@ async function handleProfessionalInfoSubmit(userId, screenData, flowToken) {
     return response;
   }
 
-  // Non-"other" org → go directly to SUCCESS
+  // Non-"other" org → go directly to SUCCESS. This screen ENDS the flow, so the account
+  // is marked complete here rather than waiting on the terminal payload.
+  await markRegistrationComplete(userId);
   await deleteRegData(flowToken);
 
   const response = {
@@ -338,6 +415,8 @@ async function handleOrgDetailsSubmit(userId, screenData, flowToken) {
   }
 
   const stored = await getRegData(flowToken);
+  // ORG_DETAILS is the last screen on the org="other" path — mark complete here too.
+  await markRegistrationComplete(userId);
   await deleteRegData(flowToken);
 
   const response = {

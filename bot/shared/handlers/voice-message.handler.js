@@ -30,6 +30,9 @@ const { shouldDeferNewClassroomAudio } = require('../services/coaching/coaching-
 const { getCoachingMessage } = require('../config/coaching-messages');
 // Import language detection for content generation
 const { detectRequestedLanguage } = require('../utils/language-detection');
+const { resolveUx } = require('../config/ux-strings');
+const { openLpBrowseFlow } = require('../services/lp-browse-entry.service'); // the one door to the catalogue
+const { isLp612Enabled, isLp612RouteAll } = require('../config/lp612-flags'); // the cutover switch
 // Language cache for ASR routing based on user preference
 const { getUserLanguage, setUserLanguage } = require('../utils/language-cache');
 
@@ -1338,6 +1341,25 @@ async function handleVoiceMessage(message, from, user = null) {
  * @returns {Promise<void>}
  */
 async function handleVoiceLessonPlanRequest(from, transcription, user, sessionId, detectedLanguage) {
+  // ── THE CUTOVER GATE, VOICE DOOR ────────────────────────────────────────────
+  // The twin of the gate in text-message.handler.js handleLessonPlanRequest. Gating
+  // one and not the other would leave a teacher who SPEAKS her request on Gamma while
+  // the typed request gets the menu — two doors, two answers. Same flags, same
+  // rollback: both off restores the generation path below with no deploy.
+  if (user && isLp612Enabled() && isLp612RouteAll() && process.env.PAKISTAN_LP_FLOW_ID) {
+    try {
+      await WhatsAppService.sendMessage(from, resolveUx('lp612RouteRedirect', { language: detectedLanguage }));
+    } catch (redirectErr) {
+      logToFile('LP route-all (voice): redirect line failed to send', { error: redirectErr.message, userId: user.id });
+    }
+    if (await openLpBrowseFlow({ from, userId: user.id, language: detectedLanguage, reason: 'voice_lesson_plan_intent' })) {
+      return;
+    }
+    // The Flow send failed — fall THROUGH to the generation path below rather than
+    // leaving her with an explanation and nothing else.
+    logToFile('LP route-all (voice): Flow send failed, falling back to the generation path', { userId: user.id });
+  }
+
   logToFile('Queueing lesson plan from voice request...');
   try {
     // Extract topic
@@ -1452,5 +1474,6 @@ async function handleVoicePresentationRequest(from, transcription, user, session
 // Registration now triggers after first feature completion via FeatureRegistrationService
 
 module.exports = {
+  handleVoiceLessonPlanRequest, // exported so the cutover gate can be executed by a test
   handleVoiceMessage
 };

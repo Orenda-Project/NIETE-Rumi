@@ -1,0 +1,1537 @@
+{
+  "version": "15.0.0",
+  "license": "CC BY-SA 4.0",
+  "source": "OpenMoji 15.0.0 — the black (line-art) variant, https://openmoji.org",
+  "glyphs": {
+    "aeroplane": {
+      "file": "aeroplane.svg",
+      "hexcode": "2708",
+      "annotation": "airplane",
+      "author": "Ronja Bäurlen"
+    },
+    "anchor": {
+      "file": "anchor.svg",
+      "hexcode": "2693",
+      "annotation": "anchor",
+      "author": "Ronja Bäurlen"
+    },
+    "ant": {
+      "file": "ant.svg",
+      "hexcode": "1F41C",
+      "annotation": "ant",
+      "author": "Selina Bauder"
+    },
+    "apple": {
+      "file": "apple.svg",
+      "hexcode": "1F34E",
+      "annotation": "red apple",
+      "author": "Liz Bravo"
+    },
+    "arm": {
+      "file": "arm.svg",
+      "hexcode": "1F4AA",
+      "annotation": "flexed biceps",
+      "author": "Julian Grüneberg"
+    },
+    "baby": {
+      "file": "baby.svg",
+      "hexcode": "1F476",
+      "annotation": "baby",
+      "author": "Johanna Wellnitz"
+    },
+    "bag": {
+      "file": "bag.svg",
+      "hexcode": "1F392",
+      "annotation": "backpack",
+      "author": "Jonas Roßner"
+    },
+    "bag_school": {
+      "file": "bag_school.svg",
+      "hexcode": "1F392",
+      "annotation": "backpack",
+      "author": "Jonas Roßner"
+    },
+    "ball": {
+      "file": "ball.svg",
+      "hexcode": "26BD",
+      "annotation": "soccer ball",
+      "author": "Vanessa Boutzikoudi"
+    },
+    "balloon": {
+      "file": "balloon.svg",
+      "hexcode": "1F388",
+      "annotation": "balloon",
+      "author": "Laura Humpfer"
+    },
+    "banana": {
+      "file": "banana.svg",
+      "hexcode": "1F34C",
+      "annotation": "banana",
+      "author": "Marius Schnabel"
+    },
+    "basket": {
+      "file": "basket.svg",
+      "hexcode": "1F9FA",
+      "annotation": "basket",
+      "author": "Tonia Reinhardt"
+    },
+    "bat": {
+      "file": "bat.svg",
+      "hexcode": "1F987",
+      "annotation": "bat",
+      "author": "Sofie Ascherl"
+    },
+    "battery": {
+      "file": "battery.svg",
+      "hexcode": "1F50B",
+      "annotation": "battery",
+      "author": "Jonas Roßner"
+    },
+    "bear": {
+      "file": "bear.svg",
+      "hexcode": "1F43B",
+      "annotation": "bear",
+      "author": "Sofie Ascherl"
+    },
+    "bed": {
+      "file": "bed.svg",
+      "hexcode": "1F6CF",
+      "annotation": "bed",
+      "author": "Lisa Schulz"
+    },
+    "bee": {
+      "file": "bee.svg",
+      "hexcode": "1F41D",
+      "annotation": "honeybee",
+      "author": "Selina Bauder"
+    },
+    "bell": {
+      "file": "bell.svg",
+      "hexcode": "1F514",
+      "annotation": "bell",
+      "author": "Rana Cakir"
+    },
+    "bicycle": {
+      "file": "bicycle.svg",
+      "hexcode": "1F6B2",
+      "annotation": "bicycle",
+      "author": "Ronja Bäurlen"
+    },
+    "bin": {
+      "file": "bin.svg",
+      "hexcode": "1F5D1",
+      "annotation": "wastebasket",
+      "author": "Sina Schulz"
+    },
+    "bird": {
+      "file": "bird.svg",
+      "hexcode": "1F426",
+      "annotation": "bird",
+      "author": "Selina Bauder"
+    },
+    "blanket": {
+      "file": "blanket.svg",
+      "hexcode": "1F6CF",
+      "annotation": "bed",
+      "author": "Lisa Schulz"
+    },
+    "boat": {
+      "file": "boat.svg",
+      "hexcode": "26F5",
+      "annotation": "sailboat",
+      "author": "Ronja Bäurlen"
+    },
+    "body": {
+      "file": "body.svg",
+      "hexcode": "1F464",
+      "annotation": "bust in silhouette",
+      "author": "Johanna Wellnitz"
+    },
+    "bone": {
+      "file": "bone.svg",
+      "hexcode": "1F9B4",
+      "annotation": "bone",
+      "author": "Laura Schießer"
+    },
+    "book": {
+      "file": "book.svg",
+      "hexcode": "1F4D5",
+      "annotation": "closed book",
+      "author": "Jonas Roßner"
+    },
+    "boot": {
+      "file": "boot.svg",
+      "hexcode": "1F97E",
+      "annotation": "hiking boot",
+      "author": "Laura Schießer"
+    },
+    "bottle": {
+      "file": "bottle.svg",
+      "hexcode": "1F37E",
+      "annotation": "bottle with popping cork",
+      "author": "Laura Humpfer"
+    },
+    "bowl": {
+      "file": "bowl.svg",
+      "hexcode": "1F963",
+      "annotation": "bowl with spoon",
+      "author": "Liz Bravo"
+    },
+    "box": {
+      "file": "box.svg",
+      "hexcode": "1F4E6",
+      "annotation": "package",
+      "author": "Liz Bravo"
+    },
+    "brain": {
+      "file": "brain.svg",
+      "hexcode": "1F9E0",
+      "annotation": "brain",
+      "author": "Julian Grüneberg"
+    },
+    "bread": {
+      "file": "bread.svg",
+      "hexcode": "1F35E",
+      "annotation": "bread",
+      "author": "Miriam Vollmeier"
+    },
+    "brick": {
+      "file": "brick.svg",
+      "hexcode": "1F9F1",
+      "annotation": "brick",
+      "author": "Jonas Dunkel"
+    },
+    "bridge": {
+      "file": "bridge.svg",
+      "hexcode": "1F309",
+      "annotation": "bridge at night",
+      "author": "Jonas Dunkel"
+    },
+    "broom": {
+      "file": "broom.svg",
+      "hexcode": "1F9F9",
+      "annotation": "broom",
+      "author": "Tonia Reinhardt"
+    },
+    "brush": {
+      "file": "brush.svg",
+      "hexcode": "1F58C",
+      "annotation": "paintbrush",
+      "author": "Rana Cakir"
+    },
+    "bucket": {
+      "file": "bucket.svg",
+      "hexcode": "1FAA3",
+      "annotation": "bucket",
+      "author": "Liz Bravo"
+    },
+    "bulb": {
+      "file": "bulb.svg",
+      "hexcode": "1F4A1",
+      "annotation": "light bulb",
+      "author": "Sina Schulz"
+    },
+    "bus": {
+      "file": "bus.svg",
+      "hexcode": "1F68C",
+      "annotation": "bus",
+      "author": "Ronja Bäurlen"
+    },
+    "butterfly": {
+      "file": "butterfly.svg",
+      "hexcode": "1F98B",
+      "annotation": "butterfly",
+      "author": "Robert Winslow"
+    },
+    "button": {
+      "file": "button.svg",
+      "hexcode": "1F518",
+      "annotation": "radio button",
+      "author": "Lisa Schulz"
+    },
+    "cake": {
+      "file": "cake.svg",
+      "hexcode": "1F370",
+      "annotation": "shortcake",
+      "author": "Miriam Vollmeier"
+    },
+    "calendar": {
+      "file": "calendar.svg",
+      "hexcode": "1F4C5",
+      "annotation": "calendar",
+      "author": "Sina Schulz"
+    },
+    "camel": {
+      "file": "camel.svg",
+      "hexcode": "1F42A",
+      "annotation": "camel",
+      "author": "Sofie Ascherl"
+    },
+    "camera": {
+      "file": "camera.svg",
+      "hexcode": "1F4F7",
+      "annotation": "camera",
+      "author": "Sina Schulz"
+    },
+    "candle": {
+      "file": "candle.svg",
+      "hexcode": "1F56F",
+      "annotation": "candle",
+      "author": "Sina Schulz"
+    },
+    "cap": {
+      "file": "cap.svg",
+      "hexcode": "1F9E2",
+      "annotation": "billed cap",
+      "author": "Jennifer Pätzold"
+    },
+    "car": {
+      "file": "car.svg",
+      "hexcode": "1F697",
+      "annotation": "automobile",
+      "author": "Ronja Bäurlen"
+    },
+    "carrot": {
+      "file": "carrot.svg",
+      "hexcode": "1F955",
+      "annotation": "carrot",
+      "author": "Marius Schnabel"
+    },
+    "cat": {
+      "file": "cat.svg",
+      "hexcode": "1F408",
+      "annotation": "cat",
+      "author": "Sofie Ascherl"
+    },
+    "chair": {
+      "file": "chair.svg",
+      "hexcode": "1FA91",
+      "annotation": "chair",
+      "author": "Sam Eckert"
+    },
+    "chart": {
+      "file": "chart.svg",
+      "hexcode": "1F4CA",
+      "annotation": "bar chart",
+      "author": "Sina Schulz"
+    },
+    "cheese": {
+      "file": "cheese.svg",
+      "hexcode": "1F9C0",
+      "annotation": "cheese wedge",
+      "author": "Miriam Vollmeier"
+    },
+    "cherry": {
+      "file": "cherry.svg",
+      "hexcode": "1F352",
+      "annotation": "cherries",
+      "author": "Marius Schnabel"
+    },
+    "chick": {
+      "file": "chick.svg",
+      "hexcode": "1F424",
+      "annotation": "baby chick",
+      "author": "Selina Bauder"
+    },
+    "child": {
+      "file": "child.svg",
+      "hexcode": "1F9D2",
+      "annotation": "child",
+      "author": "Johanna Wellnitz"
+    },
+    "chilli": {
+      "file": "chilli.svg",
+      "hexcode": "1F336",
+      "annotation": "hot pepper",
+      "author": "Marius Schnabel"
+    },
+    "clock": {
+      "file": "clock.svg",
+      "hexcode": "23F0",
+      "annotation": "alarm clock",
+      "author": "Rana Cakir"
+    },
+    "cloud": {
+      "file": "cloud.svg",
+      "hexcode": "2601",
+      "annotation": "cloud",
+      "author": "Vanessa Boutzikoudi"
+    },
+    "coconut": {
+      "file": "coconut.svg",
+      "hexcode": "1F965",
+      "annotation": "coconut",
+      "author": "Marius Schnabel"
+    },
+    "coin": {
+      "file": "coin.svg",
+      "hexcode": "1FA99",
+      "annotation": "coin",
+      "author": "Liz Bravo"
+    },
+    "computer": {
+      "file": "computer.svg",
+      "hexcode": "1F4BB",
+      "annotation": "laptop",
+      "author": "Jonas Roßner"
+    },
+    "corn": {
+      "file": "corn.svg",
+      "hexcode": "1F33D",
+      "annotation": "ear of corn",
+      "author": "Marius Schnabel"
+    },
+    "cow": {
+      "file": "cow.svg",
+      "hexcode": "1F404",
+      "annotation": "cow",
+      "author": "Sofie Ascherl"
+    },
+    "crab": {
+      "file": "crab.svg",
+      "hexcode": "1F980",
+      "annotation": "crab",
+      "author": "Liz Bravo"
+    },
+    "crayon": {
+      "file": "crayon.svg",
+      "hexcode": "1F58D",
+      "annotation": "crayon",
+      "author": "Rana Cakir"
+    },
+    "cricket": {
+      "file": "cricket.svg",
+      "hexcode": "1F997",
+      "annotation": "cricket",
+      "author": "Selina Bauder"
+    },
+    "cricket_bat": {
+      "file": "cricket_bat.svg",
+      "hexcode": "1F3CF",
+      "annotation": "cricket game",
+      "author": "Vanessa Boutzikoudi"
+    },
+    "crown": {
+      "file": "crown.svg",
+      "hexcode": "1F451",
+      "annotation": "crown",
+      "author": "Jonas Roßner"
+    },
+    "cup": {
+      "file": "cup.svg",
+      "hexcode": "1F964",
+      "annotation": "cup with straw",
+      "author": "Laura Humpfer"
+    },
+    "deer": {
+      "file": "deer.svg",
+      "hexcode": "1F98C",
+      "annotation": "deer",
+      "author": "Sofie Ascherl"
+    },
+    "die": {
+      "file": "die.svg",
+      "hexcode": "1F3B2",
+      "annotation": "game die",
+      "author": "Lisa Schulz"
+    },
+    "dog": {
+      "file": "dog.svg",
+      "hexcode": "1F415",
+      "annotation": "dog",
+      "author": "Sofie Ascherl"
+    },
+    "doll": {
+      "file": "doll.svg",
+      "hexcode": "1F9F8",
+      "annotation": "teddy bear",
+      "author": "Liz Bravo"
+    },
+    "door": {
+      "file": "door.svg",
+      "hexcode": "1F6AA",
+      "annotation": "door",
+      "author": "Lisa Schulz"
+    },
+    "drum": {
+      "file": "drum.svg",
+      "hexcode": "1F941",
+      "annotation": "drum",
+      "author": "Sina Schulz"
+    },
+    "duck": {
+      "file": "duck.svg",
+      "hexcode": "1F986",
+      "annotation": "duck",
+      "author": "Selina Bauder"
+    },
+    "ear": {
+      "file": "ear.svg",
+      "hexcode": "1F442",
+      "annotation": "ear",
+      "author": "Julian Grüneberg"
+    },
+    "earth": {
+      "file": "earth.svg",
+      "hexcode": "1F30F",
+      "annotation": "globe showing Asia-Australia",
+      "author": "Martin Wehl"
+    },
+    "egg": {
+      "file": "egg.svg",
+      "hexcode": "1F95A",
+      "annotation": "egg",
+      "author": "Niklas Kuntz"
+    },
+    "elephant": {
+      "file": "elephant.svg",
+      "hexcode": "1F418",
+      "annotation": "elephant",
+      "author": "Sofie Ascherl"
+    },
+    "engine": {
+      "file": "engine.svg",
+      "hexcode": "1F682",
+      "annotation": "locomotive",
+      "author": "Ronja Bäurlen"
+    },
+    "envelope": {
+      "file": "envelope.svg",
+      "hexcode": "2709",
+      "annotation": "envelope",
+      "author": "Marius Schnabel"
+    },
+    "envelope_open": {
+      "file": "envelope_open.svg",
+      "hexcode": "1F4EC",
+      "annotation": "open mailbox with raised flag",
+      "author": "Marleen Heine"
+    },
+    "eye": {
+      "file": "eye.svg",
+      "hexcode": "1F441",
+      "annotation": "eye",
+      "author": "Julian Grüneberg"
+    },
+    "face": {
+      "file": "face.svg",
+      "hexcode": "1F600",
+      "annotation": "grinning face",
+      "author": "Emily Jäger"
+    },
+    "family": {
+      "file": "family.svg",
+      "hexcode": "1F46A",
+      "annotation": "family",
+      "author": "Lisa Schulz"
+    },
+    "fan": {
+      "file": "fan.svg",
+      "hexcode": "1F343",
+      "annotation": "leaf fluttering in wind",
+      "author": "Ricarda Krejci"
+    },
+    "farm": {
+      "file": "farm.svg",
+      "hexcode": "1F69C",
+      "annotation": "tractor",
+      "author": "Ronja Bäurlen"
+    },
+    "farmer": {
+      "file": "farmer.svg",
+      "hexcode": "1F9D1-200D-1F33E",
+      "annotation": "farmer",
+      "author": "Benedikt Groß"
+    },
+    "feather": {
+      "file": "feather.svg",
+      "hexcode": "1FAB6",
+      "annotation": "feather",
+      "author": "Liz Bravo"
+    },
+    "field": {
+      "file": "field.svg",
+      "hexcode": "1F33E",
+      "annotation": "sheaf of rice",
+      "author": "Hend Hourani"
+    },
+    "fire": {
+      "file": "fire.svg",
+      "hexcode": "1F525",
+      "annotation": "fire",
+      "author": "Guemil Project"
+    },
+    "fish": {
+      "file": "fish.svg",
+      "hexcode": "1F41F",
+      "annotation": "fish",
+      "author": "Selina Bauder"
+    },
+    "flag": {
+      "file": "flag.svg",
+      "hexcode": "1F6A9",
+      "annotation": "triangular flag",
+      "author": "Aileen Gedrat"
+    },
+    "flower": {
+      "file": "flower.svg",
+      "hexcode": "1F338",
+      "annotation": "cherry blossom",
+      "author": "Hilda Kalyoncu"
+    },
+    "foot": {
+      "file": "foot.svg",
+      "hexcode": "1F9B6",
+      "annotation": "foot",
+      "author": "Daniel Utz"
+    },
+    "fork": {
+      "file": "fork.svg",
+      "hexcode": "1F374",
+      "annotation": "fork and knife",
+      "author": "Jonas Roßner"
+    },
+    "fox": {
+      "file": "fox.svg",
+      "hexcode": "1F98A",
+      "annotation": "fox",
+      "author": "Sofie Ascherl"
+    },
+    "frog": {
+      "file": "frog.svg",
+      "hexcode": "1F438",
+      "annotation": "frog",
+      "author": "Selina Bauder"
+    },
+    "fruit": {
+      "file": "fruit.svg",
+      "hexcode": "1F34E",
+      "annotation": "red apple",
+      "author": "Liz Bravo"
+    },
+    "garlic": {
+      "file": "garlic.svg",
+      "hexcode": "1F9C4",
+      "annotation": "garlic",
+      "author": "Yasmin Abdullahi"
+    },
+    "gear": {
+      "file": "gear.svg",
+      "hexcode": "2699",
+      "annotation": "gear",
+      "author": "Hilda Kalyoncu"
+    },
+    "gift": {
+      "file": "gift.svg",
+      "hexcode": "1F381",
+      "annotation": "wrapped gift",
+      "author": "Laura Humpfer"
+    },
+    "glasses": {
+      "file": "glasses.svg",
+      "hexcode": "1F453",
+      "annotation": "glasses",
+      "author": "Jonas Roßner"
+    },
+    "globe": {
+      "file": "globe.svg",
+      "hexcode": "1F310",
+      "annotation": "globe with meridians",
+      "author": "Martin Wehl"
+    },
+    "glove": {
+      "file": "glove.svg",
+      "hexcode": "1F9E4",
+      "annotation": "gloves",
+      "author": "Laura Schießer"
+    },
+    "goat": {
+      "file": "goat.svg",
+      "hexcode": "1F410",
+      "annotation": "goat",
+      "author": "Sofie Ascherl"
+    },
+    "grape": {
+      "file": "grape.svg",
+      "hexcode": "1F347",
+      "annotation": "grapes",
+      "author": "Hend Hourani"
+    },
+    "grapes": {
+      "file": "grapes.svg",
+      "hexcode": "1F347",
+      "annotation": "grapes",
+      "author": "Hend Hourani"
+    },
+    "grass": {
+      "file": "grass.svg",
+      "hexcode": "1F33F",
+      "annotation": "herb",
+      "author": "Hilda Kalyoncu"
+    },
+    "guitar": {
+      "file": "guitar.svg",
+      "hexcode": "1F3B8",
+      "annotation": "guitar",
+      "author": "Sina Schulz"
+    },
+    "ham": {
+      "file": "ham.svg",
+      "hexcode": "1F969",
+      "annotation": "cut of meat",
+      "author": "Miriam Vollmeier"
+    },
+    "hammer": {
+      "file": "hammer.svg",
+      "hexcode": "1F528",
+      "annotation": "hammer",
+      "author": "Hilda Kalyoncu"
+    },
+    "hand": {
+      "file": "hand.svg",
+      "hexcode": "270B",
+      "annotation": "raised hand",
+      "author": "Julian Grüneberg"
+    },
+    "hat": {
+      "file": "hat.svg",
+      "hexcode": "1F9E2",
+      "annotation": "billed cap",
+      "author": "Jennifer Pätzold"
+    },
+    "heart": {
+      "file": "heart.svg",
+      "hexcode": "2764",
+      "annotation": "red heart",
+      "author": "Laura Humpfer"
+    },
+    "hen": {
+      "file": "hen.svg",
+      "hexcode": "1F414",
+      "annotation": "chicken",
+      "author": "Selina Bauder"
+    },
+    "hill": {
+      "file": "hill.svg",
+      "hexcode": "26F0",
+      "annotation": "mountain",
+      "author": "Martin Wehl"
+    },
+    "horse": {
+      "file": "horse.svg",
+      "hexcode": "1F40E",
+      "annotation": "horse",
+      "author": "Sofie Ascherl"
+    },
+    "hospital": {
+      "file": "hospital.svg",
+      "hexcode": "1F3E5",
+      "annotation": "hospital",
+      "author": "Martin Wehl"
+    },
+    "house": {
+      "file": "house.svg",
+      "hexcode": "1F3E0",
+      "annotation": "house",
+      "author": "Martin Wehl"
+    },
+    "hut": {
+      "file": "hut.svg",
+      "hexcode": "1F6D6",
+      "annotation": "hut",
+      "author": "Liz Bravo"
+    },
+    "ice": {
+      "file": "ice.svg",
+      "hexcode": "1F9CA",
+      "annotation": "ice",
+      "author": "Evelyn Soos"
+    },
+    "island": {
+      "file": "island.svg",
+      "hexcode": "1F3DD",
+      "annotation": "desert island",
+      "author": "Martin Wehl"
+    },
+    "key": {
+      "file": "key.svg",
+      "hexcode": "1F511",
+      "annotation": "key",
+      "author": "Lisa Schulz"
+    },
+    "kite": {
+      "file": "kite.svg",
+      "hexcode": "1FA81",
+      "annotation": "kite",
+      "author": "Evelyn Soos"
+    },
+    "knife": {
+      "file": "knife.svg",
+      "hexcode": "1F52A",
+      "annotation": "kitchen knife",
+      "author": "Jonas Roßner"
+    },
+    "ladder": {
+      "file": "ladder.svg",
+      "hexcode": "1FA9C",
+      "annotation": "ladder",
+      "author": "Liz Bravo"
+    },
+    "lake": {
+      "file": "lake.svg",
+      "hexcode": "1F30A",
+      "annotation": "water wave",
+      "author": "Vanessa Boutzikoudi"
+    },
+    "lamp": {
+      "file": "lamp.svg",
+      "hexcode": "1F4A1",
+      "annotation": "light bulb",
+      "author": "Sina Schulz"
+    },
+    "lantern": {
+      "file": "lantern.svg",
+      "hexcode": "1F3EE",
+      "annotation": "red paper lantern",
+      "author": "Abby Esquivel"
+    },
+    "leaf": {
+      "file": "leaf.svg",
+      "hexcode": "1F343",
+      "annotation": "leaf fluttering in wind",
+      "author": "Ricarda Krejci"
+    },
+    "leg": {
+      "file": "leg.svg",
+      "hexcode": "1F9B5",
+      "annotation": "leg",
+      "author": "Laura Schießer"
+    },
+    "lemon": {
+      "file": "lemon.svg",
+      "hexcode": "1F34B",
+      "annotation": "lemon",
+      "author": "Marius Schnabel"
+    },
+    "lion": {
+      "file": "lion.svg",
+      "hexcode": "1F981",
+      "annotation": "lion",
+      "author": "Sofie Ascherl"
+    },
+    "magnet": {
+      "file": "magnet.svg",
+      "hexcode": "1F9F2",
+      "annotation": "magnet",
+      "author": "Tonia Reinhardt"
+    },
+    "mango": {
+      "file": "mango.svg",
+      "hexcode": "1F96D",
+      "annotation": "mango",
+      "author": "Ricarda Krejci"
+    },
+    "map": {
+      "file": "map.svg",
+      "hexcode": "1F5FA",
+      "annotation": "world map",
+      "author": "Martin Wehl"
+    },
+    "market": {
+      "file": "market.svg",
+      "hexcode": "1F3EA",
+      "annotation": "convenience store",
+      "author": "Martin Wehl"
+    },
+    "medal": {
+      "file": "medal.svg",
+      "hexcode": "1F3C5",
+      "annotation": "sports medal",
+      "author": "Julian Grüneberg"
+    },
+    "milk": {
+      "file": "milk.svg",
+      "hexcode": "1F95B",
+      "annotation": "glass of milk",
+      "author": "Laura Humpfer"
+    },
+    "mirror": {
+      "file": "mirror.svg",
+      "hexcode": "1FA9E",
+      "annotation": "mirror",
+      "author": "Liz Bravo"
+    },
+    "money": {
+      "file": "money.svg",
+      "hexcode": "1F4B0",
+      "annotation": "money bag",
+      "author": "Marius Schnabel"
+    },
+    "monkey": {
+      "file": "monkey.svg",
+      "hexcode": "1F412",
+      "annotation": "monkey",
+      "author": "Sofie Ascherl"
+    },
+    "moon": {
+      "file": "moon.svg",
+      "hexcode": "1F319",
+      "annotation": "crescent moon",
+      "author": "Vanessa Boutzikoudi"
+    },
+    "mosque": {
+      "file": "mosque.svg",
+      "hexcode": "1F54C",
+      "annotation": "mosque",
+      "author": "Liz Bravo"
+    },
+    "mountain": {
+      "file": "mountain.svg",
+      "hexcode": "26F0",
+      "annotation": "mountain",
+      "author": "Martin Wehl"
+    },
+    "mouse": {
+      "file": "mouse.svg",
+      "hexcode": "1F401",
+      "annotation": "mouse",
+      "author": "Sofie Ascherl"
+    },
+    "mouth": {
+      "file": "mouth.svg",
+      "hexcode": "1F444",
+      "annotation": "mouth",
+      "author": "Julian Grüneberg"
+    },
+    "nest": {
+      "file": "nest.svg",
+      "hexcode": "1FABA",
+      "annotation": "nest with eggs",
+      "author": "Alena Peichl"
+    },
+    "net": {
+      "file": "net.svg",
+      "hexcode": "1F578",
+      "annotation": "spider web",
+      "author": "Selina Bauder"
+    },
+    "newspaper": {
+      "file": "newspaper.svg",
+      "hexcode": "1F4F0",
+      "annotation": "newspaper",
+      "author": "Jonas Roßner"
+    },
+    "nose": {
+      "file": "nose.svg",
+      "hexcode": "1F443",
+      "annotation": "nose",
+      "author": "Julian Grüneberg"
+    },
+    "notebook": {
+      "file": "notebook.svg",
+      "hexcode": "1F4D3",
+      "annotation": "notebook",
+      "author": "Jonas Roßner"
+    },
+    "onion": {
+      "file": "onion.svg",
+      "hexcode": "1F9C5",
+      "annotation": "onion",
+      "author": "Yasmin Abdullahi"
+    },
+    "orange": {
+      "file": "orange.svg",
+      "hexcode": "1F34A",
+      "annotation": "tangerine",
+      "author": "Liz Bravo"
+    },
+    "owl": {
+      "file": "owl.svg",
+      "hexcode": "1F989",
+      "annotation": "owl",
+      "author": "Selina Bauder"
+    },
+    "ox": {
+      "file": "ox.svg",
+      "hexcode": "1F402",
+      "annotation": "ox",
+      "author": "Sofie Ascherl"
+    },
+    "panda": {
+      "file": "panda.svg",
+      "hexcode": "1F43C",
+      "annotation": "panda",
+      "author": "Sofie Ascherl"
+    },
+    "paper": {
+      "file": "paper.svg",
+      "hexcode": "1F4C4",
+      "annotation": "page facing up",
+      "author": "Jonas Roßner"
+    },
+    "parrot": {
+      "file": "parrot.svg",
+      "hexcode": "1F99C",
+      "annotation": "parrot",
+      "author": "Ricarda Krejci"
+    },
+    "peach": {
+      "file": "peach.svg",
+      "hexcode": "1F351",
+      "annotation": "peach",
+      "author": "Marius Schnabel"
+    },
+    "pear": {
+      "file": "pear.svg",
+      "hexcode": "1F350",
+      "annotation": "pear",
+      "author": "Marius Schnabel"
+    },
+    "pen": {
+      "file": "pen.svg",
+      "hexcode": "1F58A",
+      "annotation": "pen",
+      "author": "Rana Cakir"
+    },
+    "pencil": {
+      "file": "pencil.svg",
+      "hexcode": "270F",
+      "annotation": "pencil",
+      "author": "Rana Cakir"
+    },
+    "penguin": {
+      "file": "penguin.svg",
+      "hexcode": "1F427",
+      "annotation": "penguin",
+      "author": "Selina Bauder"
+    },
+    "phone": {
+      "file": "phone.svg",
+      "hexcode": "1F4F1",
+      "annotation": "mobile phone",
+      "author": "Martin Wehl"
+    },
+    "pig": {
+      "file": "pig.svg",
+      "hexcode": "1F416",
+      "annotation": "pig",
+      "author": "Sofie Ascherl"
+    },
+    "pin": {
+      "file": "pin.svg",
+      "hexcode": "1F4CC",
+      "annotation": "pushpin",
+      "author": "Sina Schulz"
+    },
+    "pineapple": {
+      "file": "pineapple.svg",
+      "hexcode": "1F34D",
+      "annotation": "pineapple",
+      "author": "Marius Schnabel"
+    },
+    "plant": {
+      "file": "plant.svg",
+      "hexcode": "1FAB4",
+      "annotation": "potted plant",
+      "author": "Liz Bravo"
+    },
+    "plate": {
+      "file": "plate.svg",
+      "hexcode": "1F37D",
+      "annotation": "fork and knife with plate",
+      "author": "Jonas Roßner"
+    },
+    "pomegranate": {
+      "file": "pomegranate.svg",
+      "hexcode": "E0C4",
+      "annotation": "pomegranate",
+      "author": "Carlin MacKenzie"
+    },
+    "potato": {
+      "file": "potato.svg",
+      "hexcode": "1F954",
+      "annotation": "potato",
+      "author": "Marius Schnabel"
+    },
+    "puzzle": {
+      "file": "puzzle.svg",
+      "hexcode": "1F9E9",
+      "annotation": "puzzle piece",
+      "author": "Nicole Kornhaas"
+    },
+    "rabbit": {
+      "file": "rabbit.svg",
+      "hexcode": "1F407",
+      "annotation": "rabbit",
+      "author": "Sofie Ascherl"
+    },
+    "rain": {
+      "file": "rain.svg",
+      "hexcode": "1F327",
+      "annotation": "cloud with rain",
+      "author": "Vanessa Boutzikoudi"
+    },
+    "rainbow": {
+      "file": "rainbow.svg",
+      "hexcode": "1F308",
+      "annotation": "rainbow",
+      "author": "Vanessa Boutzikoudi"
+    },
+    "ram": {
+      "file": "ram.svg",
+      "hexcode": "1F40F",
+      "annotation": "ram",
+      "author": "Sofie Ascherl"
+    },
+    "rat": {
+      "file": "rat.svg",
+      "hexcode": "1F400",
+      "annotation": "rat",
+      "author": "Sofie Ascherl"
+    },
+    "ribbon": {
+      "file": "ribbon.svg",
+      "hexcode": "1F380",
+      "annotation": "ribbon",
+      "author": "Laura Humpfer"
+    },
+    "rice": {
+      "file": "rice.svg",
+      "hexcode": "1F35A",
+      "annotation": "cooked rice",
+      "author": "Miriam Vollmeier"
+    },
+    "ring": {
+      "file": "ring.svg",
+      "hexcode": "1F48D",
+      "annotation": "ring",
+      "author": "Jonas Roßner"
+    },
+    "river": {
+      "file": "river.svg",
+      "hexcode": "1F30A",
+      "annotation": "water wave",
+      "author": "Vanessa Boutzikoudi"
+    },
+    "road": {
+      "file": "road.svg",
+      "hexcode": "1F6E3",
+      "annotation": "motorway",
+      "author": "Nadja Grün"
+    },
+    "rock": {
+      "file": "rock.svg",
+      "hexcode": "1FAA8",
+      "annotation": "rock",
+      "author": "Liz Bravo"
+    },
+    "rocket": {
+      "file": "rocket.svg",
+      "hexcode": "1F680",
+      "annotation": "rocket",
+      "author": "Kris Kowal"
+    },
+    "rose": {
+      "file": "rose.svg",
+      "hexcode": "1F339",
+      "annotation": "rose",
+      "author": "Hilda Kalyoncu"
+    },
+    "ruler": {
+      "file": "ruler.svg",
+      "hexcode": "1F4CF",
+      "annotation": "straight ruler",
+      "author": "Sina Schulz"
+    },
+    "sandal": {
+      "file": "sandal.svg",
+      "hexcode": "1FA74",
+      "annotation": "thong sandal",
+      "author": "Liz Bravo"
+    },
+    "scale": {
+      "file": "scale.svg",
+      "hexcode": "2696",
+      "annotation": "balance scale",
+      "author": "Hilda Kalyoncu"
+    },
+    "scarf": {
+      "file": "scarf.svg",
+      "hexcode": "1F9E3",
+      "annotation": "scarf",
+      "author": "Laura Schießer"
+    },
+    "school": {
+      "file": "school.svg",
+      "hexcode": "1F3EB",
+      "annotation": "school",
+      "author": "Niklas Kuntz"
+    },
+    "scissors": {
+      "file": "scissors.svg",
+      "hexcode": "2702",
+      "annotation": "scissors",
+      "author": "Sina Schulz"
+    },
+    "sea": {
+      "file": "sea.svg",
+      "hexcode": "1F30A",
+      "annotation": "water wave",
+      "author": "Vanessa Boutzikoudi"
+    },
+    "seed": {
+      "file": "seed.svg",
+      "hexcode": "1F331",
+      "annotation": "seedling",
+      "author": "Hilda Kalyoncu"
+    },
+    "seedling": {
+      "file": "seedling.svg",
+      "hexcode": "1F331",
+      "annotation": "seedling",
+      "author": "Hilda Kalyoncu"
+    },
+    "shark": {
+      "file": "shark.svg",
+      "hexcode": "1F988",
+      "annotation": "shark",
+      "author": "Selina Bauder"
+    },
+    "sheep": {
+      "file": "sheep.svg",
+      "hexcode": "1F411",
+      "annotation": "ewe",
+      "author": "Sofie Ascherl"
+    },
+    "shell": {
+      "file": "shell.svg",
+      "hexcode": "1F41A",
+      "annotation": "spiral shell",
+      "author": "Selina Bauder"
+    },
+    "ship": {
+      "file": "ship.svg",
+      "hexcode": "1F6A2",
+      "annotation": "ship",
+      "author": "Ronja Bäurlen"
+    },
+    "shirt": {
+      "file": "shirt.svg",
+      "hexcode": "1F455",
+      "annotation": "t-shirt",
+      "author": "Jonas Roßner"
+    },
+    "shoe": {
+      "file": "shoe.svg",
+      "hexcode": "1F45F",
+      "annotation": "running shoe",
+      "author": "Jonas Roßner"
+    },
+    "shop": {
+      "file": "shop.svg",
+      "hexcode": "1F3EA",
+      "annotation": "convenience store",
+      "author": "Martin Wehl"
+    },
+    "sky": {
+      "file": "sky.svg",
+      "hexcode": "2601",
+      "annotation": "cloud",
+      "author": "Vanessa Boutzikoudi"
+    },
+    "snail": {
+      "file": "snail.svg",
+      "hexcode": "1F40C",
+      "annotation": "snail",
+      "author": "Selina Bauder"
+    },
+    "snake": {
+      "file": "snake.svg",
+      "hexcode": "1F40D",
+      "annotation": "snake",
+      "author": "Selina Bauder"
+    },
+    "snow": {
+      "file": "snow.svg",
+      "hexcode": "2744",
+      "annotation": "snowflake",
+      "author": "Vanessa Boutzikoudi"
+    },
+    "soap": {
+      "file": "soap.svg",
+      "hexcode": "1F9FC",
+      "annotation": "soap",
+      "author": "Tonia Reinhardt"
+    },
+    "sock": {
+      "file": "sock.svg",
+      "hexcode": "1F9E6",
+      "annotation": "socks",
+      "author": "Laura Schießer"
+    },
+    "spider": {
+      "file": "spider.svg",
+      "hexcode": "1F577",
+      "annotation": "spider",
+      "author": "Selina Bauder"
+    },
+    "spoon": {
+      "file": "spoon.svg",
+      "hexcode": "1F944",
+      "annotation": "spoon",
+      "author": "Jonas Roßner"
+    },
+    "star": {
+      "file": "star.svg",
+      "hexcode": "2B50",
+      "annotation": "star",
+      "author": "Vanessa Boutzikoudi"
+    },
+    "stick": {
+      "file": "stick.svg",
+      "hexcode": "1FAB5",
+      "annotation": "wood",
+      "author": "Liz Bravo"
+    },
+    "stone": {
+      "file": "stone.svg",
+      "hexcode": "1FAA8",
+      "annotation": "rock",
+      "author": "Liz Bravo"
+    },
+    "strawberry": {
+      "file": "strawberry.svg",
+      "hexcode": "1F353",
+      "annotation": "strawberry",
+      "author": "Liz Bravo"
+    },
+    "sun": {
+      "file": "sun.svg",
+      "hexcode": "2600",
+      "annotation": "sun",
+      "author": "Vanessa Boutzikoudi"
+    },
+    "sunflower": {
+      "file": "sunflower.svg",
+      "hexcode": "1F33B",
+      "annotation": "sunflower",
+      "author": "Hilda Kalyoncu"
+    },
+    "table": {
+      "file": "table.svg",
+      "hexcode": "1FA91",
+      "annotation": "chair",
+      "author": "Sam Eckert"
+    },
+    "tap": {
+      "file": "tap.svg",
+      "hexcode": "1F6B0",
+      "annotation": "potable water",
+      "author": "Guemil Project"
+    },
+    "tea": {
+      "file": "tea.svg",
+      "hexcode": "1F375",
+      "annotation": "teacup without handle",
+      "author": "Laura Humpfer"
+    },
+    "teacher": {
+      "file": "teacher.svg",
+      "hexcode": "1F9D1-200D-1F3EB",
+      "annotation": "teacher",
+      "author": "Benedikt Groß"
+    },
+    "teeth": {
+      "file": "teeth.svg",
+      "hexcode": "1F9B7",
+      "annotation": "tooth",
+      "author": "Laura Schießer"
+    },
+    "telephone": {
+      "file": "telephone.svg",
+      "hexcode": "260E",
+      "annotation": "telephone",
+      "author": "Kai Wanschura"
+    },
+    "television": {
+      "file": "television.svg",
+      "hexcode": "1F4FA",
+      "annotation": "television",
+      "author": "Sina Schulz"
+    },
+    "tent": {
+      "file": "tent.svg",
+      "hexcode": "26FA",
+      "annotation": "tent",
+      "author": "Martin Wehl"
+    },
+    "thermometer": {
+      "file": "thermometer.svg",
+      "hexcode": "1F321",
+      "annotation": "thermometer",
+      "author": "Vanessa Boutzikoudi"
+    },
+    "thread": {
+      "file": "thread.svg",
+      "hexcode": "1F9F5",
+      "annotation": "thread",
+      "author": "Nicole Kornhaas"
+    },
+    "ticket": {
+      "file": "ticket.svg",
+      "hexcode": "1F3AB",
+      "annotation": "ticket",
+      "author": "Laura Humpfer"
+    },
+    "tiger": {
+      "file": "tiger.svg",
+      "hexcode": "1F405",
+      "annotation": "tiger",
+      "author": "Sofie Ascherl"
+    },
+    "tin": {
+      "file": "tin.svg",
+      "hexcode": "1F96B",
+      "annotation": "canned food",
+      "author": "Daniel Quiros"
+    },
+    "tomato": {
+      "file": "tomato.svg",
+      "hexcode": "1F345",
+      "annotation": "tomato",
+      "author": "Marius Schnabel"
+    },
+    "tooth": {
+      "file": "tooth.svg",
+      "hexcode": "1F9B7",
+      "annotation": "tooth",
+      "author": "Laura Schießer"
+    },
+    "toothbrush": {
+      "file": "toothbrush.svg",
+      "hexcode": "1FAA5",
+      "annotation": "toothbrush",
+      "author": "Liz Bravo"
+    },
+    "torch": {
+      "file": "torch.svg",
+      "hexcode": "1F526",
+      "annotation": "flashlight",
+      "author": "Sina Schulz"
+    },
+    "towel": {
+      "file": "towel.svg",
+      "hexcode": "1F9FB",
+      "annotation": "roll of paper",
+      "author": "Tonia Reinhardt"
+    },
+    "tractor": {
+      "file": "tractor.svg",
+      "hexcode": "1F69C",
+      "annotation": "tractor",
+      "author": "Ronja Bäurlen"
+    },
+    "train": {
+      "file": "train.svg",
+      "hexcode": "1F682",
+      "annotation": "locomotive",
+      "author": "Ronja Bäurlen"
+    },
+    "tree": {
+      "file": "tree.svg",
+      "hexcode": "1F333",
+      "annotation": "deciduous tree",
+      "author": "Hilda Kalyoncu"
+    },
+    "trophy": {
+      "file": "trophy.svg",
+      "hexcode": "1F3C6",
+      "annotation": "trophy",
+      "author": "Julian Grüneberg"
+    },
+    "trousers": {
+      "file": "trousers.svg",
+      "hexcode": "1F456",
+      "annotation": "jeans",
+      "author": "Jonas Roßner"
+    },
+    "truck": {
+      "file": "truck.svg",
+      "hexcode": "1F69A",
+      "annotation": "delivery truck",
+      "author": "Ronja Bäurlen"
+    },
+    "turtle": {
+      "file": "turtle.svg",
+      "hexcode": "1F422",
+      "annotation": "turtle",
+      "author": "Robert Winslow"
+    },
+    "umbrella": {
+      "file": "umbrella.svg",
+      "hexcode": "2602",
+      "annotation": "umbrella",
+      "author": "Vanessa Boutzikoudi"
+    },
+    "vegetable": {
+      "file": "vegetable.svg",
+      "hexcode": "1F955",
+      "annotation": "carrot",
+      "author": "Marius Schnabel"
+    },
+    "watch": {
+      "file": "watch.svg",
+      "hexcode": "231A",
+      "annotation": "watch",
+      "author": "Rana Cakir"
+    },
+    "water": {
+      "file": "water.svg",
+      "hexcode": "1F6B0",
+      "annotation": "potable water",
+      "author": "Guemil Project"
+    },
+    "watermelon": {
+      "file": "watermelon.svg",
+      "hexcode": "1F349",
+      "annotation": "watermelon",
+      "author": "Marius Schnabel"
+    },
+    "wave": {
+      "file": "wave.svg",
+      "hexcode": "1F30A",
+      "annotation": "water wave",
+      "author": "Vanessa Boutzikoudi"
+    },
+    "web": {
+      "file": "web.svg",
+      "hexcode": "1F578",
+      "annotation": "spider web",
+      "author": "Selina Bauder"
+    },
+    "whale": {
+      "file": "whale.svg",
+      "hexcode": "1F40B",
+      "annotation": "whale",
+      "author": "Kris Kowal"
+    },
+    "wheel": {
+      "file": "wheel.svg",
+      "hexcode": "1F6DE",
+      "annotation": "wheel",
+      "author": "Niklas Kuntz"
+    },
+    "window": {
+      "file": "window.svg",
+      "hexcode": "1FA9F",
+      "annotation": "window",
+      "author": "Liz Bravo"
+    },
+    "zebra": {
+      "file": "zebra.svg",
+      "hexcode": "1F993",
+      "annotation": "zebra",
+      "author": "Sofie Ascherl"
+    }
+  }
+}

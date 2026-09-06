@@ -84,6 +84,18 @@ async function renderEntry(entry, { detailed }) {
 
   if (detailed) {
     const inner = [];
+    // A 6-12 entry carries the lesson itself on one phone screen and nothing else: both
+    // detail sources below are K-5-only (resolveMoveList needs a v8 `lesson_id`,
+    // getVoicenoteScript needs an `r2_key` for a voicenote transcript), and a 6-12 entry has
+    // neither by design — see lp612-serving `recordDelivery`. Without this it would render a
+    // bare heading and the model would answer "what does the activity mean?" without knowing
+    // what the activity is. lp612-serving WRITES this field, so something has to read it.
+    //
+    // Keyed on the FIELD, not on a lane flag: no K-5 entry sets `one_screen`, so every K-5
+    // render is byte-identical and this cannot regress the lane it shares.
+    if (entry.one_screen) {
+      inner.push(`The lesson as she received it on her phone:\n${String(entry.one_screen).trim()}`);
+    }
     const script = await getVoicenoteScript(entry);
     if (script) {
       const clipped = script.length > SCRIPT_CHARS_MAX ? `${script.slice(0, SCRIPT_CHARS_MAX).trim()}…` : script;
