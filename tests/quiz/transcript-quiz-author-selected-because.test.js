@@ -22,7 +22,7 @@ function q(overrides = {}) {
     question: 'Which part of the plant is under the soil?',
     options: ['root', 'leaf', 'flower'], correct_index: 0,
     explanation: 'The root grows down into the soil.',
-    selected_because: 'she pointed at the root while pulling up the plant',
+    selected_because: 'the moment a real plant was pulled up and the root pointed at',
     distractor_misconceptions: { 1: 'leaves are the base', 2: 'flowers anchor' },
     option_feedback: {
       correct: 'Yes — the root is under the soil, holding the plant and drinking water.',
@@ -45,7 +45,7 @@ function eightGood() {
   ];
 }
 
-const LESSON_SUMMARY = 'She taught the parts of a plant, starting with the root and moving up to the leaves and flower. She pulled up a real plant to show the class.';
+const LESSON_SUMMARY = 'Today you taught the parts of a plant, starting with the root and moving up to the leaves and flower. You pulled up a real plant to show the class.';
 
 describe('buildAuthorPrompt — asks for lesson_summary and selected_because', () => {
   test('the prompt instructs the model to return both, and the JSON skeleton shows the keys', () => {
@@ -106,7 +106,7 @@ describe('validate — selected_because (only enforced when the caller opts in v
     const r = V.validate(qs, { language: 'en', subject: 'science', digest: DIGEST, lessonSummary: LESSON_SUMMARY });
     expect(r.ok).toBe(true);
     expect(r.errors).toEqual([]);
-    expect(r.questions[0].selected_because).toBe('she pointed at the root while pulling up the plant');
+    expect(r.questions[0].selected_because).toBe('the moment a real plant was pulled up and the root pointed at');
   });
 
   test('a caller that never passes lessonSummary is untouched even with missing selected_because', () => {
@@ -121,14 +121,14 @@ describe('toRows / applyMedia — selected_because rides on media without moving
   test('a question with no figure gets selected_because on row.media and stays P1', () => {
     const rows = Gen.toRows('quiz-1', eightGood(), { rng: () => 0 });
     expect(rows[0].render_pattern).toBe('P1');
-    expect(rows[0].media).toEqual(expect.objectContaining({ selected_because: 'she pointed at the root while pulling up the plant' }));
+    expect(rows[0].media).toEqual(expect.objectContaining({ selected_because: 'the moment a real plant was pulled up and the root pointed at' }));
   });
 
   test('applyMedia preserves selected_because through the render pass', () => {
     const questions = eightGood();
     const rows = Gen.toRows('quiz-1', questions, { rng: () => 0 });
     const applied = Gen.applyMedia(rows, questions, { figureUrls: {}, cardUrls: {}, language: 'en' });
-    expect(applied[0].media.selected_because).toBe('she pointed at the root while pulling up the plant');
+    expect(applied[0].media.selected_because).toBe('the moment a real plant was pulled up and the root pointed at');
     expect(applied[0].render_pattern).toBe('P1');
   });
 });

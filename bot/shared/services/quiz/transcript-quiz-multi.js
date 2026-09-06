@@ -362,7 +362,7 @@ function scoreSet(selected, correct) {
 }
 
 /**
- * What the child reads after submitting a set, and whether she was right.
+ * What the child reads after submitting a set, and whether they were right.
  *
  * Returns the TEXT WITHOUT a ✅/❌ marker, and the verdict separately: D2's
  * marker is applied by video-quiz-render.withVerdictMark(), which is also the

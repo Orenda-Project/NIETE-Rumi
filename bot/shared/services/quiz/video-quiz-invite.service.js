@@ -12,9 +12,9 @@
  * THE STRUCTURAL CHOICE
  * A child arriving through an invite gets their session recorded against the
  * TEACHER's share code, not the invite. The teacher's class report therefore
- * needs no knowledge that invites exist — she queries one share code and sees
- * every child who took her quiz, however they reached it. The invite row only
- * decides who ALSO gets told when they finish.
+ * needs no knowledge that invites exist — the teacher queries one share code
+ * and sees every child who took their quiz, however they reached it. The
+ * invite row only decides who ALSO gets told when they finish.
  */
 
 const supabase = require('../../config/supabase');

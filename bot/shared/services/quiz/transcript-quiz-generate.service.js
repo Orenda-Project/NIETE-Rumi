@@ -343,11 +343,11 @@ function pdfFilename(topic) {
 /**
  * THE DOCUMENT IS SINGLE-LANGUAGE, and the language is the QUIZ's (PLAN_R4 D1).
  *
- * Round 2 gave the sheet two languages at once: her stored preference for the
- * labels, the quiz's language for the questions. It reads as a defect — an
- * English PDF with Urdu down its side — so both arguments are now the quiz's
- * language, which is the one she chose for this quiz and the one her class
- * will read. Her stored preference still decides every WhatsApp message
+ * Round 2 gave the sheet two languages at once: the teacher's stored
+ * preference for the labels, the quiz's language for the questions. It reads as
+ * a defect — an English PDF with Urdu down its side — so both arguments are now
+ * the quiz's language, which is the one chosen for this quiz and the one the
+ * class will read. The stored preference still decides every WhatsApp message
  * around the document: the caption, the report promise, the nudge.
  *
  * Both parameters stay in the signature because the template still honours
@@ -454,9 +454,9 @@ async function process(quizId, payload = {}) {
       const r = await Digest.run({ session, user });
       meta = { ...meta, digest: r.digest, grade: r.grade, grade_source: r.gradeSource, lp_hint: r.lpHint,
         digest_model: r.model, cost_usd: (meta.cost_usd || 0) + (r.costUsd || 0) };
-      // The teacher's own choice, stored on the row when she answered the
-      // language ask, outranks the subject rule. The rule is what a legacy
-      // row (or a skipped ask) falls back to.
+      // The teacher's own choice, stored on the row when the language ask was
+      // answered, outranks the subject rule. The rule is what a legacy row (or
+      // a skipped ask) falls back to.
       const language = quiz.language || quizLanguageFor(r.digest.subject, session.transcript_language);
       quiz.language = language;
       quiz.subject = r.digest.subject;
@@ -552,13 +552,18 @@ async function process(quizId, payload = {}) {
     if (!questions && lastRejected && lastErrors) {
       const rw = await api.rewriteRejected({
         questions: lastRejected, errors: lastErrors, digest, language,
-        gradeBand: digest.grade_band || meta.grade, quizId,
+        gradeBand: digest.grade_band || meta.grade, quizId, lessonSummary: lastLessonSummary,
       });
       if (rw.attempted) {
         meta.cost_usd = (meta.cost_usd || 0) + (rw.costUsd || 0);
+        // PLAN_R6 D5 — the rewrite may also return a repaired `lesson_summary`
+        // (a gendered reference to the teacher is the one quiz-level complaint
+        // it is asked to fix). It is the summary the merged set is VALIDATED
+        // with and the one that is stored, so the two cannot disagree.
+        const rwSummary = rw.lessonSummary || lastLessonSummary;
         const v = rw.merged
           ? validate(rw.merged, {
-            language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary: lastLessonSummary, quizId,
+            language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary: rwSummary, quizId,
           })
           : null;
         let ok = Boolean(v && v.ok);
@@ -570,7 +575,7 @@ async function process(quizId, payload = {}) {
             }));
             draftedRows = drafted;
             questions = v.questions;
-            readyLessonSummary = lastLessonSummary;
+            readyLessonSummary = rwSummary;
           } catch (figErr) {
             logToFile('⚠️ transcript quiz: the rewritten set could not be drawn', { quizId, error: figErr.message });
             ok = false;
@@ -579,7 +584,7 @@ async function process(quizId, payload = {}) {
         // A rewrite that did not fully pass is still the better SALVAGE
         // candidate: it may have repaired one of two rejections, and the
         // salvage then drops one question instead of two.
-        if (!ok && rw.merged && v) rewritten = { questions: rw.merged, errors: v.errors };
+        if (!ok && rw.merged && v) rewritten = { questions: rw.merged, errors: v.errors, lessonSummary: rwSummary };
         attempts.push({
           attempt: 'rewrite',
           indices: rw.indices,
@@ -602,9 +607,12 @@ async function process(quizId, payload = {}) {
     // first-attempt figures). The rewritten set is tried FIRST — dropping a
     // question it already repaired would throw the repair away.
     if (!questions && lastRejected && lastErrors) {
-      const ctx = { language, subject: digest.subject, digest, lessonSummary: lastLessonSummary, quizId };
+      const base = { language, subject: digest.subject, digest, quizId };
       const candidates = [rewritten, { questions: lastRejected, errors: lastErrors }].filter(Boolean);
       for (const cand of candidates) {
+        // The rewritten candidate carries its own (repaired) summary; the raw
+        // last attempt carries the one it was authored with.
+        const ctx = { ...base, lessonSummary: cand.lessonSummary || lastLessonSummary };
         const salvaged = salvageWithoutBadFigures(cand.questions, cand.errors, ctx);
         if (!salvaged) continue;
         try {
@@ -615,7 +623,7 @@ async function process(quizId, payload = {}) {
           }));
           draftedRows = drafted;
           questions = salvaged.questions;
-          readyLessonSummary = lastLessonSummary;
+          readyLessonSummary = ctx.lessonSummary;
           attempts.push({ attempt: 'salvage', dropped: salvaged.dropped, errors: [] });
           logEvent('transcript_quiz.figure_salvage', { quizId, dropped: salvaged.dropped, kept: questions.length });
           break;

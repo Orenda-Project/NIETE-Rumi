@@ -57,15 +57,15 @@ function quizLanguageFor(subject, transcriptLanguage) {
 }
 
 /**
- * What the TEACHER reads. The language she stored, clamped to the offer, and
+ * What the TEACHER reads. The language they stored, clamped to the offer, and
  * nothing else.
  *
- * A recording never changes her language; neither does a transcript. The
- * earlier version fell back to the detected transcript language when she had
- * stored nothing, which meant the same teacher could be addressed in Urdu on
- * one surface and English on the next depending on which lesson she had just
- * recorded. clampLanguage's floor is the one answer for "nothing is known",
- * shared with the rest of the deployment.
+ * A recording never changes the teacher's language; neither does a
+ * transcript. The earlier version fell back to the detected transcript
+ * language when they had stored nothing, which meant the same teacher could
+ * be addressed in Urdu on one surface and English on the next depending on
+ * which lesson they had just recorded. clampLanguage's floor is the one
+ * answer for "nothing is known", shared with the rest of the deployment.
  *
  * `transcriptLanguage` is still accepted and ignored so a stale caller cannot
  * quietly change the answer.
@@ -89,7 +89,7 @@ const LANGUAGE_BUTTON_PREFIX = 'tq_lang_';
 
 /**
  * The two reply buttons for the ask, the subject-rule language first — the
- * one she would have been given silently before, still the easy tap.
+ * one the teacher would have been given silently before, still the easy tap.
  *
  * Each title is the language's own name from the registry, so it cannot drift
  * from what /language and /settings show, and neither is translated: a
@@ -296,7 +296,7 @@ function isolate(text) {
  * The subject is in the TEACHER's language; the topic is the one the class
  * actually heard (the quiz language); the gloss in brackets is the teacher's
  * language and appears only when the two differ. The teacher taps "yes" on a
- * lesson she recognises, and then reads a quiz in the language her children
+ * lesson they recognise, and then reads a quiz in the language their children
  * were taught in — round 1 named neither, and an English offer arriving before
  * an Urdu quiz read as two different lessons.
  */

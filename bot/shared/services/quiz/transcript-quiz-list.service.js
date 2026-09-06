@@ -118,11 +118,11 @@ function buildRows(sessions, quizzes, language, { page = 1 } = {}) {
 }
 
 /**
- * PLAN_R5 §1 D8 — `teacherUserId`, when passed, drops her own self-test row
- * from both counts. Deliberately filtered in JS, not with a Postgres
- * `.neq('user_id', teacherUserId)`: `user_id != X` evaluates to NULL (not
- * true) for every row where `user_id IS NULL`, so that filter would drop
- * every real child along with her.
+ * PLAN_R5 §1 D8 — `teacherUserId`, when passed, drops the teacher's own
+ * self-test row from both counts. Deliberately filtered in JS, not with a
+ * Postgres `.neq('user_id', teacherUserId)`: `user_id != X` evaluates to NULL
+ * (not true) for every row where `user_id IS NULL`, so that filter would
+ * drop every real child along with it.
  */
 async function countsFor(quizIds, teacherUserId = null) {
   const counts = new Map();
@@ -190,7 +190,8 @@ async function showList(user, phone, language, page = 1) {
 
   let { rows, from, to } = buildRows(sessions, quizzes, lang, { page: p });
   // A stale list tapped a week later can ask for a page that no longer exists.
-  // She meant "show me more lessons", so she gets the list — not "no lessons yet".
+  // The tap means "show me more lessons", so the list is what comes back —
+  // not "no lessons yet".
   if (!rows.length && p > 1) {
     ({ rows, from, to } = buildRows(sessions, quizzes, lang, { page: 1 }));
   }
@@ -243,7 +244,7 @@ async function handleListPick(listId, phone, user) {
     .select('id, status, topic, subject, language, meta, coaching_session_id')
     .eq('coaching_session_id', sessionId).eq('quiz_source', 'transcript').maybeSingle();
 
-  // The quiz language is hers to choose here too — a lesson picked from /quiz
+  // The quiz language is the teacher's to choose here too — a lesson picked from /quiz
   // reaches exactly the same decision as a "yes" on the offer. The subject
   // rule seeds the button order; only Urdu and Islamiyat skip the ask.
   const subject = quiz?.subject || session.analysis_data?.subject || null;
@@ -288,7 +289,7 @@ async function handleListPick(listId, phone, user) {
       // Named for what they DO. "Report now" read as "show me the one I have";
       // this button refetches every session and recomputes (operator, item 8).
       // The third button exists because a tap into a lesson was otherwise a
-      // dead end — she had to type /quiz again to get back to the menu.
+      // dead end — the teacher had to type /quiz again to get back to the menu.
       await WhatsAppService.sendInteractiveButtons(phone, {
         body: resolveUx('tqQuizStatus', {
           language: lang,
@@ -357,7 +358,7 @@ async function handleActionButton(buttonId, phone) {
   }
 
   if (isLink) {
-    // The SAME hand-off she got after her coaching debrief: the pre-send PDF
+    // The SAME hand-off the teacher got after their coaching debrief: the pre-send PDF
     // and then the forwardable message — the same share code, the same link,
     // never a new one (operator, item 7/8). A quiz that has not been handed
     // off yet has no code to reuse, and must not mint one here.

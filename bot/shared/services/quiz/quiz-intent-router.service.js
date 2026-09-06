@@ -12,7 +12,7 @@
  *   [ Show in chat ]     handleConfirmationButton('quiz_show_in_chat')
  *
  * "Send to class" runs the readiness gate — if the teacher
- * has no class / no students / no parent phones, we route her into the
+ * has no class / no students / no parent phones, we route them into the
  * smallest gap-filler Flow and stash the original quiz topic in
  * pending_quiz_resume:<userId> so the post-Flow completion handler
  * (in flow-response.handler.js) can pick up where we left off.

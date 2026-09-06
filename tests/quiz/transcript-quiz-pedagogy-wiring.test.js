@@ -3,7 +3,7 @@
  * The pedagogy rules must run on the path a real quiz takes, not only in
  * their own unit test: validate() rejects the quiz, the complaint reaches the
  * author's retry, and a last attempt that fails ONLY on pedagogy drops the bad
- * questions rather than costing the teacher her quiz.
+ * questions rather than costing the teacher a quiz.
  *
  * Every fixture is synthetic; no transcript text enters this repo.
  */
@@ -24,7 +24,7 @@ function q(over = {}) {
     question: 'Which of these is a type of matter?',
     options: ['gas', 'speed', 'weight'], correct_index: 0,
     explanation: 'Gas is one of the three states of matter.',
-    selected_because: 'she poured water and held up a stone in front of the class',
+    selected_because: 'the water poured between two glasses in front of the class',
     distractor_misconceptions: { 1: 'confuses how fast with what it is', 2: 'confuses how heavy with what it is' },
     option_feedback: {
       correct: 'Yes — gas is one of the three states matter comes in.',
@@ -52,7 +52,7 @@ function eightClean() {
 }
 
 const ctx = {
-  language: 'en', subject: 'science', digest: DIGEST, nExpected: 8, lessonSummary: 'She taught the three states of matter with a stone, a glass of milk and the air in a balloon. She poured water between two glasses to show that a liquid takes the shape of its container.',
+  language: 'en', subject: 'science', digest: DIGEST, nExpected: 8, lessonSummary: 'Today you taught the three states of matter with a stone, a glass of milk and the air in a balloon. You poured water between two glasses to show that a liquid takes the shape of its container.',
 };
 
 describe('validate() runs the pedagogy rules', () => {

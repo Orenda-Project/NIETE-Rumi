@@ -39,7 +39,7 @@ function single(i, over = {}) {
     options: [`Square ${i}`, `Circle ${i}`, `Triangle ${i}`],
     correct_index: 0,
     explanation: 'A square has four equal sides.',
-    selected_because: 'she drew the shapes on the board',
+    selected_because: 'the shapes drawn on the board',
     distractor_misconceptions: { 1: 'counts curves as sides', 2: 'counts three sides' },
     option_feedback: {
       correct: 'Yes — four equal sides makes a square.',
@@ -61,7 +61,7 @@ function multi(over = {}) {
     answer_mode: 'multi',
     correct_indices: [0, 2],
     explanation: 'A square and a rectangle both have four sides.',
-    selected_because: 'she held up the paper shapes one by one',
+    selected_because: 'the paper shapes held up one by one',
     distractor_misconceptions: { 1: 'thinks a curve counts as a side', 3: 'counts three sides as four' },
     option_feedback: {
       correct: 'Both of those have four sides.',
@@ -84,7 +84,7 @@ function quizWithMulti(over = {}) {
   return qs;
 }
 
-const CTX = { language: 'en', subject: 'science', digest: DIGEST, nExpected: 6, lessonSummary: 'She taught the four-sided shapes with paper cut-outs, then compared them to a circle and a triangle.' };
+const CTX = { language: 'en', subject: 'science', digest: DIGEST, nExpected: 6, lessonSummary: 'Today you taught the four-sided shapes with paper cut-outs, then compared them to a circle and a triangle.' };
 
 describe('the validator understands a set answer', () => {
   test('a well-formed multi question passes', () => {
