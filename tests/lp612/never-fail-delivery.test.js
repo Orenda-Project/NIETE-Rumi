@@ -257,6 +257,50 @@ describe('the worker delivers a damaged-but-whole lesson instead of failing it',
     expect(lastUpdate().payload.render_degraded).toBe(true);
   });
 
+  test('an Urdu OVERLAY that draws TOO TALL now ships IN URDU, degraded, instead of falling back to English', async () => {
+    // bd-o4dsl, and this is the quiet win of the policy. The overlay pass renders the OVERLAID
+    // document; an Urdu label wraps taller than its English original, so `FIGURE TOO TALL` fired
+    // and the whole Urdu render was discarded — the teacher got the English PDF with the honest
+    // caption. Under the new verdict that render is DELIVERABLE, so she gets the Urdu lesson with
+    // one tall diagram and a line saying a page looks tight. A tall figure is a worse page; an
+    // English document is a worse LESSON.
+    delete process.env.LP612_OVERLAY_PASS_OFF;
+    mockOverlayLessonPlan.mockResolvedValue({
+      overlay: { '/sections/0/blocks/0/text': 'اردو' },
+      coverage: 1,
+      usage: { total_tokens: 1, completion_tokens: 1, calls: 1 },
+    });
+    // first call = the English final render (clean); second = the overlaid one (too tall)
+    mockRenderLessonPlan
+      .mockResolvedValueOnce({
+        pdfPath: '/tmp/en.pdf', htmlPath: '/tmp/en.html', pageCount: 11, warnings: [],
+        pagesByPart: { teach: 6, support: 5 }, overlayApplied: [],
+      })
+      .mockRejectedValueOnce(Object.assign(new Error('render produced defects'), {
+        code: 'RENDER_FAILED',
+        infra: false,
+        problems: ['FIGURE TOO TALL: diagram "grid" needs 1309px of height to stay readable, '
+          + 'which is more than one page (1109px). Split it or simplify it.'],
+        warnings: [],
+        htmlPath: '/tmp/ur.html',
+        pdfPath: '/tmp/ur.pdf',
+        pageCount: 12,
+        pagesByPart: { teach: 7, support: 5 },
+        overlayApplied: ['/sections/0/blocks/0/text'],
+      }));
+    seed();
+
+    const out = await Worker.process(JOB);
+
+    expect(out.status).toBe('ready');
+    const row = lastUpdate().payload;
+    expect(row).toMatchObject({ status: 'ready', render_degraded: true });
+    // SHE HAS URDU. `overlay_dropped` false is the whole point — the fallback did not fire.
+    expect(row.overlay_dropped).toBe(false);
+    const ev = mockLogEvent.mock.calls.find((c) => c[0] === 'lp612.overlay.pass');
+    expect(ev[1]).toMatchObject({ outcome: 'applied', pointers: 1 });
+  });
+
   test('an infra render failure still fails — there is no PDF to deliver', async () => {
     mockRenderLessonPlan.mockRejectedValue(Object.assign(new Error('browser gone'), {
       code: 'RENDER_FAILED', infra: true, problems: ['browser gone'],
