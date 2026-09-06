@@ -1059,6 +1059,8 @@ const UX_STRINGS = {
   tqFlowErrPickAction: { en: 'Pick one of the options first.', ur: 'پہلے کوئی ایک آپشن منتخب کریں۔' },
   tqFlowErrNotYours: { en: 'That lesson could not be found.', ur: 'وہ سبق نہیں مل سکا۔' },
   tqFlowErrGeneric: { en: 'Something went wrong — try again.', ur: 'کچھ غلط ہو گیا — دوبارہ کوشش کریں۔' },
+  // The lookup itself failed (not an unknown teacher): retry copy, both ≤ 60 code points.
+  tqFlowErrLookup: { en: 'Could not load your lessons just now. Please tap again.', ur: 'ابھی آپ کے اسباق نہیں کھل سکے۔ دوبارہ tap کریں۔' },
 
   // ─── quiz chrome read by CHILDREN, in the quiz language ─────────────────
   // The share-link chain was English-only; a child taking an Urdu quiz now

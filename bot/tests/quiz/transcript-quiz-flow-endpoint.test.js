@@ -520,3 +520,40 @@ describe('the Urdu teacher gets the same screens, inside the same caps', () => {
     await new Promise((r) => setImmediate(r));
   });
 });
+
+describe('a failed teacher lookup is reported, never mistaken for an unknown teacher', () => {
+  const { logToFile } = require('../../shared/utils/logger');
+  function stubFailingUsers() {
+    writes = [];
+    supabase.from.mockImplementation((t) => {
+      const chain = makeChain(t === 'users' ? users : [], writes);
+      if (t === 'users') chain.maybeSingle = async () => ({ data: null, error: { message: 'boom: fetch failed' } });
+      return chain;
+    });
+  }
+  beforeEach(() => { logEvent.mockClear(); logToFile.mockClear(); });
+
+  test('INIT answers the retry copy, logs the error and emits flow_lookup_failed', async () => {
+    stubFailingUsers();
+    const out = await endpoint.handleTranscriptQuizInit(TOKEN);
+    expect(out.screen).toBe('LESSONS');
+    expect(out.data.error_message).toBe('Could not load your lessons just now. Please tap again.');
+    expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_lookup_failed', expect.objectContaining({ error: 'boom: fetch failed' }));
+    expect(logToFile).toHaveBeenCalledWith(expect.stringContaining('lookup failed'), expect.objectContaining({ error: 'boom: fetch failed' }), 'error');
+  });
+
+  test('a data_exchange step answers the same retry copy, not "could not be found"', async () => {
+    stubFailingUsers();
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'page', page: 2 });
+    expect(out.screen).toBe('LESSONS');
+    expect(out.data.error_message).toBe('Could not load your lessons just now. Please tap again.');
+    expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_lookup_failed', expect.objectContaining({ step: 'page' }));
+  });
+
+  test('a genuinely unknown teacher still gets the not-found copy and no lookup_failed event', async () => {
+    stub({ users, coaching_sessions: [], quizzes: [] });
+    const out = await endpoint.handleTranscriptQuizInit('nobody:transcript-quiz:1');
+    expect(out.data.error_message).toBe('That lesson could not be found.');
+    expect(logEvent).not.toHaveBeenCalledWith('transcript_quiz.flow_lookup_failed', expect.anything());
+  });
+});
