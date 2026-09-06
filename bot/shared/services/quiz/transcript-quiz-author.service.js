@@ -17,6 +17,7 @@ const { ALLOWED_TYPES, EARLY_YEARS_TYPES, CORE_TYPES, minimalSpecBlock } = requi
 const { names: pictogramNames } = require('../../../vendor/lp-v9/diagrams/lib/pictogram');
 const { MOLECULE_DICTIONARY } = require('./transcript-quiz-figure-science');
 const { multiContract, multiFlowId } = require('./transcript-quiz-multi');
+const { requiredHigherOrder } = require('./transcript-quiz-pedagogy');
 const { logEvent } = require('../../utils/structured-logger');
 
 const DEFAULT_QUESTIONS = 8;
@@ -151,21 +152,43 @@ function buildAuthorPrompt({
   // for either prompt without touching the environment.
   allowMulti = false,
 }) {
+  // How many of the n may actually be above bare recall on THIS lesson. A flat
+  // "half" is unreachable when every SLO was taught at recall, and the model
+  // reaches it by tagging questions two levels above — which the validator
+  // rejects, costing the whole quiz. See requiredHigherOrder().
+  const nHigher = requiredHigherOrder(n, digest);
   const rule = language === 'ur'
     ? 'Write EVERYTHING in Urdu script; keep English technical terms in English letters exactly as the teacher used them.'
     : 'Write EVERYTHING in English — every stem, option, explanation and feedback — even though the lesson was taught in Urdu: translate the teacher\'s own words and keep her examples, numbers and names. An Urdu word may appear only when quoting a term the class used, in quotation marks.';
   const retry = previousErrors && previousErrors.length
-    ? `\n\nA PREVIOUS ATTEMPT FAILED THESE CHECKS — fix every one of them this time (q0 is your FIRST question, q1 the second, and so on):\n- ${previousErrors.slice(0, 12).join('\n- ')}\n`
+    ? `\n\nA PREVIOUS ATTEMPT FAILED THESE CHECKS — fix every one of them this time (q0 is your FIRST question, q1 the second, and so on):\n- ${previousErrors.slice(0, 16).join('\n- ')}\n`
     : '';
   return `You are writing a short WhatsApp quiz for the children who sat in ONE real lesson. You have the lesson digest and excerpts of the transcript. The quiz is taken one question at a time on a phone: a stem, three tappable options, then feedback.
 
 QUIZ LANGUAGE: ${LANG_NAME[language] || 'Urdu'}. ${rule}
 
 WHAT TO WRITE — exactly ${n} questions.
+
+THE SLOs DRIVE THE QUESTIONS. The digest's "slos" are what these children were meant to LEARN; the transcript supplies the level she pitched it at, the examples she used and the words she used. Write the question the SLO asks for, dressed in the lesson's own material. The lesson is where the question comes FROM, never what the question is ABOUT.
 - Cover EVERY SLO in the digest at least once (tag each question with the SLO's exact "id"). Spread the rest across the SLOs the lesson spent most time on.
-- Match the level the teacher taught: at least 60% of questions at or below each SLO's "taught_level"; never more than one level above; never test something the lesson did not teach.
+- ANSWERABLE BY ANY CHILD WHO UNDERSTOOD THE CONCEPT — whatever that particular child was personally asked to do, which group they sat in, whether they were called to the board, whether they were listening at that minute. If answering needs to know what one child or one group was told, no answer can be just to the rest, and the question is unusable.
+- NEVER COUNT MENTIONS. A stem asking how many things were mentioned, named, discussed or talked about, with bare numbers as the options, tests how many times something was said — not what it is. Ask the child to PICK the thing instead. (Counting what a PICTURE shows is a different thing and is welcome.)
+- THE SUBJECT OF THE QUESTION IS THE CONCEPT, never the teacher, the class or your group, and never classroom logistics: no "what did the teacher call it", "which one did she use", "what were you asked to draw", who was at the board, which page, what homework.
+- At least ${nHigher} of the ${n} questions tagged "understand" or "apply", never bare recall: which of these belongs / which does NOT / what happens when / why did the lesson's own example turn out that way / use the idea on a new case. Put those questions on the SLOs this lesson taught at "understand" or "apply", so they sit AT the level she taught rather than above it.
+- Levels, hard: at least 60% of the questions at or below their own SLO's "taught_level", and NEVER more than ONE level above it. On an SLO taught at "recall", "understand" is the ceiling and "apply" is not allowed. That rule wins over the line above — ${nHigher} is already what it leaves room for on this lesson.
 - Question 1 must be the easiest, so a nervous child gets one right first.
-- Use the lesson's OWN examples, numbers, words, objects and stories (from "examples_used" and the excerpts). A child should recognise the class in the quiz.
+- Use the lesson's OWN examples, numbers, words, objects and stories (from "examples_used" and the excerpts) as the MATERIAL of the question. A child should recognise the class in the quiz.
+
+GOOD vs BAD — same lesson, same knowledge, and the good one is the one a child learns from:
+  BAD  "How many types of matter did the teacher mention?"  3 / 2 / 4
+  GOOD "Which of these is a type of matter?"  gas / speed / weight
+  BAD  "Which atom did the teacher ask your group to draw?"  Oxygen / Carbon / Boron
+  GOOD "An atom has 6 protons. Which element is it?"  Carbon / Oxygen / Boron
+  BAD  "What did madam call the middle of the atom?"  nucleus / shell / orbit
+  GOOD "Where in an atom are the protons found?"  in the nucleus / in the outer shell / outside the atom
+  BAD  "استاد نے matter کی کتنی قسمیں بتائیں؟"  ۳ / ۲ / ۴
+  GOOD "ان میں سے کون سی matter کی ایک قسم ہے؟"  gas / رفتار / وزن
+
 - Exactly 3 options. One correct. The two wrong options are DISTRACTORS: each must look right to a child holding a specific, named misconception (the ones surfaced in the lesson first, then the classic ones for this topic). The two misconceptions must be different. No silly options. The three options must be different from each other.
 - Stem ≤ 160 characters; each option ≤ 60 characters (they render as tappable rows).
 - "distractor_misconceptions": for each wrong option, the confusion it catches in AT MOST 10 words, as a phrase ("counts the unshaded parts instead of the shaded"), not a sentence about the child — in the quiz language (the same language as the questions; Urdu in Urdu script with English technical terms in Latin letters).
@@ -173,7 +196,6 @@ WHAT TO WRITE — exactly ${n} questions.
 - "option_feedback.correct": one warm sentence that says WHY it is right (never just "correct!" — name the idea).
 - "option_feedback.wrong": an object whose KEYS are the two indices that are NOT "correct_index" (as strings), each with one or two sentences that (a) name the confusion that option represents, in plain child language, (b) point back to the lesson's own example, (c) end with the correct idea. Never say "wrong", never scold.
 - NEVER refer to options by letter ("option B", "the answer is C") anywhere — the letters are shuffled before display.
-- NEVER ask about classroom logistics — which atom "your group" was asked to draw, who was called to the board, which page, what homework was set. Every question is about the CONTENT taught, answerable by any child who sat in the lesson.
 - Tag every question with its "slo_id" and its "level".
 
 STYLE RULES FOR URDU (when quiz language is Urdu): proper, well-written Urdu in Urdu script — never Roman Urdu; English technical/subject terms are written IN ENGLISH LETTERS inside the Urdu sentence (e.g. "proper fraction", "numerator", "denominator", "noun", "photosynthesis") — NEVER transliterated into Urdu script ("فیکشن", "نیومریٹر", "ڈینومینیٹر" are wrong even if the transcript spells them that way); use the SAME spelling of a term in every question; NEVER begin a question, explanation or feedback sentence with the English word — start with an Urdu word ("ایک fraction میں…", not "fraction میں…") because a sentence that opens with English is displayed left-to-right on the phone; simple, spoken, child-level Urdu; gender-neutral throughout: address the child as "آپ" with plural-respectful verbs (کریں، دیکھیں، سوچیں), NEVER a feminine or masculine singular guess (no "کرتی ہیں", "سکتی ہیں", "کریں گی", "کرتے ہو").

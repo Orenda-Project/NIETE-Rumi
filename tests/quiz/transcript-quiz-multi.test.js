@@ -75,7 +75,12 @@ function multi(over = {}) {
 
 /** Six questions, the second of which is the multi one (question 1 never is). */
 function quizWithMulti(over = {}) {
-  const qs = [single(0), multi(over), single(2), single(3), single(4), single(5)];
+  // Three of the six are tagged "understand": PEDAGOGY_LEVEL_MIX asks for at
+  // least half the set above bare recall, so a fixture that stands for a valid
+  // quiz has to be one. Both carry slo_id S2, which the digest above says was
+  // taught at "understand", so the 60%-at-or-below rule is untouched.
+  const qs = [single(0), multi(over), single(2), single(3),
+    single(4, { level: 'understand' }), single(5, { level: 'understand' })];
   return qs;
 }
 
@@ -133,7 +138,9 @@ describe('the validator understands a set answer', () => {
   });
 
   test('a single-answer quiz is validated exactly as before', () => {
-    const qs = [single(0), single(1), single(2), single(3), single(4), single(5)];
+    // Same level mix as quizWithMulti() above, for the same reason.
+    const qs = [single(0), single(1, { level: 'understand' }), single(2), single(3),
+      single(4, { level: 'understand' }), single(5, { level: 'understand' })];
     const v = validate(qs, CTX);
     expect(v.ok).toBe(true);
     expect(v.errors).toEqual([]);

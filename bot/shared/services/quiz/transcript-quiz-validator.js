@@ -19,6 +19,7 @@ const { canonicalSubject: canonSubj } = require('./transcript-quiz-language');
 const { figureGateDefects, droppedTextDefect } = require('./transcript-quiz-figure-gates');
 const { scienceDefects, moleculeFromDictionary } = require('./transcript-quiz-figure-science');
 const Multi = require('./transcript-quiz-multi');
+const { pedagogyDefects } = require('./transcript-quiz-pedagogy');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -370,6 +371,13 @@ function validate(rawQuestions, ctx = {}) {
     const tl = TRANSLIT_TERMS.exec(joined);
     if (tl) errs.push(`transliterated English term in Urdu script: ${tl[1].trim()} — write it in English letters`);
   }
+  // PEDAGOGY (PLAN_R5 D3). Structure says the question is well formed; these
+  // say it is worth asking. Each defect keeps its own PEDAGOGY_ code and a
+  // q-prefix where it belongs to one question, so the retry prompt names what
+  // to rewrite and the last-attempt salvage can drop that question rather
+  // than the quiz. See transcript-quiz-pedagogy.js.
+  pedagogyDefects(qs, { language, digest }).forEach((d) => errs.push(d.message));
+
   const canon = canonicalSubject(subject);
   if (canon === 'islamiat' || canon === 'urdu') {
     errs.push(...checkReligiousMarks(joined));
