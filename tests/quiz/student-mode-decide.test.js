@@ -43,6 +43,110 @@ describe('decide() — a registered teacher is a teacher, always', () => {
   });
 });
 
+/**
+ * bd-mg9c7.88 — THE SHAPE THAT BROKE IT LIVE.
+ *
+ * The account that proved rule 2 is not enough is an ordinary one: a teacher
+ * who never finished the registration Flow. `registration_completed = false`,
+ * `registration_state = 'unregistered'` — so `isRegisteredTeacher()` is false —
+ * yet she has a name on her row, owns six quizzes as `teacher_id`, has dozens
+ * of coaching sessions, and her handset carries five active quiz-joined
+ * `students` rows because she joined her own class links to check them before
+ * the self-test path existed. `decide()` called her a student.
+ *
+ * The recovery-registration branch in text-message.handler.js (~L2262-2290)
+ * exists precisely because users of this shape are common: they use features
+ * for months without ever completing registration.
+ *
+ * So registration is now ONE of five teacher signals, any of which is decisive,
+ * and all of which are weighed before a single row about a child is read.
+ */
+describe('decide() — teacher signals are weighed before anything about children', () => {
+  const UNREGISTERED_TEACHER = {
+    id: 'u-t1', first_name: 'Amina',
+    registration_completed: false, registration_state: 'unregistered',
+  };
+  const LIVE_SIGNALS = {
+    registered: false, hasName: true, ownsQuizzes: true, hasCoaching: true, usedFeatures: true,
+  };
+  const FIVE_CHILD_ROWS = Array.from({ length: 5 }, (_, i) => ({ ...CHILD_ROW, id: `s${i}` }));
+
+  test('the live shape — unregistered, named, owns quizzes, 5 child rows, a quiz today — is a TEACHER', () => {
+    expect(SM.decide({
+      user: UNREGISTERED_TEACHER,
+      teacherSignals: LIVE_SIGNALS,
+      students: FIVE_CHILD_ROWS,
+      lastSessionAt: daysAgo(0),
+      now: NOW,
+      flag: true,
+    })).toEqual({ mode: 'teacher', reason: 'hasName' });
+  });
+
+  test.each([
+    ['hasName', { hasName: true }],
+    ['ownsQuizzes', { ownsQuizzes: true }],
+    ['hasCoaching', { hasCoaching: true }],
+    ['usedFeatures', { usedFeatures: true }],
+  ])('%s ALONE flips a textbook child handset to teacher', (reason, signal) => {
+    expect(SM.decide({
+      user: { id: 'u-bare' },
+      teacherSignals: signal,
+      students: [CHILD_ROW], lastSessionAt: daysAgo(1), now: NOW, flag: true,
+    })).toEqual({ mode: 'teacher', reason });
+  });
+
+  test('registration still wins first, and keeps its old reason string', () => {
+    expect(SM.decide({
+      user: { id: 'u1', registration_completed: true },
+      teacherSignals: { ownsQuizzes: true },
+      students: [CHILD_ROW], lastSessionAt: daysAgo(0), now: NOW, flag: true,
+    })).toEqual({ mode: 'teacher', reason: 'registered_teacher' });
+  });
+
+  test('a name on the users row is a signal even when the caller passes no signals at all', () => {
+    // Every caller must get this protection, including one written before the
+    // signals existed. `first_name` is set by the registration Flow AND by the
+    // recovery path, so a named row is a teacher whatever else is true.
+    expect(SM.decide({
+      user: UNREGISTERED_TEACHER,
+      students: FIVE_CHILD_ROWS, lastSessionAt: daysAgo(0), now: NOW, flag: true,
+    })).toEqual({ mode: 'teacher', reason: 'hasName' });
+  });
+
+  test('a whitespace-only first_name is not a name', () => {
+    expect(SM.decide({
+      user: { id: 'u2', first_name: '   ' },
+      students: [CHILD_ROW], lastSessionAt: daysAgo(1), now: NOW, flag: true,
+    })).toEqual({ mode: 'student', reason: 'active_student_recent_quiz' });
+  });
+
+  test('a bare users row with a child row and a recent quiz is STILL a student', () => {
+    // The fix must not swallow the feature it protects.
+    expect(SM.decide({
+      user: { id: 'u-child', first_name: null, registration_completed: false },
+      teacherSignals: {
+        registered: false, hasName: false, ownsQuizzes: false, hasCoaching: false, usedFeatures: false,
+      },
+      students: [CHILD_ROW], lastSessionAt: daysAgo(2), now: NOW, flag: true,
+    })).toEqual({ mode: 'student', reason: 'active_student_recent_quiz' });
+  });
+
+  test('a signal lookup that failed is read as a teacher, never as a child', () => {
+    expect(SM.decide({
+      user: { id: 'u3' },
+      teacherSignals: { lookupFailed: true },
+      students: [CHILD_ROW], lastSessionAt: daysAgo(1), now: NOW, flag: true,
+    })).toEqual({ mode: 'teacher', reason: 'signal_lookup_failed' });
+  });
+
+  test('the flag still comes first — signals are not even considered when it is off', () => {
+    expect(SM.decide({
+      user: UNREGISTERED_TEACHER, teacherSignals: LIVE_SIGNALS,
+      students: FIVE_CHILD_ROWS, lastSessionAt: daysAgo(0), now: NOW, flag: false,
+    })).toEqual({ mode: 'unknown', reason: 'flag_off' });
+  });
+});
+
 describe('decide() — student needs positive evidence on both sides', () => {
   test('an active child row plus a quiz inside the window', () => {
     expect(SM.decide({

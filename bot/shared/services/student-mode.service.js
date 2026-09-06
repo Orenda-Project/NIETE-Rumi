@@ -18,14 +18,25 @@
  *     text-message.handler.js). Commands, registration keywords, share-code
  *     joins, quiz answers, Flow replies, /video, the coaching and lesson-plan
  *     paths never reach it and are byte-for-byte unchanged.
- *   - A phone with a REGISTERED users row is a teacher, always, full stop —
- *     checked before anything else is even read.
+ *   - FIVE TEACHER SIGNALS are weighed before a single row about a child is
+ *     read, and any one of them is decisive: a completed registration, a name
+ *     on the users row, a quiz owned as `teacher_id`, a coaching session, or
+ *     any completed feature. Registration alone was not enough — a live
+ *     staging account with `registration_state = 'unregistered'`, six quizzes,
+ *     dozens of coaching sessions and five stray quiz-joined `students` rows
+ *     was classified `student` (bd-mg9c7.88). Teachers of that shape are
+ *     ordinary, not exotic: the recovery-registration branch in
+ *     text-message.handler.js exists precisely because people use features for
+ *     months without ever finishing registration.
  *   - Student mode requires positive evidence on BOTH sides: an active
  *     quiz-joined `students` row for this handset AND a quiz session that row
  *     took within WINDOW_DAYS. No evidence means `unknown`, which means today's
  *     behaviour, unchanged.
  *   - Someone who says they are a teacher is taken at their word immediately,
- *     and the stray student rows on their handset are retired.
+ *     and the stray student rows on their handset are retired. That check now
+ *     runs FIRST, ahead of the signals: it is free (it reads the message, not
+ *     the database), and a registered teacher who says so gets her handset
+ *     cleaned up too rather than short-circuiting past it.
  *   - The whole thing is behind STUDENT_MODE_ENABLED. Unset is off. The flag is
  *     the kill switch, and with it off this module reads nothing at all.
  *
@@ -38,6 +49,10 @@ const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 const { logEvent } = require('../utils/structured-logger');
 const StudentIdentity = require('./quiz/student-identity.service');
+// feature-registration.service is required LAZILY, inside the one function that
+// uses it: it pulls `uuid`, whatsapp.service and audio.service at module scope,
+// and the root suite runs before `bot/ npm ci`, so a module-scope require here
+// would kill every root test FILE that loads this module.
 
 /**
  * How long a child stays a child. Long enough to cover the gap between two
@@ -64,6 +79,36 @@ function isRegisteredTeacher(user) {
   return Boolean(user
     && (user.registration_completed === true || user.registration_state === 'completed'));
 }
+
+/**
+ * A name on the users row is a teacher signal on its own.
+ *
+ * `first_name` is written by the registration Flow AND by the recovery path
+ * (`FeatureRegistrationService.sendNameQuestion` → the name reply), and it is
+ * never written for a child: a child who joins a quiz gets a `students` row,
+ * and the child's name is deliberately kept out of `users` and out of prompts.
+ * So a named users row on a handset means an adult who has, at some point,
+ * been asked who she is by the teacher-facing bot and answered.
+ */
+function hasTeacherName(user) {
+  return Boolean(user && typeof user.first_name === 'string' && user.first_name.trim());
+}
+
+/**
+ * The order the signals are tested in, and the `reason` each one publishes.
+ * `registered` keeps its historical reason string because the docs, the
+ * dashboards and the round-4 tests all name it.
+ */
+const SIGNAL_ORDER = [
+  ['registered', 'registered_teacher'],
+  ['hasName', 'hasName'],
+  ['ownsQuizzes', 'ownsQuizzes'],
+  ['hasCoaching', 'hasCoaching'],
+  ['usedFeatures', 'usedFeatures'],
+  // Not a signal but the same verdict: if a signal query failed we do not know
+  // whether she is a teacher, and "do not know" resolves towards teacher.
+  ['lookupFailed', 'signal_lookup_failed'],
+];
 
 /**
  * "I am a teacher", in the ways people actually type it.
@@ -117,18 +162,34 @@ function looksLikeTeacherClaim(text) {
  *
  * @param {object}   input
  * @param {object}   [input.user]          the users row for this phone, if any
+ * @param {object}   [input.teacherSignals] what the async wrapper found out about
+ *   the ADULT on this handset: `{registered, hasName, ownsQuizzes, hasCoaching,
+ *   usedFeatures, lookupFailed}`. Any true value is decisive. `registered` and
+ *   `hasName` are also derived from `user` when absent, so a caller written
+ *   before the signals existed still gets both protections.
  * @param {object[]} [input.students]      ACTIVE quiz-joined students rows for this phone
  * @param {string|Date} [input.lastSessionAt] when one of those rows last took a quiz
  * @param {Date}     [input.now]
  * @param {boolean}  [input.flag]          STUDENT_MODE_ENABLED
  * @returns {{mode: 'teacher'|'student'|'unknown', reason: string}}
  */
-function decide({ user, students, lastSessionAt, now = new Date(), flag } = {}) {
+function decide({ user, students, lastSessionAt, now = new Date(), flag, teacherSignals } = {}) {
   const on = flag === undefined ? isEnabled() : Boolean(flag);
   if (!on) return { mode: 'unknown', reason: 'flag_off' };
 
-  // Before anything is read about children. A registered teacher is a teacher.
-  if (isRegisteredTeacher(user)) return { mode: 'teacher', reason: 'registered_teacher' };
+  // ── TEACHER SIGNALS, before a single row about a child is read ──
+  // Any one of them is decisive. This is the whole of bd-mg9c7.88: the old
+  // rule read only `registered`, and an unregistered teacher who had joined
+  // her own class links came out a student.
+  const sig = teacherSignals || {};
+  const resolved = {
+    ...sig,
+    registered: sig.registered || isRegisteredTeacher(user),
+    hasName: sig.hasName || hasTeacherName(user),
+  };
+  for (const [key, reason] of SIGNAL_ORDER) {
+    if (resolved[key]) return { mode: 'teacher', reason };
+  }
 
   const active = (students || []).filter((s) => s && s.is_active !== false);
   if (!active.length) return { mode: 'unknown', reason: 'no_student_row' };
@@ -175,6 +236,80 @@ async function retireQuizStudentRows(phone, reason) {
     logToFile('⚠️ student-mode: retire threw', { error: err.message, reason });
     return 0;
   }
+}
+
+/**
+ * Does this user own at least one row in `table` under `column`? A head count,
+ * so nothing but the number crosses the wire.
+ *
+ * @returns {Promise<boolean|null>} null means the read FAILED, which is not the
+ *   same as "no rows" and must not be collapsed into it — that collapse is how
+ *   a teacher becomes a child during a database hiccup.
+ */
+async function hasAnyRow(table, column, id) {
+  try {
+    const { count, error } = await supabase
+      .from(table).select('*', { count: 'exact', head: true }).eq(column, id);
+    if (error) {
+      logToFile('⚠️ student-mode: teacher-signal lookup failed', { table, error: error.message });
+      return null;
+    }
+    return (count || 0) > 0;
+  } catch (err) {
+    logToFile('⚠️ student-mode: teacher-signal lookup threw', { table, error: err.message });
+    return null;
+  }
+}
+
+/**
+ * What this handset's users row says about the ADULT holding it.
+ *
+ * Ordered cheapest-first and short-circuited: the two free checks (a completed
+ * registration, a name) settle most teachers with no query at all; then one
+ * head count for a quiz she owns, one for a coaching session, and only then the
+ * four counts inside `countUserFeatures`. A registered or named teacher costs
+ * zero reads; the worst case — an adult with no name and no history — costs six
+ * head counts on a path that is already making an LLM call.
+ *
+ * `countUserFeatures` is the handler's own test for "has this person used the
+ * bot before" (text-message.handler.js ~L2319, the recovery-registration
+ * branch); reusing it means student mode and registration recovery cannot
+ * disagree about who counts as an established user.
+ */
+async function teacherSignalsFor(user) {
+  const signals = {
+    registered: false, hasName: false, ownsQuizzes: false,
+    hasCoaching: false, usedFeatures: false, lookupFailed: false,
+  };
+
+  signals.registered = isRegisteredTeacher(user);
+  if (signals.registered) return signals;
+  signals.hasName = hasTeacherName(user);
+  if (signals.hasName) return signals;
+
+  const id = user && user.id;
+  if (!id) return signals;
+
+  const owns = await hasAnyRow('quizzes', 'teacher_id', id);
+  if (owns === null) { signals.lookupFailed = true; return signals; }
+  signals.ownsQuizzes = owns;
+  if (owns) return signals;
+
+  const coaching = await hasAnyRow('coaching_sessions', 'user_id', id);
+  if (coaching === null) { signals.lookupFailed = true; return signals; }
+  signals.hasCoaching = coaching;
+  if (coaching) return signals;
+
+  try {
+    // Lazy on purpose — see the require block at the top of this file.
+    const FeatureRegistrationService = require('./feature-registration.service');
+    const n = await FeatureRegistrationService.countUserFeatures(id);
+    signals.usedFeatures = Number(n || 0) > 0;
+  } catch (err) {
+    logToFile('⚠️ student-mode: feature count threw', { error: err.message });
+    signals.lookupFailed = true;
+  }
+  return signals;
 }
 
 /** The active quiz-joined rows for a handset. Attendance-roster rows excluded. */
@@ -245,13 +380,6 @@ async function personaFor({ from, user, messageBody = '', now = new Date() } = {
   if (!isEnabled()) return NONE('unknown', 'flag_off');
 
   try {
-    if (isRegisteredTeacher(user)) {
-      logEvent('student_mode.decided', {
-        mode: 'teacher', reason: 'registered_teacher', userId: user?.id || null,
-      });
-      return NONE('teacher', 'registered_teacher');
-    }
-
     if (looksLikeTeacherClaim(messageBody)) {
       const retired = await retireQuizStudentRows(from, 'teacher_claim');
       logEvent('student_mode.escaped', {
@@ -260,13 +388,26 @@ async function personaFor({ from, user, messageBody = '', now = new Date() } = {
       return NONE('teacher', 'teacher_claim');
     }
 
+    // bd-mg9c7.88 — the adult's own history, before anything about children.
+    // A teacher signal returns here, so a teacher's handset never reaches the
+    // two child queries below at all.
+    const teacherSignals = await teacherSignalsFor(user);
+    const early = decide({ user, teacherSignals, students: [], lastSessionAt: null, now, flag: true });
+    if (early.mode === 'teacher') {
+      logEvent('student_mode.decided', {
+        mode: 'teacher', reason: early.reason, signal: early.reason, userId: user?.id || null,
+      });
+      return NONE('teacher', early.reason);
+    }
+
     const students = await quizStudentsFor(from);
     const { at, language, studentClass } = await lastQuizSessionFor(students.map((s) => s.id));
-    const verdict = decide({ user, students, lastSessionAt: at, now, flag: true });
+    const verdict = decide({ user, teacherSignals, students, lastSessionAt: at, now, flag: true });
 
     logEvent('student_mode.decided', {
       mode: verdict.mode,
       reason: verdict.reason,
+      signal: verdict.mode === 'teacher' ? verdict.reason : null,
       userId: user?.id || null,
       students: students.length,
       // Days, rounded — an age, never a name and never a phone (COMMON rule 6).
@@ -295,7 +436,10 @@ module.exports = {
   WINDOW_DAYS,
   isEnabled,
   isRegisteredTeacher,
+  hasTeacherName,
   looksLikeTeacherClaim,
+  teacherSignalsFor,
+  retireQuizStudentRows,
   decide,
   personaFor,
 };

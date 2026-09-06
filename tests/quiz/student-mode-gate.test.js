@@ -129,12 +129,27 @@ const iso = (daysAgo) => new Date(Date.now() - daysAgo * 86400000).toISOString()
  * The rows the gate's own two reads find: an active quiz-joined child on this
  * handset, and the quiz session that child took, in Urdu, three days ago.
  */
-function seedChildHandset() {
+function seedChildHandset(signals = {}) {
   installFrom(mockFrom, {
     students: { data: [{ id: 's-1', student_name: 'Zara', self_reported_class: 'Class 5', is_active: true, created_at: iso(9) }], error: null },
     quiz_sessions: { data: [{ id: 'qs-1', created_at: iso(3), quiz_id: 'q-1', student_class: 'Class 5' }], error: null },
-    quizzes: { data: [{ language: 'ur' }], error: null },
+    quizzes: quizzesSeed(signals.ownsQuizzes || 0),
+    coaching_sessions: { count: signals.hasCoaching || 0, error: null },
+    lesson_plans: { count: signals.lessonPlans || 0, error: null },
   });
+}
+
+/**
+ * bd-mg9c7.88 — the `quizzes` table is read twice for two different questions
+ * and the answers are different shapes: `ownsQuizzes` is a head count filtered
+ * on `teacher_id`, the reply language is a row filtered on the quiz's `id`.
+ * Keying on the filter that was applied is what keeps a teacher's six quizzes
+ * from being read as a child's quiz language, and vice versa.
+ */
+function quizzesSeed(ownedCount) {
+  return (calls) => (calls.some((c) => c[0] === 'eq' && c[1] === 'teacher_id')
+    ? { count: ownedCount, error: null }
+    : { data: [{ language: 'ur' }], error: null });
 }
 
 /** A handset with no child on it at all — the ordinary teacher case. */
@@ -142,7 +157,9 @@ function seedEmptyHandset() {
   installFrom(mockFrom, {
     students: { data: [], error: null },
     quiz_sessions: { data: [], error: null },
-    quizzes: { data: [], error: null },
+    quizzes: quizzesSeed(0),
+    coaching_sessions: { count: 0, error: null },
+    lesson_plans: { count: 0, error: null },
   });
 }
 
@@ -209,7 +226,10 @@ describe('1 — the gate runs on free chat and its verdict reaches the prompt', 
 
   test('a handset with no child row keeps the teacher assistant', async () => {
     seedEmptyHandset();
-    await run(TEACHER_PHONE, 'how do I teach fractions?', { ...TEACHER_USER, registration_completed: false, registration_state: null });
+    // Bare on every teacher signal too — a name alone is now decisive (test 5).
+    await run(TEACHER_PHONE, 'how do I teach fractions?', {
+      ...TEACHER_USER, first_name: null, registration_completed: false, registration_state: null,
+    });
     expect(mockGetResponse).toHaveBeenCalledTimes(1);
     expect(personaArg()?.persona).toBeUndefined();
   });
@@ -301,5 +321,104 @@ describe('4 — everything else short-circuits above the gate', () => {
     await run(CHILD_PHONE, '/menu', CHILD_USER);
 
     expect(mockGetResponse).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * 5 — bd-mg9c7.88. The live failure and its fix, executed.
+ *
+ * Lane Z ran the feature on staging and the operator's own account came back
+ * `student`: `registration_completed = false`, `registration_state =
+ * 'unregistered'` — so rule 2 never fired — but a name on the row, six quizzes
+ * owned as `teacher_id`, dozens of coaching sessions, five active quiz-joined
+ * `students` rows from joining his own class links before the self-test path
+ * existed, and a `quiz_sessions` row finished that morning. Every clause of the
+ * old `student` rule was satisfied, and the next free-text message he sent
+ * would have been answered by a tutor pitched at a ten-year-old.
+ *
+ * The recovery-registration branch in the handler (~L2262-2290) is proof this
+ * shape is ordinary rather than exotic: people use the bot's features for
+ * months without ever finishing registration.
+ *
+ * These tests drive the real handler and the real decision; only the DB reads
+ * are doubled, at the supabase boundary.
+ */
+describe('5 — an unregistered TEACHER is never tutored', () => {
+  const UNREG_PHONE = '923004440000';
+  const UNREG_TEACHER = {
+    id: 'u-unreg', phone_number: UNREG_PHONE, first_name: 'Amina',
+    preferred_language: 'en', registration_completed: false, registration_state: 'unregistered',
+  };
+  /** The same row with the name stripped — used to isolate the other signals. */
+  const NAMELESS = { ...UNREG_TEACHER, first_name: null };
+
+  test('the live shape: named, owns quizzes, has coaching, 5 child rows, a quiz today → teacher', () => {
+    installFrom(mockFrom, {
+      students: {
+        data: Array.from({ length: 5 }, (_, i) => ({
+          id: `s-${i}`, student_name: 'Zara', self_reported_class: 'Class 5',
+          is_active: true, created_at: iso(20),
+        })),
+        error: null,
+      },
+      quiz_sessions: { data: [{ id: 'qs-9', created_at: iso(0), quiz_id: 'q-1', student_class: 'Class 5' }], error: null },
+      quizzes: quizzesSeed(6),
+      coaching_sessions: { count: 31, error: null },
+    });
+    return run(UNREG_PHONE, 'how do I teach fractions to a slow learner?', UNREG_TEACHER)
+      .then(() => {
+        expect(mockGetResponse).toHaveBeenCalledTimes(1);
+        expect(personaArg()?.persona).toBeUndefined();
+        expect(languageArg()).toBe('en');
+      });
+  });
+
+  test('a name on the row settles it before a single child row is read', async () => {
+    seedChildHandset();
+    await run(UNREG_PHONE, 'what is a good starter activity?', UNREG_TEACHER);
+    expect(personaArg()?.persona).toBeUndefined();
+    // The whole point of the ordering: children are not read at all.
+    expect(mockFrom.callsFor('students')).toHaveLength(0);
+    expect(mockFrom.callsFor('quiz_sessions')).toHaveLength(0);
+  });
+
+  test('owning a quiz alone is enough, with no name on the row', async () => {
+    seedChildHandset({ ownsQuizzes: 4 });
+    await run(UNREG_PHONE, 'what is a fraction?', NAMELESS);
+    expect(personaArg()?.persona).toBeUndefined();
+    expect(mockFrom.callsFor('students')).toHaveLength(0);
+  });
+
+  test('a coaching session alone is enough', async () => {
+    seedChildHandset({ hasCoaching: 12 });
+    await run(UNREG_PHONE, 'what is a fraction?', NAMELESS);
+    expect(personaArg()?.persona).toBeUndefined();
+  });
+
+  test('a completed feature alone is enough (the recovery-registration shape)', async () => {
+    seedChildHandset({ lessonPlans: 3 });
+    await run(UNREG_PHONE, 'what is a fraction?', NAMELESS);
+    expect(personaArg()?.persona).toBeUndefined();
+  });
+
+  test('a child on a bare users row is still tutored — the feature survives its fix', async () => {
+    seedChildHandset();
+    await run(CHILD_PHONE, 'what is a fraction?', CHILD_USER);
+    expect(personaArg()).toMatchObject({ persona: 'student', studentClass: 'Class 5' });
+    // and the signals really were read on the way there
+    expect(mockFrom.callsFor('quizzes').length).toBeGreaterThan(0);
+  });
+
+  test('a signal lookup that errors is read as a teacher, never as a child', async () => {
+    installFrom(mockFrom, {
+      students: { data: [{ id: 's-1', student_name: 'Zara', self_reported_class: 'Class 5', is_active: true, created_at: iso(9) }], error: null },
+      quiz_sessions: { data: [{ id: 'qs-1', created_at: iso(3), quiz_id: 'q-1', student_class: 'Class 5' }], error: null },
+      quizzes: (calls) => (calls.some((c) => c[0] === 'eq' && c[1] === 'teacher_id')
+        ? { count: null, error: { message: 'connection reset' } }
+        : { data: [{ language: 'ur' }], error: null }),
+    });
+    await run(CHILD_PHONE, 'what is a fraction?', CHILD_USER);
+    expect(personaArg()?.persona).toBeUndefined();
+    expect(languageArg()).toBe('en');
   });
 });

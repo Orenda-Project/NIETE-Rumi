@@ -5,6 +5,7 @@
  */
 jest.mock('../../shared/config/supabase', () => ({ from: jest.fn() }));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn() }));
+jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 jest.mock('../../shared/services/quiz/student-identity.service', () => ({
   normalisePhone: (p) => {
     let d = String(p || '').replace(/\D/g, '');
@@ -15,7 +16,10 @@ jest.mock('../../shared/services/quiz/student-identity.service', () => ({
   },
 }));
 
+const { installFrom } = require('../../../tests/quiz/helpers/supabase-chain');
+
 const supabase = require('../../shared/config/supabase');
+const { logEvent } = require('../../shared/utils/structured-logger');
 const SelfTest = require('../../shared/services/quiz/teacher-self-test');
 
 describe('isSelfTest', () => {
@@ -118,6 +122,83 @@ describe('resolveSelfTest', () => {
     stubUser({ id: 'u1', first_name: 'Ayesha', phone_number: null });
     const r = await SelfTest.resolveSelfTest({ phone: '923001234567', teacherUserId: 'u1' });
     expect(r).toBeNull();
+  });
+});
+
+/**
+ * bd-mg9c7.88 residue — the operator's own handset carried five active
+ * quiz-joined `students` rows from joining his own class links before this
+ * self-test path existed. Recognising the self-test is not enough on its own
+ * to stop student-mode.service reading those rows as evidence next time; this
+ * is the retire half, wired at the one place a self-test is confirmed.
+ */
+describe('resolveSelfTest — retiring stray student rows on recognition', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  const TEACHER = { id: 'u1', first_name: 'Ayesha', last_name: 'Khan', phone_number: '+923001234567' };
+
+  test('a recognised self-test retires the handset\'s quiz-joined student rows', async () => {
+    installFrom(supabase.from, {
+      users: { data: [TEACHER], error: null },
+      students: { data: [{ id: 's-1' }, { id: 's-2' }], error: null },
+    });
+
+    const r = await SelfTest.resolveSelfTest({ phone: '923001234567', teacherUserId: 'u1' });
+
+    expect(r).toEqual({ userId: 'u1', name: 'Ayesha Khan' });
+    const calls = supabase.from.callsFor('students').flat();
+    const update = calls.find((c) => c[0] === 'update');
+    expect(update).toBeTruthy();
+    expect(update[1]).toMatchObject({ is_active: false });
+    expect(calls.some((c) => c[0] === 'is' && c[1] === 'list_id' && c[2] === null)).toBe(true);
+    expect(logEvent).toHaveBeenCalledWith('video_quiz.self_test_rows_retired', { userId: 'u1', retired: 2 });
+  });
+
+  test('a phone that is NOT the teacher\'s retires nothing', async () => {
+    installFrom(supabase.from, {
+      users: { data: [TEACHER], error: null },
+      students: { data: [{ id: 's-1' }], error: null },
+    });
+
+    const r = await SelfTest.resolveSelfTest({ phone: '923009999999', teacherUserId: 'u1' });
+
+    expect(r).toBeNull();
+    expect(supabase.from.callsFor('students')).toHaveLength(0);
+  });
+
+  test('an attendance-roster row is never touched', async () => {
+    installFrom(supabase.from, {
+      users: { data: [TEACHER], error: null },
+      students: { data: [{ id: 's-1' }], error: null },
+    });
+
+    await SelfTest.resolveSelfTest({ phone: '923001234567', teacherUserId: 'u1' });
+
+    const calls = supabase.from.callsFor('students').flat();
+    expect(calls.some((c) => c[0] === 'is' && c[1] === 'list_id' && c[2] === null)).toBe(true);
+  });
+
+  test('a retire failure does not stop the self-test being recognised', async () => {
+    installFrom(supabase.from, {
+      users: { data: [TEACHER], error: null },
+      students: { data: null, error: { message: 'connection reset' } },
+    });
+
+    const r = await SelfTest.resolveSelfTest({ phone: '923001234567', teacherUserId: 'u1' });
+
+    expect(r).toEqual({ userId: 'u1', name: 'Ayesha Khan' });
+    expect(logEvent).not.toHaveBeenCalled();
+  });
+
+  test('a lookup miss (mismatched phone) never writes anything, and does not log', async () => {
+    installFrom(supabase.from, {
+      users: { data: [TEACHER], error: null },
+      students: { data: [{ id: 's-1' }], error: null },
+    });
+
+    await SelfTest.resolveSelfTest({ phone: '923009999999', teacherUserId: 'u1' });
+
+    expect(logEvent).not.toHaveBeenCalled();
   });
 });
 
