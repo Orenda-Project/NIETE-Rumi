@@ -483,7 +483,7 @@ async function process(quizId, payload = {}) {
       }
       lastLessonSummary = out.lessonSummary;
       const v = validate(out.questions, {
-        language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary: out.lessonSummary,
+        language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary: out.lessonSummary, quizId,
       });
       attempts.push({ attempt, model: out.model, cost_usd: out.costUsd, latency_ms: out.latencyMs, errors: v.errors });
       meta.cost_usd = (meta.cost_usd || 0) + (out.costUsd || 0);
@@ -531,7 +531,7 @@ async function process(quizId, payload = {}) {
     // over one drawing (corpus round 3 rejected 9 of 13 first-attempt figures).
     if (!questions && lastRejected && lastErrors) {
       const salvaged = salvageWithoutBadFigures(lastRejected, lastErrors, {
-        language, subject: digest.subject, digest, lessonSummary: lastLessonSummary,
+        language, subject: digest.subject, digest, lessonSummary: lastLessonSummary, quizId,
       });
       if (salvaged) {
         try {

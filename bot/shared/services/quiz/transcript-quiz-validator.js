@@ -20,6 +20,7 @@ const { figureGateDefects, droppedTextDefect } = require('./transcript-quiz-figu
 const { scienceDefects, moleculeFromDictionary } = require('./transcript-quiz-figure-science');
 const Multi = require('./transcript-quiz-multi');
 const { pedagogyDefects } = require('./transcript-quiz-pedagogy');
+const { normaliseWordBlank, wordBlankFixHint } = require('./transcript-quiz-word-blank');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -148,7 +149,7 @@ function normaliseFeedback(q) {
 
 function validate(rawQuestions, ctx = {}) {
   const {
-    language, subject, digest, nExpected, lessonSummary,
+    language, subject, digest, nExpected, lessonSummary, quizId,
   } = ctx;
   const checkD4 = 'lessonSummary' in ctx;
   const errs = [];
@@ -275,7 +276,14 @@ function validate(rawQuestions, ctx = {}) {
     }
     const { spec: cleanedFigure, stripped } = stripStrayLabels(q.figure, { stem, options: opts });
     if (stripped.length) q.figureStripped = stripped;
-    q.figure = cleanedFigure;
+    // A `word_blank` whose `blanks` the author left out is not a broken
+    // question — the stem it is attached to already says which letter is
+    // hidden ("the beginning sound of the word 'road'"). Derived HERE, before
+    // the render, so the spec that is drawn is the spec that is stored and the
+    // teacher PDF re-draws the same picture. Never inside the engine: the
+    // lesson-plan lane shares that contract and must still hear about a spec
+    // it wrote wrong.
+    q.figure = normaliseWordBlank(cleanedFigure, { stem, language, quizId, index: i }).spec;
     if (MATHS_ONLY_TYPES.has(String(q.figure.type || '').toLowerCase()) && canonSubj(subject) !== 'maths') {
       errs.push(`q${i}: FIGURE_TYPE — "${q.figure.type}" draws mathematics only; for this subject use flow, timeline, fraction_bar, grid, numberline, or no picture`);
       return;
@@ -311,7 +319,12 @@ function validate(rawQuestions, ctx = {}) {
     try {
       svg = renderFigureSvg(q.figure, language);
     } catch (err) {
-      errs.push(`q${i}: ${err.code || 'FIGURE_RENDER'} — ${err.message}`);
+      // Naming the rule is not showing the fix: four attempts across two real
+      // lessons were spent on `blanks` because the engine's complaint said what
+      // was wrong and never what to write. Where a complete, renderable spec
+      // can be computed, it goes on the end of the one line the retry reads.
+      const hint = wordBlankFixHint(q.figure, { stem, language });
+      errs.push(`q${i}: ${err.code || 'FIGURE_RENDER'} — ${err.message}${hint ? `; ${hint}` : ''}`);
     }
     if (!svg) return;
     if (svgInkCount(svg) < 3) {
