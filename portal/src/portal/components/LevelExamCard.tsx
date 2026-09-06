@@ -8,14 +8,21 @@
  *   courses_incomplete  locked card — "finish all courses first" + progress
  *   cooldown            locked card — retry time after a failed attempt
  *   passed              certified card — certificate code + issue date
- *   whatsapp_only       redirect card — bd-2490, the interim state that
- *                       currently REPLACES 'ready' in production
  *   ready               "Take Level Exam" CTA → full exam form → result
  *
  * All gating is enforced server-side; this component only mirrors the state
  * for honest copy. Submitting posts the complete answer set to
  * POST /training/level/:id/grand-quiz/attempts which grades with the same
  * semantics as the WhatsApp bot (certificate on pass).
+ *
+ * TWO EXAM KINDS, TWO FORMS — bd-2673
+ * -----------------------------------
+ * `exam_kind` decides which form a ready level gets. A 'capstone' is written
+ * prose, so it renders CapstoneExamForm against the capstone endpoints; only
+ * 'grand_quiz' uses the multiple-choice form below. Sending a capstone through
+ * the MCQ path is what produced bd-2490's dead Submit button — questions with no
+ * options, radios with nothing to select — and is why this surface was switched
+ * off for a time.
  *
  * NUMBERS COME FROM THE GATE, NEVER FROM THIS FILE — bd-2489 / bd-2475
  * -------------------------------------------------------------------
@@ -41,11 +48,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
-import { WHATSAPP_TRAINING_URL } from '@/lib/assessments';
+import CapstoneExamForm from './CapstoneExamForm';
 
-/** bd-2490 — 'whatsapp_only' currently replaces 'ready' in production. */
 type GrandQuizState =
-  | 'no_quiz' | 'passed' | 'cooldown' | 'courses_incomplete' | 'whatsapp_only' | 'ready';
+  | 'no_quiz' | 'passed' | 'cooldown' | 'courses_incomplete' | 'ready';
 
 type Certificate = {
   certificate_code: string;
@@ -351,36 +357,6 @@ const LevelExamCard = ({
   }
 
   // ── Gate cards ───────────────────────────────────────────────────────────
-  // bd-2490 — INTERIM: exams are sat on WhatsApp.
-  //
-  // Ahead of every other state so the card never offers a start the API would
-  // refuse. 'passed' and 'cooldown' are deliberately BELOW this: a teacher who
-  // has already passed should see their certificate, not a redirect to an exam
-  // they do not need to sit.
-  if (gate.state === 'whatsapp_only') {
-    const isCapstone = gate.exam_kind === 'capstone';
-    return (
-      <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 shadow-sm" data-testid="level-exam-whatsapp-only">
-        <div className="flex items-center gap-2 font-medium">
-          <ClipboardCheck className="w-5 h-5 text-primary" /> Level exam — on WhatsApp
-        </div>
-        <p className="text-sm text-muted-foreground mt-1">
-          {isCapstone
-            ? 'This level finishes with a written capstone, marked by NIETE on WhatsApp.'
-            : 'Level exams are taken with NIETE on WhatsApp.'}{' '}
-          Open the chat and send{' '}
-          <code className="px-1 py-0.5 rounded bg-muted font-mono text-xs">/training</code>{' '}
-          to start it. Everything you have completed here already counts.
-        </p>
-        <Button asChild className="mt-3" data-testid="exam-whatsapp-button">
-          <a href={WHATSAPP_TRAINING_URL} target="_blank" rel="noopener noreferrer">
-            Take the exam on WhatsApp
-          </a>
-        </Button>
-      </div>
-    );
-  }
-
   if (gate.state === 'passed') {
     return (
       <div className="rounded-lg border border-green-200 bg-green-50 p-4 shadow-sm" data-testid="level-exam-passed">
@@ -426,7 +402,22 @@ const LevelExamCard = ({
     );
   }
 
-  // ready
+  // ready — but a WRITTEN exam is a different form entirely. bd-2673.
+  //
+  // Placed after the locked/cooldown/passed cards so eligibility still decides
+  // whether anything is offered at all, and before the multiple-choice CTA so a
+  // capstone never reaches it. The MCQ form cannot render a capstone: its
+  // questions carry no options, which is bd-2490's dead Submit button.
+  if (gate.exam_kind === 'capstone') {
+    return (
+      <CapstoneExamForm
+        levelId={levelId}
+        levelName={levelName}
+        onCertified={onCertified}
+      />
+    );
+  }
+
   return (
     <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 shadow-sm" data-testid="level-exam-ready">
       <div className="flex flex-wrap items-center justify-between gap-3">

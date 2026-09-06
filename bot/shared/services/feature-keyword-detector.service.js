@@ -21,6 +21,13 @@ const redisService = require('./cache/railway-redis.service');
  * - medium: Moderate indicators (score +0.3)
  * - low: Weak indicators (score +0.1) - not used to avoid false positives
  */
+// bd-wssa3: the lesson-plan feature is deliberately NOT here. Its nudge fired
+// on the substring "lesson plan" BEFORE the intent classifier and ate the
+// message — "give me short version of the lesson plan above", 33s after a
+// delivery, got consent buttons and no answer — and every string it carried
+// promised Gamma generation ("I'll create a detailed 5-step lesson plan"),
+// retired in bd-2540. The lesson-plan door is the catalogue Flow
+// (lp-browse-entry.service).
 const FEATURE_KEYWORDS = {
   reading: {
     high: [
@@ -44,16 +51,6 @@ const FEATURE_KEYWORDS = {
       'how did i teach', 'teaching analysis', 'classroom audio'
     ]
   },
-  lesson_plan: {
-    high: [
-      'lesson plan', 'create lesson', 'make a lesson plan', 'generate lesson',
-      'plan a lesson', 'teaching plan', 'class plan'
-    ],
-    medium: [
-      'prepare lesson', 'plan for tomorrow', 'teaching tomorrow',
-      'what to teach', 'how to teach'
-    ]
-  }
 };
 
 /**
@@ -72,12 +69,6 @@ const KEYWORD_CONSENT_MESSAGES = {
     ar: "يمكنني تحليل تسجيلات فصلك وتقديم ملاحظات! هل تريد أن ترى كيف؟ 🎥",
     es: "¡Puedo analizar las grabaciones de tu clase y darte retroalimentación! ¿Quieres ver cómo? 🎥"
   },
-  lesson_plan: {
-    en: "I can create detailed lesson plans for any topic! Want to see how? 🎥",
-    ur: "میں کسی بھی موضوع کے لیے تفصیلی لیسن پلان بنا سکتی ہوں! دیکھنا چاہتے ہیں کیسے؟ 🎥",
-    ar: "يمكنني إنشاء خطط دروس مفصلة لأي موضوع! هل تريد أن ترى كيف؟ 🎥",
-    es: "¡Puedo crear planes de lección detallados para cualquier tema! ¿Quieres ver cómo? 🎥"
-  }
 };
 
 /**
@@ -115,7 +106,7 @@ class FeatureKeywordDetectorService {
    */
   static calculateFeatureScores(message) {
     const lowerMessage = message.toLowerCase();
-    const scores = { reading: 0, coaching: 0, lesson_plan: 0 };
+    const scores = { reading: 0, coaching: 0 };
 
     for (const [feature, keywords] of Object.entries(FEATURE_KEYWORDS)) {
       // High confidence keywords
@@ -320,12 +311,6 @@ class FeatureKeywordDetectorService {
             ar: "للحصول على ملاحظات التدريب، أرسل لي تسجيلاً صوتياً لفصلك!",
             es: "Para recibir retroalimentación de coaching, ¡envíame una grabación de audio de tu clase!"
           },
-          lesson_plan: {
-            en: "To create a lesson plan, just tell me what you want to teach! For example: 'Create a lesson plan for teaching fractions to grade 5'",
-            ur: "لیسن پلان بنانے کے لیے، مجھے بتائیں آپ کیا پڑھانا چاہتے ہیں! مثال: 'گریڈ 5 کو فریکشن پڑھانے کا لیسن پلان بنائیں'",
-            ar: "لإنشاء خطة درس، أخبرني فقط ماذا تريد أن تدرس! مثال: 'أنشئ خطة درس لتدريس الكسور للصف الخامس'",
-            es: "Para crear un plan de lección, ¡solo dime qué quieres enseñar! Por ejemplo: 'Crea un plan de lección para enseñar fracciones a 5to grado'"
-          }
         };
 
         const followUp = followUpMessages[detectedFeature]?.[language]
@@ -354,12 +339,6 @@ class FeatureKeywordDetectorService {
             ar: "لا مشكلة! أرسل لي تسجيلاً صوتياً لفصلك (حتى 20 دقيقة)، وسأحلل تدريسك وأقدم ملاحظات مخصصة.",
             es: "¡No hay problema! Envíame una grabación de audio de tu clase (hasta 20 minutos), analizaré tu enseñanza y te daré retroalimentación personalizada."
           },
-          lesson_plan: {
-            en: "No problem! Just tell me what you want to teach (subject, topic, grade level), and I'll create a detailed 5-step lesson plan with activities.",
-            ur: "کوئی بات نہیں! مجھے بتائیں آپ کیا پڑھانا چاہتے ہیں (مضمون، عنوان، گریڈ)، میں 5 مراحل کا تفصیلی لیسن پلان بناؤں گی۔",
-            ar: "لا مشكلة! أخبرني فقط ماذا تريد أن تدرس (المادة، الموضوع، مستوى الصف)، وسأنشئ خطة درس مفصلة من 5 خطوات.",
-            es: "¡No hay problema! Solo dime qué quieres enseñar (materia, tema, nivel), y crearé un plan de lección detallado de 5 pasos."
-          }
         };
 
         const explanation = textExplanations[detectedFeature]?.[language]

@@ -53,6 +53,9 @@ const ConversationState = require('./shared/services/conversation-state.service'
 const supabase = require('./shared/config/supabase');
 const railwayRedis = require('./shared/services/cache/railway-redis.service');
 
+// Live voice calls (bd-1hae7) — the bot only RECOGNISES and FORWARDS call
+// events; all media work lives in the separate `calls` Railway service.
+const { extractCallEvents, forwardCallEvents } = require('./shared/calls/call-forwarder');
 
 // Import Routes (Flow encryption endpoints)
 const flowEndpointRoutes = require('./shared/routes/flow-endpoint.routes');
@@ -431,6 +434,19 @@ app.get('/webhook', (req, res) => {
  * Webhook endpoint to receive messages (POST)
  */
 app.post('/webhook', async (req, res) => {
+  // ACK. Measured on staging 2026-09-06: a child's join-Flow reply got no HTTP
+  // response at all — still open after 180 s — while her session had been
+  // created one second in and three messages had already gone to her phone.
+  // The cause was structural, not local: roughly twenty branches of this
+  // handler end in a bare `return`, and a `return` here leaves the route
+  // without answering Meta. Meta re-delivers what it was not acked for; the
+  // message-id dedupe above stops that becoming duplicate work, but a webhook
+  // endpoint that habitually fails to answer is one Meta will stop trusting.
+  //
+  // So the ack is sent ONCE, as soon as the message is accepted, and every
+  // later send goes through this helper — `headersSent` makes it idempotent,
+  // which is what lets the pre-existing acks stay exactly where they are.
+  const ack = () => { if (!res.headersSent) res.status(200).send('EVENT_RECEIVED'); };
   // Generate correlation ID for tracing this request across all logs
   const correlationId = generateCorrelationId();
 
@@ -464,12 +480,30 @@ app.post('/webhook', async (req, res) => {
     }
 
     try {
+      // Live voice calls (bd-1hae7.2) — handled FIRST and returned, so a calls
+      // payload can never fall through into message handling. The media work
+      // runs in a separate Railway service; this hands the event over the
+      // private network and answers Meta immediately. Forwarding is
+      // fire-and-forget: if the calls service is down we still 200, because a
+      // Meta retry storm on the messages webhook would be far worse.
+      const callEvents = extractCallEvents(req.body);
+      if (callEvents) {
+        logToFile('Call events received', {
+          correlationId,
+          count: callEvents.calls.length,
+          events: callEvents.calls.map((c) => `${c.event || '?'}:${c.id}`),
+        });
+        void forwardCallEvents(callEvents);
+        ack();
+        return;
+      }
+
       // Check for status webhooks first (delivered/read notifications)
       // Used for broadcast delivery tracking
       const statusValidation = validators.validateWebhookStatus(req);
       if (statusValidation) {
         await handleBroadcastStatusWebhook(statusValidation.statuses);
-        res.status(200).send('EVENT_RECEIVED');
+        ack();
         return;
       }
 
@@ -477,7 +511,7 @@ app.post('/webhook', async (req, res) => {
       const validation = validators.validateWebhookMessage(req);
 
     if (!validation) {
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
@@ -485,13 +519,13 @@ app.post('/webhook', async (req, res) => {
 
     // Skip webhooks for other phone numbers (prevents cross-WABA processing)
     if (!validators.isOurPhoneNumber(phoneNumberId)) {
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
     // Skip test webhooks
     if (validators.isTestWebhook(entry)) {
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
@@ -507,13 +541,13 @@ app.post('/webhook', async (req, res) => {
 
     // Skip test phone numbers
     if (validators.isTestPhoneNumber(from)) {
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
     // Check message timestamp (24-hour window)
     if (!validators.isWithin24Hours(messageTimestamp, from)) {
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
@@ -536,7 +570,7 @@ app.post('/webhook', async (req, res) => {
           logToFile('nudge send failed', { error: e.message });
         }
       }
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
@@ -548,12 +582,18 @@ app.post('/webhook', async (req, res) => {
         from,
         timestamp: messageTimestamp
       });
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
     // Mark as processed
     await SessionService.markAsProcessed(message.id);
+
+    // Answered here, before any handler runs: from this point on every branch
+    // is allowed to `return` without thinking about the response, and a slow
+    // handler (a quiz start is ~6 paced sends) can no longer hold the socket
+    // open past Meta's patience.
+    ack();
 
     logToFile('✅ Message accepted for processing', {
       messageId: message.id,
@@ -667,11 +707,40 @@ app.post('/webhook', async (req, res) => {
         return;
       }
 
+      // Commitment-card buttons ("Will you commit to trying this in your next
+      // class?" → Yes / Maybe later / Not for me) — sent after every self-serve
+      // coaching report. They were registered nowhere: every tap fell through to
+      // generic text handling and was lost. One-line delegation; id parsing, the
+      // record merge and the ack live in the service.
+      if (buttonId.startsWith('card_')) {
+        const { handleCardButton } = require('./shared/services/coaching/coaching-card/card-response.service');
+        if (await handleCardButton(buttonId, from, user && user.preferred_language)) return;
+      }
+
+      // Coaching survey buttons (👍 Yes / 👎 Not really) — sent once the report AND the
+      // voice debrief have both landed. Must be registered here: an unrecognised prefix
+      // falls through to generic text handling and the tap is silently lost.
+      if (buttonId.startsWith('coaching_fb_yes_') || buttonId.startsWith('coaching_fb_no_')) {
+        const CoachingFeedbackService = require('./shared/services/coaching/coaching-feedback.service');
+        await CoachingFeedbackService.handleFeedbackButton(buttonId, from);
+        return;
+      }
+
       // LP feedback survey buttons (👍 Yes / 👎 Not really) — 30s after LP delivery
       if (buttonId.startsWith('lp_feedback_yes_') || buttonId.startsWith('lp_feedback_no_')) {
         const LpFeedbackService = require('./shared/services/lp-feedback.service');
         await LpFeedbackService.handleFeedbackButton(buttonId, from);
         return;
+      }
+
+      // 6-12 lesson survey (bd-86ivw) — `lp612_fb_(yes|no)_(en|ur)_<segment_id>`, sent a short
+      // while after a 6-12 PDF lands. A SEPARATE prefix from `lp_feedback_` above because the
+      // lesson is identified by a text segment id, not a lesson_plans UUID, and that branch's
+      // regex would reject it. Registered here beside its siblings: an emitted prefix with no
+      // dispatcher falls through to generic text handling and the tap is silently lost.
+      if (buttonId.startsWith('lp612_fb_')) {
+        const Lp612FeedbackService = require('./shared/services/lp612-feedback.service');
+        if (await Lp612FeedbackService.handleFeedbackButton(buttonId, from)) return;
       }
 
       // LP usage follow-up (bd-vw0aj) — the 👍 path when a voice note was delivered.
@@ -1241,65 +1310,6 @@ app.post('/webhook', async (req, res) => {
           logToFile('⚠️ No user found for exam checker button', { buttonId, from });
         }
       }
-      // Pic-to-LP buttons
-      //   pic_lp_start_/pic_explain_/pic_other_ → intent on a fresh book page
-      //   pic_more_/pic_done_ → page-collection control
-      else if (
-        buttonId.startsWith('pic_lp_start_') ||
-        buttonId.startsWith('pic_explain_')  ||
-        buttonId.startsWith('pic_other_')    ||
-        buttonId.startsWith('pic_more_')     ||
-        buttonId.startsWith('pic_done_')
-      ) {
-        if (!user) {
-          logToFile('⚠️ Pic-LP button from unregistered sender', { buttonId, from });
-        } else {
-          const { getUserLanguage } = require('./shared/utils/language-cache');
-          const { logEvent } = require('./shared/utils/structured-logger');
-          const PageCollector = require('./shared/services/pic-to-lp/page-collector.service');
-          const PicLpSession = require('./shared/services/pic-to-lp/pic-lp-session.service');
-          const lang = (await getUserLanguage(user.id)) || user.preferred_language || 'en';
-          // Session ID is the suffix after the last '_'
-          const sessionId = buttonId.slice(buttonId.lastIndexOf('_') + 1);
-
-          logToFile('📚 Pic-LP button tapped', { buttonId, sessionId, from, userId: user.id });
-
-          if (buttonId.startsWith('pic_lp_start_')) {
-            logEvent('pic_lp.intent_chosen', { sessionId, intent: 'lp' });
-            await PageCollector.startCollectingFromIntent({ sessionId, from, language: lang });
-          } else if (buttonId.startsWith('pic_explain_')) {
-            logEvent('pic_lp.intent_chosen', { sessionId, intent: 'explain' });
-            await PicLpSession.updateStatus(sessionId, 'cancelled');
-            const isUrdu = lang === 'ur';
-            await WhatsAppService.sendMessage(
-              from,
-              isUrdu
-                ? '👍 ٹھیک ہے۔ موضوع کی وضاحت کے لیے مجھے ایک اور تصویر بھیج دیں — میں اسے سمجھا دوں گی۔'
-                : "👍 Got it. Send me the page again and I'll explain the topic in detail."
-            );
-          } else if (buttonId.startsWith('pic_other_')) {
-            logEvent('pic_lp.intent_chosen', { sessionId, intent: 'other' });
-            await PicLpSession.updateStatus(sessionId, 'cancelled');
-            const isUrdu = lang === 'ur';
-            await WhatsAppService.sendMessage(
-              from,
-              isUrdu
-                ? '👍 ٹھیک ہے۔ مجھے بتائیں کہ آپ کو کیا چاہیے۔'
-                : "👍 No problem. Just tell me what you'd like help with."
-            );
-          } else if (buttonId.startsWith('pic_more_')) {
-            const isUrdu = lang === 'ur';
-            await WhatsAppService.sendMessage(
-              from,
-              isUrdu
-                ? '📚 ٹھیک ہے، اگلا صفحہ بھیج دیں۔ (زیادہ سے زیادہ 5 صفحات)'
-                : '📚 Great, please send the next page. (Maximum 5 pages)'
-            );
-          } else if (buttonId.startsWith('pic_done_')) {
-            await PageCollector.onComplete({ sessionId, from, language: lang, trigger: 'done_clicked' });
-          }
-        }
-      }
       // Quiz invite buttons (free-message path) — a parent taps "Start Quiz"
       // or "Not now". No Rumi account required (parent isn't necessarily a user).
       else if (buttonId === 'quiz_invite_start') {
@@ -1374,6 +1384,27 @@ app.post('/webhook', async (req, res) => {
           || await VideoQuizService.handleAnswer(from, buttonId);
         if (!handled) {
           logToFile('⚠️ unrouted vq_ button', { buttonId, from });
+        }
+      }
+      // Transcript quiz: which language the quiz should be written in
+      // (tq_lang_ur_/tq_lang_en_). Matched BEFORE the generic `tq_` branch —
+      // its own block so the two can be reviewed and merged independently.
+      else if (buttonId.startsWith('tq_lang_')) {
+        const TranscriptQuizOffer = require('./shared/services/quiz/transcript-quiz-offer.service');
+        if (!(await TranscriptQuizOffer.handleLanguageButton(buttonId, from, user))) {
+          logToFile('⚠️ unrouted tq_lang_ button', { buttonId, from });
+        }
+      }
+      // Transcript quiz: the post-coaching offer (tq_yes_/tq_no_) and the
+      // /quiz actions (tq_link_/tq_report_). Its own prefix on purpose —
+      // never `quiz_` (parent quiz) or `vq_` (video quiz).
+      else if (buttonId.startsWith('tq_')) {
+        const TranscriptQuizOffer = require('./shared/services/quiz/transcript-quiz-offer.service');
+        const TranscriptQuizList = require('./shared/services/quiz/transcript-quiz-list.service');
+        const handled = await TranscriptQuizOffer.handleOfferButton(buttonId, from)
+          || await TranscriptQuizList.handleActionButton(buttonId, from);
+        if (!handled) {
+          logToFile('⚠️ unrouted tq_ button', { buttonId, from });
         }
       }
       // Edit-class multi-class picker: open the edit-class flow for the chosen class.
@@ -1590,6 +1621,23 @@ app.post('/webhook', async (req, res) => {
           if (handled) return;
         } catch (joinErr) {
           logToFile('❌ student join Flow reply routing failed', { error: joinErr.message });
+        }
+      }
+
+      // PLAN_R5 D4 — a "select all that apply" answer comes back from its own
+      // Flow with the token `vqm:<sessionId>:<questionId>`. Routed FIRST and
+      // unconditionally: handleFlowReply() claims every `vqm:` reply, readable
+      // or not, because detectFlowType()'s attendance_marking rule matches ANY
+      // flow_token containing a colon — the misroute that has already eaten the
+      // exam-generator, observe and training-msq flows.
+      if (typeof vqToken === 'string' && vqToken.startsWith('vqm:')) {
+        try {
+          const VideoQuizService = require('./shared/services/quiz/video-quiz.service');
+          const handled = await VideoQuizService.handleMultiFlowReply(from, vqToken, responseJson);
+          if (handled) return;
+        } catch (vqmErr) {
+          logToFile('❌ multi-select quiz Flow reply routing failed', { error: vqmErr.message }, 'error');
+          return;
         }
       }
 
@@ -1885,6 +1933,14 @@ app.post('/webhook', async (req, res) => {
       if (listId.startsWith('att_class_') || listId.startsWith('att_method_')
           || listId.startsWith('att_voice_')) {
         if (user?.id && await handleAttendanceTap(listId, from, user)) return;
+      }
+
+      // Transcript quiz: a row tapped in the /quiz lesson list.
+      if (listId.startsWith('tq_pick_') || listId.startsWith('tq_page_')) {
+        const TranscriptQuizList = require('./shared/services/quiz/transcript-quiz-list.service');
+        await TranscriptQuizList.handleListPick(listId, from, user);
+        ack();
+        return;
       }
 
       if (listId.startsWith('vq_')) {
@@ -2247,19 +2303,25 @@ app.post('/webhook', async (req, res) => {
       // inputs (a coach mid-photo-capture read the old generic reply as the
       // bot breaking). Everything else keeps the historical fallback.
       const { unsupportedTypeReply } = require('./shared/utils/unsupported-message');
-      const reply = unsupportedTypeReply(messageType);
-      logToFile(`⚠️ Unsupported message type: ${messageType}`, { replied: !!reply });
+      // The interactive SUB-type matters: WhatsApp posts `call_permission_reply`
+      // around a voice call, and answering it told the teacher "I can only reply
+      // to text and voice" the moment she hung up (bd-1hae7).
+      const interactiveSubType = message.interactive?.type;
+      const reply = unsupportedTypeReply(messageType, interactiveSubType);
+      logToFile(`⚠️ Unsupported message type: ${messageType}`, {
+        replied: !!reply, interactiveType: interactiveSubType,
+      });
       if (reply) await WhatsAppService.sendMessage(from, reply);
     }
 
     // Always respond with 200 OK to acknowledge receipt
-    res.status(200).send('EVENT_RECEIVED');
+    ack();
   } catch (error) {
     logToFile('❌ Error processing webhook', {
       error: error.message,
       stack: error.stack
     });
-    res.status(200).send('EVENT_RECEIVED'); // Still send 200 to avoid retries
+    ack(); // Still send 200 to avoid retries
   }
   }); // End of runWithCorrelation
 });

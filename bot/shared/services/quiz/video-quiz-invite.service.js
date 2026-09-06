@@ -41,18 +41,22 @@ function firstName(full) {
  * to send the comparison back to, so offering it would be a promise we cannot
  * keep.
  */
-async function offerInvite({ phone, studentId, shareCodeId, language = 'en' }) {
+async function offerInvite({ phone, studentId, shareCodeId, language = 'en',
+                             sessionId = null, quizId = null }) {
   if (!studentId || !shareCodeId) return false;
-  await redisService.set(INVITE_KEY(phone), { studentId, shareCodeId, language },
+  await redisService.set(INVITE_KEY(phone), { studentId, shareCodeId, language, sessionId, quizId },
     INVITE_TTL_SECS);
+  // In the quiz language — a child who just took an Urdu quiz reads Urdu here.
+  const { resolveUx } = require('../../config/ux-strings');
   await WhatsAppService.sendInteractiveButtons(phone, {
-    body: 'Want to send this quiz to a friend?\n\n'
-      + "I'll tell you how they did once they finish.",
+    body: resolveUx('vqInviteAsk', { language }),
     buttons: [
-      { id: INVITE_YES, title: 'Invite a friend' },   // 15 chars
-      { id: INVITE_NO, title: 'No thanks' },          // 9
+      { id: INVITE_YES, title: resolveUx('vqInviteYes', { language }) },   // ≤ 20 code points, asserted in tests
+      { id: INVITE_NO, title: resolveUx('vqInviteNo', { language }) },
     ],
   });
+  // The invite is only ever offered on a share_link session.
+  logEvent('video_quiz.offer_shown', { kind: 'invite', sessionId, quizId, source: 'share_link', language });
   return true;
 }
 
@@ -63,6 +67,15 @@ async function handleInviteButton(buttonId, phone) {
   await redisService.delete(INVITE_KEY(phone));
   if (!ctx) return true;
 
+  // An old in-flight ctx minted before this deploy has no
+  // sessionId/quizId; they simply come out undefined/null here, and the
+  // answer still logs cleanly.
+  const choice = buttonId === INVITE_YES ? 'yes' : 'no';
+  logEvent('video_quiz.offer_answered', {
+    kind: 'invite', choice, studentId: ctx.studentId, shareCodeId: ctx.shareCodeId,
+    sessionId: ctx.sessionId ?? null, quizId: ctx.quizId ?? null,
+  });
+
   if (buttonId === INVITE_NO) {
     // bd-2475 — a decline chains into "want to watch more?" rather than
     // dead-ending the conversation. Same student/share-code so the next
@@ -70,6 +83,7 @@ async function handleInviteButton(buttonId, phone) {
     const Binge = require('./video-quiz-binge.service');
     await Binge.offerMore({
       phone, studentId: ctx.studentId, shareCodeId: ctx.shareCodeId, language: ctx.language,
+      sessionId: ctx.sessionId ?? null, quizId: ctx.quizId ?? null,
     }).catch((err) => {
       logToFile('⚠️ video-quiz-invite: offerMore threw', { error: err.message });
     });

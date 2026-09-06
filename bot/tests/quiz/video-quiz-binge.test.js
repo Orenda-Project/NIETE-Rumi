@@ -11,6 +11,7 @@ jest.mock('../../shared/services/whatsapp.service', () => ({
   sendFlow: jest.fn().mockResolvedValue(true),
 }));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn() }));
+jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 jest.mock('../../shared/utils/constants', () => ({ STUDENT_VIDEOS_FLOW_ID: 'flow-123' }));
 
 const redisService = require('../../shared/services/cache/railway-redis.service');
@@ -37,7 +38,7 @@ describe('offerMore', () => {
     expect(ok).toBe(true);
     expect(redisService.set).toHaveBeenCalledWith(
       MORE_KEY,
-      { studentId: 'st-1', shareCodeId: 'sc-1', language: 'ur' },
+      { studentId: 'st-1', shareCodeId: 'sc-1', language: 'ur', sessionId: null, quizId: null },
       expect.any(Number)
     );
     expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledWith(PHONE, expect.objectContaining({

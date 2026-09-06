@@ -100,6 +100,22 @@ const BRIEF_STRINGS = {
     sw: 'Huu ni mwongozo wa kusaidia ziara yako — si daraja wala orodha ya ushindani.',
     ar: 'هذا إرشاد لدعم زيارتك — وليس درجة أو ترتيباً.',
   },
+  // Feedback-uptake loop: the open target replaces the generic weakest-area
+  // label — what the AI coach asked, how many times, what happened last lesson.
+  asked_times: { en: 'asked {n} times', ur: '{n} بار کہا گیا', sw: 'imeombwa mara {n}', ar: 'طُلب {n} مرات' },
+  last_lesson: { en: 'last lesson', ur: 'پچھلا سبق', sw: 'somo lililopita', ar: 'الدرس الماضي' },
+  status_achieved: { en: 'Done', ur: 'ہو گیا', sw: 'Imefanyika', ar: 'تم' },
+  status_partial: { en: 'Getting there', ur: 'قریب', sw: 'Inakaribia', ar: 'يقترب' },
+  status_not_seen: { en: 'Not yet', ur: 'ابھی نہیں', sw: 'Bado', ar: 'ليس بعد' },
+  status_not_applicable: { en: 'Did not apply', ur: 'لاگو نہیں تھا', sw: 'Haikuhusika', ar: 'لم ينطبق' },
+  status_unknown: { en: 'Not counted', ur: 'گنا نہیں گیا', sw: 'Haikuhesabiwa', ar: 'لم يُحتسب' },
+  last_asked_prefix: { en: '🎯 Last asked:', ur: '🎯 پچھلی بار کہا:', sw: '🎯 Iliombwa mwisho:', ar: '🎯 آخر ما طُلب:' },
+  hand_over_line: {
+    en: '🤝 The AI coach has tried four angles on this — this visit is the hand-over. Open with it:',
+    ur: '🤝 AI کوچ اس پر چار انداز آزما چکا ہے — یہ دورہ hand-over ہے۔ اسی سے آغاز کریں:',
+    sw: '🤝 Mkocha wa AI amejaribu njia nne kuhusu hili — ziara hii ni makabidhiano. Anza nayo:',
+    ar: '🤝 جرّب المدرب الذكي أربع طرق في هذا — هذه الزيارة هي التسليم. ابدأ بها:',
+  },
   first_visit: {
     en: 'First visit with this teacher on Rumi. Start by getting to know the class — say hello, watch a lesson, and use the moves above to open the conversation.',
     ur: 'رومی پر اس استاد کے ساتھ پہلا دورہ۔ کلاس کو جاننے سے آغاز کریں — سلام کریں، ایک سبق دیکھیں، اور بات چیت شروع کرنے کے لیے اوپر دیے گئے طریقے استعمال کریں۔',
@@ -113,9 +129,10 @@ function resolveLang(teacher) {
   return clampLanguage(lang); // NIETE market clamp (ur/en, English floor)
 }
 
-function s(key, lang) {
+function s(key, lang, n) {
   const e = BRIEF_STRINGS[key];
-  return (e && (e[lang] || e.en)) || '';
+  const str = (e && (e[lang] || e.en)) || '';
+  return n === undefined ? str : str.replace('{n}', String(n));
 }
 
 /** pct (0-100) → 3-tier HOTS band key. Never surfaced as a number. */
@@ -148,9 +165,12 @@ function bandKeyOf(pt) {
  * @param {Array}  [args.moves]    [{areaKey,text}] from observe-support-moves (or opening tips)
  * @param {boolean} [args.noData]  FIX-3: no AI-coaching history — render the honest
  *   opening-tips variant (no asserted strength/growth/area), first-visit trend copy.
+ * @param {Object|null} [args.loop] feedback-uptake loop: { target_name, asked, attempt,
+ *   angle, last_status, hand_over } — the open target replaces the generic growth
+ *   label and the last ask closes the trend line. Null = today's brief, unchanged.
  * @returns {Object} pure view model with native-text fields (never throws)
  */
-function buildBriefViewModel({ teacher = {}, trend = [], strength = null, growth = null, moves = [], noData = false } = {}) {
+function buildBriefViewModel({ teacher = {}, trend = [], strength = null, growth = null, moves = [], noData = false, loop = null } = {}) {
   const lang = resolveLang(teacher);
   const rtl = lang === 'ur' || lang === 'ar';
   const points = Array.isArray(trend) ? trend : [];
@@ -177,6 +197,12 @@ function buildBriefViewModel({ teacher = {}, trend = [], strength = null, growth
     const growthLabel = (growth && String(growth).trim()) || s('default_growth', lang);
     strength_text = `${s('strength_prefix', lang)} ${strengthLabel}`;
     growth_text = `${s('growth_prefix', lang)} ${growthLabel}`;
+    if (loop && loop.target_name) {
+      // The open target, how many times the AI coach has asked, and what
+      // happened last lesson — instead of the generic weakest-area label.
+      const status = s(`status_${loop.last_status || 'unknown'}`, lang) || s('status_unknown', lang);
+      growth_text = `${s('growth_prefix', lang)} ${loop.target_name} — ${s('asked_times', lang, Number(loop.attempt) || 1)}, ${s('last_lesson', lang)}: ${status}`;
+    }
   }
 
   const moveList = Array.isArray(moves) ? moves : [];
@@ -190,6 +216,9 @@ function buildBriefViewModel({ teacher = {}, trend = [], strength = null, growth
     trend_text = s('first_visit', lang); // FIX-3: keep the first-visit copy in the no-data case
   } else {
     trend_text = s('getting_started', lang); // exactly one session so far
+  }
+  if (loop && loop.asked) {
+    trend_text += `\n${loop.hand_over ? s('hand_over_line', lang) : s('last_asked_prefix', lang)} ${loop.asked}`;
   }
 
   return {

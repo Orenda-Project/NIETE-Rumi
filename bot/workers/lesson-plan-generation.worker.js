@@ -21,6 +21,30 @@ const CurriculumLpAstService = require('../shared/services/curriculum-lp-ast.ser
 const { renderAndServeGrounded } = require('../shared/services/grounded-lp-render.service');
 const LpFeedbackService = require('../shared/services/lp-feedback.service');
 const { storeLessonPlan } = require('../shared/database/bot-helpers');
+const { isLp612RouteAll } = require('../shared/config/lp612-flags');
+const { openLpBrowseFlow } = require('../shared/services/lp-browse-entry.service');
+const { resolveUx } = require('../shared/config/ux-strings');
+
+/**
+ * Hand a teacher whose Gamma job died at the cutover the menu instead of an instruction — bd-oak77.4.
+ *
+ * Returns false, never throws, when there is no Flow provisioned or the send fails, so the caller
+ * falls back to the original apology rather than leaving her with silence. A teacher who has already
+ * waited must end this function having been told SOMETHING.
+ */
+async function openLpBrowseFlowForCutover({ from, userId, language, topic, requestId }) {
+  if (!userId) return false;
+  const sent = await openLpBrowseFlow({ from, userId, language, reason: 'cutover_inflight_gamma' });
+  if (!sent) return false;
+  try {
+    await WhatsAppService.sendMessage(from, resolveUx('lp612RouteRedirect', { language }));
+  } catch (lineErr) {
+    // The Flow is already with her — the explanation failing is a worse message, not no message.
+    logToFile('cutover redirect line failed after the Flow was sent (non-fatal)', { error: lineErr.message, requestId });
+  }
+  logToFile('LP cutover: in-flight Gamma job drained, teacher handed the menu', { requestId, userId, topic });
+  return true;
+}
 
 // Temp directory for PDF downloads
 const TEMP_DIR = process.env.TEMP_DIR || '/tmp';
@@ -72,206 +96,58 @@ class LessonPlanGenerationWorker {
       return this.processGrounded(jobData);
     }
 
-    const { requestId, userId, phoneNumber, topic, fullMessage, language = 'en', contentType = 'lesson_plan' } = jobData;
-
-    const messages = MESSAGES[language] || MESSAGES.en;
-
-    try {
-      // IDEMPOTENCY CHECK: Prevent duplicate processing
-      const existingRequest = await LessonPlanQueueService.getRequest(requestId);
-
-      if (existingRequest?.status === 'completed') {
-        logToFile('⏭️ Request already completed, skipping duplicate processing', {
+    // The Gamma strip (Option A, partial): all freeform LP + presentation
+    // enqueue call sites (LessonPlanQueueService.createAndQueue) were deleted.
+    // Any job that reaches this branch is either (a) a stale SQS message from
+    // before the strip, or (b) a bug re-introducing the freeform path. Log and
+    // drop with a benign apology so the SQS message is consumed rather than
+    // retried indefinitely.
+    // userId + language were not destructured here before bd-oak77.4 — the branch only logged and
+    // apologised, so it never needed them. The cutover landing does: the Flow token leads with her
+    // user id, and her language is the one frozen into the payload at enqueue time.
+    const { requestId, userId, phoneNumber, topic, contentType, language = 'en' } = jobData || {};
+    logToFile('⚠️ Non-grounded LP job received after Gamma strip — dropping', {
+      requestId, contentType, topic,
+    });
+    if (requestId) {
+      try {
+        await LessonPlanQueueService.markFailed(
           requestId,
-          completedAt: existingRequest.completed_at,
-          gammaUrl: existingRequest.gamma_url
+          'freeform LP generation is retired; only grounded AST jobs are processed',
+        );
+      } catch (markErr) {
+        logToFile('markFailed after freeform-drop errored (non-fatal)', { error: markErr.message });
+      }
+    }
+    if (phoneNumber) {
+      try {
+        // bd-oak77.4 — THE CUTOVER LANDING. `lp_variant='gamma_freeform'` is still being written on
+        // production, so at the moment this code reaches `main` there are real teachers with a
+        // Gamma lesson in flight: row inserted, SQS message queued, and the code that would have
+        // finished it gone. They are the one group the cutover can actually strand.
+        //
+        // Draining the message (above) is what stops the retry loop. This is what she SEES. The
+        // old text asked a teacher who had already asked for a lesson plan, and then waited, to ask
+        // again — in one specific word. Under LP_612_ROUTE_ALL the menu is the answer, so open it
+        // for her, with the same single line every other redirected door sends (one copy, one
+        // catalogue — the bd-72dth drift).
+        //
+        // Her language is the one frozen into the job payload at enqueue time, not a fresh read:
+        // this is classroom-destined work that was already scoped (language-protocol §2 rule 4).
+        const routed = isLp612RouteAll() && await openLpBrowseFlowForCutover({
+          from: phoneNumber, userId, language, topic, requestId,
         });
-        return; // Exit without processing
-      }
-
-      // Also skip if already failed with max retries (prevents infinite loop)
-      if (existingRequest?.status === 'failed' && existingRequest?.retry_count >= MAX_RETRIES) {
-        logToFile('⏭️ Request already failed with max retries, skipping', {
-          requestId,
-          retryCount: existingRequest.retry_count,
-          errorMessage: existingRequest.error_message
-        });
-        return; // Exit without processing - job was already finalized
-      }
-
-      if (existingRequest?.status === 'processing') {
-        const processingAge = Date.now() - new Date(existingRequest.processing_started_at).getTime();
-        const TWO_MINUTES = 2 * 60 * 1000;
-
-        if (processingAge < TWO_MINUTES) {
-          logToFile('⏭️ Request being processed by another worker, skipping', {
-            requestId,
-            processingStartedAt: existingRequest.processing_started_at,
-            ageMs: processingAge
-          });
-          return; // Exit - another worker is handling it
-        }
-        // If > 2 min, proceed (stale job recovery)
-        logToFile('🔄 Recovering stale processing request', {
-          requestId,
-          processingStartedAt: existingRequest.processing_started_at,
-          ageMinutes: (processingAge / 60000).toFixed(1)
-        });
-      }
-
-      logToFile('Starting lesson plan generation', {
-        requestId,
-        userId,
-        topic,
-        contentType
-      });
-
-      // 1. Mark as processing
-      await LessonPlanQueueService.markProcessing(requestId);
-
-      // 2. Generate with Gamma API
-      let result;
-      if (contentType === 'presentation') {
-        result = await ContentService.generatePresentation(topic, fullMessage, language);
-      } else {
-        result = await ContentService.generateLessonPlan(topic, fullMessage, language);
-      }
-
-      logToFile('Gamma generation complete', {
-        requestId,
-        gammaUrl: result.gammaUrl,
-        hasPdf: !!result.pdfUrl
-      });
-
-      // 3. Download and send PDF if available
-      if (result.pdfUrl) {
-        const safeTopic = topic.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_').substring(0, 50);
-        const pdfFilename = `${contentType}_${safeTopic}.pdf`;
-        const pdfPath = path.join(TEMP_DIR, pdfFilename);
-
-        try {
-          await ContentService.downloadPDF(result.pdfUrl, pdfFilename, TEMP_DIR);
-
-          await WhatsAppService.sendDocument(
-            phoneNumber,
-            pdfPath,
-            pdfFilename,
-            messages.successWithPdf(topic)
-          );
-
-          // Clean up temp file
-          if (fs.existsSync(pdfPath)) {
-            fs.unlinkSync(pdfPath);
-          }
-        } catch (pdfError) {
-          logToFile('PDF download/send failed, falling back to URL', {
-            requestId,
-            error: pdfError.message
-          });
-
-          // Fallback to URL only
+        if (!routed) {
           await WhatsAppService.sendMessage(
             phoneNumber,
-            messages.successWithoutPdf(topic, result.gammaUrl)
+            "We don't have that lesson plan in the catalog yet. Send \"menu\" to see what's available.",
           );
         }
-      } else {
-        // No PDF, send Gamma URL
-        await WhatsAppService.sendMessage(
-          phoneNumber,
-          messages.successWithoutPdf(topic, result.gammaUrl)
-        );
+      } catch (sendErr) {
+        logToFile('post-drop apology send errored (non-fatal)', { error: sendErr.message });
       }
-
-      // 4. Store in lesson_plans + schedule feedback prompt (both non-fatal)
-      try {
-        const content = {
-          lp_variant: 'gamma_freeform',
-          language,
-          trigger_mode: 'after_pdf_only',
-        };
-        const lpRow = await storeLessonPlan(
-          userId, topic, contentType, result.gammaUrl, result.pdfUrl, content,
-        );
-        logToFile('Lesson plan stored in database', { requestId, userId });
-        // Freeform LPs (contentType==='lesson_plan') get the feedback prompt too.
-        // Presentations skip — we're not soliciting feedback on those yet.
-        if (lpRow?.id && contentType === 'lesson_plan') {
-          LpFeedbackService.scheduleFeedbackPrompt({
-            lessonPlanId: lpRow.id,
-            userId,
-            phone: phoneNumber,
-            context: { topic, language, lpVariant: 'gamma_freeform' },
-          });
-        }
-      } catch (storeError) {
-        logToFile('Warning: Failed to store lesson plan / schedule feedback', {
-          requestId,
-          error: storeError.message
-        });
-      }
-
-      // 5. Mark request as completed
-      await LessonPlanQueueService.markCompleted(requestId, result);
-
-      // 6. Feature linker suggestion (non-blocking)
-      try {
-        await FeatureLinkerService.suggestNext(
-          contentType === 'presentation' ? 'presentation' : 'lesson_plan',
-          userId,
-          phoneNumber,
-          language,
-          { topic }
-        );
-      } catch (linkerError) {
-        logToFile('Feature linker error (non-fatal)', { error: linkerError.message });
-      }
-
-      // 7. Check and trigger registration if needed (non-blocking)
-      try {
-        await FeatureRegistrationService.checkAndTriggerRegistration(
-          userId,
-          contentType === 'presentation' ? 'presentation' : 'lesson_plan',
-          phoneNumber,
-          language,
-          'text' // Lesson plans are requested via text
-        );
-      } catch (regError) {
-        logToFile('Registration trigger error (non-fatal)', { error: regError.message });
-      }
-
-      logToFile('Lesson plan generation completed successfully', { requestId });
-
-    } catch (error) {
-      logToFile('Lesson plan generation failed', {
-        requestId,
-        error: error.message,
-        stack: error.stack
-      });
-
-      // Get current retry count
-      const request = await LessonPlanQueueService.getRequest(requestId);
-      const retryCount = (request?.retry_count || 0) + 1;
-
-      // Mark as failed (increments retry_count)
-      await LessonPlanQueueService.markFailed(requestId, error.message);
-
-      // If max retries exceeded, send apology and STOP (don't re-throw)
-      if (retryCount >= MAX_RETRIES) {
-        try {
-          await WhatsAppService.sendMessage(phoneNumber, messages.apology);
-          logToFile('Apology message sent after max retries - job complete', { requestId, retryCount });
-        } catch (msgError) {
-          logToFile('Failed to send apology message', { error: msgError.message });
-        }
-        // DON'T re-throw - let job complete and be removed from SQS
-        // This prevents infinite retry loop
-        return;
-      }
-
-      // Only re-throw if retries remain (let SQS handle retry)
-      throw error;
     }
+    return;
   }
 
   /**

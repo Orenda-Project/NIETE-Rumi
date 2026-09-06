@@ -75,7 +75,6 @@ router.post('/refresh', async (req, res) => {
     // This is a simple approach - in production you might want a more sophisticated cache invalidation
     delete require.cache[require.resolve('../services/api-health/railway.service')];
     delete require.cache[require.resolve('../services/api-health/elevenlabs.service')];
-    delete require.cache[require.resolve('../services/api-health/gamma.service')];
     delete require.cache[require.resolve('../services/api-health/cloudflare-r2.service')];
     delete require.cache[require.resolve('../services/api-health/supabase.service')];
     delete require.cache[require.resolve('../services/api-health/whatsapp.service')];

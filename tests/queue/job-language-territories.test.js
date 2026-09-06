@@ -40,13 +40,6 @@ const read = (p) =>
     .replace(/(^|[^:])\/\/.*$/gm, '$1');
 
 describe('CONTENT language is frozen into the job payload', () => {
-  it('the pic-to-LP worker takes the artifact language from the job, not the database', () => {
-    const src = read('bot/workers/pic-lp-kieai.worker.js');
-    // formData is the frozen job payload. A fresh users lookup here would mean the
-    // LP's own language could change mid-render.
-    expect(src).toMatch(/const language = formData\.language/);
-  });
-
   it('the lesson-plan generation worker declares language as job input', () => {
     const raw = fs.readFileSync(
       path.join(__dirname, '../..', 'bot/workers/lesson-plan-generation.worker.js'),
@@ -67,26 +60,5 @@ describe('TEACHER-addressed messages read the CURRENT preference', () => {
   it('the homework delivery caption reads preferred_language at send time', () => {
     const src = read('bot/workers/homework-bundle.worker.js');
     expect(src).toMatch(/select\('preferred_language'\)/);
-  });
-
-  it('the pic-to-LP feedback prompt reads preferred_language, NOT the job language', () => {
-    // The sharpest case in the codebase: this worker deliberately uses BOTH, one
-    // per territory, in the same function. That is the distinction working.
-    const src = read('bot/workers/pic-lp-kieai.worker.js');
-    expect(src).toMatch(/userPreferredLang/);
-    expect(src).toMatch(/select\('preferred_language'\)/);
-  });
-});
-
-describe('the distinction stays explained, not just implemented', () => {
-  it('pic-to-LP keeps the comment that names both territories', () => {
-    // Deliberately asserted on the RAW source, comments included. This one comment
-    // is the only place the two-territory rule is stated at the point of use; the
-    // next person to "simplify" these two lookups into one will read it or not.
-    const raw = fs.readFileSync(
-      path.join(__dirname, '../..', 'bot/workers/pic-lp-kieai.worker.js'),
-      'utf8'
-    );
-    expect(raw).toMatch(/preferred_language[\s\S]{0,120}not[\s\S]{0,60}formData\.language/i);
   });
 });

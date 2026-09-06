@@ -1,0 +1,3138 @@
+{
+ "note": "FICO v4 sessions from the staging environment, reduced to ids, scores and applicability (no text, no names). Teacher/session ids are one-way hashes.",
+ "sessions": [
+  {
+   "session": "a80170d0",
+   "teacher": "3c47f847",
+   "created_at": "2026-07-22",
+   "status": "observer_review_complete",
+   "observation_type": "leader_observation",
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 1
+     },
+     {
+      "id": "D2",
+      "score": 1
+     },
+     {
+      "id": "D3",
+      "score": 1
+     },
+     {
+      "id": "D4",
+      "score": 1
+     },
+     {
+      "id": "D5",
+      "score": 1
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 1
+     },
+     {
+      "id": "B2",
+      "score": 1
+     },
+     {
+      "id": "B3",
+      "score": 1
+     },
+     {
+      "id": "B4",
+      "score": 1
+     },
+     {
+      "id": "B5",
+      "score": 1
+     },
+     {
+      "id": "B6",
+      "score": 1
+     },
+     {
+      "id": "B7",
+      "score": 1
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 1
+     },
+     {
+      "id": "C2",
+      "score": 1
+     },
+     {
+      "id": "C3",
+      "score": 1
+     },
+     {
+      "id": "C4",
+      "score": 2
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 1
+     },
+     {
+      "id": "F2",
+      "score": 1
+     },
+     {
+      "id": "F3",
+      "score": 1
+     },
+     {
+      "id": "F4",
+      "score": 1
+     },
+     {
+      "id": "F5",
+      "score": 1
+     },
+     {
+      "id": "F6",
+      "score": 1
+     },
+     {
+      "id": "F7",
+      "score": 1
+     },
+     {
+      "id": "F8",
+      "score": 1
+     },
+     {
+      "id": "F9",
+      "score": 1
+     },
+     {
+      "id": "F10",
+      "score": 1
+     }
+    ]
+   },
+   "focus_area": {
+    "domain": "lesson_plan_fidelity",
+    "indicator": "B1"
+   }
+  },
+  {
+   "session": "ca4583a9",
+   "teacher": "5644d810",
+   "created_at": "2026-09-02",
+   "status": "completed",
+   "observation_type": null,
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D2",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "D3",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "D4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D5",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B5",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B6",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B7",
+      "score": 0,
+      "applicable": true
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C4",
+      "score": 0,
+      "applicable": true
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F5",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F6",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F7",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F8",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F9",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F10",
+      "score": null,
+      "applicable": false
+     }
+    ]
+   },
+   "focus_area": null
+  },
+  {
+   "session": "797f62dc",
+   "teacher": "5644d810",
+   "created_at": "2026-09-02",
+   "status": "completed",
+   "observation_type": null,
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D5",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "B5",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B6",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B7",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C4",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F5",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "F6",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F7",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F8",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F9",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F10",
+      "score": null,
+      "applicable": false
+     }
+    ]
+   },
+   "focus_area": {
+    "domain": "lesson_plan_fidelity",
+    "indicator": "B6"
+   }
+  },
+  {
+   "session": "38108378",
+   "teacher": "5644d810",
+   "created_at": "2026-09-02",
+   "status": "completed",
+   "observation_type": null,
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D3",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "D4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D5",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B5",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B6",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B7",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C4",
+      "score": 0,
+      "applicable": true
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F5",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "F6",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F7",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F8",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F9",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F10",
+      "score": null,
+      "applicable": false
+     }
+    ]
+   },
+   "focus_area": {
+    "domain": "lesson_plan_fidelity",
+    "indicator": "B6"
+   }
+  },
+  {
+   "session": "b7ca1174",
+   "teacher": "5644d810",
+   "created_at": "2026-09-02",
+   "status": "cancelled",
+   "observation_type": null,
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D5",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B5",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B6",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B7",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C4",
+      "score": 0,
+      "applicable": true
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F5",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F6",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F7",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F8",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F9",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F10",
+      "score": null,
+      "applicable": false
+     }
+    ]
+   },
+   "focus_area": {
+    "domain": "lesson_plan_fidelity",
+    "indicator": "B6"
+   }
+  },
+  {
+   "session": "6fbec115",
+   "teacher": "5644d810",
+   "created_at": "2026-09-02",
+   "status": "completed",
+   "observation_type": null,
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D5",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "B4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "B5",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B6",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B7",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C3",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "C4",
+      "score": 0,
+      "applicable": true
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F5",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "F6",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F7",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F8",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F9",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F10",
+      "score": null,
+      "applicable": false
+     }
+    ]
+   },
+   "focus_area": null
+  },
+  {
+   "session": "b1302625",
+   "teacher": "5644d810",
+   "created_at": "2026-09-02",
+   "status": "completed",
+   "observation_type": null,
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D5",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B5",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B6",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B7",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C4",
+      "score": 0,
+      "applicable": true
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F5",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F6",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F7",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F8",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F9",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F10",
+      "score": null,
+      "applicable": false
+     }
+    ]
+   },
+   "focus_area": {
+    "domain": "lesson_plan_fidelity",
+    "indicator": "B6"
+   }
+  },
+  {
+   "session": "98353226",
+   "teacher": "5644d810",
+   "created_at": "2026-09-02",
+   "status": "completed",
+   "observation_type": null,
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D5",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "B5",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B6",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B7",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C4",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F5",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F6",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F7",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F8",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F9",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F10",
+      "score": null,
+      "applicable": false
+     }
+    ]
+   },
+   "focus_area": {
+    "domain": "lesson_plan_fidelity",
+    "indicator": "B6"
+   }
+  },
+  {
+   "session": "b2aeadf6",
+   "teacher": "5644d810",
+   "created_at": "2026-09-02",
+   "status": "completed",
+   "observation_type": null,
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D5",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "B5",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B6",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B7",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C4",
+      "score": 0,
+      "applicable": true
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F5",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "F6",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F7",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F8",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F9",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F10",
+      "score": null,
+      "applicable": false
+     }
+    ]
+   },
+   "focus_area": null
+  },
+  {
+   "session": "d741bc71",
+   "teacher": "5644d810",
+   "created_at": "2026-09-02",
+   "status": "completed",
+   "observation_type": null,
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D5",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "B5",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B6",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B7",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C4",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F5",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F6",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F7",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F8",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F9",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F10",
+      "score": null,
+      "applicable": false
+     }
+    ]
+   },
+   "focus_area": {
+    "domain": "lesson_plan_fidelity",
+    "indicator": "B6"
+   }
+  },
+  {
+   "session": "c894d918",
+   "teacher": "5644d810",
+   "created_at": "2026-09-02",
+   "status": "completed",
+   "observation_type": null,
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D5",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "B5",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B6",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B7",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C4",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F5",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F6",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F7",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F8",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F9",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F10",
+      "score": null,
+      "applicable": false
+     }
+    ]
+   },
+   "focus_area": {
+    "domain": "lesson_plan_fidelity",
+    "indicator": "B6"
+   }
+  },
+  {
+   "session": "4f5b540e",
+   "teacher": "5644d810",
+   "created_at": "2026-09-02",
+   "status": "completed",
+   "observation_type": null,
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D5",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "B5",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B6",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B7",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C3",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "C4",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F5",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "F6",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F7",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F8",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F9",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F10",
+      "score": null,
+      "applicable": false
+     }
+    ]
+   },
+   "focus_area": {
+    "domain": "lesson_plan_fidelity",
+    "indicator": "B6"
+   }
+  },
+  {
+   "session": "db750e35",
+   "teacher": "5644d810",
+   "created_at": "2026-09-02",
+   "status": "completed",
+   "observation_type": null,
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D2",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D5",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B5",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B6",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B7",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C4",
+      "score": 0,
+      "applicable": true
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F5",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F6",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F7",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F8",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F9",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F10",
+      "score": null,
+      "applicable": false
+     }
+    ]
+   },
+   "focus_area": {
+    "domain": "lesson_plan_fidelity",
+    "indicator": "B6"
+   }
+  },
+  {
+   "session": "cab638e5",
+   "teacher": "f38756df",
+   "created_at": "2026-09-03",
+   "status": "observer_review_complete",
+   "observation_type": "leader_observation",
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D2",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D5",
+      "score": 3,
+      "applicable": true
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B5",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "B6",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "B7",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C4",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F4",
+      "score": 1,
+      "applicable": false
+     },
+     {
+      "id": "F5",
+      "score": 1,
+      "applicable": false
+     },
+     {
+      "id": "F6",
+      "score": 1,
+      "applicable": false
+     },
+     {
+      "id": "F7",
+      "score": 1,
+      "applicable": false
+     },
+     {
+      "id": "F8",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F9",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F10",
+      "score": 2,
+      "applicable": true
+     }
+    ]
+   },
+   "focus_area": {
+    "domain": "high_leverage_practices",
+    "indicator": "C1"
+   }
+  },
+  {
+   "session": "23f72d93",
+   "teacher": "5644d810",
+   "created_at": "2026-09-03",
+   "status": "abandoned",
+   "observation_type": null,
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D5",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B3",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "B5",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B6",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B7",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C3",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "C4",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F5",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F6",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F7",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F8",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F9",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F10",
+      "score": null,
+      "applicable": false
+     }
+    ]
+   },
+   "focus_area": {
+    "domain": "lesson_plan_fidelity",
+    "indicator": "B6"
+   }
+  },
+  {
+   "session": "9566e508",
+   "teacher": "5644d810",
+   "created_at": "2026-09-03",
+   "status": "completed",
+   "observation_type": null,
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D5",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "B5",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B6",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B7",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C4",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F5",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F6",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F7",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F8",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F9",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F10",
+      "score": null,
+      "applicable": false
+     }
+    ]
+   },
+   "focus_area": {
+    "domain": "lesson_plan_fidelity",
+    "indicator": "B1"
+   }
+  },
+  {
+   "session": "0b0f30ba",
+   "teacher": "f38756df",
+   "created_at": "2026-09-03",
+   "status": "awaiting_observer_review",
+   "observation_type": "leader_observation",
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D2",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "D3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D5",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B5",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "B6",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "B7",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C4",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F4",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F5",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F6",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F7",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F8",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F9",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F10",
+      "score": 2,
+      "applicable": true
+     }
+    ]
+   },
+   "focus_area": {
+    "domain": "student_engagement",
+    "indicator": "D2"
+   }
+  },
+  {
+   "session": "03900efa",
+   "teacher": "f38756df",
+   "created_at": "2026-09-03",
+   "status": "awaiting_observer_review",
+   "observation_type": "leader_observation",
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D2",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "D3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D5",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B5",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "B6",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B7",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C4",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F4",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F5",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F6",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F7",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F8",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F9",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F10",
+      "score": 2,
+      "applicable": true
+     }
+    ]
+   },
+   "focus_area": {
+    "domain": "student_engagement",
+    "indicator": "D2"
+   }
+  },
+  {
+   "session": "2d1bacdf",
+   "teacher": "00dd96a4",
+   "created_at": "2026-09-03",
+   "status": "completed",
+   "observation_type": null,
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D5",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B5",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B6",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "B7",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C4",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F4",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F5",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F6",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F7",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F8",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F9",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F10",
+      "score": 2,
+      "applicable": true
+     }
+    ]
+   },
+   "focus_area": {
+    "domain": "high_leverage_practices",
+    "indicator": "C3"
+   }
+  },
+  {
+   "session": "9d6f6bbe",
+   "teacher": "5644d810",
+   "created_at": "2026-09-03",
+   "status": "completed",
+   "observation_type": null,
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D5",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "B5",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B6",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B7",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C3",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "C4",
+      "score": 1,
+      "applicable": true
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F5",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F6",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F7",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F8",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F9",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F10",
+      "score": null,
+      "applicable": false
+     }
+    ]
+   },
+   "focus_area": null
+  },
+  {
+   "session": "d8567c01",
+   "teacher": "5644d810",
+   "created_at": "2026-09-03",
+   "status": "completed",
+   "observation_type": null,
+   "domains": {
+    "student_engagement": [
+     {
+      "id": "D1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "D4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "D5",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "lesson_plan_fidelity": [
+     {
+      "id": "B1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B3",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B4",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B5",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "B6",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "B7",
+      "score": 2,
+      "applicable": true
+     }
+    ],
+    "high_leverage_practices": [
+     {
+      "id": "C1",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "C3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "C4",
+      "score": 0,
+      "applicable": true
+     }
+    ],
+    "teacher_subject_knowledge": [
+     {
+      "id": "F1",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F2",
+      "score": 2,
+      "applicable": true
+     },
+     {
+      "id": "F3",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F4",
+      "score": 1,
+      "applicable": true
+     },
+     {
+      "id": "F5",
+      "score": 0,
+      "applicable": true
+     },
+     {
+      "id": "F6",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F7",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F8",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F9",
+      "score": null,
+      "applicable": false
+     },
+     {
+      "id": "F10",
+      "score": null,
+      "applicable": false
+     }
+    ]
+   },
+   "focus_area": {
+    "domain": "lesson_plan_fidelity",
+    "indicator": "B6"
+   }
+  }
+ ]
+}

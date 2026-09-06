@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { School, Plus, UserCheck } from 'lucide-react';
+import { School, Plus, UserCheck, Users, X, ChevronDown, ChevronRight } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import { Button } from '@/components/ui/button';
 import { classes as classesApi } from '../services/api';
 import { useToast } from '@/hooks/use-toast';
-import type { TeacherClass, ClassOption } from '../types/portal';
+import type { TeacherClass, ClassOption, RosterStudent } from '../types/portal';
 
 /**
  * The teacher's classes, and the form to add one.
@@ -35,6 +35,13 @@ const PortalClasses = () => {
   const [shiftOptions, setShiftOptions] = useState<ClassOption[]>([]);
   const [canAdd, setCanAdd] = useState(false);
   const [currentSession, setCurrentSession] = useState<string | null>(null);
+
+  // Roster state, per class — the open row, its children, and the paste box.
+  const [openClassId, setOpenClassId] = useState<string | null>(null);
+  const [roster, setRoster] = useState<RosterStudent[]>([]);
+  const [rosterLoading, setRosterLoading] = useState(false);
+  const [paste, setPaste] = useState('');
+  const [savingRoster, setSavingRoster] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
   const [gradeCode, setGradeCode] = useState('');
@@ -141,6 +148,78 @@ const PortalClasses = () => {
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const openRoster = async (classId: string) => {
+    if (openClassId === classId) { setOpenClassId(null); return; }
+    setOpenClassId(classId);
+    setPaste('');
+    setRosterLoading(true);
+    try {
+      const data = await classesApi.students(classId);
+      setRoster(data.students || []);
+    } catch (error) {
+      console.error('Roster fetch error:', error);
+      toast({ title: 'Could not load the students', variant: 'destructive' });
+      setRoster([]);
+    } finally {
+      setRosterLoading(false);
+    }
+  };
+
+  const submitPaste = async (classId: string) => {
+    if (!paste.trim()) {
+      toast({ title: 'Add at least one name, one per line', variant: 'destructive' });
+      return;
+    }
+    setSavingRoster(true);
+    try {
+      const res = await classesApi.addStudents(classId, paste);
+      if (res.success) {
+        // Duplicates and a hit cap are NOT failures, but she has to be told —
+        // otherwise the count silently disagrees with what she pasted.
+        const notes: string[] = [];
+        if (res.duplicates) notes.push(`${res.duplicates} already on the roster`);
+        if (res.dropped) notes.push(`${res.dropped} over the ${300} limit were not added`);
+        toast({
+          title: `${res.added} student${res.added === 1 ? '' : 's'} added`,
+          description: notes.length ? notes.join(' · ') : undefined,
+        });
+        setPaste('');
+        const data = await classesApi.students(classId);
+        setRoster(data.students || []);
+        await load();
+      } else {
+        toast({ title: 'Could not add the students', description: res.error, variant: 'destructive' });
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Could not add the students',
+        description: error?.response?.data?.error || 'Please try again in a moment.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingRoster(false);
+    }
+  };
+
+  const dropStudent = async (classId: string, student: RosterStudent) => {
+    // Shared roster: say so plainly, because this affects every teacher on the class.
+    const ok = window.confirm(
+      `Remove ${student.studentName} from this class? Every teacher on the class will stop seeing her, and her attendance record is kept.`,
+    );
+    if (!ok) return;
+    try {
+      await classesApi.removeStudent(classId, student.studentId);
+      setRoster((prev) => prev.filter((s) => s.studentId !== student.studentId));
+      toast({ title: `${student.studentName} removed` });
+    } catch (error: any) {
+      toast({
+        title: 'Could not remove the student',
+        description: error?.response?.data?.error || 'Please try again in a moment.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -286,13 +365,86 @@ const PortalClasses = () => {
                       {c.subjects.length > 0 && ` · ${c.subjects.map((s) => s.label).join(', ')}`}
                     </p>
                   </div>
-                  {c.isClassTeacher && (
-                    <span className="flex items-center gap-1 text-xs text-accent whitespace-nowrap">
-                      <UserCheck className="w-3.5 h-3.5" />
-                      Class teacher
-                    </span>
-                  )}
+                  <div className="flex items-center gap-3">
+                    {c.isClassTeacher && (
+                      <span className="flex items-center gap-1 text-xs text-accent whitespace-nowrap">
+                        <UserCheck className="w-3.5 h-3.5" />
+                        Class teacher
+                      </span>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-expanded={openClassId === c.classId}
+                      onClick={() => openRoster(c.classId)}
+                    >
+                      {openClassId === c.classId
+                        ? <ChevronDown className="w-4 h-4 mr-1" />
+                        : <ChevronRight className="w-4 h-4 mr-1" />}
+                      <Users className="w-4 h-4 mr-1" />
+                      Students
+                    </Button>
+                  </div>
                 </div>
+
+                {openClassId === c.classId && (
+                  <div className="mt-4 border-t border-border pt-4 space-y-3">
+                    {rosterLoading ? (
+                      <p className="text-sm text-muted-foreground">Loading students…</p>
+                    ) : roster.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No students yet. Paste the register below — one name per line.
+                      </p>
+                    ) : (
+                      <ol className="space-y-1">
+                        {roster.map((s) => (
+                          <li key={s.studentId} className="flex items-center justify-between gap-3 text-sm">
+                            <span>
+                              <span className="text-muted-foreground tabular-nums mr-2">
+                                {s.rollNumber ?? '–'}
+                              </span>
+                              {s.studentName}
+                              {s.fatherName && (
+                                <span className="text-muted-foreground"> · {s.fatherName}</span>
+                              )}
+                            </span>
+                            <button
+                              type="button"
+                              aria-label={`Remove ${s.studentName}`}
+                              className="text-muted-foreground hover:text-destructive"
+                              onClick={() => dropStudent(c.classId, s)}
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+
+                    <div>
+                      <label className="block text-sm font-medium mb-1" htmlFor={`paste-${c.classId}`}>
+                        Add students
+                      </label>
+                      <textarea
+                        id={`paste-${c.classId}`}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        rows={4}
+                        value={paste}
+                        onChange={(e) => setPaste(e.target.value)}
+                        placeholder={'Ayesha Bibi, Muhammad Aslam\nBilal Ahmed s/o Tariq Mahmood'}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        One per line. Father's name after a comma or "s/o" if you have it.
+                        Numbering is fine — it gets stripped.
+                      </p>
+                      <div className="mt-2">
+                        <Button size="sm" onClick={() => submitPaste(c.classId)} disabled={savingRoster}>
+                          {savingRoster ? 'Adding…' : 'Add to class'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

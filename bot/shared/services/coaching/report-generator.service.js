@@ -20,7 +20,6 @@ const axios = require('axios');
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const GPT5MiniService = require('../gpt5-mini.service');
-const ContentService = require('../content.service');
 const AudioService = require('../audio.service');
 const WhatsAppService = require('../whatsapp.service');
 const CoachingSessionService = require('./coaching-session.service');
@@ -31,6 +30,7 @@ const { uploadVoiceDebrief, uploadReportPDF, uploadReportImage } = require('../.
 const { TEMP_DIR } = require('../../utils/constants');
 const { getCoachingMessage } = require('../../config/coaching-messages');
 const { coachRoleLabelForRegion } = require('../../config/region-config');
+const { isUptakeLoopEnabled } = require('../../config/uptake-loop-flags');
 
 /**
  * Resolve language directly from a session row already in memory. The
@@ -198,6 +198,72 @@ class ReportGeneratorService {
       // ticker and the LP prompt, so a teacher whose UI is English but who
       // just taught in Urdu gets ALL messages in English (no jarring mix).
       const heroLanguage = outputLanguage; // bd-3b0co: unified resolver (was preferred || analysis || transcript || en)
+
+      // Feedback-uptake loop (flag-gated, FICO only): grade the PRIOR action
+      // from this lesson's tally, advance the state. `loop` then feeds the
+      // commitment card (the target + attempt + angle), the hero renderer (the
+      // uptake block) and the record written below. Never fatal — a failure
+      // here means the report ships exactly as it does with the flag off.
+      let loop = null;
+      if (isUptakeLoopEnabled() && String(enhancedAnalysis.framework || '').toLowerCase() === 'fico') {
+        try {
+          const { loadPriorAction, loadRecentSectionBModes, loadRecentFidelity } = require('./coaching-trend.service');
+          const { deriveUptakeStatus, nextTarget, choosePhaseTarget, sectionBIsProxy } = require('./uptake-loop.service');
+          const prior = await loadPriorAction(session.user_id, { excludeSessionId: coachingSessionId });
+          // Section B is only coachable when it is the PROXY measurement. If her
+          // recent lessons all came with a plan, a fresh B target would sit
+          // bridged almost every time — prefer C/D/F for her.
+          //
+          // Its OWN try/catch on purpose: this is a preference, not an input. A
+          // failure here must degrade to "no preference", never fall through to
+          // the outer catch and silently switch the whole loop off.
+          let recentModes = [];
+          try {
+            recentModes = await loadRecentSectionBModes(session.user_id, { excludeSessionId: coachingSessionId });
+          } catch (modeErr) {
+            logToFile('[uptake-loop] section-B mode history unavailable — proceeding with no preference', {
+              coachingSessionId, error: modeErr.message,
+            });
+          }
+          // The fidelity half: when THIS lesson was graded against her plan, the
+          // carryable unit is the plan PHASE she repeatedly fails to execute.
+          // Skipped entirely on a lesson with no usable plan — there is nothing
+          // to grade a phase against, and the query would be wasted.
+          let phaseTarget = null;
+          if (!sectionBIsProxy(enhancedAnalysis)) {
+            try {
+              const fidelityHistory = await loadRecentFidelity(session.user_id, { excludeSessionId: coachingSessionId });
+              phaseTarget = choosePhaseTarget(fidelityHistory);
+            } catch (phErr) {
+              logToFile('[uptake-loop] phase-target selection unavailable — indicator loop stands', {
+                coachingSessionId, error: phErr.message,
+              });
+            }
+          }
+
+          const status = deriveUptakeStatus(enhancedAnalysis.uptake, prior, enhancedAnalysis);
+          const state = nextTarget(prior, status, enhancedAnalysis, { recentModes, phaseTarget });
+          loop = { prior, status, state };
+          logToFile('[uptake-loop] carry step', {
+            coachingSessionId,
+            prior_session: prior && prior.session_id,
+            prior_target: prior && prior.target && prior.target.indicator,
+            uptake_status: status,
+            section_b_modes: recentModes.join(',') || 'none',
+            phase_target: phaseTarget && phaseTarget.phase,
+            next_target: state.target && state.target.indicator,
+            attempt: state.attempt,
+            angle: state.angle,
+            reason: state.reason,
+          });
+        } catch (loopErr) {
+          logToFile('[uptake-loop] carry step failed (non-fatal; report proceeds without the loop)', {
+            coachingSessionId, error: loopErr.message,
+          });
+          loop = null;
+        }
+      }
+
       let precomputedCommitment = null;
       try {
         const { generateCommitmentCard } = require('./coaching-card/commitment-card.service');
@@ -216,7 +282,7 @@ class ReportGeneratorService {
           enhancedAnalysis,
           session.conversation_state,
           cardLanguage,
-          { teacherName: teacherFirstNameForCard, priorAction: priorActionForCard }
+          { teacherName: teacherFirstNameForCard, priorAction: priorActionForCard, ...(loop ? { loop } : {}) }
         );
       } catch (e) {
         logToFile('⚠️  Pre-compute commitment card failed (non-fatal; hero renders without tryNext)', {
@@ -230,7 +296,7 @@ class ReportGeneratorService {
       // `{ png, caption }` (hero renderer — currently FICO on NIETE, plus
       // OECD/HOTS/TEACH/MEWAKA once they're wired). Delivery path branches
       // on the shape (FEAT-098).
-      const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment);
+      const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment, loop);
       const isHeroImage = !Buffer.isBuffer(reportResult) && reportResult && reportResult.png;
 
       // Upload report to R2 for portal access.
@@ -325,7 +391,7 @@ class ReportGeneratorService {
             enhancedAnalysis,
             session.conversation_state,
             cardLanguage,
-            { teacherName: teacherFirstName, priorAction }
+            { teacherName: teacherFirstName, priorAction, ...(loop ? { loop } : {}) }
           );
         }
 
@@ -347,6 +413,17 @@ class ReportGeneratorService {
               { id: `card_no_${coachingSessionId}`, title: cardCopy.commitButtons.no },
             ],
           });
+
+          // Feedback-uptake loop: the record extends the card in place — the
+          // target, the attempt and angle, the baseline for the NEXT verdict,
+          // the lineage, and this lesson's verdict on the prior action.
+          if (loop) {
+            const { buildRecord } = require('./uptake-loop.service');
+            actionData = buildRecord(loop.state, {
+              prior: loop.prior, analysis: enhancedAnalysis, card: actionData,
+              instrument: 'self', uptake: enhancedAnalysis.uptake, uptakeStatus: loop.status,
+            });
+          }
 
           await supabase
             .from('coaching_sessions')
@@ -374,46 +451,27 @@ class ReportGeneratorService {
 
       logToFile('✅ Report generation complete', { coachingSessionId });
 
-      // Trigger 3: Offer quiz to teacher's students after coaching report
-      try {
-        const language = outputLanguage; // bd-3b0co: unified resolver
-        const quizTopic = enhancedAnalysis?.topic;
-        if (quizTopic) {
-          // Find the most recent lesson plan for this teacher to anchor the quiz
-          const { data: recentLP } = await supabase
-            .from('lesson_plans')
-            .select('id, topic')
-            .eq('user_id', session.user_id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
+      // Transcript quiz: schedule the offer AFTER the survey's reply window.
+      // Replaces the dead "Trigger 3" (it needed a lesson plan, a class and
+      // parents' phone numbers, and its buttons were never routed).
+      // Framework-independent — reads the transcript, never enhancedAnalysis.
+      const skipFeatureLink = await this.scheduleTranscriptQuiz(session, coachingSessionId, from, outputLanguage);
 
-          if (recentLP) {
-            await this.offerQuizAfterReport(
-              { id: session.user_id },
-              from,
-              recentLP.id,
-              recentLP.topic || quizTopic,
-              language
-            );
-          }
+      // Suggest next feature after coaching completion — unless a quiz offer
+      // is on its way: one ask at a time, so the offer is the only ask.
+      if (!skipFeatureLink) {
+        try {
+          const language = outputLanguage; // unified resolver
+          await FeatureLinkerService.suggestNext(
+            'coaching',
+            session.user_id,
+            from,
+            language,
+            { coachingSessionId }
+          );
+        } catch (error) {
+          logToFile('⚠️ Error in feature linker after coaching', { error: error.message });
         }
-      } catch (error) {
-        logToFile('⚠️ Trigger 3: Error offering quiz after coaching', { error: error.message });
-      }
-
-      // Suggest next feature after coaching completion
-      try {
-        const language = outputLanguage; // bd-3b0co: unified resolver
-        await FeatureLinkerService.suggestNext(
-          'coaching',
-          session.user_id,
-          from,
-          language,
-          { coachingSessionId }
-        );
-      } catch (error) {
-        logToFile('⚠️ Error in feature linker after coaching', { error: error.message });
       }
     } catch (error) {
       await this.handleReportError(coachingSessionId, error, payload?.from);
@@ -643,7 +701,7 @@ class ReportGeneratorService {
    * @returns {Promise<Buffer>} PDF buffer
    * @private
    */
-  static async generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment = null) {
+  static async generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment = null, loop = null) {
     logToFile('Generating PDF report', { coachingSessionId: session.id });
 
     // Resolve framework and dispatch to correct transformer
@@ -692,6 +750,7 @@ class ReportGeneratorService {
     // default — never a hard 'en' floor, which (being offered) used to win
     // the chain for every teacher because the session join omitted the column.
     const { resolveReportLanguage } = require('./report-v2/report-language');
+    const { resolveTarget } = require('./target-resolver');
     const language = resolveReportLanguage(
       { language: session?.users?.preferred_language }, analysisForTransformer, session
     );
@@ -707,6 +766,14 @@ class ReportGeneratorService {
         // (single source of next-step truth). Empty string → hero omits the
         // tryNext callout gracefully (template guards on truthiness).
         commitmentAction,
+        // The ONE indicator this report is about — the same resolver the
+        // commitment card used, on the same analysis, so the narrative's
+        // horizon and the green box name the same thing. With the loop on,
+        // the sticky loop target wins (the card and the record use it too).
+        target: (loop && loop.state && loop.state.target) || resolveTarget(analysisForTransformer),
+        // Feedback-uptake loop state ({ prior, status, state }) — the hero's
+        // uptake block reads it; null when the loop is off.
+        loop,
       },
     };
 
@@ -1529,6 +1596,28 @@ class ReportGeneratorService {
     // Record quality metrics
     const updatedSession = await CoachingSessionService.getSession(coachingSessionId);
     await CoachingHelpersService.recordQualityMetrics(updatedSession);
+
+    // The session has now SETTLED — report delivered, voice debrief attempted, metrics row
+    // written. Only now is it fair to ask whether any of it was useful. Scheduling is
+    // non-blocking and swallows its own errors: a survey must never fail a session.
+    try {
+      const CoachingFeedbackService = require('./coaching-feedback.service');
+      // The phone lives on the JOINED users row (the session query selects
+      // `users!inner(phone_number, ...)`), NOT as a column on coaching_sessions. Reading
+      // session.phone_number returns undefined and the survey silently never sends.
+      const phone = (session && session.users && session.users.phone_number)
+        || (updatedSession && updatedSession.users && updatedSession.users.phone_number);
+      CoachingFeedbackService.scheduleFeedbackPrompt({
+        coachingSessionId,
+        userId: (updatedSession && updatedSession.user_id) || session.user_id,
+        phone,
+        language: _languageFromSession(updatedSession || session),
+      });
+    } catch (surveyErr) {
+      logToFile('Coaching Feedback: could not schedule (non-fatal)', {
+        coachingSessionId, error: surveyErr.message,
+      });
+    }
   }
 
   /**
@@ -1578,58 +1667,37 @@ class ReportGeneratorService {
   }
 
   /**
-   * Trigger 3: Offer quiz after coaching report PDF is sent.
-   * Sends interactive buttons if teacher has a class with student phone numbers.
-   * Called from generateReport after PDF delivery.
+   * Transcript quiz: hand the finished self-coaching session to the offer
+   * service, which decides (flag, once-per-teacher, transcript length) and
+   * enqueues the delayed offer. Returns true when an offer WILL go out, so
+   * the caller suppresses the feature-link ask — one ask at a time.
    *
-   * @param {Object} user         - { id: userId }
-   * @param {string} phoneNumber  - Teacher's phone number
-   * @param {string} lessonPlanId - LP UUID to base the quiz on
-   * @param {string} topic        - Lesson topic for display in message
-   * @param {string} language     - Preferred language ('en', 'ur', etc.)
+   * Never throws into the report: a quiz offer is not worth failing a
+   * session over.
+   *
+   * @param {object} session           coaching_sessions row (with users join)
+   * @param {string} coachingSessionId
+   * @param {string} from              teacher phone
+   * @param {string} outputLanguage    the report's language
+   * @returns {Promise<boolean>}
    */
-  static async offerQuizAfterReport(user, phoneNumber, lessonPlanId, topic, language = 'en') {
+  static async scheduleTranscriptQuiz(session, coachingSessionId, from, outputLanguage) {
     try {
-      logToFile('📝 Trigger 3: Offering quiz after coaching report', { userId: user.id, lessonPlanId, topic });
-
-      // Check if teacher has a class
-      const { data: classes } = await supabase
-        .from('student_lists')
-        .select('id')
-        .eq('user_id', user.id)
-        .limit(1);
-
-      if (!classes || classes.length === 0) {
-        return; // No class — skip silently
-      }
-
-      // Check if any students in that class have phone numbers
-      const { data: studentsWithPhones } = await supabase
-        .from('students')
-        .select('id')
-        .eq('list_id', classes[0].id)
-        .not('parent_phone', 'is', null)
-        .limit(1);
-
-      if (!studentsWithPhones || studentsWithPhones.length === 0) {
-        return; // No student phones — skip silently
-      }
-
-      const bodyText = language === 'ur'
-        ? `کیا آپ اپنے طلباء کو "${topic}" پر ایک کوئز بھیجنا چاہتے ہیں؟ 📝`
-        : `Would you like to send a quiz on "${topic}" to your students? 📝`;
-
-      await WhatsAppService.sendInteractiveButtons(phoneNumber, {
-        body: bodyText,
-        buttons: [
-          { id: `quiz_yes_send_${lessonPlanId}`, title: 'Yes, send quiz ✓' },
-          { id: 'quiz_not_now', title: 'Not right now' }
-        ]
+      const TranscriptQuizOffer = require('../quiz/transcript-quiz-offer.service');
+      const scheduled = await TranscriptQuizOffer.scheduleOffer({
+        coachingSessionId,
+        userId: session.user_id,
+        phone: from || session?.users?.phone_number,
+        language: outputLanguage,
+        transcriptChars: String(session.transcript_text || '').length,
+        source: 'self',
       });
-
-      logToFile('✅ Trigger 3: Quiz offer sent', { userId: user.id, lessonPlanId });
-    } catch (err) {
-      logToFile('⚠️ Trigger 3: offerQuizAfterReport error', { error: err.message });
+      return Boolean(scheduled);
+    } catch (error) {
+      logToFile('⚠️ transcript quiz: offer scheduling failed (non-fatal)', {
+        coachingSessionId, error: error.message,
+      });
+      return false;
     }
   }
 }

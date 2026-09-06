@@ -75,10 +75,10 @@ test('my_feature_start has a button_reply dispatcher', () => {
 Add one of these for every new button / list / Flow id you emit. The full rationale + the four webhook
 shapes is in [pre-merge-checklist](../pre-merge-checklist/SKILL.md).
 
-## Source-level assertions: three ways they pass while testing nothing
+## Source-level assertions: four ways they pass while testing nothing
 
 The pattern above is cheap and catches real bugs, but `expect(src).toMatch(...)` is assertion-shaped
-rather than assertion-strength. Three failure modes, all observed in this repo:
+rather than assertion-strength. Four failure modes, all observed in this repo:
 
 **1. The match lands on a comment, not the code.**
 
@@ -140,6 +140,22 @@ comm -23 /tmp/now.txt /tmp/base.txt     # anything printed here, you introduced
 ```
 
 `npm run test:baseline` wraps this for the whole suite.
+
+**4. A grep-green line can still be a runtime error — source assertions prove WIRING EXISTS, never
+that code RUNS.**
+
+The most expensive one. A source assertion reads text; it cannot know whether an identifier on that
+line resolves at runtime. A change once threaded a new parameter through a call chain and dropped it
+one hop short, leaving a free identifier — a guaranteed `ReferenceError` on every execution of that
+branch. The suite was green: the new helper had pure-function tests, and the "wiring" was asserted
+by matching the call site's source text. Nothing ever executed the line. The branch died silently in
+production for six days (its `catch` fell back to a lesser path, so there were no errors either),
+and every downstream consumer of that output degraded with it.
+
+So: use source assertions ONLY for dispatch-existence ("this id is registered somewhere"). **Any
+behaviour change needs at least one test that EXECUTES the changed line on its live branch** — mock
+the network boundary, never the module you are changing, and never skip the call chain. If the
+changed line lives on a success/fallback branch, execute *that* branch specifically.
 
 ## When to run what
 

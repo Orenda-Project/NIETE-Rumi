@@ -185,18 +185,91 @@ ANTI-FALSE-PROMISE RULE (CRITICAL - applies to ALL languages):
    * @param {string} format - Output format ('text' or 'voice')
    * @param {string} language - Output language ('en' or 'ur')
    * @param {string|null} firstName - User's first name (optional)
+   * @param {object} [opts] - bd-mg9c7.64: WHO is speaking. Backwards compatible —
+   *   every existing caller omits this and gets the teacher prompt unchanged.
+   * @param {'student'|null} [opts.persona] - 'student' swaps the teacher base
+   *   for the student tutor prompt. The reverence wrapper below still rides
+   *   either way — it is not a per-persona concern.
+   * @param {string|null} [opts.studentClass] - e.g. "Class 5"; only read when
+   *   opts.persona === 'student'.
    * @returns {string} System prompt
    * @private
    */
-  _getFormatAwareSystemPrompt(format, language, firstName = null) {
+  _getFormatAwareSystemPrompt(format, language, firstName = null, opts = {}) {
     // P0 bd-reverence (2026-08-22): the religious-reverence block rides EVERY
     // conversational prompt — all languages, all formats, every branch below,
     // current and future. That is why this is a wrapper around the branchy
     // builder rather than a per-branch append: a new prompt branch cannot
     // forget it. End-of-prompt is an attention edge position, on purpose.
     const { RELIGIOUS_REVERENCE_RULES } = require('../config/religious-reverence-rules');
-    return this._getFormatAwareSystemPromptBase(format, language, firstName)
-      + '\n' + RELIGIOUS_REVERENCE_RULES;
+    const base = opts && opts.persona === 'student'
+      ? this._getStudentTutorPrompt(format, language, { studentClass: opts.studentClass })
+      : this._getFormatAwareSystemPromptBase(format, language, firstName);
+    return base + '\n' + RELIGIOUS_REVERENCE_RULES;
+  }
+
+  /**
+   * The student tutor persona (bd-mg9c7.64). A child who reaches the bot
+   * outside a quiz window — a forwarded share link, an off-topic question —
+   * gets THIS prompt, never the teacher one. Built from scratch rather than
+   * derived from `_getFormatAwareSystemPromptBase`: that builder's job is the
+   * teacher persona (it names itself "NIETE Teaching Assistant" and offers
+   * lesson plans, presentations, coaching feedback, reading assessments), and
+   * falling through into it would re-enter that persona for a child.
+   *
+   * One document, one language (language-protocol, root rule 20/D1): the
+   * whole body below is written in `language`, not just wrapped copy. The
+   * religious-reverence block that `_getFormatAwareSystemPrompt` appends
+   * after this returns is the one deliberate exception — it is English by
+   * design (models follow it in any output language).
+   *
+   * @param {string} format - 'text' or 'voice'
+   * @param {string} language - 'en' or 'ur'
+   * @param {{studentClass?: string|null}} [opts]
+   * @returns {string}
+   * @private
+   */
+  _getStudentTutorPrompt(format, language, { studentClass } = {}) {
+    const { resolveUx } = require('../config/ux-strings');
+    const offTopicHint = resolveUx('studentOffTopicHint', { language });
+
+    const formatNote = format === 'voice'
+      ? '\n\nVOICE FORMAT: Keep it to a few short sentences, spoken naturally. Never end mid-sentence.'
+      : '\n\nTEXT FORMAT: Keep it WhatsApp-short.';
+
+    if (language === 'ur') {
+      // Read aloud before it shipped (renders/round5/G): the first draft put the
+      // class insert AFTER the postposition ("طالب علم، جماعت پنجم کی سطح پر کے
+      // لیے"), which is not a sentence, and transliterated WhatsApp, worksheet
+      // and link into Urdu script — which the catalog's own rule forbids
+      // (English technical terms inside Urdu stay in Latin letters). The class
+      // now leads the phrase, and every borrowed term is Latin.
+      return `آپ ${studentClass ? `${studentClass} کے` : 'سکول کے'} ایک طالبِ علم کے ذاتی تدریسی مددگار ہیں — شفیق اور حوصلہ افزا۔ آپ براہِ راست اُسی طالبِ علم سے بات کر رہے ہیں۔
+
+## کیسے مدد کریں
+- مختصر جواب دیں — WhatsApp پیغام جتنا، چند جملے، ایک وقت میں ایک بات۔
+- ایک قدم سمجھائیں، پھر لیکچر دینے کے بجائے ایک مختصر سوال پوچھیں تاکہ معلوم ہو بات سمجھ آئی۔
+- وضاحت ${studentClass ? `${studentClass} کی سطح` : 'عمومی سکول کی سطح'} کے مطابق رکھیں۔
+- طالبِ علم کی صنف کے بارے میں نہ کوئی قیاس کریں، نہ ذکر۔
+- طالبِ علم کے لیے کوئی دستاویز، worksheet یا link تیار نہ کریں — بات چیت میں مل کر سمجھیں۔
+
+## حفاظت
+- طالبِ علم سے اُس کا پورا نام، گھر کا پتہ، سکول کا نام، فون نمبر یا تصویر کبھی نہ مانگیں۔
+- اگر بات پڑھائی سے ہٹ جائے تو نرمی سے واپس لے آئیں: "${offTopicHint}"${formatNote}`;
+    }
+
+    return `You are a warm, one-to-one tutor for a school student${studentClass ? ` in ${studentClass}` : ''}. You are chatting directly with the student.
+
+## HOW YOU HELP
+- Answer like a caring one-to-one tutor: short, WhatsApp-sized replies, a few sentences, one idea at a time.
+- Explain one step, then ask a short question back to check understanding, instead of lecturing.
+- Pitch your explanation${studentClass ? ` at the level of ${studentClass}` : ' at a general school level'}.
+- Never assume or mention the student's gender.
+- You do not produce any documents, worksheets or links for the student — help them work it out together in the chat.
+
+## STAYING SAFE
+- Never ask the student for their full name, home address, school name, phone number, or a photo.
+- If the message drifts away from schoolwork, gently bring it back: "${offTopicHint}"${formatNote}`;
   }
 
   _getFormatAwareSystemPromptBase(format, language, firstName = null) {
@@ -384,9 +457,27 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
    * @param {string} language - Output language ('en' or 'ur')
    * @param {string|null} firstName - User's first name (optional)
    * @param {string|null} featureContext - Phase 2: Conditional feature context (optional)
+   * @param {object} [opts] - bd-mg9c7.64: passed straight through to
+   *   _getFormatAwareSystemPrompt; { persona: 'student', studentClass } swaps
+   *   in the student tutor prompt and the child-shaped error fallback.
    * @returns {Promise<string>} AI response
    */
-  async getResponseWithFormat(userMessage, userId, format, language, firstName = null, featureContext = null) {
+  /**
+   * The English name of a language code, for a model instruction ("Urdu", not
+   * "ur" — the model follows a name far more reliably than a code). Not
+   * teacher-facing copy, so no catalog entry; Intl carries the names.
+   * @private
+   */
+  _languageName(code) {
+    try {
+      const name = new Intl.DisplayNames(['en'], { type: 'language' }).of(String(code || 'en').split('-')[0]);
+      return name || String(code || 'en');
+    } catch (_) {
+      return String(code || 'en');
+    }
+  }
+
+  async getResponseWithFormat(userMessage, userId, format, language, firstName = null, featureContext = null, opts = {}) {
     try {
       logToFile('Getting format-aware response', {
         format,
@@ -396,12 +487,27 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
       });
 
       // Create a temporary conversation history with format-specific system prompt
-      let systemPrompt = this._getFormatAwareSystemPrompt(format, language, firstName);
+      let systemPrompt = this._getFormatAwareSystemPrompt(format, language, firstName, opts);
 
-      // Phase 2: Inject feature context if provided (conditional injection)
+      // bd-wpupy: featureContext used to be appended to the system prompt, which
+      // put it ~10 turns away from the message it is meant to answer. On the
+      // production model that loses to recency: with a real 10-turn history,
+      // "give this to me in text form" bound to the previous ASSISTANT reply
+      // instead of the lesson plan sitting in the system prompt, and the teacher
+      // got her last answer reworded instead of her lesson. A stronger model
+      // (gpt-4o) resisted; gpt-4.1-mini did not, and a prompt rule telling it
+      // what "this" means did NOT fix it — position did.
+      //
+      // So the context now rides as its own system message IMMEDIATELY BEFORE
+      // her turn. Verified against the real failing conversation: appended =
+      // wrong answer, adjacent = the lesson, same model and same history.
+      //
+      // This is NOT the stale-system-message case the history filter below
+      // guards against: that filter drops system messages found INSIDE stored
+      // history (last turn's instructions replayed as current). This one is
+      // built fresh for this turn, from this turn's context.
       if (featureContext) {
-        systemPrompt = systemPrompt + '\n\n' + featureContext;
-        logToFile('Feature context injected into system prompt', {
+        logToFile('Feature context injected adjacent to the user turn', {
           userId,
           contextLength: featureContext.length
         });
@@ -421,10 +527,25 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
       const existingHistory = (await this.getConversationHistory(userId))
         .filter((m) => m.role !== 'system');
 
+      // bd-eb1ec: the adjacent context block is the last thing the model reads
+      // before her turn, and when it carries ~4,000 characters of Urdu lesson
+      // script the reply follows the block's language, not the base prompt's —
+      // an English-locked teacher got her lesson back in Urdu (staging,
+      // 2026-08-30, conversations row output_language='en'). The base prompt's
+      // language rule lost to position, exactly as the referent did in
+      // bd-wpupy. So the reply language is stated INSIDE the adjacent block,
+      // where position works for us instead of against us.
+      const adjacentContext = featureContext
+        ? `REPLY LANGUAGE: ${this._languageName(language)}. Write the whole reply in ${this._languageName(language)}, `
+          + 'even if the reference material below is in another language — translate as you rewrite.\n\n'
+          + featureContext
+        : null;
+
       // Build new history with format-specific system prompt
       const messages = [
         { role: 'system', content: systemPrompt },
         ...existingHistory,
+        ...(adjacentContext ? [{ role: 'system', content: adjacentContext }] : []),
         { role: 'user', content: userMessage }
       ];
 
@@ -434,11 +555,17 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
       const RTL_LANGUAGES = ['ur', 'ar', 'bal-PK', 'sd-PK', 'ps-PK', 'pa-PK'];
       const isRTL = RTL_LANGUAGES.includes(language);
       const voiceMaxTokens = isRTL ? 400 : 250;
+      // bd-f9hmw: a text reply that carries a lesson block may be the lesson
+      // written out — nine phases in brief ran to section 8 and stopped at
+      // "C) Calculate" under the 500 cap (staging, 2026-08-30). Room to finish
+      // it; 1,200 tokens sits under WhatsApp's 4,096-char message cap in both
+      // scripts. Plain conversation keeps 500; voice keeps its 60-second cap.
+      const textMaxTokens = featureContext ? 1200 : 500;
 
       const completion = await this.openai.chat.completions.create({
         model: 'gpt-4.1-mini',
         messages: messages,
-        max_tokens: format === 'voice' ? voiceMaxTokens : 500,
+        max_tokens: format === 'voice' ? voiceMaxTokens : textMaxTokens,
         temperature: 0.7,
       });
 
@@ -466,6 +593,13 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
     } catch (error) {
       logToFile('Error getting format-aware AI response', { error: error.message });
 
+      // bd-mg9c7.64: a child gets a child-shaped apology, not the teacher
+      // wording below — that wording is unchanged, this is additive.
+      if (opts && opts.persona === 'student') {
+        const { resolveUx } = require('../config/ux-strings');
+        return resolveUx('studentChatError', { language });
+      }
+
       // Fallback error messages based on language
       if (language === 'en') {
         return 'Sorry, I encountered an error processing your message. Please try again.';
@@ -480,7 +614,7 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
    * @param {string} message - User's message
    * @returns {Promise<Object>} Intent object {type: string, message: string}
    */
-  async detectIntent(message) {
+  async detectIntent(message, contextHint = '') {
     try {
       const completion = await this.openai.chat.completions.create({
         model: 'gpt-4.1-mini',
@@ -538,7 +672,7 @@ Examples:
 - "What's a good way to explain X?" → general
 
 Return ONLY one word: lesson_plan, presentation, video, or general
-If (and ONLY if) the message refers back to a lesson plan the teacher ALREADY has or received, append " lp_ref" after the word (e.g. "general lp_ref").`
+If (and ONLY if) the message refers back to a lesson plan the teacher ALREADY has or received, append " lp_ref" after the word (e.g. "general lp_ref").${contextHint || ''}`
           },
           {
             role: 'user',

@@ -173,12 +173,22 @@ const FICO_TITLES_UR = {
 };
 
 // FICO score scale is 1-4 (id '1'..'4'), NOT 0-3. Officer-facing English.
-const FICO_SCALE_OPTIONS = [
-  { id: '1', title: '1 · Not Observed / Emerging' },
-  { id: '2', title: '2 · Developing' },
-  { id: '3', title: '3 · Proficient / Effective' },
-  { id: '4', title: '4 · Highly Effective' },
-];
+// DERIVED from the framework — never a second hardcoded list. The pack used to carry its own
+// 1-4 copy, so when the rubric moved to three zero-based rungs the review form kept showing four
+// and rendered a top-rung 2 as "2 · Developing" (Rifat's staging test, 3 Sep).
+//
+// NA_OPTION exists because a subject-gated indicator has no score at all: on a literacy lesson
+// F4-F7 are applicable:false / score:null, and any numeric prefill would show them as scored.
+// It stays selectable so a coach can overrule a wrong subject call.
+const FICO_NA_ID = 'na';
+function ficoScaleOptions() {
+  const { scaleMax, rungLabels } = fico.getScoringConstants();
+  const rungs = Array.from({ length: scaleMax + 1 }, (_, i) => ({
+    id: String(i),
+    title: `${i} · ${(rungLabels || {})[i] || String(i)}`,
+  }));
+  return [...rungs, { id: FICO_NA_ID, title: '— Not applicable to this lesson' }];
+}
 
 let _ficoDomainsCache = null;
 function ficoDomains() {
@@ -215,8 +225,8 @@ function getObservePack() {
       // screenIds derive from each section's own letter (DOMAIN_B/C/D/F) via
       // the flow generator's `domains[key].key` path; provide the same here.
       screenIds: domainOrder.map((k) => `DOMAIN_${domains[k].key}`),
-      scaleOptions: FICO_SCALE_OPTIONS,   // 1-4 — consumed by draft + flow generator
-      computeScores: fico.computeScores,  // NIETE fico-framework: 1-4, max 104
+      scaleOptions: ficoScaleOptions(),   // derived from the framework, plus N/A
+      computeScores: fico.computeScores,  // NIETE fico-framework — owns the scale
       module: fico,                       // real fico module — no observe wrapper needed
     };
   }
@@ -248,4 +258,5 @@ function getObservePack() {
   };
 }
 
-module.exports = { getObservePack, OBSERVE_FRAMEWORK_KEYS };
+module.exports = {
+  FICO_NA_ID, getObservePack, OBSERVE_FRAMEWORK_KEYS };

@@ -23,11 +23,21 @@
 
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
+const { logEvent } = require('../../utils/structured-logger');
 const render = require('./video-quiz-render.service');
+// Every send in this file spends the recipient's Meta per-pair budget, so
+// every send waits on the proactive throttle first (the per-recipient rule; this
+// port had it only on the two "side door" sends in video-quiz.service).
+const rateLimiter = require('./video-quiz-rate-limiter.service');
+const { resolveUx } = require('../../config/ux-strings');
+const { truncateCodePoints } = require('./religious-marks');
 
 // Enough for WhatsApp to preserve order without making a child wait.
 const GAP_TEXT_MS = 700;
 const GAP_MEDIA_MS = 1200;
+
+/** Picker chrome in the quiz language ('en' when the context carries none). */
+const chrome = (key, ctx, params) => resolveUx(key, { language: ctx && ctx.language, params });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -49,19 +59,23 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * bare letters reads as a rendering fault, and the letters line up with
  * askBody()'s lettering on the questions long enough to still need it.
  */
-function listRows(options, ctx, optionIndices) {
+function listRows(options, ctx, optionIndices, letterTitles = false) {
   const shown = options.slice(0, 10);
   // bd-2359: display position is NOT the option's identity. The id must carry
   // the ORIGINAL index or every shuffled question mis-scores.
   const idx = optionIndices || shown.map((_, i) => i);
-  const handled = shown.some((t) => t.length > render.LIST_ROW_TITLE_MAX);
+  // A QUESTION CARD already draws each option behind its letter, so its rows are
+  // letters whatever their length — the same rule the letter buttons follow.
+  const handled = letterTitles || shown.some((t) => [...t].length > render.LIST_ROW_TITLE_MAX);
   return shown.map((title, i) => {
     const row = {
       id: render.answerId(ctx.questionId, idx[i]),
       title: handled ? render.optionLetter(i) : title,
     };
     if (handled) {
-      row.description = title.slice(0, render.LIST_ROW_DESCRIPTION_MAX);
+      // Code-point cap, and never a cut that strands a sacred name from its
+      // honorific (an Islamiyat option ending "…نبی کریم" with the ﷺ dropped).
+      row.description = truncateCodePoints(title, render.LIST_ROW_DESCRIPTION_MAX);
     }
     return row;
   });
@@ -77,9 +91,30 @@ function listRows(options, ctx, optionIndices) {
  * @returns {Promise<{sent:number, failed:number}>}
  */
 async function sendPhase(phone, msgs, phase, ctx = {}) {
+  // A prior review round closed this phase's latency at "slow from the
+  // driver's side" with no way to say where the time actually went. `ms`
+  // decomposes into where the time actually went:
+  // `msSending` (the WhatsApp calls themselves), `msThrottled` (waiting on
+  // rateLimiter.throttle), `msGaps` (our own deliberate GAP_TEXT_MS/
+  // GAP_MEDIA_MS pacing below) — so a slow phase can be pinned on Meta, our
+  // throttle, or our own pacing instead of guessed at.
+  const phaseStart = Date.now();
   let sent = 0;
   let failed = 0;
   let lastMessageId = null;
+  let messages = 0;
+  let msSending = 0;
+  let msThrottled = 0;
+  let msGaps = 0;
+  const kinds = [];
+
+  const emitPhaseSent = (pickerFailed) => {
+    logEvent('video_quiz.phase_sent', {
+      phase, sessionId: ctx.sessionId, questionId: ctx.questionId,
+      messages, sent, failed, pickerFailed,
+      ms: Date.now() - phaseStart, msSending, msThrottled, msGaps, kinds,
+    });
+  };
 
   for (const m of msgs.filter((x) => x.phase === phase)) {
     // The ANSWER phase carries the correct branch plus one branch per wrong
@@ -91,9 +126,16 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
         if (m.optionIndex !== undefined && m.optionIndex !== ctx.selectedIndex) continue;
       }
     }
+    messages += 1;
+    kinds.push(m.kind);
 
     let ok = false;
     try {
+      const throttleStart = Date.now();
+      await rateLimiter.throttle(phone);
+      msThrottled += Date.now() - throttleStart;
+
+      const sendStart = Date.now();
       switch (m.kind) {
         case 'text': {
           if (m.anchoredToPrevious && lastMessageId) {
@@ -122,19 +164,26 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
           break;
         case 'list':
           ok = await WhatsAppService.sendInteractiveMessage(phone, {
-            body: { text: m.body },
+            body: { text: m.letterTitles ? cardAskBody(m, ctx, m.options.length) : m.body },
             action: {
-              button: 'Choose answer',
-              sections: [{ title: 'Options', rows: listRows(m.options, ctx, m.optionIndices) }],
+              button: chrome('vqChooseAnswer', ctx),
+              sections: [{
+                title: chrome('vqOptions', ctx),
+                rows: listRows(m.options, ctx, m.optionIndices, m.letterTitles),
+              }],
             },
           });
           break;
         case 'flow':
           ok = await sendPictureFlow(phone, m, ctx);
           break;
+        case 'multiflow':
+          ok = await sendMultiSelectFlow(phone, m, ctx);
+          break;
         default:
           logToFile('⚠️ video-quiz: unknown message kind', { kind: m.kind });
       }
+      msSending += Date.now() - sendStart;
     } catch (err) {
       logToFile('❌ video-quiz send threw', {
         phone: phone.slice(-4), role: m.role, kind: m.kind, error: err.message,
@@ -152,12 +201,31 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
       // A dropped clip degrades the question; a dropped PICKER strands the
       // child with nothing to tap. Only the latter aborts the phase.
       if (m.role === 'ask' || m.role === 'picture_flow') {
+        emitPhaseSent(true);
         return { sent, failed, pickerFailed: true };
       }
     }
+    const gapStart = Date.now();
     await sleep(m.kind === 'text' ? GAP_TEXT_MS : GAP_MEDIA_MS);
+    msGaps += Date.now() - gapStart;
   }
+  emitPhaseSent(false);
   return { sent, failed, pickerFailed: false };
+}
+
+/**
+ * The body under a QUESTION CARD, naming exactly the letters THIS send offers.
+ *
+ * It was hardcoded to "A, B or C" whatever the card held, so a two-option card
+ * told the child to tap a C that was never sent (round 5). `count` is what
+ * the picker will actually emit — three for a button row, up to ten for a list.
+ */
+function cardAskBody(m, ctx, count) {
+  const letters = render.letterListLabel(count, {
+    separator: chrome('vqLetterSep', ctx),
+    conjunction: chrome('vqLetterOr', ctx),
+  });
+  return chrome('vqCardAsk', ctx, { letters });
 }
 
 /**
@@ -167,14 +235,17 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
  */
 async function sendButtons(phone, m, ctx) {
   const bIdx = m.optionIndices || m.options.map((_, i) => i);   // bd-2359
-  const buttons = m.options.slice(0, 3).map((title, i) => ({
+  const shown = m.options.slice(0, 3);
+  const buttons = shown.map((title, i) => ({
     id: render.answerId(ctx.questionId, bIdx[i]),
-    title: title.slice(0, render.BUTTON_TITLE_MAX),
+    // A question card carries the options in the picture; the buttons are letters.
+    title: m.letterTitles ? render.optionLetter(i) : truncateCodePoints(title, render.BUTTON_TITLE_MAX),
   }));
+  const body = m.letterTitles ? cardAskBody(m, ctx, shown.length) : m.body;
   if (m.headerImage) {
-    return WhatsAppService.sendImageWithButtons(phone, m.headerImage, m.body, buttons);
+    return WhatsAppService.sendImageWithButtons(phone, m.headerImage, body, buttons);
   }
-  return WhatsAppService.sendInteractiveButtons(phone, { body: m.body, buttons });
+  return WhatsAppService.sendInteractiveButtons(phone, { body, buttons });
 }
 
 /**
@@ -216,10 +287,54 @@ async function sendPictureFlow(phone, m, ctx) {
   return WhatsAppService.sendInteractiveMessage(phone, {
     body: { text: 'Which picture is right?' },
     action: {
-      button: 'Choose answer',
-      sections: [{ title: 'Options', rows: listRows(m.options, ctx, m.optionIndices) }],
+      button: chrome('vqChooseAnswer', ctx),
+      sections: [{ title: chrome('vqOptions', ctx), rows: listRows(m.options, ctx, m.optionIndices) }],
     },
   });
 }
 
-module.exports = { sendPhase, GAP_TEXT_MS, GAP_MEDIA_MS };
+/**
+ * PLAN_R5 D4 — a question whose answer is a SET.
+ *
+ * WhatsApp reply buttons and list rows are single-select, so the only surface
+ * that can take a set is a Flow with a CheckboxGroup. What goes IN the Flow is
+ * computed by transcript-quiz-multi (pure, testable, no env read); this
+ * function is the send, and — more importantly — the degradation.
+ *
+ * THE DEGRADATION IS THE POINT. With no `QUIZ_MULTI_FLOW_ID` on this WABA, or
+ * with Meta refusing the send, the child gets the ordinary picker carrying a
+ * line that SAYS more than one answer is right, and any correct option scores
+ * (correctIndices() has always treated the key as a set). That is a weaker
+ * question, logged as such. A blank question is not a weaker question.
+ */
+async function sendMultiSelectFlow(phone, m, ctx) {
+  const Multi = require('./transcript-quiz-multi');
+  const { logEvent } = require('../../utils/structured-logger');
+  const flowId = ctx.multiFlowId || Multi.multiFlowId();
+  if (flowId) {
+    const payload = Multi.flowPayload(m, ctx);
+    const ok = await WhatsAppService.sendFlow(phone, { flowId, ...payload });
+    if (ok) return true;
+    logEvent('video_quiz.multi_flow_send_failed', { questionId: ctx.questionId, sessionId: ctx.sessionId });
+    logToFile('⚠️ multi-select Flow failed — falling back to the single-select picker', {
+      phone: phone.slice(-4), questionId: ctx.questionId,
+    });
+  } else {
+    logEvent('video_quiz.multi_flow_unset', { questionId: ctx.questionId, sessionId: ctx.sessionId });
+  }
+  // The picture is part of the question, so it goes first on this path — on the
+  // Flow path it is the Flow's own header, which is why build() emits no
+  // separate image message and the child never sees it twice.
+  if (m.headerImage) {
+    await WhatsAppService.sendImageFromUrl(phone, m.headerImage, '');
+  }
+  return WhatsAppService.sendInteractiveMessage(phone, {
+    body: { text: `${m.stem || m.body}\n\n${chrome('vqMultiFallbackAsk', ctx)}` },
+    action: {
+      button: chrome('vqChooseAnswer', ctx),
+      sections: [{ title: chrome('vqOptions', ctx), rows: listRows(m.options, ctx, m.optionIndices) }],
+    },
+  });
+}
+
+module.exports = { sendPhase, listRows, sendMultiSelectFlow, GAP_TEXT_MS, GAP_MEDIA_MS };

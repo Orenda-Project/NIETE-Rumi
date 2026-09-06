@@ -44,11 +44,6 @@ const {
   handleRegistrationBack
 } = require('./registration-endpoint');
 const {
-  handlePicLpInit,
-  handlePicLpDataExchange,
-  handlePicLpBack
-} = require('./pic-lp-endpoint');
-const {
   handleSettingsInit,
   handleSettingsDataExchange,
   handleSettingsBack
@@ -269,68 +264,6 @@ async function handleRegistrationRequest(data) {
   }
 
   // Unknown action
-  logToFile('Unknown flow action', { action });
-  return FlowEncryptionService.createErrorResponse('Unknown action');
-}
-
-/**
- * POST /api/flows/pic-lp — Pic-to-LP confirmation Flow data endpoint.
- * Single-screen form (PIC_LP_FORM → SUCCESS); the teacher confirms
- * grade/subject/topic/language and LP generation fires in the background.
- */
-router.post('/pic-lp', async (req, res) => {
-  try {
-    if (!FlowEncryptionService.isConfigured()) {
-      logToFile('Flow encryption not configured', { endpoint: 'pic-lp' });
-      return res.status(500).json({ error: 'Flow encryption not configured' });
-    }
-
-    const encryptedResponse = await FlowEncryptionService.processEncryptedRequest(
-      req.body,
-      async (decryptedData) => {
-        return await handlePicLpRequest(decryptedData);
-      }
-    );
-
-    res.set('Content-Type', 'text/plain');
-    res.send(encryptedResponse);
-  } catch (error) {
-    logToFile('Flow endpoint error', {
-      endpoint: 'pic-lp',
-      error: error.message,
-      stack: error.stack,
-    });
-    res.status(500).json({ error: error.message });
-  }
-});
-
-/**
- * Handle decrypted pic-LP flow request. Routes by action; the flow_token
- * (format "pic_lp_form_<sessionId>") is passed straight through to the
- * endpoint handlers, which resolve the session via getByFlowToken.
- */
-async function handlePicLpRequest(data) {
-  const { action, flow_token, screen, data: screenData } = data;
-
-  logToFile('Handling pic-LP flow request', {
-    action,
-    screen,
-    hasFlowToken: !!flow_token,
-  });
-
-  if (action === 'ping') {
-    return FlowEncryptionService.handlePing();
-  }
-  if (action === 'INIT' || action === 'init') {
-    return await handlePicLpInit(flow_token);
-  }
-  if (action === 'data_exchange') {
-    return await handlePicLpDataExchange(flow_token, screen, screenData);
-  }
-  if (action === 'BACK') {
-    return await handlePicLpBack(flow_token);
-  }
-
   logToFile('Unknown flow action', { action });
   return FlowEncryptionService.createErrorResponse('Unknown action');
 }
@@ -1047,7 +980,7 @@ async function handleExamConfirmRequest(data) {
 }
 
 // ============================================================
-// PAKISTAN LP FLOW ENDPOINT (FEAT-059) — pick a pre-generated LP by
+// PAKISTAN LP FLOW ENDPOINT — pick a pre-generated LP by
 // Grade → Subject → Chapter and deliver the PDF to chat.
 // ============================================================
 

@@ -122,10 +122,6 @@ const ALLOWED_LISTS = {
     'RECOGNITION. Routes audio to the right ASR engine per language (Soniox vs ' +
     'MMS-ASR). The routing table is about what the vendors can transcribe, not ' +
     'about what we offer a teacher.',
-  'bot/shared/services/pic-to-lp/pic-lp-wait-message.service.js':
-    'RECOGNITION-adjacent. Keyed off a detected document language, not a stored ' +
-    'preference.',
-
   // ---- upstream seam: not ours to narrow ----
   'bot/shared/config/system-messages.js':
     'UPSTREAM SEAM. The open platform\'s documented translation extension point ' +

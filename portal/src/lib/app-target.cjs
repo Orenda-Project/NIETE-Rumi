@@ -42,6 +42,7 @@ function resolveIsPortal({ isNative = false, appTarget, hostname = '' } = {}) {
  * @param {boolean} [opts.isNative]
  * @param {boolean} [opts.isProd]
  * @param {string}  [opts.apiBaseUrl] configured absolute URL (VITE_API_BASE_URL)
+ * @param {string}  [opts.origin] window.location.origin — where the page came from
  * @returns {string}
  */
 function resolveApiBaseUrl({ isNative = false, isProd = false, apiBaseUrl, origin } = {}) {

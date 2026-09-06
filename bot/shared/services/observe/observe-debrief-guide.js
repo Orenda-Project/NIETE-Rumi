@@ -83,8 +83,15 @@ function buildGuidePrompt(v2Analysis, options = {}) {
   // 6-step structure, same score-redaction, same JSON contract, same rules.
   if (language === 'ur' || language === 'en') {
     const langName = language === 'ur' ? 'Urdu (اردو)' : 'English';
+    // Feedback-uptake loop: the record carries which attempt this is, what the
+    // lesson just observed showed, and whether this visit is the hand-over.
+    const attemptLine = previousFocus && previousFocus.attempt ? ` This is attempt ${previousFocus.attempt} at the same target.` : '';
+    const verdictLine = previousFocus && previousFocus.status ? ` In the lesson you just observed, uptake was: ${String(previousFocus.status).replace(/_/g, ' ')}.` : '';
+    const handOverLine = previousFocus && previousFocus.hand_over
+      ? ' HAND-OVER: the AI coach has tried four angles on this target without uptake — this visit is the hand-over. Open the debrief with it, warmly, never as a failure, and agree ONE in-person move.'
+      : '';
     const prevBlock = previousFocus
-      ? `\nPREVIOUS VISIT (cross-session closure): last time the focus was "${previousFocus.title_sw || previousFocus.title || ''}" — the try was "${previousFocus.try_this_tomorrow_sw || previousFocus.try_this_tomorrow || ''}". Step 2 MUST open by returning to that commitment ("Last time you said you would try…") before any new praise — the teacher should see their journey.\n`
+      ? `\nPREVIOUS VISIT (cross-session closure): last time the focus was "${previousFocus.title_sw || previousFocus.title || ''}" — the try was "${previousFocus.try_this_tomorrow_sw || previousFocus.try_this_tomorrow || ''}".${attemptLine}${verdictLine}${handOverLine} Step 2 MUST open by returning to that commitment ("Last time you said you would try…") before any new praise — the teacher should see their journey.\n`
       : '';
     return `You are the NIETE Teaching Assistant, preparing a school officer for their debrief conversation with a teacher they just observed. Build a SHORT conversation guide from the observation data below (scores have been deliberately removed — the guide must NEVER contain or imply a number, score or percentage).
 
@@ -268,8 +275,14 @@ function _cleanField(value, fallbackText, max = 220) {
 }
 
 function buildFallbackGuide(v2Analysis, options = {}) {
-  const { language = 'sw' } = options;
+  const { language = 'sw', previousFocus = null } = options;
   const a = v2Analysis || {};
+  // Feedback-uptake loop: recall last time's ask in the growth step (en/ur).
+  const prevTry = previousFocus && (previousFocus.try_this_tomorrow || '') ? String(previousFocus.try_this_tomorrow).trim() : '';
+  const prevAttempt = previousFocus && previousFocus.attempt ? Number(previousFocus.attempt) : 0;
+  const prevStatusEn = previousFocus && previousFocus.status ? String(previousFocus.status).replace(/_/g, ' ') : '';
+  const recallEn = prevTry ? ` Last time the ask was: "${prevTry}"${prevAttempt ? ` (attempt ${prevAttempt}${prevStatusEn ? `, last lesson: ${prevStatusEn}` : ''})` : ''}.${previousFocus.hand_over ? ' This visit is the hand-over — open with it.' : ''}` : '';
+  const recallUr = prevTry ? ` پچھلی بار کہا گیا تھا: "${prevTry}"${prevAttempt ? ` (کوشش ${prevAttempt})` : ''}۔${previousFocus.hand_over ? ' یہ دورہ hand-over ہے — اسی سے آغاز کریں۔' : ''}` : '';
   const strength = (Array.isArray(a.strengths) && a.strengths[0]) || {};
   const focus = a.focus_area_sw || a.focus_area || {};
 
@@ -321,7 +334,7 @@ function buildFallbackGuide(v2Analysis, options = {}) {
         },
         growth: {
           title: 'بہتری کا شعبہ',
-          body: `صرف ایک شعبہ: ${focusTitle}۔ دعوت کے انداز میں پیش کریں، شخصیت پر بات نہ کریں۔`,
+          body: `صرف ایک شعبہ: ${focusTitle}۔${recallUr} دعوت کے انداز میں پیش کریں، شخصیت پر بات نہ کریں۔`,
           say_this: `کیسا رہے اگر کل آپ یہ آزمائیں: ${tryThis}`,
         },
         action: {
@@ -345,7 +358,7 @@ function buildFallbackGuide(v2Analysis, options = {}) {
       },
       growth: {
         title: 'Areas for growth',
-        body: `Just one area: ${focusTitle}. Offer it as an invitation — the move, never the person.`,
+        body: `Just one area: ${focusTitle}.${recallEn} Offer it as an invitation — the move, never the person.`,
         say_this: `How about trying this tomorrow: ${tryThis}`,
       },
       action: {

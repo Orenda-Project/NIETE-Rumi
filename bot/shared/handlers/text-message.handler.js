@@ -29,12 +29,19 @@ const ChildFlowToken = require('../services/quiz/child-flow-token'); // bd-2475 
 // pattern); the existing /video block below still keeps its own local
 // process.env read (pre-existing NIETE code, untouched by this port).
 const { STUDENT_VIDEOS_FLOW_ID } = require('../utils/constants');
-const { logToFile } = require('../utils/logger');
+const { logToFile, logError } = require('../utils/logger');
+const { isRegistered } = require('../utils/registration-status');
 const { matchDetail: matchLessonPlanIntent } = require('../utils/lp-intent');
+const { openLpBrowseFlow } = require('../services/lp-browse-entry.service'); // bd-hgwfo: the one door to the catalogue
+const { isLp612RouteAll, lp612ServesGrade } = require('../config/lp612-flags'); // bd-oak77.4: the cutover switch
+const Lp612EditRouter = require('../services/lp612-edit-router.service'); // bd-33oc2: 6-12 lesson follow-ups
 const { TEMP_DIR, LOADING_STICKER_PATH, LOADING_STICKER_MEDIA_ID, OPENAI_API_KEY,
   ATTENDANCE_SETUP_FLOW_ID, ATTENDANCE_MARKING_FLOW_ID, EDIT_CLASS_FLOW_ID,
   CLASS_MANAGER_FLOW_ID } = require('../utils/constants');
 const AttendanceRouter = require('../services/attendance-router.service');
+// PLAN_R5 D8 — who is holding this handset. Consulted at exactly one call
+// site, in handleGeneralConversation, and nowhere else in this file.
+const StudentMode = require('../services/student-mode.service');
 const VoiceAttendance = require('../services/voice-attendance.service');
 const { getClient } = require('../services/llm-client');
 
@@ -92,6 +99,37 @@ function normalizeGrade(raw) {
  */
 async function tryCurriculumLessonPlanServe(from, topic, user, language) {
   try {
+    // ── bd-oak77.4 — LP_612_ROUTE_ALL: the 6-12 menu is the answer, so the OLD
+    // picker is not consulted. ──────────────────────────────────────────────
+    //
+    // This is the FIRST thing the function does, ahead of the region_features
+    // lookup, deliberately: `curriculum_lp_enabled` is a DB row, and a routing
+    // promise the operator made must not depend on one. With the flag on, a
+    // grade-6-to-12 request never reaches Path 0 of lesson-plan-v2.handler,
+    // which is where `oxbridge_picker` is sent and where the caller is told the
+    // message is handled.
+    //
+    // Returning FALSE is the whole mechanism — every one of the three call
+    // sites (the pre-classifier early intercept, the lesson_plan intent, and
+    // the awaiting_topic reply) reads false as "not served here" and falls
+    // through to handleLessonPlanRequest, which opens the menu.
+    //
+    // The grade is read the same way the serve path reads it, so the two cannot
+    // disagree: the grade IN THE MESSAGE wins over users.grade. An unknown
+    // grade is not claimed — it falls through on its own merits and lands on
+    // the menu, whose first screen is the grade picker.
+    if (isLp612RouteAll()) {
+      const routeGrade =
+        normalizeGrade(parseSubjectAndGrade(topic || '').grade) ??
+        normalizeGrade(user && user.grade);
+      if (lp612ServesGrade(routeGrade)) {
+        logToFile('LP route-all: 6-12 request diverted to the menu, old picker not consulted', {
+          userId: user?.id, grade: routeGrade, topicHint: (topic || '').substring(0, 60),
+        });
+        return false;
+      }
+    }
+
     const features = await RegionFeaturesService.getRegionFeatures(getUserRegion(user));
     if (!features.curriculum_lp_enabled || !features.curriculum_key) return false;
 
@@ -305,8 +343,15 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         const VideoQuizShare = require('../services/quiz/video-quiz-share.service');
         const code = VideoQuizShare.parseShareCode(messageBody);
         if (code) {
-          await VideoQuizShare.beginFromCode(from, code);
+          // ACK FIRST. Thirty children tapping a forwarded link within the
+          // same minute used to run thirty joins (identity lookup, share-code
+          // resolution, a Flow send) inline before this webhook answered
+          // 200; Meta retried the slow ones and the retries collided. The
+          // join now runs after the handler returns, under a per-phone+code
+          // lock so a retry cannot start a second session.
           typingController.stop();
+          setImmediate(() => VideoQuizShare.beginFromCodeLocked(from, code)
+            .catch((err) => logToFile('❌ video-quiz join failed', { from, code, error: err.message }, 'error')));
           return;
         }
         if (await VideoQuizShare.consumeJoinReply(from, messageBody)) {
@@ -355,6 +400,26 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // lp-feedback.service.js handleFeedbackButton). Short-circuit here so
   // intent detection / AI chat doesn't eat the reason.
   // ============================================================
+  // Coaching survey — same shape, checked first because its window is opened by a button
+  // tap that is unambiguous; an open coaching window means she is answering "what could we
+  // do better?" and that must not reach intent detection.
+  if (user?.id) {
+    try {
+      const CoachingFeedbackService = require('../services/coaching/coaching-feedback.service');
+      const tookIt = await CoachingFeedbackService.handlePendingReason(user.id, from, messageBody);
+      if (tookIt) {
+        logToFile('Coaching Feedback: reason captured, short-circuiting text handler', {
+          userId: user.id, from,
+        });
+        return;
+      }
+    } catch (coachingFbErr) {
+      logToFile('Coaching Feedback: handlePendingReason error (non-fatal)', {
+        error: coachingFbErr.message, userId: user.id,
+      });
+    }
+  }
+
   if (user?.id) {
     try {
       const consumed = await LpFeedbackService.consumeReasonIfPending(user.id, from, messageBody);
@@ -368,6 +433,30 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       // Non-fatal — if the feedback middleware errors, fall through to normal routing
       logToFile('LP Feedback: consumeReasonIfPending error (non-fatal)', {
         error: feedbackErr.message, userId: user.id,
+      });
+    }
+  }
+
+  // The 6-12 survey's reason window (bd-86ivw). Beside the K-5 one, and for the same reason it
+  // sits this early: an open window was opened by HER OWN 👎 tap thirty seconds ago, so the next
+  // message is an answer to "which part did not work?" and must not reach intent detection.
+  //
+  // It also has to beat the 6-12 EDIT router further down this function, which would otherwise
+  // read "the activity was too long" as an instruction to rewrite the lesson — spending a model
+  // call and changing her document when she was answering a question we asked her.
+  if (user?.id && messageBody) {
+    try {
+      const Lp612FeedbackService = require('../services/lp612-feedback.service');
+      const consumed = await Lp612FeedbackService.consumeReasonIfPending(user.id, from, messageBody);
+      if (consumed) {
+        logToFile('LP 6-12 feedback: reason captured, short-circuiting text handler', {
+          userId: user.id, from,
+        });
+        return;
+      }
+    } catch (lp612FbErr) {
+      logToFile('LP 6-12 feedback: consumeReasonIfPending error (non-fatal)', {
+        error: lp612FbErr.message, userId: user.id,
       });
     }
   }
@@ -985,7 +1074,10 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // Direct path (QuizOrchestrator). A Quiz Manager Flow can be layered later
   // via QUIZ_FLOW_ID, but the direct path needs no Meta-flow registration.
   // ============================================================
-  if (trimmedMessage === '/quiz' || trimmedMessage.startsWith('/quiz ')) {
+  const TranscriptQuizList = require('../services/quiz/transcript-quiz-list.service');
+  const TranscriptQuizOffer = require('../services/quiz/transcript-quiz-offer.service');
+  if (TranscriptQuizList.isQuizCommand(trimmedMessage)
+      && !(TranscriptQuizOffer.enabled() === false && !/^\/quiz(\s|$)/i.test(trimmedMessage))) {
     logToFile('📝 /quiz command detected', { userId: user?.id, phoneNumber: from });
     if (!user) {
       typingController.stop();
@@ -993,6 +1085,19 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         from,
         'Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔'
       );
+      return;
+    }
+    // Transcript quiz (flag-gated): /quiz lists the teacher's own lessons and
+    // makes a quiz from the recording — replacing the parent-quiz path that
+    // needed parents' phone numbers and produced zero quizzes on NIETE.
+    if (TranscriptQuizOffer.enabled()) {
+      typingController.stop();
+      try {
+        const responseLanguage = await getUserLanguage(user.id) || null;
+        await TranscriptQuizList.showList({ ...user, preferred_language: responseLanguage || user.preferred_language }, from, responseLanguage);
+      } catch (error) {
+        logToFile('❌ transcript quiz: /quiz list failed', { userId: user.id, error: error.message }, 'error');
+      }
       return;
     }
     try {
@@ -1013,27 +1118,26 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
-  // PAKISTAN LP INTERCEPT (FEAT-059 / bd-hvhhu): ANY mention of a lesson plan
-  // opens the LP menu — English, Urdu script, or Roman Urdu.
+  // LP BARE COMMAND (bd-hgwfo, was FEAT-059 / bd-hvhhu): a message that is
+  // JUST "lp" / "lesson plan" / "/lesson plans" / "لیسن پلان" opens the
+  // catalogue Flow — the isVideoCommand shape (bd-2486).
   //
-  // This used to be exact-match only
-  //   /^(lp|lesson\s*plan|لیسن\s*پلان|lesson-plan|\/lp)$/i
-  // so "can you send me the lesson plan for tomorrow" fell through to the LLM
-  // intent path and often produced a GENERATED plan instead of the ready-made
-  // corpus a teacher was asking for. isLessonPlanRequest() is tiered (strong /
-  // weak-needs-a-companion / blocked) so a generous trigger list does not cost
-  // false positives — see shared/utils/lp-intent.js and its tests.
-  //
-  // Presence-gated on PAKISTAN_LP_FLOW_ID — when empty, the message falls
-  // through to the existing curriculum-LP topic intercept.
+  // It used to fire on ANY mention, because a message that reached the LLM
+  // "often produced a GENERATED plan instead of the ready-made corpus". bd-2540
+  // retired generation, which removed the reason and left the cost: 748
+  // intercepts in 14 days of production, 47% of them messages the picker could
+  // not answer — "shorten this lp" 30s after a delivery, dictated observations,
+  // a teacher saying the plans she got were useless. Anything with content now
+  // reaches the LLM classifier, which knows what was just delivered (bd-wpupy):
+  // a NEW request still lands on this same Flow via the lesson_plan intent; a
+  // follow-up about the lesson she has gets the lesson rewritten.
   // ============================================================
   {
-    const PAKISTAN_LP_FLOW_ID = process.env.PAKISTAN_LP_FLOW_ID || '';
     const lpMatch = matchLessonPlanIntent(trimmedMessage);
-    if (PAKISTAN_LP_FLOW_ID && lpMatch.matched) {
-      logToFile('📘 LP intent detected → opening Pakistan LP flow', {
+    if (lpMatch.matched && process.env.PAKISTAN_LP_FLOW_ID) {
+      logToFile('📘 LP bare command → opening catalogue Flow', {
         userId: user?.id, phoneNumber: from, message: trimmedMessage,
-        tier: lpMatch.tier, token: lpMatch.token,
+        token: lpMatch.token, tier: lpMatch.tier,
       });
       if (!user) {
         typingController.stop();
@@ -1045,19 +1149,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       }
       typingController.stop();
       const responseLanguage = await getUserLanguage(user.id) || 'en';
-      const flowToken = `${user.id}:pakistan-lp:${Date.now()}`;
-      await WhatsAppService.sendFlow(from, {
-        flowId: PAKISTAN_LP_FLOW_ID,
-        header: '📘 Lesson Plans',
-        body: ({
-          ur: 'اپنی جماعت، مضمون اور باب چنیں، پھر اُس دن کا سبق — منصوبہ آپ کی چیٹ میں آ جائے گا۔',
-        })[responseLanguage] || "Pick your class, subject and chapter, then the day's lesson — the plan lands in your chat.",
-        buttonText: ({
-          ur: 'شروع کریں',
-        })[responseLanguage] || 'Browse',
-        flowToken,
-      });
-      logToFile('📘 Sent Pakistan LP flow', { userId: user.id });
+      await openLpBrowseFlow({ from, userId: user.id, language: responseLanguage, reason: 'bare_command' });
       return;
     }
   }
@@ -1714,9 +1806,11 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     logToFile('📝 Register command detected');
     typingController.stop();
 
-    // Already registered on this branch = has a first_name (main keys registration on first_name).
-    // bd-2kxxa.1: computed, not an early return — the Flow below is how a registered coach fixes her name.
-    const isAlreadyRegistered = !!(user?.first_name);
+    // Registered = a completed run OR a name already on the row. Keying on
+    // registration_completed alone was right on staging and wrong on prod, where 7,245 of
+    // 7,685 named users have the flag false — see shared/utils/registration-status.js for
+    // the counts and why registration_state is not a fallback.
+    const isAlreadyRegistered = isRegistered(user);
 
     // bd-2447: conversational/deferred registration is DEPRECATED (matches the
     // main Rumi bot). /register ALWAYS opens the registration Flow when one is
@@ -2211,10 +2305,12 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   if (registrationRequested) {
     typingController.stop();
 
-    // Check if user is already registered
-    if (user?.first_name) {
+    // Registered = a completed run OR a name already on the row. The branch
+    // below this one re-asks for her name; on prod that would have hit 4,145 users who
+    // messaged in the last 30 days. See shared/utils/registration-status.js.
+    if (isRegistered(user)) {
       // User already registered - confirm and guide to menu
-      await WhatsAppService.sendMessage(from, `✅ You're already registered, ${user.first_name}! Type /menu to see what I can help you with.`);
+      await WhatsAppService.sendMessage(from, `✅ You're already registered, ${user.first_name || 'there'}! Type /menu to see what I can help you with.`);
       return;
     }
 
@@ -2520,8 +2616,48 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     }
   }
 
+  // ============================================================
+  // 6-12 LESSON FOLLOW-UP (bd-33oc2)
+  //
+  // She received a 6-12 lesson and is replying to it. Until this existed, that reply fell
+  // through every branch above and was answered by the general path — by a model that had never
+  // seen her lesson, because this lane wrote nothing the LP context could read. It read like an
+  // answer, which is why it was never reported.
+  //
+  // The router only claims a message when she has a 6-12 lesson on the shelf AND the reply is an
+  // edit request or an out-of-scope ask. A QUESTION about the lesson deliberately falls through
+  // to the conversation path below — which is grounded now that the delivery is recorded.
+  //
+  // Placed immediately before intent detection, which is exactly where the message used to land.
+  // Wrapped like the curriculum intercept above it: a fault here must cost her nothing.
+  // ============================================================
+  if (user) {
+    try {
+      typingController.stop();
+      if (await Lp612EditRouter.maybeHandleLp612Reply({
+        from, messageBody, user, language: responseLanguage,
+      })) {
+        return;
+      }
+    } catch (lp612Err) {
+      logToFile('LP 6-12 follow-up router threw (non-fatal)', { error: lp612Err.message });
+    }
+  }
+
   // Detect intent (lesson plan, presentation, or general)
-  const intent = await OpenAIService.detectIntent(messageBody);
+  // bd-wpupy: the classifier used to judge the message in a vacuum, so a deictic
+  // "give me this in text form" 35s after a delivery was genuinely ambiguous to
+  // it and never got lp_ref. Tell it what just landed and it resolves correctly.
+  let intentHint = '';
+  let lpCtx;
+  try {
+    if (user?.id && process.env.LP_CONTEXT_V2_ENABLED === 'true') {
+      const { buildLpContext, deliveryHint } = require('../services/lp-context.service');
+      lpCtx = await buildLpContext(user.id);
+      intentHint = deliveryHint((lpCtx && lpCtx.entries) || []);
+    }
+  } catch (_) { /* the hint is an optimisation; classification must never break on it */ }
+  const intent = await OpenAIService.detectIntent(messageBody, intentHint);
   logToFile('Intent detected', { intent: intent.type });
 
   // Update session type based on intent
@@ -2550,7 +2686,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   } else {
     // intent rides along so the LP-context tier gate can reuse the classifier's
     // lp_reference output instead of paying for a second LLM call (bd-njn7u).
-    await handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController, intent);
+    await handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController, intent, lpCtx);
   }
   } finally {
     // CRITICAL: Always stop typing indicator, even if function exits early or throws
@@ -2569,111 +2705,50 @@ async function handleTextMessage(message, from, messageBody, user = null) {
  * @returns {Promise<void>}
  */
 async function handleLessonPlanRequest(from, messageBody, user, sessionId, responseLanguage, typingController) {
-  try {
-    // Multi-language message maps
-    const lessonPlanMessages = {
-      en: {
-        preparing: "I'm preparing a detailed five-step lesson plan for you. Please wait a moment...",
-        successWithPdf: (topic) => `✅ Your lesson plan is ready!\n\nTopic: ${topic}\n\nThis five-step lesson plan is ready for use in your classroom.`,
-        successWithoutPdf: (topic, url) => `✅ Your lesson plan is ready!\n\n📊 Topic: ${topic}\n\n🔗 Link: ${url}\n\nNote: PDF is not available. Please view from the Gamma link.`,
-        error: "Sorry, there was an error creating the lesson plan. Please try again."
-      },
-      ur: {
-        preparing: 'میں آپ کے لیے ایک تفصیلی پانچ مرحلہ سبق کا منصوبہ تیار کر رہی ہوں۔ براہ کرم تھوڑا انتظار کریں...',
-        successWithPdf: (topic) => `✅ آپ کا سبق کا منصوبہ تیار ہے!\n\nموضوع: ${topic}\n\nیہ پانچ مرحلہ سبق کا منصوبہ آپ کی کلاس میں استعمال کے لیے تیار ہے۔`,
-        successWithoutPdf: (topic, url) => `✅ آپ کا سبق کا منصوبہ تیار ہے!\n\n📊 موضوع: ${topic}\n\n🔗 لنک: ${url}\n\nنوٹ: PDF دستیاب نہیں ہے۔ براہ کرم Gamma لنک سے دیکھیں۔`,
-        error: 'معذرت، سبق کا منصوبہ بناتے وقت خرابی آ گئی۔ براہ کرم دوبارہ کوشش کریں۔'
-      },
-      ar: {
-        preparing: "أقوم بإعداد خطة درس مفصلة من خمس خطوات لك. يرجى الانتظار لحظة...",
-        successWithPdf: (topic) => `✅ خطة الدرس جاهزة!\n\nالموضوع: ${topic}\n\nخطة الدرس هذه من خمس خطوات جاهزة للاستخدام في فصلك.`,
-        successWithoutPdf: (topic, url) => `✅ خطة الدرس جاهزة!\n\n📊 الموضوع: ${topic}\n\n🔗 الرابط: ${url}\n\nملاحظة: ملف PDF غير متوفر. يرجى العرض من رابط Gamma.`,
-        error: "عذرًا، حدث خطأ في إنشاء خطة الدرس. يرجى المحاولة مرة أخرى."
-      },
-      es: {
-        preparing: "Estoy preparando un plan de lección detallado de cinco pasos para ti. Por favor espera un momento...",
-        successWithPdf: (topic) => `✅ ¡Tu plan de lección está listo!\n\nTema: ${topic}\n\nEste plan de lección de cinco pasos está listo para usar en tu clase.`,
-        successWithoutPdf: (topic, url) => `✅ ¡Tu plan de lección está listo!\n\n📊 Tema: ${topic}\n\n🔗 Enlace: ${url}\n\nNota: PDF no disponible. Por favor ver desde el enlace de Gamma.`,
-        error: "Lo siento, hubo un error al crear el plan de lección. Por favor intenta de nuevo."
-      }
-    };
-
-    // Get messages for user's language, fallback to English
-    const messages = lessonPlanMessages[responseLanguage] || lessonPlanMessages.en;
-
-    // Send loading sticker (stop typing indicator first)
+  // bd-2540 retired freeform generation here and replaced it with a "not in
+  // catalog" reply. bd-hgwfo / bd-jnfbd: that reply would have landed on the
+  // ~200 teachers a day who reach this handler on production asking for a plan
+  // (2,793 requests in 14 days). Once generation is gone the catalogue IS the
+  // answer — open the browse Flow. The not-in-catalog copy survives only for a
+  // deployment with no Flow provisioned.
+  // Reached by: the lesson_plan intent (text), the /menu topic fallback, and
+  // the Oxbridge picker's "Generate NIETE LP" tap.
+  typingController.stop();
+  // bd-oak77.4 — she typed a TOPIC and is about to be shown a grade picker. One short line first,
+  // saying where lessons come from now. Only on this door: the bare "lp" command and the /menu tap
+  // open the Flow with no preamble because nothing needs explaining there.
+  // Gated on the same precondition openLpBrowseFlow checks, so a deployment with no Flow gets the
+  // not-in-catalog reply on its own rather than an explanation followed by a contradiction.
+  if (user && isLp612RouteAll() && process.env.PAKISTAN_LP_FLOW_ID) {
     try {
-      typingController.stop();
-      if (LOADING_STICKER_MEDIA_ID) {
-        // Use cached media ID for instant sending
-        await WhatsAppService.sendSticker(from, LOADING_STICKER_MEDIA_ID);
-      } else {
-        // Fallback: Upload sticker file
-        await WhatsAppService.sendSticker(from, LOADING_STICKER_PATH);
-      }
-    } catch (error) {
-      logToFile('⚠️ Failed to send loading sticker', { error: error.message });
-    }
-
-    // Send acknowledgment in user's language
-    await WhatsAppService.sendMessage(from, messages.preparing);
-
-    // Extract topic
-    const topic = await OpenAIService.extractTopic(messageBody);
-    logToFile('Topic extracted', { topic });
-
-    // Detect explicitly requested language (defaults to 'en')
-    const contentLanguage = detectRequestedLanguage(messageBody);
-    logToFile('Content language detected', { contentLanguage, messageBody: messageBody.substring(0, 100) });
-
-    // Queue lesson plan for async processing (survives server restarts)
-    if (user) {
-      const requestId = await LessonPlanQueueService.createAndQueue({
-        userId: user.id,
-        phoneNumber: from,
-        topic,
-        fullMessage: messageBody,
-        language: contentLanguage,
-        contentType: 'lesson_plan'
+      await WhatsAppService.sendMessage(from, resolveUx('lp612RouteRedirect', { language: responseLanguage }));
+    } catch (redirectErr) {
+      logError('LP route-all redirect line failed to send', {
+        error: redirectErr.message, userId: user.id,
       });
-
-      logToFile('✅ Lesson plan queued for async processing', {
-        requestId,
-        userId: user.id,
-        topic
-      });
-
-      // Store acknowledgment in conversations
-      try {
-        await storeConversation(user.id, 'assistant', messages.preparing, 'text', sessionId);
-      } catch (error) {
-        logToFile('⚠️ Failed to store acknowledgment', { error: error.message });
-      }
-    } else {
-      // Fallback for users without account (shouldn't happen normally)
-      logToFile('⚠️ Cannot queue lesson plan - no user account', { from });
-      await WhatsAppService.sendMessage(from, messages.error);
     }
-  } catch (error) {
-    logToFile('❌ Error processing lesson plan request', {
-      error: error.message,
-      stack: error.stack
-    });
-    typingController.stop(); // Stop typing indicator before sending error message
-
-    // Get error message in user's language
-    const errorMessages = {
-      en: "Sorry, there was an error creating the lesson plan. Please try again.",
-      ur: 'معذرت، سبق کا منصوبہ بناتے وقت خرابی آ گئی۔ براہ کرم دوبارہ کوشش کریں۔',
-      ar: "عذرًا، حدث خطأ في إنشاء خطة الدرس. يرجى المحاولة مرة أخرى.",
-      es: "Lo siento, hubo un error al crear el plan de lección. Por favor intenta de nuevo."
-    };
-
-    await WhatsAppService.sendMessage(
-      from,
-      errorMessages[responseLanguage] || errorMessages.en
-    );
   }
+  if (user && await openLpBrowseFlow({ from, userId: user.id, language: responseLanguage, reason: 'lesson_plan_intent' })) {
+    return;
+  }
+  const notInCatalogMessages = {
+    en: "We don't have that lesson plan in the catalog yet. Send \"menu\" to see what's available.",
+    ur: '\u06CC\u06C1 \u0633\u0628\u0642 \u0627\u0628\u06BE\u06CC \u06C1\u0645\u0627\u0631\u06D2 \u0646\u0635\u0627\u0628\u06CC \u0645\u062C\u0645\u0648\u0639\u06D2 \u0645\u06CC\u06BA \u062F\u0633\u062A\u06CC\u0627\u0628 \u0646\u06C1\u06CC\u06BA\u06D4 \u062F\u0633\u062A\u06CC\u0627\u0628 \u0633\u0628\u0642 \u062F\u06CC\u06A9\u06BE\u0646\u06D2 \u06A9\u06D2 \u0644\u06CC\u06D2 "menu" \u0644\u06A9\u06BE\u06CC\u06BA\u06D4',
+    ar: "\u0644\u064A\u0633 \u0644\u062F\u064A\u0646\u0627 \u0647\u0630\u0647 \u0627\u0644\u062E\u0637\u0629 \u0641\u064A \u0627\u0644\u0641\u0647\u0631\u0633 \u0628\u0639\u062F. \u0623\u0631\u0633\u0644 \"menu\" \u0644\u0631\u0624\u064A\u0629 \u0645\u0627 \u0647\u0648 \u0645\u062A\u0627\u062D.",
+    es: 'No tenemos ese plan de lecci\u00F3n en el cat\u00E1logo todav\u00EDa. Env\u00EDa "menu" para ver lo que est\u00E1 disponible.',
+  };
+  const msg = notInCatalogMessages[responseLanguage] || notInCatalogMessages.en;
+  await WhatsAppService.sendMessage(from, msg);
+  if (user) {
+    try {
+      await storeConversation(user.id, 'assistant', msg, 'text', sessionId);
+    } catch (error) {
+      logToFile('\u26A0\uFE0F Failed to store not-in-catalog reply', { error: error.message });
+    }
+  }
+  logToFile('\ud83d\udcd6 Freeform LP request \u2192 replied not-in-catalog (bd-2540)', {
+    from, userId: user?.id, topicHint: (messageBody || '').substring(0, 60),
+  });
 }
 
 /**
@@ -2687,111 +2762,26 @@ async function handleLessonPlanRequest(from, messageBody, user, sessionId, respo
  * @returns {Promise<void>}
  */
 async function handlePresentationRequest(from, messageBody, user, sessionId, responseLanguage, typingController) {
-  try {
-    // Multi-language message maps
-    const presentationMessages = {
-      en: {
-        preparing: "I'm preparing an educational presentation for you. Please wait a moment...",
-        successWithPdf: (topic) => `✅ Your presentation is ready!\n\n📊 Topic: ${topic}\n\nThis presentation is ready for use in your classroom.`,
-        successWithoutPdf: (topic, url) => `✅ Your presentation is ready!\n\n📊 Topic: ${topic}\n\n🔗 Link: ${url}\n\nNote: PDF is not available. Please view from the Gamma link.`,
-        error: "Sorry, there was an error creating the presentation. Please try again."
-      },
-      ur: {
-        preparing: 'میں آپ کے لیے ایک تعلیمی پریزنٹیشن تیار کر رہی ہوں۔ براہ کرم تھوڑا انتظار کریں...',
-        successWithPdf: (topic) => `✅ آپ کی پریزنٹیشن تیار ہے!\n\n📊 موضوع: ${topic}\n\nیہ پریزنٹیشن آپ کی کلاس میں استعمال کے لیے تیار ہے۔`,
-        successWithoutPdf: (topic, url) => `✅ آپ کی پریزنٹیشن تیار ہے!\n\n📊 موضوع: ${topic}\n\n🔗 لنک: ${url}\n\nنوٹ: PDF دستیاب نہیں ہے۔ براہ کرم Gamma لنک سے دیکھیں۔`,
-        error: 'معذرت، پریزنٹیشن بناتے وقت خرابی آ گئی۔ براہ کرم دوبارہ کوشش کریں۔'
-      },
-      ar: {
-        preparing: "أقوم بإعداد عرض تقديمي تعليمي لك. يرجى الانتظار لحظة...",
-        successWithPdf: (topic) => `✅ العرض التقديمي جاهز!\n\n📊 الموضوع: ${topic}\n\nهذا العرض التقديمي جاهز للاستخدام في فصلك.`,
-        successWithoutPdf: (topic, url) => `✅ العرض التقديمي جاهز!\n\n📊 الموضوع: ${topic}\n\n🔗 الرابط: ${url}\n\nملاحظة: ملف PDF غير متوفر. يرجى العرض من رابط Gamma.`,
-        error: "عذرًا، حدث خطأ في إنشاء العرض التقديمي. يرجى المحاولة مرة أخرى."
-      },
-      es: {
-        preparing: "Estoy preparando una presentación educativa para ti. Por favor espera un momento...",
-        successWithPdf: (topic) => `✅ ¡Tu presentación está lista!\n\n📊 Tema: ${topic}\n\nEsta presentación está lista para usar en tu clase.`,
-        successWithoutPdf: (topic, url) => `✅ ¡Tu presentación está lista!\n\n📊 Tema: ${topic}\n\n🔗 Enlace: ${url}\n\nNota: PDF no disponible. Por favor ver desde el enlace de Gamma.`,
-        error: "Lo siento, hubo un error al crear la presentación. Por favor intenta de nuevo."
-      }
-    };
-
-    // Get messages for user's language, fallback to English
-    const messages = presentationMessages[responseLanguage] || presentationMessages.en;
-
-    // Send loading sticker (stop typing indicator first)
+  // bd-2540: freeform presentation generation via Gamma is retired.
+  typingController.stop();
+  const notSupportedMessages = {
+    en: 'Presentation generation is currently unavailable. For lesson plans, send "menu" to see what\'s in the catalog.',
+    ur: '\u067E\u0631\u06CC\u0632\u0646\u0679\u06CC\u0634\u0646 \u0641\u06CC \u0627\u0644\u062D\u0627\u0644 \u062F\u0633\u062A\u06CC\u0627\u0628 \u0646\u06C1\u06CC\u06BA \u06C1\u06CC\u06BA\u06D4 \u0633\u0628\u0642 \u062F\u06CC\u06A9\u06BE\u0646\u06D2 \u06A9\u06D2 \u0644\u06CC\u06D2 "menu" \u0644\u06A9\u06BE\u06CC\u06BA\u06D4',
+    ar: '\u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0639\u0631\u0648\u0636 \u0627\u0644\u062A\u0642\u062F\u064A\u0645\u064A\u0629 \u063A\u064A\u0631 \u0645\u062A\u0627\u062D \u062D\u0627\u0644\u064A\u064B\u0627. \u0623\u0631\u0633\u0644 \"menu\" \u0644\u0644\u062E\u0637\u0637.',
+    es: 'La generaci\u00F3n de presentaciones no est\u00E1 disponible por ahora. Para planes de lecci\u00F3n, env\u00EDa "menu".',
+  };
+  const msg = notSupportedMessages[responseLanguage] || notSupportedMessages.en;
+  await WhatsAppService.sendMessage(from, msg);
+  if (user) {
     try {
-      typingController.stop();
-      if (LOADING_STICKER_MEDIA_ID) {
-        // Use cached media ID for instant sending
-        await WhatsAppService.sendSticker(from, LOADING_STICKER_MEDIA_ID);
-      } else {
-        // Fallback: Upload sticker file
-        await WhatsAppService.sendSticker(from, LOADING_STICKER_PATH);
-      }
+      await storeConversation(user.id, 'assistant', msg, 'text', sessionId);
     } catch (error) {
-      logToFile('⚠️ Failed to send loading sticker', { error: error.message });
+      logToFile('\u26A0\uFE0F Failed to store not-supported reply', { error: error.message });
     }
-
-    // Send acknowledgment in user's language
-    await WhatsAppService.sendMessage(from, messages.preparing);
-
-    // Extract topic
-    const topic = await OpenAIService.extractTopic(messageBody);
-    logToFile('Topic extracted', { topic });
-
-    // Detect explicitly requested language (defaults to 'en')
-    const contentLanguage = detectRequestedLanguage(messageBody);
-    logToFile('Content language detected for presentation', { contentLanguage });
-
-    // Queue presentation for async processing (survives server restarts)
-    if (user) {
-      const requestId = await LessonPlanQueueService.createAndQueue({
-        userId: user.id,
-        phoneNumber: from,
-        topic,
-        fullMessage: messageBody,
-        language: contentLanguage,
-        contentType: 'presentation'
-      });
-
-      logToFile('✅ Presentation queued for async processing', {
-        requestId,
-        userId: user.id,
-        topic
-      });
-
-      // Store acknowledgment in conversations
-      try {
-        await storeConversation(user.id, 'assistant', messages.preparing, 'text', sessionId);
-      } catch (error) {
-        logToFile('⚠️ Failed to store acknowledgment', { error: error.message });
-      }
-    } else {
-      // Fallback for users without account (shouldn't happen normally)
-      logToFile('⚠️ Cannot queue presentation - no user account', { from });
-      await WhatsAppService.sendMessage(from, messages.error);
-    }
-  } catch (error) {
-    logToFile('❌ Error processing presentation request', {
-      error: error.message,
-      stack: error.stack
-    });
-    typingController.stop(); // Stop typing indicator before sending error message
-
-    // Get error message in user's language
-    const errorMessages = {
-      en: "Sorry, there was an error creating the presentation. Please try again.",
-      ur: 'معذرت، پریزنٹیشن بناتے وقت خرابی آ گئی۔ براہ کرم دوبارہ کوشش کریں۔',
-      ar: "عذرًا، حدث خطأ في إنشاء العرض التقديمي. يرجى المحاولة مرة أخرى.",
-      es: "Lo siento, hubo un error al crear la presentación. Por favor intenta de nuevo."
-    };
-
-    await WhatsAppService.sendMessage(
-      from,
-      errorMessages[responseLanguage] || errorMessages.en
-    );
   }
+  logToFile('\ud83d\udcca Freeform presentation request \u2192 replied not-supported (bd-2540)', {
+    from, userId: user?.id,
+  });
 }
 
 /**
@@ -2804,13 +2794,42 @@ async function handlePresentationRequest(from, messageBody, user, sessionId, res
  * @param {Object} typingController - Typing indicator controller
  * @returns {Promise<void>}
  */
-async function handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController, intent = null) {
+async function handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController, intent = null, prebuiltLpCtx = undefined) {
   // Get firstName from user if registered
   const firstName = user?.first_name || null;
 
+  // ============================================================
+  // STUDENT MODE — THE ONE GATE (PLAN_R5 D8)
+  //
+  // A child who joined a quiz from a forwarded link and then steps outside it
+  // is answered here, by the persona this function builds. Until this line
+  // existed there was only one persona: the NIETE Teaching Assistant, which
+  // offers a ten-year-old lesson plans, classroom-observation feedback and a
+  // reading assessment, and addresses them as a colleague.
+  //
+  // This is the ONLY place student-mode is consulted, deliberately. Commands,
+  // registration keywords, share-code joins, quiz answers, Flow replies,
+  // /video, the coaching and lesson-plan paths all short-circuit above this
+  // function and are byte-for-byte unchanged — proven by execution in
+  // tests/quiz/student-mode-gate.test.js, not by reading.
+  //
+  // personaFor() never throws and answers `persona: null` for every outcome
+  // except a proven child, so the else-branch below is today's behaviour and
+  // stays that way if the module fails, the flag is off, or the DB is down.
+  // ============================================================
+  const studentVerdict = await StudentMode.personaFor({ from, user, messageBody });
+  const isStudent = studentVerdict.persona === 'student';
+  // Her quiz was written in one language and she answered fifteen questions in
+  // it; that is the language she reads, whatever the users row created by her
+  // first inbound message happens to say.
+  const replyLanguage = isStudent ? (studentVerdict.language || responseLanguage) : responseLanguage;
+
   // Phase 2: Conditional Feature Context Injection
   let featureContext = null;
-  if (user) {
+  // A child has no lesson plans, no coaching sessions and no past work of the
+  // kind this context describes — and the block below would hand a teacher's
+  // material to a pupil. Skipped, not filtered.
+  if (user && !isStudent) {
     const contextCheck = ContextService.shouldInjectContext(messageBody);
     if (contextCheck.shouldInject) {
       logToFile('Phase 2: Context injection triggered', { featureType: contextCheck.featureType, mode: contextCheck.mode });
@@ -2828,6 +2847,8 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
       message: messageBody,
       intent,
       existingContext: featureContext,
+      // Built once above for the classifier hint (bd-wpupy) — reuse it.
+      prebuiltCtx: prebuiltLpCtx,
     });
   }
 
@@ -2836,17 +2857,25 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
     messageBody,
     user.id, // Use UUID, not phone number - for DB conversation history
     'text', // outputFormat: always text for text messages
-    responseLanguage, // outputLanguage: use user's preferred language
-    firstName, // firstName: for personalization
-    featureContext // Phase 2: Feature context for past work references
+    replyLanguage, // outputLanguage: her language, or the child's quiz language
+    // A child's name is not sent to the model. The tutor is warm without it,
+    // and a name in a prompt is personal data crossing a boundary it need not.
+    isStudent ? null : firstName,
+    featureContext, // Phase 2: Feature context for past work references
+    isStudent
+      ? { persona: 'student', studentClass: studentVerdict.studentClass || null }
+      : {}
   );
-  logToFile('AI response generated (format-aware)', { response: aiResponse, language: responseLanguage, firstName });
+  logToFile('AI response generated (format-aware)', {
+    response: aiResponse, language: replyLanguage, firstName: isStudent ? null : firstName,
+    persona: isStudent ? 'student' : 'teacher',
+  });
 
   // Did the model answer in the language we asked for? Checked BEFORE the send, so
   // drift is a counted event rather than a teacher's screenshot. Advisory only —
   // we still deliver, because a checker that suppresses a reply is worse than the
   // drift it was added to catch.
-  const langCheck = verifyOutputLanguage(aiResponse, responseLanguage);
+  const langCheck = verifyOutputLanguage(aiResponse, replyLanguage);
   if (!langCheck.ok) {
     logToFile('🈯 language_drift: chat reply', {
       surface: 'chat_text',
@@ -2876,15 +2905,17 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
         null, // inputFormat (not applicable for assistant messages)
         null, // inputLanguage (not applicable for assistant messages)
         'text', // outputFormat
-        responseLanguage // outputLanguage
+        replyLanguage // outputLanguage
       );
       logToFile('✅ Bot response stored in database with session and language');
     } catch (error) {
       logToFile('⚠️ Failed to store bot response', { error: error.message });
     }
 
-    // Show stuck session reminder (non-blocking) if applicable
-    await showStuckSessionReminder(from, user.id, responseLanguage);
+    // Show stuck session reminder (non-blocking) if applicable. It is about an
+    // unfinished COACHING session — a teacher's thing — so a child is not
+    // offered it.
+    if (!isStudent) await showStuckSessionReminder(from, user.id, replyLanguage);
   }
 }
 

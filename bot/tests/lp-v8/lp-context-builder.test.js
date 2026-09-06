@@ -157,8 +157,12 @@ describe('buildLpContext — happy path', () => {
     expect(ctx.fullBlock).toContain('سبق کا خلاصہ');
     expect(ctx.fullBlock).toContain('Ask who remembers last holiday');
     expect(ctx.fullBlock).toContain('Read the story aloud together');
-    // Non-must-happen and non-adjudicable steps stay out of the prompt budget.
-    expect(ctx.fullBlock).not.toContain('Collect the notebooks');
+    // Every must-happen step is part of HER lesson, adjudicable or not:
+    // `adjudicable` is a coaching-scoring flag (can this be judged from a
+    // classroom recording?), and homework never can be — which is why the
+    // operator's "all sections" came back without it (bd-91r48). Optional
+    // extensions still stay out.
+    expect(ctx.fullBlock).toContain('Collect the notebooks');
     expect(ctx.fullBlock).not.toContain('Optional drawing extension');
   });
 
@@ -295,12 +299,79 @@ describe('degradation', () => {
     await expect(buildLpContext('user-1')).resolves.toBeNull();
   });
 
-  test('the whole block stays inside the 4 KB budget even with a runaway script', async () => {
+  test('the lesson body stays inside the 4 KB budget even with a runaway script', async () => {
     const entry = shelfEntry();
     mockShelf = [entry];
     mockScripts[entry.r2_key] = 'بہت لمبا سبق ہے۔ '.repeat(2000);   // ~36 KB of script
     mockMoveLists[`${entry.lesson_id}:${entry.content_hash}`] = MOVES;
     const ctx = await buildLpContext('user-1');
-    expect(ctx.fullBlock.length).toBeLessThanOrEqual(4096);
+    // bd-91r48: the budget bounds the BODY; FRAMING is fixed overhead on top.
+    const { FRAMING, BLOCK_BUDGET_CHARS } = require('../../shared/services/lp-context.service').__consts;
+    expect(ctx.fullBlock.length).toBeLessThanOrEqual(FRAMING.length + 2 + BLOCK_BUDGET_CHARS);
+    expect(ctx.fullBlock.slice(ctx.fullBlock.indexOf('### ')).length).toBeLessThanOrEqual(BLOCK_BUDGET_CHARS);
+  });
+});
+
+// ─── bd-91r48 follow-on: the budget must not eat the lesson ────────────────
+//
+// Staging, 2026-08-30: the operator asked for "the whole lesson plan in brief,
+// all sections" and got warm-up, hook, announce — then an invented "Wrap-up
+// and Q&A". The block was exactly 4,096 chars: FRAMING has grown to ~2,600
+// (bd-wpupy added its rules there), leaving ~1,500 for the lesson, and the
+// hard clip took moves 4–11 — explain, guided, independent, exit, homework.
+// The model summarised what it was given. The 4 KB budget was meant for the
+// LESSON (RT-6); FRAMING is fixed overhead the author controls, and must not
+// count against it. And when something does have to go, the voicenote teaser
+// goes before the steps.
+describe('bd-91r48 — every must-happen move survives the budget', () => {
+  const ELEVEN = ['warm_up', 'hook', 'announce', 'explain', 'guided', 'guided', 'independent',
+    'independent', 'independent', 'exit', 'homework'].map((phase, i) => ({
+    move_id: `m${i + 1}`, phase, bucket: i === 7 || i === 8 ? 'optional_extension' : 'must_happen',
+    adjudicable: true,
+    text: `${phase} step ${i + 1}: ${'a realistic hundred-and-fifty character instruction for the teacher, with numbers like 4,275 × 8 and a page ref p.44 '.slice(0, 150)}`,
+  }));
+
+  test('a real-size lesson (625-char script + 11 moves) keeps ALL nine must-happen phases', async () => {
+    const entry = shelfEntry();
+    mockShelf = [entry];
+    mockScripts[entry.r2_key] = '[warmly] Assalamu alaikum Ustaad-e-mohtaram۔ '.repeat(14).slice(0, 625);
+    mockMoveLists[`${entry.lesson_id}:${entry.content_hash}`] = ELEVEN;
+    const ctx = await buildLpContext('user-1');
+    for (const m of ELEVEN.filter((x) => x.bucket === 'must_happen')) {
+      expect(ctx.fullBlock).toContain(m.text.slice(0, 40));
+    }
+    expect(ctx.fullBlock).toContain('- exit ·');
+    expect(ctx.fullBlock).toContain('- homework ·');
+  });
+
+  test('homework is must-happen but not adjudicable — it is still one of her sections', async () => {
+    const entry = shelfEntry();
+    mockShelf = [entry];
+    mockMoveLists[`${entry.lesson_id}:${entry.content_hash}`] = [
+      ...ELEVEN.slice(0, 10),
+      { ...ELEVEN[10], adjudicable: false, text: 'homework: Assign p.44 — 24 shelves × 132 toys' },
+    ];
+    const ctx = await buildLpContext('user-1');
+    expect(ctx.fullBlock).toContain('Assign p.44');
+  });
+
+  test('the budget is for the lesson body — FRAMING does not count against it', async () => {
+    const entry = shelfEntry();
+    mockShelf = [entry];
+    mockScripts[entry.r2_key] = 'بہت لمبا سبق ہے۔ '.repeat(2000);
+    mockMoveLists[`${entry.lesson_id}:${entry.content_hash}`] = ELEVEN;
+    const ctx = await buildLpContext('user-1');
+    const body = ctx.fullBlock.slice(ctx.fullBlock.indexOf('### '));
+    expect(body.length).toBeLessThanOrEqual(4096);
+  });
+
+  test('when the block must be cut, the steps outrank the voicenote teaser', async () => {
+    const entry = shelfEntry();
+    mockShelf = [entry];
+    mockScripts[entry.r2_key] = 'بہت لمبا سبق ہے۔ '.repeat(2000);     // runaway script
+    mockMoveLists[`${entry.lesson_id}:${entry.content_hash}`] = ELEVEN;
+    const ctx = await buildLpContext('user-1');
+    expect(ctx.fullBlock).toContain('- homework ·');                 // the last step still made it
+    expect(ctx.fullBlock.indexOf('The lesson\'s steps:')).toBeLessThan(ctx.fullBlock.indexOf('The voice note'));
   });
 });

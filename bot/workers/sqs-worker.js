@@ -41,6 +41,8 @@ const LessonPlanGenerationWorker = require('./lesson-plan-generation.worker');
 const VideoGenerationWorker = require('./video-generation.worker');
 const ExamGradingWorker = require('./exam-grading.worker');
 const { runSonioxCleanup } = require('../shared/services/soniox-cleanup.service');
+const { startVisibilityHeartbeat } = require('../shared/utils/sqs-visibility-heartbeat');
+const { heartbeatCeilingMs } = require('../shared/config/lp612-flags');
 const os = require('os');
 
 // Configuration
@@ -141,6 +143,24 @@ class SQSCoachingWorker {
     if (!raw) return new Set(['main', 'video', 'quiz']);
     const parsed = raw.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
     return parsed.length ? new Set(parsed) : new Set(['main', 'video', 'quiz']);
+  }
+
+  /**
+   * bd-awqt3: an unset WORKER_QUEUES is a legitimate default (poll every queue), but it is also
+   * EXACTLY the condition that let `sqs-worker` and `sqs-worker-video` — both running this same
+   * file — both poll `main` (lp612_author has no dedicated queue; it rides `main`, see
+   * queueJob() in lp612-serving.service.js) with two different LP612_AUTHOR_TIMEOUT_MS /
+   * LP612_AUTHOR_ROUNDS values, silently, for as long as nobody happened to look. This does not
+   * decide correctness — several services legitimately CAN all poll `main` — it only makes the
+   * choice visible in the boot log instead of invisible. See the call site below for the warning.
+   */
+  static _workerQueuesBootStatus() {
+    const raw = (process.env.WORKER_QUEUES || '').trim();
+    return {
+      raw: raw || null,
+      enabled: [...SQSCoachingWorker._enabledQueues()],
+      isDefaulted: !raw,
+    };
   }
 
   /**
@@ -382,15 +402,6 @@ class SQSCoachingWorker {
         await ExamGradingWorker.process(payload);
         break;
 
-      case 'pic_lp_kieai_generation': {
-        // Pic-to-LP via Kie.ai. English ~80s typical; Urdu/Sindhi/Punjabi
-        // ~4 min typical, up to 7 min at peak. 12-min extension covers both.
-        await SQSQueueService.extendJobTimeout(receiptHandle, 720); // 12 min
-        const PicLpKieaiWorker = require('./pic-lp-kieai.worker');
-        await PicLpKieaiWorker.process(payload);
-        break;
-      }
-
       case 'homework_bundle_generation': {
         // One job = one (grade × subject) group: R2 fetch + pdf-lib merge +
         // WhatsApp document send. 5-min extension covers a 12-chapter bundle.
@@ -408,6 +419,59 @@ class SQSCoachingWorker {
         await SQSQueueService.extendJobTimeout(receiptHandle, 300);
         const AssessmentOrchestrator = require('../shared/services/assessment/assessment-orchestrator.service');
         await AssessmentOrchestrator.process(payload);
+        break;
+      }
+
+      case 'lp612_author': {
+        // Write a 6-12 lesson plan that has never been asked for
+        // before, render it, cache it in R2 and send it.
+        //
+        // The longest job on this worker. The author call alone is 1-2.5 min and
+        // the revision ladder can triple that; the measured worst case end to
+        // end is around 10 minutes. The comment used to stop there and rely on
+        // ONE 900s extension to outlast the whole job — it didn't.
+        //
+        // bd-awqt3: LP612_AUTHOR_TIMEOUT_MS (lp612-author.worker.js's own hard
+        // stop) only bounds authoring + the final render inside that worker's
+        // withTimeout(). Everything after — the PDF read, both R2 uploads, the
+        // DB writes and the per-waiter WhatsApp delivery loop — runs AFTER that
+        // timeout resolves and is unbounded. Add staging running that timeout at
+        // up to 840s on one worker vs 720s on another and a single 900s
+        // extension can leave as little as 60s of margin for an unbounded tail.
+        // A load test measured jobs running past 936s — 36s past this window —
+        // at which point the message goes visible again, a second worker claims
+        // the same lesson, and duplicate authoring doubles the load exactly when
+        // contention is already why the first run was slow.
+        //
+        // The fix is structural rather than a bigger number: a heartbeat
+        // (shared/utils/sqs-visibility-heartbeat.js) re-extends visibility every
+        // ~60s for as long as this job is ACTUALLY running — however long that
+        // is — and stops the instant it settles, success or failure, via the
+        // finally below. It is bounded by an absolute ceiling (2x the job's own
+        // hard timeout) so a genuinely hung job still becomes visible again
+        // eventually instead of being kept alive forever.
+        await SQSQueueService.extendJobTimeout(receiptHandle, 900);
+        const heartbeat = startVisibilityHeartbeat({
+          extend: (seconds) => SQSQueueService.extendJobTimeout(receiptHandle, seconds),
+          intervalMs: 60 * 1000,
+          extendSeconds: 900,
+          ceilingMs: heartbeatCeilingMs(), // bd-w36m5: shared with the reaper, see lp612-flags.js
+          // No correlationId here: it's not a parameter of executeJob(), and logToFile already
+          // pulls the current one from AsyncLocalStorage (set by runWithCorrelation in
+          // processJob(), which wraps this whole call) — see shared/utils/logger.js.
+          onExtendError: (err) => logToFile('lp612_author heartbeat: extend failed, continuing', {
+            sessionId, error: err.message,
+          }),
+          onCeilingReached: () => logToFile('lp612_author heartbeat: ceiling reached, no longer extending', {
+            sessionId,
+          }),
+        });
+        try {
+          const Lp612AuthorWorker = require('./lp612-author.worker');
+          await Lp612AuthorWorker.process(payload);
+        } finally {
+          heartbeat.stop();
+        }
         break;
       }
 
@@ -465,6 +529,49 @@ class SQSCoachingWorker {
           break;
         }
         await VideoQuizReport.generate(shareCodeId, { reason: 'scheduled' });
+        break;
+      }
+
+      // Transcript quiz (the post-coaching quiz written from the lesson
+      // recording). Three job types on the quiz queue; each handler re-reads
+      // the quizzes row and is a no-op when its step already happened, so an
+      // at-least-once redelivery is harmless.
+      case 'quiz_offer': {
+        if (sourceQueue === 'quiz') {
+          await SQSQueueService.extendQuizJobTimeout(receiptHandle, 300);
+        } else {
+          await SQSQueueService.extendJobTimeout(receiptHandle, 300);
+        }
+        const TranscriptQuizOffer = require('../shared/services/quiz/transcript-quiz-offer.service');
+        const p = (body && body.payload) ? body.payload : (payload || {});
+        await TranscriptQuizOffer.processOffer(p.coachingSessionId || body.groupId, p);
+        break;
+      }
+      case 'quiz_generate': {
+        // Two model calls + a PDF render + three sends: give it room.
+        if (sourceQueue === 'quiz') {
+          await SQSQueueService.extendQuizJobTimeout(receiptHandle, 600);
+        } else {
+          await SQSQueueService.extendJobTimeout(receiptHandle, 600);
+        }
+        const TranscriptQuizGenerate = require('../shared/services/quiz/transcript-quiz-generate.service');
+        const p = (body && body.payload) ? body.payload : (payload || {});
+        await TranscriptQuizGenerate.process(p.quizId || body.groupId, p);
+        break;
+      }
+      case 'quiz_nudge_teacher': {
+        const p = (body && body.payload) ? body.payload : (payload || {});
+        const quizId = p.quizId || body.groupId;
+        const targetAt = p.targetAt ? new Date(p.targetAt) : null;
+        if (targetAt && targetAt > new Date()) {
+          const wait = Math.min(900, Math.max(60, Math.floor((targetAt - Date.now()) / 1000)));
+          await SQSQueueService.queueJob(quizId, 'quiz_nudge_teacher', { quizId, targetAt: p.targetAt }, {
+            delaySeconds: wait, deduplicationId: `${quizId}-quiz_nudge_teacher-${Date.now()}`,
+          });
+          break;
+        }
+        const TranscriptQuizNudge = require('../shared/services/quiz/transcript-quiz-nudge.service');
+        await TranscriptQuizNudge.process(quizId);
         break;
       }
 
@@ -1099,6 +1206,30 @@ logToFile('🚀 Starting SQS Coaching Worker', {
   sqsQueueUrl: process.env.SQS_QUEUE_URL
 });
 
+/** Exported so a test can assert the decision directly rather than scraping a log string. */
+function resolveWorkerQueuesBootStatus() {
+  return SQSCoachingWorker._workerQueuesBootStatus();
+}
+
+// bd-awqt3: make the WORKER_QUEUES decision visible on every boot, not just inferable after an
+// incident (see _workerQueuesBootStatus() above for why this matters for lp612_author).
+{
+  const queuesBootStatus = resolveWorkerQueuesBootStatus();
+  if (queuesBootStatus.isDefaulted) {
+    logToFile(
+      '⚠️  WORKER_QUEUES is unset on this service — defaulting to ALL queues (main, video, quiz). '
+      + 'If another service running this same file has a DIFFERENT value for a per-job-type '
+      + 'config env var (e.g. LP612_AUTHOR_TIMEOUT_MS, LP612_AUTHOR_ROUNDS) while also polling '
+      + 'one of these queues, a job of that type will silently get different behaviour depending '
+      + 'on which replica happens to claim it (bd-awqt3). Set WORKER_QUEUES explicitly per '
+      + 'service so each job type has ONE owning worker class.',
+      queuesBootStatus,
+    );
+  } else {
+    logToFile('WORKER_QUEUES resolved', queuesBootStatus);
+  }
+}
+
 // Recover stale requests before starting worker. Gated behind
 // require.main === module so the file can be required as a library without
 // firing the recovery sweep + worker start.
@@ -1167,8 +1298,25 @@ function startWorker() {
     // bd-2417: NIETE has no Railway Cron, so drive stale-session recovery from
     // this always-on worker too — auto-complete abandoned reflection sessions
     // (send the report), and unfreeze sessions stuck at the confirmation gate.
-    const { runRecovery } = require('./stale-session.worker');
-    const STALE_RECOVERY_INTERVAL_MS = 15 * 60 * 1000;
+    const { runRecovery, __thresholds: staleThresholds } = require('./stale-session.worker');
+    // bd-2700: the sweep INTERVAL bounds how fast a threshold can be observed —
+    // a 2-minute reminder still waits up to 15 minutes for the next sweep, so the
+    // interval is overridable alongside the thresholds. Defaults to 15 minutes.
+    const STALE_RECOVERY_INTERVAL_MS = (() => {
+      const raw = process.env.STALE_RECOVERY_INTERVAL_MINUTES;
+      const mins = Number(raw);
+      // Floor at 1 minute: a tighter loop hammers the DB for no benefit.
+      if (raw === undefined || !Number.isFinite(mins) || mins < 1) return 15 * 60 * 1000;
+      return mins * 60 * 1000;
+    })();
+    // Log what was actually resolved. A staging override silently reaching prod is
+    // the failure mode here, so make it visible in the deploy logs either way.
+    logToFile('⏱️  Stale-session thresholds resolved', {
+      reminderMinutes: staleThresholds.reminderMs / 60000,
+      autoCompleteMinutes: staleThresholds.autoCompleteMs / 60000,
+      userActiveMinutes: staleThresholds.userActiveMs / 60000,
+      sweepIntervalMinutes: STALE_RECOVERY_INTERVAL_MS / 60000,
+    });
     setInterval(async () => {
       if (worker.isShuttingDown) return;
       try {
@@ -1177,8 +1325,26 @@ function startWorker() {
       } catch (error) {
         logToFile('Error in stale-session recovery (non-fatal)', { error: error.message });
       }
+
+      // 6-12 renders stranded by a restart. This table was the one thing with an
+      // in-flight state and NO sweep, and the gap is not survivable: `requestLesson`
+      // reads `authoring` as "someone else is already paying for this one", so a row
+      // whose worker died tells every later teacher her lesson is being written, for
+      // ever. Measured on staging 2026-09-03 — one deploy mid-authoring did it, and
+      // NIETE deploys on every merge to `develop`.
+      //
+      // Required lazily and in its own try: this sweep must never be able to take the
+      // stale-session recovery above down with it.
+      try {
+        const { reapStrandedRenders } = require('../shared/services/lp612-serving.service');
+        const reaped = await reapStrandedRenders();
+        if (reaped) logToFile('🔄 Reaped stranded 6-12 renders', { count: reaped });
+      } catch (error) {
+        logToFile('Error reaping stranded 6-12 renders (non-fatal)', { error: error.message });
+      }
     }, STALE_RECOVERY_INTERVAL_MS);
 
+    logToFile(`Periodic stale-session recovery enabled (every ${STALE_RECOVERY_INTERVAL_MS / 60000} minutes)`);
 
     // Offer interrupted tasks back. Rides the same always-on worker as the sweeps
     // above (this deployment has no cron), on a deliberately slower interval: the
@@ -1234,4 +1400,6 @@ if (require.main === module) {
 }
 
 // Export for testing
-module.exports = { SQSCoachingWorker, WORKER_ID, startWorker, runDebriefRetrySweep };
+module.exports = {
+  SQSCoachingWorker, WORKER_ID, startWorker, runDebriefRetrySweep, resolveWorkerQueuesBootStatus,
+};

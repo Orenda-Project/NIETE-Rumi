@@ -20,6 +20,55 @@ below.)
 | **Generic (Gamma)** | The default for any free-form topic (and the fall-through when the curriculum intercept misses) | A Gamma-generated lesson-plan PDF from the topic | `GAMMA_API_KEY` |
 | **Pic-to-LP** | The teacher sends a **photo** of a textbook page | A 2-page illustrated PDF rendered from the page | `region_features.pic_lp_enabled` + `KIE_API_KEY` (see [features/pic-to-lp.md](features/pic-to-lp.md)) |
 
+…and, since FEAT-080, a fourth that is unlike the other three:
+
+| Path | When it runs | Output | Switched on by |
+|------|-------------|--------|----------------|
+| **6-12 runtime (v9)** | The teacher walks the LP Flow to a grade 6-12 subtopic | A lesson plan **written at the moment she asks**, rendered to PDF, cached in R2 | `LP_612_ENABLED=true` + a loaded segment corpus |
+
+### Why the fourth path is different
+
+The first three either look a PDF up or generate from a free-form topic. This one
+authors from the **book's own segmentation**: 62 NBF/FBISE textbooks are cut into
+teaching-day segments (one segment = one period), and each segment is a menu row
+a teacher can tap. There is no pre-generated corpus behind it — the first teacher
+to ask for a lesson causes it to be written, and everyone after her is served the
+cached render.
+
+```
+tap a subtopic
+  → lp612-serving.service.js: is there a render for (segment_id, lang, template_version)?
+      ready     → presign the R2 key, sendDocumentByLink. Done in ~a second.
+      authoring → join the waiter list on the row already in flight, say so
+      failed    → reset the row, retry
+      absent    → claim the row (UNIQUE is the lock), ack her, enqueue lp612_author
+  → bot/workers/lp612-author.worker.js (SQS, ~2-3 min typical, up to ~10 worst case)
+      author (llm-client → OpenRouter, LP_AUTHOR_MODEL)
+        → lint + revise ladder (LP612_AUTHOR_ROUNDS)
+        → render to PDF
+        → upload to R2 at lp612/<template_version>/<lang>/<segment_id>.pdf
+        → mark the row ready, deliver to every waiter
+```
+
+**Two flags, not one.** `LP_612_ENABLED` gates the feature. `LP_612_RELIGIOUS_ENABLED`
+separately gates Islamiat books and seerah content anywhere in the corpus, which
+are held pending a native-speaker review — turning the feature on does not
+release them, and there is no `||` between the two anywhere in the code.
+`is_religious` is computed once at import
+(`bot/scripts/import-lp612-segments.js`) and stored, so the rule lives in exactly
+one place.
+
+**Grades 6-10 keep Oxbridge as a fallback.** 70 Oxbridge LPs are live; the 6-12
+corpus wins for a grade where it has segments, and where it does not, the
+Oxbridge picker answers exactly as before. Grades 11-12 appear on the picker only
+when the flag is on and the corpus actually holds segments for them.
+
+Loading the corpus: `node bot/scripts/import-lp612-segments.js <dir> [--dry-run]`.
+Idempotent, keyed on `segment_id`, and scoped per book — importing one finished
+book never touches another's rows. Tables: `niete_lp612_segments` (the menu) and
+`niete_lp612_renders` (the R2 cache ledger), migration
+`infrastructure/supabase/migrations/V1.2.8__lp612_runtime_lesson_plans.sql`.
+
 ## Text request → the handler intercept
 
 A text lesson-plan request enters through

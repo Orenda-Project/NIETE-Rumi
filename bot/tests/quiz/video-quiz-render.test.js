@@ -318,11 +318,13 @@ describe('feedback (§4b invariant)', () => {
       option_feedback: { correct: 'Great! Red is an adjective.',
                          wrong: { 1: 'You picked see, an action word.' } },
     }));
+    // Round-5 D2: the author's sentence is kept verbatim; the renderer prepends
+    // the verdict marker so the child does not have to read to find out.
     expect(msgs.find((m) => m.role === 'feedback_correct').body)
-      .toBe('Great! Red is an adjective.');
+      .toBe('\u2705 Great! Red is an adjective.');
     const wrong = msgs.filter((m) => m.role === 'feedback_incorrect');
     expect(wrong.find((m) => m.optionIndex === 1).body)
-      .toBe('You picked see, an action word.');
+      .toBe('\u274C You picked see, an action word.');
   });
 
   // bd-2486 — option_feedback is authored at content-generation time against
@@ -355,7 +357,7 @@ describe('feedback (§4b invariant)', () => {
     const wrongMsg = msgs.find((m) => m.role === 'feedback_incorrect' && m.optionIndex === 1);
     // Stored B (the wrong option authored here) is SHOWN as C; stored A
     // (named as "the correct answer") is SHOWN as B.
-    expect(wrongMsg.body).toBe('C) Good try! The correct answer is B) Alpha, because reasons.');
+    expect(wrongMsg.body).toBe('\u274C C) Good try! The correct answer is B) Alpha, because reasons.');
   });
 
   test('legacy questions fall back to one generic incorrect branch', () => {
@@ -515,5 +517,24 @@ describe('picture Flow carries base64, not URLs (bd-2309)', () => {
     const msgs = render.build(picQ());
     expect(msgs.some((m) => m.role === 'option_grid')).toBe(true);
     expect(msgs.some((m) => m.kind === 'flow')).toBe(true);
+  });
+});
+
+describe('a question CARD: the image carries the question, the buttons carry letters', () => {
+  const render = require('../../shared/services/quiz/video-quiz-render.service');
+  test('build() sends the card image first, then A/B/C buttons in the same display order', () => {
+    const q = {
+      id: 'q1', external_id: 'tq:z:S1:1', question_text: 'What is x^2 when x = 3?',
+      option_a: '9', option_b: '6', option_c: '3', correct_option: 'A', render_pattern: 'P1',
+      media: { question_card: 'https://r2/card.png' },
+    };
+    const msgs = render.build(q);
+    const kinds = msgs.map((m) => `${m.phase}:${m.kind}`);
+    expect(kinds.indexOf('question:image')).toBeGreaterThan(-1);
+    expect(kinds.indexOf('question:image')).toBeLessThan(kinds.indexOf('interaction:buttons'));
+    const ask = msgs.find((m) => m.phase === 'interaction');
+    expect(ask.letterTitles).toBe(true);
+    expect(ask.optionIndices).toHaveLength(3);
+    expect(msgs.find((m) => m.kind === 'image').url).toBe('https://r2/card.png');
   });
 });

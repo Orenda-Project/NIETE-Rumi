@@ -283,6 +283,109 @@ router.post('/training/module-quiz-verdict', requireInternalKey, async (req, res
   }
 });
 
+/**
+ * POST /api/internal/training/exam-verdict
+ * Body { levelId, score, totalQuestions } -> { success, is_passed, status, pass_pct, achieved_pct }
+ *
+ * bd-2673 — the level-exam twin of module-quiz-verdict. The portal used to read
+ * training_vendors.passing_pct itself and do the percentage comparison inline,
+ * defaulting to a hardcoded 100. bd-2393 had already fixed that same line once.
+ */
+router.post('/training/exam-verdict', requireInternalKey, async (req, res) => {
+  const levelId = num((req.body || {}).levelId);
+  const score = num((req.body || {}).score);
+  const totalQuestions = num((req.body || {}).totalQuestions);
+  if (levelId === null) return res.status(400).json({ success: false, error: 'levelId is required' });
+  if (score === null) return res.status(400).json({ success: false, error: 'score is required' });
+  if (totalQuestions === null) return res.status(400).json({ success: false, error: 'totalQuestions is required' });
+
+  try {
+    const QuizDelivery = require('../services/training/quiz-delivery.service');
+    const verdict = await QuizDelivery.decideExamPass(levelId, score, totalQuestions);
+    return res.json({ success: true, ...verdict });
+  } catch (error) {
+    // Fail CLOSED: never let a lookup failure read as a pass.
+    logToFile('❌ Internal training API failed', { route: 'exam-verdict', error: error?.message });
+    return res.status(500).json({ success: false, error: 'Grading lookup failed' });
+  }
+});
+
+/**
+ * POST /api/internal/training/mark-paper
+ * Body { questions:[{id, correct_option, order_index}], answers:[{question_id, chosen_option}] }
+ *   → { success, graded, score, total_questions, has_unknown_question, has_duplicate_answer }
+ *
+ * bd-2673 — "which answer is correct" used to exist three times: inline in
+ * quiz-delivery.service.js and twice in the portal's route file (once for the
+ * module quiz, once for the level exam). All three agreed by coincidence, and
+ * the portal's comment claimed "identical comparator to the WhatsApp writer" —
+ * the same claim the four rules listed at the top of this section were making
+ * while they drifted.
+ *
+ * Pure arithmetic over the body: no DB read, no session, no identity. The PASS
+ * decision is deliberately NOT here — that needs the vendor's bar and lives in
+ * module-quiz-verdict / the exam gate. Marking is arithmetic, passing is policy.
+ */
+router.post('/training/mark-paper', requireInternalKey, async (req, res) => {
+  const { questions, answers } = req.body || {};
+  if (!Array.isArray(questions)) return res.status(400).json({ success: false, error: 'questions[] is required' });
+  if (!Array.isArray(answers)) return res.status(400).json({ success: false, error: 'answers[] is required' });
+
+  try {
+    const { markPaper } = require('../services/training/paper-marking.service');
+    return res.json({ success: true, ...markPaper({ questions, answers }) });
+  } catch (error) {
+    // Fail CLOSED: an unmarked paper must never read as a scored one.
+    logToFile('❌ Internal training API failed', { route: 'mark-paper', error: error?.message });
+    return res.status(500).json({ success: false, error: 'Marking failed' });
+  }
+});
+
+/**
+ * POST /api/internal/training/serve-paper
+ * Body { questions:[...], attemptId, isModuleQuiz, vendor:{module_quiz_strategy,
+ *        exam_question_cap, shuffle_options} }
+ *   → { success, questions: [{ id, display_order }], total_served }
+ *
+ * Which questions this attempt gets, and in which option order. Both surfaces
+ * must serve the SAME paper: the caption has to quote the served count rather
+ * than the bank size, and a shuffled option order has to be stable for the
+ * attempt or a teacher's stored canonical index stops meaning what they tapped.
+ *
+ * Deterministic — seeded on attemptId — so asking twice for the same attempt
+ * returns the same paper. That is what makes it safe to call from a stateless
+ * portal request.
+ */
+router.post('/training/serve-paper', requireInternalKey, async (req, res) => {
+  const { questions, attemptId, isModuleQuiz, vendor } = req.body || {};
+  if (!Array.isArray(questions)) return res.status(400).json({ success: false, error: 'questions[] is required' });
+  if (!attemptId) return res.status(400).json({ success: false, error: 'attemptId is required' });
+
+  try {
+    const Serving = require('../services/training/quiz-serving.service');
+    const config = Serving.normalizeServingConfig(vendor || null);
+    const served = Serving.selectServedQuestions(questions, {
+      attemptId,
+      isModuleQuiz: isModuleQuiz === true,
+      config,
+    });
+    const out = served.map((q) => ({
+      id: q.id,
+      display_order: Serving.buildOptionDisplayOrder({
+        optionCount: Array.isArray(q.options) ? q.options.length : 0,
+        correctOption: q.correct_option,
+        attemptId,
+        questionId: q.id,
+        shuffle: config.shuffle_options,
+      }),
+    }));
+    return res.json({ success: true, questions: out, total_served: out.length });
+  } catch (error) {
+    logToFile('❌ Internal training API failed', { route: 'serve-paper', error: error?.message });
+    return res.status(500).json({ success: false, error: 'Serving failed' });
+  }
+});
+
 /* ------------------------------------------------------------------------- *
  * Certificates — the bot owns them, the portal asks.
  *
@@ -340,13 +443,17 @@ router.post('/training/certificates', requireInternalKey, async (req, res) => {
 
 /**
  * POST /api/internal/training/certificate-pdf
- * Body { userId, certificateCode }
+ * Body { userId, certificateCode, disposition? }
  *   → 200 { success, certificate_code, level_name, teacher_name, issued_at,
  *           pdf_r2_key, download_url, minted }
- *   → 400 missing userId/certificateCode
+ *   → 400 missing userId/certificateCode, or an unknown disposition
  *   → 401 bad key
  *   → 404 no such certificate FOR THIS USER
  *   → 502 render/upload/presign failed
+ *
+ * `disposition` (bd-2676) is 'attachment' (default, saves the file) or 'inline'
+ * (renders it). The portal asks for inline behind its View button and attachment
+ * behind Download; omitting it preserves the original save-the-file behaviour.
  *
  * Fetch-or-mint. `minted` tells the caller whether this request paid for a
  * render, which is worth having in the logs while the legacy backlog drains.
@@ -358,13 +465,19 @@ router.post('/training/certificates', requireInternalKey, async (req, res) => {
  * the portal turns a failure here into a certificate that still lists.
  */
 router.post('/training/certificate-pdf', requireInternalKey, async (req, res) => {
-  const { userId, certificateCode } = req.body || {};
+  const { userId, certificateCode, disposition } = req.body || {};
   if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
   if (!certificateCode) return res.status(400).json({ success: false, error: 'certificateCode is required' });
 
   try {
     const supabase = require('../config/supabase');
-    const result = await certificateService().fetchOrMintCertificatePdf(supabase, { userId, certificateCode });
+    const result = await certificateService().fetchOrMintCertificatePdf(supabase, {
+      userId,
+      certificateCode,
+      // Omitted → the service's 'attachment' default. Passing undefined through
+      // rather than defaulting here keeps ONE definition of the default.
+      ...(disposition ? { disposition } : {}),
+    });
     if (result.minted) {
       logToFile('🏆 Certificate PDF minted via internal API', { userId, certificateCode });
     }
@@ -406,21 +519,28 @@ router.post('/training/certificate-pdf', requireInternalKey, async (req, res) =>
  * bot-only dependency, and the throw gets swallowed.
  * ------------------------------------------------------------------------- */
 
-/** Shape one class for the portal: codes for logic, labels for display. */
+/**
+ * Shape one class for the portal: codes for logic, labels for display.
+ *
+ * `display` comes from the class-manager endpoint's classDisplay, NOT a second
+ * copy here. The first version of this function built its own string and was
+ * therefore never taught about shifts — so a morning and an evening class of the
+ * same grade and section rendered identically in the portal, indistinguishable.
+ * Two display builders is the same mistake as two writers.
+ */
 function presentClass(row, who) {
-  const {
-    gradeLabelFor, subjectLabelFor,
-  } = require('../config/ux-strings');
+  const { gradeLabelFor, subjectLabelFor } = require('../config/ux-strings');
+  const { classDisplay } = require('./class-manager-endpoint');
 
-  const gradeLabel = gradeLabelFor(row.gradeCode, who);
   return {
     classId: row.classId,
     gradeCode: row.gradeCode,
-    gradeLabel: gradeLabel || row.gradeCode,
+    gradeLabel: gradeLabelFor(row.gradeCode, who) || row.gradeCode,
     section: row.section,
+    shiftCode: row.shiftCode || 'morning',
     sessionCode: row.sessionCode,
     isClassTeacher: row.isClassTeacher,
-    display: row.section && gradeLabel ? `${gradeLabel} - ${row.section}` : (gradeLabel || row.gradeCode),
+    display: classDisplay(row.gradeCode, row.section, who, row.shiftCode),
     subjects: (row.subjectCodes || []).map((code) => ({
       code,
       label: subjectLabelFor(code, who) || code,
@@ -627,6 +747,117 @@ router.post('/classes/create', requireInternalKey, async (req, res) => {
   } catch (error) {
     logToFile('❌ Internal classes/create failed', { userId, error: error?.message }, 'error');
     return res.status(500).json({ success: false, error: 'Failed to create class' });
+  }
+});
+
+/**
+ * POST /api/internal/classes/students/list
+ *
+ * The children on a class roster. Gated on the caller being assigned to the class —
+ * a roster is not public. Answers an empty list rather than 403 for anyone else,
+ * because the portal renders a list either way.
+ *
+ * Body   { userId, classId }
+ * Ok     200 { success: true, students: [...] }
+ */
+router.post('/classes/students/list', requireInternalKey, async (req, res) => {
+  const { userId, classId } = req.body || {};
+  if (!userId || !classId) {
+    return res.status(400).json({ success: false, error: 'userId and classId are required' });
+  }
+  try {
+    const ClassService = require('../services/classes/class.service');
+    const students = await ClassService.listStudents({ classId, teacherUserId: userId });
+    return res.json({ success: true, students });
+  } catch (error) {
+    logToFile('❌ Internal classes/students/list failed', { userId, classId, error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Failed to load the roster' });
+  }
+});
+
+/**
+ * POST /api/internal/classes/students/add
+ *
+ * Add a whole register from one pasted block. Reports duplicates and anything the
+ * paste cap dropped, so the caller can tell the teacher rather than leave her
+ * wondering where her students went.
+ *
+ * Body   { userId, classId, rawText }
+ * Errors 400 (missing input / no_names), 403 (not_assigned)
+ * Ok     201 { success: true, added, duplicates, dropped }
+ */
+router.post('/classes/students/add', requireInternalKey, async (req, res) => {
+  const { userId, classId, rawText } = req.body || {};
+  if (!userId || !classId) {
+    return res.status(400).json({ success: false, error: 'userId and classId are required' });
+  }
+  try {
+    const ClassService = require('../services/classes/class.service');
+    const result = await ClassService.addStudents({ classId, teacherUserId: userId, rawText });
+
+    if (result.error === 'not_assigned') {
+      return res.status(403).json({ success: false, error: 'not_assigned' });
+    }
+    if (result.error === 'no_names') {
+      return res.status(400).json({ success: false, error: 'no_names' });
+    }
+    if (result.error) {
+      // Part-way failures carry what DID land; saying "failed" would make her
+      // re-paste children who are already on the roster.
+      logToFile('❌ Internal classes/students/add partially failed', {
+        userId, classId, added: result.added, error: result.error,
+      }, 'error');
+      return res.status(502).json({
+        success: false, error: result.error, added: result.added || 0,
+      });
+    }
+
+    logToFile('🏫 Roster updated via internal API', {
+      userId, classId, added: result.added, duplicates: result.duplicates, dropped: result.dropped,
+    });
+    return res.status(201).json({
+      success: true,
+      added: result.added,
+      duplicates: result.duplicates,
+      dropped: result.dropped,
+    });
+  } catch (error) {
+    logToFile('❌ Internal classes/students/add failed', { userId, classId, error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Failed to add students' });
+  }
+});
+
+/**
+ * POST /api/internal/classes/students/remove
+ *
+ * Take a child off the roster. SOFT — the enrollment is closed, the child and the
+ * attendance history that references her both survive. Any teacher on the class may
+ * do it, because the roster is the class's rather than hers.
+ *
+ * Body   { userId, classId, studentId }
+ * Errors 400, 403 (not_assigned)
+ * Ok     200 { success: true, removed }
+ */
+router.post('/classes/students/remove', requireInternalKey, async (req, res) => {
+  const { userId, classId, studentId } = req.body || {};
+  if (!userId || !classId || !studentId) {
+    return res.status(400).json({ success: false, error: 'userId, classId and studentId are required' });
+  }
+  try {
+    const ClassService = require('../services/classes/class.service');
+    const result = await ClassService.removeStudent({ classId, teacherUserId: userId, studentId });
+
+    if (result.error === 'not_assigned') {
+      return res.status(403).json({ success: false, error: 'not_assigned' });
+    }
+    if (result.error) {
+      logToFile('❌ Internal classes/students/remove failed', { userId, classId, error: result.error }, 'error');
+      return res.status(502).json({ success: false, error: result.error });
+    }
+    return res.json({ success: true, removed: Boolean(result.removed) });
+  } catch (error) {
+    logToFile('❌ Internal classes/students/remove failed', { userId, classId, error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Failed to remove the student' });
   }
 });
 

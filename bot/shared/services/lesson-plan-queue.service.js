@@ -13,89 +13,9 @@ const supabase = require('../config/supabase');
 const SQSQueueService = require('./queue');
 
 class LessonPlanQueueService {
-  /**
-   * Create a lesson plan request and queue it for processing
-   * @param {Object} params - Request parameters
-   * @param {string} params.userId - User's UUID
-   * @param {string} params.phoneNumber - User's phone number
-   * @param {string} params.topic - Extracted topic
-   * @param {string} params.fullMessage - Full user message for context
-   * @param {string} params.language - Language code (en, ur, ar, es)
-   * @param {string} params.contentType - 'lesson_plan' or 'presentation'
-   * @returns {Promise<string>} Request ID
-   */
-  static async createAndQueue(params) {
-    const { userId, phoneNumber, topic, fullMessage, language = 'en', contentType = 'lesson_plan' } = params;
-
-    try {
-      // 1. Create request in database
-      const { data: request, error } = await supabase
-        .from('lesson_plan_requests')
-        .insert({
-          user_id: userId,
-          phone_number: phoneNumber,
-          topic,
-          full_message: fullMessage,
-          language,
-          content_type: contentType,
-          status: 'pending'
-        })
-        .select('id')
-        .single();
-
-      if (error) {
-        throw new Error(`Failed to create lesson plan request: ${error.message}`);
-      }
-
-      const requestId = request.id;
-
-      logToFile('Lesson plan request created', {
-        requestId,
-        userId,
-        topic,
-        contentType
-      });
-
-      // 2. Queue to SQS for async processing
-      try {
-        await SQSQueueService.queueCoachingJob(requestId, 'lesson_plan_generation', {
-          requestId,
-          userId,
-          phoneNumber,
-          topic,
-          fullMessage,
-          language,
-          contentType
-        });
-
-        logToFile('Lesson plan job queued to SQS', { requestId });
-      } catch (sqsError) {
-        // If SQS fails, mark request for retry and log error
-        await supabase
-          .from('lesson_plan_requests')
-          .update({
-            status: 'pending',
-            error_message: `SQS queue failed: ${sqsError.message}`
-          })
-          .eq('id', requestId);
-
-        logToFile('Failed to queue lesson plan to SQS, marked for retry', {
-          requestId,
-          error: sqsError.message
-        });
-      }
-
-      return requestId;
-
-    } catch (error) {
-      logToFile('Error in lesson plan queue service', {
-        error: error.message,
-        userId,
-        topic
-      });
-      throw error;
-    }
-  }
+  // createAndQueue (freeform LP / presentation via Gamma) was removed with
+  // bd-2540 (Option A partial Gamma strip). The only remaining teacher-facing
+  // path is createAndQueueGrounded below, which renders a pre-authored AST row.
 
   /**
    * Create a GROUNDED lesson plan request (curriculum_lp_ast row) and queue

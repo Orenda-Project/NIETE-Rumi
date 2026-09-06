@@ -65,6 +65,30 @@ describe("PortalNavigation role gating", () => {
 //
 // These assert on the rendered element rather than a screenshot, because the
 // defect is structural — what classes the name carries relative to its sibling.
+// bd-2563: the mobile tab bar's overflow tab is labelled "Other", not "More".
+// The label appears in three places that must agree — the visible tab text, the
+// button's aria-label (what a screen reader announces), and the title of the
+// sheet it opens. Changing one and missing another is the obvious failure, so
+// all three are asserted.
+describe("PortalNavigation — the mobile overflow tab (bd-2563)", () => {
+  it("labels the overflow tab 'Other'", () => {
+    renderNav({ firstName: "Ayesha", role: "teacher" });
+    expect(screen.getByTestId("mobile-nav-more")).toHaveTextContent("Other");
+  });
+
+  it("announces 'Other' to a screen reader", () => {
+    renderNav({ firstName: "Ayesha", role: "teacher" });
+    expect(screen.getByTestId("mobile-nav-more")).toHaveAttribute("aria-label", "Other");
+  });
+
+  it("no longer says 'More' anywhere in the overflow control", () => {
+    renderNav({ firstName: "Ayesha", role: "teacher" });
+    const tab = screen.getByTestId("mobile-nav-more");
+    expect(tab).not.toHaveTextContent("More");
+    expect(tab.getAttribute("aria-label")).not.toBe("More");
+  });
+});
+
 describe("PortalNavigation — the signed-in name (bd-2558)", () => {
   /** The desktop header's name element. */
   function nameEl(text: string) {

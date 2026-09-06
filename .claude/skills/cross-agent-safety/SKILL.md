@@ -30,6 +30,29 @@ grep -rn "methodName" bot/shared/ bot/workers/ --include="*.js"
 
 Count the call sites; update **all** of them, not just the definition.
 
+### 2b. Check DATA-mediated consumers — who reads what this service WRITES
+
+Step 2 finds consumers of your *functions*. It cannot find consumers of your *output*: code — or a
+prompt — that reads a column, queue payload, or file your service produces is invisible to a
+call-site grep, and it breaks just as hard.
+
+Before changing anything about what a shared service **emits** (shape, fields, embedded markers,
+labels, ordering), grep the *property*, repo-wide, prompts included:
+
+```bash
+grep -rn "transcript_text" bot/ --include="*.js" | grep -v node_modules   # who reads the column
+grep -rn "MM:SS\|start_ms\|timestamp" bot/shared/services --include="*.js" # who depends on the marker
+```
+
+Then answer in the PR: *which properties of the output can this change alter, and which consumer
+depends on each?* "None found" must be backed by the greps, not assumed.
+
+Why this exists: a speaker-labeling edit to the shared transcription chain once crashed its
+diarization-success branch; the silent fallback stripped the embedded timestamps from every stored
+transcript, and a downstream analysis prompt that *required* timestamped evidence began refusing
+~95% of sessions. Every import-level check passed. The one question never asked was "who consumes
+transcript timestamps?" — the answer was a prompt three data-hops away.
+
 ### 3. Run the test suite BEFORE and AFTER
 
 ```bash

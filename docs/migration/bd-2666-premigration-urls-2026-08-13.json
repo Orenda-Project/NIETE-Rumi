@@ -1,0 +1,3080 @@
+{
+ "captured_at": "2026-08-13T07:32:03.766Z",
+ "bead": "bd-2666",
+ "note": "Pre-rehost snapshot of ALL training_modules media columns (R3).",
+ "count": 384,
+ "rows": [
+  {
+   "id": 1,
+   "title": "Establishing classroom routines",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/1/57605a0a-8596-4d2f-8819-f456555b799c.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 2,
+   "title": "Establishing classroom rules",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/2/3d0083db-8ace-49c8-9da9-6f9308df0a0d.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 3,
+   "title": "How to use attention cues in classroom",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/3/bb698468-b8bb-4b39-ba7b-69cddca357d3.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 4,
+   "title": "Inclusive Classroom",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/4/8bfa5661-bed3-4d3f-a08d-9dfdf59ac4d2.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 5,
+   "title": "Diverse learners in classroom",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/5/00281316-1354-479e-9e74-a3a01f7cf0c3.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 6,
+   "title": "Understanding child psychology",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/6/151235ce-852f-4a86-b57b-740d21b78e21.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 7,
+   "title": "Using Auditory Aids in the Classroom",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 8,
+   "title": "Auditory aids",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/8/9ad469bb-05aa-4e11-8b15-8065e09abd2d.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 9,
+   "title": "Differentiated reading materials",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/9/04fb6bec-58b5-41e0-9260-fb3cfebecb7a.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 10,
+   "title": "Group activity",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/10/1e8f9c24-01b9-4599-a02e-4bdff3a20c73.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 11,
+   "title": "5 step lesson plan",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/11/2988955b-10ae-4293-a8c5-eb739a26cd29.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 12,
+   "title": "Group Activities",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/12/509b9f48-9926-41fe-841a-89e90bd3aa0c.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 13,
+   "title": "Drawing Diagrams",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/13/c38cc20c-517d-4efb-8eae-5630a4fd49ee.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 14,
+   "title": "Number Sense",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/14/3f33c11b-67c0-404f-b9e7-6d2159975bf7.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 15,
+   "title": "Using Visual Tools",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/15/58080e00-8120-4578-b5ee-9a81bc8311a8.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 16,
+   "title": "Solve Basic Operations",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/16/9b4f0426-27f6-4b8c-aec8-c588994a1cd4.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 17,
+   "title": "Word problems",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/17/78f247c1-91b7-4f98-af2d-70739f859d30.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 18,
+   "title": "Calenders",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/18/e53f8111-0b1e-4f3c-83f4-73a122f6eb6b.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 19,
+   "title": "2D shapes",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/19/aaccc602-4a0a-4cf7-8646-9187b76a2151.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 20,
+   "title": "Assessment tools",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/20/a7d69bee-d291-42cc-a7cb-bad087bd6234.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 21,
+   "title": "Pre-Assessment",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/21/11e5389b-057c-42b5-9919-1f9c15043331.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 22,
+   "title": "Quick checks for understanding",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/22/e83e6973-4250-4914-b41a-64f3c84f7c4b.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 23,
+   "title": "Positive verbal feedback",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/23/f4cede99-6f99-4785-9a92-682b150e8355.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 24,
+   "title": "Checklist",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/24/9abc6375-4c52-41d5-9d16-0350a4756fb0.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 25,
+   "title": "How to use youtube for classrooms",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/25/4c3817fa-f0f4-42c8-9a55-5af2ff26df8f.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 26,
+   "title": "How to find educational resources online",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/26/f92765db-c184-4ede-be61-0066e58c303c.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 27,
+   "title": "How to make simple slides",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/27/60e3e150-352b-49f0-8ac4-a53bf8a4e8a9.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 28,
+   "title": "Reflective Journaling",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/28/2b3359fa-463e-4d9c-b224-0e4e464bacb2.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 29,
+   "title": "Confidentiality in the Classroom",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 30,
+   "title": "Ethical responsibilities and code of conduct",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/30/75c9fea9-6493-4198-b84f-131609e94386.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 31,
+   "title": "والدین کے ساتھ رشتہ مضبوط کرنا",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 32,
+   "title": "Phonic strategies part 1",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/32/df1d0990-f9d1-47e2-ae13-4e4b6a8e1f22.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 33,
+   "title": "Blending and Segmenting",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/33/071df75b-f133-4844-b93c-493b7c112488.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 34,
+   "title": "Key components of phonological awareness",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/34/db77433d-9929-4ef8-9125-fc93f01c97d3.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 35,
+   "title": "Phonological awareness",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/35/d12dde42-b805-41f7-bd25-58e4d49d83ef.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 36,
+   "title": "Grammar elements",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/36/2edc8af2-5d24-48fa-8eb2-65882d44798b.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 37,
+   "title": "Echo Reading",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/37/7d55d83d-5da1-448c-9ac4-01bdd278ae29.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 38,
+   "title": "Vocabulary Building",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/38/6dca9f2d-66f9-4100-833c-81cf602067a1.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 39,
+   "title": "Guided Reading",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/39/94e93c80-39d3-4996-bc4a-e8fe55fbd96d.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 40,
+   "title": "Tools for building vocabulary and comprehension skills",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/40/531d61ed-62a3-48d6-a96f-77e5d1909792.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 41,
+   "title": "بھاری اور ہلکی آوازیں",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/41/8351ad7e-691c-45e5-9725-40d1f64b030f.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 42,
+   "title": "اردو کی حرکات",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/42/d4891abf-30fe-4def-8dfd-4dc5601cea3d.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 43,
+   "title": "ارکان سازی",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/43/3c5d67d7-6188-4b64-9953-cdde51f88bd6.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 44,
+   "title": "متشابہ آوازیں",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/44/5c3f6366-17a2-4e7e-b944-4df1ba9d36a8.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 45,
+   "title": "بصری الفاظ",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/45/92107557-98e3-40e5-9aea-61812d5c747c.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 46,
+   "title": "جملے",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/46/e42e3584-f0a4-4844-bb34-8de50d30c9e8.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 47,
+   "title": "Five step lesson plan",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/47/8a35f910-8d11-4f24-ae3c-5b3bd7f35a5a.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 48,
+   "title": "Blooms Taxonomy",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/48/89c3ed80-e840-421d-a879-dfe049cc0d07.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 49,
+   "title": "Students-centered instructional strategies",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/49/bd92e7ec-3284-40df-a471-eb49e1a3c4d5.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 50,
+   "title": "Peer Learning",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/50/ddf1f4c6-5c2e-43a5-ac61-bb7bd1dae16b.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 51,
+   "title": "Open-Ended Questions",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/51/9f4e5b0d-4037-4f3d-bb4f-619512aaab6e.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 52,
+   "title": "ہر سبق میں تنقیدی سوچ اور تخلیقی صلاحیتیں: پاکستانی اساتذہ کے لیے ایک عملی رہنما",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/52/94f1d9f4-c147-4556-9900-f6d36f3767a2.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 53,
+   "title": "Visuals Aids",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/53/67feb091-0786-47ac-a04f-49c4535bebb5.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 54,
+   "title": "Misconceptions in basic operations",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/54/ff3e802e-214c-42fe-9e69-f34485eb054e.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 55,
+   "title": "Fractions",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/55/06b8d89c-0627-4ce1-9307-5f59e016b36a.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 56,
+   "title": "Case study on Estimation and Rounding up",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/56/6418c648-f03f-433e-852f-caa8042529a0.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 57,
+   "title": "Measurements Units",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/57/2b812fd3-2c7f-48d0-90d3-c4639596c12f.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 58,
+   "title": "Area and Perimeter",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/58/f12e5074-cf47-465a-903b-3717b9522189.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 59,
+   "title": "Integrating graphs",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/59/54e566ca-06ce-49fa-80a5-1637413e3a97.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 60,
+   "title": "Patterns",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/60/ce1ee362-a4e5-44cb-8f1f-b774b0d4f95f.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 61,
+   "title": "Building phonic foundations",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/61/3e035358-4ebb-422b-838d-8a7053a57197.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 62,
+   "title": "Multi-Literacy Skills",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/62/e1f40a67-1a44-4990-a448-a6b20b9d53e2.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 63,
+   "title": "Degrees of Adjectives, Adverbs, and more complex grammar",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/63/343c0f7f-fdb2-4bcd-9cde-042e3c999e08.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 64,
+   "title": "Writing Paragraphs",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/64/71e5f0b3-2eb3-4c0e-b00c-1510aaa8fa68.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 65,
+   "title": "Develop narrative fluency",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/65/9093791b-b1f3-4f6e-ba73-bab5e9fb0380.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 66,
+   "title": "Continuous and perfect tenses",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/66/ada52b78-6055-4f7b-a417-3d7d99cea442.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 67,
+   "title": "Diagnosing and Correcting Errors in Sentence Construction, Spelling, and Punctuation",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/67/16cb1b51-8bfe-42b8-8cae-1b1b68d9f977.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 68,
+   "title": "Scaffolding Oral Language through Structured Speaking Activities",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/68/dd72f667-accd-4d33-856e-82446a402a5e.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 69,
+   "title": "مرکب الفاظ",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/69/45f83b86-e3ad-497a-b0cc-b871c9253c35.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 70,
+   "title": "تشکیل، مذکر  اور مونث",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/70/d9bedfd2-db4d-4d19-b2c9-c73cba2abba8.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 71,
+   "title": "بنیادی تحریری مہارتیں",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/71/894a0cef-7061-4e24-a88d-57ac9b3583f7.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 72,
+   "title": "واحد/جمع, تذکیر/تانیث,اور  فاعل/مفعول",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/72/adad2ab4-9e42-4c27-a215-365be786def3.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 73,
+   "title": "اسم، فعل، صفت، ضمیر، حرفِ جار، حرفِ عطف، ندا، استفہام",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/73/168c0474-d4aa-474a-a340-4023b338052a.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 74,
+   "title": "زمانہ ماضی، حال، مستقبل",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/74/2a359e35-9b8f-4dc4-8b92-a33f17aae4d0.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 75,
+   "title": "Conceptual Understanding",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/75/60d2156e-6648-4f31-8865-cd329f0c2190.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 76,
+   "title": "Formative Assessment",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/76/812cbeb4-d27a-4b2e-8fd8-3cb9237a19c6.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 77,
+   "title": "diagnostic assessments",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/77/00b235b1-bb72-43a7-9fc5-0b791e3cd9cb.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 78,
+   "title": "summative assessments",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/78/2aa38a11-aa27-4d84-a01e-5b5bc5de6182.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 79,
+   "title": "Small Steps, Big Success",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/79/2e0de776-70fc-4868-9c4f-9a3d4cba269e.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 80,
+   "title": "differentiated assessments",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/80/4504071c-b72b-41b5-8a6c-f47784db905d.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 81,
+   "title": "Universal Design for Learning: Teaching for Every Child",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/81/9f5ba091-217a-40c7-a076-0a541f05844c.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 82,
+   "title": "Child Psychology in the Classroom: A Practical Guide for Pakistani Teachers",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/82/a1adb8b4-3f44-436c-8667-76641660297f.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 83,
+   "title": "بلینڈڈ لرننگ",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/83/311071af-83d5-44f1-9b33-92155abff697.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 84,
+   "title": "How to make Google Forms",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/84/e2d640dc-884f-4447-8d0f-cd731f4f93ed.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 85,
+   "title": "How to make digital checklist",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/85/086fb817-881a-4c81-bbe1-cf6cb38328a3.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 86,
+   "title": "implement simple routines",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/86/c0d2e0df-3251-40a2-977c-67f0ede8706c.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 87,
+   "title": "SMART goals for behavior and academic tasks",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/87/c90e2757-68f7-45cc-834d-3ce436612a6b.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 88,
+   "title": "Individualized Behavior Charts for Positive Student Progress",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/88/6550fc37-a31b-4ef0-80d1-2e3ad1f21777.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 89,
+   "title": "SMART Goals: A Teacher’s Secret to Growth",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/89/5f254118-42a6-4c87-90e4-d91959d9e925.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 90,
+   "title": "Case Study Story: Miss Ayesha’s One Step at a Time",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/90/c00fec88-f329-4044-b1ce-626820a3a80a.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 91,
+   "title": "Action Plans: A Teacher’s Road to Improvement",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/91/7acfa949-bade-4c99-8a1a-f16e8f5f758a.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 92,
+   "title": "آن لائن کمیونٹی سے سیکھنے کا سفر",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/92/eb9ceff2-a803-45a7-904a-f88f5b94ef4a.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 93,
+   "title": "Project based learning",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/93/22a93459-dd61-4734-8be3-f2f8ad92284c.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 94,
+   "title": "inquiry-based learning",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/94/3708bb74-7e56-4798-b085-64b0b0196edb.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 95,
+   "title": "Use Socratic Questioning",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/95/8b9ef0d9-53e6-4a73-ac9e-5919f7553b9b.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 96,
+   "title": "Group Projects",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/96/d42ac898-3cd0-45d2-85a6-322296ee46c9.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 97,
+   "title": "Peer Problem-Solving",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/97/8cd2e511-0460-487b-97f6-69c14f96cb4c.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 98,
+   "title": "Encouraging Multiple Solutions in the Classroom",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/98/5705ed42-938c-4353-bdec-ee6c1f7f3c9c.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 99,
+   "title": "Using Varied Strategies to Build Connected Lessons",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/99/4c9cd50c-5e18-4211-b72e-ad401ab1eedf.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 100,
+   "title": "Bloom’s Taxonomy",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/100/b6ec9cef-be20-40ec-8196-51ca91b1719d.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 101,
+   "title": "Decimals",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/101/7dc5650f-4f5b-4c2e-bce9-c6c2412eb0c7.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 102,
+   "title": "Percentages",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/102/34a237f4-f42a-4573-b5d2-2e2583fa6a64.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 103,
+   "title": "Factor and Multiple",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/103/63675ee6-5f1f-4fd6-b1e5-c72f8c2421a2.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 104,
+   "title": "HCF and LCM",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/104/9c961d4d-c01a-4431-aa82-c8738e873873.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 105,
+   "title": "Transformation of sentences",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/105/78bfcdff-3e8a-4706-991d-acab0dbfdf23.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 106,
+   "title": "Comprehension Strategies",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/106/13fedd6f-d06b-4a74-9bc3-f1c29db3a9f4.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 107,
+   "title": "Vocabulary Instructions to Reading and Writing",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/107/b78563f0-e2fe-4828-af23-4d4f3f1b88b5.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 108,
+   "title": "Integrating listening texts and oral narratives into literacy lessons to build auditory comprehension",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/108/1926b378-dcd3-4903-be0f-4a0536a2abbf.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 109,
+   "title": "استعجابیہ، تمنائی، شرطیہ اور امر و نہی جملوں کی پہچان اور تدریس",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/109/620a6431-909a-48de-a991-7abd46588718.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 110,
+   "title": "لغت کا استعمال سیکھنا",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/110/2b35bbae-e801-4d5c-b91a-3ef9fe94000a.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 111,
+   "title": "پیراگراف کی تنظیم اور ساخت",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/111/dfcf95e7-2769-4796-830a-965306ccbc4a.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 112,
+   "title": "مربوط اور غیر مربوط گفتگو",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/112/8d2db13a-e1ef-4068-ba3b-da86a448da6b.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 113,
+   "title": "ارکان سازی",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/113/48edde2c-844d-4f8a-b8d1-d1f8e262592b.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 114,
+   "title": "جملے کی ساخت، فاعل و مفعول، اسم نکرہ و معرفہ",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/114/942c391d-e12a-48b5-b865-fa38c5002d3d.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 115,
+   "title": "Assessments that Matter: Measuring Real Learning",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/115/29158b6c-cbce-4413-bbd3-f3a7d9ee62aa.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 116,
+   "title": "Learning from Student Data",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/116/7a08c0d0-90a1-4f33-90b5-75493162ced0.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 117,
+   "title": "طلباء کو خود جائزہ کے ذریعے غور و فکر اور بہتری میں مدد دینا",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/117/533d431e-8dbc-4aa8-94d1-73d17af563f1.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 118,
+   "title": "Portfolios: Tracking the Journey of Learning",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/118/248a9ed1-0956-4b4c-81f1-8ff7518e9c86.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 119,
+   "title": "Peer Assessment: Learning from Each Other",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/119/27811de7-99b3-4068-98a1-be31c61eeb62.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 120,
+   "title": "Using Rubrics : A Simple Way to Check Students’ Work Fairly",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/120/928f47f6-829f-4769-b31f-1707f4051b21.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 121,
+   "title": "Design and Assign differentiated Instructional Activities",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/121/09101620-45e4-42c6-a7b8-1f3564d6f9c4.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 122,
+   "title": "Creating Learning Stations: Helping Students Learn at Their Own Pace",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/122/8ffd23b8-8e49-4f92-ac7a-61c23c1d397f.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 123,
+   "title": "Child Psychology and Holistic Development: A Practical Guide for Pakistani Teachers",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/123/34983f41-1106-49bc-b2a3-4cbeabccf59a.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 124,
+   "title": "گوگل ڈرائیو کے ذریعے کلاس میٹریلز کو منظم کرنا",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/124/007efeaa-e7de-4cf3-b612-47c38da1f160.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 125,
+   "title": "کے ذریعے آسان پوسٹر اور گرافکس بنانا (Canva)",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/125/c0bca039-29b3-4395-abc1-6950a740aba8.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 126,
+   "title": "Interactive Digital Resources in the Classroom",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/126/7f253fc8-40e3-4a32-a11d-ac9c91b61850.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 127,
+   "title": "Using Google Meet and Zoom for Effective Teaching",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/127/07e53c79-b312-43c0-940d-4bba948fdd9a.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 128,
+   "title": "Restorative Practices",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/128/6f6c7785-2490-4596-923d-be738a979f64.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 129,
+   "title": "Positive Reinforcement Strategies",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/129/85dcb9ea-2926-4b6e-b737-303a6a17cef0.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 130,
+   "title": "Expectations and Goals",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/130/44d6c942-18fc-47a3-9948-067483c45d37.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 131,
+   "title": "اساتذہ کو PLC کی ضرورت کیوں ہے؟",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/131/9bbc73bd-4f64-43e9-a293-caa6fd71befc.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 132,
+   "title": "کہانی کا عنوان: نور سکول میں پڑھنے کا انقلاب",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/132/7711281e-2c18-4307-b12a-a0119385b82d.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 133,
+   "title": "Project Based Learning",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/133/7598cc10-f877-42dd-8816-127756b380d5.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 134,
+   "title": "Project Based Learning (Reading Resource)",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/134/08d5e56d-f747-4320-a210-a34da6a7f7cd.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 135,
+   "title": "Designing Interdisciplinary Lessons through Project-Based Learning",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/135/0eee4904-bda1-43d7-aad2-5ab6154eabae.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 136,
+   "title": "School-Based PBL",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/136/3b35975a-8437-467b-a650-5bfbd3204f66.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 137,
+   "title": "Peer Classroom Observations",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/137/5bfb781e-2ff1-415a-bd0e-a3ef6b1c9a83.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 138,
+   "title": "Mentoring Peers to Design Concept-Based, Activity-Driven Math Lessons",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/138/ddddf019-24a2-4d37-9eca-6e5751a3836f.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 139,
+   "title": "Facilitating the Correction of Deep Misconceptions in Mathematics",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/139/7dfe0f2f-76ca-4562-b8a5-abfc1f839e55.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 140,
+   "title": "Designing Effective Math Trainings Using CPA, Math Discourse, and Formative Assessment",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/140/f253c442-5c34-4f3c-aed4-4c1380c4c438.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 141,
+   "title": "Modeling Facilitation of Math Clubs, Fairs, and Circles to Build a Math Culture",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/141/48e4b725-da31-441c-b60d-3e91b8d79688.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 142,
+   "title": "Integrating the Four Pillars of Literacy: Phonics, Fluency, Comprehension, and Vocabulary",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/142/fd5c9893-888e-4a61-8b7d-2f55ba9dbb4a.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 143,
+   "title": "Teaching Grammar with Purpose: Linking Form, Function, and Meaning",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/143/3892e4ea-0b1d-4bf2-9b6d-28c075151a56.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 144,
+   "title": "Developing Grade-Appropriate Reading and Writing Materials for the English Classroom",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/144/3ce4bc7a-4e2b-47c6-9e04-377d2f71b590.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 145,
+   "title": "تحریر کی درستی اور روانی – ابتدائی اردو کی مؤثر تربیت",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/145/99da20b1-3802-4ea9-925f-f936328c899f.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 146,
+   "title": "لفلاح سکول میں اردو کا نیا سفر",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/146/2e5d00c1-50f4-4434-baa7-211f444ade1b.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 147,
+   "title": "Designing and Implementing School-Wide Assessments",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/147/91210148-9c30-41d0-b6bc-88834df00700.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 148,
+   "title": "The Art of Assessment: Designing and Implementing Effective Rubrics",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/148/7d274d0e-82ff-4a65-ac62-d1838661604d.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 149,
+   "title": "The Art of Assessment: Designing and Implementing Effective Rubrics(Reading Resource)",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/149/4797209a-03dc-464e-964e-f856fc64f628.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 150,
+   "title": "Reflective Post-Observation Conversation",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/150/39b343f3-ba30-40f3-9734-9bb6e5b6f12c.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 151,
+   "title": "Reflective Post-Observation Conversation(Reading Resource)",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/151/e6eefb9b-86c8-4ee0-a8c7-866695822fcd.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 152,
+   "title": "Differentiation in Action: Helping Every Student Learn Better",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/152/329c2211-d27a-49a4-af78-d6f35891fab5.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 153,
+   "title": "Creating Personalized Learning Journeys for Students",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/153/67329dc0-c025-41e1-b99a-fd401df6ea1f.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 154,
+   "title": "Developing Individualized Education Plans (IEPs) for Students with Specific Needs",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/154/3a2d6bc0-4540-4a3f-b321-33577bd94951.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 155,
+   "title": "سیکھنے کا نیا انداز",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/155/2f965974-38d2-44cc-a4cd-a07811cbdd00.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 156,
+   "title": "Facilitating Teacher Training on Grouping Strategies for Mixed-Ability Classrooms",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/156/852e7bfc-7811-4cd2-abc7-a95bcb9101c5.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 157,
+   "title": "Inclusive Classrooms: Teaching Every Child Together",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/157/1ee013ce-a4ae-4ba8-8121-b67c37e60136.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 158,
+   "title": "Framework for Continuous Professional Development for teachers",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/158/256b82ea-898a-4762-b18f-c7edaf2a4e30.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 159,
+   "title": "Enhancing Collaboration through Google Docs and Slides: A School-Wide Initiative",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/159/d261a459-6e45-4d15-b27b-9f386dc8655c.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 160,
+   "title": "The “Hole in the Wall” Experiment — A Journey Toward Self-Paced Learning",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/160/98a5067b-93f9-4c10-887d-78beb4946a7b.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 161,
+   "title": "Designing and Leading Peer Mentoring Programs for Positive Behavior and Self-Regulation",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/161/f47fa4d8-a51a-4bb4-b96e-d5547314cc1b.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 162,
+   "title": "Peer Mentoring for Effective Classroom Management",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/162/0bdd5fd7-b1ca-444c-8532-af378badb074.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 163,
+   "title": "Helping Students Set Long-Term Behavioral Goals",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/163/3217979a-3f71-4120-91eb-7d031cf6db21.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 164,
+   "title": "School-wide Behavior Management Program",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/164/9c28cb62-00b9-4856-a1d8-d433ef38990d.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 165,
+   "title": "Student-Led Behavior Committees",
+   "audio_url": null,
+   "video_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/165/b5b0367a-7e5d-4a6b-8dd7-5f9d010ef147.mp4",
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 166,
+   "title": "Flipped Classroom",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/166/9ddf1e32-be9c-4d7c-baf3-db5feef05506.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 167,
+   "title": "Leading Workshops on the Benefits of Using Simple Digital Tools for Planning and Assessments",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/167/f5aba88e-3e6c-4852-9242-43bee2a23f14.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 168,
+   "title": "اسکول اور کمیونٹی کے درمیان تعلق مضبوط بنانا",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/168/e18ae086-cc5b-4006-9664-907b4766a59e.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 169,
+   "title": "Creating a Comprehensive Feedback System for School Improvement",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/169/c3f55b89-1ac2-4d4d-9677-8e6982f1ce6b.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 170,
+   "title": "Creating a Shared Vision for Professional Development",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/170/d54be694-59bb-4b0d-9ca3-b9824f986b2c.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 171,
+   "title": "Leading with Integrity — Building an Ethical School Culture",
+   "audio_url": "https://58a6fb2a86d61397895d6b97b73a3ebe.r2.cloudflarestorage.com/digital-coach-audio/training/TALEEMABAD/171/1ac68c70-d12e-45eb-a206-0f997fa1f30e.pdf",
+   "video_url": null,
+   "source_media_url": null,
+   "is_active": true
+  },
+  {
+   "id": 172,
+   "title": "SESSION#1",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/09893a86-27fc-44db-99f5-7a0975f7e268.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/09893a86-27fc-44db-99f5-7a0975f7e268.mp4",
+   "is_active": true
+  },
+  {
+   "id": 173,
+   "title": "SESSION#2",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0b67bb58-f84e-486d-a120-5ed99e0ee858.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0b67bb58-f84e-486d-a120-5ed99e0ee858.mp4",
+   "is_active": true
+  },
+  {
+   "id": 174,
+   "title": "SESSION#3",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c3cc68ea-6809-4bb1-a500-4ab7cfa45fae.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c3cc68ea-6809-4bb1-a500-4ab7cfa45fae.mp4",
+   "is_active": true
+  },
+  {
+   "id": 175,
+   "title": "SESSION#4",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0df7c430-9109-43be-b419-f076702d7ab1.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0df7c430-9109-43be-b419-f076702d7ab1.mp4",
+   "is_active": true
+  },
+  {
+   "id": 176,
+   "title": "SESSION#5",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c50580e4-bbae-40f7-ba4e-7faa5aa008a8.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c50580e4-bbae-40f7-ba4e-7faa5aa008a8.mp4",
+   "is_active": true
+  },
+  {
+   "id": 177,
+   "title": "SESSION#6",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/ec533642-9c19-4a1e-b128-cd664a4eda91.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/ec533642-9c19-4a1e-b128-cd664a4eda91.mp4",
+   "is_active": true
+  },
+  {
+   "id": 178,
+   "title": "SESSION#7",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/01086966-a27b-4fdc-9146-5e4601d49d01.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/01086966-a27b-4fdc-9146-5e4601d49d01.mp4",
+   "is_active": true
+  },
+  {
+   "id": 179,
+   "title": "AI Is a Teaching Assistant",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e23e0460-fc5b-40d5-be0b-1a0c701a62c5.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e23e0460-fc5b-40d5-be0b-1a0c701a62c5.mp4",
+   "is_active": true
+  },
+  {
+   "id": 180,
+   "title": "What is AI?",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/fc5580c8-204b-454c-9a51-bd707af9667e.pdf",
+   "is_active": true
+  },
+  {
+   "id": 181,
+   "title": "Model Vs Agent",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e4b8041e-1983-4377-8ecf-a1ce76cb0659.pdf",
+   "is_active": true
+  },
+  {
+   "id": 182,
+   "title": "AI Literacy Framework",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/091fc7e0-3572-4e0e-bf27-758a0d887396.pdf",
+   "is_active": true
+  },
+  {
+   "id": 183,
+   "title": "Responsible AI",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/16d43c54-2255-440e-aa7c-293cbe7679a5.pdf",
+   "is_active": true
+  },
+  {
+   "id": 184,
+   "title": "AI Tool Evaluation Checklist",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/86082457-203d-452f-a8b6-c4dbcea374f4.pdf",
+   "is_active": true
+  },
+  {
+   "id": 185,
+   "title": "Student AI Tool Check",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/dc37e13a-4763-436c-81e9-6d6ff7ee14a3.pdf",
+   "is_active": true
+  },
+  {
+   "id": 186,
+   "title": "AI for Lesson Planning",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f04b3291-a6de-4a2d-bc4e-9e6ff08c7e3c.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f04b3291-a6de-4a2d-bc4e-9e6ff08c7e3c.mp4",
+   "is_active": true
+  },
+  {
+   "id": 187,
+   "title": "Prompt Like A Pro",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f44a6066-c8c6-4f84-857a-19b8bf037bb0.pdf",
+   "is_active": true
+  },
+  {
+   "id": 188,
+   "title": "Prompt Refinement Practice",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/da8616e8-b6a4-4df2-b23d-b4f80540e9ec.pdf",
+   "is_active": true
+  },
+  {
+   "id": 189,
+   "title": "Planning with Purpose",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/189e9b2a-024c-4245-a3d1-23ec3ac8c665.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/189e9b2a-024c-4245-a3d1-23ec3ac8c665.mp4",
+   "is_active": true
+  },
+  {
+   "id": 190,
+   "title": "Smart Prompt Templates for Teachers",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/adaee8e1-b599-4a8d-99b0-a76c71d7c210.pdf",
+   "is_active": true
+  },
+  {
+   "id": 191,
+   "title": "Student Prompt Cheat Sheet",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/760eb658-498e-4519-b205-4667a112b933.pdf",
+   "is_active": true
+  },
+  {
+   "id": 192,
+   "title": "AI helps save planning time",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/2758a214-402a-4449-b326-90c7d2453a7e.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/2758a214-402a-4449-b326-90c7d2453a7e.mp4",
+   "is_active": true
+  },
+  {
+   "id": 193,
+   "title": "Grammar Translation Method (GTM)",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/aa122c77-11d5-4c3e-b3e1-59061bd8de1b.pdf",
+   "is_active": true
+  },
+  {
+   "id": 194,
+   "title": "Audio-Lingual Method (ALM)",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/9e308728-71d6-4d71-91a2-9ad9dbe8ef93.pdf",
+   "is_active": true
+  },
+  {
+   "id": 195,
+   "title": "Direct Method",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/2e95a39a-8b1c-4d90-ae0c-7a5eb010c989.pdf",
+   "is_active": true
+  },
+  {
+   "id": 196,
+   "title": "Communicative Language Teaching (CLT)",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/5f1730ea-991d-4c95-a8db-ed1aedb74d33.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/5f1730ea-991d-4c95-a8db-ed1aedb74d33.mp4",
+   "is_active": true
+  },
+  {
+   "id": 197,
+   "title": "Communicative Language Teaching (CLT)",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/271a0190-3eb6-409c-8ac5-b60601a18c20.pdf",
+   "is_active": true
+  },
+  {
+   "id": 198,
+   "title": "Task-Based Learning (TBL) in ELT",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/9c343f3b-e973-409d-86d8-2d563771b272.pdf",
+   "is_active": true
+  },
+  {
+   "id": 199,
+   "title": "The Flipped Method in ELT",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e043f64d-40e3-46c2-8b37-6075934eb3aa.pdf",
+   "is_active": true
+  },
+  {
+   "id": 200,
+   "title": "Aligning Lessons with SLOs",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/9afb957b-ea41-4890-b2d8-a08b5d623619.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/9afb957b-ea41-4890-b2d8-a08b5d623619.mp4",
+   "is_active": true
+  },
+  {
+   "id": 201,
+   "title": "The Three-Stage Reading Approach",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/199c9723-58b2-4f90-bc4a-491d5f1532de.pdf",
+   "is_active": true
+  },
+  {
+   "id": 202,
+   "title": "AI-Generated Reading & Vocabulary Lesson",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/74e84b90-298c-4dcb-846b-a38fb80bbbf2.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/74e84b90-298c-4dcb-846b-a38fb80bbbf2.mp4",
+   "is_active": true
+  },
+  {
+   "id": 203,
+   "title": "The Writing Process",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/9d9cf5e9-f53d-4c01-8f59-f6e9939448eb.pdf",
+   "is_active": true
+  },
+  {
+   "id": 204,
+   "title": "Teaching Tiered Vocabulary",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/474585d7-0ecf-4951-99a1-290d8e9916be.pdf",
+   "is_active": true
+  },
+  {
+   "id": 205,
+   "title": "Context-Based Vocabulary Instruction",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0b0c4d7e-54da-49c0-bc7c-ae5233aee21b.pdf",
+   "is_active": true
+  },
+  {
+   "id": 206,
+   "title": "Effective Vocabulary Strategies in ELT",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/759a1c13-6cca-4c28-995b-3c3b3b592752.pdf",
+   "is_active": true
+  },
+  {
+   "id": 207,
+   "title": "Planning Better Questions with AI",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c59bcef3-fc1b-47e1-bd49-f1bd8f4be81b.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c59bcef3-fc1b-47e1-bd49-f1bd8f4be81b.mp4",
+   "is_active": true
+  },
+  {
+   "id": 208,
+   "title": "Teaching the Think-Aloud Strategy",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/34f960c1-a148-4986-8e1d-87ec44b0e7a5.pdf",
+   "is_active": true
+  },
+  {
+   "id": 209,
+   "title": "Model Vocabulary Lesson.pdf",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/3e7e7ddb-655e-40db-80ab-c146e101e6de.pdf",
+   "is_active": true
+  },
+  {
+   "id": 210,
+   "title": "Using Mind Maps to Improve Writing",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/3bc779c0-b449-4a2c-87c5-a11e6f0d81f2.pdf",
+   "is_active": true
+  },
+  {
+   "id": 211,
+   "title": "Descriptive Paragraph Writing Using Sensory Details",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/ddbc5127-b457-4190-b4f0-f567984c5386.pdf",
+   "is_active": true
+  },
+  {
+   "id": 212,
+   "title": "Creative Story Writing",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/55e1adfe-2359-45df-9329-3595af2ff952.pdf",
+   "is_active": true
+  },
+  {
+   "id": 213,
+   "title": "Core Communication Techniques",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0cb9451e-bf6b-45ef-ae04-a1022ff74c12.pdf",
+   "is_active": true
+  },
+  {
+   "id": 214,
+   "title": "The Four Basic Sentence Types",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/a2dab859-f84e-4c99-a173-c9ed1346948c.pdf",
+   "is_active": true
+  },
+  {
+   "id": 215,
+   "title": "Subject–Verb Agreement",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e21613bc-9c05-4f13-8d9a-143f740bf073.pdf",
+   "is_active": true
+  },
+  {
+   "id": 216,
+   "title": "Active Listening in the ELT Classroom",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/b74651f0-b94a-47d7-8747-4c4fb3f692a4.pdf",
+   "is_active": true
+  },
+  {
+   "id": 217,
+   "title": "Verb Tense Consistency",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/3a2aae1c-f893-4b71-86ef-dfc261e95cd2.pdf",
+   "is_active": true
+  },
+  {
+   "id": 218,
+   "title": "Punctuation in Complex Sentences",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/572d8ff1-ce92-46af-96e2-531a82feb495.pdf",
+   "is_active": true
+  },
+  {
+   "id": 219,
+   "title": "Awareness of Intonation, Pacing and Expressiveness",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/b280c4e9-26d7-48a0-8a60-9b85c043039d.pdf",
+   "is_active": true
+  },
+  {
+   "id": 220,
+   "title": "Using AI to Differentiate for Mixed-Ability Classrooms",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e0a81be0-5b4d-4e7f-b3cd-cbedb432a28e.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e0a81be0-5b4d-4e7f-b3cd-cbedb432a28e.mp4",
+   "is_active": true
+  },
+  {
+   "id": 221,
+   "title": "Storytelling as a Communication Method",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e3abd484-ee5b-49a2-a8cf-57a03f5acee3.pdf",
+   "is_active": true
+  },
+  {
+   "id": 222,
+   "title": "Role-Play in the ELT Classroom",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c4019a7e-d333-495b-8485-38c796ab30bf.pdf",
+   "is_active": true
+  },
+  {
+   "id": 223,
+   "title": "Debates & Formal Communication",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/bebf0b8f-ea45-4612-b99a-2057515ea133.pdf",
+   "is_active": true
+  },
+  {
+   "id": 224,
+   "title": "Formative Assessment & Exit Tickets",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/5a0cf0a8-b75f-45ae-89d0-c4ed3d13396b.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/5a0cf0a8-b75f-45ae-89d0-c4ed3d13396b.mp4",
+   "is_active": true
+  },
+  {
+   "id": 225,
+   "title": "Understanding Assessment in ELT Classrooms",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/ef6c5e58-17ab-4f8c-927c-862c556bcd68.pdf",
+   "is_active": true
+  },
+  {
+   "id": 226,
+   "title": "Formative Assessment in ELT",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/1813988c-6226-4e8a-b219-4f57c43db495.pdf",
+   "is_active": true
+  },
+  {
+   "id": 227,
+   "title": "One Lesson, Three Learners",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0de03da3-397b-4f83-bc16-6d84ed712e7b.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0de03da3-397b-4f83-bc16-6d84ed712e7b.mp4",
+   "is_active": true
+  },
+  {
+   "id": 228,
+   "title": "The Role of Feedback in ELT",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f65f550d-c36f-4659-bca2-f0d546f2a9c2.pdf",
+   "is_active": true
+  },
+  {
+   "id": 229,
+   "title": "Assessing Learners - British Council",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/135d5063-51a2-443c-ae87-852fa77ecd7e.pdf",
+   "is_active": true
+  },
+  {
+   "id": 230,
+   "title": "Understanding Rubrics in ELT",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/7fc0352b-a3a0-4484-860c-56b4d9bb4ae2.pdf",
+   "is_active": true
+  },
+  {
+   "id": 231,
+   "title": "Scoring Rubrics & Practical Use in the Classroom",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/6815b1fd-76b8-4fb4-ad76-8394ee3127c8.pdf",
+   "is_active": true
+  },
+  {
+   "id": 232,
+   "title": "AI-Generated Teacher Reflection & Lesson Improvement",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/d6be7060-4830-4975-a247-6a58fb3ddbfc.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/d6be7060-4830-4975-a247-6a58fb3ddbfc.mp4",
+   "is_active": true
+  },
+  {
+   "id": 233,
+   "title": "Assessing Speaking Worksheet - British Council",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0394c8de-77c4-4daf-bbf6-29cfd04ee5f9.pdf",
+   "is_active": true
+  },
+  {
+   "id": 234,
+   "title": "AI is a Teaching Assistant",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e23e0460-fc5b-40d5-be0b-1a0c701a62c5.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e23e0460-fc5b-40d5-be0b-1a0c701a62c5.mp4",
+   "is_active": true
+  },
+  {
+   "id": 235,
+   "title": "What is AI?",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/fc5580c8-204b-454c-9a51-bd707af9667e.pdf",
+   "is_active": true
+  },
+  {
+   "id": 236,
+   "title": "Model Vs Agent",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e4b8041e-1983-4377-8ecf-a1ce76cb0659.pdf",
+   "is_active": true
+  },
+  {
+   "id": 237,
+   "title": "AI Literacy Framework",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/091fc7e0-3572-4e0e-bf27-758a0d887396.pdf",
+   "is_active": true
+  },
+  {
+   "id": 238,
+   "title": "Responsible AI",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/16d43c54-2255-440e-aa7c-293cbe7679a5.pdf",
+   "is_active": true
+  },
+  {
+   "id": 239,
+   "title": "AI Tool Evaluation Checklist",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/86082457-203d-452f-a8b6-c4dbcea374f4.pdf",
+   "is_active": true
+  },
+  {
+   "id": 240,
+   "title": "Student AI Toolcheck",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/dc37e13a-4763-436c-81e9-6d6ff7ee14a3.pdf",
+   "is_active": true
+  },
+  {
+   "id": 241,
+   "title": "AI for Lesson Planning",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f04b3291-a6de-4a2d-bc4e-9e6ff08c7e3c.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f04b3291-a6de-4a2d-bc4e-9e6ff08c7e3c.mp4",
+   "is_active": true
+  },
+  {
+   "id": 242,
+   "title": "Prompt Like A Pro",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f44a6066-c8c6-4f84-857a-19b8bf037bb0.pdf",
+   "is_active": true
+  },
+  {
+   "id": 243,
+   "title": "Prompt Refinement Practice",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/da8616e8-b6a4-4df2-b23d-b4f80540e9ec.pdf",
+   "is_active": true
+  },
+  {
+   "id": 244,
+   "title": "Planning with Purpose",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/189e9b2a-024c-4245-a3d1-23ec3ac8c665.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/189e9b2a-024c-4245-a3d1-23ec3ac8c665.mp4",
+   "is_active": true
+  },
+  {
+   "id": 245,
+   "title": "Smart Prompt Templates for Teachers",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/adaee8e1-b599-4a8d-99b0-a76c71d7c210.pdf",
+   "is_active": true
+  },
+  {
+   "id": 246,
+   "title": "Student Prompt Cheat Sheet",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/760eb658-498e-4519-b205-4667a112b933.pdf",
+   "is_active": true
+  },
+  {
+   "id": 247,
+   "title": "AI Helps Save Planning Time",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/2758a214-402a-4449-b326-90c7d2453a7e.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/2758a214-402a-4449-b326-90c7d2453a7e.mp4",
+   "is_active": true
+  },
+  {
+   "id": 248,
+   "title": "From Answers to Thinking",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/4cc4b1ca-ac5d-4685-ac53-2a5413848530.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/4cc4b1ca-ac5d-4685-ac53-2a5413848530.mp4",
+   "is_active": true
+  },
+  {
+   "id": 249,
+   "title": "Characteristics of Effective Questioning",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/5d5bd251-f1e2-4a6e-969d-fc78ee292a4b.pdf",
+   "is_active": true
+  },
+  {
+   "id": 250,
+   "title": "Comparing Effective and Ineffective Questioning",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/ec3cbf3a-18ce-453e-9e9c-261b72e0b4f4.pdf",
+   "is_active": true
+  },
+  {
+   "id": 251,
+   "title": "Planning Better Questions with AI",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c59bcef3-fc1b-47e1-bd49-f1bd8f4be81b.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c59bcef3-fc1b-47e1-bd49-f1bd8f4be81b.mp4",
+   "is_active": true
+  },
+  {
+   "id": 252,
+   "title": "Questioning that will help improve responses",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/7513421c-7abf-42f2-b887-14631bc3df07.pdf",
+   "is_active": true
+  },
+  {
+   "id": 253,
+   "title": "Structured and Unstructured Activities in Mathematics",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/176b12ec-0c92-4944-a12f-4ad90c3efe7f.pdf",
+   "is_active": true
+  },
+  {
+   "id": 254,
+   "title": "Structured vs Unstructured Activities - Sample 1",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e4cfca68-ce85-4f74-a608-607919ddc4dd.pdf",
+   "is_active": true
+  },
+  {
+   "id": 255,
+   "title": "Structured vs Unstructured Activities - Sample 2",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/2e804a3b-086e-48a3-9fa0-4b3947c1de83.pdf",
+   "is_active": true
+  },
+  {
+   "id": 256,
+   "title": "Structured vs Unstructured Activities - Sample 3",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0859d34d-7eae-4c3d-9516-3cc96c1652ce.pdf",
+   "is_active": true
+  },
+  {
+   "id": 257,
+   "title": "AI-Generated Real-Life Math Word Problems",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/ed90f35b-308c-4110-b0ba-4c76e15c82c9.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/ed90f35b-308c-4110-b0ba-4c76e15c82c9.mp4",
+   "is_active": true
+  },
+  {
+   "id": 258,
+   "title": "Practical Advice for Teaching Activity Solving",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/a02856a1-d027-43e7-8c12-762977a519b3.pdf",
+   "is_active": true
+  },
+  {
+   "id": 259,
+   "title": "Structured vs Unstructured Activities - Solutions and Notes",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/d8ea004a-cb5d-405f-a9c3-c8fb5a6f692f.pdf",
+   "is_active": true
+  },
+  {
+   "id": 260,
+   "title": "Aligning Lessons with SLOs",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/9afb957b-ea41-4890-b2d8-a08b5d623619.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/9afb957b-ea41-4890-b2d8-a08b5d623619.mp4",
+   "is_active": true
+  },
+  {
+   "id": 261,
+   "title": "Fostering and Managing Collaborative Work",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/b560618e-cde8-469b-a942-980f146c0b7e.pdf",
+   "is_active": true
+  },
+  {
+   "id": 262,
+   "title": "Ground Rules for Student-Student Discussion - Collaborative Work",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/d8bccbb4-9bcb-4557-a501-54714644fbd2.pdf",
+   "is_active": true
+  },
+  {
+   "id": 263,
+   "title": "Planning for Student-Student Discussion - Collaborative Work",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/b076163b-8db1-4051-a144-3461949213da.pdf",
+   "is_active": true
+  },
+  {
+   "id": 264,
+   "title": "Activities to Promote Speaking and Listening",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/70b36eb7-acfd-4e32-9d7b-f05f104582c6.pdf",
+   "is_active": true
+  },
+  {
+   "id": 265,
+   "title": "Involving students in self- and peer- assessment",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/d7ce9486-ee16-418d-8ceb-50f7f0c43295.pdf",
+   "is_active": true
+  },
+  {
+   "id": 266,
+   "title": "Reflecting on Classroom Experiences",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/8dbf7728-dd21-472f-95b4-b971326b1168.pdf",
+   "is_active": true
+  },
+  {
+   "id": 267,
+   "title": "AI-Generated Teacher Reflection & Lesson Improvement",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/d6be7060-4830-4975-a247-6a58fb3ddbfc.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/d6be7060-4830-4975-a247-6a58fb3ddbfc.mp4",
+   "is_active": true
+  },
+  {
+   "id": 268,
+   "title": "Building Mathematical Reasoning in Math Classrooms",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f83cbf04-2f17-4592-af30-e1f36a4977e2.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f83cbf04-2f17-4592-af30-e1f36a4977e2.mp4",
+   "is_active": true
+  },
+  {
+   "id": 269,
+   "title": "What Is a Number System",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/3748723e-fc15-47b5-b804-367ca25089bd.pdf",
+   "is_active": true
+  },
+  {
+   "id": 270,
+   "title": "Number Theory",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/67decca3-171c-4087-a997-dd53527c3aaf.pdf",
+   "is_active": true
+  },
+  {
+   "id": 271,
+   "title": "Rational Numbers and Proportional Reasoning",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/2dd4656e-0452-4c78-a735-0e568f69a160.pdf",
+   "is_active": true
+  },
+  {
+   "id": 272,
+   "title": "Fractions and Decimal",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/69067e65-8b1b-49ff-ab83-6998f1abdc3b.pdf",
+   "is_active": true
+  },
+  {
+   "id": 273,
+   "title": "Fractions, Percentage and Ratios",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/409d5627-dc1e-4054-98fd-6e89f5ea179c.pdf",
+   "is_active": true
+  },
+  {
+   "id": 274,
+   "title": "Angle Measurement",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/508f7455-885f-4b5d-b4ce-7a8b00a8febd.pdf",
+   "is_active": true
+  },
+  {
+   "id": 275,
+   "title": "Statistics as Activity Solving",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0ae9252f-4154-444b-a3ee-94a0d51fb459.pdf",
+   "is_active": true
+  },
+  {
+   "id": 276,
+   "title": "Probability in Statistics",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/4f01756a-50e3-4482-935f-ad19f034f578.pdf",
+   "is_active": true
+  },
+  {
+   "id": 277,
+   "title": "Formative Assessment & Exit Tickets",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/5a0cf0a8-b75f-45ae-89d0-c4ed3d13396b.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/5a0cf0a8-b75f-45ae-89d0-c4ed3d13396b.mp4",
+   "is_active": true
+  },
+  {
+   "id": 278,
+   "title": "Introducing_formative_assessment_guide-3",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/b17505a1-0887-43df-93b9-add288213aca.pdf",
+   "is_active": true
+  },
+  {
+   "id": 279,
+   "title": "Assessing Key Processes to inform learning",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/b1ac5206-3fdd-4ab9-83bc-a842fe9d262d.pdf",
+   "is_active": true
+  },
+  {
+   "id": 280,
+   "title": "One Lesson, Three Learners",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0de03da3-397b-4f83-bc16-6d84ed712e7b.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0de03da3-397b-4f83-bc16-6d84ed712e7b.mp4",
+   "is_active": true
+  },
+  {
+   "id": 281,
+   "title": "Differentiation by Outcome",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f373c9a8-4ec5-4424-a296-bac36915c06a.pdf",
+   "is_active": true
+  },
+  {
+   "id": 282,
+   "title": "Using AI to Differentiate for Mixed-Ability Classrooms",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e0a81be0-5b4d-4e7f-b3cd-cbedb432a28e.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e0a81be0-5b4d-4e7f-b3cd-cbedb432a28e.mp4",
+   "is_active": true
+  },
+  {
+   "id": 283,
+   "title": "The Effects of Feedback on Students_ Learning",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f627c441-b1e4-4bd9-b45b-b66a12053936.pdf",
+   "is_active": true
+  },
+  {
+   "id": 284,
+   "title": "Lesson Reflection Sheet",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/8eaab2e7-7726-41f3-b0dd-f4161df13765.pdf",
+   "is_active": true
+  },
+  {
+   "id": 285,
+   "title": "From Guessing to Evidence",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/34e80088-b59e-4559-a6f0-050a1a551978.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/34e80088-b59e-4559-a6f0-050a1a551978.mp4",
+   "is_active": true
+  },
+  {
+   "id": 286,
+   "title": "Guided Inquiry Tasks",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f5e95ab7-480f-431a-833f-15912b814ca1.pdf",
+   "is_active": true
+  },
+  {
+   "id": 287,
+   "title": "Hands-on investigations and low-cost inquiry models",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/247ee738-8fe7-4264-bace-dde9a160ec46.pdf",
+   "is_active": true
+  },
+  {
+   "id": 288,
+   "title": "AI-Generated 5E Science Lesson Plan",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/50d4f213-72dd-42a9-8e2f-89c0653d2e2e.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/50d4f213-72dd-42a9-8e2f-89c0653d2e2e.mp4",
+   "is_active": true
+  },
+  {
+   "id": 289,
+   "title": "How to Use the 5E Model in Your Classroom",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/ebfe0ad9-38cf-4ac5-8e2d-e99e7132ee33.pdf",
+   "is_active": true
+  },
+  {
+   "id": 290,
+   "title": "Inquiry-Based Learning in Science",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0bebd833-799d-4f7c-b4b5-6a2dd222c8a6.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0bebd833-799d-4f7c-b4b5-6a2dd222c8a6.mp4",
+   "is_active": true
+  },
+  {
+   "id": 291,
+   "title": "Inquiry-Based Learning in Science",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/6db171c9-bdf4-4be6-ab11-b66da6518df1.pdf",
+   "is_active": true
+  },
+  {
+   "id": 292,
+   "title": "Inquiry-Based Passion Projects",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/b1bad94f-f7bf-46ba-94b5-9df6f74f695b.pdf",
+   "is_active": true
+  },
+  {
+   "id": 293,
+   "title": "AI for Lesson Planning",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f04b3291-a6de-4a2d-bc4e-9e6ff08c7e3c.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f04b3291-a6de-4a2d-bc4e-9e6ff08c7e3c.mp4",
+   "is_active": true
+  },
+  {
+   "id": 294,
+   "title": "What is AI",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/fc5580c8-204b-454c-9a51-bd707af9667e.pdf",
+   "is_active": true
+  },
+  {
+   "id": 295,
+   "title": "Model vs Agent",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e4b8041e-1983-4377-8ecf-a1ce76cb0659.pdf",
+   "is_active": true
+  },
+  {
+   "id": 296,
+   "title": "AI Literacy Framework",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/091fc7e0-3572-4e0e-bf27-758a0d887396.pdf",
+   "is_active": true
+  },
+  {
+   "id": 297,
+   "title": "Responsible AI",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/16d43c54-2255-440e-aa7c-293cbe7679a5.pdf",
+   "is_active": true
+  },
+  {
+   "id": 298,
+   "title": "AI Tool Evaluation Checklist",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/86082457-203d-452f-a8b6-c4dbcea374f4.pdf",
+   "is_active": true
+  },
+  {
+   "id": 299,
+   "title": "Student AI Tool Check",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/dc37e13a-4763-436c-81e9-6d6ff7ee14a3.pdf",
+   "is_active": true
+  },
+  {
+   "id": 300,
+   "title": "Prompt Like A Pro",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f44a6066-c8c6-4f84-857a-19b8bf037bb0.pdf",
+   "is_active": true
+  },
+  {
+   "id": 301,
+   "title": "Prompt Refinement Practice",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/da8616e8-b6a4-4df2-b23d-b4f80540e9ec.pdf",
+   "is_active": true
+  },
+  {
+   "id": 302,
+   "title": "Planning with Purpose",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/189e9b2a-024c-4245-a3d1-23ec3ac8c665.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/189e9b2a-024c-4245-a3d1-23ec3ac8c665.mp4",
+   "is_active": true
+  },
+  {
+   "id": 303,
+   "title": "Smart Prompt Templates for Teachers",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/adaee8e1-b599-4a8d-99b0-a76c71d7c210.pdf",
+   "is_active": true
+  },
+  {
+   "id": 304,
+   "title": "Student Prompt Cheat Sheet",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/760eb658-498e-4519-b205-4667a112b933.pdf",
+   "is_active": true
+  },
+  {
+   "id": 305,
+   "title": "AI Helps Save Planning Time",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/2758a214-402a-4449-b326-90c7d2453a7e.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/2758a214-402a-4449-b326-90c7d2453a7e.mp4",
+   "is_active": true
+  },
+  {
+   "id": 306,
+   "title": "AI Is a Teaching Assistant",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e23e0460-fc5b-40d5-be0b-1a0c701a62c5.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e23e0460-fc5b-40d5-be0b-1a0c701a62c5.mp4",
+   "is_active": true
+  },
+  {
+   "id": 307,
+   "title": "Misconceptions in Science Classrooms",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/db64382e-00a5-457c-8aa6-2a1cebf4b75f.pdf",
+   "is_active": true
+  },
+  {
+   "id": 308,
+   "title": "Science Process Skills in the Classroom",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/09854d70-5217-45fc-9485-dc3d449d6ed3.pdf",
+   "is_active": true
+  },
+  {
+   "id": 309,
+   "title": "Concept mapping",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c7456dc7-c8ce-4a05-9cfe-36fab85faa4a.pdf",
+   "is_active": true
+  },
+  {
+   "id": 310,
+   "title": "Model-based explanations and lesson redesign",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/2c2ac7c6-8b15-4d11-aa47-ad68e764ddf8.pdf",
+   "is_active": true
+  },
+  {
+   "id": 311,
+   "title": "AI-Generated Teacher Reflection & Lesson Improvement",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/d6be7060-4830-4975-a247-6a58fb3ddbfc.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/d6be7060-4830-4975-a247-6a58fb3ddbfc.mp4",
+   "is_active": true
+  },
+  {
+   "id": 312,
+   "title": "Practical STEM Challenges for Grades 6–8",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/06b82601-eae8-455d-b090-3555b6a3dfd3.pdf",
+   "is_active": true
+  },
+  {
+   "id": 313,
+   "title": "STEM-based inquiry and design challenges",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/fc6c425b-b890-449f-a0c2-6b857e2d2da6.pdf",
+   "is_active": true
+  },
+  {
+   "id": 314,
+   "title": "Differentiation in Science Classrooms",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/ffdea8c9-436b-4580-af52-916ff8b00d92.pdf",
+   "is_active": true
+  },
+  {
+   "id": 315,
+   "title": "One Lesson, Three Learners",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0de03da3-397b-4f83-bc16-6d84ed712e7b.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0de03da3-397b-4f83-bc16-6d84ed712e7b.mp4",
+   "is_active": true
+  },
+  {
+   "id": 316,
+   "title": "How Learning Profiles Can Strengthen Your Teaching",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-in-review.s3.ap-south-1.amazonaws.com/6a4e804f-8c2b-4d35-af49-ce9afb1e37cb.pdf",
+   "is_active": true
+  },
+  {
+   "id": 317,
+   "title": "Using AI to Differentiate for Mixed-Ability Classrooms",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e0a81be0-5b4d-4e7f-b3cd-cbedb432a28e.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e0a81be0-5b4d-4e7f-b3cd-cbedb432a28e.mp4",
+   "is_active": true
+  },
+  {
+   "id": 318,
+   "title": "Teaching Large Classes Effectively",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/fbd9f82a-8412-40b9-af17-0ed47bf8270b.pdf",
+   "is_active": true
+  },
+  {
+   "id": 319,
+   "title": "Practical Scaffolding Strategies",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/7c78ce5b-62c3-46c7-9b88-4550d3d09341.pdf",
+   "is_active": true
+  },
+  {
+   "id": 320,
+   "title": "Science Vocabulary Development",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-in-review.s3.ap-south-1.amazonaws.com/6407061d-4272-42af-a99d-d582764c7f1b.pdf",
+   "is_active": true
+  },
+  {
+   "id": 321,
+   "title": "Teaching Strategies that Enhance Higher-Order Thinking",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/12a718ae-6e35-43b1-85d5-9d866b695964.pdf",
+   "is_active": true
+  },
+  {
+   "id": 322,
+   "title": "Student motivation, metacognition, and self-assessment",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/36b8c346-4726-40c7-9ab5-f6b53ae13671.pdf",
+   "is_active": true
+  },
+  {
+   "id": 323,
+   "title": "Formative Assessment & Exit Tickets",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/5a0cf0a8-b75f-45ae-89d0-c4ed3d13396b.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/5a0cf0a8-b75f-45ae-89d0-c4ed3d13396b.mp4",
+   "is_active": true
+  },
+  {
+   "id": 324,
+   "title": "Assessment of Conceptual Understanding in Science",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/1d76cf80-e5f7-49e1-a3e1-d3ee3867bd1c.pdf",
+   "is_active": true
+  },
+  {
+   "id": 325,
+   "title": "Formative Assessment Strategies",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/46e684f1-e010-4212-9339-02055e9e17f1.pdf",
+   "is_active": true
+  },
+  {
+   "id": 326,
+   "title": "Aligning Lessons with SLOs",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/9afb957b-ea41-4890-b2d8-a08b5d623619.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/9afb957b-ea41-4890-b2d8-a08b5d623619.mp4",
+   "is_active": true
+  },
+  {
+   "id": 327,
+   "title": "Designing Higher-Order Questions and Classroom Engagement",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/2ae70f5c-e004-45d7-9167-559bfa37c70e.pdf",
+   "is_active": true
+  },
+  {
+   "id": 328,
+   "title": "Planning Better Questions with AI",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c59bcef3-fc1b-47e1-bd49-f1bd8f4be81b.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c59bcef3-fc1b-47e1-bd49-f1bd8f4be81b.mp4",
+   "is_active": true
+  },
+  {
+   "id": 329,
+   "title": "Using Rubrics Effectively in Science Classrooms",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/ccc4449b-1e57-47a9-84fa-eb9b9aee00ff.pdf",
+   "is_active": true
+  },
+  {
+   "id": 330,
+   "title": "Feedback Loops in the Science Classroom",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e0fafd33-a46e-4a52-9cbc-d8707fd41e79.pdf",
+   "is_active": true
+  },
+  {
+   "id": 331,
+   "title": "AI-supported quiz generation and review",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/18e45626-06e5-48f5-ba70-9b0b07f6e53a.pdf",
+   "is_active": true
+  },
+  {
+   "id": 332,
+   "title": "AI Helps Save Planning Time",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/2758a214-402a-4449-b326-90c7d2453a7e.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/2758a214-402a-4449-b326-90c7d2453a7e.mp4",
+   "is_active": true
+  },
+  {
+   "id": 333,
+   "title": "AI for Lesson Planning",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f04b3291-a6de-4a2d-bc4e-9e6ff08c7e3c.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f04b3291-a6de-4a2d-bc4e-9e6ff08c7e3c.mp4",
+   "is_active": true
+  },
+  {
+   "id": 334,
+   "title": "What is AI",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/fc5580c8-204b-454c-9a51-bd707af9667e.pdf",
+   "is_active": true
+  },
+  {
+   "id": 335,
+   "title": "Model vs Agent",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/091fc7e0-3572-4e0e-bf27-758a0d887396.pdf",
+   "is_active": true
+  },
+  {
+   "id": 336,
+   "title": "AI Literacy Framework",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/091fc7e0-3572-4e0e-bf27-758a0d887396.pdf",
+   "is_active": true
+  },
+  {
+   "id": 337,
+   "title": "Student Prompt Cheat Sheet",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/760eb658-498e-4519-b205-4667a112b933.pdf",
+   "is_active": true
+  },
+  {
+   "id": 338,
+   "title": "Responsible AI",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/16d43c54-2255-440e-aa7c-293cbe7679a5.pdf",
+   "is_active": true
+  },
+  {
+   "id": 339,
+   "title": "AI Helps Save Planning Time",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/2758a214-402a-4449-b326-90c7d2453a7e.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/2758a214-402a-4449-b326-90c7d2453a7e.mp4",
+   "is_active": true
+  },
+  {
+   "id": 340,
+   "title": "AI Tool Evaluation Checklist",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/86082457-203d-452f-a8b6-c4dbcea374f4.pdf",
+   "is_active": true
+  },
+  {
+   "id": 341,
+   "title": "Student AI Tool Check",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/86082457-203d-452f-a8b6-c4dbcea374f4.pdf",
+   "is_active": true
+  },
+  {
+   "id": 342,
+   "title": "Prompt Refinement Practice",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/da8616e8-b6a4-4df2-b23d-b4f80540e9ec.pdf",
+   "is_active": true
+  },
+  {
+   "id": 343,
+   "title": "Prompt Like A Pro",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f44a6066-c8c6-4f84-857a-19b8bf037bb0.pdf",
+   "is_active": true
+  },
+  {
+   "id": 344,
+   "title": "AI Is a Teaching Assistant",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e23e0460-fc5b-40d5-be0b-1a0c701a62c5.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e23e0460-fc5b-40d5-be0b-1a0c701a62c5.mp4",
+   "is_active": true
+  },
+  {
+   "id": 345,
+   "title": "Smart Prompt Templates for Teachers",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/adaee8e1-b599-4a8d-99b0-a76c71d7c210.pdf",
+   "is_active": true
+  },
+  {
+   "id": 346,
+   "title": "Planning with Purpose",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/189e9b2a-024c-4245-a3d1-23ec3ac8c665.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/189e9b2a-024c-4245-a3d1-23ec3ac8c665.mp4",
+   "is_active": true
+  },
+  {
+   "id": 347,
+   "title": "AI-Generated Teacher Reflection & Lesson Improvement",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/d6be7060-4830-4975-a247-6a58fb3ddbfc.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/d6be7060-4830-4975-a247-6a58fb3ddbfc.mp4",
+   "is_active": true
+  },
+  {
+   "id": 348,
+   "title": "Blooms Question Stems",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/89b02631-1ca9-496a-8e84-5e0a521055b9.pdf",
+   "is_active": true
+  },
+  {
+   "id": 349,
+   "title": "Revised Blooms Taxonomy",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e5729147-f5ad-44b6-a13e-e4d11266eff3.pdf",
+   "is_active": true
+  },
+  {
+   "id": 350,
+   "title": "Revised Blooms Taxonomy – Verb List",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/59b6baee-d070-4dda-9e26-11e943cfae47.pdf",
+   "is_active": true
+  },
+  {
+   "id": 351,
+   "title": "Planning Better Questions with AI",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c59bcef3-fc1b-47e1-bd49-f1bd8f4be81b.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c59bcef3-fc1b-47e1-bd49-f1bd8f4be81b.mp4",
+   "is_active": true
+  },
+  {
+   "id": 352,
+   "title": "SLO BREAKDOWN TEMPLATE",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/6a7d5d30-e926-406f-8948-d39c4e245843.pdf",
+   "is_active": true
+  },
+  {
+   "id": 353,
+   "title": "Aligning Lessons with SLOs",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/9afb957b-ea41-4890-b2d8-a08b5d623619.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/9afb957b-ea41-4890-b2d8-a08b5d623619.mp4",
+   "is_active": true
+  },
+  {
+   "id": 354,
+   "title": "AI-Supported Lesson Redesign Template",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/8b259264-0607-45e0-b76f-9647a492c370.pdf",
+   "is_active": true
+  },
+  {
+   "id": 355,
+   "title": "Digital Citizenship",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/26042a4f-61e5-4d7b-8d67-54a9a3f52d66.pdf",
+   "is_active": true
+  },
+  {
+   "id": 356,
+   "title": "Glossary of Terms",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/454bc3cc-5cdc-43c6-8e8f-e3d87ca0ccf1.pdf",
+   "is_active": true
+  },
+  {
+   "id": 357,
+   "title": "Active and Inquiry-Based Teaching Strategies",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/1b277c12-c508-4516-ad7d-df1bc2d80c34.pdf",
+   "is_active": true
+  },
+  {
+   "id": 358,
+   "title": "Design Thinking",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/bcd7691c-23b5-42bf-9ac4-19e47915b21c.pdf",
+   "is_active": true
+  },
+  {
+   "id": 359,
+   "title": "Teaching Computational Problem-Solving in CS",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/1660f9cd-16eb-4f48-bada-9e19f9a26023.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/1660f9cd-16eb-4f48-bada-9e19f9a26023.mp4",
+   "is_active": true
+  },
+  {
+   "id": 360,
+   "title": "Designing Effective Questions",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/1b16c4ff-425b-4bc7-9b3c-cad8663b8142.pdf",
+   "is_active": true
+  },
+  {
+   "id": 361,
+   "title": "Effective Questioning Strategies",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/4051578d-7c39-458a-9bb7-ff8cbe6e01b7.pdf",
+   "is_active": true
+  },
+  {
+   "id": 362,
+   "title": "Flipped Learning",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0e63fc23-63da-4fbb-b245-3bd51c9991fc.pdf",
+   "is_active": true
+  },
+  {
+   "id": 363,
+   "title": "Flowcharts with Iterations.pdf",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/73de1551-869f-4541-b4ae-30e273af5ae2.pdf",
+   "is_active": true
+  },
+  {
+   "id": 364,
+   "title": "AI-Generated Unplugged CS Activity Plan",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/80ebb54e-f755-4189-8ee4-2da1a484dacd.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/80ebb54e-f755-4189-8ee4-2da1a484dacd.mp4",
+   "is_active": true
+  },
+  {
+   "id": 365,
+   "title": "Microlearning",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-in-review.s3.ap-south-1.amazonaws.com/af392ae3-ac56-45ab-be40-b9b22c1a0ccc.pdf",
+   "is_active": true
+  },
+  {
+   "id": 366,
+   "title": "Rubric Template – Computational Thinking in CS",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/8977e865-f64a-474d-ae24-861c420f77fa.pdf",
+   "is_active": true
+  },
+  {
+   "id": 367,
+   "title": "Modern Pedagogies in CS",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/97904afc-fdcf-49a5-bbc5-388d1aba87cb.pdf",
+   "is_active": true
+  },
+  {
+   "id": 368,
+   "title": "One Lesson, Three Learners",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0de03da3-397b-4f83-bc16-6d84ed712e7b.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/0de03da3-397b-4f83-bc16-6d84ed712e7b.mp4",
+   "is_active": true
+  },
+  {
+   "id": 369,
+   "title": "Flipped Classroom – Introduction",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/6d5bce2a-f379-4210-8d43-ebfa44310907.pdf",
+   "is_active": true
+  },
+  {
+   "id": 370,
+   "title": "Flipped Classroom Implementation Template",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/abbd31e6-5f20-46c7-8839-d1e05fae7021.pdf",
+   "is_active": true
+  },
+  {
+   "id": 371,
+   "title": "Project-Based Learning",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/c1b5d945-7d31-4264-b99b-a7dd29d796bf.pdf",
+   "is_active": true
+  },
+  {
+   "id": 372,
+   "title": "PBL PROJECT INSTRUCTIONS",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/6c3a0624-7b39-4316-ad50-0e5af54c4ba0.pdf",
+   "is_active": true
+  },
+  {
+   "id": 373,
+   "title": "Micro-Learning – Introduction",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e8a39062-d1e5-4ab3-80fb-fcb1b84a8fee.pdf",
+   "is_active": true
+  },
+  {
+   "id": 374,
+   "title": "Using AI to Differentiate for Mixed-Ability Classrooms",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e0a81be0-5b4d-4e7f-b3cd-cbedb432a28e.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e0a81be0-5b4d-4e7f-b3cd-cbedb432a28e.mp4",
+   "is_active": true
+  },
+  {
+   "id": 375,
+   "title": "Differentiation with AI – AI Prompts",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/9c6b6fc3-4372-43b8-86e4-0feeb55eeccb.pdf",
+   "is_active": true
+  },
+  {
+   "id": 376,
+   "title": "Game & Activity Ideas Using AI",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/6b0950e2-2a55-43eb-9ac5-5dfc69498203.pdf",
+   "is_active": true
+  },
+  {
+   "id": 377,
+   "title": "Assessment FOR Learning in CS",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/f8b7a7c6-8767-43be-b1de-fddd467c2f4e.pdf",
+   "is_active": true
+  },
+  {
+   "id": 378,
+   "title": "Formative Assessment & Exit Tickets – VIDEO",
+   "audio_url": null,
+   "video_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/5a0cf0a8-b75f-45ae-89d0-c4ed3d13396b.mp4",
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/5a0cf0a8-b75f-45ae-89d0-c4ed3d13396b.mp4",
+   "is_active": true
+  },
+  {
+   "id": 379,
+   "title": "Design Your Own Micro-Formative Loop",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/ebbe6dec-7b19-4ca8-9c70-721fee5dc37f.pdf",
+   "is_active": true
+  },
+  {
+   "id": 380,
+   "title": "Effective Feedback Framework",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/4b0dd043-7fd8-46ba-927a-a2eca941e6d6.pdf",
+   "is_active": true
+  },
+  {
+   "id": 381,
+   "title": "Converting Rubrics into Success Scales",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/54296390-7c8e-435f-8347-8c375eed3155.pdf",
+   "is_active": true
+  },
+  {
+   "id": 382,
+   "title": "What is a Rubric and Why Does it Matter",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/18ec37b2-af56-44a6-920a-267d95ab5c54.pdf",
+   "is_active": true
+  },
+  {
+   "id": 383,
+   "title": "Rubric Review Sheet",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/e4ee4d6a-372b-47bb-aa31-2c8240358933.pdf",
+   "is_active": true
+  },
+  {
+   "id": 384,
+   "title": "Constructive Alignment",
+   "audio_url": null,
+   "video_url": null,
+   "source_media_url": "https://asset-manager-approved.s3.ap-south-1.amazonaws.com/fa85628d-69c0-4fbc-a2aa-d2e097f8413b.pdf",
+   "is_active": true
+  }
+ ]
+}

@@ -5,7 +5,6 @@
 
 const { getRailwayHealth } = require('./railway.service');
 const { getElevenLabsHealth } = require('./elevenlabs.service');
-const { getGammaHealth } = require('./gamma.service');
 const { getCloudflareR2Health } = require('./cloudflare-r2.service');
 const { getSupabaseHealth } = require('./supabase.service');
 const { getWhatsAppHealth } = require('./whatsapp.service');
@@ -23,7 +22,6 @@ async function getAllServicesHealth(db) {
     const [
       railway,
       elevenlabs,
-      gamma,
       cloudflareR2,
       supabase,
       whatsapp,
@@ -33,7 +31,6 @@ async function getAllServicesHealth(db) {
     ] = await Promise.all([
       getRailwayHealth(),
       getElevenLabsHealth(),
-      getGammaHealth(),
       getCloudflareR2Health(),
       getSupabaseHealth(),
       getWhatsAppHealth(),
@@ -45,7 +42,6 @@ async function getAllServicesHealth(db) {
     const services = [
       railway,
       elevenlabs,
-      gamma,
       cloudflareR2,
       supabase,
       whatsapp,
@@ -106,7 +102,6 @@ async function getServiceHealth(serviceName, db) {
   const serviceMap = {
     railway: getRailwayHealth,
     elevenlabs: getElevenLabsHealth,
-    gamma: getGammaHealth,
     'cloudflare-r2': getCloudflareR2Health,
     supabase: getSupabaseHealth,
     whatsapp: getWhatsAppHealth,

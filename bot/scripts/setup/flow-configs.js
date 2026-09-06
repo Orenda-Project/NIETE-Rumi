@@ -108,14 +108,6 @@ const FLOW_CONFIGS = [
     categories: ['OTHER'],
   },
   {
-    name: 'Pic-to-LP Confirm',
-    jsonPath: path.join(FLOWS_DIR, 'pic-lp-confirm-flow.json'),
-    type: 'endpoint',
-    endpointPath: '/api/flows/pic-lp',
-    envVar: 'PIC_LP_FLOW_ID',
-    categories: ['OTHER'],
-  },
-  {
     name: 'Quiz Manager',
     jsonPath: path.join(FLOWS_DIR, 'quiz-flow.json'),
     type: 'endpoint',
@@ -223,6 +215,18 @@ const FLOW_CONFIGS = [
     type: 'endpoint',
     endpointPath: '/api/flows/pakistan-lp',
     envVar: 'PAKISTAN_LP_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
+    // Multi-answer ("select all that apply") transcript-quiz questions. STATIC —
+    // no endpoint: the question, options and answer token are all supplied
+    // per-send as navigate-mode screen data. Leaving QUIZ_MULTI_FLOW_ID unset
+    // falls the question back to the single-select interactive-list picker,
+    // which is the rollback lever.
+    name: 'Quiz Multi-Select',
+    jsonPath: path.join(FLOWS_DIR, 'quiz-multi-select-flow.json'),
+    type: 'navigate',
+    envVar: 'QUIZ_MULTI_FLOW_ID',
     categories: ['OTHER'],
   },
 ];
