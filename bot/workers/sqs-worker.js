@@ -861,17 +861,61 @@ class SQSCoachingWorker {
 // Create worker instance
 const worker = new SQSCoachingWorker(WORKER_ID);
 
+/**
+ * Exit only once the log lines we just wrote have actually left the process — bd-oak77.11.
+ *
+ * MEASURED, on this lane's own first successful drain (staging, 2026-09-06). The worker took
+ * SIGTERM at 17:31:23, held on, and finished the lesson: `lp612 author finished` at 17:37:58, the
+ * render row `ready` at 17:38:00.4 with its PDF in R2, `waiters` emptied by the atomic claim that
+ * runs immediately before the delivery loop. Every one of those facts is in the database. NOT ONE
+ * log line after 17:37:58 exists — not the delivery confirmation, not the drain's own
+ * "drained to completion".
+ *
+ * `logToFile` is `console.log`, and `console.log` to a pipe is asynchronous. `process.exit()`
+ * discards whatever has not yet been handed to the OS, so the last second or two of a shutdown's
+ * output — precisely the part that says whether the shutdown worked — was being thrown away.
+ *
+ * That is rule 24(d) at the level of the drain itself: a mechanism whose success cannot be observed
+ * cannot be trusted, and "did that deploy keep the teacher's lesson?" should be a query, not an
+ * inference from a row. `stream.write('', cb)` calls back once the preceding writes have drained;
+ * the timer is the backstop so a stuck pipe can never turn a shutdown into a hang, and `done`
+ * guarantees exactly one exit however the race lands.
+ *
+ * Exported and parameterised so the contract is tested rather than asserted — a test cannot call
+ * the real `process.exit`.
+ */
+function exitAfterFlush(code, { exit = (c) => process.exit(c), stream = process.stdout, timeoutMs = 2000 } = {}) {
+  let exited = false;
+  const done = () => {
+    if (exited) return;
+    exited = true;
+    exit(code);
+  };
+  const backstop = setTimeout(done, timeoutMs);
+  if (backstop.unref) backstop.unref();
+  try {
+    stream.write('', () => {
+      clearTimeout(backstop);
+      done();
+    });
+  } catch (_) {
+    // A broken pipe on the way out is not a reason to stay alive.
+    clearTimeout(backstop);
+    done();
+  }
+}
+
 // Graceful shutdown handlers
 process.on('SIGTERM', async () => {
   logToFile('Received SIGTERM signal');
   await worker.shutdown();
-  process.exit(0);
+  exitAfterFlush(0);
 });
 
 process.on('SIGINT', async () => {
   logToFile('Received SIGINT signal');
   await worker.shutdown();
-  process.exit(0);
+  exitAfterFlush(0);
 });
 
 // Uncaught exception handler
@@ -880,8 +924,10 @@ process.on('uncaughtException', (error) => {
     error: error.message,
     stack: error.stack
   });
+  // bd-oak77.11: same flush as the signal handlers — a crash's own explanation is exactly the
+  // output most worth not losing.
   worker.shutdown().then(() => {
-    process.exit(1);
+    exitAfterFlush(1);
   });
 });
 
@@ -1484,4 +1530,5 @@ if (require.main === module) {
 // Export for testing
 module.exports = {
   SQSCoachingWorker, WORKER_ID, startWorker, runDebriefRetrySweep, resolveWorkerQueuesBootStatus,
+  exitAfterFlush,
 };
