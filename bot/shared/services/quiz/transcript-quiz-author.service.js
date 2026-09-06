@@ -18,6 +18,9 @@ const { names: pictogramNames } = require('../../../vendor/lp-v9/diagrams/lib/pi
 const { MOLECULE_DICTIONARY } = require('./transcript-quiz-figure-science');
 const { multiContract, multiFlowId } = require('./transcript-quiz-multi');
 const { requiredHigherOrder } = require('./transcript-quiz-pedagogy');
+const {
+  languageRule, questionContract, retryNote, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE,
+} = require('./transcript-quiz-contract');
 const { logEvent } = require('../../utils/structured-logger');
 
 const DEFAULT_QUESTIONS = 8;
@@ -157,12 +160,8 @@ function buildAuthorPrompt({
   // reaches it by tagging questions two levels above — which the validator
   // rejects, costing the whole quiz. See requiredHigherOrder().
   const nHigher = requiredHigherOrder(n, digest);
-  const rule = language === 'ur'
-    ? 'Write EVERYTHING in Urdu script; keep English technical terms in English letters exactly as the teacher used them.'
-    : 'Write EVERYTHING in English — every stem, option, explanation and feedback — even though the lesson was taught in Urdu: translate the teacher\'s own words and keep her examples, numbers and names. An Urdu word may appear only when quoting a term the class used, in quotation marks.';
-  const retry = previousErrors && previousErrors.length
-    ? `\n\nA PREVIOUS ATTEMPT FAILED THESE CHECKS — fix every one of them this time (q0 is your FIRST question, q1 the second, and so on):\n- ${previousErrors.slice(0, 16).join('\n- ')}\n`
-    : '';
+  const rule = languageRule(language);
+  const retry = retryNote(previousErrors, language, n);
   return `You are writing a short WhatsApp quiz for the children who sat in ONE real lesson. You have the lesson digest and excerpts of the transcript. The quiz is taken one question at a time on a phone: a stem, three tappable options, then feedback.
 
 QUIZ LANGUAGE: ${LANG_NAME[language] || 'Urdu'}. ${rule}
@@ -176,7 +175,7 @@ THE SLOs DRIVE THE QUESTIONS. The digest's "slos" are what these children were m
 - THE SUBJECT OF THE QUESTION IS THE CONCEPT, never the teacher, the class or your group, and never classroom logistics: no "what did the teacher call it", "which one did she use", "what were you asked to draw", who was at the board, which page, what homework.
 - At least ${nHigher} of the ${n} questions tagged "understand" or "apply", never bare recall: which of these belongs / which does NOT / what happens when / why did the lesson's own example turn out that way / use the idea on a new case. Put those questions on the SLOs this lesson taught at "understand" or "apply", so they sit AT the level she taught rather than above it.
 - Levels, hard: at least 60% of the questions at or below their own SLO's "taught_level", and NEVER more than ONE level above it. On an SLO taught at "recall", "understand" is the ceiling and "apply" is not allowed. That rule wins over the line above — ${nHigher} is already what it leaves room for on this lesson.
-- Question 1 must be the easiest, so a nervous child gets one right first.
+- Question 1 must be the easiest, so a nervous child gets one right first. EASIEST MEANS A PICK: ask the child to identify the plainest thing the lesson taught ("Which of these is a type of matter?", "ان میں سے کون سا نقشے کی ایک قسم ہے؟") — never a count of how many things were mentioned or how many kinds there are. That count is the question this slot keeps attracting, and it is thrown away every time.
 - Use the lesson's OWN examples, numbers, words, objects and stories (from "examples_used" and the excerpts) as the MATERIAL of the question. A child should recognise the class in the quiz.
 
 GOOD vs BAD — same lesson, same knowledge, and the good one is the one a child learns from:
@@ -189,22 +188,12 @@ GOOD vs BAD — same lesson, same knowledge, and the good one is the one a child
   BAD  "استاد نے matter کی کتنی قسمیں بتائیں؟"  ۳ / ۲ / ۴
   GOOD "ان میں سے کون سی matter کی ایک قسم ہے؟"  gas / رفتار / وزن
 
-- Exactly 3 options. One correct. The two wrong options are DISTRACTORS: each must look right to a child holding a specific, named misconception (the ones surfaced in the lesson first, then the classic ones for this topic). The two misconceptions must be different. No silly options. The three options must be different from each other.
-- Stem ≤ 160 characters; each option ≤ 60 characters (they render as tappable rows).
-- "distractor_misconceptions": for each wrong option, the confusion it catches in AT MOST 10 words, as a phrase ("counts the unshaded parts instead of the shaded"), not a sentence about the child — in the quiz language (the same language as the questions; Urdu in Urdu script with English technical terms in Latin letters).
-- "explanation": one sentence, why the correct answer is correct — tied to how the teacher explained it.
-- "option_feedback.correct": one warm sentence that says WHY it is right (never just "correct!" — name the idea).
-- "option_feedback.wrong": an object whose KEYS are the two indices that are NOT "correct_index" (as strings), each with one or two sentences that (a) name the confusion that option represents, in plain child language, (b) point back to the lesson's own example, (c) end with the correct idea. Never say "wrong", never scold.
-- NEVER refer to options by letter ("option B", "the answer is C") anywhere — the letters are shuffled before display.
-- Tag every question with its "slo_id" and its "level".
-
-STYLE RULES FOR URDU (when quiz language is Urdu): proper, well-written Urdu in Urdu script — never Roman Urdu; English technical/subject terms are written IN ENGLISH LETTERS inside the Urdu sentence (e.g. "proper fraction", "numerator", "denominator", "noun", "photosynthesis") — NEVER transliterated into Urdu script ("فیکشن", "نیومریٹر", "ڈینومینیٹر" are wrong even if the transcript spells them that way); use the SAME spelling of a term in every question; NEVER begin a question, explanation or feedback sentence with the English word — start with an Urdu word ("ایک fraction میں…", not "fraction میں…") because a sentence that opens with English is displayed left-to-right on the phone; simple, spoken, child-level Urdu; gender-neutral throughout: address the child as "آپ" with plural-respectful verbs (کریں، دیکھیں، سوچیں), NEVER a feminine or masculine singular guess (no "کرتی ہیں", "سکتی ہیں", "کریں گی", "کرتے ہو").
-STYLE RULES FOR ENGLISH: short sentences a Grade ${gradeBand || '3-5'} child in Pakistan reads comfortably; no idioms.
+${questionContract({ gradeBand })}
 
 LESSON SUMMARY. Also return a top-level "lesson_summary": 2-3 sentences, in the quiz language (follow the same Urdu/English style rules above), written TO THE TEACHER (not the child), saying what she taught and in the order she taught it, naming her own examples and numbers from the lesson. Do not summarise the quiz — summarise the LESSON.
 
-SELECTED BECAUSE. Every question also carries a "selected_because": at most 15 words, naming the specific moment in the lesson this question was chosen from (e.g. "she counted 26 to 30 aloud with the class", "the fraction of the roti she drew on the board"). This is WHY the question was picked from the transcript, not why the answer is correct — never restate the answer and never repeat "explanation". Write selected_because in the quiz language (the same language as the questions), never in English on an Urdu quiz.
-RELIGIOUS CONTENT (Islamiyat / سیرت / any mention of the Prophet, companions, Qur'an): every mention of the Prophet carries ﷺ immediately after the name; companions carry رضی اللہ عنہ / عنہا; اللہ and all sacred names in Urdu/Arabic script only; NEVER invent or paraphrase a hadith or an ayah — quote only what the lesson quoted, and only with the reference the teacher gave; no question may ask a child to guess what the Prophet ﷺ "would say".
+${SELECTED_BECAUSE_RULE}
+${RELIGIOUS_CONTENT_RULE}
 
 ${figureContract({ subject: digest && digest.subject, gradeBand, nQuestions: n })}
 ${multiContract({ allowMulti, n })}${retry}
@@ -251,4 +240,8 @@ async function author({
   };
 }
 
+// languageRule / questionContract / retryNote are deliberately NOT re-exported
+// here: several suites mock this service wholesale, so anything another module
+// requires FROM it is undefined at runtime while every test stays green. They
+// live in, and are imported from, transcript-quiz-contract.js.
 module.exports = { author, buildAuthorPrompt, excerptsFor, DEFAULT_QUESTIONS };

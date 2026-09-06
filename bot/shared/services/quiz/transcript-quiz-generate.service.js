@@ -408,6 +408,22 @@ function salvageWithoutBadFigures(questions, errors, ctx) {
   return v.ok ? { questions: v.questions, dropped: [...bad] } : null;
 }
 
+/**
+ * Draw the pictures and the question cards for a candidate set of questions.
+ *
+ * The attempt loop, the targeted rewrite and the salvage all need exactly this,
+ * and all three treat a failure the same way: the candidate is not usable, the
+ * reason is a `q<i>: FIGURE_RENDER` / `CARD_RENDER` string, and the next
+ * recovery step runs. Called through `api` so a test can stub the two renders.
+ */
+async function renderFor(api, { questions, rows, language, teacherId, quizId }) {
+  const [figureUrls, cardUrls] = await Promise.all([
+    api.renderFigures({ questions, language, teacherId, quizId }),
+    api.renderCards({ rows, questions, language, teacherId, quizId }),
+  ]);
+  return { figureUrls, cardUrls };
+}
+
 async function process(quizId, payload = {}) {
   const api = module.exports;
   const { data: quiz, error } = await supabase.from('quizzes')
@@ -525,26 +541,84 @@ async function process(quizId, payload = {}) {
       lastRejected = out.questions;
       lastErrors = v.errors;
     }
-    // The last attempt failed. If every remaining complaint is about a PICTURE
-    // on a few questions, the quiz is good without those questions: drop them
-    // and re-validate, rather than telling the teacher nothing could be made
-    // over one drawing (corpus round 3 rejected 9 of 13 first-attempt figures).
+    // ── A TARGETED REWRITE BEFORE THE SALVAGE ───────────────────────────────
+    // The last full attempt failed. When every remaining complaint belongs to
+    // one question and at most three questions are involved, a full re-roll is
+    // the wrong move — it has already been tried once and the model wrote the
+    // same rejected question again (two live quizzes shipped 7 and 6 of 8 on
+    // the same afternoon that way). ONE small call rewrites exactly those
+    // questions; the merged set goes through the whole validator again.
+    let rewritten = null;
     if (!questions && lastRejected && lastErrors) {
-      const salvaged = salvageWithoutBadFigures(lastRejected, lastErrors, {
-        language, subject: digest.subject, digest, lessonSummary: lastLessonSummary, quizId,
+      const rw = await api.rewriteRejected({
+        questions: lastRejected, errors: lastErrors, digest, language,
+        gradeBand: digest.grade_band || meta.grade, quizId,
       });
-      if (salvaged) {
+      if (rw.attempted) {
+        meta.cost_usd = (meta.cost_usd || 0) + (rw.costUsd || 0);
+        const v = rw.merged
+          ? validate(rw.merged, {
+            language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary: lastLessonSummary, quizId,
+          })
+          : null;
+        let ok = Boolean(v && v.ok);
+        if (ok) {
+          try {
+            const drafted = toRows(quizId, v.questions);
+            ({ figureUrls, cardUrls } = await renderFor(api, {
+              questions: v.questions, rows: drafted, language, teacherId: quiz.teacher_id, quizId,
+            }));
+            draftedRows = drafted;
+            questions = v.questions;
+            readyLessonSummary = lastLessonSummary;
+          } catch (figErr) {
+            logToFile('⚠️ transcript quiz: the rewritten set could not be drawn', { quizId, error: figErr.message });
+            ok = false;
+          }
+        }
+        // A rewrite that did not fully pass is still the better SALVAGE
+        // candidate: it may have repaired one of two rejections, and the
+        // salvage then drops one question instead of two.
+        if (!ok && rw.merged && v) rewritten = { questions: rw.merged, errors: v.errors };
+        attempts.push({
+          attempt: 'rewrite',
+          indices: rw.indices,
+          replaced: rw.replaced,
+          model: rw.model || null,
+          cost_usd: rw.costUsd || null,
+          latency_ms: rw.latencyMs || null,
+          errors: v ? v.errors : [rw.error || 'the rewrite returned no usable replacement'],
+        });
+        logEvent('transcript_quiz.rewrite_attempted', {
+          quizId, indices: rw.indices, replaced: rw.replaced, ok, errors: v ? v.errors.length : null,
+        });
+      }
+    }
+
+    // The last attempt failed. If every remaining complaint is about a PICTURE
+    // or a pedagogy rule on a few questions, the quiz is good without those
+    // questions: drop them and re-validate, rather than telling the teacher
+    // nothing could be made over one drawing (corpus round 3 rejected 9 of 13
+    // first-attempt figures). The rewritten set is tried FIRST — dropping a
+    // question it already repaired would throw the repair away.
+    if (!questions && lastRejected && lastErrors) {
+      const ctx = { language, subject: digest.subject, digest, lessonSummary: lastLessonSummary, quizId };
+      const candidates = [rewritten, { questions: lastRejected, errors: lastErrors }].filter(Boolean);
+      for (const cand of candidates) {
+        const salvaged = salvageWithoutBadFigures(cand.questions, cand.errors, ctx);
+        if (!salvaged) continue;
         try {
           const drafted = toRows(quizId, salvaged.questions);
-          [figureUrls, cardUrls] = await Promise.all([
-            api.renderFigures({ questions: salvaged.questions, language, teacherId: quiz.teacher_id, quizId }),
-            api.renderCards({ rows: drafted, questions: salvaged.questions, language, teacherId: quiz.teacher_id, quizId }),
-          ]);
+          // eslint-disable-next-line no-await-in-loop
+          ({ figureUrls, cardUrls } = await renderFor(api, {
+            questions: salvaged.questions, rows: drafted, language, teacherId: quiz.teacher_id, quizId,
+          }));
           draftedRows = drafted;
           questions = salvaged.questions;
           readyLessonSummary = lastLessonSummary;
           attempts.push({ attempt: 'salvage', dropped: salvaged.dropped, errors: [] });
           logEvent('transcript_quiz.figure_salvage', { quizId, dropped: salvaged.dropped, kept: questions.length });
+          break;
         } catch (figErr) {
           logToFile('⚠️ transcript quiz: salvage could not render the remaining figures', { quizId, error: figErr.message });
         }
@@ -590,6 +664,7 @@ async function process(quizId, payload = {}) {
 
 module.exports = {
   salvageWithoutBadFigures,
+  rewriteRejected: (args) => require('./transcript-quiz-rewrite').rewriteRejected(args),
   figureRequiredError,
   isEarlyYearsBand,
   process, toRows, stampDisplayOrder, renderFigures, renderCards, applyMedia, withFigureSvgs, studentMessage, teacherLabel, renderPdf, pdfFilename,
