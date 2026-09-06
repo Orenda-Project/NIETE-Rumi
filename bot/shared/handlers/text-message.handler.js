@@ -30,6 +30,7 @@ const ChildFlowToken = require('../services/quiz/child-flow-token'); // bd-2475 
 // process.env read (pre-existing NIETE code, untouched by this port).
 const { STUDENT_VIDEOS_FLOW_ID } = require('../utils/constants');
 const { logToFile } = require('../utils/logger');
+const { isRegistered } = require('../utils/registration-status');
 const { matchDetail: matchLessonPlanIntent } = require('../utils/lp-intent');
 const { openLpBrowseFlow } = require('../services/lp-browse-entry.service'); // bd-hgwfo: the one door to the catalogue
 const Lp612EditRouter = require('../services/lp612-edit-router.service'); // bd-33oc2: 6-12 lesson follow-ups
@@ -1769,10 +1770,11 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     logToFile('📝 Register command detected');
     typingController.stop();
 
-    // Already registered = the Flow was COMPLETED, not merely "has a first_name". Since bd-2480,
-    // registration-endpoint persists first_name at the FIRST screen, so keying on first_name would
-    // lock out anyone who started and abandoned the Flow. registration_completed is the real flag.
-    const isAlreadyRegistered = !!(user?.registration_completed || user?.registration_state === 'completed');
+    // Registered = a completed run OR a name already on the row. Keying on
+    // registration_completed alone was right on staging and wrong on prod, where 7,245 of
+    // 7,685 named users have the flag false — see shared/utils/registration-status.js for
+    // the counts and why registration_state is not a fallback.
+    const isAlreadyRegistered = isRegistered(user);
 
     // bd-2447: conversational/deferred registration is DEPRECATED (matches the
     // main Rumi bot). /register ALWAYS opens the registration Flow when one is
@@ -2267,8 +2269,10 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   if (registrationRequested) {
     typingController.stop();
 
-    // Already registered = completed the Flow (not just first_name — persisted at screen 1 since bd-2480).
-    if (user?.registration_completed || user?.registration_state === 'completed') {
+    // Registered = a completed run OR a name already on the row. The branch
+    // below this one re-asks for her name; on prod that would have hit 4,145 users who
+    // messaged in the last 30 days. See shared/utils/registration-status.js.
+    if (isRegistered(user)) {
       // User already registered - confirm and guide to menu
       await WhatsAppService.sendMessage(from, `✅ You're already registered, ${user.first_name || 'there'}! Type /menu to see what I can help you with.`);
       return;
