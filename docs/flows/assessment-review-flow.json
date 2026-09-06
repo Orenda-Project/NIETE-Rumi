@@ -196,7 +196,11 @@
       "id": "PICK",
       "title": "پرچہ درست کریں",
       "data": {
-        "items": {
+        "summary": {
+          "type": "string",
+          "__example__": "4 questions · 6 marks"
+        },
+        "questions": {
           "type": "array",
           "items": {
             "type": "object",
@@ -204,57 +208,80 @@
               "id": {
                 "type": "string"
               },
-              "main-content": {
-                "type": "object",
-                "properties": {
-                  "title": {
-                    "type": "string"
-                  },
-                  "description": {
-                    "type": "string"
-                  },
-                  "metadata": {
-                    "type": "string"
-                  }
-                }
+              "title": {
+                "type": "string"
               },
-              "on-click-action": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string"
-                  },
-                  "payload": {
-                    "type": "object",
-                    "properties": {}
-                  }
-                }
+              "description": {
+                "type": "string"
               }
             }
           },
           "__example__": [
             {
-              "id": "q0",
-              "main-content": {
-                "title": "1. Which is a living thing?",
-                "description": "MCQ · 1 mark",
-                "metadata": ""
-              },
-              "on-click-action": {
-                "name": "data_exchange",
-                "payload": {}
-              }
+              "id": "unseen.objective.MCQs.0",
+              "title": "1. Which is a living thing?",
+              "description": "1 mark · MCQs"
             }
           ]
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
         }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
           {
-            "type": "NavigationList",
-            "name": "pick_list",
-            "list-items": "${data.items}"
+            "type": "Form",
+            "name": "pick_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "کون سا سوال بدلنا ہے؟"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.summary}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "pick",
+                "label": "Questions",
+                "required": false,
+                "data-source": "${data.questions}"
+              },
+              {
+                "type": "EmbeddedLink",
+                "text": "✏️ Edit the selected question",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "open",
+                    "question_id": "${form.pick}"
+                  }
+                }
+              },
+              {
+                "type": "Footer",
+                "label": "ہو گیا · Done",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "pick_done"
+                  }
+                }
+              }
+            ]
           }
         ]
       }
@@ -1508,7 +1535,11 @@
       "id": "PICK_MORE",
       "title": "پرچہ درست کریں",
       "data": {
-        "items": {
+        "summary": {
+          "type": "string",
+          "__example__": "4 questions · 6 marks"
+        },
+        "questions": {
           "type": "array",
           "items": {
             "type": "object",
@@ -1516,57 +1547,80 @@
               "id": {
                 "type": "string"
               },
-              "main-content": {
-                "type": "object",
-                "properties": {
-                  "title": {
-                    "type": "string"
-                  },
-                  "description": {
-                    "type": "string"
-                  },
-                  "metadata": {
-                    "type": "string"
-                  }
-                }
+              "title": {
+                "type": "string"
               },
-              "on-click-action": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string"
-                  },
-                  "payload": {
-                    "type": "object",
-                    "properties": {}
-                  }
-                }
+              "description": {
+                "type": "string"
               }
             }
           },
           "__example__": [
             {
-              "id": "q0",
-              "main-content": {
-                "title": "1. Which is a living thing?",
-                "description": "MCQ · 1 mark",
-                "metadata": ""
-              },
-              "on-click-action": {
-                "name": "data_exchange",
-                "payload": {}
-              }
+              "id": "unseen.objective.MCQs.0",
+              "title": "1. Which is a living thing?",
+              "description": "1 mark · MCQs"
             }
           ]
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
         }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
           {
-            "type": "NavigationList",
-            "name": "pick_list",
-            "list-items": "${data.items}"
+            "type": "Form",
+            "name": "pick_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "کون سا سوال بدلنا ہے؟"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.summary}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "pick",
+                "label": "Questions",
+                "required": false,
+                "data-source": "${data.questions}"
+              },
+              {
+                "type": "EmbeddedLink",
+                "text": "✏️ Edit the selected question",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "open",
+                    "question_id": "${form.pick}"
+                  }
+                }
+              },
+              {
+                "type": "Footer",
+                "label": "ہو گیا · Done",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_action": "pick_done"
+                  }
+                }
+              }
+            ]
           }
         ]
       }
