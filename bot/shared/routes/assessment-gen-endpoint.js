@@ -814,6 +814,55 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
  * CONFIRM's own three fields arrive in the completion payload — they have to,
  * because CONFIRM never reached the endpoint to store them.
  */
+/**
+ * Rebuild her paper AFTER the review Flow has closed.
+ *
+ * The same trap as submitFromCompletion, one screen along: PICK_DONE is
+ * terminal, so its Footer CLOSES the Flow instead of calling the endpoint.
+ * `rebuildAndClose()` below is therefore unreachable from the live path, and
+ * without this the teacher is told "Making your paper again — a few seconds"
+ * by a step that never starts. She waits, and nothing arrives.
+ *
+ * Fixed once already for the NEW-paper path (bd-60030) and not carried across
+ * to the rebuild; the shapes are identical because the cause is.
+ *
+ * Everything needed survives the close: the ticks are in the Redis session
+ * under the flow token, and the paper id is in the token itself.
+ */
+async function rebuildFromCompletion({ flowToken, userId }) {
+  const paperId = paperIdFromToken(flowToken);
+  if (!paperId) return { status: 'failed', code: 'NO_PAPER' };
+
+  const state = (await readSession(flowToken)) || {};
+  const owner = state.userId || userId;
+  if (!owner) return { status: 'failed', code: 'NO_OWNER' };
+
+  // No stored ticks means she changed nothing — rebuild the paper whole rather
+  // than treating "untouched" as "keep nothing".
+  let selected = state.selected;
+  if (selected == null) {
+    const { items } = await revision().listQuestions({ paperId, userId: owner });
+    selected = (items || []).map((q) => q.id);
+  }
+
+  let result;
+  try {
+    result = await revision().rerender({ paperId, userId: owner, selectedIds: selected });
+  } catch (err) {
+    logToFile('[assessment] rebuild from completion threw', { paperId, error: err?.message });
+    return { status: 'failed', code: 'REBUILD_THREW' };
+  }
+  await clearSession(flowToken);
+
+  if (result.status !== 'ready') return { status: 'failed', code: result.code || 'REBUILD_FAILED' };
+
+  const n = result.questionCount;
+  return {
+    status: 'rebuilt',
+    summary: `${n} question${n === 1 ? '' : 's'}${result.marks ? ` · ${result.marks} marks` : ''}`,
+  };
+}
+
 async function submitFromCompletion({ flowToken, userId, outputFormat, answerKey, answerLines }) {
   const state = await readSession(flowToken);
 
@@ -994,6 +1043,7 @@ module.exports = {
   handleAssessmentGenDataExchange: handleDataExchange,
   handleAssessmentGenBack: handleBack,
   submitFromCompletion,
+  rebuildFromCompletion,
   // exported for tests
   _internal: { summaryOf, submit, chapterPageRange, GRADE_BANDS, COUNT_CHOICES,
     paperIdFromToken, mergePageTicks, REVIEW_MARKER, SHAPE_SCREEN, navFit, NAV_MAX },
