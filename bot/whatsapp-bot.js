@@ -601,6 +601,17 @@ app.post('/webhook', async (req, res) => {
       type: messageType
     });
 
+    // bd-oak77.13 — Meta Conversational Components. With `enable_welcome_message`
+    // set on the number, a teacher OPENING a brand-new chat posts a message of
+    // `type: "request_welcome"` with no body, before she has typed anything.
+    // Nothing here had a branch for it, so it fell through to the terminal else
+    // and `unsupportedTypeReply()` — her first ever message from the bot was
+    // "I can only reply to text and voice messages" (the flag has been true on
+    // the staging number). Answered here, ahead of the reaction and the typing
+    // indicator, because there is no message of hers in the chat to react to.
+    const { maybeHandleRequestWelcome } = require('./shared/handlers/welcome.handler');
+    if (await maybeHandleRequestWelcome(messageType, { from })) return;
+
     // Send appropriate reaction based on whether this is user's first message
     const emoji = SessionService.getReactionEmoji(from);
     await WhatsAppService.sendReaction(from, message.id, emoji);
