@@ -42,12 +42,20 @@ function stripEmphasis(s) {
  * prefix "Grade " unconditionally, which produced "Grade Grade 3" and
  * "Grade Class 3" in a real teacher's report.
  */
-function classLabel(v) {
+function classLabel(v, language = 'en') {
   const t = String(v === null || v === undefined ? '' : v).trim();
   if (!t) return '';
-  // Already names the unit — in English or the two romanisations teachers use.
-  if (/^(grade|class|jamaat|jamat)\b/i.test(t)) return t;
-  return `Grade ${t}`;
+  // Already names the unit — in English, in Urdu, or in the two romanisations
+  // teachers use. Checked before the language branch, because a child who
+  // typed "Class 3" into an Urdu quiz still typed "Class 3".
+  // `\b` is an ASCII word boundary, so it never fires after a Perso-Arabic
+  // letter — "جماعت 4" has to be matched on the following space instead,
+  // or it comes back out as "جماعت جماعت 4".
+  if (/^(grade|class|jamaat|jamat)\b/i.test(t) || /^جماعت(\s|$)/.test(t)) return t;
+  // PLAN_R4 D1 — a single-language document cannot print an English word
+  // in the middle of an Urdu roster. The label is chrome, so it follows the
+  // document's language; the class VALUE the child typed is left as typed.
+  return language === 'ur' ? `جماعت ${t}` : `Grade ${t}`;
 }
 
 module.exports = { stripEmphasis, classLabel };

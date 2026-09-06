@@ -157,7 +157,7 @@ const PortalDashboard = () => {
             Welcome back, {displayName}! 👋
           </h1>
           <p className="text-muted-foreground">
-            Here's an overview of your teaching journey
+            Here's an overview of your teaching journey so far
           </p>
         </div>
 

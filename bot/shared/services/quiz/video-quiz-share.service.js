@@ -25,9 +25,17 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const StudentIdentity = require('./student-identity.service');
 
+const { resolveUx, clampLanguage } = require('../../config/ux-strings');
+
 const JOIN_TTL_SECS = 60 * 60;
 const stripPlus = (p) => (p && p.startsWith('+') ? p.slice(1) : p);
 const JOIN_KEY = (phone) => `videoquiz:${stripPlus(phone)}:join`;
+// Ack-first join lock: one join per phone+code at a time (see beginFromCodeLocked).
+const JOIN_LOCK_KEY = (phone, code) => `videoquiz:${stripPlus(phone)}:joinlock:${code}`;
+const JOIN_LOCK_SECS = 60;
+
+// Chrome a CHILD reads, in the quiz language.
+const ux = (key, language, params) => resolveUx(key, { language, params });
 
 // bd-2477 #3: offerShare()'s send used to fire-and-forget — a WhatsApp
 // per-recipient rate limit (confirmed via Axiom, same session as bd-2477 #1)
@@ -79,8 +87,10 @@ function botNumber() {
 async function mintCode({ quizId, userId, videoId, language = 'en' }) {
   const { data: user } = await supabase
     .from('users').select('first_name, last_name').eq('id', userId).maybeSingle();
+  // The fallback is read by CHILDREN in the quiz language ("*your teacher* نے…" was
+  // what an Urdu child got when a teacher had no stored name).
   const teacherName = [user?.first_name, user?.last_name].filter(Boolean).join(' ')
-    || 'your teacher';
+    || resolveUx('tqYourTeacher', { language });
   const { data: quiz } = await supabase
     .from('quizzes').select('topic').eq('id', quizId).maybeSingle();
 
@@ -192,6 +202,22 @@ function parseShareCode(text) {
  * they may have no idea what this message is — then collect name and class
  * BEFORE question 1, so the teacher's report has someone to name.
  */
+/**
+ * Ack-first entry point. The text handler calls this AFTER it has returned
+ * (setImmediate), so the webhook answers Meta in milliseconds however many
+ * children tap the forwarded link at once. The lock makes a Meta retry of the
+ * same message — or a child double-tapping — a no-op rather than a second
+ * session: one join per phone+code per minute.
+ */
+async function beginFromCodeLocked(phone, code) {
+  const claimed = await redisService.setNX(JOIN_LOCK_KEY(phone, code), { at: Date.now() }, JOIN_LOCK_SECS);
+  if (!claimed) {
+    logEvent('video_quiz.join_deduped', { code, phone: String(phone || '').slice(-4) });
+    return false;
+  }
+  return module.exports.beginFromCode(phone, code);
+}
+
 async function beginFromCode(phone, code) {
   // bd-2339: this may be a teacher's code OR a child's invite. resolveInvite
   // collapses both to "which teacher code does this belong to, and who sent
@@ -200,8 +226,7 @@ async function beginFromCode(phone, code) {
   const sc = await Invite.resolveInvite(code);
 
   if (!sc || !sc.active || (sc.expires_at && new Date(sc.expires_at) < new Date())) {
-    await WhatsAppService.sendMessage(phone,
-      "That quiz link has expired. Ask your teacher for a new one!");
+    await WhatsAppService.sendMessage(phone, ux('vqExpired', clampLanguage(sc && sc.language)));
     return true;
   }
 
@@ -210,14 +235,17 @@ async function beginFromCode(phone, code) {
     // teacher's report exactly like anyone she sent it to directly.
     shareCodeId: sc.shareCodeId,
     quizId: sc.quiz_id, videoId: sc.video_id,
-    language: sc.language || 'en', topic: sc.topic, teacherName: sc.teacher_name,
+    language: clampLanguage(sc.language), topic: sc.topic, teacherName: sc.teacher_name,
     invitedByStudentId: sc.invitedByStudentId,
     // bd-2340: whose quiz this is, so a new child is filed under her.
     teacherUserId: sc.teacher_user_id || null,
   };
+  const lang = ctx.language;
 
-  const greeting = `👋 Assalam o Alaikum!\n\n*${sc.teacher_name || 'Your teacher'}* `
-    + `has sent you a quiz on *${sc.topic || 'today’s lesson'}*.`;
+  const greeting = ux('vqGreeting', lang, {
+    teacher: sc.teacher_name || resolveUx('tqYourTeacher', { language: lang }),
+    topic: sc.topic || resolveUx('tqTodaysLesson', { language: lang }),
+  });
 
   // bd-2337 — do we already know who is on this handset?
   const known = await StudentIdentity.findByPhone(phone);
@@ -228,7 +256,7 @@ async function beginFromCode(phone, code) {
     const s = known[0];
     await redisService.delete(JOIN_KEY(phone));
     await WhatsAppService.sendMessage(phone,
-      `${greeting}\n\nGood to see you again, ${s.student_name} — let's begin!`);
+      `${greeting}\n\n${ux('vqWelcomeBack', lang, { name: s.student_name })}`);
     await startForStudent(phone, ctx, s);
     logEvent('video_quiz.share_code_opened', {
       code, quizId: sc.quiz_id, recognised: true,
@@ -246,8 +274,7 @@ async function beginFromCode(phone, code) {
     }, JOIN_TTL_SECS);
     const names = known.map((s, i) => `${i + 1}. ${s.student_name}`).join('\n');
     await WhatsAppService.sendMessage(phone,
-      `${greeting}\n\nWho is taking it today?\n\n${names}\n${known.length + 1}. Someone else`
-      + `\n\nReply with the number.`);
+      `${greeting}\n\n${ux('vqWhoIsTaking', lang, { names, n: known.length + 1 })}`);
     logEvent('video_quiz.share_code_opened', {
       code, quizId: sc.quiz_id, recognised: true, siblings: known.length,
     });
@@ -285,7 +312,7 @@ async function beginFromCode(phone, code) {
 
   // No Flow configured, or it failed to send. Asking in chat is slower but a
   // child must never reach a dead end because a Meta asset is missing.
-  await WhatsAppService.sendMessage(phone, `${greeting}\n\nFirst — what is your name?`);
+  await WhatsAppService.sendMessage(phone, `${greeting}\n\n${ux('vqAskName', lang)}`);
   logEvent('video_quiz.share_code_opened', {
     code, quizId: sc.quiz_id, recognised: false, via: 'chat',
   });
@@ -311,9 +338,9 @@ async function handleJoinFlowReply(phone, flowToken, payload = {}) {
   if (!name) {
     // Ours, so we consume it — but there is nothing to store. Ask rather than
     // writing a blank child into the teacher's report.
-    await WhatsAppService.sendMessage(phone,
-      "I didn't catch your name — what should I call you?");
-    await redisService.set(JOIN_KEY(phone), { shareCodeId, step: 'name' }, JOIN_TTL_SECS);
+    const pending = await redisService.get(JOIN_KEY(phone));
+    await WhatsAppService.sendMessage(phone, ux('vqAskNameMissed', clampLanguage(pending && pending.language)));
+    await redisService.set(JOIN_KEY(phone), { ...(pending || {}), shareCodeId, step: 'name' }, JOIN_TTL_SECS);
     return true;
   }
 
@@ -325,10 +352,10 @@ async function handleJoinFlowReply(phone, flowToken, payload = {}) {
     .eq('id', shareCodeId)
     .maybeSingle();
   if (!sc) {
-    await WhatsAppService.sendMessage(phone,
-      'That quiz link has expired. Ask your teacher for a new one!');
+    await WhatsAppService.sendMessage(phone, ux('vqExpired', clampLanguage(null)));
     return true;
   }
+  const lang = clampLanguage(sc.language);
 
   await redisService.delete(JOIN_KEY(phone));
   const student = await StudentIdentity.remember({
@@ -336,7 +363,7 @@ async function handleJoinFlowReply(phone, flowToken, payload = {}) {
   });
 
   await WhatsAppService.sendMessage(phone,
-    `Great — ${name}${className ? `, ${className}` : ''}. Let's begin!`);
+    ux('vqLetsBegin', lang, { who: `${name}${className ? `, ${className}` : ''}` }));
 
   await startForStudent(phone, {
     shareCodeId: sc.id, quizId: sc.quiz_id, videoId: sc.video_id,
@@ -377,14 +404,14 @@ async function consumeJoinReply(phone, text) {
   if (!st) return false;
   const value = (text || '').trim();
   if (!value) return false;
+  const lang = clampLanguage(st.language);
 
   // bd-2337 — siblings on one handset picked which of them is playing.
   if (st.step === 'whoami') {
     const pick = parseInt(value, 10);
     const list = st.candidates || [];
     if (!Number.isInteger(pick) || pick < 1 || pick > list.length + 1) {
-      await WhatsAppService.sendMessage(phone,
-        `Please reply with just the number — 1 to ${list.length + 1}.`);
+      await WhatsAppService.sendMessage(phone, ux('vqReplyNumber', lang, { n: list.length + 1 }));
       return true;
     }
     if (pick === list.length + 1) {
@@ -392,12 +419,12 @@ async function consumeJoinReply(phone, text) {
       st.step = 'name';
       delete st.candidates;
       await redisService.set(JOIN_KEY(phone), st, JOIN_TTL_SECS);
-      await WhatsAppService.sendMessage(phone, 'No problem — what is your name?');
+      await WhatsAppService.sendMessage(phone, ux('vqAskNameAgain', lang));
       return true;
     }
     const chosen = list[pick - 1];
     await redisService.delete(JOIN_KEY(phone));
-    await WhatsAppService.sendMessage(phone, `Let's begin, ${chosen.name}!`);
+    await WhatsAppService.sendMessage(phone, ux('vqLetsBeginName', lang, { name: chosen.name }));
     await StudentIdentity.touch(chosen.id);
     await startForStudent(phone, st, {
       id: chosen.id, student_name: chosen.name, self_reported_class: chosen.className,
@@ -409,8 +436,7 @@ async function consumeJoinReply(phone, text) {
     st.studentName = value.slice(0, 60);
     st.step = 'class';
     await redisService.set(JOIN_KEY(phone), st, JOIN_TTL_SECS);
-    await WhatsAppService.sendMessage(phone,
-      `Thanks ${st.studentName}! And which class are you in? (for example: Grade 4)`);
+    await WhatsAppService.sendMessage(phone, ux('vqAskClass', lang, { name: st.studentName }));
     return true;
   }
 
@@ -418,7 +444,7 @@ async function consumeJoinReply(phone, text) {
     st.studentClass = value.slice(0, 40);
     await redisService.delete(JOIN_KEY(phone));
     await WhatsAppService.sendMessage(phone,
-      `Great — ${st.studentName}, ${st.studentClass}. Let's begin!`);
+      ux('vqLetsBegin', lang, { who: `${st.studentName}, ${st.studentClass}` }));
 
     // bd-2337 — remember them, so the next quiz their teacher shares opens
     // straight at question 1. Best-effort: if this fails the quiz still runs,
@@ -454,6 +480,6 @@ async function consumeJoinReply(phone, text) {
 
 module.exports = {
   mintCode, offerShare, handleShareButton, deliverClassLink,
-  parseShareCode, beginFromCode, consumeJoinReply, handleJoinFlowReply,
-  SHARE_YES, SHARE_NO, JOIN_KEY, JOIN_FLOW_PREFIX, CODE_RX, randomCode, botNumber,
+  parseShareCode, beginFromCode, beginFromCodeLocked, consumeJoinReply, handleJoinFlowReply,
+  SHARE_YES, SHARE_NO, JOIN_KEY, JOIN_LOCK_KEY, JOIN_LOCK_SECS, JOIN_FLOW_PREFIX, CODE_RX, randomCode, botNumber,
 };

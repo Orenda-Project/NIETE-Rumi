@@ -41,12 +41,22 @@ function extractIndicators(analysis) {
     }
   }
 
-  // FICO: domains → indicators (score 1-4)
+  // Domains-shaped frameworks (FICO here; MEWAKA upstream). The scale is the
+  // framework's own, never a literal: FICO moved from 1-4 to 0-2 and this file
+  // was the fourth copy of the old scale. A row the scorer marked not
+  // applicable carries score null and is NOT a candidate — null/4 read as 0
+  // and made a maths-only indicator "the weakest" in an Urdu lesson. An ABSENT
+  // flag still means applicable, so pre-cutover sessions behave as before.
   if (analysis.domains) {
+    const fw = String(analysis.framework || '').toLowerCase();
+    const maxScore = fw === 'fico'
+      ? require('../frameworks/fico-framework').getScoringConstants().scaleMax
+      : 4;
     for (const [domainKey, domain] of Object.entries(analysis.domains)) {
       if (!domain?.indicators) continue;
       for (const ind of domain.indicators) {
-        indicators.push({ name: ind.name, score: ind.score, maxScore: 4, areaName: domainKey, id: ind.id });
+        if (ind.applicable === false || ind.score === null || ind.score === undefined) continue;
+        indicators.push({ name: ind.name, score: Number(ind.score), maxScore, areaName: domainKey, id: ind.id });
       }
     }
   }

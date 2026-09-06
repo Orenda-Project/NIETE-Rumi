@@ -41,6 +41,13 @@ tmp/
 
 # Build outputs
 dist/
+
+# ...except the katex stub's dist/, which is a TEST FIXTURE and not build output.
+# bot/vendor/lp-v9/lib/fonts.js inlines katex's stylesheet by resolving the package's
+# own package.json and reading ../dist/katex.min.css beside it, so the stub has to sit at
+# exactly this path. Without it every test that calls buildHtml() dies on ENOENT.
+!tests/__mocks__/katex-stub/dist/
+!tests/__mocks__/katex-stub/dist/katex.min.css
 build/
 .next/
 out/
@@ -130,6 +137,15 @@ __pycache__/
 # artifact — not source, and per-environment, so they must not be committed.
 bot/scripts/setup/assets/backups/
 
+# Worktree tooling: claude-on-bead.sh symlinks .beads/ to the parent project so a
+# worktree shares the beads ledger. It is a machine-absolute symlink and must never
+# be committed — it breaks every clone.
+.beads
+
+# bd-2540 working notes (accidentally committed in Phase 1b)
+.plans/
+.baseline-failing-*.txt
+
 # Migration run artifacts — contain user UUIDs. Local evidence, never source.
 .migration-snapshots/
 
@@ -139,3 +155,7 @@ bot/scripts/setup/assets/backups/
 .data-standards-last-report.json
 .data-standards-bypass-log.jsonl
 .data-standards-governance-events.jsonl
+
+# Cleaned raster figure cache written by the vendored LP renderer at render time.
+# Derived output, regenerated on demand — never source.
+bot/vendor/lp-v9/.figcache/

@@ -45,12 +45,13 @@ async function offerInvite({ phone, studentId, shareCodeId, language = 'en' }) {
   if (!studentId || !shareCodeId) return false;
   await redisService.set(INVITE_KEY(phone), { studentId, shareCodeId, language },
     INVITE_TTL_SECS);
+  // In the quiz language — a child who just took an Urdu quiz reads Urdu here.
+  const { resolveUx } = require('../../config/ux-strings');
   await WhatsAppService.sendInteractiveButtons(phone, {
-    body: 'Want to send this quiz to a friend?\n\n'
-      + "I'll tell you how they did once they finish.",
+    body: resolveUx('vqInviteAsk', { language }),
     buttons: [
-      { id: INVITE_YES, title: 'Invite a friend' },   // 15 chars
-      { id: INVITE_NO, title: 'No thanks' },          // 9
+      { id: INVITE_YES, title: resolveUx('vqInviteYes', { language }) },   // ≤ 20 code points, asserted in tests
+      { id: INVITE_NO, title: resolveUx('vqInviteNo', { language }) },
     ],
   });
   return true;

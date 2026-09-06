@@ -1750,8 +1750,14 @@ GPT5MiniService._preserveFrameworkShape = function (enhancedAnalysis, analysisDa
     enhancedAnalysis.framework = originalFramework;
     if (analysisData.domains) enhancedAnalysis.domains = analysisData.domains;
     if (analysisData.scores) enhancedAnalysis.scores = analysisData.scores;
-    // Preserve framework-native optional fields the enhance prompt doesn't know about.
-    for (const key of ['areas', 'photo_analysis', 'subject', 'topic', 'lp_fidelity']) {
+    // Preserve EVERY first-pass key the enhance output lacks — not an allowlist.
+    // The enhance prompt is OECD-shaped and cannot know framework-native keys;
+    // the five-key allowlist this replaces silently dropped `focus_area` (the
+    // scorer's own next-step for the teacher: present on 0 of 1,853 reflected
+    // prod sessions vs 1,907 of 1,909 un-reflected ones) and would have dropped
+    // the feedback-uptake `uptake` tally the same way. Additive only: a key the
+    // enhance pass DID emit is never overwritten here.
+    for (const key of Object.keys(analysisData)) {
       if (analysisData[key] !== undefined && enhancedAnalysis[key] === undefined) {
         enhancedAnalysis[key] = analysisData[key];
       }

@@ -594,38 +594,13 @@ ${comprehensionAnalysis.answers.map(a =>
         scoring: 1
       };
 
-      // Question 2: Receptive (Picture-Word Matching via Gemini)
+      // Question 2: Receptive (text-only picture-word substitute).
+      // The Gemini-composed image path was removed with bd-2540; the assessment
+      // now uses the text-fallback shape exclusively.
       const targetWord = VocabularyImageService.selectTargetWord(words);
       const distractors = VocabularyImageService.selectDistractors(targetWord, words);
-
-      let receptiveQ;
-      try {
-        const { imageUrl, correctButton } = await VocabularyImageService.generateVocabularyGrid(
-          targetWord,
-          distractors
-        );
-
-        receptiveQ = {
-          id: 2,
-          type: 'receptive',
-          question: language === 'ur'
-            ? `کون سی تصویر "${targetWord}" دکھاتی ہے؟`
-            : `Which picture shows the word "${targetWord}"?`,
-          expected_answer: correctButton,
-          imageUrl: imageUrl,  // Gemini-generated composite image
-          buttons: [
-            { id: 'vocab_answer_1', title: '1' },
-            { id: 'vocab_answer_2', title: '2' },
-            { id: 'vocab_answer_3', title: '3' }
-          ],
-          scoring: 1
-        };
-      } catch (geminiError) {
-        // Fallback to text-only question if Gemini fails
-        logToFile('⚠️ Gemini failed, using text fallback', { error: geminiError.message });
-        receptiveQ = VocabularyImageService.createTextFallbackQuestion(targetWord, distractors);
-        receptiveQ.id = 2;
-      }
+      const receptiveQ = VocabularyImageService.createTextFallbackQuestion(targetWord, distractors);
+      receptiveQ.id = 2;
 
       // Question 3: Productive (Sentence Generation)
       const productiveWord = words.find(w => w !== targetWord && w.length >= 3) || words[1];

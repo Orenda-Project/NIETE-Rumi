@@ -123,6 +123,31 @@ idempotency gap.
 | Can't find a correlation id | Log entry predates the request, or id wasn't propagated | Filter by user id + time range instead. |
 | Silent failure, no error log | Missing defensive logging at the boundary | Add checkpoint logs before/after the suspect call, redeploy, reproduce. |
 
+
+### Rule I — A data-quality regression lives UPSTREAM: walk the lineage of the data, not the code of the feature
+
+When a feature that consumes stored data degrades (empty sections, refused analyses, wrong labels),
+the cause is often a change to a **producer** of that data — several hops upstream and invisible to
+any grep of the feature's own code. This applies **even when you have already found feature-level
+bugs**: walk the lineage whenever your causes do not account for the measured rate (Rule J).
+
+1. Name the exact property the feature needs. **If the consumer is a prompt, the prompt text IS the
+   input contract** — read it and list every property it demands (timestamps, language, structure);
+   an LLM stage that returns "unusable" is usually naming the property that went missing.
+2. Check that property **in the rows over time** — when did rows stop carrying it? A sharp flip date
+   pins a deploy to the minute and beats any amount of code reading.
+3. Walk the lineage: column -> its writer service -> `git log -p` the writer's files across the flip
+   window. A commit message is a claim, not a scope; diff the files.
+4. Remember fallbacks: a producer that degrades *silently* (catch -> lesser path) shows zero errors
+   while destroying the property. Check the good-path RATE, not the error log.
+
+### Rule J — Your cause must ACCOUNT FOR THE MEASURED RATE
+
+Finding *a* real bug is not finding *the* root cause. Quantify the symptom first (X% of rows, with
+the query), then quantify how many of those same rows your cause actually explains. **If there is a
+gap, you are not finished** — a cause explaining 4% of a 95% symptom is a finding, not a root cause.
+State both numbers in the report.
+
 ## Related Skills
 
 - [coaching](../coaching/SKILL.md) — debugging a failed or stuck coaching session.

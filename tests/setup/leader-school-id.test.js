@@ -164,7 +164,9 @@ describe('Phase 1: school_id column', () => {
 
       const cases = [
         ['leader_schools', MIG('V1.0.9__leader_allocations.sql'), ['school_id']],
-        ['leader_teachers', MIG('V1.0.9__leader_allocations.sql'), ['school_id']],
+        // V1.2.2 added the soft-delete pair after V1.0.9 created the table.
+        ['leader_teachers', MIG('V1.0.9__leader_allocations.sql'),
+          ['school_id', 'deleted_at', 'deleted_by']],
         // V1.1.7 added calendar_event_id after V1.0.10 created the table.
         ['observation_schedules', MIG('V1.0.10__observation_schedules.sql'),
           ['school_id', 'calendar_event_id']],

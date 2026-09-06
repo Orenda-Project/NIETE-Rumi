@@ -35,7 +35,10 @@ describe('bd-fbih0 — unsupported-type replies', () => {
   test('whatsapp-bot routes the fallback through the helper (no inline hardcode left)', () => {
     const src = fs.readFileSync(path.join(__dirname, '../../whatsapp-bot.js'), 'utf8')
       .split('\n').filter(l => !l.trim().startsWith('//')).join('\n');
-    expect(src).toMatch(/unsupportedTypeReply\(messageType\)/);
+    // The contract is "always via the helper, never an inline string" — not the
+    // exact arity. bd-1hae7 added the interactive SUB-type as a second argument
+    // so `call_permission_reply` (posted around a voice call) can stay silent.
+    expect(src).toMatch(/unsupportedTypeReply\(messageType(,\s*\w+)?\)/);
     expect(src).not.toMatch(/صرف متن اور آواز پیغامات کا جواب/); // string lives only in the helper
   });
 });

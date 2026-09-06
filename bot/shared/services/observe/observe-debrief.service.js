@@ -22,6 +22,7 @@ const { logToFile } = require('../../utils/logger');
 const ObserveState = require('./observe-state.service');
 const GPT5MiniService = require('../gpt5-mini.service');
 const { detectRegion } = require('../../utils/region');
+const { isUptakeLoopEnabled } = require('../../config/uptake-loop-flags');
 const {
   buildGuidePrompt,
   validateGuide,
@@ -453,9 +454,34 @@ async function startDebrief(sessionId, from, user) {
 
   const v2 = session.analysis_data || {};
 
+  // Feedback-uptake loop (flag-gated): the record from BEFORE this visit (what
+  // the AI coach asked, which attempt) plus THIS visit's verdict on it (written
+  // into this session's own record at form submit). previousFocus had no
+  // caller before this — the guide could never close the loop across sessions.
+  let previousFocus = null;
+  if (isUptakeLoopEnabled()) {
+    try {
+      const { loadPriorAction } = require('../coaching/coaching-trend.service');
+      const prior = await loadPriorAction(session.user_id, { excludeSessionId: sessionId });
+      const own = (session.prioritized_action && typeof session.prioritized_action === 'object') ? session.prioritized_action : {};
+      if (prior && prior.target) {
+        previousFocus = {
+          title: prior.target.name || prior.target.indicator,
+          try_this_tomorrow: prior.action || '',
+          attempt: Number(prior.attempt) || 1,
+          status: (own.uptake && own.uptake.status) || null,
+          hand_over: !!(own.hand_over || prior.hand_over),
+          instrument: prior.instrument || 'self',
+        };
+      }
+    } catch (loopErr) {
+      logToFile('[uptake-loop] debrief previousFocus failed (non-fatal)', { sessionId, error: loopErr.message });
+    }
+  }
+
   let guide;
   try {
-    const prompt = buildGuidePrompt(v2, { language: lang });
+    const prompt = buildGuidePrompt(v2, { language: lang, previousFocus });
     const { result } = await GPT5MiniService.completeJson(prompt, {
       maxTokens: 4000, label: 'observeDebriefGuide',
     });
@@ -468,7 +494,7 @@ async function startDebrief(sessionId, from, user) {
     // The fallback sanitizes interpolated v2 fields, but validate anyway —
     // if pathological v2 content still slips a gate, drop to the fully
     // static scaffold (always valid). The FO must never be left guideless.
-    guide = buildFallbackGuide(v2, { language: lang });
+    guide = buildFallbackGuide(v2, { language: lang, previousFocus });
     try {
       validateGuide(guide, S, lang);
     } catch (fallbackErr) {

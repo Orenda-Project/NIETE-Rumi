@@ -1,0 +1,10 @@
+/* Stub of katex's dist stylesheet.
+ *
+ * lib/fonts.js inlines this file and strips every @font-face src to an empty
+ * url() so the rendered HTML is self-contained. The real 24-face stylesheet is
+ * ~200KB of base64 the tests have no use for; what they need is a file that
+ * EXISTS and that exercises the strip, so the regex is covered rather than
+ * skipped. Keep one @font-face here for exactly that reason.
+ */
+.katex{font:normal 1.21em KaTeX_Main,Times New Roman,serif;line-height:1.2}
+@font-face{font-family:KaTeX_Main;src:url(fonts/KaTeX_Main-Regular.woff2) format("woff2");font-weight:400;font-style:normal}

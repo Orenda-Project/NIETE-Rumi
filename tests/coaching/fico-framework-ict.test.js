@@ -2,7 +2,9 @@
  * FICO Framework — ICT Canonical Rubric Tests (TDD)
  *
  * Validates bd-2039: FICO framework replaced with the canonical ICT rubric.
- * 4 scored sections (B/C/D/F), 26 indicators, scale 1-4, max 104.
+ * 4 scored sections (B/C/D/F), 26 indicators, three rungs 0-2, 52 marks defined.
+ * The per-session denominator is derived from the APPLICABLE indicators, so a scored
+ * lesson is out of 42 (maths/science), 44 (literacy) or 38 (subject unknown).
  *
  * Source of truth: Google Sheet 1UZaHrXARlJ2cWiZAGFEuc-_o1zOiC5LNXaz11_XVkFU
  * (authored by Hammad Sarfraz, ICT team).
@@ -67,9 +69,9 @@ describe('FICO Framework — ICT Canonical Rubric (bd-2039)', () => {
       expect(constants.totalIndicators).toBe(26);
     });
 
-    test('max marks is 104 (26 × 4)', () => {
-      expect(constants.maxMarks).toBe(104);
-      expect(ficoFramework.maxMarks).toBe(104);
+    test('max marks is 52 (26 × 2) DEFINED', () => {
+      expect(constants.maxMarks).toBe(52);
+      expect(ficoFramework.maxMarks).toBe(52);
     });
 
     test('every indicator has a scoring method (1-4 levels) + AI detection method', () => {
@@ -77,13 +79,16 @@ describe('FICO Framework — ICT Canonical Rubric (bd-2039)', () => {
         for (const ind of section.indicators) {
           // Marks scheme
           expect(ind.levels).toBeDefined();
+          expect(ind.levels[0]).toEqual(expect.any(String));
           expect(ind.levels[1]).toEqual(expect.any(String));
           expect(ind.levels[2]).toEqual(expect.any(String));
-          expect(ind.levels[3]).toEqual(expect.any(String));
-          expect(ind.levels[4]).toEqual(expect.any(String));
+          expect(ind.levels[3]).toBeUndefined();
           // AI detection method (from sheet, verbatim)
-          expect(ind.aiDetectionMethod).toEqual(expect.any(String));
-          expect(ind.aiDetectionMethod.length).toBeGreaterThan(20);
+          // v4 replaces the free-text "AI Detection Method" with a countable unit plus the
+          // non-examples that stop the model over-crediting.
+          expect(ind.count).toEqual(expect.any(String));
+          expect(ind.notCounted).toEqual(expect.any(String));
+          expect(ind.notCounted.length).toBeGreaterThan(20);
         }
       }
     });
@@ -97,25 +102,25 @@ describe('FICO Framework — ICT Canonical Rubric (bd-2039)', () => {
     const F = DOMAINS.teacher_subject_knowledge.indicators;
 
     test('F1-F3 tagged general', () => {
-      expect(F.find(i => i.id === 'F1').subjectGroup).toBe('general');
-      expect(F.find(i => i.id === 'F2').subjectGroup).toBe('general');
-      expect(F.find(i => i.id === 'F3').subjectGroup).toBe('general');
+      expect(F.find(i => i.id === 'F1').subject).toBeUndefined();
+      expect(F.find(i => i.id === 'F2').subject).toBeUndefined();
+      expect(F.find(i => i.id === 'F3').subject).toBeUndefined();
     });
 
     test('F4-F5 tagged mathematics', () => {
-      expect(F.find(i => i.id === 'F4').subjectGroup).toBe('mathematics');
-      expect(F.find(i => i.id === 'F5').subjectGroup).toBe('mathematics');
+      expect(F.find(i => i.id === 'F4').subject).toBe('maths');
+      expect(F.find(i => i.id === 'F5').subject).toBe('maths');
     });
 
     test('F6-F7 tagged science', () => {
-      expect(F.find(i => i.id === 'F6').subjectGroup).toBe('science');
-      expect(F.find(i => i.id === 'F7').subjectGroup).toBe('science');
+      expect(F.find(i => i.id === 'F6').subject).toBe('science');
+      expect(F.find(i => i.id === 'F7').subject).toBe('science');
     });
 
     test('F8-F10 tagged literacy', () => {
-      expect(F.find(i => i.id === 'F8').subjectGroup).toBe('literacy');
-      expect(F.find(i => i.id === 'F9').subjectGroup).toBe('literacy');
-      expect(F.find(i => i.id === 'F10').subjectGroup).toBe('literacy');
+      expect(F.find(i => i.id === 'F8').subject).toBe('literacy');
+      expect(F.find(i => i.id === 'F9').subject).toBe('literacy');
+      expect(F.find(i => i.id === 'F10').subject).toBe('literacy');
     });
   });
 
@@ -124,10 +129,10 @@ describe('FICO Framework — ICT Canonical Rubric (bd-2039)', () => {
   describe("framework-registry: getFramework('fico') returns ICT shape", () => {
     const { getFramework } = require('../../bot/shared/services/coaching/frameworks/framework-registry');
 
-    test('fico framework has name=fico, maxMarks=104', () => {
+    test('fico framework has name=fico, maxMarks=52', () => {
       const fw = getFramework('fico');
       expect(fw.name).toBe('fico');
-      expect(fw.maxMarks).toBe(104);
+      expect(fw.maxMarks).toBe(52);
     });
 
     test('fico framework does NOT expose the legacy 5-domain shape', () => {
@@ -163,17 +168,24 @@ describe('FICO Framework — ICT Canonical Rubric (bd-2039)', () => {
       expect(prompt).toMatch(/SECTION F/);
     });
 
-    test('uses the sheet\'s "AI Detection Method" text verbatim for at least one indicator', () => {
-      // Sample verbatim strings from the sheet:
-      expect(prompt).toContain("goal-setting phrases");                 // B1
-      expect(prompt).toContain("temporal phase markers");                // B2
-      expect(prompt).toContain("Classify each question as open or closed"); // C1
-      expect(prompt).toContain("reasoning language in student responses");  // D2
-      expect(prompt).toContain('phonics sequence');                      // F8
+    test('every indicator carries a COUNT line and a DOES NOT COUNT line', () => {
+      // v4 replaced the sheet's free-text "AI Detection Method" with two harder things: the unit
+      // to tally, and the non-examples that stop the model over-crediting. Both must reach the
+      // model, for every indicator — that is what makes the rung a count rather than a judgement.
+      const DOMAINS = ficoFramework.getScoringConstants().domains;
+      const n = Object.values(DOMAINS).reduce((a, d) => a + d.indicators.length, 0);
+      expect((prompt.match(/^   COUNT: /gm) || []).length).toBe(n);
+      expect((prompt.match(/^   DOES NOT COUNT: /gm) || []).length).toBe(n);
+      expect(prompt).toContain("THE COUNT WINS");
+      // F8's countable unit survives the rewrite
+      expect(prompt).toContain('phonics stages');
     });
 
-    test('mentions 1-4 scale', () => {
-      expect(prompt).toMatch(/1[\s-]*4/);
+    test('states the three-rung 0-2 scale', () => {
+      expect(prompt).toMatch(/scale 0-2/);
+      expect(prompt).toMatch(/0 = Not observed/);
+      expect(prompt).toMatch(/2 = Proficient/);
+      expect(prompt).not.toMatch(/Highly Effective/);
     });
 
     test('is cacheable', () => {
@@ -224,40 +236,55 @@ describe('FICO Framework — ICT Canonical Rubric (bd-2039)', () => {
   // ─── computeScores() ────────────────────────────────────────────────
 
   describe('computeScores() sums the new section shape', () => {
-    test('all 4 sections at max → 104 marks', () => {
+    test('all 4 sections at max → 52 marks', () => {
       const DOMAINS = ficoFramework.getScoringConstants().domains;
       const analysis = { domains: {} };
       for (const [key, def] of Object.entries(DOMAINS)) {
         analysis.domains[key] = {
-          indicators: def.indicators.map(i => ({ id: i.id, score: 4 })),
+          indicators: def.indicators.map(i => ({ id: i.id, score: 2 })),
         };
       }
       const scored = ficoFramework.computeScores(analysis);
-      expect(scored.scores.overall_marks).toBe(104);
-      expect(scored.scores.overall_max_marks).toBe(104);
+      expect(scored.scores.overall_marks).toBe(52);
+      expect(scored.scores.overall_max_marks).toBe(52);
       expect(scored.scores.overall_percentage).toBe(100);
     });
 
-    test('per-section max: B=28, C=16, D=20, F=40', () => {
+    test('per-section max follows the indicators actually scored, not the section size', () => {
+      // v4: the denominator is derived from the rows the scorer returned as applicable, so a
+      // domain that emitted ONE row is out of 1 x scaleMax — not out of its declared size.
+      const SCALE = ficoFramework.getScoringConstants().scaleMax;
       const analysis = {
         domains: {
-          lesson_plan_fidelity:      { indicators: [{ score: 4 }] },
-          high_leverage_practices:   { indicators: [{ score: 4 }] },
-          student_engagement:        { indicators: [{ score: 4 }] },
-          teacher_subject_knowledge: { indicators: [{ score: 4 }] },
+          lesson_plan_fidelity:      { indicators: [{ score: 2 }] },
+          high_leverage_practices:   { indicators: [{ score: 2 }] },
+          student_engagement:        { indicators: [{ score: 2 }] },
+          teacher_subject_knowledge: { indicators: [{ score: 2 }] },
         },
       };
       ficoFramework.computeScores(analysis);
-      expect(analysis.domains.lesson_plan_fidelity.domain_max).toBe(28);
-      expect(analysis.domains.high_leverage_practices.domain_max).toBe(16);
-      expect(analysis.domains.student_engagement.domain_max).toBe(20);
-      expect(analysis.domains.teacher_subject_knowledge.domain_max).toBe(40);
+      for (const d of Object.values(analysis.domains)) expect(d.domain_max).toBe(SCALE);
+      expect(analysis.scores.overall_max_marks).toBe(4 * SCALE);
+    });
+
+    test('a full section is out of its declared size when every row is applicable', () => {
+      const DOMAINS = ficoFramework.getScoringConstants().domains;
+      const SCALE = ficoFramework.getScoringConstants().scaleMax;
+      const analysis = { domains: {} };
+      for (const [key, def] of Object.entries(DOMAINS)) {
+        analysis.domains[key] = { indicators: def.indicators.map(i => ({ id: i.id, score: 0 })) };
+      }
+      ficoFramework.computeScores(analysis);
+      expect(analysis.domains.lesson_plan_fidelity.domain_max).toBe(7 * SCALE);
+      expect(analysis.domains.high_leverage_practices.domain_max).toBe(4 * SCALE);
+      expect(analysis.domains.student_engagement.domain_max).toBe(5 * SCALE);
+      expect(analysis.domains.teacher_subject_knowledge.domain_max).toBe(10 * SCALE);
     });
 
     test('missing sections do not crash', () => {
       const scored = ficoFramework.computeScores({ domains: {} });
       expect(scored.scores.overall_marks).toBe(0);
-      expect(scored.scores.overall_max_marks).toBe(104);
+      expect(scored.scores.overall_max_marks).toBe(52);
     });
   });
 

@@ -167,26 +167,7 @@ ${lpTemplate.inputText}`;
     }
   }
 
-  /**
-   * Generate a presentation using Gamma API
-   * Added language parameter for RTL support
-   * @param {string} topic - Presentation topic
-   * @param {string} fullUserMessage - Full user message for context
-   * @param {string} language - Language code ('en', 'ur', 'ar', 'es') - defaults to 'en'
-   * @returns {Promise<Object>} {gammaUrl: string, pdfUrl: string}
-   */
-  static async generatePresentation(topic, fullUserMessage, language = 'en') {
-    try {
-      logToFile('Generating presentation with Gamma API', { topic, language });
-      return await this._generateGammaContent(topic, fullUserMessage, 'presentation', 'presentation', language);
-    } catch (error) {
-      logToFile('Error generating presentation', {
-        error: error.message,
-        stack: error.stack
-      });
-      throw error;
-    }
-  }
+  // generatePresentation (freeform Gamma presentation) was removed with bd-2540.
 
   /**
    * Download PDF from URL

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, BookOpen, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users, CalendarDays, MoreHorizontal } from 'lucide-react';
+import { Home, BookOpen, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users, CalendarDays, MoreHorizontal, School } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '../hooks/useAuth';
 import { isLeader } from '../lib/leaderRole';
@@ -26,6 +26,7 @@ const PortalNavigation = () => {
     { title: 'Dashboard', path: '/portal/dashboard', icon: Home },
     { title: 'Curriculum', path: '/portal/curriculum', icon: Library },
     { title: 'Training', path: '/portal/training', icon: GraduationCap },
+    { title: 'My Classes', path: '/portal/classes', icon: School },
     { title: 'My Plans', path: '/portal/lesson-plans', icon: BookOpen },
     { title: 'Coaching', path: '/portal/coaching', icon: MessageSquare },
     { title: 'Analytics', path: '/portal/coaching/analytics', icon: TrendingUp },
@@ -134,7 +135,7 @@ const PortalNavigation = () => {
             <SheetTrigger asChild>
               <button
                 type="button"
-                aria-label="More"
+                aria-label="Other"
                 data-testid="mobile-nav-more"
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 px-1 py-2 flex-1 min-w-0 transition-colors",
@@ -142,12 +143,12 @@ const PortalNavigation = () => {
                 )}
               >
                 <MoreHorizontal className="w-5 h-5 shrink-0" />
-                <span className="text-xs w-full truncate text-center">More</span>
+                <span className="text-xs w-full truncate text-center">Other</span>
               </button>
             </SheetTrigger>
             <SheetContent side="bottom" className="rounded-t-xl">
               <SheetHeader className="text-left">
-                <SheetTitle>More</SheetTitle>
+                <SheetTitle>Other</SheetTitle>
               </SheetHeader>
               <div className="mt-4 flex flex-col">
                 {mobileOverflow.map((item) => (

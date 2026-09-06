@@ -18,6 +18,7 @@ const ObserveState = require('./observe-state.service');
 const { observeStrings, observeLang } = require('./observe-strings');
 const { getObservePack } = require('./observe-framework');   // FEAT-093 bd-52 — market rubric by config
 const { logToFile } = require('../../utils/logger');
+const { isUptakeLoopEnabled } = require('../../config/uptake-loop-flags');
 
 // D15 — full text stays in analysis_data regardless of what the form shows.
 // bd-2217: was 300, which visibly cut every Evidence note mid-sentence (Warda +
@@ -46,6 +47,8 @@ const SCALE_OPTIONS_BY_LANG = {
     { id: '3', title: '3 · بھرپور · Strong' },
   ],
 };
+const { FICO_NA_ID: NA_ID } = require('./observe-framework');
+
 const scaleOptions = () => {
   const pack = getObservePack();
   // FEAT-102: a pack may carry its OWN scale (FICO is 1-4, not the lang-keyed
@@ -323,10 +326,19 @@ function buildScreenPrefill(analysis, domainKey) {
   spec.indicators.forEach(specInd => {
     const f = fid(specInd.id);
     const ind = byId[specInd.id] || {};
-    const score = Number.isFinite(Number(ind.score)) && ind.score !== null && ind.score !== undefined
-      ? Math.max(SMIN, Math.min(SMAX, Number(ind.score))) : SMIN;
-    data[`s_${f}`] = String(score);
-    // The form shows the ≤500-char evidence_summary (the whole gist,
+    // A subject-gated indicator carries applicable:false / score:null. Falling through to SMIN
+    // showed it selected at the bottom rung, so an indicator the scorer had deliberately left out
+    // of the total looked scored — and submitting as prefilled would have written that score back.
+    let cell;
+    if (ind.applicable === false) {
+      cell = NA_ID;
+    } else if (Number.isFinite(Number(ind.score)) && ind.score !== null && ind.score !== undefined) {
+      cell = String(Math.max(SMIN, Math.min(SMAX, Number(ind.score))));
+    } else {
+      cell = String(SMIN);
+    }
+    data[`s_${f}`] = cell;
+    // bd-2369: the form shows the ≤500-char evidence_summary (the whole gist,
     // fits Meta's 600-char TextArea); the FULL evidence stays in analysis_data
     // and flows to the teacher's report. evidence_sw keeps MEWAKA/TZ unchanged.
     // bd-5n1a2: clip at a word boundary — a mid-word cut reads as a bug.
@@ -414,6 +426,30 @@ async function onAnalysisReady(sessionId, from) {
  * analysis, recompute scores, stamp the annotation summary, persist.
  * v1 (autofill_analysis_data) is never touched here.
  */
+/**
+ * Merge ONE radio choice into ONE indicator. Pure, so the N/A round-trip is testable without a DB.
+ *
+ * The not-applicable choice is not a score: it restores applicable:false / score:null, which is
+ * what keeps the row out of BOTH sides of the fraction. Choosing a number on a row the scorer
+ * excluded is a deliberate override — the coach is saying we read the subject wrong — so the row
+ * becomes applicable again.
+ *
+ * @returns {boolean} true if the stored score changed
+ */
+function mergeIndicatorEdit(ind, raw, bounds) {
+  const { min: SMIN, max: SMAX } = bounds || scaleBounds();
+  const before = ind.score;
+  if (String(raw) === NA_ID) {
+    ind.applicable = false;
+    ind.score = null;
+    return before !== null;
+  }
+  const n = Math.max(SMIN, Math.min(SMAX, parseInt(raw, 10) || SMIN));
+  ind.applicable = true;
+  ind.score = n;
+  return n !== Number(before);
+}
+
 async function applyObserverEdits(sessionId, edits) {
   const session = await loadSession(sessionId);
   const v1 = session.autofill_analysis_data || session.analysis_data;
@@ -431,9 +467,11 @@ async function applyObserverEdits(sessionId, edits) {
       const f = fid(ind.id);
       const orig = v1ById[ind.id] || {};
       if (edits[`r_${f}`] !== undefined && edits[`r_${f}`] !== null && edits[`r_${f}`] !== '') {
-        const newScore = Math.max(SMIN, Math.min(SMAX, parseInt(edits[`r_${f}`], 10) || SMIN));
-        if (newScore !== Number(orig.score)) rescored += 1;
-        ind.score = newScore;
+        const wasOrig = { score: orig.score };
+        if (mergeIndicatorEdit(ind, edits[`r_${f}`], { min: SMIN, max: SMAX })
+            && ind.score !== Number(wasOrig.score)) {
+          rescored += 1;
+        }
       }
       for (const [prefix, field] of [['ev_', 'evidence_sw'], ['imp_', 'improvement_sw']]) {
         const val = edits[`${prefix}${f}`];
@@ -479,8 +517,34 @@ async function applyObserverEdits(sessionId, edits) {
   const freshDebrief = freshRow && freshRow.analysis_data && freshRow.analysis_data.observer_debrief;
   if (freshDebrief) v2.observer_debrief = freshDebrief;
 
+  const patch = { analysis_data: v2, status: 'observer_review_complete' };
+
+  // Feedback-uptake loop (flag-gated, FICO only): the coach's signed-off v2 is
+  // this teacher's record too — /observe wrote no prioritized_action before, so
+  // a coach visit could never close or advance a target a self-serve lesson
+  // had opened. Built from the EDITED v2, written in the SAME update as the
+  // status flip. Never fatal: a loop failure leaves the submit exactly as it was.
+  if (isUptakeLoopEnabled() && String(v2.framework || '').toLowerCase() === 'fico') {
+    try {
+      const { loadPriorAction } = require('../coaching/coaching-trend.service');
+      const { deriveUptakeStatus, nextTarget, buildRecord } = require('../coaching/uptake-loop.service');
+      const prior = await loadPriorAction(session.user_id, { excludeSessionId: sessionId });
+      const status = deriveUptakeStatus(v2.uptake, prior, v2);
+      const state = nextTarget(prior, status, v2);
+      patch.prioritized_action = buildRecord(state, {
+        prior, analysis: v2, card: null, instrument: 'observe', uptake: v2.uptake, uptakeStatus: status,
+      });
+      logToFile('[uptake-loop] observe record', {
+        sessionId, prior_session: prior && prior.session_id, uptake_status: status,
+        next_target: state.target && state.target.indicator, attempt: state.attempt, angle: state.angle, reason: state.reason,
+      });
+    } catch (loopErr) {
+      logToFile('[uptake-loop] observe record failed (non-fatal; submit proceeds without it)', { sessionId, error: loopErr.message });
+    }
+  }
+
   const { error } = await supabase.from('coaching_sessions')
-    .update({ analysis_data: v2, status: 'observer_review_complete' })
+    .update(patch)
     .eq('id', sessionId);
   if (error) throw new Error(`observe: failed to persist v2 edits: ${error.message}`);
 
@@ -508,6 +572,7 @@ function reapplyFidelitySectionB(v2, sessionId) {
 }
 
 module.exports = {
+  mergeIndicatorEdit,
   onAnalysisReady, buildScreenPrefill, applyObserverEdits, reapplyFidelitySectionB,
   composeFidelitySummary, composeMoveBlocks, composeEditableFidelity, rescoreFidelityFromEdits,
   clipWords, MAX_MOVE_SLOTS, FIDELITY_VERDICT_OPTIONS, SCALE_OPTIONS_BY_LANG,

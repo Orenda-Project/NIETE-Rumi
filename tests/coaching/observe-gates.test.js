@@ -91,11 +91,15 @@ describe('reapplyFidelitySectionB — measured Section B survives observer edits
     return a;
   }
 
-  test('after computeScores re-summed B from edited indicators, fidelity is re-derived (60% → 24/40)', () => {
-    const v2 = fico.computeScores(ficoV2(20)); // observer edits re-summed B to 20
-    expect(v2.domains.lesson_plan_fidelity.domain_score).toBe(20);
+  test('after computeScores re-summed B from edited indicators, fidelity is re-derived', () => {
+    // Section B's max is derived from its applicable indicators, so read it off the analysis
+    // rather than hardcoding a number that moves whenever the scale does.
+    const v2 = fico.computeScores(ficoV2(20)); // observer edits re-summed B
+    const maxB = v2.domains.lesson_plan_fidelity.domain_max;
+    const summed = v2.domains.lesson_plan_fidelity.domain_score;
     reapplyFidelitySectionB(v2, 'sid');
-    expect(v2.domains.lesson_plan_fidelity.domain_score).toBe(24); // round(0.60×40)
+    expect(v2.domains.lesson_plan_fidelity.domain_score).toBe(Math.round(0.6 * maxB));
+    expect(v2.domains.lesson_plan_fidelity.domain_score).not.toBe(summed);
     expect(v2.domains.lesson_plan_fidelity.fidelity_derived).toBe(true);
   });
 

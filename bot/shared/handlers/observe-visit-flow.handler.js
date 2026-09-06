@@ -549,6 +549,7 @@ async function briefScreen(userId, screenData, screenId = 'BRIEF') {
     growth: brief.growthLabel,
     moves: brief.moves,
     noData: brief.noData,
+    loop: brief.loop || null, // feedback-uptake loop (null when off)
   });
   let page = 0;
   let origin = screenData && screenData.origin;
@@ -1010,9 +1011,9 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       return { screen: 'TEACHER_SCHOOL', data: { options } };
     }
 
-    // Reported from the field: "when a user selects the option to add a
-    // teacher, the remove option appears as well, even if removal isn't
-    // needed."
+    // bd-59809 — Waheed, #region-islamabad 2026-08-31: "when a user selects the
+    // option to add a teacher, the remove option appears as well, even if
+    // removal isn't needed."
     //
     // He was describing the screen ORDER. Picking a school used to commit the
     // coach to adding (the Footer read "Add a teacher" before she had said
@@ -1045,7 +1046,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
     // The fork. Neither branch writes: both land on a screen that still asks
     // for a number or a name before anything changes.
     if (step === 'teacher_action_pick') {
-      // READ `choice`, NEVER `action`. `action` is the reserved
+      // bd-59811 — READ `choice`, NEVER `action`. `action` is the reserved
       // Flow request field: the endpoint destructures
       //   const { action, flow_token, screen, data } = decryptedData
       // so a payload key of that name arrives as 'data_exchange', not the

@@ -72,10 +72,6 @@ function buildCompleteState(overrides = {}) {
         flowId: 'flow_sv_8', status: 'PUBLISHED', envVar: 'STUDENT_VIDEOS_FLOW_ID',
         type: 'endpoint', endpointPath: '/api/flows/student-videos', registeredAt: now,
       },
-      'Pic-to-LP Confirm': {
-        flowId: 'flow_pl_9', status: 'PUBLISHED', envVar: 'PIC_LP_FLOW_ID',
-        type: 'endpoint', endpointPath: '/api/flows/pic-lp', registeredAt: now,
-      },
       'Quiz Manager': {
         flowId: 'flow_qz_10', status: 'PUBLISHED', envVar: 'QUIZ_FLOW_ID',
         type: 'endpoint', endpointPath: '/api/flows/quiz', registeredAt: now,

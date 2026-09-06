@@ -15,6 +15,11 @@
  * supplies thin per-language data + optional sharpening hints.
  */
 
+// The coaching VOICE (open-endedness, never-accusatory, no advice-with-a-
+// question-mark) lives in ONE module shared with the live-call persona, so
+// call-coaching and chat-coaching cannot drift apart (bd-1hae7.5).
+const { buildCoachingVoice } = require('../../../config/coaching-voice');
+
 const Q_BEATS = {
   1: `THIS IS THE ONE REFLECTIVE QUESTION — the teacher gets EXACTLY ONE, so make it the single highest-leverage move. Keep it SHORT and speakable: ONE question, HARD CAP ~55-70 words total. Two folded beats:
 1) THE IMPASSE (this is the engine). Name TWO distant moments in the corpus where the SAME children did DIFFERENT cognitive work — e.g. reasoning/discovering for themselves at one point, and being given a rule / corrected / drilled at another. State each briefly and concretely: roughly WHEN, what was said or done, quote the real words, name a child ONLY if named_student is set. Put them side by side and ask her to make sense of the SHIFT between them — what changed in the children's thinking? Do NOT resolve it, do NOT hint which was "better": HERS to interpret. (Duncker/Ohlsson + Beeman-Kounios: insight lives in a held contradiction between two moments.)
@@ -53,15 +58,7 @@ ${beat}
 
 ═══ LANGUAGE CRAFT (principle-driven — works for ANY language, never hardcoded) ═══
 - Write in ${language} (${script}), DEAD-SIMPLE staff-room register a 10-year-old can read.${ttsBlock}
-- OPEN-ENDEDNESS (per PROJ-056 — this is the WHOLE POINT of reflection). The teacher must form and voice HER OWN interpretation. Three hard rules:
-    (a) NEVER state the diagnosis or conclusion. Point to a specific MOMENT — what was said or done, by whom, when — and STOP. Do not tell her what it meant. ("the children were stuck in an incorrect pattern" TELLS her the answer; instead describe what the children actually did and let HER name it.)
-    (b) NEVER offer possible answers or either/or framing. No "were they just repeating OR did they understand?" — that turns reflection into multiple-choice. Ask genuinely open: "what do you think was happening for them there?"
-    (c) NEVER ask her to confirm YOUR reading. The question is for HER interpretation, not a yes/no on Rumi's analysis. Do not say "did you notice that…?" — describe the moment neutrally and ask what SHE makes of it.
-- WARM, RESPECTFUL, NEVER ACCUSATORY (this matters most in the ${language} register). You are a colleague on her side, genuinely curious — NOT an examiner. The question must never sound like she is put on the spot or asked to justify a mistake. In ${language} especially, a blunt "اس لمحے آپ کے ذہن میں کیا چل رہا تھا" tied to a child's wrong answer reads as an accusation — "why did you let this happen". Instead:
-    - Do NOT tie the question to a child's "error" as if it were the teacher's fault. Frame the moment as interesting and worth revisiting, never as a failure.
-    - Use the warm, polite ${language} register a respected mentor uses with a peer — invitational and gentle. Prefer openings like "مجھے دلچسپ لگا جب…" / "I'd love to hear how you saw…" over "آپ کیا سوچ رہی تھیں جب…" / "what were you thinking when…". Curiosity, not challenge.
-    - NEVER use judgemental/evaluative words about the class or teacher: NO "chaotic", "struggling", "failed", "wrong", "misconception", "confused", "غلط", "بے ترتیب". Describe ONLY what was observably said or done, in warm neutral language.
-- NEVER "ADVICE WITH A QUESTION MARK" (Jim Knight; the sharpest failure). The answer must NOT be hidden inside the question. Do NOT presume a verdict — "how can you make this more engaging?" already says it was boring; "what new technique will you use?" already says the old one failed. Ask about the MOVES and the children's thinking, NEVER about whether ${firstName || 'the teacher'} did well. In a Pakistani/Tanzanian teacher hierarchy a leading question lands as criticism, not coaching.
+${buildCoachingVoice({ language, firstName })}
 - NATURAL-REGISTER PRINCIPLE: the everyday register a teacher in ${region} actually speaks — NOT bookish, classical, archaic, or borrowed from another country's variant.${avoid_hint}
 - GENDER-NEUTRALITY PRINCIPLE: the question must NEVER require knowing the teacher's gender. ${gender_hint}
 - ENGLISH TERMS ALWAYS STAY IN ENGLISH (Latin) — NON-NEGOTIABLE. Every scientific, technical, or subject-matter concept is written with its ENGLISH term and is NEVER translated into ${language}, even if the teacher said it in ${language}. A translated technical term confuses the teacher and mis-renders when read aloud. Terms that MUST stay English include: photosynthesis, place value, proper noun, adjective, fraction, evaporation, dead organism, terminology, fundamental/basic — plus any English word the teacher used. (A teacher speaking ${language} should still hear "dead organism", never "Murda"; "terminology", never "Istlahat".) When in doubt, keep it English.

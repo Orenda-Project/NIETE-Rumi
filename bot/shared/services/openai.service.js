@@ -386,6 +386,21 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
    * @param {string|null} featureContext - Phase 2: Conditional feature context (optional)
    * @returns {Promise<string>} AI response
    */
+  /**
+   * The English name of a language code, for a model instruction ("Urdu", not
+   * "ur" — the model follows a name far more reliably than a code). Not
+   * teacher-facing copy, so no catalog entry; Intl carries the names.
+   * @private
+   */
+  _languageName(code) {
+    try {
+      const name = new Intl.DisplayNames(['en'], { type: 'language' }).of(String(code || 'en').split('-')[0]);
+      return name || String(code || 'en');
+    } catch (_) {
+      return String(code || 'en');
+    }
+  }
+
   async getResponseWithFormat(userMessage, userId, format, language, firstName = null, featureContext = null) {
     try {
       logToFile('Getting format-aware response', {
@@ -398,10 +413,25 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
       // Create a temporary conversation history with format-specific system prompt
       let systemPrompt = this._getFormatAwareSystemPrompt(format, language, firstName);
 
-      // Phase 2: Inject feature context if provided (conditional injection)
+      // bd-wpupy: featureContext used to be appended to the system prompt, which
+      // put it ~10 turns away from the message it is meant to answer. On the
+      // production model that loses to recency: with a real 10-turn history,
+      // "give this to me in text form" bound to the previous ASSISTANT reply
+      // instead of the lesson plan sitting in the system prompt, and the teacher
+      // got her last answer reworded instead of her lesson. A stronger model
+      // (gpt-4o) resisted; gpt-4.1-mini did not, and a prompt rule telling it
+      // what "this" means did NOT fix it — position did.
+      //
+      // So the context now rides as its own system message IMMEDIATELY BEFORE
+      // her turn. Verified against the real failing conversation: appended =
+      // wrong answer, adjacent = the lesson, same model and same history.
+      //
+      // This is NOT the stale-system-message case the history filter below
+      // guards against: that filter drops system messages found INSIDE stored
+      // history (last turn's instructions replayed as current). This one is
+      // built fresh for this turn, from this turn's context.
       if (featureContext) {
-        systemPrompt = systemPrompt + '\n\n' + featureContext;
-        logToFile('Feature context injected into system prompt', {
+        logToFile('Feature context injected adjacent to the user turn', {
           userId,
           contextLength: featureContext.length
         });
@@ -421,10 +451,25 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
       const existingHistory = (await this.getConversationHistory(userId))
         .filter((m) => m.role !== 'system');
 
+      // bd-eb1ec: the adjacent context block is the last thing the model reads
+      // before her turn, and when it carries ~4,000 characters of Urdu lesson
+      // script the reply follows the block's language, not the base prompt's —
+      // an English-locked teacher got her lesson back in Urdu (staging,
+      // 2026-08-30, conversations row output_language='en'). The base prompt's
+      // language rule lost to position, exactly as the referent did in
+      // bd-wpupy. So the reply language is stated INSIDE the adjacent block,
+      // where position works for us instead of against us.
+      const adjacentContext = featureContext
+        ? `REPLY LANGUAGE: ${this._languageName(language)}. Write the whole reply in ${this._languageName(language)}, `
+          + 'even if the reference material below is in another language — translate as you rewrite.\n\n'
+          + featureContext
+        : null;
+
       // Build new history with format-specific system prompt
       const messages = [
         { role: 'system', content: systemPrompt },
         ...existingHistory,
+        ...(adjacentContext ? [{ role: 'system', content: adjacentContext }] : []),
         { role: 'user', content: userMessage }
       ];
 
@@ -434,11 +479,17 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
       const RTL_LANGUAGES = ['ur', 'ar', 'bal-PK', 'sd-PK', 'ps-PK', 'pa-PK'];
       const isRTL = RTL_LANGUAGES.includes(language);
       const voiceMaxTokens = isRTL ? 400 : 250;
+      // bd-f9hmw: a text reply that carries a lesson block may be the lesson
+      // written out — nine phases in brief ran to section 8 and stopped at
+      // "C) Calculate" under the 500 cap (staging, 2026-08-30). Room to finish
+      // it; 1,200 tokens sits under WhatsApp's 4,096-char message cap in both
+      // scripts. Plain conversation keeps 500; voice keeps its 60-second cap.
+      const textMaxTokens = featureContext ? 1200 : 500;
 
       const completion = await this.openai.chat.completions.create({
         model: 'gpt-4.1-mini',
         messages: messages,
-        max_tokens: format === 'voice' ? voiceMaxTokens : 500,
+        max_tokens: format === 'voice' ? voiceMaxTokens : textMaxTokens,
         temperature: 0.7,
       });
 
@@ -480,7 +531,7 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
    * @param {string} message - User's message
    * @returns {Promise<Object>} Intent object {type: string, message: string}
    */
-  async detectIntent(message) {
+  async detectIntent(message, contextHint = '') {
     try {
       const completion = await this.openai.chat.completions.create({
         model: 'gpt-4.1-mini',
@@ -538,7 +589,7 @@ Examples:
 - "What's a good way to explain X?" → general
 
 Return ONLY one word: lesson_plan, presentation, video, or general
-If (and ONLY if) the message refers back to a lesson plan the teacher ALREADY has or received, append " lp_ref" after the word (e.g. "general lp_ref").`
+If (and ONLY if) the message refers back to a lesson plan the teacher ALREADY has or received, append " lp_ref" after the word (e.g. "general lp_ref").${contextHint || ''}`
           },
           {
             role: 'user',

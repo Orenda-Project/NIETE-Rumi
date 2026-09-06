@@ -116,4 +116,127 @@ async function loadTrendData(userId, opts = {}) {
   }
 }
 
-module.exports = { loadTrendData, shortLabel };
+/**
+ * The teacher's most recent feedback-uptake action record, from EITHER
+ * instrument — her own self-serve coaching or a coach-confirmed /observe visit.
+ *
+ * Null when there is none, when it is older than maxAgeDays (history, not
+ * state), when it predates the loop (no .target — every row before switch-on),
+ * when it was written for another framework, or when the newest row is an AI
+ * draft no coach signed off (awaiting_observer_review is excluded by status).
+ * Never throws: the loop must degrade to "no prior", not sink a report.
+ *
+ * @param {string} userId
+ * @param {object} [opts] - { excludeSessionId, maxAgeDays = 30 }
+ */
+async function loadPriorAction(userId, opts = {}) {
+  const { excludeSessionId = null, maxAgeDays = 30 } = opts;
+  try {
+    if (!userId) return null;
+    let q = supabase
+      .from('coaching_sessions')
+      .select('id, created_at, observation_type, status, prioritized_action')
+      .eq('user_id', userId)
+      .in('status', ['completed', 'observer_review_complete'])
+      .not('prioritized_action', 'is', null);
+    if (excludeSessionId) q = q.neq('id', excludeSessionId);
+    // Newest first, ONE row — `.order(ascending:true).limit(1)` returns the OLDEST.
+    const { data, error } = await q.order('created_at', { ascending: false }).limit(1);
+    if (error) {
+      logToFile('[uptake-loop] loadPriorAction supabase error', { userId, error: error.message });
+      return null;
+    }
+    const row = Array.isArray(data) ? data[0] : null;
+    if (!row) return null;
+    const rec = row.prioritized_action;
+    if (!rec || typeof rec !== 'object' || !rec.target || !rec.target.indicator) return null;
+    if (rec.framework && String(rec.framework).toLowerCase() !== 'fico') return null;
+    const ageDays = (Date.now() - new Date(row.created_at).getTime()) / 86400000;
+    if (!Number.isFinite(ageDays) || ageDays > maxAgeDays) return null;
+    return {
+      ...rec,
+      session_id: row.id,
+      created_at: row.created_at,
+      instrument: row.observation_type ? 'observe' : 'self',
+    };
+  } catch (err) {
+    logToFile('[uptake-loop] loadPriorAction unexpected error', { userId, error: err.message });
+    return null;
+  }
+}
+
+/**
+ * Which Section B measurement her recent lessons used — 'derived' when a plan
+ * resolved to graded moves, 'proxy' otherwise. Newest first.
+ *
+ * Selects the nested flag ONLY. analysis_data is a large JSONB blob and pulling
+ * three of them to read one boolean is the unbounded-JSONB pattern that has
+ * bitten this codebase before.
+ *
+ * Used to keep a fresh Section B target off a teacher who always attaches a
+ * plan — such a target would be bridged almost every lesson. Never throws: an
+ * empty array simply means "no preference".
+ *
+ * @param {string} userId
+ * @param {object} [opts] - { limit = 3, excludeSessionId }
+ * @returns {Promise<Array<'derived'|'proxy'>>}
+ */
+async function loadRecentSectionBModes(userId, opts = {}) {
+  const { limit = 3, excludeSessionId = null } = opts;
+  try {
+    if (!userId) return [];
+    let q = supabase
+      .from('coaching_sessions')
+      .select('id, created_at, mode:analysis_data->domains->lesson_plan_fidelity->fidelity_derived')
+      .eq('user_id', userId)
+      .eq('status', 'completed');
+    if (excludeSessionId) q = q.neq('id', excludeSessionId);
+    const { data, error } = await q.order('created_at', { ascending: false }).limit(limit);
+    if (error) {
+      logToFile('[uptake-loop] loadRecentSectionBModes error', { userId, error: error.message });
+      return [];
+    }
+    return (Array.isArray(data) ? data : []).map((r) => (r && r.mode === true ? 'derived' : 'proxy'));
+  } catch (err) {
+    logToFile('[uptake-loop] loadRecentSectionBModes unexpected error', { userId, error: err.message });
+    return [];
+  }
+}
+
+/**
+ * Her recent GRADED lesson plans, for the fidelity phase loop.
+ *
+ * Selects only the lp_fidelity blob — never the whole analysis_data — and is
+ * bounded to a handful of rows: choosePhaseTarget needs the per-move phase and
+ * verdict, which no narrower projection can reach (PostgREST cannot project
+ * inside a JSON array).
+ *
+ * Shaped as [{ lp_fidelity }] so it drops straight into choosePhaseTarget.
+ * Never throws: [] simply means "no pattern to coach".
+ *
+ * @param {string} userId
+ * @param {object} [opts] - { limit = 5, excludeSessionId }
+ */
+async function loadRecentFidelity(userId, opts = {}) {
+  const { limit = 5, excludeSessionId = null } = opts;
+  try {
+    if (!userId) return [];
+    let q = supabase
+      .from('coaching_sessions')
+      .select('id, created_at, fid:analysis_data->lp_fidelity')
+      .eq('user_id', userId)
+      .eq('status', 'completed');
+    if (excludeSessionId) q = q.neq('id', excludeSessionId);
+    const { data, error } = await q.order('created_at', { ascending: false }).limit(limit);
+    if (error) {
+      logToFile('[uptake-loop] loadRecentFidelity error', { userId, error: error.message });
+      return [];
+    }
+    return (Array.isArray(data) ? data : []).map((r) => ({ lp_fidelity: (r && r.fid) || null }));
+  } catch (err) {
+    logToFile('[uptake-loop] loadRecentFidelity unexpected error', { userId, error: err.message });
+    return [];
+  }
+}
+
+module.exports = { loadTrendData, loadPriorAction, loadRecentSectionBModes, loadRecentFidelity, shortLabel };

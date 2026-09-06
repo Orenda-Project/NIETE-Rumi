@@ -15,6 +15,8 @@ const { buildHeroReportHtml, buildReportCaption } = require('./hero-report.templ
 const { buildClassroomPhotoVm } = require('./classroom-photo-vm');
 const { resolveReportLanguage } = require('./report-language');
 const { loadTrendData } = require('../coaching-trend.service');
+const { resolveTarget } = require('../target-resolver');
+const { resolveUx } = require('../../../config/ux-strings');
 const { downloadFromR2, extractKeyFromUrl } = require('../../../storage/r2');
 const { htmlToImage } = require('../../../utils/html-to-pdf');
 const { logToFile } = require('../../../utils/logger');
@@ -36,10 +38,49 @@ function attachDomainWhys(groups, domainWhys) {
   return groups;
 }
 
+const UPTAKE_LINE_KEY = {
+  achieved: 'uptakeLineAchieved',
+  partial: 'uptakeLinePartial',
+  not_seen: 'uptakeLineNotSeen',
+  not_applicable: 'uptakeLineNotApplicable',
+  unknown: 'uptakeLineUnknown',
+};
+
+/** "specific feedback moves 2, next step feedback 0" — the tally in words, never a score. */
+function tallyInWords(count) {
+  if (!count || typeof count !== 'object') return '';
+  return Object.entries(count)
+    .filter(([, v]) => v !== null && v !== undefined && v !== '')
+    .map(([k, v]) => `${String(k).replace(/_/g, ' ')} ${v}`)
+    .join(', ');
+}
+
+/**
+ * The hero's "Last time we asked" block, from the loop state the report
+ * generator computed ({ prior, status, state }) and this lesson's tally.
+ * Null when there is nothing to show (no loop, no prior, or no verdict).
+ * The line is catalog copy in the report language; the ask is verbatim in
+ * whatever language it was written. Never a percentage.
+ */
+function buildUptakeVm(loop, uptake, lang) {
+  if (!loop || !loop.prior || !loop.prior.target || !loop.status || loop.status === 'no_prior') return null;
+  const status = UPTAKE_LINE_KEY[loop.status] ? loop.status : 'unknown';
+  const target = loop.prior.target.name || loop.prior.target.indicator;
+  const count = tallyInWords(uptake && uptake.count) || '—';
+  let line = resolveUx(UPTAKE_LINE_KEY[status], { language: lang, params: { count, target } });
+  if (loop.state && loop.state.hand_over) {
+    line += ' ' + resolveUx('uptakeLineHandOver', { language: lang, params: { count, target } });
+  }
+  return { asked: String(loop.prior.action || ''), status, line };
+}
+
 /**
  * @param {object} session - coaching_sessions row (transcript_text, user_id, created_at, classroom_photos)
  * @param {object} analysis - enhancedAnalysis (framework, scores, domains, reflective_corpus, …)
- * @param {object} opts - { teacherName, commitmentAction, language, brand }
+ * @param {object} opts - { teacherName, commitmentAction, language, brand, target }
+ *   `target` is the ONE indicator this report is about (target-resolver). When the
+ *   caller does not supply it, it is resolved from the analysis here so the
+ *   observe path and the coaching pipeline name the same horizon.
  *   `brand` selects the template palette ('niete' for the FICO/NIETE path,
  *   injected by renderer-registry; omitted = default palette). bd-2452.
  * @returns {Promise<{png:Buffer, caption:string}>}
@@ -70,11 +111,13 @@ async function generateHeroReport(session, analysis, opts = {}) {
     logToFile('hero-report: trend load failed (non-fatal)', { error: e.message });
   }
 
+  const target = opts.target !== undefined ? opts.target : resolveTarget(analysis);
   const narrative = await generateReportNarrative(analysis, {
     transcript: session.transcript_text,
     trend,
     language: lang,
     teacherName,
+    target,
   });
 
   // bd-1t1wz: per-section "why" diagnosis lines onto the scorecard rows.
@@ -104,6 +147,8 @@ async function generateHeroReport(session, analysis, opts = {}) {
     groups: score.groups,
     narrative: narrative || {},
     tryNext: commitmentAction || '',
+    // feedback-uptake loop: "last time we asked" (null when the loop is off / no prior)
+    uptake: buildUptakeVm(opts.loop, analysis.uptake, lang),
     trend,
     photoB64: '', // hero background stays the solid brand colour; photos render in the framed strip
     classroomPhotos, // bd-pv2tl: up to 2 framed classroom photos under the scorecard
@@ -113,4 +158,4 @@ async function generateHeroReport(session, analysis, opts = {}) {
   return { png, caption: buildReportCaption(vm) };
 }
 
-module.exports = { generateHeroReport, attachDomainWhys };
+module.exports = { generateHeroReport, attachDomainWhys, buildUptakeVm, tallyInWords };
