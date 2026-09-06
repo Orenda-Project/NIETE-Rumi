@@ -1438,7 +1438,13 @@ class WhatsAppService {
    */
   static async sendFlow(to, flowData) {
     try {
-      const { flowId, header, headerImage, body, footer, buttonText = 'Start', screen, flowToken, screenData } = flowData;
+      const { flowId, header, headerImage, body, footer, buttonText = 'Start', screen, flowToken, screenData, navigateData } = flowData;
+      // Two live callers (video-quiz-share, video-quiz-sender) shipped on the
+      // older `navigateData` name; `screenData` stays the primary name so a
+      // caller reading this signature has one obvious choice, but the alias
+      // keeps those two working without a call-site rename that would leave
+      // the next caller free to make the same mistake.
+      const resolvedScreenData = screenData ?? navigateData;
 
       if (!flowId) {
         logToFile('❌ Flow ID is required', { flowData });
@@ -1466,8 +1472,8 @@ class WhatsAppService {
         };
         // A screen that DECLARES data needs it supplied when we open straight
         // onto it — navigate mode has no endpoint round-trip to fill it in.
-        if (screenData && Object.keys(screenData).length) {
-          parameters.flow_action_payload.data = screenData;
+        if (resolvedScreenData && Object.keys(resolvedScreenData).length) {
+          parameters.flow_action_payload.data = resolvedScreenData;
         }
       }
 
