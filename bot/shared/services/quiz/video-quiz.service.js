@@ -516,10 +516,21 @@ async function sendNextQuestion(phone, state) {
   return null;
 }
 
+/** 'card' | 'image' | 'none' — what the question showed alongside the text. */
+function mediaKind(q) {
+  const media = (q && q.media) || {};
+  if (media.question_card) return 'card';
+  if (media.question_image) return 'image';
+  return 'none';
+}
+
 /**
  * Grade a tap and move on. Returns true if the input belonged to a video quiz.
  */
 async function handleAnswer(phone, inputId) {
+  // The child's tap is what needs measuring, so the clock starts on the
+  // FIRST line, before the render parse — not on our own bookkeeping.
+  const answerStart = Date.now();
   const parsed = render.parseAnswer(inputId);
   if (!parsed) return false;
   const state = await redisService.get(STATE_KEY(phone));
@@ -568,7 +579,9 @@ async function handleAnswer(phone, inputId) {
     // recorded and the process died before the state advanced (a deploy landed
     // mid-quiz on staging: all eight answers stored, the session stuck at 5/8,
     // every later tap swallowed here). Rebuild the state from the answers table
-    // and carry on — the next question, or the finish.
+    // and carry on — the next question, or the finish. This tap never
+    // delivered a verdict, so it gets no answer_latency — one would
+    // misrepresent a re-tap or a resumed process as a normal graded answer.
     return reconcileFromAnswers(phone, state);
   }
   if (aErr) logToFile('⚠️ video-quiz: answer insert failed', { error: aErr.message });
@@ -583,6 +596,7 @@ async function handleAnswer(phone, inputId) {
     questionId: q.id, sessionId: state.sessionId, language: state.language,
     isCorrect, selectedIndex: parsed.index,
   });
+  const msToFeedback = Date.now() - answerStart;
 
   // The columns come from the table this call has just written to, never from
   // the counters carried in `state` — see writeCountersFromAnswers. `state` then
@@ -595,8 +609,15 @@ async function handleAnswer(phone, inputId) {
   state.currentQuestionId = null;
   await saveState(phone, state, 'handleAnswer');
 
-  await new Promise((r) => setTimeout(r, 1200));
+  const finished = state.index >= state.questionIds.length;
+  const msPause = 1200;
+  await new Promise((r) => setTimeout(r, msPause));
   await sendNextQuestion(phone, state);
+  logEvent('video_quiz.answer_latency', {
+    sessionId: state.sessionId, questionId: q.id, isCorrect,
+    msToFeedback, msToNextQuestion: Date.now() - answerStart, msPause,
+    media: mediaKind(q), finished,
+  });
   return true;
 }
 

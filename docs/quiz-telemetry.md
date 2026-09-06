@@ -32,11 +32,22 @@ logEvent('video_quiz.offer_answered', { kind, choice, ... });
 | `invite`   | A `share_link` session finishes (`offerInvite`) | `yes` \| `no` |
 | `share`    | A `video_solo` session finishes (`offerShare`) | `yes` \| `no` |
 | `binge`    | A child declines the friend-invite (`offerMore`) | `yes` \| `no` |
-| `feedback` | A `video_solo` session finishes, the post-quiz survey (`scheduleFeedbackPrompt`, scope `video_and_quiz` only — the bare-video survey is a separate offer this event does not cover) | `useful` \| `not_useful` |
+| `feedback` | The post-quiz survey **actually sends** (`sendFeedbackPrompt`, scope `video_and_quiz` only — the bare-video survey is a separate offer this event does not cover) | `useful` \| `not_useful` |
 
 `sessionId` is `null` on the `quiz` kind — no session exists until the offer
-is accepted. `choice` is always a short stable token, **never the WhatsApp
-button title** (button copy is translated and can change; the token cannot).
+is accepted. Every other kind carries it, and it is always spelled
+`sessionId`, so one query joins the two halves of the funnel. `choice` is
+always a short stable token, **never the WhatsApp button title** (button copy
+is translated and can change; the token cannot).
+
+Two kinds carry a delivery verdict rather than assuming one, because their
+send can fail and an offer nobody received is not an offer shown:
+
+* `share` adds `sent` — the offer is sent with one retry, and `sent: false`
+  means both attempts failed.
+* `feedback` is logged **at send time, not at schedule time**. The survey is
+  queued ~30 s after the quiz ends; logging it when it was queued would count
+  offers that never arrived.
 
 An `offer_answered` also keeps every field the pre-existing event already
 carried for that call site (e.g. `quiz`'s `userId`/`accepted`/`shared`) —
@@ -57,7 +68,7 @@ cleanly — the fields simply come out `null` on the matching `offer_answered`.
 | `video_quiz.binge_started` | `handleMoreButton`, only when the Student Videos Flow **actually sent** (`WhatsAppService.sendFlow` returned truthy) | `sessionId`, `quizId`, `shareCodeId`, `language` |
 | `video_quiz.binge_unavailable` | `handleMoreButton`, when the Flow could not be offered — `STUDENT_VIDEOS_FLOW_ID` unset, or the send failed | `reason`: `flow_not_configured` \| `flow_send_failed` |
 | `video_quiz.binge_video_picked` | `student-videos-endpoint.js` `deliverVideoAsync`, the child branch — the point where a binge round's Student-Videos Flow reply (grade → subject → topic → SUCCESS) comes back, before we know whether that video has a quiz | `shareCodeId`, `studentId` |
-| `video_quiz.feedback_answered` | `handleFeedbackButton`, only when the tap is linked to a quiz run (`link.quizSessionId` set — a bare-video 👍/👎 with no linked quiz session does not emit this) | `quizSessionId`, `useful`, `videoId` |
+| `video_quiz.feedback_answered` | `handleFeedbackButton`, only when the tap is linked to a quiz run (`link.quizSessionId` set — a bare-video 👍/👎 with no linked quiz session does not emit this) | `quizSessionId`, `useful`, `videoId`. Note the field is `quizSessionId` on this point event and `sessionId` on the matching `offer_answered`; the funnel queries use the latter |
 
 ## Pre-existing events this funnel sits alongside (unchanged)
 
@@ -133,4 +144,70 @@ rows are the per-offer shown/answered counts.
 | extend d = parse_json(data_json)
 | where tostring(d.event) == 'video_quiz.scorecard_sent'
 | summarize sent = count(), image_ok = countif(tobool(d.ok) == true), fell_back = countif(tobool(d.fallback) == true)
+```
+
+## Latency
+
+Nothing timed a single send, a phase, or the gap between a child's tap and
+the next question landing — a prior review round could only describe the
+pacing as "slow from the driver's side", with no way to say where the time
+actually went. Two events close that gap.
+
+`video-quiz-sender.service.js` `sendPhase()` — the one place every quiz send
+(question, interaction, answer) passes through — emits ONE event when the
+phase ends:
+
+```js
+logEvent('video_quiz.phase_sent', {
+  phase, sessionId, questionId, messages, sent, failed, pickerFailed,
+  ms,            // wall time for the whole phase, including inter-message gaps
+  msSending,     // ms actually spent inside the WhatsApp calls (gaps + throttle excluded)
+  msThrottled,   // ms spent waiting on the per-recipient send throttle
+  msGaps,        // ms spent in the deliberate pacing sleeps between messages
+  kinds,         // e.g. ['text', 'buttons'] — WHAT was sent, in order
+});
+```
+
+`ms` decomposes: `msSending + msThrottled + msGaps` ≈ `ms`. That
+decomposition is the whole point — it says whether a slow phase is WhatsApp
+itself, our own proactive rate-limit throttle, or our own deliberate pacing.
+
+`video-quiz.service.js` `handleAnswer()` — the child's tap — emits ONE event
+per answer:
+
+```js
+logEvent('video_quiz.answer_latency', {
+  sessionId, questionId, isCorrect,
+  msToFeedback,      // tap received -> the verdict phase finished sending
+  msToNextQuestion,  // tap received -> the next question (or the finish) landed
+  msPause,           // the fixed pacing pause between the verdict and the next question
+  media,             // 'card' | 'image' | 'none' — what the question showed
+  finished,          // true when this tap ended the quiz
+});
+```
+
+A tap that hits the answers-table unique-constraint race (a double tap, or a
+resumed session after a process restart) delivers no verdict, so it emits no
+`answer_latency` — one would misrepresent a re-tap as a normal graded answer.
+
+**`finished: true` rows are not comparable to the rest.** On the last tap
+there is no next question: `sendNextQuestion` goes to the finish instead, and
+`msToNextQuestion` therefore contains the whole completion chain — the
+scorecard image render and send, the early class report, the follow-on offers.
+Filter them out of any "how fast is the next question" figure, which is what
+query (c) does.
+
+### (c) p50/p95 of msToNextQuestion, by media
+
+```apl
+['<dataset>']
+| where service == "bot" and region == "niete"
+| extend d = parse_json(data_json)
+| where tostring(d.event) == 'video_quiz.answer_latency'
+| where tobool(d.finished) == false      // the last tap measures the finish chain, not a next question
+| summarize p50 = percentile(toreal(d.msToNextQuestion), 50),
+            p95 = percentile(toreal(d.msToNextQuestion), 95),
+            n = count()
+  by media = tostring(d.media)
+| order by media asc
 ```
