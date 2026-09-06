@@ -37,6 +37,9 @@ const { TEMP_DIR, LOADING_STICKER_PATH, LOADING_STICKER_MEDIA_ID, OPENAI_API_KEY
   ATTENDANCE_SETUP_FLOW_ID, ATTENDANCE_MARKING_FLOW_ID, EDIT_CLASS_FLOW_ID,
   CLASS_MANAGER_FLOW_ID } = require('../utils/constants');
 const AttendanceRouter = require('../services/attendance-router.service');
+// PLAN_R5 D8 — who is holding this handset. Consulted at exactly one call
+// site, in handleGeneralConversation, and nowhere else in this file.
+const StudentMode = require('../services/student-mode.service');
 const VoiceAttendance = require('../services/voice-attendance.service');
 const { getClient } = require('../services/llm-client');
 
@@ -2744,9 +2747,38 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
   // Get firstName from user if registered
   const firstName = user?.first_name || null;
 
+  // ============================================================
+  // STUDENT MODE — THE ONE GATE (PLAN_R5 D8)
+  //
+  // A child who joined a quiz from a forwarded link and then steps outside it
+  // is answered here, by the persona this function builds. Until this line
+  // existed there was only one persona: the NIETE Teaching Assistant, which
+  // offers a ten-year-old lesson plans, classroom-observation feedback and a
+  // reading assessment, and addresses them as a colleague.
+  //
+  // This is the ONLY place student-mode is consulted, deliberately. Commands,
+  // registration keywords, share-code joins, quiz answers, Flow replies,
+  // /video, the coaching and lesson-plan paths all short-circuit above this
+  // function and are byte-for-byte unchanged — proven by execution in
+  // tests/quiz/student-mode-gate.test.js, not by reading.
+  //
+  // personaFor() never throws and answers `persona: null` for every outcome
+  // except a proven child, so the else-branch below is today's behaviour and
+  // stays that way if the module fails, the flag is off, or the DB is down.
+  // ============================================================
+  const studentVerdict = await StudentMode.personaFor({ from, user, messageBody });
+  const isStudent = studentVerdict.persona === 'student';
+  // Her quiz was written in one language and she answered fifteen questions in
+  // it; that is the language she reads, whatever the users row created by her
+  // first inbound message happens to say.
+  const replyLanguage = isStudent ? (studentVerdict.language || responseLanguage) : responseLanguage;
+
   // Phase 2: Conditional Feature Context Injection
   let featureContext = null;
-  if (user) {
+  // A child has no lesson plans, no coaching sessions and no past work of the
+  // kind this context describes — and the block below would hand a teacher's
+  // material to a pupil. Skipped, not filtered.
+  if (user && !isStudent) {
     const contextCheck = ContextService.shouldInjectContext(messageBody);
     if (contextCheck.shouldInject) {
       logToFile('Phase 2: Context injection triggered', { featureType: contextCheck.featureType, mode: contextCheck.mode });
@@ -2774,17 +2806,25 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
     messageBody,
     user.id, // Use UUID, not phone number - for DB conversation history
     'text', // outputFormat: always text for text messages
-    responseLanguage, // outputLanguage: use user's preferred language
-    firstName, // firstName: for personalization
-    featureContext // Phase 2: Feature context for past work references
+    replyLanguage, // outputLanguage: her language, or the child's quiz language
+    // A child's name is not sent to the model. The tutor is warm without it,
+    // and a name in a prompt is personal data crossing a boundary it need not.
+    isStudent ? null : firstName,
+    featureContext, // Phase 2: Feature context for past work references
+    isStudent
+      ? { persona: 'student', studentClass: studentVerdict.studentClass || null }
+      : {}
   );
-  logToFile('AI response generated (format-aware)', { response: aiResponse, language: responseLanguage, firstName });
+  logToFile('AI response generated (format-aware)', {
+    response: aiResponse, language: replyLanguage, firstName: isStudent ? null : firstName,
+    persona: isStudent ? 'student' : 'teacher',
+  });
 
   // Did the model answer in the language we asked for? Checked BEFORE the send, so
   // drift is a counted event rather than a teacher's screenshot. Advisory only —
   // we still deliver, because a checker that suppresses a reply is worse than the
   // drift it was added to catch.
-  const langCheck = verifyOutputLanguage(aiResponse, responseLanguage);
+  const langCheck = verifyOutputLanguage(aiResponse, replyLanguage);
   if (!langCheck.ok) {
     logToFile('🈯 language_drift: chat reply', {
       surface: 'chat_text',
@@ -2814,15 +2854,17 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
         null, // inputFormat (not applicable for assistant messages)
         null, // inputLanguage (not applicable for assistant messages)
         'text', // outputFormat
-        responseLanguage // outputLanguage
+        replyLanguage // outputLanguage
       );
       logToFile('✅ Bot response stored in database with session and language');
     } catch (error) {
       logToFile('⚠️ Failed to store bot response', { error: error.message });
     }
 
-    // Show stuck session reminder (non-blocking) if applicable
-    await showStuckSessionReminder(from, user.id, responseLanguage);
+    // Show stuck session reminder (non-blocking) if applicable. It is about an
+    // unfinished COACHING session — a teacher's thing — so a child is not
+    // offered it.
+    if (!isStudent) await showStuckSessionReminder(from, user.id, replyLanguage);
   }
 }
 
