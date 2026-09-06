@@ -10,9 +10,48 @@
 // in the exam bank, and any `board` block. lint_lp.js enforces this list; it lives here
 // so the renderer and the linter cannot disagree about it.
 
+/**
+ * Fields the renderer PARSES rather than PRINTS — bd-oak77.23.
+ *
+ * The distinction the overlay has to make is not English-vs-Urdu, it is PRINTED vs PARSED. A
+ * caption, a label, a paragraph is read by a human and should be translated; these are fed to a
+ * parser or to a fixed geometry:
+ *
+ *   tex       KaTeX source (`lib/rich.js` -> katex.renderToString) on `latex` and `chem` blocks
+ *   smiles    a molecular graph (`diagrams/types/molecule.js` -> OCL.Molecule.fromSmiles)
+ *   equation  the same, for the diagram types that draw one
+ *   formula   the molecule's FORMULA CARD — a large centred LTR slot laid out for about ten Latin
+ *             characters like C7H6N4OS. Not parsed, but just as unable to hold a sentence.
+ *
+ * Found by reading a delivered page. Staging `grade_12_chemistry.c14.p227-230` ur shipped
+ * `status=ready`, 19 pages, with
+ *     /sections/1/blocks/2/spec/formula => "فاسفولپڈ (phospholipid) (بیکٹیریا کی جھلی کا جزو)"
+ * — 49 code points in that card — and the molecule's label block painted on top of itself,
+ * unreadable. `/sections/1/blocks/4/tex`, 184 characters of KaTeX, was selected on the same
+ * document and survived ONLY because the model echoed it byte-identically. Two of 120 pointers
+ * landed on a parsed field; one broke, one got away with it.
+ *
+ * THIS IS THE ONLY DEFINITION. `lint_lp.js` folds it into `OVERLAY_SKIP_KEYS` rather than keeping
+ * its own copy, because a second copy is precisely what let these keys through: `overlayTargets`
+ * consulted one list and this file another, and neither carried them. Same shape as the 727/729
+ * FULL_COL drift.
+ */
+const MACHINE_KEYS = new Set(["tex", "smiles", "equation", "formula"]);
+
+/** The last segment of a JSON Pointer, unescaped. */
+function pointerKey(ptr) {
+  const i = String(ptr).lastIndexOf("/");
+  return i < 0 ? "" : unescapeToken(String(ptr).slice(i + 1));
+}
+
 const FROZEN_POINTERS = [
   { test: (p) => p === "/slo/text_verbatim", why: "the printed outcome is quoted verbatim from the book" },
   { test: (p) => p.startsWith("/page2/exam_bank"), why: "the exam is sat in the book's language" },
+  {
+    test: (p) => MACHINE_KEYS.has(pointerKey(p)),
+    why: "the renderer parses this field rather than printing it — a translated formula, SMILES "
+      + "string or KaTeX source does not draw",
+  },
 ];
 
 function unescapeToken(t) {
@@ -187,4 +226,4 @@ const LABELS = {
   },
 };
 
-module.exports = { applyOverlay, frozenReason, pointerGet, pointerParent, pointerParts, LABELS };
+module.exports = { applyOverlay, frozenReason, MACHINE_KEYS, pointerGet, pointerParent, pointerParts, LABELS };
