@@ -55,11 +55,17 @@ function cardQuestion(nOptions) {
 }
 
 describe('a question card with more options than a reply button row can hold', () => {
-  test('three options still go out as three letter buttons', async () => {
+  test('three options go out as three letter buttons under the card, in ONE message', async () => {
     const a = ask(render.build(cardQuestion(3)));
     expect(a.kind).toBe('buttons');
+    expect(a.headerImage).toBe('https://r2/card1.png');
     await sender.sendPhase(PHONE, [a], 'interaction', { questionId: 'q-sum' });
-    const { buttons } = WhatsAppService.sendInteractiveButtons.mock.calls[0][1];
+    // The card is the message's image header, so nothing is sent separately.
+    expect(WhatsAppService.sendImageFromUrl).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
+    const [, imageUrl, body, buttons] = WhatsAppService.sendImageWithButtons.mock.calls[0];
+    expect(imageUrl).toBe('https://r2/card1.png');
+    expect(body).toBe('The question is in the picture above. Tap A, B or C.');
     expect(buttons.map((b) => b.title)).toEqual(['A', 'B', 'C']);
   });
 

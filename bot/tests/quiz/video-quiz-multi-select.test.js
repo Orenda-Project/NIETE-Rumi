@@ -26,7 +26,9 @@ jest.mock('../../shared/services/whatsapp.service', () => ({
   sendTextReturningId: jest.fn().mockResolvedValue('mid-2'),
 }));
 jest.mock('../../shared/config/supabase', () => ({ from: jest.fn() }));
-jest.mock('../../shared/services/cache/railway-redis.service', () => ({ get: jest.fn(), set: jest.fn(), delete: jest.fn() }));
+jest.mock('../../shared/services/cache/railway-redis.service', () => ({
+  get: jest.fn(), set: jest.fn(), delete: jest.fn(), setNX: jest.fn().mockResolvedValue(true),
+}));
 jest.mock('../../shared/services/quiz/video-quiz-rate-limiter.service', () => ({ throttle: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));

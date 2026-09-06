@@ -22,6 +22,20 @@
  *
  * The rules referenced throughout live in the report's FEEDBACK_RULES.md. They
  * are not style preferences; each one is a bug that reached the operator.
+ *
+ * ONE MESSAGE PER QUESTION, AND WHY IT IS A CORRECTNESS RULE.
+ * Every instruction this file emits costs one send against the recipient's
+ * per-pair budget (video-quiz-rate-limiter.service.js: 5-minute rolling
+ * window). A question that cost four sends — chrome counter, card image,
+ * letter buttons, verdict — put an 8-question quiz at 32 sends against a
+ * budget of 20, and a child who tapped fast waited three and a half minutes
+ * per verdict while four answer handlers piled up behind the throttle
+ * (staging, 2026-09-06, session ada1e109). So: the counter never gets a
+ * message of its own (`counter` rides on the first message of the question,
+ * and the sender folds it into that message's body or caption), and a picture
+ * rides as the interactive message's own image HEADER wherever Meta allows one
+ * — which is buttons, never lists. The cost per question is part of the
+ * contract; anything added here has to be paid for out of that budget.
  */
 
 const BUTTON_TITLE_MAX = 20;   // Meta hard limit; longer titles truncate silently
@@ -29,6 +43,28 @@ const { unicodeNotation } = require('./quiz-notation');
 const LIST_ROW_TITLE_MAX = 24;
 const LIST_ROW_DESCRIPTION_MAX = 72;  // Meta's row description cap
 const MAX_BUTTONS = 3;
+
+/**
+ * Does a QUESTION CARD ride as the letter-picker's own image header?
+ *
+ * True is what makes a card question cost ONE send instead of three, which is
+ * what makes an 8-question quiz fit the recipient's 5-minute window at all.
+ *
+ * WHAT IS NOT PROVEN. Meta's interactive-message reference states no size,
+ * aspect-ratio or cropping rule for a button message's image header, and
+ * nothing in this repo has ever sent a card that way — the P3 figure header
+ * has, but every figure canvas is drawn at exactly 1.91:1 (1080x565), so it
+ * has never exercised another shape. Live cards run from 0.74:1 to 2.08:1. If
+ * a client is ever seen to crop or letterbox one, flip this to false: the card
+ * goes back to its own image message ahead of the picker and nothing else
+ * changes — the counter still comes off the card's own painted eyebrow.
+ *
+ * That rollback is not free. At three sends a card question, eight of them
+ * plus the opener, the scorecard and the post-quiz offer is 27 against a cap
+ * of 24 (video-quiz-rate-limiter.service.js), so flipping this back also means
+ * re-costing that cap or trimming a send elsewhere.
+ */
+const CARD_RIDES_THE_PICKER = true;
 
 /**
  * What the child READS for each option.
@@ -339,12 +375,50 @@ function displayOrder(q, labels) {
 }
 
 /**
+ * The "Question n of N" line, folded into a message that was going out anyway.
+ *
+ * It used to be its own `WhatsAppService.sendMessage` in
+ * video-quiz.service.sendNextQuestion, which is a whole send off the
+ * recipient's window for eleven characters of chrome — and, on a question
+ * card, it arrived as a separate bubble above a picture that carried its own
+ * "QUESTION 5 OF 8" caption, which is how the operator came to be looking at
+ * two different numbers for one question.
+ *
+ * `counter` goes on the FIRST message the child reads for this question,
+ * whatever that message is (the stem-with-listen-cue on an audio item, the
+ * picker itself on everything else). The sender prepends the resolved string,
+ * in the quiz language, to that message's body or caption. It is data here and
+ * text there for the same reason every other label is: this module is pure and
+ * language-free.
+ *
+ * A QUESTION CARD ALREADY PAINTS IT. transcript-quiz-card draws
+ * "QUESTION 5 OF 8" into the picture itself, so a card question's messages are
+ * marked `paintsOwnCounter` and get no line of their own — printing it again
+ * under the picture is how the operator came to be reading two numbers for one
+ * question. When every candidate message paints its own, the question carries
+ * no separate counter at all, which is correct: it is already on screen.
+ */
+function attachCounter(msgs, opts) {
+  const i = Number(opts && opts.questionNumber);
+  const n = Number(opts && opts.totalQuestions);
+  if (!Number.isInteger(i) || !Number.isInteger(n) || i < 1 || n < 1) return msgs;
+  const first = msgs.find((m) => (m.phase === 'question' || m.phase === 'interaction')
+    && !m.paintsOwnCounter);
+  if (first) first.counter = { i, n };
+  return msgs;
+}
+
+/**
  * Build the ordered message list for one question.
  * @param {Object} q a quiz_questions row (option_a..d, correct_option, media, …)
  * @param {Object} [opts] { questionNumber, totalQuestions }
  * @returns {Array<Object>} send instructions, in order
  */
 function build(q, opts = {}) {
+  return attachCounter(buildPhases(q, opts), opts);
+}
+
+function buildPhases(q, opts = {}) {
   const media = q.media || {};
   const pattern = q.render_pattern || 'P1';
   const stem = (q.question_text || '').trim();
@@ -400,19 +474,39 @@ function build(q, opts = {}) {
 
   // A QUESTION CARD: the whole question is the picture (figure, stem, lettered
   // options in THIS display order) because WhatsApp text cannot draw the
-  // notation or the options do not fit a button. The image goes first, then a
-  // three-letter picker; the feedback phase still names the option by its text.
+  // notation or the options do not fit a button.
+  //
+  // The card DRAWS a letter for every option; the picker has to offer every
+  // letter it drew. Meta caps a reply-button row at three, so a card with more
+  // than three options takes the list (ten rows) — the same choice
+  // `pickerKind()` makes everywhere else. Hardcoding `buttons` here silently
+  // dropped D on a four-option card while its own footer said "Tap A, B, C or
+  // D below": two contradictory instructions in one message pair, and one
+  // answer the child could not give.
+  //
+  // WHICH PICKER IS ALSO HOW MANY SENDS THE QUESTION COSTS. An interactive
+  // BUTTON message carries its own image header, so the card and the letters
+  // are ONE message — the picture, the counter, the cue and the tap surface
+  // arrive together, which is both a send saved and what the operator asked to
+  // see on his phone. An interactive LIST is given no image header by Meta
+  // (verified in whatsapp.service.js sendInteractiveMessage, and the reason
+  // 161 P4 questions send their picture separately below), so a four-option
+  // card still costs two. Never attach `headerImage` to a list: Meta drops it
+  // silently and the child answers about a picture they never saw.
   if (media.question_card) {
-    add('question', 'image', { url: media.question_card, caption: '', role: 'question_card' });
-    // The card DRAWS a letter for every option; the picker has to offer every
-    // letter it drew. Meta caps a reply-button row at three, so a card with more
-    // than three options takes the list (ten rows) — the same choice
-    // `pickerKind()` makes everywhere else. Hardcoding `buttons` here silently
-    // dropped D on a four-option card while its own footer said "Tap A, B, C or
-    // D below": two contradictory instructions in one message pair, and one
-    // answer the child could not give.
-    add('interaction', shown.length <= MAX_BUTTONS ? 'buttons' : 'list', {
+    const cardKind = shown.length <= MAX_BUTTONS ? 'buttons' : 'list';
+    const asHeader = CARD_RIDES_THE_PICKER && cardKind === 'buttons';
+    if (!asHeader) {
+      add('question', 'image', {
+        url: media.question_card, caption: '', role: 'question_card', paintsOwnCounter: true,
+      });
+    }
+    add('interaction', cardKind, {
       body: '', options: shown, optionIndices: order, letterTitles: true, role: 'ask',
+      // The card carries "QUESTION n OF N" in the picture; the body must not
+      // say it a second time. See attachCounter.
+      paintsOwnCounter: true,
+      ...(asHeader ? { headerImage: media.question_card } : {}),
     });
     // ── PHASE 3 — THE ANSWER ── (shared below)
     return finishAnswerPhase(q, msgs, labels, order, media, answerClip);

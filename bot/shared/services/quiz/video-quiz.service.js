@@ -60,6 +60,33 @@ const stripPlus = (p) => (p && p.startsWith('+') ? p.slice(1) : p);
 const STATE_KEY = (phone) => `videoquiz:${stripPlus(phone)}:active`;
 const OFFER_KEY = (phone) => `videoquiz:${stripPlus(phone)}:offer`;
 
+// A per-recipient send throttle (video-quiz-rate-limiter.
+// service.js) can back a single handleAnswer up for minutes, so overlapping
+// taps on ONE phone (a concurrent answer to a different question, a Flow
+// submission racing a button tap) used to interleave inside that answer-phase
+// send, each reading the same stale `state.index` and each writing an
+// increment on top of it — a lost update. This lock serialises the whole
+// answer path per phone; see acquireAnswerLock/handleAnswer/handleMultiAnswer.
+const ANSWER_LOCK_KEY = (phone) => `videoquiz:${stripPlus(phone)}:answerlock`;
+// Poll budget while WAITING for someone else's lock, not the lock's own TTL.
+const ANSWER_LOCK_WAIT_MS = 30 * 1000;
+const ANSWER_LOCK_STEP_MS = 250;
+// The lock must outlive the worst realistic single handleAnswer/
+// handleMultiAnswer run, so a crashed handler can't wedge a phone forever,
+// and comfortably outlive a legitimate slow one so it is never torn down
+// mid-send. Worst case inside the critical section: one
+// rateLimiter.throttle() wait for the FULL per-recipient window
+// (rateLimiter.WINDOW_MS, 5 min) during the answer-phase send, plus that
+// phase's own pacing (up to 4 messages — verdict, explanation image,
+// explanation audio — each gapped by sender.GAP_MEDIA_MS), plus
+// sendNextQuestion's own retry ceiling (MAX_CONSECUTIVE_SEND_FAILURES *
+// SEND_FAILURE_BACKOFF_MS, defined above). 300_000 + 4*1_200 + 3*2_500 =
+// 312_300 ms; doubled for margin.
+const ANSWER_LOCK_TTL_SECS = Math.ceil(
+  (2 * (rateLimiter.WINDOW_MS + 4 * sender.GAP_MEDIA_MS
+    + MAX_CONSECUTIVE_SEND_FAILURES * SEND_FAILURE_BACKOFF_MS)) / 1000,
+);
+
 const OFFER_YES = 'vq_offer_yes';
 const OFFER_NO = 'vq_offer_no';
 // bd-2336 — the third way out: she wants it for her class, not for herself.
@@ -480,12 +507,19 @@ async function sendNextQuestion(phone, state) {
     return sendNextQuestion(phone, state);
   }
 
-  const msgs = render.build(q);
+  // "Question n of N" used to be a WhatsAppService.sendMessage of its own right
+  // here. It cost a full unit of the recipient's 5-minute send window for
+  // eleven characters of chrome — an eighth of the whole budget across an
+  // 8-question quiz, and the difference between a session that finishes and one
+  // that stalls for three minutes a question. It is now data on the question's
+  // own message (render.build's `counter`), folded into that message's body or
+  // caption by the sender; on a question card it is dropped entirely, because
+  // the card paints the number into the picture itself.
+  const msgs = render.build(q, {
+    questionNumber: state.index + 1, totalQuestions: state.questionIds.length,
+  });
   const ctx = { questionId: q.id, sessionId: state.sessionId, language: state.language };
 
-  await rateLimiter.throttle(phone);
-  await WhatsAppService.sendMessage(phone,
-    ux('vqQuestionOf', state.language, { i: state.index + 1, n: state.questionIds.length }));
   await sender.sendPhase(phone, msgs, 'question', ctx);
   const res = await sender.sendPhase(phone, msgs, 'interaction', ctx);
 
@@ -525,6 +559,29 @@ function mediaKind(q) {
 }
 
 /**
+ * Acquire the per-phone answer lock, waiting in ANSWER_LOCK_STEP_MS steps up
+ * to ANSWER_LOCK_WAIT_MS. Fail-open on timeout — a rare duplicate answer is
+ * far better than dropping a child's tap entirely, and the truth-derived
+ * index (nextIndexFromTruth) makes a duplicate harmless. Redis being down
+ * makes `setNX` itself return true unconditionally (railway-redis.service.js)
+ * so this resolves immediately in that case too.
+ *
+ * @returns {Promise<{key: string, waitedMs: number, timedOut: boolean}>}
+ */
+async function acquireAnswerLock(phone) {
+  const key = ANSWER_LOCK_KEY(phone);
+  const start = Date.now();
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const claimed = await redisService.setNX(key, Date.now(), ANSWER_LOCK_TTL_SECS);
+    const waitedMs = Date.now() - start;
+    if (claimed) return { key, waitedMs, timedOut: false };
+    if (waitedMs >= ANSWER_LOCK_WAIT_MS) return { key, waitedMs, timedOut: true };
+    await sleep(ANSWER_LOCK_STEP_MS);
+  }
+}
+
+/**
  * Grade a tap and move on. Returns true if the input belonged to a video quiz.
  */
 async function handleAnswer(phone, inputId) {
@@ -533,92 +590,122 @@ async function handleAnswer(phone, inputId) {
   const answerStart = Date.now();
   const parsed = render.parseAnswer(inputId);
   if (!parsed) return false;
-  const state = await redisService.get(STATE_KEY(phone));
-  logEvent('video_quiz.state_read', {
-    where: 'handleAnswer', found: !!state,
-    sessionId: state ? state.sessionId : null,
-    index: state ? state.index : null,
-    answered: state ? state.answered : null,
-    questions: state ? (state.questionIds || []).length : 0,
-    questionId: parsed.questionId,
-  });
-  if (!state) {
-    await WhatsAppService.sendMessage(phone,
-      "That quiz has finished. Pick another video and I'll offer you a fresh one!");
-    return true;
-  }
 
-  const { data: q } = await supabase
-    .from('quiz_questions')
-    // external_id: same seed reason as sendNextQuestion's select above — the
-    // grading path must reconstruct the SAME shuffle the child was shown.
-    .select('id, external_id, question_text, option_a, option_b, option_c, option_d, correct_option, '
-            + 'explanation, option_feedback, media, render_pattern')
-    .eq('id', parsed.questionId)
-    .single();
-  if (!q) return true;
-
-  const correctIdx = render.correctIndices(q);
-  const isCorrect = correctIdx.includes(parsed.index);
-  const letter = 'ABCD'[parsed.index] || 'A';
-
-  const { error: aErr } = await supabase.from('quiz_answers').insert({
-    session_id: state.sessionId,
-    question_id: q.id,
-    selected_option: letter,
-    is_correct: isCorrect,
-    response_time_seconds: state.sentAt
-      ? Math.round((Date.now() - state.sentAt) / 1000) : null,
-  });
-  if (aErr && aErr.code === '23505') {
-    logEvent('video_quiz.answer_duplicate', {
-      sessionId: state.sessionId, questionId: q.id,
-      index: state.index, answered: state.answered,
+  // The lock covers the WHOLE answer path, not just the DB write: the read
+  // of `state` below must happen INSIDE the critical section, or a second
+  // overlapping call can still read the same stale value this one did.
+  const { key: lockKey, waitedMs, timedOut } = await acquireAnswerLock(phone);
+  try {
+    const state = await redisService.get(STATE_KEY(phone));
+    const phoneTail = String(phone).slice(-4);
+    if (timedOut) {
+      logEvent('video_quiz.answer_lock_timeout', {
+        sessionId: state ? state.sessionId : null, questionId: parsed.questionId,
+        waitedMs, phoneTail,
+      });
+    } else if (waitedMs > 0) {
+      logEvent('video_quiz.answer_lock', {
+        sessionId: state ? state.sessionId : null, questionId: parsed.questionId,
+        waitedMs, phoneTail,
+      });
+    }
+    logEvent('video_quiz.state_read', {
+      where: 'handleAnswer', found: !!state,
+      sessionId: state ? state.sessionId : null,
+      index: state ? state.index : null,
+      answered: state ? state.answered : null,
+      questions: state ? (state.questionIds || []).length : 0,
+      questionId: parsed.questionId,
     });
-    // UNIQUE(session_id, question_id): either a double tap, or the answer was
-    // recorded and the process died before the state advanced (a deploy landed
-    // mid-quiz on staging: all eight answers stored, the session stuck at 5/8,
-    // every later tap swallowed here). Rebuild the state from the answers table
-    // and carry on — the next question, or the finish. This tap never
-    // delivered a verdict, so it gets no answer_latency — one would
-    // misrepresent a re-tap or a resumed process as a normal graded answer.
-    return reconcileFromAnswers(phone, state);
+    if (!state) {
+      await WhatsAppService.sendMessage(phone,
+        "That quiz has finished. Pick another video and I'll offer you a fresh one!");
+      return true;
+    }
+
+    const { data: q } = await supabase
+      .from('quiz_questions')
+      // external_id: same seed reason as sendNextQuestion's select above — the
+      // grading path must reconstruct the SAME shuffle the child was shown.
+      .select('id, external_id, question_text, option_a, option_b, option_c, option_d, correct_option, '
+              + 'explanation, option_feedback, media, render_pattern')
+      .eq('id', parsed.questionId)
+      .single();
+    if (!q) return true;
+
+    const correctIdx = render.correctIndices(q);
+    const isCorrect = correctIdx.includes(parsed.index);
+    const letter = 'ABCD'[parsed.index] || 'A';
+
+    const { error: aErr } = await supabase.from('quiz_answers').insert({
+      session_id: state.sessionId,
+      question_id: q.id,
+      selected_option: letter,
+      is_correct: isCorrect,
+      response_time_seconds: state.sentAt
+        ? Math.round((Date.now() - state.sentAt) / 1000) : null,
+    });
+    if (aErr && aErr.code === '23505') {
+      logEvent('video_quiz.answer_duplicate', {
+        sessionId: state.sessionId, questionId: q.id,
+        index: state.index, answered: state.answered,
+      });
+      // UNIQUE(session_id, question_id): either a double tap, or the answer was
+      // recorded and the process died before the state advanced (a deploy landed
+      // mid-quiz on staging: all eight answers stored, the session stuck at 5/8,
+      // every later tap swallowed here). Rebuild the state from the answers table
+      // and carry on — the next question, or the finish. This tap never
+      // delivered a verdict, so it gets no answer_latency — one would
+      // misrepresent a re-tap or a resumed process as a normal graded answer.
+      return reconcileFromAnswers(phone, state);
+    }
+    if (aErr) logToFile('⚠️ video-quiz: answer insert failed', { error: aErr.message });
+
+    // No emoji reaction here: sendReaction needs the message id of the child's
+    // own reply, which the webhook gives us but this path does not carry. Calling
+    // it with null would fail silently on every single answer — dead code that
+    // reads like a working feature. The verdict text opens with ✅ / "Not quite"
+    // anyway, so the feedback is not lost.
+    const msgs = render.build(q);
+    await sender.sendPhase(phone, msgs, 'answer', {
+      questionId: q.id, sessionId: state.sessionId, language: state.language,
+      isCorrect, selectedIndex: parsed.index,
+    });
+    const msToFeedback = Date.now() - answerStart;
+
+    // The columns come from the table this call has just written to, never from
+    // the counters carried in `state` — see writeCountersFromAnswers. `state` then
+    // MIRRORS that truth rather than accumulating its own, so a stale blob cannot
+    // put a number on a child's scorecard that nothing in the database supports.
+    const truth = await writeCountersFromAnswers(state.sessionId, { reason: 'answer', phone });
+    state.answered = truth.answered;
+    state.correct = truth.correct;
+    // Derived, never incremented: an increment on a stale-but-locked read
+    // would still be wrong the moment two DIFFERENT questions are answered
+    // out of order (a duplicate-tap retry, a resumed process) — the index has
+    // to be recomputed from the durable record every time, exactly like
+    // reconcileFromAnswers already does.
+    state.index = nextIndexFromTruth(state.questionIds, truth);
+    state.currentQuestionId = null;
+    await saveState(phone, state, 'handleAnswer');
+
+    const finished = truth.answered >= state.questionIds.length;
+    const msPause = 1200;
+    await new Promise((r) => setTimeout(r, msPause));
+    if (finished) {
+      await finish(phone, state);
+    } else {
+      await sendNextQuestion(phone, state);
+    }
+    logEvent('video_quiz.answer_latency', {
+      sessionId: state.sessionId, questionId: q.id, isCorrect,
+      msToFeedback, msToNextQuestion: Date.now() - answerStart, msPause,
+      media: mediaKind(q), finished,
+    });
+    return true;
+  } finally {
+    await redisService.delete(lockKey);
   }
-  if (aErr) logToFile('⚠️ video-quiz: answer insert failed', { error: aErr.message });
-
-  // No emoji reaction here: sendReaction needs the message id of the child's
-  // own reply, which the webhook gives us but this path does not carry. Calling
-  // it with null would fail silently on every single answer — dead code that
-  // reads like a working feature. The verdict text opens with ✅ / "Not quite"
-  // anyway, so the feedback is not lost.
-  const msgs = render.build(q);
-  await sender.sendPhase(phone, msgs, 'answer', {
-    questionId: q.id, sessionId: state.sessionId, language: state.language,
-    isCorrect, selectedIndex: parsed.index,
-  });
-  const msToFeedback = Date.now() - answerStart;
-
-  // The columns come from the table this call has just written to, never from
-  // the counters carried in `state` — see writeCountersFromAnswers. `state` then
-  // MIRRORS that truth rather than accumulating its own, so a stale blob cannot
-  // put a number on a child's scorecard that nothing in the database supports.
-  const truth = await writeCountersFromAnswers(state.sessionId, { reason: 'answer', phone });
-  state.answered = truth.answered;
-  state.correct = truth.correct;
-  state.index += 1;
-  state.currentQuestionId = null;
-  await saveState(phone, state, 'handleAnswer');
-
-  const finished = state.index >= state.questionIds.length;
-  const msPause = 1200;
-  await new Promise((r) => setTimeout(r, msPause));
-  await sendNextQuestion(phone, state);
-  logEvent('video_quiz.answer_latency', {
-    sessionId: state.sessionId, questionId: q.id, isCorrect,
-    msToFeedback, msToNextQuestion: Date.now() - answerStart, msPause,
-    media: mediaKind(q), finished,
-  });
-  return true;
 }
 
 /**
@@ -631,6 +718,23 @@ async function handleAnswer(phone, inputId) {
  * while eight answers were stored, and a reconcile that intersected the
  * state's question list with the table counted six. Count the table itself.
  */
+/**
+ * Where the session continues, derived from the durable record rather than
+ * incremented — the ONE rule reconcileFromAnswers, handleAnswer and
+ * handleMultiAnswer all share, so it cannot drift into a second copy.
+ *
+ * @param {string[]} questionIds state.questionIds, in the order asked
+ * @param {{byQ: Map, answered: number}} truth from truthFromAnswers()
+ * @returns {number} the index of the first unanswered question, or
+ *   questionIds.length when every id has an answer (or answered has already
+ *   overtaken the list — a stale/short question list is over, not stuck).
+ */
+function nextIndexFromTruth(questionIds, truth) {
+  const ids = questionIds || [];
+  const firstOpen = ids.findIndex((id) => !truth.byQ.has(id));
+  return (firstOpen < 0 || truth.answered >= ids.length) ? ids.length : firstOpen;
+}
+
 async function truthFromAnswers(sessionId) {
   const { data: rows } = await supabase
     .from('quiz_answers')
@@ -731,17 +835,19 @@ async function saveState(phone, state, where) {
 
 async function reconcileFromAnswers(phone, state) {
   const truth = await truthFromAnswers(state.sessionId);
-  const ids = state.questionIds || [];
   state.answered = truth.answered;
   state.correct = truth.correct;
   // The first unanswered question is where the child continues; a stale
   // question list that is shorter than the answers means the quiz is over.
-  const firstOpen = ids.findIndex((id) => !truth.byQ.has(id));
-  state.index = (firstOpen < 0 || truth.answered >= ids.length) ? ids.length : firstOpen;
+  state.index = nextIndexFromTruth(state.questionIds, truth);
   state.currentQuestionId = null;
   await saveState(phone, state, 'reconcileFromAnswers');
   await writeCountersFromAnswers(state.sessionId, { reason: 'reconcile', phone });
   logEvent('video_quiz.reconciled', { sessionId: state.sessionId, answered: state.answered, index: state.index });
+  // sendNextQuestion's own `state.index >= state.questionIds.length` guard
+  // finishes the session when nextIndexFromTruth above has already derived
+  // the end — unlike handleAnswer/handleMultiAnswer, there is no separately
+  // stale index here to second-guess it against.
   await sendNextQuestion(phone, state);
   return true;
 }
@@ -919,67 +1025,92 @@ const MULTI_QUESTION_COLUMNS = 'id, external_id, question_text, option_a, option
 async function handleMultiAnswer(phone, parsed) {
   const Multi = require('./transcript-quiz-multi');
   if (!parsed || !parsed.questionId) return false;
-  const state = await redisService.get(STATE_KEY(phone));
-  if (!state) {
-    await WhatsAppService.sendMessage(phone, ux('vqExpired', undefined));
+
+  // Same lock, same key as handleAnswer: a Flow submission and a button tap
+  // on one phone must not overlap either.
+  const { key: lockKey, waitedMs, timedOut } = await acquireAnswerLock(phone);
+  try {
+    const state = await redisService.get(STATE_KEY(phone));
+    const phoneTail = String(phone).slice(-4);
+    if (timedOut) {
+      logEvent('video_quiz.answer_lock_timeout', {
+        sessionId: state ? state.sessionId : null, questionId: parsed.questionId,
+        waitedMs, phoneTail,
+      });
+    } else if (waitedMs > 0) {
+      logEvent('video_quiz.answer_lock', {
+        sessionId: state ? state.sessionId : null, questionId: parsed.questionId,
+        waitedMs, phoneTail,
+      });
+    }
+    if (!state) {
+      await WhatsAppService.sendMessage(phone, ux('vqExpired', undefined));
+      return true;
+    }
+    const language = state.language;
+
+    const { data: q } = await supabase
+      .from('quiz_questions')
+      .select(MULTI_QUESTION_COLUMNS)
+      .eq('id', parsed.questionId)
+      .single();
+    if (!q) return true;
+
+    const labels = render.optionLabels(q);
+    const correct = Multi.indicesFor(q.correct_option);
+    const { isCorrect } = Multi.scoreSet(parsed.indices, correct);
+
+    const { error: aErr } = await supabase.from('quiz_answers').insert({
+      session_id: state.sessionId,
+      question_id: q.id,
+      // The whole set, in the same comma-joined letter shape correct_option uses,
+      // so the report can compare a child's answer to the key without a second
+      // encoding to get wrong.
+      selected_option: Multi.lettersFor(parsed.indices),
+      is_correct: isCorrect,
+      response_time_seconds: state.sentAt ? Math.round((Date.now() - state.sentAt) / 1000) : null,
+    });
+    if (aErr && aErr.code === '23505') {
+      // A Flow message can be submitted twice exactly as a button can be tapped
+      // twice, and a deploy can still land between the insert and the state write.
+      return reconcileFromAnswers(phone, state);
+    }
+    if (aErr) logToFile('⚠️ video-quiz: multi answer insert failed', { error: aErr.message });
+
+    const verdict = Multi.verdictText(q, { selectedIndices: parsed.indices, labels, language });
+    await rateLimiter.throttle(phone);
+    await WhatsAppService.sendMessage(phone, render.withVerdictMark(
+      verdict.text, verdict.isCorrect ? render.VERDICT_CORRECT : render.VERDICT_WRONG,
+    ));
+
+    logEvent('video_quiz.multi_answered', {
+      sessionId: state.sessionId,
+      questionId: q.id,
+      selected: parsed.indices.length,
+      correctCount: correct.length,
+      isCorrect,
+    });
+
+    // Same rule as handleAnswer: the columns come from the answers table, never
+    // from the counters carried in `state`, and `state` mirrors what was written.
+    const truth = await writeCountersFromAnswers(state.sessionId, { reason: 'multi_answer', phone });
+    state.answered = truth.answered;
+    state.correct = truth.correct;
+    // Derived, never incremented — same rule as handleAnswer.
+    state.index = nextIndexFromTruth(state.questionIds, truth);
+    state.currentQuestionId = null;
+    await saveState(phone, state, 'handleMultiAnswer');
+
+    await new Promise((r) => setTimeout(r, 1200));
+    if (truth.answered >= (state.questionIds || []).length) {
+      await finish(phone, state);
+    } else {
+      await sendNextQuestion(phone, state);
+    }
     return true;
+  } finally {
+    await redisService.delete(lockKey);
   }
-  const language = state.language;
-
-  const { data: q } = await supabase
-    .from('quiz_questions')
-    .select(MULTI_QUESTION_COLUMNS)
-    .eq('id', parsed.questionId)
-    .single();
-  if (!q) return true;
-
-  const labels = render.optionLabels(q);
-  const correct = Multi.indicesFor(q.correct_option);
-  const { isCorrect } = Multi.scoreSet(parsed.indices, correct);
-
-  const { error: aErr } = await supabase.from('quiz_answers').insert({
-    session_id: state.sessionId,
-    question_id: q.id,
-    // The whole set, in the same comma-joined letter shape correct_option uses,
-    // so the report can compare a child's answer to the key without a second
-    // encoding to get wrong.
-    selected_option: Multi.lettersFor(parsed.indices),
-    is_correct: isCorrect,
-    response_time_seconds: state.sentAt ? Math.round((Date.now() - state.sentAt) / 1000) : null,
-  });
-  if (aErr && aErr.code === '23505') {
-    // A Flow message can be submitted twice exactly as a button can be tapped
-    // twice, and a deploy can still land between the insert and the state write.
-    return reconcileFromAnswers(phone, state);
-  }
-  if (aErr) logToFile('⚠️ video-quiz: multi answer insert failed', { error: aErr.message });
-
-  const verdict = Multi.verdictText(q, { selectedIndices: parsed.indices, labels, language });
-  await rateLimiter.throttle(phone);
-  await WhatsAppService.sendMessage(phone, render.withVerdictMark(
-    verdict.text, verdict.isCorrect ? render.VERDICT_CORRECT : render.VERDICT_WRONG,
-  ));
-
-  logEvent('video_quiz.multi_answered', {
-    sessionId: state.sessionId,
-    questionId: q.id,
-    selected: parsed.indices.length,
-    correctCount: correct.length,
-    isCorrect,
-  });
-
-  // Same rule as handleAnswer: the columns come from the answers table, never
-  // from the counters carried in `state`, and `state` mirrors what was written.
-  const truth = await writeCountersFromAnswers(state.sessionId, { reason: 'multi_answer', phone });
-  state.answered = truth.answered;
-  state.correct = truth.correct;
-  state.index = (state.index || 0) + 1;
-  state.currentQuestionId = null;
-  await saveState(phone, state, 'handleMultiAnswer');
-
-  await new Promise((r) => setTimeout(r, 1200));
-  await sendNextQuestion(phone, state);
-  return true;
 }
 
 /**
