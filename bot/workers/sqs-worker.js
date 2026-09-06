@@ -42,7 +42,7 @@ const VideoGenerationWorker = require('./video-generation.worker');
 const ExamGradingWorker = require('./exam-grading.worker');
 const { runSonioxCleanup } = require('../shared/services/soniox-cleanup.service');
 const { startVisibilityHeartbeat } = require('../shared/utils/sqs-visibility-heartbeat');
-const { heartbeatCeilingMs } = require('../shared/config/lp612-flags');
+const { heartbeatCeilingMs, lp612DrainTimeoutMs } = require('../shared/config/lp612-flags');
 const os = require('os');
 
 // Configuration
@@ -311,7 +311,12 @@ class SQSCoachingWorker {
     // Add to active jobs.
     // bd-yd2kb: store sourceQueue alongside the promise so graceful shutdown can
     // release the exact message (right queue) back to SQS on a deploy.
-    this.activeJobs.set(receiptHandle, { promise: jobPromise, sourceQueue });
+    // bd-oak77.11: and jobType, because the drain has to tell the classes APART. A 40-second
+    // transcription and a 7-minute lesson cannot share one deadline: 30s is right for the first and
+    // an order of magnitude short of the second, while a blanket 10-minute drain would make every
+    // coaching deploy ten minutes slower for nothing. Without this field the drain has no way to
+    // know which it is holding.
+    this.activeJobs.set(receiptHandle, { promise: jobPromise, sourceQueue, jobType });
     this.stats.jobsProcessed++;
   }
 
@@ -666,57 +671,134 @@ class SQSCoachingWorker {
   }
 
   /**
-   * Initiate graceful shutdown
+   * The job types whose work must be FINISHED rather than handed back on a deploy.
+   *
+   * bd-oak77.11. Membership is a statement about cost, not about importance: releasing one of these
+   * mid-run buys nothing, because the render row is still `authoring`, so whichever replica claims
+   * the redelivered message authors the same lesson again from round 0 — another ~$0.30-0.60 and
+   * another 2.5-7 minutes on a teacher who is already waiting.
+   */
+  static LONG_JOB_TYPES = new Set(['lp612_author']);
+
+  _partitionInFlight() {
+    const long = [];
+    const short = [];
+    for (const [receiptHandle, meta] of this.activeJobs.entries()) {
+      const bucket = SQSCoachingWorker.LONG_JOB_TYPES.has(meta && meta.jobType) ? long : short;
+      bucket.push([receiptHandle, meta]);
+    }
+    return { long, short };
+  }
+
+  /**
+   * Release a set of in-flight messages back to their own queues (VisibilityTimeout: 0).
+   *
+   * bd-yd2kb (ports main-bot bd-1541): without this a message stays invisible for the full
+   * per-queue visibility timeout (up to 20 min on coaching), so a deploy landing mid-analysis makes
+   * the teacher wait ~20 min for her report (the 2026-05-11 main-bot incident). Per-call try/catch
+   * is mandatory: one ReceiptHandleIsInvalid — a job that finished but had not hit `.finally` when
+   * SIGTERM fired — must not abort the rest of the loop.
+   */
+  async _releaseInFlight(entries, reason) {
+    if (!entries.length) return 0;
+    logToFile(`⚠️ Releasing ${entries.length} in-flight message(s) back to SQS — ${reason}`, {
+      workerId: this.workerId,
+      inFlightCount: entries.length,
+      reason,
+      jobTypes: entries.map(([, m]) => (m && m.jobType) || 'unknown'),
+    });
+    const results = await Promise.allSettled(
+      entries.map(async ([receiptHandle, meta]) => {
+        try {
+          await SQSQueueService.releaseInFlightMessage(receiptHandle, meta && meta.sourceQueue);
+          logToFile('🔄 Released in-flight message on shutdown', {
+            workerId: this.workerId,
+            sourceQueue: meta && meta.sourceQueue,
+            jobType: meta && meta.jobType,
+          });
+        } catch (err) {
+          logToFile('⚠️ Failed to release in-flight message on shutdown (will fall back to visibility timeout)', {
+            workerId: this.workerId,
+            sourceQueue: meta && meta.sourceQueue,
+            jobType: meta && meta.jobType,
+            error: err.message,
+          });
+        }
+      })
+    );
+    const released = results.filter((r) => r.status === 'fulfilled').length;
+    logToFile(`✅ Shutdown release complete: ${released}/${entries.length} in-flight messages released back to SQS`, {
+      workerId: this.workerId,
+      reason,
+    });
+    return released;
+  }
+
+  /**
+   * Initiate graceful shutdown.
+   *
+   * TWO PHASES, because this worker runs two populations of job with wildly different durations
+   * (bd-oak77.11, from the operator's requirement that "deploy should never kill in progress
+   * authoring lesson plans").
+   *
+   *   Phase 1 — GRACEFUL_SHUTDOWN_TIMEOUT_MS (30s). Stop polling and wait for everything. Short
+   *             jobs finish here and the deploy is exactly as fast as it is today.
+   *   Phase 2 — whatever is left is split. Everything that is NOT a long job is released back to
+   *             SQS immediately, which is today's behaviour and right for it. The long jobs are
+   *             WAITED ON for a further lp612DrainTimeoutMs() (10 min default), during which the
+   *             per-job visibility heartbeat is still running inside the job promise and keeps the
+   *             message invisible, so nothing else can claim it while we finish it.
+   *   Phase 3 — a long job still in flight at that final deadline has its message released too, so
+   *             if we do run out of time the handover is at least immediate rather than waiting out
+   *             the remaining visibility window.
+   *
+   * NOTE: none of this runs at all unless the platform gives the process time. Railway's default is
+   * `RAILWAY_DEPLOYMENT_DRAINING_SECONDS = 0` — SIGTERM then SIGKILL — and Axiom shows 24 shutdowns
+   * over 30 days in which this method logged its first line and NOTHING it emits afterwards. The
+   * matching Railway setting (`drainingSeconds` >= Phase 1 + Phase 2 + margin) is part of this
+   * change and is documented in the lane's RECOMMENDED_RAILWAY.md.
    */
   async shutdown() {
     logToFile(`🛑 Graceful shutdown initiated for worker ${this.workerId}`, {
-      activeJobs: this.activeJobs.size
+      activeJobs: this.activeJobs.size,
+      drainTimeoutMs: lp612DrainTimeoutMs(),
     });
 
     this.isShuttingDown = true;
 
-    // Wait for active jobs to complete (with timeout)
-    const shutdownPromise = this.waitForActiveJobs();
-    const timeoutPromise = this.sleep(GRACEFUL_SHUTDOWN_TIMEOUT_MS);
+    // Phase 1 — the coaching deadline, unchanged.
+    await Promise.race([this.waitForActiveJobs(), this.sleep(GRACEFUL_SHUTDOWN_TIMEOUT_MS)]);
 
-    await Promise.race([shutdownPromise, timeoutPromise]);
+    if (this.activeJobs.size === 0) return;
 
-    if (this.activeJobs.size > 0) {
-      // bd-yd2kb (ports main-bot bd-1541): explicitly release each in-flight
-      // message back to its queue (VisibilityTimeout: 0) so a surviving/new worker
-      // claims it in seconds — instead of the message staying invisible for the
-      // full per-queue visibility timeout (up to 20 min on coaching). Without this,
-      // a deploy that lands mid-analysis makes the teacher wait ~20 min for her
-      // report (the 2026-05-11 main-bot incident). Per-call try/catch is mandatory:
-      // one ReceiptHandleIsInvalid (a job that finished but hadn't hit .finally when
-      // SIGTERM fired) must not abort the rest of the release loop.
-      logToFile(`⚠️ Shutdown timeout reached with ${this.activeJobs.size} jobs still active — releasing back to SQS`, {
+    // Phase 2 — hand back the short jobs, keep finishing the long ones.
+    const { long, short } = this._partitionInFlight();
+    await this._releaseInFlight(short, 'shutdown timeout reached (short job)');
+
+    if (!long.length) return;
+
+    const drainMs = lp612DrainTimeoutMs();
+    logToFile(`⏳ Draining ${long.length} long-running job(s) — the lesson is being finished, not abandoned`, {
+      workerId: this.workerId,
+      jobTypes: long.map(([, m]) => (m && m.jobType) || 'unknown'),
+      drainTimeoutMs: drainMs,
+    });
+
+    await Promise.race([
+      Promise.allSettled(long.map(([, m]) => m.promise)),
+      this.sleep(drainMs),
+    ]);
+
+    // Phase 3 — anything the drain could not finish is handed back immediately.
+    const stillHeld = long.filter(([rh]) => this.activeJobs.has(rh));
+    if (!stillHeld.length) {
+      logToFile('✅ Long-running jobs drained to completion before exit', {
         workerId: this.workerId,
-        inFlightCount: this.activeJobs.size,
+        count: long.length,
       });
-      const entries = Array.from(this.activeJobs.entries());
-      const results = await Promise.allSettled(
-        entries.map(async ([receiptHandle, meta]) => {
-          try {
-            await SQSQueueService.releaseInFlightMessage(receiptHandle, meta && meta.sourceQueue);
-            logToFile('🔄 Released in-flight message on shutdown', {
-              workerId: this.workerId,
-              sourceQueue: meta && meta.sourceQueue,
-            });
-          } catch (err) {
-            logToFile('⚠️ Failed to release in-flight message on shutdown (will fall back to visibility timeout)', {
-              workerId: this.workerId,
-              sourceQueue: meta && meta.sourceQueue,
-              error: err.message,
-            });
-          }
-        })
-      );
-      const released = results.filter((r) => r.status === 'fulfilled').length;
-      logToFile(`✅ Shutdown release complete: ${released}/${entries.length} in-flight messages released back to SQS`, {
-        workerId: this.workerId,
-      });
+      return;
     }
+    await this._releaseInFlight(stillHeld, 'long-job drain deadline reached');
   }
 
   /**
