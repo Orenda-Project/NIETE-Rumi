@@ -32,6 +32,10 @@ const STATUS_FLOW_ID = process.env.STATUS_FLOW_ID || '';
 // WhatsApp Flow ID for the Student Video Library picker. When set, /video
 // opens the library; when empty, /video uses the runtime video generator.
 const STUDENT_VIDEOS_FLOW_ID = process.env.STUDENT_VIDEOS_FLOW_ID || '';
+// WhatsApp Flow ID for /quiz as one Flow (lesson list with in-Flow paging,
+// live results, generate report / resend link / make the quiz). Empty →
+// /quiz falls back to the interactive list message.
+const TRANSCRIPT_QUIZ_FLOW_ID = process.env.TRANSCRIPT_QUIZ_FLOW_ID || '';
 // WhatsApp Flow ID for the homework request flow (empty → /homework replies
 // that the feature is not configured).
 const HOMEWORK_FLOW_ID = process.env.HOMEWORK_FLOW_ID || '';
@@ -190,6 +194,7 @@ module.exports = {
   REMARK_FLOW_ID,
   STATUS_FLOW_ID,
   STUDENT_VIDEOS_FLOW_ID,
+  TRANSCRIPT_QUIZ_FLOW_ID,
   HOMEWORK_FLOW_ID,
   EDIT_CLASS_FLOW_ID,
   CLASS_MANAGER_FLOW_ID,

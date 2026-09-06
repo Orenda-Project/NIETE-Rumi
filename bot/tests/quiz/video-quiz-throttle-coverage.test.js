@@ -31,7 +31,7 @@ jest.mock('../../shared/services/whatsapp.service', () => ({
 }));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
-jest.mock('../../shared/services/quiz/video-quiz-render.service', () => ({ build: jest.fn(() => ({})) }));
+jest.mock('../../shared/services/quiz/video-quiz-render.service', () => ({ build: jest.fn(() => []) }));
 jest.mock('../../shared/services/quiz/video-quiz-sender.service', () => ({ sendPhase: jest.fn().mockResolvedValue({ sent: 1, failed: 0, pickerFailed: false }) }));
 jest.mock('../../shared/services/quiz/video-quiz-rate-limiter.service', () => ({
   throttle: jest.fn().mockResolvedValue(undefined),
@@ -40,6 +40,8 @@ jest.mock('../../shared/services/quiz/video-quiz-rate-limiter.service', () => ({
 const supabase = require('../../shared/config/supabase');
 const WhatsAppService = require('../../shared/services/whatsapp.service');
 const rateLimiter = require('../../shared/services/quiz/video-quiz-rate-limiter.service');
+const render = require('../../shared/services/quiz/video-quiz-render.service');
+const sender = require('../../shared/services/quiz/video-quiz-sender.service');
 const vq = require('../../shared/services/quiz/video-quiz.service');
 
 function stubSupabase({ sessionId = 'sess-1' } = {}) {
@@ -92,8 +94,14 @@ describe('bd-2681 — startSession throttles its own direct "Here we go" send', 
   });
 });
 
-describe('bd-2681 — sendNextQuestion throttles its own direct "Question N of M" send', () => {
-  test('calls rateLimiter.throttle(phone) before sending the question label', async () => {
+// The "Question N of M" line WAS a direct send here, guarded by its own
+// throttle call. It is not a send any more: it rides on the question's own
+// message as `counter` (render.build) and the sender folds it into that
+// message's body or caption. What has to hold now is stronger — sendNextQuestion
+// makes no direct WhatsApp call at all, so there is no path left that can
+// bypass the throttle sendPhase already applies to everything it sends.
+describe('sendNextQuestion has no direct, unthrottled send left', () => {
+  test('the question goes out through sendPhase only — no side-door sendMessage', async () => {
     const state = {
       sessionId: 'sess-1', quizId: 'qz1', videoId: 'v1', userId: 'u1',
       language: 'en', source: 'video_solo',
@@ -101,15 +109,67 @@ describe('bd-2681 — sendNextQuestion throttles its own direct "Question N of M
     };
     stubSupabase();
 
-    await vq.sendNextQuestion('923365709413', state);
+    await vq.sendNextQuestion('920000000001', state);
 
-    expect(rateLimiter.throttle).toHaveBeenCalledWith('923365709413');
-    const throttleCallOrder = rateLimiter.throttle.mock.invocationCallOrder[0];
-    const sendCall = WhatsAppService.sendMessage.mock.calls.findIndex(
-      (c) => typeof c[1] === 'string' && c[1].includes('Question 1 of 2'));
-    expect(sendCall).toBeGreaterThanOrEqual(0);
-    const sendCallOrder = WhatsAppService.sendMessage.mock.invocationCallOrder[sendCall];
-    expect(throttleCallOrder).toBeLessThan(sendCallOrder);
+    expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
+    const phases = sender.sendPhase.mock.calls.map((c) => c[2]);
+    expect(phases).toEqual(['question', 'interaction']);
+  });
+
+  test('the counter is handed to the renderer instead, numbered from the session', async () => {
+    const state = {
+      sessionId: 'sess-1', quizId: 'qz1', videoId: 'v1', userId: 'u1',
+      language: 'en', source: 'video_solo',
+      questionIds: ['q-1', 'q-2', 'q-3'], index: 1, correct: 0, answered: 1, currentQuestionId: null,
+    };
+    stubSupabase();
+
+    await vq.sendNextQuestion('920000000001', state);
+
+    expect(render.build).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'q-1' }),
+      { questionNumber: 2, totalQuestions: 3 },
+    );
+  });
+});
+
+// The two post-quiz offers were still going out untracked. They land on a phone
+// that has just received a whole quiz, so they are spent out of the SAME window
+// those questions filled; a send the limiter cannot see is the same side-door
+// gap already closed for the two direct sends inside the quiz loop.
+describe('the post-quiz offers are throttled too', () => {
+  test('offerShare throttles before its send, and before its retry', async () => {
+    WhatsAppService.sendInteractiveButtons.mockResolvedValue(false);
+    const share = require('../../shared/services/quiz/video-quiz-share.service');
+    jest.useFakeTimers();
+    const promise = share.offerShare({
+      phone: '923001234567', userId: 'u1', quizId: 'qz1', videoId: 'v1', language: 'en',
+    });
+    await jest.runAllTimersAsync();
+    await promise;
+    jest.useRealTimers();
+
+    expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(2);
+    // One throttle per attempt: a retry is a second real send against the
+    // recipient's window, not a free one.
+    expect(rateLimiter.throttle.mock.calls.filter((c) => c[0] === '923001234567')).toHaveLength(2);
+    expect(rateLimiter.throttle.mock.invocationCallOrder[0])
+      .toBeLessThan(WhatsAppService.sendInteractiveButtons.mock.invocationCallOrder[0]);
+  });
+
+  test('offerInvite throttles before its send', async () => {
+    WhatsAppService.sendInteractiveButtons.mockResolvedValue(true);
+    const Invite = require('../../shared/services/quiz/video-quiz-invite.service');
+
+    await Invite.offerInvite({
+      phone: '920000000002', studentId: 'st1', shareCodeId: 'sc1', language: 'ur',
+      sessionId: 'sess-1', quizId: 'qz1',
+    });
+
+    expect(rateLimiter.throttle).toHaveBeenCalledWith('920000000002');
+    expect(rateLimiter.throttle.mock.invocationCallOrder[0])
+      .toBeLessThan(WhatsAppService.sendInteractiveButtons.mock.invocationCallOrder[0]);
   });
 });
 

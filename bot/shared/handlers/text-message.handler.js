@@ -39,6 +39,9 @@ const { TEMP_DIR, LOADING_STICKER_PATH, LOADING_STICKER_MEDIA_ID, OPENAI_API_KEY
   ATTENDANCE_SETUP_FLOW_ID, ATTENDANCE_MARKING_FLOW_ID, EDIT_CLASS_FLOW_ID,
   CLASS_MANAGER_FLOW_ID } = require('../utils/constants');
 const AttendanceRouter = require('../services/attendance-router.service');
+// Who is holding this handset. Consulted at exactly one call site, in
+// handleGeneralConversation, and nowhere else in this file.
+const StudentMode = require('../services/student-mode.service');
 const VoiceAttendance = require('../services/voice-attendance.service');
 const { getClient } = require('../services/llm-client');
 
@@ -249,6 +252,37 @@ async function tryChildVideoMenu(from, language) {
   }
 }
 
+/**
+ * Hoisted above the quiz-state intercepts below so a `QUIZ-<code>` text always
+ * reaches the join, even when the sender already has a post-quiz chat state or
+ * an active/invited session from an earlier quiz (a child tapping a SECOND
+ * teacher's forwarded link). Only the code-parse branch moves up here;
+ * `consumeJoinReply` (which claims the next two free-text messages as a child's
+ * name and class) stays below the intercepts so it never eats a quiz answer.
+ * Returns true when it short-circuited the message.
+ */
+async function tryShareCodeJoin(from, messageBody, typingController) {
+  try {
+    const VideoQuizShare = require('../services/quiz/video-quiz-share.service');
+    const code = VideoQuizShare.parseShareCode(messageBody);
+    if (!code) return false;
+
+    // ACK FIRST. Thirty children tapping a forwarded link within the
+    // same minute used to run thirty joins (identity lookup, share-code
+    // resolution, a Flow send) inline before this webhook answered
+    // 200; Meta retried the slow ones and the retries collided. The
+    // join now runs after the handler returns, under a per-phone+code
+    // lock so a retry cannot start a second session.
+    typingController.stop();
+    setImmediate(() => VideoQuizShare.beginFromCodeLocked(from, code)
+      .catch((err) => logToFile('❌ video-quiz join failed', { from, code, error: err.message }, 'error')));
+    return true;
+  } catch (vqErr) {
+    logToFile('Video Quiz share: routing error', { error: vqErr.message });
+    return false;
+  }
+}
+
 async function handleTextMessage(message, from, messageBody, user = null) {
   logToFile(`Processing TEXT message: ${messageBody}`);
 
@@ -256,6 +290,13 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   const typingController = WhatsAppService.startContinuousTypingIndicator(from, message.id);
 
   try {
+    // The share-code JOIN itself runs before anything else, including the
+    // quiz-state intercept below, so a second teacher's link is never
+    // swallowed by a stale post-quiz/active-session state.
+    if (messageBody && await tryShareCodeJoin(from, messageBody, typingController)) {
+      return;
+    }
+
     // ============================================================
     // QUIZ STATE INTERCEPT — runs BEFORE user creation so parents (who may
     // not have a Rumi account) can answer quizzes. Post-quiz AI chat is checked
@@ -315,23 +356,14 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     // bd-2482 (NIETE port of PK bd-2314/2315): Video-quiz share links.
     //
     // Deliberately BEFORE user lookup: a child arriving from a forwarded
-    // wa.me link may have no users row at all, and their first message is
-    // the auto-filled "QUIZ-ABC123". Routing that through normal onboarding
-    // would answer a code with a menu.
-    //
-    // Two steps, both short-circuiting:
-    //   1. the code itself -> greet, naming the teacher and the topic
-    //   2. the next two texts -> their name, then their class
+    // wa.me link may have no users row at all. The code-parse branch itself
+    // is now hoisted above the quiz-state intercept (tryShareCodeJoin) —
+    // this block only claims the next two free-text messages as their name,
+    // then their class.
     // ============================================================
     if (messageBody) {
       try {
         const VideoQuizShare = require('../services/quiz/video-quiz-share.service');
-        const code = VideoQuizShare.parseShareCode(messageBody);
-        if (code) {
-          await VideoQuizShare.beginFromCode(from, code);
-          typingController.stop();
-          return;
-        }
         if (await VideoQuizShare.consumeJoinReply(from, messageBody)) {
           logToFile('Text consumed as video-quiz join detail — short-circuit', { from });
           typingController.stop();
@@ -1032,7 +1064,10 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // Direct path (QuizOrchestrator). A Quiz Manager Flow can be layered later
   // via QUIZ_FLOW_ID, but the direct path needs no Meta-flow registration.
   // ============================================================
-  if (trimmedMessage === '/quiz' || trimmedMessage.startsWith('/quiz ')) {
+  const TranscriptQuizList = require('../services/quiz/transcript-quiz-list.service');
+  const TranscriptQuizOffer = require('../services/quiz/transcript-quiz-offer.service');
+  if (TranscriptQuizList.isQuizCommand(trimmedMessage)
+      && !(TranscriptQuizOffer.enabled() === false && !/^\/quiz(\s|$)/i.test(trimmedMessage))) {
     logToFile('📝 /quiz command detected', { userId: user?.id, phoneNumber: from });
     if (!user) {
       typingController.stop();
@@ -1040,6 +1075,43 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         from,
         'Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔'
       );
+      return;
+    }
+    // Transcript quiz (flag-gated on TRANSCRIPT_QUIZ_ENABLED): /quiz lists the
+    // teacher's own lessons and makes a quiz from the recording. With the flag
+    // unset this whole branch is skipped and the parent-quiz orchestrator below
+    // runs exactly as it does in production today.
+    if (TranscriptQuizOffer.enabled()) {
+      typingController.stop();
+      try {
+        const responseLanguage = await getUserLanguage(user.id) || null;
+        const teacher = { ...user, preferred_language: responseLanguage || user.preferred_language };
+        // Presence-gated, read at call time like /video: with
+        // TRANSCRIPT_QUIZ_FLOW_ID set, /quiz opens ONE Flow — the lesson list,
+        // its paging, the lesson's live results and the actions all happen
+        // inside it, so the teacher never drops back to chat mid-task. Unset,
+        // /quiz sends the interactive list message exactly as before; that is
+        // the rollback lever, and both paths stay tested.
+        //
+        // A teacher with nothing to list is answered in chat: a NavigationList
+        // needs at least one item, and "no lessons yet" is not a lesson.
+        const transcriptQuizFlowId = process.env.TRANSCRIPT_QUIZ_FLOW_ID || '';
+        if (transcriptQuizFlowId && await TranscriptQuizList.hasEligibleLessons(user.id)) {
+          const uxLanguage = teacher.preferred_language;
+          await WhatsAppService.sendFlow(from, {
+            flowId: transcriptQuizFlowId,
+            header: resolveUx('tqFlowChatHeader', { language: uxLanguage }),
+            body: resolveUx('tqFlowChatBody', { language: uxLanguage }),
+            buttonText: resolveUx('tqFlowChatCta', { language: uxLanguage }),
+            flowToken: `${user.id}:transcript-quiz:${Date.now()}`,
+          });
+          logToFile('📝 sent transcript quiz flow (/quiz)', { userId: user.id });
+          return;
+        }
+        await TranscriptQuizList.showList(teacher, from, responseLanguage);
+      } catch (error) {
+        logToFile('❌ transcript quiz: /quiz list failed', { userId: user.id, error: error.message }, 'error');
+      }
       return;
     }
     try {
@@ -2897,9 +2969,39 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
   // Get firstName from user if registered
   const firstName = user?.first_name || null;
 
+  // ============================================================
+  // STUDENT MODE — THE ONE GATE
+  //
+  // A child who joined a quiz from a forwarded link and then steps outside it
+  // is answered here, by the persona this function builds. Until this line
+  // existed there was only one persona: the teaching assistant, which offers a
+  // ten-year-old lesson plans, classroom-observation feedback and a reading
+  // assessment, and addresses them as a colleague.
+  //
+  // This is the ONLY place student-mode is consulted, deliberately. Commands,
+  // registration keywords, share-code joins, quiz answers, Flow replies,
+  // /video, the coaching and lesson-plan paths all short-circuit above this
+  // function and are byte-for-byte unchanged — proven by execution in
+  // tests/quiz/student-mode-gate.test.js, not by reading.
+  //
+  // personaFor() never throws and answers `persona: null` for every outcome
+  // except a proven child (STUDENT_MODE_ENABLED unset is one such outcome), so
+  // the else-branch below is today's behaviour and stays that way if the module
+  // fails, the flag is off, or the DB is down.
+  // ============================================================
+  const studentVerdict = await StudentMode.personaFor({ from, user, messageBody });
+  const isStudent = studentVerdict.persona === 'student';
+  // The quiz was written in one language and the child answered fifteen
+  // questions in it; that is the language they read, whatever the users row
+  // created by their first inbound message happens to say.
+  const replyLanguage = isStudent ? (studentVerdict.language || responseLanguage) : responseLanguage;
+
   // Phase 2: Conditional Feature Context Injection
   let featureContext = null;
-  if (user) {
+  // A child has no lesson plans, no coaching sessions and no past work of the
+  // kind this context describes — and the block below would hand a teacher's
+  // material to a pupil. Skipped, not filtered.
+  if (user && !isStudent) {
     const contextCheck = ContextService.shouldInjectContext(messageBody);
     if (contextCheck.shouldInject) {
       logToFile('Phase 2: Context injection triggered', { featureType: contextCheck.featureType, mode: contextCheck.mode });
@@ -2925,17 +3027,25 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
     messageBody,
     user.id, // Use UUID, not phone number - for DB conversation history
     'text', // outputFormat: always text for text messages
-    responseLanguage, // outputLanguage: use user's preferred language
-    firstName, // firstName: for personalization
-    featureContext // Phase 2: Feature context for past work references
+    replyLanguage, // outputLanguage: the teacher's language, or the child's quiz language
+    // A child's name is not sent to the model. The tutor is warm without it,
+    // and a name in a prompt is personal data crossing a boundary it need not.
+    isStudent ? null : firstName,
+    featureContext, // Phase 2: Feature context for past work references
+    isStudent
+      ? { persona: 'student', studentClass: studentVerdict.studentClass || null }
+      : {}
   );
-  logToFile('AI response generated (format-aware)', { response: aiResponse, language: responseLanguage, firstName });
+  logToFile('AI response generated (format-aware)', {
+    response: aiResponse, language: replyLanguage, firstName: isStudent ? null : firstName,
+    persona: isStudent ? 'student' : 'teacher',
+  });
 
   // Did the model answer in the language we asked for? Checked BEFORE the send, so
   // drift is a counted event rather than a teacher's screenshot. Advisory only —
   // we still deliver, because a checker that suppresses a reply is worse than the
   // drift it was added to catch.
-  const langCheck = verifyOutputLanguage(aiResponse, responseLanguage);
+  const langCheck = verifyOutputLanguage(aiResponse, replyLanguage);
   if (!langCheck.ok) {
     logToFile('🈯 language_drift: chat reply', {
       surface: 'chat_text',
@@ -2965,15 +3075,17 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
         null, // inputFormat (not applicable for assistant messages)
         null, // inputLanguage (not applicable for assistant messages)
         'text', // outputFormat
-        responseLanguage // outputLanguage
+        replyLanguage // outputLanguage
       );
       logToFile('✅ Bot response stored in database with session and language');
     } catch (error) {
       logToFile('⚠️ Failed to store bot response', { error: error.message });
     }
 
-    // Show stuck session reminder (non-blocking) if applicable
-    await showStuckSessionReminder(from, user.id, responseLanguage);
+    // Show stuck session reminder (non-blocking) if applicable. It is about an
+    // unfinished COACHING session — a teacher's thing — so a child is not
+    // offered it.
+    if (!isStudent) await showStuckSessionReminder(from, user.id, replyLanguage);
   }
 }
 

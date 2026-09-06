@@ -22,12 +22,49 @@
  *
  * The rules referenced throughout live in the report's FEEDBACK_RULES.md. They
  * are not style preferences; each one is a bug that reached the operator.
+ *
+ * ONE MESSAGE PER QUESTION, AND WHY IT IS A CORRECTNESS RULE.
+ * Every instruction this file emits costs one send against the recipient's
+ * per-pair budget (video-quiz-rate-limiter.service.js: 5-minute rolling
+ * window). A question that cost four sends — chrome counter, card image,
+ * letter buttons, verdict — put an 8-question quiz at 32 sends against a
+ * budget of 20, and a child who tapped fast waited three and a half minutes
+ * per verdict while four answer handlers piled up behind the throttle
+ * (staging, 2026-09-06, session ada1e109). So: the counter never gets a
+ * message of its own (`counter` rides on the first message of the question,
+ * and the sender folds it into that message's body or caption), and a picture
+ * rides as the interactive message's own image HEADER wherever Meta allows one
+ * — which is buttons, never lists. The cost per question is part of the
+ * contract; anything added here has to be paid for out of that budget.
  */
 
 const BUTTON_TITLE_MAX = 20;   // Meta hard limit; longer titles truncate silently
+const { unicodeNotation } = require('./quiz-notation');
 const LIST_ROW_TITLE_MAX = 24;
 const LIST_ROW_DESCRIPTION_MAX = 72;  // Meta's row description cap
 const MAX_BUTTONS = 3;
+
+/**
+ * Does a QUESTION CARD ride as the letter-picker's own image header?
+ *
+ * True is what makes a card question cost ONE send instead of three, which is
+ * what makes an 8-question quiz fit the recipient's 5-minute window at all.
+ *
+ * WHAT IS NOT PROVEN. Meta's interactive-message reference states no size,
+ * aspect-ratio or cropping rule for a button message's image header, and
+ * nothing in this repo has ever sent a card that way — the P3 figure header
+ * has, but every figure canvas is drawn at exactly 1.91:1 (1080x565), so it
+ * has never exercised another shape. Live cards run from 0.74:1 to 2.08:1. If
+ * a client is ever seen to crop or letterbox one, flip this to false: the card
+ * goes back to its own image message ahead of the picker and nothing else
+ * changes — the counter still comes off the card's own painted eyebrow.
+ *
+ * That rollback is not free. At three sends a card question, eight of them
+ * plus the opener, the scorecard and the post-quiz offer is 27 against a cap
+ * of 24 (video-quiz-rate-limiter.service.js), so flipping this back also means
+ * re-costing that cap or trimming a send elsewhere.
+ */
+const CARD_RIDES_THE_PICKER = true;
 
 /**
  * What the child READS for each option.
@@ -141,6 +178,22 @@ function pickerKind(labels) {
  */
 function optionLetter(i) {
   return 'ABCDEFGHIJ'[i] || String(i + 1);
+}
+
+/**
+ * The letters a picker actually offers, spelled out — "A, B or C".
+ *
+ * Under a QUESTION CARD the buttons carry letters and the copy has to name them.
+ * It said "A, B or C" whatever the card held, so a two-option question told the
+ * child to tap a C that was not there. The separator and the conjunction are the
+ * CALLER's: both are language data (ux-strings), not layout, and Urdu's comma is
+ * not a comma.
+ */
+function letterListLabel(count, { separator = ', ', conjunction = 'or' } = {}) {
+  const letters = [];
+  for (let i = 0; i < count; i += 1) letters.push(optionLetter(i));
+  if (letters.length <= 1) return letters[0] || '';
+  return `${letters.slice(0, -1).join(separator)} ${conjunction} ${letters[letters.length - 1]}`;
 }
 
 /**
@@ -265,11 +318,47 @@ function isOrderLocked(q, labels) {
 }
 
 /**
+ * The order STORED on the row, if the row carries a usable one (round-5 D1).
+ *
+ * `media.display_order` is `[storedIdx, …]` indexed by DISPLAY POSITION, written
+ * once when the quiz is generated. It is validated rather than trusted: anything
+ * that is not a permutation of 0..n-1 is treated as absent, because a half-valid
+ * order would rearrange the options around an answer key it no longer matches —
+ * which is the bug this whole mechanism exists to end, in a new costume.
+ *
+ * @returns {number[]|null}
+ */
+function persistedOrder(q, n) {
+  const raw = q && q.media && q.media.display_order;
+  if (!Array.isArray(raw) || raw.length !== n) return null;
+  const seen = new Set();
+  for (const v of raw) {
+    if (!Number.isInteger(v) || v < 0 || v >= n || seen.has(v)) return null;
+    seen.add(v);
+  }
+  return raw.slice();
+}
+
+/**
  * The order the child sees, as ORIGINAL indices. Identity when order is locked.
+ *
+ * ONE ORDER, STORED ONCE (round-5 D1). The stored order wins over every other
+ * branch, because it was computed BY this function at generation time and is the
+ * only copy that every consumer — the question card's picture, the letter
+ * buttons, the per-distractor feedback, the teacher's PDF — can all reach. The
+ * seeded shuffle below stays as the fallback for the 13k PK video rows that were
+ * stored before the column existed, and it depends on `external_id`, which any
+ * `.select()` may forget: the operator's own staging run drew a card from a row
+ * that had one and built the buttons from the same row re-selected without one,
+ * so the letters on the picture and the letters under it named different
+ * options. A stored order cannot be forgotten by a query that loads `media`.
+ *
  * @returns {number[]} a permutation of 0..labels.length-1
  */
 function displayOrder(q, labels) {
   const identity = labels.map((_, i) => i);
+  const stored = persistedOrder(q, labels.length);
+  if (stored) return stored;
   if (labels.length < 2 || isOrderLocked(q, labels)) return identity;
   // Seeded on external_id — the question's CONTENT identity ("leg:Grade5…:8"),
   // which is the same string in the corpus, the QA reference contract and every
@@ -286,12 +375,50 @@ function displayOrder(q, labels) {
 }
 
 /**
+ * The "Question n of N" line, folded into a message that was going out anyway.
+ *
+ * It used to be its own `WhatsAppService.sendMessage` in
+ * video-quiz.service.sendNextQuestion, which is a whole send off the
+ * recipient's window for eleven characters of chrome — and, on a question
+ * card, it arrived as a separate bubble above a picture that carried its own
+ * "QUESTION 5 OF 8" caption, which is how the operator came to be looking at
+ * two different numbers for one question.
+ *
+ * `counter` goes on the FIRST message the child reads for this question,
+ * whatever that message is (the stem-with-listen-cue on an audio item, the
+ * picker itself on everything else). The sender prepends the resolved string,
+ * in the quiz language, to that message's body or caption. It is data here and
+ * text there for the same reason every other label is: this module is pure and
+ * language-free.
+ *
+ * A QUESTION CARD ALREADY PAINTS IT. transcript-quiz-card draws
+ * "QUESTION 5 OF 8" into the picture itself, so a card question's messages are
+ * marked `paintsOwnCounter` and get no line of their own — printing it again
+ * under the picture is how the operator came to be reading two numbers for one
+ * question. When every candidate message paints its own, the question carries
+ * no separate counter at all, which is correct: it is already on screen.
+ */
+function attachCounter(msgs, opts) {
+  const i = Number(opts && opts.questionNumber);
+  const n = Number(opts && opts.totalQuestions);
+  if (!Number.isInteger(i) || !Number.isInteger(n) || i < 1 || n < 1) return msgs;
+  const first = msgs.find((m) => (m.phase === 'question' || m.phase === 'interaction')
+    && !m.paintsOwnCounter);
+  if (first) first.counter = { i, n };
+  return msgs;
+}
+
+/**
  * Build the ordered message list for one question.
  * @param {Object} q a quiz_questions row (option_a..d, correct_option, media, …)
  * @param {Object} [opts] { questionNumber, totalQuestions }
  * @returns {Array<Object>} send instructions, in order
  */
 function build(q, opts = {}) {
+  return attachCounter(buildPhases(q, opts), opts);
+}
+
+function buildPhases(q, opts = {}) {
   const media = q.media || {};
   const pattern = q.render_pattern || 'P1';
   const stem = (q.question_text || '').trim();
@@ -299,6 +426,19 @@ function build(q, opts = {}) {
   // the per-distractor feedback and correctIndices() are all keyed on it.
   // `shown`/`order` are the child's view. Mixing the two mis-scores silently.
   const labels = optionLabels(q);
+  // PLAN_R5 D4 — a question whose answer is a SET has no tap surface in an
+  // ordinary message: buttons and list rows are single-select. It is delivered
+  // as a Flow with a CheckboxGroup, and everything about that — the order, the
+  // cue, the payload, the verdict — lives in one module rather than as branches
+  // through this file. Required lazily: that module reaches back here for
+  // displayOrder().
+  const Multi = require('./transcript-quiz-multi');
+  if (Multi.isMultiRow(q)) {
+    const mOrder = Multi.persistedOrder(q, labels) || displayOrder(q, labels);
+    return Multi.buildMulti(q, {
+      order: mOrder, shown: mOrder.map((i) => labels[i]), language: media.language,
+    });
+  }
   const order = displayOrder(q, labels);
   const shown = order.map((i) => labels[i]);
   const msgs = [];
@@ -330,6 +470,46 @@ function build(q, opts = {}) {
     // the picker. R18 applied that to every row carrying the filename; on the
     // 1,788 with a real stem the same clip speaks the correct option aloud.
     if (stimulus) add('question', 'audio', { url: stimulus, role: 'stimulus' });
+  }
+
+  // A QUESTION CARD: the whole question is the picture (figure, stem, lettered
+  // options in THIS display order) because WhatsApp text cannot draw the
+  // notation or the options do not fit a button.
+  //
+  // The card DRAWS a letter for every option; the picker has to offer every
+  // letter it drew. Meta caps a reply-button row at three, so a card with more
+  // than three options takes the list (ten rows) — the same choice
+  // `pickerKind()` makes everywhere else. Hardcoding `buttons` here silently
+  // dropped D on a four-option card while its own footer said "Tap A, B, C or
+  // D below": two contradictory instructions in one message pair, and one
+  // answer the child could not give.
+  //
+  // WHICH PICKER IS ALSO HOW MANY SENDS THE QUESTION COSTS. An interactive
+  // BUTTON message carries its own image header, so the card and the letters
+  // are ONE message — the picture, the counter, the cue and the tap surface
+  // arrive together, which is both a send saved and what the operator asked to
+  // see on their phone. An interactive LIST is given no image header by Meta
+  // (verified in whatsapp.service.js sendInteractiveMessage, and the reason
+  // 161 P4 questions send their picture separately below), so a four-option
+  // card still costs two. Never attach `headerImage` to a list: Meta drops it
+  // silently and the child answers about a picture they never saw.
+  if (media.question_card) {
+    const cardKind = shown.length <= MAX_BUTTONS ? 'buttons' : 'list';
+    const asHeader = CARD_RIDES_THE_PICKER && cardKind === 'buttons';
+    if (!asHeader) {
+      add('question', 'image', {
+        url: media.question_card, caption: '', role: 'question_card', paintsOwnCounter: true,
+      });
+    }
+    add('interaction', cardKind, {
+      body: '', options: shown, optionIndices: order, letterTitles: true, role: 'ask',
+      // The card carries "QUESTION n OF N" in the picture; the body must not
+      // say it a second time. See attachCounter.
+      paintsOwnCounter: true,
+      ...(asHeader ? { headerImage: media.question_card } : {}),
+    });
+    // ── PHASE 3 — THE ANSWER ── (shared below)
+    return finishAnswerPhase(q, msgs, labels, order, media, answerClip);
   }
 
   // The question image belongs to the QUESTION whatever the pattern — except
@@ -425,25 +605,73 @@ function build(q, opts = {}) {
     });
   }
 
+  return finishAnswerPhase(q, msgs, labels, order, media, answerClip);
+}
+
+// ── the verdict marker (round-5 D2) ─────────────────────────────────────────
+//
+// The operator, on staging: "It's very hard for me to tell whether I got the
+// question correct or incorrect. There should be in the message a checkmark or a
+// cross." The author writes prose, not symbols, and that prose was used verbatim,
+// so a child had to READ a paragraph to learn whether they were right. The
+// sentence is the author's; the marker is ours.
+
+const VERDICT_CORRECT = '\u2705';   // ✅
+const VERDICT_WRONG = '\u274C';     // ❌
+const RLM = '\u200F';
+const ARABIC_SCRIPT = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/;
+
+/** The first character with a direction of its own — the one WhatsApp lays out by. */
+function firstStrongIsLatin(text) {
+  const m = /\p{L}/u.exec(text);
+  return !!m && /[A-Za-z]/.test(m[0]);
+}
+
+/**
+ * Open a verdict with its marker, once.
+ *
+ * The emoji is direction-NEUTRAL, so on an Urdu line it simply sits at the
+ * logical start and the paragraph still runs right-to-left — unless the Urdu
+ * itself opens with an English technical term, which rule 20 keeps in Latin
+ * letters. Then the first strong character is Latin, WhatsApp lays the whole line
+ * out left-to-right, and the Urdu full stop lands on the wrong side. U+200F after
+ * the marker settles it, and is added ONLY in that case: a right-to-left mark on
+ * an English line is invisible noise that still shows up in every log and diff.
+ */
+function withVerdictMark(text, mark) {
+  const body = String(text == null ? '' : text).trim();
+  if (!body) return body;
+  if (body.startsWith(VERDICT_CORRECT) || body.startsWith(VERDICT_WRONG)) return body;
+  const rtlFix = ARABIC_SCRIPT.test(body) && firstStrongIsLatin(body) ? RLM : '';
+  return `${mark} ${rtlFix}${body}`;
+}
+
+/** PHASE 3 — THE ANSWER, shared by every pattern including the question card. */
+function finishAnswerPhase(q, msgs, labels, order, media, answerClip) {
+  const add = (phase, kind, extra) => msgs.push({ phase, kind, ...extra });
   // ── PHASE 3 — THE ANSWER ─────────────────────────────────────────────────
   // §4b invariant: every question, every pattern, both outcomes — and the
   // verdict names the option using the SAME label the picker showed.
   const idx = correctIndices(q);
   const rightLabels = idx.map((i) => labels[i]).filter(Boolean);
-  const rightText = rightLabels.map(nameAnswer).join(' and ');
+  const rightText = unicodeNotation(rightLabels.map(nameAnswer).join(' and '));
   const expl = (q.explanation || '').trim();
   const fb = feedbackFor(q, labels, order);
 
   add('answer', 'text', {
-    body: fb.correct || `✅ Correct! The answer is ${rightText}.${expl ? `\n\n${expl}` : ''}`,
+    body: withVerdictMark(
+      unicodeNotation(fb.correct || `Correct! The answer is ${rightText}.${expl ? `\n\n${expl}` : ''}`),
+      VERDICT_CORRECT),
     role: 'feedback_correct',
   });
   labels.forEach((label, i) => {
     if (idx.includes(i)) return;
     add('answer', 'text', {
-      body: fb.wrong[i]
-        || `Not quite — the answer is ${rightText}.${expl ? `\n\n${expl}` : ''}`
-           + '\n\nKeep going, mistakes help you learn!',
+      body: withVerdictMark(
+        unicodeNotation(fb.wrong[i]
+          || `Not quite — the answer is ${rightText}.${expl ? `\n\n${expl}` : ''}`
+             + '\n\nKeep going, mistakes help you learn!'),
+        VERDICT_WRONG),
       role: 'feedback_incorrect', optionIndex: i,
     });
   });
@@ -486,11 +714,16 @@ function parseAnswer(id) {
 
 module.exports = {
   build,
+  displayOrder,
   optionLabels,
   correctIndices,
   answerId,
   parseAnswer,
   optionLetter,
+  letterListLabel,
+  withVerdictMark,
+  VERDICT_CORRECT,
+  VERDICT_WRONG,
   BUTTON_TITLE_MAX,
   LIST_ROW_TITLE_MAX,
   LIST_ROW_DESCRIPTION_MAX,

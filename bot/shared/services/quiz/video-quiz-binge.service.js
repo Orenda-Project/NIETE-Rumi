@@ -14,6 +14,7 @@
 const redisService = require('../cache/railway-redis.service');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
+const { logEvent } = require('../../utils/structured-logger');
 const ChildFlowToken = require('./child-flow-token');
 
 const MORE_YES = 'vq_more_yes';
@@ -47,9 +48,11 @@ function moreStrings(language) {
  * no student to attribute the next round to, offering it is a promise we
  * cannot keep (the teacher's report would never see this child's next quiz).
  */
-async function offerMore({ phone, studentId, shareCodeId, language = 'en' }) {
+async function offerMore({ phone, studentId, shareCodeId, language = 'en',
+                           sessionId = null, quizId = null }) {
   if (!studentId || !shareCodeId) return false;
-  await redisService.set(MORE_KEY(phone), { studentId, shareCodeId, language }, MORE_TTL_SECS);
+  await redisService.set(MORE_KEY(phone), { studentId, shareCodeId, language, sessionId, quizId },
+    MORE_TTL_SECS);
   const t = moreStrings(language);
   await WhatsAppService.sendInteractiveButtons(phone, {
     body: t.body,
@@ -58,6 +61,9 @@ async function offerMore({ phone, studentId, shareCodeId, language = 'en' }) {
       { id: MORE_NO, title: t.no },
     ],
   });
+  // Binge is only ever offered after an invite decline, which
+  // only happens on a share_link session.
+  logEvent('video_quiz.offer_shown', { kind: 'binge', sessionId, quizId, source: 'share_link', language });
   return true;
 }
 
@@ -67,6 +73,14 @@ async function handleMoreButton(buttonId, phone) {
   const ctx = await redisService.get(MORE_KEY(phone));
   await redisService.delete(MORE_KEY(phone));
   if (!ctx) return true;
+
+  // An old in-flight ctx minted before this deploy has no
+  // sessionId/quizId; they simply come out undefined/null here.
+  const choice = buttonId === MORE_YES ? 'yes' : 'no';
+  logEvent('video_quiz.offer_answered', {
+    kind: 'binge', choice, studentId: ctx.studentId, shareCodeId: ctx.shareCodeId,
+    sessionId: ctx.sessionId ?? null, quizId: ctx.quizId ?? null,
+  });
 
   const t = moreStrings(ctx.language);
 
@@ -78,6 +92,7 @@ async function handleMoreButton(buttonId, phone) {
   const { STUDENT_VIDEOS_FLOW_ID } = require('../../utils/constants');
   if (!STUDENT_VIDEOS_FLOW_ID) {
     logToFile('⚠️ video-quiz-binge: STUDENT_VIDEOS_FLOW_ID not configured', { phone });
+    logEvent('video_quiz.binge_unavailable', { reason: 'flow_not_configured' });
     await WhatsAppService.sendMessage(phone, t.unavailable);
     return true;
   }
@@ -85,13 +100,21 @@ async function handleMoreButton(buttonId, phone) {
   const flowToken = ChildFlowToken.build({
     phone, shareCodeId: ctx.shareCodeId, studentId: ctx.studentId, language: ctx.language,
   });
-  await WhatsAppService.sendFlow(phone, {
+  const sent = await WhatsAppService.sendFlow(phone, {
     flowId: STUDENT_VIDEOS_FLOW_ID,
     header: '🎬 More Videos',
     body: 'Pick a class, subject and topic — I will send the video to your chat.',
     buttonText: 'Browse',
     flowToken,
   });
+  if (sent) {
+    logEvent('video_quiz.binge_started', {
+      sessionId: ctx.sessionId ?? null, quizId: ctx.quizId ?? null,
+      shareCodeId: ctx.shareCodeId, language: ctx.language,
+    });
+  } else {
+    logEvent('video_quiz.binge_unavailable', { reason: 'flow_send_failed' });
+  }
   return true;
 }
 

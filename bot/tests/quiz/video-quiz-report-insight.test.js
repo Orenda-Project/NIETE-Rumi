@@ -9,24 +9,41 @@
  * just "16 of 22 missed this" but WHICH wrong answer they chose and WHY that
  * particular mistake happens.
  *
- * Two things are asserted here, and they are the whole point:
- *   - the analysis surfaces the distractor the class actually clustered on;
- *   - the guidance the teacher reads is grounded in that specific evidence,
- *     not a generic "revise the topic" that any quiz could have produced.
+ * PLAN_R4 D6 (bd-mg9c7.48) — the guidance stopped being a paragraph and
+ * became a shaped object: {muddled, board, check} when something was missed,
+ * {secure, stretch} when the class missed nothing (previously silent, null),
+ * grounded in the quiz's lesson digest (topic_as_taught, SLOs with
+ * taught_level, misconceptions_surfaced, lesson_summary) as well as the
+ * missed-question evidence. This file covers both the pure prompt-building
+ * (buildGuidancePrompt) and the network-boundary-mocked generation
+ * (generateGuidance), plus hardestQuestions' new `explanation` field.
  */
 
 jest.mock('../../shared/config/supabase', () => ({ from: jest.fn() }));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 
+// The one network boundary generateGuidance crosses. `mockCreate` is
+// referenced inside the jest.mock factory below — allowed unhoisted because
+// its name is allow-listed by babel-plugin-jest-hoist ("mock*" prefix).
+const openaiState = { raw: null };
+const mockCreate = jest.fn(async () => ({ choices: [{ message: { content: openaiState.raw } }] }));
+jest.mock('openai', () => jest.fn().mockImplementation(() => ({
+  chat: { completions: { create: (...args) => mockCreate(...args) } },
+})));
+
 const supabase = require('../../shared/config/supabase');
 const report = require('../../shared/services/quiz/video-quiz-report.service');
+
+function setOpenAiResponse(obj) { openaiState.raw = JSON.stringify(obj); }
+function setOpenAiRaw(raw) { openaiState.raw = raw; }
 
 const QUESTION = {
   id: 'q1',
   question_text: 'A leaf has veins that run parallel to each other. Which group does this clue suggest?',
   option_a: 'Dicot', option_b: 'Rose plant only', option_c: 'Monocot', option_d: null,
   correct_option: 'C',
+  explanation: 'Parallel leaf veins are the reliable clue for a monocot.',
   option_feedback: {
     correct: 'Nice! Parallel leaf veins point to a monocot.',
     wrong: {
@@ -53,7 +70,10 @@ function stubChain({ sessions, answers, questions }) {
   });
 }
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  openaiState.raw = null;
+});
 
 describe('bd-2335 — the report knows which wrong answer the class chose', () => {
   beforeEach(() => {
@@ -89,6 +109,14 @@ describe('bd-2335 — the report knows which wrong answer the class chose', () =
     const [hardest] = await report.hardestQuestions('sc-1');
     expect(hardest.correct_text).toBe('Monocot');
   });
+
+  // bd-mg9c7.48 — D5's "why THIS question was selected/right" needs the
+  // authored per-question explanation, independent of which distractor the
+  // class happened to cluster on.
+  test('it puts the authored explanation on the row, cleaned through teacherFacing', async () => {
+    const [hardest] = await report.hardestQuestions('sc-1');
+    expect(hardest.explanation).toBe('Parallel leaf veins are the reliable clue for a monocot.');
+  });
 });
 
 describe('bd-2335 — scattered wrong answers are not reported as a pattern', () => {
@@ -112,62 +140,84 @@ describe('bd-2335 — scattered wrong answers are not reported as a pattern', ()
   });
 });
 
-describe('bd-2335 — the guidance is rooted in the evidence, not generic', () => {
-  test('the prompt carries the question, the chosen distractor and its reason', () => {
-    const prompt = report.buildGuidancePrompt({
-      topic: 'Monocots and Dicots',
-      grade: '6',
-      average: 58,
-      finished: 22,
-      started: 26,
-      hardest: [{
-        question_text: QUESTION.question_text,
-        wrong: 16, total: 22,
-        top_wrong_text: 'Dicot',
-        correct_text: 'Monocot',
-        misconception: 'You flipped the vein rule: dicots usually have non-parallel veins.',
-      }],
+describe('bd-mg9c7.48 — hardestQuestions() explanation is independent of clustering', () => {
+  test('a question with no authored explanation returns null, not undefined', async () => {
+    stubChain({
+      sessions: [{ id: 's1' }, { id: 's2' }],
+      answers: [
+        { question_id: 'q1', is_correct: false, selected_option: 'A' },
+        { question_id: 'q1', is_correct: true, selected_option: 'C' },
+      ],
+      questions: [{ ...QUESTION, explanation: null }],
     });
-
-    expect(prompt).toContain('parallel to each other');   // the actual question
-    expect(prompt).toContain('Dicot');                    // what they picked
-    expect(prompt).toContain('flipped the vein rule');    // why that happens
-    // A prompt that only knows the average can only produce a generic tip.
-    expect(prompt).toMatch(/16 of 22/);
-  });
-
-  test('it forbids the textbook openers the cheaper model reached for', () => {
-    // Observed, not imagined: run against real corpus data, gpt-4o-mini opened
-    // with "In tomorrow's lesson, focus on clarifying the misconception that…",
-    // read the scores back, and proposed "categorise various foods" for a quiz
-    // full of dal and rice. Each of those is now named and banned.
-    const prompt = report.buildGuidancePrompt({
-      topic: 'A Balanced Diet', grade: '3', average: 54, finished: 21, started: 24,
-      hardest: [{
-        question_text: 'Which two food groups should be the greatest amount?',
-        wrong: 15, total: 21, top_wrong_text: 'Meat and dairy',
-        correct_text: 'Pulses and cereals',
-        misconception: 'You made meat and dairy the main foods.',
-      }],
-    });
-    expect(prompt).toMatch(/In tomorrow's lesson/);   // named as forbidden
-    expect(prompt).toMatch(/misconception/);          // banned as a WORD to use
-    expect(prompt).toMatch(/various examples/);       // banned as a cop-out
-    expect(prompt).toMatch(/Do not repeat any score/);
-  });
-
-  test('with nothing missed, no guidance is requested at all', () => {
-    const prompt = report.buildGuidancePrompt({
-      topic: 'Monocots and Dicots', average: 96, finished: 22, started: 22, hardest: [],
-    });
-    expect(prompt).toBeNull();
+    const [hardest] = await report.hardestQuestions('sc-1');
+    expect(hardest.explanation).toBeNull();
   });
 });
 
-// bd-2664 — an Urdu quiz's "For tomorrow" guidance was always generated in
-// English, glued onto an otherwise-Urdu report. language='ur' now routes to
-// a fully Urdu prompt, still grounded in the same real evidence.
-describe('bd-2664 — Urdu quizzes get Urdu guidance', () => {
+describe('bd-mg9c7.48 — buildGuidancePrompt reteach mode asks for JSON and carries the digest', () => {
+  const HARDEST = [{
+    question_text: 'A leaf has veins that run parallel to each other. Which group does this clue suggest?',
+    wrong: 16, total: 22, top_wrong_text: 'Dicot', correct_text: 'Monocot',
+    misconception: 'You flipped the vein rule: dicots usually have non-parallel veins.',
+  }];
+  const DIGEST = {
+    topic_as_taught: 'Monocots and Dicots (leaf veins)',
+    slos: [{ id: 'S1', statement: 'name a monocot from its leaf veins', taught_level: 'apply' }],
+    misconceptions_surfaced: ['thinks vein direction does not matter'],
+    lesson_summary: 'She showed a rose leaf and a grass leaf and asked which had parallel veins.',
+  };
+
+  test('asks for a JSON object with the three reteach keys, not prose', () => {
+    const prompt = report.buildGuidancePrompt({ topic: 'Monocots and Dicots', hardest: HARDEST });
+    expect(prompt).toMatch(/JSON object/);
+    expect(prompt).toMatch(/"muddled"/);
+    expect(prompt).toMatch(/"board"/);
+    expect(prompt).toMatch(/"check"/);
+  });
+
+  test('carries the digest topic_as_taught, SLO statement + taught_level, and misconceptions into the prompt text', () => {
+    const prompt = report.buildGuidancePrompt({ topic: 'Monocots and Dicots', hardest: HARDEST, digest: DIGEST });
+    expect(prompt).toContain('Monocots and Dicots (leaf veins)');
+    expect(prompt).toContain('name a monocot from its leaf veins');
+    expect(prompt).toMatch(/apply/);
+    expect(prompt).toContain('thinks vein direction does not matter');
+    expect(prompt).toContain('She showed a rose leaf');
+  });
+
+  test('still carries the real evidence and the forbidden-opener/word rules', () => {
+    const prompt = report.buildGuidancePrompt({ topic: 'Monocots and Dicots', hardest: HARDEST });
+    expect(prompt).toContain('parallel to each other');   // the actual question
+    expect(prompt).toContain('Dicot');                    // what they picked
+    expect(prompt).toContain('flipped the vein rule');    // why that happens
+    expect(prompt).toMatch(/16 of 22/);
+    expect(prompt).toMatch(/In tomorrow's lesson/);        // named as forbidden
+    expect(prompt).toMatch(/misconception/);               // banned as a WORD
+    expect(prompt).toMatch(/various examples/);            // banned as a cop-out
+    expect(prompt).toMatch(/Do not repeat any/);
+  });
+
+  test('refuses (null) with neither hardest nor digest', () => {
+    expect(report.buildGuidancePrompt({ topic: 'x' })).toBeNull();
+    expect(report.buildGuidancePrompt({ topic: 'x', hardest: [] })).toBeNull();
+    expect(report.buildGuidancePrompt({ topic: 'x', hardest: [], digest: null })).toBeNull();
+  });
+
+  test('a digest alone (no missed questions) grounds the secure-mode prompt instead of refusing', () => {
+    const prompt = report.buildGuidancePrompt({ topic: 'x', hardest: [], digest: DIGEST });
+    expect(prompt).not.toBeNull();
+    expect(prompt).toMatch(/"secure"/);
+    expect(prompt).toMatch(/"stretch"/);
+  });
+
+  test('a digest with no usable content (empty slos, no topic_as_taught) still refuses', () => {
+    expect(report.buildGuidancePrompt({
+      topic: 'x', hardest: [], digest: { slos: [], misconceptions_surfaced: [] },
+    })).toBeNull();
+  });
+});
+
+describe('bd-mg9c7.48 — the Urdu prompt asks for Urdu script', () => {
   const UR_HARDEST = [{
     question_text: 'لفظ "آزادی" میں یے کی آواز کیا بتائی گئی؟',
     wrong: 4, total: 8,
@@ -176,65 +226,196 @@ describe('bd-2664 — Urdu quizzes get Urdu guidance', () => {
     misconception: 'بچے آخر کی آواز الجھا دیتے ہیں۔',
   }];
 
-  test('the prompt is written in Urdu and carries the real Urdu evidence verbatim', () => {
+  test('the evidence and instructions are in Urdu; the JSON keys stay literal', () => {
     const prompt = report.buildGuidancePrompt({
-      topic: 'چھوٹی یے اور بڑی یے کی آوازیں', grade: 'Prep',
-      average: 79, finished: 6, started: 8, hardest: UR_HARDEST, language: 'ur',
+      topic: 'چھوٹی یے اور بڑی یے کی آوازیں', grade: 'Prep', hardest: UR_HARDEST, language: 'ur',
     });
-    // the real question/distractor/reason pass through untouched — only the
-    // model's INSTRUCTIONS change language, not the evidence itself.
     expect(prompt).toContain('آزادی');
     expect(prompt).toContain('بچے آخر کی آواز الجھا دیتے ہیں۔');
-    // the instruction prose itself is Urdu, not English scaffolding.
-    expect(prompt).toMatch(/بالکل تین جملے لکھیں/);
-    expect(prompt).not.toMatch(/Write EXACTLY three sentences/);
+    expect(prompt).toMatch(/"muddled"/);
+    expect(prompt).not.toMatch(/Return ONLY a JSON object with exactly these three keys, each value a/);
   });
 
   test('never asks for Roman-Urdu — explicitly bans it', () => {
     const prompt = report.buildGuidancePrompt({
-      topic: 'چھوٹی یے اور بڑی یے کی آوازیں', grade: 'Prep',
-      average: 79, finished: 6, started: 8, hardest: UR_HARDEST, language: 'ur',
+      topic: 'چھوٹی یے', hardest: UR_HARDEST, language: 'ur',
     });
     expect(prompt).toMatch(/رومن اردو میں ہرگز نہیں/);
   });
 
   test('stays gender-neutral — never asserts the teacher\'s gender', () => {
     const prompt = report.buildGuidancePrompt({
-      topic: 'چھوٹی یے اور بڑی یے کی آوازیں', grade: 'Prep',
-      average: 79, finished: 6, started: 8, hardest: UR_HARDEST, language: 'ur',
+      topic: 'چھوٹی یے', hardest: UR_HARDEST, language: 'ur',
     });
-    // gendered 2nd/3rd-person verb stems the project's Urdu-broadcast rule
-    // bans when the teacher's gender is unknown.
     expect(prompt).not.toMatch(/سمجھتی ہوں گی|کریں گی|لکھتی ہے|پڑھتی ہے/);
   });
 
-  // bd-2693 — NIETE is flat en/ur (root CLAUDE.md language-protocol): there
-  // is no product surface where a NIETE teacher's quiz could ever carry
-  // 'pa-PK'/'sd-PK', unlike the main bot's 5-market region-keyed offer this
-  // test previously assumed (wholesale-copied from PK without adapting to
-  // NIETE's actual language model, in the pre-develop `f34ba17` port). An
-  // out-of-scope language value now falls back to the SAFE default (English)
-  // rather than silently guessing Urdu for a language NIETE never offers.
-  test('an unsupported language value (e.g. pa-PK/sd-PK, out of NIETE\'s en/ur scope) falls back to English, not a silent Urdu guess', () => {
-    const paPrompt = report.buildGuidancePrompt({
-      topic: 'ٹیسٹ', average: 70, finished: 5, started: 6, hardest: UR_HARDEST, language: 'pa-PK',
-    });
-    const sdPrompt = report.buildGuidancePrompt({
-      topic: 'ٹیسٹ', average: 70, finished: 5, started: 6, hardest: UR_HARDEST, language: 'sd-PK',
-    });
-    expect(paPrompt).toMatch(/Write EXACTLY three sentences/);
-    expect(sdPrompt).toMatch(/Write EXACTLY three sentences/);
+  // bd-2693 — NIETE is flat en/ur: an out-of-scope language value falls back
+  // to the safe (English JSON) default rather than guessing Urdu.
+  test('an unsupported language value (pa-PK/sd-PK) falls back to the English JSON prompt', () => {
+    const pa = report.buildGuidancePrompt({ topic: 'x', hardest: UR_HARDEST, language: 'pa-PK' });
+    const sd = report.buildGuidancePrompt({ topic: 'x', hardest: UR_HARDEST, language: 'sd-PK' });
+    expect(pa).toMatch(/"muddled"/);
+    expect(sd).toMatch(/"muddled"/);
+    expect(pa).not.toMatch(/رومن اردو/);
   });
 
-  test('no language field (default) is unchanged — still the English prompt', () => {
+  test('no language field (default) is unchanged — still the English JSON prompt', () => {
     const prompt = report.buildGuidancePrompt({
-      topic: 'Monocots and Dicots', grade: '6', average: 58, finished: 22, started: 26,
-      hardest: [{
+      topic: 'Monocots and Dicots', grade: '6', hardest: [{
         question_text: 'A leaf has veins that run parallel to each other. Which group does this clue suggest?',
         wrong: 16, total: 22, top_wrong_text: 'Dicot', correct_text: 'Monocot',
         misconception: 'You flipped the vein rule.',
       }],
     });
-    expect(prompt).toMatch(/Write EXACTLY three sentences/);
+    expect(prompt).toMatch(/"muddled"/);
+  });
+});
+
+describe('bd-mg9c7.48 — generateGuidance parses the model reply into the shaped object', () => {
+  const HARDEST = [{
+    question_text: 'A leaf has veins that run parallel to each other.',
+    wrong: 3, total: 4, top_wrong_text: 'Dicot', correct_text: 'Monocot',
+    misconception: 'You flipped the vein rule.',
+  }];
+
+  test('a plain JSON reply becomes {muddled, board, check}', async () => {
+    setOpenAiResponse({
+      muddled: 'They think leaf veins never matter.',
+      board: 'Draw the rose leaf and the grass leaf on the board.',
+      check: 'Which leaf shape has parallel veins?',
+    });
+    const out = await report.generateGuidance({ topic: 'Monocots and Dicots', hardest: HARDEST });
+    expect(out).toEqual({
+      muddled: 'They think leaf veins never matter.',
+      board: 'Draw the rose leaf and the grass leaf on the board.',
+      check: 'Which leaf shape has parallel veins?',
+    });
+  });
+
+  test('a fenced ```json reply still parses', async () => {
+    setOpenAiRaw('```json\n{"muddled":"a","board":"b","check":"c"}\n```');
+    const out = await report.generateGuidance({ topic: 'x', hardest: HARDEST });
+    expect(out).toEqual({ muddled: 'a', board: 'b', check: 'c' });
+  });
+
+  test('markdown emphasis inside a value is stripped (bd-2611, still true for the object shape)', async () => {
+    setOpenAiResponse({ muddled: 'They think **the** is any word.', board: 'b', check: 'c' });
+    const out = await report.generateGuidance({ topic: 'x', hardest: HARDEST });
+    expect(out.muddled).toBe('They think the is any word.');
+  });
+
+  test('any required key empty after stripping fails the whole call, not just that key', async () => {
+    setOpenAiResponse({ muddled: '   ', board: 'b', check: 'c' });
+    const out = await report.generateGuidance({ topic: 'x', hardest: HARDEST });
+    expect(out).toBeNull();
+  });
+
+  test('a reply missing a required key returns null', async () => {
+    setOpenAiResponse({ muddled: 'a', board: 'b' });
+    const out = await report.generateGuidance({ topic: 'x', hardest: HARDEST });
+    expect(out).toBeNull();
+  });
+
+  test('unparseable JSON returns null — the report still sends, just without the box', async () => {
+    setOpenAiRaw('not json at all');
+    const out = await report.generateGuidance({ topic: 'x', hardest: HARDEST });
+    expect(out).toBeNull();
+  });
+});
+
+describe('bd-mg9c7.48 — the zero-missed branch returns {secure, stretch}, where today it returned null', () => {
+  const DIGEST = { slos: [{ id: 'S1', statement: 'name a monocot vs a dicot', taught_level: 'understand' }] };
+
+  test('a class that missed nothing still gets a guidance object, grounded in the digest', async () => {
+    setOpenAiResponse({
+      secure: 'They can now name a monocot on sight.',
+      stretch: 'Which grass is a monocot, and how do you know?',
+    });
+    const out = await report.generateGuidance({
+      topic: 'Monocots and Dicots', average: 100, finished: 22, started: 22, hardest: [], digest: DIGEST,
+    });
+    expect(out).toEqual({
+      secure: 'They can now name a monocot on sight.',
+      stretch: 'Which grass is a monocot, and how do you know?',
+    });
+  });
+
+  test('with no hardest AND no digest, no model call is made and the result is null', async () => {
+    const out = await report.generateGuidance({
+      topic: 'x', average: 100, finished: 5, started: 5, hardest: [],
+    });
+    expect(out).toBeNull();
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe('bd-mg9c7.48 — formatGuidanceText renders the WhatsApp text fallback', () => {
+  const LABELS_EN = {
+    muddledLabel: 'What they muddled', boardLabel: 'On the board', checkLabel: 'Check question',
+    secureLabel: "What's solid", stretchLabel: 'Stretch question',
+  };
+
+  test('reteach shape prints three labelled parts with single-asterisk bold', () => {
+    const text = report.formatGuidanceText(
+      { muddled: 'a', board: 'b', check: 'c' }, LABELS_EN,
+    );
+    expect(text).toBe('*What they muddled:* a\n\n*On the board:* b\n\n*Check question:* c');
+    expect(text).not.toMatch(/\*\*/);   // never double-asterisk — that is not bold on WhatsApp
+  });
+
+  test('zero-missed shape prints the two labelled parts', () => {
+    const text = report.formatGuidanceText({ secure: 'a', stretch: 'b' }, LABELS_EN);
+    expect(text).toBe("*What's solid:* a\n\n*Stretch question:* b");
+  });
+
+  test('a null guidance renders nothing', () => {
+    expect(report.formatGuidanceText(null, LABELS_EN)).toBe('');
+  });
+});
+
+/**
+ * bd-mg9c7.48 (lane C manager pass) — the check/stretch question is the one
+ * sentence in this box that a teacher READS OUT to children, so it has to
+ * arrive in the same register the quiz itself uses: "آپ" with plural-
+ * respectful verbs, never the tum-form. A real run on the staging
+ * "Proper Fraction" digest came back with "compare کرو … بتاؤ" — gender-neutral
+ * (so the broadcast rule held) but a different register from every question
+ * the same children had just answered.
+ */
+describe('bd-mg9c7.48 — the Urdu prompts pin the child-facing register', () => {
+  const REGISTER = /جمع کے احترامی افعال/;
+
+  test('the reteach prompt asks for آپ + plural-respectful verbs in the check question', () => {
+    const p = report.buildGuidancePrompt({
+      topic: 'کسریں', grade: '4', language: 'ur',
+      hardest: [{ question_text: 'آدھی روٹی؟', wrong: 2, total: 3 }],
+    });
+    expect(p).toMatch(REGISTER);
+    expect(p).toMatch(/"کرو"، "بتاؤ"/);
+  });
+
+  test('the secure prompt asks for the same register in the stretch question', () => {
+    const p = report.buildGuidancePrompt({
+      topic: 'کسریں', grade: '4', language: 'ur', hardest: [],
+      digest: { slos: [{ id: 'S1', statement: 'کسر پہچاننا', taught_level: 'recall' }] },
+    });
+    expect(p).toMatch(REGISTER);
+  });
+
+  test('the secure prompt carries the gender-neutrality rule the reteach prompt already had', () => {
+    const p = report.buildGuidancePrompt({
+      topic: 'کسریں', grade: '4', language: 'ur', hardest: [],
+      digest: { slos: [{ id: 'S1', statement: 'کسر پہچاننا', taught_level: 'recall' }] },
+    });
+    expect(p).toMatch(/غیر جانبدار زبان/);
+  });
+
+  test('the English prompts are untouched by the Urdu register rule', () => {
+    const p = report.buildGuidancePrompt({
+      topic: 'Fractions', grade: '4', language: 'en',
+      hardest: [{ question_text: 'Half a roti?', wrong: 2, total: 3 }],
+    });
+    expect(p).not.toMatch(REGISTER);
   });
 });
