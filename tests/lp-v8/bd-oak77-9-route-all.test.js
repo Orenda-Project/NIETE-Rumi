@@ -87,7 +87,7 @@ const {
 } = require('../../bot/shared/handlers/text-message.handler');
 const flags = require('../../bot/shared/config/lp612-flags');
 const LessonPlanQueueService = require('../../bot/shared/services/lesson-plan-queue.service');
-const { resolveUx } = require('../../bot/shared/config/ux-strings');
+const { resolveUx, LP612_ETA } = require('../../bot/shared/config/ux-strings');
 
 const ROUTE_ENV = ['LP_612_ENABLED', 'LP_612_ROUTE_ALL', 'LP_612_ROUTE_K5'];
 beforeEach(() => {
@@ -231,12 +231,19 @@ describe('she typed a topic — one short line, then the menu', () => {
 });
 
 // ── bd-oo0of: the interstitial must stop promising a number ───────────────
-describe('bd-oo0of — the authoring interstitial promises a follow-up, not a number', () => {
-  test.each(['lp612Preparing', 'lp612Restarted'])('%s quotes no duration in either language', (key) => {
+describe('the authoring interstitial carries the ONE estimate constant', () => {
+  // This block used to assert the opposite. The estimate had been removed because the number then
+  // in the copy was measured against a slower lane and was wrong for Urdu by ~3 minutes. Targeted
+  // revision landed, the operator asked for an estimate back (2026-09-06), and the band is now a
+  // single constant pinned against measured p50/p90 in tests/lp612/honest-eta.test.js.
+  //
+  // What this file still guards is that the STALE band never returns, and that both strings take
+  // their number from the constant rather than hand-typing one.
+  test.each(['lp612Preparing', 'lp612Restarted'])('%s carries LP612_ETA, never the stale band', (key) => {
     ['en', 'ur'].forEach((lang) => {
       const s = resolveUx(key, { language: lang });
       expect(s).not.toMatch(/5–6|5-6|five to six|پانچ سے چھ/);
-      expect(s).not.toMatch(/\d+\s*(minutes?|min\b)/i);
+      expect(s).toContain(LP612_ETA[lang]);
       expect(cps(s)).toBeLessThanOrEqual(1024);
     });
   });

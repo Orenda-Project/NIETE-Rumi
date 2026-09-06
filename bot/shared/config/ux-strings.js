@@ -61,6 +61,35 @@ function clampLanguage(lang, offered = LANGUAGE_OFFER) {
  * `محفوظ ہو گئی` as in the attendance and observation confirmations) so the
  * teacher hears one consistent voice rather than a second translator's.
  */
+/**
+ * THE ONE PLACE THE LESSON-PLAN WAIT IS QUOTED — bd-oak77.10.
+ *
+ * Measured 2026-09-06 on the configuration production actually runs
+ * (`LP612_AUTHOR_ROUNDS=3`, `LP612_TARGETED_REVISION=true`):
+ *
+ *     p50  160 s  English
+ *     p50  207 s  Urdu
+ *     p90  ~308 s
+ *
+ * The band QUOTES THE TAIL, not the median, and that is deliberate. A teacher told the median is
+ * told a number she misses half the time, and the half she misses is the half that decides the
+ * feature is broken. Five minutes covers p90 with room; three is the floor a real first hit lands
+ * near. `tests/lp612/honest-eta.test.js` pins both ends against these numbers, so moving the copy
+ * without moving the measurement fails the suite.
+ *
+ * WHEN THE LANE MOVES, CHANGE IT HERE AND IN THAT TEST'S `MEASURED` — nowhere else. The strings
+ * interpolate this; none of them hand-types a number.
+ *
+ * The Urdu digits are U+06Fx (۳ ۵), the Urdu set — NOT the Arabic-Indic ٣ ٥, which render wrong in
+ * a Nastaliq face. The phrase is impersonal, so it carries no gendered verb stem.
+ */
+const LP612_ETA = Object.freeze({
+  minMinutes: 3,
+  maxMinutes: 5,
+  en: 'about 3–5 minutes',
+  ur: 'تقریباً ۳ سے ۵ منٹ',
+});
+
 const UX_STRINGS = {
   // Shown on the Settings SUCCESS screen. Previously English-only, so a teacher
   // who had just switched to Urdu was congratulated in English.
@@ -110,7 +139,7 @@ const UX_STRINGS = {
   },
 
   /**
-   * LP v8 delivery (FEAT-059, staging feedback round 1). The ack
+   * LP v8 delivery (K-5 corpus, staging feedback round 1). The ack
    * exists because presign + Meta's document fetch take several seconds AFTER
    * the Flow has already closed — that silence read as a failed request on the
    * operator's device test. Urdu is gender-neutral by construction: passive
@@ -131,27 +160,26 @@ const UX_STRINGS = {
   // A 6-12 lesson is authored on the first request, not looked up: the wait is
   // real, and every one of these strings exists so that no part of it is silent.
   //
-  // HOW LONG, measured rather than guessed (bd-2ym0h): a first hit on the
-  // post-optimisation lane runs a median of 313 seconds, spread roughly four to
-  // eleven minutes. These strings used to say "about 2 minutes", which is the
-  // number the lane hit before the authoring ladder grew, and being told two
-  // while waiting five is how a working feature earns a bug report. They say
-  // five to six now. If the lane's timings move again, this comment and the two
-  // strings below move with them — a stale promise is a defect, not a detail.
+  // HOW LONG — ONE CONSTANT, measured rather than guessed. See LP612_ETA above.
   //
-  // A SECOND request for the same lesson is served from R2 in about a second and
-  // sends no interstitial at all (lp612-serving.service.js answers a cache hit
-  // by delivering the file directly). Nobody reads these strings on a fast path,
-  // so they can quote the slow number plainly — and saying "brand-new" is what
-  // stops five minutes reading as the price of every lesson.
+  // The estimate was removed for a while because the number in the copy (five to six minutes) had
+  // been measured against a slower lane and was wrong for Urdu by about three minutes; a number
+  // that is wrong is worse than no number. Targeted revision then landed, the lane got fast enough
+  // that an honest band exists, and the operator asked for the estimate back (2026-09-06). It is a
+  // constant now, not four hand-typed phrases, so the next move of the lane is a one-line change.
+  //
+  // A SECOND request for the same lesson is served from R2 in about a second and sends no
+  // interstitial at all (lp612-serving.service.js answers a cache hit by delivering the file
+  // directly). Nobody reads these strings on a fast path, so they can quote the slow band plainly —
+  // and saying "brand-new" is what stops it reading as the price of every lesson.
   //
   // The Urdu is deliberately gender-agnostic in the second person — imperatives
   // and impersonal constructions, never `رہی ہوں گی` / `رہے ہوں گے` — because
   // the cohort is mixed and the bot cannot know.
 
   lp612Preparing: {
-    en: '📄 Writing your lesson plan now — a brand-new lesson takes a little while. I will send it here as soon as it is ready, and I will check in if it runs long.',
-    ur: '📄 آپ کا سبق کا منصوبہ ابھی تیار کیا جا رہا ہے — نئے سبق میں کچھ وقت لگتا ہے۔ تیار ہوتے ہی یہیں بھیج دیا جائے گا، اور دیر ہوئی تو اطلاع دی جائے گی۔',
+    en: `📄 Writing your lesson plan now — a brand-new lesson takes ${LP612_ETA.en}. I will send it here as soon as it is ready.`,
+    ur: `📄 آپ کا سبق کا منصوبہ ابھی تیار کیا جا رہا ہے — نئے سبق میں ${LP612_ETA.ur} لگتے ہیں۔ تیار ہوتے ہی یہیں بھیج دیا جائے گا۔`,
   },
 
   lp612StillWorking: {
@@ -170,8 +198,8 @@ const UX_STRINGS = {
   // staging, and it is what rule 24(d) is about. She does not need to know what a worker is;
   // she needs to know it stopped, it has restarted, and she does not have to do anything.
   lp612Restarted: {
-    en: '📄 That lesson stopped partway through, so I have started it again. It will arrive here as soon as it is ready.',
-    ur: '📄 وہ سبق درمیان میں رک گیا تھا، اس لیے دوبارہ شروع کر دیا گیا ہے۔ تیار ہوتے ہی یہیں موصول ہو جائے گا۔',
+    en: `📄 That lesson stopped partway through, so I have started it again. It takes ${LP612_ETA.en} and will arrive here.`,
+    ur: `📄 وہ سبق درمیان میں رک گیا تھا، اس لیے دوبارہ شروع کر دیا گیا ہے۔ اس میں ${LP612_ETA.ur} لگتے ہیں اور یہیں موصول ہو جائے گا۔`,
   },
 
   // A lesson whose page range is over the cap will fail identically on every retry, so it must
@@ -1000,6 +1028,7 @@ function languageLabelFor(code) {
 
 module.exports = {
   UX_STRINGS,
+  LP612_ETA,
   resolveUx,
   clampLanguage,
   languageLabelFor,
