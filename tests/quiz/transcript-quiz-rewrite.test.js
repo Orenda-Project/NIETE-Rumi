@@ -488,3 +488,30 @@ describe('8 — mergeReplacements puts a replacement back where it belongs, or n
     }));
   });
 });
+
+describe('structural per-question complaints are rewrite targets too (a long option must not kill the quiz)', () => {
+  const { rewriteTargets, buildRewritePrompt } = require('../../bot/shared/services/quiz/transcript-quiz-rewrite');
+  test('an over-cap option names its question and is repairable', () => {
+    const t = rewriteTargets(['q1: option >72 code points']);
+    expect(t.indices).toEqual([1]);
+  });
+  test('a missing or long selected_because is repairable', () => {
+    const t = rewriteTargets(['q0: Q_MISSING_WHY — "selected_because" is empty; say in ≤15 words which moment of the lesson this question tests']);
+    expect(t.indices).toEqual([0]);
+  });
+  test('a malformed question (wrong option count) is still a re-roll, not a repair', () => {
+    expect(rewriteTargets(['q0: 2 options']).indices).toEqual([]);
+  });
+  test('the rewrite prompt restates the option cap when a structural complaint is among the targets', () => {
+    const questions = Array.from({ length: 8 }, (_, i) => ({
+      question: `Stem ${i}?`, options: ['A', 'B', 'C'], correct_index: 0, level: 'recall', slo_id: 's1',
+      explanation: 'because', selected_because: 'the moment', option_feedback: { correct: 'ok', wrong: 'no' },
+    }));
+    const targets = rewriteTargets(['q1: option >72 code points']);
+    const prompt = buildRewritePrompt({
+      digest: { subject: 'english', topic_as_taught: 'Chocolate', slos: [{ id: 's1', statement: 'x', statement_en: 'x', statement_ur: 'x', level: 'recall' }] },
+      language: 'en', questions, targets, gradeBand: '4-5', lessonSummary: 'You taught chocolate.',
+    });
+    expect(prompt).toMatch(/72 code points/);
+  });
+});
