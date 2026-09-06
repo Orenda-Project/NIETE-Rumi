@@ -706,7 +706,12 @@ async function lp612SegmentScreen(d, page, screenId) {
   if (!Number.isFinite(grade) || !d.subject || !d.chapter_key) {
     return { data: { error: { message: 'Please pick a chapter again.' } } };
   }
-  const { items, total } = await Lp612Catalog.buildSegmentItems(grade, d.subject, d.chapter_key, page);
+  // `book_stem` rides in the tapped row's own payload. Two books can share a
+  // (grade, subject) and number their chapters from c01, so without it this lists
+  // both books' lessons under one chapter (bd-oak77.5). Absent on rows rendered
+  // before that shipped, which is why buildSegmentItems treats it as optional.
+  const { items, total } = await Lp612Catalog.buildSegmentItems(
+    grade, d.subject, d.chapter_key, page, d.book_stem || null);
   if (!items.length) {
     return { data: { error: { message: 'Those lesson plans are being prepared — check back soon.' } } };
   }
