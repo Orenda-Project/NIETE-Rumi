@@ -118,12 +118,19 @@ describe('startSession — the integration red test: transcript quiz asks sort_o
         return chain;
       }
       if (table === 'quiz_sessions') {
-        return {
+        // The counter write is guarded (.eq().or(), bd-mg9c7.57) and the
+        // before-values are read (.select().eq().maybeSingle()); both chains
+        // resolve to nothing here — this test is about the columns requested
+        // from quiz_questions, not the session row.
+        const sess = {
           insert: () => ({
             select: () => ({ single: async () => ({ data: { id: 'sess-1' }, error: null }) }),
           }),
-          update: () => ({ eq: async () => ({ data: null, error: null }) }),
+          update: () => sess, select: () => sess, eq: () => sess, or: () => sess,
+          maybeSingle: async () => ({ data: null, error: null }),
+          then: (resolve) => resolve({ data: null, error: null }),
         };
+        return sess;
       }
       const chain = {
         select: () => chain, eq: () => chain, update: () => chain, insert: () => chain,
