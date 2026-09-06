@@ -46,6 +46,7 @@ const {
   overlayPassOff,
   followupAfterMs,
   checkpointOff,
+  previousTemplateVersions,
 } = require('../shared/config/lp612-flags');
 const { familyForBook } = require('../shared/config/lp612-families');
 
@@ -342,7 +343,11 @@ async function keepFailedDoc({ doc, segmentId, lang, templateVersion, renderId, 
   if (!doc) return;                       // died before authoring — there is nothing to keep
   try {
     const key = Serving.assertKeyInPrefix(
-      Serving.r2KeyFor(segmentId, lang, templateVersion).replace(/\/([^/]+)\.pdf$/, '/failed/$1.lp.json'),
+      // The sibling-document key shape comes from `docKeyFor` (bd-oak77.12) — this only moves it
+      // into `failed/`, so a refused document can never be mistaken for one the reuse path may
+      // re-render.
+      Serving.docKeyFor(segmentId, lang, templateVersion)
+        .replace(/\/([^/]+)\.lp\.json$/, '/failed/$1.lp.json'),
     );
     await uploadBuffer(Buffer.from(JSON.stringify(doc, null, 1), 'utf8'), key, 'application/json');
   } catch (err) {
@@ -618,6 +623,79 @@ async function process(payload) {
     }
   };
 
+  /**
+   * A TEMPLATE BUMP IS A RE-RENDER, NOT A RE-AUTHORING — bd-oak77.12.
+   *
+   * The R2 cache key leads with the template version, so moving `LP_612_TEMPLATE_VERSION` turns
+   * every already-cached lesson into a miss, and a miss lands here: the LLM writes the lesson
+   * again. That is minutes and dollars per segment for a document we already hold — this worker
+   * stores the exact `lp_doc` that made each PDF as `lp612/{tv}/{lang}/{segment}.lp.json`, beside
+   * the PDF, on every successful run.
+   *
+   * So before authoring anything, look for that document under the versions this renderer is known
+   * to accept (`previousTemplateVersions`, newest first) and, on the first hit, hand it back
+   * shaped exactly like an authoring result. Every downstream reader of `authored` is satisfied:
+   * `lpDoc` is the document, `model`/`rounds`/`lintClean`/`fails` exist rather than being absent,
+   * and `reusedFrom` is what lets the row and the telemetry NAME this as a reuse (rule 24(d)).
+   *
+   * `templateVersion` here is the PAYLOAD's — the version the row and the key are keyed on — not
+   * whatever the env happens to say when this line runs.
+   *
+   * Returns `null` when there is nothing to reuse, which is the ordinary case for a new segment.
+   */
+  const reuseFromPreviousVersion = async () => {
+    const tried = previousTemplateVersions(templateVersion);
+    // No fallback configured (the oldest version, an unknown one, or the explicit
+    // `LP_612_TEMPLATE_FALLBACK=` off switch). Nothing was attempted, so neither arm is reported —
+    // an event here would inflate the miss rate with runs that never looked.
+    if (!tried.length) return null;
+
+    const startedReuseAt = Date.now();
+    for (const prev of tried) {
+      const lpDoc = await Serving.readStoredDoc({
+        segmentId, lang, tv: prev, correlationId,
+      });
+      if (!lpDoc) continue;
+      logEvent('lp612.render.reused', {
+        renderId,
+        segmentId,
+        correlationId: correlationId || null,
+        lang,
+        fromVersion: prev,
+        toVersion: templateVersion,
+        elapsedMs: Date.now() - startedReuseAt,
+        llmCalls: 0,
+      });
+      logToFile('LP 6-12 worker: re-rendering a stored lesson for the new template version', {
+        renderId, segmentId, lang, fromVersion: prev, toVersion: templateVersion, correlationId,
+      });
+      return {
+        lpDoc,
+        // NOT the worker's resolved model: no model ran. The row writes `reused:<version>` and
+        // `null` here is what stops `authored.model || model` naming one that never was.
+        model: null,
+        rounds: 0,
+        lintClean: null,
+        fails: [],
+        reusedFrom: prev,
+      };
+    }
+
+    // Rule 24(b): a denominator that only exists when things go well is not a denominator. Without
+    // this the reuse RATE is unknowable — "how many bumped lessons did we actually save" needs the
+    // misses too, and a fleet-wide drop to zero hits (a key shape that moved, a permissions
+    // change) would otherwise look exactly like a healthy first-run corpus.
+    logEvent('lp612.render.reuse_miss', {
+      renderId,
+      segmentId,
+      correlationId: correlationId || null,
+      lang,
+      toVersion: templateVersion,
+      tried,
+    });
+    return null;
+  };
+
   try {
     const result = await withTimeout((async () => {
       tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'lp612-'));
@@ -696,7 +774,11 @@ async function process(payload) {
         ];
       };
 
-      const authored = await authorLessonPlan({
+      // bd-oak77.12. INSIDE the clock and OUTSIDE the spend: this is the first thing tried, and
+      // `authorLessonPlan` — the first line in this job that can reach an LLM — runs only when it
+      // comes back empty.
+      const reused = await reuseFromPreviousVersion();
+      const authored = reused || await authorLessonPlan({
         segment, lang, model, rounds: authorRounds(), correlationId, renderCheck,
         // bd-oak77.11. What a previous attempt already paid for, when there was one. `undefined`
         // when there was not, which is every first attempt and therefore the overwhelming majority
@@ -808,7 +890,14 @@ async function process(payload) {
     // `!overTime` (bd-0cdug): she has already waited past the author timeout. Spending another
     // ~150s translating is the wrong trade — she gets the English lesson and the honest caption
     // that exists for exactly this, and the row records BOTH facts.
-    if (lang === 'ur' && segment.language !== 'ur' && !overlayPassOff() && !overTime) {
+    // `!authored.reusedFrom` (bd-oak77.12): a REUSED Urdu document already carries its
+    // `ur_overlay` — the worker stores `deliveredDoc`, which for a landed pass IS the overlaid
+    // clone, so the pointers came down from R2 with the document. Translating it again would spend
+    // ~50s and a full call to reproduce something we already have, and could not reproduce it
+    // exactly: a second pass is a second generation, so the lesson a teacher has already been
+    // served would quietly change wording underneath her on a template bump.
+    if (lang === 'ur' && segment.language !== 'ur' && !overlayPassOff() && !overTime
+        && !authored.reusedFrom) {
       const passStartedAt = Date.now();
       let pointers = 0;
       let coverage = null;
@@ -896,7 +985,10 @@ async function process(payload) {
         // The document that MADE THIS PDF — the overlaid one when the Urdu pass landed. Keeping
         // the English original here would make every Urdu diagnosis start from the wrong file.
         Buffer.from(JSON.stringify(deliveredDoc, null, 1), 'utf8'),
-        Serving.assertKeyInPrefix(r2Key.replace(/\.pdf$/, '.lp.json')),
+        // ONE definition of the sibling key (bd-oak77.12). The reuse path READS this object on a
+        // later template version, so the writer and the reader must be incapable of disagreeing
+        // about where it lives.
+        Serving.assertKeyInPrefix(Serving.docKeyFor(segmentId, lang, templateVersion)),
         'application/json',
       );
     } catch (err) {
@@ -1058,12 +1150,19 @@ async function process(payload) {
       // recovered attempt would otherwise inherit `true`.
       over_time: overTime === true,
       page_count: rendered.pageCount ?? null,
-      model_used: authored.model || model,
-      rounds_used: authored.rounds ?? null,
-      lint_clean: authored.lintClean === true,
+      // bd-oak77.12. A REUSED RENDER IS NAMEABLE ON THE ROW, never indistinguishable from an
+      // authored one (rule 24(d)). No model ran and no ladder ran, so `model_used` records WHERE
+      // THE DOCUMENT CAME FROM — `reused:v9.1` — rather than the model this worker would have
+      // used, and the two lint columns stay NULL because "we did not look" is the truth here and
+      // is a different fact from `false`/`[]`, which mean "we looked and it was not clean".
+      model_used: authored.reusedFrom
+        ? `reused:${authored.reusedFrom}`
+        : (authored.model || model),
+      rounds_used: authored.reusedFrom ? 0 : (authored.rounds ?? null),
+      lint_clean: authored.reusedFrom ? null : (authored.lintClean === true),
       // Recorded even on a clean run (as []), so "was this ever gated?" is
       // answerable from the row rather than only from a log that rolls off.
-      lint_fails: authored.fails || [],
+      lint_fails: authored.reusedFrom ? null : (authored.fails || []),
       // The lesson on one phone screen, STORED and not merely sent. Every
       // teacher after the first is served entirely from this row, and without
       // it she would get the file with no summary while the first got both.

@@ -33,6 +33,11 @@ jest.mock('../../bot/shared/services/lp612-serving.service', () => {
   return {
     deliverRender: mockDeliverRender,
     r2KeyFor: (s, l, t) => `lp612/${t}/${l}/${s}.pdf`,
+    // The SIBLING-DOCUMENT key, real (bd-oak77.12). The worker stores the lp_doc beside the PDF
+    // and the reuse path reads it back on a later template version, so writer and reader share
+    // one definition — a double that invented its own shape here would let those two drift and
+    // the test would never notice.
+    docKeyFor: real.docKeyFor,
     assertKeyInPrefix: real.assertKeyInPrefix,
   };
 });
@@ -744,7 +749,13 @@ describe('the authored document is kept when the render REFUSES it', () => {
 describe('every write is guarded, not merely well-named', () => {
   test('a key outside lp612/ is refused rather than uploaded', async () => {
     const Serving = require('../../bot/shared/services/lp612-serving.service');
+    // TWO key builders since bd-oak77.12 — the PDF's and the sibling document's — and the guard
+    // has to cover BOTH. They are poisoned separately here precisely because in production
+    // `docKeyFor` derives from `r2KeyFor` inside the module: a spy on the export cannot reach it,
+    // so poisoning only the first would leave the second write unexercised and this test would
+    // certify a guard it never ran.
     const spy = jest.spyOn(Serving, 'r2KeyFor').mockReturnValue('pre_gen_lps/oops.pdf');
+    const docSpy = jest.spyOn(Serving, 'docKeyFor').mockReturnValue('pre_gen_lps/oops.lp.json');
     seed();
 
     const out = await Worker.process(JOB);
@@ -753,6 +764,7 @@ describe('every write is guarded, not merely well-named', () => {
     expect(out.status).toBe('failed');
     expect(mockUploadBuffer).not.toHaveBeenCalled();
     spy.mockRestore();
+    docSpy.mockRestore();
   });
 });
 

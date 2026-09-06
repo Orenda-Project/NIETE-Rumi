@@ -28,7 +28,47 @@ const LP612_MAX_GRADE = 12;
 /** The template the renderer is on. Part of the R2 cache key, so bumping it
  *  misses every cached render rather than serving stale layouts — and rolling
  *  back re-serves the old ones instantly, because nothing was deleted. */
-const DEFAULT_TEMPLATE_VERSION = 'v9.1';
+const DEFAULT_TEMPLATE_VERSION = 'v9.2';
+
+/**
+ * THE VERSIONS WHOSE STORED DOCUMENTS TODAY'S RENDERER IS KNOWN TO ACCEPT — newest first.
+ *
+ * This is the ONLY such list. A version bump misses every cached render (the version leads the R2
+ * key), and a miss used to mean the LLM writes the lesson again — minutes and dollars for a
+ * document we already have, because the worker stores the exact `lp_doc` that made each PDF as
+ * `lp612/{tv}/{lang}/{segment}.lp.json` beside it. `previousTemplateVersions` walks this list so a
+ * bump becomes a RE-RENDER.
+ *
+ * SO: A SCHEMA-BREAKING TEMPLATE CHANGE MUST DROP THE OLDER ENTRIES IN THE SAME COMMIT.
+ * Leaving a version here whose stored documents this renderer can no longer read does not fall
+ * back to authoring — it re-renders a document that no longer validates into a BROKEN lesson, and
+ * delivers it. That is strictly worse than the spend this list exists to avoid.
+ */
+const TEMPLATE_VERSION_LINEAGE = Object.freeze(['v9.2', 'v9.1']);
+
+/**
+ * Which older template versions' stored documents may be re-rendered for `tv`, newest first.
+ *
+ * `LP_612_TEMPLATE_FALLBACK` overrides the lineage EXACTLY — a comma list, trimmed, empties
+ * dropped, with `tv` itself removed so a typo cannot make a version its own ancestor. Setting it
+ * EMPTY (`LP_612_TEMPLATE_FALLBACK=`) is therefore the explicit OFF switch: reuse stops with one
+ * Railway variable and no deploy, which is what a template change that turns out to break older
+ * documents needs on a path a teacher is waiting on.
+ *
+ * An unknown `tv` with no override claims no ancestry rather than guessing one.
+ */
+function previousTemplateVersions(tv) {
+  const cur = String(tv == null ? '' : tv).trim();
+  const override = process.env.LP_612_TEMPLATE_FALLBACK;
+  if (override !== undefined) {
+    return String(override)
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s && s !== cur);
+  }
+  const i = TEMPLATE_VERSION_LINEAGE.indexOf(cur);
+  return i < 0 ? [] : TEMPLATE_VERSION_LINEAGE.slice(i + 1);
+}
 
 /** The operator has not locked the serving model. The flip must be an env
  *  change with no deploy, so nothing anywhere may hardcode a model id. */
@@ -385,6 +425,8 @@ module.exports = {
   isLp612TargetedRevisionEnabled,
   isReligiousEnabled,
   templateVersion,
+  previousTemplateVersions,
+  TEMPLATE_VERSION_LINEAGE,
   resolveAuthorModel,
   authorTierFor,
   AUTHOR_TIERS,

@@ -19,7 +19,7 @@ const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
 
-const { buildHtml } = require("./lib/template");
+const { buildHtml, scaledPx } = require("./lib/template");
 const { applyOverlay } = require("./lib/overlay");
 const { validateDoc } = require("./lib/validate");
 const { REPO_ROOT } = require("./lib/fonts");
@@ -64,8 +64,18 @@ const A4 = { w: 794, h: 1123 };
 // never sees a page count on round 0. Whether the distribution refills to the new cap is the
 // open question, and it is now measurable: `over_cap` on niete_lp612_renders and the
 // `lp612.deliver.over_cap` event carry the pages and the caps they were measured against.
-const MAX_PAGES = { teach: 6, support: 4 };     // above this: FAIL
-const WARN_PAGES = { teach: 5, support: 3 };    // above this: WARN, and keep going
+//
+// Revised again 2026-09-06 (07_font, operator: "increase the font ... it's very small, and
+// it's very hard to read"). The body went 18px -> 21px and every other size with it — 21 being
+// the number `bot/shared/templates/niete-brand.js` already declares as THE type floor for every
+// teacher-facing artefact — which costs about a third more paper over the 62-document corpus. The caps
+// move WITH the type for the reason the 2026-09-01 note already gives — a deliberate font
+// increase is not bloat — and by how much is measured, not chosen: at the new type the OLD caps
+// flag 53 of 62 documents, which is not a gate, it is noise. EN teach 6->7 / support 4->6 and
+// UR teach 7->9 / support 6->7 is the TIGHTEST candidate that holds the flag rate at 2/62,
+// against 1/62 at the old type. Numbers and the arm-by-arm table: 07_font/OPTIONS.md.
+const MAX_PAGES = { teach: 7, support: 6 };     // above this: FAIL
+const WARN_PAGES = { teach: 6, support: 5 };    // above this: WARN, and keep going
 
 // PAGE CAPS ARE LANGUAGE-AWARE; WORD BUDGETS ARE NOT (operator, 2026-09-03).
 //
@@ -91,8 +101,8 @@ const WARN_PAGES = { teach: 5, support: 3 };    // above this: WARN, and keep go
 // the derivation was a prediction, these are the measured overflows, and the measurement wins.
 // The n=4 "raise-and-refill" datum for Urdu is too thin to settle whether 7 is still short —
 // that is what the post-40-lesson re-measure is for.
-const MAX_PAGES_UR = { teach: 7, support: 6 };
-const WARN_PAGES_UR = { teach: 6, support: 5 };
+const MAX_PAGES_UR = { teach: 9, support: 7 };
+const WARN_PAGES_UR = { teach: 8, support: 6 };
 
 /** The caps for one render, by the language actually being laid out. */
 function pageCapsFor(lang) {
@@ -208,11 +218,17 @@ const ABSORB = `(plan) => {
 }`;
 
 // THE TYPE FLOORS, in one place. D4 was 16.5/13; the operator moved it to 18/14 on 2026-09-01
-// because 16.5 still did not read on a phone. The DIAGRAM label floor is NOT here — it is
-// 13.5px and it belongs to the diagram engine (diagrams/lib/svg.js), which sizes labels
-// against the figure's own column, not against the page's body scale.
-const BODY_FLOOR_PX = 18;
-const CHIP_FLOOR_PX = 14;
+// because 16.5 still did not read on a phone, and to 15.5pt (20.667px) on 2026-09-06 because it
+// still did not — see prod_golive_2026-09-06/07_font/READABILITY.md for the measurement. The
+// DIAGRAM label floor is NOT here — it belongs to the diagram engine (diagrams/lib/svg.js),
+// which sizes labels against the figure's own column, not against the page's body scale.
+//
+// DERIVED, never a literal. A floor written as a number stops meaning anything the moment the
+// scale moves — it passes trivially and stops catching the regression it exists for. And it is
+// computed with the template's OWN `scaledPx`, because a floor of 20.67 against a computed
+// 20.667 fails every render on a rounding artefact.
+const BODY_FLOOR_PX = scaledPx(18);
+const CHIP_FLOOR_PX = scaledPx(14);
 // VENDOR DIVERGENCE (see SYNC.md, "chromium channel"): upstream hardcoded the macOS Chrome
 // bundle path for the no-playwright fallback. On Railway that path does not exist, so the
 // binary is now overridable and defaults per-platform. This fallback has no overflow probe
