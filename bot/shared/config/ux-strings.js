@@ -865,6 +865,14 @@ const UX_STRINGS = {
     en: '👋 Assalam o Alaikum!\n\n*{teacher}* has sent you a quiz on *{topic}*.',
     ur: '\u200F👋 السلام علیکم!\n\n*{teacher}* نے آپ کو *{topic}* پر quiz بھیجا ہے۔',
   },
+  // PLAN_R5 §1 D8 — a teacher opening her own class link (a self-test),
+  // not a child. Chat body, no code-point cap. "test run" stays in Latin
+  // letters in the Urdu line (an English technical term, no established
+  // Urdu equivalent in this catalog).
+  vqSelfTestStart: {
+    en: 'This is your own test run — it won’t show up in your class report. Here goes!',
+    ur: '\u200Fیہ آپ کا اپنا test run ہے — یہ آپ کی کلاس رپورٹ میں شامل نہیں ہوگا۔ چلیں شروع کریں!',
+  },
   vqWelcomeBack: {
     en: 'Good to see you again, {name} — let’s begin!',
     ur: '\u200F{name}، آپ کو دوبارہ دیکھ کر خوشی ہوئی — چلیں شروع کریں!',
@@ -1211,6 +1219,31 @@ const TRANSCRIPT_QUIZ_R2_STRINGS = {
 };
 
 Object.assign(UX_STRINGS, TRANSCRIPT_QUIZ_R2_STRINGS);
+
+/**
+ * bd-mg9c7.64 — the student tutor persona (a child who reaches the bot outside
+ * a quiz session, e.g. via a forwarded share link). Two strings, both with a
+ * real call site in `_getStudentTutorPrompt` (openai.service.js): the redirect
+ * line is copy the child can actually read, so it lives in the catalog like
+ * any other teacher/child-facing string rather than being typed inline.
+ */
+const STUDENT_TUTOR_STRINGS = {
+  // The model-failure apology, child-shaped. Not a button/header, so no
+  // code-point cap applies, but kept short on purpose.
+  studentChatError: {
+    en: 'Oops, something went wrong on my end. Please try asking again!',
+    ur: 'معذرت، کچھ گڑبڑ ہو گئی۔ براہِ کرم دوبارہ پوچھیں!',
+  },
+  // The exact sentence the student prompt tells the model to use when a
+  // message drifts off schoolwork — deliberately "a grown-up", not an
+  // enumerated list, so it never has to name a teacher.
+  studentOffTopicHint: {
+    en: "Let's stay with your schoolwork — for anything else, ask a grown-up.",
+    ur: 'آئیں سکول کے کام پر توجہ رکھیں — کسی اور بات کے لیے کسی بڑے سے پوچھیں۔',
+  },
+};
+
+Object.assign(UX_STRINGS, STUDENT_TUTOR_STRINGS);
 
 /**
  * Grade and subject display labels, keyed by the canonical codes in the
