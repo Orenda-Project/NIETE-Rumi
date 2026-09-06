@@ -125,6 +125,12 @@ async function sendOffer({ userId, phone, video, quiz, language, deliveryId }) {
       .eq('id', deliveryId);
   }
   logEvent('video_quiz.offered', { userId, videoId: video.id, quizId: quiz.id });
+  // Sibling of the offer_answered already logged in
+  // handleOfferButton, so one query answers the whole quiz-offer funnel.
+  // sessionId is null here: no session exists until the offer is accepted.
+  logEvent('video_quiz.offer_shown', {
+    kind: 'quiz', sessionId: null, quizId: quiz.id, source: 'video_solo', language,
+  });
 }
 
 /**
@@ -239,8 +245,10 @@ async function handleOfferButton(buttonId, phone) {
       quiz_responded_at: new Date().toISOString(),
     }).eq('id', offer.deliveryId);
   }
+  // choice is a stable token, never the button title.
+  const choice = shared ? 'share' : (accepted ? 'yes' : 'no');
   logEvent('video_quiz.offer_answered', {
-    userId: offer.userId, quizId: offer.quizId, accepted, shared,
+    userId: offer.userId, quizId: offer.quizId, accepted, shared, kind: 'quiz', choice,
   });
 
   if (shared) {
@@ -508,10 +516,21 @@ async function sendNextQuestion(phone, state) {
   return null;
 }
 
+/** 'card' | 'image' | 'none' — what the question showed alongside the text. */
+function mediaKind(q) {
+  const media = (q && q.media) || {};
+  if (media.question_card) return 'card';
+  if (media.question_image) return 'image';
+  return 'none';
+}
+
 /**
  * Grade a tap and move on. Returns true if the input belonged to a video quiz.
  */
 async function handleAnswer(phone, inputId) {
+  // The child's tap is what needs measuring, so the clock starts on the
+  // FIRST line, before the render parse — not on our own bookkeeping.
+  const answerStart = Date.now();
   const parsed = render.parseAnswer(inputId);
   if (!parsed) return false;
   const state = await redisService.get(STATE_KEY(phone));
@@ -560,7 +579,9 @@ async function handleAnswer(phone, inputId) {
     // recorded and the process died before the state advanced (a deploy landed
     // mid-quiz on staging: all eight answers stored, the session stuck at 5/8,
     // every later tap swallowed here). Rebuild the state from the answers table
-    // and carry on — the next question, or the finish.
+    // and carry on — the next question, or the finish. This tap never
+    // delivered a verdict, so it gets no answer_latency — one would
+    // misrepresent a re-tap or a resumed process as a normal graded answer.
     return reconcileFromAnswers(phone, state);
   }
   if (aErr) logToFile('⚠️ video-quiz: answer insert failed', { error: aErr.message });
@@ -575,6 +596,7 @@ async function handleAnswer(phone, inputId) {
     questionId: q.id, sessionId: state.sessionId, language: state.language,
     isCorrect, selectedIndex: parsed.index,
   });
+  const msToFeedback = Date.now() - answerStart;
 
   // The columns come from the table this call has just written to, never from
   // the counters carried in `state` — see writeCountersFromAnswers. `state` then
@@ -587,8 +609,15 @@ async function handleAnswer(phone, inputId) {
   state.currentQuestionId = null;
   await saveState(phone, state, 'handleAnswer');
 
-  await new Promise((r) => setTimeout(r, 1200));
+  const finished = state.index >= state.questionIds.length;
+  const msPause = 1200;
+  await new Promise((r) => setTimeout(r, msPause));
   await sendNextQuestion(phone, state);
+  logEvent('video_quiz.answer_latency', {
+    sessionId: state.sessionId, questionId: q.id, isCorrect,
+    msToFeedback, msToNextQuestion: Date.now() - answerStart, msPause,
+    media: mediaKind(q), finished,
+  });
   return true;
 }
 
@@ -775,6 +804,10 @@ async function finish(phone, state) {
       correct: state.correct, total, pct, tier: ux(tierKey, state.language),
     }));
   }
+  logEvent('video_quiz.scorecard_sent', {
+    sessionId: state.sessionId, quizId: state.quizId,
+    ok: !!sentScorecard, fallback: !sentScorecard, pct, language: state.language,
+  });
 
   logEvent('video_quiz.completed', {
     sessionId: state.sessionId, quizId: state.quizId, total,
@@ -805,7 +838,7 @@ async function finish(phone, state) {
     }
     await Invite.offerInvite({
       phone, studentId: state.studentId, shareCodeId: state.shareCodeId,
-      language: state.language,
+      language: state.language, sessionId: state.sessionId, quizId: state.quizId,
     }).catch((err) => logToFile('⚠️ invite offer failed', { error: err.message }));
   }
 
@@ -815,7 +848,7 @@ async function finish(phone, state) {
     const share = require('./video-quiz-share.service');
     await share.offerShare({
       phone, userId: state.userId, quizId: state.quizId,
-      videoId: state.videoId, language: state.language,
+      videoId: state.videoId, language: state.language, sessionId: state.sessionId,
     }).catch((err) => logToFile('⚠️ share offer failed', { error: err.message }));
 
     const StudentVideoFeedback = require('../student-video-feedback.service');
@@ -870,6 +903,7 @@ module.exports = {
   handleAnswer,
   startSession,
   orderForSession,
+  finish,
   sweepIgnoredOffers,
   sendNextQuestion,
   writeCountersFromAnswers,

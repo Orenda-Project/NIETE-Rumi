@@ -434,6 +434,19 @@ app.get('/webhook', (req, res) => {
  * Webhook endpoint to receive messages (POST)
  */
 app.post('/webhook', async (req, res) => {
+  // ACK. Measured on staging 2026-09-06: a child's join-Flow reply got no HTTP
+  // response at all — still open after 180 s — while her session had been
+  // created one second in and three messages had already gone to her phone.
+  // The cause was structural, not local: roughly twenty branches of this
+  // handler end in a bare `return`, and a `return` here leaves the route
+  // without answering Meta. Meta re-delivers what it was not acked for; the
+  // message-id dedupe above stops that becoming duplicate work, but a webhook
+  // endpoint that habitually fails to answer is one Meta will stop trusting.
+  //
+  // So the ack is sent ONCE, as soon as the message is accepted, and every
+  // later send goes through this helper — `headersSent` makes it idempotent,
+  // which is what lets the pre-existing acks stay exactly where they are.
+  const ack = () => { if (!res.headersSent) res.status(200).send('EVENT_RECEIVED'); };
   // Generate correlation ID for tracing this request across all logs
   const correlationId = generateCorrelationId();
 
@@ -481,7 +494,7 @@ app.post('/webhook', async (req, res) => {
           events: callEvents.calls.map((c) => `${c.event || '?'}:${c.id}`),
         });
         void forwardCallEvents(callEvents);
-        res.status(200).send('EVENT_RECEIVED');
+        ack();
         return;
       }
 
@@ -490,7 +503,7 @@ app.post('/webhook', async (req, res) => {
       const statusValidation = validators.validateWebhookStatus(req);
       if (statusValidation) {
         await handleBroadcastStatusWebhook(statusValidation.statuses);
-        res.status(200).send('EVENT_RECEIVED');
+        ack();
         return;
       }
 
@@ -498,7 +511,7 @@ app.post('/webhook', async (req, res) => {
       const validation = validators.validateWebhookMessage(req);
 
     if (!validation) {
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
@@ -506,13 +519,13 @@ app.post('/webhook', async (req, res) => {
 
     // Skip webhooks for other phone numbers (prevents cross-WABA processing)
     if (!validators.isOurPhoneNumber(phoneNumberId)) {
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
     // Skip test webhooks
     if (validators.isTestWebhook(entry)) {
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
@@ -528,13 +541,13 @@ app.post('/webhook', async (req, res) => {
 
     // Skip test phone numbers
     if (validators.isTestPhoneNumber(from)) {
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
     // Check message timestamp (24-hour window)
     if (!validators.isWithin24Hours(messageTimestamp, from)) {
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
@@ -557,7 +570,7 @@ app.post('/webhook', async (req, res) => {
           logToFile('nudge send failed', { error: e.message });
         }
       }
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
@@ -569,12 +582,18 @@ app.post('/webhook', async (req, res) => {
         from,
         timestamp: messageTimestamp
       });
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
     // Mark as processed
     await SessionService.markAsProcessed(message.id);
+
+    // Answered here, before any handler runs: from this point on every branch
+    // is allowed to `return` without thinking about the response, and a slow
+    // handler (a quiz start is ~6 paced sends) can no longer hold the socket
+    // open past Meta's patience.
+    ack();
 
     logToFile('✅ Message accepted for processing', {
       messageId: message.id,
@@ -1903,7 +1922,7 @@ app.post('/webhook', async (req, res) => {
       if (listId.startsWith('tq_pick_') || listId.startsWith('tq_page_')) {
         const TranscriptQuizList = require('./shared/services/quiz/transcript-quiz-list.service');
         await TranscriptQuizList.handleListPick(listId, from, user);
-        res.status(200).send('EVENT_RECEIVED');
+        ack();
         return;
       }
 
@@ -2279,13 +2298,13 @@ app.post('/webhook', async (req, res) => {
     }
 
     // Always respond with 200 OK to acknowledge receipt
-    res.status(200).send('EVENT_RECEIVED');
+    ack();
   } catch (error) {
     logToFile('❌ Error processing webhook', {
       error: error.message,
       stack: error.stack
     });
-    res.status(200).send('EVENT_RECEIVED'); // Still send 200 to avoid retries
+    ack(); // Still send 200 to avoid retries
   }
   }); // End of runWithCorrelation
 });

@@ -23,6 +23,7 @@
 
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
+const { logEvent } = require('../../utils/structured-logger');
 const render = require('./video-quiz-render.service');
 // Every send in this file spends the recipient's Meta per-pair budget, so
 // every send waits on the proactive throttle first (the per-recipient rule; this
@@ -90,9 +91,30 @@ function listRows(options, ctx, optionIndices, letterTitles = false) {
  * @returns {Promise<{sent:number, failed:number}>}
  */
 async function sendPhase(phone, msgs, phase, ctx = {}) {
+  // A prior review round closed this phase's latency at "slow from the
+  // driver's side" with no way to say where the time actually went. `ms`
+  // decomposes into where the time actually went:
+  // `msSending` (the WhatsApp calls themselves), `msThrottled` (waiting on
+  // rateLimiter.throttle), `msGaps` (our own deliberate GAP_TEXT_MS/
+  // GAP_MEDIA_MS pacing below) — so a slow phase can be pinned on Meta, our
+  // throttle, or our own pacing instead of guessed at.
+  const phaseStart = Date.now();
   let sent = 0;
   let failed = 0;
   let lastMessageId = null;
+  let messages = 0;
+  let msSending = 0;
+  let msThrottled = 0;
+  let msGaps = 0;
+  const kinds = [];
+
+  const emitPhaseSent = (pickerFailed) => {
+    logEvent('video_quiz.phase_sent', {
+      phase, sessionId: ctx.sessionId, questionId: ctx.questionId,
+      messages, sent, failed, pickerFailed,
+      ms: Date.now() - phaseStart, msSending, msThrottled, msGaps, kinds,
+    });
+  };
 
   for (const m of msgs.filter((x) => x.phase === phase)) {
     // The ANSWER phase carries the correct branch plus one branch per wrong
@@ -104,10 +126,16 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
         if (m.optionIndex !== undefined && m.optionIndex !== ctx.selectedIndex) continue;
       }
     }
+    messages += 1;
+    kinds.push(m.kind);
 
     let ok = false;
     try {
+      const throttleStart = Date.now();
       await rateLimiter.throttle(phone);
+      msThrottled += Date.now() - throttleStart;
+
+      const sendStart = Date.now();
       switch (m.kind) {
         case 'text': {
           if (m.anchoredToPrevious && lastMessageId) {
@@ -152,6 +180,7 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
         default:
           logToFile('⚠️ video-quiz: unknown message kind', { kind: m.kind });
       }
+      msSending += Date.now() - sendStart;
     } catch (err) {
       logToFile('❌ video-quiz send threw', {
         phone: phone.slice(-4), role: m.role, kind: m.kind, error: err.message,
@@ -169,11 +198,15 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
       // A dropped clip degrades the question; a dropped PICKER strands the
       // child with nothing to tap. Only the latter aborts the phase.
       if (m.role === 'ask' || m.role === 'picture_flow') {
+        emitPhaseSent(true);
         return { sent, failed, pickerFailed: true };
       }
     }
+    const gapStart = Date.now();
     await sleep(m.kind === 'text' ? GAP_TEXT_MS : GAP_MEDIA_MS);
+    msGaps += Date.now() - gapStart;
   }
+  emitPhaseSent(false);
   return { sent, failed, pickerFailed: false };
 }
 
