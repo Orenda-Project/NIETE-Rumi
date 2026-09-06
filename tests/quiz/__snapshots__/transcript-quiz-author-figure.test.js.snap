@@ -100,5 +100,62 @@ exports[`round 4 — the roster the author reads is the engine manifest, limits 
   limits:
     · A SMILES that will not parse degrades to the formula card; it never throws.
     · ionic:true (or a known ionic formula) draws the lattice instead of a structure -- NaCl is not a molecule and the drawing says so.
-    · Give \`formula\` and \`name\` as well as \`smiles\`: the formula is what the pupil is examined on."
+    · Give \`formula\` and \`name\` as well as \`smiles\`: the formula is what the pupil is examined on.
+- word_blank — A pictogram of a thing beside (or above) its word with one or more letters hidden — phonics, spelling, missing-letter.
+  required: word, blanks
+  minimal: {"type":"word_blank","word":"cat","blanks":[1],"picto":"cat"}
+  limits:
+    · \`blanks\` are 0-based indices into the LETTERS of the word; at least one, never all of them.
+    · An URDU word is always drawn as letter TILES, whatever \`style\` says: Nastaliq joins, so printing the word with an underscore in it reshapes the letters either side and shows the child a word that is not the word.
+    · A combining mark (زبر زیر پیش, U+064B-U+0652) belongs to the letter before it and is never a letter of its own; pass \`letters\` explicitly for a Latin digraph you want treated as one sound ("sh", "ch").
+    · \`picto\` must be a name in the vendored pictogram set (assets/pictograms/index.json) — an unknown name throws with the roster attached, it never draws a blank box.
+    · The missing letter is never printed anywhere: the blank tile is empty and the inline blank is "_".
+- count_objects — N pictograms of one thing, two or more rows to compare, or equal rings for grouping — counting, comparing, sharing.
+  required: picto, count
+  minimal: {"type":"count_objects","picto":"apple","count":7}
+  limits:
+    · \`rows\` ([{picto,count,label}]) overrides \`picto\`/\`count\` and is the compare mode; a row's \`label\` is its NAME, never its count.
+    · \`group\` rings equal lots and applies to a single-row spec only — 12 with group 4 draws three rings of four.
+    · No count, total or legend is ever drawn: the child counts. At most 30 things.
+    · An Urdu row is laid out right-to-left with its name on the right.
+- count_frame — A ten-frame with counters, or tally gates of five — the two ways a quantity is written before the numeral.
+  required: count
+  minimal: {"type":"count_frame","count":7}
+  limits:
+    · \`model\` is "ten_frame" (default) or "tally". A count over 10 draws a second ten-frame; the cap is 20.
+    · The count is never printed — that is the question.
+- clock — An analogue clock face with correctly-geared hour and minute hands — telling the time.
+  required: time
+  minimal: {"type":"clock","time":"3:30"}
+  limits:
+    · \`time\` is "h:mm" (24h is folded onto the 12h dial). The hour hand is drawn at (h + m/60) x 30 degrees, so at 3:30 it is HALFWAY between 3 and 4.
+    · \`digital\` is off by default and prints the time under the face — turning it on writes the answer on the picture.
+    · Numerals are LATIN digits in both languages: numerals and units read left-to-right even in an Urdu figure.
+- pattern — A repeating sequence of shapes, pictograms or numerals with one slot left blank — what comes next.
+  required: items
+  minimal: {"type":"pattern","items":["circle","square","circle","square","?"]}
+  limits:
+    · An item is a STRING ("?" for the blank, else a shape name, else a pictogram name, else short text) or an OBJECT ({blank:true} | {picto} | {shape,color} | {text,color}).
+    · The shapes are exactly circle, square, triangle, star. 3 to 9 items, at least one blank and not all of them.
+    · An Urdu sequence is laid out right-to-left.
+- match — Two columns of pictures or words, lettered A/B/C and numbered 1/2/3, with no lines drawn — the child picks the pair.
+  required: left, right
+  minimal: {"type":"match","left":[{"picto":"cat"},{"picto":"dog"}],"right":[{"text":"dog"},{"text":"cat"}]}
+  limits:
+    · NOTHING is joined: the handles are on the drawing and the OPTIONS carry the candidate pairs ("A-2"), which is the legal labelled case under the leak rule.
+- money — Coins as labelled discs and notes as labelled rectangles — identifying, adding and swapping money.
+  required: items
+  minimal: {"type":"money","items":[{"value":10,"kind":"coin"},{"value":5,"kind":"coin","count":2}]}
+  limits:
+    · \`currency\` is the symbol written beside each value (default "Rs") — never a hardcoded country.
+    · The value IS printed on each piece, as it is on the real thing. A question whose answer is one piece's value is therefore a leak and will be rejected; the questions this type earns are the total, the number of pieces, and the swap.
+    · A piece is {value, kind:"coin"|"note", count}. At most 12 pieces.
+- compare_size — Bars of different length or height, or a balance scale with things on its pans — longer/shorter, taller/shorter, heavier/lighter.
+  required: model
+  minimal: {"type":"compare_size","model":"length","items":[{"label":"A","size":5},{"label":"B","size":3}]}
+  limits:
+    · \`model\` is "length" (horizontal bars), "height" (vertical bars) or "balance" (a scale, with \`left\`/\`right\` each {picto,count} or {size}).
+    · \`size\` is a RELATIVE quantity and is NEVER printed — the moment a bar says "12 cm" the child reads instead of comparing.
+    · 2 or 3 items, and they may not all be the same size. The balance tilts from the pan LOADS, never from an author's tilt, and refuses two equal pans unless allowEqual is set.
+    · Bars are one colour unless an item names one (ink | accent | leaf | cool | warn | plum | clay): a cycling palette once drew a navy bar labelled "سرخ ربن" (red ribbon)."
 `;

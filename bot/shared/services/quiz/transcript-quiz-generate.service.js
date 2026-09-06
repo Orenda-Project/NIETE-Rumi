@@ -33,6 +33,22 @@ const MAX_ATTEMPTS = 2;
 const DRAWABLE_SUBJECTS = new Set(['maths', 'science', 'genk']);
 
 /**
+ * A grade 1-5 lesson is drawable in EVERY subject (round 5). Until round 5
+ * the drawable roster was the 6-12 one, so a language lesson genuinely had
+ * nothing to draw with and this gate correctly let it pass without a picture.
+ * The early-years types changed that: `word_blank` and `match` are language
+ * types before they are anything else, and across the ICT K-5 segmentation they
+ * serve 257 and 360 segments respectively — nearly all of them English or Urdu
+ * periods (the option-space study).
+ */
+function isEarlyYearsBand(gradeBand) {
+  const g = String(gradeBand || '').toLowerCase();
+  if (/\b(kg|k|prep|nursery|ecce|katchi)\b/.test(g)) return true;
+  const nums = (g.match(/\d+/g) || []).map(Number);
+  return nums.length > 0 && nums.every((n) => n <= 5);
+}
+
+/**
  * "Write at least ONE picture question" was advisory: the first live science
  * lesson of round 4 (Structure of an Atom — the class was asked to draw atoms)
  * came back as eight text questions and nothing sent it back. A drawable
@@ -40,12 +56,19 @@ const DRAWABLE_SUBJECTS = new Set(['maths', 'science', 'genk']);
  * reason in the retry note; the last attempt is never failed for it — a quiz
  * without a picture beats no quiz.
  */
-function figureRequiredError({ questions, subject, attempt, maxAttempts }) {
-  if (!DRAWABLE_SUBJECTS.has(String(subject || '').toLowerCase())) return null;
+function figureRequiredError({ questions, subject, attempt, maxAttempts, gradeBand }) {
+  const early = isEarlyYearsBand(gradeBand);
+  if (!early && !DRAWABLE_SUBJECTS.has(String(subject || '').toLowerCase())) return null;
   if (attempt >= maxAttempts) return null;
   const drawn = (Array.isArray(questions) ? questions : []).some((q) => q && q.figure && typeof q.figure === 'object');
   if (drawn) return null;
-  return `quiz: FIGURE_REQUIRED — this ${subject} lesson is drawable but none of the questions carries a "figure". Decide the drawing FIRST (what the class was shown or asked to draw), then write one or two questions the child answers by reading the picture.`;
+  const why = early
+    ? `this is a grade 1-5 lesson (${subject || 'language'}) and every subject is drawable at that age`
+    : `this ${subject} lesson is drawable`;
+  const how = early
+    ? 'Decide the drawing FIRST — the thing the class counted, the word they sounded out, the clock they read, the pattern they continued — then write one or two questions the child answers by reading the picture.'
+    : 'Decide the drawing FIRST (what the class was shown or asked to draw), then write one or two questions the child answers by reading the picture.';
+  return `quiz: FIGURE_REQUIRED — ${why} but none of the questions carries a "figure". ${how}`;
 }
 const GAP_MS = 1200;
 const NUDGE_AFTER_MS = 3 * 60 * 60 * 1000;
@@ -427,7 +450,10 @@ async function process(quizId, payload = {}) {
       attempts.push({ attempt, model: out.model, cost_usd: out.costUsd, latency_ms: out.latencyMs, errors: v.errors });
       meta.cost_usd = (meta.cost_usd || 0) + (out.costUsd || 0);
       if (v.ok) {
-        const needFig = figureRequiredError({ questions: v.questions, subject: digest.subject, attempt, maxAttempts: MAX_ATTEMPTS });
+        const needFig = figureRequiredError({
+          questions: v.questions, subject: digest.subject, attempt, maxAttempts: MAX_ATTEMPTS,
+          gradeBand: digest.grade_band || meta.grade,
+        });
         if (needFig) {
           attempts[attempts.length - 1].errors = [needFig];
           logToFile('⚠️ transcript quiz: drawable lesson came back without a picture', { quizId, attempt });
@@ -527,6 +553,7 @@ async function process(quizId, payload = {}) {
 module.exports = {
   salvageWithoutBadFigures,
   figureRequiredError,
+  isEarlyYearsBand,
   process, toRows, stampDisplayOrder, renderFigures, renderCards, applyMedia, withFigureSvgs, studentMessage, teacherLabel, renderPdf, pdfFilename,
   sleep, N_QUESTIONS, MAX_ATTEMPTS, NUDGE_AFTER_MS,
 };
