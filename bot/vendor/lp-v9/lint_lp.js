@@ -46,7 +46,7 @@
 const fs = require("fs");
 const path = require("path");
 const { validateDoc } = require("./lib/validate");
-const { frozenReason } = require("./lib/overlay");
+const { frozenReason, MACHINE_KEYS } = require("./lib/overlay");
 const { wordCount, chemPlusDefects, fixChemPlus } = require("./lib/rich");
 const { buildHtml } = require("./lib/template");
 const { textNodes } = require("./lib/domtext");
@@ -1708,6 +1708,12 @@ const OVERLAY_SKIP_KEYS = new Set([
   "slo_code", "code", "url", "channel", "checked_at", "duration", "medium", "language",
   "version", "brand", "name", "color", "colour", "fill", "stroke", "font", "align", "anchor",
   "at", "sec", "sequence_id", "segment_id",
+  // bd-oak77.23 — the fields the renderer PARSES rather than prints (tex, smiles, equation,
+  // formula), READ FROM lib/overlay.js rather than retyped. They belong here as well as in
+  // `frozenReason` because this set also short-circuits the object walk below, and because a
+  // second HAND-WRITTEN copy is exactly what let `spec.formula` through: `overlayTargets`
+  // consulted this list, `applyOverlay` consulted that one, and neither carried these keys.
+  ...MACHINE_KEYS,
 ]);
 /** Subtrees that are citation metadata or a third party's own text, not our instructions. */
 const OVERLAY_SKIP_ROOTS = ["/provenance", "/video", "/revisions", "/ur_overlay"];
