@@ -569,13 +569,17 @@ p, li, figcaption,
 
 // ── geometry the figure sizer needs ─────────────────────────────────────────
 // .pad is padded 22px each side inside a 794px page; figure.dg adds 10px padding either
-// side plus a 1.5px border. So a full-width diagram's own drawing box is 727px.
+// side plus a 1.5px border. So a full-width diagram's own drawing box is 729px — the number the
+// production defect string quotes ("13.25px in a 729px column", 2026-09-06). This comment said 727
+// for as long as the constant existed, and lint_lp.js believed it and recomputed the box from 22px
+// of page padding instead of 21, so the two legibility gates were 2px apart. There is now ONE
+// definition and both read it (bd-oak77.14).
 const PAGE_INNER_W = 794 - 21 * 2;      // 752
 /* The flat height clamp on a raster book crop. See the note above `figure.dg img`. */
 const CROP_MAX_H = 320;
 
 const FIG_CHROME = 10 * 2 + 3;          // figure.dg padding + border
-const FULL_COL = PAGE_INNER_W - FIG_CHROME;  // 727
+const FULL_COL = PAGE_INNER_W - FIG_CHROME;  // 729
 const SPLIT_GAP = 9;
 const DIAGRAM_MIN_PX = 13.5;            // the legibility floor inside a figure
 /**
@@ -1712,4 +1716,9 @@ ${paginate("support", support.atoms, breaks.support || [], ctx, doc, secIndex, t
   };
 }
 
-module.exports = { buildHtml, SECTION_META, PAGE_CONTENT_H, SPACING, DIAGRAM_LABELS, diagramLabel };
+module.exports = {
+  buildHtml, SECTION_META, PAGE_CONTENT_H, SPACING, DIAGRAM_LABELS, diagramLabel,
+  // The full-width drawing box and the legibility floor, exported so lint_lp.js can ASK rather
+  // than restate. It restated them and drifted (bd-oak77.14).
+  FULL_COL, DIAGRAM_MIN_PX, FIG_GROW_MAX,
+};
