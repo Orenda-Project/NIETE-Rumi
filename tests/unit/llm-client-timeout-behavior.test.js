@@ -139,20 +139,6 @@ describe('bd-v60qf — llm-client hung-call behaviour (real SDK, mocked fetch bo
     expect(hanging.fetchSpy).toHaveBeenCalled();
   });
 
-  test('getClientForModel() (anthropic-direct lane): a hung call also rejects inside the configured budget', async () => {
-    const hanging = installHangingFetch();
-    restoreFetch = hanging.restore;
-    const { mod, OpenAI } = freshModule({ LLM_REQUEST_TIMEOUT_MS: '300' });
-
-    const { client, model } = mod.getClientForModel(`${mod.ANTHROPIC_DIRECT_PREFIX}claude-sonnet-5`);
-    const start = Date.now();
-    await expect(
-      client.chat.completions.create({ model, messages: [{ role: 'user', content: 'hi' }] })
-    ).rejects.toBeInstanceOf(OpenAI.APIConnectionTimeoutError);
-    // See the timing comment in the previous test — maxRetries:1 doubles the wait.
-    expect(Date.now() - start).toBeLessThan(5000);
-  });
-
   test('without an env override, the real client still carries the 180000ms default (not the SDK 600000ms default) and rejects well under 1s at a shrunk fetch delay', async () => {
     // No LLM_REQUEST_TIMEOUT_MS override — proves the DEFAULT (not just the
     // override path) is wired. We can't wait out a real 180s in a unit test,
@@ -164,4 +150,9 @@ describe('bd-v60qf — llm-client hung-call behaviour (real SDK, mocked fetch bo
     expect(client.timeout).toBe(180000);
     expect(client.maxRetries).toBe(1);
   });
+  // REMOVED FOR THIS EXTRACTION: the `anthropic-direct/` lane (bd-yoc6i) is on develop
+  // only — this vehicle takes llm-client's timeout/retry budget and leaves that lane
+  // behind, so `getClientForModel` does not exist here and a test of it would assert
+  // a module this branch has no reason to carry. The OpenRouter and direct-OpenAI
+  // cases above cover every client this branch actually builds.
 });

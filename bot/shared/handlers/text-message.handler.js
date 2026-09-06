@@ -29,8 +29,12 @@ const ChildFlowToken = require('../services/quiz/child-flow-token'); // bd-2475 
 // pattern); the existing /video block below still keeps its own local
 // process.env read (pre-existing NIETE code, untouched by this port).
 const { STUDENT_VIDEOS_FLOW_ID } = require('../utils/constants');
-const { logToFile } = require('../utils/logger');
+const { logToFile, logError } = require('../utils/logger');
+const { isRegistered } = require('../utils/registration-status');
 const { matchDetail: matchLessonPlanIntent } = require('../utils/lp-intent');
+const { openLpBrowseFlow } = require('../services/lp-browse-entry.service'); // the one door to the catalogue
+const { isLp612Enabled, isLp612RouteAll, lp612ServesGrade } = require('../config/lp612-flags'); // the cutover switch
+const Lp612EditRouter = require('../services/lp612-edit-router.service'); // 6-12 lesson follow-ups
 const { TEMP_DIR, LOADING_STICKER_PATH, LOADING_STICKER_MEDIA_ID, OPENAI_API_KEY,
   ATTENDANCE_SETUP_FLOW_ID, ATTENDANCE_MARKING_FLOW_ID, EDIT_CLASS_FLOW_ID,
   CLASS_MANAGER_FLOW_ID } = require('../utils/constants');
@@ -92,6 +96,25 @@ function normalizeGrade(raw) {
  */
 async function tryCurriculumLessonPlanServe(from, topic, user, language) {
   try {
+    // THE CUTOVER, LEAK 1. When LP_612_ROUTE_ALL is on, the 6-12 menu is the answer, so
+    // the OLD Oxbridge picker is not consulted at all. This is the FIRST thing the
+    // function does, ahead of the region_features lookup: a routing promise must not
+    // depend on a DB row. Returning false is the mechanism — all three call sites read
+    // false as "not served here" and fall through to handleLessonPlanRequest, which
+    // carries the same gate. Flag off => this block is a no-op and today's prod
+    // behaviour is unchanged.
+    if (isLp612Enabled() && isLp612RouteAll()) {
+      const routeGrade =
+        normalizeGrade(parseSubjectAndGrade(topic || '').grade) ??
+        normalizeGrade(user && user.grade);
+      if (lp612ServesGrade(routeGrade)) {
+        logToFile('LP route-all: 6-12 request diverted to the menu, old picker not consulted', {
+          userId: user?.id, grade: routeGrade, topicHint: (topic || '').substring(0, 60),
+        });
+        return false;
+      }
+    }
+
     const features = await RegionFeaturesService.getRegionFeatures(getUserRegion(user));
     if (!features.curriculum_lp_enabled || !features.curriculum_key) return false;
 
@@ -368,6 +391,30 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       // Non-fatal — if the feedback middleware errors, fall through to normal routing
       logToFile('LP Feedback: consumeReasonIfPending error (non-fatal)', {
         error: feedbackErr.message, userId: user.id,
+      });
+    }
+  }
+
+  // The 6-12 survey's reason window. Beside the K-5 one above, and for the same reason it sits
+  // this early: an open window was opened by HER OWN 👎 tap thirty seconds ago, so the next
+  // message is an answer to "which part did not work?" and must not reach intent detection.
+  //
+  // It also has to beat the 6-12 EDIT router further down this function, which would otherwise
+  // read "the activity was too long" as an instruction to rewrite the lesson — spending a model
+  // call and changing her document when she was answering a question we asked her.
+  if (user?.id && messageBody) {
+    try {
+      const Lp612FeedbackService = require('../services/lp612-feedback.service');
+      const consumed = await Lp612FeedbackService.consumeReasonIfPending(user.id, from, messageBody);
+      if (consumed) {
+        logToFile('LP 6-12 feedback: reason captured, short-circuiting text handler', {
+          userId: user.id, from,
+        });
+        return;
+      }
+    } catch (lp612FbErr) {
+      logToFile('LP 6-12 feedback: consumeReasonIfPending error (non-fatal)', {
+        error: lp612FbErr.message, userId: user.id,
       });
     }
   }
@@ -1013,27 +1060,28 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
-  // PAKISTAN LP INTERCEPT (FEAT-059 / bd-hvhhu): ANY mention of a lesson plan
-  // opens the LP menu — English, Urdu script, or Roman Urdu.
+  // LP BARE COMMAND (was the PAKISTAN LP INTERCEPT): a message that is JUST
+  // "lp" / "lesson plan" / "/lesson plans" / "لیسن پلان" opens the catalogue
+  // Flow — the isVideoCommand shape.
   //
-  // This used to be exact-match only
-  //   /^(lp|lesson\s*plan|لیسن\s*پلان|lesson-plan|\/lp)$/i
-  // so "can you send me the lesson plan for tomorrow" fell through to the LLM
-  // intent path and often produced a GENERATED plan instead of the ready-made
-  // corpus a teacher was asking for. isLessonPlanRequest() is tiered (strong /
-  // weak-needs-a-companion / blocked) so a generous trigger list does not cost
-  // false positives — see shared/utils/lp-intent.js and its tests.
+  // It used to fire on ANY mention, because a message that reached the LLM
+  // "often produced a GENERATED plan instead of the ready-made corpus". Once
+  // every lesson-plan intent routes to the menu that reason is gone, and the
+  // cost remained: 748 intercepts in 14 days of production, 47% of them
+  // messages the picker could not answer — "shorten this lp" 30s after a
+  // delivery, dictated observations, a teacher saying the plans she got were
+  // useless. Anything with content now reaches the LLM classifier; a NEW
+  // request still lands on this same Flow via the lesson_plan intent.
   //
   // Presence-gated on PAKISTAN_LP_FLOW_ID — when empty, the message falls
   // through to the existing curriculum-LP topic intercept.
   // ============================================================
   {
-    const PAKISTAN_LP_FLOW_ID = process.env.PAKISTAN_LP_FLOW_ID || '';
     const lpMatch = matchLessonPlanIntent(trimmedMessage);
-    if (PAKISTAN_LP_FLOW_ID && lpMatch.matched) {
-      logToFile('📘 LP intent detected → opening Pakistan LP flow', {
+    if (lpMatch.matched && process.env.PAKISTAN_LP_FLOW_ID) {
+      logToFile('📘 LP bare command → opening catalogue Flow', {
         userId: user?.id, phoneNumber: from, message: trimmedMessage,
-        tier: lpMatch.tier, token: lpMatch.token,
+        token: lpMatch.token, tier: lpMatch.tier,
       });
       if (!user) {
         typingController.stop();
@@ -1045,19 +1093,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       }
       typingController.stop();
       const responseLanguage = await getUserLanguage(user.id) || 'en';
-      const flowToken = `${user.id}:pakistan-lp:${Date.now()}`;
-      await WhatsAppService.sendFlow(from, {
-        flowId: PAKISTAN_LP_FLOW_ID,
-        header: '📘 Lesson Plans',
-        body: ({
-          ur: 'اپنی جماعت، مضمون اور باب چنیں، پھر اُس دن کا سبق — منصوبہ آپ کی چیٹ میں آ جائے گا۔',
-        })[responseLanguage] || "Pick your class, subject and chapter, then the day's lesson — the plan lands in your chat.",
-        buttonText: ({
-          ur: 'شروع کریں',
-        })[responseLanguage] || 'Browse',
-        flowToken,
-      });
-      logToFile('📘 Sent Pakistan LP flow', { userId: user.id });
+      await openLpBrowseFlow({ from, userId: user.id, language: responseLanguage, reason: 'bare_command' });
       return;
     }
   }
@@ -1716,7 +1752,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
 
     // Already registered on this branch = has a first_name (main keys registration on first_name).
     // bd-2kxxa.1: computed, not an early return — the Flow below is how a registered coach fixes her name.
-    const isAlreadyRegistered = !!(user?.first_name);
+    const isAlreadyRegistered = isRegistered(user);
 
     // bd-2447: conversational/deferred registration is DEPRECATED (matches the
     // main Rumi bot). /register ALWAYS opens the registration Flow when one is
@@ -2211,10 +2247,11 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   if (registrationRequested) {
     typingController.stop();
 
-    // Check if user is already registered
-    if (user?.first_name) {
+    // Registered = a completed run OR a name already on the row.
+    // See shared/utils/registration-status.js for why the flag alone is not the test.
+    if (isRegistered(user)) {
       // User already registered - confirm and guide to menu
-      await WhatsAppService.sendMessage(from, `✅ You're already registered, ${user.first_name}! Type /menu to see what I can help you with.`);
+      await WhatsAppService.sendMessage(from, `✅ You're already registered, ${user.first_name || 'there'}! Type /menu to see what I can help you with.`);
       return;
     }
 
@@ -2520,6 +2557,30 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     }
   }
 
+  // ============================================================
+  // 6-12 LESSON FOLLOW-UP ROUTER
+  //
+  // The router only claims a message when she has a 6-12 lesson on the shelf AND the reply is an
+  // edit request or an out-of-scope ask. A QUESTION about the lesson deliberately falls through
+  // to the conversation path below.
+  //
+  // Placed immediately before intent detection, which is exactly where such a message used to
+  // land. Wrapped like the curriculum intercept above it: a fault here must cost her nothing.
+  // Inert unless LP_612_EDIT_ENABLED is set, which it is not on production.
+  // ============================================================
+  if (user) {
+    try {
+      typingController.stop();
+      if (await Lp612EditRouter.maybeHandleLp612Reply({
+        from, messageBody, user, language: responseLanguage,
+      })) {
+        return;
+      }
+    } catch (lp612Err) {
+      logToFile('LP 6-12 follow-up router threw (non-fatal)', { error: lp612Err.message });
+    }
+  }
+
   // Detect intent (lesson plan, presentation, or general)
   const intent = await OpenAIService.detectIntent(messageBody);
   logToFile('Intent detected', { intent: intent.type });
@@ -2569,6 +2630,34 @@ async function handleTextMessage(message, from, messageBody, user = null) {
  * @returns {Promise<void>}
  */
 async function handleLessonPlanRequest(from, messageBody, user, sessionId, responseLanguage, typingController) {
+  // ── THE CUTOVER GATE ────────────────────────────────────────────────────────
+  // The operator, 2026-09-06: route all lesson-plan requests to the menu. On this
+  // branch Gamma is GATED, not deleted: LP_612_ENABLED=false or LP_612_ROUTE_ALL
+  // =false restores the generation path below with one Railway variable and no
+  // deploy. That is the entire rollback lever for this promotion, and
+  // tests/lp-v8/bd-oak77-9-route-all.test.js proves it rather than describing it.
+  //
+  // isLp612Enabled() is checked explicitly even though isLp612RouteAll() only ever
+  // narrows it, so the gate is self-contained and does not depend on a caller
+  // having already passed the outer flag.
+  if (user && isLp612Enabled() && isLp612RouteAll() && process.env.PAKISTAN_LP_FLOW_ID) {
+    typingController.stop();
+    // She typed a TOPIC and is about to be shown a grade picker — one short line
+    // first, from the one catalogue entry. Only on the topic-bearing doors: the
+    // bare "lp" command and the /menu tap open the Flow with no preamble.
+    try {
+      await WhatsAppService.sendMessage(from, resolveUx('lp612RouteRedirect', { language: responseLanguage }));
+    } catch (redirectErr) {
+      logError('LP route-all redirect line failed to send', { error: redirectErr.message, userId: user.id });
+    }
+    if (await openLpBrowseFlow({ from, userId: user.id, language: responseLanguage, reason: 'lesson_plan_intent' })) {
+      return;
+    }
+    // The Flow send failed. Fall THROUGH to the generation path rather than leaving
+    // her with an explanation and nothing else.
+    logToFile('LP route-all: Flow send failed, falling back to the generation path', { userId: user.id });
+  }
+
   try {
     // Multi-language message maps
     const lessonPlanMessages = {

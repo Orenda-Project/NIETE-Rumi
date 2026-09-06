@@ -1,0 +1,6 @@
+{
+  "name": "katex",
+  "version": "0.16.0-stub",
+  "private": true,
+  "description": "Resolution target for require.resolve('katex/package.json') in the root test suite. bot/vendor/lp-v9/lib/fonts.js reads dist/katex.min.css from beside this file to inline KaTeX's own faces; the stub ships a tiny stylesheet with the same @font-face SHAPE so the per-block src rewrite (the bug that collapsed 20 faces into one) is still exercised."
+}

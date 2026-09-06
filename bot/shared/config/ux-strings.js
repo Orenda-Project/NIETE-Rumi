@@ -126,6 +126,233 @@ const UX_STRINGS = {
     ur: 'یہ سبق کا منصوبہ ابھی تیاری میں ہے — تھوڑی دیر بعد دوبارہ کوشش کریں۔',
   },
 
+  // ── 6-12 lesson plans, written at the moment she asks ────────────────────
+  //
+  // A 6-12 lesson is authored on the first request, not looked up: the wait is
+  // real, and every one of these strings exists so that no part of it is silent.
+  //
+  // HOW LONG, measured rather than guessed (bd-2ym0h): a first hit on the
+  // post-optimisation lane runs a median of 313 seconds, spread roughly four to
+  // eleven minutes. These strings used to say "about 2 minutes", which is the
+  // number the lane hit before the authoring ladder grew, and being told two
+  // while waiting five is how a working feature earns a bug report. They say
+  // five to six now. If the lane's timings move again, this comment and the two
+  // strings below move with them — a stale promise is a defect, not a detail.
+  //
+  // A SECOND request for the same lesson is served from R2 in about a second and
+  // sends no interstitial at all (lp612-serving.service.js answers a cache hit
+  // by delivering the file directly). Nobody reads these strings on a fast path,
+  // so they can quote the slow number plainly — and saying "brand-new" is what
+  // stops five minutes reading as the price of every lesson.
+  //
+  // The Urdu is deliberately gender-agnostic in the second person — imperatives
+  // and impersonal constructions, never `رہی ہوں گی` / `رہے ہوں گے` — because
+  // the cohort is mixed and the bot cannot know.
+
+  lp612Preparing: {
+    en: '📄 Writing your lesson plan now — a brand-new lesson takes a little while. I will send it here as soon as it is ready, and I will check in if it runs long.',
+    ur: '📄 آپ کا سبق کا منصوبہ ابھی تیار کیا جا رہا ہے — نئے سبق میں کچھ وقت لگتا ہے۔ تیار ہوتے ہی یہیں بھیج دیا جائے گا، اور دیر ہوئی تو اطلاع دی جائے گی۔',
+  },
+
+  lp612StillWorking: {
+    en: 'Still working on that lesson plan — a few more minutes. It will arrive here.',
+    ur: 'سبق کا منصوبہ ابھی تیار ہو رہا ہے — کچھ اور منٹ لگیں گے۔ یہیں موصول ہو جائے گا۔',
+  },
+
+  lp612AlreadyPreparing: {
+    en: 'That lesson plan is already being written — I will send it here as soon as it is ready.',
+    ur: 'یہ سبق کا منصوبہ پہلے ہی تیار ہو رہا ہے — تیار ہوتے ہی یہیں بھیج دیا جائے گا۔',
+  },
+
+  // A run that was killed mid-flight — almost always a deploy restarting the worker — gets its
+  // OWN sentence. It is deliberately not lp612AlreadyPreparing: saying "already being written"
+  // about a run that is never coming back is precisely what made this failure invisible on
+  // staging, and it is what rule 24(d) is about. She does not need to know what a worker is;
+  // she needs to know it stopped, it has restarted, and she does not have to do anything.
+  lp612Restarted: {
+    en: '📄 That lesson stopped partway through, so I have started it again. It will arrive here as soon as it is ready.',
+    ur: '📄 وہ سبق درمیان میں رک گیا تھا، اس لیے دوبارہ شروع کر دیا گیا ہے۔ تیار ہوتے ہی یہیں موصول ہو جائے گا۔',
+  },
+
+  // A lesson whose page range is over the cap will fail identically on every retry, so it must
+  // NOT get lp612Failed's "tap it again in a few minutes" — that invites her to wait and tap for
+  // ever on something that can never succeed. Rule 24(d): the copy names the actual state, and
+  // points at the thing that WILL work (the shorter rows in the same chapter).
+  lp612TooLong: {
+    en: 'That lesson covers too many pages for me to plan in one go. Open the chapter and pick one of the shorter lessons — those I can write for you now.',
+    ur: 'یہ سبق اتنے زیادہ صفحات پر پھیلا ہوا ہے کہ ایک ساتھ منصوبہ نہیں بن سکتا۔ باب کھول کر کوئی چھوٹا سبق منتخب کریں — وہ ابھی تیار کر دیا جائے گا۔',
+  },
+
+  // Never a silent failure. She is told it failed, and told exactly what to do.
+  lp612Failed: {
+    en: 'I could not finish that lesson plan this time. Please tap it again in a few minutes and I will try once more.',
+    ur: 'اس بار سبق کا منصوبہ مکمل نہیں ہو سکا۔ چند منٹ بعد دوبارہ اسی سبق پر ٹیپ کریں، دوبارہ کوشش کی جائے گی۔',
+  },
+
+  // The operator's hold on religious content. Phrased as "not yet", because
+  // that is what it is — a review is pending, not a refusal.
+  lp612Held: {
+    en: 'Lesson plans for this subject are still being reviewed, so I cannot share them yet. Everything else is ready to use.',
+    ur: 'اس مضمون کے سبق کے منصوبے ابھی نظرثانی کے مرحلے میں ہیں، اس لیے فی الحال دستیاب نہیں۔ باقی تمام مضامین حاضر ہیں۔',
+  },
+
+  lp612NotFound: {
+    en: 'I could not find that lesson. Open the lesson plan menu and choose it again.',
+    ur: 'یہ سبق نہیں مل سکا۔ سبق کے منصوبے کا مینو کھول کر دوبارہ منتخب کریں۔',
+  },
+
+  // ── the edit lane's honest refusals ──────────────────────────────────────
+  //
+  // The 12-cell spike (bd-6pxpk) measured why these have to exist. Asked to "write me an exam
+  // paper for this whole chapter", the revision ladder could not produce one — lp_doc has
+  // nowhere to put an exam paper — so it added a single question to the existing exam bank and
+  // said nothing. Every gate passed. She would have received her lesson back, subtly different,
+  // with no idea her request had not been understood.
+  //
+  // The schema stops the harm; only copy can stop the confusion. Both strings therefore do the
+  // same three things: name what CAN be changed, state plainly that her lesson is unchanged, and
+  // leave her a next move. Neither apologises for a limit it can do nothing about.
+  //
+  // Voice: Rumi speaks of herself in the feminine («سکتی ہوں»), but never conjugates the TEACHER
+  // — «بتائیں» and «پوچھ لیں» are imperatives, so a mixed-gender cohort is addressed correctly.
+  lp612EditOutOfScope: {
+    en: 'I can change parts of a lesson I have already sent you — shorten a section, add an '
+      + 'activity, swap an example. What you asked for is a different thing, so your lesson is '
+      + 'unchanged. Tell me which part to change and I will do it.',
+    ur: 'میں بھیجے گئے سبق کے حصے بدل سکتی ہوں — کوئی حصہ مختصر کرنا، سرگرمی شامل کرنا، مثال بدلنا۔ '
+      + 'آپ نے جو مانگا وہ اس سے الگ کام ہے، اس لیے آپ کا سبق ویسا ہی ہے۔ بتائیں کون سا حصہ بدلنا ہے۔',
+  },
+
+  // The flag-off branch. It is NOT lp612EditOutOfScope: she asked for something this feature will
+  // do, and telling her it is out of scope would be a lie she would reasonably repeat. It is also
+  // not lp612Failed — nothing failed. Rule 24(d): distinct state, distinct sentence.
+  lp612EditNotYet: {
+    en: 'I cannot change a lesson yet — that is being built. Your lesson is unchanged. Ask me '
+      + 'anything about it in the meantime and I will help.',
+    ur: 'سبق میں تبدیلی کی سہولت ابھی دستیاب نہیں — اس پر کام ہو رہا ہے۔ آپ کا سبق ویسا ہی ہے۔ '
+      + 'اس دوران سبق کے بارے میں کچھ بھی پوچھ لیں، میں مدد کروں گی۔',
+  },
+
+  // The last thing the Flow itself says, on the terminal SUCCESS screen, before
+  // she closes it and goes back to the chat.
+  //
+  // It used to be a hardcoded English sentence in the endpoint ending "check
+  // this chat in a moment" — the same two-minute optimism as the ack, in the one
+  // place she reads FIRST, and English regardless of her preference. It points
+  // at the chat now and deliberately quotes no duration: the screen's own static
+  // body still reads "the PDF arrives in a few seconds" (true for the K-5 lane
+  // it is shared with, and only changeable by republishing the Flow), so a
+  // number here would argue with the line directly beneath it. The estimate
+  // belongs in the chat ack, where nothing contradicts it.
+  lp612FlowAck: {
+    en: 'Your lesson plan is being written now — I will send it to this chat as soon as it is ready.',
+    ur: 'آپ کا سبق کا منصوبہ ابھی تیار کیا جا رہا ہے — تیار ہوتے ہی اسی چیٹ میں بھیج دیا جائے گا۔',
+  },
+
+  // Sent with the PDF. {topic} is the book's own subtopic wording.
+  //
+  // The Urdu line wraps {subject} and {pages} in LRI…PDI (U+2066/U+2069)
+  // ISOLATES, in the catalog string itself. Without them a page RANGE after an
+  // Urdu word paints reversed — «صفحات 7-8» renders «8-7» — because UAX#9 W2
+  // reclassifies digits after an Arabic-class letter, W4 only re-joins
+  // EUROPEAN numbers across a hyphen, and N1 then orders the two halves RTL.
+  // The placeholder is isolated rather than the value because the value's bidi
+  // class is unknowable at authoring time (language-protocol §9 rule 8).
+  lp612Caption: {
+    en: '{topic}\nGrade {grade} · {subject} · pages {pages}',
+    ur: '{topic}\nجماعت {grade} · ⁦{subject}⁩ · صفحات ⁦{pages}⁩',
+  },
+
+  // Appended to the Urdu caption when the document is an English-medium book
+  // whose ur_overlay did not survive: what she receives is an
+  // essentially-English document in RTL chrome, and saying so beats a silent
+  // fallback (rule 24(c)/(d)). English variant exists so the catalog is never
+  // a partial map (language-protocol §6.3); the line itself is only ever
+  // APPENDED on Urdu deliveries.
+  //
+  // REWRITTEN 2026-09-05 (bd-vnyuw). It used to read "instructions partly in
+  // Urdu" — which was never true of a single delivery. Every one of the six
+  // overlay-dropped lessons on staging was English END TO END; the only Urdu on
+  // the page was the template's own headings. "Partly" told a teacher the
+  // translation was thin when it was absent, so the field reports that came back
+  // read as a quality complaint rather than as a broken toggle, and rule 24(d)
+  // is exactly that: failure copy that does not name the actual state misdirects
+  // every report and every engineer who reads them.
+  //
+  // Three things it must do and one it must not:
+  //   • name the state — the Urdu version is MISSING, not thin;
+  //   • say the lesson is still whole, because it is: the overlay swaps strings
+  //     on a complete document and nothing is lost when it is absent;
+  //   • carry no blame and no jargon — "overlay" is our word, not hers.
+  //   • promise NO retry SHE MUST PERFORM. The render is cached on (segment,
+  //     lang, template_version) and every cache hit re-serves this same file, so
+  //     "ask again" is a lie until that row is re-authored. Saying the Urdu is
+  //     being prepared is not the same promise: it is a statement about the
+  //     lesson, not an instruction she can follow and be let down by.
+  //
+  // REWRITTEN AGAIN 2026-09-05 (bd-zle0u), because the STATE changed. The first
+  // rewrite described a translation that had been attempted and lost — "did not
+  // come through". That was accurate for bd-vnyuw. It is not accurate now: the
+  // overlay is DEFERRED to a pass that runs after the lesson is accepted, so
+  // nothing was attempted and nothing was lost, and "did not come through" would
+  // read as a fault where there is none. Rule 24(d) cuts both ways — copy that
+  // over-states a failure misdirects a field report exactly as copy that
+  // under-states one does. What she needs is the present tense: this copy is
+  // English, the Urdu is being prepared.
+  //
+  // Urdu voice: every verb agrees with a NOUN (ترجمہ, نسخہ) or with US (ہم),
+  // never with the teacher, so a mixed-gender cohort is addressed correctly.
+  //
+  // Caps (language-protocol §3): this line is APPENDED to `lp612Caption` on a
+  // document send, so it is charged against body.text (1024), not the 60-code-point
+  // footer. Measured in CODE POINTS — en 104, ur 91.
+  lp612OverlayDropped: {
+    en: 'This copy is in English. The Urdu version of this lesson is still being prepared '
+      + '— we are working on it.',
+    ur: 'یہ نسخہ انگریزی میں ہے۔ اس سبق کا اردو ترجمہ ابھی تیار ہو رہا ہے — ہم اس پر کام کر رہے ہیں۔',
+  },
+
+  // ── the 6-12 post-delivery survey (bd-86ivw) ─────────────────────────────
+  //
+  // The only signal the lane cannot generate for itself. Every gate in it — schema, canon lint,
+  // the render page caps — measures the DOCUMENT; none of them can tell us a teacher would
+  // actually teach from it. Sent once, a short while after the PDF lands, as two buttons.
+  //
+  // Caps, in CODE POINTS: button 20, body 1024. An emoji is one code point and roughly two
+  // columns on her screen, so the button titles stay short in both languages. An over-cap title
+  // is not truncated by Meta — the whole message is REJECTED (#131009) and the survey silently
+  // never appears. tests/lp612/honest-eta.test.js pins all six.
+  //
+  // Urdu voice: Rumi speaks of herself in the feminine («سمجھ گئی»), and every verb aimed at the
+  // teacher agrees with a NOUN rather than with her — «منصوبہ … رہا», «چیز … آئی» — so a
+  // mixed-gender cohort is addressed correctly without stilted phrasing.
+  lp612FeedbackAsk: {
+    en: 'Was that lesson plan useful for your class?',
+    ur: 'کیا یہ سبق کا منصوبہ آپ کی کلاس کے لیے مفید رہا؟',
+  },
+  lp612FeedbackYes: {
+    en: '👍 Yes, useful',
+    ur: '👍 جی ہاں',
+  },
+  lp612FeedbackNo: {
+    en: '👎 Not really',
+    ur: '👎 نہیں',
+  },
+  lp612FeedbackThanks: {
+    en: 'Thanks — glad it helped.',
+    ur: 'شکریہ — خوشی ہے کہ یہ مفید رہا۔',
+  },
+  // Only ever sent on a 👎. A thumbs-down with no reason tells us a lesson is bad and nothing
+  // about which part, which is the least actionable datum the survey could collect.
+  lp612FeedbackAskReason: {
+    en: 'Thanks for telling us. Which part did not work? (one line is enough)',
+    ur: 'بتانے کا شکریہ۔ کون سا حصہ کام نہیں آیا؟ (ایک سطر کافی ہے)',
+  },
+  lp612FeedbackReasonThanks: {
+    en: 'Got it, thank you — this makes the next lesson better.',
+    ur: 'سمجھ گئی، شکریہ — اس سے اگلا سبق بہتر ہوگا۔',
+  },
+
   lpV8SendFailed: {
     en: "I couldn't send that lesson plan just now — please try again in a minute.",
     ur: 'ابھی یہ سبق کا منصوبہ نہیں بھیجا جا سکا — براہِ کرم ایک منٹ بعد دوبارہ کوشش کریں۔',
@@ -153,6 +380,25 @@ const UX_STRINGS = {
   readingWelcomeNamed: {
     en: "Let's check {student}'s reading. It takes about 3–5 minutes. First, choose the language for the passage.",
     ur: '{student} کی قرائت جانچتے ہیں۔ اس میں تقریباً 3 سے 5 منٹ لگیں گے۔ پہلے اقتباس کی زبان منتخب کریں۔',
+  },
+  lp612RouteRedirect: {
+    en: 'Lesson plans now come straight from your own textbook. Pick the class, subject and chapter below and I will write that lesson for you.',
+    ur: 'اب سبق کے منصوبے آپ کی اپنی درسی کتاب سے بنتے ہیں۔ نیچے جماعت، مضمون اور باب منتخب کریں — وہ سبق تیار کر دیا جائے گا۔',
+  },
+
+  lpBrowseHeader: {
+    en: '📘 Lesson Plans',
+    ur: '📘 سبق کے منصوبے',
+  },
+
+  lpBrowseBody: {
+    en: "Pick your class, subject and chapter, then the day's lesson — the plan lands in your chat.",
+    ur: 'اپنی جماعت، مضمون اور باب چنیں، پھر اُس دن کا سبق — منصوبہ آپ کی چیٹ میں آ جائے گا۔',
+  },
+
+  lpBrowseButton: {
+    en: 'Pick Class',
+    ur: 'جماعت چنیں',
   },
 
   readingPickerHeader: {

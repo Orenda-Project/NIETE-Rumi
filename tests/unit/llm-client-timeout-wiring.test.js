@@ -44,10 +44,6 @@ jest.mock('openai', () =>
   })
 );
 
-jest.mock('../../bot/shared/services/e2e-cassette', () => ({
-  mode: () => 'off',
-  wrapChatCompletions: jest.fn(),
-}));
 
 const ENV_KEYS = [
   'LLM_PROVIDER',
@@ -92,13 +88,6 @@ describe('bd-v60qf — llm-client timeout/maxRetries wiring', () => {
     expect(client._config.maxRetries).toBe(1);
   });
 
-  test('getClientForModel() on the anthropic-direct lane passes the same defaults', () => {
-    const mod = load();
-    const { client } = mod.getClientForModel(`${mod.ANTHROPIC_DIRECT_PREFIX}claude-sonnet-5`);
-    expect(client._config.timeout).toBe(180000);
-    expect(client._config.maxRetries).toBe(1);
-  });
-
   test('LLM_REQUEST_TIMEOUT_MS and LLM_MAX_RETRIES env overrides reach the SDK', () => {
     const mod = load({ LLM_REQUEST_TIMEOUT_MS: '5000', LLM_MAX_RETRIES: '3' });
     const client = mod.createLLMClient();
@@ -128,16 +117,9 @@ describe('bd-v60qf — llm-client timeout/maxRetries wiring', () => {
     const mod = load(raw === undefined ? {} : { LLM_MAX_RETRIES: raw });
     expect(mod.createLLMClient()._config.maxRetries).toBe(1);
   });
-
-  test('the anthropic-direct client and the OpenRouter client each get their own timeout/maxRetries — this fix must not disturb bd-yoc6i routing', () => {
-    const mod = load({ LLM_REQUEST_TIMEOUT_MS: '9000', LLM_MAX_RETRIES: '2' });
-    const direct = mod.getClientForModel(`${mod.ANTHROPIC_DIRECT_PREFIX}claude-sonnet-5`).client;
-    const router = mod.getClientForModel('deepseek/deepseek-v4-flash').client;
-
-    expect(direct).not.toBe(router);
-    expect(direct._config.timeout).toBe(9000);
-    expect(router._config.timeout).toBe(9000);
-    expect(direct._config.baseURL).toBe('https://api.anthropic.com/v1/');
-    expect(router._config.baseURL).toBe('https://openrouter.ai/api/v1');
-  });
+  // REMOVED FOR THIS EXTRACTION: the `anthropic-direct/` lane (bd-yoc6i) is on develop
+  // only — this vehicle takes llm-client's timeout/retry budget and leaves that lane
+  // behind, so `getClientForModel` does not exist here and a test of it would assert
+  // a module this branch has no reason to carry. The OpenRouter and direct-OpenAI
+  // cases above cover every client this branch actually builds.
 });
