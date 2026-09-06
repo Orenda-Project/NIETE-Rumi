@@ -482,6 +482,8 @@ async function process(quizId, payload = {}) {
     let previousErrors = null;
     let lastRejected = null;
     let lastErrors = null;
+    let lastRewriteErrors = null;   // the complaint list the loop already rewrote
+    let rewritten = null;           // the best failed-rewrite candidate for the salvage
     let lastLessonSummary = null;
     let readyLessonSummary = null;
     const attempts = [];
@@ -540,6 +542,24 @@ async function process(quizId, payload = {}) {
       previousErrors = v.errors;
       lastRejected = out.questions;
       lastErrors = v.errors;
+      // ── REPAIR BEFORE RE-ROLL ───────────────────────────────────────────
+      // When every complaint of THIS attempt belongs to one question (a long
+      // option, a missing "why", one pedagogy or figure fault), one small
+      // rewrite is cheaper and surer than a second full author call — and a
+      // second full call can come back with a complaint nothing can repair
+      // (seen live 2026-09-06: attempt 1 = one long option, attempt 2 = a
+      // level-mix fault on the whole set; the quiz died although attempt 1
+      // was one shortened option away from shipping). The rewrite is tried
+      // on every attempt but the last; the last one is handled below.
+      if (attempt < MAX_ATTEMPTS) {
+        // eslint-disable-next-line no-await-in-loop
+        const early = await runRewrite({ rejected: out.questions, errors: v.errors, summary: out.lessonSummary, when: attempt });
+        if (early.ok) break;
+        if (early.tried) {
+          lastRewriteErrors = lastErrors;
+          previousErrors = early.errors && early.errors.length ? early.errors : v.errors;
+        }
+      }
     }
     // ── A TARGETED REWRITE BEFORE THE SALVAGE ───────────────────────────────
     // The last full attempt failed. When every remaining complaint belongs to
@@ -548,19 +568,24 @@ async function process(quizId, payload = {}) {
     // same rejected question again (two live quizzes shipped 7 and 6 of 8 on
     // the same afternoon that way). ONE small call rewrites exactly those
     // questions; the merged set goes through the whole validator again.
-    let rewritten = null;
-    if (!questions && lastRejected && lastErrors) {
+    // (Skipped when the loop already rewrote exactly these complaints.)
+    if (!questions && lastRejected && lastErrors && lastRewriteErrors !== lastErrors) {
+      await runRewrite({ rejected: lastRejected, errors: lastErrors, summary: lastLessonSummary, when: 'last' });
+    }
+    // ── the rewrite, shared by the loop and the post-loop fallback ───────────
+    async function runRewrite({ rejected, errors, summary, when }) {
       const rw = await api.rewriteRejected({
-        questions: lastRejected, errors: lastErrors, digest, language,
-        gradeBand: digest.grade_band || meta.grade, quizId, lessonSummary: lastLessonSummary,
+        questions: rejected, errors, digest, language,
+        gradeBand: digest.grade_band || meta.grade, quizId, lessonSummary: summary,
       });
-      if (rw.attempted) {
+      if (!rw.attempted) return { tried: false, ok: false, errors: null };
+      {
         meta.cost_usd = (meta.cost_usd || 0) + (rw.costUsd || 0);
         // PLAN_R6 D5 — the rewrite may also return a repaired `lesson_summary`
         // (a gendered reference to the teacher is the one quiz-level complaint
         // it is asked to fix). It is the summary the merged set is VALIDATED
         // with and the one that is stored, so the two cannot disagree.
-        const rwSummary = rw.lessonSummary || lastLessonSummary;
+        const rwSummary = rw.lessonSummary || summary;
         const v = rw.merged
           ? validate(rw.merged, {
             language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary: rwSummary, quizId,
@@ -587,6 +612,7 @@ async function process(quizId, payload = {}) {
         if (!ok && rw.merged && v) rewritten = { questions: rw.merged, errors: v.errors, lessonSummary: rwSummary };
         attempts.push({
           attempt: 'rewrite',
+          after: when,
           indices: rw.indices,
           replaced: rw.replaced,
           model: rw.model || null,
@@ -595,8 +621,9 @@ async function process(quizId, payload = {}) {
           errors: v ? v.errors : [rw.error || 'the rewrite returned no usable replacement'],
         });
         logEvent('transcript_quiz.rewrite_attempted', {
-          quizId, indices: rw.indices, replaced: rw.replaced, ok, errors: v ? v.errors.length : null,
+          quizId, after: when, indices: rw.indices, replaced: rw.replaced, ok, errors: v ? v.errors.length : null,
         });
+        return { tried: true, ok, errors: v ? v.errors : null };
       }
     }
 

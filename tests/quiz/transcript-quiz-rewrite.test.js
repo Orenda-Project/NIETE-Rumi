@@ -290,16 +290,15 @@ describe('3 — the English lesson: one rejected question, replaced, 8 shipped',
   test('the rewrite call carries exactly the offending index and the quiz ships 8 questions', async () => {
     mockCreate
       .mockResolvedValueOnce(reply({ lesson_summary: SUMMARY_EN, questions: enEight() }))
-      .mockResolvedValueOnce(reply({ lesson_summary: SUMMARY_EN, questions: enEight() }))
       .mockResolvedValueOnce(reply({ questions: [{ index: 0, ...EN_REPLACEMENT }] }));
     wire('en', DIGEST_EN);
 
     const r = await Gen.process(QID, {});
     expect(r.ok).toBe(true);
 
-    // three calls: two full attempts, then ONE targeted rewrite
-    expect(mockCreate).toHaveBeenCalledTimes(3);
-    const rw = promptOf(mockCreate.mock.calls[2]);
+    // two calls: ONE full attempt, then ONE targeted rewrite — repair before re-roll
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    const rw = promptOf(mockCreate.mock.calls[1]);
     expect(rw).toContain('REWRITE THESE QUESTIONS: q0');
     expect(rw).toContain('How many kinds of adjective degree are there?');
 
@@ -312,7 +311,6 @@ describe('3 — the English lesson: one rejected question, replaced, 8 shipped',
   test('rewrite_attempted is emitted with the indices and the outcome, and no salvage happens', async () => {
     mockCreate
       .mockResolvedValueOnce(reply({ lesson_summary: SUMMARY_EN, questions: enEight() }))
-      .mockResolvedValueOnce(reply({ lesson_summary: SUMMARY_EN, questions: enEight() }))
       .mockResolvedValueOnce(reply({ questions: [{ index: 0, ...EN_REPLACEMENT }] }));
     wire('en', DIGEST_EN);
     await Gen.process(QID, {});
@@ -324,9 +322,8 @@ describe('3 — the English lesson: one rejected question, replaced, 8 shipped',
     expect(ev).toEqual(expect.objectContaining({ quizId: QID, indices: [0], ok: true }));
   });
 
-  test('the rewrite is recorded in meta.author_attempts beside the two full attempts', async () => {
+  test('the rewrite is recorded in meta.author_attempts beside the full attempt it repaired', async () => {
     mockCreate
-      .mockResolvedValueOnce(reply({ lesson_summary: SUMMARY_EN, questions: enEight() }))
       .mockResolvedValueOnce(reply({ lesson_summary: SUMMARY_EN, questions: enEight() }))
       .mockResolvedValueOnce(reply({ questions: [{ index: 0, ...EN_REPLACEMENT }] }));
     wire('en', DIGEST_EN);
@@ -335,9 +332,10 @@ describe('3 — the English lesson: one rejected question, replaced, 8 shipped',
     const updates = supabase.from.callsFor('quizzes').flat().filter((c) => c[0] === 'update');
     const withAttempts = updates.map((c) => c[1]).filter((p) => p.meta && p.meta.author_attempts);
     const attempts = withAttempts[withAttempts.length - 1].meta.author_attempts;
-    expect(attempts.map((a) => a.attempt)).toEqual([1, 2, 'rewrite']);
-    expect(attempts[2].indices).toEqual([0]);
-    expect(attempts[2].errors).toEqual([]);
+    expect(attempts.map((a) => a.attempt)).toEqual([1, 'rewrite']);
+    expect(attempts[1].after).toBe(1);
+    expect(attempts[1].indices).toEqual([0]);
+    expect(attempts[1].errors).toEqual([]);
   });
 });
 
@@ -345,14 +343,13 @@ describe('4 — the Urdu lesson: a figure rejection and a pedagogy rejection, bo
   test('two offending indices go in one call and the quiz ships 8 questions', async () => {
     mockCreate
       .mockResolvedValueOnce(reply({ lesson_summary: SUMMARY_UR, questions: urEight() }))
-      .mockResolvedValueOnce(reply({ lesson_summary: SUMMARY_UR, questions: urEight() }))
       .mockResolvedValueOnce(reply({ questions: [{ index: 0, ...UR_REPLACEMENT_0 }, { index: 7, ...UR_REPLACEMENT_7 }] }));
     wire('ur', DIGEST_UR);
 
     const r = await Gen.process(QID, {});
     expect(r.ok).toBe(true);
-    expect(mockCreate).toHaveBeenCalledTimes(3);
-    const rw = promptOf(mockCreate.mock.calls[2]);
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    const rw = promptOf(mockCreate.mock.calls[1]);
     expect(rw).toContain('REWRITE THESE QUESTIONS: q0, q7');
     expect(rw).toMatch(/geometry/);
 
@@ -486,5 +483,56 @@ describe('8 — mergeReplacements puts a replacement back where it belongs, or n
     expect(r.questions[7]).toEqual(expect.objectContaining({
       slo_id: eight[7].slo_id, level: eight[7].level, figure: null, figure_role: null,
     }));
+  });
+});
+
+describe('structural per-question complaints are rewrite targets too (a long option must not kill the quiz)', () => {
+  const { rewriteTargets, buildRewritePrompt } = require('../../bot/shared/services/quiz/transcript-quiz-rewrite');
+  test('an over-cap option names its question and is repairable', () => {
+    const t = rewriteTargets(['q1: option >72 code points']);
+    expect(t.indices).toEqual([1]);
+  });
+  test('a missing or long selected_because is repairable', () => {
+    const t = rewriteTargets(['q0: Q_MISSING_WHY — "selected_because" is empty; say in ≤15 words which moment of the lesson this question tests']);
+    expect(t.indices).toEqual([0]);
+  });
+  test('a malformed question (wrong option count) is still a re-roll, not a repair', () => {
+    expect(rewriteTargets(['q0: 2 options']).indices).toEqual([]);
+  });
+  test('the rewrite prompt restates the option cap when a structural complaint is among the targets', () => {
+    const questions = Array.from({ length: 8 }, (_, i) => ({
+      question: `Stem ${i}?`, options: ['A', 'B', 'C'], correct_index: 0, level: 'recall', slo_id: 's1',
+      explanation: 'because', selected_because: 'the moment', option_feedback: { correct: 'ok', wrong: 'no' },
+    }));
+    const targets = rewriteTargets(['q1: option >72 code points']);
+    const prompt = buildRewritePrompt({
+      digest: { subject: 'english', topic_as_taught: 'Chocolate', slos: [{ id: 's1', statement: 'x', statement_en: 'x', statement_ur: 'x', level: 'recall' }] },
+      language: 'en', questions, targets, gradeBand: '4-5', lessonSummary: 'You taught chocolate.',
+    });
+    expect(prompt).toMatch(/72 code points/);
+  });
+});
+
+describe('9 — repair before re-roll: a long option on attempt 1 is rewritten before a second full call', () => {
+  test('attempt 1 rejected ONLY for a 72-code-point option → one rewrite, no second author call, 8 shipped', async () => {
+    const longOpt = 'the cocoa beans are fermented, dried, roasted, cracked and ground into a thick paste called liquor';
+    const q1Long = enQ({ slo: 'S2', level: 'understand', question: 'Ali is 5 feet. Sara is 6 feet. Which word describes Sara?', options: ['taller', longOpt, 'tallest'] });
+    const eight = enEight({ q0: EN_REPLACEMENT });
+    eight[1] = q1Long;
+    const fixedQ1 = enQ({ slo: 'S2', level: 'understand', question: 'Ali is 5 feet. Sara is 6 feet. Which word describes Sara?', options: ['taller', 'tall', 'tallest'] });
+    mockCreate
+      .mockResolvedValueOnce(reply({ lesson_summary: SUMMARY_EN, questions: eight }))
+      .mockResolvedValueOnce(reply({ questions: [{ index: 1, ...fixedQ1 }] }));
+    wire('en', DIGEST_EN);
+
+    const r = await Gen.process(QID, {});
+    expect(r.ok).toBe(true);
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    const rw = promptOf(mockCreate.mock.calls[1]);
+    expect(rw).toContain('REWRITE THESE QUESTIONS: q1');
+    expect(rw).toContain('72 code points');
+    expect(storedRows()).toHaveLength(8);
+    const ev = logEvent.mock.calls.find((c) => c[0] === 'transcript_quiz.rewrite_attempted')[1];
+    expect(ev).toEqual(expect.objectContaining({ after: 1, indices: [1], ok: true }));
   });
 });

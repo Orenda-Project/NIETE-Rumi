@@ -69,6 +69,18 @@ const MAX_TARGETS = 3;
 const PER_QUESTION = /^q(\d+):\s*(PEDAGOGY_[A-Z_]+|FIGURE_[A-Z_]+|RELIGIOUS_[A-Z_]+)\b/;
 
 /**
+ * Structural complaints that are still ONE question's TEXT: an option over the
+ * list-row cap, a missing or overlong selected_because. Seen live 2026-09-06:
+ * an English lesson produced no quiz at all because ONE option ran past 72 code
+ * points on both attempts, and nothing could touch it — the rewrite refused
+ * (not a PEDAGOGY_/FIGURE_ code) and the salvage refused (not droppable). A
+ * length fault is the cheapest repair there is. Malformed replies (`q0: 2
+ * options`, an empty stem) stay a re-roll.
+ */
+const PER_QUESTION_STRUCTURAL = /^q(\d+):\s*(option >\d+ code points|Q_MISSING_WHY\b)/;
+const STRUCTURAL_CAPS_RULE = 'LENGTH. Every option is at most 72 code points (characters) — a long option is cut off on the phone, so write a shorter one that says the same thing. Every "selected_because" is at most 15 words. For a question rejected ONLY for length, keep the same question and shorten the text.';
+
+/**
  * The ONE quiz-level complaint a small call can answer: a gendered reference to
  * the teacher in `lesson_summary`. It is a single paragraph written from the
  * digest, so a replacement can be asked for and checked on its own.
@@ -88,7 +100,7 @@ function rewriteTargets(errors) {
   const byIndex = {};
   const summary = [];
   for (const e of list) {
-    const m = PER_QUESTION.exec(e);
+    const m = PER_QUESTION.exec(e) || PER_QUESTION_STRUCTURAL.exec(e);
     if (!m) {
       // one non-per-question complaint disqualifies the whole set, unless it is
       // the quiz-level field this call can rewrite on its own
@@ -164,10 +176,11 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
     `REWRITE THESE QUESTIONS: ${label(indices)}`,
     `THE QUESTIONS THAT ARE STAYING. A replacement must not ask one of these again, and must not have the same answer as one of them.\n${staying || '(none)'}`,
     `REJECTED — write one new question for each.\n\n${rejected}`,
-    'A RE-WORDING OF A REJECTED QUESTION IS REJECTED AGAIN. Change WHAT is asked, not how it is phrased: same SLO, same level, same lesson material, a different question — one any child who understood the idea can answer.',
+    'A RE-WORDING OF A REJECTED QUESTION IS REJECTED AGAIN (except a question rejected ONLY for length — see LENGTH below). Change WHAT is asked, not how it is phrased: same SLO, same level, same lesson material, a different question — one any child who understood the idea can answer.',
     'NO NEW PICTURES. Every replacement is a text question: leave "figure" and "figure_role" null. A replacement that carries a figure is thrown away and its rejected question is dropped from the quiz instead, so the child loses a question.',
     questionContract({ gradeBand }),
     SELECTED_BECAUSE_RULE,
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => PER_QUESTION_STRUCTURAL.test(e))) ? [STRUCTURAL_CAPS_RULE] : []),
   ] : [];
 
   const summarySection = summaryErrors.length ? [
@@ -309,6 +322,6 @@ async function rewriteRejected({
 }
 
 module.exports = {
-  rewriteTargets, buildRewritePrompt, mergeReplacements, rewriteRejected, MAX_TARGETS, PER_QUESTION,
+  rewriteTargets, buildRewritePrompt, mergeReplacements, rewriteRejected, MAX_TARGETS, PER_QUESTION, PER_QUESTION_STRUCTURAL,
   QUIZ_LEVEL_REPAIRABLE,
 };

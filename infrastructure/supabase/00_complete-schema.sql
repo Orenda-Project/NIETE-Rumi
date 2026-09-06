@@ -5327,3 +5327,13 @@ COMMENT ON COLUMN quizzes.meta IS
 -- predates this DDL, so without one here a fresh bootstrap would create the column and leave
 -- PostgREST unable to see it — which is a 400 on the first insert, not an obvious schema error.
 NOTIFY pgrst, 'reload schema';
+
+-- The intro-video showing count: the transcript-quiz film rides the first N
+-- offers, not just the first one. Mirrors
+-- bot/database/migrations/user_feature_intro_shown_count.sql; additive, and it
+-- changes no behaviour until TRANSCRIPT_QUIZ_INTRO_VIDEO_SHOWS / _UR / _EN are
+-- set on a service.
+ALTER TABLE public.user_feature_first_use
+  ADD COLUMN IF NOT EXISTS intro_shown_count INTEGER NOT NULL DEFAULT 0;
+
+NOTIFY pgrst, 'reload schema';
