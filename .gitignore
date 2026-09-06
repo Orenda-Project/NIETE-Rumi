@@ -159,7 +159,3 @@ bot/scripts/setup/assets/backups/
 # Cleaned raster figure cache written by the vendored LP renderer at render time.
 # Derived output, regenerated on demand — never source.
 bot/vendor/lp-v9/.figcache/
-
-# QA automation (.claude/qa) — disposable run output and per-machine pending markers
-.claude/qa/results/
-.claude/.e2e-pending/

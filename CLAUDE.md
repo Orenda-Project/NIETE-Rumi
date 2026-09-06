@@ -47,7 +47,6 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
 | Architecture, cost, monitoring | [docs/architecture.md](docs/architecture.md) · [docs/cost-guide.md](docs/cost-guide.md) · [docs/monitoring.md](docs/monitoring.md) |
 | Classes, grades, subjects, sessions — and the promotion plan | [docs/classes-model.md](docs/classes-model.md) |
 | **Active work: regional fork migration** (Taleemabad → new region) | [docs/migration/README.md](docs/migration/README.md) |
-| **QA automation** — how a commit becomes a synced Gherkin spec + a driven E2E, from any machine | [docs/qa-automation.md](docs/qa-automation.md) · `/niete-e2e` · `/sync-specs` |
 
 ## Architecture facts that change how you write code
 

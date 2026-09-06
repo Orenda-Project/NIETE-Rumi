@@ -34,10 +34,6 @@ cd bot && npm install && cd ..
 
 > **Important:** Do NOT clone directly from `Orenda-Project/rumi-platform`. Each deployment needs its own fork so you can push changes independently.
 
-> **QA hooks.** `npm install` at the repo root also installs the repo's git hooks (`core.hooksPath = .githooks`)
-> so every commit you make arms the Gherkin sync + targeted E2E for the features it touched. If you install
-> dependencies some other way, run `bash scripts/qa/install-hooks.sh` once. Details: [docs/qa-automation.md](docs/qa-automation.md).
-
 ## Step 2: Create Supabase Database
 
 1. **Create account** at [supabase.com](https://supabase.com) (free tier is sufficient)
