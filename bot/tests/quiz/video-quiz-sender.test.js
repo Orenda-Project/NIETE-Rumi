@@ -190,3 +190,57 @@ describe('bd-2358 — the body spells options out only when the row cannot hold 
       .toBe('Which one did you hear?');
   });
 });
+
+describe('round 5 — a QUESTION CARD names exactly the buttons it sends', () => {
+  // A card carrying two options told the child to tap a C that was not there.
+  // The body has to be built from the same count sendButtons actually slices
+  // to, not a hardcoded three.
+  function cardMsgs(options) {
+    return [{
+      phase: 'interaction', kind: 'buttons', role: 'ask', body: '',
+      options, optionIndices: options.map((_, i) => i), letterTitles: true,
+    }];
+  }
+
+  test('two options: body names A and B only, and two buttons go out', async () => {
+    jest.clearAllMocks();
+    await sender.sendPhase('923000000000', cardMsgs(['x', 'y']), 'interaction', { questionId: 'card-1' });
+    const { body, buttons } = WhatsAppService.sendInteractiveButtons.mock.calls[0][1];
+    expect(body).toBe('The question is in the picture above. Tap A or B.');
+    expect(body).not.toMatch(/\bC\b/);
+    expect(buttons.map((b) => b.title)).toEqual(['A', 'B']);
+  });
+
+  test('three options: unchanged — "Tap A, B or C"', async () => {
+    jest.clearAllMocks();
+    await sender.sendPhase('923000000000', cardMsgs(['x', 'y', 'z']), 'interaction', { questionId: 'card-2' });
+    const { body, buttons } = WhatsAppService.sendInteractiveButtons.mock.calls[0][1];
+    expect(body).toBe('The question is in the picture above. Tap A, B or C.');
+    expect(buttons.map((b) => b.title)).toEqual(['A', 'B', 'C']);
+  });
+
+  // A four-option card no longer reaches sendButtons at all: render.build()
+  // routes it to the LIST, because a reply-button row cannot carry the D the
+  // card drew. See video-quiz-card-four-options.test.js. What is pinned here is
+  // the narrower promise sendButtons itself makes — if it IS handed more
+  // options than Meta allows, the body must still name only what it sends,
+  // never a letter the child cannot tap.
+  test('four options handed straight to sendButtons: 3 buttons, and the body names only those 3', async () => {
+    jest.clearAllMocks();
+    await sender.sendPhase('923000000000', cardMsgs(['w', 'x', 'y', 'z']), 'interaction', { questionId: 'card-3' });
+    const { body, buttons } = WhatsAppService.sendInteractiveButtons.mock.calls[0][1];
+    expect(buttons).toHaveLength(3);
+    expect(body).toBe('The question is in the picture above. Tap A, B or C.');
+    expect(body).not.toMatch(/\bD\b/);
+  });
+
+  test('Urdu: two options names A and B only', async () => {
+    jest.clearAllMocks();
+    await sender.sendPhase(
+      '923000000000', cardMsgs(['x', 'y']), 'interaction',
+      { questionId: 'card-4', language: 'ur' },
+    );
+    const { body } = WhatsAppService.sendInteractiveButtons.mock.calls[0][1];
+    expect(body).toBe('‏سوال اوپر تصویر میں ہے۔ A یا B دبائیں۔');
+  });
+});

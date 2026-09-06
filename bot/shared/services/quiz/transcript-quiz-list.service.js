@@ -21,6 +21,7 @@ const { resolveUx } = require('../../config/ux-strings');
 const { truncateCodePoints } = require('./religious-marks');
 const { teacherLanguageFor, formatLessonDate, subjectLabel, quizLanguageFor, needsLanguageAsk } = require('./transcript-quiz-language');
 const { MIN_TRANSCRIPT_CHARS, sendLanguageAsk } = require('./transcript-quiz-offer.service');
+const { isSelfTest } = require('./teacher-self-test');
 
 const PICK_PREFIX = 'tq_pick_';
 const LINK_PREFIX = 'tq_link_';
@@ -85,17 +86,26 @@ function buildRows(sessions, quizzes, language) {
     });
 }
 
-async function countsFor(quizIds) {
+/**
+ * PLAN_R5 §1 D8 — `teacherUserId`, when passed, drops her own self-test row
+ * from both counts. Deliberately filtered in JS, not with a Postgres
+ * `.neq('user_id', teacherUserId)`: `user_id != X` evaluates to NULL (not
+ * true) for every row where `user_id IS NULL`, so that filter would drop
+ * every real child along with her.
+ */
+async function countsFor(quizIds, teacherUserId = null) {
   const counts = new Map();
   if (!quizIds.length) return counts;
   const { data } = await supabase.from('quiz_sessions')
-    .select('quiz_id, status').in('quiz_id', quizIds).is('invited_by_student_id', null);
-  (data || []).forEach((s) => {
-    const c = counts.get(s.quiz_id) || { started: 0, finished: 0 };
-    c.started += 1;
-    if (s.status === 'completed') c.finished += 1;
-    counts.set(s.quiz_id, c);
-  });
+    .select('quiz_id, status, user_id').in('quiz_id', quizIds).is('invited_by_student_id', null);
+  (data || [])
+    .filter((s) => !isSelfTest(s, teacherUserId))
+    .forEach((s) => {
+      const c = counts.get(s.quiz_id) || { started: 0, finished: 0 };
+      c.started += 1;
+      if (s.status === 'completed') c.finished += 1;
+      counts.set(s.quiz_id, c);
+    });
   return counts;
 }
 
@@ -116,7 +126,10 @@ async function showList(user, phone, language) {
       .eq('teacher_id', user.id).eq('quiz_source', 'transcript').in('coaching_session_id', ids);
     quizzes = data || [];
   }
-  const counts = await countsFor(quizzes.filter((q) => ['sent', 'report_sent'].includes(q.status)).map((q) => q.id));
+  const counts = await countsFor(
+    quizzes.filter((q) => ['sent', 'report_sent'].includes(q.status)).map((q) => q.id),
+    user.id,
+  );
   quizzes.forEach((q) => { const c = counts.get(q.id); if (c) { q._started = c.started; q._finished = c.finished; } });
 
   const rows = buildRows(sessions, quizzes, lang);
@@ -201,7 +214,7 @@ async function handleListPick(listId, phone, user) {
       return true;
     case 'sent':
     case 'report_sent': {
-      const counts = await countsFor([quiz.id]);
+      const counts = await countsFor([quiz.id], user.id);
       const c = counts.get(quiz.id) || { started: 0, finished: 0 };
       await WhatsAppService.sendInteractiveButtons(phone, {
         body: resolveUx('tqQuizStatus', { language: lang, params: { topic: quiz.topic || '', started: c.started, finished: c.finished } }),
@@ -280,6 +293,6 @@ async function handleActionButton(buttonId, phone) {
 }
 
 module.exports = {
-  isQuizCommand, buildRows, showList, handleListPick, handleActionButton, statusLine,
+  isQuizCommand, buildRows, showList, handleListPick, handleActionButton, statusLine, countsFor,
   PICK_PREFIX, LINK_PREFIX, REPORT_PREFIX, MAX_ROWS,
 };

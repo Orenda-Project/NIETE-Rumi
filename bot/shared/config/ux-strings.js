@@ -865,6 +865,14 @@ const UX_STRINGS = {
     en: '👋 Assalam o Alaikum!\n\n*{teacher}* has sent you a quiz on *{topic}*.',
     ur: '\u200F👋 السلام علیکم!\n\n*{teacher}* نے آپ کو *{topic}* پر quiz بھیجا ہے۔',
   },
+  // PLAN_R5 §1 D8 — a teacher opening her own class link (a self-test),
+  // not a child. Chat body, no code-point cap. "test run" stays in Latin
+  // letters in the Urdu line (an English technical term, no established
+  // Urdu equivalent in this catalog).
+  vqSelfTestStart: {
+    en: 'This is your own test run — it won’t show up in your class report. Here goes!',
+    ur: '\u200Fیہ آپ کا اپنا test run ہے — یہ آپ کی کلاس رپورٹ میں شامل نہیں ہوگا۔ چلیں شروع کریں!',
+  },
   vqWelcomeBack: {
     en: 'Good to see you again, {name} — let’s begin!',
     ur: '\u200F{name}، آپ کو دوبارہ دیکھ کر خوشی ہوئی — چلیں شروع کریں!',
@@ -945,9 +953,18 @@ const UX_STRINGS = {
   // Under a QUESTION CARD (the whole question drawn as one picture because of
   // notation or long options), the buttons are letters; this is the body line.
   vqCardAsk: {
-    en: 'The question is in the picture above. Tap A, B or C.',
-    ur: '\u200Fسوال اوپر تصویر میں ہے۔ A، B یا C دبائیں۔',
+    en: 'The question is in the picture above. Tap {letters}.',
+    ur: '\u200Fسوال اوپر تصویر میں ہے۔ {letters} دبائیں۔',
   },
+  // The letters a QUESTION CARD offers are never fixed at three — a card can
+  // carry 2 or 4 options, and the copy has to name exactly the buttons sent
+  // (round 5). letterListLabel() builds "A, B or C" from these two pieces;
+  // both are language data, not layout — Urdu's list comma is `،`, not `,`,
+  // and its "or" is `یا`.
+  vqLetterSep: { en: ', ', ur: '، ' },
+  vqLetterOr: { en: 'or', ur: 'یا' },
+  // The question card's OWN footer, painted into the image itself.
+  vqCardTapBelow: { en: 'Tap {letters} below', ur: 'نیچے {letters} دبائیں' },
   vqReportNoOne: {
     en: 'No one has opened your quiz on \u201c{topic}\u201d yet. The link stays live for 30 days \u2014 worth a nudge in the class group.',
     ur: '\u200Fآپ کے quiz «{topic}» کو ابھی تک کسی نے نہیں کھولا۔ link 30 دن تک چلتا رہے گا — class group میں ایک بار پھر یاد دہانی کرا دیں۔',
@@ -1202,6 +1219,31 @@ const TRANSCRIPT_QUIZ_R2_STRINGS = {
 };
 
 Object.assign(UX_STRINGS, TRANSCRIPT_QUIZ_R2_STRINGS);
+
+/**
+ * bd-mg9c7.64 — the student tutor persona (a child who reaches the bot outside
+ * a quiz session, e.g. via a forwarded share link). Two strings, both with a
+ * real call site in `_getStudentTutorPrompt` (openai.service.js): the redirect
+ * line is copy the child can actually read, so it lives in the catalog like
+ * any other teacher/child-facing string rather than being typed inline.
+ */
+const STUDENT_TUTOR_STRINGS = {
+  // The model-failure apology, child-shaped. Not a button/header, so no
+  // code-point cap applies, but kept short on purpose.
+  studentChatError: {
+    en: 'Oops, something went wrong on my end. Please try asking again!',
+    ur: 'معذرت، کچھ گڑبڑ ہو گئی۔ براہِ کرم دوبارہ پوچھیں!',
+  },
+  // The exact sentence the student prompt tells the model to use when a
+  // message drifts off schoolwork — deliberately "a grown-up", not an
+  // enumerated list, so it never has to name a teacher.
+  studentOffTopicHint: {
+    en: "Let's stay with your schoolwork — for anything else, ask a grown-up.",
+    ur: 'آئیں سکول کے کام پر توجہ رکھیں — کسی اور بات کے لیے کسی بڑے سے پوچھیں۔',
+  },
+};
+
+Object.assign(UX_STRINGS, STUDENT_TUTOR_STRINGS);
 
 /**
  * Grade and subject display labels, keyed by the canonical codes in the

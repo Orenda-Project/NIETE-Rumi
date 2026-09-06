@@ -26,6 +26,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const { stripEmphasis, classLabel } = require('../../utils/text-format');
 const { clampLanguage, resolveUx } = require('../../config/ux-strings');
 const { formatLessonDate , sloStatement } = require('./transcript-quiz-language');
+const { excludeSelfTests } = require('./teacher-self-test');
 
 /**
  * The job-type prefix is load-bearing, not cosmetic.
@@ -152,7 +153,11 @@ async function maybeSendEarly(shareCodeId) {
     .from('quiz_sessions')
     .select('status, created_at')
     .eq('share_code_id', shareCodeId)
-    .is('invited_by_student_id', null);   // a friend's session is not this teacher's class
+    .is('invited_by_student_id', null)   // a friend's session is not this teacher's class
+    // PLAN_R5 D8 — within a share code, user_id IS NOT NULL means the
+    // teacher's own self-test (every real share-link session is inserted
+    // with user_id: null). Her practice run must never decide "all finished".
+    .is('user_id', null);
   if (!shouldSendEarly(sessions || [])) return false;
   return generate(shareCodeId, { reason: 'all_finished' });
 }
@@ -192,12 +197,21 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
 
   const { data: sessions } = await supabase
     .from('quiz_sessions')
-    .select('id, student_name, student_class, status, total_questions_answered, '
+    .select('id, user_id, student_name, student_class, status, total_questions_answered, '
             + 'correct_answers, mastery_percentage')
     .eq('share_code_id', shareCodeId)
     .is('invited_by_student_id', null);   // a friend's session is not this teacher's class
 
-  const all = sessions || [];
+  // PLAN_R5 D8 — her own test run of this class link must never read as a
+  // pupil in her own report: not in the roster, not in the average, not in
+  // the "0 students" branch.
+  const rawAll = sessions || [];
+  const all = excludeSelfTests(rawAll, sc.teacher_user_id);
+  if (all.length < rawAll.length) {
+    logEvent('video_quiz.self_test_excluded', {
+      shareCodeId, n: rawAll.length - all.length,
+    });
+  }
   const done = all.filter((s) => s.status === 'completed');
 
   // Never send a results message with no results in it.
@@ -642,7 +656,11 @@ function teacherFacing(raw) {
 async function hardestQuestions(shareCodeId, limit = 3) {
   const { data: sessions } = await supabase
     .from('quiz_sessions').select('id').eq('share_code_id', shareCodeId)
-    .is('invited_by_student_id', null);   // a friend's session is not this teacher's class
+    .is('invited_by_student_id', null)   // a friend's session is not this teacher's class
+    // PLAN_R5 D8 — same reasoning as maybeSendEarly: within a share code,
+    // user_id IS NOT NULL means the teacher's own self-test. Her practice
+    // answers must not decide which question the class found hardest.
+    .is('user_id', null);
   const ids = (sessions || []).map((s) => s.id);
   if (!ids.length) return [];
 

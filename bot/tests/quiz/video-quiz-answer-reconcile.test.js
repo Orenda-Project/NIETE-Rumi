@@ -27,7 +27,10 @@ const updates = [];
 function chain(table, answers) {
   const c = {
     _filters: [],
-    select: () => c, eq: () => c, in: () => c, is: () => c, order: () => c,
+    // `or` is the guard on the counter write — the update chain is
+    // `.update().eq().or()`, and a stub missing one link fails as a TypeError
+    // rather than as a wrong number.
+    select: () => c, eq: () => c, in: () => c, is: () => c, order: () => c, or: () => c,
     update: (patch) => { updates.push([table, patch]); return c; },
     insert: async () => (table === 'quiz_answers' ? { error: { code: '23505', message: 'duplicate' } } : { error: null }),
     single: async () => ({ data: { id: 'q6', question_text: 'x', option_a: 'a', option_b: 'b', option_c: 'c', correct_option: 'A', media: null, render_pattern: 'P1' } }),

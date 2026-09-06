@@ -11,6 +11,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
 const { teacherLanguageFor } = require('./transcript-quiz-language');
+const { excludeSelfTests } = require('./teacher-self-test');
 
 const NUDGE_BELOW = 5;
 
@@ -22,8 +23,10 @@ async function process(quizId) {
   if (quiz.meta?.nudged_at) return { skipped: 'already_nudged' };
 
   const { data: sessions } = await supabase.from('quiz_sessions')
-    .select('id').eq('quiz_id', quizId).is('invited_by_student_id', null);
-  const started = (sessions || []).length;
+    .select('id, user_id').eq('quiz_id', quizId).is('invited_by_student_id', null);
+  // PLAN_R5 D8 — this count decides whether she is nudged; her own test run
+  // of the class link must not read as "started".
+  const started = excludeSelfTests(sessions || [], quiz.teacher_id).length;
   if (started >= NUDGE_BELOW) return { skipped: 'enough_started', started };
 
   const { data: teacher } = await supabase.from('users')

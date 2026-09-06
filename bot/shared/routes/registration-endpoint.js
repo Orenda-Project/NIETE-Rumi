@@ -88,6 +88,29 @@ function normalizeRole(raw) {
 }
 
 /**
+ * Mark the account complete AT THE SCREEN THAT ENDS THE FLOW, not at the terminal payload.
+ *
+ * Both SUCCESS branches below tell the teacher "Your registration is
+ * complete." Until now neither wrote `registration_completed` — the flag was set only
+ * when the terminal Flow payload later reached flow-response.handler.js
+ * (handleRegistrationFlow). That is exactly the payload this file's own header documents
+ * as unreliable ("the terminal Flow payload arrives with the earlier screens' values
+ * empty… verified in the logs 2026-09-03"), which is why the NAME write was moved
+ * per screen. The completion flag was never moved with it, so a teacher whose terminal
+ * payload was lost ended registered-in-fact and unregistered-on-the-row.
+ *
+ * On prod that shows as a 76.7% completion rate over the last 7 days: of 30 named users
+ * created in that window, 23 carry the flag. flow-response.handler.js still writes it too
+ * — a second write of `true` is a no-op, and losing it there no longer loses the fact.
+ */
+async function markRegistrationComplete(userId) {
+  await persistToUser(userId, {
+    registration_completed: true,
+    registration_completed_at: new Date().toISOString(),
+  });
+}
+
+/**
  * Build the "Your portal is ready at <host>" line for the SUCCESS screen.
  * Returns just the welcome line if PORTAL_URL is unset, so cloners running
  * without a portal don't render a broken example-host string.
@@ -341,7 +364,9 @@ async function handleProfessionalInfoSubmit(userId, screenData, flowToken) {
     return response;
   }
 
-  // Non-"other" org → go directly to SUCCESS
+  // Non-"other" org → go directly to SUCCESS. This screen ENDS the flow, so the account
+  // is marked complete here rather than waiting on the terminal payload.
+  await markRegistrationComplete(userId);
   await deleteRegData(flowToken);
 
   const response = {
@@ -390,6 +415,8 @@ async function handleOrgDetailsSubmit(userId, screenData, flowToken) {
   }
 
   const stored = await getRegData(flowToken);
+  // ORG_DETAILS is the last screen on the org="other" path — mark complete here too.
+  await markRegistrationComplete(userId);
   await deleteRegData(flowToken);
 
   const response = {
