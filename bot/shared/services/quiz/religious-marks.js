@@ -27,7 +27,18 @@ const PROPHET_TOKENS = [
   'حضرت محمد', 'محمد', 'حضور', 'نبی',
 ].sort((a, b) => b.length - a.length);
 const esc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const PROPHET_RE = new RegExp(PROPHET_TOKENS.map(esc).join('|'), 'g');
+const PROPHET_ALT = PROPHET_TOKENS.map(esc).join('|');
+// WHOLE WORDS only. JS \b is ASCII-only, so without this «نبی» matched inside
+// «نبیوں» (the plural "prophets") and «انبیاء», and the checker demanded ﷺ for
+// a word that is not a mention of the Prophet at all. The lookaround excludes a
+// letter or a digit on either side but NOT a combining mark, so «نبیؐ» — where
+// the mark IS the honorific — still reaches rule 1.
+const PROPHET_RE = new RegExp(`(?<![\\p{L}\\p{N}])(?:${PROPHET_ALT})(?![\\p{L}\\p{N}])`, 'gu');
+// A COMPOUND title — «نبی حضرت محمد ﷺ», «رسول اللہ حضرت محمد ﷺ». The mention
+// continues into a second Prophet token, and the honorific belongs after the
+// LAST element. Demanding it after the first is what reported one Islamiyat
+// lesson's every mention as bare while ﷺ sat two words to the right.
+const PROPHET_CONTINUES = new RegExp(`^[\\s،:]{0,3}(?:${PROPHET_ALT})`);
 
 // The honorific may be the ligature or spelled out; a comma, a colon or a
 // quote may sit between the name and it.
@@ -36,6 +47,13 @@ const HONORIFIC_RE = /^[\s،۔:'"’”)(‏]{0,3}(ﷺ|صل[یى]\s*الل[ہه]
 // A companion as the books print them: "حضرت <name>". Bare "علی"/"عمر" would
 // match ordinary words, so the unit is the honorific-bearing name phrase.
 const COMPANION_RE = /حضرت\s+([^\s،۔:'"’”)(]+(?:\s+[^\s،۔:'"’”)(]+)?)/g;
+// One word of a name, with the space run before it.
+const NAME_WORD = /^\s*([^\s،۔:'"’”)(]+)/;
+// The links a patronymic name is built from: «سعد بن ربیع», «زینب بنت خزیمہ».
+const PATRONYM = /^(بنِ?|ابنِ?|بنتِ?)$/;
+// A name is a name, not a sentence. Six words covers «ابو عبیدہ بن الجراح»
+// with room to spare and stops the walk long before a verb.
+const NAME_MAX_WORDS = 6;
 const COMPANION_HON = /^[\s،۔]{0,2}(رضی\s*اللہ\s*(?:تعالیٰ\s*)?عنہم?ا?|رضی\s*اللہ\s*عنہا|رضوان\s*اللہ|کرم\s*اللہ\s*وجہہ|علیہ\s*السلام|علیہا\s*السلام|رحمہ\s*اللہ|رحمۃ\s*اللہ|صدیق|فاروق|المرتضیٰ|ﷺ|صل[یى]\s*الل[ہه])/;
 // Names that are the Prophet's, not a companion's — PROPHET_RE owns these.
 const PROPHET_AFTER_HAZRAT = /^(محمد|محمّد)\b/;
@@ -54,6 +72,62 @@ function cpLen(s) {
   return [...String(s || '')].length;
 }
 
+/** Every Prophet-token span in `s`, so the companion rule can stay out of them. */
+function prophetSpans(s) {
+  const spans = [];
+  PROPHET_RE.lastIndex = 0;
+  let m;
+  while ((m = PROPHET_RE.exec(s))) spans.push([m.index, m.index + m[0].length]);
+  return spans;
+}
+
+/**
+ * The offsets at which a companion's name could END — the places the honorific
+ * is allowed to sit.
+ *
+ * bd-mg9c7.95: the books print most companions patronymically («سعد بن ربیع»,
+ * «عبدالرحمن بن عوف»), so a name is a first word, optionally a second (a kunya
+ * or a family name), and then as many «بن X» / «بنت X» links as follow. Looking
+ * only two words deep is what made every correctly-honorified patronymic read
+ * as bare, and one real Islamiyat lesson shipped zero questions six times out
+ * of six because of it.
+ *
+ * The walk stops at the first word that is neither a link nor the word a link
+ * introduces, so an honorific belonging to a DIFFERENT name later in the
+ * sentence can never be borrowed by a bare one.
+ */
+function companionNameEnds(s, from) {
+  const words = [];
+  let i = from;
+  for (let k = 0; k < NAME_MAX_WORDS; k += 1) {
+    const m = NAME_WORD.exec(s.slice(i));
+    if (!m) break;
+    const end = i + m[0].length;
+    words.push({ word: m[1], end });
+    i = end;
+  }
+  const ends = [];
+  for (let k = 0; k < words.length; k += 1) {
+    if (k > 1 && !PATRONYM.test(words[k].word) && !PATRONYM.test(words[k - 1].word)) break;
+    ends.push(words[k].end);
+  }
+  return ends;
+}
+
+/**
+ * For the «حضرت …» match starting at `at`: is the honorific there, and where
+ * does the name-plus-honorific end? The end is what a truncation must not cut
+ * into.
+ */
+function companionExtent(s, at) {
+  const ends = companionNameEnds(s, at + 'حضرت'.length);
+  for (const end of ends) {
+    const h = COMPANION_HON.exec(s.slice(end, end + 40));
+    if (h) return { honorified: true, end: end + h[0].length };
+  }
+  return { honorified: false, end: ends.length ? ends[ends.length - 1] : at + 'حضرت'.length };
+}
+
 /**
  * Check one string. Returns an array of error strings (empty = clean).
  * @param {string} text
@@ -68,6 +142,9 @@ function checkReligiousMarks(text) {
   let m;
   while ((m = PROPHET_RE.exec(s))) {
     const after = s.slice(m.index + m[0].length, m.index + m[0].length + 60);
+    // The name continues into another Prophet token: that later mention is the
+    // one the honorific has to follow, and this loop reaches it next.
+    if (PROPHET_CONTINUES.test(after)) continue;
     if (!HONORIFIC_RE.test(after)) {
       errs.push(`prophet mention without ﷺ: …${s.slice(Math.max(0, m.index - 15), m.index + m[0].length + 20)}`);
       break;
@@ -79,16 +156,19 @@ function checkReligiousMarks(text) {
   if (t) errs.push(`latin-script sacred name: ${t[1]}`);
 
   // 3. Companions carry their honorific.
+  // COMPANION_RE has no left word boundary (JS \b is ASCII-only), so it also
+  // matches the حضرت inside «آنحضرت» and the حضرت of «آں حضرت» / «حضرت محمد» —
+  // all of which are the Prophet, and all of which rule 1 has already checked.
+  // «آنحضرت ﷺ» was reported as "companion without honorific: حضرت ﷺ".
+  const inProphet = prophetSpans(s);
   COMPANION_RE.lastIndex = 0;
   while ((m = COMPANION_RE.exec(s))) {
     const name = m[1];
+    if (inProphet.some(([a, b]) => m.index >= a && m.index < b)) continue;
     if (PROPHET_AFTER_HAZRAT.test(name)) continue;     // the Prophet — rule 1 owns it
-    // The captured name may have swallowed the first word of the honorific
-    // ("ابوبکر رضی"); check from the end of the FIRST word too.
-    const firstWordEnd = m.index + 'حضرت '.length + name.split(/\s+/)[0].length;
-    const afterFull = s.slice(m.index + m[0].length, m.index + m[0].length + 40);
-    const afterFirst = s.slice(firstWordEnd, firstWordEnd + 40);
-    if (!COMPANION_HON.test(afterFull) && !COMPANION_HON.test(afterFirst)) {
+    // The honorific may sit after the first word, after a two-word name, or
+    // after any patronymic link — companionNameEnds() enumerates all of them.
+    if (!companionExtent(s, m.index).honorified) {
       errs.push(`companion without honorific: حضرت ${name.split(/\s+/)[0]}`);
       break;
     }
@@ -117,9 +197,10 @@ function protectedSpans(s) {
   }
   COMPANION_RE.lastIndex = 0;
   while ((m = COMPANION_RE.exec(s))) {
-    const tail = s.slice(m.index + m[0].length);
-    const h = COMPANION_HON.exec(tail);
-    spans.push([m.index, m.index + m[0].length + (h ? h[0].length : 0)]);
+    // The WHOLE patronymic name plus its honorific: cutting «حضرت سعد بن» off
+    // «ربیع رضی اللہ عنہ» separates the name from the honorific just as surely
+    // as cutting the honorific itself.
+    spans.push([m.index, companionExtent(s, m.index).end]);
   }
   return spans;
 }
@@ -146,6 +227,7 @@ function truncateCodePoints(text, max) {
 
 module.exports = {
   checkReligiousMarks,
+  companionExtent,
   truncateCodePoints,
   cpLen,
   PROPHET_RE,

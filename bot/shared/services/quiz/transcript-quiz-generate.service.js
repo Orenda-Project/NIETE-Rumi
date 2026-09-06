@@ -394,7 +394,7 @@ async function tellTeacherFailed(phone, lang, quizId, reason) {
  * re-checked by the validate() call at the end of this function.
  */
 function salvageWithoutBadFigures(questions, errors, ctx) {
-  const droppableErr = /^q(\d+): (FIGURE_|PEDAGOGY_)/;
+  const droppableErr = /^q(\d+): (FIGURE_|PEDAGOGY_|RELIGIOUS_)/;
   const bad = new Set();
   let other = false;
   errors.forEach((e) => {

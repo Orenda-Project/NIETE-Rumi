@@ -44,7 +44,9 @@ const MAX_TARGETS = 3;
 
 /**
  * A complaint one replacement question can answer: it names its question and it
- * is about that question's pedagogy or its picture.
+ * is about that question's pedagogy, its picture, or its religious marks
+ * (bd-mg9c7.95 — a name written without its honorific is one question's text to
+ * rewrite; RELIGIOUS_CONTENT_RULE is already restated in the prompt below).
  *
  * Deliberately NOT droppable-and-quiz-level: `FIGURE_SHARE`, `PEDAGOGY_LEVEL_MIX`,
  * `SLOs uncovered` and the script-ratio complaints are properties of the SET, and
@@ -52,7 +54,7 @@ const MAX_TARGETS = 3;
  * complaint (`q0: 2 options`) is excluded for a different reason: it means the
  * reply itself was malformed, which is a re-roll, not a repair.
  */
-const PER_QUESTION = /^q(\d+):\s*(PEDAGOGY_[A-Z_]+|FIGURE_[A-Z_]+)\b/;
+const PER_QUESTION = /^q(\d+):\s*(PEDAGOGY_[A-Z_]+|FIGURE_[A-Z_]+|RELIGIOUS_[A-Z_]+)\b/;
 
 /**
  * @param {string[]} errors the validator's complaints from the LAST full attempt
