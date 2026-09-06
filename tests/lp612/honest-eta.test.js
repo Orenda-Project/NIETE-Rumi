@@ -39,15 +39,35 @@ describe('no interstitial promises two minutes any more', () => {
   });
 });
 
-describe('the strings that DO quote a duration quote the measured one', () => {
+describe('the interstitials quote no duration at all — they promise a follow-up', () => {
   // The ack for a fresh run, and the ack for a run that died and was restarted.
   // Both are the teacher's first and only estimate, so both carry the number.
-  test.each(['lp612Preparing', 'lp612Restarted'])('%s tells her 5-6 minutes in English', (key) => {
-    expect(UX_STRINGS[key].en).toMatch(/5\s*[–-]\s*6 minutes/);
+  // bd-oo0of / bd-oak77.4 — THE CONTRACT CHANGED, DELIBERATELY, AND THIS IS THE NEW ONE.
+  //
+  // These two strings used to be REQUIRED to say "5-6 minutes", and the tests below were the
+  // ratchet holding them there. The number had already drifted out of true: the measured median on
+  // staging is ~6 min English and ~9 min Urdu, so an Urdu teacher was being told five-to-six and
+  // waiting nine. Quoting a number that is wrong is worse than quoting none — it is the same defect
+  // this file was written to catch, one revision later.
+  //
+  // So the promise is now a FOLLOW-UP rather than a duration: lp612StillWorking already fires at
+  // LP612_FOLLOWUP_MS, and lp612Preparing now says that will happen. The old assertions are
+  // inverted rather than deleted, so nothing can quietly put a number back.
+  test.each(['lp612Preparing', 'lp612Restarted'])('%s quotes NO duration in English', (key) => {
+    expect(UX_STRINGS[key].en).not.toMatch(/5\s*[–-]\s*6 minutes/);
+    expect(UX_STRINGS[key].en).not.toMatch(/\d+\s*(minutes?|min\b)/i);
   });
 
-  test.each(['lp612Preparing', 'lp612Restarted'])('%s tells her the same number in Urdu', (key) => {
-    expect(UX_STRINGS[key].ur).toContain('پانچ سے چھ منٹ');
+  test.each(['lp612Preparing', 'lp612Restarted'])('%s quotes NO duration in Urdu', (key) => {
+    expect(UX_STRINGS[key].ur).not.toContain('پانچ سے چھ منٹ');
+    expect(UX_STRINGS[key].ur).not.toMatch(/\d+\s*منٹ/);
+  });
+
+  test('lp612Preparing promises a follow-up instead of a number', () => {
+    // The thing that replaces the estimate: she is told she will hear again if it runs long, which
+    // is a promise the code actually keeps (lp612StillWorking at LP612_FOLLOWUP_MS).
+    expect(UX_STRINGS.lp612Preparing.en).toMatch(/check in|hear from me|let you know/i);
+    expect(UX_STRINGS.lp612Preparing.ur).toContain('اطلاع');
   });
 
   test('the fresh ack says the estimate is for a lesson written from scratch', () => {

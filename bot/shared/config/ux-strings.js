@@ -255,8 +255,8 @@ const UX_STRINGS = {
   // the cohort is mixed and the bot cannot know.
 
   lp612Preparing: {
-    en: '📄 Writing your lesson plan now — a brand-new lesson usually takes about 5–6 minutes. I will send it here as soon as it is ready.',
-    ur: '📄 آپ کا سبق کا منصوبہ ابھی تیار کیا جا رہا ہے — نئے سبق میں عام طور پر پانچ سے چھ منٹ لگتے ہیں۔ تیار ہوتے ہی یہیں بھیج دیا جائے گا۔',
+    en: '📄 Writing your lesson plan now — a brand-new lesson takes a little while. I will send it here as soon as it is ready, and I will check in if it runs long.',
+    ur: '📄 آپ کا سبق کا منصوبہ ابھی تیار کیا جا رہا ہے — نئے سبق میں کچھ وقت لگتا ہے۔ تیار ہوتے ہی یہیں بھیج دیا جائے گا، اور دیر ہوئی تو اطلاع دی جائے گی۔',
   },
 
   lp612StillWorking: {
@@ -275,8 +275,8 @@ const UX_STRINGS = {
   // staging, and it is what rule 24(d) is about. She does not need to know what a worker is;
   // she needs to know it stopped, it has restarted, and she does not have to do anything.
   lp612Restarted: {
-    en: '📄 That lesson stopped partway through, so I have started it again. It usually takes about 5–6 minutes and will arrive here.',
-    ur: '📄 وہ سبق درمیان میں رک گیا تھا، اس لیے دوبارہ شروع کر دیا گیا ہے۔ عام طور پر پانچ سے چھ منٹ لگتے ہیں اور یہیں موصول ہو جائے گا۔',
+    en: '📄 That lesson stopped partway through, so I have started it again. It will arrive here as soon as it is ready.',
+    ur: '📄 وہ سبق درمیان میں رک گیا تھا، اس لیے دوبارہ شروع کر دیا گیا ہے۔ تیار ہوتے ہی یہیں موصول ہو جائے گا۔',
   },
 
   // A lesson whose page range is over the cap will fail identically on every retry, so it must
@@ -494,6 +494,26 @@ const UX_STRINGS = {
    * Header 60 / button 20 in CODE POINTS — this is where the copy is capped,
    * once, rather than in each caller's inline map (the bd-72dth drift).
    */
+  /**
+   * bd-oak77.4 — she typed a TOPIC, and under LP_612_ROUTE_ALL the answer is the menu.
+   *
+   * One short line, and only on the topic-bearing doors: the bare "lp" command and the /menu tap
+   * open the Flow with no preamble, because nothing needs explaining there. This line exists for
+   * the teacher who asked for "a lesson plan on photosynthesis" and would otherwise watch a grade
+   * picker appear with no idea why — rule 24(d), the copy names the actual state.
+   *
+   * It says where lessons come from now, not what was turned off. She never knew the word Gamma
+   * and an apology for a retired feature is not information she can use.
+   *
+   * Urdu is gender-agnostic in the second person — the imperative `منتخب کریں`, never
+   * `رہی ہوں گی` / `رہے ہوں گے` — because the cohort is mixed and the bot cannot know.
+   * Body field, so the 1024 cap applies, measured in CODE POINTS.
+   */
+  lp612RouteRedirect: {
+    en: 'Lesson plans now come straight from your own textbook. Pick the class, subject and chapter below and I will write that lesson for you.',
+    ur: 'اب سبق کے منصوبے آپ کی اپنی درسی کتاب سے بنتے ہیں۔ نیچے جماعت، مضمون اور باب منتخب کریں — وہ سبق تیار کر دیا جائے گا۔',
+  },
+
   lpBrowseHeader: {
     en: '📘 Lesson Plans',
     ur: '📘 سبق کے منصوبے',
