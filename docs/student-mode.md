@@ -31,22 +31,63 @@ real handler rather than reading its source.
 
 ## The decision
 
-`bot/shared/services/student-mode.service.js` → `decide({ user, students, lastSessionAt, now, flag })`
+`bot/shared/services/student-mode.service.js` →
+`decide({ user, teacherSignals, students, lastSessionAt, now, flag })`
 
-| # | Condition | Mode | Meaning |
+| # | Condition | Mode | `reason` | Meaning |
+|---|---|---|---|---|
+| 1 | `STUDENT_MODE_ENABLED` is not `true` | `unknown` | `flag_off` | nothing is read, nothing is written |
+| 2 | The message is a first-person teacher claim, a registration keyword, or a `/command` | `teacher` | `teacher_claim` | and the handset's quiz-joined student rows are retired |
+| 3 | **Any teacher signal** (table below) | `teacher` | the signal's name | weighed before a single row about a child is read |
+| 4 | An active quiz-joined `students` row for this handset **and** a `quiz_sessions` row for it within 30 days | `student` | `active_student_recent_quiz` | the tutor persona, free chat only |
+| 5 | anything else | `unknown` | `no_student_row` / `no_quiz_session` / `quiz_session_stale` / … | today's behaviour, unchanged |
+
+### The five teacher signals
+
+Any **one** of them is decisive, and all of them are read before anything about a child is. They
+are ordered cheapest-first and short-circuited: a registered or a named row costs **zero** queries;
+the worst case — an adult with no name and no history — costs six head counts, on a path that is
+already making an LLM call.
+
+| Signal | `reason` | Read from | Cost |
 |---|---|---|---|
-| 1 | `STUDENT_MODE_ENABLED` is not `true` | `unknown` | nothing is read, nothing is written |
-| 2 | `users.registration_completed` **or** `users.registration_state === 'completed'` | `teacher` | always, checked before anything about children is read |
-| 3 | The message is a first-person teacher claim, a registration keyword, or a `/command` | `teacher` | and the handset's quiz-joined student rows are retired |
-| 4 | An active quiz-joined `students` row for this handset **and** a `quiz_sessions` row for it within 30 days | `student` | the tutor persona, free chat only |
-| 5 | anything else | `unknown` | today's behaviour, unchanged |
+| `registered` | `registered_teacher` | `users.registration_completed` or `registration_state === 'completed'` | free (the row is already in hand) |
+| `hasName` | `hasName` | `users.first_name` non-empty after trim | free |
+| `ownsQuizzes` | `ownsQuizzes` | any `quizzes.teacher_id = user.id` | 1 head count |
+| `hasCoaching` | `hasCoaching` | any `coaching_sessions.user_id = user.id` | 1 head count |
+| `usedFeatures` | `usedFeatures` | `FeatureRegistrationService.countUserFeatures(user.id) > 0` | 4 head counts |
+| *(a failed lookup)* | `signal_lookup_failed` | any of the three reads erroring | — |
 
-Rules 2 and 3 are the two safety valves. A registered teacher can never be a student, whatever
-else is on the handset; and anybody can say so in one sentence and be believed.
+A failed read is **not** "no rows": collapsing the two is how a teacher becomes a child during a
+database hiccup, so an error resolves towards `teacher` like everything else here.
+
+`registered` and `hasName` are also derived from the `user` row inside the pure `decide()` when the
+caller passes no signals at all, so a call site written before the signals existed still gets both.
+
+Rules 2 and 3 are the safety valves. Anybody can say they are a teacher in one sentence and be
+believed; and a handset with any adult history on it is a teacher's, whatever else is on it.
 
 The two errors are not symmetrical, which is why the evidence bar for `student` sits where it
 does: a wrong `student` costs one oddly pitched reply and is corrected by the next message; a
 wrong `teacher` costs nothing at all — it is exactly what the bot does today.
+
+### Why registration alone was not enough (bd-mg9c7.88)
+
+Lane Z turned the feature on in staging and the very first real account it saw came back
+`student`. It was a teacher's: `registration_completed = false`, `registration_state =
+'unregistered'` — so rule 3's `registered` signal never fired — but a name on the row, six
+`quizzes` owned as `teacher_id`, dozens of `coaching_sessions`, five active quiz-joined `students`
+rows from joining her own class links before the self-test path existed, and a `quiz_sessions` row
+finished that morning. Every clause of rule 4 was satisfied. Her next free-text message would have
+been answered by a tutor pitched at a ten-year-old.
+
+Teachers of that shape are ordinary, not exotic. The recovery-registration branch in
+`text-message.handler.js` (~L2262-2290) exists precisely because people use the bot's features for
+months without ever finishing registration — and it decides "established user" with the same
+`countUserFeatures` call the `usedFeatures` signal uses, so student mode and registration recovery
+cannot disagree about who counts.
+
+The flag was turned off on staging the moment this was seen, and back on after the fix.
 
 ### The escape hatch is anchored, not a substring
 
@@ -97,16 +138,28 @@ already means "the registered user who took this session"; every share-link sess
 written with `user_id: null`, so within a share code `user_id = quiz_share_codes.teacher_user_id`
 identifies a self-test and nothing else.
 
+**And the residue is cleaned up.** A teacher who tested her own links *before* this path shipped is
+still carrying quiz-joined `students` rows from those runs — that is half of what made the live
+account above look like a child. So when `resolveSelfTest()` recognises her phone on her own share
+code it retires that handset's quiz-joined rows (`list_id IS NULL`, `is_active = false`) and logs
+`video_quiz.self_test_rows_retired`. Attendance-roster rows (`list_id` set) are never touched, and a
+retire that fails never stops the quiz from starting.
+
 ## Telemetry
 
 One event per decision, no names and no phone numbers:
 
 | Event | Fields |
 |---|---|
-| `student_mode.decided` | `mode`, `reason`, `userId`, `students`, `sessionAgeDays` |
+| `student_mode.decided` | `mode`, `reason`, `signal`, `userId`, `students`, `sessionAgeDays` |
 | `student_mode.escaped` | `reason`, `retired`, `userId` |
 | `video_quiz.teacher_self_test` | `shareCodeId`, `quizId`, `userId` |
+| `video_quiz.self_test_rows_retired` | `userId`, `retired` |
 | `video_quiz.self_test_excluded` | `shareCodeId`, `n` |
+
+`signal` on a `teacher` verdict is the signal that decided it — `registered_teacher`, `hasName`,
+`ownsQuizzes`, `hasCoaching`, `usedFeatures` or `signal_lookup_failed`. It is `null` on every other
+verdict.
 
 ## Kill switch
 

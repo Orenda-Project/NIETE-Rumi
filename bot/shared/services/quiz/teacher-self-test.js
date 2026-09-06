@@ -16,7 +16,9 @@
 
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const { logEvent } = require('../../utils/structured-logger');
 const StudentIdentity = require('./student-identity.service');
+const { retireQuizStudentRows } = require('../student-mode.service');
 
 /** Pure: is this SESSION row the teacher's own test run? Never true on a
  *  falsy id either side — a child row (`user_id: null`) is never a self-test,
@@ -56,6 +58,18 @@ async function resolveSelfTest({ phone, teacherUserId }) {
     const inbound = StudentIdentity.normalisePhone(phone);
     const hers = StudentIdentity.normalisePhone(teacher.phone_number);
     if (!inbound || !hers || inbound !== hers) return null;
+
+    // bd-mg9c7.88 residue: a teacher who joined her own class links as a child
+    // before this self-test path existed carries stray quiz-joined `students`
+    // rows on this same handset. Now that we know this phone IS the teacher,
+    // retire them so the data stops lying about who owns the phone.
+    // retireQuizStudentRows never throws and is scoped to list_id IS NULL — an
+    // attendance-roster child is untouched. A retire failure must never stop
+    // the self-test from being recognised, so nothing here can affect `return`.
+    const retired = await retireQuizStudentRows(phone, 'self_test');
+    if (retired > 0) {
+      logEvent('video_quiz.self_test_rows_retired', { userId: teacher.id, retired });
+    }
 
     const name = [teacher.first_name, teacher.last_name].filter(Boolean).join(' ') || null;
     return { userId: teacher.id, name };
