@@ -147,6 +147,27 @@ function isLp612TargetedRevisionEnabled() {
   return isTrue(process.env.LP612_TARGETED_REVISION);
 }
 
+/**
+ * bd-w65g9 — Anthropic prompt caching on the author ladder.
+ *
+ * Caching is a PREFIX MATCH (tools -> system -> messages): the bytes ahead of a
+ * `cache_control` breakpoint must repeat exactly for the next call to read the entry.
+ * Measured on prod telemetry 2026-09-06 (12 lessons / 68 calls): 5.7 calls per lesson,
+ * ~48,668 prompt tokens each, `cached_tokens: 0` on every one — nothing was ever sent to
+ * make the prefix cacheable. The system brief alone is 37,536 tokens (77% of the average
+ * prompt) and is byte-identical on every call of a lesson.
+ *
+ * Two breakpoints ride this one flag, and they carry different risk:
+ *   BP1  the system message — transport wrapping only, the prompt bytes do not move.
+ *   BP2  `originalUser` hoisted to the FRONT of the revision turn so it can sit ahead of a
+ *        breakpoint — the only change that moves a prompt byte.
+ *
+ * Default FALSE, same convention as the flags above: OFF must be today, byte for byte.
+ */
+function isLp612PromptCacheEnabled() {
+  return isTrue(process.env.LP612_PROMPT_CACHE);
+}
+
 function templateVersion() {
   const v = (process.env.LP_612_TEMPLATE_VERSION || '').trim();
   return v || DEFAULT_TEMPLATE_VERSION;
@@ -423,6 +444,7 @@ module.exports = {
   isLp612EditEnabled,
   isLp612LangMenuEnabled,
   isLp612TargetedRevisionEnabled,
+  isLp612PromptCacheEnabled,
   isReligiousEnabled,
   templateVersion,
   previousTemplateVersions,
