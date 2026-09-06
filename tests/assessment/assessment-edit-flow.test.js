@@ -102,11 +102,9 @@ describe('PICK — the list only offers what survived KEEP', () => {
     // Asserted on the ids, not the titles: a row title is trimmed to the 20-char
     // NavigationList cap, so matching on full question text would break for a
     // reason that has nothing to do with what this test is about.
-    // The last row is the "Done editing" exit, not a question — a NavigationList
-    // may carry nothing else on its screen, so the way out has to be a row.
-    const offered = res.data.items.map((r) => r.id);
-    expect(offered[offered.length - 1]).toBe('__done__');
-    const questions = offered.filter((id) => id !== '__done__');
+    // The list is a RadioButtonsGroup fed from data.questions; the exit is a
+    // Footer, so every entry here is a question.
+    const questions = res.data.questions.map((r) => r.id);
     expect(questions).toEqual(['a.b.MCQs.0', 'a.b.Match.0']);
     expect(questions).not.toContain('a.b.Fill.0');
   });
@@ -352,7 +350,12 @@ describe('NavigationList rows must fit what the device will draw (bd-60026)', ()
       { keep: LONG.map((q) => q.id), page: '0', _action: 'done' }, TOKEN);
 
     expect(res.screen).toBe('PICK');
-    expect(overCap(res.data.items)).toEqual([]);
+    // PICK is a RadioButtonsGroup now: 30-char titles (clipped by the device
+    // mid-word past that), ~140 displayed chars of description.
+    for (const q of res.data.questions) {
+      expect(q.title.length).toBeLessThanOrEqual(30);
+      expect(q.description.length).toBeLessThanOrEqual(140);
+    }
   });
 
   test('the sub-question list fits too — same component, same cap', async () => {
@@ -370,6 +373,6 @@ describe('NavigationList rows must fit what the device will draw (bd-60026)', ()
     session({ selected: LONG.map((q) => q.id) });
     const res = await exchange('user-1', 'KEEP',
       { keep: LONG.map((q) => q.id), page: '0', _action: 'done' }, TOKEN);
-    expect(res.data.items[0]['main-content'].description).toContain('4 marks');
+    expect(res.data.questions[0].description).toContain('4 marks');
   });
 });

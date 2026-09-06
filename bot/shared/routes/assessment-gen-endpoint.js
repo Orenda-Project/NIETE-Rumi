@@ -146,7 +146,11 @@ function navFit(text) {
   if (t.length <= NAV_MAX) return t;
   const cut = t.slice(0, NAV_MAX);
   const space = cut.lastIndexOf(' ');
-  return (space > NAV_MAX * 0.5 ? cut.slice(0, space) : cut).replace(/[\s\W]+$/, '');
+  // Strip a dangling space or punctuation mark — and NOTHING else. This was
+  // `[\s\W]+$`, and in JavaScript `\W` is "not [A-Za-z0-9_]", so every Urdu
+  // letter matched: a cut Urdu row lost all its text and read as a bare "1".
+  // The same defect as optionTitle (bd-60041), one function along.
+  return (space > NAV_MAX * 0.5 ? cut.slice(0, space) : cut).replace(/[\s.,;:!?—–\-·۔،]+$/u, '');
 }
 
 /**
@@ -228,43 +232,22 @@ function reviewError(message) {
  * guard enforces it), so the rebuild button lives on PICK_DONE next door rather
  * than under the list.
  */
-function pickScreen({ items, selected, screenId = 'PICK' }) {
+function pickScreen({ items, selected, screenId = 'PICK', error = '' }) {
   const { kept, count, marks } = totalsOf(items, selected);
-  const rows = kept.map((q) => ({
-    id: q.id,
-    'main-content': {
-      title: navFit(Selection.optionTitle(q)),
+  // A RadioButtonsGroup, not a NavigationList. The list has to share its screen
+  // with a Footer so "Done editing" is a real button and not a row that reads
+  // like a fifth question — and a NavigationList cannot share a screen with
+  // anything. Radio titles also get 30 characters to the NavigationList's 20.
+  return screen(screenId, {
+    summary: `${count} question${count === 1 ? '' : 's'} · ${marks} marks`,
+    questions: kept.map((q) => ({
+      id: q.id,
+      title: Selection.optionTitle(q),
       description: navDescription(q),
-      metadata: '',
-    },
-    'on-click-action': {
-      name: 'data_exchange',
-      payload: { _action: 'open', question_id: q.id },
-    },
-  }));
-
-  // The way OUT has to be a row.
-  //
-  // A NavigationList must be the only component on its screen — Meta rejects
-  // the publish outright otherwise, which once cost a staging DRAFT — so there
-  // is nowhere to put a Footer. Without this row the only way off this screen
-  // was to edit a question, so a teacher who opened it to check her questions
-  // and change nothing was stuck, and one who wanted to edit two could only
-  // ever edit one.
-  //
-  // Last, so it never sits between two questions. Every field is inside the
-  // 20-character NavigationList cap.
-  rows.push({
-    id: '__done__',
-    'main-content': {
-      title: navFit('✓ Done editing'),
-      description: navFit(`${count} Q · ${marks} marks`),
-      metadata: '',
-    },
-    'on-click-action': { name: 'data_exchange', payload: { _action: 'pick_done' } },
+    })),
+    error,
+    has_error: Boolean(error),
   });
-
-  return screen(screenId, { items: rows });
 }
 
 function pickDoneScreen({ items, selected, error = '' }) {
@@ -443,7 +426,7 @@ async function handleKeep(userId, data, flowToken) {
   return pickScreen({ items, selected });
 }
 
-async function handlePick(userId, data, flowToken) {
+async function handlePick(userId, data, flowToken, screenId = 'PICK') {
   const state = await readSession(flowToken);
   const { items } = await loadItems(state, flowToken, userId);
   if (!items) return reviewError("I couldn't find that paper. Send /assessment to make a new one.");
@@ -461,11 +444,12 @@ async function handlePick(userId, data, flowToken) {
     if (!(await isAssessmentEditingEnabled())) {
       return pickDoneScreen({ items, selected });
     }
+    if (!data.question_id) {
+      return pickScreen({ items, selected, screenId, error: 'Tap a question first, then Edit.' });
+    }
     const item = items.find((q) => q.id === data.question_id);
     if (!item) {
-      return pickDoneScreen({
-        items, selected, error: 'That question is no longer on the paper.',
-      });
+      return pickScreen({ items, selected, screenId, error: 'That question is no longer on the paper.' });
     }
     await writeSession(flowToken, { ...state, editing: item.id, editingSub: null });
     return editScreen(item);
@@ -657,7 +641,7 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
   // only reason there are two is that Meta refuses a backward route from an
   // edit screen back to PICK.
   if (screenId === 'PICK' || screenId === 'PICK_MORE') {
-    return handlePick(userId, data, flowToken);
+    return handlePick(userId, data, flowToken, screenId);
   }
   if (screenId === 'PICK_DONE') return handlePickDone(userId, data, flowToken);
   if (String(screenId).startsWith('EDIT_')) {
