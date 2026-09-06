@@ -55,7 +55,7 @@ async function offerInvite({ phone, studentId, shareCodeId, language = 'en',
       { id: INVITE_NO, title: resolveUx('vqInviteNo', { language }) },
     ],
   });
-  // bd-mg9c7.65 — the invite is only ever offered on a share_link session.
+  // The invite is only ever offered on a share_link session.
   logEvent('video_quiz.offer_shown', { kind: 'invite', sessionId, quizId, source: 'share_link', language });
   return true;
 }
@@ -67,7 +67,7 @@ async function handleInviteButton(buttonId, phone) {
   await redisService.delete(INVITE_KEY(phone));
   if (!ctx) return true;
 
-  // bd-mg9c7.65 — an old in-flight ctx minted before this deploy has no
+  // An old in-flight ctx minted before this deploy has no
   // sessionId/quizId; they simply come out undefined/null here, and the
   // answer still logs cleanly.
   const choice = buttonId === INVITE_YES ? 'yes' : 'no';

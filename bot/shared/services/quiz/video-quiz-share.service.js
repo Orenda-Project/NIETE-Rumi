@@ -138,7 +138,7 @@ async function offerShare({ phone, userId, quizId, videoId, language = 'en', ses
       phone: phone.slice(-4), quizId,
     });
   }
-  // bd-mg9c7.65 — the share offer is only ever made after a video_solo run.
+  // The share offer is only ever made after a video_solo run.
   // `sent` carries the retry's verdict: an offer that never reached the phone
   // still belongs in the funnel, but it is not a shown offer she ignored.
   logEvent('video_quiz.offer_shown', {

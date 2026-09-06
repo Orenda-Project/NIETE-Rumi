@@ -61,7 +61,7 @@ async function offerMore({ phone, studentId, shareCodeId, language = 'en',
       { id: MORE_NO, title: t.no },
     ],
   });
-  // bd-mg9c7.65 — binge is only ever offered after an invite decline, which
+  // Binge is only ever offered after an invite decline, which
   // only happens on a share_link session.
   logEvent('video_quiz.offer_shown', { kind: 'binge', sessionId, quizId, source: 'share_link', language });
   return true;
@@ -74,7 +74,7 @@ async function handleMoreButton(buttonId, phone) {
   await redisService.delete(MORE_KEY(phone));
   if (!ctx) return true;
 
-  // bd-mg9c7.65 — an old in-flight ctx minted before this deploy has no
+  // An old in-flight ctx minted before this deploy has no
   // sessionId/quizId; they simply come out undefined/null here.
   const choice = buttonId === MORE_YES ? 'yes' : 'no';
   logEvent('video_quiz.offer_answered', {

@@ -102,7 +102,7 @@ describe('SELECT_TOPIC → deliver, child token', () => {
     const deliveryInsertCalls = supabase.from.mock.calls.filter(([t]) => t === 'video_quiz_deliveries');
     expect(deliveryInsertCalls).toHaveLength(0);
 
-    // bd-mg9c7.65 — the reachable point for the "child picked a video from
+    // The reachable point for the "child picked a video from
     // the binge round's Student Videos Flow" telemetry.
     const picked = logEvent.mock.calls.find((c) => c[0] === 'video_quiz.binge_video_picked');
     expect(picked).toBeDefined();

@@ -156,7 +156,7 @@ async function sendFeedbackPrompt({ videoId, userId, phone, context }) {
   logEvent('student_video.feedback_prompt.sent', {
     videoId, userId, phone, ok, ...context,
   });
-  // bd-mg9c7.65 — only the post-quiz survey ('video_and_quiz') is part of the
+  // Only the post-quiz survey ('video_and_quiz') is part of the
   // quiz funnel; the bare-video survey ('video') is a different offer. Logged
   // HERE and not at schedule time: the prompt is scheduled 30 s ahead and the
   // send can fail, and an offer nobody received is not an offer shown.
@@ -289,7 +289,7 @@ async function handleFeedbackButton(buttonId, phone) {
   logEvent('student_video.feedback.button_tapped', {
     videoId, userId, phone, useful, feedbackId: inserted.id,
   });
-  // bd-mg9c7.65 — only when this tap belongs to a quiz run, not a bare video.
+  // Only when this tap belongs to a quiz run, not a bare video.
   if (link?.quizSessionId) {
     logEvent('video_quiz.feedback_answered', { quizSessionId: link.quizSessionId, useful, videoId });
     logEvent('video_quiz.offer_answered', {

@@ -125,7 +125,7 @@ async function sendOffer({ userId, phone, video, quiz, language, deliveryId }) {
       .eq('id', deliveryId);
   }
   logEvent('video_quiz.offered', { userId, videoId: video.id, quizId: quiz.id });
-  // bd-mg9c7.65 — sibling of the offer_answered already logged in
+  // Sibling of the offer_answered already logged in
   // handleOfferButton, so one query answers the whole quiz-offer funnel.
   // sessionId is null here: no session exists until the offer is accepted.
   logEvent('video_quiz.offer_shown', {
@@ -245,7 +245,7 @@ async function handleOfferButton(buttonId, phone) {
       quiz_responded_at: new Date().toISOString(),
     }).eq('id', offer.deliveryId);
   }
-  // bd-mg9c7.65 — choice is a stable token, never the button title.
+  // choice is a stable token, never the button title.
   const choice = shared ? 'share' : (accepted ? 'yes' : 'no');
   logEvent('video_quiz.offer_answered', {
     userId: offer.userId, quizId: offer.quizId, accepted, shared, kind: 'quiz', choice,
