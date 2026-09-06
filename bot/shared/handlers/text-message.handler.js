@@ -264,6 +264,38 @@ async function tryChildVideoMenu(from, language) {
   }
 }
 
+/**
+ * bd-mg9c7.97 — hoisted above the quiz-state intercepts below so a
+ * `QUIZ-<code>` text always reaches the join, even when the sender already
+ * has a post-quiz chat state or an active/invited session from an earlier
+ * quiz (a child tapping a SECOND teacher's forwarded link). Only the
+ * code-parse branch moves up here; `consumeJoinReply` (which claims the next
+ * two free-text messages as a child's name and class) stays below the
+ * intercepts so it never eats a quiz answer. Returns true when it
+ * short-circuited the message.
+ */
+async function tryShareCodeJoin(from, messageBody, typingController) {
+  try {
+    const VideoQuizShare = require('../services/quiz/video-quiz-share.service');
+    const code = VideoQuizShare.parseShareCode(messageBody);
+    if (!code) return false;
+
+    // ACK FIRST. Thirty children tapping a forwarded link within the
+    // same minute used to run thirty joins (identity lookup, share-code
+    // resolution, a Flow send) inline before this webhook answered
+    // 200; Meta retried the slow ones and the retries collided. The
+    // join now runs after the handler returns, under a per-phone+code
+    // lock so a retry cannot start a second session.
+    typingController.stop();
+    setImmediate(() => VideoQuizShare.beginFromCodeLocked(from, code)
+      .catch((err) => logToFile('❌ video-quiz join failed', { from, code, error: err.message }, 'error')));
+    return true;
+  } catch (vqErr) {
+    logToFile('Video Quiz share: routing error', { error: vqErr.message });
+    return false;
+  }
+}
+
 async function handleTextMessage(message, from, messageBody, user = null) {
   logToFile(`Processing TEXT message: ${messageBody}`);
 
@@ -271,6 +303,13 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   const typingController = WhatsAppService.startContinuousTypingIndicator(from, message.id);
 
   try {
+    // bd-mg9c7.97 — the share-code JOIN itself runs before anything else,
+    // including the quiz-state intercept below, so a second teacher's link
+    // is never swallowed by a stale post-quiz/active-session state.
+    if (messageBody && await tryShareCodeJoin(from, messageBody, typingController)) {
+      return;
+    }
+
     // ============================================================
     // QUIZ STATE INTERCEPT — runs BEFORE user creation so parents (who may
     // not have a Rumi account) can answer quizzes. Post-quiz AI chat is checked
@@ -330,30 +369,14 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     // bd-2482 (NIETE port of PK bd-2314/2315): Video-quiz share links.
     //
     // Deliberately BEFORE user lookup: a child arriving from a forwarded
-    // wa.me link may have no users row at all, and their first message is
-    // the auto-filled "QUIZ-ABC123". Routing that through normal onboarding
-    // would answer a code with a menu.
-    //
-    // Two steps, both short-circuiting:
-    //   1. the code itself -> greet, naming the teacher and the topic
-    //   2. the next two texts -> their name, then their class
+    // wa.me link may have no users row at all. The code-parse branch itself
+    // is now hoisted above the quiz-state intercept (tryShareCodeJoin,
+    // bd-mg9c7.97) — this block only claims the next two free-text messages
+    // as their name, then their class.
     // ============================================================
     if (messageBody) {
       try {
         const VideoQuizShare = require('../services/quiz/video-quiz-share.service');
-        const code = VideoQuizShare.parseShareCode(messageBody);
-        if (code) {
-          // ACK FIRST. Thirty children tapping a forwarded link within the
-          // same minute used to run thirty joins (identity lookup, share-code
-          // resolution, a Flow send) inline before this webhook answered
-          // 200; Meta retried the slow ones and the retries collided. The
-          // join now runs after the handler returns, under a per-phone+code
-          // lock so a retry cannot start a second session.
-          typingController.stop();
-          setImmediate(() => VideoQuizShare.beginFromCodeLocked(from, code)
-            .catch((err) => logToFile('❌ video-quiz join failed', { from, code, error: err.message }, 'error')));
-          return;
-        }
         if (await VideoQuizShare.consumeJoinReply(from, messageBody)) {
           logToFile('Text consumed as video-quiz join detail — short-circuit', { from });
           typingController.stop();
