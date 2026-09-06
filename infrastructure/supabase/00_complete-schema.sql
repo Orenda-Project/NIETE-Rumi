@@ -4850,6 +4850,141 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_obs_sched_active
   ON observation_schedules (leader_user_id, school_ext_id, teacher_ext_id)
   WHERE status = 'upcoming';
 
+-- ============================================================
+-- COACH ALLOCATIONS + OBSERVATION SCHEDULING
+-- ============================================================
+-- These three tables shipped as migrations (V1.0.9, V1.0.10, V1.1.7) and were
+-- never added here, so `npm run bootstrap:db` produced a database without them.
+-- The bot then failed silently: leaderHasAssignment() catches every error and
+-- returns false, so visit planning simply never appeared. Defined here so a
+-- fresh clone and a migrated database end up with the same shape.
+--
+-- school_id is the identity going forward. school_ext_id ('niete:<EMIS>') came
+-- from the coach roster sheet and is kept as a record of what the sheet said.
+-- Both columns are present on purpose during the transition; see
+-- docs/leader-schools-school-id-migration.md.
+--
+-- RLS: deliberately NOT enabled on these three, which matches the live databases
+-- but differs from schools and the other 69 tables in 01_rls-policies.sql.
+-- leader_teachers holds teacher names and phone numbers, so this is a real gap
+-- and not a considered exemption. It is called out here rather than quietly
+-- reproduced in every new clone. Settling it is its own change, because turning
+-- RLS on without a policy would cut off any anon or authenticated read that the
+-- portal currently depends on.
+
+CREATE TABLE IF NOT EXISTS leader_schools (
+  id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  leader_user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  source             text NOT NULL CHECK (source IN ('niete_ict')),
+  school_ext_id      text,
+  school_id          uuid REFERENCES schools(id),
+  school_name        text NOT NULL,
+  emis               text,
+  name_match_quality text,
+  created_at         timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (leader_user_id, source, school_ext_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_leader_schools_leader
+  ON leader_schools (leader_user_id);
+CREATE INDEX IF NOT EXISTS idx_leader_schools_school_id
+  ON leader_schools (school_id);
+
+-- DEPRECATED (V1.2.4) — do not read, do not add callers.
+--
+-- Stored one row per (coach, school, teacher). It answered "who does this coach
+-- coach?" and, because no school->teacher roster table was ever built, also
+-- "who teaches at this school?" — DISTINCT teachers at a school_ext_id across
+-- whoever held it. A coach-assignment table doing duty as institutional record.
+--
+-- Both questions are now derived:  leader_schools x users.school_id.
+-- The stored answer and the schools disagreed on 230 production rows; a join
+-- cannot disagree with itself.
+--
+-- Still WRITTEN by the school add/remove path, which is also the only thing
+-- that reads the rows back. Populated, indexed, and deciding nothing — which is
+-- precisely why the deprecation is stated here and on the table itself, rather
+-- than left to be inferred from 7,954 healthy-looking rows.
+--
+-- Delete when coach observation has run on the derived patch long enough to
+-- trust it, leader_roster_audit carries real coach-driven rows, and the 7
+-- teachers held by a coach with no users.school_id have been given one.
+-- Ratchet: bot/tests/observe/leader-teachers-deprecated.test.js
+CREATE TABLE IF NOT EXISTS leader_teachers (
+  id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  leader_user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  source             text NOT NULL CHECK (source IN ('niete_ict')),
+  school_ext_id      text,
+  school_id          uuid REFERENCES schools(id),
+  teacher_ext_id     text,
+  teacher_name       text NOT NULL,
+  teacher_phone      text,
+  teacher_phone_e164 text,
+  level              text,
+  created_at         timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (leader_user_id, source, school_ext_id, teacher_ext_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_leader_teachers_leader_school
+  ON leader_teachers (leader_user_id, school_ext_id);
+CREATE INDEX IF NOT EXISTS idx_leader_teachers_phone_e164
+  ON leader_teachers (teacher_phone_e164);
+-- Append-only history of coach-driven roster changes (V1.2.3). ONE ROW PER
+-- AFFECTED COACH: a change that reaches four coaches writes four rows, so each
+-- of them can be told why a teacher left their list.
+--
+-- Deliberately not dashboard_audit_log: that table's user_id is FK'd to
+-- dashboard_users, and the actor here is a coach in `users`.
+CREATE TABLE IF NOT EXISTS leader_roster_audit (
+  id                      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  action                  text NOT NULL CHECK (action IN ('add', 'remove', 'move')),
+  actor_user_id           uuid NOT NULL REFERENCES users(id),
+  affected_leader_user_id uuid REFERENCES users(id),
+  -- The teacher is denormalised on purpose: she may have no users row at all,
+  -- and an audit row must stay readable after the thing it describes is gone.
+  teacher_ext_id          text,
+  teacher_phone_e164      text,
+  teacher_name            text,
+  -- NULL from_ = an add. NULL to_ = a removal. Both set = a move.
+  from_school_ext_id      text,
+  to_school_ext_id        text,
+  detail                  jsonb,
+  created_at              timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_roster_audit_teacher
+  ON leader_roster_audit (teacher_phone_e164, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_roster_audit_actor
+  ON leader_roster_audit (actor_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_roster_audit_affected
+  ON leader_roster_audit (affected_leader_user_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_leader_teachers_school_id
+  ON leader_teachers (school_id);
+
+CREATE TABLE IF NOT EXISTS observation_schedules (
+  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  leader_user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  school_ext_id     text NOT NULL,
+  school_id         uuid REFERENCES schools(id),
+  teacher_ext_id    text NOT NULL,
+  teacher_name      text,
+  school_name       text,
+  scheduled_for     date NOT NULL,
+  scheduled_slot    text,
+  status            text NOT NULL DEFAULT 'upcoming' CHECK (status IN ('upcoming','done','cancelled')),
+  session_id        uuid,
+  calendar_event_id text,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_obs_sched_leader_status
+  ON observation_schedules (leader_user_id, status, scheduled_for);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_obs_sched_active
+  ON observation_schedules (leader_user_id, school_ext_id, teacher_ext_id)
+  WHERE status = 'upcoming';
+
 -- ── lp_feedback: reserve the voicenote follow-up column ─────────────────────
 -- Voicenotes are NOT live for NIETE, so the post-LP quiz asks about the lesson
 -- plan only. This column is the one piece of schema the later voicenote
