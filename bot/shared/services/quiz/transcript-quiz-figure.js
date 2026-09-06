@@ -33,6 +33,10 @@ const MANIFEST = require('../../../vendor/lp-v9/diagrams/types_manifest.json');
 const { fontCss } = require('../../../vendor/lp-v9/lib/fonts');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
+// The ONE clamp (root rule 20 / language-protocol): the diagram engine takes
+// 'ur' or 'en' and nothing else, and the decision of which one a language code
+// falls to belongs to the catalog, never to an inline ternary here.
+const { clampLanguage } = require('../../config/ux-strings');
 
 /**
  * The types that survive a 1080px-wide picture on a mid-range Android phone AND
@@ -392,7 +396,7 @@ function renderFigureSvg(spec, language) {
     throw new FigureError('FIGURE_TYPE',
       `figure type "${spec.type}" is not allowed — use one of: ${ALLOWED_TYPES.join(', ')}`);
   }
-  const merged = { ...(TYPE_DEFAULTS[type] || {}), ...spec, type, lang: language === 'ur' ? 'ur' : 'en' };
+  const merged = { ...(TYPE_DEFAULTS[type] || {}), ...spec, type, lang: clampLanguage(language) };
   const ceiling = PHONE_FONT_SCALE[type] || 1;
   const ladder = [...new Set([ceiling, ...SCALE_LADDER])].filter((k) => k <= ceiling).sort((a, b) => b - a);
 

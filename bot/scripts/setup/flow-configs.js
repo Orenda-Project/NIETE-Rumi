@@ -226,6 +226,20 @@ const FLOW_CONFIGS = [
     categories: ['OTHER'],
   },
   {
+    // The child's join form: name and class, asked once when a quiz link is
+    // tapped. STATIC — no endpoint: the greeting and the teacher's name are
+    // supplied per-send as navigate-mode screen data, and the answer comes
+    // back on our own flow token. Registered here rather than published only
+    // by hand, so the asset, the env var and the registry agree. Leaving
+    // STUDENT_JOIN_FLOW_ID unset falls the join back to the chat form, which
+    // is the rollback lever.
+    name: 'Student Join',
+    jsonPath: path.join(FLOWS_DIR, 'student-join-flow.json'),
+    type: 'navigate',
+    envVar: 'STUDENT_JOIN_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
     // Multi-answer ("select all that apply") transcript-quiz questions. STATIC —
     // no endpoint: the question, options and answer token are all supplied
     // per-send as navigate-mode screen data. Leaving QUIZ_MULTI_FLOW_ID unset

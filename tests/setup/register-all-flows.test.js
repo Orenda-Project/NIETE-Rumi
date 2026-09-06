@@ -102,17 +102,18 @@ describe('register-all-flows', () => {
     // diverged and do not carry the same set of Flows (main has Pic-to-LP
     // Confirm; develop does not). Read the count off the tree you are on rather
     // than copying it across a cherry-pick.
-    it('exports an array of all 20 registerable flow configurations', () => {
+    it('exports an array of all 21 registerable flow configurations', () => {
       expect(Array.isArray(FLOW_CONFIGS)).toBe(true);
       // Re-armed at 18 on 2026-09-06: the assessment REVIEW screens became their
       // own Flow. A Flow opens on screens[0], and the review screens could only
       // be reached from a TERMINAL confirm screen, so the client refused to open
       // onto them at all.
-      // Re-armed at 20 on 2026-09-06 by the transcript-quiz extraction: Quiz
-      // Multi-Select (static, navigate) and Transcript Quiz (endpoint) landed
-      // together. `main` keeps Pic-to-LP Confirm, so this tree is 20 where
-      // develop is 19 — one entry apart, for that reason alone.
-      expect(FLOW_CONFIGS).toHaveLength(20);
+      // Re-armed at 21 on 2026-09-06 by the transcript-quiz extraction: Student
+      // Join and Quiz Multi-Select (both static, navigate) and Transcript Quiz
+      // (endpoint) landed together. `main` keeps Pic-to-LP Confirm, so this
+      // tree is 21 where develop is 19 — Student Join was never registered
+      // there, only published by hand, which is the gap this closes.
+      expect(FLOW_CONFIGS).toHaveLength(21);
     });
 
     it('gives every flow a unique name, envVar and endpointPath', () => {
