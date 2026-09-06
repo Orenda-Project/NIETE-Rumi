@@ -16,6 +16,7 @@ const { LANG_NAME } = require('./transcript-quiz-language');
 const { ALLOWED_TYPES, EARLY_YEARS_TYPES, CORE_TYPES, minimalSpecBlock } = require('./transcript-quiz-figure');
 const { names: pictogramNames } = require('../../../vendor/lp-v9/diagrams/lib/pictogram');
 const { MOLECULE_DICTIONARY } = require('./transcript-quiz-figure-science');
+const { multiContract, multiFlowId } = require('./transcript-quiz-multi');
 const { logEvent } = require('../../utils/structured-logger');
 
 const DEFAULT_QUESTIONS = 8;
@@ -141,7 +142,14 @@ function excerptsFor(transcript, digest, width = 1200) {
   return parts.join('\n---\n');
 }
 
-function buildAuthorPrompt({ digest, excerpts, language, n = DEFAULT_QUESTIONS, gradeBand, previousErrors = null }) {
+function buildAuthorPrompt({
+  digest, excerpts, language, n = DEFAULT_QUESTIONS, gradeBand, previousErrors = null,
+  // PLAN_R5 D4. Asking for a question we cannot deliver is worse than not
+  // asking: a set question rendered as a single-select picker is unanswerable.
+  // Defaulted by the CALLER from the Flow id, not read here, so a test can ask
+  // for either prompt without touching the environment.
+  allowMulti = false,
+}) {
   const rule = language === 'ur'
     ? 'Write EVERYTHING in Urdu script; keep English technical terms in English letters exactly as the teacher used them.'
     : 'Write EVERYTHING in English — every stem, option, explanation and feedback — even though the lesson was taught in Urdu: translate the teacher\'s own words and keep her examples, numbers and names. An Urdu word may appear only when quoting a term the class used, in quotation marks.';
@@ -175,7 +183,8 @@ LESSON SUMMARY. Also return a top-level "lesson_summary": 2-3 sentences, in the 
 SELECTED BECAUSE. Every question also carries a "selected_because": at most 15 words, naming the specific moment in the lesson this question was chosen from (e.g. "she counted 26 to 30 aloud with the class", "the fraction of the roti she drew on the board"). This is WHY the question was picked from the transcript, not why the answer is correct — never restate the answer and never repeat "explanation". Write selected_because in the quiz language (the same language as the questions), never in English on an Urdu quiz.
 RELIGIOUS CONTENT (Islamiyat / سیرت / any mention of the Prophet, companions, Qur'an): every mention of the Prophet carries ﷺ immediately after the name; companions carry رضی اللہ عنہ / عنہا; اللہ and all sacred names in Urdu/Arabic script only; NEVER invent or paraphrase a hadith or an ayah — quote only what the lesson quoted, and only with the reference the teacher gave; no question may ask a child to guess what the Prophet ﷺ "would say".
 
-${figureContract({ subject: digest && digest.subject, gradeBand })}${retry}
+${figureContract({ subject: digest && digest.subject, gradeBand })}
+${multiContract({ allowMulti, n })}${retry}
 
 Return ONLY this JSON object:
 { "lesson_summary": "",
@@ -201,9 +210,12 @@ ${excerpts}`;
 /**
  * @returns {Promise<{questions:object[], model:string, costUsd:number|null, latencyMs:number}>}
  */
-async function author({ digest, transcript, language, n = DEFAULT_QUESTIONS, gradeBand = null, previousErrors = null, quizId = null }) {
+async function author({
+  digest, transcript, language, n = DEFAULT_QUESTIONS, gradeBand = null, previousErrors = null,
+  quizId = null, allowMulti = Boolean(multiFlowId()),
+}) {
   const excerpts = excerptsFor(transcript, digest);
-  const prompt = buildAuthorPrompt({ digest, excerpts, language, n, gradeBand, previousErrors });
+  const prompt = buildAuthorPrompt({ digest, excerpts, language, n, gradeBand, previousErrors, allowMulti });
   const { json, model, costUsd, latencyMs } = await completeJson({ prompt, label: 'transcript_quiz.author' });
   const questions = Array.isArray(json?.questions) ? json.questions : [];
   const lessonSummary = typeof json?.lesson_summary === 'string' ? json.lesson_summary : '';

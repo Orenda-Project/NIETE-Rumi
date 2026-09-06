@@ -44,6 +44,7 @@ const fs = require('fs');
 const path = require('path');
 const { richNotation } = require('../services/quiz/quiz-notation');
 const { sloStatement } = require('../services/quiz/transcript-quiz-language');
+const { resolveUx } = require('../config/ux-strings');
 const { PALETTE, FONTS, TYPE_FLOOR, headFamily, bodyFamily, latticeSvg, diamondSvg, scriptOf } = require('./niete-brand');
 
 // PLAN_R5 D6 / operator item 11 — the shared floor, never re-typed as a raw
@@ -253,19 +254,27 @@ function renderTranscriptQuizTeacherHtml(d) {
     // The options in the order the CHILD meets them, with the same A/B/C
     // handles the sender puts on the buttons.
     const { labels, order } = childOrder(q);
-    const storedCorrect = LETTERS.indexOf(String(q.correct_option || 'A').split(',')[0].trim());
-    const correctPos = order.indexOf(storedCorrect);
+    // A question may have more than one correct option ("select all that
+    // apply"), stored as a comma-joined letter set. Every one of them is
+    // marked — not just the first.
+    const correctPositions = new Set(
+      String(q.correct_option || 'A').split(',')
+        .map((c) => order.indexOf(LETTERS.indexOf(c.trim())))
+        .filter((p) => p >= 0));
+    const isMulti = Boolean(q.media && q.media.answer_mode === 'multi');
     const misc = q.distractor_misconceptions || {};
     // EVERY row carries its letter, correct one included: the child taps a
     // letter, so a teacher reading "the answer is the one with the tick" still
     // has to count rows to know which button that is.
     const optionsHtml = order.map((stored, pos) => `
-          <div ${cls(`opt${pos === correctPos ? ' correct' : ''}`)}><span class="mark"><span class="dia2"><span>${LETTERS[pos]}</span></span></span><span class="otext">${K(labels[stored])}</span>${pos === correctPos ? `<span class="tag">${L(C.correct)}</span>` : ''}</div>`).join('');
+          <div ${cls(`opt${correctPositions.has(pos) ? ' correct' : ''}`)}><span class="mark"><span class="dia2"><span>${LETTERS[pos]}</span></span></span><span class="otext">${K(labels[stored])}</span>${correctPositions.has(pos) ? `<span class="tag">${L(C.correct)}</span>` : ''}</div>`).join('');
     // One compressed line per wrong option: the option, then in eight words
     // what picking it would reveal. The child-facing feedback prose is NOT
     // here — she reads that on her phone with the child, not on paper.
+    // Skips EVERY correct position, not just the first — otherwise a correct
+    // option on a multi-answer question prints as a misconception.
     const misses = order.map((stored, pos) => {
-      if (pos === correctPos) return '';
+      if (correctPositions.has(pos)) return '';
       const m = clampWords(misc[LETTERS[stored]] || misc[String(stored)] || '', 14);
       if (!m) return '';
       // The label is clamped in WORDS, not left to a CSS ellipsis: at the
@@ -292,6 +301,7 @@ function renderTranscriptQuizTeacherHtml(d) {
         <div class="cmain">${wide ? '' : figure}
           <div class="cbody">
             <div ${cls('stem')}>${K(q.question_text)}</div>
+            ${isMulti ? `<div class="multichip"><span class="pill">${L(resolveUx('vqMultiSelectAll', { language: docLang }))}</span></div>` : ''}
             <div class="opts">${optionsHtml}</div>
             ${why ? `<div class="chosen"><span class="lbl">${L(C.chosen)}</span> <span ${cls('inline')}>${K(why)}</span></div>` : ''}
             ${misses}
@@ -381,6 +391,7 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
 .figure.wide svg,.figure.wide img{max-height:100px;width:100%}
 .figure svg,.figure img{max-width:100%;max-height:190px;width:auto;height:auto;display:inline-block}
 .stem{font-family:${headFam};font-size:${RTL ? '24px' : '21px'};line-height:${RTL ? '1.5' : '1.3'};color:${PALETTE.ink};font-weight:600;margin-bottom:5px}
+.multichip{margin-bottom:5px}
 .opts{display:flex;flex-direction:column;gap:2px}
 .opt{display:flex;align-items:center;gap:8px;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};padding:3px 9px;border-radius:7px;background:#fff;border:1px solid #e3e8e5}
 /* An option row and a caption are UI, not prose: Nastaliq's prose leading

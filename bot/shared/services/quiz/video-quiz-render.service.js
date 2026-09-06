@@ -352,6 +352,19 @@ function build(q, opts = {}) {
   // the per-distractor feedback and correctIndices() are all keyed on it.
   // `shown`/`order` are the child's view. Mixing the two mis-scores silently.
   const labels = optionLabels(q);
+  // PLAN_R5 D4 — a question whose answer is a SET has no tap surface in an
+  // ordinary message: buttons and list rows are single-select. It is delivered
+  // as a Flow with a CheckboxGroup, and everything about that — the order, the
+  // cue, the payload, the verdict — lives in one module rather than as branches
+  // through this file. Required lazily: that module reaches back here for
+  // displayOrder().
+  const Multi = require('./transcript-quiz-multi');
+  if (Multi.isMultiRow(q)) {
+    const mOrder = Multi.persistedOrder(q, labels) || displayOrder(q, labels);
+    return Multi.buildMulti(q, {
+      order: mOrder, shown: mOrder.map((i) => labels[i]), language: media.language,
+    });
+  }
   const order = displayOrder(q, labels);
   const shown = order.map((i) => labels[i]);
   const msgs = [];
