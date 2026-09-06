@@ -231,7 +231,7 @@ function pagesLabel(segment) {
     : `${segment.printed_page_start}-${segment.printed_page_end}`;
 }
 
-function buildCaption(segment, lang, { overlayDropped = false } = {}) {
+function buildCaption(segment, lang, { overlayDropped = false, renderDegraded = false } = {}) {
   const pages = pagesLabel(segment);
   const caption = resolveUx('lp612Caption', {
     language: lang,
@@ -246,10 +246,15 @@ function buildCaption(segment, lang, { overlayDropped = false } = {}) {
   // ur_overlay is an essentially-English document under an Urdu label, and the
   // caption says so instead of promising what the pages do not hold. Urdu
   // territory only — an English delivery of an English book dropped nothing.
-  if (overlayDropped && lang === 'ur') {
-    return `${caption}\n${resolveUx('lp612OverlayDropped', { language: lang })}`;
-  }
-  return caption;
+  // bd-oak77.14: the second honesty line, and it is INDEPENDENT of the first. A lesson can be
+  // English-under-an-Urdu-label AND laid out imperfectly; they are two different facts about the
+  // same file, and dropping either because the other is present is how one sentence starts
+  // standing in for several states again (rule 24(d)). Both languages — a layout defect is not
+  // Urdu territory the way a dropped overlay is.
+  const lines = [caption];
+  if (overlayDropped && lang === 'ur') lines.push(resolveUx('lp612OverlayDropped', { language: lang }));
+  if (renderDegraded) lines.push(resolveUx('lp612RenderDegraded', { language: lang }));
+  return lines.join('\n');
 }
 
 /** Say something, always, and never let saying it break the caller. */
@@ -512,7 +517,14 @@ async function reapStrandedRenders() {
  * @returns {Promise<{render: object|null, readFailed: boolean}>}
  */
 async function findRender(segmentId, lang, tv) {
-  const FIND_COLUMNS = 'id, status, r2_key, waiters, error_code, one_screen, started_at, picked_up_at, overlay_dropped';
+  // `picked_up_at` is here because the stranded/queued decision below is made from it. A column
+  // the lookup does not read cannot decide anything, and reading it as `undefined` would silently
+  // classify every live run as never-picked-up.
+  // `render_degraded` (bd-oak77.14) for the same class of reason: every teacher after the first is
+  // served entirely from this row, so the honesty line on her caption has nowhere else to come
+  // from — an unread column would tell the teacher who waited and none of the ones who tapped
+  // later, about the identical file.
+  const FIND_COLUMNS = 'id, status, r2_key, waiters, error_code, one_screen, started_at, picked_up_at, overlay_dropped, render_degraded';
   // `picked_up_at` is here because the stranded/queued decision below is made from it. A column
   // the lookup does not read cannot decide anything, and reading it as `undefined` would silently
   // classify every live run as never-picked-up.
@@ -700,7 +712,7 @@ async function sendDocumentWithRetry({
 }
 
 async function deliverRender({
-  phone, userId, r2Key, segment, lang, oneScreen, overlayDropped, renderId = null,
+  phone, userId, r2Key, segment, lang, oneScreen, overlayDropped, renderDegraded, renderId = null,
   sendMaxAttempts, sendRetryDelaysMs, sendDeadlineAt,
 }) {
   const url = await getPresignedUrl(buildR2PublicUrl(r2Key));
@@ -734,7 +746,10 @@ async function deliverRender({
     phone,
     url,
     filename: buildFilename(segment, lang),
-    caption: buildCaption(segment, lang, { overlayDropped: overlayDropped === true }),
+    caption: buildCaption(segment, lang, {
+      overlayDropped: overlayDropped === true,
+      renderDegraded: renderDegraded === true,
+    }),
     maxAttempts: sendMaxAttempts,
     retryDelaysMs: sendRetryDelaysMs,
     deadlineAt: sendDeadlineAt,
@@ -1047,6 +1062,10 @@ async function requestLessonImpl({ segmentId, userId, phone, lang, uiLang, corre
         lang: language,
         oneScreen: existing.one_screen,
         overlayDropped: existing.overlay_dropped === true,
+        // bd-oak77.14. EVERY teacher after the first is served entirely from this row, so the
+        // honesty line has to come off the row too — otherwise the teacher who waited is told and
+        // the ten who tapped later are not, about the identical file.
+        renderDegraded: existing.render_degraded === true,
         renderId: existing.id,
       });
       logToFile('LP 6-12: served from cache', { segmentId, lang: language, tv, correlationId });

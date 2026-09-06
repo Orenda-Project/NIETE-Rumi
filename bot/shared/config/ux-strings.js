@@ -316,6 +316,56 @@ const UX_STRINGS = {
     ur: 'یہ سبق اتنے زیادہ صفحات پر پھیلا ہوا ہے کہ ایک ساتھ منصوبہ نہیں بن سکتا۔ باب کھول کر کوئی چھوٹا سبق منتخب کریں — وہ ابھی تیار کر دیا جائے گا۔',
   },
 
+  // ── bd-oak77.14: a lesson that ARRIVES imperfect, and one that cannot be drawn ──
+  //
+  // Rule 24(d), the same lesson `lp612TooLong` and `lp612OverlayDropped` were each written for:
+  // one shared sentence across distinct states misdirects the teacher and every field report
+  // after her. On 2026-09-06 the first Urdu tap on production died on `FIGURE TOO SMALL` — a
+  // diagram label 0.25px under a legibility floor — and she was sent `lp612Failed`, the same
+  // sentence an author timeout, a stranded worker and a missing page-truth all produce. The
+  // lesson had in fact been finished: 17 complete pages were on disk. She re-typed "Lesson plan"
+  // 43 seconds later.
+  //
+  // APPENDED to `lp612Caption` on a document send, exactly like `lp612OverlayDropped`, so it is
+  // charged against body.text (1024) and not the 60-code-point footer. Measured in CODE POINTS.
+  //
+  // Three things it does and one it must not:
+  //   * name the state at the level she can act on — something on the page looks tight;
+  //   * say plainly that NOTHING IS MISSING, because nothing is: the never-fail policy delivers
+  //     only documents that are WHOLE (a truncated PDF still fails), and copy that hinted at loss
+  //     would send her hunting for content that is on the page;
+  //   * give her the one action worth taking — a glance before she prints;
+  //   * and it must NOT apologise or promise a retry. There is nothing for her to redo; the
+  //     lesson is in her hand.
+  //
+  // ONE sentence for every degraded class rather than one per class, deliberately. The classes
+  // (`figure`, `page`) differ in what an ENGINEER should look at — which is why they ride on
+  // `lp612.deliver.degraded` — but they do not differ in anything she would do differently, and a
+  // second column on the row would be needed to tell them apart on a cache hit.
+  //
+  // Urdu voice: every verb agrees with a NOUN (حصہ, خاکہ, صفحہ) or is an imperative, never with
+  // the teacher, so a mixed-gender cohort is addressed correctly.
+  lp612RenderDegraded: {
+    en: 'One part of this lesson did not lay out perfectly — a diagram or a page may look tight. '
+      + 'Nothing is missing; give it a quick look before you print.',
+    ur: '\u0627\u0633 \u0633\u0628\u0642 \u06A9\u0627 \u0627\u06CC\u06A9 \u062D\u0635\u06C1 \u062A\u0631\u062A\u06CC\u0628 \u0645\u06CC\u06BA \u067E\u0648\u0631\u06CC \u0637\u0631\u062D \u0646\u06C1\u06CC\u06BA \u0628\u06CC\u0679\u06BE\u0627 \u2014 \u06A9\u0648\u0626\u06CC \u062E\u0627\u06A9\u06C1 \u06CC\u0627 \u0635\u0641\u062D\u06C1 \u0630\u0631\u0627 \u0628\u06BE\u0631\u0627 \u06C1\u0648\u0627 \u0644\u06AF \u0633\u06A9\u062A\u0627 \u06C1\u06D2\u06D4 \u06A9\u0686\u06BE \u06A9\u0645 \u0646\u06C1\u06CC\u06BA \u06C1\u0648\u0627\u061B \u0686\u06BE\u0627\u067E\u0646\u06D2 \u0633\u06D2 \u067E\u06C1\u0644\u06D2 \u0627\u06CC\u06A9 \u0646\u0638\u0631 \u062F\u06CC\u06A9\u06BE \u0644\u06CC\u06BA\u06D4',
+  },
+
+  // The failures the never-fail policy does NOT absorb: the pages could not be laid out at all —
+  // a renderer that would not start, a document the schema refused, or a PDF that came out with
+  // pages of the lesson MISSING from the file. That last one is the reason this string exists
+  // rather than a wider policy: sending her a plan that just ends is worse than sending nothing.
+  //
+  // It is NOT `lp612Failed`. "I could not finish" is true of a timeout and false here — the
+  // lesson was written, and saying so is what stops a field report reading as "the model failed"
+  // when the renderer did. It promises a FRESH attempt rather than "I will try once more",
+  // because that is what a re-tap does: this row is `failed`, so the next tap re-authors.
+  lp612Unrenderable: {
+    en: 'That lesson was written, but its pages did not come out right — I will not send you a '
+      + 'broken copy. Tap it again and I will lay it out fresh.',
+    ur: '\u06CC\u06C1 \u0633\u0628\u0642 \u0644\u06A9\u06BE\u0627 \u062A\u0648 \u06AF\u06CC\u0627\u060C \u0645\u06AF\u0631 \u0627\u0633 \u06A9\u06D2 \u0635\u0641\u062D\u0627\u062A \u062F\u0631\u0633\u062A \u0646\u06C1\u06CC\u06BA \u0628\u0646 \u0633\u06A9\u06D2 \u2014 \u0627\u062F\u06BE\u0648\u0631\u0627 \u0646\u0633\u062E\u06C1 \u0628\u06BE\u06CC\u062C\u0646\u0627 \u0645\u0646\u0627\u0633\u0628 \u0646\u06C1\u06CC\u06BA\u06D4 \u062F\u0648\u0628\u0627\u0631\u06C1 \u0627\u0633\u06CC \u0633\u0628\u0642 \u067E\u0631 \u0679\u06CC\u067E \u06A9\u0631\u06CC\u06BA\u060C \u0646\u06CC\u0627 \u0646\u0633\u062E\u06C1 \u062A\u06CC\u0627\u0631 \u06A9\u06CC\u0627 \u062C\u0627\u0626\u06D2 \u06AF\u0627\u06D4',
+  },
+
   // Never a silent failure. She is told it failed, and told exactly what to do.
   lp612Failed: {
     en: 'I could not finish that lesson plan this time. Please tap it again in a few minutes and I will try once more.',

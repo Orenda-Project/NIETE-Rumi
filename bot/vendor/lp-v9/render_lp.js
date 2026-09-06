@@ -661,6 +661,7 @@ async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, r
       await load(htmlPath);
       repaginate.warnings = rebuilt.warnings;
       repaginate.figureProblems = rebuilt.figureProblems;
+      repaginate.figureRepairs = rebuilt.figureRepairs;
       repaginate.breaks = breaks;
       repaginate.furniture = { footer_px: footH, cont_strip_px: strip, cont_bar_px: contBar, capacity_px: capacity };
       // the fill each page is packed to — the number the operator asked us to MEASURE, not
@@ -778,6 +779,9 @@ async function renderDoc(a) {
   let built = buildHtml(doc, { lang, docDir: path.dirname(docPath), probeCont: !!pw });
   const { warnings, fontReport, pageContentHeight, hasRasterFigure } = built;
   let figureProblems = built.figureProblems || [];
+  // bd-oak77.14 — the figures the layout had to WIDEN to keep legible. Reported, never inferred:
+  // a repair nobody can count is a fallback that masks itself (rule 24(b)).
+  let figureRepairs = built.figureRepairs || [];
   const htmlPath = path.join(outDir, `${stem}.html`);
   fs.writeFileSync(htmlPath, built.html);
 
@@ -792,6 +796,7 @@ async function renderDoc(a) {
     result = await renderWithPlaywright(pw, htmlPath, pdfPath, path.join(outDir, stem), a.png, repaginate, pdfMeta);
     if (repaginate.warnings) { warnings.length = 0; warnings.push(...repaginate.warnings); }
     if (repaginate.figureProblems) figureProblems = repaginate.figureProblems;
+    if (repaginate.figureRepairs) figureRepairs = repaginate.figureRepairs;
   } else {
     console.error("! playwright-core unavailable — falling back to Chrome CLI (no overflow probe, no PNGs)");
     result = pdfPath ? renderWithChromeCli(htmlPath, pdfPath) : { probe: null, pdfPages: null };
@@ -850,6 +855,8 @@ async function renderDoc(a) {
     // has drifted again and the number has to be the thing that says so, not a clean-looking
     // render. `[]` on a clean document, never absent.
     overflow_absorbed: result.absorbed || [],
+    // bd-oak77.14. `[]` on a document whose figures all fitted — never absent.
+    figure_repairs: figureRepairs,
     overflow_absorb_max_px: OVERFLOW_ABSORB_MAX_PX,
     html: path.relative(REPO_ROOT, htmlPath),
     pdf: pdfPath ? path.relative(REPO_ROOT, pdfPath) : null,
@@ -878,7 +885,7 @@ async function renderDoc(a) {
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
 
   return { report, reportPath, problems, warnings, htmlPath, pdfPath,
-           pagesByPart: byPart, probe, pdfPages: result.pdfPages };
+           pagesByPart: byPart, probe, pdfPages: result.pdfPages, figureRepairs };
 }
 
 async function main() {
