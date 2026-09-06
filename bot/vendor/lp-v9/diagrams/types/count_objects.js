@@ -19,14 +19,14 @@
 //
 // Spec
 //   picto    "apple"          the pictogram (lib/pictogram.js) — or per row
-//   count    7                how many
+//   count    7                how many (at least 2)
 //   rows     [{picto,count,label}]  compare mode; overrides picto/count
 //   perRow   5                items per line (default: min(5, count))
 //   group    4                ring every `group` items (single-row specs only)
 //   lang     "en" | "ur"
 
 const { Svg, C, SIZE, measure, hasUrdu } = require("../lib/svg");
-const { drawPictogram, descLine, has: hasPictogram, names: pictogramNames } = require("../lib/pictogram");
+const { drawPictogram, descLine, has: hasPictogram, inner: pictogramInner } = require("../lib/pictogram");
 
 const MAX_ITEMS = 30; // past this a child stops counting and starts guessing
 
@@ -44,9 +44,13 @@ function render(spec) {
   rows.forEach((r) => {
     if (!r.picto) throw new Error("count_objects: every row needs a `picto`");
     if (!hasPictogram(r.picto)) {
-      throw new Error(`count_objects: unknown pictogram "${r.picto}" — the set is: ${pictogramNames().join(", ")}`);
+      try { pictogramInner(r.picto); } catch (e) { throw new Error(`count_objects: ${e.message}`); }
     }
-    if (r.count < 1) throw new Error(`count_objects: "${r.picto}" has a count of ${r.count} — there is nothing to count`);
+    // Two is the floor. A round-6 session drew ONE goat and asked "which word
+    // does this picture match?" — a single thing is a vocabulary prompt wearing
+    // a counting type, and the count carried no information at all. If the
+    // question is which word a picture matches, `match` is the instrument.
+    if (r.count < 2) throw new Error(`count_objects: "${r.picto}" has a count of ${r.count} — one of something is not something to count; use at least 2, or use \`match\` if the question is which word the picture matches`);
     if (r.count > MAX_ITEMS) throw new Error(`count_objects: ${r.count} items is past counting; keep it to ${MAX_ITEMS}`);
   });
 

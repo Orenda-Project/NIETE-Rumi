@@ -1,6 +1,6 @@
 # Pictograms — attribution
 
-The 207 line-art pictograms in `svg/` are from **OpenMoji 15.0.0** (the *black* variant), used under **CC BY-SA 4.0**. Source: https://openmoji.org
+The 255 line-art pictograms in `svg/` are from **OpenMoji 15.0.0** (the *black* variant), used under **CC BY-SA 4.0**. Source: https://openmoji.org
 
 Each glyph's OpenMoji hexcode, annotation and author are recorded in `index.json`; `sources.json` is the key → annotation map the build resolves. Rebuild with `node build_pictograms.js`.
 
@@ -13,6 +13,7 @@ Every rendered figure that uses a pictogram carries the attribution in the SVG's
 - Alena Peichl
 - Benedikt Groß
 - Carlin MacKenzie
+- Daniel Quiros
 - Daniel Utz
 - Emily Jäger
 - Evelyn Soos

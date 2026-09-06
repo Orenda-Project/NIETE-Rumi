@@ -52,8 +52,15 @@ function inner(name) {
   if (cache.has(k)) return cache.get(k);
   const entry = INDEX.glyphs[k];
   if (!entry) {
+    // BOUNDED on purpose. The full roster is already in the author prompt, and
+    // this message is quoted verbatim into the retry — pasting all 255 names
+    // back at the model spends the retry's budget on something it has, and
+    // buries the one fact it needs. A near-miss is offered instead, since the
+    // model's misses are near ones ("pig" when the set had "pig_face").
+    const near = names().filter((n) => n.includes(k) || k.includes(n)).slice(0, 6);
     throw new Error(
-      `unknown pictogram "${name}" — the set has ${names().length} nouns: ${names().join(", ")}`
+      `unknown pictogram "${name}" — it is not one of the ${names().length} nouns in the set`
+      + (near.length ? ` (did you mean: ${near.join(", ")}?)` : "")
     );
   }
   const raw = fs.readFileSync(path.join(DIR, "svg", entry.file), "utf8");

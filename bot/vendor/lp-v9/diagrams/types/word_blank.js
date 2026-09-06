@@ -36,7 +36,7 @@
 //   lang     "en" | "ur"
 
 const { Svg, C, SIZE, measure, hasUrdu } = require("../lib/svg");
-const { drawPictogram, descLine, has: hasPictogram, names: pictogramNames } = require("../lib/pictogram");
+const { drawPictogram, descLine, has: hasPictogram, inner: pictogramInner } = require("../lib/pictogram");
 
 // Combining marks that are part of the letter before them, never a letter of
 // their own: Arabic diacritics, the superscript alef, and the Qur'anic marks.
@@ -69,7 +69,9 @@ function render(spec) {
 
   const picto = spec.picto ? String(spec.picto) : null;
   if (picto && !hasPictogram(picto)) {
-    throw new Error(`word_blank: unknown pictogram "${picto}" — the set is: ${pictogramNames().join(", ")}`);
+    // `inner()` owns the message: it is bounded and it offers a near-miss,
+    // because this string is quoted verbatim into the model's one retry.
+    try { pictogramInner(picto); } catch (e) { throw new Error(`word_blank: ${e.message}`); }
   }
 
   // Deliberately large. This is a grade 1-2 instrument delivered as a 1080px

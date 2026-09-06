@@ -55,25 +55,26 @@ function isEarlyYears(gradeBand) {
  * grade 9 chemistry quiz it would be tokens spent teaching a model shapes it
  * must not use.
  */
-function earlyYearsBlock(pictogramRoster) {
+function earlyYearsBlock(pictogramRoster, n) {
   return `
 EARLY YEARS (this class is grade 1-5, so these types are open to you as well).
 A picture is worth far more to a six-year-old than to a fifteen-year-old: a child who cannot yet read a long stem can still count apples, read a clock, or see which letter is missing. Reach for one of these whenever the lesson counted, sounded out, spelled, timed, compared, sorted or continued something.
-- word_blank — phonics and spelling. A pictogram of the thing, and its word with a letter hidden. English: {"type":"word_blank","word":"cat","blanks":[1],"picto":"cat"} draws a cat and "c _ t"; the options are the letters. URDU: pass the whole word, {"type":"word_blank","word":"کتاب","blanks":[2],"picto":"book"} — it is drawn as separate letter tiles with an empty tile where the letter is missing, because Nastaliq joins and an underscore inside a word reshapes its neighbours.
-- count_objects — counting and comparing. {"type":"count_objects","picto":"apple","count":7}; two rows to compare: {"rows":[{"picto":"apple","count":5,"label":"سیب"},{"picto":"banana","count":3,"label":"کیلے"}]}; equal groups for sharing/multiplying: {"picto":"star","count":12,"group":4}.
+- word_blank — phonics and spelling. A pictogram of the thing, and its word with a letter hidden. English: {"type":"word_blank","word":"cat","blanks":[1],"picto":"cat"} draws a cat and "c _ t"; the options are the letters. URDU: pass the whole word, {"type":"word_blank","word":"کتاب","blanks":[2],"picto":"book"} — it is drawn as separate letter tiles with an empty tile where the letter is missing, because Nastaliq joins and an underscore inside a word reshapes its neighbours. "blanks" is REQUIRED and is never empty: it is a list of 0-based positions into the letters of "word" (کتاب is ک=0, ت=1, ا=2, ب=3), counted on the whole word, and at least one but never all of them.
+- count_objects — counting and comparing, and ONLY that: the question must be HOW MANY, how many more, or which row has more. {"type":"count_objects","picto":"apple","count":7}; two rows to compare: {"rows":[{"picto":"apple","count":5,"label":"سیب"},{"picto":"banana","count":3,"label":"کیلے"}]}; equal groups for sharing/multiplying: {"picto":"star","count":12,"group":4}. At least 2 things — one of something is not a count. To ask which WORD a picture matches, use the match type, never this.
 - count_frame — a ten-frame ({"type":"count_frame","count":7}) or tally marks ({"model":"tally","count":12}).
 - clock — telling the time. {"type":"clock","time":"3:30"}. The hands are geared correctly and the time is never printed.
-- pattern — what comes next. {"type":"pattern","items":["circle","square","circle","square","?"]}, or numerals ({"text":"2"} …), or pictograms ({"picto":"sun"}). Exactly one "?".
+- pattern — what comes next. {"type":"pattern","items":["circle","square","circle","square","?"]}, or numerals ({"text":"2"} …), or pictograms ({"picto":"sun"}). Exactly one "?". A colour pattern names its colours from THIS list and no other — ink, accent, leaf, cool, warn, plum, clay — as a bare word: {"shape":"circle","color":"warn"}. There is no var(--red), no var(--green), no "blue": an invented colour renders as nothing and the question is thrown away.
 - match — the child picks the pair. {"type":"match","left":[{"picto":"cat"},{"picto":"dog"}],"right":[{"text":"dog"},{"text":"cat"}]} draws A/B down one side and 1/2 down the other and JOINS NOTHING; your three options are the candidate pairings ("A-2", "A-1", "B-2").
 - money — coins and notes. {"type":"money","currency":"Rs","items":[{"value":10,"kind":"coin"},{"value":5,"kind":"coin","count":2}]}. Each piece shows its own value, so never ask which piece is worth what — ask for the total, the number of pieces, or the swap.
-- compare_size — longer/shorter, taller/shorter, heavier/lighter. {"type":"compare_size","model":"length","items":[{"label":"سرخ ربن","size":5},{"label":"ہرا ربن","size":8}]}, "height" for vertical bars, or {"model":"balance","left":{"picto":"apple","count":3},"right":{"picto":"apple","count":1}}. "size" is relative and is never printed.
-PICTOGRAM NAMES — a picture of a thing comes from this fixed set and NOTHING ELSE. A name that is not on this list fails the question:
+- compare_size — longer/shorter, taller/shorter, heavier/lighter. {"type":"compare_size","model":"length","items":[{"label":"سرخ ربن","size":5},{"label":"ہرا ربن","size":8}]}, "height" for vertical bars, or {"model":"balance","left":{"picto":"apple","count":3},"right":{"picto":"apple","count":1}}. "size" is relative and is never printed. An item may name a colour from the same list (ink, accent, leaf, cool, warn, plum, clay) as a bare word — and if the label names a colour, the bar must be that colour or it contradicts its own label.
+PICTOGRAM NAMES — a picture of a thing comes from this fixed set and NOTHING ELSE. NEVER INVENT A PICTOGRAM NAME: a name that is not on this list fails the question outright. The set will not have every word your lesson used. When it does not, choose a word from the lesson that IS on the list, or write that question without a figure — those are the only two options.
 ${pictogramRoster}
 Reuse the older types for a young class too: numberline for before/after and ordering, fraction_bar and grid for part-whole, geometry for naming a shape, flow or timeline for a sequence of steps.
+THE HALF RULE STILL HOLDS HERE. At most half of the ${n} questions may carry a picture — for ${n} questions that is ${Math.floor(n / 2)} at the very most. These types are easy to reach for and a quiz that draws on five of eight is thrown away whole. Pick the ${Math.floor(n / 2)} questions the picture genuinely earns and write the rest as text.
 `;
 }
 
-function figureContract({ subject, gradeBand } = {}) {
+function figureContract({ subject, gradeBand, nQuestions = DEFAULT_QUESTIONS } = {}) {
   const drawable = ['maths', 'science', 'genk', 'other'].includes(String(subject || '').toLowerCase());
   const early = isEarlyYears(gradeBand);
   // A grade 1-5 lesson in ANY subject can now be drawn — the early-years types
@@ -123,7 +124,7 @@ WORKED EXAMPLES (spec next to the question it serves):
 3. grid, count_compare — stem "تصویر میں کتنے خانے رنگے ہوئے ہیں؟", options ["12", "8", "20"], correct 0,
    "figure": {"type":"grid","rows":4,"cols":5,"shaded":12}
 
-${early ? earlyYearsBlock(pictogramNames().join(', ')) : ''}
+${early ? earlyYearsBlock(pictogramNames().join(', '), nQuestions) : ''}
 ALLOWED TYPES — nothing else is accepted (${offered.join(', ')}):
 ${minimalSpecBlock(offered)}`;
 }
@@ -183,7 +184,7 @@ LESSON SUMMARY. Also return a top-level "lesson_summary": 2-3 sentences, in the 
 SELECTED BECAUSE. Every question also carries a "selected_because": at most 15 words, naming the specific moment in the lesson this question was chosen from (e.g. "she counted 26 to 30 aloud with the class", "the fraction of the roti she drew on the board"). This is WHY the question was picked from the transcript, not why the answer is correct — never restate the answer and never repeat "explanation". Write selected_because in the quiz language (the same language as the questions), never in English on an Urdu quiz.
 RELIGIOUS CONTENT (Islamiyat / سیرت / any mention of the Prophet, companions, Qur'an): every mention of the Prophet carries ﷺ immediately after the name; companions carry رضی اللہ عنہ / عنہا; اللہ and all sacred names in Urdu/Arabic script only; NEVER invent or paraphrase a hadith or an ayah — quote only what the lesson quoted, and only with the reference the teacher gave; no question may ask a child to guess what the Prophet ﷺ "would say".
 
-${figureContract({ subject: digest && digest.subject, gradeBand })}
+${figureContract({ subject: digest && digest.subject, gradeBand, nQuestions: n })}
 ${multiContract({ allowMulti, n })}${retry}
 
 Return ONLY this JSON object:
