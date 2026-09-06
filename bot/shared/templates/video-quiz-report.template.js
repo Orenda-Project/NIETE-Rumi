@@ -12,9 +12,9 @@
  *
  * The ordering is still the argument, unchanged from v1: what to reteach
  * comes FIRST, above the roster. A report that opens with a ranked list of
- * children invites her to read it as a league table; one that opens with
- * "these three questions, this wrong answer, here is why" invites her to
- * change tomorrow's lesson. Scores are underneath, because she does still
+ * children invites the teacher to read it as a league table; one that opens
+ * with "these three questions, this wrong answer, here is why" invites them
+ * to change tomorrow's lesson. Scores are underneath, because they do still
  * need them.
  *
  * language ('en' default; 'ur' fully localised chrome + RTL — NIETE is flat
@@ -123,11 +123,11 @@ const CHROME = {
     howEachStudentDid: 'How each student did',
     notFinishedYet: 'Not finished yet:',
     forTomorrow: 'For tomorrow',
-    // Each label names WHAT SHE DOES with the sentence under it. The old set
-    // named the FIELD ("On the board", "Check question", "Secure"), and
-    // "One to stretch them" read as a noun phrase with no verb in it at all —
-    // the operator called it awkwardly named, and it was: the box's whole job
-    // is to tell her what tomorrow's ten minutes look like.
+    // Each label names WHAT THE TEACHER DOES with the sentence under it. The
+    // old set named the FIELD ("On the board", "Check question", "Secure"),
+    // and "One to stretch them" read as a noun phrase with no verb in it at
+    // all — the operator called it awkwardly named, and it was: the box's
+    // whole job is to tell the teacher what tomorrow's ten minutes look like.
     guidanceMuddled: 'Where they got muddled',
     guidanceBoard: 'How to reteach it tomorrow',
     guidanceCheck: 'Ask this at the end',
@@ -229,13 +229,14 @@ function renderVideoQuizReportHtml(d) {
   // Defaults to the chrome language so a single-language caller is unchanged.
   const contentLanguage = (d && d.contentLanguage) || language;
 
-  const RTL = RTL_LANGS.has(language);           // chrome: what SHE reads
+  const RTL = RTL_LANGS.has(language);           // chrome: what THE TEACHER reads
   const CRTL = RTL_LANGS.has(contentLanguage);   // content: what the class read
   const C = CHROME[language] || (RTL ? CHROME.ur : CHROME.en);
   // T() = untrusted chrome-language content (escape THEN isolate Latin runs).
   // L() = trusted, developer-authored chrome HTML that may already contain real
   // tags/entities (&mdash;, <b>) — those must NOT be re-escaped, only isolated.
-  // K() = quiz content: isolation follows the CONTENT's direction, not hers.
+  // K() = quiz content: isolation follows the CONTENT's direction, not the
+  // teacher's.
   const T = (s) => wrapLatin(esc(s), RTL);
   const L = (s) => wrapLatin(s, RTL);
   const K = (s) => wrapLatin(esc(s), CRTL);
@@ -269,7 +270,7 @@ function renderVideoQuizReportHtml(d) {
       : (h.explanation || h.misconception) ? `
       <div class="why"><b>${L(C.explanation)}</b> <span ${cls('whytext')}>${K(h.explanation || h.misconception)}</span></div>` : '';
     // Transcript quizzes tag each question with the learning goal it checks;
-    // naming it here tells her WHAT to reteach, not just which question.
+    // naming it here tells the teacher WHAT to reteach, not just which question.
     const slo = h.slo ? `<div ${cls('slo')}>${K(h.slo)}</div>` : '';
     return `
       <div class="moment">
@@ -436,7 +437,7 @@ body{background:#eef1f0;font-family:${bodyFam}}
    the box: a top margin is dropped at a page break, so when the box moves
    to its own page it lands flush against the paper edge. */
 .trywrap{padding:24px 42px 0}
-/* THE BOX SHE ACTS ON, so legibility outranks decoration.
+/* THE BOX THE TEACHER ACTS ON, so legibility outranks decoration.
    It used to be white text on a slate-to-green diagonal gradient: the type
    crossed three different backgrounds on its way across the card and the
    operator could not read the reteach section at all. It is now dark ink on
@@ -448,7 +449,7 @@ body{background:#eef1f0;font-family:${bodyFam}}
 .try .lattice{position:absolute;inset:0;width:100%;height:100%;z-index:0}
 .try>*:not(.lattice){position:relative;z-index:1}
 .try .label{color:#12603C;opacity:1;margin-bottom:11px}
-/* The guidance is written FOR HER, so it is set in her language's face. */
+/* The guidance is written FOR THE TEACHER, so it is set in their language's face. */
 .try-text{font-family:${headFam};font-size:${RTL ? TYPE_STEP_UR.name : TYPE_STEP.name}px;line-height:${RTL ? `${leadingAt(1.9)}` : '1.5'};color:#232735}
 /* Three-part guidance (D6): each part's own label is visually subordinate to
    the section header above it (.try .label) — smaller, the same green-pale

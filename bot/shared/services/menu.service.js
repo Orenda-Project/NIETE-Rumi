@@ -302,7 +302,7 @@ class MenuService {
    *
    * @private
    */
-  static async _handleLessonPlanningChoice(userId, sessionId, from, language) {
+  static async _handleLessonPlanningChoice(userId, sessionId, from, language, reason = 'menu') { // `reason`: which door — see lp-browse-entry.service
     // bd-njn7u: the explicit menu tap means "I'm starting fresh" — any
     // in-flight LP-Q&A context belongs to the past. Parent-bot parity
     // (bd-1565 L1b); quiz/coaching/video carry the same defensive flush.
@@ -319,7 +319,7 @@ class MenuService {
     // entry points cannot drift apart again (bd-72dth). Caps + bilingual copy
     // are pinned in tests/lp-v8/bd-hgwfo-gamma-door.test.js.
     const { openLpBrowseFlow } = require('./lp-browse-entry.service');
-    if (await openLpBrowseFlow({ from, userId, language, reason: 'menu' })) {
+    if (await openLpBrowseFlow({ from, userId, language, reason })) {
       logToFile('LP menu → Pakistan LP Flow sent (FEAT-109)', { userId, sessionId });
       return;
     }

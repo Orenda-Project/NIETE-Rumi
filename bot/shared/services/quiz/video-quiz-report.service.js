@@ -157,7 +157,7 @@ async function maybeSendEarly(shareCodeId) {
     .is('invited_by_student_id', null)   // a friend's session is not this teacher's class
     // PLAN_R5 D8 — within a share code, user_id IS NOT NULL means the
     // teacher's own self-test (every real share-link session is inserted
-    // with user_id: null). Her practice run must never decide "all finished".
+    // with user_id: null). That practice run must never decide "all finished".
     .is('user_id', null);
   if (!shouldSendEarly(sessions || [])) return false;
   return generate(shareCodeId, { reason: 'all_finished' });
@@ -208,10 +208,10 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     .maybeSingle();
   if (!sc) return false;
 
-  // ONE report per share code. A teacher who has already been told how her
+  // ONE report per share code. A teacher who has already been told how the
   // class did should never be told again — and both trigger paths (the morning
   // job and the all-finished early send) can legitimately fire for the same code.
-  // `force` is the one exception: she asked for it herself from /quiz.
+  // `force` is the one exception: the teacher asked for it from /quiz.
   if (sc.report_sent_at && !force) {
     logEvent('video_quiz.report_suppressed', {
       shareCodeId, reason, why: 'already_sent', sentAt: sc.report_sent_at,
@@ -234,8 +234,8 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     .eq('share_code_id', shareCodeId)
     .is('invited_by_student_id', null);   // a friend's session is not this teacher's class
 
-  // PLAN_R5 D8 — her own test run of this class link must never read as a
-  // pupil in her own report: not in the roster, not in the average, not in
+  // PLAN_R5 D8 — the teacher's own test run of this class link must never read
+  // as a pupil in that same report: not in the roster, not in the average, not in
   // the "0 students" branch.
   const rawAll = sessions || [];
   const all = excludeSelfTests(rawAll, sc.teacher_user_id);
@@ -253,8 +253,8 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   // actually finished; before that there is nothing to say, and saying it
   // spends the teacher's attention on noise.
   //
-  // The SCHEDULED morning run is different: that is the moment she was promised
-  // a report, so she hears from us even if the class never finished. Silence
+  // The SCHEDULED morning run is different: that is the moment a report was
+  // promised, so the teacher hears from us even if the class never finished. Silence
   // there would read as the feature being broken.
   if (reason !== 'scheduled' && !done.length) {
     logEvent('video_quiz.report_suppressed', {
@@ -332,12 +332,12 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   // language: labels, the roster chrome, the "for tomorrow" reteach block,
   // all of it, because a report mixing "if it is in English why does it have
   // Urdu in it" reads as broken (operator, round 4). Only the WhatsApp
-  // CAPTION that carries the PDF stays in her own preference — a caption is
+  // CAPTION that carries the PDF stays in the teacher's own preference — a caption is
   // an interstitial, not part of the document (Tariq's rule, unchanged).
   // This reverses the round-2 chrome/content split for documents only; the
   // language/contentLanguage plumbing itself stays (both are still passed
   // through to the template), so nothing else moves.
-  const chromeLang = clampLanguage(teacher.preferred_language);   // the CAPTION — hers
+  const chromeLang = clampLanguage(teacher.preferred_language);   // the CAPTION — the teacher's
   const contentLang = clampLanguage(sc.language);                 // the DOCUMENT — the quiz's
 
   // Same helper the template calls internally on this exact `classes` array —
@@ -379,9 +379,9 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     secureLabel: 'What they have secure', stretchLabel: 'How to stretch them tomorrow',
   };
 
-  // The caption is chrome, so it comes from HER preference, never the
-  // document's content language — she may not read the quiz's language at
-  // all, and the caption is the one part of this send she must understand.
+  // The caption is chrome, so it comes from THE TEACHER'S preference, never the
+  // document's content language — the teacher may not read the quiz's language
+  // at all, and the caption is the one part of this send they must understand.
   const CAPTION = RTL_LANGS.has(chromeLang) ? {
     caption: (t, d, a, n) => `📊 کلاس کے نتائج — *${t}*\n\n`
       + `${a} میں سے ${d} نے مکمل کیا${n ? ` · دوبارہ پڑھانے کے قابل ${n} سوال — اندر` : ''}`,
@@ -427,7 +427,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   // for a class that missed nothing, in the digest's learning goals instead).
   // Generated once and used in both the PDF and the chat message. Language is
   // threaded through as the DOCUMENT's language (PLAN_R4 D1) — a teacher who
-  // ran an Urdu quiz gets Urdu guidance inside her Urdu document, not an
+  // ran an Urdu quiz gets Urdu guidance inside that Urdu document, not an
   // English paragraph glued onto it.
   const guidanceMode = hardest.length ? 'reteach' : 'secure';
   const guidance = done.length
@@ -453,7 +453,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
 
   if (!sentAsPdf) {
     // The PDF is the nicer artefact, not the report itself. If rendering fails
-    // she still gets every number — losing her results because a font did not
+    // the teacher still gets every number — losing the results because a font did not
     // load would be the wrong trade.
     await WhatsAppService.sendMessage(teacher.phone_number, summary);
     if (guidance) {
@@ -654,7 +654,7 @@ function sharpeningLine(problems, language) {
  * Turn the evidence into the object the teacher reads under "For tomorrow".
  *
  * Best-effort by design: if the model is slow, down, or returns something
- * unusable, she still gets her results, just without the reteach box. Losing
+ * unusable, the teacher still gets the results, just without the reteach box. Losing
  * the whole report because this optional block failed would be the wrong
  * trade — so ANY required key missing or empty (after stripEmphasis) fails
  * the whole call, not just that key.
@@ -689,7 +689,7 @@ async function generateGuidance(context) {
         // 260 was sized for three one-line fields. `board`/`stretch` are now
         // asked for 2-3 DETAILED sentences each (the operator's own example
         // ran well past a one-liner), so the old ceiling truncated the JSON
-        // mid-string — parseGuidanceJson then silently returned null and she
+        // mid-string — parseGuidanceJson then silently returned null and the teacher
         // lost the WHOLE box, not just the extra depth.
         max_completion_tokens: 700,
       });
@@ -760,7 +760,7 @@ function formatGuidanceText(guidance, labels) {
  * Deliberately AFTER the send, not before: if WhatsApp throws, the teacher got
  * nothing and the morning job should still get its turn. The cost of that
  * ordering is a possible double-send if the stamp itself fails, which is the
- * better failure — a teacher seeing one report twice beats her seeing none.
+ * better failure — a teacher seeing one report twice beats seeing none.
  */
 async function markReportSent(shareCodeId, quizId = null) {
   try {
@@ -801,12 +801,12 @@ const optionText = (q, letter) => {
  * agreed on a wrong answer, WHICH one and why that mistake happens.
  *
  * "16 of 22 missed this" tells a teacher to reteach something. "16 of
- * 22 chose Dicot, because they flipped the vein rule" tells her what to say. The
+ * 22 chose Dicot, because they flipped the vein rule" tells the teacher what to say. The
  * second sentence is available because these questions ship with an explanation
  * authored per wrong option — 9,150 of them do.
  *
  * The cluster threshold matters. One child picking A and another picking B is a
- * coin toss, not a misconception, and reporting it as one would send her to
+ * coin toss, not a misconception, and reporting it as one would send the teacher to
  * reteach the wrong thing. So a distractor is only named when at least half the
  * wrong answers landed on it.
  */
@@ -816,7 +816,7 @@ const optionText = (q, letter) => {
  * The wrong-option copy is written to the child who just got it wrong:
  *   "A) Nice effort! Milk and meat are products, not groups. Keep learning!"
  * Pasted verbatim into a class report that consoles the teacher for a question
- * she never answered. Of 18,300 authored strings, 11,799 open with a child
+ * were never answered. Of 18,300 authored strings, 11,799 open with a child
  * opener and 9,876 close with one, so this is the common case, not the edge.
  *
  * Strips the option-letter prefix, the opener and the closer; keeps the
@@ -839,7 +839,7 @@ async function hardestQuestions(shareCodeId, limit = 3) {
     .from('quiz_sessions').select('id').eq('share_code_id', shareCodeId)
     .is('invited_by_student_id', null)   // a friend's session is not this teacher's class
     // PLAN_R5 D8 — same reasoning as maybeSendEarly: within a share code,
-    // user_id IS NOT NULL means the teacher's own self-test. Her practice
+    // user_id IS NOT NULL means the teacher's own self-test. That practice
     // answers must not decide which question the class found hardest.
     .is('user_id', null);
   const ids = (sessions || []).map((s) => s.id);
@@ -943,7 +943,7 @@ function digestBlockEn(digest) {
   if (digest.topic_as_taught) lines.push(`Topic as taught: ${digest.topic_as_taught}`);
   const slos = (Array.isArray(digest.slos) ? digest.slos : []).filter((s) => s && s.statement);
   if (slos.length) {
-    lines.push('Learning goals taught (with the level she pitched each at):');
+    lines.push('Learning goals taught (with the level each was pitched at):');
     slos.forEach((s) => lines.push(
       `  ${s.id || ''} [${TAUGHT_LEVEL_EN[s.taught_level] || s.taught_level || 'understand'}]: ${s.statement}`,
     ));
@@ -951,7 +951,7 @@ function digestBlockEn(digest) {
   if (Array.isArray(digest.misconceptions_surfaced) && digest.misconceptions_surfaced.length) {
     lines.push(`Misconceptions that surfaced in the lesson itself: ${digest.misconceptions_surfaced.join('; ')}`);
   }
-  if (digest.lesson_summary) lines.push(`What she taught, in the order she taught it: ${digest.lesson_summary}`);
+  if (digest.lesson_summary) lines.push(`What was taught, in the order it was taught: ${digest.lesson_summary}`);
   return lines.length ? `\nLESSON DIGEST\n${lines.join('\n')}\n` : '';
 }
 
@@ -969,13 +969,15 @@ function digestBlockUr(digest) {
   if (Array.isArray(digest.misconceptions_surfaced) && digest.misconceptions_surfaced.length) {
     lines.push(`سبق میں سامنے آنے والی غلط فہمیاں: ${digest.misconceptions_surfaced.join('، ')}`);
   }
-  if (digest.lesson_summary) lines.push(`اس نے جس ترتیب میں پڑھایا: ${digest.lesson_summary}`);
+  // The summary itself is now written TO the teacher as آپ (PLAN_R6 D5), so the
+  // label in front of it must not name a person at all — the passive does.
+  if (digest.lesson_summary) lines.push(`جس ترتیب میں پڑھایا گیا: ${digest.lesson_summary}`);
   return lines.length ? `\nسبق کی تفصیل\n${lines.join('\n')}\n` : '';
 }
 
 function buildReteachPromptEn({ grade, topic, evidence, digest }) {
   return `You are helping a Grade ${grade || 'primary'} teacher in Pakistan plan `
-    + `tomorrow's ten minutes. Her class just took a quiz on "${topic}".\n\n`
+    + `tomorrow's ten minutes. The class just took a quiz on "${topic}".\n\n`
     + `Here is what they got wrong, and the wrong answer they agreed on:\n\n`
     + `${evidence}\n`
     + digestBlockEn(digest)
@@ -986,27 +988,27 @@ function buildReteachPromptEn({ grade, topic, evidence, digest }) {
     + `muddled, as a plain statement of what they believe: "They think X is Y." `
     + `Pick the single biggest confusion, not a list of all of them. Do not use `
     + `the words "misconception", "students", "concept" or "understanding".\n`
-    + `"board" — exactly 2 to 3 sentences on how she reteaches this tomorrow: `
-    + `the concrete move she makes, the specific example she puts on the board `
+    + `"board" — exactly 2 to 3 sentences on how the teacher reteaches this `
+    + `tomorrow: the concrete move to make, the specific example to put on the board `
     + `(drawn from the questions above and the lesson digest above — the real `
     + `everyday things those questions and that lesson actually talk about, `
     + `never "various examples" or "different items"), and what the CHILDREN `
     + `do. Do not compress this into one sentence and do not pad past three.\n`
-    + `"check" — exactly one sentence: the one question she asks at the end to `
-    + `check it landed, pitched at the level she taught the learning goal the `
+    + `"check" — exactly one sentence: the one question to ask at the end to `
+    + `check it landed, pitched at the level the lesson taught the learning goal the `
     + `class missed (see the taught level next to each learning goal above). It `
     + `must NOT be a copy of any quiz question above; the children have already `
     + `seen those. Ask the same idea a different way.\n\n`
     + `Never begin any value with "In tomorrow's lesson", "To address this", `
     + `"Focus on" or "Start by". Begin with the children. Do not repeat any `
-    + `score or count back to her — she has just read them. Do not praise her `
-    + `or the class. Write the way a colleague leans over at break, not the way `
-    + `a textbook explains.`;
+    + `score or count back to the teacher — they have just read them. Do not `
+    + `praise the teacher or the class. Write the way a colleague leans over at `
+    + `break, not the way a textbook explains.`;
 }
 
 function buildSecurePromptEn({ grade, topic, digest }) {
   return `You are helping a Grade ${grade || 'primary'} teacher in Pakistan plan `
-    + `tomorrow's ten minutes. Her whole class just took a quiz on "${topic}" `
+    + `tomorrow's ten minutes. The whole class just took a quiz on "${topic}" `
     + `and got every question right.\n`
     + digestBlockEn(digest)
     + `\nReturn ONLY a JSON object with exactly these two keys, each value `
@@ -1016,13 +1018,13 @@ function buildSecurePromptEn({ grade, topic, digest }) {
     + `solid, grounded in the learning goals above. Not "they did well" — name `
     + `the actual thing they can now do.\n`
     + `"stretch" — exactly 2 to 3 sentences on how to take them one step `
-    + `further tomorrow: the concrete move she makes, ONE question pitched one `
-    + `level above the highest level she taught (see the taught levels above) `
+    + `further tomorrow: the concrete move to make, ONE question pitched one `
+    + `level above the highest level the lesson taught (see the taught levels above) `
     + `that goes further than anything the quiz asked, and what the CHILDREN `
     + `do with it. The question must not be a copy of any quiz question. Do `
     + `not compress this into one sentence and do not pad past three.\n\n`
     + `Never begin with "In tomorrow's lesson", "To address this", "Focus on" `
-    + `or "Start by". Do not repeat any score. Do not praise her or the class. `
+    + `or "Start by". Do not repeat any score. Do not praise the teacher or the class. `
     + `Write the way a colleague leans over at break, not the way a textbook `
     + `explains.`;
 }
@@ -1030,7 +1032,9 @@ function buildSecurePromptEn({ grade, topic, digest }) {
 function buildReteachPromptUr({ grade, topic, evidence, digest }) {
   // Gender-neutral throughout (root CLAUDE.md's Urdu broadcast rule) — the
   // teacher's gender is unknown, so this never asks for a 2nd/3rd-person
-  // gendered verb about her. Children are referred to as "بچے", a
+  // gendered verb about the teacher. Round 6 found three that had survived the
+  // claim (پڑھائیں گی، اٹھائیں گی، بولتی ہے) and replaced them with the
+  // impersonal passive, which agrees with the object. Children are "بچے", a
   // gender-neutral plural. Same structure + banned-opener list as the
   // English prompt, translated in spirit, not word-for-word.
   return `آپ ایک پاکستانی گریڈ ${grade || 'ابتدائی'} استاد کی کل کے دس منٹ کی `
@@ -1046,7 +1050,7 @@ function buildReteachPromptUr({ grade, topic, evidence, digest }) {
     + `سمجھتے ہیں: "بچے سمجھتے ہیں X، Y ہے۔" سب سے بڑی الجھن چنیں، فہرست نہ `
     + `بنائیں۔ الفاظ "غلط فہمی"، "طلبہ"، "تصور" یا "سمجھ" استعمال نہ کریں۔\n`
     + `"board" — بالکل 2 سے 3 جملوں میں (exactly 2 to 3 sentences) بتائیں کہ `
-    + `وہ کل یہ دوبارہ کیسے پڑھائیں گی: وہ عملی قدم جو وہ اٹھائیں گی، بورڈ پر `
+    + `کل یہ دوبارہ کیسے پڑھایا جائے: وہ عملی قدم جو اٹھایا جائے، بورڈ پر `
     + `لکھی جانے والی مخصوص مثال (اوپر دیے گئے سوالوں اور سبق کی تفصیل سے — `
     + `وہی حقیقی روزمرہ چیزیں؛ کبھی "مختلف مثالیں" نہ لکھیں)، اور بچے کیا کریں `
     + `گے۔ اسے ایک جملے میں نہ سمیٹیں اور تین جملوں سے زیادہ نہ لکھیں۔\n`
@@ -1065,7 +1069,7 @@ function buildReteachPromptUr({ grade, topic, evidence, digest }) {
     + `میں جھک کر بات کرتا ہے، نہ کہ جیسے کوئی نصابی کتاب سمجھاتی ہے۔ مکمل طور `
     + `پر اردو رسم الخط میں لکھیں، رومن اردو میں ہرگز نہیں۔ مضمون اور تکنیکی `
     + `اصطلاحات (جیسے fraction، numerator، circuit، atom، photosynthesis) وہی `
-    + `رہنے دیں جو استاد خود بولتی ہے — لاطینی حروف میں، بالکل ویسے جیسے اردو `
+    + `رہنے دیں جو اصطلاحات استاد نے خود استعمال کیں — لاطینی حروف میں، بالکل ویسے جیسے اردو `
     + `میں لکھی جاتی ہیں؛ باقی سب کچھ خالص اردو میں لکھیں۔ بچوں یا استاد کی `
     + `جنس کے بارے میں کوئی قیاس نہ کریں، ہمیشہ غیر جانبدار زبان استعمال کریں۔`;
 }
@@ -1082,7 +1086,7 @@ function buildSecurePromptUr({ grade, topic, digest }) {
     + `بتائیں جو کلاس نے اب پکی کر لی ہے، اوپر دیے گئے اہداف کی بنیاد پر — `
     + `"انہوں نے اچھا کیا" نہ لکھیں، اصل چیز کا نام لیں۔\n`
     + `"stretch" — بالکل 2 سے 3 جملوں میں (exactly 2 to 3 sentences) بتائیں `
-    + `کہ کل انہیں ایک قدم آگے کیسے لے جائیں: وہ عملی قدم جو وہ اٹھائیں گی، `
+    + `کہ کل انہیں ایک قدم آگے کیسے لے جائیں: وہ عملی قدم جو اٹھایا جائے، `
     + `ایک سوال جو سب سے اونچی پڑھائی گئی سطح سے ایک درجہ اوپر ہو (اوپر دی گئی `
     + `سطحیں دیکھیں) اور کوئز کے کسی بھی سوال سے آگے جائے، اور بچے اس کے ساتھ `
     + `کیا کریں گے۔ سوال کسی کوئز سوال کی نقل نہیں ہونی چاہیے۔ اسے ایک جملے `
@@ -1096,7 +1100,7 @@ function buildSecurePromptUr({ grade, topic, digest }) {
     + `لکھیں جیسے ایک ساتھی وقفے میں جھک کر بات کرتا ہے۔ مکمل طور پر اردو رسم `
     + `الخط میں لکھیں، رومن اردو میں ہرگز نہیں۔ مضمون اور تکنیکی اصطلاحات `
     + `(جیسے fraction، numerator، circuit، atom، photosynthesis) وہی رہنے دیں `
-    + `جو استاد خود بولتی ہے — لاطینی حروف میں، بالکل ویسے جیسے اردو میں لکھی `
+    + `جو اصطلاحات استاد نے خود استعمال کیں — لاطینی حروف میں، بالکل ویسے جیسے اردو میں لکھی `
     + `جاتی ہیں؛ باقی سب کچھ خالص اردو میں لکھیں۔ بچوں یا استاد کی جنس کے بارے `
     + `میں کوئی قیاس نہ کریں، ہمیشہ غیر جانبدار زبان استعمال کریں۔`;
 }
@@ -1119,7 +1123,7 @@ function buildSecurePromptUr({ grade, topic, digest }) {
  *
  * Returns null when there is nothing to ground guidance in at all: no missed
  * questions AND no usable digest. Inventing advice from an average alone
- * would train her to skip this section.
+ * would train the teacher to skip this section.
  *
  * `language` picks the prompt AND the requested output language. The
  * evidence itself needs no translation — question_text/top_wrong_text/

@@ -3,8 +3,9 @@
  * bd-2313..2316 — share a video quiz with a class, and record what they score.
  *
  * WHY A LINK AND NOT THE QUESTIONS THEMSELVES
- * The obvious design — the teacher forwards the quiz messages into her class
- * WhatsApp group — cannot work, and the reason is platform law, not our gap:
+ * The obvious design — the teacher forwards the quiz messages into their
+ * class WhatsApp group — cannot work, and the reason is platform law, not
+ * our gap:
  *   1. Forwarding STRIPS interactivity. A forwarded button/list/Flow arrives as
  *      dead text; taps never reach our webhook, so nothing can be recorded.
  *   2. The bot cannot sit in an ordinary group. The Groups API caps membership
@@ -12,7 +13,7 @@
  * What forwards perfectly is a LINK. So the teacher forwards ONE message
  * carrying a wa.me link with a code; each child taps it, lands in their own 1:1
  * chat with Rumi, gives a name and class, and takes the full quiz — media,
- * feedback and all — with every answer stored and attributed to her.
+ * feedback and all — with every answer stored and attributed to them.
  *
  * A child arriving this way sees who sent it and what it is about before
  * anything else: "Your teacher <name> sent you a quiz on <topic>."
@@ -148,7 +149,7 @@ async function offerShare({ phone, userId, quizId, videoId, language = 'en', ses
   }
   // The share offer is only ever made after a video_solo run.
   // `sent` carries the retry's verdict: an offer that never reached the phone
-  // still belongs in the funnel, but it is not a shown offer she ignored.
+  // still belongs in the funnel, but it is not a shown offer the teacher ignored.
   logEvent('video_quiz.offer_shown', {
     kind: 'share', sessionId, quizId, source: 'video_solo', language, sent: Boolean(ok),
   });
@@ -176,12 +177,13 @@ async function handleShareButton(buttonId, phone) {
 }
 
 /**
- * Mint a code and hand the teacher the message she forwards.
+ * Mint a code and hand the teacher the message they forward.
  *
  * bd-2336 — extracted so BOTH entry points share one implementation: the
- * post-solo-run offer, and the "send to my class" choice she can now make at
- * the quiz offer itself without taking the quiz first. Two copies of this would
- * drift, and the copy she sees is the copy thirty children read.
+ * post-solo-run offer, and the "send to my class" choice the teacher can now
+ * make at the quiz offer itself without taking the quiz first. Two copies of
+ * this would drift, and the copy the teacher sees is the copy thirty children
+ * read.
  */
 async function deliverClassLink(ctx, phone) {
   const minted = await mintCode(ctx);
@@ -253,17 +255,17 @@ async function beginFromCode(phone, code) {
 
   const ctx = {
     // The PARENT code when this was an invite — the child counts toward the
-    // teacher's report exactly like anyone she sent it to directly.
+    // teacher's report exactly like anyone they sent it to directly.
     shareCodeId: sc.shareCodeId,
     quizId: sc.quiz_id, videoId: sc.video_id,
     language: clampLanguage(sc.language), topic: sc.topic, teacherName: sc.teacher_name,
     invitedByStudentId: sc.invitedByStudentId,
-    // bd-2340: whose quiz this is, so a new child is filed under her.
+    // bd-2340: whose quiz this is, so a new child is filed under them.
     teacherUserId: sc.teacher_user_id || null,
   };
   const lang = ctx.language;
 
-  // PLAN_R5 §1 D8 — is this the teacher testing her own class link? A
+  // PLAN_R5 §1 D8 — is this the teacher testing their own class link? A
   // self-test is never asked for a name/class and never written into
   // `students`; the marker is `quiz_sessions.user_id`, no schema change
   // (see teacher-self-test.js).
@@ -273,7 +275,7 @@ async function beginFromCode(phone, code) {
     await WhatsAppService.sendMessage(phone, ux('vqSelfTestStart', lang));
     // `id: null` explicitly: startForStudent reads `student.id` for the
     // `students` FK, and an undefined there is one JSON round-trip away from
-    // becoming a silent surprise. She has no students row, by design.
+    // becoming a silent surprise. The teacher has no students row, by design.
     await startForStudent(phone, ctx, { id: null, student_name: selfTest.name || null },
       { selfTestUserId: selfTest.userId });
     // The event carries ids only — never the phone and never the name.
@@ -423,7 +425,7 @@ async function handleJoinFlowReply(phone, flowToken, payload = {}) {
  * Begin the quiz for a child we can name, linking the session to them.
  *
  * `opts.selfTestUserId` is the one exception: set only by the teacher
- * self-test path above, it names the SESSION as hers (`user_id`) instead of
+ * self-test path above, it names the SESSION as theirs (`user_id`) instead of
  * a `students` row. The two other call sites (`handleJoinFlowReply`,
  * `consumeJoinReply`) never pass it, so they are unchanged — `userId` stays
  * `null` for every child, exactly as before.

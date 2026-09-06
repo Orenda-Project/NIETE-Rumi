@@ -239,6 +239,34 @@ function pickupOf(render) {
 }
 
 /**
+ * When this run last PROVED it was alive — bd-oak77.11.
+ *
+ * `picked_up_at` is a claim made once, at the start. The checkpoint is a claim made again on every
+ * accepted round: the owner of this run wrote a document to this row at that moment, so anything
+ * before it is not evidence of anything.
+ *
+ * This matters more since the drain (Layer A). A worker that has been SIGTERMed legitimately holds
+ * an authoring job for up to ten more minutes while it finishes the lesson, re-extending the SQS
+ * message's visibility the whole time. Without this term the sweep would write `failed` underneath
+ * it and produce exactly the failed->ready flapping bd-w36m5 removed — a corpse detector whose
+ * window is shorter than the window in which the owner is provably alive is not detecting corpses.
+ *
+ * A malformed or missing timestamp contributes NOTHING rather than defaulting to "now": the safe
+ * direction here is to keep condemning, since a row we wrongly spare is caught by the next sweep
+ * while a row we wrongly condemn costs a teacher a lesson.
+ */
+function lastAliveAt(render) {
+  const pickedUpAt = pickupOf(render);
+  if (pickedUpAt == null) return null;
+  const cp = render && render.checkpoint;
+  if (cp && typeof cp === 'object' && cp.at) {
+    const t = Date.parse(cp.at);
+    if (Number.isFinite(t)) return Math.max(pickedUpAt, t);
+  }
+  return pickedUpAt;
+}
+
+/**
  * How long after PICKUP a run has to be silent before nobody can be coming for it.
  *
  * DERIVED, not chosen (bd-w36m5). From the moment a worker picks the job up:
@@ -274,9 +302,9 @@ function reapAfterPickupMs() {
  * but from the RIGHT clock, and only once the SQS envelope above has actually expired.
  */
 function isStrandedAuthoring(render) {
-  const pickedUpAt = pickupOf(render);
-  if (pickedUpAt == null) return false;
-  return (Date.now() - pickedUpAt) > reapAfterPickupMs();
+  const aliveAt = lastAliveAt(render);
+  if (aliveAt == null) return false;
+  return (Date.now() - aliveAt) > reapAfterPickupMs();
 }
 
 /**
@@ -344,11 +372,26 @@ const REAP_CLASSES = [
  */
 async function reapStrandedRenders() {
   const sweepStartedAt = new Date().toISOString();
-  const { data, error } = await supabase
+  const REAP_COLUMNS = 'id, segment_id, started_at, picked_up_at, updated_at';
+  // bd-oak77.11. `checkpoint` is applied to production BY HAND (NIETE deploys do not run
+  // migrations, bd-tqkq9), so this code can reach a database that does not have it yet. Asking for
+  // it and falling back is what keeps the sweep working in that window instead of returning 0 every
+  // fifteen minutes and letting corpses accumulate silently.
+  let { data, error } = await supabase
     .from(RENDERS)
-    .select('id, segment_id, started_at, picked_up_at, updated_at')
+    .select(`${REAP_COLUMNS}, checkpoint`)
     .eq('status', 'authoring')
     .limit(REAP_SCAN_LIMIT);
+  if (error && (error.code === '42703'
+      || /column .*does not exist|could not find the .* column/i.test(String(error.message || '')))) {
+    logToFile('LP 6-12: no checkpoint column on this database — sweeping on pickup time alone '
+      + '(apply V1.3.9__lp612_checkpoint.sql)');
+    ({ data, error } = await supabase
+      .from(RENDERS)
+      .select(REAP_COLUMNS)
+      .eq('status', 'authoring')
+      .limit(REAP_SCAN_LIMIT));
+  }
   if (error) {
     logToFile('LP 6-12: stranded-render sweep read failed', { error: error.message });
     return 0;
@@ -410,16 +453,40 @@ async function reapStrandedRenders() {
  * @returns {Promise<{render: object|null, readFailed: boolean}>}
  */
 async function findRender(segmentId, lang, tv) {
-  const { data, error } = await supabase
+  // `picked_up_at` is here because the stranded/queued decision below is made from it. A column
+  // the lookup does not read cannot decide anything, and reading it as `undefined` would silently
+  // classify every live run as never-picked-up.
+  // `render_degraded` (bd-oak77.14) for the same class of reason: every teacher after the first is
+  // served entirely from this row, so the honesty line on her caption has nowhere else to come
+  // from — an unread column would tell the teacher who waited and none of the ones who tapped
+  // later, about the identical file.
+  const FIND_COLUMNS = 'id, status, r2_key, waiters, error_code, one_screen, started_at, picked_up_at, overlay_dropped, render_degraded';
+  // `picked_up_at` is here because the stranded/queued decision below is made from it. A column
+  // the lookup does not read cannot decide anything, and reading it as `undefined` would silently
+  // classify every live run as never-picked-up.
+  //
+  // bd-oak77.11: and `checkpoint`, for exactly the same reason one level up. THE TAP PATH AND THE
+  // SWEEP MUST AGREE ABOUT WHAT A CORPSE IS (bd-w36m5) — if the sweep spares a row whose owner is
+  // still checkpointing and a tap does not, the tap restarts a run that is alive and the lesson is
+  // authored twice. It is only ever a payload on an `authoring` row: the terminal write NULLs it,
+  // so every cache hit reads it as null. Degrade-safe because this migration is hand-applied.
+  let { data, error } = await supabase
     .from(RENDERS)
-    // `picked_up_at` is here because the stranded/queued decision below is made from it. A column
-    // the lookup does not read cannot decide anything, and reading it as `undefined` would silently
-    // classify every live run as never-picked-up.
-    .select('id, status, r2_key, waiters, error_code, one_screen, started_at, picked_up_at, overlay_dropped, render_degraded')
+    .select(`${FIND_COLUMNS}, checkpoint`)
     .eq('segment_id', segmentId)
     .eq('lang', lang)
     .eq('template_version', tv)
     .maybeSingle();
+  if (error && (error.code === '42703'
+      || /column .*does not exist|could not find the .* column/i.test(String(error.message || '')))) {
+    ({ data, error } = await supabase
+      .from(RENDERS)
+      .select(FIND_COLUMNS)
+      .eq('segment_id', segmentId)
+      .eq('lang', lang)
+      .eq('template_version', tv)
+      .maybeSingle());
+  }
   if (error) {
     logToFile('LP 6-12: render lookup failed', { segmentId, lang, tv, error: error.message });
     return { render: null, readFailed: true };

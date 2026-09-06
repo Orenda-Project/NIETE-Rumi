@@ -61,6 +61,35 @@ function clampLanguage(lang, offered = LANGUAGE_OFFER) {
  * `محفوظ ہو گئی` as in the attendance and observation confirmations) so the
  * teacher hears one consistent voice rather than a second translator's.
  */
+/**
+ * THE ONE PLACE THE LESSON-PLAN WAIT IS QUOTED — bd-oak77.10.
+ *
+ * Measured 2026-09-06 on the configuration production actually runs
+ * (`LP612_AUTHOR_ROUNDS=3`, `LP612_TARGETED_REVISION=true`):
+ *
+ *     p50  160 s  English
+ *     p50  207 s  Urdu
+ *     p90  ~308 s
+ *
+ * The band QUOTES THE TAIL, not the median, and that is deliberate. A teacher told the median is
+ * told a number she misses half the time, and the half she misses is the half that decides the
+ * feature is broken. Five minutes covers p90 with room; three is the floor a real first hit lands
+ * near. `tests/lp612/honest-eta.test.js` pins both ends against these numbers, so moving the copy
+ * without moving the measurement fails the suite.
+ *
+ * WHEN THE LANE MOVES, CHANGE IT HERE AND IN THAT TEST'S `MEASURED` — nowhere else. The strings
+ * interpolate this; none of them hand-types a number.
+ *
+ * The Urdu digits are U+06Fx (۳ ۵), the Urdu set — NOT the Arabic-Indic ٣ ٥, which render wrong in
+ * a Nastaliq face. The phrase is impersonal, so it carries no gendered verb stem.
+ */
+const LP612_ETA = Object.freeze({
+  minMinutes: 3,
+  maxMinutes: 5,
+  en: 'about 3–5 minutes',
+  ur: 'تقریباً ۳ سے ۵ منٹ',
+});
+
 const UX_STRINGS = {
   // ─── post-coaching survey ─────────────────────────────────────────────────
   // Sent once a coaching session has settled — report delivered, voice debrief
@@ -215,7 +244,7 @@ const UX_STRINGS = {
   },
 
   /**
-   * LP v8 delivery (FEAT-059, staging feedback round 1). The ack
+   * LP v8 delivery (K-5 corpus, staging feedback round 1). The ack
    * exists because presign + Meta's document fetch take several seconds AFTER
    * the Flow has already closed — that silence read as a failed request on the
    * operator's device test. Urdu is gender-neutral by construction: passive
@@ -236,27 +265,26 @@ const UX_STRINGS = {
   // A 6-12 lesson is authored on the first request, not looked up: the wait is
   // real, and every one of these strings exists so that no part of it is silent.
   //
-  // HOW LONG, measured rather than guessed (bd-2ym0h): a first hit on the
-  // post-optimisation lane runs a median of 313 seconds, spread roughly four to
-  // eleven minutes. These strings used to say "about 2 minutes", which is the
-  // number the lane hit before the authoring ladder grew, and being told two
-  // while waiting five is how a working feature earns a bug report. They say
-  // five to six now. If the lane's timings move again, this comment and the two
-  // strings below move with them — a stale promise is a defect, not a detail.
+  // HOW LONG — ONE CONSTANT, measured rather than guessed. See LP612_ETA above.
   //
-  // A SECOND request for the same lesson is served from R2 in about a second and
-  // sends no interstitial at all (lp612-serving.service.js answers a cache hit
-  // by delivering the file directly). Nobody reads these strings on a fast path,
-  // so they can quote the slow number plainly — and saying "brand-new" is what
-  // stops five minutes reading as the price of every lesson.
+  // The estimate was removed for a while because the number in the copy (five to six minutes) had
+  // been measured against a slower lane and was wrong for Urdu by about three minutes; a number
+  // that is wrong is worse than no number. Targeted revision then landed, the lane got fast enough
+  // that an honest band exists, and the operator asked for the estimate back (2026-09-06). It is a
+  // constant now, not four hand-typed phrases, so the next move of the lane is a one-line change.
+  //
+  // A SECOND request for the same lesson is served from R2 in about a second and sends no
+  // interstitial at all (lp612-serving.service.js answers a cache hit by delivering the file
+  // directly). Nobody reads these strings on a fast path, so they can quote the slow band plainly —
+  // and saying "brand-new" is what stops it reading as the price of every lesson.
   //
   // The Urdu is deliberately gender-agnostic in the second person — imperatives
   // and impersonal constructions, never `رہی ہوں گی` / `رہے ہوں گے` — because
   // the cohort is mixed and the bot cannot know.
 
   lp612Preparing: {
-    en: '📄 Writing your lesson plan now — a brand-new lesson takes a little while. I will send it here as soon as it is ready, and I will check in if it runs long.',
-    ur: '📄 آپ کا سبق کا منصوبہ ابھی تیار کیا جا رہا ہے — نئے سبق میں کچھ وقت لگتا ہے۔ تیار ہوتے ہی یہیں بھیج دیا جائے گا، اور دیر ہوئی تو اطلاع دی جائے گی۔',
+    en: `📄 Writing your lesson plan now — a brand-new lesson takes ${LP612_ETA.en}. I will send it here as soon as it is ready.`,
+    ur: `📄 آپ کا سبق کا منصوبہ ابھی تیار کیا جا رہا ہے — نئے سبق میں ${LP612_ETA.ur} لگتے ہیں۔ تیار ہوتے ہی یہیں بھیج دیا جائے گا۔`,
   },
 
   lp612StillWorking: {
@@ -275,8 +303,8 @@ const UX_STRINGS = {
   // staging, and it is what rule 24(d) is about. She does not need to know what a worker is;
   // she needs to know it stopped, it has restarted, and she does not have to do anything.
   lp612Restarted: {
-    en: '📄 That lesson stopped partway through, so I have started it again. It will arrive here as soon as it is ready.',
-    ur: '📄 وہ سبق درمیان میں رک گیا تھا، اس لیے دوبارہ شروع کر دیا گیا ہے۔ تیار ہوتے ہی یہیں موصول ہو جائے گا۔',
+    en: `📄 That lesson stopped partway through, so I have started it again. It takes ${LP612_ETA.en} and will arrive here.`,
+    ur: `📄 وہ سبق درمیان میں رک گیا تھا، اس لیے دوبارہ شروع کر دیا گیا ہے۔ اس میں ${LP612_ETA.ur} لگتے ہیں اور یہیں موصول ہو جائے گا۔`,
   },
 
   // A lesson whose page range is over the cap will fail identically on every retry, so it must
@@ -564,6 +592,45 @@ const UX_STRINGS = {
     ur: 'اب سبق کے منصوبے آپ کی اپنی درسی کتاب سے بنتے ہیں۔ نیچے جماعت، مضمون اور باب منتخب کریں — وہ سبق تیار کر دیا جائے گا۔',
   },
 
+  /**
+   * bd-oak77.13 — the very first thing a teacher ever hears from this number.
+   *
+   * Sent on Meta's `request_welcome` event (a brand-new chat opened, nothing typed
+   * yet). Bilingual in ONE body because at this instant she has no stored language
+   * and no text to detect from — see welcome.handler.js. Urdu first, matching the
+   * other bilingual first-contact strings (unsupported-message.js).
+   *
+   * Body field: the cap is 1024 CODE POINTS. It names the two doors the ice-breaker
+   * chips below it lead to, and nothing else — a longer greeting on a cold open is
+   * a wall of text, and the chips are the actual interface.
+   *
+   * Urdu is gender-agnostic in the second person: imperatives only
+   * («منتخب کریں», «لکھ بھیجیں»), never `رہی ہوں گی` / `رہے ہوں گے`. The cohort is
+   * mixed and the bot cannot know.
+   */
+  welcomeFirstOpen: {
+    en:
+      'السلام علیکم! میں NIETE ٹیچنگ اسسٹنٹ ہوں۔\n' +
+      'آپ کی اپنی درسی کتاب سے سبق کے منصوبے، اور آپ کی کلاس کی ریکارڈنگ پر اے آئی کوچنگ — دونوں یہیں دستیاب ہیں۔\n' +
+      'نیچے دیے گئے اختیارات میں سے کوئی ایک منتخب کریں، یا مجھے اپنی بات لکھ بھیجیں۔\n\n' +
+      "Assalam-o-Alaikum! I'm the NIETE Teaching Assistant.\n" +
+      'Lesson plans straight from your own textbook, and AI coaching on a recording of your class — both live right here.\n' +
+      'Tap one of the options below, or just write to me.',
+    // Deliberately IDENTICAL to `en`. This is the one string in the catalog
+    // where the two variants must not differ: it is sent before any language is
+    // known, so the same bilingual body has to satisfy whichever clamp the
+    // resolver happens to land on. The catalog-completeness test requires every
+    // offered language to be present, and a lazy `variants[FLOOR]` fallback here
+    // would be a silent partial translation.
+    ur:
+      'السلام علیکم! میں NIETE ٹیچنگ اسسٹنٹ ہوں۔\n' +
+      'آپ کی اپنی درسی کتاب سے سبق کے منصوبے، اور آپ کی کلاس کی ریکارڈنگ پر اے آئی کوچنگ — دونوں یہیں دستیاب ہیں۔\n' +
+      'نیچے دیے گئے اختیارات میں سے کوئی ایک منتخب کریں، یا مجھے اپنی بات لکھ بھیجیں۔\n\n' +
+      "Assalam-o-Alaikum! I'm the NIETE Teaching Assistant.\n" +
+      'Lesson plans straight from your own textbook, and AI coaching on a recording of your class — both live right here.\n' +
+      'Tap one of the options below, or just write to me.',
+  },
+
   lpBrowseHeader: {
     en: '📘 Lesson Plans',
     ur: '📘 سبق کے منصوبے',
@@ -769,12 +836,12 @@ const UX_STRINGS = {
   // the principal keeps the numbers, the teacher gets a narrative with none, and
   // this screen is the handover point between the two.
   remarkFlowSuccess: {
-    en: 'Saved. {teacher} will get her coaching note shortly.',
+    en: 'Saved. {teacher} will get their coaching note shortly.',
     ur: '{teacher} کو ان کا کوچنگ نوٹ جلد مل جائے گا۔ محفوظ ہو گیا۔',
   },
 
   // The chat message after the Flow closes (whatsapp-flows rule 11 — never bounce
-  // her to "Type /menu"). {left} is the remaining-teachers nudge.
+  // the coach to "Type /menu"). {left} is the remaining-teachers nudge.
   remarkAckSubmitted: {
     en: 'Saved — {teacher} is done. {left}',
     ur: 'محفوظ ہو گیا — {teacher} مکمل۔ {left}',
@@ -938,6 +1005,151 @@ const UX_STRINGS = {
     en: '{started} student(s) have started your quiz on *{topic}* so far. Worth forwarding the link to the class group again?',
     ur: '\u200F*{topic}* پر آپ کے quiz کو اب تک {started} طلبہ نے شروع کیا ہے۔ link دوبارہ class group میں forward کر دیں؟',
   },
+
+  // ─── /quiz as ONE WhatsApp Flow (docs/flows/transcript-quiz-flow.json) ───
+  //
+  // Every string here is rendered INSIDE a Flow screen, so the caps are Meta's
+  // Flow JSON caps, not WhatsApp's message caps, and they are tighter than they
+  // look. Measured in CODE POINTS, verified in tests/quiz/transcript-quiz-flow-strings.test.js:
+  //
+  //   NavigationList item  main-content.title 30 · description 20 · metadata 80
+  //   TextHeading 80 · TextBody 4096 · Footer label 35
+  //   RadioButtonsGroup option title 30 · description 300
+  //   screen title 30
+  //   the chat bubble that OPENS the Flow: header 60 · body 1024 · CTA 20
+  //
+  // The item description is 20 — a quarter of a WhatsApp list row's 72 — which
+  // is why the status strings below are their own short keys instead of reusing
+  // tqRow*, and why the full topic lives in the 80-code-point metadata.
+  // The teacher is "you"; no gendered pronoun in either language.
+
+  // The chat bubble that carries the Flow.
+  tqFlowChatHeader: { en: '📝 Your quizzes', ur: '📝 آپ کے quizzes' },
+  tqFlowChatBody: {
+    en: 'Your lessons, newest first. Open one to see how the class did, get its report, or resend its link — all in here, without leaving this screen.',
+    ur: 'آپ کے اسباق، نئے سے پرانے۔ کوئی ایک کھولیں — کلاس کا نتیجہ دیکھیں، رپورٹ لیں یا link دوبارہ بھیجیں، سب اسی سکرین میں۔',
+  },
+  tqFlowChatCta: { en: 'Open', ur: 'کھولیں' },
+
+  // Screen titles (≤ 30).
+  tqFlowLessonsTitle: { en: 'Your lessons', ur: 'آپ کے اسباق' },
+  tqFlowLessonTitle: { en: 'This lesson', ur: 'یہ سبق' },
+  tqFlowDoneTitle: { en: 'On its way', ur: 'بھیجا جا رہا ہے' },
+
+  // The lesson row's status, in the 20-code-point description slot.
+  tqFlowStatusNone: { en: 'No quiz yet', ur: 'ابھی quiz نہیں' },
+  tqFlowStatusOffered: { en: 'Not made yet', ur: 'ابھی نہیں بنا' },
+  tqFlowStatusMaking: { en: 'Being made…', ur: 'تیار ہو رہا ہے…' },
+  tqFlowStatusSent: { en: '{started} started', ur: '\u200F{started} نے شروع' },
+  tqFlowStatusReport: { en: 'Report sent · {finished}', ur: 'رپورٹ بھیجی · {finished}' },
+  tqFlowStatusFailed: { en: 'Didn’t work', ur: 'نہیں بن سکا' },
+
+  // The paging rows. Tapping one asks the endpoint for the next slice and the
+  // endpoint answers with THIS SAME screen — the teacher never leaves the Flow.
+  tqFlowOlder: { en: 'Older lessons…', ur: 'پرانے اسباق…' },
+  tqFlowNewer: { en: 'Newer lessons…', ur: 'نئے اسباق…' },
+  tqFlowPageNum: { en: 'Page {page}', ur: 'صفحہ {page}' },
+  tqFlowOlderMeta: { en: 'The next {n}, going further back', ur: 'اگلے {n}، اس سے بھی پیچھے' },
+
+  // The one row a NavigationList must still carry when there is nothing to
+  // list: Meta needs at least one item, and an empty screen is a dead end.
+  // `/quiz` normally never opens the Flow on an empty list — the dispatch sends
+  // the plain "no lessons yet" message instead — so this is the race, not the
+  // usual path.
+  tqFlowEmptyTitle: { en: 'No lessons yet', ur: 'ابھی کوئی سبق نہیں' },
+  tqFlowEmptyDesc: { en: 'Record one first', ur: 'پہلے ریکارڈ کریں' },
+  tqFlowEmptyMeta: {
+    en: 'Record a lesson for coaching, then /quiz turns it into a quiz.',
+    ur: 'پہلے coaching کے لیے سبق ریکارڈ کریں، پھر /quiz اس کا quiz بنا دے گا۔',
+  },
+  tqFlowNewerMeta: { en: 'Back to the {n} more recent lessons', ur: 'پچھلے {n} حالیہ اسباق پر واپس' },
+
+  // The lesson screen: heading, sub-line, and the live results.
+  tqFlowLessonSub: { en: '{date} · {subject} · {status}', ur: '\u200F{date} · {subject} · {status}' },
+  tqFlowLessonSubNoSubject: { en: '{date} · {status}', ur: '\u200F{date} · {status}' },
+  tqFlowResultsHead: {
+    en: '{started} started · {finished} finished · average {avg}%',
+    ur: '\u200F{started} نے شروع کیا، {finished} نے مکمل، اوسط \u2066{avg}%\u2069',
+  },
+  tqFlowResultsStartedOnly: {
+    en: '{started} started · nobody has finished yet',
+    ur: '\u200F{started} نے شروع کیا، ابھی کسی نے مکمل نہیں کیا',
+  },
+  tqFlowResultsNobody: {
+    en: 'Nobody has opened this quiz yet. Resend the link and it will show up here as students take it.',
+    ur: 'ابھی کسی نے یہ quiz نہیں کھولا۔ link دوبارہ بھیجیں — طلبہ کے حل کرتے ہی نتیجہ یہیں نظر آئے گا۔',
+  },
+  tqFlowResultsNoQuiz: {
+    en: 'No quiz has been made from this lesson yet. Making one takes about a minute.',
+    ur: 'اس سبق سے ابھی کوئی quiz نہیں بنا۔ بنانے میں تقریباً ایک منٹ لگتا ہے۔',
+  },
+  tqFlowResultsMaking: {
+    en: 'The quiz is being made — about a minute. It will arrive in your chat with the message to forward.',
+    ur: '\u200Fquiz تیار ہو رہا ہے — تقریباً ایک منٹ۔ آگے بھیجنے والے پیغام کے ساتھ آپ کی chat میں آ جائے گا۔',
+  },
+  tqFlowResultsFailed: {
+    en: 'The last attempt did not produce a good quiz from this lesson’s recording. You can try again.',
+    ur: 'پچھلی کوشش میں اس سبق کی ریکارڈنگ سے اچھا quiz نہیں بن سکا۔ دوبارہ کوشش کی جا سکتی ہے۔',
+  },
+  tqFlowEachStudent: { en: 'How each student did', ur: 'ہر طالب علم کا نتیجہ' },
+  // The score is ONE left-to-right atom (digits, slash, brackets, per-cent), so
+  // it arrives already wrapped in LRI…PDI from the endpoint — in an Urdu line
+  // an un-isolated `8/8 (100%)` after an Urdu name renders as `(%100) 8/8`.
+  tqFlowStudentLine: { en: '• {name}{klass} — {score}', ur: '• {name}{klass} — {score}' },
+  tqFlowStillGoing: { en: 'Still going: {names}', ur: 'ابھی حل کر رہے ہیں: {names}' },
+  tqFlowMoreStudents: { en: '…and {n} more', ur: '…اور {n} مزید' },
+  tqFlowUnnamed: { en: 'Unnamed', ur: 'بےنام' },
+
+  // The actions, as the options of a single radio group under the results.
+  tqFlowActionsLabel: { en: 'What next?', ur: 'اب کیا کریں؟' },
+  tqFlowActionReport: { en: 'Generate report', ur: 'رپورٹ بنائیں' },
+  tqFlowActionReportDesc: {
+    en: 'Counted again right now — everyone who has finished since the last report is in it.',
+    ur: 'ابھی دوبارہ گنا جائے گا — پچھلی رپورٹ کے بعد جس نے بھی مکمل کیا وہ بھی شامل ہو گا۔',
+  },
+  tqFlowActionLink: { en: 'Resend link', ur: '\u200Flink دوبارہ بھیجیں' },
+  tqFlowActionLinkDesc: {
+    en: 'The PDF, then the message to forward — the same link as before, never a new one.',
+    ur: '‏PDF، پھر آگے بھیجنے والا پیغام — وہی پرانا link، نیا نہیں۔',
+  },
+  tqFlowActionMake: { en: 'Make the quiz', ur: '\u200Fquiz بنائیں' },
+  tqFlowActionMakeIn: { en: 'Make it in {language}', ur: '\u200F{language} میں بنائیں' },
+  tqFlowActionMakeDesc: {
+    en: '8 questions from what you taught in this lesson. About a minute.',
+    ur: 'اس سبق میں آپ نے جو پڑھایا، اس پر 8 سوالات۔ تقریباً ایک منٹ۔',
+  },
+  tqFlowContinue: { en: 'Continue', ur: 'آگے بڑھیں' },
+  tqFlowClose: { en: 'Close', ur: 'بند کریں' },
+
+  // The terminal screen, one per action.
+  tqFlowDoneReportHead: { en: 'Your report is on its way', ur: 'آپ کی رپورٹ آ رہی ہے' },
+  tqFlowDoneReportBody: {
+    en: 'Recounting now. The report will arrive in your chat in a minute or two — the class summary, how each student did, and what is worth reteaching.',
+    ur: 'ابھی دوبارہ گنا جا رہا ہے۔ ایک دو منٹ میں رپورٹ آپ کی chat میں آ جائے گی — کلاس کا خلاصہ، ہر طالب علم کا نتیجہ، اور کیا دوبارہ پڑھانا ہے۔',
+  },
+  tqFlowDoneLinkHead: { en: 'The link is on its way', ur: '\u200Flink بھیجا جا رہا ہے' },
+  tqFlowDoneLinkBody: {
+    en: 'The PDF first, then the message to forward to your class group. It carries the same link as before.',
+    ur: 'پہلے PDF، پھر وہ پیغام جو class group میں forward کرنا ہے۔ اس میں وہی پرانا link ہے۔',
+  },
+  tqFlowDoneMakeHead: { en: 'Making the quiz', ur: '\u200Fquiz بن رہا ہے' },
+  tqFlowDoneMakeBody: {
+    en: 'About a minute. The quiz and the message to forward will arrive in your chat.',
+    ur: 'تقریباً ایک منٹ۔ quiz اور آگے بھیجنے والا پیغام آپ کی chat میں آ جائے گا۔',
+  },
+  tqFlowDoneWaitHead: { en: 'Still being made', ur: 'ابھی تیار ہو رہا ہے' },
+  tqFlowDoneWaitBody: {
+    en: 'About a minute. The quiz will arrive in your chat with the message to forward.',
+    ur: 'تقریباً ایک منٹ۔ quiz آگے بھیجنے والے پیغام کے ساتھ آپ کی chat میں آ جائے گا۔',
+  },
+
+  // Snackbar errors — the endpoint returns the CURRENT screen with these, so a
+  // fault is never a dead end.
+  tqFlowErrPickAction: { en: 'Pick one of the options first.', ur: 'پہلے کوئی ایک آپشن منتخب کریں۔' },
+  tqFlowErrNotYours: { en: 'That lesson could not be found.', ur: 'وہ سبق نہیں مل سکا۔' },
+  tqFlowErrGeneric: { en: 'Something went wrong — try again.', ur: 'کچھ غلط ہو گیا — دوبارہ کوشش کریں۔' },
+  // The lookup itself failed (not an unknown teacher): retry copy, both ≤ 60 code points.
+  tqFlowErrLookup: { en: 'Could not load your lessons just now. Please tap again.', ur: 'ابھی آپ کے اسباق نہیں کھل سکے۔ دوبارہ tap کریں۔' },
 
   // ─── quiz chrome read by CHILDREN, in the quiz language ─────────────────
   // The share-link chain was English-only; a child taking an Urdu quiz now
@@ -1511,6 +1723,7 @@ function languageLabelFor(code) {
 
 module.exports = {
   UX_STRINGS,
+  LP612_ETA,
   resolveUx,
   clampLanguage,
   languageLabelFor,

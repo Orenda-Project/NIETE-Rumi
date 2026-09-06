@@ -77,7 +77,7 @@ function q(i, over = {}) {
 }
 /** Eight questions; the first two carry a figure (2/8 is under the half cap). */
 const EIGHT = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => q(i, {
-  ...(i < 2 ? { figure: FRACTION } : {}), selected_because: `question ${i} came from the fraction bar she drew on the board`,
+  ...(i < 2 ? { figure: FRACTION } : {}), selected_because: `question ${i} came from the fraction bar drawn on the board`,
 }));
 
 beforeEach(() => {

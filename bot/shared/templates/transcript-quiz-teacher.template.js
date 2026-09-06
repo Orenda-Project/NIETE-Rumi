@@ -2,12 +2,12 @@
 /**
  * Transcript quiz — the teacher's PDF (v2).
  *
- * What she gets alongside the forwardable link, on ONE scannable sheet of
- * three pages: what she taught, what the quiz checks, how to send it, and then
- * every question laid out the way the child will meet it — picture, stem,
- * three options with the correct one marked — each with ONE line saying which
- * moment of her lesson it came from and ONE line per wrong option saying what
- * choosing it would reveal.
+ * What the teacher gets alongside the forwardable link, on ONE scannable
+ * sheet of three pages: what they taught, what the quiz checks, how to send
+ * it, and then every question laid out the way the child will meet it —
+ * picture, stem, three options with the correct one marked — each with ONE
+ * line saying which moment of their lesson it came from and ONE line per
+ * wrong option saying what choosing it would reveal.
  *
  * ONE LANGUAGE PER DOCUMENT (PLAN_R4 D1).
  *   Round 2 split the document in two: `language` drove the chrome (the
@@ -15,7 +15,7 @@
  *   The result was an English document with Urdu labels down its left side,
  *   which reads as a bug — "if it is in English why does it have Urdu in it".
  *   A document is now written wholly in the language the QUIZ was written in,
- *   which is the language she chose for this quiz. Both parameters stay in the
+ *   which is the language the teacher chose for this quiz. Both parameters stay in the
  *   signature (callers pass the same value); `contentLanguage` wins, and
  *   `language` alone still works for a single-language caller.
  *
@@ -102,7 +102,7 @@ function figureTokens() {
  *
  * The sender shuffles display position with a shuffle seeded on the row's
  * `external_id`; a PDF that listed them in stored order would show the teacher
- * a different "A" from the one on her pupil's phone. Required lazily and
+ * a different "A" from the one on their pupil's phone. Required lazily and
  * defensively: a PDF is worth more than a perfectly-ordered PDF.
  */
 function childOrder(row) {
@@ -204,7 +204,7 @@ const LETTERS = ['A', 'B', 'C', 'D'];
  * @param {string} [d.contentLanguage] the language the QUIZ was written in —
  *        the whole document is written in it (D1).
  * @param {string} [d.lessonSummary] the author call's `lesson_summary`: what
- *        she taught, in the order she taught it. Opens the document.
+ *        the teacher taught, in the order they taught it. Opens the document.
  * @param {string|number} [d.grade] accepted and ignored (operator item 6: a
  *        transcript spans several grades — "grade 6-8, that's a wild range"
  *        — so the pre-send PDF no longer prints one). The parameter stays
@@ -277,7 +277,7 @@ function renderTranscriptQuizTeacherHtml(d) {
           <div ${cls(`opt${correctPositions.has(pos) ? ' correct' : ''}`)}><span class="mark"><span class="dia2"><span>${LETTERS[pos]}</span></span></span><span class="otext">${K(labels[stored])}</span>${correctPositions.has(pos) ? `<span class="tag">${L(C.correct)}</span>` : ''}</div>`).join('');
     // One compressed line per wrong option: the option, then in eight words
     // what picking it would reveal. The child-facing feedback prose is NOT
-    // here — she reads that on her phone with the child, not on paper.
+    // here — the teacher reads that on their phone with the child, not on paper.
     // Skips EVERY correct position, not just the first — otherwise a correct
     // option on a multi-answer question prints as a misconception.
     const misses = order.map((stored, pos) => {
@@ -422,8 +422,8 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
 /* The child's question card marks each option with a diamond carrying its
    letter. The same marker here, so "A" on paper is "A" on the phone. Drawn
    with a rotated box, never a glyph — big enough that its own letter clears
-   the small-type floor (operator item 11: "she matches it against her
-   pupil's phone, it must be readable"). */
+   the small-type floor (operator item 11: the teacher matches it against
+   their pupil's phone, it must be readable). */
 .dia2{width:25px;height:25px;position:relative;display:inline-block}
 .dia2::before{content:'';position:absolute;inset:1px;background:#fff;border:1.3px solid #C6CFCA;transform:rotate(45deg);border-radius:3px}
 .opt.correct .dia2::before{background:${PALETTE.green};border-color:${PALETTE.green}}

@@ -101,9 +101,12 @@ describe('register-all-flows', () => {
     // own Flow. A Flow opens on screens[0], and the review screens could only be
     // reached from a TERMINAL confirm screen, so the client refused to open onto
     // them at all.
-    it('exports an array of all 18 registerable flow configurations', () => {
+    // Re-armed at 19 on 2026-09-06: /quiz landed as ONE Flow (Transcript Quiz) —
+    // lesson list with in-Flow paging, the lesson's own live results, and
+    // generate report / resend link / make the quiz, all in one session.
+    it('exports an array of all 19 registerable flow configurations', () => {
       expect(Array.isArray(FLOW_CONFIGS)).toBe(true);
-      expect(FLOW_CONFIGS).toHaveLength(18);
+      expect(FLOW_CONFIGS).toHaveLength(19);
     });
 
     it('gives every flow a unique name, envVar and endpointPath', () => {

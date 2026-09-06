@@ -2,8 +2,8 @@
 /**
  * Transcript quiz — THE OFFER.
  *
- * After a self-coaching report lands, the teacher is asked once whether she
- * wants a quiz written from what she just taught. Once per TEACHER, not per
+ * After a self-coaching report lands, the teacher is asked once whether they
+ * want a quiz written from what they just taught. Once per TEACHER, not per
  * report (operator, 2026-09-05): the offer introduces the feature; after
  * that the path is /quiz. TRANSCRIPT_QUIZ_OFFER_MODE=every keeps the
  * alternative one env flip away.
@@ -63,8 +63,30 @@ function subjectAllowed(subject) {
   return allow.has(canonicalSubject(subject));
 }
 
-function introVideo() {
-  return (process.env.TRANSCRIPT_QUIZ_INTRO_VIDEO || '').trim() || null;
+/**
+ * Explicit map (not a computed `process.env[...]`) so
+ * tests/setup/env-template-completeness.test.js and a plain grep can both see
+ * the two per-language names.
+ */
+const INTRO_VIDEO_BY_LANGUAGE = {
+  ur: () => process.env.TRANSCRIPT_QUIZ_INTRO_VIDEO_UR,
+  en: () => process.env.TRANSCRIPT_QUIZ_INTRO_VIDEO_EN,
+};
+
+/** Per-language film first, the shared one second, null when neither is set. */
+function introVideo(language) {
+  const shared = (process.env.TRANSCRIPT_QUIZ_INTRO_VIDEO || '').trim() || null;
+  const perLanguage = INTRO_VIDEO_BY_LANGUAGE[language];
+  if (!perLanguage) return shared;
+  return (perLanguage() || '').trim() || shared;
+}
+
+/** How many offers carry the film, per teacher. 0 is legitimate ("never"); anything else unreadable defaults to 2. */
+function introVideoShows() {
+  const raw = (process.env.TRANSCRIPT_QUIZ_INTRO_VIDEO_SHOWS || '').trim();
+  if (raw === '') return 2;
+  const n = parseInt(raw, 10);
+  return Number.isNaN(n) || n < 0 ? 2 : n;
 }
 
 async function alreadyOffered(userId) {
@@ -213,8 +235,8 @@ async function processOffer(coachingSessionId, payload = {}) {
     },
   }).eq('id', quizId);
 
-  // The offer itself. Video header the first time (when a video is
-  // configured), plain buttons after.
+  // The offer itself. Video header while the teacher's showing count is under
+  // TRANSCRIPT_QUIZ_INTRO_VIDEO_SHOWS (default 2), plain buttons after.
   const phone = payload.phone || user.phone_number;
   const params = {
     lesson: lessonLabel({ digest, quizLanguage: language, teacherLanguage: teacherLang }),
@@ -225,19 +247,25 @@ async function processOffer(coachingSessionId, payload = {}) {
     { id: `${OFFER_YES}${quizId}`, title: resolveUx('tqOfferYes', { language: teacherLang }) },
     { id: `${OFFER_NO}${quizId}`, title: resolveUx('tqOfferNo', { language: teacherLang }) },
   ];
+  const video = introVideo(teacherLang);
+  // The gate is the showing COUNT now, not `alreadyOffered` — `seen` is true
+  // for any prior offer row, which made a second showing impossible even
+  // under TRANSCRIPT_QUIZ_OFFER_MODE=every. This is the D7 fix.
+  const shownCount = video ? await FeatureIntro.introShownCount(session.user_id, FEATURE_KEY) : 0;
+  const wantVideo = Boolean(video) && shownCount < introVideoShows();
+  let videoSent = false;
   let sent = false;
-  const video = introVideo();
-  const seen = await alreadyOffered(session.user_id);
-  if (video && !seen) {
-    sent = await WhatsAppService.sendVideoWithButtons(phone, video, body, buttons);
-    if (!sent) logToFile('⚠️ transcript quiz: video offer failed, sending plain buttons', { quizId });
+  if (wantVideo) {
+    videoSent = await WhatsAppService.sendVideoWithButtons(phone, video, body, buttons);
+    if (!videoSent) logToFile('⚠️ transcript quiz: video offer failed, sending plain buttons', { quizId });
+    sent = videoSent;
   }
   if (!sent) sent = await WhatsAppService.sendInteractiveButtons(phone, { body, buttons });
-  await FeatureIntro.markVideoShown(session.user_id, FEATURE_KEY);
+  await FeatureIntro.markVideoShown(session.user_id, FEATURE_KEY, { incrementIntroCount: Boolean(videoSent) });
 
   logEvent('transcript_quiz.offered', {
     coachingSessionId, quizId, userId: session.user_id, subject: digest.subject, language, teacherLang,
-    withVideo: Boolean(video && !seen), sent: Boolean(sent), early: Boolean(payload.early),
+    withVideo: Boolean(videoSent), shownCount, sent: Boolean(sent), early: Boolean(payload.early),
   });
   return { ok: true, quizId };
 }
@@ -245,10 +273,10 @@ async function processOffer(coachingSessionId, payload = {}) {
 // ─── 3. The buttons (on the web service) ─────────────────────────────────────
 
 /**
- * Her language when the quiz row is gone: there is nothing to join on, so she
- * is looked up by the number she just tapped from. Without this the one
- * surface a teacher meets when an offer has expired answers in the floor
- * language rather than hers.
+ * The teacher's language when the quiz row is gone: there is nothing to join
+ * on, so the teacher is looked up by the number they just tapped from.
+ * Without this the one surface a teacher meets when an offer has expired
+ * answers in the floor language rather than theirs.
  */
 async function languageByPhone(phone) {
   const { data } = await supabase.from('users')
@@ -289,12 +317,12 @@ async function handleOfferButton(buttonId, phone) {
     return true;
   }
 
-  // The rule language is what she would have been handed silently in round 1.
-  // It is now the first button, not the decision.
+  // The rule language is what the teacher would have been handed silently in
+  // round 1. It is now the first button, not the decision.
   const ruleLanguage = quiz.language || quizLanguageFor(quiz.subject, null);
 
   if (needsLanguageAsk(quiz.subject)) {
-    // The row stays 'offered' until she answers, so an unanswered ask expires
+    // The row stays 'offered' until they answer, so an unanswered ask expires
     // exactly as an unanswered offer does.
     const { data: marked } = await supabase.from('quizzes')
       .update({
@@ -350,9 +378,9 @@ async function startGenerating({ quizId, quiz, phone, teacherLang, language, sou
 }
 
 /**
- * Her answer to the ask. The language she chose is written to `quizzes.language`
- * — the generate step reads that ahead of the subject rule — and the same
- * atomic flip guards a double tap.
+ * The teacher's answer to the ask. The language they chose is written to
+ * `quizzes.language` — the generate step reads that ahead of the subject
+ * rule — and the same atomic flip guards a double tap.
  */
 async function handleLanguageButton(buttonId, phone, user) {
   const api = module.exports;
@@ -377,7 +405,7 @@ async function handleLanguageButton(buttonId, phone, user) {
 }
 
 module.exports = {
-  enabled, offerMode, subjectAllowed, alreadyOffered, introVideo,
+  enabled, offerMode, subjectAllowed, alreadyOffered, introVideo, introVideoShows,
   scheduleOffer, triggerEarly, processOffer, handleOfferButton, handleLanguageButton, claimRow, languageByPhone,
   sendLanguageAsk, startGenerating, tellAlready,
   OFFER_YES, OFFER_NO, MIN_TRANSCRIPT_CHARS, OFFER_DELAY_SECONDS, MIN_CONFIDENCE, MIN_SLOS, FEATURE_KEY, SESSION_SELECT,

@@ -44,6 +44,8 @@ const KEY_FIELD = {
   languagePickerHeader: 'header',
   languagePickerBody: 'body',
   languagePickerFooter: 'footer',
+  // bd-oak77.13 — the request_welcome greeting is sent as a plain text body.
+  welcomeFirstOpen: 'body',
 };
 
 const len = (s) => [...s].length;

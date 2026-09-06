@@ -33,6 +33,7 @@ const { logToFile, logError } = require('../utils/logger');
 const { isRegistered } = require('../utils/registration-status');
 const { matchDetail: matchLessonPlanIntent } = require('../utils/lp-intent');
 const { openLpBrowseFlow } = require('../services/lp-browse-entry.service'); // bd-hgwfo: the one door to the catalogue
+const { promptAction } = require('../config/conversational-components'); // bd-oak77.13: the one ice-breaker map
 const { isLp612RouteAll, lp612ServesGrade } = require('../config/lp612-flags'); // bd-oak77.4: the cutover switch
 const Lp612EditRouter = require('../services/lp612-edit-router.service'); // bd-33oc2: 6-12 lesson follow-ups
 const { TEMP_DIR, LOADING_STICKER_PATH, LOADING_STICKER_MEDIA_ID, OPENAI_API_KEY,
@@ -264,6 +265,38 @@ async function tryChildVideoMenu(from, language) {
   }
 }
 
+/**
+ * bd-mg9c7.97 — hoisted above the quiz-state intercepts below so a
+ * `QUIZ-<code>` text always reaches the join, even when the sender already
+ * has a post-quiz chat state or an active/invited session from an earlier
+ * quiz (a child tapping a SECOND teacher's forwarded link). Only the
+ * code-parse branch moves up here; `consumeJoinReply` (which claims the next
+ * two free-text messages as a child's name and class) stays below the
+ * intercepts so it never eats a quiz answer. Returns true when it
+ * short-circuited the message.
+ */
+async function tryShareCodeJoin(from, messageBody, typingController) {
+  try {
+    const VideoQuizShare = require('../services/quiz/video-quiz-share.service');
+    const code = VideoQuizShare.parseShareCode(messageBody);
+    if (!code) return false;
+
+    // ACK FIRST. Thirty children tapping a forwarded link within the
+    // same minute used to run thirty joins (identity lookup, share-code
+    // resolution, a Flow send) inline before this webhook answered
+    // 200; Meta retried the slow ones and the retries collided. The
+    // join now runs after the handler returns, under a per-phone+code
+    // lock so a retry cannot start a second session.
+    typingController.stop();
+    setImmediate(() => VideoQuizShare.beginFromCodeLocked(from, code)
+      .catch((err) => logToFile('❌ video-quiz join failed', { from, code, error: err.message }, 'error')));
+    return true;
+  } catch (vqErr) {
+    logToFile('Video Quiz share: routing error', { error: vqErr.message });
+    return false;
+  }
+}
+
 async function handleTextMessage(message, from, messageBody, user = null) {
   logToFile(`Processing TEXT message: ${messageBody}`);
 
@@ -271,6 +304,13 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   const typingController = WhatsAppService.startContinuousTypingIndicator(from, message.id);
 
   try {
+    // bd-mg9c7.97 — the share-code JOIN itself runs before anything else,
+    // including the quiz-state intercept below, so a second teacher's link
+    // is never swallowed by a stale post-quiz/active-session state.
+    if (messageBody && await tryShareCodeJoin(from, messageBody, typingController)) {
+      return;
+    }
+
     // ============================================================
     // QUIZ STATE INTERCEPT — runs BEFORE user creation so parents (who may
     // not have a Rumi account) can answer quizzes. Post-quiz AI chat is checked
@@ -330,30 +370,14 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     // bd-2482 (NIETE port of PK bd-2314/2315): Video-quiz share links.
     //
     // Deliberately BEFORE user lookup: a child arriving from a forwarded
-    // wa.me link may have no users row at all, and their first message is
-    // the auto-filled "QUIZ-ABC123". Routing that through normal onboarding
-    // would answer a code with a menu.
-    //
-    // Two steps, both short-circuiting:
-    //   1. the code itself -> greet, naming the teacher and the topic
-    //   2. the next two texts -> their name, then their class
+    // wa.me link may have no users row at all. The code-parse branch itself
+    // is now hoisted above the quiz-state intercept (tryShareCodeJoin,
+    // bd-mg9c7.97) — this block only claims the next two free-text messages
+    // as their name, then their class.
     // ============================================================
     if (messageBody) {
       try {
         const VideoQuizShare = require('../services/quiz/video-quiz-share.service');
-        const code = VideoQuizShare.parseShareCode(messageBody);
-        if (code) {
-          // ACK FIRST. Thirty children tapping a forwarded link within the
-          // same minute used to run thirty joins (identity lookup, share-code
-          // resolution, a Flow send) inline before this webhook answered
-          // 200; Meta retried the slow ones and the retries collided. The
-          // join now runs after the handler returns, under a per-phone+code
-          // lock so a retry cannot start a second session.
-          typingController.stop();
-          setImmediate(() => VideoQuizShare.beginFromCodeLocked(from, code)
-            .catch((err) => logToFile('❌ video-quiz join failed', { from, code, error: err.message }, 'error')));
-          return;
-        }
         if (await VideoQuizShare.consumeJoinReply(from, messageBody)) {
           logToFile('Text consumed as video-quiz join detail — short-circuit', { from });
           typingController.stop();
@@ -582,16 +606,18 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     }
   }
 
-  // When user taps ice breaker, WhatsApp sends the ice breaker text as message
-  const iceBreakers = {
-    'show menu - see all features i can help with': 'menu',
-    'plan lesson - create pdf lesson plans instantly': 'lesson_plan',
-    'create video - make animated educational videos': 'video',
-    'get coaching - classroom audio feedback & tips': 'coaching'
-  };
+  // When user taps ice breaker, WhatsApp sends the ice breaker text as message.
+  //
+  // bd-oak77.13: the strings used to live here AND in
+  // scripts/deployment/register-commands-meta.js, and nothing tied the two
+  // together — editing the manifest without editing this map silently turned
+  // every chip into ordinary text for the LLM router. Both now read
+  // shared/config/conversational-components.js, which also holds the superseded
+  // English-only chips (handsets cache the list, so an old chip can still arrive
+  // days after the manifest changes).
+  const action = promptAction(messageBody);
 
-  if (iceBreakers[trimmedMessage]) {
-    const action = iceBreakers[trimmedMessage];
+  if (action) {
     logToFile('🧊 Ice breaker detected', { action, userId: user?.id, phoneNumber: from });
 
     if (!user) {
@@ -609,14 +635,30 @@ async function handleTextMessage(message, from, messageBody, user = null) {
           await MenuService.sendMenu(from, user.id, sessionId, responseLanguage);
           break;
         case 'lesson_plan':
-          await MenuService._handleLessonPlanningChoice(user.id, sessionId, from, responseLanguage);
+          // The SAME door free text and /menu use — openLpBrowseFlow, which under
+          // LP_612_ROUTE_ALL is the 6-12 menu Flow. `ice_breaker` only labels the log.
+          await MenuService._handleLessonPlanningChoice(user.id, sessionId, from, responseLanguage, 'ice_breaker');
           break;
         case 'video':
           await MenuService._handleMediaLibraryChoice(user.id, sessionId, from, responseLanguage);
           break;
-        case 'coaching':
+        case 'ai_coaching':
+          // bd-oak77.13, the operator's ask: the film FIRST (the DC intro the ICT
+          // cohort was broadcast on 26-Aug — FDE notification + the Palestine
+          // montage), then the coaching entry the bot already has. No second
+          // coaching door is built here: _handleClassroomCoachingChoice sends the
+          // "upload your classroom recording" prompt and sets AWAITING_CLASSROOM_AUDIO,
+          // exactly as the /menu row does. The film is once per teacher
+          // (user_feature_first_use), so a second tap is not 5.8 MB again.
+          await FeatureIntroService.sendFirstUseIntroIfNeeded(user.id, from, 'ai_coaching', responseLanguage);
           await MenuService._handleClassroomCoachingChoice(user.id, sessionId, from, responseLanguage);
           break;
+        case 'training': {
+          // One entry point, shared with /training and the menu's Training row.
+          const TrainingEntry = require('../services/training/training-entry.service');
+          await TrainingEntry.openTrainingFlow(user, from, responseLanguage);
+          break;
+        }
       }
       logToFile('✅ Ice breaker action completed', { action, userId: user.id });
     } catch (error) {
@@ -1094,7 +1136,30 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       typingController.stop();
       try {
         const responseLanguage = await getUserLanguage(user.id) || null;
-        await TranscriptQuizList.showList({ ...user, preferred_language: responseLanguage || user.preferred_language }, from, responseLanguage);
+        const teacher = { ...user, preferred_language: responseLanguage || user.preferred_language };
+        // Presence-gated, read at call time like /video: with
+        // TRANSCRIPT_QUIZ_FLOW_ID set, /quiz opens ONE Flow — the lesson list,
+        // its paging, the lesson's live results and the actions all happen
+        // inside it, so the teacher never drops back to chat mid-task. Unset,
+        // /quiz sends the interactive list message exactly as before; that is
+        // the rollback lever, and both paths stay tested.
+        //
+        // A teacher with nothing to list is answered in chat: a NavigationList
+        // needs at least one item, and "no lessons yet" is not a lesson.
+        const transcriptQuizFlowId = process.env.TRANSCRIPT_QUIZ_FLOW_ID || '';
+        if (transcriptQuizFlowId && await TranscriptQuizList.hasEligibleLessons(user.id)) {
+          const uxLanguage = teacher.preferred_language;
+          await WhatsAppService.sendFlow(from, {
+            flowId: transcriptQuizFlowId,
+            header: resolveUx('tqFlowChatHeader', { language: uxLanguage }),
+            body: resolveUx('tqFlowChatBody', { language: uxLanguage }),
+            buttonText: resolveUx('tqFlowChatCta', { language: uxLanguage }),
+            flowToken: `${user.id}:transcript-quiz:${Date.now()}`,
+          });
+          logToFile('📝 sent transcript quiz flow (/quiz)', { userId: user.id });
+          return;
+        }
+        await TranscriptQuizList.showList(teacher, from, responseLanguage);
       } catch (error) {
         logToFile('❌ transcript quiz: /quiz list failed', { userId: user.id, error: error.message }, 'error');
       }

@@ -20,6 +20,7 @@ const { multiContract, multiFlowId } = require('./transcript-quiz-multi');
 const { requiredHigherOrder } = require('./transcript-quiz-pedagogy');
 const {
   languageRule, questionContract, retryNote, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE,
+  GENDER_NEUTRAL_RULE,
 } = require('./transcript-quiz-contract');
 const { logEvent } = require('../../utils/structured-logger');
 
@@ -168,12 +169,12 @@ QUIZ LANGUAGE: ${LANG_NAME[language] || 'Urdu'}. ${rule}
 
 WHAT TO WRITE — exactly ${n} questions.
 
-THE SLOs DRIVE THE QUESTIONS. The digest's "slos" are what these children were meant to LEARN; the transcript supplies the level she pitched it at, the examples she used and the words she used. Write the question the SLO asks for, dressed in the lesson's own material. The lesson is where the question comes FROM, never what the question is ABOUT.
+THE SLOs DRIVE THE QUESTIONS. The digest's "slos" are what these children were meant to LEARN; the transcript supplies the level the teacher pitched it at, the examples used and the words used. Write the question the SLO asks for, dressed in the lesson's own material. The lesson is where the question comes FROM, never what the question is ABOUT.
 - Cover EVERY SLO in the digest at least once (tag each question with the SLO's exact "id"). Spread the rest across the SLOs the lesson spent most time on.
 - ANSWERABLE BY ANY CHILD WHO UNDERSTOOD THE CONCEPT — whatever that particular child was personally asked to do, which group they sat in, whether they were called to the board, whether they were listening at that minute. If answering needs to know what one child or one group was told, no answer can be just to the rest, and the question is unusable.
 - NEVER COUNT MENTIONS. A stem asking how many things were mentioned, named, discussed or talked about, with bare numbers as the options, tests how many times something was said — not what it is. Ask the child to PICK the thing instead. (Counting what a PICTURE shows is a different thing and is welcome.)
-- THE SUBJECT OF THE QUESTION IS THE CONCEPT, never the teacher, the class or your group, and never classroom logistics: no "what did the teacher call it", "which one did she use", "what were you asked to draw", who was at the board, which page, what homework.
-- At least ${nHigher} of the ${n} questions tagged "understand" or "apply", never bare recall: which of these belongs / which does NOT / what happens when / why did the lesson's own example turn out that way / use the idea on a new case. Put those questions on the SLOs this lesson taught at "understand" or "apply", so they sit AT the level she taught rather than above it.
+- THE SUBJECT OF THE QUESTION IS THE CONCEPT, never the teacher, the class or your group, and never classroom logistics: no "what did the teacher call it", "which one was used in class", "what were you asked to draw", who was at the board, which page, what homework.
+- At least ${nHigher} of the ${n} questions tagged "understand" or "apply", never bare recall: which of these belongs / which does NOT / what happens when / why did the lesson's own example turn out that way / use the idea on a new case. Put those questions on the SLOs this lesson taught at "understand" or "apply", so they sit AT the level the lesson taught rather than above it.
 - Levels, hard: at least 60% of the questions at or below their own SLO's "taught_level", and NEVER more than ONE level above it. On an SLO taught at "recall", "understand" is the ceiling and "apply" is not allowed. That rule wins over the line above — ${nHigher} is already what it leaves room for on this lesson.
 - Question 1 must be the easiest, so a nervous child gets one right first. EASIEST MEANS A PICK: ask the child to identify the plainest thing the lesson taught ("Which of these is a type of matter?", "ان میں سے کون سا نقشے کی ایک قسم ہے؟") — never a count of how many things were mentioned or how many kinds there are. That count is the question this slot keeps attracting, and it is thrown away every time.
 - Use the lesson's OWN examples, numbers, words, objects and stories (from "examples_used" and the excerpts) as the MATERIAL of the question. A child should recognise the class in the quiz.
@@ -190,9 +191,10 @@ GOOD vs BAD — same lesson, same knowledge, and the good one is the one a child
 
 ${questionContract({ gradeBand })}
 
-LESSON SUMMARY. Also return a top-level "lesson_summary": 2-3 sentences, in the quiz language (follow the same Urdu/English style rules above), written TO THE TEACHER (not the child), saying what she taught and in the order she taught it, naming her own examples and numbers from the lesson. Do not summarise the quiz — summarise the LESSON.
+LESSON SUMMARY. Also return a top-level "lesson_summary": 2-3 sentences, in the quiz language (follow the same Urdu/English style rules above), written TO THE TEACHER (not the child), in the SECOND PERSON — "you": say what you taught and in the order you taught it, naming your own examples and numbers from the lesson. Do not summarise the quiz — summarise the LESSON.
 
 ${SELECTED_BECAUSE_RULE}
+${GENDER_NEUTRAL_RULE}
 ${RELIGIOUS_CONTENT_RULE}
 
 ${figureContract({ subject: digest && digest.subject, gradeBand, nQuestions: n })}

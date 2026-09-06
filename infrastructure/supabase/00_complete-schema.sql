@@ -154,6 +154,7 @@ CREATE TABLE IF NOT EXISTS user_feature_first_use (
     video_shown_at TIMESTAMPTZ DEFAULT now(),
     feature_used_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now(),
+    intro_shown_count INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (id)
 );
 

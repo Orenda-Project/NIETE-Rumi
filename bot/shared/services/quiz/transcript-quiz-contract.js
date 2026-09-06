@@ -26,7 +26,7 @@ const DEFAULT_QUESTIONS = 8;
 function languageRule(language) {
   return language === 'ur'
     ? 'Write EVERYTHING in Urdu script; keep English technical terms in English letters exactly as the teacher used them.'
-    : 'Write EVERYTHING in English — every stem, option, explanation and feedback — even though the lesson was taught in Urdu: translate the teacher\'s own words and keep her examples, numbers and names. An Urdu word may appear only when quoting a term the class used, in quotation marks.';
+    : 'Write EVERYTHING in English — every stem, option, explanation and feedback — even though the lesson was taught in Urdu: translate the teacher\'s own words and keep the lesson\'s own examples, numbers and names. An Urdu word may appear only when quoting a term the class used, in quotation marks.';
 }
 
 /**
@@ -47,6 +47,29 @@ function questionContract({ gradeBand } = {}) {
 STYLE RULES FOR URDU (when quiz language is Urdu): proper, well-written Urdu in Urdu script — never Roman Urdu; English technical/subject terms are written IN ENGLISH LETTERS inside the Urdu sentence (e.g. "proper fraction", "numerator", "denominator", "noun", "photosynthesis") — NEVER transliterated into Urdu script ("فیکشن", "نیومریٹر", "ڈینومینیٹر" are wrong even if the transcript spells them that way); use the SAME spelling of a term in every question; NEVER begin a question, explanation or feedback sentence with the English word — start with an Urdu word ("ایک fraction میں…", not "fraction میں…") because a sentence that opens with English is displayed left-to-right on the phone; simple, spoken, child-level Urdu; gender-neutral throughout: address the child as "آپ" with plural-respectful verbs (کریں، دیکھیں، سوچیں), NEVER a feminine or masculine singular guess (no "کرتی ہیں", "سکتی ہیں", "کریں گی", "کرتے ہو").
 STYLE RULES FOR ENGLISH: short sentences a Grade ${gradeBand || '3-5'} child in Pakistan reads comfortably; no idioms.`;
 }
+
+/**
+ * THE TEACHER HAS NO GENDER — stated once, here, and pasted verbatim into the
+ * author prompt and the targeted rewrite so the two cannot drift.
+ *
+ * `users` has no gender column and nothing in the pipeline infers one, so a
+ * gendered reference to the teacher is a coin toss printed on that teacher's
+ * own document. The operator read one on the round-5 pre-send PDF ("She then
+ * introduced the new topic…") and asked for it nowhere (PLAN_R6 D5). The rule
+ * NAMES the banned words on purpose: a prompt that says "be gender-neutral"
+ * without them was already in the digest prompt, and the model wrote "her
+ * document" all the same. The deterministic half is
+ * PEDAGOGY_GENDERED_TEACHER in transcript-quiz-pedagogy.js.
+ */
+const GENDER_NEUTRAL_RULE = 'THE TEACHER HAS NO GENDER. Never refer to the teacher with '
+  + '"she", "he", "her", "his", "him", "herself" or "himself" in ANY field. The teacher is '
+  + '"you" in "lesson_summary" — that field is written TO the teacher — and "the teacher" '
+  + 'everywhere else. In Urdu: no gendered word for the teacher (never استانی، معلمہ، '
+  + 'استاد صاحبہ، میڈم، مِس، باجی) and no gendered verb form about the teacher (never '
+  + '«پڑھاتی ہیں» / «پڑھاتے ہیں»، «پڑھائیں گی» / «پڑھائیں گے») — use an imperative, an '
+  + 'impersonal reframe, or «آپ نے … پڑھایا», where the verb agrees with the object and '
+  + 'says nothing about the teacher. Naming the class, the children, a child by name or the '
+  + 'lesson\'s own examples is always fine; a pronoun for the teacher never is.';
 
 /**
  * THE RETRY NOTE. Two things it does beyond quoting the validator:
@@ -83,10 +106,10 @@ function retryNote(previousErrors, language, n = DEFAULT_QUESTIONS) {
  * strings, at the author prompt's own wording, so the targeted rewrite can
  * state them without the author prompt moving a single character.
  */
-const SELECTED_BECAUSE_RULE = "SELECTED BECAUSE. Every question also carries a \"selected_because\": at most 15 words, naming the specific moment in the lesson this question was chosen from (e.g. \"she counted 26 to 30 aloud with the class\", \"the fraction of the roti she drew on the board\"). This is WHY the question was picked from the transcript, not why the answer is correct — never restate the answer and never repeat \"explanation\". Write selected_because in the quiz language (the same language as the questions), never in English on an Urdu quiz.";
+const SELECTED_BECAUSE_RULE = "SELECTED BECAUSE. Every question also carries a \"selected_because\": at most 15 words, naming the specific moment in the lesson this question was chosen from (e.g. \"the class counted 26 to 30 aloud\", \"the fraction of the roti drawn on the board\"). This is WHY the question was picked from the transcript, not why the answer is correct — never restate the answer and never repeat \"explanation\". Write selected_because in the quiz language (the same language as the questions), never in English on an Urdu quiz.";
 const RELIGIOUS_CONTENT_RULE = "RELIGIOUS CONTENT (Islamiyat / سیرت / any mention of the Prophet, companions, Qur'an): every mention of the Prophet carries ﷺ immediately after the name; companions carry رضی اللہ عنہ / عنہا; اللہ and all sacred names in Urdu/Arabic script only; NEVER invent or paraphrase a hadith or an ayah — quote only what the lesson quoted, and only with the reference the teacher gave; no question may ask a child to guess what the Prophet ﷺ \"would say\".";
 
 module.exports = {
   languageRule, questionContract, retryNote,
-  SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, WRONG_SCRIPT_RE, DEFAULT_QUESTIONS,
+  SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, GENDER_NEUTRAL_RULE, WRONG_SCRIPT_RE, DEFAULT_QUESTIONS,
 };

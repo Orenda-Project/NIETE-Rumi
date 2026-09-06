@@ -6,7 +6,7 @@
  *   teacher picks a video -> video delivered -> 3 s pause -> "want the quiz?"
  *   -> yes -> 15 questions, one at a time, each with per-answer feedback
  *   -> finish -> survey covering the video AND the quiz
- *   -> optionally: share it with her class (see video-quiz-share.service.js)
+ *   -> optionally: share it with their class (see video-quiz-share.service.js)
  *
  * WHY A SEPARATE SERVICE FROM quiz-session.service.js
  * The parent quiz is adaptive: it picks the next question by difficulty from a
@@ -89,7 +89,7 @@ const ANSWER_LOCK_TTL_SECS = Math.ceil(
 
 const OFFER_YES = 'vq_offer_yes';
 const OFFER_NO = 'vq_offer_no';
-// bd-2336 — the third way out: she wants it for her class, not for herself.
+// bd-2336 — the third way out: the teacher wants it for their class, not for themselves.
 const OFFER_SHARE = 'vq_offer_share';
 
 // ─── Offer ──────────────────────────────────────────────────────────────────
@@ -138,7 +138,7 @@ async function sendOffer({ userId, phone, video, quiz, language, deliveryId }) {
   await WhatsAppService.sendInteractiveButtons(phone, {
     body: t.body(video.clean_title || quiz.topic),
     // Exactly three — WhatsApp's hard cap on reply buttons. Order is deliberate:
-    // taking it herself first (the common case), then the class route, then out.
+    // taking it themselves first (the common case), then the class route, then out.
     buttons: [
       { id: OFFER_YES, title: t.yes },
       { id: OFFER_SHARE, title: t.share },
@@ -266,8 +266,8 @@ async function handleOfferButton(buttonId, phone) {
   if (offer.deliveryId) {
     await supabase.from('video_quiz_deliveries').update({
       // 'shared' is its own answer, not a flavour of accepted: a teacher who
-      // sends it to her class without taking it is a different behaviour from
-      // one who sits the quiz, and collapsing them would hide that.
+      // sends it to their class without taking it is a different behaviour
+      // from one who sits the quiz, and collapsing them would hide that.
       quiz_response: shared ? 'shared' : (accepted ? 'accepted' : 'declined'),
       quiz_responded_at: new Date().toISOString(),
     }).eq('id', offer.deliveryId);
@@ -279,8 +279,8 @@ async function handleOfferButton(buttonId, phone) {
   });
 
   if (shared) {
-    // Straight to the class link — no solo session, so she is never sent
-    // question 1 while also holding the message she is meant to forward.
+    // Straight to the class link — no solo session, so the teacher is never
+    // sent question 1 while also holding the message they are meant to forward.
     const VideoQuizShare = require('./video-quiz-share.service');
     await VideoQuizShare.deliverClassLink({
       quizId: offer.quizId, videoId: offer.videoId, userId: offer.userId,
@@ -370,9 +370,9 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
 
   const chosen = orderForSession(questions).slice(0, QUESTIONS_PER_SESSION);
 
-  // bd-2481: video_solo (a teacher taking the quiz herself) never collects a
-  // name — share_link already has one (the child gave it at join time). For
-  // the solo path, look her own name up so the scorecard isn't anonymous.
+  // bd-2481: video_solo (a teacher taking the quiz themselves) never collects
+  // a name — share_link already has one (the child gave it at join time). For
+  // the solo path, look their own name up so the scorecard isn't anonymous.
   let takerName = studentName;
   if (!takerName && source === 'video_solo' && userId) {
     const { data: user } = await supabase
@@ -469,7 +469,7 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
   // bd-2395: a child who arrived on a shared class link has NOT seen the
   // lesson — the teacher sent them a link, not a classroom. Send it before the
   // first question. Gated on share_link because a teacher who reached this
-  // quiz through /video has just watched the video (her source is video_solo).
+  // quiz through /video has just watched the video (their source is video_solo).
   //
   // AWAITED deliberately. WhatsApp does not guarantee ordering for rapid
   // sends, so question 1 firing during a 5-15 s upload is the same class of bug

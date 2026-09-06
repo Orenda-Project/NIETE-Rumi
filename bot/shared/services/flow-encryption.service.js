@@ -173,10 +173,20 @@ async function processEncryptedRequest(encryptedRequest, handler) {
   // Decrypt flow data
   const decryptedData = decryptFlowData(encrypted_flow_data, aesKey, iv);
 
+  // When the WhatsApp client fails to RENDER a screen it posts its own report
+  // back as a data_exchange carrying `error` / `error_message`. That string is
+  // the only description of the fault that exists anywhere — the endpoint
+  // answered 200 with a well-formed screen, so nothing else in our logs can
+  // explain a "Something went wrong". Logged HERE, on the one path every Flow's
+  // request crosses, so no handler can forget it (4 wrong fixes shipped on 6 Sep
+  // 2026 before this line existed for the one handler that had it).
+  const clientError = decryptedData.data
+    && (decryptedData.data.error_message || decryptedData.data.error);
   logToFile('Decrypted flow data', {
     action: decryptedData.action,
     screen: decryptedData.screen,
     flow_token: decryptedData.flow_token ? 'present' : 'missing',
+    ...(clientError ? { clientError: String(clientError).slice(0, 500) } : {}),
   });
 
   // BUG-144 — when the WhatsApp client fails to render a screen it re-POSTs

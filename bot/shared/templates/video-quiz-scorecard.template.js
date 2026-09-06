@@ -1,6 +1,6 @@
 'use strict';
 /**
- * The child's scorecard — the picture that arrives when she finishes a quiz.
+ * The child's scorecard — the picture that arrives when they finish a quiz.
  *
  * Four things this file exists to get right, all learned the hard way:
  *
@@ -12,8 +12,8 @@
  *     that by substituting one of its own fonts.
  *  2. THE CARD SPEAKS THE QUIZ'S LANGUAGE, BUT A NAME KEEPS ITS OWN SCRIPT.
  *     The eyebrow, the badge and the message come from the catalog in the
- *     language she just answered in. Her NAME and the TOPIC are text somebody
- *     wrote, so they follow scriptOf() instead: "Ali" typed into an Urdu quiz
+ *     language they just answered in. Their NAME and the TOPIC are text
+ *     somebody wrote, so they follow scriptOf() instead: "Ali" typed into an Urdu quiz
  *     is Latin and left-to-right, "عائشہ" typed into an English quiz is
  *     Nastaliq and right-to-left. Keying either off the quiz language runs
  *     Latin letters through Nastaliq metrics or Perso-Arabic through a
@@ -23,13 +23,13 @@
  *     charcoal at the bottom — and side by side the charcoal card reads as
  *     switched off: the child who did least well receives the least
  *     attractive picture, which is a punishment wearing a design's clothes.
- *     How she did lives in the three places she can actually read it and the
- *     caption can repeat: how many stars are lit, which word is in the chip,
- *     and how far round the ring is filled.
- *  4. IT IS THE ONE THING SHE KEEPS. Everything else the quiz sends is a
- *     message that scrolls away; this is a picture. So the score gets a real
- *     treatment, the stars get to be the hero row rather than a footnote, and
- *     her name gets the size.
+ *     How they did lives in the three places they can actually read it and
+ *     the caption can repeat: how many stars are lit, which word is in the
+ *     chip, and how far round the ring is filled.
+ *  4. IT IS THE ONE THING THE CHILD KEEPS. Everything else the quiz sends is
+ *     a message that scrolls away; this is a picture. So the score gets a
+ *     real treatment, the stars get to be the hero row rather than a
+ *     footnote, and their name gets the size.
  *
  * LAYOUT. One edge, and two exceptions. Every block — eyebrow, name, topic,
  * score, stars, subject — sits on the card's start edge, in one column, in
@@ -196,7 +196,7 @@ function cardPalette() {
  *
  * "Muhammad Abdul Rehman" at 38 px overran the card and rendered as "Muhammad
  * Abdul Reh…". A child's own name is the one thing here that must not be cut
- * off — it is the reason she keeps the picture — so the type gets smaller
+ * off — it is the reason they keep the picture — so the type gets smaller
  * instead. Measured in CODE POINTS and against the NAME's own script: Nastaliq
  * runs wider per character than Lexend at the same px, and a name's script is
  * not necessarily the quiz's.
@@ -225,7 +225,7 @@ function starsHtml(stars, palette) {
 
 /**
  * The score as a ring filled to the percentage — the "how close am I to full
- * marks" reading a bare fraction makes a child do in her head. Drawn with a
+ * marks" reading a bare fraction makes a child do in their head. Drawn with a
  * dash offset rather than an arc path so the geometry stays exact at any
  * percentage and there is no large-arc-flag branch to get wrong at 50%.
  */
@@ -256,9 +256,9 @@ function gaugeSvg(pct, palette) {
  * @param {string} [d.takerName] - omitted entirely when unknown, never
  *        rendered as a literal "undefined"/"null".
  * @param {string} [d.language] - the QUIZ's language: the child reads the card
- *        in whatever language she just answered in. It decides which edge the
- *        card is built on. It does NOT decide the script of her name or of the
- *        topic — see scriptOf().
+ *        in whatever language they just answered in. It decides which edge
+ *        the card is built on. It does NOT decide the script of their name or
+ *        of the topic — see scriptOf().
  * @returns {string} HTML for htmlToImage (selector '.card', width 540)
  */
 function renderScorecardHtml(d) {
@@ -279,7 +279,7 @@ function renderScorecardHtml(d) {
 
   const logoImg = a.nieteMark
     ? `<img class='logo' src='data:image/png;base64,${a.nieteMark}' alt='NIETE'>` : '';
-  // Her own script, not the quiz's — but the card's edge, not the script's.
+  // Their own script, not the quiz's — but the card's edge, not the script's.
   const nameHtml = takerName
     ? `<div class='name content align' dir='${nameDir}'>${esc(takerName)}</div>` : '';
   const topicHtml = `<div class='topic content align' dir='${dirOf(topic)}'>${esc(topic)}</div>`;
@@ -359,7 +359,7 @@ function renderScorecardHtml(d) {
   .pct { position:relative; font-size:18px; letter-spacing:.4px; font-weight:800; opacity:.9;
     direction:ltr; unicode-bidi:isolate; font-family:${FONTS.bodyLatin}; }
   /* The hero row. Five shapes, lit — the part of the card a child reads first
-     and the part she is being congratulated with. It starts on the same edge
+     and the part they are being congratulated with. It starts on the same edge
      as every other block; centring it was the last thing on the card that did
      not line up with anything else. */
   .stars { display:flex; align-items:center; gap:11px; flex:0 0 auto;

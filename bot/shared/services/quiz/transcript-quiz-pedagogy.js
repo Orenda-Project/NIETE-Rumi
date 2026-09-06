@@ -25,14 +25,28 @@
  *                       and the quiz cannot know that. There is no way to be
  *                       just to the child.
  *
+ * A fourth joined them in round 6, from the operator reading a teacher's own
+ * pre-send document:
+ *
+ *   GENDERED_TEACHER    "The teacher reviewed 'Before', 'After' … She then
+ *                       introduced the new topic …"
+ *                       — the teacher's gender is not a fact this system holds,
+ *                       so every gendered reference to the teacher is a guess
+ *                       printed on that teacher's own document. See
+ *                       genderedTeacherDefects() for the forms, per language.
+ *
  * Plus one rule about the SET rather than a question: LEVEL_MIX, at least half
  * the quiz above bare recall — capped so it can never contradict the
  * validator's "60% at or below the taught level" (see levelMixDefect).
  *
- * Pure: questions in, defects out. No network, no DB, no I/O. Every message is
- * written to be QUOTED BACK to the author on the retry, so it says what is
- * wrong AND what to write instead.
+ * Pure except for ONE telemetry counter (`transcript_quiz.gendered_teacher`),
+ * the same way transcript-quiz-word-blank.js counts an inferred blank from
+ * inside this very validator pass: no network, no DB, no read of anything.
+ * Every message is written to be QUOTED BACK to the author on the retry, so it
+ * says what is wrong AND what to write instead.
  */
+
+const { logEvent } = require('../../utils/structured-logger');
 
 // ── options that are bare numbers ────────────────────────────────────────────
 // A count question is only ratta when the child is picking a NUMBER. The same
@@ -153,6 +167,163 @@ function unanswerable(stem, language) {
   return Boolean(ur && UNANSWERABLE_UR.test(s));
 }
 
+// ── GENDERED_TEACHER ─────────────────────────────────────────
+// The teacher's gender is not a fact this system holds: `users` has no gender
+// column and nothing in the pipeline infers one. So a gendered reference to the
+// teacher is a coin toss printed on that teacher's own document, and the
+// operator read one on the round-5 pre-send PDF ("She then introduced the new
+// topic…"). PLAN_R6 D5.
+//
+// ENGLISH is the simple half: the pronouns, whole words, either case.
+const EN_PRONOUNS = /\b(she|her|hers|him|his|herself|himself)\b/gi;
+// "he" needs one exception. It is also the chemical symbol for helium, which a
+// science quiz writes mid-sentence and capitalised ("a balloon filled with He
+// floats"). A PRONOUN is lowercase, or it opens a sentence — it is never a
+// capitalised word in the middle of one. So: lowercase `he` anywhere, plus a
+// sentence-initial `He`, and the symbol survives.
+const EN_HE_LOWER = /\bhe\b/g;
+const EN_HE_SENTENCE_START = /(?:^|[.!?:;"’”)\]»\n]\s*)(He)\b/g;
+//
+// URDU is not the same shape, and the naive rule does not work here. Urdu marks
+// the subject of a past transitive verb with the ergative نے, and the verb then
+// agrees with the OBJECT, not with the subject: «استاد نے سبق پڑھایا» and
+// «استاد نے وضاحت دہرائی» are BOTH gender-neutral about the teacher — the first
+// agrees with سبق (masculine), the second with وضاحت (feminine). A rule of the
+// shape "ٹیچر نے .*ی" would therefore flag correct, neutral Urdu; the round-5
+// Urdu render fixture is written exactly that way. Gender surfaces in two
+// places instead, and those are what is checked:
+//
+//   1. GENDERED NOUNS AND HONORIFICS — a female-marked or male-marked word for
+//      the teacher, wherever it appears: استانی, معلمہ, میڈم, مِس/مس, باجی,
+//      آپا, any صاحبہ, a teacher noun plus صاحب, and «سر نے» (سر alone is the
+//      ordinary word for "head" and is not an anchor).
+//   2. SUBJECT AGREEMENT — a teacher noun that is the grammatical SUBJECT (so:
+//      not followed by a case marker نے/کا/کی/کے/کو/سے/پر/میں/تک) with a
+//      gendered verb form later in the same sentence: پڑھاتی ہیں / پڑھاتے ہیں,
+//      رہی تھیں / رہے تھے, پڑھائیں گی / پڑھائیں گے. Both the feminine and the
+//      masculine form is a guess; the neutral moves are an imperative, an
+//      impersonal reframe, or آپ نے + an object-agreeing verb (the Urdu rule in
+//      .claude/skills/broadcast-template).
+//
+// آپ is deliberately NOT an agreement anchor: «آپ نے پڑھایا» is the neutral form
+// the summary is now asked for, and the respectful-plural imperatives a child
+// is addressed with (کریں، دیکھیں) carry no gender. A gendered address to the
+// CHILD is a different rule and already lives in the validator (FEM_STEMS).
+const UR_LETTER = '؀-ۿ';
+const UR_GENDERED_NOUN = new RegExp(
+  `(?<![${UR_LETTER}])(?:استانی|اُستانی|معلمہ|میڈم|مِس|مس|باجی|آپا)(?![${UR_LETTER}])`
+  + `|صاحبہ`
+  + `|(?<![${UR_LETTER}])(?:استاد|اُستاد|ٹیچر|معلم)\\s*صاحب`
+  + `|(?<![${UR_LETTER}])سر\\s+نے(?![${UR_LETTER}])`,
+);
+const UR_TEACHER_ANCHOR = new RegExp(
+  `(?<![${UR_LETTER}])(?:استاد|اُستاد|ٹیچر|معلم)(?![${UR_LETTER}])`, 'g',
+);
+const UR_CASE_MARKER = new RegExp(`^\\s*(?:نے|کا|کی|کے|کو|سے|پر|میں|تک)(?![${UR_LETTER}])`);
+const UR_SENTENCE_END = /[۔؟?!.\n]/;
+const UR_GENDERED_VERB = new RegExp(
+  '(?:رہی|رہے|کرتی|کرتے|پڑھاتی|پڑھاتے|بتاتی|بتاتے|سمجھاتی|سمجھاتے'
+  + '|بولتی|بولتے|دکھاتی|دکھاتے|لکھتی|لکھتے|سکتی|سکتے|چاہتی|چاہتے'
+  + '|جانتی|جانتے|سوچتی|سوچتے|دیتی|دیتے|لیتی|لیتے|تھیں|تھی|تھے|گی|گے)',
+);
+/** How far past the teacher noun a gendered verb still counts as its agreement. */
+const UR_AGREEMENT_WINDOW = 40;
+const HAS_URDU = new RegExp(`[${UR_LETTER}]`);
+
+/** Every gendered form in one string, as the words that matched. */
+function genderedTeacherForms(text, language) {
+  const s = String(text ?? '');
+  if (!s.trim()) return [];
+  const out = [];
+  const push = (m) => { if (m) out.push(...m); };
+  push(s.match(EN_PRONOUNS));
+  push(s.match(EN_HE_LOWER));
+  push(s.match(EN_HE_SENTENCE_START) && ['He']);
+  // A Latin-script pronoun is a hit in an Urdu quiz too (the model mixes
+  // scripts), so the English half runs unconditionally and the Urdu half is
+  // added whenever there is Urdu in the string at all.
+  const ur = language === 'ur' || HAS_URDU.test(s);
+  if (ur) {
+    const noun = UR_GENDERED_NOUN.exec(s);
+    if (noun) out.push(noun[0].trim());
+    UR_TEACHER_ANCHOR.lastIndex = 0;
+    let m;
+    // eslint-disable-next-line no-cond-assign
+    while ((m = UR_TEACHER_ANCHOR.exec(s))) {
+      const after = s.slice(m.index + m[0].length);
+      if (UR_CASE_MARKER.test(after)) continue;   // ergative or genitive: the verb agrees with the object
+      const clause = after.split(UR_SENTENCE_END)[0].slice(0, UR_AGREEMENT_WINDOW);
+      const verb = clause.match(UR_GENDERED_VERB);
+      if (verb) { out.push(`${m[0]} … ${verb[0]}`); break; }
+    }
+  }
+  return out;
+}
+
+/** The fields of ONE question a gendered teacher must never appear in. */
+function questionFields(q) {
+  const fb = (q && q.option_feedback) || {};
+  const misc = (q && q.distractor_misconceptions) || {};
+  return [
+    ['question', q && q.question],
+    ['options', (Array.isArray(q && q.options) ? q.options : []).join(' │ ')],
+    ['explanation', q && q.explanation],
+    ['selected_because', q && q.selected_because],
+    ['option_feedback.correct', fb.correct],
+    ['option_feedback.wrong', Object.values(fb.wrong || {}).map(String).join(' │ ')],
+    ['distractor_misconceptions', Object.values(misc).map(String).join(' │ ')],
+  ];
+}
+
+const HOW_TO_WRITE_IT = 'The teacher has no gender here: the lesson summary is written TO the '
+  + 'teacher as "you" ("Today you taught…") and everywhere else the teacher is "the teacher". '
+  + 'In Urdu use an imperative or a verb that agrees with the object («آپ نے … پڑھایا»), never '
+  + 'استانی / معلمہ / صاحبہ and never پڑھاتی ہیں / پڑھاتے ہیں about the teacher. '
+  + 'Rewrite the wording; keep the lesson’s own examples, numbers and words exactly as they are.';
+
+/**
+ * ONE defect per question (and one for the quiz) however many fields are
+ * gendered: the retry has to rewrite that question once, and eight complaints
+ * about eight fields of the same question read as eight faults.
+ *
+ * @param {object[]} questions authored questions (post-normalisation)
+ * @param {{language?:string, lessonSummary?:string, quizId?:string}} ctx
+ * @returns {{index:number|null, code:string, message:string}[]}
+ */
+function genderedTeacherDefects(questions, ctx = {}) {
+  const { language, lessonSummary, quizId = null } = ctx;
+  const out = [];
+  const note = (index, field, forms) => {
+    const where = index === null ? '"lesson_summary"' : field;
+    out.push({
+      index,
+      code: 'PEDAGOGY_GENDERED_TEACHER',
+      message: `${index === null ? '' : `q${index}: `}PEDAGOGY_GENDERED_TEACHER — ${where} `
+        + `refers to the teacher with a gendered word (${forms.slice(0, 4).map((f) => `"${f}"`).join(', ')}). `
+        + HOW_TO_WRITE_IT,
+    });
+    logEvent('transcript_quiz.gendered_teacher', {
+      quizId, field: index === null ? 'lesson_summary' : field, index, hits: forms.length, language: language || null,
+    });
+  };
+
+  if (typeof lessonSummary === 'string') {
+    const forms = genderedTeacherForms(lessonSummary, language);
+    if (forms.length) note(null, 'lesson_summary', forms);
+  }
+  (Array.isArray(questions) ? questions : []).forEach((q, i) => {
+    if (!q || typeof q !== 'object') return;
+    const fields = [];
+    const forms = [];
+    questionFields(q).forEach(([field, value]) => {
+      const f = genderedTeacherForms(value, language);
+      if (f.length) { fields.push(field); forms.push(...f); }
+    });
+    if (forms.length) note(i, fields.join(' + '), forms);
+  });
+  return out;
+}
+
 // ── LEVEL_MIX ────────────────────────────────────────────────────────────────
 const LEVELS = { recall: 0, understand: 1, apply: 2 };
 // The validator's own rule: at least 60% of the set must sit at or below the
@@ -234,12 +405,15 @@ const RULES = [
 
 /**
  * @param {object[]} questions authored questions (post-normalisation)
- * @param {{language?:string, digest?:object}} ctx
+ * @param {{language?:string, digest?:object, lessonSummary?:string, quizId?:string}} ctx
+ *        `lessonSummary` is checked only when the caller passes it — the same
+ *        opt-in the validator's D4 checks use, so a legacy caller sees exactly
+ *        today's behaviour.
  * @returns {{index:number|null, code:string, message:string}[]}
  */
 function pedagogyDefects(questions, ctx = {}) {
   const qs = Array.isArray(questions) ? questions : [];
-  const { language, digest } = ctx;
+  const { language, digest, lessonSummary, quizId } = ctx;
   const out = [];
   qs.forEach((q, i) => {
     if (!q || typeof q !== 'object') return;
@@ -247,6 +421,7 @@ function pedagogyDefects(questions, ctx = {}) {
       if (rule.test(q, language)) out.push({ index: i, code: rule.code, message: rule.message(i) });
     });
   });
+  out.push(...genderedTeacherDefects(qs, { language, lessonSummary, quizId }));
   const mix = levelMixDefect(qs, digest);
   if (mix) out.push(mix);
   return out;
@@ -254,6 +429,8 @@ function pedagogyDefects(questions, ctx = {}) {
 
 module.exports = {
   pedagogyDefects,
+  genderedTeacherDefects,
+  genderedTeacherForms,
   levelMixDefect,
   requiredHigherOrder,
   countRecall,

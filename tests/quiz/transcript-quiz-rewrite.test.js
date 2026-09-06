@@ -70,13 +70,13 @@ const DIGEST_EN = {
   ],
   key_terms: ['positive', 'comparative', 'superlative'], examples_used: ['tall, taller, tallest'], misconceptions_surfaced: [],
 };
-const SUMMARY_EN = 'She taught the three degrees of an adjective with tall, taller and tallest, then had the class compare two pupils and then the whole row.';
+const SUMMARY_EN = 'Today you taught the three degrees of an adjective with tall, taller and tallest, then had the class compare two pupils and then the whole row.';
 
 function enQ({ slo = 'S1', level = 'recall', question, options, why }) {
   return {
     slo_id: slo, level, question, options, correct_index: 0,
     explanation: 'The comparative compares two things and the superlative compares three or more.',
-    selected_because: why || 'she wrote tall, taller, tallest on the board',
+    selected_because: why || 'tall, taller, tallest written on the board',
     distractor_misconceptions: { 1: 'uses the plain form to compare', 2: 'uses the superlative for two things' },
     option_feedback: {
       correct: 'Yes — that is the form we use when we compare, just like tall, taller, tallest on the board.',
@@ -95,18 +95,18 @@ function enEight({ q0 } = {}) {
     q0 || bad,
     enQ({ slo: 'S2', level: 'understand', question: 'Ali is 5 feet. Sara is 6 feet. Which word describes Sara?', options: ['taller', 'tall', 'tallest'] }),
     enQ({ question: 'Which of these is the plain (positive) degree?', options: ['tall', 'taller', 'tallest'] }),
-    enQ({ slo: 'S3', level: 'understand', question: 'Which word fits: "He is the ____ boy in the whole school."', options: ['tallest', 'taller', 'tall'] }),
+    enQ({ slo: 'S3', level: 'understand', question: 'Which word fits: "Ali is the ____ boy in the whole school."', options: ['tallest', 'taller', 'tall'] }),
     enQ({ question: 'Which word is the superlative of "small"?', options: ['smallest', 'smaller', 'small'] }),
     enQ({ slo: 'S2', level: 'understand', question: 'Two mangoes are on the table. Which word compares them?', options: ['sweeter', 'sweetest', 'sweet'] }),
     enQ({ question: 'Which ending do we add for the comparative degree?', options: ['-er', '-est', '-ing'] }),
-    enQ({ slo: 'S3', level: 'understand', question: 'Which sentence uses the superlative correctly?', options: ['She is the fastest of all.', 'She is the faster of all.', 'She is fast of all.'] }),
+    enQ({ slo: 'S3', level: 'understand', question: 'Which sentence uses the superlative correctly?', options: ['Sara is the fastest of all.', 'Sara is the faster of all.', 'Sara is fast of all.'] }),
   ];
 }
 
 const EN_REPLACEMENT = enQ({
   question: 'Which of these is the comparative degree of "tall"?',
   options: ['taller', 'tallest', 'tall'],
-  why: 'she wrote tall, taller, tallest on the board',
+  why: 'tall, taller, tallest written on the board',
 });
 
 // ── the Urdu lesson ──────────────────────────────────────────────────────────
@@ -486,5 +486,32 @@ describe('8 — mergeReplacements puts a replacement back where it belongs, or n
     expect(r.questions[7]).toEqual(expect.objectContaining({
       slo_id: eight[7].slo_id, level: eight[7].level, figure: null, figure_role: null,
     }));
+  });
+});
+
+describe('structural per-question complaints are rewrite targets too (a long option must not kill the quiz)', () => {
+  const { rewriteTargets, buildRewritePrompt } = require('../../bot/shared/services/quiz/transcript-quiz-rewrite');
+  test('an over-cap option names its question and is repairable', () => {
+    const t = rewriteTargets(['q1: option >72 code points']);
+    expect(t.indices).toEqual([1]);
+  });
+  test('a missing or long selected_because is repairable', () => {
+    const t = rewriteTargets(['q0: Q_MISSING_WHY — "selected_because" is empty; say in ≤15 words which moment of the lesson this question tests']);
+    expect(t.indices).toEqual([0]);
+  });
+  test('a malformed question (wrong option count) is still a re-roll, not a repair', () => {
+    expect(rewriteTargets(['q0: 2 options']).indices).toEqual([]);
+  });
+  test('the rewrite prompt restates the option cap when a structural complaint is among the targets', () => {
+    const questions = Array.from({ length: 8 }, (_, i) => ({
+      question: `Stem ${i}?`, options: ['A', 'B', 'C'], correct_index: 0, level: 'recall', slo_id: 's1',
+      explanation: 'because', selected_because: 'the moment', option_feedback: { correct: 'ok', wrong: 'no' },
+    }));
+    const targets = rewriteTargets(['q1: option >72 code points']);
+    const prompt = buildRewritePrompt({
+      digest: { subject: 'english', topic_as_taught: 'Chocolate', slos: [{ id: 's1', statement: 'x', statement_en: 'x', statement_ur: 'x', level: 'recall' }] },
+      language: 'en', questions, targets, gradeBand: '4-5', lessonSummary: 'You taught chocolate.',
+    });
+    expect(prompt).toMatch(/72 code points/);
   });
 });
