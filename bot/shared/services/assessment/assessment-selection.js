@@ -169,7 +169,14 @@ function optionTitle({ number, text }) {
   const lastSpace = cut.lastIndexOf(' ');
   // Only honour the word boundary if it leaves something worth reading.
   const kept = lastSpace > room * 0.5 ? cut.slice(0, lastSpace) : cut;
-  return `${prefix}${kept.replace(/[\s\W]+$/, '')}`;
+  // Shave a dangling space or punctuation mark off the cut — and NOTHING else.
+  // This was `[\s\W]+$`, and in JavaScript `\W` is "not [A-Za-z0-9_]", so every
+  // Urdu letter matched it: the whole title was eaten and the option came back
+  // as "1. ". Meta refuses a checkbox with an empty title, which is how the
+  // review screen died on "Something went wrong" for Urdu-medium subjects while
+  // English was untouched. Name the punctuation instead of negating a Latin
+  // alphabet — including the Urdu full stop (۔) and comma (،).
+  return `${prefix}${kept.replace(/[\s.,;:!?—–\-·۔،]+$/u, '')}`;
 }
 
 /**
