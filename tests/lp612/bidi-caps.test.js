@@ -41,15 +41,23 @@ afterEach(() => setRtlProse(false));
 describe('page caps are language-aware; word budgets are not', () => {
   // Both caps moved one sheet on 2026-09-04 (bd-vjk68), each toward the part that was actually
   // overflowing on staging: 6 of the 9 live failures were EN *teach*, 3 were UR *support*.
+  //
+  // Both moved AGAIN on 2026-09-06 with the v9.2 type scale (body 18 -> 21px, lane 07_font):
+  // EN 6/4 -> 7/6, UR 7/6 -> 9/7. The caps travel with the type for the reason they always have —
+  // a deliberate font increase is not bloat, the same words need more paper — and the SIZE of the
+  // move is measured over the same 62-document corpus the packer lane used, not chosen: at the new
+  // type the old caps flag 53 of 62 documents, which is not a gate, it is noise. 7/6 and 9/7 is the
+  // tightest pair that holds the flag rate where it was (1 -> 3 of 62). Numbers: 07_font/OPTIONS.md.
+  //
   // The per-language SHAPE — which this suite exists to protect — is unchanged.
-  test('English: teach 6/support 4, warn 5/3', () => {
-    expect(pageCapsFor('en')).toEqual({ max: { teach: 6, support: 4 }, warn: { teach: 5, support: 3 } });
+  test('English: teach 7/support 6, warn 6/5', () => {
+    expect(pageCapsFor('en')).toEqual({ max: { teach: 7, support: 6 }, warn: { teach: 6, support: 5 } });
     expect(pageCapsFor('en').max).toBe(MAX_PAGES);
     expect(pageCapsFor('en').warn).toBe(WARN_PAGES);
   });
 
-  test('Urdu carries the measured +33% footprint: teach 7/support 6, warn 6/5', () => {
-    expect(pageCapsFor('ur')).toEqual({ max: { teach: 7, support: 6 }, warn: { teach: 6, support: 5 } });
+  test('Urdu carries the measured +33% footprint: teach 9/support 7, warn 8/6', () => {
+    expect(pageCapsFor('ur')).toEqual({ max: { teach: 9, support: 7 }, warn: { teach: 8, support: 6 } });
     expect(pageCapsFor('ur').max).toBe(MAX_PAGES_UR);
     expect(pageCapsFor('ur').warn).toBe(WARN_PAGES_UR);
   });

@@ -79,10 +79,13 @@ function makeProbe(over = {}) {
   return {
     pageCount: 2,
     pagesByPart: { teach: 1, support: 1 },
-    minBodyFontPx: 18,
+    // AT the floor, read from the renderer, never a literal. This stub describes "a page that
+    // passed the type gate"; a hardcoded 18/14 pinned it to the v9.1 scale, so the v9.2 raise
+    // (18 -> 21px) failed this suite for a reason that has nothing to do with what it tests.
+    minBodyFontPx: BODY_FLOOR_PX,
     minBodySample: '.pad p :: body',
-    minAnyFontPx: 18,
-    minChipFontPx: 14,
+    minAnyFontPx: BODY_FLOOR_PX,
+    minChipFontPx: CHIP_FLOOR_PX,
     minChipSample: '.kw :: chip',
     pages: [page('teach-1'), page('support-1')],
     ...over,
@@ -296,6 +299,7 @@ describe('the measuring pass no longer zeroes a margin that is not auto', () => 
 // exact packer; the renderer passes the real number.
 
 const { packAtoms } = require(path.join(V, 'render_lp.js'));
+const { BODY_FLOOR_PX, CHIP_FLOOR_PX } = require('../../bot/vendor/lp-v9/render_lp.js');
 
 describe('packAtoms may overfill by the absorbable furniture, and only to save a page', () => {
   const A = (h, o = {}) => ({ h, mt: o.mt || 0, glue: !!o.glue, sec: o.sec || null, first: !!o.first });

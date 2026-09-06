@@ -104,11 +104,17 @@ describe('the worker delivers an over-cap lesson instead of failing it', () => {
     htmlPath: '/tmp/x.html',
     pdfPath: '/tmp/x.pdf',
     pageCount: 11,
-    pagesByPart: { teach: 7, support: 4 },
+    pagesByPart: { teach: OVER_TEACH, support: 4 },
     overlayApplied: [],
   });
 
-  const OVER = 'PAGE COUNT: teach needs 7 pages; the cap is 6. Cut it, or move content to the other part.';
+  // Built from the LIVE caps rather than written out. The string is the renderer's own, and a
+  // fixture that restates it stops describing the renderer the moment a cap moves — which is what
+  // happened at the v9.2 type raise (EN teach 6 -> 7).
+  const EN_CAPS = require('../../bot/vendor/lp-v9/render_lp.js').pageCapsFor('en').max;
+  const OVER_TEACH = EN_CAPS.teach + 1;
+  const OVER = `PAGE COUNT: teach needs ${OVER_TEACH} pages; the cap is ${EN_CAPS.teach}. `
+    + 'Cut it, or move content to the other part.';
 
   function seed() {
     mockDbResults.push({
@@ -167,7 +173,8 @@ describe('the worker delivers an over-cap lesson instead of failing it', () => {
     const ev = mockLogEvent.mock.calls.find((c) => c[0] === 'lp612.deliver.over_cap');
     expect(ev).toBeTruthy();
     expect(ev[1]).toMatchObject({
-      teach_pages: 7, support_pages: 4, cap_teach: 6, cap_support: 4, lang: 'en',
+      teach_pages: OVER_TEACH, support_pages: 4,
+      cap_teach: EN_CAPS.teach, cap_support: EN_CAPS.support, lang: 'en',
     });
   });
 

@@ -28,6 +28,7 @@ const os = require('os');
 const path = require('path');
 
 const CLEAN_DOC = require('./__fixtures__/v9_gate_base.lp.json');
+const { BODY_FLOOR_PX, CHIP_FLOOR_PX } = require('../../bot/vendor/lp-v9/render_lp.js');
 
 // Bumped on every chromium.launch() call and dropped on every browser.close() — the concurrency
 // counter every test reads. Module-scoped so the mock factory (hoisted, can only close over
@@ -42,8 +43,11 @@ const mockProbe = (() => {
     footTopPx: 1000, innerBottomPx: 1000, lastElement: 'sec', overflowPx: 0, overflowingSections: [],
   });
   return {
-    pageCount: 2, pagesByPart: { teach: 1, support: 1 }, minBodyFontPx: 18, minBodySample: 'x',
-    minAnyFontPx: 18, minChipFontPx: 14, minChipSample: 'x', pages: [page('teach-1'), page('support-1')],
+    // AT the floor, read from the renderer, never a literal. This stub describes "a page that
+    // passed the type gate"; a hardcoded 18/14 pinned it to the v9.1 scale, so the v9.2 raise
+    // (18 -> 21px) failed this suite for a reason that has nothing to do with what it tests.
+    pageCount: 2, pagesByPart: { teach: 1, support: 1 }, minBodyFontPx: BODY_FLOOR_PX, minBodySample: 'x',
+    minAnyFontPx: BODY_FLOOR_PX, minChipFontPx: CHIP_FLOOR_PX, minChipSample: 'x', pages: [page('teach-1'), page('support-1')],
   };
 })();
 

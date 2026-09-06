@@ -34,12 +34,17 @@ const path = require('path');
 describe('the page caps', () => {
   const R = require('../../bot/vendor/lp-v9/render_lp.js');
 
-  test('English gets a sixth TEACH page; SUPPORT is unchanged at 4', () => {
-    expect(R.pageCapsFor('en').max).toEqual({ teach: 6, support: 4 });
+  // Moved again on 2026-09-06 with the v9.2 type scale (body 18 -> 21px, lane 07_font). The caps
+  // travel with the type for the reason they always have — a deliberate font increase is not
+  // bloat — and the size of the move is measured over the same 62-document corpus this lane used:
+  // at the new type the old caps flag 53 of 62, which is not a gate, it is noise. 7/6 and 9/7 is
+  // the tightest pair that holds the flag rate where it was (1 -> 3 of 62). 07_font/OPTIONS.md §3.
+  test('English is teach 7 / support 6 at the v9.2 type scale', () => {
+    expect(R.pageCapsFor('en').max).toEqual({ teach: 7, support: 6 });
   });
 
-  test('Urdu gets a sixth SUPPORT page; TEACH is unchanged at 7', () => {
-    expect(R.pageCapsFor('ur').max).toEqual({ teach: 7, support: 6 });
+  test('Urdu is teach 9 / support 7', () => {
+    expect(R.pageCapsFor('ur').max).toEqual({ teach: 9, support: 7 });
   });
 
   test('each WARN still sits exactly one page under its own cap', () => {
@@ -172,8 +177,12 @@ describe('the ladder and the prompts', () => {
 
     const user = create.mock.calls[0][0].messages.find((m) => m.role === 'user').content;
     expect(user.slice(0, 400)).toMatch(/YOUR PAGE BUDGET/);
-    expect(user).toMatch(/TEACH .{0,4}6 pages/);
-    expect(user).toMatch(/SUPPORT .{0,4}4 pages/);
+    // Read from the constants, never restated: the point of this assertion is that the card the
+    // author is handed CARRIES THE LIVE CAPS, and a literal here would keep passing while the two
+    // silently diverged — which is the exact defect it exists to catch.
+    const EN = require('../../bot/vendor/lp-v9/render_lp.js').pageCapsFor('en').max;
+    expect(user).toMatch(new RegExp(`TEACH .{0,4}${EN.teach} pages`));
+    expect(user).toMatch(new RegExp(`SUPPORT .{0,4}${EN.support} pages`));
     // It must say the two honest things, or it reads as a gate and the model cuts real content.
     expect(user).toMatch(/measured after/i);
     expect(user).toMatch(/still delivered/i);
@@ -188,8 +197,9 @@ describe('the ladder and the prompts', () => {
     });
 
     const user = create.mock.calls[0][0].messages.find((m) => m.role === 'user').content;
-    expect(user).toMatch(/TEACH .{0,4}7 pages/);
-    expect(user).toMatch(/SUPPORT .{0,4}6 pages/);
+    const UR = require('../../bot/vendor/lp-v9/render_lp.js').pageCapsFor('ur').max;
+    expect(user).toMatch(new RegExp(`TEACH .{0,4}${UR.teach} pages`));
+    expect(user).toMatch(new RegExp(`SUPPORT .{0,4}${UR.support} pages`));
   });
 
   test('every revision prompt opens with the same card, ABOVE the defect lists', async () => {
