@@ -179,6 +179,15 @@ function validate(rawQuestions, ctx = {}) {
   let atOrBelow = 0;
   let figured = 0;
   const allText = [];
+  // bd-mg9c7.95 — the religious-marks scan runs PER QUESTION, so the complaint
+  // names the question that carries the fault. It used to run once over every
+  // question's text joined together, which made it a quiz-level complaint: the
+  // targeted rewrite refuses a set where one complaint names no question, and
+  // the last-attempt salvage refuses a set with one non-droppable complaint. A
+  // single un-honorified name therefore cost the teacher the whole quiz, with
+  // no recovery path at all.
+  const canon = canonicalSubject(subject);
+  const scanReligious = canon === 'islamiat' || canon === 'urdu';
 
   qs.forEach((q, i) => {
     const opts = Array.isArray(q.options) ? q.options.map((o) => String(o ?? '').trim()) : [];
@@ -258,6 +267,10 @@ function validate(rawQuestions, ctx = {}) {
       }
     }
     allText.push(...texts);
+    if (scanReligious) {
+      checkReligiousMarks(texts.join('\n'))
+        .forEach((d) => errs.push(`q${i}: RELIGIOUS_MARKS — ${d}`));
+    }
     if (texts.some((t) => LETTER_REF.test(t))) errs.push(`q${i}: letter reference`);
 
     // ── the figure, if this question carries one ────────────────────────────
@@ -396,11 +409,6 @@ function validate(rawQuestions, ctx = {}) {
   pedagogyDefects(qs, {
     language, digest, quizId, ...(checkD4 ? { lessonSummary } : {}),
   }).forEach((d) => errs.push(d.message));
-
-  const canon = canonicalSubject(subject);
-  if (canon === 'islamiat' || canon === 'urdu') {
-    errs.push(...checkReligiousMarks(joined));
-  }
 
   return { ok: errs.length === 0, errors: errs, questions: qs };
 }
