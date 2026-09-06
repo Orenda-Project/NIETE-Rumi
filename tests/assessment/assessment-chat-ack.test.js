@@ -247,11 +247,25 @@ describe('what she actually reads in the chat', () => {
   });
 
   test('a rebuild says seconds, not a minute — it makes no model call', async () => {
-    await handle({ assessment_action: 'rebuilt', summary: '12 questions · 25 marks' },
-      '92300', { id: 'u1' });
+    // A rebuild needs its paper: PICK_DONE is terminal, so the rebuild now runs
+    // from the completion (like the new-paper submit before it) and the paper id
+    // comes from the token. Without one there is nothing to rebuild, and the
+    // handler correctly says so instead of promising a paper.
+    await handle({ assessment_action: 'rebuilt', summary: '12 questions · 25 marks',
+      flow_token: 'u1:assessment-review:paper-1' }, '92300', { id: 'u1' });
     const [, text] = mockSend.mock.calls[0];
     expect(text).toMatch(/seconds/i);
     expect(text).not.toMatch(/about a minute/i);
+  });
+
+  test('a rebuild with no paper in the token promises nothing', async () => {
+    // The failure this pairs with: telling her a paper is being remade when no
+    // rebuild was even attempted is what shipped to staging.
+    await handle({ assessment_action: 'rebuilt', flow_token: 'u1:assessment-gen:1' },
+      '92300', { id: 'u1' });
+    const [, text] = mockSend.mock.calls[0];
+    expect(text).not.toMatch(/seconds/i);
+    expect(text).toMatch(/\/assessment/);
   });
 
   test('a failure says nothing is being made, and what to do', async () => {
@@ -370,10 +384,14 @@ describe('no handler may return a screen the Flow does not have (bd-60029)', () 
     // because the endpoint is perfectly happy naming a screen that is gone.
     const src = fs.readFileSync(path.join(__dirname, '../..',
       'bot/shared/routes/assessment-gen-endpoint.js'), 'utf8');
-    const flow = JSON.parse(fs.readFileSync(path.join(__dirname, '../..',
-      'docs/flows/assessment-gen-flow.json'), 'utf8'));
+    // BOTH flows: the review screens live in their own Flow now, because a Flow
+    // opens on screens[0] and KEEP could never be reached from a terminal
+    // CONFIRM. One endpoint still serves both, so the screens it may name are
+    // the union of the two.
+    const flows = ['assessment-gen-flow.json', 'assessment-review-flow.json']
+      .map((f) => JSON.parse(fs.readFileSync(path.join(__dirname, '../..', 'docs/flows', f), 'utf8')));
 
-    const real = new Set(flow.screens.map((s) => s.id));
+    const real = new Set(flows.flatMap((f) => f.screens.map((s) => s.id)));
     const named = new Set(
       [...src.matchAll(/screen:\s*'([A-Z_]+)'/g)].map((m) => m[1])
         .concat([...src.matchAll(/screen\('([A-Z_]+)'/g)].map((m) => m[1])),
@@ -390,9 +408,9 @@ describe('no handler may return a screen the Flow does not have (bd-60029)', () 
     const res = await exchange('user-1', 'KEEP',
       { keep: ['a.b.MCQs.0'], page: '0', _action: 'done' }, TOKEN);
 
-    const flow = JSON.parse(require('fs').readFileSync(
-      require('path').join(__dirname, '../..', 'docs/flows/assessment-gen-flow.json'), 'utf8'));
-    const real = flow.screens.map((s) => s.id);
+    const real = ['assessment-gen-flow.json', 'assessment-review-flow.json'].flatMap((f) =>
+      JSON.parse(require('fs').readFileSync(
+        require('path').join(__dirname, '../..', 'docs/flows', f), 'utf8')).screens.map((s) => s.id));
     expect(real).toContain(res.screen);
     expect(res.data.extension_message_response.params.assessment_action).toBe('rebuilt');
   });

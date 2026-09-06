@@ -173,6 +173,22 @@ const FLOW_CONFIGS = [
     categories: ['OTHER'],
   },
   {
+    // Assessment REVIEW — the same endpoint, a separate Flow.
+    //
+    // It has to be separate: a Flow opens on screens[0], and these screens used
+    // to sit at index 6+ of the generator Flow, reachable only from a TERMINAL
+    // screen. Opening onto one asked the client to enter a screen with no
+    // reachable predecessor, which it refuses with "Something went wrong".
+    // The endpoint tells the two apart by the flow token's `:assessment-review:`
+    // marker, so one endpoint serves both.
+    name: 'Assessment Review',
+    jsonPath: path.join(FLOWS_DIR, 'assessment-review-flow.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/assessment-gen',
+    envVar: 'ASSESSMENT_REVIEW_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
     // Pakistan LP picker. Grade → Subject → Chapter → Topic over
     // pre_generated_lps where curriculum='pakistan', populated by the
     // seed + chapter-load scripts in bot/scripts/. The `menu_lesson_plan`

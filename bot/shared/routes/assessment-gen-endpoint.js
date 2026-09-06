@@ -228,22 +228,43 @@ function reviewError(message) {
  * guard enforces it), so the rebuild button lives on PICK_DONE next door rather
  * than under the list.
  */
-function pickScreen({ items, selected }) {
-  const { kept } = totalsOf(items, selected);
-  return screen('PICK', {
-    items: kept.map((q) => ({
-      id: q.id,
-      'main-content': {
-        title: navFit(Selection.optionTitle(q)),
-        description: navDescription(q),
-        metadata: '',
-      },
-      'on-click-action': {
-        name: 'data_exchange',
-        payload: { _action: 'open', question_id: q.id },
-      },
-    })),
+function pickScreen({ items, selected, screenId = 'PICK' }) {
+  const { kept, count, marks } = totalsOf(items, selected);
+  const rows = kept.map((q) => ({
+    id: q.id,
+    'main-content': {
+      title: navFit(Selection.optionTitle(q)),
+      description: navDescription(q),
+      metadata: '',
+    },
+    'on-click-action': {
+      name: 'data_exchange',
+      payload: { _action: 'open', question_id: q.id },
+    },
+  }));
+
+  // The way OUT has to be a row.
+  //
+  // A NavigationList must be the only component on its screen — Meta rejects
+  // the publish outright otherwise, which once cost a staging DRAFT — so there
+  // is nowhere to put a Footer. Without this row the only way off this screen
+  // was to edit a question, so a teacher who opened it to check her questions
+  // and change nothing was stuck, and one who wanted to edit two could only
+  // ever edit one.
+  //
+  // Last, so it never sits between two questions. Every field is inside the
+  // 20-character NavigationList cap.
+  rows.push({
+    id: '__done__',
+    'main-content': {
+      title: navFit('✓ Done editing'),
+      description: navFit(`${count} Q · ${marks} marks`),
+      metadata: '',
+    },
+    'on-click-action': { name: 'data_exchange', payload: { _action: 'pick_done' } },
   });
+
+  return screen(screenId, { items: rows });
 }
 
 function pickDoneScreen({ items, selected, error = '' }) {
@@ -429,6 +450,11 @@ async function handlePick(userId, data, flowToken) {
   const selected = state.selected ?? items.map((q) => q.id);
 
   const action = String(data._action || 'summary');
+
+  // The "Done editing" row — she is finished with the list and wants the paper.
+  if (action === 'pick_done') return pickDoneScreen({ items, selected });
+
+
   if (action === 'open') {
     // A gate, not a UI hint: a stale or hand-built client must not be able to
     // walk into a screen the deployment has switched off.
@@ -544,7 +570,15 @@ async function handleEditSave(userId, screenId, data, flowToken) {
     return editScreen(parent);
   }
   await writeSession(flowToken, { ...state, editing: null, editingSub: null });
-  return pickDoneScreen({ items: nextItems, selected });
+  // Back to the LIST, not to the end. Editing one question and being dropped at
+  // the finish makes editing a second question impossible without starting the
+  // whole review again; the "Done editing" row is how she leaves.
+  //
+  // PICK_MORE rather than PICK because Meta refuses a BACKWARD route: 
+  //   "Backward route [EDIT_STANDARD->PICK] ... is not allowed"
+  // (measured against the API, 2026-09-06). PICK_MORE is the same list one step
+  // further along, so the return is a forward route.
+  return pickScreen({ items: nextItems, selected, screenId: 'PICK_MORE' });
 }
 
 /**
@@ -619,7 +653,12 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
   // ── The review journey ───────────────────────────────────────────────────
   // Its own path, entered by token rather than by walking the screens above.
   if (screenId === 'KEEP') return handleKeep(userId, data, flowToken);
-  if (screenId === 'PICK') return handlePick(userId, data, flowToken);
+  // Both list screens share one handler: they render identical rows, and the
+  // only reason there are two is that Meta refuses a backward route from an
+  // edit screen back to PICK.
+  if (screenId === 'PICK' || screenId === 'PICK_MORE') {
+    return handlePick(userId, data, flowToken);
+  }
   if (screenId === 'PICK_DONE') return handlePickDone(userId, data, flowToken);
   if (String(screenId).startsWith('EDIT_')) {
     return handleEditSave(userId, screenId, data, flowToken);
@@ -814,6 +853,55 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
  * CONFIRM's own three fields arrive in the completion payload — they have to,
  * because CONFIRM never reached the endpoint to store them.
  */
+/**
+ * Rebuild her paper AFTER the review Flow has closed.
+ *
+ * The same trap as submitFromCompletion, one screen along: PICK_DONE is
+ * terminal, so its Footer CLOSES the Flow instead of calling the endpoint.
+ * `rebuildAndClose()` below is therefore unreachable from the live path, and
+ * without this the teacher is told "Making your paper again — a few seconds"
+ * by a step that never starts. She waits, and nothing arrives.
+ *
+ * Fixed once already for the NEW-paper path (bd-60030) and not carried across
+ * to the rebuild; the shapes are identical because the cause is.
+ *
+ * Everything needed survives the close: the ticks are in the Redis session
+ * under the flow token, and the paper id is in the token itself.
+ */
+async function rebuildFromCompletion({ flowToken, userId }) {
+  const paperId = paperIdFromToken(flowToken);
+  if (!paperId) return { status: 'failed', code: 'NO_PAPER' };
+
+  const state = (await readSession(flowToken)) || {};
+  const owner = state.userId || userId;
+  if (!owner) return { status: 'failed', code: 'NO_OWNER' };
+
+  // No stored ticks means she changed nothing — rebuild the paper whole rather
+  // than treating "untouched" as "keep nothing".
+  let selected = state.selected;
+  if (selected == null) {
+    const { items } = await revision().listQuestions({ paperId, userId: owner });
+    selected = (items || []).map((q) => q.id);
+  }
+
+  let result;
+  try {
+    result = await revision().rerender({ paperId, userId: owner, selectedIds: selected });
+  } catch (err) {
+    logToFile('[assessment] rebuild from completion threw', { paperId, error: err?.message });
+    return { status: 'failed', code: 'REBUILD_THREW' };
+  }
+  await clearSession(flowToken);
+
+  if (result.status !== 'ready') return { status: 'failed', code: result.code || 'REBUILD_FAILED' };
+
+  const n = result.questionCount;
+  return {
+    status: 'rebuilt',
+    summary: `${n} question${n === 1 ? '' : 's'}${result.marks ? ` · ${result.marks} marks` : ''}`,
+  };
+}
+
 async function submitFromCompletion({ flowToken, userId, outputFormat, answerKey, answerLines }) {
   const state = await readSession(flowToken);
 
@@ -994,6 +1082,7 @@ module.exports = {
   handleAssessmentGenDataExchange: handleDataExchange,
   handleAssessmentGenBack: handleBack,
   submitFromCompletion,
+  rebuildFromCompletion,
   // exported for tests
   _internal: { summaryOf, submit, chapterPageRange, GRADE_BANDS, COUNT_CHOICES,
     paperIdFromToken, mergePageTicks, REVIEW_MARKER, SHAPE_SCREEN, navFit, NAV_MAX },
