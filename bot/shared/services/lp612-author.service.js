@@ -83,7 +83,9 @@ const PAGE_TRUTH_MAX_CHARS = 90000;
  * every unit test on it passed. Re-exported below so existing callers and tests
  * are unaffected.
  */
-const { resolveAuthorModel, authorTierFor, isLp612TargetedRevisionEnabled } = require('../config/lp612-flags');
+const {
+  resolveAuthorModel, authorTierFor, isLp612TargetedRevisionEnabled, isLp612PromptCacheEnabled,
+} = require('../config/lp612-flags');
 
 function resolveRounds(explicit) {
   if (Number.isInteger(explicit) && explicit >= 0) return explicit;
@@ -364,7 +366,46 @@ function promptSha12(system, user) {
   return crypto.createHash('sha256').update(`${system} ${user}`).digest('hex').slice(0, 12);
 }
 
-async function callLlm({ system, user, model, correlationId, stage, maxTokens }) {
+/**
+ * bd-w65g9 — the cache breakpoint marker. One object, reused: `{type:'ephemeral'}` is the
+ * 5-minute TTL, and 5 minutes is the right choice here rather than `ttl:'1h'`. Calls inside one
+ * lesson start ~60-70s apart and a read refreshes the entry's timer for free, so a 5-minute entry
+ * stays warm for the whole ladder — while the 1-hour TTL would charge a 2.0x write premium
+ * instead of 1.25x and buy nothing at this cadence.
+ */
+const CACHE_EPHEMERAL = { type: 'ephemeral' };
+
+/**
+ * Wrap a role's text so it can carry a breakpoint.
+ *
+ * Returns the PLAIN STRING whenever caching is off, so every existing caller — and every
+ * existing test that asserts on `messages[n].content` — is byte-identical to before.
+ */
+function systemContent(system) {
+  if (!isLp612PromptCacheEnabled()) return system;
+  return [{ type: 'text', text: String(system), cache_control: CACHE_EPHEMERAL }];
+}
+
+/**
+ * Split the user turn at the end of its stable prefix and mark the first half.
+ *
+ * `cachePrefix` is the bytes we claim repeat across calls (the round-0 task). The
+ * `startsWith` guard is not defensive noise: if a caller ever passes a prefix the prompt does
+ * not actually begin with, splitting on it would send DIFFERENT bytes to the model. Falling
+ * back to the unsplit string there loses a cache hit and changes nothing the model sees, which
+ * is the correct way to be wrong.
+ */
+function userContent(user, cachePrefix) {
+  const text = String(user);
+  if (!isLp612PromptCacheEnabled() || !cachePrefix) return text;
+  const prefix = String(cachePrefix);
+  if (!prefix || !text.startsWith(prefix)) return text;
+  const tail = text.slice(prefix.length);
+  const head = { type: 'text', text: prefix, cache_control: CACHE_EPHEMERAL };
+  return tail ? [head, { type: 'text', text: tail }] : [head];
+}
+
+async function callLlm({ system, user, model, correlationId, stage, maxTokens, userCachePrefix }) {
   const payload = {
     model,
     temperature: TEMPERATURE,
@@ -373,8 +414,8 @@ async function callLlm({ system, user, model, correlationId, stage, maxTokens })
     max_tokens: maxTokens || MAX_TOKENS,
     reasoning: { enabled: false },
     messages: [
-      { role: 'system', content: system },
-      { role: 'user', content: user },
+      { role: 'system', content: systemContent(system) },
+      { role: 'user', content: userContent(user, userCachePrefix) },
     ],
   };
 
@@ -464,11 +505,42 @@ async function callLlm({ system, user, model, correlationId, stage, maxTokens })
  * @throws Error with .code 'UNPARSEABLE' | 'LLM_FAILED' — the CALLER decides what that costs,
  *         and for a revision round the answer is: that round, never the ladder.
  */
-async function callWithRetry({ system, user, model, correlationId, stage, usageSink, maxTokens }) {
+/**
+ * bd-w65g9 — the usage accumulator, shared by the author, overlay and edit ladders.
+ *
+ * The three counters this used to sum (prompt/completion/total) cannot show what caching does:
+ * a cached call reports the SAME `prompt_tokens` as an uncached one — the tokens were still
+ * processed, they were just billed at 0.1x. Cost lives in `usage.cost` and the split lives in
+ * `usage.prompt_tokens_details`, and both are already on every OpenRouter response without
+ * `usage:{include:true}` (verified against the live API, 11_cost/evidence/usage_flag.json).
+ * Summing them here is what makes "did caching actually work, and what did it save" answerable
+ * from telemetry instead of from a harness.
+ *
+ * Additive only — no existing field changes meaning, so nothing downstream needs to know.
+ */
+function newUsage() {
+  return {
+    prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, calls: 0,
+    cached_tokens: 0, cache_write_tokens: 0, cost_usd: 0,
+  };
+}
+
+function accumulateUsage(acc, u) {
+  acc.calls += 1;
+  acc.prompt_tokens += (u && u.prompt_tokens) || 0;
+  acc.completion_tokens += (u && u.completion_tokens) || 0;
+  acc.total_tokens += (u && u.total_tokens) || 0;
+  const details = (u && u.prompt_tokens_details) || {};
+  acc.cached_tokens += details.cached_tokens || 0;
+  acc.cache_write_tokens += details.cache_write_tokens || 0;
+  acc.cost_usd += (u && typeof u.cost === 'number') ? u.cost : 0;
+}
+
+async function callWithRetry({ system, user, model, correlationId, stage, usageSink, maxTokens, userCachePrefix }) {
   let lastErr = null;
   for (const attempt of [1, 2]) {
     try {
-      const { text, usage } = await callLlm({ system, user, model, correlationId, stage: `${stage}.a${attempt}`, maxTokens });
+      const { text, usage } = await callLlm({ system, user, model, correlationId, stage: `${stage}.a${attempt}`, maxTokens, userCachePrefix });
       usageSink(usage);
       try {
         return extractJson(text);
@@ -1004,7 +1076,7 @@ function targetedRevisionPreamble(allowedPointers) {
   );
 }
 
-function buildRevisionPrompt({ doc, gates, originalUser, notes, lang, targeted = false }) {
+function buildRevisionPrompt({ doc, gates, originalUser, notes, lang, targeted = false, stableFirst = false }) {
   // ADVISORY defects are recorded, not chased (see ADVISORY_CODES). A defect the ladder will not
   // spend a round on must not spend the model's attention either: showing it under "Fix EVERY
   // listed defect" is an order to act on something we have decided does not matter.
@@ -1022,7 +1094,17 @@ function buildRevisionPrompt({ doc, gates, originalUser, notes, lang, targeted =
   // test). Flag ON: the targeted preamble, with the allowed-pointer list computed fresh from
   // THIS doc.
   const preamble = targeted ? targetedRevisionPreamble(deriveAllowedPointers(doc)) : REVISION_PREAMBLE;
-  return budgetCard(clampLanguage(lang)) + '\n' + preamble +
+  // bd-w65g9 (BP2). `originalUser` is the ~40k-token task — page-truth and all — and it is
+  // byte-identical on every round, while everything else here changes every round. Caching is a
+  // prefix match, so a stable block appended LAST can never be cached: the volatile defect list
+  // ahead of it invalidates the entry on every call. `stableFirst` hoists it to the FRONT so a
+  // breakpoint can sit at its end, and the caller passes exactly these bytes as the cache prefix.
+  //
+  // Ordering is the only thing that changes, and it changes in the direction the revision ask
+  // wants anyway: the task is stated first, then "you already attempted this, here is what is
+  // wrong with it" — the defects land LAST, nearest the model's answer, instead of in the middle.
+  // The relative order of everything inside the volatile block is untouched.
+  const volatile_ = budgetCard(clampLanguage(lang)) + '\n' + preamble +
     (notes ? `=== THE OPERATOR'S NAMED DEFECTS — THESE OUTRANK EVERYTHING BELOW ===\n${notes}\n\n` : '') +
     (visual.length
       ? '=== THE VISUAL CONTRACT (§4b) — FIX THESE FIRST, BY ADDING A FIGURE ===\n'
@@ -1071,8 +1153,16 @@ function buildRevisionPrompt({ doc, gates, originalUser, notes, lang, targeted =
         + 'make it smaller (a `flow` with direction "lr" instead of "tb", fewer branches, shorter '
         + 'labels) rather than deleting it.'
       : '') +
-    '\n\n=== LINT WARNINGS ===\n' + (warns.join('\n') || '(none)') +
-    '\n\n=== THE ORIGINAL TASK (same page-truth, unchanged) ===\n' + originalUser;
+    '\n\n=== LINT WARNINGS ===\n' + (warns.join('\n') || '(none)');
+  // Flag OFF: byte-for-byte the prompt this function has always returned.
+  if (!stableFirst) {
+    return volatile_ + '\n\n=== THE ORIGINAL TASK (same page-truth, unchanged) ===\n' + originalUser;
+  }
+  // Flag ON: the SAME two halves, swapped. `originalUser` leads with nothing before it, so the
+  // cached prefix is exactly the round-0 user turn — see `userContent`'s startsWith guard.
+  return originalUser
+    + '\n\n=== YOU HAVE ALREADY ATTEMPTED THE TASK ABOVE. REVISE YOUR PREVIOUS ANSWER. ===\n\n'
+    + volatile_;
 }
 
 // ── the video slot ──────────────────────────────────────────────────────────
@@ -1703,14 +1793,22 @@ async function authorLessonPlan({
   const video = parseYt(segment.yt);
   const system = authorBrief(tier, family);
   const user = buildUserPrompt({ segment, bundle, lang: language, video });
+  /**
+   * bd-w65g9 — prompt caching, resolved ONCE for the whole ladder.
+   *
+   * Read here rather than at each call site so a mid-run env change cannot make round 3's
+   * prompt shape disagree with round 0's: the cached prefix has to be the same bytes every
+   * round, and a flag that flips underneath the ladder is exactly the silent invalidator that
+   * turns a cache into a pure write-premium surcharge.
+   *
+   * `cachePrefix` is the round-0 user turn verbatim — the bytes `buildRevisionPrompt`
+   * (stableFirst) puts at the front of every later round.
+   */
+  const promptCacheOn = isLp612PromptCacheEnabled();
+  const cachePrefix = promptCacheOn ? user : null;
 
-  const usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, calls: 0 };
-  const addUsage = (u) => {
-    usage.calls += 1;
-    usage.prompt_tokens += (u && u.prompt_tokens) || 0;
-    usage.completion_tokens += (u && u.completion_tokens) || 0;
-    usage.total_tokens += (u && u.total_tokens) || 0;
-  };
+  const usage = newUsage();
+  const addUsage = (u) => accumulateUsage(usage, u);
 
   /**
    * THE ROUNDS A PREVIOUS ATTEMPT ALREADY PAID FOR — bd-oak77.11.
@@ -1748,6 +1846,9 @@ async function authorLessonPlan({
     try {
       doc = await callWithRetry({
         system, user, model: chosenModel, correlationId, stage: 'author', usageSink: addUsage,
+        // bd-w65g9: round 0's user turn IS the stable task, so the breakpoint sits at its end.
+        // This is the call that WRITES the entry every revision round then reads.
+        userCachePrefix: user,
       });
     } catch (e) {
       throw fail(
@@ -1891,6 +1992,7 @@ async function authorLessonPlan({
 
     const fixUser = buildRevisionPrompt({
       doc, gates, originalUser: user, notes: segment.notes, lang: language, targeted: useTargetedRevision,
+      stableFirst: promptCacheOn,
     });
 
     // bd-5w13w: fires the moment THIS round's prompt hashes identically to the last one sent —
@@ -1933,12 +2035,12 @@ async function authorLessonPlan({
       if (!useTargetedRevision) {
         candidate = await callWithRetry({
           system, user: fixUser, model: chosenModel, correlationId,
-          stage: `revision${spent}`, usageSink: addUsage,
+          stage: `revision${spent}`, usageSink: addUsage, userCachePrefix: cachePrefix,
         });
       } else {
         const parsed = await callWithRetry({
           system, user: fixUser, model: chosenModel, correlationId,
-          stage: `revision${spent}`, usageSink: addUsage,
+          stage: `revision${spent}`, usageSink: addUsage, userCachePrefix: cachePrefix,
         });
         const shape = parseTargetedReply(parsed);
         if (shape.mode === 'full') {
@@ -1955,10 +2057,11 @@ async function authorLessonPlan({
             // existing full-rewrite prompt, once. Worst case this round costs one extra call.
             const fallbackUser = buildRevisionPrompt({
               doc, gates, originalUser: user, notes: segment.notes, lang: language,
+              stableFirst: promptCacheOn,
             });
             candidate = await callWithRetry({
               system, user: fallbackUser, model: chosenModel, correlationId,
-              stage: `revision${spent}.fallback`, usageSink: addUsage,
+              stage: `revision${spent}.fallback`, usageSink: addUsage, userCachePrefix: cachePrefix,
             });
             patchMode = 'fallback';
           }
@@ -1966,10 +2069,11 @@ async function authorLessonPlan({
           notePatchRejected('unparseable_shape', []);
           const fallbackUser = buildRevisionPrompt({
             doc, gates, originalUser: user, notes: segment.notes, lang: language,
+            stableFirst: promptCacheOn,
           });
           candidate = await callWithRetry({
             system, user: fallbackUser, model: chosenModel, correlationId,
-            stage: `revision${spent}.fallback`, usageSink: addUsage,
+            stage: `revision${spent}.fallback`, usageSink: addUsage, userCachePrefix: cachePrefix,
           });
           patchMode = 'fallback';
         }
@@ -2071,6 +2175,11 @@ async function authorLessonPlan({
     failCount: fails.length,
     tokens: usage.total_tokens,
     calls: usage.calls,
+    // bd-w65g9: what the lesson actually cost, and how much of the prompt was served from cache.
+    costUsd: usage.cost_usd,
+    cachedTokens: usage.cached_tokens,
+    cacheWriteTokens: usage.cache_write_tokens,
+    promptCache: promptCacheOn,
   });
 
   return {
@@ -2242,13 +2351,8 @@ async function overlayLessonPlan({ lpDoc, segment, model, correlationId } = {}) 
   }
 
   const chosenModel = model || resolveAuthorModel(familyForBook(seg.book_stem || ''));
-  const usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, calls: 0 };
-  const addUsage = (u) => {
-    usage.calls += 1;
-    usage.prompt_tokens += (u && u.prompt_tokens) || 0;
-    usage.completion_tokens += (u && u.completion_tokens) || 0;
-    usage.total_tokens += (u && u.total_tokens) || 0;
-  };
+  const usage = newUsage();
+  const addUsage = (u) => accumulateUsage(usage, u);
 
   let raw;
   try {
@@ -2436,13 +2540,8 @@ async function reviseLessonPlan({
   const system = authorBrief();
   const originalUser = buildUserPrompt({ segment, bundle, lang: language, video });
 
-  const usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, calls: 0 };
-  const addUsage = (u) => {
-    usage.calls += 1;
-    usage.prompt_tokens += (u && u.prompt_tokens) || 0;
-    usage.completion_tokens += (u && u.completion_tokens) || 0;
-    usage.total_tokens += (u && u.total_tokens) || 0;
-  };
+  const usage = newUsage();
+  const addUsage = (u) => accumulateUsage(usage, u);
 
   // The bar. Her document's own defect count — an edit may not raise it.
   const gatesBefore = await runGates(original, renderCheck, { correlationId, segmentId: segment.segment_id, round: 0, lang: language });
