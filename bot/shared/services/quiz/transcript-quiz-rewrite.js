@@ -199,13 +199,19 @@ function mergeReplacements(questions, json, targets) {
  * @returns {Promise<{attempted:boolean, indices:number[], merged:object[]|null,
  *   replaced:number[], model?:string, costUsd?:number, latencyMs?:number, error?:string}>}
  */
-async function rewriteRejected({ questions, errors, digest, language, gradeBand = null, quizId = null }) {
+async function rewriteRejected({
+  questions, errors, digest, language, gradeBand = null,
+  // quizId is accepted and ignored here on purpose: the outcome event is emitted
+  // by the caller, which is the only place that knows whether the merged set
+  // validated.
+  quizId = null,
+}) {  // eslint-disable-line no-unused-vars
   const targets = rewriteTargets(errors);
   if (!targets.indices.length) return { attempted: false, indices: [], merged: null, replaced: [] };
   const prompt = buildRewritePrompt({ digest, language, questions, targets, gradeBand });
   try {
     const { json, model, costUsd, latencyMs } = await completeJson({
-      prompt, maxTokens: 8000, label: `transcript_quiz.rewrite${quizId ? '' : ''}`,
+      prompt, maxTokens: 8000, label: 'transcript_quiz.rewrite',
     });
     const merged = mergeReplacements(questions, json, targets);
     return {

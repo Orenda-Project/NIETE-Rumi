@@ -26,11 +26,11 @@ const DEFAULT_QUESTIONS = 8;
 function languageRule(language) {
   return language === 'ur'
     ? 'Write EVERYTHING in Urdu script; keep English technical terms in English letters exactly as the teacher used them.'
-    : 'Write EVERYTHING in English \u2014 every stem, option, explanation and feedback \u2014 even though the lesson was taught in Urdu: translate the teacher\'s own words and keep her examples, numbers and names. An Urdu word may appear only when quoting a term the class used, in quotation marks.';
+    : 'Write EVERYTHING in English — every stem, option, explanation and feedback — even though the lesson was taught in Urdu: translate the teacher\'s own words and keep her examples, numbers and names. An Urdu word may appear only when quoting a term the class used, in quotation marks.';
 }
 
 /**
- * WHAT ONE QUESTION MUST CONTAIN \u2014 shared verbatim by the author prompt and by
+ * WHAT ONE QUESTION MUST CONTAIN — shared verbatim by the author prompt and by
  * the targeted rewrite, so the two cannot drift about the shape of a question
  * the validator will accept. Changing a rule here changes it in both.
  */
@@ -61,7 +61,7 @@ STYLE RULES FOR ENGLISH: short sentences a Grade ${gradeBand || '3-5'} child in 
  *     sentence saying the whole reply was in the wrong script is what the model
  *     can act on, and the per-question list is still printed under it.
  */
-const WRONG_SCRIPT_RE = /(must be written in English \u2014 the stem and options are mostly not Latin script|^urdu script ratio )/;
+const WRONG_SCRIPT_RE = /(must be written in English — the stem and options are mostly not Latin script|^urdu script ratio )/;
 
 function retryNote(previousErrors, language, n = DEFAULT_QUESTIONS) {
   const errs = Array.isArray(previousErrors) ? previousErrors.filter(Boolean) : [];
@@ -70,9 +70,9 @@ function retryNote(previousErrors, language, n = DEFAULT_QUESTIONS) {
   const wrongScript = errs.filter((e) => WRONG_SCRIPT_RE.test(String(e)));
   const allWrongScript = wrongScript.length >= Math.max(2, Math.ceil((n || DEFAULT_QUESTIONS) / 2));
   const named = allWrongScript
-    ? `\nTHE WHOLE PREVIOUS ATTEMPT CAME BACK IN THE WRONG SCRIPT \u2014 it was not written in ${name} at all. That is one fault, not ${wrongScript.length}: write this quiz in ${name}, every stem, option, explanation and feedback.\n`
+    ? `\nTHE WHOLE PREVIOUS ATTEMPT CAME BACK IN THE WRONG SCRIPT — it was not written in ${name} at all. That is one fault, not ${wrongScript.length}: write this quiz in ${name}, every stem, option, explanation and feedback.\n`
     : '';
-  return `\n\nQUIZ LANGUAGE, AGAIN: ${name}. ${languageRule(language)}\n${named}\nA PREVIOUS ATTEMPT FAILED THESE CHECKS \u2014 fix every one of them this time (q0 is your FIRST question, q1 the second, and so on):\n- ${errs.slice(0, 16).join('\n- ')}\n`;
+  return `\n\nQUIZ LANGUAGE, AGAIN: ${name}. ${languageRule(language)}\n${named}\nA PREVIOUS ATTEMPT FAILED THESE CHECKS — fix every one of them this time (q0 is your FIRST question, q1 the second, and so on):\n- ${errs.slice(0, 16).join('\n- ')}\n`;
 }
 
 /**
