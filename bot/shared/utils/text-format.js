@@ -78,7 +78,17 @@ function classLabel(v, language = 'en') {
  */
 const CLASS_UNIT = /^(grade|class|jamaat|jamat)\b[\s.:-]*|^جماعت[\s.:-]*/i;
 
-function classHeading(values, language = 'en') {
+/**
+ * The one definition of "the same class", so the report service (which reads
+ * the sessions) and the report chrome (which words the heading) cannot come to
+ * different answers about how many classes took the quiz. Two copies of this
+ * rule is exactly the kind of pair that drifts and then disagrees on one
+ * teacher's report.
+ *
+ * Returns the BARE values — the unit word stripped — in reading order. The
+ * caller puts the document's own unit word back on, once, in front.
+ */
+function normaliseClasses(values) {
   const seen = new Map();
   (Array.isArray(values) ? values : []).forEach((v) => {
     const raw = String(v === null || v === undefined ? '' : v).trim();
@@ -88,13 +98,17 @@ function classHeading(values, language = 'en') {
     const key = bare.toLowerCase().replace(/\s+/g, ' ');
     if (!seen.has(key)) seen.set(key, bare);
   });
-  const classes = [...seen.values()].sort((a, b) => {
+  return [...seen.values()].sort((a, b) => {
     const na = parseFloat(a);
     const nb = parseFloat(b);
     if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
     if (Number.isFinite(na) !== Number.isFinite(nb)) return Number.isFinite(na) ? -1 : 1;
     return a.localeCompare(b);
   });
+}
+
+function classHeading(values, language = 'en') {
+  const classes = normaliseClasses(values);
   if (!classes.length) return '';
   const ur = language === 'ur';
   const unit = classes.length > 1
@@ -105,4 +119,4 @@ function classHeading(values, language = 'en') {
   return `${unit} ${classes.join(ur ? '، ' : ', ')}`;
 }
 
-module.exports = { stripEmphasis, classLabel, classHeading };
+module.exports = { stripEmphasis, classLabel, classHeading, normaliseClasses };

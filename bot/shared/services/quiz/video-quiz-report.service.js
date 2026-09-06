@@ -23,10 +23,11 @@ const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
-const { stripEmphasis, classLabel } = require('../../utils/text-format');
+const { stripEmphasis, classLabel, classHeading, normaliseClasses } = require('../../utils/text-format');
 const { clampLanguage, resolveUx } = require('../../config/ux-strings');
 const { formatLessonDate , sloStatement } = require('./transcript-quiz-language');
 const { excludeSelfTests } = require('./teacher-self-test');
+const { scriptOf } = require('../../templates/niete-brand');
 
 /**
  * The job-type prefix is load-bearing, not cosmetic.
@@ -163,6 +164,37 @@ async function maybeSendEarly(shareCodeId) {
 }
 
 /**
+ * PLAN_R5 §0 item 6 — the class(es) the CHILDREN entered, not a digest guess.
+ *
+ * The pre-send PDF used to print the DIGEST's grade band ("Grade 6-8" — the
+ * model's guess about a recording, not a fact about a classroom, and the
+ * operator correctly called it a wild range). By the time the REPORT goes
+ * out every child has typed a class into the join form, so this reads THAT
+ * instead — and only from FINISHED sessions, because a class a child merely
+ * started is not yet one this report can name.
+ *
+ * Two children in one class must not read as two classes: "7", "Class 7"
+ * and " 7 " collapse — the unit word a child typed is stripped for the
+ * comparison AND for the returned value (never for storage: the underlying
+ * row is untouched). The caller — the template, or this file's own text
+ * fallback below — puts the DOCUMENT's own unit word back on, once, via the
+ * shared classHeading() helper.
+ *
+ * The grouping and the sort are NOT re-implemented here. Both this function
+ * and classHeading() call the one exported normaliseClasses(), because two
+ * copies of "what counts as the same class" is exactly the pair that drifts
+ * and then disagrees on one teacher's report. This function's own job is
+ * therefore only the part normaliseClasses cannot know: which sessions count.
+ */
+function classesTaught(sessions) {
+  return normaliseClasses(
+    (Array.isArray(sessions) ? sessions : [])
+      .filter((s) => s && s.status === 'completed')
+      .map((s) => s.student_class),
+  );
+}
+
+/**
  * Build and send the report. Safe to call twice — genuinely guarded on
  * `report_sent_at` (the previous version of this comment claimed a
  * guard that was never implemented and no column that existed).
@@ -281,6 +313,12 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     ? Math.round(done.reduce((s, x) => s + (x.mastery_percentage || 0), 0) / done.length)
     : 0;
 
+  // PLAN_R5 §0 item 6 — the class(es) the CHILDREN entered. Passed to the
+  // template as RAW (unit-word-stripped) values, never pre-formatted; the
+  // text fallback below builds its own heading with the same helper so the
+  // two surfaces say the same thing.
+  const classes = classesTaught(done);
+
   const hardest = (await hardestQuestions(shareCodeId))
     .map((h) => ({ ...h, slo: sloOf(h.external_id) }));
   const unfinished = all.filter((s) => s.status !== 'completed');
@@ -302,11 +340,20 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   const chromeLang = clampLanguage(teacher.preferred_language);   // the CAPTION — hers
   const contentLang = clampLanguage(sc.language);                 // the DOCUMENT — the quiz's
 
+  // Same helper the template calls internally on this exact `classes` array —
+  // the fallback and the PDF must name the class(es) identically.
+  const classHeadingText = classHeading(classes, contentLang);
+
   const TX = RTL_LANGS.has(contentLang) ? {
-    results: (t) => `📊 *کوئز کے نتائج — ${t || 'آپ کا ویڈیو کوئز'}*`,
-    finished: (d, a) => `${a} میں سے ${d} طلبہ نے مکمل کیا۔`,
-    average: (n) => `کلاس اوسط: *${n}%*`,
-    howEach: 'ہر طالب علم کی کارکردگی',
+    // The fallback IS the document on another surface, so it carries the
+    // template's round-5 chrome word for word: `quiz` in Latin (a term of
+    // record, never the transliteration), "کلاس کا اوسط" with its linker
+    // rather than the calque that meant nothing, and "بچے" rather than the
+    // masculine-marked "طالب علم".
+    results: (t) => `📊 *quiz کے نتائج — ${t || 'آپ کا ویڈیو quiz'}*`,
+    finished: (d, a) => `${a} میں سے ${d} بچوں نے مکمل کیا۔`,
+    average: (n) => `کلاس کا اوسط: *${n}%*`,
+    howEach: 'ہر بچے کی کارکردگی',
     reteach: 'دوبارہ پڑھانے کے قابل — سب سے زیادہ غلط:',
     gotWrong: (n, t) => `${t} میں سے ${n} نے غلط جواب دیا`,
     notFinished: (names) => `ابھی مکمل نہیں کیا: ${names}`,
@@ -315,8 +362,9 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     // the text fallback are the same document on two surfaces, and a teacher
     // who gets the fallback one week and the PDF the next must not have to
     // learn two vocabularies for the same three parts.
-    muddledLabel: 'کیا الجھن ہوئی', boardLabel: 'بورڈ پر', checkLabel: 'جانچ کا سوال',
-    secureLabel: 'یہ پکا ہو گیا', stretchLabel: 'ایک اور آگے کا سوال',
+    muddledLabel: 'بچے کہاں الجھے', boardLabel: 'کل اسے دوبارہ کیسے پڑھائیں',
+    checkLabel: 'آخر میں یہ پوچھیں',
+    secureLabel: 'بچوں کو یہ پکا آ گیا', stretchLabel: 'کل انہیں ایک قدم آگے کیسے لے جائیں',
   } : {
     results: (t) => `📊 *Quiz results — ${t || 'your video quiz'}*`,
     finished: (d, a) => `${d} of ${a} students finished.`,
@@ -326,8 +374,9 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     gotWrong: (n, t) => `${n} of ${t} got this wrong`,
     notFinished: (names) => `*Not finished yet:* ${names}`,
     forTomorrow: '💡 *For tomorrow*',
-    muddledLabel: 'What they muddled', boardLabel: 'On the board', checkLabel: 'Check question',
-    secureLabel: 'Secure', stretchLabel: 'One to stretch them',
+    muddledLabel: 'Where they got muddled', boardLabel: 'How to reteach it tomorrow',
+    checkLabel: 'Ask this at the end',
+    secureLabel: 'What they have secure', stretchLabel: 'How to stretch them tomorrow',
   };
 
   // The caption is chrome, so it comes from HER preference, never the
@@ -343,6 +392,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
 
   const lines = [
     TX.results(sc.topic),
+    classHeadingText,
     '',
     TX.finished(done.length, all.length),
     done.length ? TX.average(avg) : '',
@@ -382,7 +432,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   const guidanceMode = hardest.length ? 'reteach' : 'secure';
   const guidance = done.length
     ? await generateGuidance({
-      topic: sc.topic, grade: sc.grade, average: avg,
+      shareCodeId, topic: sc.topic, grade: sc.grade, average: avg,
       finished: done.length, started: all.length, hardest, digest,
       language: contentLang, mode: guidanceMode,
     })
@@ -398,6 +448,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     guidance, started: all.length, finished: done.length, average: avg,
     unfinished: unfinished.map((s) => s.student_name || 'Unnamed'),
     language: contentLang, contentLanguage: contentLang, caption: CAPTION.caption,
+    classes,
   });
 
   if (!sentAsPdf) {
@@ -426,7 +477,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
  * caller falls back to the text summary rather than the teacher getting nothing.
  */
 async function sendAsPdf({ phone, shareCode, students, hardest, guidance,
-                           started, finished, average, unfinished,
+                           started, finished, average, unfinished, classes,
                            language, contentLanguage, caption: captionFor }) {
   const fs = require('fs');
   const os = require('os');
@@ -440,7 +491,7 @@ async function sendAsPdf({ phone, shareCode, students, hardest, guidance,
       topic: shareCode.topic || 'Video quiz',
       teacherName: shareCode.teacher_name,
       started, finished, average,
-      students, hardest, guidance, unfinished, language, contentLanguage,
+      students, hardest, guidance, unfinished, classes, language, contentLanguage,
       // D1 — the footer stamp is part of the DOCUMENT, so it is written in the
       // document's language. `toLocaleDateString('en-GB')` printed "5 Sep 2026"
       // into an otherwise all-Urdu report; formatLessonDate is the same helper
@@ -510,6 +561,96 @@ function parseGuidanceJson(raw) {
 }
 
 /**
+ * PLAN_R5 §0 item 12 / root CLAUDE.md rule 24c — a prompt that DEMANDS a
+ * shape gets a code check, not a hope. `board` (reteach) / `stretch`
+ * (secure) are now asked for as 2-3 DETAILED sentences; the model does not
+ * reliably comply, so this asserts it instead of trusting it.
+ *
+ * `language` is normalised through RTL_LANGS the same way buildGuidancePrompt
+ * chooses which prompt to build — an unsupported code (e.g. 'pa-PK', NIETE
+ * being flat en/ur) falls back to the English contract, matching what was
+ * actually asked for, rather than being flagged against a language nothing
+ * ever requested.
+ *
+ * Exported and unit-tested directly, independent of the network call — the
+ * mocked-network tests prove this is actually WIRED into generateGuidance();
+ * this proves the rule itself.
+ */
+const DEPTH_KEY_BY_MODE = { reteach: 'board', secure: 'stretch' };
+
+function countSentences(text) {
+  const t = String(text || '').trim();
+  if (!t) return 0;
+  // A RUN of sentence-ending punctuation (ASCII . ? ! or Urdu ۔ ؟) is ONE
+  // boundary — "...?!" at the end of a sentence must not count as three.
+  const boundaries = t.match(/[.?!۔؟]+/g);
+  return boundaries ? boundaries.length : 1;
+}
+
+/**
+ * Is this field written in the wrong language?
+ *
+ * NOT `scriptOf(value) !== target`, in EITHER direction — `scriptOf()` answers
+ * "is any Perso-Arabic letter present", and both languages here legitimately
+ * carry a run of the other script. An English quiz taught in Pakistan names
+ * روٹی on the board; an Urdu one names `bulb`, `switch` and `circuit` in Latin
+ * because those are terms of record (operator item 14, and the Urdu prompts
+ * now ask for exactly that). A presence test flags both as off-language and
+ * spends a retry on a correct sentence.
+ *
+ * So the test is PROPORTION and it is symmetrical: a field is off-language
+ * when the other script's letters OUTNUMBER the target script's. A sentence
+ * with one borrowed word is never mostly the other language, and a sentence
+ * written wholly in the wrong language always is.
+ */
+const PERSO_ARABIC_G = /[\u0620-\u064A\u066E-\u06D3\u06D5\u06E5\u06E6\u06EE\u06EF\u06FA-\u06FF]/g;
+const LATIN_G = /[A-Za-z]/g;
+
+function offLanguage(value, targetScript) {
+  const ur = (String(value).match(PERSO_ARABIC_G) || []).length;
+  const latin = (String(value).match(LATIN_G) || []).length;
+  return targetScript === 'ur' ? latin > ur : ur > latin;
+}
+
+function guidanceShape(out, mode, language) {
+  const keys = mode === 'reteach' ? ['muddled', 'board', 'check'] : ['secure', 'stretch'];
+  const depthKey = DEPTH_KEY_BY_MODE[mode];
+  const targetScript = RTL_LANGS.has(language) ? 'ur' : 'en';
+  const problems = [];
+  keys.forEach((key) => {
+    const value = out && typeof out[key] === 'string' ? out[key].trim() : '';
+    if (!value) {
+      problems.push({ key, issue: 'missing' });
+      return;
+    }
+    if (key === depthKey && countSentences(value) < 2) {
+      problems.push({ key, issue: 'too_short', sentences: countSentences(value) });
+    }
+    if (offLanguage(value, targetScript)) {
+      problems.push({ key, issue: 'off_language', expected: targetScript, got: scriptOf(value) });
+    }
+  });
+  return { ok: problems.length === 0, problems };
+}
+
+/** A short line naming what was wrong, appended to the SAME prompt for the one retry. */
+function sharpeningLine(problems, language) {
+  const ur = RTL_LANGS.has(language);
+  const parts = problems.map((p) => {
+    if (p.issue === 'missing') return ur ? `"${p.key}" خالی تھا` : `"${p.key}" was empty`;
+    if (p.issue === 'too_short') {
+      return ur ? `"${p.key}" میں صرف ${p.sentences} جملہ تھا — 2 سے 3 جملے چاہئیں`
+        : `"${p.key}" had only ${p.sentences} sentence(s) — it needs 2 to 3`;
+    }
+    return ur ? `"${p.key}" اردو کے بجائے کسی اور زبان میں آیا`
+      : `"${p.key}" came back in the wrong script`;
+  });
+  return ur
+    ? `پچھلا جواب درست نہیں تھا: ${parts.join('؛ ')}۔ اسی ہدایات کے مطابق، درست کر کے دوبارہ بھیجیں۔`
+    : `Your previous answer was not right: ${parts.join('; ')}. Send it again, following the same instructions, corrected.`;
+}
+
+/**
  * Turn the evidence into the object the teacher reads under "For tomorrow".
  *
  * Best-effort by design: if the model is slow, down, or returns something
@@ -517,39 +658,70 @@ function parseGuidanceJson(raw) {
  * the whole report because this optional block failed would be the wrong
  * trade — so ANY required key missing or empty (after stripEmphasis) fails
  * the whole call, not just that key.
+ *
+ * PLAN_R5 §0 item 12 — once a reply parses, guidanceShape() checks it against
+ * the contract the prompt actually asked for. On a problem: ONE retry, with
+ * a line naming what was wrong, then accept whatever comes back — never null
+ * just because it was thin. Losing the box is worse than a short box.
  */
 async function generateGuidance(context) {
   const prompt = buildGuidancePrompt(context);
   if (!prompt) return null;
   const missed = Array.isArray(context && context.hardest) ? context.hardest : [];
   const mode = (context && context.mode) || (missed.length ? 'reteach' : 'secure');
+  const language = (context && context.language) || 'en';
   const keys = mode === 'reteach' ? ['muddled', 'board', 'check'] : ['secure', 'stretch'];
   try {
     const OpenAI = require('openai');
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const res = await openai.chat.completions.create({
-      // This box is the one part of the report a teacher acts on, so it gets
-      // the better model. gpt-4o-mini produced textbook prose here — "focus
-      // on clarifying the misconception that…" — and reached for "categorise
-      // various foods" instead of the dal and rice in the questions.
-      model: 'gpt-5.4-mini',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.4,               // lower than the parent quiz: this is advice
-      // gpt-5 family renamed this. Passing max_tokens is not an error you can
-      // see — the call just rejects and the teacher silently loses the box.
-      max_completion_tokens: 260,
-    });
-    const parsed = parseGuidanceJson(res.choices?.[0]?.message?.content?.trim());
-    if (!parsed) return null;
-    const out = {};
-    for (const key of keys) {
-      // Strip markdown here, at the single point guidance is created, so BOTH
-      // surfaces are covered: the PDF and the WhatsApp text fallback. (In the
-      // fallback "**the**" is not even bold — WhatsApp bold is one asterisk —
-      // so the teacher just saw the asterisks.)
-      const cleaned = stripEmphasis(String(parsed[key] || '').trim());
-      if (!cleaned) return null;
-      out[key] = cleaned;
+
+    const ask = async (p) => {
+      const res = await openai.chat.completions.create({
+        // This box is the one part of the report a teacher acts on, so it gets
+        // the better model. gpt-4o-mini produced textbook prose here — "focus
+        // on clarifying the misconception that…" — and reached for "categorise
+        // various foods" instead of the dal and rice in the questions.
+        model: 'gpt-5.4-mini',
+        messages: [{ role: 'user', content: p }],
+        temperature: 0.4,               // lower than the parent quiz: this is advice
+        // gpt-5 family renamed this. Passing max_tokens is not an error you can
+        // see — the call just rejects and the teacher silently loses the box.
+        // 260 was sized for three one-line fields. `board`/`stretch` are now
+        // asked for 2-3 DETAILED sentences each (the operator's own example
+        // ran well past a one-liner), so the old ceiling truncated the JSON
+        // mid-string — parseGuidanceJson then silently returned null and she
+        // lost the WHOLE box, not just the extra depth.
+        max_completion_tokens: 700,
+      });
+      const parsed = parseGuidanceJson(res.choices?.[0]?.message?.content?.trim());
+      if (!parsed) return null;
+      const built = {};
+      for (const key of keys) {
+        // Strip markdown here, at the single point guidance is created, so BOTH
+        // surfaces are covered: the PDF and the WhatsApp text fallback. (In the
+        // fallback "**the**" is not even bold — WhatsApp bold is one asterisk —
+        // so the teacher just saw the asterisks.)
+        const cleaned = stripEmphasis(String(parsed[key] || '').trim());
+        if (!cleaned) return null;
+        built[key] = cleaned;
+      }
+      return built;
+    };
+
+    let out = await ask(prompt);
+    if (!out) return null;
+
+    const shape = guidanceShape(out, mode, language);
+    if (!shape.ok) {
+      const offLanguage = shape.problems.some((p) => p.issue === 'off_language');
+      const retried = await ask(`${prompt}\n\n${sharpeningLine(shape.problems, language)}`);
+      // Two DISTINCT events (root CLAUDE.md rule 24d) — a shared failure
+      // string is what sent the last investigation at the wrong layer.
+      logEvent(offLanguage ? 'video_quiz.guidance_off_language' : 'video_quiz.guidance_thin', {
+        shareCodeId: context && context.shareCodeId, mode, problems: shape.problems,
+        retried: Boolean(retried),
+      });
+      if (retried) out = retried;   // accept whatever comes back — a short box beats none
     }
     return out;
   } catch (err) {
@@ -798,24 +970,24 @@ function buildReteachPromptEn({ grade, topic, evidence, digest }) {
     + `Here is what they got wrong, and the wrong answer they agreed on:\n\n`
     + `${evidence}\n`
     + digestBlockEn(digest)
-    + `\nReturn ONLY a JSON object with exactly these three keys, each value a `
-    + `short line of PLAIN TEXT — no markdown, no leading label, no numbering:\n`
+    + `\nReturn ONLY a JSON object with exactly these three keys, each value `
+    + `PLAIN TEXT — no markdown, no leading label, no numbering:\n`
     + `{"muddled": "", "board": "", "check": ""}\n\n`
-    + `"muddled" — name the ONE thing most of them have muddled, as a plain `
-    + `statement of what they believe: "They think X is Y." Pick the single `
-    + `biggest confusion, not a list of all of them. Do not use the words `
-    + `"misconception", "students", "concept" or "understanding".\n`
-    + `"board" — one activity she can run on the board in ten minutes with `
-    + `nothing but chalk. Use the REAL everyday things named in the questions `
-    + `above, and in the lesson digest above — the specific foods, objects, `
-    + `words or numbers those questions and that lesson talk about. Never `
-    + `"various examples" or "different items". Do not use a whole answer `
-    + `sentence as a label; use the thing itself.\n`
-    + `"check" — the one question she asks at the end to check it landed, `
-    + `pitched at the level she taught the learning goal the class missed (see `
-    + `the taught level next to each learning goal above). It must NOT be a `
-    + `copy of any quiz question above; the children have already seen those. `
-    + `Ask the same idea a different way.\n\n`
+    + `"muddled" — exactly one sentence naming the ONE thing most of them have `
+    + `muddled, as a plain statement of what they believe: "They think X is Y." `
+    + `Pick the single biggest confusion, not a list of all of them. Do not use `
+    + `the words "misconception", "students", "concept" or "understanding".\n`
+    + `"board" — exactly 2 to 3 sentences on how she reteaches this tomorrow: `
+    + `the concrete move she makes, the specific example she puts on the board `
+    + `(drawn from the questions above and the lesson digest above — the real `
+    + `everyday things those questions and that lesson actually talk about, `
+    + `never "various examples" or "different items"), and what the CHILDREN `
+    + `do. Do not compress this into one sentence and do not pad past three.\n`
+    + `"check" — exactly one sentence: the one question she asks at the end to `
+    + `check it landed, pitched at the level she taught the learning goal the `
+    + `class missed (see the taught level next to each learning goal above). It `
+    + `must NOT be a copy of any quiz question above; the children have already `
+    + `seen those. Ask the same idea a different way.\n\n`
     + `Never begin any value with "In tomorrow's lesson", "To address this", `
     + `"Focus on" or "Start by". Begin with the children. Do not repeat any `
     + `score or count back to her — she has just read them. Do not praise her `
@@ -828,15 +1000,18 @@ function buildSecurePromptEn({ grade, topic, digest }) {
     + `tomorrow's ten minutes. Her whole class just took a quiz on "${topic}" `
     + `and got every question right.\n`
     + digestBlockEn(digest)
-    + `\nReturn ONLY a JSON object with exactly these two keys, each value a `
-    + `short line of PLAIN TEXT — no markdown, no leading label, no numbering:\n`
+    + `\nReturn ONLY a JSON object with exactly these two keys, each value `
+    + `PLAIN TEXT — no markdown, no leading label, no numbering:\n`
     + `{"secure": "", "stretch": ""}\n\n`
-    + `"secure" — one line naming the real skill the class now has solid, `
-    + `grounded in the learning goals above. Not "they did well" — name the `
-    + `actual thing they can now do.\n`
-    + `"stretch" — ONE question, pitched one level above the highest level she `
-    + `taught (see the taught levels above), that goes a step further than `
-    + `anything the quiz asked. It must not be a copy of any quiz question.\n\n`
+    + `"secure" — exactly one sentence naming the real skill the class now has `
+    + `solid, grounded in the learning goals above. Not "they did well" — name `
+    + `the actual thing they can now do.\n`
+    + `"stretch" — exactly 2 to 3 sentences on how to take them one step `
+    + `further tomorrow: the concrete move she makes, ONE question pitched one `
+    + `level above the highest level she taught (see the taught levels above) `
+    + `that goes further than anything the quiz asked, and what the CHILDREN `
+    + `do with it. The question must not be a copy of any quiz question. Do `
+    + `not compress this into one sentence and do not pad past three.\n\n`
     + `Never begin with "In tomorrow's lesson", "To address this", "Focus on" `
     + `or "Start by". Do not repeat any score. Do not praise her or the class. `
     + `Write the way a colleague leans over at break, not the way a textbook `
@@ -855,20 +1030,22 @@ function buildReteachPromptUr({ grade, topic, evidence, digest }) {
     + `${evidence}\n`
     + digestBlockUr(digest)
     + `\nصرف ایک JSON آبجیکٹ واپس کریں، بالکل ان تین کلیدوں کے ساتھ، ہر ایک کی `
-    + `قدر سادہ متن کی ایک مختصر سطر ہو — کوئی مارک ڈاؤن، کوئی نمبر شمار نہیں:\n`
+    + `قدر PLAIN TEXT ہو — کوئی مارک ڈاؤن، کوئی نمبر شمار نہیں:\n`
     + `{"muddled": "", "board": "", "check": ""}\n\n`
-    + `"muddled" — وہ ایک چیز بتائیں جس میں زیادہ تر بچے الجھے ہوئے ہیں، ایک `
-    + `سادہ بیان کے طور پر کہ وہ کیا سمجھتے ہیں: "بچے سمجھتے ہیں X، Y ہے۔" سب `
-    + `سے بڑی الجھن چنیں، فہرست نہ بنائیں۔ الفاظ "غلط فہمی"، "طلبہ"، "تصور" یا `
-    + `"سمجھ" استعمال نہ کریں۔\n`
-    + `"board" — ایک سرگرمی جو بورڈ پر دس منٹ میں صرف چاک کے ساتھ کروائی جا `
-    + `سکے۔ اوپر دیے گئے سوالوں اور سبق کی تفصیل میں موجود حقیقی روزمرہ چیزیں `
-    + `استعمال کریں — وہی مخصوص الفاظ، اشیاء یا آوازیں۔ کبھی "مختلف مثالیں" نہ `
-    + `لکھیں؛ خود وہ چیز نام لیں۔\n`
-    + `"check" — وہ ایک سوال جو آخر میں پوچھا جائے تاکہ معلوم ہو کہ بات سمجھ `
-    + `آئی، اسی سطح پر جس پر یہ ہدف پڑھایا گیا (اوپر ہر ہدف کے ساتھ دی گئی سطح `
-    + `دیکھیں)۔ یہ اوپر کے کسی کوئز سوال کی نقل نہیں ہونی چاہیے؛ بچے وہ پہلے `
-    + `دیکھ چکے ہیں۔ وہی خیال دوسرے انداز میں پوچھیں۔\n`
+    + `"muddled" — بالکل ایک جملے میں (exactly one sentence) وہ ایک چیز بتائیں `
+    + `جس میں زیادہ تر بچے الجھے ہوئے ہیں، ایک سادہ بیان کے طور پر کہ وہ کیا `
+    + `سمجھتے ہیں: "بچے سمجھتے ہیں X، Y ہے۔" سب سے بڑی الجھن چنیں، فہرست نہ `
+    + `بنائیں۔ الفاظ "غلط فہمی"، "طلبہ"، "تصور" یا "سمجھ" استعمال نہ کریں۔\n`
+    + `"board" — بالکل 2 سے 3 جملوں میں (exactly 2 to 3 sentences) بتائیں کہ `
+    + `وہ کل یہ دوبارہ کیسے پڑھائیں گی: وہ عملی قدم جو وہ اٹھائیں گی، بورڈ پر `
+    + `لکھی جانے والی مخصوص مثال (اوپر دیے گئے سوالوں اور سبق کی تفصیل سے — `
+    + `وہی حقیقی روزمرہ چیزیں؛ کبھی "مختلف مثالیں" نہ لکھیں)، اور بچے کیا کریں `
+    + `گے۔ اسے ایک جملے میں نہ سمیٹیں اور تین جملوں سے زیادہ نہ لکھیں۔\n`
+    + `"check" — بالکل ایک جملے میں (exactly one sentence): وہ ایک سوال جو `
+    + `آخر میں پوچھا جائے تاکہ معلوم ہو کہ بات سمجھ آئی، اسی سطح پر جس پر یہ `
+    + `ہدف پڑھایا گیا (اوپر ہر ہدف کے ساتھ دی گئی سطح دیکھیں)۔ یہ اوپر کے کسی `
+    + `کوئز سوال کی نقل نہیں ہونی چاہیے؛ بچے وہ پہلے دیکھ چکے ہیں۔ وہی خیال `
+    + `دوسرے انداز میں پوچھیں۔\n`
     + `جو سوال بچوں سے پوچھا جائے وہ انہی الفاظ میں لکھیں جن میں کوئز لکھا گیا `
     + `ہے: بچوں کو "آپ" کہہ کر، جمع کے احترامی افعال کے ساتھ (کریں، دیکھیں، `
     + `سوچیں) — "کرو"، "بتاؤ" یا کوئی مؤنث/مذکر واحد صیغہ ہرگز نہیں۔\n`
@@ -877,10 +1054,11 @@ function buildReteachPromptUr({ grade, topic, evidence, digest }) {
     + `شروع نہ کریں۔ بچوں سے شروع کریں۔ کوئی سکور یا گنتی دوبارہ نہ بتائیں — وہ `
     + `ابھی پڑھ چکے ہیں۔ تعریف نہ کریں۔ اس انداز میں لکھیں جیسے ایک ساتھی وقفے `
     + `میں جھک کر بات کرتا ہے، نہ کہ جیسے کوئی نصابی کتاب سمجھاتی ہے۔ مکمل طور `
-    + `پر اردو رسم الخط میں لکھیں، رومن اردو میں ہرگز نہیں۔ صرف وہ انگریزی الفاظ `
-    + `لاطینی رسم الخط میں رہنے دیں جن کا کوئی فطری اردو متبادل نہ ہو (جیسے `
-    + `مضمون کے مخصوص نام)۔ بچوں یا استاد کی جنس کے بارے میں کوئی قیاس نہ کریں، `
-    + `ہمیشہ غیر جانبدار زبان استعمال کریں۔`;
+    + `پر اردو رسم الخط میں لکھیں، رومن اردو میں ہرگز نہیں۔ مضمون اور تکنیکی `
+    + `اصطلاحات (جیسے fraction، numerator، circuit، atom، photosynthesis) وہی `
+    + `رہنے دیں جو استاد خود بولتی ہے — لاطینی حروف میں، بالکل ویسے جیسے اردو `
+    + `میں لکھی جاتی ہیں؛ باقی سب کچھ خالص اردو میں لکھیں۔ بچوں یا استاد کی `
+    + `جنس کے بارے میں کوئی قیاس نہ کریں، ہمیشہ غیر جانبدار زبان استعمال کریں۔`;
 }
 
 function buildSecurePromptUr({ grade, topic, digest }) {
@@ -889,14 +1067,17 @@ function buildSecurePromptUr({ grade, topic, digest }) {
     + `ایک کوئز دیا اور ہر سوال درست کیا۔\n`
     + digestBlockUr(digest)
     + `\nصرف ایک JSON آبجیکٹ واپس کریں، بالکل ان دو کلیدوں کے ساتھ، ہر ایک کی `
-    + `قدر سادہ متن کی ایک مختصر سطر ہو — کوئی مارک ڈاؤن، کوئی نمبر شمار نہیں:\n`
+    + `قدر PLAIN TEXT ہو — کوئی مارک ڈاؤن، کوئی نمبر شمار نہیں:\n`
     + `{"secure": "", "stretch": ""}\n\n`
-    + `"secure" — ایک سطر میں وہ اصل مہارت بتائیں جو کلاس نے اب پکی کر لی ہے، `
-    + `اوپر دیے گئے اہداف کی بنیاد پر — "انہوں نے اچھا کیا" نہ لکھیں، اصل چیز کا `
-    + `نام لیں۔\n`
-    + `"stretch" — ایک سوال، جو سب سے اونچی پڑھائی گئی سطح سے ایک درجہ اوپر ہو `
-    + `(اوپر دی گئی سطحیں دیکھیں)، جو کوئز کے کسی بھی سوال سے آگے جائے۔ یہ کسی `
-    + `کوئز سوال کی نقل نہیں ہونی چاہیے۔\n`
+    + `"secure" — بالکل ایک جملے میں (exactly one sentence) وہ اصل مہارت `
+    + `بتائیں جو کلاس نے اب پکی کر لی ہے، اوپر دیے گئے اہداف کی بنیاد پر — `
+    + `"انہوں نے اچھا کیا" نہ لکھیں، اصل چیز کا نام لیں۔\n`
+    + `"stretch" — بالکل 2 سے 3 جملوں میں (exactly 2 to 3 sentences) بتائیں `
+    + `کہ کل انہیں ایک قدم آگے کیسے لے جائیں: وہ عملی قدم جو وہ اٹھائیں گی، `
+    + `ایک سوال جو سب سے اونچی پڑھائی گئی سطح سے ایک درجہ اوپر ہو (اوپر دی گئی `
+    + `سطحیں دیکھیں) اور کوئز کے کسی بھی سوال سے آگے جائے، اور بچے اس کے ساتھ `
+    + `کیا کریں گے۔ سوال کسی کوئز سوال کی نقل نہیں ہونی چاہیے۔ اسے ایک جملے `
+    + `میں نہ سمیٹیں اور تین جملوں سے زیادہ نہ لکھیں۔\n`
     + `جو سوال بچوں سے پوچھا جائے وہ انہی الفاظ میں لکھیں جن میں کوئز لکھا گیا `
     + `ہے: بچوں کو "آپ" کہہ کر، جمع کے احترامی افعال کے ساتھ (کریں، دیکھیں، `
     + `سوچیں) — "کرو"، "بتاؤ" یا کوئی مؤنث/مذکر واحد صیغہ ہرگز نہیں۔\n`
@@ -904,7 +1085,10 @@ function buildSecurePromptUr({ grade, topic, digest }) {
     + `"کل کے سبق میں"، "اس کو حل کرنے کے لیے"، "پر توجہ دیں" یا "شروع کریں" سے `
     + `شروع نہ کریں۔ کوئی سکور دوبارہ نہ بتائیں۔ تعریف نہ کریں۔ اس انداز میں `
     + `لکھیں جیسے ایک ساتھی وقفے میں جھک کر بات کرتا ہے۔ مکمل طور پر اردو رسم `
-    + `الخط میں لکھیں، رومن اردو میں ہرگز نہیں۔ بچوں یا استاد کی جنس کے بارے `
+    + `الخط میں لکھیں، رومن اردو میں ہرگز نہیں۔ مضمون اور تکنیکی اصطلاحات `
+    + `(جیسے fraction، numerator، circuit، atom، photosynthesis) وہی رہنے دیں `
+    + `جو استاد خود بولتی ہے — لاطینی حروف میں، بالکل ویسے جیسے اردو میں لکھی `
+    + `جاتی ہیں؛ باقی سب کچھ خالص اردو میں لکھیں۔ بچوں یا استاد کی جنس کے بارے `
     + `میں کوئی قیاس نہ کریں، ہمیشہ غیر جانبدار زبان استعمال کریں۔`;
 }
 
@@ -981,5 +1165,6 @@ module.exports = {
   JOB_TYPE, LEGACY_JOB_TYPE, scheduleForShareCode, maybeSendEarly, generate,
   hardestQuestions, reportTargetUtc, shouldSendEarly, teacherFacing,
   buildGuidancePrompt, generateGuidance, formatGuidanceText, stripEmphasis, classLabel,
+  classesTaught, guidanceShape,
   CLUSTER_THRESHOLD,
 };
