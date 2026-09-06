@@ -15,27 +15,38 @@
       "EDIT_COMPREHENSION",
       "PICK_DONE"
     ],
-    "PICK_DONE": [],
     "EDIT_STANDARD": [
+      "PICK_MORE",
       "PICK_DONE"
     ],
     "EDIT_OPTIONS": [
+      "PICK_MORE",
       "PICK_DONE"
     ],
     "EDIT_COLUMNS": [
+      "PICK_MORE",
       "PICK_DONE"
     ],
     "EDIT_WORDS": [
+      "PICK_MORE",
       "PICK_DONE"
     ],
     "EDIT_PASSAGE": [
+      "PICK_MORE",
       "PICK_DONE"
     ],
     "EDIT_COMPREHENSION": [
+      "PICK_MORE",
       "EDIT_SUB",
       "PICK_DONE"
     ],
-    "EDIT_SUB": []
+    "EDIT_SUB": [
+      "PICK_MORE"
+    ],
+    "PICK_MORE": [
+      "PICK_DONE"
+    ],
+    "PICK_DONE": []
   },
   "screens": [
     {
@@ -247,95 +258,6 @@
           }
         ]
       }
-    },
-    {
-      "id": "PICK_DONE",
-      "title": "پرچہ درست کریں",
-      "data": {
-        "summary": {
-          "type": "string",
-          "__example__": "19 questions · 18 marks"
-        },
-        "note": {
-          "type": "string",
-          "__example__": "Nothing to fix? Just rebuild."
-        },
-        "error": {
-          "type": "string",
-          "__example__": ""
-        },
-        "has_error": {
-          "type": "boolean",
-          "__example__": false
-        },
-        "extension_message_response": {
-          "type": "object",
-          "properties": {
-            "params": {
-              "type": "object",
-              "properties": {
-                "assessment_action": {
-                  "type": "string"
-                },
-                "summary": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "__example__": {
-            "params": {
-              "assessment_action": "queued",
-              "summary": "Grade 4 Science · 20 questions"
-            }
-          }
-        }
-      },
-      "layout": {
-        "type": "SingleColumnLayout",
-        "children": [
-          {
-            "type": "TextHeading",
-            "text": "کوئی سوال درست کرنا ہے؟"
-          },
-          {
-            "type": "TextCaption",
-            "text": "${data.summary}"
-          },
-          {
-            "type": "TextBody",
-            "text": "${data.note}"
-          },
-          {
-            "type": "TextBody",
-            "text": "${data.error}",
-            "visible": "${data.has_error}"
-          },
-          {
-            "type": "EmbeddedLink",
-            "text": "سوال منتخب کریں · Choose a question",
-            "on-click-action": {
-              "name": "data_exchange",
-              "payload": {
-                "_action": "pick"
-              }
-            }
-          },
-          {
-            "type": "Footer",
-            "label": "دوبارہ بنائیں · Rebuild paper",
-            "on-click-action": {
-              "name": "complete",
-              "payload": {
-                "_action": "rebuild",
-                "extension_message_response": "${data.extension_message_response}"
-              }
-            }
-          }
-        ]
-      },
-      "terminal": true,
-      "success": true
     },
     {
       "id": "EDIT_STANDARD",
@@ -1581,6 +1503,162 @@
           }
         ]
       }
+    },
+    {
+      "id": "PICK_MORE",
+      "title": "پرچہ درست کریں",
+      "data": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "main-content": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "string"
+                  }
+                }
+              },
+              "on-click-action": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "payload": {
+                    "type": "object",
+                    "properties": {}
+                  }
+                }
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "q0",
+              "main-content": {
+                "title": "1. Which is a living thing?",
+                "description": "MCQ · 1 mark",
+                "metadata": ""
+              },
+              "on-click-action": {
+                "name": "data_exchange",
+                "payload": {}
+              }
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "NavigationList",
+            "name": "pick_list",
+            "list-items": "${data.items}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "PICK_DONE",
+      "title": "پرچہ درست کریں",
+      "data": {
+        "summary": {
+          "type": "string",
+          "__example__": "19 questions · 18 marks"
+        },
+        "note": {
+          "type": "string",
+          "__example__": "Nothing to fix? Just rebuild."
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "extension_message_response": {
+          "type": "object",
+          "properties": {
+            "params": {
+              "type": "object",
+              "properties": {
+                "assessment_action": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "__example__": {
+            "params": {
+              "assessment_action": "queued",
+              "summary": "Grade 4 Science · 20 questions"
+            }
+          }
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "کوئی سوال درست کرنا ہے؟"
+          },
+          {
+            "type": "TextCaption",
+            "text": "${data.summary}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.note}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.error}",
+            "visible": "${data.has_error}"
+          },
+          {
+            "type": "EmbeddedLink",
+            "text": "سوال منتخب کریں · Choose a question",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "_action": "pick"
+              }
+            }
+          },
+          {
+            "type": "Footer",
+            "label": "دوبارہ بنائیں · Rebuild paper",
+            "on-click-action": {
+              "name": "complete",
+              "payload": {
+                "_action": "rebuild",
+                "extension_message_response": "${data.extension_message_response}"
+              }
+            }
+          }
+        ]
+      },
+      "terminal": true,
+      "success": true
     }
   ]
 }
