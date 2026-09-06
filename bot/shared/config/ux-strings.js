@@ -945,9 +945,18 @@ const UX_STRINGS = {
   // Under a QUESTION CARD (the whole question drawn as one picture because of
   // notation or long options), the buttons are letters; this is the body line.
   vqCardAsk: {
-    en: 'The question is in the picture above. Tap A, B or C.',
-    ur: '\u200Fسوال اوپر تصویر میں ہے۔ A، B یا C دبائیں۔',
+    en: 'The question is in the picture above. Tap {letters}.',
+    ur: '\u200Fسوال اوپر تصویر میں ہے۔ {letters} دبائیں۔',
   },
+  // The letters a QUESTION CARD offers are never fixed at three — a card can
+  // carry 2 or 4 options, and the copy has to name exactly the buttons sent
+  // (round 5). letterListLabel() builds "A, B or C" from these two pieces;
+  // both are language data, not layout — Urdu's list comma is `،`, not `,`,
+  // and its "or" is `یا`.
+  vqLetterSep: { en: ', ', ur: '، ' },
+  vqLetterOr: { en: 'or', ur: 'یا' },
+  // The question card's OWN footer, painted into the image itself.
+  vqCardTapBelow: { en: 'Tap {letters} below', ur: 'نیچے {letters} دبائیں' },
   vqReportNoOne: {
     en: 'No one has opened your quiz on \u201c{topic}\u201d yet. The link stays live for 30 days \u2014 worth a nudge in the class group.',
     ur: '\u200Fآپ کے quiz «{topic}» کو ابھی تک کسی نے نہیں کھولا۔ link 30 دن تک چلتا رہے گا — class group میں ایک بار پھر یاد دہانی کرا دیں۔',

@@ -145,6 +145,22 @@ function optionLetter(i) {
 }
 
 /**
+ * The letters a picker actually offers, spelled out — "A, B or C".
+ *
+ * Under a QUESTION CARD the buttons carry letters and the copy has to name them.
+ * It said "A, B or C" whatever the card held, so a two-option question told the
+ * child to tap a C that was not there. The separator and the conjunction are the
+ * CALLER's: both are language data (ux-strings), not layout, and Urdu's comma is
+ * not a comma.
+ */
+function letterListLabel(count, { separator = ', ', conjunction = 'or' } = {}) {
+  const letters = [];
+  for (let i = 0; i < count; i += 1) letters.push(optionLetter(i));
+  if (letters.length <= 1) return letters[0] || '';
+  return `${letters.slice(0, -1).join(separator)} ${conjunction} ${letters[letters.length - 1]}`;
+}
+
+/**
  * Does this stem hand the whole question to a sound? (bd-2354)
  *
  * "Listen and tap." names no subject, so the clip that follows IS the subject
@@ -266,11 +282,47 @@ function isOrderLocked(q, labels) {
 }
 
 /**
+ * The order STORED on the row, if the row carries a usable one (round-5 D1).
+ *
+ * `media.display_order` is `[storedIdx, …]` indexed by DISPLAY POSITION, written
+ * once when the quiz is generated. It is validated rather than trusted: anything
+ * that is not a permutation of 0..n-1 is treated as absent, because a half-valid
+ * order would rearrange the options around an answer key it no longer matches —
+ * which is the bug this whole mechanism exists to end, in a new costume.
+ *
+ * @returns {number[]|null}
+ */
+function persistedOrder(q, n) {
+  const raw = q && q.media && q.media.display_order;
+  if (!Array.isArray(raw) || raw.length !== n) return null;
+  const seen = new Set();
+  for (const v of raw) {
+    if (!Number.isInteger(v) || v < 0 || v >= n || seen.has(v)) return null;
+    seen.add(v);
+  }
+  return raw.slice();
+}
+
+/**
  * The order the child sees, as ORIGINAL indices. Identity when order is locked.
+ *
+ * ONE ORDER, STORED ONCE (round-5 D1). The stored order wins over every other
+ * branch, because it was computed BY this function at generation time and is the
+ * only copy that every consumer — the question card's picture, the letter
+ * buttons, the per-distractor feedback, the teacher's PDF — can all reach. The
+ * seeded shuffle below stays as the fallback for the 13k PK video rows that were
+ * stored before the column existed, and it depends on `external_id`, which any
+ * `.select()` may forget: the operator's own staging run drew a card from a row
+ * that had one and built the buttons from the same row re-selected without one,
+ * so the letters on the picture and the letters under it named different
+ * options. A stored order cannot be forgotten by a query that loads `media`.
+ *
  * @returns {number[]} a permutation of 0..labels.length-1
  */
 function displayOrder(q, labels) {
   const identity = labels.map((_, i) => i);
+  const stored = persistedOrder(q, labels.length);
+  if (stored) return stored;
   if (labels.length < 2 || isOrderLocked(q, labels)) return identity;
   // Seeded on external_id — the question's CONTENT identity ("leg:Grade5…:8"),
   // which is the same string in the corpus, the QA reference contract and every
@@ -339,7 +391,14 @@ function build(q, opts = {}) {
   // three-letter picker; the feedback phase still names the option by its text.
   if (media.question_card) {
     add('question', 'image', { url: media.question_card, caption: '', role: 'question_card' });
-    add('interaction', 'buttons', {
+    // The card DRAWS a letter for every option; the picker has to offer every
+    // letter it drew. Meta caps a reply-button row at three, so a card with more
+    // than three options takes the list (ten rows) — the same choice
+    // `pickerKind()` makes everywhere else. Hardcoding `buttons` here silently
+    // dropped D on a four-option card while its own footer said "Tap A, B, C or
+    // D below": two contradictory instructions in one message pair, and one
+    // answer the child could not give.
+    add('interaction', shown.length <= MAX_BUTTONS ? 'buttons' : 'list', {
       body: '', options: shown, optionIndices: order, letterTitles: true, role: 'ask',
     });
     // ── PHASE 3 — THE ANSWER ── (shared below)
@@ -442,6 +501,44 @@ function build(q, opts = {}) {
   return finishAnswerPhase(q, msgs, labels, order, media, answerClip);
 }
 
+// ── the verdict marker (round-5 D2) ─────────────────────────────────────────
+//
+// The operator, on staging: "It's very hard for me to tell whether I got the
+// question correct or incorrect. There should be in the message a checkmark or a
+// cross." The author writes prose, not symbols, and that prose was used verbatim,
+// so a child had to READ a paragraph to learn whether she was right. The
+// sentence is the author's; the marker is ours.
+
+const VERDICT_CORRECT = '\u2705';   // ✅
+const VERDICT_WRONG = '\u274C';     // ❌
+const RLM = '\u200F';
+const ARABIC_SCRIPT = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/;
+
+/** The first character with a direction of its own — the one WhatsApp lays out by. */
+function firstStrongIsLatin(text) {
+  const m = /\p{L}/u.exec(text);
+  return !!m && /[A-Za-z]/.test(m[0]);
+}
+
+/**
+ * Open a verdict with its marker, once.
+ *
+ * The emoji is direction-NEUTRAL, so on an Urdu line it simply sits at the
+ * logical start and the paragraph still runs right-to-left — unless the Urdu
+ * itself opens with an English technical term, which rule 20 keeps in Latin
+ * letters. Then the first strong character is Latin, WhatsApp lays the whole line
+ * out left-to-right, and the Urdu full stop lands on the wrong side. U+200F after
+ * the marker settles it, and is added ONLY in that case: a right-to-left mark on
+ * an English line is invisible noise that still shows up in every log and diff.
+ */
+function withVerdictMark(text, mark) {
+  const body = String(text == null ? '' : text).trim();
+  if (!body) return body;
+  if (body.startsWith(VERDICT_CORRECT) || body.startsWith(VERDICT_WRONG)) return body;
+  const rtlFix = ARABIC_SCRIPT.test(body) && firstStrongIsLatin(body) ? RLM : '';
+  return `${mark} ${rtlFix}${body}`;
+}
+
 /** PHASE 3 — THE ANSWER, shared by every pattern including the question card. */
 function finishAnswerPhase(q, msgs, labels, order, media, answerClip) {
   const add = (phase, kind, extra) => msgs.push({ phase, kind, ...extra });
@@ -455,15 +552,19 @@ function finishAnswerPhase(q, msgs, labels, order, media, answerClip) {
   const fb = feedbackFor(q, labels, order);
 
   add('answer', 'text', {
-    body: unicodeNotation(fb.correct || `✅ Correct! The answer is ${rightText}.${expl ? `\n\n${expl}` : ''}`),
+    body: withVerdictMark(
+      unicodeNotation(fb.correct || `Correct! The answer is ${rightText}.${expl ? `\n\n${expl}` : ''}`),
+      VERDICT_CORRECT),
     role: 'feedback_correct',
   });
   labels.forEach((label, i) => {
     if (idx.includes(i)) return;
     add('answer', 'text', {
-      body: unicodeNotation(fb.wrong[i]
-        || `Not quite — the answer is ${rightText}.${expl ? `\n\n${expl}` : ''}`
-           + '\n\nKeep going, mistakes help you learn!'),
+      body: withVerdictMark(
+        unicodeNotation(fb.wrong[i]
+          || `Not quite — the answer is ${rightText}.${expl ? `\n\n${expl}` : ''}`
+             + '\n\nKeep going, mistakes help you learn!'),
+        VERDICT_WRONG),
       role: 'feedback_incorrect', optionIndex: i,
     });
   });
@@ -512,6 +613,10 @@ module.exports = {
   answerId,
   parseAnswer,
   optionLetter,
+  letterListLabel,
+  withVerdictMark,
+  VERDICT_CORRECT,
+  VERDICT_WRONG,
   BUTTON_TITLE_MAX,
   LIST_ROW_TITLE_MAX,
   LIST_ROW_DESCRIPTION_MAX,
