@@ -139,3 +139,82 @@ describe('one list, not three', () => {
     expect(src).toMatch(/MACHINE_KEYS/);
   });
 });
+
+describe('an ID CROSS-REFERENCE is machine-consumed too — found on PRODUCTION', () => {
+  // The one real Urdu lesson that reached prod (`grade_9_biology.c04.p057-057`) has no molecule and
+  // no equation, so the catastrophic form could not occur there. The CLASS was present anyway:
+  //
+  //     /sections/0/blocks/0/closed_by => "close-hook"
+  //
+  // `closed_by` is not a display string. It resolves against `/sections/1/blocks/0/id` and is the
+  // link binding the lesson's hook to the paragraph that closes it. The overlay selected it and it
+  // survived only because the model echoed it byte-identically — which is STRICTLY WORSE than the
+  // `tex` case: a translated identifier breaks a structural link SILENTLY, with no ugly box to
+  // notice. `"close-hook"` clears `isInstructionProse` (10 characters, two Latin words), so nothing
+  // was protecting it.
+  const withRef = () => ({
+    lesson_id: 'x',
+    provenance: { medium: 'en' },
+    sections: [
+      { id: 's1', blocks: [{ type: 'ask', id: 'hook', hook: true, closed_by: 'close-hook',
+        question: 'Why does a leaf turn towards the light on a windowsill?' }] },
+      { id: 's2', blocks: [{ type: 'paragraph', id: 'close-hook', text: 'Because the cells on the shaded side grow longer.' }] },
+    ],
+  });
+
+  test('closed_by is never offered and never applied', () => {
+    const d = withRef();
+    expect(overlayDefects.targets(d)).not.toContain('/sections/0/blocks/0/closed_by');
+    expect(frozenReason(d, '/sections/0/blocks/0/closed_by')).toBeTruthy();
+
+    d.ur_overlay = { '/sections/0/blocks/0/closed_by': 'بند-ہک' };
+    expect(applyOverlay(d, 'ur').doc.sections[0].blocks[0].closed_by).toBe('close-hook');
+  });
+
+  test('…while the question beside it is still translated', () => {
+    expect(overlayDefects.targets(withRef())).toContain('/sections/0/blocks/0/question');
+  });
+});
+
+describe('the frozen set is derived from the SCHEMA, not hand-maintained', () => {
+  // Three lists already said versions of this — OVERLAY_SKIP_KEYS, FROZEN_POINTERS, and
+  // visual_check.js's own skip list — and each was missing something the others had. A hand-written
+  // fourth would drift the same way. This test walks lp_doc.schema.json and fails if any string
+  // property that is an ENUM or an id-shaped REFERENCE is not frozen, so adding such a field to the
+  // schema without freezing it is caught at merge.
+  const fs = require('fs');
+  const schema = JSON.parse(fs.readFileSync(path.join(VENDOR, 'schema', 'lp_doc.schema.json'), 'utf8'));
+
+  const machineish = new Set();
+  (function walk(n) {
+    if (Array.isArray(n)) return n.forEach(walk);
+    if (!n || typeof n !== 'object') return;
+    const props = n.properties;
+    if (props && typeof props === 'object') {
+      for (const [k, v] of Object.entries(props)) {
+        if (v && v.type === 'string'
+          // `_by` / `_id` / `_ref` / `_code` require the underscore, plus the two bare names.
+          // A bare `by` matched `revisions[].by` — an author credit, already covered by
+          // OVERLAY_SKIP_ROOTS `/revisions` — and a test that fails on something already protected
+          // teaches people to widen the frozen set rather than to look.
+          && (Array.isArray(v.enum) || k === 'id' || k === 'ref' || /_(by|id|ref|code)$/.test(k))) {
+          machineish.add(k);
+        }
+      }
+    }
+    Object.values(n).forEach(walk);
+  })(schema);
+
+  test('the schema really does declare such fields (guard against a vacuous pass)', () => {
+    expect(machineish.size).toBeGreaterThan(5);
+    expect(machineish.has('closed_by')).toBe(true);
+  });
+
+  test('every one of them is frozen', () => {
+    const { OVERLAY_SKIP_KEYS } = require(path.join(VENDOR, 'lint_lp.js'));
+    for (const k of [...machineish].sort()) {
+      const frozen = MACHINE_KEYS.has(k) || (OVERLAY_SKIP_KEYS && OVERLAY_SKIP_KEYS.has(k));
+      expect({ key: k, frozen }).toEqual({ key: k, frozen: true });
+    }
+  });
+});
