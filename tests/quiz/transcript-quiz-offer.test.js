@@ -17,6 +17,7 @@ jest.mock('../../bot/shared/services/quiz/transcript-quiz-digest.service', () =>
 jest.mock('../../bot/shared/services/feature-intro.service', () => ({
   hasSeenIntroVideo: jest.fn().mockResolvedValue(false),
   markVideoShown: jest.fn().mockResolvedValue(undefined),
+  introShownCount: jest.fn().mockResolvedValue(0),
 }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../bot/shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
@@ -56,6 +57,7 @@ beforeEach(() => {
   delete process.env.TRANSCRIPT_QUIZ_SUBJECTS;
   delete process.env.TRANSCRIPT_QUIZ_INTRO_VIDEO;
   FeatureIntro.hasSeenIntroVideo.mockResolvedValue(false);
+  FeatureIntro.introShownCount.mockResolvedValue(0);
 });
 
 describe('scheduleOffer', () => {
@@ -118,14 +120,14 @@ describe('processOffer (worker)', () => {
     const [, , body, buttons] = WhatsAppService.sendVideoWithButtons.mock.calls[0];
     expect(body).toMatch(/کسریں/);
     expect(buttons.map((b) => b.id)).toEqual([`tq_yes_${QID}`, `tq_no_${QID}`]);
-    expect(FeatureIntro.markVideoShown).toHaveBeenCalledWith(UID, 'transcript_quiz');
+    expect(FeatureIntro.markVideoShown).toHaveBeenCalledWith(UID, 'transcript_quiz', { incrementIntroCount: true });
   });
 
-  test('a teacher who has seen the video gets plain buttons', async () => {
+  test('a teacher whose showing count has reached the threshold gets plain buttons (the count gates the film, not alreadyOffered — see transcript-quiz-intro-video.test.js for the full D7 coverage)', async () => {
     Digest.run.mockResolvedValue(GOOD_DIGEST);
     process.env.TRANSCRIPT_QUIZ_INTRO_VIDEO = 'feature_videos/quiz_intro.mp4';
     process.env.TRANSCRIPT_QUIZ_OFFER_MODE = 'every';
-    FeatureIntro.hasSeenIntroVideo.mockResolvedValue(true);
+    FeatureIntro.introShownCount.mockResolvedValue(2);
     installFrom(supabase.from, ({ coaching_sessions: { data: [SESSION] }, quizzes: { data: [{ id: QID }] } }));
     await Offer.processOffer(SID, {});
     expect(WhatsAppService.sendVideoWithButtons).not.toHaveBeenCalled();

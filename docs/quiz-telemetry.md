@@ -233,3 +233,23 @@ query (c) does.
   by media = tostring(d.media)
 | order by media asc
 ```
+
+---
+
+## `transcript_quiz.offered`
+
+Fires once per offer, at the end of `processOffer` (`transcript-quiz-offer.service.js`)
+— after the digest has run and the yes/no buttons (with or without the intro
+film) have been sent. `withVideo` and `shownCount` together answer "did the
+film ride the first N offers": the film is gated by the teacher's showing
+count against `TRANSCRIPT_QUIZ_INTRO_VIDEO_SHOWS` (default 2), not by whether
+the teacher has ever been offered before.
+
+| Field | Meaning |
+|-------|---------|
+| `coachingSessionId`, `quizId`, `userId` | The session, the `quizzes` row, the teacher |
+| `subject`, `language`, `teacherLang` | The quiz's subject/language and the language the offer itself was written in |
+| `withVideo` | The intro film was **actually sent** (`sendVideoWithButtons` returned truthy) — not merely configured or attempted |
+| `shownCount` | The teacher's intro-video showing count **before** this offer (0 when no video was configured for this offer at all) |
+| `sent` | Some offer (video or plain buttons) went out |
+| `early` | The survey answer brought this offer forward rather than the delayed job firing |
