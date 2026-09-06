@@ -128,9 +128,17 @@ async function offerShare({ phone, userId, quizId, videoId, language = 'en', ses
     ],
   };
 
+  // This offer lands on a phone that has just received a whole quiz, so it is
+  // spent out of the SAME per-recipient window those questions filled. It was
+  // sending outside the throttle entirely, which meant the limiter's window
+  // never learned about it — the same "side door" gap already closed for the
+  // two direct sends in video-quiz.service, still open here.
+  const rateLimiter = require('./video-quiz-rate-limiter.service');
+  await rateLimiter.throttle(phone);
   let ok = await WhatsAppService.sendInteractiveButtons(phone, body);
   if (!ok) {
     await sleep(OFFER_RETRY_BACKOFF_MS);
+    await rateLimiter.throttle(phone);
     ok = await WhatsAppService.sendInteractiveButtons(phone, body);
   }
   if (!ok) {

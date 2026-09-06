@@ -17,6 +17,7 @@ jest.mock('../../shared/services/cache/railway-redis.service', () => ({
   get: jest.fn().mockResolvedValue(null),
   set: jest.fn().mockResolvedValue(true),
   delete: jest.fn().mockResolvedValue(true),
+  setNX: jest.fn().mockResolvedValue(true),
 }));
 jest.mock('../../shared/services/whatsapp.service', () => ({
   sendMessage: jest.fn().mockResolvedValue(true),
@@ -139,28 +140,28 @@ describe('startSession — the integration red test: transcript quiz asks sort_o
     WhatsAppService.sendMessage.mockResolvedValue(true);
   });
 
-  test('the first "Question 1 of 4" is followed by the row whose sort_order is 0', async () => {
+  test('question 1 of 4 IS the row whose sort_order is 0', async () => {
     stub();
-    const texts = [];
-    WhatsAppService.sendMessage.mockImplementation((_p, body) => {
-      texts.push(body); return Promise.resolve(true);
-    });
 
     await VideoQuiz.startSession({
       phone: PHONE, userId: null, quizId: 'quiz1', videoId: null,
       language: 'en', source: 'video_solo',
     });
 
-    const chromeIdx = texts.findIndex((t) => /Question 1 of 4/.test(t || ''));
-    expect(chromeIdx).toBeGreaterThan(-1);
-
-    // The card itself is built by render.build(q) and handed to sender.sendPhase
-    // — assert the FIRST card built names the sort_order:0 row, not the
-    // sort_order:2 row the DB returned first (that would be today's bug: the
-    // chrome says "Question 1 of 4" but the card is the DB's first row).
+    // The counter is no longer a chat message of its own — render.build is
+    // given `{ questionNumber, totalQuestions }` and puts it on the question's
+    // own message. So the number and the question it labels are now literally
+    // the same object, which is the whole point: they cannot disagree.
     expect(sender.sendPhase).toHaveBeenCalled();
-    const firstCardMsgs = sender.sendPhase.mock.calls[0][1];
-    const bodies = firstCardMsgs.map((m) => m.body || '').join(' | ');
+    const firstQuestionMsgs = sender.sendPhase.mock.calls[0][1];
+    const numbered = firstQuestionMsgs.filter((m) => m.counter);
+    expect(numbered).toHaveLength(1);
+    expect(numbered[0].counter).toEqual({ i: 1, n: 4 });
+
+    // And it must be the sort_order:0 row, not the sort_order:2 row the DB
+    // returned first (that was the bug: the counter said "Question 1 of 4"
+    // while the card was the DB's first row).
+    const bodies = firstQuestionMsgs.map((m) => m.body || '').join(' | ');
     expect(bodies).toMatch(/sort_order=0/);
     expect(bodies).not.toMatch(/sort_order=2/);
   });

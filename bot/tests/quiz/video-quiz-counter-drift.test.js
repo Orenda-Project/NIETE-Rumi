@@ -33,6 +33,7 @@
 jest.mock('../../shared/config/supabase', () => ({ from: jest.fn() }));
 jest.mock('../../shared/services/cache/railway-redis.service', () => ({
   get: jest.fn(), set: jest.fn(), delete: jest.fn().mockResolvedValue(true),
+  setNX: jest.fn().mockResolvedValue(true),
 }));
 jest.mock('../../shared/services/whatsapp.service', () => ({
   sendMessage: jest.fn().mockResolvedValue(true),

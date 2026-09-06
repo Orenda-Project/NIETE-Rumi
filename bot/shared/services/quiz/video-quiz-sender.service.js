@@ -19,6 +19,12 @@
  *  - PACING. Messages are spaced. WhatsApp does not guarantee ordering for
  *    rapid-fire sends, and an out-of-order stimulus clip is the R18 bug again,
  *    this time caused by the wire rather than the data.
+ *  - THE COUNTER IS NOT A MESSAGE. "Question n of N" is prepended to the body
+ *    or caption of the message that carries it (`m.counter`, set by
+ *    render.build), never sent on its own. It cost a whole send off the
+ *    recipient's 5-minute window for eleven characters of chrome, and that
+ *    send is what tipped an 8-question quiz over the budget and stalled it for
+ *    minutes at a time.
  */
 
 const WhatsAppService = require('../whatsapp.service');
@@ -40,6 +46,19 @@ const GAP_MEDIA_MS = 1200;
 const chrome = (key, ctx, params) => resolveUx(key, { language: ctx && ctx.language, params });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Fold "Question n of N" into a body or caption that was going out anyway.
+ *
+ * `m.counter` is `{ i, n }` and is set by render.build() on exactly ONE message
+ * per question — the first thing the child reads. Everything else is unchanged,
+ * so a message with no counter renders exactly as it did before.
+ */
+function withCounter(m, body, ctx) {
+  if (!m || !m.counter) return body;
+  const line = chrome('vqQuestionOf', ctx, { i: m.counter.i, n: m.counter.n });
+  return body ? `${line}\n\n${body}` : line;
+}
 
 /**
  * Build list rows that a child can actually read.
@@ -138,13 +157,14 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
       const sendStart = Date.now();
       switch (m.kind) {
         case 'text': {
+          const text = withCounter(m, m.body, ctx);
           if (m.anchoredToPrevious && lastMessageId) {
             const id = await WhatsAppService.sendTextReturningId(
-              phone, m.body, { contextMessageId: lastMessageId }
+              phone, text, { contextMessageId: lastMessageId }
             );
             ok = !!id;
           } else {
-            ok = await WhatsAppService.sendMessage(phone, m.body);
+            ok = await WhatsAppService.sendMessage(phone, text);
           }
           break;
         }
@@ -157,14 +177,17 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
           break;
         }
         case 'image':
-          ok = await WhatsAppService.sendImageFromUrl(phone, m.url, m.caption || '');
+          ok = await WhatsAppService.sendImageFromUrl(phone, m.url, withCounter(m, m.caption || '', ctx));
           break;
         case 'buttons':
           ok = await sendButtons(phone, m, ctx);
           break;
         case 'list':
           ok = await WhatsAppService.sendInteractiveMessage(phone, {
-            body: { text: m.letterTitles ? cardAskBody(m, ctx, m.options.length) : m.body },
+            body: {
+              text: withCounter(m,
+                m.letterTitles ? cardAskBody(m, ctx, m.options.length) : m.body, ctx),
+            },
             action: {
               button: chrome('vqChooseAnswer', ctx),
               sections: [{
@@ -241,8 +264,13 @@ async function sendButtons(phone, m, ctx) {
     // A question card carries the options in the picture; the buttons are letters.
     title: m.letterTitles ? render.optionLetter(i) : truncateCodePoints(title, render.BUTTON_TITLE_MAX),
   }));
-  const body = m.letterTitles ? cardAskBody(m, ctx, shown.length) : m.body;
+  const body = withCounter(m, m.letterTitles ? cardAskBody(m, ctx, shown.length) : m.body, ctx);
   if (m.headerImage) {
+    // A QUESTION CARD reaches here too (render.build attaches the card as this
+    // message's header when the picker is buttons), so the picture, the
+    // counter, the "tap A, B or C" cue and the letters are one send. This is
+    // also the cheaper call on a re-send: it caches Meta's media id for the
+    // uploaded picture for 25 days, which sendImageFromUrl does not.
     return WhatsAppService.sendImageWithButtons(phone, m.headerImage, body, buttons);
   }
   return WhatsAppService.sendInteractiveButtons(phone, { body, buttons });
@@ -268,7 +296,7 @@ async function sendPictureFlow(phone, m, ctx) {
     const ok = await WhatsAppService.sendFlow(phone, {
       flowId,
       buttonText: 'Tap the picture',
-      body: m.body,
+      body: withCounter(m, m.body, ctx),
       screen: 'ASK',
       flowToken: `vq:${ctx.sessionId || 'none'}:${ctx.questionId}`,
       navigateData: {
@@ -285,7 +313,7 @@ async function sendPictureFlow(phone, m, ctx) {
     });
   }
   return WhatsAppService.sendInteractiveMessage(phone, {
-    body: { text: 'Which picture is right?' },
+    body: { text: withCounter(m, 'Which picture is right?', ctx) },
     action: {
       button: chrome('vqChooseAnswer', ctx),
       sections: [{ title: chrome('vqOptions', ctx), rows: listRows(m.options, ctx, m.optionIndices) }],
@@ -313,6 +341,10 @@ async function sendMultiSelectFlow(phone, m, ctx) {
   const flowId = ctx.multiFlowId || Multi.multiFlowId();
   if (flowId) {
     const payload = Multi.flowPayload(m, ctx);
+    // The counter belongs in the chat bubble that carries the Flow's CTA, not
+    // inside the Flow screen: the screen's `question` field is validated
+    // against the declared schema and its heading is the question itself.
+    payload.body = withCounter(m, payload.body, ctx);
     const ok = await WhatsAppService.sendFlow(phone, { flowId, ...payload });
     if (ok) return true;
     logEvent('video_quiz.multi_flow_send_failed', { questionId: ctx.questionId, sessionId: ctx.sessionId });
@@ -329,7 +361,7 @@ async function sendMultiSelectFlow(phone, m, ctx) {
     await WhatsAppService.sendImageFromUrl(phone, m.headerImage, '');
   }
   return WhatsAppService.sendInteractiveMessage(phone, {
-    body: { text: `${m.stem || m.body}\n\n${chrome('vqMultiFallbackAsk', ctx)}` },
+    body: { text: withCounter(m, `${m.stem || m.body}\n\n${chrome('vqMultiFallbackAsk', ctx)}`, ctx) },
     action: {
       button: chrome('vqChooseAnswer', ctx),
       sections: [{ title: chrome('vqOptions', ctx), rows: listRows(m.options, ctx, m.optionIndices) }],

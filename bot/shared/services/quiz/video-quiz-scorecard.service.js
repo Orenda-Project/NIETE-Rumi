@@ -15,10 +15,10 @@
 
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
-// This send never went through the pacing throttle at all (it isn't
-// routed through video-quiz-sender.service.js's sendPhase()). It's the last
-// message a completing quiz sends to the phone, so it can land right on top
-// of an already-near-full window from the questions that preceded it.
+// This send is not routed through video-quiz-sender.service.js's sendPhase(),
+// so it throttles itself (see sendScorecard below). It's the last message a
+// completing quiz sends to the phone, so it lands right on top of an
+// already-near-full window from the questions that preceded it.
 const rateLimiter = require('./video-quiz-rate-limiter.service');
 const { resolveUx } = require('../../config/ux-strings');
 

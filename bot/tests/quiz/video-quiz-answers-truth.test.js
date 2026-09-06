@@ -8,7 +8,9 @@
  * state, and the state's question list may be stale without changing the score.
  */
 jest.mock('../../shared/config/supabase', () => ({ from: jest.fn() }));
-jest.mock('../../shared/services/cache/railway-redis.service', () => ({ get: jest.fn(), set: jest.fn(), delete: jest.fn() }));
+jest.mock('../../shared/services/cache/railway-redis.service', () => ({
+  get: jest.fn(), set: jest.fn(), delete: jest.fn(), setNX: jest.fn().mockResolvedValue(true),
+}));
 jest.mock('../../shared/services/whatsapp.service', () => ({ sendMessage: jest.fn().mockResolvedValue(true) }));
 jest.mock('../../shared/services/quiz/video-quiz-sender.service', () => ({ sendPhase: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) }));
 jest.mock('../../shared/services/quiz/video-quiz-scorecard.service', () => ({ sendScorecard: jest.fn().mockResolvedValue(true) }));

@@ -145,6 +145,7 @@ describe('handleAnswer emits video_quiz.answer_latency', () => {
     jest.doMock('../../shared/config/supabase', () => ({ from: jest.fn() }));
     jest.doMock('../../shared/services/cache/railway-redis.service', () => ({
       get: jest.fn(), set: jest.fn().mockResolvedValue(true), delete: jest.fn().mockResolvedValue(true),
+      setNX: jest.fn().mockResolvedValue(true),
     }));
     jest.doMock('../../shared/services/whatsapp.service', () => ({
       sendMessage: jest.fn().mockResolvedValue(true),
@@ -178,7 +179,27 @@ describe('handleAnswer emits video_quiz.answer_latency', () => {
   });
 
   function stubSupabase({ insertError = null } = {}) {
-    supabase.from.mockImplementation(() => {
+    // Lane I: the finished/index derivation reads `quiz_answers` back
+    // (nextIndexFromTruth), so this table has to actually accumulate what
+    // gets inserted rather than always answering an empty `[]` — the
+    // catch-all chain below still does that for every OTHER table.
+    const answers = [];
+    supabase.from.mockImplementation((table) => {
+      if (table === 'quiz_answers') {
+        const chain = {
+          insert: async (row) => {
+            if (insertError) return { error: insertError };
+            answers.push(row);
+            return { error: null };
+          },
+          select: () => chain,
+          eq: async () => ({
+            data: answers.map((a) => ({ question_id: a.question_id, is_correct: a.is_correct })),
+            error: null,
+          }),
+        };
+        return chain;
+      }
       const chain = {
         select: () => chain,
         eq: () => chain,

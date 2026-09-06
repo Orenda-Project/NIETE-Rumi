@@ -522,19 +522,68 @@ describe('picture Flow carries base64, not URLs (bd-2309)', () => {
 
 describe('a question CARD: the image carries the question, the buttons carry letters', () => {
   const render = require('../../shared/services/quiz/video-quiz-render.service');
-  test('build() sends the card image first, then A/B/C buttons in the same display order', () => {
-    const q = {
-      id: 'q1', external_id: 'tq:z:S1:1', question_text: 'What is x^2 when x = 3?',
-      option_a: '9', option_b: '6', option_c: '3', correct_option: 'A', render_pattern: 'P1',
-      media: { question_card: 'https://r2/card.png' },
-    };
-    const msgs = render.build(q);
+  const cardQ = (extra = {}) => ({
+    id: 'q1', external_id: 'tq:z:S1:1', question_text: 'What is x^2 when x = 3?',
+    option_a: '9', option_b: '6', option_c: '3', correct_option: 'A', render_pattern: 'P1',
+    media: { question_card: 'https://r2/card.png' },
+    ...extra,
+  });
+
+  // The card used to be its own `question:image` message ahead of the picker.
+  // That cost a send off the recipient's 5-minute window for every question and
+  // put an 8-question quiz over the budget; a button message carries its own
+  // image header, so the card and the letters are now one message.
+  test('build() puts the card on the letter picker itself — one message, not two', () => {
+    const msgs = render.build(cardQ());
     const kinds = msgs.map((m) => `${m.phase}:${m.kind}`);
-    expect(kinds.indexOf('question:image')).toBeGreaterThan(-1);
-    expect(kinds.indexOf('question:image')).toBeLessThan(kinds.indexOf('interaction:buttons'));
+    expect(kinds).not.toContain('question:image');
     const ask = msgs.find((m) => m.phase === 'interaction');
+    expect(ask.kind).toBe('buttons');
+    expect(ask.headerImage).toBe('https://r2/card.png');
     expect(ask.letterTitles).toBe(true);
     expect(ask.optionIndices).toHaveLength(3);
+  });
+
+  // Meta gives an interactive LIST no image header, so a card with more options
+  // than a button row holds still sends the picture separately. Attaching
+  // headerImage there would be dropped silently.
+  test('a four-option card keeps the picture as its own message ahead of the list', () => {
+    const msgs = render.build(cardQ({ option_d: '27' }));
+    const kinds = msgs.map((m) => `${m.phase}:${m.kind}`);
+    expect(kinds.indexOf('question:image')).toBeGreaterThan(-1);
+    expect(kinds.indexOf('question:image')).toBeLessThan(kinds.indexOf('interaction:list'));
+    const ask = msgs.find((m) => m.phase === 'interaction');
+    expect(ask.headerImage).toBeUndefined();
     expect(msgs.find((m) => m.kind === 'image').url).toBe('https://r2/card.png');
+  });
+
+  // The picture already says "QUESTION 5 OF 8" (transcript-quiz-card draws it),
+  // so a card question adds no counter line of its own on either shape — one
+  // number on screen, not two.
+  test('a card question carries no separate counter, because the card paints it', () => {
+    const one = render.build(cardQ(), { questionNumber: 5, totalQuestions: 8 });
+    expect(one.filter((m) => m.counter)).toHaveLength(0);
+    expect(one.find((m) => m.phase === 'interaction').paintsOwnCounter).toBe(true);
+
+    const two = render.build(cardQ({ option_d: '27' }), { questionNumber: 5, totalQuestions: 8 });
+    expect(two.filter((m) => m.counter)).toHaveLength(0);
+    expect(two.find((m) => m.role === 'question_card').paintsOwnCounter).toBe(true);
+  });
+
+  test('a question with no card carries the counter on its first message, once', () => {
+    const figure = {
+      id: 'q2', external_id: 'tq:z:S1:2', question_text: 'Which part glows?',
+      option_a: 'Filament', option_b: 'Anode', option_c: 'Switch',
+      correct_option: 'A', render_pattern: 'P3',
+      media: { question_image: 'https://r2/figure.png' },
+    };
+    const msgs = render.build(figure, { questionNumber: 5, totalQuestions: 8 });
+    expect(msgs.filter((m) => m.counter)).toHaveLength(1);
+    expect(msgs.find((m) => m.counter).phase).toBe('interaction');
+    expect(msgs.find((m) => m.counter).counter).toEqual({ i: 5, n: 8 });
+
+    // No opts, no counter — every caller that does not number its questions
+    // renders exactly as it did before.
+    expect(render.build(figure).filter((m) => m.counter)).toHaveLength(0);
   });
 });

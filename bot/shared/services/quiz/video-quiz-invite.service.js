@@ -48,6 +48,11 @@ async function offerInvite({ phone, studentId, shareCodeId, language = 'en',
     INVITE_TTL_SECS);
   // In the quiz language — a child who just took an Urdu quiz reads Urdu here.
   const { resolveUx } = require('../../config/ux-strings');
+  // Same window as the quiz that just finished on this phone: an untracked
+  // send here is a send the limiter cannot see, and the whole point of the
+  // window is that every send against a pair is counted.
+  const rateLimiter = require('./video-quiz-rate-limiter.service');
+  await rateLimiter.throttle(phone);
   await WhatsAppService.sendInteractiveButtons(phone, {
     body: resolveUx('vqInviteAsk', { language }),
     buttons: [
