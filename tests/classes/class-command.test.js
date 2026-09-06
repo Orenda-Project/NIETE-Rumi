@@ -105,3 +105,38 @@ describe('must NOT match', () => {
     expect(isClassesCommand(input)).toBe(false);
   });
 });
+
+/**
+ * The wiring, not just the rule.
+ *
+ * The rule above passed on production while `/class` was still broken there, because
+ * every assertion called the module directly and nothing asserted the HANDLER used it.
+ * `class-command.js` shipped to main as dead code: the handler kept its old inline
+ * `/^\/classes\b/i`, which matches `/classes` and not `/class`.
+ *
+ * A green module with no caller is the exact failure this file missed, so it is now
+ * pinned. These read the handler source rather than invoking it — the handler needs a
+ * live WhatsApp/Supabase world to run, and the thing under test is which matcher the
+ * command dispatch is bound to.
+ */
+describe('the handler is wired to the rule', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const handler = fs.readFileSync(
+    path.join(__dirname, '../../bot/shared/handlers/text-message.handler.js'),
+    'utf8',
+  );
+
+  it('imports isClassesCommand', () => {
+    expect(handler).toMatch(/require\(['"][^'"]*services\/classes\/class-command['"]\)/);
+    expect(handler).toMatch(/isClassesCommand/);
+  });
+
+  it('dispatches the class command through isClassesCommand', () => {
+    expect(handler).toMatch(/if\s*\(\s*isClassesCommand\(/);
+  });
+
+  it('keeps no inline /classes regex that would shadow the rule', () => {
+    expect(handler).not.toMatch(/\/\^\\\/classes/);
+  });
+});

@@ -1,0 +1,44 @@
+# `main` may only ever receive `staging`.
+#
+# GitHub branch protection cannot express this. It can require a pull request,
+# require reviews, and require status checks, but it has no rule for "only accept
+# a PR whose head is branch X". So the constraint has to be a check, and that
+# check has to be required in protection alongside the CI gate.
+#
+# Why it matters here: `staging` is cut from `main` and only ever receives work
+# that was deliberately promoted from `sandbox`. That is what makes
+# `staging -> main` a fast-forward. A PR into `main` from anywhere else
+# reintroduces the divergence the three-branch model exists to remove — which is
+# how `develop` ended up 631 commits from `main`.
+#
+# Emergencies: this deliberately has no hotfix exception. Protection is applied
+# with enforce_admins=false, so a repo admin can still merge past a failing check
+# when something is genuinely on fire. That keeps the escape hatch visible and
+# accountable rather than encoded here as a branch-name pattern people drift into
+# using routinely.
+name: PR source branch
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  source-branch:
+    name: main only accepts staging
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the head branch
+        # Passed through env rather than interpolated into the script: a branch
+        # name is attacker-controllable text and `${{ }}` inside `run` is a
+        # script-injection sink.
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if [ "$HEAD_REF" != "staging" ]; then
+            echo "::error::PRs into main must come from 'staging'. This one is from '$HEAD_REF'."
+            echo ""
+            echo "The promotion path is:  sandbox -> staging -> main"
+            echo "Open this against 'staging' instead, then promote staging to main."
+            exit 1
+          fi
+          echo "Head branch is 'staging'. OK."

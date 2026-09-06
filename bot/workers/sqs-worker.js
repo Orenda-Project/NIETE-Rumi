@@ -146,13 +146,13 @@ class SQSCoachingWorker {
   }
 
   /**
-   * bd-awqt3: an unset WORKER_QUEUES is a legitimate default (poll every queue), but it is also
-   * EXACTLY the condition that let `sqs-worker` and `sqs-worker-video` — both running this same
-   * file — both poll `main` (lp612_author has no dedicated queue; it rides `main`, see
-   * queueJob() in lp612-serving.service.js) with two different LP612_AUTHOR_TIMEOUT_MS /
-   * LP612_AUTHOR_ROUNDS values, silently, for as long as nobody happened to look. This does not
-   * decide correctness — several services legitimately CAN all poll `main` — it only makes the
-   * choice visible in the boot log instead of invisible. See the call site below for the warning.
+   * What WORKER_QUEUES resolved to on this boot, for the startup log.
+   *
+   * Two services run this same file — both poll `main` (lp612_author has no dedicated queue; it
+   * rides `main`, see queueJob() in lp612-serving.service.js) and can carry two different
+   * LP612_AUTHOR_TIMEOUT_MS / LP612_AUTHOR_ROUNDS values, silently, for as long as nobody
+   * happens to look. This does not decide correctness — several services legitimately CAN all
+   * poll `main` — it only makes the choice visible in the boot log instead of invisible.
    */
   static _workerQueuesBootStatus() {
     const raw = (process.env.WORKER_QUEUES || '').trim();
@@ -1211,7 +1211,7 @@ function resolveWorkerQueuesBootStatus() {
   return SQSCoachingWorker._workerQueuesBootStatus();
 }
 
-// bd-awqt3: make the WORKER_QUEUES decision visible on every boot, not just inferable after an
+// make the WORKER_QUEUES decision visible on every boot, not just inferable after an
 // incident (see _workerQueuesBootStatus() above for why this matters for lp612_author).
 {
   const queuesBootStatus = resolveWorkerQueuesBootStatus();
@@ -1221,7 +1221,7 @@ function resolveWorkerQueuesBootStatus() {
       + 'If another service running this same file has a DIFFERENT value for a per-job-type '
       + 'config env var (e.g. LP612_AUTHOR_TIMEOUT_MS, LP612_AUTHOR_ROUNDS) while also polling '
       + 'one of these queues, a job of that type will silently get different behaviour depending '
-      + 'on which replica happens to claim it (bd-awqt3). Set WORKER_QUEUES explicitly per '
+      + 'on which replica happens to claim it. Set WORKER_QUEUES explicitly per '
       + 'service so each job type has ONE owning worker class.',
       queuesBootStatus,
     );
