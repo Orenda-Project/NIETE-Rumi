@@ -18,6 +18,7 @@ const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, fig
 const { canonicalSubject: canonSubj } = require('./transcript-quiz-language');
 const { figureGateDefects, droppedTextDefect } = require('./transcript-quiz-figure-gates');
 const { scienceDefects, moleculeFromDictionary } = require('./transcript-quiz-figure-science');
+const Multi = require('./transcript-quiz-multi');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -109,7 +110,13 @@ function normaliseFeedback(q) {
   const out = { ...q };
   const fb = (q && typeof q.option_feedback === 'object' && q.option_feedback) ? { ...q.option_feedback } : {};
   const ci = Number(q?.correct_index);
-  const wrongIdx = [0, 1, 2].filter((i) => i !== ci);
+  // A "select all that apply" question has a correct SET and may have four
+  // options; an ordinary one has one correct index and exactly three. Both
+  // reduce to "which indices are NOT correct", which is what the positional
+  // shapes below (deepseek's `wrong: ["…","…"]`) have to be keyed back onto.
+  const nOpts = Array.isArray(q?.options) && q.options.length ? q.options.length : 3;
+  const correctSet = Multi.isMultiQuestion(q) ? Multi.authoredCorrectIndices(q) : [ci];
+  const wrongIdx = Array.from({ length: nOpts }, (_, i) => i).filter((i) => !correctSet.includes(i));
   let wrong = fb.wrong;
 
   if (Array.isArray(wrong)) {
@@ -173,17 +180,27 @@ function validate(rawQuestions, ctx = {}) {
 
   qs.forEach((q, i) => {
     const opts = Array.isArray(q.options) ? q.options.map((o) => String(o ?? '').trim()) : [];
-    if (opts.length !== 3) errs.push(`q${i}: ${opts.length} options`);
-    if (opts.some((o) => !o)) errs.push(`q${i}: empty option`);
-    if (new Set(opts).size !== opts.length) errs.push(`q${i}: duplicate options`);
-    const ci = q.correct_index;
-    if (![0, 1, 2].includes(ci)) errs.push(`q${i}: bad correct_index ${ci}`);
+    const multi = Multi.isMultiQuestion(q);
     const fb = q.option_feedback || { correct: '', wrong: {} };
-    const need = [0, 1, 2].filter((k) => k !== ci).map(String).sort();
-    const have = Object.keys(fb.wrong || {}).sort();
-    if (have.join(',') !== need.join(',')) errs.push(`q${i}: wrong-feedback keys [${have}] != [${need}]`);
-    if (need.some((k) => !String(fb.wrong?.[k] || '').trim())) errs.push(`q${i}: empty wrong feedback`);
-    if (!String(fb.correct || '').trim()) errs.push(`q${i}: empty correct feedback`);
+    // PLAN_R5 D4 — a "select all that apply" question has its own shape (3 or 4
+    // options, a correct SET, feedback keyed on every wrong one). Its rules
+    // live in transcript-quiz-multi so the author prompt, the validator and the
+    // renderer cannot drift about what one is. Everything BELOW this branch —
+    // stem length, SLO coverage, level, script, figures — applies to both.
+    const ci = multi ? Multi.authoredCorrectIndices(q)[0] : q.correct_index;
+    if (multi) {
+      errs.push(...Multi.questionErrors(q, i));
+    } else {
+      if (opts.length !== 3) errs.push(`q${i}: ${opts.length} options`);
+      if (opts.some((o) => !o)) errs.push(`q${i}: empty option`);
+      if (new Set(opts).size !== opts.length) errs.push(`q${i}: duplicate options`);
+      if (![0, 1, 2].includes(ci)) errs.push(`q${i}: bad correct_index ${ci}`);
+      const need = [0, 1, 2].filter((k) => k !== ci).map(String).sort();
+      const have = Object.keys(fb.wrong || {}).sort();
+      if (have.join(',') !== need.join(',')) errs.push(`q${i}: wrong-feedback keys [${have}] != [${need}]`);
+      if (need.some((k) => !String(fb.wrong?.[k] || '').trim())) errs.push(`q${i}: empty wrong feedback`);
+      if (!String(fb.correct || '').trim()) errs.push(`q${i}: empty correct feedback`);
+    }
     const stem = String(q.question || '').trim();
     if (!stem) errs.push(`q${i}: empty stem`);
     if (cpLen(stem) > STEM_MAX) errs.push(`q${i}: stem >${STEM_MAX} code points`);
@@ -328,6 +345,8 @@ function validate(rawQuestions, ctx = {}) {
     // SVG's PNG and the teacher PDF inlines the same vector.
     q.figureSvg = svg;
   });
+
+  errs.push(...Multi.quizErrors(qs));
 
   if (figured / qs.length > FIGURE_MAX_SHARE) {
     errs.push(`FIGURE_SHARE — ${figured}/${qs.length} questions carry a picture; at most half may`);

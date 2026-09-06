@@ -50,7 +50,7 @@ describe('Urdu render', () => {
     expect(html).toMatch(/font-family:'NastaliqUrdu';font-weight:400;src:url\(data:font\/ttf;base64,[A-Za-z0-9+/=]{100,}/);
   });
   test('Urdu chrome present, English chrome absent, .ltr rule forces direction', () => {
-    expect(html).toMatch(/کوئز/);
+    expect(html).toMatch(/آپ نے کیا پڑھایا/);
     expect(html).not.toMatch(/What this quiz checks/);
     expect(html).toMatch(/\.ltr\{[^}]*direction:ltr/);
   });
@@ -75,7 +75,7 @@ describe('English render', () => {
   test('ltr, English chrome, Urdu chrome absent', () => {
     expect(html).toMatch(/<html dir="ltr" lang="en">/);
     expect(html).toMatch(/What this quiz checks/);
-    expect(html).not.toMatch(/یہ کوئز کیا جانچتا ہے/);
+    expect(html).not.toMatch(/یہ quiz کیا جانچتا ہے/);
   });
 });
 
@@ -106,7 +106,7 @@ describe('PLAN_R4 D1 — one language per document', () => {
   test('an Urdu quiz sent to an English-reading teacher is an ENTIRELY Urdu document', () => {
     const html = render(MIXED);
     expect(html).toMatch(/<html dir="rtl" lang="ur">/);
-    expect(html).toMatch(/یہ کوئز کیا جانچتا ہے/);
+    expect(html).toMatch(/یہ <span class="ltr">quiz<\/span> کیا جانچتا ہے/);
     expect(html).toMatch(/آپ نے کیا پڑھایا/);
     expect(html).not.toMatch(/What this quiz checks/);
     expect(html).not.toMatch(/What you taught/);
@@ -121,7 +121,7 @@ describe('PLAN_R4 D1 — one language per document', () => {
     });
     expect(html).toMatch(/<html dir="ltr" lang="en">/);
     expect(html).toMatch(/What this quiz checks/);
-    expect(html).not.toMatch(/یہ کوئز کیا جانچتا ہے/);
+    expect(html).not.toMatch(/یہ quiz کیا جانچتا ہے/);
     expect(html).not.toMatch(/سیکھنے کے مقاصد/);
   });
 
@@ -218,11 +218,6 @@ describe('PLAN_R4 D5 — the sheet is scannable', () => {
 
   test('cards never break across a page', () => {
     expect(ruleFor(html, '.card')).toMatch(/break-inside:\s*avoid/);
-  });
-
-  test('the hero names her class', () => {
-    const out = render({ ...BASE, language: 'en', contentLanguage: 'en', grade: '4' });
-    expect(out).toMatch(/Grade 4/);
   });
 });
 

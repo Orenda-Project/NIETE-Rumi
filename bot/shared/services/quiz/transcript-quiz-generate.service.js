@@ -33,6 +33,22 @@ const MAX_ATTEMPTS = 2;
 const DRAWABLE_SUBJECTS = new Set(['maths', 'science', 'genk']);
 
 /**
+ * A grade 1-5 lesson is drawable in EVERY subject (round 5). Until round 5
+ * the drawable roster was the 6-12 one, so a language lesson genuinely had
+ * nothing to draw with and this gate correctly let it pass without a picture.
+ * The early-years types changed that: `word_blank` and `match` are language
+ * types before they are anything else, and across the ICT K-5 segmentation they
+ * serve 257 and 360 segments respectively — nearly all of them English or Urdu
+ * periods (the option-space study).
+ */
+function isEarlyYearsBand(gradeBand) {
+  const g = String(gradeBand || '').toLowerCase();
+  if (/\b(kg|k|prep|nursery|ecce|katchi)\b/.test(g)) return true;
+  const nums = (g.match(/\d+/g) || []).map(Number);
+  return nums.length > 0 && nums.every((n) => n <= 5);
+}
+
+/**
  * "Write at least ONE picture question" was advisory: the first live science
  * lesson of round 4 (Structure of an Atom — the class was asked to draw atoms)
  * came back as eight text questions and nothing sent it back. A drawable
@@ -40,12 +56,19 @@ const DRAWABLE_SUBJECTS = new Set(['maths', 'science', 'genk']);
  * reason in the retry note; the last attempt is never failed for it — a quiz
  * without a picture beats no quiz.
  */
-function figureRequiredError({ questions, subject, attempt, maxAttempts }) {
-  if (!DRAWABLE_SUBJECTS.has(String(subject || '').toLowerCase())) return null;
+function figureRequiredError({ questions, subject, attempt, maxAttempts, gradeBand }) {
+  const early = isEarlyYearsBand(gradeBand);
+  if (!early && !DRAWABLE_SUBJECTS.has(String(subject || '').toLowerCase())) return null;
   if (attempt >= maxAttempts) return null;
   const drawn = (Array.isArray(questions) ? questions : []).some((q) => q && q.figure && typeof q.figure === 'object');
   if (drawn) return null;
-  return `quiz: FIGURE_REQUIRED — this ${subject} lesson is drawable but none of the questions carries a "figure". Decide the drawing FIRST (what the class was shown or asked to draw), then write one or two questions the child answers by reading the picture.`;
+  const why = early
+    ? `this is a grade 1-5 lesson (${subject || 'language'}) and every subject is drawable at that age`
+    : `this ${subject} lesson is drawable`;
+  const how = early
+    ? 'Decide the drawing FIRST — the thing the class counted, the word they sounded out, the clock they read, the pattern they continued — then write one or two questions the child answers by reading the picture.'
+    : 'Decide the drawing FIRST (what the class was shown or asked to draw), then write one or two questions the child answers by reading the picture.';
+  return `quiz: FIGURE_REQUIRED — ${why} but none of the questions carries a "figure". ${how}`;
 }
 const GAP_MS = 1200;
 const NUDGE_AFTER_MS = 3 * 60 * 60 * 1000;
@@ -62,23 +85,36 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * remaps by stored index so both are safe together.
  */
 function toRows(quizId, questions, { rng = Math.random, figureUrls = {} } = {}) {
+  const Multi = require('./transcript-quiz-multi');
   return questions.map((q, i) => {
-    const order = [0, 1, 2];
+    // A "select all that apply" question may carry FOUR options (PLAN_R5 D4);
+    // an ordinary one still carries exactly three. The shuffle is over whatever
+    // the question has, so a three-option question consumes the rng in exactly
+    // the same order it always did and its stored rows are unchanged.
+    const multi = Multi.isMultiQuestion(q);
+    const order = q.options.map((_, k) => k);
     for (let k = order.length - 1; k > 0; k -= 1) {
       const j = Math.floor(rng() * (k + 1));
       [order[k], order[j]] = [order[j], order[k]];
     }
     // order[newPos] = oldIdx
     const opts = order.map((old) => String(q.options[old]).trim());
-    const newCorrect = order.indexOf(Number(q.correct_index));
+    // The answer key follows the shuffle. For a set it is every correct
+    // option's NEW position, sorted, joined — the "A,C" shape correctIndices()
+    // has always parsed and the column has always been able to hold (asserted
+    // against the live database: correct_option is TEXT, no A/B/C constraint).
+    const correctOld = multi ? Multi.authoredCorrectIndices(q) : [Number(q.correct_index)];
+    const correctNew = correctOld.map((old) => order.indexOf(old)).filter((p) => p >= 0).sort((a, b) => a - b);
+    const newCorrect = correctNew[0];
+    const isCorrectPos = (pos) => correctNew.includes(pos);
     const wrong = {};
     const misc = {};
     order.forEach((old, pos) => {
-      if (pos === newCorrect) return;
+      if (isCorrectPos(pos)) return;
       const w = q.option_feedback?.wrong?.[String(old)];
       if (w) wrong[String(pos)] = String(w).trim();
       const m = q.distractor_misconceptions?.[String(old)];
-      if (m) misc['ABC'[pos]] = String(m).trim();
+      if (m) misc['ABCD'[pos]] = String(m).trim();
     });
     // A picture question is P3: the child gets ONE interactive message —
     // image header, stem body, three reply buttons. The URL is keyed on the
@@ -86,15 +122,22 @@ function toRows(quizId, questions, { rng = Math.random, figureUrls = {} } = {}) 
     // plain P1 question rather than to a row pointing at nothing.
     const figureUrl = figureUrls[i];
     const selectedBecause = String(q.selected_because || '').trim();
-    const media = (q.figure && figureUrl)
-      ? { question_image: figureUrl, figure: q.figure, ...(selectedBecause ? { selected_because: selectedBecause } : {}) }
-      : (selectedBecause ? { selected_because: selectedBecause } : null);
+    // `answer_mode` is the ONE discriminator every consumer reads; its absence
+    // means today's behaviour, exactly, so a single-answer row still stores no
+    // media at all when it has no figure and no selected_because.
+    const media = {
+      ...(q.figure && figureUrl ? { question_image: figureUrl, figure: q.figure } : {}),
+      ...(selectedBecause ? { selected_because: selectedBecause } : {}),
+      ...(multi ? { answer_mode: Multi.ANSWER_MODE_MULTI } : {}),
+    };
+    const hasMedia = Object.keys(media).length > 0;
 
     return stampDisplayOrder({
       quiz_id: quizId,
       question_text: String(q.question).trim(),
       option_a: opts[0], option_b: opts[1], option_c: opts[2],
-      correct_option: 'ABC'[newCorrect],
+      ...(opts.length > 3 ? { option_d: opts[3] } : {}),
+      correct_option: correctNew.map((p) => 'ABCD'[p]).join(','),
       explanation: String(q.explanation || '').trim() || null,
       misconception_feedback: Object.values(wrong)[0] || null,
       distractor_misconceptions: Object.keys(misc).length ? misc : null,
@@ -108,8 +151,8 @@ function toRows(quizId, questions, { rng = Math.random, figureUrls = {} } = {}) 
       // figure, so the pattern is keyed on question_image specifically —
       // not on media's mere presence — exactly as it reads once applyMedia
       // recomputes it below.
-      render_pattern: (media && media.question_image) ? 'P3' : 'P1',
-      ...(media ? { media } : {}),
+      render_pattern: media.question_image ? 'P3' : 'P1',
+      ...(hasMedia ? { media } : {}),
       sort_order: i,
     });
   });
@@ -199,6 +242,7 @@ async function runPool(items, limit, fn) {
 async function renderCards({ rows, questions, language, teacherId, quizId }) {
   const Card = require('./transcript-quiz-card');
   const render = require('./video-quiz-render.service');
+  const Multi = require('./transcript-quiz-multi');
   const urls = {};
   // A tall figure makes a card too (the row may not carry the spec yet; the authored question does).
   const jobs = rows.map((row, i) => ({ row, i })).filter(({ row, i }) => Card.needsQuestionCard(row) || Card.needsQuestionCard(questions[i]));
@@ -206,12 +250,20 @@ async function renderCards({ rows, questions, language, teacherId, quizId }) {
     const startedAt = Date.now();
     try {
       const labels = render.optionLabels(row);
-      const displayOrder = render.displayOrder(row, labels);
+      // PLAN_R5 D1/D4 — one order. The multi path reads media.display_order when
+      // the row carries it, so the letters on the card are the order the
+      // checkboxes will be in.
+      const displayOrder = (Multi.isMultiRow(row) && Multi.persistedOrder(row, labels))
+        || render.displayOrder(row, labels);
       const authored = questions && questions[i];
       const figureSvg = (authored && authored.figureSvg) || null;
       const png = await Card.renderQuestionCardPng({
         stem: row.question_text, options: labels, displayOrder, figureSvg, language,
         questionNumber: i + 1, total: rows.length,
+        // A card for a "select all that apply" question ends with "tap A, B or C"
+        // unless it is told otherwise — an instruction that is simply false when
+        // the child answers with checkboxes in a Flow.
+        answerMode: (row.media && row.media.answer_mode) || 'single',
       });
       urls[i] = await Card.uploadCard({ teacherId, quizId, index: i, png });
       logEvent('transcript_quiz.card_ready', { quizId, index: i, bytes: png.length, latencyMs: Date.now() - startedAt });
@@ -427,7 +479,10 @@ async function process(quizId, payload = {}) {
       attempts.push({ attempt, model: out.model, cost_usd: out.costUsd, latency_ms: out.latencyMs, errors: v.errors });
       meta.cost_usd = (meta.cost_usd || 0) + (out.costUsd || 0);
       if (v.ok) {
-        const needFig = figureRequiredError({ questions: v.questions, subject: digest.subject, attempt, maxAttempts: MAX_ATTEMPTS });
+        const needFig = figureRequiredError({
+          questions: v.questions, subject: digest.subject, attempt, maxAttempts: MAX_ATTEMPTS,
+          gradeBand: digest.grade_band || meta.grade,
+        });
         if (needFig) {
           attempts[attempts.length - 1].errors = [needFig];
           logToFile('⚠️ transcript quiz: drawable lesson came back without a picture', { quizId, attempt });
@@ -507,90 +562,27 @@ async function process(quizId, payload = {}) {
     logEvent('transcript_quiz.ready', { quizId, questions: rows.length, language, attempts: attempts.length, costUsd: meta.cost_usd });
   }
 
-  // ── hand-off
+  // ── hand-off (mint or reuse the share code, PDF, the three paced messages —
+  // owned by transcript-quiz-handoff.service so /quiz "resend the link" can
+  // run the exact same thing on a quiz that already went out).
   const { data: storedQs } = await supabase.from('quiz_questions')
-    .select('external_id, question_text, option_a, option_b, option_c, correct_option, explanation, distractor_misconceptions, option_feedback, media, render_pattern, sort_order')
+    .select('external_id, question_text, option_a, option_b, option_c, option_d, correct_option, explanation, distractor_misconceptions, option_feedback, media, render_pattern, sort_order')
     .eq('quiz_id', quizId).order('sort_order', { ascending: true });
   const qRows = storedQs && storedQs.length ? storedQs : applyMedia(toRows(quizId, questions || []), questions || [], { figureUrls, cardUrls, language });
 
-  const share = require('./video-quiz-share.service');
-  const minted = await share.mintCode({ quizId, userId: quiz.teacher_id, videoId: null, language });
-  if (!minted) {
-    await updateQuiz(quizId, { meta: { ...meta, step: 'ready', handoff_error: 'mint_failed' } });
-    await WhatsAppService.sendMessage(phone, resolveUx('tqCouldNotSend', { language: teacherLang }));
-    return { failed: true, reason: 'mint_failed' };
-  }
-  const link = `https://wa.me/${share.botNumber()}?text=QUIZ-${minted.code}`;
-  const lessonDate = formatLessonDate(session.created_at, language);
-  const forwardable = studentMessage({ teacherName: minted.teacherName || teacherName, topic: quiz.topic, date: lessonDate, link, language });
-
-  // PDF — best effort. A missing PDF is a worse teacher experience, not a
-  // reason to withhold the quiz her class can already take.
-  let pdfKey = null;
-  let tempPath = null;
-  try {
-    const buffer = await renderPdf({
-      quiz, questions: withFigureSvgs(qRows, questions, language), digest, teacherName,
-      grade: quiz.grade || meta.grade || null,
-      lessonSummary: meta.lesson_summary || '',
-      // D1: one language for the whole document, and it is the quiz's — not
-      // `teacherLang`, which still owns the messages either side of it.
-      language, contentLanguage: language,
-      date: formatLessonDate(session.created_at, language, { year: true }), link,
-    });
-    try {
-      const { uploadBuffer } = require('../../storage/r2');
-      pdfKey = `transcript_quizzes/${quiz.teacher_id}/${quizId}.pdf`;
-      await uploadBuffer(buffer, pdfKey, 'application/pdf');
-    } catch (upErr) {
-      pdfKey = null;
-      logToFile('⚠️ transcript quiz: PDF upload to R2 failed (continuing)', { quizId, error: upErr.message });
-    }
-    tempPath = path.join(os.tmpdir(), `transcript-quiz-${quizId}.pdf`);
-    fs.writeFileSync(tempPath, buffer);
-  } catch (err) {
-    logToFile('⚠️ transcript quiz: PDF render failed (sending the link without it)', { quizId, error: err.message });
-  }
-
-  const caption = resolveUx('tqHandoffIntro', {
-    language: teacherLang,
-    params: { lesson: lessonLabel({ digest, quizLanguage: language, teacherLanguage: teacherLang }), n: qRows.length },
+  const Handoff = require('./transcript-quiz-handoff.service');
+  const result = await Handoff.sendHandoff(quizId, phone, {
+    firstSend: true,
+    prepared: { quiz, session, questions, qRows, digest, teacherName, meta, language, teacherLang },
   });
-  let pdfSent = false;
-  if (tempPath) {
-    pdfSent = await WhatsAppService.sendDocument(phone, tempPath, pdfFilename(quiz.topic), caption);
-    try { fs.unlinkSync(tempPath); } catch { /* not worth failing over */ }
-  }
-  if (!pdfSent) {
-    await WhatsAppService.sendMessage(phone, `${caption}\n\n${resolveUx('tqForwardThis', { language: teacherLang })}`);
-  }
-  await api.sleep(GAP_MS);
-  await WhatsAppService.sendMessage(phone, forwardable);      // THE forwardable message, alone
-  await api.sleep(GAP_MS);
-  await WhatsAppService.sendMessage(phone, resolveUx('tqReportPromise', { language: teacherLang }));
-
-  meta = {
-    ...meta, step: 'sent', share_code: minted.code, share_code_id: minted.id, link,
-    student_message: forwardable, pdf_key: pdfKey, pdf_sent: pdfSent, sent_at: new Date().toISOString(),
-  };
-  await updateQuiz(quizId, { status: 'sent', meta });
-  logEvent('transcript_quiz.sent', { quizId, userId: quiz.teacher_id, code: minted.code, language, pdfSent, costUsd: meta.cost_usd });
-
-  try {
-    const SQSQueueService = require('../queue/sqs-queue.service');
-    const targetAt = new Date(Date.now() + NUDGE_AFTER_MS).toISOString();
-    await SQSQueueService.queueJob(quizId, 'quiz_nudge_teacher', { quizId, targetAt }, {
-      delaySeconds: 900, deduplicationId: `${quizId}-quiz_nudge_teacher`,
-    });
-  } catch (err) {
-    logToFile('⚠️ transcript quiz: nudge scheduling failed (non-fatal)', { quizId, error: err.message });
-  }
-  return { ok: true, quizId, code: minted.code };
+  if (!result.ok) return { failed: true, reason: result.reason };
+  return { ok: true, quizId, code: result.code };
 }
 
 module.exports = {
   salvageWithoutBadFigures,
   figureRequiredError,
+  isEarlyYearsBand,
   process, toRows, stampDisplayOrder, renderFigures, renderCards, applyMedia, withFigureSvgs, studentMessage, teacherLabel, renderPdf, pdfFilename,
   sleep, N_QUESTIONS, MAX_ATTEMPTS, NUDGE_AFTER_MS,
 };

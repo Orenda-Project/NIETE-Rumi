@@ -1438,7 +1438,7 @@ class WhatsAppService {
    */
   static async sendFlow(to, flowData) {
     try {
-      const { flowId, header, body, footer, buttonText = 'Start', screen, flowToken, screenData } = flowData;
+      const { flowId, header, headerImage, body, footer, buttonText = 'Start', screen, flowToken, screenData } = flowData;
 
       if (!flowId) {
         logToFile('❌ Flow ID is required', { flowData });
@@ -1478,7 +1478,13 @@ class WhatsAppService {
         type: 'interactive',
         interactive: {
           type: 'flow',
-          header: header ? { type: 'text', text: header } : undefined,
+          // An interactive Flow message may carry an IMAGE header. A quiz
+          // question drawn as a picture (a card or a figure) rides here, so the
+          // picture and the checkboxes arrive as one message instead of two.
+          // Text still wins when both are given — no caller passes both today.
+          header: header
+            ? { type: 'text', text: header }
+            : (headerImage ? { type: 'image', image: { link: headerImage } } : undefined),
           body: { text: body },
           footer: footer ? { text: footer } : undefined,
           action: {

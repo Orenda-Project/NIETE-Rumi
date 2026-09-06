@@ -197,7 +197,7 @@ describe('process — the PDF is written in the quiz language, whole', () => {
   test('an English-preferring teacher with an Urdu quiz gets an ENTIRELY Urdu document', async () => {
     const html = await runWithUrduQuizForEnglishTeacher();
     expect(html).toMatch(/<html dir="rtl" lang="ur">/);
-    expect(html).toMatch(/یہ کوئز کیا جانچتا ہے/);          // the quiz's chrome
+    expect(html).toMatch(/یہ <span class="ltr">quiz<\/span> کیا جانچتا ہے/);  // the quiz's chrome ('quiz' stays Latin — root rule 20)
     expect(html).not.toMatch(/How to send it/);              // not hers
     expect(html).not.toMatch(/What you taught/);
     expect(html).toMatch(/<div class="stem content" dir="rtl">/);
@@ -221,11 +221,11 @@ describe('process — the PDF is written in the quiz language, whole', () => {
     expect(caption).toMatch(/what you taught/i);
   });
 
-  test('the lesson summary and her class reach the page, from the quiz row', async () => {
+  test('the lesson summary reaches the page, from the quiz row (no grade band — operator item 6)', async () => {
     const html = await runWithUrduQuizForEnglishTeacher();
     expect(html).toMatch(/آپ نے کیا پڑھایا/);                                  // the panel label
     expect(html).toMatch(/استاد نے آدھی روٹی کی مثال سے کسر پڑھایا/);          // meta.lesson_summary
-    expect(html).toMatch(/جماعت/);                                             // grade, in the quiz language
+    expect(html).not.toMatch(/جماعت/);                                         // the grade band is gone from the pre-send PDF
   });
 
   test('every question carries its one-line "from your lesson" out of media.selected_because', async () => {

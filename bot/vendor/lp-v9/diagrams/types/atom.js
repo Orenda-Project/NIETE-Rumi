@@ -146,10 +146,18 @@ function renderBohr(sp) {
 
   // Captions are drawn as ONE line by the builder, so they must stay short
   // enough for the body width or the ends are cut off.
+  // An AUTO caption follows the figure's own language. The engine used to write
+  // this one sentence in English whatever `lang` said, so an Urdu quiz got an
+  // Urdu stem, Urdu options and an English sentence under the picture
+  // (the round-5 figure review). The element SYMBOL, Z and the shell counts stay Latin and
+  // LTR in both languages — they are notation, not prose, and a Pakistani
+  // Urdu-medium textbook prints them exactly that way.
   const caption =
     sp.caption !== undefined
       ? sp.caption
-      : `${A.name || A.symbol} (${A.symbol}) — Z = ${A.Z}, ${A.n} neutrons, electrons ${A.shells.join(", ")}.`;
+      : sp.lang === "ur"
+        ? `ایٹم: ${A.symbol} · Z = ${A.Z} · نیوٹرون: ${A.n} · الیکٹران: ${A.shells.join("، ")}`
+        : `${A.name || A.symbol} (${A.symbol}) — Z = ${A.Z}, ${A.n} neutrons, electrons ${A.shells.join(", ")}.`;
 
   const svg = new Svg(bodyW, bodyH, {
     title: sp.title,
@@ -306,9 +314,11 @@ function renderDotCross(sp) {
     const transfer = Math.max(1, Math.round(Number(sp.transfer) || Math.min(vA, 8 - vB)));
     const cx1 = 158;
     const cx2 = 458;
-    const caption = `${A.symbol} gives ${transfer} outer electron${transfer === 1 ? "" : "s"} to ${
-      B.symbol
-    } — dots are ${A.symbol} electrons, crosses are ${B.symbol}.`;
+    const caption = lang === "ur"
+      ? `آئنی بانڈ: ${A.symbol} نے ${transfer} بیرونی الیکٹران ${B.symbol} کو دیے — نقطے ${A.symbol} کے الیکٹران ہیں، کراس ${B.symbol} کے۔`
+      : `${A.symbol} gives ${transfer} outer electron${transfer === 1 ? "" : "s"} to ${
+        B.symbol
+      } — dots are ${A.symbol} electrons, crosses are ${B.symbol}.`;
     const svg = svg0(caption);
 
     // donor: what is left of its outer shell after the transfer
@@ -371,9 +381,11 @@ function renderDotCross(sp) {
   const pairs = Math.max(1, Math.round(Number(sp.pairs) || 1));
   const cx1 = bodyW / 2 - 54;
   const cx2 = bodyW / 2 + 54;
-  const caption = `${A.symbol} and ${B.symbol} share ${pairs} pair${pairs === 1 ? "" : "s"} — dots are ${
-    A.symbol
-  } electrons, crosses are ${B.symbol}.`;
+  const caption = lang === "ur"
+    ? `کوویلنٹ بانڈ: ${A.symbol} اور ${B.symbol} ${pairs} جوڑا/جوڑے مشترک کرتے ہیں — نقطے ${A.symbol} کے الیکٹران ہیں، کراس ${B.symbol} کے۔`
+    : `${A.symbol} and ${B.symbol} share ${pairs} pair${pairs === 1 ? "" : "s"} — dots are ${
+      A.symbol
+    } electrons, crosses are ${B.symbol}.`;
   const svg = svg0(caption);
   svg.circle(cx1, cy, r, { fill: "none", stroke: C.rule, sw: 1.6 });
   svg.circle(cx2, cy, r, { fill: "none", stroke: C.rule, sw: 1.6 });

@@ -88,8 +88,15 @@ describe('transcript-quiz catalog', () => {
     }
   });
 
-  test('the list body says these are the most recent lessons, in both languages', () => {
-    for (const lang of LANGUAGE_OFFER) expect(resolveUx('tqListBody', { language: lang })).toMatch(/10/);
+  test('the list body no longer promises a fixed count now that /quiz pages', () => {
+    // bd-mg9c7.63: the list pages (see PLAN_R5) instead of showing a flat cap
+    // of 10, so the body copy dropped the "up to 10" promise — the HEADER
+    // (tqListHeader) now carries the actual range instead.
+    for (const lang of LANGUAGE_OFFER) {
+      const body = resolveUx('tqListBody', { language: lang });
+      expect(body).not.toMatch(/\b10\b/);
+      expect(body).toMatch(/\S/);
+    }
   });
 
   test('the decline copy points at /quiz', () => {

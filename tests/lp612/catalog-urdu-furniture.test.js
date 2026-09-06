@@ -109,7 +109,12 @@ describe('the chapter row counts lessons in Urdu', () => {
   test('an English book is untouched', async () => {
     mockRows = [en()];
     const mc = (await Catalog.buildChapterItems(9, 'Physics')).items[0]['main-content'];
-    expect(mc.description).toBe('1 lessons');
+    // "1 lesson", not "1 lessons" — this assertion is about the English book NOT
+    // getting Urdu furniture (the line below), and it was pinning a grammar bug
+    // in passing. Splitting the pooled chapter rows apart in bd-oak77.5 makes
+    // one-lesson chapters common (4 of G9 Chemistry's 42), so the module now
+    // uses the `plural` helper it already carried and never called.
+    expect(mc.description).toBe('1 lesson');
     expect(mc.description).not.toContain('اسباق');
   });
 });

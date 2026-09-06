@@ -255,8 +255,8 @@ const UX_STRINGS = {
   // the cohort is mixed and the bot cannot know.
 
   lp612Preparing: {
-    en: '📄 Writing your lesson plan now — a brand-new lesson usually takes about 5–6 minutes. I will send it here as soon as it is ready.',
-    ur: '📄 آپ کا سبق کا منصوبہ ابھی تیار کیا جا رہا ہے — نئے سبق میں عام طور پر پانچ سے چھ منٹ لگتے ہیں۔ تیار ہوتے ہی یہیں بھیج دیا جائے گا۔',
+    en: '📄 Writing your lesson plan now — a brand-new lesson takes a little while. I will send it here as soon as it is ready, and I will check in if it runs long.',
+    ur: '📄 آپ کا سبق کا منصوبہ ابھی تیار کیا جا رہا ہے — نئے سبق میں کچھ وقت لگتا ہے۔ تیار ہوتے ہی یہیں بھیج دیا جائے گا، اور دیر ہوئی تو اطلاع دی جائے گی۔',
   },
 
   lp612StillWorking: {
@@ -275,8 +275,8 @@ const UX_STRINGS = {
   // staging, and it is what rule 24(d) is about. She does not need to know what a worker is;
   // she needs to know it stopped, it has restarted, and she does not have to do anything.
   lp612Restarted: {
-    en: '📄 That lesson stopped partway through, so I have started it again. It usually takes about 5–6 minutes and will arrive here.',
-    ur: '📄 وہ سبق درمیان میں رک گیا تھا، اس لیے دوبارہ شروع کر دیا گیا ہے۔ عام طور پر پانچ سے چھ منٹ لگتے ہیں اور یہیں موصول ہو جائے گا۔',
+    en: '📄 That lesson stopped partway through, so I have started it again. It will arrive here as soon as it is ready.',
+    ur: '📄 وہ سبق درمیان میں رک گیا تھا، اس لیے دوبارہ شروع کر دیا گیا ہے۔ تیار ہوتے ہی یہیں موصول ہو جائے گا۔',
   },
 
   // A lesson whose page range is over the cap will fail identically on every retry, so it must
@@ -494,6 +494,26 @@ const UX_STRINGS = {
    * Header 60 / button 20 in CODE POINTS — this is where the copy is capped,
    * once, rather than in each caller's inline map (the bd-72dth drift).
    */
+  /**
+   * bd-oak77.4 — she typed a TOPIC, and under LP_612_ROUTE_ALL the answer is the menu.
+   *
+   * One short line, and only on the topic-bearing doors: the bare "lp" command and the /menu tap
+   * open the Flow with no preamble, because nothing needs explaining there. This line exists for
+   * the teacher who asked for "a lesson plan on photosynthesis" and would otherwise watch a grade
+   * picker appear with no idea why — rule 24(d), the copy names the actual state.
+   *
+   * It says where lessons come from now, not what was turned off. She never knew the word Gamma
+   * and an apology for a retired feature is not information she can use.
+   *
+   * Urdu is gender-agnostic in the second person — the imperative `منتخب کریں`, never
+   * `رہی ہوں گی` / `رہے ہوں گے` — because the cohort is mixed and the bot cannot know.
+   * Body field, so the 1024 cap applies, measured in CODE POINTS.
+   */
+  lp612RouteRedirect: {
+    en: 'Lesson plans now come straight from your own textbook. Pick the class, subject and chapter below and I will write that lesson for you.',
+    ur: 'اب سبق کے منصوبے آپ کی اپنی درسی کتاب سے بنتے ہیں۔ نیچے جماعت، مضمون اور باب منتخب کریں — وہ سبق تیار کر دیا جائے گا۔',
+  },
+
   lpBrowseHeader: {
     en: '📘 Lesson Plans',
     ur: '📘 سبق کے منصوبے',
@@ -818,32 +838,44 @@ const UX_STRINGS = {
     ur: 'پہلے طالب علم کے شروع کرنے کے تقریباً 12 گھنٹے بعد — یا سب کے مکمل کرتے ہی — رپورٹ آئے گی۔ اپنے quizzes دیکھنے یا رپورٹ منگوانے کے لیے کبھی بھی /quiz بھیجیں۔',
   },
   tqListBody: {
-    en: 'Your most recent lessons — up to 10, newest first. Pick one to make a quiz, resend its link, or get its report.',
-    ur: 'آپ کے حالیہ اسباق — زیادہ سے زیادہ 10، نئے سے پرانے۔ کوئی ایک چنیں — quiz بنانے، link دوبارہ بھیجنے یا رپورٹ لینے کے لیے۔',
+    en: 'Your lessons, newest first. Pick one to make a quiz, resend its link, or get its report.',
+    ur: 'آپ کے اسباق، نئے سے پرانے۔ کوئی ایک چنیں — quiz بنانے، link دوبارہ بھیجنے یا رپورٹ لینے کے لیے۔',
   },
   tqListButton: { en: 'Choose lesson', ur: 'سبق چنیں' },
   tqListSection: { en: 'Recent lessons', ur: 'حالیہ اسباق' },
+  tqListHeader: { en: 'Lessons {from}–{to}', ur: 'اسباق {from}–{to}' },
   tqListEmpty: {
     en: 'No lessons yet. Record a lesson for coaching first — then /quiz can turn it into a quiz for your students.',
     ur: 'ابھی کوئی سبق نہیں۔ پہلے coaching کے لیے سبق ریکارڈ کریں — پھر /quiz اسے طلبہ کے لیے quiz بنا دے گا۔',
   },
-  tqRowNoQuiz: { en: 'No quiz yet — tap to make one', ur: 'ابھی quiz نہیں — بنانے کے لیے tap کریں' },
-  tqRowOffered: { en: 'Offered — tap to make it', ur: 'پیشکش کی گئی — بنانے کے لیے tap کریں' },
+  tqRowNoQuiz: { en: 'No quiz yet', ur: 'ابھی quiz نہیں' },
+  tqRowOffered: { en: 'Offered — tap to make', ur: 'پیشکش — بنانے کو tap' },
   tqRowMaking: { en: 'Being made…', ur: 'تیار ہو رہا ہے…' },
-  tqRowSent: { en: 'Sent · {started} started · {finished} finished', ur: 'بھیجا گیا · {started} نے شروع کیا · {finished} مکمل' },
-  tqRowReportSent: { en: 'Report sent · {finished} finished', ur: 'رپورٹ بھیج دی گئی · {finished} مکمل' },
-  tqRowFailed: { en: 'Could not be made — tap to retry', ur: 'نہیں بن سکا — دوبارہ کوشش کے لیے tap کریں' },
+  tqRowSent: { en: 'Sent · {started} started · {finished} done', ur: 'بھیجا، {started} نے شروع، {finished} مکمل' },
+  tqRowReportSent: { en: 'Report sent · {finished} done', ur: 'رپورٹ بھیجی، {finished} مکمل' },
+  tqRowFailed: { en: 'Failed — tap to retry', ur: 'نہیں بنا — دوبارہ tap' },
+  tqRowOlder: { en: 'Older lessons…', ur: 'پرانے اسباق…' },
+  tqRowOlderDesc: { en: 'The next 9, going back', ur: 'اگلے 9، اور پیچھے' },
+  // The date is here because she is choosing between lessons, and two lessons
+  // can carry the same topic in one term.
   tqQuizStatus: {
-    en: '*{topic}*\n{started} started · {finished} finished.\n\nResend the link, or get the report now?',
-    ur: '\u200F*{topic}*\n{started} نے شروع کیا · {finished} مکمل۔\n\nlink دوبارہ بھیجیں، یا ابھی رپورٹ لیں؟',
+    en: '*{topic}*\n{date} · {started} started · {finished} finished.\n\nResend the link, or regenerate the report?',
+    ur: '\u200F*{topic}*\n{date}، {started} نے شروع کیا، {finished} مکمل۔\n\nlink دوبارہ بھیجیں، یا رپورٹ دوبارہ بنائیں؟',
   },
   tqLinkButton: { en: 'Resend link', ur: 'دوبارہ link بھیجیں' },
-  tqReportButton: { en: 'Report now', ur: 'رپورٹ ابھی' },
+  // Both ≤ 20 code points in both languages — a WhatsApp button title cap.
+  tqReportButton: { en: 'Regenerate report', ur: 'رپورٹ دوبارہ بنائیں' },
+  tqBackButton: { en: 'Back to lessons', ur: 'اسباق پر واپس' },
   tqNoReportYet: {
     en: 'No one has finished this quiz yet, so there is nothing to report. Resend the link?',
     ur: 'ابھی کسی نے یہ quiz مکمل نہیں کیا، اس لیے رپورٹ کے لیے کچھ نہیں۔ link دوبارہ بھیجیں؟',
   },
-  tqReportComing: { en: 'Preparing the report now…', ur: 'رپورٹ تیار ہو رہی ہے…' },
+  // Names the refetch: the whole point of the button is that a child who
+  // finished since the last report is counted this time.
+  tqReportComing: {
+    en: 'Recounting now — every student who has finished since the last report is included. One moment…',
+    ur: 'ابھی دوبارہ گنا جا رہا ہے — پچھلی رپورٹ کے بعد جس نے بھی مکمل کیا وہ بھی شامل ہے۔ ایک لمحہ…',
+  },
   tqNotYours: {
     en: 'I couldn’t find that lesson. Send /quiz to see your lessons.',
     ur: 'وہ سبق نہیں ملا۔ اپنے اسباق دیکھنے کے لیے /quiz بھیجیں۔',
@@ -965,6 +997,53 @@ const UX_STRINGS = {
   vqLetterOr: { en: 'or', ur: 'یا' },
   // The question card's OWN footer, painted into the image itself.
   vqCardTapBelow: { en: 'Tap {letters} below', ur: 'نیچے {letters} دبائیں' },
+  // ─── "select all that apply" questions (PLAN_R5 D4) ─────────────────────
+  // A question with two or three correct options is delivered as a Flow with a
+  // CheckboxGroup. Every string a child reads on that path lives here, in both
+  // languages, because the Flow ASSET is one per WABA and cannot be re-rendered
+  // per language — the only way an Urdu quiz reads as Urdu is if the sender
+  // supplies the copy as screen data (whatsapp-flows skill, rule 12).
+  //
+  // Caps that bind these: the Flow CTA button is 20 code points, a Flow Footer
+  // label 35, a CheckboxGroup label ~30, and the interactive message footer 60.
+  // Measured in CODE POINTS, which is what Meta counts and what an Urdu string
+  // makes differ from `.length`.
+  vqMultiSelectAll: { en: 'Select all that apply.', ur: 'سب درست جواب چنیں۔' },
+  vqMultiCardFoot: {
+    en: 'Open the form below and tick every right answer.',
+    ur: 'نیچے فارم کھولیں اور ہر درست جواب پر نشان لگائیں۔',
+  },
+  // The Flow's CTA button (20 code points) and its submit Footer (35).
+  vqMultiCta: { en: 'Answer', ur: 'جواب دیں' },
+  vqMultiSubmit: { en: 'Send answer', ur: 'جواب بھیجیں' },
+  // Says that the set has more than one member WITHOUT saying how many — the
+  // count is the answer key. Same reason the Flow's max-selected-items is the
+  // option count and not the size of the key.
+  vqMultiFooter: { en: 'More than one answer is right.', ur: 'ایک سے زیادہ جواب درست ہیں۔' },
+  // The verdict's opening sentence — WITHOUT a marker. D2's ✅/❌ is applied by
+  // video-quiz-render.withVerdictMark(), which is also the only thing that knows
+  // when the marker needs a right-to-left mark after it. Two places prepending
+  // an emoji is how a child ends up reading "✅ ✅".
+  // These are the fallbacks for a question whose author wrote no correct-answer
+  // feedback; when she did, her sentence is used and marked instead.
+  vqMultiRight: { en: 'Correct! The full answer is {right}.', ur: 'درست! پورا جواب یہ ہے: {right}۔' },
+  vqMultiWrong: { en: 'Not quite — the full answer is {right}.', ur: 'بالکل نہیں — پورا جواب یہ ہے: {right}۔' },
+  // Urdu deliberately uses the listing form ("these are right too") rather than
+  // a literal translation of "you missed": every natural Urdu verb for missing
+  // agrees in gender/number with the thing missed, which is unknown here and is
+  // sometimes one option and sometimes two.
+  vqMultiMissed: { en: 'You missed {missed}.', ur: 'یہ بھی درست ہیں: {missed}۔' },
+  vqMultiExtra: { en: '{extra} does not belong here.', ur: '\u200F{extra} اس میں شامل نہیں۔' },
+  // Joins the members of an answer set for a child to read.
+  vqMultiJoin: { en: ' and ', ur: ' اور ' },
+  // The degraded path: no Flow is configured on this WABA, so the question is
+  // asked as an ordinary single-select picker. It says plainly that more than
+  // one answer is right rather than pretending the question changed.
+  vqMultiFallbackAsk: {
+    en: 'More than one answer is right — tap the one you are most sure of.',
+    ur: 'ایک سے زیادہ جواب درست ہیں — جس پر آپ کو سب سے زیادہ یقین ہے وہ دبائیں۔',
+  },
+
   vqReportNoOne: {
     en: 'No one has opened your quiz on \u201c{topic}\u201d yet. The link stays live for 30 days \u2014 worth a nudge in the class group.',
     ur: '\u200Fآپ کے quiz «{topic}» کو ابھی تک کسی نے نہیں کھولا۔ link 30 دن تک چلتا رہے گا — class group میں ایک بار پھر یاد دہانی کرا دیں۔',

@@ -180,24 +180,24 @@ describe('bd-mg9c7.48 — three-part "For tomorrow" guidance', () => {
 
   test('renders three labelled parts for the "something missed" shape', () => {
     const html = renderHtml({ ...BASE, guidance: MISSED_GUIDANCE });
-    expect(html).toMatch(/What they muddled/);
+    expect(html).toMatch(/Where they got muddled/);
     expect(html).toMatch(/They think a half means any small piece\./);
-    expect(html).toMatch(/On the board/);
+    expect(html).toMatch(/How to reteach it tomorrow/);
     expect(html).toMatch(/Draw a circle, shade one half/);
-    expect(html).toMatch(/Check question/);
+    expect(html).toMatch(/Ask this at the end/);
     expect(html).toMatch(/If I shade 3 of 4 parts/);
-    expect(html).not.toMatch(/Secure/);
-    expect(html).not.toMatch(/One to stretch them/);
+    expect(html).not.toMatch(/What they have secure/);
+    expect(html).not.toMatch(/How to stretch them tomorrow/);
   });
 
   test('renders only the secure + stretch pair for the "nothing missed" shape', () => {
     const html = renderHtml({ ...BASE, guidance: ZERO_MISSED_GUIDANCE });
-    expect(html).toMatch(/Secure/);
+    expect(html).toMatch(/What they have secure/);
     expect(html).toMatch(/The class has this cold/);
-    expect(html).toMatch(/One to stretch them/);
+    expect(html).toMatch(/How to stretch them tomorrow/);
     expect(html).toMatch(/What would three quarters look like/);
-    expect(html).not.toMatch(/What they muddled/);
-    expect(html).not.toMatch(/Check question/);
+    expect(html).not.toMatch(/Where they got muddled/);
+    expect(html).not.toMatch(/Ask this at the end/);
   });
 
   test('a legacy plain string still renders as one unlabelled paragraph', () => {
@@ -304,8 +304,15 @@ describe('bd-2664 — Urdu report is fully localised + RTL', () => {
 
   test('chrome labels are translated, not left in English', () => {
     const html = renderHtml(UR_BASE);
-    expect(html).toMatch(/کلاس کوئز کے نتائج/); // "Class quiz results"
-    expect(html).toMatch(/ہر طالب علم کی کارکردگی/); // "How each student did"
+    // PLAN_R5 item 14 — `quiz` is a term of record and stays in LATIN letters
+    // inside the Urdu chrome, exactly as ux-strings.js already writes it. The
+    // rest of the line is real Urdu.
+    // wrapLatin() isolates the Latin run, so the rendered eyebrow is
+    // `کلاس کے <span class="ltr">quiz</span> کے نتائج` — assert the two halves
+    // around the isolate rather than the unrendered source string.
+    expect(html).toMatch(/کلاس کے <span class="ltr">quiz<\/span> کے نتائج/);
+    expect(html).not.toMatch(/کوئز/);
+    expect(html).toMatch(/ہر بچے کی کارکردگی/); // "How each student did"
     expect(html).toMatch(/کل کے لیے/); // "For tomorrow"
     expect(html).not.toMatch(/Class quiz results/);
     expect(html).not.toMatch(/Worth reteaching/);
@@ -440,7 +447,8 @@ describe('bd-mg9c7.48/D1 — full single-language chrome, both directions', () =
     ['Class quiz results', 'Class results', 'Class average', 'Started', 'Finished',
       'Worth reteaching', 'Most chose', 'correct answer', 'Explanation:', 'Why they picked it:',
       'How each student did', 'Not finished yet:', 'For tomorrow',
-      'What they muddled', 'On the board', 'Check question', 'Secure', 'One to stretch them',
+      'Where they got muddled', 'How to reteach it tomorrow', 'Ask this at the end',
+      'What they have secure', 'How to stretch them tomorrow',
       // The roster's class label is chrome too — classLabel() prefixed "Grade "
       // unconditionally, so every row of an Urdu roster printed an English word.
       'Grade ',
@@ -449,10 +457,11 @@ describe('bd-mg9c7.48/D1 — full single-language chrome, both directions', () =
 
   test('language+contentLanguage both "en": no Urdu chrome word anywhere', () => {
     const html = renderHtml({ ...FULL, language: 'en', contentLanguage: 'en' });
-    ['کلاس کوئز کے نتائج', 'کلاس کے نتائج', 'کلاس اوسط', 'شروع کیا', 'مکمل کیا',
-      'دوبارہ پڑھانا', 'زیادہ تر نے چنا', 'درست جواب', 'وضاحت:', 'انہوں نے یہ کیوں چنا:',
-      'ہر طالب علم کی کارکردگی', 'ابھی مکمل نہیں کیا:', 'کل کے لیے',
-      'کیا الجھن ہوئی', 'بورڈ پر', 'جانچ کا سوال', 'یہ پکا ہو گیا', 'ایک اور آگے کا سوال',
+    ['کلاس کے quiz کے نتائج', 'کلاس کے نتائج', 'کلاس کا اوسط', 'شروع کیا', 'مکمل کیا',
+      'دوبارہ پڑھانے کے قابل', 'زیادہ تر نے چنا', 'درست جواب', 'وضاحت:', 'بچوں نے یہ کیوں چنا:',
+      'ہر بچے کی کارکردگی', 'ابھی مکمل نہیں کیا:', 'کل کے لیے',
+      'بچے کہاں الجھے', 'کل اسے دوبارہ کیسے پڑھائیں', 'آخر میں یہ پوچھیں',
+      'بچوں کو یہ پکا آ گیا', 'کل انہیں ایک قدم آگے کیسے لے جائیں',
     ].forEach((chrome) => expect(html).not.toContain(chrome));
   });
 });
@@ -625,7 +634,9 @@ describe('bd-mg9c7.48 — what the round-4 renders showed', () => {
     const html = renderHtml(BASE);
 
     test('nothing that reads as one unit may split across a page break', () => {
-      const rule = (html.match(/\.moment,\.try,\.unfin,\.r-row\{([^}]*)\}/) || [])[1];
+      // .try-part joined the list in round 5: each guidance part is now its own
+      // white block, and a block split from its own label reads as two things.
+      const rule = (html.match(/\.moment,\.try,\.try-part,\.unfin,\.r-row\{([^}]*)\}/) || [])[1];
       expect(rule).toBeTruthy();
       expect(rule).toMatch(/break-inside:avoid/);
       expect(rule).toMatch(/page-break-inside:avoid/);

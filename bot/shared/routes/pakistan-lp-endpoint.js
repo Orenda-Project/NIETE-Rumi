@@ -50,7 +50,10 @@ const V8Catalog = require('../services/lp-v8-catalog.service');
 const V8Delivery = require('../services/lp-v8-delivery.service');
 const Lp612Catalog = require('../services/lp612-catalog.service');
 const Lp612Serving = require('../services/lp612-serving.service');
-const { isLp612Enabled, isLp612Grade, isLp612LangMenuEnabled } = require('../config/lp612-flags');
+const {
+  isLp612Enabled, isLp612Grade, isLp612LangMenuEnabled,
+  isLp612RouteAll, lp612ServesGrade, // bd-oak77.4
+} = require('../config/lp612-flags');
 const { LANGUAGE_OFFER, offerDefaultLanguage } = require('../config/languages');
 
 const CURRICULUM_TAG = 'pakistan';
@@ -218,7 +221,11 @@ async function selectGrade(screenData) {
   // run there are zero niete_lp_assets rows, so replacing this path outright
   // would take the LP menu away from every K-5 teacher on deploy. v8 wins where
   // it has content; where it does not, the legacy path answers exactly as before.
-  if (isV8Grade(grade)) {
+  // bd-oak77.4 — LP_612_ROUTE_K5 (ships FALSE) hands grades 1-5 to the 6-12
+  // catalogue instead. The 62 books it holds are grades 6-12, so a K-5 teacher
+  // will be told there are no lessons for her class: this is the operator's
+  // switch, not a recommendation, and the default keeps her on the K-5 v8 corpus.
+  if (isV8Grade(grade) && !lp612ServesGrade(grade)) {
     const available = await V8Delivery.availableLessonIds();
     const items = V8Catalog.buildSubjectItems(grade, available);
     if (items.length) {
@@ -236,13 +243,25 @@ async function selectGrade(screenData) {
   // them away from a grade whose books the segmentation fleet has not finished.
   // The 6-12 corpus wins where it has content; where it does not, Oxbridge
   // answers exactly as it does now.
-  if (isLp612Enabled() && isLp612Grade(grade)) {
+  // `lp612ServesGrade` is the ONE definition of which grades this corpus claims,
+  // shared with the free-text router in text-message.handler so the two cannot
+  // drift (bd-w36m5). It already folds in isLp612Enabled() and LP_612_ROUTE_K5.
+  if (lp612ServesGrade(grade)) {
     const items = await Lp612Catalog.buildSubjectItems(grade);
     if (items.length) {
       return {
         screen: 'SELECT_SUBJECT',
         data: { items, grade_value: String(grade), grade_display: gradeTitle(grade) },
       };
+    }
+    // bd-oak77.4 — LEAK 2. With LP_612_ROUTE_ALL on, the operator's instruction is that the
+    // menu IS the answer for 6-12, so an empty 6-12 catalogue must NOT quietly hand her the old
+    // Oxbridge picker instead — that is the picker being reachable by another name. She gets the
+    // honest "nothing for this class yet" that the tail of this function already sends, which
+    // names the actual state and points at what will work (rule 24(d)).
+    if (isLp612RouteAll()) {
+      logToFile('LP route-all: no segments for grade — Oxbridge fallback suppressed', { grade });
+      return { data: { error: { message: `No lesson plans available for ${gradeTitle(grade)} yet. Try another class or check back soon.` } } };
     }
     logToFile('LP 6-12: no segments for grade — falling back to Oxbridge', { grade });
   }
@@ -706,7 +725,12 @@ async function lp612SegmentScreen(d, page, screenId) {
   if (!Number.isFinite(grade) || !d.subject || !d.chapter_key) {
     return { data: { error: { message: 'Please pick a chapter again.' } } };
   }
-  const { items, total } = await Lp612Catalog.buildSegmentItems(grade, d.subject, d.chapter_key, page);
+  // `book_stem` rides in the tapped row's own payload. Two books can share a
+  // (grade, subject) and number their chapters from c01, so without it this lists
+  // both books' lessons under one chapter (bd-oak77.5). Absent on rows rendered
+  // before that shipped, which is why buildSegmentItems treats it as optional.
+  const { items, total } = await Lp612Catalog.buildSegmentItems(
+    grade, d.subject, d.chapter_key, page, d.book_stem || null);
   if (!items.length) {
     return { data: { error: { message: 'Those lesson plans are being prepared — check back soon.' } } };
   }

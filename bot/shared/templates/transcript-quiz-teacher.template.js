@@ -44,7 +44,16 @@ const fs = require('fs');
 const path = require('path');
 const { richNotation } = require('../services/quiz/quiz-notation');
 const { sloStatement } = require('../services/quiz/transcript-quiz-language');
-const { PALETTE, FONTS, headFamily, bodyFamily, latticeSvg, diamondSvg, scriptOf } = require('./niete-brand');
+const { resolveUx } = require('../config/ux-strings');
+const { PALETTE, FONTS, TYPE_FLOOR, headFamily, bodyFamily, latticeSvg, diamondSvg, scriptOf } = require('./niete-brand');
+
+// PLAN_R5 D6 / operator item 11 — the shared floor, never re-typed as a raw
+// number. Urdu scales UP from it (+15%, niete-brand's TYPE_FLOOR doc) rather
+// than sitting at it, because Nastaliq's low x-height reads smaller at the
+// same nominal size.
+const BODY_UR = Math.round(TYPE_FLOOR.body * 1.15 * 10) / 10;   // 20.7px
+const SMALL_UR = Math.round(TYPE_FLOOR.small * 1.15 * 10) / 10; // 16.1px
+const LABEL_UR = Math.round(TYPE_FLOOR.label * 1.15 * 10) / 10; // 15.5px
 
 let _assets = null;
 function readBase64(relPath) {
@@ -137,7 +146,6 @@ const RTL_LANGS = new Set(['ur']);
 const CHROME = {
   en: {
     eyebrow: 'Class quiz · ready to forward',
-    grade: (g) => `Grade ${esc(g)}`,
     questions: 'questions', slos: 'learning goals',
     taught: 'What you taught', checks: 'What this quiz checks',
     level: { recall: 'recall', understand: 'understand', apply: 'apply' },
@@ -147,10 +155,11 @@ const CHROME = {
     link: 'Link', footer: 'Made from your lesson recording · NIETE Teaching Assistant',
   },
   ur: {
-    eyebrow: 'کلاس کوئز · forward کرنے کے لیے تیار',
-    grade: (g) => `جماعت ${esc(g)}`,
+    // 'quiz' is a term of record (root rule 20 / operator item 14) — it stays
+    // in Latin letters, never transliterated to 'کوئز'.
+    eyebrow: 'کلاس quiz · forward کرنے کے لیے تیار',
     questions: 'سوالات', slos: 'سیکھنے کے مقاصد',
-    taught: 'آپ نے کیا پڑھایا', checks: 'یہ کوئز کیا جانچتا ہے',
+    taught: 'آپ نے کیا پڑھایا', checks: 'یہ quiz کیا جانچتا ہے',
     level: { recall: 'یاد', understand: 'سمجھ', apply: 'استعمال' },
     howTo: 'بھیجنے کا طریقہ',
     howToText: 'اگلا پیغام طلبہ کے لیے ہے — اسے کلاس کے group میں forward کریں۔ ہر بچہ link پر tap کر کے اپنی chat میں جواب دے گا۔ پہلے بچے کے شروع کرنے کے تقریباً 12 گھنٹے بعد رپورٹ آ جائے گی۔',
@@ -189,7 +198,11 @@ const LETTERS = ['A', 'B', 'C', 'D'];
  *        the whole document is written in it (D1).
  * @param {string} [d.lessonSummary] the author call's `lesson_summary`: what
  *        she taught, in the order she taught it. Opens the document.
- * @param {string|number} [d.grade]
+ * @param {string|number} [d.grade] accepted and ignored (operator item 6: a
+ *        transcript spans several grades — "grade 6-8, that's a wild range"
+ *        — so the pre-send PDF no longer prints one). The parameter stays
+ *        because `transcript-quiz-generate.service.js renderPdf` is owned by
+ *        another lane this round and passes it either way.
  * @param {Array}  [d.questions] `quiz_questions` rows. Each may carry
  *        `figureSvg` (drawn above the stem, as on the phone) and
  *        `selected_because` — directly or on `media.selected_because` — the
@@ -241,23 +254,38 @@ function renderTranscriptQuizTeacherHtml(d) {
     // The options in the order the CHILD meets them, with the same A/B/C
     // handles the sender puts on the buttons.
     const { labels, order } = childOrder(q);
-    const storedCorrect = LETTERS.indexOf(String(q.correct_option || 'A').split(',')[0].trim());
-    const correctPos = order.indexOf(storedCorrect);
+    // A question may have more than one correct option ("select all that
+    // apply"), stored as a comma-joined letter set. Every one of them is
+    // marked — not just the first.
+    const correctPositions = new Set(
+      String(q.correct_option || 'A').split(',')
+        .map((c) => order.indexOf(LETTERS.indexOf(c.trim())))
+        .filter((p) => p >= 0));
+    const isMulti = Boolean(q.media && q.media.answer_mode === 'multi');
     const misc = q.distractor_misconceptions || {};
     // EVERY row carries its letter, correct one included: the child taps a
     // letter, so a teacher reading "the answer is the one with the tick" still
     // has to count rows to know which button that is.
     const optionsHtml = order.map((stored, pos) => `
-          <div ${cls(`opt${pos === correctPos ? ' correct' : ''}`)}><span class="mark"><span class="dia2"><span>${LETTERS[pos]}</span></span></span><span class="otext">${K(labels[stored])}</span>${pos === correctPos ? `<span class="tag">${L(C.correct)}</span>` : ''}</div>`).join('');
+          <div ${cls(`opt${correctPositions.has(pos) ? ' correct' : ''}`)}><span class="mark"><span class="dia2"><span>${LETTERS[pos]}</span></span></span><span class="otext">${K(labels[stored])}</span>${correctPositions.has(pos) ? `<span class="tag">${L(C.correct)}</span>` : ''}</div>`).join('');
     // One compressed line per wrong option: the option, then in eight words
     // what picking it would reveal. The child-facing feedback prose is NOT
     // here — she reads that on her phone with the child, not on paper.
+    // Skips EVERY correct position, not just the first — otherwise a correct
+    // option on a multi-answer question prints as a misconception.
     const misses = order.map((stored, pos) => {
-      if (pos === correctPos) return '';
+      if (correctPositions.has(pos)) return '';
       const m = clampWords(misc[LETTERS[stored]] || misc[String(stored)] || '', 14);
       if (!m) return '';
+      // The label is clamped in WORDS, not left to a CSS ellipsis: at the
+      // 18px+ floor a fixed-width nowrap chip clipped mid-word, and in the
+      // Urdu render — a Latin option phrase isolated inside an RTL chip —
+      // the CSS truncation cut from the visual left, printing "…roper
+      // fraction" instead of "Proper fraction…". Clamping the words first
+      // means the chip always ends on a real word boundary either way.
+      const wrongLabel = clampWords(labels[stored], 5);
       return `
-          <div class="miss"><span ${cls('wrongpill')}>${K(labels[stored])}</span>${missMark}<span ${cls('misstext')}>${K(m)}</span></div>`;
+          <div class="miss"><span ${cls('wrongpill')}>${K(wrongLabel)}</span>${missMark}<span ${cls('misstext')}>${K(m)}</span></div>`;
     }).join('');
     const why = q.selected_because || (q.media && q.media.selected_because) || '';
     // The picture, when the question has one, sits beside the words and comes
@@ -273,6 +301,7 @@ function renderTranscriptQuizTeacherHtml(d) {
         <div class="cmain">${wide ? '' : figure}
           <div class="cbody">
             <div ${cls('stem')}>${K(q.question_text)}</div>
+            ${isMulti ? `<div class="multichip"><span class="pill">${L(resolveUx('vqMultiSelectAll', { language: docLang }))}</span></div>` : ''}
             <div class="opts">${optionsHtml}</div>
             ${why ? `<div class="chosen"><span class="lbl">${L(C.chosen)}</span> <span ${cls('inline')}>${K(why)}</span></div>` : ''}
             ${misses}
@@ -290,7 +319,10 @@ function renderTranscriptQuizTeacherHtml(d) {
   const nameRtl = scriptOf(teacherName) === 'ur';
   const nameHtml = teacherName
     ? `<span class="nm" dir="${nameRtl ? 'rtl' : 'ltr'}">${esc(teacherName)}</span>` : '';
-  const meta = [nameHtml, grade ? L(C.grade(grade)) : '', date ? L(esc(date)) : ''].filter(Boolean).join('<span class="sep">·</span>');
+  // grade is accepted-and-ignored (operator item 6) — the meta line is
+  // `name · date` only.
+  void grade;
+  const meta = [nameHtml, date ? L(esc(date)) : ''].filter(Boolean).join('<span class="sep">·</span>');
 
   return `<!doctype html><html dir="${dir}" lang="${docLang}"><head><meta charset="utf-8"><style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -320,70 +352,79 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
 .hero>*:not(.lattice){position:relative;z-index:1}
 .herotop{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}
 .hero-mark{width:48px;height:48px;object-fit:contain;flex-shrink:0;display:block}
-.eyebrow{font-size:11.5px;letter-spacing:${RTL ? '0' : '.18em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.greenPale};font-weight:700;font-family:${bodyFam}}
-.hero h1{font-family:${headFam};font-size:${RTL ? '23px' : '26px'};line-height:${RTL ? '1.5' : '1.18'};font-weight:600;margin-top:6px;max-width:580px}
-.who{margin-top:10px;font-size:13.5px;color:#e2e5ea;line-height:${lh};font-family:${bodyFam}}
+.eyebrow{font-size:${RTL ? `${LABEL_UR}px` : `${TYPE_FLOOR.label}px`};letter-spacing:${RTL ? '0' : '.18em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.greenPale};font-weight:700;font-family:${bodyFam}}
+.hero h1{font-family:${headFam};font-size:${RTL ? '28px' : '30px'};line-height:${RTL ? '1.5' : '1.18'};font-weight:600;margin-top:6px;max-width:580px}
+.who{margin-top:10px;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};color:#e2e5ea;line-height:${lh};font-family:${bodyFam}}
 .who .sep{opacity:.5;margin:0 8px}
 .statrow{display:flex;gap:9px;margin-top:11px}
 .stchip{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);border-radius:10px;padding:5px 12px}
-.stchip .n{font-family:${bodyFamily(false)};font-weight:700;font-size:17px;direction:ltr}
-.stchip .l{font-family:${bodyFam};font-size:${RTL ? '11px' : '10px'};color:${PALETTE.greenPale};${RTL ? '' : 'text-transform:uppercase;'}letter-spacing:.06em}
+.stchip .n{font-family:${bodyFamily(false)};font-weight:700;font-size:19px;direction:ltr}
+.stchip .l{font-family:${bodyFam};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};color:${PALETTE.greenPale};${RTL ? '' : 'text-transform:uppercase;'}letter-spacing:.06em}
 /* ── sheet ──────────────────────────────────────────────────────────────── */
 .body{padding:14px 40px 6px}
-.label{font-family:${bodyFam};font-size:${RTL ? '12px' : '10.5px'};letter-spacing:${RTL ? '0' : '.14em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.slate};opacity:.62;font-weight:700;margin-bottom:7px;break-after:avoid}
+.label{font-family:${bodyFam};font-size:${RTL ? `${LABEL_UR}px` : `${TYPE_FLOOR.label}px`};letter-spacing:${RTL ? '0' : '.14em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.slate};opacity:.62;font-weight:700;margin-bottom:7px;break-after:avoid}
 .band{display:flex;gap:18px;align-items:stretch}
 .band>div{flex:1 1 0;min-width:0}
 .band .taught{flex:1.05 1 0}
-.taught .sum{font-size:13px;line-height:${RTL ? '1.72' : lh};background:${PALETTE.greenWash};border-${RTL ? 'right' : 'left'}:3px solid ${PALETTE.green};border-radius:${RTL ? '10px 4px 4px 10px' : '4px 10px 10px 4px'};padding:10px 13px}
+.taught .sum{font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${RTL ? '1.72' : lh};background:${PALETTE.greenWash};border-${RTL ? 'right' : 'left'}:3px solid ${PALETTE.green};border-radius:${RTL ? '10px 4px 4px 10px' : '4px 10px 10px 4px'};padding:10px 13px}
 .checks ul{list-style:none}
-.checks li{padding:3px 0;font-size:12.5px;line-height:${RTL ? '1.72' : lh};border-bottom:1px solid #eaeeeb}
+.checks li{padding:3px 0;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${RTL ? '1.72' : lh};border-bottom:1px solid #eaeeeb}
 .checks .content[dir="rtl"],.taught .content[dir="rtl"]{line-height:1.72}
 .checks li:last-child{border-bottom:0}
 .checks li .dia,.miss .dia{vertical-align:middle;margin-${RTL ? 'left' : 'right'}:7px}
-.pill{display:inline-block;font-family:${bodyFamily(false)};font-size:9.5px;font-weight:700;color:#1f7a4b;background:${PALETTE.greenWash};border-radius:10px;padding:1px 8px;vertical-align:middle;margin-${RTL ? 'left' : 'right'}:6px;letter-spacing:.02em}
-.howto{margin-top:11px;background:#f6f8f7;border:1px solid #e3e8e5;border-radius:12px;padding:10px 14px;font-size:11.5px;line-height:${RTL ? '1.7' : '1.38'};font-family:${bodyFam};display:flex;gap:12px;align-items:flex-start}
+.pill{display:inline-block;font-family:${bodyFamily(false)};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-weight:700;color:#1f7a4b;background:${PALETTE.greenWash};border-radius:10px;padding:1px 8px;vertical-align:middle;margin-${RTL ? 'left' : 'right'}:6px;letter-spacing:.02em}
+.howto{margin-top:11px;background:#f6f8f7;border:1px solid #e3e8e5;border-radius:12px;padding:10px 14px;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${RTL ? '1.7' : '1.38'};font-family:${bodyFam};display:flex;gap:12px;align-items:flex-start}
 .howto .txt{flex:1}
-.howto .lnk{margin-top:6px;font-family:${bodyFamily(false)};font-size:11px;color:#1f7a4b;direction:ltr;unicode-bidi:isolate;text-align:${RTL ? 'right' : 'left'}}
+.howto .lnk{margin-top:6px;font-family:${bodyFamily(false)};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};color:#1f7a4b;direction:ltr;unicode-bidi:isolate;text-align:${RTL ? 'right' : 'left'}}
 /* ── question cards ─────────────────────────────────────────────────────── */
 .qs{margin-top:13px}
 .card{background:#f6f8f7;border-radius:12px;padding:8px 12px 8px;margin-bottom:6px;page-break-inside:avoid;break-inside:avoid}
 .chead{display:flex;gap:9px;align-items:center;margin-bottom:4px}
-.num{flex-shrink:0;width:22px;height:22px;transform:rotate(45deg);background:${PALETTE.slate};color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:${bodyFamily(false)}}
+.num{flex-shrink:0;width:26px;height:26px;transform:rotate(45deg);background:${PALETTE.slate};color:#fff;font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-weight:700;display:flex;align-items:center;justify-content:center;font-family:${bodyFamily(false)}}
 .num span{display:block;transform:rotate(-45deg)}
-.cmeta{font-size:11px;color:${PALETTE.muted};line-height:1.35;font-family:${bodyFam}}
+.cmeta{font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};color:${PALETTE.muted};line-height:1.35;font-family:${bodyFam}}
 .slo{color:${PALETTE.slate}}
 .cmain{display:flex;gap:14px;align-items:flex-start}
 .cbody{flex:1;min-width:0}
-.figure{width:268px;flex-shrink:0;background:#fff;border:1px solid #e7ebe9;border-radius:10px;padding:8px;text-align:center;${figureTokens()}}
+.figure{width:220px;flex-shrink:0;background:#fff;border:1px solid #e7ebe9;border-radius:10px;padding:8px;text-align:center;${figureTokens()}}
 .figure.wide{width:auto;margin-bottom:5px;padding:5px 10px}
 .figure.wide svg,.figure.wide img{max-height:100px;width:100%}
 .figure svg,.figure img{max-width:100%;max-height:190px;width:auto;height:auto;display:inline-block}
-.stem{font-family:${headFam};font-size:${RTL ? '14.5px' : '15px'};line-height:${RTL ? '1.55' : '1.3'};color:${PALETTE.ink};font-weight:600;margin-bottom:5px}
+.stem{font-family:${headFam};font-size:${RTL ? '24px' : '21px'};line-height:${RTL ? '1.5' : '1.3'};color:${PALETTE.ink};font-weight:600;margin-bottom:5px}
+.multichip{margin-bottom:5px}
 .opts{display:flex;flex-direction:column;gap:2px}
-.opt{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:2px 9px;border-radius:7px;background:#fff;border:1px solid #e3e8e5}
+.opt{display:flex;align-items:center;gap:8px;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};padding:3px 9px;border-radius:7px;background:#fff;border:1px solid #e3e8e5}
 /* An option row and a caption are UI, not prose: Nastaliq's prose leading
    (1.85) over eight of these is a whole extra page. The reading blocks — the
    summary, the goals, the stems — keep it. */
 .opt.content[dir="rtl"],.miss .content[dir="rtl"],.chosen .content[dir="rtl"]{line-height:1.5}
 .opt .otext{flex:1;min-width:0}
 .opt.correct{background:${PALETTE.greenWash};border-color:${PALETTE.green};color:#1f5f3e;font-weight:700}
-.opt .mark{display:inline-flex;align-items:center;justify-content:center;width:18px;flex-shrink:0}
+.opt .mark{display:inline-flex;align-items:center;justify-content:center;width:22px;flex-shrink:0}
 /* The child's question card marks each option with a diamond carrying its
    letter. The same marker here, so "A" on paper is "A" on the phone. Drawn
-   with a rotated box, never a glyph. */
-.dia2{width:17px;height:17px;position:relative;display:inline-block}
+   with a rotated box, never a glyph — big enough that its own letter clears
+   the 14px small-type floor (operator item 11: "she matches it against her
+   pupil's phone, it must be readable"). */
+.dia2{width:21px;height:21px;position:relative;display:inline-block}
 .dia2::before{content:'';position:absolute;inset:1px;background:#fff;border:1.3px solid #C6CFCA;transform:rotate(45deg);border-radius:3px}
 .opt.correct .dia2::before{background:${PALETTE.green};border-color:${PALETTE.green}}
-.dia2>span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:${bodyFamily(false)};font-size:9.5px;font-weight:700;color:#7b8494;direction:ltr}
+.dia2>span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:${bodyFamily(false)};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-weight:700;color:#7b8494;direction:ltr}
 .opt.correct .dia2>span{color:#0B1A12}
-.opt .tag{font-family:${bodyFamily(false)};font-size:9px;font-weight:700;letter-spacing:.08em;color:#1f7a4b;flex-shrink:0}
-.chosen{margin-top:5px;font-size:11.5px;line-height:${RTL ? '1.6' : lh};font-family:${bodyFam};color:#3d4454}
-.chosen .lbl{font-family:${bodyFamily(false)};font-size:9px;font-weight:700;letter-spacing:.1em;${RTL ? '' : 'text-transform:uppercase;'}color:#166341;background:${PALETTE.greenWash};border-radius:4px;padding:2px 7px;margin-${RTL ? 'left' : 'right'}:6px;vertical-align:middle}
-.miss{margin-top:2px;font-size:11px;line-height:1.5;font-family:${bodyFam};color:#6a7284;display:flex;align-items:center;gap:6px}
-.wrongpill{background:#eceef2;color:${PALETTE.slateLight};font-weight:700;padding:1px 8px;border-radius:9px;flex-shrink:0;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.opt .tag{font-family:${bodyFamily(false)};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-weight:700;letter-spacing:.08em;color:#1f7a4b;flex-shrink:0}
+.chosen{margin-top:5px;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${RTL ? '1.6' : lh};font-family:${bodyFam};color:#3d4454}
+.chosen .lbl{font-family:${bodyFamily(false)};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-weight:700;letter-spacing:.1em;${RTL ? '' : 'text-transform:uppercase;'}color:#166341;background:${PALETTE.greenWash};border-radius:4px;padding:2px 7px;margin-${RTL ? 'left' : 'right'}:6px;vertical-align:middle}
+.miss{margin-top:2px;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:1.5;font-family:${bodyFam};color:#6a7284;display:flex;align-items:flex-start;gap:6px}
+/* The chip's own length is controlled in WORDS (clampWords, 5), not by a
+   fixed-width CSS ellipsis: at the 18px+ floor a nowrap+ellipsis chip cut
+   mid-word, and on the Urdu render — a Latin option phrase isolated inside
+   an RTL chip — the truncation cut from the visual left, printing "…roper
+   fraction" instead of "Proper fraction…". Wrapping to a second line beats
+   either failure. */
+.wrongpill{background:#eceef2;color:${PALETTE.slateLight};font-weight:700;padding:1px 8px;border-radius:9px;flex-shrink:0;max-width:260px}
 .misstext{flex:1;min-width:0}
-.foot{display:flex;align-items:center;justify-content:space-between;padding:12px 40px 16px;margin-top:8px;border-top:1px solid #eaeeeb;color:#8a92a0;font-size:11.5px;line-height:${lh};font-family:${bodyFam}}
-.brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${PALETTE.slate};font-size:13px;font-family:${bodyFamily(false)}}
+.foot{display:flex;align-items:center;justify-content:space-between;padding:12px 40px 16px;margin-top:8px;border-top:1px solid #eaeeeb;color:#8a92a0;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${lh};font-family:${bodyFam}}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${PALETTE.slate};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-family:${bodyFamily(false)}}
 .brand .mark-img{width:19px;height:19px;object-fit:contain;display:block}
 </style></head><body>
 <div class="report">

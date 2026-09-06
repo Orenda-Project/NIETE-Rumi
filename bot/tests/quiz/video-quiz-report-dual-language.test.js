@@ -38,23 +38,35 @@ jest.mock('../../shared/utils/html-to-pdf', () => ({
 // The one network boundary the guidance box crosses. generateGuidance now
 // asks for (and parses) JSON — {muddled, board, check} in the reteach mode
 // every test here exercises — so the fixture reply is JSON, not prose.
+//
+// PLAN_R5 §0 item 12 — the reply must also be IN the requested script and
+// carry a 2-3 sentence `board`, or generateGuidance()'s guidanceShape() check
+// now retries once. This file exercises BOTH an Urdu-quiz
+// teacher and an English-quiz teacher against the SAME mock, so the reply
+// must match whichever prompt actually asked — a canned reply in one script
+// answering a request for the other would (correctly) trigger a retry, and
+// "accept whatever comes back" (never null just because it was thin) would
+// then leave off-language text sitting in a body a same-language assertion
+// reads. Urdu is the one prompt language that leaves an unambiguous mark.
 const captured = { prompts: [] };
 jest.mock('openai', () => jest.fn().mockImplementation(() => ({
   chat: {
     completions: {
       create: jest.fn(async ({ messages }) => {
         captured.prompts.push(messages[0].content);
-        return {
-          choices: [{
-            message: {
-              content: JSON.stringify({
-                muddled: 'They think a half is any small piece.',
-                board: 'Draw a half and a third on the board.',
-                check: 'What is a half?',
-              }),
-            },
-          }],
+        const isUrdu = /آبجیکٹ/.test(messages[0].content);
+        const body = isUrdu ? {
+          muddled: 'بچے سمجھتے ہیں کہ آدھا کوئی بھی چھوٹا سا ٹکڑا ہوتا ہے۔',
+          board: 'بورڈ پر ایک روٹی کھینچیں اور اسے برابر دو حصوں میں تقسیم کریں، '
+            + 'پھر دوسری روٹی کو تین برابر حصوں میں تقسیم کریں۔ بچوں سے پوچھیں کہ '
+            + 'کون سا ٹکڑا بڑا ہے اور کیوں۔',
+          check: 'آدھا کسے کہتے ہیں؟',
+        } : {
+          muddled: 'They think a half is any small piece.',
+          board: 'Draw a half and a third on the board. Ask which piece is bigger and why.',
+          check: 'What is a half?',
         };
+        return { choices: [{ message: { content: JSON.stringify(body) } }] };
       }),
     },
   },
@@ -162,8 +174,12 @@ describe('D1 — teacher en + quiz ur: the DOCUMENT follows the quiz, not her', 
     await report.generate(SHARE_CODE_ID, { reason: 'scheduled' });
 
     const body = WhatsAppService.sendMessage.mock.calls.map((c) => c[1]).join('\n');
-    expect(body).toMatch(/کوئز کے نتائج/);
-    expect(body).toMatch(/طلبہ نے مکمل کیا/);
+    // PLAN_R5 item 14 — `quiz` is a term of record and stays in Latin letters
+    // inside the Urdu line; what proves the fallback is in the DOCUMENT's
+    // language is the Urdu around it, not the absence of every Latin word.
+    expect(body).toMatch(/quiz کے نتائج/);
+    expect(body).not.toMatch(/کوئز/);
+    expect(body).toMatch(/بچوں نے مکمل کیا/);
     expect(body).not.toMatch(/Quiz results/);
   });
 
@@ -322,8 +338,14 @@ describe('after the report, /quiz says so', () => {
  */
 describe('bd-mg9c7.48 — the fallback and the PDF name the reteach parts identically', () => {
   const LABELS = {
-    en: ['What they muddled', 'On the board', 'Check question', 'Secure', 'One to stretch them'],
-    ur: ['کیا الجھن ہوئی', 'بورڈ پر', 'جانچ کا سوال', 'یہ پکا ہو گیا', 'ایک اور آگے کا سوال'],
+    // Round 5 renamed all five: each now names what SHE DOES rather than what
+    // the JSON field is called. This list is the contract between the two
+    // surfaces — if it drifts from the template's CHROME, the teacher learns
+    // two vocabularies for the same three parts.
+    en: ['Where they got muddled', 'How to reteach it tomorrow', 'Ask this at the end',
+      'What they have secure', 'How to stretch them tomorrow'],
+    ur: ['بچے کہاں الجھے', 'کل اسے دوبارہ کیسے پڑھائیں', 'آخر میں یہ پوچھیں',
+      'بچوں کو یہ پکا آ گیا', 'کل انہیں ایک قدم آگے کیسے لے جائیں'],
   };
 
   ['en', 'ur'].forEach((lang) => {

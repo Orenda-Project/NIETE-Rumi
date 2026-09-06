@@ -217,6 +217,18 @@ const FLOW_CONFIGS = [
     envVar: 'PAKISTAN_LP_FLOW_ID',
     categories: ['OTHER'],
   },
+  {
+    // Multi-answer ("select all that apply") transcript-quiz questions. STATIC —
+    // no endpoint: the question, options and answer token are all supplied
+    // per-send as navigate-mode screen data. Leaving QUIZ_MULTI_FLOW_ID unset
+    // falls the question back to the single-select interactive-list picker,
+    // which is the rollback lever.
+    name: 'Quiz Multi-Select',
+    jsonPath: path.join(FLOWS_DIR, 'quiz-multi-select-flow.json'),
+    type: 'navigate',
+    envVar: 'QUIZ_MULTI_FLOW_ID',
+    categories: ['OTHER'],
+  },
 ];
 
 /** The flow names that a complete setup must have registered. */

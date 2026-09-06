@@ -18,7 +18,7 @@ const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
-const { truncateCodePoints } = require('./religious-marks');
+const { composeTitle, composeDescription, normaliseTopic } = require('./transcript-quiz-rows');
 const { teacherLanguageFor, formatLessonDate, subjectLabel, quizLanguageFor, needsLanguageAsk } = require('./transcript-quiz-language');
 const { MIN_TRANSCRIPT_CHARS, sendLanguageAsk } = require('./transcript-quiz-offer.service');
 const { isSelfTest } = require('./teacher-self-test');
@@ -26,9 +26,14 @@ const { isSelfTest } = require('./teacher-self-test');
 const PICK_PREFIX = 'tq_pick_';
 const LINK_PREFIX = 'tq_link_';
 const REPORT_PREFIX = 'tq_report_';
-const MAX_ROWS = 10;            // WhatsApp's list cap, and the 10 tqListBody names
+const PAGE_PREFIX = 'tq_page_';
+const BACK_PREFIX = 'tq_back_';
+const MAX_ROWS = 10;            // WhatsApp's hard cap on total rows in one list
+const PER_PAGE = 9;             // 9 lessons + one "Older lessons…" row when there is more
 const TITLE_MAX = 24;
 const DESC_MAX = 72;
+const CHUNK = 25;                // sessions fetched per DB round-trip
+const MAX_FETCHES = 8;           // never scan more than 200 sessions for one /quiz
 
 function isQuizCommand(text) {
   const t = String(text || '').trim();
@@ -54,36 +59,62 @@ function statusLine(quiz, language) {
 }
 
 /**
- * Pure: sessions + quizzes → list rows, newest first, capped at what WhatsApp
- * will render.
+ * Pure: sessions + quizzes → one page of list rows, newest first.
  *
  * A lesson whose recording is thinner than the offer gate is left out even if
  * a quiz row already points at it: the author cannot write eight questions
  * from it, so the row could only ever end at "I couldn't make a good quiz".
- * tqListBody says these are the most recent lessons, so a lesson that is not
- * here reads as the list being capped rather than the lesson being lost.
+ *
+ * ONE FORMAT, EVERY ROW: the title is always `date · subject` (or the date
+ * alone), the description is always `topic · status` (or the topic alone) —
+ * see transcript-quiz-rows.js. A real topic does not fit the 24-code-point
+ * title, so it lives in the 72-code-point description always, never only
+ * when it happens to be long.
+ *
+ * Returns `{ rows, page, from, to, total, hasMore }`. `total`/`from`/`to` are
+ * 1-based positions within the eligible sessions this call was handed —
+ * `showList` is responsible for handing it enough of them.
  */
-function buildRows(sessions, quizzes, language) {
+function buildRows(sessions, quizzes, language, { page = 1 } = {}) {
   const byId = new Map((quizzes || []).map((q) => [q.coaching_session_id, q]));
-  return (sessions || [])
+  const eligible = (sessions || [])
     .filter((s) => String(s.transcript_text || '').length >= MIN_TRANSCRIPT_CHARS)
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-    .slice(0, MAX_ROWS)
-    .map((s) => {
-      const quiz = byId.get(s.id) || null;
-      const topic = quiz?.topic || s.analysis_data?.topic || resolveUx('tqLessonWord', { language });
-      const title = truncateCodePoints(`${formatLessonDate(s.created_at, language)} · ${topic}`, TITLE_MAX);
-      // The title is capped at 24 code points, which a date and a topic already
-      // fill, so the SUBJECT goes in the description — otherwise a teacher who
-      // taught three lessons the same week reads three near-identical rows.
-      const subject = subjectLabel(quiz?.subject || s.analysis_data?.subject, language);
-      const status = statusLine(quiz, language);
-      return {
-        id: `${PICK_PREFIX}${s.id}`,
-        title,
-        description: truncateCodePoints(subject ? `${subject} · ${status}` : status, DESC_MAX),
-      };
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const total = eligible.length;
+  const p = Number.isFinite(page) && page > 0 ? page : 1;
+  const start = (p - 1) * PER_PAGE;
+  const slice = eligible.slice(start, start + PER_PAGE);
+  const hasMore = total > start + PER_PAGE;
+
+  const rows = slice.map((s) => {
+    const quiz = byId.get(s.id) || null;
+    const topic = quiz?.topic || s.analysis_data?.topic || resolveUx('tqLessonWord', { language });
+    const subject = subjectLabel(quiz?.subject || s.analysis_data?.subject, language);
+    const status = statusLine(quiz, language);
+    const date = formatLessonDate(s.created_at, language);
+    return {
+      id: `${PICK_PREFIX}${s.id}`,
+      title: composeTitle({ date, subject }, TITLE_MAX),
+      description: composeDescription({ topic, status }, DESC_MAX, { language }),
+    };
+  });
+
+  if (hasMore) {
+    rows.push({
+      id: `${PAGE_PREFIX}${p + 1}`,
+      title: resolveUx('tqRowOlder', { language }),
+      description: resolveUx('tqRowOlderDesc', { language }),
     });
+  }
+
+  return {
+    rows,
+    page: p,
+    from: total ? start + 1 : 0,
+    to: Math.min(start + PER_PAGE, total),
+    total,
+    hasMore,
+  };
 }
 
 /**
@@ -109,16 +140,41 @@ async function countsFor(quizIds, teacherUserId = null) {
   return counts;
 }
 
-async function showList(user, phone, language) {
+/**
+ * Load enough of the teacher's eligible sessions (transcript long enough to
+ * quiz) to answer for `needed` of them, fetching in CHUNK-sized round-trips
+ * rather than one `.limit(25)` that could never see lesson 26 onward.
+ * Returns `{ sessions, exhausted }` — `sessions` holds only the eligible
+ * ones found so far; `exhausted` is true once a short batch shows the table
+ * has no more rows. Never scans more than `MAX_FETCHES * CHUNK` sessions for
+ * one /quiz — a runaway teacher history cannot loop this forever.
+ */
+async function loadEligibleSessions(userId, needed) {
+  let sessions = [];
+  let exhausted = false;
+  for (let fetch = 0; fetch < MAX_FETCHES; fetch += 1) {
+    const offset = fetch * CHUNK;
+    const { data } = await supabase.from('coaching_sessions')
+      .select('id, created_at, transcript_text, analysis_data')
+      .eq('user_id', userId)
+      .is('observation_type', null)
+      .eq('status', 'completed')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + CHUNK - 1);
+    const batch = data || [];
+    const eligible = batch.filter((s) => String(s.transcript_text || '').length >= MIN_TRANSCRIPT_CHARS);
+    sessions = sessions.concat(eligible);
+    if (batch.length < CHUNK) { exhausted = true; break; }
+    if (sessions.length >= needed) break;
+  }
+  return { sessions, exhausted };
+}
+
+async function showList(user, phone, language, page = 1) {
   const lang = teacherLanguageFor({ preferredLanguage: language || user?.preferred_language });
-  const { data: sessions } = await supabase.from('coaching_sessions')
-    .select('id, created_at, transcript_text, analysis_data')
-    .eq('user_id', user.id)
-    .is('observation_type', null)
-    .eq('status', 'completed')
-    .order('created_at', { ascending: false })
-    .limit(25);
-  const ids = (sessions || []).map((s) => s.id);
+  const p = Number.isFinite(page) && page > 0 ? page : 1;
+  const { sessions } = await loadEligibleSessions(user.id, p * PER_PAGE + 1);
+  const ids = sessions.map((s) => s.id);
   let quizzes = [];
   if (ids.length) {
     const { data } = await supabase.from('quizzes')
@@ -132,20 +188,26 @@ async function showList(user, phone, language) {
   );
   quizzes.forEach((q) => { const c = counts.get(q.id); if (c) { q._started = c.started; q._finished = c.finished; } });
 
-  const rows = buildRows(sessions, quizzes, lang);
+  let { rows, from, to } = buildRows(sessions, quizzes, lang, { page: p });
+  // A stale list tapped a week later can ask for a page that no longer exists.
+  // She meant "show me more lessons", so she gets the list — not "no lessons yet".
+  if (!rows.length && p > 1) {
+    ({ rows, from, to } = buildRows(sessions, quizzes, lang, { page: 1 }));
+  }
   if (!rows.length) {
     await WhatsAppService.sendMessage(phone, resolveUx('tqListEmpty', { language: lang }));
     logEvent('transcript_quiz.list_empty', { userId: user.id });
     return true;
   }
   await WhatsAppService.sendInteractiveMessage(phone, {
+    header: { type: 'text', text: resolveUx('tqListHeader', { language: lang, params: { from, to } }) },
     body: { text: resolveUx('tqListBody', { language: lang }) },
     action: {
       button: resolveUx('tqListButton', { language: lang }),
       sections: [{ title: resolveUx('tqListSection', { language: lang }), rows }],
     },
   });
-  logEvent('transcript_quiz.list_shown', { userId: user.id, rows: rows.length });
+  logEvent('transcript_quiz.list_shown', { userId: user.id, rows: rows.length, page: p });
   return true;
 }
 
@@ -156,6 +218,13 @@ async function enqueueGenerate(quizId, phone, lang) {
 }
 
 async function handleListPick(listId, phone, user) {
+  if (listId && listId.startsWith(PAGE_PREFIX)) {
+    const lang = teacherLanguageFor({ preferredLanguage: user?.preferred_language });
+    const parsed = parseInt(listId.slice(PAGE_PREFIX.length), 10);
+    const page = Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+    await showList(user, phone, lang, page);
+    return true;
+  }
   if (!listId || !listId.startsWith(PICK_PREFIX)) return false;
   const sessionId = listId.slice(PICK_PREFIX.length);
   const lang = teacherLanguageFor({ preferredLanguage: user?.preferred_language });
@@ -216,11 +285,23 @@ async function handleListPick(listId, phone, user) {
     case 'report_sent': {
       const counts = await countsFor([quiz.id], user.id);
       const c = counts.get(quiz.id) || { started: 0, finished: 0 };
+      // Named for what they DO. "Report now" read as "show me the one I have";
+      // this button refetches every session and recomputes (operator, item 8).
+      // The third button exists because a tap into a lesson was otherwise a
+      // dead end — she had to type /quiz again to get back to the menu.
       await WhatsAppService.sendInteractiveButtons(phone, {
-        body: resolveUx('tqQuizStatus', { language: lang, params: { topic: quiz.topic || '', started: c.started, finished: c.finished } }),
+        body: resolveUx('tqQuizStatus', {
+          language: lang,
+          params: {
+            topic: normaliseTopic(quiz.topic || session.analysis_data?.topic || ''),
+            date: formatLessonDate(session.created_at, lang),
+            started: c.started, finished: c.finished,
+          },
+        }),
         buttons: [
           { id: `${LINK_PREFIX}${quiz.id}`, title: resolveUx('tqLinkButton', { language: lang }) },
           { id: `${REPORT_PREFIX}${quiz.id}`, title: resolveUx('tqReportButton', { language: lang }) },
+          { id: `${BACK_PREFIX}${quiz.id}`, title: resolveUx('tqBackButton', { language: lang }) },
         ],
       });
       return true;
@@ -258,8 +339,10 @@ async function handleListPick(listId, phone, user) {
 async function handleActionButton(buttonId, phone) {
   const isLink = buttonId && buttonId.startsWith(LINK_PREFIX);
   const isReport = buttonId && buttonId.startsWith(REPORT_PREFIX);
-  if (!isLink && !isReport) return false;
-  const quizId = buttonId.slice((isLink ? LINK_PREFIX : REPORT_PREFIX).length);
+  const isBack = buttonId && buttonId.startsWith(BACK_PREFIX);
+  if (!isLink && !isReport && !isBack) return false;
+  const prefix = isLink ? LINK_PREFIX : isReport ? REPORT_PREFIX : BACK_PREFIX;
+  const quizId = buttonId.slice(prefix.length);
   const { data: quiz } = await supabase.from('quizzes')
     .select('id, teacher_id, status, language, topic, meta').eq('id', quizId).maybeSingle();
   if (!quiz) return true;
@@ -267,15 +350,27 @@ async function handleActionButton(buttonId, phone) {
     .select('phone_number, preferred_language').eq('id', quiz.teacher_id).maybeSingle();
   const lang = teacherLanguageFor({ preferredLanguage: teacher?.preferred_language });
 
+  if (isBack) {
+    await showList({ id: quiz.teacher_id, preferred_language: teacher?.preferred_language }, phone, lang, 1);
+    logEvent('transcript_quiz.list_reopened', { quizId });
+    return true;
+  }
+
   if (isLink) {
-    const msg = quiz.meta?.student_message;
-    if (!msg) {
+    // The SAME hand-off she got after her coaching debrief: the pre-send PDF
+    // and then the forwardable message — the same share code, the same link,
+    // never a new one (operator, item 7/8). A quiz that has not been handed
+    // off yet has no code to reuse, and must not mint one here.
+    if (!quiz.meta?.student_message || !quiz.meta?.share_code_id) {
       await WhatsAppService.sendMessage(phone, resolveUx('tqStillMaking', { language: lang }));
       return true;
     }
-    await WhatsAppService.sendMessage(phone, resolveUx('tqForwardThis', { language: lang }));
-    await WhatsAppService.sendMessage(phone, msg);
-    logEvent('transcript_quiz.link_resent', { quizId });
+    const Handoff = require('./transcript-quiz-handoff.service');
+    const out = await Handoff.sendHandoff(quizId, phone, { firstSend: false });
+    if (!out || !out.ok) {
+      await WhatsAppService.sendMessage(phone, resolveUx('tqCouldNotSend', { language: lang }));
+    }
+    logEvent('transcript_quiz.link_resent', { quizId, reused: Boolean(out && out.reused), pdfSent: Boolean(out && out.pdfSent) });
     return true;
   }
 
@@ -294,5 +389,6 @@ async function handleActionButton(buttonId, phone) {
 
 module.exports = {
   isQuizCommand, buildRows, showList, handleListPick, handleActionButton, statusLine, countsFor,
-  PICK_PREFIX, LINK_PREFIX, REPORT_PREFIX, MAX_ROWS,
+  loadEligibleSessions,
+  PICK_PREFIX, LINK_PREFIX, REPORT_PREFIX, PAGE_PREFIX, BACK_PREFIX, MAX_ROWS, PER_PAGE,
 };

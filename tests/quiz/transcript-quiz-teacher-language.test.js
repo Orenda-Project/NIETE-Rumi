@@ -212,7 +212,10 @@ describe('every teacher-facing surface answers in her stored language', () => {
     const payload = WA.sendInteractiveMessage.mock.calls[0][1];
     expect(payload.body.text).toBe(en('tqListBody'));
     expect(payload.action.button).toBe(en('tqListButton'));
-    expect(payload.action.sections[0].rows[0].description).toBe(`Mathematics · ${en('tqRowNoQuiz')}`);
+    // bd-mg9c7.63: the topic is the description's owner now (it does not fit
+    // the 24-cp title), and the subject moved into the title instead.
+    expect(payload.action.sections[0].rows[0].title).toContain('Mathematics');
+    expect(payload.action.sections[0].rows[0].description).toBe(`Fractions · ${en('tqRowNoQuiz')}`);
 
     jest.clearAllMocks();
     installFrom(supabase.from, { coaching_sessions: { data: [] }, quizzes: { data: [] } });
@@ -231,11 +234,22 @@ describe('every teacher-facing surface answers in her stored language', () => {
 
     jest.clearAllMocks();
     installFrom(supabase.from, {
-      quizzes: { data: [{ ...QUIZ, status: 'sent', meta: { ...QUIZ.meta, student_message: 'FORWARD ME' } }] },
+      quizzes: { data: [{ ...QUIZ, status: 'sent', meta: { ...QUIZ.meta, share_code: 'ABC234', share_code_id: 'sc-1', student_message: 'FORWARD ME' } }] },
       users: { data: [TEACHER] },
+      coaching_sessions: { data: [{ id: SID, created_at: SESSION.created_at }] },
+      quiz_questions: { data: [] },
     });
     await List.handleActionButton(`tq_link_${QID}`, PHONE);
-    expect(WA.sendMessage.mock.calls[0][1]).toBe(en('tqForwardThis'));
+    // bd-mg9c7.63: resend runs the whole hand-off — the pre-send PDF and then
+    // the SAME forwardable message. The document's CAPTION is chrome, so it is
+    // in her stored language (English) even though the quiz itself is Urdu;
+    // the forwardable message is the children's and is reused verbatim.
+    expect(WA.sendDocument).toHaveBeenCalledTimes(1);
+    const caption = WA.sendDocument.mock.calls[0][3];
+    expect(caption).toContain('Your quiz');
+    expect(caption).toContain('This PDF is for you');       // the chrome is English
+    expect(caption).toContain('کسریں');                     // the topic keeps its typed script
+    expect(WA.sendMessage.mock.calls[0][1]).toBe('FORWARD ME');
 
     jest.clearAllMocks();
     installFrom(supabase.from, {

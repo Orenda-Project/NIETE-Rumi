@@ -25,6 +25,53 @@ const DEFAULT_MODEL = process.env.LLM_MODEL || 'openai/gpt-4o';
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
 /**
+ * Per-call timeout + retry budget.
+ *
+ * Every client this module builds used to omit BOTH `timeout` and
+ * `maxRetries`, so the openai SDK applied its own defaults: a 600000ms
+ * (10 min) timeout and maxRetries: 2 (3 attempts). The lp612 author ladder
+ * makes up to 5 calls inside a 14-minute job budget
+ * (LP612_AUTHOR_TIMEOUT_MS=840000) — one stalled call could burn ~30
+ * minutes, more than 2x the whole job, with `withTimeout(840s)` left as the
+ * only effective bound and every remaining ladder round silently sacrificed.
+ *
+ * 180000ms (180s) is ~2x the measured p90 healthy call (~85s; round-0 p50
+ * 72.3s / p90 85.3s, revision calls p50 ~56s, measured against a 6-12
+ * lesson-plan simulation run) — generous enough that it never truncates a
+ * slow-but-working call, while keeping 5 rounds x 180s = 900s worst case
+ * bounded and comparable to the job budget instead of 30 minutes.
+ * maxRetries: 1 (2 attempts total) halves the SDK's own default retry
+ * budget for the same reason.
+ *
+ * Both are read at CALL time (inside the two functions below), matching the
+ * anthropic-direct API-key comment further down: a value parsed once at
+ * module load would be immune to a test (or a runtime env change) made
+ * after require().
+ */
+const DEFAULT_REQUEST_TIMEOUT_MS = 180000;
+const DEFAULT_MAX_RETRIES = 1;
+
+/**
+ * Parse an env var as a positive integer, falling back to `fallback` for
+ * anything that isn't one: missing, blank/whitespace, non-numeric, zero, or
+ * negative. `parseInt('', 10)` is `NaN` — that must never reach the SDK as
+ * a `timeout`/`maxRetries` value (NaN silently disables the SDK's own
+ * validation and produces undefined-ish behaviour).
+ */
+function _resolvePositiveIntEnv(envValue, fallback) {
+  const n = parseInt(envValue, 10);
+  return Number.isInteger(n) && n > 0 ? n : fallback;
+}
+
+function resolveRequestTimeoutMs() {
+  return _resolvePositiveIntEnv(process.env.LLM_REQUEST_TIMEOUT_MS, DEFAULT_REQUEST_TIMEOUT_MS);
+}
+
+function resolveMaxRetries() {
+  return _resolvePositiveIntEnv(process.env.LLM_MAX_RETRIES, DEFAULT_MAX_RETRIES);
+}
+
+/**
  * Direct-to-Anthropic lane (bd-yoc6i).
  *
  * A model id prefixed `anthropic-direct/` is billed against ANTHROPIC_API_KEY
@@ -56,6 +103,8 @@ function createLLMClient() {
     // Direct OpenAI — no baseURL override
     return new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
+      timeout: resolveRequestTimeoutMs(),
+      maxRetries: resolveMaxRetries(),
     });
   }
 
@@ -63,6 +112,8 @@ function createLLMClient() {
   const client = new OpenAI({
     apiKey: process.env.OPENROUTER_API_KEY,
     baseURL: OPENROUTER_BASE_URL,
+    timeout: resolveRequestTimeoutMs(),
+    maxRetries: resolveMaxRetries(),
     defaultHeaders: {
       'HTTP-Referer': process.env.APP_URL || '',
       'X-Title': 'Rumi Teaching Assistant',
@@ -116,7 +167,12 @@ function getAnthropicDirectClient() {
     );
   }
   if (!_anthropicDirectClient) {
-    _anthropicDirectClient = new OpenAI({ apiKey, baseURL: ANTHROPIC_BASE_URL });
+    _anthropicDirectClient = new OpenAI({
+      apiKey,
+      baseURL: ANTHROPIC_BASE_URL,
+      timeout: resolveRequestTimeoutMs(),
+      maxRetries: resolveMaxRetries(),
+    });
   }
   return _anthropicDirectClient;
 }

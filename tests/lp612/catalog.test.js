@@ -143,8 +143,13 @@ describe('row payloads carry everything the next step needs', () => {
   test('a chapter row carries grade, subject and chapter_key', async () => {
     mockRows = [seg()];
     const { items } = await Catalog.buildChapterItems(9, 'Chemistry');
+    // `book_stem` joined the path in bd-oak77.5. `chapter_key` is unique inside a
+    // BOOK and not inside a (grade, subject), so without the book the next screen
+    // lists both books' lessons under one chapter. Meta does not ride screen data
+    // along with a tap, so the row itself has to carry it.
     expect(items[0]['on-click-action'].payload).toEqual({
       step: 'lp612_chapter', grade: '9', subject: 'Chemistry', chapter_key: 'c01',
+      book_stem: 'grade_9_chemistry',
     });
   });
 
