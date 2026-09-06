@@ -464,6 +464,45 @@ const UX_STRINGS = {
     ur: 'اب سبق کے منصوبے آپ کی اپنی درسی کتاب سے بنتے ہیں۔ نیچے جماعت، مضمون اور باب منتخب کریں — وہ سبق تیار کر دیا جائے گا۔',
   },
 
+  /**
+   * bd-oak77.13 — the very first thing a teacher ever hears from this number.
+   *
+   * Sent on Meta's `request_welcome` event (a brand-new chat opened, nothing typed
+   * yet). Bilingual in ONE body because at this instant she has no stored language
+   * and no text to detect from — see welcome.handler.js. Urdu first, matching the
+   * other bilingual first-contact strings (unsupported-message.js).
+   *
+   * Body field: the cap is 1024 CODE POINTS. It names the two doors the ice-breaker
+   * chips below it lead to, and nothing else — a longer greeting on a cold open is
+   * a wall of text, and the chips are the actual interface.
+   *
+   * Urdu is gender-agnostic in the second person: imperatives only
+   * («منتخب کریں», «لکھ بھیجیں»), never `رہی ہوں گی` / `رہے ہوں گے`. The cohort is
+   * mixed and the bot cannot know.
+   */
+  welcomeFirstOpen: {
+    en:
+      'السلام علیکم! میں NIETE ٹیچنگ اسسٹنٹ ہوں۔\n' +
+      'آپ کی اپنی درسی کتاب سے سبق کے منصوبے، اور آپ کی کلاس کی ریکارڈنگ پر اے آئی کوچنگ — دونوں یہیں دستیاب ہیں۔\n' +
+      'نیچے دیے گئے اختیارات میں سے کوئی ایک منتخب کریں، یا مجھے اپنی بات لکھ بھیجیں۔\n\n' +
+      "Assalam-o-Alaikum! I'm the NIETE Teaching Assistant.\n" +
+      'Lesson plans straight from your own textbook, and AI coaching on a recording of your class — both live right here.\n' +
+      'Tap one of the options below, or just write to me.',
+    // Deliberately IDENTICAL to `en`. This is the one string in the catalog
+    // where the two variants must not differ: it is sent before any language is
+    // known, so the same bilingual body has to satisfy whichever clamp the
+    // resolver happens to land on. The catalog-completeness test requires every
+    // offered language to be present, and a lazy `variants[FLOOR]` fallback here
+    // would be a silent partial translation.
+    ur:
+      'السلام علیکم! میں NIETE ٹیچنگ اسسٹنٹ ہوں۔\n' +
+      'آپ کی اپنی درسی کتاب سے سبق کے منصوبے، اور آپ کی کلاس کی ریکارڈنگ پر اے آئی کوچنگ — دونوں یہیں دستیاب ہیں۔\n' +
+      'نیچے دیے گئے اختیارات میں سے کوئی ایک منتخب کریں، یا مجھے اپنی بات لکھ بھیجیں۔\n\n' +
+      "Assalam-o-Alaikum! I'm the NIETE Teaching Assistant.\n" +
+      'Lesson plans straight from your own textbook, and AI coaching on a recording of your class — both live right here.\n' +
+      'Tap one of the options below, or just write to me.',
+  },
+
   lpBrowseHeader: {
     en: '📘 Lesson Plans',
     ur: '📘 سبق کے منصوبے',
