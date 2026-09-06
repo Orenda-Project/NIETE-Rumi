@@ -1,6 +1,6 @@
 'use strict';
 /**
- * TQ-R5 lane I (bd-mg9c7) — red-first tests for the re-costed per-recipient
+ * Red-first tests for the re-costed per-recipient
  * send window.
  *
  * Staging, 2026-09-06 11:18-11:24 UTC: one child on an 8-question transcript
@@ -71,7 +71,7 @@ async function settledWithoutAdvancing(promise) {
   return resolved;
 }
 
-describe('TQ-R5 lane I — the re-costed session budget fits with zero waiting', () => {
+describe('the re-costed session budget fits with zero waiting', () => {
   test('a fresh window absorbs a full session (19 sends) with zero waiting, and the cap still bites at the 25th send', async () => {
     const phone = '923001112222';
     const SESSION_SENDS = 1 + 8 * 2 + 1 + 1; // opener + 8 questions*2 + scorecard + finish offer
@@ -111,7 +111,7 @@ describe('TQ-R5 lane I — the re-costed session budget fits with zero waiting',
   });
 });
 
-describe('TQ-R5 lane I — video_quiz.throttle_wait', () => {
+describe('video_quiz.throttle_wait', () => {
   test('a call that never waits emits nothing', async () => {
     const phone = '923011110001';
     await rateLimiter.throttle(phone);

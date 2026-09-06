@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-mg9c7.87 (Lane I) — ONE answer at a time per phone, and an index that
+ * ONE answer at a time per phone, and an index that
  * comes from the truth, not an increment.
  *
  * Staging, 2026-09-06 11:18-11:24 UTC: the per-recipient send throttle filled
