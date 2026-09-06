@@ -1,0 +1,79 @@
+#!/bin/bash
+# post-commit — arm the QA pipeline for THIS commit, from any terminal, any machine.
+#
+# This is the layer that reaches a developer who never opens Claude Code. It is
+# deterministic and it only ARMS: it decides which features the commit touched,
+# builds the Gherkin sync brief, writes a per-machine marker, and prints what to
+# do next. It cannot author a scenario (that needs the agent following
+# .claude/skills/gherkin-spec-sync) and it cannot drive WhatsApp (that needs a
+# linked browser). Both happen in the next Claude Code session in this clone,
+# which reads the marker at SessionStart (e2e-pending-banner.sh) and is held once
+# at end of turn (e2e-autorun-stop.sh) until the run is driven or cleared.
+#
+# NEVER FAILS THE COMMIT. Every exit path is 0. A QA helper that can break a
+# commit is a helper people switch off within a day (root CLAUDE.md, same rule
+# the Claude hooks follow).
+#
+# Install:  bash scripts/qa/install-hooks.sh   (also run by `npm install` at the root)
+# Off:      QA_HOOKS_OFF=1 git commit …        Quiet: QA_HOOKS_QUIET=1
+[ "${QA_HOOKS_OFF:-}" = "1" ] && exit 0
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+command -v python3 >/dev/null 2>&1 || exit 0
+SEL_BIN="$ROOT/.claude/qa/shared/select_e2e.py"
+SYNC_BIN="$ROOT/.claude/qa/shared/spec_sync.py"
+[ -f "$SEL_BIN" ] && [ -f "$SYNC_BIN" ] || exit 0
+
+SEL=$(python3 "$SEL_BIN" --repo "$ROOT" --json --committed 2>/dev/null) || exit 0
+[ -n "$SEL" ] || exit 0
+COUNT=$(printf '%s' "$SEL" | python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("commands") or []))' 2>/dev/null) || exit 0
+case "$COUNT" in ''|0) exit 0 ;; esac      # docs-only / out of scope: say nothing
+
+SHA=$(git rev-parse --short=12 HEAD 2>/dev/null) || exit 0
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+PEND="$ROOT/.claude/.e2e-pending"
+mkdir -p "$PEND" 2>/dev/null || exit 0
+MARKER="$PEND/git-$SHA.json"
+SYNC="$PEND/git-$SHA.sync.json"
+rm -f "$SYNC" 2>/dev/null
+
+# Phase 1 brief, from the SAME selection — the two halves cannot disagree.
+SPEC_SYNC=false
+if [ "${E2E_SPEC_SYNC_OFF:-}" != "1" ]; then
+  BRIEF=$(printf '%s' "$SEL" | python3 "$SYNC_BIN" --selection - --repo "$ROOT" --committed --json 2>/dev/null)
+  if [ -n "$BRIEF" ] && [ "$(printf '%s' "$BRIEF" | python3 -c 'import json,sys; print(str(json.load(sys.stdin).get("sync_needed", False)).lower())' 2>/dev/null)" = "true" ]; then
+    printf '%s' "$BRIEF" > "$SYNC" 2>/dev/null && SPEC_SYNC=true
+  fi
+fi
+
+# The selection travels in an env var: stdin is taken by the heredoc script.
+QA_SEL_JSON="$SEL" python3 - "$MARKER" "$SHA" "$(basename "$ROOT")" "$BRANCH" "$SPEC_SYNC" <<'PY' 2>/dev/null || exit 0
+import json, os, sys, datetime
+sel = json.loads(os.environ["QA_SEL_JSON"])
+marker, sha, repo, branch, spec_sync = sys.argv[1:6]
+json.dump({
+    "session": "git", "repo": repo, "branch": branch, "sha": sha,
+    "trigger": "git-commit", "mode": "execute",
+    "armed_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "nudged": False, "spec_sync": spec_sync == "true",
+    "commands": sel.get("commands") or [], "features": sel.get("features") or [],
+    "fallback": bool(sel.get("fallback")), "unmapped": sel.get("unmapped") or [],
+}, open(marker, "w"), indent=1)
+PY
+
+[ "${QA_HOOKS_QUIET:-}" = "1" ] && exit 0
+FEATURES=$(printf '%s' "$SEL" | python3 -c 'import json,sys; print(", ".join(json.load(sys.stdin).get("features") or []))' 2>/dev/null)
+CMDS=$(printf '%s' "$SEL" | python3 -c 'import json,sys; print("   ".join(json.load(sys.stdin).get("commands") or []))' 2>/dev/null)
+REL_SYNC=".claude/.e2e-pending/git-$SHA.sync.json"
+{
+  echo "┌ QA · commit $SHA touched: $FEATURES"
+  if [ "$SPEC_SYNC" = "true" ]; then
+    echo "│ Gherkin: sync needed first →  /sync-specs --brief $REL_SYNC"
+  else
+    echo "│ Gherkin: nothing to author (validate only)"
+  fi
+  echo "│ Then the targeted E2E →  $CMDS"
+  echo "│ Open Claude Code in this clone: it announces this at start and holds the turn once until"
+  echo "│ it is driven or cleared. Off: QA_HOOKS_OFF=1 · Quiet: QA_HOOKS_QUIET=1"
+  echo "└ marker: .claude/.e2e-pending/git-$SHA.json"
+} >&2
+exit 0
