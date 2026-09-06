@@ -30,9 +30,12 @@ function q(overrides = {}) {
 }
 
 function eightGood() {
+  // Four of the eight are tagged understand/apply: PEDAGOGY_LEVEL_MIX (PLAN_R5
+  // D3) asks for at least half the set above bare recall, so a fixture that
+  // stands for "a good quiz" has to be one.
   return [
     q(), q({ slo_id: 'S2', level: 'understand', question: 'What do roots do?', options: ['drink water', 'make seeds', 'catch light'] }),
-    q({ question: 'q3', options: ['a', 'b', 'c'] }), q({ slo_id: 'S2', level: 'recall', question: 'q4', options: ['d', 'e', 'f'] }),
+    q({ question: 'q3', options: ['a', 'b', 'c'] }), q({ slo_id: 'S2', level: 'understand', question: 'q4', options: ['d', 'e', 'f'] }),
     q({ question: 'q5', options: ['g', 'h', 'i'] }), q({ slo_id: 'S2', level: 'understand', question: 'q6', options: ['j', 'k', 'l'] }),
     q({ question: 'q7', options: ['m', 'n', 'o'] }), q({ slo_id: 'S2', level: 'apply', question: 'q8', options: ['p', 'r', 's'] }),
   ];

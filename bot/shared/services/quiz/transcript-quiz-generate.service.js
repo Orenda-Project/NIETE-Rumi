@@ -381,17 +381,26 @@ async function tellTeacherFailed(phone, lang, quizId, reason) {
 // ─── the step ────────────────────────────────────────────────────────────────
 
 /**
- * Drop the questions whose ONLY complaints are picture rules, and re-validate.
- * Returns { questions, dropped } when the rest still make a valid quiz, else null.
+ * Drop the questions whose ONLY complaints are DROPPABLE — a picture rule or a
+ * pedagogy rule — and re-validate. Returns { questions, dropped } when the rest
+ * still make a valid quiz, else null.
+ *
+ * Pedagogy joined the picture rules here (PLAN_R5 D3) for the reason the
+ * pictures did: a whole-quiz reject on the last attempt means the teacher is
+ * told nothing could be made, over one question that should not have been
+ * asked. Both are per-question faults, and the quiz is better without that
+ * question than not at all. A structural fault is still fatal — the two
+ * quiz-level codes below are the only non-q complaints tolerated, and both are
+ * re-checked by the validate() call at the end of this function.
  */
 function salvageWithoutBadFigures(questions, errors, ctx) {
-  const figureErr = /^q(\d+): FIGURE_/;
+  const droppableErr = /^q(\d+): (FIGURE_|PEDAGOGY_)/;
   const bad = new Set();
   let other = false;
   errors.forEach((e) => {
-    const m = figureErr.exec(e);
+    const m = droppableErr.exec(e);
     if (m) bad.add(Number(m[1]));
-    else if (!/^FIGURE_SHARE/.test(e)) other = true;
+    else if (!/^(FIGURE_SHARE|PEDAGOGY_LEVEL_MIX)/.test(e)) other = true;
   });
   if (other || !bad.size || bad.size > 2) return null;
   const kept = questions.filter((_, i) => !bad.has(i));
