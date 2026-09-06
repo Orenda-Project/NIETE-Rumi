@@ -43,18 +43,37 @@ function isQuizCommand(text) {
   return low === 'quiz' || t === 'کوئز' || t === 'کوئز؟';
 }
 
-function statusLine(quiz, language) {
-  if (!quiz) return resolveUx('tqRowNoQuiz', { language });
-  const started = quiz.meta?.started ?? quiz._started ?? 0;
-  const finished = quiz.meta?.finished ?? quiz._finished ?? 0;
+/**
+ * The SIX states a lesson can be in, as far as any menu is concerned. One
+ * function so the list message and the /quiz Flow cannot disagree about what
+ * `declined` or `ready` means — they render different fields with different
+ * caps, but they read the same taxonomy.
+ *
+ * @returns {'none'|'offered'|'making'|'sent'|'report_sent'|'failed'}
+ */
+function quizState(quiz) {
+  if (!quiz) return 'none';
   switch (quiz.status) {
-    case 'offered': return resolveUx('tqRowOffered', { language });
+    case 'offered': return 'offered';
     case 'generating':
-    case 'ready': return resolveUx('tqRowMaking', { language });
+    case 'ready': return 'making';
+    case 'sent': return 'sent';
+    case 'report_sent': return 'report_sent';
+    case 'failed': return 'failed';
+    default: return 'none';           // declined, skipped, cancelled
+  }
+}
+
+function statusLine(quiz, language) {
+  const started = quiz?.meta?.started ?? quiz?._started ?? 0;
+  const finished = quiz?.meta?.finished ?? quiz?._finished ?? 0;
+  switch (quizState(quiz)) {
+    case 'offered': return resolveUx('tqRowOffered', { language });
+    case 'making': return resolveUx('tqRowMaking', { language });
     case 'sent': return resolveUx('tqRowSent', { language, params: { started, finished } });
     case 'report_sent': return resolveUx('tqRowReportSent', { language, params: { finished } });
     case 'failed': return resolveUx('tqRowFailed', { language });
-    default: return resolveUx('tqRowNoQuiz', { language });   // declined, skipped, cancelled
+    default: return resolveUx('tqRowNoQuiz', { language });
   }
 }
 
@@ -170,6 +189,21 @@ async function loadEligibleSessions(userId, needed) {
   return { sessions, exhausted };
 }
 
+/**
+ * Does this teacher have anything /quiz could list?
+ *
+ * The Flow answers with a NavigationList, and Meta requires at least one item
+ * in one — so the "no lessons yet" case is answered in CHAT, with the same
+ * message and the same event the list path has always used, rather than by
+ * opening a Flow onto a row that is not a lesson. One indexed round-trip on a
+ * command a teacher sends by hand.
+ */
+async function hasEligibleLessons(userId) {
+  if (!userId) return false;
+  const { sessions } = await loadEligibleSessions(userId, 1);
+  return sessions.length > 0;
+}
+
 async function showList(user, phone, language, page = 1) {
   const lang = teacherLanguageFor({ preferredLanguage: language || user?.preferred_language });
   const p = Number.isFinite(page) && page > 0 ? page : 1;
@@ -211,10 +245,46 @@ async function showList(user, phone, language, page = 1) {
   return true;
 }
 
-async function enqueueGenerate(quizId, phone, lang) {
+async function enqueueGenerate(quizId, phone, lang, source = 'list') {
   const SQSQueueService = require('../queue/sqs-queue.service');
-  await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone, language: lang, source: 'list' }, { delaySeconds: 0 });
+  await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone, language: lang, source }, { delaySeconds: 0 });
   await WhatsAppService.sendMessage(phone, resolveUx('tqMaking', { language: lang }));
+}
+
+/**
+ * Claim a lesson for generation — the ONE place a menu turns "make this one"
+ * into a `generating` quizzes row, whether the tap came from the list message
+ * or from the /quiz Flow. It is called only once the quiz language is settled
+ * (by the subject rule, or by the teacher answering the ask); the paths that
+ * still have to ASK keep their own `offered` write above.
+ *
+ * Returns `{ quizId, from }` or `{ error }` — never throws, never sends.
+ */
+async function claimForGeneration({ userId, sessionId, session, quiz, quizLanguage, source = 'list' }) {
+  if (quiz) {
+    await supabase.from('quizzes')
+      .update({
+        status: 'generating', language: quizLanguage,
+        meta: {
+          ...(quiz.meta || {}), step: quiz.meta?.digest ? 'author' : 'digest',
+          awaiting_language: false, source, retried_at: new Date().toISOString(),
+        },
+      })
+      .eq('id', quiz.id);
+    return { quizId: quiz.id, from: quiz.status };
+  }
+  const { data: created, error } = await supabase.from('quizzes').insert({
+    teacher_id: userId, quiz_source: 'transcript', coaching_session_id: sessionId,
+    topic: session?.analysis_data?.topic || 'Lesson', subject: session?.analysis_data?.subject || null,
+    language: quizLanguage,
+    status: 'generating',
+    meta: { step: 'digest', awaiting_language: false, source, claimed_at: new Date().toISOString() },
+  }).select('id').single();
+  if (error || !created) {
+    logToFile('⚠️ transcript quiz: list claim failed', { sessionId, error: error?.message });
+    return { error: error?.message || 'claim failed' };
+  }
+  return { quizId: created.id, from: 'none' };
 }
 
 async function handleListPick(listId, phone, user) {
@@ -251,28 +321,35 @@ async function handleListPick(listId, phone, user) {
   const ask = needsLanguageAsk(subject);
 
   if (!quiz) {
-    const { data: created, error } = await supabase.from('quizzes').insert({
-      teacher_id: user.id, quiz_source: 'transcript', coaching_session_id: sessionId,
-      topic: session.analysis_data?.topic || 'Lesson', subject: session.analysis_data?.subject || null,
-      language: ask ? null : ruleLanguage,
-      status: ask ? 'offered' : 'generating',
-      meta: {
-        step: ask ? 'awaiting_language' : 'digest', awaiting_language: ask,
-        source: 'list', claimed_at: new Date().toISOString(),
-      },
-    }).select('id').single();
-    if (error || !created) {
-      logToFile('⚠️ transcript quiz: list claim failed', { sessionId, error: error?.message });
-      await WhatsAppService.sendMessage(phone, resolveUx('tqStillMaking', { language: lang }));
-      return true;
-    }
     if (ask) {
+      const { data: created, error } = await supabase.from('quizzes').insert({
+        teacher_id: user.id, quiz_source: 'transcript', coaching_session_id: sessionId,
+        topic: session.analysis_data?.topic || 'Lesson', subject: session.analysis_data?.subject || null,
+        language: null,
+        status: 'offered',
+        meta: {
+          step: 'awaiting_language', awaiting_language: true,
+          source: 'list', claimed_at: new Date().toISOString(),
+        },
+      }).select('id').single();
+      if (error || !created) {
+        logToFile('⚠️ transcript quiz: list claim failed', { sessionId, error: error?.message });
+        await WhatsAppService.sendMessage(phone, resolveUx('tqStillMaking', { language: lang }));
+        return true;
+      }
       await sendLanguageAsk(created.id, phone, lang, ruleLanguage);
       logEvent('transcript_quiz.language_asked', { userId: user.id, quizId: created.id, ruleLanguage, from: 'list' });
       return true;
     }
-    await enqueueGenerate(created.id, phone, lang);
-    logEvent('transcript_quiz.list_generate', { userId: user.id, quizId: created.id, from: 'none' });
+    const claimed = await claimForGeneration({
+      userId: user.id, sessionId, session, quiz: null, quizLanguage: ruleLanguage,
+    });
+    if (claimed.error) {
+      await WhatsAppService.sendMessage(phone, resolveUx('tqStillMaking', { language: lang }));
+      return true;
+    }
+    await enqueueGenerate(claimed.quizId, phone, lang);
+    logEvent('transcript_quiz.list_generate', { userId: user.id, quizId: claimed.quizId, from: 'none' });
     return true;
   }
 
@@ -323,14 +400,11 @@ async function handleListPick(listId, phone, user) {
         logEvent('transcript_quiz.language_asked', { userId: user.id, quizId: quiz.id, ruleLanguage, from: 'list' });
         return true;
       }
-      await supabase.from('quizzes')
-        .update({
-          status: 'generating', language: ruleLanguage,
-          meta: { ...(quiz.meta || {}), step: quiz.meta?.digest ? 'author' : 'digest', awaiting_language: false, source: 'list', retried_at: new Date().toISOString() },
-        })
-        .eq('id', quiz.id);
+      const claimed = await claimForGeneration({
+        userId: user.id, sessionId, session, quiz, quizLanguage: ruleLanguage,
+      });
       await enqueueGenerate(quiz.id, phone, lang);
-      logEvent('transcript_quiz.list_generate', { userId: user.id, quizId: quiz.id, from: quiz.status });
+      logEvent('transcript_quiz.list_generate', { userId: user.id, quizId: quiz.id, from: claimed.from });
       return true;
     }
   }
@@ -389,6 +463,6 @@ async function handleActionButton(buttonId, phone) {
 
 module.exports = {
   isQuizCommand, buildRows, showList, handleListPick, handleActionButton, statusLine, countsFor,
-  loadEligibleSessions,
+  loadEligibleSessions, hasEligibleLessons, quizState, claimForGeneration, enqueueGenerate,
   PICK_PREFIX, LINK_PREFIX, REPORT_PREFIX, PAGE_PREFIX, BACK_PREFIX, MAX_ROWS, PER_PAGE,
 };
