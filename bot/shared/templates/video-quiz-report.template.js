@@ -29,7 +29,23 @@
 const fs = require('fs');
 const path = require('path');
 const { stripEmphasis, classLabel, classHeading } = require('../utils/text-format');
-const { PALETTE, FONTS, TYPE_FLOOR, headFamily, bodyFamily, latticeSvg, dirOf } = require('./niete-brand');
+const {
+  PALETTE, FONTS, TYPE_FLOOR, TYPE_FLOOR_UR, TYPE_STEP, TYPE_STEP_UR, HEAD_SCALE, leadingAt,
+  headFamily, bodyFamily, latticeSvg, dirOf,
+} = require('./niete-brand');
+
+// PLAN_R6 D4 — this template used to carry its own literal 14/15/18/19/20/21/22px
+// ladder with its own Urdu bump (19/18 = +5.5%, against the pre-send PDF's
+// +15%). It now reads the same shared floor the teacher PDF reads, so raising
+// the floor moves both documents together instead of drifting apart again.
+const round1 = (n) => Math.round(n * 10) / 10;
+// The two steps above body ARE niete-brand's TYPE_STEP/TYPE_STEP_UR; only the
+// two sizes this template alone needs (the hero title, the stat-chip number)
+// are derived here, and derived rather than hard-coded so they move with the
+// tokens instead of freezing today's arithmetic.
+const HERO_H1 = round1(30 * HEAD_SCALE);        // 33.6px
+const HERO_H1_UR = round1(27 * HEAD_SCALE);     // 30.2px
+const STCHIP_N = round1(22 * (21 / 18));        // 25.7px — Latin digits, one value for both scripts
 
 let _assets = null;
 
@@ -347,70 +363,73 @@ body{background:#eef1f0;font-family:${bodyFam}}
 .ltr{font-family:${FONTS.bodyLatin};font-weight:600;unicode-bidi:isolate;direction:ltr}
 /* Every block of QUIZ content follows the quiz's language, not the reader's. */
 .content{font-family:${cBodyFam}}
-.content[dir="rtl"]{font-family:${FONTS.bodyUrdu};line-height:1.9}
+/* leadingAt() — larger type needs proportionally less leading, so the round-5
+   ratios shrink by exactly the factor the floor grew by. Holding them fixed is
+   what turned a +17% type raise into +2 pages on the Urdu pre-send PDF. */
+.content[dir="rtl"]{font-family:${FONTS.bodyUrdu};line-height:${leadingAt(1.9)}}
 .content[dir="ltr"]{font-family:${FONTS.bodyLatin};line-height:1.45}
 /* A chip, a pill and a roster name are UI, not prose. Nastaliq's prose leading
    over a one-line label costs a third of a page across a full roster and puts
    air inside a chip that then looks broken; the READING blocks — the question,
    the explanation, the guidance — keep it. Same argument the teacher PDF
    already makes for its option rows. */
-.r-name .content[dir="rtl"],.slo.content[dir="rtl"],.wrongpill.content[dir="rtl"],.rightpill.content[dir="rtl"]{line-height:1.5}
+.r-name .content[dir="rtl"],.slo.content[dir="rtl"],.wrongpill.content[dir="rtl"],.rightpill.content[dir="rtl"]{line-height:${leadingAt(1.5)}}
 
 .hero{position:relative;min-height:230px;overflow:hidden;background:${PALETTE.slate};padding:30px 42px 26px}
 .hero .lattice{position:absolute;inset:0;width:100%;height:100%;z-index:0}
 .hero>*:not(.lattice){position:relative;z-index:1}
-.eyebrow{font-family:${bodyFam};font-size:${RTL ? '15px' : '14px'};letter-spacing:${RTL ? '0' : '.2em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.greenPale};font-weight:700}
+.eyebrow{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;letter-spacing:${RTL ? '0' : '.2em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.greenPale};font-weight:700}
 .hero-mark{width:46px;height:46px;object-fit:contain;flex-shrink:0;display:block}
 .eyerow{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
 .herotop{display:flex;justify-content:space-between;align-items:flex-start;margin-top:10px;gap:16px}
-.hero h1{font-family:${cHeadFam};font-size:${CRTL ? '27px' : '30px'};line-height:${CRTL ? '1.85' : '1.2'};font-weight:600;color:#fff;max-width:470px;text-align:${RTL ? 'right' : 'left'}}
+.hero h1{font-family:${cHeadFam};font-size:${CRTL ? HERO_H1_UR : HERO_H1}px;line-height:${CRTL ? `${leadingAt(1.85)}` : '1.2'};font-weight:600;color:#fff;max-width:470px;text-align:${RTL ? 'right' : 'left'}}
 .hscore{text-align:${RTL ? 'left' : 'right'};flex-shrink:0;margin-${RTL ? 'right' : 'left'}:20px}
 .hscore .p{font-family:${FONTS.bodyLatin};font-weight:700;font-size:46px;color:#fff;letter-spacing:-.02em;line-height:1;direction:ltr}
-.hscore .s{font-family:${bodyFam};font-size:${RTL ? '15px' : '14px'};color:#c6e9d5;margin-top:5px;letter-spacing:.05em;${RTL ? '' : 'text-transform:uppercase;'}}
-.who{font-family:${bodyFam};margin-top:16px;font-size:${RTL ? '19px' : '18px'};color:#e2e5ea;${RTL ? 'line-height:2;' : ''}}
+.hscore .s{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;color:#c6e9d5;margin-top:5px;letter-spacing:.05em;${RTL ? '' : 'text-transform:uppercase;'}}
+.who{font-family:${bodyFam};margin-top:16px;font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;color:#e2e5ea;${RTL ? `line-height:${leadingAt(2)};` : ''}}
 /* D6 — the who-line is the name followed by the class, with no possessive
    preposition in front of it, so the NAME carries the emphasis the removed
    bold used to carry. */
-.who .nm{color:#fff;font-weight:700;font-size:${RTL ? '20px' : '19px'}}
+.who .nm{color:#fff;font-weight:700;font-size:${RTL ? TYPE_STEP_UR.name : TYPE_STEP.name}px}
 .who b{color:#fff}
 .statrow{display:flex;gap:10px;margin-top:18px}
 .stchip{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);border-radius:11px;padding:9px 14px}
-.stchip .n{font-family:${FONTS.bodyLatin};font-weight:700;font-size:22px;color:#fff;direction:ltr}
-.stchip .l{font-family:${bodyFam};font-size:${RTL ? '15px' : '14px'};color:${PALETTE.greenPale};${RTL ? '' : 'text-transform:uppercase;'}letter-spacing:.08em;margin-top:1px}
+.stchip .n{font-family:${FONTS.bodyLatin};font-weight:700;font-size:${STCHIP_N}px;color:#fff;direction:ltr}
+.stchip .l{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;color:${PALETTE.greenPale};${RTL ? '' : 'text-transform:uppercase;'}letter-spacing:.08em;margin-top:1px}
 
 .body{padding:26px 42px 6px}
-.label{font-family:${bodyFam};font-size:${RTL ? '15px' : '14px'};letter-spacing:${RTL ? '0' : '.14em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.slate};opacity:.55;font-weight:700;margin-bottom:14px;break-after:avoid;page-break-after:avoid}
+.label{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;letter-spacing:${RTL ? '0' : '.14em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.slate};opacity:.55;font-weight:700;margin-bottom:14px;break-after:avoid;page-break-after:avoid}
 
 .moment{background:#f7f9ff;border-radius:14px;padding:18px 20px;margin-bottom:14px}
 .mhead{display:flex;gap:10px;align-items:flex-start}
-.num{flex-shrink:0;width:28px;height:28px;transform:rotate(45deg);background:${PALETTE.slate};color:#fff;font-size:15px;font-weight:700;
+.num{flex-shrink:0;width:33px;height:33px;transform:rotate(45deg);background:${PALETTE.slate};color:#fff;font-size:${TYPE_FLOOR.small}px;font-weight:700;
      display:flex;align-items:center;justify-content:center;font-family:${FONTS.bodyLatin}}
 .num span{display:block;transform:rotate(-45deg)}
-.m-q{font-family:${cHeadFam};font-size:${CRTL ? '22px' : '21px'};line-height:${CRTL ? '1.9' : '1.4'};color:#26304d;font-weight:600}
+.m-q{font-family:${cHeadFam};font-size:${CRTL ? TYPE_STEP_UR.headline : TYPE_STEP.headline}px;line-height:${CRTL ? `${leadingAt(1.9)}` : '1.4'};color:#26304d;font-weight:600}
 .mrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 40px 12px}
-.mstat{font-family:${bodyFam};font-size:${RTL ? '19px' : '18px'};color:#6a748f}
-.slo{font-size:${CRTL ? '19px' : '18px'};color:#1a6b42;background:${PALETTE.greenWash};border-radius:10px;display:inline-block;padding:5px 13px}
-.chose{margin:0 40px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:${CRTL ? '19px' : '18px'}}
+.mstat{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;color:#6a748f}
+.slo{font-size:${CRTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;color:#1a6b42;background:${PALETTE.greenWash};border-radius:10px;display:inline-block;padding:5px 13px}
+.chose{margin:0 40px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:${CRTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px}
 .cpair{display:inline-flex;align-items:center;gap:9px}
 .lbl{font-family:${bodyFam};color:#6a748f}
 .wrongpill{background:#eceef2;color:${PALETTE.slateLight};font-weight:700;padding:4px 12px;border-radius:12px}
 .rightpill{background:${PALETTE.greenWash};color:#0f7a3d;font-weight:700;padding:4px 12px;border-radius:12px}
 .arrow{color:#b7bfd6}
-.why{font-family:${bodyFam};margin:10px 40px 0;font-size:${RTL ? '19px' : '18px'};line-height:${RTL ? '1.9' : '1.5'};color:#374151;background:#fff;border-radius:8px;padding:11px 14px}
+.why{font-family:${bodyFam};margin:10px 40px 0;font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;line-height:${RTL ? `${leadingAt(1.9)}` : '1.5'};color:#374151;background:#fff;border-radius:8px;padding:11px 14px}
 
 .roster{margin-top:22px}
 .r-row{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid #eef0f6}
 .r-row:last-child{border-bottom:none}
-.r-name{width:246px;font-family:${bodyFam};font-size:${RTL ? '19px' : '18px'};font-weight:600;color:#26304d}
-.r-name .cls{font-family:${bodyFam};font-weight:400;color:#7a839c;font-size:${RTL ? '15.5px' : '15px'}}
+.r-name{width:246px;font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;font-weight:600;color:#26304d}
+.r-name .cls{font-family:${bodyFam};font-weight:400;color:#7a839c;font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px}
 .pbar{flex:1;height:10px;border-radius:5px;background:#e7ebf3;overflow:hidden}
 .pfill{height:100%;border-radius:5px}
-.r-score{width:142px;text-align:${RTL ? 'left' : 'right'};font-family:${FONTS.bodyLatin};font-weight:700;font-size:18px;color:${PALETTE.slate};direction:ltr;unicode-bidi:isolate}
+.r-score{width:142px;text-align:${RTL ? 'left' : 'right'};font-family:${FONTS.bodyLatin};font-weight:700;font-size:${TYPE_FLOOR.body}px;color:${PALETTE.slate};direction:ltr;unicode-bidi:isolate}
 /* Bands read as descending emphasis inside the brand's own two colours —
    the previous amber/coral pair was another product's accent family. */
 .band-strong{background:${PALETTE.green}}.band-mid{background:${PALETTE.slateLight}}.band-low{background:#9AA2B1}
 
-.unfin{font-family:${bodyFam};margin-top:16px;background:#f5f6f8;border:1px dashed #d9dde4;border-radius:10px;padding:14px 18px;font-size:${RTL ? '19px' : '18px'};color:${PALETTE.muted};line-height:${RTL ? '1.9' : 'normal'}}
+.unfin{font-family:${bodyFam};margin-top:16px;background:#f5f6f8;border:1px dashed #d9dde4;border-radius:10px;padding:14px 18px;font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;color:${PALETTE.muted};line-height:${RTL ? `${leadingAt(1.9)}` : 'normal'}}
 .unfin b{color:${PALETTE.slate}}
 
 /* The gap above the guidance box is PADDING on a wrapper, not a margin on
@@ -430,14 +449,14 @@ body{background:#eef1f0;font-family:${bodyFam}}
 .try>*:not(.lattice){position:relative;z-index:1}
 .try .label{color:#12603C;opacity:1;margin-bottom:11px}
 /* The guidance is written FOR HER, so it is set in her language's face. */
-.try-text{font-family:${headFam};font-size:${RTL ? '20px' : '19px'};line-height:${RTL ? '1.9' : '1.5'};color:#232735}
+.try-text{font-family:${headFam};font-size:${RTL ? TYPE_STEP_UR.name : TYPE_STEP.name}px;line-height:${RTL ? `${leadingAt(1.9)}` : '1.5'};color:#232735}
 /* Three-part guidance (D6): each part's own label is visually subordinate to
    the section header above it (.try .label) — smaller, the same green-pale
    tone, letterspaced in en only (Urdu has no case and letterspacing breaks
    its joining, matching what .label already does elsewhere in this file). */
 .try-part{margin-top:12px;background:#fff;border-radius:12px;padding:13px 16px}
 .try-part:first-child{margin-top:0}
-.try-label{font-family:${bodyFam};font-size:${RTL ? '15px' : '14px'};letter-spacing:${RTL ? '0' : '.1em'};${RTL ? '' : 'text-transform:uppercase;'}color:#12603C;opacity:1;font-weight:700;margin-bottom:6px}
+.try-label{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;letter-spacing:${RTL ? '0' : '.1em'};${RTL ? '' : 'text-transform:uppercase;'}color:#12603C;opacity:1;font-weight:700;margin-bottom:6px}
 
 /* Print pagination. A4 is 1123px tall and this document is 2-3 pages: without
    these, a missed-question card, a roster row or the whole guidance box
@@ -458,8 +477,8 @@ body{background:#eef1f0;font-family:${bodyFam}}
    correct degradation. */
 .tail{break-inside:avoid;page-break-inside:avoid}
 
-.foot{font-family:${bodyFam};display:flex;align-items:center;justify-content:space-between;padding:20px 42px 28px;margin-top:20px;border-top:1px solid #eef0f6;color:#7a839c;font-size:${RTL ? '15px' : '14px'}}
-.brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${PALETTE.slate};font-size:16px;font-family:${FONTS.bodyLatin}}
+.foot{font-family:${bodyFam};display:flex;align-items:center;justify-content:space-between;padding:20px 42px 28px;margin-top:20px;border-top:1px solid #eef0f6;color:#7a839c;font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${PALETTE.slate};font-size:${TYPE_FLOOR.small}px;font-family:${FONTS.bodyLatin}}
 .brand .mark{width:23px;height:23px;object-fit:contain;display:block}
 .stamp[dir="ltr"]{font-family:${FONTS.bodyLatin};font-weight:600}
 </style></head><body>

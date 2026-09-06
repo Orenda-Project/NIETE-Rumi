@@ -17,6 +17,7 @@
  */
 const render = require('../../bot/shared/templates/transcript-quiz-teacher.template');
 const VideoRender = require('../../bot/shared/services/quiz/video-quiz-render.service');
+const { TYPE_FLOOR_UR } = require('../../bot/shared/templates/niete-brand');
 
 const DIGEST = {
   topic: 'Fractions', topic_as_taught: 'کسریں', subject: 'maths', grade_band: '3-5',
@@ -151,11 +152,22 @@ describe('PLAN_R4 D1 — one language per document', () => {
     });
   });
 
+  /**
+   * The contract is the ROOM, not the ratio. Round 4 wrote the ratio 1.85
+   * because at an 18px floor that left ~17px of air between Nastaliq
+   * baselines. PLAN_R6 D4 raised the floor to 21px, and holding 1.85 there
+   * would have grown the air to 20px — which is how a +17% type raise turned
+   * into +2 pages on the Urdu sheet. `leadingAt()` keeps the air and lets the
+   * ratio fall, so this asserts the air.
+   */
   test('the RTL content rule puts NastaliqUrdu first and gives Urdu room to breathe', () => {
     const rule = ruleFor(render(MIXED), '.content[dir="rtl"]');
     expect(rule).toBeTruthy();
     expect(rule).toMatch(/font-family:'NastaliqUrdu'/);
-    expect(rule).toMatch(/line-height:1\.85/);
+    const ratio = parseFloat(/line-height:([\d.]+)/.exec(rule)[1]);
+    const air = TYPE_FLOOR_UR.body * ratio - TYPE_FLOOR_UR.body;
+    expect(air).toBeGreaterThanOrEqual(17);
+    expect(ratio).toBeLessThan(1.85);   // it fell BECAUSE the type grew
   });
 });
 

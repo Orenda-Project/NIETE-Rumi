@@ -33,7 +33,8 @@ const PALETTE = {
 };
 
 /**
- * THE TYPE FLOOR for every teacher-facing rendered artefact (PLAN_R5 D6).
+ * THE TYPE FLOOR for every teacher-facing rendered artefact (PLAN_R5 D6,
+ * raised by PLAN_R6 D4).
  *
  * Not a house preference — a measured readability floor, taken whole from the
  * 6-12 lesson plans, which arrived at it the hard way. Their body type went
@@ -47,21 +48,88 @@ const PALETTE = {
  * Measured in CSS px at a 794px A4 page width, which is what both of this
  * repo's teacher artefacts render at.
  *
- *   body   every block of running text she reads: a stem, an option, a
+ *   body   every block of running text the teacher reads: a stem, an option, a
  *          summary, a guidance sentence, a name, a score.
  *   small  captions and chips — subordinate text, still read.
  *   label  the absolute floor. NOTHING in the document may be smaller,
  *          section labels and letter markers included.
  *
+ * WHY 21 AND NOT 18. An A4 page is 794 CSS px wide and a phone opening it
+ * full-width gives it 390, so every glyph on the page is multiplied by
+ * 390/794 = 0.4912 before anyone reads it. 18px body was 8.8px in the hand;
+ * the operator read the live pre-send PDF at that size and said it was "still
+ * a bit small… make it a little bigger, without affecting the design". 21 /
+ * 16.5 / 15.5 is +17% on all three and lands body at 10.3px on the phone.
+ * The A4 page and the layout are unchanged — only the type and the boxes
+ * drawn around individual glyphs grew.
+ *
  * Urdu needs about 15% more than Latin at the same apparent size, because
- * Nastaliq's x-height sits low in its em box; the templates scale up from
- * these numbers for RTL rather than down towards them.
+ * Nastaliq's x-height sits low in its em box. That bump is `RTL_TYPE_SCALE`
+ * and the numbers it produces are `TYPE_FLOOR_UR`, exported here rather than
+ * recomputed per template: the pre-send PDF was scaling Urdu by 1.15 while the
+ * class report scaled it by 1.055 (19px against an 18px body), and neither
+ * file could see the other — the same drift the floor itself exists to stop.
  *
  * One object, exported once, because three templates each carrying their own
  * idea of "readable" is exactly how the report came to run at 11px while the
  * PDF ran at 9.5px and both believed they were fine.
  */
-const TYPE_FLOOR = { body: 18, small: 14, label: 13.5 };
+const TYPE_FLOOR = { body: 21, small: 16.5, label: 15.5 };
+
+/** Nastaliq at the same nominal size reads smaller; RTL scales UP from the
+ *  floor, never down towards it. */
+const RTL_TYPE_SCALE = 1.15;
+
+const round1 = (n) => Math.round(n * 10) / 10;
+const TYPE_FLOOR_UR = {
+  body: round1(TYPE_FLOOR.body * RTL_TYPE_SCALE),    // 24.2px
+  small: round1(TYPE_FLOOR.small * RTL_TYPE_SCALE),  // 19px
+  label: round1(TYPE_FLOOR.label * RTL_TYPE_SCALE),  // 17.8px
+};
+
+/**
+ * The two steps ABOVE the body floor that both teacher documents share, so a
+ * question stem in the pre-send PDF and a missed-question heading in the class
+ * report are the same size on the same page of the same teacher's phone.
+ * Ratios preserved from the round-5 design (stem 21/18, name 19/18) so raising
+ * the floor moves the whole scale without redrawing it.
+ */
+const TYPE_STEP = {
+  headline: round1(TYPE_FLOOR.body * (21 / 18)),   // 24.5px — a question stem / a missed question
+  name: round1(TYPE_FLOOR.body * (19 / 18)),       // 22.2px — the teacher's name, a reteach sentence
+};
+const TYPE_STEP_UR = {
+  headline: round1(TYPE_STEP.headline * RTL_TYPE_SCALE),  // 28.2px
+  name: round1(TYPE_STEP.name * RTL_TYPE_SCALE),          // 25.5px
+};
+
+/**
+ * Display headings grow more slowly than body type on purpose: a hero title
+ * was already comfortably legible on a phone at 30px (14.7px in the hand), so
+ * matching body's +17% would swell it without helping anyone read anything.
+ * PLAN_R6 D4: headings and eyebrows +12%.
+ */
+const HEAD_SCALE = 1.12;
+
+/**
+ * Leading is not a fixed multiple of the type — it is optical, and larger type
+ * needs proportionally LESS of it. Keeping round 5's ratios while the body grew
+ * +17% grew the air between every pair of Nastaliq baselines by 17% as well,
+ * which is how a +17% type raise turned into +2 pages on the Urdu pre-send PDF
+ * (5 -> 7) instead of the +1 that PLAN_R6 D4 allows.
+ *
+ * `leadingAt(r)` converts a ratio that was tuned at the OLD floor into the one
+ * that leaves the same ABSOLUTE gap between baselines at the new floor:
+ *
+ *     newRatio = 1 + (oldRatio - 1) / (21 / 18)
+ *
+ * so 1.85 -> 1.73, 1.72 -> 1.62, 1.5 -> 1.43. The ink on the page moves apart
+ * exactly as much as the glyphs grew, and no further. Applied to the RTL
+ * ratios only: the Latin ones are already near their optical minimum (1.42),
+ * where the same arithmetic would take them under it.
+ */
+const TYPE_GROWTH = 21 / 18;
+const leadingAt = (oldRatio) => Math.round((1 + (oldRatio - 1) / TYPE_GROWTH) * 100) / 100;
 
 /**
  * Font stacks. `latin`/`urdu` differ only in which family is asked for FIRST —
@@ -160,6 +228,8 @@ function lockup(text, { className = 'lockup', dotColor = PALETTE.green } = {}) {
 }
 
 module.exports = {
-  PALETTE, FONTS, TYPE_FLOOR, headFamily, bodyFamily, scriptOf, dirOf,
+  PALETTE, FONTS, TYPE_FLOOR, TYPE_FLOOR_UR, RTL_TYPE_SCALE, TYPE_STEP, TYPE_STEP_UR, HEAD_SCALE,
+  leadingAt,
+  headFamily, bodyFamily, scriptOf, dirOf,
   latticeSvg, diamondSvg, diamondPath, lockup,
 };

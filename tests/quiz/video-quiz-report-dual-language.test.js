@@ -11,6 +11,7 @@
  * direction, printing her Urdu questions as empty boxes.
  */
 const renderHtml = require('../../bot/shared/templates/video-quiz-report.template');
+const { TYPE_FLOOR_UR } = require('../../bot/shared/templates/niete-brand');
 
 const BASE = {
   topic: 'کسریں', teacherName: 'Rifat Noor', grade: '',
@@ -54,10 +55,19 @@ describe('teacher en + quiz ur', () => {
     expect(html).toMatch(/class="slo content" dir="rtl"/);
   });
 
+  /**
+   * The contract is the ROOM, not the ratio — see the same assertion in
+   * transcript-quiz-teacher-template.test.js. PLAN_R6 D4 raised the body floor
+   * to 21px (24.2px in Urdu); `leadingAt()` holds the absolute air between
+   * Nastaliq baselines and lets the ratio fall out of it.
+   */
   test('the RTL content rule leads with NastaliqUrdu and gives Urdu line-height', () => {
     const rule = ruleFor(html, '.content[dir="rtl"]');
     expect(rule).toMatch(/font-family:'NastaliqUrdu'/);
-    expect(rule).toMatch(/line-height:1\.9/);
+    const ratio = parseFloat(/line-height:([\d.]+)/.exec(rule)[1]);
+    const air = TYPE_FLOOR_UR.body * ratio - TYPE_FLOOR_UR.body;
+    expect(air).toBeGreaterThanOrEqual(17);
+    expect(ratio).toBeLessThan(1.9);
   });
 
   test('EVERY font-family declaration names both a Latin family and NastaliqUrdu', () => {
