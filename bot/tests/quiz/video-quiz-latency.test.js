@@ -184,6 +184,9 @@ describe('handleAnswer emits video_quiz.answer_latency', () => {
         eq: () => chain,
         insert: async () => ({ error: insertError }),
         update: () => chain,
+        // Lane A's guarded counter write ends .update().eq().or(...) — the
+        // chain has to be awaitable at that link too, not just at .eq().
+        or: async () => ({ data: null, error: null }),
         single: async () => ({ data: currentQuestion, error: null }),
         maybeSingle: async () => ({ data: { topic: 't', grade: 3, subject: 'Math' }, error: null }),
         then: (resolve) => resolve({ data: [], error: null }),
