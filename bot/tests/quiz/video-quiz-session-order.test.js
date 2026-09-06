@@ -184,7 +184,12 @@ describe('sendNextQuestion and handleAnswer both request external_id from quiz_q
         return chain;
       }
       const chain = {
-        select: () => chain, eq: () => chain, update: () => chain, insert: async () => ({ error: null }),
+        // `or` is the guard on the counter write: the chain handleAnswer runs is
+        // `.update().eq().or('total_questions_answered.is.null,…lte.N')`. A stub
+        // missing one link fails as a TypeError, which reads as this file's
+        // subject breaking rather than as a stub that is a link short.
+        select: () => chain, eq: () => chain, or: () => chain, update: () => chain,
+        insert: async () => ({ error: null }),
         single: async () => ({ data: null, error: null }),
         maybeSingle: async () => ({ data: null, error: null }),
       };
