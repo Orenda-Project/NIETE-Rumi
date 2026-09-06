@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- V1.3.9 — a lesson delivered WITH a render defect says so on its own row.
+-- V1.4.0 — a lesson delivered WITH a render defect says so on its own row.
 --
 -- bd-oak77.14. One boolean, and the third of exactly three.
 --
@@ -69,6 +69,13 @@
 -- undefined-column error (PGRST204 / 42703) and emits `lp612.row.column_missing`. That guard is
 -- deliberately NOT a licence to skip the migration — it converts a total outage into one lost
 -- flag and a loud event, so the ordering above is a requirement and not a landmine.
+-- RENUMBERED 1.3.9 -> 1.4.0 on 2026-09-06, before either PR merged. The graceful-shutdown lane
+-- (bd-oak77.11) had already taken V1.3.9 for `lp612_checkpoint` on `develop`, and `migrate.js`
+-- keys `schema_versions` off the version STRING alone — two files sharing 1.3.9 means the runner
+-- treats whichever ran first as satisfying both and silently skips the second. Both were hand-
+-- applied on staging so nothing was lost there; this rename is what stops it happening on prod.
+-- (While you are here: `schema_versions` on staging tops out at 1.3.6 while 1.3.7, 1.3.8 and both
+-- 1.3.9s are live. Assert `information_schema`, never the ledger — bd-7i0hs.)
 -- ---------------------------------------------------------------------------
 
 ALTER TABLE niete_lp612_renders
