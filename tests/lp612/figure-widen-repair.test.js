@@ -144,8 +144,12 @@ describe('a full-width figure reclaims its own chrome instead of failing the les
     const out = build({ type: 'flow', __svg: svgOf(2000, 900, 12) });
     expect(out.figureProblems.length).toBe(1);
     expect(out.figureProblems[0]).toMatch(/^FIGURE TOO SMALL:/);
-    // and the message says what was already tried, so nobody re-derives the geometry from it
-    expect(out.figureProblems[0]).toMatch(/already widened to the page edge/i);
+    // and the message says what was ALREADY TRIED — accurately. It must not claim a widening that
+    // did not happen; the model reads this string as a revision instruction, and "we widened it and
+    // it still failed" would send it looking for a layout answer that has already been exhausted.
+    expect(out.figureProblems[0]).toMatch(/the most the page can give it is \+18px a side/);
+    expect(out.figureProblems[0]).toMatch(/split it into two smaller figures/);
+    expect(out.figureProblems[0]).not.toMatch(/already widened/i);
   });
 
   test('a split-column figure is HOISTED to a full-width row FIRST, then widened if it is still short', () => {
