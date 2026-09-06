@@ -1806,4 +1806,8 @@ overlayDefects.MIN_COVERAGE = OVERLAY_MIN_COVERAGE;
 module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates, graphDefects, atomDefects, specContractDefects,
   overlayDefects, OVERLAY_MIN_COVERAGE,
   SECTION_BUDGET, SECTION_BUDGET_V9, DOC_BUDGET, DOC_BUDGET_V9, OUTCOME_BOX_V9,
-  MAX_HOMEWORK_ITEMS, MAX_BOARD_WEIGHT, MAX_ACTIVITIES, PLACEHOLDERS, FOREIGN_BRANDS };
+  MAX_HOMEWORK_ITEMS, MAX_BOARD_WEIGHT, MAX_ACTIVITIES, PLACEHOLDERS, FOREIGN_BRANDS,
+  // Exported so a test can assert the frozen set covers every enum/id field the SCHEMA declares
+  // — a hand-maintained list is what let `formula` and `closed_by` through (bd-oak77.23).
+  OVERLAY_SKIP_KEYS,
+};
