@@ -113,3 +113,22 @@ describe('transcript-quiz catalog', () => {
     }
   });
 });
+
+describe('the /quiz command token survives an Urdu paragraph', () => {
+  // A leading slash is a bidi-neutral at the boundary between Urdu and the
+  // Latin word, so in an RTL paragraph it renders to the RIGHT of "quiz" —
+  // the teacher is shown "quiz/" and told to send that (seen in real browser
+  // renders of tqOffer and tqListBody). The token has to be isolated.
+  const catalog = require('../../bot/shared/config/ux-strings');
+  const strings = catalog.UX_STRINGS || catalog.STRINGS || catalog.default || catalog;
+  const urduWithCommand = Object.entries(strings)
+    .filter(([, v]) => v && typeof v.ur === 'string' && v.ur.includes('/quiz'))
+    .map(([k]) => k);
+  test('there are Urdu strings that name the command', () => {
+    expect(urduWithCommand.length).toBeGreaterThan(5);
+  });
+  test('every one of them wraps /quiz in a first-strong isolate (U+2066 … U+2069)', () => {
+    const bare = urduWithCommand.filter((k) => /(?<!⁦)\/quiz/.test(strings[k].ur) || !/⁦\/quiz⁩/.test(strings[k].ur));
+    expect(bare).toEqual([]);
+  });
+});
