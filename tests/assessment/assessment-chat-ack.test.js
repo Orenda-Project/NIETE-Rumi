@@ -317,6 +317,16 @@ describe('what she actually reads in the chat', () => {
     expect(text).not.toMatch(/about a minute/i);
   });
 
+  test('an Urdu summary reaches the chat untouched — nothing trims it to ASCII', async () => {
+    // Every other fixture in this file is English. The `\W` regexes that
+    // erased Urdu elsewhere (bd-60041, bd-60047) would have passed them all.
+    const summary = 'چار سوال · چھ نمبر';
+    await handle({ assessment_action: 'rebuilt', summary,
+      flow_token: 'u1:assessment-review:paper-1' }, '92300', { id: 'u1' });
+    const [, text] = mockSend.mock.calls[0];
+    expect(text).toContain(summary);
+  });
+
   test('an explicit tag still wins over the token', async () => {
     await handle({ assessment_action: 'queue_failed', flow_token: 'u1:assessment-gen:1' },
       '92300', { id: 'u1' });
