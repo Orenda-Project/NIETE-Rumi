@@ -29,10 +29,11 @@ const ChildFlowToken = require('../services/quiz/child-flow-token'); // bd-2475 
 // pattern); the existing /video block below still keeps its own local
 // process.env read (pre-existing NIETE code, untouched by this port).
 const { STUDENT_VIDEOS_FLOW_ID } = require('../utils/constants');
-const { logToFile } = require('../utils/logger');
+const { logToFile, logError } = require('../utils/logger');
 const { isRegistered } = require('../utils/registration-status');
 const { matchDetail: matchLessonPlanIntent } = require('../utils/lp-intent');
 const { openLpBrowseFlow } = require('../services/lp-browse-entry.service'); // bd-hgwfo: the one door to the catalogue
+const { isLp612RouteAll, lp612ServesGrade } = require('../config/lp612-flags'); // bd-oak77.4: the cutover switch
 const Lp612EditRouter = require('../services/lp612-edit-router.service'); // bd-33oc2: 6-12 lesson follow-ups
 const { TEMP_DIR, LOADING_STICKER_PATH, LOADING_STICKER_MEDIA_ID, OPENAI_API_KEY,
   ATTENDANCE_SETUP_FLOW_ID, ATTENDANCE_MARKING_FLOW_ID, EDIT_CLASS_FLOW_ID,
@@ -98,6 +99,37 @@ function normalizeGrade(raw) {
  */
 async function tryCurriculumLessonPlanServe(from, topic, user, language) {
   try {
+    // ── bd-oak77.4 — LP_612_ROUTE_ALL: the 6-12 menu is the answer, so the OLD
+    // picker is not consulted. ──────────────────────────────────────────────
+    //
+    // This is the FIRST thing the function does, ahead of the region_features
+    // lookup, deliberately: `curriculum_lp_enabled` is a DB row, and a routing
+    // promise the operator made must not depend on one. With the flag on, a
+    // grade-6-to-12 request never reaches Path 0 of lesson-plan-v2.handler,
+    // which is where `oxbridge_picker` is sent and where the caller is told the
+    // message is handled.
+    //
+    // Returning FALSE is the whole mechanism — every one of the three call
+    // sites (the pre-classifier early intercept, the lesson_plan intent, and
+    // the awaiting_topic reply) reads false as "not served here" and falls
+    // through to handleLessonPlanRequest, which opens the menu.
+    //
+    // The grade is read the same way the serve path reads it, so the two cannot
+    // disagree: the grade IN THE MESSAGE wins over users.grade. An unknown
+    // grade is not claimed — it falls through on its own merits and lands on
+    // the menu, whose first screen is the grade picker.
+    if (isLp612RouteAll()) {
+      const routeGrade =
+        normalizeGrade(parseSubjectAndGrade(topic || '').grade) ??
+        normalizeGrade(user && user.grade);
+      if (lp612ServesGrade(routeGrade)) {
+        logToFile('LP route-all: 6-12 request diverted to the menu, old picker not consulted', {
+          userId: user?.id, grade: routeGrade, topicHint: (topic || '').substring(0, 60),
+        });
+        return false;
+      }
+    }
+
     const features = await RegionFeaturesService.getRegionFeatures(getUserRegion(user));
     if (!features.curriculum_lp_enabled || !features.curriculum_key) return false;
 
@@ -1104,7 +1136,8 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     const lpMatch = matchLessonPlanIntent(trimmedMessage);
     if (lpMatch.matched && process.env.PAKISTAN_LP_FLOW_ID) {
       logToFile('📘 LP bare command → opening catalogue Flow', {
-        userId: user?.id, phoneNumber: from, message: trimmedMessage, token: lpMatch.token,
+        userId: user?.id, phoneNumber: from, message: trimmedMessage,
+        token: lpMatch.token, tier: lpMatch.tier,
       });
       if (!user) {
         typingController.stop();
@@ -2681,6 +2714,20 @@ async function handleLessonPlanRequest(from, messageBody, user, sessionId, respo
   // Reached by: the lesson_plan intent (text), the /menu topic fallback, and
   // the Oxbridge picker's "Generate NIETE LP" tap.
   typingController.stop();
+  // bd-oak77.4 — she typed a TOPIC and is about to be shown a grade picker. One short line first,
+  // saying where lessons come from now. Only on this door: the bare "lp" command and the /menu tap
+  // open the Flow with no preamble because nothing needs explaining there.
+  // Gated on the same precondition openLpBrowseFlow checks, so a deployment with no Flow gets the
+  // not-in-catalog reply on its own rather than an explanation followed by a contradiction.
+  if (user && isLp612RouteAll() && process.env.PAKISTAN_LP_FLOW_ID) {
+    try {
+      await WhatsAppService.sendMessage(from, resolveUx('lp612RouteRedirect', { language: responseLanguage }));
+    } catch (redirectErr) {
+      logError('LP route-all redirect line failed to send', {
+        error: redirectErr.message, userId: user.id,
+      });
+    }
+  }
   if (user && await openLpBrowseFlow({ from, userId: user.id, language: responseLanguage, reason: 'lesson_plan_intent' })) {
     return;
   }

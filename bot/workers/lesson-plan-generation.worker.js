@@ -21,6 +21,30 @@ const CurriculumLpAstService = require('../shared/services/curriculum-lp-ast.ser
 const { renderAndServeGrounded } = require('../shared/services/grounded-lp-render.service');
 const LpFeedbackService = require('../shared/services/lp-feedback.service');
 const { storeLessonPlan } = require('../shared/database/bot-helpers');
+const { isLp612RouteAll } = require('../shared/config/lp612-flags');
+const { openLpBrowseFlow } = require('../shared/services/lp-browse-entry.service');
+const { resolveUx } = require('../shared/config/ux-strings');
+
+/**
+ * Hand a teacher whose Gamma job died at the cutover the menu instead of an instruction — bd-oak77.4.
+ *
+ * Returns false, never throws, when there is no Flow provisioned or the send fails, so the caller
+ * falls back to the original apology rather than leaving her with silence. A teacher who has already
+ * waited must end this function having been told SOMETHING.
+ */
+async function openLpBrowseFlowForCutover({ from, userId, language, topic, requestId }) {
+  if (!userId) return false;
+  const sent = await openLpBrowseFlow({ from, userId, language, reason: 'cutover_inflight_gamma' });
+  if (!sent) return false;
+  try {
+    await WhatsAppService.sendMessage(from, resolveUx('lp612RouteRedirect', { language }));
+  } catch (lineErr) {
+    // The Flow is already with her — the explanation failing is a worse message, not no message.
+    logToFile('cutover redirect line failed after the Flow was sent (non-fatal)', { error: lineErr.message, requestId });
+  }
+  logToFile('LP cutover: in-flight Gamma job drained, teacher handed the menu', { requestId, userId, topic });
+  return true;
+}
 
 // Temp directory for PDF downloads
 const TEMP_DIR = process.env.TEMP_DIR || '/tmp';
@@ -72,13 +96,16 @@ class LessonPlanGenerationWorker {
       return this.processGrounded(jobData);
     }
 
-    // bd-2540 (Option A partial Gamma strip): all freeform LP + presentation
+    // The Gamma strip (Option A, partial): all freeform LP + presentation
     // enqueue call sites (LessonPlanQueueService.createAndQueue) were deleted.
     // Any job that reaches this branch is either (a) a stale SQS message from
     // before the strip, or (b) a bug re-introducing the freeform path. Log and
     // drop with a benign apology so the SQS message is consumed rather than
     // retried indefinitely.
-    const { requestId, phoneNumber, topic, contentType } = jobData || {};
+    // userId + language were not destructured here before bd-oak77.4 — the branch only logged and
+    // apologised, so it never needed them. The cutover landing does: the Flow token leads with her
+    // user id, and her language is the one frozen into the payload at enqueue time.
+    const { requestId, userId, phoneNumber, topic, contentType, language = 'en' } = jobData || {};
     logToFile('⚠️ Non-grounded LP job received after Gamma strip — dropping', {
       requestId, contentType, topic,
     });
@@ -86,7 +113,7 @@ class LessonPlanGenerationWorker {
       try {
         await LessonPlanQueueService.markFailed(
           requestId,
-          'freeform LP generation is retired (bd-2540); only grounded AST jobs are processed',
+          'freeform LP generation is retired; only grounded AST jobs are processed',
         );
       } catch (markErr) {
         logToFile('markFailed after freeform-drop errored (non-fatal)', { error: markErr.message });
@@ -94,10 +121,28 @@ class LessonPlanGenerationWorker {
     }
     if (phoneNumber) {
       try {
-        await WhatsAppService.sendMessage(
-          phoneNumber,
-          "We don't have that lesson plan in the catalog yet. Send \"menu\" to see what's available.",
-        );
+        // bd-oak77.4 — THE CUTOVER LANDING. `lp_variant='gamma_freeform'` is still being written on
+        // production, so at the moment this code reaches `main` there are real teachers with a
+        // Gamma lesson in flight: row inserted, SQS message queued, and the code that would have
+        // finished it gone. They are the one group the cutover can actually strand.
+        //
+        // Draining the message (above) is what stops the retry loop. This is what she SEES. The
+        // old text asked a teacher who had already asked for a lesson plan, and then waited, to ask
+        // again — in one specific word. Under LP_612_ROUTE_ALL the menu is the answer, so open it
+        // for her, with the same single line every other redirected door sends (one copy, one
+        // catalogue — the bd-72dth drift).
+        //
+        // Her language is the one frozen into the job payload at enqueue time, not a fresh read:
+        // this is classroom-destined work that was already scoped (language-protocol §2 rule 4).
+        const routed = isLp612RouteAll() && await openLpBrowseFlowForCutover({
+          from: phoneNumber, userId, language, topic, requestId,
+        });
+        if (!routed) {
+          await WhatsAppService.sendMessage(
+            phoneNumber,
+            "We don't have that lesson plan in the catalog yet. Send \"menu\" to see what's available.",
+          );
+        }
       } catch (sendErr) {
         logToFile('post-drop apology send errored (non-fatal)', { error: sendErr.message });
       }

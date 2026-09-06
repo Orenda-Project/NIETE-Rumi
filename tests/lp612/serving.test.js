@@ -150,10 +150,12 @@ describe('a cached render is served immediately', () => {
   });
 });
 
+const { resolveUx } = require('../../bot/shared/config/ux-strings');
+
 // ── cache miss ──────────────────────────────────────────────────────────────
 
 describe('a miss authors the lesson at request time', () => {
-  test('acks the teacher BEFORE enqueuing — the ack is what buys the five minutes', async () => {
+  test('acks the teacher BEFORE enqueuing — the ack is what buys the wait', async () => {
     mockDbResults.push({ data: null, error: null });
     mockDbResults.push({ data: { id: 'r2' }, error: null });
 
@@ -161,9 +163,12 @@ describe('a miss authors the lesson at request time', () => {
 
     expect(out.outcome).toBe('queued');
     expect(mockSendMessage).toHaveBeenCalledTimes(1);
-    // The measured first-hit median is 313s, not the 2 minutes this once
-    // promised — see the ux-strings note above lp612Preparing (bd-2ym0h).
-    expect(mockSendMessage.mock.calls[0][1]).toMatch(/5–6 minutes/);
+    // bd-oo0of / bd-oak77.4 — this used to pin the literal "5–6 minutes". The number had drifted
+    // out of true (measured ~6 min EN, ~9 min UR), so the copy now promises a FOLLOW-UP and no
+    // duration. What this test still guards is the thing that matters here: she is acked, with the
+    // real interstitial from the one catalog, before anything is enqueued.
+    expect(mockSendMessage.mock.calls[0][1]).toBe(resolveUx('lp612Preparing', { language: REQ.language }));
+    expect(mockSendMessage.mock.calls[0][1]).not.toMatch(/\d+\s*(minutes?|منٹ)/i);
     const ackOrder = mockSendMessage.mock.invocationCallOrder[0];
     const queueOrder = mockQueueJob.mock.invocationCallOrder[0];
     expect(ackOrder).toBeLessThan(queueOrder);

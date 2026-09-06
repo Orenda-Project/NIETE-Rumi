@@ -266,6 +266,69 @@ function queueAbandonMs() {
   return num(process.env.LP612_QUEUE_ABANDON_MS, DEFAULT_QUEUE_ABANDON_MS);
 }
 
+/**
+ * THE CUTOVER SWITCH — bd-oak77.4.
+ *
+ * The operator, 2026-09-06: "turn off the free flow lesson plan generation via gamma on prod, and
+ * route all lesson plan requests to this menu."
+ *
+ * Most of that ask is already true on `develop`: the Gamma strip retired generation and the
+ * one-door change funnelled every entry — the bare "lp" command, the lesson_plan intent in text
+ * and voice, the /menu
+ * tap — into one `openLpBrowseFlow()`. What survived is the OLD 6-12 Oxbridge picker, which is
+ * reached UPSTREAM of that door by `tryCurriculumLessonPlanServe`, and the endpoint's own
+ * lp612 -> Oxbridge fallback. This flag closes both, for grades 6-12 only.
+ *
+ * A THIRD flag rather than folding into isLp612Enabled(), for the reason the religious hold is
+ * separate: turning the 6-12 corpus ON must not, in the same instant and with no way back, take the
+ * 70 curated Oxbridge lessons away from every teacher whose books the segmentation fleet finished
+ * last. Rollback is one Railway variable and no deploy.
+ *
+ * It only ever NARROWS isLp612Enabled(). With ENABLED off this is inert, and the caller must
+ * already have passed that gate.
+ */
+function isLp612RouteAll() {
+  return isTrue(process.env.LP_612_ROUTE_ALL);
+}
+
+/**
+ * WHETHER "ALL LESSON PLAN REQUESTS" INCLUDES K-5 — bd-oak77.4. Ships FALSE, deliberately.
+ *
+ * The 6-12 menu covers 62 books for grades 6-12 and CANNOT serve a K-5 teacher; grades 1-5 are the
+ * K-5 v8 corpus, reached through the same Flow and the same grade picker at
+ * `pakistan-lp-endpoint.selectGrade`. So a K-5 teacher who taps the menu is already ON the menu —
+ * nothing has to route her anywhere, and the default is to leave her exactly where she is.
+ *
+ * This exists so the operator's answer is a flag and not a rebuild. Flipping it true sends K-5
+ * requests to the 6-12 catalogue, where she will be told there are no lessons for her class. Do not
+ * flip it without the product owner's word.
+ */
+function isLp612RouteK5() {
+  return isTrue(process.env.LP_612_ROUTE_K5);
+}
+
+/**
+ * Which grades the 6-12 menu claims under the current flag set — the ONE definition, so the router
+ * and the Flow endpoint cannot drift apart (the bd-w36m5 lesson: two places describing the same
+ * envelope from opposite ends disagreed by a factor of four).
+ *
+ * An unknown/unparseable grade is NOT claimed here: it is the caller's job to send the menu, whose
+ * first screen is the grade picker. Claiming it would have this function assert a grade it does not
+ * know.
+ */
+function lp612ServesGrade(g) {
+  if (!isLp612Enabled()) return false;
+  if (isLp612Grade(g)) return true;
+  return isLp612RouteK5() && isV8ish(g);
+}
+
+/** Grades 1-5. Local, because `isV8Grade` lives in the endpoint and this module must not import it
+ *  (the endpoint imports this one — a cycle). Kept beside lp612ServesGrade so the two read together. */
+function isV8ish(g) {
+  const n = parseInt(String(g), 10);
+  return Number.isFinite(n) && n >= 1 && n <= 5;
+}
+
 function isLp612Grade(g) {
   const n = parseInt(String(g), 10);
   return Number.isFinite(n) && n >= LP612_MIN_GRADE && n <= LP612_MAX_GRADE;
@@ -273,6 +336,9 @@ function isLp612Grade(g) {
 
 module.exports = {
   isLp612Enabled,
+  isLp612RouteAll,
+  isLp612RouteK5,
+  lp612ServesGrade,
   isLp612EditEnabled,
   isLp612LangMenuEnabled,
   isLp612TargetedRevisionEnabled,
