@@ -68,6 +68,11 @@ const {
   handleStudentVideosBack
 } = require('./student-videos-endpoint');
 const {
+  handleTranscriptQuizInit,
+  handleTranscriptQuizDataExchange,
+  handleTranscriptQuizBack
+} = require('./transcript-quiz-flow-endpoint');
+const {
   handleHomeworkInit,
   handleHomeworkDataExchange,
   handleHomeworkBack
@@ -967,6 +972,56 @@ async function handleStudentVideosFlow(data) {
   if (action === 'data_exchange')             return await handleStudentVideosDataExchange(flow_token, screen, screenData);
   if (action === 'BACK')                      return await handleStudentVideosBack(flow_token, screen);
   logToFile('Unknown student-videos flow action', { action });
+  return FlowEncryptionService.createErrorResponse('Unknown action');
+}
+
+// ============================================================
+// TRANSCRIPT QUIZ FLOW ENDPOINT — /quiz as ONE Flow: the lesson list with
+// in-Flow paging, the lesson's live per-student results, and the actions
+// (generate report / resend link / make the quiz), ending on a terminal
+// screen. Presence-gated on TRANSCRIPT_QUIZ_FLOW_ID; unset falls /quiz back
+// to the interactive list message, which stays live.
+// ============================================================
+
+router.post('/transcript-quiz', async (req, res) => {
+  try {
+    if (!FlowEncryptionService.isConfigured()) {
+      logToFile('Flow encryption not configured', { endpoint: 'transcript-quiz' });
+      return res.status(500).json({ error: 'Flow encryption not configured' });
+    }
+    const encryptedResponse = await FlowEncryptionService.processEncryptedRequest(
+      req.body,
+      async (decryptedData) => handleTranscriptQuizFlow(decryptedData)
+    );
+    res.set('Content-Type', 'text/plain');
+    res.send(encryptedResponse);
+  } catch (error) {
+    logToFile('Transcript Quiz flow endpoint error', {
+      endpoint: 'transcript-quiz',
+      error: error.message,
+      stack: error.stack,
+    });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+async function handleTranscriptQuizFlow(data) {
+  const { action, flow_token, screen, data: screenData } = data;
+  // Log the CLIENT's own error_message when it renders and then dies: the
+  // WhatsApp client reports its own render failure back as a data_exchange
+  // carrying `error`/`error_message`, and that message is the only description
+  // of the fault that exists anywhere.
+  const clientError = screenData && (screenData.error_message || screenData.error);
+  logToFile('Handling Transcript Quiz flow', {
+    action, screen, hasFlowToken: !!flow_token,
+    step: screenData && screenData.step,
+    ...(clientError ? { clientError: String(clientError).slice(0, 500) } : {}),
+  });
+  if (action === 'ping') return FlowEncryptionService.handlePing();
+  if (action === 'INIT' || action === 'init') return await handleTranscriptQuizInit(flow_token);
+  if (action === 'data_exchange')             return await handleTranscriptQuizDataExchange(flow_token, screen, screenData);
+  if (action === 'BACK')                      return await handleTranscriptQuizBack(flow_token, screen);
+  logToFile('Unknown transcript-quiz flow action', { action });
   return FlowEncryptionService.createErrorResponse('Unknown action');
 }
 

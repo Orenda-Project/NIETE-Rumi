@@ -225,6 +225,45 @@ const FLOW_CONFIGS = [
     envVar: 'PAKISTAN_LP_FLOW_ID',
     categories: ['OTHER'],
   },
+  {
+    // The child's join form: name and class, asked once when a quiz link is
+    // tapped. STATIC — no endpoint: the greeting and the teacher's name are
+    // supplied per-send as navigate-mode screen data, and the answer comes
+    // back on our own flow token. Registered here rather than published only
+    // by hand, so the asset, the env var and the registry agree. Leaving
+    // STUDENT_JOIN_FLOW_ID unset falls the join back to the chat form, which
+    // is the rollback lever.
+    name: 'Student Join',
+    jsonPath: path.join(FLOWS_DIR, 'student-join-flow.json'),
+    type: 'navigate',
+    envVar: 'STUDENT_JOIN_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
+    // Multi-answer ("select all that apply") transcript-quiz questions. STATIC —
+    // no endpoint: the question, options and answer token are all supplied
+    // per-send as navigate-mode screen data. Leaving QUIZ_MULTI_FLOW_ID unset
+    // falls the question back to the single-select interactive-list picker,
+    // which is the rollback lever.
+    name: 'Quiz Multi-Select',
+    jsonPath: path.join(FLOWS_DIR, 'quiz-multi-select-flow.json'),
+    type: 'navigate',
+    envVar: 'QUIZ_MULTI_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
+    // /quiz as ONE Flow: the lesson list with in-Flow paging, the lesson's own
+    // live results, and generate report / resend link / make the quiz, all
+    // inside the same session — no round-trips through the chat. Leaving
+    // TRANSCRIPT_QUIZ_FLOW_ID unset falls /quiz back to the interactive list
+    // message, which is the rollback lever.
+    name: 'Transcript Quiz',
+    jsonPath: path.join(FLOWS_DIR, 'transcript-quiz-flow.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/transcript-quiz',
+    envVar: 'TRANSCRIPT_QUIZ_FLOW_ID',
+    categories: ['OTHER'],
+  },
 ];
 
 /** The flow names that a complete setup must have registered. */

@@ -85,6 +85,7 @@ const ENDPOINT_ONLY_FLOWS = [
   // which owns the real handling) is acknowledged instead of warning "Unknown
   // flow ID". The answer itself is recorded by that switch — this is a no-op.
   { name: 'Training MSQ',      envVar: 'TRAINING_MSQ_FLOW_ID',      endpoint: '/api/flows/training-msq' },
+  { name: 'Transcript Quiz',   envVar: 'TRANSCRIPT_QUIZ_FLOW_ID',   endpoint: '/api/flows/transcript-quiz' },
 ];
 
 // Legacy reference — keep the symbol exported so any downstream import

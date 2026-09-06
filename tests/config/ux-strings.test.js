@@ -125,8 +125,16 @@ describe('catalog completeness — every key exists in every offered language', 
     // Guards the failure where an English string is pasted into the ur slot to
     // "fill it in" — which the completeness check above would not catch.
     const PERSO_ARABIC = /[؀-ۿ]/;
+    // A FORMAT string — placeholders, separators and punctuation, no prose — has
+    // no script to be in: `{date} · {subject} · {status}` is the same line in
+    // every language, and the words arrive already written in the right one.
+    // Skipped only when there is not a single letter left after the
+    // placeholders come out, so an English SENTENCE in the ur slot — the thing
+    // this test exists to catch — is still checked.
+    const hasProse = (str) => /\p{L}/u.test(String(str).replace(/\{\w+\}/g, ''));
     for (const [key, variants] of Object.entries(UX_STRINGS)) {
       if (!variants.ur) continue;
+      if (!hasProse(variants.ur) && !hasProse(variants.en)) continue;
       // Bilingual-by-design entries contain both scripts; require only that some
       // Urdu is present.
       expect(PERSO_ARABIC.test(variants.ur)).toBe(true);

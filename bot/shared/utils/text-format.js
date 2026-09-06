@@ -42,12 +42,81 @@ function stripEmphasis(s) {
  * prefix "Grade " unconditionally, which produced "Grade Grade 3" and
  * "Grade Class 3" in a real teacher's report.
  */
-function classLabel(v) {
+function classLabel(v, language = 'en') {
   const t = String(v === null || v === undefined ? '' : v).trim();
   if (!t) return '';
-  // Already names the unit — in English or the two romanisations teachers use.
-  if (/^(grade|class|jamaat|jamat)\b/i.test(t)) return t;
-  return `Grade ${t}`;
+  // Already names the unit — in English, in Urdu, or in the two romanisations
+  // teachers use. Checked before the language branch, because a child who
+  // typed "Class 3" into an Urdu quiz still typed "Class 3".
+  // `\b` is an ASCII word boundary, so it never fires after a Perso-Arabic
+  // letter — "جماعت 4" has to be matched on the following space instead,
+  // or it comes back out as "جماعت جماعت 4".
+  if (/^(grade|class|jamaat|jamat)\b/i.test(t) || /^جماعت(\s|$)/.test(t)) return t;
+  // PLAN_R4 D1 — a single-language document cannot print an English word
+  // in the middle of an Urdu roster. The label is chrome, so it follows the
+  // document's language; the class VALUE the child typed is left as typed.
+  return language === 'ur' ? `جماعت ${t}` : `Grade ${t}`;
 }
 
-module.exports = { stripEmphasis, classLabel };
+
+/**
+ * PLAN_R5 §0 item 6 — name the class from what the CHILDREN typed.
+ *
+ * The pre-send PDF used to print the DIGEST's grade band, and a band derived
+ * from a transcript reads "Grade 6-8", which the operator correctly called a
+ * wild range: it is the model's guess about a recording, not a fact about a
+ * classroom. By the time the report is written the fact exists — every child
+ * typed a class into the join form — so the report says what they typed and
+ * the PDF, which is written before any of them has, says nothing at all.
+ *
+ * Two children in one class must not read as two classes, so "7", "Class 7"
+ * and " 7 " collapse; the unit word the child typed is stripped for the
+ * comparison and the DOCUMENT's own unit word is put back once, in front.
+ *
+ * Sorted numerically, because a lexical sort puts "10" before "6" and a
+ * teacher reading "Classes 10, 6, 7" assumes the report is broken.
+ */
+const CLASS_UNIT = /^(grade|class|jamaat|jamat)\b[\s.:-]*|^جماعت[\s.:-]*/i;
+
+/**
+ * The one definition of "the same class", so the report service (which reads
+ * the sessions) and the report chrome (which words the heading) cannot come to
+ * different answers about how many classes took the quiz. Two copies of this
+ * rule is exactly the kind of pair that drifts and then disagrees on one
+ * teacher's report.
+ *
+ * Returns the BARE values — the unit word stripped — in reading order. The
+ * caller puts the document's own unit word back on, once, in front.
+ */
+function normaliseClasses(values) {
+  const seen = new Map();
+  (Array.isArray(values) ? values : []).forEach((v) => {
+    const raw = String(v === null || v === undefined ? '' : v).trim();
+    if (!raw) return;
+    const bare = raw.replace(CLASS_UNIT, '').trim();
+    if (!bare) return;
+    const key = bare.toLowerCase().replace(/\s+/g, ' ');
+    if (!seen.has(key)) seen.set(key, bare);
+  });
+  return [...seen.values()].sort((a, b) => {
+    const na = parseFloat(a);
+    const nb = parseFloat(b);
+    if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
+    if (Number.isFinite(na) !== Number.isFinite(nb)) return Number.isFinite(na) ? -1 : 1;
+    return a.localeCompare(b);
+  });
+}
+
+function classHeading(values, language = 'en') {
+  const classes = normaliseClasses(values);
+  if (!classes.length) return '';
+  const ur = language === 'ur';
+  const unit = classes.length > 1
+    ? (ur ? 'جماعتیں' : 'Classes')
+    : (ur ? 'جماعت' : 'Class');
+  // The list separator belongs to the sentence's language, like every other
+  // piece of punctuation in it (language-protocol §9.6).
+  return `${unit} ${classes.join(ur ? '، ' : ', ')}`;
+}
+
+module.exports = { stripEmphasis, classLabel, classHeading, normaliseClasses };

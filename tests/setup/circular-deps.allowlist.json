@@ -11,13 +11,20 @@
       "bot/shared/services/elevenlabs.service.js",
       "bot/shared/services/audio.service.js"
     ],
-    "reason": "Pre-existing cross-dependency between the TTS service and the audio-processing service. Both lazy-require each other inside their respective methods (audio.service.js does it 4× for different TTS variants). Works at runtime."
+    "reason": "Pre-existing cross-dependency between the TTS service and the audio-processing service. Both lazy-require each other inside their respective methods (audio.service.js does it 4\u00d7 for different TTS variants). Works at runtime."
   },
   {
     "cycle": [
       "bot/shared/services/training/content-delivery.service.js",
       "bot/shared/services/training/quiz-delivery.service.js"
     ],
-    "reason": "bd-2390 made the module quiz a gate, so the two halves of the loop call each other: content-delivery.handleModuleDone lazy-requires quiz-delivery to send the quiz, and quiz-delivery.gradeAttempt lazy-requires content-delivery.deliverNextModule to release the next module once the teacher passes. BOTH requires are inside function bodies, never at module top level, so neither ever observes a half-initialised `{}`. The progress-row write — the one piece both genuinely share — was extracted to training/progress.service.js rather than crossing this edge."
+    "reason": "bd-2390 made the module quiz a gate, so the two halves of the loop call each other: content-delivery.handleModuleDone lazy-requires quiz-delivery to send the quiz, and quiz-delivery.gradeAttempt lazy-requires content-delivery.deliverNextModule to release the next module once the teacher passes. BOTH requires are inside function bodies, never at module top level, so neither ever observes a half-initialised `{}`. The progress-row write \u2014 the one piece both genuinely share \u2014 was extracted to training/progress.service.js rather than crossing this edge."
+  },
+  {
+    "cycle": [
+      "bot/shared/services/quiz/transcript-quiz-generate.service.js",
+      "bot/shared/services/quiz/transcript-quiz-handoff.service.js"
+    ],
+    "reason": "The two halves of one send. transcript-quiz-generate finishes authoring and lazy-requires transcript-quiz-handoff to mint the share code, attach the PDF and pace the three messages \u2014 the same routine /quiz \"resend the link\" runs on a quiz that already went out, which is why it lives on the hand-off side. The hand-off in turn lazy-requires generate for studentMessage(), renderPdf(), withFigureSvgs() and pdfFilename() when it has to rebuild a PDF that is no longer on R2. EVERY require on both sides is inside a function body, never at module top level, so neither module can observe the other half-initialised as `{}` \u2014 which is the failure this guard exists to catch. Splitting the four shared renderers into a fourth module is the real fix and is filed; it is a refactor of the authoring path, not something to do inside a cherry-pick onto production."
   }
 ]

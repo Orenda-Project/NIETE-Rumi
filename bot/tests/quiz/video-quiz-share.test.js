@@ -15,6 +15,14 @@ jest.mock('../../shared/services/whatsapp.service', () => ({
   sendMessage: jest.fn(), sendInteractiveButtons: jest.fn(),
 }));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn() }));
+// The share offer spends the same per-recipient window the quiz just filled, so
+// it throttles like every other send. Stubbed here because these tests run on
+// fake timers with the clock frozen, and the real limiter's global token bucket
+// refills against Date.now() — it would wait for time that never passes. What
+// the wiring itself does is proved in video-quiz-throttle-coverage.test.js.
+jest.mock('../../shared/services/quiz/video-quiz-rate-limiter.service', () => ({
+  throttle: jest.fn().mockResolvedValue(undefined),
+}));
 
 const WhatsAppService = require('../../shared/services/whatsapp.service');
 const { logToFile } = require('../../shared/utils/logger');

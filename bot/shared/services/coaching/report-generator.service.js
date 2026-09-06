@@ -374,8 +374,19 @@ class ReportGeneratorService {
 
       logToFile('✅ Report generation complete', { coachingSessionId });
 
-      // Trigger 3: Offer quiz to teacher's students after coaching report
-      try {
+      // Transcript quiz: schedule the offer AFTER the survey's reply window.
+      // Framework-independent — it reads the transcript, never
+      // enhancedAnalysis. Flag off (TRANSCRIPT_QUIZ_ENABLED unset) returns
+      // false without a read or a write, so the two blocks below run exactly
+      // as they do in production today.
+      const quizOfferScheduled = await this.scheduleTranscriptQuiz(
+        session, coachingSessionId, from, outputLanguage
+      );
+
+      // Trigger 3: Offer quiz to teacher's students after coaching report.
+      // Suppressed only when a transcript-quiz offer is already on its way:
+      // one ask at a time, and both asks are about a quiz.
+      if (!quizOfferScheduled) try {
         const language = outputLanguage; // bd-3b0co: unified resolver
         const quizTopic = enhancedAnalysis?.topic;
         if (quizTopic) {
@@ -402,8 +413,9 @@ class ReportGeneratorService {
         logToFile('⚠️ Trigger 3: Error offering quiz after coaching', { error: error.message });
       }
 
-      // Suggest next feature after coaching completion
-      try {
+      // Suggest next feature after coaching completion — unless a quiz offer
+      // is on its way: one ask at a time, so the offer is the only ask.
+      if (!quizOfferScheduled) try {
         const language = outputLanguage; // bd-3b0co: unified resolver
         await FeatureLinkerService.suggestNext(
           'coaching',
@@ -1574,6 +1586,43 @@ class ReportGeneratorService {
         error: handlerError.message,
         coachingSessionId
       });
+    }
+  }
+
+  /**
+   * Transcript quiz: hand the finished self-coaching session to the offer
+   * service, which decides (flag, once-per-teacher, transcript length) and
+   * enqueues the delayed offer. Returns true when an offer WILL go out, so
+   * the caller suppresses both the older quiz trigger and the feature-link
+   * ask — one ask at a time.
+   *
+   * Never throws into the report: a quiz offer is not worth failing a
+   * session over. With TRANSCRIPT_QUIZ_ENABLED unset the offer service
+   * answers false immediately, which is what makes this call inert.
+   *
+   * @param {object} session           coaching_sessions row (with users join)
+   * @param {string} coachingSessionId
+   * @param {string} from              teacher phone
+   * @param {string} outputLanguage    the report's language
+   * @returns {Promise<boolean>}
+   */
+  static async scheduleTranscriptQuiz(session, coachingSessionId, from, outputLanguage) {
+    try {
+      const TranscriptQuizOffer = require('../quiz/transcript-quiz-offer.service');
+      const scheduled = await TranscriptQuizOffer.scheduleOffer({
+        coachingSessionId,
+        userId: session.user_id,
+        phone: from || session?.users?.phone_number,
+        language: outputLanguage,
+        transcriptChars: String(session.transcript_text || '').length,
+        source: 'self',
+      });
+      return Boolean(scheduled);
+    } catch (error) {
+      logToFile('⚠️ transcript quiz: offer scheduling failed (non-fatal)', {
+        coachingSessionId, error: error.message,
+      });
+      return false;
     }
   }
 

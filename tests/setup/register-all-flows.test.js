@@ -100,16 +100,20 @@ describe('register-all-flows', () => {
     //
     // THE NUMBER DIFFERS BY BRANCH, deliberately. `main` and `develop` have
     // diverged and do not carry the same set of Flows (main has Pic-to-LP
-    // Confirm; develop does not), so this is 17 here and 16 there. Read the
-    // count off the tree you are on rather than copying it across a cherry-pick.
-    it('exports an array of all 17 registerable flow configurations', () => {
+    // Confirm; develop does not). Read the count off the tree you are on rather
+    // than copying it across a cherry-pick.
+    it('exports an array of all 21 registerable flow configurations', () => {
       expect(Array.isArray(FLOW_CONFIGS)).toBe(true);
       // Re-armed at 18 on 2026-09-06: the assessment REVIEW screens became their
       // own Flow. A Flow opens on screens[0], and the review screens could only
       // be reached from a TERMINAL confirm screen, so the client refused to open
-      // onto them at all. (main keeps Pic-to-LP Confirm, hence 18 here, 17 on
-      // develop — read the count off the tree you are on.)
-      expect(FLOW_CONFIGS).toHaveLength(18);
+      // onto them at all.
+      // Re-armed at 21 on 2026-09-06 by the transcript-quiz extraction: Student
+      // Join and Quiz Multi-Select (both static, navigate) and Transcript Quiz
+      // (endpoint) landed together. `main` keeps Pic-to-LP Confirm, so this
+      // tree is 21 where develop is 19 — Student Join was never registered
+      // there, only published by hand, which is the gap this closes.
+      expect(FLOW_CONFIGS).toHaveLength(21);
     });
 
     it('gives every flow a unique name, envVar and endpointPath', () => {
@@ -480,10 +484,14 @@ describe('register-all-flows', () => {
 
       const result = await registerAllFlows(optsNoEndpoint);
 
-      // Reading Assessment should register, attendance flows should be skipped
-      expect(result.registered).toHaveLength(1);
-      expect(result.registered[0].name).toBe('Reading Assessment');
-      expect(result.skipped).toHaveLength(FLOW_CONFIGS.length - 1);
+      // The NAVIGATE flows (no endpoint of their own) still register; every
+      // endpoint flow is skipped. Asserted as a set rather than a count of one,
+      // because adding a static Flow is a normal thing to do and must not
+      // reread as a regression.
+      const navigate = FLOW_CONFIGS.filter((c) => c.type === 'navigate');
+      expect(result.registered.map((r) => r.name).sort()).toEqual(navigate.map((c) => c.name).sort());
+      expect(result.registered.map((r) => r.name)).toContain('Reading Assessment');
+      expect(result.skipped).toHaveLength(FLOW_CONFIGS.length - navigate.length);
       expect(result.skipped.map((s) => s.name)).toContain('Attendance Setup');
       expect(result.skipped.map((s) => s.name)).toContain('Attendance Marking');
     });
