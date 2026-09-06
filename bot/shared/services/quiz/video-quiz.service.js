@@ -125,6 +125,12 @@ async function sendOffer({ userId, phone, video, quiz, language, deliveryId }) {
       .eq('id', deliveryId);
   }
   logEvent('video_quiz.offered', { userId, videoId: video.id, quizId: quiz.id });
+  // bd-mg9c7.65 — sibling of the offer_answered already logged in
+  // handleOfferButton, so one query answers the whole quiz-offer funnel.
+  // sessionId is null here: no session exists until the offer is accepted.
+  logEvent('video_quiz.offer_shown', {
+    kind: 'quiz', sessionId: null, quizId: quiz.id, source: 'video_solo', language,
+  });
 }
 
 /**
@@ -239,8 +245,10 @@ async function handleOfferButton(buttonId, phone) {
       quiz_responded_at: new Date().toISOString(),
     }).eq('id', offer.deliveryId);
   }
+  // bd-mg9c7.65 — choice is a stable token, never the button title.
+  const choice = shared ? 'share' : (accepted ? 'yes' : 'no');
   logEvent('video_quiz.offer_answered', {
-    userId: offer.userId, quizId: offer.quizId, accepted, shared,
+    userId: offer.userId, quizId: offer.quizId, accepted, shared, kind: 'quiz', choice,
   });
 
   if (shared) {
@@ -775,6 +783,10 @@ async function finish(phone, state) {
       correct: state.correct, total, pct, tier: ux(tierKey, state.language),
     }));
   }
+  logEvent('video_quiz.scorecard_sent', {
+    sessionId: state.sessionId, quizId: state.quizId,
+    ok: !!sentScorecard, fallback: !sentScorecard, pct, language: state.language,
+  });
 
   logEvent('video_quiz.completed', {
     sessionId: state.sessionId, quizId: state.quizId, total,
@@ -805,7 +817,7 @@ async function finish(phone, state) {
     }
     await Invite.offerInvite({
       phone, studentId: state.studentId, shareCodeId: state.shareCodeId,
-      language: state.language,
+      language: state.language, sessionId: state.sessionId, quizId: state.quizId,
     }).catch((err) => logToFile('⚠️ invite offer failed', { error: err.message }));
   }
 
@@ -815,7 +827,7 @@ async function finish(phone, state) {
     const share = require('./video-quiz-share.service');
     await share.offerShare({
       phone, userId: state.userId, quizId: state.quizId,
-      videoId: state.videoId, language: state.language,
+      videoId: state.videoId, language: state.language, sessionId: state.sessionId,
     }).catch((err) => logToFile('⚠️ share offer failed', { error: err.message }));
 
     const StudentVideoFeedback = require('../student-video-feedback.service');
@@ -870,6 +882,7 @@ module.exports = {
   handleAnswer,
   startSession,
   orderForSession,
+  finish,
   sweepIgnoredOffers,
   sendNextQuestion,
   writeCountersFromAnswers,

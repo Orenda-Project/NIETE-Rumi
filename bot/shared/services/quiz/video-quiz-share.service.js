@@ -113,9 +113,9 @@ async function mintCode({ quizId, userId, videoId, language = 'en' }) {
 }
 
 /** After a solo run, offer to send it to the class. */
-async function offerShare({ phone, userId, quizId, videoId, language = 'en' }) {
+async function offerShare({ phone, userId, quizId, videoId, language = 'en', sessionId = null }) {
   await redisService.set(`videoquiz:${stripPlus(phone)}:share`, {
-    quizId, videoId, userId, language,
+    quizId, videoId, userId, language, sessionId,
   }, JOIN_TTL_SECS);
 
   const body = {
@@ -138,6 +138,12 @@ async function offerShare({ phone, userId, quizId, videoId, language = 'en' }) {
       phone: phone.slice(-4), quizId,
     });
   }
+  // bd-mg9c7.65 — the share offer is only ever made after a video_solo run.
+  // `sent` carries the retry's verdict: an offer that never reached the phone
+  // still belongs in the funnel, but it is not a shown offer she ignored.
+  logEvent('video_quiz.offer_shown', {
+    kind: 'share', sessionId, quizId, source: 'video_solo', language, sent: Boolean(ok),
+  });
 }
 
 async function handleShareButton(buttonId, phone) {
@@ -147,11 +153,17 @@ async function handleShareButton(buttonId, phone) {
   await redisService.delete(key);
   if (buttonId === SHARE_NO || !ctx) {
     if (buttonId === SHARE_NO) {
+      logEvent('video_quiz.offer_answered', {
+        kind: 'share', choice: 'no', quizId: ctx?.quizId ?? null, sessionId: ctx?.sessionId ?? null,
+      });
       await WhatsAppService.sendMessage(phone, 'No problem — it will be here when you want it.');
     }
     return true;
   }
 
+  logEvent('video_quiz.offer_answered', {
+    kind: 'share', choice: 'yes', quizId: ctx.quizId ?? null, sessionId: ctx.sessionId ?? null,
+  });
   return module.exports.deliverClassLink(ctx, phone);
 }
 

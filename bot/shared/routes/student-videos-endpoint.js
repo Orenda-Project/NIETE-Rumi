@@ -238,6 +238,9 @@ function deliverVideoAsync(flowToken, row) {
     // exact report-attribution leak bd-2472 closed.
     if (resolved.kind === 'child') {
       const { phone, shareCodeId, studentId, language } = resolved;
+      // bd-mg9c7.65 — the reachable point where the child's Student-Videos
+      // Flow reply (the video picked from the binge round) comes back.
+      logEvent('video_quiz.binge_video_picked', { shareCodeId, studentId });
       try {
         const VideoQuizService = require('../services/quiz/video-quiz.service');
         const quiz = await VideoQuizService.quizForVideo(row.id);
