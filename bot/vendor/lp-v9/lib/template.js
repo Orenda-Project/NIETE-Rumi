@@ -346,9 +346,8 @@ p{ font-size:18px; }
 
    So the figure grows symmetrically by the SMALLEST amount that clears the floor, and never past
    the paper. It is a negative inline margin rather than zeroing the padding and border, because
-   the frame is
-   part of the figure's identity and dropping it is a visible change; widening the border box is
-   not. The property is absent on every figure that fits, so this rule is a no-op for them.
+   the frame is part of the figure's identity and dropping it is a visible change, where widening
+   the border box is not. The property is absent on every figure that fits, so this rule is a no-op for them.
 
    NOTE FOR ANYONE EDITING THIS STYLESHEET: it lives inside a JS template literal. No backticks. */
 figure.dg{ border:1.5px solid var(--line); border-radius:10px; padding:9px 11px; break-inside:avoid;
@@ -820,8 +819,8 @@ function makeBlockRenderer(ctx) {
           `${slot.renderedPx}px in a ${Math.round(col)}px column (floor ${DIAGRAM_MIN_PX}px). ` +
           `It needs ${slot.minWidthPx}px of width — ` +
           (slot.triedGrowPx
-            ? `already widened to the page edge (+${slot.triedGrowPx}px a side) and still short. `
-              + `Simplify it, or split it into two.`
+            ? `the most the page can give it is +${slot.triedGrowPx}px a side, which is still `
+              + `short. Simplify it, or split it into two smaller figures.`
             : `give it a full-width row, or simplify it.`));
       } else if (slot.tooTall) {
         ctx.figureProblem(`FIGURE TOO TALL: diagram ${label} needs ${slot.maxHeightPx}px of height to stay ` +
