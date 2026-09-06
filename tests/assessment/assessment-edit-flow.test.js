@@ -102,9 +102,13 @@ describe('PICK — the list only offers what survived KEEP', () => {
     // Asserted on the ids, not the titles: a row title is trimmed to the 20-char
     // NavigationList cap, so matching on full question text would break for a
     // reason that has nothing to do with what this test is about.
+    // The last row is the "Done editing" exit, not a question — a NavigationList
+    // may carry nothing else on its screen, so the way out has to be a row.
     const offered = res.data.items.map((r) => r.id);
-    expect(offered).toEqual(['a.b.MCQs.0', 'a.b.Match.0']);
-    expect(offered).not.toContain('a.b.Fill.0');
+    expect(offered[offered.length - 1]).toBe('__done__');
+    const questions = offered.filter((id) => id !== '__done__');
+    expect(questions).toEqual(['a.b.MCQs.0', 'a.b.Match.0']);
+    expect(questions).not.toContain('a.b.Fill.0');
   });
 
   test('the running total reflects what she dropped, before she rebuilds', async () => {
@@ -172,7 +176,9 @@ describe('saving an edit', () => {
       slot_3: '', slot_4: '', slot_5: '', marks: '2',
     }, TOKEN);
 
-    expect(res.screen).toBe('PICK_DONE');
+    // The picker, so she can edit a second question — PICK_MORE rather than
+    // PICK because Meta refuses a backward route out of an edit screen.
+    expect(res.screen).toBe('PICK_MORE');
     const [args] = mockSaveEdit.mock.calls[0];
     expect(args.questionId).toBe('a.b.MCQs.0');
     expect(args.edit.question).toBe('Which of these is alive?');

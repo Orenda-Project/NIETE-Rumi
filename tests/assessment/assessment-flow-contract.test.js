@@ -16,8 +16,13 @@
 const fs = require('fs');
 const path = require('path');
 
-const FLOW = JSON.parse(fs.readFileSync(
-  path.join(__dirname, '../../docs/flows/assessment-gen-flow.json'), 'utf8'));
+// One endpoint, two Flows — the review screens moved to their own file because
+// a Flow opens on screens[0] and KEEP was unreachable behind a terminal CONFIRM.
+// The contract spans both.
+const FLOW = {
+  screens: ['assessment-gen-flow.json', 'assessment-review-flow.json'].flatMap((f) =>
+    JSON.parse(fs.readFileSync(path.join(__dirname, '../../docs/flows', f), 'utf8')).screens),
+};
 const ENDPOINT_SRC = fs.readFileSync(
   path.join(__dirname, '../../bot/shared/routes/assessment-gen-endpoint.js'), 'utf8');
 
