@@ -28,8 +28,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { stripEmphasis, classLabel } = require('../utils/text-format');
-const { PALETTE, FONTS, headFamily, bodyFamily, latticeSvg, dirOf } = require('./niete-brand');
+const { stripEmphasis, classLabel, classHeading } = require('../utils/text-format');
+const { PALETTE, FONTS, TYPE_FLOOR, headFamily, bodyFamily, latticeSvg, dirOf } = require('./niete-brand');
 
 let _assets = null;
 
@@ -90,6 +90,10 @@ const CHROME = {
     eyebrow: 'Class quiz results',
     classResults: 'Class results',
     gradeLine: (g) => ` &middot; Grade ${esc(g)}`,
+    // PLAN_R5 item 6 — built by classHeading() from what the CHILDREN typed,
+    // so the template only has to place it. `gradeLine` stays for the callers
+    // that still pass a single `grade` and know it (the video-quiz lane).
+    classesLine: (c) => ` &middot; ${c}`,
     classAverage: 'Class average',
     started: 'Started', finished: 'Finished', worthReteaching: 'Worth reteaching',
     worthReteachingHeading: 'Worth reteaching &mdash; most missed',
@@ -103,31 +107,46 @@ const CHROME = {
     howEachStudentDid: 'How each student did',
     notFinishedYet: 'Not finished yet:',
     forTomorrow: 'For tomorrow',
-    guidanceMuddled: 'What they muddled',
-    guidanceBoard: 'On the board',
-    guidanceCheck: 'Check question',
-    guidanceSecure: 'Secure',
-    guidanceStretch: 'One to stretch them',
+    // Each label names WHAT SHE DOES with the sentence under it. The old set
+    // named the FIELD ("On the board", "Check question", "Secure"), and
+    // "One to stretch them" read as a noun phrase with no verb in it at all —
+    // the operator called it awkwardly named, and it was: the box's whole job
+    // is to tell her what tomorrow's ten minutes look like.
+    guidanceMuddled: 'Where they got muddled',
+    guidanceBoard: 'How to reteach it tomorrow',
+    guidanceCheck: 'Ask this at the end',
+    guidanceSecure: 'What they have secure',
+    guidanceStretch: 'How to stretch them tomorrow',
   },
   ur: {
-    eyebrow: 'کلاس کوئز کے نتائج',
+    // quiz stays in LATIN. `کوئز` is a transliteration of an English word, not
+    // a translation of it — and the register the rest of this deployment writes
+    // in (bot/shared/config/ux-strings.js) already carries quiz/link/forward/
+    // group/PDF in Latin letters inside Urdu sentences. These two chrome tables
+    // were the only place in the repo that had drifted off it.
+    eyebrow: 'کلاس کے quiz کے نتائج',
     classResults: 'کلاس کے نتائج',
     gradeLine: (g) => ` &middot; جماعت ${esc(g)}`,
-    classAverage: 'کلاس اوسط',
-    started: 'شروع کیا', finished: 'مکمل کیا', worthReteaching: 'دوبارہ پڑھانا',
+    classesLine: (c) => ` &middot; ${c}`,
+    // "کلاس اوسط" was a word-for-word calque: Urdu does not stack two nouns
+    // the way English does, so it needs the linker to mean anything at all.
+    classAverage: 'کلاس کا اوسط',
+    started: 'شروع کیا', finished: 'مکمل کیا', worthReteaching: 'دوبارہ پڑھانے کے قابل',
     worthReteachingHeading: 'دوبارہ پڑھانے کے قابل &mdash; سب سے زیادہ غلط',
     gotWrong: (n, t) => `${t} میں سے ${n} نے غلط جواب دیا`,
     mostChose: 'زیادہ تر نے چنا', correctAnswer: 'درست جواب',
     explanation: 'وضاحت:',
-    whyPicked: 'انہوں نے یہ کیوں چنا:',
-    howEachStudentDid: 'ہر طالب علم کی کارکردگی',
+    whyPicked: 'بچوں نے یہ کیوں چنا:',
+    // "طالب علم" is masculine-marked; "بچے" is what a teacher says and is
+    // gender-neutral, which the broadcast rule requires of every string here.
+    howEachStudentDid: 'ہر بچے کی کارکردگی',
     notFinishedYet: 'ابھی مکمل نہیں کیا:',
     forTomorrow: 'کل کے لیے',
-    guidanceMuddled: 'کیا الجھن ہوئی',
-    guidanceBoard: 'بورڈ پر',
-    guidanceCheck: 'جانچ کا سوال',
-    guidanceSecure: 'یہ پکا ہو گیا',
-    guidanceStretch: 'ایک اور آگے کا سوال',
+    guidanceMuddled: 'بچے کہاں الجھے',
+    guidanceBoard: 'کل اسے دوبارہ کیسے پڑھائیں',
+    guidanceCheck: 'آخر میں یہ پوچھیں',
+    guidanceSecure: 'بچوں کو یہ پکا آ گیا',
+    guidanceStretch: 'کل انہیں ایک قدم آگے کیسے لے جائیں',
   },
 };
 
@@ -185,7 +204,7 @@ function band(pct) {
 function renderVideoQuizReportHtml(d) {
   const a = assets();
   const {
-    topic = 'Video quiz', teacherName = '', grade = '',
+    topic = 'Video quiz', teacherName = '', grade = '', classes = [],
     started = 0, finished = 0, average = 0,
     students = [], hardest = [], guidance = null, unfinished = [],
     generatedAt = '', language = 'en',
@@ -207,13 +226,21 @@ function renderVideoQuizReportHtml(d) {
   const cdir = CRTL ? 'rtl' : 'ltr';
   const cls = (extra) => `class="${extra} content" dir="${cdir}"`;
 
+  // PLAN_R5 item 6 — the class comes from what the CHILDREN typed into the
+  // join form, and it is written in the DOCUMENT's language. A `grade` a
+  // caller still passes is the fallback, never the winner: the one the PDF
+  // used to print came from a digest band and read "Grade 6-8".
+  const classText = classHeading(classes, contentLanguage);
+  const classTail = classText ? L(C.classesLine(classText))
+    : (grade ? L(C.gradeLine(grade)) : '');
+
   const missedCards = hardest.map((h, i) => {
     const chose = h.top_wrong_text ? `
-      <div class="chose"><span class="lbl">${L(C.mostChose)}</span>
-        <span ${cls('wrongpill')}>${K(h.top_wrong_text)}</span>
+      <div class="chose"><span class="cpair"><span class="lbl">${L(C.mostChose)}</span>
+        <span ${cls('wrongpill')}>${K(h.top_wrong_text)}</span></span>
         <span class="arrow">${RTL ? '&larr;' : '&rarr;'}</span>
-        <span class="lbl">${L(C.correctAnswer)}</span>
-        <span ${cls('rightpill')}>${K(h.correct_text || '')}</span></div>` : '';
+        <span class="cpair"><span class="lbl">${L(C.correctAnswer)}</span>
+        <span ${cls('rightpill')}>${K(h.correct_text || '')}</span></span></div>` : '';
     // The question's own "why the correct answer is correct" (`explanation`)
     // and the distractor's own authored feedback (`misconception`) are two
     // independent facts. Both present -> two distinctly labelled lines,
@@ -227,13 +254,11 @@ function renderVideoQuizReportHtml(d) {
       <div class="why"><b>${L(C.explanation)}</b> <span ${cls('whytext')}>${K(h.explanation || h.misconception)}</span></div>` : '';
     // Transcript quizzes tag each question with the learning goal it checks;
     // naming it here tells her WHAT to reteach, not just which question.
-    const slo = h.slo ? `
-      <div ${cls('slo')}>${K(h.slo)}</div>` : '';
+    const slo = h.slo ? `<div ${cls('slo')}>${K(h.slo)}</div>` : '';
     return `
       <div class="moment">
         <div class="mhead"><div class="num"><span>${i + 1}</span></div><div ${cls('m-q')}>${K(h.question_text)}</div></div>
-        ${slo}
-        <div class="mstat">${L(C.gotWrong(h.wrong, h.total))}</div>
+        <div class="mrow">${slo}<div class="mstat">${L(C.gotWrong(h.wrong, h.total))}</div></div>
         ${chose}${why}
       </div>`;
   }).join('');
@@ -288,7 +313,7 @@ function renderVideoQuizReportHtml(d) {
 
   const guidanceBlock = guidance ? `
     <div class="try">
-      ${latticeSvg({ id: 'niete-lattice-try', line: '#ffffff', opacity: 0.14 })}
+      ${latticeSvg({ id: 'niete-lattice-try', line: PALETTE.green, opacity: 0.13 })}
       <div class="label">${L(C.forTomorrow)}</div>
       ${guidanceInner}
     </div>` : '';
@@ -324,79 +349,95 @@ body{background:#eef1f0;font-family:${bodyFam}}
 .content{font-family:${cBodyFam}}
 .content[dir="rtl"]{font-family:${FONTS.bodyUrdu};line-height:1.9}
 .content[dir="ltr"]{font-family:${FONTS.bodyLatin};line-height:1.45}
+/* A chip, a pill and a roster name are UI, not prose. Nastaliq's prose leading
+   over a one-line label costs a third of a page across a full roster and puts
+   air inside a chip that then looks broken; the READING blocks — the question,
+   the explanation, the guidance — keep it. Same argument the teacher PDF
+   already makes for its option rows. */
+.r-name .content[dir="rtl"],.slo.content[dir="rtl"],.wrongpill.content[dir="rtl"],.rightpill.content[dir="rtl"]{line-height:1.5}
 
 .hero{position:relative;min-height:230px;overflow:hidden;background:${PALETTE.slate};padding:30px 42px 26px}
 .hero .lattice{position:absolute;inset:0;width:100%;height:100%;z-index:0}
 .hero>*:not(.lattice){position:relative;z-index:1}
-.eyebrow{font-family:${bodyFam};font-size:12px;letter-spacing:${RTL ? '0' : '.2em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.greenPale};font-weight:700}
+.eyebrow{font-family:${bodyFam};font-size:${RTL ? '15px' : '14px'};letter-spacing:${RTL ? '0' : '.2em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.greenPale};font-weight:700}
 .hero-mark{width:46px;height:46px;object-fit:contain;flex-shrink:0;display:block}
 .eyerow{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
 .herotop{display:flex;justify-content:space-between;align-items:flex-start;margin-top:10px;gap:16px}
-.hero h1{font-family:${cHeadFam};font-size:${CRTL ? '24px' : '26px'};line-height:${CRTL ? '1.9' : '1.2'};font-weight:600;color:#fff;max-width:470px;text-align:${RTL ? 'right' : 'left'}}
+.hero h1{font-family:${cHeadFam};font-size:${CRTL ? '27px' : '30px'};line-height:${CRTL ? '1.85' : '1.2'};font-weight:600;color:#fff;max-width:470px;text-align:${RTL ? 'right' : 'left'}}
 .hscore{text-align:${RTL ? 'left' : 'right'};flex-shrink:0;margin-${RTL ? 'right' : 'left'}:20px}
 .hscore .p{font-family:${FONTS.bodyLatin};font-weight:700;font-size:46px;color:#fff;letter-spacing:-.02em;line-height:1;direction:ltr}
-.hscore .s{font-family:${bodyFam};font-size:11.5px;color:#c6e9d5;margin-top:5px;letter-spacing:.05em;${RTL ? '' : 'text-transform:uppercase;'}}
-.who{font-family:${bodyFam};margin-top:16px;font-size:14px;color:#e2e5ea;${RTL ? 'line-height:2;' : ''}}
+.hscore .s{font-family:${bodyFam};font-size:${RTL ? '15px' : '14px'};color:#c6e9d5;margin-top:5px;letter-spacing:.05em;${RTL ? '' : 'text-transform:uppercase;'}}
+.who{font-family:${bodyFam};margin-top:16px;font-size:${RTL ? '19px' : '18px'};color:#e2e5ea;${RTL ? 'line-height:2;' : ''}}
 /* D6 — the who-line is the name followed by the class, with no possessive
    preposition in front of it, so the NAME carries the emphasis the removed
    bold used to carry. */
-.who .nm{color:#fff;font-weight:700;font-size:15px}
+.who .nm{color:#fff;font-weight:700;font-size:${RTL ? '20px' : '19px'}}
 .who b{color:#fff}
 .statrow{display:flex;gap:10px;margin-top:18px}
 .stchip{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);border-radius:11px;padding:9px 14px}
-.stchip .n{font-family:${FONTS.bodyLatin};font-weight:700;font-size:19px;color:#fff;direction:ltr}
-.stchip .l{font-family:${bodyFam};font-size:${RTL ? '11.5px' : '10.5px'};color:${PALETTE.greenPale};${RTL ? '' : 'text-transform:uppercase;'}letter-spacing:.08em;margin-top:1px}
+.stchip .n{font-family:${FONTS.bodyLatin};font-weight:700;font-size:22px;color:#fff;direction:ltr}
+.stchip .l{font-family:${bodyFam};font-size:${RTL ? '15px' : '14px'};color:${PALETTE.greenPale};${RTL ? '' : 'text-transform:uppercase;'}letter-spacing:.08em;margin-top:1px}
 
 .body{padding:26px 42px 6px}
-.label{font-family:${bodyFam};font-size:${RTL ? '12.5px' : '11px'};letter-spacing:${RTL ? '0' : '.14em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.slate};opacity:.55;font-weight:700;margin-bottom:14px;break-after:avoid;page-break-after:avoid}
+.label{font-family:${bodyFam};font-size:${RTL ? '15px' : '14px'};letter-spacing:${RTL ? '0' : '.14em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.slate};opacity:.55;font-weight:700;margin-bottom:14px;break-after:avoid;page-break-after:avoid}
 
-.moment{background:#f7f9ff;border-radius:14px;padding:16px 18px;margin-bottom:12px}
+.moment{background:#f7f9ff;border-radius:14px;padding:18px 20px;margin-bottom:14px}
 .mhead{display:flex;gap:10px;align-items:flex-start}
-.num{flex-shrink:0;width:24px;height:24px;transform:rotate(45deg);background:${PALETTE.slate};color:#fff;font-size:12px;font-weight:700;
+.num{flex-shrink:0;width:28px;height:28px;transform:rotate(45deg);background:${PALETTE.slate};color:#fff;font-size:15px;font-weight:700;
      display:flex;align-items:center;justify-content:center;font-family:${FONTS.bodyLatin}}
 .num span{display:block;transform:rotate(-45deg)}
-.m-q{font-family:${cHeadFam};font-size:16px;line-height:${CRTL ? '1.9' : '1.4'};color:#26304d;font-weight:600}
-.mstat{font-family:${bodyFam};font-size:12px;color:#6a748f;margin:8px 34px 10px}
-.slo{font-size:12px;color:#1f7a4b;background:${PALETTE.greenWash};border-radius:10px;display:inline-block;padding:2px 10px;margin:8px 34px 0}
-.chose{margin:0 34px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px}
+.m-q{font-family:${cHeadFam};font-size:${CRTL ? '22px' : '21px'};line-height:${CRTL ? '1.9' : '1.4'};color:#26304d;font-weight:600}
+.mrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 40px 12px}
+.mstat{font-family:${bodyFam};font-size:${RTL ? '19px' : '18px'};color:#6a748f}
+.slo{font-size:${CRTL ? '19px' : '18px'};color:#1a6b42;background:${PALETTE.greenWash};border-radius:10px;display:inline-block;padding:5px 13px}
+.chose{margin:0 40px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:${CRTL ? '19px' : '18px'}}
+.cpair{display:inline-flex;align-items:center;gap:9px}
 .lbl{font-family:${bodyFam};color:#6a748f}
-.wrongpill{background:#eceef2;color:${PALETTE.slateLight};font-weight:700;padding:3px 10px;border-radius:12px}
-.rightpill{background:${PALETTE.greenWash};color:#0f7a3d;font-weight:700;padding:3px 10px;border-radius:12px}
+.wrongpill{background:#eceef2;color:${PALETTE.slateLight};font-weight:700;padding:4px 12px;border-radius:12px}
+.rightpill{background:${PALETTE.greenWash};color:#0f7a3d;font-weight:700;padding:4px 12px;border-radius:12px}
 .arrow{color:#b7bfd6}
-.why{font-family:${bodyFam};margin:8px 34px 0;font-size:12px;line-height:${RTL ? '1.9' : '1.5'};color:#374151;background:#fff;border-radius:8px;padding:8px 10px}
+.why{font-family:${bodyFam};margin:10px 40px 0;font-size:${RTL ? '19px' : '18px'};line-height:${RTL ? '1.9' : '1.5'};color:#374151;background:#fff;border-radius:8px;padding:11px 14px}
 
 .roster{margin-top:22px}
-.r-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #eef0f6}
+.r-row{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid #eef0f6}
 .r-row:last-child{border-bottom:none}
-.r-name{width:190px;font-family:${bodyFam};font-size:13.5px;font-weight:600;color:#26304d}
-.r-name .cls{font-family:${bodyFam};font-weight:400;color:#8a93ad;font-size:11.5px}
-.pbar{flex:1;height:8px;border-radius:5px;background:#e7ebf3;overflow:hidden}
+.r-name{width:246px;font-family:${bodyFam};font-size:${RTL ? '19px' : '18px'};font-weight:600;color:#26304d}
+.r-name .cls{font-family:${bodyFam};font-weight:400;color:#7a839c;font-size:${RTL ? '15.5px' : '15px'}}
+.pbar{flex:1;height:10px;border-radius:5px;background:#e7ebf3;overflow:hidden}
 .pfill{height:100%;border-radius:5px}
-.r-score{width:110px;text-align:${RTL ? 'left' : 'right'};font-family:${FONTS.bodyLatin};font-weight:700;font-size:13px;color:${PALETTE.slate};direction:ltr;unicode-bidi:isolate}
+.r-score{width:142px;text-align:${RTL ? 'left' : 'right'};font-family:${FONTS.bodyLatin};font-weight:700;font-size:18px;color:${PALETTE.slate};direction:ltr;unicode-bidi:isolate}
 /* Bands read as descending emphasis inside the brand's own two colours —
    the previous amber/coral pair was another product's accent family. */
 .band-strong{background:${PALETTE.green}}.band-mid{background:${PALETTE.slateLight}}.band-low{background:#9AA2B1}
 
-.unfin{font-family:${bodyFam};margin-top:16px;background:#f5f6f8;border:1px dashed #d9dde4;border-radius:10px;padding:12px 16px;font-size:12.5px;color:${PALETTE.muted};line-height:${RTL ? '1.9' : 'normal'}}
+.unfin{font-family:${bodyFam};margin-top:16px;background:#f5f6f8;border:1px dashed #d9dde4;border-radius:10px;padding:14px 18px;font-size:${RTL ? '19px' : '18px'};color:${PALETTE.muted};line-height:${RTL ? '1.9' : 'normal'}}
 .unfin b{color:${PALETTE.slate}}
 
 /* The gap above the guidance box is PADDING on a wrapper, not a margin on
    the box: a top margin is dropped at a page break, so when the box moves
    to its own page it lands flush against the paper edge. */
 .trywrap{padding:24px 42px 0}
-.try{position:relative;overflow:hidden;background:linear-gradient(135deg,${PALETTE.slate},${PALETTE.green});color:#fff;border-radius:16px;padding:20px 24px}
+/* THE BOX SHE ACTS ON, so legibility outranks decoration.
+   It used to be white text on a slate-to-green diagonal gradient: the type
+   crossed three different backgrounds on its way across the card and the
+   operator could not read the reteach section at all. It is now dark ink on
+   the brand's pale green wash, with the accent doing its work as a rule down
+   the leading edge instead of underneath the words, and each part on its own
+   white block. The lattice stays — behind the wash, in green, at a whisper —
+   so the card is still recognisably NIETE rather than a plain callout. */
+.try{position:relative;overflow:hidden;background:${PALETTE.greenWash};color:${PALETTE.ink};border:1px solid #BFE3D0;border-${RTL ? 'right' : 'left'}:5px solid ${PALETTE.green};border-radius:16px;padding:20px 24px}
 .try .lattice{position:absolute;inset:0;width:100%;height:100%;z-index:0}
 .try>*:not(.lattice){position:relative;z-index:1}
-.try .label{color:${PALETTE.greenPale};opacity:1;margin-bottom:7px}
+.try .label{color:#12603C;opacity:1;margin-bottom:11px}
 /* The guidance is written FOR HER, so it is set in her language's face. */
-.try-text{font-family:${headFam};font-size:16.5px;line-height:${RTL ? '1.9' : '1.5'}}
+.try-text{font-family:${headFam};font-size:${RTL ? '20px' : '19px'};line-height:${RTL ? '1.9' : '1.5'};color:#232735}
 /* Three-part guidance (D6): each part's own label is visually subordinate to
    the section header above it (.try .label) — smaller, the same green-pale
    tone, letterspaced in en only (Urdu has no case and letterspacing breaks
    its joining, matching what .label already does elsewhere in this file). */
-.try-part{margin-top:14px}
-.try-part:first-child{margin-top:2px}
-.try-label{font-family:${bodyFam};font-size:${RTL ? '11px' : '10px'};letter-spacing:${RTL ? '0' : '.12em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.greenPale};opacity:.8;font-weight:700;margin-bottom:4px}
+.try-part{margin-top:12px;background:#fff;border-radius:12px;padding:13px 16px}
+.try-part:first-child{margin-top:0}
+.try-label{font-family:${bodyFam};font-size:${RTL ? '15px' : '14px'};letter-spacing:${RTL ? '0' : '.1em'};${RTL ? '' : 'text-transform:uppercase;'}color:#12603C;opacity:1;font-weight:700;margin-bottom:6px}
 
 /* Print pagination. A4 is 1123px tall and this document is 2-3 pages: without
    these, a missed-question card, a roster row or the whole guidance box
@@ -405,11 +446,21 @@ body{background:#eef1f0;font-family:${bodyFam}}
    and the roster's own section label is orphaned under nothing. break-* is the
    standard property; page-break-* is kept beside it because Chromium print
    path still honours the legacy alias on some element types. */
-.moment,.try,.unfin,.r-row{break-inside:avoid;page-break-inside:avoid}
+.moment,.try,.try-part,.unfin,.r-row{break-inside:avoid;page-break-inside:avoid}
+/* THE FOOTER MAY NOT STRAND ITSELF. When the guidance box fills a page to
+   within less than the footer's own height, the footer spilled onto a blank
+   sheet carrying a date and a monogram and nothing else, which reads as a
+   broken document rather than a finished one. break-before:avoid on the
+   footer does not work (Chromium's paged path ignores "avoid" there), so the
+   box and the footer are one indivisible tail instead: they move to the next
+   page together, and the last page is a page with content on it. If the two
+   together ever exceed a whole page Chromium breaks them anyway, which is the
+   correct degradation. */
+.tail{break-inside:avoid;page-break-inside:avoid}
 
-.foot{font-family:${bodyFam};display:flex;align-items:center;justify-content:space-between;padding:20px 42px 28px;margin-top:20px;border-top:1px solid #eef0f6;color:#8a93ad;font-size:12px}
-.brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${PALETTE.slate};font-size:14px;font-family:${FONTS.bodyLatin}}
-.brand .mark{width:20px;height:20px;object-fit:contain;display:block}
+.foot{font-family:${bodyFam};display:flex;align-items:center;justify-content:space-between;padding:20px 42px 28px;margin-top:20px;border-top:1px solid #eef0f6;color:#7a839c;font-size:${RTL ? '15px' : '14px'}}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${PALETTE.slate};font-size:16px;font-family:${FONTS.bodyLatin}}
+.brand .mark{width:23px;height:23px;object-fit:contain;display:block}
 .stamp[dir="ltr"]{font-family:${FONTS.bodyLatin};font-weight:600}
 </style></head><body>
 <div class="report">
@@ -421,7 +472,7 @@ body{background:#eef1f0;font-family:${bodyFam}}
       <h1 class="content" dir="${cdir}">${K(topic)}</h1>
       <div class="hscore"><div class="p">${average}%</div><div class="s">${L(C.classAverage)}</div></div>
     </div>
-    <div class="who">${teacherName ? nameCell(teacherName) : L(C.classResults)}${grade ? L(C.gradeLine(grade)) : ''}</div>
+    <div class="who">${teacherName ? nameCell(teacherName) : L(C.classResults)}${classTail}</div>
     <div class="statrow">
       <div class="stchip"><div class="n">${started}</div><div class="l">${L(C.started)}</div></div>
       <div class="stchip"><div class="n">${finished}</div><div class="l">${L(C.finished)}</div></div>
@@ -440,11 +491,12 @@ body{background:#eef1f0;font-family:${bodyFam}}
     ${notFinished}
   </div>
 
-  ${guidanceBlock ? `<div class="trywrap">${guidanceBlock}</div>` : ''}
-
-  <div class="foot">
-    <div class="brand">${brandMarkImg}NIETE</div>
-    <div class="stamp content" dir="${dirOf(generatedAt) }">${wrapLatin(esc(generatedAt), dirOf(generatedAt) === 'rtl')}</div>
+  <div class="tail">
+    ${guidanceBlock ? `<div class="trywrap">${guidanceBlock}</div>` : ''}
+    <div class="foot">
+      <div class="brand">${brandMarkImg}NIETE</div>
+      <div class="stamp content" dir="${dirOf(generatedAt) }">${wrapLatin(esc(generatedAt), dirOf(generatedAt) === 'rtl')}</div>
+    </div>
   </div>
 
 </div>
