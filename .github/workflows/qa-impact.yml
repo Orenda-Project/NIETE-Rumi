@@ -1,0 +1,125 @@
+# qa-impact — the repository-wide half of the QA pipeline.
+#
+# For every PR into develop/main and every push to develop this runs
+# scripts/qa/ci_impact.py over the exact commit range and posts ONE sticky
+# comment on the PR: which WhatsApp-bot features the diff touched, whether their
+# Gherkin specs were synced (or explicitly declared `Spec-Sync: … none-needed`),
+# and whether an E2E run for them was recorded in .claude/qa/ledgers/runs.jsonl.
+#
+# Why this layer exists: the Claude Code hooks and the git hooks only see the
+# machine the commit was made on. CI sees every commit from every machine, which
+# is the only place "no code reaches develop without its specs being looked at"
+# can actually be guaranteed. What CI cannot do — author a scenario, drive
+# WhatsApp — it makes visible and, in block mode, un-mergeable until done.
+#
+# Modes come from REPOSITORY VARIABLES so promoting warn → block is a settings
+# change, not a code change (Settings → Secrets and variables → Actions → Variables):
+#   QA_SPEC_FRESHNESS   off | warn | block   (default warn)
+#   QA_E2E_PROOF        off | warn | block   (default warn)
+# `specs-valid` is always blocking: a spec that cannot be parsed or has a
+# duplicate scenario name is an objective defect, not a judgement.
+name: qa-impact
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: qa-impact-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  specs-valid:
+    name: Gherkin specs are valid
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate every .feature against its agent and the tag vocabulary
+        run: python3 .claude/qa/shared/validate_specs.py
+      - name: The `all` spec still claims the real per-feature counts
+        run: python3 .claude/qa/shared/check-all-mode-counts.py
+      - name: The QA tooling's own tests
+        run: |
+          pip install --quiet pyyaml
+          python3 .claude/qa/shared/test_select_e2e.py
+          python3 .claude/qa/shared/test_spec_sync.py
+          python3 .claude/qa/shared/test_validate_specs.py
+          python3 .claude/qa/shared/test_yaml_lite.py
+          python3 scripts/qa/test_ci_impact.py
+          bash .claude/hooks/lib/git-push-match.test.sh
+          bash .githooks/githooks.test.sh
+          bash .claude/hooks/e2e-autorun-gitmarker.test.sh
+
+  impact:
+    name: Spec sync + E2E proof for this range
+    runs-on: ubuntu-latest
+    env:
+      QA_SPEC_FRESHNESS: ${{ vars.QA_SPEC_FRESHNESS || 'warn' }}
+      QA_E2E_PROOF: ${{ vars.QA_E2E_PROOF || 'warn' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the range diff needs both ends and their merge-base
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet pyyaml
+      - name: Resolve the range
+        id: range
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "base=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+            echo "head=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+            echo "target=${{ github.event.pull_request.base.ref }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "base=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+            echo "head=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            echo "target=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: PR body (for `Spec-Sync:` declarations)
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s' "$PR_BODY" > /tmp/pr-body.md
+      - name: Analyse
+        id: analyse
+        run: |
+          set +e
+          python3 scripts/qa/ci_impact.py --repo . \
+            --base "${{ steps.range.outputs.base }}" --head "${{ steps.range.outputs.head }}" \
+            --target-branch "${{ steps.range.outputs.target }}" \
+            --pr-body-file /tmp/pr-body.md --format md \
+            --freshness "$QA_SPEC_FRESHNESS" --proof "$QA_E2E_PROOF" \
+            --md-out /tmp/qa-impact.md --json-out /tmp/qa-impact.json
+          echo "rc=$?" >> "$GITHUB_OUTPUT"
+          cat /tmp/qa-impact.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Post / update the sticky PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('/tmp/qa-impact.md', 'utf8');
+            const marker = '<!-- niete-qa-impact -->';
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number, per_page: 100 });
+            const mine = comments.find(c => c.body && c.body.includes(marker));
+            if (mine) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+      - name: Verdict
+        run: |
+          echo "spec freshness mode=$QA_SPEC_FRESHNESS · e2e proof mode=$QA_E2E_PROOF · rc=${{ steps.analyse.outputs.rc }}"
+          exit "${{ steps.analyse.outputs.rc }}"
