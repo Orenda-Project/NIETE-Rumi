@@ -1900,7 +1900,7 @@ app.post('/webhook', async (req, res) => {
       }
 
       // Transcript quiz: a row tapped in the /quiz lesson list.
-      if (listId.startsWith('tq_pick_')) {
+      if (listId.startsWith('tq_pick_') || listId.startsWith('tq_page_')) {
         const TranscriptQuizList = require('./shared/services/quiz/transcript-quiz-list.service');
         await TranscriptQuizList.handleListPick(listId, from, user);
         res.status(200).send('EVENT_RECEIVED');

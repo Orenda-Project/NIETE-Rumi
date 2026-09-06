@@ -159,6 +159,10 @@ describe('routing and worker wiring', () => {
     const s = src('whatsapp-bot.js');
     expect(s).toMatch(/buttonId\.startsWith\('tq_'\)/);
     expect(s).toMatch(/listId\.startsWith\('tq_pick_'\)/);
+    // bd-mg9c7.63: the "Older lessons…" row is a list_reply like any other, so
+    // it needs its own clause in the SAME dispatch — an id the router does not
+    // match is a tap that does nothing at all, with no error anywhere.
+    expect(s).toMatch(/listId\.startsWith\('tq_page_'\)/);
   });
 
   test('the worker consumes quiz_offer, quiz_generate and quiz_nudge_teacher', () => {
