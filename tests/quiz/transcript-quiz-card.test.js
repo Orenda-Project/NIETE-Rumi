@@ -56,6 +56,60 @@ describe('renderQuestionCardHtml', () => {
   });
 });
 
+describe('the footer names exactly the letters this card draws (round 5)', () => {
+  // A card carrying two options told the child to tap a C that did not exist;
+  // a four-option card never mentioned D. The footer must be built from the
+  // number of options actually drawn, not a hardcoded three.
+  function footerText(html) {
+    const m = html.match(/<div class="foot">([^<]*)<\/div>/);
+    return m ? m[1] : null;
+  }
+
+  test('a two-option card says "Tap A or B below" and never mentions C', () => {
+    const html = Card.renderQuestionCardHtml({
+      stem: 'x', options: ['a', 'b'], displayOrder: [0, 1], language: 'en',
+    });
+    expect(footerText(html)).toBe('Tap A or B below');
+    expect(footerText(html)).not.toMatch(/\bC\b/);
+  });
+
+  test('a two-option card in Urdu says the same, and never mentions C', () => {
+    const html = Card.renderQuestionCardHtml({
+      stem: 'x', options: ['a', 'b'], displayOrder: [0, 1], language: 'ur',
+    });
+    expect(footerText(html)).toBe('نیچے A یا B دبائیں');
+    expect(footerText(html)).not.toContain('C');
+  });
+
+  test('a three-option card is unchanged in English', () => {
+    const html = Card.renderQuestionCardHtml({
+      stem: 'x', options: ['a', 'b', 'c'], displayOrder: [0, 1, 2], language: 'en',
+    });
+    expect(footerText(html)).toBe('Tap A, B or C below');
+  });
+
+  test('a three-option card is unchanged in Urdu', () => {
+    const html = Card.renderQuestionCardHtml({
+      stem: 'x', options: ['a', 'b', 'c'], displayOrder: [0, 1, 2], language: 'ur',
+    });
+    expect(footerText(html)).toBe('نیچے A، B یا C دبائیں');
+  });
+
+  test('a four-option card names D', () => {
+    const html = Card.renderQuestionCardHtml({
+      stem: 'x', options: ['a', 'b', 'c', 'd'], displayOrder: [0, 1, 2, 3], language: 'en',
+    });
+    expect(footerText(html)).toBe('Tap A, B, C or D below');
+  });
+
+  test('a four-option card names D in Urdu', () => {
+    const html = Card.renderQuestionCardHtml({
+      stem: 'x', options: ['a', 'b', 'c', 'd'], displayOrder: [0, 1, 2, 3], language: 'ur',
+    });
+    expect(footerText(html)).toBe('نیچے A، B، C یا D دبائیں');
+  });
+});
+
 describe('every text on the card has Urdu glyphs available (the Railway container has no system fonts)', () => {
   test('the counter and the footer line carry a Nastaliq family in their font stack', () => {
     const html = Card.renderQuestionCardHtml({ stem: 'x', options: ['a', 'b', 'c'], displayOrder: [0, 1, 2], language: 'ur', questionNumber: 5, total: 8 });

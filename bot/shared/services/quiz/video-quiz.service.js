@@ -275,13 +275,46 @@ async function handleOfferButton(buttonId, phone) {
 // ─── Session ────────────────────────────────────────────────────────────────
 
 /**
+ * The order the questions are ASKED in.
+ *
+ * A transcript quiz's `external_id` is `tq:<quizId>:<sloId>:<n>` (see
+ * transcript-quiz-generate.service.js), so the DB's own `order('external_id')`
+ * walks the bank in SLO-id STRING order — which has nothing to do with the
+ * order the cards were numbered in. A transcript card's printed number is its
+ * `sort_order + 1` (renderCards numbers `i + 1` from `sort_order`), so the
+ * chrome counter ("Question N of M") only agrees with the card's own printed
+ * number when the session itself asks questions in `sort_order`.
+ *
+ * The PK video bank has no such mismatch — it is left exactly as before:
+ * `leg:`-prefixed rows first, then the rest, each group in the order the DB
+ * returned it (operator decision — the legacy bank is the media-rich one, so
+ * a child gets the richer items first).
+ *
+ * `Array.prototype.sort` is stable in Node (V8 has guaranteed this since
+ * Node 11), so a tie (missing/equal `sort_order`) keeps the DB's own order,
+ * and a null/undefined `sort_order` sorts last rather than first.
+ */
+function orderForSession(questions) {
+  if (!questions.length) return [];
+  const isTranscriptBank = questions.every((q) => (q.external_id || '').startsWith('tq:'));
+  if (isTranscriptBank) {
+    return [...questions].sort((a, b) => {
+      const an = a.sort_order == null ? Infinity : a.sort_order;
+      const bn = b.sort_order == null ? Infinity : b.sort_order;
+      return an - bn;
+    });
+  }
+  const legacy = questions.filter((q) => (q.external_id || '').startsWith('leg:'));
+  const generated = questions.filter((q) => !(q.external_id || '').startsWith('leg:'));
+  return [...legacy, ...generated];
+}
+
+/**
  * Pick the questions and open a session.
  *
- * SELECTION: legacy first, generated as top-up (operator decision). The legacy
- * bank is the media-rich one — real recorded audio, real illustration — so a
- * child gets the richer items before any generated text MCQ. Ordered within
- * each source by sort_order so a video's questions arrive in their authored
- * sequence rather than shuffled.
+ * SELECTION: legacy first, generated as top-up (operator decision) for the PK
+ * video bank; a transcript bank is ordered by `sort_order` instead — see
+ * `orderForSession` above for why the two banks need different rules.
  */
 async function startSession({ phone, userId, quizId, videoId, language, deliveryId,
                               source = 'video_solo', studentName = null,
@@ -300,9 +333,7 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
     return null;
   }
 
-  const legacy = questions.filter((q) => (q.external_id || '').startsWith('leg:'));
-  const generated = questions.filter((q) => !(q.external_id || '').startsWith('leg:'));
-  const chosen = [...legacy, ...generated].slice(0, QUESTIONS_PER_SESSION);
+  const chosen = orderForSession(questions).slice(0, QUESTIONS_PER_SESSION);
 
   // bd-2481: video_solo (a teacher taking the quiz herself) never collects a
   // name — share_link already has one (the child gave it at join time). For
@@ -427,7 +458,10 @@ async function sendNextQuestion(phone, state) {
   const questionId = state.questionIds[state.index];
   const { data: q, error } = await supabase
     .from('quiz_questions')
-    .select('id, question_text, option_a, option_b, option_c, option_d, correct_option, '
+    // external_id: video-quiz-render.service.js's displayOrder seeds the
+    // shuffle on external_id || id — without it this re-select shuffles the
+    // options differently from the card the child was actually shown.
+    .select('id, external_id, question_text, option_a, option_b, option_c, option_d, correct_option, '
             + 'explanation, option_feedback, media, render_pattern')
     .eq('id', questionId)
     .single();
@@ -489,7 +523,9 @@ async function handleAnswer(phone, inputId) {
 
   const { data: q } = await supabase
     .from('quiz_questions')
-    .select('id, question_text, option_a, option_b, option_c, option_d, correct_option, '
+    // external_id: same seed reason as sendNextQuestion's select above — the
+    // grading path must reconstruct the SAME shuffle the child was shown.
+    .select('id, external_id, question_text, option_a, option_b, option_c, option_d, correct_option, '
             + 'explanation, option_feedback, media, render_pattern')
     .eq('id', parsed.questionId)
     .single();
@@ -726,6 +762,7 @@ module.exports = {
   handleOfferButton,
   handleAnswer,
   startSession,
+  orderForSession,
   sweepIgnoredOffers,
   sendNextQuestion,
   getActiveState,
