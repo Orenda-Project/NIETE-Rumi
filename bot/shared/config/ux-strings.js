@@ -997,6 +997,53 @@ const UX_STRINGS = {
   vqLetterOr: { en: 'or', ur: 'یا' },
   // The question card's OWN footer, painted into the image itself.
   vqCardTapBelow: { en: 'Tap {letters} below', ur: 'نیچے {letters} دبائیں' },
+  // ─── "select all that apply" questions (PLAN_R5 D4) ─────────────────────
+  // A question with two or three correct options is delivered as a Flow with a
+  // CheckboxGroup. Every string a child reads on that path lives here, in both
+  // languages, because the Flow ASSET is one per WABA and cannot be re-rendered
+  // per language — the only way an Urdu quiz reads as Urdu is if the sender
+  // supplies the copy as screen data (whatsapp-flows skill, rule 12).
+  //
+  // Caps that bind these: the Flow CTA button is 20 code points, a Flow Footer
+  // label 35, a CheckboxGroup label ~30, and the interactive message footer 60.
+  // Measured in CODE POINTS, which is what Meta counts and what an Urdu string
+  // makes differ from `.length`.
+  vqMultiSelectAll: { en: 'Select all that apply.', ur: 'سب درست جواب چنیں۔' },
+  vqMultiCardFoot: {
+    en: 'Open the form below and tick every right answer.',
+    ur: 'نیچے فارم کھولیں اور ہر درست جواب پر نشان لگائیں۔',
+  },
+  // The Flow's CTA button (20 code points) and its submit Footer (35).
+  vqMultiCta: { en: 'Answer', ur: 'جواب دیں' },
+  vqMultiSubmit: { en: 'Send answer', ur: 'جواب بھیجیں' },
+  // Says that the set has more than one member WITHOUT saying how many — the
+  // count is the answer key. Same reason the Flow's max-selected-items is the
+  // option count and not the size of the key.
+  vqMultiFooter: { en: 'More than one answer is right.', ur: 'ایک سے زیادہ جواب درست ہیں۔' },
+  // The verdict's opening sentence — WITHOUT a marker. D2's ✅/❌ is applied by
+  // video-quiz-render.withVerdictMark(), which is also the only thing that knows
+  // when the marker needs a right-to-left mark after it. Two places prepending
+  // an emoji is how a child ends up reading "✅ ✅".
+  // These are the fallbacks for a question whose author wrote no correct-answer
+  // feedback; when she did, her sentence is used and marked instead.
+  vqMultiRight: { en: 'Correct! The full answer is {right}.', ur: 'درست! پورا جواب یہ ہے: {right}۔' },
+  vqMultiWrong: { en: 'Not quite — the full answer is {right}.', ur: 'بالکل نہیں — پورا جواب یہ ہے: {right}۔' },
+  // Urdu deliberately uses the listing form ("these are right too") rather than
+  // a literal translation of "you missed": every natural Urdu verb for missing
+  // agrees in gender/number with the thing missed, which is unknown here and is
+  // sometimes one option and sometimes two.
+  vqMultiMissed: { en: 'You missed {missed}.', ur: 'یہ بھی درست ہیں: {missed}۔' },
+  vqMultiExtra: { en: '{extra} does not belong here.', ur: '\u200F{extra} اس میں شامل نہیں۔' },
+  // Joins the members of an answer set for a child to read.
+  vqMultiJoin: { en: ' and ', ur: ' اور ' },
+  // The degraded path: no Flow is configured on this WABA, so the question is
+  // asked as an ordinary single-select picker. It says plainly that more than
+  // one answer is right rather than pretending the question changed.
+  vqMultiFallbackAsk: {
+    en: 'More than one answer is right — tap the one you are most sure of.',
+    ur: 'ایک سے زیادہ جواب درست ہیں — جس پر آپ کو سب سے زیادہ یقین ہے وہ دبائیں۔',
+  },
+
   vqReportNoOne: {
     en: 'No one has opened your quiz on \u201c{topic}\u201d yet. The link stays live for 30 days \u2014 worth a nudge in the class group.',
     ur: '\u200Fآپ کے quiz «{topic}» کو ابھی تک کسی نے نہیں کھولا۔ link 30 دن تک چلتا رہے گا — class group میں ایک بار پھر یاد دہانی کرا دیں۔',

@@ -149,6 +149,9 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
         case 'flow':
           ok = await sendPictureFlow(phone, m, ctx);
           break;
+        case 'multiflow':
+          ok = await sendMultiSelectFlow(phone, m, ctx);
+          break;
         default:
           logToFile('⚠️ video-quiz: unknown message kind', { kind: m.kind });
       }
@@ -257,4 +260,48 @@ async function sendPictureFlow(phone, m, ctx) {
   });
 }
 
-module.exports = { sendPhase, listRows, GAP_TEXT_MS, GAP_MEDIA_MS };
+/**
+ * PLAN_R5 D4 — a question whose answer is a SET.
+ *
+ * WhatsApp reply buttons and list rows are single-select, so the only surface
+ * that can take a set is a Flow with a CheckboxGroup. What goes IN the Flow is
+ * computed by transcript-quiz-multi (pure, testable, no env read); this
+ * function is the send, and — more importantly — the degradation.
+ *
+ * THE DEGRADATION IS THE POINT. With no `QUIZ_MULTI_FLOW_ID` on this WABA, or
+ * with Meta refusing the send, the child gets the ordinary picker carrying a
+ * line that SAYS more than one answer is right, and any correct option scores
+ * (correctIndices() has always treated the key as a set). That is a weaker
+ * question, logged as such. A blank question is not a weaker question.
+ */
+async function sendMultiSelectFlow(phone, m, ctx) {
+  const Multi = require('./transcript-quiz-multi');
+  const { logEvent } = require('../../utils/structured-logger');
+  const flowId = ctx.multiFlowId || Multi.multiFlowId();
+  if (flowId) {
+    const payload = Multi.flowPayload(m, ctx);
+    const ok = await WhatsAppService.sendFlow(phone, { flowId, ...payload });
+    if (ok) return true;
+    logEvent('video_quiz.multi_flow_send_failed', { questionId: ctx.questionId, sessionId: ctx.sessionId });
+    logToFile('⚠️ multi-select Flow failed — falling back to the single-select picker', {
+      phone: phone.slice(-4), questionId: ctx.questionId,
+    });
+  } else {
+    logEvent('video_quiz.multi_flow_unset', { questionId: ctx.questionId, sessionId: ctx.sessionId });
+  }
+  // The picture is part of the question, so it goes first on this path — on the
+  // Flow path it is the Flow's own header, which is why build() emits no
+  // separate image message and the child never sees it twice.
+  if (m.headerImage) {
+    await WhatsAppService.sendImageFromUrl(phone, m.headerImage, '');
+  }
+  return WhatsAppService.sendInteractiveMessage(phone, {
+    body: { text: `${m.stem || m.body}\n\n${chrome('vqMultiFallbackAsk', ctx)}` },
+    action: {
+      button: chrome('vqChooseAnswer', ctx),
+      sections: [{ title: chrome('vqOptions', ctx), rows: listRows(m.options, ctx, m.optionIndices) }],
+    },
+  });
+}
+
+module.exports = { sendPhase, listRows, sendMultiSelectFlow, GAP_TEXT_MS, GAP_MEDIA_MS };

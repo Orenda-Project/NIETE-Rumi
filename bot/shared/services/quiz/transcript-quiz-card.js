@@ -48,6 +48,9 @@ const tokenCss = () => {
  * @param {'ur'|'en'} d.language     the quiz language (script + direction of the text)
  * @param {number} [d.questionNumber]
  * @param {number} [d.total]
+ * @param {'single'|'multi'} [d.answerMode] 'multi' = "select all that apply": a cue
+ *   line joins the stem and the foot points at the Flow's checkboxes instead of
+ *   claiming "Tap A, B or C" (false when more than one option is correct).
  */
 /** width/height ratio of an SVG from its viewBox (or width/height attrs); Infinity when unknown. */
 function svgAspect(svg) {
@@ -58,11 +61,12 @@ function svgAspect(svg) {
   return Infinity;
 }
 
-function renderQuestionCardHtml({ stem, options, displayOrder, figureSvg = null, language = 'en', questionNumber = null, total = null }) {
+function renderQuestionCardHtml({ stem, options, displayOrder, figureSvg = null, language = 'en', questionNumber = null, total = null, answerMode = 'single' }) {
   const { css, missing } = fontCss({ urdu: true });
   if (missing.length) logToFile('⚠️ transcript quiz card: font face missing', { missing });
   const ur = language === 'ur';
   const dir = ur ? 'rtl' : 'ltr';
+  const multi = answerMode === 'multi';
   const fam = ur ? "'Noto Nastaliq Urdu','NastaliqUrdu','Noto Naskh Arabic','Inter',serif" : "'Inter','Helvetica Neue',Arial,sans-serif";
   const order = Array.isArray(displayOrder) && displayOrder.length === options.length ? displayOrder : options.map((_, i) => i);
   const rows = order.map((stored, pos) => `
@@ -81,6 +85,18 @@ function renderQuestionCardHtml({ stem, options, displayOrder, figureSvg = null,
   // A tall (square-ish) figure is the reason this question is a card at all:
   // let it be tall. A wide one keeps the cap so the options stay on the card.
   const figMax = svgAspect(figureSvg) < 1.5 ? 980 : 520;
+  // "select all that apply" — a cue line between the stem and the options, and
+  // the foot stops claiming "Tap A, B or C" (false when more than one option is
+  // correct). Both strings come from the catalog (language protocol). Rendered
+  // only in the multi path so the single-answer card stays byte-identical.
+  const cueSide = dir === 'rtl' ? 'right' : 'left';
+  const cueCss = multi ? `.cue{font-family:${fam};font-size:${ur ? '30px' : '26px'};font-weight:600;color:#333748;background:rgba(71,186,125,.12);border-${cueSide}:6px solid #47BA7D;border-radius:12px;padding:14px 22px;margin-bottom:24px;line-height:${ur ? '1.9' : '1.4'};text-align:start;direction:${dir};position:relative}` : '';
+  const cue = multi ? `<div class="cue" dir="${dir}">${esc(resolveUx('vqMultiSelectAll', { language }))}</div>` : '';
+  // A multi-answer card must not name letters to tap at all: the child ticks
+  // checkboxes in the Flow. The single-answer foot stays the dynamic letter
+  // list built above, which names exactly the buttons this card's question
+  // will send.
+  const footText = multi ? resolveUx('vqMultiCardFoot', { language }) : footer;
   return `<html lang="${ur ? 'ur' : 'en'}" dir="${dir}"><head><meta charset="utf-8"><style>
 ${css}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -102,14 +118,14 @@ html,body{background:#FFFFFF}
 .dia::before{content:'';position:absolute;inset:6px;background:#47BA7D;transform:rotate(45deg);border-radius:6px}
 .dia span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#0B1A12;font-family:'Inter',sans-serif;font-weight:800;font-size:26px}
 .opt-text{font-size:${ur ? '38px' : '36px'};line-height:${ur ? '1.9' : '1.35'};flex:1;text-align:start;unicode-bidi:isolate}
-.foot{margin-top:18px;font-family:'Inter','Noto Nastaliq Urdu','Noto Naskh Arabic',sans-serif;font-size:${ur ? '26px' : '22px'};line-height:1.8;color:#6B7280;direction:${dir};text-align:start;position:relative}
+.foot{margin-top:18px;font-family:'Inter','Noto Nastaliq Urdu','Noto Naskh Arabic',sans-serif;font-size:${ur ? '26px' : '22px'};line-height:1.8;color:#6B7280;direction:${dir};text-align:start;position:relative}${cueCss}
 </style></head><body><div class="card">
 <svg class="lattice" viewBox="0 0 1080 1400" preserveAspectRatio="xMidYMid slice"><g fill="none" stroke="#47BA7D" stroke-width="1.5">${latticePaths()}</g></svg>
 <div class="top">${counter}<div class="mark">${markB64() ? `<img src="data:image/png;base64,${markB64()}">` : ''}</div></div>
 ${fig}
 <div class="stem" dir="${dir}">${richNotation(esc(stem))}</div>
-${rows}
-<div class="foot">${footer}</div>
+${cue}${rows}
+<div class="foot">${esc(footText)}</div>
 </div></body></html>`;
 }
 

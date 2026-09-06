@@ -62,23 +62,36 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * remaps by stored index so both are safe together.
  */
 function toRows(quizId, questions, { rng = Math.random, figureUrls = {} } = {}) {
+  const Multi = require('./transcript-quiz-multi');
   return questions.map((q, i) => {
-    const order = [0, 1, 2];
+    // A "select all that apply" question may carry FOUR options (PLAN_R5 D4);
+    // an ordinary one still carries exactly three. The shuffle is over whatever
+    // the question has, so a three-option question consumes the rng in exactly
+    // the same order it always did and its stored rows are unchanged.
+    const multi = Multi.isMultiQuestion(q);
+    const order = q.options.map((_, k) => k);
     for (let k = order.length - 1; k > 0; k -= 1) {
       const j = Math.floor(rng() * (k + 1));
       [order[k], order[j]] = [order[j], order[k]];
     }
     // order[newPos] = oldIdx
     const opts = order.map((old) => String(q.options[old]).trim());
-    const newCorrect = order.indexOf(Number(q.correct_index));
+    // The answer key follows the shuffle. For a set it is every correct
+    // option's NEW position, sorted, joined — the "A,C" shape correctIndices()
+    // has always parsed and the column has always been able to hold (asserted
+    // against the live database: correct_option is TEXT, no A/B/C constraint).
+    const correctOld = multi ? Multi.authoredCorrectIndices(q) : [Number(q.correct_index)];
+    const correctNew = correctOld.map((old) => order.indexOf(old)).filter((p) => p >= 0).sort((a, b) => a - b);
+    const newCorrect = correctNew[0];
+    const isCorrectPos = (pos) => correctNew.includes(pos);
     const wrong = {};
     const misc = {};
     order.forEach((old, pos) => {
-      if (pos === newCorrect) return;
+      if (isCorrectPos(pos)) return;
       const w = q.option_feedback?.wrong?.[String(old)];
       if (w) wrong[String(pos)] = String(w).trim();
       const m = q.distractor_misconceptions?.[String(old)];
-      if (m) misc['ABC'[pos]] = String(m).trim();
+      if (m) misc['ABCD'[pos]] = String(m).trim();
     });
     // A picture question is P3: the child gets ONE interactive message —
     // image header, stem body, three reply buttons. The URL is keyed on the
@@ -86,15 +99,22 @@ function toRows(quizId, questions, { rng = Math.random, figureUrls = {} } = {}) 
     // plain P1 question rather than to a row pointing at nothing.
     const figureUrl = figureUrls[i];
     const selectedBecause = String(q.selected_because || '').trim();
-    const media = (q.figure && figureUrl)
-      ? { question_image: figureUrl, figure: q.figure, ...(selectedBecause ? { selected_because: selectedBecause } : {}) }
-      : (selectedBecause ? { selected_because: selectedBecause } : null);
+    // `answer_mode` is the ONE discriminator every consumer reads; its absence
+    // means today's behaviour, exactly, so a single-answer row still stores no
+    // media at all when it has no figure and no selected_because.
+    const media = {
+      ...(q.figure && figureUrl ? { question_image: figureUrl, figure: q.figure } : {}),
+      ...(selectedBecause ? { selected_because: selectedBecause } : {}),
+      ...(multi ? { answer_mode: Multi.ANSWER_MODE_MULTI } : {}),
+    };
+    const hasMedia = Object.keys(media).length > 0;
 
     return stampDisplayOrder({
       quiz_id: quizId,
       question_text: String(q.question).trim(),
       option_a: opts[0], option_b: opts[1], option_c: opts[2],
-      correct_option: 'ABC'[newCorrect],
+      ...(opts.length > 3 ? { option_d: opts[3] } : {}),
+      correct_option: correctNew.map((p) => 'ABCD'[p]).join(','),
       explanation: String(q.explanation || '').trim() || null,
       misconception_feedback: Object.values(wrong)[0] || null,
       distractor_misconceptions: Object.keys(misc).length ? misc : null,
@@ -108,8 +128,8 @@ function toRows(quizId, questions, { rng = Math.random, figureUrls = {} } = {}) 
       // figure, so the pattern is keyed on question_image specifically —
       // not on media's mere presence — exactly as it reads once applyMedia
       // recomputes it below.
-      render_pattern: (media && media.question_image) ? 'P3' : 'P1',
-      ...(media ? { media } : {}),
+      render_pattern: media.question_image ? 'P3' : 'P1',
+      ...(hasMedia ? { media } : {}),
       sort_order: i,
     });
   });
@@ -199,6 +219,7 @@ async function runPool(items, limit, fn) {
 async function renderCards({ rows, questions, language, teacherId, quizId }) {
   const Card = require('./transcript-quiz-card');
   const render = require('./video-quiz-render.service');
+  const Multi = require('./transcript-quiz-multi');
   const urls = {};
   // A tall figure makes a card too (the row may not carry the spec yet; the authored question does).
   const jobs = rows.map((row, i) => ({ row, i })).filter(({ row, i }) => Card.needsQuestionCard(row) || Card.needsQuestionCard(questions[i]));
@@ -206,12 +227,20 @@ async function renderCards({ rows, questions, language, teacherId, quizId }) {
     const startedAt = Date.now();
     try {
       const labels = render.optionLabels(row);
-      const displayOrder = render.displayOrder(row, labels);
+      // PLAN_R5 D1/D4 — one order. The multi path reads media.display_order when
+      // the row carries it, so the letters on the card are the order the
+      // checkboxes will be in.
+      const displayOrder = (Multi.isMultiRow(row) && Multi.persistedOrder(row, labels))
+        || render.displayOrder(row, labels);
       const authored = questions && questions[i];
       const figureSvg = (authored && authored.figureSvg) || null;
       const png = await Card.renderQuestionCardPng({
         stem: row.question_text, options: labels, displayOrder, figureSvg, language,
         questionNumber: i + 1, total: rows.length,
+        // A card for a "select all that apply" question ends with "tap A, B or C"
+        // unless it is told otherwise — an instruction that is simply false when
+        // the child answers with checkboxes in a Flow.
+        answerMode: (row.media && row.media.answer_mode) || 'single',
       });
       urls[i] = await Card.uploadCard({ teacherId, quizId, index: i, png });
       logEvent('transcript_quiz.card_ready', { quizId, index: i, bytes: png.length, latencyMs: Date.now() - startedAt });
@@ -511,7 +540,7 @@ async function process(quizId, payload = {}) {
   // owned by transcript-quiz-handoff.service so /quiz "resend the link" can
   // run the exact same thing on a quiz that already went out).
   const { data: storedQs } = await supabase.from('quiz_questions')
-    .select('external_id, question_text, option_a, option_b, option_c, correct_option, explanation, distractor_misconceptions, option_feedback, media, render_pattern, sort_order')
+    .select('external_id, question_text, option_a, option_b, option_c, option_d, correct_option, explanation, distractor_misconceptions, option_feedback, media, render_pattern, sort_order')
     .eq('quiz_id', quizId).order('sort_order', { ascending: true });
   const qRows = storedQs && storedQs.length ? storedQs : applyMedia(toRows(quizId, questions || []), questions || [], { figureUrls, cardUrls, language });
 

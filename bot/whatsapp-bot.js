@@ -1605,6 +1605,23 @@ app.post('/webhook', async (req, res) => {
         }
       }
 
+      // PLAN_R5 D4 — a "select all that apply" answer comes back from its own
+      // Flow with the token `vqm:<sessionId>:<questionId>`. Routed FIRST and
+      // unconditionally: handleFlowReply() claims every `vqm:` reply, readable
+      // or not, because detectFlowType()'s attendance_marking rule matches ANY
+      // flow_token containing a colon — the misroute that has already eaten the
+      // exam-generator, observe and training-msq flows.
+      if (typeof vqToken === 'string' && vqToken.startsWith('vqm:')) {
+        try {
+          const VideoQuizService = require('./shared/services/quiz/video-quiz.service');
+          const handled = await VideoQuizService.handleMultiFlowReply(from, vqToken, responseJson);
+          if (handled) return;
+        } catch (vqmErr) {
+          logToFile('❌ multi-select quiz Flow reply routing failed', { error: vqmErr.message }, 'error');
+          return;
+        }
+      }
+
       if (typeof vqToken === 'string' && vqToken.startsWith('vq:')) {
         try {
           const [, , questionId] = vqToken.split(':');

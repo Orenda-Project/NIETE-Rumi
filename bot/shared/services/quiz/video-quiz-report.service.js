@@ -785,7 +785,16 @@ async function markReportSent(shareCodeId, quizId = null) {
 const CLUSTER_THRESHOLD = 0.5;
 
 const LETTERS = ['A', 'B', 'C', 'D'];
-const optionText = (q, letter) => q[`option_${String(letter).toLowerCase()}`] || null;
+// A multi-answer question's correct_option (and, in principle, any letter
+// this is called with) may be a comma-joined set ("A,C"). Resolve every
+// member and join their texts; the single-letter behaviour — including the
+// `|| null` on a missing option — is unchanged.
+const optionText = (q, letter) => {
+  const parts = String(letter ?? '').split(',').map((c) => c.trim()).filter(Boolean);
+  if (parts.length <= 1) return q[`option_${String(letter).toLowerCase()}`] || null;
+  const texts = parts.map((c) => q[`option_${c.toLowerCase()}`]).filter(Boolean);
+  return texts.length ? texts.join(' + ') : null;
+};
 
 /**
  * The three questions this class got wrong most often — and, where the class

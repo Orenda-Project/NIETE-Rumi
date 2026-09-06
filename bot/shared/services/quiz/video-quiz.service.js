@@ -860,6 +860,130 @@ async function sweepIgnoredOffers({ maxAgeHours = 24 } = {}) {
   }
 }
 
+// ─── "select all that apply" (PLAN_R5 D4) ───────────────────────────────────
+//
+// A question whose answer is a SET arrives from its own Flow, not from a tap.
+// These two are the siblings of handleAnswer above and live here for the same
+// reason it does: the session state, the duplicate reconcile and the
+// next-question walk are all in this file. The policy — what a set IS, how it
+// scores, what the verdict says, what the Flow is sent — is in
+// transcript-quiz-multi, which is a LEAF module (video-quiz-render and
+// video-quiz-sender both require it, so it may not require back).
+
+const MULTI_QUESTION_COLUMNS = 'id, external_id, question_text, option_a, option_b, option_c, '
+  + 'option_d, correct_option, explanation, option_feedback, media, render_pattern';
+
+/**
+ * Grade one submitted set and move the session on.
+ *
+ * Deliberately a sibling of handleAnswer rather than a branch inside it: the
+ * two differ in what they store ("A,C" not "A"), how they score (set equality,
+ * not membership) and what they say (a composed verdict, not one of N pre-built
+ * branches the sender filters). Everything they share is called, not copied.
+ *
+ * @returns {Promise<boolean>} true when the reply belonged to a video quiz
+ */
+async function handleMultiAnswer(phone, parsed) {
+  const Multi = require('./transcript-quiz-multi');
+  if (!parsed || !parsed.questionId) return false;
+  const state = await redisService.get(STATE_KEY(phone));
+  if (!state) {
+    await WhatsAppService.sendMessage(phone, ux('vqExpired', undefined));
+    return true;
+  }
+  const language = state.language;
+
+  const { data: q } = await supabase
+    .from('quiz_questions')
+    .select(MULTI_QUESTION_COLUMNS)
+    .eq('id', parsed.questionId)
+    .single();
+  if (!q) return true;
+
+  const labels = render.optionLabels(q);
+  const correct = Multi.indicesFor(q.correct_option);
+  const { isCorrect } = Multi.scoreSet(parsed.indices, correct);
+
+  const { error: aErr } = await supabase.from('quiz_answers').insert({
+    session_id: state.sessionId,
+    question_id: q.id,
+    // The whole set, in the same comma-joined letter shape correct_option uses,
+    // so the report can compare a child's answer to the key without a second
+    // encoding to get wrong.
+    selected_option: Multi.lettersFor(parsed.indices),
+    is_correct: isCorrect,
+    response_time_seconds: state.sentAt ? Math.round((Date.now() - state.sentAt) / 1000) : null,
+  });
+  if (aErr && aErr.code === '23505') {
+    // A Flow message can be submitted twice exactly as a button can be tapped
+    // twice, and a deploy can still land between the insert and the state write.
+    return reconcileFromAnswers(phone, state);
+  }
+  if (aErr) logToFile('⚠️ video-quiz: multi answer insert failed', { error: aErr.message });
+
+  const verdict = Multi.verdictText(q, { selectedIndices: parsed.indices, labels, language });
+  await rateLimiter.throttle(phone);
+  await WhatsAppService.sendMessage(phone, render.withVerdictMark(
+    verdict.text, verdict.isCorrect ? render.VERDICT_CORRECT : render.VERDICT_WRONG,
+  ));
+
+  logEvent('video_quiz.multi_answered', {
+    sessionId: state.sessionId,
+    questionId: q.id,
+    selected: parsed.indices.length,
+    correctCount: correct.length,
+    isCorrect,
+  });
+
+  // Same rule as handleAnswer: the columns come from the answers table, never
+  // from the counters carried in `state`, and `state` mirrors what was written.
+  const truth = await writeCountersFromAnswers(state.sessionId, { reason: 'multi_answer', phone });
+  state.answered = truth.answered;
+  state.correct = truth.correct;
+  state.index = (state.index || 0) + 1;
+  state.currentQuestionId = null;
+  await saveState(phone, state, 'handleMultiAnswer');
+
+  await new Promise((r) => setTimeout(r, 1200));
+  await sendNextQuestion(phone, state);
+  return true;
+}
+
+/**
+ * The whole nfm_reply path in one call, so the branch in whatsapp-bot.js is
+ * four lines and everything it does is testable without loading the bot.
+ *
+ * ALWAYS returns true for a token that is ours, including when the payload is
+ * unusable. Falling through would hand a `vqm:...` token to detectFlowType,
+ * whose attendance_marking rule matches ANY flow_token containing a colon —
+ * the misroute class that has already eaten the exam-generator, observe and
+ * training-msq flows.
+ *
+ * @returns {Promise<boolean>} true when this reply was ours (handled or refused)
+ */
+async function handleMultiFlowReply(phone, rawToken, responseJson = {}) {
+  const Multi = require('./transcript-quiz-multi');
+  const mine = Multi.ownsToken(rawToken) || Multi.ownsToken(responseJson.answer_token)
+    || String(responseJson.quiz_multi_action || '') === Multi.FLOW_ACTION;
+  if (!mine) return false;
+  const parsed = Multi.parseFlowReply(rawToken, responseJson);
+  if (!parsed) {
+    logEvent('video_quiz.multi_reply_unreadable', {
+      hasToken: Boolean(rawToken), keys: Object.keys(responseJson || {}).join(','),
+    });
+    logToFile('⚠️ video-quiz: multi-select Flow reply had no readable selection', {
+      phone: String(phone).slice(-4),
+    });
+    return true;
+  }
+  try {
+    await handleMultiAnswer(phone, parsed);
+  } catch (err) {
+    logToFile('❌ video-quiz: multi-select grading threw', { error: err.message }, 'error');
+  }
+  return true;
+}
+
 async function getActiveState(phone) {
   return redisService.get(STATE_KEY(phone));
 }
@@ -868,6 +992,12 @@ module.exports = {
   offerAfterVideo,
   handleOfferButton,
   handleAnswer,
+  handleMultiAnswer,
+  handleMultiFlowReply,
+  // Shared with the multi-select path (transcript-quiz-multi): a Flow can be
+  // submitted twice exactly as a button can be tapped twice, and there must be
+  // ONE implementation of what a duplicate means.
+  reconcileFromAnswers,
   startSession,
   orderForSession,
   sweepIgnoredOffers,
