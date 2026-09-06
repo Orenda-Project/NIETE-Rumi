@@ -447,6 +447,16 @@ body{background:#eef1f0;font-family:${bodyFam}}
    standard property; page-break-* is kept beside it because Chromium print
    path still honours the legacy alias on some element types. */
 .moment,.try,.try-part,.unfin,.r-row{break-inside:avoid;page-break-inside:avoid}
+/* THE FOOTER MAY NOT STRAND ITSELF. When the guidance box fills a page to
+   within less than the footer's own height, the footer spilled onto a blank
+   sheet carrying a date and a monogram and nothing else, which reads as a
+   broken document rather than a finished one. break-before:avoid on the
+   footer does not work (Chromium's paged path ignores "avoid" there), so the
+   box and the footer are one indivisible tail instead: they move to the next
+   page together, and the last page is a page with content on it. If the two
+   together ever exceed a whole page Chromium breaks them anyway, which is the
+   correct degradation. */
+.tail{break-inside:avoid;page-break-inside:avoid}
 
 .foot{font-family:${bodyFam};display:flex;align-items:center;justify-content:space-between;padding:20px 42px 28px;margin-top:20px;border-top:1px solid #eef0f6;color:#7a839c;font-size:${RTL ? '15px' : '14px'}}
 .brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${PALETTE.slate};font-size:16px;font-family:${FONTS.bodyLatin}}
@@ -481,11 +491,12 @@ body{background:#eef1f0;font-family:${bodyFam}}
     ${notFinished}
   </div>
 
-  ${guidanceBlock ? `<div class="trywrap">${guidanceBlock}</div>` : ''}
-
-  <div class="foot">
-    <div class="brand">${brandMarkImg}NIETE</div>
-    <div class="stamp content" dir="${dirOf(generatedAt) }">${wrapLatin(esc(generatedAt), dirOf(generatedAt) === 'rtl')}</div>
+  <div class="tail">
+    ${guidanceBlock ? `<div class="trywrap">${guidanceBlock}</div>` : ''}
+    <div class="foot">
+      <div class="brand">${brandMarkImg}NIETE</div>
+      <div class="stamp content" dir="${dirOf(generatedAt) }">${wrapLatin(esc(generatedAt), dirOf(generatedAt) === 'rtl')}</div>
+    </div>
   </div>
 
 </div>
