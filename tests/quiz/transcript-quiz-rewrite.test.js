@@ -455,3 +455,36 @@ describe('7 — the author prompt: the two prompt fixes this bead carries', () =
   });
 });
 
+describe('8 — mergeReplacements puts a replacement back where it belongs, or nowhere', () => {
+  const targets = { indices: [0, 7], byIndex: { 0: ['q0: PEDAGOGY_COUNT_RECALL — …'], 7: ['q7: FIGURE_TYPE — …'] } };
+  const eight = enEight();
+
+  test('a reply with no "index" is matched positionally, in the order the targets were asked', () => {
+    const r = Rewrite.mergeReplacements(eight, { questions: [{ ...EN_REPLACEMENT }, { ...EN_REPLACEMENT, question: 'second' }] }, targets);
+    expect(r.replaced).toEqual([0, 7]);
+    expect(r.questions[0].question).toBe(EN_REPLACEMENT.question);
+    expect(r.questions[7].question).toBe('second');
+  });
+
+  test('a replacement naming an index we did not ask about is discarded, never relocated', () => {
+    const r = Rewrite.mergeReplacements(eight, { questions: [{ index: 2, ...EN_REPLACEMENT }] }, targets);
+    expect(r).toBeNull();
+    // and the good half of a mixed reply still lands
+    const r2 = Rewrite.mergeReplacements(eight, { questions: [{ index: 2, ...EN_REPLACEMENT }, { index: 7, ...EN_REPLACEMENT }] }, targets);
+    expect(r2.replaced).toEqual([7]);
+    expect(r2.questions[2].question).toBe(eight[2].question);
+  });
+
+  test('a replacement that draws a picture is discarded and its original kept', () => {
+    const withFig = { index: 0, ...EN_REPLACEMENT, figure: { type: 'geometry', kind: 'triangle' } };
+    expect(Rewrite.mergeReplacements(eight, { questions: [withFig] }, targets)).toBeNull();
+  });
+
+  test('a kept replacement inherits its question\'s slo_id and level when it names neither', () => {
+    const bare = { index: 7, question: 'q', options: ['a', 'b', 'c'], correct_index: 0 };
+    const r = Rewrite.mergeReplacements(eight, { questions: [bare] }, targets);
+    expect(r.questions[7]).toEqual(expect.objectContaining({
+      slo_id: eight[7].slo_id, level: eight[7].level, figure: null, figure_role: null,
+    }));
+  });
+});
