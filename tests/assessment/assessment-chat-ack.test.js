@@ -370,10 +370,14 @@ describe('no handler may return a screen the Flow does not have (bd-60029)', () 
     // because the endpoint is perfectly happy naming a screen that is gone.
     const src = fs.readFileSync(path.join(__dirname, '../..',
       'bot/shared/routes/assessment-gen-endpoint.js'), 'utf8');
-    const flow = JSON.parse(fs.readFileSync(path.join(__dirname, '../..',
-      'docs/flows/assessment-gen-flow.json'), 'utf8'));
+    // BOTH flows: the review screens live in their own Flow now, because a Flow
+    // opens on screens[0] and KEEP could never be reached from a terminal
+    // CONFIRM. One endpoint still serves both, so the screens it may name are
+    // the union of the two.
+    const flows = ['assessment-gen-flow.json', 'assessment-review-flow.json']
+      .map((f) => JSON.parse(fs.readFileSync(path.join(__dirname, '../..', 'docs/flows', f), 'utf8')));
 
-    const real = new Set(flow.screens.map((s) => s.id));
+    const real = new Set(flows.flatMap((f) => f.screens.map((s) => s.id)));
     const named = new Set(
       [...src.matchAll(/screen:\s*'([A-Z_]+)'/g)].map((m) => m[1])
         .concat([...src.matchAll(/screen\('([A-Z_]+)'/g)].map((m) => m[1])),
@@ -390,9 +394,9 @@ describe('no handler may return a screen the Flow does not have (bd-60029)', () 
     const res = await exchange('user-1', 'KEEP',
       { keep: ['a.b.MCQs.0'], page: '0', _action: 'done' }, TOKEN);
 
-    const flow = JSON.parse(require('fs').readFileSync(
-      require('path').join(__dirname, '../..', 'docs/flows/assessment-gen-flow.json'), 'utf8'));
-    const real = flow.screens.map((s) => s.id);
+    const real = ['assessment-gen-flow.json', 'assessment-review-flow.json'].flatMap((f) =>
+      JSON.parse(require('fs').readFileSync(
+        require('path').join(__dirname, '../..', 'docs/flows', f), 'utf8')).screens.map((s) => s.id));
     expect(real).toContain(res.screen);
     expect(res.data.extension_message_response.params.assessment_action).toBe('rebuilt');
   });
