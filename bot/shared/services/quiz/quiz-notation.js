@@ -20,7 +20,18 @@ const cp = (s) => [...String(s || '')].length;
  * drawing may be ~1000 px tall, which doubles every label. So these always go
  * through the card (renders/round4/figures/phone_scale/RESULTS.md).
  */
-const TALL_FIGURE_TYPES = new Set(['atom', 'cell', 'circuit', 'ray_diagram', 'punnett', 'free_body', 'graph', 'timeline']);
+const TALL_FIGURE_TYPES = new Set([
+  'atom', 'cell', 'circuit', 'ray_diagram', 'punnett', 'free_body', 'graph', 'timeline',
+  // The early-years types that are height-bound in the 1080x565 header, measured
+  // per type on their own specs (the round-5 phone-scale sweep): a
+  // clock is square by construction, a `compare_size` height chart is taller
+  // than it is wide, and a ringed `count_objects` grows a row per group
+  // (8.8 dp on the header, 14.1 on the card). `match` is NOT here: at its
+  // ceiling of 1.6 it reaches 14.2 dp on the header already, and the card is
+  // NARROWER than the header (924px vs 1016px), so routing a wide drawing
+  // through it makes the drawing smaller, not bigger.
+  'clock', 'compare_size', 'count_objects',
+]);
 
 function figureTypeOf(q) {
   const f = (q && q.media && q.media.figure) || (q && q.figure) || null;

@@ -725,3 +725,47 @@ belongs upstream.
 7. **Run** `npx jest --config tests/jest.config.js tests/lp612 --forceExit`, then the repo's
    baseline gate (`npm test`).
 8. **Update §1's vendoring date** and add anything new to §3.
+
+> **Partial re-vendor, round 5 (early-years figure types).** Eight NEW type modules
+> (`diagrams/types/{word_blank,count_objects,count_frame,clock,pattern,match,money,compare_size}.js`),
+> one NEW shared library (`diagrams/lib/pictogram.js`), one NEW asset directory
+> (`diagrams/assets/pictograms/` — 207 line-art glyphs + `index.json` + `sources.json` +
+> `build_pictograms.js` + `LICENSE.txt` + `ATTRIBUTION.md`), and edits to THREE existing files
+> (`diagrams/types_manifest.json`, `diagrams/types/atom.js`, `diagrams/types/ray_diagram.js`).
+> Fixed upstream first, then copied byte-for-byte; `diff` against the upstream copy is empty for
+> every file listed. **No new §3 divergence** — everything here is upstream too.
+>
+> **Why.** The engine's twenty types are the 6-12 lesson-plan roster: they draw quantity, structure
+> and process. A grade 1-2 phonics, spelling, counting, time, money, pattern or matching lesson could
+> reach none of them, so a picture question at that age was impossible. The eight new types are that
+> stage, drawn from the engine's own primitives over a vendored open-licence pictogram set.
+>
+> **The pictogram set.** 207 line-art glyphs from **OpenMoji 15.0.0** (the *black* variant), used
+> under **CC BY-SA 4.0**. `LICENSE.txt` and `ATTRIBUTION.md` ship beside them, `index.json` records
+> every glyph's hexcode, annotation and author, and `lib/pictogram.js` writes the attribution into
+> each figure's own `<desc>` so the credit travels with a picture that is delivered as a bare PNG.
+> The set was chosen by intersecting the concrete nouns of the K-5 and Punjab 1-5 curriculum
+> segmentations with what OpenMoji actually has — never from memory. Rebuild with
+> `node diagrams/assets/pictograms/build_pictograms.js`; `_raw/` (the fetch cache and the 2 MB
+> upstream metadata) is gitignored, so the build is reproducible but the repo carries only the
+> normalised 860 kB. The normalisation steps and the reason for each are documented at the top of
+> that script — in particular `data-ov="skip"` on every drawn element, because a glyph's internal
+> strokes are art and must not be read by `checkOverlaps` as rules crossing a label.
+>
+> **The two edits to existing types are a BUG FIX that the lesson-plan lane wants too.** `atom.js`
+> and `ray_diagram.js` write a sentence of their own when the author gives no caption, and those
+> sentences (plus the ray diagram's `Object` / `Image` labels) were English whatever `lang` said — so
+> an Urdu page carried an English sentence under an otherwise Urdu picture. They now follow the
+> figure's language; symbols, Z, shells, distances, magnification and the F / 2F handles stay Latin
+> and LTR in both, as a Pakistani Urdu-medium textbook prints them. `ray_diagram.js`'s `halo()` also
+> stopped computing its own label plate: its Urdu arithmetic did not match `_urduText`'s, so the
+> plate was narrower than the label and every Urdu ray diagram reported six collisions the moment its
+> labels stopped being English. It now uses `svg.plateText`, which is the engine's own rule — no type
+> module may compute a label extent of its own.
+>
+> Tests: `tests/quiz/transcript-quiz-figure-early-years.test.js` (44),
+> `transcript-quiz-figure-language-labels.test.js` (8),
+> `transcript-quiz-figure-adaptive-scale.test.js` (25),
+> `transcript-quiz-early-years-gating.test.js` (13) — all through the quiz lane's own
+> `renderFigureSvg`, so a red run proves the **vendored** copy is what changed. Red was confirmed for
+> each by restoring the pre-patch file and re-running.

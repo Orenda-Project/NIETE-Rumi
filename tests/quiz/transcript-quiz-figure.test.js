@@ -35,15 +35,26 @@ function codeOf(fn) {
 }
 
 describe('ALLOWED_TYPES', () => {
-  test('is exactly the fifteen phone-safe types, and excludes the five that are not', () => {
+  test('is exactly the twenty-three phone-safe types, and excludes the five that are not', () => {
     // molecule joined in round 4 (PLAN_R4 D7f): it was excluded because a
     // flash model's SMILES is a gamble, and it is back only because the model
     // no longer writes one — it names a formula from a fixed dictionary and
     // the structure is filled in from code.
+    //
+    // The last eight joined in round 5 (round 5): the fifteen above are the
+    // 6-12 lesson-plan roster and a grade 1-5 phonics, counting, time, money,
+    // pattern or matching lesson could reach none of them. They are offered to
+    // the AUTHOR only for a grade 1-5 lesson (CORE_TYPES / EARLY_YEARS_TYPES),
+    // but they are allowed at every grade — the validator's job is to accept a
+    // legal figure, not to re-litigate the grade.
     expect(Figure.ALLOWED_TYPES).toEqual([
       'numberline', 'fraction_bar', 'grid', 'geometry', 'graph', 'chem_equation', 'circuit',
       'free_body', 'atom', 'punnett', 'ray_diagram', 'flow', 'timeline', 'cell', 'molecule',
+      'word_blank', 'count_objects', 'count_frame', 'clock', 'pattern', 'match', 'money', 'compare_size',
     ]);
+    expect(Figure.CORE_TYPES).toHaveLength(15);
+    expect(Figure.EARLY_YEARS_TYPES).toHaveLength(8);
+    expect([...Figure.CORE_TYPES, ...Figure.EARLY_YEARS_TYPES]).toEqual(Figure.ALLOWED_TYPES);
     ['illustrative', 'labelled_figure', 'mindmap', 'panels', 'dna_helix']
       .forEach((t) => expect(Figure.ALLOWED_TYPES).not.toContain(t));
   });

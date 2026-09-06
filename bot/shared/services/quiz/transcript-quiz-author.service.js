@@ -13,7 +13,8 @@
 
 const { completeJson } = require('./transcript-quiz-llm');
 const { LANG_NAME } = require('./transcript-quiz-language');
-const { ALLOWED_TYPES, minimalSpecBlock } = require('./transcript-quiz-figure');
+const { ALLOWED_TYPES, EARLY_YEARS_TYPES, CORE_TYPES, minimalSpecBlock } = require('./transcript-quiz-figure');
+const { names: pictogramNames } = require('../../../vendor/lp-v9/diagrams/lib/pictogram');
 const { MOLECULE_DICTIONARY } = require('./transcript-quiz-figure-science');
 const { logEvent } = require('../../utils/structured-logger');
 
@@ -32,12 +33,60 @@ const DEFAULT_QUESTIONS = 8;
  * Every rule here is also enforced deterministically in
  * transcript-quiz-validator.js. The prompt exists to make attempt 1 pass.
  */
+/** Grade 1-5 (and KG/prep, however the band is spelled). */
+function isEarlyYears(gradeBand) {
+  const g = String(gradeBand || '').toLowerCase();
+  if (/\b(kg|k|prep|nursery|ecce|katchi)\b/.test(g)) return true;
+  const nums = (g.match(/\d+/g) || []).map(Number);
+  return nums.length > 0 && nums.every((n) => n <= 5);
+}
+
+/**
+ * The block that opens the option space for a young class (round 5).
+ *
+ * The fifteen 6-12 types draw quantity, structure and process; before round 5 a
+ * grade-1 phonics, spelling, counting, time or pattern lesson could reach none
+ * of them, and the prompt told a language teacher to leave "figure" null. The
+ * operator: "the computation of pictures can come in handy at any stage… an
+ * image of a cat is shown and then c _ t is written in big alphabets and the
+ * child has to pick what goes in the fill in the blank." The eight early-years
+ * types are that stage. This block is shown ONLY for a grade 1-5 lesson: on a
+ * grade 9 chemistry quiz it would be tokens spent teaching a model shapes it
+ * must not use.
+ */
+function earlyYearsBlock(pictogramRoster) {
+  return `
+EARLY YEARS (this class is grade 1-5, so these types are open to you as well).
+A picture is worth far more to a six-year-old than to a fifteen-year-old: a child who cannot yet read a long stem can still count apples, read a clock, or see which letter is missing. Reach for one of these whenever the lesson counted, sounded out, spelled, timed, compared, sorted or continued something.
+- word_blank — phonics and spelling. A pictogram of the thing, and its word with a letter hidden. English: {"type":"word_blank","word":"cat","blanks":[1],"picto":"cat"} draws a cat and "c _ t"; the options are the letters. URDU: pass the whole word, {"type":"word_blank","word":"کتاب","blanks":[2],"picto":"book"} — it is drawn as separate letter tiles with an empty tile where the letter is missing, because Nastaliq joins and an underscore inside a word reshapes its neighbours.
+- count_objects — counting and comparing. {"type":"count_objects","picto":"apple","count":7}; two rows to compare: {"rows":[{"picto":"apple","count":5,"label":"سیب"},{"picto":"banana","count":3,"label":"کیلے"}]}; equal groups for sharing/multiplying: {"picto":"star","count":12,"group":4}.
+- count_frame — a ten-frame ({"type":"count_frame","count":7}) or tally marks ({"model":"tally","count":12}).
+- clock — telling the time. {"type":"clock","time":"3:30"}. The hands are geared correctly and the time is never printed.
+- pattern — what comes next. {"type":"pattern","items":["circle","square","circle","square","?"]}, or numerals ({"text":"2"} …), or pictograms ({"picto":"sun"}). Exactly one "?".
+- match — the child picks the pair. {"type":"match","left":[{"picto":"cat"},{"picto":"dog"}],"right":[{"text":"dog"},{"text":"cat"}]} draws A/B down one side and 1/2 down the other and JOINS NOTHING; your three options are the candidate pairings ("A-2", "A-1", "B-2").
+- money — coins and notes. {"type":"money","currency":"Rs","items":[{"value":10,"kind":"coin"},{"value":5,"kind":"coin","count":2}]}. Each piece shows its own value, so never ask which piece is worth what — ask for the total, the number of pieces, or the swap.
+- compare_size — longer/shorter, taller/shorter, heavier/lighter. {"type":"compare_size","model":"length","items":[{"label":"سرخ ربن","size":5},{"label":"ہرا ربن","size":8}]}, "height" for vertical bars, or {"model":"balance","left":{"picto":"apple","count":3},"right":{"picto":"apple","count":1}}. "size" is relative and is never printed.
+PICTOGRAM NAMES — a picture of a thing comes from this fixed set and NOTHING ELSE. A name that is not on this list fails the question:
+${pictogramRoster}
+Reuse the older types for a young class too: numberline for before/after and ordering, fraction_bar and grid for part-whole, geometry for naming a shape, flow or timeline for a sequence of steps.
+`;
+}
+
 function figureContract({ subject, gradeBand } = {}) {
   const drawable = ['maths', 'science', 'genk', 'other'].includes(String(subject || '').toLowerCase());
-  const young = /^(1|2|3)/.test(String(gradeBand || ''));
-  const requirement = drawable
-    ? `THIS LESSON IS DRAWABLE (${subject}). Write at least ONE picture question — two or three when the lesson has fractions, a number line, shapes, measurement, a graph, a circuit, counting, a sequence of steps, parts of a cell, atoms or an equation. Build the question AROUND the picture: decide the drawing first, then ask what it shows. Zero pictures is acceptable only when nothing in the lesson can be drawn with the allowed types.`
-    : `This subject (${subject || 'language'}) rarely needs a picture; ${young ? 'for a young class a counting or comparing picture is welcome when the lesson counted real objects, otherwise ' : ''}leave "figure" null.`;
+  const early = isEarlyYears(gradeBand);
+  // A grade 1-5 lesson in ANY subject can now be drawn — the early-years types
+  // are exactly the ones a language or general-knowledge lesson needs, and the
+  // K-5 coverage count says so: `match` serves 360 of the corpus's segments and
+  // `word_blank` 257, and both of those live in English and Urdu periods, not
+  // in maths (the option-space study).
+  // A grade 9 quiz is never shown the ten-frame; a grade 1 quiz is shown both
+  // halves, because a young class still counts on a number line and shades a
+  // grid.
+  const offered = early ? ALLOWED_TYPES : CORE_TYPES;
+  const requirement = drawable || early
+    ? `THIS LESSON IS DRAWABLE (${subject || 'language'}${early ? ', grade 1-5' : ''}). Write at least ONE picture question — two or three when the lesson has ${early ? 'counting, letters or sounds, spelling, the clock, money, a pattern, a sorting or matching activity, shapes, ' : ''}fractions, a number line, shapes, measurement, a graph, a circuit, a sequence of steps, parts of a cell, atoms or an equation. Build the question AROUND the picture: decide the drawing first, then ask what it shows. Zero pictures is acceptable only when nothing in the lesson can be drawn with the allowed types.`
+    : `This subject (${subject || 'language'}) rarely needs a picture; leave "figure" null unless the lesson genuinely asks the child to read something off a drawing.`;
   return `PICTURE QUESTIONS.
 A question may carry a "figure": a diagram SPEC that a deterministic drawing engine renders into the picture the child sees ABOVE the stem, with the options under it. You are choosing a shape and its numbers, not describing an image.
 
@@ -73,8 +122,9 @@ WORKED EXAMPLES (spec next to the question it serves):
 3. grid, count_compare — stem "تصویر میں کتنے خانے رنگے ہوئے ہیں؟", options ["12", "8", "20"], correct 0,
    "figure": {"type":"grid","rows":4,"cols":5,"shaded":12}
 
-ALLOWED TYPES — nothing else is accepted (${ALLOWED_TYPES.join(', ')}):
-${minimalSpecBlock()}`;
+${early ? earlyYearsBlock(pictogramNames().join(', ')) : ''}
+ALLOWED TYPES — nothing else is accepted (${offered.join(', ')}):
+${minimalSpecBlock(offered)}`;
 }
 
 /** The opening, the passages around each SLO's evidence, and the close. */

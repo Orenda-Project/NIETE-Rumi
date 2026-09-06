@@ -48,7 +48,34 @@ const { logEvent } = require('../../utils/structured-logger');
 const ALLOWED_TYPES = [
   'numberline', 'fraction_bar', 'grid', 'geometry', 'graph', 'chem_equation', 'circuit',
   'free_body', 'atom', 'punnett', 'ray_diagram', 'flow', 'timeline', 'cell', 'molecule',
+  // ── the early-years half of round 5 ────────────────────────
+  // The fifteen above are the 6-12 lesson-plan roster: they draw quantity,
+  // structure and process, and a grade-1 phonics or counting lesson could not
+  // reach any of them. The operator: "the computation of pictures can come in
+  // handy at any stage — fill in the blanks, or phonics questions, or spelling
+  // questions, or questions where an image of a cat is shown and then c _ t is
+  // written in big alphabets". These eight are that stage, drawn by our own
+  // engine over a vendored open-licence pictogram set
+  // (bot/vendor/lp-v9/diagrams/assets/pictograms, CC BY-SA 4.0). Coverage was
+  // counted, not guessed: across the ICT K-5 segmentation `match` alone serves
+  // 360 segments and `word_blank` 257, against 121 for every existing drawable
+  // type put together (the option-space study).
+  'word_blank', 'count_objects', 'count_frame', 'clock', 'pattern', 'match', 'money', 'compare_size',
 ];
+
+/**
+ * The eight above, on their own. They are offered to the AUTHOR only for a
+ * grade 1-5 lesson: a grade 9 chemistry quiz has no use for a ten-frame, and
+ * every type in the prompt is tokens spent plus one more shape the model can
+ * reach for wrongly. They stay on ALLOWED_TYPES for every grade, because the
+ * validator's job is to accept a legal figure, not to re-litigate the grade.
+ */
+const EARLY_YEARS_TYPES = [
+  'word_blank', 'count_objects', 'count_frame', 'clock', 'pattern', 'match', 'money', 'compare_size',
+];
+
+/** ALLOWED_TYPES minus the early-years eight — the 6-12 roster. */
+const CORE_TYPES = ALLOWED_TYPES.filter((t) => !EARLY_YEARS_TYPES.includes(t));
 
 /**
  * `molecule` was off this list because "SMILES from a flash model is a gamble":
@@ -87,6 +114,15 @@ const TYPE_DEFAULTS = {
 const STRUCTURAL_KEYS = new Set([
   'type', 'lang', 'kind', 'mode', 'style', 'color', 'colour', 'engine', 'layout',
   'direction', 'orientation', 'labelFormat', 'bond', 'shape', 'element',
+  // Early-years keys that are INSTRUCTIONS to the engine, not text on the
+  // picture. Each one would otherwise raise a false leak against the very
+  // question its type exists to ask: `time: "3:30"` against the option "3:30"
+  // on a clock that deliberately prints nothing, `word: "cat"` against the
+  // option "cat" on a word_blank that shows only "c _ t", `picto: "cat"`
+  // against the option "cat" on a matching grid that draws a cat and names
+  // nothing. What the picture actually SAYS is still checked, on the rendered
+  // SVG, which is the authority.
+  'model', 'numerals', 'time', 'word', 'letters', 'picto',
 ]);
 
 const R2_PREFIX = 'transcript_quizzes';
@@ -187,10 +223,11 @@ function limitsFor(type) {
  * Locked by a snapshot test (tests/quiz/transcript-quiz-author-figure.test.js)
  * so a manifest re-vendor shows up as a visible prompt change, never a silent
  * one.
+ * @param {string[]} [types] the subset to describe; defaults to every allowed type
  * @returns {string}
  */
-function minimalSpecBlock() {
-  return ALLOWED_TYPES.map((type) => {
+function minimalSpecBlock(types = ALLOWED_TYPES) {
+  return types.map((type) => {
     const entry = MANIFEST.types.find((m) => m.type === type);
     const req = (entry.required || []).join(', ') || '—';
     const limits = limitsFor(type).map((l) => `\n    · ${l}`).join('');
@@ -275,8 +312,29 @@ function withFontScale(k, fn) {
  * does) are improved but still under the 10dp target; every other listed
  * type clears 10dp.
  *
- * @see PLAN_R4 D7 / bd-mg9c7.52
+ * @see the round-4 and round-5 phone-scale sweeps
  */
+/**
+ * The step-down ladder. `PHONE_FONT_SCALE` is a CEILING, not a setting:
+ * `renderFigureSvg` starts there and steps down until `checkOverlaps` is
+ * clean.
+ *
+ * Round 4 chose one k per type by sweeping the manifest's MINIMAL spec, and
+ * applied it to every figure of that type. The round-5 sweep re-ran it against
+ * every example each type's own module ships and found eight correct,
+ * engine-authored drawings that the quiz lane REJECTS today purely because of
+ * their type's scale — grid_area_model_ur alone collides 18 ways at k=2.4 and
+ * zero ways at k=1 (the round-5 phone-scale sweep). A rejected figure
+ * is a dropped question.
+ *
+ * Lowering the table instead would have been the wrong fix: it shrinks every
+ * simple figure of that type to protect the dense minority. The ladder keeps
+ * the ceiling for a sparse spec and gives a dense one a smaller type instead of
+ * the bin, and each step-down is logged so a type whose ceiling is wrong for
+ * most real content shows up as an event rather than as silence.
+ */
+const SCALE_LADDER = [2.4, 2.0, 1.6, 1.3, 1.0];
+
 const PHONE_FONT_SCALE = {
   numberline: 2.0,
   fraction_bar: 1.0, // unsolved — a per-bar Urdu label on the circle model collides above k=1
@@ -293,6 +351,24 @@ const PHONE_FONT_SCALE = {
   timeline: 2.4, // improved, still under 10dp
   cell: 1.0, // unsolved
   molecule: 2.4,
+  // The early-years types are typed for a child, not for an A4 column: their
+  // own SIZE tokens are already 20-54 units (a word_blank letter is 54), so
+  // every one of them clears the floor unscaled and scaling them further only
+  // makes their labels collide with their own tiles. Measured per type in
+  // the round-5 phone-scale sweep.
+  // `word_blank`, `count_frame` and `pattern` type their content with explicit
+  // sizes rather than SIZE tokens (a word_blank letter is 54 units by spec), so
+  // scaling reaches only their title/caption strips — 1 is the honest value,
+  // not a cautious one. The other five do read SIZE, and their ceilings are the
+  // largest k that swept clean on their own examples.
+  word_blank: 1.0,
+  count_objects: 1.6,
+  count_frame: 1.0,
+  clock: 1.6,
+  pattern: 1.0,
+  match: 1.6,
+  money: 2.4,
+  compare_size: 1.6,
 };
 
 // ─── render ──────────────────────────────────────────────────────────────────
@@ -317,21 +393,39 @@ function renderFigureSvg(spec, language) {
       `figure type "${spec.type}" is not allowed — use one of: ${ALLOWED_TYPES.join(', ')}`);
   }
   const merged = { ...(TYPE_DEFAULTS[type] || {}), ...spec, type, lang: language === 'ur' ? 'ur' : 'en' };
-  const scale = PHONE_FONT_SCALE[type] || 1;
+  const ceiling = PHONE_FONT_SCALE[type] || 1;
+  const ladder = [...new Set([ceiling, ...SCALE_LADDER])].filter((k) => k <= ceiling).sort((a, b) => b - a);
 
-  let svg;
-  try {
-    svg = scale === 1 ? renderDiagram(merged) : withFontScale(scale, () => renderDiagram(merged));
-  } catch (err) {
-    throw new FigureError('FIGURE_RENDER',
-      `the ${type} figure could not be drawn: ${String(err.message).split('\n')[0]}`);
+  let svg = null;
+  let overlaps = null;
+  let used = ceiling;
+  for (const k of ladder) {
+    let candidate;
+    try {
+      candidate = k === 1 ? renderDiagram(merged) : withFontScale(k, () => renderDiagram(merged));
+    } catch (err) {
+      // The engine throwing is a property of the SPEC, not of the type size —
+      // it throws identically at every k — so there is nothing to step down to.
+      throw new FigureError('FIGURE_RENDER',
+        `the ${type} figure could not be drawn: ${String(err.message).split('\n')[0]}`);
+    }
+    svg = candidate;
+    used = k;
+    overlaps = checkOverlaps(candidate);
+    if (!overlaps.length) break;
+  }
+  if (used !== ceiling) {
+    logEvent('transcript_quiz.figure_scale_stepped_down', {
+      type, ceiling, used, clean: overlaps.length === 0,
+    });
   }
   // Named FIGURE_OVERLAP, not FIGURE_RENDER: the retry prompt quotes these
   // codes back to the model, and "the engine threw" and "the engine drew it
   // with two labels on top of each other" are different things to fix. Same
   // gate the LP lane runs as DIAGRAM_OVERLAP; transcript-quiz-figure-gates.js
   // exposes it as a defect object for callers that do not want the throw.
-  const overlaps = checkOverlaps(svg);
+  // Reaching here means the drawing collides with ITSELF even unscaled, which
+  // is a bad spec and not a bad type size.
   if (overlaps.length) {
     const pair = overlaps[0];
     throw new FigureError('FIGURE_OVERLAP',
@@ -830,6 +924,8 @@ async function uploadFigure({ teacherId, quizId, index, png }) {
 
 module.exports = {
   NIETE_TOKENS,
+  EARLY_YEARS_TYPES,
+  CORE_TYPES,
   MATHS_ONLY_TYPES,
   unknownColourToken,
   figureMismatch,
@@ -848,6 +944,7 @@ module.exports = {
   renderFigureSvg,
   withFontScale,
   PHONE_FONT_SCALE,
+  SCALE_LADDER,
   stripStrayLabels,
   figureLeaksAnswer,
   svgText,
