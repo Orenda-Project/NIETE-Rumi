@@ -1,7 +1,7 @@
--- The intro-video showing count (transcript quiz D7: the film rides the
--- first N offers, not just the first one).
+-- Migration: the intro-video showing count (transcript quiz D7 — the film
+-- rides the first N offers, not just the first one).
 --
--- ADDITIVE ONLY. Applying it changes no behaviour until
+-- ADDITIVE ONLY. Applying this migration changes no behaviour until
 -- TRANSCRIPT_QUIZ_INTRO_VIDEO_SHOWS / _UR / _EN are set on a service.
 --
 -- Explored live (staging, 2026-09-06) before writing:
@@ -17,5 +17,11 @@
 ALTER TABLE public.user_feature_first_use
   ADD COLUMN IF NOT EXISTS intro_shown_count integer NOT NULL DEFAULT 0;
 
--- ─── down ───────────────────────────────────────────────────────────────────
+-- ─── down (rollback) ────────────────────────────────────────────────────────
+-- destructive: reviewed — this rollback drops a column this migration itself
+-- added, and nothing outside the transcript-quiz offer reads it. Dropping it
+-- returns the table to the shape recorded above and loses only the per-teacher
+-- showing count, which re-accrues from zero. It is commented out on purpose:
+-- run it by hand, on the environment you named, never as part of a deploy.
+--
 -- ALTER TABLE public.user_feature_first_use DROP COLUMN IF EXISTS intro_shown_count;
