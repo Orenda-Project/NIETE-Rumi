@@ -41,7 +41,7 @@ jest.mock('../../shared/utils/html-to-pdf', () => ({
 //
 // PLAN_R5 §0 item 12 — the reply must also be IN the requested script and
 // carry a 2-3 sentence `board`, or generateGuidance()'s guidanceShape() check
-// (bd-mg9c7.62) now retries once. This file exercises BOTH an Urdu-quiz
+// now retries once. This file exercises BOTH an Urdu-quiz
 // teacher and an English-quiz teacher against the SAME mock, so the reply
 // must match whichever prompt actually asked — a canned reply in one script
 // answering a request for the other would (correctly) trigger a retry, and
