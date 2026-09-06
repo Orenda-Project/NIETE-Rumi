@@ -92,6 +92,17 @@ describe('the half rule is repeated where the appetite is', () => {
   });
 });
 
+describe('the colour vocabulary is named where a colour is offered', () => {
+  test('pattern and compare_size list the legal tokens and rule out the invented ones', () => {
+    // A round-6 maths session wrote var(--red), var(--green) and var(--blue)
+    // into a pattern and the quiz was thrown away by FIGURE_TYPE. The block
+    // offered `color` on two types and never said which colours exist.
+    const p = prompt();
+    expect(p).toMatch(/ink, accent, leaf, cool, warn, plum, clay/);
+    expect(p).toMatch(/There is no var\(--red\)/);
+  });
+});
+
 describe('count_objects is a counting instrument, not a vocabulary one', () => {
   test('the contract says so, and points at match instead', () => {
     const p = prompt();
