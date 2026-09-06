@@ -24,8 +24,8 @@ async function process(quizId) {
 
   const { data: sessions } = await supabase.from('quiz_sessions')
     .select('id, user_id').eq('quiz_id', quizId).is('invited_by_student_id', null);
-  // PLAN_R5 D8 — this count decides whether she is nudged; her own test run
-  // of the class link must not read as "started".
+  // PLAN_R5 D8 — this count decides whether the teacher is nudged; their own
+  // test run of the class link must not read as "started".
   const started = excludeSelfTests(sessions || [], quiz.teacher_id).length;
   if (started >= NUDGE_BELOW) return { skipped: 'enough_started', started };
 

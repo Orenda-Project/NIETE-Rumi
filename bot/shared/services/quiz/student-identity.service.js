@@ -129,11 +129,11 @@ async function touch(studentId, { className } = {}) {
 }
 
 /**
- * bd-2340 — the children a teacher has enrolled through her shared quizzes.
+ * bd-2340 — the children a teacher has enrolled through their shared quizzes.
  *
  * This is the question `students` could not answer before: the only teacher
  * association was per-QUIZ (session -> share code -> teacher), so a returning
- * child was recognised as somebody, but never as HERS.
+ * child was recognised as somebody, but never as THEIRS.
  */
 async function findByTeacher(userId, { limit = 200 } = {}) {
   if (!userId) return [];

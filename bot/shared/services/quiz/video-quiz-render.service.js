@@ -488,7 +488,7 @@ function buildPhases(q, opts = {}) {
   // BUTTON message carries its own image header, so the card and the letters
   // are ONE message — the picture, the counter, the cue and the tap surface
   // arrive together, which is both a send saved and what the operator asked to
-  // see on his phone. An interactive LIST is given no image header by Meta
+  // see on their phone. An interactive LIST is given no image header by Meta
   // (verified in whatsapp.service.js sendInteractiveMessage, and the reason
   // 161 P4 questions send their picture separately below), so a four-option
   // card still costs two. Never attach `headerImage` to a list: Meta drops it
@@ -613,7 +613,7 @@ function buildPhases(q, opts = {}) {
 // The operator, on staging: "It's very hard for me to tell whether I got the
 // question correct or incorrect. There should be in the message a checkmark or a
 // cross." The author writes prose, not symbols, and that prose was used verbatim,
-// so a child had to READ a paragraph to learn whether she was right. The
+// so a child had to READ a paragraph to learn whether they were right. The
 // sentence is the author's; the marker is ours.
 
 const VERDICT_CORRECT = '\u2705';   // ✅

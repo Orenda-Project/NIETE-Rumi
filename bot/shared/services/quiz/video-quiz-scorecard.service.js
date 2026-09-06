@@ -49,8 +49,8 @@ async function renderScorecardImage({ topic, correct, total, pct, subject, taker
   try {
     const renderHtml = require('../../templates/video-quiz-scorecard.template');
     const { htmlToImage } = require('../../utils/html-to-pdf');
-    // `language` is the QUIZ's — a child reads her card in whatever language
-    // she just answered in, and her name has to render in its own script.
+    // `language` is the QUIZ's — a child reads their card in whatever language
+    // they just answered in, and their name has to render in its own script.
     const html = renderHtml({ topic, correct, total, pct, subject, takerName, language });
     const png = await htmlToImage(html, { width: 540, deviceScaleFactor: 2, selector: '.card' });
     return png || null;

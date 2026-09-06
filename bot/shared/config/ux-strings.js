@@ -719,12 +719,12 @@ const UX_STRINGS = {
   // the principal keeps the numbers, the teacher gets a narrative with none, and
   // this screen is the handover point between the two.
   remarkFlowSuccess: {
-    en: 'Saved. {teacher} will get her coaching note shortly.',
+    en: 'Saved. {teacher} will get their coaching note shortly.',
     ur: '{teacher} کو ان کا کوچنگ نوٹ جلد مل جائے گا۔ محفوظ ہو گیا۔',
   },
 
   // The chat message after the Flow closes (whatsapp-flows rule 11 — never bounce
-  // her to "Type /menu"). {left} is the remaining-teachers nudge.
+  // the coach to "Type /menu"). {left} is the remaining-teachers nudge.
   remarkAckSubmitted: {
     en: 'Saved — {teacher} is done. {left}',
     ur: 'محفوظ ہو گیا — {teacher} مکمل۔ {left}',

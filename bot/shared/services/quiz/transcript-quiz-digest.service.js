@@ -5,18 +5,18 @@
  * Reads the coaching transcript (never the coaching analysis, scores or
  * framework — that is the whole point of the feature) and writes a faithful
  * record of what was actually taught: the topic as the teacher named it, the
- * subject, the SLOs she actually covered with a verbatim evidence quote and
- * the level she pitched each at, the examples she used, the confusions that
+ * subject, the SLOs the teacher actually covered with a verbatim evidence quote
+ * and the level each was pitched at, the examples used, the confusions that
  * surfaced. The author pass writes the quiz from THIS, so anything invented
  * here would be tested on children who never heard it.
  *
  * GRADE. Never stored on a coaching session, so it is resolved in code, in
  * this order (measured on prod, 2026-09-05): the teacher's profile
- * (users.grades_taught[0], set for 88%), then the grade on her same- or
+ * (users.grades_taught[0], set for 88%), then the grade on the same- or
  * previous-day lesson-plan download whose subject matches (+15%), then the
  * digest's own inference from the transcript. The grade pitches difficulty
- * only — nothing a teacher or child reads ever names it, so she can forward
- * the quiz to whichever group she taught.
+ * only — nothing a teacher or child reads ever names it, so the quiz can be
+ * forwarded to whichever group was taught.
  */
 
 const supabase = require('../../config/supabase');
@@ -29,7 +29,7 @@ const MAX_TRANSCRIPT_CHARS = 60000;   // p90 is 26k; a runaway transcript is cut
 
 function buildDigestPrompt({ transcript, transcriptLanguage, storedTopic, storedSubject, hints = {}, lpHint = null }) {
   const hintLine = lpHint
-    ? `- lesson plan she downloaded that day (a HINT of what was planned, not proof of what was taught): grade ${lpHint.grade || '?'}, ${lpHint.subject || '?'}, chapter "${lpHint.chapter_title || '?'}"`
+    ? `- lesson plan the teacher downloaded that day (a HINT of what was planned, not proof of what was taught): grade ${lpHint.grade || '?'}, ${lpHint.subject || '?'}, chapter "${lpHint.chapter_title || '?'}"`
     : '- no lesson plan download that day';
   return `You are reading the transcript of ONE real classroom lesson taught in a Pakistani government school. Your job is to write a faithful DIGEST of what was actually taught — nothing more, nothing less. This digest will be used to write a short quiz for the children who sat in this lesson, so anything you invent will be tested on children who never heard it.
 
@@ -42,7 +42,7 @@ ${hintLine}
 
 RULES
 - Use ONLY the transcript. If the transcript is too thin or garbled to identify what was taught, say so via confidence < 0.5.
-- "slos" = the specific learning objectives the teacher ACTUALLY taught, 2–6 of them, each with a short verbatim evidence quote from the transcript (in its original language) and the level the teacher pitched it at: "recall" (name/repeat/identify), "understand" (explain/compare/give own example), "apply" (solve/use in a new case). Write each SLO statement in the lesson's own language (Urdu in Urdu script for an Urdu lesson). In an Urdu statement, English technical terms stay in English letters (the same rule as topic_as_taught). Every SLO ALSO carries "statement_en" (the same objective in English) and "statement_ur" (the same objective in Urdu script, English technical terms in English letters) — the teacher may ask for the quiz in either language and her document must read in one language only.
+- "slos" = the specific learning objectives the teacher ACTUALLY taught, 2–6 of them, each with a short verbatim evidence quote from the transcript (in its original language) and the level the teacher pitched it at: "recall" (name/repeat/identify), "understand" (explain/compare/give own example), "apply" (solve/use in a new case). Write each SLO statement in the lesson's own language (Urdu in Urdu script for an Urdu lesson). In an Urdu statement, English technical terms stay in English letters (the same rule as topic_as_taught). Every SLO ALSO carries "statement_en" (the same objective in English) and "statement_ur" (the same objective in Urdu script, English technical terms in English letters) — the teacher may ask for the quiz in either language and the document must read in one language only.
 - "topic_as_taught" = the topic label the way the teacher named it in class, in the lesson's own language (Urdu in Urdu script, never Roman Urdu). ENGLISH TECHNICAL TERMS ARE WRITTEN IN ENGLISH LETTERS, never transliterated into Urdu script: write "Proper Fraction", "numerator", "photosynthesis" — not "پروپر فیکشن", "نیومریٹر". A transcript that spells such a term in Urdu letters is the speech-to-text's doing; you write the term itself. For Urdu, Islamiyat, Social Studies and General Knowledge lessons the label is Urdu (with any English term in English letters). "topic" = a clean short label in English.
 - "subject" must be one of: urdu | english | maths | science | sst | genk | islamiat | other.
 - "grade_band" from content difficulty and any grade mentioned: "1-2" | "3-5" | "6-8" | "9-10".
@@ -51,7 +51,7 @@ RULES
 - "examples_used": the concrete examples, objects, numbers, sentences or stories the teacher used (these are gold for quiz questions and feedback).
 - "misconceptions_surfaced": student errors or confusions that actually appeared in the lesson, if any.
 - Religious content (Islamiyat / سیرت): write sacred names and honorifics exactly as spoken and in Urdu/Arabic script (اللہ، نبی کریم ﷺ، رضی اللہ عنہ) — never transliterated, never dropped.
-- Gender-neutral: never guess the teacher's or a child's gender in any statement.
+- THE TEACHER HAS NO GENDER. Never write "she", "he", "her", "his" or "him" about the teacher in any field — say "the teacher". In Urdu use no gendered word for the teacher (never استانی، معلمہ، استاد صاحبہ، میڈم) and no gendered verb form about the teacher (never «پڑھاتی ہیں» / «پڑھاتے ہیں»); a verb that agrees with the object («استاد نے سبق پڑھایا») says nothing about the teacher and is what to write. Never guess a child's gender either.
 
 Return ONLY this JSON object:
 {
@@ -124,7 +124,7 @@ function normaliseDigest(raw, { storedSubject } = {}) {
 }
 
 /**
- * The lesson plan she downloaded the same or previous day for this subject,
+ * The lesson plan the teacher downloaded the same or previous day for this subject,
  * if any: a HINT of what was planned. The quiz tests what was taught.
  */
 async function lpHintFor({ userId, sessionCreatedAt, subject }) {

@@ -389,7 +389,13 @@ function validate(rawQuestions, ctx = {}) {
   // q-prefix where it belongs to one question, so the retry prompt names what
   // to rewrite and the last-attempt salvage can drop that question rather
   // than the quiz. See transcript-quiz-pedagogy.js.
-  pedagogyDefects(qs, { language, digest }).forEach((d) => errs.push(d.message));
+  // `lessonSummary` and `quizId` ride along for PEDAGOGY_GENDERED_TEACHER
+  // (PLAN_R6 D5): the summary is the field the operator caught a "She" on, and
+  // it is quiz-level, so it is checked here beside the questions rather than in
+  // a second pass a caller could forget.
+  pedagogyDefects(qs, {
+    language, digest, quizId, ...(checkD4 ? { lessonSummary } : {}),
+  }).forEach((d) => errs.push(d.message));
 
   const canon = canonicalSubject(subject);
   if (canon === 'islamiat' || canon === 'urdu') {

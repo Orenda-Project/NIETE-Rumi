@@ -70,13 +70,13 @@ const DIGEST_EN = {
   ],
   key_terms: ['positive', 'comparative', 'superlative'], examples_used: ['tall, taller, tallest'], misconceptions_surfaced: [],
 };
-const SUMMARY_EN = 'She taught the three degrees of an adjective with tall, taller and tallest, then had the class compare two pupils and then the whole row.';
+const SUMMARY_EN = 'Today you taught the three degrees of an adjective with tall, taller and tallest, then had the class compare two pupils and then the whole row.';
 
 function enQ({ slo = 'S1', level = 'recall', question, options, why }) {
   return {
     slo_id: slo, level, question, options, correct_index: 0,
     explanation: 'The comparative compares two things and the superlative compares three or more.',
-    selected_because: why || 'she wrote tall, taller, tallest on the board',
+    selected_because: why || 'tall, taller, tallest written on the board',
     distractor_misconceptions: { 1: 'uses the plain form to compare', 2: 'uses the superlative for two things' },
     option_feedback: {
       correct: 'Yes — that is the form we use when we compare, just like tall, taller, tallest on the board.',
@@ -95,18 +95,18 @@ function enEight({ q0 } = {}) {
     q0 || bad,
     enQ({ slo: 'S2', level: 'understand', question: 'Ali is 5 feet. Sara is 6 feet. Which word describes Sara?', options: ['taller', 'tall', 'tallest'] }),
     enQ({ question: 'Which of these is the plain (positive) degree?', options: ['tall', 'taller', 'tallest'] }),
-    enQ({ slo: 'S3', level: 'understand', question: 'Which word fits: "He is the ____ boy in the whole school."', options: ['tallest', 'taller', 'tall'] }),
+    enQ({ slo: 'S3', level: 'understand', question: 'Which word fits: "Ali is the ____ boy in the whole school."', options: ['tallest', 'taller', 'tall'] }),
     enQ({ question: 'Which word is the superlative of "small"?', options: ['smallest', 'smaller', 'small'] }),
     enQ({ slo: 'S2', level: 'understand', question: 'Two mangoes are on the table. Which word compares them?', options: ['sweeter', 'sweetest', 'sweet'] }),
     enQ({ question: 'Which ending do we add for the comparative degree?', options: ['-er', '-est', '-ing'] }),
-    enQ({ slo: 'S3', level: 'understand', question: 'Which sentence uses the superlative correctly?', options: ['She is the fastest of all.', 'She is the faster of all.', 'She is fast of all.'] }),
+    enQ({ slo: 'S3', level: 'understand', question: 'Which sentence uses the superlative correctly?', options: ['Sara is the fastest of all.', 'Sara is the faster of all.', 'Sara is fast of all.'] }),
   ];
 }
 
 const EN_REPLACEMENT = enQ({
   question: 'Which of these is the comparative degree of "tall"?',
   options: ['taller', 'tallest', 'tall'],
-  why: 'she wrote tall, taller, tallest on the board',
+  why: 'tall, taller, tallest written on the board',
 });
 
 // ── the Urdu lesson ──────────────────────────────────────────────────────────

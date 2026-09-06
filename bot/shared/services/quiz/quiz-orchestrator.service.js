@@ -61,9 +61,10 @@ class QuizOrchestrator {
         description: 'Tap to select this class'
       }));
 
-      // Non-fatal by design: if the state write fails she still gets the class list,
-      // and picking a class carries the class id in the row she taps — intent-first,
-      // so a lost state costs the pre-supplied topic, not the whole quiz.
+      // Non-fatal by design: if the state write fails the teacher still gets the
+      // class list, and picking a class carries the class id in the row they
+      // tap — intent-first, so a lost state costs the pre-supplied topic, not
+      // the whole quiz.
       try {
         await ConversationState.setState(user.id, {
           flow: QUIZ_FLOW,

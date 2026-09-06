@@ -1,13 +1,13 @@
 'use strict';
 /**
- * Transcript quiz — HAND-OFF: mint (or reuse) the share code, get her the
- * PDF, and send the forwardable link — once from generate(), and again,
- * link-for-link the same, whenever she taps "resend the link" from /quiz.
+ * Transcript quiz — HAND-OFF: mint (or reuse) the share code, get the teacher
+ * the PDF, and send the forwardable link — once from generate(), and again,
+ * link-for-link the same, whenever they tap "resend the link" from /quiz.
  *
  * The share code is minted AT MOST ONCE, ever: once `meta.share_code_id` and
  * `meta.student_message` exist, every later call reuses them verbatim. A
- * resend never rewrites `status`/`sent_at`, never re-promises a report she
- * already has, and never schedules a second nudge — only the very first
+ * resend never rewrites `status`/`sent_at`, never re-promises a report the
+ * teacher already has, and never schedules a second nudge — only the very first
  * send (`firstSend: true`, always from generate()'s process()) does that.
  */
 const fs = require('fs');
@@ -111,7 +111,7 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
     forwardable = Gen.studentMessage({ teacherName: minted.teacherName || teacherName, topic: quiz.topic, date: lessonDate, link, language });
   }
 
-  // ── the PDF — the SAME object she was sent, best effort ────────────────────
+  // ── the PDF — the SAME object the teacher was sent, best effort ────────────
   // meta.pdf_key is the document already on R2; only when it is absent, or the
   // object is gone, do we pay to re-render it (and re-upload so the next
   // resend gets the cheap path too). A PDF that cannot be produced at all is

@@ -30,6 +30,17 @@
  *   - a replacement keeps its question's slo_id and level unless it names its
  *     own, so SLO coverage and the level mix cannot be broken by the repair.
  *
+ * ROUND 6 ADDED ONE QUIZ-LEVEL FIELD: `lesson_summary`. It is the field the
+ * operator caught a gendered "She" on, and it is the only quiz-level complaint
+ * a single small call can answer — the summary is one paragraph, written from
+ * the digest, and rewriting it changes no question. So a
+ * `PEDAGOGY_GENDERED_TEACHER` complaint with no `q<i>:` prefix is a repair
+ * target of its own (`targets.summary`), and may arrive alone or beside up to
+ * three question complaints. Every other quiz-level complaint still
+ * disqualifies the whole set: FIGURE_SHARE, PEDAGOGY_LEVEL_MIX and "SLOs
+ * uncovered" are properties of the SET and no small call can be shown to fix
+ * them.
+ *
  * Pure except for the one LLM call: no DB, no WhatsApp, no R2.
  */
 
@@ -37,6 +48,7 @@ const { completeJson } = require('./transcript-quiz-llm');
 const { LANG_NAME, sloStatement } = require('./transcript-quiz-language');
 const {
   languageRule, questionContract, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE,
+  GENDER_NEUTRAL_RULE,
 } = require('./transcript-quiz-contract');
 
 /** At most this many questions may be repaired; more than that is a re-roll. */
@@ -55,24 +67,39 @@ const MAX_TARGETS = 3;
 const PER_QUESTION = /^q(\d+):\s*(PEDAGOGY_[A-Z_]+|FIGURE_[A-Z_]+)\b/;
 
 /**
+ * The ONE quiz-level complaint a small call can answer: a gendered reference to
+ * the teacher in `lesson_summary`. It is a single paragraph written from the
+ * digest, so a replacement can be asked for and checked on its own.
+ */
+const QUIZ_LEVEL_REPAIRABLE = /^PEDAGOGY_GENDERED_TEACHER\b/;
+
+/**
  * @param {string[]} errors the validator's complaints from the LAST full attempt
- * @returns {{indices:number[], byIndex:Object<number,string[]>}} indices is empty
- *          when this rejection is not one a targeted rewrite can repair
+ * @returns {{indices:number[], byIndex:Object<number,string[]>, summary:string[]}}
+ *          `indices` and `summary` are both empty when this rejection is not one
+ *          a targeted rewrite can repair
  */
 function rewriteTargets(errors) {
-  const none = { indices: [], byIndex: {} };
+  const none = { indices: [], byIndex: {}, summary: [] };
   const list = Array.isArray(errors) ? errors.filter((e) => typeof e === 'string') : [];
   if (!list.length || list.length !== (errors || []).length) return none;
   const byIndex = {};
+  const summary = [];
   for (const e of list) {
     const m = PER_QUESTION.exec(e);
-    if (!m) return none;                       // one non-per-question complaint disqualifies the whole set
+    if (!m) {
+      // one non-per-question complaint disqualifies the whole set, unless it is
+      // the quiz-level field this call can rewrite on its own
+      if (QUIZ_LEVEL_REPAIRABLE.test(e)) { summary.push(e); continue; }
+      return none;
+    }
     const i = Number(m[1]);
     (byIndex[i] = byIndex[i] || []).push(e);
   }
   const indices = Object.keys(byIndex).map(Number).sort((a, b) => a - b);
-  if (!indices.length || indices.length > MAX_TARGETS) return none;
-  return { indices, byIndex };
+  if (indices.length > MAX_TARGETS) return none;
+  if (!indices.length && !summary.length) return none;
+  return { indices, byIndex, summary };
 }
 
 /** "q0, q7" */
@@ -89,19 +116,23 @@ function optionLine(q) {
  * replacement cannot duplicate one, and — for each rejected question — the
  * question being thrown away with its complaints quoted verbatim.
  */
-function buildRewritePrompt({ digest, language, questions, targets, gradeBand = null }) {
+function buildRewritePrompt({
+  digest, language, questions, targets, gradeBand = null, lessonSummary = null,
+}) {
   const qs = Array.isArray(questions) ? questions : [];
   const { indices, byIndex } = targets;
+  const summaryErrors = Array.isArray(targets && targets.summary) ? targets.summary : [];
+  const nQ = indices.length;
   const slos = (digest && Array.isArray(digest.slos)) ? digest.slos : [];
   const sloLines = slos
     .map((s) => `- ${s.id} [taught at ${s.taught_level || 'understand'}] ${sloStatement(s, language)}`)
     .join('\n');
   const material = [
-    digest && digest.topic_as_taught ? `topic as she taught it: ${digest.topic_as_taught}` : null,
+    digest && digest.topic_as_taught ? `topic as the teacher named it: ${digest.topic_as_taught}` : null,
     (digest && Array.isArray(digest.examples_used) && digest.examples_used.length)
-      ? `her own examples: ${digest.examples_used.slice(0, 8).join('; ')}` : null,
+      ? `the lesson's own examples: ${digest.examples_used.slice(0, 8).join('; ')}` : null,
     (digest && Array.isArray(digest.key_terms) && digest.key_terms.length)
-      ? `the words she used: ${digest.key_terms.slice(0, 12).join(', ')}` : null,
+      ? `the words used in class: ${digest.key_terms.slice(0, 12).join(', ')}` : null,
   ].filter(Boolean).join('\n');
   const staying = qs
     .map((q, i) => (indices.includes(i) ? null : `  q${i}: ${String((q && q.question) || '').trim()}`))
@@ -115,42 +146,63 @@ function buildRewritePrompt({ digest, language, questions, targets, gradeBand = 
 ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
   }).join('\n\n');
 
-  return `You are FIXING a short WhatsApp quiz written for the children who sat in ONE real lesson. ${indices.length} of its ${qs.length} questions were rejected by our checks. You are writing ONE replacement for each. Every other question is good and is staying exactly as it is — do not touch it, do not return it.
+  // The sections are composed rather than written out once, because round 6
+  // added a target this call can be asked for ALONE: the quiz-level
+  // `lesson_summary`. A summary-only call must not carry the question contract,
+  // the picture rule or the "questions that are staying" list — none of it
+  // applies, and every line of a prompt that does not apply is a line the model
+  // can answer instead of the one that does.
+  const opening = nQ && summaryErrors.length
+    ? `You are FIXING a short WhatsApp quiz written for the children who sat in ONE real lesson. ${nQ} of its ${qs.length} questions were rejected by our checks, and so was its lesson summary. You are writing ONE replacement for each rejected question, and a new "lesson_summary". Every other question is good and is staying exactly as it is — do not touch it, do not return it.`
+    : (nQ
+      ? `You are FIXING a short WhatsApp quiz written for the children who sat in ONE real lesson. ${nQ} of its ${qs.length} questions were rejected by our checks. You are writing ONE replacement for each. Every other question is good and is staying exactly as it is — do not touch it, do not return it.`
+      : 'You are FIXING the LESSON SUMMARY of a short WhatsApp quiz written for the children who sat in ONE real lesson. Every question is good and is staying exactly as it is — do not touch one, do not return one. You are rewriting the summary only.');
 
-QUIZ LANGUAGE: ${LANG_NAME[language] || 'Urdu'}. ${languageRule(language)}
+  const questionSections = nQ ? [
+    `REWRITE THESE QUESTIONS: ${label(indices)}`,
+    `THE QUESTIONS THAT ARE STAYING. A replacement must not ask one of these again, and must not have the same answer as one of them.\n${staying || '(none)'}`,
+    `REJECTED — write one new question for each.\n\n${rejected}`,
+    'A RE-WORDING OF A REJECTED QUESTION IS REJECTED AGAIN. Change WHAT is asked, not how it is phrased: same SLO, same level, same lesson material, a different question — one any child who understood the idea can answer.',
+    'NO NEW PICTURES. Every replacement is a text question: leave "figure" and "figure_role" null. A replacement that carries a figure is thrown away and its rejected question is dropped from the quiz instead, so the child loses a question.',
+    questionContract({ gradeBand }),
+    SELECTED_BECAUSE_RULE,
+  ] : [];
 
-REWRITE THESE QUESTIONS: ${label(indices)}
+  const summarySection = summaryErrors.length ? [
+    `THE LESSON SUMMARY — rewrite it, and nothing else about it.
+  the summary being thrown away: "${String(lessonSummary || '').trim() || '(not recorded)'}"
+  why it was rejected:
+${summaryErrors.map((e) => `    - ${e}`).join('\n')}
 
-WHAT THESE CHILDREN WERE MEANT TO LEARN. A replacement stays on its own question's SLO, at its own question's level.
-${sloLines || '(no SLOs recorded)'}
+Write a new "lesson_summary": 2-3 sentences, in the quiz language, written TO THE TEACHER (not the child), in the SECOND PERSON — "you": say what you taught and in the order you taught it, naming your own examples and numbers from the lesson. Do not summarise the quiz — summarise the LESSON. Keep everything the old summary got right about the lesson; change only what was rejected.`,
+  ] : [];
 
-THE LESSON'S OWN MATERIAL — dress the replacement in it, so a child recognises the class in the quiz.
-${material || '(none recorded)'}
-
-THE QUESTIONS THAT ARE STAYING. A replacement must not ask one of these again, and must not have the same answer as one of them.
-${staying || '(none)'}
-
-REJECTED — write one new question for each.
-
-${rejected}
-
-A RE-WORDING OF A REJECTED QUESTION IS REJECTED AGAIN. Change WHAT is asked, not how it is phrased: same SLO, same level, same lesson material, a different question — one any child who understood the idea can answer.
-
-NO NEW PICTURES. Every replacement is a text question: leave "figure" and "figure_role" null. A replacement that carries a figure is thrown away and its rejected question is dropped from the quiz instead, so the child loses a question.
-
-${questionContract({ gradeBand })}
-
-${SELECTED_BECAUSE_RULE}
-${RELIGIOUS_CONTENT_RULE}
-
-Return ONLY this JSON object, with exactly ${indices.length} entr${indices.length === 1 ? 'y' : 'ies'} and nothing else. "index" is the number after the q above, and must be one of: ${indices.join(', ')}.
-{ "questions": [
-  { "index": ${indices[0]}, "slo_id": "${(qs[indices[0]] || {}).slo_id || 'S1'}", "level": "${(qs[indices[0]] || {}).level || 'understand'}",
+  const shape = `  { "index": ${indices[0]}, "slo_id": "${(qs[indices[0]] || {}).slo_id || 'S1'}", "level": "${(qs[indices[0]] || {}).level || 'understand'}",
     "question": "", "options": ["", "", ""], "correct_index": 0,
     "explanation": "", "selected_because": "", "distractor_misconceptions": { "1": "", "2": "" },
     "option_feedback": { "correct": "", "wrong": { "1": "", "2": "" } },
-    "figure": null, "figure_role": null } ] }
-(In that example the correct option is index 0, so the wrong keys are "1" and "2". If correct_index is 1 the keys are "0" and "2"; if it is 2 the keys are "0" and "1".)`;
+    "figure": null, "figure_role": null }`;
+
+  const returnBlock = nQ
+    ? `Return ONLY this JSON object, with exactly ${nQ} question entr${nQ === 1 ? 'y' : 'ies'}${summaryErrors.length ? ' and the new summary' : ''} and nothing else. "index" is the number after the q above, and must be one of: ${indices.join(', ')}.
+{ ${summaryErrors.length ? '"lesson_summary": "",\n  ' : ''}"questions": [
+${shape} ] }
+(In that example the correct option is index 0, so the wrong keys are "1" and "2". If correct_index is 1 the keys are "0" and "2"; if it is 2 the keys are "0" and "1".)`
+    : `Return ONLY this JSON object and nothing else.
+{ "lesson_summary": "" }`;
+
+  return [
+    opening,
+    `QUIZ LANGUAGE: ${LANG_NAME[language] || 'Urdu'}. ${languageRule(language)}`,
+    ...questionSections.slice(0, 1),
+    `WHAT THESE CHILDREN WERE MEANT TO LEARN. A replacement stays on its own question's SLO, at its own question's level.\n${sloLines || '(no SLOs recorded)'}`,
+    `THE LESSON'S OWN MATERIAL — dress the replacement in it, so a child recognises the class in the quiz.\n${material || '(none recorded)'}`,
+    ...questionSections.slice(1),
+    ...summarySection,
+    GENDER_NEUTRAL_RULE,
+    RELIGIOUS_CONTENT_RULE,
+    returnBlock,
+  ].join('\n\n');
 }
 
 /**
@@ -161,12 +213,22 @@ Return ONLY this JSON object, with exactly ${indices.length} entr${indices.lengt
  * question in place, where the validator will reject it again and the salvage
  * will drop that one — one question lost instead of the repair.
  *
- * @returns {{questions:object[], replaced:number[]}|null} null when nothing was replaced
+ * The quiz-level `lesson_summary` follows the same rule as a question: it is
+ * taken ONLY when it was asked for. A model that volunteers a summary on a
+ * question-only repair is ignored — the summary that shipped through the last
+ * full attempt is the one the validator judged, and silently swapping it would
+ * replace a field nobody complained about.
+ *
+ * @returns {{questions:object[], replaced:number[], lessonSummary:string|null}|null}
+ *          null when nothing at all was replaced
  */
 function mergeReplacements(questions, json, targets) {
   const qs = Array.isArray(questions) ? questions : [];
   const list = Array.isArray(json && json.questions) ? json.questions : [];
   const { indices } = targets;
+  const wantSummary = Array.isArray(targets && targets.summary) && targets.summary.length > 0;
+  const summary = wantSummary && typeof (json && json.lesson_summary) === 'string'
+    && json.lesson_summary.trim() ? json.lesson_summary.trim() : null;
   const chosen = new Map();
   list.forEach((r, pos) => {
     if (!r || typeof r !== 'object') return;
@@ -184,7 +246,7 @@ function mergeReplacements(questions, json, targets) {
     if (!String(r.question || '').trim()) return;
     chosen.set(idx, r);
   });
-  if (!chosen.size) return null;
+  if (!chosen.size && !summary) return null;
   const out = qs.map((q, i) => {
     if (!chosen.has(i)) return q;
     const { index, ...rest } = chosen.get(i);
@@ -196,7 +258,7 @@ function mergeReplacements(questions, json, targets) {
       figure_role: null,
     };
   });
-  return { questions: out, replaced: [...chosen.keys()].sort((a, b) => a - b) };
+  return { questions: out, replaced: [...chosen.keys()].sort((a, b) => a - b), lessonSummary: summary };
 }
 
 /**
@@ -204,18 +266,21 @@ function mergeReplacements(questions, json, targets) {
  * not happen, and the salvage behind it is unchanged.
  *
  * @returns {Promise<{attempted:boolean, indices:number[], merged:object[]|null,
- *   replaced:number[], model?:string, costUsd?:number, latencyMs?:number, error?:string}>}
+ *   replaced:number[], lessonSummary:string|null, model?:string, costUsd?:number,
+ *   latencyMs?:number, error?:string}>}
  */
 async function rewriteRejected({
-  questions, errors, digest, language, gradeBand = null,
+  questions, errors, digest, language, gradeBand = null, lessonSummary = null,
   // quizId is accepted and ignored here on purpose: the outcome event is emitted
   // by the caller, which is the only place that knows whether the merged set
   // validated.
   quizId = null,
 }) {  // eslint-disable-line no-unused-vars
   const targets = rewriteTargets(errors);
-  if (!targets.indices.length) return { attempted: false, indices: [], merged: null, replaced: [] };
-  const prompt = buildRewritePrompt({ digest, language, questions, targets, gradeBand });
+  if (!targets.indices.length && !targets.summary.length) {
+    return { attempted: false, indices: [], merged: null, replaced: [], lessonSummary: null };
+  }
+  const prompt = buildRewritePrompt({ digest, language, questions, targets, gradeBand, lessonSummary });
   try {
     const { json, model, costUsd, latencyMs } = await completeJson({
       prompt, maxTokens: 8000, label: 'transcript_quiz.rewrite',
@@ -224,19 +289,24 @@ async function rewriteRejected({
     return {
       attempted: true,
       indices: targets.indices,
+      // A summary-only repair returns the questions UNCHANGED rather than null:
+      // the caller re-validates `merged` with the new summary, and there was
+      // never anything wrong with the questions.
       merged: merged ? merged.questions : null,
       replaced: merged ? merged.replaced : [],
+      lessonSummary: merged ? merged.lessonSummary : null,
       model,
       costUsd,
       latencyMs,
     };
   } catch (err) {
     return {
-      attempted: true, indices: targets.indices, merged: null, replaced: [], costUsd: 0, error: err.message,
+      attempted: true, indices: targets.indices, merged: null, replaced: [], lessonSummary: null, costUsd: 0, error: err.message,
     };
   }
 }
 
 module.exports = {
   rewriteTargets, buildRewritePrompt, mergeReplacements, rewriteRejected, MAX_TARGETS, PER_QUESTION,
+  QUIZ_LEVEL_REPAIRABLE,
 };

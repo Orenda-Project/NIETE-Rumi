@@ -2,8 +2,8 @@
 /**
  * Transcript quiz — THE OFFER.
  *
- * After a self-coaching report lands, the teacher is asked once whether she
- * wants a quiz written from what she just taught. Once per TEACHER, not per
+ * After a self-coaching report lands, the teacher is asked once whether they
+ * want a quiz written from what they just taught. Once per TEACHER, not per
  * report (operator, 2026-09-05): the offer introduces the feature; after
  * that the path is /quiz. TRANSCRIPT_QUIZ_OFFER_MODE=every keeps the
  * alternative one env flip away.
@@ -245,10 +245,10 @@ async function processOffer(coachingSessionId, payload = {}) {
 // ─── 3. The buttons (on the web service) ─────────────────────────────────────
 
 /**
- * Her language when the quiz row is gone: there is nothing to join on, so she
- * is looked up by the number she just tapped from. Without this the one
- * surface a teacher meets when an offer has expired answers in the floor
- * language rather than hers.
+ * The teacher's language when the quiz row is gone: there is nothing to join
+ * on, so the teacher is looked up by the number they just tapped from.
+ * Without this the one surface a teacher meets when an offer has expired
+ * answers in the floor language rather than theirs.
  */
 async function languageByPhone(phone) {
   const { data } = await supabase.from('users')
@@ -289,12 +289,12 @@ async function handleOfferButton(buttonId, phone) {
     return true;
   }
 
-  // The rule language is what she would have been handed silently in round 1.
-  // It is now the first button, not the decision.
+  // The rule language is what the teacher would have been handed silently in
+  // round 1. It is now the first button, not the decision.
   const ruleLanguage = quiz.language || quizLanguageFor(quiz.subject, null);
 
   if (needsLanguageAsk(quiz.subject)) {
-    // The row stays 'offered' until she answers, so an unanswered ask expires
+    // The row stays 'offered' until they answer, so an unanswered ask expires
     // exactly as an unanswered offer does.
     const { data: marked } = await supabase.from('quizzes')
       .update({
@@ -350,9 +350,9 @@ async function startGenerating({ quizId, quiz, phone, teacherLang, language, sou
 }
 
 /**
- * Her answer to the ask. The language she chose is written to `quizzes.language`
- * — the generate step reads that ahead of the subject rule — and the same
- * atomic flip guards a double tap.
+ * The teacher's answer to the ask. The language they chose is written to
+ * `quizzes.language` — the generate step reads that ahead of the subject
+ * rule — and the same atomic flip guards a double tap.
  */
 async function handleLanguageButton(buttonId, phone, user) {
   const api = module.exports;
