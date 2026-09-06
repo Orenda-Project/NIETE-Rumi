@@ -80,7 +80,7 @@ const PAGE_TRUTH_MAX_CHARS = 90000;
  * every unit test on it passed. Re-exported below so existing callers and tests
  * are unaffected.
  */
-const { resolveAuthorModel, authorTierFor } = require('../config/lp612-flags');
+const { resolveAuthorModel, authorTierFor, isLp612TargetedRevisionEnabled } = require('../config/lp612-flags');
 
 function resolveRounds(explicit) {
   if (Number.isInteger(explicit) && explicit >= 0) return explicit;
@@ -854,7 +854,154 @@ const REVISION_PREAMBLE =
  */
 const isVisual = (d) => String(d).startsWith('VISUAL:');
 
-function buildRevisionPrompt({ doc, gates, originalUser, notes, lang }) {
+// ── targeted revision (bd-ga7xz) ─────────────────────────────────────────────
+//
+// BREAKDOWN.md §4 lever 2: every revision round re-emits the ENTIRE ~7,900-token lp_doc, at
+// ~6.3s per 1k output tokens (R² 0.911) — a round that exists to fix one page re-writes the
+// whole lesson. Behind LP612_TARGETED_REVISION (default false), a revision round instead asks
+// for a REPLACEMENT MAP of pointer -> complete replacement subtree, so the model spends its
+// output on the parts that changed.
+//
+// THE SHAPE IS POINTER -> WHOLE-SUBTREE REPLACEMENT, NOT RFC-6902 OPS, ON MEASURED EVIDENCE.
+// `sanitizeOverlay`'s own comment block records the failure this is built to avoid: of 55
+// `ur_overlay` JSON Pointers this same model emitted for one real document, EIGHT addressed
+// blocks it had not written (bd-vnyuw). A fine-grained op ("insert this element inside that
+// array") is exactly the shape that failure hits. Asking for coarse, NAMED subtree
+// replacements — "here is the new `/page2/exam_bank`" — removes the failure mode by
+// construction: the model cannot mis-point *inside* a subtree it is handing back whole.
+//
+// THE ADDRESS SPACE IS BOUNDED AND DERIVED FROM THE DOCUMENT ITSELF, never a hardcoded
+// schema guess — a pointer list typed once here would drift from the doc's real shape the
+// day a section or a page2 key is added upstream.
+
+/**
+ * The pointers a targeted-revision reply is allowed to use — one per top-level section
+ * (`/sections/0`, `/sections/1`, …), one per key actually present under `page2`
+ * (`/page2/exam_bank`, `/page2/model_answers`, …), and one for every other top-level key of
+ * the document (`/objectives`, `/materials`, `/sequence`, …). Computed fresh from THIS doc, so
+ * it can never name a pointer the document does not have.
+ */
+function deriveAllowedPointers(doc) {
+  const allowed = [];
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return allowed;
+  if (Array.isArray(doc.sections)) {
+    doc.sections.forEach((_, i) => allowed.push(`/sections/${i}`));
+  }
+  if (doc.page2 && typeof doc.page2 === 'object' && !Array.isArray(doc.page2)) {
+    for (const k of Object.keys(doc.page2)) allowed.push(`/page2/${k}`);
+  }
+  for (const k of Object.keys(doc)) {
+    if (k === 'sections' || k === 'page2') continue;
+    allowed.push(`/${k}`);
+  }
+  return allowed;
+}
+
+/**
+ * Merge a `{ "<pointer>": <replacement subtree> }` map onto a DEEP CLONE of `doc`.
+ *
+ * ALL-OR-NOTHING. Every pointer must be (a) well-formed, (b) in `deriveAllowedPointers(doc)`,
+ * (c) resolvable to a location that already exists on the document, and (d) a same-KIND
+ * replacement (object for object, array for array, primitive for primitive — never an array
+ * replacing an object, etc). One failing pointer rejects the WHOLE patch rather than applying
+ * the rest: a half-merged document is worse than no merge, because the caller's fallback is a
+ * full rewrite, not a partial-patch repair.
+ *
+ * Never mutates the document the caller is still holding — `doc` is deep-cloned before any
+ * write, and the clone is only handed back on success.
+ *
+ * @returns {{ok: boolean, doc: object, errors: string[]}} `doc` is the merged clone on
+ *   success, or the ORIGINAL `doc` (untouched) on failure.
+ */
+function applyReplacements(doc, replace) {
+  if (!replace || typeof replace !== 'object' || Array.isArray(replace)) {
+    return { ok: false, doc, errors: ['replace must be an object of pointer -> value'] };
+  }
+  const allowed = new Set(deriveAllowedPointers(doc));
+  const clone = JSON.parse(JSON.stringify(doc));
+  const kindOf = (v) => (Array.isArray(v) ? 'array' : v === null ? 'null' : typeof v);
+  const errors = [];
+  const planned = [];
+
+  for (const [pointer, value] of Object.entries(replace)) {
+    if (typeof pointer !== 'string' || !pointer.startsWith('/')) {
+      errors.push(`malformed pointer: ${pointer}`);
+      continue;
+    }
+    if (!allowed.has(pointer)) {
+      errors.push(`pointer not in the allowed list: ${pointer}`);
+      continue;
+    }
+    let loc;
+    try {
+      loc = pointerParent(clone, pointer);
+    } catch (e) {
+      errors.push(`malformed pointer: ${pointer}`);
+      continue;
+    }
+    if (!loc) {
+      errors.push(`pointer does not resolve: ${pointer}`);
+      continue;
+    }
+    const key = Array.isArray(loc.parent) ? Number(loc.key) : loc.key;
+    const existing = loc.parent[key];
+    if (existing === undefined) {
+      errors.push(`pointer does not resolve: ${pointer}`);
+      continue;
+    }
+    if (kindOf(existing) !== kindOf(value)) {
+      errors.push(`type mismatch at ${pointer}: was ${kindOf(existing)}, replacement is ${kindOf(value)}`);
+      continue;
+    }
+    planned.push({ parent: loc.parent, key, value });
+  }
+
+  if (errors.length) return { ok: false, doc, errors };
+  for (const { parent, key, value } of planned) parent[key] = value;
+  return { ok: true, doc: clone, errors: [] };
+}
+
+/**
+ * What shape did a targeted-revision reply actually take?
+ *
+ * `{"replace": {...}}` -> mode 'replace'. `{"full": {...}}` -> mode 'full' (the escape hatch
+ * the prompt names for a structural fix). Anything else — prose, an object with neither key, a
+ * bare lp_doc with no wrapper — is 'invalid': the caller treats it exactly like a rejected
+ * patch and falls back to a full rewrite, never assumes it happens to BE the doc.
+ */
+function parseTargetedReply(parsed) {
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+    if (parsed.full && typeof parsed.full === 'object' && !Array.isArray(parsed.full)) {
+      return { mode: 'full', doc: parsed.full };
+    }
+    if (parsed.replace && typeof parsed.replace === 'object' && !Array.isArray(parsed.replace)) {
+      return { mode: 'replace', replace: parsed.replace };
+    }
+  }
+  return { mode: 'invalid' };
+}
+
+function targetedRevisionPreamble(allowedPointers) {
+  return (
+    'Your previous lp_doc is below, followed by every defect found by the schema validator and '
+    + 'the deterministic lint.\n\n'
+    + 'Return ONLY the parts that need to change, as a REPLACEMENT MAP:\n'
+    + '  {"replace": {"<json-pointer>": <the COMPLETE replacement value for that subtree>, ...}}\n'
+    + 'Each pointer must be EXACTLY one of the ALLOWED POINTERS listed below, and each value must '
+    + 'be the COMPLETE corrected subtree at that pointer — not a further patch or diff on it. Fix '
+    + 'every listed defect this way, touching only the parts that need it. Change nothing else, '
+    + 'and do not repeat an unaffected section in your reply.\n\n'
+    + 'ALLOWED POINTERS — use ONLY these; any other pointer is rejected and costs the round:\n'
+    + allowedPointers.map((p) => `  ${p}`).join('\n') + '\n\n'
+    + 'Use the escape hatch instead when the fix is STRUCTURAL — a schema error that changes the '
+    + 'shape of the document, or a change that touches more than about a third of it:\n'
+    + '  {"full": {...the complete corrected lp_doc JSON...}}\n'
+    + 'Use "full" only when "replace" genuinely cannot express the fix. Keep every fact traceable '
+    + 'to the same page-truth either way.\n\n'
+  );
+}
+
+function buildRevisionPrompt({ doc, gates, originalUser, notes, lang, targeted = false }) {
   // ADVISORY defects are recorded, not chased (see ADVISORY_CODES). A defect the ladder will not
   // spend a round on must not spend the model's attention either: showing it under "Fix EVERY
   // listed defect" is an order to act on something we have decided does not matter.
@@ -867,7 +1014,12 @@ function buildRevisionPrompt({ doc, gates, originalUser, notes, lang }) {
   // which is exactly the position the operator objected to. Restating it costs ~250 tokens
   // against a 40,211-token revision prompt whose duration is explained (R² 0.91) by OUTPUT
   // volume alone, with a NEGATIVE input coefficient — so this is free in latency terms.
-  return budgetCard(clampLanguage(lang)) + '\n' + REVISION_PREAMBLE +
+  // Flag OFF (default): REVISION_PREAMBLE, byte-identical to before bd-ga7xz — this function's
+  // output must not move at all for the untargeted caller (the edit lane, and every existing
+  // test). Flag ON: the targeted preamble, with the allowed-pointer list computed fresh from
+  // THIS doc.
+  const preamble = targeted ? targetedRevisionPreamble(deriveAllowedPointers(doc)) : REVISION_PREAMBLE;
+  return budgetCard(clampLanguage(lang)) + '\n' + preamble +
     (notes ? `=== THE OPERATOR'S NAMED DEFECTS — THESE OUTRANK EVERYTHING BELOW ===\n${notes}\n\n` : '') +
     (visual.length
       ? '=== THE VISUAL CONTRACT (§4b) — FIX THESE FIRST, BY ADDING A FIGURE ===\n'
@@ -1486,7 +1638,7 @@ const isPageCountOnly = (g) => {
  *   re-derive the delivery bar and the two cannot drift.
  */
 async function authorLessonPlan({
-  segment, lang, model, rounds, correlationId, renderCheck, onCandidate,
+  segment, lang, model, rounds, correlationId, renderCheck, onCandidate, targetedRevision,
 } = {}) {
   if (!segment || !segment.book_stem) {
     throw fail('AUTHOR_LLM_FAILED', 'authorLessonPlan needs a segment with a book_stem');
@@ -1500,6 +1652,13 @@ async function authorLessonPlan({
   const chosenModel = model || resolveAuthorModel(family);
   const tier = authorTierFor(chosenModel);
   const maxRounds = resolveRounds(rounds);
+  // bd-ga7xz. The option lets the A/B harness set this per run without an env dance; the env
+  // var (LP612_TARGETED_REVISION, default false) is the default source. Only the AUTHORING
+  // ladder below reads this — reviseLessonPlan (the teacher-edit lane) is untouched and always
+  // asks for a full rewrite, deliberately (see isLp612TargetedRevisionEnabled's doc comment).
+  const useTargetedRevision = typeof targetedRevision === 'boolean'
+    ? targetedRevision
+    : isLp612TargetedRevisionEnabled();
   // clampLanguage, not an inline `=== 'ur' ? 'ur' : 'en'`. That inline form was
   // written 23 separate times in this codebase before it was collapsed into one
   // function, and a conformance guard now fails the build on the 24th. It also
@@ -1656,7 +1815,9 @@ async function authorLessonPlan({
       defects: gateCost(gates), blocking: blockingBefore,
     });
 
-    const fixUser = buildRevisionPrompt({ doc, gates, originalUser: user, notes: segment.notes, lang: language });
+    const fixUser = buildRevisionPrompt({
+      doc, gates, originalUser: user, notes: segment.notes, lang: language, targeted: useTargetedRevision,
+    });
 
     // bd-5w13w: fires the moment THIS round's prompt hashes identically to the last one sent —
     // i.e. the previous round's candidate was rejected and doc/gates/notes did not move.
@@ -1671,12 +1832,74 @@ async function authorLessonPlan({
     }
     lastRevisionPromptSha = fixUserSha;
 
+    // bd-ga7xz telemetry: which shape this round actually took, and how much output it cost.
+    // 'full' when the flag is off (today's only path) or the model used the escape hatch;
+    // 'replace' when a patch was merged; 'fallback' when a patch was rejected or unparseable and
+    // the SAME round paid for one extra full-rewrite ask rather than losing the lesson.
+    let patchMode = 'full';
+    let pointersReplaced = 0;
+    const completionTokensBefore = usage.completion_tokens;
+
+    const notePatchRejected = (reason, pointers, errors) => {
+      logToFile('lp612 author: targeted patch rejected — falling back to a full rewrite this round', {
+        correlationId, segmentId: segment.segment_id, round: spent, reason,
+        pointers: pointers.slice(0, 10), errors: (errors || []).slice(0, 10),
+      }, 'warn');
+      logEvent('lp612.author.patch_rejected', {
+        correlationId: correlationId || null,
+        segmentId: segment.segment_id || null,
+        round: spent,
+        reason,
+        pointers: pointers.slice(0, 10),
+      });
+    };
+
     let candidate;
     try {
-      candidate = await callWithRetry({
-        system, user: fixUser, model: chosenModel, correlationId,
-        stage: `revision${spent}`, usageSink: addUsage,
-      });
+      if (!useTargetedRevision) {
+        candidate = await callWithRetry({
+          system, user: fixUser, model: chosenModel, correlationId,
+          stage: `revision${spent}`, usageSink: addUsage,
+        });
+      } else {
+        const parsed = await callWithRetry({
+          system, user: fixUser, model: chosenModel, correlationId,
+          stage: `revision${spent}`, usageSink: addUsage,
+        });
+        const shape = parseTargetedReply(parsed);
+        if (shape.mode === 'full') {
+          candidate = shape.doc;
+        } else if (shape.mode === 'replace') {
+          const merged = applyReplacements(doc, shape.replace);
+          if (merged.ok) {
+            candidate = merged.doc;
+            patchMode = 'replace';
+            pointersReplaced = Object.keys(shape.replace).length;
+          } else {
+            notePatchRejected('unresolvable_or_invalid_pointer', Object.keys(shape.replace), merged.errors);
+            // A REJECTED PATCH MUST NEVER COST A LESSON: fall back within the SAME round to the
+            // existing full-rewrite prompt, once. Worst case this round costs one extra call.
+            const fallbackUser = buildRevisionPrompt({
+              doc, gates, originalUser: user, notes: segment.notes, lang: language,
+            });
+            candidate = await callWithRetry({
+              system, user: fallbackUser, model: chosenModel, correlationId,
+              stage: `revision${spent}.fallback`, usageSink: addUsage,
+            });
+            patchMode = 'fallback';
+          }
+        } else {
+          notePatchRejected('unparseable_shape', []);
+          const fallbackUser = buildRevisionPrompt({
+            doc, gates, originalUser: user, notes: segment.notes, lang: language,
+          });
+          candidate = await callWithRetry({
+            system, user: fallbackUser, model: chosenModel, correlationId,
+            stage: `revision${spent}.fallback`, usageSink: addUsage,
+          });
+          patchMode = 'fallback';
+        }
+      }
     } catch (e) {
       // BOTH attempts unusable, or the transport blew up. That costs THIS ROUND, never the
       // ladder: the next round starts from the document we kept, with the same defect list.
@@ -1688,6 +1911,22 @@ async function authorLessonPlan({
       }, 'warn');
       continue;
     }
+
+    // bd-ga7xz: patchMode / pointersReplaced / this round's completion_tokens, queryable without
+    // reaching into the per-call LLM lines and summing them by hand.
+    const roundCompletionTokens = usage.completion_tokens - completionTokensBefore;
+    logToFile('lp612 author revision round', {
+      correlationId, segmentId: segment.segment_id, round: spent, of: maxRounds, phase: 'result',
+      patchMode, pointersReplaced, completionTokens: roundCompletionTokens,
+    });
+    logEvent('lp612.author.revision_round', {
+      correlationId: correlationId || null,
+      segmentId: segment.segment_id || null,
+      round: spent,
+      patchMode,
+      pointersReplaced,
+      completionTokens: roundCompletionTokens,
+    });
 
     applyVideo(candidate, video);
     sanitizeUnknownTopLevel(candidate);
@@ -2245,6 +2484,10 @@ module.exports = {
   // Same reason the visual block's position is asserted (bd-q2jr1).
   buildRevisionPrompt,
   budgetCard,
+  // bd-ga7xz: the targeted-revision merge primitives, exported for their own unit coverage.
+  deriveAllowedPointers,
+  applyReplacements,
+  parseTargetedReply,
   __notWorseVisualForTests: (a, b, ad, bd) => notWorseVisual(a, b, ad, bd),
   pythonDictToJson,
   __extractJsonForTests: extractJson,

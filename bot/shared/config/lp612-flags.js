@@ -91,6 +91,22 @@ function isLp612EditEnabled() {
   return isTrue(process.env.LP_612_EDIT_ENABLED);
 }
 
+/**
+ * TARGETED REVISION — bd-ga7xz. Ask a revision round for only the changed sections instead of
+ * the whole ~7,900-token lp_doc every time (BREAKDOWN.md §4 lever 2: 65-104s/lesson).
+ *
+ * Default FALSE, same convention as the flags above. It only ever narrows the AUTHORING ladder
+ * (`authorLessonPlan`'s revision rounds) — the teacher-EDIT lane (`reviseLessonPlan`) stays on
+ * the full-rewrite path regardless of this flag; it is a different product surface with a
+ * different round budget and was deliberately left out of this lane's first cut.
+ *
+ * `authorLessonPlan({ targetedRevision })` can override this per call (for the A/B harness);
+ * the env var is the default source when that option is omitted.
+ */
+function isLp612TargetedRevisionEnabled() {
+  return isTrue(process.env.LP612_TARGETED_REVISION);
+}
+
 function templateVersion() {
   const v = (process.env.LP_612_TEMPLATE_VERSION || '').trim();
   return v || DEFAULT_TEMPLATE_VERSION;
@@ -259,6 +275,7 @@ module.exports = {
   isLp612Enabled,
   isLp612EditEnabled,
   isLp612LangMenuEnabled,
+  isLp612TargetedRevisionEnabled,
   isReligiousEnabled,
   templateVersion,
   resolveAuthorModel,
