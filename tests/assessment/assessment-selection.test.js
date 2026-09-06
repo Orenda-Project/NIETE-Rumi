@@ -217,3 +217,44 @@ describe('option titles must survive the device', () => {
     expect(full.split(' ')).toContain(lastWord);
   });
 });
+
+describe('Urdu questions survive indexing and selection intact', () => {
+  // Every fixture above is English. Two `\W` regexes that erased whole Urdu
+  // titles passed all of them (bd-60041, bd-60047); this is the fixture that
+  // would have failed.
+  const { optionTitle } = require('../../bot/shared/services/assessment/assessment-selection');
+  const URDU = {
+    unseen: {
+      objective: {
+        MCQs: [{ question: 'سب سے تیز رفتار سواری کون سی ہے؟', options: ['سائیکل', 'ہوائی جہاز'], marks: 1 }],
+      },
+      subjective: {
+        'Short Questions': [{ question: 'محترمہ فاطمہ جناح نے بچوں کو کیا اہم پیغام دیا؟ مختصر بیان کریں۔', marks: 3 }],
+      },
+    },
+  };
+
+  test('indexed items carry the Urdu text, not an emptied string', () => {
+    const items = indexQuestions(URDU);
+    expect(items.length).toBe(2);
+    for (const it of items) expect(/[؀-ۿ]/.test(it.text)).toBe(true);
+  });
+
+  test('a truncated Urdu title is cut, not erased', () => {
+    const items = indexQuestions(URDU);
+    for (const it of items) {
+      const t = optionTitle(it);
+      expect(t.replace(/^\d+\.\s*/, '').length).toBeGreaterThan(3);
+    }
+  });
+
+  test('selecting one Urdu question keeps exactly that question', () => {
+    const items = indexQuestions(URDU);
+    const out = applySelection(URDU, [items[0].id]);
+    expect(out.unseen.objective.MCQs).toHaveLength(1);
+    expect(/[؀-ۿ]/.test(out.unseen.objective.MCQs[0].question)).toBe(true);
+    // An emptied branch is DROPPED, not left as an empty object — so the
+    // subjective side is gone entirely rather than present and empty.
+    expect(indexQuestions(out)).toHaveLength(1);
+  });
+});

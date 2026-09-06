@@ -337,6 +337,12 @@ describe('NavigationList rows must fit what the device will draw (bd-60026)', ()
       text: 'Read the passage and answer the questions that follow.', selected: true,
       shape: 'comprehension',
       question: { passage: 'Ali went to the market.', questions: [{ question: 'Who?', marks: 2 }] } },
+    // Urdu, because every fixture above is English and two `\W` regexes that erased
+    // Urdu titles passed every one of them (bd-60041, bd-60047).
+    { id: 'a.b.Short Questions.0', number: 3, marks: 3, type: 'Short Questions',
+      text: 'محترمہ فاطمہ جناح نے بچوں کو کیا اہم پیغام دیا؟ مختصر بیان کریں۔', selected: true,
+      shape: 'standard',
+      question: { question: 'محترمہ فاطمہ جناح نے بچوں کو کیا اہم پیغام دیا؟ مختصر بیان کریں۔', marks: 3 } },
   ];
 
   const overCap = (rows) => rows
@@ -355,6 +361,9 @@ describe('NavigationList rows must fit what the device will draw (bd-60026)', ()
     for (const q of res.data.questions) {
       expect(q.title.length).toBeLessThanOrEqual(30);
       expect(q.description.length).toBeLessThanOrEqual(140);
+      // A title cut down to its number is the `\W` failure — the Urdu row must
+      // keep readable text after the "N. " prefix.
+      expect(q.title.replace(/^\d+\.\s*/, '').length).toBeGreaterThan(3);
     }
   });
 

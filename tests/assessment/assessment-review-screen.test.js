@@ -47,7 +47,9 @@ const ITEMS = Array.from({ length: 28 }, (_, i) => ({
   number: i + 1,
   marks: 1,
   type: 'MCQs',
-  text: `Question number ${i + 1}`,
+  // Every fourth question in Urdu: two `\W` trims erased Urdu titles to "1. "
+  // while an all-English fixture like this one passed (bd-60041, bd-60047).
+  text: i % 4 === 3 ? `سوال نمبر ${i + 1} — محترمہ فاطمہ جناح کے بارے میں بتائیں` : `Question number ${i + 1}`,
   selected: true,
 }));
 
@@ -84,6 +86,14 @@ describe('opening the review', () => {
     mockSupabase.from.mockImplementation(() => ({ select: () => node() }));
     const res = await init('user-1', 'user-1:assessment-gen:123');
     expect(res.screen).toBe('CLASS');
+  });
+
+  test('every row keeps readable text after its number — Urdu included', async () => {
+    const res = await init('user-1', REVIEW_TOKEN);
+    for (const q of res.data.questions) {
+      expect(q.title.replace(/^\d+\.\s*/, '').length).toBeGreaterThan(3);
+    }
+    expect(res.data.questions.some((q) => /[؀-ۿ]/.test(q.title))).toBe(true);
   });
 
   test('shows only one screenful, because Meta renders at most 20', async () => {
