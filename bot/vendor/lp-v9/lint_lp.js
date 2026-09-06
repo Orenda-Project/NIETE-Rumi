@@ -443,7 +443,14 @@ function lint(doc, docPath, opts = {}) {
       checkOverlaps = require("./diagrams").checkOverlaps;
     } catch (_) { /* engine absent — the renderer still checks */ }
     if (renderDiagram && requiredBox) {
-      const FULL_COL = 794 - 22 * 2 - (10 * 2 + 3);   // 727px, per lib/template.js
+      // READ FROM THE RENDERER, never recomputed. This line used to be
+      // `794 - 22 * 2 - (10 * 2 + 3)` = 727 with the comment "per lib/template.js" — and
+      // lib/template.js computes 794 - 21 * 2 - 23 = 729, while ITS comment also said 727. So both
+      // files were wrong about the same number in opposite directions and the two legibility gates
+      // measured different columns: the lint was 2px stricter than the renderer, and could buy the
+      // ladder ~60s revision rounds chasing a FIGURE defect the renderer would never report.
+      // Production settled it on 2026-09-06 ("13.25px in a 729px column"). One definition, imported.
+      const FULL_COL = require("./lib/template.js").FULL_COL;
       for (const s of doc.sections) {
         for (const b of allBlocks(s.blocks)) {
           if (b.type !== "diagram") continue;
