@@ -33,6 +33,37 @@ const PALETTE = {
 };
 
 /**
+ * THE TYPE FLOOR for every teacher-facing rendered artefact (PLAN_R5 D6).
+ *
+ * Not a house preference — a measured readability floor, taken whole from the
+ * 6-12 lesson plans, which arrived at it the hard way. Their body type went
+ * 16.5px -> 18px on 2026-09-01 because 16.5 still could not be read on a phone
+ * ("the LP body type is still not readable on a phone — make it larger"), and
+ * the page cap was allowed to grow instead: the floor is the hard constraint,
+ * the page count is what gives. See
+ * `.claude/skills/curriculum-baked-lesson-plans/scripts/lp_html/lint_lp.js`
+ * (BODY 18 / CHIP 14) and its `phone_gate.py` (rasterise -> 390px -> look).
+ *
+ * Measured in CSS px at a 794px A4 page width, which is what both of this
+ * repo's teacher artefacts render at.
+ *
+ *   body   every block of running text she reads: a stem, an option, a
+ *          summary, a guidance sentence, a name, a score.
+ *   small  captions and chips — subordinate text, still read.
+ *   label  the absolute floor. NOTHING in the document may be smaller,
+ *          section labels and letter markers included.
+ *
+ * Urdu needs about 15% more than Latin at the same apparent size, because
+ * Nastaliq's x-height sits low in its em box; the templates scale up from
+ * these numbers for RTL rather than down towards them.
+ *
+ * One object, exported once, because three templates each carrying their own
+ * idea of "readable" is exactly how the report came to run at 11px while the
+ * PDF ran at 9.5px and both believed they were fine.
+ */
+const TYPE_FLOOR = { body: 18, small: 14, label: 13.5 };
+
+/**
  * Font stacks. `latin`/`urdu` differ only in which family is asked for FIRST —
  * both always list both, so neither script can ever fall through to nothing.
  */
@@ -129,6 +160,6 @@ function lockup(text, { className = 'lockup', dotColor = PALETTE.green } = {}) {
 }
 
 module.exports = {
-  PALETTE, FONTS, headFamily, bodyFamily, scriptOf, dirOf,
+  PALETTE, FONTS, TYPE_FLOOR, headFamily, bodyFamily, scriptOf, dirOf,
   latticeSvg, diamondSvg, diamondPath, lockup,
 };
