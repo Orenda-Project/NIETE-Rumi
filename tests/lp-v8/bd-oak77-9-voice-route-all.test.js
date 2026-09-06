@@ -73,14 +73,16 @@ describe('the voice lesson-plan door follows the same cutover as the typed one',
     expect(LessonPlanQueueService.createAndQueue).not.toHaveBeenCalled();
   });
 
-  test('BOTH flags off: the rollback lever — no Flow, and the Gamma job is still queued', async () => {
+  // Re-pointed by the back-merge: on `main` this asserted the rollback to the Gamma
+  // generation body. That body is not on this branch, so what the flags-off case
+  // actually does here is skip the redirect line and open the catalogue Flow anyway.
+  test('BOTH flags off: no redirect line, the catalogue Flow still opens, nothing is queued', async () => {
     await handleVoiceLessonPlanRequest('923365709413', 'make me a lesson plan on photosynthesis', user, null, 'en');
 
-    expect(flowsSent).toHaveLength(0);
-    expect(LessonPlanQueueService.createAndQueue).toHaveBeenCalledTimes(1);
-    expect(LessonPlanQueueService.createAndQueue).toHaveBeenCalledWith(
-      expect.objectContaining({ contentType: 'lesson_plan' }),
-    );
+    expect(messagesSent).toHaveLength(0);
+    expect(flowsSent).toHaveLength(1);
+    expect(flowsSent[0].flowId).toBe(FLOW_ID);
+    expect(LessonPlanQueueService.createAndQueue).not.toHaveBeenCalled();
   });
 
   test('a spoken request with no user account is unaffected by the gate', async () => {

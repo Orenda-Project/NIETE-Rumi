@@ -1,6 +1,14 @@
 /**
- * THE CUTOVER on `main`: every 6-12 lesson-plan intent lands on the menu, and Gamma
- * free-flow generation is GATED rather than deleted.
+ * THE CUTOVER: every 6-12 lesson-plan intent lands on the menu.
+ *
+ * THIS FILE ARRIVED FROM `main` AND WAS RE-POINTED AT THIS BRANCH'S BEHAVIOUR BY THE
+ * BACK-MERGE. On `main` the Gamma free-flow body still exists behind a flag, so the
+ * three cases below could assert a rollback to it. On this branch that body was
+ * deleted, in a four-phase programme in August, and the back-merge let the deletion
+ * stand. So each of those three cases now asserts what this tree actually does with
+ * the flags off - the catalogue Flow opens anyway, and no generation job is queued -
+ * and any restoration of the generation path will turn them red on the spot, which
+ * is the point of leaving them here rather than deleting them.
  *
  * The operator, 2026-09-06: "turn off the free flow lesson plan generation via gamma on prod, and
  * route all lesson plan requests to this menu." A second instruction the same day refused the
@@ -16,11 +24,10 @@
  *           OLD Oxbridge 6-12 picker, returning `oxbridge_picker`, which stops the message flow.
  *   GATE    handleLessonPlanRequest — the typed door — must send the redirect line and open the
  *           menu when both flags are on.
- *   ROLLBACK with BOTH flags off the same function must still reach LessonPlanQueueService
- *           .createAndQueue({contentType:'lesson_plan'}) and send no Flow. This case does not
- *           exist on develop (there is no Gamma body left there to assert against) and it is the
- *           whole point of gating rather than deleting: a rollback lever that is defined but not
- *           proven is not a lever.
+ *   FLAGS OFF with BOTH flags off the redirect line is not sent, the catalogue Flow is still
+ *           opened by the unconditional door below the gate, and NOTHING is queued for
+ *           generation. There is no generation body on this branch to roll back to; that is
+ *           what these cases record.
  *
  * Every test below drives the REAL changed line with only the network boundary mocked
  * (whatsapp.service, supabase, the catalog services) — not a source grep. Root rule 6.
@@ -191,24 +198,23 @@ describe('she typed a topic — one short line, then the menu', () => {
     expect(flowsSent[0].flowId).toBe(FLOW_ID);
   });
 
-  // THE ROLLBACK LEVER, PROVEN. With both flags unset the gate is a no-op and the
-  // surviving Gamma body runs — which is exactly today's production behaviour, and
-  // what one Railway variable restores if the menu misbehaves after the cutover.
-  test('BOTH flags off: no Flow, no redirect — the Gamma generation path still runs', async () => {
+  // NO ROLLBACK LEVER ON THIS BRANCH. With both flags unset the gate is a no-op, so the
+  // redirect line is not sent — but the catalogue door below the gate is unconditional,
+  // so the Flow still opens, and there is no generation body left to reach.
+  test('BOTH flags off: no redirect line, the catalogue Flow still opens, nothing is queued', async () => {
     await handleLessonPlanRequest('923365709413', 'a lesson plan on photosynthesis', user, null, 'en', typing());
-    expect(flowsSent).toHaveLength(0);
     expect(messagesSent.some((m) => m.text === resolveUx('lp612RouteRedirect', { language: 'en' }))).toBe(false);
-    expect(LessonPlanQueueService.createAndQueue).toHaveBeenCalledTimes(1);
-    expect(LessonPlanQueueService.createAndQueue).toHaveBeenCalledWith(
-      expect.objectContaining({ contentType: 'lesson_plan' }),
-    );
+    expect(flowsSent).toHaveLength(1);
+    expect(flowsSent[0].flowId).toBe(FLOW_ID);
+    expect(LessonPlanQueueService.createAndQueue).not.toHaveBeenCalled();
   });
 
-  test('LP_612_ENABLED on but ROUTE_ALL off is still the Gamma path — ROUTE_ALL only ever narrows', async () => {
+  test('LP_612_ENABLED on but ROUTE_ALL off: still no redirect line — ROUTE_ALL only ever narrows', async () => {
     process.env.LP_612_ENABLED = 'true';
     await handleLessonPlanRequest('923365709413', 'a lesson plan on photosynthesis', user, null, 'en', typing());
-    expect(flowsSent).toHaveLength(0);
-    expect(LessonPlanQueueService.createAndQueue).toHaveBeenCalledTimes(1);
+    expect(messagesSent.some((m) => m.text === resolveUx('lp612RouteRedirect', { language: 'en' }))).toBe(false);
+    expect(flowsSent).toHaveLength(1);
+    expect(LessonPlanQueueService.createAndQueue).not.toHaveBeenCalled();
   });
 
   test('ROUTE_ALL on: the Gamma queue is NOT touched — the whole point of the cutover', async () => {
