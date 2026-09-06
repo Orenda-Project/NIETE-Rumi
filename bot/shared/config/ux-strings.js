@@ -900,17 +900,17 @@ const UX_STRINGS = {
   // language), and a teacher-language gloss in brackets when the two differ.
   tqOffer: {
     en: 'Your {lesson}, {date}. I can make a short 8-question quiz your students take on WhatsApp — it checks what they learnt, and you get a report on what to reteach.\n\nWant it?\n\nYou can make one for any lesson anytime by sending /quiz.',
-    ur: 'آپ کا {lesson}، {date}۔ طلبہ کے لیے 8 سوالوں کا مختصر quiz تیار ہو سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا سمجھ آیا اور کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟\n\nکسی بھی سبق کا quiz کبھی بھی /quiz بھیج کر بنایا جا سکتا ہے۔',
+    ur: 'آپ کا {lesson}، {date}۔ طلبہ کے لیے 8 سوالوں کا مختصر quiz تیار ہو سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا سمجھ آیا اور کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟\n\nکسی بھی سبق کا quiz کبھی بھی ⁦/quiz⁩ بھیج کر بنایا جا سکتا ہے۔',
   },
   tqOfferYes: { en: 'Yes, make it', ur: 'جی، بنائیں' },
   tqOfferNo: { en: 'Not now', ur: 'ابھی نہیں' },
   tqDeclined: {
     en: 'No problem. You can make a quiz for any of your lessons anytime — just send /quiz.',
-    ur: 'کوئی بات نہیں۔ کسی بھی سبق کا quiz کبھی بھی بنایا جا سکتا ہے — بس /quiz بھیجیں۔',
+    ur: 'کوئی بات نہیں۔ کسی بھی سبق کا quiz کبھی بھی بنایا جا سکتا ہے — بس ⁦/quiz⁩ بھیجیں۔',
   },
   tqOfferExpired: {
     en: 'That offer is no longer available — send /quiz to make a quiz for any lesson.',
-    ur: 'وہ پیشکش اب دستیاب نہیں — کسی بھی سبق کا quiz بنانے کے لیے /quiz بھیجیں۔',
+    ur: 'وہ پیشکش اب دستیاب نہیں — کسی بھی سبق کا quiz بنانے کے لیے ⁦/quiz⁩ بھیجیں۔',
   },
   tqMaking: {
     en: 'Making it now — about a minute. The quiz will arrive here with the message to forward.',
@@ -922,7 +922,7 @@ const UX_STRINGS = {
   },
   tqAlreadySent: {
     en: 'That quiz has already been sent — send /quiz to resend its link or get the report.',
-    ur: 'وہ quiz پہلے ہی بھیجا جا چکا ہے — link دوبارہ لینے یا رپورٹ کے لیے /quiz بھیجیں۔',
+    ur: 'وہ quiz پہلے ہی بھیجا جا چکا ہے — link دوبارہ لینے یا رپورٹ کے لیے ⁦/quiz⁩ بھیجیں۔',
   },
   tqStillMaking: {
     en: 'That quiz is still being made — it will arrive here shortly.',
@@ -930,11 +930,11 @@ const UX_STRINGS = {
   },
   tqCouldNotMake: {
     en: 'I couldn’t make a good quiz from this lesson’s recording — the transcript didn’t carry enough of what was taught clearly. Try /quiz after your next lesson.',
-    ur: 'اس سبق کی ریکارڈنگ سے اچھا quiz نہیں بن سکا — transcript میں پڑھایا ہوا مواد کافی واضح نہیں تھا۔ اگلے سبق کے بعد /quiz آزمائیں۔',
+    ur: 'اس سبق کی ریکارڈنگ سے اچھا quiz نہیں بن سکا — transcript میں پڑھایا ہوا مواد کافی واضح نہیں تھا۔ اگلے سبق کے بعد ⁦/quiz⁩ آزمائیں۔',
   },
   tqCouldNotSend: {
     en: 'The quiz is ready but the class link could not be created just now. Send /quiz in a moment to get it.',
-    ur: 'آپ کا quiz تیار ہے لیکن کلاس کا link ابھی نہیں بن سکا۔ تھوڑی دیر بعد /quiz بھیج کر حاصل کریں۔',
+    ur: 'آپ کا quiz تیار ہے لیکن کلاس کا link ابھی نہیں بن سکا۔ تھوڑی دیر بعد ⁦/quiz⁩ بھیج کر حاصل کریں۔',
   },
   tqHandoffIntro: {
     en: '📝 Your quiz: {lesson} — {n} questions.\n\nThis PDF is for you: what you taught, what the quiz checks, and every question with its correct answer marked.\n\nThe NEXT message is for your students — forward it to the class group.',
@@ -952,7 +952,7 @@ const UX_STRINGS = {
   },
   tqReportPromise: {
     en: 'You will get a report on how the class did about 12 hours after the first student starts — or sooner if everyone finishes. Send /quiz anytime to see your quizzes or fetch a report.',
-    ur: 'پہلے طالب علم کے شروع کرنے کے تقریباً 12 گھنٹے بعد — یا سب کے مکمل کرتے ہی — رپورٹ آئے گی۔ اپنے quizzes دیکھنے یا رپورٹ منگوانے کے لیے کبھی بھی /quiz بھیجیں۔',
+    ur: 'پہلے طالب علم کے شروع کرنے کے تقریباً 12 گھنٹے بعد — یا سب کے مکمل کرتے ہی — رپورٹ آئے گی۔ اپنے quizzes دیکھنے یا رپورٹ منگوانے کے لیے کبھی بھی ⁦/quiz⁩ بھیجیں۔',
   },
   tqListBody: {
     en: 'Your lessons, newest first. Pick one to make a quiz, resend its link, or get its report.',
@@ -963,7 +963,7 @@ const UX_STRINGS = {
   tqListHeader: { en: 'Lessons {from}–{to}', ur: 'اسباق {from}–{to}' },
   tqListEmpty: {
     en: 'No lessons yet. Record a lesson for coaching first — then /quiz can turn it into a quiz for your students.',
-    ur: 'ابھی کوئی سبق نہیں۔ پہلے coaching کے لیے سبق ریکارڈ کریں — پھر /quiz اسے طلبہ کے لیے quiz بنا دے گا۔',
+    ur: 'ابھی کوئی سبق نہیں۔ پہلے coaching کے لیے سبق ریکارڈ کریں — پھر ⁦/quiz⁩ اسے طلبہ کے لیے quiz بنا دے گا۔',
   },
   tqRowNoQuiz: { en: 'No quiz yet', ur: 'ابھی quiz نہیں' },
   tqRowOffered: { en: 'Offered — tap to make', ur: 'پیشکش — بنانے کو tap' },
@@ -995,7 +995,7 @@ const UX_STRINGS = {
   },
   tqNotYours: {
     en: 'I couldn’t find that lesson. Send /quiz to see your lessons.',
-    ur: 'وہ سبق نہیں ملا۔ اپنے اسباق دیکھنے کے لیے /quiz بھیجیں۔',
+    ur: 'وہ سبق نہیں ملا۔ اپنے اسباق دیکھنے کے لیے ⁦/quiz⁩ بھیجیں۔',
   },
   tqYourTeacher: { en: 'Your teacher', ur: 'آپ کے استاد' },
   tqTeacherNamed: { en: 'Teacher {name}', ur: 'استاد {name}' },
@@ -1060,7 +1060,7 @@ const UX_STRINGS = {
   tqFlowEmptyDesc: { en: 'Record one first', ur: 'پہلے ریکارڈ کریں' },
   tqFlowEmptyMeta: {
     en: 'Record a lesson for coaching, then /quiz turns it into a quiz.',
-    ur: 'پہلے coaching کے لیے سبق ریکارڈ کریں، پھر /quiz اس کا quiz بنا دے گا۔',
+    ur: 'پہلے coaching کے لیے سبق ریکارڈ کریں، پھر ⁦/quiz⁩ اس کا quiz بنا دے گا۔',
   },
   tqFlowNewerMeta: { en: 'Back to the {n} more recent lessons', ur: 'پچھلے {n} حالیہ اسباق پر واپس' },
 
