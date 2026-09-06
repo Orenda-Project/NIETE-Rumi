@@ -104,10 +104,23 @@ function topicOf(quiz, session, language) {
 /** The teacher behind a `<userId>:transcript-quiz:<ts>` token. */
 async function resolveTeacher(flowToken) {
   const userId = String(flowToken || '').split(':')[0];
-  if (!userId) return null;
-  const { data } = await supabase.from('users')
+  if (!userId) return { teacher: null, error: null };
+  const { data, error } = await supabase.from('users')
     .select('id, phone_number, preferred_language').eq('id', userId).maybeSingle();
-  return data || null;
+  // A lookup that FAILED is not a teacher that does not exist. Seen live on
+  // staging 2026-09-06: the deployed endpoint answered "could not be found"
+  // for valid teachers while the same query succeeded everywhere else, and
+  // the swallowed error was the only evidence — so it is logged, counted and
+  // answered with retry copy, never with the not-found line.
+  return { teacher: data || null, error: error ? String(error.message || error) : null };
+}
+
+/** The LESSONS screen with the retry line, after the lookup itself failed. */
+function lookupFailedScreen(error, extra = {}) {
+  const language = clampLanguage(null);
+  logToFile('❌ transcript quiz flow: teacher lookup failed', { error, ...extra }, 'error');
+  logEvent('transcript_quiz.flow_lookup_failed', { error, ...extra });
+  return lessonsScreen(null, 1, { error_message: resolveUx('tqFlowErrLookup', { language }) });
 }
 
 // ---------------------------------------------------------------------------
@@ -520,7 +533,8 @@ async function stepAction(teacher, screenData) {
 // ---------------------------------------------------------------------------
 
 async function handleTranscriptQuizInit(flowToken) {
-  const teacher = await resolveTeacher(flowToken);
+  const { teacher, error } = await resolveTeacher(flowToken);
+  if (error) return lookupFailedScreen(error, { action: 'INIT' });
   if (!teacher) {
     logToFile('⚠️ transcript quiz flow: unknown token', { hasToken: Boolean(flowToken) });
     return lessonsScreen(null, 1, { error_message: resolveUx('tqFlowErrNotYours', { language: clampLanguage(null) }) });
@@ -530,7 +544,8 @@ async function handleTranscriptQuizInit(flowToken) {
 }
 
 async function handleTranscriptQuizDataExchange(flowToken, screen, screenData) {
-  const teacher = await resolveTeacher(flowToken);
+  const { teacher, error } = await resolveTeacher(flowToken);
+  if (error) return lookupFailedScreen(error, { action: 'data_exchange', step: String((screenData && screenData.step) || '') });
   const language = teacherLanguageFor({ preferredLanguage: teacher?.preferred_language });
   if (!teacher) {
     return lessonsScreen(null, 1, { error_message: resolveUx('tqFlowErrNotYours', { language }) });
@@ -555,7 +570,8 @@ async function handleTranscriptQuizDataExchange(flowToken, screen, screenData) {
 /** The Flow's own back arrow re-enters LESSONS; the endpoint re-serves page 1
  *  so a lesson whose quiz finished while the teacher was inside is current. */
 async function handleTranscriptQuizBack(flowToken) {
-  const teacher = await resolveTeacher(flowToken);
+  const { teacher, error } = await resolveTeacher(flowToken);
+  if (error) return lookupFailedScreen(error, { action: 'BACK' });
   return lessonsScreen(teacher, 1);
 }
 
