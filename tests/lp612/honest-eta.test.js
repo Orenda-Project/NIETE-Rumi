@@ -22,7 +22,7 @@
  * and the bot cannot know which it is addressing.
  */
 
-const { UX_STRINGS, resolveUx } = require('../../bot/shared/config/ux-strings');
+const { UX_STRINGS, resolveUx, LP612_ETA } = require('../../bot/shared/config/ux-strings');
 
 const cps = (s) => [...String(s == null ? '' : s)].length;
 
@@ -39,42 +39,90 @@ describe('no interstitial promises two minutes any more', () => {
   });
 });
 
-describe('the interstitials quote no duration at all — they promise a follow-up', () => {
-  // The ack for a fresh run, and the ack for a run that died and was restarted.
-  // Both are the teacher's first and only estimate, so both carry the number.
-  // bd-oo0of / bd-oak77.4 — THE CONTRACT CHANGED, DELIBERATELY, AND THIS IS THE NEW ONE.
+/**
+ * THE MEASURED BAND the copy is allowed to quote — the source of truth for the guard below.
+ *
+ * Measured 2026-09-06 on the prod configuration (`LP612_AUTHOR_ROUNDS=3` with
+ * `LP612_TARGETED_REVISION=true`):
+ *     p50  160 s  English
+ *     p50  207 s  Urdu
+ *     p90  ~308 s (both)
+ * The slowest thing anyone has seen recently is a 5-round staging run on the extraction branch at
+ * 6 m 41 s — that is a different configuration and is NOT what prod serves.
+ *
+ * The rule this file enforces: the quoted band must COVER p90, not the median. A teacher told the
+ * median is told a number she beats half the time and misses half the time, and the half she misses
+ * is the half that files the bug report. Quote the tail.
+ *
+ * When the lane's timings move, change LP612_ETA in ux-strings.js and these three numbers together.
+ */
+const MEASURED = { p50EnSeconds: 160, p50UrSeconds: 207, p90Seconds: 308 };
+
+describe('the estimate is back, and it is one constant', () => {
+  // bd-oak77.10 — the operator, 2026-09-06: "previously we used to have an estimate for how long it
+  // will take to produce the lesson plan. It seems like we removed the estimate. Can you please
+  // bring the estimate back on?"
   //
-  // These two strings used to be REQUIRED to say "5-6 minutes", and the tests below were the
-  // ratchet holding them there. The number had already drifted out of true: the measured median on
-  // staging is ~6 min English and ~9 min Urdu, so an Urdu teacher was being told five-to-six and
-  // waiting nine. Quoting a number that is wrong is worse than quoting none — it is the same defect
-  // this file was written to catch, one revision later.
-  //
-  // So the promise is now a FOLLOW-UP rather than a duration: lp612StillWorking already fires at
-  // LP612_FOLLOWUP_MS, and lp612Preparing now says that will happen. The old assertions are
-  // inverted rather than deleted, so nothing can quietly put a number back.
-  test.each(['lp612Preparing', 'lp612Restarted'])('%s quotes NO duration in English', (key) => {
-    expect(UX_STRINGS[key].en).not.toMatch(/5\s*[–-]\s*6 minutes/);
-    expect(UX_STRINGS[key].en).not.toMatch(/\d+\s*(minutes?|min\b)/i);
+  // It had been removed (bd-oo0of) because the number then in the copy — five to six minutes — was
+  // measured against a slower lane and was wrong for Urdu by three minutes. Targeted revision landed
+  // and the lane is now fast enough that an honest band exists, so the estimate comes back. It comes
+  // back as ONE constant, so the next time the lane moves this is a one-line change and not a hunt
+  // through four strings in two languages.
+  test('LP612_ETA is exported, with a phrase per offered language and a numeric band', () => {
+    expect(LP612_ETA).toBeDefined();
+    expect(typeof LP612_ETA.en).toBe('string');
+    expect(typeof LP612_ETA.ur).toBe('string');
+    expect(Number.isFinite(LP612_ETA.minMinutes)).toBe(true);
+    expect(Number.isFinite(LP612_ETA.maxMinutes)).toBe(true);
+    expect(LP612_ETA.minMinutes).toBeLessThan(LP612_ETA.maxMinutes);
   });
 
-  test.each(['lp612Preparing', 'lp612Restarted'])('%s quotes NO duration in Urdu', (key) => {
-    expect(UX_STRINGS[key].ur).not.toContain('پانچ سے چھ منٹ');
-    expect(UX_STRINGS[key].ur).not.toMatch(/\d+\s*منٹ/);
+  test('the band COVERS the measured p90 — the tail, not the median', () => {
+    // Compared in WHOLE MINUTES, because that is the unit the copy is written in: she is told
+    // "3-5 minutes", never "308 seconds". p90 is 5 m 8 s, which rounds to the 5 the copy quotes.
+    // Asserting raw seconds instead would fail this band by eight seconds and push the copy to
+    // "3-6 minutes" — overselling the wait by a whole minute against a p50 of 2 m 40 s, to chase
+    // precision the sentence cannot express anyway.
+    //
+    // The guard still bites where it matters: if p90 moves past 5 m 30 s this rounds to 6 and the
+    // test fails until either the lane or the copy moves.
+    expect(LP612_ETA.maxMinutes).toBeGreaterThanOrEqual(Math.round(MEASURED.p90Seconds / 60));
   });
 
-  test('lp612Preparing promises a follow-up instead of a number', () => {
-    // The thing that replaces the estimate: she is told she will hear again if it runs long, which
-    // is a promise the code actually keeps (lp612StillWorking at LP612_FOLLOWUP_MS).
-    expect(UX_STRINGS.lp612Preparing.en).toMatch(/check in|hear from me|let you know/i);
-    expect(UX_STRINGS.lp612Preparing.ur).toContain('اطلاع');
+  test('the band is not so wide it stops being information', () => {
+    // The low end must still be a plausible wait for a real lesson: at or below p90, and at or
+    // above the point where we would be under-promising the typical Urdu run into a bug report.
+    expect(LP612_ETA.minMinutes * 60).toBeLessThanOrEqual(MEASURED.p90Seconds);
+    expect(LP612_ETA.maxMinutes - LP612_ETA.minMinutes).toBeLessThanOrEqual(4);
   });
 
-  test('the fresh ack says the estimate is for a lesson written from scratch', () => {
-    // Second and later requests for the same lesson are served from R2 in about
-    // a second. Saying so is what stops "5-6 minutes" reading as the new normal.
+  test.each(['lp612Preparing', 'lp612Restarted'])('%s carries the constant verbatim, in BOTH languages', (key) => {
+    // Asserting the constant is IN the string, not that the string contains some number: that is
+    // what makes LP612_ETA the single place to tune. A hand-typed "3-5 minutes" that drifted from
+    // the constant would fail here.
+    expect(UX_STRINGS[key].en).toContain(LP612_ETA.en);
+    expect(UX_STRINGS[key].ur).toContain(LP612_ETA.ur);
+  });
+
+  test('the Urdu estimate uses Urdu digits, never ASCII or Arabic-Indic', () => {
+    expect(LP612_ETA.ur).toMatch(/[\u06F0-\u06F9]/);      // ۰۱۲۳۴۵۶۷۸۹
+    expect(LP612_ETA.ur).not.toMatch(/[0-9]/);
+    expect(LP612_ETA.ur).not.toMatch(/[\u0660-\u0669]/);  // ٠١٢٣ — the wrong set
+  });
+
+  test('the fresh ack still says the estimate is for a lesson written from scratch', () => {
+    // Second and later requests for the same lesson are served from R2 in about a second and send
+    // no interstitial at all. Saying "brand-new" is what stops the band reading as the price of
+    // every lesson.
     expect(UX_STRINGS.lp612Preparing.en).toMatch(/brand-new|new lesson|first time/i);
     expect(UX_STRINGS.lp612Preparing.ur).toContain('نئے سبق');
+  });
+
+  test('lp612StillWorking does NOT re-quote the band', () => {
+    // It fires at LP612_FOLLOWUP_MS, i.e. only once the run has already outlived the estimate.
+    // Repeating the number there would be telling her the thing that just failed to be true.
+    expect(UX_STRINGS.lp612StillWorking.en).not.toContain(LP612_ETA.en);
+    expect(UX_STRINGS.lp612StillWorking.ur).not.toContain(LP612_ETA.ur);
   });
 });
 

@@ -150,7 +150,7 @@ describe('a cached render is served immediately', () => {
   });
 });
 
-const { resolveUx } = require('../../bot/shared/config/ux-strings');
+const { resolveUx, LP612_ETA } = require('../../bot/shared/config/ux-strings');
 
 // ── cache miss ──────────────────────────────────────────────────────────────
 
@@ -163,12 +163,12 @@ describe('a miss authors the lesson at request time', () => {
 
     expect(out.outcome).toBe('queued');
     expect(mockSendMessage).toHaveBeenCalledTimes(1);
-    // bd-oo0of / bd-oak77.4 — this used to pin the literal "5–6 minutes". The number had drifted
-    // out of true (measured ~6 min EN, ~9 min UR), so the copy now promises a FOLLOW-UP and no
-    // duration. What this test still guards is the thing that matters here: she is acked, with the
-    // real interstitial from the one catalog, before anything is enqueued.
+    // The literal band lives in ONE place (LP612_ETA in ux-strings.js) and honest-eta.test.js pins
+    // it against the measured numbers. Here we assert only that she is acked with the real
+    // interstitial from that one catalog — carrying the estimate — before anything is enqueued.
+    // Pinning the phrase again in this file is how the two copies drift apart.
     expect(mockSendMessage.mock.calls[0][1]).toBe(resolveUx('lp612Preparing', { language: REQ.language }));
-    expect(mockSendMessage.mock.calls[0][1]).not.toMatch(/\d+\s*(minutes?|منٹ)/i);
+    expect(mockSendMessage.mock.calls[0][1]).toContain(LP612_ETA[REQ.language] || LP612_ETA.en);
     const ackOrder = mockSendMessage.mock.invocationCallOrder[0];
     const queueOrder = mockQueueJob.mock.invocationCallOrder[0];
     expect(ackOrder).toBeLessThan(queueOrder);
