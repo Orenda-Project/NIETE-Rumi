@@ -170,9 +170,16 @@ function mergeReplacements(questions, json, targets) {
   const chosen = new Map();
   list.forEach((r, pos) => {
     if (!r || typeof r !== 'object') return;
+    // A replacement that NAMES an index we did not ask about is discarded, not
+    // relocated: the model was given the only valid indices, and quietly moving
+    // a question written for q2 onto q0 would ship a repair for a question that
+    // was never broken. Positional matching is only for a reply with no index
+    // at all.
     const named = Number(r.index);
-    const idx = Number.isInteger(named) && indices.includes(named) ? named : indices[pos];
-    if (idx === undefined || chosen.has(idx) || !indices.includes(idx)) return;
+    const idx = Number.isInteger(named)
+      ? (indices.includes(named) ? named : undefined)
+      : indices[pos];
+    if (idx === undefined || chosen.has(idx)) return;
     if (r.figure) return;                       // the no-picture contract, asserted
     if (!String(r.question || '').trim()) return;
     chosen.set(idx, r);
