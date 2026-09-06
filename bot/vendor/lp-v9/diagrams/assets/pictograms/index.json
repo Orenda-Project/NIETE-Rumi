@@ -87,6 +87,12 @@
       "annotation": "battery",
       "author": "Jonas Roßner"
     },
+    "bear": {
+      "file": "bear.svg",
+      "hexcode": "1F43B",
+      "annotation": "bear",
+      "author": "Sofie Ascherl"
+    },
     "bed": {
       "file": "bed.svg",
       "hexcode": "1F6CF",
@@ -110,6 +116,12 @@
       "hexcode": "1F6B2",
       "annotation": "bicycle",
       "author": "Ronja Bäurlen"
+    },
+    "bin": {
+      "file": "bin.svg",
+      "hexcode": "1F5D1",
+      "annotation": "wastebasket",
+      "author": "Sina Schulz"
     },
     "bird": {
       "file": "bird.svg",
@@ -146,6 +158,12 @@
       "hexcode": "1F4D5",
       "annotation": "closed book",
       "author": "Jonas Roßner"
+    },
+    "boot": {
+      "file": "boot.svg",
+      "hexcode": "1F97E",
+      "annotation": "hiking boot",
+      "author": "Laura Schießer"
     },
     "bottle": {
       "file": "bottle.svg",
@@ -188,6 +206,18 @@
       "hexcode": "1F309",
       "annotation": "bridge at night",
       "author": "Jonas Dunkel"
+    },
+    "broom": {
+      "file": "broom.svg",
+      "hexcode": "1F9F9",
+      "annotation": "broom",
+      "author": "Tonia Reinhardt"
+    },
+    "brush": {
+      "file": "brush.svg",
+      "hexcode": "1F58C",
+      "annotation": "paintbrush",
+      "author": "Rana Cakir"
     },
     "bucket": {
       "file": "bucket.svg",
@@ -249,6 +279,12 @@
       "annotation": "candle",
       "author": "Sina Schulz"
     },
+    "cap": {
+      "file": "cap.svg",
+      "hexcode": "1F9E2",
+      "annotation": "billed cap",
+      "author": "Jennifer Pätzold"
+    },
     "car": {
       "file": "car.svg",
       "hexcode": "1F697",
@@ -279,6 +315,18 @@
       "annotation": "bar chart",
       "author": "Sina Schulz"
     },
+    "cheese": {
+      "file": "cheese.svg",
+      "hexcode": "1F9C0",
+      "annotation": "cheese wedge",
+      "author": "Miriam Vollmeier"
+    },
+    "cherry": {
+      "file": "cherry.svg",
+      "hexcode": "1F352",
+      "annotation": "cherries",
+      "author": "Marius Schnabel"
+    },
     "chick": {
       "file": "chick.svg",
       "hexcode": "1F424",
@@ -291,6 +339,12 @@
       "annotation": "child",
       "author": "Johanna Wellnitz"
     },
+    "chilli": {
+      "file": "chilli.svg",
+      "hexcode": "1F336",
+      "annotation": "hot pepper",
+      "author": "Marius Schnabel"
+    },
     "clock": {
       "file": "clock.svg",
       "hexcode": "23F0",
@@ -302,6 +356,12 @@
       "hexcode": "2601",
       "annotation": "cloud",
       "author": "Vanessa Boutzikoudi"
+    },
+    "coconut": {
+      "file": "coconut.svg",
+      "hexcode": "1F965",
+      "annotation": "coconut",
+      "author": "Marius Schnabel"
     },
     "coin": {
       "file": "coin.svg",
@@ -327,11 +387,23 @@
       "annotation": "cow",
       "author": "Sofie Ascherl"
     },
+    "crab": {
+      "file": "crab.svg",
+      "hexcode": "1F980",
+      "annotation": "crab",
+      "author": "Liz Bravo"
+    },
     "crayon": {
       "file": "crayon.svg",
       "hexcode": "1F58D",
       "annotation": "crayon",
       "author": "Rana Cakir"
+    },
+    "cricket": {
+      "file": "cricket.svg",
+      "hexcode": "1F997",
+      "annotation": "cricket",
+      "author": "Selina Bauder"
     },
     "cricket_bat": {
       "file": "cricket_bat.svg",
@@ -339,11 +411,23 @@
       "annotation": "cricket game",
       "author": "Vanessa Boutzikoudi"
     },
+    "crown": {
+      "file": "crown.svg",
+      "hexcode": "1F451",
+      "annotation": "crown",
+      "author": "Jonas Roßner"
+    },
     "cup": {
       "file": "cup.svg",
       "hexcode": "1F964",
       "annotation": "cup with straw",
       "author": "Laura Humpfer"
+    },
+    "deer": {
+      "file": "deer.svg",
+      "hexcode": "1F98C",
+      "annotation": "deer",
+      "author": "Sofie Ascherl"
     },
     "die": {
       "file": "die.svg",
@@ -507,6 +591,12 @@
       "annotation": "fork and knife",
       "author": "Jonas Roßner"
     },
+    "fox": {
+      "file": "fox.svg",
+      "hexcode": "1F98A",
+      "annotation": "fox",
+      "author": "Sofie Ascherl"
+    },
     "frog": {
       "file": "frog.svg",
       "hexcode": "1F438",
@@ -518,6 +608,12 @@
       "hexcode": "1F34E",
       "annotation": "red apple",
       "author": "Liz Bravo"
+    },
+    "garlic": {
+      "file": "garlic.svg",
+      "hexcode": "1F9C4",
+      "annotation": "garlic",
+      "author": "Yasmin Abdullahi"
     },
     "gear": {
       "file": "gear.svg",
@@ -543,11 +639,23 @@
       "annotation": "globe with meridians",
       "author": "Martin Wehl"
     },
+    "glove": {
+      "file": "glove.svg",
+      "hexcode": "1F9E4",
+      "annotation": "gloves",
+      "author": "Laura Schießer"
+    },
     "goat": {
       "file": "goat.svg",
       "hexcode": "1F410",
       "annotation": "goat",
       "author": "Sofie Ascherl"
+    },
+    "grape": {
+      "file": "grape.svg",
+      "hexcode": "1F347",
+      "annotation": "grapes",
+      "author": "Hend Hourani"
     },
     "grapes": {
       "file": "grapes.svg",
@@ -566,6 +674,12 @@
       "hexcode": "1F3B8",
       "annotation": "guitar",
       "author": "Sina Schulz"
+    },
+    "ham": {
+      "file": "ham.svg",
+      "hexcode": "1F969",
+      "annotation": "cut of meat",
+      "author": "Miriam Vollmeier"
     },
     "hammer": {
       "file": "hammer.svg",
@@ -621,6 +735,12 @@
       "annotation": "house",
       "author": "Martin Wehl"
     },
+    "hut": {
+      "file": "hut.svg",
+      "hexcode": "1F6D6",
+      "annotation": "hut",
+      "author": "Liz Bravo"
+    },
     "ice": {
       "file": "ice.svg",
       "hexcode": "1F9CA",
@@ -644,6 +764,12 @@
       "hexcode": "1FA81",
       "annotation": "kite",
       "author": "Evelyn Soos"
+    },
+    "knife": {
+      "file": "knife.svg",
+      "hexcode": "1F52A",
+      "annotation": "kitchen knife",
+      "author": "Jonas Roßner"
     },
     "ladder": {
       "file": "ladder.svg",
@@ -765,6 +891,12 @@
       "annotation": "mountain",
       "author": "Martin Wehl"
     },
+    "mouse": {
+      "file": "mouse.svg",
+      "hexcode": "1F401",
+      "annotation": "mouse",
+      "author": "Sofie Ascherl"
+    },
     "mouth": {
       "file": "mouth.svg",
       "hexcode": "1F444",
@@ -813,11 +945,47 @@
       "annotation": "tangerine",
       "author": "Liz Bravo"
     },
+    "owl": {
+      "file": "owl.svg",
+      "hexcode": "1F989",
+      "annotation": "owl",
+      "author": "Selina Bauder"
+    },
+    "ox": {
+      "file": "ox.svg",
+      "hexcode": "1F402",
+      "annotation": "ox",
+      "author": "Sofie Ascherl"
+    },
+    "panda": {
+      "file": "panda.svg",
+      "hexcode": "1F43C",
+      "annotation": "panda",
+      "author": "Sofie Ascherl"
+    },
     "paper": {
       "file": "paper.svg",
       "hexcode": "1F4C4",
       "annotation": "page facing up",
       "author": "Jonas Roßner"
+    },
+    "parrot": {
+      "file": "parrot.svg",
+      "hexcode": "1F99C",
+      "annotation": "parrot",
+      "author": "Ricarda Krejci"
+    },
+    "peach": {
+      "file": "peach.svg",
+      "hexcode": "1F351",
+      "annotation": "peach",
+      "author": "Marius Schnabel"
+    },
+    "pear": {
+      "file": "pear.svg",
+      "hexcode": "1F350",
+      "annotation": "pear",
+      "author": "Marius Schnabel"
     },
     "pen": {
       "file": "pen.svg",
@@ -831,11 +999,35 @@
       "annotation": "pencil",
       "author": "Rana Cakir"
     },
+    "penguin": {
+      "file": "penguin.svg",
+      "hexcode": "1F427",
+      "annotation": "penguin",
+      "author": "Selina Bauder"
+    },
     "phone": {
       "file": "phone.svg",
       "hexcode": "1F4F1",
       "annotation": "mobile phone",
       "author": "Martin Wehl"
+    },
+    "pig": {
+      "file": "pig.svg",
+      "hexcode": "1F416",
+      "annotation": "pig",
+      "author": "Sofie Ascherl"
+    },
+    "pin": {
+      "file": "pin.svg",
+      "hexcode": "1F4CC",
+      "annotation": "pushpin",
+      "author": "Sina Schulz"
+    },
+    "pineapple": {
+      "file": "pineapple.svg",
+      "hexcode": "1F34D",
+      "annotation": "pineapple",
+      "author": "Marius Schnabel"
     },
     "plant": {
       "file": "plant.svg",
@@ -884,6 +1076,18 @@
       "hexcode": "1F308",
       "annotation": "rainbow",
       "author": "Vanessa Boutzikoudi"
+    },
+    "ram": {
+      "file": "ram.svg",
+      "hexcode": "1F40F",
+      "annotation": "ram",
+      "author": "Sofie Ascherl"
+    },
+    "rat": {
+      "file": "rat.svg",
+      "hexcode": "1F400",
+      "annotation": "rat",
+      "author": "Sofie Ascherl"
     },
     "ribbon": {
       "file": "ribbon.svg",
@@ -939,11 +1143,23 @@
       "annotation": "straight ruler",
       "author": "Sina Schulz"
     },
+    "sandal": {
+      "file": "sandal.svg",
+      "hexcode": "1FA74",
+      "annotation": "thong sandal",
+      "author": "Liz Bravo"
+    },
     "scale": {
       "file": "scale.svg",
       "hexcode": "2696",
       "annotation": "balance scale",
       "author": "Hilda Kalyoncu"
+    },
+    "scarf": {
+      "file": "scarf.svg",
+      "hexcode": "1F9E3",
+      "annotation": "scarf",
+      "author": "Laura Schießer"
     },
     "school": {
       "file": "school.svg",
@@ -975,11 +1191,23 @@
       "annotation": "seedling",
       "author": "Hilda Kalyoncu"
     },
+    "shark": {
+      "file": "shark.svg",
+      "hexcode": "1F988",
+      "annotation": "shark",
+      "author": "Selina Bauder"
+    },
     "sheep": {
       "file": "sheep.svg",
       "hexcode": "1F411",
       "annotation": "ewe",
       "author": "Sofie Ascherl"
+    },
+    "shell": {
+      "file": "shell.svg",
+      "hexcode": "1F41A",
+      "annotation": "spiral shell",
+      "author": "Selina Bauder"
     },
     "ship": {
       "file": "ship.svg",
@@ -1011,6 +1239,12 @@
       "annotation": "cloud",
       "author": "Vanessa Boutzikoudi"
     },
+    "snail": {
+      "file": "snail.svg",
+      "hexcode": "1F40C",
+      "annotation": "snail",
+      "author": "Selina Bauder"
+    },
     "snake": {
       "file": "snake.svg",
       "hexcode": "1F40D",
@@ -1034,6 +1268,12 @@
       "hexcode": "1F9E6",
       "annotation": "socks",
       "author": "Laura Schießer"
+    },
+    "spider": {
+      "file": "spider.svg",
+      "hexcode": "1F577",
+      "annotation": "spider",
+      "author": "Selina Bauder"
     },
     "spoon": {
       "file": "spoon.svg",
@@ -1143,6 +1383,18 @@
       "annotation": "ticket",
       "author": "Laura Humpfer"
     },
+    "tiger": {
+      "file": "tiger.svg",
+      "hexcode": "1F405",
+      "annotation": "tiger",
+      "author": "Sofie Ascherl"
+    },
+    "tin": {
+      "file": "tin.svg",
+      "hexcode": "1F96B",
+      "annotation": "canned food",
+      "author": "Daniel Quiros"
+    },
     "tomato": {
       "file": "tomato.svg",
       "hexcode": "1F345",
@@ -1154,6 +1406,12 @@
       "hexcode": "1F9B7",
       "annotation": "tooth",
       "author": "Laura Schießer"
+    },
+    "toothbrush": {
+      "file": "toothbrush.svg",
+      "hexcode": "1FAA5",
+      "annotation": "toothbrush",
+      "author": "Liz Bravo"
     },
     "torch": {
       "file": "torch.svg",
@@ -1191,11 +1449,23 @@
       "annotation": "trophy",
       "author": "Julian Grüneberg"
     },
+    "trousers": {
+      "file": "trousers.svg",
+      "hexcode": "1F456",
+      "annotation": "jeans",
+      "author": "Jonas Roßner"
+    },
     "truck": {
       "file": "truck.svg",
       "hexcode": "1F69A",
       "annotation": "delivery truck",
       "author": "Ronja Bäurlen"
+    },
+    "turtle": {
+      "file": "turtle.svg",
+      "hexcode": "1F422",
+      "annotation": "turtle",
+      "author": "Robert Winslow"
     },
     "umbrella": {
       "file": "umbrella.svg",
@@ -1233,6 +1503,18 @@
       "annotation": "water wave",
       "author": "Vanessa Boutzikoudi"
     },
+    "web": {
+      "file": "web.svg",
+      "hexcode": "1F578",
+      "annotation": "spider web",
+      "author": "Selina Bauder"
+    },
+    "whale": {
+      "file": "whale.svg",
+      "hexcode": "1F40B",
+      "annotation": "whale",
+      "author": "Kris Kowal"
+    },
     "wheel": {
       "file": "wheel.svg",
       "hexcode": "1F6DE",
@@ -1244,6 +1526,12 @@
       "hexcode": "1FA9F",
       "annotation": "window",
       "author": "Liz Bravo"
+    },
+    "zebra": {
+      "file": "zebra.svg",
+      "hexcode": "1F993",
+      "annotation": "zebra",
+      "author": "Sofie Ascherl"
     }
   }
 }
