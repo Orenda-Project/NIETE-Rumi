@@ -123,12 +123,81 @@ const SECTION_META = {
   homework: { letter: "H", cls: "s-h" },
 };
 
+/* ── THE TYPE SCALE (v9.2, 2026-09-06) ────────────────────────────────────────
+   Operator: *"could we please increase the font on the lesson plan even further to
+   ensure its readability? Currently, it's very small, and it's very hard to read.
+   Please increase the size by 1 or 2 pt, or figure out what makes it readable if one
+   is holding a phone at an arm's length distance."*
+
+   Every font-size below is still written at its v9.1 value and multiplied by ONE
+   number on the way out, so the ladder stays proportional and the next move is one
+   constant rather than sixty edits. The operator asked in POINTS; 1 CSS pt = 4/3 px,
+   so the v9.1 18px body was 13.5pt and the v9.2 21px body is 15.75pt — his "1 or 2 pt",
+   rounded UP to the number the rest of the bot already uses (see the note below the
+   constants).
+
+   WHAT DOES NOT SCALE, and why:
+     · padding, radii, borders and the --sp-N spacing ladder. v9.1's rule stands —
+       no narrower gutters and no horizontal-density tricks to pay for the type.
+       Leading is UNITLESS, so it grows with the type for free.
+     · the KaTeX stylesheet. It is concatenated AFTER the scale is applied; its own
+       px rules are internal typesetting geometry and multiplying them corrupts the
+       maths. This is why the scale is applied to our block alone and not to the
+       whole returned sheet.
+     · the diagram engine's label floor. It lives in diagrams/lib/svg.js and sizes
+       labels against the FIGURE's column, not the page's body scale. It moves in
+       its own change, gated by the overlap sweep.
+
+   READABILITY.md (prod_golive_2026-09-06/07_font) carries the measurement this
+   number is chosen against, including the honest statement that NO step of one or two
+   points reaches the arm's-length floor: at 21px the body still arrives at 66% of the
+   critical print size for fluent reading, and closing the rest needs a phone-first page,
+   which is priced there and is the operator's call, not this file's. */
+const BODY_PX_V91 = 18;    // the v9.1 body — 13.5pt
+const BODY_PX     = 21;    // v9.2 — 15.75pt, i.e. +2.25pt
+const TYPE_SCALE  = BODY_PX / BODY_PX_V91;     // 1.1666…
+
+/* WHY 21 AND NOT 20.67 (= a flat +2pt). Because 21 is not this file's number to pick.
+   `bot/shared/templates/niete-brand.js` in NIETE-Rumi already declares
+   `TYPE_FLOOR = { body: 21, small: 16.5, label: 15.5 }` as THE type floor for every
+   teacher-facing rendered artefact, shipped for the quiz PDFs on the same evidence and the
+   same arithmetic used here (an A4 page opened on a phone is scaled by 390/794 = 0.4912
+   before anyone reads it). Two PDFs that arrive from the same bot on the same day must not
+   disagree about what "readable" means — that is exactly how one artefact came to run at
+   11px while another ran at 9.5px and both believed they were fine.
+
+   The vendored engine deliberately does NOT `require` that token: `bot/vendor/lp-v9` is a
+   vendored copy with a documented divergence list, and reaching into the host app's brand
+   module would be a divergence upstream can never carry. So the NUMBER is shared and the
+   CODE is not, and this comment is the join. If the token moves, this constant moves with
+   it — `tests/lp612/type-scale.test.js` asserts the two agree, so they cannot drift silently. */
+
+/** THE ONE ROUNDING, AND IT IS TWO DECIMAL PLACES ON PURPOSE.
+ *
+ *  Chrome's `getComputedStyle().fontSize` — which is what render_lp.js's probe reads and
+ *  compares against BODY_FLOOR_PX — serialises to 2 dp. A stylesheet written at 3 dp is
+ *  therefore read back SHORTER than it was written (`19.333px` in, `19.33px` out), and the
+ *  floor check then fails EVERY render on nothing but a rounding artefact. Measured, not
+ *  reasoned: the first +1pt corpus render died with
+ *  "TYPE FLOOR: smallest body text is 19.33px (<19.333px)".
+ *
+ *  So there is exactly one place a scaled px is computed, it rounds the way the browser
+ *  rounds, and both the stylesheet and the floors go through it. */
+const scaledPx = (px) => +(px * TYPE_SCALE).toFixed(2);
+
+/** Multiply every `font-size: <n>px` in a stylesheet by the type scale, and nothing else.
+ *  `em`/unitless values scale with their parent for free and are left alone. */
+function scaleTypeCss(sheet, k) {
+  if (!(k > 0) || k === 1) return sheet;
+  const f = k === TYPE_SCALE ? scaledPx : (px) => +(px * k).toFixed(2);
+  return sheet.replace(/font-size:(\s*)([\d.]+)px/g,
+    (_m, sp, n) => `font-size:${sp}${f(Number(n))}px`);
+}
+
 function css(rtl, fonts, katex) {
   const start = rtl ? "right" : "left";
   const end = rtl ? "left" : "right";
-  return `
-${fonts}
-${katex}
+  const sheet = `
 @page { size: A4; margin: 0; }
 :root{
   --navy:#0B2545; --navy2:#13315C; --amber:#F2A20C; --amber-soft:#FDEBC8;
@@ -565,6 +634,7 @@ p, li, figcaption,
 .wu .q, .pr .q, .hw .q, .mcq .q, .exq h4, .exq .prompt,
 .exit .it > span, .vres a, .tnote, .crit, .bythe, .how, .refq{ unicode-bidi:plaintext; }
 ` : ""}`;
+  return `${fonts}\n${katex}\n${scaleTypeCss(sheet, TYPE_SCALE)}`;
 }
 
 // ── geometry the figure sizer needs ─────────────────────────────────────────
@@ -1717,7 +1787,8 @@ ${paginate("support", support.atoms, breaks.support || [], ctx, doc, secIndex, t
 }
 
 module.exports = {
-  buildHtml, SECTION_META, PAGE_CONTENT_H, SPACING, DIAGRAM_LABELS, diagramLabel,
+  buildHtml, TYPE_SCALE, BODY_PX, BODY_PX_V91, scaledPx, scaleTypeCss,
+  SECTION_META, PAGE_CONTENT_H, SPACING, DIAGRAM_LABELS, diagramLabel,
   // The full-width drawing box and the legibility floor, exported so lint_lp.js can ASK rather
   // than restate. It restated them and drifted (bd-oak77.14).
   FULL_COL, DIAGRAM_MIN_PX, FIG_GROW_MAX,

@@ -351,8 +351,9 @@ outside this repo and not in this repo's git history:
 >   `printed_pages` and the outcome box's Latin citation atoms; sequence/answer arrows flip to
 >   `&larr;` under RTL; prose blocks carry `unicode-bidi:plaintext` (RTL stylesheet only — the
 >   English render is byte-identical, asserted upstream and in `tests/lp612/bidi-caps.test.js`).
-> * **Per-language page caps** (`render_lp.js`): `pageCapsFor(lang)` — English **6/4** (warn 5/3);
->   Urdu **7/6** (warn 6/5). *(Raised one sheet per language on 2026-09-04, bd-vjk68: EN teach
+> * **Per-language page caps** (`render_lp.js`): `pageCapsFor(lang)` — English **7/6** (warn 6/5);
+>   Urdu **9/7** (warn 8/6) *(since 2026-09-06, bd-oak77.12 — see the v9.2 type-scale note below;
+>   they were EN 6/4 · UR 7/6 for two days)*. *(Raised one sheet per language on 2026-09-04, bd-vjk68: EN teach
 >   5→6, UR support 5→6, aimed at where the 9 live overflows actually were — 6 EN teach, 3 UR
 >   support. Was EN 5/4 warn 4/3, UR 7/5 warn 6/4. That raise landed HERE FIRST and left the skill
 >   behind for a few hours; it was **mirrored upstream on 2026-09-04 under bd-09m6a** — the four
@@ -632,13 +633,64 @@ Tests: `tests/lp612/page-packer.test.js` (18) — the mid-section headline case,
 single-atom escape, per-page overhead for a mid-section vs own-bar opener, both top-margin rules, the
 front-loading equivalence, and the invariants against greedy.
 
+### 3.10 The v9.2 type scale — NOT a divergence, and applied as identical hunks (2026-09-06)
+
+Operator, for the third time: *"could we please increase the font on the lesson plan even further
+to ensure its readability? Currently, it's very small, and it's very hard to read. Please increase
+the size by 1 or 2 pt, or figure out what makes it readable if one is holding a phone at an arm's
+length distance."*
+
+**Body 18px → 21px, every other size by the same factor** (`TYPE_SCALE = BODY_PX / BODY_PX_V91` in
+`lib/template.js`, applied by `scaleTypeCss` to our stylesheet only). Floors derived
+(`BODY_FLOOR_PX = scaledPx(18)` = 21, `CHIP_FLOOR_PX = scaledPx(14)` = 16.33). Caps EN 6/4 → **7/6**,
+UR 7/6 → **9/7**, and §8 of the brief and its three flash copies carry the new budget. Gutters, the
+`--sp-N` ladder and the leading are byte-identical to v9.1 — nothing was clawed back to pay for the
+type.
+
+**Why 21 and not 20.67 (a flat +2pt).** `bot/shared/templates/niete-brand.js` already declares
+`TYPE_FLOOR = { body: 21, small: 16.5, label: 15.5 }` as the type floor for every teacher-facing
+rendered artefact. The vendored engine does **not** `require` that module — reaching into the host
+app's brand layer is a divergence upstream could never carry — so the NUMBER is shared and the CODE
+is not, and `tests/lp612/type-scale.test.js` asserts the two agree so they cannot drift silently.
+(That assertion SKIPS LOUDLY on a base where `niete-brand.js` does not exist, which is the case on
+`main` today: the quiz lane that introduced the token has not been promoted.)
+
+**Not a divergence.** The same hunks are in the skill copy, and `test/type_scale.js` upstream pins
+the same contract plus a browser-backed pagination snapshot on three corpus documents. Applied as
+**surgical hunks in both trees, never a whole-file copy**, because the two had already diverged in
+both directions (§3.9's `glue` marks are ours; the caps were stale upstream) and copying either
+file over the other would have silently reverted whichever was ahead.
+
+**One thing this DID close.** Measured on 2026-09-06, this workspace's skill copy still carried
+`MAX_PAGES {teach:5,support:4}` / `MAX_PAGES_UR {teach:7,support:5}` — the pre-bd-vjk68 numbers —
+despite the bd-09m6a mirror note above. Both homes now read 7/6 and 9/7. If the mirror is expected
+to have landed and had not, the same is worth re-checking for the rest of that change.
+
+**The measurement, and the honest limit.** An A4 page fit to a 390-px phone is scaled by 0.4912
+before anyone reads it, so the v9.1 body arrived at an x-height of 0.80 mm = 6.85 arcmin at 40 cm,
+against a ~12-arcmin critical print size for fluent reading — 57%. v9.2 reaches 67%. **No step of
+one or two points closes that gap; the ratio needed is ×1.75 and a ×1.75 type costs 2,261 pages
+over the 62-document corpus against today's 579.** The route that does reach it is a phone-first
+page size, which changes print behaviour and is priced, not shipped, in
+`prod_golive_2026-09-06/07_font/OPTIONS.md` §4. The Urdu-specific ×1.15 (`RTL_TYPE_SCALE` in the
+brand token) is priced in §5 and also not shipped.
+
+Corpus cost of what DID ship: 579 → 775 pages (+33.8%), median lesson 9 → 12 pages, documents over
+cap 1/62 → 3/62 at the new caps.
+
+**Still the smallest type on the page:** the diagram engine's 13.5px label floor
+(`diagrams/lib/svg.js`, `requiredBox()`) did NOT move — it sizes labels against the figure's own
+column, not the page's body scale, and raising it re-lays every diagram in the corpus behind the
+overlap sweep. It is now 43% of the readability floor against the body's 67%. Bead filed.
+
 ### 3.8 Nothing else
 
 `lint_lp.js`, both schemas, every other file in `lib/`, and the whole `diagrams/` tree are
 **byte-identical to upstream**, with the single exception of the four `glue` marks in
-`lib/template.js` recorded in §3.9. In particular the lint's gate list, thresholds, word budgets and
-the renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` / `CHIP_FLOOR_PX` were not touched.
-Verify with §6's diff command.
+`lib/template.js` recorded in §3.9. In particular the lint's gate list, thresholds and word budgets
+were not touched. The renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` / `CHIP_FLOOR_PX`
+moved on 2026-09-06 (§3.10) — **in both homes, to the same values**, so they are still not a
+divergence. Verify with §6's diff command.
 
 ---
 

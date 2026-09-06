@@ -60,6 +60,19 @@ function r2KeyFor(segmentId, lang, tv) {
   return `lp612/${tv}/${lang}/${segmentId}.pdf`;
 }
 
+/**
+ * The DOCUMENT that made that PDF, beside it: `lp612/{tv}/{lang}/{segment}.lp.json`.
+ *
+ * Derived from `r2KeyFor` rather than spelled out, so the sibling relationship is stated ONCE.
+ * Three call sites had each written their own `.replace(/\.pdf$/, '.lp.json')` — the worker's
+ * upload, `keepFailedDoc`, and (as of bd-oak77.12) the reader below. Three copies of a key shape
+ * is three chances for a stored document to land somewhere the reader will never look, which is
+ * exactly the failure mode this lane's cache lives on.
+ */
+function docKeyFor(segmentId, lang, tv) {
+  return r2KeyFor(segmentId, lang, tv).replace(/\.pdf$/, '.lp.json');
+}
+
 /** The ONLY isolation this lane has. */
 const R2_KEY_PREFIX = 'lp612/';
 
@@ -152,6 +165,57 @@ function assertKeyInPrefix(key) {
     );
   }
   return k;
+}
+
+/**
+ * Read back the document that made an earlier version's PDF — or `null`, for any reason at all.
+ *
+ * This is what makes a template bump a RE-RENDER instead of a re-authoring (bd-oak77.12). The
+ * caller's recovery is identical for every failure — author the lesson, exactly as it does today —
+ * so this function NEVER THROWS. An exception here would turn a cost optimisation into a lost
+ * lesson, which is the trade this lane has already got wrong twice in other guises.
+ *
+ * But "absent" and "present and unusable" are DIFFERENT FACTS (rule 24(b)/(d)), and they must not
+ * read the same in the logs. An absent key is the ordinary case — that version simply never
+ * rendered this segment — and is silent. An object that IS there and cannot be used is a signal
+ * about the store or about a template change that broke the document shape, and it says so.
+ *
+ * The `sections` check is the floor, not a schema validation: the renderer's own contract does
+ * that. It exists so a truncated upload, a JSON scalar, or an error envelope someone stored under
+ * this key can never be handed to the drawer as a lesson.
+ */
+async function readStoredDoc({ segmentId, lang, tv, correlationId } = {}) {
+  const key = docKeyFor(segmentId, lang, tv);
+  let buf;
+  try {
+    // Lazy, per this lane's convention: R2 pulls the AWS SDK in, and a caller that never reaches
+    // this branch should not pay for it.
+    const { downloadFromR2 } = require('../storage/r2');
+    buf = await downloadFromR2(key);
+  } catch (e) {
+    // A genuine miss, a permissions problem, a transport error. All three mean "author it", and
+    // the miss is by far the common one, so this stays quiet — the caller emits the rate.
+    return null;
+  }
+
+  let doc;
+  try {
+    doc = JSON.parse(buf.toString('utf8'));
+  } catch (e) {
+    logToFile('LP 6-12: a stored lesson document is present but will not parse — authoring instead', {
+      key, segmentId, lang, tv, bytes: buf ? buf.length : null, error: e.message, correlationId,
+    }, 'warn');
+    return null;
+  }
+
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc) || !doc.sections) {
+    logToFile('LP 6-12: a stored lesson document is present but is not a lesson — authoring instead', {
+      key, segmentId, lang, tv, type: Array.isArray(doc) ? 'array' : typeof doc, correlationId,
+    }, 'warn');
+    return null;
+  }
+
+  return doc;
 }
 
 function buildFilename(segment, lang) {
@@ -1138,6 +1202,8 @@ module.exports = {
   buildFilename,
   buildCaption,
   r2KeyFor,
+  docKeyFor,
+  readStoredDoc,
   editKeyFor,
   editHash,
   assertKeyInPrefix,
