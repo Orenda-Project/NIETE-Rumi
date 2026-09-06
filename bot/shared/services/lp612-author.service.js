@@ -35,6 +35,9 @@ const { logToFile } = require('../utils/logger');
 // Additive semantic-event channel (feature.action.result). The prose lines stay; this is the
 // name a query can count without a regex over a sentence somebody will improve one day.
 const { logEvent } = require('../utils/structured-logger');
+// bd-oak77.14 — the shared delivery bar. See `isDeliverableDefectsOnly` below for why this is
+// imported rather than restated.
+const { isDeliverableRenderDefect } = require('./lp612-render-policy.service');
 const { getClient } = require('./llm-client');
 const { fetchPages } = require('./lp612-pagetruth.service');
 const { clampLanguage } = require('../config/ux-strings');
@@ -1599,11 +1602,31 @@ const isPageCountDefect = (d) => String(d).startsWith('PAGE COUNT:');
  * way (bd-jddcu): a document that cannot be validated was never lint-checked or rendered, so the
  * empty defect list on it means "unexamined", not "clean".
  */
-const isDeliverable = (g) => schemaOk(g) && (blockingCost(g) === 0 || isPageCountOnly(g));
+const isDeliverable = (g) => schemaOk(g) && (blockingCost(g) === 0 || isDeliverableDefectsOnly(g));
 
 const isPageCountOnly = (g) => {
   const blocking = blockingFails(g);
   return blocking.length > 0 && blocking.every(isPageCountDefect);
+};
+
+/**
+ * The DELIVERY bar, widened from "length only" to "length, or a render finding that leaves the
+ * document whole" — bd-oak77.14, and it is the same widening the worker's final render just got.
+ *
+ * It has to move in step with the worker's, and that is the whole reason `isDeliverableRenderDefect`
+ * lives in `lp612-render-policy.service` rather than being spelled out twice: on 2026-09-06 a
+ * production lesson was lost to a `FIGURE TOO SMALL` 0.25px under a legibility floor, and if the
+ * final render now ships that document while THIS predicate still refuses it, a timed-out run
+ * holding the identical document fails for a defect the very next code path would have delivered.
+ *
+ * A LINT code is unaffected. `isDeliverableRenderDefect` recognises the renderer's own prefixes
+ * only, so `EXAM: …`, `UNWORDED_Q: …` and every other canon finding keep blocking exactly as they
+ * do today — the ladder is entitled to keep working on document QUALITY; it is only LAYOUT that
+ * has stopped being a reason to send an apology.
+ */
+const isDeliverableDefectsOnly = (g) => {
+  const blocking = blockingFails(g);
+  return blocking.length > 0 && blocking.every(isDeliverableRenderDefect);
 };
 
 // ── the ladder ──────────────────────────────────────────────────────────────
