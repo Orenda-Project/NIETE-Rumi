@@ -49,46 +49,12 @@ function stubSessions(rows) {
 
 beforeEach(() => jest.clearAllMocks());
 
-describe('bd-2404 — a forwarded link must not fire the report on a sample of one', () => {
-  // Asserted against the PURE predicate, not through maybeSendEarly(): that
-  // function calls its local generate(), so a jest spy on the export never
-  // intercepts it and the test would pass on a stubbed-null share code rather
-  // than on the rule. A green that does not depend on the rule proves nothing.
-  const should = report.shouldSendEarly;
-
-  test('does NOT fire while a session started inside the quiet window', () => {
-    // one child finished 5 min ago — 29 classmates have not opened it yet
-    expect(should([{ status: 'completed', created_at: ago(5 * MIN) }])).toBe(false);
-  });
-
-  test('DOES fire once all are terminal and the class has gone quiet', () => {
-    expect(should([
-      { status: 'completed', created_at: ago(200 * MIN) },
-      { status: 'completed', created_at: ago(150 * MIN) },
-    ])).toBe(true);
-  });
-
-  test('a straggler still in progress blocks it regardless of age', () => {
-    expect(should([
-      { status: 'completed', created_at: ago(300 * MIN) },
-      { status: 'in_progress', created_at: ago(280 * MIN) },
-    ])).toBe(false);
-  });
-
-  test('the quiet window is 2 hours, not 45 minutes', () => {
-    expect(should([{ status: 'completed', created_at: ago(90 * MIN) }])).toBe(false);
-    expect(should([{ status: 'completed', created_at: ago(125 * MIN) }])).toBe(true);
-  });
-
-  test('no sessions at all is never an early send', () => {
-    expect(should([])).toBe(false);
-  });
-
-  test('maybeSendEarly refuses when the class is still arriving', async () => {
-    stubSessions([{ status: 'completed', created_at: ago(5 * MIN) }]);
-    await expect(report.maybeSendEarly('sc-1')).resolves.toBe(false);
-  });
-});
+// bd-2404's early-send rule is DELETED (bd-mg9c7.145). It decided on a snapshot —
+// every session terminal, 2h quiet — and then the door shut for good, because a
+// share code got one report ever. On production 2026-09-07 it reported a class
+// 3.0h after its first child while a third was mid-quiz and a fourth started
+// three minutes later. What replaced it is one follow-up when materially more
+// children finish, asserted in video-quiz-report-followup.test.js.
 
 describe('bd-2404 — the scheduled fallback is 12 hours, not next morning', () => {
   test('a mid-morning share reports the same evening', () => {

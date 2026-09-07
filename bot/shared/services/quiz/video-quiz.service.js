@@ -920,13 +920,15 @@ async function finish(phone, state) {
     correct: state.correct, pct, source: state.source,
   });
 
-  // bd-2317: a child finishing a shared quiz may have been the last one. If
-  // every session on that share code is now terminal, the teacher's report goes
-  // out immediately instead of waiting for the morning.
+  // A child finishing a shared quiz may be arriving AFTER their teacher's report
+  // already went out. bd-mg9c7.145: the old hook here sent an early report the
+  // moment every session it could see was terminal, which closed the door on
+  // children still to come. Now it asks the opposite question — has enough
+  // changed since the report to be worth one follow-up?
   if (state.source === 'share_link' && state.shareCodeId) {
     const report = require('./video-quiz-report.service');
-    await report.maybeSendEarly(state.shareCodeId)
-      .catch((err) => logToFile('⚠️ early report failed', { error: err.message }));
+    await report.maybeSendFollowUp(state.shareCodeId)
+      .catch((err) => logToFile('⚠️ follow-up report failed', { error: err.message }));
 
     // bd-2339 — if a friend sent them here, tell that friend how they did, then
     // offer them the same. Both are best-effort: a child's own quiz must never

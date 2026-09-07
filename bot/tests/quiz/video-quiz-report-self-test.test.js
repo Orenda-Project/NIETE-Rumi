@@ -148,25 +148,9 @@ describe('PLAN_R5 D8 — generate() excludes the teacher self-test', () => {
   });
 });
 
-describe('PLAN_R5 D8 — maybeSendEarly() ignores the self-test session', () => {
-  test('the ONLY session being an old, terminal self-test does not trigger an early send', async () => {
-    stubSupabase({
-      quiz_share_codes: [shareCode],
-      users: [teacher],
-      quizzes: [{ id: 'q1', quiz_source: 'video', meta: {}, language: 'en' }],
-      // Terminal + old enough that, unfiltered, shouldSendEarly would fire.
-      // With `.is('user_id', null)` applied this row is excluded, leaving an
-      // empty list — shouldSendEarly treats that as "nothing to report yet".
-      quiz_sessions: [{
-        id: 'self-1', share_code_id: SHARE_CODE_ID, user_id: TEACHER_ID,
-        status: 'completed', created_at: '2020-01-01T00:00:00Z',
-      }],
-    });
-
-    const sent = await report.maybeSendEarly(SHARE_CODE_ID);
-    expect(sent).toBe(false);
-  });
-});
+// The maybeSendEarly() self-test case that stood here is gone with the early
+// path itself (bd-mg9c7.145). The self-test exclusion it guarded still applies
+// to the report proper and is asserted above.
 
 describe('PLAN_R5 D8 — hardestQuestions() ignores the self-test session', () => {
   test('her own wrong practice answer does not inflate the class wrong-count', async () => {
