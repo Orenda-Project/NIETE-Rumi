@@ -234,3 +234,89 @@ describe('importRoster — recognition by (school, admission number)', () => {
     expect(k.student_name).toBe('Kinza');           // the record keeps its name
   });
 });
+
+/**
+ * bd-dz6qb.1 — TWO CHILDREN WITH ONE NAME, ON A REGISTER THAT HAS NO ROLL COLUMN.
+ *
+ * Measured on ICT prod, 4 Sep 2026, class Grade 2-A, run 2026-09-04T03-48-31-697-v14mja.
+ * The register carries no roll-number column at all, so the extractor abstained on every
+ * roll — correctly; a guessed roll silently attaches a child to another child's record.
+ * The coach was shown 23 names, two of them `Abdul Rehman`, and changed nothing. The save
+ * wrote 22 and reported `skipped: 1`.
+ *
+ * The import de-duplicates on the roll where the register gives one and falls back to the
+ * NAME where it does not — so with every roll blank, the second Abdul Rehman was read as a
+ * re-scan of the first and dropped. The migration's own comment says why that is wrong:
+ * "Real same-name children DO share one class (18 pairs measured inside single reviewed
+ * registers), which is why name is only ever a fallback locator here and never a unique key
+ * anywhere." It becomes a unique key the moment the roll column is missing, which on these
+ * registers is most of the time.
+ *
+ * Two further facts make this worse than a silent drop. The coach had already APPROVED the
+ * list on the review screen — 23 names, both of them — so the save quietly disagreed with
+ * what she signed off. And the confirmation adds `added + skipped` together, so it told her
+ * "23 students are on the roster" when 22 existed.
+ *
+ * The rule these tests encode: what the coach approved is what gets written, and the Nth
+ * child of a given name is new whenever the class holds fewer than N of that name already.
+ */
+describe('importRoster — a register with no roll column', () => {
+  const TWO_ABDULS = [
+    { roll_number: null, student_name: 'Ali Ahmed', father_name: null, parent_phone: null },
+    { roll_number: null, student_name: 'Abdul Rehman', father_name: null, parent_phone: null },
+    { roll_number: null, student_name: 'Mashad Raza', father_name: null, parent_phone: null },
+    { roll_number: null, student_name: 'Abdul Rehman', father_name: null, parent_phone: null },
+  ];
+
+  it('THE BUG: keeps BOTH children who share a name when no roll tells them apart', async () => {
+    const res = await importIt({ students: TWO_ABDULS, runId: 'run-no-rolls-1' });
+    expect(res.error).toBeUndefined();
+    const abduls = table('students').filter((s) => s.student_name === 'Abdul Rehman');
+    expect(abduls).toHaveLength(2);
+    expect(res.added).toBe(4);
+    expect(res.skipped).toBe(0);
+    expect(table('class_enrollments').filter((e) => e.class_id === res.classId)).toHaveLength(4);
+  });
+
+  it('the confirmation cannot claim more children than it wrote', async () => {
+    const res = await importIt({ students: TWO_ABDULS, runId: 'run-no-rolls-2' });
+    // The SAVED screen renders `added + skipped` as "N students are on the roster".
+    const onRoster = (res.added || 0) + (res.skipped || 0);
+    expect(onRoster).toBe(table('class_enrollments').filter((e) => e.class_id === res.classId).length);
+  });
+
+  it('a re-scan of the same page still adds nobody — one of each name is already there', async () => {
+    const first = await importIt({ students: TWO_ABDULS, runId: 'run-no-rolls-3' });
+    const again = await importIt({ students: TWO_ABDULS, runId: 'run-no-rolls-4' });
+    expect(again.classId).toBe(first.classId);
+    expect(again.added).toBe(0);
+    expect(table('students').filter((s) => s.student_name === 'Abdul Rehman')).toHaveLength(2);
+  });
+
+  it('a THIRD child of the same name arriving later is added, not swallowed', async () => {
+    const first = await importIt({ students: TWO_ABDULS, runId: 'run-no-rolls-5' });
+    const three = [...TWO_ABDULS, { roll_number: null, student_name: 'Abdul Rehman', father_name: null, parent_phone: null }];
+    const again = await importIt({ students: three, runId: 'run-no-rolls-6' });
+    expect(again.classId).toBe(first.classId);
+    expect(again.added).toBe(1);
+    expect(table('students').filter((s) => s.student_name === 'Abdul Rehman')).toHaveLength(3);
+  });
+
+  it('a repeated ROLL is still one child — the roll remains the identity where it exists', async () => {
+    const withRolls = [
+      { roll_number: '7', student_name: 'Abdul Rehman', father_name: null, parent_phone: null },
+      { roll_number: '7', student_name: 'Abdul Rehman', father_name: null, parent_phone: null },
+    ];
+    const res = await importIt({ students: withRolls, runId: 'run-rolls-dup' });
+    expect(res.added).toBe(1);
+    expect(table('students').filter((s) => s.student_name === 'Abdul Rehman')).toHaveLength(1);
+  });
+
+  it('the same Save pressed twice still writes once — the run id guard is untouched', async () => {
+    await importIt({ students: TWO_ABDULS, runId: 'run-no-rolls-7' });
+    const replay = await importIt({ students: TWO_ABDULS, runId: 'run-no-rolls-7' });
+    expect(replay.replay).toBe(true);
+    expect(replay.added).toBe(0);
+    expect(table('students')).toHaveLength(4);
+  });
+});

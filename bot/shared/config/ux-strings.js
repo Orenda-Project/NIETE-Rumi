@@ -1197,7 +1197,7 @@ const CLASS_FLOW_STRINGS = {
     en: 'Shift',
     ur: 'شفٹ',
   },
-  // Sections are a closed set (A-E). The helper text is where a teacher learns
+  // Sections are a closed set (A–O, seeded in the sections table). The helper text is where a teacher learns
   // what to do when hers is not listed, so it names the route rather than leaving
   // her to guess.
   classSectionHelperClosed: {
