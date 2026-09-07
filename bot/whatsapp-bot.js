@@ -625,8 +625,8 @@ app.post('/webhook', async (req, res) => {
       user = await getOrCreateUser(from);
       logToFile('User retrieved/created', { userId: user.id, phoneNumber: from });
     } catch (error) {
-      logToFile('⚠️ Error with database user operation', { error: error.message });
-      // Continue without database - bot will still work
+      // `error`, not `info` — an outage, not a routine miss. Downstream handlers must not read the null as "no account".
+      logError('❌ User lookup failed — database unreachable', { phoneNumber: from, error: error.message });
     }
 
     // Track chat start for funnel analysis (for all message types)
