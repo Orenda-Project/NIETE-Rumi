@@ -187,6 +187,54 @@ async function postToSlack(text) {
   return body.ts;
 }
 
+
+/**
+ * How far back this run should look.
+ *
+ * Not simply "the last hour". This worker redeploys on every push to main —
+ * several times on a busy day — and a fresh process starts its interval from
+ * zero, so an hourly timer alone can be reset forever and never fire once. The
+ * debrief sweep carries the same warning in its own comment.
+ *
+ * So the digest runs shortly after every boot AND hourly, and asks Axiom when it
+ * last spoke: the window is the gap since that moment, which makes a redeploy
+ * cost nothing and a long outage self-heal. Two guards keep it honest — a run
+ * closer than MIN_GAP_MIN to the last one is skipped rather than re-reporting
+ * the same failures to someone who just read them, and the window never opens
+ * wider than MAX_WINDOW_MIN so a week of downtime cannot produce a week-long
+ * digest.
+ */
+const MIN_GAP_MIN = 45;
+const MAX_WINDOW_MIN = 180;
+
+async function windowSinceLastDigest(fallbackMin) {
+  try {
+    const apl = `${P}where msg == 'prod_digest.clean' or msg == 'prod_digest.reported' `
+      + '| summarize last_seen = max(_time)';
+    const end = new Date();
+    const start = new Date(end.getTime() - MAX_WINDOW_MIN * 60 * 1000);
+    const headers = { Authorization: `Bearer ${axiomToken()}`, 'Content-Type': 'application/json' };
+    if (process.env.AXIOM_ORG_ID) headers['X-Axiom-Org-Id'] = process.env.AXIOM_ORG_ID;
+    const res = await fetch(AX_URL, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ apl, startTime: start.toISOString(), endTime: end.toISOString() }),
+    });
+    if (!res.ok) return { windowMin: fallbackMin };
+    const body = await res.json();
+    const totals = (body.buckets && body.buckets.totals) || [];
+    const agg = totals[0] && totals[0].aggregations && totals[0].aggregations[0];
+    const lastSeen = agg && agg.value ? new Date(agg.value) : null;
+    if (!lastSeen || Number.isNaN(lastSeen.getTime())) return { windowMin: fallbackMin };
+    const gapMin = Math.round((Date.now() - lastSeen.getTime()) / 60000);
+    if (gapMin < MIN_GAP_MIN) return { tooSoon: true, gapMin };
+    return { windowMin: Math.min(MAX_WINDOW_MIN, Math.max(5, gapMin)) };
+  } catch {
+    // Never let the bookkeeping query decide whether the digest runs.
+    return { windowMin: fallbackMin };
+  }
+}
+
 /**
  * One digest cycle. Silent by design: no message when every family is clean,
  * and a complete no-op until the env is set, so merging this changes nothing
@@ -199,6 +247,12 @@ async function run({ windowMin = n(process.env.PROD_DIGEST_WINDOW_MIN) || 60 } =
   if (!process.env.PROD_DIGEST_SLACK_TOKEN || !process.env.PROD_DIGEST_SLACK_CHANNEL || !axiomToken()) {
     return { skipped: 'unconfigured' };
   }
+  // A redeploy must not re-report what was reported ten minutes ago, and a gap
+  // must not be lost just because the process restarted inside it.
+  const w = await windowSinceLastDigest(windowMin);
+  if (w.tooSoon) return { skipped: 'too_soon', gapMin: w.gapMin };
+  windowMin = w.windowMin;
+
   const counts = await fetchCounts(windowMin);
   const digest = buildDigest(counts, { windowMin });
   if (!digest.report) {
@@ -212,4 +266,5 @@ async function run({ windowMin = n(process.env.PROD_DIGEST_WINDOW_MIN) || 60 } =
 
 module.exports = {
   buildDigest, QUERIES, SURFACE_ONLY, INFLIGHT_TOLERANCE, run, fetchCounts,
+  windowSinceLastDigest, MIN_GAP_MIN, MAX_WINDOW_MIN,
 };

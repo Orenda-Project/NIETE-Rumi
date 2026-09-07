@@ -135,3 +135,34 @@ describe('6 · it is a no-op until it is configured', () => {
     await expect(D.run()).resolves.toMatchObject({ skipped: 'unconfigured' });
   });
 });
+
+describe('7 · a redeploy must not silence it, nor make it repeat itself', () => {
+  test('the guards are stated, not implied', () => {
+    expect(D.MIN_GAP_MIN).toBe(45);
+    expect(D.MAX_WINDOW_MIN).toBe(180);
+  });
+  test('the window never opens wider than the cap, however long the outage', () => {
+    expect(D.MAX_WINDOW_MIN).toBeLessThanOrEqual(180);
+    expect(D.MIN_GAP_MIN).toBeLessThan(D.MAX_WINDOW_MIN);
+  });
+  test('a run too soon after the last one is skipped rather than repeated', async () => {
+    const saved = { ...process.env };
+    process.env.PROD_DIGEST_ENABLED = 'true';
+    process.env.PROD_DIGEST_SLACK_TOKEN = 'x';
+    process.env.PROD_DIGEST_SLACK_CHANNEL = 'D1';
+    process.env.AXIOM_API_TOKEN = 'x';
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({
+      ok: true,
+      json: async () => ({ buckets: { totals: [{ aggregations: [{ value: new Date().toISOString() }] }] } }),
+    });
+    try {
+      const out = await D.run();
+      expect(out.skipped).toBe('too_soon');
+    } finally {
+      globalThis.fetch = realFetch;
+      Object.keys(process.env).forEach((k) => { if (!(k in saved)) delete process.env[k]; });
+      Object.assign(process.env, saved);
+    }
+  });
+});
