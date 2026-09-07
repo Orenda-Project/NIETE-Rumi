@@ -261,3 +261,33 @@ describe('9 · a quiet minute leaves a trace', () => {
     }
   });
 });
+
+describe('10 · the gap guard can actually read Axiom’s answer', () => {
+  /**
+   * It could not. `summarize max(_time)` comes back as NANOSECONDS since the
+   * epoch — 1788808678198726700 — and `new Date()` of that is an Invalid Date,
+   * so every call fell through to the fallback window. The guard looked present
+   * in the code, passed its unit tests, and had never once worked against the
+   * real API: two digests went out 17 minutes apart under a rule that says 45.
+   *
+   * Nothing caught it because nothing had asked Axiom for real. This is the
+   * "defined ≠ working" rule with a stopwatch on it.
+   */
+  test('nanoseconds are read as a time, not thrown away', () => {
+    // …198726700ns is …198.7266ms, which rounds up. The half-millisecond is
+    // why this is a helper with a test and not an inline division.
+    const ms = D.toMillis(1788808678198726700);
+    expect(new Date(ms).toISOString()).toBe('2026-09-07T19:17:58.199Z');
+  });
+  test('an ISO string still works, in case the API ever changes its mind', () => {
+    expect(D.toMillis('2026-09-07T19:17:58.198Z')).toBe(Date.parse('2026-09-07T19:17:58.198Z'));
+  });
+  test('milliseconds and seconds are both understood', () => {
+    const target = Date.parse('2026-09-07T19:17:58.000Z');
+    expect(D.toMillis(target)).toBe(target);                    // ms
+    expect(D.toMillis(Math.floor(target / 1000))).toBe(target); // s
+  });
+  test('nonsense is refused rather than turned into a wrong window', () => {
+    [null, undefined, '', 'not a time', NaN].forEach((v) => expect(D.toMillis(v)).toBeNull());
+  });
+});

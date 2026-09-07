@@ -188,6 +188,33 @@ async function postToSlack(text) {
 }
 
 
+
+/**
+ * Read whatever Axiom hands back for a timestamp, as milliseconds.
+ *
+ * `summarize max(_time)` returns NANOSECONDS since the epoch — 1788808678198726700
+ * — and `new Date()` of that is an Invalid Date. The gap guard therefore fell
+ * through to its fallback on every single call: it looked right in the code,
+ * passed its unit tests, and had never once worked against the real API. Two
+ * digests went out 17 minutes apart under a rule that says 45.
+ *
+ * Magnitudes, not guesses: seconds ≈ 1.8e9, milliseconds ≈ 1.8e12,
+ * microseconds ≈ 1.8e15, nanoseconds ≈ 1.8e18.
+ */
+function toMillis(v) {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v === 'string') {
+    const parsed = Date.parse(v);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  const num = Number(v);
+  if (!Number.isFinite(num) || num <= 0) return null;
+  if (num > 1e17) return Math.round(num / 1e6);   // nanoseconds
+  if (num > 1e14) return Math.round(num / 1e3);   // microseconds
+  if (num > 1e11) return Math.round(num);         // milliseconds
+  return Math.round(num * 1000);                  // seconds
+}
+
 /**
  * How far back this run should look.
  *
@@ -224,9 +251,9 @@ async function windowSinceLastDigest(fallbackMin) {
     const body = await res.json();
     const totals = (body.buckets && body.buckets.totals) || [];
     const agg = totals[0] && totals[0].aggregations && totals[0].aggregations[0];
-    const lastSeen = agg && agg.value ? new Date(agg.value) : null;
-    if (!lastSeen || Number.isNaN(lastSeen.getTime())) return { windowMin: fallbackMin };
-    const gapMin = Math.round((Date.now() - lastSeen.getTime()) / 60000);
+    const lastMs = toMillis(agg && agg.value);
+    if (!lastMs) return { windowMin: fallbackMin };
+    const gapMin = Math.round((Date.now() - lastMs) / 60000);
     if (gapMin < MIN_GAP_MIN) return { tooSoon: true, gapMin };
     return { windowMin: Math.min(MAX_WINDOW_MIN, Math.max(5, gapMin)) };
   } catch {
@@ -310,5 +337,5 @@ async function run({ windowMin = n(process.env.PROD_DIGEST_WINDOW_MIN) || 60 } =
 
 module.exports = {
   buildDigest, QUERIES, SURFACE_ONLY, INFLIGHT_TOLERANCE, run, fetchCounts,
-  windowSinceLastDigest, MIN_GAP_MIN, MAX_WINDOW_MIN, claimTick, TICK_KEY,
+  windowSinceLastDigest, MIN_GAP_MIN, MAX_WINDOW_MIN, claimTick, TICK_KEY, toMillis,
 };
