@@ -1527,6 +1527,11 @@ function startWorker() {
         logToFile('Error in prod failure digest (non-fatal)', { error: error.message }, 'error');
       }
     };
+    // Boot run as well as the interval: this service redeploys several times on
+    // a busy day and each restart resets the timer, so an hourly interval alone
+    // can be reset forever and never fire. The digest's own window is measured
+    // from when it last spoke, so an extra boot run costs nothing.
+    setTimeout(runProdDigest, 3 * 60 * 1000);
     setInterval(runProdDigest, PROD_DIGEST_INTERVAL_MS);
     logToFile('Prod failure digest enabled (hourly; set PROD_DIGEST_ENABLED=true to arm)', {
       armed: String(process.env.PROD_DIGEST_ENABLED || '').toLowerCase() === 'true',
