@@ -242,8 +242,8 @@ describe('1 — rewriteTargets: which rejections one small call can repair', () 
     expect(Rewrite.rewriteTargets(['q0: 2 options', 'q1: empty stem']).indices).toEqual([]);
   });
 
-  test('more than three questions is a re-roll, not a repair', () => {
-    const errs = [0, 1, 2, 3].map((i) => `q${i}: PEDAGOGY_COUNT_RECALL — …`);
+  test('more than five questions is a re-roll, not a repair', () => {
+    const errs = [0, 1, 2, 3, 4, 5].map((i) => `q${i}: PEDAGOGY_COUNT_RECALL — …`);
     expect(Rewrite.rewriteTargets(errs).indices).toEqual([]);
   });
 

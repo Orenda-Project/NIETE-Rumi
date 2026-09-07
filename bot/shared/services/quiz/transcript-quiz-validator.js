@@ -177,6 +177,7 @@ function validate(rawQuestions, ctx = {}) {
   const taught = new Map(slos.map((s) => [s.id, LEVELS[s.taught_level] ?? 1]));
   const covered = new Set();
   let atOrBelow = 0;
+  const levelGap = [];
   let figured = 0;
   const allText = [];
   // bd-mg9c7.95 — the religious-marks scan runs PER QUESTION, so the complaint
@@ -236,7 +237,8 @@ function validate(rawQuestions, ctx = {}) {
     const lv = LEVELS[q.level] ?? 1;
     const tl = taught.has(q.slo_id) ? taught.get(q.slo_id) : 1;
     if (lv <= tl) atOrBelow += 1;
-    if (lv > tl + 1) errs.push(`q${i}: level ${q.level} > taught ${slos.find((s) => s.id === q.slo_id)?.taught_level || 'understand'}+1`);
+    if (lv > tl + 1) errs.push(`q${i}: PEDAGOGY_LEVEL_ABOVE — level ${q.level} > taught ${slos.find((s) => s.id === q.slo_id)?.taught_level || 'understand'}+1`);
+    levelGap.push({ i, gap: lv - tl, level: q.level, taught: slos.find((s) => s.id === q.slo_id)?.taught_level || 'recall' });
 
     const texts = [stem, String(q.explanation || ''), String(fb.correct || ''), ...opts, ...Object.values(fb.wrong || {}).map(String)];
     if (language === 'en') {
@@ -384,6 +386,14 @@ function validate(rawQuestions, ctx = {}) {
   }
   if (qs.length && atOrBelow / qs.length < 0.6) {
     errs.push(`only ${atOrBelow}/${qs.length} at/below taught level`);
+    // Name the questions to bring down — the fewest, furthest above the lesson —
+    // so the targeted rewrite can repair the set instead of the whole quiz dying
+    // on a complaint that names no question (production, 2026-09-07: "only 4/8
+    // at/below taught level" on the last attempt, and the teacher got nothing).
+    const need = Math.ceil(qs.length * 0.6) - atOrBelow;
+    levelGap.filter((g) => g.gap > 0).sort((a, b) => b.gap - a.gap || a.i - b.i).slice(0, need).forEach((g) => {
+      errs.push(`q${g.i}: PEDAGOGY_LEVEL_ABOVE — pitched at "${g.level}" but the lesson only reached "${g.taught}" for its SLO; ask the same idea at "${g.taught}" level (the child recalls or recognises what was taught, no new step)`);
+    });
   }
 
   const joined = allText.join('\n');
