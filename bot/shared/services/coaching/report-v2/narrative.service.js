@@ -188,8 +188,26 @@ function buildPrompt(analysis, { transcript, trend = [], language, teacherName, 
             .slice(0, 3).map((m) => `"${String(m.text || '').slice(0, 90)}" (${m.verdict})`);
           return `- ${k} (${FICO_DOMAIN_LABELS[k]}): ${d.domain_score}/${d.domain_max} — MEASURED from her lesson plan: ${d.fidelity_pct}% of prescribed moves executed.${missed.length ? ` Moves missed or partial: ${missed.join('; ')}` : ''}`;
         }
-        const lows = (d.indicators || []).slice().sort((x, y) => (x.score || 0) - (y.score || 0)).slice(0, 2)
-          .map((i) => `${i.id} scored ${i.score}/4 — ${String(i.evidence_sw || i.evidence_summary || i.evidence || '').slice(0, 160)}${i.improvement_sw ? ` | to improve: ${String(i.improvement_sw).slice(0, 120)}` : ''}`);
+        // bd-xc6jv: a NON-APPLICABLE indicator is not a low mark — it is outside the
+        // lesson. Section F tags indicators by subject and only the matching one
+        // applies; the rest are floored (V3) or nulled (v4). Either way they sort to
+        // the bottom, so an unfiltered `slice(0, 2)` picked them DETERMINISTICALLY as
+        // this domain's "lowest indicators" — handing the why-writer "Not applicable —
+        // lesson subject is Urdu, indicator applies to math" as the grounding, under a
+        // prompt that REQUIRES it to name a missing element. Every non-maths teacher
+        // was then told her lesson lacked maths (3,713 delivered reports, 1,392
+        // teachers; a science lesson was told it lacked mathematical teaching).
+        // `applicable === false` is the ONLY thing that removes a row: an ABSENT flag
+        // means applicable, so every pre-cutover session keeps its current grounding.
+        const applicable = (d.indicators || []).filter((i) => !(i && i.applicable === false));
+        // The per-indicator max follows the rubric, never a constant: V3 scores 1-4,
+        // v4 scores 0-2. `indicators_applicable` is set by the applicable-aware
+        // computeScores; without it the domain still counts every row.
+        const scaleMax = Math.round(
+          (d.domain_max || 0) / (d.indicators_applicable || (d.indicators || []).length || 1),
+        ) || 4;
+        const lows = applicable.slice().sort((x, y) => (x.score || 0) - (y.score || 0)).slice(0, 2)
+          .map((i) => `${i.id} scored ${i.score}/${scaleMax} — ${String(i.evidence_sw || i.evidence_summary || i.evidence || '').slice(0, 160)}${i.improvement_sw ? ` | to improve: ${String(i.improvement_sw).slice(0, 120)}` : ''}`);
         return `- ${k} (${FICO_DOMAIN_LABELS[k]}): ${d.domain_score}/${d.domain_max}${lows.length ? `. Lowest indicators: ${lows.join(' | ')}` : ''}`;
       }).join('\n')
     : '';
@@ -224,6 +242,7 @@ domain_whys: ONE sentence per domain, in the report language, in the PAST TENSE,
   EN: "This is strong/developing because <one concrete classroom moment> — it's not full marks because <one clear, concrete missing thing>."
   UR: «یہ اسکور اچھا/بہتر ہے کیونکہ <کلاس کا ایک ٹھوس لمحہ> — مکمل نمبر اس لیے نہیں کیونکہ <ایک واضح، ٹھوس کمی>۔»
 - ONE sentence, never a paragraph. ALWAYS name ONE concrete missing element in the second clause; never end vague. If (and only if) the domain scored the full max, drop the second clause and just state what made it strong.
+- The missing element is always something the teacher could have DONE IN THIS LESSON. NEVER name another subject as what was missing — never say the lesson lacked maths, science, or literacy content, and never fault a lesson for not being a different subject. Teacher Subject Knowledge is judged on THIS lesson's subject only.
 - Ground every claim in the DOMAIN SCORES data below or the transcript — NEVER invent an activity or moment that is not there, and NEVER contradict the recorded evidence (on observed lessons it is the observer's own corrected record).
 - LANGUAGE PURITY (bd-43497 R5): write the WHOLE line in the report language and, for Urdu, in Urdu SCRIPT — these diagnosis lines must read as clean, single-language prose (no sprinkled English pedagogy terms here, unlike the concept names elsewhere).
 DOMAIN SCORES (diagnose each):

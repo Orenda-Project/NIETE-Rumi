@@ -613,7 +613,9 @@ EVIDENCE RULES:
 - For EACH indicator, describe what the teacher DID (not what they didn't do)
 - Include English translation of dialogue: Quote: "..."
 - Even for score 1, provide detailed evidence of what was observed
-- For non-applicable Section F rows (subject mismatch), score 1 with evidence noting the mismatch
+- For non-applicable Section F rows (subject mismatch), follow the SUBJECT-CONDITIONAL rule above:
+  "applicable": false, "score": null, evidence naming the mismatch. Do NOT give it a number —
+  it leaves the total entirely and must never read as a low mark.
 - For EACH indicator ALSO write "evidence_summary": a self-contained ≤500-character
   compression of that indicator's "evidence" — the move, its effect on students, and one
   short quote. It is the ONLY note the human observer reads on the review form, so it must
