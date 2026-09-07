@@ -257,6 +257,14 @@ function validate(rawQuestions, ctx = {}) {
       // live run of round 4 had every one of them in English on an all-Urdu
       // page. English technical terms in Latin letters are expected inside an
       // Urdu phrase, so the bar is "some Urdu", not "no Latin".
+      // A feminine verb stem guesses the child's gender. It used to be found
+      // once over every question's text joined together — a quiz-level
+      // complaint the rewrite could not target and the salvage could not drop,
+      // and on production (2026-09-07) one such stem on the last attempt cost
+      // a teacher the whole quiz. Named per question, it is one question's
+      // text to rewrite; the quiz-level line below stays as the headline.
+      const fem = FEM_STEMS.exec(texts.join(' '));
+      if (fem) errs.push(`q${i}: PEDAGOGY_GENDERED_CHILD — "${fem[1]}" guesses the child's gender; address the child as آپ with plural-respectful verbs (کریں، دیکھیں، سوچیں، سمجھ سکتے ہیں), never a feminine or masculine singular form`);
       const misc = q.distractor_misconceptions || {};
       const teacherFields = [['selected_because', q.selected_because], ...Object.values(misc).map((m) => ['distractor_misconceptions', m])];
       for (const [field, value] of teacherFields) {

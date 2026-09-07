@@ -235,3 +235,120 @@ describe('5 — the OTHER level rule names its questions, and a soft fault never
     expect(logEvent.mock.calls.map((c) => c[0])).not.toContain('transcript_quiz.shipped_with_soft_faults');
   });
 });
+
+// ── the Urdu lesson (the third production death: a feminine verb stem on the last attempt) ──
+const DIGEST_UR = {
+  topic: 'Types of Maps', topic_as_taught: 'نقشوں کی اقسام', subject: 'sst',
+  grade_band: '6-8', language_of_instruction: 'ur', confidence: 0.9,
+  slos: [
+    { id: 'S1', statement: 'نقشوں کی اقسام بتانا', taught_level: 'recall' },
+    { id: 'S2', statement: 'نقشے اور تصویر میں فرق سمجھنا', taught_level: 'understand' },
+    { id: 'S3', statement: 'نقشے کے پیمانے کا استعمال', taught_level: 'understand' },
+  ],
+  key_terms: ['map', 'scale'], examples_used: ['دیوار پر لگا نقشہ'], misconceptions_surfaced: [],
+};
+const SUMMARY_UR = 'آپ نے دیوار پر لگے نقشے سے نقشوں کی اقسام پڑھائیں اور پھر پیمانے کی مدد سے فاصلہ ناپنا سکھایا۔';
+function urQ({ slo = 'S1', level = 'recall', question, options, correctFeedback }) {
+  return {
+    slo_id: slo, level, question, options, correct_index: 0,
+    explanation: 'نقشہ زمین کی چپٹی تصویر ہوتا ہے جس پر پیمانہ لکھا ہوتا ہے۔',
+    selected_because: 'دیوار پر لگے نقشے والی بات سے لیا گیا',
+    distractor_misconceptions: { 1: 'نقشے کو تصویر سمجھنا', 2: 'پیمانے کو نظر انداز کرنا' },
+    option_feedback: {
+      correct: correctFeedback || 'بالکل ٹھیک — دیوار والے نقشے پر بھی یہی چیز دکھائی گئی تھی۔',
+      wrong: { 1: 'یہ تصویر کی بات ہے؛ نقشے پر پیمانہ اور نشانات ہوتے ہیں۔', 2: 'پیمانہ ضروری ہوتا ہے، اسی سے اصل فاصلہ معلوم ہوتا ہے۔' },
+    },
+  };
+}
+function urEight({ q0 } = {}) {
+  return [
+    q0 || urQ({ question: 'ان میں سے کون سا نقشوں کی ایک قسم ہے؟', options: ['سیاسی نقشہ', 'پیمانہ', 'کاغذ'] }),
+    urQ({ slo: 'S2', level: 'understand', question: 'ان میں سے کون سی چیز ہر نقشے پر لازمی ہوتی ہے؟', options: ['پیمانہ', 'رنگ', 'کاغذ'] }),
+    urQ({ slo: 'S2', level: 'understand', question: 'دیوار پر لگا ہوا نقشہ کس چیز کو دکھاتا ہے؟', options: ['زمین کا حصہ', 'ایک کمرہ', 'ایک کتاب'] }),
+    urQ({ slo: 'S3', level: 'understand', question: 'پیمانہ کس کام آتا ہے؟', options: ['اصل فاصلہ معلوم کرنے', 'رنگ چننے', 'نام لکھنے'] }),
+    urQ({ question: 'موسم دکھانے والا نقشہ کس قسم کا ہوتا ہے؟', options: ['موسمی نقشہ', 'سیاسی نقشہ', 'طبعی نقشہ'] }),
+    urQ({ slo: 'S2', level: 'understand', question: 'پہاڑ اور دریا دکھانے کے لیے کون سا نقشہ چنیں گے؟', options: ['طبعی نقشہ', 'سیاسی نقشہ', 'موسمی نقشہ'] }),
+    urQ({ question: 'ملکوں کی حدیں کون سا نقشہ دکھاتا ہے؟', options: ['سیاسی نقشہ', 'طبعی نقشہ', 'موسمی نقشہ'] }),
+    urQ({ slo: 'S3', level: 'understand', question: 'اگر پیمانہ ایک سینٹی میٹر برابر دس کلومیٹر ہو تو دو سینٹی میٹر کتنے بنیں گے؟', options: ['بیس کلومیٹر', 'دس کلومیٹر', 'دو کلومیٹر'] }),
+  ];
+}
+const FEM_Q0 = () => urQ({ question: 'ان میں سے کون سا نقشوں کی ایک قسم ہے؟', options: ['سیاسی نقشہ', 'پیمانہ', 'کاغذ'], correctFeedback: 'آپ سمجھ سکتی ہیں کہ سیاسی نقشہ ملکوں کی حدیں دکھاتا ہے۔' });
+function wireUr() {
+  installFrom(supabase.from, {
+    quizzes: (calls) => (calls.some((c) => c[0] === 'update') ? { data: [{ id: QID }] } : { data: [{
+      id: QID, teacher_id: 'u-1', coaching_session_id: SID, topic: DIGEST_UR.topic, subject: 'sst', language: 'ur', status: 'generating', meta: { digest: DIGEST_UR, grade: '7', step: 'author' },
+    }] }),
+    coaching_sessions: { data: [{ id: SID, user_id: 'u-1', transcript_text: 'سبق '.repeat(400), transcript_language: 'ur', created_at: '2026-09-07T04:00:00Z', analysis_data: {}, users: { phone_number: '923001234567', preferred_language: 'ur', first_name: 'A', last_name: 'B' } }] },
+    quiz_questions: (calls) => (calls.some((c) => c[0] === 'insert') ? { data: null, error: null } : { data: [] }),
+    users: { data: [{ phone_number: '923001234567', preferred_language: 'ur' }] },
+  });
+}
+
+describe('6 — the third production death: a feminine verb stem names its question and is repaired', () => {
+  const urCtx = { language: 'ur', subject: 'sst', digest: DIGEST_UR, nExpected: 8, lessonSummary: SUMMARY_UR, quizId: QID };
+  test('the validator names the question beside the headline, and the rewrite accepts the pair', () => {
+    const v = validate(urEight({ q0: FEM_Q0() }), urCtx);
+    expect(v.errors).toContain('feminine-stem address');
+    expect(v.errors.some((e) => /^q0: PEDAGOGY_GENDERED_CHILD/.test(e))).toBe(true);
+    expect(Rewrite.rewriteTargets(v.errors).indices).toEqual([0]);
+  });
+  test('teacher fields in English on up to five questions are one repair, not a re-roll', () => {
+    const errs = [0, 2, 4].map((i) => `q${i}: URDU_TEACHER_FIELDS — selected_because must be written in Urdu (English technical terms in Latin letters are fine); got "the moment"`);
+    expect(Rewrite.rewriteTargets(errs).indices).toEqual([0, 2, 4]);
+  });
+  test('an Urdu lesson: one feminine stem on the first attempt → one rewrite carrying the آپ rule → 8 shipped', async () => {
+    mockCreate
+      .mockResolvedValueOnce(reply({ lesson_summary: SUMMARY_UR, questions: urEight({ q0: FEM_Q0() }) }))
+      .mockResolvedValueOnce(reply({ questions: [{ index: 0, ...urEight()[0] }] }));
+    wireUr();
+    const r = await Gen.process(QID, {});
+    expect(r.ok).toBe(true);
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    const rw = promptOf(mockCreate.mock.calls[1]);
+    expect(rw).toContain('REWRITE THESE QUESTIONS: q0');
+    expect(rw).toContain('THE CHILD HAS NO GENDER');
+    expect(storedRows()).toHaveLength(8);
+  });
+});
+
+describe('7 — teacher fields in English are repaired in place, never re-rolled', () => {
+  const EN_FIELDS = (q) => ({ ...q, selected_because: 'the moment the teacher pointed at the wall map', distractor_misconceptions: { 1: 'thinks a map is a photo', 2: 'ignores the scale' } });
+  const UR_FIELDS = (i) => ({ index: i, selected_because: 'دیوار کے نقشے والی بات سے', distractor_misconceptions: { 1: 'نقشے کو تصویر سمجھنا', 2: 'پیمانے کو نظر انداز کرنا' } });
+  test('teacherFieldTargets and mergeTeacherFields touch only the two fields, only on the named questions', () => {
+    const errs = ['q0: URDU_TEACHER_FIELDS — selected_because must be written in Urdu; got "x"', 'q3: URDU_TEACHER_FIELDS — distractor_misconceptions must be written in Urdu; got "y"', 'q5: option >72 code points'];
+    expect(Rewrite.teacherFieldTargets(errs)).toEqual([0, 3]);
+    const qs = urEight().map(EN_FIELDS);
+    const m = Rewrite.mergeTeacherFields(qs, { fields: [UR_FIELDS(0), UR_FIELDS(3), UR_FIELDS(7)] }, [0, 3]);
+    expect(m.replaced).toEqual([0, 3]);
+    expect(m.questions[0].selected_because).toBe('دیوار کے نقشے والی بات سے');
+    expect(m.questions[0].question).toBe(qs[0].question);
+    expect(m.questions[7].selected_because).toBe('the moment the teacher pointed at the wall map');   // not named → untouched
+  });
+  test('an Urdu quiz with all eight teacher fields in English ships on the FIRST attempt with one fields call', async () => {
+    mockCreate.mockImplementation((call) => {
+      const prompt = call.messages[0].content;
+      if (/REWRITE THE TEACHER FIELDS/.test(prompt)) return Promise.resolve(reply({ fields: [0, 1, 2, 3, 4, 5, 6, 7].map(UR_FIELDS) }));
+      return Promise.resolve(reply({ lesson_summary: SUMMARY_UR, questions: urEight().map(EN_FIELDS) }));
+    });
+    wireUr();
+    const r = await Gen.process(QID, {});
+    expect(r.ok).toBe(true);
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    expect(storedRows()).toHaveLength(8);
+    const ev = logEvent.mock.calls.find((c) => c[0] === 'transcript_quiz.teacher_fields_repaired');
+    expect(ev[1]).toEqual(expect.objectContaining({ after: 1, ok: true, remaining: 0 }));
+  });
+  test('teacher fields plus one feminine stem: the fields call, then one rewrite, then 8 shipped — three calls, no re-roll', async () => {
+    mockCreate.mockImplementation((call) => {
+      const prompt = call.messages[0].content;
+      if (/REWRITE THE TEACHER FIELDS/.test(prompt)) return Promise.resolve(reply({ fields: [0, 1, 2, 3, 4, 5, 6, 7].map(UR_FIELDS) }));
+      if (/REWRITE THESE QUESTIONS/.test(prompt)) return Promise.resolve(reply({ questions: [{ index: 0, ...urEight()[0] }] }));
+      return Promise.resolve(reply({ lesson_summary: SUMMARY_UR, questions: urEight({ q0: FEM_Q0() }).map(EN_FIELDS) }));
+    });
+    wireUr();
+    const r = await Gen.process(QID, {});
+    expect(r.ok).toBe(true);
+    expect(mockCreate).toHaveBeenCalledTimes(3);
+    expect(storedRows()).toHaveLength(8);
+  });
+});
