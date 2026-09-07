@@ -538,6 +538,51 @@ const UX_STRINGS = {
     ur: 'جماعت چنیں',
   },
 
+  /**
+   * bd-twhcj — the honest refusal when reading assessment cannot run here.
+   *
+   * NIETE has the reading CODE and the reading TABLES, but no reading Flow was
+   * ever published to its WhatsApp account and READING_ASSESSMENT_FLOW_ID is
+   * unset, so `/reading test` was calling sendFlow with `flowId: undefined`.
+   * 43 teachers, 57 attempts, 57 failures, zero rows, twenty days — and every
+   * one of them was told "something went wrong, please try again later", which
+   * is an invitation to try again at a door that does not exist.
+   *
+   * Rule 24(d): the copy names the ACTUAL state. Not available here, not a
+   * transient fault, and no "try again" — because trying again cannot work.
+   * It ends by naming the two doors that ARE open, so the message closes a
+   * dead end and hands something back in its place.
+   *
+   * Sent as a plain text body, so the cap is 1024 CODE POINTS (pinned in
+   * tests/config/ux-strings-whatsapp-limits.test.js).
+   *
+   * Urdu is gender-agnostic in the second person — no `چاہتے ہیں` /
+   * `چاہتی ہیں` verb agreement with the reader at all; the sentences are
+   * impersonal statements about what is and is not available. The cohort is
+   * mixed and the bot cannot know. Rumi's own first person stays as it is
+   * everywhere else in this catalog.
+   *
+   * `/menu` inside the Urdu sentence is wrapped in U+2066 LRI … U+2069 PDI.
+   * It is a machine-Latin atom in RTL prose, and its leading slash is a
+   * bidi-neutral character between an Arabic-class letter and a Latin one —
+   * exactly the case UAX#9 resolves to the paragraph direction, which puts
+   * the slash on the far side of the word for a reader scanning the line.
+   * The isolate makes it paint as one contiguous `/menu` token. The English
+   * variant needs nothing: its paragraph is already LTR.
+   */
+  readingNotAvailable: {
+    en:
+      'Reading assessment is not switched on here yet, so I cannot open it for you — '
+      + 'trying again will not help, and that is on us, not on you.\n'
+      + 'What is ready right now: lesson plans straight from your own textbook, '
+      + 'and coaching on a recording of your class. Type /menu to see both.',
+    ur:
+      'قرائت کا جائزہ ابھی یہاں دستیاب نہیں ہے، اس لیے میں اسے کھول نہیں سکتی۔ '
+      + 'دوبارہ کوشش کرنے کا فائدہ نہیں — یہ کمی ہماری طرف سے ہے۔\n'
+      + 'ابھی جو موجود ہے: آپ کی اپنی درسی کتاب سے سبق کے منصوبے، اور کلاس کی '
+      + 'ریکارڈنگ پر کوچنگ۔ دونوں دیکھنے کے لیے \u2066/menu\u2069 لکھیں۔',
+  },
+
   readingPickerHeader: {
     en: 'Select Language',
     ur: 'زبان منتخب کریں',
