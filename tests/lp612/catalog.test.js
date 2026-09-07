@@ -33,7 +33,7 @@ function mockBuilder(table) {
     limit: () => b,
     order: (c, o) => { state.order = [c, o]; return b; },
     limit: () => b,
-    then: (res, rej) => {
+    __rows: () => {
       mockDbCalls.push({ ...state });
       // Apply the eq() filters the service actually sets, so the fake behaves
       // like a table rather than like a bag of rows. It filters ONLY on columns
@@ -56,8 +56,17 @@ function mockBuilder(table) {
             || r.grade === g || (r.also_grades || []).includes(g));
         }
       }
-      return Promise.resolve({ data: rows, error: null }).then(res, rej);
+      return rows;
     },
+    // `.range(from, to)` — the windowed read shape the catalogue now uses for
+    // every set-valued query (bd-oak77.27). The fake serves the window; the
+    // production pager stops on the first short page.
+    range: (from, to) => ({
+      then: (res, rej) => Promise.resolve(
+        { data: b.__rows().slice(from, to + 1), error: null },
+      ).then(res, rej),
+    }),
+    then: (res, rej) => Promise.resolve({ data: b.__rows(), error: null }).then(res, rej),
   };
   return b;
 }

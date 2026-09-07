@@ -63,6 +63,13 @@ function mockBuilder(table) {
     eq: (c, v) => { state.filters.push([c, v]); return b; },
     single: settle,
     maybeSingle: settle,
+    // `.range(from, to)` — the windowed read shape both fallback fetches now use
+    // (bd-oak77.27). One short page ends the pager, so serving the window is enough.
+    range: (from, to) => ({
+      then: (res, rej) => settle().then(
+        ({ data, error }) => ({ data: Array.isArray(data) ? data.slice(from, to + 1) : data, error }),
+      ).then(res, rej),
+    }),
     then: (res, rej) => settle().then(res, rej),
   };
   return b;

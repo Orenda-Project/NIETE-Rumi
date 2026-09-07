@@ -14,6 +14,7 @@
  */
 
 const supabase = require('../config/supabase');
+const { pagedRows } = require('../utils/postgrest-paged');
 const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
 const WhatsAppService = require('./whatsapp.service');
 const LpFeedback = require('./lp-feedback.service');
@@ -74,33 +75,23 @@ function buildAnswerKeyCaption({ book, chapter }) {
 // PostgREST caps every response at db-max-rows regardless of the .limit() asked
 // for, and returns NO error when it truncates. Measured on this project
 // (2026-08-16): limit=5000 on a 118k-row table returns exactly 1000 rows,
-// Content-Range 0-999/*. The corpus is 2,038 lessons, so a single .limit(5000)
-// would silently serve half of it and hide the rest of the menu.
-const PAGE = 1000;
-const MAX_PAGES = 20;   // 20,000 ids — an order of magnitude above the corpus
+// Content-Range 0-999/*. Re-measured 2026-09-07 on BOTH refs: still 1000. The
+// corpus is 2,038 lessons — and `niete_lp_assets` holds 1,284 servable rows on
+// prod TODAY — so a single .limit(5000) would silently serve part of it and hide
+// the rest of the menu.
+//
+// The loop itself now lives in `bot/shared/utils/postgrest-paged.js`, because
+// this was the ONLY correct implementation in the codebase and every read that
+// did not know about it was one book away from the same silent truncation
+// (bd-oak77.27: the 6-12 subject list, its chapter and segment lists, and both
+// endpoint fallbacks). One home, so the next read that needs it finds it.
 
 /**
- * Read a whole id column by paging with .range(), stopping on the first short
- * page. Never truncates silently: a set that somehow exceeds MAX_PAGES is
- * logged loudly rather than quietly cut off.
+ * Read a whole id column, paged, into a Set. Never truncates silently.
  */
 async function pagedIdSet(label, buildQuery, column = 'lesson_id') {
-  const ids = new Set();
-  for (let page = 0; page < MAX_PAGES; page += 1) {
-    const from = page * PAGE;
-    // eslint-disable-next-line no-await-in-loop
-    const { data, error } = await buildQuery().range(from, from + PAGE - 1);
-    if (error) { logToFile(`LP v8: ${label} error`, { error: error.message, page }); return ids; }
-    const rows = data || [];
-    for (const r of rows) ids.add(r[column]);
-    if (rows.length < PAGE) return ids;
-    if (page === MAX_PAGES - 1) {
-      logToFile(`LP v8: ${label} hit the page ceiling — the set may be incomplete`, {
-        pages: MAX_PAGES, collected: ids.size,
-      });
-    }
-  }
-  return ids;
+  const rows = await pagedRows(`LP v8: ${label}`, buildQuery);
+  return new Set(rows.map((r) => r[column]));
 }
 
 /** Every lesson_id with a current asset — this is what "servable" means. */

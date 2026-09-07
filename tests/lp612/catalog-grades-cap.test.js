@@ -31,7 +31,7 @@ function mockBuilder() {
     in: (c, v) => { state.filters.push([c, v]); return b; },
     order: () => b,
     limit: (n) => { state.limit = n; return b; },
-    then: (res, rej) => {
+    __rows: () => {
       mockQueries.push({ ...state });
       let rows = mockTable;
       for (const [c, v] of state.filters) rows = rows.filter((r) => r[c] === v);
@@ -44,10 +44,25 @@ function mockBuilder() {
           rows = rows.filter((r) => r.grade === g || (r.also_grades || []).includes(g));
         }
       }
-      // The server's ceiling applies whether or not the caller asked for a limit.
+      return rows;
+    },
+    // The server's ceiling applies whether or not the caller asked for a limit —
+    // which is exactly why raising a `.limit()` is not a fix for a truncated read.
+    then: (res, rej) => {
+      const rows = b.__rows();
       const cap = state.limit ? Math.min(state.limit, POSTGREST_MAX_ROWS) : POSTGREST_MAX_ROWS;
       return Promise.resolve({ data: rows.slice(0, cap), error: null }).then(res, rej);
     },
+    // `.range(from, to)` — the windowed read shape the catalogue now uses for
+    // every set-valued query (bd-oak77.27). The fake serves the window; the
+    // production pager stops on the first short page.
+    range: (from, to) => ({
+      then: (res, rej) => {
+        const rows = b.__rows();
+        const end = Math.min(to, from + POSTGREST_MAX_ROWS - 1);
+        return Promise.resolve({ data: rows.slice(from, end + 1), error: null }).then(res, rej);
+      },
+    }),
   };
   return b;
 }

@@ -62,6 +62,14 @@ function mockChain() {
     or: (s) => { ors = s; return api; },
     order: (c, o) => { order = { col: c, asc: !o || o.ascending !== false }; return api; },
     limit: (n) => { lim = n; return api; },
+    // `.range(from, to)` — the windowed read shape the catalogue now uses for
+    // every set-valued query (bd-oak77.27). The fake serves the window; the
+    // production pager stops on the first short page.
+    range: (from, to) => ({
+      then: (res, rej) => Promise.resolve(
+        { data: rows().slice(from, to + 1), error: null },
+      ).then(res, rej),
+    }),
     then: (res, rej) => Promise.resolve({ data: rows(), error: null }).then(res, rej),
   };
   return api;
