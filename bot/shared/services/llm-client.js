@@ -282,7 +282,19 @@ function buildDirectLaneClient(directModel, ctx) {
         'warn'
       );
 
-      const res = await getClient().chat.completions.create({ ...params, model: to });
+      let res;
+      try {
+        res = await getClient().chat.completions.create({ ...params, model: to });
+      } catch (fallbackErr) {
+        // BOTH PROVIDERS FAILED. Whoever reads this needs the FIRST failure as much as the
+        // second: "OpenRouter returned 502" on its own sends the next engineer at OpenRouter,
+        // when the story is "the prepaid balance ran out AND the fallback was down". `cause` is
+        // where node's own error chain puts it and where the logger already looks.
+        fallbackErr.cause = fallbackErr.cause || e;
+        fallbackErr.message =
+          `${fallbackErr.message} (after the direct-Anthropic lane could not spend: ${reason})`;
+        throw fallbackErr;
+      }
       // THE LESSON MUST SAY WHERE IT WAS AUTHORED. A fallback that produced a perfect lesson and
       // reported it as credit-funded would make the whole point of this lane unmeasurable, and
       // would tell the operator his balance was draining when it was not.

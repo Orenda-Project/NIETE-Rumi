@@ -395,6 +395,23 @@ describe('a prepaid balance that runs dry must not stop lesson generation', () =
     expect(mockLogEvent.mock.calls.filter((c) => c[0] === 'lp612.llm.fallback_provider')).toHaveLength(0);
   });
 
+  test('when BOTH providers fail, the thrown error still names the credit failure that started it', async () => {
+    const net = installFetch((url) => (
+      url === ANTHROPIC_URL
+        ? [400, CREDIT_400]
+        : [502, { error: { message: 'openrouter is down' } }]
+    ));
+    restoreFetch = net.restore;
+    const mod = freshLlmClient();
+
+    const { client, model } = mod.getClientForModel('anthropic-direct/claude-sonnet-5');
+    // "OpenRouter returned 502" on its own sends the next engineer at OpenRouter, when the story
+    // is "the prepaid balance ran out AND the fallback was down".
+    await expect(client.chat.completions.create({
+      model, max_tokens: 1000, messages: [{ role: 'user', content: 'hi' }],
+    })).rejects.toThrow(/credit balance is too low/i);
+  });
+
   test('LLM_DIRECT_FALLBACK_MODEL overrides the derived OpenRouter id exactly', async () => {
     const net = installFetch((url) => (
       url === ANTHROPIC_URL ? [400, CREDIT_400] : [200, orReply('{}')]
