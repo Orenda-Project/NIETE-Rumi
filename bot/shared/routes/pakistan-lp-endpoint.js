@@ -39,6 +39,7 @@
  */
 
 const supabase = require('../config/supabase');
+const { pagedRows } = require('../utils/postgrest-paged');
 const { logToFile } = require('../utils/logger');
 // Additive semantic-event channel (feature.action.result) — see the tap event in serveLp612().
 const { logEvent } = require('../utils/structured-logger');
@@ -73,38 +74,51 @@ const isOxbridgeGrade = (g) => {
 
 // ─── Pakistan pre-gen source helpers ────────────────────────────────────
 
+/**
+ * PAGED, NOT UNBOUNDED (bd-oak77.27).
+ *
+ * PostgREST answers a select with at most its `db-max-rows` — 1000, measured on
+ * both refs 2026-09-07 — and returns NO error when it truncates. The rows this
+ * returns are then reduced in JS: `distinct(rows, 'subject')` for the subject
+ * screen, `distinct(rows, 'chapter_title')` for the chapter screen, and the
+ * `generation_status === 'completed'` filter BELOW runs client-side, so a
+ * truncated read silently drops whole subjects and chapters from the K-5
+ * fallback menu with nothing in the logs. That failure has already shipped once
+ * on the sibling 6-12 grade picker.
+ *
+ * 304 rows today. The bound belongs in the query, not in the current row count.
+ */
 async function fetchPakistanRows(filter = {}) {
-  let q = supabase
-    .from('pre_generated_lps')
-    .select('id,grade,subject,chapter_number,chapter_title,pdf_r2_key_en,pdf_r2_key_ur,generation_status')
-    .eq('curriculum', CURRICULUM_TAG)
-    .eq('is_current', true);
-  for (const [k, v] of Object.entries(filter)) q = q.eq(k, v);
-  const { data, error } = await q;
-  if (error) {
-    logToFile('Pakistan LP: supabase error', { error: error.message, filter });
-    return [];
-  }
-  return (data || []).filter((r) => r.generation_status === 'completed' && (r.pdf_r2_key_en || r.pdf_r2_key_ur));
+  const build = () => {
+    let q = supabase
+      .from('pre_generated_lps')
+      .select('id,grade,subject,chapter_number,chapter_title,pdf_r2_key_en,pdf_r2_key_ur,generation_status')
+      .eq('curriculum', CURRICULUM_TAG)
+      .eq('is_current', true);
+    for (const [k, v] of Object.entries(filter)) q = q.eq(k, v);
+    return q;
+  };
+  const data = await pagedRows('Pakistan LP: pre_generated_lps', build);
+  return data.filter((r) => r.generation_status === 'completed' && (r.pdf_r2_key_en || r.pdf_r2_key_ur));
 }
 
 // ─── Oxbridge catalog source helpers ────────────────────────────────────
 
+/** Paged for the same reason as `fetchPakistanRows` — its rows are reduced with
+ *  `distinct()` into the subject and chapter screens. 70 rows today. */
 async function fetchOxbridgeRows(filter = {}) {
-  let q = supabase
-    .from('lesson_plan_catalog')
-    .select('id,grade,subject,chapter_title,description,content_html')
-    .eq('source', 'oxbridge')
-    .eq('is_active', true);
-  if (filter.grade) q = q.eq('grade', filter.grade);           // e.g. 'Grade Six'
-  if (filter.subject) q = q.eq('subject', filter.subject);
-  if (filter.chapter_title) q = q.eq('chapter_title', filter.chapter_title);
-  const { data, error } = await q;
-  if (error) {
-    logToFile('Oxbridge LP: catalog lookup failed', { error: error.message, filter });
-    return [];
-  }
-  return data || [];
+  const build = () => {
+    let q = supabase
+      .from('lesson_plan_catalog')
+      .select('id,grade,subject,chapter_title,description,content_html')
+      .eq('source', 'oxbridge')
+      .eq('is_active', true);
+    if (filter.grade) q = q.eq('grade', filter.grade);         // e.g. 'Grade Six'
+    if (filter.subject) q = q.eq('subject', filter.subject);
+    if (filter.chapter_title) q = q.eq('chapter_title', filter.chapter_title);
+    return q;
+  };
+  return pagedRows('Oxbridge LP: lesson_plan_catalog', build);
 }
 
 function distinct(rows, key) {
