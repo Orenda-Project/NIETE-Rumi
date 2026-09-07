@@ -21,7 +21,7 @@ const { resolveUx } = require('../../config/ux-strings');
 const { teacherLanguageFor, formatLessonDate, lessonLabel } = require('./transcript-quiz-language');
 
 const GAP_MS = 1200;
-const NUDGE_AFTER_MS = 3 * 60 * 60 * 1000;
+const NUDGE_AFTER_MS = 6 * 60 * 60 * 1000;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -191,7 +191,10 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
 
     try {
       const SQSQueueService = require('../queue/sqs-queue.service');
-      const targetAt = new Date(Date.now() + NUDGE_AFTER_MS).toISOString();
+      // Six hours, pushed out of the 21:00-07:00 PKT quiet window rather than
+      // dropped — the worker re-queues until this instant.
+      const { nudgeTargetUtc } = require('./transcript-quiz-nudge.service');
+      const targetAt = nudgeTargetUtc(new Date(Date.now() + NUDGE_AFTER_MS)).toISOString();
       await SQSQueueService.queueJob(quizId, 'quiz_nudge_teacher', { quizId, targetAt }, {
         delaySeconds: 900, deduplicationId: `${quizId}-quiz_nudge_teacher`,
       });
