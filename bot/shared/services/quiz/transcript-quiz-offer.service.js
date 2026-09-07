@@ -362,9 +362,15 @@ async function sendLanguageAsk(quizId, phone, teacherLang, ruleLanguage) {
  */
 async function startGenerating({ quizId, quiz, phone, teacherLang, language, source }) {
   const api = module.exports;
+  // The label follows the language the teacher CHOSE, not the rule language the
+  // offer was written under: an Urdu-taught maths lesson quizzed in English is
+  // labelled "Least Common Multiple (LCM)", not "ایل سی ایم", on the row, in the
+  // student message and in every later /quiz listing. A row without a digest
+  // (legacy) keeps the label it has.
+  const topic = topicFor(quiz.meta && quiz.meta.digest, language) || quiz.topic || 'Lesson';
   const { data: flipped } = await supabase.from('quizzes')
     .update({
-      status: 'generating', language,
+      status: 'generating', language, topic,
       meta: { ...(quiz.meta || {}), step: 'author', awaiting_language: false, language_choice: language, accepted_at: new Date().toISOString() },
     })
     .eq('id', quizId).eq('status', 'offered').select('id');
