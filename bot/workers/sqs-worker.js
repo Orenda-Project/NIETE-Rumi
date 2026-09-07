@@ -1273,6 +1273,8 @@ async function recoverStaleVideoRequests() {
  * per-row lock makes the extra run harmless.
  */
 const DEBRIEF_RETRY_INTERVAL_MS = 15 * 60 * 1000;
+/** The failure digest looks back over exactly the window it runs on. */
+const PROD_DIGEST_INTERVAL_MS = 60 * 60 * 1000;
 const DEBRIEF_RETRY_LOCK_TTL_S = 30 * 60;
 const DEBRIEF_RETRY_TICK_CAP = 20;
 
@@ -1507,6 +1509,27 @@ function startWorker() {
     setInterval(runDebriefRetry, DEBRIEF_RETRY_INTERVAL_MS);
     logToFile('Debrief retry sweep enabled (boot + every 15 minutes; OBSERVE_DEBRIEF_RETRY_OFF=1 disables)', {
       enabled: process.env.OBSERVE_DEBRIEF_RETRY_OFF !== '1',
+    });
+
+    // bd-mg9c7.147: the hourly production failure digest. Lives here because
+    // this process already holds the Axiom credentials and runs on Railway, so
+    // it reports whether or not anyone's machine is on. Silent when every
+    // family is clean, and a complete no-op until PROD_DIGEST_* is set — so
+    // this block changes nothing anywhere by merging.
+    const runProdDigest = async () => {
+      if (worker.isShuttingDown) return;
+      try {
+        const digest = require('../shared/services/monitoring/prod-failure-digest.service');
+        const out = await digest.run();
+        if (out && out.reported) logToFile('Prod failure digest posted', out);
+      } catch (error) {
+        // A monitor must never be able to take down the thing it monitors.
+        logToFile('Error in prod failure digest (non-fatal)', { error: error.message }, 'error');
+      }
+    };
+    setInterval(runProdDigest, PROD_DIGEST_INTERVAL_MS);
+    logToFile('Prod failure digest enabled (hourly; set PROD_DIGEST_ENABLED=true to arm)', {
+      armed: String(process.env.PROD_DIGEST_ENABLED || '').toLowerCase() === 'true',
     });
   });
 }
