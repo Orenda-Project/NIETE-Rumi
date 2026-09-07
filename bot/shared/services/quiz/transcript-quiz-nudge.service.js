@@ -51,6 +51,29 @@ function nudgeTargetUtc(when = new Date()) {
   return new Date(bump.getTime() - PKT_OFFSET_MIN * 60 * 1000);
 }
 
+
+/**
+ * What the worker should do with a nudge job it has just picked up.
+ *
+ * The quiet-hours rule used to live only where the job is SCHEDULED, which left
+ * every already-queued job on its old target. The night the rule shipped, six
+ * nudges were still in flight under the old three-hour schedule, due between
+ * 23:25 and 01:36 PKT — precisely the messages the rule exists to stop. So the
+ * decision is made again on arrival, whenever the job was queued.
+ *
+ * @returns {{action:'process'}|{action:'requeue', targetAt:string, delaySeconds:number}}
+ */
+function nudgeDispatch({ targetAt = null, now = new Date() } = {}) {
+  const at = now instanceof Date ? now : new Date(now);
+  const due = targetAt ? new Date(targetAt) : null;
+  const when = due && due > at ? due : at;
+  const allowed = nudgeTargetUtc(when);
+  if (allowed <= at) return { action: 'process' };
+  // SQS caps DelaySeconds at 900, so a long hold is a chain of short hops.
+  const wait = Math.min(900, Math.max(60, Math.floor((allowed - at) / 1000)));
+  return { action: 'requeue', targetAt: allowed.toISOString(), delaySeconds: wait };
+}
+
 /** Midnight PKT of the day `now` falls in, as a UTC ISO string. */
 function pktDayStartIso(now = new Date()) {
   const pkt = new Date(now.getTime() + PKT_OFFSET_MIN * 60 * 1000);
@@ -129,4 +152,7 @@ async function process(quizId) {
   return { ok: true, started, quizIds: quiet.map((q) => q.id) };
 }
 
-module.exports = { process, NUDGE_BELOW, nudgeTargetUtc, pktDayStartIso, QUIET_FROM_PKT, QUIET_TO_PKT };
+module.exports = {
+  process, NUDGE_BELOW, nudgeTargetUtc, nudgeDispatch, pktDayStartIso,
+  QUIET_FROM_PKT, QUIET_TO_PKT,
+};

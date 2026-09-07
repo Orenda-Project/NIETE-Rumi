@@ -576,15 +576,19 @@ class SQSCoachingWorker {
       case 'quiz_nudge_teacher': {
         const p = (body && body.payload) ? body.payload : (payload || {});
         const quizId = p.quizId || body.groupId;
-        const targetAt = p.targetAt ? new Date(p.targetAt) : null;
-        if (targetAt && targetAt > new Date()) {
-          const wait = Math.min(900, Math.max(60, Math.floor((targetAt - Date.now()) / 1000)));
-          await SQSQueueService.queueJob(quizId, 'quiz_nudge_teacher', { quizId, targetAt: p.targetAt }, {
-            delaySeconds: wait, deduplicationId: `${quizId}-quiz_nudge_teacher-${Date.now()}`,
-          });
+        const TranscriptQuizNudge = require('../shared/services/quiz/transcript-quiz-nudge.service');
+        // Two reasons to wait: the target has not arrived, or it has but the
+        // hour is one we do not message teachers in. The second also catches
+        // jobs queued before the quiet-hours rule existed.
+        const decision = TranscriptQuizNudge.nudgeDispatch({ targetAt: p.targetAt });
+        if (decision.action === 'requeue') {
+          await SQSQueueService.queueJob(quizId, 'quiz_nudge_teacher',
+            { quizId, targetAt: decision.targetAt }, {
+              delaySeconds: decision.delaySeconds,
+              deduplicationId: `${quizId}-quiz_nudge_teacher-${Date.now()}`,
+            });
           break;
         }
-        const TranscriptQuizNudge = require('../shared/services/quiz/transcript-quiz-nudge.service');
         await TranscriptQuizNudge.process(quizId);
         break;
       }
