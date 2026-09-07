@@ -21,10 +21,24 @@
 
 // LONGEST FIRST. "نبی" is a substring of "نبی کریم", and scanning short-first
 // reports a missing honorific on every correctly-honorified mention.
+// «محمد» ON ITS OWN IS A GIVEN NAME, NOT A MENTION OF THE PROPHET. It was in
+// this list, and on 2026-09-07 an Urdu lesson called «قائد اعظم محمد علی جناح
+// اور اردو گرامر» — Quaid-e-Azam Muhammad Ali Jinnah, the founder of Pakistan,
+// in the national curriculum — could not produce a quiz at all: every question
+// about him was rejected as "prophet mention without ﷺ", through three attempts
+// and three repairs. Muhammad is the most common given name in the country, so
+// this quietly removed Pakistan Studies, history, civics, any lesson about
+// Iqbal or Jinnah, and any word problem naming a child.
+//
+// The rule stays and stays BLOCKING — an unhonorified mention of the Prophet is
+// not something to ship and fix later. What changes is what counts as a
+// mention: the religious titles, and «محمد» only in a religious construction
+// («حضرت محمد», «نبی محمد», «رسول اللہ … محمد»), which is how the books print
+// it. A bare «محمد» inside somebody's full name is that person's name.
 const PROPHET_TOKENS = [
   'سرورِ کائنات', 'پیغمبر اسلام', 'رسولِ اکرم', 'رسول اللہ', 'رسول کریم',
   'نبی کریم', 'نبی اکرم', 'نبی پاک', 'آں حضرت', 'آنحضرت', 'حضور اکرم',
-  'حضرت محمد', 'محمد', 'حضور', 'نبی',
+  'حضرت محمد', 'حضرت محمّد', 'نبی محمد', 'حضور', 'نبی',
 ].sort((a, b) => b.length - a.length);
 const esc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const PROPHET_ALT = PROPHET_TOKENS.map(esc).join('|');

@@ -464,9 +464,12 @@ function salvageWithoutBadFigures(questions, errors, ctx) {
     if (m) bad.add(Number(m[1]));
     else if (!setLevelSoft.test(e) && !SOFT_FAULT.test(e)) other = true;
   });
-  if (other || !bad.size) return null;
+  if (other) return { refused: 'a complaint about the set, not a question', errors };
+  if (!bad.size) return { refused: 'nothing named a question to drop', errors };
   const kept = questions.filter((_, i) => !bad.has(i));
-  if (kept.length < MIN_QUESTIONS) return null;
+  if (kept.length < MIN_QUESTIONS) {
+    return { refused: `dropping ${bad.size} would leave ${kept.length}, under the floor of ${MIN_QUESTIONS}`, errors };
+  }
   const v = validate(kept, { ...ctx, nExpected: kept.length });
   // ONE definition of "shippable", shared with the soft-fault ship above: no
   // hard fault on any surviving question, and at least MIN_QUESTIONS of them.
@@ -474,7 +477,7 @@ function salvageWithoutBadFigures(questions, errors, ctx) {
   // fault and the drop path demanded a spotless remainder — so a drop that left
   // a soft fault was refused and the teacher got nothing.
   const soft = v.errors.filter((e) => !SOFT_FAULT.test(String(e)));
-  if (soft.length) return null;
+  if (soft.length) return { refused: 'what survived did not validate', errors: soft, dropped: [...bad].sort((a, b) => a - b) };
   // sorted, so the event and the meta read the same way every time
   return { questions: v.questions, dropped: [...bad].sort((a, b) => a - b), softFaults: v.errors };
 }
@@ -734,7 +737,19 @@ async function process(quizId, payload = {}) {
         // last attempt carries the one it was authored with.
         const ctx = { ...base, lessonSummary: cand.lessonSummary || lastLessonSummary };
         const salvaged = salvageWithoutBadFigures(cand.questions, cand.errors, ctx);
-        if (!salvaged) continue;
+        // A refusal now says WHY. Every salvage decision today had to be
+        // reconstructed by inference from the attempt record, which is a day
+        // of guessing this one event would have removed.
+        if (!salvaged || salvaged.refused) {
+          if (salvaged && salvaged.refused) {
+            logEvent('transcript_quiz.salvage_refused', {
+              quizId, why: salvaged.refused,
+              dropped: salvaged.dropped || null,
+              errors: (salvaged.errors || []).slice(0, 6).map((e) => String(e).slice(0, 120)),
+            });
+          }
+          continue;
+        }
         try {
           const drafted = toRows(quizId, salvaged.questions);
           // eslint-disable-next-line no-await-in-loop
