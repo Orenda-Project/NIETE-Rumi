@@ -1005,6 +1005,10 @@ const UX_STRINGS = {
     en: '{started} student(s) have started your quiz on *{topic}* so far. Worth forwarding the link to the class group again?',
     ur: '\u200F*{topic}* پر آپ کے quiz کو اب تک {started} طلبہ نے شروع کیا ہے۔ link دوبارہ class group میں forward کر دیں؟',
   },
+  tqNudgeMany: {
+    en: '{count} of your quizzes have had almost nobody start yet: *{topics}*. Worth forwarding the links to the class group again?',
+    ur: '\u200Fآپ کے {count} quiz ابھی تک تقریباً کسی نے شروع نہیں کیے: *{topics}*۔ link دوبارہ class group میں forward کر دیں؟',
+  },
 
   // ─── /quiz as ONE WhatsApp Flow (docs/flows/transcript-quiz-flow.json) ───
   //
