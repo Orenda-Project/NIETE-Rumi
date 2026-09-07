@@ -157,9 +157,22 @@ function teacherAsSubject(stem, language) {
 // The answer depends on which child, which group or which turn — facts the
 // quiz does not hold and cannot check. Also the pure logistics: the page, the
 // homework, who was called to the board.
-const UNANSWERABLE_EN = /(your\s+(group|team|row|partner|bench|side)|you were\s+(asked|told|given|assigned|called)|the\s+(student|child|boy|girl|classmate|pupil)\s+who|who\s+(was|were)\s+(called|asked|picked|chosen|sent)|which\s+(group|team|row)\b|what homework|which page|on which page|in your (notebook|copy|register))/i;
-const UNANSWERABLE_UR = /(آپ\s*کے\s*گروپ|آپ\s*کا\s*گروپ|آپ\s*کی\s*ٹیم|آپ\s*کے\s*ساتھی|آپ\s*کو\s*کہا|آپ\s*سے\s*کہا|آپ\s*کو\s*دی\s*گئی|جس\s*بچے|جس\s*طالب|کس\s*گروپ|کون\s*سے\s*گروپ|بورڈ\s*پر\s*بلا|کس\s*صفح|کون\s*سے\s*صفح|ہوم\s*ورک|کاپی\s*میں\s*کیا)/;
+const UNANSWERABLE_EN = /(your\s+(group|team|row|partner|bench|side)|you were\s+(asked|told|given|assigned|called)|the\s+(student|child|boy|girl|classmate|pupil)\s+who|who\s+(was|were)\s+(called|asked|picked|chosen|sent)|which\s+(group|team|row)\s+(was|were)\s+(called|asked|picked|chosen|sent|given|told)|what homework|which page|on which page|in your (notebook|copy|register))/i;
+const UNANSWERABLE_UR = /(آپ\s*کے\s*گروپ|آپ\s*کا\s*گروپ|آپ\s*کی\s*ٹیم|آپ\s*کے\s*ساتھی|آپ\s*کو\s*کہا|آپ\s*سے\s*کہا|آپ\s*کو\s*دی\s*گئی|جس\s*بچے|جس\s*طالب|کس\s*گروپ\s*کو|کون\s*سے\s*گروپ\s*کو|آپ\s*کو\s*\S*\s*کہا|بورڈ\s*پر\s*بلا|کس\s*صفح|کون\s*سے\s*صفح|ہوم\s*ورک|کاپی\s*میں\s*کیا)/;
 
+// A GROUP OF OBJECTS IS NOT A GROUP OF CHILDREN. The bare words «کس گروپ» and
+// "which group" used to fire this rule, and on 2026-09-07 that made an entire
+// early-years maths topic un-quizzable: a grade 1-2 "More and Less" lesson,
+// whose own objective is telling which of two GROUPS has more and whose
+// examples are all "group A has 6, group B has 5", was rejected six times over
+// six model calls, and the teacher was told the recording was unclear. The
+// fault this rule exists for is the INDEXICAL framing — an answer that depends
+// on which child you are, which group you sat in, what you were personally
+// asked to do. That is carried by the second person, by the child-who
+// construction, and by the activity VERB ("which group WAS CALLED to the
+// board", «کس گروپ کو…»), never by the noun on its own. In Urdu the
+// discriminator is the postposition: «کس گروپ کو» is something done TO a group
+// of children; «کس گروپ میں» is a question about what is IN a group of things.
 function unanswerable(stem, language) {
   const s = String(stem || '');
   if (UNANSWERABLE_EN.test(s)) return true;
