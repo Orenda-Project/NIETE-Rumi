@@ -19,13 +19,19 @@ const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
 
-const { buildHtml, scaledPx } = require("./lib/template");
+const { buildHtml, scaledPx, PAGE } = require("./lib/template");
 const { applyOverlay } = require("./lib/overlay");
 const { validateDoc } = require("./lib/validate");
 const { REPO_ROOT } = require("./lib/fonts");
 const { setInfo } = require("./lib/pdfmeta");
 
-const A4 = { w: 794, h: 1123 };
+// THE PAGE BOX LIVES IN lib/template.js AND IS IMPORTED, NEVER RE-DECLARED (v9.3, bd-oak77.16).
+// v9.2 carried `const A4 = { w: 794, h: 1123 }` here AND `--page-w:794px` there — two homes for
+// one number, which is exactly how a document gets laid out at one size and printed at another.
+// v9.3's page is 520 x 2000: phone-first, because an A4 page fit to a 390-px screen delivers its
+// 21px body at 67% of the arm's-length reading floor and the type has nowhere left to go. The
+// measurement, the two-corpus page count and the printing trade-off are in
+// prod_golive_2026-09-06/15_phone_page/DESIGN.md.
 // Operator decision 2026-08-30 (floor raised to 18px on 2026-09-01): the body floor is the
 // hard constraint, so the page
 // cap gives instead. Each part starts on a fresh page.
@@ -625,7 +631,7 @@ async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, r
     channel ? { channel, args: LAUNCH_ARGS } : { args: LAUNCH_ARGS },
   );
   try {
-    const page = await browser.newPage({ viewport: { width: A4.w, height: A4.h }, deviceScaleFactor: 2 });
+    const page = await browser.newPage({ viewport: { width: PAGE.w, height: PAGE.h }, deviceScaleFactor: 2 });
     const load = async (p) => {
       await page.goto("file://" + p + "?t=" + Date.now(), { waitUntil: "load" });
       await page.evaluate("document.fonts.ready.then(function(){return true;})");
@@ -692,7 +698,7 @@ async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, r
       // plan and both G10 Urdu support pages in the 2026-08-30 sample run.
       // The renderer emits EVERY page the packer laid out; going over the cap is reported
       // below as a loud PAGE COUNT failure. Cutting a long plan is an authoring decision.
-      const buf = await page.pdf({ width: `${A4.w}px`, height: `${A4.h}px`, printBackground: true });
+      const buf = await page.pdf({ width: `${PAGE.w}px`, height: `${PAGE.h}px`, printBackground: true });
       // The internal identifiers the footer no longer prints live HERE instead — visible to
       // the pipeline (and in File > Properties), invisible to the teacher.
       fs.writeFileSync(outPdf, pdfMeta ? setInfo(buf, pdfMeta) : buf);
@@ -935,6 +941,7 @@ if (require.main === module) {
 // Exported for test/run_tests.js — the packer is the new core logic and needs its own cover.
 // `renderDoc` and `chromeChannel` are vendor additions (see SYNC.md).
 module.exports = { renderDoc, chromeChannel, computeBreaks, packAtoms, packAtomsGreedy,
+  PAGE,
   MAX_PAGES, WARN_PAGES, MAX_PAGES_UR, WARN_PAGES_UR, pageCapsFor,
   absorbPlan, OVERFLOW_ABSORB_MAX_PX,
   BODY_FLOOR_PX, CHIP_FLOOR_PX };
