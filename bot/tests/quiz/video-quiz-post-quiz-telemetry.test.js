@@ -38,7 +38,7 @@ jest.mock('../../shared/services/quiz/video-quiz-scorecard.service', () => ({
   sendScorecard: jest.fn().mockResolvedValue(true),
 }));
 jest.mock('../../shared/services/quiz/video-quiz-report.service', () => ({
-  maybeSendEarly: jest.fn().mockResolvedValue(undefined),
+  maybeSendFollowUp: jest.fn().mockResolvedValue(undefined),
   scheduleForShareCode: jest.fn().mockResolvedValue(undefined),
 }));
 
