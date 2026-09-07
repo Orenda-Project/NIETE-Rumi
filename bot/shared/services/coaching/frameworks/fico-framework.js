@@ -504,7 +504,13 @@ ${sectionBlocks}
 **TOTAL: ${MAX_MARKS} marks maximum** (${TOTAL_INDICATORS} indicators × 4)
 
 SUBJECT-CONDITIONAL SECTION F:
-F1-F4 and F8 apply to every subject. F5 = MATHEMATICS, F6 = SCIENCE, F7 = LITERACY/LANGUAGE. If the lesson subject does not match a subject-tagged indicator, score it 1 with evidence "Not applicable — lesson subject is <subject>, indicator applies to <subjectGroup>."
+F1-F4 and F8 apply to every subject. F5 = MATHEMATICS, F6 = SCIENCE, F7 = LITERACY/LANGUAGE.
+For a subject-tagged indicator whose subject does not match this lesson, emit "applicable": false
+with "score": null and evidence "Not applicable — lesson subject is <subject>".
+DO NOT score it 1: a non-applicable indicator LEAVES THE TOTAL ENTIRELY, it is not a low mark, and
+it must never be described to the teacher as something her lesson was missing. Every other
+indicator carries "applicable": true. If you cannot tell the subject, mark ALL THREE subject-tagged
+indicators (F5, F6, F7) non-applicable rather than guessing.
 
 SPECIAL INSTRUCTIONS:
 - For Section B indicator B1 (Instructional Clarity & Learning Objectives): if a lesson plan is linked, compare observed execution against the specific LP objectives + steps.
@@ -541,7 +547,7 @@ function buildIndicatorJsonRow(ind) {
   // and flows to the teacher's report unchanged. One LLM pass emits both — no
   // extra call. Keep them consistent: the summary is a faithful compression of
   // the same moment, never a different judgement.
-  return `        { "id": "${ind.id}", "name": "${ind.name.replace(/"/g, '\\"')}", "score": <1-4>, "evidence": "Detailed description + Quote: \\\"...\\\"", "evidence_summary": "<= 500 chars: the move + its effect on students + one short quote — the gist a reviewer needs to sanity-check the score", "timestamp": "exact time" }`;
+  return `        { "id": "${ind.id}", "name": "${ind.name.replace(/"/g, '\\"')}", "score": <1-4, or null if not applicable>, "applicable": <true|false>, "evidence": "Detailed description + Quote: \\\"...\\\"", "evidence_summary": "<= 500 chars: the move + its effect on students + one short quote — the gist a reviewer needs to sanity-check the score", "timestamp": "exact time" }`;
 }
 
 function buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, photoAnalysis) {
@@ -611,14 +617,15 @@ ${sectionJsonBlocks}
   "recommendations": ["Actionable recommendation 1", "Actionable recommendation 2", "Actionable recommendation 3"]
 }
 
-FOCUS AREA — pick the SINGLE most useful growth area (one domain + one indicator) as the teacher's lead next-step. Prefer the domain the lesson's actual evidence points to; do not default to "questioning". Its "domain" MUST be one of the four section keys above and "indicator" MUST be one of that section's indicator ids.
+FOCUS AREA — pick the SINGLE most useful growth area (one domain + one indicator) as the teacher's lead next-step. NEVER pick a non-applicable indicator. Prefer the domain the lesson's actual evidence points to; do not default to "questioning". Its "domain" MUST be one of the four section keys above and "indicator" MUST be one of that section's indicator ids.
 ${focusAreaLangDirective(language)}
 
 EVIDENCE RULES:
 - For EACH indicator, describe what the teacher DID (not what they didn't do)
 - Include English translation of dialogue: Quote: "..."
 - Even for score 1, provide detailed evidence of what was observed
-- For non-applicable Section F rows (subject mismatch), score 1 with evidence noting the mismatch
+- For non-applicable Section F rows (subject mismatch), follow the SUBJECT-CONDITIONAL rule above:
+  "applicable": false, "score": null, evidence naming the mismatch. Do NOT give it a number.
 - For EACH indicator ALSO write "evidence_summary": a self-contained ≤500-character
   compression of that indicator's "evidence" — the move, its effect on students, and one
   short quote. It is the ONLY note the human observer reads on the review form, so it must
@@ -631,28 +638,53 @@ EVIDENCE RULES:
 function computeScores(analysis) {
   const domainKeys = Object.keys(DOMAINS);
   let overallMarks = 0;
+  // Built up per domain rather than the flat MAX_MARKS, so subject-inapplicable
+  // rows leave the overall denominator too. A domain the analysis omitted
+  // contributes nothing to either side, exactly as before.
+  let overallMax = 0;
 
   for (const domainKey of domainKeys) {
     if (analysis.domains && analysis.domains[domainKey]) {
       const domain = analysis.domains[domainKey];
       let domainScore = 0;
 
+      // bd-zswkx: a NON-APPLICABLE indicator leaves the total entirely — no
+      // numerator, no denominator. Section F tags F5/F6/F7 by subject and at most
+      // ONE can apply to a lesson, so the old flat denominator charged every
+      // teacher for the two subjects she did not teach: Section F was capped at
+      // 26/32 (81.3%) for a flawless lesson, and ~6 of 148 marks were unreachable
+      // by construction. `applicable === false` is the ONLY thing that removes a
+      // row; an ABSENT flag means applicable, so every session scored before this
+      // change keeps exactly the totals it was reported with.
+      let applicableCount = 0;
       if (domain.indicators) {
         for (const indicator of domain.indicators) {
+          if (indicator && indicator.applicable === false) continue;
           domainScore += indicator.score || 0;
+          applicableCount += 1;
         }
       }
 
+      // No flag anywhere in this domain → a pre-cutover analysis; keep the
+      // declared count so its denominator is unchanged.
+      const declared = DOMAINS[domainKey].indicatorCount;
+      const anyFlagged = (domain.indicators || []).some((i) => i && i.applicable === false);
+      const countedIndicators = anyFlagged ? applicableCount : declared;
+
       domain.domain_score = domainScore;
-      domain.domain_max = DOMAINS[domainKey].indicatorCount * SCALE_MAX;
+      domain.domain_max = countedIndicators * SCALE_MAX;
+      domain.indicators_applicable = countedIndicators;
       overallMarks += domainScore;
+      overallMax += countedIndicators * SCALE_MAX;
     }
   }
 
   analysis.scores = {
     overall_marks: overallMarks,
-    overall_max_marks: MAX_MARKS,
-    overall_percentage: parseFloat(((overallMarks / MAX_MARKS) * 100).toFixed(1))
+    overall_max_marks: overallMax,
+    overall_percentage: overallMax > 0
+      ? parseFloat(((overallMarks / overallMax) * 100).toFixed(1))
+      : 0
   };
 
   return analysis;
