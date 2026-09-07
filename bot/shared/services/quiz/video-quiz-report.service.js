@@ -89,30 +89,6 @@ function reportTargetUtc(now = new Date()) {
 }
 
 /**
- * Is this share code finished enough to report on NOW?
- *
- * Pure so it can be asserted directly — routing it through maybeSendEarly()
- * would let a stubbed share-code lookup produce a green that never touched the
- * rule.
- *
- * TWO conditions, and the second is the one that was missing:
- *   1. every session is terminal, AND
- *   2. nothing new has started for QUIET_PERIOD_MS.
- *
- * Without (2) a forwarded link fires on its first finisher: at 2:10pm the only
- * session in existence is terminal, the report goes out reading "1 of 1", and
- * because there is one report per code the other 29 children are never reported.
- */
-const TERMINAL_STATUSES = ['completed', 'incomplete', 'expired', 'cancelled'];
-
-function shouldSendEarly(sessions, now = Date.now()) {
-  if (!Array.isArray(sessions) || !sessions.length) return false;
-  if (!sessions.every((s) => TERMINAL_STATUSES.includes(s.status))) return false;
-  const newest = Math.max(...sessions.map((s) => new Date(s.created_at || 0).getTime()));
-  return (now - newest) >= QUIET_PERIOD_MS;
-}
-
-/**
  * Schedule the report for a share code. Idempotent per code — a second call
  * (another child joining) must not queue a second report.
  */
@@ -144,23 +120,41 @@ async function scheduleForShareCode(shareCodeId) {
 }
 
 /**
- * Every child who started has finished → send now rather than wait for morning.
- * Idempotent: only fires when at least one session exists and none is still
- * in flight.
+ * ONE follow-up, when materially more children finish after the report went out.
+ *
+ * The early "everyone who started has finished" send used to live here and is
+ * gone. It decided on a SNAPSHOT — every session terminal, 2h quiet — and then
+ * the door shut for good, because there was one report per share code ever. On
+ * production 2026-09-07 it sent a class report 3.0h after the first child while
+ * a third was mid-quiz and a fourth started three minutes later; neither could
+ * ever reach that teacher. We do not know the class size, so "every session is
+ * terminal" cannot mean "the class is done" — only "nobody is mid-quiz in this
+ * instant".
+ *
+ * Pure, so the rule can be asserted directly rather than through a stubbed
+ * share-code lookup that never touches it.
+ *
+ * @param {number} reportedOn      children who had finished when the report went
+ * @param {number} finishedSince   children who finished after it
+ * @param {boolean} alreadyFollowedUp
  */
-async function maybeSendEarly(shareCodeId) {
+function followUpDecision({ reportedOn = 0, finishedSince = 0, alreadyFollowedUp = false } = {}) {
+  if (alreadyFollowedUp) return { send: false, why: 'followup_already_sent' };
+  // Three more children is worth a message on any class; half again as many is
+  // worth it on a small one, which is where a premature report hurts most.
+  const material = finishedSince > 0 && (finishedSince >= 3 || finishedSince >= reportedOn / 2);
+  return material
+    ? { send: true, why: 'more_children_finished' }
+    : { send: false, why: 'not_enough_new' };
+}
+
+/**
+ * A child just finished. If their teacher already has a report, see whether
+ * enough has changed since to be worth one more.
+ */
+async function maybeSendFollowUp(shareCodeId) {
   if (!shareCodeId) return false;
-  const { data: sessions } = await supabase
-    .from('quiz_sessions')
-    .select('status, created_at')
-    .eq('share_code_id', shareCodeId)
-    .is('invited_by_student_id', null)   // a friend's session is not this teacher's class
-    // PLAN_R5 D8 — within a share code, user_id IS NOT NULL means the
-    // teacher's own self-test (every real share-link session is inserted
-    // with user_id: null). That practice run must never decide "all finished".
-    .is('user_id', null);
-  if (!shouldSendEarly(sessions || [])) return false;
-  return generate(shareCodeId, { reason: 'all_finished' });
+  return generate(shareCodeId, { reason: 'follow_up' });
 }
 
 /**
@@ -208,16 +202,11 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     .maybeSingle();
   if (!sc) return false;
 
-  // ONE report per share code. A teacher who has already been told how the
-  // class did should never be told again — and both trigger paths (the morning
-  // job and the all-finished early send) can legitimately fire for the same code.
-  // `force` is the one exception: the teacher asked for it from /quiz.
-  if (sc.report_sent_at && !force) {
-    logEvent('video_quiz.report_suppressed', {
-      shareCodeId, reason, why: 'already_sent', sentAt: sc.report_sent_at,
-    });
-    return false;
-  }
+  // A second report is a FOLLOW-UP, not a duplicate. Whether it is worth sending
+  // is decided below, once we know how many children finished after the first
+  // one went out. `force` is the teacher asking from /quiz, and skips the whole
+  // question.
+  const isFollowUp = Boolean(sc.report_sent_at) && !force;
 
   const { data: teacher } = await supabase
     .from('users').select('phone_number, preferred_language')
@@ -230,7 +219,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   const { data: sessions } = await supabase
     .from('quiz_sessions')
     .select('id, user_id, student_name, student_class, status, total_questions_answered, '
-            + 'correct_answers, mastery_percentage')
+            + 'correct_answers, mastery_percentage, completed_at')
     .eq('share_code_id', shareCodeId)
     .is('invited_by_student_id', null);   // a friend's session is not this teacher's class
 
@@ -245,6 +234,38 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     });
   }
   const done = all.filter((s) => s.status === 'completed');
+
+  // The follow-up rule needs both halves of the class: who the first report
+  // covered, and who finished after it.
+  if (isFollowUp) {
+    const sentAt = new Date(sc.report_sent_at).getTime();
+    // An unknown completed_at counts as ALREADY reported: a missing timestamp
+    // must never manufacture a follow-up out of a child the teacher has seen.
+    const reportedOn = done.filter((s) => !s.completed_at
+      || new Date(s.completed_at).getTime() <= sentAt).length;
+    const finishedSince = done.length - reportedOn;
+    const { data: qRow } = await supabase.from('quizzes')
+      .select('meta').eq('id', sc.quiz_id).maybeSingle();
+    const already = Boolean(((qRow?.meta || {}).report_followups || {})[shareCodeId]);
+    const decision = followUpDecision({ reportedOn, finishedSince, alreadyFollowedUp: already });
+    if (!decision.send) {
+      logEvent('video_quiz.report_suppressed', {
+        shareCodeId, reason, why: decision.why, sentAt: sc.report_sent_at,
+        reportedOn, finishedSince,
+      });
+      return false;
+    }
+    logEvent('video_quiz.report_followup', { shareCodeId, reportedOn, finishedSince });
+    await supabase.from('quizzes').update({
+      meta: {
+        ...(qRow?.meta || {}),
+        report_followups: {
+          ...((qRow?.meta || {}).report_followups || {}),
+          [shareCodeId]: new Date().toISOString(),
+        },
+      },
+    }).eq('id', sc.quiz_id);
+  }
 
   // Never send a results message with no results in it.
   //
@@ -1175,8 +1196,8 @@ function buildGuidancePrompt({
 }
 
 module.exports = {
-  JOB_TYPE, LEGACY_JOB_TYPE, scheduleForShareCode, maybeSendEarly, generate,
-  hardestQuestions, reportTargetUtc, shouldSendEarly, teacherFacing,
+  JOB_TYPE, LEGACY_JOB_TYPE, scheduleForShareCode, maybeSendFollowUp, followUpDecision, generate,
+  hardestQuestions, reportTargetUtc, teacherFacing,
   buildGuidancePrompt, generateGuidance, formatGuidanceText, stripEmphasis, classLabel,
   classesTaught, guidanceShape,
   CLUSTER_THRESHOLD,
