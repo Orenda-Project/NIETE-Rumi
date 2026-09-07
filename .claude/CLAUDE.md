@@ -9,6 +9,9 @@
 | `skills/<name>/SKILL.md` | On-demand domain knowledge an agent loads when a task matches |
 | `settings.json` | MCP servers (e.g. Supabase) — secrets via `${ENV_VAR}` interpolation, never inline. Also registers the `PreToolUse` schema-standards warning (see `hooks/`) |
 | `hooks/data-standards-warn.sh` | Warns (never blocks) when a `git commit`/`push` stages a schema change with standards findings. Ours; wraps the vendored validator |
+| `hooks/e2e-autorun.sh` · `e2e-autorun-stop.sh` · `e2e-pending-banner.sh` | The QA auto-run: a commit arms the Gherkin sync + targeted E2E for the features it touched; Stop holds the turn once; SessionStart announces markers left by terminal commits (`.githooks/`). See [docs/qa-automation.md](../docs/qa-automation.md) |
+| `qa/` | The E2E system: feature map, selector, spec-sync brief builder, validator, runner, one executor agent per feature, fixtures, ledgers — [qa/README.md](qa/README.md) |
+| `commands/` | `/niete-e2e` (drive the suite) · `/sync-specs` (phase 1) · `/testcases` (author Gherkin from a ticket) · `/apply-discoveries` |
 | `skills/data-standards/` | **Vendored verbatim from the Data Team's own repo — never edit anything in it.** `scripts/data-standards-verify.sh` fails CI if it is modified. Adaptation lives in `.data-standards.json` at the repo root. See [../docs/data-standards.md](../docs/data-standards.md) |
 
 ## Skills
@@ -35,6 +38,10 @@ folder with a `SKILL.md` (+ optional reference files).
 | [ab-testing](skills/ab-testing/SKILL.md) | Thompson-sampling multi-armed bandit (ab_tests tables) |
 | [logging](skills/logging/SKILL.md) | Structured console logs, correlation IDs, semantic events, optional external backend |
 | [feature-tracer](skills/feature-tracer/SKILL.md) | Trace any feature end to end — the map of handler/service/worker/table per feature |
+| [gherkin-spec-sync](skills/gherkin-spec-sync/SKILL.md) | Phase 1 of the auto-run: sync the specs to a commit from the brief — add/update/tag `@obsolete`, never delete, then gate |
+| [gherkin-test-cases](skills/gherkin-test-cases/SKILL.md) | How a scenario is designed and written — risk model, positive-first order, quality gate (what `/testcases` and the sync author through) |
+| [chrome-mcp-whatsapp-e2e](skills/chrome-mcp-whatsapp-e2e/SKILL.md) | Driving WhatsApp Web over Chrome DevTools, incl. native Flows — the method behind `/niete-e2e` |
+| [apply-discoveries](skills/apply-discoveries/SKILL.md) | Fold human-approved E2E discoveries / intended drift back into the specs |
 
 > Skills are loaded **on demand** — an agent reads the one whose description matches the task. The set above
 > is the operational core (run / extend / debug the open bot); internal-ops skills from the production bot
