@@ -79,10 +79,12 @@ const PER_QUESTION = /^q(\d+):\s*(PEDAGOGY_[A-Z_]+|FIGURE_[A-Z_]+|RELIGIOUS_[A-Z
  * length fault is the cheapest repair there is. Malformed replies (`q0: 2
  * options`, an empty stem) stay a re-roll.
  */
-const PER_QUESTION_STRUCTURAL = /^q(\d+):\s*(option >\d+ code points|Q_MISSING_WHY\b|MULTI_[A-Z_]+\b)/;
+const PER_QUESTION_STRUCTURAL = /^q(\d+):\s*(option >\d+ code points|Q_MISSING_WHY\b|MULTI_[A-Z_]+\b|URDU_TEACHER_FIELDS\b)/;
+const CHILD_ADDRESS_RULE = 'THE CHILD HAS NO GENDER. Address the child as آپ with plural-respectful verbs (کریں، دیکھیں، سوچیں، سمجھ سکتے ہیں). Never a feminine or masculine singular guess: no کرتی ہیں، سکتی ہیں، کریں گی، رہی ہوں گی، کرتے ہو. For a question rejected ONLY for this, keep the question and change the verb form.';
+const TEACHER_FIELDS_RULE = 'TEACHER FIELDS. "selected_because" and every "distractor_misconceptions" entry are printed on the TEACHER\'s Urdu page: write them in Urdu script (English technical terms in English letters are fine). For a question rejected ONLY for this, keep the question and rewrite those two fields in Urdu.';
 const STRUCTURAL_MULTI_RULE = 'MULTI-SELECT. A "select all that apply" question (answer_mode "multi") names at least 2 and at most (options − 1) correct options in "correct_indices", and every option is at most 30 characters. If the lesson gives it only ONE right answer, write it as an ordinary single-answer question instead: 3 options, one "correct_index", no "correct_indices", no answer_mode.';
 /** The set-level line the validator writes NEXT TO its per-question PEDAGOGY_LEVEL_ABOVE lines; those lines are the targets, this one is their headline. */
-const LEVEL_SUMMARY = /^(only \d+\/\d+ at\/below taught level|PEDAGOGY_LEVEL_MIX — only \d+ of \d+)/;
+const LEVEL_SUMMARY = /^(only \d+\/\d+ at\/below taught level|PEDAGOGY_LEVEL_MIX — only \d+ of \d+|feminine-stem address$)/;
 const STRUCTURAL_CAPS_RULE = 'LENGTH. Every option is at most 72 code points (characters) — a long option is cut off on the phone, so write a shorter one that says the same thing. Every "selected_because" is at most 15 words. For a question rejected ONLY for length, keep the same question and shorten the text.';
 
 /**
@@ -188,6 +190,8 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
     SELECTED_BECAUSE_RULE,
     ...(indices.some((i) => (byIndex[i] || []).some((e) => PER_QUESTION_STRUCTURAL.test(e))) ? [STRUCTURAL_CAPS_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /MULTI_[A-Z_]+/.test(e))) ? [STRUCTURAL_MULTI_RULE] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => /PEDAGOGY_GENDERED_CHILD/.test(e))) ? [CHILD_ADDRESS_RULE] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => /URDU_TEACHER_FIELDS/.test(e))) ? [TEACHER_FIELDS_RULE] : []),
   ] : [];
 
   const summarySection = summaryErrors.length ? [
@@ -328,7 +332,86 @@ async function rewriteRejected({
   }
 }
 
+// ─── THE TEACHER FIELDS, REPAIRED IN PLACE ──────────────────────────────────
+// On an Urdu quiz the model writes "selected_because" and the distractor
+// meanings in English on the FIRST attempt more often than not (production,
+// 2026-09-07: two of two Urdu quizzes, 8/8 questions each; one of them again
+// on its third attempt with the complaint in front of it). Those two fields
+// are printed on the teacher's page and never reach a child — a fault in them
+// is not a fault in the question, so the question is never re-rolled for it.
+// ONE small call rewrites exactly those fields, in Urdu, for every question
+// named, at any count; the merged set goes through the whole validator again.
+const TEACHER_FIELDS_ONLY = /^q(\d+): URDU_TEACHER_FIELDS\b/;
+
+/** The indices whose teacher fields were rejected, in order. */
+function teacherFieldTargets(errors) {
+  const idx = new Set();
+  (Array.isArray(errors) ? errors : []).forEach((e) => { const m = TEACHER_FIELDS_ONLY.exec(String(e)); if (m) idx.add(Number(m[1])); });
+  return [...idx].sort((a, b) => a - b);
+}
+
+function buildTeacherFieldsPrompt({ digest, questions, indices }) {
+  const qs = Array.isArray(questions) ? questions : [];
+  const slos = (digest && Array.isArray(digest.slos)) ? digest.slos : [];
+  const sloLines = slos.map((s) => `- ${s.id}: ${s.statement_ur || s.statement || ''}`).join('\n');
+  const items = indices.map((i) => {
+    const q = qs[i] || {};
+    const misc = q.distractor_misconceptions || {};
+    return `q${i} · slo_id "${q.slo_id || 'S?'}"
+  question (for the child, stays as it is): "${String(q.question || '').trim()}"
+  options: ${(Array.isArray(q.options) ? q.options : []).map((o, k) => `[${k}] ${String(o)}`).join('  ')}   correct: ${q.correct_index}
+  current "selected_because" (wrong language): "${String(q.selected_because || '').trim()}"
+  current "distractor_misconceptions" (wrong language): ${JSON.stringify(misc)}`;
+  }).join('\n\n');
+  return [
+    'REWRITE THE TEACHER FIELDS of an Urdu quiz. The questions are fine and stay exactly as they are; ONLY two fields per question were written in the wrong language. These two fields are printed on the TEACHER\'s Urdu page and never shown to a child.',
+    TEACHER_FIELDS_RULE,
+    '"selected_because": at most 15 words, in Urdu script, naming the moment of the lesson this question tests (the example, the board, the thing the class did). "distractor_misconceptions": the SAME keys as now, each value one short Urdu phrase naming the misconception a child holds when they pick that wrong option. English technical terms stay in English letters. Never a gendered word for the teacher (write «استاد نے …» or «سبق میں …»).',
+    `THE LESSON'S OBJECTIVES\n${sloLines || '(none recorded)'}`,
+    `THE QUESTIONS\n${items}`,
+    `Return ONLY this JSON object, with exactly ${indices.length} entr${indices.length === 1 ? 'y' : 'ies'}, "index" being one of: ${indices.join(', ')}.
+{ "fields": [ { "index": ${indices[0]}, "selected_because": "", "distractor_misconceptions": { "1": "", "2": "" } } ] }`,
+  ].join('\n\n');
+}
+
+/** Replace only the two fields, only on the named indices, keeping the misconception keys the question already has. */
+function mergeTeacherFields(questions, json, indices) {
+  const qs = Array.isArray(questions) ? questions : [];
+  const list = Array.isArray(json && json.fields) ? json.fields : [];
+  const merged = qs.map((q) => (q && typeof q === 'object' ? { ...q } : q));
+  const replaced = [];
+  list.forEach((f) => {
+    const i = Number(f && f.index);
+    if (!indices.includes(i) || !merged[i]) return;
+    const q = merged[i];
+    if (typeof f.selected_because === 'string' && f.selected_because.trim()) q.selected_because = f.selected_because.trim();
+    const cur = q.distractor_misconceptions && typeof q.distractor_misconceptions === 'object' ? q.distractor_misconceptions : {};
+    const next = { ...cur };
+    Object.keys(cur).forEach((k) => {
+      const v = f.distractor_misconceptions && f.distractor_misconceptions[k];
+      if (typeof v === 'string' && v.trim()) next[k] = v.trim();
+    });
+    q.distractor_misconceptions = next;
+    replaced.push(i);
+  });
+  return { questions: merged, replaced };
+}
+
+async function rewriteTeacherFields({ questions, errors, digest, language, quizId = null }) {  // eslint-disable-line no-unused-vars
+  const indices = language === 'ur' ? teacherFieldTargets(errors) : [];
+  if (!indices.length) return { attempted: false, indices: [], merged: null, replaced: [] };
+  const prompt = buildTeacherFieldsPrompt({ digest, questions, indices });
+  try {
+    const { json, model, costUsd, latencyMs } = await completeJson({ prompt, maxTokens: 6000, label: 'transcript_quiz.teacher_fields' });
+    const m = mergeTeacherFields(questions, json, indices);
+    return { attempted: true, indices, merged: m.questions, replaced: m.replaced, model, costUsd, latencyMs };
+  } catch (err) {
+    return { attempted: true, indices, merged: null, replaced: [], costUsd: 0, error: err.message };
+  }
+}
+
 module.exports = {
   rewriteTargets, buildRewritePrompt, mergeReplacements, rewriteRejected, MAX_TARGETS, PER_QUESTION, PER_QUESTION_STRUCTURAL,
   QUIZ_LEVEL_REPAIRABLE,
+  teacherFieldTargets, buildTeacherFieldsPrompt, mergeTeacherFields, rewriteTeacherFields, TEACHER_FIELDS_ONLY,
 };
