@@ -55,6 +55,7 @@ const {
   isLp612RouteAll, lp612ServesGrade, // bd-oak77.4
 } = require('../config/lp612-flags');
 const { LANGUAGE_OFFER, offerDefaultLanguage } = require('../config/languages');
+const FlowTelemetry = require('./pakistan-lp-telemetry');
 
 const CURRICULUM_TAG = 'pakistan';
 const STATIC_GRADES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -124,7 +125,7 @@ async function getPhoneForUser(userId) {
 
 async function handlePakistanLpInit(flowToken) {
   logToFile('Pakistan LP Flow INIT', { flowToken });
-  return openGradePicker();
+  return observed('INIT', flowToken, null, {}, () => openGradePicker());
 }
 
 const isV8Grade = (g) => {
@@ -134,10 +135,45 @@ const isV8Grade = (g) => {
 
 // ─── DATA EXCHANGE dispatcher ───────────────────────────────────────────
 
+/**
+ * The dispatcher, wrapped so that WHAT WE RETURNED is observable.
+ *
+ * Everything this endpoint hands Meta used to vanish: `Pakistan LP
+ * data_exchange` logged the request and nothing else, so a `{data:{error}}`
+ * refusal — the shape Meta renders as "Something went wrong. Try again
+ * later." — and a served screen were the same row (bd-oak77.26). `observed()`
+ * emits the response side; it is telemetry only and cannot alter the value.
+ */
 async function handlePakistanLpDataExchange(flowToken, screen, screenData) {
   const d = screenData || {};
+  logToFile('Pakistan LP data_exchange', { flowToken, screen, step: d.step });
+  return observed('data_exchange', flowToken, screen, d, () => dispatchPakistanLpDataExchange(flowToken, screen, d));
+}
+
+/**
+ * Run one Flow request and report its RESPONSE.
+ *
+ * A throw is observed and re-thrown unchanged: the route above turns it into a
+ * 500, which the teacher sees as the same red screen an error object produces,
+ * and that limb was the most invisible of all.
+ */
+async function observed(action, flowToken, screen, payload, fn) {
+  const startedAt = Date.now();
+  const userId = userIdFrom(flowToken) || null;
+  let response;
+  try {
+    response = await fn();
+  } catch (error) {
+    FlowTelemetry.observeFlowResponse({ action, screenIn: screen, payload, userId, startedAt, error });
+    throw error;
+  }
+  FlowTelemetry.observeFlowResponse({ action, screenIn: screen, payload, userId, startedAt, response });
+  return response;
+}
+
+async function dispatchPakistanLpDataExchange(flowToken, screen, screenData) {
+  const d = screenData || {};
   const step = d.step;
-  logToFile('Pakistan LP data_exchange', { flowToken, screen, step });
 
   // v3 Flow: every NavigationList row carries its own step, so routing never
   // depends on which screen Meta says we are on.
@@ -419,7 +455,7 @@ async function selectChapter(flowToken, screenData) {
  * Wrap a legacy {id,title} option list as NavigationList items.
  *
  * The v3 Flow binds ${data.items} on every selection screen, so the Oxbridge
- * (6-12) branches have to speak that shape too — otherwise FEAT-080's live
+ * (6-12) branches have to speak that shape too — otherwise the live 6-12
  * picker renders an EMPTY screen on the new Flow. The legacy key is kept
  * alongside so a still-published v2 Flow keeps working during the deploy window.
  */
@@ -560,7 +596,7 @@ async function selectTopicPakistan(flowToken, rowId) {
   };
 }
 
-// --- Oxbridge delivery path (new for FEAT-109 iter 3) ---
+// --- Oxbridge delivery path ---
 async function selectTopicOxbridge(flowToken, rowId) {
   const row = await OxbridgeLpService.getById(parseInt(rowId, 10));
   if (!row || !row.content_html) {
@@ -624,7 +660,7 @@ async function sendPreDeliveryAck(flowToken, row) {
   }
 }
 
-// Fire-and-forget deliver — Palestine pattern (bd-2054):
+// Fire-and-forget deliver — presigned-URL pattern:
 // presigned R2 URL + sendDocumentByLink, no tmpfile, no buffer-as-path bug.
 function deliverPakistanLpAsync(flowToken, row) {
   const userId = (flowToken || '').split(':')[0];
@@ -937,7 +973,7 @@ function serveLp612(segmentId, userId, who, lang) {
 }
 
 async function handlePakistanLpBack(flowToken, screen) {
-  return openGradePicker();
+  return observed('BACK', flowToken, screen, {}, () => openGradePicker());
 }
 
 module.exports = {
