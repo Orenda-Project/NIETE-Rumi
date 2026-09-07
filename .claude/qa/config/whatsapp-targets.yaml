@@ -43,6 +43,23 @@ profiles:
     test_driver: prompt   # RUNTIME: ask the runner for THEIR OWN linked WhatsApp number (digits, no +). Not hardcoded (bd-2748). Drives every in-scope scenario; the number never restricts the run.
     notes: "staging — DEFAULT e2e target; code verified current 2026-08-07; OWN DB rpqkekcfvumypldbejhp (isolated from prod); logs to Axiom env=staging"
 
+  # LOCAL MOCK LANE — the bot runs on THIS machine from a detached worktree at one commit, against
+  # the SANDBOX Supabase (keys/niete-sandbox.env, project olvritwoqujtjvwfulbh — never staging or
+  # prod), with WHATSAPP_API_BASE pointed at bot/scripts/e2e/mock-graph-api.js. `method: mock` makes
+  # run-suite.sh skip every Chrome/CDP precondition and feature-runner.cjs load mock-api.cjs, which
+  # exposes the same primitives as the CDP api, so menu/language/status run unchanged. Flows are
+  # NOT rendered here — every Flow scenario records BLOCKED/SKIP through its own branch, never PASS.
+  # Vendors are cassette replay-strict: a miss fails the run loudly instead of going live.
+  # `number` is a placeholder (there is no WhatsApp number); the driver is a fixed synthetic
+  # phone that exists only in the sandbox DB. Select with:  run-suite.sh <features> --method mock
+  niete-local:
+    tenant: NIETE (ICT / Islamabad) — LOCAL MOCK
+    env: sandbox
+    number: "local"
+    method: mock
+    test_driver: "923000000001"
+    notes: "commit-time lane; bot from a pinned commit; sandbox DB; mock Graph API; cassette replay-strict; no Flow rendering"
+
   # PROD — explicit target only; stateful scenarios mutate real training progress.
   niete-prod:
     tenant: NIETE (ICT / Islamabad) — PRODUCTION

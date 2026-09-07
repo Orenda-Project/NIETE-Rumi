@@ -2604,6 +2604,10 @@ app.get('/health', (req, res) => {
     status: 'healthy',
     service: 'Rumi WhatsApp Bot',
     version: version,
+    // The commit this process runs (E2E_COMMIT_SHA locally, RAILWAY_GIT_COMMIT_SHA on Railway,
+    // else null). An E2E runner compares it to the commit it was asked to test and refuses to
+    // drive a mismatch — see bot/shared/utils/build-info.js.
+    commit: require('./shared/utils/build-info').commitSha(),
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'

@@ -519,8 +519,14 @@ function makeApi(c) {
 
 (async () => {
   const started = Date.now();
-  const c = await connect();
-  const api = makeApi(c);
+  // E2E_METHOD=mock: no browser. The bot runs locally from a pinned commit behind
+  // bot/scripts/e2e/mock-graph-api.js, and mock-api.cjs exposes the SAME primitives this file's
+  // makeApi() does, so the feature scripts below run unchanged. Default (chrome) is untouched.
+  const MOCK = (process.env.E2E_METHOD || 'chrome') === 'mock';
+  const c = MOCK ? { close() {} } : await connect();
+  const api = MOCK
+    ? require(path.join(__dirname, 'mock-api.cjs')).makeMockApi({ baseUrl: process.env.E2E_MOCK_URL, driver: process.env.E2E_DRIVER, env: ENV, repo: REPO, trace })
+    : makeApi(c);
   const results = [];
   const rec = (id, name, verdict, evidence, ms) => { trace(`REC ${id} ${verdict} ${Math.round((ms||0)/1000)}s`); results.push({ id, name, verdict, evidence, ms }); };
   try {

@@ -166,6 +166,9 @@ fi
 
 CMDS=$(printf '%s' "$SEL" | jq -r '.commands[]' 2>/dev/null)
 BRANCH=$(git -C "${REPO:-.}" rev-parse --abbrev-ref HEAD 2>/dev/null)
+# The exact commit this arming is about. The mock lane starts the bot from a detached worktree
+# at THIS sha and the ledger row is tied to it; without it a run is only "whatever HEAD was".
+COMMIT_SHA=$(git -C "${REPO:-.}" rev-parse HEAD 2>/dev/null || echo "")
 [ -z "$BRANCH" ] && BRANCH=$(printf '%s' "$SCAN" | grep -oE '(develop|main|staging)' | head -1)
 REPO_NAME=$(basename "${REPO:-unknown}")
 
@@ -183,8 +186,9 @@ printf '%s' "$SEL" | jq \
   --arg armed "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   --arg trigger "$TRIGGER" \
   --arg mode "$MODE" \
+  --arg commit_sha "$COMMIT_SHA" \
   --argjson spec_sync "$SPEC_SYNC" \
-  '{session: $session, repo: $repo, branch: $branch, trigger: $trigger, mode: $mode,
+  '{session: $session, repo: $repo, branch: $branch, commit_sha: $commit_sha, trigger: $trigger, mode: $mode,
     armed_at: $armed, nudged: false, spec_sync: $spec_sync,
     commands: .commands, features: .features,
     fallback: .fallback, unmapped: .unmapped}' \

@@ -354,6 +354,12 @@ try:
 except Exception: print("ERR")
 ' "$CPENDING" 2>/dev/null)
 say "exact commands + trigger"       "$CCMDS"  "/niete-e2e menu|commit"
+# The marker must name the EXACT commit it armed for, so the mock lane can start the bot from a
+# detached worktree at that sha and the ledger row can be tied to it (a run against "whatever
+# HEAD is now" is not proof about the commit).
+CSHA=$(git -C "$CTMP/w" rev-parse HEAD)
+CMSHA=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("commit_sha","MISSING"))' "$CPENDING" 2>/dev/null)
+say "marker records the commit sha"  "$CMSHA"  "$CSHA"
 # A COMMIT SPEAKS AGAIN (operator, 2026-08-25: "when we commit something then
 # auto run the e2e test"). It arms an execute order and names the commands, and
 # the reason it emits has to say which build the run will actually hit — see the

@@ -34,7 +34,9 @@ select the option whose TEXT matches `correct` (correct_option is 1-based).
 """
 import argparse, subprocess, json, os, re, sys, uuid, datetime, urllib.request, urllib.parse, urllib.error
 
-ENV_REFS = {"staging": "rpqkekcfvumypldbejhp", "prod": "ihzciabopbttygxxgrkm"}
+# sandbox = the local mock E2E lane's database (keys/niete-sandbox.env): the bot under test runs on
+# this machine from a pinned commit and must never write to staging or prod while doing it.
+ENV_REFS = {"staging": "rpqkekcfvumypldbejhp", "prod": "ihzciabopbttygxxgrkm", "sandbox": "olvritwoqujtjvwfulbh"}
 
 def _repo_root():
     here = os.path.dirname(os.path.abspath(__file__))

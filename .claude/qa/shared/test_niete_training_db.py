@@ -107,6 +107,15 @@ def test_creds_read_from_explicit_file():
         os.unlink(path)
 
 
+def test_sandbox_env_is_pinned_to_its_own_project_and_creds_file():
+    # The local mock E2E lane runs the bot against the SANDBOX Supabase (keys/niete-sandbox.env),
+    # never staging or prod. The ref guard must know it, and the creds search must find it.
+    assert t.ENV_REFS["sandbox"] == "olvritwoqujtjvwfulbh"
+    t._assert_ref("sandbox", "https://olvritwoqujtjvwfulbh.supabase.co")   # no raise
+    cands = t._env_candidates("sandbox")
+    assert any(c.endswith(os.path.join("keys", "niete-sandbox.env")) for c in cands), cands
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0
