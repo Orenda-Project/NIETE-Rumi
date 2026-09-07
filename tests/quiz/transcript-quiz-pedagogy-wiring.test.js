@@ -139,10 +139,12 @@ describe('the last attempt salvages a quiz whose only fault is a bad question', 
     const r = V.validate(qs, ctx);
     const base = { language: 'en', subject: 'science', digest: DIGEST, lessonSummary: ctx.lessonSummary };
     const out = Gen.salvageWithoutBadFigures(r.questions, r.errors, base);
-    expect(out).not.toBeNull();
+    expect(out.refused).toBeUndefined();
     expect(out.dropped).toEqual([1, 4]);
     expect(out.questions).toHaveLength(6);
-    expect(Gen.salvageWithoutBadFigures(r.questions, [...r.errors, 'q6: duplicate options'], base)).toBeNull();
+    // a third bad question takes it under the floor, and the refusal says so
+    expect(Gen.salvageWithoutBadFigures(r.questions, [...r.errors, 'q6: duplicate options'], base).refused)
+      .toMatch(/under the floor of 6/);
   });
 
   test('salvage is not a bypass for a complaint about the SET', () => {
@@ -151,6 +153,6 @@ describe('the last attempt salvages a quiz whose only fault is a bad question', 
     const r = V.validate(qs, ctx);
     expect(Gen.salvageWithoutBadFigures(r.questions, [...r.errors, 'SLOs uncovered: S3'], {
       language: 'en', subject: 'science', digest: DIGEST, lessonSummary: ctx.lessonSummary,
-    })).toBeNull();
+    }).refused).toMatch(/about the set/);
   });
 });
