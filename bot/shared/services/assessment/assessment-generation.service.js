@@ -31,6 +31,28 @@ const MODELS = {
   urdu: process.env.ASSESSMENT_GEN_MODEL_URDU || 'google/gemini-3.1-pro-preview',
 };
 
+/**
+ * OpenRouter serves one model from several providers, and they are not
+ * equivalent. Measured 7 Sep on `google/gemma-4-31b-it`, same prompt, provider
+ * the only variable:
+ *
+ *   ModelRun     3 completion tokens    0 questions   body was `{}`
+ *   CoreWeave    1613                  15
+ *   Friendli     1678                  15
+ *
+ * ModelRun answers `{}` or `{"seen":":{"}` with finish_reason "stop" and bills
+ * the whole prompt, so it reads as a well-formed empty paper rather than an
+ * outage: three of fourteen eval papers were recorded as NO_QUESTIONS when the
+ * model had never been asked properly. Naming the providers we have actually
+ * seen produce papers turns that class of fault back into someone else's
+ * outage, which `allow_fallbacks` then routes around.
+ *
+ * Fallbacks stay ON deliberately — a hard pin turns one provider's downtime
+ * into our downtime. The list is an ordering preference, not an allow-list.
+ */
+const PROVIDERS = (process.env.ASSESSMENT_GEN_PROVIDERS || 'CoreWeave,Friendli')
+  .split(',').map((p) => p.trim()).filter(Boolean);
+
 // Whatever the caller calls a subject, we answer to one name internally.
 const CANON = {
   eng: 'eng', english: 'eng',
@@ -260,6 +282,49 @@ function countQuestions(examJson) {
 }
 
 /**
+ * Cap the WHOLE paper at the number of questions the teacher asked for.
+ *
+ * `trimSeen` above caps only the seen half, so nothing held the total: a
+ * request for 15 shipped as 30 when the model over-delivered. Measured on
+ * Gemma 4 31B, which returns 22-32 for a plan of 15 — but Pro does it too, at
+ * smaller margins, and bd-60048 is the same defect at n=1 (asked 1, got 3).
+ * The count in the request is a request; only code can make it true.
+ *
+ * Keeps the first `total` questions in tree order (seen before unseen, and
+ * within a section the model's own ordering, which follows its plan) and drops
+ * the rest. Returns how many were removed.
+ */
+function trimToTotal(examJson, total) {
+  if (!Number.isFinite(total) || total < 1) return 0;
+  if (countQuestions(examJson) <= total) return 0;
+  let kept = 0;
+  let removed = 0;
+  const take = (list) => {
+    const out = [];
+    for (const q of list) {
+      if (kept < total) { out.push(q); kept += 1; } else removed += 1;
+    }
+    return out;
+  };
+  for (const section of ['seen', 'unseen']) {
+    const branch = examJson?.[section];
+    if (!branch || typeof branch !== 'object') continue;
+    for (const category of Object.values(branch)) {
+      if (!category || typeof category !== 'object') continue;
+      for (const [type, entry] of Object.entries(category)) {
+        if (Array.isArray(entry)) category[type] = take(entry);
+        else if (entry && typeof entry === 'object') {
+          for (const [sub, list] of Object.entries(entry)) {
+            if (Array.isArray(list)) entry[sub] = take(list);
+          }
+        }
+      }
+    }
+  }
+  return removed;
+}
+
+/**
  * The model is told not to emit "image" keys, and sometimes emits them anyway.
  * Their value is a prompt for an image generator we did not port, so left in
  * place they render as a stray line of instructions on a child's exam paper.
@@ -299,6 +364,8 @@ async function generateExam(args) {
       messages,
       temperature: 0.7,
       response_format: { type: 'json_object' },
+      // Passed through to OpenRouter; ignored by any other backend.
+      provider: { order: PROVIDERS, allow_fallbacks: true },
     });
   } catch (err) {
     // An outage is not bad output, and telling them apart is what decides
@@ -337,7 +404,14 @@ async function generateExam(args) {
   if (removedSeen > 0) {
     logToFile('[assessment] trimmed seen questions to the cap', { seenTarget: plan.seenTarget, removed: removedSeen });
   }
-  const trimmed = removedSeen > 0 ? { seen: removedSeen } : {};
+  const removedTotal = trimToTotal(examJson, plan.total);
+  if (removedTotal > 0) {
+    logToFile('[assessment] trimmed paper to the requested total', { total: plan.total, removed: removedTotal });
+  }
+  const trimmed = {
+    ...(removedSeen > 0 ? { seen: removedSeen } : {}),
+    ...(removedTotal > 0 ? { total: removedTotal } : {}),
+  };
   const produced = countQuestions(examJson);
   if (produced === 0) {
     // Valid JSON with an empty tree. Rare, and worth its own code: retrying is
@@ -366,7 +440,10 @@ module.exports = {
   buildUserPrompt,
   planCounts,
   trimSeen,
+  trimToTotal,
   countQuestions,
   stripImageKeys,
   MODELS,
+  PROVIDERS,
+  _internal: { trimSeen, trimToTotal, countQuestions },
 };
