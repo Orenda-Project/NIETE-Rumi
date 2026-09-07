@@ -20,6 +20,19 @@ function mergedPhotoUpdate(session, photos) {
 /**
  * Store a photo for a session already ON the photo step, then prompt add-more /
  * done exactly like the image Phase 3 does. Used by the document-as-photo path.
+ *
+ * Who consumes the three button ids this file and photo-prompt.service emit
+ * (bd-pzs9a — none of this was written down, and "Add another" was half-wired
+ * for it):
+ *   photo_done_  → whatsapp-bot.js, inline: LP prompt, then awaiting_lesson_plan
+ *   photo_no_    → whatsapp-bot.js, inline: same, without a photo
+ *   photo_more_  → classroom-photo/add-another.service
+ *
+ * This function deliberately does NOT touch status / current_state — leaving
+ * them is what keeps the session on the photo step for the next image. That is
+ * true of the write here; it was NOT true of the "Add another" tap, which said
+ * "send the next photo" without ever checking that the session could still take
+ * one. add-another.service now makes it true rather than assuming it.
  */
 async function capturePhotoAndPrompt({ session, imageBuffer, mimeType, from, user }) {
   const WhatsAppService = require('../../whatsapp.service');

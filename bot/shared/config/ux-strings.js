@@ -91,6 +91,26 @@ const LP612_ETA = Object.freeze({
 });
 
 const UX_STRINGS = {
+  // ─── classroom-photo "Add another" (bd-pzs9a) ───────────────────────
+  // The tap re-opens the photo step, so the copy must say what state the session
+  // is now in — one shared "something went wrong" line across three different
+  // states is what misdirects every field report (Rule 24d). All three are
+  // impersonal or imperative, so neither carries a gendered verb stem.
+  // Urdu prose digits are the U+06Fx set; the caller converts, and the
+  // placeholders are bidi-isolated (LRI…PDI) because a value's direction is not
+  // knowable at authoring time.
+  photoAddAnotherNext: {
+    en: '\u{1F4F8} Send the next classroom photo — photo {n} of {max}.',
+    ur: '\u{1F4F8} اگلی کلاس روم تصویر بھیجیں — تصویر \u2066{n}\u2069 از \u2066{max}\u2069۔',
+  },
+  photoAddAnotherAtMax: {
+    en: '\u{1F4F8} That is the maximum of {max} classroom photos. Moving on to the lesson plan.',
+    ur: '\u{1F4F8} زیادہ سے زیادہ \u2066{max}\u2069 کلاس روم تصاویر بھیجی جا سکتی ہیں۔ اب سبق کے منصوبے کی طرف چلتے ہیں۔',
+  },
+  photoAddAnotherClosed: {
+    en: '\u{1F4F8} This coaching session has already moved past the photo step, so another photo cannot be added to it.',
+    ur: '\u{1F4F8} یہ کوچنگ سیشن تصویر والے مرحلے سے آگے بڑھ چکا ہے، اس لیے اس میں مزید تصویر شامل نہیں ہو سکتی۔',
+  },
   // Shown on the Settings SUCCESS screen. Previously English-only, so a teacher
   // who had just switched to Urdu was congratulated in English.
   settingsSaved: {
