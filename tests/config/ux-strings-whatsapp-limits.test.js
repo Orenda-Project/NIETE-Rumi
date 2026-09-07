@@ -46,6 +46,8 @@ const KEY_FIELD = {
   languagePickerFooter: 'footer',
   // bd-oak77.13 — the request_welcome greeting is sent as a plain text body.
   welcomeFirstOpen: 'body',
+  // bd-twhcj — the reading-not-available refusal is a plain text body too.
+  readingNotAvailable: 'body',
 };
 
 const len = (s) => [...s].length;
