@@ -71,21 +71,28 @@ const MAX_TARGETS = 5;
 const PER_QUESTION = /^q(\d+):\s*(PEDAGOGY_[A-Z_]+|FIGURE_[A-Z_]+|RELIGIOUS_[A-Z_]+)\b/;
 
 /**
- * Structural complaints that are still ONE question's TEXT: an option over the
- * list-row cap, a missing or overlong selected_because. Seen live 2026-09-06:
- * an English lesson produced no quiz at all because ONE option ran past 72 code
- * points on both attempts, and nothing could touch it — the rewrite refused
- * (not a PEDAGOGY_/FIGURE_ code) and the salvage refused (not droppable). A
- * length fault is the cheapest repair there is. Malformed replies (`q0: 2
- * options`, an empty stem) stay a re-roll.
+ * ANY complaint that names one question is one question's text to rewrite —
+ * whatever its code.
+ *
+ * This was an ALLOW-LIST of codes, and the allow-list was the bug. It cost a
+ * teacher a quiz three times in one morning (2026-09-07): a multi-select fault
+ * was not on it, then an over-long STEM was not on it, while an over-long
+ * OPTION was. Each time the list was extended by one code and the next
+ * un-listed code cost the next teacher. The rule is now the shape of the
+ * complaint, not its vocabulary: `q<i>: …` names a question, so one small
+ * rewrite can answer it, and `MAX_TARGETS` — not the code — is what separates a
+ * repair from a re-roll. A reply that is broadly malformed complains about more
+ * than five questions and falls back to a full attempt on its own; and every
+ * rewritten set goes through the whole validator again, so a bad repair cannot
+ * ship.
  */
-const PER_QUESTION_STRUCTURAL = /^q(\d+):\s*(option >\d+ code points|Q_MISSING_WHY\b|MULTI_[A-Z_]+\b|URDU_TEACHER_FIELDS\b)/;
+const PER_QUESTION_STRUCTURAL = /^q(\d+):\s*\S/;
 const CHILD_ADDRESS_RULE = 'THE CHILD HAS NO GENDER. Address the child as آپ with plural-respectful verbs (کریں، دیکھیں، سوچیں، سمجھ سکتے ہیں). Never a feminine or masculine singular guess: no کرتی ہیں، سکتی ہیں، کریں گی، رہی ہوں گی، کرتے ہو. For a question rejected ONLY for this, keep the question and change the verb form.';
 const TEACHER_FIELDS_RULE = 'TEACHER FIELDS. "selected_because" and every "distractor_misconceptions" entry are printed on the TEACHER\'s Urdu page: write them in Urdu script (English technical terms in English letters are fine). For a question rejected ONLY for this, keep the question and rewrite those two fields in Urdu.';
 const STRUCTURAL_MULTI_RULE = 'MULTI-SELECT. A "select all that apply" question (answer_mode "multi") names at least 2 and at most (options − 1) correct options in "correct_indices", and every option is at most 30 characters. If the lesson gives it only ONE right answer, write it as an ordinary single-answer question instead: 3 options, one "correct_index", no "correct_indices", no answer_mode.';
 /** The set-level line the validator writes NEXT TO its per-question PEDAGOGY_LEVEL_ABOVE lines; those lines are the targets, this one is their headline. */
 const LEVEL_SUMMARY = /^(only \d+\/\d+ at\/below taught level|PEDAGOGY_LEVEL_MIX — only \d+ of \d+|feminine-stem address$)/;
-const STRUCTURAL_CAPS_RULE = 'LENGTH. Every option is at most 72 code points (characters) — a long option is cut off on the phone, so write a shorter one that says the same thing. Every "selected_because" is at most 15 words. For a question rejected ONLY for length, keep the same question and shorten the text.';
+const STRUCTURAL_CAPS_RULE = 'LENGTH. Every question STEM is at most 200 code points (characters) and every OPTION at most 72 — anything longer is cut off on the phone, so write a shorter one that says the same thing. Every "selected_because" is at most 15 words. For a question rejected ONLY for length, keep the same question and shorten the text.';
 
 /**
  * The ONE quiz-level complaint a small call can answer: a gendered reference to
@@ -188,7 +195,7 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
     'NO NEW PICTURES. Every replacement is a text question: leave "figure" and "figure_role" null. A replacement that carries a figure is thrown away and its rejected question is dropped from the quiz instead, so the child loses a question.',
     questionContract({ gradeBand }),
     SELECTED_BECAUSE_RULE,
-    ...(indices.some((i) => (byIndex[i] || []).some((e) => PER_QUESTION_STRUCTURAL.test(e))) ? [STRUCTURAL_CAPS_RULE] : []),
+    STRUCTURAL_CAPS_RULE,
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /MULTI_[A-Z_]+/.test(e))) ? [STRUCTURAL_MULTI_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /PEDAGOGY_GENDERED_CHILD/.test(e))) ? [CHILD_ADDRESS_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /URDU_TEACHER_FIELDS/.test(e))) ? [TEACHER_FIELDS_RULE] : []),
@@ -255,6 +262,17 @@ function mergeReplacements(questions, json, targets) {
   const wantSummary = Array.isArray(targets && targets.summary) && targets.summary.length > 0;
   const summary = wantSummary && typeof (json && json.lesson_summary) === 'string'
     && json.lesson_summary.trim() ? json.lesson_summary.trim() : null;
+  // A reply with no index anywhere is matched by POSITION, and that is only
+  // meaningful when it carries exactly the replacements we asked for. A reply
+  // of a different length is the model answering a different question — most
+  // often the full author shape, all eight questions, none of them addressed to
+  // an index — and mapping its first entries onto our targets would ship a
+  // question copied from elsewhere in the same quiz. Refuse it; the salvage and
+  // the next attempt are behind this.
+  const anyNamed = list.some((r) => r && typeof r === 'object' && Number.isInteger(Number(r.index)));
+  if (!anyNamed && list.length && list.length !== indices.length) {
+    return summary ? { questions: qs, replaced: [], lessonSummary: summary } : null;
+  }
   const chosen = new Map();
   list.forEach((r, pos) => {
     if (!r || typeof r !== 'object') return;

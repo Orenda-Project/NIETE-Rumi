@@ -226,9 +226,11 @@ describe('5 — the OTHER level rule names its questions, and a soft fault never
     expect(withMeta.length).toBeGreaterThan(0);
     expect(withMeta[withMeta.length - 1].meta.soft_faults.every((e) => Gen.SOFT_FAULT.test(e))).toBe(true);
   });
-  test('a hard fault on the last attempt still fails honestly', async () => {
-    const broken = eight(); broken[2].options = ['only one'];   // "q2: 1 options" — malformed, not soft
-    mockCreate.mockResolvedValue(reply({ lesson_summary: SUMMARY, questions: broken }));
+  test('a hard fault that no repair can answer still fails honestly', async () => {
+    const broken = eight(); broken[2].options = ['only one'];   // "q2: 1 options" — malformed
+    mockCreate.mockImplementation((call) => (/REWRITE THESE QUESTIONS/.test(call.messages[0].content)
+      ? Promise.resolve(reply({ questions: [] }))                       // the repair can offer nothing
+      : Promise.resolve(reply({ lesson_summary: SUMMARY, questions: broken }))));
     wire();
     const r = await Gen.process(QID, {});
     expect(r.failed).toBe(true);
@@ -349,6 +351,63 @@ describe('7 — teacher fields in English are repaired in place, never re-rolled
     const r = await Gen.process(QID, {});
     expect(r.ok).toBe(true);
     expect(mockCreate).toHaveBeenCalledTimes(3);
+    expect(storedRows()).toHaveLength(8);
+  });
+});
+
+describe('8 — ANY complaint that names a question is repairable; the cap decides a re-roll', () => {
+  // Production, 2026-09-07 11:17 PKT — the fourth teacher-visible failure, on the
+  // fixed code: attempt 1 lost to the picture, attempts 2 and 3 were rejected for
+  // an over-long STEM on one or two questions, and nothing repaired it. A long
+  // OPTION was repairable; a long STEM was not, because the repairable set was an
+  // ALLOW-LIST of codes and the stem's code had never been added. The multi-select
+  // fault earlier that morning was the same omission. The allow-list is the bug:
+  // a complaint that names one question is one question's text, whatever its code,
+  // and MAX_TARGETS is what separates a repair from a re-roll.
+  test('a long stem — the fault that killed a quiz at 11:17 — is targetable', () => {
+    expect(Rewrite.rewriteTargets(['q3: stem >200 code points']).indices).toEqual([3]);
+    expect(Rewrite.rewriteTargets(['q2: stem >200 code points', 'q3: stem >200 code points']).indices).toEqual([2, 3]);
+  });
+  test('every other per-question complaint the validator can emit is targetable too', () => {
+    const each = [
+      'q0: duplicate options',
+      'q1: letter reference',
+      'q2: empty option',
+      'q3: bad correct_index 5',
+      'q4: unknown slo_id S9',
+      'q5: wrong-feedback keys [0,1] != [1,2]',
+      'q6: an English quiz must be written in English — the stem and options are mostly not Latin script',
+      'q7: RELIGIOUS_MARKS — a Prophet mention without ﷺ',
+    ];
+    each.forEach((e) => expect(Rewrite.rewriteTargets([e]).indices).toEqual([Number(/^q(\d+)/.exec(e)[1])]));
+  });
+  test('the cap, not the code, is what makes a re-roll', () => {
+    expect(Rewrite.rewriteTargets([0, 1, 2, 3, 4].map((i) => `q${i}: stem >200 code points`)).indices).toEqual([0, 1, 2, 3, 4]);
+    expect(Rewrite.rewriteTargets([0, 1, 2, 3, 4, 5].map((i) => `q${i}: stem >200 code points`)).indices).toEqual([]);
+  });
+  test('a quiz-level complaint still disqualifies the set', () => {
+    expect(Rewrite.rewriteTargets(['q0: stem >200 code points', 'SLOs uncovered: S3']).indices).toEqual([]);
+    expect(Rewrite.rewriteTargets(['q0: stem >200 code points', 'urdu script ratio 0.40 < 0.6']).indices).toEqual([]);
+  });
+  test('the rewrite prompt always states both length caps, so a length fault is answerable', () => {
+    const p = Rewrite.buildRewritePrompt({
+      digest: DIGEST, language: 'en', questions: eight(), targets: Rewrite.rewriteTargets(['q3: stem >200 code points']),
+    });
+    expect(p).toMatch(/200/);
+    expect(p).toMatch(/72/);
+  });
+  test('the 11:17 quiz, replayed: picture on attempt 1, two long stems on attempt 2 → one repair → 8 shipped', async () => {
+    const long = eight();
+    [2, 3].forEach((i) => { long[i].question = `${'یہ ایک بہت لمبا سوال ہے۔ '.repeat(12)}کون سا؟`.slice(0, 260); });
+    mockCreate
+      .mockResolvedValueOnce(reply({ lesson_summary: SUMMARY, questions: eight() }))            // attempt 1: fine, no figure
+      .mockResolvedValueOnce(reply({ lesson_summary: SUMMARY, questions: long }))               // attempt 2: two over-long stems
+      .mockResolvedValueOnce(reply({ questions: [2, 3].map((i) => ({ index: i, ...eight()[i] })) }));
+    wire();
+    const r = await Gen.process(QID, {});
+    expect(r.ok).toBe(true);
+    expect(mockCreate).toHaveBeenCalledTimes(3);
+    expect(promptOf(mockCreate.mock.calls[2])).toContain('REWRITE THESE QUESTIONS: q2, q3');
     expect(storedRows()).toHaveLength(8);
   });
 });
