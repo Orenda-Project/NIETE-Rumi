@@ -19,7 +19,7 @@ const { MOLECULE_DICTIONARY } = require('./transcript-quiz-figure-science');
 const { multiContract, multiFlowId } = require('./transcript-quiz-multi');
 const { requiredHigherOrder } = require('./transcript-quiz-pedagogy');
 const {
-  languageRule, questionContract, retryNote, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE,
+  languageRule, questionContract, retryNote, languageAgain, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE,
   GENDER_NEUTRAL_RULE,
 } = require('./transcript-quiz-contract');
 const { logEvent } = require('../../utils/structured-logger');
@@ -163,6 +163,9 @@ function buildAuthorPrompt({
   const nHigher = requiredHigherOrder(n, digest);
   const rule = languageRule(language);
   const retry = retryNote(previousErrors, language, n);
+  // The language rule is restated in the tail of the prompt on every attempt.
+  // `retryNote` already opens with it, so this is the attempt-1 half only.
+  const langAgain = retry ? '' : languageAgain(language);
   return `You are writing a short WhatsApp quiz for the children who sat in ONE real lesson. You have the lesson digest and excerpts of the transcript. The quiz is taken one question at a time on a phone: a stem, three tappable options, then feedback.
 
 QUIZ LANGUAGE: ${LANG_NAME[language] || 'Urdu'}. ${rule}
@@ -198,7 +201,7 @@ ${GENDER_NEUTRAL_RULE}
 ${RELIGIOUS_CONTENT_RULE}
 
 ${figureContract({ subject: digest && digest.subject, gradeBand, nQuestions: n })}
-${multiContract({ allowMulti, n })}${retry}
+${multiContract({ allowMulti, n })}${langAgain}${retry}
 
 Return ONLY this JSON object:
 { "lesson_summary": "",
