@@ -22,7 +22,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
 const Digest = require('./transcript-quiz-digest.service');
 const Author = require('./transcript-quiz-author.service');
-const { validate } = require('./transcript-quiz-validator');
+const { validate, MIN_QUESTIONS } = require('./transcript-quiz-validator');
 const { teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel } = require('./transcript-quiz-language');
 const { SESSION_SELECT } = require('./transcript-quiz-offer.service');
 
@@ -414,18 +414,44 @@ async function tellTeacherFailed(phone, lang, quizId, reason) {
  * re-checked by the validate() call at the end of this function.
  */
 function salvageWithoutBadFigures(questions, errors, ctx) {
-  const droppableErr = /^q(\d+): (FIGURE_|PEDAGOGY_|RELIGIOUS_)/;
+  // WHAT DECIDES IS THE FLOOR, NOT THE CODE OF THE COMPLAINT.
+  //
+  // This dropped a question complaining of FIGURE_, PEDAGOGY_ or RELIGIOUS_ and
+  // treated every other per-question complaint as a reason to throw the WHOLE
+  // quiz away — the same allow-list shape that cost three teachers their quiz
+  // in the repair path (#758). On 2026-09-07 `q5: duplicate options` on ONE
+  // question cost a teacher all eight, and the operator asked the right
+  // question: "it should have been non-blocking and we could have fixed it
+  // later — I dont understand why we lead the thing to failure."
+  //
+  // We author N_QUESTIONS and the validator's floor is MIN_QUESTIONS, so the
+  // difference is how many questions may be dropped. A complaint that names a
+  // question is a question we can drop; a complaint about the SET is not
+  // something dropping a question fixes, and the soft set-level rules ride
+  // along. What survives is re-validated in full, so a drop never ships a
+  // broken remainder.
+  const perQuestion = /^q(\d+):\s*\S/;
+  const setLevelSoft = /^(FIGURE_SHARE|PEDAGOGY_LEVEL_MIX|only \d+\/\d+ at\/below taught level|feminine-stem address$)/;
   const bad = new Set();
   let other = false;
   errors.forEach((e) => {
-    const m = droppableErr.exec(e);
+    const m = perQuestion.exec(e);
     if (m) bad.add(Number(m[1]));
-    else if (!/^(FIGURE_SHARE|PEDAGOGY_LEVEL_MIX|only \d+\/\d+ at\/below taught level|feminine-stem address$)/.test(e)) other = true;
+    else if (!setLevelSoft.test(e)) other = true;
   });
-  if (other || !bad.size || bad.size > 2) return null;
+  if (other || !bad.size) return null;
   const kept = questions.filter((_, i) => !bad.has(i));
+  if (kept.length < MIN_QUESTIONS) return null;
   const v = validate(kept, { ...ctx, nExpected: kept.length });
-  return v.ok ? { questions: v.questions, dropped: [...bad] } : null;
+  // ONE definition of "shippable", shared with the soft-fault ship above: no
+  // hard fault on any surviving question, and at least MIN_QUESTIONS of them.
+  // These two used to disagree — the ship path allowed a set-level level-mix
+  // fault and the drop path demanded a spotless remainder — so a drop that left
+  // a soft fault was refused and the teacher got nothing.
+  const soft = v.errors.filter((e) => !SOFT_FAULT.test(String(e)));
+  if (soft.length) return null;
+  // sorted, so the event and the meta read the same way every time
+  return { questions: v.questions, dropped: [...bad].sort((a, b) => a - b), softFaults: v.errors };
 }
 
 /**
@@ -693,8 +719,12 @@ async function process(quizId, payload = {}) {
           draftedRows = drafted;
           questions = salvaged.questions;
           readyLessonSummary = ctx.lessonSummary;
-          attempts.push({ attempt: 'salvage', dropped: salvaged.dropped, errors: [] });
-          logEvent('transcript_quiz.figure_salvage', { quizId, dropped: salvaged.dropped, kept: questions.length });
+          if (salvaged.softFaults && salvaged.softFaults.length) meta.soft_faults = salvaged.softFaults;
+          attempts.push({ attempt: 'salvage', dropped: salvaged.dropped, errors: salvaged.softFaults || [] });
+          logEvent('transcript_quiz.figure_salvage', {
+            quizId, dropped: salvaged.dropped, kept: questions.length,
+            softFaults: (salvaged.softFaults || []).length,
+          });
           break;
         } catch (figErr) {
           logToFile('⚠️ transcript quiz: salvage could not render the remaining figures', { quizId, error: figErr.message });
