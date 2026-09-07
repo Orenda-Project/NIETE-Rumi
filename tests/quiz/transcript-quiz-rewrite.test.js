@@ -238,8 +238,13 @@ describe('1 — rewriteTargets: which rejections one small call can repair', () 
     expect(Rewrite.rewriteTargets(['FIGURE_SHARE — 5/8 questions carry a picture']).indices).toEqual([]);
   });
 
-  test('a structural complaint is not targetable', () => {
-    expect(Rewrite.rewriteTargets(['q0: 2 options', 'q1: empty stem']).indices).toEqual([]);
+  // Until 2026-09-07 a "structural" complaint was excluded by an allow-list of
+  // codes, and the codes missing from it (a multi-select fault, then an
+  // over-long stem) each cost a teacher a whole quiz. Any complaint that names
+  // a question is now one question's text to rewrite; the cap decides.
+  test('a malformed question is targetable too — the cap, not the code, makes a re-roll', () => {
+    expect(Rewrite.rewriteTargets(['q0: 2 options', 'q1: empty stem']).indices).toEqual([0, 1]);
+    expect(Rewrite.rewriteTargets([0, 1, 2, 3, 4, 5].map((i) => `q${i}: 2 options`)).indices).toEqual([]);
   });
 
   test('more than five questions is a re-roll, not a repair', () => {
@@ -362,11 +367,12 @@ describe('4 — the Urdu lesson: a figure rejection and a pedagogy rejection, bo
 
 describe('5 — the rewrite fails: the salvage still runs and the teacher still gets a quiz', () => {
   test('a rewrite that repeats the same bad question falls through to the salvage', async () => {
+    // Keyed on the prompt, not queued: the loop's attempt count and its repair
+    // steps change, and a fixed queue then feeds an author reply to a rewrite call.
     const stillBad = enQ({ question: 'How many kinds of adjective degree are there?', options: ['3', '2', '4'] });
-    mockCreate
-      .mockResolvedValueOnce(reply({ lesson_summary: SUMMARY_EN, questions: enEight() }))
-      .mockResolvedValueOnce(reply({ lesson_summary: SUMMARY_EN, questions: enEight() }))
-      .mockResolvedValueOnce(reply({ questions: [{ index: 0, ...stillBad }] }));
+    mockCreate.mockImplementation((call) => (/REWRITE THESE QUESTIONS/.test(call.messages[0].content)
+      ? Promise.resolve(reply({ questions: [{ index: 0, ...stillBad }] }))
+      : Promise.resolve(reply({ lesson_summary: SUMMARY_EN, questions: enEight() }))));
     wire('en', DIGEST_EN);
 
     const r = await Gen.process(QID, {});
@@ -390,13 +396,13 @@ describe('5 — the rewrite fails: the salvage still runs and the teacher still 
   });
 
   test('a rewrite that fixes ONE of two rejections salvages the other — 7, not 6', async () => {
-    mockCreate
-      .mockResolvedValueOnce(reply({ lesson_summary: SUMMARY_UR, questions: urEight() }))
-      .mockResolvedValueOnce(reply({ lesson_summary: SUMMARY_UR, questions: urEight() }))
-      .mockResolvedValueOnce(reply({ questions: [
+    const rewriteReply = reply({ questions: [
         { index: 0, ...UR_REPLACEMENT_0 },
         { index: 7, ...urQ({ slo: 'S3', level: 'understand', question: 'یہ شکل کس چیز کی ہے؟', options: ['مثلث', 'دائرہ', 'مربع'], figure: { type: 'geometry', kind: 'triangle', a: 3, b: 4 } }) },
-      ] }));
+    ] });
+    mockCreate.mockImplementation((call) => (/REWRITE THESE QUESTIONS/.test(call.messages[0].content)
+      ? Promise.resolve(rewriteReply)
+      : Promise.resolve(reply({ lesson_summary: SUMMARY_UR, questions: urEight() }))));
     wire('ur', DIGEST_UR);
 
     const r = await Gen.process(QID, {});
@@ -496,8 +502,8 @@ describe('structural per-question complaints are rewrite targets too (a long opt
     const t = rewriteTargets(['q0: Q_MISSING_WHY — "selected_because" is empty; say in ≤15 words which moment of the lesson this question tests']);
     expect(t.indices).toEqual([0]);
   });
-  test('a malformed question (wrong option count) is still a re-roll, not a repair', () => {
-    expect(rewriteTargets(['q0: 2 options']).indices).toEqual([]);
+  test('a malformed question is repaired rather than re-rolled; the merged set is re-validated', () => {
+    expect(rewriteTargets(['q0: 2 options']).indices).toEqual([0]);
   });
   test('the rewrite prompt restates the option cap when a structural complaint is among the targets', () => {
     const questions = Array.from({ length: 8 }, (_, i) => ({
