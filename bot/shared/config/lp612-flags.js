@@ -28,7 +28,7 @@ const LP612_MAX_GRADE = 12;
 /** The template the renderer is on. Part of the R2 cache key, so bumping it
  *  misses every cached render rather than serving stale layouts — and rolling
  *  back re-serves the old ones instantly, because nothing was deleted. */
-const DEFAULT_TEMPLATE_VERSION = 'v9.2';
+const DEFAULT_TEMPLATE_VERSION = 'v9.3';
 
 /**
  * THE VERSIONS WHOSE STORED DOCUMENTS TODAY'S RENDERER IS KNOWN TO ACCEPT — newest first.
@@ -43,8 +43,12 @@ const DEFAULT_TEMPLATE_VERSION = 'v9.2';
  * Leaving a version here whose stored documents this renderer can no longer read does not fall
  * back to authoring — it re-renders a document that no longer validates into a BROKEN lesson, and
  * delivers it. That is strictly worse than the spend this list exists to avoid.
+ *
+ * v9.3 (the phone-first page, bd-oak77.16) changes the PAGE, not the SCHEMA: it lays the same
+ * `lp_doc` out on a 520 x 2000 box instead of A4. So v9.2 and v9.1 documents are read unchanged
+ * and every cached lesson re-renders for zero model spend, exactly as the v9.2 bump did.
  */
-const TEMPLATE_VERSION_LINEAGE = Object.freeze(['v9.2', 'v9.1']);
+const TEMPLATE_VERSION_LINEAGE = Object.freeze(['v9.3', 'v9.2', 'v9.1']);
 
 /**
  * Which older template versions' stored documents may be re-rendered for `tv`, newest first.
