@@ -420,7 +420,7 @@ function salvageWithoutBadFigures(questions, errors, ctx) {
   errors.forEach((e) => {
     const m = droppableErr.exec(e);
     if (m) bad.add(Number(m[1]));
-    else if (!/^(FIGURE_SHARE|PEDAGOGY_LEVEL_MIX|only \d+\/\d+ at\/below taught level)/.test(e)) other = true;
+    else if (!/^(FIGURE_SHARE|PEDAGOGY_LEVEL_MIX|only \d+\/\d+ at\/below taught level|feminine-stem address$)/.test(e)) other = true;
   });
   if (other || !bad.size || bad.size > 2) return null;
   const kept = questions.filter((_, i) => !bad.has(i));
