@@ -147,15 +147,18 @@ describe('process — happy path', () => {
 });
 
 describe('process — validator failure', () => {
-  test('regenerates once, then marks failed and tells the teacher honestly', async () => {
+  // Three full attempts since 2026-09-07 (TRANSCRIPT_QUIZ_MAX_ATTEMPTS); the
+  // complaints ride into every retry.
+  test('regenerates twice, then marks failed and tells the teacher honestly', async () => {
     const bad = EIGHT.map((q) => ({ ...q, slo_id: 'S1' }));   // S2 never covered
     Author.author.mockResolvedValue({ questions: bad, model: 'm', costUsd: 0.01, lessonSummary: LESSON_SUMMARY });
     wire();
     const r = await Gen.process(QID, {});
     expect(r.failed).toBe(true);
-    expect(Author.author).toHaveBeenCalledTimes(2);
-    // The retry carries the validator's complaints back to the model.
+    expect(Author.author).toHaveBeenCalledTimes(3);
+    // Every retry carries the validator's complaints back to the model.
     expect(Author.author.mock.calls[1][0].previousErrors).toEqual(expect.arrayContaining([expect.stringMatching(/SLOs uncovered/)]));
+    expect(Author.author.mock.calls[2][0].previousErrors).toEqual(expect.arrayContaining([expect.stringMatching(/SLOs uncovered/)]));
     const updates = supabase.from.callsFor('quizzes').flat().filter((c) => c[0] === 'update').map((u) => u[1]);
     expect(updates[updates.length - 1].status).toBe('failed');
     expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);

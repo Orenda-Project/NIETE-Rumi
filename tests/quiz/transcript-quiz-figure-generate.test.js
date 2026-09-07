@@ -167,15 +167,16 @@ describe('process — figures are rendered, uploaded, then stored', () => {
 });
 
 describe('process — a figure that cannot be made fails the attempt', () => {
-  test('retries once with the error text and stores no row pointing at nothing', async () => {
+  test('retries twice with the error text and stores no row pointing at nothing', async () => {
     htmlToImage.mockRejectedValue(new Error('browser died'));
     Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 10 , lessonSummary: LESSON_SUMMARY });
     wire();
     const r = await Gen.process(QID, {});
 
     expect(r.failed).toBe(true);
-    expect(Author.author).toHaveBeenCalledTimes(2);
+    expect(Author.author).toHaveBeenCalledTimes(3);   // three full attempts since 2026-09-07
     expect(Author.author.mock.calls[1][0].previousErrors.join(' ')).toMatch(/FIGURE_RENDER/);
+    expect(Author.author.mock.calls[2][0].previousErrors.join(' ')).toMatch(/FIGURE_RENDER/);
     expect(supabase.from.callsFor('quiz_questions').flat().filter((c) => c[0] === 'insert')).toHaveLength(0);
   });
 
@@ -217,7 +218,7 @@ describe('process — after the last attempt, a bad PICTURE costs its question, 
     wire();
     const r = await Gen.process(QID, {});
     expect(r.failed).not.toBe(true);
-    expect(Author.author).toHaveBeenCalledTimes(2);
+    expect(Author.author).toHaveBeenCalledTimes(3);   // every full attempt returns the same leaky figure; the salvage runs after the last
     const rows = insertedRows();
     expect(rows).toHaveLength(7);
     expect(rows.some((row) => /flowers/.test(row.question_text))).toBe(false);
