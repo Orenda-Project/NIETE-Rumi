@@ -214,21 +214,39 @@ describe('v9.3 — what a narrow measure breaks, and what was done about it', ()
     expect(body).not.toMatch(/class="secrow[\s"]/);
   });
 
-  test('the diagram label floor scales WITH the page, or 57 of 62 documents lose a figure', () => {
-    // requiredBox() sizes a figure so its smallest label clears this floor, against the FIGURE's
-    // own column. 13.5px was chosen for a 729px column; held at 13.5 on a 478px one it produced
-    // 61 FIGURE TOO SMALL defects across 57 of 62 documents, and 154 across 99 of the 116 real
-    // production lessons (DESIGN.md section 5(c)). Scaled by the page it produces 5, against the
-    // A4 baseline's 4 — and leaves a label at exactly the apparent size it has today.
-    const { DIAGRAM_MIN_PX, DIAGRAM_MIN_PX_A4, PAGE_A4, pageScaled } = TPL;
+  test('the diagram label floor scales BY THE COLUMN — not by the page, and not at all', () => {
+    // requiredBox() sizes a figure so its smallest label clears this floor IN THE FIGURE'S OWN
+    // COLUMN, and `FIGURE` is not on lint's ADVISORY_CODES — so this floor decides whether the
+    // authoring ladder spends a revision round, and whether a lesson can be lost. Measured over
+    // the 116 lessons production has delivered (DESIGN.md section 5(c)):
+    //   13.5 in a 455px column  ->  159 blocking failures across 101 of 116   (unusable)
+    //   8.84 (scaled by PAGE.w) ->   26 across  25   — still 3x today, because padX and
+    //                                                  FIG_CHROME did not shrink with the page
+    //   8.43 (scaled by FULL_COL) -> 8 across   8    — today's set, exactly
+    const { DIAGRAM_MIN_PX, DIAGRAM_MIN_PX_A4, FULL_COL, FULL_COL_A4, pageScaled } = TPL;
     expect(DIAGRAM_MIN_PX_A4).toBe(13.5);
-    // derived, never a second literal — and rounded to 2dp for the same reason `scaledPx` is:
-    // Chrome serialises getComputedStyle().fontSize to 2dp, so a 3dp stylesheet reads back short.
-    expect(DIAGRAM_MIN_PX).toBe(pageScaled(DIAGRAM_MIN_PX_A4));
-    expect(DIAGRAM_MIN_PX).toBeCloseTo(13.5 * (PAGE.w / PAGE_A4.w), 2);
-    // the apparent size of a diagram label is unchanged by this lane, and that is deliberate
-    expect(apparentXHeightMm(DIAGRAM_MIN_PX, PAGE.w))
-      .toBeCloseTo(apparentXHeightMm(DIAGRAM_MIN_PX_A4, PAGE_A4.w), 3);
+    // derived, never a second literal — 2dp for the same reason `scaledPx` is 2dp
+    expect(DIAGRAM_MIN_PX).toBeCloseTo(DIAGRAM_MIN_PX_A4 * (FULL_COL / FULL_COL_A4), 2);
+    // and NOT the page ratio, which is the mistake this test exists to pin
+    expect(DIAGRAM_MIN_PX).not.toBe(pageScaled(DIAGRAM_MIN_PX_A4));
+    // ACCEPTANCE-neutral: a figure that exactly cleared the floor on A4 exactly clears it here
+    expect(DIAGRAM_MIN_PX_A4 * (FULL_COL / FULL_COL_A4)).toBeCloseTo(DIAGRAM_MIN_PX, 2);
+    // and the honest cost, stated rather than hidden: ~5% smaller on the phone than today
+    const now = apparentXHeightMm(DIAGRAM_MIN_PX, PAGE.w);
+    const before = apparentXHeightMm(DIAGRAM_MIN_PX_A4, TPL.PAGE_A4.w);
+    expect(now / before).toBeGreaterThan(0.94);
+    expect(now / before).toBeLessThan(1.0);
+  });
+
+  test('lint reads BOTH the column and the floor from the renderer, never a literal', () => {
+    // lint_lp.js's 10d gate runs during AUTHORING. On `main` it already imported FULL_COL while
+    // hardcoding 13.5; with a 455px column that combination is 159 blocking failures across 101
+    // of 116 real lessons — strictly worse than hardcoding both. One definition, imported.
+    const src = fs.readFileSync(path.join(VENDOR, 'lint_lp.js'), 'utf8');
+    expect(src).toMatch(/const \{ FULL_COL, DIAGRAM_MIN_PX \} = require\("\.\/lib\/template\.js"\)/);
+    expect(src).toMatch(/requiredBox\(svg, \{ minPx: DIAGRAM_MIN_PX, colPx: FULL_COL \}\)/);
+    expect(src).not.toMatch(/minPx:\s*13\.5/);
+    expect(src).not.toMatch(/renderedPx < 13\.5/);
   });
 });
 
