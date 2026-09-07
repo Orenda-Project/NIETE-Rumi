@@ -33,6 +33,7 @@ const { logToFile, logError } = require('../utils/logger');
 const { isRegistered } = require('../utils/registration-status');
 const { matchDetail: matchLessonPlanIntent } = require('../utils/lp-intent');
 const { openLpBrowseFlow } = require('../services/lp-browse-entry.service'); // the one door to the catalogue
+const { promptAction } = require('../config/conversational-components'); // bd-oak77.13: the one ice-breaker map
 const { isLp612Enabled, isLp612RouteAll, lp612ServesGrade } = require('../config/lp612-flags'); // the cutover switch
 const Lp612EditRouter = require('../services/lp612-edit-router.service'); // 6-12 lesson follow-ups
 const { TEMP_DIR, LOADING_STICKER_PATH, LOADING_STICKER_MEDIA_ID, OPENAI_API_KEY,
@@ -572,16 +573,18 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     }
   }
 
-  // When user taps ice breaker, WhatsApp sends the ice breaker text as message
-  const iceBreakers = {
-    'show menu - see all features i can help with': 'menu',
-    'plan lesson - create pdf lesson plans instantly': 'lesson_plan',
-    'create video - make animated educational videos': 'video',
-    'get coaching - classroom audio feedback & tips': 'coaching'
-  };
+  // When user taps ice breaker, WhatsApp sends the ice breaker text as message.
+  //
+  // bd-oak77.13: the strings used to live here AND in
+  // scripts/deployment/register-commands-meta.js, and nothing tied the two
+  // together — editing the manifest without editing this map silently turned
+  // every chip into ordinary text for the LLM router. Both now read
+  // shared/config/conversational-components.js, which also holds the superseded
+  // English-only chips (handsets cache the list, so an old chip can still arrive
+  // days after the manifest changes).
+  const action = promptAction(messageBody);
 
-  if (iceBreakers[trimmedMessage]) {
-    const action = iceBreakers[trimmedMessage];
+  if (action) {
     logToFile('🧊 Ice breaker detected', { action, userId: user?.id, phoneNumber: from });
 
     if (!user) {
@@ -599,14 +602,30 @@ async function handleTextMessage(message, from, messageBody, user = null) {
           await MenuService.sendMenu(from, user.id, sessionId, responseLanguage);
           break;
         case 'lesson_plan':
-          await MenuService._handleLessonPlanningChoice(user.id, sessionId, from, responseLanguage);
+          // The SAME door free text and /menu use — openLpBrowseFlow, which under
+          // LP_612_ROUTE_ALL is the 6-12 menu Flow. `ice_breaker` only labels the log.
+          await MenuService._handleLessonPlanningChoice(user.id, sessionId, from, responseLanguage, 'ice_breaker');
           break;
         case 'video':
           await MenuService._handleMediaLibraryChoice(user.id, sessionId, from, responseLanguage);
           break;
-        case 'coaching':
+        case 'ai_coaching':
+          // bd-oak77.13, the operator's ask: the film FIRST (the DC intro the ICT
+          // cohort was broadcast on 26-Aug — FDE notification + the Palestine
+          // montage), then the coaching entry the bot already has. No second
+          // coaching door is built here: _handleClassroomCoachingChoice sends the
+          // "upload your classroom recording" prompt and sets AWAITING_CLASSROOM_AUDIO,
+          // exactly as the /menu row does. The film is once per teacher
+          // (user_feature_first_use), so a second tap is not 5.8 MB again.
+          await FeatureIntroService.sendFirstUseIntroIfNeeded(user.id, from, 'ai_coaching', responseLanguage);
           await MenuService._handleClassroomCoachingChoice(user.id, sessionId, from, responseLanguage);
           break;
+        case 'training': {
+          // One entry point, shared with /training and the menu's Training row.
+          const TrainingEntry = require('../services/training/training-entry.service');
+          await TrainingEntry.openTrainingFlow(user, from, responseLanguage);
+          break;
+        }
       }
       logToFile('✅ Ice breaker action completed', { action, userId: user.id });
     } catch (error) {
