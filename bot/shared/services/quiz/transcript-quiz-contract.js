@@ -86,6 +86,27 @@ const GENDER_NEUTRAL_RULE = 'THE TEACHER HAS NO GENDER. Never refer to the teach
  */
 const WRONG_SCRIPT_RE = /(must be written in English — the stem and options are mostly not Latin script|^urdu script ratio )/;
 
+/**
+ * THE QUIZ LANGUAGE, SAID AGAIN, in the tail of the prompt — on EVERY attempt.
+ *
+ * Found on production 2026-09-07: four of four real quizzes that morning had
+ * attempt 1 rejected on a language fault and none of the four retries did.
+ * English quizzes on Urdu-taught lessons came back with all eight stems in
+ * Urdu script; the Urdu quiz came back with its teacher-facing fields in
+ * English. The only difference between the two prompts was that the retry
+ * restated the rule here, after the contracts. One teacher lost a quiz to it:
+ * the language fault ate attempt 1, and the single remaining attempt tripped
+ * the level gate.
+ *
+ * `retryNote` already opens with this line, so the author prompt emits this
+ * block only when there is no retry note — attempt 2's prompt stays byte for
+ * byte what production has proven.
+ */
+function languageAgain(language) {
+  const name = LANG_NAME[language] || 'Urdu';
+  return `\n\nQUIZ LANGUAGE, AGAIN: ${name}. ${languageRule(language)}\nThis holds for EVERY field you return — stem, options, explanation, option_feedback, "selected_because" and "distractor_misconceptions" — including the fields written for the teacher rather than the child. The lesson was recorded in whatever language the class was taught in; the quiz is written in ${name} regardless.\n`;
+}
+
 function retryNote(previousErrors, language, n = DEFAULT_QUESTIONS) {
   const errs = Array.isArray(previousErrors) ? previousErrors.filter(Boolean) : [];
   if (!errs.length) return '';
@@ -110,6 +131,6 @@ const SELECTED_BECAUSE_RULE = "SELECTED BECAUSE. Every question also carries a \
 const RELIGIOUS_CONTENT_RULE = "RELIGIOUS CONTENT (Islamiyat / سیرت / any mention of the Prophet, companions, Qur'an): every mention of the Prophet carries ﷺ immediately after the name; companions carry رضی اللہ عنہ / عنہا; اللہ and all sacred names in Urdu/Arabic script only; NEVER invent or paraphrase a hadith or an ayah — quote only what the lesson quoted, and only with the reference the teacher gave; no question may ask a child to guess what the Prophet ﷺ \"would say\".";
 
 module.exports = {
-  languageRule, questionContract, retryNote,
+  languageRule, questionContract, retryNote, languageAgain,
   SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, GENDER_NEUTRAL_RULE, WRONG_SCRIPT_RE, DEFAULT_QUESTIONS,
 };
