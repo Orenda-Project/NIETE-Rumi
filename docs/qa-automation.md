@@ -113,9 +113,14 @@ Nothing server-side enforces either verdict.
   a `# OBSOLETE <date> (<bead>): <why>` line and raised as an explicit ask.
 - **Author through the skill, never free-hand.** `gherkin-spec-sync` decides what the
   diff means for coverage; `gherkin-test-cases` decides how a scenario is written.
-- **A commit-triggered run cannot test the commit.** Nothing deploys from a commit, so
-  the run exercises the build that is already live. It is a regression check and must be
-  reported as one; only a run after the `develop` deploy tests the change.
+- **A commit-triggered run on the WhatsApp Web lane cannot test the commit.** Nothing deploys
+  from a commit, so that run exercises the build that is already live. It is a regression check
+  and must be reported as one; only a run after the `develop` deploy tests the change on Meta.
+  **The mock lane exists for exactly this gap**: `bash .claude/qa/shared/commit-e2e.sh <sha>`
+  starts the bot from a detached worktree at that commit behind a local mock Graph API and drives
+  the same feature scripts (menu · language · status today) — see
+  [docs/e2e-mock-lane.md](e2e-mock-lane.md). Its ledger rows carry `method: mock`, the
+  `commit_sha`, and the cassette misses that make a verdict untrustworthy.
 - **Never on production users.** `/niete-e2e` targets staging by default; prod is an
   explicit, per-action opt-in.
 
