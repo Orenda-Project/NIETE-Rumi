@@ -172,6 +172,41 @@ function isLp612PromptCacheEnabled() {
   return isTrue(process.env.LP612_PROMPT_CACHE);
 }
 
+/**
+ * WIDE SEGMENTS — the last path in the system that still REFUSES a lesson (bd-oak77.30).
+ *
+ * Operator rule: *"the length cap must not also forcefully fail lessons."* Every other length
+ * limb already honours it — the printed-page cap only flags `over_cap`, an author timeout
+ * delivers best-so-far, a render defect degrades and delivers. The page RANGE cap did not:
+ * `fetchPages` threw `PAGE_RANGE_TOO_LARGE` over 25 printed pages and `compactPageTruth` threw
+ * `PAGE_TRUTH_TOO_LARGE` over 90,000 characters, both before a model token was spent, and both
+ * sit in the worker's `NO_RETRY_CODES` — so 109 of 4,938 servable production segments (2.21%,
+ * every one `lp_type='revision'`) failed on every tap, for ever.
+ *
+ * WHAT THE OLD CAP PROTECTED, MEASURED (`messages.count_tokens`, claude-sonnet-5, 1,000,000-token
+ * window): a normal segment's WHOLE prompt is 41,967-46,302 tokens; the 32-page segment that
+ * failed a real teacher is 68,572; the 63-page worst case 98,620; the densest 48-page maths
+ * revision 108,104 — the corpus maximum, and 10.8% of the window. The system brief alone is
+ * 37,540 of those tokens and is the cached prefix. `MAX_TOKENS` (24,000) does not move with input
+ * size. The cap guarded no technical limit; 25 was a number `brief_segment_v2.md` asserted.
+ *
+ * Condensing the page-truth instead was measured and rejected: prose is only 30.0% of the
+ * payload (figures 23.1%, lists 19.3%, worked examples 16.8%), and an aggressive deterministic
+ * condensation saves 4.7-34% — median 13.8% — while deleting the explanatory half a revision
+ * lesson needs. It does not reach any bound, and it costs the material.
+ *
+ * DEFAULT FALSE, and false is today byte for byte. With the flag off, neither length check moves:
+ * a range of 25 or fewer pages never entered the refusal branch and still does not. With it on,
+ * nothing in this corpus can be refused, and past the hard ceiling the range degrades by dropping
+ * WHOLE TRAILING PAGES with the loss stated on the row and in the lesson — never the silent
+ * mid-sentence byte-slice this code carried until 2026-09-04.
+ *
+ * ROLLBACK IS UNSETTING THIS VARIABLE. No deploy, no revert.
+ */
+function isLp612WideSegmentsEnabled() {
+  return isTrue(process.env.LP612_WIDE_SEGMENTS);
+}
+
 function templateVersion() {
   const v = (process.env.LP_612_TEMPLATE_VERSION || '').trim();
   return v || DEFAULT_TEMPLATE_VERSION;
@@ -449,6 +484,7 @@ module.exports = {
   isLp612LangMenuEnabled,
   isLp612TargetedRevisionEnabled,
   isLp612PromptCacheEnabled,
+  isLp612WideSegmentsEnabled,
   isReligiousEnabled,
   templateVersion,
   previousTemplateVersions,
