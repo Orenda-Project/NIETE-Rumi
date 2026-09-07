@@ -1,8 +1,23 @@
 'use strict';
 /**
- * Transcript quiz — the one nudge. Three hours after the link went out, if
- * fewer than five children have started, the teacher is told how many have
- * and asked whether the link is worth forwarding again. Once, never twice.
+ * Transcript quiz — the one nudge. Six hours after the link went out, if fewer
+ * than five children have started, the teacher is told how many have and asked
+ * whether the link is worth forwarding again. Once per TEACHER per day, never
+ * during quiet hours, never twice.
+ *
+ * The three rules and where they came from (operator, 2026-09-07 — "the
+ * reminders that teachers get that no one has attempted their quiz are
+ * annoying. Perhaps once after six hours is ok"):
+ *
+ *   SIX HOURS  the wait used to be three, which caught a class that simply had
+ *              not got home yet.
+ *   QUIET      21:00-07:00 PKT is deferred to 07:00, never dropped. Ten
+ *              teachers were told at 9pm or later that nobody had opened their
+ *              quiz. The report already had this guard; the nudge did not.
+ *   ONE A DAY  a teacher who records four lessons was collecting four separate
+ *              "nobody has started" messages. One message, naming the quiet
+ *              lessons together; every one of them stamped, so none can nudge
+ *              on its own later.
  */
 
 const supabase = require('../../config/supabase');
@@ -14,6 +29,41 @@ const { teacherLanguageFor } = require('./transcript-quiz-language');
 const { excludeSelfTests } = require('./teacher-self-test');
 
 const NUDGE_BELOW = 5;
+const PKT_OFFSET_MIN = 5 * 60;
+/** Nothing is sent to a teacher between these PKT hours. */
+const QUIET_FROM_PKT = 21;
+const QUIET_TO_PKT = 7;
+
+/**
+ * When a nudge due at `when` may actually be sent: `when` itself during the
+ * day, or 07:00 PKT if it falls in the quiet window. DEFERRED, never dropped —
+ * the worker re-queues until this instant, so the teacher still hears, in the
+ * morning, when the message is worth reading.
+ */
+function nudgeTargetUtc(when = new Date()) {
+  const pkt = new Date(when.getTime() + PKT_OFFSET_MIN * 60 * 1000);
+  const h = pkt.getUTCHours();
+  if (h < QUIET_FROM_PKT && h >= QUIET_TO_PKT) return when;
+  const bump = new Date(Date.UTC(
+    pkt.getUTCFullYear(), pkt.getUTCMonth(), pkt.getUTCDate() + (h >= QUIET_FROM_PKT ? 1 : 0),
+    QUIET_TO_PKT, 0, 0,
+  ));
+  return new Date(bump.getTime() - PKT_OFFSET_MIN * 60 * 1000);
+}
+
+/** Midnight PKT of the day `now` falls in, as a UTC ISO string. */
+function pktDayStartIso(now = new Date()) {
+  const pkt = new Date(now.getTime() + PKT_OFFSET_MIN * 60 * 1000);
+  const start = Date.UTC(pkt.getUTCFullYear(), pkt.getUTCMonth(), pkt.getUTCDate());
+  return new Date(start - PKT_OFFSET_MIN * 60 * 1000).toISOString();
+}
+
+/** How many REAL children have started this quiz (the teacher's own run never counts). */
+async function startedFor(quizId, teacherId) {
+  const { data: sessions } = await supabase.from('quiz_sessions')
+    .select('id, user_id').eq('quiz_id', quizId).is('invited_by_student_id', null);
+  return excludeSelfTests(sessions || [], teacherId).length;
+}
 
 async function process(quizId) {
   const { data: quiz } = await supabase.from('quizzes')
@@ -22,26 +72,61 @@ async function process(quizId) {
   if (quiz.status !== 'sent') return { skipped: `status_${quiz.status}` };
   if (quiz.meta?.nudged_at) return { skipped: 'already_nudged' };
 
-  const { data: sessions } = await supabase.from('quiz_sessions')
-    .select('id, user_id').eq('quiz_id', quizId).is('invited_by_student_id', null);
-  // PLAN_R5 D8 — this count decides whether the teacher is nudged; their own
-  // test run of the class link must not read as "started".
-  const started = excludeSelfTests(sessions || [], quiz.teacher_id).length;
+  const dayStart = pktDayStartIso();
+  const { data: sameDay } = await supabase.from('quizzes')
+    .select('id, topic, status, meta').eq('teacher_id', quiz.teacher_id)
+    .gte('created_at', dayStart);
+  const others = (sameDay || []).filter((q) => q.id !== quiz.id);
+
+  // ONE a day. A teacher already nudged today hears nothing more, whichever
+  // quiz the job was queued for.
+  if (others.some((q) => (q.meta || {}).nudged_at >= dayStart)) {
+    return { skipped: 'teacher_nudged_today' };
+  }
+
+  // PLAN_R5 D8 — this count decides whether a teacher is told "only N children
+  // have started"; their own test run of the class link must not read as
+  // "started".
+  const started = await startedFor(quiz.id, quiz.teacher_id);
   if (started >= NUDGE_BELOW) return { skipped: 'enough_started', started };
+
+  // Gather the teacher's OTHER quiet lessons from today so they ride in the
+  // same message rather than arriving as separate nags.
+  const quiet = [{ id: quiz.id, topic: quiz.topic || '', started }];
+  for (const q of others) {
+    if (q.status !== 'sent' || (q.meta || {}).nudged_at) continue;
+    const n = await startedFor(q.id, quiz.teacher_id);
+    if (n < NUDGE_BELOW) quiet.push({ id: q.id, topic: q.topic || '', started: n, meta: q.meta });
+  }
 
   const { data: teacher } = await supabase.from('users')
     .select('phone_number, preferred_language').eq('id', quiz.teacher_id).maybeSingle();
   if (!teacher?.phone_number) return { skipped: 'no_phone' };
   const lang = teacherLanguageFor({ preferredLanguage: teacher.preferred_language });
 
-  const ok = await WhatsAppService.sendMessage(teacher.phone_number,
-    resolveUx('tqNudge', { language: lang, params: { started, topic: quiz.topic || '' } }));
+  const body = quiet.length === 1
+    ? resolveUx('tqNudge', { language: lang, params: { started, topic: quiz.topic || '' } })
+    : resolveUx('tqNudgeMany', {
+      language: lang,
+      params: { count: quiet.length, topics: quiet.map((q) => q.topic).filter(Boolean).join('، ') },
+    });
+  const ok = await WhatsAppService.sendMessage(teacher.phone_number, body);
+
+  const at = new Date().toISOString();
   await supabase.from('quizzes')
-    .update({ meta: { ...(quiz.meta || {}), nudged_at: new Date().toISOString(), nudge_started: started } })
-    .eq('id', quizId);
-  logEvent('transcript_quiz.nudged', { quizId, started, sent: Boolean(ok) });
+    .update({ meta: { ...(quiz.meta || {}), nudged_at: at, nudge_started: started } })
+    .eq('id', quiz.id);
+  for (const q of quiet.slice(1)) {
+    await supabase.from('quizzes')
+      .update({ meta: { ...(q.meta || {}), nudged_at: at, nudge_started: q.started, nudged_with: quiz.id } })
+      .eq('id', q.id);
+  }
+
+  logEvent('transcript_quiz.nudged', {
+    quizId, started, sent: Boolean(ok), lessons: quiet.length, quizIds: quiet.map((q) => q.id),
+  });
   if (!ok) logToFile('⚠️ transcript quiz: nudge not delivered', { quizId });
-  return { ok: true, started };
+  return { ok: true, started, quizIds: quiet.map((q) => q.id) };
 }
 
-module.exports = { process, NUDGE_BELOW };
+module.exports = { process, NUDGE_BELOW, nudgeTargetUtc, pktDayStartIso, QUIET_FROM_PKT, QUIET_TO_PKT };
