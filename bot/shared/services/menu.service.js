@@ -521,3 +521,5 @@ class MenuService {
 }
 
 module.exports = MenuService;
+
+// QA pipeline demo probe (PR #771): a mapped file changed from a plain terminal commit.
