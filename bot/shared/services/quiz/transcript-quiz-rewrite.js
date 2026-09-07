@@ -82,7 +82,7 @@ const PER_QUESTION = /^q(\d+):\s*(PEDAGOGY_[A-Z_]+|FIGURE_[A-Z_]+|RELIGIOUS_[A-Z
 const PER_QUESTION_STRUCTURAL = /^q(\d+):\s*(option >\d+ code points|Q_MISSING_WHY\b|MULTI_[A-Z_]+\b)/;
 const STRUCTURAL_MULTI_RULE = 'MULTI-SELECT. A "select all that apply" question (answer_mode "multi") names at least 2 and at most (options − 1) correct options in "correct_indices", and every option is at most 30 characters. If the lesson gives it only ONE right answer, write it as an ordinary single-answer question instead: 3 options, one "correct_index", no "correct_indices", no answer_mode.';
 /** The set-level line the validator writes NEXT TO its per-question PEDAGOGY_LEVEL_ABOVE lines; those lines are the targets, this one is their headline. */
-const LEVEL_SUMMARY = /^only \d+\/\d+ at\/below taught level/;
+const LEVEL_SUMMARY = /^(only \d+\/\d+ at\/below taught level|PEDAGOGY_LEVEL_MIX — only \d+ of \d+)/;
 const STRUCTURAL_CAPS_RULE = 'LENGTH. Every option is at most 72 code points (characters) — a long option is cut off on the phone, so write a shorter one that says the same thing. Every "selected_because" is at most 15 words. For a question rejected ONLY for length, keep the same question and shorten the text.';
 
 /**

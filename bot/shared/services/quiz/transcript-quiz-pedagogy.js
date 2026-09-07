@@ -423,8 +423,42 @@ function pedagogyDefects(questions, ctx = {}) {
   });
   out.push(...genderedTeacherDefects(qs, { language, lessonSummary, quizId }));
   const mix = levelMixDefect(qs, digest);
-  if (mix) out.push(mix);
+  if (mix) out.push(mix, ...levelLiftDefects(qs, digest));
   return out;
+}
+
+/**
+ * The questions to LIFT when the set has too few at understand/apply — one
+ * per missing higher-order question, so the targeted rewrite can raise them
+ * instead of the whole quiz dying on a complaint that names no question
+ * (production, 2026-09-07: a science lesson failed its third attempt on
+ * "only 3 of 8 … at least 4 must be", every question individually valid).
+ * Recall questions on an SLO the lesson reached at understand or above come
+ * first (lifting them costs nothing against the at-or-below rule), then the
+ * rest — the same order the requirement itself was computed in.
+ */
+function levelLiftDefects(questions, digest) {
+  const qs = Array.isArray(questions) ? questions : [];
+  const slos = (digest && Array.isArray(digest.slos)) ? digest.slos : [];
+  if (!qs.length || !slos.length) return [];
+  const taught = new Map(slos.map((s) => [s.id, LEVELS[s.taught_level] ?? 1]));
+  const higher = qs.filter((q) => (LEVELS[q && q.level] ?? 0) >= 1).length;
+  const free = qs.filter((q) => (taught.has(q && q.slo_id) ? taught.get(q.slo_id) : 1) >= 1).length;
+  const budget = Math.floor(qs.length * (1 - AT_OR_BELOW_SHARE));
+  const required = Math.min(Math.ceil(qs.length / 2), Math.min(qs.length, free + budget));
+  const missing = required - higher;
+  if (missing <= 0) return [];
+  const recall = qs.map((q, i) => ({ q, i })).filter(({ q }) => (LEVELS[q && q.level] ?? 0) === 0);
+  const tl = ({ q }) => (taught.has(q && q.slo_id) ? taught.get(q.slo_id) : 1);
+  recall.sort((a, b) => tl(b) - tl(a) || a.i - b.i);
+  return recall.slice(0, missing).map(({ q, i }) => {
+    const reached = ['recall', 'understand', 'apply'][tl({ q })] || 'understand';
+    return {
+      index: i,
+      code: 'PEDAGOGY_LEVEL_MIX',
+      message: `q${i}: PEDAGOGY_LEVEL_MIX — a "recall" question on an SLO the lesson reached at "${reached}"; ask the SAME idea at "understand": which of these belongs to the group, which one does NOT, what happens next, or why the lesson's own example turned out that way (level: "understand")`,
+    };
+  });
 }
 
 module.exports = {
@@ -432,6 +466,7 @@ module.exports = {
   genderedTeacherDefects,
   genderedTeacherForms,
   levelMixDefect,
+  levelLiftDefects,
   requiredHigherOrder,
   countRecall,
   teacherAsSubject,
