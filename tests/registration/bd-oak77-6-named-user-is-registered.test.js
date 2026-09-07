@@ -81,7 +81,10 @@ jest.mock('../../bot/shared/utils/constants', () => ({
   TEMP_DIR: '/tmp', LOADING_STICKER_PATH: '', LOADING_STICKER_MEDIA_ID: '',
   OPENAI_API_KEY: '', ATTENDANCE_SETUP_FLOW_ID: '', ATTENDANCE_MARKING_FLOW_ID: '',
 }));
-jest.mock('../../bot/shared/services/llm-client', () => ({ getClient: () => ({}) }));
+jest.mock('../../bot/shared/services/llm-client', () => ({
+  getClient: () => ({}),
+  getClientForModel: (m) => ({ client: {}, model: String(m || '') }),
+}));
 jest.mock('../../bot/shared/utils/language-detector', () => ({
   detectLanguageOverride: jest.fn(() => null),
   isMarketLanguage: jest.fn(() => false),
