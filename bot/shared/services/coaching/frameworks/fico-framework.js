@@ -644,7 +644,14 @@ function computeScores(analysis) {
   let overallMax = 0;
 
   for (const domainKey of domainKeys) {
-    if (analysis.domains && analysis.domains[domainKey]) {
+    if (!(analysis.domains && analysis.domains[domainKey])) {
+      // A domain the analysis omitted still carries its declared max, exactly as
+      // the flat MAX_MARKS did before — a partial or empty analysis must not
+      // silently shrink its own denominator and report a flattering percentage.
+      overallMax += DOMAINS[domainKey].indicatorCount * SCALE_MAX;
+      continue;
+    }
+    {
       const domain = analysis.domains[domainKey];
       let domainScore = 0;
 

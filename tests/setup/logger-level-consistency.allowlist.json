@@ -115,12 +115,6 @@
   },
   {
     "file": "bot/shared/handlers/text-message.handler.js",
-    "line": 706,
-    "snippet": "logToFile('❌ Error sending reading assessment flow', {",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/handlers/text-message.handler.js",
     "line": 950,
     "snippet": "logToFile('❌ Error initiating quiz', { userId: user?.id, error: error.message });",
     "occurrence": 0
