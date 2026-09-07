@@ -229,3 +229,35 @@ describe('8 · exactly one replica speaks', () => {
     expect(out.skipped).toBeUndefined();
   });
 });
+
+describe('9 · a quiet minute leaves a trace', () => {
+  /**
+   * After the lock shipped, the digest correctly stayed quiet — and logged
+   * nothing at all, so "it skipped correctly" and "it never ran" looked
+   * identical from outside. For a monitor that is the dangerous ambiguity: a
+   * silence you cannot audit is a silence you should not trust.
+   */
+  test('a losing replica says so, so its silence can be audited', async () => {
+    jest.resetModules();
+    const logEvent = jest.fn();
+    jest.doMock('../../bot/shared/utils/structured-logger', () => ({ logEvent }));
+    jest.doMock('../../bot/shared/services/cache/railway-redis.service', () => ({
+      setNX: jest.fn().mockResolvedValue(false),
+    }));
+    const saved = { ...process.env };
+    Object.assign(process.env, {
+      PROD_DIGEST_ENABLED: 'true', PROD_DIGEST_SLACK_TOKEN: 'x',
+      PROD_DIGEST_SLACK_CHANNEL: 'D1', AXIOM_API_TOKEN: 'x',
+    });
+    try {
+      const Fresh = require('../../bot/shared/services/monitoring/prod-failure-digest.service');
+      await Fresh.run();
+      expect(logEvent).toHaveBeenCalledWith('prod_digest.skipped',
+        expect.objectContaining({ why: 'another_replica' }));
+    } finally {
+      Object.keys(process.env).forEach((k) => { if (!(k in saved)) delete process.env[k]; });
+      Object.assign(process.env, saved);
+      jest.resetModules();
+    }
+  });
+});
