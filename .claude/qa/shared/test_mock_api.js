@@ -142,6 +142,13 @@ const ROWS = ['Teacher Training', 'Lesson Plans', 'Classroom Coaching', 'Ask Any
     assert.strictEqual(r.txt, 'part three');
     assert.strictEqual(r.freshIds, 3);
   });
+  await ita('sendWait trims the text like the WhatsApp client does before it reaches the bot', async () => {
+    // M05 sends " /menu " and the spec says "(client trims)": the real bot never sees the spaces. The
+    // first live mock run delivered them raw and the bot answered with the option nudge.
+    await api.sendWait(' /menu ', 5000);
+    const last = inbound[inbound.length - 1];
+    assert.strictEqual(last.text.body, '/menu');
+  });
   await ita('no reply within the timeout is NO REPLY — ok:false, empty txt, never a stale row', async () => {
     const r = await api.sendWait('silent', 800);
     assert.strictEqual(r.ok, false); assert.strictEqual(r.txt, ''); assert.deepStrictEqual(r.btns, []);

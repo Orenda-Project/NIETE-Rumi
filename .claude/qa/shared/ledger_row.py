@@ -26,6 +26,39 @@ def git(root, *args):
         return ""
 
 
+def _attribute_misses(misses, progress_log):
+    """Which scenario was running when each cassette miss happened?
+
+    The runner's progress log records `HH:MM:SS.mmm REC <id> <verdict> …` when a scenario FINISHES;
+    a miss stamped before a REC belongs to that REC's scenario. Times are compared as seconds-of-day
+    (the miss `ts` is ISO UTC, the progress log is UTC clock time), so a run may not straddle midnight
+    — acceptable for a lane whose runs take minutes."""
+    recs = []
+    try:
+        for line in open(progress_log, encoding="utf-8"):
+            parts = line.split()
+            if len(parts) >= 3 and parts[1] == "REC":
+                h, m, s = parts[0].split(":")
+                recs.append((int(h) * 3600 + int(m) * 60 + float(s), parts[2]))
+    except (OSError, ValueError):
+        return {}
+    recs.sort()
+    by = {}
+    for miss in misses:
+        ts = str(miss.get("ts", ""))
+        if "T" not in ts:
+            continue
+        try:
+            h, m, s = ts.split("T", 1)[1].rstrip("Z").split(":")
+            t = int(h) * 3600 + int(m) * 60 + float(s)
+        except ValueError:
+            continue
+        sid = next((sid for rec_t, sid in recs if rec_t >= t), None)
+        if sid:
+            by[sid] = by.get(sid, 0) + 1
+    return by
+
+
 def build_row(a):
     d = json.load(open(os.path.join(a.run_dir, a.feature + ".json"), encoding="utf-8"))
     res = d.get("results", [])
@@ -54,11 +87,16 @@ def build_row(a):
         misses = []
         if os.path.exists(miss_log):
             misses = [json.loads(l) for l in open(miss_log, encoding="utf-8") if l.strip()]
+        by_scenario = _attribute_misses(misses, os.path.join(a.run_dir, "progress-%s.log" % a.feature))
         row["cassette"] = {"mode": "replay-strict", "misses": len(misses),
-                           "missed_kinds": sorted({m.get("kind") for m in misses if m.get("kind")})}
+                           "missed_kinds": sorted({m.get("kind") for m in misses if m.get("kind")}),
+                           "scenarios_affected": sorted(by_scenario), "by_scenario": by_scenario}
         if misses:
+            # A scenario that ran while a vendor answer was missing got the bot's error path, not the
+            # product's answer. Its PASS/FAIL is not evidence either way, so the row cannot be HEALTHY.
             row["status"] = "CRITICAL"
-            row["cassette"]["note"] = "a vendor answer was missing from the library; record once with E2E_CASSETTE=record"
+            row["cassette"]["note"] = ("vendor answers missing for %s; their verdicts are not trustworthy. Record once with "
+                                       "E2E_CASSETTE=record, then rerun." % (", ".join(sorted(by_scenario)) or "an unattributed call"))
         try:
             st = json.load(open(os.path.join(a.run_dir, "stack.json"), encoding="utf-8"))
             row["stack"] = {k: st.get(k) for k in ("bot_url", "mock_url", "worktree", "lock_blob")}

@@ -101,7 +101,9 @@ function makeMockApi(opts) {
       trace('send START ' + JSON.stringify(text).slice(0, 40));
       const t0 = Date.now();
       const since = await quiesce();
-      await inject('text', { text });
+      // The WhatsApp client trims what the teacher types before it leaves the phone (menu M05 is
+      // written against that: "client trims"). Deliver what the bot would actually receive.
+      await inject('text', { text: String(text).trim() });
       const r = await waitReply(since, timeoutMs, 'send:' + String(text).slice(0, 20));
       r.wallMs = Date.now() - t0;
       trace('send ok    ' + JSON.stringify(text).slice(0, 30) + ' waited=' + r.waitedMs);
