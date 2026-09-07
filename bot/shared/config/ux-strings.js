@@ -91,6 +91,26 @@ const LP612_ETA = Object.freeze({
 });
 
 const UX_STRINGS = {
+  // ─── classroom-photo "Add another" (bd-pzs9a) ───────────────────────
+  // The tap re-opens the photo step, so the copy must say what state the session
+  // is now in — one shared "something went wrong" line across three different
+  // states is what misdirects every field report (Rule 24d). All three are
+  // impersonal or imperative, so neither carries a gendered verb stem.
+  // Urdu prose digits are the U+06Fx set; the caller converts, and the
+  // placeholders are bidi-isolated (LRI…PDI) because a value's direction is not
+  // knowable at authoring time.
+  photoAddAnotherNext: {
+    en: '\u{1F4F8} Send the next classroom photo — photo {n} of {max}.',
+    ur: '\u{1F4F8} اگلی کلاس روم تصویر بھیجیں — تصویر \u2066{n}\u2069 از \u2066{max}\u2069۔',
+  },
+  photoAddAnotherAtMax: {
+    en: '\u{1F4F8} That is the maximum of {max} classroom photos. Moving on to the lesson plan.',
+    ur: '\u{1F4F8} زیادہ سے زیادہ \u2066{max}\u2069 کلاس روم تصاویر بھیجی جا سکتی ہیں۔ اب سبق کے منصوبے کی طرف چلتے ہیں۔',
+  },
+  photoAddAnotherClosed: {
+    en: '\u{1F4F8} This coaching session has already moved past the photo step, so another photo cannot be added to it.',
+    ur: '\u{1F4F8} یہ کوچنگ سیشن تصویر والے مرحلے سے آگے بڑھ چکا ہے، اس لیے اس میں مزید تصویر شامل نہیں ہو سکتی۔',
+  },
   // Shown on the Settings SUCCESS screen. Previously English-only, so a teacher
   // who had just switched to Urdu was congratulated in English.
   settingsSaved: {
@@ -518,6 +538,51 @@ const UX_STRINGS = {
     ur: 'جماعت چنیں',
   },
 
+  /**
+   * bd-twhcj — the honest refusal when reading assessment cannot run here.
+   *
+   * NIETE has the reading CODE and the reading TABLES, but no reading Flow was
+   * ever published to its WhatsApp account and READING_ASSESSMENT_FLOW_ID is
+   * unset, so `/reading test` was calling sendFlow with `flowId: undefined`.
+   * 43 teachers, 57 attempts, 57 failures, zero rows, twenty days — and every
+   * one of them was told "something went wrong, please try again later", which
+   * is an invitation to try again at a door that does not exist.
+   *
+   * Rule 24(d): the copy names the ACTUAL state. Not available here, not a
+   * transient fault, and no "try again" — because trying again cannot work.
+   * It ends by naming the two doors that ARE open, so the message closes a
+   * dead end and hands something back in its place.
+   *
+   * Sent as a plain text body, so the cap is 1024 CODE POINTS (pinned in
+   * tests/config/ux-strings-whatsapp-limits.test.js).
+   *
+   * Urdu is gender-agnostic in the second person — no `چاہتے ہیں` /
+   * `چاہتی ہیں` verb agreement with the reader at all; the sentences are
+   * impersonal statements about what is and is not available. The cohort is
+   * mixed and the bot cannot know. Rumi's own first person stays as it is
+   * everywhere else in this catalog.
+   *
+   * `/menu` inside the Urdu sentence is wrapped in U+2066 LRI … U+2069 PDI.
+   * It is a machine-Latin atom in RTL prose, and its leading slash is a
+   * bidi-neutral character between an Arabic-class letter and a Latin one —
+   * exactly the case UAX#9 resolves to the paragraph direction, which puts
+   * the slash on the far side of the word for a reader scanning the line.
+   * The isolate makes it paint as one contiguous `/menu` token. The English
+   * variant needs nothing: its paragraph is already LTR.
+   */
+  readingNotAvailable: {
+    en:
+      'Reading assessment is not switched on here yet, so I cannot open it for you — '
+      + 'trying again will not help, and that is on us, not on you.\n'
+      + 'What is ready right now: lesson plans straight from your own textbook, '
+      + 'and coaching on a recording of your class. Type /menu to see both.',
+    ur:
+      'قرائت کا جائزہ ابھی یہاں دستیاب نہیں ہے، اس لیے میں اسے کھول نہیں سکتی۔ '
+      + 'دوبارہ کوشش کرنے کا فائدہ نہیں — یہ کمی ہماری طرف سے ہے۔\n'
+      + 'ابھی جو موجود ہے: آپ کی اپنی درسی کتاب سے سبق کے منصوبے، اور کلاس کی '
+      + 'ریکارڈنگ پر کوچنگ۔ دونوں دیکھنے کے لیے \u2066/menu\u2069 لکھیں۔',
+  },
+
   readingPickerHeader: {
     en: 'Select Language',
     ur: 'زبان منتخب کریں',
@@ -660,6 +725,30 @@ const UX_STRINGS = {
   remarkCommentLabel: {
     en: 'Comment',
     ur: 'رائے',
+  },
+
+  // ─── the account we could not reach ──────────────────────────────────────
+  //
+  // Sent when the USER LOOKUP ITSELF FAILED — the database was unreachable, so
+  // nothing is known about her account and nothing may be asserted about it.
+  //
+  // This is not the "you have no account" line and must never read like one. A
+  // coach reported the old behaviour: during a Cloudflare 522 a registered
+  // teacher typing /video was told she was not registered. She was, she was
+  // mid-session, and the message blamed her for an outage on our side. There
+  // are two states here and they get two different sentences.
+  //
+  // Deliberately sent in BOTH languages at once. Her stored preference lives in
+  // the row we just failed to read, so at this exact moment we cannot know
+  // which language she reads — and guessing English at the one moment she is
+  // already confused is the wrong trade.
+  //
+  // Urdu is gender-neutral by construction: the verbs agree with the account
+  // and with "کچھ", never with the person being addressed, and the closing
+  // instruction is a plain imperative.
+  accountLookupUnavailable: {
+    en: 'Something is wrong on our side — I cannot reach your account right now. Nothing is lost. Please try again in a few minutes.',
+    ur: '\u06c1\u0645\u0627\u0631\u06d2 \u0633\u0633\u0679\u0645 \u0645\u06cc\u06ba \u06a9\u0686\u06be \u062e\u0631\u0627\u0628\u06cc \u06c1\u06d2 \u2014 \u0627\u0633 \u0648\u0642\u062a \u0622\u067e \u06a9\u0627 \u0627\u06a9\u0627\u0624\u0646\u0679 \u06a9\u06be\u0644 \u0646\u06c1\u06cc\u06ba \u067e\u0627 \u0631\u06c1\u0627\u06d4 \u06a9\u0686\u06be \u0636\u0627\u0626\u0639 \u0646\u06c1\u06cc\u06ba \u06c1\u0648\u0627\u06d4 \u0686\u0646\u062f \u0645\u0646\u0679 \u0628\u0639\u062f \u062f\u0648\u0628\u0627\u0631\u06c1 \u06a9\u0648\u0634\u0634 \u06a9\u0631\u06cc\u06ba\u06d4',
   },
 
   remarkSubmit: {

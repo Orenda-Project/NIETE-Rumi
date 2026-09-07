@@ -604,8 +604,8 @@ app.post('/webhook', async (req, res) => {
       user = await getOrCreateUser(from);
       logToFile('User retrieved/created', { userId: user.id, phoneNumber: from });
     } catch (error) {
-      logToFile('⚠️ Error with database user operation', { error: error.message });
-      // Continue without database - bot will still work
+      // `error`, not `info` — an outage, not a routine miss. Downstream handlers must not read the null as "no account".
+      logError('❌ User lookup failed — database unreachable', { phoneNumber: from, error: error.message });
     }
 
     // Track chat start for funnel analysis (for all message types)
@@ -982,21 +982,12 @@ app.post('/webhook', async (req, res) => {
           logToFile('⚠️ LP prompt could not be delivered — session left in place', { sessionId, from });
         }
       }
-      // bd-u35ex: "Add another" — keep collecting; the image handler (Phase 3) picks
-      // up the next photo. Session stays at awaiting_classroom_photo.
+      // bd-u35ex / bd-pzs9a: "Add another" — keep collecting. The whole tap lives in
+      // add-another.service so it can be executed by a test; this branch only dispatches.
       else if (buttonId.startsWith('photo_more_')) {
         const sessionId = buttonId.replace('photo_more_', '');
-        logToFile('📸 User wants to add another classroom photo', { sessionId, from });
-        const { data: userRow } = await supabase
-          .from('users')
-          .select('preferred_language')
-          .eq('id', user.id)
-          .maybeSingle();
-        const lang = userRow?.preferred_language || 'en';
-        const msg = lang === 'ur'
-          ? '📸 اگلی تصویر بھیجیں۔'
-          : '📸 Please send the next photo.';
-        await WhatsAppService.sendMessage(from, msg);
+        const { handleAddAnotherPhotoTap } = require('./shared/services/coaching/classroom-photo/add-another.service');
+        await handleAddAnotherPhotoTap({ sessionId, from, user });
       }
       // Stale session reminder buttons - Continue coaching
       else if (buttonId.startsWith('coaching_continue_')) {
