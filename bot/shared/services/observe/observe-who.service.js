@@ -51,7 +51,9 @@ const clip = (s, n) => (s == null ? '' : String(s)).slice(0, n);
 function buildWhoPayload(teachers, S, sessionId) {
   const rows = (teachers || []).slice(0, MAX_TEACHER_ROWS).map((t, i) => ({
     id: `${WHO_PREFIX}${sessionId}_${i}`,
-    title: clip(t.teacher_name || t.name, TITLE_CAP),
+    // displayName is patch-resolver's never-empty label; the two named
+    // fallbacks are for rows that arrive already shaped by an older path.
+    title: clip(t.teacher_name || t.displayName || t.name, TITLE_CAP),
     description: clip(t.school_name || '', DESC_CAP),
   }));
   rows.push({

@@ -392,13 +392,34 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     // ============================================================
     // DATABASE INTEGRATION: Use provided user or get/create
     // ============================================================
+  //
+  // Two states share the `!user` branches below, and they are NOT the same
+  // thing. `getOrCreateUser` returns a row or throws — it never resolves to
+  // nothing for someone who merely has no account, because it creates one. So
+  // a null user here means the LOOKUP FAILED, and telling her she is not
+  // registered is both false and blaming. A coach reported exactly that: during
+  // a Cloudflare 522 a registered teacher typing /video was told to register.
+  //
+  // The swallow itself stays — a child on a forwarded quiz link has no row and
+  // must still be served. What stops is discarding WHY the row is missing.
+  let userLookupFailed = false;
+  const { accountMissingReply } = require('./account-state-reply');
+  /** The caller's registration line, but only when it is actually true. */
+  const noAccountCopy = (registrationCopy) => accountMissingReply(userLookupFailed, registrationCopy);
   if (!user) {
     try {
       user = await getOrCreateUser(from);
-      logToFile('User retrieved/created', { userId: user.id, phoneNumber: from });
+      // `user?.id`, not `user.id`: a resolved-but-empty result is the ONE case
+      // that genuinely means "no account", and dereferencing it here threw into
+      // the catch below and mislabelled it as an outage.
+      logToFile('User retrieved/created', { userId: user?.id, phoneNumber: from });
     } catch (error) {
-      logToFile('⚠️ Error with database user operation', { error: error.message });
-      // Continue without database - bot will still work
+      // Level `error`, not `info`: this is an outage, and 3,593 degraded
+      // operations in 20 days were invisible because nothing here logged.
+      userLookupFailed = true;
+      logError('❌ User lookup failed — database unreachable, account state unknown', {
+        phoneNumber: from, error: error.message, code: error.code || null,
+      });
     }
   } else {
     logToFile('Using provided user object', { userId: user.id, phoneNumber: from });
@@ -624,7 +645,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     if (!user) {
       await WhatsAppService.sendMessage(
         from,
-        'Sorry, I could not find your account. Please send me a message first.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔'
+        noAccountCopy('Sorry, I could not find your account. Please send me a message first.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔')
       );
       typingController.stop();
       return;
@@ -705,7 +726,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       // Edge case: user not found in database
       await WhatsAppService.sendMessage(
         from,
-        'Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔'
+        noAccountCopy('Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔')
       );
       return;
     }
@@ -816,7 +837,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     if (!user) {
       await WhatsAppService.sendMessage(
         from,
-        'I could not find your account. Send me a message first so I can set you up.'
+        noAccountCopy('I could not find your account. Send me a message first so I can set you up.')
       );
       return;
     }
@@ -860,7 +881,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       // Edge case: user not found in database
       await WhatsAppService.sendMessage(
         from,
-        'Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔'
+        noAccountCopy('Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔')
       );
       return;
     }
@@ -1018,7 +1039,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       typingController.stop();
       await WhatsAppService.sendMessage(
         from,
-        'Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔'
+        noAccountCopy('Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔')
       );
       return;
     }
@@ -1052,7 +1073,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       typingController.stop();
       await WhatsAppService.sendMessage(
         from,
-        'Sorry, I could not find your account. Please send me a message first to register.'
+        noAccountCopy('Sorry, I could not find your account. Please send me a message first to register.')
       );
       return;
     }
@@ -1166,7 +1187,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       typingController.stop();
       await WhatsAppService.sendMessage(
         from,
-        'Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔'
+        noAccountCopy('Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔')
       );
       return;
     }
@@ -1249,7 +1270,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         typingController.stop();
         await WhatsAppService.sendMessage(
           from,
-          'Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔'
+          noAccountCopy('Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔')
         );
         return;
       }
@@ -1279,7 +1300,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       if (await tryChildVideoMenu(from, user?.preferred_language)) return;
       await WhatsAppService.sendMessage(
         from,
-        'Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔'
+        noAccountCopy('Sorry, I could not find your account. Please send me a message first to register.\n\nمعذرت، میں آپ کا اکاؤنٹ نہیں مل سکا۔')
       );
       return;
     }
@@ -2092,7 +2113,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
 
     if (!user) {
       await WhatsAppService.sendMessage(from,
-        'Sorry, I could not find your account. Please send me a message first.');
+        noAccountCopy('Sorry, I could not find your account. Please send me a message first.'));
       typingController.stop();
       return;
     }
@@ -2143,7 +2164,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     logToFile('📋 /status command detected', { userId: user?.id, phoneNumber: from });
     if (!user) {
       await WhatsAppService.sendMessage(from,
-        'Sorry, I could not find your account. Please send me a message first.');
+        noAccountCopy('Sorry, I could not find your account. Please send me a message first.'));
       typingController.stop();
       return;
     }

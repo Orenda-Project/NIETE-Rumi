@@ -893,6 +893,30 @@ const UX_STRINGS = {
     ur: 'رائے',
   },
 
+  // ─── the account we could not reach ──────────────────────────────────────
+  //
+  // Sent when the USER LOOKUP ITSELF FAILED — the database was unreachable, so
+  // nothing is known about her account and nothing may be asserted about it.
+  //
+  // This is not the "you have no account" line and must never read like one. A
+  // coach reported the old behaviour: during a Cloudflare 522 a registered
+  // teacher typing /video was told she was not registered. She was, she was
+  // mid-session, and the message blamed her for an outage on our side. There
+  // are two states here and they get two different sentences.
+  //
+  // Deliberately sent in BOTH languages at once. Her stored preference lives in
+  // the row we just failed to read, so at this exact moment we cannot know
+  // which language she reads — and guessing English at the one moment she is
+  // already confused is the wrong trade.
+  //
+  // Urdu is gender-neutral by construction: the verbs agree with the account
+  // and with "کچھ", never with the person being addressed, and the closing
+  // instruction is a plain imperative.
+  accountLookupUnavailable: {
+    en: 'Something is wrong on our side — I cannot reach your account right now. Nothing is lost. Please try again in a few minutes.',
+    ur: '\u06c1\u0645\u0627\u0631\u06d2 \u0633\u0633\u0679\u0645 \u0645\u06cc\u06ba \u06a9\u0686\u06be \u062e\u0631\u0627\u0628\u06cc \u06c1\u06d2 \u2014 \u0627\u0633 \u0648\u0642\u062a \u0622\u067e \u06a9\u0627 \u0627\u06a9\u0627\u0624\u0646\u0679 \u06a9\u06be\u0644 \u0646\u06c1\u06cc\u06ba \u067e\u0627 \u0631\u06c1\u0627\u06d4 \u06a9\u0686\u06be \u0636\u0627\u0626\u0639 \u0646\u06c1\u06cc\u06ba \u06c1\u0648\u0627\u06d4 \u0686\u0646\u062f \u0645\u0646\u0679 \u0628\u0639\u062f \u062f\u0648\u0628\u0627\u0631\u06c1 \u06a9\u0648\u0634\u0634 \u06a9\u0631\u06cc\u06ba\u06d4',
+  },
+
   remarkSubmit: {
     en: 'Submit',
     ur: 'جمع کریں',

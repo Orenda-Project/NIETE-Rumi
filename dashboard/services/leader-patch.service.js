@@ -18,6 +18,13 @@
  */
 
 const { getOverall } = require('./coaching-frameworks.service');
+// The one name chain, shared with the bot rather than re-derived here. That
+// module is pure — no supabase, no env — so requiring it from the dashboard is
+// safe, and it is the only way the two surfaces cannot drift apart. The measured
+// reasoning for the ORDER of the chain lives beside fullNameOf.
+const {
+  fullNameOf, displayNameOf,
+} = require('../../bot/shared/services/observe/patch-resolver.service');
 
 // One round-trip. LATERALs return 0 / no rows for teachers with no Rumi user,
 // so the LEFT JOINs yield 0 counts / null score for off-Rumi teachers.
@@ -34,7 +41,15 @@ const TERMINAL = `('completed', 'observer_review_complete')`;
 const PATCH_TEACHERS_SQL = `
   SELECT DISTINCT ON (u.id)
     u.phone_number        AS teacher_ext_id,
-    u.first_name          AS teacher_name,
+    -- The three name columns, resolved in JS by fullNameOf. This used to be
+    -- the first name alone, and 210 rows carry a blank first name — 57
+    -- of them teachers with a school, i.e. inside somebody's patch — so those
+    -- people reached the coach's list as a row with no name on it at all. Her
+    -- counts were right; there was nothing to recognise her by, which reads
+    -- exactly like "she is not in the data", and that is how it was reported.
+    u.first_name          AS first_name,
+    u.last_name           AS last_name,
+    u.name                AS name,
     u.phone_number        AS phone,
     'niete:' || sch.emis  AS school_ext_id,
     u.role                AS role,
@@ -109,9 +124,16 @@ function focusAreaOf(analysis) {
 function shapeTeacher(r) {
   const onRumi = !!r.rumi_user_id;
   const overall = onRumi && r.last_analysis_data ? getOverall(r.last_analysis_data) : null;
+  const resolvedName = fullNameOf(r);
   return {
     teacherExtId: r.teacher_ext_id || null,
-    name: r.teacher_name || null,
+    // Never blank. `displayNameOf` returns her real name whenever one resolves
+    // and otherwise a LABEL — her role plus the last four digits of the number
+    // this very payload already carries in full below. No name is invented, and
+    // `hasName` says which of the two this is, so a consumer that needs to know
+    // can ask instead of guessing from the shape of the string.
+    name: displayNameOf(r),
+    hasName: resolvedName != null,
     phone: r.phone || null,
     onRumi,
     rumiUserId: r.rumi_user_id || null,
