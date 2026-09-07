@@ -181,6 +181,14 @@ function getClient() {
     _client = createLLMClient();
     // Staging-only record/replay of every non-streaming completion (E2E_CASSETTE=replay|record).
     // Off by default and forced off against the production DB — see e2e-cassette.js.
+    //
+    // NOT applied to the direct-Anthropic lane (bd-oak77.29): that lane speaks `/v1/messages`, and
+    // `wrapChatCompletions` keys a cassette on the OpenAI-shaped request, so recording one lane
+    // and replaying it on the other would silently mismatch. The consequence, stated so nobody
+    // discovers it as a mystery: with `E2E_CASSETTE=record` AND `LP_AUTHOR_MODEL` on the direct
+    // lane, author calls are NOT recorded. Neither condition holds on prod (`E2E_CASSETTE` must
+    // stay absent) or on staging today, and a fallback to OpenRouter DOES get recorded because it
+    // comes back through this client.
     const cassette = require('./e2e-cassette');
     if (cassette.mode() !== 'off') cassette.wrapChatCompletions(_client);
   }
@@ -285,7 +293,19 @@ function buildDirectLaneClient(directModel, ctx) {
         'warn'
       );
 
-      const res = await getClient().chat.completions.create({ ...params, model: to });
+      let res;
+      try {
+        res = await getClient().chat.completions.create({ ...params, model: to });
+      } catch (fallbackErr) {
+        // BOTH PROVIDERS FAILED. Whoever reads this needs the FIRST failure as much as the
+        // second: "OpenRouter returned 502" on its own sends the next engineer at OpenRouter,
+        // when the story is "the prepaid balance ran out AND the fallback was down". `cause` is
+        // where node's own error chain puts it and where the logger already looks.
+        fallbackErr.cause = fallbackErr.cause || e;
+        fallbackErr.message =
+          `${fallbackErr.message} (after the direct-Anthropic lane could not spend: ${reason})`;
+        throw fallbackErr;
+      }
       // THE LESSON MUST SAY WHERE IT WAS AUTHORED. A fallback that produced a perfect lesson and
       // reported it as credit-funded would make the whole point of this lane unmeasurable, and
       // would tell the operator his balance was draining when it was not.
