@@ -114,6 +114,12 @@ const SOFT_FAULT = new RegExp('^('
   + '|q\\d+: PEDAGOGY_LEVEL_(ABOVE|MIX)\\b'
   + '|q\\d+: PEDAGOGY_GENDERED_(TEACHER|CHILD)\\b|PEDAGOGY_GENDERED_TEACHER\\b'
   + '|feminine-stem address$'
+  // The teacher's PDF wants its notes in Urdu, and the fields repair gets
+  // there 42 times in 47. When it does not, that is a document-quality miss
+  // on a page only the teacher reads — never a reason to send a whole class
+  // no quiz (operator, 2026-09-07). Recorded in meta.soft_faults so the rate
+  // stays visible instead of costing quizzes silently.
+  + '|q\\d+: URDU_TEACHER_FIELDS\\b'
   + ')');
 const GAP_MS = 1200;
 const NUDGE_AFTER_MS = 3 * 60 * 60 * 1000;

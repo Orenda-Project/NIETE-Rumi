@@ -268,9 +268,19 @@ function validate(rawQuestions, ctx = {}) {
       const misc = q.distractor_misconceptions || {};
       const teacherFields = [['selected_because', q.selected_because], ...Object.values(misc).map((m) => ['distractor_misconceptions', m])];
       for (const [field, value] of teacherFields) {
+        // Count WORDS, not letters. A letter ratio cannot tell an Urdu phrase
+        // built around English technical terms from an English sentence: in a
+        // fractions or a photosynthesis lesson those terms are long and English,
+        // so a short correct Urdu note is mostly made of them. On production
+        // 2026-09-07 "Mixed Fraction کو Improper Fraction سمجھنا" — 22% Arabic
+        // LETTERS, 33% Urdu WORDS — was rejected three attempts running and a
+        // class lost its quiz, by a rule whose own message says English
+        // technical terms in Latin letters are fine. Words measure the thing the
+        // rule is actually about: how much of the phrase is Urdu.
+        const words = String(value || '').split(/\s+/).filter((w) => /\p{L}/u.test(w));
+        const urduWords = words.filter((w) => /\p{Script=Arabic}/u.test(w)).length;
         const letters = [...String(value || '')].filter((c) => /\p{L}/u.test(c));
-        const arabic = letters.filter((c) => /\p{Script=Arabic}/u.test(c)).length;
-        if (letters.length >= 4 && arabic / letters.length < 0.3) {
+        if (letters.length >= 4 && words.length && urduWords / words.length < 0.25) {
           errs.push(`q${i}: URDU_TEACHER_FIELDS — ${field} must be written in Urdu (English technical terms in Latin letters are fine); got "${String(value).slice(0, 40)}"`);
           break;
         }
