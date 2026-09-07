@@ -71,21 +71,30 @@ const MAX_TARGETS = 5;
 const PER_QUESTION = /^q(\d+):\s*(PEDAGOGY_[A-Z_]+|FIGURE_[A-Z_]+|RELIGIOUS_[A-Z_]+)\b/;
 
 /**
- * Structural complaints that are still ONE question's TEXT: an option over the
- * list-row cap, a missing or overlong selected_because. Seen live 2026-09-06:
+ * Structural complaints that are still ONE question's TEXT: a STEM or an option
+ * over its cap, a missing or overlong selected_because. Seen live 2026-09-06:
  * an English lesson produced no quiz at all because ONE option ran past 72 code
  * points on both attempts, and nothing could touch it — the rewrite refused
  * (not a PEDAGOGY_/FIGURE_ code) and the salvage refused (not droppable). A
  * length fault is the cheapest repair there is. Malformed replies (`q0: 2
  * options`, an empty stem) stay a re-roll.
+ *
+ * The STEM cap joined the option cap on 2026-09-07, from production, for the
+ * same reason and after the same death: a maths lesson spent attempt 1 on a
+ * missing picture, attempt 2 on two over-long stems and attempt 3 on ONE
+ * over-long stem, then told the teacher no quiz could be made. The validator
+ * writes `qN: stem >200 code points` and `qN: option >72 code points` on
+ * adjacent lines (transcript-quiz-validator.js:218-219); only the second was
+ * ever repairable, and a stem past its cap is the same kind of fault — one
+ * question's own text, too long, which one small call shortens.
  */
-const PER_QUESTION_STRUCTURAL = /^q(\d+):\s*(option >\d+ code points|Q_MISSING_WHY\b|MULTI_[A-Z_]+\b|URDU_TEACHER_FIELDS\b)/;
+const PER_QUESTION_STRUCTURAL = /^q(\d+):\s*((?:stem|option) >\d+ code points|Q_MISSING_WHY\b|MULTI_[A-Z_]+\b|URDU_TEACHER_FIELDS\b)/;
 const CHILD_ADDRESS_RULE = 'THE CHILD HAS NO GENDER. Address the child as آپ with plural-respectful verbs (کریں، دیکھیں، سوچیں، سمجھ سکتے ہیں). Never a feminine or masculine singular guess: no کرتی ہیں، سکتی ہیں، کریں گی، رہی ہوں گی، کرتے ہو. For a question rejected ONLY for this, keep the question and change the verb form.';
 const TEACHER_FIELDS_RULE = 'TEACHER FIELDS. "selected_because" and every "distractor_misconceptions" entry are printed on the TEACHER\'s Urdu page: write them in Urdu script (English technical terms in English letters are fine). For a question rejected ONLY for this, keep the question and rewrite those two fields in Urdu.';
 const STRUCTURAL_MULTI_RULE = 'MULTI-SELECT. A "select all that apply" question (answer_mode "multi") names at least 2 and at most (options − 1) correct options in "correct_indices", and every option is at most 30 characters. If the lesson gives it only ONE right answer, write it as an ordinary single-answer question instead: 3 options, one "correct_index", no "correct_indices", no answer_mode.';
 /** The set-level line the validator writes NEXT TO its per-question PEDAGOGY_LEVEL_ABOVE lines; those lines are the targets, this one is their headline. */
 const LEVEL_SUMMARY = /^(only \d+\/\d+ at\/below taught level|PEDAGOGY_LEVEL_MIX — only \d+ of \d+|feminine-stem address$)/;
-const STRUCTURAL_CAPS_RULE = 'LENGTH. Every option is at most 72 code points (characters) — a long option is cut off on the phone, so write a shorter one that says the same thing. Every "selected_because" is at most 15 words. For a question rejected ONLY for length, keep the same question and shorten the text.';
+const STRUCTURAL_CAPS_RULE = 'LENGTH. Every stem is at most 200 code points (characters) and every option at most 72 — anything longer is cut off on the phone, so write a shorter one that asks the same thing. Every "selected_because" is at most 15 words. For a question rejected ONLY for length, keep the same question and shorten the text.';
 
 /**
  * The ONE quiz-level complaint a small call can answer: a gendered reference to
