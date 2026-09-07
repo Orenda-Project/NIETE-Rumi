@@ -1493,7 +1493,7 @@ function startWorker() {
         // outcome that produced no log line, so a sweeper that was lock-blocked or
         // cache-starved on EVERY interval looked exactly like a healthy idle one.
         // Every field the sweep can report must be able to speak.
-        if (res.offered || res.expired || res.failed || res.skippedLocked) {
+        if (res.offered || res.expired || res.failed || res.skippedLocked || res.skippedActive) {
           logToFile('🔄 Interrupted-task resume sweep', res);
         }
       } catch (error) {
