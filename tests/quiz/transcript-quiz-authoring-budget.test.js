@@ -43,6 +43,7 @@ const { installFrom } = require('./helpers/supabase-chain');
 const Gen = require('../../bot/shared/services/quiz/transcript-quiz-generate.service');
 const Rewrite = require('../../bot/shared/services/quiz/transcript-quiz-rewrite');
 const { validate } = require('../../bot/shared/services/quiz/transcript-quiz-validator');
+const { logEvent } = require('../../bot/shared/utils/structured-logger');
 
 const QID = '55555555-5555-4555-8555-555555555555';
 const SID = '66666666-6666-4666-8666-666666666666';
@@ -189,5 +190,48 @@ describe('4 — the two production deaths, replayed', () => {
     expect(r.ok).toBe(true);
     expect(mockCreate).toHaveBeenCalledTimes(2);
     expect(storedRows()).toHaveLength(8);
+  });
+});
+
+describe('5 — the OTHER level rule names its questions, and a soft fault never costs the quiz', () => {
+  test('too few questions at understand-or-above → per-question PEDAGOGY_LEVEL_MIX lifts the rewrite accepts', () => {
+    // all eight at recall; S2 and S3 were taught at understand, so lifting a
+    // question on them is free — those are named first
+    const qs = eight().map((x) => ({ ...x, level: 'recall' }));
+    const v = validate(qs, { language: 'en', subject: 'science', digest: DIGEST, nExpected: 8, lessonSummary: SUMMARY, quizId: QID });
+    expect(v.errors.some((e) => /^PEDAGOGY_LEVEL_MIX — only 0 of 8/.test(e))).toBe(true);
+    const lifts = v.errors.filter((e) => /^q\d+: PEDAGOGY_LEVEL_MIX/.test(e));
+    expect(lifts.length).toBeGreaterThanOrEqual(1);
+    const idx = lifts.map((e) => Number(/^q(\d+)/.exec(e)[1]));
+    // the free lifts (on S2/S3) come first: indices 1,3,5,7 carry S2/S3 in eight()
+    expect(idx.slice(0, Math.min(idx.length, 4)).every((i) => [1, 3, 5, 7].includes(i))).toBe(true);
+    expect(Rewrite.rewriteTargets(v.errors).indices).toEqual(idx);
+  });
+  test('when every attempt and repair leaves only the level-mix rules, the quiz SHIPS and records the faults', async () => {
+    const flat = eight().map((x) => ({ ...x, level: 'recall' }));   // valid questions, wrong mix
+    mockCreate.mockImplementation((call) => {
+      const prompt = call.messages[0].content;
+      if (/REWRITE THESE QUESTIONS/.test(prompt)) return Promise.resolve(reply({ questions: [] }));   // the repair returns nothing usable
+      return Promise.resolve(reply({ lesson_summary: SUMMARY, questions: flat }));
+    });
+    wire();
+    const r = await Gen.process(QID, {});
+    expect(r.ok).toBe(true);
+    expect(storedRows()).toHaveLength(8);
+    const names = logEvent.mock.calls.map((c) => c[0]);
+    expect(names).toContain('transcript_quiz.shipped_with_soft_faults');
+    expect(names).not.toContain('transcript_quiz.failed');
+    const updates = supabase.from.callsFor('quizzes').flat().filter((c) => c[0] === 'update').map((u) => u[1]);
+    const withMeta = updates.filter((u) => u.meta && u.meta.soft_faults);
+    expect(withMeta.length).toBeGreaterThan(0);
+    expect(withMeta[withMeta.length - 1].meta.soft_faults.every((e) => Gen.SOFT_FAULT.test(e))).toBe(true);
+  });
+  test('a hard fault on the last attempt still fails honestly', async () => {
+    const broken = eight(); broken[2].options = ['only one'];   // "q2: 1 options" — malformed, not soft
+    mockCreate.mockResolvedValue(reply({ lesson_summary: SUMMARY, questions: broken }));
+    wire();
+    const r = await Gen.process(QID, {});
+    expect(r.failed).toBe(true);
+    expect(logEvent.mock.calls.map((c) => c[0])).not.toContain('transcript_quiz.shipped_with_soft_faults');
   });
 });
