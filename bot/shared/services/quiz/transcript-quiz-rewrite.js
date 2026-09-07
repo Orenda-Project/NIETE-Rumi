@@ -89,6 +89,12 @@ const PER_QUESTION = /^q(\d+):\s*(PEDAGOGY_[A-Z_]+|FIGURE_[A-Z_]+|RELIGIOUS_[A-Z
 const PER_QUESTION_STRUCTURAL = /^q(\d+):\s*\S/;
 const CHILD_ADDRESS_RULE = 'THE CHILD HAS NO GENDER. Address the child as آپ with plural-respectful verbs (کریں، دیکھیں، سوچیں، سمجھ سکتے ہیں). Never a feminine or masculine singular guess: no کرتی ہیں، سکتی ہیں، کریں گی، رہی ہوں گی، کرتے ہو. For a question rejected ONLY for this, keep the question and change the verb form.';
 const TEACHER_FIELDS_RULE = 'TEACHER FIELDS. "selected_because" and every "distractor_misconceptions" entry are printed on the TEACHER\'s Urdu page: write them in Urdu script (English technical terms in English letters are fine). For a question rejected ONLY for this, keep the question and rewrite those two fields in Urdu.';
+// The model rewrote a question with two identical options three times in one
+// production run (2026-09-07, quiz f5d625e9) — the complaint was in front of it
+// each time and the rule never was. Every other repeated fault this week was
+// answered by stating its rule in the prompt.
+const DISTINCT_OPTIONS_RULE = 'DISTINCT OPTIONS. The three options must all be different from each other — no two the same word, number or phrase, not even with different spacing or spelling. Exactly one is correct, and "correct_index" is its position (0, 1 or 2). Every option is a real, plausible answer a child might pick; never a filler, never blank.';
+const OPTIONS_FAULT = /^q\d+: (duplicate options|empty option|bad correct_index|\d+ options\b|wrong-feedback keys)/;
 const STRUCTURAL_MULTI_RULE = 'MULTI-SELECT. A "select all that apply" question (answer_mode "multi") names at least 2 and at most (options − 1) correct options in "correct_indices", and every option is at most 30 characters. If the lesson gives it only ONE right answer, write it as an ordinary single-answer question instead: 3 options, one "correct_index", no "correct_indices", no answer_mode.';
 /** The set-level line the validator writes NEXT TO its per-question PEDAGOGY_LEVEL_ABOVE lines; those lines are the targets, this one is their headline. */
 const LEVEL_SUMMARY = /^(only \d+\/\d+ at\/below taught level|PEDAGOGY_LEVEL_MIX — only \d+ of \d+|feminine-stem address$)/;
@@ -197,6 +203,7 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
     SELECTED_BECAUSE_RULE,
     STRUCTURAL_CAPS_RULE,
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /MULTI_[A-Z_]+/.test(e))) ? [STRUCTURAL_MULTI_RULE] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => OPTIONS_FAULT.test(e))) ? [DISTINCT_OPTIONS_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /PEDAGOGY_GENDERED_CHILD/.test(e))) ? [CHILD_ADDRESS_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /URDU_TEACHER_FIELDS/.test(e))) ? [TEACHER_FIELDS_RULE] : []),
   ] : [];
@@ -430,6 +437,6 @@ async function rewriteTeacherFields({ questions, errors, digest, language, quizI
 
 module.exports = {
   rewriteTargets, buildRewritePrompt, mergeReplacements, rewriteRejected, MAX_TARGETS, PER_QUESTION, PER_QUESTION_STRUCTURAL,
-  QUIZ_LEVEL_REPAIRABLE,
+  QUIZ_LEVEL_REPAIRABLE, DISTINCT_OPTIONS_RULE, OPTIONS_FAULT,
   teacherFieldTargets, buildTeacherFieldsPrompt, mergeTeacherFields, rewriteTeacherFields, TEACHER_FIELDS_ONLY,
 };
