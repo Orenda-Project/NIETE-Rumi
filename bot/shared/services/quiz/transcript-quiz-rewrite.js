@@ -52,7 +52,9 @@ const {
 } = require('./transcript-quiz-contract');
 
 /** At most this many questions may be repaired; more than that is a re-roll. */
-const MAX_TARGETS = 3;
+// Five, not three, since 2026-09-07: a production quiz died on FOUR length faults
+// that one small call would have fixed. Six or more is most of the set — a re-roll.
+const MAX_TARGETS = 5;
 
 /**
  * A complaint one replacement question can answer: it names its question and it
@@ -77,7 +79,10 @@ const PER_QUESTION = /^q(\d+):\s*(PEDAGOGY_[A-Z_]+|FIGURE_[A-Z_]+|RELIGIOUS_[A-Z
  * length fault is the cheapest repair there is. Malformed replies (`q0: 2
  * options`, an empty stem) stay a re-roll.
  */
-const PER_QUESTION_STRUCTURAL = /^q(\d+):\s*(option >\d+ code points|Q_MISSING_WHY\b)/;
+const PER_QUESTION_STRUCTURAL = /^q(\d+):\s*(option >\d+ code points|Q_MISSING_WHY\b|MULTI_[A-Z_]+\b)/;
+const STRUCTURAL_MULTI_RULE = 'MULTI-SELECT. A "select all that apply" question (answer_mode "multi") names at least 2 and at most (options − 1) correct options in "correct_indices", and every option is at most 30 characters. If the lesson gives it only ONE right answer, write it as an ordinary single-answer question instead: 3 options, one "correct_index", no "correct_indices", no answer_mode.';
+/** The set-level line the validator writes NEXT TO its per-question PEDAGOGY_LEVEL_ABOVE lines; those lines are the targets, this one is their headline. */
+const LEVEL_SUMMARY = /^(only \d+\/\d+ at\/below taught level|PEDAGOGY_LEVEL_MIX — only \d+ of \d+)/;
 const STRUCTURAL_CAPS_RULE = 'LENGTH. Every option is at most 72 code points (characters) — a long option is cut off on the phone, so write a shorter one that says the same thing. Every "selected_because" is at most 15 words. For a question rejected ONLY for length, keep the same question and shorten the text.';
 
 /**
@@ -105,6 +110,7 @@ function rewriteTargets(errors) {
       // one non-per-question complaint disqualifies the whole set, unless it is
       // the quiz-level field this call can rewrite on its own
       if (QUIZ_LEVEL_REPAIRABLE.test(e)) { summary.push(e); continue; }
+      if (LEVEL_SUMMARY.test(e)) continue;   // explained by the per-question lines beside it
       return none;
     }
     const i = Number(m[1]);
@@ -181,6 +187,7 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
     questionContract({ gradeBand }),
     SELECTED_BECAUSE_RULE,
     ...(indices.some((i) => (byIndex[i] || []).some((e) => PER_QUESTION_STRUCTURAL.test(e))) ? [STRUCTURAL_CAPS_RULE] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => /MULTI_[A-Z_]+/.test(e))) ? [STRUCTURAL_MULTI_RULE] : []),
   ] : [];
 
   const summarySection = summaryErrors.length ? [

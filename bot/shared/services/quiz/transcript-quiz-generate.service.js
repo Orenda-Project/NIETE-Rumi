@@ -27,7 +27,22 @@ const { teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonL
 const { SESSION_SELECT } = require('./transcript-quiz-offer.service');
 
 const N_QUESTIONS = 8;
-const MAX_ATTEMPTS = 2;
+/**
+ * Full authoring attempts per quiz. Three, not two, since the first real morning
+ * on production (2026-09-07): two teachers lost their quiz because attempt 1
+ * was spent on something that is not a fault of the questions (the quiz
+ * language, or a drawable lesson with no picture) and attempt 2 — the last —
+ * met a complaint nothing could repair. One more attempt costs about $0.011
+ * and ten seconds; a teacher who said yes and got "I couldn't make a good quiz"
+ * costs the feature. TRANSCRIPT_QUIZ_MAX_ATTEMPTS overrides (read per call).
+ */
+const MAX_ATTEMPTS = 3;
+function maxAttempts() {
+  // `process` is this module's exported job function, so the Node global is
+  // reached through globalThis.
+  const n = parseInt(String(globalThis.process.env.TRANSCRIPT_QUIZ_MAX_ATTEMPTS || '').trim(), 10);
+  return Number.isInteger(n) && n >= 1 ? n : MAX_ATTEMPTS;
+}
 
 /** Subjects where a lesson can nearly always be drawn with the allowed types. */
 const DRAWABLE_SUBJECTS = new Set(['maths', 'science', 'genk']);
@@ -59,7 +74,10 @@ function isEarlyYearsBand(gradeBand) {
 function figureRequiredError({ questions, subject, attempt, maxAttempts, gradeBand }) {
   const early = isEarlyYearsBand(gradeBand);
   if (!early && !DRAWABLE_SUBJECTS.has(String(subject || '').toLowerCase())) return null;
-  if (attempt >= maxAttempts) return null;
+  // The picture is asked for ONCE, on the first attempt. A second full attempt
+  // spent on the picture is the attempt that was missing when a science lesson
+  // died on production (2026-09-07): text-only is a lesser quiz, no quiz is none.
+  if (attempt > 1 || attempt >= maxAttempts) return null;
   const drawn = (Array.isArray(questions) ? questions : []).some((q) => q && q.figure && typeof q.figure === 'object');
   if (drawn) return null;
   const why = early
@@ -70,6 +88,8 @@ function figureRequiredError({ questions, subject, attempt, maxAttempts, gradeBa
     : 'Decide the drawing FIRST (what the class was shown or asked to draw), then write one or two questions the child answers by reading the picture.';
   return `quiz: FIGURE_REQUIRED — ${why} but none of the questions carries a "figure". ${how}`;
 }
+/** Complaints about the SET's shape, never about one question being wrong or unanswerable. */
+const SOFT_FAULT = /^(PEDAGOGY_LEVEL_MIX\b|only \d+\/\d+ at\/below taught level|FIGURE_SHARE\b|q\d+: PEDAGOGY_LEVEL_(ABOVE|MIX)\b)/;
 const GAP_MS = 1200;
 const NUDGE_AFTER_MS = 3 * 60 * 60 * 1000;
 const LEVEL_DIFFICULTY = { recall: 2, understand: 3, apply: 4 };
@@ -400,7 +420,7 @@ function salvageWithoutBadFigures(questions, errors, ctx) {
   errors.forEach((e) => {
     const m = droppableErr.exec(e);
     if (m) bad.add(Number(m[1]));
-    else if (!/^(FIGURE_SHARE|PEDAGOGY_LEVEL_MIX)/.test(e)) other = true;
+    else if (!/^(FIGURE_SHARE|PEDAGOGY_LEVEL_MIX|only \d+\/\d+ at\/below taught level)/.test(e)) other = true;
   });
   if (other || !bad.size || bad.size > 2) return null;
   const kept = questions.filter((_, i) => !bad.has(i));
@@ -487,7 +507,8 @@ async function process(quizId, payload = {}) {
     let lastLessonSummary = null;
     let readyLessonSummary = null;
     const attempts = [];
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    const attemptsAllowed = maxAttempts();
+    for (let attempt = 1; attempt <= attemptsAllowed; attempt += 1) {
       let out;
       try {
         out = await Author.author({
@@ -507,7 +528,7 @@ async function process(quizId, payload = {}) {
       meta.cost_usd = (meta.cost_usd || 0) + (out.costUsd || 0);
       if (v.ok) {
         const needFig = figureRequiredError({
-          questions: v.questions, subject: digest.subject, attempt, maxAttempts: MAX_ATTEMPTS,
+          questions: v.questions, subject: digest.subject, attempt, maxAttempts: attemptsAllowed,
           gradeBand: digest.grade_band || meta.grade,
         });
         if (needFig) {
@@ -551,7 +572,7 @@ async function process(quizId, payload = {}) {
       // level-mix fault on the whole set; the quiz died although attempt 1
       // was one shortened option away from shipping). The rewrite is tried
       // on every attempt but the last; the last one is handled below.
-      if (attempt < MAX_ATTEMPTS) {
+      if (attempt < attemptsAllowed) {
         // eslint-disable-next-line no-await-in-loop
         const early = await runRewrite({ rejected: out.questions, errors: v.errors, summary: out.lessonSummary, when: attempt });
         if (early.ok) break;
@@ -659,6 +680,38 @@ async function process(quizId, payload = {}) {
         }
       }
     }
+    // ── SOFT FAULTS NEVER COST A TEACHER THE QUIZ ────────────────────────────
+    // Every attempt and every repair has run. If what remains is ONLY the two
+    // level-mix rules (too many above the taught level / too few at
+    // understand-or-above) or the picture share — properties of the SET, with
+    // every question individually well formed and answerable — the quiz ships
+    // and the faults are recorded, rather than the teacher who said yes being
+    // told nothing could be made (production, 2026-09-07: a science lesson
+    // died on its third attempt with "only 3 of 8 at understand or apply").
+    if (!questions && lastRejected && lastErrors) {
+      const cand = rewritten || { questions: lastRejected, errors: lastErrors, lessonSummary: lastLessonSummary };
+      if (cand.errors.length && cand.errors.every((e) => SOFT_FAULT.test(String(e)))) {
+        const v = validate(cand.questions, {
+          language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary: cand.lessonSummary || lastLessonSummary, quizId,
+        });
+        if (v.errors.every((e) => SOFT_FAULT.test(String(e)))) {
+          try {
+            const drafted = toRows(quizId, v.questions);
+            ({ figureUrls, cardUrls } = await renderFor(api, {
+              questions: v.questions, rows: drafted, language, teacherId: quiz.teacher_id, quizId,
+            }));
+            draftedRows = drafted;
+            questions = v.questions;
+            readyLessonSummary = cand.lessonSummary || lastLessonSummary;
+            meta.soft_faults = v.errors;
+            attempts.push({ attempt: 'soft_ship', errors: v.errors });
+            logEvent('transcript_quiz.shipped_with_soft_faults', { quizId, faults: v.errors.length, kinds: v.errors.map((e) => String(e).replace(/^q\d+: /, '').split(/\s|—/)[0]) });
+          } catch (figErr) {
+            logToFile('⚠️ transcript quiz: the soft-fault set could not be drawn', { quizId, error: figErr.message });
+          }
+        }
+      }
+    }
     meta.author_attempts = attempts;
     if (!questions) {
       await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed' } });
@@ -701,7 +754,8 @@ module.exports = {
   salvageWithoutBadFigures,
   rewriteRejected: (args) => require('./transcript-quiz-rewrite').rewriteRejected(args),
   figureRequiredError,
+  SOFT_FAULT,
   isEarlyYearsBand,
   process, toRows, stampDisplayOrder, renderFigures, renderCards, applyMedia, withFigureSvgs, studentMessage, teacherLabel, renderPdf, pdfFilename,
-  sleep, N_QUESTIONS, MAX_ATTEMPTS, NUDGE_AFTER_MS,
+  sleep, N_QUESTIONS, MAX_ATTEMPTS, maxAttempts, NUDGE_AFTER_MS,
 };
