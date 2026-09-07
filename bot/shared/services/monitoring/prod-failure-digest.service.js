@@ -274,19 +274,27 @@ async function claimTick() {
  */
 async function run({ windowMin = n(process.env.PROD_DIGEST_WINDOW_MIN) || 60 } = {}) {
   if (String(process.env.PROD_DIGEST_ENABLED || '').toLowerCase() !== 'true') {
-    return { skipped: 'disabled' };
+    return { skipped: 'disabled' };   // not armed anywhere: nothing to say, nothing to log
   }
   if (!process.env.PROD_DIGEST_SLACK_TOKEN || !process.env.PROD_DIGEST_SLACK_CHANNEL || !axiomToken()) {
     return { skipped: 'unconfigured' };
   }
   // One replica speaks. Claimed before any query so the losers cost nothing.
   const tick = await claimTick();
-  if (!tick.claimed) return { skipped: 'another_replica' };
+  if (!tick.claimed) {
+    // Logged, not silent. A monitor whose quiet minutes leave no trace cannot be
+    // told apart from a monitor that died, and the second is the dangerous one.
+    logEvent('prod_digest.skipped', { why: 'another_replica' });
+    return { skipped: 'another_replica' };
+  }
 
   // A redeploy must not re-report what was reported ten minutes ago, and a gap
   // must not be lost just because the process restarted inside it.
   const w = await windowSinceLastDigest(windowMin);
-  if (w.tooSoon) return { skipped: 'too_soon', gapMin: w.gapMin };
+  if (w.tooSoon) {
+    logEvent('prod_digest.skipped', { why: 'too_soon', gapMin: w.gapMin });
+    return { skipped: 'too_soon', gapMin: w.gapMin };
+  }
   windowMin = w.windowMin;
 
   const counts = await fetchCounts(windowMin);
