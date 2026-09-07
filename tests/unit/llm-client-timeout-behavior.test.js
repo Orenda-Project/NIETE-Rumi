@@ -142,15 +142,29 @@ describe('bd-v60qf — llm-client hung-call behaviour (real SDK, mocked fetch bo
   test('getClientForModel() (anthropic-direct lane): a hung call also rejects inside the configured budget', async () => {
     const hanging = installHangingFetch();
     restoreFetch = hanging.restore;
-    const { mod, OpenAI } = freshModule({ LLM_REQUEST_TIMEOUT_MS: '300' });
+    // bd-oak77.29 — this lane is the REAL `@anthropic-ai/sdk` now (the OpenAI-compat endpoint
+    // could not cache), so the timeout it must honour is that SDK's, and the error class to
+    // assert is that SDK's too. Same registry-epoch rule as `openai` above: `instanceof` is
+    // nominal, so the class has to come from the same require pass as the module under test.
+    const { mod } = freshModule({ LLM_REQUEST_TIMEOUT_MS: '300' });
+    // eslint-disable-next-line global-require
+    const Anthropic = require('@anthropic-ai/sdk');
 
     const { client, model } = mod.getClientForModel(`${mod.ANTHROPIC_DIRECT_PREFIX}claude-sonnet-5`);
     const start = Date.now();
     await expect(
-      client.chat.completions.create({ model, messages: [{ role: 'user', content: 'hi' }] })
-    ).rejects.toBeInstanceOf(OpenAI.APIConnectionTimeoutError);
+      client.chat.completions.create({
+        model, max_tokens: 16, messages: [{ role: 'user', content: 'hi' }],
+      })
+    ).rejects.toBeInstanceOf(Anthropic.APIConnectionTimeoutError);
     // See the timing comment in the previous test — maxRetries:1 doubles the wait.
     expect(Date.now() - start).toBeLessThan(5000);
+    // A CONNECTION TIMEOUT IS NOT A CREDIT FAILURE. Falling back to OpenRouter here would double
+    // the wall clock a teacher is already waiting through, and would hide a network problem
+    // behind a lesson that eventually arrived.
+    expect(hanging.fetchSpy.mock.calls.every(
+      ([url]) => String(url && url.url ? url.url : url).includes('api.anthropic.com')
+    )).toBe(true);
   });
 
   test('without an env override, the real client still carries the 180000ms default (not the SDK 600000ms default) and rejects well under 1s at a shrunk fetch delay', async () => {

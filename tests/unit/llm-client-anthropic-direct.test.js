@@ -23,6 +23,15 @@
  * native /v1/messages endpoint were both probed live with the grant key on
  * 2026-09-03; both returned 200 for claude-sonnet-5.
  *
+ * REBUILT 2026-09-07 (bd-oak77.29). The lane still routes by the SAME prefix and is still
+ * explicit-opt-in-only — the properties this file was written to protect are unchanged and are
+ * still asserted below. What changed is the CLIENT: the OpenAI SDK pointed at Anthropic's
+ * OpenAI-compatibility endpoint could not do prompt caching (it accepts `cache_control` with
+ * HTTP 200 and silently ignores it, returning no cache fields at all), and caching is live on
+ * production saving 38.3% per lesson. So the lane is now `@anthropic-ai/sdk` on `/v1/messages`,
+ * behind a facade that keeps the `chat.completions.create` shape. The mechanism assertions below
+ * moved with it; the routing assertions did not.
+ *
  * THE MISSING-KEY CASE IS A THROW, NOT A FALLBACK — deliberately. Silently
  * falling back to OpenRouter when ANTHROPIC_API_KEY is absent would spend the
  * wrong budget and mislabel every measurement taken during the window: a run
@@ -45,14 +54,35 @@ jest.mock('openai', () =>
   })
 );
 
+// The direct lane's real client, stubbed the same way.
+jest.mock('@anthropic-ai/sdk', () =>
+  jest.fn(function AnthropicStub(config) {
+    return {
+      _config: config,
+      messages: {
+        create: jest.fn(async () => ({
+          content: [{ type: 'text', text: '' }], model: 'claude-sonnet-5',
+          stop_reason: 'end_turn', usage: {},
+        })),
+      },
+    };
+  })
+);
+
 // Staging-only record/replay machinery — inert here so this suite tests routing only.
 jest.mock('../../bot/shared/services/e2e-cassette', () => ({
   mode: () => 'off',
   wrapChatCompletions: jest.fn(),
-}));
+}), { virtual: true });
+
+// `virtual: true` because `e2e-cassette.js` exists on `develop` but NOT on `main` — the lp612
+// extraction left it behind. Without it this file cannot be cherry-picked to prod at all: jest
+// resolves a mocked path even when a factory is supplied, and a MODULE_NOT_FOUND here would fail
+// the whole suite for a module the test never uses.
 
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
-const ANTHROPIC_BASE = 'https://api.anthropic.com/v1/';
+// No trailing `/v1/`: `@anthropic-ai/sdk` appends `/v1/messages` itself.
+const ANTHROPIC_BASE = 'https://api.anthropic.com';
 
 /** Load a pristine copy of the module under a given env. */
 function load(env) {
@@ -74,10 +104,11 @@ describe('bd-yoc6i — llm-client direct-Anthropic routing', () => {
   test('an anthropic-direct/ model routes to the Anthropic endpoint on the grant key, with the routing prefix stripped', () => {
     const mod = load({ ANTHROPIC_API_KEY: 'test-grant-key', OPENROUTER_API_KEY: 'test-or-key' });
 
-    const { client, model } = mod.getClientForModel('anthropic-direct/claude-sonnet-5');
+    const { model } = mod.getClientForModel('anthropic-direct/claude-sonnet-5');
+    const sdk = mod.getAnthropicDirectClient();
 
-    expect(client._config.baseURL).toBe(ANTHROPIC_BASE);
-    expect(client._config.apiKey).toBe('test-grant-key');
+    expect(sdk._config.baseURL).toBe(ANTHROPIC_BASE);
+    expect(sdk._config.apiKey).toBe('test-grant-key');
     // The prefix is OUR routing token. Anthropic must never see it, or the call
     // 404s on an unknown model id.
     expect(model).toBe('claude-sonnet-5');
@@ -107,17 +138,23 @@ describe('bd-yoc6i — llm-client direct-Anthropic routing', () => {
     const router = mod.getClientForModel('deepseek/deepseek-v4-flash').client;
 
     expect(direct).not.toBe(router);
-    expect(direct._config.baseURL).toBe(ANTHROPIC_BASE);
+    expect(mod.getAnthropicDirectClient()._config.baseURL).toBe(ANTHROPIC_BASE);
     expect(router._config.baseURL).toBe(OPENROUTER_BASE);
   });
 
-  test('the direct client is itself a singleton — repeated calls do not build a new HTTP client per request', () => {
+  test('the direct HTTP client is a singleton — repeated calls do not build a new one per request', () => {
     const mod = load({ ANTHROPIC_API_KEY: 'test-grant-key', OPENROUTER_API_KEY: 'test-or-key' });
 
-    const a = mod.getClientForModel('anthropic-direct/claude-sonnet-5').client;
-    const b = mod.getClientForModel('anthropic-direct/claude-haiku-4.5').client;
+    mod.getClientForModel('anthropic-direct/claude-sonnet-5');
+    mod.getClientForModel('anthropic-direct/claude-haiku-4-5');
 
-    expect(a).toBe(b);
+    // The per-call object IS new each time by design — it closes over the correlationId and stage
+    // that make a provider fallback traceable, and costs three closures beside a 60-second model
+    // call. The thing that must not be rebuilt is the HTTP client underneath it.
+    // eslint-disable-next-line global-require
+    const AnthropicCtor = require('@anthropic-ai/sdk');
+    expect(AnthropicCtor).toHaveBeenCalledTimes(1);
+    expect(mod.getAnthropicDirectClient()).toBe(mod.getAnthropicDirectClient());
   });
 
   test('getClient() is unchanged — existing consumers keep the OpenRouter singleton', () => {
@@ -126,15 +163,16 @@ describe('bd-yoc6i — llm-client direct-Anthropic routing', () => {
     expect(mod.getClient()._config.baseURL).toBe(OPENROUTER_BASE);
   });
 
-  test('the OpenRouter bare-name auto-prefix must NOT be applied to a direct-Anthropic model', () => {
+  test('the OpenRouter bare-name auto-prefix must NOT be applied to a direct-Anthropic model', async () => {
     const mod = load({ ANTHROPIC_API_KEY: 'test-grant-key', OPENROUTER_API_KEY: 'test-or-key' });
 
     // 'claude-sonnet-5' has no slash. On the OpenRouter client that would be
-    // rewritten to 'openai/claude-sonnet-5'; on the direct client it must stay put.
+    // rewritten to 'openai/claude-sonnet-5'; on the direct lane it must stay put — and it must
+    // reach `/v1/messages` as the model, since Anthropic 404s on our routing prefix.
     const { client, model } = mod.getClientForModel('anthropic-direct/claude-sonnet-5');
-    client.chat.completions.create({ model, messages: [] });
+    await client.chat.completions.create({ model, max_tokens: 16, messages: [] });
 
-    expect(client.chat.completions.create).toHaveBeenCalledWith(
+    expect(mod.getAnthropicDirectClient().messages.create).toHaveBeenCalledWith(
       expect.objectContaining({ model: 'claude-sonnet-5' })
     );
   });
@@ -205,8 +243,8 @@ describe('bd-yoc6i — key presence is NOT a routing signal (explicit opt-in onl
 
     expect(mod.getClientForModel('anthropic/claude-sonnet-5').client._config.baseURL)
       .toBe(OPENROUTER_BASE);
-    expect(mod.getClientForModel('anthropic-direct/claude-sonnet-5').client._config.baseURL)
-      .toBe(ANTHROPIC_BASE);
+    mod.getClientForModel('anthropic-direct/claude-sonnet-5');
+    expect(mod.getAnthropicDirectClient()._config.baseURL).toBe(ANTHROPIC_BASE);
     // And the prefix is the documented constant, not a stringly-typed guess.
     expect(mod.ANTHROPIC_DIRECT_PREFIX).toBe('anthropic-direct/');
   });

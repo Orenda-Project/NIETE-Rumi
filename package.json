@@ -54,6 +54,7 @@
     "jszip": "^3.10.1"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.124.0",
     "express": "^5.2.1",
     "ioredis": "^5.9.2",
     "openai": "^6.16.0"

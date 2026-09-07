@@ -38,7 +38,12 @@ const { logEvent } = require('../utils/structured-logger');
 // bd-oak77.14 — the shared delivery bar. See `isDeliverableDefectsOnly` below for why this is
 // imported rather than restated.
 const { isDeliverableRenderDefect } = require('./lp612-render-policy.service');
-const { getClient } = require('./llm-client');
+// bd-oak77.29 — `getClientForModel` resolves the PROVIDER from the model id, so the
+// `anthropic-direct/` lane (native /v1/messages, where `cache_control` actually caches) is a
+// config change and not a code change. `getClient` stays imported for nothing else in this
+// file — it is gone, deliberately: a call that bypassed the resolver would silently spend the
+// wrong budget with the right model id in the log line.
+const { getClientForModel } = require('./llm-client');
 const { fetchPages } = require('./lp612-pagetruth.service');
 const { clampLanguage } = require('../config/ux-strings');
 const { familyForBook } = require('../config/lp612-families');
@@ -406,8 +411,20 @@ function userContent(user, cachePrefix) {
 }
 
 async function callLlm({ system, user, model, correlationId, stage, maxTokens, userCachePrefix }) {
+  /**
+   * bd-oak77.29 — WHICH PROVIDER, decided by the model id, once per call.
+   *
+   * `wireModel` is what goes on the wire: identical to `model` for every OpenRouter id, and the
+   * `anthropic-direct/` prefix stripped for the direct lane (Anthropic 404s on our routing
+   * token). `model` is kept for the log lines because it names the LANE, which is the thing a
+   * cost query needs and the thing `wireModel` alone cannot tell you.
+   *
+   * The correlationId and stage are handed to the resolver so that a credit-exhaustion fallback
+   * inside it emits a NAMED, traceable event rather than an anonymous one.
+   */
+  const { client, model: wireModel } = getClientForModel(model, { correlationId, stage });
   const payload = {
-    model,
+    model: wireModel,
     temperature: TEMPERATURE,
     // The overlay pass asks for a smaller ceiling than an lp_doc needs (bd-zle0u). Defaulted,
     // never required, so every existing caller is byte-identical.
@@ -422,7 +439,7 @@ async function callLlm({ system, user, model, correlationId, stage, maxTokens, u
   let res;
   try {
     try {
-      res = await getClient().chat.completions.create(payload);
+      res = await client.chat.completions.create(payload);
     } catch (e) {
       // Some reasoning-native models REFUSE to have it turned off and answer HTTP
       // 400 "Reasoning is mandatory for this endpoint and cannot be disabled".
@@ -435,7 +452,7 @@ async function callLlm({ system, user, model, correlationId, stage, maxTokens, u
         correlationId, stage, model,
       }, 'warn');
       const { reasoning, ...withoutReasoning } = payload;
-      res = await getClient().chat.completions.create(withoutReasoning);
+      res = await client.chat.completions.create(withoutReasoning);
     }
   } catch (e) {
     throw fail('LLM_FAILED', `${stage}: LLM call failed — ${e.message}`, { cause: e });
@@ -481,6 +498,11 @@ async function callLlm({ system, user, model, correlationId, stage, maxTokens, u
 
   logToFile('lp612 author LLM call', {
     correlationId, stage, model,
+    // bd-oak77.29: the id that went on the wire and whether this call was billed to the prepaid
+    // Anthropic credit or to OpenRouter. `model` alone cannot say — the direct lane strips its
+    // own routing prefix — and "which budget paid for this" is the question this lane exists for.
+    wireModel,
+    providerFallback: !!(res && res.usage && res.usage.provider_fallback),
     chars: String(text).length,
     // bd-5w13w: the fingerprint + the split usage counters, so the byte-identical-reissue rate
     // can be measured directly against real (cassette-off) traffic instead of assumed from a
@@ -522,6 +544,10 @@ function newUsage() {
   return {
     prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, calls: 0,
     cached_tokens: 0, cache_write_tokens: 0, cost_usd: 0,
+    // bd-oak77.29 — how many calls of this lesson were re-issued on OpenRouter because the
+    // prepaid Anthropic balance could not pay. Zero on every OpenRouter-only run, which is every
+    // run today, so nothing downstream changes meaning.
+    provider_fallback_calls: 0,
   };
 }
 
@@ -534,6 +560,27 @@ function accumulateUsage(acc, u) {
   acc.cached_tokens += details.cached_tokens || 0;
   acc.cache_write_tokens += details.cache_write_tokens || 0;
   acc.cost_usd += (u && typeof u.cost === 'number') ? u.cost : 0;
+  if (u && u.provider_fallback === true) acc.provider_fallback_calls += 1;
+  // A model we hold no list price for reports NO cost rather than a $0 one; count those so a
+  // `costUsd` that is quietly missing calls can never read as a cheap lesson.
+  if (u && u.cost_unpriced === true) acc.unpriced_calls = (acc.unpriced_calls || 0) + 1;
+}
+
+/**
+ * bd-oak77.29 — the model label the RENDER ROW records, when a provider fallback happened.
+ *
+ * `model_used` on `niete_lp612_renders` already carries non-model markers by design — the reuse
+ * lane writes `reused:v9.1` there, because the column's job is to say WHERE THE DOCUMENT CAME
+ * FROM rather than to name a model (worker, bd-oak77.12). A lesson that started on the prepaid
+ * Anthropic credit and finished on OpenRouter came from somewhere else than its configured id
+ * claims, and a row that says otherwise would tell the operator his balance was draining when it
+ * was not, and would make this lane's whole cost question unanswerable from the table.
+ *
+ * The configured id is kept as a PREFIX so `LIKE 'anthropic-direct/%'` still finds the lesson;
+ * only an exact-match query changes, and changing for exactly these lessons is the point.
+ */
+function modelLabel(chosenModel, usage) {
+  return (usage && usage.provider_fallback_calls > 0) ? `${chosenModel}+fallback` : chosenModel;
 }
 
 async function callWithRetry({ system, user, model, correlationId, stage, usageSink, maxTokens, userCachePrefix }) {
@@ -2180,6 +2227,9 @@ async function authorLessonPlan({
     cachedTokens: usage.cached_tokens,
     cacheWriteTokens: usage.cache_write_tokens,
     promptCache: promptCacheOn,
+    // bd-oak77.29 — how many of this lesson's calls the prepaid Anthropic balance could not pay
+    // for and OpenRouter served instead. `0` on every OpenRouter-configured run.
+    providerFallbackCalls: usage.provider_fallback_calls || 0,
   });
 
   return {
@@ -2188,7 +2238,7 @@ async function authorLessonPlan({
     fails,
     warns: gates.warns,
     rounds: spent,
-    model: chosenModel,
+    model: modelLabel(chosenModel, usage),
     // Reported so the render row records WHICH harness produced the document. A
     // bake-off row that does not know its own tier is a mislabelled cell, which is
     // what made the first bake-off run unreadable.
@@ -2427,7 +2477,7 @@ async function overlayLessonPlan({ lpDoc, segment, model, correlationId } = {}) 
   return {
     overlay: kept,
     usage,
-    model: chosenModel,
+    model: modelLabel(chosenModel, usage),
     coverage,
     urduShare: share,
     targets: targets.length,
