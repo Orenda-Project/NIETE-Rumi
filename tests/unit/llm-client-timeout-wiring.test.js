@@ -44,6 +44,28 @@ jest.mock('openai', () =>
   })
 );
 
+// bd-oak77.29 — the anthropic-direct lane is no longer an OpenAI client pointed at a
+// compatibility endpoint; it is the official SDK on /v1/messages (that endpoint could not cache,
+// and caching is the 38%/lesson this whole build exists to keep). Same constructor-capturing
+// pattern, different constructor.
+jest.mock('@anthropic-ai/sdk', () =>
+  jest.fn(function AnthropicStub(config) {
+    return {
+      _config: config,
+      messages: { create: jest.fn(async () => ({ content: [], usage: {} })) },
+    };
+  })
+);
+
+jest.mock('../../bot/shared/services/e2e-cassette', () => ({
+  mode: () => 'off',
+  wrapChatCompletions: jest.fn(),
+}), { virtual: true });
+
+// `virtual: true` because `e2e-cassette.js` exists on `develop` but NOT on `main` — the lp612
+// extraction left it behind. Without it this file cannot be cherry-picked to prod at all: jest
+// resolves a mocked path even when a factory is supplied, and a MODULE_NOT_FOUND here would fail
+// the whole suite for a module the test never uses.
 
 const ENV_KEYS = [
   'LLM_PROVIDER',
@@ -88,6 +110,16 @@ describe('bd-v60qf — llm-client timeout/maxRetries wiring', () => {
     expect(client._config.maxRetries).toBe(1);
   });
 
+  test('getClientForModel() on the anthropic-direct lane passes the same defaults', () => {
+    const mod = load();
+    mod.getClientForModel(`${mod.ANTHROPIC_DIRECT_PREFIX}claude-sonnet-5`);
+    // The lane's HTTP client is the Anthropic SDK singleton behind the facade, so the budget is
+    // asserted where it is actually applied rather than on the per-call wrapper.
+    const sdk = mod.getAnthropicDirectClient();
+    expect(sdk._config.timeout).toBe(180000);
+    expect(sdk._config.maxRetries).toBe(1);
+  });
+
   test('LLM_REQUEST_TIMEOUT_MS and LLM_MAX_RETRIES env overrides reach the SDK', () => {
     const mod = load({ LLM_REQUEST_TIMEOUT_MS: '5000', LLM_MAX_RETRIES: '3' });
     const client = mod.createLLMClient();
@@ -117,9 +149,20 @@ describe('bd-v60qf — llm-client timeout/maxRetries wiring', () => {
     const mod = load(raw === undefined ? {} : { LLM_MAX_RETRIES: raw });
     expect(mod.createLLMClient()._config.maxRetries).toBe(1);
   });
-  // REMOVED FOR THIS EXTRACTION: the `anthropic-direct/` lane (bd-yoc6i) is on develop
-  // only — this vehicle takes llm-client's timeout/retry budget and leaves that lane
-  // behind, so `getClientForModel` does not exist here and a test of it would assert
-  // a module this branch has no reason to carry. The OpenRouter and direct-OpenAI
-  // cases above cover every client this branch actually builds.
+
+  test('the anthropic-direct client and the OpenRouter client each get their own timeout/maxRetries — this fix must not disturb bd-yoc6i routing', () => {
+    const mod = load({ LLM_REQUEST_TIMEOUT_MS: '9000', LLM_MAX_RETRIES: '2' });
+    const direct = mod.getClientForModel(`${mod.ANTHROPIC_DIRECT_PREFIX}claude-sonnet-5`).client;
+    const router = mod.getClientForModel('deepseek/deepseek-v4-flash').client;
+    const directSdk = mod.getAnthropicDirectClient();
+
+    expect(direct).not.toBe(router);
+    expect(directSdk._config.timeout).toBe(9000);
+    expect(directSdk._config.maxRetries).toBe(2);
+    expect(router._config.timeout).toBe(9000);
+    // NO trailing `/v1/` — the Anthropic SDK appends `/v1/messages` itself, and the old constant
+    // produced `…/v1/v1/messages`, a 404 on the first author call.
+    expect(directSdk._config.baseURL).toBe('https://api.anthropic.com');
+    expect(router._config.baseURL).toBe('https://openrouter.ai/api/v1');
+  });
 });
