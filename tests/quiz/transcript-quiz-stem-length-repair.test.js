@@ -72,9 +72,19 @@ describe('an over-long stem is one question to repair, exactly like an over-long
     if (OPTION_MAX) expect(RW.rewriteTargets([`q0: option >${OPTION_MAX} code points`]).indices).toEqual([0]);
   });
 
-  test('an empty stem is still a re-roll — a malformed reply is not a length fault', () => {
-    expect(RW.rewriteTargets(['q0: empty stem']).indices).toEqual([]);
-    expect(RW.rewriteTargets(['q0: 2 options']).indices).toEqual([]);
+  // SUPERSEDED 2026-09-07 by the general rule (PR #758). This suite's own fix —
+  // adding the stem's code to the repairable allow-list — was the third
+  // one-code extension in a morning, and the fourth teacher had already lost a
+  // quiz to a code that was not on the list. A malformed question is now
+  // repairable like any other complaint that names a question: the safety the
+  // assertion below was protecting is still there, but it is carried by the CAP
+  // (a broadly malformed reply complains about more than five questions and
+  // falls back to a full attempt) and by the fact that every repaired set is
+  // re-validated in full, so a malformed repair cannot ship.
+  test('a malformed question is repaired like any other, and the CAP is what forces a re-roll', () => {
+    expect(RW.rewriteTargets(['q0: empty stem']).indices).toEqual([0]);
+    expect(RW.rewriteTargets(['q0: 2 options']).indices).toEqual([0]);
+    expect(RW.rewriteTargets([0, 1, 2, 3, 4, 5].map((i) => `q${i}: empty stem`)).indices).toEqual([]);
   });
 
   test('the repair prompt tells the model about the stem cap, not only the option cap', () => {
