@@ -71,12 +71,12 @@ describe('the floor is what decides, not the code of the complaint', () => {
     const two = Gen.salvageWithoutBadFigures(eight(), ['q1: duplicate options', 'q4: empty option'], CTX);
     expect(two.questions).toHaveLength(6);
     const three = Gen.salvageWithoutBadFigures(eight(), ['q1: duplicate options', 'q4: empty option', 'q6: 2 options'], CTX);
-    expect(three).toBeNull();
+    expect(three.refused).toMatch(/under the floor of 6/);
   });
 
   test('a complaint about the SET as a whole is not something dropping a question fixes', () => {
-    expect(Gen.salvageWithoutBadFigures(eight(), ['SLOs uncovered: S2'], CTX)).toBeNull();
-    expect(Gen.salvageWithoutBadFigures(eight(), ['q1: duplicate options', 'urdu script ratio 0.40 < 0.6'], CTX)).toBeNull();
+    expect(Gen.salvageWithoutBadFigures(eight(), ['SLOs uncovered: S2'], CTX).refused).toMatch(/about the set/);
+    expect(Gen.salvageWithoutBadFigures(eight(), ['q1: duplicate options', 'urdu script ratio 0.40 < 0.6'], CTX).refused).toMatch(/about the set/);
   });
 
   test('the soft set-level rules ride along with a drop instead of blocking it', () => {
@@ -89,7 +89,7 @@ describe('the floor is what decides, not the code of the complaint', () => {
     const qs = eight();
     qs[5].options = ['ایک', 'ایک', 'دو'];
     qs[2].question = '';                       // a second, unreported fault
-    expect(Gen.salvageWithoutBadFigures(qs, ['q5: duplicate options'], CTX)).toBeNull();
+    expect(Gen.salvageWithoutBadFigures(qs, ['q5: duplicate options'], CTX).refused).toMatch(/did not validate/);
   });
 });
 
