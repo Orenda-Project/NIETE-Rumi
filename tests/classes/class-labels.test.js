@@ -167,7 +167,11 @@ describe('shift labels', () => {
 });
 
 describe('sections need no label map', () => {
-  it('is seeded A-E, rendered as the code itself', () => {
-    expect(seededCodes('sections')).toEqual(['A', 'B', 'C', 'D', 'E']);
+  it('is seeded A-O, rendered as the code itself', () => {
+    // Fifteen, since 7 Sep 2026: an ICT school runs ten sections and the operator asked
+    // for headroom. Read off the seed SQL, so this cannot drift from what the FK accepts.
+    expect(seededCodes('sections')).toEqual([
+      'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
+    ]);
   });
 });
