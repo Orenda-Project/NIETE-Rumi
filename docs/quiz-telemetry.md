@@ -253,3 +253,33 @@ the teacher has ever been offered before.
 | `shownCount` | The teacher's intro-video showing count **before** this offer (0 when no video was configured for this offer at all) |
 | `sent` | Some offer (video or plain buttons) went out |
 | `early` | The survey answer brought this offer forward rather than the delayed job firing |
+
+## The authoring budget's events (added 2026-09-07, after the first production morning)
+
+The generate step (`transcript-quiz-generate.service.js`) makes up to
+`TRANSCRIPT_QUIZ_MAX_ATTEMPTS` full authoring attempts (default 3) and, between
+and after them, targeted repairs. Every step lands in `meta.author_attempts` on
+the `quizzes` row and emits one of these:
+
+| Event | When | Fields worth reading |
+|-------|------|----------------------|
+| `transcript_quiz.author_done` | every full attempt | `retry` (false on attempt 1), `costUsd`, `latencyMs`, `questions`, `language` |
+| `transcript_quiz.teacher_fields_repaired` | an Urdu quiz's `selected_because` / `distractor_misconceptions` came back in English and ONE fields-only call rewrote them in place — the question is never re-rolled for this | `after` (the attempt), `indices`, `ok` (no teacher-field complaint remains), `remaining` (other complaints still open) |
+| `transcript_quiz.rewrite_attempted` | one targeted rewrite of up to five questions (structural, pedagogy, figure, level, gendered-child, multi-select complaints) or of the lesson summary | `after` (attempt number or `last`), `indices`, `ok`, `errors` |
+| `transcript_quiz.figure_salvage` | the last attempt failed only on a few figure/pedagogy questions and the quiz ships without them | `dropped`, `kept` |
+| `transcript_quiz.shipped_with_soft_faults` | every attempt and repair ran and the ONLY complaints left are set-level ones (`only N/M at/below taught level`, `PEDAGOGY_LEVEL_MIX`, `FIGURE_SHARE`, a question one level above the lesson) — the quiz ships and `meta.soft_faults` records them | `faults`, `kinds` |
+| `transcript_quiz.ready` | the set that will be sent | `attempts` (count of full attempts), `costUsd` |
+| `transcript_quiz.failed` | nothing usable after every attempt and repair — the teacher is told honestly | `reason` (`validator_failed`, `digest_failed`, `session_missing`) |
+
+Healthy is: `author_done` once or twice per quiz, a `teacher_fields_repaired` on most Urdu
+quizzes, an occasional `rewrite_attempted`, `shipped_with_soft_faults` on a minority, and
+`failed` close to zero. A rising `shipped_with_soft_faults` share means the author prompt's
+level guidance needs work, not the budget.
+
+```apl
+['niete-logs']
+| where data_json contains 'transcript_quiz.'
+| extend d = parse_json(data_json), ev = tostring(d.event)
+| where ev in ('transcript_quiz.author_done','transcript_quiz.teacher_fields_repaired','transcript_quiz.rewrite_attempted','transcript_quiz.figure_salvage','transcript_quiz.shipped_with_soft_faults','transcript_quiz.ready','transcript_quiz.failed')
+| summarize n = count() by ev
+```
