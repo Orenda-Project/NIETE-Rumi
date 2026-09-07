@@ -167,3 +167,73 @@ describe('the workbook', () => {
     expect(weekdays[8]).toBe('Sat');
   });
 });
+
+/**
+ * bd-gajpo — a CHILD on leave was not present, and her rate must say so.
+ *
+ * Coach report, 7 Sep 2026, with the register in hand: Grade 5-A, two days marked,
+ * Syed Aqeel Abbas Kazmi present on the 4th and on leave on the 7th — P 1, A 0, L 1,
+ * and the % column reads 100%. "He appears to be counting students on leave as present."
+ *
+ * He is right about the number and wrong about the mechanism, and the mechanism is the
+ * bug. This register was written for TEACHERS: `teacher_attendance_records` carries
+ * approved HR leave, and the header argues — correctly, for staff — that leave is
+ * "neither attendance nor a black mark", so the rate divides by present + absent and
+ * leaves leave out of both sides. 1 / (1 + 0) = 100%.
+ *
+ * Then the same builder was reused for the STUDENT register, and the staff rule came
+ * with it. A class register is a record of physical presence — the school's own paper
+ * register, which every coach and head reads, computes present ÷ days marked, and a
+ * child on leave was not in the room. So for students the rate is present over every
+ * marked day. The staff rule is untouched: the file the school keeps about a colleague
+ * still treats approved leave as excused.
+ *
+ * `subject` is what the delivery layer already passes as metadata to choose the sheet
+ * title, the roll-number column and the file name; the rate now honours it too.
+ */
+describe('the rate honours who the register is about (bd-gajpo)', () => {
+  it('THE BUG: a child present one day and on leave the next is 50%, not 100%', () => {
+    const s = register.monthlyStats({ 4: 'P', 7: 'L' }, { subject: 'student' });
+    expect(s).toMatchObject({ present: 1, absent: 0, leave: 1 });
+    expect(s.percentage).toBe(50);
+  });
+
+  it('for a child, leave counts as a marked day she was not there', () => {
+    // P, A, L: present on one of three marked days.
+    expect(register.monthlyStats({ 3: 'P', 4: 'A', 5: 'L' }, { subject: 'student' }).percentage).toBe(33);
+  });
+
+  it('a child on leave every marked day is 0%, not undefined and not 100%', () => {
+    expect(register.monthlyStats({ 3: 'L', 4: 'L' }, { subject: 'student' }).percentage).toBe(0);
+  });
+
+  it('for a TEACHER the staff rule is unchanged: approved leave is excused from the rate', () => {
+    expect(register.monthlyStats({ 3: 'P', 4: 'A', 5: 'L' }, { subject: 'teacher' }).percentage).toBe(50);
+    expect(register.monthlyStats({ 4: 'P', 7: 'L' }, { subject: 'teacher' }).percentage).toBe(100);
+  });
+
+  it('with no subject given it stays the staff rule — existing callers keep their numbers', () => {
+    expect(register.monthlyStats({ 3: 'P', 4: 'A', 5: 'L' }).percentage).toBe(50);
+  });
+
+  it('the student register is built with the student rule end to end', async () => {
+    const people = [{ id: 'k1', student_name: 'Syed Aqeel Abbas Kazmi', roll_number: 8 }];
+    const records = [
+      { student_id: 'k1', date: '2026-09-04', status: 'present' },
+      { student_id: 'k1', date: '2026-09-07', status: 'leave' },
+    ];
+    const buf = await register.createMonthlyRegisterBuffer(
+      { title: 'Grade 5 - A', subject: 'student' }, 9, 2026, people, records,
+    );
+    // The repo's exceljs mock serialises the built worksheets into the buffer rather
+    // than producing a real workbook (it cannot re-parse one) — so read it back as JSON.
+    const worksheets = JSON.parse(buf.toString());
+    const register5A = worksheets.find((w) => w.name === 'Class Register');
+    expect(register5A).toBeDefined();
+    // The first person sits under five header rows (title, class, month, headings,
+    // weekday names); the rate is the last cell of her row.
+    const row = register5A.rows[5];
+    expect(row[1]).toBe('Syed Aqeel Abbas Kazmi');
+    expect(row[row.length - 1]).toBe('50%');
+  });
+});
