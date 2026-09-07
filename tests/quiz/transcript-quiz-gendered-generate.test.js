@@ -193,16 +193,32 @@ describe('a gendered lesson_summary is repaired, not shipped', () => {
     expect(ev[0][1]).toEqual(expect.objectContaining({ quizId: QID, field: 'lesson_summary', hits: 1 }));
   });
 
-  test('a rewrite that returns the SAME gendered summary fails the quiz rather than printing it', async () => {
-    mockCreate
-      .mockResolvedValueOnce(reply({ lesson_summary: GENDERED_SUMMARY, questions: eightGood() }))
-      .mockResolvedValueOnce(reply({ lesson_summary: GENDERED_SUMMARY, questions: eightGood() }))
-      .mockResolvedValueOnce(reply({ lesson_summary: GENDERED_SUMMARY }));
+  // SUPERSEDED 2026-09-07, on the operator's instruction: "Gendered reference is
+  // just messed up, could we remove it entirely, or at the very least not make
+  // these gates blocking? i.e quiz still needs to be delivered."
+  //
+  // The rule is kept, not removed — the teacher's gender is not a fact this
+  // system holds, and the operator caught a gendered line on his own PDF in
+  // round 5 — but it stopped being a reason to send a teacher nothing. The
+  // detector cannot tell "She showed the class the root" (the teacher) from
+  // "Ayesha has 5 cookies. She gives 2 away" (a child), which is the ordinary
+  // shape of a primary word problem, and on 2026-09-07 that cost several
+  // teachers their quiz. It is still complained about, still handed to the
+  // rewrite, still counted on transcript_quiz.gendered_teacher, and now also
+  // recorded in meta.soft_faults on the row that shipped — so the rate stays
+  // visible and can be fixed properly rather than silently costing quizzes.
+  test('a rewrite that cannot neutralise the summary SHIPS the quiz and records the fault', async () => {
+    mockCreate.mockResolvedValue(reply({ lesson_summary: GENDERED_SUMMARY, questions: eightGood() }));
     wire();
 
     const r = await Gen.process(QID, {});
-    expect(r.failed).toBe(true);
-    expect(r.reason).toBe('validator_failed');
-    expect(storedRows()).toHaveLength(0);
+    expect(r.failed).not.toBe(true);
+    expect(storedRows()).toHaveLength(8);
+
+    const updates = supabase.from.callsFor('quizzes').flat().filter((c) => c[0] === 'update').map((u) => u[1]);
+    const withFaults = updates.filter((u) => u.meta && u.meta.soft_faults);
+    expect(withFaults.length).toBeGreaterThan(0);
+    expect(withFaults[withFaults.length - 1].meta.soft_faults.join(' ')).toMatch(/PEDAGOGY_GENDERED_TEACHER/);
+    expect(logEvent.mock.calls.map((c) => c[0])).toContain('transcript_quiz.gendered_teacher');
   });
 });

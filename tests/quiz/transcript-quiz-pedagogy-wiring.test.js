@@ -122,13 +122,37 @@ describe('the last attempt salvages a quiz whose only fault is a bad question', 
     expect(salvaged.questions.every((x) => !/your group|how many/i.test(x.question))).toBe(true);
   });
 
-  test('a structural fault still fails the whole quiz — salvage is not a bypass', () => {
+  // SUPERSEDED 2026-09-07. This pinned the salvage's allow-list: a per-question
+  // fault whose code was not FIGURE_/PEDAGOGY_/RELIGIOUS_ threw the WHOLE quiz
+  // away. On production that turned `q5: duplicate options` on one question
+  // into no quiz at all for a teacher, and the operator asked why a fault we
+  // could fix later was allowed to be fatal. What decides now is the FLOOR:
+  // any question that is individually faulty may be dropped while at least
+  // MIN_QUESTIONS survive, and the remainder is re-validated in full. The
+  // property this test cared about — the salvage is not a bypass — is still
+  // here: it holds when dropping would take the set under the floor, or when
+  // the complaint is about the set rather than a question.
+  test('two faulty questions are dropped and six ship; a third would go under the floor and fails', () => {
     const qs = eightClean();
     qs[1] = q({ question: 'Which atom did the teacher ask your group to draw?', options: ['Oxygen', 'Carbon', 'Boron'] });
     qs[4].options = ['same', 'same', 'other'];
     const r = V.validate(qs, ctx);
-    expect(Gen.salvageWithoutBadFigures(r.questions, r.errors, {
+    const base = { language: 'en', subject: 'science', digest: DIGEST, lessonSummary: ctx.lessonSummary };
+    const out = Gen.salvageWithoutBadFigures(r.questions, r.errors, base);
+    expect(out.refused).toBeUndefined();
+    expect(out.dropped).toEqual([1, 4]);
+    expect(out.questions).toHaveLength(6);
+    // a third bad question takes it under the floor, and the refusal says so
+    expect(Gen.salvageWithoutBadFigures(r.questions, [...r.errors, 'q6: duplicate options'], base).refused)
+      .toMatch(/under the floor of 6/);
+  });
+
+  test('salvage is not a bypass for a complaint about the SET', () => {
+    const qs = eightClean();
+    qs[4].options = ['same', 'same', 'other'];
+    const r = V.validate(qs, ctx);
+    expect(Gen.salvageWithoutBadFigures(r.questions, [...r.errors, 'SLOs uncovered: S3'], {
       language: 'en', subject: 'science', digest: DIGEST, lessonSummary: ctx.lessonSummary,
-    })).toBeNull();
+    }).refused).toMatch(/about the set/);
   });
 });

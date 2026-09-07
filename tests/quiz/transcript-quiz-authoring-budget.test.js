@@ -226,8 +226,13 @@ describe('5 — the OTHER level rule names its questions, and a soft fault never
     expect(withMeta.length).toBeGreaterThan(0);
     expect(withMeta[withMeta.length - 1].meta.soft_faults.every((e) => Gen.SOFT_FAULT.test(e))).toBe(true);
   });
-  test('a hard fault that no repair can answer still fails honestly', async () => {
-    const broken = eight(); broken[2].options = ['only one'];   // "q2: 1 options" — malformed
+  // Updated 2026-09-07 with the ship-what-we-can policy: ONE malformed question
+  // is no longer fatal — it is dropped and the rest ship. What must still fail
+  // is a set too broken to leave MIN_QUESTIONS standing, so this now breaks
+  // three of the eight.
+  test('a set too broken to leave the floor standing still fails honestly', async () => {
+    const broken = eight();
+    [2, 4, 6].forEach((i) => { broken[i].options = ['only one']; });   // three malformed → under the floor
     mockCreate.mockImplementation((call) => (/REWRITE THESE QUESTIONS/.test(call.messages[0].content)
       ? Promise.resolve(reply({ questions: [] }))                       // the repair can offer nothing
       : Promise.resolve(reply({ lesson_summary: SUMMARY, questions: broken }))));
