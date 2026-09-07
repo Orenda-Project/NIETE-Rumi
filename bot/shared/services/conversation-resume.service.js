@@ -146,7 +146,7 @@ function parseResumeButton(buttonId) {
  * @returns {Promise<{offered:number, expired:number, skipped:number, failed:number}>}
  */
 async function sweepAndOffer({ limit = 100 } = {}) {
-  const tally = { offered: 0, expired: 0, skipped: 0, failed: 0, skippedLocked: false };
+  const tally = { offered: 0, expired: 0, skipped: 0, failed: 0, skippedActive: 0, skippedLocked: false };
 
   const lockId = `${process.pid}-${Date.now()}`;
   const gotLock = await RedisService.acquireLock(SWEEP_LOCK, lockId, SWEEP_LOCK_TTL_SECONDS);
@@ -217,12 +217,30 @@ async function runSweep(tally, limit) {
       // Record the ask BEFORE sending. If the send then fails we have asked-state
       // with no message, and the next sweep closes it quietly — which is a better
       // failure than sending and forgetting, which would ask her twice.
-      await ConversationState.setState(row.userId, {
+      // Guarded: apply ONLY if this row is still expired. Between the batch read
+      // above and this write she may have tapped something and been given a fresh
+      // deadline, and an unconditional write here replaced that live work with an
+      // offer for the task she had already left — and then messaged her about it.
+      //
+      // The refusal is why the send sits BELOW this and not above it: no state
+      // change, no ask.
+      const asked = await ConversationState.setState(row.userId, {
         flow: row.flow,
         step: OFFERED,
         payload: { ...(row.payload || {}), resumeStep: row.step },
         ttlSeconds: OFFER_TTL_SECONDS,
+        onlyIfStillExpired: true,
       });
+
+      if (!asked) {
+        // She came back. Leave her alone — the next sweep will find this task again
+        // if she drifts off it a second time.
+        tally.skippedActive += 1;
+        logToFile('🔄 Resume offer skipped — the teacher is active again', {
+          userId: row.userId, flow: row.flow,
+        });
+        continue;
+      }
 
       await WhatsAppService.sendInteractiveButtons(user.phone_number, {
         body: resolveUx('resumeOfferBody', { language, params: { task } }),
