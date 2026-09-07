@@ -27,6 +27,8 @@ const { teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonL
 const { SESSION_SELECT } = require('./transcript-quiz-offer.service');
 
 const N_QUESTIONS = 8;
+// The fewest questions a salvaged quiz may still be sent with (of N_QUESTIONS).
+const MIN_SALVAGED_QUESTIONS = 5;
 /**
  * Full authoring attempts per quiz. Three, not two, since the first real morning
  * on production (2026-09-07): two teachers lost their quiz because attempt 1
@@ -412,6 +414,14 @@ async function tellTeacherFailed(phone, lang, quizId, reason) {
  * question than not at all. A structural fault is still fatal — the two
  * quiz-level codes below are the only non-q complaints tolerated, and both are
  * re-checked by the validate() call at the end of this function.
+ *
+ * The limit is on what SURVIVES, not on how many are dropped. A lesson taught
+ * through group turns produces three or four questions the class cannot answer
+ * on one attempt, not one; capping the drop at two threw away a quiz whose
+ * remaining five questions were good (live 2026-09-07, a maths lesson: q3, q4
+ * and q5 all PEDAGOGY_ codes on the last attempt and its rewrite, and the
+ * teacher was told nothing could be made). Five of eight is the floor — below
+ * that the salvage would be shipping a stub rather than the lesson's quiz.
  */
 function salvageWithoutBadFigures(questions, errors, ctx) {
   const droppableErr = /^q(\d+): (FIGURE_|PEDAGOGY_|RELIGIOUS_)/;
@@ -422,9 +432,9 @@ function salvageWithoutBadFigures(questions, errors, ctx) {
     if (m) bad.add(Number(m[1]));
     else if (!/^(FIGURE_SHARE|PEDAGOGY_LEVEL_MIX|only \d+\/\d+ at\/below taught level|feminine-stem address$)/.test(e)) other = true;
   });
-  if (other || !bad.size || bad.size > 2) return null;
+  if (other || !bad.size || questions.length - bad.size < MIN_SALVAGED_QUESTIONS) return null;
   const kept = questions.filter((_, i) => !bad.has(i));
-  const v = validate(kept, { ...ctx, nExpected: kept.length });
+  const v = validate(kept, { ...ctx, nExpected: kept.length, minQuestions: MIN_SALVAGED_QUESTIONS });
   return v.ok ? { questions: v.questions, dropped: [...bad] } : null;
 }
 
