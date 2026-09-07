@@ -466,10 +466,21 @@ function levelLiftDefects(questions, digest) {
   recall.sort((a, b) => tl(b) - tl(a) || a.i - b.i);
   return recall.slice(0, missing).map(({ q, i }) => {
     const reached = ['recall', 'understand', 'apply'][tl({ q })] || 'understand';
+    // Two rules meet on this question and they must not read as a
+    // contradiction. On a lesson whose SLOs were all taught at "recall" the
+    // set still needs a few questions at "understand", and the neighbouring
+    // rule allows exactly that — ONE level above the taught level, for a
+    // minority of the set. Saying only "ask it at understand" sent the model
+    // oscillating on production (2026-09-07, quiz f5d625e9: over-corrected to
+    // "apply" on one attempt, back to too-few on the next, no quiz).
+    const free = reached !== 'recall';
+    const why = free
+      ? `its own SLO was taught at "${reached}", so asking it at "understand" costs nothing`
+      : 'the lesson reached only "recall" for its SLO, and ONE level above the taught level is allowed for a minority of the set — this is one of those questions';
     return {
       index: i,
       code: 'PEDAGOGY_LEVEL_MIX',
-      message: `q${i}: PEDAGOGY_LEVEL_MIX — a "recall" question on an SLO the lesson reached at "${reached}"; ask the SAME idea at "understand": which of these belongs to the group, which one does NOT, what happens next, or why the lesson's own example turned out that way (level: "understand")`,
+      message: `q${i}: PEDAGOGY_LEVEL_MIX — ${why}. Ask the SAME idea at "understand" (level: "understand"): which of these belongs to the group, which one does NOT, what happens next, or why the lesson's own example turned out that way. Lift ONLY the questions named here — at most ${missing} of the ${qs.length} — and leave every other question exactly as it is, at its own level.`,
     };
   });
 }
