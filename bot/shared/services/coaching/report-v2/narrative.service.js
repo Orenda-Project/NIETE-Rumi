@@ -201,11 +201,15 @@ function buildPrompt(analysis, { transcript, trend = [], language, teacherName, 
         // means applicable, so every pre-cutover session keeps its current grounding.
         const applicable = (d.indicators || []).filter((i) => !(i && i.applicable === false));
         // The per-indicator max follows the rubric, never a constant: V3 scores 1-4,
-        // v4 scores 0-2. `indicators_applicable` is set by the applicable-aware
-        // computeScores; without it the domain still counts every row.
-        const scaleMax = Math.round(
-          (d.domain_max || 0) / (d.indicators_applicable || (d.indicators || []).length || 1),
-        ) || 4;
+        // v4 scores 0-2, so a v4 teacher at FULL marks was described to the model as
+        // "2/4" — half. Only the applicable-aware computeScores knows the real ratio,
+        // and it records it as `indicators_applicable`. Without that field we are on a
+        // V3-shaped analysis and 4 is correct — deriving from `indicators.length`
+        // instead would be wrong whenever the stored indicator list is partial.
+        const applicableCount = Number(d.indicators_applicable) || 0;
+        const scaleMax = applicableCount > 0
+          ? (Math.round((d.domain_max || 0) / applicableCount) || 4)
+          : 4;
         const lows = applicable.slice().sort((x, y) => (x.score || 0) - (y.score || 0)).slice(0, 2)
           .map((i) => `${i.id} scored ${i.score}/${scaleMax} — ${String(i.evidence_sw || i.evidence_summary || i.evidence || '').slice(0, 160)}${i.improvement_sw ? ` | to improve: ${String(i.improvement_sw).slice(0, 120)}` : ''}`);
         return `- ${k} (${FICO_DOMAIN_LABELS[k]}): ${d.domain_score}/${d.domain_max}${lows.length ? `. Lowest indicators: ${lows.join(' | ')}` : ''}`;
