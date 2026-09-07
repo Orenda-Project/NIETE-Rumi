@@ -310,3 +310,45 @@ describe('6 — the third production death: a feminine verb stem names its quest
     expect(storedRows()).toHaveLength(8);
   });
 });
+
+describe('7 — teacher fields in English are repaired in place, never re-rolled', () => {
+  const EN_FIELDS = (q) => ({ ...q, selected_because: 'the moment the teacher pointed at the wall map', distractor_misconceptions: { 1: 'thinks a map is a photo', 2: 'ignores the scale' } });
+  const UR_FIELDS = (i) => ({ index: i, selected_because: 'دیوار کے نقشے والی بات سے', distractor_misconceptions: { 1: 'نقشے کو تصویر سمجھنا', 2: 'پیمانے کو نظر انداز کرنا' } });
+  test('teacherFieldTargets and mergeTeacherFields touch only the two fields, only on the named questions', () => {
+    const errs = ['q0: URDU_TEACHER_FIELDS — selected_because must be written in Urdu; got "x"', 'q3: URDU_TEACHER_FIELDS — distractor_misconceptions must be written in Urdu; got "y"', 'q5: option >72 code points'];
+    expect(Rewrite.teacherFieldTargets(errs)).toEqual([0, 3]);
+    const qs = urEight().map(EN_FIELDS);
+    const m = Rewrite.mergeTeacherFields(qs, { fields: [UR_FIELDS(0), UR_FIELDS(3), UR_FIELDS(7)] }, [0, 3]);
+    expect(m.replaced).toEqual([0, 3]);
+    expect(m.questions[0].selected_because).toBe('دیوار کے نقشے والی بات سے');
+    expect(m.questions[0].question).toBe(qs[0].question);
+    expect(m.questions[7].selected_because).toBe('the moment the teacher pointed at the wall map');   // not named → untouched
+  });
+  test('an Urdu quiz with all eight teacher fields in English ships on the FIRST attempt with one fields call', async () => {
+    mockCreate.mockImplementation((call) => {
+      const prompt = call.messages[0].content;
+      if (/REWRITE THE TEACHER FIELDS/.test(prompt)) return Promise.resolve(reply({ fields: [0, 1, 2, 3, 4, 5, 6, 7].map(UR_FIELDS) }));
+      return Promise.resolve(reply({ lesson_summary: SUMMARY_UR, questions: urEight().map(EN_FIELDS) }));
+    });
+    wireUr();
+    const r = await Gen.process(QID, {});
+    expect(r.ok).toBe(true);
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    expect(storedRows()).toHaveLength(8);
+    const ev = logEvent.mock.calls.find((c) => c[0] === 'transcript_quiz.teacher_fields_repaired');
+    expect(ev[1]).toEqual(expect.objectContaining({ after: 1, ok: true, remaining: 0 }));
+  });
+  test('teacher fields plus one feminine stem: the fields call, then one rewrite, then 8 shipped — three calls, no re-roll', async () => {
+    mockCreate.mockImplementation((call) => {
+      const prompt = call.messages[0].content;
+      if (/REWRITE THE TEACHER FIELDS/.test(prompt)) return Promise.resolve(reply({ fields: [0, 1, 2, 3, 4, 5, 6, 7].map(UR_FIELDS) }));
+      if (/REWRITE THESE QUESTIONS/.test(prompt)) return Promise.resolve(reply({ questions: [{ index: 0, ...urEight()[0] }] }));
+      return Promise.resolve(reply({ lesson_summary: SUMMARY_UR, questions: urEight({ q0: FEM_Q0() }).map(EN_FIELDS) }));
+    });
+    wireUr();
+    const r = await Gen.process(QID, {});
+    expect(r.ok).toBe(true);
+    expect(mockCreate).toHaveBeenCalledTimes(3);
+    expect(storedRows()).toHaveLength(8);
+  });
+});
