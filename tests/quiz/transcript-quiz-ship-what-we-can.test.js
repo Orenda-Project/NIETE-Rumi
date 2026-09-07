@@ -92,3 +92,31 @@ describe('the floor is what decides, not the code of the complaint', () => {
     expect(Gen.salvageWithoutBadFigures(qs, ['q5: duplicate options'], CTX)).toBeNull();
   });
 });
+
+describe('the gender rules never cost a teacher the quiz (operator, 2026-09-07)', () => {
+  // "Gendered reference is just messed up, could we remove it entirely, or at
+  // the very least not make these gates blocking? i.e quiz still needs to be
+  // delivered." Kept as a complaint and a counter; removed as a cause of death.
+  test('a gendered-teacher fault on two questions is dropped, not fatal', () => {
+    const out = Gen.salvageWithoutBadFigures(eight(), [
+      'q5: PEDAGOGY_GENDERED_TEACHER — options refers to the teacher with a gendered word ("she")',
+      'q7: PEDAGOGY_GENDERED_TEACHER — question refers to the teacher with a gendered word ("her")',
+    ], CTX);
+    expect(out).not.toBeNull();
+    expect(out.questions).toHaveLength(6);
+  });
+  test('the Urdu child-address fault is soft too', () => {
+    expect(Gen.SOFT_FAULT.test('feminine-stem address')).toBe(true);
+    expect(Gen.SOFT_FAULT.test('q3: PEDAGOGY_GENDERED_CHILD — "سکتی ہیں" guesses the child\'s gender')).toBe(true);
+  });
+  test('a quiz whose ONLY remaining faults are gender ships whole — nothing is dropped', () => {
+    ['PEDAGOGY_GENDERED_TEACHER — "lesson_summary" refers to the teacher', 'q2: PEDAGOGY_GENDERED_TEACHER — explanation refers to the teacher'].forEach((e) => {
+      expect(Gen.SOFT_FAULT.test(e)).toBe(true);
+    });
+  });
+  test('a real breakage is still not soft', () => {
+    ['q1: duplicate options', 'q4: empty stem', 'SLOs uncovered: S2'].forEach((e) => {
+      expect(Gen.SOFT_FAULT.test(e)).toBe(false);
+    });
+  });
+});
