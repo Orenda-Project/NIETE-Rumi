@@ -89,9 +89,11 @@ async function probeTeacherBusy(userId) {
   // 5. Any flow the conversation store knows she is mid-way through.
   //
   // This replaces both the per-key video probe above it and an attendance probe that
-  // had outlived its feature: attendance was rebuilt as Flows and keeps no
-  // conversational state, so that probe could never fire and `/status` could never
-  // list it. One store means one question instead of a list of keys to remember.
+  // was dead when it was written: at the time attendance was pure Flows and kept no
+  // conversational state. THAT IS NO LONGER TRUE — the attendance rebuild put three
+  // flows on this store (attendance_method, attendance_voice, attendance_marking), and
+  // production carries live attendance_marking rows. One store means one question
+  // instead of a list of keys to remember, and it now answers for attendance too.
   try {
     const active = await ConversationState.getState(userId);
 
@@ -219,13 +221,31 @@ async function listActiveResources(userId) {
 
   // Whatever the conversation store says she is mid-way through — and now she can
   // RESUME it rather than only cancel it, which is the point of listing it at all.
-  // The attendance entry that used to sit here was dead: the feature was rebuilt as
-  // Flows and keeps no conversational state, so it could never appear.
+  // The attendance entry that used to sit here was dead: rebuilt as Flows and kept no conversational state WHEN THIS WAS WRITTEN.
+  // The attendance rebuild has since put method, voice and marking back on this
+  // store, and production carries live attendance_marking rows.
   try {
     const active = await ConversationState.getState(userId);
-    if (active && active.step !== ConversationResume.OFFERED) {
+
+    // `menu` is excluded for the same reason the busy probe above excludes it: opening
+    // the menu is a glance, not work. Listing it told a teacher she had "1 thing
+    // running" and offered to Stop it — and the two functions in this file disagreeing
+    // about whether a glance is work is how that shipped.
+    const NOT_LISTED_FLOWS = new Set(['menu']);
+
+    if (active && active.step !== ConversationResume.OFFERED && !NOT_LISTED_FLOWS.has(active.flow)) {
+      // TASK_LABEL is the OFFERABLE set (shouldOffer reads it), and it covers four
+      // flows. Every other flow on the store used to render as its own internal id, so
+      // a principal mid-register read "Continue: attendance_marking" — the exact thing
+      // conversation-resume's header forbids: never show an internal id.
+      //
+      // Falling back to a mechanical de-snake keeps that promise for flows TASK_LABEL
+      // does not name, including any added later, without inventing teacher-facing
+      // copy here. Proper bilingual names for these belong with the decision about
+      // whether they should be offerable at all — they are not a display fix, because
+      // adding them to TASK_LABEL would silently make them resumable.
       const label = ConversationResume.TASK_LABEL[active.flow];
-      const title = label ? label.en : active.flow;
+      const title = label ? label.en : String(active.flow || '').replace(/_/g, ' ').trim();
       // TWO selectable rows, ONE task. She must be able to pick resume
       // or stop, so the rows stay per-action — but /status counted and bulleted
       // this same array and therefore told a teacher with one coaching session
@@ -351,8 +371,10 @@ function parseResourceId(rowId) {
   const flowCancel = rowId.match(/^cancel_flow_([a-z_]+)$/);
   if (flowCancel) return { kind: 'flow_cancel', refId: flowCancel[1] };
 
-  // `attendance` is gone from here with its probe — the feature was rebuilt as Flows
-  // and keeps no conversational state, so no row could ever carry that id.
+  // `attendance` is gone from here with its probe. The CONCLUSION still holds — no row
+  // carries a bare `cancel_attendance` id — but not for the reason once written here:
+  // attendance is back on the conversation store (method, voice, marking) and is parsed
+  // by the `cancel_flow_<flow>` branch immediately above, not by this list.
   const m = rowId.match(/^cancel_(quiz|coaching|lp|video|reading)(?:_(.+))?$/);
   if (!m) return { kind: 'unknown' };
   const kindMap = { quiz: 'quiz', coaching: 'coaching', lp: 'lesson_plan', video: 'video', reading: 'reading' };
