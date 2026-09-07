@@ -51,8 +51,19 @@ const {
   GENDER_NEUTRAL_RULE,
 } = require('./transcript-quiz-contract');
 
-/** At most this many questions may be repaired; more than that is a re-roll. */
+/** At most this many questions may be repaired IN THE LOOP; more is a re-roll. */
 const MAX_TARGETS = 3;
+
+/**
+ * The ceiling for the LAST-CHANCE call, as a share of the set. After the final
+ * attempt there is no re-roll to prefer over a repair, so the only question is
+ * whether a small call can be shown to fix the complaints — and up to half a
+ * quiz of per-question edits can. Past half, the attempt was mostly bad and a
+ * repair would be a re-roll through a smaller prompt, which is not an
+ * improvement; those stay refused. The merged set is re-validated in full
+ * either way, so this raises the ceiling without lowering the floor.
+ */
+const lastChanceTargets = (n) => Math.max(MAX_TARGETS, Math.ceil((Number(n) || 0) / 2));
 
 /**
  * A complaint one replacement question can answer: it names its question and it
@@ -60,13 +71,21 @@ const MAX_TARGETS = 3;
  * (bd-mg9c7.95 — a name written without its honorific is one question's text to
  * rewrite; RELIGIOUS_CONTENT_RULE is already restated in the prompt below).
  *
+ * The `MULTI_` codes joined it on 2026-09-07, from production: a live quiz died
+ * on `q7: MULTI_TOO_FEW_CORRECT` — a "select all that apply" question that named
+ * one correct option instead of two — and that is one question's own JSON and
+ * nothing else's, exactly like the pedagogy and picture codes beside it. Every
+ * MULTI_ code that names its question is per-question by construction; the two
+ * that are properties of the SET (`MULTI_SHARE`, `MULTI_FIRST`) carry no "qN:"
+ * prefix and so cannot match here.
+ *
  * Deliberately NOT droppable-and-quiz-level: `FIGURE_SHARE`, `PEDAGOGY_LEVEL_MIX`,
  * `SLOs uncovered` and the script-ratio complaints are properties of the SET, and
  * rewriting three questions in isolation cannot be shown to fix them. A structural
  * complaint (`q0: 2 options`) is excluded for a different reason: it means the
  * reply itself was malformed, which is a re-roll, not a repair.
  */
-const PER_QUESTION = /^q(\d+):\s*(PEDAGOGY_[A-Z_]+|FIGURE_[A-Z_]+|RELIGIOUS_[A-Z_]+)\b/;
+const PER_QUESTION = /^q(\d+):\s*(PEDAGOGY_[A-Z_]+|FIGURE_[A-Z_]+|RELIGIOUS_[A-Z_]+|MULTI_[A-Z_]+)\b/;
 
 /**
  * Structural complaints that are still ONE question's TEXT: an option over the
@@ -89,11 +108,16 @@ const QUIZ_LEVEL_REPAIRABLE = /^PEDAGOGY_GENDERED_TEACHER\b/;
 
 /**
  * @param {string[]} errors the validator's complaints from the LAST full attempt
+ * @param {{maxTargets?:number}} [opts] `maxTargets` defaults to MAX_TARGETS, the
+ *   in-loop ceiling whose reason is that more than that is a re-roll. After the
+ *   LAST attempt there is no re-roll to prefer, so the caller raises it to half
+ *   the set (see LAST_CHANCE_TARGETS): production 2026-09-07 lost a quiz whose
+ *   whole remaining rejection was four per-question edits.
  * @returns {{indices:number[], byIndex:Object<number,string[]>, summary:string[]}}
  *          `indices` and `summary` are both empty when this rejection is not one
  *          a targeted rewrite can repair
  */
-function rewriteTargets(errors) {
+function rewriteTargets(errors, { maxTargets = MAX_TARGETS } = {}) {
   const none = { indices: [], byIndex: {}, summary: [] };
   const list = Array.isArray(errors) ? errors.filter((e) => typeof e === 'string') : [];
   if (!list.length || list.length !== (errors || []).length) return none;
@@ -111,7 +135,7 @@ function rewriteTargets(errors) {
     (byIndex[i] = byIndex[i] || []).push(e);
   }
   const indices = Object.keys(byIndex).map(Number).sort((a, b) => a - b);
-  if (indices.length > MAX_TARGETS) return none;
+  if (indices.length > maxTargets) return none;
   if (!indices.length && !summary.length) return none;
   return { indices, byIndex, summary };
 }
@@ -290,8 +314,11 @@ async function rewriteRejected({
   // by the caller, which is the only place that knows whether the merged set
   // validated.
   quizId = null,
+  // The in-loop ceiling by default; the caller raises it for the last-chance
+  // call, where the alternative to a repair is no quiz.
+  maxTargets = MAX_TARGETS,
 }) {  // eslint-disable-line no-unused-vars
-  const targets = rewriteTargets(errors);
+  const targets = rewriteTargets(errors, { maxTargets });
   if (!targets.indices.length && !targets.summary.length) {
     return { attempted: false, indices: [], merged: null, replaced: [], lessonSummary: null };
   }
@@ -322,6 +349,7 @@ async function rewriteRejected({
 }
 
 module.exports = {
-  rewriteTargets, buildRewritePrompt, mergeReplacements, rewriteRejected, MAX_TARGETS, PER_QUESTION, PER_QUESTION_STRUCTURAL,
+  rewriteTargets, buildRewritePrompt, mergeReplacements, rewriteRejected, MAX_TARGETS, lastChanceTargets,
+  PER_QUESTION, PER_QUESTION_STRUCTURAL,
   QUIZ_LEVEL_REPAIRABLE,
 };

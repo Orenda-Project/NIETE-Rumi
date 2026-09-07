@@ -577,6 +577,14 @@ async function process(quizId, payload = {}) {
       const rw = await api.rewriteRejected({
         questions: rejected, errors, digest, language,
         gradeBand: digest.grade_band || meta.grade, quizId, lessonSummary: summary,
+        // Inside the loop a re-roll is still available and is preferred over
+        // repairing more than a few questions. After the LAST attempt there is
+        // no re-roll, so the ceiling rises to half the set — production
+        // 2026-09-07 lost a quiz whose whole remaining rejection was four
+        // per-question edits, three over-long "selected_because" fields and one
+        // "select all that apply" question missing its second correct option.
+        // eslint-disable-next-line global-require
+        maxTargets: when === 'last' ? require('./transcript-quiz-rewrite').lastChanceTargets(N_QUESTIONS) : undefined,
       });
       if (!rw.attempted) return { tried: false, ok: false, errors: null };
       {
