@@ -140,6 +140,27 @@ const UX_STRINGS = {
     ur: 'بتانے کا شکریہ — اگلی بار ہم کچھ مختلف تجویز کریں گے۔',
   },
 
+  // ─── classroom-photo "Add another" (bd-pzs9a) ───────────────────────
+  // The tap re-opens the photo step, so the copy must say what state the session
+  // is now in — one shared "something went wrong" line across three different
+  // states is what misdirects every field report (Rule 24d). All three are
+  // impersonal or imperative, so neither carries a gendered verb stem.
+  // Urdu prose digits are the U+06Fx set; the caller converts, and the
+  // placeholders are bidi-isolated (LRI…PDI) because a value's direction is not
+  // knowable at authoring time.
+  photoAddAnotherNext: {
+    en: '📸 Send the next classroom photo — photo {n} of {max}.',
+    ur: '📸 اگلی کلاس روم تصویر بھیجیں — تصویر ⁦{n}⁩ از ⁦{max}⁩۔',
+  },
+  photoAddAnotherAtMax: {
+    en: '📸 That is the maximum of {max} classroom photos. Moving on to the lesson plan.',
+    ur: '📸 زیادہ سے زیادہ ⁦{max}⁩ کلاس روم تصاویر بھیجی جا سکتی ہیں۔ اب سبق کے منصوبے کی طرف چلتے ہیں۔',
+  },
+  photoAddAnotherClosed: {
+    en: '📸 This coaching session has already moved past the photo step, so another photo cannot be added to it.',
+    ur: '📸 یہ کوچنگ سیشن تصویر والے مرحلے سے آگے بڑھ چکا ہے، اس لیے اس میں مزید تصویر شامل نہیں ہو سکتی۔',
+  },
+
   // ─── feedback-uptake loop: the hero report's "last time we asked" line ────
   // {count} is the tally in words (unit names stay English by the code-switch
   // rule; the connecting words are the report's language); {target} is the
