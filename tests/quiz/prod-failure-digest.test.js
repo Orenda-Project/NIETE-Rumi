@@ -166,3 +166,66 @@ describe('7 · a redeploy must not silence it, nor make it repeat itself', () =>
     }
   });
 });
+
+describe('8 · exactly one replica speaks', () => {
+  /**
+   * The first live run posted the SAME digest SIX times inside 500ms — once per
+   * worker replica. The 45-minute gap guard could not help: it asks Axiom when
+   * the digest last spoke, and six replicas booting together all asked before
+   * any of them had answered. A time-based guard cannot settle a tie between
+   * processes; only a lock can.
+   */
+  const KEYS = ['PROD_DIGEST_ENABLED', 'PROD_DIGEST_SLACK_TOKEN', 'PROD_DIGEST_SLACK_CHANNEL', 'AXIOM_API_TOKEN'];
+  let saved, realFetch;
+  beforeEach(() => {
+    saved = {};
+    KEYS.forEach((k) => { saved[k] = process.env[k]; });
+    process.env.PROD_DIGEST_ENABLED = 'true';
+    process.env.PROD_DIGEST_SLACK_TOKEN = 'x';
+    process.env.PROD_DIGEST_SLACK_CHANNEL = 'D1';
+    process.env.AXIOM_API_TOKEN = 'x';
+    realFetch = globalThis.fetch;
+  });
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    KEYS.forEach((k) => { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k]; });
+    jest.resetModules();
+  });
+
+  test('a replica that does not win the tick sends nothing', async () => {
+    jest.doMock('../../bot/shared/services/cache/railway-redis.service', () => ({
+      setNX: jest.fn().mockResolvedValue(false),      // someone else got there first
+    }));
+    globalThis.fetch = jest.fn();                      // must never be called
+    const Fresh = require('../../bot/shared/services/monitoring/prod-failure-digest.service');
+    const out = await Fresh.run();
+    expect(out.skipped).toBe('another_replica');
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  test('the winner holds the tick for the whole gap, so nobody repeats it', async () => {
+    const setNX = jest.fn().mockResolvedValue(true);
+    jest.doMock('../../bot/shared/services/cache/railway-redis.service', () => ({ setNX }));
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      ok: true, json: async () => ({ buckets: { totals: [] } }),
+    });
+    const Fresh = require('../../bot/shared/services/monitoring/prod-failure-digest.service');
+    await Fresh.run();
+    expect(setNX).toHaveBeenCalledTimes(1);
+    const [key, , ttl] = setNX.mock.calls[0];
+    expect(key).toMatch(/digest/);
+    expect(ttl).toBe(Fresh.MIN_GAP_MIN * 60);
+  });
+
+  test('if the lock cannot be reached the digest still runs — quiet beats blind', async () => {
+    jest.doMock('../../bot/shared/services/cache/railway-redis.service', () => ({
+      setNX: jest.fn().mockRejectedValue(new Error('redis down')),
+    }));
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      ok: true, json: async () => ({ buckets: { totals: [] } }),
+    });
+    const Fresh = require('../../bot/shared/services/monitoring/prod-failure-digest.service');
+    const out = await Fresh.run();
+    expect(out.skipped).toBeUndefined();
+  });
+});

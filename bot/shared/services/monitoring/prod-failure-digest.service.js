@@ -235,6 +235,38 @@ async function windowSinceLastDigest(fallbackMin) {
   }
 }
 
+
+/**
+ * The tick lock.
+ *
+ * The first live run posted the SAME digest SIX times inside 500 ms — once per
+ * worker replica. The 45-minute gap guard could not prevent it: that guard asks
+ * Axiom when the digest last spoke, and six replicas booting together all asked
+ * before any of them had answered. A time-based guard cannot settle a tie
+ * between processes; only a lock can, which is why the debrief retry sweep
+ * beside it takes one per row.
+ *
+ * So one key, claimed with setNX for the length of the gap. Whoever claims it
+ * reports; everyone else goes quiet until it expires — which also makes the
+ * gap guard redundant across replicas and keeps it honest across redeploys.
+ *
+ * If Redis is unreachable the digest runs anyway. A monitor that goes silent
+ * because its lock is down is worse than one that occasionally repeats itself:
+ * a duplicate is noticed and ignored, a silence is trusted.
+ */
+const TICK_KEY = 'prod:digest:tick';
+
+async function claimTick() {
+  try {
+    const redisService = require('../cache/railway-redis.service');
+    const got = await redisService.setNX(TICK_KEY, String(Date.now()), MIN_GAP_MIN * 60);
+    return { claimed: Boolean(got) };
+  } catch (err) {
+    logToFile('⚠️ prod digest: tick lock unreachable, running anyway', { error: err.message });
+    return { claimed: true, degraded: true };
+  }
+}
+
 /**
  * One digest cycle. Silent by design: no message when every family is clean,
  * and a complete no-op until the env is set, so merging this changes nothing
@@ -247,6 +279,10 @@ async function run({ windowMin = n(process.env.PROD_DIGEST_WINDOW_MIN) || 60 } =
   if (!process.env.PROD_DIGEST_SLACK_TOKEN || !process.env.PROD_DIGEST_SLACK_CHANNEL || !axiomToken()) {
     return { skipped: 'unconfigured' };
   }
+  // One replica speaks. Claimed before any query so the losers cost nothing.
+  const tick = await claimTick();
+  if (!tick.claimed) return { skipped: 'another_replica' };
+
   // A redeploy must not re-report what was reported ten minutes ago, and a gap
   // must not be lost just because the process restarted inside it.
   const w = await windowSinceLastDigest(windowMin);
@@ -266,5 +302,5 @@ async function run({ windowMin = n(process.env.PROD_DIGEST_WINDOW_MIN) || 60 } =
 
 module.exports = {
   buildDigest, QUERIES, SURFACE_ONLY, INFLIGHT_TOLERANCE, run, fetchCounts,
-  windowSinceLastDigest, MIN_GAP_MIN, MAX_WINDOW_MIN,
+  windowSinceLastDigest, MIN_GAP_MIN, MAX_WINDOW_MIN, claimTick, TICK_KEY,
 };
