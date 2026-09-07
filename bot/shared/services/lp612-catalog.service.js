@@ -26,6 +26,7 @@
 
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
+const { pagedRows } = require('../utils/postgrest-paged');
 const { clip, cps, TITLE_CAP, DESC_CAP, META_CAP, PAGE_SIZE, MORE_ROW_ID } =
   require('./lp-v8-catalog.service');
 const { isReligiousEnabled, LP612_MIN_GRADE, LP612_MAX_GRADE } = require('../config/lp612-flags');
@@ -134,6 +135,25 @@ async function run(q, what) {
   return data || [];
 }
 
+/**
+ * The same, for a read whose answer is a WHOLE SET rather than one row or an
+ * existence bit — every menu below the grade picker.
+ *
+ * `run()` is only safe on a query that is already bounded (`.limit(1)` on the
+ * grade probes). An unbounded select is answered with at most the server's
+ * `db-max-rows` — 1000, measured on both refs 2026-09-07 — with NO error, and
+ * every builder in this file then reduces those rows in JS into a Map. So a
+ * truncated read does not fail; it renders a menu that is missing a subject, a
+ * chapter or a lesson and looks completely normal. Grade 10 pulls 863 of the
+ * 1000 today (bd-oak77.27); the four books still to land cross it.
+ *
+ * The argument is a THUNK, not a builder: a supabase-js builder is single-shot,
+ * and the pager needs a fresh one per window.
+ */
+async function runAll(buildQuery, what) {
+  return pagedRows(`LP 6-12 catalog: ${what}`, buildQuery);
+}
+
 // ── grade ───────────────────────────────────────────────────────────────────
 
 /**
@@ -183,8 +203,14 @@ async function buildGradeItems() {
 // ── subject ─────────────────────────────────────────────────────────────────
 
 async function buildSubjectItems(grade) {
-  const rows = await run(
-    byGrade(menuQuery('subject, book_stem, chapter_key, language'), grade),
+  // PAGED, NOT UNBOUNDED. This read pulls every servable row of the grade in
+  // order to count each subject's chapters and lessons, so its result set grows
+  // with the corpus: 863 rows on grade 10 today against a server cap of 1000. An
+  // unbounded select would stop returning rows at the cap without an error, and
+  // a subject whose rows sat past it would simply not be in `bySubject` — the
+  // grade-picker bug (6, 7, 8, 10, 11) one screen further in. bd-oak77.27.
+  const rows = await runAll(
+    () => byGrade(menuQuery('subject, book_stem, chapter_key, language'), grade),
     'subjects',
   );
 
@@ -244,8 +270,11 @@ async function buildSubjectItems(grade) {
  * @returns {Promise<{items: object[], hasMore: boolean, total: number, page: number}>}
  */
 async function buildChapterItems(grade, subject, page = 1) {
-  const rows = await run(
-    byGrade(menuQuery('book_stem, subject, chapter_key, chapter_number, chapter_title, part, ' +
+  // Paged for the same reason as the subject list: the chapter rows are counted
+  // and de-duplicated in JS, so a page-1 truncation loses whole chapters
+  // silently. 172 rows on the largest (grade, subject) pair today.
+  const rows = await runAll(
+    () => byGrade(menuQuery('book_stem, subject, chapter_key, chapter_number, chapter_title, part, ' +
               'language, order_index'), grade)
       .eq('subject', subject),
     'chapters',
@@ -468,20 +497,26 @@ async function buildChapterItems(grade, subject, page = 1) {
  * row that routes back to its own screen — overflow has to be a second screen.
  */
 async function buildSegmentItems(grade, subject, chapterKey, page = 1, bookStem = null) {
-  let q = byGrade(menuQuery('segment_id, menu_title, subtopic_title, printed_page_start, ' +
-            'printed_page_end, order_index, lp_type, language, yt'), grade)
-    .eq('subject', subject)
-    .eq('chapter_key', chapterKey);
-  // WITHOUT THIS the chapter row is fixed and the LESSON list is still pooled.
-  // `chapter_key` alone matches BOTH books that share a (grade, subject), which
-  // is why the collision was 573 menu rows and not 49 (bd-oak77.5).
-  //
-  // Optional on purpose. A teacher's scrollback outlives a deploy: a chapter row
-  // rendered before this shipped carries no `book_stem`, and must degrade to the
-  // pooled list it has always shown rather than erroring. Same reasoning as
-  // lp612Guard — an old row stays tappable.
-  if (bookStem) q = q.eq('book_stem', bookStem);
-  const rows = await run(q.order('order_index', { ascending: true }), 'segments');
+  const buildQuery = () => {
+    let q = byGrade(menuQuery('segment_id, menu_title, subtopic_title, printed_page_start, ' +
+              'printed_page_end, order_index, lp_type, language, yt'), grade)
+      .eq('subject', subject)
+      .eq('chapter_key', chapterKey);
+    // WITHOUT THIS the chapter row is fixed and the LESSON list is still pooled.
+    // `chapter_key` alone matches BOTH books that share a (grade, subject), which
+    // is why the collision was 573 menu rows and not 49 (bd-oak77.5).
+    //
+    // Optional on purpose. A teacher's scrollback outlives a deploy: a chapter row
+    // rendered before this shipped carries no `book_stem`, and must degrade to the
+    // pooled list it has always shown rather than erroring. Same reasoning as
+    // lp612Guard — an old row stays tappable.
+    if (bookStem) q = q.eq('book_stem', bookStem);
+    return q.order('order_index', { ascending: true });
+  };
+  // Paged: `total` and the page window are computed from these rows, so a
+  // truncated read would report a short total and make the tail of a long
+  // chapter unreachable with a correct-looking More row.
+  const rows = await runAll(buildQuery, 'segments');
 
   const total = rows.length;
   const p = Math.max(1, parseInt(String(page), 10) || 1);
@@ -581,11 +616,16 @@ async function buildSegmentItems(grade, subject, chapterKey, page = 1, bookStem 
  * is enforced in lp612-serving.service.js, on the row this returns.
  */
 async function segmentById(segmentId) {
+  // `.limit(1)` because this function takes `rows[0]` and nothing else. Without
+  // it the read is unbounded, and while `segment_id` is one row today, "the query
+  // happens to match few rows" is exactly the assumption bd-oak77.27 is about:
+  // the bound belongs in the query, not in the shape of the data.
   const { data, error } = await supabase
     .from(TABLE)
     .select('*')
     .eq('segment_id', segmentId)
-    .eq('is_current', true);
+    .eq('is_current', true)
+    .limit(1);
   if (error) {
     logToFile('LP 6-12 catalog: segment lookup failed', { segmentId, error: error.message });
     return null;
