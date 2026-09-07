@@ -734,17 +734,33 @@ const CROP_MAX_H = 320;
 const FIG_CHROME = 10 * 2 + 3;          // figure.dg padding + border
 const FULL_COL = PAGE_INNER_W - FIG_CHROME;  // 727
 const SPLIT_GAP = 9;
-/** The legibility floor inside a figure, AT THE A4 MEASURE it was chosen against. */
+/** The legibility floor inside a figure, AT THE A4 MEASURE it was chosen against, and the drawing
+ *  box it was chosen for. A figure's labels scale with ITS COLUMN, not with the page. */
 const DIAGRAM_MIN_PX_A4 = 13.5;
-/* And the same floor on this page. It MUST scale with the page: requiredBox() sizes a figure so
-   its smallest label clears this, against the FIGURE's own column, so holding 13.5 on a 478px
-   column means the drawing can no longer shrink to fit — 61 FIGURE TOO SMALL defects across 57
-   of the 62 corpus documents, and 154 across 99 of the 116 lessons production has delivered.
-   Scaled, it is 5 across 5, against the A4 baseline's 4. A diagram label therefore arrives on the
-   phone at EXACTLY the size it does today: this lane does not make diagrams more legible and does
-   not pretend to. Raising it is bd-oak77.15's, and the sweep in DESIGN.md section 5(c) says why it
-   needs simpler diagrams rather than a bigger floor. */
-const DIAGRAM_MIN_PX = pageScaled(DIAGRAM_MIN_PX_A4);
+const FULL_COL_A4 = PAGE_A4.w - PAGE_A4.padX * 2 - FIG_CHROME;   // 729
+/* And the same floor on this page. IT MUST SCALE, AND IT MUST SCALE BY THE COLUMN.
+
+   That it must scale at all is not a preference: `requiredBox()` sizes a figure so its smallest
+   label clears this floor in the FIGURE's own column, so holding 13.5 on a 455px drawing box means
+   the drawing can no longer shrink to fit. Measured over the 116 lessons production has actually
+   delivered, that is 159 BLOCKING lint failures across 101 of them — `FIGURE` is not on
+   `ADVISORY_CODES`, so each one is a revision round the ladder spends and a lesson it can lose.
+
+   That it must scale by FULL_COL and not by PAGE.w is the part that is easy to get wrong, and it
+   cost this lane a measurement to find. The two ratios are NOT the same, because `padX` and
+   `FIG_CHROME` are absolute pixels that did not shrink with the page: 520/794 = 0.6549 but
+   455/729 = 0.6242. Scaling by the page gives 8.84, which is apparent-size-neutral on the screen
+   but 5% STRICTER than A4 relative to the column a figure actually gets — and it rejects figures
+   A4 accepts: 26 blocking failures across 25 documents against today's 8 across 8. Scaling by the
+   column gives 8.43 and reproduces today's set EXACTLY — 8 across 8, the same documents.
+
+   WHAT THAT COSTS, SAID PLAINLY: a diagram's smallest label arrives on the phone about 5% smaller
+   than it does today (6.32 phone px against 6.63). That is the price of keeping the 21px gutters,
+   which this lane deliberately did not narrow, and it is a 5% change to a mark already sitting at
+   43% of the reading floor. ACCEPTANCE-neutrality is what protects a teacher's lesson; the 5% is
+   bd-oak77.15's to win back, and DESIGN.md section 5(c) says why that needs simpler diagrams
+   rather than a bigger floor. */
+const DIAGRAM_MIN_PX = +(DIAGRAM_MIN_PX_A4 * (FULL_COL / FULL_COL_A4)).toFixed(2);
 /**
  * How far a FULL-WIDTH figure may grow, per side, to rescue its own labels — bd-oak77.14.
  *
@@ -1887,5 +1903,5 @@ ${paginate("support", support.atoms, breaks.support || [], ctx, doc, secIndex, t
 
 module.exports = { buildHtml, TYPE_SCALE, BODY_PX, BODY_PX_V91, scaledPx, scaleTypeCss, SECTION_META,
   PAGE, PAGE_A4, PAGE_FORMATS, pageScaled, PAGE_INNER_W, PAGE_CONTENT_H, DIAGRAM_MIN_PX, DIAGRAM_MIN_PX_A4,
-  FIG_CHROME, FULL_COL, FIG_GROW_MAX,
+  FIG_CHROME, FULL_COL, FULL_COL_A4, FIG_GROW_MAX,
   SPACING, DIAGRAM_LABELS, diagramLabel };
