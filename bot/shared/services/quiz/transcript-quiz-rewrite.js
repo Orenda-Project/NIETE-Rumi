@@ -332,7 +332,86 @@ async function rewriteRejected({
   }
 }
 
+// ─── THE TEACHER FIELDS, REPAIRED IN PLACE ──────────────────────────────────
+// On an Urdu quiz the model writes "selected_because" and the distractor
+// meanings in English on the FIRST attempt more often than not (production,
+// 2026-09-07: two of two Urdu quizzes, 8/8 questions each; one of them again
+// on its third attempt with the complaint in front of it). Those two fields
+// are printed on the teacher's page and never reach a child — a fault in them
+// is not a fault in the question, so the question is never re-rolled for it.
+// ONE small call rewrites exactly those fields, in Urdu, for every question
+// named, at any count; the merged set goes through the whole validator again.
+const TEACHER_FIELDS_ONLY = /^q(\d+): URDU_TEACHER_FIELDS\b/;
+
+/** The indices whose teacher fields were rejected, in order. */
+function teacherFieldTargets(errors) {
+  const idx = new Set();
+  (Array.isArray(errors) ? errors : []).forEach((e) => { const m = TEACHER_FIELDS_ONLY.exec(String(e)); if (m) idx.add(Number(m[1])); });
+  return [...idx].sort((a, b) => a - b);
+}
+
+function buildTeacherFieldsPrompt({ digest, questions, indices }) {
+  const qs = Array.isArray(questions) ? questions : [];
+  const slos = (digest && Array.isArray(digest.slos)) ? digest.slos : [];
+  const sloLines = slos.map((s) => `- ${s.id}: ${s.statement_ur || s.statement || ''}`).join('\n');
+  const items = indices.map((i) => {
+    const q = qs[i] || {};
+    const misc = q.distractor_misconceptions || {};
+    return `q${i} · slo_id "${q.slo_id || 'S?'}"
+  question (for the child, stays as it is): "${String(q.question || '').trim()}"
+  options: ${(Array.isArray(q.options) ? q.options : []).map((o, k) => `[${k}] ${String(o)}`).join('  ')}   correct: ${q.correct_index}
+  current "selected_because" (wrong language): "${String(q.selected_because || '').trim()}"
+  current "distractor_misconceptions" (wrong language): ${JSON.stringify(misc)}`;
+  }).join('\n\n');
+  return [
+    'REWRITE THE TEACHER FIELDS of an Urdu quiz. The questions are fine and stay exactly as they are; ONLY two fields per question were written in the wrong language. These two fields are printed on the TEACHER\'s Urdu page and never shown to a child.',
+    TEACHER_FIELDS_RULE,
+    '"selected_because": at most 15 words, in Urdu script, naming the moment of the lesson this question tests (the example, the board, the thing the class did). "distractor_misconceptions": the SAME keys as now, each value one short Urdu phrase naming the misconception a child holds when they pick that wrong option. English technical terms stay in English letters. Never a gendered word for the teacher (write «استاد نے …» or «سبق میں …»).',
+    `THE LESSON'S OBJECTIVES\n${sloLines || '(none recorded)'}`,
+    `THE QUESTIONS\n${items}`,
+    `Return ONLY this JSON object, with exactly ${indices.length} entr${indices.length === 1 ? 'y' : 'ies'}, "index" being one of: ${indices.join(', ')}.
+{ "fields": [ { "index": ${indices[0]}, "selected_because": "", "distractor_misconceptions": { "1": "", "2": "" } } ] }`,
+  ].join('\n\n');
+}
+
+/** Replace only the two fields, only on the named indices, keeping the misconception keys the question already has. */
+function mergeTeacherFields(questions, json, indices) {
+  const qs = Array.isArray(questions) ? questions : [];
+  const list = Array.isArray(json && json.fields) ? json.fields : [];
+  const merged = qs.map((q) => (q && typeof q === 'object' ? { ...q } : q));
+  const replaced = [];
+  list.forEach((f) => {
+    const i = Number(f && f.index);
+    if (!indices.includes(i) || !merged[i]) return;
+    const q = merged[i];
+    if (typeof f.selected_because === 'string' && f.selected_because.trim()) q.selected_because = f.selected_because.trim();
+    const cur = q.distractor_misconceptions && typeof q.distractor_misconceptions === 'object' ? q.distractor_misconceptions : {};
+    const next = { ...cur };
+    Object.keys(cur).forEach((k) => {
+      const v = f.distractor_misconceptions && f.distractor_misconceptions[k];
+      if (typeof v === 'string' && v.trim()) next[k] = v.trim();
+    });
+    q.distractor_misconceptions = next;
+    replaced.push(i);
+  });
+  return { questions: merged, replaced };
+}
+
+async function rewriteTeacherFields({ questions, errors, digest, language, quizId = null }) {  // eslint-disable-line no-unused-vars
+  const indices = language === 'ur' ? teacherFieldTargets(errors) : [];
+  if (!indices.length) return { attempted: false, indices: [], merged: null, replaced: [] };
+  const prompt = buildTeacherFieldsPrompt({ digest, questions, indices });
+  try {
+    const { json, model, costUsd, latencyMs } = await completeJson({ prompt, maxTokens: 6000, label: 'transcript_quiz.teacher_fields' });
+    const m = mergeTeacherFields(questions, json, indices);
+    return { attempted: true, indices, merged: m.questions, replaced: m.replaced, model, costUsd, latencyMs };
+  } catch (err) {
+    return { attempted: true, indices, merged: null, replaced: [], costUsd: 0, error: err.message };
+  }
+}
+
 module.exports = {
   rewriteTargets, buildRewritePrompt, mergeReplacements, rewriteRejected, MAX_TARGETS, PER_QUESTION, PER_QUESTION_STRUCTURAL,
   QUIZ_LEVEL_REPAIRABLE,
+  teacherFieldTargets, buildTeacherFieldsPrompt, mergeTeacherFields, rewriteTeacherFields, TEACHER_FIELDS_ONLY,
 };

@@ -521,11 +521,32 @@ async function process(quizId, payload = {}) {
         continue;
       }
       lastLessonSummary = out.lessonSummary;
-      const v = validate(out.questions, {
+      let v = validate(out.questions, {
         language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary: out.lessonSummary, quizId,
       });
       attempts.push({ attempt, model: out.model, cost_usd: out.costUsd, latency_ms: out.latencyMs, errors: v.errors });
       meta.cost_usd = (meta.cost_usd || 0) + (out.costUsd || 0);
+      // ── TEACHER FIELDS ARE REPAIRED IN PLACE, NEVER RE-ROLLED ─────────────
+      // "selected_because" and the distractor meanings are printed on the
+      // teacher's Urdu page and never reach a child; a fault in them is not a
+      // fault in the question. One small call rewrites exactly those fields
+      // (any count), and the attempt continues with whatever complaints remain.
+      const Rw = require('./transcript-quiz-rewrite');
+      if (!v.ok && Rw.teacherFieldTargets(v.errors).length) {
+        // eslint-disable-next-line no-await-in-loop
+        const tf = await api.rewriteTeacherFields({ questions: out.questions, errors: v.errors, digest, language, quizId });
+        if (tf.attempted) {
+          meta.cost_usd = (meta.cost_usd || 0) + (tf.costUsd || 0);
+          if (tf.merged) {
+            out.questions = tf.merged;
+            v = validate(tf.merged, {
+              language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary: out.lessonSummary, quizId,
+            });
+          }
+          attempts.push({ attempt: 'teacher_fields', after: attempt, indices: tf.indices, replaced: tf.replaced, model: tf.model || null, cost_usd: tf.costUsd || null, latency_ms: tf.latencyMs || null, errors: tf.merged ? v.errors : [tf.error || 'the repair returned nothing usable'] });
+          logEvent('transcript_quiz.teacher_fields_repaired', { quizId, after: attempt, indices: tf.indices, ok: Boolean(tf.merged) && !Rw.teacherFieldTargets(v.errors).length, remaining: v.errors.length });
+        }
+      }
       if (v.ok) {
         const needFig = figureRequiredError({
           questions: v.questions, subject: digest.subject, attempt, maxAttempts: attemptsAllowed,
@@ -753,6 +774,7 @@ async function process(quizId, payload = {}) {
 module.exports = {
   salvageWithoutBadFigures,
   rewriteRejected: (args) => require('./transcript-quiz-rewrite').rewriteRejected(args),
+  rewriteTeacherFields: (args) => require('./transcript-quiz-rewrite').rewriteTeacherFields(args),
   figureRequiredError,
   SOFT_FAULT,
   isEarlyYearsBand,
