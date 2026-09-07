@@ -63,6 +63,7 @@ const {
 const supabase = require('../config/supabase');
 // The one copy catalog + the one language clamp (see the language-protocol skill).
 const { resolveUx } = require('../config/ux-strings');
+const { isFeatureRunnable } = require('../config/feature-availability');
 const { isClassesCommand } = require('../services/classes/class-command');
 const fs = require('fs');
 
@@ -864,6 +865,42 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       return;
     }
 
+    // ------------------------------------------------------------------
+    // AVAILABILITY GATE — bd-twhcj.
+    //
+    // Reading assessment has code and tables here but NO published Flow on this
+    // WhatsApp account, so READING_ASSESSMENT_FLOW_ID is unset and the send
+    // below was being called with `flowId: undefined`. It failed 57 times out of
+    // 57 across 43 teachers in 20 days, and every one of them was told
+    // "something went wrong… please try again later" — a transient-fault story
+    // about a permanent absence, which is why they kept trying.
+    //
+    // Refuse BEFORE the send. Two things follow from that, both deliberate:
+    //   * the teacher gets a message that names the real state, in their own
+    //     language;
+    //   * this is logged at WARN, not info. The boot validator already warned
+    //     about this exact variable 116 times — at level:info, where nobody
+    //     filtering a dashboard on level>=warn could ever see it.
+    //
+    // This is NOT the same outcome as a send that was attempted and failed;
+    // that path is below and keeps its own distinct message and an error-level
+    // log, so a teacher and an on-caller each learn the true state.
+    // ------------------------------------------------------------------
+    if (!isFeatureRunnable('reading')) {
+      typingController.stop();
+      logToFile('🚫 /reading test refused — reading assessment is not available on this deployment', {
+        userId: user.id,
+        phoneNumber: from,
+        missingEnv: 'READING_ASSESSMENT_FLOW_ID',
+      }, 'warn');
+      const refusalLanguage = await getUserLanguage(user.id) || user.preferred_language || null;
+      await WhatsAppService.sendMessage(
+        from,
+        resolveUx('readingNotAvailable', { language: refusalLanguage })
+      );
+      return;
+    }
+
     try {
       // Stop typing indicator before sending video
       typingController.stop();
@@ -899,14 +936,18 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         // Mark feature as used (after video was shown)
         await FeatureIntroService.markFeatureUsed(user.id, 'reading');
       } else {
+        // The flow id IS configured and the send still failed — a genuinely
+        // different state from the availability refusal above, and the only one
+        // of the two that is worth waking someone for.
         throw new Error('Failed to send WhatsApp Flow');
       }
     } catch (error) {
       logToFile('❌ Error sending reading assessment flow', {
         userId: user?.id,
+        flowId: process.env.READING_ASSESSMENT_FLOW_ID,
         error: error.message,
         stack: error.stack
-      });
+      }, 'error');
 
       await WhatsAppService.sendMessage(
         from,
