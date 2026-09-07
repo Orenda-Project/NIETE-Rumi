@@ -82,6 +82,21 @@ describe('mock-graph-api: sends', () => {
     expect(after.items.map((i) => i.txt)).toEqual(['three']);
   });
 
+  test('reactions and read/typing signals are acknowledged but never become outbox replies', async () => {
+    // WhatsApp Web shows neither as a message row; the CDP reader never sees them. The first live
+    // mock run picked a reaction up as "the reply" and M01 read an empty header (2026-09-07).
+    let r = await post(`/v21.0/${PH}/messages`, { messaging_product: 'whatsapp', to: '923000000001', type: 'reaction', reaction: { message_id: 'sim_1', emoji: '👍' } });
+    expect(r.status).toBe(200);
+    r = await post(`/v21.0/${PH}/messages`, { messaging_product: 'whatsapp', status: 'read', message_id: 'sim_1', typing_indicator: { type: 'text' } });
+    expect(r.status).toBe(200);
+    await post(`/v21.0/${PH}/messages`, text('the actual reply'));
+    const { items } = await get('/outbox');
+    expect(items.map((i) => i.txt)).toEqual(['the actual reply']);
+    expect(items[0].seq).toBe(1);
+    const h = await get('/health');
+    expect(h.signals).toBe(2);
+  });
+
   test('a send to a phone_number_id that is not the bot\'s is refused', async () => {
     const r = await post('/v21.0/other/messages', text('x'));
     expect(r.status).toBe(400);

@@ -48,6 +48,22 @@ const ROWS = ['Teacher Training', 'Lesson Plans', 'Classroom Coaching', 'Ask Any
         await send({ messaging_product: 'whatsapp', to, type: 'text', text: { body: 'How can I help you today?' } });
       } else if (m.type === 'interactive' && m.interactive.type === 'button_reply') {
         await send({ messaging_product: 'whatsapp', to, type: 'text', text: { body: 'tapped ' + m.interactive.button_reply.id } });
+      } else if (m.type === 'text' && m.text.body === 'react-first') {
+        // The real bot reacts / marks read BEFORE it answers. Neither is a message row on WhatsApp Web.
+        await send({ messaging_product: 'whatsapp', to, type: 'reaction', reaction: { message_id: m.id, emoji: '👍' } });
+        await send({ messaging_product: 'whatsapp', status: 'read', message_id: m.id, typing_indicator: { type: 'text' } });
+        await new Promise((r) => setTimeout(r, 400));
+        await send({ messaging_product: 'whatsapp', to, type: 'text', text: { body: 'answer after the reaction' } });
+      } else if (m.type === 'text' && m.text.body === 'two-part') {
+        // A two-message answer (the bot often sends a text, then the card). The CDP reader settles and
+        // takes the LAST fresh row; the mock driver must do the same, not stop at the first item.
+        // Three parts 250ms apart with a 300ms settle: a FIXED settle stops at part two; a settle that
+        // waits for the outbox to go quiet (like the CDP runner's stable-count wait) reaches part three.
+        await send({ messaging_product: 'whatsapp', to, type: 'text', text: { body: 'part one' } });
+        await new Promise((r) => setTimeout(r, 250));
+        await send({ messaging_product: 'whatsapp', to, type: 'text', text: { body: 'part two' } });
+        await new Promise((r) => setTimeout(r, 250));
+        await send({ messaging_product: 'whatsapp', to, type: 'text', text: { body: 'part three' } });
       } else if (m.type === 'text' && m.text.body === 'silent') {
         /* never replies */
       } else if (m.type === 'text' && m.text.body === 'buttons') {
@@ -65,7 +81,7 @@ const ROWS = ['Teacher Training', 'Lesson Plans', 'Classroom Coaching', 'Ask Any
   mockBase = 'http://127.0.0.1:' + (await mock.listen(0));
 
   const { makeMockApi } = require(path.join(__dirname, 'mock-api.cjs'));
-  const api = makeMockApi({ baseUrl: mockBase, driver: DRIVER, pollMs: 50, quiesceMs: 200 });
+  const api = makeMockApi({ baseUrl: mockBase, driver: DRIVER, pollMs: 50, quiesceMs: 200, settleMs: 300 });
 
   await ita('caps: the mock driver says it cannot render Flows', async () => {
     assert.strictEqual(api.caps.flows, false);
@@ -114,6 +130,17 @@ const ROWS = ['Teacher Training', 'Lesson Plans', 'Classroom Coaching', 'Ask Any
     assert.strictEqual(r.ok, true);
     assert.strictEqual(r.txt, 'tapped yes_1');
     assert.deepStrictEqual(inbound[inbound.length - 1].interactive.button_reply, { id: 'yes_1', title: 'Yes, analyze' });
+  });
+  await ita('a reaction + read receipt sent before the answer are not mistaken for the reply', async () => {
+    const r = await api.sendWait('react-first', 5000);
+    assert.strictEqual(r.ok, true);
+    assert.strictEqual(r.txt, 'answer after the reaction');
+  });
+  await ita('a two-message answer settles and returns the LAST message, like the CDP reader', async () => {
+    const r = await api.sendWait('two-part', 5000);
+    assert.strictEqual(r.ok, true);
+    assert.strictEqual(r.txt, 'part three');
+    assert.strictEqual(r.freshIds, 3);
   });
   await ita('no reply within the timeout is NO REPLY — ok:false, empty txt, never a stale row', async () => {
     const r = await api.sendWait('silent', 800);

@@ -36,26 +36,13 @@ while [ $# -gt 0 ]; do case "$1" in
   --method) METHOD="$2"; shift 2;; --commit) COMMIT="$2"; shift 2;;
   --spec-sync) SPEC_SYNC="$2"; shift 2;; --validator-exit) VALIDATOR_EXIT="$2"; shift 2;;
   *) echo "unknown option $1"; exit 2;; esac; done
-if [ -z "$METHOD" ]; then METHOD=$(python3 - "$ENV" "$ROOT/.claude/qa/config/whatsapp-targets.yaml" <<'PY'
-import re,sys; env,path=sys.argv[1],sys.argv[2]; txt=open(path).read()
-for block in re.split(r"\n  (?=[a-z][\w-]*:\s*\n)", txt):
-    if re.search(r"env:\s*%s\b" % env, block) and "NIETE" in block:
-        m=re.search(r'method:\s*(\w+)', block); print(m.group(1) if m else "chrome"); break
-else: print("chrome")
-PY
-); fi
+if [ -z "$METHOD" ]; then METHOD=$(python3 "$QA/targets_lite.py" "$ROOT/.claude/qa/config/whatsapp-targets.yaml" --where "env=$ENV" --where 'tenant~NIETE' --get method); METHOD="${METHOD:-chrome}"; fi
 case "$METHOD" in chrome|mock) ;; *) echo "ERROR: --method must be chrome or mock (got '$METHOD')"; exit 2;; esac
 if [ "$METHOD" = mock ]; then
   [ "$ENV" = staging ] && ENV=sandbox      # the mock lane's DB is the sandbox; never staging or prod
   [ -n "$COMMIT" ] || COMMIT=$(git -C "$ROOT" rev-parse HEAD)
   COMMIT=$(git -C "$ROOT" rev-parse --verify "${COMMIT}^{commit}" 2>/dev/null) || { echo "ERROR: --commit $COMMIT is not a commit"; exit 2; }
-  [ -n "$DRIVER" ] || DRIVER=$(python3 - "$ROOT/.claude/qa/config/whatsapp-targets.yaml" <<'PY'
-import re,sys; txt=open(sys.argv[1]).read()
-for block in re.split(r"\n  (?=[a-z][\w-]*:\s*\n)", txt):
-    if re.search(r"method:\s*mock\b", block):
-        m=re.search(r'test_driver:\s*"?(\d+)"?', block); print(m.group(1) if m else ""); break
-PY
-)
+  [ -n "$DRIVER" ] || DRIVER=$(python3 "$QA/targets_lite.py" "$ROOT/.claude/qa/config/whatsapp-targets.yaml" --where method=mock --get test_driver)
 fi
 [ -n "$DRIVER" ] || { echo "ERROR: --driver <digits> is required (the runner's OWN linked WhatsApp number — bd-2748)"; exit 2; }
 if [ -z "$TARGET" ]; then TARGET=$(python3 - "$ENV" "$ROOT/.claude/qa/config/whatsapp-targets.yaml" <<'PY'

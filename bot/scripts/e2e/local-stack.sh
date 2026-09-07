@@ -29,6 +29,11 @@ main_checkout() {
   dirname "$common"
 }
 MAIN="$(main_checkout)"
+# Where the installed dependency sets come from (default: the main checkout). Override when the main
+# checkout's install is stale or you want a freshly `npm ci`-ed tree: E2E_NODE_MODULES_ROOT (root set,
+# openai/@anthropic-ai/sdk/express/ioredis) and E2E_BOT_NODE_MODULES_ROOT (bot/node_modules).
+NM_ROOT="${E2E_NODE_MODULES_ROOT:-$MAIN}"
+NM_BOT="${E2E_BOT_NODE_MODULES_ROOT:-$MAIN}"
 KEYS_DIR="$MAIN/keys"; [ -d "$KEYS_DIR" ] || KEYS_DIR="$(dirname "$MAIN")/keys"   # workspace-level keys/ as a fallback
 
 log() { echo "[local-stack] $*" >&2; }
@@ -49,12 +54,21 @@ up() {
 
   # 2. node_modules: the installed set must match THIS commit's lockfile
   local want have; want=$(git -C "$REPO" rev-parse "$full:bot/package-lock.json" 2>/dev/null || echo none)
-  have=$(git -C "$MAIN" hash-object "$MAIN/bot/package-lock.json" 2>/dev/null || echo none)
-  if [ "$want" != "$have" ] || [ ! -d "$MAIN/bot/node_modules" ]; then
-    log "bot/package-lock.json at $full ($want) differs from the installed one in $MAIN ($have) — run npm ci in $MAIN/bot first"
+  have=$(git -C "$MAIN" hash-object "$NM_BOT/bot/package-lock.json" 2>/dev/null || echo none)
+  if [ "$want" != "$have" ] || [ ! -d "$NM_BOT/bot/node_modules" ]; then
+    log "bot/package-lock.json at $full ($want) differs from the installed one in $NM_BOT ($have) — run npm ci in $NM_BOT/bot first"
     exit 10
   fi
-  ln -s "$MAIN/bot/node_modules" "$src/bot/node_modules"
+  ln -s "$NM_BOT/bot/node_modules" "$src/bot/node_modules"
+  # The bot also resolves ROOT deps (openai, @anthropic-ai/sdk, express, ioredis live in the root
+  # package.json, as on Railway where both installs exist). Same lockfile rule for the root set.
+  local rwant rhave; rwant=$(git -C "$REPO" rev-parse "$full:package-lock.json" 2>/dev/null || echo none)
+  rhave=$(git -C "$MAIN" hash-object "$NM_ROOT/package-lock.json" 2>/dev/null || echo none)
+  if [ "$rwant" != "$rhave" ] || [ ! -d "$NM_ROOT/node_modules" ]; then
+    log "package-lock.json at $full ($rwant) differs from the installed root set in $NM_ROOT ($rhave) — run npm ci in $NM_ROOT first"
+    exit 10
+  fi
+  ln -s "$NM_ROOT/node_modules" "$src/node_modules"
 
   # 3. env
   local keys="$KEYS_DIR/niete-local.env"
@@ -77,9 +91,14 @@ up() {
   rm -f "$run_dir/cassette-misses.jsonl"
 
   # 4. processes
+  # `exec` so the recorded pid IS node's, not a wrapper subshell's — killing a wrapper left the
+  # real process alive on the port (first live run, 2026-09-07).
   ( cd "$src" && PHONE_NUMBER_ID="$phone_id" MOCK_PORT="$mock_port" MOCK_BOT_URL="http://127.0.0.1:$bot_port" \
-      node bot/scripts/e2e/mock-graph-api.js >"$run_dir/mock.log" 2>&1 & echo $! >"$run_dir/mock.pid" )
-  ( cd "$src" && node bot/whatsapp-bot.js >"$run_dir/bot.log" 2>&1 & echo $! >"$run_dir/bot.pid" )
+      exec node bot/scripts/e2e/mock-graph-api.js ) >"$run_dir/mock.log" 2>&1 &
+  echo $! >"$run_dir/mock.pid"
+  ( cd "$src" && exec node bot/whatsapp-bot.js ) >"$run_dir/bot.log" 2>&1 &
+  echo $! >"$run_dir/bot.pid"
+  echo "$mock_port $bot_port" >"$run_dir/ports"
 
   local i health
   for i in $(seq 1 30); do curl -sf -m 2 "http://127.0.0.1:$mock_port/health" >/dev/null 2>&1 && break; sleep 0.5; done
@@ -89,7 +108,7 @@ up() {
   local running; running=$(printf '%s' "$health" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("commit") or "")')
   if [ "$running" != "$full" ]; then log "/health reports commit '${running:-null}', wanted $full — refusing to drive"; down "$run_dir"; exit 13; fi
 
-  python3 - "$run_dir/stack.json" "$full" "$src" "$bot_port" "$mock_port" "$phone_id" "$want" "$MAIN/bot/node_modules" "$cassette_dir" <<'PY'
+  python3 - "$run_dir/stack.json" "$full" "$src" "$bot_port" "$mock_port" "$phone_id" "$want" "$NM_BOT/bot/node_modules" "$cassette_dir" <<'PY'
 import json, sys, datetime
 p, sha, src, bot, mock, phone, lock, nm, cas = sys.argv[1:]
 json.dump({"commit_sha": sha, "worktree": src, "bot_url": "http://127.0.0.1:%s" % bot, "mock_url": "http://127.0.0.1:%s" % mock,
@@ -105,8 +124,15 @@ down() {
   for f in bot mock; do
     if [ -f "$run_dir/$f.pid" ]; then kill "$(cat "$run_dir/$f.pid")" >/dev/null 2>&1 || true; rm -f "$run_dir/$f.pid"; fi
   done
+  # Belt and braces: anything still listening on this run's ports goes too.
+  if [ -f "$run_dir/ports" ]; then
+    for port in $(cat "$run_dir/ports"); do
+      for pid in $(lsof -ti tcp:"$port" -sTCP:LISTEN 2>/dev/null); do kill "$pid" >/dev/null 2>&1 || true; done
+    done
+    rm -f "$run_dir/ports"
+  fi
   if [ -d "$run_dir/src" ]; then
-    rm -f "$run_dir/src/bot/node_modules" "$run_dir/src/.env"
+    rm -f "$run_dir/src/bot/node_modules" "$run_dir/src/node_modules" "$run_dir/src/.env"
     git -C "$REPO" worktree remove --force "$run_dir/src" >/dev/null 2>&1 || rm -rf "$run_dir/src"
   fi
   git -C "$REPO" worktree prune >/dev/null 2>&1 || true

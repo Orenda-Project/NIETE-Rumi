@@ -25,7 +25,7 @@ function makeMockApi(opts) {
   const repo = opts.repo || path.resolve(__dirname, '..', '..', '..');
   const pollMs = opts.pollMs || 500;
   const quiesceMs = opts.quiesceMs || 1500;
-  const settleMs = opts.settleMs != null ? opts.settleMs : 300;
+  const settleMs = opts.settleMs != null ? opts.settleMs : 1200;   // the CDP runner settles 1200ms too
   const trace = opts.trace || (() => {});
   if (!driver) throw new Error('HARNESS mock-api: a driver phone is required (E2E_DRIVER)');
 
@@ -69,7 +69,20 @@ function makeMockApi(opts) {
       if (items.length) break;
       await sleep(pollMs);
     }
-    if (items.length && settleMs) { await sleep(settleMs); ({ items } = await outbox(since)); }
+    // Settle like the CDP runner: the bot often answers in two or three messages (a text, then the
+    // card). Keep polling until the outbox has been QUIET for settleMs, then take the last item —
+    // a fixed pause stops at whichever part happened to land inside it. Bounded so a chatty bot
+    // cannot hold a scenario forever.
+    if (items.length && settleMs) {
+      let n = items.length, quietSince = Date.now();
+      const cap = Date.now() + Math.max(settleMs * 10, 15000);
+      while (Date.now() < cap) {
+        await sleep(Math.min(pollMs, settleMs));
+        ({ items } = await outbox(since));
+        if (items.length !== n) { n = items.length; quietSince = Date.now(); }
+        else if (Date.now() - quietSince >= settleMs) break;
+      }
+    }
     const waitedMs = Date.now() - s0;
     waits.push({ label, waitedMs, timedOut: !items.length });
     if (!items.length) return { ok: false, waitedMs, freshIds: 0, txt: '', btns: [], mineOnly: true };

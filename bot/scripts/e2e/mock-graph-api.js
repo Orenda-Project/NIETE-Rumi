@@ -96,8 +96,13 @@ function normalize(payload) {
 function createMockGraphApi(opts = {}) {
   const phoneNumberId = opts.phoneNumberId || process.env.PHONE_NUMBER_ID || 'e2e-local';
   const botUrl = (opts.botUrl || process.env.MOCK_BOT_URL || 'http://127.0.0.1:3100').replace(/\/+$/, '');
-  const state = { seq: 0, outbox: [] };
-  const reset = () => { state.seq = 0; state.outbox = []; };
+  const state = { seq: 0, outbox: [], signals: 0 };
+  const reset = () => { state.seq = 0; state.outbox = []; state.signals = 0; };
+  const say = (m) => { if (!opts.quiet) console.log(`[mock-graph-api] ${new Date().toISOString().slice(11, 23)} ${m}`); };
+  // Reactions, read receipts and typing indicators are API calls, not messages: WhatsApp Web shows no
+  // row for them and the CDP reader never sees them. They are acknowledged and counted, never queued —
+  // the first live run picked a reaction up as "the reply" and M01 read an empty header (2026-09-07).
+  const isSignal = (p) => !p || !p.type || p.type === 'reaction' || p.status === 'read' || p.typing_indicator;
 
   const json = (res, status, body) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(body)); };
   const readBody = (req) => new Promise((resolve, reject) => {
@@ -130,7 +135,7 @@ function createMockGraphApi(opts = {}) {
     try {
       const u = new URL(req.url, 'http://mock');
       const parts = u.pathname.split('/').filter(Boolean);
-      if (req.method === 'GET' && u.pathname === '/health') return json(res, 200, { ok: true, seq: state.seq, bot: botUrl, phoneNumberId });
+      if (req.method === 'GET' && u.pathname === '/health') return json(res, 200, { ok: true, seq: state.seq, signals: state.signals, bot: botUrl, phoneNumberId });
       if (req.method === 'GET' && u.pathname === '/outbox') {
         const after = Number(u.searchParams.get('after') || 0);
         const to = u.searchParams.get('to');
@@ -148,15 +153,21 @@ function createMockGraphApi(opts = {}) {
           return json(res, 400, { error: { message: `Unknown phone_number_id ${parts[1]} (mock serves ${phoneNumberId})`, code: 100 } });
         }
         const payload = await readBody(req);
+        if (isSignal(payload)) {
+          state.signals += 1;
+          say(`signal ${payload.type || payload.status || 'typing'} → ${payload.to || payload.message_id || ''}`);
+          return json(res, 200, { messaging_product: 'whatsapp', success: true, messages: [{ id: `wamid.mock.signal.${state.signals}` }] });
+        }
         let norm;
         try { norm = normalize(payload); }
         catch (e) {
-          if (e.code === 'E2E_CAP') return json(res, 422, { error: { code: 'E2E_CAP', field: e.field, limit: e.limit, actual: e.actual, message: e.message } });
+          if (e.code === 'E2E_CAP') { say(`REJECT E2E_CAP ${e.field} ${e.actual}>${e.limit}`); return json(res, 422, { error: { code: 'E2E_CAP', field: e.field, limit: e.limit, actual: e.actual, message: e.message } }); }
           throw e;
         }
         const seq = ++state.seq;
         const id = `wamid.mock.${seq}`;
         state.outbox.push({ seq, id, ts: new Date().toISOString(), to: payload.to, ...norm, raw: payload });
+        say(`#${seq} ${norm.type} → ${payload.to}: ${JSON.stringify(norm.txt).slice(0, 70)}${norm.btns.length ? ' btns=' + JSON.stringify(norm.btns) : ''}`);
         return json(res, 200, { messaging_product: 'whatsapp', contacts: [{ input: payload.to, wa_id: payload.to }], messages: [{ id }] });
       }
       return json(res, 404, { error: { message: `mock-graph-api: no route ${req.method} ${u.pathname}`, code: 404 } });
