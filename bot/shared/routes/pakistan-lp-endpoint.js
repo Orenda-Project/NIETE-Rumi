@@ -455,7 +455,7 @@ async function selectChapter(flowToken, screenData) {
  * Wrap a legacy {id,title} option list as NavigationList items.
  *
  * The v3 Flow binds ${data.items} on every selection screen, so the Oxbridge
- * (6-12) branches have to speak that shape too — otherwise FEAT-080's live
+ * (6-12) branches have to speak that shape too — otherwise the live 6-12
  * picker renders an EMPTY screen on the new Flow. The legacy key is kept
  * alongside so a still-published v2 Flow keeps working during the deploy window.
  */
@@ -596,7 +596,7 @@ async function selectTopicPakistan(flowToken, rowId) {
   };
 }
 
-// --- Oxbridge delivery path (new for FEAT-109 iter 3) ---
+// --- Oxbridge delivery path ---
 async function selectTopicOxbridge(flowToken, rowId) {
   const row = await OxbridgeLpService.getById(parseInt(rowId, 10));
   if (!row || !row.content_html) {
@@ -660,7 +660,7 @@ async function sendPreDeliveryAck(flowToken, row) {
   }
 }
 
-// Fire-and-forget deliver — Palestine pattern (bd-2054):
+// Fire-and-forget deliver — presigned-URL pattern:
 // presigned R2 URL + sendDocumentByLink, no tmpfile, no buffer-as-path bug.
 function deliverPakistanLpAsync(flowToken, row) {
   const userId = (flowToken || '').split(':')[0];
