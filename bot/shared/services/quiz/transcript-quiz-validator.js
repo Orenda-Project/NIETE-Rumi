@@ -151,11 +151,6 @@ function validate(rawQuestions, ctx = {}) {
   const {
     language, subject, digest, nExpected, lessonSummary, quizId,
   } = ctx;
-  // The SALVAGE is the only caller that lowers this: a last attempt whose bad
-  // questions are all droppable ships shorter rather than not at all, and a
-  // child's adaptive session already ends at five (quiz-adaptive.js). Every
-  // other caller gets the authored floor, so nothing may AUTHOR a short quiz.
-  const minQuestions = Number.isInteger(ctx.minQuestions) ? ctx.minQuestions : MIN_QUESTIONS;
   const checkD4 = 'lessonSummary' in ctx;
   const errs = [];
   if (!Array.isArray(rawQuestions) || !rawQuestions.length) {
@@ -163,8 +158,8 @@ function validate(rawQuestions, ctx = {}) {
   }
   const qs = rawQuestions.map(normaliseFeedback)
     .map((q) => (language === 'ur' ? rtlOpenQuestion(fixQuestionTransliterations(q)) : q));
-  if (qs.length < minQuestions || qs.length > MAX_QUESTIONS) {
-    errs.push(`count ${qs.length} outside ${minQuestions}..${MAX_QUESTIONS}${nExpected ? ` (asked for ${nExpected})` : ''}`);
+  if (qs.length < MIN_QUESTIONS || qs.length > MAX_QUESTIONS) {
+    errs.push(`count ${qs.length} outside ${MIN_QUESTIONS}..${MAX_QUESTIONS}${nExpected ? ` (asked for ${nExpected})` : ''}`);
   }
 
   // D4 — the caller opting into ctx.lessonSummary (even as '') is the signal
