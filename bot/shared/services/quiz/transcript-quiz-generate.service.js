@@ -88,8 +88,33 @@ function figureRequiredError({ questions, subject, attempt, maxAttempts, gradeBa
     : 'Decide the drawing FIRST (what the class was shown or asked to draw), then write one or two questions the child answers by reading the picture.';
   return `quiz: FIGURE_REQUIRED — ${why} but none of the questions carries a "figure". ${how}`;
 }
-/** Complaints about the SET's shape, never about one question being wrong or unanswerable. */
-const SOFT_FAULT = /^(PEDAGOGY_LEVEL_MIX\b|only \d+\/\d+ at\/below taught level|FIGURE_SHARE\b|q\d+: PEDAGOGY_LEVEL_(ABOVE|MIX)\b)/;
+/**
+ * Faults that must never cost a teacher the quiz.
+ *
+ * Two kinds. First, complaints about the SET's shape — the level mix, the share
+ * of questions carrying a picture — which say nothing about whether any one
+ * question is wrong or unanswerable.
+ *
+ * Second, the GENDER rules, on the operator's instruction (2026-09-07:
+ * "Gendered reference is just messed up, could we remove it entirely, or at the
+ * very least not make these gates blocking? i.e quiz still needs to be
+ * delivered"). They are kept, not removed: the teacher's gender is not a fact
+ * this system holds, so a gendered guess printed on that teacher's own document
+ * is worth catching, and the operator caught one himself in round 5. But the
+ * detector cannot tell "She showed the class the root" (the teacher) from
+ * "Ayesha has 5 cookies. She gives 2 away" (a child) — the ordinary shape of a
+ * primary word problem — and on 2026-09-07 it cost teachers their quizzes over
+ * and over. So it stays a complaint the rewrite is asked to fix, and stops
+ * being a reason to send nothing: every occurrence is still recorded in
+ * meta.soft_faults and counted on transcript_quiz.gendered_teacher, so the rate
+ * stays visible and can be fixed properly later.
+ */
+const SOFT_FAULT = new RegExp('^('
+  + 'PEDAGOGY_LEVEL_MIX\\b|only \\d+\\/\\d+ at\\/below taught level|FIGURE_SHARE\\b'
+  + '|q\\d+: PEDAGOGY_LEVEL_(ABOVE|MIX)\\b'
+  + '|q\\d+: PEDAGOGY_GENDERED_(TEACHER|CHILD)\\b|PEDAGOGY_GENDERED_TEACHER\\b'
+  + '|feminine-stem address$'
+  + ')');
 const GAP_MS = 1200;
 const NUDGE_AFTER_MS = 3 * 60 * 60 * 1000;
 const LEVEL_DIFFICULTY = { recall: 2, understand: 3, apply: 4 };
@@ -437,7 +462,7 @@ function salvageWithoutBadFigures(questions, errors, ctx) {
   errors.forEach((e) => {
     const m = perQuestion.exec(e);
     if (m) bad.add(Number(m[1]));
-    else if (!setLevelSoft.test(e)) other = true;
+    else if (!setLevelSoft.test(e) && !SOFT_FAULT.test(e)) other = true;
   });
   if (other || !bad.size) return null;
   const kept = questions.filter((_, i) => !bad.has(i));
