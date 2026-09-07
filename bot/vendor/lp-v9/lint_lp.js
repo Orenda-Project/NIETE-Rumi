@@ -433,7 +433,7 @@ function lint(doc, docPath, opts = {}) {
     }
   }
 
-  // 10d — a diagram that cannot render its own labels at 13.5px in the column it is given.
+  // 10d — a diagram that cannot render its own labels at the floor, in the column it is given.
   //       Checked here as well as in the renderer so an author finds out before a build.
   if (full) {
     let renderDiagram = null, requiredBox = null, checkOverlaps = null;
@@ -443,14 +443,20 @@ function lint(doc, docPath, opts = {}) {
       checkOverlaps = require("./diagrams").checkOverlaps;
     } catch (_) { /* engine absent — the renderer still checks */ }
     if (renderDiagram && requiredBox) {
-      // READ FROM THE RENDERER, never recomputed. This line used to be
-      // `794 - 22 * 2 - (10 * 2 + 3)` = 727 with the comment "per lib/template.js" — and
-      // lib/template.js computes 794 - 21 * 2 - 23 = 729, while ITS comment also said 727. So both
-      // files were wrong about the same number in opposite directions and the two legibility gates
-      // measured different columns: the lint was 2px stricter than the renderer, and could buy the
-      // ladder ~60s revision rounds chasing a FIGURE defect the renderer would never report.
-      // Production settled it on 2026-09-06 ("13.25px in a 729px column"). One definition, imported.
-      const FULL_COL = require("./lib/template.js").FULL_COL;
+      // READ FROM THE RENDERER, never recomputed — BOTH numbers. This line used to be
+      // `794 - 22 * 2 - (10 * 2 + 3)` = 727 with the comment "per lib/template.js", while
+      // lib/template.js computed 794 - 21 * 2 - 23 = 729 and ITS comment also said 727: two files
+      // wrong about the same number in opposite directions, and the two legibility gates measuring
+      // different columns. Production settled it ("13.25px in a 729px column", 2026-09-06).
+      //
+      // THE FLOOR IS THE OTHER HALF OF THAT, and v9.3 is why it matters (bd-oak77.16). The page is
+      // now 520px wide, so a full-width drawing box is 455px rather than 729, and the floor moves
+      // with it — 8.43px. Importing the column while hardcoding 13.5 is strictly worse than
+      // hardcoding both: measured over the 116 lessons production has delivered, a 455px column
+      // judged against a 13.5px floor is 159 BLOCKING `FIGURE` failures across 101 of them
+      // (`FIGURE` is not advisory — each is a revision round, and a lesson the ladder can lose)
+      // against today's 8 across 8. With both imported it is 8 across 8: the same documents.
+      const { FULL_COL, DIAGRAM_MIN_PX } = require("./lib/template.js");
       for (const s of doc.sections) {
         for (const b of allBlocks(s.blocks)) {
           if (b.type !== "diagram") continue;
@@ -461,9 +467,9 @@ function lint(doc, docPath, opts = {}) {
             const svg = renderDiagram(
               b.spec.lang || !opts.lang ? b.spec : { ...b.spec, lang: opts.lang }
             );
-            const box = requiredBox(svg, { minPx: 13.5, colPx: FULL_COL });
-            if (box.renderedPx != null && box.renderedPx < 13.5) {
-              fail("FIGURE", `${s.id}: diagram "${b.spec.type}" renders its smallest label at ${box.renderedPx}px even at full width (floor 13.5px). It needs ${box.minWidthPx}px — simplify it or split it in two.`);
+            const box = requiredBox(svg, { minPx: DIAGRAM_MIN_PX, colPx: FULL_COL });
+            if (box.renderedPx != null && box.renderedPx < DIAGRAM_MIN_PX) {
+              fail("FIGURE", `${s.id}: diagram "${b.spec.type}" renders its smallest label at ${box.renderedPx}px even at full width (floor ${DIAGRAM_MIN_PX}px). It needs ${box.minWidthPx}px — simplify it or split it in two.`);
             }
             // 10e — ZERO overlaps. A label under a box, two labels on each
             //       other, or a rule through a label is a build failure, not a
