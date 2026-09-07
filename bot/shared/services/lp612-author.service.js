@@ -39,7 +39,10 @@ const { logEvent } = require('../utils/structured-logger');
 // imported rather than restated.
 const { isDeliverableRenderDefect } = require('./lp612-render-policy.service');
 const { getClient } = require('./llm-client');
-const { fetchPages } = require('./lp612-pagetruth.service');
+// bd-oak77.30 — MAX_SEGMENT_PAGES is the threshold above which a range gets the revision span
+// card. Imported from the module that OWNS it rather than restated, so the card and the loader
+// can never disagree about what "wide" means.
+const { fetchPages, MAX_SEGMENT_PAGES } = require('./lp612-pagetruth.service');
 const { clampLanguage } = require('../config/ux-strings');
 const { familyForBook } = require('../config/lp612-families');
 
@@ -85,6 +88,7 @@ const PAGE_TRUTH_MAX_CHARS = 90000;
  */
 const {
   resolveAuthorModel, authorTierFor, isLp612TargetedRevisionEnabled, isLp612PromptCacheEnabled,
+  isLp612WideSegmentsEnabled,
 } = require('../config/lp612-flags');
 
 function resolveRounds(explicit) {
@@ -562,10 +566,22 @@ async function callWithRetry({ system, user, model, correlationId, stage, usageS
 // ── the prompt ──────────────────────────────────────────────────────────────
 
 /** Page-truth as compact, ordered, readable text — cheaper and clearer than raw JSON. */
-function compactPageTruth(pages, maxChars = PAGE_TRUTH_MAX_CHARS) {
-  const lines = [];
+/**
+ * @param {object[]} pages
+ * @param {number}   [maxChars]
+ * @param {object}   [report]  OPTIONAL out-param, filled with `{ droppedPages: number[] }`.
+ *   An out-param and not a property on the function, because a worker process authors several
+ *   lessons at once (10 replicas x SQS_WORKER_CONCURRENCY 6) and a value parked on the module
+ *   would be read by whichever lesson asked last, not by the one that produced it.
+ */
+function compactPageTruth(pages, maxChars = PAGE_TRUTH_MAX_CHARS, report = null) {
+  // Rendered PER PAGE, then joined, so that when the payload has to be shortened the unit that
+  // gets dropped is a whole printed page — never a string bitten in half. `pageChunks` is the
+  // only reason this loop pushes into a per-page array instead of one flat list.
+  const pageChunks = [];
   const j = (o) => JSON.stringify(o);
   for (const pg of pages) {
+    const lines = [];
     lines.push(`\n===== PRINTED PAGE ${pg.printed_page_number} (pdf ${pg.pdf_page_index}, ${pg.page_type}) =====`);
     for (const b of pg.blocks || []) {
       switch (b.t) {
@@ -597,34 +613,65 @@ function compactPageTruth(pages, maxChars = PAGE_TRUTH_MAX_CHARS) {
         default: lines.push(`[${String(b.t).toUpperCase()}] ${j(b)}`);
       }
     }
+    pageChunks.push({ printed: pg.printed_page_number, text: lines.join('\n') });
   }
-  const out = lines.join('\n');
+  const out = pageChunks.map((c) => c.text).join('\n');
 
-  // NEVER A SILENT BITE.
+  // NEVER A SILENT BITE — and, since bd-oak77.30, never a refusal either.
   //
   // This used to return `out.slice(0, maxChars) + '…[truncated]'` — no throw, no log, no message.
   // A long chapter lost its tail and the lesson was authored from a book that stopped
   // mid-sentence, at roughly 44 pages in English and 29 in Urdu, and nothing at any layer said
   // so. That is a textbook regression mask: the defect is invisible exactly where it would be
-  // reported.
+  // reported. From 2026-09-04 it threw instead, which made the loss visible — and made the
+  // lesson impossible.
   //
-  // A backstop, not the primary guard — fetchPages refuses over MAX_SEGMENT_PAGES before we get
-  // here. This catches the other shape: a page range inside the cap whose pages are unusually
-  // dense. It REFUSES for the same reason the cap does, and carries a distinct code so the worker
-  // can persist which of the two happened.
+  // Both properties are now kept at once. The payload is shortened by DROPPING WHOLE TRAILING
+  // PAGES, which is a loss that can be named ("this lesson covers printed pages 6-58 of 6-68")
+  // rather than a byte offset that cannot. It is a backstop, not the primary guard: `fetchPages`
+  // has already bounded the page COUNT, and this catches the other shape — a range inside the
+  // page bound whose pages are unusually dense.
+  //
+  // Flag OFF is byte for byte what it was: over the bound, refuse. Note that a payload at or
+  // under `maxChars` never enters this branch under either setting, which is every ordinary
+  // segment in the corpus (measured mean 2,677 chars per printed page; a 5-page segment is
+  // ~13k characters against a 90,000 bound).
   if (out.length > maxChars) {
-    logToFile('lp612 page-truth exceeds the character bound, refusing', {
-      chars: out.length, cap: maxChars, pages: (pages || []).length,
-    }, 'error');
-    const err = new Error(
-      `page-truth is ${out.length} characters against a bound of ${maxChars}. `
-      + 'Truncating it would author the lesson from an incomplete book.',
-    );
-    err.code = 'PAGE_TRUTH_TOO_LARGE';
-    err.chars = out.length;
-    err.cap = maxChars;
-    throw err;
+    if (!isLp612WideSegmentsEnabled()) {
+      logToFile('lp612 page-truth exceeds the character bound, refusing', {
+        chars: out.length, cap: maxChars, pages: (pages || []).length,
+      }, 'error');
+      const err = new Error(
+        `page-truth is ${out.length} characters against a bound of ${maxChars}. `
+        + 'Truncating it would author the lesson from an incomplete book.',
+      );
+      err.code = 'PAGE_TRUTH_TOO_LARGE';
+      err.chars = out.length;
+      err.cap = maxChars;
+      throw err;
+    }
+    const kept = [];
+    let used = 0;
+    for (const c of pageChunks) {
+      const cost = used === 0 ? c.text.length : c.text.length + 1;
+      if (used + cost > maxChars) break;
+      kept.push(c);
+      used += cost;
+    }
+    // At least one page, always. A single page denser than the whole bound is not a thing this
+    // corpus contains (the densest measured page is ~3.1k characters), but a zero-page prompt
+    // would be an un-authorable lesson dressed up as a successful one.
+    if (!kept.length) kept.push(pageChunks[0]);
+    const droppedPages = pageChunks.slice(kept.length).map((c) => c.printed);
+    logToFile('lp612 page-truth over the character bound: serving whole leading pages', {
+      chars: out.length, cap: maxChars, pages: pageChunks.length,
+      served: kept.length, droppedPages: droppedPages.length,
+      droppedFrom: droppedPages[0], droppedTo: droppedPages[droppedPages.length - 1],
+    }, 'warn');
+    if (report) report.droppedPages = droppedPages;
+    return kept.map((c) => c.text).join('\n');
   }
+  if (report) report.droppedPages = [];
   return out;
 }
 
@@ -814,6 +861,72 @@ function mediumCode(...candidates) {
   return clampLanguage(null); // the floor, from the one function that owns it
 }
 
+// ── the revision lane (bd-oak77.30) ─────────────────────────────────────────
+//
+// A 40-page chapter revision is NOT a normal lesson, and the brief has no vocabulary for one.
+// Two things measured on 2026-09-07 say so:
+//
+//   • Every one of the 109 over-threshold production segments is `lp_type='revision'`, and NONE
+//     of the 718 revision rows carries an `slo_text` (only 132 of their 1,197 source segments do)
+//     — so the page-truth is the only place a revision objective can come from.
+//   • The user turn hands the model `suggested lp_type: revision`, a value that is NOT in the
+//     brief's closed list (STEM-1..3, LL-1..3, SS-1..3, RECALL, GEN-6-8). Read on a real delivered
+//     15-page revision (`grade_7_english.c04.r990`), the model silently resolved it to LL-1 and
+//     wrote a good but NARROW single-skill content day. At 40-63 pages that shape is a lesson we
+//     technically delivered and a teacher would rightly ignore.
+//
+// SCOPE, DELIBERATELY NARROW. This block is emitted ONLY for a range wider than
+// `MAX_SEGMENT_PAGES` — i.e. only for segments that fail 100% of the time today. The 609 revision
+// segments at 25 pages or fewer are authored today and must not move: changing a lesson that
+// works to chase one that does not is the wrong trade on a launch night. It lives in the USER
+// turn rather than the brief so the system message stays byte-identical for every lesson and the
+// shared prompt cache is not split.
+function revisionSpanCard(segment, bundle) {
+  const n = bundle.pages.length;
+  const first = bundle.pages[0] && bundle.pages[0].printed_page_number;
+  const last = bundle.pages[n - 1] && bundle.pages[n - 1].printed_page_number;
+  return `## THIS IS A REVISION LESSON OVER A WHOLE CHAPTER — READ THIS BEFORE THE BRIEF'S lp_type LIST
+
+You are given ${n} printed pages (${first}-${last}). That is the WHOLE span this lesson revises.
+It is not a new-content day and it is not one sub-topic pulled out of the span.
+
+- Choose \`RECALL\` unless another type genuinely fits better, and say why in \`lp_type\`. Do NOT
+  write a concept-introduction or close-reading day over a chapter review; a single-skill lesson
+  built from one corner of ${n} pages is the failure this instruction exists to prevent.
+- SPREAD, then SECURE. Identify the small number of things across the WHOLE span a pupil must be
+  able to do, and build an active retrieval drill on them — recall and use, never passive re-reading.
+  Your objectives, your worked example, your practice and your exam bank must between them touch
+  the span, not cluster on two pages of it.
+- Do NOT try to re-teach ${n} pages in one period. Name the securable floor, drill it, and use
+  \`page2.not_going\` to say honestly what this period does not cover.
+- Cite real printed pages from across the range, not only the first few. Every fact still traces
+  to the page-truth below.
+- The exam bank is the revision's payload: make its items sample the span and carry the range's
+  command words.
+`;
+}
+
+/**
+ * Said out loud when the lesson does NOT cover the whole range it was asked for.
+ *
+ * Unreachable in today's corpus — the widest segment is 63 printed pages against an 80-page
+ * ceiling — and present anyway, because the defect this whole change descends from was a partial
+ * lesson that no layer named. If it ever fires, the teacher's own copy says which pages she got.
+ */
+function partialCoverageCard(coverage, servedPages) {
+  const first = servedPages[0] && servedPages[0].printed_page_number;
+  const last = servedPages[servedPages.length - 1] && servedPages[servedPages.length - 1].printed_page_number;
+  return `## THIS LESSON COVERS PART OF ITS RANGE — SAY SO ON THE PAGE
+
+The segment asks for ${coverage.requested} printed pages; you are given ${servedPages.length}
+(printed pages ${first}-${last}). The rest is not below and you must not invent it.
+
+Write the lesson for the pages you HAVE, and state the covered range in the teacher's own language
+in \`page2.not_going\` — she must be able to see, without comparing anything, that this period
+covers printed pages ${first}-${last} and that the remainder of the range is not in it.
+`;
+}
+
 function buildUserPrompt({ segment, bundle, lang, video }) {
   const book = bundle.book || {};
   // The book's medium is a language decision like any other, so it goes through the one
@@ -836,8 +949,22 @@ function buildUserPrompt({ segment, bundle, lang, video }) {
   // THE BUDGET CARD IS THE FIRST THING IN THE TURN, above even the lesson's identity. It is
   // here rather than appended to the brief because §8 of the brief is line ~890 of a 70KB
   // system prompt, and "it only finds out later" is the operator's whole complaint.
+  // Coverage is computed BEFORE the cards so the partial statement and the page-truth block can
+  // never disagree about how many pages the lesson actually got.
+  const ptReport = {};
+  const pageTruth = compactPageTruth(bundle.pages, undefined, ptReport);
+  const charDropped = (ptReport.droppedPages || []).length;
+  const servedPages = charDropped
+    ? bundle.pages.slice(0, bundle.pages.length - charDropped)
+    : bundle.pages;
+  const coverage = bundle.coverage || { requested: bundle.pages.length, complete: true };
+  const partial = coverage.complete === false || charDropped > 0;
+  const wide = bundle.pages.length > MAX_SEGMENT_PAGES;
+
   return `${budgetCard(lang)}
-# LESSON TO AUTHOR
+${wide ? revisionSpanCard(segment, { pages: servedPages }) : ''}${partial
+  ? partialCoverageCard({ requested: coverage.requested || bundle.pages.length }, servedPages)
+  : ''}# LESSON TO AUTHOR
 
 ## LANGUAGE
 ${languageDirective(lang, medium)}
@@ -872,7 +999,7 @@ ${videoTxt}
 ${ocTxt}
 
 ## PAGE-TRUTH — the printed pages, block by block. Everything you write must trace to this.
-${compactPageTruth(bundle.pages)}
+${pageTruth}
 
 ---
 Return ONE JSON object conforming to lp_doc schema_version 3.0. No prose, no markdown fence.
@@ -2170,6 +2297,15 @@ async function authorLessonPlan({
     lintClean: fails.length === 0,
     outcome: 'authored',
     elapsedMs: Date.now() - startedAt,
+    // bd-oak77.30. `pagesRequested` is what the segment asked for and `pagesServed` what the
+    // lesson was built from; they differ only past the 80-page ceiling, which nothing in the
+    // corpus reaches. On Axiom this is how "did a wide segment deliver, and did it deliver
+    // WHOLE" becomes a query rather than a guess — the question the old silent truncation made
+    // unanswerable. Emitted on every lesson so the wide ones are not a separate, absent shape.
+    pagesRequested: bundle.coverage ? bundle.coverage.requested : bundle.pages.length,
+    pagesServed: bundle.coverage ? bundle.coverage.served : bundle.pages.length,
+    pageTruthComplete: bundle.coverage ? bundle.coverage.complete : true,
+    wideSegment: bundle.pages.length > MAX_SEGMENT_PAGES,
     // The count, not the strings: the strings are already in the prose line above, and a defect
     // list on an event is a cardinality problem, not a metric.
     failCount: fails.length,
@@ -2195,6 +2331,11 @@ async function authorLessonPlan({
     family,
     tier,
     usage,
+    // bd-oak77.30 — what the lesson was actually built from. `complete: true` on every ordinary
+    // segment and every wide one inside the ceiling, i.e. the whole production corpus; returned
+    // unconditionally so a reader never has to tell "nothing was dropped" from "this predates the
+    // field", which is the shape the old silent truncation hid in.
+    coverage: bundle.coverage || null,
   };
 }
 
@@ -2633,6 +2774,11 @@ async function reviseLessonPlan({
     rounds: spent,
     usage,
     model: chosenModel,
+    // bd-oak77.30 — what the lesson was actually built from. `complete: true` on every ordinary
+    // segment and every wide one inside the ceiling, i.e. the whole production corpus; returned
+    // unconditionally so a reader never has to tell "nothing was dropped" from "this predates
+    // the field", which is the shape the old silent truncation hid in.
+    coverage: bundle.coverage || null,
   };
 }
 
