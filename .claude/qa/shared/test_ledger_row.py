@@ -72,6 +72,42 @@ def test_no_misses_means_healthy_when_nothing_failed():
     assert r["status"] == "HEALTHY" and r["cassette"]["misses"] == 0 and r["cassette"]["scenarios_affected"] == []
 
 
+def test_misses_from_an_earlier_feature_in_the_same_run_are_not_this_features():
+    # language ran 20:53–20:55 and missed 9 times; status started 20:55:49. The miss log is per RUN,
+    # so status must count only misses inside ITS window — the first live run stamped status CRITICAL
+    # with language's misses (2026-09-07).
+    root, run = _fixture()
+    open(os.path.join(run, "progress-menu.log"), "w").write(
+        "20:55:49.000 send START \"/menu\"\n20:55:52.000 REC M01 PASS 3s\n")
+    open(os.path.join(run, "cassette-misses.jsonl"), "w").write(
+        '{"ts":"2026-09-07T20:54:10.000Z","kind":"llm","key":"llm-earlier-feature"}\n')
+    json.dump({"feature": "menu", "results": [{"id": "M01", "verdict": "PASS", "ms": 1}]}, open(os.path.join(run, "menu.json"), "w"))
+    r = _row(root, run)
+    assert r["cassette"]["misses"] == 0, r["cassette"]
+    assert r["cassette"]["misses_in_run"] == 1
+    assert r["status"] == "HEALTHY", r["status"]
+
+
+def test_dirty_ignores_the_ledger_and_run_artifacts_the_runner_itself_writes():
+    import subprocess
+    root, run = _fixture()
+    subprocess.run(["git", "init", "-q", root], check=True)
+    g = lambda *a: subprocess.run(["git", "-C", root, "-c", "user.email=t@t", "-c", "user.name=t", *a], check=True, capture_output=True)  # noqa: E731
+    open(os.path.join(root, "tracked.js"), "w").write("v1\n")
+    os.makedirs(os.path.join(root, ".claude", "qa", "ledgers"), exist_ok=True)
+    open(os.path.join(root, ".claude", "qa", "ledgers", "runs.jsonl"), "w").write("")
+    g("add", "-A"); g("commit", "-qm", "base")
+    # the runner appends to the ledger and writes results/ + pending markers during a run
+    open(os.path.join(root, ".claude", "qa", "ledgers", "runs.jsonl"), "a").write('{"run_id":"x"}\n')
+    os.makedirs(os.path.join(root, ".claude", ".e2e-pending"), exist_ok=True)
+    open(os.path.join(root, ".claude", ".e2e-pending", "m.json"), "w").write("{}")
+    r = _row(root, run)
+    assert r["dirty"] is False and r["dirty_files"] == 0, (r["dirty"], r["dirty_files"])
+    open(os.path.join(root, "tracked.js"), "w").write("v2\n")
+    r = _row(root, run)
+    assert r["dirty"] is True and r["dirty_files"] == 1
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

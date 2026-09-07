@@ -33,14 +33,21 @@ def _attribute_misses(misses, progress_log):
     a miss stamped before a REC belongs to that REC's scenario. Times are compared as seconds-of-day
     (the miss `ts` is ISO UTC, the progress log is UTC clock time), so a run may not straddle midnight
     — acceptable for a lane whose runs take minutes."""
-    recs = []
+    recs, start = [], None
     try:
         for line in open(progress_log, encoding="utf-8"):
             parts = line.split()
-            if len(parts) >= 3 and parts[1] == "REC":
+            if len(parts) < 2:
+                continue
+            try:
                 h, m, s = parts[0].split(":")
-                recs.append((int(h) * 3600 + int(m) * 60 + float(s), parts[2]))
-    except (OSError, ValueError):
+                t = int(h) * 3600 + int(m) * 60 + float(s)
+            except ValueError:
+                continue
+            start = t if start is None else min(start, t)   # the feature's window opens at its first trace line
+            if len(parts) >= 3 and parts[1] == "REC":
+                recs.append((t, parts[2]))
+    except OSError:
         return {}
     recs.sort()
     by = {}
@@ -53,6 +60,8 @@ def _attribute_misses(misses, progress_log):
             t = int(h) * 3600 + int(m) * 60 + float(s)
         except ValueError:
             continue
+        if start is not None and t < start:
+            continue   # an EARLIER feature's miss in the same run (the miss log is per run dir)
         sid = next((sid for rec_t, sid in recs if rec_t >= t), None)
         if sid:
             by[sid] = by.get(sid, 0) + 1
@@ -77,7 +86,11 @@ def build_row(a):
         "driver": a.driver, "trigger": a.trigger,
     }
     if a.commit:
-        dirty = [l for l in git(a.root, "status", "--porcelain").splitlines() if l.strip()]
+        # The DEVELOPER tree's cleanliness, minus what the runner itself writes during a run (the ledger
+        # append, results, pending markers) — otherwise the second feature's row always read dirty.
+        dirty = [l for l in git(a.root, "status", "--porcelain", "--",
+                                ".", ":(exclude).claude/qa/ledgers", ":(exclude).claude/qa/results",
+                                ":(exclude).claude/.e2e-pending").splitlines() if l.strip()]
         row["commit_sha"] = a.commit
         row["branch"] = git(a.root, "rev-parse", "--abbrev-ref", "HEAD").strip()
         row["dirty"] = bool(dirty)
@@ -88,10 +101,11 @@ def build_row(a):
         if os.path.exists(miss_log):
             misses = [json.loads(l) for l in open(miss_log, encoding="utf-8") if l.strip()]
         by_scenario = _attribute_misses(misses, os.path.join(a.run_dir, "progress-%s.log" % a.feature))
-        row["cassette"] = {"mode": "replay-strict", "misses": len(misses),
+        mine = sum(by_scenario.values())   # misses inside THIS feature's window; the log is per run dir
+        row["cassette"] = {"mode": "replay-strict", "misses": mine, "misses_in_run": len(misses),
                            "missed_kinds": sorted({m.get("kind") for m in misses if m.get("kind")}),
                            "scenarios_affected": sorted(by_scenario), "by_scenario": by_scenario}
-        if misses:
+        if mine:
             # A scenario that ran while a vendor answer was missing got the bot's error path, not the
             # product's answer. Its PASS/FAIL is not evidence either way, so the row cannot be HEALTHY.
             row["status"] = "CRITICAL"
