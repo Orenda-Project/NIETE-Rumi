@@ -408,13 +408,13 @@ async function processUntappedDelivery(sessionId, nowMs = Date.now()) {
     return decision;
   }
 
-  // give_up — stop chasing the teacher and hand the coach a clear next step.
-  await mergeTeacherDelivery(sessionId, { gave_up_at: iso });
-  if (foPhone) {
-    await WhatsAppService.sendMessage(foPhone, (S.send_gave_up_fo || '').replace('{name}', name))
-      .catch(() => {});
+  // give_up stops chasing and hands the coach a next step; `expire` is the same close for a report NOBODY ever chased, and it messages no one.
+  const silent = decision.action === 'expire';
+  await mergeTeacherDelivery(sessionId, { gave_up_at: iso, gave_up_reason: decision.reason });
+  if (foPhone && !silent) {
+    await WhatsAppService.sendMessage(foPhone, (S.send_gave_up_fo || '').replace('{name}', name)).catch(() => {});
   }
-  logToFile('🛑 observe send: gave up chasing an untapped report', { sessionId, teacher: name });
+  logToFile(silent ? '🕰️ observe send: expired an unchased report, nobody messaged' : '🛑 observe send: gave up chasing an untapped report', { sessionId, teacher: name });
   return decision;
 }
 

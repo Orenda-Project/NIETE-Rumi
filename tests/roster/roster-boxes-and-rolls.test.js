@@ -229,7 +229,7 @@ describe("B'. a prefix-less line round-trips exactly as a \"?.\" line did", () =
     const r = toChunks(originals);
     const edits = r.chunks.flatMap(parseChunk);
     expect(edits).toHaveLength(43);
-    expect(reconcile(originals, edits)).toEqual({ updated: [], added: [], removed: [] });
+    expect(reconcile(originals, edits)).toEqual({ updated: [], added: [], removed: [], unresolved: [] });
   });
 
   it('renders 54 numbered children, parses them back, and changes nothing', () => {
@@ -237,7 +237,7 @@ describe("B'. a prefix-less line round-trips exactly as a \"?.\" line did", () =
     const r = toChunks(originals);
     const edits = r.chunks.flatMap(parseChunk);
     expect(edits).toHaveLength(54);
-    expect(reconcile(originals, edits)).toEqual({ updated: [], added: [], removed: [] });
+    expect(reconcile(originals, edits)).toEqual({ updated: [], added: [], removed: [], unresolved: [] });
   });
 
   it('round-trips a mixed class of 43 where a third of the rolls are unreadable', () => {
@@ -247,7 +247,7 @@ describe("B'. a prefix-less line round-trips exactly as a \"?.\" line did", () =
     const r = toChunks(originals);
     const edits = r.chunks.flatMap(parseChunk);
     expect(edits).toHaveLength(43);
-    expect(reconcile(originals, edits)).toEqual({ updated: [], added: [], removed: [] });
+    expect(reconcile(originals, edits)).toEqual({ updated: [], added: [], removed: [], unresolved: [] });
   });
 
   it('carries an edit made inside a rebalanced box to the right child', () => {
@@ -282,26 +282,25 @@ describe("B'. a prefix-less line round-trips exactly as a \"?.\" line did", () =
   });
 
   /**
-   * CHARACTERISATION, NOT AN ENDORSEMENT — bd-a05gc.
+   * FIXED — bd-a05gc. This test was pinned here as a CHARACTERISATION of the bug:
+   * reconcile() matched roll-less lines to roll-less children by POSITION within
+   * the roll-less subset, so on a register with no roll column at all the whole
+   * class was positional and deleting one line renamed every child below it and
+   * struck off the LAST child instead of the deleted one. It used to assert
+   * `updated` 3 and `removed` uuid-5; it now asserts what it always said it should.
    *
-   * reconcile() matches roll-less lines to roll-less children by position within
-   * the roll-less subset, which is the only locator either side has for those
-   * rows. On a register with SOME roll-less children that is fine. On one with NO
-   * roll column at all it means the whole class is positional, so a single
-   * inserted or deleted line shifts every child below it.
-   *
-   * Verified byte-identical on origin/develop with the "?." prefix in place, so
-   * this is pre-existing and not caused by dropping the prefix. Dropping the
-   * prefix reduces how often a coach is provoked into deleting a line; it does not
-   * fix this. Pinned here so the fix for bd-a05gc trips a test.
+   * The full behaviour table (insert, rename, reorder, rename+delete, two children
+   * with one name, Urdu) lives in tests/roster/roster-identity-not-position.test.js.
    */
-  it('still shifts identities when a line is deleted from an all-roll-less class', () => {
+  it('removes the deleted child, and only her, from an all-roll-less class', () => {
     const originals = klass(6, unnumbered);
     const lines = toChunks(originals).chunks.filter(Boolean).join('\n').split('\n');
     lines.splice(2, 1);
     const out = reconcile(originals, parseChunk(lines.join('\n')));
-    expect(out.updated).toHaveLength(3);              // should be 0
-    expect(out.removed.map((s) => s.id)).toEqual(['uuid-5']); // should be uuid-2
+    expect(out.updated).toHaveLength(0);
+    expect(out.removed.map((s) => s.id)).toEqual(['uuid-2']);
+    expect(out.added).toHaveLength(0);
+    expect(out.unresolved).toHaveLength(0);
   });
 });
 
@@ -332,7 +331,7 @@ describe('Urdu names are measured in code points, not bytes', () => {
     expect(lines).toHaveLength(54);
     for (const line of lines) expect(line.startsWith('?')).toBe(false);
     expect(reconcile(originals, r.chunks.flatMap(parseChunk)))
-      .toEqual({ updated: [], added: [], removed: [] });
+      .toEqual({ updated: [], added: [], removed: [], unresolved: [] });
   });
 
   it('keeps labels and helpers inside their code-point caps for Urdu classes', () => {
