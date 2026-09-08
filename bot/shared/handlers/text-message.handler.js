@@ -2139,7 +2139,26 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     try {
       typingController.stop();
       const STATUS_FLOW_ID = process.env.STATUS_FLOW_ID || '';
-      if (STATUS_FLOW_ID) {
+      const { decideStatusReply } = require('../services/status/status-command');
+
+      // ASK FIRST, SEND SECOND. The CTA used to go out the moment the
+      // Flow id was present, so an empty store bought the teacher a tap, a Flow
+      // that flashed open and shut on its terminal INIT screen, and no message
+      // at all. `null` on failure, never [] — see status-command.js: a failed
+      // probe must open the Flow, not claim nothing is running.
+      const TeacherStateService = require('../services/teacher-state.service');
+      let items = null;
+      try {
+        items = await TeacherStateService.listActiveResources(user.id);
+      } catch (probeError) {
+        logToFile('⚠️ /status: could not read what is running; opening the Flow instead', {
+          userId: user.id, error: probeError.message,
+        });
+      }
+
+      const decision = decideStatusReply({ statusFlowId: STATUS_FLOW_ID, items });
+
+      if (decision.mode === 'flow') {
         await WhatsAppService.sendFlow(from, {
           flowId: STATUS_FLOW_ID,
           flowToken: user.id,
@@ -2148,19 +2167,24 @@ async function handleTextMessage(message, from, messageBody, user = null) {
           footer: 'Powered by NIETE',
           buttonText: 'Open status'
         });
-        logToFile('✅ Status flow sent', { userId: user.id });
+        logToFile('✅ Status flow sent', {
+          userId: user.id,
+          // null when the probe failed — that is the whole reason this branch is
+          // reachable with no list, so it must not be dereferenced.
+          taskCount: Array.isArray(items) ? items.length : null,
+        });
+      } else if (decision.kind === 'empty') {
+        await WhatsAppService.sendMessage(from, resolveUx('statusNothingRunning', { user }));
+        logToFile('📋 /status answered in chat — nothing running', { userId: user.id });
+      } else if (decision.kind === 'unknown') {
+        await WhatsAppService.sendMessage(from, resolveUx('statusCheckFailed', { user }));
       } else {
-        // Fallback before STATUS_FLOW_ID is published — render a plain-text
-        // summary inline so the command at least answers the question.
-        const TeacherStateService = require('../services/teacher-state.service');
-        const items = await TeacherStateService.listActiveResources(user.id);
-        const summary = items.length === 0
-          ? "Nothing's running right now."
-          : `Running for you:\n${items.map(it => `• ${it.title}`).join('\n')}`;
-        await WhatsAppService.sendMessage(from, summary);
+        // No Flow published — the plain-text list, so the command still answers.
+        await WhatsAppService.sendMessage(from,
+          `Running for you:\n${items.map(it => `• ${it.title}`).join('\n')}`);
       }
     } catch (error) {
-      logToFile('❌ Error starting /status', { userId: user?.id, error: error.message });
+      logToFile('❌ Error starting /status', { userId: user?.id, error: error.message }, 'error');
     }
     return;
   }
