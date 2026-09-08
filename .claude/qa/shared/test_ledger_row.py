@@ -108,6 +108,22 @@ def test_dirty_ignores_the_ledger_and_run_artifacts_the_runner_itself_writes():
     assert r["dirty"] is True and r["dirty_files"] == 1
 
 
+def test_emulated_flows_are_recorded_on_the_row_and_never_read_as_rendering():
+    # feature-runner writes `flowEmulator` (from the mock adapter's flowStats) into <feature>.json;
+    # the row must carry it so a reader sees the Flow verdicts came from the emulator, not a phone.
+    root, run = _fixture()
+    d = json.load(open(os.path.join(run, "menu.json")))
+    d["flowEmulator"] = {"opened": 2, "completed": 1, "refused": 0, "flows": ["STATUS_FLOW_ID", "SETTINGS_FLOW_ID"]}
+    json.dump(d, open(os.path.join(run, "menu.json"), "w"))
+    r = _row(root, run)
+    assert r["flows"] == {"via": "flow-emulator", "opened": 2, "completed": 1, "refused": 0, "flows": ["SETTINGS_FLOW_ID", "STATUS_FLOW_ID"]}, r.get("flows")
+
+
+def test_no_flow_activity_means_no_flows_field():
+    root, run = _fixture()
+    assert "flows" not in _row(root, run)
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

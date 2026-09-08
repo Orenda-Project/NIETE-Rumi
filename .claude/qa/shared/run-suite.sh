@@ -74,6 +74,9 @@ if [ "$METHOD" = mock ]; then
   STACK_DOWN=1
   bash "$ROOT/bot/scripts/e2e/local-stack.sh" up "$COMMIT" "$RUN_DIR" >>"$LOG" 2>&1 || { rc=$?; say "BLOCKED: local stack did not come up (exit $rc) — see $LOG, $RUN_DIR/bot.log"; exit 3; }
   export E2E_MOCK_URL=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["mock_url"])' "$RUN_DIR/stack.json")
+  # The Flow emulator (phase 4): stored FLOW_JSON + the run's public key + the bot to send data-exchange to.
+  export E2E_BOT_URL=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["bot_url"])' "$RUN_DIR/stack.json")
+  export E2E_FLOWS_DIR="$ROOT/.claude/qa/fixtures/flows" E2E_FLOW_PUBLIC_KEY_B64="$(cat "$RUN_DIR/flow-public-key.b64" 2>/dev/null)"
   # The DB tooling (driver ensure/reset, api.db lookups) resolves sandbox creds from NIETE_SANDBOX_SUPABASE_*;
   # feed them from the same keys/niete-local.env the stack composed the bot's .env from.
   KEYS_FILE=$(python3 - "$ROOT" <<'PY'

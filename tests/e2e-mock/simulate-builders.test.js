@@ -68,6 +68,17 @@ describe('simulate.js builders pass the inbound guards', () => {
     expect(d.ours && !d.testWebhook && !d.testPhone).toBe(true);
   });
 
+  test('flowReply forges the nfm_reply Meta sends when a Flow completes — name flow_<id>, response_json as a string', () => {
+    const { sim, v } = load();
+    const g = guards(v, sim.flowReply('123456', { flow_token: 'u1:settings:9', language: 'ur' }, { from: '923000000001' }));
+    expect(g.parsed.messageType).toBe('interactive');
+    expect(g.parsed.message.interactive.type).toBe('nfm_reply');
+    expect(g.parsed.message.interactive.nfm_reply.name).toBe('flow_123456');
+    expect(JSON.parse(g.parsed.message.interactive.nfm_reply.response_json)).toEqual({ flow_token: 'u1:settings:9', language: 'ur' });
+    expect(g.parsed.message.interactive.nfm_reply.body).toBe('Sent');
+    expect(g.ours && !g.testWebhook && !g.testPhone).toBe(true);
+  });
+
   test('buttonReply forges an interactive button_reply', () => {
     const { sim, v } = load();
     const g = guards(v, sim.buttonReply('lang_en', 'English', { from: '923000000001' }));

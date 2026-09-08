@@ -171,6 +171,7 @@ function createMockGraphApi(opts = {}) {
       case 'text': payload = sim.simulateMessage(String(body.text), { from }); break;
       case 'button': payload = sim.buttonReply(body.id, body.title, { from }); break;
       case 'list': payload = sim.listReply(body.id, body.title, { from }); break;
+      case 'flow': payload = sim.flowReply(body.flowId, body.response_json, { from }); break;
       case 'document': case 'image': case 'audio': case 'video': {
         // The teacher "attaches a file": read it off THIS machine, register it so the bot's
         // downloadMedia() can fetch it back through the Graph API, then forge the message.

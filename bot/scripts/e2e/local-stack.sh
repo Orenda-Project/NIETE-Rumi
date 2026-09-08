@@ -73,6 +73,13 @@ up() {
   ln -s "$NM_ROOT/node_modules" "$src/node_modules"
 
   # 3. env
+  # Flow encryption keypair, PER RUN: the bot decrypts data-exchange requests with the private half
+  # (FLOW_PRIVATE_KEY_B64), the harness's Flow emulator encrypts with the public half (stack.json).
+  # Generated here so no real Meta key is ever needed or stored for the mock lane.
+  local flow_keys; flow_keys=$(node -e '
+const c=require("crypto"); const {publicKey,privateKey}=c.generateKeyPairSync("rsa",{modulusLength:2048,publicKeyEncoding:{type:"spki",format:"pem"},privateKeyEncoding:{type:"pkcs8",format:"pem"}});
+process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(publicKey).toString("base64"));')
+  local flow_priv_b64="${flow_keys% *}" flow_pub_b64="${flow_keys#* }"
   local keys="$KEYS_DIR/niete-local.env"
   [ -f "$keys" ] || { log "missing $keys (sandbox creds + placeholders — see docs/e2e-mock-lane.md)"; exit 14; }
   local mock_port="${MOCK_PORT:-4010}" bot_port="${E2E_BOT_PORT:-3100}" phone_id="${E2E_PHONE_NUMBER_ID:-e2e-local}"
@@ -95,7 +102,10 @@ up() {
     echo "REDIS_URL=redis://127.0.0.1:$redis_port"
     echo "WORKER_QUEUES=main,quiz"
     echo "SQS_WORKER_HEALTH_PORT=$worker_port"
+    echo "FLOW_PRIVATE_KEY_B64=$flow_priv_b64"
+    echo "FLOW_PUBLIC_KEY_B64=$flow_pub_b64"
   } > "$src/.env"
+  printf '%s' "$flow_pub_b64" > "$run_dir/flow-public-key.b64"
   rm -f "$run_dir/cassette-misses.jsonl"
 
   # 4. processes
@@ -125,10 +135,11 @@ up() {
   local running; running=$(printf '%s' "$health" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("commit") or "")')
   if [ "$running" != "$full" ]; then log "/health reports commit '${running:-null}', wanted $full — refusing to drive"; down "$run_dir"; exit 13; fi
 
-  python3 - "$run_dir/stack.json" "$full" "$src" "$bot_port" "$mock_port" "$phone_id" "$want" "$NM_BOT/bot/node_modules" "$cassette_dir" <<'PY'
+  python3 - "$run_dir/stack.json" "$full" "$src" "$bot_port" "$mock_port" "$phone_id" "$want" "$NM_BOT/bot/node_modules" "$cassette_dir" "$run_dir/flow-public-key.b64" "$REPO/.claude/qa/fixtures/flows" <<'PY'
 import json, sys, datetime
-p, sha, src, bot, mock, phone, lock, nm, cas = sys.argv[1:]
+p, sha, src, bot, mock, phone, lock, nm, cas, pubkey_file, flows_dir = sys.argv[1:]
 json.dump({"commit_sha": sha, "worktree": src, "bot_url": "http://127.0.0.1:%s" % bot, "mock_url": "http://127.0.0.1:%s" % mock, "worker": True, "queue": "bullmq",
+           "flow_public_key_file": pubkey_file, "flows_dir": flows_dir, "flows": "emulated",
            "phone_number_id": phone, "lock_blob": lock, "node_modules": nm, "cassette_dir": cas, "cassette_mode": "replay-strict",
            "started_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")}, open(p, "w"), indent=1)
 PY

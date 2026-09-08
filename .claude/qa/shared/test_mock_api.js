@@ -16,6 +16,17 @@ const path = require('path');
 
 const REPO = path.resolve(__dirname, '..', '..', '..');
 const { createMockGraphApi } = require(path.join(REPO, 'bot/scripts/e2e/mock-graph-api.js'));
+const enc = require(path.join(REPO, 'bot/shared/services/flow-encryption.service.js'));
+const fs = require('fs'); const os = require('os');
+// A per-test keypair: the scripted bot decrypts with the private half (as the real bot does via
+// FLOW_PRIVATE_KEY); the adapter's emulator encrypts with the public half.
+const FLOW_KEYS = enc.generateKeyPair(); process.env.FLOW_PRIVATE_KEY = FLOW_KEYS.privateKey;
+// A flows dir with ONE stored definition, named by env var as flow-inventory.js stores them.
+const FLOWS_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'flows-'));
+const SETTINGS_JSON = JSON.parse(fs.readFileSync(path.join(REPO, '.claude/qa/fixtures/flows/SETTINGS_FLOW_ID.json'), 'utf8'));
+fs.writeFileSync(path.join(FLOWS_DIR, 'SETTINGS_FLOW_ID.json'), JSON.stringify(SETTINGS_JSON));
+fs.writeFileSync(path.join(FLOWS_DIR, 'manifest.json'), JSON.stringify({ flows: [{ envVar: 'SETTINGS_FLOW_ID', flowId: 'flow-settings-1', kind: 'endpoint' }] }));
+const flowInbound = []; const flowExchanges = [];
 
 let passed = 0;
 const ita = async (name, fn) => {
@@ -35,10 +46,30 @@ const ROWS = ['Teacher Training', 'Lesson Plans', 'Classroom Coaching', 'Ask Any
   const bot = http.createServer((req, res) => {
     let b = ''; req.on('data', (c) => { b += c; });
     req.on('end', async () => {
+      // the REAL data-exchange contract, served by the bot's own encryption service
+      if (req.url === '/api/flows/settings') {
+        try {
+          const out = await enc.processEncryptedRequest(JSON.parse(b), async (d) => {
+            flowExchanges.push(d);
+            if (d.action === 'INIT') return { screen: 'SETTINGS_MAIN', data: { languages: [{ id: 'en', title: 'English' }, { id: 'ur', title: 'اردو (Urdu)' }],
+              frameworks: [{ id: 'oecd', title: 'OECD 5D Framework' }], current_language: 'en', current_framework: 'oecd', info_text: 'Default: OECD.' } };
+            return { screen: 'SUCCESS', data: { confirmation_message: 'Saved.', details_message: 'Language: ' + d.data.language,
+              extension_message_response: { params: { flow_token: d.flow_token, language: d.data.language } } } };
+          });
+          res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end(out);
+        } catch (e) { res.writeHead(500); return res.end(JSON.stringify({ error: e.message })); }
+      }
       res.writeHead(200); res.end('EVENT_RECEIVED');
       const m = JSON.parse(b).entry[0].changes[0].value.messages[0];
       inbound.push(m);
+      if (m.type === 'interactive' && m.interactive.type === 'nfm_reply') { flowInbound.push(m); await send({ messaging_product: 'whatsapp', to: m.from, type: 'text', text: { body: 'Settings updated ✅' } }); return; }
       const to = m.from;
+      if (m.type === 'text' && m.text.body.trim().toLowerCase() === '/settings') {
+        await send({ messaging_product: 'whatsapp', to, type: 'interactive', interactive: { type: 'flow',
+          header: { type: 'text', text: 'Settings' }, body: { text: 'Update your preferences' },
+          action: { name: 'flow', parameters: { flow_message_version: '3', flow_token: 'user-1:settings:42', flow_id: 'flow-settings-1', flow_cta: 'Open Settings', flow_action: 'data_exchange' } } } });
+        return;
+      }
       if (m.type === 'text' && m.text.body.trim().toLowerCase() === '/menu') {
         await send({ messaging_product: 'whatsapp', to, type: 'interactive', interactive: { type: 'list',
           header: { type: 'text', text: "Here's what I can do!" }, body: { text: 'Choose a feature' },
@@ -92,10 +123,12 @@ const ROWS = ['Teacher Training', 'Lesson Plans', 'Classroom Coaching', 'Ask Any
   mockBase = 'http://127.0.0.1:' + (await mock.listen(0));
 
   const { makeMockApi } = require(path.join(__dirname, 'mock-api.cjs'));
-  const api = makeMockApi({ baseUrl: mockBase, driver: DRIVER, pollMs: 50, quiesceMs: 200, settleMs: 300 });
+  const api = makeMockApi({ baseUrl: mockBase, driver: DRIVER, pollMs: 50, quiesceMs: 200, settleMs: 300,
+    flows: { dir: FLOWS_DIR, botUrl, publicKeyPem: FLOW_KEYS.publicKey, endpoints: { SETTINGS_FLOW_ID: '/api/flows/settings' } } });
 
-  await ita('caps: the mock driver says it cannot render Flows', async () => {
-    assert.strictEqual(api.caps.flows, false);
+  await ita('caps: the mock driver EMULATES Flows (never claims to render them)', async () => {
+    assert.strictEqual(api.caps.flows, 'emulated');
+    assert.strictEqual(api.caps.render, false);
     assert.strictEqual(api.caps.method, 'mock');
   });
   await ita('inject() is a no-op that reports success (no wa-drive to load)', async () => {
@@ -178,16 +211,46 @@ const ROWS = ['Teacher Training', 'Lesson Plans', 'Classroom Coaching', 'Ask Any
     assert.strictEqual(typeof v, 'string');
     assert.deepStrictEqual(JSON.parse(v), { ok: false, err: 'MOCK_NO_PAGE' });
   });
-  await ita('Flow primitives refuse honestly instead of pretending to render', async () => {
-    assert.deepStrictEqual(await api.openFlow('Open status'), { ok: false, err: 'MOCK_NO_FLOW_RENDER' });
+  await ita('openFlow with no Flow card on the last reply fails like the browser helper', async () => {
+    await api.sendWait('hello', 5000);
+    const op = await api.openFlow('Open Settings');
+    assert.strictEqual(op.ok, false); assert.match(op.err, /^NO_FRESH_CTA:/);
     assert.deepStrictEqual(await api.flowProbe(), { text: '', items: [] });
-    assert.strictEqual((await api.resetFlow()).ok, true);
     assert.strictEqual((await api.flowClick('x')).ok, false);
-    assert.strictEqual((await api.flowPick('x')).ok, false);
-    assert.strictEqual((await api.flowType('x')).ok, false);
-    assert.strictEqual((await api.flowAria('x')).ok, false);
     assert.deepStrictEqual(await api.flowState('x'), { found: false });
+  });
+  await ita('openFlow on a Flow card loads the stored JSON by flow_id, INITs through the encrypted endpoint, and probes the first screen', async () => {
+    const card = await api.sendWait('/settings', 5000);
+    assert.ok(card.btns.includes('Open Settings'), JSON.stringify(card.btns));
+    const op = await api.openFlow('Open Settings|کھولیں');
+    assert.strictEqual(op.ok, true, JSON.stringify(op));
+    assert.strictEqual(op.screen, 'SETTINGS_MAIN');
+    assert.strictEqual(op.via, 'flow-emulator');
+    assert.strictEqual(flowExchanges[flowExchanges.length - 1].action, 'INIT');
+    const p = await api.flowProbe();
+    assert.ok(p.text.includes('Default: OECD.'), p.text);
+    assert.ok(p.items.some((i) => i.text === 'اردو (Urdu)'));
+  });
+  await ita('flowPick + flowClick drive a data_exchange submit; the completion reaches the bot as an nfm_reply and the bot answers', async () => {
+    assert.strictEqual((await api.flowPick('اردو (Urdu)')).ok, true);
+    const r = await api.flowClick('Save Settings');
+    assert.strictEqual(r.ok, true, JSON.stringify(r));
+    const sent = flowExchanges[flowExchanges.length - 1];
+    assert.strictEqual(sent.action, 'data_exchange'); assert.strictEqual(sent.data.language, 'ur'); assert.strictEqual(sent.flow_token, 'user-1:settings:42');
+    assert.strictEqual((await api.flowState('Done')).found, true);
+    const fin = await api.flowClick('Done', { complete: true });
+    assert.strictEqual(fin.ok, true);
+    const reply = await api.flowComplete(5000);          // the bot's answer to the nfm_reply
+    assert.strictEqual(reply.ok, true); assert.match(reply.txt, /Settings updated/);
+    assert.strictEqual(flowInbound.length, 1);
+    assert.strictEqual(flowInbound[0].interactive.nfm_reply.name, 'flow_flow-settings-1');
+    assert.deepStrictEqual(JSON.parse(flowInbound[0].interactive.nfm_reply.response_json), { flow_token: 'user-1:settings:42', language: 'ur' });
     api.closeFlow();
+    assert.strictEqual((await api.resetFlow()).ok, true);
+  });
+  await ita('flowStats counts what the emulator drove, for the ledger', async () => {
+    const st = await api.flowStats();
+    assert.strictEqual(st.opened, 1); assert.strictEqual(st.completed, 1); assert.deepStrictEqual(st.flows, ['SETTINGS_FLOW_ID']);
   });
   await ita('upload registers the file with the mock, injects a document, and returns the reply with its kind', async () => {
     const os = require('os'); const fs = require('fs');

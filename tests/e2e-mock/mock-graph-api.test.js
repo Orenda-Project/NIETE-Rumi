@@ -237,6 +237,21 @@ describe('mock-graph-api: inbound injection', () => {
     } finally { await api2.close(); }
   });
 
+  test('POST /inject kind=flow forwards a Flow completion (nfm_reply) with the response_json', async () => {
+    received.length = 0;
+    const api2 = createMockGraphApi({ phoneNumberId: PH, botUrl });
+    const port = await api2.listen(0);
+    try {
+      const r = await fetch(`http://127.0.0.1:${port}/inject`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'flow', from: '923000000001', flowId: '777', response_json: { flow_token: 'u:settings:1', language: 'en' } }) });
+      expect((await r.json()).ok).toBe(true);
+      const m = received[0].body.entry[0].changes[0].value.messages[0];
+      expect(m.interactive.type).toBe('nfm_reply');
+      expect(m.interactive.nfm_reply.name).toBe('flow_777');
+      expect(JSON.parse(m.interactive.nfm_reply.response_json)).toEqual({ flow_token: 'u:settings:1', language: 'en' });
+    } finally { await api2.close(); }
+  });
+
   test('POST /inject kind=list forwards a list_reply', async () => {
     received.length = 0;
     const api2 = createMockGraphApi({ phoneNumberId: PH, botUrl });

@@ -562,8 +562,11 @@ function makeApi(c) {
   // makeApi() does, so the feature scripts below run unchanged. Default (chrome) is untouched.
   const MOCK = (process.env.E2E_METHOD || 'chrome') === 'mock';
   const c = MOCK ? { close() {} } : await connect();
+  const flows = MOCK && process.env.E2E_FLOWS_DIR && process.env.E2E_FLOW_PUBLIC_KEY_B64
+    ? { dir: process.env.E2E_FLOWS_DIR, botUrl: process.env.E2E_BOT_URL, publicKeyPem: Buffer.from(process.env.E2E_FLOW_PUBLIC_KEY_B64, 'base64').toString('utf8') }
+    : null;
   const api = MOCK
-    ? require(path.join(__dirname, 'mock-api.cjs')).makeMockApi({ baseUrl: process.env.E2E_MOCK_URL, driver: process.env.E2E_DRIVER, env: ENV, repo: REPO, trace })
+    ? require(path.join(__dirname, 'mock-api.cjs')).makeMockApi({ baseUrl: process.env.E2E_MOCK_URL, driver: process.env.E2E_DRIVER, env: ENV, repo: REPO, trace, flows })
     : makeApi(c);
   const results = [];
   const rec = (id, name, verdict, evidence, ms) => { trace(`REC ${id} ${verdict} ${Math.round((ms||0)/1000)}s`); results.push({ id, name, verdict, evidence, ms }); };
@@ -587,6 +590,8 @@ function makeApi(c) {
       ]);
     } catch (_) {}
     try { c.close(); } catch (_) {}
+    let flowEmulator = null;
+    try { if (api.flowStats) flowEmulator = await api.flowStats(); } catch (_) {}
     const wallMs = Date.now() - started;
     const pass = results.filter(r => r.verdict === 'PASS').length;
     const payload = {
@@ -595,7 +600,7 @@ function makeApi(c) {
       fail: results.filter(r => r.verdict === 'FAIL').length,
       other: results.filter(r => !['PASS', 'FAIL'].includes(r.verdict)).length,
       perScenarioSec: results.length ? +(wallMs / 1000 / results.length).toFixed(1) : null,
-      botWaitStats: stats, results
+      botWaitStats: stats, ...(flowEmulator ? { flowEmulator } : {}), results
     };
     const outDir = process.env.RUN_DIR
       || path.join(__dirname, '..', 'results', 'whatsapp', 'niete', '2026-08-31-feature-runner');

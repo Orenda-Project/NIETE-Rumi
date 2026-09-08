@@ -79,6 +79,17 @@ function listReply(id, title, options = {}) {
 }
 
 /**
+ * The message Meta sends when a Flow COMPLETES: an interactive nfm_reply whose `name` is
+ * `flow_<flowId>` (the handler strips the prefix) and whose `response_json` is a STRING —
+ * the completion payload (navigate Flows: the complete action's payload; endpoint Flows: the
+ * endpoint's extension_message_response.params).
+ */
+function flowReply(flowId, responseJson, options = {}) {
+  const body = typeof responseJson === 'string' ? responseJson : JSON.stringify(responseJson || {});
+  return wrapInWebhook({ type: 'interactive', interactive: { type: 'nfm_reply', nfm_reply: { name: `flow_${flowId}`, body: 'Sent', response_json: body } } }, options);
+}
+
+/**
  * A media message the teacher sent — `kind` is document | image | audio | video, `mediaId` is the id
  * the (mock) Graph API will serve the bytes under. Carries exactly the fields the handlers read:
  * document → id, mime_type, filename, file_size · image → id, mime_type, caption · audio → id,
@@ -200,6 +211,7 @@ module.exports = {
   buttonReply,
   listReply,
   mediaMessage,
+  flowReply,
   wrapInWebhook,
   isQuitCommand,
   postToWebhook,

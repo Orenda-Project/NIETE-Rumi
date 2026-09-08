@@ -16,6 +16,7 @@
  * quiesce before each send waits for the outbox to stop changing, for the same reason.
  */
 const path = require('path');
+const fs = require('fs');
 const { execFileSync } = require('child_process');
 
 function makeMockApi(opts) {
@@ -100,10 +101,34 @@ function makeMockApi(opts) {
   const MEDIA_KIND_BY_MENU = { 'document': 'document', 'photos & videos': 'image', 'photo': 'image', 'audio': 'audio', 'video': 'video' };
   const MIME_BY_EXT = { '.m4a': 'audio/mp4', '.mp4': 'video/mp4', '.ogg': 'audio/ogg; codecs=opus', '.mp3': 'audio/mpeg', '.wav': 'audio/wav',
     '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.pdf': 'application/pdf', '.txt': 'text/plain' };
-  const noFlow = () => ({ ok: false, err: 'MOCK_NO_FLOW_RENDER' });
+  // ── Flows: EMULATED from the stored FLOW_JSON (phase 4). Not rendered — `caps.render` stays false and
+  // every result carries via:'flow-emulator'. opts.flows = { dir, botUrl, publicKeyPem, endpoints{envVar:path} }.
+  const FL = opts.flows || null;
+  const { createEmulator, FlowTransport } = require(path.join(repo, 'bot', 'scripts', 'e2e', 'flow-emulator.js'));
+  let flowManifest = null;
+  const manifest = () => {
+    if (flowManifest || !FL) return flowManifest;
+    try { flowManifest = JSON.parse(fs.readFileSync(path.join(FL.dir, 'manifest.json'), 'utf8')); } catch (_) { flowManifest = { flows: [] }; }
+    return flowManifest;
+  };
+  const flowEntryById = (id) => (manifest().flows || []).find((f) => String(f.flowId) === String(id));
+  let endpointsByEnv = null;
+  const endpointFor = (envVar) => {
+    if (FL && FL.endpoints && FL.endpoints[envVar]) return FL.endpoints[envVar];
+    if (!endpointsByEnv) {   // the bot's own registry: flow-configs.js (envVar → endpointPath)
+      endpointsByEnv = {};
+      try { const cfg = require(path.join(repo, 'bot', 'scripts', 'setup', 'flow-configs.js')); const list = Array.isArray(cfg) ? cfg : (cfg.FLOW_CONFIGS || cfg.flows || Object.values(cfg).find(Array.isArray) || []);
+        for (const f of list) if (f && f.envVar && f.endpointPath) endpointsByEnv[f.envVar] = f.endpointPath; } catch (_) { /* no registry */ }
+    }
+    return endpointsByEnv[envVar] || null;
+  };
+  let flow = null;              // the open emulator, or null
+  let flowCompletionSince = 0;  // outbox seq when the completion was injected
+  const flowStats = { opened: 0, completed: 0, refused: 0, flows: [] };
+  const noFlow = () => ({ ok: false, err: FL ? 'NO_FLOW_OPEN' : 'MOCK_NO_FLOW_RENDER' });
 
   return {
-    caps: { method: 'mock', flows: false, upload: true, render: false },
+    caps: { method: 'mock', flows: FL ? 'emulated' : false, upload: true, render: false },
     /** A page-side evaluate has no page here. Resolve to a JSON failure (the shape every caller
      *  parses) rather than throw: the callers are Flow-gated scenarios that are BLOCKED anyway, and a
      *  throw would abort the whole feature run instead of one scenario. */
@@ -148,17 +173,50 @@ function makeMockApi(opts) {
     },
     async closeDialog() { return true; },
 
-    // ---- native Flow: NOT rendered by the mock, and it says so ------------------------
-    async openFlow() { return noFlow(); },
-    flow() { return null; },
-    async resetFlow() { return { ok: true, note: 'mock driver: nothing to reset', attempts: 0 }; },
-    async flowProbe() { return { text: '', items: [] }; },
-    async flowClick() { return noFlow(); },
-    async flowPick() { return noFlow(); },
-    async flowAria() { return noFlow(); },
-    async flowType() { return noFlow(); },
-    async flowState() { return { found: false }; },
-    closeFlow() {},
+    // ---- Flows: emulated from the stored JSON, never rendered ------------------------
+    /** Open the Flow behind the last reply's card whose CTA matches `ctaPattern`. Loads the stored
+     *  FLOW_JSON by the card's flow_id, INITs endpoint Flows through the encrypted transport. */
+    async openFlow(ctaPattern) {
+      if (!FL) return { ok: false, err: 'MOCK_NO_FLOW_RENDER' };
+      const raw = lastReply && lastReply.raw && lastReply.raw.interactive;
+      const params = raw && raw.type === 'flow' && raw.action && raw.action.parameters;
+      const re = new RegExp(ctaPattern, 'i');
+      if (!params || !(lastReply.btns || []).some((b) => re.test(b))) { flowStats.refused++; return { ok: false, err: 'NO_FRESH_CTA:' + ctaPattern }; }
+      const entry = flowEntryById(params.flow_id);
+      if (!entry) return { ok: false, err: 'NO_STORED_FLOW:' + params.flow_id + ' (run flow-inventory.js fetch)' };
+      let json; try { json = JSON.parse(fs.readFileSync(path.join(FL.dir, entry.envVar + '.json'), 'utf8')); } catch (e) { return { ok: false, err: 'FLOW_JSON_UNREADABLE:' + entry.envVar }; }
+      const isExchange = params.flow_action === 'data_exchange';
+      const endpointPath = isExchange ? endpointFor(entry.envVar) : null;
+      if (isExchange && !endpointPath) return { ok: false, err: 'NO_ENDPOINT_PATH:' + entry.envVar };
+      const em = createEmulator(json, {
+        flowId: params.flow_id, flowToken: params.flow_token, action: isExchange ? 'data_exchange' : 'navigate',
+        screen: params.flow_action_payload && params.flow_action_payload.screen, data: params.flow_action_payload && params.flow_action_payload.data,
+        transport: isExchange ? new FlowTransport({ publicKeyPem: FL.publicKeyPem }) : null,
+        endpointUrl: isExchange ? String(FL.botUrl || base).replace(/\/+$/, '') + endpointPath : null,
+        onComplete: async (done) => {
+          flowCompletionSince = (await outbox(0)).last;
+          await inject('flow', { flowId: done.flowId, response_json: done.response_json });
+          flowStats.completed++;
+        },
+      });
+      try { await em.open(); } catch (e) { flowStats.refused++; return { ok: false, err: String(e.message).slice(0, 160) }; }
+      flow = em; flowStats.opened++; flowStats.flows.push(entry.envVar);
+      const p = em.probe();
+      trace('flow open ' + entry.envVar + ' screen=' + p.screen);
+      return { ok: true, clicked: (lastReply.btns || []).find((b) => re.test(b)), screen: p.screen, items: p.items.length, via: 'flow-emulator', flow: entry.envVar };
+    },
+    flow() { return flow; },
+    async resetFlow() { const had = !!flow; flow = null; return { ok: true, note: had ? 'emulated Flow closed' : 'nothing open', attempts: 0 }; },
+    async flowProbe() { if (!flow || !flow.isOpen()) return { text: '', items: [] }; const p = flow.probe(); return { text: p.text, items: p.items.map((i) => ({ text: i.text, disabled: i.disabled, kind: i.kind })) }; },
+    async flowClick(text, o2) { if (!flow || !flow.isOpen()) return noFlow(); const r = await flow.click(text, o2 || {}); if (!flow.isOpen()) flow = null; return r; },
+    async flowPick(want, o2) { if (!flow || !flow.isOpen()) return noFlow(); return flow.pick(want, o2 || {}); },
+    async flowAria(labelText) { if (!flow || !flow.isOpen()) return noFlow(); const r = await flow.click(labelText, {}); return r.ok ? { ok: true, label: labelText } : { ok: false, err: 'NO_ARIA:' + labelText }; },
+    async flowType(text, o2) { if (!flow || !flow.isOpen()) return noFlow(); return flow.type(text, o2 || {}); },
+    async flowState(labelRe) { if (!flow || !flow.isOpen()) return { found: false }; return flow.state(labelRe); },
+    closeFlow() { if (flow) flow.close(); flow = null; },
+    /** After a completion: wait for the bot's reaction to the nfm_reply (its next message). */
+    async flowComplete(timeoutMs = 90000) { return waitReply(flowCompletionSince, timeoutMs, 'flow:complete'); },
+    async flowStats() { return { ...flowStats, flows: [...new Set(flowStats.flows)] }; },
 
     /** DB reach-through — identical to the CDP api: the DB is real (sandbox), so persisted-state
      *  assertions (LANG02/03 language + lock) are verified the same way. */

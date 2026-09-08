@@ -116,6 +116,12 @@ def build_row(a):
             row["stack"] = {k: st.get(k) for k in ("bot_url", "mock_url", "worktree", "lock_blob", "queue", "worker")}
         except Exception:
             pass
+    fe = d.get("flowEmulator")
+    if isinstance(fe, dict) and (fe.get("opened") or fe.get("completed") or fe.get("refused")):
+        # Flow verdicts in this row came from the EMULATOR (stored FLOW_JSON + the bot's real endpoint), not
+        # from a rendered screen. Named so nobody reads them as a rendering pass.
+        row["flows"] = {"via": "flow-emulator", "opened": int(fe.get("opened") or 0), "completed": int(fe.get("completed") or 0),
+                        "refused": int(fe.get("refused") or 0), "flows": sorted(set(fe.get("flows") or []))}
     brief = a.spec_sync if a.spec_sync and a.spec_sync != "none" else None
     row["spec_sync"] = {"brief": brief,
                         "validator_exit": int(a.validator_exit) if a.validator_exit not in (None, "") else None}
