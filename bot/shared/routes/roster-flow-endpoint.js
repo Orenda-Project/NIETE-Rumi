@@ -38,6 +38,13 @@ const { toChunks, parseChunk, reconcile, pairMoves, renderList, MAX_BOXES } = re
 const rosterStorage = require('../services/roster/roster-storage');
 const ClassService = require('../services/classes/class.service');
 
+/** Classes counted for one school's coverage screen. Real max today is 24. */
+const CLASS_CAP = 300;
+/** Count requests in flight at once — the SCHOOL screen is a ~10s data_exchange. */
+const COUNT_CONCURRENCY = 8;
+/** A class register beyond this is not a register; the read is bounded either way. */
+const CLASS_ROSTER_CAP = 1000;
+
 // A register page is one class; a whole school is many /roster runs. Cap the paste
 // surface so one mis-upload cannot write hundreds of rows.
 const MAX_STUDENTS = 120;
@@ -355,6 +362,58 @@ function toPhotosResponse(state) {
 }
 
 /**
+ * How many active children each of these classes has — asked as a COUNT, never
+ * read as a list.
+ *
+ * bd-p3bs1. This used to be one read of every active enrolment row for every
+ * class at the school, tallied in JS. PostgREST answers at most 1,000 rows and
+ * says nothing about the ones it dropped, so past 1,000 enrolments the tally
+ * came from an arbitrary truncated slice: a class whose rows fell in the
+ * discarded tail counted 0, was filtered out by the `> 0` test below, and
+ * vanished from both the status list and the open-roster actions. Measured on
+ * prod 2026-09-08: at ICG, F-6/2 (1,060 active enrolments, 24 classes) Grade 3-E
+ * lost all 41 of its children and Grade 2-D showed 23 of 42.
+ *
+ * A count is not a list, so ask for the count. `head: true` + `count: 'exact'`
+ * makes PostgREST answer in the Content-Range header and ship NO rows at all: it
+ * is exact by construction, has no interaction with the row cap, and needs
+ * neither ordering nor paging — there is no truncation to be silent about.
+ *
+ * Load math. Requests are bounded by CLASSES AT ONE SCHOOL (24 at the largest,
+ * hard-capped at CLASS_CAP), not by enrolments — which is the number that grows.
+ * Bytes drop from 1,060 rows x ~48 B = 51 KB and rising, to ~0. Each count is an
+ * index-only scan on (class_id, is_active). gradeCoverage runs on the SCHOOL
+ * screen and once per save, inside a data_exchange Meta kills at ~10s, so the
+ * counts go out COUNT_CONCURRENCY at a time rather than one after another.
+ */
+async function enrollmentCounts(classIds) {
+  const counts = new Map();
+  for (let i = 0; i < classIds.length; i += COUNT_CONCURRENCY) {
+    const batch = classIds.slice(i, i + COUNT_CONCURRENCY);
+    // eslint-disable-next-line no-await-in-loop
+    const settled = await Promise.all(batch.map(async (id) => {
+      const { count, error } = await supabase
+        .from('class_enrollments')
+        .select('id', { count: 'exact', head: true })
+        .eq('class_id', id).eq('is_active', true);
+      return { id, count, error };
+    }));
+    for (const r of settled) {
+      // A failed count is NOT zero. Zero hides the class; leaving it unset means
+      // the same, so the one thing that must not happen silently is logged.
+      if (r.error) {
+        logToFile('\u26a0\ufe0f roster coverage: enrolment count failed', {
+          classId: r.id, error: r.error.message,
+        });
+        continue;
+      }
+      counts.set(r.id, r.count || 0);
+    }
+  }
+  return counts;
+}
+
+/**
  * Which grades of 1-5 does this school have rosters for? The unit is the GRADE
  * (any section with children counts), because nothing tells us how many sections
  * a school runs — the status list shows each scanned class, so a coach who knows
@@ -363,15 +422,16 @@ function toPhotosResponse(state) {
 async function gradeCoverage(schoolId) {
   const { data: classes } = await supabase
     .from('classes').select('id, grade_code, section, is_active')
-    .eq('school_id', schoolId).eq('is_active', true);
+    .eq('school_id', schoolId).eq('is_active', true)
+    .order('grade_code', { ascending: true }).order('section', { ascending: true })
+    .limit(CLASS_CAP);
   const ids = (classes || []).map((c) => c.id);
-  const counts = new Map();
-  if (ids.length) {
-    const { data: enr } = await supabase
-      .from('class_enrollments').select('class_id')
-      .in('class_id', ids).eq('is_active', true);
-    for (const e of enr || []) counts.set(e.class_id, (counts.get(e.class_id) || 0) + 1);
+  if (ids.length >= CLASS_CAP) {
+    logToFile('\u26a0\ufe0f roster coverage: class ceiling hit — some classes not counted', {
+      schoolId, cap: CLASS_CAP,
+    });
   }
+  const counts = await enrollmentCounts(ids);
   const { data: grades } = await supabase
     .from('grade_levels').select('code, ordinal').eq('band', 'primary').order('ordinal');
   const ordinalOf = new Map((grades || []).map((g) => [g.code, g.ordinal]));
@@ -444,8 +504,14 @@ async function classLabelFor(state, classId) {
 async function openRosterView(state, classId) {
   const { data: enr } = await supabase
     .from('class_enrollments').select('student_id, roll_number')
-    .eq('class_id', classId).eq('is_active', true);
+    .eq('class_id', classId).eq('is_active', true)
+    .order('roll_number', { ascending: true }).limit(CLASS_ROSTER_CAP);
   if (!enr || !enr.length) return stop('That roster is empty now. Close this and send /roster again.');
+  if (enr.length >= CLASS_ROSTER_CAP) {
+    logToFile('\u26a0\ufe0f roster view: class roster ceiling hit — the list shown is incomplete', {
+      classId, cap: CLASS_ROSTER_CAP,
+    });
+  }
 
   const { data: kids } = await supabase
     .from('students').select('id, student_name, father_name')

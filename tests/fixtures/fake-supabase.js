@@ -10,12 +10,23 @@
  *
  * Supports only what this codebase's services use:
  *   .from(t).select(cols).eq(c,v).in(c,vals).is(c,null).not(c,'is',null)
- *            .order(c,{ascending}).limit(n).maybeSingle() / .single()
+ *            .order(c,{ascending}).limit(n).range(a,b).maybeSingle() / .single()
+ *   .from(t).select(cols, { count: 'exact', head: true })   → { data: [], count }
  *   .from(t).insert(rowOrRows).select().single()
  *   .from(t).update(patch).eq(c,v)
  *   .from(t).upsert(rowOrRows)
  * A builder is thenable, so `await` without a terminal works like PostgREST.
+ *
+ * IT ALSO MODELS POSTGREST'S RESPONSE-ROW CAP. A real PostgREST answers at most
+ * `db-max-rows` (1,000 on this project — verified live against class_enrollments:
+ * an unbounded GET returned exactly 1,000 rows while `Prefer: count=exact` reported
+ * 17,028) and says nothing about the rows it dropped. A fake with no cap makes the
+ * whole truncation bug class untestable, which is how bd-p3bs1 shipped: a
+ * school-wide enrolment read that loses a class the moment a school passes 1,000
+ * children. `opts.maxRows` overrides it; every existing fixture seeds far fewer
+ * rows than the cap, so the cap is inert unless a test is deliberately about it.
  */
+const POSTGREST_MAX_ROWS = 1000;
 
 let idCounter = 0;
 function nextId(table) {
@@ -34,6 +45,8 @@ function matches(row, filters) {
 }
 
 function createFakeSupabase(seed = {}, opts = {}) {
+  const maxRows = opts.maxRows === undefined ? POSTGREST_MAX_ROWS : opts.maxRows;
+
   /** table → rows */
   const tables = {};
   for (const [name, rows] of Object.entries(seed)) {
@@ -63,6 +76,10 @@ function createFakeSupabase(seed = {}, opts = {}) {
     let payload = null;
     let order = null;
     let limitN = null;
+    let rangeFrom = null;
+    let rangeTo = null;
+    let countMode = null;
+    let headOnly = false;
 
     const fail = () => (failures[name] ? { data: null, error: { message: failures[name] } } : null);
 
@@ -113,8 +130,17 @@ function createFakeSupabase(seed = {}, opts = {}) {
           return ascending ? cmp : -cmp;
         });
       }
+      // `count` is computed BEFORE any limit/range/cap — that is what
+      // `Prefer: count=exact` means, and it is the whole reason a count-only
+      // read is immune to the row cap.
+      const total = rows.length;
+      if (rangeFrom !== null) rows = rows.slice(rangeFrom, rangeTo + 1);
       if (limitN !== null) rows = rows.slice(0, limitN);
-      return { data: rows, error: null };
+      // PostgREST's own ceiling, applied last and silently — exactly as the real
+      // server does. Nothing in the response says rows were dropped.
+      if (maxRows !== null && rows.length > maxRows) rows = rows.slice(0, maxRows);
+      if (headOnly) return { data: [], count: total, error: null };
+      return countMode ? { data: rows, count: total, error: null } : { data: rows, error: null };
     }
 
     function r0Keys(row) {
@@ -123,7 +149,12 @@ function createFakeSupabase(seed = {}, opts = {}) {
     }
 
     const api = {
-      select() { if (mode === 'select') mode = 'select'; return api; },
+      select(_cols, o = {}) {
+        if (mode === 'select') mode = 'select';
+        if (o && o.count) countMode = o.count;
+        if (o && o.head) headOnly = true;
+        return api;
+      },
       insert(p) { mode = 'insert'; payload = p; return api; },
       upsert(p) { mode = 'upsert'; payload = p; return api; },
       update(p) { mode = 'update'; payload = p; return api; },
@@ -134,6 +165,7 @@ function createFakeSupabase(seed = {}, opts = {}) {
       not(col) { filters.push(['notNull', col, null]); return api; },
       order(col, o = {}) { order = { col, ascending: o.ascending !== false }; return api; },
       limit(n) { limitN = n; return api; },
+      range(from, to) { rangeFrom = from; rangeTo = to; return api; },
       async maybeSingle() {
         const res = resolveRows();
         if (res.error) return res;
