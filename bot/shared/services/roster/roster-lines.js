@@ -19,6 +19,17 @@
  * position is not identity, and neither is the roll number itself: it is only a
  * locator for matching an edited line back to a students.id we already hold.
  *
+ * A BOX IS PACKED TO A TARGET, NOT TO THE PLATFORM CEILING. The greedy pack this
+ * file shipped with filled box 1 to CHUNK_CHAR_CAP before opening box 2, and
+ * CHUNK_CHAR_CAP is Meta's HARD limit — so a full box had exactly zero room for
+ * the edit the screen exists to collect. Field report 2026-09-08: a 54-child
+ * class rendered 591/600, 599/600 and 336/600 with three boxes empty below it,
+ * and the coach could not finish typing a father's name. Two children in that
+ * class are in the database with the name cut off mid-word. So the packer now
+ * aims at FILL_TARGET, spreads the class evenly across the boxes it opens, and
+ * only falls back to the hard cap when the target genuinely will not fit —
+ * headroom is a preference, a child reaching the screen is not.
+ *
  * AN UNREADABLE ROLL IS RENDERED AS `?`, NOT AS A NUMBER. On 2026-08-30 three
  * children whose rolls sat behind a drawing came back from the model as 10/11/12
  * for a page that numbers them 35/36/37. The extractor abstains now, and the null
@@ -28,10 +39,26 @@
  * the real roll over it is how the coach supplies what the camera could not see —
  * and reconcile() matches those lines back in render order, so a correction on one
  * lands on the child it was rendered for instead of being filed as a new admission.
+ *
+ * ...BUT ONLY WHERE IT MEANS SOMETHING. `?` says "this child's roll could not be
+ * read", which is information only next to siblings whose rolls could. On a
+ * register with no roll column at all every one of 43 lines got a `?`, it told
+ * the coach nothing, and coaches read it as breakage and deleted children (field
+ * report 2026-09-07). So the prefix is dropped entirely when NO child in the list
+ * carries a roll, and kept whenever any child does. This is a rendering decision
+ * only: parseChunk's prefix match is optional, so a bare line and a `?.` line both
+ * read back as roll null, and reconcile() matches both in render order.
  */
 
 // Meta's hard cap on a TextArea value. Not a default — the ceiling.
 const CHUNK_CHAR_CAP = 600;
+// What a box is actually FILLED to, so the coach can still type in it. Measured
+// against ICT production 2026-09-08 (15,532 enrolled children, 470 classes): a
+// rendered line is 16 code points at the median, 31 at p95, 36 at p99. 120 code
+// points of headroom is therefore three whole extra children at p99, or four at
+// p95 — enough to lengthen several names AND add a child the camera missed.
+const EDIT_HEADROOM = 120;
+const FILL_TARGET = CHUNK_CHAR_CAP - EDIT_HEADROOM;
 // Six boxes costs 6 of the 50 components a screen allows. The cost of one more is
 // trivial; the cost of silently dropping a child off the end is not.
 const MAX_BOXES = 6;
@@ -59,11 +86,26 @@ function rollMissing(student) {
   return roll === null || roll === undefined || String(roll).trim() === '';
 }
 
-function renderLine(student, index) {
+/** True when at least one child in this list carries a roll we read off the page. */
+function listHasRolls(students) {
+  return (students || []).some((s) => !rollMissing(s));
+}
+
+/**
+ * One line.
+ *
+ * `showRolls` is a property of the LIST, not of the child: it is false only when
+ * no child in the list has a roll, and then the line carries no prefix at all.
+ * It defaults to true so a lone call still renders `?.`, which is what a mixed
+ * page shows.
+ */
+function renderLine(student, index, showRolls = true) {
   const name = (student.student_name || '').trim();
   const father = (student.father_name || '').trim();
+  const body = father ? name + SEP + father : name;
+  if (!showRolls) return body;
   const prefix = rollMissing(student) ? UNKNOWN_ROLL : keyOf(student, index);
-  return `${prefix}. ${father ? name + SEP + father : name}`;
+  return `${prefix}. ${body}`;
 }
 
 /**
@@ -79,7 +121,8 @@ function renderList(students, cap = LIST_CHAR_CAP) {
   const list = students || [];
   if (!list.length) return '';
 
-  const lines = list.map((s, i) => renderLine(s, i));
+  const showRolls = listHasRolls(list);
+  const lines = list.map((s, i) => renderLine(s, i, showRolls));
   const whole = lines.join('\n');
   if (whole.length <= cap) return whole;
 
@@ -97,34 +140,35 @@ function renderList(students, cap = LIST_CHAR_CAP) {
 }
 
 /**
- * Render students into the six editable boxes.
+ * Pack lines into at most `maxBoxes` contiguous boxes, none over `limit`.
  *
- * @param {Array<{id:string, roll_number?:string, student_name:string, father_name?:string}>} students
- * @returns {{chunks:string[], labels:string[], visible:boolean[], overflow:number}}
- *   chunks/labels/helpers/visible are always MAX_BOXES long — the screen is static
- *   once published, so unused boxes are hidden, never removed. `overflow` is the
- *   number of students that did not fit and must be reported rather than dropped.
+ * Contiguous on purpose: the boxes are read top to bottom as one list, so a box
+ * holds a SLICE of the roster in roster order. Returns `full` when it ran out of
+ * boxes with lines still to place.
+ *
+ * A single line longer than `limit` gets a box to itself rather than opening an
+ * empty one — the version before this returned an empty visible box with a label
+ * in that case. (A line longer than CHUNK_CHAR_CAP would still be unrenderable;
+ * the longest line in ICT production on 2026-09-08 is 216 code points.)
  */
-function toChunks(students) {
-  const list = students || [];
+function packLines(lines, limit, maxBoxes) {
   const chunks = [];
   const bounds = [];
   let cur = '';
   let curFirst = 1;
   let placed = 0;
 
-  for (let i = 0; i < list.length; i += 1) {
-    const line = renderLine(list[i], i);
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
     const next = cur ? `${cur}\n${line}` : line;
 
-    if (next.length > CHUNK_CHAR_CAP) {
-      if (chunks.length + 1 >= MAX_BOXES) {
+    if (cur && next.length > limit) {
+      if (chunks.length + 1 >= maxBoxes) {
         // The last box is full and there is still more to place. Stop here and
         // report the remainder rather than truncating in silence.
         chunks.push(cur);
         bounds.push([curFirst, placed]);
-        cur = '';
-        break;
+        return { chunks, bounds, placed, full: true };
       }
       chunks.push(cur);
       bounds.push([curFirst, placed]);
@@ -140,22 +184,82 @@ function toChunks(students) {
     chunks.push(cur);
     bounds.push([curFirst, placed]);
   }
+  return { chunks, bounds, placed, full: false };
+}
 
-  const overflow = Math.max(0, list.length - placed);
+/**
+ * Choose the packing: as few boxes as the target allows, then evened out.
+ *
+ * 1. Pack at FILL_TARGET. If everyone fits, that box count is the fewest boxes
+ *    that can hold the class with headroom — greedy is optimal for a contiguous
+ *    split. Then search downward for the smallest per-box limit that still needs
+ *    no more boxes than that, which is what turns 480/480/480/86 into
+ *    405/405/405/347. The coach gets the same number of boxes to scroll and the
+ *    same amount of room in each.
+ * 2. If the class does not fit at the target, pack at the hard cap instead. That
+ *    is exactly the behaviour that shipped, so a lower target can never drop a
+ *    child that fits today — proven in tests/roster/roster-boxes-and-rolls.test.js.
+ */
+function packToBoxes(lines) {
+  const soft = packLines(lines, FILL_TARGET, MAX_BOXES);
+  if (soft.placed === lines.length) {
+    const boxes = soft.chunks.length;
+    const longest = lines.reduce((m, l) => Math.max(m, l.length), 1);
+    let lo = longest;
+    let hi = FILL_TARGET;
+    let best = soft;
+    while (lo <= hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      const t = packLines(lines, mid, MAX_BOXES);
+      if (t.placed === lines.length && t.chunks.length <= boxes) {
+        best = t;
+        hi = mid - 1;
+      } else {
+        lo = mid + 1;
+      }
+    }
+    return { chunks: best.chunks, bounds: best.bounds, overflow: 0 };
+  }
+
+  const hard = packLines(lines, CHUNK_CHAR_CAP, MAX_BOXES);
+  return {
+    chunks: hard.chunks,
+    bounds: hard.bounds,
+    overflow: Math.max(0, lines.length - hard.placed),
+  };
+}
+
+/**
+ * Render students into the six editable boxes.
+ *
+ * @param {Array<{id:string, roll_number?:string, student_name:string, father_name?:string}>} students
+ * @returns {{chunks:string[], labels:string[], visible:boolean[], overflow:number}}
+ *   chunks/labels/helpers/visible are always MAX_BOXES long — the screen is static
+ *   once published, so unused boxes are hidden, never removed. `overflow` is the
+ *   number of students that did not fit and must be reported rather than dropped.
+ */
+function toChunks(students) {
+  const list = students || [];
+  const showRolls = listHasRolls(list);
+  const lines = list.map((s, i) => renderLine(s, i, showRolls));
+  const { chunks, bounds, overflow } = packToBoxes(lines);
 
   const labels = [];
   const helpers = [];
   const visible = [];
   const total = list.length;
   for (let b = 0; b < MAX_BOXES; b += 1) {
-    const has = b < chunks.length;
+    const has = b < chunks.length && chunks[b].length > 0;
     visible.push(has);
     const label = has ? `Students ${bounds[b][0]}-${bounds[b][1]}` : `Students ${b + 1}`;
     labels.push(label.length > LABEL_CAP ? label.slice(0, LABEL_CAP) : label);
     // The label is capped at 20 characters, which is not enough room to say that a
     // box holds a SLICE. Without that, a coach reads the first box as the class.
+    // When the page carried no roll column the helper says so, because the lines
+    // above it no longer start with a number and that must not read as a fault.
     const help = has
-      ? `Students ${bounds[b][0]}-${bounds[b][1]} of ${total}. One per line.`
+      ? `Students ${bounds[b][0]}-${bounds[b][1]} of ${total}. One per line`
+        + `${showRolls ? '.' : ', no roll numbers.'}`
       : '';
     helpers.push(help.length > HELPER_CAP ? help.slice(0, HELPER_CAP) : help);
   }
@@ -297,6 +401,8 @@ function pairMoves(diff) {
 
 module.exports = {
   CHUNK_CHAR_CAP,
+  FILL_TARGET,
+  EDIT_HEADROOM,
   MAX_BOXES,
   LABEL_CAP,
   HELPER_CAP,
@@ -304,6 +410,7 @@ module.exports = {
   UNKNOWN_ROLL,
   keyOf,
   rollMissing,
+  listHasRolls,
   renderLine,
   renderList,
   toChunks,
