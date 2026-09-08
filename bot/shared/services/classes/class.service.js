@@ -919,10 +919,18 @@ async function addStudent({
  * history intact. Any teacher on the class may do it, because the roster is the
  * class's, not hers.
  *
+ * The default outcome is `roster_correction`, and that is the whole point: no
+ * surface that calls this asks a teacher WHY. It used to default to 'left', which
+ * asserts a child left school — 865 rows on NIETE prod said so on 2026-09-08 and
+ * not one of them came from anybody saying it. 'roster_correction' claims only what
+ * is certainly true: a person took her off this roster and no reason was recorded.
+ * A caller that genuinely knows (a promotion sweep, a real leaver flow) passes its
+ * own value and this default never applies.
+ *
  * @returns {Promise<{removed: boolean, error?: string}>}
  */
 async function removeStudent({
-  classId, teacherUserId, studentId, outcome = 'left',
+  classId, teacherUserId, studentId, outcome = 'roster_correction',
 } = {}) {
   if (!classId) return { error: 'missing_class' };
   if (!teacherUserId) return { error: 'missing_teacher' };
