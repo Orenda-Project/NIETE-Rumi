@@ -192,7 +192,7 @@ const PortalCurriculum = () => {
 
         <Tabs defaultValue="library" className="w-full">
           <TabsList className="mb-6">
-            <TabsTrigger value="library">Lesson Plan Library</TabsTrigger>
+            <TabsTrigger value="library">Lesson Plans</TabsTrigger>
             <TabsTrigger value="assessment">Assessment Generator</TabsTrigger>
           </TabsList>
 
