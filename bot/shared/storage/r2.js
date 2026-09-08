@@ -503,6 +503,50 @@ function extractKeyFromUrl(url) {
   return bareUrl.substring(bucketIndex + `/${BUCKET_NAME}/`.length);
 }
 
+
+/**
+ * Fetch media for sending, from our bucket when we can and from the public web
+ * when we cannot.
+ *
+ * Children lost every audio clip in a curriculum video quiz for over a week —
+ * narration, explanation and answer — while every import-level check passed.
+ * The clips live in a SEPARATE R2 bucket published on Cloudflare's public
+ * `pub-<hash>.r2.dev` alias; our client is bound to one bucket, so
+ * extractKeyFromUrl saw an http(s) URL with no `/bucket/` marker, threw, and the
+ * caller turned that throw into a `false`. ~780 failures a day, zero successful
+ * audio sends.
+ *
+ * Two things were verified before this was written, because the obvious fix is
+ * the wrong one: the object is public and healthy (HEAD → 200, audio/ogg), and
+ * `head-object` for that key in OUR bucket returns 404. Teaching the extractor
+ * that "the r2.dev path is the key" would only swap a throw for a NoSuchKey. It
+ * genuinely is a different bucket we cannot read.
+ *
+ * Order matters: our own bucket is always tried first, so nothing that works
+ * today changes route. The web fallback can only fire where the code previously
+ * threw or missed — which is what makes this safe for all eight callers that
+ * download media to send.
+ *
+ * @param {string} urlOrKey a bare R2 key, an R2 URL in either addressing style,
+ *                          or a public https URL
+ * @returns {Promise<Buffer>}
+ */
+async function downloadMedia(urlOrKey) {
+  const isHttp = /^https?:\/\//i.test(String(urlOrKey || ''));
+  try {
+    const key = extractKeyFromUrl(urlOrKey);
+    return await module.exports.downloadFromR2(key);
+  } catch (bucketErr) {
+    if (!isHttp) throw bucketErr;        // a bare key that missed is a real miss
+    console.log(`📡 Media not in our bucket, fetching the public URL: ${urlOrKey} (${bucketErr.message})`);
+    const res = await fetch(urlOrKey, { redirect: 'follow' });
+    if (!res.ok) {
+      throw new Error(`Public media fetch failed (${res.status}) for ${urlOrKey}`);
+    }
+    return Buffer.from(await res.arrayBuffer());
+  }
+}
+
 /**
  * Upload video generation asset to R2 with organized folder structure
  * Issue #1: R2 Persistence for video generation pipeline
@@ -907,6 +951,7 @@ module.exports = {
   uploadImageWithRetry, // Multimodal vision: upload with retry
   uploadFeatureVideo, // Feature introduction videos for onboarding
   downloadFromR2,
+  downloadMedia,
   extractKeyFromUrl,
   buildR2PublicUrl,
   // Issue #1: Video generation R2 persistence
