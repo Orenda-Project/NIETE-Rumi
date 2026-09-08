@@ -123,7 +123,7 @@ if [ "$MODE" = "all" ] || echo "$FEATURES" | grep -qx coaching; then
   fi
   # FIRSTUSE=1: delete the driver's coaching first-use row so COA02's intro offer + "Just tell me"
   # button reappear and the scenario can be driven (coaching.cjs runs COA02 under the same flag).
-  if [ "${FIRSTUSE:-}" = "1" ]; then
+  if [ "${FIRSTUSE:-}" = "1" ] || { [ "$METHOD" = mock ] && [ "${FIRSTUSE:-1}" = "1" ]; }; then
     python3 "$QA/niete_coaching_db.py" reset-first-use --env "$ENV" --phone "$DRIVER" --yes-write 2>&1 | tee -a "$LOG" | tail -1
   fi
 fi
@@ -167,10 +167,23 @@ PY
 for f in $FEATURES; do
   case "$f" in
     coaching)
-      if [ "$MODE" = "all" ]; then DEEP=1 REFLECT="${REFLECT:-answer}" run_feature coaching; else run_feature coaching; fi
+      # The mock lane is cheap and private: drive the @slow/@wip set (DEEP) and the first-use intro (FIRSTUSE)
+      # by default — a scenario that needs a vendor answer the cassette lacks then FAILS with a named miss
+      # instead of hiding behind SKIP. Env overrides still win (DEEP=0 to go shallow).
+      if [ "$MODE" = "all" ]; then DEEP=1 REFLECT="${REFLECT:-answer}" run_feature coaching
+      elif [ "$METHOD" = mock ]; then DEEP="${DEEP:-1}" FIRSTUSE="${FIRSTUSE:-1}" REFLECT="${REFLECT:-answer}" run_feature coaching
+      else run_feature coaching; fi
       reset_state after-coaching;;
     training)
-      if [ "$MODE" = "all" ] && [ "$SEED" = 1 ]; then
+      if [ "$METHOD" = mock ]; then
+        # The sandbox driver starts with no programme and no progress. Enrol it (niete_standard) and clear
+        # level 1's progress so Level 0 is IN PROGRESS: a ▶ Next up module to check, later levels 🔒 locked,
+        # the exam 🔒 — the state every module-check scenario needs. Sandbox only; reversible.
+        say "seed(mock): activate-program niete_standard + revert-level 1 on $DRIVER ($ENV)"
+        python3 "$QA/niete_training_db.py" activate-program --env "$ENV" --phone "$DRIVER" --program-key niete_standard --yes-write >>"$LOG" 2>&1 || say "seed(mock): activate-program failed (see runner.log)"
+        python3 "$QA/niete_training_db.py" revert-level --env "$ENV" --phone "$DRIVER" --level 1 --yes-write >>"$LOG" 2>&1 || say "seed(mock): revert-level failed (see runner.log)"
+        run_feature training
+      elif [ "$MODE" = "all" ] && [ "$SEED" = 1 ]; then
         say "seed: revert-level 1 on $DRIVER ($ENV) so the module-check cluster is drivable"
         python3 "$QA/niete_training_db.py" revert-level --env "$ENV" --phone "$DRIVER" --level 1 --yes-write >>"$LOG" 2>&1
         run_feature training

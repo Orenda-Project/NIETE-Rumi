@@ -204,6 +204,15 @@ const ROWS = ['Teacher Training', 'Lesson Plans', 'Classroom Coaching', 'Ask Any
     const r = await api.sendWait('second', 5000);
     assert.strictEqual(r.txt, 'echo: second');
   });
+  await ita('tapAndWait finds a button on an EARLIER card when the latest reply has none — the button is still on screen, as in WhatsApp', async () => {
+    // training.cjs: the module card (📝 Take quiz · ⏸ Pause) arrives, then a plain text lands after it;
+    // tapping ⏸ Pause must still work. Reading only the very last reply threw a harness error here.
+    await api.sendWait('buttons', 5000);
+    await api.sendWait('hello', 5000);                      // a text reply, no buttons
+    const r = await api.tapAndWait('Yes, analyze', 5000);
+    assert.strictEqual(r.ok, true, JSON.stringify(r));
+    assert.strictEqual(r.txt, 'tapped yes_1');
+  });
   await ita('ev() — a page-side read a CDP-only script still makes — resolves to a JSON failure, never throws', async () => {
     // lesson-plan.cjs reads the transcript via api.ev inside its Flow scenarios; on the mock those
     // scenarios are already BLOCKED (no Flow), and a throw here would abort the WHOLE feature run.

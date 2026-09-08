@@ -435,7 +435,7 @@ function makeApi(c) {
      *  really unregistered?) can be verified in the same run instead of deferred to a human. */
     db(action, extra) {
       trace('db ' + action);
-      const script = action === 'lookup'
+      const script = /^(lookup|answer-key|module-answer-key)$/.test(action)
         ? path.join(REPO, '.claude/qa/shared/niete_training_db.py')
         : path.join(REPO, '.claude/qa/shared/niete_registration_db.py');
       const args = [script, action, '--env', ENV, '--phone', process.env.E2E_DRIVER || '923028931858'];

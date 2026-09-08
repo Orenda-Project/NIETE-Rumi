@@ -83,7 +83,8 @@ function createEmulator(flowJson, opts) {
   const o = Object.assign({ action: 'navigate', screen: null, data: null, flowId: 'unknown', flowToken: '', onComplete: null, onExchange: null }, opts || {});
   const screensById = Object.fromEntries((flowJson.screens || []).map((s) => [s.id, s]));
   const routing = flowJson.routing_model || {};
-  const st = { open: false, screen: null, data: {}, form: {}, screens: {}, log: [] };
+  const st = { open: false, screen: null, data: {}, form: {}, screens: {}, log: [], pending: null };
+  const settle = async () => { const p = st.pending; st.pending = null; return p ? p : { ok: true }; };
 
   const screenDef = () => screensById[st.screen];
   const ctx = () => ({ data: st.data, form: st.form, screens: st.screens });
@@ -124,7 +125,7 @@ function createEmulator(flowJson, opts) {
     const unmet = requiredUnmet().length > 0;
     for (const c of components()) {
       if (TEXT_TYPES.has(c.type)) { const t = resolve(c.text, ctx()); if (t != null && t !== '') texts.push(Array.isArray(t) ? t.join('\n') : String(t)); }
-      else if (OPTION_TYPES.has(c.type)) { const l = label(c); if (l) texts.push(String(l)); for (const op of optionsOf(c)) items.push({ text: op.title, hay: [op.title, op.description].filter(Boolean).join('\n'), disabled: !op.enabled, kind: 'option', name: c.name, id: op.id }); }
+      else if (OPTION_TYPES.has(c.type)) { const l = label(c); if (l) texts.push(String(l)); for (const op of optionsOf(c)) { const row = op.description ? `${op.title} · ${op.description}` : op.title; items.push({ text: row, title: op.title, hay: row, disabled: !op.enabled, kind: 'option', name: c.name, id: op.id }); } }
       else if (c.type === 'TextInput' || c.type === 'TextArea' || c.type === 'CalendarPicker' || c.type === 'DatePicker') items.push({ text: label(c) || c.name, disabled: false, kind: 'input', name: c.name, value: st.form[c.name] });
       else if (c.type === 'OptIn') items.push({ text: label(c) || c.name, disabled: false, kind: 'optin', name: c.name, value: !!st.form[c.name] });
       else if (c.type === 'EmbeddedLink') items.push({ text: resolve(c.text, ctx()), disabled: false, kind: 'link', action: c['on-click-action'] });
@@ -214,12 +215,18 @@ function createEmulator(flowJson, opts) {
     /** Click a footer / link / nav item by (substring, case-insensitive) text — like flow-lib.clickText. */
     async click(text, opts = {}) {
       if (!st.open) return { ok: false, err: 'FLOW_CLOSED' };
+      await settle();
+      // Tapping a Dropdown / radio group's LABEL opens the picker on the phone; the options are
+      // already in the probe here, so it is a successful no-op — scripts do this before picking.
+      const want = norm(text);
+      const field = components().find((c) => OPTION_TYPES.has(c.type) && norm(label(c)) && (opts.exact ? norm(label(c)) === want : norm(label(c)).includes(want)));
+      if (field && !findItem(text, { exact: !!opts.exact, kinds: ['footer', 'link', 'nav', 'optin'] })) return { ok: true, clicked: String(label(field)) };
       // Footer/link/nav first (an action), then an option (a selection) — the browser helper clicks
       // whichever element carries the text, so scripts drive lists with flowClick as well as flowPick.
       const it = findItem(text, { exact: !!opts.exact, kinds: ['footer', 'link', 'nav', 'optin'] }) || findItem(text, { exact: !!opts.exact, kinds: ['option'] });
       if (!it) return { ok: false, err: 'NO_ITEM:' + text, seen: probe().items.map((i) => i.text) };   // what WAS on screen
       if (it.disabled) return { ok: false, err: 'DISABLED:' + it.text };
-      if (it.kind === 'option') { const r = this.pick(it.text, { exact: true }); return r.ok ? { ok: true, clicked: it.text } : r; }
+      if (it.kind === 'option') { const r = this.pick(it.text, { exact: true }); if (!r.ok) return r; const a = await settle(); return a.ok ? { ok: true, clicked: it.text } : a; }
       if (it.kind === 'optin') { st.form[it.name] = !st.form[it.name]; return { ok: true, clicked: it.text }; }
       if (it.kind === 'nav' && !it.action) return { ok: false, err: 'NAV_NO_ACTION:' + it.text };
       if (it.kind === 'nav' && it.id) st.form.__nav = it.id;
@@ -237,6 +244,10 @@ function createEmulator(flowJson, opts) {
       const c = components().find((x) => x.name === it.name);
       if (c && c.type === 'CheckboxGroup') { const cur = Array.isArray(st.form[it.name]) ? st.form[it.name] : []; st.form[it.name] = cur.includes(it.id) ? cur.filter((x) => x !== it.id) : [...cur, it.id]; }
       else st.form[it.name] = it.id;
+      // A component whose selection IS the submit (Teacher Training's module picker): run its
+      // on-select-action now; settle()/click() await it, exactly as the phone submits on select.
+      const sel = c && c['on-select-action'];
+      if (sel && sel.name) { st.log.push({ select: it.name, id: it.id }); st.pending = runAction(sel); }
       return { ok: true, picked: it.text };
     },
     /** Type into the first EMPTY text input (or the one named/labelled in opts.field). */
@@ -256,6 +267,7 @@ function createEmulator(flowJson, opts) {
       return it ? { found: true, text: it.text, disabled: it.disabled } : { found: false };
     },
     exchange,
+    settle,
     close() { st.open = false; },
     log: () => st.log.slice(),
     _debugSetScreen(id) { st.screen = id; st.data = st.data || {}; },

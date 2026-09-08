@@ -19,6 +19,16 @@ const path = require('path');
 const fs = require('fs');
 const { execFileSync } = require('child_process');
 
+/** Endpoint path for a Flow: the registry (flow-configs.js) first; else the env var's stem when the
+ *  bot's flow-endpoint.routes.js mounts router.post('/<stem>') — hand-published Flows like Teacher
+ *  Training are not in the registry but ARE mounted. Anything unmounted stays null (NO_ENDPOINT_PATH). */
+function endpointPathFor(envVar, registry, routesSource) {
+  if (registry && registry[envVar]) return registry[envVar];
+  const stem = String(envVar || '').replace(/_FLOW_ID$/, '').toLowerCase().replace(/_/g, '-');
+  if (stem && routesSource && new RegExp("router\\.post\\(\\s*'/" + stem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "'").test(routesSource)) return '/api/flows/' + stem;
+  return null;
+}
+
 function makeMockApi(opts) {
   const base = String(opts.baseUrl || process.env.E2E_MOCK_URL || 'http://127.0.0.1:4010').replace(/\/+$/, '');
   const driver = opts.driver || process.env.E2E_DRIVER;
@@ -97,7 +107,9 @@ function makeMockApi(opts) {
   // arrived since the LAST call, with the media flags the CDP page-side reader computes.
   let freshCursor = 0;
   const flagsOf = (i) => ({ txt: String(i.txt || '').slice(0, 600), img: !!i.img, audio: !!i.audio, doc: !!i.doc,
-    pdf: !!i.pdf || /\.pdf/i.test(i.txt || ''), btns: i.btns || [], media: i.media });
+    pdf: !!i.pdf || /\.pdf/i.test(i.txt || ''), btns: i.btns || [], media: i.media,
+    // interactive list rows, when this reply is one — the training module check is answered off these
+    list: i.list || null });
   const MEDIA_KIND_BY_MENU = { 'document': 'document', 'photos & videos': 'image', 'photo': 'image', 'audio': 'audio', 'video': 'video' };
   const MIME_BY_EXT = { '.m4a': 'audio/mp4', '.mp4': 'video/mp4', '.ogg': 'audio/ogg; codecs=opus', '.mp3': 'audio/mpeg', '.wav': 'audio/wav',
     '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.pdf': 'application/pdf', '.txt': 'text/plain' };
@@ -112,15 +124,16 @@ function makeMockApi(opts) {
     return flowManifest;
   };
   const flowEntryById = (id) => (manifest().flows || []).find((f) => String(f.flowId) === String(id));
-  let endpointsByEnv = null;
+  let endpointsByEnv = null, routesSource = null;
   const endpointFor = (envVar) => {
     if (FL && FL.endpoints && FL.endpoints[envVar]) return FL.endpoints[envVar];
     if (!endpointsByEnv) {   // the bot's own registry: flow-configs.js (envVar → endpointPath)
       endpointsByEnv = {};
       try { const cfg = require(path.join(repo, 'bot', 'scripts', 'setup', 'flow-configs.js')); const list = Array.isArray(cfg) ? cfg : (cfg.FLOW_CONFIGS || cfg.flows || Object.values(cfg).find(Array.isArray) || []);
         for (const f of list) if (f && f.envVar && f.endpointPath) endpointsByEnv[f.envVar] = f.endpointPath; } catch (_) { /* no registry */ }
+      try { routesSource = fs.readFileSync(path.join(repo, 'bot', 'shared', 'routes', 'flow-endpoint.routes.js'), 'utf8'); } catch (_) { routesSource = ''; }
     }
-    return endpointsByEnv[envVar] || null;
+    return endpointPathFor(envVar, endpointsByEnv, routesSource);
   };
   let flow = null;              // the open emulator, or null
   let flowCompletionSince = 0;  // outbox seq when the completion was injected
@@ -128,7 +141,7 @@ function makeMockApi(opts) {
   const noFlow = () => ({ ok: false, err: FL ? 'NO_FLOW_OPEN' : 'MOCK_NO_FLOW_RENDER' });
 
   return {
-    caps: { method: 'mock', flows: FL ? 'emulated' : false, upload: true, render: false },
+    caps: { method: 'mock', flows: FL ? 'emulated' : false, upload: true, render: false, rawInject: true },
     /** A page-side evaluate has no page here. Resolve to a JSON failure (the shape every caller
      *  parses) rather than throw: the callers are Flow-gated scenarios that are BLOCKED anyway, and a
      *  throw would abort the whole feature run instead of one scenario. */
@@ -148,10 +161,16 @@ function makeMockApi(opts) {
       return r;
     },
     async tapAndWait(label, timeoutMs = 90000) {
-      const raw = lastReply && lastReply.raw && lastReply.raw.interactive;
-      const btn = raw && raw.type === 'button' && (raw.action.buttons || []).find((b) => b.reply && b.reply.title === label);
-      if (!btn) throw new Error(`HARNESS mock-api: no reply button titled ${JSON.stringify(label)} on the last reply (btns=${JSON.stringify(lastReply && lastReply.btns)})`);
-      const since = cursor;
+      // The button may sit on an earlier card than the very last reply (a text can land after the
+      // card) — it is still on screen, so search the recent outbox newest-first, as a tap in WhatsApp would.
+      const findBtn = (item) => { const raw = item && item.raw && item.raw.interactive; return raw && raw.type === 'button' && (raw.action.buttons || []).find((b) => b.reply && b.reply.title === label); };
+      let btn = findBtn(lastReply);
+      if (!btn) { const recent = (await outbox(0)).items.slice(-30).reverse(); for (const it of recent) { btn = findBtn(it); if (btn) break; } }
+      if (!btn) throw new Error(`HARNESS mock-api: no reply button titled ${JSON.stringify(label)} on any recent reply (last btns=${JSON.stringify(lastReply && lastReply.btns)})`);
+      // Count the reply from the outbox tip NOW, not from `cursor` — a fresh()/Flow-driven step leaves
+      // cursor behind, and a card already sitting quiet would otherwise be mistaken for the tap's reply
+      // (the training module card, with the real answer 6s away: bd tap→quiz).
+      const since = (await outbox(0)).last;
       await inject('button', { id: btn.reply.id, title: btn.reply.title });
       const r = await waitReply(since, timeoutMs, 'tap:' + label);
       return { ok: r.ok, waitedMs: r.waitedMs, tapped: label, newIds: r.freshIds, txt: r.txt, btns: r.btns };
@@ -159,19 +178,22 @@ function makeMockApi(opts) {
     async openList(opener) {
       const l = lastReply && lastReply.list;
       if (!l) return { ok: false, err: 'NO_DIALOG', tap: { ok: false, opener } };
-      const rows = l.rows.map((r) => r.title);
-      return { ok: true, rows, all: [lastReply.txt, ...rows].join('\n') };
+      const rows = l.rows.map((r) => r.title), descs = l.rows.map((r) => r.description || '');
+      return { ok: true, rows, descs, all: [lastReply.txt, ...l.rows.map((r) => [r.title, r.description].filter(Boolean).join('\n'))].join('\n') };
     },
     async pickRowAndWait(row, timeoutMs = 90000) {
       const l = lastReply && lastReply.list;
       const hit = l && l.rows.find((r) => r.title === row);
       if (!hit) throw new Error(`HARNESS mock-api: no list row titled ${JSON.stringify(row)} on the last reply (rows=${JSON.stringify(l && l.rows.map((r) => r.title))})`);
-      const since = cursor;
+      const since = (await outbox(0)).last;
       await inject('list', { id: hit.id, title: hit.title });
       const r = await waitReply(since, timeoutMs, 'pick:' + row);
       return { ok: r.ok, waitedMs: r.waitedMs, picked: row, newIds: r.freshIds, txt: r.txt, btns: r.btns };
     },
     async closeDialog() { return true; },
+    /** Inject a raw list-row / button reply by id (the module-check driver answers questions this way,
+     *  reading the rows off fresh()). Returns after the inject; the caller polls fresh() for what follows. */
+    async tapId(kind, id, title) { await inject(kind, { id, title: title || id }); return { ok: true }; },
 
     // ---- Flows: emulated from the stored JSON, never rendered ------------------------
     /** Open the Flow behind the last reply's card whose CTA matches `ctaPattern`. Loads the stored
@@ -209,7 +231,21 @@ function makeMockApi(opts) {
     async resetFlow() { const had = !!flow; flow = null; return { ok: true, note: had ? 'emulated Flow closed' : 'nothing open', attempts: 0 }; },
     async flowProbe() { if (!flow || !flow.isOpen()) return { text: '', items: [] }; const p = flow.probe(); return { text: p.text, items: p.items.map((i) => ({ text: i.text, disabled: i.disabled, kind: i.kind })) }; },
     async flowClick(text, o2) { if (!flow || !flow.isOpen()) return noFlow(); const r = await flow.click(text, o2 || {}); if (!flow.isOpen()) flow = null; return r; },
-    async flowPick(want, o2) { if (!flow || !flow.isOpen()) return noFlow(); return flow.pick(want, o2 || {}); },
+    async flowPick(want, o2) {
+      if (!flow || !flow.isOpen()) return noFlow();
+      const r = flow.pick(want, o2 || {});
+      if (r.ok) { const a = await flow.settle(); if (!a.ok) return a; }   // a picker whose selection submits
+      if (!flow.isOpen()) flow = null;
+      return r;
+    },
+    /** A RAW list reply — what a stale or tampered client could replay (language LANG05). The
+     *  browser lane cannot forge this, so scripts gate it on caps.rawInject. */
+    async injectList(id, title, timeoutMs = 60000) {
+      const since = cursor;
+      await inject('list', { id, title: title || id });
+      const r = await waitReply(since, timeoutMs, 'inject:list:' + id);
+      return { ok: r.ok, waitedMs: r.waitedMs, txt: r.txt, btns: r.btns };
+    },
     async flowAria(labelText) { if (!flow || !flow.isOpen()) return noFlow(); const r = await flow.click(labelText, {}); return r.ok ? { ok: true, label: labelText } : { ok: false, err: 'NO_ARIA:' + labelText }; },
     async flowType(text, o2) { if (!flow || !flow.isOpen()) return noFlow(); return flow.type(text, o2 || {}); },
     async flowState(labelRe) { if (!flow || !flow.isOpen()) return { found: false }; return flow.state(labelRe); },
@@ -222,7 +258,7 @@ function makeMockApi(opts) {
      *  assertions (LANG02/03 language + lock) are verified the same way. */
     db(action, extra) {
       trace('db ' + action);
-      const script = action === 'lookup'
+      const script = /^(lookup|answer-key|module-answer-key)$/.test(action)
         ? path.join(repo, '.claude/qa/shared/niete_training_db.py')
         : path.join(repo, '.claude/qa/shared/niete_registration_db.py');
       const args = [script, action, '--env', env, '--phone', driver];
@@ -267,4 +303,4 @@ function makeMockApi(opts) {
   };
 }
 
-module.exports = { makeMockApi };
+module.exports = { makeMockApi, endpointPathFor };

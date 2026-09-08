@@ -82,7 +82,7 @@ exports.run = async ({ api, rec, sleep }) => {
   rec('M11', '/settings degrades gracefully when the Settings Flow is not configured',
       notAvail ? 'PASS' : 'SKIP',
       { reply: (r.txt || '').slice(0, 90), botWaitMs: r.waitedMs,
-        note: notAvail ? null : 'Settings Flow IS configured here — the scenario precondition does not hold' }, t() - s);
+        note: notAvail ? null : 'Settings Flow IS configured here — the scenario precondition (SETTINGS_FLOW_ID unset) is an environment shape this lane does not run; the degrade path is covered by unit tests' }, t() - s);
 
   // M13 — a menu number outside 1-4 gets the Helper Agent escape nudge and starts nothing
   // (spec sync 2026-09-08; the first mock drive showed "7" never reaches handleMenuChoice)

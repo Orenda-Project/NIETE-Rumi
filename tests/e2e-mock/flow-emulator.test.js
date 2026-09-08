@@ -114,6 +114,35 @@ describe('flow-emulator: navigate Flow', () => {
     expect(done.map((d) => d.response_json)).toEqual([{ lesson: 'seg2' }]);
   });
 
+  test('a Dropdown with an on-select-action submits on pick, its label is clickable as an "open", and option rows show their description', async () => {
+    // The Teacher Training LEVEL_DETAIL screen: picking a module IS the submit (on-select-action
+    // data_exchange), and the picker rows read "<title>" + "<course · ▶ Next up>" on the phone.
+    const LD = { version: '6.3', routing_model: { LEVEL_DETAIL: ['SUCCESS'], SUCCESS: [] }, screens: [
+      { id: 'LEVEL_DETAIL', title: 'Level', data: { module_list: { type: 'array', __example__: [] } }, layout: { type: 'SingleColumnLayout', children: [ { type: 'Form', name: 'f', children: [
+        { type: 'Dropdown', name: 'module_id', label: 'Pick a module to watch', 'data-source': '${data.module_list}', 'on-select-action': { name: 'data_exchange', payload: { _action: 'open_module', module_id: '${form.module_id}' } } },
+        { type: 'Footer', label: 'Back to home', 'on-click-action': { name: 'data_exchange', payload: { _action: 'back_home' } } } ] } ] } },
+      { id: 'SUCCESS', title: 'Done', terminal: true, data: { message: { type: 'string', __example__: '' } }, layout: { type: 'SingleColumnLayout', children: [
+        { type: 'TextBody', text: '${data.message}' }, { type: 'Footer', label: 'Close', 'on-click-action': { name: 'complete', payload: {} } } ] } } ] };
+    const seen = []; const done = [];
+    const transport = { exchange: async (url, req) => { seen.push(req); return { screen: 'SUCCESS', data: { message: 'Opening module…',
+      extension_message_response: { params: { training_action: 'open_module', module_id: req.data.module_id } } } }; } };
+    const em = createEmulator(LD, { flowId: 't1', flowToken: 'u:tt:1', action: 'navigate', screen: 'LEVEL_DETAIL', transport, endpointUrl: 'http://bot/api/flows/teacher-training', onComplete: (r) => done.push(r),
+      data: { module_list: [ { id: '11', title: 'Classroom Rules', description: 'Course 1 · ✓ Passed' }, { id: '12', title: 'Entry & Exit Routines', description: 'Course 1 · ▶ Next up' }, { id: '13', title: 'Seating Plans', description: 'Course 2 · 🔒 Locked' } ] } });
+    await em.open();
+    const p = em.probe();
+    expect(p.items.filter((i) => i.kind === 'option').map((i) => i.text)).toEqual(['Classroom Rules · Course 1 · ✓ Passed', 'Entry & Exit Routines · Course 1 · ▶ Next up', 'Seating Plans · Course 2 · 🔒 Locked']);
+    expect(p.text).toContain('▶ Next up');
+    expect(await em.click('Pick a module to watch')).toEqual({ ok: true, clicked: 'Pick a module to watch' });   // "opens" the picker, no state change
+    expect(em.probe().screen).toBe('LEVEL_DETAIL');
+    const r = em.pick('Entry & Exit Routines');
+    expect(r).toEqual({ ok: true, picked: 'Entry & Exit Routines · Course 1 · ▶ Next up' });
+    await em.settle();                                              // the on-select-action's exchange is async
+    expect(seen).toEqual([{ version: '3.0', action: 'data_exchange', flow_token: 'u:tt:1', screen: 'LEVEL_DETAIL', data: { _action: 'open_module', module_id: '12' } }]);
+    expect(em.probe().screen).toBe('SUCCESS');
+    expect(await em.click('Close')).toEqual({ ok: true, clicked: 'Close' });
+    expect(done).toEqual([{ flowId: 't1', flowToken: 'u:tt:1', name: 'flow_t1', response_json: { training_action: 'open_module', module_id: '12' } }]);
+  });
+
   test('a component it does not model is refused honestly, never faked', async () => {
     const pp = JSON.parse(JSON.stringify(NAV));
     pp.screens[0].layout.children[0].children.push({ type: 'PhotoPicker', name: 'photos', label: 'Add a photo' });
