@@ -559,3 +559,80 @@ describe('bd-59811 — Back out of TEACHER_ACTION', () => {
     expect(res.screen).toBe('MENU');
   });
 });
+
+// ── PR #800 — a coach's OWN lists were cut at 20 ────────────────────────
+//
+// RESULT_CAP (20) was sized when these screens were RadioButtonsGroups, where
+// 20 is Meta's real ceiling. They are Dropdowns now (ceiling 200) and the
+// constant never followed: a coach at a school with 55 teachers saw 20 on
+// "Remove a teacher" and could not reach the other 35. The fix split the
+// constant by job — RESULT_CAP for SEARCH over a universe of thousands,
+// LIST_CAP for a COMPLETE "mine" list already bounded by her own assignment.
+//
+// These are the assertions the fix shipped without. Each one fails on the
+// pre-fix tree (20 !== 55, 20 !== 25).
+
+describe("PR #800 — a coach's own lists are complete, not the first 20", () => {
+  const Admin = require('../../shared/services/observe/observe-school-admin.service');
+  const Patch = require('../../shared/services/observe/patch-resolver.service');
+
+  const teachers = (n) => Array.from({ length: n }, (_, i) => ({
+    userId: `u${i + 1}`,
+    name: `Teacher ${i + 1}`,
+    phone: `92300${String(1000000 + i).slice(-7)}`,
+    isPrincipal: false,
+    roleLabel: '',
+    band: 'primary',
+    schoolName: 'IMCG, G-10/2',
+    emis: '916',
+  }));
+
+  const schools = (n) => Array.from({ length: n }, (_, i) => ({
+    school_ext_id: `niete:${900 + i}`,
+    school_name: `IMCG No.${i + 1}, G-10/2`,
+    emis: String(900 + i),
+  }));
+
+  it('the two caps are different jobs — search stays 20, a whole list gets 200', () => {
+    expect(Admin.RESULT_CAP).toBe(20);
+    expect(Admin.LIST_CAP).toBe(200);
+    // 200 is Meta's Dropdown ceiling; the 100 variant is for options carrying
+    // images, and _opt emits none. Pinning it stops a "round it down" edit.
+    expect(Admin.LIST_CAP).toBeLessThanOrEqual(200);
+  });
+
+  it('the remove picker offers all 55 teachers at her school — the reported bug', async () => {
+    Patch.listPatchViaSupabase.mockResolvedValueOnce(teachers(55));
+    const res = await step('teacher_remove_open', { school_ext_id: 'niete:916' });
+    expect(res.screen).toBe('TEACHER_PICK');
+    expect(res.data.options).toHaveLength(55);
+    // The 35 she could not reach: the tail must be there, not just the count.
+    expect(res.data.options[54].id).toBe('u55');
+  });
+
+  it('the teacher-admin school picker offers all 25 of her schools', async () => {
+    Admin.listMySchools.mockResolvedValueOnce(schools(25));
+    const res = await step('teacher_school_open');
+    expect(res.screen).toBe('TEACHER_SCHOOL');
+    expect(res.data.options).toHaveLength(25);
+    expect(res.data.options.map((o) => o.id)).toContain('niete:924');
+  });
+
+  it('searching the universe is still deliberately capped at 20', () => {
+    // The other half of the split: add_search reaches searchUniverse, whose
+    // default cap must NOT have moved with the list screens.
+    const src = require('fs').readFileSync(
+      require('path').join(__dirname, '../../shared/services/observe/observe-school-admin.service.js'),
+      'utf8');
+    expect(src).toMatch(/async function searchUniverse\([^)]*cap = RESULT_CAP/);
+  });
+
+  it('the navigate-mode reopen of MANAGE_SCHOOLS uses the list cap too', () => {
+    // That screen is rebuilt in flow-response.handler (no endpoint round trip),
+    // so it is a second, easily-missed copy of the same slice.
+    const src = require('fs').readFileSync(
+      require('path').join(__dirname, '../../shared/handlers/flow-response.handler.js'), 'utf8');
+    expect(src).toMatch(/mine\.slice\(0, admin\.LIST_CAP\)/);
+    expect(src).not.toMatch(/mine\.slice\(0, admin\.RESULT_CAP\)/);
+  });
+});
