@@ -1184,493 +1184,131 @@ router.get('/lesson-plans', requirePortalAuth, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// CURRICULUM LP BROWSER — 4-step cascading picker over curriculum_lp_ast
+// CURRICULUM LP BROWSER — the same catalogue the WhatsApp Flow serves
 // ───────────────────────────────────────────────────────────────────────────
-// The 2,415-LP corpus imported from Taleemabad (NBF + Taleemabad publishers)
-// is exposed to teachers as a browsable library. Cascading dropdowns —
-// grade → subject → chapter → LP — each populated by its own endpoint.
-// A separate endpoint returns a presigned R2 URL for a given LP's PDF, or
-// a 202 with an "unavailable" state when the LP hasn't been rendered yet.
-// A POST endpoint queues an async Gamma render for an unavailable LP.
+// A cascading picker — grade → subject → chapter → lesson — over the v8 K-5
+// corpus, plus an endpoint that returns a presigned R2 URL for one lesson's
+// PDF (or its answer key).
+// All four browse endpoints delegate to the bot. They used to query
+// `curriculum_lp_ast` + `pre_generated_lps` here, which is a DIFFERENT corpus
+// from the one the K-5 WhatsApp Flow serves (data/lp_catalog.json intersected
+// with niete_lp_assets). On production that meant grade 5 maths showed 0
+// chapters in the portal and 8 chapters / 87 lessons on WhatsApp, and the
+// PORTAL_INCLUDE_CORE_LPS flag hid 2,485 of the portal's own rows on top.
 //
-// All queries run against `curriculum_lp_ast` with `is_enabled = true`.
-//
-// FEAT-109 extension: `pre_generated_lps` rows (Rumi Moonshot corpus, tagged
-// `curriculum='pakistan'` + `prompt_version='v3.1_moonshot_feat109'`) are
-// UNION-ed into every endpoint below via `fetchPgenRowsShaped()`. Rows are
-// normalized into the curriculum_lp_ast row shape so the frontend needs no
-// change; the fetch is wrapped in try/catch so a pgen-side failure never
-// breaks the primary curriculum path.
-// ═══════════════════════════════════════════════════════════════════════════
-
-// Subject-name normalization between pre_generated_lps (spaced/capitalized:
-// "English", "Math", "General Knowledge") and curriculum_lp_ast (lowercase
-// snake_case: "english", "maths", "waqfiyat_amaa"). Both directions.
-const PGEN_TO_CANONICAL_SUBJECT = {
-  'English': 'english',
-  'Math': 'maths',
-  'Urdu': 'urdu',
-  'Islamiyat': 'islamiyat',
-  'General Knowledge': 'waqfiyat_amaa',
-  'Science': 'science',
-  'Social Studies': 'social_studies',
-};
-const CANONICAL_TO_PGEN_SUBJECT = Object.fromEntries(
-  Object.entries(PGEN_TO_CANONICAL_SUBJECT).map(([k, v]) => [v, k])
-);
-
-// PORTAL_INCLUDE_CORE_LPS: reversibility gate for the Rumi-only catalog cutover.
-// Default OFF — only pre_generated_lps rows surface through /curriculum/*.
-// Flip PORTAL_INCLUDE_CORE_LPS=true on the Railway service to restore the older
-// curriculum_lp_ast catalog without a redeploy.
-const CORE_LPS_ENABLED = String(process.env.PORTAL_INCLUDE_CORE_LPS ?? 'false').toLowerCase() === 'true';
-
-async function fetchPgenRowsShaped(filter = {}) {
-  try {
-    let q = supabase.from('pre_generated_lps')
-      .select('id, grade, subject, chapter_number, chapter_title, pdf_r2_key_en, pdf_r2_key_ur, generation_status, created_at')
-      .eq('is_current', true)
-      .eq('curriculum', 'pakistan')
-      .eq('prompt_version', 'v3.1_moonshot_feat109');
-    if (filter.grade != null) q = q.eq('grade', filter.grade);
-    if (filter.subject) {
-      const pgenSubject = CANONICAL_TO_PGEN_SUBJECT[filter.subject] || filter.subject;
-      q = q.eq('subject', pgenSubject);
-    }
-    if (filter.chapter_number != null) q = q.eq('chapter_number', filter.chapter_number);
-    const { data, error } = await q;
-    if (error) { console.error('pgen fetch error:', error.message); return []; }
-    return (data || [])
-      .filter(r => r.generation_status === 'completed' && (r.pdf_r2_key_en || r.pdf_r2_key_ur))
-      .map(r => ({
-        source_lp_uuid: r.id,
-        grade: r.grade,
-        grade_label: `Grade ${r.grade}`,
-        subject: PGEN_TO_CANONICAL_SUBJECT[r.subject] || String(r.subject).toLowerCase(),
-        subject_label: r.subject,
-        chapter_number: r.chapter_number,
-        chapter_title: r.chapter_title,
-        lp_index: null,
-        topic: r.chapter_title,
-        publisher: 'Rumi',
-        pdf_r2_key_en: r.pdf_r2_key_en,
-        pdf_r2_key_ur: r.pdf_r2_key_ur,
-        voicenote_mp3_r2_key: null,
-        demo_video_r2_key: null,
-        review_status: 'unreviewed',
-        rendered_at: r.created_at,
-      }));
-  } catch (e) {
-    console.error('pgen fetch threw:', e.message);
-    return [];
-  }
-}
+// The portal now holds no catalogue logic and reads no LP table: it asks the
+// bot, the same way it asks for training rules and certificates. Presentation
+// stays here — the client returns full untruncated text, not the Flow's
+// 30-code-point NavigationList rows.
+const LpCatalogue = require('../services/lp-catalogue.service');
 
 /**
  * GET /api/portal/curriculum/grades
- * Returns the list of grades that have at least one enabled LP.
+ * → { success, grades: [{ grade, subject_count }] }
  */
 router.get('/curriculum/grades', requirePortalAuth, async (req, res) => {
   try {
-    // The grades picker reads the WHOLE enabled corpus (2000+ rows across
-    // grades 0-12). A single un-paged select silently truncates at
-    // PostgREST's hard 1000-row cap and — with no ORDER BY — drops whole
-    // grades non-deterministically (this is exactly why grades 6-12 stayed
-    // missing from the picker even after the Oxbridge rows were loaded).
-    // Page through the full result set so every grade is seen.
-    const byGrade = new Map();
-    if (CORE_LPS_ENABLED) {
-      const data = await fetchAllPaged(() => supabase
-        .from('curriculum_lp_ast')
-        .select('grade, grade_label')
-        .eq('is_enabled', true)
-        .order('grade', { ascending: true }));
-      for (const r of data || []) {
-        const key = r.grade;
-        if (!byGrade.has(key)) byGrade.set(key, { grade: r.grade, label: r.grade_label, count: 0 });
-        byGrade.get(key).count += 1;
-      }
-    }
-    // FEAT-109: merge pre_generated_lps counts per grade. pgen emits label
-    // as "Grade N"; map to the word form so the dropdown UX matches the
-    // legacy Core-LP labels ("Grade One", "Grade Two", ...).
-    const GRADE_WORDS = ['Prep','Grade One','Grade Two','Grade Three','Grade Four','Grade Five','Grade Six','Grade Seven','Grade Eight','Grade Nine','Grade Ten','Grade Eleven','Grade Twelve'];
-    const pgenRows = await fetchPgenRowsShaped({});
-    for (const r of pgenRows) {
-      const key = r.grade;
-      const label = GRADE_WORDS[r.grade] || r.grade_label || `Grade ${r.grade}`;
-      if (!byGrade.has(key)) byGrade.set(key, { grade: r.grade, label, count: 0 });
-      byGrade.get(key).count += 1;
-    }
-    const grades = [...byGrade.values()].sort((a, b) => (a.grade ?? 999) - (b.grade ?? 999));
+    const grades = await LpCatalogue.listGrades();
     res.json({ success: true, grades });
   } catch (error) {
-    console.error('curriculum/grades error:', error);
-    res.status(500).json({ success: false, error: 'Failed to load grades' });
+    console.error('❌ Portal curriculum/grades failed', { error: error?.message });
+    res.status(502).json({ success: false, error: 'Could not load lesson-plan grades' });
   }
 });
 
 /**
- * GET /api/portal/curriculum/subjects?grade=1
- * Returns the list of subjects available for a given grade.
+ * GET /api/portal/curriculum/subjects?grade=5
+ * → { success, subjects: [{ subject_key, subject, rtl, lesson_count }] }
  */
 router.get('/curriculum/subjects', requirePortalAuth, async (req, res) => {
   try {
     const grade = parseInt(req.query.grade, 10);
-    if (!Number.isFinite(grade)) return res.status(400).json({ success: false, error: 'grade required' });
-
-    const bySubject = new Map();
-    if (CORE_LPS_ENABLED) {
-      const { data, error } = await supabase
-        .from('curriculum_lp_ast')
-        .select('subject, subject_label')
-        .eq('is_enabled', true)
-        .eq('grade', grade);
-      if (error) throw error;
-      for (const r of data || []) {
-        const key = r.subject;
-        if (!bySubject.has(key)) bySubject.set(key, { subject: r.subject, label: r.subject_label || r.subject, count: 0 });
-        bySubject.get(key).count += 1;
-      }
+    if (!Number.isFinite(grade)) {
+      return res.status(400).json({ success: false, error: 'grade required' });
     }
-    // FEAT-109: merge pre_generated_lps subjects for the same grade.
-    const pgenRows = await fetchPgenRowsShaped({ grade });
-    for (const r of pgenRows) {
-      const key = r.subject;
-      if (!bySubject.has(key)) bySubject.set(key, { subject: r.subject, label: r.subject_label || r.subject, count: 0 });
-      bySubject.get(key).count += 1;
-    }
-    const subjects = [...bySubject.values()].sort((a, b) => String(a.label).localeCompare(String(b.label)));
+    const subjects = await LpCatalogue.listSubjects(grade);
     res.json({ success: true, subjects });
   } catch (error) {
-    console.error('curriculum/subjects error:', error);
-    res.status(500).json({ success: false, error: 'Failed to load subjects' });
+    console.error('❌ Portal curriculum/subjects failed', { error: error?.message });
+    res.status(502).json({ success: false, error: 'Could not load subjects' });
   }
 });
 
 /**
- * GET /api/portal/curriculum/chapters?grade=1&subject=maths
- * Returns the list of chapters for a given grade + subject.
+ * GET /api/portal/curriculum/chapters?grade=5&subject=math
+ * → { success, chapters: [{ chapter_number, chapter_title, pages_label, lesson_count }] }
+ *
+ * `subject` is the catalogue's lowercase subject_key. The old handler matched
+ * on a display name ('Math'), which is one reason chapters went missing.
  */
 router.get('/curriculum/chapters', requirePortalAuth, async (req, res) => {
   try {
     const grade = parseInt(req.query.grade, 10);
-    const subject = String(req.query.subject || '').trim();
-    if (!Number.isFinite(grade) || !subject) {
+    const subjectKey = String(req.query.subject || '').trim();
+    if (!Number.isFinite(grade) || !subjectKey) {
       return res.status(400).json({ success: false, error: 'grade + subject required' });
     }
-
-    const byChapter = new Map();
-    if (CORE_LPS_ENABLED) {
-      const { data, error } = await supabase
-        .from('curriculum_lp_ast')
-        .select('chapter_number, chapter_title, publisher')
-        .eq('is_enabled', true)
-        .eq('grade', grade)
-        .eq('subject', subject);
-      if (error) throw error;
-      for (const r of data || []) {
-        const key = `${r.publisher}::${r.chapter_number}::${r.chapter_title}`;
-        if (!byChapter.has(key)) {
-          byChapter.set(key, {
-            publisher: r.publisher,
-            chapter_number: r.chapter_number,
-            chapter_title: r.chapter_title,
-            lp_count: 0,
-          });
-        }
-        byChapter.get(key).lp_count += 1;
-      }
-    }
-    // FEAT-109: merge pre_generated_lps chapters (publisher='Rumi').
-    // pre_generated_lps.chapter_title stores per-LESSON topics, not a shared
-    // chapter name — grouping on it explodes each LP into its own chapter row.
-    // Group by (publisher, chapter_number) only and synthesize a "Chapter N"
-    // label; the per-lesson topics surface in the /lps endpoint drill-down.
-    const pgenRows = await fetchPgenRowsShaped({ grade, subject });
-    for (const r of pgenRows) {
-      const key = `${r.publisher}::${r.chapter_number}`;
-      if (!byChapter.has(key)) {
-        byChapter.set(key, {
-          publisher: r.publisher,
-          chapter_number: r.chapter_number,
-          chapter_title: `Chapter ${r.chapter_number}`,
-          lp_count: 0,
-        });
-      }
-      byChapter.get(key).lp_count += 1;
-    }
-    const chapters = [...byChapter.values()].sort((a, b) => {
-      const p = String(a.publisher || '').localeCompare(String(b.publisher || ''));
-      if (p !== 0) return p;
-      return (a.chapter_number ?? 999) - (b.chapter_number ?? 999);
-    });
+    const chapters = await LpCatalogue.listChapters(grade, subjectKey);
     res.json({ success: true, chapters });
   } catch (error) {
-    console.error('curriculum/chapters error:', error);
-    res.status(500).json({ success: false, error: 'Failed to load chapters' });
+    console.error('❌ Portal curriculum/chapters failed', { error: error?.message });
+    res.status(502).json({ success: false, error: 'Could not load chapters' });
   }
 });
 
 /**
- * GET /api/portal/curriculum/lps?grade=1&subject=maths&chapter_number=1&publisher=Taleemabad
- * Returns the list of lesson plans for a given chapter.
- * `publisher` is optional and disambiguates when two publishers share a
- * chapter_number for the same grade+subject.
+ * GET /api/portal/curriculum/lps?grade=5&subject=math&chapter_number=7
+ * → { success, lessons: [...] }
+ *
+ * The `downloaded` tick is per-teacher and the user id comes from the SESSION,
+ * never the query string.
  */
 router.get('/curriculum/lps', requirePortalAuth, async (req, res) => {
   try {
     const grade = parseInt(req.query.grade, 10);
-    const subject = String(req.query.subject || '').trim();
+    const subjectKey = String(req.query.subject || '').trim();
     const chapterNumber = parseInt(req.query.chapter_number, 10);
-    const publisher = req.query.publisher ? String(req.query.publisher) : null;
-
-    if (!Number.isFinite(grade) || !subject || !Number.isFinite(chapterNumber)) {
+    if (!Number.isFinite(grade) || !subjectKey || !Number.isFinite(chapterNumber)) {
       return res.status(400).json({ success: false, error: 'grade + subject + chapter_number required' });
     }
-
-    let lps = [];
-    if (CORE_LPS_ENABLED) {
-      let query = supabase
-        .from('curriculum_lp_ast')
-        .select('source_lp_uuid, lp_index, topic, publisher, chapter_title, pdf_r2_key_en, pdf_r2_key_ur, voicenote_mp3_r2_key, demo_video_r2_key, review_status, rendered_at')
-        .eq('is_enabled', true)
-        .eq('grade', grade)
-        .eq('subject', subject)
-        .eq('chapter_number', chapterNumber)
-        .order('lp_index', { ascending: true });
-      if (publisher) query = query.eq('publisher', publisher);
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      lps = (data || []).map(r => ({
-        source_lp_uuid: r.source_lp_uuid,
-        lp_index: r.lp_index,
-        topic: r.topic,
-        publisher: r.publisher,
-        chapter_title: r.chapter_title,
-        // Language availability flags — the frontend shows [EN]/[UR] badges
-        // for the languages that are cached in R2.
-        available_en: !!r.pdf_r2_key_en,
-        available_ur: !!r.pdf_r2_key_ur,
-        // FEAT-059 media badges: 🎧 voicenote / 🎥 demo video
-        has_voicenote: !!r.voicenote_mp3_r2_key,
-        has_video: !!r.demo_video_r2_key,
-        review_status: r.review_status || 'unreviewed',
-        rendered_at: r.rendered_at,
-      }));
-    }
-    // FEAT-109: merge pre_generated_lps for this chapter (publisher-scoped).
-    if (!publisher || publisher === 'Rumi') {
-      const pgenRows = await fetchPgenRowsShaped({ grade, subject, chapter_number: chapterNumber });
-      let idx = 1;
-      for (const r of pgenRows) {
-        lps.push({
-          source_lp_uuid: r.source_lp_uuid,
-          lp_index: idx++,
-          topic: r.topic,
-          publisher: r.publisher,
-          chapter_title: r.chapter_title,
-          available_en: !!r.pdf_r2_key_en,
-          available_ur: !!r.pdf_r2_key_ur,
-          has_voicenote: false,
-          has_video: false,
-          review_status: 'unreviewed',
-          rendered_at: r.rendered_at,
-        });
-      }
-    }
-    res.json({ success: true, lps });
+    const lessons = await LpCatalogue.listLessons(
+      grade, subjectKey, chapterNumber, req.portalUser && req.portalUser.id,
+    );
+    res.json({ success: true, lessons });
   } catch (error) {
-    console.error('curriculum/lps error:', error);
-    res.status(500).json({ success: false, error: 'Failed to load lesson plans' });
+    console.error('❌ Portal curriculum/lps failed', { error: error?.message });
+    res.status(502).json({ success: false, error: 'Could not load lesson plans' });
   }
 });
-
 /**
- * GET /api/portal/curriculum/lp/:source_lp_uuid/pdf?lang=en
- * Returns a presigned R2 URL for the LP's cached PDF, or a 202 with
- * `{ available: false }` if the LP hasn't been rendered yet. The client
- * can then POST to /render to queue an async Gamma render.
+ * GET /api/portal/curriculum/lp/:lesson_id/pdf?kind=lesson|answer_key
+ *
+ * Was a uuid lookup against curriculum_lp_ast / pre_generated_lps
+ * plus a POST /render that queued a Gamma job. Neither applies to the v8
+ * corpus the bot serves: assets are pre-rendered and uploaded, and
+ * availability — an is_current row in niete_lp_assets — IS the gate. There is
+ * nothing for a teacher to queue, so the render endpoint is gone with it.
+ *
+ * 200 with `{ available: false }` when the lesson exists but has no current
+ * asset yet. Only a real failure is a 5xx, so the UI can tell "not ready" from
+ * "we are broken" — the distinction the old handler collapsed.
  */
-router.get('/curriculum/lp/:source_lp_uuid/pdf', requirePortalAuth, async (req, res) => {
+router.get('/curriculum/lp/:lesson_id/pdf', requirePortalAuth, async (req, res) => {
   try {
-    const uuid = req.params.source_lp_uuid;
-    const lang = String(req.query.lang || 'en').toLowerCase() === 'ur' ? 'ur' : 'en';
-
-    let lp = null;
-    if (CORE_LPS_ENABLED) {
-      const { data, error } = await supabase
-        .from('curriculum_lp_ast')
-        .select('source_lp_uuid, chapter_title, topic, publisher, pdf_r2_key_en, pdf_r2_key_ur, voicenote_mp3_r2_key, demo_video_r2_key, review_status, review_notes')
-        .eq('source_lp_uuid', uuid)
-        .eq('is_enabled', true)
-        .maybeSingle();
-      if (error) throw error;
-      lp = data;
-    }
-    // FEAT-109: fall back to pre_generated_lps lookup (uuid is pgen row id).
-    if (!lp) {
-      const { data: pgen } = await supabase
-        .from('pre_generated_lps')
-        .select('id, chapter_title, subject, pdf_r2_key_en, pdf_r2_key_ur')
-        .eq('id', uuid)
-        .eq('is_current', true)
-        .maybeSingle();
-      if (pgen) {
-        lp = {
-          source_lp_uuid: pgen.id,
-          chapter_title: pgen.chapter_title,
-          topic: pgen.chapter_title,
-          publisher: 'Rumi',
-          pdf_r2_key_en: pgen.pdf_r2_key_en,
-          pdf_r2_key_ur: pgen.pdf_r2_key_ur,
-          voicenote_mp3_r2_key: null,
-          demo_video_r2_key: null,
-          review_status: 'unreviewed',
-          review_notes: null,
-        };
-      }
-    }
-    if (!lp) return res.status(404).json({ success: false, error: 'Lesson plan not found' });
-
-    // The helper's generatePresignedUrl expects a FULL R2 URL (it validates
-    // via isValidR2Url which checks for .r2.cloudflarestorage.com), but our
-    // *_r2_key columns store BARE object keys (e.g. "lps/curriculum-ast/{uuid}.en.pdf").
-    // Prepend the R2 endpoint + bucket so the helper accepts it.
-    const endpoint = (process.env.R2_ENDPOINT || '').replace(/\/$/, '');
-    const bucket = process.env.R2_BUCKET_NAME;
-    const signKey = (k) => k
-      ? generatePresignedUrl(`${endpoint}/${bucket}/${k}`, 3600)
-      : Promise.resolve(null);
-
-    // FEAT-059: sign voicenote + demo video URLs alongside the PDF so the
-    // portal can render inline media players in one round-trip.
-    const [voicenoteUrl, videoUrl] = await Promise.all([
-      signKey(lp.voicenote_mp3_r2_key),
-      signKey(lp.demo_video_r2_key),
-    ]);
-
-    const r2Key = lang === 'ur' ? lp.pdf_r2_key_ur : lp.pdf_r2_key_en;
-    const filename = `${lp.chapter_title} — ${lp.topic} - Lesson Plan.pdf`.replace(/["<>?*|\\/]/g, '');
-
-    if (!r2Key) {
-      // PDF not yet rendered — the frontend will offer to queue an async render.
-      // Still return voicenote + video URLs when available; they're independent assets.
-      return res.status(202).json({
-        success: true, available: false,
-        source_lp_uuid: lp.source_lp_uuid, language: lang,
-        topic: lp.topic, chapter_title: lp.chapter_title, publisher: lp.publisher,
-        voicenote_url: voicenoteUrl, video_url: videoUrl,
-        review_status: lp.review_status || 'unreviewed',
-        review_notes: lp.review_notes || null,
-      });
+    const lessonId = String(req.params.lesson_id || '').trim();
+    const kind = req.query.kind === 'answer_key' ? 'answer_key' : 'lesson';
+    if (!lessonId) {
+      return res.status(400).json({ success: false, error: 'lesson_id required' });
     }
 
-    const url = await signKey(r2Key); // 1h validity
-    res.json({
-      success: true, available: true,
-      url, filename,
-      source_lp_uuid: lp.source_lp_uuid, language: lang,
-      topic: lp.topic, chapter_title: lp.chapter_title, publisher: lp.publisher,
-      voicenote_url: voicenoteUrl, video_url: videoUrl,
-      review_status: lp.review_status || 'unreviewed',
-      review_notes: lp.review_notes || null,
-    });
+    const hit = await LpCatalogue.lessonPdf(lessonId, kind);
+    if (!hit) {
+      return res.status(200).json({ success: true, available: false });
+    }
+    res.json({ success: true, available: true, ...hit });
   } catch (error) {
-    console.error('curriculum/lp/:uuid/pdf error:', error);
-    res.status(500).json({ success: false, error: 'Failed to load PDF' });
-  }
-});
-
-/**
- * POST /api/portal/curriculum/lp/:source_lp_uuid/render
- * Body: { language: 'en' | 'ur' }
- * Queues an async Gamma-grounded render for the LP. The client can poll
- * GET /pdf?lang=X until availability flips true (~90-150s later).
- * Delivery follows the standard bot pipeline — the PDF is also sent to
- * the teacher's WhatsApp when ready (same asset served both channels).
- */
-router.post('/curriculum/lp/:source_lp_uuid/render', requirePortalAuth, async (req, res) => {
-  try {
-    const uuid = req.params.source_lp_uuid;
-    const lang = String((req.body && req.body.language) || 'en').toLowerCase() === 'ur' ? 'ur' : 'en';
-    const userDbId = req.session.portalUserId;
-
-    // Hydrate the LP row + resolve the teacher's WhatsApp phone (for parallel WA delivery).
-    const [{ data: lp }, { data: user }] = await Promise.all([
-      supabase.from('curriculum_lp_ast')
-        .select('source_lp_uuid, chapter_title, topic, publisher, pdf_r2_key_en, pdf_r2_key_ur')
-        .eq('source_lp_uuid', uuid).eq('is_enabled', true).maybeSingle(),
-      supabase.from('users').select('id, phone_number').eq('id', userDbId).maybeSingle(),
-    ]);
-
-    if (!lp) return res.status(404).json({ success: false, error: 'Lesson plan not found' });
-    if (!user) return res.status(401).json({ success: false, error: 'Session user not found' });
-
-    // Fast-path: already cached — nothing to do.
-    const langKey = lang === 'ur' ? lp.pdf_r2_key_ur : lp.pdf_r2_key_en;
-    if (langKey) return res.json({ success: true, alreadyAvailable: true, language: lang });
-
-    // bd-2461 — enqueue via the bot's internal API, not by requiring bot code.
-    //
-    // This used to `require('../../bot/shared/services/lesson-plan-queue.service')`
-    // inside a bare catch. That require THROWS in this process: the queue driver
-    // does `require('aws-sdk')` (v2, a bot/ dependency) and the dashboard carries
-    // only the v3 @aws-sdk/* packages. The throw was swallowed, we wrote a
-    // `pending` row nothing consumes, and still answered `queued: true`. The UI
-    // turned that into "Ready in about 2 minutes." 21 orphan rows in two days.
-    //
-    // Same pattern as password-reset: MAIN_BOT_URL + INTERNAL_API_KEY are already
-    // provisioned on this service and the keys match the bot's.
-    const MAIN_BOT_URL = process.env.MAIN_BOT_URL || '';
-    const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || '';
-    if (!MAIN_BOT_URL || !INTERNAL_API_KEY) {
-      console.error('curriculum/lp/:uuid/render: MAIN_BOT_URL or INTERNAL_API_KEY not configured');
-      return res.status(503).json({
-        success: false,
-        error: 'Lesson plan rendering is temporarily unavailable. Please try again later.',
-      });
-    }
-
-    let botResponse;
-    try {
-      botResponse = await axios.post(
-        `${MAIN_BOT_URL}/api/internal/queue-lesson-plan`,
-        {
-          userId: userDbId,
-          phoneNumber: user.phone_number,
-          sourceLpUuid: lp.source_lp_uuid,
-          topic: lp.topic,
-          chapterTitle: lp.chapter_title,
-          language: lang,
-        },
-        { headers: { 'Content-Type': 'application/json', 'x-api-key': INTERNAL_API_KEY }, timeout: 10000 },
-      );
-    } catch (err) {
-      // Report the failure. Do NOT write a tracking row — an orphan `pending`
-      // row that nothing will ever consume is what made this invisible before.
-      console.error('curriculum/lp/:uuid/render: bot enqueue failed:', err?.message);
-      return res.status(502).json({
-        success: false,
-        error: 'Could not start this lesson plan. Please try again in a moment.',
-      });
-    }
-
-    const requestId = botResponse?.data?.requestId;
-    if (!botResponse?.data?.success || !requestId) {
-      console.error('curriculum/lp/:uuid/render: bot returned no requestId', { data: botResponse?.data });
-      return res.status(502).json({
-        success: false,
-        error: 'Could not start this lesson plan. Please try again in a moment.',
-      });
-    }
-
-    return res.status(202).json({ success: true, queued: true, requestId, language: lang });
-  } catch (error) {
-    console.error('curriculum/lp/:uuid/render error:', error);
-    res.status(500).json({ success: false, error: 'Failed to queue render' });
+    console.error('❌ Portal curriculum/lp/pdf failed', { error: error?.message });
+    res.status(502).json({ success: false, error: 'Could not open this lesson plan' });
   }
 });
 
