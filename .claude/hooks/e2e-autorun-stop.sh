@@ -224,17 +224,12 @@ whether to proceed.
 EOF
 fi
 
-read -r -d '' REASON <<EOF
-EXECUTE NOW — the E2E for $WHOSE has not
-been driven:
-
-$PHASE1
-$MOCK_BLOCK
-
-$CHROME_PART
-
-$BUILD_NOTE
-
+# The WhatsApp Web preconditions belong to the chrome lane only. An all-mock order
+# that still talked about QR screens and Chrome MCP sent the agent looking for a
+# browser it did not need (first demo run, 2026-09-08).
+CHROME_PRE=""
+if [ -n "$CMDS" ]; then
+  read -r -d '' CHROME_PRE <<EOF
 A linked web.whatsapp.com session is required — and \`list_pages\` ALONE CANNOT
 TELL YOU there isn't one. The session lives in the browser profile, so a blank
 tab proves nothing. \`navigate_page\` to https://web.whatsapp.com first, then
@@ -248,6 +243,27 @@ chrome-devtools-mcp@latest\`), say a restart is needed, and re-run after it.
 
 Name the one that failed, plainly, and clear the marker. A skipped run reported
 honestly is fine; reported as a pass it is not.
+EOF
+else
+  read -r -d '' CHROME_PRE <<EOF
+The mock lane needs no browser and no WhatsApp number: keys/niete-local.env and
+installed dependencies are its only preconditions (docs/e2e-mock-lane.md). If it
+cannot start, say which precondition failed, plainly, and clear the marker.
+EOF
+fi
+
+read -r -d '' REASON <<EOF
+EXECUTE NOW — the E2E for $WHOSE has not
+been driven:
+
+$PHASE1
+$MOCK_BLOCK
+
+$CHROME_PART
+
+$BUILD_NOTE
+
+$CHROME_PRE
 
 Clear it either way when you are done:
   bash .claude/hooks/e2e-autorun.sh --clear --session $CLEAR_ID

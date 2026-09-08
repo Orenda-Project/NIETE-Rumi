@@ -289,17 +289,13 @@ list back and wait to be told to proceed — running it IS the response.
 EOF
 fi
 
-read -r -d '' CONTEXT <<EOF
-EXECUTE THE TARGETED E2E NOW — $TRIGGER on \`$BRANCH\` ($REPO_NAME) touched code covered by: ${FEATS:-the SAFE subset}
+# WhatsApp Web preconditions belong to the chrome lane only; an all-mock order says what the
+# mock lane needs instead (a demo run sent the agent hunting for a browser it did not need).
+CHROME_PRE=""
+if [ -n "$CMDS" ]; then
+  read -r -d '' CHROME_PRE <<EOF
 
-$PHASE1
-$MOCK_BLOCK
-
-$CHROME_PART
-
-$WHICH_BUILD
-
-Preconditions — check, do not skip:
+Preconditions for the WhatsApp Web lane — check, do not skip:
   · A linked web.whatsapp.com session. \`list_pages\` DOES NOT TELL YOU THIS.
     The session lives in the browser profile, so an \`about:blank\` tab is not
     evidence of anything — NAVIGATE FIRST (\`navigate_page\` to
@@ -326,6 +322,25 @@ Preconditions — check, do not skip:
     \`localStorage['last-wid-md']\` returns e.g.
     "923028931858:40@c.us". Confirm it with the runner before the first send; do
     not make them type what the browser already knows.
+EOF
+else
+  read -r -d '' CHROME_PRE <<EOF
+The mock lane needs no browser and no WhatsApp number: keys/niete-local.env and installed
+dependencies are its only preconditions (docs/e2e-mock-lane.md). If it cannot start, say
+which precondition failed, plainly, and clear the marker.
+EOF
+fi
+
+read -r -d '' CONTEXT <<EOF
+EXECUTE THE TARGETED E2E NOW — $TRIGGER on \`$BRANCH\` ($REPO_NAME) touched code covered by: ${FEATS:-the SAFE subset}
+
+$PHASE1
+$MOCK_BLOCK
+
+$CHROME_PART
+
+$WHICH_BUILD
+$CHROME_PRE
 
 A precondition that genuinely fails is the ONLY reason not to run: say which one,
 plainly, then clear the marker:

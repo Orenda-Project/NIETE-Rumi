@@ -841,6 +841,8 @@ has "all-mock: orders both on the mock lane"       "$LR" "commit-e2e.sh $LSHA --
 has "all-mock: no chrome order for this commit"    "$LR" "/niete-e2e menu"                            no
 has "all-mock: no stale-build warning"             "$LR" "CANNOT TEST WHAT WAS JUST COMMITTED"        no
 has "all-mock: chrome deferred to the deploy"      "$LR" "after the develop deploy"                   yes
+has "all-mock: no WhatsApp Web preconditions"      "$LR" "linked web.whatsapp.com"                     no
+has "all-mock: no Chrome MCP install advice"       "$LR" "chrome-devtools-mcp"                         no
 # a git-armed marker carries the SHORT sha under `sha`; the order must still pin it
 rm -f "$LPENDING"; GL=".claude/.e2e-pending/git-abcdef123456.json"
 cat > "$GL" <<'JSON'
@@ -1031,6 +1033,10 @@ rm -f "$MPENDING"
 # asserted "CANNOT" against the stop reason, which already carried "THIS CANNOT
 # TEST WHAT WAS JUST COMMITTED" — green before the fix, green after, worth
 # nothing. Check a new needle against `git show HEAD:<hook>` before trusting it.
+# PHASE 3 NOTE: menu is mock-capable, so a menu commit no longer carries the WhatsApp Web
+# preconditions at all (asserted in the lane-split block above). To keep proving the CHROME
+# lane's text, take menu off the mock list for this section only.
+export E2E_MOCK_FEATURES=none
 NAV=$(mode_arm "$G $C -m 'fix menu'")
 has  "arm: sends you to navigate, not to guess" "$NAV" "navigate_page"     yes
 has  "arm: names the URL to open"    "$NAV" "https://web.whatsapp.com"     yes
@@ -1057,6 +1063,7 @@ has  "arm: names the restart that follows" "$NAV" "RESTARTED"             yes
 has  "arm: driver read off the session"    "$NAV" "last-wid-md"           yes
 has  "stop: MCP is not terminal there"     "$NS"  "is NOT"                yes
 has  "stop: gives the install command"     "$NS"  "claude mcp add"        yes
+unset E2E_MOCK_FEATURES
 
 rm -f "$MPENDING"
 
