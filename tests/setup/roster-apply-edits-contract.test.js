@@ -30,6 +30,15 @@ describe('roster_apply_edits migration contract', () => {
     expect(sql()).not.toMatch(/DELETE FROM students/i);
   });
 
+  it("stamps WHY the enrolment closed, and never as a departure nobody witnessed", () => {
+    // The coach struck a line off the register view; she was not asked for a
+    // reason. 'left' would be a claim about the child, and it is the value
+    // attrition analysis reads. The live behaviour is proven against real
+    // Postgres in evidence/verify_enrollment_outcome_sql.py.
+    expect(sql()).toMatch(/outcome = 'roster_correction'/);
+    expect(sql()).not.toMatch(/outcome = 'left'/);
+  });
+
   it('maintains the legacy list count from truth', () => {
     expect(sql()).toMatch(/student_count/);
   });

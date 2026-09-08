@@ -794,6 +794,36 @@ const UX_STRINGS = {
   },
 
   /**
+   * /status when the store is empty.
+   *
+   * This used to be nothing at all. The command sent the Flow CTA
+   * unconditionally; the Flow's INIT returned a TERMINAL success screen when
+   * there was nothing to list, so it flashed open and shut; and the chat-side
+   * completion branch only spoke for `cancelled`. Type /status with a clear
+   * store and the teacher got a tap and silence.
+   *
+   * Points at /menu rather than naming features. The earlier inline copy
+   * suggested "/quiz, /reading test, or describe a lesson topic" — and NIETE
+   * has no reading assessment on its menu, so a third of that sentence
+   * advertised something this deployment does not have.
+   */
+  statusNothingRunning: {
+    en: "Nothing's running right now. Send /menu to start something.",
+    ur: 'اس وقت کچھ نہیں چل رہا۔ کچھ شروع کرنے کے لیے /menu بھیجیں۔',
+  },
+
+  /**
+   * The probe itself failed, which is NOT the same as "nothing is running" and
+   * must never be reported as it — that would tell a teacher with a live
+   * session that she has none. Only reachable when no Flow is published; with a
+   * Flow we open it instead and let its own error screen speak.
+   */
+  statusCheckFailed: {
+    en: "I couldn't check what's running just now. Please send /status again in a moment.",
+    ur: 'میں اس وقت یہ نہیں دیکھ سکا کہ کیا چل رہا ہے۔ تھوڑی دیر بعد دوبارہ /status بھیجیں۔',
+  },
+
+  /**
    * bd-2712 — the /remark Supervisor Remark FLOW (docs/flows/remark-flow.json).
    *
    * These live here rather than beside the rubric because they are Flow CHROME,

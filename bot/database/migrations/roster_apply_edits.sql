@@ -125,9 +125,16 @@ BEGIN
   GET DIAGNOSTICS v_added = ROW_COUNT;
 
   -- Not in this class: the enrolment closes. is_active = false, never DELETE.
+  --
+  -- `outcome` says WHY, and the honest answer here is 'roster_correction': the coach
+  -- struck a line off the register view and was never asked for a reason. It used to
+  -- be left NULL, which records nothing; the JS writer used to say 'left', which
+  -- records a departure nobody witnessed. Both are read by attrition analysis, one
+  -- as a gap and one as a lie.
   WITH r AS (SELECT (x->>'id')::uuid AS id FROM jsonb_array_elements(p_removes) AS t(x))
   UPDATE class_enrollments ce
-  SET is_active = false, left_on = current_date, updated_at = now()
+  SET is_active = false, left_on = current_date, outcome = 'roster_correction',
+      updated_at = now()
   FROM r
   WHERE ce.class_id = p_class_id AND ce.student_id = r.id AND ce.is_active;
   GET DIAGNOSTICS v_removed = ROW_COUNT;

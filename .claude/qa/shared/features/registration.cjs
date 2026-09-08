@@ -97,7 +97,7 @@ exports.run = async ({ api, rec, sleep }) => {
   if (!(sub.found && !sub.disabled)) {
     for (const [id, nm] of [['R13','organization "Other" adds ORG_DETAILS'],
                             ['R03','Completing the Flow registers the teacher'],
-                            ['R05','completion greeting drops the name'],
+                            ['R05','completion greeting names the teacher'],
                             ['R08','already-registered teacher is not re-onboarded']])
       rec(id, nm, 'BLOCKED', { reason: 'Complete Registration never enabled — see R13-pre' }, 0);
     rec('R10', 'Abandoning the Flow leaves the teacher unregistered', 'DEFERRED', {}, 0);
@@ -146,10 +146,10 @@ exports.run = async ({ api, rec, sleep }) => {
       { picked: 'Coach', dbRole: roleLine.trim() || '(not found)',
         note: rolePersisted ? 'role persisted' : 'role NOT persisted — known-fail reproduces' }, t() - s);
 
-  rec('R05', 'The completion greeting drops the name (@known-fail)',
+  rec('R05', 'The completion greeting names the teacher, in Urdu for Pakistan',
       nameInGreeting ? 'PASS' : 'FAIL',
-      { nameInGreeting, note: nameInGreeting ? 'name present — the known-fail is FIXED here'
-                                             : 'name dropped — known-fail reproduces' }, 0);
+      { nameInGreeting, note: nameInGreeting ? 'name present'
+                                             : 'name dropped — F-REG1 regressed' }, 0);
 
   // R08 — already registered short-circuits
   s = t();
